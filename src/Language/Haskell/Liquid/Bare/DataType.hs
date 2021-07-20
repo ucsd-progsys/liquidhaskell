@@ -45,7 +45,8 @@ import qualified Language.Haskell.Liquid.Bare.Resolve   as Bare
 
 import           Text.Printf                     (printf)
 import Data.Either (rights)
-import Control.Monad (unless)
+import Control.Monad (forM, unless)
+import Text.PrettyPrint ((<+>))
 
 --------------------------------------------------------------------------------
 -- | 'DataConMap' stores the names of those ctor-fields that have been declared
@@ -366,12 +367,12 @@ makeConTypes myName env specs =
   
 makeConTypes' :: ModName -> Bare.Env -> (ModName, Ms.BareSpec) 
              -> Bare.Lookup ([(ModName, TyConP, Maybe DataPropDecl)], [[Located DataConP]])
-makeConTypes' _myName env (name, spec) =
+makeConTypes' _myName env (name, spec) = do
+  dcs'   <- canonizeDecls env name dcs
+  let gvs = groupVariances dcs' vdcs
   unzip <$> mapM (uncurry (ofBDataDecl env name)) gvs
   where
     -- msg  = printf "makeConTypes (%s): %s" (show myName) (show name)
-    gvs  = groupVariances dcs' vdcs
-    dcs' = canonizeDecls env name dcs
     dcs  = Ms.dataDecls spec 
     vdcs = Ms.dvariance spec 
 
@@ -380,14 +381,21 @@ makeConTypes' _myName env (name, spec) =
 --   lifted versions appear LATER in the input list, and always use those
 --   instead of the unlifted versions.
 
-canonizeDecls :: Bare.Env -> ModName -> [DataDecl] -> [DataDecl]
-canonizeDecls env name ds =
-  case Misc.uniqueByKey' selectDD kds of
-    Left  decls  -> err    decls
-    Right decls  -> decls
+canonizeDecls :: Bare.Env -> ModName -> [DataDecl] -> Bare.Lookup [DataDecl]
+canonizeDecls env name ds = do
+  kds <- forM ds $ \d -> do
+           k <- dataDeclKey env name d 
+           return (fmap (, d) k)
+  case Misc.uniqueByKey' selectDD (Mb.catMaybes kds) of
+    Left  decls  -> Left (err decls)
+    Right decls  -> return decls
+            -- [ (k, d) | d <- ds, k <- rights [dataDeclKey env name d] ] 
+  -- case Misc.uniqueByKey' selectDD kds of
+    -- Left  decls  -> err    decls
+    -- Right decls  -> decls
   where
-    kds          = [ (k, d) | d <- ds, k <- rights [dataDeclKey env name d] ] 
-    err ds@(d:_) = uError (errDupSpecs (pprint $ tycName d)(GM.fSrcSpan <$> ds))
+    -- kds          = F.tracepp "canonizeDecls" [ (k, d) | d <- ds, k <- rights [dataDeclKey env name d] ] 
+    err ds@(d:_) = {- uError $ -} errDupSpecs (pprint (tycName d)) (GM.fSrcSpan <$> ds)
     err _        = impossible Nothing "canonizeDecls"
 
 dataDeclKey :: Bare.Env -> ModName -> DataDecl -> Bare.Lookup (Maybe F.Symbol) 

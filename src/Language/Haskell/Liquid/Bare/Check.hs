@@ -88,9 +88,7 @@ checkUnique _ = mkDiagnostics mempty . checkUnique' F.val GM.fSrcSpan
 checkUnique' :: (PPrint a, Eq a, Hashable a) 
              => (t -> a) -> (t -> Ghc.SrcSpan) -> [t] -> [Error]
 checkUnique' nameF locF ts = [ErrDupSpecs l (pprint n) ls | (n, ls@(l:_)) <- dups] 
--- mkErr <$> dups
   where
-    -- mkErr (n, ls@(l:_))    = ErrDupSpecs l (pprint n) ls
     dups                   = [ z      | z@(_, _:_:_) <- Misc.groupList nts       ] 
     nts                    = [ (n, l) | t <- ts, let n = nameF t, let l = locF t ]
 
@@ -414,11 +412,6 @@ checkClassMethods (Just clsis) cms xts =
     ms   = F.notracepp "MS"  $ concatMap (classMethods . is_cls) clsis
     xts' = F.notracepp "XTS" $ filter (not . (`elem` cls) . fst) xts
     cls  = F.notracepp "CLS" cms
-
--- checkDuplicate xts = mkErr <$> dups
-  -- where
-    -- mkErr (x, ts) = ErrDupSpecs (getSrcSpan x) (pprint x) (GM.fSrcSpan <$> ts)
-    -- dups          = [z | z@(_, _:_:_) <- M.toList $ group xts ]
 
 checkDuplicateRTAlias :: String -> [Located (RTAlias s a)] -> Diagnostics
 checkDuplicateRTAlias s tas = mkDiagnostics mempty (map mkErr dups)

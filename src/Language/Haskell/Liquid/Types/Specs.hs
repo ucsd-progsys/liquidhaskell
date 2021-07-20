@@ -239,9 +239,27 @@ data GhcSpecSig = SpSig
   }
 
 instance Semigroup GhcSpecSig where
-  (<>) = error "FIXME:1773"
+  x <> y = SpSig 
+    { gsTySigs   = gsTySigs x   <> gsTySigs y   
+    , gsAsmSigs  = gsAsmSigs x  <> gsAsmSigs y   
+    , gsRefSigs  = gsRefSigs x  <> gsRefSigs y   
+    , gsInSigs   = gsInSigs x   <> gsInSigs y   
+    , gsNewTypes = gsNewTypes x <> gsNewTypes y   
+    , gsDicts    = gsDicts x    <> gsDicts y   
+    , gsMethods  = gsMethods x  <> gsMethods y   
+    , gsTexprs   = gsTexprs x   <> gsTexprs y   
+
+    }
+
+
+
+
+
+
+
 instance Monoid GhcSpecSig where
-  mempty = error "FIXME:1773"
+  mempty = SpSig mempty mempty mempty mempty mempty mempty mempty mempty  
+
 data GhcSpecData = SpData 
   { gsCtors      :: ![(Var, LocSpecType)]         -- ^ Data Constructor Measure Sigs
   , gsMeas       :: ![(F.Symbol, LocSpecType)]    -- ^ Measure Types eg.  len :: [a] -> Int
@@ -293,11 +311,22 @@ data GhcSpecRefl = SpRefl
   }
 
 instance Semigroup GhcSpecRefl where
-  (<>) = error "FIXME:1773"
+  x <> y = SpRefl 
+    { gsAutoInst = gsAutoInst x <> gsAutoInst y 
+    , gsHAxioms  = gsHAxioms x <> gsHAxioms y
+    , gsImpAxioms = gsImpAxioms x <> gsImpAxioms y
+    , gsMyAxioms = gsMyAxioms x <> gsMyAxioms y
+    , gsReflects = gsReflects x <> gsReflects y
+    , gsLogicMap = gsLogicMap x <> gsLogicMap y
+    , gsWiredReft = gsWiredReft x <> gsWiredReft y
+    , gsRewrites = gsRewrites x <> gsRewrites y
+    , gsRewritesWith = gsRewritesWith x <> gsRewritesWith y
+    } 
 
 instance Monoid GhcSpecRefl where
-  mempty = error "FIXME:1773"
-
+  mempty = SpRefl mempty mempty mempty
+                  mempty mempty mempty
+                  mempty mempty mempty
 data GhcSpecLaws = SpLaws 
   { gsLawDefs :: !([(Class, [(Var, LocSpecType)])])
   , gsLawInst :: ![LawInstance]
@@ -331,7 +360,16 @@ type SpecMeasure   = Measure LocSpecType DataCon
 -- to undefined or out-of-scope entities.
 newtype BareSpec =
   MkBareSpec { getBareSpec :: Spec LocBareType F.LocSymbol }
-  deriving (Generic, Show, Semigroup, Monoid, Binary)
+  deriving (Generic, Show, Binary)
+
+instance Semigroup BareSpec where
+  x <> y = MkBareSpec { getBareSpec = getBareSpec x <> getBareSpec y }
+
+instance Monoid BareSpec where
+  mempty = MkBareSpec { getBareSpec = mempty } 
+
+
+-- instance Semigroup (Spec ty bndr) where
 
 -- | A generic 'Spec' type, polymorphic over the inner choice of type and binder.
 data Spec ty bndr  = Spec
@@ -600,8 +638,17 @@ emptyLiftedSpec = LiftedSpec
 -- | The /target/ dependencies that concur to the creation of a 'TargetSpec' and a 'LiftedSpec'.
 newtype TargetDependencies =
   TargetDependencies { getDependencies :: HashMap StableModule LiftedSpec }
-  deriving (Eq, Show, Semigroup, Monoid, Generic)
+  deriving (Eq, Show, Generic)
   deriving Binary via Generically TargetDependencies
+
+instance Semigroup TargetDependencies where
+  x <> y = TargetDependencies 
+             { getDependencies = getDependencies x <> getDependencies y 
+             }
+
+
+instance Monoid TargetDependencies where
+  mempty = TargetDependencies mempty
 
 -- | Drop the given 'StableModule' from the dependencies.
 dropDependency :: StableModule -> TargetDependencies -> TargetDependencies

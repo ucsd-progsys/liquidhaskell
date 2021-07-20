@@ -157,18 +157,20 @@ makeGhcSpec :: Config
             -> [(ModName, Ms.BareSpec)]
             -> Either Diagnostics ([Warning], GhcSpec)
 -------------------------------------------------------------------------------------
-makeGhcSpec cfg src lmap validatedSpecs = 
-  case addDiag diag diagnostics of
-    Left e | noErrors e -> pure (allWarnings e, sp)
-    Left e              -> Left e
-    Right ()            -> pure (mempty, sp)
+makeGhcSpec cfg src lmap validatedSpecs =
+  if not (noErrors dg0) then Left dg0 else 
+    case diagnostics of
+      Left dg1 
+        | noErrors dg1 -> pure (allWarnings dg1, sp)
+        | otherwise    -> Left dg1
+      Right ()         -> pure (mempty, sp)
   where
     diagnostics = Bare.checkTargetSpec (map snd validatedSpecs)
                                        (view targetSrcIso src)
                                        renv
                                        cbs
                                        (fst . view targetSpecGetter $ sp)
-    (diag, sp)  = makeGhcSpec0 cfg src lmap validatedSpecs
+    (dg0, sp)   = makeGhcSpec0 cfg src lmap validatedSpecs
     renv        = ghcSpecEnv sp
     cbs         = _giCbs src
 
@@ -368,10 +370,10 @@ varTyCons :: Ghc.Var -> [Ghc.TyCon]
 varTyCons = specTypeCons . ofType . Ghc.varType
 
 specTypeCons           :: SpecType -> [Ghc.TyCon]
-specTypeCons           = foldRType tc []
+specTypeCons         = foldRType tc []
   where
-    tc acc t@(RApp {}) = (rtc_tc $ rt_tycon t) : acc
-    tc acc _           = acc
+    tc acc t@RApp {} = rtc_tc (rt_tycon t) : acc
+    tc acc _         = acc
 
 reflectedVars :: Ms.BareSpec -> [Ghc.CoreBind] -> [Ghc.Var]
 reflectedVars spec cbs = fst <$> xDefs
@@ -460,7 +462,7 @@ qualifyFTycon env tycEnv name c
   | otherwise           = tyConSort embs . F.atLoc tcs <$> ty 
   where       
     ty                  = Bare.maybeResolveSym env name "qualify-FTycon" tcs                
-    isPrimFTC           = (F.val tcs) `elem` F.prims 
+    isPrimFTC           = F.val tcs `elem` F.prims 
     tcs                 = F.fTyconSymbol c
     embs                = Bare.tcEmbs tycEnv 
 
@@ -1171,3 +1173,4 @@ normalizeBareAlias env sigEnv name lx = fixRTA <$> lx
 
 withDiagnostics :: (Monoid a) => Bare.Lookup a -> (Diagnostics, a)
 withDiagnostics (Left e) = (mkDiagnostics [] [e], mempty)
+withDiagnostics (Right v) = (emptyDiagnostics, v)
