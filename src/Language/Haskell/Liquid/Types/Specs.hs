@@ -714,10 +714,6 @@ data GhcSpec = SP
 instance HasConfig GhcSpec where
   getConfig = _gsConfig
 
-{- 
-instance HasConfig GhcInfo where
-  getConfig = getConfig . _giSpec
--}
 
 {- $provisionalBackCompat
 

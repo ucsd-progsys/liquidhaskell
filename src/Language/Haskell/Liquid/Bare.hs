@@ -60,6 +60,7 @@ import qualified Language.Haskell.Liquid.Bare.Laws          as Bare
 import qualified Language.Haskell.Liquid.Transforms.CoreToLogic as CoreToLogic 
 import           Control.Arrow                    (second)
 import Data.Hashable (Hashable)
+import qualified Language.Haskell.Liquid.Bare.Slice as Dg
 
 --------------------------------------------------------------------------------
 -- | De/Serializing Spec files
@@ -86,7 +87,6 @@ warnMissingLiftedSpec srcF specF = do
 errMissingSpec :: FilePath -> FilePath -> UserError 
 errMissingSpec srcF specF = ErrNoSpec Ghc.noSrcSpan (text srcF) (text specF)
 
--- saveLiftedSpec :: FilePath -> ModName -> Ms.BareSpec -> IO ()
 saveLiftedSpec :: FilePath -> Ms.BareSpec -> IO () 
 saveLiftedSpec srcF lspec = do
   ensurePath specF
@@ -174,11 +174,6 @@ makeGhcSpec cfg src lmap validatedSpecs =
     renv        = ghcSpecEnv sp
     cbs         = _giCbs src
 
-addDiag :: Diagnostics -> Either Diagnostics a -> Either Diagnostics a
-addDiag d (Left d')       = Left (d <> d')
-addDiag d (Right v) 
-  | d == emptyDiagnostics = Right v 
-  | otherwise             = Left d
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
 ghcSpecEnv sp = fromListSEnv binds
@@ -265,17 +260,18 @@ makeGhcSpec0 cfg src lmap mspecs = (diags, SP
     embs     = makeEmbeds          src env ((name, mySpec0) : M.toList iSpecs0)
     -- extract name and specs
     env      = Bare.makeEnv cfg src lmap mspecs  
-    (mySpec0, iSpecs0) = splitSpecs name mspecs 
+    (mySpec0, iSpecs0) = splitSpecs name src mspecs 
     -- check barespecs 
     name     = F.notracepp ("ALL-SPECS" ++ zzz) $ _giTargetMod  src 
     zzz      = F.showpp (fst <$> mspecs)
 
-splitSpecs :: ModName -> [(ModName, Ms.BareSpec)] -> (Ms.BareSpec, Bare.ModSpecs) 
-splitSpecs name specs = (mySpec, iSpecm) 
+splitSpecs :: ModName -> GhcSrc -> [(ModName, Ms.BareSpec)] -> (Ms.BareSpec, Bare.ModSpecs) 
+splitSpecs name src specs = (mySpec, iSpecm) 
   where 
-    mySpec            = mconcat (snd <$> mySpecs)
-    (mySpecs, iSpecs) = L.partition ((name ==) . fst) specs 
-    iSpecm            = fmap mconcat . Misc.group $ iSpecs
+    iSpecm             = fmap mconcat . Misc.group $ iSpecs
+    iSpecs             = Dg.sliceSpecs src mySpec iSpecs'
+    mySpec             = mconcat (snd <$> mySpecs)
+    (mySpecs, iSpecs') = L.partition ((name ==) . fst) specs 
 
 
 makeImports :: [(ModName, Ms.BareSpec)] -> [(F.Symbol, F.Sort)]

@@ -740,7 +740,7 @@ quantifyFreeRTy ty = quantifyRTy (freeTyVars ty) ty
 -------------------------------------------------------------------------
 addTyConInfo :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
              => TCEmb TyCon
-             -> TyConMap -- (M.HashMap TyCon RTyCon)
+             -> TyConMap
              -> RRType r
              -> RRType r
 -------------------------------------------------------------------------
