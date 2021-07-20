@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass #-}
 -- | This module contains the top-level structures that hold 
 --   information about specifications.
 
@@ -237,6 +238,10 @@ data GhcSpecSig = SpSig
   , gsTexprs   :: ![(Var, LocSpecType, [F.Located F.Expr])]  -- ^ Lexicographically ordered expressions for termination
   }
 
+instance Semigroup GhcSpecSig where
+  (<>) = error "FIXME:1773"
+instance Monoid GhcSpecSig where
+  mempty = error "FIXME:1773"
 data GhcSpecData = SpData 
   { gsCtors      :: ![(Var, LocSpecType)]         -- ^ Data Constructor Measure Sigs
   , gsMeas       :: ![(F.Symbol, LocSpecType)]    -- ^ Measure Types eg.  len :: [a] -> Int
@@ -245,7 +250,6 @@ data GhcSpecData = SpData
   , gsMeasures   :: ![Measure SpecType DataCon]   -- ^ Measure definitions
   , gsUnsorted   :: ![UnSortedExpr]
   }
-
 data GhcSpecNames = SpNames 
   { gsFreeSyms   :: ![(F.Symbol, Var)]            -- ^ List of `Symbol` free in spec and corresponding GHC var, eg. (Cons, Cons#7uz) from tests/pos/ex1.hs
   , gsDconsP     :: ![F.Located DataCon]          -- ^ Predicated Data-Constructors, e.g. see tests/pos/Map.hs
@@ -287,6 +291,12 @@ data GhcSpecRefl = SpRefl
   , gsRewrites     :: S.HashSet (F.Located Var)
   , gsRewritesWith :: M.HashMap Var [Var]
   }
+
+instance Semigroup GhcSpecRefl where
+  (<>) = error "FIXME:1773"
+
+instance Monoid GhcSpecRefl where
+  mempty = error "FIXME:1773"
 
 data GhcSpecLaws = SpLaws 
   { gsLawDefs :: !([(Class, [(Var, LocSpecType)])])

@@ -133,6 +133,11 @@ data MeasEnv = MeasEnv
   , meCLaws       :: !([(Ghc.Class, [(ModName, Ghc.Var, LocSpecType)])])  
   }
 
+instance Semigroup MeasEnv where
+  (<>) = error "FIXME:1773"
+instance Monoid MeasEnv where
+  mempty = error "FIXME:1773"
+
 -------------------------------------------------------------------------------
 -- | Converting @Var@ to @Sort@
 -------------------------------------------------------------------------------

@@ -358,14 +358,18 @@ dataConSpec' = concatMap tx
 --------------------------------------------------------------------------------
 -- | Bare Predicate: DataCon Definitions ---------------------------------------
 --------------------------------------------------------------------------------
-makeConTypes :: ModName -> Bare.Env -> (ModName, Ms.BareSpec) 
-             -> Either Diagnostics ([(ModName, TyConP, Maybe DataPropDecl)], [[Located DataConP]])
-makeConTypes myName env (name, spec) = case cts of
-    Left errs -> Left (mkDiagnostics [] errs)
-    Right rs  -> Right (unzip rs)
+makeConTypes :: ModName -> Bare.Env -> [(ModName, Ms.BareSpec)] 
+             -> Bare.Lookup ([(ModName, TyConP, Maybe DataPropDecl)], [[Located DataConP]])
+makeConTypes myName env specs =
+  Misc.concatUnzip <$> mapM (makeConTypes' myName env) specs 
+
+  
+makeConTypes' :: ModName -> Bare.Env -> (ModName, Ms.BareSpec) 
+             -> Bare.Lookup ([(ModName, TyConP, Maybe DataPropDecl)], [[Located DataConP]])
+makeConTypes' _myName env (name, spec) =
+  unzip <$> mapM (uncurry (ofBDataDecl env name)) gvs
   where
-    cts  = Misc.catEithers [ ofBDataDecl env name x y | (x, y) <- F.tracepp msg gvs ] 
-    msg  = printf "makeConTypes (%s): %s" (show myName) (show name)
+    -- msg  = printf "makeConTypes (%s): %s" (show myName) (show name)
     gvs  = groupVariances dcs' vdcs
     dcs' = canonizeDecls env name dcs
     dcs  = Ms.dataDecls spec 
