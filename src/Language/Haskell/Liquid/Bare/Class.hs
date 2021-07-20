@@ -37,6 +37,7 @@ import           Language.Haskell.Liquid.Bare.Misc         as Bare
 
 import           Text.PrettyPrint.HughesPJ (text)
 import qualified Control.Exception                 as Ex
+import Control.Monad (forM)
 
 
 
@@ -128,30 +129,38 @@ splitDictionary = go [] []
 
 -------------------------------------------------------------------------------
 makeCLaws :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs 
-            -> [(Ghc.Class, [(ModName, Ghc.Var, LocSpecType)])]
+          -> Bare.Lookup [(Ghc.Class, [(ModName, Ghc.Var, LocSpecType)])]
 -------------------------------------------------------------------------------
-makeCLaws env sigEnv myName specs = 
-  [ (Mb.fromMaybe (msg tc) (Ghc.tyConClass_maybe tc), snd cls) | (name, spec) <- M.toList specs
-          , cls          <- Ms.claws spec
-          , tc           <- Mb.maybeToList (classTc cls) 
-          , cls          <- Mb.maybeToList (mkClass env sigEnv myName name cls tc)
-    ]
+makeCLaws env sigEnv myName specs = do 
+  zMbs <- forM classTcs $ \(name, cls, tc) -> do 
+            clsMb <- mkClass env sigEnv myName name cls tc
+            case clsMb of 
+              Nothing -> 
+                return $ Nothing 
+              Just cls -> do 
+                gcls <- Mb.maybe (err tc) Right (Ghc.tyConClass_maybe tc) 
+                return $ Just (gcls, snd cls)
+  return (Mb.catMaybes zMbs)
   where
-    msg tc  = error ("Not a type class: " ++ F.showpp tc)
-    classTc = Bare.maybeResolveSym env myName "makeClass" . btc_tc . rcName 
+    err tc   = error ("Not a type class: " ++ F.showpp tc)
+    classTc  = Bare.maybeResolveSym env myName "makeClass" . btc_tc . rcName 
+    classTcs = [ (name, cls, tc) | (name, spec) <- M.toList specs
+                                 , cls          <- Ms.claws spec
+                                 , tc           <- Mb.maybeToList (classTc cls) 
+               ]
 
 -------------------------------------------------------------------------------
 makeClasses :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs 
-            -> ([DataConP], [(ModName, Ghc.Var, LocSpecType)])
+            -> Bare.Lookup ([DataConP], [(ModName, Ghc.Var, LocSpecType)])
 -------------------------------------------------------------------------------
-makeClasses env sigEnv myName specs = 
-  second mconcat . unzip 
-  $ [ cls | (name, spec) <- M.toList specs
-          , cls          <- Ms.classes spec
-          , tc           <- Mb.maybeToList (classTc cls) 
-          , cls          <- Mb.maybeToList (mkClass env sigEnv myName name cls tc)
-    ]
+makeClasses env sigEnv myName specs = do 
+  mbZs <- forM classTcs $ \(name, cls, tc) -> 
+            mkClass env sigEnv myName name cls tc 
+  return . second mconcat . unzip . Mb.catMaybes $ mbZs 
   where
+    classTcs = [ (name, cls, tc) | (name, spec) <- M.toList specs
+                                 , cls          <- Ms.classes spec
+                                 , tc           <- Mb.maybeToList (classTc cls) ]
     classTc = Bare.maybeResolveSym env myName "makeClass" . btc_tc . rcName 
 
 mkClass :: Bare.Env -> Bare.SigEnv -> ModName -> ModName -> RClass LocBareType -> Ghc.TyCon 

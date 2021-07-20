@@ -390,12 +390,15 @@ canonizeDecls env name ds =
     err ds@(d:_) = uError (errDupSpecs (pprint $ tycName d)(GM.fSrcSpan <$> ds))
     err _        = impossible Nothing "canonizeDecls"
 
-dataDeclKey :: Bare.Env -> ModName -> DataDecl -> Bare.Lookup F.Symbol 
--- dataDeclKey env name = fmap F.symbol . Bare.lookupGhcDnTyCon env name "canonizeDecls" . tycName
-dataDeclKey env name d = do 
-  tc    <- Bare.lookupGhcDnTyCon env name "canonizeDecls" (tycName d)
-  _     <- checkDataCtors env name tc d (tycDCons d)
-  return (F.symbol tc)
+dataDeclKey :: Bare.Env -> ModName -> DataDecl -> Bare.Lookup (Maybe F.Symbol) 
+dataDeclKey env name d = do
+  tcMb  <- Bare.lookupGhcDnTyCon env name "canonizeDecls" (tycName d)
+  case tcMb of
+    Nothing -> 
+      return Nothing
+    Just tc -> do 
+      _ <- checkDataCtors env name tc d (tycDCons d)
+      return $ Just (F.symbol tc)
 
 -- | Perform sanity check on the data constructors of a LH datatype declaration.
 --
@@ -471,13 +474,18 @@ checkDataDecl c d = F.notracepp _msg (isGADT || cN == dN || null (tycDCons d))
     isGADT        = Ghc.isGadtSyntaxTyCon c
 
 getDnTyCon :: Bare.Env -> ModName -> DataName -> Bare.Lookup Ghc.TyCon
-getDnTyCon env name dn = {- Mb.fromMaybe ugh $ -} Bare.lookupGhcDnTyCon env name "ofBDataDecl-1" dn
-  -- where 
+getDnTyCon env name dn = do 
+  tcMb <- Bare.lookupGhcDnTyCon env name "ofBDataDecl-1" dn
+  case tcMb of
+    Just tc -> return tc
+    Nothing -> Left $ ErrBadData (GM.fSrcSpan dn) (pprint dn) "Unknown Type Constructor"
+
   --  ugh              = impossible Nothing "getDnTyCon"
+
 
 -- FIXME: ES: why the maybes?
 ofBDataDecl :: Bare.Env -> ModName -> Maybe DataDecl -> Maybe (LocSymbol, [Variance])
-            -> Either Error ( (ModName, TyConP, Maybe DataPropDecl), [Located DataConP] )
+            -> Bare.Lookup ( (ModName, TyConP, Maybe DataPropDecl), [Located DataConP] )
 ofBDataDecl env name (Just dd@(DataDecl tc as ps cts pos sfun pt _)) maybe_invariance_info = do 
   let Loc lc lc' _ = dataNameSymbol tc
   let πs           = Bare.ofBPVar env name pos <$> ps

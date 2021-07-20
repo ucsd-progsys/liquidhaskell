@@ -1041,7 +1041,10 @@ makeMeasEnv :: Bare.Env -> Bare.TycEnv -> Bare.SigEnv -> Bare.ModSpecs ->
                Bare.Lookup Bare.MeasEnv 
 -------------------------------------------------------------------------------------------
 makeMeasEnv env tycEnv sigEnv specs = do 
-  measures0 <- mapM (Bare.makeMeasureSpec env sigEnv name) (M.toList specs)
+  laws        <- Bare.makeCLaws env sigEnv name specs
+  (cls, mts)  <- Bare.makeClasses        env sigEnv name specs
+  let dms      = Bare.makeDefaultMethods env mts  
+  measures0   <- mapM (Bare.makeMeasureSpec env sigEnv name) (M.toList specs)
   let measures = mconcat (Ms.mkMSpec' dcSelectors : measures0)
   let (cs, ms) = Bare.makeMeasureSpec'     measures
   let cms      = Bare.makeClassMeasureSpec measures
@@ -1066,9 +1069,6 @@ makeMeasEnv env tycEnv sigEnv specs = do
     datacons      = Bare.tcDataCons    tycEnv 
     embs          = Bare.tcEmbs        tycEnv 
     name          = Bare.tcName        tycEnv
-    dms           = Bare.makeDefaultMethods env mts  
-    (cls, mts)    = Bare.makeClasses        env sigEnv name specs
-    laws          = Bare.makeCLaws env sigEnv name specs
 
 -----------------------------------------------------------------------------------------
 -- | @makeLiftedSpec@ is used to generate the BareSpec object that should be serialized 
