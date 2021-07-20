@@ -486,7 +486,7 @@ cookSpecType env sigEnv name x bt
 
 -----------------------------------------------------------------------------------------
 cookSpecTypeE :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocBareType 
-              -> Either Error LocSpecType 
+              -> Bare.Lookup LocSpecType 
 -----------------------------------------------------------------------------------------
 cookSpecTypeE env sigEnv name x bt
   = id 

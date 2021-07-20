@@ -140,8 +140,6 @@ makeCLaws env sigEnv myName specs =
     msg tc  = error ("Not a type class: " ++ F.showpp tc)
     classTc = Bare.maybeResolveSym env myName "makeClass" . btc_tc . rcName 
 
-
-
 -------------------------------------------------------------------------------
 makeClasses :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs 
             -> ([DataConP], [(ModName, Ghc.Var, LocSpecType)])
@@ -157,13 +155,13 @@ makeClasses env sigEnv myName specs =
     classTc = Bare.maybeResolveSym env myName "makeClass" . btc_tc . rcName 
 
 mkClass :: Bare.Env -> Bare.SigEnv -> ModName -> ModName -> RClass LocBareType -> Ghc.TyCon 
-        -> Maybe (DataConP, [(ModName, Ghc.Var, LocSpecType)])
+        -> Bare.Lookup (Maybe (DataConP, [(ModName, Ghc.Var, LocSpecType)]))
 mkClass env sigEnv _myName name (RClass cc ss as ms) 
   = Bare.failMaybe env name 
   . mkClassE env sigEnv _myName name (RClass cc ss as ms) 
 
 mkClassE :: Bare.Env -> Bare.SigEnv -> ModName -> ModName -> RClass LocBareType -> Ghc.TyCon 
-         -> Either UserError (DataConP, [(ModName, Ghc.Var, LocSpecType)])
+         -> Bare.Lookup (DataConP, [(ModName, Ghc.Var, LocSpecType)])
 mkClassE env sigEnv _myName name (RClass cc ss as ms) tc = do 
     ss'    <- mapM (mkConstr   env sigEnv name) ss 
     meths  <- mapM (makeMethod env sigEnv name) ms'
@@ -182,7 +180,7 @@ mkClassE env sigEnv _myName name (RClass cc ss as ms) tc = do
     ms'    = [ (s, rFun "" (RApp cc (flip RVar mempty <$> as) [] mempty) <$> t) | (s, t) <- ms]
     t      = rCls tc as'
 
-mkConstr :: Bare.Env -> Bare.SigEnv -> ModName -> LocBareType -> Either UserError LocSpecType     
+mkConstr :: Bare.Env -> Bare.SigEnv -> ModName -> LocBareType -> Bare.Lookup LocSpecType     
 mkConstr env sigEnv name = fmap (fmap dropUniv) . Bare.cookSpecTypeE env sigEnv name Bare.GenTV 
   where 
     dropUniv t           = t' where (_, _, t') = bkUniv t
@@ -192,20 +190,17 @@ unClass :: SpecType -> SpecType
 unClass = snd . bkClass . thrd3 . bkUniv
 
 makeMethod :: Bare.Env -> Bare.SigEnv -> ModName -> (LocSymbol, LocBareType) 
-         -> Either UserError (ModName, PlugTV Ghc.Var, LocSpecType)
+           -> Bare.Lookup (ModName, PlugTV Ghc.Var, LocSpecType)
 makeMethod env sigEnv name (lx, bt) = (name, mbV,) <$> Bare.cookSpecTypeE env sigEnv name mbV bt
   where 
-    mbV = case Bare.maybeResolveSym env name "makeMethod" lx of 
-            Just v  -> Bare.LqTV v 
-            Nothing -> Bare.GenTV 
+    mbV = maybe Bare.GenTV Bare.LqTV (Bare.maybeResolveSym env name "makeMethod" lx) 
 
 -------------------------------------------------------------------------------
 makeSpecDictionaries :: Bare.Env -> Bare.SigEnv -> ModSpecs -> DEnv Ghc.Var LocSpecType 
 -------------------------------------------------------------------------------
 makeSpecDictionaries env sigEnv specs
   = dfromList 
-  . concat 
-  . fmap (makeSpecDictionary env sigEnv) 
+  . concatMap (makeSpecDictionary env sigEnv) 
   $ M.toList specs
 
 makeSpecDictionary :: Bare.Env -> Bare.SigEnv -> (ModName, Ms.BareSpec)
