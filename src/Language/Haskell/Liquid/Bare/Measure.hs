@@ -46,6 +46,7 @@ import qualified Language.Haskell.Liquid.Bare.Resolve  as Bare
 import qualified Language.Haskell.Liquid.Bare.Expand   as Bare 
 import qualified Language.Haskell.Liquid.Bare.DataType as Bare 
 import qualified Language.Haskell.Liquid.Bare.ToBare   as Bare 
+import Control.Monad (mapM)
 
 --------------------------------------------------------------------------------
 makeHaskellMeasures :: GhcSrc -> Bare.TycEnv -> LogicMap -> Ms.BareSpec
@@ -345,7 +346,8 @@ makeMeasureSpec' mspec0 = (ctorTys, measTys)
     mspec               = first (mapReft ur_reft) mspec0
 
 ----------------------------------------------------------------------------------------------
-makeMeasureSpec :: Bare.Env -> Bare.SigEnv -> ModName -> (ModName, Ms.BareSpec) -> Ms.MSpec SpecType Ghc.DataCon
+makeMeasureSpec :: Bare.Env -> Bare.SigEnv -> ModName -> (ModName, Ms.BareSpec) -> 
+                   Bare.Lookup (Ms.MSpec SpecType Ghc.DataCon)
 ----------------------------------------------------------------------------------------------
 makeMeasureSpec env sigEnv myName (name, spec) 
   = mkMeasureDCon env               name 
@@ -368,10 +370,15 @@ bareMSpec env sigEnv myName name spec = Ms.mkMSpec ms cms ims
     okSort     = Bare.knownGhcType env name . msSort 
     okCtors    = all (Bare.knownGhcDataCon env name . ctor) . msEqns 
 
-mkMeasureDCon :: Bare.Env -> ModName -> Ms.MSpec t LocSymbol -> Ms.MSpec t Ghc.DataCon
-mkMeasureDCon env name m = mkMeasureDCon_ m [ (val n, symDC n) | n <- measureCtors m ]
-  where 
-    symDC                = Bare.lookupGhcDataCon env name "measure-datacon"
+mkMeasureDCon :: Bare.Env -> ModName -> Ms.MSpec t LocSymbol -> Bare.Lookup (Ms.MSpec t Ghc.DataCon)
+mkMeasureDCon env name m = do
+  let ns = measureCtors m
+  dcs   <- mapM (Bare.lookupGhcDataCon env name "measure-datacon") ns 
+  return $ mkMeasureDCon_ m (zip (val <$> ns) dcs)
+
+-- mkMeasureDCon env name m = mkMeasureDCon_ m [ (val n, symDC n) | n <- measureCtors m ]
+--   where 
+--     symDC                = Bare.lookupGhcDataCon env name "measure-datacon"
 
 mkMeasureDCon_ :: Ms.MSpec t LocSymbol -> [(F.Symbol, Ghc.DataCon)] -> Ms.MSpec t Ghc.DataCon
 mkMeasureDCon_ m ndcs = m' {Ms.ctorMap = cm'}
@@ -391,10 +398,10 @@ mkMeasureSort env name (Ms.MSpec c mm cm im) =
       ofMeaSort :: F.SourcePos -> BareType -> SpecType
       ofMeaSort l = Bare.ofBareType env name l Nothing 
 
-      tx :: Measure BareType ctor -> (Measure SpecType ctor)
+      tx :: Measure BareType ctor -> Measure SpecType ctor
       tx (M n s eqs k u) = M n (ofMeaSort l s) (txDef <$> eqs) k u where l = GM.fSourcePos n
 
-      txDef :: Def BareType ctor -> (Def SpecType ctor)
+      txDef :: Def BareType ctor -> Def SpecType ctor
       txDef d = first (ofMeaSort l) d                              where l = GM.fSourcePos (measure d) 
 
 

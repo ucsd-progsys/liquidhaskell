@@ -210,6 +210,17 @@ data GhcSpecVars = SpVar
   , gsCMethods   :: ![Var]                        -- ^ Refined Class methods 
   }
 
+instance Semigroup GhcSpecVars where
+  sv1 <> sv2 = SpVar 
+    { gsTgtVars    = gsTgtVars    sv1 <> gsTgtVars    sv2
+    , gsIgnoreVars = gsIgnoreVars sv1 <> gsIgnoreVars sv2
+    , gsLvars      = gsLvars      sv1 <> gsLvars      sv2
+    , gsCMethods   = gsCMethods   sv1 <> gsCMethods   sv2
+    }
+
+instance Monoid GhcSpecVars where
+  mempty = SpVar mempty mempty mempty mempty
+
 data GhcSpecQual = SpQual 
   { gsQualifiers :: ![F.Qualifier]                -- ^ Qualifiers in Source/Spec files e.g tests/pos/qualTest.hs
   , gsRTAliases  :: ![F.Located SpecRTAlias]      -- ^ Refinement type aliases (only used for qualifiers)
@@ -253,6 +264,18 @@ data GhcSpecTerm = SpTerm
   , gsNonStTerm  :: !(S.HashSet Var)              -- ^ Binders to CHECK using REFINEMENT-TYPES/termination metrics 
   }
 
+instance Semigroup GhcSpecTerm where
+  t1 <> t2 = SpTerm
+    { gsStTerm    = gsStTerm t1    <> gsStTerm t2
+    , gsAutosize  = gsAutosize t1  <> gsAutosize t2
+    , gsLazy      = gsLazy t1      <> gsLazy t2
+    , gsFail      = gsFail t1      <> gsFail t2
+    , gsDecr      = gsDecr t1      <> gsDecr t2
+    , gsNonStTerm = gsNonStTerm t1 <> gsNonStTerm t2
+    }
+
+instance Monoid GhcSpecTerm where
+  mempty = SpTerm mempty mempty mempty mempty mempty mempty
 data GhcSpecRefl = SpRefl 
   { gsAutoInst     :: !(M.HashMap Var (Maybe Int))      -- ^ Binders to USE PLE 
   , gsHAxioms      :: ![(Var, LocSpecType, F.Equation)] -- ^ Lifted definitions 

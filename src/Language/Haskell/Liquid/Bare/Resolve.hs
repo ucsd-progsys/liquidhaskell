@@ -440,14 +440,14 @@ lookupGhcNamedVar env name z = maybeResolveSym  env name "Var" lx
   where 
     lx                       = GM.namedLocSymbol z
 
-lookupGhcVar :: Env -> ModName -> String -> LocSymbol -> Ghc.Var 
-lookupGhcVar env name kind lx = 
-  case resolveLocSym env name kind lx of 
-    Right v -> Mb.fromMaybe v       (lookupLocalVar env lx [v]) 
-    Left  e -> Mb.fromMaybe (err e) (lookupLocalVar env lx []) 
-  where
+lookupGhcVar :: Env -> ModName -> String -> LocSymbol -> Lookup Ghc.Var 
+lookupGhcVar env name kind lx = case resolveLocSym env name kind lx of 
+    Right v -> Mb.maybe (Right v) Right (lookupLocalVar env lx [v]) 
+    Left  e -> Mb.maybe (Left  e) Right (lookupLocalVar env lx []) 
+
+  -- where
     -- err e   = Misc.errorP "error-lookupGhcVar" (F.showpp (e, F.loc lx, lx))
-    err     = Ex.throw
+  --  err     = Ex.throw
 
 -- | @lookupLocalVar@ takes as input the list of "global" (top-level) vars 
 --   that also match the name @lx@; we then pick the "closest" definition. 
@@ -462,7 +462,6 @@ lookupLocalVar env lx gvs = Misc.findNearest lxn kvs
     lxn                   = F.unPos (F.srcLine lx)
     (_, x)                = unQualifySymbol (F.val lx)
 
-
 lookupGhcDataCon :: Env -> ModName -> String -> LocSymbol -> Lookup Ghc.DataCon 
 lookupGhcDataCon = resolveLocSym -- strictResolveSym 
 
@@ -470,9 +469,9 @@ lookupGhcTyCon :: Env -> ModName -> String -> LocSymbol -> Lookup Ghc.TyCon
 lookupGhcTyCon env name k lx = myTracepp ("LOOKUP-TYCON: " ++ F.showpp (val lx)) 
                                $ {- strictResolveSym -} resolveLocSym env name k lx
 
-lookupGhcDnTyCon :: Env -> ModName -> String -> DataName -> Lookup Ghc.TyCon
-lookupGhcDnTyCon = lookupGhcDnTyConE
--- lookupGhcDnTyCon env name msg = failMaybe env name . lookupGhcDnTyConE env name msg
+lookupGhcDnTyCon :: Env -> ModName -> String -> DataName -> Lookup (Maybe Ghc.TyCon)
+-- lookupGhcDnTyCon = lookupGhcDnTyConE
+lookupGhcDnTyCon env name msg = failMaybe env name . lookupGhcDnTyConE env name msg
 
 lookupGhcDnTyConE :: Env -> ModName -> String -> DataName -> Lookup Ghc.TyCon
 lookupGhcDnTyConE env name msg (DnCon  s) 

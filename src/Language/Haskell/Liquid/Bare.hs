@@ -24,7 +24,7 @@ module Language.Haskell.Liquid.Bare (
 
 import           Prelude                                    hiding (error)
 import           Optics
-import           Control.Monad                              (unless)
+import           Control.Monad                              (forM, unless)
 import qualified Control.Exception                          as Ex
 import qualified Data.Binary                                as B
 import qualified Data.Maybe                                 as Mb
@@ -156,8 +156,8 @@ makeGhcSpec :: Config
             -> [(ModName, Ms.BareSpec)]
             -> Either Diagnostics ([Warning], GhcSpec)
 -------------------------------------------------------------------------------------
-makeGhcSpec cfg src lmap validatedSpecs = do
-  case diagnostics of
+makeGhcSpec cfg src lmap validatedSpecs = 
+  case addDiag diag diagnostics of
     Left e | noErrors e -> pure (allWarnings e, sp)
     Left e              -> Left e
     Right ()            -> pure (mempty, sp)
@@ -170,6 +170,12 @@ makeGhcSpec cfg src lmap validatedSpecs = do
     (diag, sp)  = makeGhcSpec0 cfg src lmap validatedSpecs
     renv        = ghcSpecEnv sp
     cbs         = _giCbs src
+
+addDiag :: Diagnostics -> Either Diagnostics a -> Either Diagnostics a
+addDiag d (Left d')       = Left (d <> d')
+addDiag d (Right v) 
+  | d == emptyDiagnostics = Right v 
+  | otherwise             = Left d
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
 ghcSpecEnv sp = fromListSEnv binds
@@ -197,7 +203,7 @@ ghcSpecEnv sp = fromListSEnv binds
 makeGhcSpec0 :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] 
              -> (Diagnostics, GhcSpec)
 -------------------------------------------------------------------------------------
-makeGhcSpec0 cfg src lmap mspecs = (diag, SP 
+makeGhcSpec0 cfg src lmap mspecs = (dg0 <> dg1 <> dg2 <> dg3 <> dg4, SP 
   { _gsConfig = cfg 
   , _gsImps   = makeImports mspecs
   , _gsSig    = addReflSigs env name rtEnv refl sig
@@ -206,8 +212,8 @@ makeGhcSpec0 cfg src lmap mspecs = (diag, SP
   , _gsData   = sData 
   , _gsQual   = qual 
   , _gsName   = makeSpecName env     tycEnv measEnv   name 
-  , _gsVars   = makeSpecVars cfg src mySpec env measEnv
-  , _gsTerm   = makeSpecTerm cfg     mySpec env       name    
+  , _gsVars   = spcVars
+  , _gsTerm   = spcTerm
   , _gsLSpec  = finalLiftedSpec
               { impSigs   = makeImports mspecs
               , expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ]
@@ -234,17 +240,19 @@ makeGhcSpec0 cfg src lmap mspecs = (diag, SP
     myRTE    = myRTEnv       src env sigEnv rtEnv  
     qual     = makeSpecQual cfg env tycEnv measEnv rtEnv specs 
     sData    = makeSpecData  src env sigEnv measEnv sig specs 
-    refl     = makeSpecRefl  cfg src measEnv specs env name sig tycEnv 
     laws     = makeSpecLaws env sigEnv (gsTySigs sig ++ gsAsmSigs sig) measEnv specs 
-    sig      = makeSpecSig cfg name specs env sigEnv   tycEnv measEnv (_giCbs src)
     measEnv  = makeMeasEnv      env tycEnv sigEnv       specs 
+    (dg4, sig)     =  withDiagnostics   $ makeSpecSig cfg name specs env sigEnv   tycEnv measEnv (_giCbs src)
+    (dg3, refl)    = withDiagnostics   $ makeSpecRefl  cfg src measEnv specs env name sig tycEnv 
+    (dg2, spcTerm) = withDiagnostics $ makeSpecTerm cfg     mySpec env       name    
+    (dg1, spcVars) = withDiagnostics $ makeSpecVars cfg src mySpec env measEnv
     -- build up environments
     specs    = M.insert name mySpec iSpecs2
     mySpec   = mySpec2 <> lSpec1 
     lSpec1   = lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1 
     sigEnv   = makeSigEnv  embs tyi (_gsExports src) rtEnv 
     tyi      = Bare.tcTyConMap   tycEnv 
-    (diag, tycEnv) = makeTycEnv   cfg name env embs mySpec2 iSpecs2 
+    (dg0, tycEnv) = makeTycEnv   cfg name env embs mySpec2 iSpecs2 
     mySpec2  = Bare.qualifyExpand env name rtEnv l [] mySpec1    where l = F.dummyPos "expand-mySpec2"
     iSpecs2  = Bare.qualifyExpand env name rtEnv l [] iSpecs0    where l = F.dummyPos "expand-iSpecs2"
     rtEnv    = Bare.makeRTEnv env name mySpec1 iSpecs0 lmap  
@@ -371,23 +379,32 @@ reflectedVars spec cbs = fst <$> xDefs
 
 ------------------------------------------------------------------------------------------
 makeSpecVars :: Config -> GhcSrc -> Ms.BareSpec -> Bare.Env -> Bare.MeasEnv 
-             -> Misc.Validate [Error] GhcSpecVars 
+             -> Bare.Lookup GhcSpecVars
 ------------------------------------------------------------------------------------------
-makeSpecVars cfg src mySpec env measEnv = SpVar 
-  { gsTgtVars    =   map (resolveStringVar  env name)              (checks     cfg) 
-  , gsIgnoreVars = S.map (Bare.lookupGhcVar env name "gs-ignores") (Ms.ignores mySpec) 
-  , gsLvars      = S.map (Bare.lookupGhcVar env name "gs-lvars"  ) (Ms.lvars   mySpec)
-  , gsCMethods   = snd3 <$> Bare.meMethods measEnv 
-  }
-  where name     = _giTargetMod src 
+makeSpecVars cfg src mySpec env measEnv = do 
+  tgtVars     <-   mapM (resolveStringVar  env name)              (checks     cfg) 
+  igVars      <-  sMapM (Bare.lookupGhcVar env name "gs-ignores") (Ms.ignores mySpec) 
+  lVars       <-  sMapM (Bare.lookupGhcVar env name "gs-lvars"  ) (Ms.lvars   mySpec)
+  return (SpVar tgtVars igVars lVars cMethods)
+  where 
+    name       = _giTargetMod src 
+    cMethods   = snd3 <$> Bare.meMethods measEnv 
+
+sMapM :: (a -> m b) -> S.HashSet a -> m (S.HashSet b)
+sMapM f = fmap S.fromList . mapM f . S.toList
+
+sForM :: S.HashSet a -> (a -> m b) -> m (S.HashSet b)
+sForM xs f = sMapM f xs
 
 qualifySymbolic :: (F.Symbolic a) => ModName -> a -> F.Symbol 
 qualifySymbolic name s = GM.qualifySymbol (F.symbol name) (F.symbol s)
 
-resolveStringVar :: Bare.Env -> ModName -> String -> Misc.Validate [Error] Ghc.Var
+resolveStringVar :: Bare.Env -> ModName -> String -> Bare.Lookup Ghc.Var
 resolveStringVar env name s = Bare.lookupGhcVar env name "resolve-string-var" lx
   where 
     lx                      = dummyLoc (qualifySymbolic name s)
+
+
 
 ------------------------------------------------------------------------------------------
 makeSpecQual :: Config -> Bare.Env -> Bare.TycEnv -> Bare.MeasEnv -> BareRTEnv -> Bare.ModSpecs 
@@ -453,61 +470,68 @@ tyConSortRaw :: F.Located Ghc.TyCon -> F.Sort
 tyConSortRaw = FTC . F.symbolFTycon . fmap F.symbol 
 
 ------------------------------------------------------------------------------------------
-makeSpecTerm :: Config -> Ms.BareSpec -> Bare.Env -> ModName -> GhcSpecTerm 
+makeSpecTerm :: Config -> Ms.BareSpec -> Bare.Env -> ModName -> 
+                Bare.Lookup GhcSpecTerm 
 ------------------------------------------------------------------------------------------
-makeSpecTerm cfg mySpec env name = SpTerm 
-  { gsLazy       = S.insert dictionaryVar (lazies `mappend` sizes)
-  , gsFail       = makeFail     env name mySpec 
-  , gsStTerm     = sizes
-  , gsAutosize   = autos 
-  , gsDecr       = makeDecrs env name mySpec
-  , gsNonStTerm  = mempty 
-  }
-  where  
-    lazies       = makeLazy     env name mySpec
-    autos        = makeAutoSize env name mySpec
-    strT         = not (structuralTerm cfg) 
-    sizes 
-     | strT      = makeSize env name mySpec 
-     | otherwise = mempty 
+makeSpecTerm cfg mySpec env name = do 
+  sizes  <- if structuralTerm cfg then pure mempty else makeSize env name mySpec
+  lazies <- makeLazy     env name mySpec
+  autos  <- makeAutoSize env name mySpec
+  decr   <- makeDecrs env name mySpec
+  fail   <- makeFail env name mySpec 
+  return  $ SpTerm 
+    { gsLazy       = S.insert dictionaryVar (lazies `mappend` sizes)
+    , gsFail       = fail
+    , gsStTerm     = sizes
+    , gsAutosize   = autos 
+    , gsDecr       = decr 
+    , gsNonStTerm  = mempty 
+    }
 
 -- formerly, makeHints
-makeDecrs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, [Int])] 
-makeDecrs env name mySpec = 
-  [ (v, z) | (lx, z) <- Ms.decr mySpec
-           , let v    = Bare.lookupGhcVar env name "decreasing" lx
-  ]
+makeDecrs :: Bare.Env -> ModName -> Ms.BareSpec -> Bare.Lookup [(Ghc.Var, [Int])] 
+makeDecrs env name mySpec =
+  forM (Ms.decr mySpec) $ \(lx, z) -> do 
+    v <- Bare.lookupGhcVar env name "decreasing" lx
+    return (v, z)
 
-makeLazy :: Bare.Env -> ModName -> Ms.BareSpec -> S.HashSet Ghc.Var
-makeLazy env name spec = 
-  S.map (Bare.lookupGhcVar env name "Var") (Ms.lazy spec)
+makeLazy :: Bare.Env -> ModName -> Ms.BareSpec -> Bare.Lookup (S.HashSet Ghc.Var)
+makeLazy env name spec =
+  sMapM (Bare.lookupGhcVar env name "Var") (Ms.lazy spec)
 
-makeFail :: Bare.Env -> ModName -> Ms.BareSpec -> S.HashSet (Located Ghc.Var)
+makeFail :: Bare.Env -> ModName -> Ms.BareSpec -> Bare.Lookup (S.HashSet (Located Ghc.Var))
 makeFail env name spec = 
-  S.map (\x -> x{ val = Bare.lookupGhcVar env name "Var" x}) (Ms.fails spec)
+  sForM (Ms.fails spec) $ \x -> do 
+    vx <- Bare.lookupGhcVar env name "Var" x 
+    return x { val = vx }
 
-makeRewrite :: Bare.Env -> ModName -> Ms.BareSpec -> S.HashSet (Located Ghc.Var)
+makeRewrite :: Bare.Env -> ModName -> Ms.BareSpec -> Bare.Lookup (S.HashSet (Located Ghc.Var))
 makeRewrite env name spec = 
-  S.map (\x -> x { val = Bare.lookupGhcVar env name "Var" x}) (Ms.rewrites spec)
+  sForM (Ms.rewrites spec) $ \x -> do 
+    vx <-  Bare.lookupGhcVar env name "Var" x 
+    return x { val = vx }
 
-makeRewriteWith :: Bare.Env -> ModName -> Ms.BareSpec -> M.HashMap Ghc.Var [Ghc.Var]
-makeRewriteWith env name spec = 
-  M.fromList [ (lu x, lu <$> xs) | (x, xs) <- M.toList $ Ms.rewriteWith spec]
-    where lu = Bare.lookupGhcVar env name "Var"  
+makeRewriteWith :: Bare.Env -> ModName -> Ms.BareSpec -> Bare.Lookup (M.HashMap Ghc.Var [Ghc.Var])
+makeRewriteWith env name spec = M.fromList <$> makeRewriteWith' env name spec
 
-makeAutoSize :: Bare.Env -> ModName -> Ms.BareSpec -> Either Diagnostics (S.HashSet Ghc.TyCon)
+makeRewriteWith' :: Bare.Env -> ModName -> Spec ty bndr -> Either Error [(Ghc.Var, [Ghc.Var])]
+makeRewriteWith' env name spec = 
+  forM (M.toList $ Ms.rewriteWith spec) $ \(x, xs) -> do
+    xv  <- Bare.lookupGhcVar env name "Var1" x
+    xvs <- mapM (Bare.lookupGhcVar env name "Var2") xs
+    return (xv, xvs)
+
+makeAutoSize :: Bare.Env -> ModName -> Ms.BareSpec -> Bare.Lookup (S.HashSet Ghc.TyCon)
 makeAutoSize env name
-  = wrapDiagnostics 
-  . fmap S.fromList 
-  . Misc.mapErr (Bare.lookupGhcTyCon env name "TyCon") 
+  = fmap S.fromList 
+  . mapM (Bare.lookupGhcTyCon env name "TyCon") 
   . S.toList 
   . Ms.autosize 
 
-makeSize :: Bare.Env -> ModName -> Ms.BareSpec -> Either Diagnostics (S.HashSet Ghc.Var)
+makeSize :: Bare.Env -> ModName -> Ms.BareSpec -> Bare.Lookup (S.HashSet Ghc.Var)
 makeSize env name
-  = wrapDiagnostics 
-  . fmap S.fromList
-  . Misc.mapErr (Bare.lookupGhcVar env name "Var") 
+  = fmap S.fromList
+  . mapM (Bare.lookupGhcVar env name "Var") 
   . Mb.mapMaybe getSizeFuns
   . Ms.dataDecls 
 
@@ -519,9 +543,9 @@ getSizeFuns decl
   | otherwise
   = Nothing
 
-wrapDiagnostics :: Either [Error] a -> Either Diagnostics a
-wrapDiagnostics (Left errs) = Left (mkDiagnostics [] errs)
-wrapDiagnostics (Right val) = Right val
+-- wrapDiagnostics :: Either [Error] a -> Either Diagnostics a
+-- wrapDiagnostics (Left errs) = Left (mkDiagnostics [] errs)
+-- wrapDiagnostics (Right val) = Right val
 
 ------------------------------------------------------------------------------------------
 makeSpecLaws :: Bare.Env -> Bare.SigEnv -> [(Ghc.Var,LocSpecType)] -> Bare.MeasEnv -> Bare.ModSpecs 
@@ -534,19 +558,23 @@ makeSpecLaws env sigEnv sigs menv specs = SpLaws
 
 ------------------------------------------------------------------------------------------
 makeSpecRefl :: Config -> GhcSrc -> Bare.MeasEnv -> Bare.ModSpecs -> Bare.Env -> ModName -> GhcSpecSig -> Bare.TycEnv 
-             -> GhcSpecRefl 
+             -> Bare.Lookup GhcSpecRefl 
 ------------------------------------------------------------------------------------------
-makeSpecRefl cfg src menv specs env name sig tycEnv = SpRefl 
-  { gsLogicMap   = lmap 
-  , gsAutoInst   = makeAutoInst env name mySpec 
-  , gsImpAxioms  = concatMap (Ms.axeqs . snd) (M.toList specs)
-  , gsMyAxioms   = F.notracepp "gsMyAxioms" myAxioms 
-  , gsReflects   = F.notracepp "gsReflects" (lawMethods ++ filter (isReflectVar rflSyms) sigVars ++ wReflects)
-  , gsHAxioms    = F.notracepp "gsHAxioms" xtes 
-  , gsWiredReft  = wReflects
-  , gsRewrites   = makeRewrite env name mySpec
-  , gsRewritesWith = makeRewriteWith env name mySpec
-  }
+makeSpecRefl cfg src menv specs env name sig tycEnv = do 
+  autoInst <- makeAutoInst env name mySpec 
+  rwr      <- makeRewrite env name mySpec
+  rwrWith  <- makeRewriteWith env name mySpec
+  return SpRefl 
+    { gsLogicMap   = lmap 
+    , gsAutoInst   = autoInst 
+    , gsImpAxioms  = concatMap (Ms.axeqs . snd) (M.toList specs)
+    , gsMyAxioms   = F.notracepp "gsMyAxioms" myAxioms 
+    , gsReflects   = F.notracepp "gsReflects" (lawMethods ++ filter (isReflectVar rflSyms) sigVars ++ wReflects)
+    , gsHAxioms    = F.notracepp "gsHAxioms" xtes 
+    , gsWiredReft  = wReflects
+    , gsRewrites   = rwr
+    , gsRewritesWith = rwrWith
+    }
   where
     wReflects    = Bare.wiredReflects cfg env name sig
     lawMethods   = F.notracepp "Law Methods" $ concatMap Ghc.classMethods (fst <$> Bare.meCLaws menv) 
@@ -557,8 +585,6 @@ makeSpecRefl cfg src menv specs env name sig tycEnv = SpRefl
     sigVars      = F.notracepp "SIGVARS" $ (fst3 <$> xtes)            -- reflects
                                         ++ (fst  <$> gsAsmSigs sig)   -- assumes
                                         ++ (fst  <$> gsRefSigs sig)
-                                      -- ++ (fst  <$> gsTySigs  sig)   -- measures 
-
     lmap         = Bare.reLMap env
 
 isReflectVar :: S.HashSet F.Symbol -> Ghc.Var -> Bool 
@@ -597,36 +623,44 @@ addReflSigs env name rtEnv refl sig =
     reflected       = fst <$> (wreflSigs ++ reflSigs)
     notReflected xt = fst xt `notElem` reflected
 
-makeAutoInst :: Bare.Env -> ModName -> Ms.BareSpec -> M.HashMap Ghc.Var (Maybe Int)
-makeAutoInst env name spec = Misc.hashMapMapKeys (Bare.lookupGhcVar env name "Var") (Ms.autois spec)
+makeAutoInst :: Bare.Env -> ModName -> Ms.BareSpec -> 
+                Bare.Lookup (M.HashMap Ghc.Var (Maybe Int))
+makeAutoInst env name spec = M.fromList <$> kvs
+  where 
+    kvs = forM (M.toList (Ms.autois spec)) $ \(k, val) -> do 
+            vk <- Bare.lookupGhcVar env name "Var" k
+            return (vk, val)
+
 
 ----------------------------------------------------------------------------------------
 makeSpecSig :: Config -> ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> Bare.TycEnv -> Bare.MeasEnv -> [Ghc.CoreBind]
-            -> GhcSpecSig 
+            -> Bare.Lookup GhcSpecSig 
 ----------------------------------------------------------------------------------------
-makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = SpSig 
-  { gsTySigs   = F.notracepp "gsTySigs"  tySigs 
-  , gsAsmSigs  = F.notracepp "gsAsmSigs" asmSigs
-  , gsRefSigs  = [] 
-  , gsDicts    = dicts 
-  , gsMethods  = if noclasscheck cfg then [] else Bare.makeMethodTypes dicts (Bare.meClasses  measEnv) cbs 
-  , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
-  , gsNewTypes = makeNewTypes env sigEnv allSpecs 
-  , gsTexprs   = [ (v, t, es) | (v, t, Just es) <- mySigs ] 
-  }
-  where 
-    dicts      = Bare.makeSpecDictionaries env sigEnv specs  
-    mySpec     = M.lookupDefault mempty name specs
-    asmSigs    = Bare.tcSelVars tycEnv 
-              ++ makeAsmSigs env sigEnv name specs 
-              ++ [ (x,t) | (_, x, t) <- concat $ map snd (Bare.meCLaws measEnv)]
-    tySigs     = strengthenSigs . concat $ 
+makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = do 
+  mySigs     <- F.notracepp "MAKE-TYSIGS" $ makeTySigs  env sigEnv name mySpec
+  aSigs      <- makeAsmSigs env sigEnv name specs 
+  let asmSigs =  Bare.tcSelVars tycEnv 
+              ++ aSigs
+              ++ [ (x,t) | (_, x, t) <- concatMap snd (Bare.meCLaws measEnv) ]
+  let tySigs  = strengthenSigs . concat $ 
                   [ [(v, (0, t)) | (v, t,_) <- mySigs                         ]   -- NOTE: these weights are to priortize 
                   , [(v, (1, t)) | (v, t  ) <- makeMthSigs measEnv            ]   -- user defined sigs OVER auto-generated 
                   , [(v, (2, t)) | (v, t  ) <- makeInlSigs env rtEnv allSpecs ]   -- during the strengthening, i.e. to KEEP 
                   , [(v, (3, t)) | (v, t  ) <- makeMsrSigs env rtEnv allSpecs ]   -- the binders used in USER-defined sigs 
                   ]                                                               -- as they appear in termination metrics
-    mySigs     = F.notracepp "MAKE-TYSIGS" $ makeTySigs  env sigEnv name mySpec
+  return SpSig 
+    { gsTySigs   = F.notracepp "gsTySigs"  tySigs 
+    , gsAsmSigs  = F.notracepp "gsAsmSigs" asmSigs
+    , gsRefSigs  = [] 
+    , gsDicts    = dicts 
+    , gsMethods  = if noclasscheck cfg then [] else Bare.makeMethodTypes dicts (Bare.meClasses  measEnv) cbs 
+    , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
+    , gsNewTypes = makeNewTypes env sigEnv allSpecs 
+    , gsTexprs   = [ (v, t, es) | (v, t, Just es) <- mySigs ] 
+    }
+  where 
+    dicts      = Bare.makeSpecDictionaries env sigEnv specs  
+    mySpec     = M.lookupDefault mempty name specs
     allSpecs   = M.toList specs 
     rtEnv      = Bare.sigRTEnv sigEnv 
     -- hmeas      = makeHMeas    env allSpecs 
@@ -668,21 +702,22 @@ makeFromSet msg f env specs = concat [ mk n xs | (n, s) <- specs, let xs = S.toL
     mk name                 = Mb.mapMaybe (Bare.maybeResolveSym env name msg) 
 
 makeTySigs :: Bare.Env -> Bare.SigEnv -> ModName -> Ms.BareSpec 
-           -> [(Ghc.Var, LocSpecType, Maybe [Located F.Expr])]
-makeTySigs env sigEnv name spec 
-              = [ (x, cook x bt, z) | (x, bt, z) <- rawSigs ]
+           -> Bare.Lookup [(Ghc.Var, LocSpecType, Maybe [Located F.Expr])]
+makeTySigs env sigEnv name spec = do
+  bareSigs   <- bareTySigs env name                spec 
+  expSigs    <- makeTExpr  env name bareSigs rtEnv spec 
+  let rawSigs = Bare.resolveLocalBinds env expSigs 
+  return [ (x, cook x bt, z) | (x, bt, z) <- rawSigs ]
   where 
-    rawSigs   = Bare.resolveLocalBinds env expSigs 
-    expSigs   = makeTExpr  env name bareSigs rtEnv spec 
-    bareSigs  = bareTySigs env name                spec 
     rtEnv     = Bare.sigRTEnv sigEnv 
     cook x bt = Bare.cookSpecType env sigEnv name (Bare.HsTV x) bt 
 
-bareTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocBareType)]
-bareTySigs env name spec = checkDuplicateSigs 
-  [ (v, t) | (x, t) <- Ms.sigs spec ++ Ms.localSigs spec  
-           , let v   = F.notracepp "LOOKUP-GHC-VAR" $ Bare.lookupGhcVar env name "rawTySigs" x 
-  ] 
+bareTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> Bare.Lookup [(Ghc.Var, LocBareType)]
+bareTySigs env name spec = checkDuplicateSigs <$> vts 
+  where 
+    vts = forM ( Ms.sigs spec ++ Ms.localSigs spec ) $ \ (x, t) -> do 
+            v <- F.notracepp "LOOKUP-GHC-VAR" $ Bare.lookupGhcVar env name "rawTySigs" x
+            return (v, t) 
 
 -- checkDuplicateSigs :: [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)] 
 checkDuplicateSigs :: (Symbolic x) => [(x, F.Located t)] -> [(x, F.Located t)]
@@ -693,17 +728,15 @@ checkDuplicateSigs xts = case Misc.uniqueByKey symXs  of
     symXs = [ (F.symbol x, F.loc t) | (x, t) <- xts ]
 
 
-makeAsmSigs :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs -> [(Ghc.Var, LocSpecType)]
-makeAsmSigs env sigEnv myName specs = 
-  [ (x, t) | (name, x, bt) <- rawAsmSigs env myName specs
-           , let t = Bare.cookSpecType env sigEnv name (Bare.LqTV x) bt
-  ] 
+makeAsmSigs :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs -> Bare.Lookup [(Ghc.Var, LocSpecType)]
+makeAsmSigs env sigEnv myName specs = do 
+  raSigs <- rawAsmSigs env myName specs
+  return [ (x, t) | (name, x, bt) <- raSigs, let t = Bare.cookSpecType env sigEnv name (Bare.LqTV x) bt ] 
 
-rawAsmSigs :: Bare.Env -> ModName -> Bare.ModSpecs -> [(ModName, Ghc.Var, LocBareType)]
-rawAsmSigs env myName specs = 
-  [ (m, v, t) | (v, sigs) <- allAsmSigs env myName specs 
-              , let (m, t) = myAsmSig v sigs 
-  ] 
+rawAsmSigs :: Bare.Env -> ModName -> Bare.ModSpecs -> Bare.Lookup [(ModName, Ghc.Var, LocBareType)]
+rawAsmSigs env myName specs = do 
+  aSigs <- allAsmSigs env myName specs 
+  return [ (m, v, t) | (v, sigs) <- aSigs, let (m, t) = myAsmSig v sigs ] 
     
 myAsmSig :: Ghc.Var -> [(Bool, ModName, LocBareType)] -> (ModName, LocBareType)
 myAsmSig v sigs = Mb.fromMaybe errImp (Misc.firstMaybes [mbHome, mbImp]) 
@@ -718,14 +751,13 @@ myAsmSig v sigs = Mb.fromMaybe errImp (Misc.firstMaybes [mbHome, mbImp])
     vName       = GM.takeModuleNames (F.symbol v)
 
 makeTExpr :: Bare.Env -> ModName -> [(Ghc.Var, LocBareType)] -> BareRTEnv -> Ms.BareSpec 
-          -> [(Ghc.Var, LocBareType, Maybe [Located F.Expr])]
-makeTExpr env name tySigs rtEnv spec 
-                = F.notracepp "MAKE-TEXPRS" 
-                  [ (v, t, qual t <$> es) | (v, (t, es)) <- M.toList vSigExprs ] 
+          -> Bare.Lookup [(Ghc.Var, LocBareType, Maybe [Located F.Expr])]
+makeTExpr env name tySigs rtEnv spec = do 
+  vExprs       <- M.fromList <$> makeVarTExprs env name spec
+  let vSigExprs = Misc.hashMapMapWithKey (\v t -> (t, M.lookup v vExprs)) vSigs 
+  return [ (v, t, qual t <$> es) | (v, (t, es)) <- M.toList vSigExprs ] 
   where 
     qual t es   = qualifyTermExpr env name rtEnv t <$> es
-    vSigExprs   = Misc.hashMapMapWithKey (\v t -> (t, M.lookup v vExprs)) vSigs 
-    vExprs      = M.fromList (makeVarTExprs env name spec) 
     vSigs       = M.fromList tySigs 
                     
 qualifyTermExpr :: Bare.Env -> ModName -> BareRTEnv -> LocBareType -> Located F.Expr 
@@ -737,10 +769,12 @@ qualifyTermExpr env name rtEnv t le
     e   = F.val le 
     bs  = ty_binds . toRTypeRep . val $ t 
 
-makeVarTExprs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, [Located F.Expr])]
+makeVarTExprs :: Bare.Env -> ModName -> Ms.BareSpec -> Bare.Lookup [(Ghc.Var, [Located F.Expr])]
 makeVarTExprs env name spec = 
-  [ (Bare.lookupGhcVar env name "Var" x, es) 
-      | (x, es) <- Ms.termexprs spec           ]
+  forM (Ms.termexprs spec) $ \(x, es) -> do 
+    vx <- Bare.lookupGhcVar env name "Var" x
+    return (vx, es)
+
 ----------------------------------------------------------------------------------------
 -- [NOTE:Prioritize-Home-Spec] Prioritize spec for THING defined in 
 -- `Foo.Bar.Baz.Quux.x` over any other specification, IF GHC's 
@@ -768,17 +802,20 @@ takeUnique _ []  = Nothing
 takeUnique _ [x] = Just x 
 takeUnique f xs  = Ex.throw (f xs) 
 
-allAsmSigs :: Bare.Env -> ModName -> Bare.ModSpecs -> [(Ghc.Var, [(Bool, ModName, LocBareType)])]
-allAsmSigs env myName specs = Misc.groupList
-  [ (v, (must, name, t))  
-      | (name, spec) <- M.toList specs
-      , (must, x, t) <- getAsmSigs myName name spec
-      , v            <- Mb.maybeToList (resolveAsmVar env name must x) 
-  ] 
+allAsmSigs :: Bare.Env -> ModName -> Bare.ModSpecs -> 
+              Bare.Lookup [(Ghc.Var, [(Bool, ModName, LocBareType)])]
+allAsmSigs env myName specs = do 
+  let aSigs = [ (name, must, x, t) | (name, spec) <- M.toList specs
+                                   , (must, x, t) <- getAsmSigs myName name spec ]
+  vSigs    <- forM aSigs $ \(name, must, x, t) -> do
+                vMb <- resolveAsmVar env name must x
+                return (vMb, (must, name, t))
 
-resolveAsmVar :: Bare.Env -> ModName -> Bool -> LocSymbol -> Maybe Ghc.Var 
-resolveAsmVar env name True  lx = Just $ Bare.lookupGhcVar env name "resolveAsmVar-True"  lx
-resolveAsmVar env name False lx = Bare.maybeResolveSym     env name "resolveAsmVar-False" lx  
+  return    $ Misc.groupList [ (v, z) | (Just v, z) <- vSigs ]
+
+resolveAsmVar :: Bare.Env -> ModName -> Bool -> LocSymbol -> Bare.Lookup (Maybe Ghc.Var)
+resolveAsmVar env name True  lx = Just  <$> Bare.lookupGhcVar env name "resolveAsmVar-True"  lx
+resolveAsmVar env name False lx = return $  Bare.maybeResolveSym     env name "resolveAsmVar-False" lx  
 
 getAsmSigs :: ModName -> ModName -> Ms.BareSpec -> [(Bool, LocSymbol, LocBareType)]  
 getAsmSigs myName name spec 
@@ -1126,3 +1163,6 @@ normalizeBareAlias env sigEnv name lx = fixRTA <$> lx
             . Bare.cookSpecType env sigEnv name Bare.RawTV 
             . F.atLoc lx
 
+
+withDiagnostics :: (Monoid a) => Bare.Lookup a -> (Diagnostics, a)
+withDiagnostics (Left e) = (mkDiagnostics [] [e], mempty)
