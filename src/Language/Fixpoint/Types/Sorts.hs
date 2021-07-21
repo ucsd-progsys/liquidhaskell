@@ -5,6 +5,7 @@
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE UndecidableInstances       #-}
@@ -59,6 +60,7 @@ module Language.Fixpoint.Types.Sorts (
   , bkFFunc
   , bkAbs
   , mkPoly
+  , sortSymbols
 
   , isNumeric, isReal, isString, isPolyInst
 
@@ -89,6 +91,8 @@ import           Data.Semigroup            (Semigroup (..))
 #endif
 
 import           Data.Hashable
+import           Data.HashSet (HashSet)
+import qualified Data.HashSet as HashSet
 import           Data.List                 (foldl')
 import           Control.DeepSeq
 import           Data.Maybe                (fromMaybe)
@@ -262,6 +266,14 @@ data Sort = FInt
           | FTC   !FTycon
           | FApp  !Sort !Sort    -- ^ constructed type
             deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+sortSymbols :: Sort -> HashSet Symbol
+sortSymbols = \case
+  FObj s -> HashSet.singleton s
+  FFunc t0 t1 -> HashSet.union (sortSymbols t0) (sortSymbols t1)
+  FAbs _ t -> sortSymbols t
+  FApp t0 t1 -> HashSet.union (sortSymbols t0) (sortSymbols t1)
+  _ -> HashSet.empty
 
 data DataField = DField
   { dfName :: !LocSymbol          -- ^ Field Name

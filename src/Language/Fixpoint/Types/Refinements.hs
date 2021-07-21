@@ -84,6 +84,7 @@ module Language.Fixpoint.Types.Refinements (
   , splitEApp
   , splitPAnd
   , reftConjuncts
+  , sortedReftSymbols
 
   -- * Transforming
   , mapPredReft
@@ -440,6 +441,12 @@ newtype Reft = Reft (Symbol, Expr)
 
 data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft }
                   deriving (Eq, Data, Typeable, Generic)
+
+sortedReftSymbols :: SortedReft -> HashSet Symbol
+sortedReftSymbols sr =
+  HashSet.union
+    (sortSymbols $ sr_sort sr)
+    (exprSymbolsSet $ reftPred $ sr_reft sr)
 
 elit :: Located Symbol -> Sort -> Expr
 elit l s = ECon $ L (symbolText $ val l) s
