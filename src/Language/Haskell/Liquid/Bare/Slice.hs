@@ -86,14 +86,14 @@ instance Graph [Ms.BareSpec] where
 
 instance Graph Ms.BareSpec where
   mkGraph sp = mconcat 
-    [ mkGraph (expSigs sp)
+    [ undefined -- FIXME -- mkGraph (expSigs sp)
     ]
 
 -------------------------------------------------------------------------------
 -- | 'reachable roots g' returns the list of Node transitively reachable from roots
 -------------------------------------------------------------------------------
 reachable :: S.HashSet Node -> DepGraph -> S.HashSet Node
-reachable roots g = _TODO
+reachable roots g = undefined -- _TODO
 
 -------------------------------------------------------------------------------
 -- | Extract the dependencies 
@@ -117,13 +117,13 @@ instance Deps DataCtor where
 -------------------------------------------------------------------------------
 sliceSpecs :: GhcSrc -> Ms.BareSpec -> [(ModName, Ms.BareSpec)] -> 
         [(ModName, Ms.BareSpec)]
-sliceSpecs tgtSrc tgtSpec specs 
-             = [ (n, slice nodes sp) | (n, sp) <- specs ]
-  where
-    tgtGraph = mkGraph tgtSpec
-    impGraph = mkGraph (snd <$> specs)
-    roots    = mkRoots tgtSrc -- S.fromList . M.keys . dGraph $ tgtGraph
-    nodes    = reachable roots (tgtGraph <> impGraph)
+sliceSpecs tgtSrc tgtSpec specs = specs 
+             -- = [ (n, slice nodes sp) | (n, sp) <- specs ]
+  -- where
+    -- tgtGraph = mkGraph tgtSpec
+    -- impGraph = mkGraph (snd <$> specs)
+    -- roots    = mkRoots tgtSrc -- S.fromList . M.keys . dGraph $ tgtGraph
+    -- nodes    = reachable roots (tgtGraph <> impGraph)
 
 class Sliceable a where
   slice :: S.HashSet Node -> a -> a

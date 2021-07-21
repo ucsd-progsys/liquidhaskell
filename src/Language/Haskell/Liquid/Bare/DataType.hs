@@ -370,7 +370,8 @@ makeConTypes' :: ModName -> Bare.Env -> (ModName, Ms.BareSpec)
 makeConTypes' _myName env (name, spec) = do
   dcs'   <- canonizeDecls env name dcs
   let gvs = groupVariances dcs' vdcs
-  unzip <$> mapM (uncurry (ofBDataDecl env name)) gvs
+  return  $ unzip . rights . map (uncurry (ofBDataDecl env name)) $ gvs
+  -- unzip <$> mapM (uncurry (ofBDataDecl env name)) gvs
   where
     -- msg  = printf "makeConTypes (%s): %s" (show myName) (show name)
     dcs  = Ms.dataDecls spec 
@@ -516,7 +517,7 @@ ofBDataDecl env name (Just dd@(DataDecl tc as ps cts pos sfun pt _)) maybe_invar
   where
     err            = ErrBadData (GM.fSrcSpan tc) (pprint tc) "Mismatch in number of type variables" 
 
-ofBDataDecl env name Nothing (Just (tc, is)) = 
+ofBDataDecl env name Nothing (Just (tc, is)) =  
   case Bare.lookupGhcTyCon env name "ofBDataDecl-2" tc of
     Left e    -> Left e
     Right tc' -> Right ((name, TyConP srcpos tc' [] [] tcov tcontr Nothing, Nothing), [])
@@ -526,24 +527,6 @@ ofBDataDecl env name Nothing (Just (tc, is)) =
 
 ofBDataDecl _ _ Nothing Nothing
   = panic Nothing "Bare.DataType.ofBDataDecl called on invalid inputs"
-
--- ofBDataDeclTc :: Bare.Env -> ModName -> DataDecl -> Ghc.TyCon -> Maybe (a, [Variance]) -> 
---                  Either Error ((ModName, TyConP, Maybe (DataDecl, Maybe SpecType)), [Located DataConP])
--- ofBDataDeclTc env name dd@(DataDecl tc as ps cts pos sfun pt _) tc' maybe_invariance_info
---   | not (checkDataDecl tc' dd)
---   = Left err
---   | otherwise
---   = Right ((name, tcp, Just (dd { tycDCons = cts }, pd)), Loc lc lc' <$> cts')
---   where
---     cts'       = ofBDataCtor env name lc lc' tc' αs ps πs <$> Mb.fromMaybe [] cts
---     pd         = Bare.ofBareType env name lc (Just []) <$> pt
---     tys        = [t | dcp <- cts', (_, t) <- dcpTyArgs dcp]
---     initmap    = zip (RT.uPVar <$> πs) [0..]
---     varInfo    = L.nub $  concatMap (getPsSig initmap True) tys
---     err          = ErrBadData (GM.fSrcSpan tc) (pprint tc) "Mismatch in number of type variables" :: Error
---     n            = length αs
---     Loc lc lc' _ = dataNameSymbol tc
-
 
 -- TODO:EFFECTS:ofBDataCon
 ofBDataCtor :: Bare.Env 
