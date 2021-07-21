@@ -111,6 +111,7 @@ library
                       Language.Haskell.Liquid.Bare.Resolve
                       Language.Haskell.Liquid.Bare.ToBare
                       Language.Haskell.Liquid.Bare.Types
+                      Language.Haskell.Liquid.Bare.Slice
                       Language.Haskell.Liquid.Constraint.Constraint
                       Language.Haskell.Liquid.Constraint.Env
                       Language.Haskell.Liquid.Constraint.Fresh
