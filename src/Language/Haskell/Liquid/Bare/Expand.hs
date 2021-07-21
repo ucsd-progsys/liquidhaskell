@@ -535,7 +535,7 @@ bareExpandType = expandLoc
 specExpandType :: BareRTEnv -> LocSpecType -> LocSpecType
 specExpandType = expandLoc 
 
-bareSpecType :: Bare.Env -> ModName -> LocBareType -> Either Error LocSpecType 
+bareSpecType :: Bare.Env -> ModName -> LocBareType -> Bare.Lookup LocSpecType 
 bareSpecType env name bt = case Bare.ofBareTypeE env name (F.loc bt) Nothing (val bt) of 
   Left e  -> Left e 
   Right t -> Right (F.atLoc bt t)

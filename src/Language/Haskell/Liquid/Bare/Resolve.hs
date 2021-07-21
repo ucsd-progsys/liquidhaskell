@@ -82,7 +82,7 @@ myTracepp :: (F.PPrint a) => String -> a -> a
 myTracepp = F.notracepp 
 
 -- type Lookup a = Misc.Validate [Error] a
-type Lookup a = Either Error a
+type Lookup a = Either [Error] a
 
 -------------------------------------------------------------------------------
 -- | Creating an environment 
@@ -615,9 +615,9 @@ resolveWith :: (PPrint a) => PJ.Doc -> (Ghc.TyThing -> Maybe a) -> Env -> ModNam
 resolveWith kind f env name str lx =
   -- case Mb.mapMaybe f things of 
   case rankedThings f things of
-    []  -> Left (errResolve kind str lx)
+    []  -> Left [errResolve kind str lx]
     [x] -> Right x 
-    xs  -> Left (ErrDupNames sp (pprint (F.val lx)) (pprint <$> xs))
+    xs  -> Left [ErrDupNames sp (pprint (F.val lx)) (pprint <$> xs)]
   where
     _xSym   = F.val lx
     sp      = GM.fSrcSpanSrcSpan (F.srcSpan lx)

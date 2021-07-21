@@ -46,7 +46,6 @@ import qualified Language.Haskell.Liquid.Bare.Resolve   as Bare
 import           Text.Printf                     (printf)
 import Data.Either (rights)
 import Control.Monad (forM, unless)
-import Text.PrettyPrint ((<+>))
 
 --------------------------------------------------------------------------------
 -- | 'DataConMap' stores the names of those ctor-fields that have been declared
@@ -370,12 +369,30 @@ makeConTypes' :: ModName -> Bare.Env -> (ModName, Ms.BareSpec)
 makeConTypes' _myName env (name, spec) = do
   dcs'   <- canonizeDecls env name dcs
   let gvs = groupVariances dcs' vdcs
-  return  $ unzip . rights . map (uncurry (ofBDataDecl env name)) $ gvs
+  -- return  $ unzip . rights 
+  zong <- catLookups . map (uncurry (ofBDataDecl env name)) $ gvs
+  undefined zong
   -- unzip <$> mapM (uncurry (ofBDataDecl env name)) gvs
   where
     -- msg  = printf "makeConTypes (%s): %s" (show myName) (show name)
     dcs  = Ms.dataDecls spec 
     vdcs = Ms.dvariance spec 
+
+catLookups :: [Bare.Lookup a] -> Bare.Lookup [a]
+catLookups = sequence . Mb.mapMaybe skipResolve
+
+skipResolve  :: Bare.Lookup a -> Maybe (Bare.Lookup a)
+skipResolve (Left es) = left' (filter (not . isErrResolve) es)
+skipResolve (Right v) = Just (Right v)
+
+isErrResolve :: TError t -> Bool
+isErrResolve ErrResolve {} = True
+isErrResolve _             =  False
+
+left' :: [e] -> Maybe (Either [e] a)  
+left' [] = Nothing
+left' es = Just (Left es)
+
 
 -- | 'canonizeDecls ds' returns a subset of 'ds' with duplicates, e.g. arising
 --   due to automatic lifting (via 'makeHaskellDataDecls'). We require that the
@@ -388,7 +405,7 @@ canonizeDecls env name ds = do
            k <- dataDeclKey env name d 
            return (fmap (, d) k)
   case Misc.uniqueByKey' selectDD (Mb.catMaybes kds) of
-    Left  decls  -> Left (err decls)
+    Left  decls  -> Left [err decls]
     Right decls  -> return decls
             -- [ (k, d) | d <- ds, k <- rights [dataDeclKey env name d] ] 
   -- case Misc.uniqueByKey' selectDD kds of
@@ -434,14 +451,13 @@ checkDataCtors  env  name  c  dd (Just cons) = do
 
   if dcs == rdcs
     then mapM checkDataCtorDupField cons
-    else Left (errDataConMismatch (dataNameSymbol (tycName dd)) dcs rdcs)
-
+    else Left [errDataConMismatch (dataNameSymbol (tycName dd)) dcs rdcs]
 
 -- | Checks whether the given data constructor has duplicate fields.
 --
 checkDataCtorDupField :: DataCtor -> Bare.Lookup DataCtor 
 checkDataCtorDupField d 
-  | x : _ <- dups = Left (err lc x)
+  | x : _ <- dups = Left [err lc x]
   | otherwise     = return d 
     where
       lc          = dcName   d 
@@ -487,8 +503,7 @@ getDnTyCon env name dn = do
   tcMb <- Bare.lookupGhcDnTyCon env name "ofBDataDecl-1" dn
   case tcMb of
     Just tc -> return tc
-    Nothing -> Left $ ErrBadData (GM.fSrcSpan dn) (pprint dn) "Unknown Type Constructor"
-
+    Nothing -> Left [ ErrBadData (GM.fSrcSpan dn) (pprint dn) "Unknown Type Constructor" ]
   --  ugh              = impossible Nothing "getDnTyCon"
 
 
@@ -503,7 +518,7 @@ ofBDataDecl env name (Just dd@(DataDecl tc as ps cts pos sfun pt _)) maybe_invar
   let initmap      = zip (RT.uPVar <$> πs) [0..]
   tc'             <- getDnTyCon env name tc
   cts'            <- mapM (ofBDataCtor env name lc lc' tc' αs ps πs) (Mb.fromMaybe [] cts)
-  unless (checkDataDecl tc' dd) (Left err)  
+  unless (checkDataDecl tc' dd) (Left [err])  
   let pd           = Bare.ofBareType env name lc (Just []) <$> pt
   let tys          = [t | dcp <- cts', (_, t) <- dcpTyArgs dcp]
   let varInfo      = L.nub $  concatMap (getPsSig initmap True) tys
@@ -574,9 +589,6 @@ ofBDataCtorTc env name l l' tc αs ps πs _ctor@(DataCtor c as _ xts res) c' =
                       Just ty -> RT.ofType ty
     isGadt        = Mb.isJust res
     dLoc          = F.Loc l l' ()
-
-
-
 
 errDataConMismatch :: LocSymbol -> S.HashSet F.Symbol -> S.HashSet F.Symbol -> Error
 errDataConMismatch d dcs rdcs = ErrDataConMismatch sp v (ppTicks <$> S.toList dcs) (ppTicks <$> S.toList rdcs)

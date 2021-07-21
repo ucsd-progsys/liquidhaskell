@@ -516,7 +516,7 @@ makeRewrite env name spec =
 makeRewriteWith :: Bare.Env -> ModName -> Ms.BareSpec -> Bare.Lookup (M.HashMap Ghc.Var [Ghc.Var])
 makeRewriteWith env name spec = M.fromList <$> makeRewriteWith' env name spec
 
-makeRewriteWith' :: Bare.Env -> ModName -> Spec ty bndr -> Either Error [(Ghc.Var, [Ghc.Var])]
+makeRewriteWith' :: Bare.Env -> ModName -> Spec ty bndr -> Bare.Lookup [(Ghc.Var, [Ghc.Var])]
 makeRewriteWith' env name spec = 
   forM (M.toList $ Ms.rewriteWith spec) $ \(x, xs) -> do
     xv  <- Bare.lookupGhcVar env name "Var1" x
@@ -545,9 +545,6 @@ getSizeFuns decl
   | otherwise
   = Nothing
 
--- wrapDiagnostics :: Either [Error] a -> Either Diagnostics a
--- wrapDiagnostics (Left errs) = Left (mkDiagnostics [] errs)
--- wrapDiagnostics (Right val) = Right val
 
 ------------------------------------------------------------------------------------------
 makeSpecLaws :: Bare.Env -> Bare.SigEnv -> [(Ghc.Var,LocSpecType)] -> Bare.MeasEnv -> Bare.ModSpecs 
@@ -885,7 +882,7 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
   , gsMeasures   = Bare.qualifyTopDummy env name <$> (ms1 ++ ms2)
   , gsInvariants = Misc.nubHashOn (F.loc . snd) invs 
   , gsIaliases   = concatMap (makeIAliases env sigEnv) (M.toList specs)
-  , gsUnsorted   = usI ++ (concatMap msUnSorted $ concatMap measures specs)
+  , gsUnsorted   = usI ++ concatMap msUnSorted (concatMap measures specs)
   }
   where
     measVars     = Bare.meSyms      measEnv -- ms'
@@ -1168,5 +1165,5 @@ normalizeBareAlias env sigEnv name lx = fixRTA <$> lx
 
 
 withDiagnostics :: (Monoid a) => Bare.Lookup a -> (Diagnostics, a)
-withDiagnostics (Left e) = (mkDiagnostics [] [e], mempty)
+withDiagnostics (Left es) = (mkDiagnostics [] es, mempty)
 withDiagnostics (Right v) = (emptyDiagnostics, v)
