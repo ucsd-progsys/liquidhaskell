@@ -80,6 +80,7 @@ module Language.Fixpoint.Types.Refinements (
   , conjuncts
   , eApps
   , eAppC
+  , exprSymbolsSet
   , splitEApp
   , splitPAnd
   , reftConjuncts
@@ -103,6 +104,8 @@ import qualified Data.Store as S
 import           Data.Generics             (Data, gmapT, mkT, extT)
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
+import           Data.HashSet              (HashSet)
+import qualified Data.HashSet              as HashSet
 import           GHC.Generics              (Generic)
 import           Data.List                 (foldl', partition)
 import qualified Data.Set                  as Set
@@ -355,6 +358,28 @@ pattern EDiv e1 e2 = EBin Div    e1 e2
 pattern ERDiv :: Expr -> Expr -> Expr
 pattern ERDiv e1 e2 = EBin RDiv   e1 e2
 
+exprSymbolsSet :: Expr -> HashSet Symbol
+exprSymbolsSet = go
+  where
+    gos es                = HashSet.unions (go <$> es)
+    go (EVar x)           = HashSet.singleton x
+    go (EApp f e)         = gos [f, e]
+    go (ELam (x,_) e)     = HashSet.delete x (go e)
+    go (ECoerc _ _ e)     = go e
+    go (ENeg e)           = go e
+    go (EBin _ e1 e2)     = gos [e1, e2]
+    go (EIte p e1 e2)     = gos [p, e1, e2]
+    go (ECst e _)         = go e
+    go (PAnd ps)          = gos ps
+    go (POr ps)           = gos ps
+    go (PNot p)           = go p
+    go (PIff p1 p2)       = gos [p1, p2]
+    go (PImp p1 p2)       = gos [p1, p2]
+    go (PAtom _ e1 e2)    = gos [e1, e2]
+    go (PKVar _ (Su su))  = HashSet.unions $ map exprSymbolsSet (M.elems su)
+    go (PAll xts p)       = go p `HashSet.difference` HashSet.fromList (fst <$> xts)
+    go (PExist xts p)     = go p `HashSet.difference` HashSet.fromList (fst <$> xts)
+    go _                  = HashSet.empty
 
 data GradInfo = GradInfo {gsrc :: SrcSpan, gused :: Maybe SrcSpan}
           deriving (Eq, Ord, Show, Data, Typeable, Generic)
