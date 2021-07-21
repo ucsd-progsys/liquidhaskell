@@ -8,6 +8,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GADTs                      #-}
@@ -85,6 +86,7 @@ module Language.Fixpoint.Types.Refinements (
 
   -- * Transforming
   , mapPredReft
+  , onEverySubexpr
   , pprintReft
 
   , debruijnIndex
@@ -98,7 +100,7 @@ module Language.Fixpoint.Types.Refinements (
 
 import           Prelude hiding ((<>))
 import qualified Data.Store as S
-import           Data.Generics             (Data)
+import           Data.Generics             (Data, gmapT, mkT, extT)
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
 import           GHC.Generics              (Generic)
@@ -312,6 +314,17 @@ data Expr = ESym !SymConst
           | PGrad  !KVar !Subst !GradInfo !Expr
           | ECoerc !Sort !Sort !Expr  
           deriving (Eq, Show, Ord, Data, Typeable, Generic)
+
+onEverySubexpr :: (Expr -> Expr) -> Expr -> Expr
+onEverySubexpr = everywhereOnA
+
+-- | Like 'Data.Generics.everywhere' but only traverses the nodes
+-- of type @a@ or @[a]@.
+everywhereOnA :: forall a. Data a => (a -> a) -> a -> a
+everywhereOnA f = go
+  where
+    go :: a -> a
+    go = f . gmapT (mkT go `extT` map go)
 
 type Pred = Expr
 
