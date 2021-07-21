@@ -371,7 +371,7 @@ makeConTypes' _myName env (name, spec) = do
   let gvs = groupVariances dcs' vdcs
   -- return  $ unzip . rights 
   zong <- catLookups . map (uncurry (ofBDataDecl env name)) $ gvs
-  undefined zong
+  return (unzip zong)
   -- unzip <$> mapM (uncurry (ofBDataDecl env name)) gvs
   where
     -- msg  = printf "makeConTypes (%s): %s" (show myName) (show name)
