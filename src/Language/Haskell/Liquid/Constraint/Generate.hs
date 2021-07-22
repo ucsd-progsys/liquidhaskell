@@ -89,14 +89,14 @@ consAct γ cfg info = do
   let gSrc = giSrc info
   when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs sSpc ++ gsAsmSigs sSpc))
   foldM_ (consCBTop cfg info) γ (giCbs gSrc)
-  mapM (consClass γ) (gsMethods $ gsSig $ giSpec info) 
-  hcs <- hsCs  <$> get
-  hws <- hsWfs <$> get
-  fcs <- concat <$> mapM splitC hcs
+  mapM_ (consClass γ) (gsMethods $ gsSig $ giSpec info) 
+  hcs <- gets hsCs
+  hws <- gets hsWfs
+  fcs <- concat <$> mapM (splitC (typeclass (getConfig info))) hcs
   fws <- concat <$> mapM splitW hws
   modify $ \st -> st { fEnv     = feEnv (fenv γ)
                      , cgLits   = litEnv   γ
-                     , cgConsts = (cgConsts st) `mappend` (constEnv γ)
+                     , cgConsts = cgConsts st `mappend` constEnv γ
                      , fixCs    = fcs
                      , fixWfs   = fws }
 
@@ -194,7 +194,7 @@ makeRecType autoenv t vs dxs is
 unOCons :: RType c tv r -> RType c tv r
 unOCons (RAllT v t r)      = RAllT v (unOCons t) r 
 unOCons (RAllP p t)        = RAllP p $ unOCons t
-unOCons (RFun x tx t r)    = RFun x (unOCons tx) (unOCons t) r
+unOCons (RFun x i tx t r)  = RFun x i (unOCons tx) (unOCons t) r
 unOCons (RRTy _ _ OCons t) = unOCons t
 unOCons t                  = t
 
@@ -202,7 +202,7 @@ mergecondition :: RType c tv r -> RType c tv r -> RType c tv r
 mergecondition (RAllT _ t1 _) (RAllT v t2 r2)          = RAllT v (mergecondition t1 t2) r2 
 mergecondition (RAllP _ t1) (RAllP p t2)               = RAllP p (mergecondition t1 t2)
 mergecondition (RRTy xts r OCons t1) t2                = RRTy xts r OCons (mergecondition t1 t2)
-mergecondition (RFun _ t11 t12 _) (RFun x2 t21 t22 r2) = RFun x2 (mergecondition t11 t21) (mergecondition t12 t22) r2
+mergecondition (RFun _ _ t11 t12 _) (RFun x2 i t21 t22 r2) = RFun x2 i (mergecondition t11 t21) (mergecondition t12 t22) r2
 mergecondition _ t                                     = t
 
 safeLogIndex :: Error -> [a] -> Int -> CG (Maybe a)
@@ -259,7 +259,7 @@ consCBTop cfg info γ cb
   = foldM addB γ xs
     where
        xs   = bindersOf cb
-       tt   = trueTy . varType
+       tt   = trueTy (typeclass cfg) . varType
        addB γ x = tt x >>= (\t -> γ += ("derived", F.symbol x, t))
 
 consCBTop _ _ γ cb
@@ -287,10 +287,11 @@ doTermCheck :: Config -> Bind Var -> CG Bool
 doTermCheck cfg bind = do 
   lazyVs    <- specLazy   <$> get 
   termVs    <- specTmVars <$> get
-  let skip   = any (\x -> S.member x lazyVs || GM.isInternal x) xs
+  let skip   = any (\x -> S.member x lazyVs || nocheck x) xs
   let chk    = not (structuralTerm cfg) || any (\x -> S.member x termVs) xs
   return     $ chk && not skip
-  where 
+  where
+    nocheck  = if typeclass cfg then GM.isEmbeddedDictVar else GM.isInternal
     xs       = bindersOf bind
 
 -- nonStructTerm && not skip
@@ -308,11 +309,13 @@ consCBSizedTys γ xes
        let rts   = (recType autoenv <$>) <$> xeets
        let xts   = zip xs ts
        γ'       <- foldM extender γ xts
-       let γs    = zipWith makeRecInvariants [γ' `setTRec` zip xs rts' | rts' <- rts] (filter (not . GM.isPredVar) <$> vs)
+       let γs    = zipWith makeRecInvariants [γ' `setTRec` zip xs rts' | rts' <- rts] (filter (not . noMakeRec) <$> vs)
        let xets' = zip3 xs es ts
        mapM_ (uncurry $ consBind True) (zip γs xets')
        return γ'
   where
+       noMakeRec      = if allowTC then GM.isEmbeddedDictVar else GM.isPredVar
+       allowTC        = typeclass (getConfig γ)
        (xs, es)       = unzip xes
        dxs            = F.pprint <$> xs
        collectArgs    = GM.collectArguments . length . ty_binds . toRTypeRep . unOCons . unTemplate
@@ -352,8 +355,8 @@ makeTermEnvs :: CGEnv -> [(Var, [F.Located F.Expr])] -> [(Var, CoreExpr)]
 makeTermEnvs γ xtes xes ts ts' = setTRec γ . zip xs <$> rts
   where
     vs   = zipWith collectArgs ts es
-    ys   = (fst4 . bkArrowDeep) <$> ts
-    ys'  = (fst4 . bkArrowDeep) <$> ts'
+    ys   = (fst5 . bkArrowDeep) <$> ts
+    ys'  = (fst5 . bkArrowDeep) <$> ts'
     sus' = zipWith mkSub ys ys'
     sus  = zipWith mkSub ys ((F.symbol <$>) <$> vs)
     ess  = (\x -> (safeFromJust (err x) $ (x `L.lookup` xtes))) <$> xs
@@ -370,9 +373,9 @@ addObligation :: Oblig -> SpecType -> RReft -> SpecType
 addObligation o t r  = mkArrow αs πs yts xts $ RRTy [] r o t2
   where
     (αs, πs, t1) = bkUniv t
-    ((xs',ts',rs'),(xs, ts, rs), t2) = bkArrow t1
-    xts              = zip3 xs ts rs
-    yts              = zip3 xs' ts' rs'
+    ((xs',is',ts',rs'),(xs, is, ts, rs), t2) = bkArrow t1
+    xts              = zip4 xs is ts rs
+    yts              = zip4 xs' is' ts' rs'
 
 --------------------------------------------------------------------------------
 consCB :: Bool -> Bool -> CGEnv -> CoreBind -> CG CGEnv
@@ -414,7 +417,7 @@ consCB _ _ γ (Rec xes)
 -- | NV: Dictionaries are not checked, because
 -- | class methods' preconditions are not satisfied
 consCB _ _ γ (NonRec x _) | isDictionary x
-  = do t  <- trueTy (varType x)
+  = do t  <- trueTy (typeclass (getConfig γ)) (varType x)
        extender γ (x, Assumed t)
     where
        isDictionary = isJust . dlookup (denv γ)
@@ -426,11 +429,11 @@ consCB _ _ γ (NonRec x _ ) | isHoleVar x && typedHoles (getConfig γ)
 consCB _ _ γ (NonRec x def)
   | Just (w, τ) <- grepDictionary def
   , Just d      <- dlookup (denv γ) w
-  = do t        <- mapM trueTy τ
+  = do t        <- mapM (trueTy (typeclass (getConfig γ))) τ
        mapM addW (WfC γ <$> t)
        let xts   = dmap (fmap (f t)) d
        let  γ'   = γ { denv = dinsert (denv γ) x xts }
-       t        <- trueTy (varType x)
+       t        <- trueTy (typeclass (getConfig γ)) (varType x)
        extender γ' (x, Assumed t)
    where
     f [t']    (RAllT α te _) = subsTyVar_meet' (ty_var_value α, t') te
@@ -465,10 +468,10 @@ consBind isRec γ (x, e, Asserted spect)
 
        -- take implcits out of the function's SpecType and into the env
        let tyr = toRTypeRep spect
-       let spect' = fromRTypeRep (tyr { ty_ebinds = [], ty_eargs = [], ty_erefts = [] })
+       let spect' = fromRTypeRep (tyr { ty_ebinds = [], ty_einfo = [], ty_eargs = [], ty_erefts = [] })
        γπ <- foldM (+=) γπ $ (\(y,t)->("implicitError",y,t)) <$> zip (ty_ebinds tyr) (ty_eargs tyr)
 
-       cconsE γπ e (weakenResult x spect')
+       cconsE γπ e (weakenResult (typeclass (getConfig γ)) x spect')
        when (F.symbol x `elemHEnv` holes γ) $
          -- have to add the wf constraint here for HOLEs so we have the proper env
          addW $ WfC γπ $ fmap killSubst spect
@@ -492,7 +495,7 @@ consBind isRec γ (x, e, Internal spect)
 consBind isRec γ (x, e, Assumed spect)
   = do let γ' = γ `setBind` x
        γπ    <- foldM addPToEnv γ' πs
-       cconsE γπ e =<< true spect
+       cconsE γπ e =<< true (typeclass (getConfig γ)) spect
        addIdA x (defAnn isRec spect)
        return $ Asserted spect
     where πs   = ty_preds $ toRTypeRep spect
@@ -586,7 +589,7 @@ varTemplate' γ (x, eo)
       (_, Just t, _, _) -> Asserted <$> refreshArgsTop (x, t)
       (_, _, _, Just t) -> Internal <$> refreshArgsTop (x, t)
       (_, _, Just t, _) -> Assumed  <$> refreshArgsTop (x, t)
-      (Just e, _, _, _) -> do t  <- freshTy_expr (RecBindE x) e (exprType e)
+      (Just e, _, _, _) -> do t  <- freshTy_expr (typeclass (getConfig γ)) (RecBindE x) e (exprType e)
                               addW (WfC γ t)
                               Asserted <$> refreshArgsTop (x, t)
       (_,      _, _, _) -> return Unknown
@@ -630,7 +633,7 @@ cconsE' γ e (RAllP p t)
   where
     t'         = replacePredsWithRefs su <$> t
     su         = (uPVar p, pVartoRConc p)
-    (css, t'') = splitConstraints t'
+    (css, t'') = splitConstraints (typeclass (getConfig γ)) t'
     γ'         = L.foldl' addConstraints γ css
 
 cconsE' γ (Let b e) t
@@ -649,11 +652,11 @@ cconsE' γ (Lam α e) (RAllT α' t r) | isTyVar α
        addForAllConstraint γ' α e (RAllT α' t r)
        cconsE γ' e $ subsTyVar_meet' (ty_var_value α', rVar α) t
 
-cconsE' γ (Lam x e) (RFun y ty t r)
+cconsE' γ (Lam x e) (RFun y i ty t r)
   | not (isTyVar x)
   = do γ' <- γ += ("cconsE", x', ty)
        cconsE γ' e t'
-       addFunctionConstraint γ x e (RFun x' ty t' r')
+       addFunctionConstraint γ x e (RFun x' i ty t' r')
        addIdA x (AnnDef ty)
   where
     x'  = F.symbol x
@@ -694,7 +697,7 @@ addForAllConstraint γ _ _ (RAllT a t r)
   | F.isTauto r 
   = return ()
   | otherwise
-  = do t'       <- true t
+  = do t'       <- true (typeclass (getConfig γ)) t
        let truet = RAllT a $ unRAllP t'
        addC (SubC γ (truet mempty) $ truet r) "forall constraint true"
   where unRAllP (RAllT a t r) = RAllT a (unRAllP t) r  
@@ -705,10 +708,10 @@ addForAllConstraint γ _ _ _
 
   
 addFunctionConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
-addFunctionConstraint γ x e (RFun y ty t r)
-  = do ty'      <- true ty
-       t'       <- true t
-       let truet = RFun y ty' t'
+addFunctionConstraint γ x e (RFun y i ty t r)
+  = do ty'      <- true (typeclass (getConfig γ)) ty
+       t'       <- true (typeclass (getConfig γ)) t
+       let truet = RFun y i ty' t'
        case (lamExpr γ e, higherOrderFlag γ) of
           (Just e', True) -> do tce    <- tyConEmbed <$> get
                                 let sx  = typeSort tce $ varType x
@@ -719,12 +722,13 @@ addFunctionConstraint γ _ _ _
   = impossible (Just $ getLocation γ) "addFunctionConstraint: called on non function argument"
 
 splitConstraints :: TyConable c
-                 => RType c tv r -> ([[(F.Symbol, RType c tv r)]], RType c tv r)
-splitConstraints (RRTy cs _ OCons t)
-  = let (css, t') = splitConstraints t in (cs:css, t')
-splitConstraints (RFun x tx@(RApp c _ _ _) t r) | isClass c
-  = let (css, t') = splitConstraints t in (css, RFun x tx t' r)
-splitConstraints t
+                 => Bool -> RType c tv r -> ([[(F.Symbol, RType c tv r)]], RType c tv r)
+splitConstraints allowTC (RRTy cs _ OCons t)
+  = let (css, t') = splitConstraints allowTC t in (cs:css, t')
+splitConstraints allowTC (RFun x i tx@(RApp c _ _ _) t r) | isErasable c
+  = let (css, t') = splitConstraints allowTC  t in (css, RFun x i tx t' r)
+  where isErasable = if allowTC then isEmbeddedDict else isClass
+splitConstraints _ t
   = ([], t)
 
 -------------------------------------------------------------------
@@ -749,7 +753,7 @@ instantiateGhosts γ t = return (False, γ, t)
 bkImplicit :: RType c tv r
            -> ( [(F.Symbol, RType c tv r)]
               , RType c tv r)
-bkImplicit (RImpF x tx t _) = ((x,tx):acc, t')
+bkImplicit (RImpF x _ tx t _) = ((x,tx):acc, t')
   where (acc,t') = bkImplicit t
 bkImplicit t = ([],t)
 
@@ -776,7 +780,7 @@ cconsLazyLet :: CGEnv
              -> SpecType
              -> CG ()
 cconsLazyLet γ (Let (NonRec x ex) e) t
-  = do tx <- trueTy (varType x)
+  = do tx <- trueTy (typeclass (getConfig γ)) (varType x)
        γ' <- (γ, "Let NonRec") +++= (x', ex, tx)
        cconsE γ' e t
     where
@@ -813,8 +817,8 @@ consE _ (Lit c)
 consE γ e'@(App e a@(Type τ))
   = do RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
        t            <- if not (nopolyinfer (getConfig γ)) && isPos α && isGenericVar (ty_var_value α) te 
-                         then freshTy_type TypeInstE e τ 
-                         else trueTy τ
+                         then freshTy_type (typeclass (getConfig γ)) TypeInstE e τ 
+                         else trueTy (typeclass (getConfig γ)) τ
        addW          $ WfC γ t
        t'           <- refreshVV t
        tt0          <- instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
@@ -834,7 +838,7 @@ consE γ e'@(App e a) | Just aDict <- getExprDict γ a
         (γ', te''')  <- dropExists γ te'
         te''         <- dropConstraints γ te'''
         updateLocA {- πs -}  (exprLoc e) te''
-        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te''
+        let RFun x _ tx t _ = checkFun ("Non-fun App with caller ", e') γ te''
         cconsE γ' a tx
         addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
 
@@ -845,12 +849,12 @@ consE γ e'@(App e a)
        te''         <- dropConstraints γ te'''
        updateLocA (exprLoc e) te''
        (hasGhost, γ'', te''')     <- instantiateGhosts γ' te''
-       let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te'''
+       let RFun x _ tx t _ = checkFun ("Non-fun App with caller ", e') γ te'''
        cconsE γ'' a tx
        tout <- makeSingleton γ'' (simplify e') <$> (addPost γ'' $ maybe (checkUnbound γ'' e' x t a) (F.subst1 t . (x,)) (argExpr γ $ simplify a))
        if hasGhost
           then do
-           tk   <- freshTy_type ImplictE e' $ exprType e'
+           tk   <- freshTy_type (typeclass (getConfig γ)) ImplictE e' $ exprType e'
            addW $ WfC γ tk
            addC (SubC γ'' tout tk) ""
            return tk
@@ -862,13 +866,13 @@ consE γ (Lam α e) | isTyVar α
        return $ RAllT (makeRTVar $ rTyVar α) t' mempty
 
 consE γ  e@(Lam x e1)
-  = do tx      <- freshTy_type LamE (Var x) τx
+  = do tx      <- freshTy_type (typeclass (getConfig γ)) LamE (Var x) τx
        γ'      <- γ += ("consE", F.symbol x, tx)
        t1      <- consE γ' e1
        addIdA x $ AnnDef tx
        addW     $ WfC γ tx
        tce     <- tyConEmbed <$> get
-       return   $ RFun (F.symbol x) tx t1 $ lambdaSingleton γ tce x e1
+       return   $ RFun (F.symbol x) (mkRFInfo $ getConfig γ) tx t1 $ lambdaSingleton γ tce x e1
     where
       FunTy { ft_arg = τx } = exprType e
 
@@ -895,8 +899,8 @@ consE γ (Cast e co)
 consE γ e@(Cast e' c)
   = castTy γ (exprType e) e' c
 
-consE _ e@(Coercion _)
-   = trueTy $ exprType e
+consE γ e@(Coercion _)
+   = trueTy (typeclass (getConfig γ)) $ exprType e
 
 consE _ e@(Type t)
   = panic Nothing $ "consE cannot handle type " ++ GM.showPpr (e, t)
@@ -974,8 +978,8 @@ consPattern γ (Rs.PatBind e1 x e2 _ _ _ _ _) _ = do
  -}
 consPattern γ (Rs.PatReturn e m _ _ _) t = do
   et    <- F.notracepp "Cons-Pattern-Ret" <$> consE γ e
-  mt    <- trueTy  m
-  tt    <- trueTy  t
+  mt    <- trueTy (typeclass (getConfig γ))  m
+  tt    <- trueTy (typeclass (getConfig γ))  t
   return (mkRAppTy mt et tt) -- /// {-    $ RAppTy mt et mempty -}
 
 {- [NOTE] special type rule for field projection, is
@@ -986,7 +990,7 @@ consPattern γ (Rs.PatReturn e m _ _ _) t = do
 
 consPattern γ (Rs.PatProject xe _ τ c ys i) _ = do
   let yi = ys !! i
-  t    <- (addW . WfC γ) <<= freshTy_type ProjectE (Var yi) τ
+  t    <- (addW . WfC γ) <<= freshTy_type (typeclass (getConfig γ)) ProjectE (Var yi) τ
   γ'   <- caseEnv γ xe [] (DataAlt c) ys (Just [i])
   ti   <- {- γ' ??= yi -} varRefType γ' yi
   addC (SubC γ' ti t) "consPattern:project"
@@ -1034,10 +1038,11 @@ castTy γ t e _
 
 
 castTy' γ τ (Var x)
-  = do t <- trueTy τ
+  = do t <- trueTy (typeclass (getConfig γ)) τ
        -- tx <- varRefType γ x -- NV HERE: the refinements of the var x do not get into the 
        --                      -- environment. Check 
-       let ce = eCoerc (typeSort (emb γ) $ Ghc.expandTypeSynonyms $ varType x) 
+       let ce = if typeclass (getConfig γ) && (noADT (getConfig γ)) then F.expr x
+                else eCoerc (typeSort (emb γ) $ Ghc.expandTypeSynonyms $ varType x) 
                        (typeSort (emb γ) τ) 
                        $ F.expr x  
        return ((t `strengthen` (uTop $ F.uexprReft $ ce)) {- `F.meet` tx -})
@@ -1110,7 +1115,7 @@ isClassConCo co
 --------------------------------------------------------------------------------
 cconsFreshE :: KVKind -> CGEnv -> CoreExpr -> CG SpecType
 cconsFreshE kvkind γ e = do
-  t   <- freshTy_type kvkind e $ exprType e
+  t   <- freshTy_type (typeclass (getConfig γ)) kvkind e $ exprType e
   addW $ WfC γ t
   cconsE γ e t
   return t
@@ -1131,8 +1136,10 @@ dropExists γ (REx x tx t) =         (, t) <$> γ += ("dropExists", x, tx)
 dropExists γ t            = return (γ, t)
 
 dropConstraints :: CGEnv -> SpecType -> CG SpecType
-dropConstraints γ (RFun x tx@(RApp c _ _ _) t r) | isClass c
-  = (flip (RFun x tx)) r <$> dropConstraints γ t
+dropConstraints γ (RFun x i tx@(RApp c _ _ _) t r) | isErasable c
+  = (flip (RFun x i tx)) r <$> dropConstraints γ t
+  where
+    isErasable = if typeclass (getConfig γ) then isEmbeddedDict else isClass
 dropConstraints γ (RRTy cts _ OCons t)
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ xts
        addC (SubC  γ' t1 t2)  "dropConstraints"
@@ -1169,14 +1176,15 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
   let xt           = shiftVV xt0 x'
   tdc             <- (γ ??= (dataConWorkId c) >>= refreshVV)
   let (rtd,yts',_) = unfoldR tdc xt ys
-  yts             <- projectTypes pIs yts'
-  let ys''         = F.symbol <$> filter (not . GM.isEvVar) ys
+  yts             <- projectTypes (typeclass (getConfig γ))  pIs yts'
+  let ys''         = F.symbol <$> filter (not . if allowTC then GM.isEmbeddedDictVar else GM.isEvVar) ys
   let r1           = dataConReft   c   ys''
   let r2           = dataConMsReft rtd ys''
   let xt           = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
   let cbs          = safeZip "cconsCase" (x':ys') (xt0 : yts)
   cγ'             <- addBinders γ   x' cbs
   addBinders cγ' x' [(x', xt)]
+  where allowTC    = typeclass (getConfig γ)
   
 caseEnv γ x acs a _ _ = do 
   let x'  = F.symbol x
@@ -1189,13 +1197,13 @@ caseEnv γ x acs a _ _ = do
 --   at given indices; it is used to simplify the environment used
 --   when projecting out fields of single-ctor datatypes.
 --------------------------------------------------------------------------------
-projectTypes :: Maybe [Int] -> [SpecType] -> CG [SpecType]
-projectTypes Nothing   ts = return ts
-projectTypes (Just is) ts = mapM (projT is) (zip [0..] ts)
+projectTypes :: Bool -> Maybe [Int] -> [SpecType] -> CG [SpecType]
+projectTypes _ Nothing   ts = return ts
+projectTypes allowTC (Just is) ts = mapM (projT is) (zip [0..] ts)
   where
     projT is (j, t)
       | j `elem` is       = return t
-      | otherwise         = true t
+      | otherwise         = true allowTC t
 
 altReft :: CGEnv -> [AltCon] -> AltCon -> F.Reft
 altReft _ _ (LitAlt l)   = literalFReft l
@@ -1212,7 +1220,7 @@ unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
   where
         tbody              = instantiatePvs (instantiateTys td ts) (reverse rs)
         -- TODO: if we ever want to support applying implicits explicitly, will need to rejigger
-        ((_,_,_),(ys0,yts',_), rt) = safeBkArrow (F.notracepp msg $ instantiateTys tbody tvs')
+        ((_,_,_,_),(ys0,_,yts',_), rt) = safeBkArrow (F.notracepp msg $ instantiateTys tbody tvs')
         msg                = "INST-TY: " ++ F.showpp (td, ts, tbody, ys, tvs') 
         yts''              = zipWith F.subst sus (yts'++[rt])
         (t3,yts)           = (last yts'', init yts'')
@@ -1241,8 +1249,8 @@ checkTyCon _ _ t@(RApp _ _ _ _) = t
 checkTyCon x g t                = checkErr x g t
 
 checkFun :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
-checkFun _ _ t@(RFun _ _ _ _) = t
-checkFun x g t                = checkErr x g t
+checkFun _ _ t@(RFun _ _ _ _ _) = t
+checkFun x g t                  = checkErr x g t
 
 checkAll :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
 checkAll _ _ t@(RAllT _ _ _)  = t
@@ -1263,7 +1271,7 @@ varAnn γ x t
 -----------------------------------------------------------------------
 freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG SpecProp
 freshPredRef γ e (PV _ (PVProp τ) _ as)
-  = do t    <- freshTy_type PredInstE e (toType τ)
+  = do t    <- freshTy_type (typeclass (getConfig γ))  PredInstE e (toType False τ)
        args <- mapM (\_ -> fresh) as
        let targs = [(x, s) | (x, (s, y, z)) <- zip args as, (F.EVar y) == z ]
        γ' <- foldM (+=) γ [("freshPredRef", x, ofRSort τ) | (x, τ) <- targs]
@@ -1306,10 +1314,11 @@ lamExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 lamExpr γ (Tick _ e)  = lamExpr γ e
 lamExpr γ (App e (Type _)) = lamExpr γ e
 lamExpr γ (App e1 e2) = case (lamExpr γ e1, lamExpr γ e2) of
-                              (Just p1, Just p2) | not (GM.isPredExpr e2) -- (isClassPred $ exprType e2)
+                              (Just p1, Just p2) | not ((if allowTC then GM.isEmbeddedDictExpr else GM.isPredExpr) e2) -- (isClassPred $ exprType e2)
                                                  -> Just $ F.EApp p1 p2
                               (Just p1, Just _ ) -> Just p1
                               _  -> Nothing
+  where allowTC = typeclass (getConfig γ)
 lamExpr γ (Let (NonRec x ex) e) = case (lamExpr γ ex, lamExpr γ e) of
                                        (Just px, Just p) -> Just (p `F.subst1` (F.symbol x, px))
                                        _  -> Nothing
@@ -1358,7 +1367,7 @@ makeSingleton γ e t
   | higherOrderFlag γ, App f x <- simplify e
   = case (funExpr γ f, argForAllExpr x) of
       (Just f', Just x')
-                 | not (GM.isPredExpr x) -- (isClassPred $ exprType x)
+                 | not (if (typeclass (getConfig γ)) then GM.isEmbeddedDictExpr x else GM.isPredExpr x) -- (isClassPred $ exprType x)
                  -> strengthenMeet t (uTop $ F.exprReft (F.EApp f' x'))
       (Just f', Just _)
                  -> strengthenMeet t (uTop $ F.exprReft f')
@@ -1386,7 +1395,7 @@ funExpr _ (Var v)
 
 funExpr γ (App e1 e2)
   = case (funExpr γ e1, argExpr γ e2) of
-      (Just e1', Just e2') | not (GM.isPredExpr e2) -- (isClassPred $ exprType e2)
+      (Just e1', Just e2') | not (if typeclass (getConfig γ) then GM.isEmbeddedDictExpr e2 else GM.isPredExpr e2) -- (isClassPred $ exprType e2)
                            -> Just (F.EApp e1' e2')
       (Just e1', Just _)
                            -> Just e1'
@@ -1412,7 +1421,7 @@ singletonReft = uTop . F.symbolReft . F.symbol
 strengthenTop :: (PPrint r, F.Reftable r) => RType c tv r -> r -> RType c tv r
 strengthenTop (RApp c ts rs r) r'  = RApp c ts rs $ F.meet r r'
 strengthenTop (RVar a r) r'        = RVar a       $ F.meet r r'
-strengthenTop (RFun b t1 t2 r) r'  = RFun b t1 t2 $ F.meet r r'
+strengthenTop (RFun b i t1 t2 r) r'= RFun b i t1 t2 $ F.meet r r'
 strengthenTop (RAppTy t1 t2 r) r'  = RAppTy t1 t2 $ F.meet r r'
 strengthenTop (RAllT a t r)    r'  = RAllT a t    $ F.meet r r'
 strengthenTop t _                  = t
@@ -1421,7 +1430,7 @@ strengthenTop t _                  = t
 strengthenMeet :: (PPrint r, F.Reftable r) => RType c tv r -> r -> RType c tv r
 strengthenMeet (RApp c ts rs r) r'  = RApp c ts rs (r `F.meet` r')
 strengthenMeet (RVar a r) r'        = RVar a       (r `F.meet` r')
-strengthenMeet (RFun b t1 t2 r) r'  = RFun b t1 t2 (r `F.meet` r')
+strengthenMeet (RFun b i t1 t2 r) r'= RFun b i t1 t2 (r `F.meet` r')
 strengthenMeet (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `F.meet` r')
 strengthenMeet (RAllT a t r) r'     = RAllT a (strengthenMeet t r') (r `F.meet` r')
 strengthenMeet t _                  = t

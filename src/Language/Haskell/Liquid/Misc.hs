@@ -77,9 +77,15 @@ fst4 (a,_,_,_) = a
 snd4 :: (t, t1, t2, t3) -> t1
 snd4 (_,b,_,_) = b
 
+thd4 :: (t1, t2, t3, t4) -> t3
+thd4 (_,_,b,_) = b
+
+
 thrd3 :: (t1, t2, t3) -> t3
 thrd3 (_,_,c) = c
 
+mapFifth5 :: (t -> t4) -> (t0, t1, t2, t3, t) -> (t0, t1, t2, t3, t4)
+mapFifth5 f (a, x, y, z, w) = (a, x, y, z, f w)
 
 mapFourth4 :: (t -> t4) -> (t1, t2, t3, t) -> (t1, t2, t3, t4)
 mapFourth4 f (x, y, z, w) = (x, y, z, f w)
@@ -98,6 +104,16 @@ dropThd3 (x, y, _) = (x, y)
 
 replaceN :: (Enum a, Eq a, Num a) => a -> t -> [t] -> [t]
 replaceN n y ls = [if i == n then y else x | (x, i) <- zip ls [0..]]
+
+
+thd5 :: (t0, t1, t2, t3,t4) -> t2
+thd5 (_,_,x,_,_) = x
+
+snd5 :: (t0, t1, t2, t3,t4) -> t1
+snd5 (_,x,_,_,_) = x
+
+fst5 :: (t0, t1, t2, t3,t4) -> t0
+fst5 (x,_,_,_,_) = x
 
 fourth4 :: (t, t1, t2, t3) -> t3
 fourth4 (_,_,_,x) = x
@@ -130,6 +146,18 @@ third3 f (a,b,c) = (a,b,f c)
 zip4 :: [t] -> [t1] -> [t2] -> [t3] -> [(t, t1, t2, t3)]
 zip4 (x1:xs1) (x2:xs2) (x3:xs3) (x4:xs4) = (x1, x2, x3, x4) : zip4 xs1 xs2 xs3 xs4
 zip4 _ _ _ _                             = []
+
+zip5 :: [t] -> [t1] -> [t2] -> [t3] -> [t4] -> [(t, t1, t2, t3, t4)]
+zip5 (x1:xs1) (x2:xs2) (x3:xs3) (x4:xs4) (x5:xs5) = (x1, x2, x3, x4,x5) : zip5 xs1 xs2 xs3 xs4 xs5
+zip5 _ _ _ _ _                                    = []
+
+
+
+unzip4 :: [(t, t1, t2, t3)] -> ([t],[t1],[t2],[t3]) 
+unzip4 = go [] [] [] []
+  where go a1 a2 a3 a4 ((x1,x2,x3,x4):xs) = go (x1:a1) (x2:a2) (x3:a3) (x4:a4) xs 
+        go a1 a2 a3 a4 [] = (reverse  a1, reverse a2, reverse a3, reverse a4)
+  
 
 isIncludeFile :: FilePath -> FilePath -> Bool 
 isIncludeFile incDir src = -- do 
@@ -177,6 +205,12 @@ safeZip3WithError :: String -> [t] -> [t1] -> [t2] -> [(t, t1, t2)]
 safeZip3WithError msg (x:xs) (y:ys) (z:zs) = (x,y,z) : safeZip3WithError msg xs ys zs
 safeZip3WithError _   []     []     []     = []
 safeZip3WithError msg _      _      _      = errorstar msg
+
+safeZip4WithError :: String -> [t1] -> [t2] -> [t3] -> [t4] -> [(t1, t2, t3, t4)]
+safeZip4WithError msg (x:xs) (y:ys) (z:zs) (w:ws) = (x,y,z,w) : safeZip4WithError msg xs ys zs ws
+safeZip4WithError _   []     []     []     []     = []
+safeZip4WithError msg _      _      _      _      = errorstar msg
+
 
 mapNs :: (Eq a, Num a, Foldable t) => t a -> (a1 -> a1) -> [a1] -> [a1]
 mapNs ns f xs = foldl (\xs n -> mapN n f xs) xs ns

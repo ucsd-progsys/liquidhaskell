@@ -805,6 +805,7 @@ ppError' _ dCtx (ErrTySpec _ _k v t s)
         $+$ dCtx
         $+$ nest 4 (vcat [ pprint v <+> Misc.dcolon <+> pprint t
                          , pprint s
+                         , pprint _k
                          ])
     where
       _ppKind Nothing  = empty
