@@ -22,12 +22,22 @@
 
 module Language.Haskell.Liquid.Bare.Slice (sliceSpecs) where
 
-import qualified Language.Fixpoint.Types as F
-import qualified Data.HashMap.Strict as M
+-- import qualified Language.Fixpoint.Types as F
+-- import qualified Data.HashMap.Strict as M
 import           Language.Haskell.Liquid.Types
-import Data.Hashable
+-- import Data.Hashable
 import qualified Language.Haskell.Liquid.Measure as Ms
-import qualified Data.HashSet as S
+-- import qualified Data.HashSet as S
+
+
+-------------------------------------------------------------------------------
+-- | Top-level "slicing" function
+-------------------------------------------------------------------------------
+sliceSpecs :: GhcSrc -> Ms.BareSpec -> [(ModName, Ms.BareSpec)] -> 
+        [(ModName, Ms.BareSpec)]
+sliceSpecs _tgtSrc _tgtSpec specs = specs 
+
+{- 
 
 -------------------------------------------------------------------------------
 -- | The different kinds of names we have to resolve
@@ -111,13 +121,11 @@ instance Deps DataDecl where
 instance Deps DataCtor where 
   deps = error "TBD:deps:datactor"
 
+-}
 
--------------------------------------------------------------------------------
--- | Top-level "slicing" function
--------------------------------------------------------------------------------
-sliceSpecs :: GhcSrc -> Ms.BareSpec -> [(ModName, Ms.BareSpec)] -> 
-        [(ModName, Ms.BareSpec)]
-sliceSpecs tgtSrc tgtSpec specs = specs 
+
+
+{- 
              -- = [ (n, slice nodes sp) | (n, sp) <- specs ]
   -- where
     -- tgtGraph = mkGraph tgtSpec
@@ -131,6 +139,7 @@ class Sliceable a where
 instance Sliceable Ms.BareSpec where 
   slice nodes sp = sp
 
+-}
 ----
 {- 
 These are the fields we have to worry about
