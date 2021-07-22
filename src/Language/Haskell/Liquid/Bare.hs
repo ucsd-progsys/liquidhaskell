@@ -191,22 +191,19 @@ makeGhcSpec :: Config
             -> [(ModName, Ms.BareSpec)]
             -> Ghc.TcRn (Either Diagnostics ([Warning], GhcSpec))
 -------------------------------------------------------------------------------------
-makeGhcSpec cfg src lmap validatedSpecs =
-  if not (noErrors dg0) then Left dg0 else 
-    case diagnostics of
-      Left dg1 
-        | noErrors dg1 -> pure (allWarnings dg1, sp)
-        | otherwise    -> Left dg1
-      Right ()         -> pure (mempty, sp)
-  where
-    diagnostics = Bare.checkTargetSpec (map snd validatedSpecs)
-                                       (view targetSrcIso src)
-                                       renv
-                                       cbs
-                                       (fst . view targetSpecGetter $ sp)
-    (dg0, sp)   = makeGhcSpec0 cfg src lmap validatedSpecs
-    renv        = ghcSpecEnv sp
-    cbs         = _giCbs src
+makeGhcSpec cfg src lmap validatedSpecs = do
+  (dg0, sp) <- makeGhcSpec0 cfg src lmap validatedSpecs
+  let diagnostics = Bare.checkTargetSpec (map snd validatedSpecs)
+                                         (view targetSrcIso src)
+                                         (ghcSpecEnv sp)
+                                         (_giCbs src)
+                                         (fst . view targetSpecGetter $ sp)
+  pure $ if not (noErrors dg0) then Left dg0 else 
+           case diagnostics of
+             Left dg1 
+               | noErrors dg1 -> pure (allWarnings dg1, sp)
+               | otherwise    -> Left dg1
+             Right ()         -> pure (mempty, sp)
 
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
@@ -237,7 +234,6 @@ makeGhcSpec0 :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] ->
                 Ghc.TcRn (Diagnostics, GhcSpec)
 makeGhcSpec0 cfg src lmap mspecsNoCls = do
   -- build up environments
-  let  (dg0, datacons, tycEnv0) = makeTycEnv0   cfg name env embs mySpec2 iSpecs2 
   tycEnv <- makeTycEnv1 name env (tycEnv0, datacons) coreToLg simplifier
   let tyi      = Bare.tcTyConMap   tycEnv 
   let sigEnv   = makeSigEnv  embs tyi (_gsExports src) rtEnv 
@@ -260,7 +256,7 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
   let finalLiftedSpec = makeLiftedSpec src env refl sData elaboratedSig qual myRTE lSpec1
   let diags    = mconcat [dg0, dg1, dg2, dg3, dg4, dg5]
 
-  pure $ SP 
+  pure (diags, SP 
     { _gsConfig = cfg 
     , _gsImps   = makeImports mspecs
     , _gsSig    = addReflSigs env name rtEnv refl elaboratedSig
@@ -291,7 +287,7 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
                 , rinstance = Ms.rinstance finalLiftedSpec ++ Ms.rinstance mySpec
                   -- Preserve rinstances.
                 } 
-    }
+    })
   where
     -- typeclass elaboration
 
@@ -334,9 +330,10 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
     lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec0 
     embs     = makeEmbeds          src env ((name, mySpec0) : M.toList iSpecs0)
     dm       = Bare.tcDataConMap tycEnv0
+    (dg0, datacons, tycEnv0) = makeTycEnv0   cfg name env embs mySpec2 iSpecs2 
     -- extract name and specs
     env      = Bare.makeEnv cfg src lmap mspecsNoCls
-    (mySpec0NoCls, iSpecs0) = splitSpecs name mspecsNoCls
+    (mySpec0NoCls, iSpecs0) = splitSpecs name src mspecsNoCls
     -- check barespecs 
     name     = F.notracepp ("ALL-SPECS" ++ zzz) $ _giTargetMod  src 
     zzz      = F.showpp (fst <$> mspecs)
@@ -1067,7 +1064,6 @@ makeSpecName env tycEnv measEnv name = SpNames
 -- split into two to break circular dependency. we need dataconmap for core2logic
 -------------------------------------------------------------------------------------------
 makeTycEnv0 :: Config -> ModName -> Bare.Env -> TCEmb Ghc.TyCon -> Ms.BareSpec -> Bare.ModSpecs 
-           -> (Diagnostics, Bare.TycEnv) 
            -> (Diagnostics,  [Located DataConP], Bare.TycEnv)
 -------------------------------------------------------------------------------------------
 makeTycEnv0 cfg myName env embs mySpec iSpecs = (diag, datacons, Bare.TycEnv 
