@@ -1,13 +1,14 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
+{-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE PartialTypeSignatures      #-}
+{-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE ViewPatterns               #-}
 
 module Language.Haskell.Liquid.GHC.Interface (
@@ -64,7 +65,6 @@ import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( text
                                                                , (<+>)
                                                                , panic
                                                                , vcat
-                                                               , linear
                                                                , showPpr
                                                                , isHomeModule
                                                                , Target
@@ -457,6 +457,34 @@ loadModule' tm = loadModule tm'
     tm'  = tm { tm_parsed_module = pm' }
 
 
+
+
+      -- -- we should be able to setContext regardless of whether
+      -- -- we use the ghc api. However, ghc will complain
+      -- -- if the filename does not match the module name
+      -- when (typeclass cfg) $ do
+      --   Ghc.setContext [iimport |(modName, _) <- allSpecs legacyBareSpec,
+      --                   let iimport = if isTarget modName
+      --                                 then Ghc.IIModule (getModName modName)
+      --                                 else Ghc.IIDecl (Ghc.simpleImportDecl (getModName modName))]
+      --   void $ Ghc.execStmt
+      --     "let {infixr 1 ==>; True ==> False = False; _ ==> _ = True}"
+      --     Ghc.execOptions
+      --   void $ Ghc.execStmt
+      --     "let {infixr 1 <=>; True <=> False = False; _ <=> _ = True}"
+      --     Ghc.execOptions
+      --   void $ Ghc.execStmt
+      --     "let {infix 4 ==; (==) :: a -> a -> Bool; _ == _ = undefined}"
+      --     Ghc.execOptions
+      --   void $ Ghc.execStmt
+      --     "let {infix 4 /=; (/=) :: a -> a -> Bool; _ /= _ = undefined}"
+      --     Ghc.execOptions
+      --   void $ Ghc.execStmt
+      --     "let {infixl 7 /; (/) :: Num a => a -> a -> a; _ / _ = undefined}"
+      --     Ghc.execOptions        
+      --   void $ Ghc.execStmt
+      --     "let {len :: [a] -> Int; len _ = undefined}"
+      --     Ghc.execOptions        
 processTargetModule :: Config -> LogicMap -> DepGraph -> SpecEnv -> FilePath -> TypecheckedModule -> Ms.BareSpec
                     -> Ghc TargetInfo
 processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = do
@@ -467,16 +495,75 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
 
     let targetSrc = view targetSrcIso ghcSrc
     dynFlags <- getDynFlags
+  -- set up the interactive context
+    when (typeclass cfg) $
+      loadContext (view bareSpecIso bareSpec) dependencies targetSrc
+    (msgs, specM) <- Ghc.withSession $ \hsc_env -> liftIO $ runTcInteractive hsc_env
+      (makeTargetSpec cfg logicMap targetSrc (view bareSpecIso bareSpec) dependencies)
+    case specM of
+      Nothing -> panic Nothing  $ O.showSDoc dynFlags $ O.sep (Ghc.pprErrMsgBagWithLoc (snd msgs))
+      Just spec ->
+        case spec of
+          Left diagnostics -> do
+            mapM_ (liftIO . printWarning dynFlags) (allWarnings diagnostics)
+            throw (allErrors diagnostics)
+          Right (warns, targetSpec, liftedSpec) -> do
+            mapM_ (liftIO . printWarning dynFlags) warns
+            -- The call below is temporary, we should really load & save directly 'LiftedSpec's.
+            _          <- liftIO $ saveLiftedSpec (_giTarget ghcSrc) (unsafeFromLiftedSpec liftedSpec)
+            return      $ TargetInfo targetSrc targetSpec
 
-    case makeTargetSpec cfg logicMap targetSrc (view bareSpecIso bareSpec) dependencies of
-      Left diagnostics -> do
-        mapM_ (liftIO . printWarning dynFlags) (allWarnings diagnostics)
-        throw (allErrors diagnostics)
-      Right (warns, targetSpec, liftedSpec) -> do
-        mapM_ (liftIO . printWarning dynFlags) warns
-        -- The call below is temporary, we should really load & save directly 'LiftedSpec's.
-        _          <- liftIO $ saveLiftedSpec (_giTarget ghcSrc) (unsafeFromLiftedSpec liftedSpec)
-        return      $ TargetInfo targetSrc targetSpec
+  -- cfg          <- liftIO $ withPragmas cfg0 file (Ms.pragmas bareSpec)
+  -- let modSum    = pm_mod_summary (tm_parsed_module typechecked)
+  -- ghcSrc       <- makeGhcSrc    cfg file     typechecked modSum
+  -- dependencies <- makeDependencies cfg depGraph specEnv modSum bareSpec
+
+  -- let targetSrc = view targetSrcIso ghcSrc
+  -- dynFlags <- getDynFlags
+  -- -- set up the interactive context
+  -- when (typeclass cfg) $
+  --   loadContext (view bareSpecIso bareSpec) dependencies targetSrc
+  -- (msgs, specM) <- Ghc.withSession $ \hsc_env -> liftIO $ runTcInteractive hsc_env
+  --   (makeTargetSpec cfg logicMap targetSrc (view bareSpecIso bareSpec) dependencies)
+  -- case specM of
+  --   Nothing -> panic Nothing  $ O.showSDoc dynFlags $ O.sep (Ghc.pprErrMsgBagWithLoc (snd msgs))
+  --   Just spec ->
+  --     case spec of
+  --       Left diagnostics -> do
+  --         mapM_ (liftIO . printWarning dynFlags) (allWarnings diagnostics)
+  --         throw (allErrors diagnostics)
+  --       Right (warns, targetSpec, liftedSpec) -> do
+  --         mapM_ (liftIO . printWarning dynFlags) warns
+      
+  --     -- makeTargetSpec cfg logicMap targetSrc (view bareSpecIso bareSpec) dependencies >>= \case
+  --     --   Left  validationErrors -> Bare.checkThrow (Left validationErrors)
+  --     --   Right (targetSpec, liftedSpec) -> do
+      
+  --     -- The call below is temporary, we should really load & save directly 'LiftedSpec's.
+  --         _          <- liftIO $ saveLiftedSpec (_giTarget ghcSrc) (unsafeFromLiftedSpec liftedSpec)
+  --         return      $ TargetInfo targetSrc targetSpec
+
+
+loadContext :: BareSpec -> TargetDependencies -> TargetSrc -> Ghc ()
+loadContext bareSpec dependencies targetSrc = do
+  Ghc.setContext $ [Ghc.IIModule (getModName modName) |(modName, _) <- allSpecs legacyBareSpec,
+                    isTarget modName]
+
+  where
+    toLegacyDep :: (StableModule, LiftedSpec) -> (ModName, Ms.BareSpec)
+    toLegacyDep (sm, ls) = (ModName SrcImport (Ghc.moduleName . unStableModule $ sm), unsafeFromLiftedSpec ls)
+
+    toLegacyTarget :: Ms.BareSpec -> (ModName, Ms.BareSpec)
+    toLegacyTarget validatedSpec = (giTargetMod targetSrc, validatedSpec)
+
+    legacyDependencies :: [(ModName, Ms.BareSpec)]
+    legacyDependencies = map toLegacyDep . HM.toList . getDependencies $ dependencies
+
+    allSpecs :: Ms.BareSpec -> [(ModName, Ms.BareSpec)]
+    allSpecs validSpec = toLegacyTarget validSpec : legacyDependencies
+
+    -- legacyBareSpec :: Spec LocBareType F.LocSymbol
+    legacyBareSpec = review bareSpecIso bareSpec
 
 ---------------------------------------------------------------------------------------
 -- | @makeGhcSrc@ builds all the source-related information needed for consgen 
@@ -564,8 +651,9 @@ lookupTyThings :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> m [(Name
 lookupTyThings hscEnv modSum tcGblEnv = forM names (lookupTyThing hscEnv modSum tcGblEnv)
   where
     names :: [Ghc.Name] 
-    names  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts $ tcg_rdr_env tcGblEnv
-
+    names  = liftM2 (++)
+             (fmap Ghc.gre_name . Ghc.globalRdrEnvElts . tcg_rdr_env)
+             (fmap is_dfun_name . tcg_insts) tcGblEnv
 -- | Lookup a single 'Name' in the GHC environment, yielding back the 'Name' alongside the 'TyThing',
 -- if one is found.
 lookupTyThing :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> Name -> m (Name, Maybe TyThing)
@@ -593,6 +681,18 @@ availableTyCons hscEnv modSum tcGblEnv avails =
 availableVars :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [Ghc.Var]
 availableVars hscEnv modSum tcGblEnv avails = 
   fmap (\things -> [var | (AnId var) <- things]) (availableTyThings hscEnv modSum tcGblEnv avails)
+
+-- lookupTyThings :: HscEnv -> TypecheckedModule -> MGIModGuts -> Ghc [(Name, Maybe TyThing)] 
+-- lookupTyThings hscEnv tcm mg =
+--   forM (mgNames mg ++ instNames mg) $ \n -> do 
+--     tt1 <-          lookupName                   n 
+--     tt2 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n 
+--     tt3 <-          modInfoLookupName mi         n 
+--     tt4 <-          lookupGlobalName             n 
+--     return (n, Misc.firstMaybes [tt1, tt2, tt3, tt4])
+--     where 
+--       mi = tm_checked_module_info tcm
+
 
 -- lookupName        :: GhcMonad m => Name -> m (Maybe TyThing) 
 -- hscTcRcLookupName :: HscEnv -> Name -> IO (Maybe TyThing)

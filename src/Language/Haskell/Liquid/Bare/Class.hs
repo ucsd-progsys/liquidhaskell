@@ -42,10 +42,10 @@ import Control.Monad (forM)
 
 
 -------------------------------------------------------------------------------
-makeMethodTypes :: DEnv Ghc.Var LocSpecType -> [DataConP] -> [Ghc.CoreBind] -> [(Ghc.Var, MethodType LocSpecType)]
+makeMethodTypes :: Bool -> DEnv Ghc.Var LocSpecType -> [DataConP] -> [Ghc.CoreBind] -> [(Ghc.Var, MethodType LocSpecType)]
 -------------------------------------------------------------------------------
-makeMethodTypes (DEnv m) cls cbs 
-  = [(x, MT (addCC x . fromRISig <$> methodType d x m) (addCC x <$> classType (splitDictionary e) x)) | (d,e) <- ds, x <- grepMethods e]
+makeMethodTypes allowTC (DEnv m) cls cbs 
+  = [(x, MT (addCC allowTC x . fromRISig <$> methodType d x m) (addCC allowTC x <$> classType (splitDictionary e) x)) | (d,e) <- ds, x <- grepMethods e]
     where 
       grepMethods = filter GM.isMethod . freeVars mempty
       ds = filter (GM.isDictionary . fst) (concatMap unRec cbs)
@@ -68,8 +68,8 @@ makeMethodTypes (DEnv m) cls cbs
       subst [] t = t 
       subst ((a,ta):su) t = subsTyVar_meet' (a,ofType ta) (subst su t)
 
-addCC :: Ghc.Var -> LocSpecType -> LocSpecType
-addCC x zz@(Loc l l' st0) 
+addCC :: Bool -> Ghc.Var -> LocSpecType -> LocSpecType
+addCC allowTC x zz@(Loc l l' st0) 
   = Loc l l' 
   . addForall hst  
   . mkArrow [] ps' [] [] 
@@ -80,7 +80,7 @@ addCC x zz@(Loc l l' st0)
   where
     hst           = ofType (Ghc.expandTypeSynonyms t0) :: SpecType
     t0            = Ghc.varType x 
-    tyvsmap       = case Bare.runMapTyVars t0 st err of
+    tyvsmap       = case Bare.runMapTyVars allowTC t0 st err of
                           Left e  -> Ex.throw e 
                           Right s -> Bare.vmap s
     su            = [(y, rTyVar x)           | (x, y) <- tyvsmap]
@@ -110,8 +110,8 @@ addCC x zz@(Loc l l' st0)
       = addForall t t'
     addForall _ (RAllP p t')
       = RAllP (fmap (subts su') p) t' 
-    addForall (RFun _ t1 t2 _) (RFun x t1' t2' r)
-      = RFun x (addForall t1 t1') (addForall t2 t2') r  
+    addForall (RFun _ _ t1 t2 _) (RFun x i t1' t2' r)
+      = RFun x i (addForall t1 t1') (addForall t2 t2') r  
     addForall _ t 
       = t 
 

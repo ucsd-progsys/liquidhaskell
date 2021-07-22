@@ -298,14 +298,15 @@ microTests = group "Micro"
   , mkMicroPos "terminate-pos"  "tests/terminate/pos"
   , mkMicroNeg "terminate-neg"  "tests/terminate/neg"
   , mkMicroPos "pattern-pos"    "tests/pattern/pos"
-  , mkMicroPos "class-laws-pos" "tests/class-laws/pos"
-  , mkMicroLaw "class-laws-crash" "tests/class-laws/crash"
-  , mkMicroNeg "class-laws-neg"   "tests/class-laws/neg"
+  -- , mkMicroPos "class-laws-pos" "tests/class-laws/pos"
+  -- , mkMicroLaw "class-laws-crash" "tests/class-laws/crash"
+  -- , mkMicroNeg "class-laws-neg"   "tests/class-laws/neg"
   , mkMicroPos "implicit-pos"   "tests/implicit/pos"
   , mkMicroNeg "implicit-neg"   "tests/implicit/neg"
   -- RJ: disabling because broken by adt PR #1068
   -- , testGroup "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
   -- , testGroup "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
+  , mkMicroPos "typeclass-pos"  "tests/typeclasses/pos"
   ]
   where
     mkMicroPos name dir = testGroup name <$> dirTests dir [] ExitSuccess     (Just " SAFE ") (Just " UNSAFE ")

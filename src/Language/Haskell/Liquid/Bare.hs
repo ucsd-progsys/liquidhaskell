@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ViewPatterns              #-}
@@ -24,7 +25,8 @@ module Language.Haskell.Liquid.Bare (
 
 import           Prelude                                    hiding (error)
 import           Optics
-import           Control.Monad                              (forM, unless)
+import           Control.Monad                              (unless, forM)
+import           Control.Applicative                        ((<|>))
 import qualified Control.Exception                          as Ex
 import qualified Data.Binary                                as B
 import qualified Data.Maybe                                 as Mb
@@ -48,7 +50,8 @@ import           Language.Haskell.Liquid.WiredIn
 import qualified Language.Haskell.Liquid.Measure            as Ms
 import qualified Language.Haskell.Liquid.Bare.Types         as Bare 
 import qualified Language.Haskell.Liquid.Bare.Resolve       as Bare 
-import qualified Language.Haskell.Liquid.Bare.DataType      as Bare 
+import qualified Language.Haskell.Liquid.Bare.DataType      as Bare
+import           Language.Haskell.Liquid.Bare.Elaborate
 import qualified Language.Haskell.Liquid.Bare.Expand        as Bare 
 import qualified Language.Haskell.Liquid.Bare.Measure       as Bare 
 import qualified Language.Haskell.Liquid.Bare.Plugged       as Bare 
@@ -56,7 +59,8 @@ import qualified Language.Haskell.Liquid.Bare.Axiom         as Bare
 import qualified Language.Haskell.Liquid.Bare.ToBare        as Bare 
 import qualified Language.Haskell.Liquid.Bare.Class         as Bare 
 import qualified Language.Haskell.Liquid.Bare.Check         as Bare 
-import qualified Language.Haskell.Liquid.Bare.Laws          as Bare 
+import qualified Language.Haskell.Liquid.Bare.Laws          as Bare
+import qualified Language.Haskell.Liquid.Bare.Typeclass     as Bare 
 import qualified Language.Haskell.Liquid.Transforms.CoreToLogic as CoreToLogic 
 import           Control.Arrow                    (second)
 import Data.Hashable (Hashable)
@@ -117,20 +121,50 @@ makeTargetSpec :: Config
                -> TargetSrc
                -> BareSpec
                -> TargetDependencies
-               -> Either Diagnostics ([Warning], TargetSpec, LiftedSpec)
+               -> Ghc.TcRn (Either Diagnostics ([Warning], TargetSpec, LiftedSpec))
 makeTargetSpec cfg lmap targetSrc bareSpec dependencies = do
   let depsDiagnostics     = mapM (uncurry Bare.checkBareSpec) legacyDependencies
   let bareSpecDiagnostics = Bare.checkBareSpec (giTargetMod targetSrc) legacyBareSpec
   case depsDiagnostics >> bareSpecDiagnostics of
    Left d | noErrors d -> secondPhase (allWarnings d)
-   Left d              -> Left  d
+   Left d              -> return $ Left d
    Right ()            -> secondPhase mempty
   where
-    secondPhase :: [Warning] -> Either Diagnostics ([Warning], TargetSpec, LiftedSpec)
+    secondPhase :: [Warning] -> Ghc.TcRn (Either Diagnostics ([Warning], TargetSpec, LiftedSpec))
     secondPhase phaseOneWarns = do
-      (warns, ghcSpec) <- makeGhcSpec cfg (review targetSrcIso targetSrc) lmap (allSpecs legacyBareSpec)
-      let (targetSpec, liftedSpec) = view targetSpecGetter ghcSpec
-      pure (phaseOneWarns <> warns, targetSpec, liftedSpec)
+
+      -- we should be able to setContext regardless of whether
+      -- we use the ghc api. However, ghc will complain
+      -- if the filename does not match the module name
+      -- when (typeclass cfg) $ do
+      --   Ghc.setContext [iimport |(modName, _) <- allSpecs legacyBareSpec,
+      --                   let iimport = if isTarget modName
+      --                                 then Ghc.IIModule (getModName modName)
+      --                                 else Ghc.IIDecl (Ghc.simpleImportDecl (getModName modName))]
+      --   void $ Ghc.execStmt
+      --     "let {infixr 1 ==>; True ==> False = False; _ ==> _ = True}"
+      --     Ghc.execOptions
+      --   void $ Ghc.execStmt
+      --     "let {infixr 1 <=>; True <=> False = False; _ <=> _ = True}"
+      --     Ghc.execOptions
+      --   void $ Ghc.execStmt
+      --     "let {infix 4 ==; (==) :: a -> a -> Bool; _ == _ = undefined}"
+      --     Ghc.execOptions
+      --   void $ Ghc.execStmt
+      --     "let {infix 4 /=; (/=) :: a -> a -> Bool; _ /= _ = undefined}"
+      --     Ghc.execOptions
+      --   void $ Ghc.execStmt
+      --     "let {infixl 7 /; (/) :: Num a => a -> a -> a; _ / _ = undefined}"
+      --     Ghc.execOptions        
+      --   void $ Ghc.execStmt
+      --     "let {len :: [a] -> Int; len _ = undefined}"
+      --     Ghc.execOptions        
+
+      diagOrSpec <- makeGhcSpec cfg (review targetSrcIso targetSrc) lmap (allSpecs legacyBareSpec)
+      return $ do
+        (warns, ghcSpec) <- diagOrSpec
+        let (targetSpec, liftedSpec) = view targetSpecGetter ghcSpec
+        pure (phaseOneWarns <> warns, targetSpec, liftedSpec)
 
     toLegacyDep :: (Ghc.StableModule, LiftedSpec) -> (ModName, Ms.BareSpec)
     toLegacyDep (sm, ls) = (ModName SrcImport (Ghc.moduleName . Ghc.unStableModule $ sm), unsafeFromLiftedSpec ls)
@@ -155,7 +189,7 @@ makeGhcSpec :: Config
             -> GhcSrc
             -> LogicMap
             -> [(ModName, Ms.BareSpec)]
-            -> Either Diagnostics ([Warning], GhcSpec)
+            -> Ghc.TcRn (Either Diagnostics ([Warning], GhcSpec))
 -------------------------------------------------------------------------------------
 makeGhcSpec cfg src lmap validatedSpecs =
   if not (noErrors dg0) then Left dg0 else 
@@ -176,10 +210,10 @@ makeGhcSpec cfg src lmap validatedSpecs =
 
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
-ghcSpecEnv sp = fromListSEnv binds
+ghcSpecEnv sp = F.notracepp "RENV" $ fromListSEnv binds
   where
     emb       = gsTcEmbeds (_gsName sp)
-    binds     = concat 
+    binds     = F.notracepp "binds" $ concat 
                  [ [(x,        rSort t) | (x, Loc _ _ t)  <- gsMeas     (_gsData sp)]
                  , [(symbol v, rSort t) | (v, Loc _ _ t)  <- gsCtors    (_gsData sp)]
                  , [(symbol v, vSort v) | v               <- gsReflects (_gsRefl sp)]
@@ -187,7 +221,8 @@ ghcSpecEnv sp = fromListSEnv binds
                  , [(x, RR s mempty)    | (x, s)          <- wiredSortedSyms       ]
                  , [(x, RR s mempty)    | (x, s)          <- _gsImps sp       ]
                  ]
-    vSort     = Bare.varSortedReft emb
+    vSort     = rSort . classRFInfoType (typeclass $ getConfig sp) .
+                (ofType :: Ghc.Type -> SpecType) . Ghc.varType
     rSort     = rTypeSortedReft    emb
 
 
@@ -198,69 +233,110 @@ ghcSpecEnv sp = fromListSEnv binds
 --   essentially, to get to the `BareRTEnv` as soon as possible, as thats what
 --   lets us use aliases inside data-constructor definitions.
 -------------------------------------------------------------------------------------
-makeGhcSpec0 :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] 
-             -> (Diagnostics, GhcSpec)
--------------------------------------------------------------------------------------
-makeGhcSpec0 cfg src lmap mspecs = (diags, SP 
-  { _gsConfig = cfg 
-  , _gsImps   = makeImports mspecs
-  , _gsSig    = addReflSigs env name rtEnv refl sig
-  , _gsRefl   = refl 
-  , _gsLaws   = laws 
-  , _gsData   = sData 
-  , _gsQual   = qual 
-  , _gsName   = makeSpecName env     tycEnv measEnv   name 
-  , _gsVars   = spcVars
-  , _gsTerm   = spcTerm
-  , _gsLSpec  = finalLiftedSpec
-              { impSigs   = makeImports mspecs
-              , expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ]
-              , dataDecls = dataDecls mySpec2
-              , measures  = Ms.measures mySpec
-                -- We want to export measures in a 'LiftedSpec', especially if they are
-                -- required to check termination of some 'liftedSigs' we export. Due to the fact
-                -- that 'lSpec1' doesn't contain the measures that we compute via 'makeHaskellMeasures',
-                -- we take them from 'mySpec', which has those.
-              , asmSigs = Ms.asmSigs finalLiftedSpec ++ Ms.asmSigs mySpec
-                -- Export all the assumptions (not just the ones created out of reflection) in
-                -- a 'LiftedSpec'.
-              , imeasures = Ms.imeasures finalLiftedSpec ++ Ms.imeasures mySpec
-                -- Preserve user-defined 'imeasures'.
-              , dvariance = Ms.dvariance finalLiftedSpec ++ Ms.dvariance mySpec
-                -- Preserve user-defined 'dvariance'.
-              , rinstance = Ms.rinstance finalLiftedSpec ++ Ms.rinstance mySpec
-                -- Preserve rinstances.
-              }
-  })
+makeGhcSpec0 :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> 
+                Ghc.TcRn (Diagnostics, GhcSpec)
+makeGhcSpec0 cfg src lmap mspecsNoCls = do
+  -- build up environments
+  let  (dg0, datacons, tycEnv0) = makeTycEnv0   cfg name env embs mySpec2 iSpecs2 
+  tycEnv <- makeTycEnv1 name env (tycEnv0, datacons) coreToLg simplifier
+  let tyi      = Bare.tcTyConMap   tycEnv 
+  let sigEnv   = makeSigEnv  embs tyi (_gsExports src) rtEnv 
+  let lSpec1   = lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1 
+  let mySpec   = mySpec2 <> lSpec1 
+  let specs    = M.insert name mySpec iSpecs2
+  let myRTE    = myRTEnv       src env sigEnv rtEnv  
+  let (dg5, measEnv) = withDiagnostics $ makeMeasEnv      env tycEnv sigEnv       specs 
+  let (dg4, sig) = withDiagnostics $ makeSpecSig cfg name specs env sigEnv   tycEnv measEnv (_giCbs src)
+  elaboratedSig <-
+    if allowTC then Bare.makeClassAuxTypes (elaborateSpecType coreToLg simplifier) datacons instMethods
+                              >>= elaborateSig sig
+               else pure sig
+  let qual     = makeSpecQual cfg env tycEnv measEnv rtEnv specs 
+  let sData    = makeSpecData  src env sigEnv measEnv elaboratedSig specs 
+  let (dg1, spcVars) = withDiagnostics $ makeSpecVars cfg src mySpec env measEnv
+  let (dg2, spcTerm) = withDiagnostics $ makeSpecTerm cfg     mySpec env       name    
+  let (dg3, refl)    = withDiagnostics $ makeSpecRefl cfg src measEnv specs env name elaboratedSig tycEnv 
+  let laws     = makeSpecLaws env sigEnv (gsTySigs elaboratedSig ++ gsAsmSigs elaboratedSig) measEnv specs 
+  let finalLiftedSpec = makeLiftedSpec src env refl sData elaboratedSig qual myRTE lSpec1
+  let diags    = mconcat [dg0, dg1, dg2, dg3, dg4, dg5]
+
+  pure $ SP 
+    { _gsConfig = cfg 
+    , _gsImps   = makeImports mspecs
+    , _gsSig    = addReflSigs env name rtEnv refl elaboratedSig
+    , _gsRefl   = refl 
+    , _gsLaws   = laws 
+    , _gsData   = sData 
+    , _gsQual   = qual 
+    , _gsName   = makeSpecName env     tycEnv measEnv   name 
+    , _gsVars   = spcVars
+    , _gsTerm   = spcTerm
+
+    , _gsLSpec  = finalLiftedSpec
+                { impSigs   = makeImports mspecs
+                , expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ]
+                , dataDecls = dataDecls mySpec2 
+                , measures  = Ms.measures mySpec
+                  -- We want to export measures in a 'LiftedSpec', especially if they are
+                  -- required to check termination of some 'liftedSigs' we export. Due to the fact
+                  -- that 'lSpec1' doesn't contain the measures that we compute via 'makeHaskellMeasures',
+                  -- we take them from 'mySpec', which has those.
+                , asmSigs = Ms.asmSigs finalLiftedSpec ++ Ms.asmSigs mySpec
+                  -- Export all the assumptions (not just the ones created out of reflection) in
+                  -- a 'LiftedSpec'.
+                , imeasures = Ms.imeasures finalLiftedSpec ++ Ms.imeasures mySpec
+                  -- Preserve user-defined 'imeasures'.
+                , dvariance = Ms.dvariance finalLiftedSpec ++ Ms.dvariance mySpec
+                  -- Preserve user-defined 'dvariance'.
+                , rinstance = Ms.rinstance finalLiftedSpec ++ Ms.rinstance mySpec
+                  -- Preserve rinstances.
+                } 
+    }
   where
-    diags    = mconcat [dg0, dg1, dg2, dg3, dg4, dg5]
-    finalLiftedSpec = makeLiftedSpec src env refl sData sig qual myRTE lSpec1
-    -- build up spec components 
-    myRTE    = myRTEnv       src env sigEnv rtEnv  
-    qual     = makeSpecQual cfg env tycEnv measEnv rtEnv specs 
-    sData    = makeSpecData  src env sigEnv measEnv sig specs 
-    laws     = makeSpecLaws env sigEnv (gsTySigs sig ++ gsAsmSigs sig) measEnv specs 
-    (dg5, measEnv) = withDiagnostics $ makeMeasEnv      env tycEnv sigEnv       specs 
-    (dg4, sig)     = withDiagnostics $ makeSpecSig cfg name specs env sigEnv   tycEnv measEnv (_giCbs src)
-    (dg3, refl)    = withDiagnostics $ makeSpecRefl  cfg src measEnv specs env name sig tycEnv 
-    (dg2, spcTerm) = withDiagnostics $ makeSpecTerm cfg     mySpec env       name    
-    (dg1, spcVars) = withDiagnostics $ makeSpecVars cfg src mySpec env measEnv
-    -- build up environments
-    specs    = M.insert name mySpec iSpecs2
-    mySpec   = mySpec2 <> lSpec1 
-    lSpec1   = lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1 
-    sigEnv   = makeSigEnv  embs tyi (_gsExports src) rtEnv 
-    tyi      = Bare.tcTyConMap   tycEnv 
-    (dg0, tycEnv) = makeTycEnv   cfg name env embs mySpec2 iSpecs2 
+    -- typeclass elaboration
+
+    coreToLg e =
+      case CoreToLogic.runToLogic
+             embs
+             lmap
+             dm
+             (\x -> todo Nothing ("coreToLogic not working " ++ x))
+             (CoreToLogic.coreToLogic allowTC e) of
+        Left msg -> panic Nothing (F.showpp msg)
+        Right e -> e    
+    elaborateSig si auxsig = do
+      tySigs <-
+        forM (gsTySigs si) $ \(x, t) ->
+          if GM.isFromGHCReal x then
+            pure (x, t)
+          else do t' <- traverse (elaborateSpecType coreToLg simplifier) t
+                  pure (x, t')
+      -- things like len breaks the code
+      -- asmsigs should be elaborated only if they are from the current module
+      -- asmSigs <- forM (gsAsmSigs si) $ \(x, t) -> do
+      --   t' <- traverse (elaborateSpecType (pure ()) coreToLg) t
+      --   pure (x, fst <$> t')
+      pure
+        si
+          { gsTySigs = F.notracepp ("asmSigs" ++ F.showpp (gsAsmSigs si)) tySigs ++ auxsig  }
+
+    simplifier :: Ghc.CoreExpr -> Ghc.TcRn Ghc.CoreExpr
+    simplifier = pure -- no simplification
+    allowTC  = typeclass cfg
     mySpec2  = Bare.qualifyExpand env name rtEnv l [] mySpec1    where l = F.dummyPos "expand-mySpec2"
     iSpecs2  = Bare.qualifyExpand env name rtEnv l [] iSpecs0    where l = F.dummyPos "expand-iSpecs2"
     rtEnv    = Bare.makeRTEnv env name mySpec1 iSpecs0 lmap  
+    mspecs   = if allowTC then M.toList $ M.insert name mySpec0 iSpecs0 else mspecsNoCls
+    (mySpec0, instMethods)  = if allowTC
+                              then Bare.compileClasses src env (name, mySpec0NoCls) (M.toList iSpecs0)
+                              else (mySpec0NoCls, [])
     mySpec1  = mySpec0 <> lSpec0    
     lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec0 
     embs     = makeEmbeds          src env ((name, mySpec0) : M.toList iSpecs0)
+    dm       = Bare.tcDataConMap tycEnv0
     -- extract name and specs
-    env      = Bare.makeEnv cfg src lmap mspecs  
-    (mySpec0, iSpecs0) = splitSpecs name src mspecs 
+    env      = Bare.makeEnv cfg src lmap mspecsNoCls
+    (mySpec0NoCls, iSpecs0) = splitSpecs name mspecsNoCls
     -- check barespecs 
     name     = F.notracepp ("ALL-SPECS" ++ zzz) $ _giTargetMod  src 
     zzz      = F.showpp (fst <$> mspecs)
@@ -304,8 +380,8 @@ makeTyConEmbeds env (name, spec)
 --------------------------------------------------------------------------------
 makeLiftedSpec1 :: Config -> GhcSrc -> Bare.TycEnv -> LogicMap -> Ms.BareSpec 
                 -> Ms.BareSpec
-makeLiftedSpec1 _ src tycEnv lmap mySpec = mempty
-  { Ms.measures  = Bare.makeHaskellMeasures src tycEnv lmap mySpec }
+makeLiftedSpec1 config src tycEnv lmap mySpec = mempty
+  { Ms.measures  = Bare.makeHaskellMeasures (typeclass config) src tycEnv lmap mySpec }
 
 --------------------------------------------------------------------------------
 -- | [NOTE]: LIFTING-STAGES 
@@ -322,7 +398,7 @@ makeLiftedSpec1 _ src tycEnv lmap mySpec = mempty
 makeLiftedSpec0 :: Config -> GhcSrc -> F.TCEmb Ghc.TyCon -> LogicMap -> Ms.BareSpec 
                 -> Ms.BareSpec
 makeLiftedSpec0 cfg src embs lmap mySpec = mempty
-  { Ms.ealiases  = lmapEAlias . snd <$> Bare.makeHaskellInlines src embs lmap mySpec 
+  { Ms.ealiases  = lmapEAlias . snd <$> Bare.makeHaskellInlines (typeclass cfg) src embs lmap mySpec 
   , Ms.reflects  = Ms.reflects mySpec
   , Ms.dataDecls = Bare.makeHaskellDataDecls cfg name mySpec tcs  
   , Ms.embeds    = Ms.embeds mySpec
@@ -636,7 +712,7 @@ makeSpecSig :: Config -> ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> 
             -> Bare.Lookup GhcSpecSig 
 ----------------------------------------------------------------------------------------
 makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = do 
-  mySigs     <- F.notracepp "MAKE-TYSIGS" $ makeTySigs  env sigEnv name mySpec
+  mySigs     <- makeTySigs  env sigEnv name mySpec
   aSigs      <- makeAsmSigs env sigEnv name specs 
   let asmSigs =  Bare.tcSelVars tycEnv 
               ++ aSigs
@@ -649,12 +725,13 @@ makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = do
                   ]                                                               -- as they appear in termination metrics
   newTys     <-  makeNewTypes env sigEnv allSpecs 
   return SpSig 
-    { gsTySigs   = F.notracepp "gsTySigs"  tySigs 
-    , gsAsmSigs  = F.notracepp "gsAsmSigs" asmSigs
+    { gsTySigs   = tySigs 
+    , gsAsmSigs  = asmSigs
     , gsRefSigs  = [] 
     , gsDicts    = dicts 
-    , gsMethods  = if noclasscheck cfg then [] else Bare.makeMethodTypes dicts (Bare.meClasses  measEnv) cbs 
-    , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
+    -- , gsMethods  = if noclasscheck cfg then [] else Bare.makeMethodTypes dicts (Bare.meClasses  measEnv) cbs 
+    , gsMethods  = if noclasscheck cfg then [] else Bare.makeMethodTypes (typeclass cfg) dicts (Bare.meClasses  measEnv) cbs 
+    , gsInSigs   = mempty
     , gsNewTypes = newTys 
     , gsTexprs   = [ (v, t, es) | (v, t, Just es) <- mySigs ] 
     }
@@ -678,12 +755,12 @@ makeMthSigs measEnv = [ (v, t) | (_, v, t) <- Bare.meMethods measEnv ]
 
 makeInlSigs :: Bare.Env -> BareRTEnv -> [(ModName, Ms.BareSpec)] -> [(Ghc.Var, LocSpecType)] 
 makeInlSigs env rtEnv 
-  = makeLiftedSigs rtEnv CoreToLogic.inlineSpecType 
+  = makeLiftedSigs rtEnv (CoreToLogic.inlineSpecType (typeclass (getConfig env)))
   . makeFromSet "hinlines" Ms.inlines env 
 
 makeMsrSigs :: Bare.Env -> BareRTEnv -> [(ModName, Ms.BareSpec)] -> [(Ghc.Var, LocSpecType)] 
 makeMsrSigs env rtEnv 
-  = makeLiftedSigs rtEnv CoreToLogic.measureSpecType 
+  = makeLiftedSigs rtEnv (CoreToLogic.inlineSpecType (typeclass (getConfig env)))
   . makeFromSet "hmeas" Ms.hmeas env 
 
 makeLiftedSigs :: BareRTEnv -> (Ghc.Var -> SpecType) -> [Ghc.Var] -> [(Ghc.Var, LocSpecType)]
@@ -810,12 +887,12 @@ allAsmSigs env myName specs = do
   vSigs    <- forM aSigs $ \(name, must, x, t) -> do
                 vMb <- resolveAsmVar env name must x
                 return (vMb, (must, name, t))
-
   return    $ Misc.groupList [ (v, z) | (Just v, z) <- vSigs ]
 
 resolveAsmVar :: Bare.Env -> ModName -> Bool -> LocSymbol -> Bare.Lookup (Maybe Ghc.Var)
 resolveAsmVar env name True  lx = Just  <$> Bare.lookupGhcVar env name "resolveAsmVar-True"  lx
-resolveAsmVar env name False lx = return $  Bare.maybeResolveSym     env name "resolveAsmVar-False" lx  
+resolveAsmVar env name False lx = return $  Bare.maybeResolveSym     env name "resolveAsmVar-False" lx  <|> GM.maybeAuxVar (F.val lx)
+
 
 getAsmSigs :: ModName -> ModName -> Ms.BareSpec -> [(Bool, LocSymbol, LocBareType)]  
 getAsmSigs myName name spec 
@@ -874,9 +951,9 @@ makeSpecData :: GhcSrc -> Bare.Env -> Bare.SigEnv -> Bare.MeasEnv -> GhcSpecSig 
 ------------------------------------------------------------------------------------------
 makeSpecData src env sigEnv measEnv sig specs = SpData 
   { gsCtors      = -- F.notracepp "GS-CTORS" 
-                   [ (x, tt) 
+                   [ (x, if allowTC then t else tt) 
                        | (x, t) <- Bare.meDataCons measEnv
-                       , let tt  = Bare.plugHoles sigEnv name (Bare.LqTV x) t 
+                       , let tt  = Bare.plugHoles (typeclass $ getConfig env) sigEnv name (Bare.LqTV x) t 
                    ]
   , gsMeas       = [ (F.symbol x, uRType <$> t) | (x, t) <- measVars ] 
   , gsMeasures   = Bare.qualifyTopDummy env name <$> (ms1 ++ ms2)
@@ -885,12 +962,13 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
   , gsUnsorted   = usI ++ concatMap msUnSorted (concatMap measures specs)
   }
   where
+    allowTC      = typeclass (getConfig env)
     measVars     = Bare.meSyms      measEnv -- ms'
                 ++ Bare.meClassSyms measEnv -- cms' 
                 ++ Bare.varMeasures env
     measuresSp   = Bare.meMeasureSpec measEnv  
     ms1          = M.elems (Ms.measMap measuresSp)
-    ms2          =          Ms.imeas   measuresSp
+    ms2          = Ms.imeas   measuresSp
     mySpec       = M.lookupDefault mempty name specs
     name         = _giTargetMod      src
     (minvs,usI)  = makeMeasureInvariants env name sig mySpec
@@ -986,15 +1064,17 @@ makeSpecName env tycEnv measEnv name = SpNames
 
 
 -- REBARE: formerly, makeGhcCHOP1
+-- split into two to break circular dependency. we need dataconmap for core2logic
 -------------------------------------------------------------------------------------------
-makeTycEnv :: Config -> ModName -> Bare.Env -> TCEmb Ghc.TyCon -> Ms.BareSpec -> Bare.ModSpecs 
+makeTycEnv0 :: Config -> ModName -> Bare.Env -> TCEmb Ghc.TyCon -> Ms.BareSpec -> Bare.ModSpecs 
            -> (Diagnostics, Bare.TycEnv) 
+           -> (Diagnostics,  [Located DataConP], Bare.TycEnv)
 -------------------------------------------------------------------------------------------
-makeTycEnv cfg myName env embs mySpec iSpecs = (diag, Bare.TycEnv 
+makeTycEnv0 cfg myName env embs mySpec iSpecs = (diag, datacons, Bare.TycEnv 
   { tcTyCons      = tycons                  
-  , tcDataCons    = val <$> datacons 
+  , tcDataCons    = mempty -- val <$> datacons 
   , tcSelMeasures = dcSelectors             
-  , tcSelVars     = recSelectors            
+  , tcSelVars     = mempty -- recSelectors            
   , tcTyConMap    = tyi                     
   , tcAdts        = adts                    
   , tcDataConMap  = dm
@@ -1010,15 +1090,35 @@ makeTycEnv cfg myName env embs mySpec iSpecs = (diag, Bare.TycEnv
     -- tycons        = F.tracepp "TYCONS" $ Misc.replaceWith tcpCon tcs wiredTyCons
     -- datacons      =  Bare.makePluggedDataCons embs tyi (Misc.replaceWith (dcpCon . val) (F.tracepp "DATACONS" $ concat dcs) wiredDataCons)
     tycons        = tcs ++ knownWiredTyCons env myName 
-    datacons      = Bare.makePluggedDataCon embs tyi <$> (concat dcs ++ knownWiredDataCons env myName)
+    datacons      = Bare.makePluggedDataCon (typeclass cfg) embs tyi <$> (concat dcs ++ knownWiredDataCons env myName)
     tds           = [(name, tcpCon tcp, dd) | (name, tcp, Just dd) <- tcDds]
     adts          = Bare.makeDataDecls cfg embs myName tds       datacons
     dm            = Bare.dataConMap adts
     dcSelectors   = concatMap (Bare.makeMeasureSelectors cfg dm) datacons
-    recSelectors  = Bare.makeRecordSelectorSigs env myName       datacons
     fiTcs         = _gsFiTcs (Bare.reSrc env)
 
 
+
+makeTycEnv1 ::
+     ModName
+  -> Bare.Env
+  -> (Bare.TycEnv, [Located DataConP])
+  -> (Ghc.CoreExpr -> F.Expr)
+  -> (Ghc.CoreExpr -> Ghc.TcRn Ghc.CoreExpr)
+  -> Ghc.TcRn Bare.TycEnv
+makeTycEnv1 myName env (tycEnv, datacons) coreToLg simplifier = do
+  -- fst for selector generation, snd for dataconsig generation
+  lclassdcs <- forM classdcs $ traverse (Bare.elaborateClassDcp coreToLg simplifier)
+  let recSelectors = Bare.makeRecordSelectorSigs env myName (dcs ++ (fmap . fmap) snd lclassdcs)
+  pure $
+    tycEnv {Bare.tcSelVars = recSelectors, Bare.tcDataCons = F.val <$> ((fmap . fmap) fst lclassdcs ++ dcs )}
+  where
+    (classdcs, dcs) =
+      L.partition
+        (Ghc.isClassTyCon . Ghc.dataConTyCon . dcpCon . F.val)
+        datacons
+
+    
 knownWiredDataCons :: Bare.Env -> ModName -> [Located DataConP] 
 knownWiredDataCons env name = filter isKnown wiredDataCons 
   where 
@@ -1041,12 +1141,12 @@ makeMeasEnv env tycEnv sigEnv specs = do
   let dms      = Bare.makeDefaultMethods env mts  
   measures0   <- mapM (Bare.makeMeasureSpec env sigEnv name) (M.toList specs)
   let measures = mconcat (Ms.mkMSpec' dcSelectors : measures0)
-  let (cs, ms) = Bare.makeMeasureSpec'     measures
+  let (cs, ms) = Bare.makeMeasureSpec'  (typeclass $ getConfig env)   measures
   let cms      = Bare.makeClassMeasureSpec measures
   let cms'     = [ (x, Loc l l' $ cSort t)  | (Loc l l' x, t) <- cms ]
   let ms'      = [ (F.val lx, F.atLoc lx t) | (lx, t) <- ms
                                             , Mb.isNothing (lookup (val lx) cms') ]
-  let cs'      = [ (v, txRefs v t) | (v, t) <- Bare.meetDataConSpec embs cs (datacons ++ cls)]
+  let cs'      = [ (v, txRefs v t) | (v, t) <- Bare.meetDataConSpec (typeclass (getConfig env)) embs cs (datacons ++ cls)]
   return Bare.MeasEnv 
     { meMeasureSpec = measures 
     , meClassSyms   = cms' 
@@ -1057,7 +1157,6 @@ makeMeasEnv env tycEnv sigEnv specs = do
     , meCLaws       = laws
     }
   where 
-    -- unpacking the environment
     txRefs v t    = Bare.txRefSort tyi embs (t <$ GM.locNamedThing v) 
     tyi           = Bare.tcTyConMap    tycEnv 
     dcSelectors   = Bare.tcSelMeasures tycEnv 

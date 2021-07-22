@@ -526,8 +526,9 @@ constraintP
        reservedOp "<:"
        t2  <- bareTypeP
        return $ fromRTypeRep $ RTypeRep [] [] []
-                                        [] [] 
+                                        [] [] []
                                         ((val . fst <$> xts) ++ [dummySymbol])
+                                        (replicate (length xts + 1) defRFInfo)
                                         (replicate (length xts + 1) mempty)
                                         ((snd <$> xts) ++ [t1]) t2
 
@@ -1408,8 +1409,8 @@ tyBodyP ty
       _         -> E <$> exprP
     where outTy (RAllT _ t _)  = outTy t
           outTy (RAllP _ t)    = outTy t
-          outTy (RImpF _ _ t _)= Just t
-          outTy (RFun _ _ t _) = Just t
+          outTy (RImpF _ _ _ t _)= Just t
+          outTy (RFun _ _ _ t _) = Just t
           outTy _              = Nothing
 
 locUpperOrInfixIdP :: Parser (Located Symbol)
