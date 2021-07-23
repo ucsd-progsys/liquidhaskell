@@ -79,16 +79,18 @@ isRegular :: [DataDecl] -> Bool
 
 isRegular []       = error "impossible: isRegular"
 isRegular ds@(d:_) = all (\d' -> ddVars d' == nArgs) ds   -- same number of tyArgs 
-                  && all (isRegularArgs nArgs) fldArgs    -- 'regular' application (tc @0 ... @n)
+                  && all isRegApp fldSortApps         -- 'regular' application (tc @0 ... @n)
   where
     nArgs          = ddVars d
     tcs            = S.fromList ( symbol . ddTyCon <$> ds)
-    fldArgs        = [ ts | d            <- ds
-                          , ctor        <- ddCtors d
-                          , DField _ t  <- dcFields ctor 
-                          , (FTC c, ts) <- sortApps t
-                          , S.member (symbol c) tcs
-                     ]
+    fldSortApps    = [ (c,ts) | d           <- ds
+                              , ctor        <- ddCtors d
+                              , DField _ t  <- dcFields ctor 
+                              , (c, ts)     <- sortApps t
+                     ]         
+    isRegApp cts   = case cts of 
+                        (FTC c, ts) -> not (S.member (symbol c) tcs) || isRegularArgs nArgs ts
+                        _           -> False
 
 isRegularArgs :: Int -> [Sort] -> Bool
 isRegularArgs n ts = ts == [FVar i | i <- [0 .. (n-1)]]
