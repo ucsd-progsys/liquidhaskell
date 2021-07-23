@@ -105,6 +105,8 @@ import qualified Data.Store as S
 import           Data.Generics             (Data, gmapT, mkT, extT)
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
+import           Data.HashMap.Strict         (HashMap)
+import qualified Data.HashMap.Strict       as HashMap
 import           Data.HashSet              (HashSet)
 import qualified Data.HashSet              as HashSet
 import           GHC.Generics              (Generic)
@@ -381,6 +383,30 @@ exprSymbolsSet = go
     go (PAll xts p)       = go p `HashSet.difference` HashSet.fromList (fst <$> xts)
     go (PExist xts p)     = go p `HashSet.difference` HashSet.fromList (fst <$> xts)
     go _                  = HashSet.empty
+
+exprKVars :: Expr -> HashMap KVar [Subst]
+exprKVars = go
+  where
+    gos es                = HashMap.unions (go <$> es)
+    go (EVar _)           = HashMap.empty
+    go (EApp f e)         = gos [f, e]
+    go (ELam _ e)     = go e
+    go (ECoerc _ _ e)     = go e
+    go (ENeg e)           = go e
+    go (EBin _ e1 e2)     = gos [e1, e2]
+    go (EIte p e1 e2)     = gos [p, e1, e2]
+    go (ECst e _)         = go e
+    go (PAnd ps)          = gos ps
+    go (POr ps)           = gos ps
+    go (PNot p)           = go p
+    go (PIff p1 p2)       = gos [p1, p2]
+    go (PImp p1 p2)       = gos [p1, p2]
+    go (PAtom _ e1 e2)    = gos [e1, e2]
+    go (PKVar k substs@(Su su))  =
+      HashMap.insertWith (++) k [substs] $ HashMap.unions $ map exprKVars (M.elems su)
+    go (PAll _xts p)       = go p
+    go (PExist _xts p)     = go p
+    go _                  = HashMap.empty
 
 data GradInfo = GradInfo {gsrc :: SrcSpan, gused :: Maybe SrcSpan}
           deriving (Eq, Ord, Show, Data, Typeable, Generic)
