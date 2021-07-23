@@ -492,7 +492,7 @@ cookSpecType env sigEnv name x bt
 
 -----------------------------------------------------------------------------------------
 cookSpecTypeE :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocBareType 
-              -> Either UserError LocSpecType 
+              -> Bare.Lookup LocSpecType 
 -----------------------------------------------------------------------------------------
 cookSpecTypeE env sigEnv name@(ModName _ _) x bt
   = id
@@ -553,7 +553,7 @@ bareExpandType = expandLoc
 specExpandType :: BareRTEnv -> LocSpecType -> LocSpecType
 specExpandType = expandLoc 
 
-bareSpecType :: Bare.Env -> ModName -> LocBareType -> Either UserError LocSpecType 
+bareSpecType :: Bare.Env -> ModName -> LocBareType -> Bare.Lookup LocSpecType 
 bareSpecType env name bt = case Bare.ofBareTypeE env name (F.loc bt) Nothing (val bt) of 
   Left e  -> Left e 
   Right t -> Right (F.atLoc bt t)

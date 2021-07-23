@@ -50,6 +50,35 @@ makeSymbols f vs xs
 
 -} 
 
+{- 
+HEAD
+freeSymbols :: (F.Reftable r, F.Reftable r1, F.Reftable r2, TyConable c, TyConable c1, TyConable c2)
+            => [F.Symbol]
+            -> [(a1, Located (RType c2 tv2 r2))]
+            -> [(a, Located (RType c1 tv1 r1))]
+            -> [Located (RType c tv r)]
+            -> [LocSymbol]
+freeSymbols xs' xts yts ivs =  [ lx | lx <- Misc.sortNub $ zs ++ zs' ++ zs'' , not (M.member (val lx) knownM) ]
+  where
+    knownM                  = M.fromList [ (x, ()) | x <- xs' ]
+    zs                      = concatMap freeSyms (snd <$> xts)
+    zs'                     = concatMap freeSyms (snd <$> yts)
+    zs''                    = concatMap freeSyms ivs
+
+
+
+-------------------------------------------------------------------------------
+freeSyms :: (F.Reftable r, TyConable c) => Located (RType c tv r) -> [LocSymbol]
+-------------------------------------------------------------------------------
+freeSyms ty    = [ F.atLoc ty x | x <- tySyms ]
+  where
+    tySyms     = Misc.sortNub $ concat $ efoldReft (\_ _ -> True) False (\_ _ -> []) (const []) (const ()) f (const id) F.emptySEnv [] (val ty)
+    f γ _ r xs = let F.Reft (v, _) = F.toReft r in
+                 [ x | x <- F.syms r, x /= v, not (x `F.memberSEnv` γ)] : xs
+
+--- ABOVE IS THE T1773 STUFF
+--- BELOW IS THE develop-classes STUFF 
+
 -- freeSymbols :: (F.Reftable r, F.Reftable r1, F.Reftable r2, TyConable c, TyConable c1, TyConable c2)
 --             => [F.Symbol]
 --             -> [(a1, Located (RType c2 tv2 r2))]
@@ -72,6 +101,7 @@ makeSymbols f vs xs
 --     f γ _ r xs = let F.Reft (v, _) = F.toReft r in
 --                  [ x | x <- F.syms r, x /= v, not (x `F.memberSEnv` γ)] : xs
 
+-} 
 -------------------------------------------------------------------------------
 -- Renaming Type Variables in Haskell Signatures ------------------------------
 -------------------------------------------------------------------------------

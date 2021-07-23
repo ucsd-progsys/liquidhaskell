@@ -133,6 +133,11 @@ data MeasEnv = MeasEnv
   , meCLaws       :: !([(Ghc.Class, [(ModName, Ghc.Var, LocSpecType)])])  
   }
 
+instance Semigroup MeasEnv where
+  (<>) = error "FIXME:1773"
+instance Monoid MeasEnv where
+  mempty = error "FIXME:1773"
+
 -------------------------------------------------------------------------------
 -- | Converting @Var@ to @Sort@
 -------------------------------------------------------------------------------
@@ -145,12 +150,12 @@ varRSort  = RT.ofType . Ghc.varType
 -------------------------------------------------------------------------------
 -- | Handling failed resolution 
 -------------------------------------------------------------------------------
-failMaybe :: Env -> ModName -> Either UserError r -> Maybe r
+failMaybe :: Env -> ModName -> Either e r -> Either e (Maybe r)
 failMaybe env name res = case res of 
-  Right r -> Just r 
+  Right r -> Right (Just r) 
   Left  e -> if isTargetModName env name 
-              then Ex.throw e
-              else Nothing 
+              then Left e
+              else Right Nothing 
 
 isTargetModName :: Env -> ModName -> Bool 
 isTargetModName env name = name == _giTargetMod (reSrc env) 

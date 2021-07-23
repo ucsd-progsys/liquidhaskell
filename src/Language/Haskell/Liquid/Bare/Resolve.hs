@@ -19,6 +19,7 @@ module Language.Haskell.Liquid.Bare.Resolve
     -- * Resolving symbols 
   , ResolveSym (..)
   , Qualify (..)
+  , Lookup
   , qualifyTop, qualifyTopDummy
   
   -- * Looking up names
@@ -80,6 +81,9 @@ import           Language.Haskell.Liquid.WiredIn
 
 myTracepp :: (F.PPrint a) => String -> a -> a
 myTracepp = F.notracepp 
+
+-- type Lookup a = Misc.Validate [Error] a
+type Lookup a = Either [Error] a
 
 -------------------------------------------------------------------------------
 -- | Creating an environment 
@@ -312,7 +316,7 @@ qualifySymbol :: Env -> ModName -> F.SourcePos -> [F.Symbol] -> F.Symbol -> F.Sy
 qualifySymbol env name l bs x
   | isSpl     = x 
   | otherwise = case resolveLocSym env name "Symbol" (F.Loc l l x) of 
-                  Left  _ -> x 
+                  Left _ -> x 
                   Right v -> v 
   where 
     isSpl     = isSplSymbol env bs x
@@ -437,14 +441,14 @@ lookupGhcNamedVar env name z = maybeResolveSym  env name "Var" lx
   where 
     lx                       = GM.namedLocSymbol z
 
-lookupGhcVar :: Env -> ModName -> String -> LocSymbol -> Ghc.Var 
-lookupGhcVar env name kind lx = 
-  case resolveLocSym env name kind lx of 
-    Right v -> Mb.fromMaybe v       (lookupLocalVar env lx [v]) 
-    Left  e -> Mb.fromMaybe (err e) (lookupLocalVar env lx []) 
-  where
+lookupGhcVar :: Env -> ModName -> String -> LocSymbol -> Lookup Ghc.Var 
+lookupGhcVar env name kind lx = case resolveLocSym env name kind lx of 
+    Right v -> Mb.maybe (Right v) Right (lookupLocalVar env lx [v]) 
+    Left  e -> Mb.maybe (Left  e) Right (lookupLocalVar env lx []) 
+
+  -- where
     -- err e   = Misc.errorP "error-lookupGhcVar" (F.showpp (e, F.loc lx, lx))
-    err     = Ex.throw
+  --  err     = Ex.throw
 
 -- | @lookupLocalVar@ takes as input the list of "global" (top-level) vars 
 --   that also match the name @lx@; we then pick the "closest" definition. 
@@ -459,18 +463,18 @@ lookupLocalVar env lx gvs = Misc.findNearest lxn kvs
     lxn                   = F.unPos (F.srcLine lx)
     (_, x)                = unQualifySymbol (F.val lx)
 
+lookupGhcDataCon :: Env -> ModName -> String -> LocSymbol -> Lookup Ghc.DataCon 
+lookupGhcDataCon = resolveLocSym -- strictResolveSym 
 
-lookupGhcDataCon :: Env -> ModName -> String -> LocSymbol -> Ghc.DataCon 
-lookupGhcDataCon = strictResolveSym 
-
-lookupGhcTyCon :: Env -> ModName -> String -> LocSymbol -> Ghc.TyCon 
+lookupGhcTyCon :: Env -> ModName -> String -> LocSymbol -> Lookup Ghc.TyCon 
 lookupGhcTyCon env name k lx = myTracepp ("LOOKUP-TYCON: " ++ F.showpp (val lx)) 
-                               $ strictResolveSym env name k lx
+                               $ {- strictResolveSym -} resolveLocSym env name k lx
 
-lookupGhcDnTyCon :: Env -> ModName -> String -> DataName -> Maybe Ghc.TyCon
+lookupGhcDnTyCon :: Env -> ModName -> String -> DataName -> Lookup (Maybe Ghc.TyCon)
+-- lookupGhcDnTyCon = lookupGhcDnTyConE
 lookupGhcDnTyCon env name msg = failMaybe env name . lookupGhcDnTyConE env name msg
 
-lookupGhcDnTyConE :: Env -> ModName -> String -> DataName -> Either UserError Ghc.TyCon
+lookupGhcDnTyConE :: Env -> ModName -> String -> DataName -> Lookup Ghc.TyCon
 lookupGhcDnTyConE env name msg (DnCon  s) 
   = lookupGhcDnCon env name msg s
 lookupGhcDnTyConE env name msg (DnName s) 
@@ -480,7 +484,8 @@ lookupGhcDnTyConE env name msg (DnName s)
                    Right r -> Right r 
                    Left  _ -> Left  e
 
-lookupGhcDnCon :: Env -> ModName -> String -> LocSymbol -> Either UserError Ghc.TyCon 
+
+lookupGhcDnCon :: Env -> ModName -> String -> LocSymbol -> Lookup Ghc.TyCon 
 lookupGhcDnCon env name msg = fmap Ghc.dataConTyCon . resolveLocSym env name msg
 
 -------------------------------------------------------------------------------
@@ -495,10 +500,10 @@ knownGhcType env name (F.Loc l _ t) =
 
 
 _rTypeTyCons :: (Ord c) => RType c tv r -> [c]
-_rTypeTyCons           = Misc.sortNub . foldRType f []   
+_rTypeTyCons        = Misc.sortNub . foldRType f []   
   where 
-    f acc t@(RApp {}) = rt_tycon t : acc 
-    f acc _           = acc
+    f acc t@RApp {} = rt_tycon t : acc 
+    f acc _         = acc
 
 -- Aargh. Silly that each of these is the SAME code, only difference is the type.
 
@@ -512,7 +517,7 @@ knownGhcVar env name lx = Mb.isJust v
 knownGhcTyCon :: Env -> ModName -> LocSymbol -> Bool 
 knownGhcTyCon env name lx = myTracepp  msg $ Mb.isJust v 
   where 
-    msg = ("knownGhcTyCon: "  ++ F.showpp lx)
+    msg = "knownGhcTyCon: "  ++ F.showpp lx
     v :: Maybe Ghc.TyCon -- This annotation is crucial
     v = maybeResolveSym env name "known-tycon" lx 
 
@@ -527,7 +532,7 @@ knownGhcDataCon env name lx = Mb.isJust v
 -- | Using the environment 
 -------------------------------------------------------------------------------
 class ResolveSym a where 
-  resolveLocSym :: Env -> ModName -> String -> LocSymbol -> Either UserError a 
+  resolveLocSym :: Env -> ModName -> String -> LocSymbol -> Lookup a
 
 instance ResolveSym Ghc.Var where 
   resolveLocSym = resolveWith "variable" $ \case 
@@ -536,8 +541,8 @@ instance ResolveSym Ghc.Var where
 
 instance ResolveSym Ghc.TyCon where 
   resolveLocSym = resolveWith "type constructor" $ \case 
-                    Ghc.ATyCon x             -> Just x
-                    _                        -> Nothing
+                    Ghc.ATyCon x -> Just x
+                    _            -> Nothing
 
 instance ResolveSym Ghc.DataCon where 
   resolveLocSym = resolveWith "data constructor" $ \case 
@@ -607,16 +612,15 @@ instance ResolveSym F.Symbol where
 
 
 resolveWith :: (PPrint a) => PJ.Doc -> (Ghc.TyThing -> Maybe a) -> Env -> ModName -> String -> LocSymbol 
-            -> Either UserError a 
+            -> Lookup a 
 resolveWith kind f env name str lx =
   -- case Mb.mapMaybe f things of 
   case rankedThings f things of
-    []  -> Left  (errResolve kind str lx) 
+    []  -> Left [errResolve kind str lx]
     [x] -> Right x 
-    xs  -> Left $ ErrDupNames sp (pprint (F.val lx)) (pprint <$> xs)
+    xs  -> Left [ErrDupNames sp (pprint (F.val lx)) (pprint <$> xs)]
   where
-    -- oThings = Mb.mapMaybe (\(x, y) -> (x,) <$> f y) things
-    _xSym   = (F.val lx)
+    _xSym   = F.val lx
     sp      = GM.fSrcSpanSrcSpan (F.srcSpan lx)
     things  = myTracepp msg $ lookupTyThing env name lx 
     msg     = "resolveWith: " ++ str ++ " " ++ F.showpp (val lx)
@@ -753,18 +757,15 @@ splitModuleNameExact x' = myTracepp ("splitModuleNameExact for " ++ F.showpp x)
   where
     x = GM.stripParensSym x' 
 
-errResolve :: PJ.Doc -> String -> LocSymbol -> UserError 
+errResolve :: PJ.Doc -> String -> LocSymbol -> Error 
 errResolve k msg lx = ErrResolve (GM.fSrcSpan lx) k (F.pprint (F.val lx)) (PJ.text msg) 
 
--- symbolicString :: F.Symbolic a => a -> String
--- symbolicString = F.symbolString . F.symbol
-
--- | @strictResolve@ wraps the plain @resolve@ to throw an error 
---   if the name being searched for is unknown.
-strictResolveSym :: (ResolveSym a) => Env -> ModName -> String -> LocSymbol -> a 
-strictResolveSym env name kind x = case resolveLocSym env name kind x of 
-  Left  err -> Misc.errorP "error-strictResolveSym" (F.showpp err) -- uError err 
-  Right val -> val 
+-- -- | @strictResolve@ wraps the plain @resolve@ to throw an error 
+-- --   if the name being searched for is unknown.
+-- strictResolveSym :: (ResolveSym a) => Env -> ModName -> String -> LocSymbol -> a 
+-- strictResolveSym env name kind x = case resolveLocSym env name kind x of 
+--   Left  err -> Misc.errorP "error-strictResolveSym" (F.showpp err)
+--   Right val -> val 
 
 -- | @maybeResolve@ wraps the plain @resolve@ to return @Nothing@ 
 --   if the name being searched for is unknown.
@@ -782,9 +783,8 @@ ofBareType env name l ps t = either fail id (ofBareTypeE env name l ps t)
     fail                   = Ex.throw 
     -- fail                   = Misc.errorP "error-ofBareType" . F.showpp 
 
-ofBareTypeE :: Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> Either UserError SpecType
-ofBareTypeE env name l ps t = ofBRType env name (resolveReft env name l ps t) l t
---  where allowTC = False -- don't resolve here. resolve later using elaboration instead
+ofBareTypeE :: Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> Lookup SpecType 
+ofBareTypeE env name l ps t = ofBRType env name (resolveReft env name l ps t) l t 
 
 resolveReft :: Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> [F.Symbol] -> RReft -> RReft 
 resolveReft env name l ps t bs
@@ -812,7 +812,7 @@ coSubReft su (F.Reft (x, e)) = F.Reft (x, F.applyCoSub su e)
 ofBSort :: Env -> ModName -> F.SourcePos -> BSort -> RSort 
 ofBSort env name l t = either (Misc.errorP "error-ofBSort" . F.showpp) id (ofBSortE env name l t)
 
-ofBSortE :: Env -> ModName -> F.SourcePos -> BSort -> Either UserError RSort 
+ofBSortE :: Env -> ModName -> F.SourcePos -> BSort -> Lookup RSort 
 ofBSortE env name l t = ofBRType env name (const id) l t 
   
 ofBPVar :: Env -> ModName -> F.SourcePos -> BPVar -> RPVar
@@ -846,7 +846,7 @@ type Expandable r = ( PPrint r
                     , F.Reftable (RTProp RTyCon RTyVar r))
 
 ofBRType :: (Expandable r) => Env -> ModName -> ([F.Symbol] -> r -> r) -> F.SourcePos -> BRType r 
-         -> Either UserError (RRType r)
+         -> Lookup (RRType r)
 ofBRType env name f l t  = go [] t 
   where
     goReft bs r             = return (f bs r) 
@@ -864,12 +864,12 @@ ofBRType env name f l t  = go [] t
       where a'              = ofBPVar env name l a 
     go bs (RAllE x t1 t2)   = RAllE x  <$> go bs t1    <*> go bs t2
     go bs (REx x t1 t2)     = REx   x  <$> go bs t1    <*> go (x:bs) t2
-    go bs (RRTy xts r o t)  = RRTy  <$> xts' <*> (goReft bs r) <*> (pure o) <*> go bs t
+    go bs (RRTy xts r o t)  = RRTy  <$> xts' <*> goReft bs r <*> pure o <*> go bs t
       where xts'            = mapM (Misc.mapSndM (go bs)) xts
     go bs (RHole r)         = RHole    <$> goReft bs r
     go bs (RExprArg le)     = return    $ RExprArg (qualify env name l bs le) 
-    goRef bs (RProp ss (RHole r)) = rPropP <$> (mapM goSyms ss) <*> goReft bs r
-    goRef bs (RProp ss t)         = RProp  <$> (mapM goSyms ss) <*> go bs t
+    goRef bs (RProp ss (RHole r)) = rPropP <$> mapM goSyms ss <*> goReft bs r
+    goRef bs (RProp ss t)         = RProp  <$> mapM goSyms ss <*> go bs t
     goSyms (x, t)                 = (x,) <$> ofBSortE env name l t 
     goRApp bs tc ts rs r          = bareTCApp <$> goReft bs r <*> lc' <*> mapM (goRef bs) rs <*> mapM (go bs) ts
       where
@@ -896,7 +896,7 @@ ofBRType env name f l t  = go [] t
 
 -}
 
-matchTyCon :: Env -> ModName -> LocSymbol -> Int -> Either UserError Ghc.TyCon
+matchTyCon :: Env -> ModName -> LocSymbol -> Int -> Lookup Ghc.TyCon
 matchTyCon env name lc@(Loc _ _ c) arity
   | isList c && arity == 1  = Right Ghc.listTyCon
   | isTuple c               = Right tuplTc 
@@ -921,7 +921,7 @@ bareTCApp r (Loc l _ c) rs ts | Just rhs <- Ghc.synTyConRhs_maybe c
        su  = zipWith (\a t -> (RT.rTyVar a, toRSort t, t)) tvs ts
        nts = length tvs
 
-       err :: UserError
+       err :: Error
        err = ErrAliasApp (GM.sourcePosSrcSpan l) (pprint c) (Ghc.getSrcSpan c)
                          (PJ.hcat [ PJ.text "Expects"
                                   , pprint (GM.realTcArity c) 

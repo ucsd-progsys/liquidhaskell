@@ -402,6 +402,17 @@ mapEither f (x:xs) = case f x of
                      where 
                        (ys, zs) = mapEither f xs 
 -}
+mapErr :: (a -> Either e b) -> [a] -> Either [e] [b]
+mapErr f xs = catEithers (map f xs)
+
+catEithers :: [ Either a b ] -> Either [a] [b]
+catEithers zs = case ls of
+  [] -> Right rs
+  _  -> Left ls
+  where 
+    ls = [ l | Left  l <- zs ]
+    rs = [ r | Right r <- zs ]
+
 
 keyDiff :: (Eq k, Hashable k) => (a -> k) -> [a] -> [a] -> [a]
 keyDiff f x1s x2s = M.elems (M.difference (m x1s) (m x2s))
@@ -423,3 +434,17 @@ lastModified f = do
   ex  <- doesFileExist f
   if ex then Just <$> getModificationTime f
         else return   Nothing
+
+
+data Validate e a = Err e | Val a
+
+instance Functor (Validate e) where
+  fmap _ (Err e) = Err e
+  fmap f (Val v)  = Val (f v)
+
+instance Monoid e => Applicative (Validate e) where
+  pure = Val
+  (Err e1) <*> Err e2 = Err (e1 <> e2)
+  (Err e1) <*> _      = Err e1
+  _        <*> Err e2 = Err e2
+  (Val f)  <*> Val x  = Val (f x)

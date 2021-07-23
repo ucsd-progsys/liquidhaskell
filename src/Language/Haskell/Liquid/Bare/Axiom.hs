@@ -34,11 +34,12 @@ import           Language.Haskell.Liquid.Bare.Types   as Bare
 
 -----------------------------------------------------------------------------------------------
 makeHaskellAxioms :: Config -> GhcSrc -> Bare.Env -> Bare.TycEnv -> ModName -> LogicMap -> GhcSpecSig -> Ms.BareSpec 
-                  -> [(Ghc.Var, LocSpecType, F.Equation)]
+                  -> Bare.Lookup [(Ghc.Var, LocSpecType, F.Equation)]
 -----------------------------------------------------------------------------------------------
-makeHaskellAxioms cfg src env tycEnv name lmap spSig spec 
-  = fmap (makeAxiom env tycEnv name lmap) 
-         (wiredDefs cfg env name spSig ++ getReflectDefs src spSig spec) 
+makeHaskellAxioms cfg src env tycEnv name lmap spSig spec = do 
+  wiDefs     <- wiredDefs cfg env name spSig
+  let refDefs = getReflectDefs src spSig spec
+  return (makeAxiom env tycEnv name lmap <$> (wiDefs ++ refDefs))
 
 getReflectDefs :: GhcSrc -> GhcSpecSig -> Ms.BareSpec 
                -> [(LocSymbol, Maybe SpecType, Ghc.Var, Ghc.CoreExpr)]
@@ -215,23 +216,21 @@ singletonApp s ys = MkUReft r mempty
 -- | Hardcode imported reflected functions ------------------------------------
 -------------------------------------------------------------------------------
 
-
-wiredReflects :: Config -> Bare.Env -> ModName -> GhcSpecSig 
-              -> [Ghc.Var]
-wiredReflects cfg env name sigs = [v | (_, _, v, _) <- wiredDefs cfg env name sigs ]
-
+wiredReflects :: Config -> Bare.Env -> ModName -> GhcSpecSig -> 
+                 Bare.Lookup [Ghc.Var]
+wiredReflects cfg env name sigs = do 
+  vs <- wiredDefs cfg env name sigs
+  return [v | (_, _, v, _) <- vs]
 
 wiredDefs :: Config -> Bare.Env -> ModName -> GhcSpecSig 
-          -> [(LocSymbol, Maybe SpecType, Ghc.Var, Ghc.CoreExpr)]
+          -> Bare.Lookup [(LocSymbol, Maybe SpecType, Ghc.Var, Ghc.CoreExpr)]
 wiredDefs cfg env name spSig
-  | reflection cfg 
-  = [ functionCompositionDef ]
-  | otherwise
-  = []
-  where 
-    functionCompositionDef = (x, fmap F.val $ lookup v (gsTySigs spSig), v, makeCompositionExpression v)
-    x = F.dummyLoc functionComposisionSymbol
-    v = Bare.lookupGhcVar env name "wiredAxioms" x
+  | reflection cfg = do
+    let x = F.dummyLoc functionComposisionSymbol
+    v    <- Bare.lookupGhcVar env name "wiredAxioms" x
+    return [ (x, F.val <$> lookup v (gsTySigs spSig), v, makeCompositionExpression v) ]
+  | otherwise = 
+    return []
 
 -------------------------------------------------------------------------------
 -- | Expression Definitions of Prelude Functions ------------------------------

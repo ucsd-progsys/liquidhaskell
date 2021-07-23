@@ -72,6 +72,7 @@ data SState
            , caseIdx    :: !Int                -- [ Temporary ] Index in list of scrutinees.
            , scrutinees :: ![(CoreExpr, Type, TyCon)]
            }
+
 type SM = StateT SState IO
 
 localMaxAppDepth :: SM Int 
@@ -396,10 +397,14 @@ functionCands goalTy = do
 
 varError :: SM Var
 varError = do 
-  info    <- ghcI . sCGI <$> get
-  let env  = B.makeEnv (gsConfig $ giSpec info) (toGhcSrc $ giSrc info) mempty mempty 
-  let name = giTargetMod $ giSrc info
-  return $ B.lookupGhcVar env name "Var" (dummyLoc $ symbol "Language.Haskell.Liquid.Synthesize.Error.err")
+  info      <- ghcI . sCGI <$> get
+  let env    = B.makeEnv (gsConfig $ giSpec info) (toGhcSrc $ giSrc info) mempty mempty 
+  let name   = giTargetMod $ giSrc info
+  let errSym = dummyLoc $ symbol "Language.Haskell.Liquid.Synthesize.Error.err"
+  case B.lookupGhcVar env name "Var" errSym of 
+    Right v -> return v
+    Left e  -> error (show e)
+  
 
 toGhcSrc :: TargetSrc -> GhcSrc 
 toGhcSrc a = Src
