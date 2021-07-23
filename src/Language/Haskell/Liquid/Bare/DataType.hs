@@ -220,10 +220,12 @@ makeDataDecls cfg tce name tds ds
     tds'      = resolveTyCons name tds
 
 checkRegularData :: [F.DataDecl] -> (Diagnostics, [F.DataDecl])
-checkRegularData ds = (mkDiagnostics warns [], oks)
+checkRegularData ds = (mkDiagnostics (mkWarn <$> badDs) [], oks)
   where
-    warns       = [ mkWarning (GM.fSrcSpan d) ("Non-regular datatype" <+> pprint (F.symbol d)) | d <- bads]
-    (oks, bads) = L.partition F.isRegularDataDecl ds
+    badDs           = F.checkRegular ds
+    badSyms         = S.fromList . fmap F.symbol $ badDs
+    oks             = [ d |  d <- ds, not (S.member (F.symbol d) badSyms) ] 
+    mkWarn d        = mkWarning (GM.fSrcSpan d) ("Non-regular datatype" <+> pprint d)
 
 -- [NOTE:Orphan-TyCons]
 
