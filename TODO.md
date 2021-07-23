@@ -15,6 +15,14 @@ icfp_pos
       FoldAbs.hs:            OK (26.68s)
       
 
+## no-adt
+
+Don't encode non-encodable ADTs (by default)
+
+- [ ] ExactGADT6.hs
+- [ ] T1100.hs
+- [ ] T1120A.hs
+
 ## Fix: SpecDependencyGraph
 
 1. Implement `Bare.SpecDep` 

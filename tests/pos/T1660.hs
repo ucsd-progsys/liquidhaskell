@@ -5,7 +5,7 @@
 {-@ LIQUID "--reflection"  @-} 
 {-@ LIQUID "--ple"         @-}
 {-@ LIQUID "--fast"        @-}
-{-@ LIQUID "--no-adt"      @-} 
+{- LIQUID "--no-adt"      @-} 
 
 module Readers where
 

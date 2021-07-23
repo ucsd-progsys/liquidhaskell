@@ -1,10 +1,12 @@
 {-# LANGUAGE RankNTypes      #-}
 {-# LANGUAGE GADTs           #-}
 {-# LANGUAGE KindSignatures  #-}
+
 {-@ LIQUID "--reflection" @-} 
+
 -- Z3 encoding cannot be used until this is fixed: 
 -- https://github.com/Z3Prover/z3/issues/3930
-{-@ LIQUID "--no-adt"         @-} 
+{- LIQUID "--no-adt"         @-} 
 {-@ LIQUID "--ple-local"      @-} 
 {-@ LIQUID "--prune-unsorted" @-} 
 

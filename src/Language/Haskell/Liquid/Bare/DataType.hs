@@ -209,23 +209,37 @@ makeDataDecls :: Config -> F.TCEmb Ghc.TyCon -> ModName
               -> [Located DataConP]
               -> (Diagnostics, [F.DataDecl])
 makeDataDecls cfg tce name tds ds
-  | makeDecls = checkRegularData 
-                  [ makeFDataDecls tce tc dd ctors
-                  | (tc, (dd, ctors)) <- groupDataCons tds' (F.tracepp "makeDataDecls" ds)
-                  , tc /= Ghc.listTyCon
-                  ]
-  | otherwise = (mempty, [])
+  | makeDecls        = (mkDiagnostics warns [], okDecs)  
+  | otherwise        = (mempty, [])
   where
-    makeDecls = exactDCFlag cfg && not (noADT cfg)
-    tds'      = resolveTyCons name tds
+    makeDecls        = exactDCFlag cfg && not (noADT cfg)
+    warns            = (mkWarnDecl . fst . fst . snd <$> badTcs) ++ (mkWarnDecl <$> badDecs)
+    tds'             = resolveTyCons name tds
+    tcDds            = filter ((/= Ghc.listTyCon) . fst) 
+                     $ groupDataCons tds' ds
+    (okTcs, badTcs)  = L.partition isVanillaTc tcDds
+    decs             = [ makeFDataDecls tce tc dd ctors | (tc, (dd, ctors)) <- okTcs] 
+    (okDecs,badDecs) = checkRegularData decs
 
-checkRegularData :: [F.DataDecl] -> (Diagnostics, [F.DataDecl])
-checkRegularData ds = (mkDiagnostics (mkWarn <$> badDs) [], oks)
+isVanillaTc :: (a, (b, [(Ghc.DataCon, c)])) -> Bool
+isVanillaTc (_, (_, ctors)) = all (Ghc.isVanillaDataCon . fst) ctors 
+
+checkRegularData :: [F.DataDecl] -> ([F.DataDecl], [F.DataDecl])
+checkRegularData ds = (oks, badDs)
   where
     badDs           = F.checkRegular ds
-    badSyms         = S.fromList . fmap F.symbol $ badDs
+    badSyms         = F.tracepp "BAD-Data" . S.fromList . fmap F.symbol $ badDs
     oks             = [ d |  d <- ds, not (S.member (F.symbol d) badSyms) ] 
-    mkWarn d        = mkWarning (GM.fSrcSpan d) ("Non-regular datatype" <+> pprint d)
+
+mkWarnDecl :: (F.Loc a, F.Symbolic a) => a -> Warning
+mkWarnDecl d = mkWarning (GM.fSrcSpan d) ("Non-regular data declaration" <+> pprint (F.symbol d))
+
+-- mkWarnDataProp :: DataDecl -> Warning
+-- mkWarnDataProp d = mkWarning (GM.fSrcSpan d) ("Non-regular datatype" <+> pprint (F.symbol d)) 
+
+
+
+
 
 -- [NOTE:Orphan-TyCons]
 
@@ -376,12 +390,9 @@ makeConTypes' :: ModName -> Bare.Env -> (ModName, Ms.BareSpec)
 makeConTypes' _myName env (name, spec) = do
   dcs'   <- canonizeDecls env name dcs
   let gvs = groupVariances dcs' vdcs
-  -- return  $ unzip . rights 
   zong <- catLookups . map (uncurry (ofBDataDecl env name)) $ gvs
   return (unzip zong)
-  -- unzip <$> mapM (uncurry (ofBDataDecl env name)) gvs
   where
-    -- msg  = printf "makeConTypes (%s): %s" (show myName) (show name)
     dcs  = Ms.dataDecls spec 
     vdcs = Ms.dvariance spec 
 
@@ -526,7 +537,7 @@ ofBDataDecl env name (Just dd@(DataDecl tc as ps cts pos sfun pt _)) maybe_invar
   tc'             <- getDnTyCon env name tc
   cts'            <- mapM (ofBDataCtor env name lc lc' tc' αs ps πs) (Mb.fromMaybe [] cts)
   unless (checkDataDecl tc' dd) (Left [err])  
-  let pd           = Bare.ofBareType env name lc (Just []) <$> pt
+  let pd           = Bare.ofBareType env name lc (Just []) <$> (F.tracepp "ofBDataDecl-prop" pt)
   let tys          = [t | dcp <- cts', (_, t) <- dcpTyArgs dcp]
   let varInfo      = L.nub $  concatMap (getPsSig initmap True) tys
   let defPs        = varSignToVariance varInfo <$> [0 .. (length πs - 1)]
@@ -568,7 +579,7 @@ ofBDataCtor env name l l' tc αs ps πs dc = do
 ofBDataCtorTc :: Bare.Env -> ModName -> F.SourcePos -> F.SourcePos -> 
                  Ghc.TyCon -> [RTyVar] -> [PVar BSort] -> [PVar RSort] -> DataCtor -> Ghc.DataCon -> 
                  DataConP
-ofBDataCtorTc env name l l' tc αs ps πs _ctor@(DataCtor c as _ xts res) c' = 
+ofBDataCtorTc env name l l' tc αs ps πs _ctor@(DataCtor _c as _ xts res) c' = 
   DataConP 
     { dcpLoc        = l                
     , dcpCon        = c'                
@@ -649,10 +660,10 @@ dataConResultTy :: Ghc.DataCon
                 -> SpecType         -- ^ vanilla result type
                 -> Maybe SpecType   -- ^ user-provided result type
                 -> SpecType
-dataConResultTy _ _ _ (Just t) = t
+dataConResultTy c _ _ (Just t) = F.tracepp ("dataConResultTy-3 : vanilla = " ++ show (Ghc.isVanillaDataCon c) ++ " : ") t
 dataConResultTy c _ t _
-  | Ghc.isVanillaDataCon c     = F.notracepp ("dataConResultTy-1 : " ++ F.showpp c) $ t
-  | otherwise                  = F.notracepp ("dataConResultTy-2 : " ++ F.showpp c) $ RT.ofType ct
+  | Ghc.isVanillaDataCon c     = F.tracepp ("dataConResultTy-1 : " ++ F.showpp c) $ t
+  | otherwise                  = F.tracepp ("dataConResultTy-2 : " ++ F.showpp c) $ RT.ofType ct
   where
     (_,_,_,_,_,ct)             = Ghc.dataConFullSig c
     -- _tr0                    = Ghc.dataConRepType c

@@ -1,5 +1,4 @@
 {-@ LIQUID "--reflection" @-}
-{- LIQUID "--no-adt"      @-}
 
 module IrregularData where
 
