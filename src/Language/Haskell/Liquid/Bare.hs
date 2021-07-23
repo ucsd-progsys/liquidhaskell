@@ -1066,7 +1066,7 @@ makeSpecName env tycEnv measEnv name = SpNames
 makeTycEnv0 :: Config -> ModName -> Bare.Env -> TCEmb Ghc.TyCon -> Ms.BareSpec -> Bare.ModSpecs 
            -> (Diagnostics,  [Located DataConP], Bare.TycEnv)
 -------------------------------------------------------------------------------------------
-makeTycEnv0 cfg myName env embs mySpec iSpecs = (diag, datacons, Bare.TycEnv 
+makeTycEnv0 cfg myName env embs mySpec iSpecs = (diag0 <> diag1, datacons, Bare.TycEnv 
   { tcTyCons      = tycons                  
   , tcDataCons    = mempty -- val <$> datacons 
   , tcSelMeasures = dcSelectors             
@@ -1079,7 +1079,7 @@ makeTycEnv0 cfg myName env embs mySpec iSpecs = (diag, datacons, Bare.TycEnv
   })
   where
     (tcDds, dcs)   = conTys
-    (diag, conTys) = withDiagnostics $ Bare.makeConTypes myName env specs 
+    (diag0, conTys) = withDiagnostics $ Bare.makeConTypes myName env specs 
     specs         = (myName, mySpec) : M.toList iSpecs
     tcs           = Misc.snd3 <$> tcDds 
     tyi           = Bare.qualifyTopDummy env myName (makeTyConInfo embs fiTcs tycons)
@@ -1088,7 +1088,7 @@ makeTycEnv0 cfg myName env embs mySpec iSpecs = (diag, datacons, Bare.TycEnv
     tycons        = tcs ++ knownWiredTyCons env myName 
     datacons      = Bare.makePluggedDataCon (typeclass cfg) embs tyi <$> (concat dcs ++ knownWiredDataCons env myName)
     tds           = [(name, tcpCon tcp, dd) | (name, tcp, Just dd) <- tcDds]
-    adts          = Bare.makeDataDecls cfg embs myName tds       datacons
+    (diag1, adts) = Bare.makeDataDecls cfg embs myName tds       datacons
     dm            = Bare.dataConMap adts
     dcSelectors   = concatMap (Bare.makeMeasureSelectors cfg dm) datacons
     fiTcs         = _gsFiTcs (Bare.reSrc env)

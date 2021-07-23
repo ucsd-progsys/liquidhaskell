@@ -43,10 +43,8 @@ import           Language.Haskell.Liquid.WiredIn
 import qualified Language.Haskell.Liquid.Measure        as Ms
 import qualified Language.Haskell.Liquid.Bare.Types     as Bare  
 import qualified Language.Haskell.Liquid.Bare.Resolve   as Bare 
-
 import           Text.Printf                     (printf)
-import Data.Either (rights)
-import Control.Monad (forM, unless)
+import Text.PrettyPrint ((<+>))
 
 --------------------------------------------------------------------------------
 -- | 'DataConMap' stores the names of those ctor-fields that have been declared
@@ -209,16 +207,23 @@ type DataPropDecl = (DataDecl, Maybe SpecType)
 makeDataDecls :: Config -> F.TCEmb Ghc.TyCon -> ModName
               -> [(ModName, Ghc.TyCon, DataPropDecl)]
               -> [Located DataConP]
-              -> [F.DataDecl]
+              -> (Diagnostics, [F.DataDecl])
 makeDataDecls cfg tce name tds ds
-  | makeDecls = [ makeFDataDecls tce tc dd ctors
-                | (tc, (dd, ctors)) <- groupDataCons tds' (F.notracepp "makeDataDecls" ds)
-                , tc /= Ghc.listTyCon
-                ]
-  | otherwise = []
+  | makeDecls = checkRegularData 
+                  [ makeFDataDecls tce tc dd ctors
+                  | (tc, (dd, ctors)) <- groupDataCons tds' (F.tracepp "makeDataDecls" ds)
+                  , tc /= Ghc.listTyCon
+                  ]
+  | otherwise = (mempty, [])
   where
     makeDecls = exactDCFlag cfg && not (noADT cfg)
     tds'      = resolveTyCons name tds
+
+checkRegularData :: [F.DataDecl] -> (Diagnostics, [F.DataDecl])
+checkRegularData ds = (mkDiagnostics warns [], oks)
+  where
+    warns       = [ mkWarning (GM.fSrcSpan d) ("Non-regular datatype" <+> pprint (F.symbol d)) | d <- bads]
+    (oks, bads) = L.partition F.isRegularDataDecl ds
 
 -- [NOTE:Orphan-TyCons]
 
@@ -283,7 +288,6 @@ isResolvedDataConP m dp = F.symbol m == dcpModule dp
 makeFDataDecls :: F.TCEmb Ghc.TyCon -> Ghc.TyCon -> DataPropDecl -> [(Ghc.DataCon, DataConP)]
                -> F.DataDecl
 makeFDataDecls tce tc dd ctors = makeDataDecl tce tc (fst dd) ctors
-                               -- ++ maybeToList (makePropDecl tce tc dd) -- TODO: AUTO-INDPRED
 
 makeDataDecl :: F.TCEmb Ghc.TyCon -> Ghc.TyCon -> DataDecl -> [(Ghc.DataCon, DataConP)]
              -> F.DataDecl
