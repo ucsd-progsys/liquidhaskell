@@ -17,6 +17,15 @@ icfp_pos
 
 ## no-adt
 
+#1838
+#1747
+#1687
+#1682
+#1673 
+
+#1150 -- FUNCTION
+
+
 Don't encode non-encodable ADTs (by default)
 
 - [ ] ExactGADT6.hs

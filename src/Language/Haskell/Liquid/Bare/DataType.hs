@@ -228,17 +228,11 @@ checkRegularData :: [F.DataDecl] -> ([F.DataDecl], [F.DataDecl])
 checkRegularData ds = (oks, badDs)
   where
     badDs           = F.checkRegular ds
-    badSyms         = F.tracepp "BAD-Data" . S.fromList . fmap F.symbol $ badDs
+    badSyms         = {- F.notracepp "BAD-Data" . -} S.fromList . fmap F.symbol $ badDs
     oks             = [ d |  d <- ds, not (S.member (F.symbol d) badSyms) ] 
 
 mkWarnDecl :: (F.Loc a, F.Symbolic a) => a -> Warning
 mkWarnDecl d = mkWarning (GM.fSrcSpan d) ("Non-regular data declaration" <+> pprint (F.symbol d))
-
--- mkWarnDataProp :: DataDecl -> Warning
--- mkWarnDataProp d = mkWarning (GM.fSrcSpan d) ("Non-regular datatype" <+> pprint (F.symbol d)) 
-
-
-
 
 
 -- [NOTE:Orphan-TyCons]
@@ -660,18 +654,15 @@ dataConResultTy :: Ghc.DataCon
                 -> SpecType         -- ^ vanilla result type
                 -> Maybe SpecType   -- ^ user-provided result type
                 -> SpecType
-dataConResultTy c _ _ (Just t) = F.tracepp ("dataConResultTy-3 : vanilla = " ++ show (Ghc.isVanillaDataCon c) ++ " : ") t
+dataConResultTy c _ _ (Just t) = F.notracepp ("dataConResultTy-3 : vanilla = " ++ show (Ghc.isVanillaDataCon c) ++ " : ") t
 dataConResultTy c _ t _
-  | Ghc.isVanillaDataCon c     = F.tracepp ("dataConResultTy-1 : " ++ F.showpp c) $ t
-  | otherwise                  = F.tracepp ("dataConResultTy-2 : " ++ F.showpp c) $ RT.ofType ct
+  | Ghc.isVanillaDataCon c     = F.notracepp ("dataConResultTy-1 : " ++ F.showpp c) $ t
+  | otherwise                  = F.notracepp ("dataConResultTy-2 : " ++ F.showpp c) $ RT.ofType ct
   where
     (_,_,_,_,_,ct)             = Ghc.dataConFullSig c
-    -- _tr0                    = Ghc.dataConRepType c
-    -- _tr1                    = Ghc.varType (Ghc.dataConWorkId c)
-    -- _tr2                    = Ghc.varType (Ghc.dataConWrapId c)
 
 eqSubst :: SpecType -> Maybe (RTyVar, SpecType)
-eqSubst (RApp c [_, _, (RVar a _), t] _ _)
+eqSubst (RApp c [_, _, RVar a _, t] _ _)
   | rtc_tc c == Ghc.eqPrimTyCon = Just (a, t)
 eqSubst _                       = Nothing
 

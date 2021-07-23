@@ -2,7 +2,6 @@
 
 {-@ LIQUID "--exact-data-con" @-}
 {-@ LIQUID "--higherorder"    @-}
-{- LIQUID "--no-adt" 	      @-}
 
 module Field where
 

@@ -6,7 +6,6 @@ module T1100 where
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--no-termination"                      @-}
 
-{- LIQUID "--no-adt"                              @-}
 
 class PersistEntity record where
     data EntityField record :: * -> *
