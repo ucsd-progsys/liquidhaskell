@@ -37,7 +37,7 @@ module Language.Fixpoint.Types.Refinements (
   -- * Constructing Terms
   , eVar, elit
   , eProp
-  , pAnd, pOr, pIte
+  , conj, pAnd, pOr, pIte
   , (&.&), (|.|)
   , pExist
   , mkEApp
@@ -151,8 +151,10 @@ instance B.Binary SortedReft
 reftConjuncts :: Reft -> [Reft]
 reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- ras']
   where
-    ras'                     = if null ps then ks else ((PAnd ps) : ks)
+    ras'                     = if null ps then ks else (({- tracepp "REFT-CONJ" -} (conj ps)) : ks)  -- <<< pAnd-SLOW BREAKS ebinds!
     (ks, ps)                 = partition (\p -> isKvar p || isGradual p) $ refaConjuncts ra
+
+
 
 isKvar :: Expr -> Bool
 isKvar (PKVar _ _) = True
@@ -725,6 +727,15 @@ isSingletonExpr v (PIff e1 e2)
   | e2 == EVar v           = Just e1
 isSingletonExpr _ _        = Nothing
 
+-- | 'conj' is a 
+conj :: [Pred] -> Pred
+conj []  = PFalse 
+conj [p] = p
+conj ps  = PAnd ps 
+
+-- | 'pAnd' and 'pOr' are super slow as they go inside the predicates; so they SHOULD NOT 
+--   be used inside the solver loop. Instead, use 'conj' which ensures some basic things 
+--   but is faster.
 pAnd, pOr     :: ListNE Pred -> Pred
 pAnd          = simplify . PAnd . nub . flatten
   where
