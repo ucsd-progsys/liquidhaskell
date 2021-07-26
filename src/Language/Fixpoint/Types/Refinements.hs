@@ -151,7 +151,7 @@ instance B.Binary SortedReft
 reftConjuncts :: Reft -> [Reft]
 reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- ras']
   where
-    ras'                     = if null ps then ks else ((pAnd ps) : ks)
+    ras'                     = if null ps then ks else ((PAnd ps) : ks)
     (ks, ps)                 = partition (\p -> isKvar p || isGradual p) $ refaConjuncts ra
 
 isKvar :: Expr -> Bool
