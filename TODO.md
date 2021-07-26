@@ -1,40 +1,36 @@
 # TODO
 
-## Issue 1773 
 
-### Reproduce 
+## ISSUE: why does bounds stuff take so long?
 
-```sh
-$ cd ../storm-demo
-$ git checkout T1773
-$ LIQUID_DEV_MODE=true cabal v2-build
-```
+https://ucsd-progsys.slack.com/archives/DU17X62Q5/p1621006535008300
 
-which after some grinding will produce
+DISCO full full GHC+LH build = 120s
+      vs Z3 ... 7s (!)
 
-```
-Branch to fix LH #1773
+icfp_pos
 
-ghc: panic! (the 'impossible' happened)
-  (GHC version 8.10.2:
-        error-strictResolveSymUnknown type constructor `EntityFieldWrapper`
-    ofBDataDecl-2
-CallStack (from HasCallStack):
-  error, called at src/Language/Fixpoint/Misc.hs:152:14 in liquid-fixpoint-0.8.10.2.1-inplace:Language.Fixpoint.Misc
-```
+      Overview.lhs:          OK (24.82s)
+      IfM.hs:                OK (17.21s)
+      FoldAbs.hs:            OK (26.68s)
+      
 
-### Problem
+## no-adt
 
-1. import chain: `Config` -> `Storm.SMTP` -> `Storm.Core`
-2. `Storm.Core` *defines* `EntityFieldWrapper` but
-3. `Storm.Core` *not imported* into the GHC env so name resolution fails
+#1838
+#1747
+#1687
+#1682
+#1673 
 
-The bug disappears if you extend `src/Config.hs` with
+#1150 -- FUNCTION
 
-```
-import Storm.Core
-```
 
+Don't encode non-encodable ADTs (by default)
+
+- [ ] ExactGADT6.hs
+- [ ] T1100.hs
+- [ ] T1120A.hs
 
 ## Fix: SpecDependencyGraph
 
