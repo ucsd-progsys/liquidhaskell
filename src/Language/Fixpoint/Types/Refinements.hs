@@ -733,8 +733,8 @@ conj []  = PFalse
 conj [p] = p
 conj ps  = PAnd ps
 
--- | [NOTE: pAnd-SLOW] 'pAnd' and 'pOr' are super slow as they go inside the predicates; 
---   so they SHOULD NOT be used inside the solver loop. Instead, use 'conj' which ensures 
+-- | [NOTE: pAnd-SLOW] 'pAnd' and 'pOr' are super slow as they go inside the predicates;
+--   so they SHOULD NOT be used inside the solver loop. Instead, use 'conj' which ensures
 --   some basic things but is faster.
 
 pAnd, pOr     :: ListNE Pred -> Pred
