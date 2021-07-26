@@ -65,7 +65,6 @@ import           Language.Fixpoint.Types.Config ( SMTSolver (..)
                                                 , gradual
                                                 , stringTheory)
 import qualified Language.Fixpoint.Misc          as Misc
-import qualified Language.Fixpoint.Types.Visitor as Vis
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Types         hiding (allowHO)
@@ -506,31 +505,3 @@ distinctLiterals xts = [ es | (_, es) <- tess ]
     notFun           = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)
     -- _notStr          = not . (F.strSort ==) . F.sr_sort . (`F.RR` F.trueReft)
 
---------------------------------------------------------------------------------
--- | 'orderDeclarations' sorts the data declarations such that each declarations
---   only refers to preceding ones.
---------------------------------------------------------------------------------
-orderDeclarations :: [F.DataDecl] -> [[F.DataDecl]]
---------------------------------------------------------------------------------
-orderDeclarations ds = {- reverse -} (Misc.sccsWith f ds)
-  where
-    dM               = M.fromList [(F.ddTyCon d, d) | d <- ds]
-    f d              = (F.ddTyCon d, dataDeclDeps dM d)
-
-dataDeclDeps :: M.HashMap F.FTycon F.DataDecl -> F.DataDecl -> [F.FTycon]
-dataDeclDeps dM = filter (`M.member` dM) . Misc.sortNub . dataDeclFTycons
-
-dataDeclFTycons :: F.DataDecl -> [F.FTycon]
-dataDeclFTycons = concatMap dataCtorFTycons . F.ddCtors
-
-dataCtorFTycons :: F.DataCtor -> [F.FTycon]
-dataCtorFTycons = concatMap dataFieldFTycons . F.dcFields
-
-dataFieldFTycons :: F.DataField -> [F.FTycon]
-dataFieldFTycons = sortFTycons . F.dfSort
-
-sortFTycons :: Sort -> [FTycon]
-sortFTycons = Vis.foldSort go []
-  where
-    go cs (FTC c) = c : cs
-    go cs _       = cs

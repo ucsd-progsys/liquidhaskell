@@ -50,6 +50,7 @@ module Language.Fixpoint.Types.Errors (
   , errFreeVarInQual
   , errFreeVarInConstraint
   , errIllScopedKVar
+  , errBadDataDecl
   ) where
 
 import           System.Exit                        (ExitCode (..))
@@ -231,7 +232,7 @@ colorResult :: FixResult a -> Moods
 colorResult (Safe (Solver.totalWork -> 0)) = Wary
 colorResult (Safe _)                       = Happy
 colorResult (Unsafe _ _)                   = Angry
-colorResult (_)                            = Sad
+colorResult _                              = Sad
 
 resultExit :: FixResult a -> ExitCode
 resultExit (Safe _stats) = ExitSuccess
@@ -240,6 +241,9 @@ resultExit _             = ExitFailure 1
 ---------------------------------------------------------------------
 -- | Catalogue of Errors --------------------------------------------
 ---------------------------------------------------------------------
+
+errBadDataDecl :: (Loc x, PPrint x) => x -> Error
+errBadDataDecl d = err (srcSpan d) $ "Non-regular datatype declaration" <+> pprint d
 
 errFreeVarInQual :: (PPrint q, Loc q, PPrint x) => q -> x -> Error
 errFreeVarInQual q x = err sp $ vcat [ "Qualifier with free vars"

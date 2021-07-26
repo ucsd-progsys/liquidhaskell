@@ -42,7 +42,8 @@ sanitize :: Config -> F.SInfo a -> SanitizeM (F.SInfo a)
 sanitize cfg =    -- banIllScopedKvars
         --      Misc.fM dropAdtMeasures
         --      >=>
-             Misc.fM dropFuncSortedShadowedBinders
+                     banIrregularData
+         >=> Misc.fM dropFuncSortedShadowedBinders
          >=> Misc.fM sanitizeWfC
          >=> Misc.fM replaceDeadKvars
          >=> Misc.fM (dropDeadSubsts . restrictKVarDomain)
@@ -343,6 +344,16 @@ cNoFreeVars fi known c = if S.null fv then Nothing else Just (S.toList fv)
 badCs :: Misc.ListNE (F.SimpC a, [F.Symbol]) -> E.Error
 badCs = E.catErrors . map (E.errFreeVarInConstraint . Misc.mapFst F.subcId)
 
+--------------------------------------------------------------------------------
+-- | check that every DataDecl is regular
+--------------------------------------------------------------------------------
+banIrregularData :: F.SInfo a -> SanitizeM (F.SInfo a)
+banIrregularData fi = Misc.applyNonNull (Right fi) (Left . badDataDecl) bads
+  where
+    bads = F.checkRegular (F.ddecls fi ) 
+
+badDataDecl :: Misc.ListNE F.DataDecl -> E.Error
+badDataDecl ds = E.catErrors [ E.errBadDataDecl d | d <- ds ]
 
 --------------------------------------------------------------------------------
 -- | check that no qualifier has free variables

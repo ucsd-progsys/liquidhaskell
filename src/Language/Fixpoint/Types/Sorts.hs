@@ -277,7 +277,6 @@ data DataDecl = DDecl
   , ddCtors :: [DataCtor]         -- ^ Datatype Ctors. Invariant: type variables bound in ctors are greater than ddVars
   } deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-
 instance Loc DataDecl where
     srcSpan (DDecl ty _ _) = srcSpan ty
 
@@ -290,7 +289,7 @@ instance Symbolic DataField where
 instance Symbolic DataCtor where
   symbol = val . dcName
 
-
+--------------------------------------------------------------------------------------------------
 muSort  :: [DataDecl] -> [DataDecl]
 muSort dds = mapSortDataDecl tx <$> dds
   where
@@ -304,7 +303,7 @@ muSort dds = mapSortDataDecl tx <$> dds
 isFirstOrder, isFunction :: Sort -> Bool
 isFirstOrder (FFunc sx s) = not (isFunction sx) && isFirstOrder s
 isFirstOrder (FAbs _ s)   = isFirstOrder s
-isFirstOrder (FApp s1 s2) = (not $ isFunction s1) && (not $ isFunction s2)
+isFirstOrder (FApp s1 s2) = not (isFunction s1) && not (isFunction s2)
 isFirstOrder _            = True
 
 isFunction (FAbs _ s)  = isFunction s
@@ -373,8 +372,8 @@ isPolyInst :: Sort -> Sort -> Bool
 isPolyInst s t = isPoly s && not (isPoly t)
 
 isPoly :: Sort -> Bool
-isPoly (FAbs {}) = True
-isPoly _         = False
+isPoly FAbs {} = True
+isPoly _       = False
 
 mkPoly :: Int -> Sort -> Sort 
 mkPoly i s = foldl (flip FAbs) s [0..i] 

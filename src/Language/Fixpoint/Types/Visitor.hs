@@ -124,7 +124,7 @@ instance Visitable Expr where
   visit = visitExpr
 
 instance Visitable Reft where
-  visit v c (Reft (x, ra)) = (Reft . (x, )) <$> visit v c ra
+  visit v c (Reft (x, ra)) = Reft . (x, ) <$> visit v c ra
 
 instance Visitable SortedReft where
   visit v c (RR t r) = RR t <$> visit v c r
