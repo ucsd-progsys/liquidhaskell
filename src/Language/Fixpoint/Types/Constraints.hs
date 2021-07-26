@@ -79,6 +79,7 @@ module Language.Fixpoint.Types.Constraints (
   , mkEquation
   , Rewrite  (..)
   , AutoRewrite (..)
+  , dedupAutoRewrites
 
   -- * Misc  [should be elsewhere but here due to dependencies]
   , substVars
@@ -916,6 +917,9 @@ instance NFData Equation
 instance NFData SMTSolver
 instance NFData Eliminate
 
+dedupAutoRewrites :: M.HashMap SubcId [AutoRewrite] -> [AutoRewrite]
+dedupAutoRewrites = S.toList . S.unions . map S.fromList . M.elems
+
 instance Semigroup AxiomEnv where
   a1 <> a2        = AEnv aenvEqs' aenvSimpl' aenvExpand' aenvAutoRW'
     where
@@ -975,7 +979,7 @@ instance Fixpoint (M.HashMap SubcId [AutoRewrite]) where
     map fixRW rewrites ++
     rwsMapping
     where
-      rewrites     = L.nub $ concatMap snd (M.toList autoRW)
+      rewrites = dedupAutoRewrites autoRW
 
       fixRW rw@(AutoRewrite args lhs rhs) =
           text ("autorewrite " ++ show (hash rw))
