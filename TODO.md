@@ -24,7 +24,8 @@ icfp_pos
 #1673 
 
 #1150 -- FUNCTION
-
+https://github.com/ucsd-progsys/liquidhaskell/issues/1149 -- ???
+https://github.com/ucsd-progsys/liquidhaskell/issues/1120
 
 Don't encode non-encodable ADTs (by default)
 
