@@ -194,7 +194,7 @@ type Cid         = Maybe Integer
 type ExprInfo    = (F.Expr, KInfo)
 
 apply :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.IBindEnv -> ExprInfo
-apply g s bs      = (F.pAnd (pks:ps), kI)
+apply g s bs      = (F.conj (pks:ps), kI)   -- see [NOTE: pAnd-SLOW]
   where
     (pks, kI)     = applyKVars g s ks  
     (ps,  ks, _)  = envConcKVars g s bs

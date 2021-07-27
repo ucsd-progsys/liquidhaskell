@@ -1,0 +1,17 @@
+
+
+bind 1 undef1 : {v: func(1, [@(0)]) | []}
+bind 2 undef2 : {v: func(2, [@(1)]) | []}
+
+constraint:
+  env [1]
+  lhs {v : bool | [v = undef1]}
+  rhs {v : bool | [0 < 7]}
+  id 1 tag []
+
+constraint:
+  env [2]
+  lhs {v : bool | [v = undef2]}
+  rhs {v : bool | [0 < 7]}
+  id 2 tag []
+

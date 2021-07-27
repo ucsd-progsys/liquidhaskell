@@ -37,7 +37,7 @@ module Language.Fixpoint.Types.Refinements (
   -- * Constructing Terms
   , eVar, elit
   , eProp
-  , pAnd, pOr, pIte
+  , conj, pAnd, pOr, pIte
   , (&.&), (|.|)
   , pExist
   , mkEApp
@@ -151,8 +151,10 @@ instance B.Binary SortedReft
 reftConjuncts :: Reft -> [Reft]
 reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- ras']
   where
-    ras'                     = if null ps then ks else ((pAnd ps) : ks)
+    ras'                     = if null ps then ks else ((conj ps) : ks)  -- see [NOTE:pAnd-SLOW]
     (ks, ps)                 = partition (\p -> isKvar p || isGradual p) $ refaConjuncts ra
+
+
 
 isKvar :: Expr -> Bool
 isKvar (PKVar _ _) = True
@@ -595,8 +597,8 @@ instance PPrint Expr where
     where zi = 1
 
   -- RJ: DO NOT DELETE!
-  --  pprintPrec _ k (ECst e so)     = parens $ pprint e <+> ":" <+> {- const (text "...") -} (pprintTidy k so)
-  pprintPrec z k (ECst e _)      = pprintPrec z k e
+  pprintPrec _ k (ECst e so)     = parens $ pprint e <+> ":" <+> {- const (text "...") -} (pprintTidy k so)
+  -- pprintPrec z k (ECst e _)      = pprintPrec z k e
   pprintPrec _ _ PTrue           = trueD
   pprintPrec _ _ PFalse          = falseD
   pprintPrec z k (PNot p)        = parensIf (z > zn) $
@@ -725,6 +727,16 @@ isSingletonExpr v (PIff e1 e2)
   | e2 == EVar v           = Just e1
 isSingletonExpr _ _        = Nothing
 
+-- | 'conj' is a fast version of 'pAnd' needed for the ebind tests
+conj :: [Pred] -> Pred
+conj []  = PFalse
+conj [p] = p
+conj ps  = PAnd ps
+
+-- | [NOTE: pAnd-SLOW] 'pAnd' and 'pOr' are super slow as they go inside the predicates;
+--   so they SHOULD NOT be used inside the solver loop. Instead, use 'conj' which ensures
+--   some basic things but is faster.
+
 pAnd, pOr     :: ListNE Pred -> Pred
 pAnd          = simplify . PAnd . nub . flatten
   where
@@ -846,8 +858,8 @@ class Falseable a where
   isFalse :: a -> Bool
 
 instance Falseable Expr where
-  isFalse (PFalse) = True
-  isFalse _        = False
+  isFalse PFalse = True
+  isFalse _      = False
 
 instance Falseable Reft where
   isFalse (Reft (_, ra)) = isFalse ra

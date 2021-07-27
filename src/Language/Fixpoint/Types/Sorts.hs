@@ -57,6 +57,7 @@ module Language.Fixpoint.Types.Sorts (
   , functionSort
   , mkFFunc
   , bkFFunc
+  , bkAbs
   , mkPoly
 
   , isNumeric, isReal, isString, isPolyInst
@@ -299,6 +300,7 @@ muSort dds = mapSortDataDecl tx <$> dds
     mapSortDataDecl f  dd = dd { ddCtors  = mapSortDataCTor f  <$> ddCtors  dd }
     mapSortDataCTor f  ct = ct { dcFields = mapSortDataField f <$> dcFields ct }
     mapSortDataField f df = df { dfSort   = f $ dfSort df }
+
 
 isFirstOrder, isFunction :: Sort -> Bool
 isFirstOrder (FFunc sx s) = not (isFunction sx) && isFirstOrder s
