@@ -79,14 +79,14 @@ loadLiftedSpec cfg srcF
       whenLoud $ putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ "for source-file: " ++ show srcF ++ " " ++ show ex
       lSp <- if ex 
                then Just <$> B.decodeFile specF 
-               else warnMissingLiftedSpec srcF specF >> return Nothing
+               else {- warnMissingLiftedSpec srcF specF >> -} return Nothing
       Ex.evaluate lSp
 
-warnMissingLiftedSpec :: FilePath -> FilePath -> IO () 
-warnMissingLiftedSpec srcF specF = do 
-  incDir <- Misc.getIncludeDir 
-  unless (Misc.isIncludeFile incDir srcF)
-    $ Ex.throw (errMissingSpec srcF specF) 
+-- warnMissingLiftedSpec :: FilePath -> FilePath -> IO () 
+-- warnMissingLiftedSpec srcF specF = do 
+--   incDir <- Misc.getIncludeDir 
+--   unless (Misc.isIncludeFile incDir srcF)
+--     $ Ex.throw (errMissingSpec srcF specF) 
 
 errMissingSpec :: FilePath -> FilePath -> UserError 
 errMissingSpec srcF specF = ErrNoSpec Ghc.noSrcSpan (text srcF) (text specF)
