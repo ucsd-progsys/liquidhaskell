@@ -17,11 +17,13 @@ icfp_pos
 
 ## no-adt
 
-#1838
-#1747
-#1687
-#1682
-#1673 
+
+T1555.hs
+T1013.hs
+
+T1634.hs
+T1548.hs
+
 
 #1150 -- FUNCTION
 https://github.com/ucsd-progsys/liquidhaskell/issues/1149 -- ???
