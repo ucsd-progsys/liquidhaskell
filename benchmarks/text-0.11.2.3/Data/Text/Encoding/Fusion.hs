@@ -2,6 +2,7 @@
 {-@ LIQUID "--prune-unsorted" @-}
 {-@ LIQUID "--no-check-imports" @-}
 {-@ LIQUID "--compilespec" @-}
+{-@ LIQUID "--save" @-}
 
 -- |
 -- Module      : Data.Text.Encoding.Fusion
