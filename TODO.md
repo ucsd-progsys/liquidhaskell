@@ -17,23 +17,11 @@ icfp_pos
 
 ## no-adt
 
-
-T1555.hs
-T1013.hs
-
-T1634.hs
-T1548.hs
-
-
 #1150 -- FUNCTION
 https://github.com/ucsd-progsys/liquidhaskell/issues/1149 -- ???
 https://github.com/ucsd-progsys/liquidhaskell/issues/1120
 
 Don't encode non-encodable ADTs (by default)
-
-- [ ] ExactGADT6.hs
-- [ ] T1100.hs
-- [ ] T1120A.hs
 
 ## Fix: SpecDependencyGraph
 

@@ -1,8 +1,7 @@
 {-# LANGUAGE BangPatterns, CPP, Rank2Types #-}
 {-@ LIQUID "--prune-unsorted" @-}
 {-@ LIQUID "--no-check-imports" @-}
-{-@ LIQUID "--compilespec" @-}
-{-@ LIQUID "--save" @-}
+{-@ LIQUID "--skip-module" @-}
 
 -- |
 -- Module      : Data.Text.Encoding.Fusion
