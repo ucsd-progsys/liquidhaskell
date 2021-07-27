@@ -57,6 +57,7 @@ module Language.Fixpoint.Types.Sorts (
   , functionSort
   , mkFFunc
   , bkFFunc
+  , bkAbs
   , mkPoly
 
   , isNumeric, isReal, isString, isPolyInst

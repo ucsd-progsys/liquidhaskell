@@ -582,8 +582,10 @@ eCstAtom f@(sym,g) (EVar x) t
 eCstAtom _ e t = return (ECst e t)
 
 isUndef :: Sort -> Bool
-isUndef (FAbs i (FVar j)) = i == j
-isUndef _ = False
+isUndef s = case bkAbs s of 
+  (is, FVar j) -> j `elem` is
+  _            -> False
+
 
 elabAddEnv :: Eq a => (t, a -> SESearch b) -> [(a, b)] -> (t, a -> SESearch b)
 elabAddEnv (g, f) bs = (g, addEnv f bs)
