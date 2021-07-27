@@ -102,9 +102,11 @@ symEnv xEnv fEnv ds ls ts = SymEnv xEnv' fEnv dEnv ls sortMap
 -- | These are "BUILT-in" polymorphic functions which are
 --   UNININTERPRETED but POLYMORPHIC, hence need to go through
 --   the apply-defunc stuff.
-
 wiredInEnv :: M.HashMap Symbol Sort
-wiredInEnv = M.fromList [(toIntName, mkFFunc 1 [FVar 0, FInt])]
+wiredInEnv = M.fromList 
+  [ (toIntName, mkFFunc 1 [FVar 0, FInt])
+  , (tyCastName, FAbs 0 $ FAbs 1 $ FFunc (FVar 0) (FVar 1))
+  ]
 
 
 -- | 'smtSorts' attempts to compute a list of all the input-output sorts

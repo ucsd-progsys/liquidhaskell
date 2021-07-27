@@ -1,0 +1,10 @@
+bind 0 convert : {v: func(2, [@(1); @(2)]) | [] }
+
+bind 1 undef : {v: func(1, [@(1)]) | []}
+
+constraint:
+  env [0;1]
+  lhs {v : bool | [v = undef]}
+  rhs {v : bool | [0 < 7]}
+  id 1 tag []
+
