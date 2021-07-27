@@ -1,19 +1,19 @@
 # Building and deploying the documentation
 
-To build the documentation, first setup `python3` and related packages
+One-off:
 
 ```
-$ cd docs/mkDocs
-$ python3 -m pip install --upgrade pip
-$ python3 get-pip.py
-$ pip3 install mkdocs pygments Pygmentize mkdocs-bootswatch
+$ sudo apt-get install python3 pip3  # or equivalent
+$ pip3 install mkdocs-material
 ```
 
 after that to view the documents locally run:
 
 ```
-mkDocs serve
+$ mkdocs serve
 ```
+
+from the directory that this README is in.
 
 ## Strict mode
 
@@ -21,7 +21,7 @@ It's recommended to run `mkDocs serve` with the _strict_ option (i.e. `-s`) to e
 present in the generated docs:
 
 ```
-mkDocs serve -s
+mkdocs serve -s
 ```
 
 ## Publishing

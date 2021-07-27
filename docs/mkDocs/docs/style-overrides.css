@@ -1,0 +1,22 @@
+.md-header__button.md-logo img, .md-header__button.md-logo svg, .md-nav__title .md-nav__button.md-logo img, .md-nav__title .md-nav__button.md-logo svg {
+    width: auto;
+    height: 2rem;
+}
+
+#demo {
+    background-color: green;
+    border-radius: 0.5rem;
+}
+
+.md-tabs__list {
+    display:grid;
+    grid-auto-flow:column;
+    grid-auto-columns:1fr;
+    text-align: center;
+}
+
+.md-tabs__list > .md-tabs__item > * > * {
+    padding: 0.3rem;
+}
+
+
