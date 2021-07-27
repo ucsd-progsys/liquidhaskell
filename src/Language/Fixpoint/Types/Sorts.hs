@@ -41,7 +41,6 @@ module Language.Fixpoint.Types.Sorts (
   , listFTyCon
   , isListTC
   , sizeBv
-  , isBase
   , isFirstOrder
   , mappendFTC
   , fTyconSymbol, symbolFTycon, fTyconSort, symbolNumInfoFTyCon
@@ -301,9 +300,6 @@ muSort dds = mapSortDataDecl tx <$> dds
     mapSortDataCTor f  ct = ct { dcFields = mapSortDataField f <$> dcFields ct }
     mapSortDataField f df = df { dfSort   = f $ dfSort df }
 
-isBase :: Sort -> Bool
-isBase FApp {}  = False
-isBase _        = True
 
 isFirstOrder, isFunction :: Sort -> Bool
 isFirstOrder (FFunc sx s) = not (isFunction sx) && isFirstOrder s

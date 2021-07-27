@@ -575,12 +575,15 @@ elab _ (ETAbs _ _) =
 
 -- | 'eCstAtom' is to support tests like `tests/pos/undef00.fq`
 eCstAtom :: ElabEnv -> Expr -> Sort -> CheckM Expr
-eCstAtom f@(_,g) (EVar x) t 
+eCstAtom f@(sym,g) (EVar x) t 
   | Found s <- g x
-  , isPolyInst s t    
-  , isBase t          = (`ECst` t) <$> elabAs f t (EApp (eVar tyCastName) (eVar x))
-eCstAtom _ e        t = return (ECst e t)
+  , isUndef s 
+  , not (isInt sym t) = (`ECst` t) <$> elabAs f t (EApp (eVar tyCastName) (eVar x))
+eCstAtom _ e t = return (ECst e t)
 
+isUndef :: Sort -> Bool
+isUndef (FAbs i (FVar j)) = i == j
+isUndef _ = False
 
 elabAddEnv :: Eq a => (t, a -> SESearch b) -> [(a, b)] -> (t, a -> SESearch b)
 elabAddEnv (g, f) bs = (g, addEnv f bs)

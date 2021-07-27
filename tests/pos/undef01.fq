@@ -8,7 +8,7 @@ bind 1 undef : {v: func(1, [@(0)]) | []}
 
 constraint:
   env [1]
-  lhs {v : bool | [v = undef]}
-  rhs {v : bool | [0 < 7]}
+  lhs {v : LL int | [v = undef]}
+  rhs {v : LL int | [0 < 7]}
   id 1 tag []
 
