@@ -1,35 +1,98 @@
-![LiquidHaskell](img/logo.png)
 
-# LiquidHaskell 
+![LiquidHaskell Logo](img/logo.png)
 
-LiquidHaskell (_LH_) refines Haskell's types with logical 
-predicates that let you enforce important properties at 
-compile time. See [the blog](https://ucsd-progsys.github.io/liquidhaskell-blog/) 
-for examples.
+# Guarantee Functions are Total
 
-## Quick Start
+<div class="example-row">
+<p>
+LH warns you that head is not total as it is missing the case for <code>[]</code> and checks that it is total on <code>NonEmpty</code> lists.
+</p>
+<img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/splash-head.gif">
+</div>
 
-Read the below for more details on how to:
+<div class="example-row">
+<img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/splash-unstutter.gif">
+<p>
+The input contract propagates to uses of <code>head</code> which are verified by ensuring the arguments are <code>NonEmpty</code>. 
+</p>
+</div>
 
-* **Install** [external software](install.md) dependencies required by LH
-* **Install** and use LH as a [GHC Plugin](install.md)
-* Use the command line [options](options.md) supported by LH
-* Write refinement type [specifications](specifications.md)
+# Keep Pointers Within Bounds
 
-## Learn
+<div class="example-row">
+<p>
+LH lets you avoid off-by-one errors that can lead to crashes or buffer overflows. 
+</p>
+<img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/splash-vectorsum.gif">
+</div>
+
+<div class="example-row">
+<img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/splash-dotproduct.gif">
+<p>
+Dependent contracts let you specify, e.g. that <code>dotProduct</code> requires equal-sized vectors.
+</p>
+</div>
+
+# Avoid Infinite Loops
+
+<div class="example-row">
+<p>
+LH checks that functions terminate and so warns about the infinite recursion due to the missing case in <code>fib</code>.
+</p>
+<img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/splash-fib.gif">
+</div>
+
+<div class="example-row">
+<img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/splash-merge.gif">
+<p>
+<em>Metrics</em> let you check that recursive functions over complex data types terminate. 
+</p>
+</div>
+
+# Enforce Correctness Properties
+
+<div class="example-row">
+<p>
+Write correctness requirements, for example a list is ordered, as refinements. LH makes illegal values be <em>unrepresentable</em>.
+</p>
+<img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/splash-ups.gif">
+</div>
+
+<div class="example-row">
+<img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/splash-insertsort.gif">
+<p>
+LH automatically points out logic bugs, and proves that functions return correct outputs <em>for all inputs</em>. 
+</p>
+</div>
+
+# Prove Laws by Writing Code
+
+<div class="example-row">
+<p>
+Specify <em>laws</em>, e.g. that the append function <code>++</code> is associative, as Haskell functions. 
+</p>
+<img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/splash-assocthm.gif">
+</div>
+
+<div class="example-row">
+<img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/splash-assocpf.gif">
+<p>
+Verify laws via <em>equational proofs</em> that are plain Haskell functions. Induction is simply recursion, and case-splitting is just pattern-matching. 
+</p>
+</div>
+
+# Get Started
 
 The following links are a quick way to play with and learn about LH:
 
-* [Try online in your browser](http://goto.ucsd.edu:8090/index.html)
-* [Splash page with examples and link to blog](https://ucsd-progsys.github.io/liquidhaskell-blog/)
-* [Andres Loeh's Tutorial](https://liquid.kosmikus.org)
+* [Try LiquidHaskell now](http://goto.ucsd.edu:8090/index.html) in your browser.
+* Follow a tutorial:
+    * The [Official Tutorial](https://ucsd-progsys.github.io/intro-refinement-types/120/) (long but extensive)
+    * [Andres Loeh's Tutorial](https://liquid.kosmikus.org) (short but incomplete)
 
-If the above whets your appetite, you may enjoy working through the following longer tutorials:
+For more links, see the nav-bar at the top of this page.
 
-* [120 minute workshop with more examples](http://ucsd-progsys.github.io/lh-workshop/01-index.html)
-* [Long ish Tutorial](http://ucsd-progsys.github.io/liquidhaskell-tutorial/)
-
-## Get involved
+# Get involved
 
 If you are interested to contribute to LH and its ecosystem, you may want to:
 

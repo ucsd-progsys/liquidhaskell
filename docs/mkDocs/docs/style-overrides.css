@@ -1,8 +1,10 @@
+/* Hacking the logo */
 .md-header__button.md-logo img, .md-header__button.md-logo svg, .md-nav__title .md-nav__button.md-logo img, .md-nav__title .md-nav__button.md-logo svg {
     width: auto;
     height: 2rem;
 }
 
+/* Hacking the navbar */
 #demo {
     background-color: green;
     border-radius: 0.5rem;
@@ -19,4 +21,14 @@
     padding: 0.3rem;
 }
 
+/* Sytling the splashpage */
 
+.example-row {
+    display: flex;
+    align-items:center; /* also forces aspect ratio preservation */
+}
+
+.example-row > img {
+    margin: 1rem;
+    max-width: 65%; /* Don't let images hog *too* much space */
+}
