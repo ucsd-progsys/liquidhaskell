@@ -23,10 +23,28 @@ theme:
   logo: img/logo.png
   favicon: img/favicon.ico
 
+# Footer links
+extra:
+  social:
+    - icon: material/slack
+      link: https://join.slack.com/t/liquidhaskell/shared_invite/enQtMjY4MTk3NDkwODE3LTFmZGFkNGEzYWRkNDJmZDQ0ZGU1MzBiZWZiZDhhNmY3YTJiMjUzYTRlNjMyZDk1NDU3ZGIxYzhlOTIzN2UxNWE
+      name: Join the LiquidHaskell slack channel
+    - icon: material/google
+      link: https://groups.google.com/forum/#!forum/liquidhaskell
+      name: Mail the LiquidHaskell users mailing list
+    - icon: fontawesome/solid/paper-plane
+      link: https://github.com/ranjitjhala
+      name: Drop Ranjit Jhala an email
+    - icon: fontawesome/regular/paper-plane
+      link: https://github.com/nikivazou
+      name: Drop Niki Vazou an email
+    - icon: material/github
+      link: https://github.com/ucsd-progsys/liquidhaskell/issues
+      name: Open a GitHub issue
+
 extra_css:
   - https://cdn.jsdelivr.net/npm/@mdi/font@5.9.55/css/materialdesignicons.min.css
   - style-overrides.css
-
 
 markdown_extensions:
   - toc:
