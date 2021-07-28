@@ -1,6 +1,8 @@
 
 ![LiquidHaskell Logo](img/logo.png)
 
+LiquidHaskell _(LH)_ refines Haskell's types with logical predicates that let you enforce important properties at compile time.
+
 # Guarantee Functions are Total
 
 <div class="example-row">
@@ -83,14 +85,12 @@ Verify laws via <em>equational proofs</em> that are plain Haskell functions. Ind
 
 # Get Started
 
-The following links are a quick way to play with and learn about LH:
+The easiest way to try LiquidHaskell is [online, in your browser](http://goto.ucsd.edu:8090/index.html). This environment is ideal for quick experiments or following one of the tutorials:
 
-* [Try LiquidHaskell now](http://goto.ucsd.edu:8090/index.html) in your browser.
-* Follow a tutorial:
-    * The [Official Tutorial](https://ucsd-progsys.github.io/intro-refinement-types/120/) (long but extensive)
-    * [Andres Loeh's Tutorial](https://liquid.kosmikus.org) (short but incomplete)
+* The [Official Tutorial](https://ucsd-progsys.github.io/intro-refinement-types/120/) (long but complete) (has interactive exercises)
+* [Andres Loeh's Tutorial](https://liquid.kosmikus.org) (concise but incomplete)
 
-For more links, see the nav-bar at the top of this page.
+For links to more documentation, see the nav-bar at the top of this page.
 
 # Get Involved
 
