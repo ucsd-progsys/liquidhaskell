@@ -92,10 +92,7 @@ The following links are a quick way to play with and learn about LH:
 
 For more links, see the nav-bar at the top of this page.
 
-# Get involved
+# Get Involved
 
-If you are interested to contribute to LH and its ecosystem, you may want to:
-
-* Read the contribution [guidelines](contributing.md)
-* Read our [developers' guide](develop.md) to LH
-* Join the LH [community](community.md) to discuss issues related to LH
+If you are interested in contributing to LH and its ecosystem, that's great!
+We have more information on our [GitHub repository](https://github.com/ucsd-progsys/liquidhaskell).
