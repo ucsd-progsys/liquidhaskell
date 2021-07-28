@@ -434,6 +434,11 @@ config = cmdArgsMode $ Config {
     = Nothing 
         &= help "Maximum fuel (per-function unfoldings) for PLE"
 
+  , noEnvironmentReduction
+    = def
+        &= explicit
+        &= name "no-environment-reduction"
+        &= help "Don't perform environment reduction"
   } &= program "liquid"
     &= help    "Refinement Types for Haskell"
     &= summary copyright
@@ -688,6 +693,7 @@ defConfig = Config
   , skipModule               = False
   , noLazyPLE                = False
   , fuel                     = Nothing
+  , noEnvironmentReduction   = False
   }
 
 

@@ -60,6 +60,7 @@ fixConfig tgt cfg = def
   , FC.rwTerminationCheck       = rwTerminationCheck cfg
   , FC.noLazyPLE                = noLazyPLE cfg
   , FC.fuel                     = fuel      cfg
+  , FC.noEnvironmentReduction   = noEnvironmentReduction cfg
   }
 
 cgInfoFInfo :: TargetInfo -> CGInfo -> IO (F.FInfo Cinfo)
