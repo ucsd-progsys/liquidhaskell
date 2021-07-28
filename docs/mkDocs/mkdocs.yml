@@ -11,7 +11,7 @@ nav:
   - "<i aria-hidden=true class='mdi mdi-script'></i> Spec Reference": specifications.md
   - "<i aria-hidden=true class='mdi mdi-flag'></i> Flag Reference": options.md
   - "": "#" #spacer
-  - "<i aria-hidden=true class='mdi mdi-school'></i> Papers": https://ucsd-progsys.github.io/liquidhaskell-blog/about.html
+  - "<i aria-hidden=true class='mdi mdi-school'></i> Papers": papers.md
   - "<i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog": https://ucsd-progsys.github.io/liquidhaskell-blog/archive.html
 
 theme:
