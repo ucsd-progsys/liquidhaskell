@@ -20,8 +20,9 @@ Executed in  166.60 secs   fish           external
    usr time  156.04 secs   66.80 millis  155.98 secs
    sys time    7.46 secs    9.35 millis    7.45 secs
 
-
-
+#1150 -- FUNCTION
+https://github.com/ucsd-progsys/liquidhaskell/issues/1149 -- ???
+https://github.com/ucsd-progsys/liquidhaskell/issues/1120
 
 --fullcheck
 --checkderived
@@ -30,6 +31,7 @@ Executed in  166.60 secs   fish           external
 
 
 
+<<<<<<< HEAD
 
 
 ## no-adt
@@ -40,6 +42,8 @@ https://github.com/ucsd-progsys/liquidhaskell/issues/1120
 
 Don't encode non-encodable ADTs (by default)
 
+=======
+>>>>>>> 102b3384caff33c1d722dcbb96eb20913bcbb064
 ## Fix: SpecDependencyGraph
 
 1. Implement `Bare.SpecDep` 

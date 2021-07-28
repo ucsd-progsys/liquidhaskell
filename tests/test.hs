@@ -736,6 +736,7 @@ textIgnored
   = [ "Setup.lhs"
     -- , "Data/Text/Axioms.hs"
     , "Data/Text/Encoding/Error.hs"
+    , "Data/Text/Encoding/Fusion.hs"        -- has nothing in int (compile-spec) but triggers 18 import-builds
     , "Data/Text/Encoding/Fusion/Common.hs"
     , "Data/Text/Encoding/Utf16.hs"
     , "Data/Text/Encoding/Utf32.hs"
