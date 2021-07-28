@@ -41,7 +41,7 @@ Pull requests don't just have to be about code: documentation can often be impro
 
 ## Ask for Help
 
-If you have further questions or you just need help, you can always reach out on our [slack channel](https://join.slack.com/t/liquidhaskell/shared_invite/enQtMjY4MTk3NDkwODE3LTFmZGFkNGEzYWRkNDJmZDQ0ZGU1MzBiZWZiZDhhNmY3YTJiMjUzYTRlNjMyZDk1NDU3ZGIxYzhlOTIzN2UxNWE), [google groups mailing lsit](https://groups.google.com/forum/#!forum/liquidhaskell), [GitHub issue tracker](https://github.com/ucsd-progsys/liquidhaskell/issues), or by emailing one of our star developers: [Ranjit Jhala](https://github.com/ranjitjhala), [Niki Vazou](https://github.com/nikivazou).
+If you have further questions or you just need help, you can always reach out on our [slack channel](https://join.slack.com/t/liquidhaskell/shared_invite/enQtMjY4MTk3NDkwODE3LTFmZGFkNGEzYWRkNDJmZDQ0ZGU1MzBiZWZiZDhhNmY3YTJiMjUzYTRlNjMyZDk1NDU3ZGIxYzhlOTIzN2UxNWE), [google groups mailing list](https://groups.google.com/forum/#!forum/liquidhaskell), [GitHub issue tracker](https://github.com/ucsd-progsys/liquidhaskell/issues), or by emailing one of our star developers: [Ranjit Jhala](https://github.com/ranjitjhala), [Niki Vazou](https://github.com/nikivazou).
 
 # General Development Guide
 
@@ -229,7 +229,7 @@ cd ..
 *NOTE: The following section is relevant only for few developers, i.e. the ones which are directly involved
 in the release process. Most contributors can skip this section.*
 
-We provide a conveniency script to upload all the `liquid-*` packages (**including** `liquid-fixpoint`) on
+We provide a convenience script to upload all the `liquid-*` packages (**including** `liquid-fixpoint`) on
 Hackage, in a lockstep fashion. To do so, it's possible to simply run the `scripts/release_to_hackage.sh`
 Bash script. The script doesn't accept any argument and it tries to determine the packages
 to upload by scanning the `$PWD` for packages named appropriately. It will ask the user for confirmation
@@ -333,7 +333,7 @@ The reason why we do everything in the [typechecking phase][] is also to allow i
   called [processModule][] that essentially does the same as `GHC.Interface.processModule` and
   `GHC.Interface.processTargetModule` fused together.
 
-- While the [GHC.Interface][] sometimes "assembles" a [BareSpec][] by mappending the `commSpec` (i.e. comment spec)
+- While the [GHC.Interface][] sometimes "assembles" a [BareSpec][] by `mappend`ing the `commSpec` (i.e. comment spec)
   with the [LiftedSpec][] fetched from disk, if any, the Plugin doesn't do this but rather piggybacks on the
   [SpecFinder][] (described later) to fetch dependencies' specs.
 
@@ -399,7 +399,7 @@ happens in the `makeTargetSrc`, whereas for the [GHC.Interface][] this happens i
 
 Mostly for backward-compatibility and for historical reasons. Types like [BareSpec][] used to be type alias
 rather than `newtype`s, and things were slightly renamed to reflect better purpose when the support for the
-plugin was added. While doing so we also added a compat layer in the form of some `optics` that can be used
+plugin was added. While doing so we also added a compatibility layer in the form of some `optics` that can be used
 to map back and forth (sometimes in a partial way) between old and new data structures. When in doubt,
 **consider the GHC.Plugin as the single source of truth, and prefer whichever data structure the latter is
 using**.
