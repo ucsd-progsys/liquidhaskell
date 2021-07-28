@@ -19,7 +19,7 @@ to let us know. If possible, try to:
 * State as clearly as possible what is the problem you are facing;
 * Provide a small Haskell file producing the issue;
 * Write down the expected behaviour vs the actual behaviour;
-* If possible, let us know if you have used the [plugin](plugin.md) or the [executable](legacy.md) and
+* If possible, let us know if you have used the [plugin](install.md) or the [executable](legacy.md) and
   which _GHC version_ you are using.
 
 ## Your first Pull Request

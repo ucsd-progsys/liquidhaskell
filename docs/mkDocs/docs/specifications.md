@@ -49,7 +49,7 @@ or the legacy executable.
 
 ### (Plugin) Adding refinements for external modules
 
-See the [plugin](plugin.md) section, which cointains a link to a walkthrough document that describes how to add
+See the [installation](install.md) section, which cointains a link to a walkthrough document that describes how to add
 refinements for external packages (cfr. **"Providing Specifications for Existing Packages"**)
 
 ### (Legacy executable) Adding refinements for external modules
