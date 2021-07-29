@@ -16,6 +16,7 @@ module Language.Fixpoint.Types.Spans (
   , safeSourcePos
   , succPos
   , unPos
+  , mkPos
 
   -- * Located Values
   , Loc (..)
