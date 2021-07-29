@@ -4,7 +4,7 @@ One-off:
 
 ```
 $ sudo apt-get install python3 pip3  # or equivalent
-$ pip3 install mkdocs-material
+$ pip3 install mkdocs-material mkdocs-awesome-pages-plugin
 ```
 
 after that to view the documents locally run:

@@ -1,0 +1,122 @@
+---
+layout: post
+title: Termination Requires Refinements
+date: 2013-12-14 16:12
+comments: true
+tags: termination 
+author: Niki Vazou
+published: true 
+demo: GCD.hs
+---
+
+We've seen how, in the presence of [lazy evaluation][ref-lies], refinements
+[require termination][ref-bottom]. [Next][ref-termination], we saw how 
+LiquidHaskell can be used to prove termination. 
+
+Today, lets see how **termination requires refinements**. 
+
+That is, a crucial feature of LiquidHaskell's termination prover is that it is 
+not syntactically driven, i.e. is not limited to say, structural recursion. 
+Instead, it uses the wealth of information captured by refinements that are
+at our disposal, in order to prove termination. 
+
+This turns out to be crucial in practice.
+As a quick toy example -- motivated by a question by [Elias][comment-elias] -- 
+lets see how, unlike purely syntax-directed (structural) approaches, 
+LiquidHaskell proves that recursive functions, such as Euclid's GCD 
+algorithm, terminates.
+
+<!-- more -->
+
+<br>
+<br>
+<br>
+
+<div class="row-fluid">
+  <div class="span12 pagination-centered">
+  <img src="http://faculty.etsu.edu/gardnerr/Geometry-History/Euclid_7-Raphael.jpg"
+       alt="Euclid" width="300">
+       <br>
+       <br>
+       <br>
+       With LiquidHaskell, Euclid wouldn't have had to wave his hands.
+       <br>
+       <br>
+       <br>
+  </div>
+</div>
+
+
+<pre><span class=hs-linenum>51: </span><span class='hs-keyword'>module</span> <span class='hs-conid'>GCD</span> <span class='hs-keyword'>where</span>
+<span class=hs-linenum>52: </span>
+<span class=hs-linenum>53: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Prelude</span> <span class='hs-varid'>hiding</span> <span class='hs-layout'>(</span><span class='hs-varid'>gcd</span><span class='hs-layout'>,</span> <span class='hs-varid'>mod</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>54: </span>
+<span class=hs-linenum>55: </span><span class='hs-definition'>mod</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span>
+<span class=hs-linenum>56: </span><span class='hs-definition'>gcd</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span>
+</pre>
+
+The [Euclidean algorithm][ref-euclidean] is one of the oldest numerical algorithms 
+still in common use and calculates the the greatest common divisor (GCD) of two 
+natural numbers `a` and `b`.
+
+Assume that `a > b` and consider the following implementation of `gcd`
+
+
+<pre><span class=hs-linenum>66: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>gcd</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span><span class='hs-conop'>:</span><span class='hs-conid'>Nat</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>b</span><span class='hs-conop'>:</span><span class='hs-keyword'>{v:</span><span class='hs-conid'>Nat</span> <span class='hs-keyword'>| v &lt; a}</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>67: </span><a class=annot href="#"><span class=annottext>x1:{VV : (GHC.Types.Int) | (VV &gt;= 0)}
+-&gt; {VV : (GHC.Types.Int) | (VV &gt;= 0) &amp;&amp; (VV &lt; x1)}
+-&gt; (GHC.Types.Int)</span><span class='hs-definition'>gcd</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV &gt;= 0)}</span><span class='hs-varid'>a</span></a> <span class='hs-num'>0</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == a) &amp;&amp; (VV &gt;= 0)}</span><span class='hs-varid'>a</span></a>
+<span class=hs-linenum>68: </span><span class='hs-definition'>gcd</span> <span class='hs-varid'>a</span> <span class='hs-varid'>b</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>x1:{VV : (GHC.Types.Int) | (VV &gt;= 0)}
+-&gt; {VV : (GHC.Types.Int) | (VV &gt;= 0) &amp;&amp; (VV &lt; x1)}
+-&gt; (GHC.Types.Int)</span><span class='hs-varid'>gcd</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV &gt;= 0) &amp;&amp; (VV &lt; a)}</span><span class='hs-varid'>b</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == a) &amp;&amp; (VV &gt;= 0)}</span><span class='hs-varid'>a</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV &gt;= 0)}
+-&gt; x2:{VV : (GHC.Types.Int) | (VV &gt;= 0) &amp;&amp; (0 &lt; VV)}
+-&gt; {VV : (GHC.Types.Int) | (VV &gt;= 0) &amp;&amp; (VV &lt; x2)}</span><span class='hs-varop'>`mod`</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV &gt;= 0) &amp;&amp; (VV &lt; a)}</span><span class='hs-varid'>b</span></a><span class='hs-layout'>)</span>
+</pre>
+
+From our previous post, to prove that `gcd` is terminating, it suffices to prove
+that the first argument decreases as each recursive call.
+
+By `gcd`'s type signature, `a < b` holds at each iteration, thus liquidHaskell 
+will happily discharge the terminating condition.
+
+The only condition left to prove is that `gcd`'s second argument, ie., `a `mod`
+b` is less that `b`. 
+
+This property follows from the behavior of the `mod` operator.
+
+So, to prove `gcd` terminating, liquidHaskell needs a refined signature for 
+`mod` that captures this behavior, i.e., that for any `a` and `b` the value 
+`mod a b` is less than `b`. Fortunately, we can stipulate this via a refined
+type:
+
+
+<pre><span class=hs-linenum>88: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>mod</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span><span class='hs-conop'>:</span><span class='hs-conid'>Nat</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>b</span><span class='hs-conop'>:</span><span class='hs-keyword'>{v:</span><span class='hs-conid'>Nat</span><span class='hs-keyword'>| 0 &lt; v}</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>{v:</span><span class='hs-conid'>Nat</span> <span class='hs-keyword'>| v &lt; b}</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>89: </span><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV &gt;= 0)}
+-&gt; x2:{VV : (GHC.Types.Int) | (VV &gt;= 0) &amp;&amp; (0 &lt; VV)}
+-&gt; {VV : (GHC.Types.Int) | (VV &gt;= 0) &amp;&amp; (VV &lt; x2)}</span><span class='hs-definition'>mod</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV &gt;= 0)}</span><span class='hs-varid'>a</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV &gt;= 0) &amp;&amp; (0 &lt; VV)}</span><span class='hs-varid'>b</span></a>
+<span class=hs-linenum>90: </span>  <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == a) &amp;&amp; (VV &gt;= 0)}</span><span class='hs-varid'>a</span></a> <a class=annot href="#"><span class=annottext>x1:{VV : (GHC.Types.Int) | (VV &gt;= 0)}
+-&gt; x2:{VV : (GHC.Types.Int) | (VV &gt;= 0)}
+-&gt; {VV : (GHC.Types.Bool) | (((Prop VV)) &lt;=&gt; (x1 &lt; x2))}</span><span class='hs-varop'>&lt;</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == b) &amp;&amp; (VV &gt;= 0) &amp;&amp; (0 &lt; VV)}</span><span class='hs-varid'>b</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == a) &amp;&amp; (VV &gt;= 0)}</span><span class='hs-varid'>a</span></a>
+<span class=hs-linenum>91: </span>  <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV &gt;= 0)}
+-&gt; x2:{VV : (GHC.Types.Int) | (VV &gt;= 0) &amp;&amp; (0 &lt; VV)}
+-&gt; {VV : (GHC.Types.Int) | (VV &gt;= 0) &amp;&amp; (VV &lt; x2)}</span><span class='hs-varid'>mod</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == a) &amp;&amp; (VV &gt;= 0)}</span><span class='hs-varid'>a</span></a> <a class=annot href="#"><span class=annottext>x1:(GHC.Types.Int)
+-&gt; x2:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int) | (VV == (x1 - x2))}</span><span class='hs-comment'>-</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == b) &amp;&amp; (VV &gt;= 0) &amp;&amp; (0 &lt; VV)}</span><span class='hs-varid'>b</span></a><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == b) &amp;&amp; (VV &gt;= 0) &amp;&amp; (0 &lt; VV)}</span><span class='hs-varid'>b</span></a>
+</pre>
+
+Euclid's original version of `gcd` is different
+<pre><span class=hs-linenum>95: </span><span class='hs-definition'>gcd'</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span>
+<span class=hs-linenum>96: </span><span class='hs-definition'>gcd'</span> <span class='hs-varid'>a</span> <span class='hs-varid'>b</span> <span class='hs-keyglyph'>|</span> <span class='hs-varid'>a</span> <span class='hs-varop'>==</span> <span class='hs-varid'>b</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>a</span>
+<span class=hs-linenum>97: </span>         <span class='hs-keyglyph'>|</span> <span class='hs-varid'>a</span> <span class='hs-varop'>&gt;</span>  <span class='hs-varid'>b</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>gcd'</span> <span class='hs-layout'>(</span><span class='hs-varid'>a</span> <span class='hs-comment'>-</span> <span class='hs-varid'>b</span><span class='hs-layout'>)</span> <span class='hs-varid'>b</span> 
+<span class=hs-linenum>98: </span>         <span class='hs-keyglyph'>|</span> <span class='hs-varid'>a</span> <span class='hs-varop'>&lt;</span>  <span class='hs-varid'>b</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>gcd'</span> <span class='hs-varid'>a</span> <span class='hs-layout'>(</span><span class='hs-varid'>b</span> <span class='hs-comment'>-</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> 
+</pre>
+
+Though this version is simpler, turns out that LiquidHaskell needs 
+a more sophisticated mechanism, called **lexicographic ordering**, to 
+prove it terminates. Stay tuned!
+
+
+[ref-euclidean]:    http://en.wikipedia.org/wiki/Euclidean_algorithm
+[ref-termination]:  /blog/2013/12/09/checking-termination.lhs/ 
+[ref-lies]:  /blog/2013/11/23/telling_lies.lhs/ 
+[ref-bottom]: /blog/2013/12/02/getting-to-the-bottom.lhs/
+[comment-elias]: http://goto.ucsd.edu/~rjhala/liquid/haskell/blog/blog/2013/12/09/checking-termination.lhs/#comment-1159606500

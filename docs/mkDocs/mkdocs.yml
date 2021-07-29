@@ -12,16 +12,21 @@ nav:
   - "<i aria-hidden=true class='mdi mdi-flag'></i> Flag Reference": options.md
   - "": "#" #spacer
   - "<i aria-hidden=true class='mdi mdi-school'></i> Papers": papers.md
-  - "<i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog": https://ucsd-progsys.github.io/liquidhaskell-blog/archive.html
+  - "<i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog":
+      - ... | blogposts/*
 
 theme:
   name: material
   features:
-    -navigation.tabs
+    - navigation.tabs
   palette:
     primary: cyan #to contrast with blue in LH logo
   logo: img/logo.png
   favicon: img/favicon.ico
+
+plugins:
+  - search
+  - awesome-pages
 
 # Footer links
 extra:
