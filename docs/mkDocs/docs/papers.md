@@ -1,4 +1,6 @@
 
+# Papers etc.
+
 ## Papers
 
 To learn about the theory behind Liquid Types, I recommend reading first the
