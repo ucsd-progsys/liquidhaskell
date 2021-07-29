@@ -222,6 +222,18 @@ makeSimplify (x, t)
       , all isEVar xs
       = [F.SMeasure f dc (fromEVar <$> xs) bd]
 
+    go (F.EApp (F.EVar f) dc)
+      | (F.EVar dc, xs) <- F.splitEApp dc
+      , dc == F.symbol x
+      , all isEVar xs
+      = [F.SMeasure f dc (fromEVar <$> xs) F.PTrue]
+
+    go (F.PNot (F.EApp (F.EVar f) dc))
+      | (F.EVar dc, xs) <- F.splitEApp dc
+      , dc == F.symbol x
+      , all isEVar xs
+      = [F.SMeasure f dc (fromEVar <$> xs) F.PFalse]
+
     go _ = []
 
     isEVar (F.EVar _) = True

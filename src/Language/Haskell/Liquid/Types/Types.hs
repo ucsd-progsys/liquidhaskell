@@ -1996,9 +1996,20 @@ instance Functor AREnv where
   fmap f (REnv g l) = REnv (fmap f g) (fmap f l)
 
 instance (F.PPrint t) => F.PPrint (AREnv t) where
-  pprintTidy k re = "RENV LOCAL" $+$ F.pprintTidy k (reLocal re) <>
-                    "\nRENV GLOBAL" $+$ F.pprintTidy k (reGlobal re)
-  
+  pprintTidy k re =
+    "RENV LOCAL"
+    $+$
+    ""
+    $+$
+    F.pprintTidy k (reLocal re)
+    $+$
+    ""
+    $+$
+    "RENV GLOBAL"
+    $+$
+    ""
+    $+$
+    F.pprintTidy k (reGlobal re)
 
 instance Semigroup REnv where 
   REnv g1 l1 <> REnv g2 l2 = REnv (g1 <> g2) (l1 <> l2)  
