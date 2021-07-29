@@ -99,6 +99,7 @@ import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.HashMap.Strict       as M
 import qualified Data.List                 as L
+import qualified Data.Binary as B
 
 data FTycon   = TC LocSymbol TCInfo deriving (Ord, Show, Data, Typeable, Generic)
 
@@ -504,6 +505,11 @@ instance S.Store DataField
 instance S.Store DataCtor
 instance S.Store DataDecl
 instance S.Store Sub
+
+-- | We need the Binary instances for LH's spec serialization
+instance B.Binary TCInfo
+instance B.Binary FTycon
+instance B.Binary Sort
 
 instance NFData FTycon where
   rnf (TC x i) = x `seq` i `seq` ()

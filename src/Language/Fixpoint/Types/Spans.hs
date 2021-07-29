@@ -53,6 +53,7 @@ import           Text.Megaparsec.Pos
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 import Data.Functor.Contravariant (Contravariant(contramap))
+import qualified Data.Binary as B
 -- import           Debug.Trace
 
 
@@ -202,6 +203,15 @@ instance Hashable a => Hashable (Located a) where
 
 instance (IsString a) => IsString (Located a) where
   fromString = dummyLoc . fromString
+
+-- | We need the Binary instances for LH's spec serialization
+instance B.Binary Pos where
+  put = B.put . unPos
+  get = mkPos <$> B.get
+
+instance B.Binary SourcePos
+
+instance (B.Binary a) => B.Binary (Located a)
 
 srcLine :: (Loc a) => a -> Pos
 srcLine = sourceLine . sp_start . srcSpan

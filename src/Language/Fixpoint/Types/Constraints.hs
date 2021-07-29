@@ -117,6 +117,7 @@ import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 import qualified Data.ByteString           as B
+import qualified Data.Binary as B
 
 --------------------------------------------------------------------------------
 -- | Constraints ---------------------------------------------------------------
@@ -411,6 +412,9 @@ instance Hashable QualPattern
 instance Hashable QualParam
 instance Hashable Equation
 
+instance B.Binary QualPattern
+instance B.Binary QualParam
+instance B.Binary Qualifier
 
 ---------------------------------------------------------------------------
 -- | "Smart Constructors" for Constraints ---------------------------------

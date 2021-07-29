@@ -115,6 +115,8 @@ import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ.Compat
+import qualified Data.Binary as B
+import qualified Data.HashSet as S
 
 -- import           Text.Printf               (printf)
 
@@ -147,6 +149,27 @@ instance S.Store Bop
 instance S.Store Expr
 instance S.Store Reft
 instance S.Store SortedReft
+
+instance B.Binary SymConst
+instance B.Binary Constant
+instance B.Binary Bop
+instance B.Binary SrcSpan
+instance B.Binary GradInfo
+instance B.Binary Brel
+instance B.Binary KVar
+instance (Hashable a, Eq a, B.Binary a) => B.Binary (S.HashSet a) where
+  put = B.put . S.toList
+  get = S.fromList <$> B.get
+instance (Hashable k, Eq k, B.Binary k, B.Binary v) => B.Binary (M.HashMap k v) where
+  put = B.put . M.toList
+  get = M.fromList <$> B.get
+
+instance B.Binary Subst 
+instance B.Binary Expr
+instance B.Binary Reft 
+instance B.Binary TCArgs
+instance (Eq a, Hashable a, B.Binary a) => B.Binary (TCEmb a)
+
 
 reftConjuncts :: Reft -> [Reft]
 reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- ras']

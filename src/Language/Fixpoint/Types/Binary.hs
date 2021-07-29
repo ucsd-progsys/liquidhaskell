@@ -3,4 +3,6 @@
 module Language.Fixpoint.Types.Binary where
 
 import qualified Data.Binary as B
-import Language.Fixpoint.Types.Types 
+
+import Language.Fixpoint.Types as F
+
