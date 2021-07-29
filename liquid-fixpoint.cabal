@@ -111,7 +111,7 @@ library
                   , array
                   , async
                   , attoparsec
-                  , binary
+                  , store, bytestring
                   , boxes
                   , cereal
                   , cmdargs

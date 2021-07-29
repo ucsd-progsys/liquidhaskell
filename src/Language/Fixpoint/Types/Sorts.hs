@@ -79,7 +79,7 @@ module Language.Fixpoint.Types.Sorts (
   , tceMap
   ) where
 
-import qualified Data.Binary as B
+import qualified Data.Store as S
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
@@ -495,15 +495,15 @@ sortSubst θ (FApp t1 t2)  = FApp  (sortSubst θ t1) (sortSubst θ t2)
 sortSubst θ (FAbs i t)    = FAbs i (sortSubst θ t)
 sortSubst _  t            = t
 
--- instance (B.Binary a) => B.Binary (TCEmb a) 
-instance B.Binary TCArgs 
-instance B.Binary FTycon
-instance B.Binary TCInfo
-instance B.Binary Sort
-instance B.Binary DataField
-instance B.Binary DataCtor
-instance B.Binary DataDecl
-instance B.Binary Sub
+-- instance (S.Store a) => S.Store (TCEmb a) 
+instance S.Store TCArgs 
+instance S.Store FTycon
+instance S.Store TCInfo
+instance S.Store Sort
+instance S.Store DataField
+instance S.Store DataCtor
+instance S.Store DataDecl
+instance S.Store Sub
 
 instance NFData FTycon where
   rnf (TC x i) = x `seq` i `seq` ()

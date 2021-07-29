@@ -10,7 +10,7 @@ import           Data.Data
 import           Data.Serialize                (Serialize (..))
 import           GHC.Generics
 import           Text.PrettyPrint.HughesPJ (text)
-import qualified Data.Binary              as B
+import qualified Data.Store              as S
 import qualified Language.Fixpoint.Types.PrettyPrint as F
 import Data.Aeson
 
@@ -27,7 +27,7 @@ data Stats = Stats
   } deriving (Data, Show, Generic, Eq)
 
 instance NFData Stats
-instance B.Binary Stats
+instance S.Store Stats
 instance Serialize Stats
 
 instance F.PTable Stats where

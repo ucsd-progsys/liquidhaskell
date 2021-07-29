@@ -23,7 +23,7 @@ module Language.Fixpoint.Solver (
 ) where
 
 import           Control.Concurrent                 (setNumCapabilities)
-import           Data.Binary                        (decodeFile)
+import qualified Data.Store                       as S
 import           Data.Aeson                         (ToJSON, encode)
 import qualified Data.Text.Lazy.IO                as LT
 import qualified Data.Text.Lazy.Encoding          as LT
@@ -50,6 +50,7 @@ import           Language.Fixpoint.Types
 import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
 import           Language.Fixpoint.Solver.Instantiate (instantiate)
 import           Control.DeepSeq
+import qualified Data.ByteString as B
 
 ---------------------------------------------------------------------------
 -- | Solve an .fq file ----------------------------------------------------
@@ -121,7 +122,11 @@ readFq file = do
   return (fioFI q, fioOpts q)
 
 readBinFq :: FilePath -> IO (FInfo ())
-readBinFq file = {- SCC "parseBFq" #-} decodeFile file
+readBinFq file = {-# SCC "parseBFq" #-} do 
+  bs <- B.readFile file
+  case S.decode bs of 
+    Right fi -> return fi
+    Left err -> error ("Error decoding .bfq: " ++ show err) 
 
 --------------------------------------------------------------------------------
 -- | Solve in parallel after partitioning an FInfo to indepdendant parts

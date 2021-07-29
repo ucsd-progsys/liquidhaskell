@@ -97,7 +97,7 @@ module Language.Fixpoint.Types.Refinements (
   ) where
 
 import           Prelude hiding ((<>))
-import qualified Data.Binary as B
+import qualified Data.Store as S
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
@@ -131,22 +131,22 @@ instance NFData Expr
 instance NFData Reft
 instance NFData SortedReft
 
-instance (Hashable k, Eq k, B.Binary k, B.Binary v) => B.Binary (M.HashMap k v) where
-  put = B.put . M.toList
-  get = M.fromList <$> B.get
+-- instance (Hashable k, Eq k, S.Store k, S.Store v) => S.Store (M.HashMap k v) where
+  -- put = B.put . M.toList
+  -- get = M.fromList <$> B.get
 
-instance (Eq a, Hashable a, B.Binary a) => B.Binary (TCEmb a) 
-instance B.Binary SrcSpan
-instance B.Binary KVar
-instance B.Binary Subst
-instance B.Binary GradInfo
-instance B.Binary Constant
-instance B.Binary SymConst
-instance B.Binary Brel
-instance B.Binary Bop
-instance B.Binary Expr
-instance B.Binary Reft
-instance B.Binary SortedReft
+instance (Eq a, Hashable a, S.Store a) => S.Store (TCEmb a) 
+instance S.Store SrcSpan
+instance S.Store KVar
+instance S.Store Subst
+instance S.Store GradInfo
+instance S.Store Constant
+instance S.Store SymConst
+instance S.Store Brel
+instance S.Store Bop
+instance S.Store Expr
+instance S.Store Reft
+instance S.Store SortedReft
 
 reftConjuncts :: Reft -> [Reft]
 reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- ras']

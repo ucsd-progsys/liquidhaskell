@@ -57,8 +57,8 @@ module Language.Fixpoint.Types.Environments (
   , makePack
   ) where
 
--- import qualified Data.Binary as B
-import qualified Data.Binary as B
+-- import qualified Data.Store as S
+import qualified Data.Store as S
 import qualified Data.List   as L
 import           Data.Generics             (Data)
 #if !MIN_VERSION_base(4,14,0)
@@ -67,7 +67,6 @@ import           Data.Semigroup            (Semigroup (..))
 
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
-import           Data.Hashable
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 import           Data.Maybe
@@ -306,13 +305,13 @@ instance NFData IBindEnv
 instance NFData BindEnv
 instance (NFData a) => NFData (SEnv a)
 
-instance B.Binary Packs
-instance B.Binary IBindEnv
-instance B.Binary BindEnv
-instance (B.Binary a) => B.Binary (SEnv a)
-instance (Hashable a, Eq a, B.Binary a) => B.Binary (S.HashSet a) where
-  put = B.put . S.toList
-  get = S.fromList <$> B.get
+instance S.Store Packs
+instance S.Store IBindEnv
+instance S.Store BindEnv
+instance (S.Store a) => S.Store (SEnv a)
+-- instance (Hashable a, Eq a, S.Store a) => S.Store (S.HashSet a) where
+--   put = B.put . S.toList
+--   get = S.fromList <$> B.get
 
 --------------------------------------------------------------------------------
 -- | Constraint Pack Sets ------------------------------------------------------

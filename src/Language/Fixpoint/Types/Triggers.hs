@@ -12,7 +12,7 @@ module Language.Fixpoint.Types.Triggers (
 
     ) where
 
-import qualified Data.Binary as B
+import qualified Data.Store as S
 import           Control.DeepSeq
 import           GHC.Generics              (Generic)
 import           Text.PrettyPrint.HughesPJ
@@ -64,8 +64,8 @@ getLeftHandSide _
 defaltPatter :: Expr
 defaltPatter = PFalse
 
-instance B.Binary Trigger
+instance S.Store Trigger
 instance NFData   Trigger
 
-instance (B.Binary a) => B.Binary (Triggered a)
+instance (S.Store a) => S.Store (Triggered a)
 instance (NFData a)   => NFData   (Triggered a)

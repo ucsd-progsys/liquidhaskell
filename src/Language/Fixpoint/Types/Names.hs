@@ -136,7 +136,7 @@ import           Data.Interned.Internal.Text
 import           Data.String                 (IsString(..))
 import qualified Data.Text                   as T
 import qualified Data.Text.Lazy.Builder      as Builder
-import           Data.Binary                 (Binary (..))
+import qualified Data.Store                  as S
 import           Data.Typeable               (Typeable)
 import           GHC.Generics                (Generic)
 import           Text.PrettyPrint.HughesPJ   (text)
@@ -198,9 +198,11 @@ instance Hashable Symbol where
 instance NFData Symbol where
   rnf (S {}) = ()
 
-instance Binary Symbol where
-  get = textSymbol <$> get
-  put = put . symbolText
+instance S.Store Symbol where
+
+-- instance Binary Symbol where
+--   get = textSymbol <$> get
+--   put = put . symbolText
 
 sCache :: Cache Symbol
 sCache = mkCache
