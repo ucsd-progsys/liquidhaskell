@@ -31,3 +31,11 @@ To push to github you can simply run:
 ```
 mkdocs gh-deploy
 ```
+
+## Adding blog posts
+
+* Write your post in markdown (+HTML)
+* Put it in the `docs/blogposts/` directory
+* Datestamp the filename with `YYYY-MM-DD-`
+
+The new blogpost will then be automatically added to the site at next deploy.
