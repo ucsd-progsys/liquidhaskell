@@ -85,7 +85,7 @@ module Language.Fixpoint.Types.Constraints (
   , gSorts
   ) where
 
-import qualified Data.Binary as B
+import qualified Data.Store as S
 import           Data.Generics             (Data)
 import           Data.Aeson                hiding (Result)
 #if !MIN_VERSION_base(4,14,0)
@@ -116,6 +116,8 @@ import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
+import qualified Data.ByteString           as B
+import qualified Data.Binary as B
 
 --------------------------------------------------------------------------------
 -- | Constraints ---------------------------------------------------------------
@@ -379,17 +381,17 @@ instance Show   GFixSolution where
   show = showpp
 
 ----------------------------------------------------------------
-instance B.Binary QualPattern 
-instance B.Binary QualParam 
-instance B.Binary Qualifier
-instance B.Binary Kuts
-instance B.Binary HOInfo
-instance B.Binary GWInfo
-instance B.Binary GFixSolution
-instance (B.Binary a) => B.Binary (SubC a)
-instance (B.Binary a) => B.Binary (WfC a)
-instance (B.Binary a) => B.Binary (SimpC a)
-instance (B.Binary (c a), B.Binary a) => B.Binary (GInfo c a)
+instance S.Store QualPattern 
+instance S.Store QualParam 
+instance S.Store Qualifier
+instance S.Store Kuts
+instance S.Store HOInfo
+instance S.Store GWInfo
+instance S.Store GFixSolution
+instance (S.Store a) => S.Store (SubC a)
+instance (S.Store a) => S.Store (WfC a)
+instance (S.Store a) => S.Store (SimpC a)
+instance (S.Store (c a), S.Store a) => S.Store (GInfo c a)
 
 instance NFData QualPattern 
 instance NFData QualParam 
@@ -410,6 +412,9 @@ instance Hashable QualPattern
 instance Hashable QualParam
 instance Hashable Equation
 
+instance B.Binary QualPattern
+instance B.Binary QualParam
+instance B.Binary Qualifier
 
 ---------------------------------------------------------------------------
 -- | "Smart Constructors" for Constraints ---------------------------------
@@ -854,7 +859,8 @@ saveBinaryQuery cfg fi = do
   let bfq  = queryFile Files.BinFq cfg
   putStrLn $ "Saving Binary Query: " ++ bfq ++ "\n"
   ensurePath bfq
-  B.encodeFile bfq fi
+  B.writeFile bfq (S.encode fi)
+  -- B.encodeFile bfq fi
 
 saveTextQuery :: Fixpoint a => Config -> FInfo a -> IO ()
 saveTextQuery cfg fi = do
@@ -873,12 +879,12 @@ data AxiomEnv = AEnv
   , aenvAutoRW   :: M.HashMap SubcId [AutoRewrite]
   } deriving (Eq, Show, Generic)
 
-instance B.Binary AutoRewrite
-instance B.Binary AxiomEnv
-instance B.Binary Rewrite
-instance B.Binary Equation
-instance B.Binary SMTSolver
-instance B.Binary Eliminate
+instance S.Store AutoRewrite
+instance S.Store AxiomEnv
+instance S.Store Rewrite
+instance S.Store Equation
+instance S.Store SMTSolver
+instance S.Store Eliminate
 instance NFData AutoRewrite
 instance NFData AxiomEnv
 instance NFData Rewrite

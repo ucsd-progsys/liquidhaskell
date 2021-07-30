@@ -212,7 +212,7 @@ getOpts = do
   return md
 
 banner :: String
-banner =  "\n\nLiquid-Fixpoint Copyright 2013-15 Regents of the University of California.\n"
+banner =  "\n\nLiquid-Fixpoint Copyright 2013-21 Regents of the University of California.\n"
        ++ "All Rights Reserved.\n"
 
 multicore :: Config -> Bool

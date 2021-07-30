@@ -1103,15 +1103,35 @@ unifySorts   = unifyFast False emptyEnv
 --------------------------------------------------------------------------------
 unifyFast :: Bool -> Env -> Sort -> Sort -> Maybe TVSubst
 --------------------------------------------------------------------------------
-unifyFast False f = unify f Nothing
-unifyFast True  _ = uMono
-  where
-    uMono t1 t2
-     | t1 == t2   = Just emptySubst
-     | otherwise  = Nothing
+unifyFast False f t1 t2 = unify f Nothing t1 t2
+unifyFast True  _ t1 t2
+  | t1 == t2        = Just emptySubst
+  | otherwise           = Nothing
 
+{-
+eqFast :: Sort -> Sort -> Bool
+eqFast = go 
+  where 
+    go FAbs {} _       = False
+    go (FFunc s1 s2) t = case t of 
+                          FFunc t1 t2 -> go s1 t1 && go s2 t2
+                          _ -> False
+    go (FApp s1 s2)  t = case t of 
+                          FApp t1 t2 ->  go s1 t1 && go s2 t2
+                          _ -> False
 
+    go (FTC s1) t      = case t of 
+                            FTC t1 -> s1 == t1
+                            _ -> False
+    
+    go FInt FInt           = True
+    go FReal FReal         = True
+    go FNum FNum           = True
+    go FFrac FFrac         = True
+    go (FVar i1) (FVar i2) = i1 == i2
+    go _ _                 = False
 
+ -} 
 --------------------------------------------------------------------------------
 unifys :: HasCallStack => Env -> Maybe Expr -> [Sort] -> [Sort] -> CheckM TVSubst
 --------------------------------------------------------------------------------

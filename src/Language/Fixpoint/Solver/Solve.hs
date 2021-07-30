@@ -100,7 +100,7 @@ solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
        -> SolveM (F.Result (Integer, a), Stats)
 --------------------------------------------------------------------------------
 solve_ cfg fi s0 ks wkl = do
-  let s1   = {- SCC "sol-init" #-} S.init cfg fi ks
+  let s1   = {-# SCC "sol-init" #-} S.init cfg fi ks
   let s2   = mappend s0 s1
   -- let s3   = solveEbinds fi s2
   s3       <- {- SCC "sol-refine" #-} refine s2 wkl

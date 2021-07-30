@@ -130,18 +130,20 @@ import           Data.Monoid                 ((<>))
 #endif
 import           Data.Generics               (Data)
 import           Data.Hashable               (Hashable (..))
-import qualified Data.HashSet                as S
+import qualified Data.HashSet                as S hiding (size)
 import           Data.Interned
 import           Data.Interned.Internal.Text
 import           Data.String                 (IsString(..))
 import qualified Data.Text                   as T
 import qualified Data.Text.Lazy.Builder      as Builder
-import           Data.Binary                 (Binary (..))
+import qualified Data.Store                  as S
 import           Data.Typeable               (Typeable)
 import           GHC.Generics                (Generic)
 import           Text.PrettyPrint.HughesPJ   (text)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
+import Data.Functor.Contravariant (Contravariant(contramap))
+import qualified Data.Binary as B
 
 ---------------------------------------------------------------
 -- | Symbols --------------------------------------------------
@@ -196,11 +198,16 @@ instance Hashable Symbol where
   hashWithSalt s (S _ t _) = hashWithSalt s t
 
 instance NFData Symbol where
-  rnf (S {}) = ()
+  rnf S {} = ()
 
-instance Binary Symbol where
-  get = textSymbol <$> get
-  put = put . symbolText
+instance S.Store Symbol where
+  poke = S.poke . symbolText
+  peek = textSymbol <$> S.peek
+  size = contramap symbolText S.size
+
+instance B.Binary Symbol where
+   get = textSymbol <$> B.get
+   put = B.put . symbolText
 
 sCache :: Cache Symbol
 sCache = mkCache

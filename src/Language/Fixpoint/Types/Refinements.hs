@@ -97,7 +97,7 @@ module Language.Fixpoint.Types.Refinements (
   ) where
 
 import           Prelude hiding ((<>))
-import qualified Data.Binary as B
+import qualified Data.Store as S
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
@@ -115,6 +115,8 @@ import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ.Compat
+import qualified Data.Binary as B
+import qualified Data.HashSet as S
 
 -- import           Text.Printf               (printf)
 
@@ -131,22 +133,43 @@ instance NFData Expr
 instance NFData Reft
 instance NFData SortedReft
 
+-- instance (Hashable k, Eq k, S.Store k, S.Store v) => S.Store (M.HashMap k v) where
+  -- put = B.put . M.toList
+  -- get = M.fromList <$> B.get
+
+instance (Eq a, Hashable a, S.Store a) => S.Store (TCEmb a) 
+instance S.Store SrcSpan
+instance S.Store KVar
+instance S.Store Subst
+instance S.Store GradInfo
+instance S.Store Constant
+instance S.Store SymConst
+instance S.Store Brel
+instance S.Store Bop
+instance S.Store Expr
+instance S.Store Reft
+instance S.Store SortedReft
+
+instance B.Binary SymConst
+instance B.Binary Constant
+instance B.Binary Bop
+instance B.Binary SrcSpan
+instance B.Binary GradInfo
+instance B.Binary Brel
+instance B.Binary KVar
+instance (Hashable a, Eq a, B.Binary a) => B.Binary (S.HashSet a) where
+  put = B.put . S.toList
+  get = S.fromList <$> B.get
 instance (Hashable k, Eq k, B.Binary k, B.Binary v) => B.Binary (M.HashMap k v) where
   put = B.put . M.toList
   get = M.fromList <$> B.get
 
-instance (Eq a, Hashable a, B.Binary a) => B.Binary (TCEmb a) 
-instance B.Binary SrcSpan
-instance B.Binary KVar
-instance B.Binary Subst
-instance B.Binary GradInfo
-instance B.Binary Constant
-instance B.Binary SymConst
-instance B.Binary Brel
-instance B.Binary Bop
+instance B.Binary Subst 
 instance B.Binary Expr
-instance B.Binary Reft
-instance B.Binary SortedReft
+instance B.Binary Reft 
+instance B.Binary TCArgs
+instance (Eq a, Hashable a, B.Binary a) => B.Binary (TCEmb a)
+
 
 reftConjuncts :: Reft -> [Reft]
 reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- ras']

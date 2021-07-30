@@ -16,6 +16,7 @@ module Language.Fixpoint.Types.Spans (
   , safeSourcePos
   , succPos
   , unPos
+  , mkPos
 
   -- * Located Values
   , Loc (..)
@@ -29,6 +30,7 @@ module Language.Fixpoint.Types.Spans (
   , dummyPos
   , atLoc
   , toSourcePos
+  , ofSourcePos
 
   -- * Destructing spans
   , sourcePosElts
@@ -43,13 +45,15 @@ import           Data.Generics                 (Data)
 import           Data.Hashable
 import           Data.Typeable
 import           Data.String
-import qualified Data.Binary                   as B
+import qualified Data.Store                   as S
 import           GHC.Generics                  (Generic)
 import           Language.Fixpoint.Types.PrettyPrint
 -- import           Language.Fixpoint.Misc
 import           Text.Megaparsec.Pos
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
+import Data.Functor.Contravariant (Contravariant(contramap))
+import qualified Data.Binary as B
 -- import           Debug.Trace
 
 
@@ -63,10 +67,10 @@ class Loc a where
 -----------------------------------------------------------------------
 -- Additional (orphan) instances for megaparsec's Pos type ------------
 -----------------------------------------------------------------------
-
-instance B.Binary Pos where
-  put = B.put . unPos
-  get = mkPos <$> B.get
+instance S.Store Pos where
+  poke = S.poke . unPos
+  peek = mkPos <$> S.peek
+  size = contramap unPos S.size
 
 instance Serialize Pos where
   put = put . unPos
@@ -110,9 +114,9 @@ safeSourcePos file line col =
 -- | Retrofitting instances to SourcePos ------------------------------
 -----------------------------------------------------------------------
 
-instance B.Binary SourcePos where
-  put = B.put . ofSourcePos
-  get = toSourcePos <$> B.get
+instance S.Store SourcePos where
+  -- poke = S.poke . ofSourcePos
+  -- peek = toSourcePos <$> S.peek
 
 instance Serialize SourcePos where
   put = put . ofSourcePos
@@ -192,13 +196,22 @@ instance Eq a => Eq (Located a) where
 instance Ord a => Ord (Located a) where
   compare x y = compare (val x) (val y)
 
-instance (B.Binary a) => B.Binary (Located a)
+instance (S.Store a) => S.Store (Located a)
 
 instance Hashable a => Hashable (Located a) where
   hashWithSalt i = hashWithSalt i . val
 
 instance (IsString a) => IsString (Located a) where
   fromString = dummyLoc . fromString
+
+-- | We need the Binary instances for LH's spec serialization
+instance B.Binary Pos where
+  put = B.put . unPos
+  get = mkPos <$> B.get
+
+instance B.Binary SourcePos
+
+instance (B.Binary a) => B.Binary (Located a)
 
 srcLine :: (Loc a) => a -> Pos
 srcLine = sourceLine . sp_start . srcSpan

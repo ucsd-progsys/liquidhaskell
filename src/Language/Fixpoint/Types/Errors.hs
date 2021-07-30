@@ -65,7 +65,7 @@ import           Data.Semigroup                (Semigroup (..))
 
 import           Control.DeepSeq
 -- import           Data.Hashable
-import qualified Data.Binary                   as B
+import qualified Data.Store                   as S
 import           GHC.Generics                  (Generic)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
@@ -91,7 +91,7 @@ instance Serialize Doc
 instance Serialize Error
 instance Serialize (FixResult Error)
 
-instance (B.Binary a) => B.Binary (FixResult a)
+instance (S.Store a) => S.Store (FixResult a)
 
 --------------------------------------------------------------------------------
 -- | A BareBones Error Type ----------------------------------------------------
