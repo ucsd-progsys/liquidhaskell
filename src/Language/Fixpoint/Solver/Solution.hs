@@ -49,8 +49,8 @@ init :: (F.Fixpoint a) => Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solutio
 --------------------------------------------------------------------------------
 init cfg si ks_ = Sol.fromList senv mempty keqs [] mempty ebs xEnv
   where
-    keqs       = map (refine si qs genv) ws `using` parList rdeepseq  -- <<< qual-cluster 
-
+    keqs       = map (refine si qcs genv) ws `using` parList rdeepseq  -- <<< qual-cluster 
+    qcs        = mkQCluster qs
     qs         = trace ("init-qs-size " ++ show (length ws, length qs_)) $ qs_ 
     qs_        = F.quals si
     ws         = [ w | (k, w) <- M.toList (F.ws si), not (isGWfc w), k `S.member` ks ]
@@ -66,14 +66,22 @@ init cfg si ks_ = Sol.fromList senv mempty keqs [] mempty ebs xEnv
 --   so have the "same" instances in an environment. To exploit this structure,
 --
 --   1. Group the [Qualifier] into a QCluster
---   2. Refactor  
+--   2. Refactor instK to use QCluster
+--------------------------------------------------------------------------------
+
+type QCluster = M.HashMap QCSig [Qualifier]
+
+type QCSig = [F.QualParam]
+
+mkQCluster :: [Qualifier] -> QCluster
+mkQCluster = Misc.groupMap qualSig
+
+qualSig :: Qualifier -> QCSig
+qualSig q = [ p { F.qpSym = F.dummyName }  | p <- F.qParams q ] 
 
 --------------------------------------------------------------------------------
 
-
---------------------------------------------------------------------------------
-
-refine :: F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, Sol.QBind)
+refine :: F.SInfo a -> QCluster -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, Sol.QBind)
 refine fi qs genv w = refineK (allowHOquals fi) env qs (F.wrft w)
   where
     env             = wenv <> genv
@@ -85,7 +93,7 @@ instConstants = F.fromListSEnv . filter notLit . F.toListSEnv . F.gLits
     notLit    = not . F.isLitSymbol . fst
 
 
-refineK :: Bool -> F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, Sol.QBind)
+refineK :: Bool -> F.SEnv F.Sort -> QCluster -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, Sol.QBind)
 refineK ho env qs (v, t, k) = F.notracepp _msg (k, eqs')
    where
     eqs                     = instK ho env v t qs
@@ -97,28 +105,51 @@ instK :: Bool
       -> F.SEnv F.Sort
       -> F.Symbol
       -> F.Sort
-      -> [F.Qualifier]
+      -> QCluster 
       -> Sol.QBind
 --------------------------------------------------------------------------------
-instK ho env v t = Sol.qb . unique . concatMap (instKQ ho env v t)
-  where
-    unique       = L.nubBy ((. Sol.eqPred) . (==) . Sol.eqPred)
+instK ho env v t qc = Sol.qb . unique $ 
+  [ Sol.eQual q xs 
+      | (sig, qs) <- M.toList qc
+      , xs        <- instKSig ho env v t sig 
+      , q         <- qs
+  ]
 
-instKQ :: Bool
-       -> F.SEnv F.Sort
-       -> F.Symbol
-       -> F.Sort
-       -> F.Qualifier
-       -> [Sol.EQual]
-instKQ ho env v t q = do 
+unique :: [Sol.EQual] -> [Sol.EQual]
+unique = L.nubBy ((. Sol.eqPred) . (==) . Sol.eqPred)
+
+instKSig :: Bool
+         -> F.SEnv F.Sort
+         -> F.Symbol
+         -> F.Sort
+         -> QCSig 
+         -> [[F.Symbol]]
+instKSig ho env v t qsig = do 
   (su0, qsu0, v0) <- candidates senv [(t, [v])] qp
   xs              <- match senv tyss [v0] (applyQP su0 qsu0 <$> qps) 
-  return           $ Sol.eQual q (F.notracepp msg (reverse xs))
+  return           $ F.notracepp msg (reverse xs)
   where
-    msg        = "instKQ " ++ F.showpp (F.qName q) ++ F.showpp (F.qParams q)
-    qp : qps   = F.qParams q
+    msg        = "instKSig " ++ F.showpp qsig
+    qp : qps   = qsig
     tyss       = instCands ho env
     senv       = (`F.lookupSEnvWithDistance` env)
+
+
+-- instKQ :: Bool
+--        -> F.SEnv F.Sort
+--        -> F.Symbol
+--        -> F.Sort
+--        -> F.Qualifier
+--        -> [Sol.EQual]
+-- instKQ ho env v t q = do 
+--   (su0, qsu0, v0) <- candidates senv [(t, [v])] qp
+--   xs              <- match senv tyss [v0] (applyQP su0 qsu0 <$> qps) 
+--   return           $ Sol.eQual q (F.notracepp msg (reverse xs))
+--   where
+--     msg        = "instKQ " ++ F.showpp (F.qName q) ++ F.showpp (F.qParams q)
+--     qp : qps   = F.qParams q
+--     tyss       = instCands ho env
+--     senv       = (`F.lookupSEnvWithDistance` env)
 
 instCands :: Bool -> F.SEnv F.Sort -> [(F.Sort, [F.Symbol])]
 instCands ho env = filter isOk tyss
@@ -135,9 +166,10 @@ match _   _   xs []
   = return xs
 
 applyQP :: So.TVSubst -> QPSubst -> F.QualParam -> F.QualParam
-applyQP su qsu qp = qp { qpSort = So.apply     su  (qpSort qp) 
-                       , qpPat  = applyQPSubst qsu (qpPat qp) 
-                       }
+applyQP su qsu qp = qp 
+  { qpSort = So.apply     su  (qpSort qp) 
+  , qpPat  = applyQPSubst qsu (qpPat qp) 
+  }
 
 --------------------------------------------------------------------------------
 candidates :: So.Env -> [(F.Sort, [F.Symbol])] -> F.QualParam 

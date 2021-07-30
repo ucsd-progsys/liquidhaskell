@@ -198,7 +198,7 @@ instance Hashable Symbol where
   hashWithSalt s (S _ t _) = hashWithSalt s t
 
 instance NFData Symbol where
-  rnf (S {}) = ()
+  rnf S {} = ()
 
 instance S.Store Symbol where
   poke = S.poke . symbolText
