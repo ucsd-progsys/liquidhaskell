@@ -1105,9 +1105,10 @@ unifyFast :: Bool -> Env -> Sort -> Sort -> Maybe TVSubst
 --------------------------------------------------------------------------------
 unifyFast False f t1 t2 = unify f Nothing t1 t2
 unifyFast True  _ t1 t2
-  | eqFast t1 t2        = Just emptySubst
+  | t1 == t2        = Just emptySubst
   | otherwise           = Nothing
 
+{-
 eqFast :: Sort -> Sort -> Bool
 eqFast = go 
   where 
@@ -1129,7 +1130,8 @@ eqFast = go
     go FFrac FFrac         = True
     go (FVar i1) (FVar i2) = i1 == i2
     go _ _                 = False
-  
+
+ -} 
 --------------------------------------------------------------------------------
 unifys :: HasCallStack => Env -> Maybe Expr -> [Sort] -> [Sort] -> CheckM TVSubst
 --------------------------------------------------------------------------------

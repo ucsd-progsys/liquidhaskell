@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP               #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TupleSections     #-}
@@ -50,7 +51,7 @@ init :: (F.Fixpoint a) => Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solutio
 init cfg si ks_ = Sol.fromList senv mempty keqs [] mempty ebs xEnv
   where
     keqs       = map (refine si qcs genv) ws `using` parList rdeepseq
-    qcs        = trace ("init-qs-size " ++ show (length ws, length qs_, M.keys qcs_)) $ qcs_ 
+    qcs        = {- trace ("init-qs-size " ++ show (length ws, length qs_, M.keys qcs_)) $ -} qcs_ 
     qcs_       = mkQCluster qs_
     qs_        = F.quals si
     ws         = [ w | (k, w) <- M.toList (F.ws si), not (isGWfc w), k `S.member` ks ]
@@ -125,15 +126,25 @@ instKSig :: Bool
          -> QCSig 
          -> [[F.Symbol]]
 instKSig ho env v t qsig = do 
-  (su0, qsu0, v0) <- candidates senv [(t, [v])] qp
-  xs              <- match senv tyss [v0] (applyQP su0 qsu0 <$> qps) 
-  return           $ F.notracepp msg (reverse xs)
+  (su0, v0) <- candidatesP senv [(0, t, [v])] qp
+  ixs       <- matchP senv tyss [v0] (applyQPP su0 <$> qps) 
+  -- return     $ F.notracepp msg (reverse ixs)
+  ys        <- instSymbol tyss (tail $ reverse ixs) 
+  return (v:ys)
   where
-    msg        = "instKSig " ++ F.showpp qsig
+    -- msg        = "instKSig " ++ F.showpp qsig
     qp : qps   = qsig
-    tyss       = instCands ho env
+    tyss       = zipWith (\i (t, ys) -> (i, t, ys)) [1..] (instCands ho env)
     senv       = (`F.lookupSEnvWithDistance` env)
 
+instSymbol :: [(SortIdx, a, [F.Symbol])] -> [SortIdx] -> [[F.Symbol]]
+instSymbol tyss = go 
+  where
+    m = M.fromList [(i, ys) | (i,_,ys) <- tyss]
+    go []     = return []
+    go (i:is) = do y  <- M.lookupDefault [] i m
+                   ys <- go is
+                   return (y:ys)
 
 -- instKQ :: Bool
 --        -> F.SEnv F.Sort
@@ -158,53 +169,82 @@ instCands ho env = filter isOk tyss
     isOk      = if ho then const True else isNothing . F.functionSort . fst
     xts       = F.toListSEnv env
 
-match :: So.Env -> [(F.Sort, [F.Symbol])] -> [F.Symbol] -> [F.QualParam] -> [[F.Symbol]]
-match env tyss xs (qp : qps)
-  = do (su, qsu, x) <- candidates env tyss qp
-       match env tyss (x : xs) (applyQP su qsu <$> qps)
-match _   _   xs []
-  = return xs
 
-applyQP :: So.TVSubst -> QPSubst -> F.QualParam -> F.QualParam
-applyQP su qsu qp = qp 
+type SortIdx = Int
+
+matchP :: So.Env -> [(SortIdx, F.Sort, a)] -> [SortIdx] -> [F.QualParam] -> [[SortIdx]]
+matchP env tyss = go
+  where 
+    go' !i !is !qps  = go (i:is) qps
+    go is (qp : qps) = do (su, i) <- candidatesP env tyss qp
+                          go' i is (applyQPP su <$> qps)
+    go is []         = return is
+
+applyQPP :: So.TVSubst -> F.QualParam -> F.QualParam
+applyQPP su qp = qp 
   { qpSort = So.apply     su  (qpSort qp) 
-  , qpPat  = applyQPSubst qsu (qpPat qp) 
   }
 
+-- match :: So.Env -> [(F.Sort, [F.Symbol])] -> [F.Symbol] -> [F.QualParam] -> [[F.Symbol]]
+-- match env tyss xs (qp : qps)
+--   = do (su, qsu, x) <- candidates env tyss qp
+--        match env tyss (x : xs) (applyQP su qsu <$> qps)
+-- match _   _   xs []
+--   = return xs
+
+-- applyQP :: So.TVSubst -> QPSubst -> F.QualParam -> F.QualParam
+-- applyQP su qsu qp = qp 
+--   { qpSort = So.apply     su  (qpSort qp) 
+--   , qpPat  = applyQPSubst qsu (qpPat qp) 
+--   }
+
 --------------------------------------------------------------------------------
-candidates :: So.Env -> [(F.Sort, [F.Symbol])] -> F.QualParam 
-           -> [(So.TVSubst, QPSubst, F.Symbol)]
+candidatesP :: So.Env -> [(SortIdx, F.Sort, a)] -> F.QualParam -> 
+               [(So.TVSubst, SortIdx)]
 --------------------------------------------------------------------------------
-candidates env tyss x = -- traceShow _msg
-    [(su, qsu, y) | (t, ys)  <- tyss
-                  , su       <- maybeToList (So.unifyFast mono env xt t)
-                  , y        <- ys
-                  , qsu      <- maybeToList (matchSym x y)                                     
+candidatesP env tyss x =
+    [(su, idx) | (idx, t,_)  <- tyss
+               , su          <- maybeToList (So.unifyFast mono env xt t)
     ]
   where
     xt   = F.qpSort x
     mono = So.isMono xt
-    _msg = "candidates tyss :=" ++ F.showpp tyss ++ "tx := " ++ F.showpp xt
-
-matchSym :: F.QualParam -> F.Symbol -> Maybe QPSubst 
-matchSym qp y' = case F.qpPat qp of
-  F.PatPrefix s i -> JustSub i <$> F.stripPrefix s y 
-  F.PatSuffix i s -> JustSub i <$> F.stripSuffix s y 
-  F.PatNone       -> Just NoSub 
-  F.PatExact s    -> if s == y then Just NoSub else Nothing 
-  where 
-    y             =  F.tidySymbol y'
+    
 
 
-data QPSubst = NoSub | JustSub Int F.Symbol  
+-- --------------------------------------------------------------------------------
+-- candidates :: So.Env -> [(F.Sort, [F.Symbol])] -> F.QualParam 
+--            -> [(So.TVSubst, QPSubst, F.Symbol)]
+-- --------------------------------------------------------------------------------
+-- candidates env tyss x = -- traceShow _msg
+--     [(su, qsu, y) | (t, ys)  <- tyss
+--                   , su       <- maybeToList (So.unifyFast mono env xt t)
+--                   , y        <- ys
+--                   , qsu      <- maybeToList (matchSym x y)                                     
+--     ]
+--   where
+--     xt   = F.qpSort x
+--     mono = So.isMono xt
+--     _msg = "candidates tyss :=" ++ F.showpp tyss ++ "tx := " ++ F.showpp xt
 
-applyQPSubst :: QPSubst -> F.QualPattern -> F.QualPattern 
-applyQPSubst (JustSub i x) (F.PatPrefix s j) 
-  | i == j = F.PatExact (F.mappendSym s x) 
-applyQPSubst (JustSub i x) (F.PatSuffix j s) 
-  | i == j = F.PatExact (F.mappendSym x s) 
-applyQPSubst _ p 
-  = p 
+-- matchSym :: F.QualParam -> F.Symbol -> Maybe QPSubst 
+-- matchSym qp y' = case F.qpPat qp of
+--   F.PatPrefix s i -> JustSub i <$> F.stripPrefix s y 
+--   F.PatSuffix i s -> JustSub i <$> F.stripSuffix s y 
+--   F.PatNone       -> Just NoSub 
+--   F.PatExact s    -> if s == y then Just NoSub else Nothing 
+--   where 
+--     y             =  F.tidySymbol y'
+
+-- data QPSubst = NoSub | JustSub Int F.Symbol  
+
+-- applyQPSubst :: QPSubst -> F.QualPattern -> F.QualPattern 
+-- applyQPSubst (JustSub i x) (F.PatPrefix s j) 
+--   | i == j = F.PatExact (F.mappendSym s x) 
+-- applyQPSubst (JustSub i x) (F.PatSuffix j s) 
+--   | i == j = F.PatExact (F.mappendSym x s) 
+-- applyQPSubst _ p 
+--   = p 
 
 --------------------------------------------------------------------------------
 okInst :: F.SEnv F.Sort -> F.Symbol -> F.Sort -> Sol.EQual -> Bool
