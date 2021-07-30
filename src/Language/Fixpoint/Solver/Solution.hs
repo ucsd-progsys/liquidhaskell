@@ -38,6 +38,7 @@ import           Language.Fixpoint.Solver.Sanitize
 
 -- DEBUG
 import Text.Printf (printf)
+import Debug.Trace (trace)
 -- import           Debug.Trace
 
 
@@ -46,19 +47,34 @@ import Text.Printf (printf)
 --------------------------------------------------------------------------------
 init :: (F.Fixpoint a) => Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
 --------------------------------------------------------------------------------
-init cfg si ks = Sol.fromList senv mempty keqs [] mempty ebs xEnv
+init cfg si ks_ = Sol.fromList senv mempty keqs [] mempty ebs xEnv
   where
-    keqs       = map (refine si qs genv) ws `using` parList rdeepseq
-    qs         = F.quals si
-    ws         = [ w | (k, w) <- M.toList (F.ws si), not (isGWfc w) , k `S.member` ks]
+    keqs       = map (refine si qs genv) ws `using` parList rdeepseq  -- <<< qual-cluster 
+
+    qs         = trace ("init-qs-size " ++ show (length ws, length qs_)) $ qs_ 
+    qs_        = F.quals si
+    ws         = [ w | (k, w) <- M.toList (F.ws si), not (isGWfc w), k `S.member` ks ]
+    ks         = trace ("init-ks-size" ++ show (S.size ks_)) $ ks_
     genv       = instConstants si
     senv       = symbolEnv cfg si
     ebs        = ebindInfo si
     xEnv       = F.fromListSEnv [ (x, (i, F.sr_sort sr)) | (i,x,sr) <- F.bindEnvToList (F.bs si)]
 
 --------------------------------------------------------------------------------
+-- | [NOTE:qual-cluster] It is wasteful to perform instantiation *individually*
+--   on each qualifier, as many qualifiers have "equivalent" parameters, and 
+--   so have the "same" instances in an environment. To exploit this structure,
+--
+--   1. Group the [Qualifier] into a QCluster
+--   2. Refactor  
+
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+
 refine :: F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, Sol.QBind)
-refine fi qs genv w = refineK (allowHOquals fi) env qs $ F.wrft w
+refine fi qs genv w = refineK (allowHOquals fi) env qs (F.wrft w)
   where
     env             = wenv <> genv
     wenv            = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs fi) (F.wenv w))
