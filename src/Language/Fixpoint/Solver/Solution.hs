@@ -39,8 +39,7 @@ import           Language.Fixpoint.Solver.Sanitize
 
 -- DEBUG
 import Text.Printf (printf)
-import Debug.Trace (trace)
--- import           Debug.Trace
+-- import Debug.Trace (trace)
 
 
 --------------------------------------------------------------------------------
@@ -126,8 +125,8 @@ instKSig :: Bool
          -> QCSig 
          -> [[F.Symbol]]
 instKSig ho env v t qsig = do 
-  (su0, v0) <- candidatesP senv [(0, t, [v])] qp
-  ixs       <- matchP senv tyss [v0] (applyQPP su0 <$> qps) 
+  (su0, i0, qs0) <- candidatesP senv [(0, t, [v])] qp
+  ixs       <- matchP senv tyss [(i0, qs0)] (applyQPP su0 <$> qps) 
   -- return     $ F.notracepp msg (reverse ixs)
   ys        <- instSymbol tyss (tail $ reverse ixs) 
   return (v:ys)
@@ -137,14 +136,17 @@ instKSig ho env v t qsig = do
     tyss       = zipWith (\i (t, ys) -> (i, t, ys)) [1..] (instCands ho env)
     senv       = (`F.lookupSEnvWithDistance` env)
 
-instSymbol :: [(SortIdx, a, [F.Symbol])] -> [SortIdx] -> [[F.Symbol]]
+instSymbol :: [(SortIdx, a, [F.Symbol])] -> [(SortIdx, QualPattern)] -> [[F.Symbol]]
 instSymbol tyss = go 
   where
     m = M.fromList [(i, ys) | (i,_,ys) <- tyss]
-    go []     = return []
-    go (i:is) = do y  <- M.lookupDefault [] i m
-                   ys <- go is
-                   return (y:ys)
+    go [] = 
+      return []
+    go ((i,qp):is) = do 
+      y   <- M.lookupDefault [] i m
+      qsu <- maybeToList (matchSym qp y)
+      ys  <- go [ (i', applyQPSubst qsu  qp') | (i', qp') <- is]
+      return (y:ys)
 
 -- instKQ :: Bool
 --        -> F.SEnv F.Sort
@@ -172,12 +174,13 @@ instCands ho env = filter isOk tyss
 
 type SortIdx = Int
 
-matchP :: So.Env -> [(SortIdx, F.Sort, a)] -> [SortIdx] -> [F.QualParam] -> [[SortIdx]]
+matchP :: So.Env -> [(SortIdx, F.Sort, a)] -> [(SortIdx, QualPattern)] -> [F.QualParam] -> 
+          [[(SortIdx, QualPattern)]]
 matchP env tyss = go
   where 
-    go' !i !is !qps  = go (i:is) qps
-    go is (qp : qps) = do (su, i) <- candidatesP env tyss qp
-                          go' i is (applyQPP su <$> qps)
+    go' !i !p !is !qps  = go ((i, p):is) qps
+    go is (qp : qps) = do (su, i, pat) <- candidatesP env tyss qp
+                          go' i pat is (applyQPP su <$> qps)
     go is []         = return is
 
 applyQPP :: So.TVSubst -> F.QualParam -> F.QualParam
@@ -200,14 +203,16 @@ applyQPP su qp = qp
 
 --------------------------------------------------------------------------------
 candidatesP :: So.Env -> [(SortIdx, F.Sort, a)] -> F.QualParam -> 
-               [(So.TVSubst, SortIdx)]
+               [(So.TVSubst, SortIdx, QualPattern)]
 --------------------------------------------------------------------------------
 candidatesP env tyss x =
-    [(su, idx) | (idx, t,_)  <- tyss
-               , su          <- maybeToList (So.unifyFast mono env xt t)
+    [(su, idx, qPat) 
+        | (idx, t,_)  <- tyss
+        , su          <- maybeToList (So.unifyFast mono env xt t)
     ]
   where
     xt   = F.qpSort x
+    qPat = F.qpPat  x
     mono = So.isMono xt
     
 
@@ -227,24 +232,24 @@ candidatesP env tyss x =
 --     mono = So.isMono xt
 --     _msg = "candidates tyss :=" ++ F.showpp tyss ++ "tx := " ++ F.showpp xt
 
--- matchSym :: F.QualParam -> F.Symbol -> Maybe QPSubst 
--- matchSym qp y' = case F.qpPat qp of
---   F.PatPrefix s i -> JustSub i <$> F.stripPrefix s y 
---   F.PatSuffix i s -> JustSub i <$> F.stripSuffix s y 
---   F.PatNone       -> Just NoSub 
---   F.PatExact s    -> if s == y then Just NoSub else Nothing 
---   where 
---     y             =  F.tidySymbol y'
+matchSym :: F.QualPattern -> F.Symbol -> Maybe QPSubst 
+matchSym qp y' = case qp of
+  F.PatPrefix s i -> JustSub i <$> F.stripPrefix s y 
+  F.PatSuffix i s -> JustSub i <$> F.stripSuffix s y 
+  F.PatNone       -> Just NoSub 
+  F.PatExact s    -> if s == y then Just NoSub else Nothing 
+  where 
+    y             =  F.tidySymbol y'
 
--- data QPSubst = NoSub | JustSub Int F.Symbol  
+data QPSubst = NoSub | JustSub Int F.Symbol  
 
--- applyQPSubst :: QPSubst -> F.QualPattern -> F.QualPattern 
--- applyQPSubst (JustSub i x) (F.PatPrefix s j) 
---   | i == j = F.PatExact (F.mappendSym s x) 
--- applyQPSubst (JustSub i x) (F.PatSuffix j s) 
---   | i == j = F.PatExact (F.mappendSym x s) 
--- applyQPSubst _ p 
---   = p 
+applyQPSubst :: QPSubst -> F.QualPattern -> F.QualPattern 
+applyQPSubst (JustSub i x) (F.PatPrefix s j) 
+  | i == j = F.PatExact (F.mappendSym s x) 
+applyQPSubst (JustSub i x) (F.PatSuffix j s) 
+  | i == j = F.PatExact (F.mappendSym x s) 
+applyQPSubst _ p 
+  = p 
 
 --------------------------------------------------------------------------------
 okInst :: F.SEnv F.Sort -> F.Symbol -> F.Sort -> Sol.EQual -> Bool
