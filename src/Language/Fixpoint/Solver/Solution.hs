@@ -49,9 +49,9 @@ init :: (F.Fixpoint a) => Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solutio
 --------------------------------------------------------------------------------
 init cfg si ks_ = Sol.fromList senv mempty keqs [] mempty ebs xEnv
   where
-    keqs       = map (refine si qcs genv) ws `using` parList rdeepseq  -- <<< qual-cluster 
-    qcs        = mkQCluster qs
-    qs         = trace ("init-qs-size " ++ show (length ws, length qs_)) $ qs_ 
+    keqs       = map (refine si qcs genv) ws `using` parList rdeepseq
+    qcs        = trace ("init-qs-size " ++ show (length ws, length qs_, M.keys qcs_)) $ qcs_ 
+    qcs_       = mkQCluster qs_
     qs_        = F.quals si
     ws         = [ w | (k, w) <- M.toList (F.ws si), not (isGWfc w), k `S.member` ks ]
     ks         = trace ("init-ks-size" ++ show (S.size ks_)) $ ks_
