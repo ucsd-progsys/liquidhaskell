@@ -8,12 +8,31 @@ https://ucsd-progsys.slack.com/archives/DU17X62Q5/p1621006535008300
 DISCO full full GHC+LH build = 120s
       vs Z3 ... 7s (!)
 
-icfp_pos
+```
+$ stack build --dependencies-only
+$ time stack build
+```
 
-      Overview.lhs:          OK (24.82s)
-      IfM.hs:                OK (17.21s)
-      FoldAbs.hs:            OK (26.68s)
-      
+`develop`
+
+________________________________________________________
+Executed in  166.60 secs   fish           external
+   usr time  156.04 secs   66.80 millis  155.98 secs
+   sys time    7.46 secs    9.35 millis    7.45 secs
+
+#1150 -- FUNCTION
+https://github.com/ucsd-progsys/liquidhaskell/issues/1149 -- ???
+https://github.com/ucsd-progsys/liquidhaskell/issues/1120
+
+--fullcheck
+--checkderived
+--noclasscheck
+
+
+
+
+<<<<<<< HEAD
+
 
 ## no-adt
 
@@ -23,6 +42,8 @@ https://github.com/ucsd-progsys/liquidhaskell/issues/1120
 
 Don't encode non-encodable ADTs (by default)
 
+=======
+>>>>>>> 102b3384caff33c1d722dcbb96eb20913bcbb064
 ## Fix: SpecDependencyGraph
 
 1. Implement `Bare.SpecDep` 
