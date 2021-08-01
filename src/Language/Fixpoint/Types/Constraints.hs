@@ -19,6 +19,7 @@ module Language.Fixpoint.Types.Constraints (
    -- * Top-level Queries
     FInfo, SInfo, GInfo (..), FInfoWithOpts(..)
   , convertFormat
+  , sinfoToFInfo
   , Solver
 
    -- * Serializing
@@ -840,6 +841,29 @@ outVV (m, fi) i c = (m', fi')
     x             = reftBind $ sr_reft sr
 
 type BindM = M.HashMap Integer BindId
+
+sinfoToFInfo :: Fixpoint a => SInfo a -> FInfo a
+sinfoToFInfo fi = fi
+  { bs = envWithoutLhss
+  , cm = simpcToSubc (bs fi) <$> cm fi
+  }
+  where
+    envWithoutLhss =
+      M.foldl' (\m c -> deleteBindEnv (cbind c) m) (bs fi) (cm fi)
+
+-- Assumes the sort and the bind of the lhs is the same as the sort
+-- and the bind of the rhs
+simpcToSubc :: BindEnv -> SimpC a -> SubC a
+simpcToSubc env s = SubC
+  { _senv  = deleteIBindEnv (cbind s) (senv s)
+  , slhs   = sr
+  , srhs   = RR (sr_sort sr) (Reft (b, _crhs s))
+  , _sid   = sid s
+  , _stag  = stag s
+  , _sinfo = sinfo s
+  }
+  where
+    (b, sr) = lookupBindEnv (cbind s) env
 
 ---------------------------------------------------------------------------
 -- | Top level Solvers ----------------------------------------------------
