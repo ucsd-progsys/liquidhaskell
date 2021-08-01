@@ -947,9 +947,9 @@ instance Hashable AutoRewrite
 
 instance Fixpoint (M.HashMap SubcId [AutoRewrite]) where
   toFix autoRW =
-    vcat (map fixRW rewrites)
-    $+$ text "rewrite "
-    <+> toFix rwsMapping
+    vcat $
+    map fixRW rewrites ++
+    rwsMapping
     where
       rewrites     = L.nub $ concatMap snd (M.toList autoRW)
 
@@ -965,7 +965,7 @@ instance Fixpoint (M.HashMap SubcId [AutoRewrite]) where
       rwsMapping = do
         (cid, rws) <- M.toList autoRW
         rw         <-  rws
-        return $ text $ show cid ++ " : " ++ show (hash rw)
+        return $ "rewrite" <+> brackets (text $ show cid ++ " : " ++ show (hash rw))
 
 
 
@@ -990,13 +990,13 @@ instance Fixpoint Doc where
   toFix = id
 
 instance Fixpoint Equation where
-  toFix (Equ f xs e _ _) = "define" <+> toFix f <+> ppArgs xs <+> text "=" <+> parens (toFix e)
+  toFix (Equ f xs e s _) = "define" <+> toFix f <+> ppArgs xs <+> ":" <+> toFix s <+> text "=" <+> braces (parens (toFix e))
 
 instance Fixpoint Rewrite where
   toFix (SMeasure f d xs e)
     = text "match"
    <+> toFix f
-   <+> parens (toFix d <+> hsep (toFix <$> xs))
+   <+> toFix d <+> hsep (toFix <$> xs)
    <+> text " = "
    <+> parens (toFix e)
 
