@@ -31,7 +31,7 @@ a.annot:hover span.annottext {
     width: 100%;
     left: 0;
     top: 100%;
-    overflow-wrap: break-word;
+    white-space: pre-wrap;
 }
 
 
