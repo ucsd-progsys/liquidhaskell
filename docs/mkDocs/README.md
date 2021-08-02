@@ -34,8 +34,16 @@ mkdocs gh-deploy
 
 ## Adding blog posts
 
-* Write your post in markdown (+HTML)
-* Put it in the `docs/blogposts/` directory
-* Datestamp the filename with `YYYY-MM-DD-`
+This is a bit more involved than other edits, since an intermediate step is needed to generate fancy tooltips on code blocks.
 
-The new blogpost will then be automatically added to the site at next deploy.
+To add a blog post;
+
+1. Write your blogpost in Literate Haskell
+2. Archive your blogpost's source code in `https://github.com/ucsd-progsys/liquidhaskell/tree/develop/docs/blog`, date-stamped with the `YYYY-MM-DD-` prefix.
+3. Use LiquidHaskell to generate a corresponding `.markdown` file
+    * The code blocks in this file are annotated with Liquid Types & Errors, for easier reading
+4. Use `pandoc` to remove any non-markdown/HTML markup (e.g. latex)
+5. Put the final output in the `docs/blogposts` subdirectory of this repository.
+6. Rebuild/redeploy the docs as usual
+
+This is not automated for two reasons: (1) performance and (2) so that old blogposts (with out-of-date syntax) don't break the re-build of the docs
