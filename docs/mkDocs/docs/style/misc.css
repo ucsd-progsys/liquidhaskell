@@ -22,6 +22,11 @@
 }
 
 
+/* Hacking the main panel (to fix tooltip truncation) */
+.md-content {
+    overflow: visible;
+}
+
 /* Sytling the splashpage */
 
 .example-row {
