@@ -21,11 +21,19 @@
     padding: 0.3rem;
 }
 
-
-/* Hacking the main panel (to fix tooltip truncation) */
-.md-content {
-    overflow: visible;
+/* Hacking the tooltips */
+a.annot {
+    position: static;
 }
+
+a.annot:hover span.annottext {
+    position: absolute;
+    width: 100%;
+    left: 0;
+    top: 100%;
+    overflow-wrap: break-word;
+}
+
 
 /* Sytling the splashpage */
 
