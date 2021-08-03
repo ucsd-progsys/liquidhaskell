@@ -54,7 +54,7 @@ A [queue][queue-wiki] is a structure into which we can `insert` and `remove` dat
 such that the order in which the data is removed is the same as the order in which
 it was inserted.
 
-![A Queue](/static/img/queue.png)
+![A Queue](../static/img/queue.png)
 
 To implement a queue *efficiently* one needs to have rapid access to both
 the "head" as well as the "tail" because we `remove` elements from former
@@ -73,7 +73,7 @@ and `back` which represent the corresponding parts of the Queue.
 + To `insert` elements, we just *cons* them onto the `back` list,
 + To `remove` elements, we just *un-cons* them from the `front` list.
 
-![A Queue is Two Lists](/static/img/queue-lists.png)
+![A Queue is Two Lists](../static/img/queue-lists.png)
 
 
 The catch is that we need to shunt elements from the back to the
@@ -85,7 +85,7 @@ front every so often, e.g. when
 We can transfer the elements from the `back` to the `front`.
 
 
-![Transferring Elements from Back to Front](/static/img/queue-rotate.png)
+![Transferring Elements from Back to Front](../static/img/queue-rotate.png)
 
 Okasaki observed that every element is only moved *once* from the
 front to the back; hence, the time for `insert` and `lookup` could be

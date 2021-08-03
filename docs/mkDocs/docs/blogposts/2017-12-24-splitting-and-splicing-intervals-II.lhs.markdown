@@ -32,7 +32,7 @@ simplify the overhead of proof.
 <div class="row">
 <div class="col-lg-2"></div>
 <div class="col-lg-8">
-<img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/ribbon.png" alt="Ribbons">
+<img src="../static/img/ribbon.png" alt="Ribbons">
 </div>
 <div class="col-lg-2"></div>
 </div>
@@ -448,7 +448,7 @@ is the `i1..j1`, thereby completing the proof:
 <div class="row">
   <div class="col-lg-2"></div>
   <div class="col-lg-8">
-  ![`lem_sub` a proof by picture](/static/img/lem_sub.png "lem_sub proof by picture")
+  ![`lem_sub` a proof by picture](../static/img/lem_sub.png "lem_sub proof by picture")
   </div>
   <div class="col-lg-2"></div>
 </div>
@@ -490,7 +490,7 @@ by the _endpoints_.
 <div class="row">
   <div class="col-lg-2"></div>
   <div class="col-lg-8">
-  ![`lem_union` a proof by picture](/static/img/lem_union.png "lem_union proof by picture")
+  ![`lem_union` a proof by picture](../static/img/lem_union.png "lem_union proof by picture")
   </div>
   <div class="col-lg-2"></div>
 </div>
@@ -542,7 +542,7 @@ is given by their _inner-points_.
 <div class="row">
   <div class="col-lg-2"></div>
   <div class="col-lg-8">
-  ![`lem_intersect` a proof by picture](/static/img/lem_intersect.png "lem_intersect proof by picture")
+  ![`lem_intersect` a proof by picture](../static/img/lem_intersect.png "lem_intersect proof by picture")
   </div>
   <div class="col-lg-2"></div>
 </div>
@@ -626,12 +626,12 @@ x2:a -&gt; x3:a -&gt; {VV : a | VV == RangeSet.max x2 x3
 <span class=hs-linenum>569: </span>
 <span class=hs-linenum>570: </span><span class='hs-definition'>lem_intersect</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>()</span>
 <span class=hs-linenum>571: </span><span class='hs-definition'>lem_union</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>()</span>
-<span class=hs-linenum>572: </span><span class='hs-comment'>-- https://ucsd-progsys.github.io/liquidhaskell-blog/tags/induction.html</span>
+<span class=hs-linenum>572: </span><span class='hs-comment'>-- tags/induction.html</span>
 <span class=hs-linenum>573: </span>
 </pre>
 </div>
 
-[splicing-1]:        https://ucsd-progsys.github.io/liquidhaskell-blog/2017/12/15/splitting-and-splicing-intervals-I.lhs/
+[splicing-1]:        2017-12-15-splitting-and-splicing-intervals-I.lhs/
 [lh-termination]:    https://github.com/ucsd-progsys/liquidhaskell/blob/develop/README.md#explicit-termination-metrics
 [lh-qed]:            https://github.com/ucsd-progsys/liquidhaskell/blob/develop/include/Language/Haskell/Liquid/NewProofCombinators.hs#L65-L69
 [lh-imp-eq]:         https://github.com/ucsd-progsys/liquidhaskell/blob/develop/include/Language/Haskell/Liquid/NewProofCombinators.hs#L87-L96

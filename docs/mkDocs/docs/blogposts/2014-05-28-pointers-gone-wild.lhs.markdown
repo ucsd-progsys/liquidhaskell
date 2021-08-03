@@ -150,7 +150,7 @@ The `Text` Lifecycle
 types of arrays, immutable `Array`s and mutable `MArray`s. This leads to
 the following general lifecycle:
 
-![The lifecycle of a `Text`](/static/img/text-lifecycle.png)
+![The lifecycle of a `Text`](../static/img/text-lifecycle.png)
 
 The main four array operations we care about are:
 

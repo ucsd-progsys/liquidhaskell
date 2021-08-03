@@ -195,7 +195,7 @@ interesting by Hillel's [Dafny specifications][dafny-leftpad]:
 
 <div class="row-fluid">
   <div class="span12 pagination-centered">
-  <img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/leftpad-spec.png"
+  <img src="../static/img/leftpad-spec.png"
        alt="Ribbons" height="150">
   </div>
 </div>
@@ -227,7 +227,7 @@ or even, [to run forever][regehr-tweet].
 
 <div class="row-fluid">
   <div class="span12 pagination-centered">
-  <img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/regehr-tweet-quantifiers.png"
+  <img src="../static/img/regehr-tweet-quantifiers.png"
        alt="Ribbons" height="100">
   </div>
 </div>

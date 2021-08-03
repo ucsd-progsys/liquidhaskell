@@ -359,26 +359,26 @@ LH too! For example, reloading a module in `ghci` automatically re-runs LH on th
 This means, that the mega robust, editor-independent `ghcid` now automatically 
 produces LH type errors when you save a file. Here's `ghcid` running in a terminal.
 
-![ghcid](/static/img/plugin-ghcid.gif)
+![ghcid](../static/img/plugin-ghcid.gif)
 
 ### `vscode`
 
 Editor plugins now produce little red squiggles for LH errors too.
 Here's `code` with the `Simple GHC (Haskell) Integration` plugin
 
-![](/static/img/plugin-vscode.gif)
+![](../static/img/plugin-vscode.gif)
 
 ### `emacs`
 
 Here's `doom-emacs` with the `dante` plugin 
 
-![](/static/img/plugin-emacs.gif)
+![](../static/img/plugin-emacs.gif)
 
 ### `vim`
 
 And here is `neovim` with `ALE` and the `stack-build` linter
 
-![](/static/img/plugin-vim.png)
+![](../static/img/plugin-vim.png)
 
 ### Benefits
 

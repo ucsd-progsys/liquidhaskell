@@ -302,8 +302,8 @@ reports the code free of errors.
 <div class="col-md-8">
 <img id="splash-binarySearch-A"
      class="center-block anim"
-     png="/liquidhaskell-blog/static/img/splash-binarySearch-A.png"
-     src="/liquidhaskell-blog/static/img/splash-binarySearch-A.png">
+     png="../static/img/splash-binarySearch-A.png"
+     src="../static/img/splash-binarySearch-A.png">
 </div>
 </div>
 
@@ -314,8 +314,8 @@ reports the code free of errors.
 <div class="col-md-8">
 <img id="splash-binarySearch-B"
      class="center-block anim"
-     png="/liquidhaskell-blog/static/img/splash-binarySearch-B.png"
-     src="/liquidhaskell-blog/static/img/splash-binarySearch-B.png">
+     png="../static/img/splash-binarySearch-B.png"
+     src="../static/img/splash-binarySearch-B.png">
 </div>
 
 <div class="col-md-4">
@@ -343,8 +343,8 @@ also `Bounded` and hence, free of overflows.
 <div class="col-md-8">
 <img id="splash-binarySearch-C"
      class="center-block anim"
-     png="/liquidhaskell-blog/static/img/splash-binarySearch-C.png"
-     src="/liquidhaskell-blog/static/img/splash-binarySearch-C.png">
+     png="../static/img/splash-binarySearch-C.png"
+     src="../static/img/splash-binarySearch-C.png">
 </div>
 </div>
 
@@ -354,8 +354,8 @@ also `Bounded` and hence, free of overflows.
 <div class="col-md-8">
 <img id="splash-binarySearch-D"
      class="center-block anim"
-     png="/liquidhaskell-blog/static/img/splash-binarySearch-D.png"
-     src="/liquidhaskell-blog/static/img/splash-binarySearch-D.png">
+     png="../static/img/splash-binarySearch-D.png"
+     src="../static/img/splash-binarySearch-D.png">
 </div>
 
 <div class="col-md-4">

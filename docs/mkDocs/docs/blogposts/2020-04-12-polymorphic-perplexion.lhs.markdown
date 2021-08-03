@@ -27,7 +27,7 @@ that has puzzled me and other users several times.
 A Type for Ordered Lists
 ------------------------
 
-[Previously](https://ucsd-progsys.github.io/liquidhaskell-blog/2013/07/29/putting-things-in-order.lhs/) 
+[Previously](2013-07-29-putting-things-in-order.lhs/) 
 we have seen how you can use LH to define a type of lists whose values are in increasing 
 (ok, non-decreasing!) order.
 

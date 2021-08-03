@@ -88,7 +88,7 @@ in Dafny (left) and LH (right).
 <div class="row-fluid">
   <div class="span12 pagination-centered">
   <figure>
-    <img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/why_types_1_1.png"
+    <img src="../static/img/why_types_1_1.png"
          height="200">
     <figcaption>
     A list data type in Dafny (L) and LiquidHaskell (R) 
@@ -110,7 +110,7 @@ when the index `i` is _invalid_.
 <div class="row-fluid">
   <div class="span12 pagination-centered">
   <figure>
-  <img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/why_types_1_2.png"
+  <img src="../static/img/why_types_1_2.png"
        height="200">
   <figcaption>
   Accessing the i-th element of a list in Dafny(L) and LiquidHaskell(R)
@@ -180,7 +180,7 @@ the container is indeed strictly positive.
 <div class="row-fluid">
   <div class="span12 pagination-centered">
   <figure>
-  <img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/why_types_1_3.png"
+  <img src="../static/img/why_types_1_3.png"
        height="200">
   <figcaption>
     Building and accessing a list in Dafny (L) and LiquidHaskell(R)
@@ -262,7 +262,7 @@ of a list. The definitions are mostly identical, except for the green
 <div class="row-fluid">
   <div class="span12 pagination-centered">
   <figure>
-  <img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/why_types_2_1.png"
+  <img src="../static/img/why_types_2_1.png"
        height="200">
   <figcaption>
     A function defining the size of a list in Dafny (L) and LiquidHaskell (R)
@@ -320,7 +320,7 @@ is indeed `2`:
 <div class="row-fluid">
   <div class="span12 pagination-centered">
   <figure>
-  <img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/why_types_2_2.png"
+  <img src="../static/img/why_types_2_2.png"
        height="200">
   <figcaption>
   Verifying the size of a list in Dafny (L) and LiquidHaskell (R)
