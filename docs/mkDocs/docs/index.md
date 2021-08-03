@@ -1,5 +1,5 @@
 
-![LiquidHaskell Logo](img/logo.png)
+![LiquidHaskell Logo](static/img/logo.png)
 
 LiquidHaskell _(LH)_ refines Haskell's types with logical predicates that let you enforce important properties at compile time.
 
@@ -9,11 +9,11 @@ LiquidHaskell _(LH)_ refines Haskell's types with logical predicates that let yo
 <p>
 LH warns you that head is not total as it is missing the case for <code>[]</code> and checks that it is total on <code>NonEmpty</code> lists.
 </p>
-<img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/splash-head.gif">
+<img src="static/img/splash-head.gif">
 </div>
 
 <div class="example-row">
-<img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/splash-unstutter.gif">
+<img src="static/img/splash-unstutter.gif">
 <p>
 The input contract propagates to uses of <code>head</code> which are verified by ensuring the arguments are <code>NonEmpty</code>. 
 </p>
@@ -25,11 +25,11 @@ The input contract propagates to uses of <code>head</code> which are verified by
 <p>
 LH lets you avoid off-by-one errors that can lead to crashes or buffer overflows. 
 </p>
-<img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/splash-vectorsum.gif">
+<img src="static/img/splash-vectorsum.gif">
 </div>
 
 <div class="example-row">
-<img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/splash-dotproduct.gif">
+<img src="static/img/splash-dotproduct.gif">
 <p>
 Dependent contracts let you specify, e.g. that <code>dotProduct</code> requires equal-sized vectors.
 </p>
@@ -41,11 +41,11 @@ Dependent contracts let you specify, e.g. that <code>dotProduct</code> requires 
 <p>
 LH checks that functions terminate and so warns about the infinite recursion due to the missing case in <code>fib</code>.
 </p>
-<img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/splash-fib.gif">
+<img src="static/img/splash-fib.gif">
 </div>
 
 <div class="example-row">
-<img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/splash-merge.gif">
+<img src="static/img/splash-merge.gif">
 <p>
 <em>Metrics</em> let you check that recursive functions over complex data types terminate. 
 </p>
@@ -57,11 +57,11 @@ LH checks that functions terminate and so warns about the infinite recursion due
 <p>
 Write correctness requirements, for example a list is ordered, as refinements. LH makes illegal values be <em>unrepresentable</em>.
 </p>
-<img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/splash-ups.gif">
+<img src="static/img/splash-ups.gif">
 </div>
 
 <div class="example-row">
-<img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/splash-insertsort.gif">
+<img src="static/img/splash-insertsort.gif">
 <p>
 LH automatically points out logic bugs, and proves that functions return correct outputs <em>for all inputs</em>. 
 </p>
@@ -73,11 +73,11 @@ LH automatically points out logic bugs, and proves that functions return correct
 <p>
 Specify <em>laws</em>, e.g. that the append function <code>++</code> is associative, as Haskell functions. 
 </p>
-<img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/splash-assocthm.gif">
+<img src="static/img/splash-assocthm.gif">
 </div>
 
 <div class="example-row">
-<img src="https://ucsd-progsys.github.io/liquidhaskell-blog/static/img/splash-assocpf.gif">
+<img src="static/img/splash-assocpf.gif">
 <p>
 Verify laws via <em>equational proofs</em> that are plain Haskell functions. Induction is simply recursion, and case-splitting is just pattern-matching. 
 </p>

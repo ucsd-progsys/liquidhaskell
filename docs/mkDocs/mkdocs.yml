@@ -21,8 +21,8 @@ theme:
     - navigation.tabs
   palette:
     primary: cyan #to contrast with blue in LH logo
-  logo: img/logo.png
-  favicon: img/favicon.ico
+  logo: static/img/logo.png
+  favicon: static/img/favicon.ico
 
 plugins:
   - search
@@ -49,8 +49,8 @@ extra:
 
 extra_css:
   - https://cdn.jsdelivr.net/npm/@mdi/font@5.9.55/css/materialdesignicons.min.css
-  - style/liquid-light.css
-  - style/misc.css
+  - static/liquid-light.css
+  - static/misc.css
 
 markdown_extensions:
   - toc:
