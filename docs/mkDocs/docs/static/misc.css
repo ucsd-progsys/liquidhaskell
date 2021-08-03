@@ -6,8 +6,10 @@
 
 /* Hacking the navbar */
 #demo {
-    background-color: green;
-    border-radius: 0.5rem;
+    background-color: lightseagreen;
+    padding: 0.5rem;
+    border-style: solid;
+    border-radius: 0.75rem;
 }
 
 .md-tabs__list {
