@@ -1,5 +1,6 @@
 site_name: LiquidHaskell Docs
 
+site_url: https://ucsd-progsys.github.io/liquidhaskell/
 repo_url: https://github.com/ucsd-progsys/liquidhaskell
 edit_uri: edit/develop/docs/mkDocs/docs
 
