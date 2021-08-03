@@ -15,6 +15,7 @@ nav:
   - "<i aria-hidden=true class='mdi mdi-school'></i> Papers": papers.md
   - "<i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog":
       - ... | blogposts/*
+      - Tags: tags.html
 
 theme:
   name: material
