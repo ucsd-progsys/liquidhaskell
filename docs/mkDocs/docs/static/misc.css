@@ -46,3 +46,9 @@ a.annot:hover span.annottext {
     margin: 1rem;
     max-width: 65%; /* Don't let images hog *too* much space */
 }
+
+/* Tweaking blogpost rendering */
+
+.hidden {
+    display: none;
+}
