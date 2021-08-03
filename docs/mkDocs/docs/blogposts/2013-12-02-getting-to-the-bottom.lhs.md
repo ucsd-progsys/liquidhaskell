@@ -3,7 +3,8 @@ layout: post
 title: Getting To the Bottom
 date: 2013-12-02 16:12
 comments: true
-tags: termination
+tags:
+   - termination
 author: Ranjit Jhala and Niki Vazou
 published: true 
 demo: TellingLies.hs

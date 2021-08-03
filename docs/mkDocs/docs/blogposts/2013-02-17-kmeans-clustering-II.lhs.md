@@ -5,7 +5,9 @@ date: 2013-02-17 16:12
 author: Ranjit Jhala
 published: true
 comments: true
-tags: basic, measures
+tags:
+   - basic
+   - measures
 demo: KMeans.hs
 ---
 

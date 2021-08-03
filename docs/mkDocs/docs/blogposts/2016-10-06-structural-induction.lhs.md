@@ -5,7 +5,10 @@ date: 2016-10-06
 comments: true
 author: Niki Vazou
 published: true
-tags: reflection, induction, measures
+tags:
+   - reflection
+   - induction
+   - measures
 demo: MonoidList.hs
 ---
 

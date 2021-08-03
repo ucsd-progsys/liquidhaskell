@@ -5,7 +5,9 @@ date: 2017-12-24
 comments: true
 author: Ranjit Jhala
 published: true
-tags: reflection, abstract-refinements
+tags:
+   - reflection
+   - abstract-refinements
 demo: RangeSet.hs
 ---
 

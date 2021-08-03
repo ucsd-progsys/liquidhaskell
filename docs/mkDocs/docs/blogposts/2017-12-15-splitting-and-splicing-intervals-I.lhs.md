@@ -5,7 +5,9 @@ date: 2017-12-15
 comments: true
 author: Ranjit Jhala
 published: true
-tags: reflection, abstract-refinements
+tags:
+   - reflection
+   - abstract-refinements
 demo: IntervalSets.hs
 ---
 

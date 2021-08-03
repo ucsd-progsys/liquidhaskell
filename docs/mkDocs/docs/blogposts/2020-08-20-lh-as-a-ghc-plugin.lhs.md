@@ -5,7 +5,8 @@ date: 2020-08-20
 comments: true
 author: Ranjit Jhala 
 published: true
-tags: basic
+tags:
+   - basic
 demo: refinements101.hs
 ---
 

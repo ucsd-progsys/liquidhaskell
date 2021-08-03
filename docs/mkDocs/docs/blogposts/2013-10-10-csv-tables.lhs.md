@@ -3,7 +3,8 @@ layout: post
 title: CSV Tables
 date: 2013-10-10 16:12
 comments: true
-tags: measures
+tags:
+   - measures
 author: Ranjit Jhala
 published: true 
 demo: Csv.hs

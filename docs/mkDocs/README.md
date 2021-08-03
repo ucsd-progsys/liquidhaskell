@@ -3,8 +3,8 @@
 One-off:
 
 ```
-$ sudo apt-get install python3 pip3  # or equivalent
-$ pip3 install mkdocs-material mkdocs-awesome-pages-plugin
+$ sudo apt-get install python3 pip3 # or equivalent
+$ pip3 install mkdocs-material mkdocs-awesome-pages-plugin git+https://github.com/jldiaz/mkdocs-plugin-tags.git
 ```
 
 after that to view the documents locally run:
@@ -47,3 +47,8 @@ To add a blog post;
 6. Rebuild/redeploy the docs as usual
 
 This is not automated for two reasons: (1) performance and (2) so that old blogposts (with out-of-date syntax) don't break the re-build of the docs
+
+## Common Pitfalls
+
+* Markdown files must have extension `.md` (not `.markdown`) to be indexed for tags (current limitation of [the tags plugin](https://github.com/jldiaz/mkdocs-plugin-tags))
+* You may need to prefix an extra `../` (or two) to get relative links (e.g. for images) to work OK -- test locally *and* on GH pages

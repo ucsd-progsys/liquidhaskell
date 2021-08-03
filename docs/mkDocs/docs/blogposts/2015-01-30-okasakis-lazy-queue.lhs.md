@@ -5,7 +5,8 @@ date: 2015-01-28
 comments: true
 author: Ranjit Jhala 
 published: true
-tags: measures
+tags:
+   - measures
 demo: LazyQueue.hs
 ---
 

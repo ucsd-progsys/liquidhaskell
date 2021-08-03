@@ -5,7 +5,9 @@ date: 2018-02-23
 comments: true
 author: Niki Vazou
 published: true
-tags: measures, advanced
+tags:
+   - measures
+   - advanced
 demo: MeasuresAndCaseSplitting.hs
 ---
 

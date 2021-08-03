@@ -3,7 +3,8 @@ layout: post
 title: Checking Termination
 date: 2013-12-09 16:12
 comments: true
-tags: termination
+tags:
+   - termination
 author: Niki Vazou
 published: true 
 demo: Termination.hs

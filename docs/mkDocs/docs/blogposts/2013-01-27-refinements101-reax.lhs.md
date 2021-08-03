@@ -5,7 +5,8 @@ date: 2013-01-27 16:12
 author: Ranjit Jhala
 published: true 
 comments: true
-tags: basic
+tags:
+   - basic
 demo: refinements101reax.hs
 ---
 

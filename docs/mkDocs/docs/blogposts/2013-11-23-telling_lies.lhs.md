@@ -3,7 +3,8 @@ layout: post
 title: LiquidHaskell Caught Telling Lies!
 date: 2013-11-23 16:12
 comments: true
-tags: termination
+tags:
+   - termination
 author: Ranjit Jhala and Niki Vazou 
 published: true
 demo: TellingLies.hs

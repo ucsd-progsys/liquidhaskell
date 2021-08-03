@@ -5,7 +5,8 @@ date: 2014-08-15 16:12
 author: Ranjit Jhala
 published: true
 comments: true
-tags: abstract-refinements 
+tags:
+   - abstract-refinements 
 demo: filter.hs
 ---
 

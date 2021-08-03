@@ -42,7 +42,7 @@ Dependent contracts let you specify, e.g. that <code>dotProduct</code> requires 
 <div class="example-row">
 <p>
 LH checks that functions terminate and so warns about the infinite recursion due to the missing case in <code>fib</code>.
-<a href="../tags/termination.html">(more...)</a>
+<a href="../tags.html#termination">(more...)</a>
 </p>
 <img src="static/img/splash-fib.gif">
 </div>

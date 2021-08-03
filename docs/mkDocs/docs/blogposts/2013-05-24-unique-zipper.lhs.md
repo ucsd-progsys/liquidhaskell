@@ -3,7 +3,11 @@ layout: post
 title: Unique Zippers
 date: 2013-05-10 16:12
 comments: true
-tags: basic, measures, sets, uniqueness
+tags:
+   - basic
+   - measures
+   - sets
+   - uniqueness
 author: Niki Vazou
 published: true
 demo: UniqueZipper.hs

@@ -3,7 +3,10 @@ layout: post
 title: Talking About Sets
 date: 2013-03-26 16:12
 comments: true
-tags: basic, measures, sets
+tags:
+   - basic
+   - measures
+   - sets
 author: Ranjit Jhala
 published: true 
 demo: TalkingAboutSets.hs

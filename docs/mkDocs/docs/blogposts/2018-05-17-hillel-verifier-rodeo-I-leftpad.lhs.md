@@ -5,7 +5,8 @@ date: 2018-05-17
 comments: true
 author: Ranjit Jhala 
 published: true
-tags: reflection
+tags:
+   - reflection
 demo: LeftPad.hs
 ---
 

@@ -5,7 +5,9 @@ date: 2014-05-28
 comments: true
 author: Eric Seidel
 published: true
-tags: benchmarks, text
+tags:
+   - benchmarks
+   - text
 demo: TextInternal.hs
 ---
 

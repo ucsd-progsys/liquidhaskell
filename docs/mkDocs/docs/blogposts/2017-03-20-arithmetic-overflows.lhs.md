@@ -5,7 +5,8 @@ date: 2017-03-20
 author: Ranjit Jhala
 published: true
 comments: true
-tags: basic
+tags:
+   - basic
 demo: overflow.hs
 ---
 

@@ -5,7 +5,8 @@ date: 2013-06-03 16:12
 comments: true
 author: Ranjit Jhala and Niki Vazou 
 published: true 
-tags: abstract-refinements
+tags:
+   - abstract-refinements
 demo: absref101.hs
 ---
 

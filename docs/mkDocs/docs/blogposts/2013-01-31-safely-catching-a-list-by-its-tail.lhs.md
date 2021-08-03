@@ -5,7 +5,8 @@ date: 2013-01-31 16:12
 author: Ranjit Jhala
 published: true 
 comments: true
-tags: measures 
+tags:
+   - measures 
 demo: lenMapReduce.hs
 ---
 

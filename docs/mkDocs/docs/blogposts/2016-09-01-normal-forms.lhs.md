@@ -5,7 +5,8 @@ date: 2016-09-05
 comments: true
 author: Ranjit Jhala
 published: true
-tags: measures
+tags:
+   - measures
 demo: ANF.hs
 ---
 

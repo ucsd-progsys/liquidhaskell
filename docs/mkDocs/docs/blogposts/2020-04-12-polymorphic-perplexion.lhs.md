@@ -5,7 +5,8 @@ date: 2020-04-12
 comments: true
 author: Ranjit Jhala 
 published: true
-tags: basic
+tags:
+   - basic
 demo: Insert.hs
 ---
 
