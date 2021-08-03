@@ -6,17 +6,33 @@
 
 /* Hacking the navbar */
 #demo {
-    background-color: lightseagreen;
-    padding: 0.5rem;
-    border-style: solid;
-    border-radius: 0.75rem;
+    background-color: green;
+    font-size: 1rem;
+    height: 100%;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.md-tabs__item {
+    padding: 0;
+    margin: 0;
+}
+
+.md-tabs__link {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .md-tabs__list {
     display:grid;
     grid-auto-flow:column;
     grid-auto-columns:1fr;
-    text-align: center;
 }
 
 .md-tabs__list > .md-tabs__item > * > * {

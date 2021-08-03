@@ -5,7 +5,7 @@ repo_url: https://github.com/ucsd-progsys/liquidhaskell
 edit_uri: edit/develop/docs/mkDocs/docs
 
 nav:
-  - "<span id='demo'><i aria-hidden=true class='mdi mdi-cloud-braces'></i> Try Online</span>": http://goto.ucsd.edu:8090/index.html
+  - "<div id='demo'><i aria-hidden=true class='mdi mdi-cloud-braces'></i> Try Online</div>": http://goto.ucsd.edu:8090/index.html
   - "<i aria-hidden=true class='mdi mdi-human-greeting'></i> Tutorial": https://ucsd-progsys.github.io/intro-refinement-types/120/
   - "": "#" #spacer
   - "<i aria-hidden=true class='mdi mdi-download'></i> Installation": install.md
