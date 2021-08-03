@@ -34,6 +34,8 @@ markdown_extensions:
   - toc:
       permalink: true
   - meta
+  - footnotes
+
 
 # Footer links
 extra:
