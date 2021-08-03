@@ -1,0 +1,30 @@
+
+{% extends "base.html" %}
+
+
+<!--
+    Adapted from https://github.com/squidfunk/mkdocs-material/blob/master/material/partials/footer.html
+    I added automatic scraping of author & data metadata from top-of-file YAML metadata
+-->
+
+{% block content %}
+
+{{ super() }}
+
+{% if page.meta %}
+<div class="blogpost-meta">
+  {% if page.meta.author %}
+      <div class="blogpost-meta-author">
+          By <span class="var">{{ page.meta.author }}</span>
+      </div>
+  {% endif %}
+  {% if page.meta.date %}
+      <div class="blogpost-meta-date">
+          <span class="var">{{ page.meta.date }}</span>
+      </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}
+

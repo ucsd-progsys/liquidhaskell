@@ -24,6 +24,7 @@ theme:
     primary: cyan #to contrast with blue in LH logo
   logo: static/img/logo.png
   favicon: static/img/favicon.ico
+  custom_dir: theme-overrides
 
 plugins:
   - search

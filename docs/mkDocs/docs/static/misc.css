@@ -52,3 +52,12 @@ a.annot:hover span.annottext {
 .hidden {
     display: none;
 }
+
+/* Styling the blogpost metadata */
+
+.blogpost-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1rem;
+    font-style: italic;
+}
