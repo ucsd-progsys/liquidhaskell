@@ -55,9 +55,26 @@ a.annot:hover span.annottext {
 
 /* Styling the blogpost metadata */
 
-.blogpost-meta {
+.blogpost-meta-whowhen {
     display: flex;
     justify-content: space-between;
     font-size: 1rem;
     font-style: italic;
+}
+
+.blogpost-meta-tags {
+    display: inline-flex;
+    justify-content: flex-start;
+}
+
+.blogpost-meta-tags a.tag-button {
+    margin: 0 0.5rem;
+    padding: 0 0.25rem;
+    border-style: solid;
+    border-radius: 1rem;
+}
+
+.blogpost-meta-tags svg {
+    height: 1rem;
+    vertical-align: middle;
 }
