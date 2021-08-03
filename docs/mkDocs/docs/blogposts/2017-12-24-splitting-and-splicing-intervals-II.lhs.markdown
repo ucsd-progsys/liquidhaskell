@@ -32,7 +32,7 @@ simplify the overhead of proof.
 <div class="row">
 <div class="col-lg-2"></div>
 <div class="col-lg-8">
-<img src="../static/img/ribbon.png" alt="Ribbons">
+<img src="../../static/img/ribbon.png" alt="Ribbons">
 </div>
 <div class="col-lg-2"></div>
 </div>

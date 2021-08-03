@@ -22,7 +22,7 @@ themselves to prove termination!
 <div class="row-fluid">
    <div class="span12 pagination-centered">
    <p style="text-align:center">
-   <img class="center-block" src="../static/img/falling.jpg" alt="Falling Down" width="300">
+   <img class="center-block" src="../../static/img/falling.jpg" alt="Falling Down" width="300">
        <br>
        How do you prove this fellow will stop falling?
        <br>

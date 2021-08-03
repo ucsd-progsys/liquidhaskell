@@ -31,7 +31,7 @@ their [nifty new tool][hs-to-coq].
 
 <div class="row-fluid">
   <div class="span12 pagination-centered">
-  <img src="../static/img/ribbon.png"
+  <img src="../../static/img/ribbon.png"
        alt="Ribbons" height="150">
   </div>
 </div>
