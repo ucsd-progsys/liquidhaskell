@@ -85,7 +85,7 @@ import           Language.Fixpoint.Misc
 type BindId        = Int
 type BindMap a     = M.HashMap BindId a
 
-newtype IBindEnv   = FB (S.HashSet BindId) deriving (Eq, Data, Typeable, Generic)
+newtype IBindEnv   = FB (S.HashSet BindId) deriving (Eq, Data, Show, Typeable, Generic)
 
 instance PPrint IBindEnv where
   pprintTidy _ = pprint . L.sort . elemsIBindEnv
