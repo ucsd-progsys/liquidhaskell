@@ -19,6 +19,7 @@ module Language.Fixpoint.Types.Constraints (
    -- * Top-level Queries
     FInfo, SInfo, GInfo (..), FInfoWithOpts(..)
   , convertFormat
+  , sinfoToFInfo
   , Solver
 
    -- * Serializing
@@ -841,6 +842,29 @@ outVV (m, fi) i c = (m', fi')
 
 type BindM = M.HashMap Integer BindId
 
+sinfoToFInfo :: Fixpoint a => SInfo a -> FInfo a
+sinfoToFInfo fi = fi
+  { bs = envWithoutLhss
+  , cm = simpcToSubc (bs fi) <$> cm fi
+  }
+  where
+    envWithoutLhss =
+      M.foldl' (\m c -> deleteBindEnv (cbind c) m) (bs fi) (cm fi)
+
+-- Assumes the sort and the bind of the lhs is the same as the sort
+-- and the bind of the rhs
+simpcToSubc :: BindEnv -> SimpC a -> SubC a
+simpcToSubc env s = SubC
+  { _senv  = deleteIBindEnv (cbind s) (senv s)
+  , slhs   = sr
+  , srhs   = RR (sr_sort sr) (Reft (b, _crhs s))
+  , _sid   = sid s
+  , _stag  = stag s
+  , _sinfo = sinfo s
+  }
+  where
+    (b, sr) = lookupBindEnv (cbind s) env
+
 ---------------------------------------------------------------------------
 -- | Top level Solvers ----------------------------------------------------
 ---------------------------------------------------------------------------
@@ -947,9 +971,9 @@ instance Hashable AutoRewrite
 
 instance Fixpoint (M.HashMap SubcId [AutoRewrite]) where
   toFix autoRW =
-    vcat (map fixRW rewrites)
-    $+$ text "rewrite "
-    <+> toFix rwsMapping
+    vcat $
+    map fixRW rewrites ++
+    rwsMapping
     where
       rewrites     = L.nub $ concatMap snd (M.toList autoRW)
 
@@ -965,7 +989,7 @@ instance Fixpoint (M.HashMap SubcId [AutoRewrite]) where
       rwsMapping = do
         (cid, rws) <- M.toList autoRW
         rw         <-  rws
-        return $ text $ show cid ++ " : " ++ show (hash rw)
+        return $ "rewrite" <+> brackets (text $ show cid ++ " : " ++ show (hash rw))
 
 
 
@@ -981,22 +1005,24 @@ data Rewrite  = SMeasure
 
 instance Fixpoint AxiomEnv where
   toFix axe = vcat ((toFix <$> aenvEqs axe) ++ (toFix <$> aenvSimpl axe))
-              $+$ text "expand" <+> toFix (pairdoc <$> M.toList(aenvExpand axe))
+              $+$ renderExpand (pairdoc <$> M.toList (aenvExpand axe))
               $+$ toFix (aenvAutoRW axe)
     where
       pairdoc (x,y) = text $ show x ++ " : " ++ show y
+      renderExpand [] = empty
+      renderExpand xs = text "expand" <+> toFix xs
 
 instance Fixpoint Doc where
   toFix = id
 
 instance Fixpoint Equation where
-  toFix (Equ f xs e _ _) = "define" <+> toFix f <+> ppArgs xs <+> text "=" <+> parens (toFix e)
+  toFix (Equ f xs e s _) = "define" <+> toFix f <+> ppArgs xs <+> ":" <+> toFix s <+> text "=" <+> braces (parens (toFix e))
 
 instance Fixpoint Rewrite where
   toFix (SMeasure f d xs e)
     = text "match"
    <+> toFix f
-   <+> parens (toFix d <+> hsep (toFix <$> xs))
+   <+> toFix d <+> hsep (toFix <$> xs)
    <+> text " = "
    <+> parens (toFix e)
 

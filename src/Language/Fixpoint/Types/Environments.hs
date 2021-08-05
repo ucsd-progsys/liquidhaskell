@@ -45,7 +45,7 @@ module Language.Fixpoint.Types.Environments (
   , emptyBindEnv
   , insertBindEnv, lookupBindEnv
   , filterBindEnv, mapBindEnv, mapWithKeyMBindEnv, adjustBindEnv
-  , bindEnvFromList, bindEnvToList, elemsBindEnv
+  , bindEnvFromList, bindEnvToList, deleteBindEnv, elemsBindEnv
   , EBindEnv, splitByQuantifiers
 
   -- * Information needed to lookup and update Solutions
@@ -257,6 +257,9 @@ diffIBindEnv (FB m1) (FB m2) = FB $ m1 `S.difference` m2
 
 adjustBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindId -> BindEnv -> BindEnv
 adjustBindEnv f i (BE n m) = BE n $ M.adjust f i m
+
+deleteBindEnv :: BindId -> BindEnv -> BindEnv
+deleteBindEnv i (BE n m) = BE n $ M.delete i m
 
 instance Functor SEnv where
   fmap = mapSEnv
