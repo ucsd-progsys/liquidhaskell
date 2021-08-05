@@ -1005,10 +1005,12 @@ data Rewrite  = SMeasure
 
 instance Fixpoint AxiomEnv where
   toFix axe = vcat ((toFix <$> aenvEqs axe) ++ (toFix <$> aenvSimpl axe))
-              $+$ text "expand" <+> toFix (pairdoc <$> M.toList(aenvExpand axe))
+              $+$ renderExpand (pairdoc <$> M.toList (aenvExpand axe))
               $+$ toFix (aenvAutoRW axe)
     where
       pairdoc (x,y) = text $ show x ++ " : " ++ show y
+      renderExpand [] = empty
+      renderExpand xs = text "expand" <+> toFix xs
 
 instance Fixpoint Doc where
   toFix = id
