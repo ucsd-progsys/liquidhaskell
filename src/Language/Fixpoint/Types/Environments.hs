@@ -35,6 +35,7 @@ module Language.Fixpoint.Types.Environments (
   , fromListIBindEnv
   , memberIBindEnv
   , unionIBindEnv
+  , unionsIBindEnv
   , diffIBindEnv
   , intersectionIBindEnv
   , nullIBindEnv
@@ -249,6 +250,9 @@ filterIBindEnv f (FB m) = FB (S.filter f m)
 
 unionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
 unionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.union` m2
+
+unionsIBindEnv :: [IBindEnv] -> IBindEnv
+unionsIBindEnv = L.foldl' unionIBindEnv emptyIBindEnv
 
 intersectionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
 intersectionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.intersection` m2
