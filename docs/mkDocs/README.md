@@ -15,14 +15,14 @@ $ mkdocs serve
 
 from the directory that this README is in.
 
-## Strict mode
+## Options for `mkdocs serve`
 
-It's recommended to run `mkDocs serve` with the _strict_ option (i.e. `-s`) to ensure no broken links are
-present in the generated docs:
+`mkdocs serve` supports serveral useful command-line flags, e.g.:
 
-```
-mkdocs serve -s
-```
+* `mkdocs serve -s` (refuse to build docs with broken links)
+* `mkdocs serve -a 0.0.0.0:8000` (allow connections from LAN -- necessary if running in container/vm)
+
+For more options, see `mkdocs serve --help`
 
 ## Publishing
 
