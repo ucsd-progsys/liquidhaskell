@@ -21,6 +21,7 @@ theme:
   name: material
   features:
     - navigation.tabs
+    - navigation.top
   palette:
     primary: cyan #to contrast with blue in LH logo
   logo: static/img/logo.png
