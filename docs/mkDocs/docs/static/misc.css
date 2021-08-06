@@ -51,7 +51,7 @@ a.annot:hover span.annottext {
     overflow: auto; /* get horiz. scrolling if needed, but not vertical */
 }
 
-.hs_linenum {
+.hs-linenum {
     color: lightgray;
     user-select: none;
 }
