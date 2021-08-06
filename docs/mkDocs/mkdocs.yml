@@ -40,8 +40,9 @@ markdown_extensions:
   - footnotes
 
 
-# Footer links
+# Footer links & comment system
 extra:
+  disqus: liquidhaskell
   social:
     - icon: material/slack
       link: https://join.slack.com/t/liquidhaskell/shared_invite/enQtMjY4MTk3NDkwODE3LTFmZGFkNGEzYWRkNDJmZDQ0ZGU1MzBiZWZiZDhhNmY3YTJiMjUzYTRlNjMyZDk1NDU3ZGIxYzhlOTIzN2UxNWE
