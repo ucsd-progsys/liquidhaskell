@@ -39,17 +39,21 @@
     padding: 0.3rem;
 }
 
-/* Hacking the tooltips */
-a.annot {
-    position: static;
-}
+/* Hacking fancy code blocks */
 
 a.annot:hover span.annottext {
-    position: absolute;
-    width: 100%;
-    left: 0;
-    top: 100%;
     white-space: pre-wrap;
+    float: right;
+    position: sticky;
+}
+
+.md-typeset pre {
+    overflow: auto; /* get horiz. scrolling if needed, but not vertical */
+}
+
+.hs_linenum {
+    color: lightgray;
+    user-select: none;
 }
 
 
