@@ -100,9 +100,3 @@ a.annot:hover span.annottext {
     height: 1rem;
     vertical-align: middle;
 }
-
-/* Tweaking disqus panel */
-
-#disqus_recommendations {
-    display: none; /* don't show 'ALSO ON' (currently links to legacy posts) */
-}
