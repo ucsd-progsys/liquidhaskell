@@ -601,6 +601,8 @@ data LiftedSpec = LiftedSpec
     deriving Hashable via Generically LiftedSpec 
     deriving Binary   via Generically LiftedSpec 
 
+instance Binary F.Equation 
+
 emptyLiftedSpec :: LiftedSpec
 emptyLiftedSpec = LiftedSpec
   { liftedMeasures = mempty 
@@ -640,6 +642,8 @@ newtype TargetDependencies =
   TargetDependencies { getDependencies :: HashMap StableModule LiftedSpec }
   deriving (Eq, Show, Generic)
   deriving Binary via Generically TargetDependencies
+
+-- instance S.Store TargetDependencies
 
 instance Semigroup TargetDependencies where
   x <> y = TargetDependencies 
