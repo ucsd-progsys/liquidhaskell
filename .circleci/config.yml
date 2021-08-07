@@ -147,7 +147,7 @@ jobs:
 
   stack_810_legacy_executable:
     docker:
-      - image: fpco/stack-build:lts-15.4
+      - image: fpco/stack-build:lts-16.8
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
@@ -156,7 +156,7 @@ jobs:
 
   stack_810:
     docker:
-      - image: fpco/stack-build:lts-15.4
+      - image: fpco/stack-build:lts-16.8
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
