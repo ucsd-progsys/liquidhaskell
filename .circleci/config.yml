@@ -129,7 +129,7 @@ jobs:
 
   stack_865_legacy_executable:
     docker:
-      - image: fpco/stack-build:lts-15.4
+      - image: fpco/stack-build:lts-14.12
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack-8.6.5.yaml"
