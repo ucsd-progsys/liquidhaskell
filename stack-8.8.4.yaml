@@ -26,5 +26,6 @@ extra-deps:
 - th-utilities-0.2.4.3
 - th-abstraction-0.4.2.0
 
+allow-newer: true
 resolver: lts-16.8
 compiler: ghc-8.8.4
