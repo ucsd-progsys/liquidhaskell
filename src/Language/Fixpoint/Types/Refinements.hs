@@ -494,6 +494,7 @@ instance Fixpoint Expr where
 
   simplify (PAnd ps)
     | any isContraPred ps = PFalse
+                         -- Note: Performance of some tests is very sensitive to this code. See #480 
     | otherwise           = PAnd $ dedup . flattenRefas . filter (not . isTautoPred) $ map simplify ps
     where
       dedup = Set.toList . Set.fromList
