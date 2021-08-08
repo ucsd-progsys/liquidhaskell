@@ -102,7 +102,8 @@ import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
 import           GHC.Generics              (Generic)
-import           Data.List                 (foldl', partition, nub)
+import           Data.List                 (foldl', partition)
+import qualified Data.Set                  as Set
 import           Data.String
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
@@ -244,7 +245,7 @@ instance Hashable Reft
 -- | Substitutions -------------------------------------------------------------
 --------------------------------------------------------------------------------
 newtype Subst = Su (M.HashMap Symbol Expr)
-                deriving (Eq, Data, Typeable, Generic)
+                deriving (Eq, Data, Ord, Typeable, Generic)
 
 instance Show Subst where
   show = showFix
@@ -310,7 +311,7 @@ data Expr = ESym !SymConst
           | PExist ![(Symbol, Sort)] !Expr
           | PGrad  !KVar !Subst !GradInfo !Expr
           | ECoerc !Sort !Sort !Expr  
-          deriving (Eq, Show, Data, Typeable, Generic)
+          deriving (Eq, Show, Ord, Data, Typeable, Generic)
 
 type Pred = Expr
 
@@ -343,7 +344,7 @@ pattern ERDiv e1 e2 = EBin RDiv   e1 e2
 
 
 data GradInfo = GradInfo {gsrc :: SrcSpan, gused :: Maybe SrcSpan}
-          deriving (Eq, Show, Data, Typeable, Generic)
+          deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 srcGradInfo :: SourcePos -> GradInfo
 srcGradInfo src = GradInfo (SS src src) Nothing
@@ -493,7 +494,10 @@ instance Fixpoint Expr where
 
   simplify (PAnd ps)
     | any isContraPred ps = PFalse
-    | otherwise           = PAnd $ filter (not . isTautoPred) $ map simplify ps
+                         -- Note: Performance of some tests is very sensitive to this code. See #480 
+    | otherwise           = PAnd $ dedup . flattenRefas . filter (not . isTautoPred) $ map simplify ps
+    where
+      dedup = Set.toList . Set.fromList
 
   simplify (POr  ps)
     | any isTautoPred ps = PTrue
@@ -761,13 +765,8 @@ conj ps  = PAnd ps
 --   some basic things but is faster.
 
 pAnd, pOr     :: ListNE Pred -> Pred
-pAnd          = simplify . PAnd . nub . flatten
-  where
-    flatten ps = foldl' go [] $ reverse ps
-  
-    go acc (PAnd ps) = flatten ps ++ acc
-    go acc p         = p : acc
-  
+pAnd          = simplify . PAnd
+
 pOr           = simplify . POr
 
 (&.&) :: Pred -> Pred -> Pred
@@ -861,10 +860,11 @@ trueReft  = Reft (vv_, PTrue)
 falseReft = Reft (vv_, PFalse)
 
 flattenRefas :: [Expr] -> [Expr]
-flattenRefas        = concatMap flatP
+flattenRefas        = flatP []
   where
-    flatP (PAnd ps) = concatMap flatP ps
-    flatP p         = [p]
+    flatP acc (PAnd ps:xs) = flatP (flatP acc xs) ps
+    flatP acc (p:xs)       = p : flatP acc xs
+    flatP acc []           = acc
 
 conjuncts :: Expr -> [Expr]
 conjuncts (PAnd ps) = concatMap conjuncts ps
