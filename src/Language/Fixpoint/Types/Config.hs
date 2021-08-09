@@ -89,6 +89,7 @@ data Config = Config
   , rewriteAxioms    :: Bool           -- ^ Allow axiom instantiation via rewriting
   , oldPLE           :: Bool           -- ^ Use old version of PLE
   , noIncrPle        :: Bool           -- ^ Use incremental PLE
+  , noEnvironmentReduction :: Bool     -- ^ Don't use environment reduction
   , checkCstr        :: [Integer]      -- ^ Only check these specific constraints 
   , extensionality   :: Bool           -- ^ Enable extensional interpretation of function equality
   , maxRWOrderingConstraints :: Maybe Int
@@ -183,6 +184,10 @@ defConfig = Config {
   , rewriteAxioms            = False &= help "allow axiom instantiation via rewriting"
   , oldPLE                   = False &= help "Use old version of PLE"
   , noIncrPle                = False &= help "Don't use incremental PLE"
+  , noEnvironmentReduction   =
+      False
+        &= name "no-environment-reduction"
+        &= help "Don't perform environment reduction"
   , checkCstr                = []    &= help "Only check these specific constraint-ids" 
   , extensionality           = False &= help "Allow extensional interpretation of extensionality"
   , maxRWOrderingConstraints = Nothing &= help "Maximum number of functions to consider in rewrite orderings"

@@ -2,6 +2,7 @@
 --   In particular it exports the functions that solve constraints supplied
 --   either as .fq files or as FInfo.
 {-# LANGUAGE BangPatterns        #-}
+{-# LANGUAGE DoAndIfThenElse     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Language.Fixpoint.Solver (
@@ -32,11 +33,14 @@ import           System.Console.CmdArgs.Verbosity   (whenNormal, whenLoud)
 import           Text.PrettyPrint.HughesPJ          (render)
 import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
+import           Language.Fixpoint.Solver.EnvironmentReduction
+  (reduceEnvironments, simplifyBindings)
 import           Language.Fixpoint.Solver.Sanitize  (symbolEnv, sanitize)
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Defunctionalize (defunctionalize)
 import           Language.Fixpoint.SortCheck            (Elaborate (..))
 import           Language.Fixpoint.Solver.Extensionality (expand)
+import           Language.Fixpoint.Solver.Prettify (savePrettifiedQuery)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
 import           Language.Fixpoint.Types.Config
@@ -195,7 +199,8 @@ simplifyFInfo !cfg !fi0 = do
   -- let qs   = quals fi0
   -- whenLoud $ print qs
   -- whenLoud $ putStrLn $ showFix (quals fi1)
-  let fi1   = fi0 { quals = remakeQual <$> quals fi0 }
+  reducedFi <- reduceFInfo cfg fi0
+  let fi1   = reducedFi { quals = remakeQual <$> quals reducedFi }
   let si0   = {- SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si0)
   -- rnf si0 `seq` donePhase Loud "Format Conversion"
@@ -217,6 +222,16 @@ simplifyFInfo !cfg !fi0 = do
     then instantiate cfg si6 $!! Nothing
     else return si6
 
+reduceFInfo :: Fixpoint a => Config -> FInfo a -> IO (FInfo a)
+reduceFInfo cfg fi = do
+  let simplifiedFi = {- SCC "simplifyFInfo" #-} simplifyBindings fi
+      reducedFi = {- SCC "reduceEnvironments" #-} reduceEnvironments simplifiedFi
+  when (save cfg) $
+    savePrettifiedQuery cfg reducedFi
+  if noEnvironmentReduction cfg then
+    return fi
+  else
+    return reducedFi
 
 solveNative' !cfg !fi0 = do
   si6 <- simplifyFInfo cfg fi0

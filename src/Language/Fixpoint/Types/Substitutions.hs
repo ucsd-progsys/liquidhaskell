@@ -13,6 +13,7 @@ module Language.Fixpoint.Types.Substitutions (
   , subst1Except
   , targetSubstSyms
   , filterSubst
+  , exprSymbolsSet
   ) where
 
 import           Data.Maybe
@@ -313,28 +314,9 @@ ppRas = cat . punctuate comma . map toFix . flattenRefas
     -- go (PAll xts p)       = (fst <$> xts) ++ go p
     -- go _                  = []
 
+
 exprSymbols :: Expr -> [Symbol]
-exprSymbols = S.toList . go 
-  where
-    gos es                = S.unions (go <$> es)
-    go (EVar x)           = S.singleton x
-    go (EApp f e)         = gos [f, e] 
-    go (ELam (x,_) e)     = S.delete x (go e) 
-    go (ECoerc _ _ e)     = go e
-    go (ENeg e)           = go e
-    go (EBin _ e1 e2)     = gos [e1, e2] 
-    go (EIte p e1 e2)     = gos [p, e1, e2] 
-    go (ECst e _)         = go e
-    go (PAnd ps)          = gos ps
-    go (POr ps)           = gos ps
-    go (PNot p)           = go p
-    go (PIff p1 p2)       = gos [p1, p2] 
-    go (PImp p1 p2)       = gos [p1, p2]
-    go (PAtom _ e1 e2)    = gos [e1, e2] 
-    go (PKVar _ (Su su))  = S.fromList $ syms $ M.elems su
-    go (PAll xts p)       = go p `S.difference` S.fromList (fst <$> xts) 
-    go (PExist xts p)     = go p `S.difference` S.fromList (fst <$> xts) 
-    go _                  = S.empty 
+exprSymbols = S.toList . exprSymbolsSet
 
 instance Expression (Symbol, SortedReft) where
   expr (x, RR _ (Reft (v, r))) = subst1 (expr r) (v, EVar x)

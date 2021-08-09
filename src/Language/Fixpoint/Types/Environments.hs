@@ -35,6 +35,7 @@ module Language.Fixpoint.Types.Environments (
   , fromListIBindEnv
   , memberIBindEnv
   , unionIBindEnv
+  , unionsIBindEnv
   , diffIBindEnv
   , intersectionIBindEnv
   , nullIBindEnv
@@ -43,6 +44,7 @@ module Language.Fixpoint.Types.Environments (
   -- * Global Binder Environments
   , BindEnv, beBinds
   , emptyBindEnv
+  , fromListBindEnv
   , insertBindEnv, lookupBindEnv
   , filterBindEnv, mapBindEnv, mapWithKeyMBindEnv, adjustBindEnv
   , bindEnvFromList, bindEnvToList, deleteBindEnv, elemsBindEnv
@@ -83,7 +85,7 @@ import           Language.Fixpoint.Misc
 type BindId        = Int
 type BindMap a     = M.HashMap BindId a
 
-newtype IBindEnv   = FB (S.HashSet BindId) deriving (Eq, Data, Typeable, Generic)
+newtype IBindEnv   = FB (S.HashSet BindId) deriving (Eq, Data, Show, Typeable, Generic)
 
 instance PPrint IBindEnv where
   pprintTidy _ = pprint . L.sort . elemsIBindEnv
@@ -207,6 +209,9 @@ fromListIBindEnv = FB . S.fromList
 insertBindEnv :: Symbol -> SortedReft -> BindEnv -> (BindId, BindEnv)
 insertBindEnv x r (BE n m) = (n, BE (n + 1) (M.insert n (x, r) m))
 
+fromListBindEnv :: [(BindId, (Symbol, SortedReft))] -> BindEnv
+fromListBindEnv xs = BE (length xs) (M.fromList xs)
+
 emptyBindEnv :: BindEnv
 emptyBindEnv = BE 0 M.empty
 
@@ -245,6 +250,9 @@ filterIBindEnv f (FB m) = FB (S.filter f m)
 
 unionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
 unionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.union` m2
+
+unionsIBindEnv :: [IBindEnv] -> IBindEnv
+unionsIBindEnv = L.foldl' unionIBindEnv emptyIBindEnv
 
 intersectionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
 intersectionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.intersection` m2

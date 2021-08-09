@@ -8,6 +8,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GADTs                      #-}
@@ -79,12 +80,16 @@ module Language.Fixpoint.Types.Refinements (
   , conjuncts
   , eApps
   , eAppC
+  , exprKVars
+  , exprSymbolsSet
   , splitEApp
   , splitPAnd
   , reftConjuncts
+  , sortedReftSymbols
 
   -- * Transforming
   , mapPredReft
+  , onEverySubexpr
   , pprintReft
 
   , debruijnIndex
@@ -98,9 +103,13 @@ module Language.Fixpoint.Types.Refinements (
 
 import           Prelude hiding ((<>))
 import qualified Data.Store as S
-import           Data.Generics             (Data)
+import           Data.Generics             (Data, gmapT, mkT, extT)
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
+import           Data.HashMap.Strict         (HashMap)
+import qualified Data.HashMap.Strict       as HashMap
+import           Data.HashSet              (HashSet)
+import qualified Data.HashSet              as HashSet
 import           GHC.Generics              (Generic)
 import           Data.List                 (foldl', partition)
 import qualified Data.Set                  as Set
@@ -313,6 +322,17 @@ data Expr = ESym !SymConst
           | ECoerc !Sort !Sort !Expr  
           deriving (Eq, Show, Ord, Data, Typeable, Generic)
 
+onEverySubexpr :: (Expr -> Expr) -> Expr -> Expr
+onEverySubexpr = everywhereOnA
+
+-- | Like 'Data.Generics.everywhere' but only traverses the nodes
+-- of type @a@ or @[a]@.
+everywhereOnA :: forall a. Data a => (a -> a) -> a -> a
+everywhereOnA f = go
+  where
+    go :: a -> a
+    go = f . gmapT (mkT go `extT` map go)
+
 type Pred = Expr
 
 pattern PTrue :: Expr
@@ -342,6 +362,52 @@ pattern EDiv e1 e2 = EBin Div    e1 e2
 pattern ERDiv :: Expr -> Expr -> Expr
 pattern ERDiv e1 e2 = EBin RDiv   e1 e2
 
+exprSymbolsSet :: Expr -> HashSet Symbol
+exprSymbolsSet = go
+  where
+    gos es                = HashSet.unions (go <$> es)
+    go (EVar x)           = HashSet.singleton x
+    go (EApp f e)         = gos [f, e]
+    go (ELam (x,_) e)     = HashSet.delete x (go e)
+    go (ECoerc _ _ e)     = go e
+    go (ENeg e)           = go e
+    go (EBin _ e1 e2)     = gos [e1, e2]
+    go (EIte p e1 e2)     = gos [p, e1, e2]
+    go (ECst e _)         = go e
+    go (PAnd ps)          = gos ps
+    go (POr ps)           = gos ps
+    go (PNot p)           = go p
+    go (PIff p1 p2)       = gos [p1, p2]
+    go (PImp p1 p2)       = gos [p1, p2]
+    go (PAtom _ e1 e2)    = gos [e1, e2]
+    go (PKVar _ (Su su))  = HashSet.unions $ map exprSymbolsSet (M.elems su)
+    go (PAll xts p)       = go p `HashSet.difference` HashSet.fromList (fst <$> xts)
+    go (PExist xts p)     = go p `HashSet.difference` HashSet.fromList (fst <$> xts)
+    go _                  = HashSet.empty
+
+exprKVars :: Expr -> HashMap KVar [Subst]
+exprKVars = go
+  where
+    gos es                = HashMap.unions (go <$> es)
+    go (EVar _)           = HashMap.empty
+    go (EApp f e)         = gos [f, e]
+    go (ELam _ e)     = go e
+    go (ECoerc _ _ e)     = go e
+    go (ENeg e)           = go e
+    go (EBin _ e1 e2)     = gos [e1, e2]
+    go (EIte p e1 e2)     = gos [p, e1, e2]
+    go (ECst e _)         = go e
+    go (PAnd ps)          = gos ps
+    go (POr ps)           = gos ps
+    go (PNot p)           = go p
+    go (PIff p1 p2)       = gos [p1, p2]
+    go (PImp p1 p2)       = gos [p1, p2]
+    go (PAtom _ e1 e2)    = gos [e1, e2]
+    go (PKVar k substs@(Su su))  =
+      HashMap.insertWith (++) k [substs] $ HashMap.unions $ map exprKVars (M.elems su)
+    go (PAll _xts p)       = go p
+    go (PExist _xts p)     = go p
+    go _                  = HashMap.empty
 
 data GradInfo = GradInfo {gsrc :: SrcSpan, gused :: Maybe SrcSpan}
           deriving (Eq, Ord, Show, Data, Typeable, Generic)
@@ -402,6 +468,12 @@ newtype Reft = Reft (Symbol, Expr)
 
 data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft }
                   deriving (Eq, Data, Typeable, Generic)
+
+sortedReftSymbols :: SortedReft -> HashSet Symbol
+sortedReftSymbols sr =
+  HashSet.union
+    (sortSymbols $ sr_sort sr)
+    (exprSymbolsSet $ reftPred $ sr_reft sr)
 
 elit :: Located Symbol -> Sort -> Expr
 elit l s = ECon $ L (symbolText $ val l) s
@@ -487,6 +559,27 @@ instance Fixpoint Expr where
   simplify (POr  [])     = PFalse
   simplify (PAnd [p])    = simplify p
   simplify (POr  [p])    = simplify p
+  simplify (PNot p) =
+    let sp = simplify p
+     in case sp of
+          PNot e -> e
+          _ -> PNot sp
+  -- XXX: Do not simplify PImp until PLE can handle it
+  -- https://github.com/ucsd-progsys/liquid-fixpoint/issues/475
+  -- simplify (PImp p q) =
+  --   let sq = simplify q
+  --    in if sq == PTrue then PTrue
+  --       else if sq == PFalse then simplify (PNot p)
+  --       else PImp (simplify p) sq
+  simplify (PIff p q)    =
+    let sp = simplify p
+        sq = simplify q
+     in if sp == sq then PTrue
+        else if sp == PTrue then sq
+        else if sq == PTrue then sp
+        else if sp == PFalse then PNot sq
+        else if sq == PFalse then PNot sp
+        else PIff sp sq
 
   simplify (PGrad k su i e)
     | isContraPred e      = PFalse
