@@ -101,7 +101,7 @@ commands:
           name: Dependencies
           command: |
             stack --stack-yaml << parameters.stack_yaml_file >> setup
-            stack --stack-yaml << parameters.stack_yaml_file >> build --only-dependencies --test --no-run-tests
+            stack --stack-yaml << parameters.stack_yaml_file >> build -j2 --only-dependencies --test --no-run-tests
       - save_cache:
           key: stack-{{ checksum "<< parameters.stack_yaml_file >>" }}
           paths:
