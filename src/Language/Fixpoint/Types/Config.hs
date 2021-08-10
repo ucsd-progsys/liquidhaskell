@@ -90,6 +90,8 @@ data Config = Config
   , oldPLE           :: Bool           -- ^ Use old version of PLE
   , noIncrPle        :: Bool           -- ^ Use incremental PLE
   , noEnvironmentReduction :: Bool     -- ^ Don't use environment reduction
+  , inlineANFBindings :: Maybe Int     -- ^ Inline ANF bindings with up-to the given amount of conjuncts.
+                                       -- Sometimes improves performance and sometimes worsens it.
   , checkCstr        :: [Integer]      -- ^ Only check these specific constraints 
   , extensionality   :: Bool           -- ^ Enable extensional interpretation of function equality
   , maxRWOrderingConstraints :: Maybe Int
@@ -188,6 +190,14 @@ defConfig = Config {
       False
         &= name "no-environment-reduction"
         &= help "Don't perform environment reduction"
+  , inlineANFBindings        =
+      Nothing
+        &= name "inline-anf-bindings"
+        &= help (unwords
+          [ "Inline ANF bindings with up-to the given amount of conjuncts."
+          , "Sometimes improves performance and sometimes worsens it."
+          , "Disabled by --no-environment-reduction"
+          ])
   , checkCstr                = []    &= help "Only check these specific constraint-ids" 
   , extensionality           = False &= help "Allow extensional interpretation of extensionality"
   , maxRWOrderingConstraints = Nothing &= help "Maximum number of functions to consider in rewrite orderings"

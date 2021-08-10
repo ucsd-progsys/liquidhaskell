@@ -28,6 +28,7 @@ import           Data.List (foldl', nub, partition)
 import           Data.Maybe (fromMaybe)
 import           Data.ShareMap (ShareMap)
 import qualified Data.ShareMap as ShareMap
+import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.Constraints
 import           Language.Fixpoint.Types.Environments
   ( BindEnv
@@ -434,8 +435,8 @@ reachableSymbols ss0 outgoingEdges = go HashSet.empty ss0
 --
 -- It runs 'mergeDuplicatedBindings' and 'simplifyBooleanRefts'
 -- on the environment of each constraint.
-simplifyBindings :: FInfo a -> FInfo a
-simplifyBindings fi =
+simplifyBindings :: Config -> FInfo a -> FInfo a
+simplifyBindings cfg fi =
   let (bs', cm', oldToNew) = simplifyConstraints (bs fi) (cm fi)
    in fi
         { bs = bs'
@@ -483,9 +484,15 @@ simplifyBindings fi =
             | bId <- elemsIBindEnv $ senv c
             , let (s, sr) = lookupBindEnv bId bindEnv
             ]
-          boolSimplEnv = simplifyBooleanRefts (mergeDuplicatedBindings env)
 
-          modifiedBinds = HashMap.toList boolSimplEnv
+          mergedEnv = mergeDuplicatedBindings env
+          undoANFEnv = case inlineANFBindings cfg of
+            Just maxConjuncts -> undoANF maxConjuncts mergedEnv
+            Nothing -> HashMap.empty
+          boolSimplEnv =
+            simplifyBooleanRefts $ HashMap.union undoANFEnv mergedEnv
+
+          modifiedBinds = HashMap.toList $ HashMap.union boolSimplEnv undoANFEnv
 
           modifiedBindIds = map (fst . snd) modifiedBinds
 

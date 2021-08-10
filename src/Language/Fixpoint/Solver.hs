@@ -224,7 +224,7 @@ simplifyFInfo !cfg !fi0 = do
 
 reduceFInfo :: Fixpoint a => Config -> FInfo a -> IO (FInfo a)
 reduceFInfo cfg fi = do
-  let simplifiedFi = {- SCC "simplifyFInfo" #-} simplifyBindings fi
+  let simplifiedFi = {- SCC "simplifyFInfo" #-} simplifyBindings cfg fi
       reducedFi = {- SCC "reduceEnvironments" #-} reduceEnvironments simplifiedFi
   when (save cfg) $
     savePrettifiedQuery cfg reducedFi
