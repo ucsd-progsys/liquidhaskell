@@ -435,6 +435,9 @@ reachableSymbols ss0 outgoingEdges = go HashSet.empty ss0
 --
 -- It runs 'mergeDuplicatedBindings' and 'simplifyBooleanRefts'
 -- on the environment of each constraint.
+--
+-- If 'inlineANFBindings cfg' is on, also runs 'undoANF' to inline
+-- @lq_anf@ bindings.
 simplifyBindings :: Config -> FInfo a -> FInfo a
 simplifyBindings cfg fi =
   let (bs', cm', oldToNew) = simplifyConstraints (bs fi) (cm fi)
@@ -555,6 +558,11 @@ mergeDuplicatedBindings xs =
 -- Only bindings with prefix lq_anf... might be inlined.
 --
 -- Doesn't inline bindings having more than @maxConjuncts@ conjuncts.
+--
+-- This function is used to produced the prettified output, and the user
+-- can request to use it in the verification pipeline with
+-- @--inline-anf-bindings@. However, using it in the verification
+-- pipeline causes some tests in liquidhaskell to blow up.
 undoANF :: Int -> HashMap Symbol (m, SortedReft) -> HashMap Symbol (m, SortedReft)
 undoANF maxConjuncts env =
     -- Circular program here. This should terminate as long as the
