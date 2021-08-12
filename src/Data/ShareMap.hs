@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Data.ShareMap
   ( ShareMap
   , empty
@@ -29,14 +30,21 @@ data ShareMap k v = ShareMap
     --
     -- Contains at least an entry for each key in the values of
     -- of 'shareMap'.
-    unsharedMap :: HashMap k v
+    unsharedMap :: HashMap (InternalKey k) v
   , -- | If @k1@ is mapped to @k2@, then both keys are considered
     -- associated to the value of @k2@ in 'unsharedMap'.
     --
     -- Contains an entry for each key in the 'ShareMap'.
-    shareMap :: ReversibleMap k k
+    shareMap :: ReversibleMap k (InternalKey k)
   }
   deriving Show
+
+-- | This are the only keys that can be used in internal maps
+newtype InternalKey k = InternalKey k
+  deriving (Eq, Hashable)
+
+instance Show k => Show (InternalKey k) where
+  show (InternalKey k) = show k
 
 empty :: ShareMap k v
 empty = ShareMap HashMap.empty emptyReversibleMap
@@ -67,8 +75,8 @@ insertWith f k v sm =
       { unsharedMap = HashMap.insertWith f k' v (unsharedMap sm)
       }
     Nothing -> ShareMap
-      { unsharedMap = HashMap.insertWith f k v (unsharedMap sm)
-      , shareMap = insertReversibleMap k k (shareMap sm)
+      { unsharedMap = HashMap.insertWith f (InternalKey k) v (unsharedMap sm)
+      , shareMap = insertReversibleMap k (InternalKey k) (shareMap sm)
       }
 
 -- | @mergeKeysWith f k0 k1 m@ updates the @k0@ value to @f (m ! k0) (m ! k1)@
@@ -88,7 +96,7 @@ mergeKeysWith
   -> ShareMap k v
 mergeKeysWith f k0 k1 sm | k0 /= k1 =
   case lookupReversibleMap k1 (shareMap sm) of
-    Just k1' | k0 /= k1' -> case HashMap.lookup k1' (unsharedMap sm) of
+    Just k1' | InternalKey k0 /= k1' -> case HashMap.lookup k1' (unsharedMap sm) of
       Just v1 -> case lookupReversibleMap k0 (shareMap sm) of
         Just k0' | k0' /= k1' ->
           ShareMap
