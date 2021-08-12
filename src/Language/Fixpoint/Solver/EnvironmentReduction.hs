@@ -210,14 +210,17 @@ reduceWFConstraintEnvironments bindEnv (cs, wfs) =
     updateSubcEnvsWithKVarBinds be kvarsBinds kvs c =
       let updateIBindEnv oldEnv =
             unionIBindEnv (reducedEnv c) $
-            fromListIBindEnv
+            if null kvs then emptyIBindEnv
+            else fromListIBindEnv
               [ bId
-              | kv <- kvs
-              , Just kbindSyms <- [HashMap.lookup kv kvarsBinds]
-              , bId <- elemsIBindEnv oldEnv
-              , let (s, _) = lookupBindEnv bId be
-              , HashSet.member s kbindSyms
+              | bId <- elemsIBindEnv oldEnv
+              , let (s, _sr) = lookupBindEnv bId be
+              , any (neededByKVar s) kvs
               ]
+          neededByKVar s kv =
+            case HashMap.lookup kv kvarsBinds of
+              Nothing -> False
+              Just kbindSyms -> HashSet.member s kbindSyms
        in (constraintId c, updateSEnv (originalConstraint c) updateIBindEnv)
 
     -- @reduceWFConstraintEnvironment be kbinds k c@ drops bindings from @c@
