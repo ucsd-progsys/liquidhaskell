@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -x
 HERE=$(cd "$(dirname $0)" && pwd)
 
 # Simple script to plot the performance regression between different testruns in Liquidhaskell.
