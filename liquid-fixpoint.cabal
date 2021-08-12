@@ -43,7 +43,8 @@ flag devel
 
 library
   autogen-modules:  Paths_liquid_fixpoint
-  exposed-modules:  Language.Fixpoint.Defunctionalize
+  exposed-modules:  Data.ShareMap
+                    Language.Fixpoint.Defunctionalize
                     Language.Fixpoint.Graph
                     Language.Fixpoint.Graph.Deps
                     Language.Fixpoint.Graph.Indexed
@@ -106,8 +107,7 @@ library
                     Language.Fixpoint.Utils.Statistics
                     Language.Fixpoint.Utils.Trie
                     Text.PrettyPrint.HughesPJ.Compat
-  other-modules:    Data.ShareMap
-                    Paths_liquid_fixpoint
+  other-modules:    Paths_liquid_fixpoint
   hs-source-dirs:   src
   build-depends:    base                 >= 4.9.1.0 && < 5
                   , ansi-terminal
@@ -187,15 +187,20 @@ test-suite test
   if flag(devel)
     ghc-options: -Werror
 
-test-suite testparser
+test-suite tasty
   type:             exitcode-stdio-1.0
-  main-is:          testParser.hs
-  hs-source-dirs:   tests
+  main-is:          Main.hs
+  other-modules:    ParserTests
+                    ShareMapReference
+                    ShareMapTests
+  hs-source-dirs:   tests/tasty
   build-depends:    base            >= 4.9.1.0 && < 5
+                  , hashable
                   , liquid-fixpoint
                   , tasty           >= 0.10
-                  , tasty-hunit
+                  , tasty-quickcheck
                   , tasty-hunit     >= 0.9
+                  , unordered-containers
   default-language: Haskell98
   ghc-options:      -threaded
 
