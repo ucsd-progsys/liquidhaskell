@@ -95,7 +95,7 @@ mergeKeysWith f k0 k1 sm | k0 /= k1 =
             { unsharedMap = HashMap.insertWith (flip f) k0' v1 (unsharedMap sm)
             , shareMap = -- Any values pointing to k1 are redirected to k0':
                 HashSet.foldl' (\m k -> insertReversibleMap k k0' m) (shareMap sm) $
-                reverseLookup k1 $ shareMap sm
+                reverseLookup k1' $ shareMap sm
             }
         Nothing ->
           sm { shareMap = insertReversibleMap k0 k1' (shareMap sm) }
