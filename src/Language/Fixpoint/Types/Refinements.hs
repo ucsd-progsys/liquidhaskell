@@ -555,9 +555,7 @@ instance Fixpoint Expr where
   toFix (ECoerc a t e)   = parens (text "coerce" <+> toFix a <+> text "~" <+> toFix t <+> text "in" <+> toFix e)
   toFix (ELam (x,s) e)   = text "lam" <+> toFix x <+> ":" <+> toFix s <+> "." <+> toFix e
 
-  simplify (PAnd [])     = PTrue
   simplify (POr  [])     = PFalse
-  simplify (PAnd [p])    = simplify p
   simplify (POr  [p])    = simplify p
   simplify (PNot p) =
     let sp = simplify p
@@ -588,9 +586,12 @@ instance Fixpoint Expr where
   simplify (PAnd ps)
     | any isContraPred ps = PFalse
                          -- Note: Performance of some tests is very sensitive to this code. See #480 
-    | otherwise           = PAnd $ dedup . flattenRefas . filter (not . isTautoPred) $ map simplify ps
+    | otherwise           = simplPAnd . dedup . flattenRefas . filter (not . isTautoPred) $ map simplify ps
     where
       dedup = Set.toList . Set.fromList
+      simplPAnd [] = PTrue
+      simplPAnd [p] = p
+      simplPAnd xs = PAnd xs
 
   simplify (POr  ps)
     | any isTautoPred ps = PTrue
