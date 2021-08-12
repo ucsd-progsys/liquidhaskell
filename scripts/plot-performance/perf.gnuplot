@@ -6,7 +6,8 @@ set bmargin 22    # For some reason using xticlabels adds tons of whitespaces at
 set tics font ",4"
 
 # Y (time) axis config
-set ylabel "Time"
+set ylabel "Time (seconds)"
+set ytics font ",8"
 set logscale y 10
 
 # Chart shape
@@ -20,9 +21,9 @@ set style line 100 lt 1 lc rgb "grey" lw 0.5 # linestyle for the grid
 set grid ls 100 # enable grid with specific linestyle
 
 # X axis config
-set xtics 1 rotate
+set xtics scale 0 rotate
 
-set terminal svg enhanced size 2048,1024
+set terminal svg enhanced size 8192,1024
 set output 'perf.svg'
 plot csv_2 using 2:xticlabels(1) with boxes lc rgb'red90' axis x1y1 title "after", \
      csv_3 using 2:xticlabels(1) with boxes lc rgb'blue90' axis x1y1 title "before", \
