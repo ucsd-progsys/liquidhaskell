@@ -10,8 +10,15 @@ import           Data.List (find)
 
 -- | See "Data.ShareMap" for documentation.
 data ShareMap k v = ShareMap
-  { toHashMap :: HashMap k v
-  , keyPartitions :: [HashSet k]
+  { -- | Contains all the values in the ShareMap.
+    toHashMap :: HashMap k v
+  , -- | Contains all the keys in the ShareMap.
+    --
+    -- All sets in @keyPartitions@ are disjoint.
+    -- Every key in in @keyPartitions@ is present in @toHashMap@.
+    -- If @k1@ and @k2@ belong to the same set @s@ in @keyPartitions@
+    -- then @toHashMap ! k1 == toHashMap ! k2@.
+    keyPartitions :: [HashSet k]
   }
   deriving Show
 
