@@ -28,6 +28,7 @@ import           Data.List (foldl', nub, partition)
 import           Data.Maybe (fromMaybe)
 import           Data.ShareMap (ShareMap)
 import qualified Data.ShareMap as ShareMap
+import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.Constraints
 import           Language.Fixpoint.Types.Environments
   ( BindEnv
@@ -209,14 +210,17 @@ reduceWFConstraintEnvironments bindEnv (cs, wfs) =
     updateSubcEnvsWithKVarBinds be kvarsBinds kvs c =
       let updateIBindEnv oldEnv =
             unionIBindEnv (reducedEnv c) $
-            fromListIBindEnv
+            if null kvs then emptyIBindEnv
+            else fromListIBindEnv
               [ bId
-              | kv <- kvs
-              , Just kbindSyms <- [HashMap.lookup kv kvarsBinds]
-              , bId <- elemsIBindEnv oldEnv
-              , let (s, _) = lookupBindEnv bId be
-              , HashSet.member s kbindSyms
+              | bId <- elemsIBindEnv oldEnv
+              , let (s, _sr) = lookupBindEnv bId be
+              , any (neededByKVar s) kvs
               ]
+          neededByKVar s kv =
+            case HashMap.lookup kv kvarsBinds of
+              Nothing -> False
+              Just kbindSyms -> HashSet.member s kbindSyms
        in (constraintId c, updateSEnv (originalConstraint c) updateIBindEnv)
 
     -- @reduceWFConstraintEnvironment be kbinds k c@ drops bindings from @c@
@@ -434,8 +438,11 @@ reachableSymbols ss0 outgoingEdges = go HashSet.empty ss0
 --
 -- It runs 'mergeDuplicatedBindings' and 'simplifyBooleanRefts'
 -- on the environment of each constraint.
-simplifyBindings :: FInfo a -> FInfo a
-simplifyBindings fi =
+--
+-- If 'inlineANFBindings cfg' is on, also runs 'undoANF' to inline
+-- @lq_anf@ bindings.
+simplifyBindings :: Config -> FInfo a -> FInfo a
+simplifyBindings cfg fi =
   let (bs', cm', oldToNew) = simplifyConstraints (bs fi) (cm fi)
    in fi
         { bs = bs'
@@ -483,9 +490,15 @@ simplifyBindings fi =
             | bId <- elemsIBindEnv $ senv c
             , let (s, sr) = lookupBindEnv bId bindEnv
             ]
-          boolSimplEnv = simplifyBooleanRefts (mergeDuplicatedBindings env)
 
-          modifiedBinds = HashMap.toList boolSimplEnv
+          mergedEnv = mergeDuplicatedBindings env
+          undoANFEnv = case inlineANFBindings cfg of
+            Just maxConjuncts -> undoANF maxConjuncts mergedEnv
+            Nothing -> HashMap.empty
+          boolSimplEnv =
+            simplifyBooleanRefts $ HashMap.union undoANFEnv mergedEnv
+
+          modifiedBinds = HashMap.toList $ HashMap.union boolSimplEnv undoANFEnv
 
           modifiedBindIds = map (fst . snd) modifiedBinds
 
@@ -548,6 +561,11 @@ mergeDuplicatedBindings xs =
 -- Only bindings with prefix lq_anf... might be inlined.
 --
 -- Doesn't inline bindings having more than @maxConjuncts@ conjuncts.
+--
+-- This function is used to produced the prettified output, and the user
+-- can request to use it in the verification pipeline with
+-- @--inline-anf-bindings@. However, using it in the verification
+-- pipeline causes some tests in liquidhaskell to blow up.
 undoANF :: Int -> HashMap Symbol (m, SortedReft) -> HashMap Symbol (m, SortedReft)
 undoANF maxConjuncts env =
     -- Circular program here. This should terminate as long as the
