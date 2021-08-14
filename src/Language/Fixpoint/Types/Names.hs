@@ -45,11 +45,14 @@ module Language.Fixpoint.Types.Names (
   , isDummy
 
   -- * Destructors
+  , prefixOfSym
+  , suffixOfSym
   , stripPrefix
   , stripSuffix 
   , consSym
   , unconsSym
   , dropSym
+  , dropPrefixOfSym
   , headSym
   , lengthSym
 
@@ -396,6 +399,16 @@ lengthSym (symbolText -> t) = T.length t
 
 dropSym :: Int -> Symbol -> Symbol
 dropSym n (symbolText -> t) = symbol $ T.drop n t
+
+dropPrefixOfSym :: Symbol -> Symbol
+dropPrefixOfSym =
+  symbol .  T.drop (T.length symSepName) .  snd .  T.breakOn symSepName .  symbolText
+
+prefixOfSym :: Symbol -> Symbol
+prefixOfSym = symbol . fst . T.breakOn symSepName . symbolText
+
+suffixOfSym :: Symbol -> Symbol
+suffixOfSym = symbol . snd . T.breakOnEnd symSepName . symbolText
 
 stripPrefix :: Symbol -> Symbol -> Maybe Symbol
 stripPrefix p x = symbol <$> T.stripPrefix (symbolText p) (symbolText x)
