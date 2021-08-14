@@ -384,7 +384,7 @@ relatedKVarBinds bindEnv cs =
       let c = originalConstraint sc
           unSubst (Su su) = su
           substsToHashSet =
-            HashSet.fromList . HashMap.keys . HashMap.unions . map unSubst
+            HashSet.fromMap . HashMap.map (const ()) . HashMap.unions . map unSubst
        in foldl' (HashMap.unionWith HashSet.union) HashMap.empty $
           map (HashMap.map substsToHashSet) $
           (exprKVars (reftPred $ sr_reft $ srhs c) :) $
