@@ -61,6 +61,7 @@ module Language.Fixpoint.Types.Sorts (
   , bkAbs
   , mkPoly
   , sortSymbols
+  , substSort
 
   , isNumeric, isReal, isString, isPolyInst
 
@@ -274,6 +275,14 @@ sortSymbols = \case
   FAbs _ t -> sortSymbols t
   FApp t0 t1 -> HashSet.union (sortSymbols t0) (sortSymbols t1)
   _ -> HashSet.empty
+
+substSort :: (Symbol -> Sort) -> Sort -> Sort
+substSort f = \case
+  FObj s -> f s
+  FFunc t0 t1 -> FFunc (substSort f t0) (substSort f t1)
+  FApp t0 t1 -> FApp (substSort f t0) (substSort f t1)
+  FAbs i t -> FAbs i (substSort f t)
+  t -> t
 
 data DataField = DField
   { dfName :: !LocSymbol          -- ^ Field Name
