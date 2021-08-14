@@ -140,7 +140,7 @@ instance Subable Expr where
   substf f (PImp p1 p2)    = PImp (substf f p1) (substf f p2)
   substf f (PIff p1 p2)    = PIff (substf f p1) (substf f p2)
   substf f (PAtom r e1 e2) = PAtom r (substf f e1) (substf f e2)
-  substf _ p@(PKVar _ _)   = p
+  substf f (PKVar k (Su su)) = PKVar k (Su $ M.map (substf f) su)
   substf _  (PAll _ _)     = errorstar "substf: FORALL"
   substf f (PGrad k su i e)= PGrad k su i (substf f e)
   substf _  p              = p
