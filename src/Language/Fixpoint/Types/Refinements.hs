@@ -6,6 +6,7 @@
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -86,6 +87,7 @@ module Language.Fixpoint.Types.Refinements (
   , splitPAnd
   , reftConjuncts
   , sortedReftSymbols
+  , substSortInExpr
 
   -- * Transforming
   , mapPredReft
@@ -102,6 +104,7 @@ module Language.Fixpoint.Types.Refinements (
   ) where
 
 import           Prelude hiding ((<>))
+import           Data.Bifunctor (second)
 import qualified Data.Store as S
 import           Data.Generics             (Data, gmapT, mkT, extT)
 import           Data.Typeable             (Typeable)
@@ -384,6 +387,17 @@ exprSymbolsSet = go
     go (PAll xts p)       = go p `HashSet.difference` HashSet.fromList (fst <$> xts)
     go (PExist xts p)     = go p `HashSet.difference` HashSet.fromList (fst <$> xts)
     go _                  = HashSet.empty
+
+substSortInExpr :: (Symbol -> Sort) -> Expr -> Expr
+substSortInExpr f = onEverySubexpr go
+  where
+    go = \case
+      ELam (x, t) e -> ELam (x, substSort f t) e
+      PAll xts e -> PAll (second (substSort f) <$> xts) e
+      PExist xts e -> PExist (second (substSort f) <$> xts) e
+      ECst e t -> ECst e (substSort f t)
+      ECoerc t0 t1 e -> ECoerc (substSort f t0) (substSort f t1) e
+      e -> e
 
 exprKVars :: Expr -> HashMap KVar [Subst]
 exprKVars = go
