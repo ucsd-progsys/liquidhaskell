@@ -6,6 +6,7 @@ import GHC.List
 import GHC.Maybe
 import GHC.Num
 import GHC.Real
+import GHC.Float
 import GHC.Word
 
 import Data.Foldable
