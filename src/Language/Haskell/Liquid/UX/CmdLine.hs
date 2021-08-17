@@ -434,6 +434,20 @@ config = cmdArgsMode $ Config {
     = Nothing 
         &= help "Maximum fuel (per-function unfoldings) for PLE"
 
+  , noEnvironmentReduction
+    = def
+        &= explicit
+        &= name "no-environment-reduction"
+        &= help "Don't perform environment reduction"
+  , inlineANFBindings
+    = Nothing
+        &= explicit
+        &= name "inline-anf-bindings"
+        &= help (unwords
+          [ "Inline ANF bindings with up-to the given amount of conjuncts."
+          , "Sometimes improves performance and sometimes worsens it."
+          , "Disabled by --no-environment-reduction"
+          ])
   } &= program "liquid"
     &= help    "Refinement Types for Haskell"
     &= summary copyright
@@ -688,6 +702,8 @@ defConfig = Config
   , skipModule               = False
   , noLazyPLE                = False
   , fuel                     = Nothing
+  , noEnvironmentReduction   = False
+  , inlineANFBindings        = Nothing
   }
 
 

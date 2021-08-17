@@ -233,7 +233,7 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/BadData2.hs"            1 "Data constructors in refinement do not match original datatype for `Hog`"
   , errorTest "tests/errors/T1140.hs"               1 "Specified type does not refine Haskell type for `Blank.foo`"
   , errorTest "tests/errors/InlineSubExp0.hs"       1 "== f B C"
-  , errorTest "tests/errors/InlineSubExp1.hs"       1 "== f B (g A)"
+  , errorTest "tests/errors/InlineSubExp1.hs"       1 "= f B (g A)"
   , errorTest "tests/errors/EmptySig.hs"            1 "Cannot parse specification"
   , errorTest "tests/errors/MissingReflect.hs"      1 "Illegal type specification for `Main.empty_foo`" 
   , errorTest "tests/errors/MissingSizeFun.hs"      1 "Unknown variable `llen2`" 
@@ -512,7 +512,7 @@ ecAssert (EC _ code yesLog noLog) c log = do
     else do
       case yesLog of
         Nothing -> pure ()
-        Just t  -> assertBool ("Did not match message: " <> show (T.unpack t) <> "\n" <> output) (T.isInfixOf t log)
+        Just t  -> assertBool ("Did not match message: " <> show (T.unpack t) <> "\n" <> show log) (T.isInfixOf t log)
       case noLog of
         Nothing -> pure ()
         Just t  -> assertBool ("Did match unexpected message: " <> show (T.unpack t) <> "\n" <> output) (not (T.isInfixOf t log))
