@@ -365,7 +365,7 @@ bsplitC' γ t1 t2 tem isHO
     r2' = rTypeSortedReft' γ tem t2
     ci  = \sr -> Ci src (err sr) (cgVar γ)
     tag = getTag γ
-    err = \sr -> Just $ fromMaybe (ErrSubType src (text "subtype") g t1 (replaceTop t2 sr)) (cerr γ)
+    err = \sr -> Just $ fromMaybe (ErrSubType src (text "subtype") Nothing g t1 (replaceTop t2 sr)) (cerr γ)
     src = getLocation γ
     g   = reLocal $ renv γ
 
