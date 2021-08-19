@@ -9,12 +9,11 @@
 module Language.Fixpoint.Solver.Prettify (savePrettifiedQuery) where
 
 import           Data.Bifunctor (first)
-import           Data.Function (on)
 import           Data.HashMap.Lazy (HashMap)
 import qualified Data.HashMap.Lazy as HashMap
 import           Data.HashSet (HashSet)
 import qualified Data.HashSet as HashSet
-import           Data.List (intersperse, sortBy)
+import           Data.List (intersperse, sortOn)
 import           Data.Maybe (fromMaybe)
 import qualified Data.Text as Text
 import           Language.Fixpoint.Misc (ensurePath)
@@ -69,7 +68,11 @@ savePrettifiedQuery cfg fi = do
 
 prettyConstraints :: Fixpoint a => FInfo a -> Doc
 prettyConstraints fi =
-  vcat $ map (prettyConstraint aenvMap (bs fi)) $ HashMap.elems (cm fi)
+  vcat $
+  map (prettyConstraint aenvMap (bs fi)) $
+  map snd $
+  sortOn fst $
+  HashMap.toList (cm fi)
   where
     aenvMap = axiomEnvSymbols (ae fi)
 
@@ -97,7 +100,7 @@ prettyConstraint aenv bindEnv c =
       (renamedEnv, c') =
         shortenVarNames prunedEnv c { slhs = simplifiedLhs, srhs = simplifiedRhs }
       prettyEnv =
-        sortBy (flip compare `on` fst) $
+        sortOn bindingSelector $
         eraseUnusedBindings (constraintSymbols (slhs c') (srhs c')) renamedEnv
    in hang (text "\n\nconstraint:") 2 $
           text "lhs" <+> toFix (slhs c')
@@ -117,6 +120,14 @@ prettyConstraint aenv bindEnv c =
 
     constraintSymbols sr0 sr1 =
       HashSet.union (sortedReftSymbols sr0) (sortedReftSymbols sr1)
+
+    -- Sort by symbol then reft
+    bindingSelector (m, sr) =
+      ( fromMaybe "{" m
+      , reftBind (sr_reft sr)
+      , sr_sort sr
+      , reftPred $ sr_reft sr
+      )
 
 pprId :: Show a => Maybe a -> Doc
 pprId (Just i)  = "id" <+> text (show i)
