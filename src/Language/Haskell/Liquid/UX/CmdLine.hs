@@ -811,7 +811,7 @@ cErrToSpanned k CtxError{ctErr} = (pos ctErr, pprintTidy k ctErr)
 errToFCrash :: CtxError a -> CtxError a
 errToFCrash ce = ce { ctErr    = tx $ ctErr ce}
   where
-    tx (ErrSubType l m g t t') = ErrFCrash l m g t t'
+    tx (ErrSubType l m _ g t t') = ErrFCrash l m g t t'
     tx e                       = e
 
 {-

@@ -87,7 +87,7 @@ import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( Expr
                                                                , int
                                                                , hcat
                                                                )
-import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr)
+import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr, SubcId)
 import qualified Language.Fixpoint.Misc       as Misc
 import qualified Language.Haskell.Liquid.Misc     as Misc
 import           Language.Haskell.Liquid.Misc ((<->))
@@ -220,6 +220,7 @@ ppOblig OInv  = text "Invariant Check"
 data TError t =
     ErrSubType { pos  :: !SrcSpan
                , msg  :: !Doc
+               , cid  :: Maybe SubcId
                , ctx  :: !(M.HashMap Symbol t)
                , tact :: !t
                , texp :: !t
@@ -228,6 +229,7 @@ data TError t =
   | ErrSubTypeModel
                { pos  :: !SrcSpan
                , msg  :: !Doc
+               , cid  :: Maybe SubcId
                , ctxM  :: !(M.HashMap Symbol (WithModel t))
                , tactM :: !(WithModel t)
                , texp :: !t
@@ -759,7 +761,7 @@ ppError' td dCtx (ErrAssType _ o _ c p)
         $+$ dCtx
         $+$ (ppFull td $ ppPropInContext td p c)
 
-ppError' td dCtx err@(ErrSubType _ _ _ _ tE)
+ppError' td dCtx err@(ErrSubType _ _ _ _ _ tE)
   | totalityType td tE
   = text "Totality Error"
         $+$ dCtx
@@ -775,18 +777,20 @@ ppError' _td _dCtx (ErrHole _ msg _ x t)
         $+$ pprint x <+> "::" <+> pprint t
         $+$ msg
 
-ppError' td dCtx (ErrSubType _ _ c tA tE)
+ppError' td dCtx (ErrSubType _ _ cid c tA tE)
   = text "Liquid Type Mismatch"
     $+$ nest 4 
           (blankLine 
            $+$ dCtx
-           $+$ (ppFull td $ ppReqInContext td tA tE c))
+           $+$ (ppFull td $ ppReqInContext td tA tE c)
+           $+$ maybe mempty (\i -> text "Constraint id" <+> text (show i)) cid)
 
-ppError' td dCtx (ErrSubTypeModel _ _ c tA tE)
+ppError' td dCtx (ErrSubTypeModel _ _ cid c tA tE)
   = text "Liquid Type Mismatch"
     $+$ nest 4 
           (dCtx
-          $+$ (ppFull td $ ppReqModelInContext td tA tE c))
+          $+$ (ppFull td $ ppReqModelInContext td tA tE c)
+          $+$ maybe mempty (\i -> text "Constraint id" <+> text (show i)) cid)
 
 ppError' td  dCtx (ErrFCrash _ _ c tA tE)
   = text "Fixpoint Crash on Constraint"
