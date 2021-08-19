@@ -16,6 +16,20 @@
 --   http://www.smt-lib.org/
 --   http://www.grammatech.com/resource/smt/SMTLIBTutorial.pdf
 
+-- Note [Async SMT API]
+--
+-- The SMT solver is started in a separate process and liquid-fixpoint
+-- communicates with it via pipes. This mechanism introduces some latency
+-- since the queries need to reach the buffers in a separate process and
+-- the OS has to switch contexts.
+--
+-- A remedy we currently try for this is to send multiple queries
+-- together without waiting for the reply to each one, i.e. asynchronously.
+-- We then collect the multiple answers after sending all of the queries.
+--
+-- The functions named @smt*Async@ implement this scheme.
+--
+
 module Language.Fixpoint.Smt.Interface (
 
     -- * Commands
@@ -49,6 +63,13 @@ module Language.Fixpoint.Smt.Interface (
     , smtBracket, smtBracketAt
     , smtDistinct
     , smtPush, smtPop
+    , smtAssertAsync
+    , smtFlush
+    , smtCheckUnsatAsync
+    , readCheckUnsat
+    , smtBracketAsyncAt
+    , smtPushAsync
+    , smtPopAsync
 
     -- * Check Validity
     , checkValid
@@ -92,7 +113,7 @@ import           System.Directory
 import           System.Console.CmdArgs.Verbosity
 import           System.Exit              hiding (die)
 import           System.FilePath
-import           System.IO                (Handle, IOMode (..), hClose, hFlush, openFile)
+import           System.IO
 import           System.Process
 import qualified Data.Attoparsec.Text     as A
 -- import qualified Data.HashMap.Strict      as M
@@ -177,7 +198,7 @@ smtRead me = {- SCC "smtRead" #-} do
   case A.eitherResult res of
     Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
     Right r -> do
-      maybe (return ()) (\h -> hPutStrLnNow h $ blt ("; SMT Says: " <> (bShow r))) (ctxLog me)
+      maybe (return ()) (\h -> LTIO.hPutStrLn h $ blt ("; SMT Says: " <> (bShow r))) (ctxLog me)
       when (ctxVerbose me) $ LTIO.putStrLn $ blt ("SMT Says: " <> bShow r)
       return r
 
@@ -228,7 +249,7 @@ smtWriteRaw me !s = {- SCC "smtWriteRaw" #-} do
   -- whenLoud $ do LTIO.appendFile debugFile (s <> "\n")
   --               LTIO.putStrLn ("CMD-RAW:" <> s <> ":CMD-RAW:DONE")
   hPutStrLnNow (ctxCout me) s
-  maybe (return ()) (`hPutStrLnNow` s) (ctxLog me)
+  maybe (return ()) (`LTIO.hPutStrLn` s) (ctxLog me)
 
 smtReadRaw       :: Context -> IO T.Text
 smtReadRaw me    = {- SCC "smtReadRaw" #-} TIO.hGetLine (ctxCin me)
@@ -248,6 +269,7 @@ makeContext cfg f
        pre  <- smtPreamble cfg (solver cfg) me
        createDirectoryIfMissing True $ takeDirectory smtFile
        hLog <- openFile smtFile WriteMode
+       hSetBuffering hLog $ BlockBuffering $ Just $ 1024*1024*64
        let me' = me { ctxLog = Just hLog }
        mapM_ (smtWrite me') pre
        return me'
@@ -273,6 +295,8 @@ makeProcess :: Config -> IO Context
 makeProcess cfg
   = do (hOut, hIn, _ ,pid) <- runInteractiveCommand $ smtCmd (solver cfg)
        loud <- isLoud
+       hSetBuffering hOut $ BlockBuffering $ Just $ 1024*1024*64
+       hSetBuffering hIn $ BlockBuffering $ Just $ 1024*1024*64
        return Ctx { ctxPid     = pid
                   , ctxCin     = hIn
                   , ctxCout    = hOut
@@ -375,6 +399,62 @@ smtCheckSat me p
 
 smtAssert :: Context -> Expr -> IO ()
 smtAssert me p  = interact' me (Assert Nothing p)
+
+
+-----------------------------------------------------------------
+-- Async calls to the smt
+--
+-- See Note [Async SMT API]
+-----------------------------------------------------------------
+
+
+smtAssertAsync :: Context -> Expr -> IO ()
+smtAssertAsync me p  = do
+  let cmd = Assert Nothing p
+      env = ctxSymEnv me
+      cmdText = Builder.toLazyText $ runSmt2 env cmd
+  LTIO.hPutStrLn (ctxCout me) cmdText
+  maybe (return ()) (`LTIO.hPutStrLn` cmdText) (ctxLog me)
+
+smtFlush :: Context -> IO ()
+smtFlush me = hFlush (ctxCout me)
+
+smtCheckUnsatAsync :: Context -> IO ()
+smtCheckUnsatAsync me = do
+  let cmd = CheckSat
+      env = ctxSymEnv me
+      cmdText = Builder.toLazyText $ runSmt2 env cmd
+  LTIO.hPutStrLn (ctxCout me) cmdText
+  maybe (return ()) (`LTIO.hPutStrLn` cmdText) (ctxLog me)
+
+smtBracketAsyncAt :: SrcSpan -> Context -> String -> IO a -> IO a
+smtBracketAsyncAt sp x y z = smtBracketAsync x y z `catch` dieAt sp
+
+smtBracketAsync :: Context -> String -> IO a -> IO a
+smtBracketAsync me _msg a   = do
+  smtPushAsync me
+  r <- a
+  smtPopAsync me
+  return r
+
+smtPushAsync, smtPopAsync   :: Context -> IO ()
+smtPushAsync me = do
+  let cmd = Push
+      env = ctxSymEnv me
+      cmdText = Builder.toLazyText $ runSmt2 env cmd
+  LTIO.hPutStrLn (ctxCout me) cmdText
+  maybe (return ()) (`LTIO.hPutStrLn` cmdText) (ctxLog me)
+smtPopAsync me = do
+  let cmd = Pop
+      env = ctxSymEnv me
+      cmdText = Builder.toLazyText $ runSmt2 env cmd
+  LTIO.hPutStrLn (ctxCout me) cmdText
+  maybe (return ()) (`LTIO.hPutStrLn` cmdText) (ctxLog me)
+
+-----------------------------------------------------------------
+
+readCheckUnsat :: Context -> IO Bool
+readCheckUnsat me = respSat <$> smtRead me
 
 smtAssertAxiom :: Context -> Triggered Expr -> IO ()
 smtAssertAxiom me p  = interact' me (AssertAx p)
