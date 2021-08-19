@@ -9,11 +9,12 @@
 module Language.Fixpoint.Solver.Prettify (savePrettifiedQuery) where
 
 import           Data.Bifunctor (first)
+import           Data.Function (on)
 import           Data.HashMap.Lazy (HashMap)
 import qualified Data.HashMap.Lazy as HashMap
 import           Data.HashSet (HashSet)
 import qualified Data.HashSet as HashSet
-import           Data.List (intersperse)
+import           Data.List (intersperse, sortBy)
 import           Data.Maybe (fromMaybe)
 import qualified Data.Text as Text
 import           Language.Fixpoint.Misc (ensurePath)
@@ -95,7 +96,9 @@ prettyConstraint aenv bindEnv c =
         HashMap.map snd boolSimplEnv
       (renamedEnv, c') =
         shortenVarNames prunedEnv c { slhs = simplifiedLhs, srhs = simplifiedRhs }
-      prettyEnv = eraseUnusedBindings (constraintSymbols (slhs c') (srhs c')) renamedEnv
+      prettyEnv =
+        sortBy (flip compare `on` fst) $
+        eraseUnusedBindings (constraintSymbols (slhs c') (srhs c')) renamedEnv
    in hang (text "\n\nconstraint:") 2 $
           text "lhs" <+> toFix (slhs c')
       $+$ text "rhs" <+> toFix (srhs c')
