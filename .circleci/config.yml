@@ -177,7 +177,7 @@ jobs:
     steps:
       - cabal_build_and_test:
           project_file: "cabal.ghc9.project"
-          allow_test_failures: true
+          extra_test_flags: ' --test-options '' -p "\$0 != \"Tests.Benchmarks.text.Data/Text/Foreign.hs\" && \$0 !~ /Tests.Micro.typeclass-pos./ " '' '
           liquid_runner: "--liquid-runner=cabal -v0 v2-exec --project-file cabal.ghc9.project liquidhaskell -- -v0 \
                           -package-env=$(./scripts/generate_testing_ghc_env cabal.ghc9.project) \
                           -package=liquidhaskell -package=Cabal "
