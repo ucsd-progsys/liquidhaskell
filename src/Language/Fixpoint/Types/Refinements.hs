@@ -514,7 +514,7 @@ encodeSymConst (SL s) = litSymbol $ symbol s
 -- _decodeSymConst = fmap (SL . symbolText) . unLitSymbol
 
 instance Fixpoint SymConst where
-  toFix  = toFix . encodeSymConst
+  toFix (SL t) = text (show t)
 
 instance Fixpoint KVar where
   toFix (KV k) = text "$" <-> toFix k
@@ -539,7 +539,7 @@ instance Fixpoint Bop where
   toFix Mod    = text "mod"
 
 instance Fixpoint Expr where
-  toFix (ESym c)       = toFix $ encodeSymConst c
+  toFix (ESym c)       = toFix c
   toFix (ECon c)       = toFix c
   toFix (EVar s)       = toFix s
   toFix e@(EApp _ _)   = parens $ hcat $ punctuate " " $ toFix <$> (f:es) where (f, es) = splitEApp e
