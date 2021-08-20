@@ -478,10 +478,10 @@ debruijnIndex = go
 -- | Parsed refinement of @Symbol@ as @Expr@
 --   e.g. in '{v: _ | e }' v is the @Symbol@ and e the @Expr@
 newtype Reft = Reft (Symbol, Expr)
-               deriving (Eq, Data, Typeable, Generic)
+               deriving (Eq, Ord, Data, Typeable, Generic)
 
 data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft }
-                  deriving (Eq, Data, Typeable, Generic)
+                  deriving (Eq, Ord, Data, Typeable, Generic)
 
 sortedReftSymbols :: SortedReft -> HashSet Symbol
 sortedReftSymbols sr =

@@ -94,6 +94,7 @@ import           Data.Aeson                hiding (Result)
 import           Data.Semigroup            (Semigroup (..))
 #endif
 
+import qualified Data.Set                  as Set
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
 import           GHC.Generics              (Generic)
@@ -488,21 +489,21 @@ data Qualifier = Q
   , qBody   :: !Expr       -- ^ Predicate
   , qPos    :: !SourcePos  -- ^ Source Location
   }
-  deriving (Eq, Show, Data, Typeable, Generic)
+  deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 data QualParam = QP 
   { qpSym  :: !Symbol
   , qpPat  :: !QualPattern 
   , qpSort :: !Sort
   } 
-  deriving (Eq, Show, Data, Typeable, Generic)
+  deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 data QualPattern 
   = PatNone                 -- ^ match everything 
   | PatPrefix !Symbol !Int  -- ^ str . $i  i.e. match prefix 'str' with suffix bound to $i
   | PatSuffix !Int !Symbol  -- ^ $i . str  i.e. match suffix 'str' with prefix bound to $i
   | PatExact  !Symbol       -- ^ str       i.e. exactly match 'str'
-  deriving (Eq, Show, Data, Typeable, Generic)
+  deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 trueQual :: Qualifier
 trueQual = Q (symbol ("QTrue" :: String)) [] mempty (dummyPos "trueQual")
@@ -630,7 +631,7 @@ newtype Kuts = KS { ksVars :: S.HashSet KVar }
                deriving (Eq, Show, Generic)
 
 instance Fixpoint Kuts where
-  toFix (KS s) = vcat $ (("cut " <->) . toFix) <$> S.toList s
+  toFix (KS s) = vcat $ (("cut " <->) . toFix) <$> L.sort (S.toList s)
 
 ksMember :: KVar -> Kuts -> Bool
 ksMember k (KS s) = S.member k s
@@ -790,15 +791,15 @@ toFixpoint cfg x' =    cfgDoc   cfg
     cfgDoc cfg    = text ("// " ++ show cfg)
     gConDoc       = sEnvDoc "constant"             . gLits
     dConDoc       = sEnvDoc "distinct"             . dLits
-    csDoc         = vcat     . map toFix . M.elems . cm
-    wsDoc         = vcat     . map toFix . M.elems . ws
+    csDoc         = vcat     . map (toFix . snd) . hashMapToAscList . cm
+    wsDoc         = vcat     . map toFix . L.sortOn (thd3 . wrft) . M.elems . ws
     kutsDoc       = toFix    . kuts
     -- packsDoc      = toFix    . packs
-    declsDoc      = vcat     . map ((text "data" <+>) . toFix) . ddecls
+    declsDoc      = vcat     . map ((text "data" <+>) . toFix) . L.sort . ddecls
     (ubs, ebs)    = splitByQuantifiers (bs x') (ebinds x')
     bindsDoc      = toFix    ubs
                $++$ toFix    ebs
-    qualsDoc      = vcat     . map toFix . quals
+    qualsDoc      = vcat     . map toFix . L.sort . quals
     aeDoc         = toFix    . ae
     metaDoc (i,d) = toFixMeta (text "bind" <+> toFix i) (toFix d)
     mdata         = metadata cfg
@@ -810,7 +811,7 @@ toFixpoint cfg x' =    cfgDoc   cfg
 x $++$ y = x $+$ text "\n" $+$ y
 
 sEnvDoc :: Doc -> SEnv Sort -> Doc
-sEnvDoc d       = vcat . map kvD . toListSEnv
+sEnvDoc d       = vcat . map kvD . L.sortOn fst . toListSEnv
   where
     kvD (c, so) = d <+> toFix c <+> ":" <+> parens (toFix so)
 
@@ -924,7 +925,7 @@ instance NFData SMTSolver
 instance NFData Eliminate
 
 dedupAutoRewrites :: M.HashMap SubcId [AutoRewrite] -> [AutoRewrite]
-dedupAutoRewrites = S.toList . S.unions . map S.fromList . M.elems
+dedupAutoRewrites = Set.toList . Set.unions . map Set.fromList . M.elems
 
 instance Semigroup AxiomEnv where
   a1 <> a2        = AEnv aenvEqs' aenvSimpl' aenvExpand' aenvAutoRW'
@@ -948,7 +949,7 @@ data Equation = Equ
   , eqSort :: !Sort             -- ^ sort of body
   , eqRec  :: !Bool             -- ^ is this a recursive definition
   }
-  deriving (Data, Eq, Show, Generic)
+  deriving (Data, Eq, Ord, Show, Generic)
 
 mkEquation :: Symbol -> [(Symbol, Sort)] -> Expr -> Sort -> Equation
 mkEquation f xts e out = Equ f xts e out (f `elem` syms e)
@@ -973,7 +974,7 @@ data AutoRewrite = AutoRewrite
   { arArgs :: [SortedReft]
   , arLHS  :: Expr
   , arRHS  :: Expr
-} deriving (Eq, Show, Generic)
+} deriving (Eq, Ord, Show, Generic)
 
 instance Hashable SortedReft
 instance Hashable AutoRewrite
@@ -1011,11 +1012,11 @@ data Rewrite  = SMeasure
   , smArgs  :: [Symbol]       -- eg. xs
   , smBody  :: Expr           -- eg. e[xs]
   }
-  deriving (Data, Eq, Show, Generic)
+  deriving (Data, Eq, Ord, Show, Generic)
 
 instance Fixpoint AxiomEnv where
-  toFix axe = vcat ((toFix <$> aenvEqs axe) ++ (toFix <$> aenvSimpl axe))
-              $+$ renderExpand (pairdoc <$> M.toList (aenvExpand axe))
+  toFix axe = vcat ((toFix <$> L.sort (aenvEqs axe)) ++ (toFix <$> L.sort (aenvSimpl axe)))
+              $+$ renderExpand (pairdoc <$> L.sort (M.toList $ aenvExpand axe))
               $+$ toFix (aenvAutoRW axe)
     where
       pairdoc (x,y) = text $ show x ++ " : " ++ show y
