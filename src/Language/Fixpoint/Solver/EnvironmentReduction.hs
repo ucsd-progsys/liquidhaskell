@@ -29,6 +29,7 @@ import           Data.Maybe (fromMaybe)
 import           Data.ShareMap (ShareMap)
 import qualified Data.ShareMap as ShareMap
 import qualified Data.Text as Text
+import           Language.Fixpoint.SortCheck (exprSort_maybe)
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.Constraints
 import           Language.Fixpoint.Types.Environments
@@ -64,12 +65,10 @@ import           Language.Fixpoint.Types.Refinements
   , Subst(..)
   , pattern PTrue
   , pattern PFalse
-  , conjuncts
   , expr
   , exprKVars
   , exprSymbolsSet
   , mapPredReft
-  , onEverySubexpr
   , pAnd
   , reft
   , reftBind
@@ -78,6 +77,7 @@ import           Language.Fixpoint.Types.Refinements
   , subst1
   )
 import           Language.Fixpoint.Types.Sorts (boolSort, sortSymbols)
+import           Language.Fixpoint.Types.Visitor (mapExpr)
 
 -- | Strips from all the constraint environments the bindings that are
 -- irrelevant for their respective constraints.
@@ -499,9 +499,8 @@ simplifyBindings cfg fi =
             ]
 
           mergedEnv = mergeDuplicatedBindings env
-          undoANFEnv = case inlineANFBindings cfg of
-            Just maxConjuncts -> undoANF maxConjuncts mergedEnv
-            Nothing -> HashMap.empty
+          undoANFEnv =
+            if inlineANFBindings cfg then undoANF mergedEnv else HashMap.empty
           boolSimplEnv =
             simplifyBooleanRefts $ HashMap.union undoANFEnv mergedEnv
 
@@ -567,17 +566,15 @@ mergeDuplicatedBindings xs =
 --
 -- Only bindings with prefix lq_anf... might be inlined.
 --
--- Doesn't inline bindings having more than @maxConjuncts@ conjuncts.
---
 -- This function is used to produced the prettified output, and the user
 -- can request to use it in the verification pipeline with
 -- @--inline-anf-bindings@. However, using it in the verification
 -- pipeline causes some tests in liquidhaskell to blow up.
-undoANF :: Int -> HashMap Symbol (m, SortedReft) -> HashMap Symbol (m, SortedReft)
-undoANF maxConjuncts env =
+undoANF :: HashMap Symbol (m, SortedReft) -> HashMap Symbol (m, SortedReft)
+undoANF env =
     -- Circular program here. This should terminate as long as the
     -- bindings introduced by ANF don't form cycles.
-    let env' = HashMap.map (inlineInSortedReftChanged maxConjuncts env') env
+    let env' = HashMap.map (inlineInSortedReftChanged env') env
      in HashMap.mapMaybe dropUnchanged env'
   where
     dropUnchanged ((m, b), sr) = do
@@ -585,31 +582,30 @@ undoANF maxConjuncts env =
       Just (m, sr)
 
 inlineInSortedReft
-  :: Int -> HashMap Symbol (m, SortedReft) -> SortedReft -> SortedReft
-inlineInSortedReft maxConjuncts env sr =
-  snd $ inlineInSortedReftChanged maxConjuncts env (error "never should evaluate", sr)
+  :: HashMap Symbol (m, SortedReft) -> SortedReft -> SortedReft
+inlineInSortedReft env sr =
+  snd $ inlineInSortedReftChanged env (error "never should evaluate", sr)
 
 -- | Inlines bindings in env in the given 'SortedReft'.
 -- Attaches a 'Bool' telling if the 'SortedReft' was changed.
 inlineInSortedReftChanged
-  :: Int
-  -> HashMap Symbol (a, SortedReft)
+  :: HashMap Symbol (a, SortedReft)
   -> (m, SortedReft)
   -> ((m, Bool), SortedReft)
-inlineInSortedReftChanged maxConjuncts env (m, sr) =
+inlineInSortedReftChanged env (m, sr) =
   let e = reftPred (sr_reft sr)
-      e' = inlineInExpr maxConjuncts env e
+      e' = inlineInExpr env e
    in ((m, e /= e'), sr { sr_reft = mapPredReft (const e') (sr_reft sr) })
 
 -- | Inlines bindings preffixed with @lq_anf@ in the given expression
 -- if they appear in equalities.
 --
 -- Given a binding like @a : { v | v = e1 && e2 }@ and an expression @... e0 = a ...@,
--- this function produces the expression @... (v = e1 && e2)[v:=e0] ...@
+-- this function produces the expression @... e0 = e1 ...@
 -- if @v@ does not appear free in @e1@.
 --
 -- @... e0 = (a : s) ...@ is equally transformed to
--- @... (v = (e1 : s) && e2)[v:=e0] ...@
+-- @... e0 = (e1 : s) ...@
 --
 -- Given a binding like @a : { v | v = e1 }@ and an expression @... a ...@,
 -- this function produces the expression @... e1 ...@ if @v@ does not
@@ -618,27 +614,24 @@ inlineInSortedReftChanged maxConjuncts env (m, sr) =
 -- The first parameter indicates the maximum amount of conjuncts that a
 -- binding is allowed to have. If the binding exceeds this threshold, it
 -- is not inlined.
-inlineInExpr :: Int -> HashMap Symbol (m, SortedReft) -> Expr -> Expr
-inlineInExpr maxConjuncts env = simplify . onEverySubexpr inlineExpr
+inlineInExpr :: HashMap Symbol (m, SortedReft) -> Expr -> Expr
+inlineInExpr env = simplify . mapExpr inlineExpr
   where
     inlineExpr (EVar sym)
       | anfPrefix `isPrefixOfSym` sym
       , Just (_, sr) <- HashMap.lookup sym env
       , let r = sr_reft sr
-      , sortedReftConjuncts sr <= maxConjuncts
       , Just e <- isSingletonE (reftBind r) (reftPred r)
-      = e
-    inlineExpr (PAtom Eq e0 (dropECst -> EVar sym))
+      = wrapWithCoercion Eq (sr_sort sr) e
+    inlineExpr (PAtom br e0 e1@(dropECst -> EVar sym))
       | anfPrefix `isPrefixOfSym` sym
+      , isEq br
       , Just (_, sr) <- HashMap.lookup sym env
       , let r = sr_reft sr
-      , sortedReftConjuncts sr <= maxConjuncts
-      , Just _ <- isSingletonE (reftBind r) (reftPred r)
+      , Just e <- isSingletonE (reftBind r) (reftPred r)
       =
-        subst1 (reftPred r) (reftBind r, e0)
+        PAtom br e0 $ subst1 e1 (sym, wrapWithCoercion br (sr_sort sr) e)
     inlineExpr e = e
-
-    sortedReftConjuncts = length . conjuncts . reftPred . sr_reft
 
     isSingletonE v (PAtom br e0 e1)
       | isEq br = isSingEq v e0 e1 `mplus` isSingEq v e1 e0
@@ -654,6 +647,10 @@ inlineInExpr maxConjuncts env = simplify . onEverySubexpr inlineExpr
       Just e1
 
     isEq r = r == Eq || r == Ueq
+
+    wrapWithCoercion br to e = case exprSort_maybe e of
+      Just from -> if from /= to then ECoerc from to e else e
+      Nothing -> if br == Ueq then ECst e to else e
 
 dropECst :: Expr -> Expr
 dropECst = \case

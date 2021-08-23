@@ -85,11 +85,11 @@ prettyConstraint bindEnv c =
             , let (s, sr) = lookupBindEnv bId bindEnv
             ]
       mergedEnv = mergeDuplicatedBindings env
-      undoANFEnv = HashMap.union (undoANF 5 mergedEnv) mergedEnv
+      undoANFEnv = HashMap.union (undoANF mergedEnv) mergedEnv
       boolSimplEnv = HashMap.union (simplifyBooleanRefts undoANFEnv) undoANFEnv
 
-      simplifiedLhs = inlineInSortedReft 100 boolSimplEnv (slhs c)
-      simplifiedRhs = inlineInSortedReft 100 boolSimplEnv (srhs c)
+      simplifiedLhs = inlineInSortedReft boolSimplEnv (slhs c)
+      simplifiedRhs = inlineInSortedReft boolSimplEnv (srhs c)
 
       prunedEnv =
         dropLikelyIrrelevantBindings (constraintSymbols simplifiedLhs simplifiedRhs) $
