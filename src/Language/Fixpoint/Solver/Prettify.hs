@@ -19,7 +19,6 @@ import qualified Data.Text as Text
 import           Language.Fixpoint.Misc (ensurePath)
 import           Language.Fixpoint.Solver.EnvironmentReduction
   ( dropLikelyIrrelevantBindings
-  , axiomEnvSymbols
   , inlineInSortedReft
   , mergeDuplicatedBindings
   , simplifyBooleanRefts
@@ -69,20 +68,17 @@ savePrettifiedQuery cfg fi = do
 prettyConstraints :: Fixpoint a => FInfo a -> Doc
 prettyConstraints fi =
   vcat $
-  map (prettyConstraint aenvMap (bs fi)) $
+  map (prettyConstraint (bs fi)) $
   map snd $
   sortOn fst $
   HashMap.toList (cm fi)
-  where
-    aenvMap = axiomEnvSymbols (ae fi)
 
 prettyConstraint
   :: Fixpoint a
-  => HashMap Symbol (HashSet Symbol)
-  -> BindEnv
+  => BindEnv
   -> SubC a
   -> Doc
-prettyConstraint aenv bindEnv c =
+prettyConstraint bindEnv c =
   let env = [ (s, ([bId], sr))
             | bId <- elemsIBindEnv $ senv c
             , let (s, sr) = lookupBindEnv bId bindEnv
@@ -95,7 +91,7 @@ prettyConstraint aenv bindEnv c =
       simplifiedRhs = inlineInSortedReft 100 boolSimplEnv (srhs c)
 
       prunedEnv =
-        dropLikelyIrrelevantBindings aenv (constraintSymbols simplifiedLhs simplifiedRhs) $
+        dropLikelyIrrelevantBindings (constraintSymbols simplifiedLhs simplifiedRhs) $
         HashMap.map snd boolSimplEnv
       (renamedEnv, c') =
         shortenVarNames prunedEnv c { slhs = simplifiedLhs, srhs = simplifiedRhs }

@@ -10,7 +10,6 @@ module Language.Fixpoint.Solver.EnvironmentReduction
   ( reduceEnvironments
   , simplifyBindings
   , dropLikelyIrrelevantBindings
-  , axiomEnvSymbols
   , inlineInSortedReft
   , mergeDuplicatedBindings
   , simplifyBooleanRefts
@@ -18,6 +17,7 @@ module Language.Fixpoint.Solver.EnvironmentReduction
   ) where
 
 import           Control.Monad (guard, mplus, msum)
+import           Data.Char (isUpper)
 import           Data.Hashable (Hashable)
 import           Data.HashMap.Lazy (HashMap)
 import qualified Data.HashMap.Lazy as HashMap
@@ -28,6 +28,7 @@ import           Data.List (foldl', nub, partition)
 import           Data.Maybe (fromMaybe)
 import           Data.ShareMap (ShareMap)
 import qualified Data.ShareMap as ShareMap
+import qualified Data.Text as Text
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.Constraints
 import           Language.Fixpoint.Types.Environments
@@ -47,7 +48,13 @@ import           Language.Fixpoint.Types.Environments
   , unionIBindEnv
   , unionsIBindEnv
   )
-import           Language.Fixpoint.Types.Names (Symbol, anfPrefix, isPrefixOfSym)
+import           Language.Fixpoint.Types.Names
+  ( Symbol
+  , anfPrefix
+  , isPrefixOfSym
+  , prefixOfSym
+  , symbolText
+  )
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Refinements
   ( Brel(..)
@@ -697,16 +704,22 @@ simplifyBooleanRefts = HashMap.mapMaybe simplifyBooleanSortedReft
 -- The binding for @b@ is dropped since it is not otherwise related to @a@,
 -- making the corresponding constraint unverifiable.
 --
+-- Bindings refered only from @match@ or @define@ clauses will be dropped as
+-- well.
+--
+-- Symbols starting with a capital letter will be dropped too, as these are
+-- usually global identifiers with either uninteresting or known types.
+--
 dropLikelyIrrelevantBindings
-  :: HashMap Symbol (HashSet Symbol)
-  -> HashSet Symbol
+  :: HashSet Symbol
   -> HashMap Symbol SortedReft
   -> HashMap Symbol SortedReft
-dropLikelyIrrelevantBindings aenvMap ss env = HashMap.filterWithKey reachable env
+dropLikelyIrrelevantBindings ss env = HashMap.filterWithKey relevant env
   where
-    relatedSyms = reachableSymbols (relatedSymbols ss env) aenvMap
-
-    reachable s _sr = s `HashSet.member` relatedSyms
+    relatedSyms = relatedSymbols ss env
+    relevant s _sr =
+      (not (capitalizedSym s) || prefixOfSym s /= s) && s `HashSet.member` relatedSyms
+    capitalizedSym = Text.all isUpper . Text.take 1 . symbolText
 
 -- | @relatedSymbols ss env@ is the set of all symbols used transitively
 -- by @ss@ in @env@ or used together with it in a refinement type.
