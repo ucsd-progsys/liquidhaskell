@@ -440,11 +440,11 @@ config = cmdArgsMode $ Config {
         &= name "no-environment-reduction"
         &= help "Don't perform environment reduction"
   , inlineANFBindings
-    = Nothing
+    = False
         &= explicit
         &= name "inline-anf-bindings"
         &= help (unwords
-          [ "Inline ANF bindings with up-to the given amount of conjuncts."
+          [ "Inline ANF bindings."
           , "Sometimes improves performance and sometimes worsens it."
           , "Disabled by --no-environment-reduction"
           ])
@@ -703,7 +703,7 @@ defConfig = Config
   , noLazyPLE                = False
   , fuel                     = Nothing
   , noEnvironmentReduction   = False
-  , inlineANFBindings        = Nothing
+  , inlineANFBindings        = False
   }
 
 

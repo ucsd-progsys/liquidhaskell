@@ -103,7 +103,7 @@ data Config = Config
   , noLazyPLE                :: Bool
   , fuel                     :: Maybe Int  -- ^ Maximum PLE "fuel" (unfold depth) (default=infinite) 
   , noEnvironmentReduction   :: Bool       -- ^ Don't perform environment reduction
-  , inlineANFBindings :: Maybe Int         -- ^ Inline ANF bindings with up-to the given amount of conjuncts.
+  , inlineANFBindings        :: Bool       -- ^ Inline ANF bindings.
                                            -- Sometimes improves performance and sometimes worsens it.
   } deriving (Generic, Data, Typeable, Show, Eq)
 
