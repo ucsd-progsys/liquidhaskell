@@ -15,6 +15,7 @@ import           Data.HashSet (HashSet)
 import qualified Data.HashSet as HashSet
 import           Data.List (intersperse, sortOn)
 import           Data.Maybe (fromMaybe)
+import           Data.Text (Text)
 import qualified Data.Text as Text
 import           Language.Fixpoint.Misc (ensurePath)
 import           Language.Fixpoint.Solver.EnvironmentReduction
@@ -106,7 +107,7 @@ prettyConstraint bindEnv c =
       $+$ hang (text "environment:") 2
             (vcat $ intersperse "" $ elidedMessage : map prettyBind prettyEnv)
   where
-    prettyBind (ms, sr) = sep [maybe "_" toFix ms <+> ":", nest 2 $ prettySortedRef sr]
+    prettyBind (s, sr) = sep [toFix s <+> ":", nest 2 $ prettySortedRef sr]
     prettySortedRef sr = braces $ sep
       [ toFix (reftBind (sr_reft sr)) <+> ":" <+> toFix (sr_sort sr) <+> "|"
       , nest 2 $ toFix $ conjuncts $ reftPred $ sr_reft sr
@@ -118,8 +119,9 @@ prettyConstraint bindEnv c =
       HashSet.union (sortedReftSymbols sr0) (sortedReftSymbols sr1)
 
     -- Sort by symbol then reft
-    bindingSelector (m, sr) =
-      ( fromMaybe "{" m
+    bindingSelector (s, sr) =
+      ( -- put unused symbols at the end
+        if "_" `Text.isPrefixOf` s then "{" <> s else s
       , reftBind (sr_reft sr)
       , sr_sort sr
       , reftPred $ sr_reft sr
@@ -132,13 +134,10 @@ pprId _         = ""
 toFixMeta :: Doc -> Doc -> Doc
 toFixMeta k v = text "// META" <+> k <+> text ":" <+> v
 
--- | @eraseUnusedBindings ss env@ erases symbols that aren't refered from @ss@
--- or refinement types in the environment.
---
--- Erasure is accomplished by replacing the symbol with @Nothing@ in the
--- bindings.
+-- | @eraseUnusedBindings ss env@ prefixes with @_@ the symbols that aren't
+-- refered from @ss@ or refinement types in the environment.
 eraseUnusedBindings
-  :: HashSet Symbol -> [(Symbol, SortedReft)] -> [(Maybe Symbol, SortedReft)]
+  :: HashSet Symbol -> [(Symbol, SortedReft)] -> [(Text, SortedReft)]
 eraseUnusedBindings ss env = map (first reachable) env
   where
     allSymbols = HashSet.union ss envSymbols
@@ -148,9 +147,9 @@ eraseUnusedBindings ss env = map (first reachable) env
 
     reachable s =
       if s `HashSet.member` allSymbols then
-        Just s
+        symbolText s
       else
-        Nothing
+        "_" <> symbolText s
 
 -- | Shortens the names of refinements types in a given environment
 -- and constraint
