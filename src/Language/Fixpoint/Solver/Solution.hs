@@ -13,6 +13,8 @@ module Language.Fixpoint.Solver.Solution
 
   -- * Lookup Solution
   , lhsPred
+
+  , nonCutsResult
   ) where
 
 import           Control.Parallel.Strategies
@@ -346,6 +348,42 @@ applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
   Right eqs -> (F.pAnd $ fst <$> Sol.qbPreds msg s (F.ksuSubst ksu) eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
   where
     msg     = "applyKVar: " ++ show (ceCid g)
+
+nonCutsResult :: F.BindEnv -> Sol.Sol a Sol.QBind -> M.HashMap F.KVar F.Expr
+nonCutsResult be s =
+  let g = CEnv Nothing be F.emptyIBindEnv F.dummySpan
+   in M.mapWithKey (mkNonCutsExpr g) $ Sol.sHyp s
+  where
+    mkNonCutsExpr g k cs = F.pOr $ map (bareCubePred g s k) cs
+
+-- | Produces a predicate from a constraint defining a kvar.
+--
+-- This is written in imitation of 'cubePred'. However, there are some
+-- differences since the result of 'cubePred' is fed to the verification
+-- pipeline and @bareCubePred@ is meant for human inspection.
+--
+-- 1) Only one existential quantifier is introduced at the top of the
+--    expression.
+-- 2) @bareCubePred@ doesn't elaborate the expression, so it avoids calling
+--    'elabExist'. 'apply' is invoked to eliminate other kvars though, and
+--    apply will invoke 'elabExist', oo 'Liquid.Fixpoint.SortCheck.unElab'
+--    might need to be called on the output to remove the elaboration.
+-- 3) The expression is created from its defining constraint only, while
+--    @cubePred@ does expect the caller to supply the substitution at a
+--    particular use of the KVar. Thus @cubePred@ produces a different
+--    expression for every use site of the kvar, while here we produce one
+--    expression for all the uses.
+bareCubePred :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVar -> Sol.Cube -> F.Expr
+bareCubePred g s k c =
+  let bs = Sol.cuBinds c
+      su = Sol.cuSubst c
+      g' = addCEnv  g bs
+      bs' = delCEnv s k bs
+      yts = symSorts g bs'
+      sEnv = F.seSort (Sol.sEnv s)
+      (xts, psu) = substElim (Sol.sEnv s) sEnv g' k su
+      (p, _kI) = apply g' s bs'
+   in F.pExist (xts ++ yts) (psu &.& p)
 
 hypPred :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Hyp  -> ExprInfo
 hypPred g s ksu hyp = F.pOr *** mconcatPlus $ unzip $ cubePred g s ksu <$> hyp

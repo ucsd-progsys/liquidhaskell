@@ -3,7 +3,10 @@
 --   either as .fq files or as FInfo.
 {-# LANGUAGE BangPatterns        #-}
 {-# LANGUAGE DoAndIfThenElse     #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ViewPatterns        #-}
 
 module Language.Fixpoint.Solver (
     -- * Invoke Solver on an FInfo
@@ -24,6 +27,7 @@ module Language.Fixpoint.Solver (
 ) where
 
 import           Control.Concurrent                 (setNumCapabilities)
+import qualified Data.HashMap.Strict              as HashMap
 import qualified Data.Store                       as S
 import           Data.Aeson                         (ToJSON, encode)
 import qualified Data.Text.Lazy.IO                as LT
@@ -38,7 +42,7 @@ import           Language.Fixpoint.Solver.EnvironmentReduction
 import           Language.Fixpoint.Solver.Sanitize  (symbolEnv, sanitize)
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Defunctionalize (defunctionalize)
-import           Language.Fixpoint.SortCheck            (Elaborate (..))
+import           Language.Fixpoint.SortCheck            (Elaborate (..), unElab)
 import           Language.Fixpoint.Solver.Extensionality (expand)
 import           Language.Fixpoint.Solver.Prettify (savePrettifiedQuery)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
@@ -182,7 +186,7 @@ solveNative !cfg !fi0 = (solveNative' cfg fi0)
                              (return . result)
 
 result :: Error -> Result a
-result e = Result (Crash [] msg) mempty mempty
+result e = Result (Crash [] msg) mempty mempty mempty
   where
     msg  = showpp e
 
@@ -264,5 +268,17 @@ saveSolution cfg res = when (save cfg) $ do
   let f = queryFile Out cfg
   putStrLn $ "Saving Solution: " ++ f ++ "\n"
   ensurePath f
-  writeFile f $ "\nSolution:\n" ++ showpp (resSolution  res)
-                ++ (if (gradual cfg) then ("\n\n" ++ showpp (gresSolution res)) else mempty)
+  writeFile f $ unlines $
+    [ ""
+    , "Solution:"
+    , showpp (resSolution  res)
+    ] ++
+    ( if gradual cfg then ["", "", showpp (gresSolution res)]
+      else []
+    ) ++
+    [ ""
+    , ""
+    , "Non-cut kvars:"
+    , ""
+    , showpp (HashMap.map unElab $ resNonCutsSolution res)
+    ]

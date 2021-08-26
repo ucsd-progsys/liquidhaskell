@@ -277,6 +277,7 @@ toGFixSol = GSol
 data Result a = Result 
   { resStatus    :: !(FixResult a)
   , resSolution  :: !FixSolution
+  , resNonCutsSolution :: !FixSolution
   , gresSolution :: !GFixSolution 
   }
   deriving (Generic, Show, Functor)
@@ -287,14 +288,15 @@ instance ToJSON a => ToJSON (Result a) where
   toJSON = toJSON . resStatus
 
 instance Semigroup (Result a) where
-  r1 <> r2  = Result stat soln gsoln
+  r1 <> r2  = Result stat soln nonCutsSoln gsoln
     where
       stat  = (resStatus r1)    <> (resStatus r2)
       soln  = (resSolution r1)  <> (resSolution r2)
+      nonCutsSoln = resNonCutsSolution r1 <> resNonCutsSolution r2
       gsoln = (gresSolution r1) <> (gresSolution r2)
 
 instance Monoid (Result a) where
-  mempty        = Result mempty mempty mempty
+  mempty        = Result mempty mempty mempty mempty
   mappend       = (<>)
 
 unsafe, safe :: Result a
@@ -302,8 +304,9 @@ unsafe = mempty {resStatus = Unsafe mempty []}
 safe   = mempty {resStatus = Safe mempty}
 
 isSafe :: Result a -> Bool
-isSafe (Result (Safe _) _ _) = True
-isSafe _                     = False
+isSafe r = case resStatus r of
+  Safe{} -> True
+  _ -> False
 
 isUnsafe :: Result a -> Bool
 isUnsafe r | Unsafe _ _ <- resStatus r
