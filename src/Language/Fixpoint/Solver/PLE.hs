@@ -60,6 +60,7 @@ import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import qualified Data.Maybe           as Mb
+import qualified Data.Text            as Tx
 import           Debug.Trace          (trace)
 import Text.Printf
 
@@ -173,7 +174,7 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0 0
         exprs <> (S.fromList $ concat rws)
     go ictx _ | S.null (icCands ictx) = return ictx
     go ictx i =  do
-                  printf "Loop %s\n" (show i)
+                  -- printf "Loop %s\n" (show i)
                   let cands = icCands ictx
                   let env' = env { evAccum = icEquals ictx <> evAccum env 
                                  , evFuel  = icFuel   ictx 
@@ -313,12 +314,7 @@ updCtx InstEnv {..} ctx delta cidMb
   where         
     initEqs   = S.fromList $ concat [rewrite e rw | e  <- cands ++ (snd <$> S.toList (icEquals ctx))
                                                   , rw <- knSims ieKnowl]
-    anfs      = S.fromList (toSMT "updCtx" ieCfg ieSMT [] <$> L.nub
-                            (concat
-                             [ --equalitiesPred initEqs
-                             -- , equalitiesPred sims
-                               [ expr xr   | xr <- bs' ]
-                             ]))
+    anfs      = S.fromList (toSMT "updCtx" ieCfg ieSMT [] <$> L.nub [ expr xr | xr <- bs ])
     cands     = concatMap (makeCandidates ieKnowl ctx) (rhs:es)
     sims      = S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
     econsts   = M.fromList $ findConstants ieKnowl es
@@ -328,16 +324,11 @@ updCtx InstEnv {..} ctx delta cidMb
                   , equalitiesPred (icEquals ctx)
                   , bexprs
                   ])
-    curBinds = case subMb of
-      Just s  -> [] -- elemsIBindEnv (senv s)
-      Nothing -> []
     bexprs    = [ expr xr   | xr@(_, r) <- bs, null (Vis.kvars r) ]
-    bs'        = unElab <$> binds'
     bs        = unElab <$> binds
     (rhs:es)  = unElab <$> (eRhs : (expr <$> binds))
     eRhs      = maybe PTrue crhs subMb
     binds     = [ lookupBindEnv i ieBEnv | i <- delta ]
-    binds'    = [ lookupBindEnv i ieBEnv | i <- delta ++ curBinds ]
     subMb     = getCstr (M.fromList ieCstrs) <$> cidMb
 
 
@@ -475,14 +466,6 @@ notGuardedApps = go
 
 
 
-subsFromAssm :: Expr -> [(Symbol, Expr)]
-subsFromAssm (PAnd es)                                   = concatMap subsFromAssm es
-subsFromAssm (EEq lhs rhs) | (EVar v) <- unElab lhs
-                           , anfPrefix `isPrefixOfSym` v = [(v, unElab rhs)]
-subsFromAssm (EEq lhs rhs) | (EVar v) <- unElab rhs
-                           , anfPrefix `isPrefixOfSym` v = [(v, unElab lhs)]
-subsFromAssm _                                           = []
-
 data EvalType =
     NoRW       -- Normal PLE
   | FuncNormal -- Expand to Function Defs, stop before branch expansion
@@ -602,27 +585,43 @@ data RESTParams oc = RP
   , c    :: oc
   }
 
+getANFSubs :: Expr -> [(Symbol, Expr)]
+getANFSubs (PAnd es)                                   = concatMap getANFSubs es
+getANFSubs (EEq lhs rhs) | (EVar v) <- unElab lhs
+                           , anfPrefix `isPrefixOfSym` v = [(v, unElab rhs)]
+getANFSubs (EEq lhs rhs) | (EVar v) <- unElab rhs
+                           , anfPrefix `isPrefixOfSym` v = [(v, unElab lhs)]
+getANFSubs _                                           = []
 
-getBest ts | Just t <- L.find isVar ts = t
-  where
-    isVar (EVar _) = True
-    isVar _        = False
-getBest ts | otherwise = head ts
-
-unsubst ctx e = subst' 0 e where
-  ints      = concatMap subsFromAssm (S.toList $ icANFs ctx) --
+-- Reverse the ANF transformation
+deANF :: ICtx -> Expr -> Expr
+deANF ctx e = subst' e where
+  ints  = concatMap getANFSubs (S.toList $ icANFs ctx)
   ints' = map go (L.groupBy (\x y -> fst x == fst y) $ L.sortOn fst $ L.nub ints) where
     go ([(t, u)]) = (t, u)
-    go ts         = (fst (head ts), getBest (map snd ts)) -- trace (show ts) $ head ts
-  su        = Su (M.fromList ints')
-  subst' n ee =
-    let ee' = trace (show n ++ "++++++++\n" ++ L.intercalate "\n" (map show ints') ++ "<<<<<<<<") subst su ee
+    go ts         = (fst (head ts), getBest (map snd ts))
+  su          = Su (M.fromList ints')
+  subst' ee =
+    let
+      ee' = subst su ee
     in
-      if ee == ee' then
-        if "anf" `L.isInfixOf` (show ee) && not ("ProofCombinators" `L.isInfixOf` (show ee))
-        then error $ "\n\n" ++ show ee -- ++ "------\n" ++ (L.intercalate "\n" $ map show $  S.toList $ icAssms ctx)
-        else ee
-      else subst' (n + 1) ee'
+      if ee == ee'
+        then ee
+        else subst' ee'
+
+  getBest ts | Just t <- L.find isVar ts = t
+    where
+      -- Hack : Vars starting with ds_ are probably constants
+      isVar (EVar t) = not $ Tx.isPrefixOf "ds_" (symbolText t)
+      isVar _        = False
+
+  -- If the only match is a ds_ var, use it
+  getBest ts | Just t <- L.find isVar ts = t
+    where
+      isVar (EVar _) = True
+      isVar _        = False
+
+  getBest ts | otherwise = head ts
 
 evalREST :: Knowledge -> ICtx -> RESTParams (OCType Op) -> EvalST ()
 evalREST _ ctx rp
@@ -648,8 +647,8 @@ evalREST γ ctx rp =
           else eval γ ctx RWNormal e
 
       -- when (e' /= e) $
-      liftIO $
-        printf "%s \n i.e %s \n-> %s\n\n\n" (show $ convert e) (show $ convert (unsubst ctx e)) (show $ convert e') --
+      -- liftIO $
+      --   printf "%s \n i.e %s \n-> %s\n\n\n" (show $ convert e) (show $ convert (unsubst ctx e)) (show $ convert e') --
 
       let evalIsNewExpr = e' `L.notElem` pathExprs
       let exprsToAdd    = [e' | evalIsNewExpr]  ++ map fst rws
@@ -669,8 +668,9 @@ evalREST γ ctx rp =
         if fe && any isRW (path rp)
           then do
             r@(e'', _) <- eval γ (addConst (e, e')) NoRW e'
-            liftIO $
-              printf "FINAL %s \n-> %s\n\n\n" (show $ convert e') (show $ convert e'') --
+            return ()
+            -- liftIO $
+            --   printf "FINAL %s \n-> %s\n\n\n" (show $ convert e') (show $ convert e'') --
           else evalREST γ (addConst (e, e')) (rpEval e')
 
       mapM_ (\rw -> evalREST γ ctx (rpRW rw)) rws
@@ -683,9 +683,9 @@ evalREST γ ctx rp =
     allowed (rwE, c) | rwE `elem` pathExprs = return False
     allowed (_, c) | otherwise = termCheck c
     termCheck c = do
-      putStrLn "Checking Termination"
+      -- putStrLn "Checking Termination"
       r <- passesTerminationCheck (oc rp) rwArgs c
-      printf "Result: %s\n" (show r)
+      -- printf "Result: %s\n" (show r)
       return r
 
     notVisitedFirst et rws =
@@ -721,10 +721,10 @@ evalREST γ ctx rp =
         if ok
           then
             do
-              let e'         = unsubst ctx e
+              let e'         = deANF ctx e
               let getRW e ar = getRewrite (oc rp) rwArgs (c rp) e ar (shouldExploreTerm et)
               let getRWs' s  = Mb.catMaybes <$> mapM (liftIO . runMaybeT . getRW s) autorws
-              liftIO $ printf "Considering %s subExprs\n" $ show (length (subExprs e'))
+              -- liftIO $ printf "Considering %s subExprs\n" $ show (length (subExprs e'))
               concat <$> mapM getRWs' (subExprs e')
           else return []
 
