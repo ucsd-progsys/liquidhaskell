@@ -758,7 +758,7 @@ isSimplification dcs (_,c) = isConstant dcs c
   
 
 isConstant :: S.HashSet LDataCon -> Expr -> Bool 
-isConstant dcs e = S.null (S.difference (S.fromList $ syms e) dcs) 
+isConstant dcs e = S.null (S.difference (exprSymbolsSet e) dcs)
 
 class Simplifiable a where 
   simplify :: Knowledge -> ICtx -> a -> a 
