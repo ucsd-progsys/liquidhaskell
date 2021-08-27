@@ -23,6 +23,7 @@ module Language.Fixpoint.Solver.PLE (instantiate) where
 
 import           Language.Fixpoint.Types hiding (simplify)
 import           Language.Fixpoint.Types.Config  as FC
+import           Language.Fixpoint.Types.Solutions (CMap)
 import qualified Language.Fixpoint.Types.Visitor as Vis
 import qualified Language.Fixpoint.Misc          as Misc 
 import qualified Language.Fixpoint.Smt.Interface as SMT
@@ -60,10 +61,11 @@ traceE (e,e')
 --------------------------------------------------------------------------------
 instantiate :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
 instantiate cfg fi' subcIds = do
-    let cs = [ (i, c) | (i, c) <- M.toList (cm fi), isPleCstr aEnv i c,
-               maybe True (i `L.elem`) subcIds ]
-    let t  = mkCTrie cs                                               -- 1. BUILD the Trie
-    res   <- withProgress (1 + length cs) $
+    let cs = M.filterWithKey
+               (\i c -> isPleCstr aEnv i c && maybe True (i `L.elem`) subcIds)
+               (cm fi)
+    let t  = mkCTrie (M.toList cs)                                    -- 1. BUILD the Trie
+    res   <- withProgress (1 + M.size cs) $
                withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs)  -- 2. TRAVERSE Trie to compute InstRes
     return $ resSInfo cfg sEnv fi res                                 -- 3. STRENGTHEN SInfo using InstRes
   where
@@ -76,7 +78,7 @@ instantiate cfg fi' subcIds = do
 
 ------------------------------------------------------------------------------- 
 -- | Step 1a: @instEnv@ sets up the incremental-PLE environment 
-instEnv :: (Loc a) => Config -> SInfo a -> [(SubcId, SimpC a)] -> SMT.Context -> InstEnv a 
+instEnv :: (Loc a) => Config -> SInfo a -> CMap (SimpC a) -> SMT.Context -> InstEnv a
 instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
   where 
     bEnv              = bs fi
@@ -208,7 +210,7 @@ data InstEnv a = InstEnv
   , ieSMT   :: !SMT.Context
   , ieBEnv  :: !BindEnv
   , ieAenv  :: !AxiomEnv 
-  , ieCstrs :: ![(SubcId, SimpC a)]
+  , ieCstrs :: !(CMap (SimpC a))
   , ieKnowl :: !Knowledge
   , ieEvEnv :: !EvalEnv
   } 
@@ -296,7 +298,7 @@ updCtx InstEnv {..} ctx delta cidMb
     (rhs:es)  = unElab <$> (eRhs : (expr <$> binds))
     eRhs      = maybe PTrue crhs subMb
     binds     = [ lookupBindEnv i ieBEnv | i <- delta ] 
-    subMb     = getCstr (M.fromList ieCstrs) <$> cidMb
+    subMb     = getCstr ieCstrs <$> cidMb
 
 
 findConstants :: Knowledge -> [Expr] -> [(Expr, Expr)]
