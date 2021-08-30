@@ -24,6 +24,7 @@ module Language.Fixpoint.Types.Solutions (
     Solution, GSolution
   , Sol (gMap, sEnv, sEbd, sxEnv)
   , updateGMap, updateGMapWithKey
+  , sHyp
   , sScp
   , CMap
 
