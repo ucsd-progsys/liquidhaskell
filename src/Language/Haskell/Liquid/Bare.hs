@@ -396,7 +396,7 @@ makeLiftedSpec0 :: Config -> GhcSrc -> F.TCEmb Ghc.TyCon -> LogicMap -> Ms.BareS
                 -> Ms.BareSpec
 makeLiftedSpec0 cfg src embs lmap mySpec = mempty
   { Ms.ealiases  = lmapEAlias . snd <$> Bare.makeHaskellInlines (typeclass cfg) src embs lmap mySpec 
-  , Ms.reflects  = Ms.reflects mySpec <> Ms.hmeas mySpec 
+  , Ms.reflects  = Ms.reflects mySpec <> (if reflection cfg then Ms.hmeas mySpec else mempty)
   , Ms.dataDecls = Bare.makeHaskellDataDecls cfg name mySpec tcs  
   , Ms.embeds    = Ms.embeds mySpec
   -- We do want 'embeds' to survive and to be present into the final 'LiftedSpec'. The
@@ -426,7 +426,7 @@ reflectedTyCons :: Config -> TCEmb Ghc.TyCon -> [Ghc.CoreBind] -> Ms.BareSpec ->
 reflectedTyCons cfg embs cbs spec
   | exactDCFlag cfg = filter (not . isEmbedded embs)
                     $ concatMap varTyCons
-                    $ reflectedVars spec cbs
+                    $ reflectedVars cfg spec cbs
   | otherwise       = []
 
 -- | We cannot reflect embedded tycons (e.g. Bool) as that gives you a sort
@@ -444,11 +444,11 @@ specTypeCons         = foldRType tc []
     tc acc t@RApp {} = rtc_tc (rt_tycon t) : acc
     tc acc _         = acc
 
-reflectedVars :: Ms.BareSpec -> [Ghc.CoreBind] -> [Ghc.Var]
-reflectedVars spec cbs = fst <$> xDefs
+reflectedVars :: Config -> Ms.BareSpec -> [Ghc.CoreBind] -> [Ghc.Var]
+reflectedVars cfg spec cbs = fst <$> xDefs
   where
     xDefs              = Mb.mapMaybe (`GM.findVarDef` cbs) reflSyms
-    reflSyms           = fmap val $ S.toList (Ms.reflects spec <> Ms.hmeas  spec)
+    reflSyms           = fmap val $ S.toList (Ms.reflects spec <> if reflection cfg then Ms.hmeas spec else mempty)
 
 ------------------------------------------------------------------------------------------
 makeSpecVars :: Config -> GhcSrc -> Ms.BareSpec -> Bare.Env -> Bare.MeasEnv 
