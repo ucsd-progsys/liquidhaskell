@@ -366,9 +366,9 @@ nonCutsResult be s =
 --    expression.
 -- 2) @bareCubePred@ doesn't elaborate the expression, so it avoids calling
 --    'elabExist'. 'apply' is invoked to eliminate other kvars though, and
---    apply will invoke 'elabExist', oo 'Liquid.Fixpoint.SortCheck.unElab'
+--    apply will invoke 'elabExist', so 'Liquid.Fixpoint.SortCheck.unElab'
 --    might need to be called on the output to remove the elaboration.
--- 3) The expression is created from its defining constraint only, while
+-- 3) The expression is created from its defining constraints only, while
 --    @cubePred@ does expect the caller to supply the substitution at a
 --    particular use of the KVar. Thus @cubePred@ produces a different
 --    expression for every use site of the kvar, while here we produce one
