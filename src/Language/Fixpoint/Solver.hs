@@ -242,8 +242,8 @@ solveNative' !cfg !fi0 = do
   res <- {- SCC "Sol.solve" #-} Sol.solve cfg $!! si6
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
-  saveSolution cfg res
-  -- when (save cfg) $ saveSolution cfg
+  -- saveSolution cfg res
+  when (save cfg) $ saveSolution cfg res
   -- writeLoud $ "\nSolution:\n"  ++ showpp (resSolution res)
   -- colorStrLn (colorResult stat) (show stat)
   return res
