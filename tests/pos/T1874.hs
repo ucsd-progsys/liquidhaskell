@@ -1,7 +1,8 @@
 module TypeFail where
 
-{-@ LIQUID "--ple" @-}
 {-@ LIQUID "--exact-data-cons" @-}
+{-@ LIQUID "--reflection"      @-}
+{-@ LIQUID "--ple"             @-}
 
 import Language.Haskell.Liquid.ProofCombinators
 
