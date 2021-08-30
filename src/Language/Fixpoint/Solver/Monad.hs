@@ -173,7 +173,6 @@ filterValid_ sp p qs me = catMaybes <$> do
     smtBracketAsyncAt sp me "filterValidRHS" $ do
       smtAssertAsync me (F.PNot q)
       smtCheckUnsatAsync me
-  smtFlush me
   forM qs $ \(_, x) -> do
     valid <- readCheckUnsat me
     return $ if valid then Just x else Nothing

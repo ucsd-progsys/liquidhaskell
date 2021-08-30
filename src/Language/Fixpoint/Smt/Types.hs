@@ -26,6 +26,8 @@ module Language.Fixpoint.Smt.Types (
 
     ) where
 
+import           Control.Concurrent.Async (Async)
+import           Control.Concurrent.STM (TVar)
 import           Language.Fixpoint.Types
 import qualified Data.Text                as T
 import qualified Data.Text.Lazy.Builder   as LT
@@ -90,6 +92,10 @@ data Context = Ctx
   , ctxLog     :: !(Maybe Handle)
   , ctxVerbose :: !Bool
   , ctxSymEnv  :: !SymEnv
+    -- | The handle of the thread writing queries to the SMT solver
+  , ctxAsync   :: Async ()
+    -- | The next batch of queries to send to the SMT solver
+  , ctxTVar    :: TVar LT.Builder
   }
 
 --------------------------------------------------------------------------------
