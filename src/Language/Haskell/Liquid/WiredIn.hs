@@ -5,6 +5,8 @@ module Language.Haskell.Liquid.WiredIn
        , wiredDataCons
        , wiredSortedSyms
 
+       , charDataCon
+
        -- * Constants for automatic proofs
        , dictionaryVar
        , dictionaryTyVar
@@ -114,11 +116,10 @@ wiredDataCons = snd wiredTyDataCons
 wiredTyDataCons :: ([TyConP] , [Located DataConP])
 wiredTyDataCons = (concat tcs, dummyLoc <$> concat dcs)
   where
-    (tcs, dcs)  = unzip $ charTyDataCons : listTyDataCons : map tupleTyDataCons [2..maxArity]
+    (tcs, dcs)  = unzip $ listTyDataCons : map tupleTyDataCons [2..maxArity]
 
-charTyDataCons :: ([TyConP] , [DataConP])
-charTyDataCons = ([(TyConP l0 c [] [] [] [] Nothing)]
-                 ,[(DataConP l0 Ghc.charDataCon  [] [] [] [("charX",lt)] lt False wiredInName l0)])
+charDataCon :: Located DataConP
+charDataCon = dummyLoc (DataConP l0 Ghc.charDataCon  [] [] [] [("charX",lt)] lt False wiredInName l0)
   where 
     l0 = F.dummyPos "LH.Bare.charTyDataCons"
     c  = Ghc.charTyCon
