@@ -213,8 +213,21 @@ proposeRenamings = toSymMap . toPrefixSuffixMap
 --
 -- For instance,
 --
--- > toPrefixSuffixMap ["a##b##c"] ! "a" ! "b" == ["a##b##c"]
--- > toPrefixSuffixMap ["a##b"] ! "a" ! "" == ["a##b"]
+-- > toPrefixSuffixMap ["a##b##c"] ! "a" ! "c" == ["a##b##c"]
+-- > toPrefixSuffixMap ["a"] ! "a" ! "" == ["a"]
+--
+-- In general,
+--
+-- > forall ss.
+-- > Set.fromList ss == Set.fromList $ concat [ xs | m <- elems (toPrefixSuffixMap ss), xs <- elems m ]
+-- 
+-- > forall ss.
+-- > and [ all (pfx `isPrefixOfSym`) xs && all (sfx `isSuffixOfSym`) xs
+-- >     | (pfx, m) <- toList (toPrefixSuffixMap ss)
+-- >     , (sfx, xs) <- toList m
+-- >     ]
+--
+-- TODO: put the above in unit tests
 --
 toPrefixSuffixMap :: [Symbol] -> HashMap Symbol (HashMap Symbol [Symbol])
 toPrefixSuffixMap xs = HashMap.fromListWith (HashMap.unionWith (++))
