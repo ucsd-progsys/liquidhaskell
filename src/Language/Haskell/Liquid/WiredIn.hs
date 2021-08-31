@@ -114,8 +114,16 @@ wiredDataCons = snd wiredTyDataCons
 wiredTyDataCons :: ([TyConP] , [Located DataConP])
 wiredTyDataCons = (concat tcs, dummyLoc <$> concat dcs)
   where
-    (tcs, dcs)  = unzip $ listTyDataCons : map tupleTyDataCons [2..maxArity]
+    (tcs, dcs)  = unzip $ charTyDataCons : listTyDataCons : map tupleTyDataCons [2..maxArity]
 
+charTyDataCons :: ([TyConP] , [DataConP])
+charTyDataCons = ([(TyConP l0 c [] [] [] [] Nothing)]
+                 ,[(DataConP l0 Ghc.charDataCon  [] [] [] [("charX",lt)] lt False wiredInName l0)])
+  where 
+    l0 = F.dummyPos "LH.Bare.charTyDataCons"
+    c  = Ghc.charTyCon
+    lt = rApp c [] [] mempty
+    
 listTyDataCons :: ([TyConP] , [DataConP])
 listTyDataCons   = ( [(TyConP l0 c [RTV tyv] [p] [Covariant] [Covariant] (Just fsize))]
                    , [(DataConP l0 Ghc.nilDataCon  [RTV tyv] [p] [] []    lt False wiredInName l0)
