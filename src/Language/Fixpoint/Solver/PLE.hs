@@ -278,7 +278,7 @@ updCtx InstEnv {..} ctx delta cidMb
                     , icCands  = S.fromList cands           <> icCands  ctx
                     , icEquals = initEqs                    <> icEquals ctx
                     , icSimpl  = M.fromList (S.toList sims) <> icSimpl ctx <> econsts
-                    , icSubcId = fst <$> L.find (\(_, b) -> (head delta) `memberIBindEnv` (_cenv b)) ieCstrs
+                    , icSubcId = cidMb
                     }
   where         
     initEqs   = S.fromList $ concat [rewrite e rw | e  <- cands ++ (snd <$> S.toList (icEquals ctx))
