@@ -87,7 +87,22 @@ instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
     s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg)
 
 ---------------------------------------------------------------------------------------------- 
--- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments 
+-- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments
+--
+-- The trie is a way to unfold the equalities a minimum number of times.
+-- Say you have
+--
+-- > 1: [1, 2, 3, 4, 5] => p1
+-- > 2: [1, 2, 3, 6, 7] => p2
+--
+-- Then you build the tree
+--
+-- >  1 -> 2 -> 3 -> 4 -> 5 — [Constraint 1]
+-- >            | -> 6 -> 7 — [Constraint 2]
+--
+-- which you use to unfold everything in 1, 2, and 3 once (instead of twice)
+-- and with the proper existing environment
+--
 mkCTrie :: [(SubcId, SimpC a)] -> CTrie 
 mkCTrie ics  = T.fromList [ (cBinds c, i) | (i, c) <- ics ]
   where
@@ -106,7 +121,15 @@ pleTrie t env = loopT env ctx0 diff0 Nothing res0 t
     mkEq  eq     = (EVar $ eqName eq, eqBody eq)
     mkEq' rw     = (EApp (EVar $ smName rw) (EVar $ smDC rw), smBody rw)
 
-loopT :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CTrie -> IO InstRes
+loopT
+  :: InstEnv a
+  -> ICtx
+  -> Diff         -- ^ The longest path suffix without forks in reverse order
+  -> Maybe BindId -- ^ bind id of the branch ancestor of the trie if any.
+                  --   'Nothing' when this is the top-level trie.
+  -> InstRes
+  -> CTrie
+  -> IO InstRes
 loopT env ctx delta i res t = case t of 
   T.Node []  -> return res
   T.Node [b] -> loopB env ctx delta i res b
@@ -114,14 +137,32 @@ loopT env ctx delta i res t = case t of
                   (ctx'', res') <- ple1 env ctx' i res 
                   foldM (loopB env ctx'' [] i) res' bs
 
-loopB :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CBranch -> IO InstRes
+loopB
+  :: InstEnv a
+  -> ICtx
+  -> Diff         -- ^ The longest path suffix without forks in reverse order
+  -> Maybe BindId -- ^ bind id of the branch ancestor of the branch if any.
+                  --   'Nothing' when this is a branch of the top-level trie.
+  -> InstRes
+  -> CBranch
+  -> IO InstRes
 loopB env ctx delta iMb res b = case b of 
   T.Bind i t -> loopT env ctx (i:delta) (Just i) res t
   T.Val cid  -> withAssms env ctx delta (Just cid) $ \ctx' -> do 
                   progressTick
                   (snd <$> ple1 env ctx' iMb res) 
 
-
+-- | Adds to @ctx@ candidate expressions to unfold from the bindings in @delta@
+-- and the rhs of @cidMb@.
+--
+-- Adds to @ctx@ assumptions from @env@ and @delta@ plus rewrites that
+-- candidates can use.
+--
+-- Sets the current constraint id in @ctx@ to @cidMb@.
+--
+-- Pushes assumptions from the modified context to the SMT solver, runs @act@,
+-- and then pops the assumptions.
+--
 withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> IO b) -> IO b 
 withAssms env@(InstEnv {..}) ctx delta cidMb act = do 
   let ctx'  = updCtx env ctx delta cidMb 
@@ -380,6 +421,9 @@ evalOne γ env ctx e = do
   env' <- execStateT (eval γ ctx [(e, PLE)]) (env { evFuel = icFuel ctx }) 
   return (evAccum env', evFuel env')
 
+-- | @notGuardedApps e@ yields all the subexpressions that are
+-- applications not under a lambda abstraction, type abstraction,
+-- type application, or quantifier.
 notGuardedApps :: Expr -> [Expr]
 notGuardedApps = go 
   where 
@@ -414,6 +458,16 @@ subsFromAssm (EEq lhs rhs) | (EVar v) <- unElab lhs
                            , anfPrefix `isPrefixOfSym` v = [(v, unElab rhs)]
 subsFromAssm _                                           = []
 
+-- | Unfolds expressions using rewrites and equations.
+--
+-- Also reduces if-then-else when the boolean condition or the negation can be
+-- proved valid.
+--
+-- Also folds constants.
+--
+-- Also adds to the monad state all the subexpressions that have been rewritten
+-- as pairs @(original_subexpression, rewritten_subexpression)@.
+--
 fastEval :: Knowledge -> ICtx -> Expr -> EvalST Expr
 fastEval _ ctx e
   | Just v <- M.lookup e (icSimpl ctx)
@@ -456,6 +510,15 @@ fastEval γ ctx e =
     go e@(POr es)       = fromMaybeM (POr  <$> (go <$$> es))    (evalBool γ e)
     go e                = return e
 
+-- |
+-- Adds to the monad state all the subexpressions that have been rewritten
+-- as pairs @(original_subexpression, rewritten_subexpression)@.
+--
+-- Also folds constants.
+--
+-- The main difference with 'fastEval' is that 'eval' takes into account
+-- autorewrites.
+--
 eval :: Knowledge -> ICtx -> [(Expr, TermOrigin)] -> EvalST ()
 eval _ ctx path
   | pathExprs <- map fst (mytracepp "EVAL1: path" path)
