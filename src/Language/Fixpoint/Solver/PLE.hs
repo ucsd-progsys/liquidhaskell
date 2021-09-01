@@ -493,7 +493,7 @@ fastEval γ ctx e =
     go (ECoerc s t e)   = ECoerc s t  <$> go e
     go e@(EApp _ _)     = case splitEApp e of 
                            (f, es) -> do (f':es') <- mapM (fastEval γ ctx) (f:es)
-                                         evalApp γ ctx (eApps f' es) (f',es')
+                                         evalApp γ ctx f' es'
 
     go e@(PAtom r e1 e2) = fromMaybeM (PAtom r <$> go e1 <*> go e2) (evalBool γ e)
     go (ENeg e)         = do e'  <- fastEval γ ctx e
@@ -573,7 +573,7 @@ evalStep γ ctx e@(EApp _ _)     = case splitEApp e of
             es' <- mapM (evalStep γ ctx) es
             if es /= es'
               then return (eApps f' es')
-              else evalApp γ ctx (eApps f' es') (f',es')
+              else evalApp γ ctx f' es'
 evalStep γ ctx e@(PAtom r e1 e2) =
   fromMaybeM (PAtom r <$> evalStep γ ctx e1 <*> evalStep γ ctx e2) (evalBool γ e)
 evalStep γ ctx (ENeg e) = ENeg <$> evalStep γ ctx e
@@ -602,9 +602,10 @@ fromMaybeM a ma = do
 f <$$> xs = f Misc.<$$> xs
 
 
-
-evalApp :: Knowledge -> ICtx -> Expr -> (Expr, [Expr]) -> EvalST Expr
-evalApp γ ctx _e0 (EVar f, es)
+-- | @evalApp kn ctx e es@ unfolds expressions in @eApps e es@ using rewrites
+-- and equations
+evalApp :: Knowledge -> ICtx -> Expr -> [Expr] -> EvalST Expr
+evalApp γ ctx (EVar f) es
   | Just eq <- L.find ((== f) . eqName) (knAms γ) -- TODO:FUEL make this a fast lookup map!
   , length (eqArgs eq) <= length es 
   = do 
@@ -615,7 +616,7 @@ evalApp γ ctx _e0 (EVar f, es)
                 useFuel f
                 let (es1,es2) = splitAt (length (eqArgs eq)) es
                 shortcut (substEq env eq es1) es2          -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
-         else return _e0
+         else return $ eApps (EVar f) es
   where
     shortcut (EIte i e1 e2) es2 = do
       b   <- fastEval γ ctx i
@@ -628,15 +629,15 @@ evalApp γ ctx _e0 (EVar f, es)
       return r
     shortcut e' es2 = return $ eApps e' es2
 
-evalApp γ _ _ (EVar f, e:es) 
+evalApp γ _ (EVar f) (e:es)
   | (EVar dc, as) <- splitEApp e
   , Just rw <- L.find (\rw -> smName rw == f && smDC rw == dc) (knSims γ)
   , length as == length (smArgs rw)
   = return $ eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es 
 
-evalApp _ _ e _
-  = return e 
-  
+evalApp _ _ e es
+  = return $ eApps e es
+
 --------------------------------------------------------------------------------
 -- | 'substEq' unfolds or instantiates an equation at a particular list of
 --   argument values. We must also substitute the sort-variables that appear
