@@ -489,7 +489,7 @@ fastEval γ ctx e =
     addConst (e,e') ctx = if isConstant (knDCs γ) e'
                            then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx 
     go (ELam (x,s) e)   = ELam (x, s) <$> fastEval γ' ctx e where γ' = γ { knLams = (x, s) : knLams γ }
-    go e@(EIte b e1 e2) = fastEvalIte γ ctx e b e1 e2
+    go (EIte b e1 e2) = fastEvalIte γ ctx b e1 e2
     go (ECoerc s t e)   = ECoerc s t  <$> go e
     go e@(EApp _ _)     = case splitEApp e of 
                            (f, es) -> do (f':es') <- mapM (fastEval γ ctx) (f:es)
@@ -687,8 +687,8 @@ evalBool γ e = do
     if bf then return $ Just PFalse 
           else return Nothing
                
-fastEvalIte :: Knowledge -> ICtx -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
-fastEvalIte γ ctx _ b0 e1 e2 = do 
+fastEvalIte :: Knowledge -> ICtx -> Expr -> Expr -> Expr -> EvalST Expr
+fastEvalIte γ ctx b0 e1 e2 = do
   b <- fastEval γ ctx b0 
   b'  <- liftIO $ (mytracepp ("evalEIt POS " ++ showpp b) <$> isValid γ b)
   nb' <- liftIO $ (mytracepp ("evalEIt NEG " ++ showpp (PNot b)) <$> isValid γ (PNot b))
