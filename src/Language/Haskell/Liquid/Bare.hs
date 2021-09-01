@@ -1090,7 +1090,7 @@ makeTycEnv0 cfg myName env embs mySpec iSpecs = (diag0 <> diag1, datacons, Bare.
     tds           = [(name, tcpCon tcp, dd) | (name, tcp, Just dd) <- tcDds]
     (diag1, adts) = Bare.makeDataDecls cfg embs myName tds       datacons
     dm            = Bare.dataConMap adts
-    dcSelectors   = concatMap (Bare.makeMeasureSelectors cfg dm) datacons
+    dcSelectors   = concatMap (Bare.makeMeasureSelectors cfg dm) (if reflection cfg then charDataCon:datacons else datacons)
     fiTcs         = _gsFiTcs (Bare.reSrc env)
 
 
@@ -1112,8 +1112,7 @@ makeTycEnv1 cfg myName env (tycEnv, datacons) coreToLg simplifier = do
   where
     (classdcs, dcs) =
       L.partition
-        (Ghc.isClassTyCon . Ghc.dataConTyCon . dcpCon . F.val)
-        (if reflection cfg then charDataCon:datacons else datacons)
+        (Ghc.isClassTyCon . Ghc.dataConTyCon . dcpCon . F.val) datacons
 
     
 knownWiredDataCons :: Bare.Env -> ModName -> [Located DataConP] 
