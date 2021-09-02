@@ -27,8 +27,8 @@ jobs:
       - run:
           name: Dependencies
           command: |
-            stack setup
-            stack build -j2 liquid-fixpoint --only-dependencies --test --no-run-tests
+            stack --no-terminal setup
+            stack --no-terminal build -j2 liquid-fixpoint --only-dependencies --test --no-run-tests
       - save_cache:
           key: stack-{{ checksum "stack.yaml" }}-{{ checksum "liquid-fixpoint.cabal" }}
           paths:
@@ -37,14 +37,14 @@ jobs:
       - run:
           name: Compile
           command : |
-            stack build -j2 liquid-fixpoint --flag liquid-fixpoint:devel --test --no-run-tests
+            stack --no-terminal build -j2 liquid-fixpoint --flag liquid-fixpoint:devel --test --no-run-tests
       - run:
           name: Test
           command: |
             mkdir -p /tmp/junit
-            stack test -j2 liquid-fixpoint:test --flag liquid-fixpoint:devel --test-arguments="--xml=/tmp/junit/main-test-results.xml":
-            stack haddock
-            stack sdist
+            stack --no-terminal test -j2 liquid-fixpoint:test --flag liquid-fixpoint:devel --test-arguments="--xml=/tmp/junit/main-test-results.xml":
+            stack --no-terminal haddock
+            stack --no-terminal sdist
             # mkdir -p $CIRCLE_TEST_REPORTS/tasty
             # cp -r tests/logs/cur $CIRCLE_TEST_REPORTS/tasty/log
       - run:
