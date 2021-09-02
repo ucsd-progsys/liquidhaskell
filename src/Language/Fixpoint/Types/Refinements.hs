@@ -6,6 +6,7 @@
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -86,6 +87,7 @@ module Language.Fixpoint.Types.Refinements (
   , splitPAnd
   , reftConjuncts
   , sortedReftSymbols
+  , substSortInExpr
 
   -- * Transforming
   , mapPredReft
@@ -102,6 +104,7 @@ module Language.Fixpoint.Types.Refinements (
   ) where
 
 import           Prelude hiding ((<>))
+import           Data.Bifunctor (second)
 import qualified Data.Store as S
 import           Data.Generics             (Data, gmapT, mkT, extT)
 import           Data.Typeable             (Typeable)
@@ -385,6 +388,17 @@ exprSymbolsSet = go
     go (PExist xts p)     = go p `HashSet.difference` HashSet.fromList (fst <$> xts)
     go _                  = HashSet.empty
 
+substSortInExpr :: (Symbol -> Sort) -> Expr -> Expr
+substSortInExpr f = onEverySubexpr go
+  where
+    go = \case
+      ELam (x, t) e -> ELam (x, substSort f t) e
+      PAll xts e -> PAll (second (substSort f) <$> xts) e
+      PExist xts e -> PExist (second (substSort f) <$> xts) e
+      ECst e t -> ECst e (substSort f t)
+      ECoerc t0 t1 e -> ECoerc (substSort f t0) (substSort f t1) e
+      e -> e
+
 exprKVars :: Expr -> HashMap KVar [Subst]
 exprKVars = go
   where
@@ -464,10 +478,10 @@ debruijnIndex = go
 -- | Parsed refinement of @Symbol@ as @Expr@
 --   e.g. in '{v: _ | e }' v is the @Symbol@ and e the @Expr@
 newtype Reft = Reft (Symbol, Expr)
-               deriving (Eq, Data, Typeable, Generic)
+               deriving (Eq, Ord, Data, Typeable, Generic)
 
 data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft }
-                  deriving (Eq, Data, Typeable, Generic)
+                  deriving (Eq, Ord, Data, Typeable, Generic)
 
 sortedReftSymbols :: SortedReft -> HashSet Symbol
 sortedReftSymbols sr =
@@ -500,7 +514,7 @@ encodeSymConst (SL s) = litSymbol $ symbol s
 -- _decodeSymConst = fmap (SL . symbolText) . unLitSymbol
 
 instance Fixpoint SymConst where
-  toFix  = toFix . encodeSymConst
+  toFix (SL t) = text (show t)
 
 instance Fixpoint KVar where
   toFix (KV k) = text "$" <-> toFix k
@@ -525,7 +539,7 @@ instance Fixpoint Bop where
   toFix Mod    = text "mod"
 
 instance Fixpoint Expr where
-  toFix (ESym c)       = toFix $ encodeSymConst c
+  toFix (ESym c)       = toFix c
   toFix (ECon c)       = toFix c
   toFix (EVar s)       = toFix s
   toFix e@(EApp _ _)   = parens $ hcat $ punctuate " " $ toFix <$> (f:es) where (f, es) = splitEApp e
