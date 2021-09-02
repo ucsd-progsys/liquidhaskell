@@ -234,7 +234,7 @@ makeGhcSpec0 :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] ->
                 Ghc.TcRn (Diagnostics, GhcSpec)
 makeGhcSpec0 cfg src lmap mspecsNoCls = do
   -- build up environments
-  tycEnv <- makeTycEnv1 name env (tycEnv0, datacons) coreToLg simplifier
+  tycEnv <- makeTycEnv1 cfg name env (tycEnv0, datacons) coreToLg simplifier
   let tyi      = Bare.tcTyConMap   tycEnv 
   let sigEnv   = makeSigEnv  embs tyi (_gsExports src) rtEnv 
   let lSpec1   = lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1 
@@ -396,7 +396,7 @@ makeLiftedSpec0 :: Config -> GhcSrc -> F.TCEmb Ghc.TyCon -> LogicMap -> Ms.BareS
                 -> Ms.BareSpec
 makeLiftedSpec0 cfg src embs lmap mySpec = mempty
   { Ms.ealiases  = lmapEAlias . snd <$> Bare.makeHaskellInlines (typeclass cfg) src embs lmap mySpec 
-  , Ms.reflects  = Ms.reflects mySpec
+  , Ms.reflects  = Ms.reflects mySpec <> (if reflection cfg then Ms.hmeas mySpec else mempty)
   , Ms.dataDecls = Bare.makeHaskellDataDecls cfg name mySpec tcs  
   , Ms.embeds    = Ms.embeds mySpec
   -- We do want 'embeds' to survive and to be present into the final 'LiftedSpec'. The
@@ -426,7 +426,7 @@ reflectedTyCons :: Config -> TCEmb Ghc.TyCon -> [Ghc.CoreBind] -> Ms.BareSpec ->
 reflectedTyCons cfg embs cbs spec
   | exactDCFlag cfg = filter (not . isEmbedded embs)
                     $ concatMap varTyCons
-                    $ reflectedVars spec cbs
+                    $ reflectedVars cfg spec cbs
   | otherwise       = []
 
 -- | We cannot reflect embedded tycons (e.g. Bool) as that gives you a sort
@@ -444,11 +444,11 @@ specTypeCons         = foldRType tc []
     tc acc t@RApp {} = rtc_tc (rt_tycon t) : acc
     tc acc _         = acc
 
-reflectedVars :: Ms.BareSpec -> [Ghc.CoreBind] -> [Ghc.Var]
-reflectedVars spec cbs = fst <$> xDefs
+reflectedVars :: Config -> Ms.BareSpec -> [Ghc.CoreBind] -> [Ghc.Var]
+reflectedVars cfg spec cbs = fst <$> xDefs
   where
     xDefs              = Mb.mapMaybe (`GM.findVarDef` cbs) reflSyms
-    reflSyms           = fmap val . S.toList . Ms.reflects $ spec
+    reflSyms           = fmap val $ S.toList (Ms.reflects spec <> if reflection cfg then Ms.hmeas spec else mempty)
 
 ------------------------------------------------------------------------------------------
 makeSpecVars :: Config -> GhcSrc -> Ms.BareSpec -> Bare.Env -> Bare.MeasEnv 
@@ -1090,19 +1090,20 @@ makeTycEnv0 cfg myName env embs mySpec iSpecs = (diag0 <> diag1, datacons, Bare.
     tds           = [(name, tcpCon tcp, dd) | (name, tcp, Just dd) <- tcDds]
     (diag1, adts) = Bare.makeDataDecls cfg embs myName tds       datacons
     dm            = Bare.dataConMap adts
-    dcSelectors   = concatMap (Bare.makeMeasureSelectors cfg dm) datacons
+    dcSelectors   = concatMap (Bare.makeMeasureSelectors cfg dm) (if reflection cfg then charDataCon:datacons else datacons)
     fiTcs         = _gsFiTcs (Bare.reSrc env)
 
 
 
 makeTycEnv1 ::
-     ModName
+     Config 
+  -> ModName
   -> Bare.Env
   -> (Bare.TycEnv, [Located DataConP])
   -> (Ghc.CoreExpr -> F.Expr)
   -> (Ghc.CoreExpr -> Ghc.TcRn Ghc.CoreExpr)
   -> Ghc.TcRn Bare.TycEnv
-makeTycEnv1 myName env (tycEnv, datacons) coreToLg simplifier = do
+makeTycEnv1 cfg myName env (tycEnv, datacons) coreToLg simplifier = do
   -- fst for selector generation, snd for dataconsig generation
   lclassdcs <- forM classdcs $ traverse (Bare.elaborateClassDcp coreToLg simplifier)
   let recSelectors = Bare.makeRecordSelectorSigs env myName (dcs ++ (fmap . fmap) snd lclassdcs)
@@ -1111,8 +1112,7 @@ makeTycEnv1 myName env (tycEnv, datacons) coreToLg simplifier = do
   where
     (classdcs, dcs) =
       L.partition
-        (Ghc.isClassTyCon . Ghc.dataConTyCon . dcpCon . F.val)
-        datacons
+        (Ghc.isClassTyCon . Ghc.dataConTyCon . dcpCon . F.val) datacons
 
     
 knownWiredDataCons :: Bare.Env -> ModName -> [Located DataConP] 
