@@ -461,7 +461,8 @@ subsFromAssm _                                           = []
 -- | Unfolds expressions using rewrites and equations.
 --
 -- Also reduces if-then-else when the boolean condition or the negation can be
--- proved valid.
+-- proved valid. This is the actual implementation of guard-validation-before-unfolding
+-- that is described in publications.
 --
 -- Also folds constants.
 --
