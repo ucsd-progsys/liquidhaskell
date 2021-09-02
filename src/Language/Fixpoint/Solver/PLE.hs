@@ -23,6 +23,7 @@ module Language.Fixpoint.Solver.PLE (instantiate) where
 
 import           Language.Fixpoint.Types hiding (simplify)
 import           Language.Fixpoint.Types.Config  as FC
+import           Language.Fixpoint.Types.Solutions (CMap)
 import qualified Language.Fixpoint.Types.Visitor as Vis
 import qualified Language.Fixpoint.Misc          as Misc 
 import qualified Language.Fixpoint.Smt.Interface as SMT
@@ -60,10 +61,11 @@ traceE (e,e')
 --------------------------------------------------------------------------------
 instantiate :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
 instantiate cfg fi' subcIds = do
-    let cs = [ (i, c) | (i, c) <- M.toList (cm fi), isPleCstr aEnv i c,
-               maybe True (i `L.elem`) subcIds ]
-    let t  = mkCTrie cs                                               -- 1. BUILD the Trie
-    res   <- withProgress (1 + length cs) $
+    let cs = M.filterWithKey
+               (\i c -> isPleCstr aEnv i c && maybe True (i `L.elem`) subcIds)
+               (cm fi)
+    let t  = mkCTrie (M.toList cs)                                    -- 1. BUILD the Trie
+    res   <- withProgress (1 + M.size cs) $
                withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs)  -- 2. TRAVERSE Trie to compute InstRes
     return $ resSInfo cfg sEnv fi res                                 -- 3. STRENGTHEN SInfo using InstRes
   where
@@ -76,7 +78,7 @@ instantiate cfg fi' subcIds = do
 
 ------------------------------------------------------------------------------- 
 -- | Step 1a: @instEnv@ sets up the incremental-PLE environment 
-instEnv :: (Loc a) => Config -> SInfo a -> [(SubcId, SimpC a)] -> SMT.Context -> InstEnv a 
+instEnv :: (Loc a) => Config -> SInfo a -> CMap (SimpC a) -> SMT.Context -> InstEnv a
 instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
   where 
     bEnv              = bs fi
@@ -85,7 +87,22 @@ instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
     s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg)
 
 ---------------------------------------------------------------------------------------------- 
--- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments 
+-- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments
+--
+-- The trie is a way to unfold the equalities a minimum number of times.
+-- Say you have
+--
+-- > 1: [1, 2, 3, 4, 5] => p1
+-- > 2: [1, 2, 3, 6, 7] => p2
+--
+-- Then you build the tree
+--
+-- >  1 -> 2 -> 3 -> 4 -> 5 — [Constraint 1]
+-- >            | -> 6 -> 7 — [Constraint 2]
+--
+-- which you use to unfold everything in 1, 2, and 3 once (instead of twice)
+-- and with the proper existing environment
+--
 mkCTrie :: [(SubcId, SimpC a)] -> CTrie 
 mkCTrie ics  = T.fromList [ (cBinds c, i) | (i, c) <- ics ]
   where
@@ -104,7 +121,15 @@ pleTrie t env = loopT env ctx0 diff0 Nothing res0 t
     mkEq  eq     = (EVar $ eqName eq, eqBody eq)
     mkEq' rw     = (EApp (EVar $ smName rw) (EVar $ smDC rw), smBody rw)
 
-loopT :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CTrie -> IO InstRes
+loopT
+  :: InstEnv a
+  -> ICtx
+  -> Diff         -- ^ The longest path suffix without forks in reverse order
+  -> Maybe BindId -- ^ bind id of the branch ancestor of the trie if any.
+                  --   'Nothing' when this is the top-level trie.
+  -> InstRes
+  -> CTrie
+  -> IO InstRes
 loopT env ctx delta i res t = case t of 
   T.Node []  -> return res
   T.Node [b] -> loopB env ctx delta i res b
@@ -112,14 +137,32 @@ loopT env ctx delta i res t = case t of
                   (ctx'', res') <- ple1 env ctx' i res 
                   foldM (loopB env ctx'' [] i) res' bs
 
-loopB :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CBranch -> IO InstRes
+loopB
+  :: InstEnv a
+  -> ICtx
+  -> Diff         -- ^ The longest path suffix without forks in reverse order
+  -> Maybe BindId -- ^ bind id of the branch ancestor of the branch if any.
+                  --   'Nothing' when this is a branch of the top-level trie.
+  -> InstRes
+  -> CBranch
+  -> IO InstRes
 loopB env ctx delta iMb res b = case b of 
   T.Bind i t -> loopT env ctx (i:delta) (Just i) res t
   T.Val cid  -> withAssms env ctx delta (Just cid) $ \ctx' -> do 
                   progressTick
                   (snd <$> ple1 env ctx' iMb res) 
 
-
+-- | Adds to @ctx@ candidate expressions to unfold from the bindings in @delta@
+-- and the rhs of @cidMb@.
+--
+-- Adds to @ctx@ assumptions from @env@ and @delta@ plus rewrites that
+-- candidates can use.
+--
+-- Sets the current constraint id in @ctx@ to @cidMb@.
+--
+-- Pushes assumptions from the modified context to the SMT solver, runs @act@,
+-- and then pops the assumptions.
+--
 withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> IO b) -> IO b 
 withAssms env@(InstEnv {..}) ctx delta cidMb act = do 
   let ctx'  = updCtx env ctx delta cidMb 
@@ -208,7 +251,7 @@ data InstEnv a = InstEnv
   , ieSMT   :: !SMT.Context
   , ieBEnv  :: !BindEnv
   , ieAenv  :: !AxiomEnv 
-  , ieCstrs :: ![(SubcId, SimpC a)]
+  , ieCstrs :: !(CMap (SimpC a))
   , ieKnowl :: !Knowledge
   , ieEvEnv :: !EvalEnv
   } 
@@ -278,7 +321,7 @@ updCtx InstEnv {..} ctx delta cidMb
                     , icCands  = S.fromList cands           <> icCands  ctx
                     , icEquals = initEqs                    <> icEquals ctx
                     , icSimpl  = M.fromList (S.toList sims) <> icSimpl ctx <> econsts
-                    , icSubcId = fst <$> L.find (\(_, b) -> (head delta) `memberIBindEnv` (_cenv b)) ieCstrs
+                    , icSubcId = cidMb
                     }
   where         
     initEqs   = S.fromList $ concat [rewrite e rw | e  <- cands ++ (snd <$> S.toList (icEquals ctx))
@@ -296,7 +339,7 @@ updCtx InstEnv {..} ctx delta cidMb
     (rhs:es)  = unElab <$> (eRhs : (expr <$> binds))
     eRhs      = maybe PTrue crhs subMb
     binds     = [ lookupBindEnv i ieBEnv | i <- delta ] 
-    subMb     = getCstr (M.fromList ieCstrs) <$> cidMb
+    subMb     = getCstr ieCstrs <$> cidMb
 
 
 findConstants :: Knowledge -> [Expr] -> [(Expr, Expr)]
@@ -378,6 +421,9 @@ evalOne γ env ctx e = do
   env' <- execStateT (eval γ ctx [(e, PLE)]) (env { evFuel = icFuel ctx }) 
   return (evAccum env', evFuel env')
 
+-- | @notGuardedApps e@ yields all the subexpressions that are
+-- applications not under an if-then-else, lambda abstraction, type abstraction,
+-- type application, or quantifier.
 notGuardedApps :: Expr -> [Expr]
 notGuardedApps = go 
   where 
@@ -412,6 +458,17 @@ subsFromAssm (EEq lhs rhs) | (EVar v) <- unElab lhs
                            , anfPrefix `isPrefixOfSym` v = [(v, unElab rhs)]
 subsFromAssm _                                           = []
 
+-- | Unfolds expressions using rewrites and equations.
+--
+-- Also reduces if-then-else when the boolean condition or the negation can be
+-- proved valid. This is the actual implementation of guard-validation-before-unfolding
+-- that is described in publications.
+--
+-- Also folds constants.
+--
+-- Also adds to the monad state all the subexpressions that have been rewritten
+-- as pairs @(original_subexpression, rewritten_subexpression)@.
+--
 fastEval :: Knowledge -> ICtx -> Expr -> EvalST Expr
 fastEval _ ctx e
   | Just v <- M.lookup e (icSimpl ctx)
@@ -433,11 +490,11 @@ fastEval γ ctx e =
     addConst (e,e') ctx = if isConstant (knDCs γ) e'
                            then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx 
     go (ELam (x,s) e)   = ELam (x, s) <$> fastEval γ' ctx e where γ' = γ { knLams = (x, s) : knLams γ }
-    go e@(EIte b e1 e2) = fastEvalIte γ ctx e b e1 e2
+    go (EIte b e1 e2) = fastEvalIte γ ctx b e1 e2
     go (ECoerc s t e)   = ECoerc s t  <$> go e
     go e@(EApp _ _)     = case splitEApp e of 
                            (f, es) -> do (f':es') <- mapM (fastEval γ ctx) (f:es)
-                                         evalApp γ ctx (eApps f' es) (f',es')
+                                         evalApp γ ctx f' es'
 
     go e@(PAtom r e1 e2) = fromMaybeM (PAtom r <$> go e1 <*> go e2) (evalBool γ e)
     go (ENeg e)         = do e'  <- fastEval γ ctx e
@@ -454,6 +511,15 @@ fastEval γ ctx e =
     go e@(POr es)       = fromMaybeM (POr  <$> (go <$$> es))    (evalBool γ e)
     go e                = return e
 
+-- |
+-- Adds to the monad state all the subexpressions that have been rewritten
+-- as pairs @(original_subexpression, rewritten_subexpression)@.
+--
+-- Also folds constants.
+--
+-- The main difference with 'fastEval' is that 'eval' takes into account
+-- autorewrites.
+--
 eval :: Knowledge -> ICtx -> [(Expr, TermOrigin)] -> EvalST ()
 eval _ ctx path
   | pathExprs <- map fst (mytracepp "EVAL1: path" path)
@@ -508,7 +574,7 @@ evalStep γ ctx e@(EApp _ _)     = case splitEApp e of
             es' <- mapM (evalStep γ ctx) es
             if es /= es'
               then return (eApps f' es')
-              else evalApp γ ctx (eApps f' es') (f',es')
+              else evalApp γ ctx f' es'
 evalStep γ ctx e@(PAtom r e1 e2) =
   fromMaybeM (PAtom r <$> evalStep γ ctx e1 <*> evalStep γ ctx e2) (evalBool γ e)
 evalStep γ ctx (ENeg e) = ENeg <$> evalStep γ ctx e
@@ -537,9 +603,10 @@ fromMaybeM a ma = do
 f <$$> xs = f Misc.<$$> xs
 
 
-
-evalApp :: Knowledge -> ICtx -> Expr -> (Expr, [Expr]) -> EvalST Expr
-evalApp γ ctx _e0 (EVar f, es)
+-- | @evalApp kn ctx e es@ unfolds expressions in @eApps e es@ using rewrites
+-- and equations
+evalApp :: Knowledge -> ICtx -> Expr -> [Expr] -> EvalST Expr
+evalApp γ ctx (EVar f) es
   | Just eq <- L.find ((== f) . eqName) (knAms γ) -- TODO:FUEL make this a fast lookup map!
   , length (eqArgs eq) <= length es 
   = do 
@@ -550,7 +617,7 @@ evalApp γ ctx _e0 (EVar f, es)
                 useFuel f
                 let (es1,es2) = splitAt (length (eqArgs eq)) es
                 shortcut (substEq env eq es1) es2          -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
-         else return _e0
+         else return $ eApps (EVar f) es
   where
     shortcut (EIte i e1 e2) es2 = do
       b   <- fastEval γ ctx i
@@ -563,15 +630,15 @@ evalApp γ ctx _e0 (EVar f, es)
       return r
     shortcut e' es2 = return $ eApps e' es2
 
-evalApp γ _ _ (EVar f, e:es) 
+evalApp γ _ (EVar f) (e:es)
   | (EVar dc, as) <- splitEApp e
   , Just rw <- L.find (\rw -> smName rw == f && smDC rw == dc) (knSims γ)
   , length as == length (smArgs rw)
   = return $ eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es 
 
-evalApp _ _ e _
-  = return e 
-  
+evalApp _ _ e es
+  = return $ eApps e es
+
 --------------------------------------------------------------------------------
 -- | 'substEq' unfolds or instantiates an equation at a particular list of
 --   argument values. We must also substitute the sort-variables that appear
@@ -621,8 +688,8 @@ evalBool γ e = do
     if bf then return $ Just PFalse 
           else return Nothing
                
-fastEvalIte :: Knowledge -> ICtx -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
-fastEvalIte γ ctx _ b0 e1 e2 = do 
+fastEvalIte :: Knowledge -> ICtx -> Expr -> Expr -> Expr -> EvalST Expr
+fastEvalIte γ ctx b0 e1 e2 = do
   b <- fastEval γ ctx b0 
   b'  <- liftIO $ (mytracepp ("evalEIt POS " ++ showpp b) <$> isValid γ b)
   nb' <- liftIO $ (mytracepp ("evalEIt NEG " ++ showpp (PNot b)) <$> isValid γ (PNot b))
@@ -756,7 +823,7 @@ isSimplification dcs (_,c) = isConstant dcs c
   
 
 isConstant :: S.HashSet LDataCon -> Expr -> Bool 
-isConstant dcs e = S.null (S.difference (S.fromList $ syms e) dcs) 
+isConstant dcs e = S.null (S.difference (exprSymbolsSet e) dcs)
 
 class Simplifiable a where 
   simplify :: Knowledge -> ICtx -> a -> a 
