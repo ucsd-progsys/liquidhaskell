@@ -422,7 +422,7 @@ evalOne γ env ctx e = do
   return (evAccum env', evFuel env')
 
 -- | @notGuardedApps e@ yields all the subexpressions that are
--- applications not under a lambda abstraction, type abstraction,
+-- applications not under an if-then-else, lambda abstraction, type abstraction,
 -- type application, or quantifier.
 notGuardedApps :: Expr -> [Expr]
 notGuardedApps = go 
