@@ -49,8 +49,11 @@ commands:
         default: ""
     steps:
       - setup_project
+      - run: git ls-tree HEAD liquid-fixpoint > liquid-fixpoint-commit
       - restore_cache:
           keys:
+            - cabal-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
+            - cabal-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}
             - cabal-{{ checksum "liquidhaskell.cabal" }}
       - run:
           name: Dependencies
@@ -59,7 +62,7 @@ commands:
             cabal v2-clean
             cabal v2-build --project-file << parameters.project_file >> --flag include --flag devel -j1 all
       - save_cache:
-          key: cabal-{{ checksum "liquidhaskell.cabal" }}
+          key: cabal-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
           paths:
             - ~/.cabal/store
             - ./dist-newstyle
@@ -97,8 +100,11 @@ commands:
     steps:
       - run: sudo apt-key adv --keyserver keyserver.ubuntu.com --recv 8B1DA6120C2BF624
       - setup_project
+      - run: git ls-tree HEAD liquid-fixpoint > liquid-fixpoint-commit
       - restore_cache:
           keys:
+            - stack-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "liquid-fixpoint-commit" }}
+            - stack-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell.cabal" }}
             - stack-{{ checksum "<< parameters.stack_yaml_file >>" }}
       - run:
           name: Dependencies
@@ -106,7 +112,7 @@ commands:
             stack --stack-yaml << parameters.stack_yaml_file >> setup
             stack --stack-yaml << parameters.stack_yaml_file >> build -j2 --only-dependencies --test --no-run-tests << parameters.extra_build_flags >>
       - save_cache:
-          key: stack-{{ checksum "<< parameters.stack_yaml_file >>" }}
+          key: stack-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "liquid-fixpoint-commit" }}
           paths:
             - ~/.stack
             - ./.stack-work
