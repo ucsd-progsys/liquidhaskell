@@ -43,7 +43,7 @@ jobs:
           command: |
             mkdir -p /tmp/junit
             stack --no-terminal test -j2 liquid-fixpoint:test --flag liquid-fixpoint:devel --test-arguments="--xml=/tmp/junit/main-test-results.xml":
-            stack --no-terminal haddock
+            stack --no-terminal haddock --flag liquid-fixpoint:devel
             stack --no-terminal sdist
             # mkdir -p $CIRCLE_TEST_REPORTS/tasty
             # cp -r tests/logs/cur $CIRCLE_TEST_REPORTS/tasty/log
