@@ -60,7 +60,7 @@ commands:
           command: |
             << parameters.cabal_update_command >>
             cabal v2-clean
-            cabal v2-build --project-file << parameters.project_file >> --flag include --flag devel -j1 all
+            cabal v2-build --project-file << parameters.project_file >> --flag include --flag devel -j1 --enable-tests all
       - save_cache:
           key: cabal-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
           paths:
