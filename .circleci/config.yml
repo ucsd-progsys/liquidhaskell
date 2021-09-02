@@ -22,6 +22,7 @@ jobs:
       - checkout
       - restore_cache:
           keys:
+            - stack-{{ checksum "stack.yaml" }}-{{ checksum "liquid-fixpoint.cabal" }}
             - stack-{{ checksum "stack.yaml" }}
       - run:
           name: Dependencies
@@ -29,7 +30,7 @@ jobs:
             stack setup
             stack build -j2 liquid-fixpoint --only-dependencies --test --no-run-tests
       - save_cache:
-          key: stack-{{ checksum "stack.yaml" }}
+          key: stack-{{ checksum "stack.yaml" }}-{{ checksum "liquid-fixpoint.cabal" }}
           paths:
             - ~/.stack
             - ./.stack-work
