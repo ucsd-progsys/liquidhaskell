@@ -258,7 +258,7 @@ solveCs :: Config -> FilePath -> CGInfo -> TargetInfo -> Maybe [String] -> IO (O
 solveCs cfg tgt cgi info names = do
   finfo            <- cgInfoFInfo info cgi
   let fcfg          = fixConfig tgt cfg
-  F.Result r0 sol _ <- solve fcfg finfo
+  F.Result {resStatus=r0, resSolution=sol} <- solve fcfg finfo
   let failBs        = gsFail $ gsTerm $ giSpec info
   let (r,rf)        = splitFails (S.map val failBs) r0 
   let resErr        = second (applySolution sol . cinfoError) <$> r
