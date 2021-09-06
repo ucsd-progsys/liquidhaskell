@@ -49,17 +49,20 @@ commands:
         default: ""
     steps:
       - setup_project
+      - run: git ls-tree HEAD liquid-fixpoint > liquid-fixpoint-commit
       - restore_cache:
           keys:
+            - cabal-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
+            - cabal-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}
             - cabal-{{ checksum "liquidhaskell.cabal" }}
       - run:
           name: Dependencies
           command: |
             << parameters.cabal_update_command >>
             cabal v2-clean
-            cabal v2-build --project-file << parameters.project_file >> -j1 all
+            cabal v2-build --project-file << parameters.project_file >> --flag include --flag devel -j1 --enable-tests all
       - save_cache:
-          key: cabal-{{ checksum "liquidhaskell.cabal" }}
+          key: cabal-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
           paths:
             - ~/.cabal/store
             - ./dist-newstyle
@@ -72,7 +75,7 @@ commands:
           name: Test
           command: |
             (liquidhaskell_datadir=$PWD cabal v2-test -j1 --project-file << parameters.project_file >> liquidhaskell:test << parameters.extra_test_flags >> --flag include --flag devel --test-show-details=streaming --test-option="<< parameters.liquid_runner >>" --test-options="-t 1200s --xml=/tmp/junit/cabal/main-test-results.xml") || (<<parameters.allow_test_failures>>)
-            (liquidhaskell_datadir=$PWD cabal v2-test -j1 --project-file << parameters.project_file >> liquidhaskell:liquidhaskell-parser --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml") || (<<parameters.allow_test_failures>>)
+            (liquidhaskell_datadir=$PWD cabal v2-test -j1 --project-file << parameters.project_file >> liquidhaskell:liquidhaskell-parser --flag include --flag devel --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml") || (<<parameters.allow_test_failures>>)
           no_output_timeout: 30m
       - store_test_results:
           path: /tmp/junit/cabal
@@ -91,32 +94,38 @@ commands:
       extra_test_flags:
         type: string
         default: ""
+      extra_build_flags:
+        type: string
+        default: ""
     steps:
       - run: sudo apt-key adv --keyserver keyserver.ubuntu.com --recv 8B1DA6120C2BF624
       - setup_project
+      - run: git ls-tree HEAD liquid-fixpoint > liquid-fixpoint-commit
       - restore_cache:
           keys:
+            - stack-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "liquid-fixpoint-commit" }}
+            - stack-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell.cabal" }}
             - stack-{{ checksum "<< parameters.stack_yaml_file >>" }}
       - run:
           name: Dependencies
           command: |
-            stack --stack-yaml << parameters.stack_yaml_file >> setup
-            stack --stack-yaml << parameters.stack_yaml_file >> build -j2 --only-dependencies --test --no-run-tests
+            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> setup
+            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> build -j2 --only-dependencies --test --no-run-tests << parameters.extra_build_flags >>
       - save_cache:
-          key: stack-{{ checksum "<< parameters.stack_yaml_file >>" }}
+          key: stack-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "liquid-fixpoint-commit" }}
           paths:
             - ~/.stack
             - ./.stack-work
       - run:
           name: Test
           command: |
-            stack --stack-yaml << parameters.stack_yaml_file >> clean
+            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> clean
             mkdir -p /tmp/junit/stack
-            stack --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:test << parameters.extra_test_flags >> --ta="--liquid-runner \"<< parameters.liquid_runner >>\"" --ta="-t 1200s --xml=/tmp/junit/stack/main-test-results.xml": #--liquid-opts='--cores=1'":
-            stack --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:liquidhaskell-parser --ta="--xml=/tmp/junit/stack/parser-test-results.xml":
-            stack --stack-yaml << parameters.stack_yaml_file >> sdist
+            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:test << parameters.extra_build_flags >> << parameters.extra_test_flags >> --ta="--liquid-runner \"<< parameters.liquid_runner >>\"" --ta="-t 1200s --xml=/tmp/junit/stack/main-test-results.xml": #--liquid-opts='--cores=1'":
+            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:liquidhaskell-parser << parameters.extra_build_flags >> --ta="--xml=/tmp/junit/stack/parser-test-results.xml":
+            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> sdist
             # stack haddock liquidhaskell --flag liquidhaskell:-devel --no-haddock-deps --haddock-arguments="--no-print-missing-docs --odir=$CIRCLE_ARTIFACTS"
-            stack --stack-yaml << parameters.stack_yaml_file >> haddock liquidhaskell  --no-haddock-deps --haddock-arguments="--no-print-missing-docs"
+            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> haddock << parameters.extra_build_flags >> liquidhaskell  --no-haddock-deps --haddock-arguments="--no-print-missing-docs"
       - store_test_results:
           path: /tmp/junit/stack
       - store_artifacts:
@@ -134,7 +143,7 @@ jobs:
         - stack_build_and_test:
             stack_yaml_file: "stack-8.6.5.yaml"
             liquid_runner: "stack --stack-yaml=/root/project/stack-8.6.5.yaml --silent exec -- liquid"
-            extra_test_flags: "--flag liquidhaskell:include --flag liquid-platform:devel --flag liquidhaskell:no-plugin"
+            extra_build_flags: "--flag liquidhaskell:include --flag liquid-platform:devel --flag liquidhaskell:no-plugin"
 
   stack_884_legacy_executable:
     docker:
@@ -143,7 +152,7 @@ jobs:
         - stack_build_and_test:
             stack_yaml_file: "stack-8.8.4.yaml"
             liquid_runner: "stack --stack-yaml=/root/project/stack-8.8.4.yaml --silent exec -- liquid"
-            extra_test_flags: "--flag liquidhaskell:include --flag liquid-platform:devel --flag liquidhaskell:no-plugin"
+            extra_build_flags: "--flag liquidhaskell:include --flag liquid-platform:devel --flag liquidhaskell:no-plugin"
 
   stack_810_legacy_executable:
     docker:
@@ -152,7 +161,7 @@ jobs:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
             liquid_runner: "stack --silent exec -- liquid"
-            extra_test_flags: "--flag liquidhaskell:include --flag liquid-platform:devel --flag liquidhaskell:no-plugin"
+            extra_build_flags: "--flag liquidhaskell:include --flag liquid-platform:devel --flag liquidhaskell:no-plugin"
 
   stack_810:
     docker:
