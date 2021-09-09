@@ -544,8 +544,8 @@ instance Fixpoint Expr where
   toFix (EVar s)       = toFix s
   toFix e@(EApp _ _)   = parens $ hcat $ punctuate " " $ toFix <$> (f:es) where (f, es) = splitEApp e
   toFix (ENeg e)       = parens $ text "-"  <+> parens (toFix e)
-  toFix (EBin o e1 e2) = parens $ toFix e1  <+> toFix o <+> toFix e2
-  toFix (EIte p e1 e2) = parens $ text "if" <+> toFix p <+> text "then" <+> toFix e1 <+> text "else" <+> toFix e2
+  toFix (EBin o e1 e2) = parens $ sep [toFix e1  <+> toFix o, nest 2 (toFix e2)]
+  toFix (EIte p e1 e2) = parens $ sep [text "if" <+> toFix p <+> text "then", nest 2 (toFix e1), text "else", nest 2 (toFix e2)]
   -- toFix (ECst e _so)   = toFix e
   toFix (ECst e so)    = parens $ toFix e   <+> text " : " <+> toFix so
   -- toFix (EBot)         = text "_|_"
@@ -557,7 +557,7 @@ instance Fixpoint Expr where
   toFix (PIff p1 p2)   = parens $ toFix p1 <+> text "<=>" <+> toFix p2
   toFix (PAnd ps)      = text "&&" <+> toFix ps
   toFix (POr  ps)      = text "||" <+> toFix ps
-  toFix (PAtom r e1 e2)  = parens $ toFix e1 <+> toFix r <+> toFix e2
+  toFix (PAtom r e1 e2)  = parens $ sep [ toFix e1 <+> toFix r, nest 2 (toFix e2)]
   toFix (PKVar k su)     = toFix k <-> toFix su
   toFix (PAll xts p)     = "forall" <+> (toFix xts
                                         $+$ ("." <+> toFix p))
