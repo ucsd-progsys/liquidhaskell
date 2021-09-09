@@ -87,7 +87,7 @@ cfgRef = unsafePerformIO $ newIORef defConfig
 
 -- | Set to 'True' to enable debug logging.
 debugLogs :: Bool
-debugLogs = False
+debugLogs = True
 
 ---------------------------------------------------------------------------------
 -- | Useful functions -----------------------------------------------------------
