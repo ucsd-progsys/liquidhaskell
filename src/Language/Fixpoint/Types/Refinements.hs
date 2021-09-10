@@ -129,7 +129,6 @@ import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.Binary as B
-import qualified Data.HashSet as S
 
 -- import           Text.Printf               (printf)
 
@@ -170,9 +169,9 @@ instance B.Binary SrcSpan
 instance B.Binary GradInfo
 instance B.Binary Brel
 instance B.Binary KVar
-instance (Hashable a, Eq a, B.Binary a) => B.Binary (S.HashSet a) where
-  put = B.put . S.toList
-  get = S.fromList <$> B.get
+instance (Hashable a, Eq a, B.Binary a) => B.Binary (HashSet a) where
+  put = B.put . HashSet.toList
+  get = HashSet.fromList <$> B.get
 instance (Hashable k, Eq k, B.Binary k, B.Binary v) => B.Binary (M.HashMap k v) where
   put = B.put . M.toList
   get = M.fromList <$> B.get
