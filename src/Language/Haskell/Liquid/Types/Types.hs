@@ -46,7 +46,7 @@ module Language.Haskell.Liquid.Types.Types (
   , mkBTyCon
   -- , mkClassBTyCon, mkPromotedBTyCon
   , isClassBTyCon
-  , BTyVar(..)
+  , BTyVar(..), tyVaRSymbol
 
   -- * Refined Type Constructors
   , RTyCon (RTyCon, rtc_tc, rtc_info)
@@ -612,6 +612,9 @@ instance NFData   RTyVar
 instance F.Symbolic BTyVar where
   symbol (BTV tv) = tv
 
+
+
+
 instance F.Symbolic RTyVar where
   symbol (RTV tv) = F.symbol tv -- tyVarUniqueSymbol tv
 
@@ -654,6 +657,10 @@ rtyVarType (RTV v) = TyVarTy v
 
 tyVarVar :: RTVar RTyVar c -> Var
 tyVarVar (RTVar (RTV v) _) = v
+
+tyVaRSymbol :: F.Symbolic a => RTVar a s -> F.Symbol
+tyVaRSymbol (RTVar x _) = F.symbol x 
+
 
 
 
@@ -1297,14 +1304,8 @@ instance F.Loc DataName where
   srcSpan (DnCon  z) = F.srcSpan z
 
 
--- | For debugging.
-instance Show DataDecl where
-  show dd = printf "DataDecl: data = %s, tyvars = %s, sizeFun = %s, kind = %s" -- [at: %s]"
-              (show $ tycName   dd)
-              (show $ tycTyVars dd)
-              (show $ tycSFun   dd)
-              (show $ tycKind   dd)
 
+  
 
 instance Show DataName where
   show (DnName n) =               show (F.val n)

@@ -1006,6 +1006,9 @@ listLMap  = toLogicMap [ (dummyLoc nilName , []     , hNil)
 -- | Pretty Printing -----------------------------------------------------------
 --------------------------------------------------------------------------------
 
+instance PPrint LiftedSpec where
+    pprintTidy _ = text . show
+
 instance PPrint TargetSpec where
   pprintTidy k spec = vcat
     [ "******* Target Variables ********************"
@@ -1018,6 +1021,7 @@ instance PPrint TargetSpec where
     , pprintLongList k (gsCtors (gsData spec))
     , "******* Measure Specifications **************"
     , pprintLongList k (gsMeas (gsData spec))       ]
+
 
 instance PPrint TargetInfo where
   pprintTidy k info = vcat

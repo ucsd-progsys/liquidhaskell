@@ -39,7 +39,7 @@ import           System.Directory                           (doesFileExist)
 import           System.Console.CmdArgs.Verbosity           (whenLoud)
 import           Language.Fixpoint.Utils.Files              as Files
 import           Language.Fixpoint.Misc                     as Misc 
-import           Language.Fixpoint.Types                    hiding (dcFields, DataDecl, Error, panic)
+import           Language.Fixpoint.Types                    hiding (dcFields, DataDecl, Error, panic, dcName)
 import qualified Language.Fixpoint.Types                    as F
 import qualified Language.Haskell.Liquid.Misc               as Misc -- (nubHashOn)
 import qualified Language.Haskell.Liquid.GHC.Misc           as GM
@@ -237,7 +237,7 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
   tycEnv <- makeTycEnv1 cfg name env (tycEnv0, datacons) coreToLg simplifier
   let tyi      = Bare.tcTyConMap   tycEnv 
   let sigEnv   = makeSigEnv  embs tyi (_gsExports src) rtEnv 
-  let lSpec1   = lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1 
+  let lSpec1   = lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1
   let mySpec   = mySpec2 <> lSpec1 
   let specs    = M.insert name mySpec iSpecs2
   let myRTE    = myRTEnv       src env sigEnv rtEnv  
@@ -270,8 +270,8 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
 
     , _gsLSpec  = finalLiftedSpec
                 { impSigs   = makeImports mspecs
-                , expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ]
-                , dataDecls = dataDecls mySpec2 
+                , expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ] 
+                , dataDecls = strengthenDataDecls (gsCtors sData) (dataDecls mySpec)
                 , measures  = Ms.measures mySpec
                   -- We want to export measures in a 'LiftedSpec', especially if they are
                   -- required to check termination of some 'liftedSigs' we export. Due to the fact
@@ -337,6 +337,23 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
     -- check barespecs 
     name     = F.notracepp ("ALL-SPECS" ++ zzz) $ _giTargetMod  src 
     zzz      = F.showpp (fst <$> mspecs)
+
+
+
+strengthenDataDecls :: [(Ghc.Var, LocSpecType)] -> [DataDecl] -> [DataDecl]
+strengthenDataDecls xts' = fmap go 
+  where go  dc = dc  {tycDCons = fmap (fmap go') (tycDCons dc)}
+        go' ctor = case lookupVal (dcName ctor) xts of 
+                          Just t -> let rtyp = toRTypeRep (F.val t) 
+                                    in ctor{ dcFields = zip (ty_binds rtyp) (ty_args rtyp)
+                                           , dcResult = Just (ty_res rtyp)
+                                           , dcTyVars = tyVaRSymbol . fst <$> ty_vars rtyp } 
+                          _ -> ctor 
+        xts =  toBare <$> xts'
+        toBare (x, t) = (varLocSym x, Bare.specToBare <$> t)
+        lookupVal _ [] = Nothing 
+        lookupVal x ((y,z):ys) = if F.val x == F.val y then Just z else lookupVal x ys 
+
 
 splitSpecs :: ModName -> GhcSrc -> [(ModName, Ms.BareSpec)] -> (Ms.BareSpec, Bare.ModSpecs) 
 splitSpecs name src specs = (mySpec, iSpecm) 
@@ -1170,9 +1187,9 @@ makeLiftedSpec :: GhcSrc -> Bare.Env
                -> Ms.BareSpec -> Ms.BareSpec 
 -----------------------------------------------------------------------------------------
 makeLiftedSpec src _env refl sData sig qual myRTE lSpec0 = lSpec0 
-  { Ms.asmSigs    = F.notracepp   "LIFTED-ASM-SIGS" $ xbs -- ++ mkSigs (gsAsmSigs sig)
+  { Ms.asmSigs    = F.notracepp   "LIFTED-ASM-SIGS" $ xbs -- ++ mkSigs (gsAsmSigs sig) 
   , Ms.reflSigs   = F.notracepp "REFL-SIGS"         xbs
-  , Ms.sigs       = F.notracepp   "LIFTED-SIGS"     $        mkSigs (gsTySigs sig)  
+  , Ms.sigs       = F.notracepp   "LIFTED-SIGS"     $        mkSigs (gsTySigs sig) 
   , Ms.invariants = [ ((varLocSym <$> x), Bare.specToBare <$> t) 
                        | (x, t) <- gsInvariants sData 
                        , isLocInFile srcF t

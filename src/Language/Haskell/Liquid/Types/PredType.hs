@@ -545,3 +545,12 @@ pappSort n = F.mkFFunc (2 * n) $ [ptycon] ++ args ++ [F.boolSort]
 
 predFTyCon :: F.FTycon
 predFTyCon = F.symbolFTycon $ dummyLoc predName
+
+
+-- | For debugging.
+instance Show DataDecl where
+  show dd = "DataDecl: data = " ++ (show $ tycName   dd) ++ ", tyvars = " ++ (show $ tycTyVars dd) ++ ", sizeFun = " ++ (show $ tycSFun   dd) ++ ", kind = " ++ (show $ tycKind   dd) ++ ", signs = " ++ (show $ tycDCons  dd) -- [at: %s]"
+              
+    
+instance Show DataCtor where
+  show dd = "DataDecl: dcName =" ++ (show $ dcName   dd) ++ ", dcFields = " ++ (showpp $ dcFields  dd) ++ ", dcResult =" ++ (showpp $  dcResult  dd) ++ ", dcTheta =" ++ (showpp $  dcTheta  dd) -- [at: %s]"

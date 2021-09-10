@@ -79,6 +79,7 @@ import           Data.HashMap.Strict     (HashMap)
 import           Language.Haskell.Liquid.Types.Types 
 import           Language.Haskell.Liquid.Types.Generics
 import           Language.Haskell.Liquid.Types.Variance
+import           Language.Haskell.Liquid.Types.PredType
 import           Language.Haskell.Liquid.Types.Bounds 
 import           Language.Haskell.Liquid.GHC.API hiding (text, (<+>))
 import           Language.Haskell.Liquid.GHC.Types
@@ -198,7 +199,10 @@ data TargetSpec = TargetSpec
   , gsLaws   :: !GhcSpecLaws
   , gsImps   :: ![(F.Symbol, F.Sort)]  -- ^ Imported Environment
   , gsConfig :: !Config
-  }
+  } 
+  
+instance Show TargetSpec where 
+  show t = show (gsSig t) ++ show (gsData t)
 
 instance HasConfig TargetSpec where
   getConfig = gsConfig
@@ -236,7 +240,7 @@ data GhcSpecSig = SpSig
   , gsDicts    :: !(DEnv Var LocSpecType)            -- ^ Refined Classes from Instances 
   , gsMethods  :: ![(Var, MethodType LocSpecType)]   -- ^ Refined Classes from Classes 
   , gsTexprs   :: ![(Var, LocSpecType, [F.Located F.Expr])]  -- ^ Lexicographically ordered expressions for termination
-  }
+  } deriving Show 
 
 instance Semigroup GhcSpecSig where
   x <> y = SpSig 
@@ -267,7 +271,8 @@ data GhcSpecData = SpData
   , gsIaliases   :: ![(LocSpecType, LocSpecType)] -- ^ Data type invariant aliases 
   , gsMeasures   :: ![Measure SpecType DataCon]   -- ^ Measure definitions
   , gsUnsorted   :: ![UnSortedExpr]
-  }
+  } deriving Show 
+
 data GhcSpecNames = SpNames 
   { gsFreeSyms   :: ![(F.Symbol, Var)]            -- ^ List of `Symbol` free in spec and corresponding GHC var, eg. (Cons, Cons#7uz) from tests/pos/ex1.hs
   , gsDconsP     :: ![F.Located DataCon]          -- ^ Predicated Data-Constructors, e.g. see tests/pos/Map.hs
