@@ -315,7 +315,11 @@ mkSearchEnv env x = lookupSEnvWithDistance x env
 -- act `withError` e' = act `catchError` (\e -> throwError (atLoc e (val e ++ "\n  because\n" ++ val e')))
 
 withError :: HasCallStack => CheckM a -> String -> CheckM a
-act `withError` msg = act `catchError` (\e -> throwError (atLoc e (val e ++ "\n  because\n" ++ msg)))
+act `withError` msg = act `catchError`
+  (\ ~e -> -- Lazy pattern needed because we use LANGUAGE Strict in this module
+           -- See Note [Lazy error messages]
+    throwError (atLoc e (val e ++ "\n  because\n" ++ msg))
+  )
 
 runCM0 :: SrcSpan -> CheckM a -> Either ChError a
 runCM0 sp act = fst <$> runStateT act (ChS 42 sp)
@@ -855,9 +859,16 @@ unite f e t1 t2 = do
   return (apply su t1, apply su t2)
 
 throwErrorAt :: String -> CheckM a 
-throwErrorAt err = do 
+throwErrorAt ~err = do -- Lazy pattern needed because we use LANGUAGE Strict in this module
+                       -- See Note [Lazy error messages]
   sp <- gets chSpan 
   throwError (atLoc sp err)
+
+-- Note [Lazy error messages]
+--
+-- We don't want to construct error messages early, or
+-- we might trigger some expensive computation of editDistance
+-- when no error has actually occurred yet.
 
 -- | Helper for checking symbol occurrences
 checkSym :: Env -> Symbol -> CheckM Sort
