@@ -37,6 +37,7 @@ import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Language.Fixpoint.Solver.Rewrite
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
+import           Data.Bifunctor (second)
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List            as L
@@ -353,7 +354,7 @@ updCtx InstEnv {..} ctx delta cidMb
                   , equalitiesPred (icEquals ctx)
                   , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvars r) ] 
                   ])
-    bs        = unElab <$> binds
+    bs        = second unElabSortedReft <$> binds
     (rhs:es)  = unElab <$> (eRhs : (expr <$> binds))
     eRhs      = maybe PTrue crhs subMb
     binds     = [ lookupBindEnv i ieBEnv | i <- delta ] 
@@ -848,7 +849,7 @@ class Simplifiable a where
 
 
 instance Simplifiable Expr where
-  simplify γ ictx e = mytracepp ("simplification of " ++ showpp e) $ fix (Vis.mapExpr tx) e 
+  simplify γ ictx e = mytracepp ("simplification of " ++ showpp e) $ fix (Vis.mapExprOnExpr tx) e
     where 
       fix f e = if e == e' then e else fix f e' where e' = f e 
       tx e 

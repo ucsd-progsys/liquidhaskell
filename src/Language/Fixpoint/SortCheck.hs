@@ -50,7 +50,7 @@ module Language.Fixpoint.SortCheck  (
   -- * Sort-Directed Transformations
   , Elaborate (..)
   , applySorts
-  , unElab, unApplyAt
+  , unElab, unElabSortedReft, unApplyAt
   , toInt
 
   -- * Predicates on Sorts
@@ -175,7 +175,7 @@ instance Elaborate a => Elaborate [a]  where
   elaborate msg env xs = elaborate msg env <$> xs
 
 elabNumeric :: Expr -> Expr
-elabNumeric = Vis.mapExpr go
+elabNumeric = Vis.mapExprOnExpr go
   where
     go (ETimes e1 e2)
       | exprSort "txn1" e1 == FReal
@@ -681,10 +681,13 @@ isInt env s = case sortSmtSort False (seData env) s of
 toIntAt :: Sort -> Expr
 toIntAt s = ECst (EVar toIntName) (FFunc s FInt)
 
-unElab :: (Vis.Visitable t) => t -> t
+unElab :: Expr -> Expr
 unElab = Vis.stripCasts . unApply
 
-unApply :: (Vis.Visitable t) => t -> t
+unElabSortedReft :: SortedReft -> SortedReft
+unElabSortedReft sr = sr { sr_reft = mapPredReft unElab (sr_reft sr) }
+
+unApply :: Expr -> Expr
 unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () ()
   where
     go (ECst (EApp (EApp f e1) e2) _)
@@ -1259,7 +1262,7 @@ apply θ          = Vis.mapSort f
 
 applyExpr :: Maybe TVSubst -> Expr -> Expr
 applyExpr Nothing e  = e
-applyExpr (Just θ) e = Vis.mapExpr f e
+applyExpr (Just θ) e = Vis.mapExprOnExpr f e
   where
     f (ECst e s) = ECst e (apply θ s)
     f e          = e

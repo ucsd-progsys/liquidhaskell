@@ -33,6 +33,7 @@ import           Language.Fixpoint.Graph.Deps             (isTarget)
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import qualified Language.Fixpoint.Solver.PLE as PLE      (instantiate)
 import           Control.Monad.State
+import           Data.Bifunctor (second)
 import qualified Data.Text            as T
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
@@ -269,7 +270,7 @@ updCtx InstEnv {..} ctx delta cidMb
                   [ initEqs 
                   , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvars r) ] 
                   ]
-    (bs, es0) = (unElab <$> binds, unElab <$> es)
+    (bs, es0) = (second unElabSortedReft <$> binds, unElab <$> es)
     es        = eRhs : (expr <$> binds) 
     eRhs      = maybe PTrue crhs subMb
     binds     = [ lookupBindEnv i ieBEnv | i <- delta ] 
@@ -313,7 +314,7 @@ isPleCstr :: AxiomEnv -> SubcId -> SimpC a -> Bool
 isPleCstr aenv sid c = isTarget c && M.lookupDefault False sid (aenvExpand aenv) 
 
 cstrExprs :: BindEnv -> SimpC a -> ([(Symbol, SortedReft)], [Expr])
-cstrExprs bds sub = (unElab <$> binds, unElab <$> es)
+cstrExprs bds sub = (second unElabSortedReft <$> binds, unElab <$> es)
   where
     es            = (crhs sub) : (expr <$> binds)
     binds         = envCs bds (senv sub)
