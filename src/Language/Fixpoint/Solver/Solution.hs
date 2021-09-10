@@ -118,7 +118,7 @@ instK ho env v t qc = Sol.qb . unique $
   ]
 
 unique :: [Sol.EQual] -> [Sol.EQual]
-unique = L.nubBy ((. Sol.eqPred) . (==) . Sol.eqPred)
+unique qs = M.elems $ M.fromList [ (Sol.eqPred q, q) | q <- qs ]
 
 instKSig :: Bool
          -> F.SEnv F.Sort
