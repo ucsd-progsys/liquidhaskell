@@ -340,12 +340,12 @@ exElim env ienv xi p = F.notracepp msg (F.pExist yts p)
                             , yi `F.memberIBindEnv` ienv                  ]
 
 applyKVars :: CombinedEnv -> Sol.Sol a Sol.QBind -> [F.KVSub] -> ExprInfo
-applyKVars g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
+applyKVars g s = mrExprInfos (applyKVar g s) F.conj mconcat
 
 applyKVar :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> ExprInfo
 applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
   Left cs   -> hypPred g s ksu cs
-  Right eqs -> (F.pAnd $ fst <$> Sol.qbPreds msg s (F.ksuSubst ksu) eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
+  Right eqs -> (F.conj $ fst <$> Sol.qbPreds msg s (F.ksuSubst ksu) eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
   where
     msg     = "applyKVar: " ++ show (ceCid g)
 
@@ -430,7 +430,7 @@ cubePredExc :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Cube -> F.IB
 
 cubePredExc g s ksu c bs' = (cubeP, extendKInfo kI (Sol.cuTag c))
   where
-    cubeP           = (xts, psu, elabExist sp s yts' (p' &.& psu') )
+    cubeP           = (xts, psu, elabExist sp s yts' (F.conj [p', psu']) )
     sp              = F.srcSpan g
     yts'            = symSorts g bs'
     g'              = addCEnv  g bs
