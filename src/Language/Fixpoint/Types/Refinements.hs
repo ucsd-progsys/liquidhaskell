@@ -39,7 +39,7 @@ module Language.Fixpoint.Types.Refinements (
   -- * Constructing Terms
   , eVar, elit
   , eProp
-  , conj, pAnd, pOr, pIte
+  , conj, pAnd, pOr, pIte, pAndNoDedup
   , (&.&), (|.|)
   , pExist
   , mkEApp
@@ -568,52 +568,58 @@ instance Fixpoint Expr where
   toFix (ECoerc a t e)   = parens (text "coerce" <+> toFix a <+> text "~" <+> toFix t <+> text "in" <+> toFix e)
   toFix (ELam (x,s) e)   = text "lam" <+> toFix x <+> ":" <+> toFix s <+> "." <+> toFix e
 
-  simplify (POr  [])     = PFalse
-  simplify (POr  [p])    = simplify p
-  simplify (PNot p) =
-    let sp = simplify p
-     in case sp of
-          PNot e -> e
-          _ -> PNot sp
-  -- XXX: Do not simplify PImp until PLE can handle it
-  -- https://github.com/ucsd-progsys/liquid-fixpoint/issues/475
-  -- simplify (PImp p q) =
-  --   let sq = simplify q
-  --    in if sq == PTrue then PTrue
-  --       else if sq == PFalse then simplify (PNot p)
-  --       else PImp (simplify p) sq
-  simplify (PIff p q)    =
-    let sp = simplify p
-        sq = simplify q
-     in if sp == sq then PTrue
-        else if sp == PTrue then sq
-        else if sq == PTrue then sp
-        else if sp == PFalse then PNot sq
-        else if sq == PFalse then PNot sp
-        else PIff sp sq
-
-  simplify (PGrad k su i e)
-    | isContraPred e      = PFalse
-    | otherwise           = PGrad k su i (simplify e)
-
-  simplify (PAnd ps)
-    | any isContraPred ps = PFalse
-                         -- Note: Performance of some tests is very sensitive to this code. See #480 
-    | otherwise           = simplPAnd . dedup . flattenRefas . filter (not . isTautoPred) $ map simplify ps
+  simplify = simplifyExpr dedup
     where
       dedup = Set.toList . Set.fromList
-      simplPAnd [] = PTrue
-      simplPAnd [p] = p
-      simplPAnd xs = PAnd xs
 
-  simplify (POr  ps)
-    | any isTautoPred ps = PTrue
-    | otherwise          = POr  $ filter (not . isContraPred) $ map simplify ps
+simplifyExpr :: ([Expr] -> [Expr]) -> Expr -> Expr
+simplifyExpr dedup = go
+  where
+    go (POr  [])     = PFalse
+    go (POr  [p])    = go p
+    go (PNot p) =
+      let sp = go p
+       in case sp of
+            PNot e -> e
+            _ -> PNot sp
+    -- XXX: Do not simplify PImp until PLE can handle it
+    -- https://github.com/ucsd-progsys/liquid-fixpoint/issues/475
+    -- go (PImp p q) =
+    --   let sq = go q
+    --    in if sq == PTrue then PTrue
+    --       else if sq == PFalse then go (PNot p)
+    --       else PImp (go p) sq
+    go (PIff p q)    =
+      let sp = go p
+          sq = go q
+       in if sp == sq then PTrue
+          else if sp == PTrue then sq
+          else if sq == PTrue then sp
+          else if sp == PFalse then PNot sq
+          else if sq == PFalse then PNot sp
+          else PIff sp sq
 
-  simplify p
-    | isContraPred p     = PFalse
-    | isTautoPred  p     = PTrue
-    | otherwise          = p
+    go (PGrad k su i e)
+      | isContraPred e      = PFalse
+      | otherwise           = PGrad k su i (go e)
+
+    go (PAnd ps)
+      | any isContraPred ps = PFalse
+                           -- Note: Performance of some tests is very sensitive to this code. See #480
+      | otherwise           = simplPAnd . dedup . flattenRefas . filter (not . isTautoPred) $ map go ps
+      where
+        simplPAnd [] = PTrue
+        simplPAnd [p] = p
+        simplPAnd xs = PAnd xs
+
+    go (POr  ps)
+      | any isTautoPred ps = PTrue
+      | otherwise          = POr  $ filter (not . isContraPred) $ map go ps
+
+    go p
+      | isContraPred p     = PFalse
+      | isTautoPred  p     = PTrue
+      | otherwise          = p
 
 isContraPred   :: Expr -> Bool
 isContraPred z = eqC z || (z `elem` contras)
@@ -873,6 +879,9 @@ conj ps  = PAnd ps
 
 pAnd, pOr     :: ListNE Pred -> Pred
 pAnd          = simplify . PAnd
+
+pAndNoDedup :: ListNE Pred -> Pred
+pAndNoDedup = simplifyExpr id . PAnd
 
 pOr           = simplify . POr
 
