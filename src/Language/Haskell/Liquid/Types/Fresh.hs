@@ -203,33 +203,33 @@ refreshVV (RAllT a t r) =
 refreshVV (RAllP p t) = 
   RAllP p <$> refreshVV t
 
-refreshVV (REx x t1 t2) = do 
+refreshVV t@(REx x t1 t2) = do 
   t1' <- refreshVV t1
   t2' <- refreshVV t2
-  shiftVV (REx x t1' t2') <$> fresh
+  shiftVV (REx x t1' t2') <$> refresh False (rTypeValueVar t)
 
-refreshVV (RImpF x i t1 t2 r) = do
+refreshVV t@(RImpF x i t1 t2 r) = do
   t1' <- refreshVV t1
   t2' <- refreshVV t2
-  shiftVV (RImpF x i t1' t2' r) <$> fresh
+  shiftVV (RImpF x i t1' t2' r) <$> refresh False (rTypeValueVar t)
 
-refreshVV (RFun x i t1 t2 r) = do
+refreshVV t@(RFun x i t1 t2 r) = do
   t1' <- refreshVV t1
   t2' <- refreshVV t2
-  shiftVV (RFun x i t1' t2' r) <$> fresh
+  shiftVV (RFun x i t1' t2' r) <$> refresh False (rTypeValueVar t)
 
-refreshVV (RAppTy t1 t2 r) = do 
+refreshVV t@(RAppTy t1 t2 r) = do 
   t1' <- refreshVV t1
   t2' <- refreshVV t2
-  shiftVV (RAppTy t1' t2' r) <$> fresh
+  shiftVV (RAppTy t1' t2' r) <$> refresh False (rTypeValueVar t)
 
-refreshVV (RApp c ts rs r) = do 
+refreshVV t@(RApp c ts rs r) = do 
   ts' <- mapM refreshVV    ts
   rs' <- mapM refreshVVRef rs
-  shiftVV (RApp c ts' rs' r) <$> fresh
+  shiftVV (RApp c ts' rs' r) <$> refresh False (rTypeValueVar t)
 
 refreshVV t = 
-  shiftVV t <$> fresh
+  shiftVV t <$> refresh False (rTypeValueVar t)
 
 refreshVVRef :: (FreshM m, F.Reftable (r F.Reft), Functor r, TyConable c, Freshable m (r F.Reft)) => Ref b (RType c tv (r F.Reft)) -> m (Ref b (RType c tv (r F.Reft)))
 refreshVVRef (RProp ss (RHole r))
