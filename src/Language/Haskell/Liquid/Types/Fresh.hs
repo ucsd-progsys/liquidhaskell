@@ -236,7 +236,7 @@ refreshVVRef (RProp ss (RHole r))
   = return $ RProp ss (RHole r)
 
 refreshVVRef (RProp ss t)
-  = do xs    <- mapM (const fresh) (fst <$> ss)
+  = do xs    <- mapM (refresh False) (fst <$> ss)
        let su = F.mkSubst $ zip (fst <$> ss) (F.EVar <$> xs)
        (RProp (zip xs (snd <$> ss)) . F.subst su) <$> refreshVV t
 
