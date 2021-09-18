@@ -141,6 +141,7 @@ import qualified Data.Text                   as T
 import qualified Data.Text.Lazy.Builder      as Builder
 import qualified Data.Store                  as S
 import           Data.Typeable               (Typeable)
+import qualified GHC.Arr                     as Arr
 import           GHC.Generics                (Generic)
 import           Text.PrettyPrint.HughesPJ   (text)
 import           Language.Fixpoint.Types.PrettyPrint
@@ -321,8 +322,12 @@ isAlpha0 t = case T.uncons t of
                Nothing     -> False
 
 isUnsafeChar :: Char -> Bool
-isUnsafeChar = not . (`S.member` okSymChars)
-
+isUnsafeChar c =
+  let ic = ord c
+   in if ic < Arr.numElements okSymChars then
+        not (okSymChars Arr.! ic)
+      else
+        True
 
 keywords :: S.HashSet T.Text
 keywords   = S.fromList [ "env"
@@ -360,8 +365,12 @@ symChars :: S.HashSet Char
 symChars =  safeChars `mappend`
             S.fromList ['%', '#', '$', '\'']
 
-okSymChars :: S.HashSet Char
-okSymChars = safeChars
+okSymChars :: Arr.Array Int Bool
+okSymChars =
+    Arr.listArray (0, maxChar) [ S.member (toEnum i) safeChars | i <- [0..maxChar]]
+  where
+    cs = S.toList safeChars
+    maxChar = ord (maximum cs)
 
 isPrefixOfSym :: Symbol -> Symbol -> Bool
 isPrefixOfSym (symbolText -> p) (symbolText -> x) = p `T.isPrefixOf` x
