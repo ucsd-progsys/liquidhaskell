@@ -1,0 +1,102 @@
+/* Hacking the logo */
+.md-header__button.md-logo img, .md-header__button.md-logo svg, .md-nav__title .md-nav__button.md-logo img, .md-nav__title .md-nav__button.md-logo svg {
+    width: auto;
+    height: 2rem;
+}
+
+/* Hacking the navbar */
+#demo {
+    background-color: green;
+    font-size: 1rem;
+    height: 100%;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.md-tabs__item {
+    padding: 0;
+    margin: 0;
+}
+
+.md-tabs__link {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.md-tabs__list {
+    display:grid;
+    grid-auto-flow:column;
+    grid-auto-columns:1fr;
+}
+
+.md-tabs__list > .md-tabs__item > * > * {
+    padding: 0.3rem;
+}
+
+/* Hacking fancy code blocks */
+
+a.annot:hover span.annottext {
+    white-space: pre-wrap;
+    float: right;
+    position: sticky;
+}
+
+.md-typeset pre {
+    overflow: auto; /* get horiz. scrolling if needed, but not vertical */
+}
+
+.hs-linenum {
+    color: lightgray;
+    user-select: none;
+}
+
+
+/* Sytling the splashpage */
+
+.example-row {
+    display: flex;
+    align-items:center; /* also forces aspect ratio preservation */
+}
+
+.example-row > img {
+    margin: 1rem;
+    max-width: 65%; /* Don't let images hog *too* much space */
+}
+
+/* Tweaking blogpost rendering */
+
+.hidden {
+    display: none;
+}
+
+/* Styling the blogpost metadata */
+
+.blogpost-meta-whowhen {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1rem;
+    font-style: italic;
+}
+
+.blogpost-meta-tags {
+    display: inline-flex;
+    justify-content: flex-start;
+}
+
+.blogpost-meta-tags a.tag-button {
+    margin: 0 0.5rem;
+    padding: 0 0.25rem;
+    border-style: solid;
+    border-radius: 1rem;
+}
+
+.blogpost-meta-tags svg {
+    height: 1rem;
+    vertical-align: middle;
+}

@@ -1,0 +1,107 @@
+/* Show liquid tooltips etc. -- dark theme */
+
+
+.hs-linenum {
+color: #666666; /*CCCCCC;*/
+font-style: italic;
+}
+
+.hs-error {
+background-color: #B80000 ;
+}
+
+.hs-keyglyph, .hs-layout { /* color: red; */ 
+color: white;
+}
+
+.hs-keyword {
+color: #75D075 ; 
+/*font-weight: bold;*/
+}
+
+.hs-comment, .hs-comment a {color: green;}
+
+.hs-str, .hs-chr {color: #7FFFD4;}
+
+.hs-conid { 
+color: #00FFFF; 
+/*font-weight: bold; */
+}
+
+.hs-definition { 
+color: #FFFFFF;   /* #ADFF2F; */
+/* font-weight: bold; */
+}
+
+.hs-varid, .hs-varop {
+color: white; /* #BDDEFF; */
+}
+
+.hs-num, .hs-conop {
+color: aquamarine;
+}
+
+.hs-cpp {
+color: orange;
+}
+
+.hs-sel  {}
+
+a.annot {
+position:relative; 
+color:#000;
+text-decoration:none;
+white-space: pre; 
+}
+
+.hidden {
+display: none;
+}
+
+/* a.annot:hover { */
+/*   z-index:25; */
+/*   background-color:#585858;*/
+/*   /* background-color:#ff0  */*/
+/* }*/
+
+a.annot span.annottext{display: none}
+
+a.annot:hover span.annottext{ 
+
+border-radius: 5px 5px;
+-moz-border-radius: 5px; 
+-webkit-border-radius: 5px; 
+box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.1); 
+-webkit-box-shadow: 5px 5px rgba(0, 0, 0, 0.1);
+-moz-box-shadow: 5px 5px rgba(0, 0, 0, 0.1); 
+
+white-space:pre ;
+display:block;
+position: absolute; 
+left: 1em; top: 2em; 
+z-index: 9999;
+margin-left: 5; 
+padding: 0.8em 1em;
+border: 3px solid #6495ED ; /* #5F9EA0; #FFAD33;*/
+background: #EBF5FF; /* #C3F6FA  #F7F8FD  #C1CDCD #FFFFAA; */
+}
+
+code {
+    /* font-weight: bold; */
+    background-color: rgb(250, 250, 250); 
+    border: 1px solid rgb(200, 200, 200);
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
+pre {
+border-radius: 5px 5px;
+/* font-family: Bitstream Vera Sans Mono,monospace;*/
+font-size: 100%;
+/* color: rgb(255, 255, 255);*/
+/* background-color: rgb(0, 0, 0);*/
+/* margin-bottom: 2em;*/
+padding: 8px;
+display: block;
+overflow: visible; 
+}
