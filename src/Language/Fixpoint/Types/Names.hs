@@ -196,7 +196,7 @@ instance Uninternable Symbol where
   unintern (S _ t _) = t
 
 instance Hashable (Description Symbol) where
-  hashWithSalt s (DT t) = hashWithSalt s t
+  hashWithSalt s (DT t) = {-# SCC "hashWithSalt-Description-Symbol" #-} hashWithSalt s t
 
 instance Hashable Symbol where
   hash (S i _ _) = i
@@ -274,6 +274,7 @@ instance Symbolic a => Symbolic (Located a) where
 symbolText :: Symbol -> T.Text
 symbolText = symbolRaw
 
+{-# SCC symbolString #-}
 symbolString :: Symbol -> String
 symbolString = T.unpack . symbolText
 
@@ -289,6 +290,7 @@ symbolSafeString = T.unpack . symbolSafeText
 
 -- INVARIANT: All strings *must* be built from here
 
+{-# SCC textSymbol #-}
 textSymbol :: T.Text -> Symbol
 textSymbol = intern
 
@@ -300,6 +302,7 @@ encode t
 isFixKey :: T.Text -> Bool
 isFixKey x = S.member x keywords
 
+{-# SCC encodeUnsafe #-}
 encodeUnsafe :: T.Text -> T.Text
 encodeUnsafe t = T.pack $ pad $ go $ T.unpack (prefixAlpha t)
   where

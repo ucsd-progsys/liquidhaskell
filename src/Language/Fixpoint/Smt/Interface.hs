@@ -180,6 +180,7 @@ checkValids cfg f xts ps
 --------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
+{-# SCC command #-}
 command              :: Context -> Command -> IO Response
 --------------------------------------------------------------------------------
 command me !cmd       = say cmd >> hear cmd
@@ -257,9 +258,11 @@ smtWriteRaw me !s = {- SCC "smtWriteRaw" #-} do
 
 smtReadRaw       :: Context -> IO T.Text
 smtReadRaw me    = {- SCC "smtReadRaw" #-} TIO.hGetLine (ctxCin me)
+{-# SCC smtReadRaw  #-}
 
 hPutStrLnNow     :: Handle -> LT.Text -> IO ()
 hPutStrLnNow h !s = LTIO.hPutStrLn h s >> hFlush h
+{-# SCC hPutStrLnNow #-}
 
 --------------------------------------------------------------------------
 -- | SMT Context ---------------------------------------------------------

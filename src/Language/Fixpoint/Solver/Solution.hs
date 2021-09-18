@@ -267,6 +267,7 @@ okInst env v t eq = isNothing tc
 --------------------------------------------------------------------------------
 -- | Predicate corresponding to LHS of constraint in current solution
 --------------------------------------------------------------------------------
+{-# SCC lhsPred #-}
 lhsPred :: (F.Loc a) => F.BindEnv -> Sol.Solution -> F.SimpC a -> F.Expr
 lhsPred be s c = F.notracepp _msg $ fst $ apply g s bs
   where

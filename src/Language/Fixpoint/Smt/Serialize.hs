@@ -233,8 +233,8 @@ instance SMTLIB2 Command where
   smt2 env (DeclData ds)       = key "declare-datatypes" (smt2data env ds)
   smt2 env (Declare x ts t)    = parenSeqs ["declare-fun", Builder.fromText x, parens (smt2many (smt2 env <$> ts)), smt2 env t]
   smt2 env c@(Define t)        = key "declare-sort" (smt2SortMono c env t)
-  smt2 env (Assert Nothing p)  = key "assert" (smt2 env p)
-  smt2 env (Assert (Just i) p) = key "assert" (parens ("!"<+> smt2 env p <+> ":named p-" <> bShow i))
+  smt2 env (Assert Nothing p)  = {-# SCC "smt2-assert" #-} key "assert" (smt2 env p)
+  smt2 env (Assert (Just i) p) = {-# SCC "smt2-assert" #-} key "assert" (parens ("!"<+> smt2 env p <+> ":named p-" <> bShow i))
   smt2 env (Distinct az)
     | length az < 2            = ""
     | otherwise                = key "assert" (key "distinct" (smt2s env az))

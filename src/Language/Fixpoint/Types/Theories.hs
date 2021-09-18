@@ -162,11 +162,13 @@ insertsSymEnv = L.foldl' (\env (x, s) -> insertSymEnv x s env)
 
 symbolAtName :: (PPrint a) => Symbol -> SymEnv -> a -> Sort -> Text
 symbolAtName mkSym env e = symbolAtSmtName mkSym env e . ffuncSort env
+{-# SCC symbolAtName #-}
 
 symbolAtSmtName :: (PPrint a) => Symbol -> SymEnv -> a -> FuncSort -> Text
 symbolAtSmtName mkSym env e s =
   -- formerly: intSymbol mkSym . funcSortIndex env e
   appendSymbolText mkSym $ Text.pack (show (funcSortIndex env e s))
+{-# SCC symbolAtSmtName #-}
 
 funcSortIndex :: (PPrint a) => SymEnv -> a -> FuncSort -> Int
 funcSortIndex env e z = M.lookupDefault err z (seAppls env)

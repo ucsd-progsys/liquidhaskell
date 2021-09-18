@@ -466,6 +466,7 @@ addEnv f bs x
 --------------------------------------------------------------------------------
 -- | Elaborate expressions with types to make polymorphic instantiation explicit.
 --------------------------------------------------------------------------------
+{-# SCC elab #-}
 elab :: ElabEnv -> Expr -> CheckM (Expr, Sort)
 --------------------------------------------------------------------------------
 elab f@(_, g) e@(EBin o e1 e2) = do
@@ -1073,6 +1074,7 @@ checkURel e s1 s2 = unless (b1 == b2) (throwErrorAt $ errRel e s1 s2)
 -- | Sort Unification on Expressions
 --------------------------------------------------------------------------------
 
+{-# SCC unifyExpr #-}
 unifyExpr :: Env -> Expr -> Maybe TVSubst
 unifyExpr f (EApp e1 e2) = Just $ mconcat $ catMaybes [θ1, θ2, θ]
   where
@@ -1097,6 +1099,7 @@ unifyExprApp f e1 e2 = do
 --------------------------------------------------------------------------------
 -- | Sort Unification
 --------------------------------------------------------------------------------
+{-# SCC unify #-}
 unify :: Env -> Maybe Expr -> Sort -> Sort -> Maybe TVSubst
 --------------------------------------------------------------------------------
 unify f e t1 t2
@@ -1324,6 +1327,7 @@ instance Monoid TVSubst where
 
 lookupVar :: Int -> TVSubst -> Maybe Sort
 lookupVar i (Th m)   = M.lookup i m
+{-# SCC lookupVar #-}
 
 updateVar :: Int -> Sort -> TVSubst -> TVSubst
 updateVar !i !t (Th m) = Th (M.insert i t m)

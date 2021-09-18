@@ -154,6 +154,7 @@ filterRequired = error "TBD:filterRequired"
 --------------------------------------------------------------------------------
 -- | `filterValid p [(x1, q1),...,(xn, qn)]` returns the list `[ xi | p => qi]`
 --------------------------------------------------------------------------------
+{-# SCC filterValid #-}
 filterValid :: F.SrcSpan -> F.Expr -> F.Cand a -> SolveM [a]
 --------------------------------------------------------------------------------
 filterValid sp p qs = do
