@@ -171,8 +171,8 @@ type SafeText = T.Text
 
 data Symbol
   = S { _symbolId      :: !Id
-      , symbolRaw     :: !T.Text
-      , symbolEncoded :: !T.Text
+      , symbolRaw      :: T.Text
+      , symbolEncoded  :: T.Text
       } deriving (Data, Typeable, Generic)
 
 instance Eq Symbol where
