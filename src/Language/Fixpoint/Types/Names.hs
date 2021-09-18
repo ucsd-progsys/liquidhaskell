@@ -299,7 +299,16 @@ isFixKey :: T.Text -> Bool
 isFixKey x = S.member x keywords
 
 encodeUnsafe :: T.Text -> T.Text
-encodeUnsafe = joinChunks . splitChunks . prefixAlpha
+encodeUnsafe t = T.pack $ pad $ go $ T.unpack (prefixAlpha t)
+  where
+    pad cs@('$':_) = 'z' : '$' : cs
+    pad cs = cs
+    go [] = []
+    go (c:cs) =
+      if isUnsafeChar c then
+        '$' : shows (ord c) ('$' : go cs)
+      else
+        c : go cs
 
 prefixAlpha :: T.Text -> T.Text
 prefixAlpha t
@@ -310,27 +319,6 @@ isAlpha0 :: T.Text -> Bool
 isAlpha0 t = case T.uncons t of
                Just (c, _) -> S.member c alphaChars
                Nothing     -> False
-
-joinChunks :: (T.Text, [(Char, SafeText)]) -> SafeText
-joinChunks (t, [] ) = t
-joinChunks (t, cts) = T.concat $ padNull t : (tx <$> cts)
-  where
-    tx (c, ct)      = mconcat ["$", c2t c, "$", ct]
-    c2t             = T.pack . show . ord
-
-padNull :: T.Text -> T.Text
-padNull t
-  | T.null t  = "z$"
-  | otherwise = t
-
-splitChunks :: T.Text -> (T.Text, [(Char, SafeText)])
-splitChunks t = (h, go tl)
-  where
-    (h, tl)   = T.break isUnsafeChar t
-    go !ut    = case T.uncons ut of
-                  Nothing       -> []
-                  Just (c, ut') -> let (ct, utl) = T.break isUnsafeChar ut'
-                                   in (c, ct) : go utl
 
 isUnsafeChar :: Char -> Bool
 isUnsafeChar = not . (`S.member` okSymChars)
