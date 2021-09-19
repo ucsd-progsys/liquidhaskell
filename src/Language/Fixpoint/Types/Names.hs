@@ -72,6 +72,7 @@ module Language.Fixpoint.Types.Names (
   , intSymbol
   , tempSymbol
   , gradIntSymbol
+  , appendSymbolText
 
   -- * Wrapping Symbols
   , litSymbol
@@ -456,6 +457,9 @@ unLitSymbol = stripPrefix litPrefix
 
 intSymbol :: (Show a) => Symbol -> a -> Symbol
 intSymbol x i = x `suffixSymbol` symbol (show i)
+
+appendSymbolText :: Symbol -> T.Text -> T.Text
+appendSymbolText s t = encode (symbolText s <> symSepName <> t)
 
 tempSymbol :: Symbol -> Integer -> Symbol
 tempSymbol prefix = intSymbol (tempPrefix `mappendSym` prefix)

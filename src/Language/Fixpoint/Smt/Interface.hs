@@ -389,7 +389,7 @@ smtDecls :: Context -> [(Symbol, Sort)] -> IO ()
 smtDecls = mapM_ . uncurry . smtDecl
 
 smtDecl :: Context -> Symbol -> Sort -> IO ()
-smtDecl me x t = interact' me ({- notracepp msg $ -} Declare x ins' out')
+smtDecl me x t = interact' me ({- notracepp msg $ -} Declare (symbolSafeText x) ins' out')
   where
     ins'       = sortSmtSort False env <$> ins
     out'       = sortSmtSort False env     out
@@ -397,7 +397,7 @@ smtDecl me x t = interact' me ({- notracepp msg $ -} Declare x ins' out')
     _msg        = "smtDecl: " ++ showpp (x, t, ins, out)
     env        = seData (ctxSymEnv me)
 
-smtFuncDecl :: Context -> Symbol -> ([SmtSort],  SmtSort) -> IO ()
+smtFuncDecl :: Context -> T.Text -> ([SmtSort],  SmtSort) -> IO ()
 smtFuncDecl me x (ts, t) = interact' me (Declare x ts t)
 
 smtDataDecl :: Context -> [DataDecl] -> IO ()
@@ -562,7 +562,7 @@ symbolSorts env = [(x, tx t) | (x, t) <- F.toListSEnv env ]
 dataDeclarations :: SymEnv -> [[DataDecl]]
 dataDeclarations = orderDeclarations . map snd . F.toListSEnv . F.seData
 
-funcSortVars :: F.SymEnv -> [(F.Symbol, ([F.SmtSort], F.SmtSort))]
+funcSortVars :: F.SymEnv -> [(T.Text, ([F.SmtSort], F.SmtSort))]
 funcSortVars env  = [(var applyName  t       , appSort t) | t <- ts]
                  ++ [(var coerceName t       , ([t1],t2)) | t@(t1, t2) <- ts]
                  ++ [(var lambdaName t       , lamSort t) | t <- ts]
