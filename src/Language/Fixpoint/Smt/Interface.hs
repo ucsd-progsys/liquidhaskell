@@ -112,7 +112,6 @@ import qualified Data.Text                as T
 -- import           Data.Text.Format
 import qualified Data.Text.IO             as TIO
 import qualified Data.Text.Lazy           as LT
-import qualified Data.Text.Lazy.Builder   as Builder
 import qualified Data.Text.Lazy.IO        as LTIO
 import           System.Directory
 import           System.Console.CmdArgs.Verbosity
@@ -125,7 +124,7 @@ import qualified Data.Attoparsec.Text     as A
 import           Data.Attoparsec.Internal.Types (Parser)
 import           Text.PrettyPrint.HughesPJ (text)
 import           Language.Fixpoint.SortCheck
-import           Language.Fixpoint.Utils.Builder
+import           Language.Fixpoint.Utils.Builder as Builder
 -- import qualified Language.Fixpoint.Types as F
 -- import           Language.Fixpoint.Types.PrettyPrint (tracepp)
 
@@ -436,7 +435,7 @@ smtAssertAsync me p  = do
   maybe (return ()) (`LTIO.hPutStrLn` cmdText) (ctxLog me)
 
 asyncPutStrLn :: TVar Builder.Builder -> LT.Text -> IO ()
-asyncPutStrLn tv t = atomically $ modifyTVar tv (`mappend` (Builder.fromLazyText t `mappend` Builder.singleton '\n'))
+asyncPutStrLn tv t = atomically $ modifyTVar tv (`mappend` (Builder.fromLazyText t `mappend` Builder.fromString "\n"))
 
 smtCheckUnsatAsync :: Context -> IO ()
 smtCheckUnsatAsync me = do

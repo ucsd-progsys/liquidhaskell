@@ -139,7 +139,6 @@ import           Data.Interned
 import           Data.Interned.Internal.Text
 import           Data.String                 (IsString(..))
 import qualified Data.Text                   as T
-import qualified Data.Text.Lazy.Builder      as Builder
 import qualified Data.Store                  as S
 import           Data.Typeable               (Typeable)
 import qualified GHC.Arr                     as Arr
@@ -147,6 +146,7 @@ import           GHC.Generics                (Generic)
 import           Text.PrettyPrint.HughesPJ   (text)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
+import           Language.Fixpoint.Utils.Builder as Builder (Builder, fromText)
 import Data.Functor.Contravariant (Contravariant(contramap))
 import qualified Data.Binary as B
 
@@ -534,7 +534,7 @@ instance Symbolic String where
 instance Symbolic Symbol where
   symbol = id
 
-symbolBuilder :: (Symbolic a) => a -> Builder.Builder
+symbolBuilder :: (Symbolic a) => a -> Builder
 symbolBuilder = Builder.fromText . symbolSafeText . symbol
 
 {-# INLINE buildMany #-}

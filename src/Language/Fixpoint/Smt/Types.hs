@@ -29,8 +29,8 @@ module Language.Fixpoint.Smt.Types (
 import           Control.Concurrent.Async (Async)
 import           Control.Concurrent.STM (TVar)
 import           Language.Fixpoint.Types
+import           Language.Fixpoint.Utils.Builder (Builder)
 import qualified Data.Text                as T
-import qualified Data.Text.Lazy.Builder   as LT
 import           Text.PrettyPrint.HughesPJ
 
 import           System.IO                (Handle)
@@ -95,7 +95,7 @@ data Context = Ctx
     -- | The handle of the thread writing queries to the SMT solver
   , ctxAsync   :: Async ()
     -- | The next batch of queries to send to the SMT solver
-  , ctxTVar    :: TVar LT.Builder
+  , ctxTVar    :: TVar Builder
   }
 
 --------------------------------------------------------------------------------
@@ -103,7 +103,7 @@ data Context = Ctx
 --------------------------------------------------------------------------------
 
 class SMTLIB2 a where
-  smt2 :: SymEnv -> a -> LT.Builder
+  smt2 :: SymEnv -> a -> Builder
 
-runSmt2 :: (SMTLIB2 a) => SymEnv -> a -> LT.Builder
+runSmt2 :: (SMTLIB2 a) => SymEnv -> a -> Builder
 runSmt2 = smt2

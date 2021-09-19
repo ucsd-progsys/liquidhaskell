@@ -22,10 +22,9 @@ import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Data.Semigroup                 (Semigroup (..))
 #endif
 
-import qualified Data.Text.Lazy.Builder         as Builder
 -- import           Data.Text.Format
 import           Language.Fixpoint.Misc (sortNub, errorstar)
-import           Language.Fixpoint.Utils.Builder
+import           Language.Fixpoint.Utils.Builder as Builder
 -- import Debug.Trace (trace)
 
 instance SMTLIB2 (Symbol, Sort) where
@@ -264,4 +263,4 @@ smt2s env as = smt2many (smt2 env <$> as)
 
 {-# INLINE smt2many #-}
 smt2many :: [Builder.Builder] -> Builder.Builder
-smt2many = buildMany
+smt2many = seqs

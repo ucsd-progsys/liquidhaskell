@@ -49,7 +49,6 @@ import           Language.Fixpoint.Smt.Types
 -- import qualified Data.HashMap.Strict      as M
 import           Data.Maybe (catMaybes)
 import qualified Data.Text.Lazy           as T
-import qualified Data.Text.Lazy.Builder   as B
 -- import           Data.Text.Format
 import qualified Data.Text
 import           Data.String                 (IsString(..))
@@ -124,17 +123,17 @@ concatstrSort = mkFFunc 0 [strSort, strSort, strSort]
 string :: Raw
 string = strConName
 
-bFun :: Raw -> [(B.Builder, B.Builder)] -> B.Builder -> B.Builder -> T.Text
+bFun :: Raw -> [(Builder, Builder)] -> Builder -> Builder -> T.Text
 bFun name xts out body = blt $ key "define-fun" (seqs [bb name, args, out, body])
   where
     args = parenSeqs [parens (x <+> t) | (x, t) <- xts]
 
-bFun' :: Raw -> [B.Builder] -> B.Builder -> T.Text
+bFun' :: Raw -> [Builder] -> Builder -> T.Text
 bFun' name ts out = blt $ key "declare-fun" (seqs [bb name, args, out])
   where
     args = parenSeqs ts
 
-bSort :: Raw -> B.Builder -> T.Text
+bSort :: Raw -> Builder -> T.Text
 bSort name def = blt $ key "define-sort" (bb name <+> "()" <+> def)
 
 z3Preamble :: Config -> [T.Text]
@@ -276,13 +275,13 @@ stringPreamble _
 --------------------------------------------------------------------------------
 -- | Exported API --------------------------------------------------------------
 --------------------------------------------------------------------------------
-smt2Symbol :: SymEnv -> Symbol -> Maybe B.Builder
-smt2Symbol env x = B.fromLazyText . tsRaw <$> symEnvTheory x env
+smt2Symbol :: SymEnv -> Symbol -> Maybe Builder
+smt2Symbol env x = fromLazyText . tsRaw <$> symEnvTheory x env
 
 instance SMTLIB2 SmtSort where
   smt2 _ = smt2SmtSort
 
-smt2SmtSort :: SmtSort -> B.Builder
+smt2SmtSort :: SmtSort -> Builder
 smt2SmtSort SInt         = "Int"
 smt2SmtSort SReal        = "Real"
 smt2SmtSort SBool        = "Bool"
@@ -296,12 +295,12 @@ smt2SmtSort (SData c ts) = parenSeqs [symbolBuilder c, smt2SmtSorts ts]
 
 -- smt2SmtSort (SApp ts)    = build "({} {})" (symbolBuilder tyAppName, smt2SmtSorts ts)
 
-smt2SmtSorts :: [SmtSort] -> B.Builder
-smt2SmtSorts = buildMany . fmap smt2SmtSort
+smt2SmtSorts :: [SmtSort] -> Builder
+smt2SmtSorts = seqs . fmap smt2SmtSort
 
-type VarAs = SymEnv -> Symbol -> Sort -> B.Builder
+type VarAs = SymEnv -> Symbol -> Sort -> Builder
 --------------------------------------------------------------------------------
-smt2App :: VarAs -> SymEnv -> Expr -> [B.Builder] -> Maybe B.Builder
+smt2App :: VarAs -> SymEnv -> Expr -> [Builder] -> Maybe Builder
 --------------------------------------------------------------------------------
 smt2App _ _ (ECst (EVar f) _) [d]
   | f == setEmpty = Just (bb emp)
@@ -314,7 +313,7 @@ smt2App k env f (d:ds)
 
 smt2App _ _ _ _    = Nothing
 
-smt2AppArg :: VarAs -> SymEnv -> Expr -> Maybe B.Builder
+smt2AppArg :: VarAs -> SymEnv -> Expr -> Maybe Builder
 smt2AppArg k env (ECst (EVar f) t)
   | Just fThy <- symEnvTheory f env
   = Just $ if isPolyCtor fThy t
