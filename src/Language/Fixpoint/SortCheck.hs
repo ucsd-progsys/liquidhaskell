@@ -61,11 +61,13 @@ module Language.Fixpoint.SortCheck  (
   ) where
 
 --  import           Control.DeepSeq
+import           Control.Exception (Exception, catch, try, throwIO)
 import           Control.Monad
 import           Control.Monad.Except      -- (MonadError(..))
-import           Control.Monad.State.Strict
+import           Control.Monad.Reader
 
 import qualified Data.HashMap.Strict       as M
+import           Data.IORef
 import qualified Data.List                 as L
 import           Data.Maybe                (mapMaybe, fromMaybe, catMaybes, isJust)
 #if !MIN_VERSION_base(4,14,0)
@@ -83,6 +85,7 @@ import           Text.Printf
 
 import           GHC.Stack
 import qualified Language.Fixpoint.Types as F
+import           System.IO.Unsafe (unsafePerformIO)
 
 --import Debug.Trace as Debug
 
@@ -214,7 +217,9 @@ elabExpr msg env e = case elabExprE msg env e of
 elabExprE :: Located String -> SymEnv -> Expr -> Either Error Expr
 elabExprE msg env e = 
   case runCM0 (srcSpan msg) (elab (env, f) e) of
-    Left e   -> Left  $ err (srcSpan e) (d (val e))
+    Left (ChError f) ->
+      let e = f ()
+       in Left $ err (srcSpan e) (d (val e))
     Right s  -> Right (fst s)
   where
     sEnv = seSort env
@@ -266,7 +271,7 @@ elabApply env = go
 --------------------------------------------------------------------------------
 sortExpr :: SrcSpan -> SEnv Sort -> Expr -> Sort
 sortExpr l γ e = case runCM0 l (checkExpr f e) of
-    Left  e -> die $ err l (d (val e))
+    Left (ChError f) -> die $ err l (d (val (f ())))
     Right s -> s
   where
     f   = (`lookupSEnvWithDistance` γ)
@@ -298,9 +303,18 @@ subEnv g e = intersectWithSEnv (\t _ -> t) g g'
 --------------------------------------------------------------------------------
 
 -- | Types used throughout checker
-type CheckM   = StateT ChState (Either ChError)
-type ChError  = Located String
-data ChState  = ChS { chCount :: Int, chSpan :: SrcSpan }
+type CheckM = ReaderT ChState IO
+
+-- We guard errors with a lambda to prevent accidental eager
+-- evaluation of the payload. This module is using -XStrict.
+-- See also Note [Lazy error messages].
+newtype ChError  = ChError (() -> Located String)
+
+instance Show ChError where
+  show (ChError f) = show (f ())
+instance Exception ChError where
+
+data ChState = ChS { chCount :: IORef Int, chSpan :: SrcSpan }
 
 type Env      = Symbol -> SESearch Sort
 type ElabEnv  = (SymEnv, Env)
@@ -315,20 +329,27 @@ mkSearchEnv env x = lookupSEnvWithDistance x env
 -- act `withError` e' = act `catchError` (\e -> throwError (atLoc e (val e ++ "\n  because\n" ++ val e')))
 
 withError :: HasCallStack => CheckM a -> String -> CheckM a
-act `withError` msg = act `catchError`
-  (\ ~e -> -- Lazy pattern needed because we use LANGUAGE Strict in this module
-           -- See Note [Lazy error messages]
-    throwError (atLoc e (val e ++ "\n  because\n" ++ msg))
-  )
+act `withError` msg = do
+  r <- ask
+  liftIO $ runReaderT act r `catch`
+    (\(ChError f) ->
+      throwIO $ ChError $ \_ ->
+        let e = f ()
+         in (atLoc e (val e ++ "\n  because\n" ++ msg))
+    )
 
 runCM0 :: SrcSpan -> CheckM a -> Either ChError a
-runCM0 sp act = fst <$> runStateT act (ChS 42 sp)
+runCM0 sp act = unsafePerformIO $ do
+  rn <- newIORef 42
+  try (runReaderT act (ChS rn sp))
 
 fresh :: CheckM Int
 fresh = do
-  !n <- gets chCount
-  modify $ \s -> s { chCount = 1 + chCount s }
-  return n
+  rn <- asks chCount
+  liftIO $ do
+    n <- readIORef rn
+    writeIORef rn (n + 1)
+    return n
 
 --------------------------------------------------------------------------------
 -- | Checking Refinements ------------------------------------------------------
@@ -343,7 +364,7 @@ checkSortedReft env xs sr = applyNonNull Nothing oops unknowns
 checkSortedReftFull :: Checkable a => SrcSpan -> SEnv SortedReft -> a -> Maybe Doc
 checkSortedReftFull sp γ t = 
   case runCM0 sp (check γ' t) of
-    Left e  -> Just (text (val e))
+    Left (ChError f)  -> Just (text (val (f ())))
     Right _ -> Nothing
   where
     γ' = sr_sort <$> γ
@@ -351,7 +372,7 @@ checkSortedReftFull sp γ t =
 checkSortFull :: Checkable a => SrcSpan -> SEnv SortedReft -> Sort -> a -> Maybe Doc
 checkSortFull sp γ s t = 
   case runCM0 sp (checkSort γ' s t) of
-    Left e  -> Just (text (val e))
+    Left (ChError f)  -> Just (text (val (f ())))
     Right _ -> Nothing
   where
       γ' = sr_sort <$> γ
@@ -359,7 +380,7 @@ checkSortFull sp γ s t =
 checkSorted :: Checkable a => SrcSpan -> SEnv Sort -> a -> Maybe Doc
 checkSorted sp γ t = 
   case runCM0 sp (check γ t) of
-    Left e   -> Just (text (val e))
+    Left (ChError f)  -> Just (text (val (f ())))
     Right _  -> Nothing
 
 pruneUnsortedReft :: SEnv Sort -> Templates -> SortedReft -> SortedReft
@@ -864,8 +885,8 @@ unite f e t1 t2 = do
 throwErrorAt :: String -> CheckM a 
 throwErrorAt ~err = do -- Lazy pattern needed because we use LANGUAGE Strict in this module
                        -- See Note [Lazy error messages]
-  sp <- gets chSpan 
-  throwError (atLoc sp err)
+  sp <- asks chSpan
+  liftIO $ throwIO (ChError (\_ -> atLoc sp err))
 
 -- Note [Lazy error messages]
 --
