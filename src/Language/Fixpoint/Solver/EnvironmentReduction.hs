@@ -77,7 +77,7 @@ import           Language.Fixpoint.Types.Refinements
   , subst1
   )
 import           Language.Fixpoint.Types.Sorts (boolSort, sortSymbols)
-import           Language.Fixpoint.Types.Visitor (mapExpr)
+import           Language.Fixpoint.Types.Visitor (mapExprOnExpr)
 
 -- | Strips from all the constraint environments the bindings that are
 -- irrelevant for their respective constraints.
@@ -615,7 +615,7 @@ inlineInSortedReftChanged env (m, sr) =
 -- binding is allowed to have. If the binding exceeds this threshold, it
 -- is not inlined.
 inlineInExpr :: HashMap Symbol (m, SortedReft) -> Expr -> Expr
-inlineInExpr env = simplify . mapExpr inlineExpr
+inlineInExpr env = simplify . mapExprOnExpr inlineExpr
   where
     inlineExpr (EVar sym)
       | anfPrefix `isPrefixOfSym` sym

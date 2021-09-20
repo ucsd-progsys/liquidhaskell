@@ -50,7 +50,7 @@ module Language.Fixpoint.SortCheck  (
   -- * Sort-Directed Transformations
   , Elaborate (..)
   , applySorts
-  , unElab, unApplyAt
+  , unElab, unElabSortedReft, unApplyAt
   , toInt
 
   -- * Predicates on Sorts
@@ -175,7 +175,7 @@ instance Elaborate a => Elaborate [a]  where
   elaborate msg env xs = elaborate msg env <$> xs
 
 elabNumeric :: Expr -> Expr
-elabNumeric = Vis.mapExpr go
+elabNumeric = Vis.mapExprOnExpr go
   where
     go (ETimes e1 e2)
       | exprSort "txn1" e1 == FReal
@@ -315,7 +315,11 @@ mkSearchEnv env x = lookupSEnvWithDistance x env
 -- act `withError` e' = act `catchError` (\e -> throwError (atLoc e (val e ++ "\n  because\n" ++ val e')))
 
 withError :: HasCallStack => CheckM a -> String -> CheckM a
-act `withError` msg = act `catchError` (\e -> throwError (atLoc e (val e ++ "\n  because\n" ++ msg)))
+act `withError` msg = act `catchError`
+  (\ ~e -> -- Lazy pattern needed because we use LANGUAGE Strict in this module
+           -- See Note [Lazy error messages]
+    throwError (atLoc e (val e ++ "\n  because\n" ++ msg))
+  )
 
 runCM0 :: SrcSpan -> CheckM a -> Either ChError a
 runCM0 sp act = fst <$> runStateT act (ChS 42 sp)
@@ -677,10 +681,13 @@ isInt env s = case sortSmtSort False (seData env) s of
 toIntAt :: Sort -> Expr
 toIntAt s = ECst (EVar toIntName) (FFunc s FInt)
 
-unElab :: (Vis.Visitable t) => t -> t
+unElab :: Expr -> Expr
 unElab = Vis.stripCasts . unApply
 
-unApply :: (Vis.Visitable t) => t -> t
+unElabSortedReft :: SortedReft -> SortedReft
+unElabSortedReft sr = sr { sr_reft = mapPredReft unElab (sr_reft sr) }
+
+unApply :: Expr -> Expr
 unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () ()
   where
     go (ECst (EApp (EApp f e1) e2) _)
@@ -855,9 +862,16 @@ unite f e t1 t2 = do
   return (apply su t1, apply su t2)
 
 throwErrorAt :: String -> CheckM a 
-throwErrorAt err = do 
+throwErrorAt ~err = do -- Lazy pattern needed because we use LANGUAGE Strict in this module
+                       -- See Note [Lazy error messages]
   sp <- gets chSpan 
   throwError (atLoc sp err)
+
+-- Note [Lazy error messages]
+--
+-- We don't want to construct error messages early, or
+-- we might trigger some expensive computation of editDistance
+-- when no error has actually occurred yet.
 
 -- | Helper for checking symbol occurrences
 checkSym :: Env -> Symbol -> CheckM Sort
@@ -1248,7 +1262,7 @@ apply θ          = Vis.mapSort f
 
 applyExpr :: Maybe TVSubst -> Expr -> Expr
 applyExpr Nothing e  = e
-applyExpr (Just θ) e = Vis.mapExpr f e
+applyExpr (Just θ) e = Vis.mapExprOnExpr f e
   where
     f (ECst e s) = ECst e (apply θ s)
     f e          = e
