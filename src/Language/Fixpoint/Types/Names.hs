@@ -199,8 +199,8 @@ instance Hashable (Description Symbol) where
   hashWithSalt s (DT t) = {-# SCC "hashWithSalt-Description-Symbol" #-} hashWithSalt s t
 
 instance Hashable Symbol where
-  hash (S i _ _) = i
-  hashWithSalt s (S i _ _) = hashWithSalt s i
+  -- NOTE: hash based on original text rather than id
+  hashWithSalt s (S _ t _) = hashWithSalt s t
 
 instance NFData Symbol where
   rnf S {} = ()
