@@ -3,7 +3,7 @@ set datafile separator ','
 # General config.
 set autoscale
 set bmargin 22    # For some reason using xticlabels adds tons of whitespaces at the end
-set tics font ",4"
+set tics font ",8"
 
 # Y (time) axis config
 set ylabel "Time (seconds)"
@@ -23,8 +23,15 @@ set grid ls 100 # enable grid with specific linestyle
 # X axis config
 set xtics scale 0 rotate
 
-set terminal svg enhanced size 8192,1024
+#set terminal svg enhanced size 8192,1024
+set terminal svg enhanced size 1024,1024
 set output 'perf.svg'
 plot csv_2 using 2:xticlabels(1) with boxes lc rgb'red90' axis x1y1 title "after", \
      csv_3 using 2:xticlabels(1) with boxes lc rgb'blue90' axis x1y1 title "before", \
-     '' u 0:($2+.1):(sprintf("%3.2f",$4-$2)) with labels rotate left font ",4" notitle
+     '' u 0:($2+.1):(sprintf("%3.2f",$4-$2)) with labels rotate left font ",8" notitle
+
+set terminal png truecolor enhanced size 2048,2048
+set output 'perf.png'
+plot csv_2 using 2:xticlabels(1) with boxes lc rgb'red90' axis x1y1 title "after", \
+     csv_3 using 2:xticlabels(1) with boxes lc rgb'blue90' axis x1y1 title "before", \
+     '' u 0:($2+.1):(sprintf("%3.2f",$4-$2)) with labels rotate left font ",8" notitle
