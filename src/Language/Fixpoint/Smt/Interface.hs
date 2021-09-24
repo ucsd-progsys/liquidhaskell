@@ -428,25 +428,22 @@ smtAssert me p  = interact' me (Assert Nothing p)
 -- See Note [Async SMT API]
 -----------------------------------------------------------------
 
+asyncCommand :: Context -> Command -> IO ()
+asyncCommand me cmd = do
+  let env = ctxSymEnv me
+      cmdText = Builder.toLazyText $ runSmt2 env cmd
+  asyncPutStrLn (ctxTVar me) cmdText
+  maybe (return ()) (`LTIO.hPutStrLn` cmdText) (ctxLog me)
+  where
+    asyncPutStrLn :: TVar Builder.Builder -> LT.Text -> IO ()
+    asyncPutStrLn tv t = atomically $
+      modifyTVar tv (`mappend` (Builder.fromLazyText t `mappend` Builder.fromString "\n"))
 
 smtAssertAsync :: Context -> Expr -> IO ()
-smtAssertAsync me p  = do
-  let cmd = Assert Nothing p
-      env = ctxSymEnv me
-      cmdText = Builder.toLazyText $ runSmt2 env cmd
-  asyncPutStrLn (ctxTVar me) cmdText
-  maybe (return ()) (`LTIO.hPutStrLn` cmdText) (ctxLog me)
-
-asyncPutStrLn :: TVar Builder.Builder -> LT.Text -> IO ()
-asyncPutStrLn tv t = atomically $ modifyTVar tv (`mappend` (Builder.fromLazyText t `mappend` Builder.fromString "\n"))
+smtAssertAsync me p  = asyncCommand me $ Assert Nothing p
 
 smtCheckUnsatAsync :: Context -> IO ()
-smtCheckUnsatAsync me = do
-  let cmd = CheckSat
-      env = ctxSymEnv me
-      cmdText = Builder.toLazyText $ runSmt2 env cmd
-  asyncPutStrLn (ctxTVar me) cmdText
-  maybe (return ()) (`LTIO.hPutStrLn` cmdText) (ctxLog me)
+smtCheckUnsatAsync me = asyncCommand me CheckSat
 
 smtBracketAsyncAt :: SrcSpan -> Context -> String -> IO a -> IO a
 smtBracketAsyncAt sp x y z = smtBracketAsync x y z `catch` dieAt sp
@@ -459,18 +456,8 @@ smtBracketAsync me _msg a   = do
   return r
 
 smtPushAsync, smtPopAsync   :: Context -> IO ()
-smtPushAsync me = do
-  let cmd = Push
-      env = ctxSymEnv me
-      cmdText = Builder.toLazyText $ runSmt2 env cmd
-  asyncPutStrLn (ctxTVar me) cmdText
-  maybe (return ()) (`LTIO.hPutStrLn` cmdText) (ctxLog me)
-smtPopAsync me = do
-  let cmd = Pop
-      env = ctxSymEnv me
-      cmdText = Builder.toLazyText $ runSmt2 env cmd
-  asyncPutStrLn (ctxTVar me) cmdText
-  maybe (return ()) (`LTIO.hPutStrLn` cmdText) (ctxLog me)
+smtPushAsync me = asyncCommand me Push
+smtPopAsync me = asyncCommand me Pop
 
 -----------------------------------------------------------------
 
