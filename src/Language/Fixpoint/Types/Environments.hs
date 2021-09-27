@@ -115,6 +115,7 @@ splitByQuantifiers (BE i bs) ebs = ( BE i $ M.filterWithKey (\k _ -> not (elem k
 instance PPrint a => PPrint (SEnv a) where
   pprintTidy k = pprintKVs k . L.sortBy (compare `on` fst) . toListSEnv
 
+{-# SCC toListSEnv #-}
 toListSEnv              ::  SEnv a -> [(Symbol, a)]
 toListSEnv (SE env)     = M.toList env
 
@@ -139,6 +140,7 @@ deleteSEnv x (SE env)   = SE (M.delete x env)
 insertSEnv :: Symbol -> a -> SEnv a -> SEnv a
 insertSEnv x v (SE env) = SE (M.insert x v env)
 
+{-# SCC lookupSEnv #-}
 lookupSEnv :: Symbol -> SEnv a -> Maybe a
 lookupSEnv x (SE env)   = M.lookup x env
 
@@ -163,6 +165,7 @@ unionSEnv (SE m1) m2    = SE (M.union m1 m2)
 unionSEnv' :: SEnv a -> SEnv a -> SEnv a
 unionSEnv' (SE m1) (SE m2)    = SE (M.union m1 m2)
 
+{-# SCC lookupSEnvWithDistance #-}
 lookupSEnvWithDistance :: Symbol -> SEnv a -> SESearch a
 lookupSEnvWithDistance x (SE env)
   = case M.lookup x env of

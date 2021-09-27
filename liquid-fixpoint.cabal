@@ -133,6 +133,7 @@ library
                   , megaparsec           >= 7.0.0 && < 9
                   , pretty               >= 1.1.3.1
                   , process
+                  , stm
                   , syb
                   , syb
                   , text

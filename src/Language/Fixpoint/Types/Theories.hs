@@ -51,6 +51,8 @@ import           Language.Fixpoint.Types.Environments
 
 import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.List                as L 
+import           Data.Text (Text)
+import qualified Data.Text                as Text
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Store              as S
 import qualified Data.HashMap.Strict      as M
@@ -158,11 +160,15 @@ insertSymEnv x t env = env { seSort = insertSEnv x t (seSort env) }
 insertsSymEnv :: SymEnv -> [(Symbol, Sort)] -> SymEnv
 insertsSymEnv = L.foldl' (\env (x, s) -> insertSymEnv x s env) 
 
-symbolAtName :: (PPrint a) => Symbol -> SymEnv -> a -> Sort -> Symbol
+symbolAtName :: (PPrint a) => Symbol -> SymEnv -> a -> Sort -> Text
 symbolAtName mkSym env e = symbolAtSmtName mkSym env e . ffuncSort env
+{-# SCC symbolAtName #-}
 
-symbolAtSmtName :: (PPrint a) => Symbol -> SymEnv -> a -> FuncSort -> Symbol
-symbolAtSmtName mkSym env e = intSymbol mkSym . funcSortIndex env e
+symbolAtSmtName :: (PPrint a) => Symbol -> SymEnv -> a -> FuncSort -> Text
+symbolAtSmtName mkSym env e s =
+  -- formerly: intSymbol mkSym . funcSortIndex env e
+  appendSymbolText mkSym $ Text.pack (show (funcSortIndex env e s))
+{-# SCC symbolAtSmtName #-}
 
 funcSortIndex :: (PPrint a) => SymEnv -> a -> FuncSort -> Int
 funcSortIndex env e z = M.lookupDefault err z (seAppls env)

@@ -79,6 +79,7 @@ getUniqueInt = do
 -- | Edit Distance --------------------------------------------
 ---------------------------------------------------------------
 
+{-# SCC editDistance #-}
 editDistance :: Eq a => [a] -> [a] -> Int
 editDistance xs ys = table ! (m, n)
     where
