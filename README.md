@@ -128,6 +128,24 @@ You can directly extend and run the tests by modifying
 
     tests/test.hs
 
+## How to create performance comparison charts
+
+Everytime `liquidhaskell` tests are run, a report of the time taken by
+each test is written to a file `tests/logs/<host>-<time>/summary.csv`.
+
+There is a script `scripts/plot-performance/chart_perf.sh` that can be
+used to generate comparison charts in `svg` and `png` formats. It
+requires [gnuplot](http://www.gnuplot.info/) to run. The following
+command will produce two files `perf.svg` and `perf.png` in the
+current directory.
+
+    $ scripts/plot-performance/chart_perf.sh path_to_before_summary.csv path_to_after_summary.csv
+
+The current formatting is optmized for comparing the outputs of running
+the benchmarks alone.
+
+    $ scripts/test/test_810.sh Benchmarks
+
 ## How to Profile
 
 1. Build with profiling on
