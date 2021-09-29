@@ -47,6 +47,8 @@ import           System.Process
 -- | Commands issued to SMT engine
 data Command      = Push
                   | Pop
+                  | Exit
+                  | SetMbqi
                   | CheckSat
                   | DeclData ![DataDecl]
                   | Declare  T.Text [SmtSort] !SmtSort
@@ -62,6 +64,8 @@ instance PPrint Command where
   pprintTidy _ = ppCmd
 
 ppCmd :: Command -> Doc
+ppCmd Exit             = text "Exit"
+ppCmd SetMbqi          = text "SetMbqi"
 ppCmd Push             = text "Push"
 ppCmd Pop              = text "Pop"
 ppCmd CheckSat         = text "CheckSat"

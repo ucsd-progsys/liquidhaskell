@@ -53,7 +53,8 @@ module Language.Fixpoint.Smt.Interface (
 
     -- * Execute Queries
     , command
-    , smtWrite
+    , smtExit
+    , smtSetMbqi
 
     -- * Query API
     , smtDecl
@@ -191,6 +192,11 @@ command me !cmd       = say cmd >> hear cmd
     hear (GetValue _) = smtRead me
     hear _            = return Ok
 
+smtExit :: Context -> IO ()
+smtExit me = asyncCommand me Exit
+
+smtSetMbqi :: Context -> IO ()
+smtSetMbqi me = asyncCommand me SetMbqi
 
 smtWrite :: Context -> Raw -> IO ()
 smtWrite me !s = smtWriteRaw me s

@@ -76,7 +76,7 @@ runSolverM :: Config -> SolverInfo b c -> SolveM a -> IO a
 runSolverM cfg sI act =
   bracket acquire release $ \ctx -> do
     res <- runStateT act' (s0 ctx)
-    smtWrite ctx "(exit)"
+    smtExit ctx
     return (fst res)
   where
     s0 ctx   = SS ctx be (stats0 fi)
@@ -216,8 +216,7 @@ filterValidOne_ p qs me = do
 
 smtEnablembqi :: SolveM ()
 smtEnablembqi
-  = withContext $ \me ->
-      smtWrite me "(set-option :smt.mbqi true)"
+  = withContext smtSetMbqi
 
 --------------------------------------------------------------------------------
 checkSat :: F.Expr -> SolveM  Bool
