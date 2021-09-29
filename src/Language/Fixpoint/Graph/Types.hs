@@ -132,6 +132,10 @@ txEdges es = concatMap iEs is
 -- | Dramatis Personae
 ---------------------------------------------------------------------------
 type KVRead  = M.HashMap F.KVar [F.SubcId]
+-- | (Constraint id, vertex key, edges to other constraints)
+--
+-- The vertex key is always equal to the constraint id. The redundancy
+-- is imposed by how @containers:Data.Graph@ requires graphs to be created.
 type DepEdge = (F.SubcId, F.SubcId, [F.SubcId])
 
 data Slice = Slice { slKVarCs :: [F.SubcId]     -- ^ F.SubcIds that transitively "reach" below
@@ -139,11 +143,21 @@ data Slice = Slice { slKVarCs :: [F.SubcId]     -- ^ F.SubcIds that transitively
                    , slEdges  :: [DepEdge] -- ^ Dependencies between slKVarCs
                    } deriving (Eq, Show)
 
-data CGraph = CGraph { gEdges :: [DepEdge]
-                     , gRanks :: !(F.CMap Int)
-                     , gSucc  :: !(F.CMap [F.SubcId])
-                     , gSccs  :: !Int
-                     }
+data CGraph = CGraph
+  { gEdges :: [DepEdge]
+    -- | Maps a constraint id to an index identifying the strongly connected
+    -- component to which it belongs.
+    -- The scc indices correspond with a topological ordering of the sccs.
+  , gRanks :: !(F.CMap Int)
+    -- | Tells for each constraint C, which constraints read any kvars that
+    -- C writes.
+    --
+    -- This is redundant with 'gEdges', so both fields need to express the
+    -- exact same dependencies.
+  , gSucc  :: !(F.CMap [F.SubcId])
+    -- | Amount of strongly connected components
+  , gSccs  :: !Int
+  }
 
 ---------------------------------------------------------------------------
 -- | CMap API -------------------------------------------------------------

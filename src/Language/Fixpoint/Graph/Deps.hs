@@ -152,6 +152,10 @@ cGraph fi = CGraph { gEdges = es
 
 --------------------------------------------------------------------------------
 -- | Ranks from Graph ----------------------------------------------------------
+--
+-- Yields the strongly conected components and a map of constraint ids to
+-- an index identifying the strongly connected component to which it belongs.
+-- The scc indices correspond with a topological ordering of the sccs.
 --------------------------------------------------------------------------------
 graphRanks :: G.Graph -> (G.Vertex -> DepEdge) -> (CMap Int, [[G.Vertex]])
 ---------------------------------------------------------------------------
@@ -485,7 +489,10 @@ graphDeps fi cs = CDs { cSucc   = gSucc cg
     is          = [i | (Cstr i, _) <- cs]
     cPrevM      = sortNub <$> group [ (i, k) | (KVar k, Cstr i) <- cs ]
 
---TODO merge these with cGraph and kvSucc
+-- | Converts dependencies between constraints and kvars, to dependencies between
+-- constraints.
+--
+-- TODO merge these with cGraph and kvSucc
 cGraphCE :: [CEdge] -> CGraph
 cGraphCE cs = CGraph { gEdges = es
                      , gRanks = outRs
@@ -497,6 +504,11 @@ cGraphCE cs = CGraph { gEdges = es
     (g, vf, _)     = G.graphFromEdges es
     (outRs, sccs)  = graphRanks g vf
 
+-- | Converts dependencies between constraints and kvars to
+-- dependencies between constraints.
+--
+-- The returned map tells for each coonstraint writing a kvar
+-- which constraints are reading the kvar.
 cSuccM      :: [CEdge] -> CMap [F.SubcId]
 cSuccM es    = (sortNub . concatMap kRdBy) <$> iWrites
   where
@@ -512,6 +524,7 @@ rankF cm outR inR = \i -> Rank (outScc i) (inScc i) (tag i)
     tag           = F.stag . lookupCMap cm
 
 ---------------------------------------------------------------------------
+-- | Removes the kut vars from the graph, and recomputes the SCC indices.
 inRanks ::  F.TaggedC c a => F.GInfo c a -> [DepEdge] -> CMap Int -> CMap Int
 ---------------------------------------------------------------------------
 inRanks fi es outR
