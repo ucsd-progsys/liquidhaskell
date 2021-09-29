@@ -80,6 +80,7 @@ siKvars :: F.SInfo a -> S.HashSet F.KVar
 siKvars = S.fromList . M.keys . F.ws
 
 
+{-# SCC doPLE #-}
 doPLE :: (F.Loc a) =>  Config -> F.SInfo a -> [F.SubcId] -> SolveM ()
 doPLE cfg fi0 subcIds = do
   fi <- liftIO $ instantiate cfg fi0 (Just subcIds)
@@ -91,6 +92,7 @@ doPLE cfg fi0 subcIds = do
         sI  = solverInfo cfg fi
 
 --------------------------------------------------------------------------------
+{-# SCC solve_ #-}
 solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
        => Config
        -> F.SInfo a
@@ -132,6 +134,7 @@ tidyPred :: F.Expr -> F.Expr
 tidyPred = F.substf (F.eVar . F.tidySymbol)
 
 --------------------------------------------------------------------------------
+{-# SCC refine #-}
 refine :: (F.Loc a) => Sol.Solution -> W.Worklist a -> SolveM Sol.Solution
 --------------------------------------------------------------------------------
 refine s w
@@ -184,6 +187,7 @@ predKs _              = []
 --------------------------------------------------------------------------------
 -- | Convert Solution into Result ----------------------------------------------
 --------------------------------------------------------------------------------
+{-# SCC result #-}
 result :: (F.Fixpoint a, F.Loc a, NFData a) => Config -> W.Worklist a -> Sol.Solution
        -> SolveM (F.Result (Integer, a))
 --------------------------------------------------------------------------------
