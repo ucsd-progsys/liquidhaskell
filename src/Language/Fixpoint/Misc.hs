@@ -19,6 +19,7 @@ import           Control.Monad                    (when, forM_, filterM)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L
 import qualified Data.HashSet                     as S
+import qualified Data.Set                         as Set
 import           Data.Tuple                       (swap)
 import           Data.Maybe
 import           Data.Array                       hiding (indices)
@@ -209,7 +210,7 @@ hashNub :: (Eq k, Hashable k) => [k] -> [k]
 hashNub = M.keys . M.fromList . fmap (, ())
 
 sortNub :: (Ord a) => [a] -> [a]
-sortNub = nubOrd . L.sort
+sortNub = Set.toList . Set.fromList
 
 sortNubBy :: (Eq a) => (a -> a -> Ordering) -> [a] -> [a]
 sortNubBy f = nubOrd . L.sortBy f
