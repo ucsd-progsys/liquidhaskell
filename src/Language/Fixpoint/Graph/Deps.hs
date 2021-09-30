@@ -210,6 +210,7 @@ edgeGraph :: [CEdge] -> KVGraph
 edgeGraph es = KVGraph [(v, v, vs) | (v, vs) <- groupList es ]
 
 -- need to plumb list of ebinds
+{-# SCC kvEdges #-}
 kvEdges :: (F.TaggedC c a) => F.GInfo c a -> [CEdge]
 kvEdges fi = selfes ++ concatMap (subcEdges bs) cs ++ concatMap (ebindEdges ebs bs) cs
   where
@@ -248,6 +249,7 @@ subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
 --------------------------------------------------------------------------------
 -- | Eliminated Dependencies
 --------------------------------------------------------------------------------
+{-# SCC elimDeps #-}
 elimDeps :: (F.TaggedC c a) => F.GInfo c a -> [CEdge] -> S.HashSet F.KVar -> S.HashSet F.Symbol -> CDeps
 elimDeps si es nonKutVs ebs = graphDeps si es'
   where
@@ -312,6 +314,7 @@ dCut    v = Deps (S.singleton v) S.empty
 --------------------------------------------------------------------------------
 -- | Compute Dependencies and Cuts ---------------------------------------------
 --------------------------------------------------------------------------------
+{-# SCC elimVars #-}
 elimVars :: (F.TaggedC c a) => Config -> F.GInfo c a -> ([CEdge], Elims F.KVar)
 --------------------------------------------------------------------------------
 elimVars cfg si = (es, ds)
@@ -333,6 +336,7 @@ cutVars cfg si
 forceKuts :: (Hashable a, Eq a) => S.HashSet a -> Elims a  -> Elims a
 forceKuts xs (Deps cs ns) = Deps (S.union cs xs) (S.difference ns xs)
 
+{-# SCC edgeDeps #-}
 edgeDeps :: (F.TaggedC c a) => Config -> F.GInfo c a -> [CEdge] -> Elims F.KVar
 edgeDeps cfg si  = forceKuts ks
                  . edgeDeps' cfg

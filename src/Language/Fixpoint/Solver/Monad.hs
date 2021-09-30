@@ -167,6 +167,7 @@ filterValid sp p qs = do
   incVald (length qs')
   return qs'
 
+{-# SCC filterValid_ #-}
 filterValid_ :: F.SrcSpan -> F.Expr -> F.Cand a -> Context -> IO [a]
 filterValid_ sp p qs me = catMaybes <$> do
   smtAssertAsync me p

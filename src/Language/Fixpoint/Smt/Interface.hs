@@ -184,10 +184,10 @@ checkValids cfg f xts ps
 {-# SCC command #-}
 command              :: Context -> Command -> IO Response
 --------------------------------------------------------------------------------
-command me !cmd       = say cmd >> hear cmd
+command me !cmd       = say >> hear cmd
   where
     env               = ctxSymEnv me
-    say               = smtWrite me . Builder.toLazyText . runSmt2 env
+    say               = smtWrite me ({-# SCC "Command-runSmt2" #-} Builder.toLazyText (runSmt2 env cmd))
     hear CheckSat     = smtRead me
     hear (GetValue _) = smtRead me
     hear _            = return Ok
@@ -437,7 +437,7 @@ smtAssert me p  = interact' me (Assert Nothing p)
 asyncCommand :: Context -> Command -> IO ()
 asyncCommand me cmd = do
   let env = ctxSymEnv me
-      cmdText = Builder.toLazyText $ runSmt2 env cmd
+      cmdText = {-# SCC "asyncCommand-runSmt2" #-} Builder.toLazyText $ runSmt2 env cmd
   asyncPutStrLn (ctxTVar me) cmdText
   maybe (return ()) (`LTIO.hPutStrLn` cmdText) (ctxLog me)
   where
@@ -467,6 +467,7 @@ smtPopAsync me = asyncCommand me Pop
 
 -----------------------------------------------------------------
 
+{-# SCC readCheckUnsat #-}
 readCheckUnsat :: Context -> IO Bool
 readCheckUnsat me = respSat <$> smtRead me
 

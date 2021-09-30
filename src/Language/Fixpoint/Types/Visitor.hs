@@ -326,6 +326,7 @@ eapps                 = fold eappVis () []
     eapp' _ e@(EApp _ _) = [e]
     eapp' _ _            = []
 
+{-# SCC kvars #-}
 kvars :: Visitable t => t -> [KVar]
 kvars                 = fold kvVis () []
   where
