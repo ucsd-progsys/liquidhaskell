@@ -39,7 +39,7 @@ module Language.Fixpoint.Types.Visitor (
   , applyCoSub
 
   -- * Predicates on Constraints
-  , isConcC , isKvarC
+  , isConcC , isConc, isKvarC
 
   -- * Sorts
   , foldSort

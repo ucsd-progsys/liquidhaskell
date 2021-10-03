@@ -19,6 +19,7 @@ module Language.Fixpoint.Solver.Monad
        , filterValidGradual
        , checkSat
        , smtEnablembqi
+       , sendConcreteBindingsToSMT
 
          -- * Debug
        , Stats
@@ -36,6 +37,7 @@ import qualified Language.Fixpoint.Types   as F
 -- import qualified Language.Fixpoint.Misc    as Misc
 -- import           Language.Fixpoint.SortCheck
 import qualified Language.Fixpoint.Types.Solutions as F
+import qualified Language.Fixpoint.Types.Visitor as F
 -- import qualified Language.Fixpoint.Types.Errors  as E
 import           Language.Fixpoint.Smt.Serialize ()
 import           Language.Fixpoint.Types.PrettyPrint ()
@@ -125,6 +127,28 @@ modifyStats f = modify $ \s -> s { ssStats = f (ssStats s) }
 --------------------------------------------------------------------------------
 -- | SMT Interface -------------------------------------------------------------
 --------------------------------------------------------------------------------
+
+-- | Takes the environment of bindings already known to the SMT,
+-- and the environment of all bindings that need to be known.
+--
+-- Yields the ids of bindings known to the SMT
+sendConcreteBindingsToSMT
+  :: F.IBindEnv -> (F.IBindEnv -> SolveM a) -> SolveM a
+sendConcreteBindingsToSMT known act = do
+  be <- getBinds
+  let concretePreds =
+        [ (i, F.subst1 p (v, F.EVar s))
+        | (i, s, F.RR _ (F.Reft (v, p))) <- F.bindEnvToList be
+        , F.isConc p
+        , not (F.memberIBindEnv i known)
+        ]
+  st <- get
+  withContext $ \me -> do
+    smtBracket me "" $ do
+      forM_ concretePreds $ \(i, e) ->
+        smtDefineFunc me (F.bindSymbol (fromIntegral i)) [] F.boolSort e
+      flip evalStateT st $ act $ F.unionIBindEnv known $ F.fromListIBindEnv $ map fst concretePreds
+
 -- | `filterRequired [(x1, p1),...,(xn, pn)] q` returns a minimal list [xi] s.t.
 --   /\ [pi] => q
 --------------------------------------------------------------------------------
