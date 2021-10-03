@@ -76,6 +76,7 @@ module Language.Fixpoint.Types.Names (
 
   -- * Wrapping Symbols
   , litSymbol
+  , bindSymbol
   , testSymbol
   , renameSymbol
   , kArgSymbol
@@ -482,12 +483,19 @@ existSymbol prefix = intSymbol (existPrefix `mappendSym` prefix)
 gradIntSymbol :: Integer -> Symbol
 gradIntSymbol = intSymbol gradPrefix
 
-tempPrefix, anfPrefix, renamePrefix, litPrefix, gradPrefix :: Symbol
+-- | Used to define functions corresponding to binding predicates
+--
+-- The integer is the BindId.
+bindSymbol :: Integer -> Symbol
+bindSymbol = intSymbol bindPrefix
+
+tempPrefix, anfPrefix, renamePrefix, litPrefix, gradPrefix, bindPrefix :: Symbol
 tempPrefix   = "lq_tmp$"
 anfPrefix    = "lq_anf$"
 renamePrefix = "lq_rnm$"
 litPrefix    = "lit$"
 gradPrefix   = "grad$"
+bindPrefix   = "b$"
 
 testPrefix  :: Symbol
 testPrefix   = "is$"

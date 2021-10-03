@@ -53,6 +53,7 @@ data Command      = Push
                   | DeclData ![DataDecl]
                   | Declare  T.Text [SmtSort] !SmtSort
                   | Define   !Sort
+                  | DefineFunc Symbol [(Symbol, SmtSort)] !SmtSort Expr
                   | Assert   !(Maybe Int) !Expr
                   | AssertAx !(Triggered Expr)
                   | Distinct [Expr] -- {v:[Expr] | 2 <= len v}
@@ -73,6 +74,8 @@ ppCmd (DeclData d)     = text "Data" <+> pprint d
 ppCmd (Declare x [] t) = text "Declare" <+> text (T.unpack x) <+> text ":" <+> pprint t
 ppCmd (Declare x ts t) = text "Declare" <+> text (T.unpack x) <+> text ":" <+> parens (pprint ts) <+> pprint t
 ppCmd (Define {})   = text "Define ..."
+ppCmd (DefineFunc name params rsort e) =
+  text "DefineFunc" <+> pprint name <+> pprint params <+> pprint rsort <+> pprint e
 ppCmd (Assert _ e)  = text "Assert" <+> pprint e
 ppCmd (AssertAx _)  = text "AssertAxiom ..."
 ppCmd (Distinct {}) = text "Distinct ..."

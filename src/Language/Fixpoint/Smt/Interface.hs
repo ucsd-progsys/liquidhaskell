@@ -59,6 +59,7 @@ module Language.Fixpoint.Smt.Interface (
     -- * Query API
     , smtDecl
     , smtDecls
+    , smtDefineFunc
     , smtAssert
     , smtFuncDecl
     , smtAssertAxiom
@@ -427,6 +428,15 @@ smtCheckSat me p
 smtAssert :: Context -> Expr -> IO ()
 smtAssert me p  = interact' me (Assert Nothing p)
 
+smtDefineFunc :: Context -> Symbol -> [(Symbol, F.Sort)] -> F.Sort -> Expr -> IO ()
+smtDefineFunc me name params rsort e =
+  let env = seData (ctxSymEnv me)
+   in interact' me $
+        DefineFunc
+          name
+          (map (sortSmtSort False env <$>) params)
+          (sortSmtSort False env rsort)
+          e
 
 -----------------------------------------------------------------
 -- Async calls to the smt
