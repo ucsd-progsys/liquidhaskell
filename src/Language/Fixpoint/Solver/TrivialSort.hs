@@ -92,7 +92,7 @@ updTIBinds be ti = foldl' (flip (updTI Lhs)) ti ts
 --------------------------------------------------------------------
 updTI :: Polarity -> SortedReft -> TrivInfo -> TrivInfo
 --------------------------------------------------------------------
-updTI p (RR t r) = addKVs t (kvars r) . addNTS p r t
+updTI p (RR t r) = addKVs t (kvarsExpr $ reftPred r) . addNTS p r t
 
 addNTS :: Polarity -> Reft -> Sort -> TrivInfo -> TrivInfo
 addNTS p r t ti

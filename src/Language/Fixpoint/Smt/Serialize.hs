@@ -233,6 +233,9 @@ instance SMTLIB2 Command where
   smt2 env (DeclData ds)       = key "declare-datatypes" (smt2data env ds)
   smt2 env (Declare x ts t)    = parenSeqs ["declare-fun", Builder.fromText x, parens (smt2many (smt2 env <$> ts)), smt2 env t]
   smt2 env c@(Define t)        = key "declare-sort" (smt2SortMono c env t)
+  smt2 env (DefineFunc name params rsort e) =
+    let bParams = [ parenSeqs [smt2 env s, smt2 env t] | (s, t) <- params]
+     in parenSeqs ["define-fun", smt2 env name, parenSeqs bParams, smt2 env rsort, smt2 env e]
   smt2 env (Assert Nothing p)  = {-# SCC "smt2-assert" #-} key "assert" (smt2 env p)
   smt2 env (Assert (Just i) p) = {-# SCC "smt2-assert" #-} key "assert" (parens ("!"<+> smt2 env p <+> ":named p-" <> bShow i))
   smt2 env (Distinct az)
@@ -244,6 +247,8 @@ instance SMTLIB2 Command where
   smt2 _   (CheckSat)          = "(check-sat)"
   smt2 env (GetValue xs)       = key "key-value" (parens (smt2s env xs))
   smt2 env (CMany cmds)        = smt2many (smt2 env <$> cmds)
+  smt2 _   (Exit)              = "(exit)"
+  smt2 _   (SetMbqi)           = "(set-option :smt.mbqi true)"
 
 instance SMTLIB2 (Triggered Expr) where
   smt2 env (TR NoTrigger e)       = smt2 env e

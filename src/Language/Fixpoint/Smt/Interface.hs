@@ -53,11 +53,13 @@ module Language.Fixpoint.Smt.Interface (
 
     -- * Execute Queries
     , command
-    , smtWrite
+    , smtExit
+    , smtSetMbqi
 
     -- * Query API
     , smtDecl
     , smtDecls
+    , smtDefineFunc
     , smtAssert
     , smtFuncDecl
     , smtAssertAxiom
@@ -183,14 +185,19 @@ checkValids cfg f xts ps
 {-# SCC command #-}
 command              :: Context -> Command -> IO Response
 --------------------------------------------------------------------------------
-command me !cmd       = say cmd >> hear cmd
+command me !cmd       = say >> hear cmd
   where
     env               = ctxSymEnv me
-    say               = smtWrite me . Builder.toLazyText . runSmt2 env
+    say               = smtWrite me ({-# SCC "Command-runSmt2" #-} Builder.toLazyText (runSmt2 env cmd))
     hear CheckSat     = smtRead me
     hear (GetValue _) = smtRead me
     hear _            = return Ok
 
+smtExit :: Context -> IO ()
+smtExit me = asyncCommand me Exit
+
+smtSetMbqi :: Context -> IO ()
+smtSetMbqi me = asyncCommand me SetMbqi
 
 smtWrite :: Context -> Raw -> IO ()
 smtWrite me !s = smtWriteRaw me s
@@ -421,6 +428,15 @@ smtCheckSat me p
 smtAssert :: Context -> Expr -> IO ()
 smtAssert me p  = interact' me (Assert Nothing p)
 
+smtDefineFunc :: Context -> Symbol -> [(Symbol, F.Sort)] -> F.Sort -> Expr -> IO ()
+smtDefineFunc me name params rsort e =
+  let env = seData (ctxSymEnv me)
+   in interact' me $
+        DefineFunc
+          name
+          (map (sortSmtSort False env <$>) params)
+          (sortSmtSort False env rsort)
+          e
 
 -----------------------------------------------------------------
 -- Async calls to the smt
@@ -428,25 +444,22 @@ smtAssert me p  = interact' me (Assert Nothing p)
 -- See Note [Async SMT API]
 -----------------------------------------------------------------
 
+asyncCommand :: Context -> Command -> IO ()
+asyncCommand me cmd = do
+  let env = ctxSymEnv me
+      cmdText = {-# SCC "asyncCommand-runSmt2" #-} Builder.toLazyText $ runSmt2 env cmd
+  asyncPutStrLn (ctxTVar me) cmdText
+  maybe (return ()) (`LTIO.hPutStrLn` cmdText) (ctxLog me)
+  where
+    asyncPutStrLn :: TVar Builder.Builder -> LT.Text -> IO ()
+    asyncPutStrLn tv t = atomically $
+      modifyTVar tv (`mappend` (Builder.fromLazyText t `mappend` Builder.fromString "\n"))
 
 smtAssertAsync :: Context -> Expr -> IO ()
-smtAssertAsync me p  = do
-  let cmd = Assert Nothing p
-      env = ctxSymEnv me
-      cmdText = Builder.toLazyText $ runSmt2 env cmd
-  asyncPutStrLn (ctxTVar me) cmdText
-  maybe (return ()) (`LTIO.hPutStrLn` cmdText) (ctxLog me)
-
-asyncPutStrLn :: TVar Builder.Builder -> LT.Text -> IO ()
-asyncPutStrLn tv t = atomically $ modifyTVar tv (`mappend` (Builder.fromLazyText t `mappend` Builder.fromString "\n"))
+smtAssertAsync me p  = asyncCommand me $ Assert Nothing p
 
 smtCheckUnsatAsync :: Context -> IO ()
-smtCheckUnsatAsync me = do
-  let cmd = CheckSat
-      env = ctxSymEnv me
-      cmdText = Builder.toLazyText $ runSmt2 env cmd
-  asyncPutStrLn (ctxTVar me) cmdText
-  maybe (return ()) (`LTIO.hPutStrLn` cmdText) (ctxLog me)
+smtCheckUnsatAsync me = asyncCommand me CheckSat
 
 smtBracketAsyncAt :: SrcSpan -> Context -> String -> IO a -> IO a
 smtBracketAsyncAt sp x y z = smtBracketAsync x y z `catch` dieAt sp
@@ -459,21 +472,12 @@ smtBracketAsync me _msg a   = do
   return r
 
 smtPushAsync, smtPopAsync   :: Context -> IO ()
-smtPushAsync me = do
-  let cmd = Push
-      env = ctxSymEnv me
-      cmdText = Builder.toLazyText $ runSmt2 env cmd
-  asyncPutStrLn (ctxTVar me) cmdText
-  maybe (return ()) (`LTIO.hPutStrLn` cmdText) (ctxLog me)
-smtPopAsync me = do
-  let cmd = Pop
-      env = ctxSymEnv me
-      cmdText = Builder.toLazyText $ runSmt2 env cmd
-  asyncPutStrLn (ctxTVar me) cmdText
-  maybe (return ()) (`LTIO.hPutStrLn` cmdText) (ctxLog me)
+smtPushAsync me = asyncCommand me Push
+smtPopAsync me = asyncCommand me Pop
 
 -----------------------------------------------------------------
 
+{-# SCC readCheckUnsat #-}
 readCheckUnsat :: Context -> IO Bool
 readCheckUnsat me = respSat <$> smtRead me
 

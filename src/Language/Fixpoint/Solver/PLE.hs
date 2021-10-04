@@ -62,6 +62,7 @@ traceE (e,e')
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE 
 --------------------------------------------------------------------------------
+{-# SCC instantiate #-}
 instantiate :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
 instantiate cfg fi' subcIds = do
     let cs = M.filterWithKey
@@ -352,7 +353,7 @@ updCtx InstEnv {..} ctx delta cidMb
                   [ equalitiesPred initEqs 
                   , equalitiesPred sims 
                   , equalitiesPred (icEquals ctx)
-                  , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvars r) ] 
+                  , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvarsExpr $ reftPred $ sr_reft r) ]
                   ])
     bs        = second unElabSortedReft <$> binds
     (rhs:es)  = unElab <$> (eRhs : (expr <$> binds))
@@ -802,7 +803,7 @@ askSMT :: Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
 askSMT cfg ctx bs e
 --   | isContraPred e     = return False 
   | isTautoPred  e     = return True
-  | null (Vis.kvars e) = SMT.checkValidWithContext ctx [] PTrue e'
+  | null (Vis.kvarsExpr e) = SMT.checkValidWithContext ctx [] PTrue e'
   | otherwise          = return False
   where 
     e'                 = toSMT "askSMT" cfg ctx bs e 

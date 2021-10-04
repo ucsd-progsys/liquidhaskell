@@ -47,10 +47,13 @@ import           System.Process
 -- | Commands issued to SMT engine
 data Command      = Push
                   | Pop
+                  | Exit
+                  | SetMbqi
                   | CheckSat
                   | DeclData ![DataDecl]
                   | Declare  T.Text [SmtSort] !SmtSort
                   | Define   !Sort
+                  | DefineFunc Symbol [(Symbol, SmtSort)] !SmtSort Expr
                   | Assert   !(Maybe Int) !Expr
                   | AssertAx !(Triggered Expr)
                   | Distinct [Expr] -- {v:[Expr] | 2 <= len v}
@@ -62,6 +65,8 @@ instance PPrint Command where
   pprintTidy _ = ppCmd
 
 ppCmd :: Command -> Doc
+ppCmd Exit             = text "Exit"
+ppCmd SetMbqi          = text "SetMbqi"
 ppCmd Push             = text "Push"
 ppCmd Pop              = text "Pop"
 ppCmd CheckSat         = text "CheckSat"
@@ -69,6 +74,8 @@ ppCmd (DeclData d)     = text "Data" <+> pprint d
 ppCmd (Declare x [] t) = text "Declare" <+> text (T.unpack x) <+> text ":" <+> pprint t
 ppCmd (Declare x ts t) = text "Declare" <+> text (T.unpack x) <+> text ":" <+> parens (pprint ts) <+> pprint t
 ppCmd (Define {})   = text "Define ..."
+ppCmd (DefineFunc name params rsort e) =
+  text "DefineFunc" <+> pprint name <+> pprint params <+> pprint rsort <+> pprint e
 ppCmd (Assert _ e)  = text "Assert" <+> pprint e
 ppCmd (AssertAx _)  = text "AssertAxiom ..."
 ppCmd (Distinct {}) = text "Distinct ..."

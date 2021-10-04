@@ -152,6 +152,10 @@ cGraph fi = CGraph { gEdges = es
 
 --------------------------------------------------------------------------------
 -- | Ranks from Graph ----------------------------------------------------------
+--
+-- Yields the strongly conected components and a map of constraint ids to
+-- an index identifying the strongly connected component to which it belongs.
+-- The scc indices correspond with a topological ordering of the sccs.
 --------------------------------------------------------------------------------
 graphRanks :: G.Graph -> (G.Vertex -> DepEdge) -> (CMap Int, [[G.Vertex]])
 ---------------------------------------------------------------------------
@@ -176,12 +180,12 @@ succs :: (F.TaggedC c a) => CMap (c a) -> KVRead -> CMap [F.SubcId]
 succs cm rdBy = sortNub . concatMap kvReads . kvWrites <$> cm
   where
     kvReads k = M.lookupDefault [] k rdBy
-    kvWrites  = V.kvars . F.crhs
+    kvWrites  = V.kvarsExpr . F.crhs
 
 --------------------------------------------------------------------------------
 kvWriteBy :: (F.TaggedC c a) => CMap (c a) -> F.SubcId -> [F.KVar]
 --------------------------------------------------------------------------------
-kvWriteBy cm = V.kvars . F.crhs . lookupCMap cm
+kvWriteBy cm = V.kvarsExpr . F.crhs . lookupCMap cm
 
 --------------------------------------------------------------------------------
 kvReadBy :: (F.TaggedC c a) => F.GInfo c a -> KVRead
@@ -206,6 +210,7 @@ edgeGraph :: [CEdge] -> KVGraph
 edgeGraph es = KVGraph [(v, v, vs) | (v, vs) <- groupList es ]
 
 -- need to plumb list of ebinds
+{-# SCC kvEdges #-}
 kvEdges :: (F.TaggedC c a) => F.GInfo c a -> [CEdge]
 kvEdges fi = selfes ++ concatMap (subcEdges bs) cs ++ concatMap (ebindEdges ebs bs) cs
   where
@@ -244,6 +249,7 @@ subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
 --------------------------------------------------------------------------------
 -- | Eliminated Dependencies
 --------------------------------------------------------------------------------
+{-# SCC elimDeps #-}
 elimDeps :: (F.TaggedC c a) => F.GInfo c a -> [CEdge] -> S.HashSet F.KVar -> S.HashSet F.Symbol -> CDeps
 elimDeps si es nonKutVs ebs = graphDeps si es'
   where
@@ -308,6 +314,7 @@ dCut    v = Deps (S.singleton v) S.empty
 --------------------------------------------------------------------------------
 -- | Compute Dependencies and Cuts ---------------------------------------------
 --------------------------------------------------------------------------------
+{-# SCC elimVars #-}
 elimVars :: (F.TaggedC c a) => Config -> F.GInfo c a -> ([CEdge], Elims F.KVar)
 --------------------------------------------------------------------------------
 elimVars cfg si = (es, ds)
@@ -329,6 +336,7 @@ cutVars cfg si
 forceKuts :: (Hashable a, Eq a) => S.HashSet a -> Elims a  -> Elims a
 forceKuts xs (Deps cs ns) = Deps (S.union cs xs) (S.difference ns xs)
 
+{-# SCC edgeDeps #-}
 edgeDeps :: (F.TaggedC c a) => Config -> F.GInfo c a -> [CEdge] -> Elims F.KVar
 edgeDeps cfg si  = forceKuts ks
                  . edgeDeps' cfg
@@ -485,7 +493,10 @@ graphDeps fi cs = CDs { cSucc   = gSucc cg
     is          = [i | (Cstr i, _) <- cs]
     cPrevM      = sortNub <$> group [ (i, k) | (KVar k, Cstr i) <- cs ]
 
---TODO merge these with cGraph and kvSucc
+-- | Converts dependencies between constraints and kvars, to dependencies between
+-- constraints.
+--
+-- TODO merge these with cGraph and kvSucc
 cGraphCE :: [CEdge] -> CGraph
 cGraphCE cs = CGraph { gEdges = es
                      , gRanks = outRs
@@ -497,6 +508,11 @@ cGraphCE cs = CGraph { gEdges = es
     (g, vf, _)     = G.graphFromEdges es
     (outRs, sccs)  = graphRanks g vf
 
+-- | Converts dependencies between constraints and kvars to
+-- dependencies between constraints.
+--
+-- The returned map tells for each coonstraint writing a kvar
+-- which constraints are reading the kvar.
 cSuccM      :: [CEdge] -> CMap [F.SubcId]
 cSuccM es    = (sortNub . concatMap kRdBy) <$> iWrites
   where
@@ -512,6 +528,7 @@ rankF cm outR inR = \i -> Rank (outScc i) (inScc i) (tag i)
     tag           = F.stag . lookupCMap cm
 
 ---------------------------------------------------------------------------
+-- | Removes the kut vars from the graph, and recomputes the SCC indices.
 inRanks ::  F.TaggedC c a => F.GInfo c a -> [DepEdge] -> CMap Int -> CMap Int
 ---------------------------------------------------------------------------
 inRanks fi es outR

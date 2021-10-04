@@ -268,10 +268,16 @@ okInst env v t eq = isNothing tc
 -- | Predicate corresponding to LHS of constraint in current solution
 --------------------------------------------------------------------------------
 {-# SCC lhsPred #-}
-lhsPred :: (F.Loc a) => F.BindEnv -> Sol.Solution -> F.SimpC a -> F.Expr
-lhsPred be s c = F.notracepp _msg $ fst $ apply g s bs
+lhsPred
+  :: (F.Loc a)
+  => F.IBindEnv
+  -> F.BindEnv
+  -> Sol.Solution
+  -> F.SimpC a
+  -> F.Expr
+lhsPred bindingsInSmt be s c = F.notracepp _msg $ fst $ apply g s bs
   where
-    g          = CEnv ci be bs (F.srcSpan c)
+    g          = CEnv ci be bs (F.srcSpan c) bindingsInSmt
     bs         = F.senv c
     ci         = sid c
     _msg       = "LhsPred for id = " ++ show (sid c) ++ " with SOLUTION = " ++ F.showpp s
@@ -281,6 +287,10 @@ data CombinedEnv = CEnv
   , ceBEnv :: !F.BindEnv
   , ceIEnv :: !F.IBindEnv 
   , ceSpan :: !F.SrcSpan
+    -- | These are the bindings that the smt solver knows about and can be
+    -- referred as @EVar (bindSymbol <bindId>)@ instead of serializing them
+    -- again.
+  , ceBindingsInSmt :: !F.IBindEnv
   }
 
 instance F.Loc CombinedEnv where 
@@ -292,7 +302,10 @@ type ExprInfo    = (F.Expr, KInfo)
 apply :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.IBindEnv -> ExprInfo
 apply g s bs      = (F.conj (pks:ps), kI)   -- see [NOTE: pAnd-SLOW]
   where
-    (pks, kI)     = applyKVars g s ks  
+    -- Clear the "known" bindings for applyKVars, since it depends on
+    -- using the fully expanded representation of the predicates to bind their
+    -- variables with quantifiers.
+    (pks, kI)     = applyKVars g {ceBindingsInSmt = F.emptyIBindEnv} s ks
     (ps,  ks, _)  = envConcKVars g s bs
 
 
@@ -304,8 +317,10 @@ envConcKVars g s bs = (concat pss, concat kss, L.nubBy (\x y -> F.ksuKVar x == F
     is              = F.elemsIBindEnv bs
 
 lookupBindEnvExt :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.BindId -> (F.Symbol, F.SortedReft)
-lookupBindEnvExt g s i 
-  | Just p <- ebSol g s i = (x, sr { F.sr_reft = F.Reft (x, p) }) 
+lookupBindEnvExt g s i
+  | Just p <- ebSol g {ceBindingsInSmt = F.emptyIBindEnv} s i = (x, sr { F.sr_reft = F.Reft (x, p) })
+  | F.memberIBindEnv i (ceBindingsInSmt g) =
+      (x, sr { F.sr_reft = F.Reft (x, F.EVar (F.bindSymbol (fromIntegral i)))})
   | otherwise             = (x, sr)
    where 
       (x, sr)              = F.lookupBindEnv i (ceBEnv g) 
@@ -352,7 +367,7 @@ applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
 
 nonCutsResult :: F.BindEnv -> Sol.Sol a Sol.QBind -> M.HashMap F.KVar F.Expr
 nonCutsResult be s =
-  let g = CEnv Nothing be F.emptyIBindEnv F.dummySpan
+  let g = CEnv Nothing be F.emptyIBindEnv F.dummySpan F.emptyIBindEnv
    in M.mapWithKey (mkNonCutsExpr g) $ Sol.sHyp s
   where
     mkNonCutsExpr g k cs = F.pOr $ map (bareCubePred g s k) cs
@@ -540,7 +555,7 @@ symSorts :: CombinedEnv -> F.IBindEnv -> [(F.Symbol, F.Sort)]
 symSorts g bs = second F.sr_sort <$> F.envCs (ceBEnv g) bs
 
 _noKvars :: F.Expr -> Bool
-_noKvars = null . V.kvars
+_noKvars = null . V.kvarsExpr
 
 --------------------------------------------------------------------------------
 -- | Information about size of formula corresponding to an "eliminated" KVar.

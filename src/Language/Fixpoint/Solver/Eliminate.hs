@@ -13,7 +13,7 @@ import qualified Data.HashMap.Strict as M
 import           Language.Fixpoint.Types.Config    (Config)
 import qualified Language.Fixpoint.Types.Solutions as Sol
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Types.Visitor   (kvars, isConcC)
+import           Language.Fixpoint.Types.Visitor   (kvarsExpr, isConcC)
 import           Language.Fixpoint.Graph
 import           Language.Fixpoint.Misc            (safeLookup, group, errorstar)
 import           Language.Fixpoint.Solver.Sanitize
@@ -22,6 +22,7 @@ import           Language.Fixpoint.Solver.Sanitize
 -- | `solverInfo` constructs a `SolverInfo` comprising the Solution and various
 --   indices needed by the worklist-based refinement loop
 --------------------------------------------------------------------------------
+{-# SCC solverInfo #-}
 solverInfo :: Config -> SInfo a -> SolverInfo a b
 --------------------------------------------------------------------------------
 solverInfo cfg sI = SI sHyp sI' cD cKs
@@ -71,7 +72,7 @@ kIndex     :: SInfo a -> KIndex
 kIndex si  = group [(k, i) | (i, c) <- iCs, k <- rkvars c]
   where
     iCs    = M.toList (cm si)
-    rkvars = kvars . crhs
+    rkvars = kvarsExpr . crhs
 
 nonCutHyps :: SInfo a -> KIndex -> S.HashSet KVar -> [(KVar, Sol.Hyp)]
 nonCutHyps si kI nKs = [ (k, nonCutHyp kI si k) | k <- S.toList nKs ]

@@ -268,7 +268,7 @@ updCtx InstEnv {..} ctx delta cidMb
     cands     = (S.fromList (concatMap topApps es0)) `S.difference` (icSolved ctx)
     ctxEqs    = toSMT ieCfg ieSMT [] <$> concat 
                   [ initEqs 
-                  , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvars r) ] 
+                  , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvarsExpr $ reftPred $ sr_reft r) ]
                   ]
     (bs, es0) = (second unElabSortedReft <$> binds, unElab <$> es)
     es        = eRhs : (expr <$> binds) 
@@ -334,7 +334,7 @@ evaluate cfg ctx aenv facts es sid = do
   let cands    = mytracepp  ("evaluate-cands " ++ showpp sid) $ Misc.hashNub (concatMap topApps es)
   let s0       = EvalEnv 0 [] aenv (SMT.ctxSymEnv ctx) cfg
   let ctxEqs   = [ toSMT cfg ctx [] (EEq e1 e2) | (e1, e2)  <- eqs ]
-              ++ [ toSMT cfg ctx [] (expr xr)   | xr@(_, r) <- facts, null (Vis.kvars r) ] 
+              ++ [ toSMT cfg ctx [] (expr xr)   | xr@(_, r) <- facts, null (Vis.kvarsExpr $ reftPred $ sr_reft r) ]
   eqss        <- _evalLoop cfg ctx γ s0 ctxEqs cands 
   return       $ eqs ++ eqss
 
@@ -694,7 +694,7 @@ initEqualities ctx aenv es = concatMap (makeSimplifications (aenvSimpl aenv)) dc
 askSMT :: Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
 askSMT cfg ctx bs e
   | isTautoPred  e     = return True
-  | null (Vis.kvars e) = SMT.checkValidWithContext ctx [] PTrue e'
+  | null (Vis.kvarsExpr e) = SMT.checkValidWithContext ctx [] PTrue e'
   | otherwise          = return False
   where 
     e'                 = toSMT cfg ctx bs e 

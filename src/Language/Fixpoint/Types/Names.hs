@@ -76,6 +76,7 @@ module Language.Fixpoint.Types.Names (
 
   -- * Wrapping Symbols
   , litSymbol
+  , bindSymbol
   , testSymbol
   , renameSymbol
   , kArgSymbol
@@ -422,7 +423,10 @@ stripSuffix p x = symbol <$> T.stripSuffix (symbolText p) (symbolText x)
 -- | Use this **EXCLUSIVELY** when you want to add stuff in front of a Symbol
 --------------------------------------------------------------------------------
 suffixSymbol :: Symbol -> Symbol -> Symbol
-suffixSymbol  x y = x `mappendSym` symSepName `mappendSym` y
+suffixSymbol  x y = symbol $ suffixSymbolText (symbolText x) (symbolText y)
+
+suffixSymbolText :: T.Text -> T.Text -> T.Text
+suffixSymbolText  x y = x <> symSepName <> y
 
 vv                  :: Maybe Integer -> Symbol
 -- vv (Just i)         = symbol $ symbolSafeText vvName `T.snoc` symSepName `mappend` T.pack (show i)
@@ -459,7 +463,7 @@ unLitSymbol :: Symbol -> Maybe Symbol
 unLitSymbol = stripPrefix litPrefix
 
 intSymbol :: (Show a) => Symbol -> a -> Symbol
-intSymbol x i = x `suffixSymbol` symbol (show i)
+intSymbol x i = symbol $ symbolText x `suffixSymbolText` T.pack (show i)
 
 appendSymbolText :: Symbol -> T.Text -> T.Text
 appendSymbolText s t = encode (symbolText s <> symSepName <> t)
@@ -479,12 +483,19 @@ existSymbol prefix = intSymbol (existPrefix `mappendSym` prefix)
 gradIntSymbol :: Integer -> Symbol
 gradIntSymbol = intSymbol gradPrefix
 
-tempPrefix, anfPrefix, renamePrefix, litPrefix, gradPrefix :: Symbol
+-- | Used to define functions corresponding to binding predicates
+--
+-- The integer is the BindId.
+bindSymbol :: Integer -> Symbol
+bindSymbol = intSymbol bindPrefix
+
+tempPrefix, anfPrefix, renamePrefix, litPrefix, gradPrefix, bindPrefix :: Symbol
 tempPrefix   = "lq_tmp$"
 anfPrefix    = "lq_anf$"
 renamePrefix = "lq_rnm$"
 litPrefix    = "lit$"
 gradPrefix   = "grad$"
+bindPrefix   = "b$"
 
 testPrefix  :: Symbol
 testPrefix   = "is$"
