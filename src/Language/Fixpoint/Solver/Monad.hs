@@ -140,6 +140,7 @@ sendConcreteBindingsToSMT known act = do
         [ (i, F.subst1 p (v, F.EVar s))
         | (i, s, F.RR _ (F.Reft (v, p))) <- F.bindEnvToList be
         , F.isConc p
+        , not (isShortExpr p)
         , not (F.memberIBindEnv i known)
         ]
   st <- get
@@ -148,6 +149,10 @@ sendConcreteBindingsToSMT known act = do
       forM_ concretePreds $ \(i, e) ->
         smtDefineFunc me (F.bindSymbol (fromIntegral i)) [] F.boolSort e
       flip evalStateT st $ act $ F.unionIBindEnv known $ F.fromListIBindEnv $ map fst concretePreds
+  where
+    isShortExpr F.PTrue = True
+    isShortExpr F.PTop = True
+    isShortExpr _ = False
 
 -- | `filterRequired [(x1, p1),...,(xn, pn)] q` returns a minimal list [xi] s.t.
 --   /\ [pi] => q
