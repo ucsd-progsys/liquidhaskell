@@ -180,12 +180,12 @@ succs :: (F.TaggedC c a) => CMap (c a) -> KVRead -> CMap [F.SubcId]
 succs cm rdBy = sortNub . concatMap kvReads . kvWrites <$> cm
   where
     kvReads k = M.lookupDefault [] k rdBy
-    kvWrites  = V.kvars . F.crhs
+    kvWrites  = V.kvarsExpr . F.crhs
 
 --------------------------------------------------------------------------------
 kvWriteBy :: (F.TaggedC c a) => CMap (c a) -> F.SubcId -> [F.KVar]
 --------------------------------------------------------------------------------
-kvWriteBy cm = V.kvars . F.crhs . lookupCMap cm
+kvWriteBy cm = V.kvarsExpr . F.crhs . lookupCMap cm
 
 --------------------------------------------------------------------------------
 kvReadBy :: (F.TaggedC c a) => F.GInfo c a -> KVRead

@@ -26,7 +26,7 @@ module Language.Fixpoint.Types.Visitor (
 
   -- * Clients
   , stripCasts
-  , kvars, eapps
+  , kvarsExpr, eapps
   , size, lamSize
   , envKVars
   , envKVarsN
@@ -326,29 +326,48 @@ eapps                 = fold eappVis () []
     eapp' _ e@(EApp _ _) = [e]
     eapp' _ _            = []
 
-{-# SCC kvars #-}
-kvars :: Visitable t => t -> [KVar]
-kvars                 = fold kvVis () []
+{-# SCC kvarsExpr #-}
+kvarsExpr :: Expr -> [KVar]
+kvarsExpr = go []
   where
-    kvVis             = (defaultVisitor :: Visitor [KVar] t) { accExpr = kv' }
-    kv' _ (PKVar k _)     = [k]
-    kv' _ (PGrad k _ _ _) = [k]
-    kv' _ _               = []
+    go acc e0 = case e0 of
+      ESym _ -> acc
+      ECon _ -> acc
+      EVar _ -> acc
+      PKVar k _ -> k : acc
+      PGrad k _ _ _ -> k : acc
+      ENeg e -> go acc e
+      PNot p -> go acc p
+      ECst e _t -> go acc e
+      PAll _xts p -> go acc p
+      ELam _b e -> go acc e
+      ECoerc _a _t e -> go acc e
+      PExist _xts p -> go acc p
+      ETApp e _s -> go acc e
+      ETAbs e _s -> go acc e
+      EApp g e -> go (go acc e) g
+      EBin _o e1 e2 -> go (go acc e2) e1
+      PImp p1 p2 -> go (go acc p2) p1
+      PIff p1 p2 -> go (go acc p2) p1
+      PAtom _r e1 e2 -> go (go acc e2) e1
+      EIte p e1 e2 -> go (go (go acc e2) e1) p
+      PAnd ps -> foldr (flip go) acc ps
+      POr ps -> foldr (flip go) acc ps
 
 envKVars :: (TaggedC c a) => BindEnv -> c a -> [KVar]
 envKVars be c = squish [ kvs sr |  (_, sr) <- clhs be c]
   where
     squish    = S.toList  . S.fromList . concat
-    kvs       = kvars . sr_reft
+    kvs       = kvarsExpr . reftPred . sr_reft
 
 envKVarsN :: (TaggedC c a) => BindEnv -> c a -> [(KVar, Int)]
 envKVarsN be c = tally [ kvs sr |  (_, sr) <- clhs be c]
   where
     tally      = Misc.count . concat
-    kvs        = kvars . sr_reft
+    kvs        = kvarsExpr . reftPred . sr_reft
 
 rhsKVars :: (TaggedC c a) => c a -> [KVar]
-rhsKVars = kvars . crhs -- rhsCs
+rhsKVars = kvarsExpr . crhs -- rhsCs
 
 isKvarC :: (TaggedC c a) => c a -> Bool
 isKvarC = all isKvar . conjuncts . crhs
@@ -362,7 +381,7 @@ isKvar (PGrad {}) = True
 isKvar _          = False
 
 isConc :: Expr -> Bool
-isConc = null . kvars
+isConc = null . kvarsExpr
 
 stripCasts :: Expr -> Expr
 stripCasts = mapExprOnExpr go
