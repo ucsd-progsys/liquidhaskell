@@ -850,7 +850,7 @@ outVV (m, fi) i c = (m', fi')
 
 type BindM = M.HashMap Integer BindId
 
-sinfoToFInfo :: Fixpoint a => SInfo a -> FInfo a
+sinfoToFInfo :: SInfo a -> FInfo a
 sinfoToFInfo fi = fi
   { bs = envWithoutLhss
   , cm = simpcToSubc (bs fi) <$> cm fi
