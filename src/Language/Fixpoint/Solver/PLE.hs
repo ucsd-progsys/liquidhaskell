@@ -208,7 +208,7 @@ withAssms env@(InstEnv {..}) ctx delta cidMb act = do
   let assms = icAssms ctx'
   SMT.smtBracket ieSMT  "PLE.evaluate" $ do
     forM_ assms (SMT.smtAssert ieSMT) 
-    act ctx'
+    act ctx' { icAssms = mempty }
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie 
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> IO (ICtx, InstRes)
@@ -234,10 +234,13 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0 0
                   let env' = env { evAccum = icEquals ictx <> evAccum env 
                                  , evFuel  = icFuel   ictx 
                                  }
-                  (ictx', evalResults)  <- SMT.smtBracket ctx "PLE.evaluate" $ do
-                               SMT.smtAssert ctx (pAnd (S.toList $ icAssms ictx)) 
-                               foldM (evalOneCandStep γ env' i) (ictx, []) (S.toList cands)
-                  let us = mconcat evalResults
+                  (ictx', evalResults)  <- do
+                               SMT.smtAssert ctx (pAndNoDedup (S.toList $ icAssms ictx))
+                               let ictx' = ictx { icAssms = mempty }
+                               foldM (evalOneCandStep γ env' i) (ictx', []) (S.toList cands)
+                               -- foldM (\ictx e -> undefined) 
+                               -- mapM (evalOne γ env' ictx) (S.toList cands)
+                  let us = mconcat evalResults 
                   if S.null (us `S.difference` icEquals ictx)
                         then return ictx 
                         else do  let oks      = fst `S.map` us
@@ -245,7 +248,7 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0 0
                                  let eqsSMT   = evalToSMT "evalCandsLoop" cfg ctx `S.map` us'
                                  let ictx''   = ictx' { icSolved = icSolved ictx <> oks 
                                                       , icEquals = icEquals ictx <> us'
-                                                      , icAssms  = icAssms  ictx <> S.filter (not . isTautoPred) eqsSMT }
+                                                      , icAssms  = S.filter (not . isTautoPred) eqsSMT }
                                  let newcands = mconcat (makeCandidates γ ictx'' <$> S.toList (cands <> (snd `S.map` us)))
                                  go (ictx'' { icCands = S.fromList newcands}) (i + 1)
                                  
