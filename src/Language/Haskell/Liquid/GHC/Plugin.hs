@@ -473,7 +473,7 @@ processModule LiquidHaskellContext{..} = do
     -- call 'evaluate' to force any exception and catch it, if we can.
 
     result <-
-      (liftIO $ evaluate (makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies))
+      (makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies)
         `gcatch` (\(e :: UserError) -> LH.reportErrors Full [e] >> failM)
         `gcatch` (\(e :: Error)     -> LH.reportErrors Full [e] >> failM)
 
@@ -483,7 +483,6 @@ processModule LiquidHaskellContext{..} = do
         liftIO $ mapM_ (printWarning dynFlags)    (allWarnings diagnostics)
         LH.reportErrors Full (allErrors diagnostics)
         failM
-
       Right (warnings, targetSpec, liftedSpec) -> do
         liftIO $ mapM_ (printWarning dynFlags) warnings
         let targetInfo = TargetInfo targetSrc targetSpec
@@ -535,14 +534,14 @@ makeTargetSrc cfg file tcData modGuts hscEnv = do
   debugLog $ "dataCons => " ++ show dataCons
   debugLog $ "coreBinds => " ++ (O.showSDocUnsafe . O.ppr $ coreBinds)
   debugLog $ "impVars => " ++ (O.showSDocUnsafe . O.ppr $ impVars)
-  debugLog $ "defVars  => " ++ show (L.nub $ dataCons ++ (letVars coreBinds) ++ tcAvailableVars tcData)
+  debugLog $ "defVars  => " ++ show (L.nub $ dataCons ++ letVars coreBinds ++ tcAvailableVars tcData)
   debugLog $ "useVars  => " ++ (O.showSDocUnsafe . O.ppr $ readVars coreBinds)
   debugLog $ "derVars  => " ++ (O.showSDocUnsafe . O.ppr $ HS.fromList (LH.derivedVars cfg mgiModGuts))
-  debugLog $ "gsExports => " ++ (show $ mgi_exports  mgiModGuts)
+  debugLog $ "gsExports => " ++ show (mgi_exports  mgiModGuts)
   debugLog $ "gsTcs     => " ++ (O.showSDocUnsafe . O.ppr $ allTcs)
   debugLog $ "gsCls     => " ++ (O.showSDocUnsafe . O.ppr $ mgi_cls_inst mgiModGuts)
   debugLog $ "gsFiTcs   => " ++ (O.showSDocUnsafe . O.ppr $ fiTcs)
-  debugLog $ "gsFiDcs   => " ++ (show fiDcs)
+  debugLog $ "gsFiDcs   => " ++ show fiDcs
   debugLog $ "gsPrimTcs => " ++ (O.showSDocUnsafe . O.ppr $ GHC.primTyCons)
   debugLog $ "things   => " ++ (O.showSDocUnsafe . O.vcat . map O.ppr $ things)
   debugLog $ "allImports => " ++ (show $ tcAllImports tcData)
@@ -554,7 +553,7 @@ makeTargetSrc cfg file tcData modGuts hscEnv = do
     , giTargetMod = ModName Target (moduleName (mg_module modGuts))
     , giCbs       = coreBinds
     , giImpVars   = impVars
-    , giDefVars   = L.nub $ dataCons ++ (letVars coreBinds) ++ tcAvailableVars tcData
+    , giDefVars   = L.nub $ dataCons ++ letVars coreBinds ++ tcAvailableVars tcData
     , giUseVars   = readVars coreBinds
     , giDerVars   = HS.fromList (LH.derivedVars cfg mgiModGuts)
     , gsExports   = mgi_exports  mgiModGuts

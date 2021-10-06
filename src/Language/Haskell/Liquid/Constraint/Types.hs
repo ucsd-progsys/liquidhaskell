@@ -53,6 +53,8 @@ module Language.Haskell.Liquid.Constraint.Types
   , removeInvariant, restoreInvariant, makeRecInvariants
 
   , getTemplates
+
+  , getLocation
   ) where
 
 import Prelude hiding (error)
@@ -128,6 +130,9 @@ instance PPrint CGEnv where
 instance Show CGEnv where
   show = showpp
 
+getLocation :: CGEnv -> SrcSpan
+getLocation = srcSpan . cgLoc
+
 --------------------------------------------------------------------------------
 -- | Subtyping Constraints -----------------------------------------------------
 --------------------------------------------------------------------------------
@@ -154,14 +159,42 @@ subVar :: FixSubC -> Maybe Var
 subVar = ci_var . F.sinfo
 
 instance PPrint SubC where
-  pprintTidy k c@(SubC {}) = pprintTidy k (senv c)
-                             $+$ ("||-" <+> vcat [ pprintTidy k (lhs c)
-                                                 , "<:"
-                                                 , pprintTidy k (rhs c) ] )
-  pprintTidy k c@(SubR {}) = pprintTidy k (senv c)
-                             $+$ ("||-" <+> vcat [ pprintTidy k (ref c)
-                                                 , parens (pprintTidy k (oblig c))])
+  pprintTidy k c@(SubC {}) =
+    "The environment:"
+    $+$
+    ""
+    $+$
+    pprintTidy k (senv c)
+    $+$
+    ""
+    $+$
+    "Location: " <> pprintTidy k (getLocation (senv c))
+    $+$
+    "The constraint:"
+    $+$
+    ""
+    $+$
+    "||-" <+> vcat [ pprintTidy k (lhs c)
+                   , "<:"
+                   , pprintTidy k (rhs c) ]
 
+  pprintTidy k c@(SubR {}) =
+    "The environment:"
+    $+$
+    ""
+    $+$
+    pprintTidy k (senv c)
+    $+$
+    ""
+    $+$
+    "Location: " <> pprintTidy k (getLocation (senv c))
+    $+$
+    "The constraint:"
+    $+$
+    ""
+    $+$
+    "||-" <+> vcat [ pprintTidy k (ref c)
+                   , parens (pprintTidy k (oblig c))]
 
 instance PPrint WfC where
   pprintTidy k (WfC _ r) = {- pprintTidy k w <> text -} "<...> |-" <+> pprintTidy k r
@@ -302,7 +335,7 @@ goodInvs ts (RInv ts' t _)
 
 
 unifiable :: RSort -> RSort -> Bool
-unifiable t1 t2 = isJust $ tcUnifyTy (toType t1) (toType t2)
+unifiable t1 t2 = isJust $ tcUnifyTy (toType False t1) (toType False t2)
 
 addRInv :: RTyConInv -> (Var, SpecType) -> (Var, SpecType)
 addRInv m (x, t)
@@ -353,7 +386,7 @@ restoreInvariant γ is = γ {invs = is}
 makeRecInvariants :: CGEnv -> [Var] -> CGEnv
 makeRecInvariants γ [x] = γ {invs = M.unionWith (++) (invs γ) is}
   where
-    is  =  M.map (map f . filter (isJust . (varType x `tcUnifyTy`) . toType . _rinv_type)) (rinvs γ)
+    is  =  M.map (map f . filter (isJust . (varType x `tcUnifyTy`) . toType False . _rinv_type)) (rinvs γ)
     f i = i{_rinv_type = guard $ _rinv_type i}
 
     guard (RApp c ts rs r)

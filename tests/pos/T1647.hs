@@ -1,6 +1,5 @@
 {-# LANGUAGE GADTs        #-}
 {-@ LIQUID "--reflection" @-} 
-{-@ LIQUID "--no-adt"     @-} 
 
 module Properties where 
 

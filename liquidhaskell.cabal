@@ -111,6 +111,9 @@ library
                       Language.Haskell.Liquid.Bare.Resolve
                       Language.Haskell.Liquid.Bare.ToBare
                       Language.Haskell.Liquid.Bare.Types
+                      Language.Haskell.Liquid.Bare.Slice
+                      Language.Haskell.Liquid.Bare.Typeclass
+                      Language.Haskell.Liquid.Bare.Elaborate
                       Language.Haskell.Liquid.Constraint.Constraint
                       Language.Haskell.Liquid.Constraint.Env
                       Language.Haskell.Liquid.Constraint.Fresh
@@ -153,6 +156,7 @@ library
                       Language.Haskell.Liquid.Transforms.RefSplit
                       Language.Haskell.Liquid.Transforms.Rewrite
                       Language.Haskell.Liquid.Transforms.Simplify
+                      Language.Haskell.Liquid.Transforms.InlineAux
                       Language.Haskell.Liquid.Types
                       Language.Haskell.Liquid.Types.Bounds
                       Language.Haskell.Liquid.Types.Dictionaries
@@ -252,7 +256,10 @@ library
                     , transformers         >= 0.3
                     , unordered-containers >= 0.2
                     , vector               >= 0.10
-                    , extra
+                    , free
+                    , recursion-schemes    <= 5.2.2
+                    , data-fix
+                    , extra 
   default-language:   Haskell98
   default-extensions: PatternGuards, RecordWildCards, DoAndIfThenElse
   ghc-options:        -W -fwarn-missing-signatures

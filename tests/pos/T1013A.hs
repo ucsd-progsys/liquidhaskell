@@ -1,5 +1,4 @@
 {-@ LIQUID "--reflection"  @-}
-{-@ LIQUID "--no-adt"      @-} -- TODO: embed HKTs in SMTLIB2 ADTs (e.g. `Rec`)
 
 {-# LANGUAGE RankNTypes #-}
 

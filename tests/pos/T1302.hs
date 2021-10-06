@@ -1,6 +1,5 @@
 {-# LANGUAGE EmptyDataDecls, GADTs, ExistentialQuantification #-}
 
-{-@ LIQUID "--no-adt" 	      @-}
 {-@ LIQUID "--exact-data-con" @-}
 {-@ LIQUID "--higherorder"    @-}
 

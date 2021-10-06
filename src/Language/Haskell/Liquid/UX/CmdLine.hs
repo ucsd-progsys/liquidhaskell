@@ -387,6 +387,14 @@ config = cmdArgsMode $ Config {
     = def
         &= name "typed-holes"
         &= help "Use (refinement) typed-holes [currently warns on '_x' variables]"
+  , typeclass
+    = def
+        &= help "Enable Typeclass"
+        &= name "typeclass"
+  , auxInline
+    = def
+        &= help "Enable inlining of class methods"
+        &= name "aux-inline"
   , maxMatchDepth
     = def
         &= name "max-match-depth"
@@ -426,6 +434,20 @@ config = cmdArgsMode $ Config {
     = Nothing 
         &= help "Maximum fuel (per-function unfoldings) for PLE"
 
+  , noEnvironmentReduction
+    = def
+        &= explicit
+        &= name "no-environment-reduction"
+        &= help "Don't perform environment reduction"
+  , inlineANFBindings
+    = False
+        &= explicit
+        &= name "inline-anf-bindings"
+        &= help (unwords
+          [ "Inline ANF bindings."
+          , "Sometimes improves performance and sometimes worsens it."
+          , "Disabled by --no-environment-reduction"
+          ])
   } &= program "liquid"
     &= help    "Refinement Types for Haskell"
     &= summary copyright
@@ -670,6 +692,8 @@ defConfig = Config
   , compileSpec              = False
   , noCheckImports           = False
   , typedHoles               = False
+  , typeclass                = False
+  , auxInline                = False
   , maxMatchDepth            = 4
   , maxAppDepth              = 2
   , maxArgsDepth             = 1
@@ -677,7 +701,9 @@ defConfig = Config
   , rwTerminationCheck       = False
   , skipModule               = False
   , noLazyPLE                = False
-  , fuel 	             = Nothing
+  , fuel                     = Nothing
+  , noEnvironmentReduction   = False
+  , inlineANFBindings        = False
   }
 
 
@@ -785,7 +811,7 @@ cErrToSpanned k CtxError{ctErr} = (pos ctErr, pprintTidy k ctErr)
 errToFCrash :: CtxError a -> CtxError a
 errToFCrash ce = ce { ctErr    = tx $ ctErr ce}
   where
-    tx (ErrSubType l m g t t') = ErrFCrash l m g t t'
+    tx (ErrSubType l m _ g t t') = ErrFCrash l m g t t'
     tx e                       = e
 
 {-

@@ -55,15 +55,31 @@ without the `LIQUID_DEV_MODE`.
 
 ## How To Run Regression Tests
 
-_For a way of running the testsuite for multiple GHC versions, consult the FAQs._
+_For a way of running the test suite for multiple GHC versions, consult the FAQs._
 
-You can run all the tests by
+There are particular scripts for running LH in the different modes, e.g. for different 
+compiler versions and in plugin mode or as standalone. These scripts are in:
 
-    $ stack test
+    $ ./scripts/test
 
-To pass in specific parameters and run a subset of the tests 
+So you can run *all* the tests for say the ghc-8.10 version by
 
-    $ stack test liquidhaskell --fast  --test-arguments "--liquid-opts --no-termination -p Unit"
+    $ ./scripts/test/test_810.sh
+
+You can run a particular test instead by
+
+    $ LIQUID_DEV_MODE=true ./scripts/test/test_810.sh BadDataDeclTyVars.hs
+
+Note that the script uses the `BadDataDeclTyVars.hs` as a pattern so will run *all* tests that match.
+So, for example,
+
+    $ LIQUID_DEV_MODE=true ./scripts/test/test_810.sh Error-Messages
+
+will run all the tests in the `Error-Messages` group.
+
+To pass in specific parameters and run a subset of the tests  **FIXME**
+
+    $ stack test liquidhaskell --fast  --test-arguments "--liquid-opts --no-termination -p Unit
 
 Or your favorite number of threads, depending on cores etc.
 
@@ -78,7 +94,6 @@ You can directly extend and run the tests by modifying
     ```
     $ stack build liquidhaskell --fast --profile
     ```
-
 
 2. Run with profiling
 

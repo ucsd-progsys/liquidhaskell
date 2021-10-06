@@ -322,7 +322,7 @@ type SSEnv = M.HashMap Symbol (SpecType, Var)
 filterREnv :: M.HashMap Symbol SpecType -> M.HashMap Symbol SpecType
 filterREnv renv = 
   let renv_lst  = M.toList renv
-      renv_lst' = filter (\(_, specT) ->  let ht = toType specT
+      renv_lst' = filter (\(_, specT) ->  let ht = toType False specT
                                           in  showTy ht /= "(RApp   GHC.Prim.Addr# )") renv_lst
   in  M.fromList renv_lst'
 

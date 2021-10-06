@@ -292,8 +292,3 @@ setTRec γ xts  = γ' {trec = Just $ M.fromList xts' `M.union` trec'}
     γ'         = γ `setRecs` (fst <$> xts)
     trec'      = fromMaybe M.empty $ trec γ
     xts'       = first F.symbol <$> xts
-
-------------------------------------------------------------------------
-getLocation :: CGEnv -> SrcSpan
-------------------------------------------------------------------------
-getLocation = Sp.srcSpan . cgLoc

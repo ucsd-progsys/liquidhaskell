@@ -92,6 +92,8 @@ data Config = Config
   , compileSpec              :: Bool       -- ^ Only "compile" the spec -- into .bspec file -- don't do any checking.
   , noCheckImports           :: Bool       -- ^ Do not check the transitive imports
   , typedHoles               :: Bool       -- ^ Warn about "typed-holes"
+  , typeclass                :: Bool        -- ^ enable typeclass support.
+  , auxInline                :: Bool        -- ^ 
   , maxMatchDepth            :: Int
   , maxAppDepth              :: Int
   , maxArgsDepth             :: Int
@@ -100,6 +102,9 @@ data Config = Config
   , skipModule               :: Bool       -- ^ Skip this module entirely (don't even compile any specs in it)
   , noLazyPLE                :: Bool
   , fuel                     :: Maybe Int  -- ^ Maximum PLE "fuel" (unfold depth) (default=infinite) 
+  , noEnvironmentReduction   :: Bool       -- ^ Don't perform environment reduction
+  , inlineANFBindings        :: Bool       -- ^ Inline ANF bindings.
+                                           -- Sometimes improves performance and sometimes worsens it.
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 allowPLE :: Config -> Bool

@@ -405,6 +405,8 @@ testSucceeds =
             "ssum :: forall <p :: a -> Bool, q :: a -> Bool> .\n        {|- {v : a | v == 0} <: {VV : a<q> | true}} =>\n        {x :: {VV : a<p> | true} |- {v : a | x <= v} <: {VV : a<q> | true}} =>\n        xs:[{v : a<p> | 0 <= v}] -> {v : a<q> | len xs >= 0\n                                                && 0 <= v}"
 
     , testCase "type spec 13" $
+       -- removing duplicate conjuncts also affects the order in which the
+       -- surviving conjuncts are returned
        parseSingleSpec (unlines $
           [ " predicate ValidChunk V XS N "
           , " = if len XS == 0 "
@@ -412,7 +414,14 @@ testSucceeds =
           , "     else (((1 < len XS && 1 < N) => (len V  < len XS)) "
           , "       && ((len XS <= N ) => len V == 1)) "])
           @?==
-          "predicate ValidChunk V  XS  N  =  (len XS == 0 => len V == 0)\n                                  && (not (len XS == 0) => (1 < len XS\n                                                            && 1 < N => len V < len XS)\n                                                           && (len XS <= N => len V == 1))"
+          unlines
+          [ "predicate ValidChunk V  XS  N  = "
+          , "  (not (len XS == 0) =>"
+          , "     (1 < N && 1 < len XS => len V < len XS)"
+          , "     && (len XS <= N => len V == 1)"
+          , "  )"
+          , "  && (len XS == 0 => len V == 0)"
+          ]
 
 
     , testCase "type spec 14" $

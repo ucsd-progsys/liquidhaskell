@@ -89,13 +89,13 @@ mkRTyCon (TyConP _ tc αs' ps tyvariance predvariance size)
 --   a (refined) data constructor into a @SpecType@ for that constructor.
 --   TODO: duplicated with Liquid.Measure.makeDataConType
 -------------------------------------------------------------------------------
-dataConPSpecType :: DataConP -> [(Var, SpecType)]
+dataConPSpecType :: Bool -> DataConP -> [(Var, SpecType)]
 -------------------------------------------------------------------------------
-dataConPSpecType dcp    = [(workX, workT), (wrapX, wrapT) ]
+dataConPSpecType allowTC dcp    = [(workX, workT), (wrapX, wrapT) ]
   where
     workT | isVanilla   = wrapT
           | otherwise   = dcWorkSpecType   dc wrapT
-    wrapT               = dcWrapSpecType   dc dcp
+    wrapT               = dcWrapSpecType   allowTC  dc dcp
     workX               = dataConWorkId    dc            -- This is the weird one for GADTs
     wrapX               = dataConWrapId    dc            -- This is what the user expects to see
     isVanilla           = isVanillaDataCon dc
@@ -170,20 +170,24 @@ meetWorkWrapRep c workR wrapR
 strengthenRType :: SpecType -> SpecType -> SpecType
 strengthenRType wkT wrT = maybe wkT (strengthen wkT) (stripRTypeBase wrT)
 
-dcWrapSpecType :: DataCon -> DataConP -> SpecType
-dcWrapSpecType dc (DataConP _ _ vs ps cs yts rt _ _ _)
+
+-- maybe a tc flag is unnecessary but I don't know if {-@ class ... @-}
+-- would reach here
+dcWrapSpecType :: Bool -> DataCon -> DataConP -> SpecType
+dcWrapSpecType allowTC dc (DataConP _ _ vs ps cs yts rt _ _ _)
   = {- F.tracepp ("dcWrapSpecType: " ++ show dc ++ " " ++ F.showpp rt) $ -}
     mkArrow makeVars' ps [] ts' rt'
   where
+    isCls    = Ghc.isClassTyCon $ Ghc.dataConTyCon dc
     (xs, ts) = unzip (reverse yts)
     mkDSym z = (F.symbol z) `F.suffixSymbol` (F.symbol dc)
     ys       = mkDSym <$> xs
     tx _  []     []     []     = []
-    tx su (x:xs) (y:ys) (t:ts) = (y, F.subst (F.mkSubst su) t, mempty)
+    tx su (x:xs) (y:ys) (t:ts) = (y, classRFInfo allowTC , if allowTC && isCls then t else F.subst (F.mkSubst su) t, mempty)
                                : tx ((x, F.EVar y):su) xs ys ts
     tx _ _ _ _ = panic Nothing "PredType.dataConPSpecType.tx called on invalid inputs"
     yts'     = tx [] xs ys ts
-    ts'      = map ("" , , mempty) cs ++ yts'
+    ts'      = map ("" , classRFInfo allowTC , , mempty) cs ++ yts'
     su       = F.mkSubst [(x, F.EVar y) | (x, y) <- zip xs ys]
     rt'      = F.subst su rt
     makeVars = zipWith (\v a -> RTVar v (rTVarInfo a :: RTVInfo RSort)) vs (fst $ splitForAllTys $ dataConRepType dc)
@@ -338,21 +342,21 @@ substPred msg (p, tp) (RAllP (q@(PV _ _ _ _)) t)
 
 substPred msg su (RAllT a t r)  = RAllT a (substPred msg su t) r
 
-substPred msg su@(π,prop) (RFun x t t' r)
+substPred msg su@(π,prop) (RFun x i t t' r)
 --                        = RFun x (substPred msg su t) (substPred msg su t') r
-  | null πs                     = RFun x (substPred msg su t) (substPred msg su t') r
+  | null πs                     = RFun x i (substPred msg su t) (substPred msg su t') r
   | otherwise                   =
       let sus = (\π -> F.mkSubst (zip (fst <$> rf_args prop) (thd3 <$> pargs π))) <$> πs in
-      foldl (\t su -> t `F.meet` F.subst su (rf_body prop)) (RFun x (substPred msg su t) (substPred msg su t') r') sus
+      foldl (\t su -> t `F.meet` F.subst su (rf_body prop)) (RFun x i (substPred msg su t) (substPred msg su t') r') sus
   where (r', πs)                = splitRPvar π r
 -- ps has   , pargs :: ![(t, Symbol, Expr)]
 
 -- AT: just a copy of the other case, mutatis mutandi. (is there a less hacky way?)
-substPred msg su@(π,prop) (RImpF x t t' r)
-  | null πs                     = RImpF x (substPred msg su t) (substPred msg su t') r
+substPred msg su@(π,prop) (RImpF x i t t' r)
+  | null πs                     = RImpF x i (substPred msg su t) (substPred msg su t') r
   | otherwise                   =
       let sus = (\π -> F.mkSubst (zip (fst <$> rf_args prop) (thd3 <$> pargs π))) <$> πs in
-      foldl (\t su -> t `F.meet` F.subst su (rf_body prop)) (RImpF x (substPred msg su t) (substPred msg su t') r') sus
+      foldl (\t su -> t `F.meet` F.subst su (rf_body prop)) (RImpF x i (substPred msg su t) (substPred msg su t') r') sus
   where (r', πs)                = splitRPvar π r
 
 
@@ -393,7 +397,7 @@ substRCon msg (_, RProp ss t1@(RApp c1 ts1 rs1 r1)) t2@(RApp c2 ts2 rs2 _) πs r
 
     su = F.mkSubst $ zipWith (\s1 s2 -> (s1, F.EVar s2)) (rvs t1) (rvs t2)
 
-    rvs      = foldReft False (\_ r acc -> rvReft r : acc) []
+    rvs      = foldReft False (\_ r acc -> rvReft r : acc) [] 
     rvReft r = let F.Reft(s,_) = F.toReft r in s
 
 substRCon msg su t _ _        = {- panic Nothing -} errorP "substRCon: " $ msg ++ " " ++ showpp (su, t)
@@ -431,9 +435,9 @@ splitRPvar pv (MkUReft x (Pr pvs)) = (MkUReft x (Pr pvs'), epvs)
 freeArgsPs :: PVar (RType t t1 ()) -> RType t t1 (UReft t2) -> [F.Symbol]
 freeArgsPs p (RVar _ r)
   = freeArgsPsRef p r
-freeArgsPs p (RImpF _ t1 t2 r)
+freeArgsPs p (RImpF _ _ t1 t2 r)
   = L.nub $  freeArgsPsRef p r ++ freeArgsPs p t1 ++ freeArgsPs p t2
-freeArgsPs p (RFun _ t1 t2 r)
+freeArgsPs p (RFun _ _ t1 t2 r)
   = L.nub $  freeArgsPsRef p r ++ freeArgsPs p t1 ++ freeArgsPs p t2
 freeArgsPs p (RAllT _ t r)
   = L.nub $  freeArgsPs p t ++ freeArgsPsRef p r

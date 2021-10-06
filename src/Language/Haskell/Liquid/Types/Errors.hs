@@ -87,7 +87,7 @@ import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( Expr
                                                                , int
                                                                , hcat
                                                                )
-import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr)
+import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr, SubcId)
 import qualified Language.Fixpoint.Misc       as Misc
 import qualified Language.Haskell.Liquid.Misc     as Misc
 import           Language.Haskell.Liquid.Misc ((<->))
@@ -220,6 +220,7 @@ ppOblig OInv  = text "Invariant Check"
 data TError t =
     ErrSubType { pos  :: !SrcSpan
                , msg  :: !Doc
+               , cid  :: Maybe SubcId
                , ctx  :: !(M.HashMap Symbol t)
                , tact :: !t
                , texp :: !t
@@ -228,6 +229,7 @@ data TError t =
   | ErrSubTypeModel
                { pos  :: !SrcSpan
                , msg  :: !Doc
+               , cid  :: Maybe SubcId
                , ctxM  :: !(M.HashMap Symbol (WithModel t))
                , tactM :: !(WithModel t)
                , texp :: !t
@@ -740,17 +742,16 @@ errSaved sp body = ErrSaved sp (text n) (text $ unlines m)
   where
     n : m        = lines body
 
-
 totalityType :: PPrint a =>  Tidy -> a -> Bool
 totalityType td tE = pprintTidy td tE == text "{VV : Addr# | 5 < 4}"
 
 hint :: TError a -> Doc
 hint e = maybe empty (\d -> "" $+$ ("HINT:" <+> d)) (go e)
   where
-    go (ErrMismatch {}) = Just "Use the hole '_' instead of the mismatched component (in the Liquid specification)"
-    go (ErrSubType {})  = Just "Use \"--no-totality\" to deactivate totality checking."
-    go (ErrNoSpec {})   = Just "Run 'liquid' on the source file first."
-    go _                = Nothing
+    go ErrMismatch {} = Just "Use the hole '_' instead of the mismatched component (in the Liquid specification)"
+    go ErrSubType {}  = Just "Use \"--no-totality\" to deactivate totality checking."
+    go ErrNoSpec {}   = Just "Run 'liquid' on the source file first."
+    go _              = Nothing
 
 --------------------------------------------------------------------------------
 ppError' :: (PPrint a, Show a) => Tidy -> Doc -> TError a -> Doc
@@ -760,7 +761,7 @@ ppError' td dCtx (ErrAssType _ o _ c p)
         $+$ dCtx
         $+$ (ppFull td $ ppPropInContext td p c)
 
-ppError' td dCtx err@(ErrSubType _ _ _ _ tE)
+ppError' td dCtx err@(ErrSubType _ _ _ _ _ tE)
   | totalityType td tE
   = text "Totality Error"
         $+$ dCtx
@@ -776,18 +777,20 @@ ppError' _td _dCtx (ErrHole _ msg _ x t)
         $+$ pprint x <+> "::" <+> pprint t
         $+$ msg
 
-ppError' td dCtx (ErrSubType _ _ c tA tE)
+ppError' td dCtx (ErrSubType _ _ cid c tA tE)
   = text "Liquid Type Mismatch"
     $+$ nest 4 
           (blankLine 
            $+$ dCtx
-           $+$ (ppFull td $ ppReqInContext td tA tE c))
+           $+$ (ppFull td $ ppReqInContext td tA tE c)
+           $+$ maybe mempty (\i -> text "Constraint id" <+> text (show i)) cid)
 
-ppError' td dCtx (ErrSubTypeModel _ _ c tA tE)
+ppError' td dCtx (ErrSubTypeModel _ _ cid c tA tE)
   = text "Liquid Type Mismatch"
     $+$ nest 4 
           (dCtx
-          $+$ (ppFull td $ ppReqModelInContext td tA tE c))
+          $+$ (ppFull td $ ppReqModelInContext td tA tE c)
+          $+$ maybe mempty (\i -> text "Constraint id" <+> text (show i)) cid)
 
 ppError' td  dCtx (ErrFCrash _ _ c tA tE)
   = text "Fixpoint Crash on Constraint"
@@ -805,6 +808,7 @@ ppError' _ dCtx (ErrTySpec _ _k v t s)
         $+$ dCtx
         $+$ nest 4 (vcat [ pprint v <+> Misc.dcolon <+> pprint t
                          , pprint s
+                         , pprint _k
                          ])
     where
       _ppKind Nothing  = empty
@@ -813,7 +817,7 @@ ppError' _ dCtx (ErrTySpec _ _k v t s)
 ppError' _ dCtx (ErrLiftExp _ v)
   = text "Cannot lift" <+> ppTicks v <+> "into refinement logic"
         $+$ dCtx
-        $+$ (nest 4 $ text "Please export the binder from the module to enable lifting.")
+        $+$ nest 4 (text "Please export the binder from the module to enable lifting.")
 
 ppError' _ dCtx (ErrBadData _ v s)
   = text "Bad Data Specification"
@@ -845,24 +849,24 @@ ppError' _ dCtx (ErrTermSpec _ v msg e t s)
 
 ppError' _ _ (ErrInvt _ t s)
   = text "Bad Invariant Specification"
-        $+$ (nest 4 $ text "invariant " <+> pprint t $+$ pprint s)
+        $+$ nest 4 (text "invariant " <+> pprint t $+$ pprint s)
 
 ppError' _ _ (ErrIAl _ t s)
   = text "Bad Using Specification"
-        $+$ (nest 4 $ text "as" <+> pprint t $+$ pprint s)
+        $+$ nest 4 (text "as" <+> pprint t $+$ pprint s)
 
 ppError' _ _ (ErrIAlMis _ t1 t2 s)
   = text "Incompatible Using Specification"
-        $+$ (nest 4 $ (text "using" <+> pprint t1 <+> text "as" <+> pprint t2) $+$ pprint s)
+        $+$ nest 4 ((text "using" <+> pprint t1 <+> text "as" <+> pprint t2) $+$ pprint s)
 
 ppError' _ _ (ErrMeas _ t s)
   = text "Bad Measure Specification"
-        $+$ (nest 4 $ text "measure " <+> pprint t $+$ pprint s)
+        $+$ nest 4 (text "measure " <+> pprint t $+$ pprint s)
 
 ppError' _ dCtx (ErrHMeas _ t s)
   = text "Cannot lift Haskell function" <+> ppTicks t <+> text "to logic"
         $+$ dCtx
-        $+$ (nest 4 $ pprint s)
+        $+$ nest 4 (pprint s)
 
 ppError' _ dCtx (ErrDupSpecs _ v ls)
   = text "Multiple specifications for" <+> ppTicks v <+> colon

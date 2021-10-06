@@ -34,11 +34,12 @@ import           Language.Haskell.Liquid.Bare.Types   as Bare
 
 -----------------------------------------------------------------------------------------------
 makeHaskellAxioms :: Config -> GhcSrc -> Bare.Env -> Bare.TycEnv -> ModName -> LogicMap -> GhcSpecSig -> Ms.BareSpec 
-                  -> [(Ghc.Var, LocSpecType, F.Equation)]
+                  -> Bare.Lookup [(Ghc.Var, LocSpecType, F.Equation)]
 -----------------------------------------------------------------------------------------------
-makeHaskellAxioms cfg src env tycEnv name lmap spSig spec 
-  = fmap (makeAxiom env tycEnv name lmap) 
-         (wiredDefs cfg env name spSig ++ getReflectDefs src spSig spec) 
+makeHaskellAxioms cfg src env tycEnv name lmap spSig spec = do 
+  wiDefs     <- wiredDefs cfg env name spSig
+  let refDefs = getReflectDefs src spSig spec
+  return (makeAxiom env tycEnv name lmap <$> (wiDefs ++ refDefs))
 
 getReflectDefs :: GhcSrc -> GhcSpecSig -> Ms.BareSpec 
                -> [(LocSymbol, Maybe SpecType, Ghc.Var, Ghc.CoreExpr)]
@@ -50,8 +51,10 @@ getReflectDefs src sig spec = findVarDefType cbs sigs <$> xs
 
 findVarDefType :: [Ghc.CoreBind] -> [(Ghc.Var, LocSpecType)] -> LocSymbol
                -> (LocSymbol, Maybe SpecType, Ghc.Var, Ghc.CoreExpr)
-findVarDefType cbs sigs x = case findVarDef (val x) cbs of
-  Just (v, e) -> if Ghc.isExportedId v
+findVarDefType cbs sigs x = case findVarDefMethod (val x) cbs of
+  -- YL: probably ok even without checking typeclass flag since user cannot
+  -- manually reflect internal names
+  Just (v, e) -> if Ghc.isExportedId v || isMethod (F.symbol x) || isDictionary (F.symbol x)
                    then (x, val <$> lookup v sigs, v, e)
                    else Ex.throw $ mkError x ("Lifted functions must be exported; please export " ++ show v)
   Nothing     -> Ex.throw $ mkError x "Cannot lift haskell function"
@@ -65,55 +68,65 @@ makeAxiom env tycEnv name lmap (x, mbT, v, def)
             = (v, t, e)
   where 
     t       = Bare.qualifyTop env name (F.loc t0) t0 
-    (t0, e) = makeAssumeType embs lmap dm x mbT v def
+    (t0, e) = makeAssumeType allowTC embs lmap dm x mbT v def
     embs    = Bare.tcEmbs       tycEnv 
-    dm      = Bare.tcDataConMap tycEnv 
+    dm      = Bare.tcDataConMap tycEnv
+    allowTC = typeclass (getConfig env)
 
 mkError :: LocSymbol -> String -> Error
 mkError x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (PJ.text str)
 
 makeAssumeType
-  :: F.TCEmb Ghc.TyCon -> LogicMap -> DataConMap -> LocSymbol -> Maybe SpecType
+  :: Bool -- ^ typeclass enabled
+  -> F.TCEmb Ghc.TyCon -> LogicMap -> DataConMap -> LocSymbol -> Maybe SpecType
   -> Ghc.Var -> Ghc.CoreExpr
   -> (LocSpecType, F.Equation)
-makeAssumeType tce lmap dm x mbT v def
+makeAssumeType allowTC tce lmap dm x mbT v def
   = (x {val = aty at `strengthenRes` F.subst su ref},  F.mkEquation (val x) xts (F.subst su le) out)
   where
-    t     = Mb.fromMaybe (ofType τ) mbT
+    t     = fromRTypeRep .
+            (\trep@RTypeRep{..} ->
+                trep{ty_info = fmap (\rinfo -> rinfo{permitTC = Just allowTC}) ty_info}) .
+            toRTypeRep $ Mb.fromMaybe (ofType $ τ) mbT
     τ     = Ghc.varType v
-    at    = axiomType x t
+    at    = axiomType allowTC x t
     out   = rTypeSort tce $ ares at 
     xArgs = (F.EVar . fst) <$> aargs at
     _msg  = unwords [showpp x, showpp mbT]
-    le    = case runToLogicWithBoolBinds bbs tce lmap dm mkErr (coreToLogic  def') of
+    le    = case runToLogicWithBoolBinds bbs tce lmap dm mkErr (coreToLogic allowTC def') of
               Right e -> e
               Left  e -> panic Nothing (show e)
     ref        = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) le)
     mkErr s    = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (PJ.text s)
     bbs        = filter isBoolBind xs
-    (xs, def') = grabBody (Ghc.expandTypeSynonyms τ) $ normalize def
+    (xs, def') = GM.notracePpr "grabBody" $ grabBody allowTC (Ghc.expandTypeSynonyms τ) $ normalize allowTC def
     su         = F.mkSubst  $ zip (F.symbol     <$> xs) xArgs
                            ++ zip (simplesymbol <$> xs) xArgs
     xts        = [(F.symbol x, rTypeSortExp tce t) | (x, t) <- aargs at]
 
 rTypeSortExp :: F.TCEmb Ghc.TyCon -> SpecType -> F.Sort
-rTypeSortExp tce = typeSort tce . Ghc.expandTypeSynonyms . toType
+rTypeSortExp tce = typeSort tce . Ghc.expandTypeSynonyms . toType False
 
-grabBody :: Ghc.Type -> Ghc.CoreExpr -> ([Ghc.Var], Ghc.CoreExpr)
-grabBody (Ghc.ForAllTy _ t) e 
-  = grabBody t e 
-grabBody (Ghc.FunTy { Ghc.ft_arg = tx, Ghc.ft_res = t}) e | Ghc.isClassPred tx 
-  = grabBody t e 
-grabBody (Ghc.FunTy { Ghc.ft_res = t}) (Ghc.Lam x e) 
-  = (x:xs, e') where (xs, e') = grabBody t e
-grabBody t (Ghc.Tick _ e) 
-  = grabBody t e
-grabBody t@(Ghc.FunTy {}) e               
+grabBody :: Bool -- ^ typeclass enabled
+         -> Ghc.Type -> Ghc.CoreExpr -> ([Ghc.Var], Ghc.CoreExpr)
+grabBody allowTC (Ghc.ForAllTy _ t) e 
+  = grabBody allowTC t e 
+grabBody allowTC@False (Ghc.FunTy { Ghc.ft_arg = tx, Ghc.ft_res = t}) e | Ghc.isClassPred tx 
+  = grabBody allowTC t e 
+grabBody allowTC@True (Ghc.FunTy { Ghc.ft_arg = tx, Ghc.ft_res = t}) e | isEmbeddedDictType tx 
+  = grabBody allowTC t e 
+grabBody allowTC torig@Ghc.FunTy {} (Ghc.Let (Ghc.NonRec x e) body) 
+  = grabBody allowTC torig (subst (x,e) body)
+grabBody allowTC (Ghc.FunTy { Ghc.ft_res = t}) (Ghc.Lam x e) 
+  = (x:xs, e') where (xs, e') = grabBody allowTC t e
+grabBody allowTC t (Ghc.Tick _ e) 
+  = grabBody allowTC t e
+grabBody allowTC t@(Ghc.FunTy {}) e               
   = (txs++xs, e') 
    where (ts,tr)  = splitFun t 
-         (xs, e') = grabBody tr (foldl Ghc.App e (Ghc.Var <$> txs))
+         (xs, e') = grabBody allowTC tr (foldl Ghc.App e (Ghc.Var <$> txs))
          txs      = [ stringVar ("ls" ++ show i) t |  (t,i) <- zip ts [1..]]
-grabBody _ e              
+grabBody _ _ e
   = ([], e)
 
 splitFun :: Ghc.Type -> ([Ghc.Type], Ghc.Type)
@@ -130,7 +143,7 @@ strengthenRes t r = go t
   where 
     go (RAllT a t r)   = RAllT a (go t) r  
     go (RAllP p t)     = RAllP p $ go t
-    go (RFun x tx t r) = RFun x tx (go t) r 
+    go (RFun x i tx t r) = RFun x i tx (go t) r 
     go t               =  t `strengthen` F.ofReft r 
 
 class Subable a where
@@ -168,26 +181,26 @@ instance Subable Ghc.CoreAlt where
 data AxiomType = AT { aty :: SpecType, aargs :: [(F.Symbol, SpecType)], ares :: SpecType }
 
 -- | Specification for Haskell function
-axiomType :: LocSymbol -> SpecType -> AxiomType
-axiomType s t = AT to (reverse xts) res  
+axiomType :: Bool -> LocSymbol -> SpecType -> AxiomType
+axiomType allowTC s t = AT to (reverse xts) res  
   where
     (to, (_,xts, Just res)) = runState (go t) (1,[], Nothing)
     go (RAllT a t r) = RAllT a <$> go t <*> return r 
     go (RAllP p t) = RAllP p <$> go t 
-    go (RFun x tx t r) | isClassType tx = (\t' -> RFun x tx t' r) <$> go t
-    go (RFun x tx t r) = do 
+    go (RFun x i tx t r) | isErasable tx = (\t' -> RFun x i tx t' r) <$> go t
+    go (RFun x ii tx t r) = do 
       (i,bs,res) <- get 
       let x' = unDummy x i 
       put (i+1, (x', tx):bs,res)
       t' <- go t 
-      return $ RFun x' tx t' r 
+      return $ RFun x' ii tx t' r 
     go t = do 
       (i,bs,_) <- get 
       let ys = reverse $ map fst bs
       let t' = strengthen t (singletonApp s ys)
       put (i, bs, Just t')
       return t' 
-
+    isErasable = if allowTC then isEmbeddedClass else isClassType
 unDummy :: F.Symbol -> Int -> F.Symbol
 unDummy x i
   | x /= F.dummySymbol = x
@@ -203,23 +216,21 @@ singletonApp s ys = MkUReft r mempty
 -- | Hardcode imported reflected functions ------------------------------------
 -------------------------------------------------------------------------------
 
-
-wiredReflects :: Config -> Bare.Env -> ModName -> GhcSpecSig 
-              -> [Ghc.Var]
-wiredReflects cfg env name sigs = [v | (_, _, v, _) <- wiredDefs cfg env name sigs ]
-
+wiredReflects :: Config -> Bare.Env -> ModName -> GhcSpecSig -> 
+                 Bare.Lookup [Ghc.Var]
+wiredReflects cfg env name sigs = do 
+  vs <- wiredDefs cfg env name sigs
+  return [v | (_, _, v, _) <- vs]
 
 wiredDefs :: Config -> Bare.Env -> ModName -> GhcSpecSig 
-          -> [(LocSymbol, Maybe SpecType, Ghc.Var, Ghc.CoreExpr)]
+          -> Bare.Lookup [(LocSymbol, Maybe SpecType, Ghc.Var, Ghc.CoreExpr)]
 wiredDefs cfg env name spSig
-  | reflection cfg 
-  = [ functionCompositionDef ]
-  | otherwise
-  = []
-  where 
-    functionCompositionDef = (x, fmap F.val $ lookup v (gsTySigs spSig), v, makeCompositionExpression v)
-    x = F.dummyLoc functionComposisionSymbol
-    v = Bare.lookupGhcVar env name "wiredAxioms" x
+  | reflection cfg = do
+    let x = F.dummyLoc functionComposisionSymbol
+    v    <- Bare.lookupGhcVar env name "wiredAxioms" x
+    return [ (x, F.val <$> lookup v (gsTySigs spSig), v, makeCompositionExpression v) ]
+  | otherwise = 
+    return []
 
 -------------------------------------------------------------------------------
 -- | Expression Definitions of Prelude Functions ------------------------------

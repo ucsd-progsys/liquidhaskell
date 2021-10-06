@@ -39,11 +39,11 @@ synthesize tgt fcfg cginfo =
           coreProgram = giCbs $ giSrc $ ghcI cgi
           (uniVars, _) = getUniVars coreProgram topLvlBndr
           fromREnv' = filterREnv (reLocal env)
-          fromREnv'' = M.fromList (filter (rmClassVars . toType . snd) (M.toList fromREnv'))
+          fromREnv'' = M.fromList (filter (rmClassVars . toType False . snd) (M.toList fromREnv'))
           rmClassVars t = case t of { TyConApp c _ -> not . isClassTyCon $ c; _ -> True }
           fromREnv  = M.fromList (rmMeasures measures (M.toList fromREnv''))
           isForall t = case t of { ForAllTy{} -> True; _ -> False}
-          rEnvForalls = M.fromList (filter (isForall . toType . snd) (M.toList fromREnv))
+          rEnvForalls = M.fromList (filter (isForall . toType False . snd) (M.toList fromREnv))
           fs = map (snd . snd) $ M.toList (symbolToVar coreProgram topLvlBndr rEnvForalls)
 
           ssenv0 = symbolToVar coreProgram topLvlBndr fromREnv
@@ -73,12 +73,12 @@ synthesize' ctx cgi senv tx xtop ttop foralls st2
     go t@(RApp c _ts _ _r) = do  
       let coreProgram = giCbs $ giSrc $ ghcI cgi
           args  = drop 1 (argsP coreProgram xtop)
-          (_, (xs, txs, _), _) = bkArrow ttop
+          (_, (xs, _, txs, _), _) = bkArrow ttop
       addEnv xtop $ decrType xtop ttop args (zip xs txs)
 
       if R.isNumeric (tyConEmbed cgi) c
           then error " [ Numeric in synthesize ] Update liquid fixpoint. "
-          else do let ts = unifyWith (toType t)
+          else do let ts = unifyWith (toType False t)
                   if null ts  then modify (\s -> s { sUGoalTy = Nothing } )
                               else modify (\s -> s { sUGoalTy = Just ts } )
                   modify (\s -> s {sForalls = (foralls, [])})
@@ -100,7 +100,7 @@ synthesize' ctx cgi senv tx xtop ttop foralls st2
               addEmem xtop dt
               senv1 <- getSEnv
               let goalType = subst su to
-                  hsGoalTy = toType goalType 
+                  hsGoalTy = toType False goalType 
                   ts = unifyWith hsGoalTy
               if null ts  then modify (\s -> s { sUGoalTy = Nothing } )
                           else modify (\s -> s { sUGoalTy = Just ts } )
@@ -111,13 +111,13 @@ synthesize' ctx cgi senv tx xtop ttop foralls st2
               scruts <- synthesizeScrut ys
               modify (\s -> s { scrutinees = scruts })
               GHC.mkLams ys <$$> synthesizeBasic goalType
-      where (_, (xs, txs, _), to) = bkArrow t 
+      where (_, (xs, _,txs, _), to) = bkArrow t 
 
     go t = error (" Unmatched t = " ++ show t)
 
 synthesizeBasic :: SpecType -> SM [CoreExpr]
 synthesizeBasic t = do
-  let ts = unifyWith (toType t) -- All the types that are used for instantiation.
+  let ts = unifyWith (toType False t) -- All the types that are used for instantiation.
   if null ts  then  modify (\s -> s { sUGoalTy = Nothing } )
               else  modify (\s -> s { sUGoalTy = Just ts } )
   modify (\s -> s { sGoalTys = [] })
@@ -152,7 +152,7 @@ matchOnExpr t (GHC.Var v, tx, c)
   = matchOn t (v, tx, c)
 matchOnExpr t (e, tx, c)
   = do  freshV <- freshVarType tx
-        freshSpecTy <- liftCG $ trueTy tx
+        freshSpecTy <- liftCG $ (trueTy False) tx
         -- use consE
         addEnv freshV freshSpecTy
         es <- matchOn t (freshV, tx, c)
@@ -165,7 +165,7 @@ matchOn t (v, tx, c) =
 
 makeAlt :: SpecType -> (Var, Type) -> DataCon -> SM [GHC.CoreAlt]
 makeAlt t (x, TyConApp _ ts) c = locally $ do
-  ts <- liftCG $ mapM trueTy τs
+  ts <- liftCG $ mapM (trueTy False) τs
   xs <- mapM freshVar ts    
   newScruts <- synthesizeScrut xs
   modify (\s -> s { scrutinees = scrutinees s ++ newScruts } )
