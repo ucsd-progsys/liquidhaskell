@@ -41,29 +41,19 @@ import           Language.Fixpoint.Solver.Rewrite
 
 import Language.REST.AbstractOC as OC
 import Language.REST.ExploredTerms as ET
-import Language.REST.Path
 import Language.REST.RuntimeTerm as RT
-import Language.REST.Rest (rest, terms, termsResult)
-import Language.REST.Dot
-import Language.REST.RESTDot
-import Language.REST.RewriteRule
-import Language.REST.OrderingConstraints.Strict
-import Language.REST.OrderingConstraints.Lazy
 import Language.REST.OrderingConstraints.ADT (ConstraintsADT)
 import Language.REST.Op
 import Language.REST.SMT (withZ3, SolverHandle)
 
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
-import           GHC.Generics
-import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import qualified Data.Maybe           as Mb
 import qualified Data.Text            as Tx
 import           Debug.Trace          (trace)
-import Text.Printf
 
 type OCType = ConstraintsADT
 
@@ -86,22 +76,13 @@ traceE (e,e')
 --------------------------------------------------------------------------------
 instantiate :: (Fixpoint a, Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
 instantiate cfg fi' subcIds = do
-<<<<<<< HEAD
-    let cs = [ (i, c) | (i, c) <- M.toList (cm fi), isPleCstr aEnv i c,
-               maybe True (i `L.elem`) subcIds ]
-    let t  = mkCTrie cs                                                 -- 1. BUILD the Trie
-    res   <- withZ3 $ \z3 -> withProgress (1 + length cs) $
-               withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs z3) -- 2. TRAVERSE Trie to compute InstRes
-    return $ resSInfo cfg sEnv fi res                                   -- 3. STRENGTHEN SInfo using InstRes
-=======
     let cs = M.filterWithKey
-               (\i c -> isPleCstr aEnv i c && maybe True (i `L.elem`) subcIds)
-               (cm fi)
-    let t  = mkCTrie (M.toList cs)                                    -- 1. BUILD the Trie
-    res   <- withProgress (1 + M.size cs) $
-               withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs)  -- 2. TRAVERSE Trie to compute InstRes
+              (\i c -> isPleCstr aEnv i c && maybe True (i `L.elem`) subcIds)
+              (cm fi)
+    let t  = mkCTrie (M.toList cs)
+    res   <- withZ3 $ \z3 -> withProgress (1 + M.size cs) $
+               withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs z3) -- 2. TRAVERSE Trie to compute InstRes
     return $ resSInfo cfg sEnv fi res                                 -- 3. STRENGTHEN SInfo using InstRes
->>>>>>> 98e36e9b73062355a6864022395d8207e85c9512
   where
     file   = srcFile cfg ++ ".evals"
     sEnv   = symbolEnv cfg fi
@@ -112,14 +93,9 @@ instantiate cfg fi' subcIds = do
 
 ------------------------------------------------------------------------------- 
 -- | Step 1a: @instEnv@ sets up the incremental-PLE environment 
-<<<<<<< HEAD
-instEnv :: (Loc a) => Config -> SInfo a -> [(SubcId, SimpC a)] -> SolverHandle -> SMT.Context -> InstEnv a
+instEnv :: (Loc a) => Config -> SInfo a -> CMap (SimpC a) -> SolverHandle -> SMT.Context -> InstEnv a
 instEnv cfg fi cs z3 ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
-=======
-instEnv :: (Loc a) => Config -> SInfo a -> CMap (SimpC a) -> SMT.Context -> InstEnv a
-instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
->>>>>>> 98e36e9b73062355a6864022395d8207e85c9512
-  where 
+  where
     bEnv              = bs fi
     aEnv              = ae fi
     γ                 = knowledge cfg ctx fi  
@@ -161,9 +137,6 @@ pleTrie t env = loopT env ctx0 diff0 Nothing res0 t
     mkEq  eq     = (EVar $ eqName eq, eqBody eq)
     mkEq' rw     = (EApp (EVar $ smName rw) (EVar $ smDC rw), smBody rw)
 
-<<<<<<< HEAD
-loopT :: Fixpoint a => InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CTrie -> IO InstRes
-=======
 loopT
   :: InstEnv a
   -> ICtx
@@ -173,17 +146,13 @@ loopT
   -> InstRes
   -> CTrie
   -> IO InstRes
->>>>>>> 98e36e9b73062355a6864022395d8207e85c9512
-loopT env ctx delta i res t = case t of 
+loopT env ctx delta i res t = case t of
   T.Node []  -> return res
   T.Node [b] -> loopB env ctx delta i res b
   T.Node bs  -> withAssms env ctx delta Nothing $ \ctx' -> do 
                   (ctx'', res') <- ple1 env ctx' i res 
                   foldM (loopB env ctx'' [] i) res' bs
 
-<<<<<<< HEAD
-loopB :: Fixpoint a => InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CBranch -> IO InstRes
-=======
 loopB
   :: InstEnv a
   -> ICtx
@@ -193,17 +162,12 @@ loopB
   -> InstRes
   -> CBranch
   -> IO InstRes
->>>>>>> 98e36e9b73062355a6864022395d8207e85c9512
-loopB env ctx delta iMb res b = case b of 
+loopB env ctx delta iMb res b = case b of
   T.Bind i t -> loopT env ctx (i:delta) (Just i) res t
   T.Val cid  -> withAssms env ctx delta (Just cid) $ \ctx' -> do 
                   progressTick
                   (snd <$> ple1 env ctx' iMb res) 
 
-<<<<<<< HEAD
-
-withAssms :: Fixpoint a => InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> IO b) -> IO b
-=======
 -- | Adds to @ctx@ candidate expressions to unfold from the bindings in @delta@
 -- and the rhs of @cidMb@.
 --
@@ -216,8 +180,7 @@ withAssms :: Fixpoint a => InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx ->
 -- and then pops the assumptions.
 --
 withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> IO b) -> IO b 
->>>>>>> 98e36e9b73062355a6864022395d8207e85c9512
-withAssms env@(InstEnv {..}) ctx delta cidMb act = do 
+withAssms env@(InstEnv {..}) ctx delta cidMb act = do
   let ctx'  = updCtx env ctx delta cidMb 
   let assms = icAssms ctx'
   SMT.smtBracket ieSMT  "PLE.evaluate" $ do
@@ -372,18 +335,14 @@ updRes res  Nothing _ = res
 --   to the context. 
 ---------------------------------------------------------------------------------------------- 
 
-updCtx :: Fixpoint a => InstEnv a -> ICtx -> Diff -> Maybe SubcId -> ICtx
+updCtx :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> ICtx
 updCtx InstEnv {..} ctx delta cidMb 
               = ctx { icAssms  = S.fromList (filter (not . isTautoPred) ctxEqs)  
                     , icCands  = S.fromList cands           <> icCands  ctx
                     , icEquals = initEqs                    <> icEquals ctx
                     , icSimpl  = M.fromList (S.toList sims) <> icSimpl ctx <> econsts
-<<<<<<< HEAD
-                    , icSubcId = fst <$> L.find (\(_, b) -> (head delta) `memberIBindEnv` (_cenv b)) ieCstrs
-                    , icANFs   = anfs <> icANFs ctx
-=======
                     , icSubcId = cidMb
->>>>>>> 98e36e9b73062355a6864022395d8207e85c9512
+                    , icANFs   = anfs <> icANFs ctx
                     }
   where         
     initEqs   = S.fromList $ concat [rewrite e rw | e  <- cands ++ (snd <$> S.toList (icEquals ctx))
@@ -402,13 +361,8 @@ updCtx InstEnv {..} ctx delta cidMb
     bs        = unElab <$> binds
     (rhs:es)  = unElab <$> (eRhs : (expr <$> binds))
     eRhs      = maybe PTrue crhs subMb
-<<<<<<< HEAD
     binds     = [ lookupBindEnv i ieBEnv | i <- delta ]
-    subMb     = getCstr (M.fromList ieCstrs) <$> cidMb
-=======
-    binds     = [ lookupBindEnv i ieBEnv | i <- delta ] 
     subMb     = getCstr ieCstrs <$> cidMb
->>>>>>> 98e36e9b73062355a6864022395d8207e85c9512
 
 
 findConstants :: Knowledge -> [Expr] -> [(Expr, Expr)]
@@ -556,18 +510,22 @@ data EvalType =
 
 newtype FinalExpand = FE Bool deriving (Show)
 
+noExpand :: FinalExpand
 noExpand = FE False
-expand = FE True
 
-isExpand (FE f) = f
+expand :: FinalExpand
+expand = FE True
 
 withFE :: (Expr -> Expr) -> (Expr, FinalExpand) -> (Expr, FinalExpand)
 withFE f (e, fe) = (f e, fe)
 
+feVal :: FinalExpand -> Bool
 feVal (FE f) = f
 
+feAny :: [FinalExpand] -> FinalExpand
 feAny xs = FE $ any id (map feVal xs)
 
+feChoose :: FinalExpand -> FinalExpand -> FinalExpand
 feChoose (FE True) _ = expand
 feChoose _                  f = f
 
@@ -612,7 +570,7 @@ eval γ ctx et e =
     addConst (e,e') ctx = if isConstant (knDCs γ) e'
                            then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx 
     go (ELam (x,s) e)   = withFE (ELam (x, s)) <$> eval γ' ctx et e where γ' = γ { knLams = (x, s) : knLams γ }
-    go e@(EIte b e1 e2) = evalIte γ ctx et e b e1 e2
+    go (EIte b e1 e2) = evalIte γ ctx et b e1 e2
     go (ECoerc s t e)   = withFE (ECoerc s t)  <$> go e
     go e@(EApp _ _)     =
       case splitEApp e of
@@ -623,15 +581,13 @@ eval γ ctx et e =
               then return (eApps f es', fe)
               else do
                 (f', fe)  <- eval γ ctx et f
-                (e', fe') <- evalApp γ ctx (eApps f' es) (f',es) et
+                (e', fe') <- evalApp γ ctx f' es et
                 return $ (e', feChoose fe fe')
-            -- liftIO $ printf "Simplify %s to %s\n" (show e) (show r)
             return r
        (f, es) ->
           do
             ((f':es'), fe) <- feSeq <$> mapM (eval γ ctx et) (f:es)
-            (e', fe') <- evalApp γ ctx (eApps f' es) (f',es') et
-            -- liftIO $ printf "Simplify %s to %s\n" (show e) (show e')
+            (e', fe') <- evalApp γ ctx f' es' et
             return $ (e', feChoose fe fe')
 
     go e@(PAtom r e1 e2) = do
@@ -734,23 +690,16 @@ evalREST _ ctx rp
         
 evalREST γ ctx rp =
   do
-    -- liftIO $ print $ length pathExprs
     exploredTerms <- gets explored
-    -- when (ET.size exploredTerms > 25) $ error "boom"
     se <- liftIO (shouldExploreTerm exploredTerms e)
     when se $ do
-      possibleRWs <- getRWs exploredTerms
-      -- liftIO $ putStrLn "Check Start"
+      possibleRWs <- getRWs
       rws <- notVisitedFirst exploredTerms <$> filterM (liftIO . allowed) possibleRWs
-      (e', FE fe)   <- do
+      (e', FE fe) <- do
         r@(ec, _) <- eval γ ctx FuncNormal e
         if ec /= e
           then return r
           else eval γ ctx RWNormal e
-
-      -- when (e' /= e) $
-      -- liftIO $
-      --   printf "%s \n i.e %s \n-> %s\n\n\n" (show $ convert e) (show $ convert (unsubst ctx e)) (show $ convert e') --
 
       let evalIsNewExpr = e' `L.notElem` pathExprs
       let exprsToAdd    = [e' | evalIsNewExpr]  ++ map fst rws
@@ -769,10 +718,8 @@ evalREST γ ctx rp =
       when evalIsNewExpr $
         if fe && any isRW (path rp)
           then do
-            r@(e'', _) <- eval γ (addConst (e, e')) NoRW e'
+            eval γ (addConst (e, e')) NoRW e'
             return ()
-            -- liftIO $
-            --   printf "FINAL %s \n-> %s\n\n\n" (show $ convert e') (show $ convert e'') --
           else evalREST γ (addConst (e, e')) (rpEval e')
 
       mapM_ (\rw -> evalREST γ ctx (rpRW rw)) rws
@@ -782,13 +729,9 @@ evalREST γ ctx rp =
         RWTerminationCheckDisabled  -> return $ not $ visited (convert e) et
         RWTerminationCheckEnabled _ -> shouldExplore (convert e) (c rp) et
 
-    allowed (rwE, c) | rwE `elem` pathExprs = return False
-    allowed (_, c) | otherwise = termCheck c
-    termCheck c = do
-      -- putStrLn "Checking Termination"
-      r <- passesTerminationCheck (oc rp) rwArgs c
-      -- printf "Result: %s\n" (show r)
-      return r
+    allowed (rwE, _) | rwE `elem` pathExprs = return False
+    allowed (_, c)   | otherwise = termCheck c
+    termCheck c = passesTerminationCheck (oc rp) rwArgs c
 
     notVisitedFirst et rws =
       let
@@ -816,57 +759,22 @@ evalREST γ ctx rp =
 
     rwArgs = RWArgs (isValid γ) $ knRWTerminationOpts γ
 
-    -- getRWs et | debruijnIndex (unsubst ctx e) > 50 = return []
-    getRWs et | otherwise =
+    getRWs =
       do
         ok <- if (isRW $ last (path rp)) then (return True) else (liftIO $ termCheck (c rp))
         if ok
           then
             do
               let e'         = deANF ctx e
-              let getRW e ar = getRewrite (oc rp) rwArgs (c rp) e ar (shouldExploreTerm et)
+              let getRW e ar = getRewrite (oc rp) rwArgs (c rp) e ar
               let getRWs' s  = Mb.catMaybes <$> mapM (liftIO . runMaybeT . getRW s) autorws
-              -- liftIO $ printf "Considering %s subExprs\n" $ show (length (subExprs e'))
               concat <$> mapM getRWs' (subExprs e')
           else return []
 
     addConst (e,e') = if isConstant (knDCs γ) e'
                       then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx 
 
-evalStep :: Knowledge -> ICtx -> Expr -> EvalST Expr
-evalStep γ ctx (ELam (x,s) e)   = ELam (x, s) <$> evalStep γ' ctx e where γ' = γ { knLams = (x, s) : knLams γ }
-evalStep γ ctx e@(EIte b e1 e2) = evalIte γ ctx e b e1 e2
-evalStep γ ctx (ECoerc s t e)   = ECoerc s t <$> evalStep γ ctx e
-evalStep γ ctx e@(EApp _ _)     = case splitEApp e of 
-  (f, es) ->
-    do
-      f' <- evalStep γ ctx f
-      if f' /= f
-        then return (eApps f' es)
-        else
-          do
-            es' <- mapM (evalStep γ ctx) es
-            if es /= es'
-              then return (eApps f' es')
-              else evalApp γ ctx f' es'
-evalStep γ ctx e@(PAtom r e1 e2) =
-  fromMaybeM (PAtom r <$> evalStep γ ctx e1 <*> evalStep γ ctx e2) (evalBool γ e)
-evalStep γ ctx (ENeg e) = ENeg <$> evalStep γ ctx e
-evalStep γ ctx (EBin o e1 e2)   = do
-  e1' <- evalStep γ ctx e1
-  if e1' /= e1
-    then return (EBin o e1' e2)
-    else EBin o e1 <$> evalStep γ ctx e2
-evalStep γ ctx (ETApp e t)      = flip ETApp t <$> evalStep γ ctx e
-evalStep γ ctx (ETAbs e s)      = flip ETAbs s <$> evalStep γ ctx e
-evalStep γ ctx e@(PNot e')      = fromMaybeM (PNot <$> evalStep γ ctx e') (evalBool γ e)
-evalStep γ ctx e@(PImp e1 e2)   = fromMaybeM (PImp <$> evalStep γ ctx e1 <*> evalStep γ ctx e2) (evalBool γ e)
-evalStep γ ctx e@(PIff e1 e2)   = fromMaybeM (PIff <$> evalStep γ ctx e1 <*> evalStep γ ctx e2) (evalBool γ e)
-evalStep γ ctx e@(PAnd es)      = fromMaybeM (PAnd <$> (evalStep γ ctx <$$> es)) (evalBool γ e)
-evalStep γ ctx e@(POr es)       = fromMaybeM (POr  <$> (evalStep γ ctx <$$> es)) (evalBool γ e)
-evalStep _ _   e                = return e
-
-fromMaybeM :: (Monad m) => m a -> m (Maybe a) -> m a 
+fromMaybeM :: (Monad m) => m a -> m (Maybe a) -> m a
 fromMaybeM a ma = do 
   mx <- ma 
   case mx of 
@@ -879,8 +787,8 @@ f <$$> xs = f Misc.<$$> xs
 
 -- | @evalApp kn ctx e es@ unfolds expressions in @eApps e es@ using rewrites
 -- and equations
-evalApp :: Knowledge -> ICtx -> (Expr, [Expr]) -> EvalType -> EvalST (Expr, FinalExpand)
-evalApp γ ctx (EVar f, es) et
+evalApp :: Knowledge -> ICtx -> Expr -> [Expr] -> EvalType -> EvalST (Expr, FinalExpand)
+evalApp γ ctx (EVar f) es et
   | Just eq <- L.find ((== f) . eqName) (knAms γ) -- TODO:FUEL make this a fast lookup map!
   , length (eqArgs eq) <= length es 
   = do 
@@ -890,28 +798,28 @@ evalApp γ ctx (EVar f, es) et
          then do
                 useFuel f
                 let (es1,es2) = splitAt (length (eqArgs eq)) es
-                shortcut noExpand (substEq env eq es1) es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
-         else return $ eApps (EVar f) es
+                shortcut (substEq env eq es1) es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
+         else return $ (eApps (EVar f) es, noExpand)
   where
-    shortcut et' (EIte i e1 e2) es2 = do
+    shortcut (EIte i e1 e2) es2 = do
       (b, _) <- eval γ ctx et i
       b'  <- liftIO $ (mytracepp ("evalEIt POS " ++ showpp (i, b)) <$> isValid γ b)
       nb' <- liftIO $ (mytracepp ("evalEIt NEG " ++ showpp (i, PNot b)) <$> isValid γ (PNot b))
       r <- if b' 
-        then shortcut noExpand e1 es2
-        else if nb' then shortcut noExpand e2 es2
+        then shortcut e1 es2
+        else if nb' then shortcut e2 es2
         else return $ (eApps (EIte b e1 e2) es2, expand)
       return r
-    shortcut _ e' es2 = return $ (eApps e' es2, noExpand)
+    shortcut e' es2 = return $ (eApps e' es2, noExpand)
 
-evalApp γ _ (EVar f) (e:es)
+evalApp γ _ (EVar f) (e:es) _
   | (EVar dc, as) <- splitEApp e
   , Just rw <- L.find (\rw -> smName rw == f && smDC rw == dc) (knSims γ)
   , length as == length (smArgs rw)
   = return (eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es, noExpand)
 
-evalApp _ _ e es
-  = return $ eApps e es
+evalApp _ _ e es _
+  = return $ (eApps e es, noExpand)
 
 --------------------------------------------------------------------------------
 -- | 'substEq' unfolds or instantiates an equation at a particular list of
@@ -963,8 +871,8 @@ evalBool γ e = do
           else return Nothing
                
 evalIte :: Knowledge -> ICtx -> EvalType -> Expr -> Expr -> Expr -> EvalST (Expr, FinalExpand)
-evalIte γ ctx b0 e1 e2 = do
-  (b, fe) <- eval γ ctx b0
+evalIte γ ctx et b0 e1 e2 = do
+  (b, fe) <- eval γ ctx et b0
   b'  <- liftIO $ (mytracepp ("evalEIt POS " ++ showpp b) <$> isValid γ b)
   nb' <- liftIO $ (mytracepp ("evalEIt NEG " ++ showpp (PNot b)) <$> isValid γ (PNot b))
   if b' 

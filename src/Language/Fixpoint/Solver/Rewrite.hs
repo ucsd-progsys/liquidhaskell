@@ -19,24 +19,17 @@ module Language.Fixpoint.Solver.Rewrite
 
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
-import           GHC.Generics
-import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
-import qualified Data.HashSet         as S
 import qualified Data.List            as L
-import qualified Data.Maybe           as Mb
-import           Language.Fixpoint.Types hiding (simplify)
 import qualified Data.Text as TX
-import Text.PrettyPrint (text)
+import           GHC.IO.Handle.Types (Handle)
+import           Text.PrettyPrint (text)
+import           Language.Fixpoint.Types hiding (simplify)
 import           Language.REST
 import           Language.REST.AbstractOC
 import qualified Language.REST.RuntimeTerm as RT
 import           Language.REST.Op
-import           Language.REST.OrderingConstraints as OC
-import           Language.REST.Core (orient)
-import Text.Printf
-
-import Debug.Trace
+import           Language.REST.OrderingConstraints.ADT (ConstraintsADT)
 
 type SubExpr = (Expr, Expr -> Expr)
 
@@ -45,11 +38,6 @@ data TermOrigin = PLE | RW deriving (Show, Eq)
 instance PPrint TermOrigin where
   pprintTidy _ = text . show
 
-data DivergeResult = Diverging | NotDiverging
-
-fromRW :: TermOrigin -> Bool
-fromRW RW  = True
-fromRW PLE = False
 
 data RWTerminationOpts =
     RWTerminationCheckEnabled (Maybe Int) -- # Of constraints to consider
@@ -60,6 +48,7 @@ data RewriteArgs = RWArgs
  , rwTerminationOpts  :: RWTerminationOpts
  }
 
+ordConstraints :: (Handle, Handle) -> AbstractOC (ConstraintsADT Op) Expr IO
 ordConstraints z3 = contramap convert (adtRPO z3)
 
 
@@ -90,21 +79,14 @@ getRewrite ::
   -> oc
   -> SubExpr
   -> AutoRewrite
-  -> (Expr -> IO Bool)
   -> MaybeT IO (Expr, oc)
-getRewrite aoc rwArgs c (subE, toE) (AutoRewrite args lhs rhs) shouldApply =
+getRewrite aoc rwArgs c (subE, toE) (AutoRewrite args lhs rhs) =
   do
-    -- liftIO $ putStrLn $ "Attempt rw app " ++ (show $ convert subE) ++ " with " ++ show lhs
     su <- MaybeT $ return $ unify freeVars lhs subE
-    -- liftIO $ putStrLn $ "Could unify" ++ (show $ convert subE)
     let subE' = subst su rhs
     guard $ subE /= subE'
-    let expr  = toE subE
     let expr' = toE subE'
-    -- lift $ putStrLn $ "Unified " ++ (show subE) ++ " to " ++ (show subE')
-    -- liftIO (shouldApply expr') >>= guard
     mapM_ (checkSubst su) exprs
-    -- lift $ putStrLn $ (show $ convert expr) ++ " ->R\n " ++ (show $ convert expr')
     return $ case rwTerminationOpts rwArgs of
       RWTerminationCheckEnabled _ ->
         let
@@ -132,14 +114,10 @@ subExprs :: Expr -> [SubExpr]
 subExprs e = (e,id):subExprs' e
 
 subExprs' :: Expr -> [SubExpr]
-subExprs' (EIte c lhs rhs)  = c'' -- ++ l'' ++ r''
+subExprs' (EIte c lhs rhs)  = c''
   where
     c' = subExprs c
-    l' = subExprs lhs
-    r' = subExprs rhs
     c'' = map (\(e, f) -> (e, \e' -> EIte (f e') lhs rhs)) c'
-    l'' = map (\(e, f) -> (e, \e' -> EIte c (f e') rhs)) l'
-    r'' = map (\(e, f) -> (e, \e' -> EIte c lhs (f e'))) r'
 
 subExprs' (EBin op lhs rhs) = lhs'' ++ rhs''
   where
