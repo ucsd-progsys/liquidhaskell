@@ -132,7 +132,7 @@ subExprs :: Expr -> [SubExpr]
 subExprs e = (e,id):subExprs' e
 
 subExprs' :: Expr -> [SubExpr]
-subExprs' (EIte c lhs rhs)  = c'' ++ l'' ++ r''
+subExprs' (EIte c lhs rhs)  = c'' -- ++ l'' ++ r''
   where
     c' = subExprs c
     l' = subExprs lhs
