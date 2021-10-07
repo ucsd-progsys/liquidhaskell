@@ -43,7 +43,8 @@ flag devel
 
 library
   autogen-modules:  Paths_liquid_fixpoint
-  exposed-modules:  Language.Fixpoint.Defunctionalize
+  exposed-modules:  Data.ShareMap
+                    Language.Fixpoint.Defunctionalize
                     Language.Fixpoint.Graph
                     Language.Fixpoint.Graph.Deps
                     Language.Fixpoint.Graph.Indexed
@@ -65,11 +66,13 @@ library
                     Language.Fixpoint.Smt.Types
                     Language.Fixpoint.Solver
                     Language.Fixpoint.Solver.Eliminate
+                    Language.Fixpoint.Solver.EnvironmentReduction
                     Language.Fixpoint.Solver.GradualSolution
                     Language.Fixpoint.Solver.Instantiate
                     Language.Fixpoint.Solver.PLE
                     Language.Fixpoint.Solver.Monad
                     Language.Fixpoint.Solver.Rewrite
+                    Language.Fixpoint.Solver.Prettify
                     Language.Fixpoint.Solver.Sanitize
                     Language.Fixpoint.Solver.Solution
                     Language.Fixpoint.Solver.Solve
@@ -112,6 +115,8 @@ library
                   , async
                   , attoparsec
                   , binary
+                  , store
+                  , bytestring
                   , boxes
                   , cereal
                   , cmdargs
@@ -183,15 +188,20 @@ test-suite test
   if flag(devel)
     ghc-options: -Werror
 
-test-suite testparser
+test-suite tasty
   type:             exitcode-stdio-1.0
-  main-is:          testParser.hs
-  hs-source-dirs:   tests
+  main-is:          Main.hs
+  other-modules:    ParserTests
+                    ShareMapReference
+                    ShareMapTests
+  hs-source-dirs:   tests/tasty
   build-depends:    base            >= 4.9.1.0 && < 5
+                  , hashable
                   , liquid-fixpoint
                   , tasty           >= 0.10
-                  , tasty-hunit
+                  , tasty-quickcheck
                   , tasty-hunit     >= 0.9
+                  , unordered-containers
   default-language: Haskell98
   ghc-options:      -threaded
 

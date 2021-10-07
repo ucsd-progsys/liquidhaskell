@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Main where
+module ParserTests (tests) where
 
 import Language.Fixpoint.Types (showFix)
 import Language.Fixpoint.Parse
@@ -8,12 +8,9 @@ import Test.Tasty
 import Test.Tasty.HUnit
 import Data.List (intercalate)
 
-main :: IO ()
-main = defaultMain $ parserTests
-
-parserTests :: TestTree
-parserTests =
-  testGroup "Tests"
+tests :: TestTree
+tests =
+  testGroup "ParserTests"
     [ testSortP
     , testFunAppP
     , testExpr0P
@@ -299,7 +296,7 @@ testPredP =
         show (doParse' predP "test" "&& []") @?= "PAnd []"
 
     , testCase "&& 1" $
-        show (doParse' predP "test" "&& [x]") @?= "PAnd [EVar \"x\"]"
+        show (doParse' predP "test" "&& [x]") @?= "EVar \"x\""
 
     , testCase "&& 2" $
         show (doParse' predP "test" "&& [x;y]") @?= "PAnd [EVar \"x\",EVar \"y\"]"

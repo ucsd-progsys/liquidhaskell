@@ -89,6 +89,9 @@ data Config = Config
   , rewriteAxioms    :: Bool           -- ^ Allow axiom instantiation via rewriting
   , oldPLE           :: Bool           -- ^ Use old version of PLE
   , noIncrPle        :: Bool           -- ^ Use incremental PLE
+  , noEnvironmentReduction :: Bool     -- ^ Don't use environment reduction
+  , inlineANFBindings :: Bool          -- ^ Inline ANF bindings.
+                                       -- Sometimes improves performance and sometimes worsens it.
   , checkCstr        :: [Integer]      -- ^ Only check these specific constraints 
   , extensionality   :: Bool           -- ^ Enable extensional interpretation of function equality
   , maxRWOrderingConstraints :: Maybe Int
@@ -183,6 +186,18 @@ defConfig = Config {
   , rewriteAxioms            = False &= help "allow axiom instantiation via rewriting"
   , oldPLE                   = False &= help "Use old version of PLE"
   , noIncrPle                = False &= help "Don't use incremental PLE"
+  , noEnvironmentReduction   =
+      False
+        &= name "no-environment-reduction"
+        &= help "Don't perform environment reduction"
+  , inlineANFBindings        =
+      False
+        &= name "inline-anf-bindings"
+        &= help (unwords
+          [ "Inline ANF bindings."
+          , "Sometimes improves performance and sometimes worsens it."
+          , "Disabled by --no-environment-reduction"
+          ])
   , checkCstr                = []    &= help "Only check these specific constraint-ids" 
   , extensionality           = False &= help "Allow extensional interpretation of extensionality"
   , maxRWOrderingConstraints = Nothing &= help "Maximum number of functions to consider in rewrite orderings"
@@ -212,7 +227,7 @@ getOpts = do
   return md
 
 banner :: String
-banner =  "\n\nLiquid-Fixpoint Copyright 2013-15 Regents of the University of California.\n"
+banner =  "\n\nLiquid-Fixpoint Copyright 2013-21 Regents of the University of California.\n"
        ++ "All Rights Reserved.\n"
 
 multicore :: Config -> Bool

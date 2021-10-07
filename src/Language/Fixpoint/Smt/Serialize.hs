@@ -144,8 +144,8 @@ instance SMTLIB2 Expr where
   smt2 env (EBin o e1 e2)   = parenSeqs [smt2 env o, smt2 env e1, smt2 env e2]
   smt2 env (EIte e1 e2 e3)  = parenSeqs ["ite", smt2 env e1, smt2 env e2, smt2 env e3]
   smt2 env (ECst e t)       = smt2Cast env e t
-  smt2 _   (PTrue)          = "true"
-  smt2 _   (PFalse)         = "false"
+  smt2 _   PTrue            = "true"
+  smt2 _   PFalse           = "false"
   smt2 _   (PAnd [])        = "true"
   smt2 env (PAnd ps)        = parenSeqs ["and", smt2s env ps]
   smt2 _   (POr [])         = "false"

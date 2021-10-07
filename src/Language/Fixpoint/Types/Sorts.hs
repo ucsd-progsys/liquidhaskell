@@ -5,6 +5,7 @@
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE UndecidableInstances       #-}
@@ -57,7 +58,10 @@ module Language.Fixpoint.Types.Sorts (
   , functionSort
   , mkFFunc
   , bkFFunc
+  , bkAbs
   , mkPoly
+  , sortSymbols
+  , substSort
 
   , isNumeric, isReal, isString, isPolyInst
 
@@ -78,7 +82,7 @@ module Language.Fixpoint.Types.Sorts (
   , tceMap
   ) where
 
-import qualified Data.Binary as B
+import qualified Data.Store as S
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
@@ -88,6 +92,8 @@ import           Data.Semigroup            (Semigroup (..))
 #endif
 
 import           Data.Hashable
+import           Data.HashSet (HashSet)
+import qualified Data.HashSet as HashSet
 import           Data.List                 (foldl')
 import           Control.DeepSeq
 import           Data.Maybe                (fromMaybe)
@@ -98,6 +104,7 @@ import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.HashMap.Strict       as M
 import qualified Data.List                 as L
+import qualified Data.Binary as B
 
 data FTycon   = TC LocSymbol TCInfo deriving (Ord, Show, Data, Typeable, Generic)
 
@@ -261,6 +268,22 @@ data Sort = FInt
           | FApp  !Sort !Sort    -- ^ constructed type
             deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
+sortSymbols :: Sort -> HashSet Symbol
+sortSymbols = \case
+  FObj s -> HashSet.singleton s
+  FFunc t0 t1 -> HashSet.union (sortSymbols t0) (sortSymbols t1)
+  FAbs _ t -> sortSymbols t
+  FApp t0 t1 -> HashSet.union (sortSymbols t0) (sortSymbols t1)
+  _ -> HashSet.empty
+
+substSort :: (Symbol -> Sort) -> Sort -> Sort
+substSort f = \case
+  FObj s -> f s
+  FFunc t0 t1 -> FFunc (substSort f t0) (substSort f t1)
+  FApp t0 t1 -> FApp (substSort f t0) (substSort f t1)
+  FAbs i t -> FAbs i (substSort f t)
+  t -> t
+
 data DataField = DField
   { dfName :: !LocSymbol          -- ^ Field Name
   , dfSort :: !Sort               -- ^ Field Sort
@@ -277,7 +300,6 @@ data DataDecl = DDecl
   , ddCtors :: [DataCtor]         -- ^ Datatype Ctors. Invariant: type variables bound in ctors are greater than ddVars
   } deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-
 instance Loc DataDecl where
     srcSpan (DDecl ty _ _) = srcSpan ty
 
@@ -290,7 +312,7 @@ instance Symbolic DataField where
 instance Symbolic DataCtor where
   symbol = val . dcName
 
-
+--------------------------------------------------------------------------------------------------
 muSort  :: [DataDecl] -> [DataDecl]
 muSort dds = mapSortDataDecl tx <$> dds
   where
@@ -301,10 +323,11 @@ muSort dds = mapSortDataDecl tx <$> dds
     mapSortDataCTor f  ct = ct { dcFields = mapSortDataField f <$> dcFields ct }
     mapSortDataField f df = df { dfSort   = f $ dfSort df }
 
+
 isFirstOrder, isFunction :: Sort -> Bool
 isFirstOrder (FFunc sx s) = not (isFunction sx) && isFirstOrder s
 isFirstOrder (FAbs _ s)   = isFirstOrder s
-isFirstOrder (FApp s1 s2) = (not $ isFunction s1) && (not $ isFunction s2)
+isFirstOrder (FApp s1 s2) = not (isFunction s1) && not (isFunction s2)
 isFirstOrder _            = True
 
 isFunction (FAbs _ s)  = isFunction s
@@ -373,8 +396,8 @@ isPolyInst :: Sort -> Sort -> Bool
 isPolyInst s t = isPoly s && not (isPoly t)
 
 isPoly :: Sort -> Bool
-isPoly (FAbs {}) = True
-isPoly _         = False
+isPoly FAbs {} = True
+isPoly _       = False
 
 mkPoly :: Int -> Sort -> Sort 
 mkPoly i s = foldl (flip FAbs) s [0..i] 
@@ -494,15 +517,20 @@ sortSubst θ (FApp t1 t2)  = FApp  (sortSubst θ t1) (sortSubst θ t2)
 sortSubst θ (FAbs i t)    = FAbs i (sortSubst θ t)
 sortSubst _  t            = t
 
--- instance (B.Binary a) => B.Binary (TCEmb a) 
-instance B.Binary TCArgs 
-instance B.Binary FTycon
+-- instance (S.Store a) => S.Store (TCEmb a) 
+instance S.Store TCArgs 
+instance S.Store FTycon
+instance S.Store TCInfo
+instance S.Store Sort
+instance S.Store DataField
+instance S.Store DataCtor
+instance S.Store DataDecl
+instance S.Store Sub
+
+-- | We need the Binary instances for LH's spec serialization
 instance B.Binary TCInfo
+instance B.Binary FTycon
 instance B.Binary Sort
-instance B.Binary DataField
-instance B.Binary DataCtor
-instance B.Binary DataDecl
-instance B.Binary Sub
 
 instance NFData FTycon where
   rnf (TC x i) = x `seq` i `seq` ()

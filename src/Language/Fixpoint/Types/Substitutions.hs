@@ -14,6 +14,7 @@ module Language.Fixpoint.Types.Substitutions (
   , targetSubstSyms
   , filterSubst
   , catSubst
+  , exprSymbolsSet
   ) where
 
 import           Data.Maybe
@@ -140,7 +141,7 @@ instance Subable Expr where
   substf f (PImp p1 p2)    = PImp (substf f p1) (substf f p2)
   substf f (PIff p1 p2)    = PIff (substf f p1) (substf f p2)
   substf f (PAtom r e1 e2) = PAtom r (substf f e1) (substf f e2)
-  substf _ p@(PKVar _ _)   = p
+  substf f (PKVar k (Su su)) = PKVar k (Su $ M.map (substf f) su)
   substf _  (PAll _ _)     = errorstar "substf: FORALL"
   substf f (PGrad k su i e)= PGrad k su i (substf f e)
   substf _  p              = p
@@ -314,28 +315,9 @@ ppRas = cat . punctuate comma . map toFix . flattenRefas
     -- go (PAll xts p)       = (fst <$> xts) ++ go p
     -- go _                  = []
 
+
 exprSymbols :: Expr -> [Symbol]
-exprSymbols = S.toList . go 
-  where
-    gos es                = S.unions (go <$> es)
-    go (EVar x)           = S.singleton x
-    go (EApp f e)         = gos [f, e] 
-    go (ELam (x,_) e)     = S.delete x (go e) 
-    go (ECoerc _ _ e)     = go e
-    go (ENeg e)           = go e
-    go (EBin _ e1 e2)     = gos [e1, e2] 
-    go (EIte p e1 e2)     = gos [p, e1, e2] 
-    go (ECst e _)         = go e
-    go (PAnd ps)          = gos ps
-    go (POr ps)           = gos ps
-    go (PNot p)           = go p
-    go (PIff p1 p2)       = gos [p1, p2] 
-    go (PImp p1 p2)       = gos [p1, p2]
-    go (PAtom _ e1 e2)    = gos [e1, e2] 
-    go (PKVar _ (Su su))  = S.fromList $ syms $ M.elems su
-    go (PAll xts p)       = go p `S.difference` S.fromList (fst <$> xts) 
-    go (PExist xts p)     = go p `S.difference` S.fromList (fst <$> xts) 
-    go _                  = S.empty 
+exprSymbols = S.toList . exprSymbolsSet
 
 instance Expression (Symbol, SortedReft) where
   expr (x, RR _ (Reft (v, r))) = subst1 (expr r) (v, EVar x)

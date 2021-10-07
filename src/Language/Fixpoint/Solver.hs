@@ -2,7 +2,11 @@
 --   In particular it exports the functions that solve constraints supplied
 --   either as .fq files or as FInfo.
 {-# LANGUAGE BangPatterns        #-}
+{-# LANGUAGE DoAndIfThenElse     #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ViewPatterns        #-}
 
 module Language.Fixpoint.Solver (
     -- * Invoke Solver on an FInfo
@@ -23,7 +27,8 @@ module Language.Fixpoint.Solver (
 ) where
 
 import           Control.Concurrent                 (setNumCapabilities)
-import           Data.Binary                        (decodeFile)
+import qualified Data.HashMap.Strict              as HashMap
+import qualified Data.Store                       as S
 import           Data.Aeson                         (ToJSON, encode)
 import qualified Data.Text.Lazy.IO                as LT
 import qualified Data.Text.Lazy.Encoding          as LT
@@ -32,11 +37,14 @@ import           System.Console.CmdArgs.Verbosity   (whenNormal, whenLoud)
 import           Text.PrettyPrint.HughesPJ          (render)
 import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
+import           Language.Fixpoint.Solver.EnvironmentReduction
+  (reduceEnvironments, simplifyBindings)
 import           Language.Fixpoint.Solver.Sanitize  (symbolEnv, sanitize)
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Defunctionalize (defunctionalize)
-import           Language.Fixpoint.SortCheck            (Elaborate (..))
+import           Language.Fixpoint.SortCheck            (Elaborate (..), unElab)
 import           Language.Fixpoint.Solver.Extensionality (expand)
+import           Language.Fixpoint.Solver.Prettify (savePrettifiedQuery)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
 import           Language.Fixpoint.Types.Config
@@ -50,6 +58,7 @@ import           Language.Fixpoint.Types
 import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
 import           Language.Fixpoint.Solver.Instantiate (instantiate)
 import           Control.DeepSeq
+import qualified Data.ByteString as B
 
 ---------------------------------------------------------------------------
 -- | Solve an .fq file ----------------------------------------------------
@@ -121,7 +130,11 @@ readFq file = do
   return (fioFI q, fioOpts q)
 
 readBinFq :: FilePath -> IO (FInfo ())
-readBinFq file = {- SCC "parseBFq" #-} decodeFile file
+readBinFq file = {-# SCC "parseBFq" #-} do 
+  bs <- B.readFile file
+  case S.decode bs of 
+    Right fi -> return fi
+    Left err -> error ("Error decoding .bfq: " ++ show err) 
 
 --------------------------------------------------------------------------------
 -- | Solve in parallel after partitioning an FInfo to indepdendant parts
@@ -173,7 +186,7 @@ solveNative !cfg !fi0 = (solveNative' cfg fi0)
                              (return . result)
 
 result :: Error -> Result a
-result e = Result (Crash [] msg) mempty mempty
+result e = Result (Crash [] msg) mempty mempty mempty
   where
     msg  = showpp e
 
@@ -190,7 +203,8 @@ simplifyFInfo !cfg !fi0 = do
   -- let qs   = quals fi0
   -- whenLoud $ print qs
   -- whenLoud $ putStrLn $ showFix (quals fi1)
-  let fi1   = fi0 { quals = remakeQual <$> quals fi0 }
+  reducedFi <- reduceFInfo cfg fi0
+  let fi1   = reducedFi { quals = remakeQual <$> quals reducedFi }
   let si0   = {- SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si0)
   -- rnf si0 `seq` donePhase Loud "Format Conversion"
@@ -212,14 +226,24 @@ simplifyFInfo !cfg !fi0 = do
     then instantiate cfg si6 $!! Nothing
     else return si6
 
+reduceFInfo :: Fixpoint a => Config -> FInfo a -> IO (FInfo a)
+reduceFInfo cfg fi = do
+  let simplifiedFi = {- SCC "simplifyFInfo" #-} simplifyBindings cfg fi
+      reducedFi = {- SCC "reduceEnvironments" #-} reduceEnvironments simplifiedFi
+  when (save cfg) $
+    savePrettifiedQuery cfg reducedFi
+  if noEnvironmentReduction cfg then
+    return fi
+  else
+    return reducedFi
 
 solveNative' !cfg !fi0 = do
   si6 <- simplifyFInfo cfg fi0
   res <- {- SCC "Sol.solve" #-} Sol.solve cfg $!! si6
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
-  saveSolution cfg res
-  -- when (save cfg) $ saveSolution cfg
+  -- saveSolution cfg res
+  when (save cfg) $ saveSolution cfg res
   -- writeLoud $ "\nSolution:\n"  ++ showpp (resSolution res)
   -- colorStrLn (colorResult stat) (show stat)
   return res
@@ -244,5 +268,17 @@ saveSolution cfg res = when (save cfg) $ do
   let f = queryFile Out cfg
   putStrLn $ "Saving Solution: " ++ f ++ "\n"
   ensurePath f
-  writeFile f $ "\nSolution:\n" ++ showpp (resSolution  res)
-                ++ (if (gradual cfg) then ("\n\n" ++ showpp (gresSolution res)) else mempty)
+  writeFile f $ unlines $
+    [ ""
+    , "Solution:"
+    , showpp (resSolution  res)
+    ] ++
+    ( if gradual cfg then ["", "", showpp (gresSolution res)]
+      else []
+    ) ++
+    [ ""
+    , ""
+    , "Non-cut kvars:"
+    , ""
+    , showpp (HashMap.map unElab $ resNonCutsSolution res)
+    ]

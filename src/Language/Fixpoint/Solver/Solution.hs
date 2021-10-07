@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP               #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TupleSections     #-}
@@ -12,6 +13,8 @@ module Language.Fixpoint.Solver.Solution
 
   -- * Lookup Solution
   , lhsPred
+
+  , nonCutsResult
   ) where
 
 import           Control.Parallel.Strategies
@@ -38,7 +41,7 @@ import           Language.Fixpoint.Solver.Sanitize
 
 -- DEBUG
 import Text.Printf (printf)
--- import           Debug.Trace
+-- import Debug.Trace (trace)
 
 
 --------------------------------------------------------------------------------
@@ -46,19 +49,42 @@ import Text.Printf (printf)
 --------------------------------------------------------------------------------
 init :: (F.Fixpoint a) => Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
 --------------------------------------------------------------------------------
-init cfg si ks = Sol.fromList senv mempty keqs [] mempty ebs xEnv
+init cfg si ks_ = Sol.fromList senv mempty keqs [] mempty ebs xEnv
   where
-    keqs       = map (refine si qs genv) ws `using` parList rdeepseq
-    qs         = F.quals si
-    ws         = [ w | (k, w) <- M.toList (F.ws si), not (isGWfc w) , k `S.member` ks]
+    keqs       = map (refine si qcs genv) ws `using` parList rdeepseq
+    qcs        = {- trace ("init-qs-size " ++ show (length ws, length qs_, M.keys qcs_)) $ -} qcs_ 
+    qcs_       = mkQCluster qs_
+    qs_        = F.quals si
+    ws         = [ w | (k, w) <- M.toList (F.ws si), not (isGWfc w), k `S.member` ks ]
+    ks         = {- trace ("init-ks-size" ++ show (S.size ks_)) $ -} ks_
     genv       = instConstants si
     senv       = symbolEnv cfg si
     ebs        = ebindInfo si
     xEnv       = F.fromListSEnv [ (x, (i, F.sr_sort sr)) | (i,x,sr) <- F.bindEnvToList (F.bs si)]
 
 --------------------------------------------------------------------------------
-refine :: F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, Sol.QBind)
-refine fi qs genv w = refineK (allowHOquals fi) env qs $ F.wrft w
+-- | [NOTE:qual-cluster] It is wasteful to perform instantiation *individually*
+--   on each qualifier, as many qualifiers have "equivalent" parameters, and 
+--   so have the "same" instances in an environment. To exploit this structure,
+--
+--   1. Group the [Qualifier] into a QCluster
+--   2. Refactor instK to use QCluster
+--------------------------------------------------------------------------------
+
+type QCluster = M.HashMap QCSig [Qualifier]
+
+type QCSig = [F.QualParam]
+
+mkQCluster :: [Qualifier] -> QCluster
+mkQCluster = Misc.groupMap qualSig
+
+qualSig :: Qualifier -> QCSig
+qualSig q = [ p { F.qpSym = F.dummyName }  | p <- F.qParams q ] 
+
+--------------------------------------------------------------------------------
+
+refine :: F.SInfo a -> QCluster -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, Sol.QBind)
+refine fi qs genv w = refineK (allowHOquals fi) env qs (F.wrft w)
   where
     env             = wenv <> genv
     wenv            = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs fi) (F.wenv w))
@@ -69,7 +95,7 @@ instConstants = F.fromListSEnv . filter notLit . F.toListSEnv . F.gLits
     notLit    = not . F.isLitSymbol . fst
 
 
-refineK :: Bool -> F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, Sol.QBind)
+refineK :: Bool -> F.SEnv F.Sort -> QCluster -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, Sol.QBind)
 refineK ho env qs (v, t, k) = F.notracepp _msg (k, eqs')
    where
     eqs                     = instK ho env v t qs
@@ -81,28 +107,64 @@ instK :: Bool
       -> F.SEnv F.Sort
       -> F.Symbol
       -> F.Sort
-      -> [F.Qualifier]
+      -> QCluster 
       -> Sol.QBind
 --------------------------------------------------------------------------------
-instK ho env v t = Sol.qb . unique . concatMap (instKQ ho env v t)
-  where
-    unique       = L.nubBy ((. Sol.eqPred) . (==) . Sol.eqPred)
+instK ho env v t qc = Sol.qb . unique $ 
+  [ Sol.eQual q xs 
+      | (sig, qs) <- M.toList qc
+      , xs        <- instKSig ho env v t sig 
+      , q         <- qs
+  ]
 
-instKQ :: Bool
-       -> F.SEnv F.Sort
-       -> F.Symbol
-       -> F.Sort
-       -> F.Qualifier
-       -> [Sol.EQual]
-instKQ ho env v t q = do 
-  (su0, qsu0, v0) <- candidates senv [(t, [v])] qp
-  xs              <- match senv tyss [v0] (applyQP su0 qsu0 <$> qps) 
-  return           $ Sol.eQual q (F.notracepp msg (reverse xs))
+unique :: [Sol.EQual] -> [Sol.EQual]
+unique = L.nubBy ((. Sol.eqPred) . (==) . Sol.eqPred)
+
+instKSig :: Bool
+         -> F.SEnv F.Sort
+         -> F.Symbol
+         -> F.Sort
+         -> QCSig 
+         -> [[F.Symbol]]
+instKSig ho env v t qsig = do 
+  (su0, i0, qs0) <- candidatesP senv [(0, t, [v])] qp
+  ixs       <- matchP senv tyss [(i0, qs0)] (applyQPP su0 <$> qps) 
+  -- return     $ F.notracepp msg (reverse ixs)
+  ys        <- instSymbol tyss (tail $ reverse ixs) 
+  return (v:ys)
   where
-    msg        = "instKQ " ++ F.showpp (F.qName q) ++ F.showpp (F.qParams q)
-    qp : qps   = F.qParams q
-    tyss       = instCands ho env
+    -- msg        = "instKSig " ++ F.showpp qsig
+    qp : qps   = qsig
+    tyss       = zipWith (\i (t, ys) -> (i, t, ys)) [1..] (instCands ho env)
     senv       = (`F.lookupSEnvWithDistance` env)
+
+instSymbol :: [(SortIdx, a, [F.Symbol])] -> [(SortIdx, QualPattern)] -> [[F.Symbol]]
+instSymbol tyss = go 
+  where
+    m = M.fromList [(i, ys) | (i,_,ys) <- tyss]
+    go [] = 
+      return []
+    go ((i,qp):is) = do 
+      y   <- M.lookupDefault [] i m
+      qsu <- maybeToList (matchSym qp y)
+      ys  <- go [ (i', applyQPSubst qsu  qp') | (i', qp') <- is]
+      return (y:ys)
+
+-- instKQ :: Bool
+--        -> F.SEnv F.Sort
+--        -> F.Symbol
+--        -> F.Sort
+--        -> F.Qualifier
+--        -> [Sol.EQual]
+-- instKQ ho env v t q = do 
+--   (su0, qsu0, v0) <- candidates senv [(t, [v])] qp
+--   xs              <- match senv tyss [v0] (applyQP su0 qsu0 <$> qps) 
+--   return           $ Sol.eQual q (F.notracepp msg (reverse xs))
+--   where
+--     msg        = "instKQ " ++ F.showpp (F.qName q) ++ F.showpp (F.qParams q)
+--     qp : qps   = F.qParams q
+--     tyss       = instCands ho env
+--     senv       = (`F.lookupSEnvWithDistance` env)
 
 instCands :: Bool -> F.SEnv F.Sort -> [(F.Sort, [F.Symbol])]
 instCands ho env = filter isOk tyss
@@ -111,42 +173,75 @@ instCands ho env = filter isOk tyss
     isOk      = if ho then const True else isNothing . F.functionSort . fst
     xts       = F.toListSEnv env
 
-match :: So.Env -> [(F.Sort, [F.Symbol])] -> [F.Symbol] -> [F.QualParam] -> [[F.Symbol]]
-match env tyss xs (qp : qps)
-  = do (su, qsu, x) <- candidates env tyss qp
-       match env tyss (x : xs) (applyQP su qsu <$> qps)
-match _   _   xs []
-  = return xs
 
-applyQP :: So.TVSubst -> QPSubst -> F.QualParam -> F.QualParam
-applyQP su qsu qp = qp { qpSort = So.apply     su  (qpSort qp) 
-                       , qpPat  = applyQPSubst qsu (qpPat qp) 
-                       }
+type SortIdx = Int
+
+matchP :: So.Env -> [(SortIdx, F.Sort, a)] -> [(SortIdx, QualPattern)] -> [F.QualParam] -> 
+          [[(SortIdx, QualPattern)]]
+matchP env tyss = go
+  where 
+    go' !i !p !is !qps  = go ((i, p):is) qps
+    go is (qp : qps) = do (su, i, pat) <- candidatesP env tyss qp
+                          go' i pat is (applyQPP su <$> qps)
+    go is []         = return is
+
+applyQPP :: So.TVSubst -> F.QualParam -> F.QualParam
+applyQPP su qp = qp 
+  { qpSort = So.apply     su  (qpSort qp) 
+  }
+
+-- match :: So.Env -> [(F.Sort, [F.Symbol])] -> [F.Symbol] -> [F.QualParam] -> [[F.Symbol]]
+-- match env tyss xs (qp : qps)
+--   = do (su, qsu, x) <- candidates env tyss qp
+--        match env tyss (x : xs) (applyQP su qsu <$> qps)
+-- match _   _   xs []
+--   = return xs
+
+-- applyQP :: So.TVSubst -> QPSubst -> F.QualParam -> F.QualParam
+-- applyQP su qsu qp = qp 
+--   { qpSort = So.apply     su  (qpSort qp) 
+--   , qpPat  = applyQPSubst qsu (qpPat qp) 
+--   }
 
 --------------------------------------------------------------------------------
-candidates :: So.Env -> [(F.Sort, [F.Symbol])] -> F.QualParam 
-           -> [(So.TVSubst, QPSubst, F.Symbol)]
+candidatesP :: So.Env -> [(SortIdx, F.Sort, a)] -> F.QualParam -> 
+               [(So.TVSubst, SortIdx, QualPattern)]
 --------------------------------------------------------------------------------
-candidates env tyss x = -- traceShow _msg
-    [(su, qsu, y) | (t, ys)  <- tyss
-                  , su       <- maybeToList (So.unifyFast mono env xt t)
-                  , y        <- ys
-                  , qsu      <- maybeToList (matchSym x y)                                     
+candidatesP env tyss x =
+    [(su, idx, qPat) 
+        | (idx, t,_)  <- tyss
+        , su          <- maybeToList (So.unifyFast mono env xt t)
     ]
   where
     xt   = F.qpSort x
+    qPat = F.qpPat  x
     mono = So.isMono xt
-    _msg = "candidates tyss :=" ++ F.showpp tyss ++ "tx := " ++ F.showpp xt
+    
 
-matchSym :: F.QualParam -> F.Symbol -> Maybe QPSubst 
-matchSym qp y' = case F.qpPat qp of
+
+-- --------------------------------------------------------------------------------
+-- candidates :: So.Env -> [(F.Sort, [F.Symbol])] -> F.QualParam 
+--            -> [(So.TVSubst, QPSubst, F.Symbol)]
+-- --------------------------------------------------------------------------------
+-- candidates env tyss x = -- traceShow _msg
+--     [(su, qsu, y) | (t, ys)  <- tyss
+--                   , su       <- maybeToList (So.unifyFast mono env xt t)
+--                   , y        <- ys
+--                   , qsu      <- maybeToList (matchSym x y)                                     
+--     ]
+--   where
+--     xt   = F.qpSort x
+--     mono = So.isMono xt
+--     _msg = "candidates tyss :=" ++ F.showpp tyss ++ "tx := " ++ F.showpp xt
+
+matchSym :: F.QualPattern -> F.Symbol -> Maybe QPSubst 
+matchSym qp y' = case qp of
   F.PatPrefix s i -> JustSub i <$> F.stripPrefix s y 
   F.PatSuffix i s -> JustSub i <$> F.stripSuffix s y 
   F.PatNone       -> Just NoSub 
   F.PatExact s    -> if s == y then Just NoSub else Nothing 
   where 
     y             =  F.tidySymbol y'
-
 
 data QPSubst = NoSub | JustSub Int F.Symbol  
 
@@ -194,7 +289,7 @@ type Cid         = Maybe Integer
 type ExprInfo    = (F.Expr, KInfo)
 
 apply :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.IBindEnv -> ExprInfo
-apply g s bs      = (F.pAnd (pks:ps), kI)
+apply g s bs      = (F.conj (pks:ps), kI)   -- see [NOTE: pAnd-SLOW]
   where
     (pks, kI)     = applyKVars g s ks  
     (ps,  ks, _)  = envConcKVars g s bs
@@ -253,6 +348,42 @@ applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
   Right eqs -> (F.pAnd $ fst <$> Sol.qbPreds msg s (F.ksuSubst ksu) eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
   where
     msg     = "applyKVar: " ++ show (ceCid g)
+
+nonCutsResult :: F.BindEnv -> Sol.Sol a Sol.QBind -> M.HashMap F.KVar F.Expr
+nonCutsResult be s =
+  let g = CEnv Nothing be F.emptyIBindEnv F.dummySpan
+   in M.mapWithKey (mkNonCutsExpr g) $ Sol.sHyp s
+  where
+    mkNonCutsExpr g k cs = F.pOr $ map (bareCubePred g s k) cs
+
+-- | Produces a predicate from a constraint defining a kvar.
+--
+-- This is written in imitation of 'cubePred'. However, there are some
+-- differences since the result of 'cubePred' is fed to the verification
+-- pipeline and @bareCubePred@ is meant for human inspection.
+--
+-- 1) Only one existential quantifier is introduced at the top of the
+--    expression.
+-- 2) @bareCubePred@ doesn't elaborate the expression, so it avoids calling
+--    'elabExist'. 'apply' is invoked to eliminate other kvars though, and
+--    apply will invoke 'elabExist', so 'Liquid.Fixpoint.SortCheck.unElab'
+--    might need to be called on the output to remove the elaboration.
+-- 3) The expression is created from its defining constraints only, while
+--    @cubePred@ does expect the caller to supply the substitution at a
+--    particular use of the KVar. Thus @cubePred@ produces a different
+--    expression for every use site of the kvar, while here we produce one
+--    expression for all the uses.
+bareCubePred :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVar -> Sol.Cube -> F.Expr
+bareCubePred g s k c =
+  let bs = Sol.cuBinds c
+      su = Sol.cuSubst c
+      g' = addCEnv  g bs
+      bs' = delCEnv s k bs
+      yts = symSorts g bs'
+      sEnv = F.seSort (Sol.sEnv s)
+      (xts, psu) = substElim (Sol.sEnv s) sEnv g' k su
+      (p, _kI) = apply g' s bs'
+   in F.pExist (xts ++ yts) (psu &.& p)
 
 hypPred :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Hyp  -> ExprInfo
 hypPred g s ksu hyp = F.pOr *** mconcatPlus $ unzip $ cubePred g s ksu <$> hyp

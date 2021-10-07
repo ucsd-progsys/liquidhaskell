@@ -6,8 +6,10 @@
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GADTs                      #-}
@@ -37,7 +39,7 @@ module Language.Fixpoint.Types.Refinements (
   -- * Constructing Terms
   , eVar, elit
   , eProp
-  , pAnd, pOr, pIte
+  , conj, pAnd, pOr, pIte
   , (&.&), (|.|)
   , pExist
   , mkEApp
@@ -79,12 +81,17 @@ module Language.Fixpoint.Types.Refinements (
   , conjuncts
   , eApps
   , eAppC
+  , exprKVars
+  , exprSymbolsSet
   , splitEApp
   , splitPAnd
   , reftConjuncts
+  , sortedReftSymbols
+  , substSortInExpr
 
   -- * Transforming
   , mapPredReft
+  , onEverySubexpr
   , pprintReft
 
   , debruijnIndex
@@ -97,12 +104,18 @@ module Language.Fixpoint.Types.Refinements (
   ) where
 
 import           Prelude hiding ((<>))
-import qualified Data.Binary as B
-import           Data.Generics             (Data)
+import           Data.Bifunctor (second)
+import qualified Data.Store as S
+import           Data.Generics             (Data, gmapT, mkT, extT)
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
+import           Data.HashMap.Strict         (HashMap)
+import qualified Data.HashMap.Strict       as HashMap
+import           Data.HashSet              (HashSet)
+import qualified Data.HashSet              as HashSet
 import           GHC.Generics              (Generic)
-import           Data.List                 (foldl', partition, nub)
+import           Data.List                 (foldl', partition)
+import qualified Data.Set                  as Set
 import           Data.String
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
@@ -115,6 +128,8 @@ import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ.Compat
+import qualified Data.Binary as B
+import qualified Data.HashSet as S
 
 -- import           Text.Printf               (printf)
 
@@ -131,28 +146,51 @@ instance NFData Expr
 instance NFData Reft
 instance NFData SortedReft
 
+-- instance (Hashable k, Eq k, S.Store k, S.Store v) => S.Store (M.HashMap k v) where
+  -- put = B.put . M.toList
+  -- get = M.fromList <$> B.get
+
+instance (Eq a, Hashable a, S.Store a) => S.Store (TCEmb a) 
+instance S.Store SrcSpan
+instance S.Store KVar
+instance S.Store Subst
+instance S.Store GradInfo
+instance S.Store Constant
+instance S.Store SymConst
+instance S.Store Brel
+instance S.Store Bop
+instance S.Store Expr
+instance S.Store Reft
+instance S.Store SortedReft
+
+instance B.Binary SymConst
+instance B.Binary Constant
+instance B.Binary Bop
+instance B.Binary SrcSpan
+instance B.Binary GradInfo
+instance B.Binary Brel
+instance B.Binary KVar
+instance (Hashable a, Eq a, B.Binary a) => B.Binary (S.HashSet a) where
+  put = B.put . S.toList
+  get = S.fromList <$> B.get
 instance (Hashable k, Eq k, B.Binary k, B.Binary v) => B.Binary (M.HashMap k v) where
   put = B.put . M.toList
   get = M.fromList <$> B.get
 
-instance (Eq a, Hashable a, B.Binary a) => B.Binary (TCEmb a) 
-instance B.Binary SrcSpan
-instance B.Binary KVar
-instance B.Binary Subst
-instance B.Binary GradInfo
-instance B.Binary Constant
-instance B.Binary SymConst
-instance B.Binary Brel
-instance B.Binary Bop
+instance B.Binary Subst 
 instance B.Binary Expr
-instance B.Binary Reft
-instance B.Binary SortedReft
+instance B.Binary Reft 
+instance B.Binary TCArgs
+instance (Eq a, Hashable a, B.Binary a) => B.Binary (TCEmb a)
+
 
 reftConjuncts :: Reft -> [Reft]
 reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- ras']
   where
-    ras'                     = if null ps then ks else ((pAnd ps) : ks)
+    ras'                     = if null ps then ks else ((conj ps) : ks)  -- see [NOTE:pAnd-SLOW]
     (ks, ps)                 = partition (\p -> isKvar p || isGradual p) $ refaConjuncts ra
+
+
 
 isKvar :: Expr -> Bool
 isKvar (PKVar _ _) = True
@@ -219,7 +257,7 @@ instance Hashable Reft
 -- | Substitutions -------------------------------------------------------------
 --------------------------------------------------------------------------------
 newtype Subst = Su (M.HashMap Symbol Expr)
-                deriving (Eq, Data, Typeable, Generic)
+                deriving (Eq, Data, Ord, Typeable, Generic)
 
 instance Show Subst where
   show = showFix
@@ -285,7 +323,18 @@ data Expr = ESym !SymConst
           | PExist ![(Symbol, Sort)] !Expr
           | PGrad  !KVar !Subst !GradInfo !Expr
           | ECoerc !Sort !Sort !Expr  
-          deriving (Eq, Show, Data, Typeable, Generic)
+          deriving (Eq, Show, Ord, Data, Typeable, Generic)
+
+onEverySubexpr :: (Expr -> Expr) -> Expr -> Expr
+onEverySubexpr = everywhereOnA
+
+-- | Like 'Data.Generics.everywhere' but only traverses the nodes
+-- of type @a@ or @[a]@.
+everywhereOnA :: forall a. Data a => (a -> a) -> a -> a
+everywhereOnA f = go
+  where
+    go :: a -> a
+    go = f . gmapT (mkT go `extT` map go)
 
 type Pred = Expr
 
@@ -316,9 +365,66 @@ pattern EDiv e1 e2 = EBin Div    e1 e2
 pattern ERDiv :: Expr -> Expr -> Expr
 pattern ERDiv e1 e2 = EBin RDiv   e1 e2
 
+exprSymbolsSet :: Expr -> HashSet Symbol
+exprSymbolsSet = go
+  where
+    gos es                = HashSet.unions (go <$> es)
+    go (EVar x)           = HashSet.singleton x
+    go (EApp f e)         = gos [f, e]
+    go (ELam (x,_) e)     = HashSet.delete x (go e)
+    go (ECoerc _ _ e)     = go e
+    go (ENeg e)           = go e
+    go (EBin _ e1 e2)     = gos [e1, e2]
+    go (EIte p e1 e2)     = gos [p, e1, e2]
+    go (ECst e _)         = go e
+    go (PAnd ps)          = gos ps
+    go (POr ps)           = gos ps
+    go (PNot p)           = go p
+    go (PIff p1 p2)       = gos [p1, p2]
+    go (PImp p1 p2)       = gos [p1, p2]
+    go (PAtom _ e1 e2)    = gos [e1, e2]
+    go (PKVar _ (Su su))  = HashSet.unions $ map exprSymbolsSet (M.elems su)
+    go (PAll xts p)       = go p `HashSet.difference` HashSet.fromList (fst <$> xts)
+    go (PExist xts p)     = go p `HashSet.difference` HashSet.fromList (fst <$> xts)
+    go _                  = HashSet.empty
+
+substSortInExpr :: (Symbol -> Sort) -> Expr -> Expr
+substSortInExpr f = onEverySubexpr go
+  where
+    go = \case
+      ELam (x, t) e -> ELam (x, substSort f t) e
+      PAll xts e -> PAll (second (substSort f) <$> xts) e
+      PExist xts e -> PExist (second (substSort f) <$> xts) e
+      ECst e t -> ECst e (substSort f t)
+      ECoerc t0 t1 e -> ECoerc (substSort f t0) (substSort f t1) e
+      e -> e
+
+exprKVars :: Expr -> HashMap KVar [Subst]
+exprKVars = go
+  where
+    gos es                = HashMap.unions (go <$> es)
+    go (EVar _)           = HashMap.empty
+    go (EApp f e)         = gos [f, e]
+    go (ELam _ e)     = go e
+    go (ECoerc _ _ e)     = go e
+    go (ENeg e)           = go e
+    go (EBin _ e1 e2)     = gos [e1, e2]
+    go (EIte p e1 e2)     = gos [p, e1, e2]
+    go (ECst e _)         = go e
+    go (PAnd ps)          = gos ps
+    go (POr ps)           = gos ps
+    go (PNot p)           = go p
+    go (PIff p1 p2)       = gos [p1, p2]
+    go (PImp p1 p2)       = gos [p1, p2]
+    go (PAtom _ e1 e2)    = gos [e1, e2]
+    go (PKVar k substs@(Su su))  =
+      HashMap.insertWith (++) k [substs] $ HashMap.unions $ map exprKVars (M.elems su)
+    go (PAll _xts p)       = go p
+    go (PExist _xts p)     = go p
+    go _                  = HashMap.empty
 
 data GradInfo = GradInfo {gsrc :: SrcSpan, gused :: Maybe SrcSpan}
-          deriving (Eq, Show, Data, Typeable, Generic)
+          deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 srcGradInfo :: SourcePos -> GradInfo
 srcGradInfo src = GradInfo (SS src src) Nothing
@@ -372,10 +478,16 @@ debruijnIndex = go
 -- | Parsed refinement of @Symbol@ as @Expr@
 --   e.g. in '{v: _ | e }' v is the @Symbol@ and e the @Expr@
 newtype Reft = Reft (Symbol, Expr)
-               deriving (Eq, Data, Typeable, Generic)
+               deriving (Eq, Ord, Data, Typeable, Generic)
 
 data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft }
-                  deriving (Eq, Data, Typeable, Generic)
+                  deriving (Eq, Ord, Data, Typeable, Generic)
+
+sortedReftSymbols :: SortedReft -> HashSet Symbol
+sortedReftSymbols sr =
+  HashSet.union
+    (sortSymbols $ sr_sort sr)
+    (exprSymbolsSet $ reftPred $ sr_reft sr)
 
 elit :: Located Symbol -> Sort -> Expr
 elit l s = ECon $ L (symbolText $ val l) s
@@ -402,7 +514,7 @@ encodeSymConst (SL s) = litSymbol $ symbol s
 -- _decodeSymConst = fmap (SL . symbolText) . unLitSymbol
 
 instance Fixpoint SymConst where
-  toFix  = toFix . encodeSymConst
+  toFix (SL t) = text (show t)
 
 instance Fixpoint KVar where
   toFix (KV k) = text "$" <-> toFix k
@@ -427,7 +539,7 @@ instance Fixpoint Bop where
   toFix Mod    = text "mod"
 
 instance Fixpoint Expr where
-  toFix (ESym c)       = toFix $ encodeSymConst c
+  toFix (ESym c)       = toFix c
   toFix (ECon c)       = toFix c
   toFix (EVar s)       = toFix s
   toFix e@(EApp _ _)   = parens $ hcat $ punctuate " " $ toFix <$> (f:es) where (f, es) = splitEApp e
@@ -457,10 +569,29 @@ instance Fixpoint Expr where
   toFix (ECoerc a t e)   = parens (text "coerce" <+> toFix a <+> text "~" <+> toFix t <+> text "in" <+> toFix e)
   toFix (ELam (x,s) e)   = text "lam" <+> toFix x <+> ":" <+> toFix s <+> "." <+> toFix e
 
-  simplify (PAnd [])     = PTrue
   simplify (POr  [])     = PFalse
-  simplify (PAnd [p])    = simplify p
   simplify (POr  [p])    = simplify p
+  simplify (PNot p) =
+    let sp = simplify p
+     in case sp of
+          PNot e -> e
+          _ -> PNot sp
+  -- XXX: Do not simplify PImp until PLE can handle it
+  -- https://github.com/ucsd-progsys/liquid-fixpoint/issues/475
+  -- simplify (PImp p q) =
+  --   let sq = simplify q
+  --    in if sq == PTrue then PTrue
+  --       else if sq == PFalse then simplify (PNot p)
+  --       else PImp (simplify p) sq
+  simplify (PIff p q)    =
+    let sp = simplify p
+        sq = simplify q
+     in if sp == sq then PTrue
+        else if sp == PTrue then sq
+        else if sq == PTrue then sp
+        else if sp == PFalse then PNot sq
+        else if sq == PFalse then PNot sp
+        else PIff sp sq
 
   simplify (PGrad k su i e)
     | isContraPred e      = PFalse
@@ -468,7 +599,13 @@ instance Fixpoint Expr where
 
   simplify (PAnd ps)
     | any isContraPred ps = PFalse
-    | otherwise           = PAnd $ filter (not . isTautoPred) $ map simplify ps
+                         -- Note: Performance of some tests is very sensitive to this code. See #480 
+    | otherwise           = simplPAnd . dedup . flattenRefas . filter (not . isTautoPred) $ map simplify ps
+    where
+      dedup = Set.toList . Set.fromList
+      simplPAnd [] = PTrue
+      simplPAnd [p] = p
+      simplPAnd xs = PAnd xs
 
   simplify (POr  ps)
     | any isTautoPred ps = PTrue
@@ -595,8 +732,8 @@ instance PPrint Expr where
     where zi = 1
 
   -- RJ: DO NOT DELETE!
-  --  pprintPrec _ k (ECst e so)     = parens $ pprint e <+> ":" <+> {- const (text "...") -} (pprintTidy k so)
-  pprintPrec z k (ECst e _)      = pprintPrec z k e
+  pprintPrec _ k (ECst e so)     = parens $ pprint e <+> ":" <+> {- const (text "...") -} (pprintTidy k so)
+  -- pprintPrec z k (ECst e _)      = pprintPrec z k e
   pprintPrec _ _ PTrue           = trueD
   pprintPrec _ _ PFalse          = falseD
   pprintPrec z k (PNot p)        = parensIf (z > zn) $
@@ -725,14 +862,19 @@ isSingletonExpr v (PIff e1 e2)
   | e2 == EVar v           = Just e1
 isSingletonExpr _ _        = Nothing
 
+-- | 'conj' is a fast version of 'pAnd' needed for the ebind tests
+conj :: [Pred] -> Pred
+conj []  = PFalse
+conj [p] = p
+conj ps  = PAnd ps
+
+-- | [NOTE: pAnd-SLOW] 'pAnd' and 'pOr' are super slow as they go inside the predicates;
+--   so they SHOULD NOT be used inside the solver loop. Instead, use 'conj' which ensures
+--   some basic things but is faster.
+
 pAnd, pOr     :: ListNE Pred -> Pred
-pAnd          = simplify . PAnd . nub . flatten
-  where
-    flatten ps = foldl' go [] $ reverse ps
-  
-    go acc (PAnd ps) = flatten ps ++ acc
-    go acc p         = p : acc
-  
+pAnd          = simplify . PAnd
+
 pOr           = simplify . POr
 
 (&.&) :: Pred -> Pred -> Pred
@@ -826,10 +968,11 @@ trueReft  = Reft (vv_, PTrue)
 falseReft = Reft (vv_, PFalse)
 
 flattenRefas :: [Expr] -> [Expr]
-flattenRefas        = concatMap flatP
+flattenRefas        = flatP []
   where
-    flatP (PAnd ps) = concatMap flatP ps
-    flatP p         = [p]
+    flatP acc (PAnd ps:xs) = flatP (flatP acc xs) ps
+    flatP acc (p:xs)       = p : flatP acc xs
+    flatP acc []           = acc
 
 conjuncts :: Expr -> [Expr]
 conjuncts (PAnd ps) = concatMap conjuncts ps
@@ -846,8 +989,8 @@ class Falseable a where
   isFalse :: a -> Bool
 
 instance Falseable Expr where
-  isFalse (PFalse) = True
-  isFalse _        = False
+  isFalse PFalse = True
+  isFalse _      = False
 
 instance Falseable Reft where
   isFalse (Reft (_, ra)) = isFalse ra

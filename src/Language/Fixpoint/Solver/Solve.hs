@@ -100,7 +100,7 @@ solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
        -> SolveM (F.Result (Integer, a), Stats)
 --------------------------------------------------------------------------------
 solve_ cfg fi s0 ks wkl = do
-  let s1   = {- SCC "sol-init" #-} S.init cfg fi ks
+  let s1   = {-# SCC "sol-init" #-} S.init cfg fi ks
   let s2   = mappend s0 s1
   -- let s3   = solveEbinds fi s2
   s3       <- {- SCC "sol-refine" #-} refine s2 wkl
@@ -120,7 +120,10 @@ solve_ cfg fi s0 ks wkl = do
 --   ensure uniqueness with the original names in the given WF constraints.
 --------------------------------------------------------------------------------
 tidyResult :: F.Result a -> F.Result a
-tidyResult r = r { F.resSolution = tidySolution (F.resSolution r) }
+tidyResult r = r
+  { F.resSolution = tidySolution (F.resSolution r)
+  , F.resNonCutsSolution = tidySolution (F.resNonCutsSolution r)
+  }
 
 tidySolution :: F.FixSolution -> F.FixSolution
 tidySolution = fmap tidyPred
@@ -188,12 +191,17 @@ result cfg wkl s = do
   stat    <- result_ cfg wkl s
   lift $ whenLoud $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
 
-  F.Result (ci <$> stat) <$> solResult cfg s <*> return mempty
+  F.Result (ci <$> stat) <$> solResult cfg s <*> solNonCutsResult s <*> return mempty
   where
     ci c = (F.subcId c, F.sinfo c)
 
 solResult :: Config -> Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
 solResult cfg = minimizeResult cfg . Sol.result
+
+solNonCutsResult :: Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
+solNonCutsResult s = do
+  be <- getBinds
+  return $ S.nonCutsResult be s
 
 result_ :: (F.Loc a, NFData a) => Config -> W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_  cfg w s = do

@@ -110,11 +110,11 @@ instance PPrint a => PPrint (Maybe a) where
 instance PPrint a => PPrint [a] where
   pprintTidy k = brackets . sep . punctuate comma . map (pprintTidy k)
 
-instance PPrint a => PPrint (S.HashSet a) where
-  pprintTidy k = pprintTidy k . S.toList
+instance (Ord a, PPrint a) => PPrint (S.HashSet a) where
+  pprintTidy k = pprintTidy k . L.sort . S.toList
 
-instance (PPrint a, PPrint b) => PPrint (M.HashMap a b) where
-  pprintTidy k = pprintKVs k . M.toList
+instance (Ord a, PPrint a, PPrint b) => PPrint (M.HashMap a b) where
+  pprintTidy k = pprintKVs k . hashMapToAscList
 
 pprintKVs   :: (PPrint k, PPrint v) => Tidy -> [(k, v)] -> Doc
 pprintKVs t = vcat . punctuate "\n" . map pp1

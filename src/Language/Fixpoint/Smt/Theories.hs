@@ -263,7 +263,7 @@ stringPreamble cfg | stringTheory cfg
   = [ bSort string "String" 
     , bFun strLen [("s", bb string)] "Int" (key (bb z3strlen) "s")
     , bFun strSubstr [("s", bb string), ("i", "Int"), ("j", "Int")] (bb string) (key (bb z3strsubstr) "s i j")
-    , bFun strConcat [("x", bb string), ("y", "string")] (bb string) (key (bb z3strconcat) "x y")
+    , bFun strConcat [("x", bb string), ("y", bb string)] (bb string) (key (bb z3strconcat) "x y")
     ]
 
 stringPreamble _
@@ -342,8 +342,8 @@ isSmt2App _ _     = Nothing
 
 thyAppInfo :: TheorySymbol -> Maybe Int
 thyAppInfo ti = case tsInterp ti of
-  Field -> Just 1
-  _     -> sortAppInfo (tsSort ti)
+  Field    -> Just 1
+  _        -> sortAppInfo (tsSort ti)
 
 sortAppInfo :: Sort -> Maybe Int
 sortAppInfo t = case bkFFunc t of
@@ -367,6 +367,7 @@ theorySymbols :: [DataDecl] -> SEnv TheorySymbol -- M.HashMap Symbol TheorySymbo
 theorySymbols ds = fromListSEnv $  -- SHIFTLAM uninterpSymbols
                                   interpSymbols
                                ++ concatMap dataDeclSymbols ds
+
 
 --------------------------------------------------------------------------------
 interpSymbols :: [(Symbol, TheorySymbol)]
@@ -412,7 +413,6 @@ interpSymbols =
                                          (mapSort (FVar 0) (FVar 1))
 
     bvBopSort  = FFunc bitVecSort $ FFunc bitVecSort bitVecSort
-
 
 interpSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
 interpSym x n t = (x, Thy x n t Theory)

@@ -19,6 +19,7 @@ module Language.Fixpoint.Types.Constraints (
    -- * Top-level Queries
     FInfo, SInfo, GInfo (..), FInfoWithOpts(..)
   , convertFormat
+  , sinfoToFInfo
   , Solver
 
    -- * Serializing
@@ -32,7 +33,7 @@ module Language.Fixpoint.Types.Constraints (
   -- * Constraints
   , WfC (..), isGWfc, updateWfCExpr
   , SubC, SubcId
-  , mkSubC, subcId, sid, senv, slhs, srhs, stag, subC, wfC
+  , mkSubC, subcId, sid, senv, updateSEnv, slhs, srhs, stag, subC, wfC
   , SimpC (..)
   , Tag
   , TaggedC, clhs, crhs
@@ -78,6 +79,7 @@ module Language.Fixpoint.Types.Constraints (
   , mkEquation
   , Rewrite  (..)
   , AutoRewrite (..)
+  , dedupAutoRewrites
 
   -- * Misc  [should be elsewhere but here due to dependencies]
   , substVars
@@ -85,13 +87,14 @@ module Language.Fixpoint.Types.Constraints (
   , gSorts
   ) where
 
-import qualified Data.Binary as B
+import qualified Data.Store as S
 import           Data.Generics             (Data)
 import           Data.Aeson                hiding (Result)
 #if !MIN_VERSION_base(4,14,0)
 import           Data.Semigroup            (Semigroup (..))
 #endif
 
+import qualified Data.Set                  as Set
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
 import           GHC.Generics              (Generic)
@@ -116,6 +119,8 @@ import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
+import qualified Data.ByteString           as B
+import qualified Data.Binary as B
 
 --------------------------------------------------------------------------------
 -- | Constraints ---------------------------------------------------------------
@@ -222,6 +227,7 @@ strengthenSortedReft (RR s (Reft (v, r))) e = RR s (Reft (v, pAnd [r, e]))
 
 class TaggedC c a where
   senv  :: c a -> IBindEnv
+  updateSEnv  :: c a -> (IBindEnv -> IBindEnv) -> c a
   sid   :: c a -> Maybe Integer
   stag  :: c a -> Tag
   sinfo :: c a -> a
@@ -230,6 +236,7 @@ class TaggedC c a where
 
 instance TaggedC SimpC a where
   senv      = _cenv
+  updateSEnv c f = c { _cenv = f (_cenv c) }
   sid       = _cid
   stag      = _ctag
   sinfo     = _cinfo
@@ -238,6 +245,7 @@ instance TaggedC SimpC a where
 
 instance TaggedC SubC a where
   senv      = _senv
+  updateSEnv c f = c { _senv = f (_senv c) }
   sid       = _sid
   stag      = _stag
   sinfo     = _sinfo
@@ -270,6 +278,7 @@ toGFixSol = GSol
 data Result a = Result 
   { resStatus    :: !(FixResult a)
   , resSolution  :: !FixSolution
+  , resNonCutsSolution :: !FixSolution
   , gresSolution :: !GFixSolution 
   }
   deriving (Generic, Show, Functor)
@@ -280,14 +289,15 @@ instance ToJSON a => ToJSON (Result a) where
   toJSON = toJSON . resStatus
 
 instance Semigroup (Result a) where
-  r1 <> r2  = Result stat soln gsoln
+  r1 <> r2  = Result stat soln nonCutsSoln gsoln
     where
       stat  = (resStatus r1)    <> (resStatus r2)
       soln  = (resSolution r1)  <> (resSolution r2)
+      nonCutsSoln = resNonCutsSolution r1 <> resNonCutsSolution r2
       gsoln = (gresSolution r1) <> (gresSolution r2)
 
 instance Monoid (Result a) where
-  mempty        = Result mempty mempty mempty
+  mempty        = Result mempty mempty mempty mempty
   mappend       = (<>)
 
 unsafe, safe :: Result a
@@ -295,8 +305,9 @@ unsafe = mempty {resStatus = Unsafe mempty []}
 safe   = mempty {resStatus = Safe mempty}
 
 isSafe :: Result a -> Bool
-isSafe (Result (Safe _) _ _) = True
-isSafe _                     = False
+isSafe r = case resStatus r of
+  Safe{} -> True
+  _ -> False
 
 isUnsafe :: Result a -> Bool
 isUnsafe r | Unsafe _ _ <- resStatus r
@@ -379,17 +390,17 @@ instance Show   GFixSolution where
   show = showpp
 
 ----------------------------------------------------------------
-instance B.Binary QualPattern 
-instance B.Binary QualParam 
-instance B.Binary Qualifier
-instance B.Binary Kuts
-instance B.Binary HOInfo
-instance B.Binary GWInfo
-instance B.Binary GFixSolution
-instance (B.Binary a) => B.Binary (SubC a)
-instance (B.Binary a) => B.Binary (WfC a)
-instance (B.Binary a) => B.Binary (SimpC a)
-instance (B.Binary (c a), B.Binary a) => B.Binary (GInfo c a)
+instance S.Store QualPattern 
+instance S.Store QualParam 
+instance S.Store Qualifier
+instance S.Store Kuts
+instance S.Store HOInfo
+instance S.Store GWInfo
+instance S.Store GFixSolution
+instance (S.Store a) => S.Store (SubC a)
+instance (S.Store a) => S.Store (WfC a)
+instance (S.Store a) => S.Store (SimpC a)
+instance (S.Store (c a), S.Store a) => S.Store (GInfo c a)
 
 instance NFData QualPattern 
 instance NFData QualParam 
@@ -410,6 +421,9 @@ instance Hashable QualPattern
 instance Hashable QualParam
 instance Hashable Equation
 
+instance B.Binary QualPattern
+instance B.Binary QualParam
+instance B.Binary Qualifier
 
 ---------------------------------------------------------------------------
 -- | "Smart Constructors" for Constraints ---------------------------------
@@ -475,21 +489,21 @@ data Qualifier = Q
   , qBody   :: !Expr       -- ^ Predicate
   , qPos    :: !SourcePos  -- ^ Source Location
   }
-  deriving (Eq, Show, Data, Typeable, Generic)
+  deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 data QualParam = QP 
   { qpSym  :: !Symbol
   , qpPat  :: !QualPattern 
   , qpSort :: !Sort
   } 
-  deriving (Eq, Show, Data, Typeable, Generic)
+  deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 data QualPattern 
   = PatNone                 -- ^ match everything 
   | PatPrefix !Symbol !Int  -- ^ str . $i  i.e. match prefix 'str' with suffix bound to $i
   | PatSuffix !Int !Symbol  -- ^ $i . str  i.e. match suffix 'str' with prefix bound to $i
   | PatExact  !Symbol       -- ^ str       i.e. exactly match 'str'
-  deriving (Eq, Show, Data, Typeable, Generic)
+  deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 trueQual :: Qualifier
 trueQual = Q (symbol ("QTrue" :: String)) [] mempty (dummyPos "trueQual")
@@ -617,7 +631,7 @@ newtype Kuts = KS { ksVars :: S.HashSet KVar }
                deriving (Eq, Show, Generic)
 
 instance Fixpoint Kuts where
-  toFix (KS s) = vcat $ (("cut " <->) . toFix) <$> S.toList s
+  toFix (KS s) = vcat $ (("cut " <->) . toFix) <$> L.sort (S.toList s)
 
 ksMember :: KVar -> Kuts -> Bool
 ksMember k (KS s) = S.member k s
@@ -777,15 +791,15 @@ toFixpoint cfg x' =    cfgDoc   cfg
     cfgDoc cfg    = text ("// " ++ show cfg)
     gConDoc       = sEnvDoc "constant"             . gLits
     dConDoc       = sEnvDoc "distinct"             . dLits
-    csDoc         = vcat     . map toFix . M.elems . cm
-    wsDoc         = vcat     . map toFix . M.elems . ws
+    csDoc         = vcat     . map (toFix . snd) . hashMapToAscList . cm
+    wsDoc         = vcat     . map toFix . L.sortOn (thd3 . wrft) . M.elems . ws
     kutsDoc       = toFix    . kuts
     -- packsDoc      = toFix    . packs
-    declsDoc      = vcat     . map ((text "data" <+>) . toFix) . ddecls
+    declsDoc      = vcat     . map ((text "data" <+>) . toFix) . L.sort . ddecls
     (ubs, ebs)    = splitByQuantifiers (bs x') (ebinds x')
     bindsDoc      = toFix    ubs
                $++$ toFix    ebs
-    qualsDoc      = vcat     . map toFix . quals
+    qualsDoc      = vcat     . map toFix . L.sort . quals
     aeDoc         = toFix    . ae
     metaDoc (i,d) = toFixMeta (text "bind" <+> toFix i) (toFix d)
     mdata         = metadata cfg
@@ -797,7 +811,7 @@ toFixpoint cfg x' =    cfgDoc   cfg
 x $++$ y = x $+$ text "\n" $+$ y
 
 sEnvDoc :: Doc -> SEnv Sort -> Doc
-sEnvDoc d       = vcat . map kvD . toListSEnv
+sEnvDoc d       = vcat . map kvD . L.sortOn fst . toListSEnv
   where
     kvD (c, so) = d <+> toFix c <+> ":" <+> parens (toFix so)
 
@@ -836,27 +850,51 @@ outVV (m, fi) i c = (m', fi')
 
 type BindM = M.HashMap Integer BindId
 
+sinfoToFInfo :: Fixpoint a => SInfo a -> FInfo a
+sinfoToFInfo fi = fi
+  { bs = envWithoutLhss
+  , cm = simpcToSubc (bs fi) <$> cm fi
+  }
+  where
+    envWithoutLhss =
+      M.foldl' (\m c -> deleteBindEnv (cbind c) m) (bs fi) (cm fi)
+
+-- Assumes the sort and the bind of the lhs is the same as the sort
+-- and the bind of the rhs
+simpcToSubc :: BindEnv -> SimpC a -> SubC a
+simpcToSubc env s = SubC
+  { _senv  = deleteIBindEnv (cbind s) (senv s)
+  , slhs   = sr
+  , srhs   = RR (sr_sort sr) (Reft (b, _crhs s))
+  , _sid   = sid s
+  , _stag  = stag s
+  , _sinfo = sinfo s
+  }
+  where
+    (b, sr) = lookupBindEnv (cbind s) env
+
 ---------------------------------------------------------------------------
 -- | Top level Solvers ----------------------------------------------------
 ---------------------------------------------------------------------------
 type Solver a = Config -> FInfo a -> IO (Result (Integer, a))
 
 --------------------------------------------------------------------------------
-saveQuery :: Config -> FInfo a -> IO ()
+saveQuery :: Fixpoint a => Config -> FInfo a -> IO ()
 --------------------------------------------------------------------------------
 saveQuery cfg fi = {- when (save cfg) $ -} do
   let fi'  = void fi
   saveBinaryQuery cfg fi'
-  saveTextQuery cfg   fi'
+  saveTextQuery cfg   fi
 
 saveBinaryQuery :: Config -> FInfo () -> IO ()
 saveBinaryQuery cfg fi = do
   let bfq  = queryFile Files.BinFq cfg
   putStrLn $ "Saving Binary Query: " ++ bfq ++ "\n"
   ensurePath bfq
-  B.encodeFile bfq fi
+  B.writeFile bfq (S.encode fi)
+  -- B.encodeFile bfq fi
 
-saveTextQuery :: Config -> FInfo () -> IO ()
+saveTextQuery :: Fixpoint a => Config -> FInfo a -> IO ()
 saveTextQuery cfg fi = do
   let fq   = queryFile Files.Fq cfg
   putStrLn $ "Saving Text Query: "   ++ fq ++ "\n"
@@ -873,18 +911,21 @@ data AxiomEnv = AEnv
   , aenvAutoRW   :: M.HashMap SubcId [AutoRewrite]
   } deriving (Eq, Show, Generic)
 
-instance B.Binary AutoRewrite
-instance B.Binary AxiomEnv
-instance B.Binary Rewrite
-instance B.Binary Equation
-instance B.Binary SMTSolver
-instance B.Binary Eliminate
+instance S.Store AutoRewrite
+instance S.Store AxiomEnv
+instance S.Store Rewrite
+instance S.Store Equation
+instance S.Store SMTSolver
+instance S.Store Eliminate
 instance NFData AutoRewrite
 instance NFData AxiomEnv
 instance NFData Rewrite
 instance NFData Equation
 instance NFData SMTSolver
 instance NFData Eliminate
+
+dedupAutoRewrites :: M.HashMap SubcId [AutoRewrite] -> [AutoRewrite]
+dedupAutoRewrites = Set.toList . Set.unions . map Set.fromList . M.elems
 
 instance Semigroup AxiomEnv where
   a1 <> a2        = AEnv aenvEqs' aenvSimpl' aenvExpand' aenvAutoRW'
@@ -908,7 +949,7 @@ data Equation = Equ
   , eqSort :: !Sort             -- ^ sort of body
   , eqRec  :: !Bool             -- ^ is this a recursive definition
   }
-  deriving (Data, Eq, Show, Generic)
+  deriving (Data, Eq, Ord, Show, Generic)
 
 mkEquation :: Symbol -> [(Symbol, Sort)] -> Expr -> Sort -> Equation
 mkEquation f xts e out = Equ f xts e out (f `elem` syms e)
@@ -933,7 +974,7 @@ data AutoRewrite = AutoRewrite
   { arArgs :: [SortedReft]
   , arLHS  :: Expr
   , arRHS  :: Expr
-} deriving (Eq, Show, Generic)
+} deriving (Eq, Ord, Show, Generic)
 
 instance Hashable SortedReft
 instance Hashable AutoRewrite
@@ -941,11 +982,11 @@ instance Hashable AutoRewrite
 
 instance Fixpoint (M.HashMap SubcId [AutoRewrite]) where
   toFix autoRW =
-    vcat (map fixRW rewrites)
-    $+$ text "rewrite "
-    <+> toFix rwsMapping
+    vcat $
+    map fixRW rewrites ++
+    rwsMapping
     where
-      rewrites     = L.nub $ concatMap snd (M.toList autoRW)
+      rewrites = dedupAutoRewrites autoRW
 
       fixRW rw@(AutoRewrite args lhs rhs) =
           text ("autorewrite " ++ show (hash rw))
@@ -959,7 +1000,7 @@ instance Fixpoint (M.HashMap SubcId [AutoRewrite]) where
       rwsMapping = do
         (cid, rws) <- M.toList autoRW
         rw         <-  rws
-        return $ text $ show cid ++ " : " ++ show (hash rw)
+        return $ "rewrite" <+> brackets (text $ show cid ++ " : " ++ show (hash rw))
 
 
 
@@ -971,26 +1012,28 @@ data Rewrite  = SMeasure
   , smArgs  :: [Symbol]       -- eg. xs
   , smBody  :: Expr           -- eg. e[xs]
   }
-  deriving (Data, Eq, Show, Generic)
+  deriving (Data, Eq, Ord, Show, Generic)
 
 instance Fixpoint AxiomEnv where
-  toFix axe = vcat ((toFix <$> aenvEqs axe) ++ (toFix <$> aenvSimpl axe))
-              $+$ text "expand" <+> toFix (pairdoc <$> M.toList(aenvExpand axe))
+  toFix axe = vcat ((toFix <$> L.sort (aenvEqs axe)) ++ (toFix <$> L.sort (aenvSimpl axe)))
+              $+$ renderExpand (pairdoc <$> L.sort (M.toList $ aenvExpand axe))
               $+$ toFix (aenvAutoRW axe)
     where
       pairdoc (x,y) = text $ show x ++ " : " ++ show y
+      renderExpand [] = empty
+      renderExpand xs = text "expand" <+> toFix xs
 
 instance Fixpoint Doc where
   toFix = id
 
 instance Fixpoint Equation where
-  toFix (Equ f xs e _ _) = "define" <+> toFix f <+> ppArgs xs <+> text "=" <+> parens (toFix e)
+  toFix (Equ f xs e s _) = "define" <+> toFix f <+> ppArgs xs <+> ":" <+> toFix s <+> text "=" <+> braces (parens (toFix e))
 
 instance Fixpoint Rewrite where
   toFix (SMeasure f d xs e)
     = text "match"
    <+> toFix f
-   <+> parens (toFix d <+> hsep (toFix <$> xs))
+   <+> toFix d <+> hsep (toFix <$> xs)
    <+> text " = "
    <+> parens (toFix e)
 

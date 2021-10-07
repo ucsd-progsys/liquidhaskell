@@ -82,6 +82,7 @@ import           Text.PrettyPrint.HughesPJ.Compat
 import           Text.Printf
 
 import           GHC.Stack
+import qualified Language.Fixpoint.Types as F
 
 --import Debug.Trace as Debug
 
@@ -208,7 +209,7 @@ instance (Loc a) => Elaborate (SimpC a) where
 elabExpr :: Located String -> SymEnv -> Expr -> Expr
 elabExpr msg env e = case elabExprE msg env e of 
   Left ex  -> die ex 
-  Right e' -> e' 
+  Right e' -> F.notracepp ("elabExp " ++ showpp e) e' 
 
 elabExprE :: Located String -> SymEnv -> Expr -> Either Error Expr
 elabExprE msg env e = 
@@ -249,7 +250,7 @@ elabApply env = go
     step (PExist bs p)    = PExist bs (go p)
     step (PAll   bs p)    = PAll   bs (go p)
     step (PAtom r e1 e2)  = PAtom r (go e1) (go e2)
-    step e@(EApp {})      = go e
+    step e@EApp {}        = go e
     step (ELam b e)       = ELam b       (go e)
     step (ECoerc a t e)   = ECoerc a t   (go e)
     step (PGrad k su i e) = PGrad k su i (go e)
@@ -532,7 +533,9 @@ elab f@(_,g) e@(PAtom eq e1 e2) | eq == Eq || eq == Ne = do
   (t1',t2') <- unite g e  t1 t2 `withError` (errElabExpr e)
   e1'       <- elabAs f t1' e1
   e2'       <- elabAs f t2' e2
-  return (PAtom eq (ECst e1' t1') (ECst e2' t2') , boolSort)
+  e1''      <- eCstAtom f e1' t1'
+  e2''      <- eCstAtom f e2' t2'
+  return (PAtom eq  e1'' e2'' , boolSort)
 
 elab f (PAtom r e1 e2)
   | r == Ueq || r == Une = do
@@ -569,6 +572,21 @@ elab _ (ETApp _ _) =
 elab _ (ETAbs _ _) =
   error "SortCheck.elab: TODO: implement ETAbs"
 
+
+-- | 'eCstAtom' is to support tests like `tests/pos/undef00.fq`
+eCstAtom :: ElabEnv -> Expr -> Sort -> CheckM Expr
+eCstAtom f@(sym,g) (EVar x) t 
+  | Found s <- g x
+  , isUndef s 
+  , not (isInt sym t) = (`ECst` t) <$> elabAs f t (EApp (eVar tyCastName) (eVar x))
+eCstAtom _ e t = return (ECst e t)
+
+isUndef :: Sort -> Bool
+isUndef s = case bkAbs s of 
+  (is, FVar j) -> j `elem` is
+  _            -> False
+
+
 elabAddEnv :: Eq a => (t, a -> SESearch b) -> [(a, b)] -> (t, a -> SESearch b)
 elabAddEnv (g, f) bs = (g, addEnv f bs)
 
@@ -581,7 +599,6 @@ elabAs f t e = notracepp _msg <$>  go e
   where
     _msg  = "elabAs: t = " ++ showpp t ++ " e = " ++ showpp e
     go (EApp e1 e2)   = elabAppAs f t e1 e2
-    -- go (EIte b e1 e2) = EIte b <$> go e1 <*> go e2
     go e              = fst    <$> elab f e
 
 -- DUPLICATION with `checkApp'`
@@ -1086,15 +1103,35 @@ unifySorts   = unifyFast False emptyEnv
 --------------------------------------------------------------------------------
 unifyFast :: Bool -> Env -> Sort -> Sort -> Maybe TVSubst
 --------------------------------------------------------------------------------
-unifyFast False f = unify f Nothing
-unifyFast True  _ = uMono
-  where
-    uMono t1 t2
-     | t1 == t2   = Just emptySubst
-     | otherwise  = Nothing
+unifyFast False f t1 t2 = unify f Nothing t1 t2
+unifyFast True  _ t1 t2
+  | t1 == t2        = Just emptySubst
+  | otherwise           = Nothing
 
+{-
+eqFast :: Sort -> Sort -> Bool
+eqFast = go 
+  where 
+    go FAbs {} _       = False
+    go (FFunc s1 s2) t = case t of 
+                          FFunc t1 t2 -> go s1 t1 && go s2 t2
+                          _ -> False
+    go (FApp s1 s2)  t = case t of 
+                          FApp t1 t2 ->  go s1 t1 && go s2 t2
+                          _ -> False
 
+    go (FTC s1) t      = case t of 
+                            FTC t1 -> s1 == t1
+                            _ -> False
+    
+    go FInt FInt           = True
+    go FReal FReal         = True
+    go FNum FNum           = True
+    go FFrac FFrac         = True
+    go (FVar i1) (FVar i2) = i1 == i2
+    go _ _                 = False
 
+ -} 
 --------------------------------------------------------------------------------
 unifys :: HasCallStack => Env -> Maybe Expr -> [Sort] -> [Sort] -> CheckM TVSubst
 --------------------------------------------------------------------------------

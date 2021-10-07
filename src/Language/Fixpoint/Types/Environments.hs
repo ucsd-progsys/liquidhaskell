@@ -35,6 +35,7 @@ module Language.Fixpoint.Types.Environments (
   , fromListIBindEnv
   , memberIBindEnv
   , unionIBindEnv
+  , unionsIBindEnv
   , diffIBindEnv
   , intersectionIBindEnv
   , nullIBindEnv
@@ -43,9 +44,10 @@ module Language.Fixpoint.Types.Environments (
   -- * Global Binder Environments
   , BindEnv, beBinds
   , emptyBindEnv
+  , fromListBindEnv
   , insertBindEnv, lookupBindEnv
   , filterBindEnv, mapBindEnv, mapWithKeyMBindEnv, adjustBindEnv
-  , bindEnvFromList, bindEnvToList, elemsBindEnv
+  , bindEnvFromList, bindEnvToList, deleteBindEnv, elemsBindEnv
   , EBindEnv, splitByQuantifiers
 
   -- * Information needed to lookup and update Solutions
@@ -57,8 +59,8 @@ module Language.Fixpoint.Types.Environments (
   , makePack
   ) where
 
--- import qualified Data.Binary as B
-import qualified Data.Binary as B
+-- import qualified Data.Store as S
+import qualified Data.Store as S
 import qualified Data.List   as L
 import           Data.Generics             (Data)
 #if !MIN_VERSION_base(4,14,0)
@@ -67,7 +69,6 @@ import           Data.Semigroup            (Semigroup (..))
 
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
-import           Data.Hashable
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 import           Data.Maybe
@@ -84,7 +85,7 @@ import           Language.Fixpoint.Misc
 type BindId        = Int
 type BindMap a     = M.HashMap BindId a
 
-newtype IBindEnv   = FB (S.HashSet BindId) deriving (Eq, Data, Typeable, Generic)
+newtype IBindEnv   = FB (S.HashSet BindId) deriving (Eq, Data, Show, Typeable, Generic)
 
 instance PPrint IBindEnv where
   pprintTidy _ = pprint . L.sort . elemsIBindEnv
@@ -208,6 +209,9 @@ fromListIBindEnv = FB . S.fromList
 insertBindEnv :: Symbol -> SortedReft -> BindEnv -> (BindId, BindEnv)
 insertBindEnv x r (BE n m) = (n, BE (n + 1) (M.insert n (x, r) m))
 
+fromListBindEnv :: [(BindId, (Symbol, SortedReft))] -> BindEnv
+fromListBindEnv xs = BE (length xs) (M.fromList xs)
+
 emptyBindEnv :: BindEnv
 emptyBindEnv = BE 0 M.empty
 
@@ -247,6 +251,9 @@ filterIBindEnv f (FB m) = FB (S.filter f m)
 unionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
 unionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.union` m2
 
+unionsIBindEnv :: [IBindEnv] -> IBindEnv
+unionsIBindEnv = L.foldl' unionIBindEnv emptyIBindEnv
+
 intersectionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
 intersectionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.intersection` m2
 
@@ -258,6 +265,9 @@ diffIBindEnv (FB m1) (FB m2) = FB $ m1 `S.difference` m2
 
 adjustBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindId -> BindEnv -> BindEnv
 adjustBindEnv f i (BE n m) = BE n $ M.adjust f i m
+
+deleteBindEnv :: BindId -> BindEnv -> BindEnv
+deleteBindEnv i (BE n m) = BE n $ M.delete i m
 
 instance Functor SEnv where
   fmap = mapSEnv
@@ -306,13 +316,13 @@ instance NFData IBindEnv
 instance NFData BindEnv
 instance (NFData a) => NFData (SEnv a)
 
-instance B.Binary Packs
-instance B.Binary IBindEnv
-instance B.Binary BindEnv
-instance (B.Binary a) => B.Binary (SEnv a)
-instance (Hashable a, Eq a, B.Binary a) => B.Binary (S.HashSet a) where
-  put = B.put . S.toList
-  get = S.fromList <$> B.get
+instance S.Store Packs
+instance S.Store IBindEnv
+instance S.Store BindEnv
+instance (S.Store a) => S.Store (SEnv a)
+-- instance (Hashable a, Eq a, S.Store a) => S.Store (S.HashSet a) where
+--   put = B.put . S.toList
+--   get = S.fromList <$> B.get
 
 --------------------------------------------------------------------------------
 -- | Constraint Pack Sets ------------------------------------------------------

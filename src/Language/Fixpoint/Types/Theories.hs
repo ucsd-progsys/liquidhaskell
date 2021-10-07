@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE PatternGuards              #-}
@@ -51,14 +52,20 @@ import           Language.Fixpoint.Types.Environments
 import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.List                as L 
 import qualified Data.Text.Lazy           as LT
-import qualified Data.Binary              as B
+import qualified Data.Store              as S
 import qualified Data.HashMap.Strict      as M
 import qualified Language.Fixpoint.Misc   as Misc 
+import Data.Functor.Contravariant (Contravariant(contramap))
 
 --------------------------------------------------------------------------------
 -- | 'Raw' is the low-level representation for SMT values
 --------------------------------------------------------------------------------
-type Raw          = LT.Text
+type Raw = LT.Text
+
+instance S.Store Raw where
+  peek = LT.fromStrict <$> S.peek  
+  poke = S.poke . LT.toStrict
+  size = contramap LT.toStrict S.size
 
 --------------------------------------------------------------------------------
 -- | 'SymEnv' is used to resolve the 'Sort' and 'Sem' of each 'Symbol'
@@ -77,7 +84,7 @@ data SymEnv = SymEnv
 type FuncSort = (SmtSort, SmtSort)
 
 instance NFData   SymEnv
-instance B.Binary SymEnv
+instance S.Store SymEnv
 
 instance Semigroup SymEnv where
   e1 <> e2 = SymEnv { seSort   = seSort   e1 <> seSort   e2
@@ -102,9 +109,11 @@ symEnv xEnv fEnv ds ls ts = SymEnv xEnv' fEnv dEnv ls sortMap
 -- | These are "BUILT-in" polymorphic functions which are
 --   UNININTERPRETED but POLYMORPHIC, hence need to go through
 --   the apply-defunc stuff.
-
 wiredInEnv :: M.HashMap Symbol Sort
-wiredInEnv = M.fromList [(toIntName, mkFFunc 1 [FVar 0, FInt])]
+wiredInEnv = M.fromList 
+  [ (toIntName, mkFFunc 1 [FVar 0, FInt])
+  , (tyCastName, FAbs 0 $ FAbs 1 $ FFunc (FVar 0) (FVar 1))
+  ]
 
 
 -- | 'smtSorts' attempts to compute a list of all the input-output sorts
@@ -187,7 +196,7 @@ data TheorySymbol  = Thy
 
 instance NFData Sem
 instance NFData TheorySymbol
-instance B.Binary TheorySymbol
+instance S.Store TheorySymbol
 
 instance PPrint Sem where
   pprintTidy _ = text . show
@@ -210,7 +219,7 @@ data Sem
   | Theory        -- ^ for theory ops: mem, cup, select
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-instance B.Binary Sem
+instance S.Store Sem
 
 
 --------------------------------------------------------------------------------
@@ -231,7 +240,7 @@ data SmtSort
 
 instance Hashable SmtSort
 instance NFData   SmtSort
-instance B.Binary SmtSort
+instance S.Store SmtSort
 
 -- | The 'poly' parameter is True when we are *declaring* sorts,
 --   and so we need to leave the top type variables be; it is False when

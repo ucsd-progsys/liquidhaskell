@@ -50,6 +50,7 @@ module Language.Fixpoint.Types.Errors (
   , errFreeVarInQual
   , errFreeVarInConstraint
   , errIllScopedKVar
+  , errBadDataDecl
   ) where
 
 import           System.Exit                        (ExitCode (..))
@@ -64,7 +65,7 @@ import           Data.Semigroup                (Semigroup (..))
 
 import           Control.DeepSeq
 -- import           Data.Hashable
-import qualified Data.Binary                   as B
+import qualified Data.Store                   as S
 import           GHC.Generics                  (Generic)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
@@ -90,7 +91,7 @@ instance Serialize Doc
 instance Serialize Error
 instance Serialize (FixResult Error)
 
-instance (B.Binary a) => B.Binary (FixResult a)
+instance (S.Store a) => S.Store (FixResult a)
 
 --------------------------------------------------------------------------------
 -- | A BareBones Error Type ----------------------------------------------------
@@ -231,7 +232,7 @@ colorResult :: FixResult a -> Moods
 colorResult (Safe (Solver.totalWork -> 0)) = Wary
 colorResult (Safe _)                       = Happy
 colorResult (Unsafe _ _)                   = Angry
-colorResult (_)                            = Sad
+colorResult _                              = Sad
 
 resultExit :: FixResult a -> ExitCode
 resultExit (Safe _stats) = ExitSuccess
@@ -240,6 +241,9 @@ resultExit _             = ExitFailure 1
 ---------------------------------------------------------------------
 -- | Catalogue of Errors --------------------------------------------
 ---------------------------------------------------------------------
+
+errBadDataDecl :: (Loc x, PPrint x) => x -> Error
+errBadDataDecl d = err (srcSpan d) $ "Non-regular datatype declaration" <+> pprint d
 
 errFreeVarInQual :: (PPrint q, Loc q, PPrint x) => q -> x -> Error
 errFreeVarInQual q x = err sp $ vcat [ "Qualifier with free vars"
