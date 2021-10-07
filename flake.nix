@@ -3,7 +3,7 @@
   description = "LiquidHaskell packages";
 
   inputs = {
-    nixpkgs.url = github:NixOS/nixpkgs/nixos-20.09;
+    nixpkgs.url = github:NixOS/nixpkgs/nixos-21.05;
 
     flake-utils.url = github:numtide/flake-utils;
 
@@ -27,7 +27,7 @@
           };
         };
       };
-      ghc = "ghc8102";
+      ghc = "ghc8104";
       mkOutputs = system:
         let
           pkgs = import nixpkgs {
@@ -55,13 +55,12 @@
             # liquidhaskell_with_tests
           };
 
-          defaultPackage = pkgs.haskell.packages.${ghc}.liquidhaskell_with_tests;
+          defaultPackage = pkgs.haskell.packages.${ghc}.liquidhaskell;
 
           devShell = pkgs.haskell.packages.${ghc}.liquidhaskell.env;
 
           overlay = composeOverlays [
             liquid-fixpoint.overlay.${system}
-            self.overlays.${system}.addTHCompat
             self.overlays.${system}.addLiquidHaskellWithoutTests
             self.overlays.${system}.addLiquidGHCPrim
             self.overlays.${system}.addLiquidBase
@@ -70,15 +69,14 @@
           ];
 
           overlays = {
-            addTHCompat = final: prev: haskellPackagesOverlay ghc final prev (selfH: superH: {
-              th-compat = selfH.callHackage "th-compat" "0.1" { };
-            });
             addLiquidHaskellWithoutTests = final: prev: haskellPackagesOverlay ghc final prev (selfH: superH:
               let callCabal2nix = prev.haskell.packages.${ghc}.callCabal2nix; in
               with prev.haskell.lib; {
                 liquidhaskell =
                   let src = prev.nix-gitignore.gitignoreSource [ "*.nix" "result" "liquid-*" ] ./.;
-                  in dontCheck (beComponent prev (callCabal2nix "liquidhaskell" src { }));
+                  in
+                  doJailbreak # LH requires slightly old versions of recursion-schemes and optparse-applicative
+                    (dontCheck (beComponent prev (callCabal2nix "liquidhaskell" src { })));
               });
             addLiquidGHCPrim = final: prev: haskellPackagesOverlay ghc final prev (selfH: superH:
               let callCabal2nix = prev.haskell.packages.${ghc}.callCabal2nix; in
