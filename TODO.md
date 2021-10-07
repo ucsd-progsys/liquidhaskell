@@ -1,44 +1,104 @@
 # TODO
 
 
-## Build
+## ISSUE: why does bounds stuff take so long?
 
-## 1474
+https://ucsd-progsys.slack.com/archives/DU17X62Q5/p1621006535008300
 
-This does type-substitutions in GHC
+DISCO full full GHC+LH build = 120s
+      vs Z3 ... 7s (!)
 
-- https://hackage.haskell.org/package/ghc-8.6.5/docs/src/TyCoRep.html#subst_ty
+```
+$ stack build --dependencies-only
+$ time stack build
+```
 
-The key bit:
+`develop`
 
- go (AppTy fun arg)   = mkAppTy (go fun) $! (go arg)
-                -- The mkAppTy smart constructor is important
-                -- we might be replacing (a Int), represented with App
-                -- by [Int], represented with TyConApp
+________________________________________________________
+Executed in  166.60 secs   fish           external
+   usr time  156.04 secs   66.80 millis  155.98 secs
+   sys time    7.46 secs    9.35 millis    7.45 secs
+
+#1150 -- FUNCTION
+https://github.com/ucsd-progsys/liquidhaskell/issues/1149 -- ???
+https://github.com/ucsd-progsys/liquidhaskell/issues/1120
+
+--fullcheck
+--checkderived
+--noclasscheck
 
 
-mkRAppTy (TyConApp tc tys) ty2 = mkRTyConApp tc (tys ++ [ty2])
-mkRAppTy ty1               ty2 = RAppTy ty1 ty2
 
--- | Analog of GHC's @mkTyConApp@
 
-mkRTyConApp :: c -> [RType c tv r] -> RType c tv r
-mkRTyConApp c t
+<<<<<<< HEAD
 
-mkRTyConApp :: TyCon -> [Type] -> Type
-mkRTyConApp c ts
-  | isFunTyCon c
-  , [_rep1,_rep2,ty1,ty2] <- tys
-  = FunTy _ ty1 ty2
 
-  | otherwise
-  = RTyConApp c ts
+## no-adt
 
+#1150 -- FUNCTION
+https://github.com/ucsd-progsys/liquidhaskell/issues/1149 -- ???
+https://github.com/ucsd-progsys/liquidhaskell/issues/1120
+
+Don't encode non-encodable ADTs (by default)
+
+=======
+>>>>>>> 102b3384caff33c1d722dcbb96eb20913bcbb064
+## Fix: SpecDependencyGraph
+
+1. Implement `Bare.SpecDep` 
+2. Use `slice` to pre-filter the `BareSpec` prior to resolution 
+
+```haskell
+-- | This module has datatypes and code for building a Specification Dependency Graph 
+--   whose vertices are 'names' that need to be resolve, and edges are 'dependencies'.
+
+module SpecDep (slice) where
+
+-- | A datatype for the different kinds of names we have to resolve
+data Label
+  = Sign  -- ^ identifier signature
+  | Func  -- ^ measure or reflect
+  | DCon  -- ^ data constructor
+  | TCon  -- ^ type constructor
+
+-- | A datatype for nodes which are pairs of names and labels
+data Node = MkNode
+  { nodeName  :: LocSymbol
+  , nodeLabel :: Label
+  }
+
+type Graph = Map Node [Node]
+
+-- | A way to combine graphs of multiple modules
+
+instance Semigroup Graph where
+  TODO
+
+instance Monoid Graph where
+  TODO
+
+-- | A function to build the dependencies for each module
+
+specDepGraph :: BareSpec -> Graph
+specDepGraph = _TODO
+
+mkDepGraph :: [BareSpec] -> Graph
+mkDepGraph specs = mconcat [specDepGraph sp | sp <- specs]
+
+-- | 'reachable roots g' returns the list of Node transitively reachable from roots
+reachable :: [Node] -> Graph -> [Node]
+reachable roots g = _TODO
+
+-- | Top-level "slicing" function
+slice :: (ModName, BareSpec) -> [(ModName, BareSpec)] -> [(ModName, BareSpec)]
+slice (tgt, tgtSpec) specs = _TODO
+```
 
 ## CallStack/Error
 
 The use of `Prelude.error` gives a crazy performance hit
-apparently even without cutvars being generated, this is
+apparently even without cut-vars being generated, this is
 because of some bizarro GHC transforms, that thwart eliminate.
 This is because GHC now threads `callstack` through such
 computations, which make a top-level signature no longer top-level.

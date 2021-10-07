@@ -526,8 +526,9 @@ constraintP
        reservedOp "<:"
        t2  <- bareTypeP
        return $ fromRTypeRep $ RTypeRep [] [] []
-                                        [] [] 
+                                        [] [] []
                                         ((val . fst <$> xts) ++ [dummySymbol])
+                                        (replicate (length xts + 1) defRFInfo)
                                         (replicate (length xts + 1) mempty)
                                         ((snd <$> xts) ++ [t1]) t2
 
@@ -859,7 +860,7 @@ data Pspec ty ctor
   | Lazy    LocSymbol                                     -- ^ 'lazy' annotation, skip termination check on binder
   | Fail    LocSymbol                                     -- ^ 'fail' annotation, the binder should be unsafe
   | Rewrite LocSymbol                                     -- ^ 'rewrite' annotation, the binder generates a rewrite rule
-  | Rewritewith (LocSymbol,[(Bool, LocSymbol)])           -- ^ 'rewritewith' annotation, the first binder is using the rewrite rules of the second list,
+  | Rewritewith (LocSymbol, [LocSymbol])                  -- ^ 'rewritewith' annotation, the first binder is using the rewrite rules of the second list,
   | Insts   (LocSymbol, Maybe Int)                        -- ^ 'auto-inst' or 'ple' annotation; use ple locally on binder 
   | HMeas   LocSymbol                                     -- ^ 'measure' annotation; lift Haskell binder as measure
   | Reflect LocSymbol                                     -- ^ 'reflect' annotation; reflect Haskell binder as function in logic
@@ -937,8 +938,7 @@ ppPspec k (Rewrite   lx)
 ppPspec k (Rewritewith (lx, lxs)) 
   = "rewriteWith" <+> pprintTidy k (val lx) <+> (PJ.hsep $ map go lxs)
   where
-    go (True, s)  = "directed" <+> pprintTidy k (val s)
-    go (False, s) = pprintTidy k $ val s
+    go s = pprintTidy k $ val s
 ppPspec k (Fail   lx) 
   = "fail" <+> pprintTidy k (val lx) 
 ppPspec k (Insts   (lx, mbN)) 
@@ -1180,17 +1180,8 @@ lazyVarP = locBinderP
 rewriteVarP :: Parser LocSymbol
 rewriteVarP = locBinderP
 
-rewriteWithP :: Parser (LocSymbol, [(Bool, LocSymbol)])
-rewriteWithP =
-  (,) <$> locBinderP <*> brackets (sepBy1 (directed <|> undirected) comma)
-  where
-    directed = do
-        reserved "directed"
-        b <- locBinderP
-        return (True, b)
-    undirected = do
-        b <- locBinderP
-        return (False, b)
+rewriteWithP :: Parser (LocSymbol, [LocSymbol])
+rewriteWithP = (,) <$> locBinderP <*> brackets (sepBy1 locBinderP comma)
 
 failVarP :: Parser LocSymbol
 failVarP = locBinderP
@@ -1419,8 +1410,8 @@ tyBodyP ty
       _         -> E <$> exprP
     where outTy (RAllT _ t _)  = outTy t
           outTy (RAllP _ t)    = outTy t
-          outTy (RImpF _ _ t _)= Just t
-          outTy (RFun _ _ t _) = Just t
+          outTy (RImpF _ _ _ t _)= Just t
+          outTy (RFun _ _ _ t _) = Just t
           outTy _              = Nothing
 
 locUpperOrInfixIdP :: Parser (Located Symbol)

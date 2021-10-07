@@ -72,6 +72,7 @@ data SState
            , caseIdx    :: !Int                -- [ Temporary ] Index in list of scrutinees.
            , scrutinees :: ![(CoreExpr, Type, TyCon)]
            }
+
 type SM = StateT SState IO
 
 localMaxAppDepth :: SM Int 
@@ -122,7 +123,7 @@ addsEnv xts =
 addsEmem :: [(Var, SpecType)] -> SM () 
 addsEmem xts = do 
   curAppDepth <- sExprId <$> get
-  mapM_ (\(x,t) -> modify (\s -> s {sExprMem = (toType t, GHC.Var x, curAppDepth+1) : (sExprMem s)})) xts  
+  mapM_ (\(x,t) -> modify (\s -> s {sExprMem = (toType False t, GHC.Var x, curAppDepth+1) : (sExprMem s)})) xts  
   
 
 addEnv :: Var -> SpecType -> SM ()
@@ -132,7 +133,7 @@ addEnv x t = do
 
 addEmem :: Var -> SpecType -> SM ()
 addEmem x t = do 
-  let ht0 = toType t
+  let ht0 = toType False t
   curAppDepth <- sExprId <$> get
   xtop <- getSFix 
   (ht1, _) <- instantiateTL
@@ -229,7 +230,7 @@ freshVarType t = (\i -> mkVar (Just "x") i t) <$> incrSM
 
 
 freshVar :: SpecType -> SM Var
-freshVar = freshVarType . toType
+freshVar = freshVarType . toType False
 
 withIncrDepth :: Monoid a => SM a -> SM a
 withIncrDepth m = do 
@@ -272,7 +273,7 @@ symbolExpr τ x = incrSM >>= (\i -> return $ F.notracepp ("symExpr for " ++ F.sh
 --    1. Transforms refinement types to conventional (Haskell) types.
 --    2. All @Depth@s are initialized to 0.
 initExprMem :: SSEnv -> ExprMemory
-initExprMem sEnv = map (\(_, (t, v)) -> (toType t, GHC.Var v, 0)) (M.toList sEnv)
+initExprMem sEnv = map (\(_, (t, v)) -> (toType False t, GHC.Var v, 0)) (M.toList sEnv)
 
 
 -------------- Init @ExprMemory@ with instantiated functions with the right type (sUGoalTy) -----------
@@ -322,7 +323,7 @@ applyTy (t:ts) e =  case exprType e of
 fixEMem :: SpecType -> SM ()
 fixEMem t
   = do  (fs, ts) <- sForalls <$> get
-        let uTys = unifyWith (toType t)
+        let uTys = unifyWith (toType False t)
         needsFix <- case find (== uTys) ts of 
                       Nothing -> return True   -- not yet instantiated
                       Just _  -> return False  -- already instantiated
@@ -375,7 +376,7 @@ instantiate e mbt =
 withTypeEs :: SpecType -> SM [CoreExpr] 
 withTypeEs t = do 
     em <- sExprMem <$> get 
-    return (map snd3 (filter (\x -> fst3 x == toType t) em)) 
+    return (map snd3 (filter (\x -> fst3 x == toType False t) em)) 
 
 findCandidates :: Type ->         -- Goal type: Find all candidate expressions of this type,
                                   --   or that produce this type (i.e. functions).
@@ -396,10 +397,14 @@ functionCands goalTy = do
 
 varError :: SM Var
 varError = do 
-  info    <- ghcI . sCGI <$> get
-  let env  = B.makeEnv (gsConfig $ giSpec info) (toGhcSrc $ giSrc info) mempty mempty 
-  let name = giTargetMod $ giSrc info
-  return $ B.lookupGhcVar env name "Var" (dummyLoc $ symbol "Language.Haskell.Liquid.Synthesize.Error.err")
+  info      <- ghcI . sCGI <$> get
+  let env    = B.makeEnv (gsConfig $ giSpec info) (toGhcSrc $ giSrc info) mempty mempty 
+  let name   = giTargetMod $ giSrc info
+  let errSym = dummyLoc $ symbol "Language.Haskell.Liquid.Synthesize.Error.err"
+  case B.lookupGhcVar env name "Var" errSym of 
+    Right v -> return v
+    Left e  -> error (show e)
+  
 
 toGhcSrc :: TargetSrc -> GhcSrc 
 toGhcSrc a = Src

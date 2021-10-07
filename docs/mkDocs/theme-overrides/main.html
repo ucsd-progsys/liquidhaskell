@@ -1,0 +1,41 @@
+
+{% extends "base.html" %}
+
+
+<!--
+    Adapted from https://github.com/squidfunk/mkdocs-material/blob/master/material/partials/footer.html
+    I added automatic scraping of author, data, & flags metadata from top-of-file YAML metadata
+-->
+
+{% block content %}
+
+{{ super() }}
+
+{% if page.meta %}
+<div class="blogpost-meta">
+  {% if page.meta.author or page.meta.date %}
+  <div class="blogpost-meta-whowhen">
+    {% if page.meta.author %}
+        <div class="blogpost-meta-author">
+            {{ page.meta.author }}
+        </div>
+    {% endif %}
+    {% if page.meta.date %}
+        <div class="blogpost-meta-date">
+            {{ page.meta.date }}
+        </div>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% if page.meta.tags %}
+  <div class="blogpost-meta-tags">
+    {% for tag in page.meta.tags %}          
+      <a href="../../tags.html#{{ tag }}" class="tag-button">{% include ".icons/material/tag.svg" %}{{ tag }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}
+

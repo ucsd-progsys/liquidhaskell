@@ -1,6 +1,5 @@
 {-# LANGUAGE GADTs #-}
 
-{-@ LIQUID "--no-adt"         @-}
 {-@ LIQUID "--exact-data-con" @-}
 
 

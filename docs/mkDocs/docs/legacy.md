@@ -1,7 +1,7 @@
 # Installing the Legacy LiquidHaskell Executable
 
-**We strongly recommend** that you use the [GHC Plugin](plugin.md) 
-available in version 0.8.10 onwards, as the legacy executable is deprecated and has been 
+**We strongly recommend** that you use the [GHC Plugin](install.md)
+available in version 0.8.10 onwards, as the legacy executable is deprecated and has been
 kept around for backwards compatibility. It will eventually be removed from future LH releases.
 
 ## External software requirements
@@ -21,7 +21,7 @@ Simply do:
 We are working to put `liquid` on `stackage`.
 
 You can designate a specific version of LiquidHaskell to
-ensure that the correct GHC version is in the environment. 
+ensure that the correct GHC version is in the environment.
 For example:
 
     cabal install liquidhaskell-0.8.10.1

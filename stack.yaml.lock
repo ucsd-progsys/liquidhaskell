@@ -26,10 +26,10 @@ packages:
   original:
     hackage: located-base-0.1.1.1
 - completed:
-    hackage: hashable-1.3.0.0@sha256:4c70f1407881059e93550d3742191254296b2737b793a742bd901348fb3e1fb1,5206
+    hackage: hashable-1.3.0.0@sha256:d60cad00223d46172020c136e68acef0481a47d0302b2e74b1805b4f3a446a9b,5389
     pantry-tree:
       size: 1521
-      sha256: 84aba72926c33debd71fb9c670869d842025f8ea45ad10084289a34f0448250f
+      sha256: e7d5dbcea435993e180947216759031527ee3c2ddba276f1942f815d629e1e3a
   original:
     hackage: hashable-1.3.0.0
 - completed:
@@ -54,10 +54,10 @@ packages:
   original:
     hackage: optics-th-0.3
 - completed:
-    hackage: optics-extra-0.3@sha256:b1b9917596a4305069aa95eaf3083afe88c6db3c84ed6f52e926c82d0c56eea9,3382
+    hackage: optics-extra-0.3@sha256:68c3dd038cb1b9a43107b645e33adfd14f085f5923ad01b42d222ee1b6aaa38f,3492
     pantry-tree:
       size: 1809
-      sha256: 1f5bed915d1696d2f217e494f9e2d70929f33d6a9647996c3fa6c36f4f189c9d
+      sha256: eb962a5e19200050a731f4487b5dabbbedca182c208678d7a51a096e1ae7ec04
   original:
     hackage: optics-extra-0.3
 - completed:
@@ -81,6 +81,34 @@ packages:
       sha256: c794a1d447edb8cf039f47514f50eee20c2584452f1a60848f905dc710c9b59f
   original:
     hackage: th-compat-0.1
+- completed:
+    hackage: store-0.7.11@sha256:e12694225bc2165b31fc2bd3bb42777588c972e0d9bf58a20794c7a9324c6c4b,8071
+    pantry-tree:
+      size: 1292
+      sha256: e801df838d0e0ffafb4723773ce3372cfbeba892d8041bf7b24b6b10ccf65b3f
+  original:
+    hackage: store-0.7.11
+- completed:
+    hackage: store-core-0.4.4.4@sha256:a19098ca8419ea4f6f387790e942a7a5d0acf62fe1beff7662f098cfb611334c,1430
+    pantry-tree:
+      size: 271
+      sha256: 2e38b2201b812c658ef4ce97db1044563cacbf3232211dcc7a2071be2c71f389
+  original:
+    hackage: store-core-0.4.4.4
+- completed:
+    hackage: th-utilities-0.2.4.3@sha256:2475f24595bede7ee1ba78f3ac6b8bfeacf9b2225c871b443c8aa28e68e60589,1923
+    pantry-tree:
+      size: 882
+      sha256: 9b481fa2fc86026e6d7aa6bf6493a6d8da8d3446d2eec0f5c34a5e7aec41967c
+  original:
+    hackage: th-utilities-0.2.4.3
+- completed:
+    hackage: th-abstraction-0.4.2.0@sha256:2c754cd15370f8c59c8e6c37d44428a78d0b4afc94e13b3958a1a50cd16f6e84,2124
+    pantry-tree:
+      size: 670
+      sha256: 4d7de058f3dd57de2a89ea92e812c37ab5418d2fbac620db8c815e7eb4d856ac
+  original:
+    hackage: th-abstraction-0.4.2.0
 snapshots:
 - completed:
     size: 532379

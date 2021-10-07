@@ -29,5 +29,14 @@ extra-deps:
 - Diff-0.4.0
 - aeson-1.4.7.1
 - th-compat-0.1
+- store-0.7.11
+- store-core-0.4.4.4
+- th-utilities-0.2.4.3
+- th-abstraction-0.4.2.0
+
 resolver: lts-16.8
-compiler: ghc-8.10.4
+compiler: ghc-8.10.2
+
+nix:
+  shell-file: shell-stack.nix
+  path: ["nixpkgs=./nixpkgs.nix"]

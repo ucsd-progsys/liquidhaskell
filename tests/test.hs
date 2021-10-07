@@ -207,6 +207,7 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/CyclicExprAlias3.hs"    1 "Cyclic type alias definition"
   , errorTest "tests/errors/DupAlias.hs"            1 "Multiple definitions of Type Alias `BoundedNat`"
   , errorTest "tests/errors/DupAlias.hs"            1 "Multiple definitions of Pred Alias `Foo`"
+  , errorTest "tests/errors/BadData0.hs"            1 "Unknown type constructor `Zoog`" 
   , errorTest "tests/errors/BadDataConType.hs"      1 "Illegal type specification for `Boo.fldY`" 
   , errorTest "tests/errors/BadDataConType1.hs"     1 "Specified type does not refine Haskell type for `Boo.C`" 
                                                        -- "Illegal type specification for `Boo.fldY`" 
@@ -232,7 +233,7 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/BadData2.hs"            1 "Data constructors in refinement do not match original datatype for `Hog`"
   , errorTest "tests/errors/T1140.hs"               1 "Specified type does not refine Haskell type for `Blank.foo`"
   , errorTest "tests/errors/InlineSubExp0.hs"       1 "== f B C"
-  , errorTest "tests/errors/InlineSubExp1.hs"       1 "== f B (g A)"
+  , errorTest "tests/errors/InlineSubExp1.hs"       1 "= f B (g A)"
   , errorTest "tests/errors/EmptySig.hs"            1 "Cannot parse specification"
   , errorTest "tests/errors/MissingReflect.hs"      1 "Illegal type specification for `Main.empty_foo`" 
   , errorTest "tests/errors/MissingSizeFun.hs"      1 "Unknown variable `llen2`" 
@@ -297,14 +298,15 @@ microTests = group "Micro"
   , mkMicroPos "terminate-pos"  "tests/terminate/pos"
   , mkMicroNeg "terminate-neg"  "tests/terminate/neg"
   , mkMicroPos "pattern-pos"    "tests/pattern/pos"
-  , mkMicroPos "class-laws-pos" "tests/class-laws/pos"
-  , mkMicroLaw "class-laws-crash" "tests/class-laws/crash"
-  , mkMicroNeg "class-laws-neg"   "tests/class-laws/neg"
+  -- , mkMicroPos "class-laws-pos" "tests/class-laws/pos"
+  -- , mkMicroLaw "class-laws-crash" "tests/class-laws/crash"
+  -- , mkMicroNeg "class-laws-neg"   "tests/class-laws/neg"
   , mkMicroPos "implicit-pos"   "tests/implicit/pos"
   , mkMicroNeg "implicit-neg"   "tests/implicit/neg"
   -- RJ: disabling because broken by adt PR #1068
   -- , testGroup "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
   -- , testGroup "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
+  , mkMicroPos "typeclass-pos"  "tests/typeclasses/pos"
   ]
   where
     mkMicroPos name dir = testGroup name <$> dirTests dir [] ExitSuccess     (Just " SAFE ") (Just " UNSAFE ")
@@ -510,7 +512,7 @@ ecAssert (EC _ code yesLog noLog) c log = do
     else do
       case yesLog of
         Nothing -> pure ()
-        Just t  -> assertBool ("Did not match message: " <> show (T.unpack t) <> "\n" <> output) (T.isInfixOf t log)
+        Just t  -> assertBool ("Did not match message: " <> show (T.unpack t) <> "\n" <> show log) (T.isInfixOf t log)
       case noLog of
         Nothing -> pure ()
         Just t  -> assertBool ("Did match unexpected message: " <> show (T.unpack t) <> "\n" <> output) (not (T.isInfixOf t log))
@@ -734,6 +736,7 @@ textIgnored
   = [ "Setup.lhs"
     -- , "Data/Text/Axioms.hs"
     , "Data/Text/Encoding/Error.hs"
+    , "Data/Text/Encoding/Fusion.hs"        -- has nothing in int (compile-spec) but triggers 18 import-builds
     , "Data/Text/Encoding/Fusion/Common.hs"
     , "Data/Text/Encoding/Utf16.hs"
     , "Data/Text/Encoding/Utf32.hs"

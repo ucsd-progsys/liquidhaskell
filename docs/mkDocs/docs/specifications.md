@@ -49,7 +49,7 @@ or the legacy executable.
 
 ### (Plugin) Adding refinements for external modules
 
-See the [plugin](plugin.md) section, which cointains a link to a walkthrough document that describes how to add
+See the [installation](install.md) section, which cointains a link to a walkthrough document that describes how to add
 refinements for external packages (cfr. **"Providing Specifications for Existing Packages"**)
 
 ### (Legacy executable) Adding refinements for external modules
@@ -128,6 +128,37 @@ incr x = x + 1
 ```
 
 ## Modules WITH code: Type Classes
+
+Write the specification directly into the .hs or .lhs file. The constrained variable must match the one from the class definition. A class must have at least one refinement signature (even if it's a trivial one) to be lifted to the refinement logic. [For example](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/Class.hs):
+```haskell
+class Semigroup a where
+    {-@ mappend :: a -> a -> a @-}
+    mappend :: a -> a -> a
+    sconcat :: NonEmpty a -> a
+
+class Semigroup a => VSemigroup a where
+    {-@ lawAssociative :: v:a -> v':a -> v'':a ->
+          {mappend (mappend v v') v'' == mappend v (mappend v' v'')} @-}
+    lawAssociative :: a -> a -> a -> ()
+```
+Without the extra signature for `mappend`, the above example would not work.
+
+Instances can be defined without any special annotations:
+```haskell
+data PNat = Z | S PNat
+
+instance Semigroup PNat where
+  mappend Z     n = n
+  mappend (S m) n = S (mappend m n)
+  sconcat (NonEmpty h t) = foldlList mappend h t
+
+instance VSemigroup PNat where
+  lawAssociative Z     _ _ = ()
+  lawAssociative (S p) m n = lawAssociative p m n
+```
+The example above inlines the proofs directly into the instance definition. This requires the `--aux-inline` flag.
+
+## Modules WITH code: Type Classes (Legacy)
 
 Write the specification directly into the .hs or .lhs file,
 above the type class definition. [For example](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/Class.hs):
@@ -499,7 +530,7 @@ However, as they are *expanded* at compile time, `inline` functions
 **cannot be recursive**. The can call _other_ (non-recursive) inline functions.
 
 If you want to talk about arbitrary (recursive) functions inside your types, 
-then you need to use `reflect` described [in the blog](https://ucsd-progsys.github.io/liquidhaskell-blog/tags/reflection.html).
+then you need to use `reflect` described [in the blog](../tags.html#reflection).
 
 # Self-Invariants
 
