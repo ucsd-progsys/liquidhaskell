@@ -6,7 +6,6 @@ ghc-options:
   hscolour: -w
 allow-newer: true # 8.10.1
 packages:
-- ../rewriting-paper/formalization/haskell
 - liquid-fixpoint
 - liquid-ghc-prim
 - liquid-base
@@ -18,6 +17,8 @@ packages:
 - liquid-platform
 - .
 extra-deps:
+- github: zgrannan/rest
+  commit: 6c95137a38131434af3bd7fe3f51702a3437a3c1
 - tasty-rerun-1.1.14
 - fgl-visualize-0.1.0.1
 - located-base-0.1.1.1
