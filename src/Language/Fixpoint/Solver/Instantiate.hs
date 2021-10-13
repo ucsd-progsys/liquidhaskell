@@ -62,7 +62,16 @@ instantiate cfg fi subcIds
 
 
 ------------------------------------------------------------------------------- 
--- | New "Incremental" PLE
+-- | New "Incremental" PLE -- see [NOTE:TREE-LIKE] 
+
+{- | [NOTE:TREE-LIKE] incremental PLE relies crucially on the SInfo satisfying 
+     a "tree like"   invariant: 
+       forall constraints c, c'. 
+         if i in c and i in c' then 
+           forall 0 <= j < i, j in c and j in c'
+
+ -}
+
 ------------------------------------------------------------------------------- 
 incrInstantiate' :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
 ------------------------------------------------------------------------------- 
