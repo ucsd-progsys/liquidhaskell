@@ -58,6 +58,9 @@ commands:
       - run:
           name: Dependencies
           command: |
+            wget -qO- https://downloads.haskell.org/~cabal/cabal-install-3.6.0.0/cabal-install-3.6.0.0-x86_64-linux.tar.xz | tar xJ
+            mkdir -p /root/.cabal/bin/
+            cp cabal /root/.cabal/bin/
             << parameters.cabal_update_command >>
             cabal v2-clean
             cabal v2-build --project-file << parameters.project_file >> --flag include --flag devel -j1 --enable-tests all
