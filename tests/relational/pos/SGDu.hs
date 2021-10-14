@@ -2,6 +2,7 @@ module SGDu where
 
 import           Prelude                 hiding ( head
                                                 , tail
+                                                , sum
                                                 )
 import           Data.Functor.Identity
 
@@ -29,7 +30,7 @@ dist _ _ = undefined
 
 {-@ relationalchoice :: p:Prob -> e1:Distr a -> e1':Distr a 
         ->  q:{Prob | p = q } -> e2:Distr a -> e2':Distr a 
-        ->  {p = q => dist (choice p e1 e1') (choice q e2 e2') <= p * (dist e1 e2) + (1 - p) * (dist e1' e2')} @-}
+        ->  {dist (choice p e1 e1') (choice q e2 e2') <= p * (dist e1 e2) + (1 - p) * (dist e1' e2')} @-}
 relationalchoice :: Prob -> Distr a -> Distr a -> Prob -> Distr a -> Distr a -> ()
 relationalchoice _ _ _ _ _ _ = undefined
 
@@ -103,14 +104,22 @@ ppure x = x
 reduce :: Double -> Weight -> Weight -> ()
 reduce _ _ _ = ()
 
-{-@ assume relationalupd :: zs1:DataSet -> ws1:Weight -> α1:StepSize -> as1:[StepSize] -> f1:LossFunction -> z1:DataPoint -> 
-            zs2:DataSet -> ws2:Weight -> α2:StepSize -> as2:[StepSize] -> f2:LossFunction -> z2:DataPoint -> 
-              {dist (upd zs1 ws1 α1 as1 f1 z1) (upd zs2 ws2 α2 as2 f2 z2) <= dist ws1 ws2}
-@-}
-relationalupd :: DataSet -> Weight -> StepSize -> [StepSize] -> LossFunction -> DataPoint -> 
-  DataSet -> Weight -> StepSize -> [StepSize] -> LossFunction -> DataPoint -> () 
-relationalupd = undefined
+{-  f x a = p * (x + 2 * a) + (1 - p) * x
 
+    f (f x a_0) a_1
+
+    fold = f (f (f x (as1 !! 0)) (as1 !! 1)) (as1 !! 2) 
+-}
+
+{-@ reflect sum @-}
+sum :: [StepSize] -> Double
+sum [] = 0
+sum (a:as) = a + sum as
+
+{-@ reflect estab @-}
+{-@ estab :: DataSet -> [StepSize] -> Double @-}
+estab :: DataSet -> [StepSize] -> Double
+estab zs as = 2.0 / (lend zs) * sum as
 
 {-@ reflect upd @-}
 {-@ upd :: zs:{DataSet | 1 < len zs  && 1 < lend zs } -> Weight -> StepSize -> [StepSize] -> LossFunction -> DataPoint -> Distr Weight @-}
@@ -138,71 +147,47 @@ sgd zs w0 (α : a) f = choice (one / lend zs)
   uhead = unif [head zs]
   utail = unif (tail zs)
 
-{-@ relationalunif :: zs1:[DataPoint] -> zs2:[DataPoint] -> {unif zs1 = unif zs2} @-}
-relationalunif :: [DataPoint] -> [DataPoint] -> ()
-relationalunif = undefined
-
 {-@ thm :: zs1:{DataSet | 1 < lend zs1 && 1 < len zs1 } -> ws1:Weight -> α1:[StepSize] -> f1:LossFunction -> 
-           zs2:{DataSet | 1 < lend zs2 && 1 < len zs2 && lend zs1 == lend zs2 }  -> ws2:Weight -> {α2:[StepSize]|len α2 = len α1} -> f2:LossFunction -> 
-            {SGDu.lend zs1 = SGDu.lend zs2 && (SGDu.lend zs1) > 1 => 
-                f1 = f2 => (SGDu.lend α2 = SGDu.lend α1) =>
-                    dist (sgd zs1 ws1 α1 f1) (sgd zs2 ws2 α2 f2) <= 
-                        (SGDu.one / (SGDu.lend zs1)) * (dist ws1 ws2) + (1 - (SGDu.one / (SGDu.lend zs1))) * (dist ws1 ws2)} @-}
+           zs2:{DataSet | 1 < lend zs2 && 1 < len zs2 && lend zs1 == lend zs2 && tail zs1 = tail zs2} -> 
+            ws2:Weight -> {α2:[StepSize]| α2 = α1} -> {f2:LossFunction|f1 = f2} -> 
+            {dist (sgd zs1 ws1 α1 f1) (sgd zs2 ws2 α2 f2) <= 
+              (SGDu.one / (SGDu.lend zs1)) * (dist ws1 ws2) + (1 - (SGDu.one / (SGDu.lend zs1))) * (dist ws1 ws2)} @-}
 thm :: DataSet -> Weight -> [StepSize] -> LossFunction -> DataSet -> Weight -> [StepSize] -> LossFunction -> ()
-thm zs1 ws1 α1@[] f1 zs2 ws2 α2@[] f2 =
+thm zs1 ws1 α1@[] f1 zs2 ws2 α2@[] f2 = 
   dist (sgd zs1 ws1 α1 f1) (sgd zs2 ws2 α2 f2)
     === dist (ppure ws1) (ppure ws2)
-    === dist ws1         ws2
-    =<= (SGDu.one / (SGDu.lend zs1))
-    *   (dist ws1 ws2)
-    +   (1 - (SGDu.one / (SGDu.lend zs1)))
-    *   (dist ws1 ws2)
     *** QED
 thm zs1 ws1 as1@(α1 : a1) f1 zs2 ws2 as2@(α2 : a2) f2 =
   dist (sgd zs1 ws1 as1 f1) (sgd zs2 ws2 as2 f2)
     === dist
           (choice (one / lend zs1)
-                  (pbind uhead1 (upd zs1 ws1 α1 a1 f1))
-                  (qbind utail1 (upd zs1 ws1 α1 a1 f1))
+                  (pbind uhead1 ws1')
+                  (qbind utail1 ws1')
           )
           (choice (one / lend zs2)
-                  (pbind uhead2 (upd zs2 ws2 α2 a2 f2))
-                  (qbind utail2 (upd zs2 ws2 α2 a2 f2))
+                  (pbind uhead2 ws2')
+                  (qbind utail2 ws2')
           )
-    ?   relationalchoice (one / lend zs1)
-                         (pbind uhead1 (upd zs1 ws1 α1 a1 f1))
-                         (qbind utail1 (upd zs1 ws1 α1 a1 f1))
+       ? relationalchoice (one / lend zs1)
+                         (pbind uhead1 ws1')
+                         (qbind utail1 ws1')
                          (one / lend zs2)
-                         (pbind uhead2 (upd zs2 ws2 α2 a2 f2))
-                         (qbind utail2 (upd zs2 ws2 α2 a2 f2))
-    =<= ( (one / lend zs1)
-        * (dist (pbind uhead1 (upd zs1 ws1 α1 a1 f1))
-                (pbind uhead2 (upd zs2 ws2 α2 a2 f2))
-          )
-        + ( (1 - (one / lend zs1))
-          * (dist (qbind utail1 (upd zs1 ws1 α1 a1 f1))
-                  (qbind utail2 (upd zs2 ws2 α2 a2 f2))
-            )
-          )
-        )
-    ?   thm zs1 ws1 a1 f1 zs2 ws2 a2 f2
-    ?   relationalunif (tail zs1) (tail zs2)
+                         (pbind uhead2 ws2')
+                         (qbind utail2 ws2')
     ?   relationalpbind ws1 ws2 uhead1
-                        (upd zs1 ws1 α1 a1 f1)
+                        ws1'
                         uhead2
-                        (upd zs2 ws2 α2 a2 f2)
-                        (relationalupd zs1 ws1 α1 a1 f1 (unif [head zs1]) zs2 ws2 α2 a2 f2 (unif [head zs2]))
-    =<= (SGDu.one / (SGDu.lend zs1)) * (dist ws1 ws2) 
-        + (1 - (SGDu.one / (SGDu.lend zs1))) 
-          * (dist (qbind utail1 (upd zs1 ws1 α1 a1 f1))
-                (qbind utail2 (upd zs2 ws2 α2 a2 f2)))
+                        ws2'
+                        (thm zs1 (update uhead1 ws1 α1 f1) a1 f1 zs2 (update uhead2 ws2 α2 f2) a2 f2
+                          ? relationalupdatep uhead1 ws1 α1 f1 uhead2 ws2 α2 f2)        
     ?   relationalqbind ws1 ws2 utail1
-                        (upd zs1 ws1 α1 a1 f1)
+                        ws1'
                         utail2
-                        (upd zs2 ws2 α2 a2 f2)
-    =<= (SGDu.one / (SGDu.lend zs1)) * (dist ws1 ws2) + (1 - (SGDu.one / (SGDu.lend zs1))) * (dist ws1 ws2)
+                        ws2'
     *** QED
  where
+  ws1' = upd zs1 ws1 α1 a1 f1
+  ws2' = upd zs2 ws2 α2 a2 f2
   uhead1 = unif [head zs1]
   utail1 = unif (tail zs1)
   uhead2 = unif [head zs2]
