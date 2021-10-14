@@ -5,7 +5,7 @@ commands:
   setup_project:
     description: "Setup the machine, clone the repo, checkout the submodules."
     steps:
-      - run: apt-get update && apt-get install -y git ssh unzip
+      - run: apt-get update && apt-get install -y git ssh unzip wget libtinfo-dev
       - run:
           name: Install z3
           command: |
@@ -98,7 +98,7 @@ commands:
         type: string
         default: ""
     steps:
-      - run: sudo apt-key adv --keyserver keyserver.ubuntu.com --recv 8B1DA6120C2BF624
+      - run: apt-key adv --keyserver keyserver.ubuntu.com --recv 8B1DA6120C2BF624
       - setup_project
       - run: git ls-tree HEAD liquid-fixpoint > liquid-fixpoint-commit
       - restore_cache:
@@ -109,6 +109,7 @@ commands:
       - run:
           name: Dependencies
           command: |
+            wget -qO- https://get.haskellstack.org/ | sh
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> setup
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> build -j2 --only-dependencies --test --no-run-tests << parameters.extra_build_flags >>
       - save_cache:
@@ -138,7 +139,9 @@ jobs:
 
   stack_810_legacy_executable:
     docker:
-      - image: fpco/stack-build:lts-16.8
+      - image: ubuntu:16.04
+    environment:
+      LANG: C.UTF-8
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
@@ -147,7 +150,9 @@ jobs:
 
   stack_810:
     docker:
-      - image: fpco/stack-build:lts-16.8
+      - image: ubuntu:16.04
+    environment:
+      LANG: C.UTF-8
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
