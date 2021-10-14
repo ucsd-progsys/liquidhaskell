@@ -52,9 +52,9 @@ commands:
       - run: git ls-tree HEAD liquid-fixpoint > liquid-fixpoint-commit
       - restore_cache:
           keys:
-            - cabal-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
-            - cabal-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}
-            - cabal-{{ checksum "liquidhaskell.cabal" }}
+            - cabal-cache-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
+            - cabal-cache-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}
+            - cabal-cache-{{ checksum "liquidhaskell.cabal" }}
       - run:
           name: Dependencies
           command: |
@@ -62,7 +62,7 @@ commands:
             cabal v2-clean
             cabal v2-build --project-file << parameters.project_file >> --flag include --flag devel -j1 --enable-tests all
       - save_cache:
-          key: cabal-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
+          key: cabal-cache-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
           paths:
             - ~/.cabal/store
             - ./dist-newstyle
@@ -103,9 +103,9 @@ commands:
       - run: git ls-tree HEAD liquid-fixpoint > liquid-fixpoint-commit
       - restore_cache:
           keys:
-            - stack-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "liquid-fixpoint-commit" }}
-            - stack-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell.cabal" }}
-            - stack-{{ checksum "<< parameters.stack_yaml_file >>" }}
+            - stack-cache-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "liquid-fixpoint-commit" }}
+            - stack-cache-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell.cabal" }}
+            - stack-cache-{{ checksum "<< parameters.stack_yaml_file >>" }}
       - run:
           name: Dependencies
           command: |
@@ -113,7 +113,7 @@ commands:
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> setup
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> build -j2 --only-dependencies --test --no-run-tests << parameters.extra_build_flags >>
       - save_cache:
-          key: stack-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "liquid-fixpoint-commit" }}
+          key: stack-cache-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "liquid-fixpoint-commit" }}
           paths:
             - ~/.stack
             - ./.stack-work
