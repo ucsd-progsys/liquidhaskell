@@ -445,7 +445,7 @@ dropErrorLoc msg
 instance (Show k, ToJSON a) => ToJSON (Assoc k a) where
   toJSON (Asc kas) = object [ tshow k .= toJSON a | (k, a) <- M.toList kas ]
     where
-      tshow        = T.pack . show
+      tshow        = fromString . show
 
 instance ToJSON ACSS.AnnMap where
   toJSON a = object [ "types"   .= toJSON (annTypes     a)
