@@ -415,7 +415,7 @@ textOrder = Just . mkOrder $
 
 proverTests :: IO TestTree
 proverTests = group "Prover"
-  [ testGroup "foundations"     <$> dirTests  "benchmarks/sf"                []                          ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
+  [ testGroup "foundations"     <$> dirTests  "benchmarks/sf"                ignoreLists                 ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
   , testGroup "prover_ple_lib"  <$> odirTests "benchmarks/popl18/lib"        []             proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
   , testGroup "without_ple_pos" <$> odirTests "benchmarks/popl18/nople/pos"  noPleIgnored   proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
   , testGroup "without_ple_neg" <$> odirTests "benchmarks/popl18/nople/neg"  noPleIgnored   proverOrder (ExitFailure 1) (Just " UNSAFE ") Nothing
@@ -668,6 +668,9 @@ testCmd bin dir file smt (ExtraOptions (GhcSuitableOpts (LO ghcOpts)) (LiquidOnl
 #else
   = printf "cd %s && %s -i . --smtsolver %s %s %s" dir bin (show smt) file (ghcOpts <> " " <> liquidOnlyOpts)
 #endif
+
+ignoreLists :: [FilePath]
+ignoreLists = ["Lists.hs"]       -- TODO: Flaky. Sometimes timeouts in CI after 20 minutes. See #1884
 
 noPleIgnored :: [FilePath]
 noPleIgnored 
