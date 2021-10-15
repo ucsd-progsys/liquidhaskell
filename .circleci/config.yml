@@ -5,7 +5,7 @@ commands:
   setup_project:
     description: "Setup the machine, clone the repo, checkout the submodules."
     steps:
-      - run: apt-get update && apt-get install -y git ssh unzip
+      - run: apt-get update && apt-get install -y git ssh unzip wget libtinfo-dev
       - run:
           name: Install z3
           command: |
@@ -52,17 +52,20 @@ commands:
       - run: git ls-tree HEAD liquid-fixpoint > liquid-fixpoint-commit
       - restore_cache:
           keys:
-            - cabal-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
-            - cabal-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}
-            - cabal-{{ checksum "liquidhaskell.cabal" }}
+            - cabal-cache-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
+            - cabal-cache-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}
+            - cabal-cache-{{ checksum "liquidhaskell.cabal" }}
       - run:
           name: Dependencies
           command: |
+            wget -qO- https://downloads.haskell.org/~cabal/cabal-install-3.6.0.0/cabal-install-3.6.0.0-x86_64-linux.tar.xz | tar xJ
+            mkdir -p /root/.cabal/bin/
+            cp cabal /root/.cabal/bin/
             << parameters.cabal_update_command >>
             cabal v2-clean
             cabal v2-build --project-file << parameters.project_file >> --flag include --flag devel -j1 --enable-tests all
       - save_cache:
-          key: cabal-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
+          key: cabal-cache-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
           paths:
             - ~/.cabal/store
             - ./dist-newstyle
@@ -98,21 +101,22 @@ commands:
         type: string
         default: ""
     steps:
-      - run: sudo apt-key adv --keyserver keyserver.ubuntu.com --recv 8B1DA6120C2BF624
+      - run: apt-key adv --keyserver keyserver.ubuntu.com --recv 8B1DA6120C2BF624
       - setup_project
       - run: git ls-tree HEAD liquid-fixpoint > liquid-fixpoint-commit
       - restore_cache:
           keys:
-            - stack-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "liquid-fixpoint-commit" }}
-            - stack-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell.cabal" }}
-            - stack-{{ checksum "<< parameters.stack_yaml_file >>" }}
+            - stack-cache-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "liquid-fixpoint-commit" }}
+            - stack-cache-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell.cabal" }}
+            - stack-cache-{{ checksum "<< parameters.stack_yaml_file >>" }}
       - run:
           name: Dependencies
           command: |
+            wget -qO- https://get.haskellstack.org/ | sh
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> setup
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> build -j2 --only-dependencies --test --no-run-tests << parameters.extra_build_flags >>
       - save_cache:
-          key: stack-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "liquid-fixpoint-commit" }}
+          key: stack-cache-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "liquid-fixpoint-commit" }}
           paths:
             - ~/.stack
             - ./.stack-work
@@ -126,6 +130,7 @@ commands:
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> sdist
             # stack haddock liquidhaskell --flag liquidhaskell:-devel --no-haddock-deps --haddock-arguments="--no-print-missing-docs --odir=$CIRCLE_ARTIFACTS"
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> haddock << parameters.extra_build_flags >> liquidhaskell  --no-haddock-deps --haddock-arguments="--no-print-missing-docs"
+          no_output_timeout: 30m
       - store_test_results:
           path: /tmp/junit/stack
       - store_artifacts:
@@ -136,27 +141,11 @@ commands:
 
 jobs:
 
-  stack_865_legacy_executable:
-    docker:
-      - image: fpco/stack-build:lts-14.12
-    steps:
-        - stack_build_and_test:
-            stack_yaml_file: "stack-8.6.5.yaml"
-            liquid_runner: "stack --stack-yaml=/root/project/stack-8.6.5.yaml --silent exec -- liquid"
-            extra_build_flags: "--flag liquidhaskell:include --flag liquid-platform:devel --flag liquidhaskell:no-plugin"
-
-  stack_884_legacy_executable:
-    docker:
-      - image: fpco/stack-build:lts-16.8
-    steps:
-        - stack_build_and_test:
-            stack_yaml_file: "stack-8.8.4.yaml"
-            liquid_runner: "stack --stack-yaml=/root/project/stack-8.8.4.yaml --silent exec -- liquid"
-            extra_build_flags: "--flag liquidhaskell:include --flag liquid-platform:devel --flag liquidhaskell:no-plugin"
-
   stack_810_legacy_executable:
     docker:
-      - image: fpco/stack-build:lts-16.8
+      - image: ubuntu:16.04
+    environment:
+      LANG: C.UTF-8
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
@@ -165,7 +154,9 @@ jobs:
 
   stack_810:
     docker:
-      - image: fpco/stack-build:lts-16.8
+      - image: ubuntu:16.04
+    environment:
+      LANG: C.UTF-8
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
@@ -195,8 +186,6 @@ workflows:
   version: 2
   build_stack_and_cabal:
     jobs:
-      - stack_865_legacy_executable
-      - stack_884_legacy_executable
       - stack_810_legacy_executable
       - stack_810
       - cabal_810
