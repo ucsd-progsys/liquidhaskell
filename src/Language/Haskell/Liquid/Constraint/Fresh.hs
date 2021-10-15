@@ -32,7 +32,7 @@ import           Prelude                        hiding (error)
 
 import           Language.Fixpoint.Misc  ((=>>))
 import qualified Language.Fixpoint.Types as F
-import           Language.Fixpoint.Types.Visitor (kvars)
+import           Language.Fixpoint.Types.Visitor (kvarsExpr)
 import           Language.Haskell.Liquid.Types
 -- import           Language.Haskell.Liquid.Types.RefType
 -- import           Language.Haskell.Liquid.Types.Fresh
@@ -102,7 +102,7 @@ addKuts _x t = modify $ \s -> s { kuts = mappend (F.KS ks) (kuts s)   }
        | otherwise  = {- F.tracepp ("addKuts: " ++ showpp _x) -} ks'
 
 specTypeKVars :: SpecType -> [F.KVar]
-specTypeKVars = foldReft False (\ _ r ks -> (kvars $ ur_reft r) ++ ks) []
+specTypeKVars = foldReft False (\ _ r ks -> (kvarsExpr $ F.reftPred $ ur_reft r) ++ ks) []
 
 --------------------------------------------------------------------------------
 trueTy  :: Bool -> Type -> CG SpecType
