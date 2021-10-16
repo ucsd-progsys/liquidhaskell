@@ -134,17 +134,19 @@ commands:
             mkdir -p /tmp/junit/stack
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:test << parameters.extra_build_flags >> << parameters.extra_test_flags >> --ta="--liquid-runner \"<< parameters.liquid_runner >>\"" --ta="-t 1200s --xml=/tmp/junit/stack/main-test-results.xml": #--liquid-opts='--cores=1'":
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:liquidhaskell-parser << parameters.extra_build_flags >> --ta="--xml=/tmp/junit/stack/parser-test-results.xml":
-            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> sdist
+          no_output_timeout: 30m
+      - run:
+          name: Generate haddock
+          command: |
             # stack haddock liquidhaskell --flag liquidhaskell:-devel --no-haddock-deps --haddock-arguments="--no-print-missing-docs --odir=$CIRCLE_ARTIFACTS"
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> haddock << parameters.extra_build_flags >> liquidhaskell  --no-haddock-deps --haddock-arguments="--no-print-missing-docs"
-          no_output_timeout: 30m
       - store_test_results:
           path: /tmp/junit/stack
       - store_artifacts:
           path: tests/logs/cur
       - run:
           name: Dist
-          command: stack --stack-yaml << parameters.stack_yaml_file >> sdist
+          command: stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> sdist << parameters.extra_build_flags >>
 
 jobs:
 
