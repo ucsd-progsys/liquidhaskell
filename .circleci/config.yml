@@ -139,14 +139,17 @@ commands:
           name: Generate haddock
           command: |
             # stack haddock liquidhaskell --flag liquidhaskell:-devel --no-haddock-deps --haddock-arguments="--no-print-missing-docs --odir=$CIRCLE_ARTIFACTS"
-            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> haddock << parameters.extra_build_flags >> liquidhaskell  --no-haddock-deps --haddock-arguments="--no-print-missing-docs"
+            # skip if extra_build_flags are set
+            [ ! -z "<< parameters.extra_build_flags >>" ] || stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> haddock << parameters.extra_build_flags >> liquidhaskell  --no-haddock-deps --haddock-arguments="--no-print-missing-docs"
       - store_test_results:
           path: /tmp/junit/stack
       - store_artifacts:
           path: tests/logs/cur
       - run:
           name: Dist
-          command: stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> sdist << parameters.extra_build_flags >>
+          command: |
+            # skip if extra_build_flags are set
+            [ ! -z "<< parameters.extra_build_flags >>" ] || stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> sdist
 
 jobs:
 
