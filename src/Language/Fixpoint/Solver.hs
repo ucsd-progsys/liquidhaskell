@@ -195,6 +195,7 @@ loudDump i cfg si = when False (writeLoud $ msg ++ render (toFixpoint cfg si))
   where
     msg           = "fq file after Uniqify & Rename " ++ show i ++ "\n"
 
+{-# SCC simplifyFInfo #-}
 simplifyFInfo :: (NFData a, Fixpoint a, Show a, Loc a)
                => Config -> FInfo a -> IO (SInfo a)
 simplifyFInfo !cfg !fi0 = do

@@ -33,6 +33,7 @@ import           Language.Fixpoint.Graph.Deps             (isTarget)
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import qualified Language.Fixpoint.Solver.PLE as PLE      (instantiate)
 import           Control.Monad.State
+import           Data.Bifunctor (second)
 import qualified Data.Text            as T
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
@@ -48,7 +49,7 @@ mytracepp = notracepp
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE 
 --------------------------------------------------------------------------------
-instantiate :: (Fixpoint a, Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
+instantiate :: Loc a => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
 instantiate cfg fi subcIds
   | not (oldPLE cfg)
   = PLE.instantiate cfg fi subcIds
@@ -61,7 +62,16 @@ instantiate cfg fi subcIds
 
 
 ------------------------------------------------------------------------------- 
--- | New "Incremental" PLE
+-- | New "Incremental" PLE -- see [NOTE:TREE-LIKE] 
+
+{- | [NOTE:TREE-LIKE] incremental PLE relies crucially on the SInfo satisfying 
+     a "tree like"   invariant: 
+       forall constraints c, c'. 
+         if i in c and i in c' then 
+           forall 0 <= j < i, j in c and j in c'
+
+ -}
+
 ------------------------------------------------------------------------------- 
 incrInstantiate' :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
 ------------------------------------------------------------------------------- 
@@ -267,9 +277,9 @@ updCtx InstEnv {..} ctx delta cidMb
     cands     = (S.fromList (concatMap topApps es0)) `S.difference` (icSolved ctx)
     ctxEqs    = toSMT ieCfg ieSMT [] <$> concat 
                   [ initEqs 
-                  , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvars r) ] 
+                  , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvarsExpr $ reftPred $ sr_reft r) ]
                   ]
-    (bs, es0) = (unElab <$> binds, unElab <$> es)
+    (bs, es0) = (second unElabSortedReft <$> binds, unElab <$> es)
     es        = eRhs : (expr <$> binds) 
     eRhs      = maybe PTrue crhs subMb
     binds     = [ lookupBindEnv i ieBEnv | i <- delta ] 
@@ -313,7 +323,7 @@ isPleCstr :: AxiomEnv -> SubcId -> SimpC a -> Bool
 isPleCstr aenv sid c = isTarget c && M.lookupDefault False sid (aenvExpand aenv) 
 
 cstrExprs :: BindEnv -> SimpC a -> ([(Symbol, SortedReft)], [Expr])
-cstrExprs bds sub = (unElab <$> binds, unElab <$> es)
+cstrExprs bds sub = (second unElabSortedReft <$> binds, unElab <$> es)
   where
     es            = (crhs sub) : (expr <$> binds)
     binds         = envCs bds (senv sub)
@@ -333,7 +343,7 @@ evaluate cfg ctx aenv facts es sid = do
   let cands    = mytracepp  ("evaluate-cands " ++ showpp sid) $ Misc.hashNub (concatMap topApps es)
   let s0       = EvalEnv 0 [] aenv (SMT.ctxSymEnv ctx) cfg
   let ctxEqs   = [ toSMT cfg ctx [] (EEq e1 e2) | (e1, e2)  <- eqs ]
-              ++ [ toSMT cfg ctx [] (expr xr)   | xr@(_, r) <- facts, null (Vis.kvars r) ] 
+              ++ [ toSMT cfg ctx [] (expr xr)   | xr@(_, r) <- facts, null (Vis.kvarsExpr $ reftPred $ sr_reft r) ]
   eqss        <- _evalLoop cfg ctx γ s0 ctxEqs cands 
   return       $ eqs ++ eqss
 
@@ -693,7 +703,7 @@ initEqualities ctx aenv es = concatMap (makeSimplifications (aenvSimpl aenv)) dc
 askSMT :: Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
 askSMT cfg ctx bs e
   | isTautoPred  e     = return True
-  | null (Vis.kvars e) = SMT.checkValidWithContext ctx [] PTrue e'
+  | null (Vis.kvarsExpr e) = SMT.checkValidWithContext ctx [] PTrue e'
   | otherwise          = return False
   where 
     e'                 = toSMT cfg ctx bs e 

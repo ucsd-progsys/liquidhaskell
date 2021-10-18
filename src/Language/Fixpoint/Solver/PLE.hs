@@ -32,6 +32,7 @@ import qualified Language.Fixpoint.Types.Visitor as Vis
 import qualified Language.Fixpoint.Misc          as Misc 
 import qualified Language.Fixpoint.Smt.Interface as SMT
 import           Language.Fixpoint.Defunctionalize
+import qualified Language.Fixpoint.Utils.Files   as Files
 import qualified Language.Fixpoint.Utils.Trie    as T 
 import           Language.Fixpoint.Utils.Progress 
 import           Language.Fixpoint.SortCheck
@@ -48,12 +49,14 @@ import Language.REST.SMT (withZ3, SolverHandle)
 
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
+import           Data.Bifunctor (second)
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import qualified Data.Maybe           as Mb
 import qualified Data.Text            as Tx
 import           Debug.Trace          (trace)
+import           Text.PrettyPrint.HughesPJ.Compat
 
 type OCType = ConstraintsADT
 
@@ -74,14 +77,16 @@ traceE (e,e')
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE 
 --------------------------------------------------------------------------------
-instantiate :: (Fixpoint a, Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
+{-# SCC instantiate #-}
+instantiate :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
 instantiate cfg fi' subcIds = do
     let cs = M.filterWithKey
-              (\i c -> isPleCstr aEnv i c && maybe True (i `L.elem`) subcIds)
-              (cm fi)
-    let t  = mkCTrie (M.toList cs)
+               (\i c -> isPleCstr aEnv i c && maybe True (i `L.elem`) subcIds)
+               (cm fi)
+    let t  = mkCTrie (M.toList cs)                                    -- 1. BUILD the Trie
     res   <- withZ3 $ \z3 -> withProgress (1 + M.size cs) $
                withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs z3) -- 2. TRAVERSE Trie to compute InstRes
+    savePLEEqualities cfg fi res
     return $ resSInfo cfg sEnv fi res                                 -- 3. STRENGTHEN SInfo using InstRes
   where
     file   = srcFile cfg ++ ".evals"
@@ -89,7 +94,22 @@ instantiate cfg fi' subcIds = do
     aEnv   = ae fi 
     fi     = normalize fi' 
 
-
+savePLEEqualities :: Config -> SInfo a -> InstRes -> IO ()
+savePLEEqualities cfg fi res = when (save cfg) $ do
+    let fq   = queryFile Files.Fq cfg ++ ".ple"
+    putStrLn $ "\nSaving PLE equalities: "   ++ fq ++ "\n"
+    Misc.ensurePath fq
+    let constraint_equalities =
+          map equalitiesPerConstraint $ Misc.hashMapToAscList $ cm fi
+    writeFile fq $ render $ vcat $
+      map renderConstraintRewrite constraint_equalities
+  where
+    equalitiesPerConstraint (cid, c) =
+      (cid, L.sort [ e | i <- elemsIBindEnv (senv c), Just e <- [M.lookup i res] ])
+    renderConstraintRewrite (cid, eqs) =
+      "constraint id" <+> text (show cid ++ ":")
+      $+$ nest 2 (toFix (pAnd eqs))
+      $+$ ""
 
 ------------------------------------------------------------------------------- 
 -- | Step 1a: @instEnv@ sets up the incremental-PLE environment 
@@ -126,7 +146,7 @@ mkCTrie ics  = T.fromList [ (cBinds c, i) | (i, c) <- ics ]
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 2: @pleTrie@ walks over the @CTrie@ to actually do the incremental-PLE
-pleTrie :: Fixpoint a => CTrie -> InstEnv a -> IO InstRes
+pleTrie :: CTrie -> InstEnv a -> IO InstRes
 pleTrie t env = loopT env ctx0 diff0 Nothing res0 t 
   where 
     diff0        = []
@@ -355,10 +375,9 @@ updCtx InstEnv {..} ctx delta cidMb
                   [ equalitiesPred initEqs 
                   , equalitiesPred sims 
                   , equalitiesPred (icEquals ctx)
-                  , bexprs
+                  , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvarsExpr $ reftPred $ sr_reft r) ]
                   ])
-    bexprs    = [ expr xr   | xr@(_, r) <- bs, null (Vis.kvars r) ]
-    bs        = unElab <$> binds
+    bs        = second unElabSortedReft <$> binds
     (rhs:es)  = unElab <$> (eRhs : (expr <$> binds))
     eRhs      = maybe PTrue crhs subMb
     binds     = [ lookupBindEnv i ieBEnv | i <- delta ]
@@ -962,7 +981,7 @@ askSMT :: Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
 askSMT cfg ctx bs e
 --   | isContraPred e     = return False 
   | isTautoPred  e     = return True
-  | null (Vis.kvars e) = SMT.checkValidWithContext ctx [] PTrue e'
+  | null (Vis.kvarsExpr e) = SMT.checkValidWithContext ctx [] PTrue e'
   | otherwise          = return False
   where 
     e'                 = toSMT "askSMT" cfg ctx bs e 
@@ -1009,7 +1028,7 @@ class Simplifiable a where
 
 
 instance Simplifiable Expr where
-  simplify γ ictx e = mytracepp ("simplification of " ++ showpp e) $ fix (Vis.mapExpr tx) e 
+  simplify γ ictx e = mytracepp ("simplification of " ++ showpp e) $ fix (Vis.mapExprOnExpr tx) e
     where 
       fix f e = if e == e' then e else fix f e' where e' = f e 
       tx e 

@@ -19,6 +19,7 @@ module Language.Fixpoint.Solver.Monad
        , filterValidGradual
        , checkSat
        , smtEnablembqi
+       , sendConcreteBindingsToSMT
 
          -- * Debug
        , Stats
@@ -36,6 +37,7 @@ import qualified Language.Fixpoint.Types   as F
 -- import qualified Language.Fixpoint.Misc    as Misc
 -- import           Language.Fixpoint.SortCheck
 import qualified Language.Fixpoint.Types.Solutions as F
+import qualified Language.Fixpoint.Types.Visitor as F
 -- import qualified Language.Fixpoint.Types.Errors  as E
 import           Language.Fixpoint.Smt.Serialize ()
 import           Language.Fixpoint.Types.PrettyPrint ()
@@ -76,7 +78,7 @@ runSolverM :: Config -> SolverInfo b c -> SolveM a -> IO a
 runSolverM cfg sI act =
   bracket acquire release $ \ctx -> do
     res <- runStateT act' (s0 ctx)
-    smtWrite ctx "(exit)"
+    smtExit ctx
     return (fst res)
   where
     s0 ctx   = SS ctx be (stats0 fi)
@@ -125,6 +127,33 @@ modifyStats f = modify $ \s -> s { ssStats = f (ssStats s) }
 --------------------------------------------------------------------------------
 -- | SMT Interface -------------------------------------------------------------
 --------------------------------------------------------------------------------
+
+-- | Takes the environment of bindings already known to the SMT,
+-- and the environment of all bindings that need to be known.
+--
+-- Yields the ids of bindings known to the SMT
+sendConcreteBindingsToSMT
+  :: F.IBindEnv -> (F.IBindEnv -> SolveM a) -> SolveM a
+sendConcreteBindingsToSMT known act = do
+  be <- getBinds
+  let concretePreds =
+        [ (i, F.subst1 p (v, F.EVar s))
+        | (i, s, F.RR _ (F.Reft (v, p))) <- F.bindEnvToList be
+        , F.isConc p
+        , not (isShortExpr p)
+        , not (F.memberIBindEnv i known)
+        ]
+  st <- get
+  withContext $ \me -> do
+    smtBracket me "" $ do
+      forM_ concretePreds $ \(i, e) ->
+        smtDefineFunc me (F.bindSymbol (fromIntegral i)) [] F.boolSort e
+      flip evalStateT st $ act $ F.unionIBindEnv known $ F.fromListIBindEnv $ map fst concretePreds
+  where
+    isShortExpr F.PTrue = True
+    isShortExpr F.PTop = True
+    isShortExpr _ = False
+
 -- | `filterRequired [(x1, p1),...,(xn, pn)] q` returns a minimal list [xi] s.t.
 --   /\ [pi] => q
 --------------------------------------------------------------------------------
@@ -154,6 +183,7 @@ filterRequired = error "TBD:filterRequired"
 --------------------------------------------------------------------------------
 -- | `filterValid p [(x1, q1),...,(xn, qn)]` returns the list `[ xi | p => qi]`
 --------------------------------------------------------------------------------
+{-# SCC filterValid #-}
 filterValid :: F.SrcSpan -> F.Expr -> F.Cand a -> SolveM [a]
 --------------------------------------------------------------------------------
 filterValid sp p qs = do
@@ -166,14 +196,17 @@ filterValid sp p qs = do
   incVald (length qs')
   return qs'
 
+{-# SCC filterValid_ #-}
 filterValid_ :: F.SrcSpan -> F.Expr -> F.Cand a -> Context -> IO [a]
 filterValid_ sp p qs me = catMaybes <$> do
-  smtAssert me p
-  forM qs $ \(q, x) ->
-    smtBracketAt sp me "filterValidRHS" $ do
-      smtAssert me (F.PNot q)
-      valid <- smtCheckUnsat me
-      return $ if valid then Just x else Nothing
+  smtAssertAsync me p
+  forM_ qs $ \(q, _x) ->
+    smtBracketAsyncAt sp me "filterValidRHS" $ do
+      smtAssertAsync me (F.PNot q)
+      smtCheckUnsatAsync me
+  forM qs $ \(_, x) -> do
+    valid <- readCheckUnsat me
+    return $ if valid then Just x else Nothing
 
 
 --------------------------------------------------------------------------------
@@ -213,8 +246,7 @@ filterValidOne_ p qs me = do
 
 smtEnablembqi :: SolveM ()
 smtEnablembqi
-  = withContext $ \me ->
-      smtWrite me "(set-option :smt.mbqi true)"
+  = withContext smtSetMbqi
 
 --------------------------------------------------------------------------------
 checkSat :: F.Expr -> SolveM  Bool

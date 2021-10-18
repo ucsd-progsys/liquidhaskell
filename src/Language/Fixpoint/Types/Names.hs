@@ -72,9 +72,11 @@ module Language.Fixpoint.Types.Names (
   , intSymbol
   , tempSymbol
   , gradIntSymbol
+  , appendSymbolText
 
   -- * Wrapping Symbols
   , litSymbol
+  , bindSymbol
   , testSymbol
   , renameSymbol
   , kArgSymbol
@@ -138,13 +140,14 @@ import           Data.Interned
 import           Data.Interned.Internal.Text
 import           Data.String                 (IsString(..))
 import qualified Data.Text                   as T
-import qualified Data.Text.Lazy.Builder      as Builder
 import qualified Data.Store                  as S
 import           Data.Typeable               (Typeable)
+import qualified GHC.Arr                     as Arr
 import           GHC.Generics                (Generic)
 import           Text.PrettyPrint.HughesPJ   (text)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
+import           Language.Fixpoint.Utils.Builder as Builder (Builder, fromText)
 import Data.Functor.Contravariant (Contravariant(contramap))
 import qualified Data.Binary as B
 
@@ -171,8 +174,8 @@ type SafeText = T.Text
 
 data Symbol
   = S { _symbolId      :: !Id
-      , symbolRaw     :: !T.Text
-      , symbolEncoded :: !T.Text
+      , symbolRaw      :: T.Text
+      , symbolEncoded  :: T.Text
       } deriving (Data, Typeable, Generic)
 
 instance Eq Symbol where
@@ -194,7 +197,7 @@ instance Uninternable Symbol where
   unintern (S _ t _) = t
 
 instance Hashable (Description Symbol) where
-  hashWithSalt s (DT t) = hashWithSalt s t
+  hashWithSalt s (DT t) = {-# SCC "hashWithSalt-Description-Symbol" #-} hashWithSalt s t
 
 instance Hashable Symbol where
   -- NOTE: hash based on original text rather than id
@@ -272,6 +275,7 @@ instance Symbolic a => Symbolic (Located a) where
 symbolText :: Symbol -> T.Text
 symbolText = symbolRaw
 
+{-# SCC symbolString #-}
 symbolString :: Symbol -> String
 symbolString = T.unpack . symbolText
 
@@ -287,6 +291,7 @@ symbolSafeString = T.unpack . symbolSafeText
 
 -- INVARIANT: All strings *must* be built from here
 
+{-# SCC textSymbol #-}
 textSymbol :: T.Text -> Symbol
 textSymbol = intern
 
@@ -298,8 +303,18 @@ encode t
 isFixKey :: T.Text -> Bool
 isFixKey x = S.member x keywords
 
+{-# SCC encodeUnsafe #-}
 encodeUnsafe :: T.Text -> T.Text
-encodeUnsafe = joinChunks . splitChunks . prefixAlpha
+encodeUnsafe t = T.pack $ pad $ go $ T.unpack (prefixAlpha t)
+  where
+    pad cs@('$':_) = 'z' : '$' : cs
+    pad cs = cs
+    go [] = []
+    go (c:cs) =
+      if isUnsafeChar c then
+        '$' : shows (ord c) ('$' : go cs)
+      else
+        c : go cs
 
 prefixAlpha :: T.Text -> T.Text
 prefixAlpha t
@@ -311,30 +326,13 @@ isAlpha0 t = case T.uncons t of
                Just (c, _) -> S.member c alphaChars
                Nothing     -> False
 
-joinChunks :: (T.Text, [(Char, SafeText)]) -> SafeText
-joinChunks (t, [] ) = t
-joinChunks (t, cts) = T.concat $ padNull t : (tx <$> cts)
-  where
-    tx (c, ct)      = mconcat ["$", c2t c, "$", ct]
-    c2t             = T.pack . show . ord
-
-padNull :: T.Text -> T.Text
-padNull t
-  | T.null t  = "z$"
-  | otherwise = t
-
-splitChunks :: T.Text -> (T.Text, [(Char, SafeText)])
-splitChunks t = (h, go tl)
-  where
-    (h, tl)   = T.break isUnsafeChar t
-    go !ut    = case T.uncons ut of
-                  Nothing       -> []
-                  Just (c, ut') -> let (ct, utl) = T.break isUnsafeChar ut'
-                                   in (c, ct) : go utl
-
 isUnsafeChar :: Char -> Bool
-isUnsafeChar = not . (`S.member` okSymChars)
-
+isUnsafeChar c =
+  let ic = ord c
+   in if ic < Arr.numElements okSymChars then
+        not (okSymChars Arr.! ic)
+      else
+        True
 
 keywords :: S.HashSet T.Text
 keywords   = S.fromList [ "env"
@@ -372,8 +370,12 @@ symChars :: S.HashSet Char
 symChars =  safeChars `mappend`
             S.fromList ['%', '#', '$', '\'']
 
-okSymChars :: S.HashSet Char
-okSymChars = safeChars
+okSymChars :: Arr.Array Int Bool
+okSymChars =
+    Arr.listArray (0, maxChar) [ S.member (toEnum i) safeChars | i <- [0..maxChar]]
+  where
+    cs = S.toList safeChars
+    maxChar = ord (maximum cs)
 
 isPrefixOfSym :: Symbol -> Symbol -> Bool
 isPrefixOfSym (symbolText -> p) (symbolText -> x) = p `T.isPrefixOf` x
@@ -421,7 +423,10 @@ stripSuffix p x = symbol <$> T.stripSuffix (symbolText p) (symbolText x)
 -- | Use this **EXCLUSIVELY** when you want to add stuff in front of a Symbol
 --------------------------------------------------------------------------------
 suffixSymbol :: Symbol -> Symbol -> Symbol
-suffixSymbol  x y = x `mappendSym` symSepName `mappendSym` y
+suffixSymbol  x y = symbol $ suffixSymbolText (symbolText x) (symbolText y)
+
+suffixSymbolText :: T.Text -> T.Text -> T.Text
+suffixSymbolText  x y = x <> symSepName <> y
 
 vv                  :: Maybe Integer -> Symbol
 -- vv (Just i)         = symbol $ symbolSafeText vvName `T.snoc` symSepName `mappend` T.pack (show i)
@@ -458,7 +463,10 @@ unLitSymbol :: Symbol -> Maybe Symbol
 unLitSymbol = stripPrefix litPrefix
 
 intSymbol :: (Show a) => Symbol -> a -> Symbol
-intSymbol x i = x `suffixSymbol` symbol (show i)
+intSymbol x i = symbol $ symbolText x `suffixSymbolText` T.pack (show i)
+
+appendSymbolText :: Symbol -> T.Text -> T.Text
+appendSymbolText s t = encode (symbolText s <> symSepName <> t)
 
 tempSymbol :: Symbol -> Integer -> Symbol
 tempSymbol prefix = intSymbol (tempPrefix `mappendSym` prefix)
@@ -475,12 +483,19 @@ existSymbol prefix = intSymbol (existPrefix `mappendSym` prefix)
 gradIntSymbol :: Integer -> Symbol
 gradIntSymbol = intSymbol gradPrefix
 
-tempPrefix, anfPrefix, renamePrefix, litPrefix, gradPrefix :: Symbol
+-- | Used to define functions corresponding to binding predicates
+--
+-- The integer is the BindId.
+bindSymbol :: Integer -> Symbol
+bindSymbol = intSymbol bindPrefix
+
+tempPrefix, anfPrefix, renamePrefix, litPrefix, gradPrefix, bindPrefix :: Symbol
 tempPrefix   = "lq_tmp$"
 anfPrefix    = "lq_anf$"
 renamePrefix = "lq_rnm$"
 litPrefix    = "lit$"
 gradPrefix   = "grad$"
+bindPrefix   = "b$"
 
 testPrefix  :: Symbol
 testPrefix   = "is$"
@@ -533,7 +548,7 @@ instance Symbolic String where
 instance Symbolic Symbol where
   symbol = id
 
-symbolBuilder :: (Symbolic a) => a -> Builder.Builder
+symbolBuilder :: (Symbolic a) => a -> Builder
 symbolBuilder = Builder.fromText . symbolSafeText . symbol
 
 {-# INLINE buildMany #-}

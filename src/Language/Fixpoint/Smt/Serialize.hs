@@ -22,10 +22,9 @@ import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Data.Semigroup                 (Semigroup (..))
 #endif
 
-import qualified Data.Text.Lazy.Builder         as Builder
 -- import           Data.Text.Format
 import           Language.Fixpoint.Misc (sortNub, errorstar)
-import           Language.Fixpoint.Utils.Builder
+import           Language.Fixpoint.Utils.Builder as Builder
 -- import Debug.Trace (trace)
 
 instance SMTLIB2 (Symbol, Sort) where
@@ -179,13 +178,13 @@ smt2Var env x t
   | otherwise                   = smt2 env x
 
 smtLamArg :: SymEnv -> Symbol -> Sort -> Builder.Builder
-smtLamArg env x t = symbolBuilder $ symbolAtName x env () (FFunc t FInt)
+smtLamArg env x t = Builder.fromText $ symbolAtName x env () (FFunc t FInt)
 
 smt2VarAs :: SymEnv -> Symbol -> Sort -> Builder.Builder
 smt2VarAs env x t = parenSeqs ["as", smt2 env x, smt2SortMono x env t]
 
 smt2Lam :: SymEnv -> (Symbol, Sort) -> Expr -> Builder.Builder
-smt2Lam env (x, xT) (ECst e eT) = parenSeqs [smt2 env lambda, x', smt2 env e]
+smt2Lam env (x, xT) (ECst e eT) = parenSeqs [Builder.fromText lambda, x', smt2 env e]
   where
     x'                          = smtLamArg env x xT
     lambda                      = symbolAtName lambdaName env () (FFunc xT eT)
@@ -196,7 +195,7 @@ smt2Lam _ _ e
 smt2App :: SymEnv -> Expr -> Builder.Builder
 smt2App env e@(EApp (EApp f e1) e2)
   | Just t <- unApplyAt f
-  = parenSeqs [symbolBuilder (symbolAtName applyName env e t), smt2s env [e1, e2]]
+  = parenSeqs [Builder.fromText (symbolAtName applyName env e t), smt2s env [e1, e2]]
 smt2App env e
   | Just b <- Thy.smt2App smt2VarAs env f (smt2 env <$> es)
   = b
@@ -208,7 +207,7 @@ smt2App env e
 smt2Coerc :: SymEnv -> Sort -> Sort -> Expr -> Builder.Builder
 smt2Coerc env t1 t2 e 
   | t1' == t2'  = smt2 env e
-  | otherwise = parenSeqs [symbolBuilder coerceFn , smt2 env e]
+  | otherwise = parenSeqs [Builder.fromText coerceFn , smt2 env e]
   where 
     coerceFn  = symbolAtName coerceName env (ECoerc t1 t2 e) t
     t         = FFunc t1 t2
@@ -232,10 +231,13 @@ mkNe env e1 e2      = key "not" (parenSeqs ["=",  smt2 env e1, smt2 env e2])
 
 instance SMTLIB2 Command where
   smt2 env (DeclData ds)       = key "declare-datatypes" (smt2data env ds)
-  smt2 env (Declare x ts t)    = parenSeqs ["declare-fun", smt2 env x, parens (smt2many (smt2 env <$> ts)), smt2 env t]
+  smt2 env (Declare x ts t)    = parenSeqs ["declare-fun", Builder.fromText x, parens (smt2many (smt2 env <$> ts)), smt2 env t]
   smt2 env c@(Define t)        = key "declare-sort" (smt2SortMono c env t)
-  smt2 env (Assert Nothing p)  = key "assert" (smt2 env p)
-  smt2 env (Assert (Just i) p) = key "assert" (parens ("!"<+> smt2 env p <+> ":named p-" <> bShow i))
+  smt2 env (DefineFunc name params rsort e) =
+    let bParams = [ parenSeqs [smt2 env s, smt2 env t] | (s, t) <- params]
+     in parenSeqs ["define-fun", smt2 env name, parenSeqs bParams, smt2 env rsort, smt2 env e]
+  smt2 env (Assert Nothing p)  = {-# SCC "smt2-assert" #-} key "assert" (smt2 env p)
+  smt2 env (Assert (Just i) p) = {-# SCC "smt2-assert" #-} key "assert" (parens ("!"<+> smt2 env p <+> ":named p-" <> bShow i))
   smt2 env (Distinct az)
     | length az < 2            = ""
     | otherwise                = key "assert" (key "distinct" (smt2s env az))
@@ -245,6 +247,8 @@ instance SMTLIB2 Command where
   smt2 _   (CheckSat)          = "(check-sat)"
   smt2 env (GetValue xs)       = key "key-value" (parens (smt2s env xs))
   smt2 env (CMany cmds)        = smt2many (smt2 env <$> cmds)
+  smt2 _   (Exit)              = "(exit)"
+  smt2 _   (SetMbqi)           = "(set-option :smt.mbqi true)"
 
 instance SMTLIB2 (Triggered Expr) where
   smt2 env (TR NoTrigger e)       = smt2 env e
@@ -264,4 +268,4 @@ smt2s env as = smt2many (smt2 env <$> as)
 
 {-# INLINE smt2many #-}
 smt2many :: [Builder.Builder] -> Builder.Builder
-smt2many = buildMany
+smt2many = seqs

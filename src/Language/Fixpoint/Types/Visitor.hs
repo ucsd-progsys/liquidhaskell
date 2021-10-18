@@ -26,20 +26,20 @@ module Language.Fixpoint.Types.Visitor (
 
   -- * Clients
   , stripCasts
-  , kvars, eapps
+  , kvarsExpr, eapps
   , size, lamSize
   , envKVars
   , envKVarsN
   , rhsKVars
   , mapKVars, mapKVars', mapGVars', mapKVarSubsts
-  , mapExpr, mapMExpr
+  , mapExpr, mapExprOnExpr, mapMExpr
 
   -- * Coercion Substitutions
   , CoSub
   , applyCoSub
 
   -- * Predicates on Constraints
-  , isConcC , isKvarC
+  , isConcC , isConc, isKvarC
 
   -- * Sorts
   , foldSort
@@ -232,6 +232,34 @@ mapGVars' f            = trans kvVis () ()
 mapExpr :: Visitable t => (Expr -> Expr) -> t -> t
 mapExpr f = trans (defaultVisitor {txExpr = const f}) () ()
 
+-- | Specialized and faster version of mapExpr for expressions
+mapExprOnExpr :: (Expr -> Expr) -> Expr -> Expr
+mapExprOnExpr f = go
+  where
+    go e0 = f $ case e0 of
+      EApp f e -> EApp (go f) (go e)
+      ENeg e -> ENeg (go e)
+      EBin o e1 e2 ->  EBin o (go e1) (go e2)
+      EIte p e1 e2 -> EIte (go p) (go e1) (go e2)
+      ECst e t -> ECst (go e) t
+      PAnd ps -> PAnd (map go ps)
+      POr ps -> POr (map go ps)
+      PNot p -> PNot (go p)
+      PImp p1 p2 -> PImp (go p1) (go p2)
+      PIff p1 p2 -> PIff (go p1) (go p2)
+      PAtom r e1 e2 -> PAtom r (go e1) (go e2)
+      PAll xts p -> PAll xts (go p)
+      ELam (x,t) e -> ELam (x,t) (go e)
+      ECoerc a t e -> ECoerc a t (go e)
+      PExist xts p -> PExist xts (go p)
+      ETApp e s -> ETApp (go e) s
+      ETAbs e s -> ETAbs (go e) s
+      PGrad k su i e -> PGrad k su i (go e)
+      e@PKVar{} -> e
+      e@EVar{} -> e
+      e@ESym{} -> e
+      e@ECon{} -> e
+
 
 mapMExpr :: (Monad m) => (Expr -> m Expr) -> Expr -> m Expr
 mapMExpr f = go
@@ -298,28 +326,48 @@ eapps                 = fold eappVis () []
     eapp' _ e@(EApp _ _) = [e]
     eapp' _ _            = []
 
-kvars :: Visitable t => t -> [KVar]
-kvars                 = fold kvVis () []
+{-# SCC kvarsExpr #-}
+kvarsExpr :: Expr -> [KVar]
+kvarsExpr = go []
   where
-    kvVis             = (defaultVisitor :: Visitor [KVar] t) { accExpr = kv' }
-    kv' _ (PKVar k _)     = [k]
-    kv' _ (PGrad k _ _ _) = [k]
-    kv' _ _               = []
+    go acc e0 = case e0 of
+      ESym _ -> acc
+      ECon _ -> acc
+      EVar _ -> acc
+      PKVar k _ -> k : acc
+      PGrad k _ _ _ -> k : acc
+      ENeg e -> go acc e
+      PNot p -> go acc p
+      ECst e _t -> go acc e
+      PAll _xts p -> go acc p
+      ELam _b e -> go acc e
+      ECoerc _a _t e -> go acc e
+      PExist _xts p -> go acc p
+      ETApp e _s -> go acc e
+      ETAbs e _s -> go acc e
+      EApp g e -> go (go acc e) g
+      EBin _o e1 e2 -> go (go acc e2) e1
+      PImp p1 p2 -> go (go acc p2) p1
+      PIff p1 p2 -> go (go acc p2) p1
+      PAtom _r e1 e2 -> go (go acc e2) e1
+      EIte p e1 e2 -> go (go (go acc e2) e1) p
+      PAnd ps -> foldr (flip go) acc ps
+      POr ps -> foldr (flip go) acc ps
 
 envKVars :: (TaggedC c a) => BindEnv -> c a -> [KVar]
 envKVars be c = squish [ kvs sr |  (_, sr) <- clhs be c]
   where
     squish    = S.toList  . S.fromList . concat
-    kvs       = kvars . sr_reft
+    kvs       = kvarsExpr . reftPred . sr_reft
 
 envKVarsN :: (TaggedC c a) => BindEnv -> c a -> [(KVar, Int)]
 envKVarsN be c = tally [ kvs sr |  (_, sr) <- clhs be c]
   where
     tally      = Misc.count . concat
-    kvs        = kvars . sr_reft
+    kvs        = kvarsExpr . reftPred . sr_reft
 
 rhsKVars :: (TaggedC c a) => c a -> [KVar]
-rhsKVars = kvars . crhs -- rhsCs
+rhsKVars = kvarsExpr . crhs -- rhsCs
 
 isKvarC :: (TaggedC c a) => c a -> Bool
 isKvarC = all isKvar . conjuncts . crhs
@@ -333,10 +381,10 @@ isKvar (PGrad {}) = True
 isKvar _          = False
 
 isConc :: Expr -> Bool
-isConc = null . kvars
+isConc = null . kvarsExpr
 
-stripCasts :: (Visitable t) => t -> t
-stripCasts = trans (defaultVisitor { txExpr = const go }) () ()
+stripCasts :: Expr -> Expr
+stripCasts = mapExprOnExpr go
   where
     go (ECst e _) = e
     go e          = e

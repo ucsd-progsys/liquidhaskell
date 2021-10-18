@@ -79,6 +79,7 @@ getUniqueInt = do
 -- | Edit Distance --------------------------------------------
 ---------------------------------------------------------------
 
+{-# SCC editDistance #-}
 editDistance :: Eq a => [a] -> [a] -> Int
 editDistance xs ys = table ! (m, n)
     where
@@ -181,10 +182,10 @@ mfromJust _ (Just x) = x
 mfromJust s Nothing  = errorstar $ "mfromJust: Nothing " ++ s
 
 inserts ::  (Eq k, Hashable k) => k -> v -> M.HashMap k [v] -> M.HashMap k [v]
-inserts k v m = M.insert k (v : M.lookupDefault [] k m) m
+inserts k v m = M.insertWith (const (v:)) k [v] m
 
 removes ::  (Eq k, Hashable k, Eq v) => k -> v -> M.HashMap k [v] -> M.HashMap k [v]
-removes k v m = M.insert k (L.delete v (M.lookupDefault [] k m)) m
+removes k v m = M.insertWith (const (L.delete v)) k [] m
 
 count :: (Eq k, Hashable k) => [k] -> [(k, Int)]
 count = M.toList . fmap sum . group . fmap (, 1)

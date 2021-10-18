@@ -39,7 +39,7 @@ module Language.Fixpoint.Types.Refinements (
   -- * Constructing Terms
   , eVar, elit
   , eProp
-  , conj, pAnd, pOr, pIte
+  , conj, pAnd, pOr, pIte, pAndNoDedup
   , (&.&), (|.|)
   , pExist
   , mkEApp
@@ -129,7 +129,6 @@ import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.Binary as B
-import qualified Data.HashSet as S
 
 -- import           Text.Printf               (printf)
 
@@ -170,9 +169,9 @@ instance B.Binary SrcSpan
 instance B.Binary GradInfo
 instance B.Binary Brel
 instance B.Binary KVar
-instance (Hashable a, Eq a, B.Binary a) => B.Binary (S.HashSet a) where
-  put = B.put . S.toList
-  get = S.fromList <$> B.get
+instance (Hashable a, Eq a, B.Binary a) => B.Binary (HashSet a) where
+  put = B.put . HashSet.toList
+  get = HashSet.fromList <$> B.get
 instance (Hashable k, Eq k, B.Binary k, B.Binary v) => B.Binary (M.HashMap k v) where
   put = B.put . M.toList
   get = M.fromList <$> B.get
@@ -544,8 +543,8 @@ instance Fixpoint Expr where
   toFix (EVar s)       = toFix s
   toFix e@(EApp _ _)   = parens $ hcat $ punctuate " " $ toFix <$> (f:es) where (f, es) = splitEApp e
   toFix (ENeg e)       = parens $ text "-"  <+> parens (toFix e)
-  toFix (EBin o e1 e2) = parens $ toFix e1  <+> toFix o <+> toFix e2
-  toFix (EIte p e1 e2) = parens $ text "if" <+> toFix p <+> text "then" <+> toFix e1 <+> text "else" <+> toFix e2
+  toFix (EBin o e1 e2) = parens $ sep [toFix e1  <+> toFix o, nest 2 (toFix e2)]
+  toFix (EIte p e1 e2) = parens $ sep [text "if" <+> toFix p <+> text "then", nest 2 (toFix e1), text "else", nest 2 (toFix e2)]
   -- toFix (ECst e _so)   = toFix e
   toFix (ECst e so)    = parens $ toFix e   <+> text " : " <+> toFix so
   -- toFix (EBot)         = text "_|_"
@@ -557,7 +556,7 @@ instance Fixpoint Expr where
   toFix (PIff p1 p2)   = parens $ toFix p1 <+> text "<=>" <+> toFix p2
   toFix (PAnd ps)      = text "&&" <+> toFix ps
   toFix (POr  ps)      = text "||" <+> toFix ps
-  toFix (PAtom r e1 e2)  = parens $ toFix e1 <+> toFix r <+> toFix e2
+  toFix (PAtom r e1 e2)  = parens $ sep [ toFix e1 <+> toFix r, nest 2 (toFix e2)]
   toFix (PKVar k su)     = toFix k <-> toFix su
   toFix (PAll xts p)     = "forall" <+> (toFix xts
                                         $+$ ("." <+> toFix p))
@@ -569,52 +568,58 @@ instance Fixpoint Expr where
   toFix (ECoerc a t e)   = parens (text "coerce" <+> toFix a <+> text "~" <+> toFix t <+> text "in" <+> toFix e)
   toFix (ELam (x,s) e)   = text "lam" <+> toFix x <+> ":" <+> toFix s <+> "." <+> toFix e
 
-  simplify (POr  [])     = PFalse
-  simplify (POr  [p])    = simplify p
-  simplify (PNot p) =
-    let sp = simplify p
-     in case sp of
-          PNot e -> e
-          _ -> PNot sp
-  -- XXX: Do not simplify PImp until PLE can handle it
-  -- https://github.com/ucsd-progsys/liquid-fixpoint/issues/475
-  -- simplify (PImp p q) =
-  --   let sq = simplify q
-  --    in if sq == PTrue then PTrue
-  --       else if sq == PFalse then simplify (PNot p)
-  --       else PImp (simplify p) sq
-  simplify (PIff p q)    =
-    let sp = simplify p
-        sq = simplify q
-     in if sp == sq then PTrue
-        else if sp == PTrue then sq
-        else if sq == PTrue then sp
-        else if sp == PFalse then PNot sq
-        else if sq == PFalse then PNot sp
-        else PIff sp sq
-
-  simplify (PGrad k su i e)
-    | isContraPred e      = PFalse
-    | otherwise           = PGrad k su i (simplify e)
-
-  simplify (PAnd ps)
-    | any isContraPred ps = PFalse
-                         -- Note: Performance of some tests is very sensitive to this code. See #480 
-    | otherwise           = simplPAnd . dedup . flattenRefas . filter (not . isTautoPred) $ map simplify ps
+  simplify = simplifyExpr dedup
     where
       dedup = Set.toList . Set.fromList
-      simplPAnd [] = PTrue
-      simplPAnd [p] = p
-      simplPAnd xs = PAnd xs
 
-  simplify (POr  ps)
-    | any isTautoPred ps = PTrue
-    | otherwise          = POr  $ filter (not . isContraPred) $ map simplify ps
+simplifyExpr :: ([Expr] -> [Expr]) -> Expr -> Expr
+simplifyExpr dedup = go
+  where
+    go (POr  [])     = PFalse
+    go (POr  [p])    = go p
+    go (PNot p) =
+      let sp = go p
+       in case sp of
+            PNot e -> e
+            _ -> PNot sp
+    -- XXX: Do not simplify PImp until PLE can handle it
+    -- https://github.com/ucsd-progsys/liquid-fixpoint/issues/475
+    -- go (PImp p q) =
+    --   let sq = go q
+    --    in if sq == PTrue then PTrue
+    --       else if sq == PFalse then go (PNot p)
+    --       else PImp (go p) sq
+    go (PIff p q)    =
+      let sp = go p
+          sq = go q
+       in if sp == sq then PTrue
+          else if sp == PTrue then sq
+          else if sq == PTrue then sp
+          else if sp == PFalse then PNot sq
+          else if sq == PFalse then PNot sp
+          else PIff sp sq
 
-  simplify p
-    | isContraPred p     = PFalse
-    | isTautoPred  p     = PTrue
-    | otherwise          = p
+    go (PGrad k su i e)
+      | isContraPred e      = PFalse
+      | otherwise           = PGrad k su i (go e)
+
+    go (PAnd ps)
+      | any isContraPred ps = PFalse
+                           -- Note: Performance of some tests is very sensitive to this code. See #480
+      | otherwise           = simplPAnd . dedup . flattenRefas . filter (not . isTautoPred) $ map go ps
+      where
+        simplPAnd [] = PTrue
+        simplPAnd [p] = p
+        simplPAnd xs = PAnd xs
+
+    go (POr  ps)
+      | any isTautoPred ps = PTrue
+      | otherwise          = POr  $ filter (not . isContraPred) $ map go ps
+
+    go p
+      | isContraPred p     = PFalse
+      | isTautoPred  p     = PTrue
+      | otherwise          = p
 
 isContraPred   :: Expr -> Bool
 isContraPred z = eqC z || (z `elem` contras)
@@ -874,6 +879,9 @@ conj ps  = PAnd ps
 
 pAnd, pOr     :: ListNE Pred -> Pred
 pAnd          = simplify . PAnd
+
+pAndNoDedup :: ListNE Pred -> Pred
+pAndNoDedup = simplifyExpr id . PAnd
 
 pOr           = simplify . POr
 
