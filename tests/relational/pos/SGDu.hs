@@ -12,6 +12,7 @@ import           Language.Haskell.Liquid.ProofCombinators
 {-@ type Prob = {v:Double|0 <= v && v <= 1} @-}
 type Prob = Double
 
+{-@ type StepSize = {v:Double | 0.0 <= v } @-}
 type StepSize = Double
 type DataPoint = (Double, Double)
 type Weight = Double
@@ -45,18 +46,16 @@ unif :: DataSet -> DataDistr
 unif = undefined
 
 {-@ relationalupdatep :: z1:DataPoint -> ws1:Weight -> α1:StepSize -> f1:LossFunction -> 
-                                  z2:DataPoint -> ws2:Weight -> {α2:StepSize|α1 = α2} -> {f2:LossFunction|f1 = f2} -> 
-                                    {dist (update z1 ws1 α1 f1) (update z2 ws2 α2 f2) = dist ws1 ws2} @-}
-relationalupdatep :: DataPoint -> Weight -> StepSize -> LossFunction -> DataPoint -> Weight -> StepSize -> 
-  LossFunction -> ()
+                          z2:DataPoint -> ws2:Weight -> {α2:StepSize|α1 = α2} -> {f2:LossFunction|f1 = f2} -> 
+                            {dist (update z1 ws1 α1 f1) (update z2 ws2 α2 f2) = dist ws1 ws2 + 2 * α1} @-}
+relationalupdatep ::  DataPoint  -> Weight  -> StepSize  -> LossFunction  -> DataPoint  -> Weight  -> StepSize  -> LossFunction  -> ()
 relationalupdatep = undefined
 
 
 {-@ relationalupdateq :: z1:DataPoint -> ws1:Weight -> α1:StepSize -> f1:LossFunction -> 
                                   {z2:DataPoint|z1 = z2} -> ws2:Weight -> {α2:StepSize|α1 = α2} -> {f2:LossFunction|f1 = f2} -> 
                                     {dist (update z1 ws1 α1 f1) (update z2 ws2 α2 f2) = dist ws1 ws2} @-}
-relationalupdateq :: DataPoint -> Weight -> StepSize -> LossFunction -> DataPoint -> Weight -> StepSize -> 
-  LossFunction -> ()
+relationalupdateq ::  DataPoint  -> Weight  -> StepSize  -> LossFunction  -> DataPoint  -> Weight  -> StepSize  -> LossFunction  -> ()
 relationalupdateq = undefined
 
 {-@ measure SGDu.update :: DataPoint -> Weight -> StepSize -> LossFunction -> Weight @-}
@@ -75,15 +74,16 @@ lend []       = 0
 lend (_ : xs) = 1 + lend xs
 
 -- TODO: diamond
-{-@ relationalpbind :: ws1:Weight -> ws2:Weight -> e1:Distr a -> f1:(a -> Distr b) -> e2:Distr a -> f2:(a -> Distr b) -> 
-        {v:() | dist (f1 e1) (f2 e2) <= dist ws1 ws2 } -> 
-        { dist (pbind e1 f1) (pbind e2 f2) = dist ws1 ws2 } @-}
-relationalpbind :: Weight -> Weight -> Distr a -> (a -> Distr b) -> Distr a -> (a -> Distr b) -> () -> ()
+        -- {v:() | dist (f1 e1) (f2 e2) <= dist ws1 ws2 + 2 * α + estab zs as} -> 
+
+{-@ relationalpbind :: e1:Distr a -> f1:(a -> Distr b) -> e2:Distr a -> f2:(a -> Distr b) -> 
+        { dist (pbind e1 f1) (pbind e2 f2) = dist (f1 e1) (f2 e2)} @-}
+relationalpbind :: Distr a  -> (a -> Distr b)  -> Distr a  -> (a -> Distr b) -> ()
 relationalpbind = undefined
 
-{-@ relationalqbind :: ws1:Weight -> ws2:Weight -> e1:Distr a -> f1:(a -> Distr b) -> {e2:Distr a | e1 = e2} -> f2:(a -> Distr b) -> 
-        { dist (qbind e1 f1) (qbind e2 f2) = dist ws1 ws2} @-}
-relationalqbind :: Weight -> Weight -> Distr a -> (a -> Distr b) -> Distr a -> (a -> Distr b) -> ()
+{-@ relationalqbind :: e1:Distr a -> f1:(a -> Distr b) -> {e2:Distr a | e1 = e2} -> f2:(a -> Distr b) -> 
+        { dist (pbind e1 f1) (pbind e2 f2) = dist (f1 e1) (f2 e2)} @-}
+relationalqbind :: Distr a  -> (a -> Distr b)  -> Distr a  -> (a -> Distr b)  ->  ()
 relationalqbind = undefined
 
 {-@ measure SGDu.pbind :: Distr a -> (a -> Distr b) -> Distr b @-}
@@ -112,18 +112,19 @@ reduce _ _ _ = ()
 -}
 
 {-@ reflect sum @-}
+{-@ sum :: [StepSize] -> StepSize @-}
 sum :: [StepSize] -> Double
-sum [] = 0
-sum (a:as) = a + sum as
+sum []       = 0
+sum (a : as) = a + sum as
 
 {-@ reflect estab @-}
-{-@ estab :: DataSet -> [StepSize] -> Double @-}
+{-@ estab :: DataSet -> [StepSize] -> {v:Double | 0.0 <= v} @-}
 estab :: DataSet -> [StepSize] -> Double
 estab zs as = 2.0 / (lend zs) * sum as
 
 {-@ reflect upd @-}
 {-@ upd :: zs:{DataSet | 1 < len zs  && 1 < lend zs } -> Weight -> StepSize -> [StepSize] -> LossFunction -> DataPoint -> Distr Weight @-}
-upd :: DataSet -> Weight -> StepSize -> [StepSize] -> LossFunction -> DataPoint -> Distr Weight
+upd ::  DataSet  -> Weight  -> StepSize  -> [StepSize]  -> LossFunction  -> DataPoint  -> Distr Weight
 upd zs w0 α a f z' = sgd zs (update z' w0 α f) a f
 
 {-@ reflect head @-}
@@ -150,44 +151,52 @@ sgd zs w0 (α : a) f = choice (one / lend zs)
 {-@ thm :: zs1:{DataSet | 1 < lend zs1 && 1 < len zs1 } -> ws1:Weight -> α1:[StepSize] -> f1:LossFunction -> 
            zs2:{DataSet | 1 < lend zs2 && 1 < len zs2 && lend zs1 == lend zs2 && tail zs1 = tail zs2} -> 
             ws2:Weight -> {α2:[StepSize]| α2 = α1} -> {f2:LossFunction|f1 = f2} -> 
-            {dist (sgd zs1 ws1 α1 f1) (sgd zs2 ws2 α2 f2) <= 
-              (SGDu.one / (SGDu.lend zs1)) * (dist ws1 ws2) + (1 - (SGDu.one / (SGDu.lend zs1))) * (dist ws1 ws2)} @-}
-thm :: DataSet -> Weight -> [StepSize] -> LossFunction -> DataSet -> Weight -> [StepSize] -> LossFunction -> ()
-thm zs1 ws1 α1@[] f1 zs2 ws2 α2@[] f2 = 
+            {dist (sgd zs1 ws1 α1 f1) (sgd zs2 ws2 α2 f2) <= dist ws1 ws2 + estab zs1 α1} @-}
+thm :: DataSet  -> Weight  -> [StepSize]  -> LossFunction  -> DataSet  -> Weight  -> [StepSize]  -> LossFunction  -> ()
+thm zs1 ws1 α1@[] f1 zs2 ws2 α2@[] f2 =
   dist (sgd zs1 ws1 α1 f1) (sgd zs2 ws2 α2 f2)
-    === dist (ppure ws1) (ppure ws2)
+    =<= dist (ppure ws1) (ppure ws2) + estab zs1 α1
     *** QED
+
 thm zs1 ws1 as1@(α1 : a1) f1 zs2 ws2 as2@(α2 : a2) f2 =
   dist (sgd zs1 ws1 as1 f1) (sgd zs2 ws2 as2 f2)
     === dist
-          (choice (one / lend zs1)
-                  (pbind uhead1 ws1')
-                  (qbind utail1 ws1')
-          )
-          (choice (one / lend zs2)
-                  (pbind uhead2 ws2')
-                  (qbind utail2 ws2')
-          )
-       ? relationalchoice (one / lend zs1)
-                         (pbind uhead1 ws1')
-                         (qbind utail1 ws1')
-                         (one / lend zs2)
-                         (pbind uhead2 ws2')
-                         (qbind utail2 ws2')
-    ?   relationalpbind ws1 ws2 uhead1
-                        ws1'
-                        uhead2
-                        ws2'
-                        (thm zs1 (update uhead1 ws1 α1 f1) a1 f1 zs2 (update uhead2 ws2 α2 f2) a2 f2
-                          ? relationalupdatep uhead1 ws1 α1 f1 uhead2 ws2 α2 f2)        
-    ?   relationalqbind ws1 ws2 utail1
-                        ws1'
-                        utail2
-                        ws2'
+          (choice (one / lend zs1) (pbind uhead1 updWs1) (qbind utail1 updWs1))
+          (choice (one / lend zs2) (pbind uhead2 updWs2) (qbind utail2 updWs2))
+    ?   relationalchoice (one / lend zs1) (pbind uhead1 updWs1) (qbind utail1 updWs1)
+                         (one / lend zs2) (pbind uhead2 updWs2) (qbind utail2 updWs2)
+
+    =<= (one / lend zs1) * (dist (pbind uhead1 updWs1) (pbind uhead2 updWs2)) 
+        + (1 - (one / lend zs1)) * (dist (qbind utail1 updWs1) (qbind utail2 updWs2))
+        ?   relationalpbind uhead1 updWs1 uhead2 updWs2 
+
+    ==. (one / lend zs1) * (dist (updWs1 uhead1) (updWs2 uhead2)) 
+        + (1 - (one / lend zs1)) * (dist (qbind utail1 updWs1) (qbind utail2 updWs2))
+        ?   thm zs1 (update uhead1 ws1 α1 f1) a1 f1 zs2 (update uhead2 ws2 α2 f2) a2 f2
+
+    =<= (one / lend zs1) * (dist (update uhead1 ws1 α1 f1) (update uhead2 ws2 α2 f2) + estab zs1 a1) 
+        + (1 - (one / lend zs1)) * (dist (qbind utail1 updWs1) (qbind utail2 updWs2))    
+        ?   (dist (update uhead1 ws1 α1 f1) (update uhead2 ws2 α2 f2)
+                  ? relationalupdatep uhead1 ws1 α1 f1 uhead2 ws2 α2 f2
+              === dist ws1 ws2 + 2 * α1
+              *** QED)
+   
+    ==. (one / lend zs1) * (dist ws1 ws2 + 2 * α1 + estab zs1 a1) 
+          + (1 - (one / lend zs1)) * (dist (qbind utail1 updWs1) (qbind utail2 updWs2))         
+        ?   relationalqbind utail1 updWs1 utail2 updWs2 
+        ?   thm zs1 (update utail1 ws1 α1 f1) a1 f1 zs2 (update utail2 ws2 α2 f2) a2 f2
+        ?   relationalupdateq utail1 ws1 α1 f1 utail2 ws2 α2 f2
+
+    =<= (one / lend zs1) * (dist ws1 ws2 + 2 * α1 + estab zs1 a1) 
+          + (1 - (one / lend zs1)) * (dist ws1 ws2 + estab zs1 a1)
+
+    === dist ws1 ws2 + 2 * α1 * (one / lend zs1) + estab zs1 a1
+                            
+    === dist ws1 ws2 + estab zs1 as1
     *** QED
  where
-  ws1' = upd zs1 ws1 α1 a1 f1
-  ws2' = upd zs2 ws2 α2 a2 f2
+  updWs1 = upd zs1 ws1 α1 a1 f1
+  updWs2 = upd zs2 ws2 α2 a2 f2
   uhead1 = unif [head zs1]
   utail1 = unif (tail zs1)
   uhead2 = unif [head zs2]
