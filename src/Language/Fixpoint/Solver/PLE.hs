@@ -933,7 +933,7 @@ knowledge cfg ctx si = KN
   , knSummary                  =    ((\s -> (smName s, 1)) <$> sims) 
                                  ++ ((\s -> (eqName s, length (eqArgs s))) <$> aenvEqs aenv)
                                  ++ lits
-  , knDCs                      = S.fromList (smDC <$> sims) 
+  , knDCs                      = dcs
   , knSels                     = Mb.catMaybes $ map makeSel  sims 
   , knConsts                   = Mb.catMaybes $ map makeCons sims 
   , knAutoRWs                  = aenvAutoRW aenv
@@ -946,7 +946,11 @@ knowledge cfg ctx si = KN
     sims = aenvSimpl aenv ++ concatMap reWriteDDecl (ddecls si) 
     aenv = ae si
 
-    lits = map toSum (toListSEnv (gLits si))
+    dcs = S.fromList (smDC <$> sims)
+
+    notDC (s, _) = not $ S.member s dcs
+
+    lits = filter notDC $ map toSum (toListSEnv (gLits si))
       where
         toSum (sym, sort)      = (sym, getArity sort)
 
