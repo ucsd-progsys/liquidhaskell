@@ -89,8 +89,11 @@ commands:
           no_output_timeout: 30m
       - store_test_results:
           path: /tmp/junit/cabal
+      - run:
+          name: Compress artifacts
+          command: tar cvzf logs.tar.gz tests/logs/cur
       - store_artifacts:
-          path: tests/logs/cur
+          path: logs.tar.gz
 
   stack_build_and_test:
     description: "Build and test the project using Stack"
@@ -143,8 +146,11 @@ commands:
             [ ! -z "<< parameters.extra_build_flags >>" ] || stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> haddock << parameters.extra_build_flags >> liquidhaskell  --no-haddock-deps --haddock-arguments="--no-print-missing-docs"
       - store_test_results:
           path: /tmp/junit/stack
+      - run:
+          name: Compress artifacts
+          command: tar cvzf logs.tar.gz tests/logs/cur
       - store_artifacts:
-          path: tests/logs/cur
+          path: logs.tar.gz
       - run:
           name: Dist
           command: |
