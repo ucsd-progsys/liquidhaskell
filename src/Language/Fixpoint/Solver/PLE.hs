@@ -948,9 +948,9 @@ knowledge cfg ctx si = KN
 
     dcs = S.fromList (smDC <$> sims)
 
-    notDC (s, _) = not $ S.member s dcs
+    posArity (_, a) = a > 0
 
-    lits = filter notDC $ map toSum (toListSEnv (gLits si))
+    lits = filter posArity $ map toSum (toListSEnv (gLits si))
       where
         toSum (sym, sort)      = (sym, getArity sort)
 
