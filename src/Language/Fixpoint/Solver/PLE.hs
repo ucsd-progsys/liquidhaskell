@@ -932,8 +932,8 @@ knowledge cfg ctx si = KN
   , knLams                     = [] 
   , knSummary                  =    ((\s -> (smName s, 1)) <$> sims) 
                                  ++ ((\s -> (eqName s, length (eqArgs s))) <$> aenvEqs aenv)
-                                 ++ lits
-  , knDCs                      = dcs
+                                 ++ rwSyms
+  , knDCs                      = S.fromList (smDC <$> sims)
   , knSels                     = Mb.catMaybes $ map makeSel  sims 
   , knConsts                   = Mb.catMaybes $ map makeCons sims 
   , knAutoRWs                  = aenvAutoRW aenv
@@ -946,11 +946,19 @@ knowledge cfg ctx si = KN
     sims = aenvSimpl aenv ++ concatMap reWriteDDecl (ddecls si) 
     aenv = ae si
 
-    dcs = S.fromList (smDC <$> sims)
+    inRewrites :: Symbol -> Bool
+    inRewrites e =
+      let
+        syms = Mb.catMaybes $ map (lhsHead . arLHS) $ concat $ M.elems $ aenvAutoRW aenv
+      in
+        e `L.elem` syms
 
-    posArity (_, a) = a > 0
+    lhsHead :: Expr -> Maybe Symbol
+    lhsHead e | (EVar f, _) <- splitEApp e = Just f
+    lhsHead _ | otherwise = Nothing
 
-    lits = filter posArity $ map toSum (toListSEnv (gLits si))
+
+    rwSyms = filter (inRewrites . fst) $ map toSum (toListSEnv (gLits si))
       where
         toSum (sym, sort)      = (sym, getArity sort)
 
