@@ -201,7 +201,7 @@ qualifiedDataName mod (DnCon  lx) = DnCon  (qualifyModName mod <$> lx)
 {-tyConDataDecl :: {tc:TyCon | isAlgTyCon tc} -> Maybe DataDecl @-}
 tyConDataDecl :: ((Ghc.TyCon, DataName), HasDataDecl) -> Maybe DataDecl
 tyConDataDecl (_, HasDecl)
-  = Nothing
+  = Nothing 
 tyConDataDecl ((tc, dn), NoDecl szF)
   = Just $ DataDecl
       { tycName   = dn
