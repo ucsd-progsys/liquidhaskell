@@ -253,7 +253,7 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
   let (dg2, spcTerm) = withDiagnostics $ makeSpecTerm cfg     mySpec env       name    
   let (dg3, refl)    = withDiagnostics $ makeSpecRefl cfg src measEnv specs env name elaboratedSig tycEnv 
   let laws     = makeSpecLaws env sigEnv (gsTySigs elaboratedSig ++ gsAsmSigs elaboratedSig) measEnv specs 
-  let finalLiftedSpec = makeLiftedSpec src env refl sData elaboratedSig qual myRTE lSpec1
+  let finalLiftedSpec = makeLiftedSpec name src env refl sData elaboratedSig qual myRTE lSpec1
   let diags    = mconcat [dg0, dg1, dg2, dg3, dg4, dg5]
 
   pure (diags, SP 
@@ -676,8 +676,8 @@ getReflects  = fmap val . S.toList . S.unions . fmap (names . snd) . M.toList
 addReflSigs :: Bare.Env -> ModName -> BareRTEnv -> GhcSpecRefl -> GhcSpecSig -> GhcSpecSig
 ------------------------------------------------------------------------------------------
 addReflSigs env name rtEnv refl sig =
-  sig { gsRefSigs = map expandReflectedSignature reflSigs
-      , gsAsmSigs = wreflSigs ++ filter notReflected (gsAsmSigs sig)
+  sig { gsRefSigs = F.notracepp ("gsRefSigs for " ++ F.showpp name) $ map expandReflectedSignature reflSigs
+      , gsAsmSigs = F.notracepp ("gsAsmSigs for " ++ F.showpp name) $ (wreflSigs ++ filter notReflected (gsAsmSigs sig))
       }
   where
 
@@ -710,7 +710,7 @@ makeSpecSig :: Config -> ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> 
 ----------------------------------------------------------------------------------------
 makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = do 
   mySigs     <- makeTySigs  env sigEnv name mySpec
-  aSigs      <- makeAsmSigs env sigEnv name specs 
+  aSigs      <- F.notracepp ("makeSpecSig aSigs " ++ F.showpp name) $ makeAsmSigs env sigEnv name specs 
   let asmSigs =  Bare.tcSelVars tycEnv 
               ++ aSigs
               ++ [ (x,t) | (_, x, t) <- concatMap snd (Bare.meCLaws measEnv) ]
@@ -947,7 +947,7 @@ makeSpecData :: GhcSrc -> Bare.Env -> Bare.SigEnv -> Bare.MeasEnv -> GhcSpecSig 
              -> GhcSpecData
 ------------------------------------------------------------------------------------------
 makeSpecData src env sigEnv measEnv sig specs = SpData 
-  { gsCtors      = -- F.notracepp "GS-CTORS" 
+  { gsCtors      = F.notracepp "GS-CTORS" 
                    [ (x, if allowTC then t else tt) 
                        | (x, t) <- Bare.meDataCons measEnv
                        , let tt  = Bare.plugHoles (typeclass $ getConfig env) sigEnv name (Bare.LqTV x) t 
@@ -1165,14 +1165,14 @@ makeMeasEnv env tycEnv sigEnv specs = do
 --   so that downstream files that import this target can access the lifted definitions, 
 --   e.g. for measures, reflected functions etc.
 -----------------------------------------------------------------------------------------
-makeLiftedSpec :: GhcSrc -> Bare.Env 
+makeLiftedSpec :: ModName -> GhcSrc -> Bare.Env 
                -> GhcSpecRefl -> GhcSpecData -> GhcSpecSig -> GhcSpecQual -> BareRTEnv 
                -> Ms.BareSpec -> Ms.BareSpec 
 -----------------------------------------------------------------------------------------
-makeLiftedSpec src _env refl sData sig qual myRTE lSpec0 = lSpec0 
-  { Ms.asmSigs    = F.notracepp   "LIFTED-ASM-SIGS" $ xbs -- ++ mkSigs (gsAsmSigs sig)
+makeLiftedSpec name src _env refl sData sig qual myRTE lSpec0 = lSpec0 
+  { Ms.asmSigs    = F.notracepp   ("makeLiftedSpec : ASSUMED-SIGS " ++ F.showpp name ) $ (xbs ++ myDCs) 
   , Ms.reflSigs   = F.notracepp "REFL-SIGS"         xbs
-  , Ms.sigs       = F.notracepp   "LIFTED-SIGS"     $        mkSigs (gsTySigs sig)  
+  , Ms.sigs       = F.notracepp   ("makeLiftedSpec : LIFTED-SIGS " ++ F.showpp name )  $ mkSigs (gsTySigs sig)  
   , Ms.invariants = [ ((varLocSym <$> x), Bare.specToBare <$> t) 
                        | (x, t) <- gsInvariants sData 
                        , isLocInFile srcF t
@@ -1183,6 +1183,8 @@ makeLiftedSpec src _env refl sData sig qual myRTE lSpec0 = lSpec0
   , Ms.qualifiers = filter (isLocInFile srcF) (gsQualifiers qual)
   }
   where
+    myDCs         = [(x,t) | (x,t) <- mkSigs (gsCtors sData)
+                           , F.symbol name == fst (GM.splitModuleName $ val x)]
     mkSigs xts    = [ toBare (x, t) | (x, t) <- xts
                     ,  S.member x sigVars && (isExportedVar (view targetSrcIso src) x) 
                     ] 
