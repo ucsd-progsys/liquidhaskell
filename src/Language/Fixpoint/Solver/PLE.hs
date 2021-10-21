@@ -571,7 +571,7 @@ eval _ ctx _ e
 eval γ ctx et e =
   do acc <- gets (S.toList . evAccum)
      case L.lookup e acc of
-        -- Just e' | et == NoRW -> eval γ ctx et e'
+        Just e' | et == NoRW -> eval γ ctx et e'
         _ -> do
           (e0', fe)  <- go e
           let e' = simplify γ ctx e0'
