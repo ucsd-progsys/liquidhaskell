@@ -406,13 +406,6 @@ config = cmdArgsMode $ Config {
     = def
         &= name "max-args-depth"
   ,
-    maxRWOrderingConstraints
-    = def
-        &= name "max-rw-ordering-constraints"
-        &= help (   "Maximium number of symbols to compare for rewrite termination. " 
-                 ++ "Lower values can speedup verification, but rewriting may terminate prematurely. "
-                 ++ "Leave empty to consider all symbols." )
-  ,
     rwTerminationCheck
     = def
         &= name "rw-termination-check"
@@ -697,7 +690,6 @@ defConfig = Config
   , maxMatchDepth            = 4
   , maxAppDepth              = 2
   , maxArgsDepth             = 1
-  , maxRWOrderingConstraints = Nothing
   , rwTerminationCheck       = False
   , skipModule               = False
   , noLazyPLE                = False

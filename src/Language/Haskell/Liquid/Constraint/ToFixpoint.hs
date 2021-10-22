@@ -18,7 +18,6 @@ import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Constraint.Qualifier
 import           Control.Monad (guard)
 import qualified Data.Maybe as Mb
-import Debug.Trace
 
 -- AT: Move to own module?
 -- imports for AxiomEnv
@@ -57,7 +56,6 @@ fixConfig tgt cfg = def
   , FC.etaElim                  = not (exactDC cfg) && extensionality cfg -- SEE: https://github.com/ucsd-progsys/liquidhaskell/issues/1601
   , FC.extensionality           = extensionality    cfg 
   , FC.oldPLE                   = oldPLE cfg
-  , FC.maxRWOrderingConstraints = maxRWOrderingConstraints cfg
   , FC.rwTerminationCheck       = rwTerminationCheck cfg
   , FC.noLazyPLE                = noLazyPLE cfg
   , FC.fuel                     = fuel      cfg
