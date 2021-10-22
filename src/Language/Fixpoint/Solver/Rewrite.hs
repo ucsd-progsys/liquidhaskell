@@ -49,7 +49,7 @@ data RewriteArgs = RWArgs
  }
 
 ordConstraints :: (Handle, Handle) -> AbstractOC (ConstraintsADT Op) Expr IO
-ordConstraints z3 = contramap convert (adtRPO z3)
+ordConstraints solver = contramap convert (adtRPO solver)
 
 
 convert :: Expr -> RT.RuntimeTerm

@@ -49,7 +49,7 @@ mytracepp = notracepp
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE 
 --------------------------------------------------------------------------------
-instantiate :: Loc a => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
+instantiate :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
 instantiate cfg fi subcIds
   | not (oldPLE cfg)
   = PLE.instantiate cfg fi subcIds

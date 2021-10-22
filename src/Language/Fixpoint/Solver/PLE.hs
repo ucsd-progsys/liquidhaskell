@@ -8,8 +8,6 @@
 --     2. "Reasoning about Functions", VMCAI 2018, https://ranjitjhala.github.io/static/reasoning-about-functions.pdf 
 --------------------------------------------------------------------------------
 
-{-# LANGUAGE ImplicitParams            #-}
-{-# LANGUAGE DeriveAnyClass            #-}
 {-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
@@ -20,8 +18,6 @@
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE ScopedTypeVariables       #-}
-{-# LANGUAGE MultiParamTypeClasses     #-}
 
 module Language.Fixpoint.Solver.PLE (instantiate) where
 
@@ -58,6 +54,7 @@ import qualified Data.Text            as Tx
 import           Debug.Trace          (trace)
 import           Text.PrettyPrint.HughesPJ.Compat
 
+-- Type of Ordering Constraints for REST
 type OCType = ConstraintsADT
 
 mytracepp :: (PPrint a) => String -> a -> a
@@ -83,12 +80,16 @@ instantiate cfg fi' subcIds = do
     let cs = M.filterWithKey
                (\i c -> isPleCstr aEnv i c && maybe True (i `L.elem`) subcIds)
                (cm fi)
-    let t  = mkCTrie (M.toList cs)                                    -- 1. BUILD the Trie
-    res   <- withZ3 $ \z3 -> withProgress (1 + M.size cs) $
-               withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs z3) -- 2. TRAVERSE Trie to compute InstRes
+    let t  = mkCTrie (M.toList cs)                                          -- 1. BUILD the Trie
+    res   <- withRESTSolver $ \solver -> withProgress (1 + M.size cs) $
+               withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs solver) -- 2. TRAVERSE Trie to compute InstRes
     savePLEEqualities cfg fi res
-    return $ resSInfo cfg sEnv fi res                                 -- 3. STRENGTHEN SInfo using InstRes
+    return $ resSInfo cfg sEnv fi res                                       -- 3. STRENGTHEN SInfo using InstRes
   where
+    withRESTSolver :: (Maybe SolverHandle -> IO a) -> IO a
+    withRESTSolver f | M.null (aenvAutoRW aEnv) = f Nothing
+    withRESTSolver f | otherwise = withZ3 (\z3 -> f (Just z3))
+
     file   = srcFile cfg ++ ".evals"
     sEnv   = symbolEnv cfg fi
     aEnv   = ae fi 
@@ -113,14 +114,16 @@ savePLEEqualities cfg fi res = when (save cfg) $ do
 
 ------------------------------------------------------------------------------- 
 -- | Step 1a: @instEnv@ sets up the incremental-PLE environment 
-instEnv :: (Loc a) => Config -> SInfo a -> CMap (SimpC a) -> SolverHandle -> SMT.Context -> InstEnv a
-instEnv cfg fi cs z3 ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
+instEnv :: (Loc a) => Config -> SInfo a -> CMap (SimpC a) -> Maybe SolverHandle -> SMT.Context -> InstEnv a
+instEnv cfg fi cs restSolver ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
   where
     bEnv              = bs fi
     aEnv              = ae fi
     γ                 = knowledge cfg ctx fi  
-    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg) (ET.empty ef) z3
-    ef                = EF (OC.union (ordConstraints z3)) (OC.notStrongerThan (ordConstraints z3))
+    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg) et restSolver
+    et                = fmap makeET restSolver
+    makeET solver     =
+      ET.empty (EF (OC.union (ordConstraints solver)) (OC.notStrongerThan (ordConstraints solver)))
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments
@@ -433,8 +436,10 @@ data EvalEnv = EvalEnv
   { evEnv      :: !SymEnv
   , evAccum    :: EvAccum
   , evFuel     :: FuelCount
-  , explored   :: ExploredTerms RuntimeTerm (OCType Op) IO
-  , z3         :: SolverHandle
+
+  -- REST parameters
+  , explored   :: Maybe (ExploredTerms RuntimeTerm (OCType Op) IO)
+  , restSolver :: Maybe SolverHandle
   }
 
 data FuelCount = FC 
@@ -461,34 +466,18 @@ evalOne γ env ctx i e | i > 0 || null (getAutoRws γ ctx) = do
     ((e', _), st) <- runStateT (eval γ ctx NoRW e) (env { evFuel = icFuel ctx })
     let evAcc' = if (mytracepp ("evalOne: " ++ showpp e) e') == e then evAccum st else S.insert (e, e') (evAccum st)
     return (evAcc', evFuel st) 
-evalOne γ env ctx _ e = do
+evalOne γ env ctx _ e | otherwise = do
   env' <- execStateT (evalREST γ ctx rp) (env { evFuel = icFuel ctx })
   return (evAccum env', evFuel env')
   where
-    oc = ordConstraints (z3 env)
-    rp = RP oc (map (,PLE) (pathTo [e])) constraints
-    constraints = foldl go (OC.top oc) (pairs (pathTo [e]))
+    oc :: AbstractOC (OCType Op) Expr IO
+    oc = ordConstraints (Mb.fromJust $ restSolver env)
+
+    rp = RP oc [(e, PLE)] constraints
+    constraints = foldl go (OC.top oc) []
       where
         go c (t, u) = refine oc c t u
 
-    pairs [] = []
-    pairs xs = zip xs (tail xs)
-
-    pathTo ts = ts
-
-    -- Hack to get original path from subsequent PLE iterations
-    -- pathTo ts | Just (t, _) <- L.find (\(t, t') -> t' == head ts && not (t `elem` ts)) $ S.toList (evAccum env)
-    --           = pathTo (t:ts)
-    -- pathTo ts | otherwise = ts
-
-    -- pathTo e = L.last (L.sortOn length (pathsTo [e]))
-    -- pathsTo ts =
-    --   let
-    --     heads = L.map fst $ L.filter (\(t, t') -> t' == head ts && not (t `elem` ts)) $ S.toList (evAccum env)
-    --   in
-    --     if heads == []
-    --     then trace ("NO head for " ++ (show $ head ts)) [ts]
-    --     else concatMap pathsTo (map (\h -> h:ts) heads)
 
 -- | @notGuardedApps e@ yields all the subexpressions that are
 -- applications not under an if-then-else, lambda abstraction, type abstraction,
@@ -521,12 +510,28 @@ notGuardedApps = go
 
 
 
+-- The FuncNormal and RWNormal evaluation strategies are used for REST
+-- For example, consider the following function:
+--   add(x, y) = if x == 0 then y else add(x - 1, y + 1)
+-- And a rewrite rule:
+--   forall a, b . add(a,b) -> add(b, a)
+-- Then the expression add(t, add(2, 1)) would evaluate under NoRW to:
+--   if t == 0 then 3 else add(t - 1, 4)
+-- However, under FuncNormal, it would evaluate to: add(t, 3)
+-- Thus, FuncNormal could engage the rewrite rule add(t, 3) = add(3, t)
+
+
 data EvalType =
     NoRW       -- Normal PLE
-  | FuncNormal -- Expand to Function Defs, stop before branch expansion
-  | RWNormal   -- Fully Expand Defs in context of rewriting
+  | FuncNormal -- REST: Expand function definitions only when the branch can be decided
+  | RWNormal   -- REST: Fully Expand Defs in the context of rewriting (similar to NoRW)
   deriving (Eq)
 
+-- Indicaates whether or not the evaluation has expanded a function statement
+-- into a conditional branch.
+-- In this case, rewriting should stop
+-- It's unclear whether or not rewriting in either branch makes sense,
+-- since one branch could be an ill-formed expression
 newtype FinalExpand = FE Bool deriving (Show)
 
 noExpand :: FinalExpand
@@ -709,7 +714,7 @@ evalREST _ ctx rp
         
 evalREST γ ctx rp =
   do
-    exploredTerms <- gets explored
+    Just exploredTerms <- gets explored
     se <- liftIO (shouldExploreTerm exploredTerms e)
     when se $ do
       possibleRWs <- getRWs
@@ -727,11 +732,11 @@ evalREST γ ctx rp =
       modify (\st ->
                 st {
                   evAccum  = S.union evAccum' (evAccum st)
-                , explored = ET.insert
+                , explored = Just $ ET.insert
                   (convert e)
                   (c rp)
                   (S.insert (convert e') $ S.fromList (map (convert . fst) possibleRWs))
-                  (explored st)
+                  (Mb.fromJust $ explored st)
                 })
 
       when evalIsNewExpr $
