@@ -40,7 +40,7 @@ instance PPrint TermOrigin where
 
 
 data RWTerminationOpts =
-    RWTerminationCheckEnabled (Maybe Int) -- # Of constraints to consider
+    RWTerminationCheckEnabled
   | RWTerminationCheckDisabled
 
 data RewriteArgs = RWArgs
@@ -70,8 +70,8 @@ convert e              = error (show e)
 passesTerminationCheck :: AbstractOC oc a IO -> RewriteArgs -> oc -> IO Bool
 passesTerminationCheck aoc rwArgs c =
   case rwTerminationOpts rwArgs of
-    RWTerminationCheckEnabled _ -> isSat aoc c
-    RWTerminationCheckDisabled  -> return True
+    RWTerminationCheckEnabled  -> isSat aoc c
+    RWTerminationCheckDisabled -> return True
 
 getRewrite ::
      AbstractOC oc Expr IO
@@ -88,7 +88,7 @@ getRewrite aoc rwArgs c (subE, toE) (AutoRewrite args lhs rhs) =
     let expr' = toE subE'
     mapM_ (checkSubst su) exprs
     return $ case rwTerminationOpts rwArgs of
-      RWTerminationCheckEnabled _ ->
+      RWTerminationCheckEnabled ->
         let
           c' = refine aoc c subE subE'
         in

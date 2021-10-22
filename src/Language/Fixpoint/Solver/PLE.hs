@@ -87,7 +87,7 @@ instantiate cfg fi' subcIds = do
     return $ resSInfo cfg sEnv fi res                                       -- 3. STRENGTHEN SInfo using InstRes
   where
     withRESTSolver :: (Maybe SolverHandle -> IO a) -> IO a
-    withRESTSolver f | M.null (aenvAutoRW aEnv) = f Nothing
+    withRESTSolver f | null (concat $ M.elems $ aenvAutoRW aEnv) = f Nothing
     withRESTSolver f | otherwise = withZ3 (\z3 -> f (Just z3))
 
     file   = srcFile cfg ++ ".evals"
@@ -230,7 +230,6 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0 0
         exprs <> (S.fromList $ concat rws)
     go ictx _ | S.null (icCands ictx) = return ictx
     go ictx i =  do
-                  -- printf "Loop %s\n" (show i)
                   let cands = icCands ictx
                   let env' = env { evAccum = icEquals ictx <> evAccum env 
                                  , evFuel  = icFuel   ictx 
@@ -238,9 +237,7 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0 0
                   (ictx', evalResults)  <- SMT.smtBracket ctx "PLE.evaluate" $ do
                                SMT.smtAssert ctx (pAnd (S.toList $ icAssms ictx)) 
                                foldM (evalOneCandStep γ env' i) (ictx, []) (S.toList cands)
-                               -- foldM (\ictx e -> undefined) 
-                               -- mapM (evalOne γ env' ictx) (S.toList cands)
-                  let us = mconcat evalResults 
+                  let us = mconcat evalResults
                   if S.null (us `S.difference` icEquals ictx)
                         then return ictx 
                         else do  let oks      = fst `S.map` us
@@ -252,8 +249,6 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0 0
                                  let newcands = mconcat (makeCandidates γ ictx'' <$> S.toList (cands <> (snd `S.map` us)))
                                  go (ictx'' { icCands = S.fromList newcands}) (i + 1)
                                  
--- evalOneCands :: Knowledge -> EvalEnv -> ICtx -> [Expr] -> IO (ICtx, [EvAccum])
--- evalOneCands γ env' ictx = foldM step (ictx, [])
 evalOneCandStep :: Knowledge -> EvalEnv -> Int -> (ICtx, [EvAccum]) -> Expr -> IO (ICtx, [EvAccum])
 evalOneCandStep γ env' i (ictx, acc) e = do
   (res, fm) <- evalOne γ env' ictx i e
@@ -527,11 +522,11 @@ data EvalType =
   | RWNormal   -- REST: Fully Expand Defs in the context of rewriting (similar to NoRW)
   deriving (Eq)
 
--- Indicaates whether or not the evaluation has expanded a function statement
+-- Indicates whether or not the evaluation has expanded a function statement
 -- into a conditional branch.
 -- In this case, rewriting should stop
 -- It's unclear whether or not rewriting in either branch makes sense,
--- since one branch could be an ill-formed expression
+-- since one branch could be an ill-formed expression.
 newtype FinalExpand = FE Bool deriving (Show)
 
 noExpand :: FinalExpand
@@ -540,8 +535,8 @@ noExpand = FE False
 expand :: FinalExpand
 expand = FE True
 
-withFE :: (Expr -> Expr) -> (Expr, FinalExpand) -> (Expr, FinalExpand)
-withFE f (e, fe) = (f e, fe)
+mapFE :: (Expr -> Expr) -> (Expr, FinalExpand) -> (Expr, FinalExpand)
+mapFE f (e, fe) = (f e, fe)
 
 feVal :: FinalExpand -> Bool
 feVal (FE f) = f
@@ -549,9 +544,9 @@ feVal (FE f) = f
 feAny :: [FinalExpand] -> FinalExpand
 feAny xs = FE $ any id (map feVal xs)
 
-feChoose :: FinalExpand -> FinalExpand -> FinalExpand
-feChoose (FE True) _ = expand
-feChoose _                  f = f
+(<|>) :: FinalExpand -> FinalExpand -> FinalExpand
+(<|>) (FE True) _ = expand
+(<|>) _         f = f
 
 
 feSeq :: [(Expr, FinalExpand)] -> ([Expr], FinalExpand)
@@ -576,7 +571,8 @@ eval _ ctx _ e
 eval γ ctx et e =
   do acc <- gets (S.toList . evAccum)
      case L.lookup e acc of
-        Just e' | et == NoRW -> eval γ ctx et e'
+        -- If rewriting, don't lookup, as evAccum may contain loops
+        Just e' | null (getAutoRws γ ctx) -> eval γ ctx et e'
         _ -> do
           (e0', fe)  <- go e
           let e' = simplify γ ctx e0'
@@ -586,19 +582,21 @@ eval γ ctx et e =
                 NoRW -> do
                   modify (\st -> st { evAccum = S.insert (traceE (e, e')) (evAccum st) })
                   (e'',  fe') <- eval γ (addConst (e,e') ctx) et e'
-                  return (e'', feChoose fe fe')
+                  return (e'', fe <|> fe')
                 _ -> return (e', fe)
             else 
               return (e, fe)
   where
     addConst (e,e') ctx = if isConstant (knDCs γ) e'
                            then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx 
-    go (ELam (x,s) e)   = withFE (ELam (x, s)) <$> eval γ' ctx et e where γ' = γ { knLams = (x, s) : knLams γ }
+    go (ELam (x,s) e)   = mapFE (ELam (x, s)) <$> eval γ' ctx et e where γ' = γ { knLams = (x, s) : knLams γ }
     go (EIte b e1 e2) = evalIte γ ctx et b e1 e2
-    go (ECoerc s t e)   = withFE (ECoerc s t)  <$> go e
+    go (ECoerc s t e)   = mapFE (ECoerc s t)  <$> go e
     go e@(EApp _ _)     =
       case splitEApp e of
        (f, es) | et == RWNormal ->
+          -- Just evaluate the arguments first, to give rewriting a chance to step in
+          -- if necessary
           do
             (es', fe) <- feSeq <$> mapM (eval γ ctx et) es
             r <- if es /= es'
@@ -606,51 +604,45 @@ eval γ ctx et e =
               else do
                 (f', fe)  <- eval γ ctx et f
                 (e', fe') <- evalApp γ ctx f' es et
-                return $ (e', feChoose fe fe')
+                return $ (e', fe <|> fe')
             return r
        (f, es) ->
           do
             ((f':es'), fe) <- feSeq <$> mapM (eval γ ctx et) (f:es)
             (e', fe') <- evalApp γ ctx f' es' et
-            return $ (e', feChoose fe fe')
+            return $ (e', fe <|> fe')
 
-    go e@(PAtom r e1 e2) = do
-      b <- evalBool γ e
-      case b of
-        Just e' -> return (e', noExpand)
-        _ -> do
-          (e1', fe) <- go e1
-          (e2', fe2) <- go e2
-          return (PAtom r e1' e2', feChoose fe fe2)
+    go e@(PAtom r e1 e2) = evalBoolOr e (binOp (PAtom r) e1 e2)
     go (ENeg e)         = do (e', fe)  <- eval γ ctx et e
                              return $ ((ENeg e'), fe)
     go (EBin o e1 e2)   = do (e1', fe1) <- eval γ ctx et e1
                              (e2', fe2) <- eval γ ctx et e2
-                             return (EBin o e1' e2', feChoose fe1 fe2)
-    go (ETApp e t)      = withFE (flip ETApp t) <$> go e
-    go (ETAbs e s)      = withFE (flip ETAbs s) <$> go e
-    go e@(PNot e')      = fromMaybeM (withFE PNot <$> go e') (eb γ e)
-    go e@(PImp e1 e2)   = fromMaybeM (both go PImp e1 e2) (eb γ e)
-    go e@(PIff e1 e2)   = fromMaybeM (both go PIff e1 e2) (eb γ e)
-    go e@(PAnd es)      = fromMaybeM (efAll PAnd (go  <$$> es))   (eb γ e)
-    go e@(POr es)       = fromMaybeM (efAll POr (go <$$> es))    (eb γ e)
+                             return (EBin o e1' e2', fe1 <|> fe2)
+    go (ETApp e t)      = mapFE (flip ETApp t) <$> go e
+    go (ETAbs e s)      = mapFE (flip ETAbs s) <$> go e
+    go e@(PNot e')      = evalBoolOr e (mapFE PNot <$> go e')
+    go e@(PImp e1 e2)   = evalBoolOr e (binOp PImp e1 e2)
+    go e@(PIff e1 e2)   = evalBoolOr e (binOp PIff e1 e2)
+    go e@(PAnd es)      = evalBoolOr e (efAll PAnd (go  <$$> es))
+    go e@(POr es)       = evalBoolOr e (efAll POr (go <$$> es))
     go e                = return (e, noExpand)
 
-    both f f' e1 e2 = do
-      (e1', fe1) <- f e1
-      (e2', fe2) <- f e2
-      return (f' e1' e2', feChoose fe1 fe2)
+    binOp f e1 e2 = do
+      (e1', fe1) <- go e1
+      (e2', fe2) <- go e2
+      return (f e1' e2', fe1 <|> fe2)
 
     efAll f mes = do
       xs <- mes
       let (xs', fe) = feSeq xs
-      return $ (f xs', fe)
+      return (f xs', fe)
 
-    eb γ e = do
-      b <- evalBool γ e
-      return $ case b of
-        Just x  -> Just (x, noExpand)
-        Nothing -> Nothing
+    evalBoolOr :: Expr -> EvalST (Expr, FinalExpand) -> EvalST (Expr, FinalExpand)
+    evalBoolOr ee fallback = do
+      b <- evalBool γ ee
+      case b of
+        Just r  -> return (r, noExpand)
+        Nothing -> fallback
 
 data RESTParams oc = RP
   { oc   :: AbstractOC oc Expr IO
@@ -741,17 +733,15 @@ evalREST γ ctx rp =
 
       when evalIsNewExpr $
         if fe && any isRW (path rp)
-          then do
-            eval γ (addConst (e, e')) NoRW e'
-            return ()
+          then eval γ (addConst (e, e')) NoRW e' >> return ()
           else evalREST γ (addConst (e, e')) (rpEval e')
 
       mapM_ (\rw -> evalREST γ ctx (rpRW rw)) rws
   where
     shouldExploreTerm et e =
       case rwTerminationOpts rwArgs of
-        RWTerminationCheckDisabled  -> return $ not $ visited (convert e) et
-        RWTerminationCheckEnabled _ -> shouldExplore (convert e) (c rp) et
+        RWTerminationCheckDisabled -> return $ not $ visited (convert e) et
+        RWTerminationCheckEnabled  -> shouldExplore (convert e) (c rp) et
 
     allowed (rwE, _) | rwE `elem` pathExprs = return False
     allowed (_, c)   | otherwise = termCheck c
@@ -797,13 +787,6 @@ evalREST γ ctx rp =
 
     addConst (e,e') = if isConstant (knDCs γ) e'
                       then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx 
-
-fromMaybeM :: (Monad m) => m a -> m (Maybe a) -> m a
-fromMaybeM a ma = do 
-  mx <- ma 
-  case mx of 
-    Just x  -> return x 
-    Nothing -> a  
 
 (<$$>) :: (Monad m) => (a -> m b) -> [a] -> m [b]
 f <$$> xs = f Misc.<$$> xs
@@ -944,7 +927,7 @@ knowledge cfg ctx si = KN
   , knAutoRWs                  = aenvAutoRW aenv
   , knRWTerminationOpts        =
       if (rwTerminationCheck cfg)
-      then RWTerminationCheckEnabled (maxRWOrderingConstraints cfg)
+      then RWTerminationCheckEnabled
       else RWTerminationCheckDisabled
   } 
   where 

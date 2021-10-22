@@ -94,8 +94,7 @@ data Config = Config
                                        -- Sometimes improves performance and sometimes worsens it.
   , checkCstr        :: [Integer]      -- ^ Only check these specific constraints 
   , extensionality   :: Bool           -- ^ Enable extensional interpretation of function equality
-  , maxRWOrderingConstraints :: Maybe Int
-  , rwTerminationCheck  :: Bool
+  , rwTerminationCheck  :: Bool        -- ^ Enable termination checking for rewriting
   , stdin               :: Bool        -- ^ Read input query from stdin  
   , json                :: Bool        -- ^ Render output in JSON format
   , noLazyPLE           :: Bool
@@ -200,7 +199,6 @@ defConfig = Config {
           ])
   , checkCstr                = []    &= help "Only check these specific constraint-ids" 
   , extensionality           = False &= help "Allow extensional interpretation of extensionality"
-  , maxRWOrderingConstraints = Nothing &= help "Maximum number of functions to consider in rewrite orderings"
   , rwTerminationCheck       = False   &= help "Disable rewrite divergence checker"
   , stdin                    = False   &= help "Read input query from stdin"
   , json                     = False   &= help "Render result in JSON"
