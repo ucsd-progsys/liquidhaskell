@@ -5,17 +5,6 @@
 
 packages:
 - completed:
-    size: 37090
-    url: https://github.com/zgrannan/rest/archive/6c95137a38131434af3bd7fe3f51702a3437a3c1.tar.gz
-    name: rest
-    version: '0.1'
-    sha256: 9f3f36b734dbd90da7c856f622614daad69cd11daccb2907bbac2e0ee3544460
-    pantry-tree:
-      size: 3694
-      sha256: 304037ce9e7ad498632b95d6412d1b0e68d5c8e622ba1f580e51c72b22983161
-  original:
-    url: https://github.com/zgrannan/rest/archive/6c95137a38131434af3bd7fe3f51702a3437a3c1.tar.gz
-- completed:
     hackage: tasty-rerun-1.1.14@sha256:ba9c19a281535bea566e1044bc02c36ef17abcb310af4b6a149ec11780c7ce35,3083
     pantry-tree:
       size: 284
@@ -120,6 +109,13 @@ packages:
       sha256: 4d7de058f3dd57de2a89ea92e812c37ab5418d2fbac620db8c815e7eb4d856ac
   original:
     hackage: th-abstraction-0.4.2.0
+- completed:
+    hackage: rest-rewrite-0.1.1@sha256:7e180d3feb7185e41e3813e4d5a7aa8dfc1cfb479e754e22e706bcc99a26cf35,4793
+    pantry-tree:
+      size: 3353
+      sha256: 136fea6611049098a74a0b13507dfa914b3eff5d4bca6ef0514b35bc478bdb15
+  original:
+    hackage: rest-rewrite-0.1.1
 snapshots:
 - completed:
     size: 532379
