@@ -934,7 +934,7 @@ knowledge cfg ctx si = KN
       else RWTerminationCheckDisabled
   } 
   where 
-    sims = aenvSimpl aenv ++ concatMap reWriteDDecl (ddecls si) 
+    sims = aenvSimpl aenv
     aenv = ae si
 
     inRewrites :: Symbol -> Bool
@@ -969,16 +969,6 @@ knowledge cfg ctx si = KN
       = (smName rw,) . (smDC rw,) <$> L.elemIndex x (smArgs rw)
       | otherwise 
       = Nothing 
-
-reWriteDDecl :: DataDecl -> [Rewrite]
-reWriteDDecl ddecl = concatMap go (ddCtors ddecl) 
-  where 
-    go (DCtor f xs) = zipWith (\r i -> SMeasure r f' ys (EVar (ys!!i)) ) rs [0..]
-       where 
-        f'  = symbol f 
-        rs  = (val . dfName) <$> xs  
-        mkArg ws = zipWith (\_ i -> intSymbol (symbol ("darg"::String)) i) ws [0..]
-        ys  = mkArg xs 
 
 askSMT :: Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
 askSMT cfg ctx bs e
