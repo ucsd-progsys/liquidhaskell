@@ -327,7 +327,7 @@ updCtxRes res iMb ctx = (ctx, res')
 
 
 updRes :: InstRes -> Maybe BindId -> Expr -> InstRes
-updRes res (Just i) e = M.insert i e res 
+updRes res (Just i) e = M.insertWith (error "tree-like invariant broken in ple. See https://github.com/ucsd-progsys/liquid-fixpoint/issues/496") i e res
 updRes res  Nothing _ = res 
 
 ---------------------------------------------------------------------------------------------- 
