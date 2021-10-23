@@ -366,8 +366,7 @@ updCtx InstEnv {..} ctx delta cidMb
                     , icANFs   = anfs <> icANFs ctx
                     }
   where         
-    initEqs   = S.fromList $ concat [rewrite e rw | e  <- cands ++ (snd <$> S.toList (icEquals ctx))
-                                                  , rw <- knSims ieKnowl]
+    initEqs   = S.fromList $ concat [rewrite e rw | e  <- cands, rw <- knSims ieKnowl]
     anfs      = S.fromList (toSMT "updCtx" ieCfg ieSMT [] <$> L.nub [ expr xr | xr <- bs ])
     cands     = concatMap (makeCandidates ieKnowl ctx) (rhs:es)
     sims      = S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
