@@ -434,6 +434,11 @@ config = cmdArgsMode $ Config {
     = Nothing 
         &= help "Maximum fuel (per-function unfoldings) for PLE"
 
+  , environmentReduction
+    = def
+        &= explicit
+        &= name "environment-reduction"
+        &= help "perform environment reduction (disabled by default)"
   , noEnvironmentReduction
     = def
         &= explicit
@@ -702,6 +707,7 @@ defConfig = Config
   , skipModule               = False
   , noLazyPLE                = False
   , fuel                     = Nothing
+  , environmentReduction     = False
   , noEnvironmentReduction   = False
   , inlineANFBindings        = False
   }
