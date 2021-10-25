@@ -799,7 +799,7 @@ f <$$> xs = f Misc.<$$> xs
 -- and equations
 evalApp :: Knowledge -> ICtx -> Expr -> [Expr] -> EvalType -> EvalST (Expr, FinalExpand)
 evalApp γ ctx (EVar f) es et
-  | Just eq <- L.find ((== f) . eqName) (knAms γ) -- TODO:FUEL make this a fast lookup map!
+  | Just eq <- Map.lookup f (knAms γ)
   , length (eqArgs eq) <= length es 
   = do 
        env  <- gets (seSort . evEnv)
@@ -897,7 +897,7 @@ evalIte γ ctx et b0 e1 e2 = do
 data Knowledge = KN 
   { knSims              :: Map Symbol [Rewrite]   -- ^ Rewrites rules came from match and data type definitions 
                                                   --   They are grouped by the data constructor that they unfold
-  , knAms               :: ![Equation]          -- ^ All function definitions
+  , knAms               :: Map Symbol Equation -- ^ All function definitions
   , knContext           :: SMT.Context
   , knPreds             :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
   , knLams              :: ![(Symbol, Sort)]
@@ -919,7 +919,7 @@ isValid γ e = do
 knowledge :: Config -> SMT.Context -> SInfo a -> Knowledge
 knowledge cfg ctx si = KN 
   { knSims                     = Map.fromListWith (++) [ (smDC rw, [rw]) | rw <- sims]
-  , knAms                      = aenvEqs aenv
+  , knAms                      = Map.fromList [(eqName eq, eq) | eq <- aenvEqs aenv]
   , knContext                  = ctx 
   , knPreds                    = askSMT  cfg 
   , knLams                     = [] 
