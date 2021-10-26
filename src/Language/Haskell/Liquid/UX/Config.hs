@@ -102,6 +102,7 @@ data Config = Config
   , skipModule               :: Bool       -- ^ Skip this module entirely (don't even compile any specs in it)
   , noLazyPLE                :: Bool
   , fuel                     :: Maybe Int  -- ^ Maximum PLE "fuel" (unfold depth) (default=infinite) 
+  , environmentReduction     :: Bool       -- ^ Perform environment reduction
   , noEnvironmentReduction   :: Bool       -- ^ Don't perform environment reduction
   , inlineANFBindings        :: Bool       -- ^ Inline ANF bindings.
                                            -- Sometimes improves performance and sometimes worsens it.

@@ -60,7 +60,7 @@ fixConfig tgt cfg = def
   , FC.rwTerminationCheck       = rwTerminationCheck cfg
   , FC.noLazyPLE                = noLazyPLE cfg
   , FC.fuel                     = fuel      cfg
-  , FC.noEnvironmentReduction   = noEnvironmentReduction cfg
+  , FC.noEnvironmentReduction   = not (environmentReduction cfg)
   , FC.inlineANFBindings        = inlineANFBindings cfg
   }
 
