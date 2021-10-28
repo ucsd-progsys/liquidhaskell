@@ -49,6 +49,8 @@ import           Data.Bifunctor (second)
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List            as L
+import           Data.Map (Map)
+import qualified Data.Map as Map
 import qualified Data.Maybe           as Mb
 import qualified Data.Text            as Tx
 import           Debug.Trace          (trace)
@@ -208,7 +210,7 @@ withAssms env@(InstEnv {..}) ctx delta cidMb act = do
   let assms = icAssms ctx'
   SMT.smtBracket ieSMT  "PLE.evaluate" $ do
     forM_ assms (SMT.smtAssert ieSMT) 
-    act ctx'
+    act ctx' { icAssms = mempty }
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie 
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> IO (ICtx, InstRes)
@@ -224,8 +226,7 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0 0
   where
     withRewrites exprs =
       let
-        rws = [rewrite e rw | rw <- knSims γ
-                            ,  e <- S.toList (snd `S.map` exprs)]
+        rws = [rewrite e (knSims γ) | e <- S.toList (snd `S.map` exprs)]
       in 
         exprs <> (S.fromList $ concat rws)
     go ictx _ | S.null (icCands ictx) = return ictx
@@ -234,10 +235,13 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0 0
                   let env' = env { evAccum = icEquals ictx <> evAccum env 
                                  , evFuel  = icFuel   ictx 
                                  }
-                  (ictx', evalResults)  <- SMT.smtBracket ctx "PLE.evaluate" $ do
-                               SMT.smtAssert ctx (pAnd (S.toList $ icAssms ictx)) 
-                               foldM (evalOneCandStep γ env' i) (ictx, []) (S.toList cands)
-                  let us = mconcat evalResults
+                  (ictx', evalResults)  <- do
+                               SMT.smtAssert ctx (pAndNoDedup (S.toList $ icAssms ictx))
+                               let ictx' = ictx { icAssms = mempty }
+                               foldM (evalOneCandStep γ env' i) (ictx', []) (S.toList cands)
+                               -- foldM (\ictx e -> undefined) 
+                               -- mapM (evalOne γ env' ictx) (S.toList cands)
+                  let us = mconcat evalResults 
                   if S.null (us `S.difference` icEquals ictx)
                         then return ictx 
                         else do  let oks      = fst `S.map` us
@@ -245,7 +249,7 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0 0
                                  let eqsSMT   = evalToSMT "evalCandsLoop" cfg ctx `S.map` us'
                                  let ictx''   = ictx' { icSolved = icSolved ictx <> oks 
                                                       , icEquals = icEquals ictx <> us'
-                                                      , icAssms  = icAssms  ictx <> S.filter (not . isTautoPred) eqsSMT }
+                                                      , icAssms  = S.filter (not . isTautoPred) eqsSMT }
                                  let newcands = mconcat (makeCandidates γ ictx'' <$> S.toList (cands <> (snd `S.map` us)))
                                  go (ictx'' { icCands = S.fromList newcands}) (i + 1)
                                  
@@ -254,17 +258,17 @@ evalOneCandStep γ env' i (ictx, acc) e = do
   (res, fm) <- evalOne γ env' ictx i e
   return (ictx { icFuel = fm}, res : acc)
 
-rewrite :: Expr -> Rewrite -> [(Expr,Expr)] 
-rewrite e rw = Mb.catMaybes $ map (`rewriteTop` rw) (notGuardedApps e)
+rewrite :: Expr -> Map Symbol [Rewrite] -> [(Expr,Expr)] 
+rewrite e rwEnv = concat $ map (`rewriteTop` rwEnv) (notGuardedApps e)
 
-rewriteTop :: Expr -> Rewrite -> Maybe (Expr,Expr) 
-rewriteTop e rw
-  | (EVar f, es) <- splitEApp e
-  , f == smDC rw
+rewriteTop :: Expr -> Map Symbol [Rewrite] -> [(Expr,Expr)]
+rewriteTop e rwEnv =
+  [ (EApp (EVar $ smName rw) e, subst (mkSubst $ zip (smArgs rw) es) (smBody rw))
+  | (EVar f, es) <- [splitEApp e]
+  , Just rws <- [Map.lookup f rwEnv]
+  , rw <- rws
   , length es == length (smArgs rw)
-  = Just (EApp (EVar $ smName rw) e, subst (mkSubst $ zip (smArgs rw) es) (smBody rw))
-  | otherwise
-  = Nothing
+  ]
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 3: @resSInfo@ uses incremental PLE result @InstRes@ to produce the strengthened SInfo 
@@ -363,8 +367,7 @@ updCtx InstEnv {..} ctx delta cidMb
                     , icANFs   = anfs <> icANFs ctx
                     }
   where         
-    initEqs   = S.fromList $ concat [rewrite e rw | e  <- cands ++ (snd <$> S.toList (icEquals ctx))
-                                                  , rw <- knSims ieKnowl]
+    initEqs   = S.fromList $ concat [rewrite e (knSims ieKnowl) | e  <- cands]
     anfs      = S.fromList (toSMT "updCtx" ieCfg ieSMT [] <$> L.nub [ expr xr | xr <- bs ])
     cands     = concatMap (makeCandidates ieKnowl ctx) (rhs:es)
     sims      = S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
@@ -796,7 +799,7 @@ f <$$> xs = f Misc.<$$> xs
 -- and equations
 evalApp :: Knowledge -> ICtx -> Expr -> [Expr] -> EvalType -> EvalST (Expr, FinalExpand)
 evalApp γ ctx (EVar f) es et
-  | Just eq <- L.find ((== f) . eqName) (knAms γ) -- TODO:FUEL make this a fast lookup map!
+  | Just eq <- Map.lookup f (knAms γ)
   , length (eqArgs eq) <= length es 
   = do 
        env  <- gets (seSort . evEnv)
@@ -821,7 +824,8 @@ evalApp γ ctx (EVar f) es et
 
 evalApp γ _ (EVar f) (e:es) _
   | (EVar dc, as) <- splitEApp e
-  , Just rw <- L.find (\rw -> smName rw == f && smDC rw == dc) (knSims γ)
+  , Just rws <- Map.lookup dc (knSims γ)
+  , Just rw <- L.find (\rw -> smName rw == f) rws
   , length as == length (smArgs rw)
   = return (eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es, noExpand)
 
@@ -891,8 +895,9 @@ evalIte γ ctx et b0 e1 e2 = do
 -- | Knowledge (SMT Interaction)
 --------------------------------------------------------------------------------
 data Knowledge = KN 
-  { knSims              :: ![Rewrite]           -- ^ Rewrite rules came from match and data type definitions 
-  , knAms               :: ![Equation]          -- ^ All function definitions
+  { knSims              :: Map Symbol [Rewrite]   -- ^ Rewrites rules came from match and data type definitions 
+                                                  --   They are grouped by the data constructor that they unfold
+  , knAms               :: Map Symbol Equation -- ^ All function definitions
   , knContext           :: SMT.Context
   , knPreds             :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
   , knLams              :: ![(Symbol, Sort)]
@@ -913,8 +918,8 @@ isValid γ e = do
 
 knowledge :: Config -> SMT.Context -> SInfo a -> Knowledge
 knowledge cfg ctx si = KN 
-  { knSims                     = sims 
-  , knAms                      = aenvEqs aenv
+  { knSims                     = Map.fromListWith (++) [ (smDC rw, [rw]) | rw <- sims]
+  , knAms                      = Map.fromList [(eqName eq, eq) | eq <- aenvEqs aenv]
   , knContext                  = ctx 
   , knPreds                    = askSMT  cfg 
   , knLams                     = [] 
@@ -931,7 +936,7 @@ knowledge cfg ctx si = KN
       else RWTerminationCheckDisabled
   } 
   where 
-    sims = aenvSimpl aenv ++ concatMap reWriteDDecl (ddecls si) 
+    sims = aenvSimpl aenv
     aenv = ae si
 
     inRewrites :: Symbol -> Bool
@@ -966,16 +971,6 @@ knowledge cfg ctx si = KN
       = (smName rw,) . (smDC rw,) <$> L.elemIndex x (smArgs rw)
       | otherwise 
       = Nothing 
-
-reWriteDDecl :: DataDecl -> [Rewrite]
-reWriteDDecl ddecl = concatMap go (ddCtors ddecl) 
-  where 
-    go (DCtor f xs) = zipWith (\r i -> SMeasure r f' ys (EVar (ys!!i)) ) rs [0..]
-       where 
-        f'  = symbol f 
-        rs  = (val . dfName) <$> xs  
-        mkArg ws = zipWith (\_ i -> intSymbol (symbol ("darg"::String)) i) ws [0..]
-        ys  = mkArg xs 
 
 askSMT :: Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
 askSMT cfg ctx bs e
