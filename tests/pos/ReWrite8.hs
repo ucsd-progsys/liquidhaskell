@@ -5,6 +5,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
 {-@ LIQUID "--prune-unsorted" @-}
+{-@ LIQUID "--rw-termination-check" @-}
 
 module ReWrite8 where
 

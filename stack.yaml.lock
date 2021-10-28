@@ -109,6 +109,13 @@ packages:
       sha256: 4d7de058f3dd57de2a89ea92e812c37ab5418d2fbac620db8c815e7eb4d856ac
   original:
     hackage: th-abstraction-0.4.2.0
+- completed:
+    hackage: rest-rewrite-0.1.1@sha256:7e180d3feb7185e41e3813e4d5a7aa8dfc1cfb479e754e22e706bcc99a26cf35,4793
+    pantry-tree:
+      size: 3353
+      sha256: 136fea6611049098a74a0b13507dfa914b3eff5d4bca6ef0514b35bc478bdb15
+  original:
+    hackage: rest-rewrite-0.1.1
 snapshots:
 - completed:
     size: 532379

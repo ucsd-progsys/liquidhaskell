@@ -582,7 +582,7 @@ makeFail env name spec =
 
 makeRewrite :: Bare.Env -> ModName -> Ms.BareSpec -> Bare.Lookup (S.HashSet (Located Ghc.Var))
 makeRewrite env name spec = 
-  sForM (Ms.rewrites spec) $ \x -> do 
+  sForM (Ms.rewrites spec) $ \x -> do
     vx <-  Bare.lookupGhcVar env name "Var" x 
     return x { val = vx }
 

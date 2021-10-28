@@ -860,7 +860,7 @@ data Pspec ty ctor
   | Lazy    LocSymbol                                     -- ^ 'lazy' annotation, skip termination check on binder
   | Fail    LocSymbol                                     -- ^ 'fail' annotation, the binder should be unsafe
   | Rewrite LocSymbol                                     -- ^ 'rewrite' annotation, the binder generates a rewrite rule
-  | Rewritewith (LocSymbol,[LocSymbol])                     -- ^ 'rewritewith' annotation, the first binder is using the rewrite rules of the second list
+  | Rewritewith (LocSymbol, [LocSymbol])                  -- ^ 'rewritewith' annotation, the first binder is using the rewrite rules of the second list,
   | Insts   (LocSymbol, Maybe Int)                        -- ^ 'auto-inst' or 'ple' annotation; use ple locally on binder 
   | HMeas   LocSymbol                                     -- ^ 'measure' annotation; lift Haskell binder as measure
   | Reflect LocSymbol                                     -- ^ 'reflect' annotation; reflect Haskell binder as function in logic
@@ -936,7 +936,9 @@ ppPspec k (Lazy   lx)
 ppPspec k (Rewrite   lx) 
   = "rewrite" <+> pprintTidy k (val lx) 
 ppPspec k (Rewritewith (lx, lxs)) 
-  = "rewriteWith" <+> pprintTidy k (val lx) <+> pprintTidy k (val <$> lxs) 
+  = "rewriteWith" <+> pprintTidy k (val lx) <+> (PJ.hsep $ map go lxs)
+  where
+    go s = pprintTidy k $ val s
 ppPspec k (Fail   lx) 
   = "fail" <+> pprintTidy k (val lx) 
 ppPspec k (Insts   (lx, mbN)) 
@@ -1179,8 +1181,7 @@ rewriteVarP :: Parser LocSymbol
 rewriteVarP = locBinderP
 
 rewriteWithP :: Parser (LocSymbol, [LocSymbol])
-rewriteWithP =
-  (,) <$> locBinderP <*> brackets (sepBy1 locBinderP comma)
+rewriteWithP = (,) <$> locBinderP <*> brackets (sepBy1 locBinderP comma)
 
 failVarP :: Parser LocSymbol
 failVarP = locBinderP

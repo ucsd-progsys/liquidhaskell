@@ -6,6 +6,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
 {-@ LIQUID "--prune-unsorted" @-}
+{-@ LIQUID "--rw-termination-check" @-}
 module ReWrite2 where
 
 data OurMonad m = OurMonad {

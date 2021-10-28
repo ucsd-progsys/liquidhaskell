@@ -394,7 +394,7 @@ data Spec ty bndr  = Spec
   , lvars      :: !(S.HashSet F.LocSymbol)        -- ^ Variables that should be checked in the environment they are used
   , lazy       :: !(S.HashSet F.LocSymbol)        -- ^ Ignore Termination Check in these Functions
   , rewrites    :: !(S.HashSet F.LocSymbol)        -- ^ Theorems turned into rewrite rules 
-  , rewriteWith :: !(M.HashMap F.LocSymbol [F.LocSymbol]) -- ^ Definitions using rewrite rules 
+  , rewriteWith :: !(M.HashMap F.LocSymbol [F.LocSymbol]) -- ^ Definitions using rewrite rules
   , fails      :: !(S.HashSet F.LocSymbol)        -- ^ These Functions should be unsafe
   , reflects   :: !(S.HashSet F.LocSymbol)        -- ^ Binders to reflect
   , autois     :: !(M.HashMap F.LocSymbol (Maybe Int))  -- ^ Automatically instantiate axioms in these Functions with maybe specified fuel

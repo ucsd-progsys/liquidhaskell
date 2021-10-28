@@ -17,12 +17,12 @@ import           Language.Haskell.Liquid.Constraint.Types
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Constraint.Qualifier
 import           Control.Monad (guard)
-import qualified Data.Maybe as Mb 
+import qualified Data.Maybe as Mb
 
 -- AT: Move to own module?
 -- imports for AxiomEnv
 import qualified Language.Haskell.Liquid.UX.Config as Config
-import           Language.Haskell.Liquid.UX.DiffCheck (coreDeps, dependsOn)
+import           Language.Haskell.Liquid.UX.DiffCheck (coreDefs, coreDeps, dependsOn, Def(..))
 import qualified Language.Haskell.Liquid.GHC.Misc  as GM -- (simplesymbol)
 import qualified Data.List                         as L
 import qualified Data.HashMap.Strict               as M
@@ -56,7 +56,6 @@ fixConfig tgt cfg = def
   , FC.etaElim                  = not (exactDC cfg) && extensionality cfg -- SEE: https://github.com/ucsd-progsys/liquidhaskell/issues/1601
   , FC.extensionality           = extensionality    cfg 
   , FC.oldPLE                   = oldPLE cfg
-  , FC.maxRWOrderingConstraints = maxRWOrderingConstraints cfg
   , FC.rwTerminationCheck       = rwTerminationCheck cfg
   , FC.noLazyPLE                = noLazyPLE cfg
   , FC.fuel                     = fuel      cfg
@@ -105,30 +104,43 @@ makeAxiomEnvironment info xts fcs
 
 
 makeRewrites :: TargetInfo -> F.SubC Cinfo -> [F.AutoRewrite]
-makeRewrites info sub = concatMap (makeRewriteOne tce)  $ filter ((`S.member` rws) . fst) sigs
+makeRewrites info sub = concatMap (makeRewriteOne tce) $ filter ((`S.member` rws) . fst) sigs
   where
     tce        = gsTcEmbeds (gsName spec)
     spec       = giSpec info
     sig        = gsSig spec
     sigs       = gsTySigs sig ++ gsAsmSigs sig
-    isGlobalRw = Mb.maybe False (`elem` globalRws) (subVar sub)
+    isGlobalRw = Mb.maybe False (`elem` globalRws) parentFunction
 
-    rws        =
+    parentFunction :: Maybe Var
+    parentFunction =
+      case subVar sub of
+        Just v -> Just v
+        Nothing ->
+          Mb.listToMaybe $ do
+            D s e v <- coreDefs $ giCbs $ giSrc info
+            let (Ghc.RealSrcSpan cc _) = (ci_loc $ F.sinfo sub)
+            guard $ s <= Ghc.srcSpanStartLine cc && e >= Ghc.srcSpanEndLine cc
+            return v
+
+    rws =
       if isGlobalRw
       then S.empty
       else S.difference
         (S.union localRws globalRws)
-        (Mb.maybe S.empty forbiddenRWs (subVar sub))
+        (Mb.maybe S.empty forbiddenRWs parentFunction)
 
     allDeps         = coreDeps $ giCbs $ giSrc info
     forbiddenRWs sv =
       S.insert sv $ dependsOn allDeps [sv]
 
     localRws = Mb.fromMaybe S.empty $ do
-      var    <- subVar sub
+      var    <- parentFunction
       usable <- M.lookup var $ gsRewritesWith $ gsRefl spec
       return $ S.fromList usable
-    globalRws  = S.map val $ gsRewrites $ gsRefl spec
+
+    globalRws = S.map val $ gsRewrites $ gsRefl spec
+
 
 canRewrite :: S.HashSet F.Symbol -> F.Expr -> F.Expr -> Bool
 canRewrite freeVars from to = noFreeSyms && doesNotDiverge
@@ -150,8 +162,8 @@ refinementEQs t =
     tres = ty_res tRep
     tRep = toRTypeRep $ val t 
   
-makeRewriteOne :: (F.TCEmb TyCon) -> (Var,LocSpecType) -> [F.AutoRewrite]
-makeRewriteOne tce (_,t)
+makeRewriteOne :: (F.TCEmb TyCon) -> (Var, LocSpecType) -> [F.AutoRewrite]
+makeRewriteOne tce (_, t)
   = [rw | (lhs, rhs) <- refinementEQs t , rw <- rewrites lhs rhs ]
   where
 
