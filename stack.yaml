@@ -1,6 +1,6 @@
 
 resolver: lts-16.8
-compiler: ghc-8.10.2
+compiler: ghc-8.10.4
 # compiler: ghc-8.8.4
 # compiler: ghc-8.6.5
 allow-newer: true
@@ -14,8 +14,6 @@ flags:
 packages:
 - '.'
 
-packages:
-- '.'
 
 extra-deps:
 - dotgen-0.4.2
@@ -27,3 +25,4 @@ extra-deps:
 - store-core-0.4.4.4
 - th-utilities-0.2.4.3
 - th-abstraction-0.4.2.0
+- rest-rewrite-0.1.1
