@@ -85,6 +85,7 @@ data Config = Config
   , noLiftedImport           :: Bool       -- ^ Disable loading lifted specifications (for "legacy" libs)
   , proofLogicEval           :: Bool       -- ^ Enable proof-by-logical-evaluation
   , oldPLE                   :: Bool       -- ^ Enable proof-by-logical-evaluation
+  , useInterpreter           :: Bool       -- ^ Use an interpreter to assist PLE
   , proofLogicEvalLocal      :: Bool       -- ^ Enable proof-by-logical-evaluation locally, per function
   , extensionality           :: Bool       -- ^ Enable extensional interpretation of function equality
   , nopolyinfer              :: Bool       -- ^ No inference of polymorphic type application.
