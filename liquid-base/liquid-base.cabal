@@ -1,6 +1,6 @@
 cabal-version:      1.24
 name:               liquid-base
-version:            4.14.1.0
+version:            4.14.3.0
 synopsis:           Drop-in base replacement for LiquidHaskell
 description:        Drop-in base replacement for LiquidHaskell.
 license:            BSD3
@@ -244,7 +244,7 @@ library
                     Liquid.Prelude.Totality
 
   hs-source-dirs:     src
-  build-depends:      base                 == 4.14.1.0
+  build-depends:      base                 == 4.14.3.0
                     , liquid-ghc-prim
                     , liquidhaskell        >= 0.8.10.1
   if impl(ghc < 9)
