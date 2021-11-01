@@ -34,7 +34,7 @@ commands:
         default: "cabal v2-update"
       ghc_version:
         type: string
-        default: "8.10.2"
+        default: "8.10.7"
       project_file:
         type: string
         default: "cabal.project"
@@ -55,8 +55,8 @@ commands:
       - run: git ls-tree HEAD liquid-fixpoint > liquid-fixpoint-commit
       - restore_cache:
           keys:
-            - cabal-cache-v2-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
-            - cabal-cache-v2-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}
+            - cabal-cache-v3-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
+            - cabal-cache-v3-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}
       - run:
           name: Dependencies
           command: |
@@ -71,7 +71,7 @@ commands:
             cabal v2-clean
             cabal v2-build --project-file << parameters.project_file >> --flag include --flag devel -j2 --enable-tests all
       - save_cache:
-          key: cabal-cache-v2-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
+          key: cabal-cache-v3-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
           paths:
             - ~/.cabal/store
             - ~/.ghcup
