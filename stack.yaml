@@ -1,6 +1,6 @@
 
-resolver: lts-16.8
-compiler: ghc-8.10.4
+resolver: lts-18.14
+compiler: ghc-8.10.7
 # compiler: ghc-8.8.4
 # compiler: ghc-8.6.5
 allow-newer: true
@@ -16,13 +16,5 @@ packages:
 
 
 extra-deps:
-- dotgen-0.4.2
-- fgl-visualize-0.1.0.1
-- intern-0.9.2
-- located-base-0.1.1.1
-- tasty-rerun-1.1.14
-- store-0.7.11
-- store-core-0.4.4.4
-- th-utilities-0.2.4.3
-- th-abstraction-0.4.2.0
+- hashable-1.3.0.0
 - rest-rewrite-0.1.1
