@@ -881,7 +881,7 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
 
         Const summary <$ State.modify (+ 1)
 
-    runGroup group children = Traversal $ Functor.Compose $ do
+    runGroup _ group children = Traversal $ Functor.Compose $ do
       Const soFar <- Functor.getCompose $ getTraversal children
       pure $ Const $ map (\(n,t,s) -> (group</>n,t,s)) soFar
 
