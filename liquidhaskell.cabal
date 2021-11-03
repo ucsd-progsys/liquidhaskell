@@ -86,18 +86,7 @@ flag mirror-modules-helper
 
 library
   autogen-modules:    Paths_liquidhaskell
-  exposed-modules:    Gradual.Concretize
-                      Gradual.GUI
-                      Gradual.GUI.Annotate
-                      Gradual.GUI.Misc
-                      Gradual.GUI.Types
-                      Gradual.Misc
-                      Gradual.PrettyPrinting
-                      Gradual.Refinements
-                      Gradual.Trivial
-                      Gradual.Types
-                      Gradual.Uniquify
-                      Language.Haskell.Liquid.Cabal
+  exposed-modules:    Language.Haskell.Liquid.Cabal
                       Language.Haskell.Liquid.Bare
                       Language.Haskell.Liquid.Bare.Axiom
                       Language.Haskell.Liquid.Bare.Check
