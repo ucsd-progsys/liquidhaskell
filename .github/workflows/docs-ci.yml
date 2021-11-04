@@ -2,10 +2,11 @@
 
 # Based off
 # https://squidfunk.github.io/mkdocs-material/publishing-your-site/?h=deploy#with-github-actions
+name: Build LiquidHaskell Docs
 on:
   push:
 jobs:
-  build-docs:
+  build-docs-job:
     runs-on: ubunut-latest
     steps:
       - uses: actions/checkout@v2
