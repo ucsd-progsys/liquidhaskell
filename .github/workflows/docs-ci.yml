@@ -17,7 +17,7 @@ jobs:
               mkdocs-material \
               mkdocs-awesome-pages-plugin \
               git+https://github.com/jldiaz/mkdocs-plugin-tags.git
-      - run: mkdocs build
+      - run: cd docs/mkDocs && mkdocs build
 
 
     
