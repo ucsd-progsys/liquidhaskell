@@ -1,6 +1,6 @@
 cabal-version:      2.4
 name:               liquidhaskell
-version:            0.8.10.2.1
+version:            0.8.10.7.1
 synopsis:           Liquid Types for Haskell
 description:        Liquid Types for Haskell.
 license:            BSD-3-Clause
@@ -11,7 +11,7 @@ maintainer:         Ranjit Jhala <jhala@cs.ucsd.edu>
 category:           Language
 homepage:           https://github.com/ucsd-progsys/liquidhaskell
 build-type:         Simple
-tested-with:        GHC == 8.6.5, GHC == 8.8.4, GHC == 8.10.1, GHC == 9.0.1
+tested-with:        GHC == 8.6.5, GHC == 8.8.4, GHC == 8.10.1,  GHC == 8.10.7, GHC == 9.0.1
 extra-source-files: CHANGES.md
                     README.md
                     devel/Paths_liquidhaskell.hs
@@ -86,18 +86,7 @@ flag mirror-modules-helper
 
 library
   autogen-modules:    Paths_liquidhaskell
-  exposed-modules:    Gradual.Concretize
-                      Gradual.GUI
-                      Gradual.GUI.Annotate
-                      Gradual.GUI.Misc
-                      Gradual.GUI.Types
-                      Gradual.Misc
-                      Gradual.PrettyPrinting
-                      Gradual.Refinements
-                      Gradual.Trivial
-                      Gradual.Types
-                      Gradual.Uniquify
-                      Language.Haskell.Liquid.Cabal
+  exposed-modules:    Language.Haskell.Liquid.Cabal
                       Language.Haskell.Liquid.Bare
                       Language.Haskell.Liquid.Bare.Axiom
                       Language.Haskell.Liquid.Bare.Check
