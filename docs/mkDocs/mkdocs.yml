@@ -7,11 +7,11 @@ edit_uri: edit/develop/docs/mkDocs/docs
 nav:
   - "<div id='demo'><i aria-hidden=true class='mdi mdi-cloud-braces'></i> Try Online</div>": http://goto.ucsd.edu:8090/index.html
   - "<i aria-hidden=true class='mdi mdi-human-greeting'></i> Tutorial": https://ucsd-progsys.github.io/intro-refinement-types/120/
-  - "": "#" #spacer
+  - "": index.md #spacer
   - "<i aria-hidden=true class='mdi mdi-download'></i> Installation": install.md
   - "<i aria-hidden=true class='mdi mdi-script'></i> Spec Reference": specifications.md
   - "<i aria-hidden=true class='mdi mdi-flag'></i> Flag Reference": options.md
-  - "": "#" #spacer
+  - "": index.md #spacer
   - "<i aria-hidden=true class='mdi mdi-school'></i> Papers": papers.md
   - "<i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog":
       - ... | blogposts/*
