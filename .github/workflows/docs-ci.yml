@@ -1,0 +1,22 @@
+# Build (but don't deploy) the docs on every commit
+
+# Based off
+# https://squidfunk.github.io/mkdocs-material/publishing-your-site/?h=deploy#with-github-actions
+on:
+  push:
+jobs:
+  build-docs:
+    runs-on: ubunut-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.x
+      - run: pip install \
+              mkdocs-material \
+              mkdocs-awesome-pages-plugin \
+              git+https://github.com/jldiaz/mkdocs-plugin-tags.git
+      - run: mkdocs build
+
+
+    
