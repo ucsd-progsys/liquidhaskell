@@ -396,7 +396,7 @@ makeLiftedSpec0 :: Config -> GhcSrc -> F.TCEmb Ghc.TyCon -> LogicMap -> Ms.BareS
                 -> Ms.BareSpec
 makeLiftedSpec0 cfg src embs lmap mySpec = mempty
   { Ms.ealiases  = lmapEAlias . snd <$> Bare.makeHaskellInlines (typeclass cfg) src embs lmap mySpec 
-  , Ms.reflects  = Ms.reflects mySpec <> (if reflection cfg then Ms.hmeas mySpec else mempty)
+  , Ms.reflects  = Ms.reflects mySpec
   , Ms.dataDecls = Bare.makeHaskellDataDecls cfg name mySpec tcs  
   , Ms.embeds    = Ms.embeds mySpec
   -- We do want 'embeds' to survive and to be present into the final 'LiftedSpec'. The
