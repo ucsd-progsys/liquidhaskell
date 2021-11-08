@@ -234,7 +234,7 @@ makeGhcSpec0 :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] ->
                 Ghc.TcRn (Diagnostics, GhcSpec)
 makeGhcSpec0 cfg src lmap mspecsNoCls = do
   -- build up environments
-  tycEnv <- makeTycEnv1 cfg name env (tycEnv0, datacons) coreToLg simplifier
+  tycEnv <- makeTycEnv1 name env (tycEnv0, datacons) coreToLg simplifier
   let tyi      = Bare.tcTyConMap   tycEnv 
   let sigEnv   = makeSigEnv  embs tyi (_gsExports src) rtEnv 
   let lSpec1   = lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1 
@@ -426,7 +426,7 @@ reflectedTyCons :: Config -> TCEmb Ghc.TyCon -> [Ghc.CoreBind] -> Ms.BareSpec ->
 reflectedTyCons cfg embs cbs spec
   | exactDCFlag cfg = filter (not . isEmbedded embs)
                     $ concatMap varTyCons
-                    $ reflectedVars cfg spec cbs
+                    $ reflectedVars spec cbs
   | otherwise       = []
 
 -- | We cannot reflect embedded tycons (e.g. Bool) as that gives you a sort
@@ -444,11 +444,11 @@ specTypeCons         = foldRType tc []
     tc acc t@RApp {} = rtc_tc (rt_tycon t) : acc
     tc acc _         = acc
 
-reflectedVars :: Config -> Ms.BareSpec -> [Ghc.CoreBind] -> [Ghc.Var]
-reflectedVars cfg spec cbs = fst <$> xDefs
+reflectedVars :: Ms.BareSpec -> [Ghc.CoreBind] -> [Ghc.Var]
+reflectedVars spec cbs = fst <$> xDefs
   where
     xDefs              = Mb.mapMaybe (`GM.findVarDef` cbs) reflSyms
-    reflSyms           = fmap val $ S.toList (Ms.reflects spec <> if reflection cfg then Ms.hmeas spec else mempty)
+    reflSyms           = fmap val $ S.toList (Ms.reflects spec)
 
 ------------------------------------------------------------------------------------------
 makeSpecVars :: Config -> GhcSrc -> Ms.BareSpec -> Bare.Env -> Bare.MeasEnv 
@@ -1096,14 +1096,13 @@ makeTycEnv0 cfg myName env embs mySpec iSpecs = (diag0 <> diag1, datacons, Bare.
 
 
 makeTycEnv1 ::
-     Config 
-  -> ModName
+     ModName
   -> Bare.Env
   -> (Bare.TycEnv, [Located DataConP])
   -> (Ghc.CoreExpr -> F.Expr)
   -> (Ghc.CoreExpr -> Ghc.TcRn Ghc.CoreExpr)
   -> Ghc.TcRn Bare.TycEnv
-makeTycEnv1 cfg myName env (tycEnv, datacons) coreToLg simplifier = do
+makeTycEnv1 myName env (tycEnv, datacons) coreToLg simplifier = do
   -- fst for selector generation, snd for dataconsig generation
   lclassdcs <- forM classdcs $ traverse (Bare.elaborateClassDcp coreToLg simplifier)
   let recSelectors = Bare.makeRecordSelectorSigs env myName (dcs ++ (fmap . fmap) snd lclassdcs)
