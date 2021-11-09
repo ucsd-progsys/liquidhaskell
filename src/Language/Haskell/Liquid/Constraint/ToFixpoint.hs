@@ -61,6 +61,7 @@ fixConfig tgt cfg = def
   , FC.fuel                     = fuel      cfg
   , FC.noEnvironmentReduction   = not (environmentReduction cfg)
   , FC.inlineANFBindings        = inlineANFBindings cfg
+  , FC.restOrdering             = read (restOrdering cfg)
   }
 
 cgInfoFInfo :: TargetInfo -> CGInfo -> IO (F.FInfo Cinfo)

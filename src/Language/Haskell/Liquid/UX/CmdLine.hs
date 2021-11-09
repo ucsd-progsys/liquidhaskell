@@ -446,6 +446,10 @@ config = cmdArgsMode $ Config {
           , "Sometimes improves performance and sometimes worsens it."
           , "Disabled by --no-environment-reduction"
           ])
+  , restOrdering
+    = "rpo"
+        &= name "rest-ordering"
+        &= help "Ordering Constraints Algebra to use for REST"
   } &= program "liquid"
     &= help    "Refinement Types for Haskell"
     &= summary copyright
@@ -702,6 +706,7 @@ defConfig = Config
   , environmentReduction     = False
   , noEnvironmentReduction   = False
   , inlineANFBindings        = False
+  , restOrdering             = "rpo"
   }
 
 
