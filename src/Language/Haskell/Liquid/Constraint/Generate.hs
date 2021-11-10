@@ -1180,7 +1180,7 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
   let ys''         = F.symbol <$> filter (not . if allowTC then GM.isEmbeddedDictVar else GM.isEvVar) ys
   let r1           = dataConReft   c   ys''
   let r2           = dataConMsReft rtd ys''
-  let xt           = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
+  xt              <- markDataConType ((xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2)))
   let cbs          = safeZip "cconsCase" (x':ys') (xt0 : yts)
   cγ'             <- addBinders γ   x' cbs
   addBinders cγ' x' [(x', xt)]
@@ -1191,6 +1191,12 @@ caseEnv γ x acs a _ _ = do
   xt'    <- (`strengthen` uTop (altReft γ acs a)) <$> (γ ??= x)
   cγ     <- addBinders γ x' [(x', xt')]
   return cγ
+
+
+markDataConType :: (TyConable c, F.Reftable (f1 F.Reft), Functor f1) 
+                =>  RType c tv (f1 F.Reft) -> CG (RType c tv (f1 F.Reft))
+markDataConType t@(RApp _ _ _ _) = (shiftVV t . F.dataconSymbol) <$> fresh
+markDataConType t                = return t 
 
 --------------------------------------------------------------------------------
 -- | `projectTypes` masks (i.e. true's out) all types EXCEPT those

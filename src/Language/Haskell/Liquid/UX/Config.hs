@@ -97,6 +97,7 @@ data Config = Config
   , maxMatchDepth            :: Int
   , maxAppDepth              :: Int
   , maxArgsDepth             :: Int
+  , useInterpreter           :: Bool
   , rwTerminationCheck       :: Bool       -- ^ Enable termination checking for rewriting
   , skipModule               :: Bool       -- ^ Skip this module entirely (don't even compile any specs in it)
   , noLazyPLE                :: Bool
