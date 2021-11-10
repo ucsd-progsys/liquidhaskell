@@ -8,6 +8,10 @@
 module Fib where
 
 
+{-@ thm10 :: () -> {fib 10 = 55} @-}
+thm10 :: () -> ()
+thm10 _ = ()
+
 {-@ thm7 :: () -> {fib 7 = 13} @-}
 thm7 :: () -> ()
 thm7 _ = ()
