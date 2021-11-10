@@ -1,0 +1,39 @@
+# Build the docs on every commit
+# Also deploy when pushed to 'develop' (if they built OK)
+
+# Based off
+# https://squidfunk.github.io/mkdocs-material/publishing-your-site/?h=deploy#with-github-actions
+name: Documentation CI/CD
+on: [push, pull_request]
+jobs:
+  build-docs-job:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.x
+      - run: pip install \
+              mkdocs-material \
+              mkdocs-awesome-pages-plugin \
+              git+https://github.com/jldiaz/mkdocs-plugin-tags.git
+      - run: cd docs/mkDocs && mkdocs build -s
+  deploy-docs-job:
+    runs-on: ubuntu-latest
+    needs: build-docs-job
+    # Only deploy docs from 'develop' branch (and if they built OK).
+    if: success() && github.ref == 'refs/heads/develop'
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.x
+      - run: pip install \
+              mkdocs-material \
+              mkdocs-awesome-pages-plugin \
+              git+https://github.com/jldiaz/mkdocs-plugin-tags.git
+      - run: cd docs/mkDocs && mkdocs gh-deploy --force
+
+
+
+    

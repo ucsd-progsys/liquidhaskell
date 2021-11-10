@@ -26,7 +26,9 @@ For more options, see `mkdocs serve --help`
 
 ## Publishing
 
-To push to github you can simply run:
+Documentation is *automatically* published to GitHub pages when it reaches the 'develop' branch of the LiquidHaskell repository (or a recent fork). You do **not** need to take any action for this to happen.
+
+If for whatever reason the automatic deployment fails, you can run:
 
 ```
 mkdocs gh-deploy

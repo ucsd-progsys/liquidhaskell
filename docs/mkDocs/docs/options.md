@@ -28,7 +28,7 @@ The options are descibed below (and by the legacy executable: `liquid --help`)
 
 **Directives:** `automatic-instances`
 
-To enable theorem proving, e.g. as [described here](../tags.html#reflection)
+To enable theorem proving, e.g. as [described here](tags.html#reflection)
 use the option
 
 ```haskell
