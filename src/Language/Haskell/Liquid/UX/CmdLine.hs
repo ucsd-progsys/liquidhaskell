@@ -439,6 +439,7 @@ config = cmdArgsMode $ Config {
         &= help "Don't perform environment reduction"
   , useInterpreter
     = def
+        &= explicit
         &= help "Interpretation of reflected functions"
         &= name "interpreter"
         
