@@ -477,7 +477,7 @@ makeDecrs env name mySpec =
   ]
 
 makeRelation :: Bare.Env -> ModName -> Bare.SigEnv ->
-  [(LocSymbol, LocSymbol, LocBareType, LocBareType, Expr, Expr)] -> [(Ghc.Var, Ghc.Var, LocSpecType, LocSpecType, Expr, Expr)]
+  [(LocSymbol, LocSymbol, LocBareType, LocBareType, RelExpr, RelExpr)] -> [(Ghc.Var, Ghc.Var, LocSpecType, LocSpecType, RelExpr, RelExpr)]
 makeRelation env name sigEnv = map go
  where
   go (x, y, tx, ty, a, e) =

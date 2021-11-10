@@ -86,6 +86,9 @@ module Language.Haskell.Liquid.Types.Types (
   -- * Refinements
   , UReft(..)
 
+  -- * Relational predicates
+  , RelExpr (..)
+
   -- * Parse-time entities describing refined data types
   , SizeFun  (..), szFun
   , DataDecl (..)
@@ -567,6 +570,10 @@ instance F.Subable Predicate where
 
 instance NFData r => NFData (UReft r)
 
+data RelExpr = ERBasic F.Expr | ERChecked Expr RelExpr | ERUnChecked Expr RelExpr
+  deriving (Eq, Show, Data, Generic)
+
+instance B.Binary RelExpr
 
 newtype BTyVar = BTV Symbol deriving (Show, Generic, Data, Typeable)
 

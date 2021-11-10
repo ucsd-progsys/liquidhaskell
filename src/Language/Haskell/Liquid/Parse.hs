@@ -434,6 +434,12 @@ refDefP vv rp kindP' = braces $ do
 refP :: Parser (Reft -> BareType) -> Parser BareType
 refP = refBindBindP refaP
 
+relrefaP :: Parser RelExpr 
+relrefaP =
+  try (ERUnChecked <$> refaP <* (reserved "=>" <|> reserved "==>") <*> relrefaP)
+    <|> try (ERChecked <$> refaP <* reserved "!=>" <*> relrefaP)
+    <|> ERBasic <$> refaP
+
 -- "sym :" or return the devault sym
 optBindP :: Symbol -> Parser Symbol
 optBindP x = try bindP <|> return x
@@ -843,8 +849,8 @@ data Pspec ty ctor
   | Impt    Symbol                                        -- ^ 'import' a specification module
   | DDecl   DataDecl                                      -- ^ refined 'data'    declaration 
   | NTDecl  DataDecl                                      -- ^ refined 'newtype' declaration
-  | Relational (LocSymbol, LocSymbol, ty, ty, Expr, Expr) -- ^ relational signature
-  | AssmRel (LocSymbol, LocSymbol, ty, ty, Expr, Expr)    -- ^ 'assume' relational signature
+  | Relational (LocSymbol, LocSymbol, ty, ty, RelExpr, RelExpr) -- ^ relational signature
+  | AssmRel (LocSymbol, LocSymbol, ty, ty, RelExpr, RelExpr) -- ^ 'assume' relational signature
   | Class   (RClass ty)                                   -- ^ refined 'class' definition
   | CLaws   (RClass ty)                                   -- ^ 'class laws' definition
   | ILaws   (RILaws ty)
@@ -1560,7 +1566,7 @@ dataSizeP
   = brackets (Just . SymSizeFun <$> locLowerIdP)
   <|> return Nothing
 
-relationalP :: Parser (LocSymbol, LocSymbol, LocBareType, LocBareType, Expr, Expr)
+relationalP :: Parser (LocSymbol, LocSymbol, LocBareType, LocBareType, RelExpr, RelExpr)
 relationalP = do 
    x <- locBinderP
    reserved "~"
@@ -1570,8 +1576,8 @@ relationalP = do
    reserved "~"
    ty <- located genBareTypeP
    reserved "~~"
-   assm <- try (refaP <* reserved "|-") <|> return PTrue
-   expr <- refaP
+   assm <- try (relrefaP <* reserved "|-") <|> return (ERBasic PTrue)
+   expr <- relrefaP
    return (x,y,tx,ty,assm,expr)
 
 dataDeclP :: Parser DataDecl
