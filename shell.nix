@@ -6,15 +6,16 @@ mkShell {
   LANG="C.UTF-8";
 
   buildInputs = [
-    less
+    cacert
     git
+    glibcLocales
+    gnuplot
     hostname
+    less
     nix
     stack
-    z3
     which
-    glibcLocales
-    cacert
+    z3
   ];
 
 }
