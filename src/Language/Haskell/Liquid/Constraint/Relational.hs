@@ -172,11 +172,11 @@ consRelCheckBind _ _ b1@(Rec _) b2@(Rec _) _ _ _ _
 -- Definition of CoreExpr: https://hackage.haskell.org/package/ghc-8.10.1/docs/CoreSyn.html
 consRelCheck :: CGEnv -> PrEnv -> CoreExpr -> CoreExpr -> 
   SpecType -> SpecType -> F.Expr -> CG ()
-consRelCheck γ ψ (Tick _ e) d t s p =
-  {- traceChk "Left Tick" e d t s p $ -} consRelCheck γ ψ e d t s p
+consRelCheck γ ψ (Tick tt e) d t s p =
+  {- traceChk "Left Tick" e d t s p $ -} consRelCheck (γ `setLocation` (Sp.Tick tt)) ψ e d t s p
 
-consRelCheck γ ψ e (Tick _ d) t s p =
-  {- traceChk "Right Tick" e d t s p $ -} consRelCheck γ ψ e d t s p
+consRelCheck γ ψ e (Tick tt d) t s p =
+  {- traceChk "Right Tick" e d t s p $ -} consRelCheck (γ `setLocation` (Sp.Tick tt)) ψ e d t s p
 
 consRelCheck γ ψ l1@(Lam α1 e1) e2 rt1@(RAllT s1 t1 r1) t2 p 
   | Ghc.isTyVar α1
@@ -352,11 +352,11 @@ instantiateTys = L.foldl' go
 --------------------------------------------------------------
 
 consRelSynth :: CGEnv -> PrEnv -> CoreExpr -> CoreExpr -> CG (SpecType, SpecType, [F.Expr])
-consRelSynth γ ψ (Tick _ e) d =
-  {- traceSyn "Left Tick" e d -} consRelSynth γ ψ e d
+consRelSynth γ ψ (Tick tt e) d =
+  {- traceSyn "Left Tick" e d -} consRelSynth (γ `setLocation` (Sp.Tick tt)) ψ e d
 
-consRelSynth γ ψ e (Tick _ d) =
-  {- traceSyn "Right Tick" e d -} consRelSynth γ ψ e d
+consRelSynth γ ψ e (Tick tt d) =
+  {- traceSyn "Right Tick" e d -} consRelSynth (γ `setLocation` (Sp.Tick tt)) ψ e d
 
 consRelSynth γ ψ a1@(App e1 d1) e2 | Type t1 <- GM.unTickExpr d1 =
   traceSyn "App Ty L" a1 e2 $ do
@@ -771,11 +771,11 @@ lookupBind x bs = case lookup x (concatMap binds bs) of
   Just e  -> e
  where
   binds b@(NonRec x _) = [ (x, b) ]
-  binds b@(Rec bs    ) = [ (x, b) | x <- fst <$> bs ]
+  binds b@(Rec bs    ) = [ (x, Rec [(x,e)]) | (x,e) <- bs ]
 
 subUnarySig :: CGEnv -> Var -> SpecType -> CG ()
 subUnarySig γ x tRel =
-  forM_ args $ \(rt, ut) -> addC (SubC γ ut rt) $ "subUnarySig tUn = " ++ F.showpp ut ++ " tRel = " ++ F.showpp rt
+  forM_ args $ \(rt, ut) -> addC (SubC γ{ warns = text "subUnarySig":warns γ} ut rt) $ "subUnarySig tUn = " ++ F.showpp ut ++ " tRel = " ++ F.showpp rt
   where
     args = zip (snd $ vargs tRel) (snd $ vargs tUn)
     tUn = symbolType γ x $ "subUnarySig " ++ F.showpp x

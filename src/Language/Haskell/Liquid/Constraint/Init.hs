@@ -171,6 +171,7 @@ measEnv :: TargetSpec
 --------------------------------------------------------------------------------
 measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
   { cgLoc    = Sp.empty
+  , warns    = mempty
   , renv     = fromListREnv (second val <$> gsMeas (gsData sp)) []
   , syenv    = F.fromListSEnv (gsFreeSyms (gsName sp))
   , litEnv   = F.fromListSEnv lts

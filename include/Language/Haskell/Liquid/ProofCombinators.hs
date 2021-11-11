@@ -31,11 +31,15 @@ module Language.Haskell.Liquid.ProofCombinators (
   -- * Combining Proofs
   , (&&&)
   , withProof 
-  , impossible 
+  , impossible
+  , cast  
 
 
 ) where
 
+
+cast :: a -> b -> b 
+cast x y = y 
 -------------------------------------------------------------------------------
 -- | Proof is just a () alias -------------------------------------------------
 -------------------------------------------------------------------------------
