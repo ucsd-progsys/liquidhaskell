@@ -6,7 +6,12 @@ with pkgs;
 
 haskell.lib.buildStackProject ({
   name = "liquidhaskell-stack";
-  buildInputs = [ git z3 hostname ];
+  buildInputs = [
+    git
+    hostname
+    nix
+    z3
+  ];
   ghc = ghc;
   LANG = "en_US.utf8";
 })
