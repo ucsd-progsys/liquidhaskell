@@ -922,6 +922,7 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
 
     let dir = "tests" </> "logs" </> host ++ "-" ++ time
     let smry = "tests" </> "logs" </> "cur" </> "summary.csv"
+    system "mkdir -p tests/logs/cur"
     writeFile smry $ unlines
                    $ hdr
                    : map (\(n, t, r) -> printf "%s, %0.4f, %s" n t (show r)) summary
