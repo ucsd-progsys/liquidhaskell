@@ -1090,6 +1090,9 @@ instance F.Fixpoint RTyCon where
 instance F.Fixpoint BTyCon where
   toFix = text . F.symbolString . F.val . btc_tc
 
+instance F.PPrint Cinfo where
+  pprintTidy _ = text . show
+
 instance F.Fixpoint Cinfo where
   toFix = text . showPpr . ci_loc
 

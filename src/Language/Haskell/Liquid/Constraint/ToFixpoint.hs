@@ -58,6 +58,7 @@ fixConfig tgt cfg = def
   , FC.oldPLE                   = oldPLE cfg
   , FC.rwTerminationCheck       = rwTerminationCheck cfg
   , FC.noLazyPLE                = noLazyPLE cfg
+  , FC.useInterpreter           = useInterpreter cfg
   , FC.fuel                     = fuel      cfg
   , FC.noEnvironmentReduction   = not (environmentReduction cfg)
   , FC.inlineANFBindings        = inlineANFBindings cfg

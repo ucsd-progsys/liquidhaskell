@@ -290,6 +290,8 @@ microTests = group "Micro"
   , mkMicroNeg "absref-neg"     "tests/absref/neg"
   -- , mkMicroPos "import-lib"     "tests/import/lib"      -- NOT disabled; but via CHECK-IMPORTS
   , mkMicroPos "import-cli"     "tests/import/client"
+  , mkMicroPos "interpreter-pos"    "tests/interpreter/pos"
+  , mkMicroNeg "interpreter-neg"    "tests/interpreter/neg"
   , mkMicroPos "class-pos"      "tests/classes/pos"
   , mkMicroNeg "class-neg"      "tests/classes/neg"
   , mkMicroPos "ple-pos"        "tests/ple/pos"
