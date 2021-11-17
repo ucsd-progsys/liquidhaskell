@@ -570,7 +570,9 @@ rAllP :: SourcePos -> PVar BSort -> BareType -> BareType
 rAllP sp p t = RAllP p' ({- F.tracepp "rAllP" $ -} substPVar p p' t) 
   where 
     p'  = p { pname = pn' }
-    pn' = pname p `intSymbol` sourceLine sp `intSymbol` sourceColumn sp 
+    pn' = pname p `intSymbol` lin `intSymbol` col 
+    lin = unPos (sourceLine sp)
+    col = unPos (sourceColumn  sp)
 
 tyVarDefsP :: Parser [BTyVar]
 tyVarDefsP
