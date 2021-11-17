@@ -105,6 +105,7 @@ data Config = Config
   , noEnvironmentReduction   :: Bool       -- ^ Don't perform environment reduction
   , inlineANFBindings        :: Bool       -- ^ Inline ANF bindings.
                                            -- Sometimes improves performance and sometimes worsens it.
+  , pandocHtml               :: Bool       -- ^ Use pandoc to generate html
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 allowPLE :: Config -> Bool
