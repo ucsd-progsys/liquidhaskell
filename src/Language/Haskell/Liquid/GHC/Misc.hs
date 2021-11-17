@@ -357,6 +357,9 @@ ignoreLetBinds e
 -- | Predicates on CoreExpr and DataCons ---------------------------------------
 --------------------------------------------------------------------------------
 
+isExternalId :: Id -> Bool
+isExternalId = isExternalName . getName
+
 isTupleId :: Id -> Bool
 isTupleId = maybe False Ghc.isTupleDataCon . idDataConM
 
@@ -525,7 +528,7 @@ instance Symbolic Name where
 
 instance Symbolic Var where   -- TODO:reflect-datacons varSymbol
   symbol v
-    | isExportedId v = exportedVarSymbol v
+    | isExternalId v = exportedVarSymbol v
     | otherwise      = localVarSymbol    v
 
 

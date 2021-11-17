@@ -504,7 +504,7 @@ consBind isRec γ (x, e, Unknown)
   = do t'    <- consE (γ `setBind` x) e
        t     <- topSpecType x t'
        addIdA x (defAnn isRec t)
-       when (isExportedId x) (addKuts x t)
+       when (GM.isExternalId x) (addKuts x t)
        return $ Asserted t
 
 killSubst :: RReft -> RReft
