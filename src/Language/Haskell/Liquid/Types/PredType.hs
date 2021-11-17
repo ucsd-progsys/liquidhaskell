@@ -336,7 +336,7 @@ substPVar src dst = go
     go (REx x t t')       = REx x     (go t)  (go t')
     go (RRTy e r o t)     = RRTy e'   (goRR r) o (go t) where e' = [(x, go t) | (x, t) <- e]
     go (RAppTy t1 t2 r)   = RAppTy    (go t1) (go t2) (goRR r)
-    go t@(RHole _)        = t 
+    go (RHole r)          = RHole     (goRR r)
     go t@(RExprArg  _)    = t
     goR :: BRProp RReft -> BRProp RReft
     goR rp = rp {rf_body = go (rf_body rp) }
