@@ -1056,4 +1056,3 @@ instance PPrint TargetVars where
 
 instance Result SourceError where
   result = (`Crash` "Invalid Source") . sourceErrors ""
-
