@@ -847,7 +847,7 @@ extractSpecQuotes' thisModule getAnns a = mapMaybe extractSpecQuote anns
 
 extractSpecQuote :: AnnPayload -> Maybe BPspec
 extractSpecQuote payload = 
-  case fromSerialized deserializeWithData payload of
+  case Ghc.fromSerialized Ghc.deserializeWithData payload of
     Nothing -> Nothing
     Just qt -> Just $ refreshSymbols $ liquidQuoteSpec qt
 
@@ -1056,3 +1056,4 @@ instance PPrint TargetVars where
 
 instance Result SourceError where
   result = (`Crash` "Invalid Source") . sourceErrors ""
+
