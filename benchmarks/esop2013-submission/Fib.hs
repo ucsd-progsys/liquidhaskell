@@ -10,9 +10,9 @@ import Language.Haskell.Liquid.Prelude (liquidAssume)
 set :: Int -> a -> (Int -> a) -> (Int -> a)
 set i x a = \k -> if k == i then x else a k
 
-{-@ get :: forall a <p :: x0: Int -> x1: a -> Bool, r :: x0: Int -> Bool>.
-             i: Int<r> ->
-             a: (j: Int<r> -> a<p j>) ->
+{-@ get :: forall a <p :: x0: Int -> x1: a -> Bool, rap :: x0: Int -> Bool>.
+             i: Int<rap> ->
+             a: (j: Int<rap> -> a<p j>) ->
              a<p i> 
   @-}
 get :: Int -> (Int -> a) -> a

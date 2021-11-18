@@ -47,6 +47,8 @@ import qualified Language.Haskell.Liquid.Measure        as Measure
 import           Language.Fixpoint.Parse                hiding (defineP, dataDeclP, refBindP, refP, refDefP, parseTest')
 
 import Control.Monad.State
+import qualified Language.Fixpoint.Types.PrettyPrint as F
+import qualified Language.Fixpoint.Types as F
 
 -- import Debug.Trace
 
@@ -552,18 +554,25 @@ rrTy ct = RRTy (xts ++ [(dummySymbol, tr)]) mempty OCons
 --  "forall x y <z :: Nat, w :: Int> . TYPE"
 bareAllP :: Parser BareType
 bareAllP = do
-  as <- tyVarDefsP
-  ps <- angles inAngles
-        <|> (return [])
+  sp <- getSourcePos 
+  as  <- tyVarDefsP
+  ps  <- angles inAngles
+        <|> return []
   dot
   t <- bareTypeP
-  return $ foldr rAllT (foldr RAllP t ps) (makeRTVar <$> as)
+  return $ foldr rAllT (foldr (rAllP sp) t ps) (makeRTVar <$> as)
   where
     rAllT a t = RAllT a t mempty
-    inAngles =
-      (
-       (try  (sepBy  predVarDefP comma))
-       )
+    inAngles  = try  (sepBy  predVarDefP comma)
+
+-- See #1907 for why we have to alpha-rename pvar binders
+rAllP :: SourcePos -> PVar BSort -> BareType -> BareType
+rAllP sp p t = RAllP p' ({- F.tracepp "rAllP" $ -} substPVar p p' t) 
+  where 
+    p'  = p { pname = pn' }
+    pn' = pname p `intSymbol` lin `intSymbol` col 
+    lin = unPos (sourceLine sp)
+    col = unPos (sourceColumn  sp)
 
 tyVarDefsP :: Parser [BTyVar]
 tyVarDefsP

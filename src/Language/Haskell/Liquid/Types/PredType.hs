@@ -27,6 +27,7 @@ module Language.Haskell.Liquid.Types.PredType (
 
   -- * should be elsewhere
   , dataConWorkRep
+  , substPVar
   ) where
 
 import           Prelude                         hiding (error)
@@ -316,6 +317,37 @@ replacePreds msg                 = L.foldl' go
 -- replacePreds msg       = foldl' go
 --   where go z (π, RProp t) = substPred msg   (π, t)     z
 --         go z (π, RPropP r) = replacePVarReft (π, r) <$> z
+
+-------------------------------------------------------------------------------------
+substPVar :: PVar BSort -> PVar BSort -> BareType -> BareType 
+-------------------------------------------------------------------------------------
+substPVar src dst = go
+  where
+    go :: BareType -> BareType
+    go (RVar a r)         = RVar a (goRR r)
+    go (RApp c ts rs r)   = RApp c (go <$> ts) (goR <$> rs) (goRR r)
+    go (RAllP q t)        
+     | pname q == pname src = RAllP q t
+     | otherwise            = RAllP q (go t)
+    go (RAllT a t r)      = RAllT a   (go t)  (goRR r)
+    go (RFun x i t t' r)  = RFun x i  (go t)  (go t') (goRR r)
+    go (RImpF x i t t' r) = RImpF x i (go t)  (go t') (goRR r)
+    go (RAllE x t t')     = RAllE x   (go t)  (go t')
+    go (REx x t t')       = REx x     (go t)  (go t')
+    go (RRTy e r o t)     = RRTy e'   (goRR r) o (go t) where e' = [(x, go t) | (x, t) <- e]
+    go (RAppTy t1 t2 r)   = RAppTy    (go t1) (go t2) (goRR r)
+    go (RHole r)          = RHole     (goRR r)
+    go t@(RExprArg  _)    = t
+    goR :: BRProp RReft -> BRProp RReft
+    goR rp = rp {rf_body = go (rf_body rp) }
+    goRR :: RReft -> RReft
+    goRR rr = rr { ur_pred = goP (ur_pred rr) }
+    goP :: Predicate -> Predicate 
+    goP (Pr ps) = Pr (goPV <$> ps)
+    goPV :: UsedPVar -> UsedPVar
+    goPV pv 
+      | pname pv == pname src = pv { pname = pname dst }
+      | otherwise             = pv 
 
 -------------------------------------------------------------------------------
 substPred :: String -> (RPVar, SpecProp) -> SpecType -> SpecType

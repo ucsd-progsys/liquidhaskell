@@ -364,8 +364,15 @@ testSucceeds =
       , "  {a<q> <: a<r>} "
       , "  Ord a => OList (a<p>) -> OList (a<q>) -> OList a<r> "])
         @?==
-          "assume (++) :: forall <p :: a -> Bool, q :: a -> Bool, r :: a -> Bool> .\n               (Ord a) =>\n               {x :: {VV : a<p> | true} |- {VV : a<q> | true} <: {v : a | x <= v}} =>\n               {|- {VV : a<p> | true} <: {VV : a<r> | true}} =>\n               {|- {VV : a<q> | true} <: {VV : a<r> | true}} =>\n               lq_tmp$db##13:(OList {VV : a<p> | true}) -> lq_tmp$db##15:(OList {VV : a<q> | true}) -> (OList {VV : a<r> | true})"
-
+          -- "assume (++) :: forall <p :: a -> Bool, q :: a -> Bool, r :: a -> Bool> .\n               (Ord a) =>\n               {x :: {VV : a<p> | true} |- {VV : a<q> | true} <: {v : a | x <= v}} =>\n               {|- {VV : a<p> | true} <: {VV : a<r> | true}} =>\n               {|- {VV : a<q> | true} <: {VV : a<r> | true}} =>\n               lq_tmp$db##13:(OList {VV : a<p> | true}) -> lq_tmp$db##15:(OList {VV : a<q> | true}) -> (OList {VV : a<r> | true})"
+         (unlines 
+           [ "assume (++) :: forall <p##1##23 :: a -> Bool, q##1##23 :: a -> Bool, r##1##23 :: a -> Bool>."
+           , "               (Ord a) =>"
+           , "               {x :: {VV : a<p##1##23> | true} |- {VV : a<q##1##23> | true} <: {v : a | x <= v}} =>"
+           , "               {|- {VV : a<p##1##23> | true} <: {VV : a<r##1##23> | true}} =>"
+           , "               {|- {VV : a<q##1##23> | true} <: {VV : a<r##1##23> | true}} =>"
+           , "               lq_tmp$db##13:(OList {VV : a<p##1##23> | true}) -> lq_tmp$db##15:(OList {VV : a<q##1##23> | true}) -> (OList {VV : a<r##1##23> | true})"
+         ])
     , testCase "type spec 9" $
        parseSingleSpec (unlines $
           [ "data AstF f <ix :: AstIndex -> Bool>"
@@ -393,7 +400,13 @@ testSucceeds =
           , "       {x::Int<q> |- {v:Int| v = x + 1} <: Int<q>}"
           , "       (Int<p> -> ()) -> x:Int<q> -> ()" ])
           @?==
-            "app :: forall <p :: Int -> Bool, q :: Int -> Bool> .\n       {|- (Int <{VV : _<q> | true}>) <: (Int <{VV : _<p> | true}>)} =>\n       {x :: (Int <{VV : _<q> | true}>) |- {v : Int | v == x + 1} <: (Int <{VV : _<q> | true}>)} =>\n       lq_tmp$db##8:(lq_tmp$db##9:(Int <{VV : _<p> | true}>) -> ()) -> x:(Int <{VV : _<q> | true}>) -> ()"
+ --            "app :: forall <p :: Int -> Bool, q :: Int -> Bool> .\n       {|- (Int <{VV : _<q> | true}>) <: (Int <{VV : _<p> | true}>)} =>\n       {x :: (Int <{VV : _<q> | true}>) |- {v : Int | v == x + 1} <: (Int <{VV : _<q> | true}>)} =>\n       lq_tmp$db##8:(lq_tmp$db##9:(Int <{VV : _<p> | true}>) -> ()) -> x:(Int <{VV : _<q> | true}>) -> ()"
+            (unlines 
+              [ "app :: forall <p##1##15 :: Int -> Bool, q##1##15 :: Int -> Bool>."
+              , "       {|- (Int <{VV : _<q##1##15> | true}>) <: (Int <{VV : _<p##1##15> | true}>)} =>"
+              , "       {x :: (Int <{VV : _<q##1##15> | true}>) |- {v : Int | v == x + 1} <: (Int <{VV : _<q##1##15> | true}>)} =>"
+              , "       lq_tmp$db##8:(lq_tmp$db##9:(Int <{VV : _<p##1##15> | true}>) -> ()) -> x:(Int <{VV : _<q##1##15> | true}>) -> ()"
+            ])
 
     , testCase "type spec 12" $
        parseSingleSpec (unlines $
@@ -402,8 +415,14 @@ testSucceeds =
           , "         {x::a<p> |- {v:a | x <= v} <: a<q>}"
           , "         xs:[{v:a<p> | 0 <= v}] -> {v:a<q> | len xs >= 0 && 0 <= v } "])
           @?==
-            "ssum :: forall <p :: a -> Bool, q :: a -> Bool> .\n        {|- {v : a | v == 0} <: {VV : a<q> | true}} =>\n        {x :: {VV : a<p> | true} |- {v : a | x <= v} <: {VV : a<q> | true}} =>\n        xs:[{v : a<p> | 0 <= v}] -> {v : a<q> | len xs >= 0\n                                                && 0 <= v}"
-
+            -- "ssum :: forall <p :: a -> Bool, q :: a -> Bool> .\n        {|- {v : a | v == 0} <: {VV : a<q> | true}} =>\n        {x :: {VV : a<p> | true} |- {v : a | x <= v} <: {VV : a<q> | true}} =>\n        xs:[{v : a<p> | 0 <= v}] -> {v : a<q> | len xs >= 0\n                                                && 0 <= v}"
+           (unlines 
+              [ "ssum :: forall <p##1##16 :: a -> Bool, q##1##16 :: a -> Bool>."
+              , "        {|- {v : a | v == 0} <: {VV : a<q##1##16> | true}} =>"
+              , "        {x :: {VV : a<p##1##16> | true} |- {v : a | x <= v} <: {VV : a<q##1##16> | true}} =>"
+              , "        xs:[{v : a<p##1##16> | 0 <= v}] -> {v : a<q##1##16> | len xs >= 0"
+              , "                                                              && 0 <= v}"
+           ])
     , testCase "type spec 13" $
        -- removing duplicate conjuncts also affects the order in which the
        -- surviving conjuncts are returned
@@ -450,8 +469,11 @@ testSucceeds =
 
     , testCase "type spec 21" $
        parseSingleSpec "newRGRef :: forall <p :: a -> Bool, r :: a -> a -> Bool >.\n   e:a<p> ->\n  e2:a<r e> ->\n  f:(x:a<p> -> y:a<r x> -> {v:a<p> | (v = y)}) ->\n IO (RGRef <p, r> a)" @?==
-            "newRGRef :: forall <p :: a -> Bool, r :: a a -> Bool> .\n            e:{VV : a<p> | true} -> e2:{VV : a<r e> | true} -> f:(x:{VV : a<p> | true} -> y:{VV : a<r x> | true} -> {v : a<p> | v == y}) -> (IO (RGRef <{VV : _<p> | true}, {VV : _<r> | true}> a))"
-
+            -- "newRGRef :: forall <p :: a -> Bool, r :: a a -> Bool> .\n            e:{VV : a<p> | true} -> e2:{VV : a<r e> | true} -> f:(x:{VV : a<p> | true} -> y:{VV : a<r x> | true} -> {v : a<p> | v == y}) -> (IO (RGRef <{VV : _<p> | true}, {VV : _<r> | true}> a))"
+            (unlines [ "newRGRef :: forall <p##1##20 :: a -> Bool, r##1##20 :: a a -> Bool>."
+                     , "            e:{VV : a<p##1##20> | true} -> e2:{VV : a<r##1##20 e> | true} -> f:(x:{VV : a<p##1##20> | true} -> y:{VV : a<r##1##20 x> | true} -> {v : a<p##1##20> | v == y}) -> (IO (RGRef <{VV : _<p##1##20> | true}, {VV : _<r##1##20> | true}> a))"
+                     ]
+            )
     , testCase "type spec 21" $
        parseSingleSpec "cycle        :: {v: [a] | len(v) > 0 } -> [a]" @?==
             "cycle :: v:{v : [a] | len v > 0} -> [a]"
