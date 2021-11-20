@@ -1,5 +1,6 @@
 {-@ LIQUID "--prune-unsorted" @-}
 {-@ LIQUID "--eliminate=none" @-}
+{-@ LIQUID "--no-check-imports" @-}
 
 {-# LANGUAGE BangPatterns, MagicHash #-}
 

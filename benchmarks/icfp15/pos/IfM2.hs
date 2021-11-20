@@ -3,6 +3,7 @@ module IfM where
 {-@ LIQUID "--no-termination"    @-}
 {-@ LIQUID "--no-pattern-inline" @-}
 {-@ LIQUID "--short-names"       @-}
+{-@ LIQUID "--no-check-imports" @-}
 
 import RIO2
 

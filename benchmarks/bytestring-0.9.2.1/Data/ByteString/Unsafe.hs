@@ -1,5 +1,5 @@
 {-@ LIQUID "--prune-unsorted" @-}
-
+{-@ LIQUID "--no-check-imports" @-}
 {-# OPTIONS_GHC -cpp -fglasgow-exts #-}
 -- |
 -- Module      : Data.ByteString.Unsafe

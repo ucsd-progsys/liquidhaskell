@@ -22,6 +22,7 @@
 
 {-@ LIQUID "--prune-unsorted" @-}
 {-@ LIQUID "--checks=plen"    @-}
+{-@ LIQUID "--no-check-imports" @-}
 
 module Data.Text.Encoding
     (

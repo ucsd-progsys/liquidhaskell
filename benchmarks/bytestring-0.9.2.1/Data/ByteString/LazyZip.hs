@@ -1,6 +1,6 @@
 {-@ LIQUID "--maxparams=4" @-}
 {-@ LIQUID "--pruneunsorted" @-}
-
+{-@ LIQUID "--no-check-imports" @-}
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans -fno-warn-incomplete-patterns #-}
 
 {-# LANGUAGE PartialTypeSignatures #-}

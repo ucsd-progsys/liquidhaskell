@@ -1,4 +1,5 @@
 {-@ LIQUID "--pruneunsorted" @-}
+{-@ LIQUID "--no-check-imports" @-}
 {- LIQUID "--trust-sizes"   @-}
 
 {-# LANGUAGE CPP, ForeignFunctionInterface, DeriveDataTypeable #-}

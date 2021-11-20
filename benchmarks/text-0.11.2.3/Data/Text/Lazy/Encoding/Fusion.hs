@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns, CPP, Rank2Types #-}
 {-@ LIQUID "--prune-unsorted" @-}
 {-@ LIQUID "--compile-spec" @-}
+{-@ LIQUID "--no-check-imports" @-}
 
 -- |
 -- Module      : Data.Text.Lazy.Encoding.Fusion

@@ -1,5 +1,6 @@
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "totality"         @-}
+{-@ LIQUID "--no-check-imports" @-}
 
 module DataBase  (
 

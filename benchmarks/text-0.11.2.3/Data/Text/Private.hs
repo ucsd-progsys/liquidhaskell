@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns, Rank2Types, UnboxedTuples #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+{-@ LIQUID "--no-check-imports" @-}
 {-@ LIQUID "--prune-unsorted" @-}
 
 -- |

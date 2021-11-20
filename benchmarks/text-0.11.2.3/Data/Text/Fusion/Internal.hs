@@ -1,5 +1,6 @@
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--no-totality"    @-}
+{-@ LIQUID "--no-check-imports" @-}
 
 {-# LANGUAGE BangPatterns, ExistentialQuantification #-}
 -- |

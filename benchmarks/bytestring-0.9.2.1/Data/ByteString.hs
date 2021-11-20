@@ -1,4 +1,5 @@
 {-@ LIQUID "--compile-spec"  @-}
+{-@ LIQUID "--no-check-imports" @-}
 {-@ LIQUID "--no-totality"   @-}
 {-@ LIQUID "--notermination" @-}
 {-@ LIQUID "--pruneunsorted" @-}

@@ -3,6 +3,7 @@ module WhileTest where
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--short-names" @-}
 {-@ LIQUID "--no-pattern-inline" @-}
+{-@ LIQUID "--no-check-imports" @-}
 
 import RIO
 import WhileM

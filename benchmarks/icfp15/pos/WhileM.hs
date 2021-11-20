@@ -2,6 +2,7 @@ module WhileM where
 
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--short-names" @-}
+{-@ LIQUID "--no-check-imports" @-}
 
 import RIO
 

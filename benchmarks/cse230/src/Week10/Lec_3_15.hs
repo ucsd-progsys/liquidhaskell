@@ -1,6 +1,6 @@
 {-@ LIQUID "--reflection"  @-}
 {-@ LIQUID "--ple"         @-}
-{-@ LIQUID "--diff"        @-}
+{-@ LIQUID "--no-check-imports" @-}
 
 module Lec_3_15 () where 
 

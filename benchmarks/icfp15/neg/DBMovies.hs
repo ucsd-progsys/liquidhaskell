@@ -1,4 +1,5 @@
 {-@ LIQUID "--pruneunsorted" @-}
+{-@ LIQUID "--no-check-imports" @-}
 
 module MovieClient where
 

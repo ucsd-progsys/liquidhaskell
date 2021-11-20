@@ -1,6 +1,6 @@
 {-@ LIQUID "--reflection"  @-}
 {-@ LIQUID "--ple"         @-}
-{-@ LIQUID "--diff"        @-}
+{-@ LIQUID "--no-check-imports" @-}
 {- LIQUID "--short-names" @-}
 {-@ infixr ++              @-}  -- TODO: Silly to have to rewrite this annotation!
 {-@ infixr <~              @-}  -- TODO: Silly to have to rewrite this annotation!

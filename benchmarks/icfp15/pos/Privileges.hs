@@ -1,4 +1,5 @@
 {-# Language EmptyDataDecls #-}
+{-@ LIQUID "--no-check-imports" @-}
 module Privileges where
 
 import RIO

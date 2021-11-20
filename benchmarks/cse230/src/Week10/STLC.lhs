@@ -9,6 +9,7 @@ of [Jeremy Siek](http://siek.blogspot.com/2013/05/type-safety-in-three-easy-lemm
 {-@ LIQUID "--reflection"     @-}
 {-@ LIQUID "--ple"            @-}
 {-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--no-check-imports" @-}
 
 {-# LANGUAGE GADTs #-}
 

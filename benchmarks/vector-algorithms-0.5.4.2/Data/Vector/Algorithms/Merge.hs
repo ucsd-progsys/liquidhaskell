@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-@ LIQUID "--no-check-imports" @-}
 
 -- ---------------------------------------------------------------------------
 -- |

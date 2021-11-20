@@ -1,3 +1,5 @@
+{-@ LIQUID "--no-check-imports" @-}
+
 module Records where
 
 import qualified Data.Set as S

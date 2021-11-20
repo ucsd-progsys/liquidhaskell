@@ -1,4 +1,5 @@
 {- LIQUID "--no-pattern-inline" @-}
+{-@ LIQUID "--no-check-imports" @-}
 {-# LANGUAGE CPP, MagicHash #-}
 
 -- |

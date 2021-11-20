@@ -1,6 +1,7 @@
 {-@ LIQUID "--pruneunsorted" @-}
 {-@ LIQUID "--maxparams=3" @-}
 {- LIQUID "--trust-sizes" @-}
+{-@ LIQUID "--no-check-imports" @-}
 
 {-# LANGUAGE BangPatterns, DeriveDataTypeable #-}
 -- |

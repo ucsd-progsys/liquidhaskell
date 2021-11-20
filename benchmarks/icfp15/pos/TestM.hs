@@ -3,7 +3,7 @@ module Test where
 import RIO
 
 {-@ LIQUID "--no-termination" @-}
-
+{-@ LIQUID "--no-check-imports" @-}
 
 {-@ measure counter1 :: World -> Int @-}
 {-@ measure counter2 :: World -> Int @-}

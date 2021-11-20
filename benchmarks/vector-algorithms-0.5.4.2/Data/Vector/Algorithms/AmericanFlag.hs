@@ -1,3 +1,5 @@
+{-@ LIQUID "--no-check-imports" @-}
+
 {-# LANGUAGE PartialTypeSignatures, FlexibleContexts, ScopedTypeVariables #-}
 {-# LANGUAGE BangPatterns #-}
 

@@ -1,6 +1,7 @@
 {-@ LIQUID "--maxparams=3"    @-}
 {-@ LIQUID "--prune-unsorted" @-}
 {- LIQUID "--trust-sizes"    @-}
+{-@ LIQUID "--no-check-imports" @-}
 
 {-# OPTIONS_GHC -cpp -fglasgow-exts #-}
 -- |

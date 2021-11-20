@@ -1,4 +1,4 @@
-
+{-@ LIQUID "--no-check-imports" @-}
 {-@ LIQUID "--prune-unsorted" @-}
 
 module Data.Text.Axioms where

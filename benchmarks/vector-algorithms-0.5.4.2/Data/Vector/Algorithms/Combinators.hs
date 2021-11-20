@@ -1,3 +1,5 @@
+{-@ LIQUID "--no-check-imports" @-}
+
 {-# LANGUAGE Rank2Types, TypeOperators #-}
 
 -- ---------------------------------------------------------------------------

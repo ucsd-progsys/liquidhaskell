@@ -1,5 +1,6 @@
 {-@ LIQUID "--no-totality" @-}
 {-@ LIQUID "--pruneunsorted" @-}
+{-@ LIQUID "--no-check-imports" @-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE BangPatterns, MagicHash, CPP #-}

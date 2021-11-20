@@ -2,6 +2,7 @@ module TwiceM where
 
 {-@ LIQUID "--short-names" @-}
 {-@ LIQUID "--no-pattern-inline" @-}
+{-@ LIQUID "--no-check-imports" @-}
 
 import RIO
 

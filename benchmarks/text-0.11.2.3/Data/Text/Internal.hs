@@ -1,5 +1,6 @@
 {-@ LIQUID "--maxparams=3"    @-}
 {-@ LIQUID "--prune-unsorted" @-}
+{-@ LIQUID "--no-check-imports" @-}
 {- LIQUID "--trust-sizes" @-}
 
 {-# LANGUAGE CPP, DeriveDataTypeable #-}

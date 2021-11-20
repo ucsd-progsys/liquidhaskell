@@ -1,4 +1,5 @@
 {-# LANGUAGE PartialTypeSignatures, TypeOperators, BangPatterns, ScopedTypeVariables #-}
+{-@ LIQUID "--no-check-imports" @-}
 
 -- ---------------------------------------------------------------------------
 -- |

@@ -1,5 +1,6 @@
 {- LIQUID "--no-pattern-inline" @-}
 {-@ LIQUID "--pruneunsorted" @-}
+{-@ LIQUID "--no-check-imports" @-}
 
 {-# LANGUAGE BangPatterns, CPP, Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}

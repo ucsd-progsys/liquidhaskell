@@ -1,6 +1,6 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
-{-@ LIQUID "--diff"       @-}
+{-@ LIQUID "--no-check-imports" @-}
 
 {-# LANGUAGE PartialTypeSignatures #-}
 

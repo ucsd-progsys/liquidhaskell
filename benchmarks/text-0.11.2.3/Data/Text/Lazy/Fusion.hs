@@ -1,5 +1,6 @@
 {-@ LIQUID "--pruneunsorted" @-}
 {- LIQUID "--trust-sizes" @-}
+{-@ LIQUID "--no-check-imports" @-}
 
 {-# LANGUAGE BangPatterns #-}
 -- |

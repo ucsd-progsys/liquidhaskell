@@ -1,3 +1,5 @@
+{-@ LIQUID "--no-check-imports" @-}
+
 module MovieClient where
 import DataBase
 

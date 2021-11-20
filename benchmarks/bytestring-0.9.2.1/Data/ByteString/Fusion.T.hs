@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
-
+{-@ LIQUID "--no-check-imports" @-}
 {-@ LIQUID "--prune-unsorted" @-}
 
 -- |
