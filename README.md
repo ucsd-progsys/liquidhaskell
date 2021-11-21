@@ -41,7 +41,7 @@ Pull requests don't just have to be about code: documentation can often be impro
 
 ## Ask for Help
 
-If you have further questions or you just need help, you can always reach out on our [slack channel](https://join.slack.com/t/liquidhaskell/shared_invite/enQtMjY4MTk3NDkwODE3LTFmZGFkNGEzYWRkNDJmZDQ0ZGU1MzBiZWZiZDhhNmY3YTJiMjUzYTRlNjMyZDk1NDU3ZGIxYzhlOTIzN2UxNWE), [google groups mailing list](https://groups.google.com/forum/#!forum/liquidhaskell), [GitHub issue tracker](https://github.com/ucsd-progsys/liquidhaskell/issues), or by emailing one of our star developers: [Ranjit Jhala](https://github.com/ranjitjhala), [Niki Vazou](https://github.com/nikivazou).
+If you have further questions or you just need help, you can always reach out on our [slack channel](https://join.slack.com/t/liquidhaskell/shared_invite/enQtMjY4MTk3NDkwODE3LTFmZGFkNGEzYWRkNDJmZDQ0ZGU1MzBiZWZiZDhhNmY3YTJiMjUzYTRlNjMyZDk1NDU3ZGIxYzhlOTIzN2UxNWE), [google groups mailing list](https://groups.google.com/forum/#!forum/liquidhaskell), [GitHub issue tracker](https://github.com/ucsd-progsys/liquidhaskell/issues), or by emailing [Ranjit Jhala](https://github.com/ranjitjhala), [Niki Vazou](https://github.com/nikivazou).
 
 # General Development Guide
 
