@@ -49,7 +49,7 @@ import Paths_liquidhaskell
 
 import Text.Printf
 
-
+import           Debug.Trace          (trace)
 
 testRunner :: Ingredient
 testRunner = rerunningTests
@@ -547,6 +547,10 @@ runLiquidOn smt opts (LiquidRunner bin) dir file = do
   absoluteDir <- canonicalizePath dir
   createDirectoryIfMissing True $ takeDirectory log
   hSetBuffering stdout NoBuffering
+  b1 <- doesFileExist (dir </> file -<.> "hi") 
+  if b1 then removeFile (dir </> file -<.> "hi") else return ()
+  b2 <- doesFileExist (dir </> file -<.> "o") 
+  if b2 then removeFile (dir </> file -<.> "o") else return ()
   withFile log WriteMode $ \h -> do
     let cmd     = testCmd bin dir file smt $ mappend (extraOptions dir absoluteDir testFileFullPath) (mkLiquidOpt opts)
     (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
