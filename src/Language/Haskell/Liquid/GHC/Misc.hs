@@ -11,6 +11,9 @@
 {-# LANGUAGE ViewPatterns              #-}
 {-# LANGUAGE PatternSynonyms           #-}
 
+{-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+
 -- | This module contains a wrappers and utility functions for
 -- accessing GHC module information. It should NEVER depend on
 -- ANY module inside the Language.Haskell.Liquid.* tree.
@@ -716,13 +719,13 @@ desugarModule tcm = do
 --------------------------------------------------------------------------------
 
 gHC_VERSION :: String
-gHC_VERSION = show __GLASGOW_HASKELL__
+gHC_VERSION = show (__GLASGOW_HASKELL__ :: Int)
 
 symbolFastString :: Symbol -> FastString
 symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
 
 lintCoreBindings :: [Var] -> CoreProgram -> (Bag MsgDoc, Bag MsgDoc)
-lintCoreBindings = Ghc.lintCoreBindings (defaultDynFlags undefined (undefined "LlvmTargets")) CoreDoNothing
+lintCoreBindings = Ghc.lintCoreBindings (defaultDynFlags undefined (undefined ("LlvmTargets" :: String))) CoreDoNothing
 
 synTyConRhs_maybe :: TyCon -> Maybe Type
 synTyConRhs_maybe = Ghc.synTyConRhs_maybe

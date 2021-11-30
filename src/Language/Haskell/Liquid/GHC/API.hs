@@ -5,6 +5,8 @@ The intended use of this module is to shelter LiquidHaskell from changes to the 
 
 --}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveFoldable #-}
@@ -122,7 +124,6 @@ import           Language.Haskell.Liquid.GHC.API.StableModule      as StableModu
 import           GHC                                               as Ghc hiding ( Warning
                                                                                  , SrcSpan(RealSrcSpan, UnhelpfulSpan)
                                                                                  , exprType
-                                                                                 , dataConInstArgTys
                                                                                  )
 
 -- Shared imports for GHC < 9
@@ -185,7 +186,7 @@ import RdrName                  as Ghc
 import SrcLoc                   as Ghc hiding (RealSrcSpan, SrcSpan(UnhelpfulSpan))
 import TcRnDriver               as Ghc
 import TcRnMonad                as Ghc hiding (getGHCiMonad)
-import TcRnTypes                as Ghc
+--import TcRnTypes                as Ghc
 import TysPrim                  as Ghc
 import TysWiredIn               as Ghc
 import Unify                    as Ghc
@@ -200,7 +201,7 @@ import VarSet                   as  Ghc
 import qualified                SrcLoc
 import qualified Data.Bifunctor as Bi
 import qualified Data.Data      as Data
-import qualified DataCon        as Ghc
+--import qualified DataCon        as Ghc
 import qualified GhcMake
 import qualified HscTypes       as Ghc
 import qualified Id             as Ghc
@@ -284,7 +285,7 @@ import Data.Foldable        (asum)
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0) && !MIN_VERSION_GLASGOW_HASKELL (9,0,0,0)
-import DynFlags          as  Ghc (targetPlatform)
+--import DynFlags          as  Ghc (targetPlatform)
 import GHC.Platform      as  Ghc (Platform)
 import Type              as  Ghc hiding (typeKind , isPredTy, splitFunTys, extendCvSubst)
 import qualified Type    as  Ghc hiding (extendCvSubst)
@@ -296,7 +297,7 @@ import FastString        as  Ghc
 import Predicate      as Ghc (getClassPredTys_maybe, isEvVarType, getClassPredTys, isDictId)
 import TcOrigin       as Ghc (lexprCtOrigin)
 import Data.Foldable  (asum)
-import Util           (lengthIs)
+--import Util           (lengthIs)
 -- import PrelNames      (eqPrimTyConKey, eqReprPrimTyConKey, gHC_REAL, varQual_RDR)
 #endif
 #endif

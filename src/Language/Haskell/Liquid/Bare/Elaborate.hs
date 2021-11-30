@@ -6,6 +6,12 @@
 {-# LANGUAGE LambdaCase                #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE CPP                       #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
+
+{-# OPTIONS_GHC -Wno-dodgy-imports #-} -- TODO(#1913): Fix import of Data.Functor.Foldable.Fix
+{-# OPTIONS_GHC -Wno-unused-top-binds #-} -- TODO(#1914): Is RTypeF even used?
+
 -- | This module uses GHC API to elaborate the resolves expressions
 
 -- TODO: Genearlize to BareType and replace the existing resolution mechanisms
@@ -789,68 +795,3 @@ specTypeToLHsType =
     RHoleF _                 -> noLoc $ HsWildCardTy Ghc.noExtField
     RExprArgF _ ->
       todo Nothing "Oops, specTypeToLHsType doesn't know how to handle RExprArg"
-
-
-bareTypeToLHsType :: BareType -> LHsType GhcPs
--- surprised that the type application is necessary
-bareTypeToLHsType =
-  flip (ghylo (distPara @BareType) distAna) (fmap pure . project) $ \case
-    RVarF (BTV tv) _ -> nlHsTyVar
-      -- (GM.notracePpr ("varRdr" ++ F.showpp (F.symbol tv)) $ getRdrName tv)
-      (symbolToRdrNameNs tvName (F.symbol tv)) 
-    RFunF _ _ (tin, tin') (_, tout) _
-      | isClassType tin -> noLoc $ HsQualTy Ghc.noExtField (noLoc [tin']) tout
-      | otherwise       -> nlHsFunTy tin' tout
-    RImpFF _ _ (_, tin) (_, tout) _              -> nlHsFunTy tin tout
-    RAllTF (ty_var_value -> (BTV tv)) (_, t) _ -> noLoc $ HsForAllTy
-      Ghc.noExtField
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-#if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
-      ForallInvis
-#endif
-      [noLoc $ UserTyVar Ghc.noExtField (noLoc $ symbolToRdrNameNs tvName (F.symbol tv))]
-#else
-      (mkHsForAllInvisTele [noLoc $ UserTyVar Ghc.noExtField SpecifiedSpec (noLoc $ symbolToRdrNameNs tvName (F.symbol tv))])
-#endif
-      t
-    RAllPF _ (_, ty)                    -> ty
-    RAppF BTyCon { btc_tc = tc } ts _ _ -> mkHsTyConApp
-      (symbolToRdrNameNs tcName (F.val tc))
-      [ hst | (t, hst) <- ts, notExprArg t ]
-     where
-      notExprArg (RExprArg _) = False
-      notExprArg _            = True
-    RAllEF _ (_, tin) (_, tout) -> nlHsFunTy tin tout
-    RExF   _ (_, tin) (_, tout) -> nlHsFunTy tin tout
-    -- impossible
-    RAppTyF _ (RExprArg _, _) _ ->
-      impossible Nothing "RExprArg should not appear here"
-    RAppTyF (_, t) (_, t') _ -> nlHsAppTy t t'
-    -- YL: todo..
-    RRTyF _ _ _ (_, t)       -> t
-    RHoleF _                 -> noLoc $ HsWildCardTy Ghc.noExtField
-    RExprArgF _ ->
-      todo Nothing "Oops, specTypeToLHsType doesn't know how to handle RExprArg"
-
-
--- the core expression returned by ghc might be eta-expanded
--- we need to do elimination so Pred doesn't contain lambda terms
-eliminateEta :: F.Expr -> F.Expr
-eliminateEta (F.EApp e0 e1) = F.EApp (eliminateEta e0) (eliminateEta e1)
-eliminateEta (F.ENeg e    ) = F.ENeg (eliminateEta e)
-eliminateEta (F.EBin bop e0 e1) =
-  F.EBin bop (eliminateEta e0) (eliminateEta e1)
-eliminateEta (F.EIte e0 e1 e2) =
-  F.EIte (eliminateEta e0) (eliminateEta e1) (eliminateEta e2)
-eliminateEta (F.ECst e0 s) = F.ECst (eliminateEta e0) s
-eliminateEta (F.ELam (x, t) body)
-  | F.EApp e0 (F.EVar x') <- ebody, x == x' && notElem x (F.syms e0) = e0
-  | otherwise = F.ELam (x, t) ebody
-  where ebody = eliminateEta body
-eliminateEta (F.PAnd es   ) = F.PAnd (eliminateEta <$> es)
-eliminateEta (F.POr  es   ) = F.POr (eliminateEta <$> es)
-eliminateEta (F.PNot e    ) = F.PNot (eliminateEta e)
-eliminateEta (F.PImp e0 e1) = F.PImp (eliminateEta e0) (eliminateEta e1)
-eliminateEta (F.PAtom brel e0 e1) =
-  F.PAtom brel (eliminateEta e0) (eliminateEta e1)
-eliminateEta e = e

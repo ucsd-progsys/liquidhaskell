@@ -9,6 +9,9 @@
 {-# LANGUAGE DerivingStrategies  #-}
 {-# LANGUAGE DerivingVia         #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- GHC claims some exhaustive pattern matches aren't.
+{-# OPTIONS_GHC -Wno-orphans #-} -- PPrint and aeson instances.
+
 -- | This module contains the *types* related creating Errors.
 --   It depends only on Fixpoint and basic haskell libraries,
 --   and hence, should be importable everywhere.
@@ -50,7 +53,7 @@ module Language.Haskell.Liquid.Types.Errors (
   , srcSpanFileMb
   ) where
 
-import           Prelude                      hiding (error)
+import           Prelude                      hiding (error, span)
 
 import           GHC.Generics
 import           Control.DeepSeq
@@ -86,6 +89,7 @@ import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( Expr
                                                                , panic
                                                                , int
                                                                , hcat
+                                                               , spans
                                                                )
 import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr, SubcId)
 import qualified Language.Fixpoint.Misc       as Misc

@@ -32,7 +32,6 @@ import Data.Maybe
 import           Control.Monad.State
 import qualified Control.Exception         as Ex
 import qualified Data.HashMap.Strict       as M
-import qualified Data.HashSet              as S
 import qualified Data.Char                 as Char
 import qualified Data.List                 as L
 import qualified Text.Printf               as Printf 
@@ -110,7 +109,7 @@ renameRTVArgs rt = rt { rtVArgs = newArgs
   where 
     msg          = "renameRTVArgs: " ++ F.showpp su
     su           = F.mkSubst (zip oldArgs (F.eVar <$> newArgs)) 
-    newArgs      = zipWith rtArg (rtVArgs rt) [0..]
+    newArgs      = zipWith rtArg (rtVArgs rt) [(0::Int)..]
     oldArgs      = rtVArgs rt
     rtArg x i    = F.suffixSymbol x (F.intSymbol "rta" i) 
 

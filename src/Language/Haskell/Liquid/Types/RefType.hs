@@ -15,6 +15,9 @@
 {-# LANGUAGE ConstraintKinds           #-}
 {-# LANGUAGE ViewPatterns              #-}
 
+{-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+
 -- | Refinement Types. Mostly mirroring the GHC Type definition, but with
 --   room for refinements of various sorts.
 -- TODO: Desperately needs re-organization.
@@ -1694,9 +1697,6 @@ grabArgs τs (FunTy _ _ τ1 τ2)
   -- -- = grabArgs τs τ2
 grabArgs τs τ
   = reverse (τ:τs)
-
-isNonValueTy :: Type -> Bool
-isNonValueTy = GM.isPredType-- GM.isEmbeddedDictType 
 
 
 expandProductType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))

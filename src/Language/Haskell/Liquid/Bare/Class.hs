@@ -256,7 +256,7 @@ resolveDictionaries env name = fmap lookupVar
 -- formerly, addIndex
 -- GHC internal postfixed same name dictionaries with ints
 addInstIndex            :: (F.Symbol, [a]) -> [(F.Symbol, a)]
-addInstIndex (x, is) = go 0 (reverse is)
+addInstIndex (x, is) = go (0::Int) (reverse is)
   where 
     go _ []          = []
     go _ [i]         = [(x, i)]

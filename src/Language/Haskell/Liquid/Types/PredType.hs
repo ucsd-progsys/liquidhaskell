@@ -5,6 +5,8 @@
 {-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Language.Haskell.Liquid.Types.PredType (
     PrType
   , TyConP (..), DataConP (..)

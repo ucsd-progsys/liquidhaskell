@@ -1,5 +1,8 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveGeneric #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Language.Haskell.Liquid.GHC.API.StableModule (
     StableModule
   -- * Constructing a 'StableModule'

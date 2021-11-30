@@ -4,6 +4,9 @@
 {-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE TupleSections          #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Language.Haskell.Liquid.Transforms.CoreToLogic
   ( coreToDef
   , coreToFun
@@ -85,7 +88,7 @@ inlineSpecType  allowTC v = fromRTypeRep $ rep {ty_res = res `strengthen` r , ty
 
 -- formerly: strengthenResult'
 measureSpecType :: Bool -> Var -> SpecType
-measureSpecType allowTC v = go mkT [] [1..] t
+measureSpecType allowTC v = go mkT [] [(1::Int)..] t
   where 
     mkR | boolRes   = propReft 
         | otherwise = exprReft  
@@ -267,7 +270,7 @@ coreToLg allowTC  (C.Let b e)
 coreToLg allowTC (C.Tick _ e)          = coreToLg allowTC e
 coreToLg allowTC (C.App (C.Var v) e)
   | ignoreVar v                = coreToLg allowTC e
-coreToLg allowTC (C.Var x)
+coreToLg _allowTC (C.Var x)
   | x == falseDataConId        = return PFalse
   | x == trueDataConId         = return PTrue
   | otherwise                  = (lsSymMap <$> getState) >>= eVarWithMap x

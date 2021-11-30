@@ -18,6 +18,8 @@
 {-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE DerivingVia                #-}
 
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 -- | This module should contain all the global type definitions and basic instances.
 
 module Language.Haskell.Liquid.Types.Types (
@@ -894,8 +896,8 @@ ty_var_is_val :: RTVar tv s -> Bool
 ty_var_is_val = rtvinfo_is_val . ty_var_info
 
 rtvinfo_is_val :: RTVInfo s -> Bool
-rtvinfo_is_val (RTVNoInfo {..}) = False
-rtvinfo_is_val (RTVInfo {..})   = rtv_is_val
+rtvinfo_is_val (RTVNoInfo {}) = False
+rtvinfo_is_val (RTVInfo {..}) = rtv_is_val
 
 instance (B.Binary tv, B.Binary s) => B.Binary (RTVar tv s)
 instance (NFData tv, NFData s)     => NFData   (RTVar tv s)

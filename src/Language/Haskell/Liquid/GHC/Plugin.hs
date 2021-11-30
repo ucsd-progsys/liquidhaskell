@@ -46,7 +46,6 @@ import           Language.Haskell.Liquid.GHC.GhcMonadLike ( GhcMonadLike
 import           GHC.LanguageExtensions
 
 import           Control.Monad
-import           Control.Exception                        (evaluate)
 
 import           Data.Coerce
 import           Data.List                               as L
