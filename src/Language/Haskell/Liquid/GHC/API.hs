@@ -5,8 +5,6 @@ The intended use of this module is to shelter LiquidHaskell from changes to the 
 
 --}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveFoldable #-}
