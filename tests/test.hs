@@ -24,7 +24,6 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid (Sum(..))
 import Data.Proxy
 import Data.String
-import Data.String.Conv
 import Data.Tagged
 import Data.Typeable
 -- import Data.List (sort, reverse)
@@ -311,9 +310,9 @@ microTests = group "Micro"
   where
     mkMicroPos name dir = testGroup name <$> dirTests dir [] ExitSuccess     (Just " SAFE ") (Just " UNSAFE ")
     mkMicroNeg name dir = testGroup name <$> dirTests dir [] (ExitFailure 1) (Just " UNSAFE ") Nothing
-    mkMicroLaw name dir = testGroup name <$> dirTests dir [] (ExitFailure 1) (Just "Law Instance Error") Nothing
+    -- mkMicroLaw name dir = testGroup name <$> dirTests dir [] (ExitFailure 1) (Just "Law Instance Error") Nothing
 
-
+posIgnored, gPosIgnored, gNegIgnored :: [FilePath]
 posIgnored    = [ "mapreduce.hs", "Variance.hs" ]
 gPosIgnored   = ["Intro.hs"]
 gNegIgnored   = ["Interpretations.hs", "Gradual.hs"]
@@ -677,6 +676,7 @@ noPleIgnored
   = "ApplicativeList.hs"         -- TODO-REBARE: TODO BLOWUP but ple version ok
   : autoIgnored
 
+esopIgnored :: [FilePath]
 esopIgnored 
   = [ "Base0.hs"
     ]
@@ -688,6 +688,7 @@ icfpIgnored
     , "TwiceM.hs"                -- TODO: BLOWUP: using 2.7GB RAM
     ]
 
+autoIgnored :: [FilePath]
 autoIgnored 
   = "Ackermann.hs" 
   : proverIgnored
@@ -922,9 +923,9 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
 
     let dir = "tests" </> "logs" </> host ++ "-" ++ time
     let smry = "tests" </> "logs" </> "cur" </> "summary.csv"
-    system "mkdir -p tests/logs/cur"
+    _ <- system "mkdir -p tests/logs/cur"
     writeFile smry $ unlines
                    $ hdr
                    : map (\(n, t, r) -> printf "%s, %0.4f, %s" n t (show r)) summary
-    system $ "cp -r tests/logs/cur " ++ dir
+    _ <- system $ "cp -r tests/logs/cur " ++ dir
     (==0) <$> computeFailures smap
