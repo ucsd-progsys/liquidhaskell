@@ -308,7 +308,7 @@ test-suite test
   ghc-options:      -W -threaded
 
   if flag(strict)
-    ghc-options:      -Wall -Wno-name-shadowing -Werror
+    ghc-options:    -Wall -Wno-name-shadowing -Werror
 
   if !flag(no-plugin)
     cpp-options: -DUSE_NEW_EXECUTABLE
@@ -332,7 +332,7 @@ test-suite liquidhaskell-parser
   ghc-options:      -W
 
   if flag(strict)
-    ghc-options:      -Wall -Wno-name-shadowing -Werror
+    ghc-options:    -Wall -Wno-name-shadowing -Werror
 
 test-suite synthesis
   type:             exitcode-stdio-1.0
@@ -354,7 +354,7 @@ test-suite synthesis
   ghc-options:      -W
 
   if flag(strict)
-    ghc-options:      -Wall -Wno-name-shadowing -Werror
+    ghc-options:    -Wall -Wno-name-shadowing -Werror
 
 -- This executable can be used to generate modules for mirror-packages.
 executable mirror-modules
