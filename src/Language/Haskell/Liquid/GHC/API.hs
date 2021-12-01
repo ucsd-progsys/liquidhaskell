@@ -323,7 +323,7 @@ import GHC.Core.Opt.Monad             as Ghc (CoreToDo(..))
 import GHC.Core.Opt.WorkWrap.Utils    as Ghc
 import GHC.Core.Predicate             as Ghc (getClassPredTys_maybe, getClassPredTys, isEvVarType, isEqPrimPred, isEqPred, isClassPred, isDictId)
 import GHC.Core.Subst                 as Ghc (deShadowBinds, emptySubst, extendCvSubst)
-import GHC.Core.TyCo.Rep              as Ghc hiding (extendCvSubst)
+import GHC.Core.TyCo.Rep              as Ghc
 import GHC.Core.TyCon                 as Ghc
 import GHC.Core.Type                  as Ghc hiding (typeKind , isPredTy, extendCvSubst, linear)
 import GHC.Core.Unify                 as Ghc

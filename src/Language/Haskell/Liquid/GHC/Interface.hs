@@ -65,6 +65,7 @@ import GHC.Paths (libdir)
 import           Language.Haskell.Liquid.GHC.GhcMonadLike (isBootInterface)
 import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( text
                                                                , (<+>)
+                                                               , isHomeModule
                                                                , panic
                                                                , vcat
                                                                , showPpr
@@ -1036,13 +1037,14 @@ instance PPrint TargetInfo where
     , pprintCBs $ _giCbs (review targetSrcIso $ giSrc info) ]
 
 -- RJ: the silly guards below are to silence the unused-var checker
+-- LDM: GHC 9.0.1 is having none of it unfortunately: "Pattern match is redundant".
 pprintCBs :: [CoreBind] -> Doc
 pprintCBs
   | otherwise = pprintCBsTidy
-  | otherwise = pprintCBsVerbose
+  -- | otherwise = pprintCBsVerbose
   where
     pprintCBsTidy    = pprDoc . tidyCBs
-    pprintCBsVerbose = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs
+    -- pprintCBsVerbose = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs
 
 instance Show TargetInfo where
   show = showpp

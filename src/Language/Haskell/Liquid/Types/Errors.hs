@@ -9,7 +9,6 @@
 {-# LANGUAGE DerivingStrategies  #-}
 {-# LANGUAGE DerivingVia         #-}
 
-{-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- GHC claims some exhaustive pattern matches aren't.
 {-# OPTIONS_GHC -Wno-orphans #-} -- PPrint and aeson instances.
 
 -- | This module contains the *types* related creating Errors.

@@ -12,7 +12,6 @@
 {-# LANGUAGE PatternSynonyms           #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
-{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 -- | This module contains a wrappers and utility functions for
 -- accessing GHC module information. It should NEVER depend on
@@ -949,7 +948,7 @@ elabRnExpr mode rdr_expr = do
              tc_infer rn_expr
 
     -- Generalise
-    (qtvs, dicts, evbs, residual, _)
+    (_qtvs, _dicts, evbs, residual, _)
          <- simplifyInfer tclvl infer_mode
                           []    {- No sig vars -}
                           [(fresh_it, res_ty)]

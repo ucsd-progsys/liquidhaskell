@@ -4,8 +4,6 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE PatternSynonyms           #-}
 
-{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
-
 module Language.Haskell.Liquid.GHC.Play where
 
 import Prelude hiding (error)
