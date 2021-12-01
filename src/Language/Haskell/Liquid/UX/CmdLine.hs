@@ -3,7 +3,6 @@
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TemplateHaskell           #-}
 {-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE NamedFieldPuns            #-}
 {-# LANGUAGE MultiWayIf                #-}
 {-# LANGUAGE ViewPatterns              #-}

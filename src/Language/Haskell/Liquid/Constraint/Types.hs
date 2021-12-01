@@ -1,8 +1,6 @@
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE TupleSections        #-}
-{-# LANGUAGE EmptyDataDecls       #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
 

@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
-
 module Language.Haskell.Liquid.Types.Annotations (
   ) where
 

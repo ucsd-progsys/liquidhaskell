@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE UndecidableInstances      #-}
-{-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE DeriveDataTypeable        #-}

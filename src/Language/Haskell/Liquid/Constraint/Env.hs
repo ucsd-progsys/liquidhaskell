@@ -1,15 +1,9 @@
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
-{-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE BangPatterns              #-}
-{-# LANGUAGE PatternGuards             #-}
-{-# LANGUAGE DeriveFunctor             #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE OverloadedStrings         #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImplicitParams            #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
 

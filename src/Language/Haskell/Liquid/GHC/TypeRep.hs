@@ -4,11 +4,7 @@
 {-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes                #-}
-{-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE UndecidableInstances      #-}
-{-# LANGUAGE ViewPatterns              #-}
-{-# LANGUAGE PatternSynonyms           #-}
 {-# LANGUAGE StandaloneDeriving        #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- TODO(#1918): Only needed for GHC <9.0.1.

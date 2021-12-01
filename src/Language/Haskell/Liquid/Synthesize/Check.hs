@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE BangPatterns #-}
 module Language.Haskell.Liquid.Synthesize.Check (check, hasType, isWellTyped, checkError) where

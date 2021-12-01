@@ -3,7 +3,6 @@
 {-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE ConstraintKinds        #-}
-{-# LANGUAGE DeriveGeneric          #-}
 
 module Language.Haskell.Liquid.Measure (
   -- * Specifications

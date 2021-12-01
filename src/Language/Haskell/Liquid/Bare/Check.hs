@@ -1,4 +1,3 @@
-{-# LANGUAGE ParallelListComp    #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE TupleSections       #-}

@@ -6,12 +6,10 @@
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE UndecidableInstances      #-}
-{-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE RankNTypes                #-}
 {-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE PatternGuards             #-}
-{-# LANGUAGE ImplicitParams            #-}
 {-# LANGUAGE ConstraintKinds           #-}
 {-# LANGUAGE ViewPatterns              #-}
 

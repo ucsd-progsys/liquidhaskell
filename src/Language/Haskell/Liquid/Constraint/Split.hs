@@ -1,4 +1,3 @@
-{-# LANGUAGE ImplicitParams        #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE FlexibleContexts      #-}
