@@ -11,6 +11,7 @@
 {-# LANGUAGE ViewPatterns              #-}
 {-# LANGUAGE PatternSynonyms           #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- Only needed for GHC <9.0.1.
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 -- | This module contains a wrappers and utility functions for

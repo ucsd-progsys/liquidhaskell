@@ -15,6 +15,7 @@
 {-# LANGUAGE ConstraintKinds           #-}
 {-# LANGUAGE ViewPatterns              #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- Only needed for GHC <9.0.1.
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 -- | Refinement Types. Mostly mirroring the GHC Type definition, but with
@@ -119,7 +120,6 @@ import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg, isRecursivenewTyCon)
 import           Language.Haskell.Liquid.GHC.API        as Ghc hiding ( Expr
                                                                       , Located
-                                                                      --, mapType
                                                                       , tyConName
                                                                       , punctuate
                                                                       , hcat

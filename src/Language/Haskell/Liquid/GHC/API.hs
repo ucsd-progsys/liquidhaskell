@@ -282,7 +282,7 @@ import Data.Foldable        (asum)
 
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0) && !MIN_VERSION_GLASGOW_HASKELL (9,0,0,0)
 import GHC.Platform      as  Ghc (Platform)
-import Type              as  Ghc hiding (typeKind , isPredTy, splitFunTys, extendCvSubst)
+import Type              as  Ghc hiding (mapType, typeKind, isPredTy, splitFunTys, extendCvSubst)
 import qualified Type    as  Ghc hiding (extendCvSubst)
 import TyCon             as  Ghc
 import qualified TyCoRep as  Ty
@@ -336,7 +336,7 @@ import GHC.Driver.Finder              as Ghc
 import GHC.Driver.Main                as Ghc
 import GHC.Driver.Phases              as Ghc (Phase(StopLn))
 import GHC.Driver.Pipeline            as Ghc (compileFile)
-import GHC.Driver.Session             as Ghc
+import GHC.Driver.Session             as Ghc hiding (isHomeModule)
 import GHC.Driver.Types               as Ghc
 import GHC.Driver.Monad               as Ghc (withSession)
 import GHC.HsToCore.Monad             as Ghc

@@ -65,7 +65,6 @@ import GHC.Paths (libdir)
 import           Language.Haskell.Liquid.GHC.GhcMonadLike (isBootInterface)
 import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( text
                                                                , (<+>)
-                                                               , isHomeModule
                                                                , panic
                                                                , vcat
                                                                , showPpr

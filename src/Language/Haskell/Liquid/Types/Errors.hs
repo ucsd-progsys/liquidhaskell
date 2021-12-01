@@ -9,6 +9,7 @@
 {-# LANGUAGE DerivingStrategies  #-}
 {-# LANGUAGE DerivingVia         #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- Only needed for GHC <9.0.1.
 {-# OPTIONS_GHC -Wno-orphans #-} -- PPrint and aeson instances.
 
 -- | This module contains the *types* related creating Errors.
