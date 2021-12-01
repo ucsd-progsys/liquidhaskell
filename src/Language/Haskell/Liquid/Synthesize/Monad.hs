@@ -1,7 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 module Language.Haskell.Liquid.Synthesize.Monad where

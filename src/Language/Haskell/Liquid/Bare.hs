@@ -2,8 +2,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE RecordWildCards           #-}
-{-# LANGUAGE ViewPatterns              #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
 {-# LANGUAGE OverloadedStrings         #-}
 

@@ -1,17 +1,13 @@
 -- | This module provides a GHC 'Plugin' that allows LiquidHaskell to be hooked directly into GHC's
 -- compilation pipeline, facilitating its usage and adoption.
 
-{-# LANGUAGE MultiWayIf                 #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE BangPatterns               #-}
-{-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
-{-# LANGUAGE TupleSections              #-}
-{-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE ViewPatterns               #-}
 
 module Language.Haskell.Liquid.GHC.Plugin (

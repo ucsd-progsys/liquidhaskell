@@ -1,8 +1,5 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE FlexibleInstances         #-}
-{-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE PatternSynonyms           #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- TODO(#1918): Only needed for GHC <9.0.1.
 

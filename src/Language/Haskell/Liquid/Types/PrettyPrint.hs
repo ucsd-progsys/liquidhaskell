@@ -7,7 +7,6 @@
 {-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE MonoLocalBinds       #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}

@@ -5,7 +5,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes                #-}
 {-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE FlexibleContexts          #-}
 

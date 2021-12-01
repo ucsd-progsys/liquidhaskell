@@ -4,8 +4,6 @@
 {-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes                #-}
-{-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE UndecidableInstances      #-}
 
 -- | This module contains functions for "resugaring" low-level GHC `CoreExpr`

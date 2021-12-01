@@ -5,7 +5,6 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE TupleSections              #-}
-{-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE ViewPatterns               #-}

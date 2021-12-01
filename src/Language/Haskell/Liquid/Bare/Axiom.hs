@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE FlexibleContexts     #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
 -- | This module contains the code that DOES reflection; i.e. converts Haskell

@@ -3,7 +3,6 @@
 --   2. USE the environment to translate plain symbols into Var, TyCon, etc. 
 
 {-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE TypeSynonymInstances  #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE LambdaCase            #-}

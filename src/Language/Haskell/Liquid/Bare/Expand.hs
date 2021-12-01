@@ -2,8 +2,6 @@
 --   and the pipeline for "cooking" a @BareType@ into a @SpecType@. 
 --   TODO: _only_ export `makeRTEnv`, `cookSpecType` and maybe `qualifyExpand`...
 
-{-# LANGUAGE TupleSections         #-}
-{-# LANGUAGE TypeSynonymInstances  #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE OverloadedStrings     #-}

@@ -2,7 +2,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ParallelListComp  #-}
 {-# LANGUAGE TupleSections     #-}
-{-# LANGUAGE BangPatterns      #-}
 
 module Language.Haskell.Liquid.Bare.Class 
   ( makeClasses

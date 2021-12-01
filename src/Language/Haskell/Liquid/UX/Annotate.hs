@@ -1,8 +1,6 @@
 {-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleInstances          #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}

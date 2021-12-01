@@ -6,8 +6,6 @@ The intended use of this module is to shelter LiquidHaskell from changes to the 
 --}
 
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternSynonyms #-}

@@ -1,10 +1,7 @@
 -- | This module contains various functions that add/update in the CG monad.
 
-{-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE BangPatterns              #-}
-{-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE OverloadedStrings         #-}
-{-# LANGUAGE ImplicitParams            #-}
 {-# LANGUAGE FlexibleContexts          #-}
 
 module Language.Haskell.Liquid.Constraint.Monad  where
