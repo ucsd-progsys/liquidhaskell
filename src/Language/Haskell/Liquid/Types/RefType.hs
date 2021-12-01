@@ -15,7 +15,7 @@
 {-# LANGUAGE ConstraintKinds           #-}
 {-# LANGUAGE ViewPatterns              #-}
 
-{-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- Only needed for GHC <9.0.1.
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- TODO(#1918): Only needed for GHC <9.0.1.
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 -- | Refinement Types. Mostly mirroring the GHC Type definition, but with
