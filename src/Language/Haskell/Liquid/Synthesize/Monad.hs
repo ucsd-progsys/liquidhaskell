@@ -93,7 +93,7 @@ evalSM :: SM a -> SMT.Context -> SSEnv -> SState -> IO a
 evalSM act ctx env st = do 
   let st' = st {ssEnv = env}
   r <- evalStateT act st'
-  SMT.cleanupContext ctx 
+  _ <- SMT.cleanupContext ctx 
   return r 
 
 initState :: SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv -> Var -> [Var] -> SSEnv -> IO SState 

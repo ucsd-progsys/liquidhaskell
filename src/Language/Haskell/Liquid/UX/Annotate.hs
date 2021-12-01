@@ -5,6 +5,7 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleInstances          #-}
 
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 ---------------------------------------------------------------------------
 -- | This module contains the code that uses the inferred types to generate

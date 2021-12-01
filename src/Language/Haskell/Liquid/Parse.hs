@@ -47,8 +47,6 @@ import qualified Language.Haskell.Liquid.Measure        as Measure
 import           Language.Fixpoint.Parse                hiding (defineP, dataDeclP, refBindP, refP, refDefP, parseTest')
 
 import Control.Monad.State
-import qualified Language.Fixpoint.Types.PrettyPrint as F
-import qualified Language.Fixpoint.Types as F
 
 -- import Debug.Trace
 
@@ -558,7 +556,7 @@ bareAllP = do
   as  <- tyVarDefsP
   ps  <- angles inAngles
         <|> return []
-  dot
+  _ <- dot
   t <- bareTypeP
   return $ foldr rAllT (foldr (rAllP sp) t ps) (makeRTVar <$> as)
   where
@@ -706,8 +704,7 @@ monoPredicate1P
   <|> (pdVar <$>        predVarUseP)
   <?> "monoPredicate1P"
 
-predVarUseP :: IsString t
-            => Parser (PVar t)
+predVarUseP :: Parser (PVar String)
 predVarUseP
   = do (p, xs) <- funArgsP
        return   $ PV p (PVProp dummyTyId) dummySymbol [ (dummyTyId, dummySymbol, x) | x <- xs ]
@@ -1316,7 +1313,7 @@ hmeasureP = do
 measureP :: Parser (Measure (Located BareType) LocSymbol)
 measureP = do
   (x, ty) <- indentedLine tyBindP
-  optional semi
+  _ <- optional semi
   eqns    <- block $ measureDefP (rawBodyP <|> tyBodyP ty)
   return   $ Measure.mkM x ty eqns MsMeasure mempty
 

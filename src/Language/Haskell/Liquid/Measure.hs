@@ -154,7 +154,7 @@ noDummySyms t
   = t
   where
     rep = toRTypeRep t
-    xs' = zipWith (\_ i -> symbol ("x" ++ show i)) (ty_binds rep) [1..]
+    xs' = zipWith (\_ i -> symbol ("x" ++ show i)) (ty_binds rep) [(1::Int)..]
     su  = mkSubst $ zip (ty_binds rep) (EVar <$> xs')
 
 combineDCTypes :: String -> Type -> [RRType Reft] -> RRType Reft

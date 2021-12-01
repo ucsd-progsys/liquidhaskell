@@ -10,6 +10,8 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Language.Haskell.Liquid.Types.PrettyPrint
   ( -- * Printable RTypes
     OkRT

@@ -65,6 +65,11 @@ source-repository head
   type:     git
   location: https://github.com/ucsd-progsys/liquidhaskell/
 
+flag devel
+  default:     False
+  description: Enable more warnings and fail compilation when warnings occur.
+               Turn this flag on in CI.
+
 flag include
   default:     False
   description: use in-tree include directory
@@ -253,6 +258,9 @@ library
   default-extensions: PatternGuards, RecordWildCards, DoAndIfThenElse
   ghc-options:        -W -fwarn-missing-signatures
 
+  if flag(devel)
+    ghc-options:      -Wall -Wno-name-shadowing -Werror
+
   if flag(include)
     hs-source-dirs: devel
 
@@ -268,7 +276,10 @@ executable liquid
   build-depends:      base >= 4.9.1.0 && < 5, liquidhaskell
   default-language:   Haskell98
   default-extensions: PatternGuards
-  ghc-options:        -W -threaded -fdefer-typed-holes
+  ghc-options:        -W -threaded
+
+  if flag(devel)
+    ghc-options:      -Wall -Wno-name-shadowing -Werror
 
 
 test-suite test
@@ -295,6 +306,10 @@ test-suite test
                   , transformers         >= 0.3
   default-language: Haskell98
   ghc-options:      -W -threaded
+
+  if flag(devel)
+    ghc-options:    -Wall -Wno-name-shadowing -Werror
+
   if !flag(no-plugin)
     cpp-options: -DUSE_NEW_EXECUTABLE
 
@@ -316,6 +331,9 @@ test-suite liquidhaskell-parser
   default-language: Haskell2010
   ghc-options:      -W
 
+  if flag(devel)
+    ghc-options:    -Wall -Wno-name-shadowing -Werror
+
 test-suite synthesis
   type:             exitcode-stdio-1.0
   main-is:          Synthesis.hs
@@ -335,6 +353,8 @@ test-suite synthesis
   default-language: Haskell2010
   ghc-options:      -W
 
+  if flag(devel)
+    ghc-options:    -Wall -Wno-name-shadowing -Werror
 
 -- This executable can be used to generate modules for mirror-packages.
 executable mirror-modules
@@ -363,3 +383,6 @@ executable mirror-modules
     MultiWayIf
     LambdaCase
   ghc-options:        -W -threaded
+
+  if flag(devel)
+    ghc-options:      -Wall -Wno-name-shadowing -Werror

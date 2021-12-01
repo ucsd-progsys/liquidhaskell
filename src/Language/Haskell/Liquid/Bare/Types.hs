@@ -28,7 +28,6 @@ module Language.Haskell.Liquid.Bare.Types
   , failMaybe
   ) where 
 
-import qualified Control.Exception                     as Ex 
 import qualified Text.PrettyPrint.HughesPJ             as PJ 
 import qualified Data.HashSet                          as S
 import qualified Data.HashMap.Strict                   as M

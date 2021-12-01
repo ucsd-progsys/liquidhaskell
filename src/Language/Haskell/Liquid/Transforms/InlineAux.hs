@@ -11,15 +11,6 @@ import           Control.Arrow                  (second)
 import qualified Language.Haskell.Liquid.GHC.Misc
                                                as GM
 import qualified Data.HashMap.Strict           as M
-import           Data.Functor.Foldable
-
-buildDictSubst :: CoreProgram -> M.HashMap Id CoreExpr
-buildDictSubst = cata f
- where
-  f Nil = M.empty
-  f (Cons b s) | NonRec x e <- b, isDFunId x || isDictonaryId x = M.insert x e s
-               | otherwise = s
-
 
 inlineAux :: UX.Config -> Module -> CoreProgram -> CoreProgram
 inlineAux cfg m cbs =  if UX.auxInline cfg then occurAnalysePgm m (const False) (const False) [] (map f cbs) else cbs
@@ -55,44 +46,6 @@ inlineAux cfg m cbs =  if UX.auxInline cfg then occurAnalysePgm m (const False) 
 --     e' = substExprAll empty subst e
 --   go recs = pure recs
 --   subst = buildDictSubst cbs
-
-
-
-lookupIdSubstAll :: SDoc -> M.HashMap Id CoreExpr -> Id -> CoreExpr
-lookupIdSubstAll doc env v | Just e <- M.lookup v env = e
-                           | otherwise                = Var v
-
-
-substExprAll :: SDoc -> M.HashMap Id CoreExpr -> CoreExpr -> CoreExpr
-substExprAll doc subst orig_expr = subst_expr_all doc subst orig_expr
-
-
-subst_expr_all :: SDoc -> M.HashMap Id CoreExpr -> CoreExpr -> CoreExpr
-subst_expr_all doc subst expr = go expr
- where
-  go (Var v) = lookupIdSubstAll (doc $$ text "subst_expr_all") subst v
-  go (Type     ty      ) = Type ty
-  go (Coercion co      ) = Coercion co
-  go (Lit      lit     ) = Lit lit
-  go (App  fun     arg ) = App (go fun) (go arg)
-  go (Tick tickish e   ) = Tick tickish (go e)
-  go (Cast e       co  ) = Cast (go e) co
-     -- Do not optimise even identity coercions
-     -- Reason: substitution applies to the LHS of RULES, and
-     --         if you "optimise" an identity coercion, you may
-     --         lose a binder. We optimise the LHS of rules at
-     --         construction time
-
-  go (Lam  bndr    body) = Lam bndr (subst_expr_all doc subst body)
-
-  go (Let  bind    body) = Let (mapBnd go bind) (subst_expr_all doc subst body)
-
-  go (Case scrut bndr ty alts) =
-    Case (go scrut) bndr ty (map (go_alt subst) alts)
-
-  go_alt subst (con, bndrs, rhs) = (con, bndrs, subst_expr_all doc subst rhs)
-
-
 
 -- grab the dictionaries
 grepDFunIds :: CoreProgram -> [(DFunId, CoreExpr)]

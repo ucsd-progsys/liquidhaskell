@@ -15,6 +15,9 @@
 {-# LANGUAGE ConstraintKinds           #-}
 {-# LANGUAGE ViewPatterns              #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- TODO(#1918): Only needed for GHC <9.0.1.
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 -- | Refinement Types. Mostly mirroring the GHC Type definition, but with
 --   room for refinements of various sorts.
 -- TODO: Desperately needs re-organization.
@@ -117,7 +120,6 @@ import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg, isRecursivenewTyCon)
 import           Language.Haskell.Liquid.GHC.API        as Ghc hiding ( Expr
                                                                       , Located
-                                                                      , mapType
                                                                       , tyConName
                                                                       , punctuate
                                                                       , hcat
@@ -648,13 +650,13 @@ pprt_raw = render . rtypeDoc Full
  -}
 
 strengthenRefType t1 t2
-  | True -- _meetable t1 t2
+  -- | _meetable t1 t2
   = strengthenRefType_ (\x _ -> x) t1 t2
-  | otherwise
-  = panic Nothing msg
-  where
-    msg = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
-            (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
+  -- | otherwise
+  -- = panic Nothing msg
+  -- where
+  --   msg = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
+  --           (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
 
 _meetable :: (OkRT c tv r) => RType c tv r -> RType c tv r -> Bool
 _meetable t1 t2 = toRSort t1 == toRSort t2
@@ -1694,9 +1696,6 @@ grabArgs τs (FunTy _ _ τ1 τ2)
   -- -- = grabArgs τs τ2
 grabArgs τs τ
   = reverse (τ:τs)
-
-isNonValueTy :: Type -> Bool
-isNonValueTy = GM.isPredType-- GM.isEmbeddedDictType 
 
 
 expandProductType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))

@@ -1,4 +1,6 @@
 flags:
+  liquidhaskell:
+    devel: true
   liquid-platform:
     devel: true
 extra-package-dbs: []

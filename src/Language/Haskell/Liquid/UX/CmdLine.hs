@@ -7,6 +7,9 @@
 {-# LANGUAGE NamedFieldPuns            #-}
 {-# LANGUAGE MultiWayIf                #-}
 {-# LANGUAGE ViewPatterns              #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wwarn=deprecations #-}
 {-# OPTIONS_GHC -fno-cse #-}
 
 -- | This module contains all the code needed to output the result which

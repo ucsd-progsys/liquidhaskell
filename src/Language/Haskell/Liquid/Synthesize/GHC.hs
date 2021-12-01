@@ -2,6 +2,9 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE CPP #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Language.Haskell.Liquid.Synthesize.GHC where
 
 import qualified Language.Fixpoint.Types       as F
