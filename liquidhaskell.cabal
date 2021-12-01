@@ -65,7 +65,7 @@ source-repository head
   type:     git
   location: https://github.com/ucsd-progsys/liquidhaskell/
 
-flag strict
+flag devel
   default:     False
   description: Enable more warnings and fail compilation when warnings occur.
                Turn this flag on in CI.
@@ -258,7 +258,7 @@ library
   default-extensions: PatternGuards, RecordWildCards, DoAndIfThenElse
   ghc-options:        -W -fwarn-missing-signatures
 
-  if flag(strict)
+  if flag(devel)
     ghc-options:      -Wall -Wno-name-shadowing -Werror
 
   if flag(include)
@@ -278,7 +278,7 @@ executable liquid
   default-extensions: PatternGuards
   ghc-options:        -W -threaded
 
-  if flag(strict)
+  if flag(devel)
     ghc-options:      -Wall -Wno-name-shadowing -Werror
 
 
@@ -307,7 +307,7 @@ test-suite test
   default-language: Haskell98
   ghc-options:      -W -threaded
 
-  if flag(strict)
+  if flag(devel)
     ghc-options:    -Wall -Wno-name-shadowing -Werror
 
   if !flag(no-plugin)
@@ -331,7 +331,7 @@ test-suite liquidhaskell-parser
   default-language: Haskell2010
   ghc-options:      -W
 
-  if flag(strict)
+  if flag(devel)
     ghc-options:    -Wall -Wno-name-shadowing -Werror
 
 test-suite synthesis
@@ -353,7 +353,7 @@ test-suite synthesis
   default-language: Haskell2010
   ghc-options:      -W
 
-  if flag(strict)
+  if flag(devel)
     ghc-options:    -Wall -Wno-name-shadowing -Werror
 
 -- This executable can be used to generate modules for mirror-packages.
@@ -384,5 +384,5 @@ executable mirror-modules
     LambdaCase
   ghc-options:        -W -threaded
 
-  if flag(strict)
+  if flag(devel)
     ghc-options:      -Wall -Wno-name-shadowing -Werror

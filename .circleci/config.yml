@@ -69,7 +69,7 @@ commands:
             echo 'export PATH=~/.ghcup/bin:$PATH' >> $BASH_ENV
             << parameters.cabal_update_command >>
             cabal v2-clean
-            cabal v2-build --project-file << parameters.project_file >> --flag strict --flag include --flag devel -j2 --enable-tests all
+            cabal v2-build --project-file << parameters.project_file >> --flag include --flag devel -j2 --enable-tests all
       - save_cache:
           key: cabal-cache-v3-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
           paths:
@@ -84,8 +84,8 @@ commands:
       - run:
           name: Test
           command: |
-            (liquidhaskell_datadir=$PWD cabal v2-test -j1 --project-file << parameters.project_file >> liquidhaskell:test << parameters.extra_test_flags >> --flag strict --flag include --flag devel --test-show-details=streaming --test-option="<< parameters.liquid_runner >>" --test-options="-t 1200s --xml=/tmp/junit/cabal/main-test-results.xml") || (<<parameters.allow_test_failures>>)
-            (liquidhaskell_datadir=$PWD cabal v2-test -j1 --project-file << parameters.project_file >> liquidhaskell:liquidhaskell-parser --flag strict --flag include --flag devel --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml") || (<<parameters.allow_test_failures>>)
+            (liquidhaskell_datadir=$PWD cabal v2-test -j1 --project-file << parameters.project_file >> liquidhaskell:test << parameters.extra_test_flags >> --flag include --flag devel --test-show-details=streaming --test-option="<< parameters.liquid_runner >>" --test-options="-t 1200s --xml=/tmp/junit/cabal/main-test-results.xml") || (<<parameters.allow_test_failures>>)
+            (liquidhaskell_datadir=$PWD cabal v2-test -j1 --project-file << parameters.project_file >> liquidhaskell:liquidhaskell-parser --flag include --flag devel --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml") || (<<parameters.allow_test_failures>>)
           no_output_timeout: 30m
       - store_test_results:
           path: /tmp/junit/cabal
@@ -166,7 +166,7 @@ jobs:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
             liquid_runner: "stack --silent exec -- liquid"
-            extra_build_flags: "--flag liquidhaskell:strict --flag liquidhaskell:include --flag liquid-platform:devel --flag liquidhaskell:no-plugin"
+            extra_build_flags: "--flag liquidhaskell:devel --flag liquidhaskell:include --flag liquid-platform:devel --flag liquidhaskell:no-plugin"
 
   stack_810:
     machine:
@@ -174,7 +174,7 @@ jobs:
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
-            extra_build_flags: "--flag liquidhaskell:strict"
+            extra_build_flags: "--flag liquidhaskell:devel"
             extra_test_flags: " liquid-platform:liquidhaskell "
 
   cabal_810:
