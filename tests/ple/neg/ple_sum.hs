@@ -2,6 +2,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
 {-@ LIQUID "--fuel=4" @-}
+{-@ LIQUID "--no-interpreter" @-}
 
 module PleSum where
 
