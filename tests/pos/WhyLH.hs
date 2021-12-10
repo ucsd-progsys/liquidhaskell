@@ -24,7 +24,8 @@ data UExp
 data Ty = T | TyFun Ty Ty
   deriving Eq
 
-{-@ inline max @-}
+-- XXX: Using inline instead of reflect causes verification to fail
+{-@ reflect max @-}
 max :: Int -> Int -> Int
 max a b = if a > b then a else b
 
@@ -34,13 +35,10 @@ freeVarBound :: UExp -> Int
 @-}
 -- | Compute the lowest upper-bound of de Bruijn indices appearing
 -- free in an expression.
---
--- XXX: 'freeVarBound' should use 'max' in the last two equations,
--- but verification fails if I try that.
 freeVarBound :: UExp -> Int
 freeVarBound (UVar v) = v + 1
-freeVarBound (ULam _ body) = if freeVarBound body > 0 then freeVarBound body - 1 else 0
-freeVarBound (UApp e1 e2) = if freeVarBound e1 > freeVarBound e2 then freeVarBound e1 else freeVarBound e2
+freeVarBound (ULam _ body) = max (freeVarBound body - 1) 0
+freeVarBound (UApp e1 e2) = max (freeVarBound e1) (freeVarBound e2)
 
 {-@
 type UExpN N = { e:UExp | freeVarBound e <= N }
