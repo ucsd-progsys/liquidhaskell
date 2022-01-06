@@ -1,6 +1,8 @@
 {-@ LIQUID "--exact-data-cons" @-}
 
-module AutoliftedFields where
+-- data decl in LH is missing and uses a LH-refined type alias incorrectly
+
+module AutoliftedFields00 where
 
 {-@ type Nat = { v : Int | v >= 0 } @-}
 type Nat = Int
