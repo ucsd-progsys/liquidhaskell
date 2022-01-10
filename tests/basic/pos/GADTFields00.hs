@@ -1,5 +1,7 @@
 {-# LANGUAGE GADTs #-}
 
+{-@ LIQUID "--exact-data-cons" @-}
+
 -- Basic syntax checking
 
 module GADTFields00 where

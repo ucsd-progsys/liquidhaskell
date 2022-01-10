@@ -1,5 +1,7 @@
 {-# LANGUAGE GADTs #-}
 
+{-@ LIQUID "--exact-data-cons" @-}
+
 -- With a refinement type embedded
 
 module GADTFields01 where
