@@ -1,5 +1,7 @@
 {-# LANGUAGE GADTs #-}
 
+{-@ LIQUID "--exact-data-cons" @-}
+
 -- With a refinement type embedded and then used wrongly
 
 module GADTFields00 where
