@@ -340,7 +340,7 @@ fieldName d dp x
 
 makeDataFields :: F.TCEmb Ghc.TyCon -> F.FTycon -> [RTyVar] -> [(F.LocSymbol, SpecType)]
                -> [F.DataField]
-makeDataFields tce _c as xts = [ F.DField x (fSort t) | (x, t) <- xts]
+makeDataFields tce _c as xts = F.tracepp "dfields" [ F.DField x (fSort t) | (x, t) <- F.tracepp "xts" xts]
   where
     su    = zip (F.symbol <$> as) [0..]
     fSort = F.substVars su . F.mapFVar (+ (length as)) . RT.rTypeSort tce

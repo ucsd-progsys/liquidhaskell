@@ -266,7 +266,7 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
     , _gsLSpec  = finalLiftedSpec
                 { impSigs   = makeImports mspecs
                 , expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ]
-                , dataDecls = dataDecls mySpec2 
+                , dataDecls = dataDecls mySpec2
                 , measures  = Ms.measures mySpec
                   -- We want to export measures in a 'LiftedSpec', especially if they are
                   -- required to check termination of some 'liftedSigs' we export. Due to the fact
@@ -752,7 +752,7 @@ makeInlSigs env rtEnv
 
 makeMsrSigs :: Bare.Env -> BareRTEnv -> [(ModName, Ms.BareSpec)] -> [(Ghc.Var, LocSpecType)] 
 makeMsrSigs env rtEnv 
-  = makeLiftedSigs rtEnv (CoreToLogic.inlineSpecType (typeclass (getConfig env)))
+  = makeLiftedSigs rtEnv (CoreToLogic.measureSpecType (typeclass (getConfig env)))
   . makeFromSet "hmeas" Ms.hmeas env 
 
 makeLiftedSigs :: BareRTEnv -> (Ghc.Var -> SpecType) -> [Ghc.Var] -> [(Ghc.Var, LocSpecType)]
@@ -1172,7 +1172,7 @@ makeLiftedSpec name src _env refl sData sig qual myRTE lSpec0 = lSpec0
                        , isLocInFile srcF t
                     ]
   , Ms.axeqs      = gsMyAxioms refl 
-  , Ms.aliases    = F.notracepp "MY-ALIASES" $ M.elems . typeAliases $ myRTE
+  , Ms.aliases    = F.tracepp "MY-ALIASES" $ M.elems . typeAliases $ myRTE
   , Ms.ealiases   = M.elems . exprAliases $ myRTE 
   , Ms.qualifiers = filter (isLocInFile srcF) (gsQualifiers qual)
   }

@@ -327,7 +327,7 @@ instance Expand Body where
 instance Expand DataCtor where 
   expand rtEnv l c = c
     { dcTheta  = expand rtEnv l (dcTheta c) 
-    , dcFields = [(x, expand rtEnv l t) | (x, t) <- dcFields c ] 
+    , dcFields = F.tracepp "dcFields: postexpand" [(x, expand rtEnv l t) | (x, t) <- F.tracepp "dcFields: preexpand" $ dcFields c ] 
     , dcResult = expand rtEnv l (dcResult c)
     }
  

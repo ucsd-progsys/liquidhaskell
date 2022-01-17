@@ -9,6 +9,6 @@ type Nat = Int
 
 data T = T { getT :: Nat }
 
-{-@ f :: { t : T | getT t <= 0 } -> Nat @-}
+{-@ f :: T -> { v : Int | v < 0 } @-}
 f :: T -> Nat
 f (T x) = x
