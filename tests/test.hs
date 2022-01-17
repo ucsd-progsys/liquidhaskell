@@ -48,8 +48,6 @@ import Paths_liquidhaskell
 
 import Text.Printf
 
-
-
 testRunner :: Ingredient
 testRunner = rerunningTests
                [ listingTests
@@ -75,14 +73,13 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                                  , Option (Proxy :: Proxy LiquidRunner)
                                  , Option (Proxy :: Proxy SmtSolver) ]
               ]
-    tests = group "Tests" $ microTests  :
-                            errorTests  : 
-                            macroTests  :
-                            proverTests :
-                           --  goldenTests :
-                            benchTests  : 
-                            []
-                           
+    tests = group "Tests" $ fmap pure <$> (microTests  :
+                                           errorTests  :
+                                           macroTests  :
+                                           proverTests :
+                                           --  goldenTests :
+                                           benchTests  :
+                                           [])
 
     -- tests = group "Tests" [ unitTests  ]
     -- tests = group "Tests" [ benchTests ]
@@ -251,8 +248,8 @@ errorTests = group "Error-Messages"
 
 macroTests :: IO TestTree
 macroTests = group "Macro"
-   [ testGroup "unit-pos"       <$> dirTests "tests/pos"                            posIgnored        ExitSuccess     (Just " SAFE ") (Just " UNSAFE ")
-   , testGroup "unit-neg"       <$> dirTests "tests/neg"                            negIgnored        (ExitFailure 1) (Just " UNSAFE ") Nothing
+   [ testGroupsWithLibs "unit-pos"       <$> dirTests "tests/pos"                            posIgnored        ExitSuccess     (Just " SAFE ") (Just " UNSAFE ")
+   , testGroupsWithLibs "unit-neg"       <$> dirTests "tests/neg"                            negIgnored        (ExitFailure 1) (Just " UNSAFE ") Nothing
    ] 
 
 {- 
@@ -303,14 +300,14 @@ microTests = group "Micro"
   , mkMicroPos "implicit-pos"   "tests/implicit/pos"
   , mkMicroNeg "implicit-neg"   "tests/implicit/neg"
   -- RJ: disabling because broken by adt PR #1068
-  -- , testGroup "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
-  -- , testGroup "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
+  -- , tesGoupsWithLibs "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
+  -- , tesGoupsWithLibs "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
   , mkMicroPos "typeclass-pos"  "tests/typeclasses/pos"
   ]
   where
-    mkMicroPos name dir = testGroup name <$> dirTests dir [] ExitSuccess     (Just " SAFE ") (Just " UNSAFE ")
-    mkMicroNeg name dir = testGroup name <$> dirTests dir [] (ExitFailure 1) (Just " UNSAFE ") Nothing
-    -- mkMicroLaw name dir = testGroup name <$> dirTests dir [] (ExitFailure 1) (Just "Law Instance Error") Nothing
+    mkMicroPos name dir = testGroupsWithLibs name <$> dirTests dir [] ExitSuccess     (Just " SAFE ") (Just " UNSAFE ")
+    mkMicroNeg name dir = testGroupsWithLibs name <$> dirTests dir [] (ExitFailure 1) (Just " UNSAFE ") Nothing
+    -- mkMcoLaw name dir = testGroupsWithLibs name <$> dirTests dir [] (ExitFailure 1) (Just "Law Instance Error") Nothing
 
 posIgnored, gPosIgnored, gNegIgnored :: [FilePath]
 posIgnored    = [ "mapreduce.hs", "Variance.hs" ]
@@ -319,13 +316,13 @@ gNegIgnored   = ["Interpretations.hs", "Gradual.hs"]
 
 benchTests :: IO TestTree
 benchTests = group "Benchmarks"
-  [ testGroup "cse230"      <$> dirTests   "benchmarks/cse230/src/Week10"         []                        ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
-  , testGroup "esop"        <$> dirTests  "benchmarks/esop2013-submission"        esopIgnored               ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
-  , testGroup "vect-algs"   <$> odirTests  "benchmarks/vector-algorithms-0.5.4.2" []            vectOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
-  , testGroup "bytestring"  <$> odirTests  "benchmarks/bytestring-0.9.2.1"        bsIgnored     bsOrder     ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
-  , testGroup "text"        <$> odirTests  "benchmarks/text-0.11.2.3"             textIgnored   textOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
-  , testGroup "icfp_pos"    <$> odirTests  "benchmarks/icfp15/pos"                icfpIgnored   icfpOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
-  , testGroup "icfp_neg"    <$> odirTests  "benchmarks/icfp15/neg"                icfpIgnored   icfpOrder   (ExitFailure 1) (Just " UNSAFE ") Nothing
+  [ testGroupsWithLibs "cse230"      <$> dirTests   "benchmarks/cse230/src/Week10"         []                        ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testGroupsWithLibs "esop"        <$> dirTests  "benchmarks/esop2013-submission"        esopIgnored               ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testGroupsWithLibs "vect-algs"   <$> odirTests  "benchmarks/vector-algorithms-0.5.4.2" []            vectOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testGroupsWithLibs "bytestring"  <$> odirTests  "benchmarks/bytestring-0.9.2.1"        bsIgnored     bsOrder     ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testGroupsWithLibs "text"        <$> odirTests  "benchmarks/text-0.11.2.3"             textIgnored   textOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testGroupsWithLibs "icfp_pos"    <$> odirTests  "benchmarks/icfp15/pos"                icfpIgnored   icfpOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testGroupsWithLibs "icfp_neg"    <$> odirTests  "benchmarks/icfp15/neg"                icfpIgnored   icfpOrder   (ExitFailure 1) (Just " UNSAFE ") Nothing
   ]
 
 -- AUTO-ORDER _impLibOrder :: Maybe FileOrder 
@@ -414,29 +411,35 @@ textOrder = Just . mkOrder $
 
 proverTests :: IO TestTree
 proverTests = group "Prover"
-  [ testGroup "foundations"     <$> dirTests  "benchmarks/sf"                ignoreLists                 ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
-  , testGroup "prover_ple_lib"  <$> odirTests "benchmarks/popl18/lib"        []             proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
-  , testGroup "without_ple_pos" <$> odirTests "benchmarks/popl18/nople/pos"  noPleIgnored   proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
-  , testGroup "without_ple_neg" <$> odirTests "benchmarks/popl18/nople/neg"  noPleIgnored   proverOrder (ExitFailure 1) (Just " UNSAFE ") Nothing
-  , testGroup "with_ple"        <$> odirTests "benchmarks/popl18/ple/pos"    autoIgnored    proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
+  [ testGroupsWithLibs "foundations"     <$> dirTests  "benchmarks/sf"                ignoreLists                 ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
+  , testGroupsWithLibs "prover_ple_lib"  <$> odirTests "benchmarks/popl18/lib"        []             proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
+  , testGroupsWithLibs "without_ple_pos" <$> odirTests "benchmarks/popl18/nople/pos"  noPleIgnored   proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
+  , testGroupsWithLibs "without_ple_neg" <$> odirTests "benchmarks/popl18/nople/neg"  noPleIgnored   proverOrder (ExitFailure 1) (Just " UNSAFE ") Nothing
+  , testGroupsWithLibs "with_ple"        <$> odirTests "benchmarks/popl18/ple/pos"    autoIgnored    proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
   ]
 
 
 selfTests :: IO TestTree
 selfTests
   = group "Self" [
-      testGroup "liquid"      <$> dirTests "src"  [] ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+      testGroupsWithLibs "liquid" <$> dirTests "src"  [] ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  ]
+
+testGroupsWithLibs :: String -> ([TestTree], [TestTree]) -> [TestTree]
+testGroupsWithLibs name (libTests, nonlibTests) =
+  [ testGroup (name <> "Lib") libTests
+  , after AllFinish (name <> "Lib") $ testGroup name nonlibTests
   ]
 
 --------------------------------------------------------------------------------
 -- | For each file in `root` check, that we get the given exit `code.`
 --------------------------------------------------------------------------------
-dirTests :: FilePath -> [FilePath] -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO [TestTree]
+dirTests :: FilePath -> [FilePath] -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO ([TestTree], [TestTree])
 --------------------------------------------------------------------------------
 dirTests root ignored ecode yesLog noLog = odirTests root ignored Nothing ecode yesLog noLog
 
 --------------------------------------------------------------------------------
-odirTests :: FilePath -> [FilePath] -> Maybe FileOrder -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO [TestTree]
+odirTests :: FilePath -> [FilePath] -> Maybe FileOrder -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO ([TestTree], [TestTree])
 --------------------------------------------------------------------------------
 odirTests root ignored fo ecode yesLog noLog = do
   files     <- walkDirectory False root
@@ -446,8 +449,11 @@ odirTests root ignored fo ecode yesLog noLog = do
                                   , let rel = makeRelative root f
                                   , rel `notElem` ignored
                             ]
+  let (libs, nonlibs) = L.partition ("Lib" `L.isInfixOf`) tests
   -- print (show tests)
-  return     $ mkCodeTest ecode yesLog noLog root <$> tests
+  return (mktests libs, mktests nonlibs)
+  where
+    mktests = (mkCodeTest ecode yesLog noLog root <$>)
 
 mkCodeTest :: ExitCode -> Maybe T.Text -> Maybe T.Text -> FilePath -> FilePath -> TestTree
 mkCodeTest code yesLog noLog dir file = mkTest (EC file code yesLog noLog) dir file
@@ -488,9 +494,9 @@ stringLower = fmap toLower
 --------------------------------------------------------------------------------
 -- | Check that we get the given `err` text and `ExitFailure status` for the given `path`.
 --------------------------------------------------------------------------------
-errorTest :: FilePath -> Int -> T.Text -> IO TestTree
+errorTest :: FilePath -> Int -> T.Text -> IO [TestTree]
 --------------------------------------------------------------------------------
-errorTest path status err = return (mkTest ec dir file)
+errorTest path status err = return [mkTest ec dir file]
   where
     ec                    = EC file (ExitFailure status) (Just err) Nothing
     (dir, file)           = splitFileName path
@@ -534,12 +540,17 @@ mkTest ec dir file
     test = dir </> file
 
 
+logFilePath :: FilePath -> FilePath -> FilePath
+logFilePath dir file = "tests/logs/cur" </> testFileFullPath <.> "log"
+  where
+    testFileFullPath = dir </> file
+
 --------------------------------------------------------------------------------
-runLiquidOn :: SmtSolver 
-            -> LiquidOpts 
+runLiquidOn :: SmtSolver
+            -> LiquidOpts
             -> LiquidRunner
             -> FilePath
-            -> FilePath 
+            -> FilePath
             -> IO (ExitCode, T.Text)
 --------------------------------------------------------------------------------
 runLiquidOn smt opts (LiquidRunner bin) dir file = do
@@ -554,7 +565,6 @@ runLiquidOn smt opts (LiquidRunner bin) dir file = do
   where
     testFileFullPath = dir </> file
     log = "tests/logs/cur" </> testFileFullPath <.> "log"
-
 
 binPath :: FilePath -> IO FilePath
 binPath pkgName = (</> pkgName) <$> getBinDir
@@ -776,8 +786,8 @@ demosIgnored = [ "Composition.hs"
 ----------------------------------------------------------------------------------------
 -- Generic Helpers
 ----------------------------------------------------------------------------------------
-group :: (Monad m) => TestName -> [m TestTree] -> m TestTree
-group n xs = testGroup n <$> sequence xs
+group :: Monad m => TestName -> [m [TestTree]] -> m TestTree
+group n xs = testGroup n . concat <$> sequence xs
 
 gitTimestamp :: IO String
 gitTimestamp = do
