@@ -442,7 +442,7 @@ testGroupsWithLibs name (DependentTests libTests nonlibTests) =
 -- | Creates a [TestTree] that runs without parallelism
 testSequentially :: String -> SequentialTests -> [TestTree]
 testSequentially name (SequentialTests indexedTests) =
-  let grouped = (\(t, n) -> (testGroup (name <> show n) [t], n)) <$> indexedTests
+  let grouped = reverse $ (\(t, n) -> (testGroup (name <> show n) [t], n)) <$> indexedTests
       -- turns i.e. [a, b, c, d] into [(a, b), (b, c), (c, d)]
       pairs = zip <*> tail $ grouped
       deps = (\((_, n1), (t2, _)) -> after AllFinish (name <> show n1) t2) <$> pairs
@@ -466,6 +466,7 @@ sequentialOdirTests root ignored fo ecode yesLog noLog = do
   DependentTests libs nonlibs <- odirTests root ignored (Just (getFileOrder fo)) ecode yesLog noLog
   pure $ SequentialTests $ zip (libs <> nonlibs) [0..]
 
+-- | Allow parallelism for these tests, but run any tests with `Lib` in its name before the others.
 --------------------------------------------------------------------------------
 odirTests :: FilePath -> [FilePath] -> Maybe FileOrder -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO DependentTests
 --------------------------------------------------------------------------------
