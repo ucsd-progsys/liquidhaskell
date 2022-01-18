@@ -48,6 +48,11 @@ import Paths_liquidhaskell
 
 import Text.Printf
 
+data DependentTests = DependentTests
+  { dependencies :: [TestTree]
+  , toplevel :: [TestTree]
+  }
+
 testRunner :: Ingredient
 testRunner = rerunningTests
                [ listingTests
@@ -425,8 +430,8 @@ selfTests
       testGroupsWithLibs "liquid" <$> dirTests "src"  [] ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
   ]
 
-testGroupsWithLibs :: String -> ([TestTree], [TestTree]) -> [TestTree]
-testGroupsWithLibs name (libTests, nonlibTests) =
+testGroupsWithLibs :: String -> DependentTests -> [TestTree]
+testGroupsWithLibs name (DependentTests libTests nonlibTests) =
   [ testGroup (name <> "Lib") libTests
   , after AllFinish (name <> "Lib") $ testGroup name nonlibTests
   ]
@@ -434,12 +439,12 @@ testGroupsWithLibs name (libTests, nonlibTests) =
 --------------------------------------------------------------------------------
 -- | For each file in `root` check, that we get the given exit `code.`
 --------------------------------------------------------------------------------
-dirTests :: FilePath -> [FilePath] -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO ([TestTree], [TestTree])
+dirTests :: FilePath -> [FilePath] -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO DependentTests
 --------------------------------------------------------------------------------
 dirTests root ignored ecode yesLog noLog = odirTests root ignored Nothing ecode yesLog noLog
 
 --------------------------------------------------------------------------------
-odirTests :: FilePath -> [FilePath] -> Maybe FileOrder -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO ([TestTree], [TestTree])
+odirTests :: FilePath -> [FilePath] -> Maybe FileOrder -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO DependentTests
 --------------------------------------------------------------------------------
 odirTests root ignored fo ecode yesLog noLog = do
   files     <- walkDirectory False root
@@ -451,7 +456,7 @@ odirTests root ignored fo ecode yesLog noLog = do
                             ]
   let (libs, nonlibs) = L.partition ("Lib" `L.isInfixOf`) tests
   -- print (show tests)
-  return (mktests libs, mktests nonlibs)
+  return $ DependentTests (mktests libs) (mktests nonlibs)
   where
     mktests = (mkCodeTest ecode yesLog noLog root <$>)
 
@@ -538,12 +543,6 @@ mkTest ec dir file
       else runLiquidOn smt opts bin dir file >>= uncurry (ecAssert ec)
   where
     test = dir </> file
-
-
-logFilePath :: FilePath -> FilePath -> FilePath
-logFilePath dir file = "tests/logs/cur" </> testFileFullPath <.> "log"
-  where
-    testFileFullPath = dir </> file
 
 --------------------------------------------------------------------------------
 runLiquidOn :: SmtSolver
