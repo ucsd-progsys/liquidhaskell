@@ -53,6 +53,9 @@ data DependentTests = DependentTests
   , toplevel :: [TestTree]
   }
 
+newtype SequentialTests = SequentialTests
+  { getTests :: [(TestTree, Int)] }
+
 testRunner :: Ingredient
 testRunner = rerunningTests
                [ listingTests
@@ -321,13 +324,13 @@ gNegIgnored   = ["Interpretations.hs", "Gradual.hs"]
 
 benchTests :: IO TestTree
 benchTests = group "Benchmarks"
-  [ testGroupsWithLibs "cse230"      <$> dirTests   "benchmarks/cse230/src/Week10"         []                        ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
-  , testGroupsWithLibs "esop"        <$> dirTests  "benchmarks/esop2013-submission"        esopIgnored               ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
-  , testGroupsWithLibs "vect-algs"   <$> odirTests  "benchmarks/vector-algorithms-0.5.4.2" []            vectOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
-  , testGroupsWithLibs "bytestring"  <$> odirTests  "benchmarks/bytestring-0.9.2.1"        bsIgnored     bsOrder     ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
-  , testGroupsWithLibs "text"        <$> odirTests  "benchmarks/text-0.11.2.3"             textIgnored   textOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
-  , testGroupsWithLibs "icfp_pos"    <$> odirTests  "benchmarks/icfp15/pos"                icfpIgnored   icfpOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
-  , testGroupsWithLibs "icfp_neg"    <$> odirTests  "benchmarks/icfp15/neg"                icfpIgnored   icfpOrder   (ExitFailure 1) (Just " UNSAFE ") Nothing
+  [ testGroupsWithLibs "cse230"    <$> dirTests             "benchmarks/cse230/src/Week10"         []                        ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testGroupsWithLibs "esop"      <$> dirTests             "benchmarks/esop2013-submission"        esopIgnored               ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testSequentially "vect-algs"   <$> sequentialOdirTests  "benchmarks/vector-algorithms-0.5.4.2" []            vectOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testSequentially "bytestring"  <$> sequentialOdirTests  "benchmarks/bytestring-0.9.2.1"        bsIgnored     bsOrder     ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testSequentially "text"        <$> sequentialOdirTests  "benchmarks/text-0.11.2.3"             textIgnored   textOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testSequentially "icfp_pos"    <$> sequentialOdirTests  "benchmarks/icfp15/pos"                icfpIgnored   icfpOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testSequentially "icfp_neg"    <$> sequentialOdirTests  "benchmarks/icfp15/neg"                icfpIgnored   icfpOrder   (ExitFailure 1) (Just " UNSAFE ") Nothing
   ]
 
 -- AUTO-ORDER _impLibOrder :: Maybe FileOrder 
@@ -339,22 +342,22 @@ benchTests = group "Benchmarks"
 -- AUTO-ORDER _measPosOrder :: Maybe FileOrder 
 -- AUTO-ORDER _measPosOrder = Just . mkOrder $ [ "List00Lib.hs" ]
 
-proverOrder :: Maybe FileOrder 
-proverOrder = Just . mkOrder $ 
+proverOrder :: SequentialFileOrder 
+proverOrder = mkSequentialOrder
   [ "Proves.hs"
   , "Helper.hs" 
   ]
 
-icfpOrder :: Maybe FileOrder 
-icfpOrder = Just . mkOrder $ 
+icfpOrder :: SequentialFileOrder 
+icfpOrder = mkSequentialOrder
   [ "RIO.hs" 
   , "RIO2.hs"
   , "WhileM.hs" 
   , "DataBase.hs"
   ]
 
-vectOrder :: Maybe FileOrder 
-vectOrder = Just . mkOrder $ 
+vectOrder :: SequentialFileOrder 
+vectOrder = mkSequentialOrder $ 
   [ "Data/Vector/Algorithms/Common.hs"
   , "Data/Vector/Algorithms/Search.hs"
   , "Data/Vector/Algorithms/Radix.hs"
@@ -367,8 +370,8 @@ vectOrder = Just . mkOrder $
   , "Data/Vector/Algorithms/AmericanFlag.hs" 
   ]  
  
-bsOrder :: Maybe FileOrder 
-bsOrder = Just . mkOrder $ 
+bsOrder :: SequentialFileOrder 
+bsOrder = mkSequentialOrder
   [ "Data/ByteString/Internal.hs" 
   , "Data/ByteString/Lazy/Internal.hs" 
   , "Data/ByteString/Fusion.hs" 
@@ -380,8 +383,8 @@ bsOrder = Just . mkOrder $
   , "Data/ByteString/LazyZip.hs"
   ]
 
-textOrder :: Maybe FileOrder 
-textOrder = Just . mkOrder $ 
+textOrder :: SequentialFileOrder 
+textOrder = mkSequentialOrder
   [ "Data/Text/Encoding/Utf16.hs"       -- skip
   , "Data/Text/Unsafe/Base.hs"          -- skip
   , "Data/Text/UnsafeShift.hs"          -- skip
@@ -416,11 +419,11 @@ textOrder = Just . mkOrder $
 
 proverTests :: IO TestTree
 proverTests = group "Prover"
-  [ testGroupsWithLibs "foundations"     <$> dirTests  "benchmarks/sf"                ignoreLists                 ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
-  , testGroupsWithLibs "prover_ple_lib"  <$> odirTests "benchmarks/popl18/lib"        []             proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
-  , testGroupsWithLibs "without_ple_pos" <$> odirTests "benchmarks/popl18/nople/pos"  noPleIgnored   proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
-  , testGroupsWithLibs "without_ple_neg" <$> odirTests "benchmarks/popl18/nople/neg"  noPleIgnored   proverOrder (ExitFailure 1) (Just " UNSAFE ") Nothing
-  , testGroupsWithLibs "with_ple"        <$> odirTests "benchmarks/popl18/ple/pos"    autoIgnored    proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
+  [ testGroupsWithLibs "foundations"   <$> dirTests            "benchmarks/sf"                ignoreLists                 ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
+  , testSequentially "prover_ple_lib"  <$> sequentialOdirTests "benchmarks/popl18/lib"        []             proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
+  , testSequentially "without_ple_pos" <$> sequentialOdirTests "benchmarks/popl18/nople/pos"  noPleIgnored   proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
+  , testSequentially "without_ple_neg" <$> sequentialOdirTests "benchmarks/popl18/nople/neg"  noPleIgnored   proverOrder (ExitFailure 1) (Just " UNSAFE ") Nothing
+  , testSequentially "with_ple"        <$> sequentialOdirTests "benchmarks/popl18/ple/pos"    autoIgnored    proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
   ]
 
 
@@ -432,9 +435,21 @@ selfTests
 
 testGroupsWithLibs :: String -> DependentTests -> [TestTree]
 testGroupsWithLibs name (DependentTests libTests nonlibTests) =
-  [ testGroup (name <> "Lib") libTests
-  , after AllFinish (name <> "Lib") $ testGroup name nonlibTests
+  [ testGroup (name <> "-libs") libTests
+  , after AllFinish (name <> "-libs") $ testGroup name nonlibTests
   ]
+
+-- | Creates a [TestTree] that runs without parallelism
+testSequentially :: String -> SequentialTests -> [TestTree]
+testSequentially name (SequentialTests indexedTests) =
+  let grouped = (\(t, n) -> (testGroup (name <> show n) [t], n)) <$> indexedTests
+      -- turns i.e. [a, b, c, d] into [(a, b), (b, c), (c, d)]
+      pairs = zip <*> tail $ grouped
+      deps = (\((_, n1), (t2, _)) -> after AllFinish (name <> show n1) t2) <$> pairs
+  in
+    case grouped of
+      [] -> []
+      (t:_) -> fst t : deps
 
 --------------------------------------------------------------------------------
 -- | For each file in `root` check, that we get the given exit `code.`
@@ -442,6 +457,14 @@ testGroupsWithLibs name (DependentTests libTests nonlibTests) =
 dirTests :: FilePath -> [FilePath] -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO DependentTests
 --------------------------------------------------------------------------------
 dirTests root ignored ecode yesLog noLog = odirTests root ignored Nothing ecode yesLog noLog
+
+--------------------------------------------------------------------------------
+-- | Disallow parallelism for these tests.
+--------------------------------------------------------------------------------
+sequentialOdirTests :: FilePath -> [FilePath] -> SequentialFileOrder -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO SequentialTests
+sequentialOdirTests root ignored fo ecode yesLog noLog = do
+  DependentTests libs nonlibs <- odirTests root ignored (Just (getFileOrder fo)) ecode yesLog noLog
+  pure $ SequentialTests $ zip (libs <> nonlibs) [0..]
 
 --------------------------------------------------------------------------------
 odirTests :: FilePath -> [FilePath] -> Maybe FileOrder -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO DependentTests
@@ -470,7 +493,11 @@ isTest f =  takeExtension f == ".hs"
 --------------------------------------------------------------------------------
 -- | @FileOrder@ is a hack to impose a "build" order on the paths in a given directory
 --------------------------------------------------------------------------------
-type FileOrder = Map.Map FilePath Int 
+type FileOrder = Map.Map FilePath Int
+newtype SequentialFileOrder = SequentialFileOrder { getFileOrder :: FileOrder }
+
+mkSequentialOrder :: [FilePath] -> SequentialFileOrder
+mkSequentialOrder = SequentialFileOrder . mkOrder
 
 getOrder :: FileOrder -> FilePath -> Int 
 getOrder m f = Map.findWithDefault (1 + Map.size m) f m 
