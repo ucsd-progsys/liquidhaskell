@@ -1,8 +1,8 @@
 {-@ LIQUID "--ple" @-}
 {-@ LIQUID "--exact-data-cons" @-}
 
--- This test contains the examples of a blogpost
--- TODO: include the link
+-- This test contains the examples of the blogpost at
+-- https://www.tweag.io/blog/2022-01-19-why-liquid-haskell/
 --
 import Prelude hiding (Maybe(..), isJust, length, max)
 
