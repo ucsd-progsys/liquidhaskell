@@ -54,7 +54,7 @@ data DependentTests = DependentTests
   }
 
 newtype SequentialTests = SequentialTests
-  { getTests :: [(TestTree, Int)] }
+  { getTests :: [TestTree] }
 
 testRunner :: Ingredient
 testRunner = rerunningTests
@@ -443,19 +443,16 @@ testGroupsWithLibs name (DependentTests libTests nonlibTests) =
 
 -- | Creates a [TestTree] that runs without parallelism
 testSequentially :: String -> SequentialTests -> [TestTree]
-testSequentially name (SequentialTests indexedTests) =
-  let grouped = (\(t, n) -> (testGroup (mkName n) [t], n)) <$> indexedTests
-      -- turns i.e. [a, b, c, d] into [(a, b), (b, c), (c, d)]
-      pairs = zip <*> tail $ grouped
+testSequentially name (SequentialTests tests) =
+  let grouped = (\(t, n) -> (testGroup (mkName n) [t], n)) <$> (zip tests [0 :: Int ..])
+      pairs = zip grouped (tail grouped)
       deps = (\((_, n1), (t2, _)) -> after AllFinish (mkName n1) t2) <$> pairs
   in
     case grouped of
       [] -> []
       (t:_) -> fst t : deps
   where
-    -- Supports up to 1000 tests -- anymore, and you'll get a dependency cycle
-    -- issue because "X-100" matches, say"X-1000"
-    mkName n = printf "%s-%03d" name n
+    mkName n = printf "%s-sequential-%d." name n
 
 --------------------------------------------------------------------------------
 -- | For each file in `root` check, that we get the given exit `code.`
@@ -470,7 +467,7 @@ dirTests root ignored ecode yesLog noLog = odirTests root ignored Nothing ecode 
 sequentialOdirTests :: FilePath -> [FilePath] -> SequentialFileOrder -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO SequentialTests
 sequentialOdirTests root ignored fo ecode yesLog noLog = do
   DependentTests libs nonlibs <- odirTests root ignored (Just (getFileOrder fo)) ecode yesLog noLog
-  pure $ SequentialTests $ zip (libs <> nonlibs) [0..]
+  pure $ SequentialTests (libs <> nonlibs)
 
 -- | Allow parallelism for these tests, but run any tests with `Lib` in its name before the others.
 --------------------------------------------------------------------------------
