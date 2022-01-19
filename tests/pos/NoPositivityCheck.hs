@@ -1,4 +1,4 @@
-{- LIQUID "--no-positivity-check" @-}
+{-@ LIQUID "--no-positivity-check" @-}
 
 module Positivity where 
 

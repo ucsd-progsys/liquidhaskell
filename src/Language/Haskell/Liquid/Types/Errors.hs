@@ -479,7 +479,7 @@ data TError t =
   | ErrPosTyCon { pos  :: SrcSpan
                 , tc   :: !Doc
                 , dc   :: !Doc
-                } -- ^ Sigh. Other.
+                } 
 
 
   | ErrOther    { pos   :: SrcSpan
