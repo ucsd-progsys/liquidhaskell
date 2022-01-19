@@ -439,17 +439,23 @@ testGroupsWithLibs name (DependentTests libTests nonlibTests) =
   , after AllFinish (name <> "-libs") $ testGroup name nonlibTests
   ]
 
+
+
 -- | Creates a [TestTree] that runs without parallelism
 testSequentially :: String -> SequentialTests -> [TestTree]
 testSequentially name (SequentialTests indexedTests) =
-  let grouped = reverse $ (\(t, n) -> (testGroup (name <> show n) [t], n)) <$> indexedTests
+  let grouped = (\(t, n) -> (testGroup (mkName n) [t], n)) <$> indexedTests
       -- turns i.e. [a, b, c, d] into [(a, b), (b, c), (c, d)]
       pairs = zip <*> tail $ grouped
-      deps = (\((_, n1), (t2, _)) -> after AllFinish (name <> show n1) t2) <$> pairs
+      deps = (\((_, n1), (t2, _)) -> after AllFinish (mkName n1) t2) <$> pairs
   in
     case grouped of
       [] -> []
       (t:_) -> fst t : deps
+  where
+    -- Supports up to 1000 tests -- anymore, and you'll get a dependency cycle
+    -- issue because "X-100" matches, say"X-1000"
+    mkName n = printf "%s-%03d" name n
 
 --------------------------------------------------------------------------------
 -- | For each file in `root` check, that we get the given exit `code.`
