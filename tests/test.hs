@@ -779,6 +779,7 @@ textIgnored :: [FilePath]
 textIgnored 
   = [ "Setup.lhs"
     -- , "Data/Text/Axioms.hs"
+    , "Data/Text/Foreign.hs"                -- Breaks on GHC 9.0.1
     , "Data/Text/Encoding/Error.hs"
     , "Data/Text/Encoding/Fusion.hs"        -- has nothing in int (compile-spec) but triggers 18 import-builds
     , "Data/Text/Encoding/Fusion/Common.hs"
