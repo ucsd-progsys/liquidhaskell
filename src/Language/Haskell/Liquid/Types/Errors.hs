@@ -1052,6 +1052,11 @@ ppError' _ dCtx (ErrRewrite _ msg )
 ppError' _ dCtx (ErrPosTyCon _ tc dc)
   = text "Non strictly positive occurence of" <+> tc <+> "in" <+> dc 
         $+$ dCtx
+        $+$ (nest 4 $ vcat
+            ["To deactivate or understand the need of positivity check, see:"
+             , " "
+             , nest 4 "https://ucsd-progsys.github.io/liquidhaskell/options/#positivity-check"
+            ])
 
 ppError' _ dCtx (ErrParseAnn _ msg)
   = text "Malformed annotation"
