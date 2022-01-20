@@ -1,6 +1,7 @@
 -- FAILING TEST: this test SHOULD FAIL BUT DOESN'T
 -- issue #519
 
+{-@ LIQUID "--no-positivity-check" @-}
 {-# LANGUAGE DeriveFunctor #-}
 module AST where
 

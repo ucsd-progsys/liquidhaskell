@@ -223,6 +223,40 @@ with the `--no-termination` option.
 
 See the [specifications section](specifications.md) for how to write termination specifications.
 
+## Positicity Check
+
+**Options:** `no-positivity-check`
+By **default** a positivity check is performed on data definitions. 
+
+
+```haskell
+data Bad = Bad (Bad -> Bad) | Good Bad 
+    --           A      B           C
+    -- A is in a negative position, B and C are OK
+```
+
+Non strictly-positive declarations are rejected because they admit non-terminating functions.
+
+If the positivity check is disabled, so that a similar declaration of `Bad` is allowed, 
+it is possible to construct a term of the empty type, even without recursion.
+For example see [tests/neg/Positivity1.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/errors/Positivity1.hs)
+and [tests/neg/Positivity2.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/errors/Positivity2.hs)
+
+```haskell
+data Evil a = Very (Evil a -> a)
+
+{-@ type Bot = {v: () | false} @-}
+
+{-@ bad :: Evil Bot -> Bot @-}
+bad :: Evil () -> ()
+bad (Very f) = f (Very f)
+
+{-@ worse :: Bot @-}
+worse :: ()
+worse = bad (Very bad)
+```
+
+
 ## Total Haskell
 
 **Options:** `total-Haskell`
