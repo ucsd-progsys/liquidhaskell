@@ -248,8 +248,8 @@ errorTests = group "Error-Messages"
   -- TODO-REBARE ?, errorTest "tests/errors/MissingField1.hs"        2 "Error: Unknown field `goober`" 
   -- TODO-REBARE ?, errorTest "tests/errors/MissingField2.hs"        2 "Error: Unknown field `fxx`" 
   , errorTest "tests/errors/PositivityCheck.hs"     1 "Non strictly positive occurence of Positivity.Bad1"
-  , errorTest "tests/errors/Positivity1.hs"         1 "Non strictly positive occurence of Positivity1.Rec in Positivity1.In : forall a. (Positivity1.Rec a -> a) -> Positivity1.Rec a"
-  , errorTest "tests/errors/Positivity2.hs"         1 "Non strictly positive occurence of Evil.Evil in Evil.Very : forall a. (Evil.Evil a -> a) -> Evil.Evil a"
+  , errorTest "tests/errors/Positivity1.hs"         1 "Non strictly positive occurence of Positivity1.Rec"
+  , errorTest "tests/errors/Positivity2.hs"         1 "Non strictly positive occurence of Evil.Evil in Evil.Very"
   ]
 
 macroTests :: IO TestTree
