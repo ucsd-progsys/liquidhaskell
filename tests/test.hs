@@ -446,6 +446,8 @@ testGroupsWithLibs name (DependentTests libTests nonlibTests) =
 -- | Creates a [TestTree] that runs without parallelism
 testSequentially :: String -> SequentialTests -> [TestTree]
 testSequentially name (SequentialTests tests) =
+  -- We need to create a singleton testGroup here so that we know the test name to
+  -- match on in `deps` below.
   let grouped = (\(t, n) -> (testGroup (mkName n) [t], n)) <$> (zip tests [0 :: Int ..])
       pairs = zip grouped (tail grouped)
       deps = (\((_, n1), (t2, _)) -> after AllFinish (mkName n1) t2) <$> pairs
