@@ -21,6 +21,10 @@ import Language.Haskell.Liquid.Types.Errors
 -- | Positivity Checker -------------------------------------------------------
 -------------------------------------------------------------------------------
 
+-- If the type constructor T is in the input list and its data constructors Di, Dj
+-- use T in non strictly positive positions, 
+-- then (T,(Di, Dj)) will appear in the result list.  
+
 getNonPositivesTyCon :: [TyCon] -> [(TyCon, [DataCon])]
 getNonPositivesTyCon tcs = Mb.catMaybes $ map go (M.toList $ makeOccurrences tcs)
   where 
