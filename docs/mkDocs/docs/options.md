@@ -235,7 +235,7 @@ data Bad = Bad (Bad -> Bad) | Good Bad
     -- A is in a negative position, B and C are OK
 ```
 
-Non strictly-positive declarations are rejected because they admit non-terminating functions.
+Negative declarations are rejected because they admit non-terminating functions.
 
 If the positivity check is disabled, so that a similar declaration of `Bad` is allowed, 
 it is possible to construct a term of the empty type, even without recursion.
@@ -256,6 +256,8 @@ worse :: ()
 worse = bad (Very bad)
 ```
 
+Note that all positive occurrences are permited, unlike Coq that only allows the strictly positive ones
+(see: https://vilhelms.github.io/posts/why-must-inductive-types-be-strictly-positive/)
 
 ## Total Haskell
 

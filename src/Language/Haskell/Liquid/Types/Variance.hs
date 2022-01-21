@@ -6,7 +6,9 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 
-module Language.Haskell.Liquid.Types.Variance ( Variance(..), VarianceInfo, makeTyConVariance ) where
+module Language.Haskell.Liquid.Types.Variance ( 
+  Variance(..), VarianceInfo, makeTyConVariance, flipVariance 
+  ) where
 
 import Prelude hiding (error)
 import Control.DeepSeq
@@ -32,6 +34,23 @@ type VarianceInfo = [Variance]
 data Variance = Invariant | Bivariant | Contravariant | Covariant
               deriving (Eq, Data, Typeable, Show, Generic)
               deriving Hashable via Generically Variance
+
+flipVariance :: Variance -> Variance
+flipVariance Invariant     = Invariant
+flipVariance Bivariant     = Bivariant
+flipVariance Contravariant = Covariant
+flipVariance Covariant     = Contravariant
+
+instance Semigroup Variance where 
+  Bivariant     <> _         = Bivariant
+  _             <> Bivariant = Bivariant
+  Invariant     <> v         = v
+  v             <> Invariant = v
+  Covariant     <> v         = v
+  Contravariant <> v         = flipVariance v
+
+instance Monoid Variance where 
+  mempty = Bivariant
 
 instance Binary Variance
 instance NFData Variance

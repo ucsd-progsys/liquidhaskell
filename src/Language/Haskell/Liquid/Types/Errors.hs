@@ -1050,7 +1050,7 @@ ppError' _ dCtx (ErrRewrite _ msg )
         $+$ nest 4 msg
 
 ppError' _ dCtx (ErrPosTyCon _ tc dc)
-  = text "Non strictly positive occurence of" <+> tc <+> "in" <+> dc 
+  = text "Negative occurence of" <+> tc <+> "in" <+> dc 
         $+$ dCtx
         $+$ (vcat
             ["\n"
