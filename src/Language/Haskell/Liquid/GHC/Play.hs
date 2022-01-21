@@ -15,7 +15,7 @@ import qualified Data.Maybe          as Mb
 import Language.Haskell.Liquid.GHC.API as Ghc hiding (substTysWith, panic,showPpr)
 import Language.Haskell.Liquid.GHC.Misc ()
 import Language.Haskell.Liquid.Types.Errors
-
+import Language.Haskell.Liquid.Types.Variance
 
 -------------------------------------------------------------------------------
 -- | Positivity Checker -------------------------------------------------------
