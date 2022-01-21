@@ -223,7 +223,7 @@ with the `--no-termination` option.
 
 See the [specifications section](specifications.md) for how to write termination specifications.
 
-## Positicity Check
+## Positivity Check
 
 **Options:** `no-positivity-check`
 By **default** a positivity check is performed on data definitions. 
