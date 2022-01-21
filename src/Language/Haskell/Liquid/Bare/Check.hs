@@ -7,6 +7,7 @@
 module Language.Haskell.Liquid.Bare.Check 
   ( checkTargetSpec
   , checkBareSpec
+  , checkTargetSrc
   ) where
 
 
@@ -32,6 +33,7 @@ import qualified Language.Fixpoint.Misc                    as Misc
 import           Language.Fixpoint.SortCheck               (checkSorted, checkSortedReftFull, checkSortFull)
 import qualified Language.Fixpoint.Types                   as F 
 import qualified Language.Haskell.Liquid.GHC.Misc          as GM 
+import           Language.Haskell.Liquid.GHC.Play          (getNonPositivesTyCon)
 import           Language.Haskell.Liquid.Misc              (condNull, thd5)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.WiredIn
@@ -41,6 +43,26 @@ import qualified Language.Haskell.Liquid.Measure           as Ms
 import qualified Language.Haskell.Liquid.Bare.Types        as Bare 
 import qualified Language.Haskell.Liquid.Bare.Resolve      as Bare 
 
+
+----------------------------------------------------------------------------------------------
+-- | Checking TargetSrc ------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------
+checkTargetSrc :: Config -> TargetSrc -> Either Diagnostics ()
+checkTargetSrc cfg spec 
+  |  nopositivity cfg 
+  || nopositives == emptyDiagnostics
+  = Right () 
+  | otherwise 
+  = Left nopositives
+  where nopositives = checkPositives (gsTcs spec)
+
+
+checkPositives :: [TyCon] -> Diagnostics
+checkPositives tys = mkDiagnostics [] $ mkNonPosError (getNonPositivesTyCon tys)  
+
+mkNonPosError :: [(TyCon, [DataCon])]  -> [Error]
+mkNonPosError tcs = [ ErrPosTyCon (getSrcSpan tc) (pprint tc) (pprint dc <+> ":" <+> pprint (dataConRepType dc)) 
+                    | (tc, (dc:_)) <- tcs]
 
 ----------------------------------------------------------------------------------------------
 -- | Checking BareSpec ------------------------------------------------------------------------

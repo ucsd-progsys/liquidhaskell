@@ -476,6 +476,12 @@ data TError t =
                 , msg :: !Doc
                 }
 
+  | ErrPosTyCon { pos  :: SrcSpan
+                , tc   :: !Doc
+                , dc   :: !Doc
+                } 
+
+
   | ErrOther    { pos   :: SrcSpan
                 , msg   :: !Doc
                 } -- ^ Sigh. Other.
@@ -1042,6 +1048,16 @@ ppError' _ dCtx (ErrRewrite _ msg )
   = text "Rewrite error"
         $+$ dCtx
         $+$ nest 4 msg
+
+ppError' _ dCtx (ErrPosTyCon _ tc dc)
+  = text "Non strictly positive occurence of" <+> tc <+> "in" <+> dc 
+        $+$ dCtx
+        $+$ (vcat
+            ["\n"
+             , "To deactivate or understand the need of positivity check, see:"
+             , " "
+             , nest 2 "https://ucsd-progsys.github.io/liquidhaskell/options/#positivity-check"
+            ])
 
 ppError' _ dCtx (ErrParseAnn _ msg)
   = text "Malformed annotation"

@@ -160,6 +160,11 @@ config = cmdArgsMode $ Config {
           &= help "Disable Termination Check"
           &= name "no-termination-check"
 
+ , nopositivity
+    = def
+          &= help "Disable Data Type Positivity Check"
+          &= name "no-positivity-check"
+
  , rankNTypes
     = def &= help "Adds precise reasoning on presence of rankNTypes"
           &= name "rankNTypes"
@@ -650,6 +655,7 @@ defConfig = Config
   , nostructuralterm         = def
   , noCheckUnknown           = def
   , notermination            = False
+  , nopositivity             = False
   , rankNTypes               = False
   , noclasscheck             = False
   , gradual                  = False
