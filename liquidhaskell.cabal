@@ -305,7 +305,7 @@ test-suite test
                   , text
                   , transformers         >= 0.3
   default-language: Haskell98
-  ghc-options:      -W -threaded
+  ghc-options:      -W -threaded -with-rtsopts=-N
 
   if flag(devel)
     ghc-options:    -Wall -Wno-name-shadowing -Werror
