@@ -8,7 +8,10 @@ Occurrence            | Coq | LH  | unsound*
 Strictly Positive     | OK  | OK  | No
 Negative              | Err | Err | Yes
 Guarded Negative      | Err | Err | Hopefully no
-Non Strictly Positive | Err | OK  | Yes in Coq
+Non Strictly Positive | Err | OK  | Yes in Coq unclear for LH
+
+
+Note, Coq also has Nested Positivity: https://coq.inria.fr/refman/language/core/inductive.html#nested-positivity
 
 *unsound here means there is an example that generates false (bot). 
 
@@ -68,10 +71,7 @@ type Bot = ()
 contra :: Int -> Negative -> Bot
 {-@ contra :: n:Int -> Prop (Occ n) -> Bot @-}
 contra n evidence = case evidence of 
-  Negative            _ f -> f evidence -- This is "easy"
---   StrictlyPositive    _ _ -> undefined  -- This is impossible 
---   NonStrictlyPositive _ f -> f (\_ -> 42) 
---   GuardedNegative     _ f -> undefined -- Niki believes this is impossible   
+  Negative            _ f -> f evidence 
 
 
 {-@ evidence :: n:Int -> Prop (Occ n) @-}
