@@ -6,7 +6,6 @@ flags:
 extra-package-dbs: []
 ghc-options:
   hscolour: -w
-allow-newer: true # 8.10.1
 packages:
 - liquid-fixpoint
 - liquid-ghc-prim
