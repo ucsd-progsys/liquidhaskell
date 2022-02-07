@@ -27,6 +27,11 @@ source-repository-package
     location: https://github.com/liquidhaskell/liquid-base.git
     tag: fa58c8d93efb834c38bbc9a39edeaaea16a18174
 
+source-repository-package
+    type: git
+    location: https://github.com/facundominguez/rest
+    tag: 31e974979c90e910efe5199ee0d3721b791667f6
+
 constraints:
   any.Cabal ==3.4.0.0,
   Decimal ==0.5.1,

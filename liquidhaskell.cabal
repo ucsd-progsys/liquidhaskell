@@ -233,9 +233,8 @@ library
                     , liquid-fixpoint      >= 0.8.10.2.1 && < 0.9
                     , mtl                  >= 2.1
                     , optics               >= 0.2
-                    , optparse-applicative < 0.16.0.0
+                    , optparse-applicative < 0.17
                     , optparse-simple
-                    , optparse-applicative < 0.16.0.0
                     , githash
                     , megaparsec           >= 8
                     , pretty               >= 1.1
@@ -251,7 +250,7 @@ library
                     , unordered-containers >= 0.2.11
                     , vector               >= 0.10
                     , free
-                    , recursion-schemes    <= 5.2.2
+                    , recursion-schemes    < 5.3
                     , data-fix
                     , extra 
   default-language:   Haskell98
@@ -371,7 +370,7 @@ executable mirror-modules
                  , filepath < 1.5
                  , containers < 0.7
                  , mustache < 2.4
-                 , optparse-applicative < 0.16.1.0
+                 , optparse-applicative < 0.17
     buildable: True
   else
     buildable: False
