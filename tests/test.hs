@@ -24,7 +24,6 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid (Sum(..))
 import Data.Proxy
 import Data.String
-import Data.String.Conv
 import Data.Tagged
 import Data.Typeable
 -- import Data.List (sort, reverse)
@@ -49,7 +48,13 @@ import Paths_liquidhaskell
 
 import Text.Printf
 
+data DependentTests = DependentTests
+  { dependencies :: [TestTree]
+  , toplevel :: [TestTree]
+  }
 
+newtype SequentialTests = SequentialTests
+  { getTests :: [TestTree] }
 
 testRunner :: Ingredient
 testRunner = rerunningTests
@@ -76,14 +81,13 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                                  , Option (Proxy :: Proxy LiquidRunner)
                                  , Option (Proxy :: Proxy SmtSolver) ]
               ]
-    tests = group "Tests" $ microTests  :
-                            errorTests  : 
-                            macroTests  :
-                            proverTests :
-                           --  goldenTests :
-                            benchTests  : 
-                            []
-                           
+    tests = group "Tests" $ fmap pure <$> (microTests  :
+                                           errorTests  :
+                                           macroTests  :
+                                           proverTests :
+                                           --  goldenTests :
+                                           benchTests  :
+                                           [])
 
     -- tests = group "Tests" [ unitTests  ]
     -- tests = group "Tests" [ benchTests ]
@@ -248,12 +252,15 @@ errorTests = group "Error-Messages"
   -- , errorTest "tests/errors/UnknownTyConHole.hs"    2 "HINT: Use the hole" 
   -- TODO-REBARE ?, errorTest "tests/errors/MissingField1.hs"        2 "Error: Unknown field `goober`" 
   -- TODO-REBARE ?, errorTest "tests/errors/MissingField2.hs"        2 "Error: Unknown field `fxx`" 
+  , errorTest "tests/errors/PositivityCheck.hs"     1 "Negative occurence of Positivity.Bad1"
+  , errorTest "tests/errors/Positivity1.hs"         1 "Negative occurence of Positivity1.Rec"
+  , errorTest "tests/errors/Positivity2.hs"         1 "Negative occurence of Evil.Evil in Evil.Very"
   ]
 
 macroTests :: IO TestTree
 macroTests = group "Macro"
-   [ testGroup "unit-pos"       <$> dirTests "tests/pos"                            posIgnored        ExitSuccess     (Just " SAFE ") (Just " UNSAFE ")
-   , testGroup "unit-neg"       <$> dirTests "tests/neg"                            negIgnored        (ExitFailure 1) (Just " UNSAFE ") Nothing
+   [ testGroupsWithLibs "unit-pos"       <$> dirTests "tests/pos"                            posIgnored        ExitSuccess     (Just " SAFE ") (Just " UNSAFE ")
+   , testGroupsWithLibs "unit-neg"       <$> dirTests "tests/neg"                            negIgnored        (ExitFailure 1) (Just " UNSAFE ") Nothing
    ] 
 
 {- 
@@ -304,29 +311,31 @@ microTests = group "Micro"
   , mkMicroPos "implicit-pos"   "tests/implicit/pos"
   , mkMicroNeg "implicit-neg"   "tests/implicit/neg"
   -- RJ: disabling because broken by adt PR #1068
-  -- , testGroup "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
-  -- , testGroup "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
-  , mkMicroPos "typeclass-pos"  "tests/typeclasses/pos"
+  -- , tesGoupsWithLibs "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
+  -- , tesGoupsWithLibs "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+  , mkMicroPos "typeclass-pos"  "tests/typeclasses/pos" -- breaks on GHC 9.0.1
+#endif
   ]
   where
-    mkMicroPos name dir = testGroup name <$> dirTests dir [] ExitSuccess     (Just " SAFE ") (Just " UNSAFE ")
-    mkMicroNeg name dir = testGroup name <$> dirTests dir [] (ExitFailure 1) (Just " UNSAFE ") Nothing
-    mkMicroLaw name dir = testGroup name <$> dirTests dir [] (ExitFailure 1) (Just "Law Instance Error") Nothing
+    mkMicroPos name dir = testGroupsWithLibs name <$> dirTests dir [] ExitSuccess     (Just " SAFE ") (Just " UNSAFE ")
+    mkMicroNeg name dir = testGroupsWithLibs name <$> dirTests dir [] (ExitFailure 1) (Just " UNSAFE ") Nothing
+    -- mkMcoLaw name dir = testGroupsWithLibs name <$> dirTests dir [] (ExitFailure 1) (Just "Law Instance Error") Nothing
 
-
+posIgnored, gPosIgnored, gNegIgnored :: [FilePath]
 posIgnored    = [ "mapreduce.hs", "Variance.hs" ]
 gPosIgnored   = ["Intro.hs"]
 gNegIgnored   = ["Interpretations.hs", "Gradual.hs"]
 
 benchTests :: IO TestTree
 benchTests = group "Benchmarks"
-  [ testGroup "cse230"      <$> dirTests   "benchmarks/cse230/src/Week10"         []                        ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
-  , testGroup "esop"        <$> dirTests  "benchmarks/esop2013-submission"        esopIgnored               ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
-  , testGroup "vect-algs"   <$> odirTests  "benchmarks/vector-algorithms-0.5.4.2" []            vectOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
-  , testGroup "bytestring"  <$> odirTests  "benchmarks/bytestring-0.9.2.1"        bsIgnored     bsOrder     ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
-  , testGroup "text"        <$> odirTests  "benchmarks/text-0.11.2.3"             textIgnored   textOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
-  , testGroup "icfp_pos"    <$> odirTests  "benchmarks/icfp15/pos"                icfpIgnored   icfpOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
-  , testGroup "icfp_neg"    <$> odirTests  "benchmarks/icfp15/neg"                icfpIgnored   icfpOrder   (ExitFailure 1) (Just " UNSAFE ") Nothing
+  [ testGroupsWithLibs "cse230"    <$> dirTests             "benchmarks/cse230/src/Week10"         []                        ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testGroupsWithLibs "esop"      <$> dirTests             "benchmarks/esop2013-submission"        esopIgnored               ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testSequentially "vect-algs"   <$> sequentialOdirTests  "benchmarks/vector-algorithms-0.5.4.2" []            vectOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testSequentially "bytestring"  <$> sequentialOdirTests  "benchmarks/bytestring-0.9.2.1"        bsIgnored     bsOrder     ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testSequentially "text"        <$> sequentialOdirTests  "benchmarks/text-0.11.2.3"             textIgnored   textOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testSequentially "icfp_pos"    <$> sequentialOdirTests  "benchmarks/icfp15/pos"                icfpIgnored   icfpOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testSequentially "icfp_neg"    <$> sequentialOdirTests  "benchmarks/icfp15/neg"                icfpIgnored   icfpOrder   (ExitFailure 1) (Just " UNSAFE ") Nothing
   ]
 
 -- AUTO-ORDER _impLibOrder :: Maybe FileOrder 
@@ -338,22 +347,22 @@ benchTests = group "Benchmarks"
 -- AUTO-ORDER _measPosOrder :: Maybe FileOrder 
 -- AUTO-ORDER _measPosOrder = Just . mkOrder $ [ "List00Lib.hs" ]
 
-proverOrder :: Maybe FileOrder 
-proverOrder = Just . mkOrder $ 
+proverOrder :: SequentialFileOrder 
+proverOrder = mkSequentialOrder
   [ "Proves.hs"
   , "Helper.hs" 
   ]
 
-icfpOrder :: Maybe FileOrder 
-icfpOrder = Just . mkOrder $ 
+icfpOrder :: SequentialFileOrder 
+icfpOrder = mkSequentialOrder
   [ "RIO.hs" 
   , "RIO2.hs"
   , "WhileM.hs" 
   , "DataBase.hs"
   ]
 
-vectOrder :: Maybe FileOrder 
-vectOrder = Just . mkOrder $ 
+vectOrder :: SequentialFileOrder 
+vectOrder = mkSequentialOrder $ 
   [ "Data/Vector/Algorithms/Common.hs"
   , "Data/Vector/Algorithms/Search.hs"
   , "Data/Vector/Algorithms/Radix.hs"
@@ -366,8 +375,8 @@ vectOrder = Just . mkOrder $
   , "Data/Vector/Algorithms/AmericanFlag.hs" 
   ]  
  
-bsOrder :: Maybe FileOrder 
-bsOrder = Just . mkOrder $ 
+bsOrder :: SequentialFileOrder 
+bsOrder = mkSequentialOrder
   [ "Data/ByteString/Internal.hs" 
   , "Data/ByteString/Lazy/Internal.hs" 
   , "Data/ByteString/Fusion.hs" 
@@ -379,8 +388,8 @@ bsOrder = Just . mkOrder $
   , "Data/ByteString/LazyZip.hs"
   ]
 
-textOrder :: Maybe FileOrder 
-textOrder = Just . mkOrder $ 
+textOrder :: SequentialFileOrder 
+textOrder = mkSequentialOrder
   [ "Data/Text/Encoding/Utf16.hs"       -- skip
   , "Data/Text/Unsafe/Base.hs"          -- skip
   , "Data/Text/UnsafeShift.hs"          -- skip
@@ -415,29 +424,61 @@ textOrder = Just . mkOrder $
 
 proverTests :: IO TestTree
 proverTests = group "Prover"
-  [ testGroup "foundations"     <$> dirTests  "benchmarks/sf"                ignoreLists                 ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
-  , testGroup "prover_ple_lib"  <$> odirTests "benchmarks/popl18/lib"        []             proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
-  , testGroup "without_ple_pos" <$> odirTests "benchmarks/popl18/nople/pos"  noPleIgnored   proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
-  , testGroup "without_ple_neg" <$> odirTests "benchmarks/popl18/nople/neg"  noPleIgnored   proverOrder (ExitFailure 1) (Just " UNSAFE ") Nothing
-  , testGroup "with_ple"        <$> odirTests "benchmarks/popl18/ple/pos"    autoIgnored    proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
+  [ testGroupsWithLibs "foundations"   <$> dirTests            "benchmarks/sf"                ignoreLists                 ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
+  , testSequentially "prover_ple_lib"  <$> sequentialOdirTests "benchmarks/popl18/lib"        []             proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
+  , testSequentially "without_ple_pos" <$> sequentialOdirTests "benchmarks/popl18/nople/pos"  noPleIgnored   proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
+  , testSequentially "without_ple_neg" <$> sequentialOdirTests "benchmarks/popl18/nople/neg"  noPleIgnored   proverOrder (ExitFailure 1) (Just " UNSAFE ") Nothing
+  , testSequentially "with_ple"        <$> sequentialOdirTests "benchmarks/popl18/ple/pos"    autoIgnored    proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
   ]
 
 
 selfTests :: IO TestTree
 selfTests
   = group "Self" [
-      testGroup "liquid"      <$> dirTests "src"  [] ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+      testGroupsWithLibs "liquid" <$> dirTests "src"  [] ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
   ]
+
+testGroupsWithLibs :: String -> DependentTests -> [TestTree]
+testGroupsWithLibs name (DependentTests libTests nonlibTests) =
+  [ testGroup (name <> "-libs") libTests
+  , after AllFinish (name <> "-libs") $ testGroup name nonlibTests
+  ]
+
+
+
+-- | Creates a [TestTree] that runs without parallelism
+testSequentially :: String -> SequentialTests -> [TestTree]
+testSequentially name (SequentialTests tests) =
+  -- We need to create a singleton testGroup here so that we know the test name to
+  -- match on in `deps` below.
+  let grouped = (\(t, n) -> (testGroup (mkName n) [t], n)) <$> (zip tests [0 :: Int ..])
+      pairs = zip grouped (tail grouped)
+      deps = (\((_, n1), (t2, _)) -> after AllFinish (mkName n1) t2) <$> pairs
+  in
+    case grouped of
+      [] -> []
+      (t:_) -> fst t : deps
+  where
+    mkName n = printf "%s-sequential-%d." name n
 
 --------------------------------------------------------------------------------
 -- | For each file in `root` check, that we get the given exit `code.`
 --------------------------------------------------------------------------------
-dirTests :: FilePath -> [FilePath] -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO [TestTree]
+dirTests :: FilePath -> [FilePath] -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO DependentTests
 --------------------------------------------------------------------------------
 dirTests root ignored ecode yesLog noLog = odirTests root ignored Nothing ecode yesLog noLog
 
 --------------------------------------------------------------------------------
-odirTests :: FilePath -> [FilePath] -> Maybe FileOrder -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO [TestTree]
+-- | Disallow parallelism for these tests.
+--------------------------------------------------------------------------------
+sequentialOdirTests :: FilePath -> [FilePath] -> SequentialFileOrder -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO SequentialTests
+sequentialOdirTests root ignored fo ecode yesLog noLog = do
+  DependentTests libs nonlibs <- odirTests root ignored (Just (getFileOrder fo)) ecode yesLog noLog
+  pure $ SequentialTests (libs <> nonlibs)
+
+-- | Allow parallelism for these tests, but run any tests with `Lib` in its name before the others.
+--------------------------------------------------------------------------------
+odirTests :: FilePath -> [FilePath] -> Maybe FileOrder -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO DependentTests
 --------------------------------------------------------------------------------
 odirTests root ignored fo ecode yesLog noLog = do
   files     <- walkDirectory False root
@@ -447,8 +488,11 @@ odirTests root ignored fo ecode yesLog noLog = do
                                   , let rel = makeRelative root f
                                   , rel `notElem` ignored
                             ]
+  let (libs, nonlibs) = L.partition ("Lib" `L.isInfixOf`) tests
   -- print (show tests)
-  return     $ mkCodeTest ecode yesLog noLog root <$> tests
+  return $ DependentTests (mktests libs) (mktests nonlibs)
+  where
+    mktests = (mkCodeTest ecode yesLog noLog root <$>)
 
 mkCodeTest :: ExitCode -> Maybe T.Text -> Maybe T.Text -> FilePath -> FilePath -> TestTree
 mkCodeTest code yesLog noLog dir file = mkTest (EC file code yesLog noLog) dir file
@@ -460,7 +504,11 @@ isTest f =  takeExtension f == ".hs"
 --------------------------------------------------------------------------------
 -- | @FileOrder@ is a hack to impose a "build" order on the paths in a given directory
 --------------------------------------------------------------------------------
-type FileOrder = Map.Map FilePath Int 
+type FileOrder = Map.Map FilePath Int
+newtype SequentialFileOrder = SequentialFileOrder { getFileOrder :: FileOrder }
+
+mkSequentialOrder :: [FilePath] -> SequentialFileOrder
+mkSequentialOrder = SequentialFileOrder . mkOrder
 
 getOrder :: FileOrder -> FilePath -> Int 
 getOrder m f = Map.findWithDefault (1 + Map.size m) f m 
@@ -489,9 +537,9 @@ stringLower = fmap toLower
 --------------------------------------------------------------------------------
 -- | Check that we get the given `err` text and `ExitFailure status` for the given `path`.
 --------------------------------------------------------------------------------
-errorTest :: FilePath -> Int -> T.Text -> IO TestTree
+errorTest :: FilePath -> Int -> T.Text -> IO [TestTree]
 --------------------------------------------------------------------------------
-errorTest path status err = return (mkTest ec dir file)
+errorTest path status err = return [mkTest ec dir file]
   where
     ec                    = EC file (ExitFailure status) (Just err) Nothing
     (dir, file)           = splitFileName path
@@ -534,13 +582,12 @@ mkTest ec dir file
   where
     test = dir </> file
 
-
 --------------------------------------------------------------------------------
-runLiquidOn :: SmtSolver 
-            -> LiquidOpts 
+runLiquidOn :: SmtSolver
+            -> LiquidOpts
             -> LiquidRunner
             -> FilePath
-            -> FilePath 
+            -> FilePath
             -> IO (ExitCode, T.Text)
 --------------------------------------------------------------------------------
 runLiquidOn smt opts (LiquidRunner bin) dir file = do
@@ -555,7 +602,6 @@ runLiquidOn smt opts (LiquidRunner bin) dir file = do
   where
     testFileFullPath = dir </> file
     log = "tests/logs/cur" </> testFileFullPath <.> "log"
-
 
 binPath :: FilePath -> IO FilePath
 binPath pkgName = (</> pkgName) <$> getBinDir
@@ -677,6 +723,7 @@ noPleIgnored
   = "ApplicativeList.hs"         -- TODO-REBARE: TODO BLOWUP but ple version ok
   : autoIgnored
 
+esopIgnored :: [FilePath]
 esopIgnored 
   = [ "Base0.hs"
     ]
@@ -688,6 +735,7 @@ icfpIgnored
     , "TwiceM.hs"                -- TODO: BLOWUP: using 2.7GB RAM
     ]
 
+autoIgnored :: [FilePath]
 autoIgnored 
   = "Ackermann.hs" 
   : proverIgnored
@@ -738,6 +786,9 @@ textIgnored :: [FilePath]
 textIgnored 
   = [ "Setup.lhs"
     -- , "Data/Text/Axioms.hs"
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+    , "Data/Text/Foreign.hs"                -- Breaks on GHC 9.0.1
+#endif
     , "Data/Text/Encoding/Error.hs"
     , "Data/Text/Encoding/Fusion.hs"        -- has nothing in int (compile-spec) but triggers 18 import-builds
     , "Data/Text/Encoding/Fusion/Common.hs"
@@ -775,8 +826,8 @@ demosIgnored = [ "Composition.hs"
 ----------------------------------------------------------------------------------------
 -- Generic Helpers
 ----------------------------------------------------------------------------------------
-group :: (Monad m) => TestName -> [m TestTree] -> m TestTree
-group n xs = testGroup n <$> sequence xs
+group :: Monad m => TestName -> [m [TestTree]] -> m TestTree
+group n xs = testGroup n . concat <$> sequence xs
 
 gitTimestamp :: IO String
 gitTimestamp = do
@@ -881,7 +932,7 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
 
         Const summary <$ State.modify (+ 1)
 
-    runGroup group children = Traversal $ Functor.Compose $ do
+    runGroup _ group children = Traversal $ Functor.Compose $ do
       Const soFar <- Functor.getCompose $ getTraversal children
       pure $ Const $ map (\(n,t,s) -> (group</>n,t,s)) soFar
 
@@ -922,8 +973,9 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
 
     let dir = "tests" </> "logs" </> host ++ "-" ++ time
     let smry = "tests" </> "logs" </> "cur" </> "summary.csv"
+    _ <- system "mkdir -p tests/logs/cur"
     writeFile smry $ unlines
                    $ hdr
                    : map (\(n, t, r) -> printf "%s, %0.4f, %s" n t (show r)) summary
-    system $ "cp -r tests/logs/cur " ++ dir
+    _ <- system $ "cp -r tests/logs/cur " ++ dir
     (==0) <$> computeFailures smap

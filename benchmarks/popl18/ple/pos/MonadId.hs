@@ -1,7 +1,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
-{-@ LIQUID "--oldple"     @-}
-{- LIQUID "--betaequivalence" @-}
+
+
 
 module MonadId where
 

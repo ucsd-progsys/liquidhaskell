@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Language.Haskell.Liquid.Transforms.RefSplit (
 
         splitXRelatedRefs

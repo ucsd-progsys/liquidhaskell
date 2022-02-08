@@ -39,6 +39,7 @@ data Config = Config
   , checks                   :: [String]   -- ^ set of binders to check
   , noCheckUnknown           :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination            :: Bool       -- ^ disable termination check
+  , nopositivity             :: Bool       -- ^ disable positivity check
   , rankNTypes               :: Bool       -- ^ Adds precise reasoning on presence of rankNTypes
   , noclasscheck             :: Bool       -- ^ disable checking class instances
   -- , structuralTerm        :: Bool       -- ^ use structural termination checker
@@ -85,6 +86,7 @@ data Config = Config
   , noLiftedImport           :: Bool       -- ^ Disable loading lifted specifications (for "legacy" libs)
   , proofLogicEval           :: Bool       -- ^ Enable proof-by-logical-evaluation
   , oldPLE                   :: Bool       -- ^ Enable proof-by-logical-evaluation
+  , noInterpreter            :: Bool       -- ^ Use an interpreter to assist PLE
   , proofLogicEvalLocal      :: Bool       -- ^ Enable proof-by-logical-evaluation locally, per function
   , extensionality           :: Bool       -- ^ Enable extensional interpretation of function equality
   , nopolyinfer              :: Bool       -- ^ No inference of polymorphic type application.
@@ -105,7 +107,8 @@ data Config = Config
   , noEnvironmentReduction   :: Bool       -- ^ Don't perform environment reduction
   , inlineANFBindings        :: Bool       -- ^ Inline ANF bindings.
                                            -- Sometimes improves performance and sometimes worsens it.
-  , restOrdering             :: String
+  , restOrdering             :: String     -- ^ The ordering to use for REST
+  , pandocHtml               :: Bool       -- ^ Use pandoc to generate html
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 allowPLE :: Config -> Bool

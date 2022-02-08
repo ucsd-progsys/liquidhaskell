@@ -1,22 +1,17 @@
-{-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE DeriveFunctor              #-}
-{-# LANGUAGE DeriveFoldable             #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DeriveTraversable          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
-{-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE ConstraintKinds            #-}
-{-# LANGUAGE BangPatterns               #-}
-{-# LANGUAGE TupleSections              #-}
-{-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE DerivingVia                #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 -- | This module should contain all the global type definitions and basic instances.
 
@@ -782,7 +777,7 @@ data RType c tv r
   -- | "forall x y <z :: Nat, w :: Int> . TYPE"
   --               ^^^^^^^^^^^^^^^^^^^ (rt_pvbind)
   | RAllP {
-      rt_pvbind :: !(PVU c tv)  -- ar (RType c tv ()))
+      rt_pvbind :: !(PVU c tv) 
     , rt_ty     :: !(RType c tv r)
     }
 
@@ -894,8 +889,8 @@ ty_var_is_val :: RTVar tv s -> Bool
 ty_var_is_val = rtvinfo_is_val . ty_var_info
 
 rtvinfo_is_val :: RTVInfo s -> Bool
-rtvinfo_is_val (RTVNoInfo {..}) = False
-rtvinfo_is_val (RTVInfo {..})   = rtv_is_val
+rtvinfo_is_val (RTVNoInfo {}) = False
+rtvinfo_is_val (RTVInfo {..}) = rtv_is_val
 
 instance (B.Binary tv, B.Binary s) => B.Binary (RTVar tv s)
 instance (NFData tv, NFData s)     => NFData   (RTVar tv s)

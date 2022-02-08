@@ -3,11 +3,11 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TupleSections         #-}
-{-# LANGUAGE TypeSynonymInstances  #-}
 {-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE BangPatterns          #-}
 {-# LANGUAGE ConstraintKinds       #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Language.Haskell.Liquid.Constraint.Fresh
   ( -- module Language.Haskell.Liquid.Types.Fresh

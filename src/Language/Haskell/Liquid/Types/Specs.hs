@@ -2,14 +2,12 @@
 -- | This module contains the top-level structures that hold 
 --   information about specifications.
 
-{-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE DerivingVia                #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE RecordWildCards            #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Language.Haskell.Liquid.Types.Specs (
   -- * Different types of specifications

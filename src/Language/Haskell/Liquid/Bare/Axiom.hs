@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE FlexibleContexts     #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
 -- | This module contains the code that DOES reflection; i.e. converts Haskell
@@ -54,7 +53,7 @@ findVarDefType :: [Ghc.CoreBind] -> [(Ghc.Var, LocSpecType)] -> LocSymbol
 findVarDefType cbs sigs x = case findVarDefMethod (val x) cbs of
   -- YL: probably ok even without checking typeclass flag since user cannot
   -- manually reflect internal names
-  Just (v, e) -> if Ghc.isExportedId v || isMethod (F.symbol x) || isDictionary (F.symbol x)
+  Just (v, e) -> if GM.isExternalId v || isMethod (F.symbol x) || isDictionary (F.symbol x)
                    then (x, val <$> lookup v sigs, v, e)
                    else Ex.throw $ mkError x ("Lifted functions must be exported; please export " ++ show v)
   Nothing     -> Ex.throw $ mkError x "Cannot lift haskell function"
@@ -125,7 +124,7 @@ grabBody allowTC t@(Ghc.FunTy {}) e
   = (txs++xs, e') 
    where (ts,tr)  = splitFun t 
          (xs, e') = grabBody allowTC tr (foldl Ghc.App e (Ghc.Var <$> txs))
-         txs      = [ stringVar ("ls" ++ show i) t |  (t,i) <- zip ts [1..]]
+         txs      = [ stringVar ("ls" ++ show i) t |  (t,i) <- zip ts [(1::Int)..]]
 grabBody _ _ e
   = ([], e)
 

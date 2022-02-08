@@ -1,6 +1,5 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleContexts     #-}
-{-# LANGUAGE TupleSections        #-}
 module Language.Haskell.Liquid.Types.Dictionaries (
     makeDictionaries
   , makeDictionary

@@ -6,14 +6,15 @@
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE UndecidableInstances      #-}
-{-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE RankNTypes                #-}
 {-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE PatternGuards             #-}
-{-# LANGUAGE ImplicitParams            #-}
 {-# LANGUAGE ConstraintKinds           #-}
 {-# LANGUAGE ViewPatterns              #-}
+
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- TODO(#1918): Only needed for GHC <9.0.1.
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 -- | Refinement Types. Mostly mirroring the GHC Type definition, but with
 --   room for refinements of various sorts.
@@ -93,7 +94,7 @@ module Language.Haskell.Liquid.Types.RefType (
 -- import           GHC.Stack
 import Prelude hiding (error)
 -- import qualified Prelude
-import           Data.Maybe               (fromMaybe, isJust, fromJust)
+import           Data.Maybe               (fromMaybe, isJust)
 import           Data.Monoid              (First(..))
 import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
@@ -117,7 +118,6 @@ import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg, isRecursivenewTyCon)
 import           Language.Haskell.Liquid.GHC.API        as Ghc hiding ( Expr
                                                                       , Located
-                                                                      , mapType
                                                                       , tyConName
                                                                       , punctuate
                                                                       , hcat
@@ -648,13 +648,13 @@ pprt_raw = render . rtypeDoc Full
  -}
 
 strengthenRefType t1 t2
-  | True -- _meetable t1 t2
+  -- | _meetable t1 t2
   = strengthenRefType_ (\x _ -> x) t1 t2
-  | otherwise
-  = panic Nothing msg
-  where
-    msg = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
-            (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
+  -- | otherwise
+  -- = panic Nothing msg
+  -- where
+  --   msg = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
+  --           (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
 
 _meetable :: (OkRT c tv r) => RType c tv r -> RType c tv r -> Bool
 _meetable t1 t2 = toRSort t1 == toRSort t2
@@ -1695,9 +1695,6 @@ grabArgs τs (FunTy _ _ τ1 τ2)
 grabArgs τs τ
   = reverse (τ:τs)
 
-isNonValueTy :: Type -> Bool
-isNonValueTy = GM.isPredType-- GM.isEmbeddedDictType 
-
 
 expandProductType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
                   => Var -> RType RTyCon RTyVar r -> RType RTyCon RTyVar r
@@ -1848,68 +1845,6 @@ mkTyConInfo c userTv userPv f = TyConInfo tcTv userPv f
     tcTv                      = if null userTv then defTv else userTv
     defTv                     = makeTyConVariance c
 
-
-makeTyConVariance :: TyCon -> VarianceInfo
-makeTyConVariance c = varSignToVariance <$> tvs
-  where
-    tvs = GM.tyConTyVarsDef c
-
-    varsigns = if Ghc.isTypeSynonymTyCon c
-                  then go True (fromJust $ Ghc.synTyConRhs_maybe c)
-                  else L.nub $ concatMap goDCon $ Ghc.tyConDataCons c
-
-    varSignToVariance v = case filter (\p -> GM.showPpr (fst p) == GM.showPpr v) varsigns of
-                            []       -> Invariant
-                            [(_, b)] -> if b then Covariant else Contravariant
-                            _        -> Bivariant
-
-
-    goDCon dc = concatMap (go True) (map irrelevantMult $ Ghc.dataConOrigArgTys dc)
-
-    go pos (FunTy _ _ t1 t2) = go (not pos) t1 ++ go pos t2
-    go pos (ForAllTy _ t)    = go pos t
-    go pos (TyVarTy v)       = [(v, pos)]
-    go pos (AppTy t1 t2)     = go pos t1 ++ go pos t2
-    go pos (TyConApp c' ts)
-       | c == c'
-       = []
-
--- NV fix that: what happens if we have mutually recursive data types?
--- now just provide "default" Bivariant for mutually rec types.
--- but there should be a finer solution
-       | mutuallyRecursive c c'
-       = concatMap (goTyConApp pos Bivariant) ts
-       | otherwise
-       = concat $ zipWith (goTyConApp pos) (makeTyConVariance c') ts
-
-    go _   (LitTy _)       = []
-    go _   (CoercionTy _)  = []
-    go pos (CastTy t _)    = go pos t
-
-    goTyConApp _   Invariant     _ = []
-    goTyConApp pos Bivariant     t = goTyConApp pos Contravariant t ++ goTyConApp pos Covariant t
-    goTyConApp pos Covariant     t = go pos       t
-    goTyConApp pos Contravariant t = go (not pos) t
-
-    mutuallyRecursive c c' = c `S.member` (dataConsOfTyCon c')
-
-
-dataConsOfTyCon :: TyCon -> S.HashSet TyCon
-dataConsOfTyCon = dcs S.empty
-  where
-    dcs vis c                 = mconcat $ go vis <$> [irrelevantMult t | dc <- Ghc.tyConDataCons c, t <- Ghc.dataConOrigArgTys dc]
-    go  vis (FunTy _ _ t1 t2) = go vis t1 `S.union` go vis t2
-    go  vis (ForAllTy _ t)    = go vis t
-    go  _   (TyVarTy _)       = S.empty
-    go  vis (AppTy t1 t2)     = go vis t1 `S.union` go vis t2
-    go  vis (TyConApp c ts)
-      | c `S.member` vis
-      = S.empty
-      | otherwise
-      = (S.insert c $ mconcat $ go vis <$> ts) `S.union` dcs (S.insert c vis) c
-    go  _   (LitTy _)       = S.empty
-    go  _   (CoercionTy _)  = S.empty
-    go  vis (CastTy t _)    = go vis t
 
 --------------------------------------------------------------------------------
 -- | Printing Refinement Types -------------------------------------------------

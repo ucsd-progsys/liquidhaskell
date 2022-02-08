@@ -1,7 +1,4 @@
-{-# LANGUAGE NamedFieldPuns      #-}
-{-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE RecordWildCards     #-}
 
 {-@ LIQUID "--diff"     @-}
 

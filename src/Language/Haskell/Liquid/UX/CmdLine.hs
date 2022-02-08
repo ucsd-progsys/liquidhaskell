@@ -3,10 +3,12 @@
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TemplateHaskell           #-}
 {-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE NamedFieldPuns            #-}
 {-# LANGUAGE MultiWayIf                #-}
 {-# LANGUAGE ViewPatterns              #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wwarn=deprecations #-}
 {-# OPTIONS_GHC -fno-cse #-}
 
 -- | This module contains all the code needed to output the result which
@@ -157,6 +159,11 @@ config = cmdArgsMode $ Config {
     = def
           &= help "Disable Termination Check"
           &= name "no-termination-check"
+
+ , nopositivity
+    = def
+          &= help "Disable Data Type Positivity Check"
+          &= name "no-positivity-check"
 
  , rankNTypes
     = def &= help "Adds precise reasoning on presence of rankNTypes"
@@ -353,6 +360,11 @@ config = cmdArgsMode $ Config {
         &= help "Enable Proof-by-Logical-Evaluation"
         &= name "oldple"
 
+  , noInterpreter
+    = def
+        &= help "Don't use an interpreter to assist PLE in solving constraints"
+        &= name "no-interpreter"
+
   , proofLogicEvalLocal
     = def
         &= help "Enable Proof-by-Logical-Evaluation locally, per function"
@@ -450,6 +462,10 @@ config = cmdArgsMode $ Config {
     = "rpo"
         &= name "rest-ordering"
         &= help "Ordering Constraints Algebra to use for REST"
+  , pandocHtml
+    = False 
+      &= name "pandoc-html"
+      &= help "Use pandoc to generate html."
   } &= program "liquid"
     &= help    "Refinement Types for Haskell"
     &= summary copyright
@@ -643,6 +659,7 @@ defConfig = Config
   , nostructuralterm         = def
   , noCheckUnknown           = def
   , notermination            = False
+  , nopositivity             = False
   , rankNTypes               = False
   , noclasscheck             = False
   , gradual                  = False
@@ -687,6 +704,7 @@ defConfig = Config
   , noLiftedImport           = False
   , proofLogicEval           = False
   , oldPLE                   = False
+  , noInterpreter            = False
   , proofLogicEvalLocal      = False
   , reflection               = False
   , extensionality           = False
@@ -707,6 +725,7 @@ defConfig = Config
   , noEnvironmentReduction   = False
   , inlineANFBindings        = False
   , restOrdering             = "rpo"
+  , pandocHtml               = False
   }
 
 

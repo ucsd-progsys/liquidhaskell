@@ -28,7 +28,7 @@ The options are descibed below (and by the legacy executable: `liquid --help`)
 
 **Directives:** `automatic-instances`
 
-To enable theorem proving, e.g. as [described here](../tags.html#reflection)
+To enable theorem proving, e.g. as [described here](tags.html#reflection)
 use the option
 
 ```haskell
@@ -222,6 +222,42 @@ By **default** a termination check is performed on all recursive functions, but 
 with the `--no-termination` option.
 
 See the [specifications section](specifications.md) for how to write termination specifications.
+
+## Positivity Check
+
+**Options:** `no-positivity-check`
+By **default** a positivity check is performed on data definitions. 
+
+
+```haskell
+data Bad = Bad (Bad -> Bad) | Good Bad 
+    --           A      B           C
+    -- A is in a negative position, B and C are OK
+```
+
+Negative declarations are rejected because they admit non-terminating functions.
+
+If the positivity check is disabled, so that a similar declaration of `Bad` is allowed, 
+it is possible to construct a term of the empty type, even without recursion.
+For example see [tests/neg/Positivity1.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/errors/Positivity1.hs)
+and [tests/neg/Positivity2.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/errors/Positivity2.hs)
+
+```haskell
+data Evil a = Very (Evil a -> a)
+
+{-@ type Bot = {v: () | false} @-}
+
+{-@ bad :: Evil Bot -> Bot @-}
+bad :: Evil () -> ()
+bad (Very f) = f (Very f)
+
+{-@ worse :: Bot @-}
+worse :: ()
+worse = bad (Very bad)
+```
+
+Note that all positive occurrences are permited, unlike Coq that only allows the strictly positive ones
+(see: https://vilhelms.github.io/posts/why-must-inductive-types-be-strictly-positive/)
 
 ## Total Haskell
 

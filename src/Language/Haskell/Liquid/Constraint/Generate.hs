@@ -1,20 +1,17 @@
 {-# LANGUAGE CPP                       #-}
-{-# LANGUAGE DeriveFoldable            #-}
 {-# LANGUAGE DeriveTraversable         #-}
 {-# LANGUAGE StandaloneDeriving        #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE BangPatterns              #-}
 {-# LANGUAGE PatternGuards             #-}
-{-# LANGUAGE DeriveFunctor             #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE OverloadedStrings         #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImplicitParams            #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 -- | This module defines the representation of Subtyping and WF Constraints,
 --   and the code for syntax-directed constraint generation.
@@ -305,7 +302,7 @@ consCBSizedTys γ xes
        let vs    = zipWith collectArgs ts es
        is       <- mapM makeDecrIndex (zip3 xs ts vs) >>= checkSameLens
        let xeets = (\vis -> [(vis, x) | x <- zip3 xs is $ map unTemplate ts]) <$> (zip vs is)
-       (L.transpose <$> mapM checkIndex (zip4 xs vs ts is)) >>= checkEqTypes
+       _ <- (L.transpose <$> mapM checkIndex (zip4 xs vs ts is)) >>= checkEqTypes
        let rts   = (recType autoenv <$>) <$> xeets
        let xts   = zip xs ts
        γ'       <- foldM extender γ xts
@@ -430,7 +427,7 @@ consCB _ _ γ (NonRec x def)
   | Just (w, τ) <- grepDictionary def
   , Just d      <- dlookup (denv γ) w
   = do t        <- mapM (trueTy (typeclass (getConfig γ))) τ
-       mapM addW (WfC γ <$> t)
+       _ <- mapM addW (WfC γ <$> t)
        let xts   = dmap (fmap (f t)) d
        let  γ'   = γ { denv = dinsert (denv γ) x xts }
        t        <- trueTy (typeclass (getConfig γ)) (varType x)
@@ -504,7 +501,7 @@ consBind isRec γ (x, e, Unknown)
   = do t'    <- consE (γ `setBind` x) e
        t     <- topSpecType x t'
        addIdA x (defAnn isRec t)
-       when (isExportedId x) (addKuts x t)
+       when (GM.isExternalId x) (addKuts x t)
        return $ Asserted t
 
 killSubst :: RReft -> RReft

@@ -1,13 +1,13 @@
-{-# LANGUAGE ImplicitParams      #-}
-{-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE DeriveFunctor       #-}
 {-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE DerivingStrategies  #-}
 {-# LANGUAGE DerivingVia         #-}
+
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- TODO(#1918): Only needed for GHC <9.0.1.
+{-# OPTIONS_GHC -Wno-orphans #-} -- PPrint and aeson instances.
 
 -- | This module contains the *types* related creating Errors.
 --   It depends only on Fixpoint and basic haskell libraries,
@@ -50,7 +50,7 @@ module Language.Haskell.Liquid.Types.Errors (
   , srcSpanFileMb
   ) where
 
-import           Prelude                      hiding (error)
+import           Prelude                      hiding (error, span)
 
 import           GHC.Generics
 import           Control.DeepSeq
@@ -86,6 +86,7 @@ import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( Expr
                                                                , panic
                                                                , int
                                                                , hcat
+                                                               , spans
                                                                )
 import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr, SubcId)
 import qualified Language.Fixpoint.Misc       as Misc
@@ -474,6 +475,12 @@ data TError t =
   | ErrRewrite  { pos :: !SrcSpan
                 , msg :: !Doc
                 }
+
+  | ErrPosTyCon { pos  :: SrcSpan
+                , tc   :: !Doc
+                , dc   :: !Doc
+                } 
+
 
   | ErrOther    { pos   :: SrcSpan
                 , msg   :: !Doc
@@ -1041,6 +1048,16 @@ ppError' _ dCtx (ErrRewrite _ msg )
   = text "Rewrite error"
         $+$ dCtx
         $+$ nest 4 msg
+
+ppError' _ dCtx (ErrPosTyCon _ tc dc)
+  = text "Negative occurence of" <+> tc <+> "in" <+> dc 
+        $+$ dCtx
+        $+$ (vcat
+            ["\n"
+             , "To deactivate or understand the need of positivity check, see:"
+             , " "
+             , nest 2 "https://ucsd-progsys.github.io/liquidhaskell/options/#positivity-check"
+            ])
 
 ppError' _ dCtx (ErrParseAnn _ msg)
   = text "Malformed annotation"

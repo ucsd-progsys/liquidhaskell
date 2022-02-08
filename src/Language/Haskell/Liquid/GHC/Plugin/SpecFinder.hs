@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE RankNTypes   #-}
@@ -26,7 +25,7 @@ import           Language.Fixpoint.Utils.Files            ( Ext(Spec), withExt )
 
 import           Optics
 import qualified Language.Haskell.Liquid.GHC.API         as O
-import           Language.Haskell.Liquid.GHC.API         as GHC hiding (linear)
+import           Language.Haskell.Liquid.GHC.API         as GHC
 
 import           Data.Bifunctor
 import           Data.Maybe

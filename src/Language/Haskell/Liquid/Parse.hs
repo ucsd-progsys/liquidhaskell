@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE UndecidableInstances      #-}
-{-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
@@ -552,18 +551,25 @@ rrTy ct = RRTy (xts ++ [(dummySymbol, tr)]) mempty OCons
 --  "forall x y <z :: Nat, w :: Int> . TYPE"
 bareAllP :: Parser BareType
 bareAllP = do
-  as <- tyVarDefsP
-  ps <- angles inAngles
-        <|> (return [])
-  dot
+  sp <- getSourcePos 
+  as  <- tyVarDefsP
+  ps  <- angles inAngles
+        <|> return []
+  _ <- dot
   t <- bareTypeP
-  return $ foldr rAllT (foldr RAllP t ps) (makeRTVar <$> as)
+  return $ foldr rAllT (foldr (rAllP sp) t ps) (makeRTVar <$> as)
   where
     rAllT a t = RAllT a t mempty
-    inAngles =
-      (
-       (try  (sepBy  predVarDefP comma))
-       )
+    inAngles  = try  (sepBy  predVarDefP comma)
+
+-- See #1907 for why we have to alpha-rename pvar binders
+rAllP :: SourcePos -> PVar BSort -> BareType -> BareType
+rAllP sp p t = RAllP p' ({- F.tracepp "rAllP" $ -} substPVar p p' t) 
+  where 
+    p'  = p { pname = pn' }
+    pn' = pname p `intSymbol` lin `intSymbol` col 
+    lin = unPos (sourceLine sp)
+    col = unPos (sourceColumn  sp)
 
 tyVarDefsP :: Parser [BTyVar]
 tyVarDefsP
@@ -697,8 +703,7 @@ monoPredicate1P
   <|> (pdVar <$>        predVarUseP)
   <?> "monoPredicate1P"
 
-predVarUseP :: IsString t
-            => Parser (PVar t)
+predVarUseP :: Parser (PVar String)
 predVarUseP
   = do (p, xs) <- funArgsP
        return   $ PV p (PVProp dummyTyId) dummySymbol [ (dummyTyId, dummySymbol, x) | x <- xs ]
@@ -1307,7 +1312,7 @@ hmeasureP = do
 measureP :: Parser (Measure (Located BareType) LocSymbol)
 measureP = do
   (x, ty) <- indentedLine tyBindP
-  optional semi
+  _ <- optional semi
   eqns    <- block $ measureDefP (rawBodyP <|> tyBodyP ty)
   return   $ Measure.mkM x ty eqns MsMeasure mempty
 
