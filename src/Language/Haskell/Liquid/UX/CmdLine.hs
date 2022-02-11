@@ -463,7 +463,7 @@ config = cmdArgsMode $ Config {
         &= name "rest-ordering"
         &= help (unwords
            [  "Ordering Constraints Algebra to use for REST."
-           ,  "Available options : rpo|kbo|lpo|fuelN (where N is some positive integer)"
+           ,  "Available options are rpo|kbo|lpo|fuelN (where N is some positive integer)."
            ,  "rpo is the default option"
            ])
   , pandocHtml
