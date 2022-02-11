@@ -446,3 +446,28 @@ verification attempts.
 
   It is also possible to generate *slide shows* from the above.
   See the [slides directory](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/docs/slides) for an example.
+
+## Rewrite Rules
+
+Liquid Haskell provdes experimental support for automatic axiom instantiation
+via rewriting. Usage examples are contained in the `Rewrite` tests
+[here](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos).
+
+Termination checking for rewriting can be enabled with the argument
+`--rw-termination-check`. Enabling this setting uses REST to ensure termination,
+REST is described [in this
+paper](https://s3.us-west-1.wasabisys.com/zg-public/paper.pdf).
+
+The ordering constraint algebra used by REST can be adjusted by setting the
+`--rest-ordering` flag. Available options are:
+
+- `rpo`: Recursive Path Ordering (default)
+- `kbo`: Knuth-Bendix Ordering
+- `lpo`: Lexicographic Path Ordering
+- `fuelN`: Only apply `N` consecutive rewriting steps in a row (i.e `fuel5`, `fuel10`, etc).
+
+The default ordering (`rpo`) is expected to work well for most use cases.
+Understanding when other rewrite orderings are preferable requires a bit of
+knowledge about termination orders for rewriting; [this survey
+paper](https://www.cs.tau.ac.il/~nachumd/papers/termination.pdf) may provide a
+good starting place.
