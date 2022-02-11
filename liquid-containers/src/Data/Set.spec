@@ -49,6 +49,7 @@ intersection  :: GHC.Classes.Ord a => xs:(Data.Set.Internal.Set a) -> ys:(Data.S
 difference    :: GHC.Classes.Ord a => xs:(Data.Set.Internal.Set a) -> ys:(Data.Set.Internal.Set a) -> {v:(Data.Set.Internal.Set a) | v = Set_dif xs ys}
 
 fromList :: GHC.Classes.Ord a => xs:[a] -> {v:Data.Set.Internal.Set a | v = listElts xs}
+toList   :: GHC.Classes.Ord a => s:Data.Set.Internal.Set a -> {xs:[a] | s = listElts xs}
 
 //  ---------------------------------------------------------------------------------------------
 //  -- | The set of elements in a list ----------------------------------------------------------
