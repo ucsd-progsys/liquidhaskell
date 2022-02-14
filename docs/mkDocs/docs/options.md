@@ -449,7 +449,7 @@ verification attempts.
 
 ## Rewrite Rules
 
-Liquid Haskell provdes experimental support for automatic axiom instantiation
+Liquid Haskell provides experimental support for automatic axiom instantiation
 via rewriting. Usage examples are contained in the `Rewrite` tests
 [here](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos).
 
