@@ -458,7 +458,15 @@ config = cmdArgsMode $ Config {
           , "Sometimes improves performance and sometimes worsens it."
           , "Disabled by --no-environment-reduction"
           ])
-  , pandocHtml 
+  , restOrdering
+    = "rpo"
+        &= name "rest-ordering"
+        &= help (unwords
+           [  "Ordering Constraints Algebra to use for REST."
+           ,  "Available options are rpo|kbo|lpo|fuelN (where N is some positive integer)."
+           ,  "rpo is the default option"
+           ])
+  , pandocHtml
     = False 
       &= name "pandoc-html"
       &= help "Use pandoc to generate html."
@@ -720,6 +728,7 @@ defConfig = Config
   , environmentReduction     = False
   , noEnvironmentReduction   = False
   , inlineANFBindings        = False
+  , restOrdering             = "rpo"
   , pandocHtml               = False
   }
 

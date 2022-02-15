@@ -19,8 +19,8 @@ packages:
 - .
 extra-deps:
 - hashable-1.3.0.0
-- git: https://github.com/facundominguez/rest
-  commit: 31e974979c90e910efe5199ee0d3721b791667f6
+- git: https://github.com/zgrannan/rest
+  commit: 1cadb23edfbc393245ae964315b07f5c8581ea9f
 
 resolver: lts-18.14
 compiler: ghc-8.10.7
