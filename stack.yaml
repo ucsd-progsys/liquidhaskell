@@ -20,7 +20,7 @@ packages:
 extra-deps:
 - hashable-1.3.0.0
 - git: https://github.com/zgrannan/rest
-  commit: 2833a743c310747eee1accba2a5bf0b5338e7bb6
+  commit: 1cadb23edfbc393245ae964315b07f5c8581ea9f
 
 resolver: lts-18.14
 compiler: ghc-8.10.7
