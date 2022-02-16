@@ -139,6 +139,12 @@ commands:
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:liquidhaskell-parser << parameters.extra_build_flags >> --ta="--xml=/tmp/junit/stack/parser-test-results.xml":
           no_output_timeout: 30m
       - run:
+          # Used to catch regressions in verification
+          name: Test benchmarks
+          command: |
+            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> build -j1 stitch-lh << parameters.extra_build_flags >>
+          no_output_timeout: 30m
+      - run:
           name: Generate haddock
           command: |
             # stack haddock liquidhaskell --flag liquidhaskell:-devel --no-haddock-deps --haddock-arguments="--no-print-missing-docs --odir=$CIRCLE_ARTIFACTS"
