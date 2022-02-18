@@ -1,7 +1,8 @@
-
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 ---------------------------------------------------------------------
 -- | This module contains functions for cleaning up types before
@@ -148,13 +149,13 @@ tidyTyVars t = subsTyVarsAll αβs t
     αβs  = zipWith (\α β -> (α, toRSort β, β)) αs βs
     αs   = L.nub (tyVars t)
     βs   = map (rVar . GM.stringTyVar) pool
-    pool = [[c] | c <- ['a'..'z']] ++ [ "t" ++ show i | i <- [1..]]
+    pool = [[c] | c <- ['a'..'z']] ++ [ "t" ++ show i | i <- [(1::Int)..]]
 
 
 bindersTx :: [Symbol] -> Symbol -> Symbol
 bindersTx ds   = \y -> M.lookupDefault y y m
   where
-    m          = M.fromList $ zip ds $ var <$> [1..]
+    m          = M.fromList $ zip ds $ var <$> [(1::Int)..]
     var        = symbol . ('x' :) . show
 
 

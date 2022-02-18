@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 
 module Language.Haskell.Liquid.Bare.Plugged 

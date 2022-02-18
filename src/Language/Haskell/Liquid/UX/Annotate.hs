@@ -1,10 +1,9 @@
 {-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleInstances          #-}
 
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 ---------------------------------------------------------------------------
 -- | This module contains the code that uses the inferred types to generate
@@ -106,11 +105,12 @@ annotate cfg srcFs out
 
 doGenerate :: Config -> ACSS.AnnMap -> ACSS.AnnMap -> AnnInfo Doc -> FilePath -> IO ()
 doGenerate cfg tplAnnMap typAnnMap annTyp srcF
-  = do generateHtml srcF tpHtmlF tplAnnMap
-       generateHtml srcF tyHtmlF typAnnMap
+  = do generateHtml pandocF srcF tpHtmlF tplAnnMap
+       generateHtml pandocF srcF tyHtmlF typAnnMap
        writeFile         vimF  $ vimAnnot cfg annTyp
        B.writeFile       jsonF $ encode typAnnMap
     where
+       pandocF    = pandocHtml cfg 
        tyHtmlF    = extFileName Html                   srcF
        tpHtmlF    = extFileName Html $ extFileName Cst srcF
        _annF      = extFileName Annot srcF
@@ -131,14 +131,14 @@ copyFileCreateParentDirIfMissing src tgt = do
 writeFilesOrStrings :: FilePath -> [Either FilePath String] -> IO ()
 writeFilesOrStrings tgtFile = mapM_ $ either (`copyFileCreateParentDirIfMissing` tgtFile) (tgtFile `appendFile`)
 
-generateHtml :: FilePath -> FilePath -> ACSS.AnnMap -> IO ()
-generateHtml srcF htmlF annm
-  = do src     <- Misc.sayReadFile srcF
-       let lhs  = isExtFile LHs srcF
-       let body = {-# SCC "hsannot" #-} ACSS.hsannot False (Just tokAnnot) lhs (src, annm)
-       cssFile <- getCssPath
-       copyFileCreateParentDirIfMissing cssFile (dropFileName htmlF </> takeFileName cssFile)
-       renderHtml lhs htmlF srcF (takeFileName cssFile) body
+generateHtml :: Bool -> FilePath -> FilePath -> ACSS.AnnMap -> IO ()
+generateHtml pandocF srcF htmlF annm = do 
+  src     <- Misc.sayReadFile srcF
+  let lhs  = isExtFile LHs srcF
+  let body      = {-# SCC "hsannot" #-} ACSS.hsannot False (Just tokAnnot) lhs (src, annm)
+  cssFile <- getCssPath
+  copyFileCreateParentDirIfMissing cssFile (dropFileName htmlF </> takeFileName cssFile)
+  renderHtml (pandocF && lhs) htmlF srcF (takeFileName cssFile) body
 
 renderHtml :: Bool -> FilePath -> String -> String -> String -> IO ()
 renderHtml True  = renderPandoc
@@ -445,7 +445,7 @@ dropErrorLoc msg
 instance (Show k, ToJSON a) => ToJSON (Assoc k a) where
   toJSON (Asc kas) = object [ tshow k .= toJSON a | (k, a) <- M.toList kas ]
     where
-      tshow        = T.pack . show
+      tshow        = fromString . show
 
 instance ToJSON ACSS.AnnMap where
   toJSON a = object [ "types"   .= toJSON (annTypes     a)

@@ -2,8 +2,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE RecordWildCards           #-}
-{-# LANGUAGE ViewPatterns              #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
 {-# LANGUAGE OverloadedStrings         #-}
 
@@ -25,7 +23,7 @@ module Language.Haskell.Liquid.Bare (
 
 import           Prelude                                    hiding (error)
 import           Optics
-import           Control.Monad                              (unless, forM)
+import           Control.Monad                              (forM)
 import           Control.Applicative                        ((<|>))
 import qualified Control.Exception                          as Ex
 import qualified Data.Binary                                as B
@@ -88,9 +86,6 @@ loadLiftedSpec cfg srcF
 --   unless (Misc.isIncludeFile incDir srcF)
 --     $ Ex.throw (errMissingSpec srcF specF) 
 
-errMissingSpec :: FilePath -> FilePath -> UserError 
-errMissingSpec srcF specF = ErrNoSpec Ghc.noSrcSpan (text srcF) (text specF)
-
 saveLiftedSpec :: FilePath -> Ms.BareSpec -> IO () 
 saveLiftedSpec srcF lspec = do
   ensurePath specF
@@ -123,9 +118,10 @@ makeTargetSpec :: Config
                -> TargetDependencies
                -> Ghc.TcRn (Either Diagnostics ([Warning], TargetSpec, LiftedSpec))
 makeTargetSpec cfg lmap targetSrc bareSpec dependencies = do
+  let targDiagnostics     = Bare.checkTargetSrc cfg targetSrc 
   let depsDiagnostics     = mapM (uncurry Bare.checkBareSpec) legacyDependencies
   let bareSpecDiagnostics = Bare.checkBareSpec (giTargetMod targetSrc) legacyBareSpec
-  case depsDiagnostics >> bareSpecDiagnostics of
+  case targDiagnostics >> depsDiagnostics >> bareSpecDiagnostics of
    Left d | noErrors d -> secondPhase (allWarnings d)
    Left d              -> return $ Left d
    Right ()            -> secondPhase mempty
@@ -234,7 +230,7 @@ makeGhcSpec0 :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] ->
                 Ghc.TcRn (Diagnostics, GhcSpec)
 makeGhcSpec0 cfg src lmap mspecsNoCls = do
   -- build up environments
-  tycEnv <- makeTycEnv1 cfg name env (tycEnv0, datacons) coreToLg simplifier
+  tycEnv <- makeTycEnv1 name env (tycEnv0, datacons) coreToLg simplifier
   let tyi      = Bare.tcTyConMap   tycEnv 
   let sigEnv   = makeSigEnv  embs tyi (_gsExports src) rtEnv 
   let lSpec1   = lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1 
@@ -253,7 +249,7 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
   let (dg2, spcTerm) = withDiagnostics $ makeSpecTerm cfg     mySpec env       name    
   let (dg3, refl)    = withDiagnostics $ makeSpecRefl cfg src measEnv specs env name elaboratedSig tycEnv 
   let laws     = makeSpecLaws env sigEnv (gsTySigs elaboratedSig ++ gsAsmSigs elaboratedSig) measEnv specs 
-  let finalLiftedSpec = makeLiftedSpec src env refl sData elaboratedSig qual myRTE lSpec1
+  let finalLiftedSpec = makeLiftedSpec name src env refl sData elaboratedSig qual myRTE lSpec1
   let diags    = mconcat [dg0, dg1, dg2, dg3, dg4, dg5]
 
   pure (diags, SP 
@@ -396,7 +392,7 @@ makeLiftedSpec0 :: Config -> GhcSrc -> F.TCEmb Ghc.TyCon -> LogicMap -> Ms.BareS
                 -> Ms.BareSpec
 makeLiftedSpec0 cfg src embs lmap mySpec = mempty
   { Ms.ealiases  = lmapEAlias . snd <$> Bare.makeHaskellInlines (typeclass cfg) src embs lmap mySpec 
-  , Ms.reflects  = Ms.reflects mySpec <> (if reflection cfg then Ms.hmeas mySpec else mempty)
+  , Ms.reflects  = Ms.reflects mySpec
   , Ms.dataDecls = Bare.makeHaskellDataDecls cfg name mySpec tcs  
   , Ms.embeds    = Ms.embeds mySpec
   -- We do want 'embeds' to survive and to be present into the final 'LiftedSpec'. The
@@ -426,7 +422,7 @@ reflectedTyCons :: Config -> TCEmb Ghc.TyCon -> [Ghc.CoreBind] -> Ms.BareSpec ->
 reflectedTyCons cfg embs cbs spec
   | exactDCFlag cfg = filter (not . isEmbedded embs)
                     $ concatMap varTyCons
-                    $ reflectedVars cfg spec cbs
+                    $ reflectedVars spec cbs
   | otherwise       = []
 
 -- | We cannot reflect embedded tycons (e.g. Bool) as that gives you a sort
@@ -444,11 +440,11 @@ specTypeCons         = foldRType tc []
     tc acc t@RApp {} = rtc_tc (rt_tycon t) : acc
     tc acc _         = acc
 
-reflectedVars :: Config -> Ms.BareSpec -> [Ghc.CoreBind] -> [Ghc.Var]
-reflectedVars cfg spec cbs = fst <$> xDefs
+reflectedVars :: Ms.BareSpec -> [Ghc.CoreBind] -> [Ghc.Var]
+reflectedVars spec cbs = fst <$> xDefs
   where
     xDefs              = Mb.mapMaybe (`GM.findVarDef` cbs) reflSyms
-    reflSyms           = fmap val $ S.toList (Ms.reflects spec <> if reflection cfg then Ms.hmeas spec else mempty)
+    reflSyms           = fmap val $ S.toList (Ms.reflects spec)
 
 ------------------------------------------------------------------------------------------
 makeSpecVars :: Config -> GhcSrc -> Ms.BareSpec -> Bare.Env -> Bare.MeasEnv 
@@ -582,7 +578,7 @@ makeFail env name spec =
 
 makeRewrite :: Bare.Env -> ModName -> Ms.BareSpec -> Bare.Lookup (S.HashSet (Located Ghc.Var))
 makeRewrite env name spec = 
-  sForM (Ms.rewrites spec) $ \x -> do 
+  sForM (Ms.rewrites spec) $ \x -> do
     vx <-  Bare.lookupGhcVar env name "Var" x 
     return x { val = vx }
 
@@ -676,8 +672,8 @@ getReflects  = fmap val . S.toList . S.unions . fmap (names . snd) . M.toList
 addReflSigs :: Bare.Env -> ModName -> BareRTEnv -> GhcSpecRefl -> GhcSpecSig -> GhcSpecSig
 ------------------------------------------------------------------------------------------
 addReflSigs env name rtEnv refl sig =
-  sig { gsRefSigs = map expandReflectedSignature reflSigs
-      , gsAsmSigs = wreflSigs ++ filter notReflected (gsAsmSigs sig)
+  sig { gsRefSigs = F.notracepp ("gsRefSigs for " ++ F.showpp name) $ map expandReflectedSignature reflSigs
+      , gsAsmSigs = F.notracepp ("gsAsmSigs for " ++ F.showpp name) $ (wreflSigs ++ filter notReflected (gsAsmSigs sig))
       }
   where
 
@@ -710,7 +706,7 @@ makeSpecSig :: Config -> ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> 
 ----------------------------------------------------------------------------------------
 makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = do 
   mySigs     <- makeTySigs  env sigEnv name mySpec
-  aSigs      <- makeAsmSigs env sigEnv name specs 
+  aSigs      <- F.notracepp ("makeSpecSig aSigs " ++ F.showpp name) $ makeAsmSigs env sigEnv name specs 
   let asmSigs =  Bare.tcSelVars tycEnv 
               ++ aSigs
               ++ [ (x,t) | (_, x, t) <- concatMap snd (Bare.meCLaws measEnv) ]
@@ -947,7 +943,7 @@ makeSpecData :: GhcSrc -> Bare.Env -> Bare.SigEnv -> Bare.MeasEnv -> GhcSpecSig 
              -> GhcSpecData
 ------------------------------------------------------------------------------------------
 makeSpecData src env sigEnv measEnv sig specs = SpData 
-  { gsCtors      = -- F.notracepp "GS-CTORS" 
+  { gsCtors      = F.notracepp "GS-CTORS" 
                    [ (x, if allowTC then t else tt) 
                        | (x, t) <- Bare.meDataCons measEnv
                        , let tt  = Bare.plugHoles (typeclass $ getConfig env) sigEnv name (Bare.LqTV x) t 
@@ -1096,14 +1092,13 @@ makeTycEnv0 cfg myName env embs mySpec iSpecs = (diag0 <> diag1, datacons, Bare.
 
 
 makeTycEnv1 ::
-     Config 
-  -> ModName
+     ModName
   -> Bare.Env
   -> (Bare.TycEnv, [Located DataConP])
   -> (Ghc.CoreExpr -> F.Expr)
   -> (Ghc.CoreExpr -> Ghc.TcRn Ghc.CoreExpr)
   -> Ghc.TcRn Bare.TycEnv
-makeTycEnv1 cfg myName env (tycEnv, datacons) coreToLg simplifier = do
+makeTycEnv1 myName env (tycEnv, datacons) coreToLg simplifier = do
   -- fst for selector generation, snd for dataconsig generation
   lclassdcs <- forM classdcs $ traverse (Bare.elaborateClassDcp coreToLg simplifier)
   let recSelectors = Bare.makeRecordSelectorSigs env myName (dcs ++ (fmap . fmap) snd lclassdcs)
@@ -1165,14 +1160,14 @@ makeMeasEnv env tycEnv sigEnv specs = do
 --   so that downstream files that import this target can access the lifted definitions, 
 --   e.g. for measures, reflected functions etc.
 -----------------------------------------------------------------------------------------
-makeLiftedSpec :: GhcSrc -> Bare.Env 
+makeLiftedSpec :: ModName -> GhcSrc -> Bare.Env 
                -> GhcSpecRefl -> GhcSpecData -> GhcSpecSig -> GhcSpecQual -> BareRTEnv 
                -> Ms.BareSpec -> Ms.BareSpec 
 -----------------------------------------------------------------------------------------
-makeLiftedSpec src _env refl sData sig qual myRTE lSpec0 = lSpec0 
-  { Ms.asmSigs    = F.notracepp   "LIFTED-ASM-SIGS" $ xbs -- ++ mkSigs (gsAsmSigs sig)
+makeLiftedSpec name src _env refl sData sig qual myRTE lSpec0 = lSpec0 
+  { Ms.asmSigs    = F.notracepp   ("makeLiftedSpec : ASSUMED-SIGS " ++ F.showpp name ) $ (xbs ++ myDCs) 
   , Ms.reflSigs   = F.notracepp "REFL-SIGS"         xbs
-  , Ms.sigs       = F.notracepp   "LIFTED-SIGS"     $        mkSigs (gsTySigs sig)  
+  , Ms.sigs       = F.notracepp   ("makeLiftedSpec : LIFTED-SIGS " ++ F.showpp name )  $ mkSigs (gsTySigs sig)  
   , Ms.invariants = [ ((varLocSym <$> x), Bare.specToBare <$> t) 
                        | (x, t) <- gsInvariants sData 
                        , isLocInFile srcF t
@@ -1183,6 +1178,8 @@ makeLiftedSpec src _env refl sData sig qual myRTE lSpec0 = lSpec0
   , Ms.qualifiers = filter (isLocInFile srcF) (gsQualifiers qual)
   }
   where
+    myDCs         = [(x,t) | (x,t) <- mkSigs (gsCtors sData)
+                           , F.symbol name == fst (GM.splitModuleName $ val x)]
     mkSigs xts    = [ toBare (x, t) | (x, t) <- xts
                     ,  S.member x sigVars && (isExportedVar (view targetSrcIso src) x) 
                     ] 

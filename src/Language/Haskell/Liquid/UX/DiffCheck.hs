@@ -7,6 +7,8 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE FlexibleInstances #-}
 
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Language.Haskell.Liquid.UX.DiffCheck (
 
    -- * Changed binders + Unchanged Errors
@@ -28,6 +30,8 @@ module Language.Haskell.Liquid.UX.DiffCheck (
    , filterBinds
    , coreDeps
    , dependsOn
+   , Def(..)
+   , coreDefs
    )
    where
 

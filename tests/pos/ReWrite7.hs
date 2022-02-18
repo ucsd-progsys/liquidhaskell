@@ -5,7 +5,6 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
 {-@ LIQUID "--prune-unsorted" @-}
-{-@ LIQUID "--max-rw-ordering-constraints=0" @-}
 
 
 module ReWrite7 where

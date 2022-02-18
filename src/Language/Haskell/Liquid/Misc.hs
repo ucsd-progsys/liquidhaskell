@@ -213,7 +213,7 @@ safeZip4WithError msg _      _      _      _      = errorstar msg
 
 
 mapNs :: (Eq a, Num a, Foldable t) => t a -> (a1 -> a1) -> [a1] -> [a1]
-mapNs ns f xs = foldl (\xs n -> mapN n f xs) xs ns
+mapNs ns f xs = foldl (\ys n -> mapN n f ys) xs ns
 
 mapN :: (Eq a, Num a) => a -> (a1 -> a1) -> [a1] -> [a1]
 mapN 0 f (x:xs) = f x : xs

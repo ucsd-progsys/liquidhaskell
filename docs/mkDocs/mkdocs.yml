@@ -1,19 +1,65 @@
-site_name: LiquidHaskell
+site_name: LiquidHaskell Docs
+
+site_url: https://ucsd-progsys.github.io/liquidhaskell/
+repo_url: https://github.com/ucsd-progsys/liquidhaskell
+edit_uri: edit/develop/docs/mkDocs/docs
 
 nav:
-    - Home: index.md
-    - Install: plugin.md
-    - Play: "https://liquid-demo.programming.systems/index.html"
-    - Learn:
-      - Blog: "https://ucsd-progsys.github.io/liquidhaskell-blog/"
-      - Options: options.md
-      - Specifications: specifications.md
-    - "Get Involved": contributing.md
-    - "<i class='fa fa-github'></i>&nbsp;Github": "https://github.com/ucsd-progsys/liquidhaskell"
+  - "<div id='demo'><i aria-hidden=true class='mdi mdi-cloud-braces'></i> Try Online</div>": http://goto.ucsd.edu:8090/index.html
+  - "<i aria-hidden=true class='mdi mdi-human-greeting'></i> Tutorial": https://ucsd-progsys.github.io/intro-refinement-types/120/
+  - "": index.md #spacer
+  - "<i aria-hidden=true class='mdi mdi-download'></i> Installation": install.md
+  - "<i aria-hidden=true class='mdi mdi-script'></i> Spec Reference": specifications.md
+  - "<i aria-hidden=true class='mdi mdi-flag'></i> Flag Reference": options.md
+  - "": index.md #spacer
+  - "<i aria-hidden=true class='mdi mdi-school'></i> Papers": papers.md
+  - "<i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog":
+      - ... | blogposts/*
+      - Tags: tags.html
 
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.top
+  palette:
+    primary: cyan #to contrast with blue in LH logo
+  logo: static/img/logo.png
+  favicon: static/img/favicon.ico
+  custom_dir: theme-overrides
 
-theme: spacelab
+plugins:
+  - search
+  - tags
+  - awesome-pages
 
 markdown_extensions:
-    - toc:
-        permalink: true
+  - toc:
+      permalink: true
+  - meta
+  - footnotes
+
+
+# Footer links
+extra:
+  social:
+    - icon: material/slack
+      link: https://join.slack.com/t/liquidhaskell/shared_invite/enQtMjY4MTk3NDkwODE3LTFmZGFkNGEzYWRkNDJmZDQ0ZGU1MzBiZWZiZDhhNmY3YTJiMjUzYTRlNjMyZDk1NDU3ZGIxYzhlOTIzN2UxNWE
+      name: Join the LiquidHaskell slack channel
+    - icon: material/google
+      link: https://groups.google.com/forum/#!forum/liquidhaskell
+      name: Mail the LiquidHaskell users mailing list
+    - icon: fontawesome/solid/paper-plane
+      link: https://github.com/ranjitjhala
+      name: Drop Ranjit Jhala an email
+    - icon: fontawesome/regular/paper-plane
+      link: https://github.com/nikivazou
+      name: Drop Niki Vazou an email
+    - icon: material/github
+      link: https://github.com/ucsd-progsys/liquidhaskell/issues
+      name: Open a GitHub issue
+
+extra_css:
+  - https://cdn.jsdelivr.net/npm/@mdi/font@5.9.55/css/materialdesignicons.min.css
+  - static/liquid-light.css
+  - static/misc.css

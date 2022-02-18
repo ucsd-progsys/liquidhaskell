@@ -1,7 +1,6 @@
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE BangPatterns #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Language.Haskell.Liquid.Synthesize.Misc where
 

@@ -11,6 +11,9 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE ViewPatterns               #-}
 
+{-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wwarn=deprecations #-}
+
 module Language.Haskell.Liquid.GHC.Interface (
 
   -- * Determine the build-order for target files
@@ -58,7 +61,6 @@ module Language.Haskell.Liquid.GHC.Interface (
 import Prelude hiding (error)
 
 import GHC.Paths (libdir)
-import GHC.Serialized
 
 import           Language.Haskell.Liquid.GHC.GhcMonadLike (isBootInterface)
 import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( text
@@ -66,7 +68,6 @@ import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( text
                                                                , panic
                                                                , vcat
                                                                , showPpr
-                                                               , isHomeModule
                                                                , Target
                                                                , Located
                                                                )
@@ -267,7 +268,7 @@ configureGhcTargets tgtFiles = do
                      flattenSCCs $ topSortModuleGraph False moduleGraph Nothing
   let homeNames    = moduleName . ms_mod <$> homeModules
   _               <- setTargetModules homeNames
-  liftIO $ whenLoud $ print    ("Module Dependencies", homeNames)
+  liftIO $ whenLoud $ print ("Module Dependencies" :: String, homeNames)
   return $ mkModuleGraph homeModules
 
 setTargetModules :: [ModuleName] -> Ghc ()
@@ -701,7 +702,7 @@ availableVars hscEnv modSum tcGblEnv avails =
 
 _dumpTypeEnv :: TypecheckedModule -> IO () 
 _dumpTypeEnv tm = do 
-  print "DUMP-TYPE-ENV"
+  print ("DUMP-TYPE-ENV" :: String)
   print (showpp <$> tcmTyThings tm)
 
 tcmTyThings :: TypecheckedModule -> Maybe [Name] 
@@ -717,7 +718,7 @@ tcmTyThings
 
 _dumpRdrEnv :: HscEnv -> MGIModGuts -> IO () 
 _dumpRdrEnv _hscEnv modGuts = do 
-  print "DUMP-RDR-ENV" 
+  print ("DUMP-RDR-ENV" :: String)
   print (mgNames modGuts)
   -- print (hscNames hscEnv) 
   -- print (mgDeps modGuts) 
@@ -847,7 +848,7 @@ extractSpecQuotes' thisModule getAnns a = mapMaybe extractSpecQuote anns
 
 extractSpecQuote :: AnnPayload -> Maybe BPspec
 extractSpecQuote payload = 
-  case fromSerialized deserializeWithData payload of
+  case Ghc.fromSerialized Ghc.deserializeWithData payload of
     Nothing -> Nothing
     Just qt -> Just $ refreshSymbols $ liquidQuoteSpec qt
 
@@ -1035,13 +1036,14 @@ instance PPrint TargetInfo where
     , pprintCBs $ _giCbs (review targetSrcIso $ giSrc info) ]
 
 -- RJ: the silly guards below are to silence the unused-var checker
+-- LDM: GHC 9.0.1 is having none of it unfortunately: "Pattern match is redundant".
 pprintCBs :: [CoreBind] -> Doc
 pprintCBs
   | otherwise = pprintCBsTidy
-  | otherwise = pprintCBsVerbose
+  -- | otherwise = pprintCBsVerbose
   where
     pprintCBsTidy    = pprDoc . tidyCBs
-    pprintCBsVerbose = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs
+    -- pprintCBsVerbose = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs
 
 instance Show TargetInfo where
   show = showpp

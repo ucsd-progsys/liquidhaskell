@@ -1,45 +1,35 @@
 # Options and Pragmas
 
-LiquidHaskell supports several command line options, to configure the
-checking. 
-
-To see all options, run `liquid --help`. 
+LiquidHaskell supports several configuration options, to alter the type checking.
 
 You can pass options in different ways:
 
-1. From the **command line**, if you use the **legacy executable**:
+1. As a **pragma**, directly added to the source file: **(recommended)**
 
-        liquid --opt1 --opt2 ...
+        {-@ LIQUID "opt1" @-}
 
 2. As a **plugin option**:
 
         ghc-options: -fplugin-opt=LiquidHaskell:--opt1 -fplugin-opt=LiquidHaskell:--opt2
 
-3. As a **pragma**, directly added to the source file:
+3. In the **environment variable** `LIQUIDHASKELL_OPTS` (e.g. in your `.bashrc` or `Makefile`):
 
-        {-@ LIQUID "opt1" @-}
+        LIQUIDHASKELL_OPTS="--opt1 --opt2"
 
-You may also put command line options in the environment variable
-`LIQUIDHASKELL_OPTS`. For example, if you add the line:
+4. From the **command line**, if you use the **legacy executable**:
 
-```
-    LIQUIDHASKELL_OPTS="--diff"
-```
+        liquid --opt1 --opt2 ...
 
-to your `.bashrc` then, by default, all files will be
-*incrementally checked* unless you run with the overriding
-`--full` flag (see below).
+The options are descibed below (and by the legacy executable: `liquid --help`)
 
-Below, we list the various options and what they are used for. 
-
-## Theorem Proving 
+## Theorem Proving
 
 **Options:** `reflection`, `ple`, `ple-local`, `extensionality`
 
 **Directives:** `automatic-instances`
 
-To enable theorem proving, e.g. as [described here](https://ucsd-progsys.github.io/liquidhaskell-blog/tags/reflection.html)
-use the option 
+To enable theorem proving, e.g. as [described here](tags.html#reflection)
+use the option
 
 ```haskell
     {-@ LIQUID "--reflection" @-}
@@ -70,7 +60,7 @@ liquid annotation
 {-@ automatic-instances theorem @-}
 ```
 
-To allow reasoning about function extensionality use the `--extensionality` flag. 
+To allow reasoning about function extensionality use the `--extensionality` flag.
 [See test T1577](https://github.com/ucsd-progsys/liquidhaskell/blob/880c78f94520d76fa13880eac050f21dacb592fd/tests/pos/T1577.hs).
 
 ```
@@ -81,11 +71,11 @@ To allow reasoning about function extensionality use the `--extensionality` flag
 
 **Options:** `fast`, `nopolyinfer`
 
-The option `--fast` or `--nopolyinfer` greatly recudes verification time, can also reduces precision of type checking. 
-It, per module, deactivates inference of refinements during 
-instantiation of polymorphic type variables. 
-It is suggested to use on theorem proving style when reflected 
-functions are trivially refined. 
+The option `--fast` or `--nopolyinfer` greatly recudes verification time, can also reduces precision of type checking.
+It, per module, deactivates inference of refinements during
+instantiation of polymorphic type variables.
+It is suggested to use on theorem proving style when reflected
+functions are trivially refined.
 
 ## Incremental Checking
 
@@ -233,6 +223,42 @@ with the `--no-termination` option.
 
 See the [specifications section](specifications.md) for how to write termination specifications.
 
+## Positivity Check
+
+**Options:** `no-positivity-check`
+By **default** a positivity check is performed on data definitions. 
+
+
+```haskell
+data Bad = Bad (Bad -> Bad) | Good Bad 
+    --           A      B           C
+    -- A is in a negative position, B and C are OK
+```
+
+Negative declarations are rejected because they admit non-terminating functions.
+
+If the positivity check is disabled, so that a similar declaration of `Bad` is allowed, 
+it is possible to construct a term of the empty type, even without recursion.
+For example see [tests/neg/Positivity1.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/errors/Positivity1.hs)
+and [tests/neg/Positivity2.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/errors/Positivity2.hs)
+
+```haskell
+data Evil a = Very (Evil a -> a)
+
+{-@ type Bot = {v: () | false} @-}
+
+{-@ bad :: Evil Bot -> Bot @-}
+bad :: Evil () -> ()
+bad (Very f) = f (Very f)
+
+{-@ worse :: Bot @-}
+worse :: ()
+worse = bad (Very bad)
+```
+
+Note that all positive occurrences are permited, unlike Coq that only allows the strictly positive ones
+(see: https://vilhelms.github.io/posts/why-must-inductive-types-be-strictly-positive/)
+
 ## Total Haskell
 
 **Options:** `total-Haskell`
@@ -277,7 +303,7 @@ and speed up verification, you can use the `--no-measure-fields` flag.
 
 **Options:** `prune-unsorted`
 
-The `--prune-unsorted` flag is needed when using *measures over specialized instances* of ADTs. 
+The `--prune-unsorted` flag is needed when using *measures over specialized instances* of ADTs.
 
 For example, consider a measure over lists of integers
 
@@ -295,7 +321,7 @@ This measure will translate into strengthening the types of list constructors
 ```
 
 But what if our list is polymorphic `[a]` and later instantiate to list of ints?
-The workaround we have right now is to strengthen the polymorphic list with the 
+The workaround we have right now is to strengthen the polymorphic list with the
 `sum` information
 
 ```
@@ -303,9 +329,9 @@ The workaround we have right now is to strengthen the polymorphic list with the
 (:) :: x:a -> xs:[a] -> {v:[a] | sum v = x + sum xs}
 ```
 
-But for non numeric `a`s, refinements like `x + sum xs` are ill-sorted! 
+But for non numeric `a`s, refinements like `x + sum xs` are ill-sorted!
 
-We use the flag `--prune-unsorted` to prune away unsorted expressions 
+We use the flag `--prune-unsorted` to prune away unsorted expressions
 (like `x + sum xs`) inside refinements.
 
 ## Case Expansion
@@ -315,7 +341,7 @@ We use the flag `--prune-unsorted` to prune away unsorted expressions
 By default LiquidHaskell expands all data constructors to the case statements.
 For example, given the definition
 
-```haskell 
+```haskell
 data F = A1 | A2 | .. | A10
 ```
 
@@ -325,7 +351,7 @@ LiquidHaskell will expand the code
 case f of {A1 -> True; _ -> False}
 ```
 
-to 
+to
 
 ```haskell
 case f of {A1 -> True; A2 -> False; ...; A10 -> False}

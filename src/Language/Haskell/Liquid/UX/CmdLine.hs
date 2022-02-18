@@ -3,10 +3,12 @@
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TemplateHaskell           #-}
 {-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE NamedFieldPuns            #-}
 {-# LANGUAGE MultiWayIf                #-}
 {-# LANGUAGE ViewPatterns              #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wwarn=deprecations #-}
 {-# OPTIONS_GHC -fno-cse #-}
 
 -- | This module contains all the code needed to output the result which
@@ -157,6 +159,11 @@ config = cmdArgsMode $ Config {
     = def
           &= help "Disable Termination Check"
           &= name "no-termination-check"
+
+ , nopositivity
+    = def
+          &= help "Disable Data Type Positivity Check"
+          &= name "no-positivity-check"
 
  , rankNTypes
     = def &= help "Adds precise reasoning on presence of rankNTypes"
@@ -353,6 +360,11 @@ config = cmdArgsMode $ Config {
         &= help "Enable Proof-by-Logical-Evaluation"
         &= name "oldple"
 
+  , noInterpreter
+    = def
+        &= help "Don't use an interpreter to assist PLE in solving constraints"
+        &= name "no-interpreter"
+
   , proofLogicEvalLocal
     = def
         &= help "Enable Proof-by-Logical-Evaluation locally, per function"
@@ -406,13 +418,6 @@ config = cmdArgsMode $ Config {
     = def
         &= name "max-args-depth"
   ,
-    maxRWOrderingConstraints
-    = def
-        &= name "max-rw-ordering-constraints"
-        &= help (   "Maximium number of symbols to compare for rewrite termination. " 
-                 ++ "Lower values can speedup verification, but rewriting may terminate prematurely. "
-                 ++ "Leave empty to consider all symbols." )
-  ,
     rwTerminationCheck
     = def
         &= name "rw-termination-check"
@@ -434,6 +439,11 @@ config = cmdArgsMode $ Config {
     = Nothing 
         &= help "Maximum fuel (per-function unfoldings) for PLE"
 
+  , environmentReduction
+    = def
+        &= explicit
+        &= name "environment-reduction"
+        &= help "perform environment reduction (disabled by default)"
   , noEnvironmentReduction
     = def
         &= explicit
@@ -448,6 +458,10 @@ config = cmdArgsMode $ Config {
           , "Sometimes improves performance and sometimes worsens it."
           , "Disabled by --no-environment-reduction"
           ])
+  , pandocHtml 
+    = False 
+      &= name "pandoc-html"
+      &= help "Use pandoc to generate html."
   } &= program "liquid"
     &= help    "Refinement Types for Haskell"
     &= summary copyright
@@ -641,6 +655,7 @@ defConfig = Config
   , nostructuralterm         = def
   , noCheckUnknown           = def
   , notermination            = False
+  , nopositivity             = False
   , rankNTypes               = False
   , noclasscheck             = False
   , gradual                  = False
@@ -685,6 +700,7 @@ defConfig = Config
   , noLiftedImport           = False
   , proofLogicEval           = False
   , oldPLE                   = False
+  , noInterpreter            = False
   , proofLogicEvalLocal      = False
   , reflection               = False
   , extensionality           = False
@@ -697,13 +713,14 @@ defConfig = Config
   , maxMatchDepth            = 4
   , maxAppDepth              = 2
   , maxArgsDepth             = 1
-  , maxRWOrderingConstraints = Nothing
   , rwTerminationCheck       = False
   , skipModule               = False
   , noLazyPLE                = False
   , fuel                     = Nothing
+  , environmentReduction     = False
   , noEnvironmentReduction   = False
   , inlineANFBindings        = False
+  , pandocHtml               = False
   }
 
 

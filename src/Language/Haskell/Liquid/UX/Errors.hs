@@ -174,4 +174,4 @@ niceTemps     = mkSymbol <$> xs ++ ys
   where
     mkSymbol  = F.symbol . ('?' :)
     xs        = Misc.single <$> ['a' .. 'z']
-    ys        = ("a" ++) <$> [show n | n <- [0 ..]]
+    ys        = ("a" ++) <$> [show n | n <- [(0::Int) ..]]

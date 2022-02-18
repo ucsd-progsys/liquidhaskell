@@ -25,7 +25,12 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/liquidhaskell/liquid-base.git
-    tag: v4.15.0.0
+    tag: fa58c8d93efb834c38bbc9a39edeaaea16a18174
+
+source-repository-package
+    type: git
+    location: https://github.com/facundominguez/rest
+    tag: 31e974979c90e910efe5199ee0d3721b791667f6
 
 constraints:
   any.Cabal ==3.4.0.0,
@@ -81,8 +86,8 @@ constraints:
   kind-generics-th ==0.2.2.1,
   language-haskell-extract ==0.2.4,
   lens ==4.19.2,
-  lens-family ==2.1.0,
-  lens-family-th ==0.5.1.0,
+  lens-family ==2.1.1,
+  lens-family-th ==0.5.2.1,
   memory ==0.15.0,
   microlens ==0.4.11.2,
   microlens-th ==0.4.3.6,

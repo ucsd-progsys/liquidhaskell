@@ -1,17 +1,13 @@
 -- | This module provides a GHC 'Plugin' that allows LiquidHaskell to be hooked directly into GHC's
 -- compilation pipeline, facilitating its usage and adoption.
 
-{-# LANGUAGE MultiWayIf                 #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE BangPatterns               #-}
-{-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
-{-# LANGUAGE TupleSections              #-}
-{-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE ViewPatterns               #-}
 
 module Language.Haskell.Liquid.GHC.Plugin (
@@ -21,7 +17,7 @@ module Language.Haskell.Liquid.GHC.Plugin (
   ) where
 
 import qualified Language.Haskell.Liquid.GHC.API         as O
-import           Language.Haskell.Liquid.GHC.API         as GHC hiding (Target)
+import           Language.Haskell.Liquid.GHC.API         as GHC hiding (Target, Type)
 import qualified Text.PrettyPrint.HughesPJ               as PJ
 import qualified Language.Fixpoint.Types                 as F
 import qualified Language.Haskell.Liquid.GHC.Misc        as LH
@@ -46,9 +42,9 @@ import           Language.Haskell.Liquid.GHC.GhcMonadLike ( GhcMonadLike
 import           GHC.LanguageExtensions
 
 import           Control.Monad
-import           Control.Exception                        (evaluate)
 
 import           Data.Coerce
+import           Data.Kind                                ( Type )
 import           Data.List                               as L
                                                    hiding ( intersperse )
 import           Data.IORef
@@ -165,7 +161,7 @@ customDynFlags opts dflags = do
 -- desugaring the module during /parsing/ (before that's already too late) and we cache the core binds for
 -- the rest of the program execution.
 class Unoptimise a where
-  type UnoptimisedTarget a :: *
+  type UnoptimisedTarget a :: Type
   unoptimise :: a -> UnoptimisedTarget a
 
 instance Unoptimise DynFlags where

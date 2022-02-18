@@ -49,7 +49,7 @@ or the legacy executable.
 
 ### (Plugin) Adding refinements for external modules
 
-See the [plugin](plugin.md) section, which cointains a link to a walkthrough document that describes how to add
+See the [installation](install.md) section, which cointains a link to a walkthrough document that describes how to add
 refinements for external packages (cfr. **"Providing Specifications for Existing Packages"**)
 
 ### (Legacy executable) Adding refinements for external modules
@@ -530,7 +530,7 @@ However, as they are *expanded* at compile time, `inline` functions
 **cannot be recursive**. The can call _other_ (non-recursive) inline functions.
 
 If you want to talk about arbitrary (recursive) functions inside your types, 
-then you need to use `reflect` described [in the blog](https://ucsd-progsys.github.io/liquidhaskell-blog/tags/reflection.html).
+then you need to use `reflect` described [in the blog](tags.html#reflection).
 
 # Self-Invariants
 
