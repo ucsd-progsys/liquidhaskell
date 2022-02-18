@@ -1,6 +1,8 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
+module Isort_erase where 
+
 import Prelude hiding (id, sum)
 import Language.Haskell.Liquid.ProofCombinators
 import Data.Set (Set)
