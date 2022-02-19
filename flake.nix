@@ -15,21 +15,28 @@
   outputs = { self, nixpkgs, flake-utils, liquid-fixpoint }:
     let
       composeOverlays = funs: builtins.foldl' nixpkgs.lib.composeExtensions (self: super: { }) funs;
+      haskellOverlay = compiler: final: prev: new:
+        let new-overrides = new.overrides or (a: b: { }); in
+        {
+          haskell = prev.haskell // {
+            packages = prev.haskell.packages // {
+              ${compiler} = prev.haskell.packages.${compiler}.override
+                (old: old // new // {
+                  overrides = self: super: old.overrides self super // new-overrides self super;
+                });
+            };
+          };
+        };
+      haskellPackagesOverlay = compiler: final: prev: cur-packages-overlay:
+        haskellOverlay compiler final prev { overrides = cur-packages-overlay; };
+      ghc = "ghc8107"; # Based on https://github.com/ucsd-progsys/liquid-fixpoint/blob/develop/stack.yaml#L3
       beComponent = pkgs: pkg: pkgs.haskell.lib.overrideCabal pkg (old: {
         enableLibraryProfiling = false;
         buildTools = old.buildTools or [ ] ++ [ pkgs.z3 ];
       });
-      haskellPackagesOverlay = compiler: final: prev: overrides: {
-        haskell = prev.haskell // {
-          packages = prev.haskell.packages // {
-            ${compiler} = prev.haskell.packages.${compiler}.extend overrides;
-            # FIXME: we could combine a bunch of overlays into one if we used override/overrides instead of extend
-          };
-        };
-      };
-      ghc = "ghc8104";
       mkOutputs = system:
         let
+          # do not use when defining the overlays
           pkgs = import nixpkgs {
             inherit system;
             overlays = [ self.overlay.${system} ];
@@ -57,10 +64,11 @@
 
           defaultPackage = pkgs.haskell.packages.${ghc}.liquidhaskell;
 
-          devShell = pkgs.haskell.packages.${ghc}.liquidhaskell.env;
+          devShell = self.defaultPackage.${system}.env;
 
           overlay = composeOverlays [
             liquid-fixpoint.overlay.${system}
+            self.overlays.${system}.updateAllCabalHashes
             self.overlays.${system}.addLiquidHaskellWithoutTests
             self.overlays.${system}.addLiquidGHCPrim
             self.overlays.${system}.addLiquidBase
@@ -69,6 +77,14 @@
           ];
 
           overlays = {
+            updateAllCabalHashes = final: prev:
+              {
+                all-cabal-hashes = final.fetchurl {
+                  # fetch latest cabal hashes https://github.com/commercialhaskell/all-cabal-hashes/commits/hackage as of Thu Feb 17 07:38:07 PM UTC 2022
+                  url = "https://github.com/commercialhaskell/all-cabal-hashes/archive/0c6e849a2c97f511653d375f51636b51fc429dc4.tar.gz";
+                  sha256 = "0xdnhagd9xj93p3zd6r84x4nr18spwjmhs8dxzq7n199q32snkha";
+                };
+              };
             addLiquidHaskellWithoutTests = final: prev: haskellPackagesOverlay ghc final prev (selfH: superH:
               let callCabal2nix = prev.haskell.packages.${ghc}.callCabal2nix; in
               with prev.haskell.lib; {
