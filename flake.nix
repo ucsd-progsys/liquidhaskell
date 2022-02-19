@@ -59,10 +59,10 @@
             liquid-prelude = pkgs.haskell.packages.${ghc}.liquid-prelude;
             liquid-vector = pkgs.haskell.packages.${ghc}.liquid-vector;
             # Group 5: Depends on all of the above
-            # liquidhaskell_with_tests
+            liquidhaskell_with_tests = pkgs.haskell.packages.${ghc}.liquidhaskell_with_tests;
           };
 
-          defaultPackage = pkgs.haskell.packages.${ghc}.liquidhaskell;
+          defaultPackage = pkgs.haskell.packages.${ghc}.liquidhaskell_with_tests;
 
           devShell = self.defaultPackage.${system}.env;
 
@@ -73,7 +73,7 @@
             self.overlays.${system}.addLiquidGHCPrim
             self.overlays.${system}.addLiquidBase
             self.overlays.${system}.addLiquidHaskellPackages
-            #self.overlays.${system}.addLiquidHaskellWithTests
+            self.overlays.${system}.addLiquidHaskellWithTests
           ];
 
           overlays = {
