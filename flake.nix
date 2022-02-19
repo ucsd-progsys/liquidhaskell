@@ -91,8 +91,9 @@
                 liquidhaskell =
                   let src = prev.nix-gitignore.gitignoreSource [ "*.nix" "result" "liquid-*" ] ./.;
                   in
-                  doJailbreak # LH requires slightly old versions of recursion-schemes and optparse-applicative
-                    (dontCheck (beComponent prev (callCabal2nix "liquidhaskell" src { })));
+                  dontHaddock # src/Language/Haskell/Liquid/Types/RefType.hs:651:3: error: parse error on input ‘-- | _meetable t1 t2’
+                    (doJailbreak # LH requires slightly old versions of recursion-schemes and optparse-applicative
+                      (dontCheck (beComponent prev (callCabal2nix "liquidhaskell" src { }))));
               });
             addLiquidGHCPrim = final: prev: haskellPackagesOverlay ghc final prev (selfH: superH:
               let callCabal2nix = prev.haskell.packages.${ghc}.callCabal2nix; in
@@ -119,9 +120,9 @@
             addLiquidHaskellWithTests = final: prev: haskellPackagesOverlay ghc final prev (selfH: superH:
               with prev.haskell.lib; {
                 liquidhaskell_with_tests = overrideCabal selfH.liquidhaskell (old: {
-                  doCheck = true;
+                  doCheck = true; # change the value set above
                   testDepends = old.testDepends or [ ] ++ [ prev.hostname ];
-                  testHaskellDepends = old.testHaskellDepends ++ builtins.attrValues self.packages.${system};
+                  testHaskellDepends = old.testHaskellDepends ++ builtins.attrValues (builtins.removeAttrs self.packages.${system} [ "liquidhaskell_with_tests" ]);
                   preCheck = ''export TASTY_LIQUID_RUNNER="liquidhaskell -v0"'';
                 });
               });
