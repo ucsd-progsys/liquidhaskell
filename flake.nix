@@ -55,7 +55,7 @@
             liquid-bytestring = pkgs.haskell.packages.${ghc}.liquid-bytestring;
             liquid-containers = pkgs.haskell.packages.${ghc}.liquid-containers;
             liquid-parallel = pkgs.haskell.packages.${ghc}.liquid-parallel;
-            #liquid-platform = pkgs.haskell.packages.${ghc}.liquid-platform; # FIXME can't find z3
+            liquid-platform = pkgs.haskell.packages.${ghc}.liquid-platform;
             liquid-prelude = pkgs.haskell.packages.${ghc}.liquid-prelude;
             liquid-vector = pkgs.haskell.packages.${ghc}.liquid-vector;
             # Group 5: Depends on all of the above
@@ -108,14 +108,12 @@
             addLiquidHaskellPackages = final: prev: haskellPackagesOverlay ghc final prev (selfH: superH:
               let callCabal2nix = prev.haskell.packages.${ghc}.callCabal2nix; in
               with prev.haskell.lib; {
-                liquid-bytestring = dontHaddock (beComponent prev (callCabal2nix "liquid-bytestring" ./liquid-bytestring { }));
+                liquid-bytestring = (beComponent prev (callCabal2nix "liquid-bytestring" ./liquid-bytestring { }));
                 liquid-containers = (beComponent prev (callCabal2nix "liquid-containers" ./liquid-containers { }));
                 liquid-parallel = (beComponent prev (callCabal2nix "liquid-parallel" ./liquid-parallel { }));
                 liquid-platform = (beComponent prev (callCabal2nix "liquid-platform" ./liquid-platform { }));
-                liquid-prelude = dontHaddock (beComponent prev (callCabal2nix "liquid-prelude" ./liquid-prelude { }));
+                liquid-prelude = (beComponent prev (callCabal2nix "liquid-prelude" ./liquid-prelude { }));
                 liquid-vector = (beComponent prev (callCabal2nix "liquid-vector" ./liquid-vector { }));
-                # disable tests on some depenedencies
-                optics = dontCheck selfH.optics;
               });
             addLiquidHaskellWithTests = final: prev: haskellPackagesOverlay ghc final prev (selfH: superH:
               with prev.haskell.lib; {
