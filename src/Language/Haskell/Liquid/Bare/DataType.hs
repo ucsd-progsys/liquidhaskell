@@ -73,11 +73,15 @@ makeDataConChecker = F.testSymbol . F.symbol
 --   equivalent to `head` and `tail`.
 --------------------------------------------------------------------------------
 makeDataConSelector :: Maybe Bare.DataConMap -> Ghc.DataCon -> Int -> F.Symbol
-makeDataConSelector dmMb d i = M.lookupDefault def (F.symbol d, i) dm
-  where 
-    dm                       = Mb.fromMaybe M.empty dmMb 
+makeDataConSelector dmMb d i
+  | Just ithField <- ithFieldMb = F.symbol (Ghc.flSelector ithField)
+  | otherwise = M.lookupDefault def (F.symbol d, i) dm
+  where
+    fields = Ghc.dataConFieldLabels d
+    ithFieldMb = Misc.getNth (i - 1) fields
+    dm                       = Mb.fromMaybe M.empty dmMb
     def                      = makeDataConSelector' d i
- 
+
 
 makeDataConSelector' :: Ghc.DataCon -> Int -> F.Symbol
 makeDataConSelector' d i
@@ -336,7 +340,7 @@ fieldName d dp x
 
 makeDataFields :: F.TCEmb Ghc.TyCon -> F.FTycon -> [RTyVar] -> [(F.LocSymbol, SpecType)]
                -> [F.DataField]
-makeDataFields tce _c as xts = [ F.DField x (fSort t) | (x, t) <- xts]
+makeDataFields tce _c as xts = F.tracepp "dfields" [ F.DField x (fSort t) | (x, t) <- F.tracepp "xts" xts]
   where
     su    = zip (F.symbol <$> as) [0..]
     fSort = F.substVars su . F.mapFVar (+ (length as)) . RT.rTypeSort tce
