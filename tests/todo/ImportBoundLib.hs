@@ -1,4 +1,4 @@
-module ImportBound where
+module ImportBoundLib where
 
 data Proof
 

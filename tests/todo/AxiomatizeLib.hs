@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE QuasiQuotes     #-}
 
-module Axiomatize where
+module AxiomatizeLib where
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Quote

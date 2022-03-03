@@ -5,7 +5,7 @@ module Lemma where
 
 import Prelude hiding (Semigroup(..), mappend)
 
-import Semigroup
+import SemigroupLib
 -- YL: why is it necessary to include Lib?
 import Lib
 

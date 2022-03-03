@@ -1,7 +1,7 @@
 {-@ LIQUID "--exactdc" @-}
 {-@ LIQUID "--higherorder" @-}
 
-module RL1015 where
+module RL1015Lib where
 
 data Foo = Foo { fooFirst :: Int -> Int , fooSnd :: Int}
 

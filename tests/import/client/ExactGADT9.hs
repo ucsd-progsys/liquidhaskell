@@ -5,7 +5,7 @@
 
 module ExactGADT9 where
 
-import ExactGADT8
+import ExactGADT8Lib
 
 {-@ reflect bar @-}
 bar :: RefinedFilter Blob typ -> Bool

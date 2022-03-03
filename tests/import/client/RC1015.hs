@@ -3,7 +3,7 @@
 
 module RC1015 where
 
-import RL1015
+import RL1015Lib
 
 {-@ car :: f:Foo -> { v: a | fooFirst f 0 == 10 } -> Int @-}
 car :: Foo -> a -> Int

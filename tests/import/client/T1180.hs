@@ -5,7 +5,7 @@
 
 module Ev where
 
-import Peano 
+import PeanoLib
 
 pInt :: Peano -> Int 
 pInt Z     = 0 

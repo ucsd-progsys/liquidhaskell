@@ -1,4 +1,4 @@
-module CheckedNum where
+module CheckedNumLib where
 
 -- Hiding numeric operations, because they get by default translated to SMT equivalent
 import Prelude hiding (Num(..))

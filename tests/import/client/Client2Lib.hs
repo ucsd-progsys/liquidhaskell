@@ -1,4 +1,4 @@
-module Client2 where 
+module Client2Lib where 
 
     {-@ reflect cProp @-}
     

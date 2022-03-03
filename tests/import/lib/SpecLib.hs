@@ -1,4 +1,4 @@
-module Spec where 
+module SpecLib where 
 
 data Foo = FooDC Int 
 {-@ data Foo = FooDC {unfoo :: {v:Int | 0 < v }} @-} 

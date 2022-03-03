@@ -2,7 +2,7 @@
 
 module Eff0 (test0, test1) where
 
-import EffSTT
+import EffSTTLib
 
 {-@ type IntN N = {v:Int | v = N} @-}
 

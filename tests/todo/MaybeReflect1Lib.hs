@@ -5,7 +5,7 @@
 
 {-# LANGUAGE IncoherentInstances   #-}
 {-# LANGUAGE FlexibleContexts #-}
-module MaybeReflect1 where
+module MaybeReflect1Lib where
 
 
 import Prelude hiding (Maybe(..))

@@ -1,6 +1,6 @@
 module UseBound where
 
-import ImportBound
+import ImportBoundLib
 
 -- This crashes because the type of `by` has a bound Chain that
 -- is unknown at import

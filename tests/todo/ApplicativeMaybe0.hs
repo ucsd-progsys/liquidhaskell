@@ -8,7 +8,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 module ListFunctors where
 
-import MaybeReflect0 
+import MaybeReflect0Lib
 import Prelude hiding (Maybe(..))
 import Language.Haskell.Liquid.ProofCombinators
 

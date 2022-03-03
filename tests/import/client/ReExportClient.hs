@@ -1,6 +1,6 @@
 module ReExportClient where 
 
-import ReExport 
+import ReExportLib
 
 {-@ bar :: Foo -> {v:Int | 0 < v} @-} 
 bar :: Foo -> Int 

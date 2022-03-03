@@ -7,7 +7,7 @@ module Peano where
 
 import ProofCombinators
 
-import Incr (incr)
+import IncrLib (incr)
 
 {-@ pf :: () -> { incr 2 == 3 }  @-}
 pf () = incr 2 *** QED

@@ -1,6 +1,6 @@
 {-@ LIQUID "--no-termination" @-}
 
-module T1096_Types where
+module T1096_TypesLib where
 
 data Foo = A Foo | B 
 

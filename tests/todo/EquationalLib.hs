@@ -1,5 +1,5 @@
 
-module Equational where 
+module EquationalLib where 
 
 
 -------------------------------------------------------------------------------
