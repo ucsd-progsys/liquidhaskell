@@ -5,7 +5,7 @@ commands:
   setup_project:
     description: "Setup the machine, clone the repo, checkout the submodules."
     steps:
-      - run: sudo apt-get update && sudo apt-get install -y curl git ssh unzip wget libtinfo-dev gcc make
+      - run: sudo apt-get update && DEBIAN_FRONTEND=noninteractive sudo apt-get install -yq curl git ssh unzip wget libtinfo-dev gcc make
       - run:
           name: Install z3
           command: |
