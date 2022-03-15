@@ -177,6 +177,7 @@ library
                       Language.Haskell.Liquid.UX.DiffCheck
                       Language.Haskell.Liquid.UX.Errors
                       Language.Haskell.Liquid.UX.QuasiQuoter
+                      Language.Haskell.Liquid.UX.SimpleVersion
                       Language.Haskell.Liquid.UX.Tidy
                       Language.Haskell.Liquid.WiredIn
                       LiquidHaskell
@@ -234,7 +235,6 @@ library
                     , mtl                  >= 2.1
                     , optics               >= 0.2
                     , optparse-applicative < 0.17
-                    , optparse-simple
                     , githash
                     , megaparsec           >= 8
                     , pretty               >= 1.1
@@ -252,7 +252,7 @@ library
                     , free
                     , recursion-schemes    < 5.3
                     , data-fix
-                    , extra 
+                    , extra
   default-language:   Haskell98
   default-extensions: PatternGuards, RecordWildCards, DoAndIfThenElse
   ghc-options:        -W -fwarn-missing-signatures
