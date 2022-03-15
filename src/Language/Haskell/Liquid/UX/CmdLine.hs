@@ -52,7 +52,6 @@ import Data.Maybe
 import Data.Aeson (encode)
 import qualified Data.ByteString.Lazy.Char8 as B
 import Development.GitRev (gitCommitCount)
-import Options.Applicative.Simple (simpleVersion)
 import qualified Paths_liquidhaskell as Meta
 import System.Directory
 import System.Exit
@@ -76,6 +75,7 @@ import qualified Language.Fixpoint.Types as F
 import Language.Fixpoint.Solver.Stats as Solver
 import Language.Haskell.Liquid.UX.Annotate
 import Language.Haskell.Liquid.UX.Config
+import Language.Haskell.Liquid.UX.SimpleVersion (simpleVersion)
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.PrettyPrint ()
@@ -421,10 +421,10 @@ config = cmdArgsMode $ Config {
     rwTerminationCheck
     = def
         &= name "rw-termination-check"
-        &= help (   "Enable the rewrite divergence checker. " 
+        &= help (   "Enable the rewrite divergence checker. "
                  ++ "Can speed up verification if rewriting terminates, but can also cause divergence."
                 )
-  , 
+  ,
     skipModule
     = def
         &= name "skip-module"
@@ -434,9 +434,9 @@ config = cmdArgsMode $ Config {
     = def
         &= name "no-lazy-ple"
         &= help "Don't use Lazy PLE"
- 
-  , fuel 
-    = Nothing 
+
+  , fuel
+    = Nothing
         &= help "Maximum fuel (per-function unfoldings) for PLE"
 
   , environmentReduction
@@ -458,8 +458,8 @@ config = cmdArgsMode $ Config {
           , "Sometimes improves performance and sometimes worsens it."
           , "Disabled by --no-environment-reduction"
           ])
-  , pandocHtml 
-    = False 
+  , pandocHtml
+    = False
       &= name "pandoc-html"
       &= help "Use pandoc to generate html."
   } &= program "liquid"
@@ -794,7 +794,7 @@ writeResultStdout (orMessages -> messages) = do
   forM_ messages $ \(sSpan, doc) -> putStrLn (render $ mkErrorDoc sSpan doc {- pprint sSpan <> (text ": error: " <+> doc)-})
 
 mkErrorDoc :: PPrint a => a -> Doc -> Doc
-mkErrorDoc sSpan doc = 
+mkErrorDoc sSpan doc =
   -- Gross on screen, nice for Ghcid
   -- pprint sSpan <> (text ": error: " <+> doc)
 
