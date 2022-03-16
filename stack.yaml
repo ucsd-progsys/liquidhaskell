@@ -16,7 +16,6 @@ packages:
 - liquid-containers
 - liquid-parallel
 - liquid-platform
-- stitch-lh
 - .
 extra-deps:
 - hashable-1.3.0.0
