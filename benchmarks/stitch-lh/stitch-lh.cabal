@@ -1,0 +1,95 @@
+name:           stitch-lh
+version:        1.0
+cabal-version:  >= 1.10
+synopsis:       A simply typed lambda calculus interpreter, written with GADTs
+homepage:       https://gitlab.com/goldfirere/stitch
+category:       Compilers/Interpreters
+author:         Richard Eisenberg <rae@richarde.dev>, Facundo Domínguez <facundominguez@gmail.com>
+maintainer:     Facundo Domínguez <facundominguez@gmail.com>
+stability:      unknown
+extra-source-files: README.md, CHANGES.md
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+description:
+    This is an interpreter for the simply-typed lambda calculus. It is
+    written making heavy use of generalized algebraic datatypes (GADTs), and is
+    meant to serve as an example how how these GADTs can be useful. See
+    the GitHub repo for more information about the syntax for the language
+    and interpreter commands.
+
+source-repository this
+  type:     git
+  location: https://gitlab.com/goldfirere/stitch.git
+  tag:      v1.0
+
+library
+  build-depends:      ansi-wl-pprint >= 0.6.7.1
+                    , mtl >= 2.2.1
+                    , transformers >= 0.4.0.0
+                    , parsec >= 3.1
+                    , haskeline >= 0.7.1.1
+                    , directory >= 1.2.0.1
+                    , hashable >= 1.2.7.0
+                    , deepseq >= 1.4
+                    , liquidhaskell
+                    , liquid-base
+                    , liquid-containers
+                    , liquid-prelude
+
+  exposed-modules:
+                      Language.Stitch.LH.Repl
+                      Language.Stitch.LH.Check
+                      -- Language.Stitch.LH.CSE
+                      Language.Stitch.LH.Data.List
+                      Language.Stitch.LH.Data.Map
+                      Language.Stitch.LH.Eval
+                      Language.Stitch.LH.Lex
+                      Language.Stitch.LH.Monad
+                      Language.Stitch.LH.Op
+                      Language.Stitch.LH.Parse
+                      Language.Stitch.LH.Pretty
+                      Language.Stitch.LH.Statement
+                      Language.Stitch.LH.Step
+                      Language.Stitch.LH.Token
+                      Language.Stitch.LH.Type
+                      Language.Stitch.LH.Unchecked
+                      Language.Stitch.LH.Util
+                      Language.Stitch.LH.Data.Nat
+
+  hs-source-dirs:     src
+  ghc-options:        -Wall -Wno-unticked-promoted-constructors
+  default-language:   Haskell2010
+
+executable stitch-lh
+  build-depends:      liquid-base >= 4.10 && < 5
+                    , stitch-lh
+
+  hs-source-dirs:     main
+  ghc-options:        -Wall -fno-warn-name-shadowing
+  default-language:   Haskell2010
+  main-is:            Main.hs
+
+test-suite tests
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     tests
+  ghc-options:        -Wall -fno-warn-name-shadowing
+  default-language:   Haskell2010
+  main-is:            Tests/Main.hs
+
+  other-modules:      Tests.Check
+                      Tests.Parse
+                      Tests.Lex
+                      Tests.Util
+
+  build-depends:      liquid-base >= 4.10 && < 5
+                    , liquidhaskell
+                    , liquid-containers
+                    , stitch-lh
+                    , template-haskell
+                    , ansi-wl-pprint >= 0.6.7.1
+                    , mtl >= 2.2.1
+                    , transformers >= 0.4.0.0
+                    , parsec >= 3.1
+                    , tasty >= 0.8.1
+                    , tasty-hunit >= 0.9
