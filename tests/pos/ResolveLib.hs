@@ -1,7 +1,7 @@
-module ResolveA  where
+module ResolveLib where
 
-import qualified ResolveB as RB
-import qualified ResolveB
+import qualified ResolveLibLib as RB
+import qualified ResolveLibLib
 
 {-@ measure getFooA :: Foo -> Int
       getFooA (Foo x) = x

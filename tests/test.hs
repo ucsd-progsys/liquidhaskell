@@ -49,7 +49,8 @@ import Paths_liquidhaskell
 import Text.Printf
 
 data DependentTests = DependentTests
-  { dependencies :: [TestTree]
+  { dependencyDependencies :: [TestTree]
+  , dependencies :: [TestTree]
   , toplevel :: [TestTree]
   }
 
@@ -439,12 +440,11 @@ selfTests
   ]
 
 testGroupsWithLibs :: String -> DependentTests -> [TestTree]
-testGroupsWithLibs name (DependentTests libTests nonlibTests) =
-  [ testGroup (name <> "-libs") libTests
-  , after AllFinish (name <> "-libs") $ testGroup name nonlibTests
+testGroupsWithLibs name (DependentTests libLibTests libTests nonlibTests) =
+  [ testGroup (name <> "-liblibs") libLibTests
+  , after AllFinish (name <> "-liblibs") $ testGroup (name <> "-libs") libTests
+  , after AllFinish (name <> "-libs")    $ testGroup name              nonlibTests
   ]
-
-
 
 -- | Creates a [TestTree] that runs without parallelism
 testSequentially :: String -> SequentialTests -> [TestTree]
@@ -473,8 +473,8 @@ dirTests root ignored ecode yesLog noLog = odirTests root ignored Nothing ecode 
 --------------------------------------------------------------------------------
 sequentialOdirTests :: FilePath -> [FilePath] -> SequentialFileOrder -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO SequentialTests
 sequentialOdirTests root ignored fo ecode yesLog noLog = do
-  DependentTests libs nonlibs <- odirTests root ignored (Just (getFileOrder fo)) ecode yesLog noLog
-  pure $ SequentialTests (libs <> nonlibs)
+  DependentTests liblibs libs nonlibs <- odirTests root ignored (Just (getFileOrder fo)) ecode yesLog noLog
+  pure $ SequentialTests (liblibs <> libs <> nonlibs)
 
 -- | Allow parallelism for these tests, but run any tests with `Lib` in its name before the others.
 --------------------------------------------------------------------------------
@@ -488,9 +488,10 @@ odirTests root ignored fo ecode yesLog noLog = do
                                   , let rel = makeRelative root f
                                   , rel `notElem` ignored
                             ]
-  let (libs, nonlibs) = L.partition ("Lib" `L.isInfixOf`) tests
+  let (libsAndLibLibs, nonlibs) = L.partition ("Lib" `L.isInfixOf`) tests
+      (liblibs, libs) = L.partition ("LibLib" `L.isInfixOf`) libsAndLibLibs
   -- print (show tests)
-  return $ DependentTests (mktests libs) (mktests nonlibs)
+  return $ DependentTests (mktests liblibs) (mktests libs) (mktests nonlibs)
   where
     mktests = (mkCodeTest ecode yesLog noLog root <$>)
 

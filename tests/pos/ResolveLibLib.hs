@@ -1,4 +1,4 @@
-module ResolveB where
+module ResolveLibLib where
 
 {-@ measure getFoo :: Foo -> Int
       getFoo (Foo x) = x

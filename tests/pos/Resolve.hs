@@ -1,7 +1,7 @@
 module Resolve where
 
-import qualified ResolveA as RA
-import qualified ResolveB as RB
+import qualified ResolveLib as RA
+import qualified ResolveLibLib as RB
 
 
 {-@ x :: {v:RB.Bar | ((v = RB.B) && (NotA v))} @-}
