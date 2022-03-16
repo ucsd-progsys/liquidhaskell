@@ -24,7 +24,7 @@ extra-deps:
 - git: https://github.com/facundominguez/stitch-lh
   commit: 8e130a40376cdf9afaeb6e3e4322e1069339bb51
 
-resolver: lts-18.14
+resolver: lts-18.27
 compiler: ghc-8.10.7
 
 nix:
