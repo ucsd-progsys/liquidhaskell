@@ -295,6 +295,8 @@ test-suite test
                   , process              >= 1.2
                   , stm                  >= 2.4
                   , string-conv          >= 0.1
+                  -- haskeline is for stitch-lh
+                  , haskeline            >= 0.8
                   , tagged               >= 0.7.3
                   , tasty                >= 1.4.2
                   , tasty-ant-xml
