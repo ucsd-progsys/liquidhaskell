@@ -48,11 +48,20 @@ import Paths_liquidhaskell
 
 import Text.Printf
 
+-- | Tests which have dependencies can use this record type to express that the
+-- `dependencies` are run *sequentially* in a certain order, and the `toplevel`
+-- tests are run in *parallel* after all dependencies have been run. For more
+-- information on specifying the order of the dependencies, see the
+-- `SequentialFileOrder` sections below; by default they are run in *reverse*
+-- alphabetical order.
 data DependentTests = DependentTests
   { dependencies :: [TestTree]
   , toplevel :: [TestTree]
   }
 
+-- | Tests which are purely sequential (like most benchmarks) can use this
+-- newtype to indicate this, ensuring you don't accidentally run them in
+-- parallel.
 newtype SequentialTests = SequentialTests
   { getTests :: [TestTree] }
 
@@ -347,6 +356,11 @@ benchTests = group "Benchmarks"
 -- AUTO-ORDER _measPosOrder :: Maybe FileOrder 
 -- AUTO-ORDER _measPosOrder = Just . mkOrder $ [ "List00Lib.hs" ]
 
+
+-- | These `SequentialFileOrder` values override the normal "reverse
+-- alphabetical" ordering imposed on sequential compilation. Any files not named
+-- in the `Order` are run in the usual order _after_ the ones found in the
+-- `Order`.
 proverOrder :: SequentialFileOrder 
 proverOrder = mkSequentialOrder
   [ "Proves.hs"
@@ -521,9 +535,13 @@ getOrder m f = Map.findWithDefault (1 + Map.size m) f m
 mkOrder :: [FilePath] -> FileOrder 
 mkOrder fs = Map.fromList (zip fs [0..])
 
+-- Note that this is REVERSE alphabetical! `BLib.hs` would be compiled BEFORE
+-- `ALib.hs`.
 defaultFileOrder :: [FilePath] -> [FilePath]
 defaultFileOrder = L.reverse . sortOn stringLower 
 
+-- Run the files given in the FileOrder first (and in that order), and use the
+-- default ordering for the rest.
 sortOrder :: Maybe FileOrder -> [FilePath] -> [FilePath]
 sortOrder Nothing   fs = defaultFileOrder fs 
 sortOrder (Just fo) fs = sortOn (getOrder fo) ordFs ++ defaultFileOrder otherFs 
