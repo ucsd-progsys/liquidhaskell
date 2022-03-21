@@ -387,14 +387,16 @@ gNegIgnored   = ["Interpretations.hs", "Gradual.hs"]
 
 benchTests :: IO TestTree
 benchTests = group "Benchmarks"
-  [ testSequentially "cse230"      <$> sequentialOdirTests  "benchmarks/cse230/src/Week10"         []            Nothing     ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
-  , testSequentially "esop"        <$> sequentialOdirTests  "benchmarks/esop2013-submission"       esopIgnored   Nothing     ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  [ testSequentially "cse230"      <$> sequentialOdirTests  "benchmarks/cse230/src/Week10"         []            emptyOrder  ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testSequentially "esop"        <$> sequentialOdirTests  "benchmarks/esop2013-submission"       esopIgnored   emptyOrder  ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
   , testSequentially "vect-algs"   <$> sequentialOdirTests  "benchmarks/vector-algorithms-0.5.4.2" []            vectOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
   , testSequentially "bytestring"  <$> sequentialOdirTests  "benchmarks/bytestring-0.9.2.1"        bsIgnored     bsOrder     ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
   , testSequentially "text"        <$> sequentialOdirTests  "benchmarks/text-0.11.2.3"             textIgnored   textOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
   , testSequentially "icfp_pos"    <$> sequentialOdirTests  "benchmarks/icfp15/pos"                icfpIgnored   icfpOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
   , testSequentially "icfp_neg"    <$> sequentialOdirTests  "benchmarks/icfp15/neg"                icfpIgnored   icfpOrder   (ExitFailure 1) (Just " UNSAFE ") Nothing
   ]
+  where
+    emptyOrder = SequentialFileOrder mempty
 
 -- AUTO-ORDER _impLibOrder :: Maybe FileOrder 
 -- AUTO-ORDER _impLibOrder = Just . mkOrder $ [ "T1102_LibZ.hs", "WrapLibCode.hs", "STLib.hs", "T1102_LibY.hs" ]
