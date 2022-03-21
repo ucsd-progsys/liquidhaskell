@@ -1,5 +1,4 @@
 {-# LANGUAGE LambdaCase #-}
-{-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
 {-@ LIQUID "--max-case-expand=0" @-}
 {-@ LIQUID "--no-termination" @-}
 

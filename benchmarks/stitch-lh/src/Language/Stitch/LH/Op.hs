@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
-{-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
 
 -----------------------------------------------------------------------------
 -- |

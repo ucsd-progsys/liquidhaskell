@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
-
 module Language.Stitch.LH.Data.Nat where
 
 import Prelude hiding (max)

@@ -1,6 +1,5 @@
 {-# LANGUAGE FlexibleInstances, UndecidableInstances, ViewPatterns,
              NondecreasingIndentation #-}
-{-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
 -- XXX: Why do we need --exact-data-cons here?
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--ple" @-}

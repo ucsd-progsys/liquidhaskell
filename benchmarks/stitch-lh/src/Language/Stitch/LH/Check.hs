@@ -1,5 +1,4 @@
 {-# LANGUAGE LambdaCase #-}
-{-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
 {-@ LIQUID "--exact-data-cons" @-}
 -- ple is necessary to reason about the evaluation of checkBindings
 {-@ LIQUID "--ple" @-}

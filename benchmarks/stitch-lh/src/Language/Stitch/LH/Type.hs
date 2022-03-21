@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
-{-# OPTIONS_GHC -fplugin=LiquidHaskell -Wno-incomplete-patterns #-}
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 -----------------------------------------------------------------------------
 -- |

@@ -1,5 +1,4 @@
 {-# LANGUAGE ViewPatterns #-}
-{-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
 
 -----------------------------------------------------------------------------
 -- |
