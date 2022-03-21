@@ -338,8 +338,8 @@ gNegIgnored   = ["Interpretations.hs", "Gradual.hs"]
 
 benchTests :: IO TestTree
 benchTests = group "Benchmarks"
-  [ testGroupsWithLibs "cse230"    <$> dirTests             "benchmarks/cse230/src/Week10"         []                        ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
-  , testGroupsWithLibs "esop"      <$> dirTests             "benchmarks/esop2013-submission"        esopIgnored               ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  [ testSequentially "cse230"      <$> sequentialOdirTests  "benchmarks/cse230/src/Week10"         []                        ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testSequentially "esop"        <$> sequentialOdirTests  "benchmarks/esop2013-submission"       esopIgnored               ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
   , testSequentially "vect-algs"   <$> sequentialOdirTests  "benchmarks/vector-algorithms-0.5.4.2" []            vectOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
   , testSequentially "bytestring"  <$> sequentialOdirTests  "benchmarks/bytestring-0.9.2.1"        bsIgnored     bsOrder     ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
   , testSequentially "text"        <$> sequentialOdirTests  "benchmarks/text-0.11.2.3"             textIgnored   textOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
