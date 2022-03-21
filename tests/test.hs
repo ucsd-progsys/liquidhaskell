@@ -53,21 +53,21 @@ import Text.Printf
 -- By default tests are run in parallel except in the case of benchmarks (which
 -- are usually libraries that have to be compiled in a certain order). When adding
 -- a new test, if you can confine your test to a single file, then it will be run
--- in parallel. If you need to make more than one file and *import* some others,
--- ensure the *imported* files contain the string `Lib` in their name, so that they
--- will be compiled *sequentially* and *before* the importing module.
+-- in parallel. If you need to make more than one file and /import/ some others,
+-- ensure the /imported/ files contain the string @Lib@ in their name, so that they
+-- will be compiled /sequentially/ and /before/ the importing module.
 --
 -- If you have a dependency tree of more than just a single level, the easiest way
 -- to express this is to use the default sort-ordering (reverse alphabetical) as
--- well as adding the `Lib` string, so that dependencies are compiled in the order
+-- well as adding the @Lib@ string, so that dependencies are compiled in the order
 -- you want. See the below example.
 --
--- ==== Example: tests/pos/Resolve.hs
+-- ==== Example: @tests\/pos\/Resolve.hs@
 --
--- In `tests/pos/`, there are some files:
+-- In @tests\/pos\/@, there are some files:
 --
--- 1. `Resolve.hs` imports `ResolveALib.hs` and `ResolveBLib.hs`
--- 2. `ResolveALib.hs` imports `ResolveBLib.hs`
+-- 1. @Resolve.hs@ imports @ResolveALib.hs@ and @ResolveBLib.hs@
+-- 2. @ResolveALib.hs@ imports @ResolveBLib.hs@
 --
 -- The dependency tree therefore looks like:
 --
@@ -81,34 +81,34 @@ import Text.Printf
 --   +-> ResolveBLib
 -- ```
 --
--- with `x -> y` meaning "x imports y". We want the `Lib` files compiled before the
--- main importing `Resolve`, which is accomplished by naming them with the `Lib`
--- suffix. We also want `ResolveBLib` to be compiled before `ResolveALib`, which is
--- accomplished by the letter "B" coming *after* the letter "A", remembering that
--- the default sort order is *reverse* alphabetical. Because these both have the
--- `Lib` suffix, they are compiled sequentially.
+-- with @x -> y@ meaning "x imports y". We want the @Lib@ files compiled before the
+-- main importing @Resolve@, which is accomplished by naming them with the @Lib@
+-- suffix. We also want @ResolveBLib@ to be compiled before @ResolveALib@, which is
+-- accomplished by the letter "B" coming /after/ the letter "A", remembering that
+-- the default sort order is /reverse/ alphabetical. Because these both have the
+-- @Lib@ suffix, they are compiled sequentially.
 --
 -- ==== Note:
 --
 -- More control over ordering without resorting to name-mangling can be
--- accomplished by using the `SequentialFileOrder` type in `tests/test.hs`, which
+-- accomplished by using the 'SequentialFileOrder' type in @tests/test.hs@, which
 -- is normally how it is controlled for benchmarks. See that file for examples. For
 -- simple tests, this is usually overkill.
 
 -------------------------------------------------------------------------------
 
 -- | Tests which have dependencies can use this record type to express that the
--- `dependencies` are run *sequentially* in a certain order, and the `toplevel`
--- tests are run in *parallel* after all dependencies have been run. For more
+-- `dependencies` are run /sequentially/ in a certain order, and the `toplevel`
+-- tests are run in /parallel/ after all dependencies have been run. For more
 -- information on specifying the order of the dependencies, see the
--- `SequentialFileOrder` sections below; by default they are run in *reverse*
+-- 'SequentialFileOrder' sections below; by default they are run in /reverse/
 -- alphabetical order.
 data DependentTests = DependentTests
   { dependencies :: [TestTree]
   , toplevel :: [TestTree]
   }
 
--- | Tests which are purely sequential (like most benchmarks) can use this
+-- | Tests which are purely sequential (like benchmarks) can use this
 -- newtype to indicate this, ensuring you don't accidentally run them in
 -- parallel.
 newtype SequentialTests = SequentialTests
@@ -406,10 +406,10 @@ benchTests = group "Benchmarks"
 -- AUTO-ORDER _measPosOrder = Just . mkOrder $ [ "List00Lib.hs" ]
 
 
--- | These `SequentialFileOrder` values override the normal "reverse
+-- | These 'SequentialFileOrder' values override the normal "reverse
 -- alphabetical" ordering imposed on sequential compilation. Any files not named
--- in the `Order` are run in the usual order _after_ the ones found in the
--- `Order`.
+-- in the 'SequentialFileOrder' are run in the usual order /after/ the ones
+-- found in it.
 proverOrder :: SequentialFileOrder 
 proverOrder = mkSequentialOrder
   [ "Proves.hs"
@@ -501,7 +501,7 @@ selfTests
       testGroupsWithLibs "liquid" <$> dirTests "src"  [] ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
   ]
 
--- | Create a [TestTree] that tests files named `*Lib*.hs` (ie dependencies)
+-- | Create a @['TestTree']@ that tests files named @*Lib*.hs@ (ie dependencies)
 -- sequentially and before the other (dependent tests) are run in parallel.
 testGroupsWithLibs :: String -> DependentTests -> [TestTree]
 testGroupsWithLibs name (DependentTests libTests nonlibTests) =
@@ -510,7 +510,7 @@ testGroupsWithLibs name (DependentTests libTests nonlibTests) =
     [ testGroup libTestsName $ testSequentially libTestsName $ SequentialTests libTests
     , after AllFinish libTestsName $ testGroup name nonlibTests ]
 
--- | Creates a [TestTree] that runs without parallelism
+-- | Creates a @['TestTree']@ that runs without parallelism
 testSequentially :: String -> SequentialTests -> [TestTree]
 testSequentially name (SequentialTests tests) =
   -- We need to create a singleton testGroup here so that we know the test name to
@@ -540,7 +540,7 @@ sequentialOdirTests root ignored fo ecode yesLog noLog = do
   DependentTests libs nonlibs <- odirTests root ignored (Just (getFileOrder fo)) ecode yesLog noLog
   pure $ SequentialTests (libs <> nonlibs)
 
--- | Allow parallelism for these tests, but run any tests with `Lib` in its name
+-- | Allow parallelism for these tests, but run any tests with @Lib@ in its name
 -- before the others.
 --------------------------------------------------------------------------------
 odirTests :: FilePath -> [FilePath] -> Maybe FileOrder -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO DependentTests
