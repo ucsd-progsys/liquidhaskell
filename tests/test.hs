@@ -48,6 +48,55 @@ import Paths_liquidhaskell
 
 import Text.Printf
 
+-- * Parallelism in tests
+--
+-- By default tests are run in parallel except in the case of benchmarks (which
+-- are usually libraries that have to be compiled in a certain order). When adding
+-- a new test, if you can confine your test to a single file, then it will be run
+-- in parallel. If you need to make more than one file and *import* some others,
+-- ensure the *imported* files contain the string `Lib` in their name, so that they
+-- will be compiled *sequentially* and *before* the importing module.
+--
+-- If you have a dependency tree of more than just a single level, the easiest way
+-- to express this is to use the default sort-ordering (reverse alphabetical) as
+-- well as adding the `Lib` string, so that dependencies are compiled in the order
+-- you want. See the below example.
+--
+-- ==== Example: tests/pos/Resolve.hs
+--
+-- In `tests/pos/`, there are some files:
+--
+-- 1. `Resolve.hs` imports `ResolveALib.hs` and `ResolveBLib.hs`
+-- 2. `ResolveALib.hs` imports `ResolveBLib.hs`
+--
+-- The dependency tree therefore looks like:
+--
+-- ```text
+-- Resolve 
+--   |
+--   +-> ResolveALib
+--   |     |
+--   |     +-> ResolveBLib
+--   |
+--   +-> ResolveBLib
+-- ```
+--
+-- with `x -> y` meaning "x imports y". We want the `Lib` files compiled before the
+-- main importing `Resolve`, which is accomplished by naming them with the `Lib`
+-- suffix. We also want `ResolveBLib` to be compiled before `ResolveALib`, which is
+-- accomplished by the letter "B" coming *after* the letter "A", remembering that
+-- the default sort order is *reverse* alphabetical. Because these both have the
+-- `Lib` suffix, they are compiled sequentially.
+--
+-- ==== Note:
+--
+-- More control over ordering without resorting to name-mangling can be
+-- accomplished by using the `SequentialFileOrder` type in `tests/test.hs`, which
+-- is normally how it is controlled for benchmarks. See that file for examples. For
+-- simple tests, this is usually overkill.
+
+-------------------------------------------------------------------------------
+
 -- | Tests which have dependencies can use this record type to express that the
 -- `dependencies` are run *sequentially* in a certain order, and the `toplevel`
 -- tests are run in *parallel* after all dependencies have been run. For more
