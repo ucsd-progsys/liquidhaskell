@@ -48,7 +48,7 @@ import Paths_liquidhaskell
 
 import Text.Printf
 
--- * Parallelism in tests
+-- * [Parallel_Tests]
 --
 -- By default tests are run in parallel except in the case of benchmarks (which
 -- are usually libraries that have to be compiled in a certain order). When adding
@@ -72,7 +72,7 @@ import Text.Printf
 -- The dependency tree therefore looks like:
 --
 -- ```text
--- Resolve 
+-- Resolve
 --   |
 --   +-> ResolveALib
 --   |     |
