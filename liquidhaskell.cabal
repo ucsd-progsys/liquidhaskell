@@ -295,8 +295,6 @@ test-suite test
                   , process              >= 1.2
                   , stm                  >= 2.4
                   , string-conv          >= 0.1
-                  -- haskeline is for stitch-lh
-                  , haskeline            >= 0.8
                   , tagged               >= 0.7.3
                   , tasty                >= 1.4.2
                   , tasty-ant-xml
@@ -305,6 +303,12 @@ test-suite test
                   , tasty-rerun          >= 1.1
                   , text
                   , transformers         >= 0.3
+                  -- these are for stitch-lh
+                  , haskeline            >= 0.8
+                  , ansi-wl-pprint       >= 0.6.7.1
+                  , hashable             >= 1.2.7.0
+                  , deepseq              >= 1.4
+                  , parsec               >= 3.1
   default-language: Haskell98
   ghc-options:      -W -threaded -with-rtsopts=-N
 
