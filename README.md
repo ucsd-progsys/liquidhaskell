@@ -128,6 +128,12 @@ You can directly extend and run the tests by modifying
 
     tests/test.hs
 
+### Parallelism in Tests
+
+Most tests run in parallel, with a few module dependencies built sequentially in
+advance. Benchmarks are run sequentially after all other tests have finished.
+For details on adding tests, see note [Parallel_Tests] in `tests/test.hs`.
+
 ## How to create performance comparison charts
 
 Everytime `liquidhaskell` tests are run, a report of the time taken by

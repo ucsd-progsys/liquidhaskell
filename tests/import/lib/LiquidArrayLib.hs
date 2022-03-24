@@ -1,4 +1,4 @@
-module LiquidArray where
+module LiquidArrayLib where
 
 {-@ set :: forall a <p :: x0: Int -> x1: a -> Bool, r :: x0: Int -> Bool>.
       i: Int<r> ->

@@ -4,7 +4,7 @@
 {-@ LIQUID "--totality"            @-}
 {-@ LIQUID "--exactdc"             @-}
 
-module String where
+module StringLib where
 
 import qualified Data.ByteString as BS
 import qualified Data.String     as ST

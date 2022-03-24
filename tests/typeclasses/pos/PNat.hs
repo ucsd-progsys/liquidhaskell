@@ -16,7 +16,7 @@ import           Prelude                 hiding ( Semigroup(..)
                                                 , Foldable (..)
                                                 )
 
-import Semigroup
+import SemigroupLib
 import Lib
 
 data PNat = Z | S PNat

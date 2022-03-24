@@ -1,6 +1,6 @@
 module LocalSpecImport where
 
-import LocalSpec
+import LocalSpecLib
 
 {-@ baz :: Nat -> Nat @-}
 baz :: Int -> Int

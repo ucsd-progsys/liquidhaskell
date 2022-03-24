@@ -3,7 +3,7 @@
 module BinarySearch where
 
 import Prelude hiding (Num(..))
-import CheckedNum 
+import CheckedNumLib
 import Data.Vector as V
 import Language.Haskell.Liquid.Prelude (liquidAssert) 
 

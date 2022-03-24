@@ -1,4 +1,4 @@
-module EffSTT (
+module EffSTTLib (
 
   -- * Basic STT type and instances
     STT

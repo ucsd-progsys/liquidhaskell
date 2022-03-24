@@ -4,7 +4,7 @@
 {-@ LIQUID "--aux-inline" @-}
 {-@ LIQUID "--ple" @-}
 
-module Semigroup where
+module SemigroupLib where
 
 import           Prelude                 hiding ( Semigroup(..)
                                                 , Monoid(..)

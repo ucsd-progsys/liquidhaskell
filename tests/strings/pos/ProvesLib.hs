@@ -5,7 +5,7 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE IncoherentInstances   #-}
-module Proves (
+module ProvesLib (
 
     (==:), (<=:), (<:), (>:)
 

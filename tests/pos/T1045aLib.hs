@@ -1,4 +1,4 @@
-module T1045a where
+module T1045aLib where
 
 import {-# SOURCE #-} T1045
 

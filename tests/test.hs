@@ -48,11 +48,69 @@ import Paths_liquidhaskell
 
 import Text.Printf
 
+-- * [Parallel_Tests]
+--
+-- By default tests are run in parallel except in the case of benchmarks (which
+-- are usually libraries that have to be compiled in a certain order). When adding
+-- a new test, if you can confine your test to a single file, then it will be run
+-- in parallel. If you need to make more than one file and /import/ some others,
+-- ensure the /imported/ files contain the string @Lib@ in their name, so that they
+-- will be compiled /sequentially/ and /before/ the importing module.
+--
+-- If you have a dependency tree of more than just a single level, the easiest way
+-- to express this is to use the default sort-ordering (reverse alphabetical) as
+-- well as adding the @Lib@ string, so that dependencies are compiled in the order
+-- you want. See the below example.
+--
+-- ==== Example: @tests\/pos\/Resolve.hs@
+--
+-- In @tests\/pos\/@, there are some files:
+--
+-- 1. @Resolve.hs@ imports @ResolveALib.hs@ and @ResolveBLib.hs@
+-- 2. @ResolveALib.hs@ imports @ResolveBLib.hs@
+--
+-- The dependency tree therefore looks like:
+--
+-- ```text
+-- Resolve
+--   |
+--   +-> ResolveALib
+--   |     |
+--   |     +-> ResolveBLib
+--   |
+--   +-> ResolveBLib
+-- ```
+--
+-- with @x -> y@ meaning "x imports y". We want the @Lib@ files compiled before the
+-- main importing @Resolve@, which is accomplished by naming them with the @Lib@
+-- suffix. We also want @ResolveBLib@ to be compiled before @ResolveALib@, which is
+-- accomplished by the letter "B" coming /after/ the letter "A", remembering that
+-- the default sort order is /reverse/ alphabetical. Because these both have the
+-- @Lib@ suffix, they are compiled sequentially.
+--
+-- ==== Note:
+--
+-- More control over ordering without resorting to name-mangling can be
+-- accomplished by using the 'SequentialFileOrder' type in @tests/test.hs@, which
+-- is normally how it is controlled for benchmarks. See that file for examples. For
+-- simple tests, this is usually overkill.
+
+-------------------------------------------------------------------------------
+
+-- | Tests which have dependencies can use this record type to express that the
+-- `dependencies` are run /sequentially/ in a certain order, and the `toplevel`
+-- tests are run in /parallel/ after all dependencies have been run. For more
+-- information on specifying the order of the dependencies, see the
+-- 'SequentialFileOrder' sections below; by default they are run in /reverse/
+-- alphabetical order.
 data DependentTests = DependentTests
   { dependencies :: [TestTree]
   , toplevel :: [TestTree]
   }
 
+-- | Tests which are purely sequential (like benchmarks) can use this
+-- newtype to indicate this, ensuring you don't accidentally run them in
+-- parallel.
 newtype SequentialTests = SequentialTests
   { getTests :: [TestTree] }
 
@@ -329,14 +387,16 @@ gNegIgnored   = ["Interpretations.hs", "Gradual.hs"]
 
 benchTests :: IO TestTree
 benchTests = group "Benchmarks"
-  [ testGroupsWithLibs "cse230"    <$> dirTests             "benchmarks/cse230/src/Week10"         []                        ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
-  , testGroupsWithLibs "esop"      <$> dirTests             "benchmarks/esop2013-submission"        esopIgnored               ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  [ testSequentially "cse230"      <$> sequentialOdirTests  "benchmarks/cse230/src/Week10"         []            emptyOrder  ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testSequentially "esop"        <$> sequentialOdirTests  "benchmarks/esop2013-submission"       esopIgnored   emptyOrder  ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
   , testSequentially "vect-algs"   <$> sequentialOdirTests  "benchmarks/vector-algorithms-0.5.4.2" []            vectOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
   , testSequentially "bytestring"  <$> sequentialOdirTests  "benchmarks/bytestring-0.9.2.1"        bsIgnored     bsOrder     ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
   , testSequentially "text"        <$> sequentialOdirTests  "benchmarks/text-0.11.2.3"             textIgnored   textOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
   , testSequentially "icfp_pos"    <$> sequentialOdirTests  "benchmarks/icfp15/pos"                icfpIgnored   icfpOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
   , testSequentially "icfp_neg"    <$> sequentialOdirTests  "benchmarks/icfp15/neg"                icfpIgnored   icfpOrder   (ExitFailure 1) (Just " UNSAFE ") Nothing
   ]
+  where
+    emptyOrder = SequentialFileOrder mempty
 
 -- AUTO-ORDER _impLibOrder :: Maybe FileOrder 
 -- AUTO-ORDER _impLibOrder = Just . mkOrder $ [ "T1102_LibZ.hs", "WrapLibCode.hs", "STLib.hs", "T1102_LibY.hs" ]
@@ -347,6 +407,11 @@ benchTests = group "Benchmarks"
 -- AUTO-ORDER _measPosOrder :: Maybe FileOrder 
 -- AUTO-ORDER _measPosOrder = Just . mkOrder $ [ "List00Lib.hs" ]
 
+
+-- | These 'SequentialFileOrder' values override the normal "reverse
+-- alphabetical" ordering imposed on sequential compilation. Any files not named
+-- in the 'SequentialFileOrder' are run in the usual order /after/ the ones
+-- found in it.
 proverOrder :: SequentialFileOrder 
 proverOrder = mkSequentialOrder
   [ "Proves.hs"
@@ -438,15 +503,16 @@ selfTests
       testGroupsWithLibs "liquid" <$> dirTests "src"  [] ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
   ]
 
+-- | Create a @['TestTree']@ that tests files named @*Lib*.hs@ (ie dependencies)
+-- sequentially and before the other (dependent tests) are run in parallel.
 testGroupsWithLibs :: String -> DependentTests -> [TestTree]
 testGroupsWithLibs name (DependentTests libTests nonlibTests) =
-  [ testGroup (name <> "-libs") libTests
-  , after AllFinish (name <> "-libs") $ testGroup name nonlibTests
-  ]
+  let libTestsName = name <> "-libs"
+  in
+    [ testGroup libTestsName $ testSequentially libTestsName $ SequentialTests libTests
+    , after AllFinish libTestsName $ testGroup name nonlibTests ]
 
-
-
--- | Creates a [TestTree] that runs without parallelism
+-- | Creates a @['TestTree']@ that runs without parallelism
 testSequentially :: String -> SequentialTests -> [TestTree]
 testSequentially name (SequentialTests tests) =
   -- We need to create a singleton testGroup here so that we know the test name to
@@ -476,7 +542,8 @@ sequentialOdirTests root ignored fo ecode yesLog noLog = do
   DependentTests libs nonlibs <- odirTests root ignored (Just (getFileOrder fo)) ecode yesLog noLog
   pure $ SequentialTests (libs <> nonlibs)
 
--- | Allow parallelism for these tests, but run any tests with `Lib` in its name before the others.
+-- | Allow parallelism for these tests, but run any tests with @Lib@ in its name
+-- before the others.
 --------------------------------------------------------------------------------
 odirTests :: FilePath -> [FilePath] -> Maybe FileOrder -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO DependentTests
 --------------------------------------------------------------------------------
@@ -519,9 +586,13 @@ getOrder m f = Map.findWithDefault (1 + Map.size m) f m
 mkOrder :: [FilePath] -> FileOrder 
 mkOrder fs = Map.fromList (zip fs [0..])
 
+-- Note that this is REVERSE alphabetical! `BLib.hs` would be compiled BEFORE
+-- `ALib.hs`.
 defaultFileOrder :: [FilePath] -> [FilePath]
 defaultFileOrder = L.reverse . sortOn stringLower 
 
+-- Run the files given in the FileOrder first (and in that order), and use the
+-- default ordering for the rest.
 sortOrder :: Maybe FileOrder -> [FilePath] -> [FilePath]
 sortOrder Nothing   fs = defaultFileOrder fs 
 sortOrder (Just fo) fs = sortOn (getOrder fo) ordFs ++ defaultFileOrder otherFs 

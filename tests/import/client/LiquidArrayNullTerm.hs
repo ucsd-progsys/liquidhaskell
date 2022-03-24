@@ -4,7 +4,7 @@ module LiquidArrayNullTerm () where
 
 import Language.Haskell.Liquid.Prelude
 
-import LiquidArray
+import LiquidArrayLib
 
 upperCaseString' :: Int -> Int -> (Int -> Int) -> (Int -> Int)
 upperCaseString' n i s =

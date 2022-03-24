@@ -8,7 +8,7 @@ import Prelude hiding
   (foldl, map, fst, snd, scanl, filter, length, compose, endsWith, inits, reverse, take, 
   Bool(..))
 
-import Proves 
+import ProvesLib
 
 target, input :: L Int 
 target = C 1 (C 2 (C 3 (C 1 (C 2 N))))

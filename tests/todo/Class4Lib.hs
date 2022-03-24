@@ -1,4 +1,4 @@
-module Class3 where
+module Class4Lib where
 
 {-@ class Pos s where
       allPos :: s a -> Bool

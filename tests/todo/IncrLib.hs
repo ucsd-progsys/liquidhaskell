@@ -1,4 +1,4 @@
-module Incr (incr) where 
+module IncrLib (incr) where 
 
 
 {-@ axiomatize incr @-}

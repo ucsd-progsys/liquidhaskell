@@ -1,4 +1,4 @@
-module LocalSpec () where
+module LocalSpecLib () where
 
 import Language.Haskell.Liquid.Prelude (choose)
 
