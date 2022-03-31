@@ -510,10 +510,13 @@ stitchLhOrder = mkSequentialOrder
 stitchLhIgnored :: [FilePath]
 stitchLhIgnored =
   [ "Language/Stitch/LH/CSE.hs"
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0) || !USE_NEW_EXECUTABLE
   , "Language/Stitch/LH/Parse.hs" -- TODO: breaks on GHC 9+
   , "Language/Stitch/LH/Lex.hs"
   , "Language/Stitch/LH/Repl.hs"
+#endif
+#if !USE_NEW_EXECUTABLE
+  , "Language/Stitch/LH/Monad.hs"
 #endif
   ]
 
