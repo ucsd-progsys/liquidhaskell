@@ -165,7 +165,7 @@ jobs:
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
-            liquid_runner: "stack --silent exec -- liquid"
+            liquid_runner: "stack --silent --stack-yaml ~/project/stack.yaml exec -- liquid"
             extra_build_flags: "--flag liquidhaskell:devel --flag liquidhaskell:include --flag liquid-platform:devel --flag liquidhaskell:no-plugin"
 
   stack_810:
