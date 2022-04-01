@@ -303,6 +303,12 @@ test-suite test
                   , tasty-rerun          >= 1.1
                   , text
                   , transformers         >= 0.3
+                  -- these are for stitch-lh
+                  , haskeline            >= 0.8
+                  , ansi-wl-pprint       >= 0.6.7.1
+                  , hashable             >= 1.2.7.0
+                  , deepseq              >= 1.4
+                  , parsec               >= 3.1
   default-language: Haskell98
   ghc-options:      -W -threaded -with-rtsopts=-N
 

@@ -70,7 +70,7 @@ constraints:
   generic-lens ==2.0.0.0,
   generic-lens-core ==2.0.0.0,
   generics-sop ==0.5.1.0,
-  haskeline ==0.7.5.0,
+  haskeline ==0.8.2,
   haskell-src-meta ==0.8.5,
   heterocephalus ==1.0.5.4,
   hgeometry ==0.11.0.0,

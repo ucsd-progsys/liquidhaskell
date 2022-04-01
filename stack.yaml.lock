@@ -22,17 +22,6 @@ packages:
   original:
     git: https://github.com/facundominguez/rest
     commit: 31e974979c90e910efe5199ee0d3721b791667f6
-- completed:
-    name: stitch-lh
-    version: '1.0'
-    git: https://github.com/facundominguez/stitch-lh
-    pantry-tree:
-      size: 2229
-      sha256: e671e97a75ad179966c3a912189e0266636823188761bb974b59cd4b4ceda4c6
-    commit: 8e130a40376cdf9afaeb6e3e4322e1069339bb51
-  original:
-    git: https://github.com/facundominguez/stitch-lh
-    commit: 8e130a40376cdf9afaeb6e3e4322e1069339bb51
 snapshots:
 - completed:
     size: 590102

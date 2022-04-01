@@ -394,6 +394,7 @@ benchTests = group "Benchmarks"
   , testSequentially "text"        <$> sequentialOdirTests  "benchmarks/text-0.11.2.3"             textIgnored   textOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
   , testSequentially "icfp_pos"    <$> sequentialOdirTests  "benchmarks/icfp15/pos"                icfpIgnored   icfpOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
   , testSequentially "icfp_neg"    <$> sequentialOdirTests  "benchmarks/icfp15/neg"                icfpIgnored   icfpOrder   (ExitFailure 1) (Just " UNSAFE ") Nothing
+  , testSequentially "stitch-lh"   <$> sequentialOdirTests  "benchmarks/stitch-lh/src"             stitchLhIgnored stitchLhOrder ExitSuccess (Just " SAFE ") (Just "UNSAFE ")
   ]
   where
     emptyOrder = SequentialFileOrder mempty
@@ -483,8 +484,42 @@ textOrder = mkSequentialOrder
   , "Data/Text/Encoding.hs"
   , "Data/Text/Lazy/Encoding/Fusion.hs"
   , "Data/Text/Lazy/Encoding.hs"
-  ] 
-  
+  ]
+
+stitchLhOrder :: SequentialFileOrder
+stitchLhOrder = mkSequentialOrder
+   [ "Language/Stitch/LH/Data/Map.hs"
+   , "Language/Stitch/LH/Data/Nat.hs"
+   , "Language/Stitch/LH/Data/List.hs"
+   , "Language/Stitch/LH/Util.hs"
+   , "Language/Stitch/LH/Type.hs"
+   , "Language/Stitch/LH/Op.hs"
+   , "Language/Stitch/LH/Token.hs"
+   , "Language/Stitch/LH/Pretty.hs"
+   , "Language/Stitch/LH/Unchecked.hs"
+   , "Language/Stitch/LH/Statement.hs"
+   , "Language/Stitch/LH/Check.hs"
+   , "Language/Stitch/LH/Eval.hs"
+   , "Language/Stitch/LH/Step.hs"
+   , "Language/Stitch/LH/Monad.hs"
+   , "Language/Stitch/LH/Parse.hs"
+   , "Language/Stitch/LH/Lex.hs"
+   , "Language/Stitch/LH/Repl.hs"
+   ]
+
+stitchLhIgnored :: [FilePath]
+stitchLhIgnored =
+  [ "Language/Stitch/LH/CSE.hs"
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0) || !USE_NEW_EXECUTABLE
+  , "Language/Stitch/LH/Parse.hs" -- TODO: breaks on GHC 9+
+  , "Language/Stitch/LH/Lex.hs"
+  , "Language/Stitch/LH/Repl.hs"
+#endif
+#if !USE_NEW_EXECUTABLE
+  , "Language/Stitch/LH/Monad.hs"
+#endif
+  ]
+
 -- errorTest "tests/errors/ShadowFieldInline.hs"   2 "Error: Multiple specifications for `pig`"
 
 proverTests :: IO TestTree
@@ -495,7 +530,6 @@ proverTests = group "Prover"
   , testSequentially "without_ple_neg" <$> sequentialOdirTests "benchmarks/popl18/nople/neg"  noPleIgnored   proverOrder (ExitFailure 1) (Just " UNSAFE ") Nothing
   , testSequentially "with_ple"        <$> sequentialOdirTests "benchmarks/popl18/ple/pos"    autoIgnored    proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
   ]
-
 
 selfTests :: IO TestTree
 selfTests
