@@ -7,7 +7,7 @@ foo x = x + 1
 
 {-@ relational bar ~ bar :: f1:(x1':_ -> _) -> x1:_ -> _ 
                           ~ f2:(x2':_ -> _) -> x2:_ -> _ 
-                         ~~ (x1' < x2' => r1 x1' <= r2 x2') => x1 < x2 => r1 f1 x1 <= r2 f2 x2 @-}
+                         ~~ (x1' < x2' => r1 <= r2) => x1 < x2 => r1 f1 x1 <= r2 f2 x2 && (f1 1 <= f2 1) @-}
 bar :: (Int -> Int) -> Int -> Int
 bar f x = f (x + 1)
 

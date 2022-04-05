@@ -1,7 +1,6 @@
 {-@ LIQUID "--reflection"     @-}
 {-@ LIQUID "--fast"           @-}
 
-
 module SGDu where
 
 import           Prelude                 hiding ( head
@@ -30,7 +29,7 @@ type Distr a = a
 type DataDistr = Distr DataPoint
 
 {-@ measure dist :: a -> a -> Double @-}
-{-@ assume dist :: x1:a -> x2:a -> {v:Double | v == dist x1 x2 } @-}
+{-@ assume dist :: x1:_ -> x2:_ -> {v:Double | v == dist x1 x2 } @-}
 dist :: a -> a -> Double
 dist _ _ = 0
 
@@ -78,18 +77,13 @@ relationalupdateq ::  DataPoint  -> Weight  -> StepSize  -> LossFunction  -> Dat
 relationalupdateq = undefined
 
 
-
-
--- TODO: diamond
-        -- {v:() | dist (f1 e1) (f2 e2) <= dist ws1 ws2 + 2 * α + estab zs as} -> 
-
 {-@ assume relationalpbind :: e1:Distr a -> f1:(a -> Distr b) -> e2:Distr a -> f2:(a -> Distr b) -> 
-        { dist (pbind e1 f1) (pbind e2 f2) = dist (f1 e1) (f2 e2)} @-}
+        { dist (pbind e1 f1) (pbind e2 f2) = dist e1 e2} @-}
 relationalpbind :: Distr a  -> (a -> Distr b)  -> Distr a  -> (a -> Distr b) -> ()
 relationalpbind = undefined
 
 {-@ assume relationalqbind :: e1:Distr a -> f1:(a -> Distr b) -> {e2:Distr a | e1 = e2} -> f2:(a -> Distr b) -> 
-        { dist (qbind e1 f1) (qbind e2 f2) = dist (f1 e1) (f2 e2)} @-}
+        { dist (qbind e1 f1) (qbind e2 f2) = dist e1 e2} @-}
 relationalqbind :: Distr a  -> (a -> Distr b)  -> Distr a  -> (a -> Distr b)  ->  ()
 relationalqbind = undefined
 
@@ -110,13 +104,6 @@ ppure x = x
 {-@ reduce :: p:Double -> ws1:Weight -> ws2:Weight -> {p * dist ws1 ws2 + (1 - p) * dist ws1 ws2 = dist ws1 ws2} @-}
 reduce :: Double -> Weight -> Weight -> ()
 reduce _ _ _ = ()
-
-{-  f x a = p * (x + 2 * a) + (1 - p) * x
-
-    f (f x a_0) a_1
-
-    fold = f (f (f x (as1 !! 0)) (as1 !! 1)) (as1 !! 2) 
--}
 
 {-@ reflect sum @-}
 {-@ sum :: StepSizes -> {v:StepSize | 0.0 <= v } @-}
@@ -193,47 +180,44 @@ thm zs1 ws1 α1@SSEmp f1 zs2 ws2 α2@SSEmp f2 =
 
 thm zs1 ws1 as1@(SS α1 a1) f1 zs2 ws2 as2@(SS α2 a2) f2 =
   dist (sgd zs1 ws1 as1 f1) (sgd zs2 ws2 as2 f2)
-    ==. dist
+    === dist
           (choice (one / lend zs1) (pbind uhead1 updWs1) (qbind utail1 updWs1) `rconst` estabconsR zs1 α1 a1)
           (choice (one / lend zs2) (pbind uhead2 updWs2) (qbind utail2 updWs2) `rconst` estabconsR zs2 α2 a2)
-    ==. dist
+    === dist
           (choice (one / lend zs1) (pbind uhead1 updWs1) (qbind utail1 updWs1))
           (choice (one / lend zs2) (pbind uhead2 updWs2) (qbind utail2 updWs2))
     ?   relationalchoice (one / lend zs1) (pbind uhead1 updWs1) (qbind utail1 updWs1)
                          (one / lend zs2) (pbind uhead2 updWs2) (qbind utail2 updWs2)
 
-    ==. (one / lend zs1) * (dist (pbind uhead1 updWs1) (pbind uhead2 updWs2)) 
+    === (one / lend zs1) * (dist (pbind uhead1 updWs1) (pbind uhead2 updWs2)) 
         + (1 - (one / lend zs1)) * (dist (qbind utail1 updWs1) (qbind utail2 updWs2))
         ?   relationalpbind uhead1 updWs1 uhead2 updWs2 
 
-    ==. (one / lend zs1) * (dist (updWs1 uhead1) (updWs2 uhead2)) 
+    === (one / lend zs1) * (dist (updWs1 uhead1) (updWs2 uhead2)) 
         + (1 - (one / lend zs1)) * (dist (qbind utail1 updWs1) (qbind utail2 updWs2))
         ?   thm zs1 (update uhead1 ws1 α1 f1) a1 f1 zs2 (update uhead2 ws2 α2 f2) a2 f2
 
-    ==. (one / lend zs1) * (dist (update uhead1 ws1 α1 f1) (update uhead2 ws2 α2 f2) + estab zs1 a1) 
+    === (one / lend zs1) * (dist (update uhead1 ws1 α1 f1) (update uhead2 ws2 α2 f2) + estab zs1 a1) 
         + (1 - (one / lend zs1)) * (dist (qbind utail1 updWs1) (qbind utail2 updWs2))    
-        ?   (dist (update uhead1 ws1 α1 f1) (update uhead2 ws2 α2 f2)
-                  ? relationalupdatep uhead1 ws1 α1 f1 uhead2 ws2 α2 f2
-              === dist ws1 ws2 + 2 * α1
-              *** QED)
+        ?   relationalupdatep uhead1 ws1 α1 f1 uhead2 ws2 α2 f2
    
-    ==. (one / lend zs1) * (dist ws1 ws2 + 2 * α1 + estab zs1 a1) 
+    === (one / lend zs1) * (dist ws1 ws2 + 2 * α1 + estab zs1 a1) 
           + (1 - (one / lend zs1)) * (dist (qbind utail1 updWs1) (qbind utail2 updWs2))         
         ?   relationalqbind utail1 updWs1 utail2 updWs2 
 
-    ==. (one / lend zs1) * (dist ws1 ws2 + 2 * α1 + estab zs1 a1) 
+    === (one / lend zs1) * (dist ws1 ws2 + 2 * α1 + estab zs1 a1) 
           + (1 - (one / lend zs1)) * (dist (updWs1 utail1) (updWs2 utail2))         
         ?   thm zs1 (update utail1 ws1 α1 f1) a1 f1 zs2 (update utail2 ws2 α2 f2) a2 f2
         ?   relationalupdateq utail1 ws1 α1 f1 utail2 ws2 α2 f2
 
-    ==. (one / lend zs1) * (dist ws1 ws2 + 2 * α1 + estab zs1 a1) 
+    === (one / lend zs1) * (dist ws1 ws2 + 2 * α1 + estab zs1 a1) 
           + (1 - (one / lend zs1)) * (dist ws1 ws2 + estab zs1 a1)
 
-    ==. dist ws1 ws2 + 2.0 * α1 * (one / lend zs1) + estab zs1 a1
+    === dist ws1 ws2 + 2.0 * α1 * (one / lend zs1) + estab zs1 a1
         ? estabconsR zs1 α1 a1
                             
-    ==. dist ws1 ws2 + estab zs1 (SS α1 a1)
-    ==. dist ws1 ws2 + estab zs1 as1
+    === dist ws1 ws2 + estab zs1 (SS α1 a1)
+    === dist ws1 ws2 + estab zs1 as1
     *** QED 
  where
   updWs1 = upd zs1 ws1 α1 a1 f1

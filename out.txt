@@ -1,0 +1,2 @@
+[0m/Users/elizavetavasilenko/liquidhaskell/tests/relational/pos/BuiltInNull.hs:22:33: error: 
+  with error

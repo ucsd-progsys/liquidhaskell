@@ -9,14 +9,14 @@ import           Prelude                 hiding ( Applicative(..)
 {-@ infix   >=> @-}
 {-@ infix   :   @-}
 
-{-@ reflect insert @-}
-{-@ insert :: y:Int -> xs:[Int] -> {v:Tick [Int]| leq y xs => Isort.tcost v <= 1} @-}
+-- {-@ reflect insert @-}
+-- {-@ insert :: y:Int -> xs:[Int] -> {v:Tick [Int]| leq y xs => Isort.tcost v <= 1} @-}
 insert :: Int -> [Int] -> Tick [Int]
 insert y []                  = pure [y]
 insert y xs@(x : _) | y <= x = step 1 $ pure (y : xs)
 insert y (x : xs)            = step 1 $ fmap (cons x) (insert y xs)
 
-{-@ reflect isort @-}
+-- {-@ reflect isort @-}
 isort :: [Int] -> Tick [Int]
 isort []       = pure []
 isort (x : xs) = step t $ insert x xs'
@@ -24,11 +24,11 @@ isort (x : xs) = step t $ insert x xs'
 
 -- Unary 
 
-{-@ isortThm :: {xs:[Int]|sorted xs} -> {ys:[Int]|len ys = len xs} -> 
-                  {tcost (isort xs) <= tcost (isort ys)} @-}
-isortThm :: [Int] -> [Int] -> ()
-isortThm [] [] = ()
-isortThm (x:xs) (y:ys) = undefined
+-- {-@ isortThm :: {xs:[Int]|sorted xs} -> {ys:[Int]|len ys = len xs} -> 
+--                   {tcost (isort xs) <= tcost (isort ys)} @-}
+-- isortThm :: [Int] -> [Int] -> ()
+-- isortThm [] [] = ()
+-- isortThm (x:xs) (y:ys) = undefined
 
 -- Relational
 
