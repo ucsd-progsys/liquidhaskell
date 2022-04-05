@@ -90,9 +90,9 @@ consAct γ cfg info = do
   let gSrc = giSrc info
   when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs sSpc ++ gsAsmSigs sSpc))
   γ' <- foldM (consCBTop cfg info) γ (giCbs gSrc)
-  ψ <- foldM (consAssmRel cfg info γ') [] (gsAsmRel sSpc ++ gsRelation sSpc)
-  foldM_ (consRelTop cfg info γ') ψ (gsRelation sSpc)
-  mapM (consClass γ) (gsMethods $ gsSig $ giSpec info) 
+  (ψ, γ'') <- foldM (consAssmRel cfg info) ([], γ') (gsAsmRel sSpc ++ gsRelation sSpc)
+  mapM_ (consRelTop cfg info γ'' ψ) (gsRelation sSpc)
+  mapM_ (consClass γ) (gsMethods $ gsSig $ giSpec info) 
   hcs <- hsCs  <$> get
   hws <- hsWfs <$> get
   fcs <- concat <$> mapM splitC hcs
