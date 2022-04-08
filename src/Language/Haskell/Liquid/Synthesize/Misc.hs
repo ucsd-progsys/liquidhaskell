@@ -85,8 +85,8 @@ notrace _ a = a
 instance PPrint AltCon
 
 showCoreAlt :: CoreAlt -> String
-showCoreAlt (DataAlt altCon, vars, expr) = 
-  " For " ++ show altCon ++ " vars " ++ show vars ++ " expr " ++ show expr
+showCoreAlt (DataAlt altCon, vars, exprCb) =
+  " For " ++ show altCon ++ " vars " ++ show vars ++ " expr " ++ show exprCb
 showCoreAlt _ = " No! "
 
 showCoreAlts :: [CoreAlt] -> String

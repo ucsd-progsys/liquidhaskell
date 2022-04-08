@@ -490,10 +490,10 @@ loadResult   :: FilePath -> IO (Output Doc)
 loadResult f = do 
   ex <- doesFileExist jsonF
   if ex 
-    then convert <$> B.readFile jsonF
+    then bsToDoc <$> B.readFile jsonF
     else return mempty
   where
-    convert  = fromMaybe mempty . decode . LB.fromStrict 
+    bsToDoc  = fromMaybe mempty . decode . LB.fromStrict
     jsonF    = extFileName Cache f
 
 --------------------------------------------------------------------------------

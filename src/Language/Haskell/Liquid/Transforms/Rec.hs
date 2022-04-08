@@ -101,8 +101,8 @@ innerScTr :: Functor f => f (Bind Id) -> f (Bind Id)
 innerScTr = (mapBnd scTrans <$>)
 
 scTrans :: Id -> Expr Id -> Expr Id
-scTrans x e = mapExpr scTrans $ foldr Let e0 bs
-  where (bs, e0)           = go [] x e
+scTrans y f = mapExpr scTrans $ foldr Let e0 bindIds
+  where (bindIds, e0)           = go [] y f
         go bs x (Let b e)  | isCaseArg x b = go (b:bs) x e
         go bs x (Tick t e) = second (Tick t) $ go bs x e
         go bs _ e          = (bs, e)
@@ -157,12 +157,12 @@ trans :: Foldable t
       -> Expr Var
       -> State TrEnv (Expr Id)
 trans vs ids bs (Let (Rec xes) e)
-  = liftM (mkLam . mkLet) (makeTrans vs liveIds e')
+  = liftM (mkLam . mkLet') (makeTrans vs liveIds e')
   where liveIds = mkAlive <$> ids
-        mkLet e = foldr Let e bs
-        mkLam e = foldr Lam e $ vs ++ liveIds
+        mkLet' f = foldr Let f bs
+        mkLam f = foldr Lam f $ vs ++ liveIds
         e'      = Let (Rec xes') e
-        xes'    = (second mkLet) <$> xes
+        xes'    = second mkLet' <$> xes
 
 trans _ _ _ _ = panic Nothing "TransformRec.trans called with invalid input"
 
@@ -189,7 +189,7 @@ makeTrans _ _ _ = panic Nothing "TransformRec.makeTrans called with invalid inpu
 
 mkRecBinds :: [(b, Expr b)] -> Bind b -> Expr b -> Expr b
 mkRecBinds xes rs e = Let rs (L.foldl' f e xes)
-  where f e (x, xe) = Let (NonRec x xe) e
+  where f d (x, xe) = Let (NonRec x xe) d
 
 mkSubs :: (Eq k, Hashable k)
        => [k] -> [Var] -> [Id] -> [(k, Id)] -> M.HashMap k (Expr b)
@@ -208,7 +208,7 @@ mkFreshIds tvs ids x
        let x' = setVarType x t
        return (ids'', x')
   where
-    mkType ids ty = foldl (\t x -> FunTy VisArg Many (varType x) t) ty ids -- FIXME(adinapoli): Is 'VisArg' OK here?
+    mkType idList ty = foldl (\t y -> FunTy VisArg Many (varType y) t) ty idList -- FIXME(adinapoli): Is 'VisArg' OK here?
 
 -- NOTE [Don't choose transform-rec binders as decreasing params]
 -- --------------------------------------------------------------

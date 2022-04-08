@@ -93,16 +93,16 @@ createLogs = do
 runLiquid :: FilePath -> IO (ExitCode, T.Text)
 runLiquid tgt = do
     let inFile = synthesisTestsDir </> tgt
-        log    = logDir </> (dropExtension tgt <.> ".log")
+        log'   = logDir </> (dropExtension tgt <.> ".log")
     -- use `liquid` if its on the path, otherwise use stack to call it
     bin <- maybe "stack exec -- liquid"
         ( <> " --ghc-option=-hide-package=base"
           <> " --ghc-option=-hide-package=containers"
         ) <$> findExecutable "liquid"
-    withFile log WriteMode $ \h -> do
+    withFile log' WriteMode $ \h -> do
         (_, _, _, ph) <- createProcess $ (shell (bin ++ ' ' : inFile)) { std_out = UseHandle h, std_err = UseHandle h }
         exitCode      <- waitForProcess ph
-        (exitCode, ) <$> T.readFile log
+        (exitCode, ) <$> T.readFile log'
 
 
 getSolutions :: FilePath -> IO T.Text

@@ -114,8 +114,8 @@ pprintSymbols :: String -> String
 pprintSymbols txt = foldr (\x xs -> pprintSym symbols x ++ xs) [] txt
 
 pprintSym :: String -> Char -> String
-pprintSym symbols s 
-  = case find (== s) symbols of 
+pprintSym symbols' s
+  = case find (== s) symbols' of
       Nothing -> [s]
       Just s' -> ['(', s', ')']
 
@@ -156,8 +156,8 @@ indent :: Int -> String
 indent i = replicate i ' '
 
 errorExprPp :: CoreExpr -> Bool
-errorExprPp (GHC.App (GHC.App err@(GHC.Var _) (GHC.Type _)) _)
-  = show err == "Language.Haskell.Liquid.Synthesize.Error.err"
+errorExprPp (GHC.App (GHC.App err'@(GHC.Var _) (GHC.Type _)) _)
+  = show err' == "Language.Haskell.Liquid.Synthesize.Error.err"
 errorExprPp _ 
   = False
 

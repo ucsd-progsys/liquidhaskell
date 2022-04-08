@@ -83,7 +83,7 @@ txRTV :: (c1 -> c2) -> (tv1 -> tv2) -> RTVU c1 tv1 -> RTVU c2 tv2
 txRTV cF vF (RTVar α z) = RTVar (vF α) (txRType cF vF <$> z)
 
 txPV :: (c1 -> c2) -> (tv1 -> tv2) -> PVU c1 tv1 -> PVU c2 tv2
-txPV cF vF (PV x k y txes) = PV x k' y txes'
+txPV cF vF (PV sym k y txes) = PV sym k' y txes'
   where
     txes'                  = [ (tx t, x, e) | (t, x, e) <- txes]
     k'                     = tx <$> k

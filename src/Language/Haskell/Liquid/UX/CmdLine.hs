@@ -527,8 +527,8 @@ findSmtSolver smt = maybe Nothing (const $ Just smt) <$> findExecutable (show sm
 fixConfig :: Config -> IO Config
 fixConfig cfg = do
   pwd <- getCurrentDirectory
-  cfg <- canonicalizePaths pwd cfg
-  return $ canonConfig cfg
+  cfg' <- canonicalizePaths pwd cfg
+  return $ canonConfig cfg'
 
 -- | Attempt to canonicalize all `FilePath's in the `Config' so we don't have
 --   to worry about relative paths.
@@ -843,8 +843,8 @@ reportUrl = text "Please submit a bug report at: https://github.com/ucsd-progsys
 
 addErrors :: FixResult a -> [a] -> FixResult a
 addErrors r []               = r
-addErrors (Safe s) errs      = Unsafe s errs
-addErrors (Unsafe s xs) errs = Unsafe s (xs ++ errs)
+addErrors (Safe s) errs'      = Unsafe s errs'
+addErrors (Unsafe s xs) errs' = Unsafe s (xs ++ errs')
 addErrors r  _               = r
 
 instance Fixpoint (F.FixResult CError) where

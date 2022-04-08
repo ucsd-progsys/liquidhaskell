@@ -54,7 +54,7 @@ isWiredInLoc x  = l == l' && l == F.safePos 1 && c == c' && c' == F.safePos 1
   where
     (l , c)  = spe (loc x)
     (l', c') = spe (locE x)
-    spe l    = (x, y) where (_, x, y) = F.sourcePosElts l
+    spe k    = (x', y) where (_, x', y) = F.sourcePosElts k
 
 isWiredInName :: F.Symbol -> Bool
 isWiredInName x = x `S.member` wiredInNames

@@ -426,7 +426,7 @@ instance ToJSON Loc where
                              , "column"   .= toJSON c ]
 
 instance ToJSON AnnErrors where
-  toJSON (AnnErrors errs) = Array $ V.fromList (toJ <$> errs)
+  toJSON (AnnErrors errs') = Array $ V.fromList (toJ <$> errs')
     where
       toJ (l,l',s)        = object [ "start"   .= toJSON l
                                    , "stop"    .= toJSON l'
@@ -444,9 +444,9 @@ dropErrorLoc msg
     (_, msg') = break (' ' ==) msg
 
 instance (Show k, ToJSON a) => ToJSON (Assoc k a) where
-  toJSON (Asc kas) = object [ tshow k .= toJSON a | (k, a) <- M.toList kas ]
+  toJSON (Asc kas) = object [ fromShow k .= toJSON a | (k, a) <- M.toList kas ]
     where
-      tshow        = fromString . show
+      fromShow        = fromString . show
 
 instance ToJSON ACSS.AnnMap where
   toJSON a = object [ "types"   .= toJSON (annTypes     a)
@@ -465,11 +465,11 @@ annErrors :: ACSS.AnnMap -> AnnErrors
 annErrors = AnnErrors . ACSS.errors
 
 annTypes         :: ACSS.AnnMap -> AnnTypes
-annTypes a       = grp [(l, c, ann1 l c x s) | (l, c, x, s) <- binders]
+annTypes a       = grp [(l, c, ann1 l c x s) | (l, c, x, s) <- binders']
   where
     ann1 l c x s = A1 x s l c
     grp          = L.foldl' (\m (r,c,x) -> ins r c x m) (Asc M.empty)
-    binders      = [(l, c, x, s) | (L (l, c), (x, s)) <- M.toList $ ACSS.types a]
+    binders'      = [(l, c, x, s) | (L (l, c), (x, s)) <- M.toList $ ACSS.types a]
 
 ins :: (Eq k, Eq k1, Hashable k, Hashable k1)
     => k -> k1 -> a -> Assoc k (Assoc k1 a) -> Assoc k (Assoc k1 a)
@@ -498,14 +498,14 @@ tokeniseWithLoc = ACSS.tokeniseWithLoc (Just tokAnnot)
 --------------------------------------------------------------------------------
 
 _anns :: AnnTypes
-_anns = i [(5,   i [( 14, A1 { ident = "foo"
+_anns = assoc [(5,   assoc [( 14, A1 { ident = "foo"
                              , ann   = "int -> int"
                              , row   = 5
                              , col   = 14
                              })
                   ]
           )
-         ,(9,   i [( 22, A1 { ident = "map"
+         ,(9,   assoc [( 22, A1 { ident = "map"
                             , ann   = "(a -> b) -> [a] -> [b]"
                             , row   = 9
                             , col   = 22
@@ -518,5 +518,5 @@ _anns = i [(5,   i [( 14, A1 { ident = "foo"
                   ])
          ]
 
-i :: (Eq k, Hashable k) => [(k, a)] -> Assoc k a
-i = Asc . M.fromList
+assoc :: (Eq k, Hashable k) => [(k, a)] -> Assoc k a
+assoc = Asc . M.fromList

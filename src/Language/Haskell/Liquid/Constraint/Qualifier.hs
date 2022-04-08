@@ -171,8 +171,8 @@ refTypeQuals lEnv l tce t0    = go emptySEnv t0
     go _ _                    = []
     goRefs c g rs             = concat $ zipWith (goRef g) rs (rTyConPVs c)
     goRef _ (RProp _ (RHole _)) _ = []
-    goRef g (RProp s t)  _    = go (insertsSEnv g s) t
-    insertsSEnv               = foldr (\(x, t) γ -> insertSEnv x (rTypeSort tce t) γ)
+    goRef g (RProp s t)  _    = go (insertsSEnv' g s) t
+    insertsSEnv'               = foldr (\(x, t) γ -> insertSEnv x (rTypeSort tce t) γ)
 
 
 refTopQuals :: (PPrint t, Reftable t, SubsTy RTyVar RSort t, Reftable (RTProp RTyCon RTyVar (UReft t)))
@@ -183,8 +183,8 @@ refTopQuals :: (PPrint t, Reftable t, SubsTy RTyVar RSort t, Reftable (RTProp RT
             -> SEnv Sort
             -> RRType (UReft t)
             -> [Qualifier]
-refTopQuals lEnv l tce t0 γ t
-  = [ mkQ v so pa  | let (RR so (Reft (v, ra))) = rTypeSortedReft tce t
+refTopQuals lEnv l tce t0 γ rr
+  = [ mkQ' v so pa  | let (RR so (Reft (v, ra))) = rTypeSortedReft tce rr
                    , pa                        <- conjuncts ra
                    , not $ isHole    pa
                    , not $ isGradual pa
@@ -192,12 +192,12 @@ refTopQuals lEnv l tce t0 γ t
                      $ isNothing $ checkSorted (srcSpan l) (insertSEnv v so γ') pa
     ]
     ++
-    [ mkP s e | let (MkUReft _ (Pr ps)) = fromMaybe (msg t) $ stripRTypeBase t
+    [ mkP s e | let (MkUReft _ (Pr ps)) = fromMaybe (msg rr) $ stripRTypeBase rr
               , p                      <- findPVar (ty_preds $ toRTypeRep t0) <$> ps
               , (s, _, e)              <- pargs p
     ]
     where
-      mkQ   = mkQual  lEnv l     t0 γ
+      mkQ'   = mkQual  lEnv l     t0 γ
       mkP   = mkPQual lEnv l tce t0 γ
       msg t = panic Nothing $ "Qualifier.refTopQuals: no typebase" ++ showpp t
       γ'    = unionSEnv' γ lEnv

@@ -56,7 +56,7 @@ import qualified Language.Haskell.Liquid.Bare.Plugged  as Bare
 makeRTEnv :: Bare.Env -> ModName -> Ms.BareSpec -> Bare.ModSpecs -> LogicMap 
           -> BareRTEnv 
 --------------------------------------------------------------------------------
-makeRTEnv env m mySpec iSpecs lmap 
+makeRTEnv env mn mySpec iSpecs lmap
           = renameRTArgs $ makeRTAliases tAs $ makeREAliases eAs
   where
     tAs   = [ t                   | (_, s)  <- specs, t <- Ms.aliases  s ]
@@ -66,9 +66,9 @@ makeRTEnv env m mySpec iSpecs lmap
                                               -- this clearly breaks things if a signature
                                               -- contains lmap functions but never gets
                                               -- elaborated
-              else [ specREAlias env m e | (_, xl) <- M.toList (lmSymDefs lmap)
+              else [ specREAlias env mn e | (_, xl) <- M.toList (lmSymDefs lmap)
                                   , let e    = lmapEAlias xl             ]
-    specs = (m, mySpec) : M.toList iSpecs
+    specs = (mn, mySpec) : M.toList iSpecs
 
 -- | We apply @renameRTArgs@ *after* expanding each alias-definition, to 
 --   ensure that the substitutions work properly (i.e. don't miss expressions 
@@ -88,11 +88,11 @@ makeREAliases = graphExpand buildExprEdges f mempty
 -- | @renameTys@ ensures that @RTAlias@ type parameters have distinct names 
 --   to avoid variable capture e.g. as in T1556.hs
 renameTys :: RTAlias F.Symbol BareType -> RTAlias F.Symbol BareType 
-renameTys rt = rt { rtTArgs = ys, rtBody = subts (rtBody rt) (zip xs ys) }
+renameTys rt = rt { rtTArgs = ys, rtBody = subts' (rtBody rt) (zip xs ys) }
   where 
     xs    = rtTArgs rt 
     ys    = (`F.suffixSymbol` rtName rt) <$> xs
-    subts = foldl (flip subt)
+    subts' = foldl (flip subt)
 
 
 renameVV :: RTAlias F.Symbol BareType -> RTAlias F.Symbol BareType 
@@ -185,8 +185,8 @@ checkCyclicAliases table graph
 
 cycleAliasErr :: AliasTable x t -> [F.Symbol] -> Error
 cycleAliasErr _ []          = panic Nothing "checkCyclicAliases: No type aliases in reported cycle"
-cycleAliasErr t scc@(rta:_) = ErrAliasCycle { pos    = fst (locate rta)
-                                            , acycle = map locate scc }
+cycleAliasErr t syms@(rta:_) = ErrAliasCycle { pos    = fst (locate rta)
+                                            , acycle = map locate syms }
   where
     locate sym = ( GM.fSrcSpan $ fromAliasSymbol t sym
                  , pprint sym )
