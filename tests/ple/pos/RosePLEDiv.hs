@@ -1,7 +1,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
-module Rose1 where 
+module RosePLEDiv where
 
 type Vname = String
 

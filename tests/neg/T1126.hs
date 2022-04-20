@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 
-module Instances where
+module T1126 where
 
 class OptEq a where
   (==.) :: a -> a -> a

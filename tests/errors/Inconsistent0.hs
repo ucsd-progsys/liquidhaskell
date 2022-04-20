@@ -4,7 +4,7 @@
 {-@ LIQUID "--no-positivity-check" @-}
 
 {-# LANGUAGE DeriveFunctor #-}
-module Ast where
+module Inconsistent0 where
 
 data AstIndex = IxExpr | IxType
 

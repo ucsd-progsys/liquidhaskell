@@ -4,7 +4,7 @@
 {- LIQUID "--ple"            @-}
 {-@ LIQUID "--no-termination" @-}
 
-module CCC where
+module T1812 where
 
 import qualified Data.Set as S 
 

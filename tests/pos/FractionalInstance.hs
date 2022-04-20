@@ -1,6 +1,6 @@
 {-@ LIQUID "--no-totality" @-}
 
-module Fractional where
+module FractionalInstance where
 
 data Frac a
 

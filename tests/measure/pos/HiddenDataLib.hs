@@ -1,4 +1,4 @@
-module HiddenDataLib where 
+module HiddenDataLib where
 
 {-@ data Thing = Red Nat | Blue Nat @-}
 data Thing = Red Int | Blue Int 

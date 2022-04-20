@@ -2,7 +2,7 @@
 {-@ LIQUID "--ple"         @-}
 {-@ LIQUID "--short-names" @-}
 
-module Bug where
+module T1403 where
 
 data List a = Nil | Cons a (List a)
 

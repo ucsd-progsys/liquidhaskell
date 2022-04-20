@@ -1,4 +1,4 @@
-module Zoo where
+module BadSig0 where
 
 {-@ measure prop :: a -> b @-}
 {-@ type Prop E = {v:_ | pro v = E} @-}

@@ -2,7 +2,7 @@
 -- LH happily chugs along, and just says UNSAT at the end, instead of
 -- pointing out the bogus datatype definition.
 
-module ListRange () where
+module TODOUnboundAbsRef () where
 
 import Language.Haskell.Liquid.Prelude
 

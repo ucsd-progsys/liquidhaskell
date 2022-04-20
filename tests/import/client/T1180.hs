@@ -3,7 +3,7 @@
 {-@ LIQUID "--exact-data-con" @-}
 {-@ LIQUID "--noadt" @-}
 
-module Ev where
+module T1180 where
 
 import PeanoLib
 

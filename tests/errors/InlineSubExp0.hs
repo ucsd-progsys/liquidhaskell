@@ -4,7 +4,7 @@
 {-@ LIQUID "--reflection"  @-}
 {-@ LIQUID "--short-names" @-} 
 
-module T1258 where 
+module InlineSubExp0 where
 
 import Language.Haskell.Liquid.ProofCombinators 
 

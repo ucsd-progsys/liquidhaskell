@@ -3,7 +3,7 @@
 -- same, but that is a happy coincidence. We should REJECT this program as the
 -- measure has the same name as another binder.
 
-module Shadow where
+module ShadowMeasure where
 
 data Poo = Poo Int
 

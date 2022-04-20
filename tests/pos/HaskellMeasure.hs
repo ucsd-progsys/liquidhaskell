@@ -1,4 +1,4 @@
-module Measures where
+module HaskellMeasure where
 
 {-@ measure lllen @-}
 llen :: [a] -> Int

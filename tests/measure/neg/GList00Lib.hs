@@ -1,4 +1,4 @@
-module GList00Lib where 
+module GList00Lib where
 
 {-@ die :: {v: () | false} -> a @-}
 die :: () -> a

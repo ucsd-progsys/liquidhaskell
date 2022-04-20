@@ -5,7 +5,7 @@
 {-@ LIQUID "--higherorder"              @-}
 {-@ LIQUID "--no-termination" @-}
 -- | Description of database records.
-module Model
+module T1476
   ( User, UserId
   , EntityField(..)
   ) where

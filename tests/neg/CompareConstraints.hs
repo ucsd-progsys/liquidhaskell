@@ -1,6 +1,6 @@
 {-@ LIQUID "--no-totality" @-}
 
-module Foo where
+module CompareConstraints where
 
 import Language.Haskell.Liquid.Prelude
 

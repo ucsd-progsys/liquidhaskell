@@ -2,7 +2,7 @@
 
 {-@ LIQUID "--exact-data-con" @-}
 
-module Ev where
+module BadSig1 where
 
 data Peano where
   Z :: Peano

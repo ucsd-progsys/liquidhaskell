@@ -18,7 +18,7 @@
 
 {-@ LIQUID "--no-termination" @-}
 
-module Foo (prop) where
+module LetRecStack (prop) where
 
 --data Peano a = Z a | S (Peano a) | P (Peano a)
 data Peano = Z | S (Peano ) | P (Peano)

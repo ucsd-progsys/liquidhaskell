@@ -1,5 +1,5 @@
 {-@ LIQUID "--no-totality" @-}
-module GenTerm (llen) where
+module GeneralizedTermination (llen) where
 
 import Prelude hiding (reverse)
 

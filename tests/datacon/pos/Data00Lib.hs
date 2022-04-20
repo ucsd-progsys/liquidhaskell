@@ -1,4 +1,4 @@
-module Data00Lib where 
+module Data00Lib where
 
 {-@ data Thing = Thing { fldThing :: {v:Int | 0 <= v} } @-}
 data Thing = Thing { fldThing :: Int }

@@ -7,7 +7,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-} 
 
-module MonoidList where
+module BadDataDeclTyVars where
 
 {-@ data L = Emp | Cons {x::a, xs:: (L a)} @-}
 --       ^ whoops, missing a tyvar!

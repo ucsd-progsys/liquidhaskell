@@ -1,4 +1,4 @@
-module ListSort () where
+module ListRange () where
 
 {-@ LIQUID "--no-termination" @-}
 

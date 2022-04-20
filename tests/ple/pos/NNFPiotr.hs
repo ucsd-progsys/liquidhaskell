@@ -2,7 +2,7 @@
 {-@ LIQUID "--ple"            @-}
 {-@ LIQUID "--no-termination" @-}
 
-module Tutorial6 where
+module NNFPiotr where
 
 import Prelude hiding (lookup)
 

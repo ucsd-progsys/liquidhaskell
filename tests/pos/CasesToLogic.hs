@@ -1,7 +1,7 @@
 {-@ LIQUID "--exact-data-cons"     @-}
 {-@ LIQUID "--higherorder"        @-}
 
-module StringIndexing where
+module CasesToLogic where
 
 import Prelude hiding (mappend)
 

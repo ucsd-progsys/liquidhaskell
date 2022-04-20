@@ -1,4 +1,4 @@
-module ListDemo where
+module HoleCrash2 where
 
 data Poo a = C { t :: Poo a }
 

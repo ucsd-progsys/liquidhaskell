@@ -2,7 +2,7 @@
 -- | Fixed User (WORKING)
 -------------------------------------------------------------------------------------------
 
-module A where
+module T1697A where
 
 data User = U
 

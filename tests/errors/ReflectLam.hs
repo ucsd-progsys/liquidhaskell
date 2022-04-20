@@ -1,7 +1,7 @@
 {-@ LIQUID "--reflection" @-}
 
 
-module ReflectLam where 
+module ReflectLam where
 
 
 

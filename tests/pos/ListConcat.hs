@@ -1,7 +1,7 @@
 {-@ LIQUID "--pruneunsorted" @-}
 {-@ LIQUID "--no-termination" @-}
 
-module Foo () where
+module ListConcat () where
 import Data.Set (Set(..)) 
 import Prelude hiding (concat)
 

@@ -1,6 +1,6 @@
 -- | see: https://github.com/ucsd-progsys/liquidhaskell/issues/1169
 
-module Bar where
+module EmptyData where
 
 {-@ data A @-}
 data A = B

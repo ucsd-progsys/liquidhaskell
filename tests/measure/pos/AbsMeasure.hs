@@ -1,5 +1,5 @@
 
-module AbsMeasure where 
+module AbsMeasure where
 
 ------------------------------------------------------------
 {-@ measure foo :: Int -> Int @-}

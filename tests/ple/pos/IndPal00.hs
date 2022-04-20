@@ -3,7 +3,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
-module IndPalindrome where
+module IndPal00 where
 
 --------------------------------------------------------------------------------
 -- | The Prop declaring the Palindrome predicate 

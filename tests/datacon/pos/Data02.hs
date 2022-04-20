@@ -1,4 +1,4 @@
-module Data02 where 
+module Data02 where
 
 import Data02Lib 
 

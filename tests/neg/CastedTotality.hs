@@ -1,4 +1,4 @@
-module Fixme where
+module CastedTotality where
 
 import Language.Haskell.Liquid.Prelude
 

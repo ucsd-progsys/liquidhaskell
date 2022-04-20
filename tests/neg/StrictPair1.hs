@@ -2,8 +2,8 @@
 
 -- Compare with tests/neg/StrictPair0.hs
 
-module SPair (
-    PairS(..)
+module StrictPair1
+  ( PairS(..)
   , moo
   ) where
 

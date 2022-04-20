@@ -1,6 +1,6 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE UnboxedTuples #-}
-module Blank where
+module UnboxedTuples where
 
 import GHC.Int
 

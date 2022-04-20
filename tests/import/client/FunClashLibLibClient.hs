@@ -4,7 +4,7 @@
 -- but SOMEHOW block this. [Current workaround: make sure you import-qualified `FunClashLibLib` 
 -- so that the name "attaches" properly. sigh.
 
-module FunClashLibLibClient where  
+module FunClashLibLibClient where
 
 import FunClashLib
 

@@ -1,4 +1,4 @@
-module Ignores where 
+module Ignores where
 
 {-@ ignore inc @-}
 {-@ inc :: Nat -> Nat @-}

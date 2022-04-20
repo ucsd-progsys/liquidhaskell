@@ -1,4 +1,4 @@
-module Measures where
+module Measures1 where
 
 {-@ data Wrapper a <p :: a -> Bool, r :: a -> a -> Bool > 
       = Wrap (rgref_ref :: a<p>) @-}

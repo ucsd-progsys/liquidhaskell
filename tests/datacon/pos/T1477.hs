@@ -1,5 +1,5 @@
 {-# LANGUAGE GADTs, TypeFamilies #-}
-module Model where
+module T1477 where
 
 class PersistEntity record where
     data EntityField record :: * -> *

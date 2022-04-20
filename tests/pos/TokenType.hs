@@ -1,4 +1,4 @@
-module Fixme where
+module TokenType where
 
 
 data TokenType = Foo | CChar

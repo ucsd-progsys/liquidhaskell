@@ -1,4 +1,4 @@
-module Fixme where
+module TerminationNum where
 
 {-@ fak2 :: (Ord a, Eq a, Num a) => y:{x: a | x >= 0} -> a /[y]@-}
 fak2 :: (Ord a, Eq a, Num a) => a -> a

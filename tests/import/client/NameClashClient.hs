@@ -1,4 +1,4 @@
-module NameClashClient where 
+module NameClashClient where
 
 import qualified NameClashLib as Lib 
 

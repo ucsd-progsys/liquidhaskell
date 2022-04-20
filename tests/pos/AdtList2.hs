@@ -1,7 +1,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
-module AdtList where 
+module AdtList2 where
 
 data LL a = Emp | Cons a (LL a) 
 

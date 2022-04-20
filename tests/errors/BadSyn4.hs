@@ -1,4 +1,4 @@
-module Foo where
+module BadSyn4 where
 
 type List a = [a]
 type Point  = List Double

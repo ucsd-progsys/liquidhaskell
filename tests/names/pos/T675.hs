@@ -1,3 +1,5 @@
+module T675 where
+
 -- TAG: absref 
 
 import Data.ByteString
@@ -22,4 +24,5 @@ ok x = 2 + (1 + x)
 bad :: Int -> Int
 bad = (2 +) . (1 +)
 
+main :: IO ()
 main = pure ()

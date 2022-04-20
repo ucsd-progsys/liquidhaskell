@@ -3,7 +3,7 @@
 {-@ LIQUID "--short-names" @-}
 {-@ LIQUID "--no-termination" @-}
 
-module Bug where 
+module MossakaBug where
 
 data Pred 
   = Var String 

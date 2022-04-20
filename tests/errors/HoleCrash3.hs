@@ -1,4 +1,4 @@
-module ListDemo where
+module HoleCrash3 where
 
 data List a = E | (:::) { h :: a, t :: List a }
 

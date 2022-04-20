@@ -3,7 +3,7 @@
 {-@ LIQUID "--exact-data-con" @-}
 
 
-module Zong where
+module ExactGADT0 where
 
 data Value a where
   VInt  :: Int  -> Value Int

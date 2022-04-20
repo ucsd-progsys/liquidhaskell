@@ -1,4 +1,4 @@
-module Nats where
+module BadNats where
 
 {-@ poo :: {v:Int | v == 0 } @-}
 poo :: Int 

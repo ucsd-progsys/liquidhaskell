@@ -1,7 +1,7 @@
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--ple" @-}
 
-module Fib0 where 
+module Fib0 where
 
 {-@ reflect fibExp @-}
 {-@ fibExp :: Nat -> Nat @-}

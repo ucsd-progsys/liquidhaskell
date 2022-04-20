@@ -1,6 +1,6 @@
 -- This test checks whether "invariants" are working.
 
-module List02Lib where 
+module List02Lib where
 
 data List yy
   = Emp 

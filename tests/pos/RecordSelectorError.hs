@@ -1,4 +1,4 @@
-module Foo where
+module RecordSelectorError where
 
 data F a b = F {fx :: a, fy :: b} | G {fx :: a}
 {-@ data F a b = F {fx :: a, fy :: b} | G {fx :: a} @-}

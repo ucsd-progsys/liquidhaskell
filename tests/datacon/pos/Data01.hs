@@ -1,4 +1,4 @@
-module Data00 where 
+module Data01 where
 
 {-@ data Thing = Thing { fldThing :: Nat } @-}
 data Thing = Thing { fldThing :: Int }

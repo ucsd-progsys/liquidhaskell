@@ -1,4 +1,4 @@
-module LiquidClass where
+module Inst00 where
 
 
 -- | Typing classes

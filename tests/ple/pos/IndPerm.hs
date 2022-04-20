@@ -3,7 +3,7 @@
 {-@ LIQUID "--higherorder"    @-}
 {-@ LIQUID "--ple"            @-}
 
-module IndPred where
+module IndPerm where
 
 import Prelude hiding (sum)
 import Language.Haskell.Liquid.ProofCombinators

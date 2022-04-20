@@ -10,7 +10,7 @@
 {-@ LIQUID "--ple-local"      @-} 
 {-@ LIQUID "--prune-unsorted" @-} 
 
-module Properties where 
+module T1649MeasuresDef where
 
 
 

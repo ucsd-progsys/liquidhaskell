@@ -1,4 +1,4 @@
-module DPairs where
+module DependentPairsFun where
 
 
 {-@ ex :: (y::Int, () -> {v:() | 0 < y } )

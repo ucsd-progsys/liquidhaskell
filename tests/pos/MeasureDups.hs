@@ -1,4 +1,4 @@
-module Measures where
+module MeasureDups where
 
 import Data.Set 
 

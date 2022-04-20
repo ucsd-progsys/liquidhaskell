@@ -1,4 +1,4 @@
-module Test2 () where
+module CyclicTypeAlias2 () where
 
 {-@ type CyclicC = [CyclicC] @-}
 

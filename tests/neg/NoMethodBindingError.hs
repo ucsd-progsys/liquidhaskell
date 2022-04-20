@@ -1,4 +1,4 @@
-module Foo where
+module NoMethodBindingError where
 
 class Foo a where
   foo :: a -> a

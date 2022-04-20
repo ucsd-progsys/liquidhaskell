@@ -1,4 +1,4 @@
-module CliAliasGen00 where 
+module CliAliasGen00 where
 
 import LibAliasGen00 
 

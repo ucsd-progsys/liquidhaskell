@@ -1,6 +1,4 @@
-module DependentTriples  where
-
-{-@ LIQUID "--savequery" @-}
+module DepTriples where
 
 {-@ type INCR3 = (Int, Int, Int)<{\a b -> a < b}, {\b a c -> b < c }>@-}
 

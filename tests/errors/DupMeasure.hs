@@ -1,4 +1,4 @@
-module DuplicateMeasures where 
+module DupMeasure where
 
 
 {-@ measure lenA :: [a] -> Int 

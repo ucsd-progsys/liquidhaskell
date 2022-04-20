@@ -1,6 +1,6 @@
 {- LIQUID "--pruneunsorted" @-}
 
-module Foo () where
+module ListKeys () where
 import Data.Set (Set(..), empty, union, singleton) 
 
 {-@  measure listKeys @-}

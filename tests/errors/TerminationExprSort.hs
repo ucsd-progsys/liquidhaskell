@@ -1,4 +1,4 @@
-module TerminationExpr where
+module TerminationExprSort where
 
 {-@ showSep :: _ -> xs:_ -> _ / [len ys] @-} -- use xs as reducing param
 showSep :: String -> [String] -> String

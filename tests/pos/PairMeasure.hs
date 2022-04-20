@@ -1,7 +1,7 @@
 -- TAG: absref
 -- TAG: measure
 
-module Foo () where
+module PairMeasure () where
 {-@ LIQUID "--bscope" @-}
 
 {-@ measure getfst @-}

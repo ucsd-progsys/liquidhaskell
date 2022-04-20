@@ -1,6 +1,6 @@
 -- We should reject the below to disallow uppercase binders
 
-module NoUpperCaseBinders where
+module ParseBind where
 
 {-@ id :: Foo:Int -> Int  @-}
 id :: Int -> Int

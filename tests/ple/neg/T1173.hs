@@ -1,4 +1,4 @@
-module ORM where
+module T1173 where
 
 {-@ LIQUID "--no-adt" 	      @-}
 {-@ LIQUID "--exact-data-con" @-}

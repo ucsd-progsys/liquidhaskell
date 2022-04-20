@@ -1,4 +1,4 @@
-module RG where
+module BadQualifier where
 data RGRef a
 {-@ measure tv :: RGRef a -> a @-}
 {-@ qualif TERMINALVALUE(r:RGRef a): (tv r) @-}

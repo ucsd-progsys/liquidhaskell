@@ -1,6 +1,6 @@
 {-@ LIQUID "--reflection"  @-}
 
-module StringIndexing where
+module AmbiguousReflect where
 
 -- ISSUE: Uncomment the below to make this test pass
 --

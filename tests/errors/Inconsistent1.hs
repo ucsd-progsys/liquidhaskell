@@ -1,4 +1,4 @@
-module Boo where
+module Inconsistent1 where
 
 {-@ incr :: Int -> Bool @-}
 incr :: Int -> Int 
