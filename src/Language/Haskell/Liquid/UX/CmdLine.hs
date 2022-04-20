@@ -743,15 +743,15 @@ reportResult logResultFull cfg targets out = do
          let outputResult = resDocs tidy cr
          -- For now, always print the \"header\" with colours, irrespective to the logger
          -- passed as input.
-         liftIO $ printHeader (colorResult r) (orHeader outputResult)
+         -- liftIO $ printHeader (colorResult r) (orHeader outputResult)
          logResultFull outputResult
   pure ()
   where
     tidy :: F.Tidy
     tidy = if shortErrors cfg then F.Lossy else F.Full
 
-    printHeader :: Moods -> Doc -> IO ()
-    printHeader mood d = colorPhaseLn mood "" (render d)
+    _printHeader :: Moods -> Doc -> IO ()
+    _printHeader mood d = colorPhaseLn mood "" (render d)
 
 
 ------------------------------------------------------------------------
@@ -773,10 +773,11 @@ instance Show (CtxError Doc) where
   show = showpp
 
 writeCheckVars :: Symbolic a => Maybe [a] -> IO ()
-writeCheckVars Nothing     = return ()
-writeCheckVars (Just [])   = colorPhaseLn Loud "Checked Binders: None" ""
-writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" ""
-                          >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
+writeCheckVars _ {- Nothing -}    = return ()
+--XXX(matt.walker): revert!
+-- writeCheckVars (Just [])   = colorPhaseLn Loud "Checked Binders: None" ""
+-- writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" ""
+--                           >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
 
 type CError = CtxError Doc
 

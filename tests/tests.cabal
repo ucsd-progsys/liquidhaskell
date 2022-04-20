@@ -1,0 +1,2259 @@
+cabal-version:      2.4
+name:               tests
+version:            0.1.0.0
+
+-- A short (one-line) description of the package.
+-- synopsis:
+
+-- A longer description of the package.
+-- description:
+
+author:             The Liquid Haskell Developers
+
+flag stack
+  default:     False
+  description: Enable when building with stack to prevent tests
+               from using cabal-install, and to mark all executables as
+               " buildable: False " by default
+
+executable test-driver
+    if flag(stack)
+      main-is:        Driver_stack.hs
+    else
+      main-is:        Driver_cabal.hs
+
+    build-depends:    base < 5
+                    , shelly
+                    , text
+                    , bytestring
+                    , containers
+                    , liquidhaskell
+                    , megaparsec
+                    , ansi-wl-pprint
+                    , typed-process
+                    , optparse-applicative
+                    , strip-ansi-escape >= 0.1
+                    , filepath >= 1.4.2
+
+    other-modules:    Test.Types
+                    , Test.Build
+                    , Test.Parse
+                    , Test.Groups
+                    , Test.Summary
+                    , Test.Options
+
+    hs-source-dirs:   harness
+    default-language: Haskell2010
+    ghc-options:      -O2 -j -Wall -Werror
+
+flag benchmark-stitch-lh
+     default: False
+
+executable benchmark-stitch-lh
+    main-is:          Main.hs
+    if !flag(benchmark-stitch-lh) && flag(stack)
+      buildable:      False
+    build-depends:    ansi-wl-pprint >= 0.6.7.1
+                    , mtl >= 2.2.1
+                    , transformers >= 0.4.0.0
+                    , parsec >= 3.1
+                    , haskeline >= 0.7.1.1
+                    , directory >= 1.2.0.1
+                    , hashable >= 1.2.7.0
+                    , deepseq >= 1.4
+                    , liquidhaskell
+                    , liquid-base
+                    , liquid-containers
+                    , liquid-prelude
+
+    other-modules:
+                      Language.Stitch.LH.Repl
+                    , Language.Stitch.LH.Check
+                    -- , Language.Stitch.LH.CSE
+                    , Language.Stitch.LH.Data.List
+                    , Language.Stitch.LH.Data.Map
+                    , Language.Stitch.LH.Eval
+                    , Language.Stitch.LH.Lex
+                    , Language.Stitch.LH.Monad
+                    , Language.Stitch.LH.Op
+                    , Language.Stitch.LH.Parse
+                    , Language.Stitch.LH.Pretty
+                    , Language.Stitch.LH.Statement
+                    , Language.Stitch.LH.Step
+                    , Language.Stitch.LH.Token
+                    , Language.Stitch.LH.Type
+                    , Language.Stitch.LH.Unchecked
+                    , Language.Stitch.LH.Util
+                    , Language.Stitch.LH.Data.Nat
+
+    hs-source-dirs:   benchmarks/stitch-lh/main
+                    , benchmarks/stitch-lh/src
+
+    ghc-options:      -Wall
+                      -fplugin=LiquidHaskell
+                      -Wno-unticked-promoted-constructors
+                      -fno-warn-name-shadowing
+                      -fkeep-going
+                      -ddump-timings
+                      -ddump-to-file
+                      -O0
+
+    default-language: Haskell2010
+
+flag benchmark-bytestring
+     default: False
+
+executable benchmark-bytestring
+  main-is:            Main.hs
+
+  if !flag(benchmark-bytestring) && flag(stack)
+    buildable:        False
+
+  hs-source-dirs:     app
+                    , benchmarks/bytestring-0.9.2.1
+
+  other-modules:      Data.ByteString.Internal
+                    , Data.ByteString.Lazy.Internal 
+                    , Data.ByteString.Fusion 
+                    , Data.ByteString.Fusion.T 
+                    , Data.ByteString.Unsafe
+                    -- TODO-REBARE
+                    -- Data.ByteString.T
+                    , Data.ByteString
+                    , Data.ByteString.Lazy
+                    , Data.ByteString.LazyZip
+
+  build-depends:      liquid-base
+                    , liquid-prelude
+                    , syb >= 0.7.2
+                    , liquidhaskell
+                    , array >= 0.5.4
+
+  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -ddump-timings -ddump-to-file -O0
+  default-language: Haskell2010
+
+flag benchmark-vector-algorithms
+     default: False
+
+executable benchmark-vector-algorithms
+  main-is:            Main.hs
+
+  if !flag(benchmark-vector-algorithms) && flag(stack)
+    buildable:        False
+
+  hs-source-dirs:     app
+                    , benchmarks/vector-algorithms-0.5.4.2
+
+  other-modules:      Data.Vector.Algorithms.AmericanFlag
+                    , Data.Vector.Algorithms.Common
+                    , Data.Vector.Algorithms.Heap
+                    , Data.Vector.Algorithms.Insertion
+                    , Data.Vector.Algorithms.Intro
+                    , Data.Vector.Algorithms.Merge
+                    , Data.Vector.Algorithms.Optimal
+                    , Data.Vector.Algorithms.Radix
+                    , Data.Vector.Algorithms.Search
+                    , Data.Vector.Algorithms.Termination
+
+
+  build-depends:      liquid-base
+                    , liquid-prelude
+                    , liquid-vector
+                    , liquid-bytestring
+                    , primitive
+                    , liquidhaskell
+
+  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -ddump-timings -ddump-to-file -O0
+  default-language: Haskell2010
+
+flag benchmark-cse230
+     default: False
+
+executable benchmark-cse230
+  main-is:            Main.hs
+
+  if !flag(benchmark-cse230) && flag(stack)
+    buildable:        False
+
+  hs-source-dirs:     app
+                    , benchmarks/cse230/src/Week10
+
+  other-modules:      Axiomatic
+                    , BigStep
+                    , Expressions
+                    , Imp
+                    , Lec_3_11
+                    , Lec_3_15
+                    , ProofCombinators
+                    , State
+                    , Verifier
+
+  build-depends:      liquid-base
+                    , liquid-prelude
+                    , liquidhaskell
+
+  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -ddump-timings -ddump-to-file -O0
+  default-language: Haskell2010
+
+flag benchmark-esop2013
+     default: False
+
+executable benchmark-esop2013
+  main-is:            Main.hs
+  if !flag(benchmark-esop2013) && flag(stack)
+    buildable:        False
+
+  hs-source-dirs:     app
+                    , benchmarks/esop2013-submission
+
+  other-modules:
+                      Array
+                    , Base
+                    , Fib
+                    , GhcListSort
+                    , ListSort
+                    , Splay
+                    , Toy
+
+  build-depends:      liquid-base
+                    , liquid-prelude
+                    , liquidhaskell
+                    , deepseq >= 1.4
+
+  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -ddump-timings -ddump-to-file -O0
+  default-language: Haskell2010
+
+flag benchmark-icfp15-pos
+     default: False
+
+executable benchmark-icfp15-pos
+  main-is:            Main.hs
+  if !flag(benchmark-icfp15-pos) && flag(stack)
+    buildable:        False
+
+  hs-source-dirs:     app
+                    , benchmarks/icfp15/pos
+
+  other-modules:      Append
+                    , CompareConstraints
+                    , Composition
+                    , DBMovies
+                    , DataBase
+                    , FoldAbs
+                    , IfM
+                    , IfM2
+                    , Incr_elim
+                    , Incr
+                    , Privileges
+                    , RIO
+                    , RIO2
+                    , TestM
+                    , WhileM
+                    , WhileTest
+                    , Dropwhile
+                    -- IGNORED:
+                    -- , CopyRec
+                    -- , TwiceM
+                    -- , FindRec
+
+
+  build-depends:      liquid-base
+                    , liquid-prelude
+                    , liquid-containers
+                    , liquid-ghc-prim
+                    , liquidhaskell
+
+  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -ddump-timings -ddump-to-file -O0
+  default-language: Haskell2010
+
+flag benchmark-icfp15-neg
+     default: False
+
+executable benchmark-icfp15-neg
+  main-is:            Main.hs
+  if !flag(benchmark-icfp15-neg) && flag(stack)
+    buildable:        False
+
+  hs-source-dirs:     app
+                    , benchmarks/icfp15/neg
+
+  other-modules:      Composition
+                    , DBMovies
+                    , DataBase
+                    , IfM
+                    , RIO
+                    , Records
+                    , TestM
+                    , TwiceM
+                    , WhileM
+
+  build-depends:      liquid-base
+                    , liquid-prelude
+                    , liquidhaskell
+
+  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -ddump-timings -ddump-to-file -O0
+  default-language: Haskell2010
+
+flag prover-foundations
+     default: False
+
+executable prover-foundations
+  main-is:            Main.hs
+  if !flag(prover-foundations) && flag(stack)
+    buildable:        False
+
+  hs-source-dirs:     app
+                    , benchmarks/sf
+
+  other-modules:      Basics
+                    , Induction
+                    , InductionRJ
+                    , Lists
+
+  build-depends:      liquid-base
+                    , liquid-prelude
+                    , liquidhaskell
+
+  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -ddump-timings -ddump-to-file -O0
+  default-language: Haskell2010
+
+flag prover-nople-pos
+     default: False
+
+executable prover-nople-pos
+  main-is:            Main.hs
+  if !flag(prover-nople-pos) && flag(stack)
+    buildable:        False
+
+  hs-source-dirs:     app
+                    , benchmarks/popl18/nople/pos
+
+  other-modules:
+                      Append
+                    , ApplicativeId
+                    , ApplicativeMaybe
+                    , BasicLambdas
+                    , Compose
+                    , Euclide
+                    , Fibonacci
+                    , FoldrUniversal
+                    , FunctorId
+                    , FunctorList
+                    , FunctorMaybe
+                    , MapFusion
+                    , MonadId
+                    , MonadList
+                    , MonadMaybe
+                    , MonoidList
+                    , MonoidMaybe
+                    , NatInduction
+                    , NaturalDeduction
+                    , Overview
+                    , Peano
+                    , Solver
+                    , Unification
+                    -- IGNORED:
+                    -- , MonadReader
+                    -- , FunctorReader_NoExtensionality
+                    -- , FunctorReader
+                    -- , Ackermann
+                    -- , ApplicativeList
+                    -- , ApplicativeReader
+                    -- , OverviewListInfix
+
+  build-depends:      liquid-base
+                    , liquid-prelude
+                    , liquid-containers
+                    , liquidhaskell
+                    , prover-ple-lib
+
+  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -ddump-timings -ddump-to-file -O0
+  default-language: Haskell2010
+
+flag prover-nople-neg
+     default: False
+
+executable prover-nople-neg
+  main-is:            Main.hs
+  if !flag(prover-nople-neg) && flag(stack)
+    buildable:        False
+
+  hs-source-dirs:     app
+                    , benchmarks/popl18/nople/neg
+
+  other-modules:
+                      Append
+                    , ApplicativeMaybe
+                    , BasicLambdas
+                    , Fibonacci
+                    , FunctorList
+                    , FunctorMaybe
+                    , MapFusion
+                    , MonadList
+                    , MonadMaybe
+                    -- IGNORED:
+                    -- , MonadReader
+                    -- , Ackermann
+                    -- , ApplicativeList
+                    -- , ApplicativeReader
+
+  build-depends:      liquid-base
+                    , liquid-prelude
+                    , liquid-containers
+                    , liquidhaskell
+                    , prover-ple-lib
+
+  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -ddump-timings -ddump-to-file -O0
+  default-language: Haskell2010
+
+flag prover-ple-pos
+     default: False
+
+executable prover-ple-pos
+  main-is:            Main.hs
+  if !flag(prover-ple-pos) && flag(stack)
+    buildable:        False
+
+  hs-source-dirs:     app
+                    , benchmarks/popl18/ple/pos
+
+  other-modules:      Append
+                    , ApplicativeId
+                    , ApplicativeList
+                    , ApplicativeMaybe
+                    , BasicLambdas
+                    , Compose
+                    , Euclide
+                    , Fibonacci
+                    , FoldrUniversal
+                    , FunctorId
+                    , FunctorList
+                    , FunctorMaybe
+                    , Lists
+                    , MapFusion
+                    , Maybe
+                    , MonadId
+                    , MonadList
+                    , MonadMaybe
+                    , MonoidList
+                    , MonoidMaybe
+                    , NatInduction
+                    , NaturalDeduction
+                    , Overview
+                    , Peano
+                    , Solver
+                    , Unification
+                    -- IGNORED:
+                    -- , Ackermann
+                    -- , OverviewListInfix
+
+  build-depends:      liquid-base
+                    , liquid-prelude
+                    , liquid-containers
+                    , liquidhaskell
+                    , prover-ple-lib
+
+  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -ddump-timings -ddump-to-file -O0
+  default-language: Haskell2010
+
+flag benchmark-text
+     default: False
+
+executable benchmark-text
+  main-is: Main.hs
+  -- XXX(matt.walker): Get this working!
+
+  if !flag(benchmark-text) && flag(stack)
+    buildable: False
+  buildable: False
+
+  hs-source-dirs: app
+                , benchmarks/text-0.11.2.3
+  c-sources: benchmarks/text-0.11.2.3/cbits/cbits.c
+
+  if impl(ghc < 9.0)
+    other-modules:
+      -- breaks on GHC 9.0+
+      Data.Text.Foreign
+
+  other-modules:
+    Data.Text
+    Data.Text.Axioms
+    Data.Text.Array
+    Data.Text.Encoding
+    Data.Text.Encoding.Error
+    -- Data.Text.IO
+    Data.Text.Internal
+    Data.Text.Lazy
+    -- Data.Text.Lazy.Builder
+    -- Data.Text.Lazy.Builder.Int
+    -- Data.Text.Lazy.Builder.RealFloat
+    Data.Text.Lazy.Encoding
+    -- Data.Text.Lazy.IO
+    Data.Text.Lazy.Internal
+    -- Data.Text.Lazy.Read
+    -- Data.Text.Read
+    Data.Text.Encoding.Fusion
+    Data.Text.Encoding.Fusion.Common
+    Data.Text.Encoding.Utf16
+    Data.Text.Encoding.Utf32
+    Data.Text.Encoding.Utf8
+    Data.Text.Fusion
+    Data.Text.Fusion.CaseMapping
+    Data.Text.Fusion.Common
+    Data.Text.Fusion.Internal
+    Data.Text.Fusion.Size
+    -- Data.Text.IO.Internal
+    -- Data.Text.Lazy.Builder.Functions
+    -- Data.Text.Lazy.Builder.RealFloat.Functions
+    Data.Text.Lazy.Encoding.Fusion
+    Data.Text.Lazy.Fusion
+    Data.Text.Lazy.Search
+    Data.Text.Private
+    Data.Text.Search
+    Data.Text.Unsafe
+    Data.Text.Unsafe.Base
+    Data.Text.UnsafeChar
+    Data.Text.UnsafeShift
+    Data.Text.Util
+
+  build-depends:
+      liquid-containers
+    , integer-gmp >= 0.2
+    , syb
+    , liquid-base
+    , liquid-prelude
+    , liquid-bytestring
+    , liquid-ghc-prim
+    , liquidhaskell
+
+  cpp-options: -DINTEGER_GMP
+
+  ghc-options: -Wall -fwarn-tabs
+
+  default-language: Haskell2010
+
+  ghc-options: -fplugin=LiquidHaskell
+               -ddump-timings
+               -ddump-to-file
+               -fkeep-going
+               -fplugin-opt=LiquidHaskell=--no-check-imports
+
+flag errors
+     default: False
+
+executable errors
+    main-is:          Main.hs
+    if !flag(errors) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                    -- See Groups.hs for reasons for disabling
+                    --   AmbiguousInline
+                    -- , AmbiguousReflect
+                      BadAliasApp
+                    , BadAnnotation
+                    , BadAnnotation1
+                    , BadData0
+                    , BadData1
+                    , BadData2
+                    , BadDataCon2
+                    , BadDataConType1
+                    , BadDataConType2
+                    , BadDataConType
+                    , BadDataDeclTyVars
+                    , BadGADT
+                    -- , BadPragma0
+                    -- , BadPragma1
+                    -- , BadPragma2
+                    , BadPredApp
+                    -- , BadQualifier
+                    , BadSig0
+                    , BadSig1
+                    , BadSyn1
+                    , BadSyn2
+                    , BadSyn3
+                    , BadSyn4
+                    , CyclicExprAlias0
+                    , CyclicExprAlias1
+                    , CyclicExprAlias2
+                    , CyclicExprAlias3
+                    , CyclicPredAlias0
+                    , CyclicPredAlias1
+                    , CyclicPredAlias2
+                    , CyclicPredAlias3
+                    , CyclicTypeAlias0
+                    , CyclicTypeAlias1
+                    , CyclicTypeAlias2
+                    , CyclicTypeAlias3
+                    , DupAlias
+                    , DupData
+                    , DupFunSigs
+                    , DupMeasure
+                    -- , ElabLocation
+                    , EmptyData
+                    , EmptySig
+                    , ErrLocation2
+                    , ErrLocation
+                    -- , ExportMeasure0
+                    -- , ExportReflect0
+                    , Fractional
+                    , Frog
+                    , HigherOrderBinder
+                    , HintMismatch
+                    , HoleCrash1
+                    , HoleCrash2
+                    , HoleCrash3
+                    , Inconsistent0
+                    , Inconsistent1
+                    , Inconsistent2
+                    , InlineSubExp0
+                    , InlineSubExp1
+                    , IrregularData
+                    , LiftMeasureCase
+                    , LocalHole
+                    , MissingAssume
+                    -- , MissingField1
+                    , MissingField2
+                    , MissingReflect
+                    , MissingSizeFun
+                    , MultiInstMeasures
+                    , MultiRecSels
+                    , ParseBind
+                    , ParseClass
+                    , Positivity1
+                    , Positivity2
+                    , PositivityCheck
+                    -- , ReflectLam
+                    , ReWrite5
+                    , ReWrite6
+                    , ReWrite7
+                    , ReWrite8
+                    , ShadowFieldInline
+                    , ShadowFieldReflect
+                    , ShadowMeasure
+                    , ShadowMeasureVar
+                    , SplitSubtype
+                    , T1140
+                    , T1498A
+                    , T1498
+                    , T1708
+                    , T773
+                    , T774
+                    , TerminationExprNum
+                    , TerminationExprSort
+                    , TerminationExprUnb
+                    -- , TODOUnboundAbsRef
+                    -- , TODOVarInTypeAlias
+                    , UnboundAbsRef
+                    -- , UnboundCheckVar
+                    , UnboundFunInSpec1
+                    , UnboundFunInSpec2
+                    , UnboundFunInSpec
+                    , UnboundVarInAssume
+                    , UnboundVarInLocSig
+                    , UnboundVarInReflect
+                    , UnboundVarInSpec
+                    
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquid-bytestring
+                    , liquid-containers
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , errors
+
+    default-language: Haskell2010
+
+flag parser-pos
+     default: False
+
+executable parser-pos
+    main-is:          Main.hs
+    if !flag(parser-pos) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      NestedTuples
+                    , Parens
+                    , ReflectedInfix
+                    , T1012
+                    , T1481
+                    , T1531
+                    , T338
+                    , T871
+                    , T873
+                    , T884
+                    , T892
+                    , TokensAsPrefixes
+                    , Tuples
+
+                    -- XXX(matt.walker): Double frees with -j
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , parser/pos
+
+    default-language: Haskell2010
+
+flag names-pos
+     default: False
+
+executable names-pos
+    main-is:          Main.hs
+    if !flag(names-pos) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      Alias00
+                    , Assume00
+                    , Assume01
+                    , BasicLambdas00
+                    , BasicLambdas01
+                    , Capture01
+                    , Capture02
+                    , ClojurVector
+                    , HideName00
+                    , HidePrelude
+                    , List00
+                    , Local00
+                    , Local01
+                    , Local02
+                    , Local03
+                    , LocalSpec
+                    , Ord
+                    , Set00
+                    , Set01
+                    , Set02
+                    , Shadow00
+                    , Shadow01
+                    , T1521
+                    , T675
+                    , Uniques
+                    , Vector04
+                    , Vector0
+                    , Vector1
+
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquid-vector
+                    , liquid-containers
+                    , liquid-bytestring
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , names/pos
+
+    default-language: Haskell2010
+
+flag names-neg
+     default: False
+
+executable names-neg
+    main-is:          Main.hs
+    if !flag(names-neg) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      Assume00
+                    , Capture01
+                    , Local00
+                    , Set00
+                    , Set01
+                    , Set02
+                    , T1078
+                    , Vector0
+                    , Vector1
+
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquid-vector
+                    , liquid-bytestring
+                    , liquid-containers
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , names/neg
+
+    default-language: Haskell2010
+
+flag reflect-pos
+     default: False
+
+executable reflect-pos
+    main-is:          Main.hs
+    if !flag(reflect-pos) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      DoubleLit
+                    , ReflString0
+                    , ReflString1
+
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , reflect/pos
+
+    default-language: Haskell2010
+
+flag class-pos
+      default: False
+
+executable class-pos
+    main-is:          Main.hs
+    if !flag(class-pos) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      RealProps0
+                    , STMonad
+                    , TypeEquality00
+                    , Class00
+                    , HiddenMethod00
+                    , Inst00
+                    , RealProps1
+                    , TypeEquality01
+
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , classes/pos
+
+    default-language: Haskell2010
+
+flag class-neg
+      default: False
+
+executable class-neg
+    main-is:          Main.hs
+    if !flag(class-neg) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      Class00
+                    , Class01
+                    , Inst00
+                    , RealProps0
+
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , classes/neg
+
+    default-language: Haskell2010
+
+flag reflect-neg
+     default: False
+
+executable reflect-neg
+    main-is:          Main.hs
+    if !flag(reflect-neg) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      DoubleLit
+                    , ReflString0
+                    , ReflString1
+
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , reflect/neg
+
+    default-language: Haskell2010
+
+flag measure-pos
+     default: False
+
+executable measure-pos
+    main-is:          Main.hs
+    if !flag(measure-pos) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      AbsMeasure
+                    , Bag
+                    , ExactFunApp
+                    , Fst00
+                    , Fst01
+                    , Fst02
+                    , GList000
+                    , GList00Lib
+                    , HiddenData
+                    , HiddenDataLib
+                    , Len00
+                    , Len01
+                    , Len02
+                    , List00
+                    , List00Lib
+                    , List01
+                    , List02
+                    , List02Lib
+                    , Ple00
+                    , Ple01
+                    , Ple1
+                    , Ple1Lib
+                    , PruneHO
+                    , RecordAccessors
+                    , Using00
+
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , measure/pos
+
+    default-language: Haskell2010
+
+flag measure-neg
+     default: False
+
+executable measure-neg
+    main-is:          Main.hs
+    if !flag(measure-neg) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      Bag
+                    , Fst00
+                    , Fst01
+                    , Fst02
+                    , GList00Lib
+                    , Len00
+                    , Len01
+                    , List00
+                    , List01
+                    , List02
+                    , Ple0
+                    , Ple1
+                    , Ple1Lib
+                    , Using00
+
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquidhaskell
+                    , liquid-containers
+
+    hs-source-dirs:   app
+                    , measure/neg
+
+    default-language: Haskell2010
+
+flag datacon-pos
+     default: False
+
+executable datacon-pos
+    main-is:          Main.hs
+    if !flag(datacon-pos) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      AdtPeano2
+                    , Data00
+                    , Data00Lib
+                    , Data01
+                    , Data02
+                    , Data02Lib
+                    , Date
+                    , NewType
+                    , T1446
+                    , T1473A
+                    , T1473B
+                    , T1476
+                    , T1477
+                    , T1777
+
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , datacon/pos
+
+    default-language: Haskell2010
+
+flag datacon-neg
+     default: False
+
+executable datacon-neg
+    main-is:          Main.hs
+    if !flag(datacon-neg) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      AdtPeano2
+                    , Data00
+                    , Data00Lib
+                    , Data01
+                    , Data02
+                    , Data02Lib
+                    , Date
+                    , NewTypes0
+                    , NewTypes
+
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , datacon/neg
+
+    default-language: Haskell2010
+
+flag unit-neg
+     default: False
+
+executable unit-neg
+    main-is:          Main.hs
+    if !flag(unit-neg) && flag(stack)
+      buildable:      False
+
+    hs-source-dirs:   app
+                    , neg
+
+    other-modules:
+                      AbsApp
+                    , AdtPeano0
+                    , AdtPeano1
+                    , Alias00
+                    , Ass0
+                    , Ast
+                    , Automate
+                    , AutoSize
+                    , AutoTerm1
+                    , BadNats
+                    , Bag1
+                    , Baz
+                    , BigNum
+                    , BinarySearchOverflow
+                    , Books
+                    , CastedTotality
+                    , CharLiterals
+                    , CheckedNum
+                    , Class1
+                    , Class2
+                    , Class3
+                    , Class4
+                    , CompareConstraints
+                    , Concat1
+                    , Concat2
+                    , Concat
+                    , ConstraintsAppend
+                    , Constraints
+                    , Contra0
+                    , Coretologic
+                    , Csv
+                    , Datacon_eq
+                    , DependentTypes
+                    , Elim000
+                    , Elim_ex_compose
+                    , Elim_ex_list
+                    , Errmsg
+                    , Errorloc
+                    , Eval
+                    , EvalQuery
+                    , Ex0_unsafe
+                    , Ex1_unsafe
+                    , ExactADT6
+                    , ExactGADT6
+                    , ExactGADT7
+                    , Fail1
+                    , Fail
+                    , FilterAbs
+                    , FoldN1
+                    , FoldN
+                    , FunctionRef
+                    , FunSoundness
+                    , GeneralizedTermination
+                    , Grty0
+                    , Grty1
+                    , Grty2
+                    , Grty3
+                    , HasElem
+                    , Hex00
+                    , HigherOrder
+                    , HolesTop
+                    , Inc2
+                    , IntAbsRef
+                    , LazyWhere1
+                    , LazyWhere
+                    , LetRecStack
+                    , List00
+                    , ListConcat
+                    , ListElem
+                    , ListKeys
+                    , ListMSort
+                    , Listne
+                    , ListRange
+                    , Lit
+                    , LocalSpec
+                    , Mapreduce
+                    , Mapreduce_tiny
+                    , Maps
+                    , Maybe
+                    , MaybeMonad
+                    , Meas0
+                    , Meas2
+                    , Meas3
+                    , Meas5
+                    , Meas7
+                    , Meas9
+                    , MeasureContains
+                    , MeasureDups
+                    , MergeSort
+                    , Monad3
+                    , Monad4
+                    , Monad5
+                    , Monad6
+                    , Monad7
+                    , Mr00
+                    , MultiParamTypeClasses
+                    , MultipleInvariants
+                    , Multi_pred_app_00
+                    , NameResolution
+                    , NestedRecursion
+                    , NoExhaustiveGuardsError
+                    , NoMethodBindingError
+                    , Null
+                    , Pair0
+                    , Pair
+                    , PairMeasure
+                    , Pargs1
+                    , Pargs
+                    , Partial
+                    , Poly0
+                    , Poly1
+                    , Poly2_degenerate
+                    , Poly2
+                    , Polypred
+                    , Poslist
+                    , Pred
+                    , Propability0
+                    , Propability
+                    , Prune0
+                    , Range
+                    , Rebind
+                    , Record0
+                    , RecQSort
+                    , RecSelector
+                    , Revshape
+                    , ReWrite2
+                    , ReWrite3
+                    , ReWrite4
+                    , ReWrite
+                    , RG
+                    , Risers
+                    , SafePartialFunctions
+                    , Solver
+                    , Stacks
+                    , State00
+                    , State0
+                    , StateConstraints00
+                    , StateConstraints0
+                    , StateConstraints
+                    , StrictPair0
+                    , StrictPair1
+                    , String00
+                    , Strings
+                    , Sumk
+                    , SumPoly
+                    , T1095C
+                    , T1126
+                    , T1198_3
+                    , T1267
+                    , T1286
+                    , T1288
+                    , T1490A
+                    , T1490
+                    , T1498A
+                    , T1498
+                    , T1546
+                    , T1553A
+                    , T1553
+                    , T1555
+                    , T1577
+                    , T1604
+                    , T1613
+                    , T1642A
+                    , T1657A
+                    , T1657
+                    , T1659
+                    , T1814
+                    , T1907
+                    , T602
+                    , T743
+                    , T743_mini
+                    , TerminationNum0
+                    , TerminationNum
+                    , TermReal
+                    , Test00a
+                    , Test00b
+                    , Test00c
+                    , Test00
+                    , Test1
+                    , Test2
+                    , TopLevel
+                    , TotalHaskell
+                    , Trans
+                    , Truespec
+                    , Tyclass0_unsafe
+                    , TypeLitNat
+                    , Variance
+                    , Vector00
+                    , Vector0a
+                    , Vector1a
+                    , Vector2
+                    , VerifiedNum
+                    , Wrap0
+                    , Wrap1
+                    --- IGNORED
+                    -- , Elim_ex_let
+                    -- , Elim_ex_map_1
+                    -- , Elim_ex_map_2
+                    -- , Elim_ex_map_3
+                    -- , QQTySig
+                    -- , QQTySyn1
+                    -- , QQTySyn2
+                    -- , Variance1
+
+                    -- XXX(matt.walker): double frees on -j
+    ghc-options:      -fplugin=LiquidHaskell -ddump-to-file -fkeep-going -O0
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquid-containers
+                    , liquid-vector
+                    , liquid-bytestring
+                    , liquid-ghc-prim
+                    , liquidhaskell
+                    , binary
+                    , primitive
+
+    default-language: Haskell2010
+
+flag unit-pos
+     default: False
+
+executable unit-pos
+    main-is:          Main.hs
+    -- Modules included in this executable, other than Main.
+    if !flag(unit-pos) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      Abs
+                    , Absref_crash0
+                    , Absref_crash
+                    , Ackermann
+                    , Adt0
+                    , AdtList0
+                    , AdtList1
+                    , AdtList2
+                    , AdtList3
+                    , AdtList4
+                    , AdtList5
+                    , AdtPeano0
+                    , AdtPeano1
+                    , Alias00
+                    , Alias01
+                    , Alphaconvert_List
+                    , Alphaconvert_Set
+                    , AmortizedQueue
+                    , Anfbug
+                    , Anftest
+                    , Anish1
+                    , AssumedRecursive
+                    , Assume
+                    , Automate
+                    , AutoSize
+                    , AutoTerm1
+                    , AutoTerm
+                    , Avg
+                    , AVL
+                    , AVLRJ
+                    , Bag1
+                    , BangPatterns
+                    , BinarySearch
+                    , BinarySearchOverflow
+                    , Books
+                    , Bool0
+                    , Bool1
+                    , Bool2
+                    , Bounds1
+                    , BST000
+                    , BST
+                    , Case_lambda_join
+                    , CasesToLogic
+                    , Cat
+                    , CharLiterals
+                    , CheckedNum
+                    , Chunks
+                    , Class2
+                    , Class
+                    , ClassReg
+                    , Client521
+                    , ClojurVector
+                    , Cmptag0
+                    , Coercion
+                    , Comma
+                    , CommentedOut
+                    , Compare1
+                    , Compare2
+                    , CompareConstraints
+                    , Compare
+                    , Comprehension
+                    , ComprehensionTerm
+                    , ConstraintsAppend
+                    , Constraints
+                    , Coretologic
+                    , CountMonad
+                    , Csgordon_issue_296
+                    , Cut00
+                    , Data2
+                    , DataBase
+                    , Datacon0
+                    , Datacon1
+                    , Datacon_inv
+                    , DataConQuals
+                    , DB00
+                    , Deepmeas0
+                    , DepData
+                    , DependentPairsFun
+                    , DependentPairs
+                    , DepTriples
+                    , Deptup1
+                    , Deptup3
+                    , Deptup
+                    , DeptupW
+                    , Div000
+                    , Dropwhile
+                    , Duplicate_bind
+                    , Elements
+                    , Elems
+                    , Elim00
+                    , Elim01
+                    , Elim_ex_compose
+                    , Elim_ex_let
+                    , Elim_ex_list
+                    , Elim_ex_map_1
+                    , Elim_ex_map_2
+                    , Elim_ex_map_3
+                    , Eqelems
+                    , Eq_poly_measure
+                    , Eval
+                    , EvalQuery
+                    , Even0
+                    , Even
+                    , Ex01
+                    , Ex0
+                    , Ex1
+                    , ExactADT6
+                    , ExactGADT0
+                    , ExactGADT1
+                    , ExactGADT2
+                    , ExactGADT6
+                    , ExactGADT
+                    , Exp0
+                    , Extype
+                    , Fail
+                    , FailName
+                    , FFI
+                    , Fib0
+                    , FibEq
+                    , FilterAbs
+                    , FingerTree
+                    , Foldl
+                    , FoldN
+                    , Foldr
+                    , Foo
+                    , For
+                    , Forloop
+                    , Fractional
+                    , FractionalInstance
+                    , GadtEval
+                    , GCD
+                    , GeneralizedTermination
+                    , GhcSort1
+                    , GhcSort2
+                    , GhcSort3
+                    , GhcSort3_T
+                    , Gimme
+                    , Go
+                    , GoodHMeas
+                    , Go_ugly_type
+                    , Graph
+                    , Grty0
+                    , Grty1
+                    , Grty2
+                    , Grty3
+                    , GuardedNegative
+                    , HasElem
+                    , HaskellMeasure
+                    , HedgeUnion
+                    , Hello
+                    , Hex00
+                    , HigherOrderRecFun
+                    , Hole00
+                    , Hole_app
+                    , Hole_fun
+                    , Holes
+                    , Holes_Slicing
+                    , Hutton
+                    , IcfpDemo
+                    , IdNat0
+                    , IdNat
+                    , Ignores
+                    , Imp0
+                    , Implies
+                    , Infinity
+                    , Infix
+                    , Inline1
+                    , Inline
+                    , Invlhs
+                    , Ite1
+                    , Ite
+                    , Jeff
+                    , Keys
+                    , Kmp
+                    , KmpIO
+                    , KmpVec
+                    , LambdaDeBruijn
+                    , LambdaEval
+                    , LambdaEvalMini
+                    , LambdaEvalSuperTiny
+                    , LambdaEvalTiny
+                    , LazyWhere1
+                    , LazyWhere
+                    , Lets
+                    , Lex
+                    , Lib521
+                    , ListAnf
+                    , ListConcat
+                    , ListElem
+                    , ListISort_bag
+                    , ListISort_perm
+                    , ListKeys
+                    , ListLen
+                    , ListLen_LType
+                    , ListMSort
+                    , ListMSort_LType
+                    , ListQSort_LType
+                    , Listqual
+                    , ListRange
+                    , ListRange_LType
+                    , ListReverse_LType
+                    , ListSetDemo
+                    , ListSet
+                    , ListSort
+                    , Lit00
+                    , Lit02
+                    , Lit
+                    , LocalHole
+                    , LocalLazy
+                    , LocalSpec
+                    , LocalSpecLib
+                    , LogicCurry1
+                    , Loo
+                    , LooLib
+                    , LooLibLib
+                    , Malformed0
+                    , Map0
+                    , Map2
+                    , MapFusion
+                    , Map
+                    , Mapreduce_bare
+                    , MapReduceVerified
+                    , Maps1
+                    , Maps
+                    , MapTvCrash
+                    , MaskError
+                    , Maybe000
+                    , Maybe0
+                    , Maybe1
+                    , Maybe2
+                    , Maybe3
+                    , Maybe4
+                    , Maybe5
+                    , Maybe
+                    , Meas00a
+                    , Meas00
+                    , Meas0a
+                    , Meas0
+                    , Meas10
+                    , Meas11
+                    , Meas1
+                    , Meas2
+                    , Meas4
+                    , Meas5
+                    , Meas6
+                    , Meas7
+                    , Meas8
+                    , Meas9
+                    , MeasureContains
+                    , MeasureDups
+                    , Measures1
+                    , MeasureSets
+                    , Measures
+                    , Merge1
+                    , MergeSort_bag
+                    , MergeSort
+                    , Mod
+                    , ModLib
+                    , ModTest
+                    , Monad2
+                    , Monad5
+                    , Monad6
+                    , Multi_pred_app_00
+                    , Mutrec
+                    , MutuallyDependentADT
+                    , MutualRec
+                    , Nats
+                    , Niki1
+                    , Niki
+                    , NoCaseExpand
+                    , NoExhaustiveGuardsError
+                    , NoPositivityCheck
+                    , Null
+                    , OrdList
+                    , ORM
+                    , Pair00
+                    , Pair0
+                    , Pair
+                    , PairMeasure0
+                    , PairMeasure
+                    , Pargs1
+                    , Pargs
+                    , Partialmeasure
+                    , Partial_tycon
+                    , Permutation
+                    , PersistentVector
+                    , Ple1
+                    , PointDist
+                    , Poly0
+                    , Poly1
+                    , Poly2_degenerate
+                    , Poly2
+                    , Poly3a
+                    , Poly3
+                    , Poly4
+                    , Polyfun
+                    , Polyqual
+                    , PositivityCheck
+                    , Poslist_dc
+                    , Poslist
+                    , Pragma0
+                    , Pred
+                    , PrimInt0
+                    , Product
+                    , Profcrasher
+                    , PromotedDataCons
+                    , Propability
+                    , Propmeasure1
+                    , Propmeasure
+                    , QQTySig
+                    , QQTySigTyVars
+                    , QQTySyn
+                    , QualTest
+                    , Range1
+                    , RangeAdt
+                    , Range
+                    , RBTree_col_height
+                    , RBTree_color
+                    , RBTree_height
+                    , RBTree
+                    , RBTree_ord
+                    , RealProps
+                    , Rebind
+                    , Rec_annot_go
+                    , Record0
+                    , Record1
+                    , RecordSelectorError
+                    , RecQSort0
+                    , RecQSort
+                    , RecSelector
+                    , Recursion0
+                    , Reduction
+                    , RefinedADTs
+                    , Reflect0
+                    , ReflectAlias
+                    , ReflectBooleanFunctions
+                    , ReflectMutual
+                    , RelativeComplete
+                    , RepeatHigherOrder
+                    , Repeat
+                    , ResolveA
+                    , ResolveB
+                    , Resolve
+                    , ResolvePred
+                    , Rest
+                    , ReWrite10
+                    , ReWrite2
+                    , ReWrite3
+                    , ReWrite4
+                    , ReWrite5
+                    , ReWrite6
+                    , ReWrite7
+                    , ReWrite8
+                    , ReWrite9
+                    , ReWrite
+                    , Risers
+                    , Rta
+                    , SafePartialFunctions
+                    , Scanr
+                    , SelfList
+                    , SimplerNotation
+                    , SimplifyTup00
+                    , SingletonLists
+                    , Solver
+                    , Spec0
+                    , StackClass
+                    , StackMachine
+                    , Stacks0
+                    , State00
+                    , StateConstraints00
+                    , StateConstraints0
+                    , StateConstraints
+                    , StateF00
+                    , State
+                    , StateInvarint
+                    , StateLib
+                    , Streams
+                    , StrictPair0
+                    , StrictPair1
+                    , String00
+                    , StringLit
+                    , Strings
+                    , StructRec
+                    , Sum
+                    , T1013A
+                    , T1013
+                    , T1024
+                    , T1025a
+                    , T1025
+                    , T1034
+                    , T1045a
+                    , T1045
+                    , T1060
+                    , T1065
+                    , T1074
+                    , T1085
+                    , T1092
+                    , T1095A
+                    , T1095B
+                    , T1095C
+                    , T1100
+                    , T1120A
+                    , T1126a
+                    , T1126
+                    , T1198_1
+                    , T1198_2
+                    , T1198_3
+                    , T1198_4
+                    , T1220
+                    , T1223
+                    , T1267
+                    , T1278_2
+                    , T1278_3
+                    , T1278
+                    , T1286
+                    , T1288
+                    , T1289a
+                    , T1302
+                    , T1336
+                    , T1363
+                    , T1461
+                    , T1498
+                    , T1543
+                    , T1544
+                    , T1547
+                    , T1548
+                    , T1550
+                    , T1555
+                    , T1556
+                    , T1560B
+                    , T1560
+                    , T1567
+                    , T1568
+                    , T1571
+                    , T1577
+                    , T1593
+                    , T1595
+                    , T1597
+                    , T1603
+                    , T1633
+                    , T1634
+                    , T1636
+                    , T1642A
+                    , T1642
+                    , T1647
+                    , T1649MeasuresDef
+                    , T1649WorkTypes
+                    , T1657
+                    , T1660
+                    , T1669
+                    , T1670A
+                    , T1670B
+                    , T1697A
+                    , T1697C
+                    , T1697
+                    , T1709
+                    , T1749
+                    , T1761
+                    , T1775
+                    , T1812
+                    , T1874
+                    , T385
+                    , T531
+                    , T595a
+                    , T595
+                    , T598
+                    , T716
+                    , T819A
+                    , T819
+                    , T820
+                    , T866
+                    , T914
+                    , TagBinder
+                    , Take
+                    , Term0
+                    , Term
+                    , Termination
+                    , TerminationNum0
+                    , TerminationNum
+                    , Test000
+                    , Test00b
+                    , Test00c
+                    , Test00
+                    , Test00_int
+                    , Test00_old
+                    , Test0
+                    , Test1
+                    , Test2
+                    , Test761
+                    , TestRec
+                    , TokenType
+                    , Top0
+                    , TopLevel
+                    , ToyMVar
+                    , Trans
+                    , Transpose
+                    , TransTAG
+                    , Tup0
+                    , Tupparse
+                    , Tyclass0
+                    , TyExpr
+                    , Tyfam0
+                    , TypeAlias
+                    , TypeLitNat
+                    , TypeLitString
+                    , Tyvar
+                    , UnboxedTuplesAndTH
+                    , UnboxedTuples
+                    , Unusedtyvars
+                    , Variance2
+                    , Vector00
+                    , Vector1a
+                    , Vector1b
+                    , Vector1
+                    , Vector2
+                    , VerifiedNum
+                    , WBL0
+                    , WBL
+                    , WhyLH
+                    , Words1
+                    , Words
+                    , Wrap0
+                    , Wrap1
+                    , WrapUnWrap
+                    , Zipper000
+                    , Zipper0
+                    , Zipper
+                    , ZipSO
+                    , ZipW1
+                    , ZipW2
+                    , ZipW
+                    --- IGNORED
+                    -- , Variance
+
+
+    -- LANGUAGE extensions used by modules in this package.
+    -- other-extensions:
+    -- XXX(matt.walker): Double frees on -j
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquid-containers
+                    , liquid-vector
+                    , liquid-bytestring
+                    , liquid-ghc-prim
+                    , liquidhaskell
+                    , transformers
+                    , primitive
+                    , template-haskell
+                    , deepseq
+
+    hs-source-dirs:   app
+                    , pos
+
+    c-sources:        ffi-include/foo.c
+    include-dirs:     ffi-include
+    default-language: Haskell2010
+
+flag absref-pos
+     default: False
+
+executable absref-pos
+    main-is:          Main.hs
+    if !flag(absref-pos) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      AbsRef00
+                    , Deppair0
+                    , Deppair2
+                    , Deptup0
+                    , DeptupW
+                    , FlipArgs
+                    , ListISort
+                    , ListISort_LType
+                    , ListQSort
+                    , Papp00
+                    , State00
+                    , VectorLoop
+
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquid-vector
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , absref/pos
+
+    default-language: Haskell2010
+
+flag absref-neg
+     default: False
+
+executable absref-neg
+    main-is:          Main.hs
+    if !flag(absref-neg) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      Deppair0
+                    , Deptup0
+                    , DeptupW
+                    , FlipArgs
+                    , ListISort
+                    , ListISort_LType
+                    , ListQSort
+
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquid-vector
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , absref/neg
+
+    default-language: Haskell2010
+
+flag basic-neg
+     default: False
+
+executable basic-neg
+    main-is:          Main.hs
+    if !flag(basic-neg) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      Inc01
+                    , Inc01q
+                    , Inc02
+                    , Inc03
+                    , Inc04
+                    , Inc04Lib
+                    , List00
+                    , Poly00
+                    , T1459
+
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquidhaskell
+                    , liquid-bytestring
+
+    hs-source-dirs:   app
+                    , basic/neg
+
+    default-language: Haskell2010
+
+flag basic-pos
+     default: False
+
+executable basic-pos
+    main-is:          Main.hs
+    if !flag(basic-pos) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      Alias00
+                    , Alias01
+                    , Alias02
+                    , Alias03
+                    , Alias04
+                    , Alias05
+                    , Float
+                    , Inc00
+                    , Inc01
+                    , Inc01q
+                    , Inc02
+                    , Inc03
+                    , Inc03Lib
+                    , Inc04
+                    , Infer00
+                    , List00
+                    , Poly00
+                    , SkipDerived00
+
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , basic/pos
+
+    default-language: Haskell2010
+
+flag import-cli
+     default: False
+
+executable import-cli
+    main-is:          Main.hs
+    if !flag(import-cli) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      CliAliasGen00
+                    , Client0
+                    , Client1Lib
+                    , Client2Lib
+                    , CliRedBlue
+                    , ExactGADT9
+                    , FunClashLibLibClient
+                    , LibRedBlue
+                    , LiquidArrayInit
+                    , LiquidArrayNullTerm
+                    , ListClient
+                    , NameClashClient
+                    , RC1015
+                    , ReExportClient
+                    , ReflectClient0
+                    , ReflectClient1
+                    , ReflectClient2
+                    , ReflectClient3
+                    , ReflectClient4a
+                    , ReflectClient4
+                    , ReflectClient5
+                    , ReflectClient6
+                    , ReflectClient7
+                    , ReflectClient8
+                    , RewriteClient
+                    , STClient
+                    , T1096_Foo
+                    , T1104Client
+                    , T1117
+                    , T1118
+                    , T1180
+                    , T1688
+                    , T1738
+                    , WrapClient
+                    , ExactGADT8Lib
+                    , FunClashLib
+                    , FunClashLibLib
+                    , LibAliasGen00
+                    , LibBlue
+                    , LibRed
+                    , LiquidArrayLib
+                    , ListLib
+                    , NameClashLib
+                    , PeanoLib
+                    , RL1015Lib
+                    , ReExportLib
+                    , ReflectLib0
+                    , ReflectLib1
+                    , ReflectLib2
+                    , ReflectLib3
+                    , ReflectLib4
+                    , ReflectLib5
+                    , ReflectLib6
+                    , ReflectLib7
+                    , ReflectLib8
+                    , RewriteLib
+                    , STLib
+                    , SpecLib
+                    , T1096_TypesLib
+                    , T1104Lib
+                    , T1117Lib
+                    , T1118Lib1
+                    , T1118Lib2
+                    , T1688Lib
+                    , T1738Lib
+                    , WrapLib
+                    , WrapLibCode
+
+    ghc-options:      -fplugin=LiquidHaskell
+                      -ddump-timings
+                      -ddump-to-file
+                      -fkeep-going
+                      -O0
+                      -- XXX(matt.walker) it's odd, but I have to include the lib dir.
+                      -iimport-cli/lib
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , import/client
+                    , import/lib
+
+    default-language: Haskell2010
+
+flag ple-pos
+     default: False
+
+executable ple-pos
+    main-is:          Main.hs
+    if !flag(ple-pos) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      BinahQuery
+                    , BinahUpdate
+                    , Compiler
+                    , ExactGADT4
+                    , ExactGADT5
+                    , ExactGADT7
+                    , FilterPLE
+                    , Fulcrum
+                    , IndLast
+                    , IndPal00
+                    , IndPal0
+                    , IndPalindrome
+                    , IndPerm
+                    , IndStarHole
+                    , IndStar
+                    , ListAnd
+                    , Lists
+                    , MergeSort
+                    , MJFix
+                    , MossakaBug
+                    , NegNormalForm
+                    , NNFPiotr
+                    , PadLeft
+                    , Ple0
+                    , PleORM
+                    , Ple_sum
+                    , ReflectDefault
+                    , RegexpDerivative
+                    , RosePLEDiv
+                    , STLC0
+                    , STLC1
+                    , STLC2
+                    , STLCB0
+                    , STLCB1
+                    , StlcBug
+                    , T1173
+                    , T1190
+                    , T1257
+                    , T1289
+                    , T1371
+                    , T1371_NNF
+                    , T1382
+                    , T1409
+                    , T1424A
+                    , T1424
+                    , Tmp1
+                    , Tmp
+
+    -- XXX(matt.walker): dies on lists on first compile in ghc 8107
+    if impl(ghc >= 9.0)
+      other-modules:  T1302b
+                   
+
+                    -- XXX(matt.walker): RANDOM FAILURES in T1302b when -j provided
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquid-containers
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , ple/pos
+
+    default-language: Haskell2010
+
+flag ple-neg
+     default: False
+
+executable ple-neg
+    main-is:          Main.hs
+    if !flag(ple-neg) && flag(stack)
+      buildable:      False
+
+
+    other-modules:
+                      BinahQuery
+                    , BinahUpdateClient
+                    , BinahUpdate
+                    , BinahUpdateLib1
+                    , BinahUpdateLib
+                    , ExactGADT5
+                    , Ple0
+                    , Ple_sum
+                    , ReflectDefault
+                    , T1173
+                    , T1192
+                    , T1289
+                    , T1371_Tick
+                    , T1409
+                    , T1424
+
+                    -- XXX(matt.walker): SEGFAUTS WITH  (!?)
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquid-containers
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , ple/neg
+
+    default-language: Haskell2010
+
+flag rankN-pos
+     default: False
+
+executable rankN-pos
+    main-is:          Main.hs
+    if !flag(rankN-pos) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      Test0
+                    , Test00
+                    , Test1
+
+
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0 
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , RankNTypes/pos
+
+    default-language: Haskell2010
+
+flag terminate-pos
+     default: False
+
+executable terminate-pos
+    main-is:          Main.hs
+    if !flag(terminate-pos) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      Ackermann
+                    , AutoTerm
+                    , Lexicographic
+                    , List00
+                    , List00_local
+                    , List00_str
+                    , List01
+                    , List02
+                    , List03
+                    , List04
+                    , List04_local
+                    , List05_local
+                    , LocalTermExpr
+                    , StructSecondArg
+                    , Sum
+                    , T1245
+                    , T1396_0
+                    , T1396_1
+                    , T1403
+                    , Term00
+
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0 
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquid-containers
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , terminate/pos
+
+    default-language: Haskell2010
+
+flag terminate-neg
+     default: False
+
+executable terminate-neg
+    main-is:          Main.hs
+    if !flag(terminate-neg) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      AutoTerm
+                    , Even
+                    , Qsloop
+                    , Rename
+                    , Sum
+                    , T1404_0
+                    , T1404_1
+                    , T1404_2
+                    , T1404_3
+                    , T745
+                    , Term00
+                    , TestRec
+                    , Total00
+                    , Total01
+                    , Total02
+
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0 
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , terminate/neg
+
+    default-language: Haskell2010

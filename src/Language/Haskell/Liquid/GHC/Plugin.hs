@@ -127,7 +127,8 @@ plugin = GHC.defaultPlugin {
           let warning = mkWarning (mkSrcSpan srcLoc srcLoc) msg
           liftIO $ printWarning dynFlags warning
           pure gblEnv
-        else typecheckHook opts summary gblEnv
+        else typecheckHook opts summary gblEnv 
+
 
 
 --------------------------------------------------------------------------------
@@ -241,7 +242,8 @@ liquidHaskellCheck pipelineData modSummary tcGblEnv = (do
   -- Here, we are calling Liquid Haskell's parser, acting on the unparsed
   -- spec comments stored in the pipeline data, supported by the specQuotes
   -- obtained from the imported modules.
-  inputSpec :: BareSpec <- getLiquidSpec thisModule (pdSpecComments pipelineData) specQuotes
+  inputSpec :: BareSpec <-
+    (getLiquidSpec thisModule (pdSpecComments pipelineData) specQuotes)
 
   debugLog $ " Input spec: \n" ++ show inputSpec
   debugLog $ "Relevant ===> \n" ++ unlines (renderModule <$> S.toList (relevantModules modGuts))
