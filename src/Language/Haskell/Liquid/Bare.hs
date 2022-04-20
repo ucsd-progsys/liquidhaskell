@@ -634,7 +634,15 @@ makeSpecRefl cfg src menv specs env name sig tycEnv = do
   rwrWith  <- makeRewriteWith env name mySpec
   wRefls   <- Bare.wiredReflects cfg env name sig
   xtes     <- Bare.makeHaskellAxioms cfg src env tycEnv name lmap sig mySpec
-  let myAxioms = [ Bare.qualifyTop env name (F.loc lt) (e {eqName = symbol x}) | (x, lt, e) <- xtes]  
+  let myAxioms =
+        [ Bare.qualifyTop
+            env
+            name
+            (F.loc lt)
+            e {eqName = s, eqRec = S.member s (exprSymbolsSet (eqBody e))}
+        | (x, lt, e) <- xtes
+        , let s = symbol x
+        ]
   let sigVars  = F.notracepp "SIGVARS" $ (fst3 <$> xtes)            -- reflects
                                       ++ (fst  <$> gsAsmSigs sig)   -- assumes
                                       ++ (fst  <$> gsRefSigs sig)
