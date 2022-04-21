@@ -1,6 +1,6 @@
 -- TODO-REBARE: LH _should_ (?) complain: "Unknown field `fxx` in refined definition of `F`"
 
-module Invariant where
+module MissingField2 where
 
 data F a = F {fx :: a, fy :: a, fzz :: a} | G {fx :: a}
 

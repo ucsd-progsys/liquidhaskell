@@ -1,4 +1,4 @@
-module Issue595 where
+module T595 where
 
 import Data.Vector
 

@@ -10,7 +10,7 @@
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
-module Query where
+module BinahQuery where
 
 import Prelude hiding (filter)
 

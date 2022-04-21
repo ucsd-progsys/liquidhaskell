@@ -1,4 +1,4 @@
-module Newtypes where
+module NewTypes where
 
 newtype Foo a = Bar Int
 

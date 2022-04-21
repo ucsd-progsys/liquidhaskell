@@ -1,4 +1,4 @@
-module ListLen () where
+module StructRec () where
 
 {-@ autosize OList @-}
 

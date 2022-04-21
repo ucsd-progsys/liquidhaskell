@@ -1,7 +1,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
-module Intervals where
+module T1190 where
 
 import qualified Data.Set as S
 import Language.Haskell.Liquid.ProofCombinators

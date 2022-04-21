@@ -2,7 +2,7 @@
 
 -- Compare with tests/pos/StrictPair1.hs
 
-module SPair (
+module StrictPair1 (
     PairS(..)
   , moo
   , psnd

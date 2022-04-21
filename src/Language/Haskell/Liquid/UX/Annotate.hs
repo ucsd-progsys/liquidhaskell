@@ -90,6 +90,7 @@ mkOutput cfg res sol anna
 annotate :: Config -> [FilePath] -> Output Doc -> IO ACSS.AnnMap
 -------------------------------------------------------------------
 annotate cfg srcFs out
+  -- TODO(matt.walker): Make this obey json!
   = do when showWarns  $ forM_ bots (printf "WARNING: Found false in %s\n" . showPpr)
        when doAnnotate $ mapM_ (doGenerate cfg tplAnnMap typAnnMap annTyp) srcFs
        return typAnnMap

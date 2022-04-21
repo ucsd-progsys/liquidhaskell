@@ -1,7 +1,7 @@
 {-@ LIQUID "--reflection"        @-}
 {-@ LIQUID "--max-case-expand=0" @-}
 
-module Foo where
+module T1095A where
 
 {-@  data Foo [size] @-}
 data Foo 

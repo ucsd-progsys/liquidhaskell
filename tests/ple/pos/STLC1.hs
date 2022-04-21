@@ -6,7 +6,7 @@
 
 {-# LANGUAGE GADTs #-}
 
-module STLC where 
+module STLC1 where
 
 type Var = String 
 

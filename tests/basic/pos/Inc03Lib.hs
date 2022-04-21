@@ -1,4 +1,4 @@
-module Inc03Lib where 
+module Inc03Lib where
 
 {-@ type NN = {v:Int | 0 <= v} @-}
 

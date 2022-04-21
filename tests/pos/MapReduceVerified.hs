@@ -6,7 +6,7 @@
 {-@ LIQUID "--reflection" @-}
 
 
-module MapReduce where 
+module MapReduceVerified where
 
 import Prelude hiding (mconcat, map, split, take, drop, sum)
 import Language.Haskell.Liquid.ProofCombinators 

@@ -6,7 +6,7 @@
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
-module BinahUpdateClient where 
+module BinahUpdateClient where
 
 import BinahUpdateLib 
 

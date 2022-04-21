@@ -1,6 +1,8 @@
 {-@ LIQUID "--reflection"                     @-}
 {-@ LIQUID "--ple"                                @-}
 
+module MissingReflect where
+
 import Language.Haskell.Liquid.ProofCombinators 
 
 -- | This fails with an error as `foo` is unbound sans the `reflect` annotation. 

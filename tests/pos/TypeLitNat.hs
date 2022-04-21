@@ -7,7 +7,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators       #-}
 
-module TypeLits where
+module TypeLitNat where
 
 import GHC.TypeLits
 

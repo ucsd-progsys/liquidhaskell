@@ -1,5 +1,5 @@
 {-@ LIQUID "--no-termination" @-}
-module RedBlack  where
+module MultiRecSels where
 
 data RBTree a = Leaf
               | Node Color a !(RBTree a) !(RBTree a)

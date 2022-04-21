@@ -1,6 +1,6 @@
 {-# LANGUAGE  GADTs #-}
 
-module Query where
+module ExactGADT where
 
 {-@ data Field typ where
         FldX :: Field Int

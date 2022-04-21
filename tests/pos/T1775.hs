@@ -1,4 +1,4 @@
-module T1775 where 
+module T1775 where
 
 {-@ measure listLength @-}
 {-@ listLength :: xs:_ -> {n:Nat | n == len xs } @-}

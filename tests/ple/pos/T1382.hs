@@ -15,7 +15,7 @@ $ stack exec -- liquid Lists.hs --checks=lemma_app_assoc2
 Time (1.60s) for action ["Lists.lemma_app_assoc2"]
 -}
 
-module Lists where 
+module T1382 where
 
 import Prelude hiding ((++))
 import Language.Haskell.Liquid.ProofCombinators 

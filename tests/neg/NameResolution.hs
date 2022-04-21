@@ -1,4 +1,4 @@
-module Fixme where
+module NameResolution where
 
 import Prelude hiding ((==), (++))
 import Language.Haskell.Liquid.Equational 

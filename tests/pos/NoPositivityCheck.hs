@@ -1,6 +1,6 @@
 {-@ LIQUID "--no-positivity-check" @-}
 
-module Positivity where 
+module NoPositivityCheck where
 
 data Bad1 a = No11 (Bad1 a -> Int) | No12 (Bad1 a) 
 data Bad2 a = No2 (Int -> Bad2 a -> Int)

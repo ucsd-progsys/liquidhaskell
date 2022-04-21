@@ -1,4 +1,4 @@
-module ListSort () where
+module ListISort () where
 
 {-@ type OList a = [a]<{\fld v -> v >= fld}> @-}
 

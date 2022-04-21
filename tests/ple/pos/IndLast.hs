@@ -4,7 +4,7 @@
 {-@ LIQUID "--ple"            @-}
 
 
-module Last where
+module IndLast where
 
 -- | Lists ---------------------------------------------------------------------
 

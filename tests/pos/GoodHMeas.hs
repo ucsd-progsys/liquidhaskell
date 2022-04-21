@@ -1,3 +1,5 @@
+module GoodHMeas where
+
 {-@ LIQUID "--prune-unsorted" @-}
 
 {-@ measure foo @-}

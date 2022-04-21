@@ -1,4 +1,4 @@
-module Compose where
+module StateConstraints00 where
 
 import Prelude hiding (Monad, return )
 

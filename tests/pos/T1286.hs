@@ -1,4 +1,4 @@
-module Example where
+module T1286 where
 
 {-@ fails :: {v:Bool | v} @-}
 fails =  'a' == 'a'

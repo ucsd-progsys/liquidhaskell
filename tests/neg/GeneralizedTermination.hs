@@ -1,5 +1,5 @@
 {-@ LIQUID "--no-totality" @-}
-module GenTerm () where
+module GeneralizedTermination () where
 
 foo :: Int -> Int -> Int
 {-@ foo :: n:Nat -> m:Nat -> Nat /[n+m] @-}

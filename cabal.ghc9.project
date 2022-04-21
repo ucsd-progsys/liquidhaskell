@@ -6,6 +6,8 @@ packages: .
           ./liquid-prelude
           ./liquid-vector
           ./liquid-platform
+          ./tests
+          ./tests/benchmarks/popl18/lib
 
 package liquid-fixpoint
   flags: +devel

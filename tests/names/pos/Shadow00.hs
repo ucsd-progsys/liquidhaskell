@@ -5,7 +5,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
-module Induction where
+module Shadow00 where
 
 import qualified Prelude
 

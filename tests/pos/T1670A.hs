@@ -2,7 +2,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
 
-module B where
+module T1670A where
 
 data LWW t a = LWW {
     lwwTime  :: t

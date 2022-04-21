@@ -1,6 +1,6 @@
 {-@ LIQUID "--pruneunsorted" @-}
 
-module Measures where
+module MeasureSets where
 
 import Data.Set 
 

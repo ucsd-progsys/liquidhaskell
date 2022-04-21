@@ -1,4 +1,4 @@
-module PleIssue where
+module ListAnd where
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
 

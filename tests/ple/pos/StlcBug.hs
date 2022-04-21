@@ -6,7 +6,7 @@
 
 {-# LANGUAGE GADTs #-}
 
-module Bug where 
+module StlcBug where
 
 data Type 
   = TInt 

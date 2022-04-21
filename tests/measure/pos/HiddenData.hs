@@ -1,4 +1,4 @@
-module HiddenData where 
+module HiddenData where
 
 import HiddenDataLib (blub) 
 

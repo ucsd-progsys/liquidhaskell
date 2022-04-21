@@ -1,4 +1,4 @@
-module Client0 where 
+module Client0 where
 
     import Client1Lib
     

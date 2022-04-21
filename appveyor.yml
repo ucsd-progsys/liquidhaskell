@@ -50,7 +50,8 @@ build_script:
 # Run the tests (using the legacy executable)
 test_script:
 - echo "" | stack --no-terminal test liquidhaskell:liquidhaskell-parser --fast --flag liquidhaskell:no-plugin
-- echo "" | stack --no-terminal test liquidhaskell:test --fast --flag liquidhaskell:no-plugin --ta="--liquid-runner \"stack --compiler=ghc-8.10.7 --silent exec -- liquid\""  --test-arguments "-p Micro"
+# XXX(matt.walker): Can this whole file be removed?
+# - echo "" | stack --no-terminal test liquidhaskell:test --fast --flag liquidhaskell:no-plugin --ta="--liquid-runner \"stack --compiler=ghc-8.10.7 --silent exec -- liquid\""  --test-arguments "-p Micro"
  
 artifacts:
 - path: liquidhaskell.zip

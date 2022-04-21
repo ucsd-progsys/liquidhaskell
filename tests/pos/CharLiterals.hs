@@ -1,5 +1,5 @@
 -- see #1286 
-module Example where
+module CharLiterals where
 
 {-@ fails :: {v:Bool | v} @-}
 fails =  'a' == 'a'

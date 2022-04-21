@@ -1,4 +1,4 @@
-module Search where
+module TermReal where
 
 {-@ search :: { hi : Int | 0 < hi } -> Int @-}
 search :: Int -> Int

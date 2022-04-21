@@ -1,4 +1,4 @@
-module T1498 where 
+module T1498 where
 
 class A a where
   f :: a -> Int

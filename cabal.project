@@ -8,6 +8,8 @@ packages: .
           ./liquid-prelude
           ./liquid-vector
           ./liquid-platform
+          ./tests
+          ./tests/benchmarks/popl18/lib
 
 source-repository-package
     type: git

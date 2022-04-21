@@ -1,4 +1,4 @@
-module Foo () where
+module PairMeasure () where
 
 {-@ LIQUID "--bscope" @-}
 

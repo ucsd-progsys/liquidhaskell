@@ -2,7 +2,7 @@
 {-@ LIQUID "--extensionality" @-}
 {-@ LIQUID "--ple"            @-}
 
-module T1577 where 
+module T1577 where
 
 -- | 1 . ints
 

@@ -3,7 +3,7 @@
 {-@ LIQUID "--ple"        @-}
 
 {-# LANGUAGE GADTs #-}
-module GuardedNegative where 
+module GuardedNegative where
 
 data GuardedNegative where  
       NatInduction  :: (Int -> Bool) -> GuardedNegative -> (Int -> GuardedNegative -> GuardedNegative) -> Int -> GuardedNegative

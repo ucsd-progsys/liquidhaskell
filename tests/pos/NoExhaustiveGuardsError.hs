@@ -1,4 +1,4 @@
-module Foo where
+module NoExhaustiveGuardsError where
 
 {-@ LIQUID "--no-totality" @-}
 bar :: Int -> Int -> Int

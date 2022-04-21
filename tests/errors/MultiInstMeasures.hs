@@ -1,4 +1,4 @@
-module Blank where
+module MultiInstMeasures where
 
 import Data.Word
 import GHC.Ptr

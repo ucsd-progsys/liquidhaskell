@@ -1,4 +1,4 @@
-module Evil where
+module Positivity2 where
 
 data Evil a = Very (Evil a -> a)
 

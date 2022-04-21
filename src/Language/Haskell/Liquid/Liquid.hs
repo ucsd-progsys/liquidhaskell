@@ -51,6 +51,7 @@ import           Language.Haskell.Liquid.GHC.API as GHC hiding (text, vcat, ($+$
 
 type MbEnv = Maybe HscEnv
 
+
 --------------------------------------------------------------------------------
 liquid :: [String] -> IO b
 --------------------------------------------------------------------------------
@@ -84,7 +85,7 @@ checkTargets :: Config -> MbEnv -> [FilePath] -> IO (ExitCode, MbEnv)
 checkTargets cfg  = go 
   where
     go env []     = return (ExitSuccess, env)
-    go env (f:fs) = do whenLoud $ colorPhaseLn Loud ("[Checking: " ++ f ++ "]") ""
+    go env (f:fs) = do -- whenLoud $ colorPhaseLn Loud ("[Checking: " ++ f ++ "]") ""
                        (ec, env') <- runLiquidTargets env cfg [f] 
                        case ec of 
                          ExitSuccess -> go env' fs
@@ -167,7 +168,7 @@ checkTargetInfo info = do
     check :: IO (Output Doc)
     check
       | compileSpec cfg = do
-        donePhase Loud "Only compiling specifications [skipping verification]"
+        -- donePhase Loud "Only compiling specifications [skipping verification]"
         pure mempty { o_result = F.Safe mempty }
       | otherwise = do
         whenNormal $ donePhase Loud "Extracted Core using GHC"

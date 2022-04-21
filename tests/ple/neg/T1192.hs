@@ -2,7 +2,7 @@
 {-@ LIQUID "--no-adt"     @-}
 {-@ LIQUID "--ple"        @-}
 
-module RangeSet where
+module T1192 where
 
 import qualified Data.Set as S
 

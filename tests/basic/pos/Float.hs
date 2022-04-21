@@ -1,4 +1,4 @@
-module Foo where
+module Float where
 
 
 {-@ roxette :: {v:Float | v > 0} @-}

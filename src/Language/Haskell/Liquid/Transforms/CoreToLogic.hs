@@ -624,7 +624,8 @@ instance Simplify C.CoreExpr where
   simplify allowTC (C.Let xes e)
     = C.Let (simplify allowTC xes) (simplify allowTC e)
   simplify allowTC (C.Case e x _t alts@[(_,_,ee),_,_]) | isBangInteger alts
-    = Misc.traceShow ("To simplify allowTC case") $ 
+  -- XXX(matt): seems to be for debugging?
+    = -- Misc.traceShow ("To simplify allowTC case") $ 
        sub (M.singleton x (simplify allowTC e)) (simplify allowTC ee)
   simplify allowTC (C.Case e x t alts)
     = C.Case (simplify allowTC e) x t (filter (not . isUndefined) (simplify allowTC <$> alts))

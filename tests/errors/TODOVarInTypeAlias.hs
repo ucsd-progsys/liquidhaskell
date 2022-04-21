@@ -3,7 +3,7 @@
 {-@ LIQUID "--totality"       @-}
 {-@ LIQUID "--exactdc"        @-}
 
-module RL1015 where
+module TODOVarInTypeAlias where
 
 import Language.Haskell.Liquid.ProofCombinators
 

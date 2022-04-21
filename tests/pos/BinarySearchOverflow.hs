@@ -1,9 +1,9 @@
 {-@ LIQUID "--no-termination" @-}
 
-module BinarySearch where
+module BinarySearchOverflow where
 
 import Prelude hiding (Num(..))
-import CheckedNumLib
+import CheckedNum 
 import Data.Vector as V 
 import Language.Haskell.Liquid.Prelude (liquidAssert) 
 

@@ -1,4 +1,4 @@
-module Fixme where
+module TokensAsPrefixes where
 
 {-@ instancesB :: Int -> Int @-}
 instancesB :: Int -> Int

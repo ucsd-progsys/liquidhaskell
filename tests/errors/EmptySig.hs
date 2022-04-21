@@ -1,5 +1,5 @@
 
-module Blank where
+module EmptySig where
 
 {-@  :: foo -> x:Int -> {v:Int | v > x} @-}
 foo :: Int -> Int 
