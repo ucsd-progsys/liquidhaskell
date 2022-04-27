@@ -13,7 +13,8 @@ import Test.Types
 microTestGroups :: [TestGroupData]
 microTestGroups =
   [ -- micros
-    TestGroupData "unit-pos" ["pos"] TFSafe
+    TestGroupData "unit-pos-1" ["pos"] TFSafe
+  , TestGroupData "unit-pos-2" ["pos"] TFSafe
   , TestGroupData "unit-neg" ["neg"] TFUnsafe
   , TestGroupData "basic-pos" ["basic/pos"] TFSafe
   , TestGroupData "basic-neg" ["basic/neg"] TFUnsafe
