@@ -8,6 +8,7 @@ packages: .
           ./liquid-platform
           ./tests
           ./tests/benchmarks/popl18/lib
+          ./benchmark-timings
 
 package liquid-fixpoint
   flags: +devel
