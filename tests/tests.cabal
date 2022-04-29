@@ -2382,8 +2382,11 @@ executable typeclass-pos
 
     other-modules:
                       All
-                    , Lemma
                     , Lib
+    -- Fails on GHC 9.0.1
+    if impl(ghc < 9)
+      other-modules:                                
+                      Lemma
                     , PNat
                     , SemigroupLib
 
