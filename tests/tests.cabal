@@ -2292,3 +2292,105 @@ executable terminate-neg
 
     default-language: Haskell2010
 
+flag pattern-pos
+     default: False
+
+executable pattern-pos
+    main-is:          Main.hs
+    if !flag(pattern-pos) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      ANF
+                    , Contra0
+                    , Invariants
+                    , Monad0
+                    , Monad1
+                    , Monad7
+                    , MultipleInvariants
+                    , Return00
+                    , Return01
+                    , ReturnStrata00
+                    , TemplateHaskell
+                    , TemplateHaskellLib
+
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0 
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , pattern/pos
+
+    default-language: Haskell2010
+
+
+flag implicit-pos
+     default: False
+
+executable implicit-pos
+    main-is:          Main.hs
+    if !flag(implicit-pos) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      Implicit1
+                    , Implicit3
+                    , ImplicitDouble
+                    , ImplicitTrivial
+
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0 
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , implicit/pos
+
+    default-language: Haskell2010
+
+flag implicit-neg
+     default: False
+
+executable implicit-neg
+    main-is:          Main.hs
+    if !flag(implicit-neg) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      Implicit1
+
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0 
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , implicit/neg
+
+    default-language: Haskell2010
+
+flag typeclass-pos
+     default: False
+
+executable typeclass-pos
+    main-is:          Main.hs
+    if !flag(typeclass-pos) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      All
+                    , Lemma
+                    , Lib
+                    , PNat
+                    , SemigroupLib
+
+    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0 
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , typeclasses/pos
+
+    default-language: Haskell2010

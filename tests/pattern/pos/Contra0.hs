@@ -1,7 +1,7 @@
 {-@ LIQUID "--no-termination"    @-}
 {-@ LIQUID "--short-names"       @-}
 
-module Foo () where
+module Contra0 () where
 
 import Language.Haskell.Liquid.Prelude (liquidAssert)
 import Data.IORef

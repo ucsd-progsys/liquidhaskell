@@ -37,6 +37,10 @@ microTestGroups =
   , TestGroupData "rankN-pos" ["RankNTypes/pos"] TFSafe
   , TestGroupData "terminate-pos" ["terminate/pos"] TFSafe
   , TestGroupData "terminate-neg" ["terminate/neg"] TFUnsafe
+  , TestGroupData "pattern-pos" ["pattern/pos"] TFSafe
+  , TestGroupData "implicit-pos" ["implicit/pos"] TFSafe
+  , TestGroupData "implicit-neg" ["implicit/neg"] TFUnsafe
+  , TestGroupData "typeclass-pos" ["typeclasses/pos"] TFSafe
   ]
 
 benchmarkTestGroups :: [TestGroupData]
