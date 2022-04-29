@@ -2318,6 +2318,8 @@ executable pattern-pos
     build-depends:    liquid-base
                     , liquid-prelude
                     , liquidhaskell
+                    , template-haskell
+                    , transformers
 
     hs-source-dirs:   app
                     , pattern/pos
