@@ -2380,13 +2380,12 @@ executable typeclass-pos
     if !flag(typeclass-pos) && flag(stack)
       buildable:      False
 
-    other-modules:
-                      All
-                    , Lib
     -- Fails on GHC 9.0.1
     if impl(ghc < 9)
-      other-modules:                                
-                      Lemma
+      other-modules:
+                      All
+                    , Lib
+                    , Lemma
                     , PNat
                     , SemigroupLib
 
