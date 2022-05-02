@@ -1,4 +1,4 @@
-module Foo () where
+module Monad7 () where
 
 import Language.Haskell.Liquid.Prelude 
 

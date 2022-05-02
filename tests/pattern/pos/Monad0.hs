@@ -1,7 +1,4 @@
--- TODO-REBARE: return-strata? 
-
-module Monad where
-
+module Monad0 where
 
 -- create :: Int -> (Ptr Word8 -> IO ()) -> IO ByteString
 create l = do

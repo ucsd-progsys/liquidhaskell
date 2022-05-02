@@ -3,7 +3,7 @@
 {-@ LIQUID "--no-termination"    @-}
 {-@ LIQUID "--short-names"       @-}
 
-module Foo () where
+module Invariants () where
 
 import Language.Haskell.Liquid.Prelude (liquidAssert)
 import Data.IORef

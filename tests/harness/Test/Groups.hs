@@ -9,7 +9,6 @@ import qualified System.FilePath as FP
 import System.Environment (lookupEnv)
 import Test.Types
 
-
 microTestGroups :: [TestGroupData]
 microTestGroups =
   [ -- micros
@@ -37,6 +36,10 @@ microTestGroups =
   , TestGroupData "rankN-pos" ["RankNTypes/pos"] TFSafe
   , TestGroupData "terminate-pos" ["terminate/pos"] TFSafe
   , TestGroupData "terminate-neg" ["terminate/neg"] TFUnsafe
+  , TestGroupData "pattern-pos" ["pattern/pos"] TFSafe
+  , TestGroupData "implicit-pos" ["implicit/pos"] TFSafe
+  , TestGroupData "implicit-neg" ["implicit/neg"] TFUnsafe
+  , TestGroupData "typeclass-pos" ["typeclasses/pos"] TFSafe
   ]
 
 benchmarkTestGroups :: [TestGroupData]
@@ -71,7 +74,6 @@ errorsTestGroups =
     TestGroupData "errors" ["errors"] (TFError errorMsgs)
   ]
 
-
 allowStackPaths :: [TestGroupData] -> IO (Map TestGroupName TestGroupData)
 allowStackPaths xs = do
   -- This is irrefutable!
@@ -83,7 +85,6 @@ allowStackPaths xs = do
                               concatMap (\d -> [T.pack $ pwd FP.</> "tests" FP.</> T.unpack d, d])
                               $ tgdDirectories tgd }))
     $ xs
-
 
 -- | When you want to add a new test group, create a cabal executable for it in
 -- tests.cabal and add it here. See `TestFlavor` for information on the
