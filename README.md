@@ -129,7 +129,7 @@ To pass in specific parameters and run a subset of the tests, you can invoke cab
 
 For example:
 
-    $ LIQUID_DEV_MODE=true cabal build tests:unit-neg --ghc-options="--fplugin-opt=LiquidHaskell=--no-termination" AbsApp
+    $ LIQUID_DEV_MODE=true cabal build tests:unit-neg --ghc-options=--fplugin-opt=LiquidHaskell:--no-termination AbsApp
 
 Or your favorite number of threads, depending on cores etc.
 
