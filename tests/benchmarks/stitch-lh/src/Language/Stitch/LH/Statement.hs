@@ -12,6 +12,7 @@
 --
 ----------------------------------------------------------------------------
 
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 module Language.Stitch.LH.Statement ( Statement(..) ) where
 
 -- XXX: Import Op so LH doesn't fail with: Unknown type constructor `ArithOp`
