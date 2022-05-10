@@ -3,7 +3,6 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
 {-@ LIQUID "--fuel=4" @-}
-{-@ LIQUID "--no-interpreter" @-}
 
 module Ple_sum where
 
