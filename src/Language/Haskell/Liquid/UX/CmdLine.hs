@@ -811,6 +811,11 @@ resDocs _ (F.Safe  stats) =
     orHeader   = text $ "LIQUID: SAFE (" <> show (Solver.numChck stats) <> " constraints checked)"
   , orMessages = mempty
   }
+resDocs _k (F.Crash [] s)  =
+  OutputResult {
+    orHeader = text "LIQUID: ERROR"
+  , orMessages = [(GHC.noSrcSpan, text s)]
+  }
 resDocs k (F.Crash xs s)  =
   OutputResult {
     orHeader = text "LIQUID: ERROR" <+> text s
