@@ -109,19 +109,19 @@ compiler versions. These scripts are in:
 
 So you can run *all* the tests for say the ghc-8.10 version by
 
-    $ ./scripts/test/test_810.sh
+    $ ./scripts/test/test_810_plugin.sh
 
 You can run a bunch of particular test-groups instead by
 
-    $ LIQUID_DEV_MODE=true ./scripts/test/test_810.sh <test-group-name1> <test-group-name2> ...
+    $ LIQUID_DEV_MODE=true ./scripts/test/test_810_plugin.sh <test-group-name1> <test-group-name2> ...
 
 and you can list all the possible test options with 
 
-    $ LIQUID_DEV_MODE=true ./scripts/test/test_810.sh --help
+    $ LIQUID_DEV_MODE=true ./scripts/test/test_810_plugin.sh --help
 
 or get a list of just the test groups, one per line, with
 
-    $ LIQUID_DEV_MODE=true ./scripts/tests/test_810.sh --show-all
+    $ LIQUID_DEV_MODE=true ./scripts/tests/test_810_plugin.sh --show-all
 
 To pass in specific parameters and run a subset of the tests, you can invoke cabal directly with
 
