@@ -1,6 +1,7 @@
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--short-names"    @-}
 {-@ LIQUID "--higherorder"    @-}
+{-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--ple"            @-}
 
 module FilterPLE where
