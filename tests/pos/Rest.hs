@@ -117,7 +117,10 @@ elemAtThroughAppend
 @-}
 elemAtThroughAppend :: Nat -> List a -> List a -> Proof
 elemAtThroughAppend i xs ys =
-  if i == 0 then trivial
+  if i == 0 then
+    case xs of
+      Nil -> trivial
+      _ -> trivial
   else case xs of
     Cons _ xss -> elemAtThroughAppend (i - 1) xss ys
     Nil -> trivial
