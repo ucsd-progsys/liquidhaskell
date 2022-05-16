@@ -94,6 +94,7 @@ executable benchmark-stitch-lh
                       -Wno-unticked-promoted-constructors
                       -fno-warn-name-shadowing
                       -fkeep-going
+                      -fforce-recomp
                       -ddump-timings
                       -ddump-to-file
                       -O0
@@ -129,7 +130,7 @@ executable benchmark-bytestring
                     , liquidhaskell
                     , array >= 0.5.4
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -ddump-timings -ddump-to-file -O0
+  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -fforce-recomp -ddump-timings -ddump-to-file -O0
   default-language: Haskell2010
 
 flag benchmark-vector-algorithms
@@ -163,7 +164,7 @@ executable benchmark-vector-algorithms
                     , primitive
                     , liquidhaskell
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -ddump-timings -ddump-to-file -O0
+  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -fforce-recomp -ddump-timings -ddump-to-file -O0
   default-language: Haskell2010
 
 flag benchmark-cse230
@@ -192,7 +193,7 @@ executable benchmark-cse230
                     , liquid-prelude
                     , liquidhaskell
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -ddump-timings -ddump-to-file -O0
+  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -fforce-recomp -ddump-timings -ddump-to-file -O0
   default-language: Haskell2010
 
 flag benchmark-esop2013
@@ -220,7 +221,7 @@ executable benchmark-esop2013
                     , liquidhaskell
                     , deepseq >= 1.4
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -ddump-timings -ddump-to-file -O0
+  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -fforce-recomp -ddump-timings -ddump-to-file -O0
   default-language: Haskell2010
 
 flag benchmark-icfp15-pos
@@ -263,7 +264,7 @@ executable benchmark-icfp15-pos
                     , liquid-ghc-prim
                     , liquidhaskell
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -ddump-timings -ddump-to-file -O0
+  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -fforce-recomp -ddump-timings -ddump-to-file -O0
   default-language: Haskell2010
 
 flag benchmark-icfp15-neg
@@ -291,7 +292,7 @@ executable benchmark-icfp15-neg
                     , liquid-prelude
                     , liquidhaskell
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -ddump-timings -ddump-to-file -O0
+  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -fforce-recomp -ddump-timings -ddump-to-file -O0
   default-language: Haskell2010
 
 flag prover-foundations
@@ -534,6 +535,7 @@ executable benchmark-text
   default-language: Haskell2010
 
   ghc-options: -fplugin=LiquidHaskell
+               -fforce-recomp
                -ddump-timings
                -ddump-to-file
                -fkeep-going

@@ -227,9 +227,9 @@ results :: TestGroupData -> Parser (Either ResultsException [ModuleInfo])
 results TestGroupData {..} =
   (Left (UpToDateException tgdName) <$ upToDate)
   <|> (do
-          skipStartupTrash
-          xs <- P.many moduleInfo
-          skipEndingTrash
+          xs <- skipStartupTrash *> P.many moduleInfo <* skipEndingTrash
+          -- Benchmarks might run twice
+          _ys <- P.option [] $ P.many moduleInfo <* skipEndingTrash
           if null xs
             then pure $ Left $ EmptyResultsException tgdName
             else pure $ Right xs)
