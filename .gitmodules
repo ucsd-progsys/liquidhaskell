@@ -4,6 +4,3 @@
 [submodule "ghc-options"]
 	path = ghc-options
 	url = https://github.com/ranjitjhala/ghc-options.git
-[submodule "ghc-timings-report"]
-	path = ghc-timings-report
-	url = https://github.com/qnikst/ghc-timings-report

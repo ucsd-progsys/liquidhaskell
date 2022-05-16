@@ -20,7 +20,6 @@ packages:
 - liquid-platform
 - tests
 - tests/benchmarks/popl18/lib
-- ghc-timings-report
 - benchmark-timings
 - .
 extra-deps:
@@ -29,6 +28,8 @@ extra-deps:
 - hashable-1.3.0.0
 - git: https://github.com/facundominguez/rest
   commit: 31e974979c90e910efe5199ee0d3721b791667f6
+- git: https://github.com/qnikst/ghc-timings-report
+  commit: 45ef3498e35897712bde8e002ce18df6d55f8b15
 # for tests
 - strip-ansi-escape-0.1.0.0@sha256:08f2ed93b16086a837ec46eab7ce8d27cf39d47783caaeb818878ea33c2ff75f,1628
 
