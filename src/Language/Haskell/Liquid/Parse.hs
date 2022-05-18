@@ -6,6 +6,7 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
 
 module Language.Haskell.Liquid.Parse
   ( hsSpecificationP
@@ -44,7 +45,7 @@ import qualified Language.Fixpoint.Misc                 as Misc
 import qualified Language.Haskell.Liquid.Misc           as Misc
 import qualified Language.Haskell.Liquid.Measure        as Measure
 import           Language.Fixpoint.Parse                hiding (defineP, dataDeclP, refBindP, refP, refDefP, parseTest')
-
+import           Language.Haskell.Liquid.Types.Fresh
 import Control.Monad.State
 
 -- import Debug.Trace
@@ -1278,7 +1279,7 @@ embedP = do
 
 
 aliasP :: Parser (Located (RTAlias Symbol BareType))
-aliasP  = rtAliasP id     bareTypeP <?> "aliasP"
+aliasP  = rtAliasP id (bareTypeP >>= refreshVV) <?> "aliasP"
 
 ealiasP :: Parser (Located (RTAlias Symbol Expr))
 ealiasP = try (rtAliasP symbol predP)
@@ -1286,13 +1287,13 @@ ealiasP = try (rtAliasP symbol predP)
       <?> "ealiasP"
 
 -- | Parser for a LH type synonym.
-rtAliasP :: (Symbol -> tv) -> Parser ty -> Parser (Located (RTAlias tv ty))
+rtAliasP :: (Freshable Parser ty, Show ty, PPrint ty) =>  (Symbol -> tv) -> Parser ty -> Parser (Located (RTAlias tv ty))
 rtAliasP f bodyP
   = do pos  <- getSourcePos
        name <- upperIdP
        args <- many aliasIdP
        reservedOp "="
-       body <- bodyP
+       body <- bodyP 
        posE <- getSourcePos
        let (tArgs, vArgs) = partition (isSmall . headSym) args
        return $ Loc pos posE (RTA name (f <$> tArgs) vArgs body)
@@ -1425,6 +1426,12 @@ locUpperOrInfixIdP = locUpperIdP' <|> locInfixCondIdP
 locBinderP :: Parser (Located Symbol)
 locBinderP =
   located binderP -- TODO
+
+
+instance Freshable Parser Symbol where
+  fresh = do s <- getSourcePos
+             return $ symbol (show s)
+
 
 -- | LHS of the thing being defined
 --

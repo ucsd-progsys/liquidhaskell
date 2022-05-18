@@ -38,11 +38,25 @@ import           Language.Haskell.Liquid.Types
 -- import           Language.Haskell.Liquid.Types.Fresh
 import           Language.Haskell.Liquid.Constraint.Types
 import qualified Language.Haskell.Liquid.GHC.Misc as GM 
-import           Language.Haskell.Liquid.GHC.API as Ghc
+import Language.Haskell.Liquid.GHC.API as Ghc
+    ( Type,
+      Var(varType),
+      CoreExpr,
+      exprType,
+      Bind(..),
+      Expr(Var, Let, Lam, Tick),
+      isTyVar )
 
 --------------------------------------------------------------------------------
 -- | This is all hardwiring stuff to CG ----------------------------------------
 --------------------------------------------------------------------------------
+instance Freshable CG F.Symbol where
+  fresh = do s <- get
+             let n = freshIndex s
+             put $ s { freshIndex = n + 1 }
+             return (F.tempSymbol (F.symbol ("x" :: String)) n)
+
+
 instance Freshable CG Integer where
   fresh = do s <- get
              let n = freshIndex s
