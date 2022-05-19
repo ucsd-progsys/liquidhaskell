@@ -119,10 +119,10 @@ lookupCompanionSpec thisModule = do
 configToRedundantDependencies :: forall m. GhcMonadLike m => Config -> m [StableModule]
 configToRedundantDependencies cfg = do
   env <- askHscEnv
-  catMaybes <$> mapM (lookupModule env . first ($ cfg)) configSensitiveDependencies
+  catMaybes <$> mapM (lookupModule' env . first ($ cfg)) configSensitiveDependencies
   where
-    lookupModule :: HscEnv -> (Bool, ModuleName) -> m (Maybe StableModule)
-    lookupModule env (fetchModule, modName)
+    lookupModule' :: HscEnv -> (Bool, ModuleName) -> m (Maybe StableModule)
+    lookupModule' env (fetchModule, modName)
       | fetchModule = liftIO $ lookupLiquidBaseModule env modName
       | otherwise   = pure Nothing
 

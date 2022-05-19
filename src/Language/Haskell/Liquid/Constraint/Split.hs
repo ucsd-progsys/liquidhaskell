@@ -184,7 +184,7 @@ splitC allowTC (SubC γ t1 (RAllE x tx t2))
        splitC allowTC (SubC γ' t1 (F.subst1 t2 (x, F.EVar y)))
 
 splitC allowTC (SubC γ (RRTy env _ OCons t1) t2)
-  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ xts
+  = do γ' <- foldM (\γ2 (x, t) -> γ2 `addSEnv` ("splitS", x,t)) γ xts
        c1 <- splitC allowTC (SubC γ' t1' t2')
        c2 <- splitC allowTC (SubC γ  t1  t2 )
        return $ c1 ++ c2
@@ -192,7 +192,7 @@ splitC allowTC (SubC γ (RRTy env _ OCons t1) t2)
     (xts, t1', t2') = envToSub env
 
 splitC allowTC (SubC γ (RRTy e r o t1) t2)
-  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ e
+  = do γ' <- foldM (\γ2 (x, t) -> γ2 `addSEnv` ("splitS", x,t)) γ e
        c1 <- splitC allowTC (SubR γ' o  r)
        c2 <- splitC allowTC (SubC γ t1 t2)
        return $ c1 ++ c2
@@ -448,10 +448,10 @@ forallExprReft_ _ _
 forallExprReftLookup :: CGEnv
                      -> F.Symbol
                      -> Maybe ([F.Symbol], [RFInfo], [SpecType], [RReft], SpecType)
-forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
+forallExprReftLookup γ sym = snap <$> F.lookupSEnv sym (syenv γ)
   where
-    snap     = mapFifth5 ignoreOblig . (\(_,(x,a,b,c),t)->(x,a,b,c,t)) . bkArrow . thd3 . bkUniv . lookup
-    lookup z = fromMaybe (panicUnbound γ z) (γ ?= F.symbol z)
+    snap     = mapFifth5 ignoreOblig . (\(_,(x,a,b,c),t)->(x,a,b,c,t)) . bkArrow . thd3 . bkUniv . lookup'
+    lookup' z = fromMaybe (panicUnbound γ z) (γ ?= F.symbol z)
 
 
 --------------------------------------------------------------------------------

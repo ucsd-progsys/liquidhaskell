@@ -244,7 +244,7 @@ ppr_rtype bb p (RRTy e r o t)
   where
     ppe  = (hsep $ punctuate comma (ppxt <$> e)) <+> dcolon
     ppp  = \doc -> text "<<" <+> doc <+> text ">>"
-    ppxt = \(x, t) -> pprint x <+> ":" <+> ppr_rtype bb p t
+    ppxt = \(x, u) -> pprint x <+> ":" <+> ppr_rtype bb p u
 ppr_rtype _ _ (RHole r)
   = F.ppTy r $ text "_"
 
@@ -281,20 +281,20 @@ ppExists
       F.Reftable (RTProp c tv ()))
   => PPEnv -> Prec -> RType c tv r -> Doc
 ppExists bb p t
-  = text "exists" <+> brackets (intersperse comma [ppr_dbind bb topPrec x t | (x, t) <- zs]) <-> dot <-> ppr_rtype bb p t'
+  = text "exists" <+> brackets (intersperse comma [ppr_dbind bb topPrec x rt | (x, rt) <- zs]) <-> dot <-> ppr_rtype bb p t'
     where (zs,  t')               = split [] t
-          split zs (REx x t t')   = split ((x,t):zs) t'
-          split zs t                = (reverse zs, t)
+          split ys (REx x rt rt')   = split ((x,rt):ys) rt'
+          split ys rt                = (reverse ys, rt)
 
 ppAllExpr
   :: (OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> Prec -> RType c tv r -> Doc
 ppAllExpr bb p t
-  = text "forall" <+> brackets (intersperse comma [ppr_dbind bb topPrec x t | (x, t) <- zs]) <-> dot <-> ppr_rtype bb p t'
+  = text "forall" <+> brackets (intersperse comma [ppr_dbind bb topPrec x rt | (x, rt) <- zs]) <-> dot <-> ppr_rtype bb p t'
     where 
       (zs,  t')               = split [] t
-      split zs (RAllE x t t') = split ((x,t):zs) t'
-      split zs t              = (reverse zs, t)
+      split ys (RAllE x rt rt') = split ((x,rt):ys) rt'
+      split ys rt              = (reverse ys, rt)
 
 ppReftPs
   :: (OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()),
@@ -323,7 +323,7 @@ ppr_rty_fun bb prefix t = hsep (prefix : dArgs ++ [dOut])
   where
     dArgs               = concatMap ppArg args
     dOut                = ppr_rtype bb topPrec out
-    ppArg (b, t, a)     = [ppr_dbind bb funPrec b t, a]
+    ppArg (b, rt, a)     = [ppr_dbind bb funPrec b rt, a]
     (args, out)         = brkFun t
 
 {- 

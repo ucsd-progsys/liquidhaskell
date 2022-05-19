@@ -61,14 +61,14 @@ lqDec src = do
       prg <- pragAnnD ModuleAnnotation $
                conE 'LiquidQuote `appE` dataToExpQ' spec
       case mkSpecDecs spec of
-        Left err ->
-          throwErrorInQ err
+        Left err' ->
+          throwErrorInQ err'
         Right decs ->
           return $ prg : decs
 
 throwErrorInQ :: UserError -> Q a
-throwErrorInQ err =
-  fail . showpp =<< runIO (errorsWithContext [err])
+throwErrorInQ err' =
+  fail . showpp =<< runIO (errorsWithContext [err'])
 
 --------------------------------------------------------------------------------
 -- Liquid Haskell to Template Haskell ------------------------------------------
@@ -159,7 +159,7 @@ simplifyBareType'' (tvs, cls) (RAllT tv t _) =
 
 simplifyBareType'' (tvs, cls) t =
 #if MIN_VERSION_template_haskell(2,17,0)
-  ForallT ((\t -> PlainTV (symbolName t) SpecifiedSpec) <$> reverse tvs)
+  ForallT ((\t' -> PlainTV (symbolName t') SpecifiedSpec) <$> reverse tvs)
 #else
   ForallT (PlainTV . symbolName <$> reverse tvs)
 #endif

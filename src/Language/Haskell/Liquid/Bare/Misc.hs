@@ -167,7 +167,7 @@ mapTyRVar α a s@(MTVST αas err)
 matchKindArgs' :: [Type] -> [SpecType] -> [SpecType]
 matchKindArgs' ts1 ts2 = reverse $ go (reverse ts1) (reverse ts2)
   where
-    go (_:ts1) (t2:ts2) = t2:go ts1 ts2
+    go (_:ts1') (t2:ts2') = t2:go ts1' ts2'
     go ts      []       | all isKind ts
                         = (ofType <$> ts) :: [SpecType]
     go _       ts       = ts
@@ -176,7 +176,7 @@ matchKindArgs' ts1 ts2 = reverse $ go (reverse ts1) (reverse ts2)
 matchKindArgs :: [SpecType] -> [SpecType] -> [SpecType]
 matchKindArgs ts1 ts2 = reverse $ go (reverse ts1) (reverse ts2)
   where
-    go (_:ts1) (t2:ts2) = t2:go ts1 ts2
+    go (_:ts1') (t2:ts2') = t2:go ts1' ts2'
     go ts      []       = ts
     go _       ts       = ts
 

@@ -112,7 +112,7 @@ makeFamInstEmbeds cs0 embs = L.foldl' embed embs famInstSorts
                             [ (c, RT.typeSort embs ty)
                                 | c   <- cs
                                 , ty  <- Mb.maybeToList (RT.famInstTyConType c) ]
-    embed embs (c, t)     = F.tceInsert c t F.NoArgs embs
+    embed embs' (c, t)     = F.tceInsert c t F.NoArgs embs'
     cs                    = F.notracepp "famInstTcs-all" cs0
 
 {- 
@@ -265,10 +265,10 @@ mkWarnDecl d = mkWarning (GM.fSrcSpan d) ("Non-regular data declaration" <+> ppr
 -}
 resolveTyCons :: ModName -> [(ModName, Ghc.TyCon, DataPropDecl)]
               -> [(Ghc.TyCon, (ModName, DataPropDecl))]
-resolveTyCons m mtds = [(tc, (m, d)) | (tc, mds) <- M.toList tcDecls
-                                     , (m, d)    <- Mb.maybeToList $ resolveDecls m tc mds ]
+resolveTyCons m mtds = [(tc, (mn, d)) | (tc, mds) <- M.toList tcDecls
+                                     , (mn, d)    <- Mb.maybeToList $ resolveDecls m tc mds ]
   where
-    tcDecls          = Misc.group [ (tc, (m, d)) | (m, tc, d) <- mtds ]
+    tcDecls          = Misc.group [ (tc, (mn, d)) | (mn, tc, d) <- mtds ]
 
 -- | See [NOTE:Orphan-TyCons], the below function tells us which of (possibly many)
 --   DataDecls to use.
@@ -425,7 +425,7 @@ canonizeDecls env name ds = do
     -- Right decls  -> decls
   where
     -- kds          = F.tracepp "canonizeDecls" [ (k, d) | d <- ds, k <- rights [dataDeclKey env name d] ] 
-    err ds@(d:_) = {- uError $ -} errDupSpecs (pprint (tycName d)) (GM.fSrcSpan <$> ds)
+    err ds'@(d:_) = {- uError $ -} errDupSpecs (pprint (tycName d)) (GM.fSrcSpan <$> ds')
     err _        = impossible Nothing "canonizeDecls"
 
 dataDeclKey :: Bare.Env -> ModName -> DataDecl -> Bare.Lookup (Maybe F.Symbol) 
@@ -475,7 +475,7 @@ checkDataCtorDupField d
       lc          = dcName   d 
       xts         = dcFields d
       dups        = [ x | (x, ts) <- Misc.groupList xts, 2 <= length ts ]
-      err lc x    = ErrDupField (GM.sourcePosSrcSpan $ loc lc) (pprint $ val lc) (pprint x)
+      err lc' x    = ErrDupField (GM.sourcePosSrcSpan $ loc lc') (pprint $ val lc') (pprint x)
 
 selectDD :: (a, [DataDecl]) -> Either [DataDecl] DataDecl
 selectDD (_,[d]) = Right d
@@ -680,13 +680,13 @@ type CtorType = ([(F.Symbol, SpecType)], SpecType)
 
 qualifyDataCtor :: Bool -> ModName -> F.Located a -> CtorType -> CtorType
 qualifyDataCtor qualFlag name l ct@(xts, t)
- | qualFlag  = (xts', t')
+ | qualFlag  = (xts', s)
  | otherwise = ct
  where
-   t'        = F.subst su <$> t
-   xts'      = [ (qx, F.subst su t)       | (qx, t, _) <- fields ]
+   s        = F.subst su <$> t
+   xts'      = [ (qx, F.subst su t')       | (qx, t', _) <- fields ]
    su        = F.mkSubst [ (x, F.eVar qx) | (qx, _, Just x) <- fields ]
-   fields    = [ (qx, t, mbX) | (x, t) <- xts, let (mbX, qx) = qualifyField name (F.atLoc l x) ]
+   fields    = [ (qx, t', mbX) | (x, t') <- xts, let (mbX, qx) = qualifyField name (F.atLoc l x) ]
 
 qualifyField :: ModName -> LocSymbol -> (Maybe F.Symbol, F.Symbol)
 qualifyField name lx
@@ -698,18 +698,18 @@ qualifyField name lx
    needsQual = not (isWiredIn lx)
 
 checkRecordSelectorSigs :: [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
-checkRecordSelectorSigs vts = [ (v, take1 v ts) | (v, ts) <- Misc.groupList vts ] 
+checkRecordSelectorSigs vts = [ (v, take1 v ls) | (v, ls) <- Misc.groupList vts ]
   where 
-    take1 v ts              = case Misc.nubHashOn (showpp . val) ts of 
-                                [t]    -> t 
+    take1 v ls              = case Misc.nubHashOn (showpp . val) ls of
+                                [t]    -> t
                                 (t:ts) -> Ex.throw (ErrDupSpecs (GM.fSrcSpan t) (pprint v) (GM.fSrcSpan <$> ts) :: Error)
                                 _      -> impossible Nothing "checkRecordSelectorSigs"
 
 
 strengthenClassSel :: Ghc.Var -> LocSpecType -> LocSpecType
-strengthenClassSel v lt = lt { val = t }
+strengthenClassSel v lt = lt { val = st }
  where
-  t = runReader (go (F.val lt)) (1, [])
+  st = runReader (go (F.val lt)) (1, [])
   s = GM.namedLocSymbol v
   extend :: F.Symbol -> (Int, [F.Symbol]) -> (Int, [F.Symbol])
   extend x (i, xs) = (i + 1, x : xs)

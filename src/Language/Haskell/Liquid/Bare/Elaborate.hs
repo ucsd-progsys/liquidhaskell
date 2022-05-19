@@ -288,22 +288,22 @@ plugType t = refix . f
 -- | returns (lambda binders, forall binders)
 collectSpecTypeBinders :: SpecType -> ([F.Symbol], [F.Symbol])
 collectSpecTypeBinders = para $ \case
-  RFunF bind _ (tin, _) (_, (bs, abs)) _ | isClassType tin -> (bs, abs)
-                                       | otherwise       -> (bind : bs, abs)
-  RImpFF bind _ (tin, _) (_, (bs, abs)) _ | isClassType tin -> (bs, abs)
-                                        | otherwise       -> (bind : bs, abs)
-  RAllEF b _ (_, (bs, abs))  -> (b : bs, abs)
-  RAllTF (RTVar (RTV ab) _) (_, (bs, abs)) _ -> (bs, F.symbol ab : abs)
-  RExF b _ (_, (bs, abs))    -> (b : bs, abs)
-  RAppTyF _ (_, (bs, abs)) _ -> (bs, abs)
-  RRTyF _ _ _ (_, (bs, abs)) -> (bs, abs)
-  _                          -> ([], [])
+  RFunF bind _ (tin, _) (_, (bs, abs')) _ | isClassType tin -> (bs, abs')
+                                       | otherwise       -> (bind : bs, abs')
+  RImpFF bind _ (tin, _) (_, (bs, abs')) _ | isClassType tin -> (bs, abs')
+                                        | otherwise       -> (bind : bs, abs')
+  RAllEF b _ (_, (bs, abs'))  -> (b : bs, abs')
+  RAllTF (RTVar (RTV ab) _) (_, (bs, abs')) _ -> (bs, F.symbol ab : abs')
+  RExF b _ (_, (bs, abs'))    -> (b : bs, abs')
+  RAppTyF _ (_, (bs, abs')) _ -> (bs, abs')
+  RRTyF _ _ _ (_, (bs, abs')) -> (bs, abs')
+  _                           -> ([], [])
 
 -- really should be fused with collectBinders. However, we need the binders
 -- to correctly convert fixpoint expressions to ghc expressions because of
 -- namespace related issues (whether the symbol denotes a varName or a datacon)
 buildHsExpr :: LHsExpr GhcPs -> SpecType -> LHsExpr GhcPs
-buildHsExpr res = para $ \case
+buildHsExpr expr = para $ \case
   RFunF bind _ (tin, _) (_, res) _
     | isClassType tin -> res
     | otherwise       -> mkHsLam [nlVarPat (varSymbolToRdrName bind)] res
@@ -315,7 +315,7 @@ buildHsExpr res = para $ \case
   RExF    _ _        (_, res) -> res
   RAppTyF _ (_, res) _        -> res
   RRTyF _ _ _ (_, res)        -> res
-  _                           -> res
+  _                           -> expr
 
 
 
@@ -521,7 +521,7 @@ elaborateSpecType' partialTp coreToLogic simplify t =
     -> ([F.Symbol] -> F.Expr -> TcRn a)
     -> TcRn a
   elaborateReft (reft@(F.Reft (vv, e)), vvTy) trivial nonTrivialCont =
-    if isTrivial reft
+    if isTrivial' reft
       then trivial
       else do
         let
@@ -555,7 +555,7 @@ elaborateSpecType' partialTp coreToLogic simplify t =
               . ofType
               . exprType
               $ eeWithLamsCore'
-          substTy = zip tyBinders origTyBinders
+          substTy' = zip tyBinders origTyBinders
           eeWithLams =
             coreToLogic (GM.notracePpr "eeWithLamsCore" eeWithLamsCore')
           (bs', ee) = F.notracepp "grabLams" $ grabLams ([], eeWithLams)
@@ -569,11 +569,11 @@ elaborateSpecType' partialTp coreToLogic simplify t =
               "Oops, Ghc gave back more/less binders than I expected"
         ret <- nonTrivialCont
           dictbs
-          ( renameBinderCoerc (\x -> Mb.fromMaybe x (L.lookup x substTy))
+          ( renameBinderCoerc (\x -> Mb.fromMaybe x (L.lookup x substTy'))
           . F.substa (\x -> Mb.fromMaybe x (L.lookup x subst))
           $ F.notracepp
               (  "elaborated: subst "
-              ++ F.showpp substTy
+              ++ F.showpp substTy'
               ++ "  "
               ++ F.showpp
                    (ofType $ exprType eeWithLamsCore' :: SpecType)
@@ -582,9 +582,9 @@ elaborateSpecType' partialTp coreToLogic simplify t =
           )  -- (GM.dropModuleUnique <$> bs')
         pure (F.notracepp "result" ret)
                            -- (F.substa )
-  isTrivial :: F.Reft -> Bool
-  isTrivial (F.Reft (_, F.PTrue)) = True
-  isTrivial _                     = False
+  isTrivial' :: F.Reft -> Bool
+  isTrivial' (F.Reft (_, F.PTrue)) = True
+  isTrivial' _                     = False
 
   grabLams :: ([F.Symbol], F.Expr) -> ([F.Symbol], F.Expr)
   grabLams (bs, F.ELam (b, _) e) = grabLams (b : bs, e)

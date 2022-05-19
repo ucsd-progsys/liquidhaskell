@@ -257,7 +257,7 @@ library
   ghc-options:        -W -fwarn-missing-signatures -j
 
   if flag(devel)
-    ghc-options:      -Wall -Wno-name-shadowing -Werror
+    ghc-options:      -Wall -Werror
 
   if flag(include)
     hs-source-dirs: devel
@@ -277,7 +277,7 @@ executable liquid
   ghc-options:        -W -threaded
 
   if flag(devel)
-    ghc-options:      -Wall -Wno-name-shadowing -Werror
+    ghc-options:      -Wall -Werror
 
 test-suite liquidhaskell-parser
   type:             exitcode-stdio-1.0
@@ -298,7 +298,7 @@ test-suite liquidhaskell-parser
   ghc-options:      -W
 
   if flag(devel)
-    ghc-options:    -Wall -Wno-name-shadowing -Werror
+    ghc-options:    -Wall -Werror
 
 test-suite synthesis
   type:             exitcode-stdio-1.0
@@ -320,7 +320,7 @@ test-suite synthesis
   ghc-options:      -W
 
   if flag(devel)
-    ghc-options:    -Wall -Wno-name-shadowing -Werror
+    ghc-options:    -Wall -Werror
 
 -- This executable can be used to generate modules for mirror-packages.
 executable mirror-modules
@@ -351,5 +351,5 @@ executable mirror-modules
   ghc-options:        -W -threaded
 
   if flag(devel)
-    ghc-options:      -Wall -Wno-name-shadowing -Werror
+    ghc-options:      -Wall -Werror
 

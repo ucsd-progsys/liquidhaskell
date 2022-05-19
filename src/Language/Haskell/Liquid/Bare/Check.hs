@@ -167,12 +167,12 @@ checkTargetSpec specs src env cbs sp
 
     _rClasses         = concatMap (Ms.classes  ) specs
     _rInsts           = concatMap (Ms.rinstance) specs
-    tAliases          = concat [Ms.aliases sp  | sp <- specs]
-    eAliases          = concat [Ms.ealiases sp | sp <- specs]
+    tAliases          = concat [Ms.aliases sp'  | sp' <- specs]
+    eAliases          = concat [Ms.ealiases sp' | sp' <- specs]
     emb              = gsTcEmbeds (gsName sp)
     tcEnv            = gsTyconEnv (gsName sp)
     ms               = gsMeasures (gsData sp)
-    clsSigs sp       = [ (v, t) | (v, t) <- gsTySigs sp, isJust (isClassOpId_maybe v) ]
+    clsSigs sp'      = [ (v, t) | (v, t) <- gsTySigs sp', isJust (isClassOpId_maybe v) ]
     sigs             = gsTySigs (gsSig sp) ++ gsAsmSigs (gsSig sp) ++ gsCtors (gsData sp)
     -- allowTC          = typeclass (getConfig sp)
     allowHO          = higherOrderFlag sp
@@ -203,12 +203,12 @@ checkTySigs :: Bool
             -> GhcSpecSig
             -> Diagnostics
 --------------------------------------------------------------------------------
-checkTySigs allowHO bsc cbs emb tcEnv env sig
-                   = mconcat (map (check env) topTs)
+checkTySigs allowHO bsc cbs emb tcEnv senv sig
+                   = mconcat (map (check senv) topTs)
                    -- = concatMap (check env) topTs
                    -- (mapMaybe   (checkT env) [ (x, t)     | (x, (t, _)) <- topTs])
                    -- ++ (mapMaybe   (checkE env) [ (x, t, es) | (x, (t, Just es)) <- topTs]) 
-                  <> coreVisitor checkVisitor env emptyDiagnostics cbs
+                  <> coreVisitor checkVisitor senv emptyDiagnostics cbs
                    -- ++ coreVisitor checkVisitor env [] cbs 
   where 
     check env      = checkSigTExpr allowHO bsc emb tcEnv env
@@ -372,14 +372,14 @@ checkTerminationExpr :: (Eq v, PPrint v)
                      -> F.SEnv F.SortedReft
                      -> (v, LocSpecType, [F.Located F.Expr])
                      -> Diagnostics
-checkTerminationExpr emb env (v, Loc l _ t, les)
+checkTerminationExpr emb env (v, Loc l _ st, les)
             = (mkErr "ill-sorted" $ go les) <> (mkErr "non-numeric" $ go' les)
   where
     -- es      = val <$> les
     mkErr :: Doc -> Maybe (F.Expr, Doc) -> Diagnostics
     mkErr _ Nothing = emptyDiagnostics
-    mkErr k (Just e) =
-      mkDiagnostics mempty [uncurry (\ e d -> ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) k e t d) e]
+    mkErr k (Just exprd) =
+      mkDiagnostics mempty [uncurry (\ e d -> ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) k e st d) exprd]
     -- mkErr   = uncurry (\ e d -> ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) (text "ill-sorted" ) e t d)
     -- mkErr'  = uncurry (\ e d -> ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) (text "non-numeric") e t d)
 
@@ -390,11 +390,11 @@ checkTerminationExpr emb env (v, Loc l _ t, les)
     go'     = L.foldl' (\err e -> err <|> (val e,) <$> checkSorted (F.srcSpan e) env' (cmpZero e)) Nothing
 
     env'    = F.sr_sort <$> L.foldl' (\e (x,s) -> F.insertSEnv x s e) env xts
-    xts     = concatMap mkClass $ zip (ty_binds trep) (ty_args trep)
-    trep    = toRTypeRep t
+    xts     = concatMap mkClass' $ zip (ty_binds trep) (ty_args trep)
+    trep    = toRTypeRep st
 
-    mkClass (_, RApp c ts _ _) | isClass c = classBinds emb (rRCls c ts)
-    mkClass (x, t)                         = [(x, rSort t)]
+    mkClass' (_, RApp c ts _ _) | isClass c = classBinds emb (rRCls c ts)
+    mkClass' (x, t)                         = [(x, rSort t)]
 
     rSort   = rTypeSortedReft emb
     cmpZero e = F.PAtom F.Le (F.expr (0 :: Int)) (val e)
@@ -477,13 +477,13 @@ errTypeMismatch x t = ErrMismatch lqSp (pprint x) (text "Checked")  d1 d2 Nothin
 ------------------------------------------------------------------------------------------------
 checkRType :: Bool -> BScope -> F.TCEmb TyCon -> F.SEnv F.SortedReft -> LocSpecType -> Maybe Doc
 ------------------------------------------------------------------------------------------------
-checkRType allowHO bsc emb env lt
-  =   checkAppTys t
-  <|> checkAbstractRefs t
-  <|> efoldReft farg bsc cb (tyToBind emb) (rTypeSortedReft emb) f insertPEnv env Nothing t
+checkRType allowHO bsc emb senv lt
+  =   checkAppTys st
+  <|> checkAbstractRefs st
+  <|> efoldReft farg bsc cb (tyToBind emb) (rTypeSortedReft emb) f insertPEnv senv Nothing st
   where
     -- isErasable         = if allowTC then isEmbeddedDict else isClass
-    t                  = val lt
+    st                 = val lt
     cb c ts            = classBinds emb (rRCls c ts)
     farg _ t           = allowHO || isBase t  -- NOTE: this check should be the same as the one in addCGEnv
     f env me r err     = err <|> checkReft (F.srcSpan lt) env emb me r
@@ -530,9 +530,9 @@ checkTcArity (RTyCon { rtc_tc = tc }) givenArity
 checkAbstractRefs
   :: (PPrint t, F.Reftable t, SubsTy RTyVar RSort t, F.Reftable (RTProp RTyCon RTyVar (UReft t))) =>
      RType RTyCon RTyVar (UReft t) -> Maybe Doc
-checkAbstractRefs t = go t
+checkAbstractRefs rt = go rt
   where
-    penv = mkPEnv t
+    penv = mkPEnv rt
 
     go t@(RAllT _ t1 r)   = check (toRSort t :: RSort) r <|>  go t1
     go (RAllP _ t)        = go t
@@ -584,7 +584,7 @@ checkAbstractRefs t = go t
     mkPEnv (RAllT _ t _) = mkPEnv t
     mkPEnv (RAllP p t)   = p:mkPEnv t
     mkPEnv _             = []
-    pvType' p          = Misc.safeHead (showpp p ++ " not in env of " ++ showpp t) [pvType q | q <- penv, pname p == pname q]
+    pvType' p          = Misc.safeHead (showpp p ++ " not in env of " ++ showpp rt) [pvType q | q <- penv, pname p == pname q]
 
 
 checkReft                    :: (PPrint r, F.Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, F.Reftable (RTProp RTyCon RTyVar (UReft r)))
@@ -629,7 +629,7 @@ checkMBody :: (PPrint r, F.Reftable r,SubsTy RTyVar RSort r, F.Reftable (RTProp 
 checkMBody γ emb _ sort (Def m c _ bs body) = checkMBody' emb sort γ' sp body
   where
     sp    = F.srcSpan m
-    γ'    = L.foldl' (\γ (x, t) -> F.insertSEnv x t γ) γ xts
+    γ'    = L.foldl' (\senv (x, t) -> F.insertSEnv x t senv) γ xts
     xts   = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su  <$> 
             filter keep (ty_args trep)
     keep | allowTC = not . isEmbeddedClass
@@ -745,9 +745,9 @@ checkRewrites targetSpec = mkDiagnostics mempty (concatMap getRewriteErrors rwSi
 
 
 checkClassMeasures :: [Measure SpecType DataCon] -> Diagnostics
-checkClassMeasures ms = mkDiagnostics mempty (mapMaybe checkOne byTyCon)
+checkClassMeasures measures = mkDiagnostics mempty (mapMaybe checkOne byTyCon)
   where
-  byName = L.groupBy ((==) `on` (val . msName)) ms
+  byName = L.groupBy ((==) `on` (val . msName)) measures
 
   byTyCon = concatMap (L.groupBy ((==) `on` (dataConTyCon . ctor . head . msEqns)))
                       byName

@@ -104,9 +104,9 @@ makeOccurrence :: M.HashMap TyCon VarianceInfo -> [Type] -> TyConOccurrence
 makeOccurrence tcInfo ts = foldl (go Covariant) mempty ts 
   where 
     go :: Variance -> TyConOccurrence -> Type -> TyConOccurrence
-    go p m (TyConApp tc ts)  = addOccurrence p tc 
+    go p m (TyConApp tc kot)  = addOccurrence p tc
                              $ foldl (\m' (t, v) -> go (v <> p) m' t) m 
-                                (zip ts (M.lookupDefault (repeat Bivariant) tc tcInfo)) 
+                                (zip kot (M.lookupDefault (repeat Bivariant) tc tcInfo))
     go _ m (TyVarTy _ )      = m 
     go _ m (AppTy t1 t2)     = go Bivariant (go Bivariant m t1) t2  
     go p m (ForAllTy _ t)    = go p m t 
@@ -229,8 +229,8 @@ substExpr s = go
     go (App e1 e2)           = App (go e1) (go e2) 
     go (Lam x e)             = Lam (subsVar x) (go e)
     go (Let (NonRec x ex) e) = Let (NonRec (subsVar x) (go ex)) (go e) 
-    go (Let (Rec xes) e)     = Let (Rec [(subsVar x, go e) | (x,e) <- xes]) (go e)
-    go (Case e b t alts)     = Case (go e) (subsVar b) t [(c, subsVar <$> xs, go e) | (c, xs, e) <- alts]
+    go (Let (Rec xes) e)     = Let (Rec [(subsVar x, go e') | (x,e') <- xes]) (go e)
+    go (Case e b t alts)     = Case (go e) (subsVar b) t [(c, subsVar <$> xs, go e') | (c, xs, e') <- alts]
     go (Cast e c)            = Cast (go e) c 
     go (Tick t e)            = Tick t (go e)
     go (Type t)              = Type t 
@@ -254,6 +254,6 @@ stringClassArg t | isFunTy t
   = Nothing
 stringClassArg t
   = case (tyConAppTyCon_maybe t, tyConAppArgs_maybe t) of
-      (Just c, Just [t]) | isStringClassName == tyConName c
-           -> Just t
+      (Just c, Just [t']) | isStringClassName == tyConName c
+           -> Just t'
       _    -> Nothing

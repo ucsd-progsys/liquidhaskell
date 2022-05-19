@@ -234,10 +234,10 @@ synthesizeScrutinee vars = do
   s <- get
   let foralls = (fst . sForalls) s
       insVs = sUniVars s
-      fix   = sFix s
+      fix'  = sFix s
       -- Assign higher priority to function candidates that return tuples
       fnCs0 = filter returnsTuple foralls 
-      fnCs  = if returnsTuple fix then fix : fnCs0 else fnCs0
+      fnCs  = if returnsTuple fix' then fix' : fnCs0 else fnCs0
 
       fnEs  = map GHC.Var fnCs
       fnCs' = map (\e -> instantiate e (Just insVs)) fnEs

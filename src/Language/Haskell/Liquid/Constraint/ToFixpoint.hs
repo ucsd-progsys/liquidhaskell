@@ -144,13 +144,13 @@ makeRewrites info sub = concatMap (makeRewriteOne tce) $ filter ((`S.member` rws
 
 
 canRewrite :: S.HashSet F.Symbol -> F.Expr -> F.Expr -> Bool
-canRewrite freeVars from to = noFreeSyms && doesNotDiverge
+canRewrite freeVars' from to = noFreeSyms && doesNotDiverge
   where
-    fromSyms           = S.intersection freeVars (S.fromList $ F.syms from)
-    toSyms             = S.intersection freeVars (S.fromList $ F.syms to)
+    fromSyms           = S.intersection freeVars' (S.fromList $ F.syms from)
+    toSyms             = S.intersection freeVars' (S.fromList $ F.syms to)
     noFreeSyms         = S.null $ S.difference toSyms fromSyms
-    doesNotDiverge     = Mb.isNothing (unify (S.toList freeVars) from to)
-                      || Mb.isJust (unify (S.toList freeVars) to from)
+    doesNotDiverge     = Mb.isNothing (unify (S.toList freeVars') from to)
+                      || Mb.isJust (unify (S.toList freeVars') to from)
 
 refinementEQs :: LocSpecType -> [(F.Expr, F.Expr)]
 refinementEQs t =
@@ -170,10 +170,10 @@ makeRewriteOne tce (_, t)
 
     rewrites :: F.Expr -> F.Expr -> [F.AutoRewrite]
     rewrites lhs rhs =
-         (guard (canRewrite freeVars lhs rhs) >> [F.AutoRewrite xs lhs rhs])
-      ++ (guard (canRewrite freeVars rhs lhs) >> [F.AutoRewrite xs rhs lhs])
+         (guard (canRewrite freeVars' lhs rhs) >> [F.AutoRewrite xs lhs rhs])
+      ++ (guard (canRewrite freeVars' rhs lhs) >> [F.AutoRewrite xs rhs lhs])
 
-    freeVars = S.fromList (ty_binds tRep)
+    freeVars' = S.fromList (ty_binds tRep)
 
     xs = do
       (sym, arg) <- zip (ty_binds tRep) (ty_args tRep)
@@ -224,27 +224,27 @@ makeSimplify (x, t)
   where
     go (F.PAnd es) = concatMap go es
 
-    go (F.PAtom eq (F.EApp (F.EVar f) dc) bd)
+    go (F.PAtom eq (F.EApp (F.EVar f) expr') bd)
       | eq `elem` [F.Eq, F.Ueq]
-      , (F.EVar dc, xs) <- F.splitEApp dc
+      , (F.EVar dc, xs) <- F.splitEApp expr'
       , dc == F.symbol x 
       , all isEVar xs
       = [F.SMeasure f dc (fromEVar <$> xs) bd]
 
-    go (F.PIff (F.EApp (F.EVar f) dc) bd)
-      | (F.EVar dc, xs) <- F.splitEApp dc
+    go (F.PIff (F.EApp (F.EVar f) expr') bd)
+      | (F.EVar dc, xs) <- F.splitEApp expr'
       , dc == F.symbol x 
       , all isEVar xs
       = [F.SMeasure f dc (fromEVar <$> xs) bd]
 
-    go (F.EApp (F.EVar f) dc)
-      | (F.EVar dc, xs) <- F.splitEApp dc
+    go (F.EApp (F.EVar f) expr')
+      | (F.EVar dc, xs) <- F.splitEApp expr'
       , dc == F.symbol x
       , all isEVar xs
       = [F.SMeasure f dc (fromEVar <$> xs) F.PTrue]
 
-    go (F.PNot (F.EApp (F.EVar f) dc))
-      | (F.EVar dc, xs) <- F.splitEApp dc
+    go (F.PNot (F.EApp (F.EVar f) expr'))
+      | (F.EVar dc, xs) <- F.splitEApp expr'
       , dc == F.symbol x
       , all isEVar xs
       = [F.SMeasure f dc (fromEVar <$> xs) F.PFalse]
@@ -254,7 +254,7 @@ makeSimplify (x, t)
     isEVar (F.EVar _) = True
     isEVar _ = False
 
-    fromEVar (F.EVar x) = x
+    fromEVar (F.EVar sym) = sym
     fromEVar _ = impossible Nothing "makeSimplify.fromEVar"
 
 makeEquations :: Bool -> TargetSpec -> [F.Equation]
@@ -279,13 +279,13 @@ equationBody allowTC f xArgs e mbT
 -- NV Move this to types?
 -- sound but imprecise approximation of a type in the logic
 specTypeToLogic :: Bool -> [F.Expr] -> F.Expr -> SpecType -> F.Expr
-specTypeToLogic allowTC es e t
+specTypeToLogic allowTC es expr' st
   | ok        = F.subst su (F.PImp (F.pAnd args) res)
   | otherwise = F.PTrue
   where
-    res       = specTypeToResultRef e t
+    res       = specTypeToResultRef expr' st
     args      = zipWith mkExpr (mkReft <$> ts) es
-    mkReft t  =  F.toReft $ Mb.fromMaybe mempty (stripRTypeBase t)
+    mkReft    =  F.toReft . Mb.fromMaybe mempty . stripRTypeBase
     mkExpr (F.Reft (v, ev)) e = F.subst1 ev (v, e)
 
 
@@ -304,7 +304,7 @@ specTypeToLogic allowTC es e t
                  :: ([(F.Symbol, SpecType)], [(F.Symbol, SpecType)])
     (xs, ts)     = unzip nocls :: ([F.Symbol], [SpecType])
 
-    trep = toRTypeRep t
+    trep = toRTypeRep st
 
 
 specTypeToResultRef :: F.Expr -> SpecType -> F.Expr

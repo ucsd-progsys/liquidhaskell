@@ -321,8 +321,8 @@ checkLiquidHaskellContext lhContext = do
 
 errorLogger :: OutputResult -> TcM ()
 errorLogger outputResult = do
-  errs <- forM (LH.orMessages outputResult) $ \(spn, e) -> mkLongErrAt spn (LH.fromPJDoc e) O.empty
-  GHC.reportErrors errs
+  errs' <- forM (LH.orMessages outputResult) $ \(spn, e) -> mkLongErrAt spn (LH.fromPJDoc e) O.empty
+  GHC.reportErrors errs'
 
 emptyLiquidLib :: LiquidLib
 emptyLiquidLib = mkLiquidLib emptyLiftedSpec
@@ -494,12 +494,12 @@ processModule LiquidHaskellContext{..} = do
 
         let clientLib  = mkLiquidLib liftedSpec & addLibDependencies dependencies
 
-        let result = ProcessModuleResult {
+        let result' = ProcessModuleResult {
               pmrClientLib  = clientLib
             , pmrTargetInfo = targetInfo
             }
 
-        pure result)
+        pure result')
       `gcatch` (\(e :: UserError) -> LH.reportErrors Full [e] >> failM)
       `gcatch` (\(e :: Error) -> LH.reportErrors Full [e] >> failM)
       `gcatch` (\(es :: [Error]) -> LH.reportErrors Full es >> failM)
