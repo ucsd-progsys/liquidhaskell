@@ -9,7 +9,7 @@
 {-@ LIQUID "--no-totality"    @-}
 {-@ LIQUID "--ple"            @-} 
 
-module Field where
+module T1302b where
 
 import Prelude hiding (sequence, mapM, filter)
 -- import qualified Data.Set as Set
@@ -109,8 +109,8 @@ data CreditCard = CreditCard
 
 {-@
 data EntityField Creditcard typ where 
-   Field.CreditCardNumber :: EntityField CreditCard {v:_ | True}
-   Field.CreditCardHolder :: EntityField CreditCard {v:_ | True}
+   T1302b.CreditCardNumber :: EntityField CreditCard {v:_ | True}
+   T1302b.CreditCardHolder :: EntityField CreditCard {v:_ | True}
 @-}
 
 {-@ assume error :: [Char] -> a @-} 

@@ -6,7 +6,7 @@
 {-@ LIQUID "--ple"         @-}
 {-@ LIQUID "--fast"        @-}
 
-module Readers where
+module T1660 where
 
 import Language.Haskell.Liquid.ProofCombinators
 import Prelude hiding (id, fmap)

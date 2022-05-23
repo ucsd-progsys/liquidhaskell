@@ -4,7 +4,7 @@
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module DependeTypes where
+module TypeLitString where
 
 import GHC.TypeLits
 

@@ -3,7 +3,7 @@
 module LiquidArrayInit () where
 
 import Language.Haskell.Liquid.Prelude
-import LiquidArray
+import LiquidArrayLib
 
 {-@ zero ::
       i: {v: Int | v >= 0} ->

@@ -1,7 +1,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
-module Qualify where 
+module T1636 where
 
 data RA a  = RA  
 

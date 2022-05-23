@@ -1,4 +1,4 @@
-module Mismatch where
+module Inconsistent2 where
 
 {-@ foo :: Nat @-}
 foo :: Bool

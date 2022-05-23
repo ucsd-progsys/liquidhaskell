@@ -1,5 +1,5 @@
 {-@ LIQUID "--higherorder" @-}
-module Iso where
+module T1034 where
 
 data P a b  = P {p1 :: a, p2 :: b}
 {-@ data P a b = P {p1 :: a, p2 :: b}@-}

@@ -23,7 +23,8 @@ import           Data.Function (on)
 import qualified Data.ByteString       as B
 import           Data.ByteString.Char8 (pack, unpack)
 import qualified Text.PrettyPrint.HughesPJ as PJ -- (char, Doc)
-import           Text.Printf
+-- XXX(matt.walker): revert
+-- import           Text.Printf
 import           Language.Fixpoint.Misc
 import           Paths_liquidhaskell
 
@@ -41,10 +42,11 @@ timedAction label io = do
   t0 <- getCurrentTime
   a <- io
   t1 <- getCurrentTime
-  let time = realToFrac (t1 `diffUTCTime` t0) :: Double
+  let _time = realToFrac (t1 `diffUTCTime` t0) :: Double
   case label of
-    Just x  -> printf "Time (%.2fs) for action %s \n" time (show x)
-    Nothing -> return ()
+    --XXX(matt.walker): revert!
+    -- Just x  -> printf "Time (%.2fs) for action %s \n" time (show x)
+    {- Nothing -} _ -> return ()
   return a
 
 (!?) :: [a] -> Int -> Maybe a

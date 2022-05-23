@@ -1,6 +1,6 @@
 module ImportedReflect where
 
-import B 
+import BLib
 
 {-@ theorem :: x:Bar -> {bar x = bar x} @-}
 theorem :: Bar -> ()

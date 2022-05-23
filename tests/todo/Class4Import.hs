@@ -3,6 +3,6 @@
 
 module Class4Import where
 
-import Class4
+import Class4Lib
 
 instance Frog () where

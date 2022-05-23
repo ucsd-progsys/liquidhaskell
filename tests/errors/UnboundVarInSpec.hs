@@ -1,4 +1,4 @@
-module Fixme where
+module UnboundVarInSpec where
 
 
 {-@ foo :: forall <p :: s -> s -> Bool>.

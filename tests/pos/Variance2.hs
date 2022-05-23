@@ -1,7 +1,7 @@
 {-# LANGUAGE Rank2Types, ExistentialQuantification #-}
 
 
-module Variance where
+module Variance2 where
 
 
 import Control.Monad.Trans.Except

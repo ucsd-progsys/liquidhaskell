@@ -1,6 +1,6 @@
 {-@ LIQUID "--short-names"    @-}
 
-module Point where
+module PointDist where
 
 -- | Non-negative numbers:
 

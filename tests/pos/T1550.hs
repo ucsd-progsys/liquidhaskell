@@ -1,6 +1,6 @@
 {-@ LIQUID "--reflection" @-}
 
-module Foo where 
+module T1550 where
 
 import Language.Haskell.Liquid.Equational
 

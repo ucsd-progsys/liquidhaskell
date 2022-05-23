@@ -1,6 +1,6 @@
 {-@ LIQUID "--reflection"      @-}
 
-module BasicLambda00 where
+module BasicLambdas00 where
 
 import Prelude hiding (id)
 

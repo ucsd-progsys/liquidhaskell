@@ -1,7 +1,7 @@
 {-@ LIQUID "--exact-data-con" @-}
 {-@ LIQUID "--higherorder"    @-}
 
-module Peano where
+module AdtPeano0 where
 
 -- | The code currently works if we add the below, but thats icky.
 --   First, lets get this file to work _without_ the below.

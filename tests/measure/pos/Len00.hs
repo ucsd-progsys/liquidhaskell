@@ -1,6 +1,6 @@
 -- Tests that the "class measure" `len` works properly.
 
-module Len00 where 
+module Len00 where
 
 -- safeHd :: [a] -> a 
 

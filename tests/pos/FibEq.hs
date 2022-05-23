@@ -1,7 +1,7 @@
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--ple" @-}
 
-module FibEq where 
+module FibEq where
 
 fibInv  :: Int -> Int -> () 
 fibLin  :: Int -> Int 

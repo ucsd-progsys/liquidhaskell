@@ -6,7 +6,7 @@
 
 {-# LANGUAGE GADTs #-}
 
-module STLC where 
+module STLCB1 where
 
 import Language.Haskell.Liquid.ProofCombinators ((?))
 

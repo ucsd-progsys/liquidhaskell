@@ -1,4 +1,4 @@
-module Class00 where 
+module Class00 where
 
 class Zoo a where 
   zoo :: Int -> a 

@@ -1,4 +1,4 @@
-module Fold where
+module Foldl where
 
 {-@ LIQUID "--no-termination" @-}
 import Prelude hiding (foldr)

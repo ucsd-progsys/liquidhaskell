@@ -67,17 +67,17 @@ compileClasses src env (name, spec) rest =
     :: (F.LocSymbol, ty)
     -> (M.HashMap Ghc.Class [(Ghc.Id, ty)], [(F.LocSymbol, ty)])
     -> (M.HashMap Ghc.Class [(Ghc.Id, ty)], [(F.LocSymbol, ty)])
-  grabClassSig sig@(lsym, ref) (refs, sigs') = case clsOp of
-    Nothing         -> (refs, sig : sigs')
-    Just (cls, sig) -> (M.alter (merge sig) cls refs, sigs')
+  grabClassSig sig@(lsym, ref) (refs, sigs'') = case clsOp of
+    Nothing         -> (refs, sig : sigs'')
+    Just (cls, sg) -> (M.alter (merge sg) cls refs, sigs'')
    where
     clsOp = do
       var <- Bare.maybeResolveSym env name "grabClassSig" lsym
       cls <- Ghc.isClassOpId_maybe var
       pure (cls, (var, ref))
-    merge sig v = case v of
-      Nothing -> Just [sig]
-      Just vs -> Just (sig : vs)
+    merge sg' v = case v of
+      Nothing -> Just [sg']
+      Just vs -> Just (sg' : vs)
   methods = [ GM.namedLocSymbol x | (_, xs) <- instmethods, x <- xs ]
       -- instance methods
 
@@ -231,24 +231,24 @@ elaborateClassDcp coreToLg simplifier dcp = do
     t
   -- YL: is this redundant if we already have strengthenClassSel?
   strengthenTy :: F.Symbol -> SpecType -> SpecType
-  strengthenTy x t = mkUnivs tvs pvs (RFun z i cls (t' `RT.strengthen` mt) r)
+  strengthenTy x t = mkUnivs tvs pvs (RFun z i cls' (t' `RT.strengthen` mt) r)
    where
-    (tvs, pvs, RFun z i cls t' r) = bkUniv t
+    (tvs, pvs, RFun z i cls' t' r) = bkUniv t
     vv = rTypeValueVar t'
     mt = RT.uReft (vv, F.PAtom F.Eq (F.EVar vv) (F.EApp (F.EVar x) (F.EVar z)))
 
 
 elaborateMethod :: F.Symbol -> S.HashSet F.Symbol -> SpecType -> SpecType
-elaborateMethod dc methods t = mapExprReft
+elaborateMethod dc methods st = mapExprReft
   (\_ -> substClassOpBinding tcbind dc methods)
-  t
+  st
  where
-  tcbind = grabtcbind t
+  tcbind = grabtcbind st
   grabtcbind :: SpecType -> F.Symbol
   grabtcbind t =
     F.notracepp "grabtcbind"
       $ case Misc.fst4 . Misc.snd3 . bkArrow . Misc.thd3 . bkUniv $ t of
-          tcbind : _ -> tcbind
+          tcbind' : _ -> tcbind'
           []         -> impossible
             Nothing
             (  "elaborateMethod: inserted dictionary binder disappeared:"
@@ -260,7 +260,7 @@ elaborateMethod dc methods t = mapExprReft
 -- After: Funcctor.fmap ($p1Applicative##GHC.Base.Applicative)
 substClassOpBinding
   :: F.Symbol -> F.Symbol -> S.HashSet F.Symbol -> F.Expr -> F.Expr
-substClassOpBinding tcbind dc methods e = go e
+substClassOpBinding tcbind dc methods = go
  where
   go :: F.Expr -> F.Expr
   go (F.EApp e0 e1)
@@ -401,7 +401,7 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     subst ((a, ta):su) t = subsTyVar_meet' (a, ta) (subst su t)
 
 substAuxMethod :: F.Symbol -> M.HashMap F.Symbol F.Symbol -> F.Expr -> F.Expr
-substAuxMethod dfun methods e = F.notracepp "substAuxMethod" $ go e
+substAuxMethod dfun methods = F.notracepp "substAuxMethod" . go
   where go :: F.Expr -> F.Expr
         go (F.EApp e0 e1)
           | F.EVar x <- F.notracepp "e0" e0

@@ -5,7 +5,7 @@ commands:
   setup_project:
     description: "Setup the machine, clone the repo, checkout the submodules."
     steps:
-      - run: sudo apt-get update && sudo apt-get install -y curl git ssh unzip wget libtinfo-dev gcc make
+      - run: sudo apt-get update && DEBIAN_FRONTEND=noninteractive sudo apt-get install -yq curl git ssh unzip wget libtinfo-dev gcc make
       - run:
           name: Install z3
           command: |
@@ -69,7 +69,7 @@ commands:
             echo 'export PATH=~/.ghcup/bin:$PATH' >> $BASH_ENV
             << parameters.cabal_update_command >>
             cabal v2-clean
-            cabal v2-build --project-file << parameters.project_file >> --flag include --flag devel -j2 --enable-tests all
+            cabal v2-build --project-file << parameters.project_file >> --flag include --flag devel -j --enable-tests liquid liquidhaskell-parser synthesis liquid-base liquid-prelude liquid-bytestring liquid-containers liquid-ghc-prim liquid-parallel liquid-vector liquid-platform test-driver
       - save_cache:
           key: cabal-cache-v3-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
           paths:
@@ -84,16 +84,9 @@ commands:
       - run:
           name: Test
           command: |
-            (liquidhaskell_datadir=$PWD cabal v2-test -j1 --project-file << parameters.project_file >> liquidhaskell:test << parameters.extra_test_flags >> --flag include --flag devel --test-show-details=streaming --test-option="<< parameters.liquid_runner >>" --test-options="-t 1200s --xml=/tmp/junit/cabal/main-test-results.xml") || (<<parameters.allow_test_failures>>)
+            LIQUID_CABAL_PROJECT_FILE=<<parameters.project_file>> cabal v2-run --project-file << parameters.project_file >> test-driver || (<<parameters.allow_test_failures>>)
             (liquidhaskell_datadir=$PWD cabal v2-test -j1 --project-file << parameters.project_file >> liquidhaskell:liquidhaskell-parser --flag include --flag devel --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml") || (<<parameters.allow_test_failures>>)
           no_output_timeout: 30m
-      - store_test_results:
-          path: /tmp/junit/cabal
-      - run:
-          name: Compress artifacts
-          command: tar cvzf logs.tar.gz tests/logs/cur
-      - store_artifacts:
-          path: logs.tar.gz
 
   stack_build_and_test:
     description: "Build and test the project using Stack"
@@ -124,7 +117,7 @@ commands:
           command: |
             wget -qO- https://get.haskellstack.org/ | sudo sh
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> setup
-            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> build -j2 --only-dependencies --test --no-run-tests << parameters.extra_build_flags >>
+            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> build -j4 --only-dependencies --test --no-run-tests << parameters.extra_build_flags >> 
       - save_cache:
           key: stack-cache-v1-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "liquid-fixpoint-commit" }}
           paths:
@@ -135,14 +128,8 @@ commands:
           command: |
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> clean
             mkdir -p /tmp/junit/stack
-            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:test << parameters.extra_build_flags >> << parameters.extra_test_flags >> --ta="--liquid-runner \"<< parameters.liquid_runner >>\"" --ta="-t 1200s --xml=/tmp/junit/stack/main-test-results.xml": #--liquid-opts='--cores=1'":
-            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:liquidhaskell-parser << parameters.extra_build_flags >> --ta="--xml=/tmp/junit/stack/parser-test-results.xml":
-          no_output_timeout: 30m
-      - run:
-          # Used to catch regressions in verification
-          name: Test benchmarks
-          command: |
-            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> build -j1 stitch-lh << parameters.extra_build_flags >>
+            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> run test-driver
+            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:liquidhaskell-parser << parameters.extra_build_flags >>
           no_output_timeout: 30m
       - run:
           name: Generate haddock
@@ -150,13 +137,6 @@ commands:
             # stack haddock liquidhaskell --flag liquidhaskell:-devel --no-haddock-deps --haddock-arguments="--no-print-missing-docs --odir=$CIRCLE_ARTIFACTS"
             # skip if extra_build_flags are set
             [ ! -z "<< parameters.extra_build_flags >>" ] || stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> haddock << parameters.extra_build_flags >> liquidhaskell  --no-haddock-deps --haddock-arguments="--no-print-missing-docs"
-      - store_test_results:
-          path: /tmp/junit/stack
-      - run:
-          name: Compress artifacts
-          command: tar cvzf logs.tar.gz tests/logs/cur
-      - store_artifacts:
-          path: logs.tar.gz
       - run:
           name: Dist
           command: |
@@ -164,15 +144,6 @@ commands:
             [ ! -z "<< parameters.extra_build_flags >>" ] || stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> sdist
 
 jobs:
-
-  stack_810_legacy_executable:
-    machine:
-      image: ubuntu-2004:202107-02
-    steps:
-        - stack_build_and_test:
-            stack_yaml_file: "stack.yaml"
-            liquid_runner: "stack --silent exec -- liquid"
-            extra_build_flags: "--flag liquidhaskell:devel --flag liquidhaskell:include --flag liquid-platform:devel --flag liquidhaskell:no-plugin"
 
   stack_810:
     machine:
@@ -207,7 +178,6 @@ workflows:
   version: 2
   build_stack_and_cabal:
     jobs:
-      - stack_810_legacy_executable
       - stack_810
       - cabal_810
       - cabal_900

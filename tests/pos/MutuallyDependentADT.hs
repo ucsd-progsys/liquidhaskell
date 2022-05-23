@@ -1,3 +1,5 @@
+module MutuallyDependentADT where
+
 {-@ LIQUID "--exactdc"  @-}
 
 data Pred l 

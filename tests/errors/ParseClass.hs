@@ -1,4 +1,4 @@
-module Crash where
+module ParseClass where
 
 class Foo a where
 {-@ class Foo where

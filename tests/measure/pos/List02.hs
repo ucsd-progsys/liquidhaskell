@@ -1,6 +1,6 @@
 -- This test checks whether "invariants" are getting imported.
 
-module List02 where 
+module List02 where
 
 import List02Lib 
 

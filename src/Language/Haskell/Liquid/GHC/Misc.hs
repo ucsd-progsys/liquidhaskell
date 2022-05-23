@@ -156,7 +156,7 @@ unTickExpr (App e a)          = App (unTickExpr e) (unTickExpr a)
 unTickExpr (Lam b e)          = Lam b (unTickExpr e)
 unTickExpr (Let b e)          = Let (unTick b) (unTickExpr e)
 unTickExpr (Case e b t as)    = Case (unTickExpr e) b t (map unTickAlt as)
-    where unTickAlt (a, b, e) = (a, b, unTickExpr e)
+    where unTickAlt (a, b', e') = (a, b', unTickExpr e')
 unTickExpr (Cast e c)         = Cast (unTickExpr e) c
 unTickExpr (Tick _ e)         = unTickExpr e
 unTickExpr x                  = x
@@ -418,9 +418,9 @@ lookupRdrName hsc_env mod_name rdr_name = do
     -- First find the package the module resides in by searching exposed packages and home modules
     found_module <- findImportedModule hsc_env mod_name Nothing
     case found_module of
-        Found _ mod -> do
+        Found _ mod' -> do
             -- Find the exports of the module
-            (_, mb_iface) <- getModuleInterface hsc_env mod
+            (_, mb_iface) <- getModuleInterface hsc_env mod'
             case mb_iface of
                 Just iface -> do
                     -- Try and find the required name in the exports
@@ -435,21 +435,21 @@ lookupRdrName hsc_env mod_name rdr_name = do
                         []    -> return Nothing
                         _     -> Ghc.panic "lookupRdrNameInModule"
                 Nothing -> throwCmdLineErrorS dflags $ Ghc.hsep [Ghc.ptext (sLit "Could not determine the exports of the module"), ppr mod_name]
-        err -> throwCmdLineErrorS dflags $ cannotFindModule dflags mod_name err
+        err' -> throwCmdLineErrorS dflags $ cannotFindModule dflags mod_name err'
   where dflags = hsc_dflags hsc_env
-        throwCmdLineErrorS dflags = throwCmdLineError . Ghc.showSDoc dflags
+        throwCmdLineErrorS dflags' = throwCmdLineError . Ghc.showSDoc dflags'
         throwCmdLineError = throwGhcException . CmdLineError
 
 -- qualImportDecl :: ModuleName -> ImportDecl name
 -- qualImportDecl mn = (simpleImportDecl mn) { ideclQualified = True }
 
 ignoreInline :: ParsedModule -> ParsedModule
-ignoreInline x = x {pm_parsed_source = go <$> pm_parsed_source x}
+ignoreInline pm = pm {pm_parsed_source = go <$> pm_parsed_source pm}
   where 
     go  x      = x {hsmodDecls = filter go' (hsmodDecls x) }
     go' :: LHsDecl GhcPs -> Bool
-    go' x 
-      | SigD _ (InlineSig {}) <-  unLoc x = False
+    go' dcl
+      | SigD _ (InlineSig {}) <-  unLoc dcl = False
       | otherwise                         = True
 
 --------------------------------------------------------------------------------
@@ -598,7 +598,7 @@ base62ToI s =  fromMaybe (errorstar "base62ToI Out Of Range") $ go (F.symbolText
     digitToI :: OM.Map Char Int
     digitToI = OM.fromList $ zip (['0'..'9'] ++ ['a'..'z'] ++ ['A'..'Z']) [0..]
     f acc (flip OM.lookup digitToI -> x) = (acc * 62 +) <$> x
-    go s = foldM f 0 (T.unpack s)
+    go str = foldM f 0 (T.unpack str)
 
 
 splitModuleName :: Symbol -> (Symbol, Symbol)
@@ -629,10 +629,10 @@ takeModuleNames  = F.symbol . go [] . F.symbolText
   where
     go acc s = case T.uncons s of
                 Just (c,tl) -> if isUpper c && T.any (== '.') tl
-                                 then go (getModule s:acc) $ snd $ fromJust $ T.uncons $ T.dropWhile (/= '.') s
+                                 then go (getModule' s:acc) $ snd $ fromJust $ T.uncons $ T.dropWhile (/= '.') s
                                  else T.intercalate "." (reverse acc) 
                 Nothing -> T.intercalate "." (reverse acc) 
-    getModule s = T.takeWhile (/= '.') s
+    getModule' s = T.takeWhile (/= '.') s
 
 {- 
 takeModuleNamesOld  = mungeNames initName sepModNames "takeModuleNames: "
@@ -752,30 +752,30 @@ ignoreCoreBinds vs cbs
 
 
 findVarDef :: Symbol -> [CoreBind] -> Maybe (Var, CoreExpr)
-findVarDef x cbs = case xCbs of
+findVarDef sym cbs = case xCbs of
                      (NonRec v def   : _ ) -> Just (v, def)
                      (Rec [(v, def)] : _ ) -> Just (v, def)
                      _                     -> Nothing
   where
-    xCbs            = [ cb | cb <- concatMap unRec cbs, x `elem` coreBindSymbols cb ]
+    xCbs            = [ cb | cb <- concatMap unRec cbs, sym `elem` coreBindSymbols cb ]
     unRec (Rec xes) = [NonRec x es | (x,es) <- xes]
     unRec nonRec    = [nonRec]
 
 
 findVarDefMethod :: Symbol -> [CoreBind] -> Maybe (Var, CoreExpr)
-findVarDefMethod x cbs =
+findVarDefMethod sym cbs =
   case rcbs  of
                      (NonRec v def   : _ ) -> Just (v, def)
                      (Rec [(v, def)] : _ ) -> Just (v, def)
                      _                     -> Nothing
   where
-    rcbs | isMethod x = mCbs
-         | isDictionary (dropModuleNames x) = dCbs
+    rcbs | isMethod sym = mCbs
+         | isDictionary (dropModuleNames sym) = dCbs
          | otherwise  = xCbs
-    xCbs            = [ cb | cb <- concatMap unRec cbs, x `elem` coreBindSymbols cb 
+    xCbs            = [ cb | cb <- concatMap unRec cbs, sym `elem` coreBindSymbols cb 
                            ]
-    mCbs            = [ cb | cb <- concatMap unRec cbs, x `elem` methodSymbols cb]
-    dCbs            = [ cb | cb <- concatMap unRec cbs, x `elem` dictionarySymbols cb]
+    mCbs            = [ cb | cb <- concatMap unRec cbs, sym `elem` methodSymbols cb]
+    dCbs            = [ cb | cb <- concatMap unRec cbs, sym `elem` dictionarySymbols cb]
     unRec (Rec xes) = [NonRec x es | (x,es) <- xes]
     unRec nonRec    = [nonRec]
 
@@ -961,8 +961,8 @@ elabRnExpr mode rdr_expr = do
     full_expr <- zonkTopLExpr (mkHsDictLet (EvBinds evbs') (mkHsDictLet evbs tc_expr))
     initDsTc $ dsLExpr full_expr
   where
-    tc_infer expr | inst      = tcInferRho expr
-                  | otherwise = tcInferSigma expr
+    tc_infer expr' | inst      = tcInferRho expr'
+                  | otherwise = tcInferSigma expr'
                   -- tcInferSigma: see Note [Implementing :type]
 
     -- See Note [TcRnExprMode]
@@ -1084,23 +1084,23 @@ withWiredIn m = discardConstraints $ do
   toLoc = Ghc.L locSpan
   nameToTy = Ghc.L locSpan . HsTyVar Ghc.noExtField Ghc.NotPromoted
 
-  boolTy :: LHsType GhcRn
-  boolTy = nameToTy $ toLoc boolTyConName
+  boolTy' :: LHsType GhcRn
+  boolTy' = nameToTy $ toLoc boolTyConName
     -- boolName <- lookupOrig (Module (stringToUnitId "Data.Bool") (mkModuleName "Data.Bool")) (Ghc.mkVarOcc "Bool")
     -- return $ Ghc.L locSpan $ HsTyVar Ghc.noExtField Ghc.NotPromoted $ Ghc.L locSpan boolName
-  intTy = nameToTy $ toLoc intTyConName
+  intTy' = nameToTy $ toLoc intTyConName
   listTy lt = toLoc $ HsAppTy Ghc.noExtField (nameToTy $ toLoc listTyConName) lt
  
   -- infixr 1 ==> :: Bool -> Bool -> Bool
   impl = do
     n <- toName "==>"
-    let ty = mkHsFunTy boolTy (mkHsFunTy boolTy boolTy)
+    let ty = mkHsFunTy boolTy' (mkHsFunTy boolTy' boolTy')
     return $ TcWiredIn n (Just (1, Ghc.InfixR)) ty
 
   -- infixr 1 <=> :: Bool -> Bool -> Bool
   dimpl = do
     n <- toName "<=>"
-    let ty = mkHsFunTy boolTy (mkHsFunTy boolTy boolTy)
+    let ty = mkHsFunTy boolTy' (mkHsFunTy boolTy' boolTy')
     return $ TcWiredIn n (Just (1, Ghc.InfixR)) ty
 
   -- infix 4 == :: forall a . a -> a -> Bool
@@ -1113,9 +1113,9 @@ withWiredIn m = discardConstraints $ do
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
              ForallInvis
 #endif
-             [Ghc.L locSpan $ UserTyVar Ghc.noExtField aName] $ mkHsFunTy aTy (mkHsFunTy aTy boolTy)
+             [Ghc.L locSpan $ UserTyVar Ghc.noExtField aName] $ mkHsFunTy aTy (mkHsFunTy aTy boolTy')
 #else
-             (mkHsForAllInvisTele [Ghc.L locSpan $ UserTyVar Ghc.noExtField SpecifiedSpec aName]) $ mkHsFunTy aTy (mkHsFunTy aTy boolTy)
+             (mkHsForAllInvisTele [Ghc.L locSpan $ UserTyVar Ghc.noExtField SpecifiedSpec aName]) $ mkHsFunTy aTy (mkHsFunTy aTy boolTy')
 #endif
     return $ TcWiredIn n (Just (4, Ghc.InfixN)) ty
   
@@ -1131,10 +1131,10 @@ withWiredIn m = discardConstraints $ do
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
                ForallInvis
 #endif
-               [Ghc.L locSpan $ UserTyVar Ghc.noExtField aName] $ mkHsFunTy (listTy aTy) intTy
+               [Ghc.L locSpan $ UserTyVar Ghc.noExtField aName] $ mkHsFunTy (listTy aTy) intTy'
     return $ TcWiredIn n Nothing ty
 #else
-               (mkHsForAllInvisTele [Ghc.L locSpan $ UserTyVar Ghc.noExtField SpecifiedSpec aName]) $ mkHsFunTy (listTy aTy) intTy
+               (mkHsForAllInvisTele [Ghc.L locSpan $ UserTyVar Ghc.noExtField SpecifiedSpec aName]) $ mkHsFunTy (listTy aTy) intTy'
     return $ TcWiredIn n Nothing ty
 #endif
 

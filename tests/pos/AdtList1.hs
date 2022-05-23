@@ -1,6 +1,6 @@
 {-@ LIQUID "--exact-data-cons" @-}
 
-module AdtList where 
+module AdtList1 where
 
 data LL a = Emp | Cons a (LL a) 
 

@@ -6,15 +6,15 @@
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
-module BinahUpdateLib where
+module BinahUpdateLib1 where
 
 class PersistEntity record where
     data EntityField record typ :: *
 
 instance PersistEntity Blob where
     {-@ data EntityField Blob typ where
-            BinahUpdateLib.BlobYVal :: EntityField Blob {v:_ | True}
-            BinahUpdateLib.BlobXVal :: EntityField Blob {v:_ | v >= 10}
+            BinahUpdateLib1.BlobYVal :: EntityField Blob {v:_ | True}
+            BinahUpdateLib1.BlobXVal :: EntityField Blob {v:_ | v >= 10}
       @-}
    data EntityField Blob typ
       = typ ~ Int => BlobXVal |

@@ -1,4 +1,4 @@
-module Local02 where 
+module UnboundVarInLocSig where
 
 {-@ foo :: x:_ -> y:_ -> {v:Int | v = x + y} @-} 
 foo :: Int -> Int -> Int 

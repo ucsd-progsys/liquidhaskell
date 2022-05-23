@@ -1,5 +1,5 @@
 {-@ LIQUID "--noclasscheck"    @-}
-module Compose where
+module StateConstraints0 where
 
 import Prelude hiding (Monad(..))
 

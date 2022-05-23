@@ -6,7 +6,7 @@
 
 {-@ LIQUID "--scrape-used-imports" @-}
 
-module Blank where
+module T716 where
 
 import GHC.Exts
 import GHC.Word

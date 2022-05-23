@@ -1,3 +1,5 @@
+module FlipArgs where
+
 -------------------------------------------------------------------------------
 -- | How to use bounds when the argument orders are backwards -----------------
 --   https://github.com/ucsd-progsys/liquidhaskell/issues/1452
@@ -78,4 +80,5 @@ testBAD = fooBAD (bar 10) 7
 scannedVector :: (Num a) => V.Vector a -> V.Vector a
 scannedVector xs = V.iscanl' (\idx _ _ -> xs V.! idx) 0 xs
 
+main :: IO ()
 main = pure ()

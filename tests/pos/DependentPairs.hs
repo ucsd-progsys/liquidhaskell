@@ -1,4 +1,4 @@
-module DPairs where
+module DependentPairs where
 
 
 {-@ incrPair :: Int -> (x::Int, {v:Int | x <= v}) @-}

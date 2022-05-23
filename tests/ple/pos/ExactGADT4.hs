@@ -5,7 +5,7 @@
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
-module Query where
+module ExactGADT4 where
 
 import Prelude hiding (filter)
 

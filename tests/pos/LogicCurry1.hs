@@ -1,3 +1,5 @@
+module LogicCurry1 where
+
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--maxparams=5"     @-}
 

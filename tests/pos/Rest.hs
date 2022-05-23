@@ -4,7 +4,7 @@
 -- Beware that trivial changes to this file would cause verification
 -- to fail at some time. Renaming the module to Rest would be one of those
 -- changes.
-module Language.Stitch.LH.Check where
+module Rest where
 
 import Language.Haskell.Liquid.ProofCombinators
 import Prelude hiding (length, max)

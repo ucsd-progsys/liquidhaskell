@@ -1,6 +1,6 @@
 {-@ LIQUID "--reflection" @-} 
 
-module Euclide where
+module HiddenMethod00 where
 
 import Prelude hiding (mod, gcd)
 

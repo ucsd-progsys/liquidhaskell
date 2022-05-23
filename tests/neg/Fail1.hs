@@ -1,4 +1,4 @@
-module Fail where 
+module Fail1 where
 
 -- This should fail because the failing incr is SAFE 
 {-@ fail incr @-}

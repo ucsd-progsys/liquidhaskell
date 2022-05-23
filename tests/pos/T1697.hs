@@ -1,6 +1,6 @@
 {-@ LIQUID "--no-pattern-inline" @-}
 
-module B where
+module T1697 where
 
 data User = U
 

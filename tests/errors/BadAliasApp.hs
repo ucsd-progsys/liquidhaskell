@@ -1,4 +1,4 @@
-module BadExprArg where
+module BadAliasApp where
 
 {-@ type ListN a N = {v:[a] | len v = N} @-}
 

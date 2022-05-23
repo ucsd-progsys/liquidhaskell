@@ -68,14 +68,14 @@ mkMSpec ms cms ims = MSpec cm mm cmm ims
 
 
 checkDuplicateMeasure :: [Measure ty ctor] -> [Measure ty ctor]
-checkDuplicateMeasure ms
+checkDuplicateMeasure measures
   = case M.toList dups of
-      []         -> ms
-      (m,ms):_   -> uError $ err m (msName <$> ms)
+      []         -> measures
+      (m,ms):_   -> uError $ err' m (msName <$> ms)
     where
-      gms        = group [(msName m , m) | m <- ms]
+      gms        = group [(msName m , m) | m <- measures]
       dups       = M.filter ((1 <) . length) gms
-      err m ms   = ErrDupMeas (fSrcSpan m) (pprint (val m)) (fSrcSpan <$> ms)
+      err' m ms   = ErrDupMeas (fSrcSpan m) (pprint (val m)) (fSrcSpan <$> ms)
 
 
 dataConTypes :: Bool -> MSpec (RRType Reft) DataCon -> ([(Var, RRType Reft)], [(LocSymbol, RRType Reft)])

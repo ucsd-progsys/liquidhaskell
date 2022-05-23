@@ -2,7 +2,7 @@
 
 -- | Typing class-instances  
 
-module LiquidClass where
+module Inst00 where
 
 -- | Step 1: Refine type dictionaries:
 
@@ -10,14 +10,14 @@ class Compare a where
 	cmax :: a -> a -> a
 	cmin :: a -> a -> a
 
-instance Compare Int where	
-{-@ instance Compare Int where 
-	cmax :: Odd -> Odd -> Odd ;
-	cmin :: Int -> Int -> Int
+instance Compare Int where
+{-@ instance Compare Int where
+        cmax :: Odd -> Odd -> Odd ;
+        cmin :: Int -> Int -> Int
   @-}
 
-	cmax y x = if x >= y then x else y
-  	cmin y x = if x >= y then x else y
+  cmax y x = if x >= y then x else y
+  cmin y x = if x >= y then x else y
 
 -- | creates dictionary environment:
 -- | * add the following environment

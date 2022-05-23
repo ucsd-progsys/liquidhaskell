@@ -10,12 +10,12 @@ import qualified Data.HashSet                  as S
 import           Data.List 
 
 initSSEnv :: SpecType -> CGInfo -> SSEnv -> (SSEnv, [Var])
-initSSEnv rt info senv = (M.union senv (M.fromList foralls), vs)
-  where foralls = filter iNeedIt (mkElem <$> prims)
+initSSEnv rt info ssenv = (M.union ssenv (M.fromList foralls), vs)
+  where foralls = filter iNeedIt (mkElem <$> prims')
         vs = map (snd . snd) foralls
         dataCons = typeToCons rt 
         mkElem (v, lt) = (symbol v, (val lt, v))
-        prims = gsCtors $ gsData $ giSpec $ ghcI info
+        prims' = gsCtors $ gsData $ giSpec $ ghcI info
         iNeedIt (_, (_, v)) = v `elem` (dataConWorkId <$> dataCons)
 
 -- | For algebraic datatypes: Find (in the refinement type) 

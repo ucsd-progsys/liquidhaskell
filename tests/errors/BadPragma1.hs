@@ -1,6 +1,6 @@
 {-@ LIQUID "--c-files=./wow.c" @-}
 
-module Bad where 
+module BadPragma1 where
 
 i :: Int
 i = 1

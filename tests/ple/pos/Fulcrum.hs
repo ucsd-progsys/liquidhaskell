@@ -5,7 +5,7 @@
 
 {-@ infixr ++              @-}
 
-module Fulcrum where 
+module Fulcrum where
 
 import Prelude hiding ((++), unzip, take, drop, abs, sum, minimum, min)
 import Language.Haskell.Liquid.ProofCombinators 

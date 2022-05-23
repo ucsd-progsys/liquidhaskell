@@ -52,7 +52,6 @@ import Data.Maybe
 import Data.Aeson (encode)
 import qualified Data.ByteString.Lazy.Char8 as B
 import Development.GitRev (gitCommitCount)
-import Options.Applicative.Simple (simpleVersion)
 import qualified Paths_liquidhaskell as Meta
 import System.Directory
 import System.Exit
@@ -76,6 +75,7 @@ import qualified Language.Fixpoint.Types as F
 import Language.Fixpoint.Solver.Stats as Solver
 import Language.Haskell.Liquid.UX.Annotate
 import Language.Haskell.Liquid.UX.Config
+import Language.Haskell.Liquid.UX.SimpleVersion (simpleVersion)
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.PrettyPrint ()
@@ -421,10 +421,10 @@ config = cmdArgsMode $ Config {
     rwTerminationCheck
     = def
         &= name "rw-termination-check"
-        &= help (   "Enable the rewrite divergence checker. " 
+        &= help (   "Enable the rewrite divergence checker. "
                  ++ "Can speed up verification if rewriting terminates, but can also cause divergence."
                 )
-  , 
+  ,
     skipModule
     = def
         &= name "skip-module"
@@ -434,9 +434,9 @@ config = cmdArgsMode $ Config {
     = def
         &= name "no-lazy-ple"
         &= help "Don't use Lazy PLE"
- 
-  , fuel 
-    = Nothing 
+
+  , fuel
+    = Nothing
         &= help "Maximum fuel (per-function unfoldings) for PLE"
 
   , environmentReduction
@@ -458,8 +458,8 @@ config = cmdArgsMode $ Config {
           , "Sometimes improves performance and sometimes worsens it."
           , "Disabled by --no-environment-reduction"
           ])
-  , pandocHtml 
-    = False 
+  , pandocHtml
+    = False
       &= name "pandoc-html"
       &= help "Use pandoc to generate html."
   } &= program "liquid"
@@ -527,8 +527,8 @@ findSmtSolver smt = maybe Nothing (const $ Just smt) <$> findExecutable (show sm
 fixConfig :: Config -> IO Config
 fixConfig cfg = do
   pwd <- getCurrentDirectory
-  cfg <- canonicalizePaths pwd cfg
-  return $ canonConfig cfg
+  cfg' <- canonicalizePaths pwd cfg
+  return $ canonConfig cfg'
 
 -- | Attempt to canonicalize all `FilePath's in the `Config' so we don't have
 --   to worry about relative paths.
@@ -743,15 +743,15 @@ reportResult logResultFull cfg targets out = do
          let outputResult = resDocs tidy cr
          -- For now, always print the \"header\" with colours, irrespective to the logger
          -- passed as input.
-         liftIO $ printHeader (colorResult r) (orHeader outputResult)
+         -- liftIO $ printHeader (colorResult r) (orHeader outputResult)
          logResultFull outputResult
   pure ()
   where
     tidy :: F.Tidy
     tidy = if shortErrors cfg then F.Lossy else F.Full
 
-    printHeader :: Moods -> Doc -> IO ()
-    printHeader mood d = colorPhaseLn mood "" (render d)
+    _printHeader :: Moods -> Doc -> IO ()
+    _printHeader mood d = colorPhaseLn mood "" (render d)
 
 
 ------------------------------------------------------------------------
@@ -773,10 +773,11 @@ instance Show (CtxError Doc) where
   show = showpp
 
 writeCheckVars :: Symbolic a => Maybe [a] -> IO ()
-writeCheckVars Nothing     = return ()
-writeCheckVars (Just [])   = colorPhaseLn Loud "Checked Binders: None" ""
-writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" ""
-                          >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
+writeCheckVars _ {- Nothing -}    = return ()
+--XXX(matt.walker): revert!
+-- writeCheckVars (Just [])   = colorPhaseLn Loud "Checked Binders: None" ""
+-- writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" ""
+--                           >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
 
 type CError = CtxError Doc
 
@@ -794,7 +795,7 @@ writeResultStdout (orMessages -> messages) = do
   forM_ messages $ \(sSpan, doc) -> putStrLn (render $ mkErrorDoc sSpan doc {- pprint sSpan <> (text ": error: " <+> doc)-})
 
 mkErrorDoc :: PPrint a => a -> Doc -> Doc
-mkErrorDoc sSpan doc = 
+mkErrorDoc sSpan doc =
   -- Gross on screen, nice for Ghcid
   -- pprint sSpan <> (text ": error: " <+> doc)
 
@@ -809,6 +810,11 @@ resDocs _ (F.Safe  stats) =
   OutputResult {
     orHeader   = text $ "LIQUID: SAFE (" <> show (Solver.numChck stats) <> " constraints checked)"
   , orMessages = mempty
+  }
+resDocs _k (F.Crash [] s)  =
+  OutputResult {
+    orHeader = text "LIQUID: ERROR"
+  , orMessages = [(GHC.noSrcSpan, text s)]
   }
 resDocs k (F.Crash xs s)  =
   OutputResult {
@@ -837,8 +843,8 @@ reportUrl = text "Please submit a bug report at: https://github.com/ucsd-progsys
 
 addErrors :: FixResult a -> [a] -> FixResult a
 addErrors r []               = r
-addErrors (Safe s) errs      = Unsafe s errs
-addErrors (Unsafe s xs) errs = Unsafe s (xs ++ errs)
+addErrors (Safe s) errs'      = Unsafe s errs'
+addErrors (Unsafe s xs) errs' = Unsafe s (xs ++ errs')
 addErrors r  _               = r
 
 instance Fixpoint (F.FixResult CError) where

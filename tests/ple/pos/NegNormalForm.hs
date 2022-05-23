@@ -1,7 +1,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
-module Tutorial6 where
+module NegNormalForm where
 
 import Prelude hiding (not, lookup)
 

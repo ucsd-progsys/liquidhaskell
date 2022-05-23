@@ -1,6 +1,6 @@
 {-@ LIQUID "--max-case-expand=0" @-}
 
-module NoCaseExpand where
+module T1267 where
 
 data ABC = A | B | C 
 

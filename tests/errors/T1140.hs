@@ -1,5 +1,5 @@
 
-module Blank where 
+module T1140 where
 	
 data Label = Label Int 
 

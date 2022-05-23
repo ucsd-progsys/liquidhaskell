@@ -1,6 +1,6 @@
 {-@ LIQUID "--pruneunsorted" @-}
 
-module SClass where
+module StackClass where
 
 import qualified Data.Set
 

@@ -2,7 +2,7 @@
 {-@ LIQUID "--ple" @-}
 {-@ LIQUID "--no-totality" @-}
 
-module A where
+module T1669 where
 import           Prelude                 hiding ( Semigroup
                                                 , mappend
                                                 )

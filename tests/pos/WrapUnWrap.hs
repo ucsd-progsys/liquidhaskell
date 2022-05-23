@@ -1,6 +1,6 @@
 {-@ LIQUID "--higherorder"  @-}
 {-@ LIQUID "--exactdc"      @-}
-module Data.Foo where
+module WrapUnWrap where
 
 
 import Language.Haskell.Liquid.ProofCombinators

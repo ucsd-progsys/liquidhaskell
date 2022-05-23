@@ -2,7 +2,7 @@
 -- | Polymorphic user but defining bind and return as normal functions (WORKING)
 -------------------------------------------------------------------------------------------
 
-module C where
+module T1697C where
 
 data User = U
 

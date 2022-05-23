@@ -1,6 +1,6 @@
 {-@ LIQUID "--higherorder"        @-}
 {-@ LIQUID "--exactdc"            @-}
-module VerifiedEqInstances where
+module T1092 where
 
 import Language.Haskell.Liquid.ProofCombinators
 

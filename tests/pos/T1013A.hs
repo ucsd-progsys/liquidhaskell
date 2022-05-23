@@ -2,7 +2,7 @@
 
 {-# LANGUAGE RankNTypes #-}
 
-module Bug where
+module T1013A where
 
 import Prelude hiding (fmap)
 

@@ -5,7 +5,7 @@
 {-@ LIQUID "--ple"         @-}  -- Bug goes away if this line is commented
 {-@ LIQUID "--short-names" @-}
 
-module Test where
+module MJFix where
 
 import Prelude hiding ((++), const, sum, init)
 

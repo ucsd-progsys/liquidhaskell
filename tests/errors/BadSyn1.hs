@@ -1,4 +1,4 @@
-module Zoo where
+module BadSyn1 where
 
 type Foo = Int
 

@@ -1,7 +1,7 @@
 {-@ LIQUID "--exact-data-con" @-}
 {-@ LIQUID "--higherorder"    @-}
 
-module Peano where
+module AdtPeano0 where
 
 data Influx = Silly Int
 

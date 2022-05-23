@@ -1,4 +1,4 @@
-module Assume where
+module UnboundVarInAssume where
 
 {-@ assume incr :: Int -> {v : Int | v == x} @-}
 incr :: Int -> Int

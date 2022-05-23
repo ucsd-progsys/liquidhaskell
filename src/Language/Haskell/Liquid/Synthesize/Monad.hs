@@ -173,8 +173,8 @@ thisReplace i x l
 structuralCheck :: [CoreExpr] -> SM [CoreExpr]
 structuralCheck es 
   = do  decr <- ssDecrTerm <$> get
-        fix <- sFix <$> get
-        return (filter (notStructural decr fix) es)
+        fix' <- sFix <$> get
+        return (filter (notStructural decr fix') es)
 
 structCheck :: Var -> CoreExpr -> (Maybe Var, [CoreExpr])
 structCheck xtop var@(GHC.Var v)
@@ -238,7 +238,7 @@ withIncrDepth m = do
       then return mempty
       else do put s{sDepth = d + 1}
               r <- m
-              modify $ \s -> s{sDepth = d}
+              modify $ \t -> t{sDepth = d}
               return r
         
   
@@ -275,7 +275,7 @@ initExprMem sEnv = map (\(_, (t, v)) -> (toType False t, GHC.Var v, 0)) (M.toLis
 
 -------------- Init @ExprMemory@ with instantiated functions with the right type (sUGoalTy) -----------
 insEMem0 :: SSEnv -> SM ExprMemory
-insEMem0 senv = do
+insEMem0 ssenv = do
   xtop      <- getSFix
   (ttop, _) <- instantiateTL
   mbUTy     <- sUGoalTy <$> get 
@@ -293,7 +293,7 @@ insEMem0 senv = do
       change e =  let { e' = instantiateTy e mbUTy; t' = exprType e' } 
                   in  (e', t')
 
-      em0 = initExprMem senv
+      em0 = initExprMem ssenv
   return $ map (\(_, e, i) -> let (e', t') = handleIt e
                               in  (t', e', i)) em0
 
@@ -383,9 +383,9 @@ findCandidates goalTy = do
   return (filter ((goalType goalTy) . fst3) sEMem)
 
 functionCands :: Type -> SM [(Type, GHC.CoreExpr, Int)]
-functionCands goalTy = do 
-  all <- findCandidates goalTy 
-  return (filter (isFunction . fst3) all)
+functionCands goalTy = do
+  all' <- findCandidates goalTy
+  return (filter (isFunction . fst3) all')
 
 
 ---------------------------------------------------------------------------------

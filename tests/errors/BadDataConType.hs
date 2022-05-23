@@ -1,4 +1,4 @@
-module Boo where
+module BadDataConType where
 
 {-@ data T = C { fldX :: Int, fldY :: Bool } @-}
 

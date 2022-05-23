@@ -1,4 +1,4 @@
-module Test0 () where
+module CyclicExprAlias0 () where
 
 {-@ expression CyclicA1 Q = CyclicA1 Q @-}
 

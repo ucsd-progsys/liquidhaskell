@@ -95,11 +95,11 @@ annotTokenise baseLoc tx (src, annm) = zipWith (\(x,y) z -> (x,y,z)) toks annots
     linWidth   = length $ show $ length $ lines src
 
 spanAnnot :: Int -> AnnMap -> Loc -> Annotation
-spanAnnot w (Ann ts es _ _) span = A t e b
+spanAnnot w (Ann ts es _ _) spanLoc = A t e b
   where
-    t = fmap snd (M.lookup span ts)
-    e = fmap (\_ -> "ERROR") $ find (span `inRange`) [(x,y) | (x,y,_) <- es]
-    b = spanLine w span
+    t = fmap snd (M.lookup spanLoc ts)
+    e = fmap (\_ -> "ERROR") $ find (spanLoc `inRange`) [(x,y) | (x,y,_) <- es]
+    b = spanLine w spanLoc
 
 spanLine :: t -> Loc -> Maybe (Int, t)
 spanLine w (L (l, c))
@@ -113,7 +113,7 @@ inRange (L (l0, c0)) (L (l, c), L (l', c'))
 tokeniseWithCommentTransform :: Maybe (String -> [(TokenType, String)]) -> String -> [(TokenType, String)]
 tokeniseWithCommentTransform Nothing  = tokenise
 tokeniseWithCommentTransform (Just f) = concatMap (expand f) . tokenise
-  where expand f (Comment, s) = f s
+  where expand g (Comment, s) = g s
         expand _ z            = [z]
 
 tokenSpans :: Maybe Loc -> [String] -> [Loc]
@@ -262,9 +262,9 @@ inlines :: String -> [String]
 inlines s = lines' s id
   where
   lines' []             acc = [acc []]
-  lines' ('\^M':'\n':s) acc = acc ['\n'] : lines' s id  -- DOS
-  lines' ('\n':s)       acc = acc ['\n'] : lines' s id  -- Unix
-  lines' (c:s)          acc = lines' s (acc . (c:))
+  lines' ('\^M':'\n':t) acc = acc ['\n'] : lines' t id  -- DOS
+  lines' ('\n':t)       acc = acc ['\n'] : lines' t id  -- Unix
+  lines' (c:t)          acc = lines' t (acc . (c:))
 
 
 -- | The code for classify is largely stolen from Language.Preprocessor.Unlit.
@@ -294,4 +294,4 @@ joinL :: [Lit] -> [Lit]
 joinL []                  = []
 joinL (Code c:Code c2:xs) = joinL (Code (c++c2):xs)
 joinL (Lit c :Lit c2 :xs) = joinL (Lit  (c++c2):xs)
-joinL (any:xs)            = any: joinL xs
+joinL (any':xs)            = any': joinL xs

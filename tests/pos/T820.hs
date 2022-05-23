@@ -1,7 +1,7 @@
 {-@ LIQUID "--exactdc"      @-}
 {-@ LIQUID "--higherorder"  @-}
 
-module Data.Foo where
+module T820 where
 
 import Language.Haskell.Liquid.ProofCombinators
 

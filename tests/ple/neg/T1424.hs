@@ -7,7 +7,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
-module Gadt where
+module T1424 where
 
 ---------------------------------------------------------------
 

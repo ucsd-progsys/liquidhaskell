@@ -1,6 +1,6 @@
 -- FIX: module ExportMeasure (llen) where
     
-module ExportMeasure () where
+module ExportMeasure0 () where
 
 {-@ data LL [llen] @-}
 data LL a = N | C a (LL a)

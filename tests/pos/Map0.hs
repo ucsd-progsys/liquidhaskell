@@ -1,4 +1,4 @@
-module Map (mllen) where
+module Map0 (mllen) where
 
 import Language.Haskell.Liquid.Prelude
 

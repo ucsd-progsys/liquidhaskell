@@ -1,4 +1,4 @@
-module Zoo where
+module BadAnnotation1 where
 
 {-@ incr :: x:Int 
          -> {v:Int | x < v } 

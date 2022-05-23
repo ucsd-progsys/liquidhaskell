@@ -158,26 +158,26 @@ addClassBind γ l = mapM (uncurry (addBind l)) . classBinds (emb γ)
 
 {- see tests/pos/polyfun for why you need everything in fixenv -}
 addCGEnv :: (SpecType -> SpecType) -> CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-addCGEnv tx γ (eMsg, x, REx y tyy tyx) = do
+addCGEnv tx γ (eMsg, sym, REx y tyy tyx) = do
   y' <- fresh
   γ' <- addCGEnv tx γ (eMsg, y', tyy)
-  addCGEnv tx γ' (eMsg, x, tyx `F.subst1` (y, F.EVar y'))
+  addCGEnv tx γ' (eMsg, sym, tyx `F.subst1` (y, F.EVar y'))
 
-addCGEnv tx γ (eMsg, x, RAllE yy tyy tyx)
-  = addCGEnv tx γ (eMsg, x, t)
+addCGEnv tx γ (eMsg, sym, RAllE yy tyy tyx)
+  = addCGEnv tx γ (eMsg, sym, t)
   where
     xs            = localBindsOfType tyy (renv γ)
     t             = L.foldl' F.meet ttrue [ tyx' `F.subst1` (yy, F.EVar x) | x <- xs]
     (tyx', ttrue) = splitXRelatedRefs yy tyx
 
-addCGEnv tx γ (_, x, t') = do
+addCGEnv tx γ (_, sym, t') = do
   idx   <- fresh
   -- allowHOBinders <- allowHO <$> get
   let t  = tx $ normalize idx t'
   let l  = getLocation γ
-  let γ' = γ { renv = insertREnv x t (renv γ) }
+  let γ' = γ { renv = insertREnv sym t (renv γ) }
   tem   <- getTemplates 
-  is    <- (:) <$> addBind l x (rTypeSortedReft' γ' tem t) <*> addClassBind γ' l t
+  is    <- (:) <$> addBind l sym (rTypeSortedReft' γ' tem t) <*> addClassBind γ' l t
   return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
 rTypeSortedReft' :: (PPrint r, F.Reftable r, SubsTy RTyVar RSort r, F.Reftable (RTProp RTyCon RTyVar r))

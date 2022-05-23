@@ -1,4 +1,4 @@
-module MaskError where 
+module MaskError where
 
 {-@ assume error :: String -> a @-}
 

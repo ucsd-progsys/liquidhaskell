@@ -1,6 +1,6 @@
 {-@ LIQUID "--no-totality" @-}
 
-module Compose where
+module ClassReg where
 
 
 data ST s a = ST {runState :: s -> (a,s)}

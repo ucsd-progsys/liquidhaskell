@@ -1,6 +1,6 @@
 -- REJECT this program as the measure has the same name as another binder.
 
-module Shadow where
+module ShadowMeasureVar where
 
 data Poo = Poo Int
 

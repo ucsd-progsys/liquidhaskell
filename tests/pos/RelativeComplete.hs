@@ -1,4 +1,4 @@
-module Compose where
+module RelativeComplete where
 
 {-@ LIQUID "--no-termination" @-}
 

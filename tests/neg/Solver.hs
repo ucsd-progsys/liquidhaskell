@@ -4,7 +4,7 @@
 {-@ LIQUID "--reflection"     @-}
 {-@ LIQUID "--ple"            @-}
 
-module MultiParams where
+module Solver where
 
 
 import Data.Tuple

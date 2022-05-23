@@ -1,7 +1,7 @@
 {-@ LIQUID "--reflection"    @-}
 
 {-# LANGUAGE RankNTypes #-}
-module Generics2 where
+module T1013 where
 
 import Language.Haskell.Liquid.ProofCombinators
 

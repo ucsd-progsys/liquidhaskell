@@ -1,7 +1,7 @@
 {-@ LIQUID "--reflection"     @-}
 {-@ LIQUID "--extensionality" @-}
 
-module Example  where 
+module T1553A where
 
 {-@ assume extensionality :: f:(a -> b) -> g:(a -> b) -> (x:a -> { f x == g x }) -> {f == g} @-}
 extensionality :: (a -> b) -> (a -> b) -> (a -> ()) -> ()
