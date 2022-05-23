@@ -1,4 +1,4 @@
-module LocalSig where 
+module Local00 where
 
 foo = incr 10 
   where 
