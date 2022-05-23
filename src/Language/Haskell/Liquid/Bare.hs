@@ -269,7 +269,7 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
     , _gsLSpec  = finalLiftedSpec
                 { impSigs   = makeImports mspecs
                 , expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ]
-                , dataDecls = dataDecls mySpec2 
+                , dataDecls = dataDecls mySpec
                 , measures  = Ms.measures mySpec
                   -- We want to export measures in a 'LiftedSpec', especially if they are
                   -- required to check termination of some 'liftedSigs' we export. Due to the fact
