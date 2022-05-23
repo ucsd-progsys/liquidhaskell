@@ -268,7 +268,8 @@ helpCmd _ = do
   printLine $ text "You may also type an expression to evaluate it, or assign to a global"
   printLine $ text "variable with `<var> = <expr>`"
 
+{-@ checkM :: ClosedUExp -> (e:{e:_ | numFreeVarsExp e = 0 && checkBindings Nil e} -> {t:_ | exprType e = t} -> StitchE a) -> StitchE a @-}
 checkM :: UExp -> (Exp -> Ty -> StitchE a) -> StitchE a
 checkM uexp f = do
   globals <- ask
-  either (issueError . pretty) id $ check globals uexp $ \e t -> Right (f e t)
+  either (issueError . pretty) id $ check globals uexp $ \e t -> Right (f (wellTyped e) t)
