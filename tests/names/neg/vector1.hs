@@ -1,6 +1,6 @@
 -- TAG: names 
 
-module Vec0 where
+module Vector1 where
 
 -- import Language.Haskell.Liquid.Prelude
 

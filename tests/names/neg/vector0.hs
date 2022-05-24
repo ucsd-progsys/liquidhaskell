@@ -1,4 +1,4 @@
-module Vec0 (x0, prop0, prop1, prop2, prop3) where
+module Vector0 (x0, prop0, prop1, prop2, prop3) where
 
 import Language.Haskell.Liquid.Prelude
 
