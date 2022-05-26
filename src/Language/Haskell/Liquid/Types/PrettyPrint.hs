@@ -521,7 +521,6 @@ filterReportErrorsWith FilterReportErrorsArgs {..} errs =
     then continue
     else do
       case reducedErrs of
-        -- XXX(matt.walker) there is a law that can simplify this, probably
         Left es -> do
           msgs <- traverse pprinter es
           void $ msgReporter msgs

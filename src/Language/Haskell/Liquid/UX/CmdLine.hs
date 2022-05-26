@@ -641,9 +641,9 @@ withPragmas cfg fp ps action
 -- so it should be able to parse multiple arguments instead. See issue #1990.
 withPragma :: Config -> Located String -> IO Config
 withPragma c s = withArgs [val s] $ cmdArgsRun
-          config { modeValue = (modeValue config) { cmdArgsValue = c } }
+                   config { modeValue = (modeValue config) { cmdArgsValue = c } }
 
-parsePragma   :: Located String -> IO Config
+parsePragma :: Located String -> IO Config
 parsePragma = withPragma defConfig
 
 defConfig :: Config
@@ -767,7 +767,6 @@ reportResult logResultFull cfg targets out = do
 
     _printHeader :: Moods -> Doc -> IO ()
     _printHeader mood d = colorPhaseLn mood "" (render d)
-
 
 ------------------------------------------------------------------------
 exitWithResult :: Config -> [FilePath] -> Output Doc -> IO ()
