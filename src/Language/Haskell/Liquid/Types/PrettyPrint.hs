@@ -8,6 +8,8 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE MonoLocalBinds       #-}
 {-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE RecordWildCards      #-}
+{-# LANGUAGE ScopedTypeVariables  #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -27,17 +29,26 @@ module Language.Haskell.Liquid.Types.PrettyPrint
   , printWarning
   , printError
 
+  -- * Filtering errors
+  , Filter(..)
+  , reduceFilters
+  , defaultFilterReporter
+
   -- * Reporting errors in the typechecking phase
-  , reportErrors
+  , FilterReportErrorsArgs(..)
+  , filterReportErrorsWith
+  , filterReportErrors
 
   ) where
 
-import           Control.Monad
-
+import           Control.Monad                           (void, (<=<))
+import           Control.Monad.IO.Class                  (MonadIO(..))
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L                               -- (sort)
+import qualified Data.Set                         as Set
 import           Data.String
 import           Language.Fixpoint.Misc
+import           Data.Maybe                              (catMaybes)
 import qualified Language.Fixpoint.Types          as F
 import qualified Language.Haskell.Liquid.GHC.API  as Ghc
 import           Language.Haskell.Liquid.GHC.API  as Ghc ( Class
@@ -60,7 +71,12 @@ import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Types
 import           Prelude                          hiding (error)
+import           Data.Traversable                        (for)
 import           Text.PrettyPrint.HughesPJ        hiding ((<>))
+import           Data.Coerce
+
+newtype Filter = StringFilter String
+  deriving (Eq, Ord, Show)
 
 --------------------------------------------------------------------------------
 pprManyOrdered :: (PPrint a, Ord a) => F.Tidy -> String -> [a] -> [Doc]
@@ -412,7 +428,7 @@ ppr_ref  (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint s
 
 ppRefArgs :: [F.Symbol] -> Doc
 ppRefArgs [] = empty
-ppRefArgs ss = text "\\" <-> hsep (ppRefSym <$> ss ++ [F.vv Nothing]) <+> arrow 
+ppRefArgs ss = text "\\" <-> hsep (ppRefSym <$> ss ++ [F.vv Nothing]) <+> arrow
 
 ppRefSym :: (Eq a, IsString a, PPrint a) => a -> Doc
 ppRefSym "" = text "_"
@@ -436,8 +452,85 @@ instance (PPrint r, F.Reftable r) => PPrint (UReft r) where
 printError :: (Show e, F.PPrint e) => F.Tidy -> DynFlags -> TError e -> IO ()
 printError k dyn err = putErrMsg dyn (pos err) (ppError k empty err)
 
--- | Similar in spirit to 'reportErrors' from the GHC API, but it uses our pretty-printer
--- and shim functions under the hood.
+--- | Similar in spirit to 'reportErrors' from the GHC API, but it uses our pretty-printer
+--- and shim functions under the hood.
 reportErrors :: (Show e, F.PPrint e) => F.Tidy -> [TError e] -> Ghc.TcRn ()
 reportErrors k errs =
-  forM errs (\err -> mkLongErrAt (pos err) (ppError k empty err) mempty) >>= Ghc.reportErrors
+  filterReportErrors GHC.failM (return ()) [] k errs
+
+-- | Similar in spirit to 'reportErrors' from the GHC API, but it uses our
+-- pretty-printer and shim functions under the hood. Also filters the errors
+-- according to the given `Filter` list.
+--
+-- @filterReportErrors failure continue filters k@ will call @failure@ if there
+-- are unexpected errors, or will call @continue@ otherwise.
+--
+-- An error is expected if there is any filter that matches it.
+filterReportErrors :: forall e' a. (Show e', F.PPrint e') => Ghc.TcRn a -> Ghc.TcRn a -> [Filter] -> F.Tidy -> [TError e'] -> Ghc.TcRn a
+filterReportErrors failure continue filters k =
+  filterReportErrorsWith
+    FilterReportErrorsArgs { msgReporter = Ghc.reportErrors
+                           , filterReporter = defaultFilterReporter
+                           , failure = failure
+                           , continue = continue
+                           , pprinter = \err -> mkLongErrAt (pos err) (ppError k empty err) mempty
+                           , filterMapper = reduceFilters renderer filters
+                           , filters = filters
+                           }
+  where
+    renderer :: TError e' -> String
+    renderer = render . ppError k empty
+
+-- | Return either the error as a singleton or the list of @filters@ that
+-- matched the @err@, given a @renderer@ for the @err@ and some @filters@
+reduceFilters :: forall e. (e -> String) -> [Filter] -> e -> Either [e] [Filter]
+reduceFilters renderer filters err =
+  if null matchingFilters
+  then Left [err]
+  else Right matchingFilters
+  where
+    matchingFilters :: [Filter]
+    matchingFilters = filter (filterDoesMatchErr err) filters
+
+    filterDoesMatchErr :: e -> Filter -> Bool
+    filterDoesMatchErr err filter = coerce filter `L.isInfixOf` (renderer err)
+
+-- | Used in `filterReportErrorsWith'`
+data FilterReportErrorsArgs m filter msg e a =
+  FilterReportErrorsArgs
+  { msgReporter :: [msg] -> m ()
+  , filterReporter :: [filter] -> m ()
+  , failure :: m a
+  , continue :: m a
+  , pprinter :: e -> m msg
+  , filterMapper :: e -> Either [e] [filter]
+  , filters :: [filter]
+  }
+
+-- | Abstract filtered error reporter
+filterReportErrorsWith :: (Monad m, Ord filter) => FilterReportErrorsArgs m filter msg e a -> [e] -> m a
+filterReportErrorsWith FilterReportErrorsArgs {..} errs =
+  let
+    reducedErrs = concat <$> traverse filterMapper errs
+    wasExactlyFiltered =
+      case reducedErrs of
+        Left es -> null es
+        Right fs -> Set.fromList filters == Set.fromList fs
+  in
+    if wasExactlyFiltered
+    then continue
+    else do
+      case reducedErrs of
+        -- XXX(matt.walker) there is a law that can simplify this, probably
+        Left es -> do
+          msgs <- traverse pprinter es
+          void $ msgReporter msgs
+        Right fs -> do
+          let missedFilters = Set.toList $ Set.fromList filters `Set.difference` Set.fromList fs
+          filterReporter missedFilters
+      failure
+
+
+-- XXX(matt.walker): Make this a real reporter.
+defaultFilterReporter :: MonadIO m => [Filter] -> m ()
+defaultFilterReporter = liftIO . mapM_ (putStrLn . coerce)
