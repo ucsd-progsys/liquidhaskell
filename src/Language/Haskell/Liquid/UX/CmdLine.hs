@@ -283,6 +283,10 @@ config = cmdArgsMode $ Config {
     = def &= help "Do not generate ADT representations in refinement logic"
           &= name "no-adt"
 
+ , expectErrorContaining
+    = def &= help "Expect an error which containing the provided string from verification (can be provided more than once)"
+          &= name "expect-error-containing"
+
  , scrapeImports
     = False &= help "Scrape qualifiers from imported specifications"
             &= name "scrape-imports"
@@ -681,6 +685,7 @@ defConfig = Config
   , pruneUnsorted            = def
   , exactDC                  = def
   , noADT                    = def
+  , expectErrorContaining    = def
   , cores                    = def
   , minPartSize              = FC.defaultMinPartSize
   , maxPartSize              = FC.defaultMaxPartSize
