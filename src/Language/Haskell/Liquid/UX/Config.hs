@@ -70,6 +70,7 @@ data Config = Config
   , port                     :: Int        -- ^ port at which lhi should listen
   , exactDC                  :: Bool       -- ^ Automatically generate singleton types for data constructors
   , noADT                    :: Bool       -- ^ Disable ADTs (only used with exactDC)
+  , expectErrorContaining    :: [String]   -- ^ expect failure with at least one of the following messages
   , scrapeImports            :: Bool       -- ^ scrape qualifiers from imported specifications
   , scrapeInternals          :: Bool       -- ^ scrape qualifiers from auto specifications
   , scrapeUsedImports        :: Bool       -- ^ scrape qualifiers from used, imported specifications
