@@ -44,4 +44,4 @@ library
                       MagicHash
   if impl(ghc >= 8.10)
     ghc-options: -fplugin=LiquidHaskell
-  ghc-options:        -j
+  

@@ -55,4 +55,4 @@ library
   default-extensions: PackageImports
   if impl(ghc >= 8.10)
     ghc-options: -fplugin=LiquidHaskell
-  ghc-options:        -j
+  
