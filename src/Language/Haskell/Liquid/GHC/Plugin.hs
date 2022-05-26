@@ -199,7 +199,7 @@ instance Unoptimise (DynFlags, HscEnv) where
 --    grab from parsing (again) the module by using the GHC API, so we are really
 --    independent from the \"normal\" compilation pipeline.
 --
-typecheckHook :: [CommandLineOption] -> ModSummary -> TcGblEnv -> TcM TcGblEnv
+typecheckHook :: [CommandLineOption] -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
 typecheckHook _ (unoptimise -> modSummary) tcGblEnv = do
   debugLog $ "We are in module: " <> show (toStableModule thisModule)
 
@@ -229,22 +229,37 @@ typecheckHook _ (unoptimise -> modSummary) tcGblEnv = do
                                                               }
                    }
 
--- | Partially calls into LiquidHaskell's GHC API.
-liquidHaskellCheck :: PipelineData -> ModSummary -> TcGblEnv -> TcM TcGblEnv
-liquidHaskellCheck pipelineData modSummary tcGblEnv = (do
-  cfg <- liftIO getConfig
+serialiseSpec :: Module -> TcGblEnv -> LiquidLib -> TcM TcGblEnv
+serialiseSpec thisModule tcGblEnv liquidLib = do
+  -- ---
+  -- -- CAN WE 'IGNORE' THE BELOW? TODO:IGNORE -- issue use `emptyLiquidLib` instead of pmrClientLib
+  -- ProcessModuleResult{..} <- processModule lhContext
 
-  -- The 'specQuotes' contain stuff we need from imported modules, extracted
-  -- from the annotations in their interface files.
-  let specQuotes :: [BPspec]
-      specQuotes = LH.extractSpecQuotes' tcg_mod tcg_anns tcGblEnv
+  -- liftIO $ putStrLn "liquidHaskellCheck 7"
 
-  -- Here, we are calling Liquid Haskell's parser, acting on the unparsed
-  -- spec comments stored in the pipeline data, supported by the specQuotes
-  -- obtained from the imported modules.
-  inputSpec :: BareSpec <-
-    (getLiquidSpec thisModule (pdSpecComments pipelineData) specQuotes)
+  -- -- Call into the existing Liquid interface
+  -- out <- liftIO $ LH.checkTargetInfo pmrTargetInfo
 
+  -- liftIO $ putStrLn "liquidHaskellCheck 8"
+
+  -- -- Report the outcome of the checking
+  -- LH.reportResult errorLogger cfg [giTarget (giSrc pmrTargetInfo)] out
+  -- case o_result out of
+  --   Safe _stats -> pure ()
+  --   _           -> failM
+
+  -- liftIO $ putStrLn "liquidHaskellCheck 9"
+  -- ---
+
+  let serialisedSpec = Util.serialiseLiquidLib liquidLib thisModule
+  debugLog $ "Serialised annotation ==> " ++ (O.showSDocUnsafe . O.ppr $ serialisedSpec)
+
+  -- liftIO $ putStrLn "liquidHaskellCheck 10"
+
+  pure $ tcGblEnv { tcg_anns = serialisedSpec : tcg_anns tcGblEnv }
+
+processInputSpec :: Config -> PipelineData -> ModSummary -> TcGblEnv -> BareSpec -> TcM (Either LiquidCheckException TcGblEnv)
+processInputSpec cfg pipelineData modSummary tcGblEnv inputSpec = do
   debugLog $ " Input spec: \n" ++ show inputSpec
   debugLog $ "Relevant ===> \n" ++ unlines (renderModule <$> S.toList (relevantModules modGuts))
 
@@ -261,41 +276,14 @@ liquidHaskellCheck pipelineData modSummary tcGblEnv = (do
       , lhModuleGuts      = pdUnoptimisedCore pipelineData
       , lhRelevantModules = relevantModules modGuts
       }
-  
+
   -- liftIO $ putStrLn ("liquidHaskellCheck 6: " ++ show isIg)
+  liquidLib' :: Either LiquidCheckException LiquidLib <-
+    if isIgnore inputSpec
+    then pure $ Right emptyLiquidLib
+    else checkLiquidHaskellContext lhContext
 
-  liquidLib <- if isIgnore inputSpec 
-                then pure emptyLiquidLib 
-                else checkLiquidHaskellContext lhContext 
- 
-  -- --- 
-  -- -- CAN WE 'IGNORE' THE BELOW? TODO:IGNORE -- issue use `emptyLiquidLib` instead of pmrClientLib
-  -- ProcessModuleResult{..} <- processModule lhContext
-  
-  -- liftIO $ putStrLn "liquidHaskellCheck 7"
-
-  -- -- Call into the existing Liquid interface
-  -- out <- liftIO $ LH.checkTargetInfo pmrTargetInfo
-  -- liftIO $ putStrLn "liquidHaskellCheck 8"
-
-  -- -- Report the outcome of the checking
-  -- LH.reportResult errorLogger cfg [giTarget (giSrc pmrTargetInfo)] out
-  -- case o_result out of
-  --   Safe _stats -> pure ()
-  --   _           -> failM
-
-  -- liftIO $ putStrLn "liquidHaskellCheck 9"
-  -- ---
-
-  let serialisedSpec = Util.serialiseLiquidLib liquidLib thisModule
-  debugLog $ "Serialised annotation ==> " ++ (O.showSDocUnsafe . O.ppr $ serialisedSpec)
-  
-  -- liftIO $ putStrLn "liquidHaskellCheck 10"
-
-  pure $ tcGblEnv { tcg_anns = serialisedSpec : tcg_anns tcGblEnv })
-    `gcatch` (\(e :: UserError) -> LH.reportErrors Full [e] >> failM)
-    `gcatch` (\(e :: Error) -> LH.reportErrors Full [e] >> failM)
-    `gcatch` (\(es :: [Error]) -> LH.reportErrors Full es >> failM)
+  traverse (serialiseSpec thisModule tcGblEnv) liquidLib'
 
   where
     thisModule :: Module
@@ -304,7 +292,45 @@ liquidHaskellCheck pipelineData modSummary tcGblEnv = (do
     modGuts :: ModGuts
     modGuts = fromUnoptimised . pdUnoptimisedCore $ pipelineData
 
-checkLiquidHaskellContext :: LiquidHaskellContext -> TcM LiquidLib
+liquidHaskellCheckWithConfig :: Config -> PipelineData -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
+liquidHaskellCheckWithConfig cfg pipelineData modSummary tcGblEnv = do
+  -- The 'specQuotes' contain stuff we need from imported modules, extracted
+  -- from the annotations in their interface files.
+  let specQuotes :: [BPspec]
+      specQuotes = LH.extractSpecQuotes' tcg_mod tcg_anns tcGblEnv
+
+  -- Here, we are calling Liquid Haskell's parser, acting on the unparsed
+  -- spec comments stored in the pipeline data, supported by the specQuotes
+  -- obtained from the imported modules.
+  inputSpec' :: Either LiquidCheckException BareSpec <-
+    getLiquidSpec thisModule (pdSpecComments pipelineData) specQuotes
+
+  join <$> traverse (processInputSpec cfg pipelineData modSummary tcGblEnv) inputSpec'
+
+  where
+    thisModule :: Module
+    thisModule = tcg_mod tcGblEnv
+
+
+-- | Partially calls into LiquidHaskell's GHC API.
+liquidHaskellCheck :: PipelineData -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
+liquidHaskellCheck pipelineData modSummary tcGblEnv = do
+  cfg <- liftIO getConfig
+  liquidHaskellCheckWithConfig cfg pipelineData modSummary tcGblEnv
+    `gcatch` (\(e :: UserError) -> reportErrs cfg [e])
+    `gcatch` (\(e :: Error) -> reportErrs cfg [e])
+    `gcatch` (\(es :: [Error]) -> reportErrs cfg es)
+  where
+    filters :: Config -> [Filter]
+    filters cfg = StringFilter <$> expectErrorContaining cfg
+
+    continue :: TcM (Either LiquidCheckException TcGblEnv)
+    continue = pure $ Left KillPluginWithSuccess
+
+    reportErrs :: (Show e, F.PPrint e) => Config -> [TError e] -> TcM (Either LiquidCheckException TcGblEnv)
+    reportErrs cfg = LH.filterReportErrors GHC.failM continue (filters cfg) Full
+
+checkLiquidHaskellContext :: LiquidHaskellContext -> TcM (Either LiquidCheckException LiquidLib)
 checkLiquidHaskellContext lhContext = do
   ProcessModuleResult{..} <- processModule lhContext
 
@@ -422,7 +448,7 @@ data ProcessModuleResult = ProcessModuleResult {
 -- spec quotes from the imported module. Also looks for
 -- "companion specs" for the current module and merges them in
 -- if it finds one.
-getLiquidSpec :: Module -> [SpecComment] -> [BPspec] -> TcM BareSpec
+getLiquidSpec :: Module -> [SpecComment] -> [BPspec] -> TcM (Either LiquidCheckException BareSpec)
 getLiquidSpec thisModule specComments specQuotes = do
 
   let commSpecE :: Either [Error] (ModName, Spec LocBareType LocSymbol)
