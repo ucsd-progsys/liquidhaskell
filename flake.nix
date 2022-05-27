@@ -3,8 +3,7 @@
   description = "LiquidHaskell packages";
 
   inputs = {
-    nixpkgs.url = github:NixOS/nixpkgs/nixos-21.05;
-
+    nixpkgs.url = github:NixOS/nixpkgs/nixos-22.05;
     flake-utils.url = github:numtide/flake-utils;
 
     liquid-fixpoint.url = github:plredmond/liquid-fixpoint/nix-flake; # TODO change to official repo after merge
@@ -80,9 +79,9 @@
             updateAllCabalHashes = final: prev:
               {
                 all-cabal-hashes = final.fetchurl {
-                  # fetch latest cabal hashes https://github.com/commercialhaskell/all-cabal-hashes/commits/hackage as of Thu Feb 17 07:38:07 PM UTC 2022
-                  url = "https://github.com/commercialhaskell/all-cabal-hashes/archive/0c6e849a2c97f511653d375f51636b51fc429dc4.tar.gz";
-                  sha256 = "0xdnhagd9xj93p3zd6r84x4nr18spwjmhs8dxzq7n199q32snkha";
+                  # fetch latest cabal hashes https://github.com/commercialhaskell/all-cabal-hashes/commits/hackage as of Fri May 27 06:40:19 PM UTC 2022
+                  url = "https://github.com/commercialhaskell/all-cabal-hashes/archive/91cbef8524376834839ea2814010a0258a06e37e.tar.gz";
+                  sha256 = "01h8cd2b1w4060dyyh4zz604gpjyzhvvc0mb1aj18b1z2bcgfakj";
                 };
               };
             addLiquidHaskellWithoutTests = final: prev: haskellPackagesOverlay ghc final prev (selfH: superH:
