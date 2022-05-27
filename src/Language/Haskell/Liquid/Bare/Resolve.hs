@@ -123,8 +123,8 @@ localBinds                    = concatMap (bgo S.empty)
   where
     add  x g                  = maybe g (`S.insert` g) (localKey x) 
     adds b g                  = foldr add g (Ghc.bindersOf b) 
-    take x g                  = maybe [] (\k -> if S.member k g then [] else [x]) (localKey x)
-    pgo g (x, e)              = take x g ++ go (add x g) e
+    take' x g                  = maybe [] (\k -> if S.member k g then [] else [x]) (localKey x)
+    pgo g (x, e)              = take' x g ++ go (add x g) e
     bgo g (Ghc.NonRec x e)    = pgo g (x, e) 
     bgo g (Ghc.Rec xes)       = concatMap (pgo g) xes 
     go  g (Ghc.App e a)       = concatMap (go  g) [e, a]
@@ -652,8 +652,8 @@ lookupTyThing env name lsym = [ (k, t) | (k, ts) <- ordMatches, t <- ts]
     (x, mods)              = symbolModules env (F.val lsym)
     nameSym                = F.symbol name
     allowExt               = allowExtResolution env lsym 
-    mm name m mods         = myTracepp ("matchMod: " ++ F.showpp (lsym, name, m, mods, allowExt)) $ 
-                               matchMod env name m allowExt mods 
+    mm name' m mods'         = myTracepp ("matchMod: " ++ F.showpp (lsym, name', m, mods', allowExt)) $
+                               matchMod env name' m allowExt mods'
 
 -- | [NOTE:External-Resolution] @allowExtResolution@ determines whether a @LocSymbol@ 
 --   can be resolved by a @TyThing@ that is _outside_ the module corresponding to @LocSymbol@. 
@@ -777,10 +777,7 @@ maybeResolveSym env name kind x = case resolveLocSym env name kind x of
 -- | @ofBareType@ and @ofBareTypeE@ should be the _only_ @SpecType@ constructors
 -------------------------------------------------------------------------------
 ofBareType :: Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> SpecType 
-ofBareType env name l ps t = either fail id (ofBareTypeE env name l ps t)
-  where 
-    fail                   = Ex.throw 
-    -- fail                   = Misc.errorP "error-ofBareType" . F.showpp 
+ofBareType env name l ps t = either Ex.throw id (ofBareTypeE env name l ps t)
 
 ofBareTypeE :: Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> Lookup SpecType 
 ofBareTypeE env name l ps t = ofBRType env name (resolveReft env name l ps t) l t 
@@ -846,7 +843,7 @@ type Expandable r = ( PPrint r
 
 ofBRType :: (Expandable r) => Env -> ModName -> ([F.Symbol] -> r -> r) -> F.SourcePos -> BRType r 
          -> Lookup (RRType r)
-ofBRType env name f l t  = go [] t 
+ofBRType env name f l s  = go [] s
   where
     goReft bs r             = return (f bs r) 
     goRImpF bs x i t1 t2 r  = RImpF x i <$> (rebind x <$> go bs t1) <*> go (x:bs) t2 <*> goReft bs r
@@ -975,8 +972,8 @@ addSymSort sp tce tyi (RApp rc@(RTyCon {}) ts rs r)
     -- pvs             = rTyConPVs rc'
     (rargs, rrest)     = splitAt (length pvs) rs
     r'                 = L.foldl' go r rrest
-    go r (RProp _ (RHole r')) = r' `F.meet` r
-    go r (RProp  _ t' )       = let r' = Mb.fromMaybe mempty (stripRTypeBase t') in r `F.meet` r'
+    go r1 (RProp _ (RHole r2)) = r2 `F.meet` r1
+    go r1 (RProp  _ t' )       = let r3 = Mb.fromMaybe mempty (stripRTypeBase t') in r1 `F.meet` r3
 
 addSymSort _ _ _ t
   = t
@@ -1018,8 +1015,8 @@ spliceArgs :: String  -> [(F.Symbol, b)] -> PVar t -> [(F.Symbol, t)]
 spliceArgs msg s p = go (fst <$> s) (pargs p)
   where
     go []     []           = []
-    go []     ((s,x,_):as) = (x, s):go [] as
-    go (x:xs) ((s,_,_):as) = (x,s):go xs as
+    go []     ((t,x,_):as) = (x, t):go [] as
+    go (x:xs) ((t,_,_):as) = (x,t):go xs as
     go xs     []           = panic Nothing $ "spliceArgs: " ++ msg ++ "on XS=" ++ show xs
 
 ---------------------------------------------------------------------------------

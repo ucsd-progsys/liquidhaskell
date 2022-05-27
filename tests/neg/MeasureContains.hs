@@ -1,4 +1,4 @@
-module Fixme where
+module MeasureContains where
 
 import Language.Haskell.Liquid.Prelude
 

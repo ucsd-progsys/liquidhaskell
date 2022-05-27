@@ -3,7 +3,7 @@
 {-@ LIQUID "--no-totality"     @-}
 {-@ LIQUID "--reflection"      @-}
 
-module ListFunctors where
+module ExactFunApp where
 
 bar :: Maybe (a -> a) -> a -> a
 {-@ bar :: xy:Maybe (a -> a) -> z: a -> {v: a | v == from_Just xy z} @-}

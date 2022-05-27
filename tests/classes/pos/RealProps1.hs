@@ -1,7 +1,7 @@
 
 -- Issue overload-div-int-real #579
 
-module Div where
+module RealProps1 where
 
 {-@ type Valid = {v:Bool | v } @-}
 

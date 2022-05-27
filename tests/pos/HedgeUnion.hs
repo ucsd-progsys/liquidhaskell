@@ -1,4 +1,4 @@
-module Map where
+module HedgeUnion where
 
 import Language.Haskell.Liquid.Prelude
 

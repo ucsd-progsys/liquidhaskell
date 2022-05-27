@@ -7,7 +7,7 @@
 {-  LIQUID "--no-termination" @-}
 
 -- | Description of database records.
-module Model
+module T1473B
   ( User, UserId
   , EntityField(..)
   , Projectable(..)

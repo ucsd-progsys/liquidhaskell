@@ -66,7 +66,7 @@ instance (PPrint e, PPrint t) => (PPrint (Bound t e)) where
                                       ppBsyms k (fst <$> xs) <+> pprintTidy k e
     where
       ppBsyms _ [] = ""
-      ppBsyms k xs = "\\" <+> pprintTidy k xs <+> "->"
+      ppBsyms t ys = "\\" <+> pprintTidy t ys <+> "->"
 
 instance Bifunctor Bound where
   first  f (Bound s vs ps xs e) = Bound s (f <$> vs) (Misc.mapSnd f <$> ps) (Misc.mapSnd f <$> xs) e
@@ -84,8 +84,8 @@ makeBound (Bound _  vs ps xs p) ts qs
     penv = zip (val . fst <$> ps) qs
     rs   = bkImp [] p
 
-    bkImp acc (F.PImp p q) = bkImp (p:acc) q
-    bkImp acc p          = p:acc
+    bkImp acc (F.PImp p' q) = bkImp (p':acc) q
+    bkImp acc p'          = p':acc
 
     su  = [(α, toRSort t, t) | (RVar α _, t) <-  zip vs ts ]
 
@@ -129,7 +129,7 @@ toUsedPVars :: [(F.Symbol, F.Symbol)] -> F.Expr -> (F.Symbol, [PVar ()])
 toUsedPVars penv q@(F.EApp _ e) = (x, [toUsedPVar penv q])
   where
     -- NV : TODO make this a better error
-    x = case {- unProp -} e of {F.EVar x -> x; e -> todo Nothing ("Bound fails in " ++ show e) }
+    x = case {- unProp -} e of {F.EVar y -> y; d -> todo Nothing ("Bound fails in " ++ show d) }
 toUsedPVars _ _ = impossible Nothing "This cannot happen"
 
 toUsedPVar :: [(F.Symbol, F.Symbol)] -> F.Expr -> PVar ()

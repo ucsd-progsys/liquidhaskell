@@ -296,7 +296,7 @@ type RTyConIAl = M.HashMap RTyCon [RInv]
 --------------------------------------------------------------------------------
 mkRTyConInv    :: [(Maybe Var, F.Located SpecType)] -> RTyConInv
 --------------------------------------------------------------------------------
-mkRTyConInv ts = group [ (c, RInv (go ts) t v) | (v, t@(RApp c ts _ _)) <- strip <$> ts]
+mkRTyConInv pairList = group [ (c, RInv (go ts) t v) | (v, t@(RApp c ts _ _)) <- strip <$> pairList]
   where
     strip = mapSnd (thrd3 . bkUniv . val)
     go ts | generic (toRSort <$> ts) = []
@@ -342,9 +342,9 @@ addRInv m (x, t)
   | otherwise
   = (x, t)
    where
-     ids = [id | tc <- M.keys m
+     ids = [id' | tc <- M.keys m
                , dc <- Ghc.tyConDataCons $ rtc_tc tc
-               , AnId id <- Ghc.dataConImplicitTyThings dc]
+               , AnId id' <- Ghc.dataConImplicitTyThings dc]
      res = ty_res . toRTypeRep
 
 conjoinInvariantShift :: SpecType -> SpecType -> SpecType
@@ -385,18 +385,18 @@ makeRecInvariants :: CGEnv -> [Var] -> CGEnv
 makeRecInvariants γ [x] = γ {invs = M.unionWith (++) (invs γ) is}
   where
     is  =  M.map (map f . filter (isJust . (varType x `tcUnifyTy`) . toType False . _rinv_type)) (rinvs γ)
-    f i = i{_rinv_type = guard $ _rinv_type i}
+    f i = i{_rinv_type = guard' $ _rinv_type i}
 
-    guard (RApp c ts rs r)
-      | Just f <- szFun <$> sizeFunction (rtc_info c)
-      = RApp c ts rs (MkUReft (ref f $ F.toReft r) mempty)
+    guard' (RApp c ts rs r)
+      | Just g <- szFun <$> sizeFunction (rtc_info c)
+      = RApp c ts rs (MkUReft (ref g $ F.toReft r) mempty)
       | otherwise
       = RApp c ts rs mempty
-    guard t
+    guard' t
       = t
 
-    ref f (F.Reft(v, rr))
-      = F.Reft (v, F.PImp (F.PAtom F.Lt (f v) (f $ F.symbol x)) rr)
+    ref g (F.Reft(v, rr))
+      = F.Reft (v, F.PImp (F.PAtom F.Lt (g v) (g $ F.symbol x)) rr)
 
 makeRecInvariants γ _ = γ
 

@@ -1,7 +1,7 @@
 
 -- See: https://github.com/ucsd-progsys/liquidhaskell/pull/752
 
-module FOO (mkSessData) where
+module SimplifyTup00 (mkSessData) where
 
 mkSessData :: TcpEndPoint -> Bool
 mkSessData = isSrcTCP

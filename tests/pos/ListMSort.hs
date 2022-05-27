@@ -1,4 +1,4 @@
-module ListSort () where
+module ListMSort () where
 
 import Language.Haskell.Liquid.Prelude
 

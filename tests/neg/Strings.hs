@@ -1,4 +1,4 @@
-module DBC where
+module Strings where
 
 import GHC.CString  -- This import interprets Strings as constants!
 

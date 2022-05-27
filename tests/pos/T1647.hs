@@ -1,7 +1,7 @@
 {-# LANGUAGE GADTs        #-}
 {-@ LIQUID "--reflection" @-} 
 
-module Properties where 
+module T1647 where
 
 {-@ type ExtTR a E1 E2 = {v:ExtT a | E1 == E2 } @-}
 

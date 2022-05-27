@@ -4,7 +4,7 @@
 {-# LANGUAGE GADTs          #-}
 {-# LANGUAGE KindSignatures #-}
 
-module RefinedEquality where 
+module T1642A where
 
 
 {-@ measure eqT :: a -> a -> Bool @-}

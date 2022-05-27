@@ -1,4 +1,4 @@
-module Compose where
+module StateConstraints where
 
 data ST s = ST {runState :: s -> s}
 

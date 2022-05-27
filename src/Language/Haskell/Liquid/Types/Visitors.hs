@@ -159,15 +159,15 @@ data CoreVisitor env acc = CoreVisitor
   }
 
 coreVisitor :: (CoreVisitor env acc) -> env -> acc -> [CoreBind] -> acc
-coreVisitor vis env acc cbs   = snd (foldl' step (env, acc) cbs) 
+coreVisitor vis env acc cbs   = snd (foldl' step (env, acc) cbs)
   where
-    stepXE (env, acc) (x,e)   = (env', stepE env' acc'   e)  
+    stepXE (xeEnv, xeAcc) (x,e)   = (xeEnv', stepE xeEnv' xeAcc'   e)
       where 
-        env'                  = envF  vis env     x 
-        acc'                  = bindF vis env acc x  
+        xeEnv'                  = envF  vis xeEnv     x
+        xeAcc'                  = bindF vis xeEnv xeAcc x
 
-    step ea (NonRec x e)      = stepXE ea (x, e) 
-    step ea (Rec    xes)      = foldl' stepXE ea xes 
+    step ea (NonRec x e)      = stepXE ea (x, e)
+    step ea (Rec    xes)      = foldl' stepXE ea xes
 
     -- step (env, acc) (NonRec x e) = stepXE env acc x e 
     -- step (env, acc) (Rec    xes) = (env', foldl' (stepE env') acc' es) 
@@ -178,18 +178,18 @@ coreVisitor vis env acc cbs   = snd (foldl' step (env, acc) cbs)
         -- es                       = snd <$> xes
         -- foldl' (\(env, acc) (x, e) ->  )
 
-    stepE env acc e              = goE env (exprF vis env acc e) e 
+    stepE seEnv seAcc e              = goE env (exprF vis seEnv seAcc e) e
 
-    goE _   acc (Var _)          = acc 
-    goE env acc (App e1 e2)      = stepE  env (stepE env acc e1) e2 
-    goE env acc (Tick _ e)       = stepE  env acc e 
-    goE env acc (Cast e _)       = stepE  env acc e  
-    goE env acc (Lam x e)        = snd (stepXE (env, acc) (x, e))
-    goE env acc (Let b e)        = stepE env' acc' e where (env', acc') = step (env, acc) b 
-    goE env acc (Case e _ _ cs)  = foldl' (goC env) (stepE env acc e) cs
-    goE _   acc _                = acc 
+    goE _   geAcc (Var _)          = geAcc
+    goE geEnv geAcc (App e1 e2)      = stepE  geEnv (stepE geEnv geAcc e1) e2
+    goE geEnv geAcc (Tick _ e)       = stepE  geEnv geAcc e
+    goE geEnv geAcc (Cast e _)       = stepE  geEnv geAcc e
+    goE geEnv geAcc (Lam x e)        = snd (stepXE (geEnv, geAcc) (x, e))
+    goE geEnv geAcc (Let b e)        = stepE env' acc' e where (env', acc') = step (geEnv, geAcc) b
+    goE geEnv geAcc (Case e _ _ cs)  = foldl' (goC geEnv) (stepE geEnv geAcc e) cs
+    goE _   geAcc _                = geAcc
 
-    goC env acc (_, xs, e)       = stepE  env' acc' e 
+    goC gcEnv gcAcc (_, xs, e)       = stepE  env' cAcc' e
       where
-        env'                     = foldl' (envF  vis)     env xs 
-        acc'                     = foldl' (bindF vis env) acc xs
+        env'                     = foldl' (envF  vis)     gcEnv xs
+        cAcc'                     = foldl' (bindF vis gcEnv) gcAcc xs

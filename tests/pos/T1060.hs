@@ -2,7 +2,7 @@
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--ple" @-}
 
-module Lists where
+module T1060 where
 
 import Prelude hiding (map, rev, sum) -- ((+), (+), Eq (..), Ord (..), Char, Int, Bool (..))
 import Language.Haskell.Liquid.ProofCombinators

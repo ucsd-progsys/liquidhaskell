@@ -579,10 +579,10 @@ dataConRepArgTys :: DataCon -> [Scaled Type]
 dataConRepArgTys dc = map (mkScaled Many) (Ghc.dataConRepArgTys dc)
 
 mkLocalVar :: IdDetails -> Name -> Mult -> Type -> IdInfo -> Id
-mkLocalVar idDetails name _ ty info = Ghc.mkLocalVar idDetails name ty info
+mkLocalVar idDetails' name _ ty info = Ghc.mkLocalVar idDetails' name ty info
 
 mkUserLocal :: OccName -> Unique -> Mult -> Type -> SrcSpan -> Id
-mkUserLocal occName u _mult ty srcSpan = Ghc.mkUserLocal occName u ty srcSpan
+mkUserLocal occName' u _mult ty srcSpan = Ghc.mkUserLocal occName' u ty srcSpan
 
 dataConWrapperType :: DataCon -> Type
 dataConWrapperType = dataConUserType
@@ -610,7 +610,7 @@ apiAnnComments :: (Map ApiAnnKey [SrcSpan], Map SrcSpan [Located AnnotationComme
 apiAnnComments = snd
 
 mkIntExprInt :: Platform -> Int -> CoreExpr
-mkIntExprInt _ int = Ghc.mkIntExprInt unsafeGlobalDynFlags int
+mkIntExprInt _ int' = Ghc.mkIntExprInt unsafeGlobalDynFlags int'
 
 dataConFullSig :: DataCon -> ([TyVar], [TyCoVar], [EqSpec], ThetaType, [Scaled Type], Type)
 dataConFullSig dc =
@@ -793,7 +793,7 @@ dataConExTyVars = dataConExTyCoVars
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0) && !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 pattern FunTy :: AnonArgFlag -> Mult -> Type -> Type -> Type
 pattern FunTy { ft_af, ft_mult, ft_arg, ft_res } <- ((Many,) -> (ft_mult, Ty.FunTy ft_af ft_arg ft_res)) where
-    FunTy ft_af _ft_mult ft_arg ft_res = Ty.FunTy ft_af ft_arg ft_res
+    FunTy ft_af' _ft_mult ft_arg' ft_res' = Ty.FunTy ft_af' ft_arg' ft_res'
 
 mkFunTy :: AnonArgFlag -> Mult -> Type -> Type -> Type
 mkFunTy af _ arg res = Ty.FunTy af arg res
@@ -843,9 +843,9 @@ mkUserStyle _ = Ghc.mkUserStyle
 -- In GHC 9 'LitNumber' doesn't have the extra 3rd argument, so we simply ignore it in the construction.
 
 pattern LitNumber :: Ghc.LitNumType -> Integer -> Ghc.Type -> Ghc.Literal
-pattern LitNumber numType integer ty <- ((intPrimTy,) -> (ty, Ghc.LitNumber numType integer))
+pattern LitNumber numType integer' ty <- ((intPrimTy,) -> (ty, Ghc.LitNumber numType integer'))
   where
-    LitNumber numType integer _ = Ghc.LitNumber numType integer
+    LitNumber numType integer' _ = Ghc.LitNumber numType integer'
 
 -- This function is gone in GHC 9.
 dataConSig :: DataCon -> ([TyCoVar], ThetaType, [Type], Type)

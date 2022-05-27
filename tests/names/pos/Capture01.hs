@@ -1,3 +1,5 @@
+module Capture01 where
+
 -- LH issue #1146 
 
 -- tag: rebind 
@@ -8,4 +10,5 @@
 incr :: Int -> Int
 incr n = n + 1
 
+main :: IO ()
 main = pure ()

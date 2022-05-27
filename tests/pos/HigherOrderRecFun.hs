@@ -1,4 +1,4 @@
-module HOF () where
+module HigherOrderRecFun () where
 
 foo :: [a] -> (b -> c) -> (b -> c)
 foo []     f = f

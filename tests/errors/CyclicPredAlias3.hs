@@ -1,4 +1,4 @@
-module Test3 () where
+module CyclicPredAlias3 () where
 
 {-@ predicate CyclicD1 Q = CyclicD2 Q @-}
 {-@ predicate CyclicD2 Q = CyclicD3 Q @-}

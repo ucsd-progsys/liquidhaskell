@@ -2,7 +2,7 @@
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "totality" @-}
 
-module DataBase (values) where
+module DB00 (values) where
 
 {-@ values :: forall <rr2 :: key -> val -> Bool>.
       k:key -> [Dict <rr2> key val]  -> [val<rr2 k>] @-}

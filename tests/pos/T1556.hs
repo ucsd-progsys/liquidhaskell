@@ -1,4 +1,4 @@
-module Foo where 
+module T1556 where
 
 {-@ type Alias a b = (a,b) @-}
 type Alias a b = (a,b)

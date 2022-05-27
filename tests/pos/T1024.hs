@@ -1,7 +1,7 @@
 {-@ LIQUID "--exactdc"     @-}
 {-@ LIQUID "--higherorder" @-}
 
-module Bug where
+module T1024 where
 
 
 {-@ data Par1 p = Par1 { unPar1 :: p } @-}

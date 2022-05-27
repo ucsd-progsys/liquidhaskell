@@ -1,4 +1,4 @@
-module Positivity where 
+module PositivityCheck where
 
 
 data Bad1 a = No11 (Bad1 a -> Int) | No12 (Bad1 a) 

@@ -2,7 +2,7 @@
 
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Bob where
+module ReflectAlias where
 
 type Val = Int
 

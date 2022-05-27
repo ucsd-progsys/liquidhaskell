@@ -1,3 +1,5 @@
+module Capture02 where
+
 -- LH issue #1146 
 
 -- tag: rebind 
@@ -10,4 +12,5 @@ exactly x = x
 incr :: Int -> Int
 incr n = exactly (n + 1)
 
+main :: IO ()
 main = pure ()

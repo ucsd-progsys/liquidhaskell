@@ -1,4 +1,4 @@
-module CliRedBlue where 
+module CliRedBlue where
 
 import           LibBlue 
 import qualified LibRedBlue as RB 

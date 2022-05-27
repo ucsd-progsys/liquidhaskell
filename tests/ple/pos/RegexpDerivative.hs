@@ -6,7 +6,7 @@
 
 {-# LANGUAGE GADTs #-}
 
-module RE where
+module RegexpDerivative where
 
 import Prelude hiding ((++))
 

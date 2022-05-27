@@ -1,4 +1,4 @@
-module MalformedTypeclass where
+module T1568 where
 
     {-@ data IdentityT m a = IdentityT (m a) @-}
     data IdentityT m a = IdentityT (m a)

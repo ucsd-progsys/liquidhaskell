@@ -1,4 +1,4 @@
-module Positivity1 where 
+module Positivity1 where
 
 newtype Rec a = In { out :: Rec a -> a }
 

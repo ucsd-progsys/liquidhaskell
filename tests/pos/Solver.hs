@@ -5,7 +5,7 @@
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--short-names"    @-}
 
-module MultiParams where
+module Solver where
 
 import Data.Tuple
 import Language.Haskell.Liquid.Prelude ((==>))

@@ -86,7 +86,7 @@ tidyCtxM xs m  = (θ, M.fromList yts)
   where
     yts       = [tBind x t | (x, t) <- xts]
     (θ, xts)  = tidyTemps $ second (fmap stripReft) <$> tidyREnvM xs m
-    tBind x t = (x', fmap (\t -> shiftVV t x') t) where x' = F.tidySymbol x
+    tBind x t = (x', fmap (\s -> shiftVV s x') t) where x' = F.tidySymbol x
 
 tidyREnv :: [(F.Symbol, SpecType)] -> (F.Subst, [(F.Symbol, SpecType)])
 tidyREnv xts    = (θ, second (F.subst θ) <$> zts)

@@ -1,4 +1,4 @@
-module Isort where
+module AutoTerm1 where
 
 data F = F | C Int F  
 

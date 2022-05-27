@@ -1,4 +1,4 @@
-module T1336 where 
+module T1336 where
 
 import Data.Ratio 
 

@@ -1,5 +1,5 @@
 -- Ensure that rewrites work with refinements
-module ReWrite3 where 
+module ReWrite3 where
 
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}

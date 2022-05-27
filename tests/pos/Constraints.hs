@@ -1,4 +1,4 @@
-module Compose where
+module Constraints where
 
 {-@ 
 cmp :: forall < pref :: b -> Bool, postf :: b -> c -> Bool

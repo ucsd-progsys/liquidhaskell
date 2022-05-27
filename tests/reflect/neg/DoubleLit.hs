@@ -1,4 +1,4 @@
-module Abs where
+module DoubleLit where
 
 {-@ inline absD @-}
 absD :: Double -> Double

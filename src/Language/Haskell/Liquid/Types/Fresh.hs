@@ -136,11 +136,11 @@ refreshRefType allowTC (RAllP π t)
   = RAllP π <$> refresh allowTC t
 
 refreshRefType allowTC (RImpF b i t t' _)
-  | b == F.dummySymbol = (\b t1 t2 -> RImpF b i t1 t2 mempty) <$> fresh <*> refresh allowTC t <*> refresh allowTC t'
+  | b == F.dummySymbol = (\b' t1 t2 -> RImpF b' i t1 t2 mempty) <$> fresh <*> refresh allowTC t <*> refresh allowTC t'
   | otherwise          = (\t1 t2 -> RImpF b i t1 t2 mempty)   <$> refresh allowTC t <*> refresh allowTC t'
 
 refreshRefType allowTC (RFun b i t t' _)
-  | b == F.dummySymbol = (\b t1 t2 -> RFun b i t1 t2 mempty) <$> fresh <*> refresh allowTC t <*> refresh allowTC t'
+  | b == F.dummySymbol = (\b' t1 t2 -> RFun b' i t1 t2 mempty) <$> fresh <*> refresh allowTC t <*> refresh allowTC t'
   | otherwise          = (\t1 t2 -> RFun b i t1 t2 mempty)   <$> refresh allowTC t <*> refresh allowTC t'
 
 refreshRefType _ (RApp rc ts _ _) | isClass rc
@@ -263,7 +263,7 @@ refreshPs = mapPropM go
       t'    <- refreshPs t
       xs    <- mapM (const fresh) s
       let su = F.mkSubst [(y, F.EVar x) | (x, (y, _)) <- zip xs s]
-      return $ RProp [(x, t) | (x, (_, t)) <- zip xs s] $ F.subst su t'
+      return $ RProp [(x, u) | (x, (_, u)) <- zip xs s] $ F.subst su t'
 
 --------------------------------------------------------------------------------
 refreshHoles :: (F.Symbolic t, F.Reftable r, TyConable c, Freshable f r)

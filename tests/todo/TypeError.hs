@@ -7,8 +7,8 @@
 {-@ LIQUID "--exact-data-cons" @-}
 module Append where
 
-import Axiomatize
-import Equational
+import AxiomatizeLib
+import EquationalLib
 import Prelude hiding (return, (>>=))
 
 

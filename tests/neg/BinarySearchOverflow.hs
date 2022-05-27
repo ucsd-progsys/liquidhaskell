@@ -1,6 +1,6 @@
 {-@ LIQUID "--no-termination" @-}
 
-module BinarySearch where
+module BinarySearchOverflow where
 
 import Prelude hiding (Num(..))
 import CheckedNum 

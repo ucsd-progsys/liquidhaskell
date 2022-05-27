@@ -3,7 +3,7 @@
 
 {-@ LIQUID "--reflection" @-}
 
-module ReflectString where 
+module ReflString1 where
 
 data Vname = V String 
 

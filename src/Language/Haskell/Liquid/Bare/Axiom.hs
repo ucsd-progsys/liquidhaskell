@@ -80,23 +80,23 @@ makeAssumeType
   -> F.TCEmb Ghc.TyCon -> LogicMap -> DataConMap -> LocSymbol -> Maybe SpecType
   -> Ghc.Var -> Ghc.CoreExpr
   -> (LocSpecType, F.Equation)
-makeAssumeType allowTC tce lmap dm x mbT v def
-  = (x {val = aty at `strengthenRes` F.subst su ref},  F.mkEquation (val x) xts (F.subst su le) out)
+makeAssumeType allowTC tce lmap dm locSym mbT v def
+  = (locSym {val = aty at `strengthenRes` F.subst su ref},  F.mkEquation (val locSym) xts (F.subst su le) out)
   where
-    t     = fromRTypeRep .
+    rtype = fromRTypeRep .
             (\trep@RTypeRep{..} ->
                 trep{ty_info = fmap (\rinfo -> rinfo{permitTC = Just allowTC}) ty_info}) .
             toRTypeRep $ Mb.fromMaybe (ofType $ τ) mbT
     τ     = Ghc.varType v
-    at    = axiomType allowTC x t
-    out   = rTypeSort tce $ ares at 
+    at    = axiomType allowTC locSym rtype
+    out   = rTypeSort tce $ ares at
     xArgs = (F.EVar . fst) <$> aargs at
-    _msg  = unwords [showpp x, showpp mbT]
+    _msg  = unwords [showpp locSym, showpp mbT]
     le    = case runToLogicWithBoolBinds bbs tce lmap dm mkErr (coreToLogic allowTC def') of
               Right e -> e
               Left  e -> panic Nothing (show e)
     ref        = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) le)
-    mkErr s    = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (PJ.text s)
+    mkErr s    = ErrHMeas (sourcePosSrcSpan $ loc locSym) (pprint $ val locSym) (PJ.text s)
     bbs        = filter isBoolBind xs
     (xs, def') = GM.notracePpr "grabBody" $ grabBody allowTC (Ghc.expandTypeSynonyms τ) $ normalize allowTC def
     su         = F.mkSubst  $ zip (F.symbol     <$> xs) xArgs
@@ -124,7 +124,7 @@ grabBody allowTC t@(Ghc.FunTy {}) e
   = (txs++xs, e') 
    where (ts,tr)  = splitFun t 
          (xs, e') = grabBody allowTC tr (foldl Ghc.App e (Ghc.Var <$> txs))
-         txs      = [ stringVar ("ls" ++ show i) t |  (t,i) <- zip ts [(1::Int)..]]
+         txs      = [ stringVar ("ls" ++ show i) t' |  (t',i) <- zip ts [(1::Int)..]]
 grabBody _ _ e
   = ([], e)
 
@@ -138,12 +138,12 @@ isBoolBind :: Ghc.Var -> Bool
 isBoolBind v = isBool (ty_res $ toRTypeRep ((ofType $ Ghc.varType v) :: RRType ()))
 
 strengthenRes :: SpecType -> F.Reft -> SpecType
-strengthenRes t r = go t 
+strengthenRes st rt = go st
   where 
-    go (RAllT a t r)   = RAllT a (go t) r  
+    go (RAllT a t r)   = RAllT a (go t) r
     go (RAllP p t)     = RAllP p $ go t
-    go (RFun x i tx t r) = RFun x i tx (go t) r 
-    go t               =  t `strengthen` F.ofReft r 
+    go (RFun x i tx t r) = RFun x i tx (go t) r
+    go t               =  t `strengthen` F.ofReft rt
 
 class Subable a where
   subst :: (Ghc.Var, Ghc.CoreExpr) -> a -> a
@@ -181,10 +181,10 @@ data AxiomType = AT { aty :: SpecType, aargs :: [(F.Symbol, SpecType)], ares :: 
 
 -- | Specification for Haskell function
 axiomType :: Bool -> LocSymbol -> SpecType -> AxiomType
-axiomType allowTC s t = AT to (reverse xts) res  
+axiomType allowTC s st = AT to (reverse xts) rytpe
   where
-    (to, (_,xts, Just res)) = runState (go t) (1,[], Nothing)
-    go (RAllT a t r) = RAllT a <$> go t <*> return r 
+    (to, (_,xts, Just rytpe)) = runState (go st) (1,[], Nothing)
+    go (RAllT a t r) = RAllT a <$> go t <*> return r
     go (RAllP p t) = RAllP p <$> go t 
     go (RFun x i tx t r) | isErasable tx = (\t' -> RFun x i tx t' r) <$> go t
     go (RFun x ii tx t r) = do 
@@ -238,21 +238,21 @@ wiredDefs cfg env name spSig
 
 
 makeCompositionExpression :: Ghc.Id -> Ghc.CoreExpr 
-makeCompositionExpression x 
+makeCompositionExpression ghcId
   =  go $ Ghc.varType $ F.notracepp ( -- tracing to find  the body of . from the inline spec, 
                                       -- replace F.notrace with F.trace to print 
-      "\nv = " ++ GM.showPpr x ++ 
-      "\n realIdUnfolding = " ++ GM.showPpr (Ghc.realIdUnfolding x) ++ 
-      "\n maybeUnfoldingTemplate . realIdUnfolding = " ++ GM.showPpr (Ghc.maybeUnfoldingTemplate $ Ghc.realIdUnfolding x ) ++ 
-      "\n inl_src . inlinePragInfo . Ghc.idInfo = "    ++ GM.showPpr (Ghc.inl_src $ Ghc.inlinePragInfo $ Ghc.idInfo x) ++ 
-      "\n inl_inline . inlinePragInfo . Ghc.idInfo = " ++ GM.showPpr (Ghc.inl_inline $ Ghc.inlinePragInfo $ Ghc.idInfo x) ++ 
-      "\n inl_sat . inlinePragInfo . Ghc.idInfo = "    ++ GM.showPpr (Ghc.inl_sat $ Ghc.inlinePragInfo $ Ghc.idInfo x) ++ 
-      "\n inl_act . inlinePragInfo . Ghc.idInfo = "    ++ GM.showPpr (Ghc.inl_act $ Ghc.inlinePragInfo $ Ghc.idInfo x) ++ 
-      "\n inl_rule . inlinePragInfo . Ghc.idInfo = "   ++ GM.showPpr (Ghc.inl_rule $ Ghc.inlinePragInfo $ Ghc.idInfo x) ++ 
-      "\n inl_rule rule = " ++ GM.showPpr (Ghc.inl_rule $ Ghc.inlinePragInfo $ Ghc.idInfo x) ++ 
-      "\n inline spec = " ++ GM.showPpr (Ghc.inl_inline $ Ghc.inlinePragInfo $ Ghc.idInfo x)  
-     ) x 
-   where  
+      "\nv = " ++ GM.showPpr ghcId ++
+      "\n realIdUnfolding = " ++ GM.showPpr (Ghc.realIdUnfolding ghcId) ++
+      "\n maybeUnfoldingTemplate . realIdUnfolding = " ++ GM.showPpr (Ghc.maybeUnfoldingTemplate $ Ghc.realIdUnfolding ghcId ) ++
+      "\n inl_src . inlinePragInfo . Ghc.idInfo = "    ++ GM.showPpr (Ghc.inl_src $ Ghc.inlinePragInfo $ Ghc.idInfo ghcId) ++
+      "\n inl_inline . inlinePragInfo . Ghc.idInfo = " ++ GM.showPpr (Ghc.inl_inline $ Ghc.inlinePragInfo $ Ghc.idInfo ghcId) ++
+      "\n inl_sat . inlinePragInfo . Ghc.idInfo = "    ++ GM.showPpr (Ghc.inl_sat $ Ghc.inlinePragInfo $ Ghc.idInfo ghcId) ++
+      "\n inl_act . inlinePragInfo . Ghc.idInfo = "    ++ GM.showPpr (Ghc.inl_act $ Ghc.inlinePragInfo $ Ghc.idInfo ghcId) ++
+      "\n inl_rule . inlinePragInfo . Ghc.idInfo = "   ++ GM.showPpr (Ghc.inl_rule $ Ghc.inlinePragInfo $ Ghc.idInfo ghcId) ++
+      "\n inl_rule rule = " ++ GM.showPpr (Ghc.inl_rule $ Ghc.inlinePragInfo $ Ghc.idInfo ghcId) ++
+      "\n inline spec = " ++ GM.showPpr (Ghc.inl_inline $ Ghc.inlinePragInfo $ Ghc.idInfo ghcId)
+     ) ghcId
+   where
     go (Ghc.ForAllTy a (Ghc.ForAllTy b (Ghc.ForAllTy c (Ghc.FunTy { Ghc.ft_arg = tf, Ghc.ft_res = Ghc.FunTy { Ghc.ft_arg = tg, Ghc.ft_res = tx}}))))
       = let f = stringVar "f" tf 
             g = stringVar "g" tg

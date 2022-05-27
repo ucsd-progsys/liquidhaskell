@@ -1,6 +1,6 @@
 {-@ LIQUID "--no-pattern-inline" @-}
 
-module Count () where
+module CountMonad () where
 
 {-@ measure count :: Count a -> Int @-}
 

@@ -15,7 +15,7 @@
 
 {-@ LIQUID "--no-termination" @-}
 
-module WBL where
+module WBL0 where
 
 type Priority = Int
 

@@ -145,7 +145,7 @@ plugMany allowTC embs tyi ldcp (hsAs, hsArgs, hsRes) (lqAs, lqArgs, lqRes)
     dcName           = Ghc.dataConName . dcpCon . val $ ldcp
     msg              = "plugMany: " ++ F.showpp (dcName, hsT, lqT)
 
-plugHoles_old, plugHoles_new 
+plugHoles_old, plugHoles_new
   :: (Ghc.NamedThing a, PPrint a, Show a)
   => Bool
   -> F.TCEmb Ghc.TyCon
@@ -157,7 +157,7 @@ plugHoles_old, plugHoles_new
   -> LocSpecType
 
 -- NOTE: this use of toType is safe as rt' is derived from t.
-plugHoles_old allowTC tce tyi x f t0 zz@(Loc l l' st0) 
+plugHoles_old allowTC tce tyi k f t0 zz@(Loc l l' st0)
     = Loc l l' 
     . mkArrow (zip (updateRTVar <$> αs') rs) ps' [] [] 
     . makeCls cs' 
@@ -178,17 +178,17 @@ plugHoles_old allowTC tce tyi x f t0 zz@(Loc l l' st0)
     (αs,_,cs,rt) = bkUnivClass (F.notracepp "hs-spec" $ ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
     (_,ps,_ ,st) = bkUnivClass (F.notracepp "lq-spec" st0)
 
-    makeCls cs t = foldr (uncurry (rFun' (classRFInfo allowTC))) t cs
-    err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
+    makeCls cs3 t = foldr (uncurry (rFun' (classRFInfo allowTC))) t cs3
+    err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint k)
                           (text "Plugged Init types old")
                           (pprint $ Ghc.expandTypeSynonyms t0)
                           (pprint $ toRSort st0)
                           (Just (hsT, lqT))
-                          (Ghc.getSrcSpan x) 
+                          (Ghc.getSrcSpan k)
 
 
 
-plugHoles_new allowTC@False tce tyi x f t0 zz@(Loc l l' st0) 
+plugHoles_new allowTC@False tce tyi k f t0 zz@(Loc l l' st0)
     = Loc l l' 
     . mkArrow (zip (updateRTVar <$> as'') rs) ps [] [] 
     . makeCls cs' 
@@ -206,16 +206,16 @@ plugHoles_new allowTC@False tce tyi x f t0 zz@(Loc l l' st0)
     (as,_,cs,rt) = bkUnivClass (ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
     (_,ps,_ ,st) = bkUnivClass st0
 
-    makeCls cs t = foldr (uncurry (rFun' (classRFInfo allowTC))) t cs
-    err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
+    makeCls cs3 t = foldr (uncurry (rFun' (classRFInfo allowTC))) t cs3
+    err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint k)
                           (text "Plugged Init types new")
                           (pprint $ Ghc.expandTypeSynonyms t0)
                           (pprint $ toRSort st0)
                           (Just (hsT, lqT))
-                          (Ghc.getSrcSpan x) 
+                          (Ghc.getSrcSpan k)
 
 
-plugHoles_new allowTC@True tce tyi x f t0 zz@(Loc l l' st0) 
+plugHoles_new allowTC@True tce tyi k f t0 zz@(Loc l l' st0)
     = Loc l l' 
     . mkArrow (zip (updateRTVar <$> as'') rs) ps [] (if length cs > length cs' then cs else cs')
     -- . makeCls cs' 
@@ -235,23 +235,23 @@ plugHoles_new allowTC@True tce tyi x f t0 zz@(Loc l l' st0)
     cs  = [ (x, classRFInfo allowTC, t, r) | (x,t,r)<-cs0]
     cs' = [ (x, classRFInfo allowTC, t, r) | (x,t,r)<-cs0']
 
-    err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
+    err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint k)
                           (text "Plugged Init types new")
                           (pprint $ Ghc.expandTypeSynonyms t0)
                           (pprint $ toRSort st0)
                           (Just (hsT, lqT))
-                          (Ghc.getSrcSpan x) 
+                          (Ghc.getSrcSpan k)
 
 subRTVar :: [(RTyVar, RTyVar)] -> SpecRTVar -> SpecRTVar 
 subRTVar su a@(RTVar v i) = Mb.maybe a (`RTVar` i) (lookup v su)
 
 goPlug :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> (Doc -> Doc -> Error) -> (SpecType -> RReft -> RReft) -> SpecType -> SpecType
        -> SpecType
-goPlug tce tyi err f = go 
+goPlug tce tyi err f = go
   where
-    go t (RHole r) = (addHoles t') { rt_reft = f t r }
+    go st (RHole r) = (addHoles t') { rt_reft = f st r }
       where
-        t'         = everywhere (mkT $ addRefs tce tyi) t
+        t'         = everywhere (mkT $ addRefs tce tyi) st
         addHoles   = everywhere (mkT $ addHole)
         -- NOTE: make sure we only add holes to RVar and RApp (NOT RFun)
         addHole :: SpecType -> SpecType

@@ -1,4 +1,4 @@
-module Fixme where
+module Fractional where
 
 
 {-@ foo :: Fractional a => {v:a | v >= 1.0} @-}

@@ -73,7 +73,7 @@ splitRType f (RRTy xs r o t) = (RRTy xs1 r1 o t1, RRTy xs2 r2 o t2)
         (r1, r2) = splitRef   f r
         (t1, t2) = splitRType f t
 
-        go (x, t) = let (t1, t2) = splitRType f t in ((x,t1), (x, t2))
+        go (x, rt) = let (t1', t2') = splitRType f rt in ((x,t1'), (x, t2'))
 splitRType f (RHole r) = (RHole r1, RHole r2)
   where
         (r1, r2) = splitRef f r

@@ -1,0 +1,8 @@
+-- A prime-number checker, written in stitch
+
+noDivisorsAbove = fix \nda: Int -> Int -> Bool. \tester:Int. \scrutinee:Int.
+  if tester * tester > scrutinee then true else
+  if scrutinee % tester == 0 then false else
+  nda (tester+1) scrutinee ;
+
+isPrime = noDivisorsAbove 2

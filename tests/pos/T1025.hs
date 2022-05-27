@@ -1,6 +1,6 @@
 {-@ LIQUID "--reflection"     @-}
 
-module Bug where
+module T1025 where
 
 import Language.Haskell.Liquid.ProofCombinators
 

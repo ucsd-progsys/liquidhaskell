@@ -1,4 +1,4 @@
-module Isort where
+module AutoTerm where
 
 data SortedList a =
      Mt

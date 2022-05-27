@@ -127,7 +127,9 @@ plugin = GHC.defaultPlugin {
           let warning = mkWarning (mkSrcSpan srcLoc srcLoc) msg
           liftIO $ printWarning dynFlags warning
           pure gblEnv
-        else typecheckHook opts summary gblEnv
+        else typecheckHook opts summary gblEnv 
+
+
 
 --------------------------------------------------------------------------------
 -- | GHC Configuration & Setup -------------------------------------------------
@@ -229,7 +231,7 @@ typecheckHook _ (unoptimise -> modSummary) tcGblEnv = do
 
 -- | Partially calls into LiquidHaskell's GHC API.
 liquidHaskellCheck :: PipelineData -> ModSummary -> TcGblEnv -> TcM TcGblEnv
-liquidHaskellCheck pipelineData modSummary tcGblEnv = do
+liquidHaskellCheck pipelineData modSummary tcGblEnv = (do
   cfg <- liftIO getConfig
 
   -- The 'specQuotes' contain stuff we need from imported modules, extracted
@@ -240,7 +242,8 @@ liquidHaskellCheck pipelineData modSummary tcGblEnv = do
   -- Here, we are calling Liquid Haskell's parser, acting on the unparsed
   -- spec comments stored in the pipeline data, supported by the specQuotes
   -- obtained from the imported modules.
-  inputSpec :: BareSpec <- getLiquidSpec thisModule (pdSpecComments pipelineData) specQuotes
+  inputSpec :: BareSpec <-
+    (getLiquidSpec thisModule (pdSpecComments pipelineData) specQuotes)
 
   debugLog $ " Input spec: \n" ++ show inputSpec
   debugLog $ "Relevant ===> \n" ++ unlines (renderModule <$> S.toList (relevantModules modGuts))
@@ -289,7 +292,11 @@ liquidHaskellCheck pipelineData modSummary tcGblEnv = do
   
   -- liftIO $ putStrLn "liquidHaskellCheck 10"
 
-  pure $ tcGblEnv { tcg_anns = serialisedSpec : tcg_anns tcGblEnv }
+  pure $ tcGblEnv { tcg_anns = serialisedSpec : tcg_anns tcGblEnv })
+    `gcatch` (\(e :: UserError) -> LH.reportErrors Full [e] >> failM)
+    `gcatch` (\(e :: Error) -> LH.reportErrors Full [e] >> failM)
+    `gcatch` (\(es :: [Error]) -> LH.reportErrors Full es >> failM)
+
   where
     thisModule :: Module
     thisModule = tcg_mod tcGblEnv
@@ -314,8 +321,8 @@ checkLiquidHaskellContext lhContext = do
 
 errorLogger :: OutputResult -> TcM ()
 errorLogger outputResult = do
-  errs <- forM (LH.orMessages outputResult) $ \(spn, e) -> mkLongErrAt spn (LH.fromPJDoc e) O.empty
-  GHC.reportErrors errs
+  errs' <- forM (LH.orMessages outputResult) $ \(spn, e) -> mkLongErrAt spn (LH.fromPJDoc e) O.empty
+  GHC.reportErrors errs'
 
 emptyLiquidLib :: LiquidLib
 emptyLiquidLib = mkLiquidLib emptyLiftedSpec
@@ -468,12 +475,11 @@ processModule LiquidHaskellContext{..} = do
     -- Due to the fact the internals can throw exceptions from pure code at any point, we need to
     -- call 'evaluate' to force any exception and catch it, if we can.
 
-    result <-
-      (makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies)
-        `gcatch` (\(e :: UserError) -> LH.reportErrors Full [e] >> failM)
-        `gcatch` (\(e :: Error)     -> LH.reportErrors Full [e] >> failM)
 
-    case result of
+    result <-
+      makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies
+
+    (case result of
       -- Print warnings and errors, aborting the compilation.
       Left diagnostics -> do
         liftIO $ mapM_ (printWarning dynFlags)    (allWarnings diagnostics)
@@ -488,12 +494,16 @@ processModule LiquidHaskellContext{..} = do
 
         let clientLib  = mkLiquidLib liftedSpec & addLibDependencies dependencies
 
-        let result = ProcessModuleResult {
+        let result' = ProcessModuleResult {
               pmrClientLib  = clientLib
             , pmrTargetInfo = targetInfo
             }
 
-        pure result
+        pure result')
+      `gcatch` (\(e :: UserError) -> LH.reportErrors Full [e] >> failM)
+      `gcatch` (\(e :: Error) -> LH.reportErrors Full [e] >> failM)
+      `gcatch` (\(es :: [Error]) -> LH.reportErrors Full es >> failM)
+
 
   where
     modGuts    = fromUnoptimised lhModuleGuts

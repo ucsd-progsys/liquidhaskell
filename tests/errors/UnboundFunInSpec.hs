@@ -1,4 +1,4 @@
-module Goo () where
+module UnboundFunInSpec () where
 
 cnt   :: Int -> Int
 cnt 0 = 0

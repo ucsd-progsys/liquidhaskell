@@ -1,7 +1,7 @@
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--maxparams=3"    @-}
 
-module LazyQueue where
+module AmortizedQueue where
 
 -- Source: Okasaki, JFP 1995
 -- http://www.westpoint.edu/eecs/SiteAssets/SitePages/Faculty%20Publication%20Documents/Okasaki/jfp95queue.pdf

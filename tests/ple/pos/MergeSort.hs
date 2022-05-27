@@ -5,7 +5,7 @@
 
 {-# LANGUAGE GADTs #-}
 
-module Merge where
+module MergeSort where
 
 import           Prelude hiding ((++)) 
 import           Language.Haskell.Liquid.ProofCombinators ((?), (===), (=>=), (***), (&&&), Proof, QED(..))

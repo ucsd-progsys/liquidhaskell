@@ -3,9 +3,9 @@
 {-@ LIQUID "--exact-data-con" @-}
 {-@ LIQUID "--noadt" @-}
 
-module Ev where
+module T1180 where
 
-import Peano 
+import PeanoLib
 
 pInt :: Peano -> Int 
 pInt Z     = 0 

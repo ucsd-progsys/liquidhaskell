@@ -1,6 +1,6 @@
 -- Compare with tests/pos/StrictPair1.hs
 
-module SPair (poo) where
+module StrictPair0 (poo) where
 
 import Language.Haskell.Liquid.Prelude (liquidAssert)
 

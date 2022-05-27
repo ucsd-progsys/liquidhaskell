@@ -1,7 +1,7 @@
 
 -- | Why does this NOT fail?! Clearly there is a sort error?!
 
-module LiquidR where
+module T774 where
 
 {-@ measure goober :: String -> Int @-}
 

@@ -1,6 +1,6 @@
 {-# LANGUAGE QuasiQuotes #-}
 
-module Nats where
+module QQTySyn2 where
 
 import LiquidHaskell
 

@@ -1,6 +1,6 @@
 -- TAG: invariant 
 
-module Blank where
+module MultipleInvariants where
 
 import Data.Word
 import GHC.Ptr

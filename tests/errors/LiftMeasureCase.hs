@@ -1,4 +1,4 @@
-module Measures where
+module LiftMeasureCase where
 
 llen :: [a] -> Int
 llen [] = 0

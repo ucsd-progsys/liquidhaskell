@@ -1,4 +1,4 @@
-module Invariant where
+module RecSelector where
 
 data F a = F {fxx :: a, fy :: a, fzz :: a} | G {fxx :: a}
 

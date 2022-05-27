@@ -1,6 +1,6 @@
 {-@ LIQUID "--higherorder" @-}
 
-module MapFusion where
+module T914 where
 
 import Language.Haskell.Liquid.ProofCombinators
 

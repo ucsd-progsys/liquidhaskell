@@ -1,4 +1,4 @@
-module Repro2 () where
+module T1490A () where
 
 newtype Embed a = Embed a
 

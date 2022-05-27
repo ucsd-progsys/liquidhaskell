@@ -1,5 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-module Main where
+module FFI where
 
 import Foreign.C.Types
 

@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE UnboxedTuples #-}
 
-module Blank where
+module UnboxedTuplesAndTH where
 
 import GHC.Int
 import Language.Haskell.TH.Syntax

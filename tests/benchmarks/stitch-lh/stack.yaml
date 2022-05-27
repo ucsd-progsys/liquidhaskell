@@ -1,0 +1,28 @@
+require-stack-version: ">= 1.6"
+
+resolver: lts-18.14
+
+packages:
+- .
+
+allow-newer: True
+extra-deps:
+- git: https://github.com/ucsd-progsys/liquidhaskell.git
+  commit: 5d4a9783e7df061a8d3993006a491a30535b9f59
+  subdirs:
+  - .
+  - liquid-base
+  - liquid-containers
+  - liquid-ghc-prim
+  - liquid-prelude
+- git: https://github.com/ucsd-progsys/liquid-fixpoint.git
+  commit: d6c95d1d535125f99f382fa503d012d008b0d480
+- git: https://github.com/zgrannan/rest.git
+  commit: 1cadb23edfbc393245ae964315b07f5c8581ea9f
+
+
+- megaparsec-8.0.0@sha256:362f85e243ecbcb550e1de6e5c74ba5a50c09edaa1208c99bc5b9fd242227fc6,3808
+
+nix:
+  shell-file: shell-stack.nix
+  path: ["nixpkgs=./nixpkgs.nix"]

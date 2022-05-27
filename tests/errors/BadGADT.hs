@@ -2,6 +2,8 @@
 
 {-@ LIQUID "--no-termination" @-}
 
+module BadGADT where
+
 {-@ data List a where
        Nil  :: List a
        Cons :: listHead:a -> listTail:List a -> List a

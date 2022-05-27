@@ -1,4 +1,4 @@
-module Foo where
+module Repeat where
 import Prelude hiding (repeat, take)
 
 data L a = N | C a (L a)

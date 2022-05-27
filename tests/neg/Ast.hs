@@ -3,7 +3,7 @@
 
 {-@ LIQUID "--no-positivity-check" @-}
 {-# LANGUAGE DeriveFunctor #-}
-module AST where
+module Ast where
 
 data AstIndex = IxExpr | IxType
 

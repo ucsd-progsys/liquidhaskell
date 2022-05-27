@@ -3,7 +3,7 @@
 {-@ LIQUID "--no-termination"  @-}
 {-@ LIQUID "--ple" @-}
 
-module Query where
+module EvalQuery where
 
 import Prelude hiding (filter, all)
 

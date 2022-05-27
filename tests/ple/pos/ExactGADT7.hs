@@ -6,7 +6,7 @@
 {-@ LIQUID "--exact-data-con" @-}
 {- LIQUID "--ple" @-}
 
-module Blank where
+module ExactGADT7 where
 
 data Some a where
   SomeBool  :: Bool -> Some Bool

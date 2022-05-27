@@ -2,7 +2,7 @@
 
 -- see https://github.com/ucsd-progsys/liquidhaskell/issues/866
 
-module T866 where 
+module T866 where
 
 data Body = Body Int Int 
 

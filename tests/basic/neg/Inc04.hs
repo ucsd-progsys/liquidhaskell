@@ -1,4 +1,4 @@
-module Inc04 where 
+module Inc04 where
 
 import Inc04Lib 
 

@@ -1,6 +1,6 @@
 {-@ LIQUID "--higherorder"    @-}
 
-module Reductions where
+module Reduction where
 
 {-@ reduction :: forall<p :: a -> Bool -> Bool>. 
                  f:(a -> a) 

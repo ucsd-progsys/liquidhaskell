@@ -1,6 +1,6 @@
 module D where
 
-import qualified C
+import qualified CLib
 
 {-@ gloob :: x:Nat -> Nat @-}
 gloob :: Int -> Int 

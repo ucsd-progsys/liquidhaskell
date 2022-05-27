@@ -8,10 +8,10 @@ import System.FilePath
 import Data.Version (Version, makeVersion)
 
 getDataFileName :: FilePath -> IO FilePath
-getDataFileName f = do
-  let loc = $(do { loc <- location; f <- runIO (canonicalizePath (loc_filename loc)); litE (stringL f); })
-  let root = takeDirectory (takeDirectory loc)
-  return (root </> f)
+getDataFileName fp = do
+  let loc' = $(do { loc <- location; f <- runIO (canonicalizePath (loc_filename loc)); litE (stringL f); })
+  let root = takeDirectory (takeDirectory loc')
+  return (root </> fp)
 
 -- | dummy version (devel only)
 version :: Version

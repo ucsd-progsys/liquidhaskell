@@ -24,7 +24,7 @@ import Data.String hiding (fromString)
 import GHC.TypeLits
 import Data.Maybe 
 
-import String
+import StringLib
 import Language.Haskell.Liquid.ProofCombinators 
 
 import Data.Proxy 

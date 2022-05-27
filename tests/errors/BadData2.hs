@@ -1,6 +1,6 @@
 {-@ LIQUID "--exact-data-cons" @-}
 
-module Boo where
+module BadData2 where
 
 -- The reason this fails is because the constructor we use in the
 -- refinement for Hog is in fact a constructor of T.

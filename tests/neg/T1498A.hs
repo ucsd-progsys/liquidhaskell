@@ -1,4 +1,4 @@
-module T1498 where
+module T1498A where
 
 class FromTo a where 
   from :: a -> Int 

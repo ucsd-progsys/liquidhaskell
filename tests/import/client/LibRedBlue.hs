@@ -1,4 +1,4 @@
-module LibRedBlue where 
+module LibRedBlue where
 
 import LibRed 
 import qualified LibBlue as Blue 

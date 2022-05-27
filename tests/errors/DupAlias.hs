@@ -1,4 +1,4 @@
-module Goo () where
+module DupAlias () where
 
 import Language.Haskell.Liquid.Prelude
 

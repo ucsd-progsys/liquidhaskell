@@ -4,7 +4,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
-module Example where
+module T1257 where
 
 data Foo = A | B deriving (Eq)
 data Bar = C | D deriving (Eq)
