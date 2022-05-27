@@ -32,7 +32,7 @@
       ghc = "ghc8107"; # Based on https://github.com/ucsd-progsys/liquid-fixpoint/blob/develop/stack.yaml#L3
       beComponent = pkgs: pkg: pkgs.haskell.lib.overrideCabal pkg (old: {
         enableLibraryProfiling = false;
-        buildTools = old.buildTools or [ ] ++ [ pkgs.z3 ];
+        buildTools = (old.buildTools or [ ]) ++ [ pkgs.z3 ];
       });
       mkOutputs = system:
         let
@@ -86,40 +86,40 @@
                 };
               };
             addLiquidHaskellWithoutTests = final: prev: haskellPackagesOverlay ghc final prev (selfH: superH:
-              let callCabal2nix = prev.haskell.packages.${ghc}.callCabal2nix; in
-              with prev.haskell.lib; {
+              let callCabal2nix = final.haskell.packages.${ghc}.callCabal2nix; in
+              with final.haskell.lib; {
                 liquidhaskell =
-                  let src = prev.nix-gitignore.gitignoreSource [ "*.nix" "result" "liquid-*" ] ./.;
+                  let src = final.nix-gitignore.gitignoreSource [ ".swp" "*.nix" "result" "liquid-*" ] ./.;
                   in
                   dontHaddock # src/Language/Haskell/Liquid/Types/RefType.hs:651:3: error: parse error on input ‘-- | _meetable t1 t2’
                     (doJailbreak # LH requires slightly old versions of recursion-schemes and optparse-applicative
-                      (dontCheck (beComponent prev (callCabal2nix "liquidhaskell" src { }))));
+                      (dontCheck (beComponent final (callCabal2nix "liquidhaskell" src { }))));
               });
             addLiquidGHCPrim = final: prev: haskellPackagesOverlay ghc final prev (selfH: superH:
-              let callCabal2nix = prev.haskell.packages.${ghc}.callCabal2nix; in
-              with prev.haskell.lib; {
-                liquid-ghc-prim = dontHaddock (beComponent prev (callCabal2nix "liquid-ghc-prim" ./liquid-ghc-prim { }));
+              let callCabal2nix = final.haskell.packages.${ghc}.callCabal2nix; in
+              with final.haskell.lib; {
+                liquid-ghc-prim = dontHaddock (beComponent final (callCabal2nix "liquid-ghc-prim" ./liquid-ghc-prim { }));
               });
             addLiquidBase = final: prev: haskellPackagesOverlay ghc final prev (selfH: superH:
-              let callCabal2nix = prev.haskell.packages.${ghc}.callCabal2nix; in
-              with prev.haskell.lib; {
-                liquid-base = dontHaddock (beComponent prev (callCabal2nix "liquid-base" ./liquid-base { }));
+              let callCabal2nix = final.haskell.packages.${ghc}.callCabal2nix; in
+              with final.haskell.lib; {
+                liquid-base = dontHaddock (beComponent final (callCabal2nix "liquid-base" ./liquid-base { }));
               });
             addLiquidHaskellPackages = final: prev: haskellPackagesOverlay ghc final prev (selfH: superH:
-              let callCabal2nix = prev.haskell.packages.${ghc}.callCabal2nix; in
-              with prev.haskell.lib; {
-                liquid-bytestring = (beComponent prev (callCabal2nix "liquid-bytestring" ./liquid-bytestring { }));
-                liquid-containers = (beComponent prev (callCabal2nix "liquid-containers" ./liquid-containers { }));
-                liquid-parallel = (beComponent prev (callCabal2nix "liquid-parallel" ./liquid-parallel { }));
-                liquid-platform = (beComponent prev (callCabal2nix "liquid-platform" ./liquid-platform { }));
-                liquid-prelude = (beComponent prev (callCabal2nix "liquid-prelude" ./liquid-prelude { }));
-                liquid-vector = (beComponent prev (callCabal2nix "liquid-vector" ./liquid-vector { }));
+              let callCabal2nix = final.haskell.packages.${ghc}.callCabal2nix; in
+              with final.haskell.lib; {
+                liquid-bytestring = (beComponent final (callCabal2nix "liquid-bytestring" ./liquid-bytestring { }));
+                liquid-containers = (beComponent final (callCabal2nix "liquid-containers" ./liquid-containers { }));
+                liquid-parallel = (beComponent final (callCabal2nix "liquid-parallel" ./liquid-parallel { }));
+                liquid-platform = (beComponent final (callCabal2nix "liquid-platform" ./liquid-platform { }));
+                liquid-prelude = (beComponent final (callCabal2nix "liquid-prelude" ./liquid-prelude { }));
+                liquid-vector = (beComponent final (callCabal2nix "liquid-vector" ./liquid-vector { }));
               });
             addLiquidHaskellWithTests = final: prev: haskellPackagesOverlay ghc final prev (selfH: superH:
-              with prev.haskell.lib; {
+              with final.haskell.lib; {
                 liquidhaskell_with_tests = overrideCabal selfH.liquidhaskell (old: {
                   doCheck = true; # change the value set above
-                  testDepends = old.testDepends or [ ] ++ [ prev.hostname ];
+                  testDepends = old.testDepends or [ ] ++ [ final.hostname ];
                   testHaskellDepends = old.testHaskellDepends ++ builtins.attrValues (builtins.removeAttrs self.packages.${system} [ "liquidhaskell_with_tests" ]);
                   preCheck = ''export TASTY_LIQUID_RUNNER="liquidhaskell -v0"'';
                 });
