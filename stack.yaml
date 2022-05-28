@@ -35,5 +35,4 @@ extra-deps:
 resolver: lts-18.27
 
 nix:
-  shell-file: shell-stack.nix
-  path: ["nixpkgs=./nixpkgs.nix"]
+  packages: [cacert, git, hostname, z3]
