@@ -43,7 +43,6 @@ module Language.Haskell.Liquid.Types.PrettyPrint
   ) where
 
 import           Control.Monad                           (void)
-import           Control.Monad.IO.Class                  (MonadIO(..))
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L                               -- (sort)
 import qualified Data.Set                         as Set
