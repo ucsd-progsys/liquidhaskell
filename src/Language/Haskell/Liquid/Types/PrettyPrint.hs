@@ -31,6 +31,7 @@ module Language.Haskell.Liquid.Types.PrettyPrint
 
   -- * Filtering errors
   , Filter(..)
+  , getFilters
   , reduceFilters
   , defaultFilterReporter
 
@@ -72,7 +73,8 @@ import           Language.Haskell.Liquid.Types.Types
 import           Prelude                          hiding (error)
 import           Text.PrettyPrint.HughesPJ        hiding ((<>))
 
-newtype Filter = StringFilter String
+data Filter = StringFilter String
+            | AnyFilter
   deriving (Eq, Ord, Show)
 
 --------------------------------------------------------------------------------
@@ -170,7 +172,7 @@ instance PPrint LogicMap where
                                  , nest 2 $ text "axiom-map"
                                  , nest 4 $ pprint am
                                  ]
-                    
+
 --------------------------------------------------------------------------------
 -- | Pretty Printing RefType ---------------------------------------------------
 --------------------------------------------------------------------------------
@@ -478,6 +480,13 @@ filterReportErrors failure continue filters k =
     renderer :: TError e' -> String
     renderer = render . ppError k empty
 
+-- | Retrieve the `Filter`s from the Config.
+getFilters :: Config -> [Filter]
+getFilters cfg = anyFilter <> stringFilters
+  where
+    anyFilter = [AnyFilter | expectAnyError cfg]
+    stringFilters = StringFilter <$> expectErrorContaining cfg
+
 -- | Return either the error as a singleton or the list of @filters@ that
 -- matched the @err@, given a @renderer@ for the @err@ and some @filters@
 reduceFilters :: forall e. (e -> String) -> [Filter] -> e -> Either [e] [Filter]
@@ -490,7 +499,8 @@ reduceFilters renderer filters err =
     matchingFilters = filter (filterDoesMatchErr err) filters
 
     filterDoesMatchErr :: e -> Filter -> Bool
-    filterDoesMatchErr err filter = coerce filter `L.isInfixOf` (renderer err)
+    filterDoesMatchErr _ AnyFilter = True
+    filterDoesMatchErr err (StringFilter filter) = filter `L.isInfixOf` renderer err
 
 -- | Used in `filterReportErrorsWith'`
 data FilterReportErrorsArgs m filter msg e a =
@@ -527,6 +537,20 @@ filterReportErrorsWith FilterReportErrorsArgs {..} errs =
       failure
 
 
--- XXX(matt.walker): Make this a real reporter.
-defaultFilterReporter :: MonadIO m => [Filter] -> m ()
-defaultFilterReporter = liftIO . mapM_ (putStrLn . coerce)
+-- | Report errors via GHC's API stating the given `Filter`s did not get
+-- matched.
+defaultFilterReporter :: [Filter] -> Ghc.TcRn ()
+defaultFilterReporter fs = Ghc.reportError =<< mkLongErrAt srcSpan (vcat $ leaderMsg : (nest 4 <$> filterMsgs)) empty
+  where
+    leaderMsg :: Doc
+    leaderMsg = text "Could not match the following expected errors with actual thrown errors:"
+
+    filterToMsg :: Filter -> Doc
+    filterToMsg AnyFilter = text "<Any Liquid error>"
+    filterToMsg (StringFilter s) = text "String filter: " <-> quotes (text s)
+
+    filterMsgs :: [Doc]
+    filterMsgs = filterToMsg <$> fs
+
+    srcSpan :: SrcSpan
+    srcSpan = Ghc.noSrcSpan
