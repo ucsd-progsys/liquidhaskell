@@ -41,14 +41,13 @@ module Language.Haskell.Liquid.Types.PrettyPrint
 
   ) where
 
-import           Control.Monad                           (void, (<=<))
+import           Control.Monad                           (void)
 import           Control.Monad.IO.Class                  (MonadIO(..))
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L                               -- (sort)
 import qualified Data.Set                         as Set
 import           Data.String
 import           Language.Fixpoint.Misc
-import           Data.Maybe                              (catMaybes)
 import qualified Language.Fixpoint.Types          as F
 import qualified Language.Haskell.Liquid.GHC.API  as Ghc
 import           Language.Haskell.Liquid.GHC.API  as Ghc ( Class
@@ -71,9 +70,7 @@ import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Types
 import           Prelude                          hiding (error)
-import           Data.Traversable                        (for)
 import           Text.PrettyPrint.HughesPJ        hiding ((<>))
-import           Data.Coerce
 
 newtype Filter = StringFilter String
   deriving (Eq, Ord, Show)
