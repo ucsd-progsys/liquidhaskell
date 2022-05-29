@@ -286,6 +286,10 @@ config = cmdArgsMode $ Config {
     = def &= help "Expect an error which containing the provided string from verification (can be provided more than once)"
           &= name "expect-error-containing"
 
+ , expectAnyError
+    = def &= help "Expect an error, no matter which kind or what it contains"
+          &= name "expect-any-error"
+
  , scrapeImports
     = False &= help "Scrape qualifiers from imported specifications"
             &= name "scrape-imports"
@@ -685,6 +689,7 @@ defConfig = Config
   , exactDC                  = def
   , noADT                    = def
   , expectErrorContaining    = def
+  , expectAnyError           = False
   , cores                    = def
   , minPartSize              = FC.defaultMinPartSize
   , maxPartSize              = FC.defaultMaxPartSize
