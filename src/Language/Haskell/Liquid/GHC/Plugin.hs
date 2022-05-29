@@ -331,7 +331,7 @@ liquidHaskellCheck pipelineData modSummary tcGblEnv = do
     `gcatch` (\(es :: [Error]) -> reportErrs cfg es)
   where
     filters :: Config -> [Filter]
-    filters cfg = StringFilter <$> expectErrorContaining cfg
+    filters cfg = getFilters cfg
 
     continue :: TcM (Either LiquidCheckException TcGblEnv)
     continue = pure $ Left KillPluginWithSuccess
@@ -350,7 +350,7 @@ checkLiquidHaskellContext lhContext = do
       file = LH.modSummaryHsFile $ lhModuleSummary lhContext
 
   withPragmas (lhGlobalCfg lhContext) file (Ms.pragmas $ review bareSpecIso bareSpec) $ \moduleCfg ->  do
-    let filters = StringFilter <$> expectErrorContaining moduleCfg
+    let filters = getFilters moduleCfg
     -- Report the outcome of the checking
     wasUnsafeButContinued <- LH.reportResult (errorLogger filters) moduleCfg [giTarget (giSrc pmrTargetInfo)] out
     if wasUnsafeButContinued
@@ -470,7 +470,7 @@ data ProcessModuleResult = ProcessModuleResult {
 -- if it finds one.
 getLiquidSpec :: Module -> [SpecComment] -> [BPspec] -> TcM (Either LiquidCheckException BareSpec)
 getLiquidSpec thisModule specComments specQuotes = do
-  filters <- fmap StringFilter . expectErrorContaining <$> liftIO getConfig
+  filters <- getFilters <$> liftIO getConfig
   let commSpecE :: Either [Error] (ModName, Spec LocBareType LocSymbol)
       commSpecE = hsSpecificationP (moduleName thisModule) (coerce specComments) specQuotes
   case commSpecE of
@@ -527,7 +527,7 @@ processModule LiquidHaskellContext{..} = do
     result <-
       makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies
 
-    let filters = StringFilter <$> expectErrorContaining moduleCfg
+    let filters = getFilters moduleCfg
         emptyTargetSpec =
           TargetSpec
             mempty
