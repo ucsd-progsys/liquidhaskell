@@ -71,7 +71,7 @@ data Config = Config
   , exactDC                  :: Bool       -- ^ Automatically generate singleton types for data constructors
   , noADT                    :: Bool       -- ^ Disable ADTs (only used with exactDC)
   , expectErrorContaining    :: [String]   -- ^ expect failure from Liquid with at least one of the following messages
-  , expectAnyError           :: Bool       -- ^ espect failure from Liquid with any message
+  , expectAnyError           :: Bool       -- ^ expect failure from Liquid with any message
   , scrapeImports            :: Bool       -- ^ scrape qualifiers from imported specifications
   , scrapeInternals          :: Bool       -- ^ scrape qualifiers from auto specifications
   , scrapeUsedImports        :: Bool       -- ^ scrape qualifiers from used, imported specifications
