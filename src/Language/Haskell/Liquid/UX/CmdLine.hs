@@ -739,11 +739,15 @@ reportResult :: MonadIO m
              -> Config
              -> [FilePath]
              -> Output Doc
-             -> m ()
+             -> m Bool
 reportResult logResultFull cfg targets out = do
   annm <- {-# SCC "annotate" #-} liftIO $ annotate cfg targets out
   liftIO $ whenNormal $ donePhase Loud "annotate"
-  if | json cfg  -> liftIO $ reportResultJson annm
+  if | json cfg  -> do
+         -- XXX(matt.walker): Does this even work? It does something completely
+         -- different in json mode.  I just assume no errors are reported...
+         liftIO $ reportResultJson annm
+         pure False
      | otherwise -> do
          let r = o_result out
          liftIO $ writeCheckVars $ o_vars out
@@ -753,7 +757,10 @@ reportResult logResultFull cfg targets out = do
          -- passed as input.
          -- liftIO $ printHeader (colorResult r) (orHeader outputResult)
          logResultFull outputResult
-  pure ()
+         case r of
+           F.Safe _ -> pure False
+           F.Unsafe _ _ -> pure True
+           F.Crash _ _ -> pure True
   where
     tidy :: F.Tidy
     tidy = if shortErrors cfg then F.Lossy else F.Full
@@ -765,7 +772,7 @@ reportResult logResultFull cfg targets out = do
 ------------------------------------------------------------------------
 exitWithResult :: Config -> [FilePath] -> Output Doc -> IO ()
 ------------------------------------------------------------------------
-exitWithResult cfg = reportResult writeResultStdout cfg
+exitWithResult cfg targets out = void $ reportResult writeResultStdout cfg targets out
 
 reportResultJson :: ACSS.AnnMap -> IO ()
 reportResultJson annm = do
