@@ -145,8 +145,19 @@ For details on adding tests, see note [Parallel_Tests] in `tests/test.hs`.
 
 ## How to create performance comparison charts
 
-Everytime `liquidhaskell` tests are run, a report of the time taken by
-each test is written to a file `tests/logs/<host>-<time>/summary.csv`.
+Everytime `liquidhaskell` tests are run, measures are collected in `.dump-timings`
+files. This can be converted to json data with
+```bash
+cabal v2-build ghc-timings
+cabal v2-exec ghc-timings dist-newstyle
+```
+which will produce `tmp/*.json` files.
+
+Then a csv report can be generated from this json files with
+```
+cabal v2-run benchmark-timings -- tmp/*.json --phase CoreTidy --phase Renamer/typechecker -o summary.csv
+```
+On each line, the report will contain the time taken by each test.
 
 There is a script `scripts/plot-performance/chart_perf.sh` that can be
 used to generate comparison charts in `svg` and `png` formats. It
@@ -156,10 +167,17 @@ current directory.
 
     $ scripts/plot-performance/chart_perf.sh path_to_before_summary.csv path_to_after_summary.csv
 
-The current formatting is optmized for comparing the outputs of running
+The current formatting is optimized for comparing the outputs of running
 the benchmarks alone.
 
-    $ scripts/test/test_810.sh Benchmarks
+    $ scripts/test/test_810_plugin.sh
+        benchmark-stitch-lh \
+        benchmark-bytestring \
+        benchmark-vector-algorithms
+        benchmark-cse230 \
+        benchmark-esop2013 \
+        benchmark-icfp15-pos \
+        benchmark-icfp15-ne
 
 ## How to Profile
 
