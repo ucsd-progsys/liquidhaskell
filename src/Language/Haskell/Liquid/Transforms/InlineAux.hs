@@ -16,18 +16,18 @@ inlineAux :: UX.Config -> Module -> CoreProgram -> CoreProgram
 inlineAux cfg m cbs =  if UX.auxInline cfg then occurAnalysePgm m (const False) (const False) [] (map f cbs) else cbs
  where
   f :: CoreBind -> CoreBind
-  f cb@(NonRec x e)
+  f all@(NonRec x e)
     | Just (dfunId, methodToAux) <- M.lookup x auxToMethodToAux = NonRec
       x
       (inlineAuxExpr dfunId methodToAux e)
-    | otherwise = cb
+    | otherwise = all
   f (Rec bs) = Rec (fmap g bs)
    where
-    g cb@(x, e)
+    g all@(x, e)
       | Just (dfunId, methodToAux) <- M.lookup x auxToMethodToAux
       = (x, inlineAuxExpr dfunId methodToAux e)
       | otherwise
-      = cb
+      = all
   auxToMethodToAux = mconcat $ fmap (uncurry dfunIdSubst) (grepDFunIds cbs)
 
 
@@ -76,26 +76,26 @@ inlineAuxExpr dfunId methodToAux e = go e
   go :: CoreExpr -> CoreExpr
   go (Lam b body) = Lam b (go body)
   go (Let b body)
-    | NonRec x ecb <- b, isDictId x = go
+    | NonRec x e <- b, isDictId x = go
      $ substExpr
 #if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)     
         empty
 #endif
-        (extendIdSubst emptySubst x ecb) body
+        (extendIdSubst emptySubst x e) body
     | otherwise = Let (mapBnd go b) (go body)
-  go (Case ecb x t alts) = Case (go ecb) x t (fmap (mapAlt go) alts)
-  go (Cast ecb c       ) = Cast (go ecb) c
-  go (Tick t ecb       ) = Tick t (go ecb)
-  go ecb
-    | (Var m, args) <- collectArgs ecb
+  go (Case e x t alts) = Case (go e) x t (fmap (mapAlt go) alts)
+  go (Cast e c       ) = Cast (go e) c
+  go (Tick t e       ) = Tick t (go e)
+  go e
+    | (Var m, args) <- collectArgs e
     , Just aux <- M.lookup m methodToAux
     , arg : argsNoTy <- dropWhile isTypeArg args
     , (Var x, argargs) <- collectArgs arg
     , x == dfunId
-    = GM.notracePpr ("inlining in" ++ GM.showPpr ecb)
+    = GM.notracePpr ("inlining in" ++ GM.showPpr e)
       $ mkCoreApps (Var aux) (argargs ++ (go <$> argsNoTy))
   go (App e0 e1) = App (go e0) (go e1)
-  go ecb           = ecb
+  go e           = e
 
 
 -- modified from Rec.hs

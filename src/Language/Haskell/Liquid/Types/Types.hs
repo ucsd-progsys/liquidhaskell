@@ -415,7 +415,7 @@ toLogicMap ls = mempty {lmSymDefs = M.fromList $ map toLMap ls}
     toLMap (x, ys, e) = (F.val x, LMap {lmVar = x, lmArgs = ys, lmExpr = e})
 
 eAppWithMap :: LogicMap -> F.Located Symbol -> [Expr] -> Expr -> Expr
-eAppWithMap lmap f es defn
+eAppWithMap lmap f es def
   | Just (LMap _ xs e) <- M.lookup (F.val f) (lmSymDefs lmap)
   , length xs == length es
   = F.subst (F.mkSubst $ zip xs es) e
@@ -423,7 +423,7 @@ eAppWithMap lmap f es defn
   , isApp e
   = F.subst (F.mkSubst $ zip xs es) $ dropApp e (length xs - length es)
   | otherwise
-  = defn
+  = def
 
 dropApp :: Expr -> Int -> Expr
 dropApp e i | i <= 0 = e
@@ -1388,7 +1388,7 @@ mkArrow :: [(RTVar tv (RType c tv ()), r)]
         -> RType c tv r
 mkArrow αs πs yts xts = mkUnivs αs πs . mkArrs RImpF yts. mkArrs RFun xts
   where
-    mkArrs f xts' t  = foldr (\(b,i,t1,r) t2 -> f b i t1 t2 r) t xts'
+    mkArrs f xts t  = foldr (\(b,i,t1,r) t2 -> f b i t1 t2 r) t xts
 
 -- Do I need to keep track of implicits here too?
 bkArrowDeep :: RType t t1 a -> ([Symbol], [RFInfo], [RType t t1 a], [a], RType t t1 a)
@@ -1428,7 +1428,7 @@ mkUnivs :: (Foldable t, Foldable t1)
         -> t1 (PVar (RType c tv ()))
         -> RType c tv r
         -> RType c tv r
-mkUnivs αs πs t = foldr (\(a,r) rt -> RAllT a rt r) (foldr RAllP t πs) αs
+mkUnivs αs πs t = foldr (\(a,r) t -> RAllT a t r) (foldr RAllP t πs) αs
 
 bkUnivClass :: SpecType -> ([(SpecRTVar, RReft)],[PVar RSort], [(RTyCon, [SpecType])], SpecType )
 bkUnivClass t        = (as, ps, cs, t2) 
@@ -2059,7 +2059,7 @@ allErrors = dErrors
 --------------------------------------------------------------------------------
 
 printWarning :: DynFlags -> Warning -> IO ()
-printWarning dyn (Warning srcSpan doc) = GHC.putWarnMsg dyn srcSpan doc
+printWarning dyn (Warning span doc) = GHC.putWarnMsg dyn span doc
 
 --------------------------------------------------------------------------------
 -- | Error Data Type -----------------------------------------------------------
@@ -2313,7 +2313,7 @@ instance F.PPrint t => F.PPrint (RClass t) where
                 = ppMethods k ("class" <+> supers ts) n as [(m, RISig t) | (m, t) <- mts] 
     where 
       supers [] = "" 
-      supers xs = tuplify (F.pprintTidy k   <$> xs) <+> "=>"
+      supers ts = tuplify (F.pprintTidy k   <$> ts) <+> "=>"
       tuplify   = parens . hcat . punctuate ", "
 
 
@@ -2321,7 +2321,7 @@ instance F.PPrint t => F.PPrint (RILaws t) where
   pprintTidy k (RIL n ss ts mts _) = ppEqs k ("instance laws" <+> supers ss) n ts mts 
    where 
     supers [] = "" 
-    supers xs = tuplify (F.pprintTidy k   <$> xs) <+> "=>"
+    supers ts = tuplify (F.pprintTidy k   <$> ts) <+> "=>"
     tuplify   = parens . hcat . punctuate ", "
 
 

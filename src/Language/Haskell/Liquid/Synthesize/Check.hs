@@ -54,17 +54,17 @@ unbind e = ([], e)
 
 
 check :: CGInfo -> CGEnv -> F.Config -> Var -> CoreExpr -> Maybe SpecType -> IO Bool 
-check cgi γ cfg var e mt = do
+check cgi γ cfg x e t = do
     finfo <- cgInfoFInfo info' cs
     isSafe <$> solve cfg{F.srcFile = "SCheck" <> F.srcFile cfg} finfo 
   where 
-    cs = generateConstraintsWithEnv info' (cgi{hsCs = []}) (γ{grtys = insertREnv' (F.symbol var) mt (grtys γ)})
+    cs = generateConstraintsWithEnv info' (cgi{hsCs = []}) (γ{grtys = insertREnv' (F.symbol x) t (grtys γ)}) 
     info' = info {giSrc = giSrc', giSpec = giSpec'}
-    giSrc' = (giSrc info) {giCbs = [Rec [(var, e)]]}
+    giSrc' = (giSrc info) {giCbs = [Rec [(x, e)]]}
     giSpec' = giSpecOld{gsSig = gsSig'}
     giSpecOld = giSpec info 
     gsSigOld  = gsSig giSpecOld
-    gsSig' = gsSigOld {gsTySigs = addTySig var mt (gsTySigs gsSigOld)}
+    gsSig' = gsSigOld {gsTySigs = addTySig x t (gsTySigs gsSigOld)}
     info = ghcI cgi 
 
     insertREnv' _ Nothing g = g 
