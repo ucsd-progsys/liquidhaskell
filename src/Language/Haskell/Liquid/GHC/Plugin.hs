@@ -306,18 +306,21 @@ liquidHaskellCheckWithConfig cfg pipelineData modSummary tcGblEnv = do
   let specQuotes :: [BPspec]
       specQuotes = LH.extractSpecQuotes' tcg_mod tcg_anns tcGblEnv
 
+      thisFile :: FilePath
+      thisFile = LH.modSummaryHsFile modSummary
+
+
   -- Here, we are calling Liquid Haskell's parser, acting on the unparsed
   -- spec comments stored in the pipeline data, supported by the specQuotes
   -- obtained from the imported modules.
   inputSpec' :: Either LiquidCheckException BareSpec <-
-    getLiquidSpec thisModule (pdSpecComments pipelineData) specQuotes
+    getLiquidSpec thisFile thisModule (pdSpecComments pipelineData) specQuotes
 
   join <$> traverse (processInputSpec cfg pipelineData modSummary tcGblEnv) inputSpec'
 
   where
     thisModule :: Module
     thisModule = tcg_mod tcGblEnv
-
 
 -- | Partially calls into LiquidHaskell's GHC API.
 liquidHaskellCheck :: PipelineData -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
@@ -328,14 +331,14 @@ liquidHaskellCheck pipelineData modSummary tcGblEnv = do
     `gcatch` (\(e :: Error) -> reportErrs cfg [e])
     `gcatch` (\(es :: [Error]) -> reportErrs cfg es)
   where
-    filters :: Config -> [Filter]
-    filters cfg = getFilters cfg
+    file :: FilePath
+    file = LH.modSummaryHsFile modSummary
 
     continue :: TcM (Either LiquidCheckException TcGblEnv)
     continue = pure $ Left KillPluginWithSuccess
 
     reportErrs :: (Show e, F.PPrint e) => Config -> [TError e] -> TcM (Either LiquidCheckException TcGblEnv)
-    reportErrs cfg = LH.filterReportErrors GHC.failM continue (filters cfg) Full
+    reportErrs cfg = LH.filterReportErrors file GHC.failM continue (getFilters cfg) Full
 
 checkLiquidHaskellContext :: LiquidHaskellContext -> TcM (Either LiquidCheckException LiquidLib)
 checkLiquidHaskellContext lhContext = do
@@ -350,16 +353,16 @@ checkLiquidHaskellContext lhContext = do
   withPragmas (lhGlobalCfg lhContext) file (Ms.pragmas $ review bareSpecIso bareSpec) $ \moduleCfg ->  do
     let filters = getFilters moduleCfg
     -- Report the outcome of the checking
-    wasUnsafeButContinued <- LH.reportResult (errorLogger filters) moduleCfg [giTarget (giSrc pmrTargetInfo)] out
+    wasUnsafeButContinued <- LH.reportResult (errorLogger file filters) moduleCfg [giTarget (giSrc pmrTargetInfo)] out
     if wasUnsafeButContinued
       then pure $ Left KillPluginWithSuccess
       else pure $ Right pmrClientLib
 
-errorLogger :: [Filter] -> OutputResult -> TcM ()
-errorLogger filters outputResult = do
+errorLogger :: FilePath -> [Filter] -> OutputResult -> TcM ()
+errorLogger file filters outputResult = do
   LH.filterReportErrorsWith
     FilterReportErrorsArgs { msgReporter = GHC.reportErrors
-                           , filterReporter = LH.defaultFilterReporter
+                           , filterReporter = LH.defaultFilterReporter file
                            , failure = GHC.failM
                            , continue = pure ()
                            , pprinter = \(spn, e) -> mkLongErrAt spn (LH.fromPJDoc e) O.empty
@@ -466,14 +469,14 @@ data ProcessModuleResult = ProcessModuleResult {
 -- spec quotes from the imported module. Also looks for
 -- "companion specs" for the current module and merges them in
 -- if it finds one.
-getLiquidSpec :: Module -> [SpecComment] -> [BPspec] -> TcM (Either LiquidCheckException BareSpec)
-getLiquidSpec thisModule specComments specQuotes = do
+getLiquidSpec :: FilePath -> Module -> [SpecComment] -> [BPspec] -> TcM (Either LiquidCheckException BareSpec)
+getLiquidSpec thisFile thisModule specComments specQuotes = do
   filters <- getFilters <$> liftIO getConfig
   let commSpecE :: Either [Error] (ModName, Spec LocBareType LocSymbol)
       commSpecE = hsSpecificationP (moduleName thisModule) (coerce specComments) specQuotes
   case commSpecE of
     Left errors -> do
-      LH.filterReportErrors GHC.failM continue filters Full errors
+      LH.filterReportErrors thisFile GHC.failM continue filters Full errors
     Right (view bareSpecIso . snd -> commSpec) -> do
       res <- SpecFinder.findCompanionSpec thisModule
       case res of
@@ -540,13 +543,13 @@ processModule LiquidHaskellContext{..} = do
             moduleCfg
         continue = pure $ ProcessModuleResult emptyLiquidLib (TargetInfo targetSrc emptyTargetSpec)
         reportErrs :: (Show e, F.PPrint e) => [TError e] -> TcRn ProcessModuleResult
-        reportErrs = LH.filterReportErrors GHC.failM continue filters Full
+        reportErrs = LH.filterReportErrors file GHC.failM continue filters Full
 
     (case result of
       -- Print warnings and errors, aborting the compilation.
       Left diagnostics -> do
         liftIO $ mapM_ (printWarning dynFlags)    (allWarnings diagnostics)
-        LH.filterReportErrors GHC.failM continue filters Full (allErrors diagnostics)
+        LH.filterReportErrors file GHC.failM continue filters Full (allErrors diagnostics)
       Right (warnings, targetSpec, liftedSpec) -> do
         liftIO $ mapM_ (printWarning dynFlags) warnings
         let targetInfo = TargetInfo targetSrc targetSpec

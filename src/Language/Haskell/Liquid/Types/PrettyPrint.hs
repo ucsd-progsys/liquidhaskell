@@ -464,11 +464,11 @@ reportErrors k errs =
 -- are unexpected errors, or will call @continue@ otherwise.
 --
 -- An error is expected if there is any filter that matches it.
-filterReportErrors :: forall e' a. (Show e', F.PPrint e') => Ghc.TcRn a -> Ghc.TcRn a -> [Filter] -> F.Tidy -> [TError e'] -> Ghc.TcRn a
-filterReportErrors failure continue filters k =
+filterReportErrors :: forall e' a. (Show e', F.PPrint e') => FilePath -> Ghc.TcRn a -> Ghc.TcRn a -> [Filter] -> F.Tidy -> [TError e'] -> Ghc.TcRn a
+filterReportErrors path failure continue filters k =
   filterReportErrorsWith
     FilterReportErrorsArgs { msgReporter = Ghc.reportErrors
-                           , filterReporter = defaultFilterReporter
+                           , filterReporter = defaultFilterReporter path
                            , failure = failure
                            , continue = continue
                            , pprinter = \err -> mkLongErrAt (pos err) (ppError k empty err) mempty
@@ -535,11 +535,10 @@ filterReportErrorsWith FilterReportErrorsArgs {..} errs =
           filterReporter missedFilters
       failure
 
-
 -- | Report errors via GHC's API stating the given `Filter`s did not get
 -- matched.
-defaultFilterReporter :: [Filter] -> Ghc.TcRn ()
-defaultFilterReporter fs = Ghc.reportError =<< mkLongErrAt srcSpan (vcat $ leaderMsg : (nest 4 <$> filterMsgs)) empty
+defaultFilterReporter :: FilePath -> [Filter] -> Ghc.TcRn ()
+defaultFilterReporter path fs = Ghc.reportError =<< mkLongErrAt srcSpan (vcat $ leaderMsg : (nest 4 <$> filterMsgs)) empty
   where
     leaderMsg :: Doc
     leaderMsg = text "Could not match the following expected errors with actual thrown errors:"
@@ -551,5 +550,8 @@ defaultFilterReporter fs = Ghc.reportError =<< mkLongErrAt srcSpan (vcat $ leade
     filterMsgs :: [Doc]
     filterMsgs = filterToMsg <$> fs
 
+    beginningOfFile :: Ghc.SrcLoc
+    beginningOfFile = Ghc.mkSrcLoc (fromString path) 1 1
+
     srcSpan :: SrcSpan
-    srcSpan = Ghc.noSrcSpan
+    srcSpan = Ghc.mkSrcSpan beginningOfFile beginningOfFile
