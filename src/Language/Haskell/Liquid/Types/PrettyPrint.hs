@@ -189,11 +189,11 @@ ppAlias k a =   pprint (rtName a)
             <+> text " = "
             <+> pprint (rtBody a)
 
-instance (F.PPrint tv, F.PPrint t) => F.PPrint (RTEnv tv t) where 
-  pprintTidy k rte 
-    =   text "** Type Aliaes *********************" 
-    $+$ nest 4 (F.pprintTidy k (typeAliases rte)) 
-    $+$ text "** Expr Aliases ********************" 
+instance (F.PPrint tv, F.PPrint t) => F.PPrint (RTEnv tv t) where
+  pprintTidy k rte
+    =   text "** Type Aliaes *********************"
+    $+$ nest 4 (F.pprintTidy k (typeAliases rte))
+    $+$ text "** Expr Aliases ********************"
     $+$ nest 4 (F.pprintTidy k (exprAliases rte))
 
 pprints :: (PPrint a) => F.Tidy -> Doc -> [a] -> Doc
@@ -211,7 +211,7 @@ instance PPrint F.Tidy where
   pprintTidy _ F.Full  = "Full"
   pprintTidy _ F.Lossy = "Lossy"
 
-type Prec = PprPrec 
+type Prec = PprPrec
 
 --------------------------------------------------------------------------------
 ppr_rtype :: (OkRT c tv r) => PPEnv -> Prec -> RType c tv r -> Doc
@@ -354,10 +354,10 @@ ppr_rty_fun' bb t
   = ppr_rtype bb topPrec t
 -}
 
-brkFun :: RType c tv r -> ([(F.Symbol, RType c tv r, Doc)], RType c tv r) 
-brkFun (RImpF b _ t t' _) = ((b, t, (text "~>")) : args, out)   where (args, out)     = brkFun t'  
-brkFun (RFun b _ t t' _)  = ((b, t, (text "->")) : args, out)   where (args, out)     = brkFun t'  
-brkFun out                = ([], out) 
+brkFun :: RType c tv r -> ([(F.Symbol, RType c tv r, Doc)], RType c tv r)
+brkFun (RImpF b _ t t' _) = ((b, t, (text "~>")) : args, out)   where (args, out)     = brkFun t'
+brkFun (RFun b _ t t' _)  = ((b, t, (text "->")) : args, out)   where (args, out)     = brkFun t'
+brkFun out                = ([], out)
 
 
 
