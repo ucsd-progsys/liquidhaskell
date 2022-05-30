@@ -489,17 +489,17 @@ getFilters cfg = anyFilter <> stringFilters
 -- | Return either the error as a singleton or the list of @filters@ that
 -- matched the @err@, given a @renderer@ for the @err@ and some @filters@
 reduceFilters :: forall e. (e -> String) -> [Filter] -> e -> Either [e] [Filter]
-reduceFilters renderer filters err =
+reduceFilters renderer fs err =
   if null matchingFilters
   then Left [err]
   else Right matchingFilters
   where
     matchingFilters :: [Filter]
-    matchingFilters = filter (filterDoesMatchErr err) filters
+    matchingFilters = filter (filterDoesMatchErr err) fs
 
     filterDoesMatchErr :: e -> Filter -> Bool
     filterDoesMatchErr _ AnyFilter = True
-    filterDoesMatchErr err (StringFilter filter) = filter `L.isInfixOf` renderer err
+    filterDoesMatchErr e (StringFilter filter) = filter `L.isInfixOf` renderer e
 
 -- | Used in `filterReportErrorsWith'`
 data FilterReportErrorsArgs m filter msg e a =
