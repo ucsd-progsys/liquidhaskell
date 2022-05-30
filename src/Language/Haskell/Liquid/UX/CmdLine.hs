@@ -623,14 +623,22 @@ canonConfig cfg = cfg
 withPragmas :: MonadIO m => Config -> FilePath -> [Located String] -> (Config -> m a) -> m a
 --------------------------------------------------------------------------------
 withPragmas cfg fp ps action
-  = do cfg' <- liftIO $ foldM withPragma cfg ps >>= canonicalizePaths fp >>= (return . canonConfig)
+  = do cfg' <- liftIO $ processPragmas cfg ps >>= canonicalizePaths fp >>= (return . canonConfig)
        -- As the verbosity is set /globally/ via the cmdargs lib, re-set it.
        liftIO $ setVerbosity (loggingVerbosity cfg')
        res <- action cfg'
        liftIO $ setVerbosity (loggingVerbosity cfg) -- restore the original verbosity.
        pure res
+  where
+    processPragmas :: Config -> [Located String] -> IO Config
+    processPragmas c pragmas =
+      withArgs (val <$> pragmas) $
+        cmdArgsRun config { modeValue = (modeValue config) { cmdArgsValue = c } }
 
-
+-- | Note that this function doesn't process list arguments properly, like
+-- 'cFiles' or 'expectErrorContaining'
+-- TODO: This is only used to parse the contents of the env var LIQUIDHASKELL_OPTS
+-- so it should be able to parse multiple arguments instead. See issue #1990.
 withPragma :: Config -> Located String -> IO Config
 withPragma c s = withArgs [val s] $ cmdArgsRun
           config { modeValue = (modeValue config) { cmdArgsValue = c } }
