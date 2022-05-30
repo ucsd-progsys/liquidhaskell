@@ -2450,3 +2450,17 @@ executable typeclass-pos
                     , typeclasses/pos
 
     default-language: Haskell2010
+
+-- This test suite is for internal function unit tests, not for checking LH on
+-- source files.
+test-suite tasty
+    type:             exitcode-stdio-1.0
+    main-is:          Main.hs
+    other-modules:    ErrorFilterReportTests
+    hs-source-dirs:   tasty
+    build-depends:    base
+                    , tasty
+                    , tasty-hunit
+                    , liquidhaskell
+    default-language: Haskell2010
+    ghc-options:      -threaded -Werror
