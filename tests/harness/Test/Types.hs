@@ -195,6 +195,10 @@ numberRan :: FlavorSummary -> NumberRan
 numberRan (FSAllGood ran) = ran
 numberRan (FSUnexpected ran _ _) = ran
 
+isAllGood :: FlavorSummary -> Bool
+isAllGood (FSAllGood _) = True
+isAllGood FSUnexpected {} = False
+
 instance Pretty FlavorSummary where
   pretty (FSAllGood ran) =
     PP.indent nesting $

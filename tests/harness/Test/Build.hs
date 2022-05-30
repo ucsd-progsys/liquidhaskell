@@ -155,7 +155,7 @@ program testEnv outputStripper errorStripper builder os@(Options _ False) = do
       let selectedTestGroups = if null testGroupsSelected then snd <$> M.toList allTestGroupsMap else testGroupsSelected
       flagsAndActions <- for selectedTestGroups $ \tgd -> do
         (err, res) <- buildAndParseResults outputStripper errorStripper builder tgd
-        let (flag, action, numRan) =
+        let (isBadFlag, action, numRan) =
               case (err, res) of
                 (Left errException, Left resException) ->
                   (True, printError errException >> printError resException, Nothing)
@@ -165,17 +165,17 @@ program testEnv outputStripper errorStripper builder os@(Options _ False) = do
                   let
                     summary = summarizeResults err' tgd res'
                   in
-                    ( False
+                    ( not . isAllGood $ misSummary summary
                     , PP.putDoc $ PP.pretty summary PP.<$> PP.empty
                     , Just $ numberRan $ misSummary summary)
         action
-        pure (flag, action, numRan)
+        pure (isBadFlag, action, numRan)
       T.putStrLn "\n*** SUMMARY ***"
       -- Redo all the actions in a summary
       void $ traverse (\(_, action, _) -> action) flagsAndActions
       T.putStrLn "*** END SUMMARY ***\n"
       T.putStrLn $ "Total tests ran: " <> (T.pack $ show $ sum $ catMaybes $ fmap (\(_, _, numRan) -> numRan) flagsAndActions)
-      if any (\(flag, _ , _) -> flag) flagsAndActions
+      if any (\(isBadFlag, _ , _) -> isBadFlag) flagsAndActions
         then do
           T.putStrLn "Something went wrong, please check the above output."
           exitFailure
