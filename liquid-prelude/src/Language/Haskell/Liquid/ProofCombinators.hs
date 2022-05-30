@@ -177,7 +177,7 @@ impossible _ = undefined
 -------------------------------------------------------------------------------
 
 {-@ measure prop :: a -> b           @-}
-{-@ type Prop E = {lhinternal_prop:_ | prop lhinternal_prop = E} @-}
+{-@ type Prop E = {v:_ | prop v = E} @-}
 
 
 
