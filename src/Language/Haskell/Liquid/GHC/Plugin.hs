@@ -24,7 +24,10 @@ import qualified Language.Haskell.Liquid.GHC.Misc        as LH
 import qualified Language.Haskell.Liquid.UX.CmdLine      as LH
 import qualified Language.Haskell.Liquid.GHC.Interface   as LH
 import qualified Language.Haskell.Liquid.Liquid          as LH
-import qualified Language.Haskell.Liquid.Types.PrettyPrint as LH (reportErrors)
+import qualified Language.Haskell.Liquid.Types.PrettyPrint as LH ( filterReportErrors
+                                                                 , filterReportErrorsWith
+                                                                 , defaultFilterReporter
+                                                                 , reduceFilters )
 import qualified Language.Haskell.Liquid.GHC.Logging     as LH   (fromPJDoc)
 
 import           Language.Haskell.Liquid.GHC.Plugin.Types
@@ -71,7 +74,11 @@ import           Language.Haskell.Liquid.Bare
 import           Language.Haskell.Liquid.UX.CmdLine
 
 import           Optics
+import Data.Either (fromRight)
 
+data LiquidCheckException =
+  KillPluginWithSuccess
+  deriving (Eq, Ord, Show)
 
 ---------------------------------------------------------------------------------
 -- | State and configuration management -----------------------------------------
@@ -129,9 +136,9 @@ plugin = GHC.defaultPlugin {
             let warning = mkWarning (mkSrcSpan srcLoc srcLoc) msg
             liftIO $ printWarning dynFlags warning
             pure gblEnv
-          else typecheckHook opts summary gblEnv 
-
-
+          else do
+            newGblEnv <- typecheckHook opts summary gblEnv
+            pure $ fromRight gblEnv newGblEnv
 
 --------------------------------------------------------------------------------
 -- | GHC Configuration & Setup -------------------------------------------------
@@ -339,18 +346,29 @@ checkLiquidHaskellContext lhContext = do
   -- Call into the existing Liquid interface
   out <- liftIO $ LH.checkTargetInfo pmrTargetInfo
 
-  let cfg = lhGlobalCfg lhContext
-  -- Report the outcome of the checking
-  LH.reportResult errorLogger cfg [giTarget (giSrc pmrTargetInfo)] out
-  case o_result out of
-    Safe _stats -> pure ()
-    _           -> failM
-  return pmrClientLib
+  let bareSpec = lhInputSpec lhContext
+      file = LH.modSummaryHsFile $ lhModuleSummary lhContext
 
-errorLogger :: OutputResult -> TcM ()
-errorLogger outputResult = do
-  errs <- forM (LH.orMessages outputResult) $ \(spn, e) -> mkLongErrAt spn (LH.fromPJDoc e) O.empty
-  GHC.reportErrors errs
+  withPragmas (lhGlobalCfg lhContext) file (Ms.pragmas $ review bareSpecIso bareSpec) $ \moduleCfg ->  do
+    let filters = StringFilter <$> expectErrorContaining moduleCfg
+    -- Report the outcome of the checking
+    wasUnsafeButContinued <- LH.reportResult (errorLogger filters) moduleCfg [giTarget (giSrc pmrTargetInfo)] out
+    if wasUnsafeButContinued
+      then pure $ Left KillPluginWithSuccess
+      else pure $ Right pmrClientLib
+
+errorLogger :: [Filter] -> OutputResult -> TcM ()
+errorLogger filters outputResult = do
+  LH.filterReportErrorsWith
+    FilterReportErrorsArgs { msgReporter = GHC.reportErrors
+                           , filterReporter = LH.defaultFilterReporter
+                           , failure = GHC.failM
+                           , continue = pure ()
+                           , pprinter = \(spn, e) -> mkLongErrAt spn (LH.fromPJDoc e) O.empty
+                           , filterMapper = LH.reduceFilters (PJ.render . snd) filters
+                           , filters = filters
+                           }
+    (LH.orMessages outputResult)
 
 emptyLiquidLib :: LiquidLib
 emptyLiquidLib = mkLiquidLib emptyLiftedSpec
@@ -452,20 +470,22 @@ data ProcessModuleResult = ProcessModuleResult {
 -- if it finds one.
 getLiquidSpec :: Module -> [SpecComment] -> [BPspec] -> TcM (Either LiquidCheckException BareSpec)
 getLiquidSpec thisModule specComments specQuotes = do
-
+  filters <- fmap StringFilter . expectErrorContaining <$> liftIO getConfig
   let commSpecE :: Either [Error] (ModName, Spec LocBareType LocSymbol)
       commSpecE = hsSpecificationP (moduleName thisModule) (coerce specComments) specQuotes
   case commSpecE of
     Left errors -> do
-      LH.reportErrors Full errors
-      failM
+      LH.filterReportErrors GHC.failM continue filters Full errors
     Right (view bareSpecIso . snd -> commSpec) -> do
       res <- SpecFinder.findCompanionSpec thisModule
       case res of
         SpecFound _ _ companionSpec -> do
           debugLog $ "Companion spec found for " ++ renderModule thisModule
-          pure $ commSpec <> companionSpec
-        _ -> pure commSpec
+          pure $ Right $ commSpec <> companionSpec
+        _ -> pure $ Right commSpec
+
+  where
+    continue = pure $ Left KillPluginWithSuccess
 
 processModule :: LiquidHaskellContext -> TcM ProcessModuleResult
 processModule LiquidHaskellContext{..} = do
@@ -507,12 +527,28 @@ processModule LiquidHaskellContext{..} = do
     result <-
       makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies
 
+    let filters = StringFilter <$> expectErrorContaining moduleCfg
+        emptyTargetSpec =
+          TargetSpec
+            mempty
+            (SpQual mempty mempty)
+            (SpData mempty mempty mempty mempty mempty mempty)
+            (SpNames mempty mempty mempty mempty mempty (TyConMap mempty mempty mempty))
+            mempty
+            mempty
+            mempty
+            (SpLaws mempty mempty)
+            mempty
+            moduleCfg
+        continue = pure $ ProcessModuleResult emptyLiquidLib (TargetInfo targetSrc emptyTargetSpec)
+        reportErrs :: (Show e, F.PPrint e) => [TError e] -> TcRn ProcessModuleResult
+        reportErrs = LH.filterReportErrors GHC.failM continue filters Full
+
     (case result of
       -- Print warnings and errors, aborting the compilation.
       Left diagnostics -> do
         liftIO $ mapM_ (printWarning dynFlags)    (allWarnings diagnostics)
-        LH.reportErrors Full (allErrors diagnostics)
-        failM
+        LH.filterReportErrors GHC.failM continue filters Full (allErrors diagnostics)
       Right (warnings, targetSpec, liftedSpec) -> do
         liftIO $ mapM_ (printWarning dynFlags) warnings
         let targetInfo = TargetInfo targetSrc targetSpec
@@ -528,10 +564,9 @@ processModule LiquidHaskellContext{..} = do
             }
 
         pure result')
-      `gcatch` (\(e :: UserError) -> LH.reportErrors Full [e] >> failM)
-      `gcatch` (\(e :: Error) -> LH.reportErrors Full [e] >> failM)
-      `gcatch` (\(es :: [Error]) -> LH.reportErrors Full es >> failM)
-
+      `gcatch` (\(e :: UserError) -> reportErrs [e])
+      `gcatch` (\(e :: Error) -> reportErrs [e])
+      `gcatch` (\(es :: [Error]) -> reportErrs es)
 
   where
     modGuts    = fromUnoptimised lhModuleGuts
