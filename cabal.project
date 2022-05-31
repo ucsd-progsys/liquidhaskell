@@ -11,6 +11,7 @@ packages: .
           ./tests
           ./tests/benchmarks/popl18/lib
           ./benchmark-timings
+          ./modify-tests
 
 source-repository-package
     type: git
