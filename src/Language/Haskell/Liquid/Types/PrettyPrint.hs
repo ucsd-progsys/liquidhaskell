@@ -450,12 +450,6 @@ instance (PPrint r, F.Reftable r) => PPrint (UReft r) where
 printError :: (Show e, F.PPrint e) => F.Tidy -> DynFlags -> TError e -> IO ()
 printError k dyn err = putErrMsg dyn (pos err) (ppError k empty err)
 
---- | Similar in spirit to 'reportErrors' from the GHC API, but it uses our pretty-printer
---- and shim functions under the hood.
-reportErrors :: (Show e, F.PPrint e) => F.Tidy -> [TError e] -> Ghc.TcRn ()
-reportErrors k errs =
-  filterReportErrors GHC.failM (return ()) [] k errs
-
 -- | Similar in spirit to 'reportErrors' from the GHC API, but it uses our
 -- pretty-printer and shim functions under the hood. Also filters the errors
 -- according to the given `Filter` list.
