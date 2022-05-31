@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 -- test noMethodBinding
 module Total01 where
 

@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Poly2_degenerate () where
 
 import Language.Haskell.Liquid.Prelude

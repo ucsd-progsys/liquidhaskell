@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 -- Tests that the "class measure" `len` works properly.
 
 module Len00 where

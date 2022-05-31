@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Data02 where
 
 import Data02Lib 

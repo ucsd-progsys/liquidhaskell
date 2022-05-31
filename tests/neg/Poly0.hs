@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Poly0 () where
 
 import Language.Haskell.Liquid.Prelude

@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module TerminationNum where
 
 {-@ fak2 :: (Ord a, Eq a, Num a) => y:{x: a | x >= 0} -> a /[y]@-}

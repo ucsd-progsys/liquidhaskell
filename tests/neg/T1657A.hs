@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module T1657A where
 
 {-@ data I <pigbert :: Int -> Bool> = I Int @-}

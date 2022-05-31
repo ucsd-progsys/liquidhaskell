@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--pruneunsorted" @-}
 module Pargs1 () where
 

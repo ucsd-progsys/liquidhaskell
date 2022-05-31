@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Pair () where
 
 import Language.Haskell.Liquid.Prelude

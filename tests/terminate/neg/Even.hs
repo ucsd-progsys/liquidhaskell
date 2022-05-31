@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Even () where
 
 {-@ isEven, isOdd :: Nat -> Bool @-}

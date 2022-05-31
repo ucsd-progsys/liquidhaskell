@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--eliminate=all" @-}
 -- | This test case is to check that LH properly accounts for the case where GHC Core 
 --   contains stuff like:

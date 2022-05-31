@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Local00 where
 
 foo = incr 10 

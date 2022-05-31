@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module T1404_2 where
 
 {-@ foo :: _ -> {False} @-}

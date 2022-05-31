@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module T1288 where
 
 {-@ measure foo @-}

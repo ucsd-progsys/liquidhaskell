@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Grty3 () where
 
 

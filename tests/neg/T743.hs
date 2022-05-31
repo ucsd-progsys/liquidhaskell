@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module T743 where
 
 {-@ checkNat :: Nat -> Int @-}

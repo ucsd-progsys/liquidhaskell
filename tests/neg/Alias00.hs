@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Alias00 () where
 
 {-@ type NegInt = {v: Int | v <= 0} @-}

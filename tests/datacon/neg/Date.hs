@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- via https://github.com/chrisdone/sandbox/blob/master/liquid-haskell-dates.hs

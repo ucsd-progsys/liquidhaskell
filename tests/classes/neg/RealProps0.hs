@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 
 -- Issue overload-div-int-real #579
 

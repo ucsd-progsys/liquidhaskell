@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 -- | Sec 4 from Gradual Refinement Types 
 
 module Interpretations where

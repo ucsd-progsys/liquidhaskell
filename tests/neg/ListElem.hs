@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module ListElem (listElem) where
 
 import Data.Set

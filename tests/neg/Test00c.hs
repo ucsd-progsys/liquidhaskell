@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Test00c (ok, inc) where
 
 {-@ ok

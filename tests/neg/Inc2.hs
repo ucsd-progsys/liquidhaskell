@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 -- ISSUE #671
 --
 -- | ISSUE would be nice to have error reported at `x-1` and NOT the `inc`

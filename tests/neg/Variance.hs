@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Variance where
 
 {-@ data variance Foo invariant bivariant covariant contravariant @-}

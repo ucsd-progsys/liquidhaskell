@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 -- This test checks whether "invariants" are working.
 
 module List02 where

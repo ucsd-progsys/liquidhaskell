@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 -- TAG: measure 
 -- test if the "builtin" fst and snd measures work.
 

@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module HolesTop where
 
 import Language.Haskell.Liquid.Prelude

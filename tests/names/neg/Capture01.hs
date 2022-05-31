@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Capture01 where
 -- LH issue #1146
 
