@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 
 -- | Proving ackermann properties from
 -- | http://www.cs.yorku.ca/~gt/papers/Ackermann-function.pdf
