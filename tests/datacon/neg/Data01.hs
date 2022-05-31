@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Data01 where
 
 {-@ data Thing = Thing { fldThing :: Nat } @-}

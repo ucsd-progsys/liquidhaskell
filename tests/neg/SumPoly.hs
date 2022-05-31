@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module SumPoly where
 
 {-@ sumPoly :: forall <p ::a -> Bool>. (Num a, Ord a) => [a<p>] -> a<p> @-} 

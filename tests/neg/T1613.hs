@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-# LANGUAGE RankNTypes #-}
 {-@ LIQUID "--reflection" @-}
 module T1613 where

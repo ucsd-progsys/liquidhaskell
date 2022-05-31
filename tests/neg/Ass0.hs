@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Ass0 (testError) where
 
 -- import Language.Haskell.Liquid.Prelude (liquidAssert)

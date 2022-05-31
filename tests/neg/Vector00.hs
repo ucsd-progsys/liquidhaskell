@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Vector00 () where
 
 import Language.Haskell.Liquid.Prelude

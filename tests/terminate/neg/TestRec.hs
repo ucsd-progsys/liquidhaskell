@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module TestRec where
 
 import Prelude hiding (map, foldl)

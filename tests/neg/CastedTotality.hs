@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module CastedTotality where
 
 import Language.Haskell.Liquid.Prelude

@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module T602 where
 
 -- UNSOUNDLY SAFE

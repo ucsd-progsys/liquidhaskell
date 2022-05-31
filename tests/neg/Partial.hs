@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Partial () where
 
 {-@ posPlus :: x:{v: Int | v >= 0} -> {v: Int | v >= x} @-}

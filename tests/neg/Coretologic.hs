@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Coretologic where
 
 import Data.Set

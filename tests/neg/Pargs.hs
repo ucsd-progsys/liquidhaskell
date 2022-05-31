@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Pargs () where
 
 {-@ foo :: forall a <p :: x0:Int -> x1:a -> Bool>. 

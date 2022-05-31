@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Test2 () where
 
 import Language.Haskell.Liquid.Prelude

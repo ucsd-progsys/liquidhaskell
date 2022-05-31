@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module AutoTerm1 where
 
 data F = F | C Int F  

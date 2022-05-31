@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 -- tests the "default method"
 
 module Class01 where

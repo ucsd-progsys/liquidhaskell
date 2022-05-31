@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module DeptupW () where
 
 import Language.Haskell.Liquid.Prelude

@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Maps where
 
 {-@ prop1 :: x:_ -> y:{_ | y == x} -> TT @-}

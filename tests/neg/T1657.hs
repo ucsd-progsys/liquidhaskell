@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module T1657 where
 
 {-@ data I <p :: Int -> Bool> = I _ @-}

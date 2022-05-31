@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 -- TODO-REBARE: STRATA
 module MaybeMonad where
 

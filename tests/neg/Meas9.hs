@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Meas9 () where
 
 import Data.Set (Set(..))

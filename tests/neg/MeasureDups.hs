@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module MeasureDups where
 
 import Data.Set 

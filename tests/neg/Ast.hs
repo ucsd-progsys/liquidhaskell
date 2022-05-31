@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 -- FAILING TEST: this test SHOULD FAIL BUT DOESN'T
 -- issue #519
 

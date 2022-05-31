@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 
 -- Test for https://github.com/ucsd-progsys/liquidhaskell/issues/1907
 

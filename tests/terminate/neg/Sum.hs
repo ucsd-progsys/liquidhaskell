@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Sum where
 
 {-@ ssum :: forall<p :: a -> Bool, q :: a -> Bool>. 

@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Wrap0 () where
 
 import Language.Haskell.Liquid.Prelude (liquidError, liquidAssertB)

@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-# LANGUAGE QuasiQuotes #-}
 
 module QQTySyn2 where

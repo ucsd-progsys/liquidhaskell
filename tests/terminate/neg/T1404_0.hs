@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module T1404_0 where
 
 {-@ absurd :: {False} @-}

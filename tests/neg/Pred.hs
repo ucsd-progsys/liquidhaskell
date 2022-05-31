@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Pred () where
 
 {-@ predicate Gt X Y = (X < Y) @-}

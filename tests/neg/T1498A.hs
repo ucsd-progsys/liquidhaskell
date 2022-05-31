@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module T1498A where
 
 class FromTo a where 

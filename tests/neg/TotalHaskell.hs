@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module TotalHaskell where
 
 -- | totalHaskell overrides no-termination

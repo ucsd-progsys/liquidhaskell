@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Implicit1 where
 
 {-@ type IntN N = {v:Int | v = N} @-}

@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module RecSelector where
 
 data F a = F {fxx :: a, fy :: a, fzz :: a} | G {fxx :: a}

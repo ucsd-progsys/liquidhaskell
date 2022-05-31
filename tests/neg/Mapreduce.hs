@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 
 -- RJ: Issues with TypeClasses? Ord?
 

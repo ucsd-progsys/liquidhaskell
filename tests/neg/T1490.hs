@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module T1490 where
 
 newtype MyId a = MyId a

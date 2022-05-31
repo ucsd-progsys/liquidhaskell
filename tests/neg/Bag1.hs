@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Bag1 where
 
 import qualified Data.Set as S

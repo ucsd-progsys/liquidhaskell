@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Strings where
 
 import GHC.CString  -- This import interprets Strings as constants!

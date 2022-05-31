@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 ------------------------------------------------------------------------------
 -- | An implementation of Merge Sort, where LH verifies:
 --   1. Termination (Totality) 

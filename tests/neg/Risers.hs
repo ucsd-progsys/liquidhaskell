@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Risers where
 
 {-@ predicate NonNull X = ((len X) > 0) @-}

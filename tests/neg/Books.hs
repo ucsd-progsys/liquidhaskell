@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-# LANGUAGE CPP #-}
 
 #define DISCOUNT_PERCENTAGE   2

@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Vector2 () where
 
 import Prelude hiding (length)

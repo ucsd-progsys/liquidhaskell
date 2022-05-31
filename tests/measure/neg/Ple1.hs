@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 -- this tests reflection + PLE + holes
 
 {-@ LIQUID "--reflection" @-}

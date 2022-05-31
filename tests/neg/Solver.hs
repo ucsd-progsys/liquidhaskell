@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--pruneunsorted"  @-}
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--short-names"    @-}

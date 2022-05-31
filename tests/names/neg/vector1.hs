@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 -- TAG: names 
 
 module Vector1 where
