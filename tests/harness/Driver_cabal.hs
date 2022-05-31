@@ -5,4 +5,4 @@ import Test.Options
 import Options.Applicative
 
 main :: IO ()
-main = program cabalTestEnv cabalOutputStripper cabalErrorStripper cabalBuild =<< execParser opts
+main = simpleProgram cabalTestEnv cabalRun =<< execParser opts
