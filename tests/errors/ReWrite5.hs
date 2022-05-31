@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-error-containing=\"parameter "xs" contains an inner refinement\"" @-}
 module ReWrite5 where
 
 {-@ LIQUID "--reflection" @-}

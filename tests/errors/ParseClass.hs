@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-error-containing=\"Cannot parse specification\"" @-}
 module ParseClass where
 
 class Foo a where
