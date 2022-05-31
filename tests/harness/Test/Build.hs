@@ -68,7 +68,7 @@ cabalRun names = do
   runCommand "cabal" $
     [ "build" ]
     <> (case projectFile of Nothing -> []; Just projectFile' -> [ "--project-file", T.pack projectFile' ])
-    <> ["-j"]
+    <> ["-j", "--keep-going"]
     <> names
 
 -- | Build using stack. This *emulates* the output of the cabalBuild by splitting
