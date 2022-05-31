@@ -6,6 +6,7 @@ data Evil a = Very (Evil a -> a)
 {-@ type Bot = {v: () | false} @-}
 
 {-@ bad :: Evil Bot -> Bot @-}
+{-# NOINLINE bad #-}
 bad :: Evil () -> ()
 bad (Very f) = f (Very f)
 
