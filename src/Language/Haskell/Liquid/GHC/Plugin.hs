@@ -140,7 +140,7 @@ plugin = GHC.defaultPlugin {
             Left KillPluginWithSuccess -> pure gblEnv
             Right (newGblEnv', errorFilters) ->
               -- If we had filters from expect error flags that weren't used,
-              -- throw an error!
+              -- throw an error
               if not $ null errorFilters
               then do
                 defaultFilterReporter (LH.modSummaryHsFile summary) errorFilters
@@ -382,9 +382,6 @@ errorLogger file filters outputResult = do
                            }
     (LH.orMessages outputResult)
 
-emptyLiquidLib :: LiquidLib
-emptyLiquidLib = mkLiquidLib emptyLiftedSpec
-
 isIgnore :: BareSpec -> Bool
 isIgnore (MkBareSpec sp) = any ((== "--skip-module") . F.val) (pragmas sp)
 
@@ -540,7 +537,7 @@ processModule LiquidHaskellContext{..} = do
       makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies
 
     let continue = pure $ Left KillPluginWithSuccess
-        reportErrs :: (Show e, F.PPrint e) => [TError e] -> TcRn (Either LiquidCheckException xoProcessModuleResult)
+        reportErrs :: (Show e, F.PPrint e) => [TError e] -> TcRn (Either LiquidCheckException ProcessModuleResult)
         reportErrs = LH.filterReportErrors file GHC.failM continue (getFilters moduleCfg) Full
 
     (case result of
