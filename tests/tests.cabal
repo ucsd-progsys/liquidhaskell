@@ -650,7 +650,7 @@ executable errors
                     , ShadowFieldInline
                     , ShadowFieldReflect
                     , ShadowMeasure
-                    , ShadowMeasureVar
+                    -- , ShadowMeasureVar
                     , SplitSubtype
                     , T1140
                     , T1498A
