@@ -559,7 +559,7 @@ processModule LiquidHaskellContext{..} = do
 
         let clientLib  = mkLiquidLib liftedSpec & addLibDependencies dependencies
 
-        let result = ProcessModuleResult {
+        let result' = ProcessModuleResult {
               pmrClientLib  = clientLib
             , pmrTargetInfo = targetInfo
             }
