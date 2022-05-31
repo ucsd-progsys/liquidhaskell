@@ -430,7 +430,7 @@ expandRTAliasApp l (Loc la _ rta) args r = case isOK of
       | nargs /= ntargs + neargs
       = err $ PJ.hsep ["Expects", pprint nαs, "type arguments and then", pprint nεs, "expression arguments, but is given", pprint nargs]
       | nargs /= nαs + nεs
-      = err $ PJ.hsep ["Expects", pprint nαs, "type arguments and "    , pprint nεs, "expression arguments, but is given", pprint nargs]
+      = err $ PJ.hsep ["Expects", pprint nαs, "type arguments and"     , pprint nεs, "expression arguments, but is given", pprint nargs]
       | nαs /= ntargs, not (null eargs)
       = err $ PJ.hsep ["Expects", pprint nαs, "type arguments before expression arguments"]
       | otherwise
