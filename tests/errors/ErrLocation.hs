@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-error-containing=\"ErrLocation.hs:9:13\"" @-}
 
 module ErrLocation where
 

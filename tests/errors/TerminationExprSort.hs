@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-error-containing=\"Illegal termination specification for `TerminationExprSort.showSep`\"" @-}
 module TerminationExprSort where
 
 {-@ showSep :: _ -> xs:_ -> _ / [len ys] @-} -- use xs as reducing param

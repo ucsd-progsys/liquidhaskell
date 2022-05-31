@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-error-containing=\"Illegal type specification for `UnboundVarInSpec.foo`\"" @-}
 module UnboundVarInSpec where
 
 

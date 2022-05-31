@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-error-containing=\"Specified type does not refine Haskell type for `BadGADT.Nil2`\"" @-}
 {-# LANGUAGE GADTs #-}
 
 {-@ LIQUID "--no-termination" @-}

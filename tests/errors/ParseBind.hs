@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-error-containing=\"Cannot parse specification\"" @-}
 -- We should reject the below to disallow uppercase binders
 
 module ParseBind where

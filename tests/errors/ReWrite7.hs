@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-error-containing=\"Could not generate any rewrites from equality\"" @-}
 module ReWrite7 where
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}

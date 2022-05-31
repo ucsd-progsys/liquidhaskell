@@ -235,6 +235,5 @@ modifyErrors = do
   let msgs = errorMsgs2 & M.toList
   for_ msgs $ \(fp, msg) -> Sh.shelly $ do
     fContents <- Sh.readfile fp
-    Sh.writefile fp $ "{-@ LIQUID \"--expect-error-containing=\\\"" <> msg <> "\\\"\" @-}" <> fContents
+    Sh.writefile fp $ "{-@ LIQUID \"--expect-error-containing=\\\"" <> msg <> "\\\"\" @-}\n" <> fContents
 
-      
