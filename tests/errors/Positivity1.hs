@@ -4,7 +4,10 @@ module Positivity1 where
 newtype Rec a = In { out :: Rec a -> a }
 
 y :: (a -> a) -> a
-y = \f -> (\x -> f (out x x)) (In (\x -> f (out x x))) 
+y f = g (In g)
+  where
+    {-# NOINLINE g #-}
+    g x = f (out x x)
 
 {-@ foo :: n:Nat -> {v:Nat | v < n} @-}
 foo :: Int -> Int

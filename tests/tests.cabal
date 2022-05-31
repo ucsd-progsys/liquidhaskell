@@ -639,8 +639,8 @@ executable errors
                     , MultiRecSels
                     , ParseBind
                     , ParseClass
-                    -- , Positivity1
-                    -- , Positivity2
+                    , Positivity1
+                    , Positivity2
                     , PositivityCheck
                     -- , ReflectLam
                     , ReWrite5
