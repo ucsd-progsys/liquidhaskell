@@ -673,7 +673,11 @@ executable errors
                     , UnboundVarInReflect
                     , UnboundVarInSpec
                     
-    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
+
+    if flag(measure-timings)
+      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
+
     build-depends:    liquid-base
                     , liquid-prelude
                     , liquid-bytestring
