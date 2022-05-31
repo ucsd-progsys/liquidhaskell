@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-error-containing=Cyclic type alias definition for `CyclicD2" @-}
 module CyclicTypeAlias3 () where
 
 {-@ type CyclicD1 = CyclicD2 @-}

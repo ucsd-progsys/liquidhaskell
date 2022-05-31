@@ -610,9 +610,9 @@ executable errors
                     , DupMeasure
                     -- , ElabLocation
                     , EmptyData
-                    , EmptySig
-                    , ErrLocation2
-                    , ErrLocation
+                    -- , EmptySig
+                    -- , ErrLocation2
+                    -- , ErrLocation
                     -- , ExportMeasure0
                     -- , ExportReflect0
                     , Fractional
