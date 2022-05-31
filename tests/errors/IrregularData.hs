@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-error-containing=is not a subtype of the required type" @-}
 {-@ LIQUID "--reflection" @-}
 
 module IrregularData where
