@@ -1,4 +1,3 @@
-{-@ LIQUID "--expect-any-error" @-}
 module Data00 where
 
 import Data00Lib 

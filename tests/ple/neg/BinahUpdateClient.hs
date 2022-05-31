@@ -1,4 +1,3 @@
-{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--no-adt" 	                           @-}
 {-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--higherorder"                         @-}

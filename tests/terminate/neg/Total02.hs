@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 -- test recConError
 module Total02 where
 

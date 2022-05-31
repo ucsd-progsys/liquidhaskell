@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Elim_ex_compose (prop) where
 
 {-@ prop :: x:Nat -> {v:Int | v = x + 5} @-}
