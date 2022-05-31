@@ -31,7 +31,6 @@ import Control.Monad (void)
 import Data.String.AnsiEscapeCodes.Strip.Text (stripAnsiEscapeCodes)
 import System.Environment
 import Data.Foldable (for_)
-import Data.Function ((&))
 
 -- | Whether or not we want to only build the dependencies of a library (to help
 -- sanitize the compiler output)
@@ -229,11 +228,3 @@ simpleProgram testEnv runner (Options testGroups False) = do
     Just testGroupsSelected -> do
       let selectedTestGroups = if null testGroupsSelected then snd <$> M.toList allTestGroupsMap else testGroupsSelected
       simpleBuild runner selectedTestGroups >>= exitWith
-
-modifyErrors :: IO ()
-modifyErrors = do
-  let msgs = errorMsgs2 & M.toList
-  for_ msgs $ \(fp, msg) -> Sh.shelly $ do
-    fContents <- Sh.readfile fp
-    Sh.writefile fp $ "{-@ LIQUID \"--expect-error-containing=\\\"" <> msg <> "\\\"\" @-}\n" <> fContents
-

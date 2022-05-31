@@ -1,8 +1,8 @@
 -- | Test driver for cabal-based builds.
 
 import Test.Build
---import Test.Options
---import Options.Applicative
+import Test.Options
+import Options.Applicative
 
 main :: IO ()
-main = modifyErrors
+main = simpleProgram cabalTestEnv cabalRun =<< execParser opts
