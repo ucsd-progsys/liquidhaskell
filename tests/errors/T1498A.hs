@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"Bad Data Specification\"" @-}
+{-@ LIQUID "--expect-error-containing=Bad Data Specification" @-}
 module T1498A where
 
 class A a where

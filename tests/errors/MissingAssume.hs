@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"Unknown variable `goober`\"" @-}
+{-@ LIQUID "--expect-error-containing=Unknown variable `goober`" @-}
 module MissingAssume where
 
 import qualified Data.Set

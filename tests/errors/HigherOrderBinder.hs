@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"Illegal type specification for `HigherOrderBinder.foo`\"" @-}
+{-@ LIQUID "--expect-error-containing=Illegal type specification for `HigherOrderBinder.foo`" @-}
 module HigherOrderBinder where
 
 {-@ foo :: a: Int -> f: (Int -> Int) -> {v : Int | v = 123 + (f a) } @-}

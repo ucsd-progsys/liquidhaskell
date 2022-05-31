@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"Cyclic type alias definition\"" @-}
+{-@ LIQUID "--expect-error-containing=Cyclic type alias definition" @-}
 module CyclicExprAlias3 () where
 
 {-@ expression CyclicD1 Q = CyclicD2 Q @-}

@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"ErrLocation2.hs:11:20:error\"" @-}
+{-@ LIQUID "--expect-error-containing=ErrLocation2.hs:11:20:error" @-}
 
 module ErrLocation2 where
 

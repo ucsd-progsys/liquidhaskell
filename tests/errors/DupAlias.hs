@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"Multiple definitions of Type Alias `BoundedNat`\"" @-}
+{-@ LIQUID "--expect-error-containing=Multiple definitions of Type Alias `BoundedNat`" @-}
 module DupAlias () where
 
 import Language.Haskell.Liquid.Prelude

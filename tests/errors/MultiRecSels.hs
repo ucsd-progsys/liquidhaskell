@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"Duplicated definitions for field `left`\"" @-}
+{-@ LIQUID "--expect-error-containing=Duplicated definitions for field `left`" @-}
 {-@ LIQUID "--no-termination" @-}
 module MultiRecSels where
 

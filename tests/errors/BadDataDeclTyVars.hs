@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"Mismatch in number of type variables for `L`\"" @-}
+{-@ LIQUID "--expect-error-containing=Mismatch in number of type variables for `L`" @-}
 -- | With ADTs, the below fails with a nasty 'elaborate' error, when
 --   the actual problem is a malformed refined data-declaration where
 --   the type variable 'a' has been left out.

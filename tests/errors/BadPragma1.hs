@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"Illegal pragma\"" @-}
+{-@ LIQUID "--expect-error-containing=Illegal pragma" @-}
 {-@ LIQUID "--c-files=./wow.c" @-}
 
 module BadPragma1 where

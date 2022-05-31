@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"Multiple specifications for `pig`\"" @-}
+{-@ LIQUID "--expect-error-containing=Multiple specifications for `pig`" @-}
 {-@ LIQUID "--exactdc" @-}
 
 module ShadowFieldInline where

@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"Malformed application of type alias `ListN`\"" @-}
+{-@ LIQUID "--expect-error-containing=Malformed application of type alias `ListN`" @-}
 module BadAliasApp where
 
 {-@ type ListN a N = {v:[a] | len v = N} @-}

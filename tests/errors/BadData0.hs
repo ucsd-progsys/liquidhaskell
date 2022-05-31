@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"Unknown type constructor `Zoog`\"" @-}
+{-@ LIQUID "--expect-error-containing=Unknown type constructor `Zoog`" @-}
 module BadData0 where
 
 data Zog = Z Int
