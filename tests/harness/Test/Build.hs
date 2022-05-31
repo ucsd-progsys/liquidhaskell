@@ -37,8 +37,8 @@ type OnlyDeps = Bool
 
 -- | Simple wrapper around `readProcess` and `proc` of `System.Process.Typed`.
 -- Collects an exit code, stdout, and stderr.
-command :: Text -> [Text] -> IO (ExitCode, Text, Text)
-command cmd args = do
+readCommand :: Text -> [Text] -> IO (ExitCode, Text, Text)
+readCommand cmd args = do
   (ec, out, err) <- readProcess (proc (T.unpack cmd) (T.unpack <$> args))
   pure (ec, toText out, toText err)
   where
