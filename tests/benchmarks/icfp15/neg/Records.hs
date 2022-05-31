@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Records where
 
 import qualified Data.Set as S
