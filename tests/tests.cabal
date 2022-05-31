@@ -570,8 +570,8 @@ executable errors
                     --   AmbiguousInline
                     -- , AmbiguousReflect
                       BadAliasApp
-                    , BadAnnotation
-                    , BadAnnotation1
+                    -- , BadAnnotation
+                    -- , BadAnnotation1
                     , BadData0
                     , BadData1
                     , BadData2
