@@ -14,7 +14,7 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import Test.Groups
 import Test.Summary
 import Data.Traversable (for)
-import System.Exit (exitSuccess, exitFailure)
+import System.Exit (exitSuccess, exitFailure, exitWith)
 import qualified Data.ByteString.Lazy as BS
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -30,6 +30,7 @@ import System.Process.Typed
 import Control.Monad (void)
 import Data.String.AnsiEscapeCodes.Strip.Text (stripAnsiEscapeCodes)
 import System.Environment
+import Data.Foldable (for_)
 
 -- | Whether or not we want to only build the dependencies of a library (to help
 -- sanitize the compiler output)
@@ -44,34 +45,53 @@ readCommand cmd args = do
   where
     toText = TE.decodeUtf8 . BS.toStrict
 
+-- | Even simpler wrapper around runProcess that just returns the exit code
+runCommand :: Text -> [Text] -> IO ExitCode
+runCommand cmd args = runProcess (proc (T.unpack cmd) (T.unpack <$> args))
+
 -- | Build using cabal, selecting the project file from the
 -- `LIQUID_CABAL_PROJECT_FILE` environment variable if possible, otherwise using
 -- the default.
-cabalBuild :: OnlyDeps -> TestGroupName -> IO (ExitCode, Text, Text)
-cabalBuild onlyDeps name = do
+cabalRead :: OnlyDeps -> TestGroupName -> IO (ExitCode, Text, Text)
+cabalRead onlyDeps name = do
   projectFile <- lookupEnv "LIQUID_CABAL_PROJECT_FILE"
-  command "cabal" $
+  readCommand "cabal" $
     [ "build" ]
-    <> (if onlyDeps then [ "--only-dependencies" ] else [])
+    <> ["--only-dependencies" | onlyDeps]
     <> (case projectFile of Nothing -> []; Just projectFile' -> [ "--project-file", T.pack projectFile' ])
     <> [ name ]
+
+cabalRun :: [TestGroupName] -- ^ Test groups to build
+         -> IO ExitCode
+cabalRun names = do
+  projectFile <- lookupEnv "LIQUID_CABAL_PROJECT_FILE"
+  runCommand "cabal" $
+    [ "build" ]
+    <> (case projectFile of Nothing -> []; Just projectFile' -> [ "--project-file", T.pack projectFile' ])
+    <> ["-j"]
+    <> names
 
 -- | Build using stack. This *emulates* the output of the cabalBuild by splitting
 -- the interleaved stdout/stderr that stack normally outputs into two Texts.
 stackBuild :: OnlyDeps -> TestGroupName -> IO (ExitCode, Text, Text)
 stackBuild onlyDeps name = do
-  (ec, _out, err) <- command "stack" $
+  (ec, _out, err) <- readCommand "stack" $
      [ "build"
      , "--flag", "tests:stack"
        -- Enables that particular executable in the cabal file
-     , "--flag", ("tests:" <> name)
+     , "--flag", "tests:" <> name
      , "--no-interleaved-output" ]
-     <> (if onlyDeps then [ "--only-dependencies" ] else [])
+     <> ["--only-dependencies" | onlyDeps]
      <> [ "--" ]
      <> [ "tests:" <> name ]
   let (buildMsgs, errMsgs) = partition ("[" `T.isPrefixOf`) (T.lines err)
   T.putStrLn _out
   pure (ec, T.unlines $ intersperse "" buildMsgs, T.unlines errMsgs)
+
+simpleBuild :: ([TestGroupName] -> IO ExitCode) -> [TestGroupData] -> IO ExitCode
+simpleBuild builder tgds = do
+  T.putStrLn "Simple building!"
+  builder $ tgdName <$> tgds
 
 -- | Given a "builder" command and some `TestGroupData`, create an IO action
 -- that parses the results of running the build command. Outputs can be fed into
@@ -139,14 +159,19 @@ stackErrorStripper = cabalErrorStripper . stripStackExtraneousMessages . stripSt
 
 -- | For building `main`; provided so that we don't repeat outselves in
 -- "Driver_cabal.hs" and "Driver_stack.hs"
-program :: Sh () -> (Text -> Text) -> (Text -> Text) -> (OnlyDeps -> TestGroupName -> IO (ExitCode, Text, Text)) -> Options -> IO ()
+program :: Sh () -- ^ test that the environent is okay
+  -> (Text -> Text) -- ^ stripper for the "stdout"
+  -> (Text -> Text) -- ^ stripper for the "stderr"
+  -> (OnlyDeps -> TestGroupName -> IO (ExitCode, Text, Text)) -- ^ builder function
+  -> Options -- ^ parsed options
+  -> IO ()
 program _ _ _ _ (Options _ True) = do
-  void $ for allTestGroupNames T.putStrLn
+  for_ allTestGroupNames T.putStrLn
   exitSuccess
-program testEnv outputStripper errorStripper builder os@(Options _ False) = do
+program testEnv outputStripper errorStripper builder (Options testGroups False) = do
   Sh.shelly testEnv
   allTestGroupsMap <- allTestGroups
-  let selectedGroups = for (testGroups os) $ \name -> M.lookup name allTestGroupsMap
+  let selectedGroups = for testGroups $ \name -> M.lookup name allTestGroupsMap
   case selectedGroups of
     Nothing -> do
       T.putStrLn "You selected a bad test group name.  Run with --help to see available options."
@@ -186,3 +211,19 @@ program testEnv outputStripper errorStripper builder os@(Options _ False) = do
     printError :: PP.Pretty a => a -> IO ()
     printError x = PP.putDoc $ PP.pretty x PP.<$> PP.empty
 
+-- | A simpler version of `program` for use with the new expect error flags.
+simpleProgram :: Sh () -> ([TestGroupName] -> IO ExitCode) -> Options ->IO ()
+simpleProgram _ _ (Options _ True) = do
+  for_ allTestGroupNames T.putStrLn
+  exitSuccess
+simpleProgram testEnv runner (Options testGroups False) = do
+  Sh.shelly testEnv
+  allTestGroupsMap <- allTestGroups
+  let selectedGroups = for testGroups $ \name -> M.lookup name allTestGroupsMap
+  case selectedGroups of
+    Nothing -> do
+      T.putStrLn "You selected a bad test group name.  Run with --help to see available options."
+      exitFailure
+    Just testGroupsSelected -> do
+      let selectedTestGroups = if null testGroupsSelected then snd <$> M.toList allTestGroupsMap else testGroupsSelected
+      simpleBuild runner selectedTestGroups >>= exitWith
