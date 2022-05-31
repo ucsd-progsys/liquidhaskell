@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"Negative occurence of PositivityCheck.Bad1\"" @-}
+{-@ LIQUID "--expect-error-containing=Negative occurence of PositivityCheck.Bad1" @-}
 module PositivityCheck where
 
 

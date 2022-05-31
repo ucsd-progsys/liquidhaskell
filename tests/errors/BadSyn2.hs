@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"Malformed application of type alias `BadSyn2.Foo`\"" @-}
+{-@ LIQUID "--expect-error-containing=Malformed application of type alias `BadSyn2.Foo`" @-}
 module BadSyn2 where
 
 type Foo = Int

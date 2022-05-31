@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"Cannot parse specification\"" @-}
+{-@ LIQUID "--expect-error-containing=Cannot parse specification" @-}
 
 module EmptySig where
 

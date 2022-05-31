@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"Multiple specifications for `OVec`\"" @-}
+{-@ LIQUID "--expect-error-containing=Multiple specifications for `OVec`" @-}
 -- | See https://github.com/ucsd-progsys/liquidhaskell/issues/1175
 
 module DupData where

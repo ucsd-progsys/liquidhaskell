@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"Standalone class method refinement\"" @-}
+{-@ LIQUID "--expect-error-containing=Standalone class method refinement" @-}
 module T1498 where
 
 class A a where

@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"Negative occurence of Positivity2.Evil in Positivity2.Very\"" @-}
+{-@ LIQUID "--expect-error-containing=Negative occurence of Positivity2.Evil in Positivity2.Very" @-}
 module Positivity2 where
 
 data Evil a = Very (Evil a -> a)

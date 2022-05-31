@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"Cannot create measure 'LiftMeasureCase.foo': Does not have a case-of at the top-level\"" @-}
+{-@ LIQUID "--expect-error-containing=Cannot create measure 'LiftMeasureCase.foo': Does not have a case-of at the top-level" @-}
 module LiftMeasureCase where
 
 llen :: [a] -> Int

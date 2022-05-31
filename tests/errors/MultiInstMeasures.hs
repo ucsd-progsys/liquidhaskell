@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"Multiple instance measures `sizeOf` for type `GHC.Ptr.Ptr`\"" @-}
+{-@ LIQUID "--expect-error-containing=Multiple instance measures `sizeOf` for type `GHC.Ptr.Ptr`" @-}
 module MultiInstMeasures where
 
 import Data.Word

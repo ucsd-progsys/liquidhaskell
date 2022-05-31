@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"= f B (g A)\"" @-}
+{-@ LIQUID "--expect-error-containing== f B (g A)" @-}
 
 -- https://github.com/ucsd-progsys/liquidhaskell/issues/1258
 

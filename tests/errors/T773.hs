@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"Illegal type specification for `T773.incr`\"" @-}
+{-@ LIQUID "--expect-error-containing=Illegal type specification for `T773.incr`" @-}
 -- | Right now this gives a rather mysterious error, 
 --   cannot unify `int` with `(a b)` it would be nice 
 --   to actually point out the offending sub-expression, namely `len x`.

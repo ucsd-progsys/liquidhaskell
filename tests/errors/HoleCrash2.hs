@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"Malformed application of type alias `Geq`\"" @-}
+{-@ LIQUID "--expect-error-containing=Malformed application of type alias `Geq`" @-}
 module HoleCrash2 where
 
 data Poo a = C { t :: Poo a }

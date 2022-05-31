@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=\"HINT: Use the hole\"" @-}
+{-@ LIQUID "--expect-error-containing=HINT: Use the hole" @-}
 
 {-# LANGUAGE DataKinds #-}
 
