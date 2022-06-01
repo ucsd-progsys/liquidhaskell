@@ -17,7 +17,7 @@ flag stack
                " buildable: False " by default
 
 flag measure-timings
-  default:     False
+  default:     True
   description: Enable when collecting timing information. It also enables
                -fforce-recomp since cabal sometimes tries to compile files more
                than once, and the second run discards the timings of the first.
