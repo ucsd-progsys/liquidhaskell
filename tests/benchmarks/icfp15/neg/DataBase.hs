@@ -2,7 +2,7 @@
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "totality" @-}
 
-module DataBase () where
+module DataBase (
 
   Table, Dict(..), (+=), P(..), values, empty,
 
