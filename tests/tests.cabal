@@ -17,7 +17,7 @@ flag stack
                " buildable: False " by default
 
 flag measure-timings
-  default:     True
+  default:     False
   description: Enable when collecting timing information. It also enables
                -fforce-recomp since cabal sometimes tries to compile files more
                than once, and the second run discards the timings of the first.
@@ -305,6 +305,8 @@ executable benchmark-icfp15-neg
 
   build-depends:      liquid-base
                     , liquid-prelude
+                    , liquid-containers
+                    , liquid-ghc-prim
                     , liquidhaskell
 
   ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
