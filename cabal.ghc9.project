@@ -32,11 +32,6 @@ source-repository-package
 
 source-repository-package
     type: git
-    location: https://github.com/facundominguez/rest
-    tag: 31e974979c90e910efe5199ee0d3721b791667f6
-
-source-repository-package
-    type: git
     location: https://github.com/qnikst/ghc-timings-report
     tag: 45ef3498e35897712bde8e002ce18df6d55f8b15
 
