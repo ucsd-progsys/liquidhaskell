@@ -73,8 +73,8 @@ cabalRun names = do
 
 -- | Build using stack. This *emulates* the output of the cabalBuild by splitting
 -- the interleaved stdout/stderr that stack normally outputs into two Texts.
-stackBuild :: OnlyDeps -> TestGroupName -> IO (ExitCode, Text, Text)
-stackBuild onlyDeps name = do
+stackRead :: OnlyDeps -> TestGroupName -> IO (ExitCode, Text, Text)
+stackRead onlyDeps name = do
   (ec, _out, err) <- readCommand "stack" $
      [ "build"
      , "--flag", "tests:stack"
@@ -87,6 +87,19 @@ stackBuild onlyDeps name = do
   let (buildMsgs, errMsgs) = partition ("[" `T.isPrefixOf`) (T.lines err)
   T.putStrLn _out
   pure (ec, T.unlines $ intersperse "" buildMsgs, T.unlines errMsgs)
+
+stackRun :: [TestGroupNames] -> IO ExitCode
+stackRun names =
+  runCommand "stack" $
+    [ "build"
+    , "--flag", "tests:stack" ]
+    -- Enables that particular executable in the cabal file
+    <> testFlags
+    <> [ "--" ]
+    <> testNames
+  where
+    testNames = fmap ("tests:" <>) names
+    testFlags = concatMap (("--flag" :) . pure) testNames
 
 simpleBuild :: ([TestGroupName] -> IO ExitCode) -> [TestGroupData] -> IO ExitCode
 simpleBuild builder tgds = do
