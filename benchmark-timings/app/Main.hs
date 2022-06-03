@@ -75,14 +75,14 @@ opts = info (options <**> helper)
 -- | Parse the original filename from the .dump-timings filename
 dumpFilenameParser :: MP.Parsec Void String FilePath
 dumpFilenameParser = do
-  _arch <- element
-  _ghcVersion <- element
-  _pkg <- element
-  pathPieces <- MP.manyTill element "dump-timings.json"
+  _arch <- element "--"
+  _ghcVersion <- element "--"
+  _pkg <- element "--"
+  pathPieces <- MP.manyTill (element ("--" <|> ".")) "dump-timings.json"
   MP.eof
   pure . mconcat $ intersperse "/" pathPieces
   where
-    element = MP.manyTill MP.anySingle ("--" <|> ".")
+    element = MP.manyTill MP.anySingle
 
 program :: Options -> IO ()
 program Options {..} = do
