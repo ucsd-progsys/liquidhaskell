@@ -741,9 +741,9 @@ defConfig = Config
   , pandocHtml               = False
   }
 
-
--- | Writes the annotations (i.e. the files in the \".liquid\" hidden folder) and report the result
--- of the checking using a supplied function.
+-- | Write the annotations (i.e. the files in the \".liquid\" hidden folder) and
+-- report the result of the checking using a supplied function, or using an
+-- implicit JSON function, if @json@ flag is set.
 reportResult :: MonadIO m
              => (OutputResult -> m ())
              -> Config
@@ -753,30 +753,28 @@ reportResult :: MonadIO m
 reportResult logResultFull cfg targets out = do
   annm <- {-# SCC "annotate" #-} liftIO $ annotate cfg targets out
   liftIO $ whenNormal $ donePhase Loud "annotate"
-  if | json cfg  -> do
-         -- XXX(matt.walker): Does this even work? It does something completely
-         -- different in json mode.  I just assume no errors are reported...
-         liftIO $ reportResultJson annm
-         pure False
-     | otherwise -> do
-         let r = o_result out
-         liftIO $ writeCheckVars $ o_vars out
-         cr <- liftIO $ resultWithContext r
-         let outputResult = resDocs tidy cr
-         -- For now, always print the \"header\" with colours, irrespective to the logger
-         -- passed as input.
-         -- liftIO $ printHeader (colorResult r) (orHeader outputResult)
-         logResultFull outputResult
-         case r of
-           F.Safe _ -> pure False
-           F.Unsafe _ _ -> pure True
-           F.Crash _ _ -> pure True
+  let r = o_result out
+  liftIO $ writeCheckVars $ o_vars out
+  cr <- liftIO $ resultWithContext r
+  let outputResult = resDocs tidy cr
+  if json cfg
+    then liftIO $ reportResultJson annm
+    else do
+      -- FIXME: For now, always print the \"header\" with colours, irrespective to the logger
+      -- passed as input.
+      liftIO $ printHeader (colorResult r) (orHeader outputResult)
+      logResultFull outputResult
+  case r of
+    F.Safe _ -> pure False
+    F.Unsafe _ _ -> pure True
+    F.Crash _ _ -> pure True
+
   where
     tidy :: F.Tidy
     tidy = if shortErrors cfg then F.Lossy else F.Full
 
-    _printHeader :: Moods -> Doc -> IO ()
-    _printHeader mood d = colorPhaseLn mood "" (render d)
+    printHeader :: Moods -> Doc -> IO ()
+    printHeader mood d = colorPhaseLn mood "" (render d)
 
 ------------------------------------------------------------------------
 exitWithResult :: Config -> [FilePath] -> Output Doc -> IO ()
