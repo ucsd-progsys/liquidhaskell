@@ -34,18 +34,12 @@ executable test-driver
                     , bytestring
                     , containers
                     , liquidhaskell
-                    , megaparsec
-                    , ansi-wl-pprint
                     , typed-process
                     , optparse-applicative
-                    , strip-ansi-escape >= 0.1
-                    , filepath >= 1.4.2
 
     other-modules:    Test.Types
                     , Test.Build
-                    , Test.Parse
                     , Test.Groups
-                    , Test.Summary
                     , Test.Options
 
     hs-source-dirs:   harness
