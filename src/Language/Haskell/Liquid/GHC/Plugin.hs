@@ -318,14 +318,17 @@ liquidHaskellCheckWithConfig globalCfg pipelineData modSummary tcGblEnv = do
   -- Here, we are calling Liquid Haskell's parser, acting on the unparsed
   -- spec comments stored in the pipeline data, supported by the specQuotes
   -- obtained from the imported modules.
-  inputSpec :: BareSpec <-
+  inputSpec' :: Either LiquidCheckException BareSpec <-
     getLiquidSpec thisFile thisModule (pdSpecComments pipelineData) specQuotes
 
-  withPragmas globalCfg thisFile (Ms.pragmas $ review bareSpecIso inputSpec) $ \moduleCfg -> do
-    processInputSpec moduleCfg pipelineData modSummary tcGblEnv inputSpec
-      `gcatch` (\(e :: UserError) -> reportErrs moduleCfg [e])
-      `gcatch` (\(e :: Error) -> reportErrs moduleCfg [e])
-      `gcatch` (\(es :: [Error]) -> reportErrs moduleCfg es)
+  case inputSpec' of
+    Left e -> pure $ Left e
+    Right inputSpec ->
+      withPragmas globalCfg thisFile (Ms.pragmas $ review bareSpecIso inputSpec) $ \moduleCfg -> do
+        processInputSpec moduleCfg pipelineData modSummary tcGblEnv inputSpec
+          `gcatch` (\(e :: UserError) -> reportErrs moduleCfg [e])
+          `gcatch` (\(e :: Error) -> reportErrs moduleCfg [e])
+          `gcatch` (\(es :: [Error]) -> reportErrs moduleCfg es)
 
   where
     thisFile :: FilePath
@@ -474,22 +477,23 @@ data ProcessModuleResult = ProcessModuleResult {
 -- spec quotes from the imported module. Also looks for
 -- "companion specs" for the current module and merges them in
 -- if it finds one.
-getLiquidSpec :: FilePath -> Module -> [SpecComment] -> [BPspec] -> TcM BareSpec
+getLiquidSpec :: FilePath -> Module -> [SpecComment] -> [BPspec] -> TcM (Either LiquidCheckException BareSpec)
 getLiquidSpec thisFile thisModule specComments specQuotes = do
+  globalCfg <- liftIO getConfig
   let commSpecE :: Either [Error] (ModName, Spec LocBareType LocSymbol)
       commSpecE = hsSpecificationP (moduleName thisModule) (coerce specComments) specQuotes
   case commSpecE of
     Left errors ->
-      -- The global config has no filters, so we don't even pretend to check for
-      -- them
-      LH.filterReportErrors thisFile GHC.failM GHC.failM [] Full errors
+      LH.filterReportErrors thisFile GHC.failM continue (getFilters globalCfg) Full errors
     Right (view bareSpecIso . snd -> commSpec) -> do
       res <- SpecFinder.findCompanionSpec thisModule
       case res of
         SpecFound _ _ companionSpec -> do
           debugLog $ "Companion spec found for " ++ renderModule thisModule
-          pure $ commSpec <> companionSpec
-        _ -> pure commSpec
+          pure $ Right $ commSpec <> companionSpec
+        _ -> pure $ Right commSpec
+  where
+    continue = pure $ Left KillPluginWithSuccess
 
 processModule :: LiquidHaskellContext -> TcM (Either LiquidCheckException ProcessModuleResult)
 processModule LiquidHaskellContext{..} = do
