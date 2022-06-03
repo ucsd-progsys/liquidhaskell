@@ -88,7 +88,7 @@ stackRead onlyDeps name = do
   T.putStrLn _out
   pure (ec, T.unlines $ intersperse "" buildMsgs, T.unlines errMsgs)
 
-stackRun :: [TestGroupNames] -> IO ExitCode
+stackRun :: [TestGroupName] -> IO ExitCode
 stackRun names =
   runCommand "stack" $
     [ "build"
