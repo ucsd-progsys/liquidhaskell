@@ -72,7 +72,7 @@ program Options {..} = do
     Just (phases :: [Phase]) <- decodeFileStrict' fp
     let (modName, time) = foldr (\Phase {..} (_, acc) -> (phaseModule,
                                                           if init phaseName `elem` optsPhasesToCount then acc + phaseTime else acc)) ("", 0) phases
-     -- convert milliseconds -> seconds
+    -- convert milliseconds -> seconds
     if modName == "" then pure Nothing else pure $ Just $ PhasesSummary modName (time / 1000) True
   let csvData = encodeDefaultOrderedByNameWith (defaultEncodeOptions { encUseCrLf = False }) $ catMaybes csvFields
   writeFile optsOutputFile csvData
