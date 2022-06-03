@@ -67,8 +67,7 @@ executable benchmark-stitch-lh
                     , liquid-prelude
 
     other-modules:
-                      Language.Stitch.LH.Repl
-                    , Language.Stitch.LH.Check
+                      Language.Stitch.LH.Check
                     -- , Language.Stitch.LH.CSE
                     , Language.Stitch.LH.Data.List
                     , Language.Stitch.LH.Data.Map
@@ -76,7 +75,6 @@ executable benchmark-stitch-lh
                     , Language.Stitch.LH.Lex
                     , Language.Stitch.LH.Monad
                     , Language.Stitch.LH.Op
-                    , Language.Stitch.LH.Parse
                     , Language.Stitch.LH.Pretty
                     , Language.Stitch.LH.Statement
                     , Language.Stitch.LH.Step
@@ -86,8 +84,23 @@ executable benchmark-stitch-lh
                     , Language.Stitch.LH.Util
                     , Language.Stitch.LH.Data.Nat
 
-    hs-source-dirs:   benchmarks/stitch-lh/main
-                    , benchmarks/stitch-lh/src
+    hs-source-dirs:
+                      benchmarks/stitch-lh/src
+
+    -- TODO: Language.Stitch.LH.Parse breaks on GHC 9+ after #1984,
+    --       so we provide a dummy main in that case and remove its
+    --       dependents
+    if impl(ghc < 9)
+       other-modules:
+                      Language.Stitch.LH.Repl
+                    , Language.Stitch.LH.Parse
+
+       hs-source-dirs:
+                      benchmarks/stitch-lh/main
+    else
+       hs-source-dirs:
+                      app
+
 
     ghc-options:      -Wall
                       -fplugin=LiquidHaskell
