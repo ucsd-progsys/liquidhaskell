@@ -33,5 +33,6 @@ executable benchmark-timings
                     , cassava ^>=0.5.2
                     , bytestring ^>=0.10.12
                     , optparse-applicative ^>=0.16.1
+                    , megaparsec ^>= 9.2
     hs-source-dirs:   app
     default-language: Haskell2010

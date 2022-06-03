@@ -6,7 +6,7 @@
 
 module Main where
 
-import Control.Monad (guard)
+import Control.Monad (guard, void)
 import Data.String (fromString)
 import Prelude hiding (writeFile)
 import Data.Csv hiding (Options, Parser)
@@ -16,8 +16,14 @@ import Options.Applicative
 import Data.Traversable (for)
 import Data.Maybe (catMaybes)
 
+import Text.Megaparsec (ParsecT, Parsec)
+import qualified Text.Megaparsec as MP
+import qualified Text.Megaparsec.Char as MP
+
 import Data.ByteString.Lazy (ByteString)
 import Data.ByteString.Lazy.Char8 (writeFile)
+import Data.List (intersperse)
+import Data.Void (Void)
 
 data Phase = Phase
   { phaseTime :: Double
@@ -66,14 +72,28 @@ opts = info (options <**> helper)
   (fullDesc
    <> progDesc "Summarize timing info.")
 
+-- | Parse the original filename from the .dump-timings filename
+dumpFilenameParser :: MP.Parsec Void String FilePath
+dumpFilenameParser = do
+  _arch <- element
+  _ghcVersion <- element
+  _pkg <- element
+  pathPieces <- MP.manyTill element "dump-timings.json"
+  MP.eof
+  pure . mconcat $ intersperse "/" pathPieces
+  where
+    element = MP.manyTill MP.anySingle ("--" <|> ".")
+
 program :: Options -> IO ()
 program Options {..} = do
   csvFields <- for optsFilesToParse $ \fp -> do
+    -- irrefutably get the filename and fail if we can't!
+    let Just originalFilename = MP.parseMaybe dumpFilenameParser fp
     Just (phases :: [Phase]) <- decodeFileStrict' fp
-    let (modName, time) = foldr (\Phase {..} (_, acc) -> (phaseModule,
+    let (_modName, time) = foldr (\Phase {..} (_, acc) -> (phaseModule,
                                                           if init phaseName `elem` optsPhasesToCount then acc + phaseTime else acc)) ("", 0) phases
     -- convert milliseconds -> seconds
-    if modName == "" then pure Nothing else pure $ Just $ PhasesSummary modName (time / 1000) True
+    pure . Just $ PhasesSummary originalFilename (time / 1000) True
   let csvData = encodeDefaultOrderedByNameWith (defaultEncodeOptions { encUseCrLf = False }) $ catMaybes csvFields
   writeFile optsOutputFile csvData
 
