@@ -2209,11 +2209,12 @@ executable ple-pos
                     , Tmp
 
     -- XXX(matt.walker): dies on lists on first compile in ghc 8107
-    if impl(ghc >= 9.0)
-      other-modules:  T1302b
+    --                   ... and on GHC 9+ now too
+    -- if impl(ghc >= 9.0)
+    --   other-modules:  T1302b
                    
 
-                    -- XXX(matt.walker): RANDOM FAILURES in T1302b when -j provided
+    -- XXX(matt.walker): RANDOM FAILURES in T1302b when -j provided
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
