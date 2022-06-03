@@ -72,6 +72,7 @@ errorsTestGroups :: [TestGroupData]
 errorsTestGroups =
   [ -- error messages
     TestGroupData "errors" ["errors"] (TFError errorMsgs)
+  , TestGroupData "parsing-errors" ["errors"] (TFError mempty)
   ]
 
 allowStackPaths :: [TestGroupData] -> IO (Map TestGroupName TestGroupData)

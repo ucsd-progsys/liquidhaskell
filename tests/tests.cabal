@@ -17,7 +17,7 @@ flag stack
                " buildable: False " by default
 
 flag measure-timings
-  default:     True
+  default:     False
   description: Enable when collecting timing information. It also enables
                -fforce-recomp since cabal sometimes tries to compile files more
                than once, and the second run discards the timings of the first.
@@ -559,6 +559,34 @@ executable benchmark-text
   if flag(measure-timings)
     ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
 
+flag parsing-errors
+     default: False
+
+executable parsing-errors
+    main-is:          Main.hs
+    if !flag(parsing-errors) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      EmptySig
+                    , ParseBind
+                    , ParseClass
+
+    ghc-options:      -fplugin=LiquidHaskell -fplugin-opt=LiquidHaskell:--expect-error-containing=parse -fkeep-going -O0
+
+    if flag(measure-timings)
+      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
+
+    build-depends:    liquid-base
+                    , liquid-bytestring
+                    , liquid-prelude
+                    , liquidhaskell
+
+    hs-source-dirs:   parsing-errors/app
+                    , parsing-errors
+
+    default-language: Haskell2010
+
 flag errors
      default: False
 
@@ -568,12 +596,14 @@ executable errors
       buildable:      False
 
     other-modules:
-                    -- See Groups.hs for reasons for disabling
-                    --   AmbiguousInline
-                    -- , AmbiguousReflect
                       BadAliasApp
-                    -- , BadAnnotation
-                    -- , BadAnnotation1
+                    -- , BadPragma0
+                    -- , BadPragma1
+                    -- , BadPragma2
+                    , AmbiguousInline
+                    , AmbiguousReflect
+                    , BadAnnotation
+                    , BadAnnotation1
                     , BadData0
                     , BadData1
                     , BadData2
@@ -583,9 +613,6 @@ executable errors
                     , BadDataConType
                     , BadDataDeclTyVars
                     , BadGADT
-                    -- , BadPragma0
-                    -- , BadPragma1
-                    -- , BadPragma2
                     , BadPredApp
                     -- , BadQualifier
                     , BadSig0
@@ -612,7 +639,6 @@ executable errors
                     , DupMeasure
                     -- , ElabLocation
                     , EmptyData
-                    -- , EmptySig
                     -- , ErrLocation2
                     -- , ErrLocation
                     -- , ExportMeasure0
@@ -639,8 +665,6 @@ executable errors
                     , MissingSizeFun
                     , MultiInstMeasures
                     , MultiRecSels
-                    -- , ParseBind
-                    -- , ParseClass
                     , Positivity1
                     , Positivity2
                     , PositivityCheck

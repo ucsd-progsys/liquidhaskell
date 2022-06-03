@@ -1,5 +1,3 @@
--- This fails because parse errors cannot be caught by --expect-error-containing
-{-@ LIQUID "--expect-error-containing=Cannot parse specification" @-}
 module ParseClass where
 
 class Foo a where
