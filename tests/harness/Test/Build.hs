@@ -72,7 +72,7 @@ program _ _ (Options _ True) = do
 program testEnv runner (Options testGroups' False) = do
   Sh.shelly testEnv
   let goodGroups = all (`elem` allTestGroupNames) testGroups'
-  if goodGroups
+  if not goodGroups
     then do
       T.putStrLn "You selected a bad test group name.  Run with --help to see available options."
       exitFailure
