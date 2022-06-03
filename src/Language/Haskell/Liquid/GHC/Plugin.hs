@@ -117,17 +117,18 @@ plugin = GHC.defaultPlugin {
     liquidPlugin :: [CommandLineOption] -> ModSummary -> TcGblEnv -> TcM TcGblEnv
     liquidPlugin opts summary gblEnv = do
       dynFlags <- getDynFlags
-      if gopt Opt_Haddock dynFlags
-        then do
-          -- Warn the user
-          let msg     = PJ.vcat [ PJ.text "LH can't be run with Haddock."
-                                , PJ.nest 4 $ PJ.text "Documentation will still be created."
-                                ]
-          let srcLoc  = mkSrcLoc (mkFastString $ ms_hspp_file summary) 1 1
-          let warning = mkWarning (mkSrcSpan srcLoc srcLoc) msg
-          liftIO $ printWarning dynFlags warning
-          pure gblEnv
-        else typecheckHook opts summary gblEnv 
+      withTiming dynFlags (text "LiquidHaskell" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $ do
+        if gopt Opt_Haddock dynFlags
+          then do
+            -- Warn the user
+            let msg     = PJ.vcat [ PJ.text "LH can't be run with Haddock."
+                                  , PJ.nest 4 $ PJ.text "Documentation will still be created."
+                                  ]
+            let srcLoc  = mkSrcLoc (mkFastString $ ms_hspp_file summary) 1 1
+            let warning = mkWarning (mkSrcSpan srcLoc srcLoc) msg
+            liftIO $ printWarning dynFlags warning
+            pure gblEnv
+          else typecheckHook opts summary gblEnv 
 
 
 
