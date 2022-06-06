@@ -1,6 +1,8 @@
 -- | This module contains functions that convert things
 --   to their `Bare` versions, e.g. SpecType -> BareType etc.
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Haskell.Liquid.Bare.ToBare
   ( -- * Types
     specToBare

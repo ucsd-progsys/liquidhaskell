@@ -375,7 +375,7 @@ import GHC.Types.Var.Env              as Ghc
 import GHC.Types.Var.Set              as Ghc
 import GHC.Unit.Module                as Ghc
 import GHC.Utils.Error                as Ghc
-import GHC.Utils.Outputable           as Ghc hiding ((<>), renderWithStyle, mkUserStyle)
+import GHC.Utils.Outputable           as Ghc hiding ((<>), integer, renderWithStyle, mkUserStyle)
 import GHC.Utils.Panic                as Ghc
 import qualified GHC.Types.Literal    as Ghc
 import qualified GHC.Utils.Outputable as Ghc
@@ -579,10 +579,10 @@ dataConRepArgTys :: DataCon -> [Scaled Type]
 dataConRepArgTys dc = map (mkScaled Many) (Ghc.dataConRepArgTys dc)
 
 mkLocalVar :: IdDetails -> Name -> Mult -> Type -> IdInfo -> Id
-mkLocalVar idDetails name _ ty info = Ghc.mkLocalVar idDetails name ty info
+mkLocalVar idDetails' name _ ty info = Ghc.mkLocalVar idDetails' name ty info
 
 mkUserLocal :: OccName -> Unique -> Mult -> Type -> SrcSpan -> Id
-mkUserLocal occName u _mult ty srcSpan = Ghc.mkUserLocal occName u ty srcSpan
+mkUserLocal occName' u _mult ty srcSpan = Ghc.mkUserLocal occName' u ty srcSpan
 
 dataConWrapperType :: DataCon -> Type
 dataConWrapperType = dataConUserType
@@ -610,7 +610,7 @@ apiAnnComments :: (Map ApiAnnKey [SrcSpan], Map SrcSpan [Located AnnotationComme
 apiAnnComments = snd
 
 mkIntExprInt :: Platform -> Int -> CoreExpr
-mkIntExprInt _ int = Ghc.mkIntExprInt unsafeGlobalDynFlags int
+mkIntExprInt _ = Ghc.mkIntExprInt unsafeGlobalDynFlags
 
 dataConFullSig :: DataCon -> ([TyVar], [TyCoVar], [EqSpec], ThetaType, [Scaled Type], Type)
 dataConFullSig dc =
@@ -793,7 +793,7 @@ dataConExTyVars = dataConExTyCoVars
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0) && !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 pattern FunTy :: AnonArgFlag -> Mult -> Type -> Type -> Type
 pattern FunTy { ft_af, ft_mult, ft_arg, ft_res } <- ((Many,) -> (ft_mult, Ty.FunTy ft_af ft_arg ft_res)) where
-    FunTy ft_af _ft_mult ft_arg ft_res = Ty.FunTy ft_af ft_arg ft_res
+    FunTy ft_af' _ft_mult' ft_arg' ft_res' = Ty.FunTy ft_af' ft_arg' ft_res'
 
 mkFunTy :: AnonArgFlag -> Mult -> Type -> Type -> Type
 mkFunTy af _ arg res = Ty.FunTy af arg res

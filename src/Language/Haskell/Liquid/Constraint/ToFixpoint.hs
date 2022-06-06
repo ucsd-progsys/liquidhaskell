@@ -1,4 +1,7 @@
 {-# LANGUAGE FlexibleContexts          #-}
+
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Haskell.Liquid.Constraint.ToFixpoint
   ( cgInfoFInfo
   , fixConfig

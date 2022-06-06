@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleInstances    #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 -- Syntactic Equality of Types up tp forall type renaming
 
 module Language.Haskell.Liquid.Types.Equality where 

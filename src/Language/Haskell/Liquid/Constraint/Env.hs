@@ -7,6 +7,8 @@
 {-# LANGUAGE ImplicitParams            #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 -- | This module defines the representation for Environments needed
 --   during constraint generation.
 

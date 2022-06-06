@@ -1,5 +1,8 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE FlexibleContexts          #-}
+
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Haskell.Liquid.Bare.Typeclass
   ( compileClasses
   , elaborateClassDcp

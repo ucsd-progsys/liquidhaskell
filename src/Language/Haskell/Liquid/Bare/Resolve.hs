@@ -11,6 +11,8 @@
 {-# LANGUAGE ConstraintKinds       #-}
 {-# LANGUAGE TupleSections         #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Haskell.Liquid.Bare.Resolve 
   ( -- * Creating the Environment
     makeEnv 

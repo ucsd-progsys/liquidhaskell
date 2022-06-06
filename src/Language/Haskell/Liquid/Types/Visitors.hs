@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
-
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.Haskell.Liquid.Types.Visitors (
   

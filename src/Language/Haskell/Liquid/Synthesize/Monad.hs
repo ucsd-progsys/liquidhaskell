@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE FlexibleContexts #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Haskell.Liquid.Synthesize.Monad where
 
 

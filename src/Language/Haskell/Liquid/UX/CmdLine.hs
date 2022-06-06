@@ -10,6 +10,7 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_GHC -Wwarn=deprecations #-}
 {-# OPTIONS_GHC -fno-cse #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 -- | This module contains all the code needed to output the result which
 --   is either: `SAFE` or `WARNING` with some reasonable error message when

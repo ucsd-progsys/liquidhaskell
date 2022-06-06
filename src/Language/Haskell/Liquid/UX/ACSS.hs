@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 -- | Formats Haskell source code as HTML with CSS and Mouseover Type Annotations
 module Language.Haskell.Liquid.UX.ACSS (
     hscolour

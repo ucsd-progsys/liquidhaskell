@@ -257,7 +257,7 @@ library
   ghc-options:        -W -fwarn-missing-signatures -j
 
   if flag(devel)
-    ghc-options:      -Wall -Wno-name-shadowing -Werror
+    ghc-options:      -Wall -Werror
 
   if flag(include)
     hs-source-dirs: devel

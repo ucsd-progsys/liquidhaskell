@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleContexts         #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Haskell.Liquid.Bare.Misc 
   ( joinVar
   , mkVarExpr

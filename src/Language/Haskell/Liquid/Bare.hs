@@ -5,6 +5,8 @@
 {-# LANGUAGE PartialTypeSignatures     #-}
 {-# LANGUAGE OverloadedStrings         #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 -- | This module contains the functions that convert /from/ descriptions of
 --   symbols, names and types (over freshly parsed /bare/ Strings),
 --   /to/ representations connected to GHC 'Var's, 'Name's, and 'Type's.

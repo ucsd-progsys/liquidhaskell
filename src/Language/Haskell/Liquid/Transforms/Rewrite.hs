@@ -8,6 +8,8 @@
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE FlexibleContexts          #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 -- | This module contains functions for recursively "rewriting"
 --   GHC core using "rules".
 

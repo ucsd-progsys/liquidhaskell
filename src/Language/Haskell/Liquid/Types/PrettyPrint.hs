@@ -10,6 +10,7 @@
 {-# LANGUAGE FlexibleInstances    #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.Haskell.Liquid.Types.PrettyPrint
   ( -- * Printable RTypes

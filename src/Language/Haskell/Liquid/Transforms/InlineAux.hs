@@ -1,6 +1,8 @@
 {-# LANGUAGE CPP              #-}
 {-# LANGUAGE FlexibleContexts #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Haskell.Liquid.Transforms.InlineAux
   ( inlineAux
   )

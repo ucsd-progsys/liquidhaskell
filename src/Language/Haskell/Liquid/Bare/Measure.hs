@@ -2,6 +2,8 @@
 {-# LANGUAGE RecordWildCards  #-}
 {-# LANGUAGE TupleSections    #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 -- | This module contains (most of) the code needed to lift Haskell entitites,
 --   . code- (CoreBind), and data- (Tycon) definitions into the spec level.
 

@@ -56,7 +56,8 @@ import qualified Data.HashSet                            as HS
 import qualified Data.HashMap.Strict                     as HM
 
 import           System.IO.Unsafe                         ( unsafePerformIO )
-import           Language.Fixpoint.Types           hiding ( panic
+import           Language.Fixpoint.Types           hiding ( errs
+                                                          , panic
                                                           , Error
                                                           , Result
                                                           , Expr
@@ -494,12 +495,12 @@ processModule LiquidHaskellContext{..} = do
 
         let clientLib  = mkLiquidLib liftedSpec & addLibDependencies dependencies
 
-        let result = ProcessModuleResult {
+        let result' = ProcessModuleResult {
               pmrClientLib  = clientLib
             , pmrTargetInfo = targetInfo
             }
 
-        pure result)
+        pure result')
       `gcatch` (\(e :: UserError) -> LH.reportErrors Full [e] >> failM)
       `gcatch` (\(e :: Error) -> LH.reportErrors Full [e] >> failM)
       `gcatch` (\(es :: [Error]) -> LH.reportErrors Full es >> failM)
