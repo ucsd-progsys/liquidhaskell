@@ -3,6 +3,8 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Haskell.Liquid.Transforms.Rec (
      transformRecExpr, transformScope
      , outerScTr , innerScTr

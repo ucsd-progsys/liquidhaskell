@@ -1,5 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Paths_liquidhaskell where
 
 import Language.Haskell.TH

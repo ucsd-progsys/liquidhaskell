@@ -7,6 +7,8 @@
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Haskell.Liquid.Parse
   ( hsSpecificationP
   , specSpecificationP

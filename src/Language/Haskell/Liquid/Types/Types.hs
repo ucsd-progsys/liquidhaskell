@@ -12,6 +12,7 @@
 {-# LANGUAGE DerivingVia                #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 -- | This module should contain all the global type definitions and basic instances.
 

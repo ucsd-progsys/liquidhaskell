@@ -2,6 +2,7 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE FlexibleContexts      #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.Haskell.Liquid.Constraint.Qualifier
   ( giQuals 

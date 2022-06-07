@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Haskell.Liquid.WiredIn
        ( wiredTyCons
        , wiredDataCons

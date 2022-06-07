@@ -15,6 +15,7 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- TODO(#1918): Only needed for GHC <9.0.1.
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 -- | Refinement Types. Mostly mirroring the GHC Type definition, but with
 --   room for refinements of various sorts.

@@ -2,6 +2,8 @@
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 -- | This module contains the code that DOES reflection; i.e. converts Haskell
 --   definitions into refinements.
 

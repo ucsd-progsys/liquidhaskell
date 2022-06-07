@@ -68,6 +68,7 @@ import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( text
                                                                , panic
                                                                , vcat
                                                                , showPpr
+                                                               , mkStableModule
                                                                , Target
                                                                , Located
                                                                )
@@ -96,7 +97,7 @@ import System.IO
 import System.IO.Temp
 import Text.Megaparsec.Error
 import Text.PrettyPrint.HughesPJ        hiding (first, (<>))
-import Language.Fixpoint.Types          hiding (panic, Error, Result, Expr)
+import Language.Fixpoint.Types          hiding (err, panic, Error, Result, Expr)
 import qualified Language.Fixpoint.Misc as Misc
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GHC.Misc
@@ -117,7 +118,7 @@ import Language.Haskell.Liquid.UX.QuasiQuoter
 import Language.Haskell.Liquid.UX.Tidy
 import Language.Fixpoint.Utils.Files
 
-import Optics
+import Optics hiding (ix)
 
 import qualified Debug.Trace as Debug 
 
@@ -285,8 +286,8 @@ compileCFiles cfg = do
               , libraryPaths = nub $ idirs cfg ++ libraryPaths df }
   hsc <- getSession
   os  <- mapM (\x -> liftIO $ compileFile hsc StopLn (x,Nothing)) (nub $ cFiles cfg)
-  df  <- getSessionDynFlags
-  void $ setSessionDynFlags $ df { ldInputs = nub $ map (FileOption "") os ++ ldInputs df }
+  df'  <- getSessionDynFlags
+  void $ setSessionDynFlags $ df' { ldInputs = nub $ map (FileOption "") os ++ ldInputs df' }
 
 {- | [NOTE:DROP-BOOT-FILES] Drop hs-boot files from the graph.
       We do it manually rather than using the flag to topSortModuleGraph
@@ -309,8 +310,8 @@ type DepGraph = Graph DepGraphNode
 type DepGraphNode = Node Module ()
 
 reachableModules :: DepGraph -> Module -> [Module]
-reachableModules depGraph mod =
-  node_key <$> tail (reachableG depGraph (DigraphNode () mod []))
+reachableModules depGraph mod' =
+  node_key <$> tail (reachableG depGraph (DigraphNode () mod' []))
 
 buildDepGraph :: ModuleGraph -> Ghc DepGraph
 buildDepGraph homeModules =
@@ -321,9 +322,9 @@ mkDepGraphNode modSummary =
   DigraphNode () (ms_mod modSummary) <$> (filterM isHomeModule =<< modSummaryImports modSummary)
 
 isHomeModule :: GhcMonadLike m => Module -> m Bool
-isHomeModule mod = do
+isHomeModule mod' = do
   homePkg <- thisPackage <$> getDynFlags
-  return   $ moduleUnitId mod == homePkg
+  return   $ moduleUnitId mod' == homePkg
 
 modSummaryImports :: GhcMonadLike m => ModSummary -> m [Module]
 modSummaryImports modSummary =
@@ -331,17 +332,17 @@ modSummaryImports modSummary =
        (ms_textual_imps modSummary)
 
 importDeclModule :: GhcMonadLike m => Module -> (Maybe FastString,  Ghc.Located ModuleName) -> m Module
-importDeclModule fromMod (pkgQual, locModName) = do
+importDeclModule fromMod (mpkgQual, locModName) = do
   hscEnv <- askHscEnv
   let modName = unLoc locModName
-  result <- liftIO $ findImportedModule hscEnv modName pkgQual
-  case result of
-    Ghc.Found _ mod -> return mod
+  res <- liftIO $ findImportedModule hscEnv modName mpkgQual
+  case res of
+    Ghc.Found _ mod' -> return mod'
     _ -> do
       dflags <- getDynFlags
       liftIO $ throwGhcExceptionIO $ ProgramError $
         O.showPpr dflags (moduleName fromMod) ++ ": " ++
-        O.showSDoc dflags (cannotFindModule dflags modName result)
+        O.showSDoc dflags (cannotFindModule dflags modName res)
 
 --------------------------------------------------------------------------------
 -- | Extract Ids ---------------------------------------------------------------
@@ -409,23 +410,23 @@ processModules cfg logicMap tgtFiles depGraph homeModules = do
 processModule :: Config -> LogicMap -> S.HashSet FilePath -> DepGraph -> SpecEnv -> ModSummary
               -> Ghc (SpecEnv, Maybe TargetInfo)
 processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
-  let mod              = ms_mod modSummary
+  let mod'             = ms_mod modSummary
   -- DO-NOT-DELETE _                <- liftIO $ whenLoud $ putStrLn $ "Process Module: " ++ showPpr (moduleName mod)
   file                <- liftIO $ canonicalizePath $ modSummaryHsFile modSummary
-  let isTarget         = file `S.member` tgtFiles
-  _                   <- loadDependenciesOf $ moduleName mod
+  let isTarget'        = file `S.member` tgtFiles
+  _                   <- loadDependenciesOf $ moduleName mod'
   parsed              <- parseModule $ keepRawTokenStream modSummary
   let specComments     = extractSpecComments (pm_annotations parsed)
   typechecked         <- typecheckModule $ ignoreInline parsed
   let specQuotes       = extractSpecQuotes typechecked
   _                   <- loadModule' typechecked
-  (modName, commSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes
+  (modName, commSpec) <- either throw return $ hsSpecificationP (moduleName mod') specComments specQuotes
 
-  liftedSpec          <- liftIO $ if isTarget || null specComments then return Nothing else loadLiftedSpec cfg file 
+  liftedSpec          <- liftIO $ if isTarget' || null specComments then return Nothing else loadLiftedSpec cfg file
   let bareSpec         = updLiftedSpec commSpec liftedSpec
   _                   <- checkFilePragmas $ Ms.pragmas bareSpec
-  let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
-  (specEnv', ) <$> if isTarget
+  let specEnv'         = extendModuleEnv specEnv mod' (modName, noTerm bareSpec)
+  (specEnv', ) <$> if isTarget'
                      then Just <$> processTargetModule cfg logicMap depGraph specEnv file typechecked bareSpec
                      else return Nothing
 
@@ -752,8 +753,8 @@ makeDependencies cfg depGraph specEnv modSum _ = do
   -- hack our way around this by replacing the 'UnitId' with some unique enumeration, at
   -- least unique in this local scope.
 
-  let combine ix (mn, sp) = ((mn, ix), sp)
-  let impSpecs  = map (bimap mkStableModule (view liftedSpecGetter)) (zipWith combine [0..] (specSpecs ++ homeSpecs))
+  let combine' ix (mn, sp) = ((mn, ix), sp)
+  let impSpecs  = map (bimap mkStableModule (view liftedSpecGetter)) (zipWith combine' [0..] (specSpecs ++ homeSpecs))
 
   return        $ TargetDependencies $ HM.fromList impSpecs
   where
@@ -821,10 +822,10 @@ extractSpecComments = mapMaybe extractSpecComment . GhcMonadLike.apiComments
 --   3. Otherwise it is just treated as a plain comment so we return Nothing.
 
 extractSpecComment :: Ghc.Located AnnotationComment -> Maybe (SourcePos, String)
-extractSpecComment (Ghc.L sp (AnnBlockComment text))
-  | isPrefixOf "{-@" text && isSuffixOf "@-}" text          -- valid   specification
-  = Just (offsetPos, take (length text - 6) $ drop 3 text)
-  | isPrefixOf "{-@" text                                   -- invalid specification
+extractSpecComment (Ghc.L sp (AnnBlockComment txt))
+  | isPrefixOf "{-@" txt && isSuffixOf "@-}" txt          -- valid   specification
+  = Just (offsetPos, take (length txt - 6) $ drop 3 txt)
+  | isPrefixOf "{-@" txt                                   -- invalid specification
   = uError $ ErrParseAnn sp "A valid specification must have a closing '@-}'."
   where
     offsetPos = case srcSpanSourcePos sp of

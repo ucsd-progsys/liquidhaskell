@@ -2,6 +2,8 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE BangPatterns #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Haskell.Liquid.Synthesize.Generate where
 
 import           Language.Haskell.Liquid.GHC.API as GHC hiding (Depth)

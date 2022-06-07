@@ -7,6 +7,8 @@
 {-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE ConstraintKinds       #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Haskell.Liquid.Types.Fresh
   ( Freshable(..)
   , refreshTy

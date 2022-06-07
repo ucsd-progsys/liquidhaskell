@@ -4,6 +4,8 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE FlexibleContexts          #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Haskell.Liquid.Constraint.Monad  where
 
 import qualified Data.HashMap.Strict as M

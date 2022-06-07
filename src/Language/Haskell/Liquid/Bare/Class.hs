@@ -3,6 +3,8 @@
 {-# LANGUAGE ParallelListComp  #-}
 {-# LANGUAGE TupleSections     #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Haskell.Liquid.Bare.Class 
   ( makeClasses
   , makeCLaws

@@ -11,6 +11,7 @@
 
 {-# OPTIONS_GHC -Wno-dodgy-imports #-} -- TODO(#1913): Fix import of Data.Functor.Foldable.Fix
 {-# OPTIONS_GHC -Wno-unused-top-binds #-} -- TODO(#1914): Is RTypeF even used?
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 -- | This module uses GHC API to elaborate the resolves expressions
 

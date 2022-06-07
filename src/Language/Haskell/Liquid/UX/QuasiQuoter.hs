@@ -5,6 +5,8 @@
 {-# LANGUAGE TupleSections      #-}
 {-# LANGUAGE OverloadedStrings  #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Haskell.Liquid.UX.QuasiQuoter 
 -- (
 --     -- * LiquidHaskell Specification QuasiQuoter

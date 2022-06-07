@@ -1,5 +1,8 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE BangPatterns #-}
+
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Haskell.Liquid.Synthesize.Check (check, hasType, isWellTyped, checkError) where
 
 

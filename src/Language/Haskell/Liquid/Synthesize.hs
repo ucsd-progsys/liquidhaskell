@@ -2,6 +2,8 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE FlexibleContexts #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Haskell.Liquid.Synthesize (
     synthesize
   ) where

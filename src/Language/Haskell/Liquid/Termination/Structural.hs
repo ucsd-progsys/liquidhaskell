@@ -2,6 +2,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Haskell.Liquid.Termination.Structural (terminationVars) where
 
 import Language.Haskell.Liquid.Types hiding (isDecreasing)

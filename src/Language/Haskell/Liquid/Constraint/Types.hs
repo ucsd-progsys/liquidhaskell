@@ -3,6 +3,7 @@
 {-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.Haskell.Liquid.Constraint.Types
   ( -- * Constraint Generation Monad
