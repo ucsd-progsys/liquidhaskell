@@ -76,6 +76,10 @@ import           Language.Haskell.Liquid.UX.CmdLine
 import           Optics
 import           Data.Bitraversable                       (bitraverse)
 
+-- | Represents an abnormal but non-fatal state of the plugin. Because it is not
+-- meant to escape the plugin, it is not thrown in IO but instead carried around
+-- in an `Either`'s `Left` case and handled at the top level of the plugin
+-- function.
 data LiquidCheckException =
   KillPluginWithSuccess
   deriving (Eq, Ord, Show)
