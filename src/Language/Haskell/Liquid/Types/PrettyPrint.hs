@@ -496,13 +496,27 @@ reduceFilters renderer fs err = filter (filterDoesMatchErr err) fs
 -- | Used in `filterReportErrorsWith'`
 data FilterReportErrorsArgs m filter msg e a =
   FilterReportErrorsArgs
-  { msgReporter :: [msg] -> m ()
-  , filterReporter :: [filter] -> m ()
-  , failure :: m a
-  , continue :: m a
-  , pprinter :: e -> m msg
-  , filterMapper :: e -> Either [e] [filter]
-  , filters :: [filter]
+  {
+    -- | Report the @msgs@ to the monad (usually IO)
+    msgReporter :: [msg] -> m ()
+  ,
+    -- | Report unmatched @filters@ to the monad
+    filterReporter :: [filter] -> m ()
+  ,
+    -- | Continuation for when filters do not exactly match
+    failure :: m a
+  ,
+    -- | Continuation for when all filters exactly match
+    continue :: m a
+  ,
+    -- | Compute a representation of the given error; does not report the error
+    pprinter :: e -> m msg
+  ,
+    -- | XXX CHANGE
+    filterMapper :: e -> Either [e] [filter]
+  ,
+    -- | List of filters which could have been matched
+    filters :: [filter]
   }
 
 -- | Abstract filtered error reporter
