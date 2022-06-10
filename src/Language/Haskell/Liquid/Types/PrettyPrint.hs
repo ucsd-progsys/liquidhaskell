@@ -72,6 +72,10 @@ import           Language.Haskell.Liquid.Types.Types
 import           Prelude                          hiding (error)
 import           Text.PrettyPrint.HughesPJ        hiding ((<>))
 
+-- | `Filter`s match errors. They are used to ignore classes of errors they
+-- match. `AnyFilter` matches all errors. `StringFilter` matches any error whose
+-- \"representation\" contains the given `String`. A \"representation\" is
+-- pretty-printed String of the error.
 data Filter = StringFilter String
             | AnyFilter
   deriving (Eq, Ord, Show)
