@@ -531,8 +531,9 @@ filterReportErrorsWith FilterReportErrorsArgs {..} errs =
       failure
 
 -- | Report errors via GHC's API stating the given `Filter`s did not get
--- matched.
+-- matched. Does nothing if the list of filters is empty.
 defaultFilterReporter :: FilePath -> [Filter] -> Ghc.TcRn ()
+defaultFilterReporter _ [] = pure ()
 defaultFilterReporter path fs = Ghc.reportError =<< mkLongErrAt srcSpan (vcat $ leaderMsg : (nest 4 <$> filterMsgs)) empty
   where
     leaderMsg :: Doc
