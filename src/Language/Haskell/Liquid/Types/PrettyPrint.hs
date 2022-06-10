@@ -467,12 +467,16 @@ filterReportErrors path failure continue filters k =
                            , failure = failure
                            , continue = continue
                            , pprinter = \err -> mkLongErrAt (pos err) (ppError k empty err) mempty
-                           , filterMapper = reduceFilters renderer filters
+                           , filterMapper = filterMapper
                            , filters = filters
                            }
   where
     renderer :: TError e' -> String
     renderer = render . ppError k empty
+
+    filterMapper e =
+      let reducedFilters = reduceFilters renderer filters e
+      in  if null reducedFilters then Left [e] else Right reducedFilters
 
 -- | Retrieve the `Filter`s from the Config.
 getFilters :: Config -> [Filter]
@@ -481,18 +485,11 @@ getFilters cfg = anyFilter <> stringFilters
     anyFilter = [AnyFilter | expectAnyError cfg]
     stringFilters = StringFilter <$> expectErrorContaining cfg
 
--- | Return a @Left@ list of the error as a singleton if no `Filter` in the
--- given list matches it, or the list of @filters@ that matched the @err@ as a
--- @Right@, given a @renderer@ for the @err@ and some @filters@
-reduceFilters :: forall e. (e -> String) -> [Filter] -> e -> Either [e] [Filter]
-reduceFilters renderer fs err =
-  if null matchingFilters
-  then Left [err]
-  else Right matchingFilters
+-- | Return the list of @filters@ that matched the @err@ , given a @renderer@
+-- for the @err@ and some @filters@
+reduceFilters :: forall e. (e -> String) -> [Filter] -> e -> [Filter]
+reduceFilters renderer fs err = filter (filterDoesMatchErr err) fs
   where
-    matchingFilters :: [Filter]
-    matchingFilters = filter (filterDoesMatchErr err) fs
-
     filterDoesMatchErr :: e -> Filter -> Bool
     filterDoesMatchErr _ AnyFilter = True
     filterDoesMatchErr e (StringFilter filter) = filter `L.isInfixOf` renderer e
