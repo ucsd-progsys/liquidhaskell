@@ -377,10 +377,15 @@ errorLogger file filters outputResult = do
                            , failure = GHC.failM
                            , continue = pure ()
                            , pprinter = \(spn, e) -> mkLongErrAt spn (LH.fromPJDoc e) O.empty
-                           , filterMapper = LH.reduceFilters (PJ.render . snd) filters
+                           , filterMapper = filterMapper
                            , filters = filters
                            }
     (LH.orMessages outputResult)
+
+  where
+    filterMapper e =
+      let reducedFilters = LH.reduceFilters (PJ.render . snd) filters e
+      in  if null reducedFilters then Left [e] else Right reducedFilters
 
 isIgnore :: BareSpec -> Bool
 isIgnore (MkBareSpec sp) = any ((== "--skip-module") . F.val) (pragmas sp)
