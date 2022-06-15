@@ -297,12 +297,11 @@ processInputSpec cfg pipelineData modSummary tcGblEnv inputSpec = do
       }
 
   -- liftIO $ putStrLn ("liquidHaskellCheck 6: " ++ show isIg)
-  liquidLib' :: Either LiquidCheckException LiquidLib <-
-    if isIgnore inputSpec
+  if isIgnore inputSpec
     then pure $ Left (ErrorsOccurred [])
-    else checkLiquidHaskellContext lhContext
-
-  traverse (serialiseSpec thisModule tcGblEnv) liquidLib'
+    else do
+      liquidLib' <- checkLiquidHaskellContext lhContext
+      traverse (serialiseSpec thisModule tcGblEnv) liquidLib'
 
   where
     thisModule :: Module
