@@ -990,10 +990,6 @@ ppError' _ dCtx (ErrSaved _ name s)
         $+$ dCtx
         $+$ {- nest 4 -} s
 
--- XXX(matt.walker): If this was because of the limitations taken care of with
--- the addition of `processPragmas`, then we should remove this. It could be a
--- "it's too late after the plugin is running to change these values" thing
--- though, I'm not sure.
 ppError' _ dCtx (ErrFilePragma _)
   = text "Illegal pragma"
         $+$ dCtx
