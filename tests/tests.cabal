@@ -341,7 +341,9 @@ executable prover-foundations
                     , liquid-prelude
                     , liquidhaskell
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -ddump-timings -ddump-to-file -O0
+  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
+  if flag(measure-timings)
+    ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
 
 flag prover-nople-pos
@@ -394,7 +396,9 @@ executable prover-nople-pos
                     , liquidhaskell
                     , prover-ple-lib
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -ddump-timings -ddump-to-file -O0
+  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
+  if flag(measure-timings)
+    ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
 
 flag prover-nople-neg
@@ -430,7 +434,9 @@ executable prover-nople-neg
                     , liquidhaskell
                     , prover-ple-lib
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -ddump-timings -ddump-to-file -O0
+  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
+  if flag(measure-timings)
+    ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
 
 flag prover-ple-pos
@@ -480,7 +486,9 @@ executable prover-ple-pos
                     , liquidhaskell
                     , prover-ple-lib
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -ddump-timings -ddump-to-file -O0
+  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
+  if flag(measure-timings)
+    ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
 
 flag benchmark-text
@@ -746,7 +754,9 @@ executable parser-pos
                     , Tuples
 
                     -- XXX(matt.walker): Double frees with -j
-    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
+    if flag(measure-timings)
+      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    liquid-base
                     , liquid-prelude
                     , liquidhaskell
@@ -794,7 +804,9 @@ executable names-pos
                     , Vector0
                     , Vector1
 
-    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
+    if flag(measure-timings)
+      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    liquid-base
                     , liquid-prelude
                     , liquid-vector
@@ -826,7 +838,9 @@ executable names-neg
                     , Vector0
                     , Vector1
 
-    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
+    if flag(measure-timings)
+      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    liquid-base
                     , liquid-prelude
                     , liquid-vector
@@ -852,7 +866,9 @@ executable reflect-pos
                     , ReflString0
                     , ReflString1
 
-    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
+    if flag(measure-timings)
+      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    liquid-base
                     , liquid-prelude
                     , liquidhaskell
@@ -880,7 +896,9 @@ executable class-pos
                     , RealProps1
                     , TypeEquality01
 
-    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
+    if flag(measure-timings)
+      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    liquid-base
                     , liquid-prelude
                     , liquidhaskell
@@ -904,7 +922,9 @@ executable class-neg
                     , Inst00
                     , RealProps0
 
-    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
+    if flag(measure-timings)
+      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    liquid-base
                     , liquid-prelude
                     , liquidhaskell
@@ -927,7 +947,9 @@ executable reflect-neg
                     , ReflString0
                     , ReflString1
 
-    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
+    if flag(measure-timings)
+      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    liquid-base
                     , liquid-prelude
                     , liquidhaskell
@@ -972,7 +994,9 @@ executable measure-pos
                     , RecordAccessors
                     , Using00
 
-    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
+    if flag(measure-timings)
+      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    liquid-base
                     , liquid-prelude
                     , liquidhaskell
@@ -1006,7 +1030,9 @@ executable measure-neg
                     , Ple1Lib
                     , Using00
 
-    ghc-options:      -fplugin=LiquidHaskell -ddump-timings -ddump-to-file -fkeep-going -O0
+    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
+    if flag(measure-timings)
+      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    liquid-base
                     , liquid-prelude
                     , liquidhaskell
