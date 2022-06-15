@@ -471,16 +471,12 @@ filterReportErrors path failure continue filters k =
                            , failure = failure
                            , continue = continue
                            , pprinter = \err -> mkLongErrAt (pos err) (ppError k empty err) mempty
-                           , filterMapper = filterMapper
+                           , matchingFilters = reduceFilters renderer filters
                            , filters = filters
                            }
   where
     renderer :: TError e' -> String
     renderer = render . ppError k empty
-
-    filterMapper e =
-      let reducedFilters = reduceFilters renderer filters e
-      in  if null reducedFilters then Left [e] else Right reducedFilters
 
 -- | Retrieve the `Filter`s from the Config.
 getFilters :: Config -> [Filter]
@@ -508,42 +504,42 @@ data FilterReportErrorsArgs m filter msg e a =
     -- | Report unmatched @filters@ to the monad
     filterReporter :: [filter] -> m ()
   ,
-    -- | Continuation for when filters do not exactly match
+    -- | Continuation for when there are unmatched filters or unmatched errors
     failure :: m a
   ,
-    -- | Continuation for when all filters exactly match
+    -- | Continuation for when there are no unmatched errors or filters
     continue :: m a
   ,
     -- | Compute a representation of the given error; does not report the error
     pprinter :: e -> m msg
   ,
-    -- | XXX CHANGE
-    filterMapper :: e -> Either [e] [filter]
+    -- | Yields the filters that map a given error. Must only yield
+    -- filters in the @filters@ field.
+    matchingFilters :: e -> [filter]
   ,
     -- | List of filters which could have been matched
     filters :: [filter]
   }
 
--- | Abstract filtered error reporter
+-- | Calls the continuations in FilterReportErrorsArgs depending on whethere there
+-- are unmatched errors, unmatched filters or none.
 filterReportErrorsWith :: (Monad m, Ord filter) => FilterReportErrorsArgs m filter msg e a -> [e] -> m a
 filterReportErrorsWith FilterReportErrorsArgs {..} errs =
   let
-    reducedErrs = concat <$> traverse filterMapper errs
-    wasExactlyFiltered =
-      case reducedErrs of
-        Left es -> null es
-        Right fs -> Set.fromList filters == Set.fromList fs
+    (unmatchedErrors, matchedFilters) =
+      L.partition (null . snd) [ (e, fs) | e <- errs, let fs = matchingFilters e ]
+    unmatchedFilters = Set.toList $
+      Set.fromList filters `Set.difference` Set.fromList (concat $ map snd matchedFilters)
   in
-    if wasExactlyFiltered
-    then continue
+    if null unmatchedErrors then
+      if null unmatchedFilters then
+        continue
+      else do
+        filterReporter unmatchedFilters
+        failure
     else do
-      case reducedErrs of
-        Left es -> do
-          msgs <- traverse pprinter es
-          void $ msgReporter msgs
-        Right fs -> do
-          let missedFilters = Set.toList $ Set.fromList filters `Set.difference` Set.fromList fs
-          filterReporter missedFilters
+      msgs <- traverse pprinter (map fst unmatchedErrors)
+      void $ msgReporter msgs
       failure
 
 -- | Report errors via GHC's API stating the given `Filter`s did not get

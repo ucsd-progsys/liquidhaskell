@@ -12,13 +12,13 @@ defArgs = FilterReportErrorsArgs { msgReporter = const (pure ())
                                  , failure =  pure False
                                  , continue = pure True
                                  , pprinter = pure
-                                 , filterMapper = const (pure [])
+                                 , matchingFilters = const []
                                  , filters = [] }
 
 defFailingArgs :: Monad m => FilterReportErrorsArgs m Filter String String Bool
 defFailingArgs = defArgs { failure = continue defArgs
                          , continue = failure defArgs
-                         , filterMapper = Left . pure }
+                         , matchingFilters = const [] }
 
 -- basic success for empty last arg
 emptySuccess :: Monad m => m Bool
@@ -28,16 +28,10 @@ emptySuccess = filterReportErrorsWith defArgs []
 nonemptyFailure :: Monad m => m Bool
 nonemptyFailure = filterReportErrorsWith defFailingArgs ["expected error!"]
 
--- prop: always success no matter what last arg is
-alwaysSuccess :: Monad m => m Bool
-alwaysSuccess = filterReportErrorsWith
-                defArgs { filterMapper = const (Left []) }
-                ["unexpected error!"]
-
 -- prop: always success no matter what last arg is (using filterWithFilters)
 nonemptySuccessWithFiltersAnyFilter :: Monad m => m Bool
 nonemptySuccessWithFiltersAnyFilter = filterReportErrorsWith
-                                      defArgs { filterMapper = reduceFilters id filters
+                                      defArgs { matchingFilters = reduceFilters id filters
                                               , filters = filters }
                                       ["unexpected error!"]
   where
@@ -45,7 +39,7 @@ nonemptySuccessWithFiltersAnyFilter = filterReportErrorsWith
 
 nonemptySuccessWithFiltersEmptyString :: Monad m => m Bool
 nonemptySuccessWithFiltersEmptyString = filterReportErrorsWith
-                                        defArgs { filterMapper = reduceFilters id filters
+                                        defArgs { matchingFilters = reduceFilters id filters
                                                 , filters = filters }
                                         ["unexpected error!"]
   where
@@ -54,7 +48,7 @@ nonemptySuccessWithFiltersEmptyString = filterReportErrorsWith
 -- prop: for singleton final arg, only succeed when element contains StringFilter string
 nonemptyCatchStringFilter :: Monad m => m Bool
 nonemptyCatchStringFilter = filterReportErrorsWith
-                            defArgs { filterMapper = reduceFilters id filters
+                            defArgs { matchingFilters = reduceFilters id filters
                                     , filters = filters}
                             ["error!"]
   where
@@ -63,7 +57,7 @@ nonemptyCatchStringFilter = filterReportErrorsWith
 -- prop: for singleton final arg, only fail when element does not contain StringFilter string (prints error)
 nonemptyFailureOnBadStringFilter :: Monad m => m Bool
 nonemptyFailureOnBadStringFilter = filterReportErrorsWith
-                                   defFailingArgs { filterMapper = reduceFilters id filters
+                                   defFailingArgs { matchingFilters = reduceFilters id filters
                                                   , filters = filters}
                                    ["expected error!"]
   where
@@ -74,7 +68,6 @@ testsInIdentity = (\(testName, test) -> testCase testName $ assertBool "" (runId
   where
     namedTests = [ ("emptySuccess", emptySuccess)
                  , ("nonemptyFailure", nonemptyFailure)
-                 , ("alwaysSuccess", alwaysSuccess)
                  , ("nonemptySuccessWithFiltersAnyFilter", nonemptySuccessWithFiltersAnyFilter)
                  , ("nonemptySuccessWithFiltersEmptyString", nonemptySuccessWithFiltersEmptyString)
                  , ("nonemptyCatchStringFilter", nonemptyCatchStringFilter)
