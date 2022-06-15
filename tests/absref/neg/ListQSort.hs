@@ -4,7 +4,7 @@ module ListQSort () where
 import Language.Haskell.Liquid.Prelude
 
 append k []     ys = k:ys
-append k (x:xs) ys = x:(append k xs ys) 
+append k (x:xs) ys = x:(append k xs ys)
 
 takeL x []     = []
 takeL x (y:ys) = if (y<x) then y:(takeL x ys) else takeL x ys
@@ -24,10 +24,10 @@ quicksort (x:xs) = append x xsle xsge
 
 
 chk [] = liquidAssertB True
-chk (x1:xs) = case xs of 
+chk (x1:xs) = case xs of
                []     -> liquidAssertB True
                x2:xs2 -> liquidAssertB (x1 <= x2) && chk xs
-																	
+
 rlist = map choose [1 .. 10]
 
 bar = quicksort rlist

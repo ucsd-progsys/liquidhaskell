@@ -97,8 +97,8 @@ seen :: Titles
 {-@ seen :: Titles @-}
 seen = [t1, t2]
   where
-  	t1 = ("title" := S ChickenPlums) += empty
-  	t2 = ("title" := S FunnyGames)   += empty
+    t1 = ("title" := S ChickenPlums) += empty
+    t2 = ("title" := S FunnyGames)   += empty
 
 not_seen :: Movies
 not_seen = select isSeen movies

@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE EmptyCase #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--ple" @-}
 {-@ LIQUID "--no-positivity-check" @-}

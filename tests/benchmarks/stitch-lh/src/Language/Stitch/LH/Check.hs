@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 {-@ LIQUID "--exact-data-cons" @-}
 -- ple is necessary to reason about the evaluation of checkBindings
 {-@ LIQUID "--ple" @-}
