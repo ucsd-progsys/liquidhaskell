@@ -366,10 +366,14 @@ checkLiquidHaskellContext lhContext = do
       withPragmas (lhGlobalCfg lhContext) file (Ms.pragmas $ review bareSpecIso bareSpec) $ \moduleCfg ->  do
         let filters = getFilters moduleCfg
         -- Report the outcome of the checking
-        wasUnsafeButContinued <- LH.reportResult (errorLogger file filters) moduleCfg [giTarget (giSrc pmrTargetInfo)] out
-        if wasUnsafeButContinued || not (null filters)
-          then return $ Left $ ErrorsOccurred filters
-          else return $ Right pmrClientLib
+        LH.reportResult (errorLogger file filters) moduleCfg [giTarget (giSrc pmrTargetInfo)] out
+        -- If there are unmatched filters or errors, and we are not reporting with
+        -- json, we don't make it to this part of the code because errorLogger
+        -- will throw an exception.
+        case o_result out of
+          F.Safe _ -> return $ Right pmrClientLib
+          _ | json moduleCfg -> failM
+            | otherwise -> return $ Left $ ErrorsOccurred []
 
 errorLogger :: FilePath -> [Filter] -> OutputResult -> TcM ()
 errorLogger file filters outputResult = do

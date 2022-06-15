@@ -750,26 +750,20 @@ reportResult :: MonadIO m
              -> Config
              -> [FilePath]
              -> Output Doc
-             -> m Bool
+             -> m ()
 reportResult logResultFull cfg targets out = do
   annm <- {-# SCC "annotate" #-} liftIO $ annotate cfg targets out
   liftIO $ whenNormal $ donePhase Loud "annotate"
-  let r = o_result out
-  liftIO $ writeCheckVars $ o_vars out
-  cr <- liftIO $ resultWithContext r
-  let outputResult = resDocs tidy cr
-  if json cfg
-    then liftIO $ reportResultJson annm
-    else do
-      -- FIXME: For now, always print the \"header\" with colours, irrespective to the logger
-      -- passed as input.
-      liftIO $ printHeader (colorResult r) (orHeader outputResult)
-      logResultFull outputResult
-  case r of
-    F.Safe _ -> pure False
-    F.Unsafe _ _ -> pure True
-    F.Crash _ _ -> pure True
-
+  if | json cfg  -> liftIO $ reportResultJson annm
+     | otherwise -> do
+         let r = o_result out
+         liftIO $ writeCheckVars $ o_vars out
+         cr <- liftIO $ resultWithContext r
+         let outputResult = resDocs tidy cr
+         -- For now, always print the \"header\" with colours, irrespective to the logger
+         -- passed as input.
+         liftIO $ printHeader (colorResult r) (orHeader outputResult)
+         logResultFull outputResult
   where
     tidy :: F.Tidy
     tidy = if shortErrors cfg then F.Lossy else F.Full
