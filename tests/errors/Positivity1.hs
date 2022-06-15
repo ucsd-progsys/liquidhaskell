@@ -6,6 +6,8 @@ newtype Rec a = In { out :: Rec a -> a }
 y :: (a -> a) -> a
 y f = g (In g)
   where
+    -- ghc would say: Simplifier ticks exhausted
+    -- if we don't prevent this from inlining
     {-# NOINLINE g #-}
     g x = f (out x x)
 
