@@ -155,7 +155,7 @@ which will produce `tmp/*.json` files.
 
 Then a csv report can be generated from this json files with
 ```
-cabal v2-run benchmark-timings -- tmp/*.json --phase CoreTidy --phase Renamer/typechecker -o summary.csv
+cabal v2-run benchmark-timings -- tmp/*.json --phase CoreTidy --phase LiquidHaskell -o summary.csv
 ```
 On each line, the report will contain the time taken by each test.
 
