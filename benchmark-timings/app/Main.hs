@@ -85,7 +85,6 @@ dumpFilenameParser = do
 program :: Options -> IO ()
 program Options {..} = do
   csvFields <- for optsFilesToParse $ \fp ->
-    -- irrefutably get the filename and fail if we can't!
     case ReadP.readP_to_S dumpFilenameParser fp of
       (originalFilename, _):_ -> do
         Just (phases :: [Phase]) <- decodeFileStrict' fp
