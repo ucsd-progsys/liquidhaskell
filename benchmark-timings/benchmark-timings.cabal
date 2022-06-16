@@ -20,6 +20,11 @@ author:             The Liquid Haskell Developers
 -- category:
 extra-source-files: CHANGELOG.md
 
+flag devel
+  default:     False
+  description: Enable more warnings and fail compilation when warnings occur.
+               Turn this flag on in CI.
+
 executable benchmark-timings
     main-is:          Main.hs
 
@@ -33,5 +38,8 @@ executable benchmark-timings
                     , cassava ^>=0.5.2
                     , bytestring ^>=0.10.12
                     , optparse-applicative ^>=0.16.1
+    ghc-options:    -Wall
     hs-source-dirs:   app
     default-language: Haskell2010
+    if flag(devel)
+      ghc-options:  -Werror

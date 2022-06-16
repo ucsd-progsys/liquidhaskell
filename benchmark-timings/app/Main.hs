@@ -3,10 +3,10 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Main where
 
-import Control.Monad (guard, void)
 import Data.String (fromString)
 import Prelude hiding (writeFile)
 import Data.Csv hiding (Options, Parser)
@@ -16,10 +16,8 @@ import Options.Applicative
 import Data.Traversable (for)
 import Data.Maybe (catMaybes)
 
-import Data.ByteString.Lazy (ByteString)
 import Data.ByteString.Lazy.Char8 (writeFile)
 import Data.List (foldl', intersperse, isSuffixOf)
-import Data.Void (Void)
 import qualified Text.ParserCombinators.ReadP as ReadP
 
 data Phase = Phase
