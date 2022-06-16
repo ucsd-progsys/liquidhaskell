@@ -283,6 +283,14 @@ config = cmdArgsMode $ Config {
     = def &= help "Do not generate ADT representations in refinement logic"
           &= name "no-adt"
 
+ , expectErrorContaining
+    = def &= help "Expect an error which containing the provided string from verification (can be provided more than once)"
+          &= name "expect-error-containing"
+
+ , expectAnyError
+    = def &= help "Expect an error, no matter which kind or what it contains"
+          &= name "expect-any-error"
+
  , scrapeImports
     = False &= help "Scrape qualifiers from imported specifications"
             &= name "scrape-imports"
@@ -624,19 +632,27 @@ canonConfig cfg = cfg
 withPragmas :: MonadIO m => Config -> FilePath -> [Located String] -> (Config -> m a) -> m a
 --------------------------------------------------------------------------------
 withPragmas cfg fp ps action
-  = do cfg' <- liftIO $ foldM withPragma cfg ps >>= canonicalizePaths fp >>= (return . canonConfig)
+  = do cfg' <- liftIO $ processPragmas cfg ps >>= canonicalizePaths fp >>= (return . canonConfig)
        -- As the verbosity is set /globally/ via the cmdargs lib, re-set it.
        liftIO $ setVerbosity (loggingVerbosity cfg')
        res <- action cfg'
        liftIO $ setVerbosity (loggingVerbosity cfg) -- restore the original verbosity.
        pure res
+  where
+    processPragmas :: Config -> [Located String] -> IO Config
+    processPragmas c pragmas =
+      withArgs (val <$> pragmas) $
+        cmdArgsRun config { modeValue = (modeValue config) { cmdArgsValue = c } }
 
-
+-- | Note that this function doesn't process list arguments properly, like
+-- 'cFiles' or 'expectErrorContaining'
+-- TODO: This is only used to parse the contents of the env var LIQUIDHASKELL_OPTS
+-- so it should be able to parse multiple arguments instead. See issue #1990.
 withPragma :: Config -> Located String -> IO Config
 withPragma c s = withArgs [val s] $ cmdArgsRun
-          config { modeValue = (modeValue config) { cmdArgsValue = c } }
+                   config { modeValue = (modeValue config) { cmdArgsValue = c } }
 
-parsePragma   :: Located String -> IO Config
+parsePragma :: Located String -> IO Config
 parsePragma = withPragma defConfig
 
 defConfig :: Config
@@ -673,6 +689,8 @@ defConfig = Config
   , pruneUnsorted            = def
   , exactDC                  = def
   , noADT                    = def
+  , expectErrorContaining    = def
+  , expectAnyError           = False
   , cores                    = def
   , minPartSize              = FC.defaultMinPartSize
   , maxPartSize              = FC.defaultMaxPartSize
@@ -724,9 +742,9 @@ defConfig = Config
   , pandocHtml               = False
   }
 
-
--- | Writes the annotations (i.e. the files in the \".liquid\" hidden folder) and report the result
--- of the checking using a supplied function.
+-- | Write the annotations (i.e. the files in the \".liquid\" hidden folder) and
+-- report the result of the checking using a supplied function, or using an
+-- implicit JSON function, if @json@ flag is set.
 reportResult :: MonadIO m
              => (OutputResult -> m ())
              -> Config
@@ -744,21 +762,19 @@ reportResult logResultFull cfg targets out = do
          let outputResult = resDocs tidy cr
          -- For now, always print the \"header\" with colours, irrespective to the logger
          -- passed as input.
-         -- liftIO $ printHeader (colorResult r) (orHeader outputResult)
+         liftIO $ printHeader (colorResult r) (orHeader outputResult)
          logResultFull outputResult
-  pure ()
   where
     tidy :: F.Tidy
     tidy = if shortErrors cfg then F.Lossy else F.Full
 
-    _printHeader :: Moods -> Doc -> IO ()
-    _printHeader mood d = colorPhaseLn mood "" (render d)
-
+    printHeader :: Moods -> Doc -> IO ()
+    printHeader mood d = colorPhaseLn mood "" (render d)
 
 ------------------------------------------------------------------------
 exitWithResult :: Config -> [FilePath] -> Output Doc -> IO ()
 ------------------------------------------------------------------------
-exitWithResult cfg = reportResult writeResultStdout cfg
+exitWithResult cfg targets out = void $ reportResult writeResultStdout cfg targets out
 
 reportResultJson :: ACSS.AnnMap -> IO ()
 reportResultJson annm = do

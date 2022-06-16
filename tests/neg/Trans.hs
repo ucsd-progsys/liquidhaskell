@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Trans () where
 
 {-@ assert compre :: xs:[a] -> {v:[(a,a)] | len(v) = len(xs) } @-}

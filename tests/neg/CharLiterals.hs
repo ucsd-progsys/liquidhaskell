@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 -- see #1286
 
 module CharLiterals where

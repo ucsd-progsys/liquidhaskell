@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-error-containing=Illegal type specification for `T774.incr`" @-}
 
 -- | Why does this NOT fail?! Clearly there is a sort error?!
 

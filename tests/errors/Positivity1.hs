@@ -1,9 +1,15 @@
+{-@ LIQUID "--expect-error-containing=Negative occurence of Positivity1.Rec" @-}
 module Positivity1 where
 
 newtype Rec a = In { out :: Rec a -> a }
 
 y :: (a -> a) -> a
-y = \f -> (\x -> f (out x x)) (In (\x -> f (out x x))) 
+y f = g (In g)
+  where
+    -- ghc would say: Simplifier ticks exhausted
+    -- if we don't prevent this from inlining
+    {-# NOINLINE g #-}
+    g x = f (out x x)
 
 {-@ foo :: n:Nat -> {v:Nat | v < n} @-}
 foo :: Int -> Int

@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Using00 where
 
 {-@ using [a] as {v : [a] | (len v) > 0 } @-}

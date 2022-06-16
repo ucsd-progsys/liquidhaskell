@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module T1198_3 where
 
 {-@ data Tree [sz] @-}

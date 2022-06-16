@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Concat () where
 
 import Language.Haskell.Liquid.Prelude

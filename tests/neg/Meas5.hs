@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Meas5 () where
 
 import Language.Haskell.Liquid.Prelude

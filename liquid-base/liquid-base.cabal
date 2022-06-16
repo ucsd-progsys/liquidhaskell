@@ -257,4 +257,4 @@ library
                       NoImplicitPrelude
   if impl(ghc >= 8.10)
     ghc-options: -fplugin=LiquidHaskell -fplugin-opt=LiquidHaskell:--no-positivity-check
-  ghc-options:        -j
+  

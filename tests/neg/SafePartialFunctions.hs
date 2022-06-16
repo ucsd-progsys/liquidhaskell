@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module SafePartialFunctions (gotail, gohead) where
 
 import Prelude hiding (fromJust, tail, head)

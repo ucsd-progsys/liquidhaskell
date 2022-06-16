@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module List01 where
 
 data List yy

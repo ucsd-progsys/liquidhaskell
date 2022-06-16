@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Monad5 () where
 
 import Language.Haskell.Liquid.Prelude

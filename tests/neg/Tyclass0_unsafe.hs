@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Tyclass0_unsafe (poop) where
 
 class Zog a where

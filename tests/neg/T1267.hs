@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--max-case-expand=0" @-}
 
 module T1267 where

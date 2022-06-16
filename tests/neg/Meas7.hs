@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 
 module Meas7 () where
 

@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Data02Lib where
 
 {-@ data Pair = P { pX :: Nat, pY :: {v:Nat | pX < v} } @-}

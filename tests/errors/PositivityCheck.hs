@@ -1,5 +1,10 @@
+{-@ LIQUID "--expect-error-containing=Negative occurence of PositivityCheck.Bad1" @-}
+{-@ LIQUID "--expect-error-containing=Negative occurence of PositivityCheck.Bad2" @-}
+{-@ LIQUID "--expect-error-containing=Negative occurence of PositivityCheck.Bad3" @-}
+{-@ LIQUID "--expect-error-containing=Negative occurence of PositivityCheck.Bad4" @-}
+{-@ LIQUID "--expect-error-containing=Negative occurence of PositivityCheck.BadRec1" @-}
+{-@ LIQUID "--expect-error-containing=Negative occurence of PositivityCheck.BadRec2" @-}
 module PositivityCheck where
-
 
 data Bad1 a = No11 (Bad1 a -> Int) | No12 (Bad1 a) 
 data Bad2 a = No2 (Int -> Bad2 a -> Int)

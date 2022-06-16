@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-error-containing=Unbound symbol GHC.Err.undefined" @-}
 
 module Frog where
 

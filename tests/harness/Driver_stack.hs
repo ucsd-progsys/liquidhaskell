@@ -3,4 +3,4 @@ import Test.Options
 import Options.Applicative
 
 main :: IO ()
-main = program stackTestEnv stackOutputStripper stackErrorStripper stackBuild =<< execParser opts
+main = program stackTestEnv stackRun =<< execParser opts

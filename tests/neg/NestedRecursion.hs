@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module NestedRecursion (radicals) where
 
 radicals :: Int -> [a]

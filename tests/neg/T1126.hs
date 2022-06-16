@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-# LANGUAGE FlexibleInstances #-}
 
 module T1126 where

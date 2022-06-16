@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Record0 (clone, mk) where
 
 {-@ data LL a = BXYZ { size  :: {v: Int | v > 0 }

@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module HasElem where
 
 {-@ LIQUID "--no-termination" @-}

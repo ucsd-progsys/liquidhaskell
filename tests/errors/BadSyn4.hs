@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-error-containing=Malformed application of type alias `BadSyn4.Point`" @-}
 module BadSyn4 where
 
 type List a = [a]

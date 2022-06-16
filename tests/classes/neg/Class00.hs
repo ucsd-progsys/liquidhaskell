@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Class00 where
 
 class Zoo a where 

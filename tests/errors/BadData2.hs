@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-error-containing=Data constructors in refinement do not match original datatype for `Hog`" @-}
 {-@ LIQUID "--exact-data-cons" @-}
 
 module BadData2 where

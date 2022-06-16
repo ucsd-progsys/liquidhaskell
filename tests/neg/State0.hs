@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module State0 () where
 
 type State = Int

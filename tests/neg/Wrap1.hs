@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 
 module Wrap1 () where

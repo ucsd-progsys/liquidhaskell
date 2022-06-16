@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Grty2 () where
 
 moo = insert 4 [1, 2, 3]

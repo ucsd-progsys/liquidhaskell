@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 -- | Test 
 module Inc01 where
 

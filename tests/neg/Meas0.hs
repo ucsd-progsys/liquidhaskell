@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Meas0 () where
 
 import Control.Applicative

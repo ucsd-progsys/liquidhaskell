@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Elim000 () where
 
 {-@ prop2 :: Int -> Nat @-}

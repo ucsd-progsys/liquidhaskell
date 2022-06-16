@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-error-containing=== f B C" @-}
 
 -- https://github.com/ucsd-progsys/liquidhaskell/issues/1258
 

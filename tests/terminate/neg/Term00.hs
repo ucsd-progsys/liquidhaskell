@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 -- NO PRAGMA version of tests/pos/pragma0.hs
 -- an obviously non-terminating function
 

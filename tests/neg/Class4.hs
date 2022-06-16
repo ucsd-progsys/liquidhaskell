@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-@ LIQUID "--no-termination" @-}
 

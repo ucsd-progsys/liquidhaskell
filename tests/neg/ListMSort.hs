@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module ListMSort () where
 
 import Language.Haskell.Liquid.Prelude

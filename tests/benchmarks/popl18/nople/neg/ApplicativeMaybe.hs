@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--reflection"     @-}
 
 module ApplicativeMaybe where

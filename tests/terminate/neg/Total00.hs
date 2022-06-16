@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Total00 where
 
 foo :: Int -> Int 

@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module T1490A () where
 
 newtype Embed a = Embed a

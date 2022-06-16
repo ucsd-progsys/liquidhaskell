@@ -1,7 +1,9 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "totality" @-}
+{-# OPTIONS_GHC -Wno-overlapping-patterns #-}
 
-module DataBase () where
+module DataBase (
 
   Table, Dict(..), (+=), P(..), values, empty,
 

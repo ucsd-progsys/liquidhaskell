@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--no-totality" @-}
 module Grty1 () where
 

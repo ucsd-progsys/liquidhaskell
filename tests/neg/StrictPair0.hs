@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 -- Compare with tests/neg/StrictPair1.hs
 
 module StrictPair0 (poo) where

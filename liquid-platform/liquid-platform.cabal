@@ -36,7 +36,7 @@ executable liquidhaskell
 
   if flag(devel)
     ghc-options: -Werror
-  ghc-options:   -j
+  
 
 executable gradual
   main-is:          src/Gradual.hs
@@ -51,7 +51,7 @@ executable gradual
 
   if flag(devel)
     ghc-options: -Werror
-  ghc-options:   -j
+  
 
 executable target
   main-is:          src/Target.hs

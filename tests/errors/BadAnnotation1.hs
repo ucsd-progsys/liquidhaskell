@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-error-containing=Malformed annotation" @-}
 module BadAnnotation1 where
 
 {-@ incr :: x:Int 

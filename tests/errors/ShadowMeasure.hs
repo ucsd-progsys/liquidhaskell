@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-error-containing=Multiple specifications for `shadow`" @-}
 
 -- ISSUE: Currently this doesn't CRASH because the two sorts for `shadow` are the
 -- same, but that is a happy coincidence. We should REJECT this program as the

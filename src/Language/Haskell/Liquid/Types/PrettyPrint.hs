@@ -8,6 +8,8 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE MonoLocalBinds       #-}
 {-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE RecordWildCards      #-}
+{-# LANGUAGE ScopedTypeVariables  #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
@@ -28,15 +30,23 @@ module Language.Haskell.Liquid.Types.PrettyPrint
   , printWarning
   , printError
 
+  -- * Filtering errors
+  , Filter(..)
+  , getFilters
+  , reduceFilters
+  , defaultFilterReporter
+
   -- * Reporting errors in the typechecking phase
-  , reportErrors
+  , FilterReportErrorsArgs(..)
+  , filterReportErrorsWith
+  , filterReportErrors
 
   ) where
 
-import           Control.Monad
-
+import           Control.Monad                           (void)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L                               -- (sort)
+import qualified Data.Set                         as Set
 import           Data.String
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types          as F
@@ -62,6 +72,14 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Types
 import           Prelude                          hiding (error)
 import           Text.PrettyPrint.HughesPJ        hiding ((<>))
+
+-- | `Filter`s match errors. They are used to ignore classes of errors they
+-- match. `AnyFilter` matches all errors. `StringFilter` matches any error whose
+-- \"representation\" contains the given `String`. A \"representation\" is
+-- pretty-printed String of the error.
+data Filter = StringFilter String
+            | AnyFilter
+  deriving (Eq, Ord, Show)
 
 --------------------------------------------------------------------------------
 pprManyOrdered :: (PPrint a, Ord a) => F.Tidy -> String -> [a] -> [Doc]
@@ -158,7 +176,7 @@ instance PPrint LogicMap where
                                  , nest 2 $ text "axiom-map"
                                  , nest 4 $ pprint am
                                  ]
-                    
+
 --------------------------------------------------------------------------------
 -- | Pretty Printing RefType ---------------------------------------------------
 --------------------------------------------------------------------------------
@@ -177,11 +195,11 @@ ppAlias k a =   pprint (rtName a)
             <+> text " = "
             <+> pprint (rtBody a)
 
-instance (F.PPrint tv, F.PPrint t) => F.PPrint (RTEnv tv t) where 
-  pprintTidy k rte 
-    =   text "** Type Aliaes *********************" 
-    $+$ nest 4 (F.pprintTidy k (typeAliases rte)) 
-    $+$ text "** Expr Aliases ********************" 
+instance (F.PPrint tv, F.PPrint t) => F.PPrint (RTEnv tv t) where
+  pprintTidy k rte
+    =   text "** Type Aliaes *********************"
+    $+$ nest 4 (F.pprintTidy k (typeAliases rte))
+    $+$ text "** Expr Aliases ********************"
     $+$ nest 4 (F.pprintTidy k (exprAliases rte))
 
 pprints :: (PPrint a) => F.Tidy -> Doc -> [a] -> Doc
@@ -199,7 +217,7 @@ instance PPrint F.Tidy where
   pprintTidy _ F.Full  = "Full"
   pprintTidy _ F.Lossy = "Lossy"
 
-type Prec = PprPrec 
+type Prec = PprPrec
 
 --------------------------------------------------------------------------------
 ppr_rtype :: (OkRT c tv r) => PPEnv -> Prec -> RType c tv r -> Doc
@@ -342,10 +360,10 @@ ppr_rty_fun' bb t
   = ppr_rtype bb topPrec t
 -}
 
-brkFun :: RType c tv r -> ([(F.Symbol, RType c tv r, Doc)], RType c tv r) 
-brkFun (RImpF b _ t t' _) = ((b, t, (text "~>")) : args, out)   where (args, out)     = brkFun t'  
-brkFun (RFun b _ t t' _)  = ((b, t, (text "->")) : args, out)   where (args, out)     = brkFun t'  
-brkFun out                = ([], out) 
+brkFun :: RType c tv r -> ([(F.Symbol, RType c tv r, Doc)], RType c tv r)
+brkFun (RImpF b _ t t' _) = ((b, t, (text "~>")) : args, out)   where (args, out)     = brkFun t'
+brkFun (RFun b _ t t' _)  = ((b, t, (text "->")) : args, out)   where (args, out)     = brkFun t'
+brkFun out                = ([], out)
 
 
 
@@ -413,7 +431,7 @@ ppr_ref  (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint s
 
 ppRefArgs :: [F.Symbol] -> Doc
 ppRefArgs [] = empty
-ppRefArgs ss = text "\\" <-> hsep (ppRefSym <$> ss ++ [F.vv Nothing]) <+> arrow 
+ppRefArgs ss = text "\\" <-> hsep (ppRefSym <$> ss ++ [F.vv Nothing]) <+> arrow
 
 ppRefSym :: (Eq a, IsString a, PPrint a) => a -> Doc
 ppRefSym "" = text "_"
@@ -437,8 +455,111 @@ instance (PPrint r, F.Reftable r) => PPrint (UReft r) where
 printError :: (Show e, F.PPrint e) => F.Tidy -> DynFlags -> TError e -> IO ()
 printError k dyn err = putErrMsg dyn (pos err) (ppError k empty err)
 
--- | Similar in spirit to 'reportErrors' from the GHC API, but it uses our pretty-printer
--- and shim functions under the hood.
-reportErrors :: (Show e, F.PPrint e) => F.Tidy -> [TError e] -> Ghc.TcRn ()
-reportErrors k errs =
-  forM errs (\err -> mkLongErrAt (pos err) (ppError k empty err) mempty) >>= Ghc.reportErrors
+-- | Similar in spirit to 'reportErrors' from the GHC API, but it uses our
+-- pretty-printer and shim functions under the hood. Also filters the errors
+-- according to the given `Filter` list.
+--
+-- @filterReportErrors failure continue filters k@ will call @failure@ if there
+-- are unexpected errors, or will call @continue@ otherwise.
+--
+-- An error is expected if there is any filter that matches it.
+filterReportErrors :: forall e' a. (Show e', F.PPrint e') => FilePath -> Ghc.TcRn a -> Ghc.TcRn a -> [Filter] -> F.Tidy -> [TError e'] -> Ghc.TcRn a
+filterReportErrors path failure continue filters k =
+  filterReportErrorsWith
+    FilterReportErrorsArgs { msgReporter = Ghc.reportErrors
+                           , filterReporter = defaultFilterReporter path
+                           , failure = failure
+                           , continue = continue
+                           , pprinter = \err -> mkLongErrAt (pos err) (ppError k empty err) mempty
+                           , matchingFilters = reduceFilters renderer filters
+                           , filters = filters
+                           }
+  where
+    renderer :: TError e' -> String
+    renderer = render . ppError k empty
+
+-- | Retrieve the `Filter`s from the Config.
+getFilters :: Config -> [Filter]
+getFilters cfg = anyFilter <> stringFilters
+  where
+    anyFilter = [AnyFilter | expectAnyError cfg]
+    stringFilters = StringFilter <$> expectErrorContaining cfg
+
+-- | Return the list of @filters@ that matched the @err@ , given a @renderer@
+-- for the @err@ and some @filters@
+reduceFilters :: forall e. (e -> String) -> [Filter] -> e -> [Filter]
+reduceFilters renderer fs err = filter (filterDoesMatchErr err) fs
+  where
+    filterDoesMatchErr :: e -> Filter -> Bool
+    filterDoesMatchErr _ AnyFilter = True
+    filterDoesMatchErr e (StringFilter filter) = filter `L.isInfixOf` renderer e
+
+-- | Used in `filterReportErrorsWith'`
+data FilterReportErrorsArgs m filter msg e a =
+  FilterReportErrorsArgs
+  {
+    -- | Report the @msgs@ to the monad (usually IO)
+    msgReporter :: [msg] -> m ()
+  ,
+    -- | Report unmatched @filters@ to the monad
+    filterReporter :: [filter] -> m ()
+  ,
+    -- | Continuation for when there are unmatched filters or unmatched errors
+    failure :: m a
+  ,
+    -- | Continuation for when there are no unmatched errors or filters
+    continue :: m a
+  ,
+    -- | Compute a representation of the given error; does not report the error
+    pprinter :: e -> m msg
+  ,
+    -- | Yields the filters that map a given error. Must only yield
+    -- filters in the @filters@ field.
+    matchingFilters :: e -> [filter]
+  ,
+    -- | List of filters which could have been matched
+    filters :: [filter]
+  }
+
+-- | Calls the continuations in FilterReportErrorsArgs depending on whethere there
+-- are unmatched errors, unmatched filters or none.
+filterReportErrorsWith :: (Monad m, Ord filter) => FilterReportErrorsArgs m filter msg e a -> [e] -> m a
+filterReportErrorsWith FilterReportErrorsArgs {..} errs =
+  let
+    (unmatchedErrors, matchedFilters) =
+      L.partition (null . snd) [ (e, fs) | e <- errs, let fs = matchingFilters e ]
+    unmatchedFilters = Set.toList $
+      Set.fromList filters `Set.difference` Set.fromList (concat $ map snd matchedFilters)
+  in
+    if null unmatchedErrors then
+      if null unmatchedFilters then
+        continue
+      else do
+        filterReporter unmatchedFilters
+        failure
+    else do
+      msgs <- traverse pprinter (map fst unmatchedErrors)
+      void $ msgReporter msgs
+      failure
+
+-- | Report errors via GHC's API stating the given `Filter`s did not get
+-- matched. Does nothing if the list of filters is empty.
+defaultFilterReporter :: FilePath -> [Filter] -> Ghc.TcRn ()
+defaultFilterReporter _ [] = pure ()
+defaultFilterReporter path fs = Ghc.reportError =<< mkLongErrAt srcSpan (vcat $ leaderMsg : (nest 4 <$> filterMsgs)) empty
+  where
+    leaderMsg :: Doc
+    leaderMsg = text "Could not match the following expected errors with actual thrown errors:"
+
+    filterToMsg :: Filter -> Doc
+    filterToMsg AnyFilter = text "<Any Liquid error>"
+    filterToMsg (StringFilter s) = text "String filter: " <-> quotes (text s)
+
+    filterMsgs :: [Doc]
+    filterMsgs = filterToMsg <$> fs
+
+    beginningOfFile :: Ghc.SrcLoc
+    beginningOfFile = Ghc.mkSrcLoc (fromString path) 1 1
+
+    srcSpan :: SrcSpan
+    srcSpan = Ghc.mkSrcSpan beginningOfFile beginningOfFile

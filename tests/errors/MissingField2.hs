@@ -1,5 +1,4 @@
--- TODO-REBARE: LH _should_ (?) complain: "Unknown field `fxx` in refined definition of `F`"
-
+{-@ LIQUID "--expect-error-containing=Unbound symbol fxx"@-}
 module MissingField2 where
 
 data F a = F {fx :: a, fy :: a, fzz :: a} | G {fx :: a}

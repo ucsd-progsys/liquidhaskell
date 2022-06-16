@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module LazyWhere () where
 
 import Language.Haskell.Liquid.Prelude

@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module T743_mini (bar) where
 
 {-@ bar :: Nat @-}

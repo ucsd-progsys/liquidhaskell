@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module StateConstraints0 where
 
 import Prelude hiding (Monad(..))

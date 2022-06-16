@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module RG where
 
 import Data.IORef as R

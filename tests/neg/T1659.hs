@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--reflection" @-}
 {-# LANGUAGE TypeFamilies, TypeFamilyDependencies #-}
 module T1659 where

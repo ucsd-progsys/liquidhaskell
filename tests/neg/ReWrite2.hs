@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module ReWrite2 where
 
 {-@ LIQUID "--reflection" @-}

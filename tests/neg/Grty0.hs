@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Grty0 () where
 
 {-@ stupid :: Int -> Int @-}

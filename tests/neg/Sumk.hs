@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Sumk () where
 
 import Language.Haskell.Liquid.Prelude
