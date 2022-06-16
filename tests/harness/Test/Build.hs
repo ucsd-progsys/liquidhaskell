@@ -61,18 +61,19 @@ stackTestEnv = ensurePathContains "stack"
 
 -- | Main program; reused between cabal and stack drivers
 program :: Sh () -> ([Text] -> IO ExitCode) -> Options ->IO ()
-program _ _ (Options _ True) = do
-  for_ allTestGroupNames T.putStrLn
-  exitSuccess
-program testEnv runner (Options testGroups' False) = do
+program testEnv runner opts
+  | showAll opts = do
+    for_ allTestGroupNames T.putStrLn
+    exitSuccess
+  | otherwise = do
   Sh.shelly testEnv
-  let goodGroups = all (`elem` allTestGroupNames) testGroups'
+  let goodGroups = all (`elem` allTestGroupNames) (testGroups opts)
   if not goodGroups
     then do
       T.putStrLn "You selected a bad test group name.  Run with --help to see available options."
       exitFailure
     else do
-      let selectedTestGroups = if null testGroups' then allTestGroupNames else testGroups'
+      let selectedTestGroups = if null (testGroups opts) then allTestGroupNames else testGroups opts
       T.putStrLn "Running integration tests!"
       runner selectedTestGroups >>= exitWith
 
