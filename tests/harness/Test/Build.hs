@@ -5,11 +5,11 @@ module Test.Build where
 import qualified Shelly as Sh
 import Shelly (Sh)
 import Test.Groups
+import Test.Options (Options(..))
 import System.Exit (exitSuccess, exitFailure, exitWith)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import Test.Types
 import System.Process.Typed
 import System.Environment
 import Data.Foldable (for_)
@@ -21,7 +21,7 @@ runCommand cmd args = runProcess (proc (T.unpack cmd) (T.unpack <$> args))
 -- | Build using cabal, selecting the project file from the
 -- `LIQUID_CABAL_PROJECT_FILE` environment variable if possible, otherwise using
 -- the default.
-cabalRun :: [TestGroupName] -- ^ Test groups to build
+cabalRun :: [Text] -- ^ Test groups to build
          -> IO ExitCode
 cabalRun names = do
   projectFile <- lookupEnv "LIQUID_CABAL_PROJECT_FILE"
@@ -32,7 +32,7 @@ cabalRun names = do
     <> names
 
 -- | Runs stack on the given test groups
-stackRun :: [TestGroupName] -> IO ExitCode
+stackRun :: [Text] -> IO ExitCode
 stackRun names =
   runCommand "stack" $
     [ "build"
@@ -45,7 +45,7 @@ stackRun names =
     testNames = fmap ("tests:" <>) names
     testFlags = concatMap (("--flag" :) . pure) testNames
 
-build :: ([TestGroupName] -> IO ExitCode) -> [TestGroupName] -> IO ExitCode
+build :: ([Text] -> IO ExitCode) -> [Text] -> IO ExitCode
 build builder tgns = do
   T.putStrLn "Running integration tests!"
   builder tgns
@@ -65,7 +65,7 @@ stackTestEnv :: Sh ()
 stackTestEnv = ensurePathContains "stack"
 
 -- | Main program; reused between cabal and stack drivers
-program :: Sh () -> ([TestGroupName] -> IO ExitCode) -> Options ->IO ()
+program :: Sh () -> ([Text] -> IO ExitCode) -> Options ->IO ()
 program _ _ (Options _ True) = do
   for_ allTestGroupNames T.putStrLn
   exitSuccess

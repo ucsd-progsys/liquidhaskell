@@ -1,10 +1,15 @@
 module Test.Options where
 
 import qualified Data.Text as T
-import Test.Types
 import Test.Groups
 import Options.Applicative
 import Data.List (intersperse)
+
+data Options = Options
+  { testGroups :: [T.Text]
+  , showAll :: Bool
+  }
+  deriving (Eq, Ord, Show)
 
 options :: Parser Options
 options = Options <$>

@@ -37,8 +37,7 @@ executable test-driver
                     , typed-process
                     , optparse-applicative
 
-    other-modules:    Test.Types
-                    , Test.Build
+    other-modules:    Test.Build
                     , Test.Groups
                     , Test.Options
 
