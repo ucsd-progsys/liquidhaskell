@@ -790,11 +790,10 @@ instance Show (CtxError Doc) where
   show = showpp
 
 writeCheckVars :: Symbolic a => Maybe [a] -> IO ()
-writeCheckVars _ {- Nothing -}    = return ()
---XXX(matt.walker): revert!
--- writeCheckVars (Just [])   = colorPhaseLn Loud "Checked Binders: None" ""
--- writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" ""
---                           >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
+writeCheckVars Nothing    = return ()
+writeCheckVars (Just [])   = colorPhaseLn Loud "Checked Binders: None" ""
+writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" ""
+                          >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
 
 type CError = CtxError Doc
 
