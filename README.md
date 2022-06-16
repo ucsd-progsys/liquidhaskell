@@ -145,12 +145,18 @@ For details on adding tests, see note [Parallel_Tests] in `tests/test.hs`.
 
 ## How to create performance comparison charts
 
-Everytime `liquidhaskell` tests are run, measures are collected in `.dump-timings`
-files. This can be converted to json data with
+When `liquidhaskell` tests run, we can collect timing information with
+
+    $ ./scripts/tests/test_810_plugin.sh --measure-timings
+
+Measures will be collected in `.dump-timings` files. These can be converted to json
+data with
+
 ```bash
 cabal v2-build ghc-timings
 cabal v2-exec ghc-timings dist-newstyle
 ```
+
 which will produce `tmp/*.json` files.
 
 Then a csv report can be generated from this json files with

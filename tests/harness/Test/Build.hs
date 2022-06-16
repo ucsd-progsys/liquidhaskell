@@ -5,11 +5,11 @@ module Test.Build where
 import qualified Shelly as Sh
 import Shelly (Sh)
 import Test.Groups
+import Test.Options (Options(..))
 import System.Exit (exitSuccess, exitFailure, exitWith)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import Test.Types
 import System.Process.Typed
 import System.Environment
 import Data.Foldable (for_)
@@ -21,22 +21,23 @@ runCommand cmd args = runProcess (proc (T.unpack cmd) (T.unpack <$> args))
 -- | Build using cabal, selecting the project file from the
 -- `LIQUID_CABAL_PROJECT_FILE` environment variable if possible, otherwise using
 -- the default.
-cabalRun :: [TestGroupName] -- ^ Test groups to build
+cabalRun :: Options
+         -> [Text] -- ^ Test groups to build
          -> IO ExitCode
-cabalRun names = do
+cabalRun opts names = do
   projectFile <- lookupEnv "LIQUID_CABAL_PROJECT_FILE"
   runCommand "cabal" $
     [ "build" ]
     <> (case projectFile of Nothing -> []; Just projectFile' -> [ "--project-file", T.pack projectFile' ])
-    <> ["-j", "--keep-going"]
+    <> (if measureTimings opts then ["--flags=measure-timings", "-j1"] else ["--keep-going"])
     <> names
 
 -- | Runs stack on the given test groups
-stackRun :: [TestGroupName] -> IO ExitCode
-stackRun names =
+stackRun :: Options -> [Text] -> IO ExitCode
+stackRun opts names =
   runCommand "stack" $
-    [ "build"
-    , "--flag", "tests:stack" ]
+    [ "build", "--flag", "tests:stack" ]
+    <> concat [ ["--flag=tests:measure-timings", "-j1"] | measureTimings opts ]
     -- Enables that particular executable in the cabal file
     <> testFlags
     <> [ "--" ]
@@ -44,11 +45,6 @@ stackRun names =
   where
     testNames = fmap ("tests:" <>) names
     testFlags = concatMap (("--flag" :) . pure) testNames
-
-build :: ([TestGroupName] -> IO ExitCode) -> [TestGroupName] -> IO ExitCode
-build builder tgns = do
-  T.putStrLn "Running integration tests!"
-  builder tgns
 
 -- | Ensure prog is on the PATH
 ensurePathContains :: Text -> Sh ()
@@ -65,18 +61,20 @@ stackTestEnv :: Sh ()
 stackTestEnv = ensurePathContains "stack"
 
 -- | Main program; reused between cabal and stack drivers
-program :: Sh () -> ([TestGroupName] -> IO ExitCode) -> Options ->IO ()
-program _ _ (Options _ True) = do
-  for_ allTestGroupNames T.putStrLn
-  exitSuccess
-program testEnv runner (Options testGroups' False) = do
-  Sh.shelly testEnv
-  let goodGroups = all (`elem` allTestGroupNames) testGroups'
-  if not goodGroups
-    then do
-      T.putStrLn "You selected a bad test group name.  Run with --help to see available options."
-      exitFailure
-    else do
-      let selectedTestGroups = if null testGroups' then allTestGroupNames else testGroups'
-      build runner selectedTestGroups >>= exitWith
+program :: Sh () -> (Options -> [Text] -> IO ExitCode) -> Options ->IO ()
+program testEnv runner opts
+  | showAll opts = do
+    for_ allTestGroupNames T.putStrLn
+    exitSuccess
+  | otherwise = do
+    Sh.shelly testEnv
+    let goodGroups = all (`elem` allTestGroupNames) (testGroups opts)
+    if not goodGroups
+      then do
+        T.putStrLn "You selected a bad test group name.  Run with --help to see available options."
+        exitFailure
+      else do
+        let selectedTestGroups = if null (testGroups opts) then allTestGroupNames else testGroups opts
+        T.putStrLn "Running integration tests!"
+        runner opts selectedTestGroups >>= exitWith
 

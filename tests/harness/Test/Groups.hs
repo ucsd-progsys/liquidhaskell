@@ -2,9 +2,9 @@
 
 module Test.Groups where
 
-import Test.Types
+import Data.Text (Text)
 
-microTestGroups :: [TestGroupName]
+microTestGroups :: [Text]
 microTestGroups =
   [ -- micros
     "unit-pos-1"
@@ -37,7 +37,7 @@ microTestGroups =
   , "typeclass-pos"
   ]
 
-benchmarkTestGroups :: [TestGroupName]
+benchmarkTestGroups :: [Text]
 benchmarkTestGroups =
   [ -- benchmarks
     "benchmark-stitch-lh"
@@ -52,7 +52,7 @@ benchmarkTestGroups =
   , "benchmark-icfp15-neg"
   ]
 
-proverTestGroups :: [TestGroupName]
+proverTestGroups :: [Text]
 proverTestGroups =
   [ -- prover
     "prover-foundations"
@@ -63,7 +63,7 @@ proverTestGroups =
   , "prover-nople-neg"
   ]
 
-errorsTestGroups :: [TestGroupName]
+errorsTestGroups :: [Text]
 errorsTestGroups =
   [ -- error messages
     "errors"
@@ -71,7 +71,7 @@ errorsTestGroups =
   ]
 
 -- | Update this when you add new "classes" of test groups
-allTestGroupNames :: [TestGroupName]
+allTestGroupNames :: [Text]
 allTestGroupNames =
   mconcat [ microTestGroups
           , benchmarkTestGroups
