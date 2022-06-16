@@ -31,10 +31,10 @@ data Date = Date
       { day   :: {v:_ | okDay v }
       , month :: {v:_ | okMonth day v}
       , year  :: {v:_ | okYear month day v}
-      } 
+      }
  @-}
 
--- In order to construct a valid `Date`, we need to do all the proper runtime tests, or 
+-- In order to construct a valid `Date`, we need to do all the proper runtime tests, or
 -- else Liquid Haskell complains at compile time that they're not satisfied.
 
 main :: IO ()
@@ -43,8 +43,8 @@ main = do
   month :: Int <- readLn
   day   :: Int <- readLn
   if year > 0
-     then if okMonth day month 
-	    then if okDay day && okYear month day year 
+     then if okMonth day month
+         then if okDay day && okYear month day year
                    then print (Date day month year)
                    else error "Day is out of range!"
             else error "Month is out of range."

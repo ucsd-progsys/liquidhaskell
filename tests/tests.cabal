@@ -142,7 +142,7 @@ executable benchmark-bytestring
                     , liquidhaskell
                     , array >= 0.5.4
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
+  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0 -Wno-inline-rule-shadowing
   if flag(measure-timings)
     ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
@@ -239,7 +239,7 @@ executable benchmark-esop2013
                     , liquidhaskell
                     , deepseq >= 1.4
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0 -Wnoinline-rule-shadowing
+  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0 -Wno-inline-rule-shadowing
   if flag(measure-timings)
     ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-overlapping-patterns #-}
 -- Ensure that rewrites work with refinements
 module ReWrite3 where
 

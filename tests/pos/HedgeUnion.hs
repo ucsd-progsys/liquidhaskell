@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-overlapping-patterns #-}
 module HedgeUnion where
 
 import Language.Haskell.Liquid.Prelude

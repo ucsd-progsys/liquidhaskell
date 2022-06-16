@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-missing-methods #-}
 {-@ LIQUID "--expect-error-containing=Unbound symbol T1708.bool1" @-}
 {-@ LIQUID "--expect-error-containing=Unbound symbol T1708.bool2" @-}
 {-@ LIQUID "--reflection"  @-}

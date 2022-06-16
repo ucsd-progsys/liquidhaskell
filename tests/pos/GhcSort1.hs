@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 {-# Language ScopedTypeVariables   #-}
 {-# Language PartialTypeSignatures #-}
 

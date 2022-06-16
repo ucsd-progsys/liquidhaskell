@@ -83,7 +83,7 @@ mapReduceTheorem n f op left_id _ is@(C x xs)
   === reduce op (f N) (f is `C` N)
   === op (f is) (reduce op (f N) N)
   === op (f is) (f N)
-	? left_id is
+    ? left_id is
   === f is  
   *** QED 
 

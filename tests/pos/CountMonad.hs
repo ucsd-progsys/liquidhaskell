@@ -8,7 +8,7 @@ module CountMonad () where
 data Count a = Count a
 
 instance Functor Count where
-	fmap = undefined
+    fmap = undefined
 instance Applicative Count where
   pure  = undefined
   (<*>) = undefined

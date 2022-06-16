@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-missing-methods #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE DeriveAnyClass      #-}
 {-@ LIQUID "--max-case-expand=0" @-}

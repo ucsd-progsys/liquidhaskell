@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-missing-methods #-}
 {-@ LIQUID "--expect-any-error" @-}
 module NoMethodBindingError where
 
