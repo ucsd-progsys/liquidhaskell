@@ -1,4 +1,4 @@
-{-@ LIQUID "--higherorder"     @-}	
+{-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--ple" @-}
 
 -- TAG: absref

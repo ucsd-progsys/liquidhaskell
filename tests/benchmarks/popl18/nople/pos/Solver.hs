@@ -9,7 +9,7 @@
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--pruneunsorted"   @-}
 
--- TAG: absref 
+-- TAG: absref
 -- TAG: termination
 
 module Solver where
@@ -50,19 +50,19 @@ find f (x:xs) | f x       = Just x
 asgns :: Formula -> [Asgn] -- generates all possible T/F vectors
 asgns = go . vars
   where
-  	go []     = []
-  	go (x:xs) = let ass = go xs in (inject (P x True) ass) ++ (inject (P x False) ass)
+    go []     = []
+    go (x:xs) = let ass = go xs in (inject (P x True) ass) ++ (inject (P x False) ass)
 
-  	inject x xs = (\y -> x:::y) <$> xs
+    inject x xs = (\y -> x:::y) <$> xs
 
 vars :: Formula -> [Var]
 vars = nub . toList .  go
   where
-  	go Emp       = Emp
-  	go (ls:::xs) = map go' ls `append` go xs
+    go Emp       = Emp
+    go (ls:::xs) = map go' ls `append` go xs
 
-  	go' (Pos x) = x
-  	go' (Neg x) = x
+    go' (Pos x) = x
+    go' (Neg x) = x
 
 
 {-@ axiomatize sat @-}

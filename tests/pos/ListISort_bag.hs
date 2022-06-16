@@ -12,8 +12,8 @@ insertSort (x:xs) = insert x (insertSort xs)
 {-@ insert      :: (Ord a) => x:a -> xs: OList a -> {v: OList a | bag v = B.put x (bag xs) } @-}
 insert y []     = [y]
 insert y (x:xs)
-  | y <= x    	= y : x : xs
-  | otherwise 	= x : insert y xs
+  | y <= x    = y : x : xs
+  | otherwise = x : insert y xs
 
 {-@ measure bag @-}
 bag :: (Ord a) => [a] -> B.Bag a

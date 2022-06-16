@@ -3,15 +3,15 @@ module ListMSort_LType () where
 
 import Language.Haskell.Liquid.Prelude
 
-{-@  
-data List a <p :: x0:a -> x1:a -> Bool>  
-  = Nil 
+{-@
+data List a <p :: x0:a -> x1:a -> Bool>
+  = Nil
   | Cons (h :: a) (t :: List <p> (a <p h>))
 @-}
 data List a = Nil | Cons a (List a)
 
 
--- This is needed to conclude that 
+-- This is needed to conclude that
 -- xs = Nil /\ xs = Cons _ _ <=> false
 
 {-@ measure llen @-}
@@ -33,7 +33,7 @@ merge Nil ys = ys
 merge (Cons x xs) (Cons y ys)
   | x <= y
   = Cons x (merge xs (Cons y ys))
-  | otherwise 
+  | otherwise
   = Cons y (merge (Cons x xs) ys)
 
 mergesort :: Ord a => List a -> List a
@@ -41,13 +41,13 @@ mergesort Nil = Nil
 mergesort (Cons x Nil) = Cons x Nil
 mergesort xs = merge (mergesort xs1) (mergesort xs2) where (xs1, xs2) = split xs
 
-chk y = 
-  case y of 
+chk y =
+  case y of
    Nil -> True
-   Cons x1 xs -> case xs of 
+   Cons x1 xs -> case xs of
                   Nil -> True
                   Cons x2 xs2 -> liquidAssertB (x1 <= x2) && chk xs2
-																	
+
 bar = mergesort $ mkList [1 .. 100]
 
 barI :: List Int

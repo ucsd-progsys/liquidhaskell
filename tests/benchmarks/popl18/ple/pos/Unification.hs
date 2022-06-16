@@ -5,7 +5,7 @@
 -- nonlinear-cuts (i.e. they add new cut vars that require qualifiers.) why?
 -- where? switch off non-lin-cuts in higher-order mode?
 
-{-@ LIQUID "--reflection"      @-}	
+{-@ LIQUID "--reflection"      @-}
 {-@ LIQUID "--ple-local" @-}
 
 module Unification where
@@ -41,8 +41,8 @@ unify t1 t2@(TVar i)
 unify (TFun t11 t12) (TFun t21 t22)
   = case unify t11 t21 of
       Just θ1 -> case unify (apply θ1 t12) (apply θ1 t22) of
-		   Just θ2 -> Just (append θ2 θ1) `withProof` theoremFun t11 t12 t21 t22 θ1 θ2
-                   Nothing -> Nothing
+         Just θ2 -> Just (append θ2 θ1) `withProof` theoremFun t11 t12 t21 t22 θ1 θ2
+         Nothing -> Nothing
       _       -> Nothing
 unify t1 t2
   = Nothing

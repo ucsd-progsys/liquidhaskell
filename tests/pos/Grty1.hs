@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-overlapping-patterns #-}
 module Grty1 () where
 import Language.Haskell.Liquid.Prelude 
 

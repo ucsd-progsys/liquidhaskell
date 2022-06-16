@@ -4,11 +4,11 @@ module VerifiedNum where
 -- Hiding numeric operations, because they get by default translated to SMT equivalent
 import Prelude hiding (Num(..))
 
-import qualified Prelude as Prelude 
+import qualified Prelude as Prelude
 
-class VerifiedNum a where 
-  (+) :: a -> a -> a 
-  (-) :: a -> a -> a 
+class VerifiedNum a where
+  (+) :: a -> a -> a
+  (-) :: a -> a -> a
 
 {-@ predicate BoundInt X = 0 < X + 10000 && X < 10000 @-}
 
@@ -18,17 +18,17 @@ class VerifiedNum a where
 
 
 instance VerifiedNum Int where
-{-@ instance VerifiedNum Int where 
-      + :: x:Int -> y:Int -> OkInt {x + y} 
+{-@ instance VerifiedNum Int where
+      + :: x:Int -> y:Int -> OkInt {x + y}
   @-}
-	x + y = (Prelude.+) x y  
-{-@ instance VerifiedNum Int where 
-      - :: x:Int -> y:Int -> OkInt {x - y} 
+    x + y = (Prelude.+) x y
+{-@ instance VerifiedNum Int where
+      - :: x:Int -> y:Int -> OkInt {x - y}
   @-}
-	x - y = (Prelude.-) x y  
+    x - y = (Prelude.-) x y
 
 
 {-@ good :: {v:Int | v == 10} @-}
-good :: Int 
+good :: Int
 good  = 5 + 5
 

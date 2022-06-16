@@ -1,8 +1,8 @@
-{-@ LIQUID "--no-adt" 	      @-}
+{-@ LIQUID "--no-adt"         @-}
 {-@ LIQUID "--exact-data-con" @-}
 {-@ LIQUID "--higherorder"    @-}
 {-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "--ple" 	      @-}
+{-@ LIQUID "--ple"            @-}
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
@@ -25,7 +25,7 @@ data Filter record typ = Filter
 
 {-@ reflect createEqQuery @-}
 createEqQuery :: (PersistEntity record, Eq typ) =>
-	         EntityField record typ -> typ -> Filter record typ
+             EntityField record typ -> typ -> Filter record typ
 createEqQuery field value =
   Filter {
     filterField = field

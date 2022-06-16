@@ -1,14 +1,14 @@
--- TAG: instances 
+-- TAG: instances
 
--- | Typing class-instances  
+-- | Typing class-instances
 
 module Inst00 where
 
 -- | Step 1: Refine type dictionaries:
 
 class Compare a where
-	cmax :: a -> a -> a
-	cmin :: a -> a -> a
+    cmax :: a -> a -> a
+    cmin :: a -> a -> a
 
 instance Compare Int where
 {-@ instance Compare Int where
@@ -30,7 +30,7 @@ instance Compare Int where
 -- | of fields cannot be satisfied!!!!!
 
 
--- | Dictionary application 
+-- | Dictionary application
 -- | ((cmax Int)    @fcompareInt) :: Odd -> Odd -> Odd
 -- | ((cmin Int)    @fcompareInt) :: Int -> Int -> Int
 -- | (anything_else @fcompareInt) :: default
@@ -38,4 +38,4 @@ instance Compare Int where
 
 {-@ foo :: Odd -> Odd -> Odd @-}
 foo :: Int -> Int -> Int
-foo x y = cmax x y 
+foo x y = cmax x y

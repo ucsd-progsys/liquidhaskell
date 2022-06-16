@@ -33,14 +33,14 @@ solve   :: Formula -> Maybe Asgn
 solve f = -- find (`sat` f) (asgns f)
           find1 (satMb f) (asgns f) 
   where
-	  -- satMb :: Formula -> Asgn -> Maybe Asgn 
+     -- satMb :: Formula -> Asgn -> Maybe Asgn 
    satMb f a = if sat a f then Just a else Nothing 
 
 find1 :: (a -> Maybe b) -> [a] -> Maybe b 
 find1 _ []     = Nothing 
 find1 f (x:xs) = case f x of 
-		   Just y  -> Just y 
-		   Nothing -> find1 f xs 
+   Just y  -> Just y 
+   Nothing -> find1 f xs 
 
 {-@ find :: forall <p :: a -> Bool, w :: a -> Bool -> Bool>. 
             {y::a, b::{v:Bool<w y> | v} |- {v:a | v == y} <: a<p>}
@@ -55,19 +55,19 @@ find f (x:xs) | f x       = Just x
 asgns :: Formula -> [Asgn] -- generates all possible T/F vectors
 asgns = go . vars
   where
-  	go []     = []
-  	go (x:xs) = let ass = go xs in (inject (P x True) ass) ++ (inject (P x False) ass)
+    go []     = []
+    go (x:xs) = let ass = go xs in (inject (P x True) ass) ++ (inject (P x False) ass)
 
-  	inject x xs = (\y -> x:::y) <$> xs
+    inject x xs = (\y -> x:::y) <$> xs
 
 vars :: Formula -> [Var]
 vars = nub . toList .  go
   where
-  	go Emp       = Emp
-  	go (ls:::xs) = map go' ls `append` go xs
+    go Emp       = Emp
+    go (ls:::xs) = map go' ls `append` go xs
 
-  	go' (Pos x) = x
-  	go' (Neg x) = x
+    go' (Pos x) = x
+    go' (Neg x) = x
 
 
 {-@ axiomatize sat @-}

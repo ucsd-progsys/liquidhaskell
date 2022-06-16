@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-missing-methods #-}
 {-@ LIQUID "--no-totality" @-}
 
 module ClassReg where

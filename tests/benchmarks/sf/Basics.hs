@@ -352,14 +352,14 @@ thm0NeqPlus1 (S n) = trivial
 thmIdTwice :: (Bool -> Bool) -> Bool -> Proof
 thmIdTwice f b
   =   f (f b)
-  ==. b
+  === b
   *** QED
 
 {-@ thmNegTwice :: f:(x:Bool -> {v:Bool | v = negb x}) -> b:Bool -> { f (f b) = b } @-}
 thmNegTwice :: (Bool -> Bool) -> Bool -> Proof
 thmNegTwice f b
   =   f (f b)
-  ==. b ? thmNegbInvolutive b
+  === b ? thmNegbInvolutive b
   *** QED
 
 -- RJ: You can rewrite
