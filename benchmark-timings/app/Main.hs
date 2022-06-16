@@ -16,14 +16,11 @@ import Options.Applicative
 import Data.Traversable (for)
 import Data.Maybe (catMaybes)
 
-import Text.Megaparsec (ParsecT, Parsec)
-import qualified Text.Megaparsec as MP
-import qualified Text.Megaparsec.Char as MP
-
 import Data.ByteString.Lazy (ByteString)
 import Data.ByteString.Lazy.Char8 (writeFile)
-import Data.List (intersperse)
+import Data.List (intersperse, isSuffixOf)
 import Data.Void (Void)
+import qualified Text.ParserCombinators.ReadP as ReadP
 
 data Phase = Phase
   { phaseTime :: Double
@@ -73,27 +70,33 @@ opts = info (options <**> helper)
    <> progDesc "Summarize timing info.")
 
 -- | Parse the original filename from the .dump-timings filename
-dumpFilenameParser :: MP.Parsec Void String FilePath
+dumpFilenameParser :: ReadP.ReadP FilePath
 dumpFilenameParser = do
-  _arch <- element "--"
-  _ghcVersion <- element "--"
-  _pkg <- element "--"
-  pathPieces <- MP.manyTill (element ("--" <|> ".")) "dump-timings.json"
-  MP.eof
-  pure . mconcat $ intersperse "/" pathPieces
-  where
-    element = MP.manyTill MP.anySingle
+  pathPieces <- ReadP.sepBy (ReadP.many ReadP.get) (ReadP.string "--")
+  _ <- ReadP.string ".dump-timings.json"
+  rest <- case pathPieces of
+    _arch : _ghcVersion : _pkg : _ : p : rest | isSuffixOf "-tmp" p ->
+      pure rest
+    _arch : _ghcVersion : _pkg : rest ->
+      pure rest
+    _ ->
+      ReadP.pfail
+  ReadP.eof
+  pure . mconcat $ intersperse "/" rest
 
 program :: Options -> IO ()
 program Options {..} = do
-  csvFields <- for optsFilesToParse $ \fp -> do
+  csvFields <- for optsFilesToParse $ \fp ->
     -- irrefutably get the filename and fail if we can't!
-    let Just originalFilename = MP.parseMaybe dumpFilenameParser fp
-    Just (phases :: [Phase]) <- decodeFileStrict' fp
-    let (_modName, time) = foldr (\Phase {..} (_, acc) -> (phaseModule,
+    case ReadP.readP_to_S dumpFilenameParser fp of
+      (originalFilename, _):_ -> do
+        Just (phases :: [Phase]) <- decodeFileStrict' fp
+        let (_modName, time) = foldr (\Phase {..} (_, acc) -> (phaseModule,
                                                           if init phaseName `elem` optsPhasesToCount then acc + phaseTime else acc)) ("", 0) phases
-    -- convert milliseconds -> seconds
-    pure . Just $ PhasesSummary originalFilename (time / 1000) True
+        -- convert milliseconds -> seconds
+        pure . Just $ PhasesSummary originalFilename (time / 1000) True
+      _ ->
+        error $ "can't parse: " ++ show fp
   let csvData = encodeDefaultOrderedByNameWith (defaultEncodeOptions { encUseCrLf = False }) $ catMaybes csvFields
   writeFile optsOutputFile csvData
 
