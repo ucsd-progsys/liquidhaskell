@@ -45,11 +45,6 @@ stackRun names =
     testNames = fmap ("tests:" <>) names
     testFlags = concatMap (("--flag" :) . pure) testNames
 
-build :: ([Text] -> IO ExitCode) -> [Text] -> IO ExitCode
-build builder tgns = do
-  T.putStrLn "Running integration tests!"
-  builder tgns
-
 -- | Ensure prog is on the PATH
 ensurePathContains :: Text -> Sh ()
 ensurePathContains prog =
@@ -78,5 +73,6 @@ program testEnv runner (Options testGroups' False) = do
       exitFailure
     else do
       let selectedTestGroups = if null testGroups' then allTestGroupNames else testGroups'
-      build runner selectedTestGroups >>= exitWith
+      T.putStrLn "Running integration tests!"
+      runner selectedTestGroups >>= exitWith
 
