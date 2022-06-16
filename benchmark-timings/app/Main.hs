@@ -18,7 +18,7 @@ import Data.Maybe (catMaybes)
 
 import Data.ByteString.Lazy (ByteString)
 import Data.ByteString.Lazy.Char8 (writeFile)
-import Data.List (intersperse, isSuffixOf)
+import Data.List (foldl', intersperse, isSuffixOf)
 import Data.Void (Void)
 import qualified Text.ParserCombinators.ReadP as ReadP
 
@@ -91,8 +91,7 @@ program Options {..} = do
     case ReadP.readP_to_S dumpFilenameParser fp of
       (originalFilename, _):_ -> do
         Just (phases :: [Phase]) <- decodeFileStrict' fp
-        let (_modName, time) = foldr (\Phase {..} (_, acc) -> (phaseModule,
-                                                          if init phaseName `elem` optsPhasesToCount then acc + phaseTime else acc)) ("", 0) phases
+        let time = foldl' (+) 0 [ phaseTime p | p <- phases, elem (init (phaseName p)) optsPhasesToCount ]
         -- convert milliseconds -> seconds
         pure . Just $ PhasesSummary originalFilename (time / 1000) True
       _ ->
