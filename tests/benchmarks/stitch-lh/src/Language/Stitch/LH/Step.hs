@@ -74,6 +74,10 @@ substIndex ctx i es e0 = case e0 of
     IntE _ -> e0
     BoolE _ -> e0
 
+{-@ wellTyped :: e:WellTypedExp Nil -> { r:WellTypedExp Nil | e = r } @-}
+wellTyped :: Exp -> Exp
+wellTyped e = e
+
 {-@
 step :: e:WellTypedExp Nil -> Maybe ({ r:WellTypedExp Nil | exprType e = exprType r })
 @-}
@@ -81,28 +85,28 @@ step :: Exp -> Maybe Exp
 step e0 = case e0 of
     Lam{} -> Nothing
     App e1 e2 -> case step e1 of
-      Just e1' -> Just (App e1' e2)
+      Just e1' -> Just (wellTyped (App e1' e2))
       Nothing -> case step e2 of
-        Just e2' -> Just (App e1 e2')
+        Just e2' -> Just (wellTyped (App e1 e2'))
         Nothing -> case e1 of
           Lam _ e11 -> Just (subst e2 e11)
           _ -> Nothing -- This case is impossible but would need a prove
                        -- to verify it
     Let e1 e2 -> case step e1 of
-      Just e1' -> Just (Let e1' e2)
+      Just e1' -> Just (wellTyped (Let e1' e2))
       Nothing -> Just (subst e1 e2)
     Arith e1 op e2 -> case step e1 of
-      Just e1' -> Just (Arith e1' op e2)
+      Just e1' -> Just (wellTyped (Arith e1' op e2))
       Nothing -> case step e2 of
-        Just e2' -> Just (Arith e1 op e2')
+        Just e2' -> Just (wellTyped (Arith e1 op e2'))
         Nothing -> Just (valueToExp (eval e0))
     Cond e1 e2 e3 -> case step e1 of
-      Just e1' -> Just (Cond e1' e2 e3)
+      Just e1' -> Just (wellTyped (Cond e1' e2 e3))
       Nothing -> case eval e1 of
         VBool True -> Just e2
         VBool False -> Just e3
     Fix e1 -> case step e1 of
-      Just e1' -> Just (Fix e1')
+      Just e1' -> Just (wellTyped (Fix e1'))
       Nothing -> case e1 of
         Lam _ e11 -> Just (subst e0 e11)
         _ -> Nothing -- This case is impossible

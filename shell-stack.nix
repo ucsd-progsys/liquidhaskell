@@ -7,6 +7,7 @@ with pkgs;
 haskell.lib.buildStackProject ({
   name = "liquidhaskell-stack";
   buildInputs = [
+    cacert
     git
     hostname
     nix

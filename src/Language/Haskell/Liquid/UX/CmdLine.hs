@@ -369,10 +369,10 @@ config = cmdArgsMode $ Config {
         &= help "Enable Proof-by-Logical-Evaluation"
         &= name "oldple"
 
-  , noInterpreter
+  , interpreter
     = def
-        &= help "Don't use an interpreter to assist PLE in solving constraints"
-        &= name "no-interpreter"
+        &= help "Use an interpreter to assist PLE in solving constraints"
+        &= name "interpreter"
 
   , proofLogicEvalLocal
     = def
@@ -719,7 +719,7 @@ defConfig = Config
   , noLiftedImport           = False
   , proofLogicEval           = False
   , oldPLE                   = False
-  , noInterpreter            = False
+  , interpreter              = False
   , proofLogicEvalLocal      = False
   , reflection               = False
   , extensionality           = False

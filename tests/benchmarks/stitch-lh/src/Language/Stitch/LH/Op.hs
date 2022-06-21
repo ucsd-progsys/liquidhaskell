@@ -26,6 +26,20 @@ import Language.Stitch.LH.Util (render)
 
 import Text.PrettyPrint.ANSI.Leijen
 
+{-@
+ data ArithOp
+  = Plus
+  | Minus
+  | Times
+  | Divide
+  | Mod
+  | Less
+  | LessE
+  | Greater
+  | GreaterE
+  | Equals
+@-}
+
 -- | An @ArithOp ty@ is an operator on numbers that produces a result
 -- of type @ty@
 data ArithOp

@@ -269,7 +269,7 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
     , _gsLSpec  = finalLiftedSpec
                 { impSigs   = makeImports mspecs
                 , expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ]
-                , dataDecls = dataDecls mySpec2 
+                , dataDecls = dataDecls mySpec
                 , measures  = Ms.measures mySpec
                   -- We want to export measures in a 'LiftedSpec', especially if they are
                   -- required to check termination of some 'liftedSigs' we export. Due to the fact
@@ -424,7 +424,7 @@ reflectedTyCons :: Config -> TCEmb Ghc.TyCon -> [Ghc.CoreBind] -> Ms.BareSpec ->
 reflectedTyCons cfg embs cbs spec
   | exactDCFlag cfg = filter (not . isEmbedded embs)
                     $ concatMap varTyCons
-                    $ reflectedVars spec cbs
+                    $ reflectedVars spec cbs ++ measureVars spec cbs
   | otherwise       = []
 
 -- | We cannot reflect embedded tycons (e.g. Bool) as that gives you a sort
@@ -447,6 +447,12 @@ reflectedVars spec cbs = fst <$> xDefs
   where
     xDefs              = Mb.mapMaybe (`GM.findVarDef` cbs) reflSyms
     reflSyms           = fmap val $ S.toList (Ms.reflects spec)
+
+measureVars :: Ms.BareSpec -> [Ghc.CoreBind] -> [Ghc.Var]
+measureVars spec cbs = fst <$> xDefs
+  where
+    xDefs              = Mb.mapMaybe (`GM.findVarDef` cbs) measureSyms
+    measureSyms        = fmap val $ S.toList (Ms.hmeas spec)
 
 ------------------------------------------------------------------------------------------
 makeSpecVars :: Config -> GhcSrc -> Ms.BareSpec -> Bare.Env -> Bare.MeasEnv 

@@ -3,6 +3,7 @@ module spec Prelude where
 import GHC.Base
 import GHC.Int
 import GHC.List
+import GHC.Maybe
 import GHC.Num
 import GHC.Real
 import GHC.Word
