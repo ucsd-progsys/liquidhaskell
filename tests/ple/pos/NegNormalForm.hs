@@ -121,6 +121,11 @@ thmN s (Not p)   = thmP s p
 
 {-@ reflect not @-}
 not :: Bool -> Bool 
-not True = False 
-not False = True 
+not b = pleUnfold (if b then False else True)
 
+{-@ reflect pleUnfold @-}
+pleUnfold :: a -> a
+pleUnfold a = if bTrue then a else a
+ where
+   bTrue :: Bool
+   bTrue = True

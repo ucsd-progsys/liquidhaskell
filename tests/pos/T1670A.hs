@@ -1,6 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
+{-@ LIQUID "--ple-with-undecided-guards" @-}
 
 module T1670A where
 

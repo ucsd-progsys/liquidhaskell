@@ -213,11 +213,11 @@ eval_safe _ _ (EInt _)  TInt   = ()
 eval_safe g s (EBin o e1 e2) t = evalOp_res_safe o r1 r2
   where
     r1                         = eval s e1
-				 `withProof` (eval_safe g s e1 (opIn o))
+             `withProof` (eval_safe g s e1 (opIn o))
     r2                         = eval s e2
-    			         `withProof` (eval_safe g s e2 (opIn o))
+             `withProof` (eval_safe g s e2 (opIn o))
 eval_safe g s (EVar x)       t = case lookup_safe g s x t of
-				  (_, prf) -> prf
+             (_, prf) -> prf
   -- where
   --  (_, pf)                    = lookup_safe g s x t
 

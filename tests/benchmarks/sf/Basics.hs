@@ -89,7 +89,10 @@ andb _    _    = False
 
 {-@ andbCom :: a:_ -> b:_ -> { andb a b = andb b a } @-}
 andbCom :: Bool -> Bool -> Proof
-andbCom a b = trivial
+andbCom True True = trivial
+andbCom True False = trivial
+andbCom False True = trivial
+andbCom False False = trivial
 
 -- Exercise 1 ------------------------------------------------------------------
 

@@ -722,7 +722,8 @@ hdError (Cons h _) = Some h
                   -> { hd def l = optionElim def (hdError l) }
 @-}
 thmOptionElimHd :: NatList -> Peano -> Proof
-thmOptionElimHd l def = trivial
+thmOptionElimHd Nil def = trivial
+thmOptionElimHd _ def = trivial
 
 --------------------------------------------------------------------------------
 -- | Partial Maps --------------------------------------------------------------

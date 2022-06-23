@@ -29,8 +29,19 @@ data Ty = T | TyFun Ty Ty
 -- XXX: Using inline instead of reflect causes verification to fail
 {-@ reflect max @-}
 max :: Int -> Int -> Int
-max a b = if a > b then a else b
+max a b = pleUnfold (if a > b then a else b)
 
+-- | Forces the PLE algorithm to unfold the definitions that use @pleUnfold@
+{-@ reflect pleUnfold @-}
+pleUnfold :: a -> a
+pleUnfold a = if bTrue then a else a
+ where
+   bTrue :: Bool
+   bTrue = True
+
+-- XXX: using max causes verification to fail if not using
+-- --ple-with-undecided-guards. Arguably, PLE should unfold max
+-- since it is not doing pattern matching.
 {-@
 reflect freeVarBound
 freeVarBound :: UExp -> Int

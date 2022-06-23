@@ -26,7 +26,7 @@ leftPad n c xs
       } 
   @-}
 leftPadObvious :: Int -> a -> [a] -> () 
-leftPadObvious _ _ _ = () 
+leftPadObvious n _ xs = if size xs < n then () else ()
 
 {-@ reflect max @-}
 max :: Int -> Int -> Int 
