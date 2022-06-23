@@ -24,7 +24,7 @@ The options are descibed below (and by the legacy executable: `liquid --help`)
 
 ## Theorem Proving
 
-**Options:** `reflection`, `ple`, `ple-local`, `extensionality`
+**Options:** `reflection`, `ple`, `ple-local`, `extensionality`, `ple-with-undecided-guards`
 
 **Directives:** `automatic-instances`
 
@@ -35,7 +35,7 @@ use the option
     {-@ LIQUID "--reflection" @-}
 ```
 
-To additionally turn on _proof by logical evaluation_ use the option
+To additionally turn on _proof by logical evaluation_ (PLE) use the option
 
 ```haskell
     {-@ LIQUID "--ple" @-}
@@ -58,6 +58,35 @@ liquid annotation
 
 ```
 {-@ automatic-instances theorem @-}
+```
+
+Normally, PLE will only unfold invocations only if the arguments are known
+with enough precision to enter some of the equations of the function. For
+instance
+
+```Haskell
+{-@ reflect boolToInt @-}
+boolToInt :: Bool -> Int
+boolToInt False = 0
+boolToInt True = 1
+
+{-@ nonNegativeInt :: b:_ -> { boolToInt b >= 0 } @-}
+nonNegativeInt :: Bool -> ()
+nonNegativeInt _ = ()
+```
+
+The equations `boolToInt False = 0` and `boolToInt True = 1` would only be
+used if `b` is known to be wither `True` or `False`. Now, if nothing is
+known about `b` and we still would like to use the fact that
+
+```Haskell
+boolToInt b = if b then 1 else 0
+```
+
+we can instruct Liquid Haskell to do so and accept `nonNegativeIsEmpty` with
+
+```
+{-@ LIQUID "--ple-with-undecided-guards" @-}
 ```
 
 To allow reasoning about function extensionality use the `--extensionality` flag.

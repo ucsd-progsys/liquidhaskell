@@ -87,6 +87,7 @@ data Config = Config
   , noslice                  :: Bool       -- ^ Disable non-concrete KVar slicing
   , noLiftedImport           :: Bool       -- ^ Disable loading lifted specifications (for "legacy" libs)
   , proofLogicEval           :: Bool       -- ^ Enable proof-by-logical-evaluation
+  , pleWithUndecidedGuards   :: Bool       -- ^ Unfold invocations with undecided guards in PLE
   , oldPLE                   :: Bool       -- ^ Enable proof-by-logical-evaluation
   , interpreter              :: Bool       -- ^ Use an interpreter to assist PLE
   , proofLogicEvalLocal      :: Bool       -- ^ Enable proof-by-logical-evaluation locally, per function
