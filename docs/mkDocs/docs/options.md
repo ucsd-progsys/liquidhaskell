@@ -41,11 +41,11 @@ To additionally turn on _proof by logical evaluation_ (PLE) use the option
     {-@ LIQUID "--ple" @-}
 ```
 
-You can see many examples of proofs by logical evaluation in `benchmarks/popl18/ple/pos`
+You can see many examples of proofs by logical evaluation in `tests/benchmarks/popl18/ple/pos`
 
 This flag is **global** and will symbolically evaluate all the terms that appear in the specifications.
 
-As an alternative, the `liquidinstanceslocal` flag has local behavior. [See](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/benchmarks/proofautomation/pos/Unification.hs)
+As an alternative, the `liquidinstanceslocal` flag has local behavior. [See](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/benchmarks/popl18/ple/pos/Unification.hs)
 
 ```
 {-@ LIQUID "--ple-local" @-}
@@ -426,7 +426,7 @@ and multiplication as uninterpreted functions use the `--linear` flag.
 
 When given the `--counter-examples` flag, LiquidHaskell will attempt to produce
 counter-examples for the type errors it discovers. For example, see
-[tests/neg/ListElem.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/master/tests/neg/ListElem.hs)
+[tests/neg/ListElem.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/neg/ListElem.hs)
 
 ```
 % liquid --counter-examples tests/neg/ListElem.hs
