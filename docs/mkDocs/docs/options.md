@@ -89,6 +89,19 @@ we can instruct Liquid Haskell to do so and accept `nonNegativeIsEmpty` with
 {-@ LIQUID "--ple-with-undecided-guards" @-}
 ```
 
+`--ple-with-undecided-guards` causes all invocations that haven't been unfolded
+due to undecided guards to be unfolded at the end of the algorithm.
+Alternatively, one could selectively unfold the invocations of some particular
+function only with `Language.Haskell.Liquid.ProofCombinators.pleUnfold`.
+
+```
+boolToInt b = pleUnfold (if b then 1 else 0)
+```
+
+Now, PLE will unfold `boolToInt` as above every time `b` is undecided. But won't
+unfold any other invocations with undecided guards unless they also start with an
+application of `pleUnfold`.
+
 To allow reasoning about function extensionality use the `--extensionality` flag.
 [See test T1577](https://github.com/ucsd-progsys/liquidhaskell/blob/880c78f94520d76fa13880eac050f21dacb592fd/tests/pos/T1577.hs).
 

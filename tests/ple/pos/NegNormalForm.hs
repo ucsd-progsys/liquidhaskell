@@ -3,6 +3,7 @@
 
 module NegNormalForm where
 
+import Language.Haskell.Liquid.ProofCombinators (pleUnfold)
 import Prelude hiding (not, lookup)
 
 -------------------------------------------------------------------------------
@@ -122,10 +123,3 @@ thmN s (Not p)   = thmP s p
 {-@ reflect not @-}
 not :: Bool -> Bool 
 not b = pleUnfold (if b then False else True)
-
-{-@ reflect pleUnfold @-}
-pleUnfold :: a -> a
-pleUnfold a = if bTrue then a else a
- where
-   bTrue :: Bool
-   bTrue = True

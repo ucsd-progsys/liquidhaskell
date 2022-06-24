@@ -33,6 +33,8 @@ module Language.Haskell.Liquid.ProofCombinators (
   , withProof 
   , impossible 
 
+  -- * PLE-specific
+  , pleUnfold
 
 ) where
 
@@ -180,4 +182,12 @@ impossible _ = undefined
 {-@ type Prop E = {v:_ | prop v = E} @-}
 
 
+-------------------------------------------------------------------------------
+-- PLE-specific
+-------------------------------------------------------------------------------
 
+-- | Forces PLE to unfold a function application if the body of the function
+-- starts with an application of @pleUnfold@.
+{-@ reflect pleUnfold @-}
+pleUnfold :: a -> a
+pleUnfold x = x

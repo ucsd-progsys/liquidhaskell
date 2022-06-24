@@ -6,6 +6,7 @@ module WhyLH where
 -- This test contains the examples of the blogpost at
 -- https://www.tweag.io/blog/2022-01-19-why-liquid-haskell/
 --
+import Language.Haskell.Liquid.ProofCombinators (pleUnfold)
 import Prelude hiding (Maybe(..), isJust, length, max)
 
 {-@
@@ -30,14 +31,6 @@ data Ty = T | TyFun Ty Ty
 {-@ reflect max @-}
 max :: Int -> Int -> Int
 max a b = pleUnfold (if a > b then a else b)
-
--- | Forces the PLE algorithm to unfold the definitions that use @pleUnfold@
-{-@ reflect pleUnfold @-}
-pleUnfold :: a -> a
-pleUnfold a = if bTrue then a else a
- where
-   bTrue :: Bool
-   bTrue = True
 
 -- XXX: using max causes verification to fail if not using
 -- --ple-with-undecided-guards. Arguably, PLE should unfold max
