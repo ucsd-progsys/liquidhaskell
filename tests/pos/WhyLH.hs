@@ -64,29 +64,26 @@ exp3 :: UExp
 exp3 = ULam T (ULam T (UVar 2))
 
 
--- XXX: Verification crashes when using the built-in type of lists [a]
-data List a = Nil | Cons a (List a)
-
 {-@ reflect elemAt @-}
-{-@ elemAt :: xs:List a -> { i:Int | 0 <= i && i < length xs } -> a @-}
-elemAt :: List a -> Int -> a
-elemAt (Cons x _) 0 = x
-elemAt (Cons _ xs) i = elemAt xs (i - 1)
+{-@ elemAt :: xs:[a] -> { i:Int | 0 <= i && i < length xs } -> a @-}
+elemAt :: [a] -> Int -> a
+elemAt (x:_) 0 = x
+elemAt (_:xs) i = elemAt xs (i - 1)
 
 {-@ reflect length @-}
-length :: List a -> Int
-length Nil = 0
-length (Cons _ xs) = 1 + length xs
+length :: [a] -> Int
+length [] = 0
+length (_:xs) = 1 + length xs
 
 -- XXX: Verification crashes when using @Maybe Ty@ instead of @MaybeTy@
 {-@ data MaybeTy = Nothing | Just Ty @-}
 data MaybeTy = Nothing | Just Ty
 
 {-@ reflect inferType @-}
-{-@ inferType :: ctx:List Ty -> UExpN (length ctx) -> MaybeTy @-}
-inferType :: List Ty -> UExp -> MaybeTy
+{-@ inferType :: ctx:[Ty] -> UExpN (length ctx) -> MaybeTy @-}
+inferType :: [Ty] -> UExp -> MaybeTy
 inferType ctx (UVar i) = Just (elemAt ctx i)
-inferType ctx (ULam t body) = case inferType (Cons t ctx) body of
+inferType ctx (ULam t body) = case inferType (t:ctx) body of
   Just r -> Just (TyFun t r)
   Nothing -> Nothing
 inferType ctx (UApp e0 e1) = case inferType ctx e0 of
@@ -97,11 +94,15 @@ inferType ctx (UApp e0 e1) = case inferType ctx e0 of
 
 {-@ type WellTypedExp CTX TY = { e:UExp | freeVarBound e <= length CTX && inferType CTX e == Just TY } @-}
 
-{-@ exp4 :: WellTypedExp (Cons T Nil) T @-}
+{-@ reflect cons @-}
+cons :: a -> [a] -> [a]
+cons = (:)
+
+{-@ exp4 :: WellTypedExp (cons T []) T @-}
 exp4 :: UExp
 exp4 = UVar 0
 
-{-@ exp5 :: WellTypedExp Nil (TyFun T T) @-}
+{-@ exp5 :: WellTypedExp [] (TyFun T T) @-}
 exp5 :: UExp
 exp5 = ULam T (UVar 0)
 
@@ -113,8 +114,8 @@ main = print ()
 -- @UApp e0 e1@, can LH infer that @e0@ must have a function type and
 -- that the type of @e1@ must match the argument type of @e0@.
 
-{-@ uappArgT :: ctx:List Ty -> e : { e:UExp | isUApp e && isJustTy (inferType ctx e) } -> { funTyM (inferType ctx (uapp2 e)) (inferType ctx e) == inferType ctx (uapp1 e) } @-}
-uappArgT :: List Ty -> UExp -> ()
+{-@ uappArgT :: ctx:[Ty] -> e : { e:UExp | isUApp e && isJustTy (inferType ctx e) } -> { funTyM (inferType ctx (uapp2 e)) (inferType ctx e) == inferType ctx (uapp1 e) } @-}
+uappArgT :: [Ty] -> UExp -> ()
 uappArgT _ _ = ()
 
 {-@ inline isUApp @-}
