@@ -86,11 +86,15 @@ inferType ctx (UVar i) = Just (elemAt ctx i)
 inferType ctx (ULam t body) = case inferType (t:ctx) body of
   Just r -> Just (TyFun t r)
   Nothing -> Nothing
-inferType ctx (UApp e0 e1) = case inferType ctx e0 of
-  Just (TyFun a r) -> case inferType ctx e1 of
-    Just t -> if a == t then Just r else Nothing
-    Nothing -> Nothing
-  _ -> Nothing
+inferType ctx (UApp e0 e1) =
+  pleUnfold  -- needed by uappArgT to avoid breaking the verification
+             -- in all of these cases
+    (case inferType ctx e0 of
+      Just (TyFun a r) -> case inferType ctx e1 of
+        Just t -> if a == t then Just r else Nothing
+        Nothing -> Nothing
+      _ -> Nothing
+    )
 
 {-@ type WellTypedExp CTX TY = { e:UExp | freeVarBound e <= length CTX && inferType CTX e == Just TY } @-}
 
