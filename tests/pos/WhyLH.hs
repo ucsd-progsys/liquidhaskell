@@ -6,6 +6,7 @@ module WhyLH where
 -- This test contains the examples of the blogpost at
 -- https://www.tweag.io/blog/2022-01-19-why-liquid-haskell/
 --
+import Language.Haskell.Liquid.ProofCombinators (pleUnfold)
 import Prelude hiding (Maybe(..), isJust, length, max)
 
 {-@
@@ -29,8 +30,11 @@ data Ty = T | TyFun Ty Ty
 -- XXX: Using inline instead of reflect causes verification to fail
 {-@ reflect max @-}
 max :: Int -> Int -> Int
-max a b = if a > b then a else b
+max a b = pleUnfold (if a > b then a else b)
 
+-- XXX: using max causes verification to fail if not using
+-- --ple-with-undecided-guards. Arguably, PLE should unfold max
+-- since it is not doing pattern matching.
 {-@
 reflect freeVarBound
 freeVarBound :: UExp -> Int

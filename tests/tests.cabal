@@ -1643,6 +1643,7 @@ executable unit-pos-1
                     , Tyvar
                     , UnboxedTuplesAndTH
                     , UnboxedTuples
+                    , UndecidedGuards
                     , Unusedtyvars
                     , Variance2
                     , Vector00

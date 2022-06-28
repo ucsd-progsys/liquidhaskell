@@ -24,7 +24,7 @@ The options are descibed below (and by the legacy executable: `liquid --help`)
 
 ## Theorem Proving
 
-**Options:** `reflection`, `ple`, `ple-local`, `extensionality`
+**Options:** `reflection`, `ple`, `ple-local`, `extensionality`, `ple-with-undecided-guards`
 
 **Directives:** `automatic-instances`
 
@@ -35,17 +35,17 @@ use the option
     {-@ LIQUID "--reflection" @-}
 ```
 
-To additionally turn on _proof by logical evaluation_ use the option
+To additionally turn on _proof by logical evaluation_ (PLE) use the option
 
 ```haskell
     {-@ LIQUID "--ple" @-}
 ```
 
-You can see many examples of proofs by logical evaluation in `benchmarks/popl18/ple/pos`
+You can see many examples of proofs by logical evaluation in `tests/benchmarks/popl18/ple/pos`
 
 This flag is **global** and will symbolically evaluate all the terms that appear in the specifications.
 
-As an alternative, the `liquidinstanceslocal` flag has local behavior. [See](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/benchmarks/proofautomation/pos/Unification.hs)
+As an alternative, the `liquidinstanceslocal` flag has local behavior. [See](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/benchmarks/popl18/ple/pos/Unification.hs)
 
 ```
 {-@ LIQUID "--ple-local" @-}
@@ -59,6 +59,48 @@ liquid annotation
 ```
 {-@ automatic-instances theorem @-}
 ```
+
+Normally, PLE will only unfold invocations only if the arguments are known
+with enough precision to enter some of the equations of the function. For
+instance
+
+```Haskell
+{-@ reflect boolToInt @-}
+boolToInt :: Bool -> Int
+boolToInt False = 0
+boolToInt True = 1
+
+{-@ nonNegativeInt :: b:_ -> { boolToInt b >= 0 } @-}
+nonNegativeInt :: Bool -> ()
+nonNegativeInt _ = ()
+```
+
+The equations `boolToInt False = 0` and `boolToInt True = 1` would only be
+used if `b` is known to be wither `True` or `False`. Now, if nothing is
+known about `b` and we still would like to use the fact that
+
+```Haskell
+boolToInt b = if b then 1 else 0
+```
+
+we can instruct Liquid Haskell to do so and accept `nonNegativeIsEmpty` with
+
+```
+{-@ LIQUID "--ple-with-undecided-guards" @-}
+```
+
+`--ple-with-undecided-guards` causes all invocations that haven't been unfolded
+due to undecided guards to be unfolded at the end of the algorithm.
+Alternatively, one could selectively unfold the invocations of some particular
+function only with `Language.Haskell.Liquid.ProofCombinators.pleUnfold`.
+
+```
+boolToInt b = pleUnfold (if b then 1 else 0)
+```
+
+Now, PLE will unfold `boolToInt` as above every time `b` is undecided. But won't
+unfold any other invocations with undecided guards unless they also start with an
+application of `pleUnfold`.
 
 To allow reasoning about function extensionality use the `--extensionality` flag.
 [See test T1577](https://github.com/ucsd-progsys/liquidhaskell/blob/880c78f94520d76fa13880eac050f21dacb592fd/tests/pos/T1577.hs).
@@ -384,7 +426,7 @@ and multiplication as uninterpreted functions use the `--linear` flag.
 
 When given the `--counter-examples` flag, LiquidHaskell will attempt to produce
 counter-examples for the type errors it discovers. For example, see
-[tests/neg/ListElem.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/master/tests/neg/ListElem.hs)
+[tests/neg/ListElem.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/neg/ListElem.hs)
 
 ```
 % liquid --counter-examples tests/neg/ListElem.hs

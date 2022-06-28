@@ -364,6 +364,12 @@ config = cmdArgsMode $ Config {
         &= help "Enable Proof-by-Logical-Evaluation"
         &= name "ple"
 
+  , pleWithUndecidedGuards
+    = def
+        &= help "Unfold invocations with undecided guards in PLE"
+        &= name "ple-with-undecided-guards"
+        &= explicit
+
   , oldPLE
     = def
         &= help "Enable Proof-by-Logical-Evaluation"
@@ -718,6 +724,7 @@ defConfig = Config
   , noslice                  = False
   , noLiftedImport           = False
   , proofLogicEval           = False
+  , pleWithUndecidedGuards   = False
   , oldPLE                   = False
   , interpreter              = False
   , proofLogicEvalLocal      = False

@@ -33,7 +33,8 @@ all f (x : xs) = f x && all f xs
 
 {-@ simple :: x : Elm -> y : Elm -> ys : [Elm] -> {v : () | and (lte y x) (all (gte x) ys) = all (gte x) (y:ys) } @-}
 simple :: Elm -> Elm -> [Elm] -> Proof
-simple y x ys = () {- 
+simple x y _ = if lte y x then () else ()
+ {-
        all (gte x) (y : ys)
   === (lte y x) `and` all (gte x ) ys
   -- === (gte x y) `and` all (gte x ) ys

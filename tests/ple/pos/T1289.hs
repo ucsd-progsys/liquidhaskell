@@ -10,7 +10,7 @@ intId x = x
 
 thm1 :: Int -> () 
 {-@ thm1 :: x:Int -> {intId x = x} @-}
-thm1 x = ()
+thm1 x = if x == 0 then () else ()
 
 
 {-@ measure charId @-}

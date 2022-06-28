@@ -17,19 +17,16 @@
 ## `test-driver` Executable
 
 See the code for comments and documentation that is likely more up to date than
-this file. The test driver parses the output of stack or cabal to summarize the
-result of compiling specific test groups, represented in `tests.cabal` as
-separate executables. The rest of this file describes how to modify the test
-suite by adding new tests.
+this file. The test driver helps materializing the command line arguments to
+invoke either stack or cabal to compile specific test groups, kept in
+`tests.cabal` as separate executables. The rest of this file describes how to
+modify the test suite by adding new tests.
 
 ### Adding a New Test to an Existing Test Group
 
 Create a new file in the source directory specified in the cabal file for that
 test group (ie the one that isn't `./app`). Add that file to the list of files
-under `other-modules` in tests.cabal. If it is an error message test (ie part of
-the `errors` test-group), add an error snippet to `./harness/Test/Groups.hs`
-containing part of the error you want to be output by the test; see the examples
-already present there.
+under `other-modules` in tests.cabal.
 
 If the test you wish to add has multiple files (ie one that imports others),
 simply add each of the files to `other-modules`. Cabal and/or stack will figure
@@ -37,9 +34,9 @@ out the dependencies.
 
 ### Adding a New Test Group
 
-The easiest way is to just copy-paste an existing test group, modify the source
+The easiest way is to just copy-paste an existing executable stanza, modify the source
 directories, other-modules, flags, and dependencies as needed, create a new flag
-for the test group with the same name, and ensure the guard clause.
+for the test group with the same name, and ensure the guard clause
 
 ```cabal
 if !flag(<test-group-name>) && flag(stack):
@@ -48,11 +45,9 @@ if !flag(<test-group-name>) && flag(stack):
 
 is present. This clause is a workaround for stack insisting on building every
 executable in a cabal file once on first run, unless the executable is marked as
-not buildable. Add a line in `./harness/Test/Groups.hs` corresponding to the
-flavor (positive -> `TFSafe`, negative -> `TFUnsafe`, etc) and location of the
-test.
+not buildable.
 
-Finally, ensure the test-group is runnable by doing `cabal v2-run
+Finally, ensure the test-group is buildable by doing `cabal v2-run
 tests:test-driver -- <test-group-name>`.
 
 ### Adding a New Benchmark
