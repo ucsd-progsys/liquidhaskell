@@ -1,9 +1,6 @@
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--ple" @-}
 
--- Beware that trivial changes to this file would cause verification
--- to fail at some time. Renaming the module to Rest would be one of those
--- changes.
 module Rest where
 
 import Language.Haskell.Liquid.ProofCombinators
@@ -70,61 +67,52 @@ max a b = if a > b then a else b
 minus :: Nat -> Nat -> Nat
 minus a b = max 0 (a - b)
 
-data List a = Cons { head :: a, tail :: List a } | Nil
-
 {-@
 reflect elemAt
-elemAt :: n : Nat -> { xs : List a | length xs > n } -> a
+elemAt :: n : Nat -> { xs:[a] | length xs > n } -> a
 @-}
-elemAt :: Nat -> List a -> a
-elemAt 0 (Cons x _) = x
-elemAt i (Cons _ xs) = elemAt (i-1) xs
+elemAt :: Nat -> [a] -> a
+elemAt 0 (x:_) = x
+elemAt i (_:xs) = elemAt (i-1) xs
 
 {-@
 measure length
-length :: xs : List a -> Nat
+length :: xs : [a] -> Nat
 @-}
-length :: List a -> Nat
-length Nil = 0
-length (Cons _ xs) = 1 + length xs
+length :: [a] -> Nat
+length [] = 0
+length (_:xs) = 1 + length xs
 
 {-@
 reflect append
 append ::
-  xs : List a ->
-  ys : List a ->
-  { zs : List a | length zs == length xs + length ys }
+  xs : [a] ->
+  ys : [a] ->
+  { zs:[a] | length zs == length xs + length ys }
  @-}
-append :: List a -> List a -> List a
-append Nil ys = ys
-append (Cons x xs) ys = Cons x (append xs ys)
+append :: [a] -> [a] -> [a]
+append [] ys = ys
+append (x:xs) ys = x : append xs ys
 
 {-@
 appendLengh
-  :: xs : List a
-  -> ys : List a
+  :: xs : [a]
+  -> ys : [a]
   -> { length (append xs ys) == length xs + length ys}
 @-}
-appendLengh :: List a -> List a -> Proof
-appendLengh xs ys = trivial ? append xs ys
+appendLengh :: [a] -> [a] -> ()
+appendLengh xs ys = () ? append xs ys
 
 {-@
 elemAtThroughAppend
   :: i : Nat
-  -> xs : { xs : List a | i < length xs }
-  -> ys : List a
+  -> xs : { xs:[a] | i < length xs }
+  -> ys : [a]
   -> { elemAt i (append xs ys) = elemAt i xs }
 @-}
-elemAtThroughAppend :: Nat -> List a -> List a -> Proof
-elemAtThroughAppend i xs ys =
-  if i == 0 then
-    case xs of
-      Nil -> trivial
-      _ -> trivial
-  else case xs of
-    Cons _ xss -> elemAtThroughAppend (i - 1) xss ys
-    Nil -> trivial
-
+elemAtThroughAppend :: Nat -> [a] -> [a] -> ()
+elemAtThroughAppend 0 (_:_) ys = ()
+elemAtThroughAppend i (_:xss) ys = elemAtThroughAppend (i - 1) xss ys
 
 {-@
 predicate WellTyped E CTX = checkBindings CTX E && numFreeVarsExp E <= length CTX
@@ -172,15 +160,15 @@ exprType (BoolE _) = TBool
 {-@
 reflect checkBindings
 checkBindings
-  :: ctx : List Ty
+  :: ctx : [Ty]
   -> { e : Exp | numFreeVarsExp e <= length ctx }
   -> Bool
 @-}
-checkBindings :: List Ty -> Exp -> Bool
+checkBindings :: [Ty] -> Exp -> Bool
 checkBindings ctx (Var vty i) = elemAt i ctx == vty
-checkBindings ctx (Lam t e) = checkBindings (Cons t ctx) e
+checkBindings ctx (Lam t e) = checkBindings (t:ctx) e
 checkBindings ctx (App e1 e2) = checkBindings ctx e1 && checkBindings ctx e2
-checkBindings ctx (Let e1 e2) = checkBindings ctx e1 && checkBindings (Cons (exprType e1) ctx) e2
+checkBindings ctx (Let e1 e2) = checkBindings ctx e1 && checkBindings (exprType e1 : ctx) e2
 checkBindings ctx (Arith e1 _ e2) = checkBindings ctx e1 && checkBindings ctx e2
 checkBindings ctx (Cond e1 e2 e3) = checkBindings ctx e1 && checkBindings ctx e2 && checkBindings ctx e3
 checkBindings ctx (Fix e) = checkBindings ctx e
@@ -190,24 +178,24 @@ checkBindings _ (BoolE _) = True
 {-@
 rewriteWith aClosedExpIsValidInAnyContext [appendLengh]
 aClosedExpIsValidInAnyContext
-  :: ctx0 : List Ty
-  -> ctx1 : List Ty
+  :: ctx0 : [Ty]
+  -> ctx1 : [Ty]
   -> e : Exp
   -> { WellTyped e ctx0 <=>
        WellTyped e (append ctx0 ctx1) && numFreeVarsExp e <= length ctx0
      }
 @-}
-aClosedExpIsValidInAnyContext :: List Ty -> List Ty -> Exp -> Proof
+aClosedExpIsValidInAnyContext :: [Ty] -> [Ty] -> Exp -> ()
 aClosedExpIsValidInAnyContext ctx0 ctx1 e = case e of
   Var _ i ->
     if i < length ctx0 then elemAtThroughAppend i ctx0 ctx1
-    else trivial
+    else ()
   Lam ty body ->
-    aClosedExpIsValidInAnyContext (Cons ty ctx0) ctx1 body
+    aClosedExpIsValidInAnyContext (ty:ctx0) ctx1 body
   App e1 e2 ->
     aClosedExpIsValidInAnyContext ctx0 ctx1 e1 ? aClosedExpIsValidInAnyContext ctx0 ctx1 e2
   Let e1 e2 ->
-    aClosedExpIsValidInAnyContext ctx0 ctx1 e1 ? aClosedExpIsValidInAnyContext (Cons (exprType e1) ctx0) ctx1 e2
+    aClosedExpIsValidInAnyContext ctx0 ctx1 e1 ? aClosedExpIsValidInAnyContext (exprType e1 : ctx0) ctx1 e2
   Arith e1 _ e2 ->
     aClosedExpIsValidInAnyContext ctx0 ctx1 e1 ? aClosedExpIsValidInAnyContext ctx0 ctx1 e2
   Cond e1 e2 e3 ->
@@ -216,8 +204,8 @@ aClosedExpIsValidInAnyContext ctx0 ctx1 e = case e of
       ? aClosedExpIsValidInAnyContext ctx0 ctx1 e3
   Fix body ->
     aClosedExpIsValidInAnyContext ctx0 ctx1 body
-  IntE _ -> trivial
-  BoolE _ -> trivial
+  IntE _ -> ()
+  BoolE _ -> ()
 
 {-@
 measure numFreeVarsExp
