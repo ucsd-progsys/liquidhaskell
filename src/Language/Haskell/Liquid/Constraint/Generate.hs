@@ -804,6 +804,25 @@ consE γ e
 
 -- [NOTE: PLE-OPT] We *disable* refined instantiation for 
 -- reflected functions inside proofs.
+
+consE γ (Var x) | GM.isDataConId x 
+  = do t0 <- varRefType γ x
+       let hasSelf = selfsym `elem` F.syms t0
+       -- Template to change treatment of selfed constructors 
+       t <- if hasSelf then do 
+              -- let tt = toRTypeRep t0
+              -- ss    <- fresh 
+              -- tce <- tyConEmbed <$> get 
+              -- let sort = rTypeSort tce (ty_res tt)
+              -- addSelf ss sort 
+              -- let tselfed = tt{ty_res = ty_res tt `strengthen` singletonReft ss}
+              -- tr <- trueRefType True (ty_res tt) 
+              -- return $ rrEx ss tr (F.subst1 (fromRTypeRep tselfed) (selfsym, F.EVar ss))
+              return (fmap ignoreSelf <$> t0)
+         else return t0  
+       addLocA (Just x) (getLocation γ) (varAnn γ x t)
+       return t
+
 consE γ (Var x)
   = do t <- varRefType γ x
        addLocA (Just x) (getLocation γ) (varAnn γ x t)
@@ -1179,9 +1198,11 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
   let r1           = dataConReft   c   ys''
   let r2           = dataConMsReft rtd ys''
   let xt           = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
-  let cbs          = safeZip "cconsCase" (x':ys') (xt0 : yts)
-  cγ'             <- addBinders γ   x' cbs
-  addBinders cγ' x' [(x', xt)]
+  let cbs          = safeZip "cconsCase" (x':ys') 
+                         (map (`F.subst1` (selfsym, F.EVar x')) 
+                         (xt0 : yts))
+  cγ'             <- addBinders γ x' cbs
+  addBinders cγ' x' [(x', substSelf <$> xt)]
   where allowTC    = typeclass (getConfig γ)
   
 caseEnv γ x acs a _ _ = do 
@@ -1189,6 +1210,23 @@ caseEnv γ x acs a _ _ = do
   xt'    <- (`strengthen` uTop (altReft γ acs a)) <$> (γ ??= x)
   cγ     <- addBinders γ x' [(x', xt')]
   return cγ
+
+
+------------------------------------------------------
+-- SELF special symbol definitions and substitution 
+------------------------------------------------------
+
+selfsym :: F.Symbol
+selfsym = F.symbol ("self" :: String)
+
+substSelf :: UReft F.Reft -> UReft F.Reft 
+substSelf (MkUReft r p) = MkUReft (substSelfReft r) p
+
+substSelfReft :: F.Reft -> F.Reft 
+substSelfReft (F.Reft (v, e)) = F.Reft (v, F.subst1 e (selfsym, F.EVar v))
+
+ignoreSelf :: F.Reft -> F.Reft 
+ignoreSelf = F.mapExpr (\r -> if selfsym `elem` F.syms r then F.PTrue else r)
 
 --------------------------------------------------------------------------------
 -- | `projectTypes` masks (i.e. true's out) all types EXCEPT those
