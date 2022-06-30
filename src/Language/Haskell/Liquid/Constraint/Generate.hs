@@ -92,7 +92,7 @@ consAct γ cfg info = do
   hws <- gets hsWfs
   fcs <- concat <$> mapM (splitC (typeclass (getConfig info))) hcs
   fws <- concat <$> mapM splitW hws
-  modify $ \st -> st { fEnv     = feEnv (fenv γ)
+  modify $ \st -> st { fEnv     = fEnv    st `mappend` feEnv (fenv γ)
                      , cgLits   = litEnv   γ
                      , cgConsts = cgConsts st `mappend` constEnv γ
                      , fixCs    = fcs
@@ -809,17 +809,16 @@ consE γ (Var x) | GM.isDataConId x
   = do t0 <- varRefType γ x
        let hasSelf = selfsym `elem` F.syms t0
        -- Template to change treatment of selfed constructors 
-       t <- if hasSelf then do 
+       let t = if hasSelf then {- do 
               -- let tt = toRTypeRep t0
               -- ss    <- fresh 
               -- tce <- tyConEmbed <$> get 
-              -- let sort = rTypeSort tce (ty_res tt)
+              -- let sort = rTypeSort tce (mkArrow (ty_vars tt) [] [] [] (ty_res tt))
               -- addSelf ss sort 
               -- let tselfed = tt{ty_res = ty_res tt `strengthen` singletonReft ss}
-              -- tr <- trueRefType True (ty_res tt) 
-              -- return $ rrEx ss tr (F.subst1 (fromRTypeRep tselfed) (selfsym, F.EVar ss))
-              return (fmap ignoreSelf <$> t0)
-         else return t0  
+              -- return $ (F.subst1 (fromRTypeRep tselfed) (selfsym, F.EVar ss))
+              return-}  (fmap ignoreSelf <$> t0)
+                else t0  
        addLocA (Just x) (getLocation γ) (varAnn γ x t)
        return t
 

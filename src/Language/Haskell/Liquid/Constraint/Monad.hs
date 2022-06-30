@@ -118,7 +118,7 @@ updateLocA _        _ = return ()
 --------------------------------------------------------------------------------
 addSelf :: Symbol -> Sort -> CG ()
 --------------------------------------------------------------------------------
-addSelf x t = modify $ \s -> s { cgConsts = insertSEnv x t $ cgConsts s }
+addSelf x t = modify $ \s -> s { fEnv = insertSEnv x t $ fEnv s }
 
 --------------------------------------------------------------------------------
 addA :: (Outputable a) => SrcSpan -> Maybe a -> b -> AnnInfo b -> AnnInfo b
