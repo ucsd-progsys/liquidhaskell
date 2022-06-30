@@ -1,7 +1,8 @@
-{-@ measure self :: a  @-}
-
-
 {-# LANGUAGE GADTs #-}
+module FancyMutualTerm where 
+
+import Language.Haskell.Liquid.Self
+
 {-@ measure tsize :: Tree a -> Nat @-}
 {-@ invariant {t:Tree a | 0 <= tsize t} @-}
 

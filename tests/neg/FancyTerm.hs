@@ -1,10 +1,12 @@
 {-# LANGUAGE GADTs #-}
+module FancyTerm where 
+
+import Language.Haskell.Liquid.Self
+
 data Tree a where 
     Leaf :: a -> Tree a 
     Node :: (Int -> (Tree a)) -> Tree a 
 
-
-{-@ measure self :: a  @-}
 
 {-@ measure tsize :: Tree a -> Nat @-}
 {-@ data Tree a where 

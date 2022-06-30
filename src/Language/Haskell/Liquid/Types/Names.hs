@@ -1,5 +1,5 @@
 module Language.Haskell.Liquid.Types.Names
-  (lenLocSymbol, anyTypeSymbol, functionComposisionSymbol) where
+  (lenLocSymbol, anyTypeSymbol, functionComposisionSymbol, selfSymbol) where
 
 import Language.Fixpoint.Types
 
@@ -14,3 +14,7 @@ anyTypeSymbol = symbol ("GHC.Prim.Any" :: String)
 --  defined in include/GHC/Base.hs
 functionComposisionSymbol :: Symbol
 functionComposisionSymbol = symbol ("GHC.Base.." :: String)
+
+
+selfSymbol :: Symbol
+selfSymbol = symbol ("self" :: String)

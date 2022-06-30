@@ -811,7 +811,7 @@ consE γ (Var x) | GM.isDataConId x
   = do t0 <- varRefType γ x
        -- NV: The check is expected to fail most times, so 
        --     it is cheaper than direclty fmap ignoreSelf. 
-       let hasSelf = selfsym `elem` F.syms t0
+       let hasSelf = selfSymbol `elem` F.syms t0
        let t = if hasSelf 
                 then fmap ignoreSelf <$> t0
                 else t0  
@@ -1194,7 +1194,7 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
   let r2           = dataConMsReft rtd ys''
   let xt           = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
   let cbs          = safeZip "cconsCase" (x':ys') 
-                         (map (`F.subst1` (selfsym, F.EVar x')) 
+                         (map (`F.subst1` (selfSymbol, F.EVar x')) 
                          (xt0 : yts))
   cγ'             <- addBinders γ x' cbs
   addBinders cγ' x' [(x', substSelf <$> xt)]
@@ -1208,20 +1208,17 @@ caseEnv γ x acs a _ _ = do
 
 
 ------------------------------------------------------
--- SELF special symbol definitions and substitution 
+-- SELF special substitutions 
 ------------------------------------------------------
-
-selfsym :: F.Symbol
-selfsym = F.symbol ("self" :: String)
 
 substSelf :: UReft F.Reft -> UReft F.Reft 
 substSelf (MkUReft r p) = MkUReft (substSelfReft r) p
 
 substSelfReft :: F.Reft -> F.Reft 
-substSelfReft (F.Reft (v, e)) = F.Reft (v, F.subst1 e (selfsym, F.EVar v))
+substSelfReft (F.Reft (v, e)) = F.Reft (v, F.subst1 e (selfSymbol, F.EVar v))
 
 ignoreSelf :: F.Reft -> F.Reft 
-ignoreSelf = F.mapExpr (\r -> if selfsym `elem` F.syms r then F.PTrue else r)
+ignoreSelf = F.mapExpr (\r -> if selfSymbol `elem` F.syms r then F.PTrue else r)
 
 --------------------------------------------------------------------------------
 -- | `projectTypes` masks (i.e. true's out) all types EXCEPT those

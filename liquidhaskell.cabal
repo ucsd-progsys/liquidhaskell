@@ -199,6 +199,7 @@ library
   else
       hs-source-dirs:     src include
       exposed-modules:    Language.Haskell.Liquid.RTick
+                          Language.Haskell.Liquid.Self
                           Language.Haskell.Liquid.Prelude
                           Language.Haskell.Liquid.Foreign
                           Language.Haskell.Liquid.RTick.Combinators
