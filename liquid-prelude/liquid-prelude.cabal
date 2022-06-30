@@ -17,6 +17,7 @@ custom-setup
 
 library
   exposed-modules:  Language.Haskell.Liquid.RTick
+                    Language.Haskell.Liquid.This
                     Language.Haskell.Liquid.Prelude
                     Language.Haskell.Liquid.Foreign
                     Language.Haskell.Liquid.RTick.Combinators
