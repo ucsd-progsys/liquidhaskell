@@ -1217,7 +1217,7 @@ caseEnv γ x acs a _ _ = do
 ------------------------------------------------------
 
 selfsym :: F.Symbol
-selfsym = F.symbol ("$$self" :: String)
+selfsym = F.symbol ("ofSelf" :: String)
 
 substSelf :: UReft F.Reft -> UReft F.Reft 
 substSelf (MkUReft r p) = MkUReft (substSelfReft r) p

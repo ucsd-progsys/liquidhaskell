@@ -4,12 +4,12 @@ data Tree a where
     Node :: (Int -> (Tree a)) -> Tree a 
 
 
-{-@ measure $$self :: a  @-}
+{-@ measure ofSelf :: a  @-}
 
 {-@ measure tsize :: Tree a -> Nat @-}
 {-@ data Tree a where 
       Leaf :: a -> {t:Tree a  | tsize t == 0 } 
-      Node :: f:(Int -> ({tt:Tree a | tsize tt < tsize $$self && 0 <= tsize tt })) 
+      Node :: f:(Int -> ({tt:Tree a | tsize tt < tsize ofSelf && 0 <= tsize tt })) 
            -> {t:Tree a | 0 <= tsize t}  @-}
 
 {-@ ignore node @-}

@@ -1,4 +1,4 @@
-{-@ measure $$self :: a  @-}
+{-@ measure ofSelf :: a  @-}
 
 
 {-# LANGUAGE GADTs #-}
@@ -10,7 +10,7 @@ data Tree a where
 
 {-@ data Tree a where 
       Leaf :: a -> {t:Tree a  | tsize t == 0 } 
-      Node :: f:(Int -> ({tt:Tree a | tsize tt < tsize $$self && 0 <= tsize tt })) 
+      Node :: f:(Int -> ({tt:Tree a | tsize tt < tsize ofSelf && 0 <= tsize tt })) 
            -> {t:Tree a | 0 <= tsize t}  @-}
 
 {-@ mapTr :: (a -> a) -> t:Tree a -> o:Tree a / [tsize t] @-}
@@ -30,7 +30,7 @@ data ITree a where
 
 {-@ data ITree a where 
       ILeaf :: a -> {t:ITree a  | itsize t == 0 } 
-      INode :: f:(Int -> ({tt:ITree a | itsize tt < itsize $$self})) 
+      INode :: f:(Int -> ({tt:ITree a | itsize tt < itsize ofSelf})) 
             -> ITree a  @-}
 
 {-@ imapTr :: (a -> a) -> t:ITree a -> o:ITree a / [itsize t] @-}
