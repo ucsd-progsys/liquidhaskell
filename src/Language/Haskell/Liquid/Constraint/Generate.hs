@@ -805,19 +805,15 @@ consE γ e
 -- [NOTE: PLE-OPT] We *disable* refined instantiation for 
 -- reflected functions inside proofs.
 
+-- If datacon definitions have references to self for fancy termination,
+-- ignore them at the construction. 
 consE γ (Var x) | GM.isDataConId x 
   = do t0 <- varRefType γ x
+       -- NV: The check is expected to fail most times, so 
+       --     it is cheaper than direclty fmap ignoreSelf. 
        let hasSelf = selfsym `elem` F.syms t0
-       -- Template to change treatment of selfed constructors 
-       let t = if hasSelf then {- do 
-              -- let tt = toRTypeRep t0
-              -- ss    <- fresh 
-              -- tce <- tyConEmbed <$> get 
-              -- let sort = rTypeSort tce (mkArrow (ty_vars tt) [] [] [] (ty_res tt))
-              -- addSelf ss sort 
-              -- let tselfed = tt{ty_res = ty_res tt `strengthen` singletonReft ss}
-              -- return $ (F.subst1 (fromRTypeRep tselfed) (selfsym, F.EVar ss))
-              return-}  (fmap ignoreSelf <$> t0)
+       let t = if hasSelf 
+                then fmap ignoreSelf <$> t0
                 else t0  
        addLocA (Just x) (getLocation γ) (varAnn γ x t)
        return t

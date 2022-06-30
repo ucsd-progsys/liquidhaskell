@@ -20,7 +20,6 @@ import           Language.Fixpoint.Misc hiding (errorstar)
 import           Language.Haskell.Liquid.GHC.Misc -- (concatMapM)
 import           Language.Haskell.Liquid.GHC.SpanStack (srcSpan)
 import           Language.Haskell.Liquid.GHC.API as Ghc hiding (panic, showPpr)
-import           Language.Fixpoint.Types (Symbol, Sort, insertSEnv)
 
 --------------------------------------------------------------------------------
 -- | `addC` adds a subtyping constraint into the global pool.
@@ -113,12 +112,6 @@ updateLocA :: Maybe SrcSpan -> SpecType -> CG ()
 updateLocA (Just l) t = addLocA Nothing l (AnnUse t)
 updateLocA _        _ = return ()
 --------------------------------------------------------------------------------
-
-
---------------------------------------------------------------------------------
-addSelf :: Symbol -> Sort -> CG ()
---------------------------------------------------------------------------------
-addSelf x t = modify $ \s -> s { fEnv = insertSEnv x t $ fEnv s }
 
 --------------------------------------------------------------------------------
 addA :: (Outputable a) => SrcSpan -> Maybe a -> b -> AnnInfo b -> AnnInfo b
