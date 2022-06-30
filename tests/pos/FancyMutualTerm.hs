@@ -1,7 +1,7 @@
 {-# LANGUAGE GADTs #-}
 module FancyMutualTerm where 
 
-import Language.Haskell.Liquid.Self
+import Language.Haskell.Liquid.This
 
 {-@ measure tsize :: Tree a -> Nat @-}
 {-@ invariant {t:Tree a | 0 <= tsize t} @-}
@@ -12,7 +12,7 @@ data Tree a where
 
 {-@ data Tree a where 
       Leaf :: a -> {t:Tree a  | tsize t == 0 } 
-      Node :: f:(Int -> ({tt:Tree a | tsize tt < tsize self })) 
+      Node :: f:(Int -> ({tt:Tree a | tsize tt < tsize this })) 
            -> Tree a  @-}
 
 

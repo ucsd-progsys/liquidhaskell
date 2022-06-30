@@ -17,4 +17,4 @@ functionComposisionSymbol = symbol ("GHC.Base.." :: String)
 
 
 selfSymbol :: Symbol
-selfSymbol = symbol ("self" :: String)
+selfSymbol = symbol ("this" :: String)
