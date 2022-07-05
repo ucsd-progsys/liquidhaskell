@@ -703,6 +703,10 @@ executable errors
                     , TerminationExprUnb
                     -- , TODOUnboundAbsRef
                     -- , TODOVarInTypeAlias
+                    , Totality00
+                    , Totality01
+                    , Totality02
+                    , Totality03
                     , UnboundAbsRef
                     -- , UnboundCheckVar
                     , UnboundFunInSpec1
