@@ -6,7 +6,8 @@
 
 import Control.Monad
 
-import System.Environment (lookupEnv, getArgs)
+import System.Environment (lookupEnv, getArgs, unsetEnv)
+import System.FilePath ((</>), takeDirectory)
 import System.Process
 import System.Exit
 import Data.Maybe
@@ -38,6 +39,18 @@ partitionArgs args = partitionEithers (map parseArg args)
 helpNeeded :: [String] -> Bool
 helpNeeded = elem "--help"
 
+collectPackageDbsFromGHC_ENVIRONMENT :: IO [FilePath]
+collectPackageDbsFromGHC_ENVIRONMENT = do
+  lookupEnv "GHC_ENVIRONMENT" >>= \case
+    Nothing -> return []
+    Just envFile -> do
+      contents <- readFile envFile
+      return
+        [ takeDirectory envFile </> drop (length pfx) xs
+        | xs <- lines contents
+        , let pfx = "package-db "
+        , isPrefixOf pfx xs
+        ]
 
 main :: IO a
 main = do
@@ -50,12 +63,18 @@ main = do
 
   ghcPath <- fromMaybe "ghc" <$> lookupEnv "LIQUID_GHC_PATH"
 
+  packageDbs <- collectPackageDbsFromGHC_ENVIRONMENT
+
   -- Strip targets out of the arguments, so that we can forward them to GHC before they
   -- get intercepted by the LH parser.
   let (cliArgs, targets)    = partition (isPrefixOf "-") args
   let (ghcArgs, liquidArgs) = partitionArgs cliArgs
 
-  let p = proc ghcPath $ [ "-O0"
+  let p = proc ghcPath $
+                         ["-package-env", "-"]
+                         <> concat [ ["-package-db", p] | p <- packageDbs ]
+                         <>
+                         [ "-O0"
                          , "-no-link"
                          , "-fplugin=LiquidHaskell"
                          , "-plugin-package", "liquidhaskell"
@@ -81,4 +100,7 @@ main = do
   _ <- getOpts (args \\ ghcArgs)
   unless (helpNeeded args) printLiquidHaskellBanner
 
+  -- Unset GHC_ENVIRONMENT so it doesn't influence ghc. Otherwise it would
+  -- interfere when calling this program with cabal exec.
+  unsetEnv "GHC_ENVIRONMENT"
   withCreateProcess p $ \_mbStdIn _mbStdOut _mbStdErr pHandle -> waitForProcess pHandle >>= exitWith
