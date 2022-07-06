@@ -1,8 +1,14 @@
 {-# LANGUAGE LambdaCase #-}
 
-{-| Calling LiquidHaskell via the source plugin.
-  This executable is a simple wrapper around 'ghc', which gets passed an '-fplugin' option.
--}
+-- Calling LiquidHaskell via the source plugin
+--
+-- This executable is a wrapper around 'ghc', which gets passed an '-fplugin'
+-- option. In addition, it hides all core libraries that might colide with a
+-- package coming from liquid haskell.
+--
+-- The command line options of ghc and liquid haskell are merged together.
+-- This script injects flags -fplugin-opt=LiquidHaskell:--opt for every
+-- argument --opt intended for LiquidHaskell and occurring in the command line.
 
 import Control.Monad
 
