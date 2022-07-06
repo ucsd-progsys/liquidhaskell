@@ -7,9 +7,10 @@
 import Control.Monad
 
 import System.Environment (lookupEnv, getArgs, unsetEnv)
-import System.FilePath ((</>), takeDirectory)
+import System.FilePath ((</>), takeDirectory, takeExtension)
 import System.Process
 import System.Exit
+import Data.Char (toLower)
 import Data.Maybe
 import Data.Either (partitionEithers)
 import Data.Bifunctor
@@ -67,7 +68,8 @@ main = do
 
   -- Strip targets out of the arguments, so that we can forward them to GHC before they
   -- get intercepted by the LH parser.
-  let (cliArgs, targets)    = partition (isPrefixOf "-") args
+  let (targets, cliArgs)    =
+        partition ((`elem` [".o", ".hs", ".lhs"]) . map toLower . takeExtension) args
   let (ghcArgs, liquidArgs) = partitionArgs cliArgs
 
   let p = proc ghcPath $
