@@ -78,8 +78,17 @@ This is how you can use this:
 #### Stack
 
 ```
-env LIQUID_DEV_MODE=true stack build
+LIQUID_DEV_MODE=true stack build
 ```
+
+If on NixOS
+
+```
+LIQUID_DEV_MODE=true stack --no-nix-pure build
+```
+
+With the above, `stack` will unregister and re-register the libraries,
+but hopefully it won't rebuild any modules.
 
 #### Cabal
 
