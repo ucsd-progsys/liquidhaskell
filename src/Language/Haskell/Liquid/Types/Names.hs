@@ -17,4 +17,4 @@ functionComposisionSymbol = symbol ("GHC.Base.." :: String)
 
 
 selfSymbol :: Symbol
-selfSymbol = symbol ("this" :: String)
+selfSymbol = symbol ("liquid_internal_this" :: String)

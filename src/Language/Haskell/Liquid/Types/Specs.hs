@@ -410,6 +410,7 @@ data Spec ty bndr  = Spec
   , rinstance  :: ![RInstance ty]
   , ilaws      :: ![RILaws ty]
   , dvariance  :: ![(F.LocSymbol, [Variance])]         -- ^ ? Where do these come from ?!
+  , dsize      :: ![([ty], F.LocSymbol)]      -- ^ Size measure to enforce fancy termination 
   , bounds     :: !(RRBEnv ty)
   , defs       :: !(M.HashMap F.LocSymbol F.Symbol)    -- ^ Temporary (?) hack to deal with dictionaries in specifications
                                                        --   see tests/pos/NatClass.hs
@@ -451,6 +452,7 @@ instance Semigroup (Spec ty bndr) where
            , rinstance  =           rinstance  s1 ++ rinstance  s2
            , ilaws      =               ilaws  s1 ++ ilaws      s2 
            , dvariance  =           dvariance  s1 ++ dvariance  s2
+           , dsize      =               dsize  s1 ++ dsize      s2
            , axeqs      =           axeqs s1      ++ axeqs s2
            , embeds     = mappend   (embeds   s1)  (embeds   s2)
            , lvars      = S.union   (lvars    s1)  (lvars    s2)
@@ -511,6 +513,7 @@ instance Monoid (Spec ty bndr) where
            , rinstance  = []
            , ilaws      = [] 
            , dvariance  = []
+           , dsize      = []
            , axeqs      = []
            , bounds     = M.empty
            , defs       = M.empty
@@ -587,6 +590,7 @@ data LiftedSpec = LiftedSpec
     -- ^ Refined Type-Classe Laws
   , liftedRinstance  :: HashSet (RInstance LocBareType)
   , liftedIlaws      :: HashSet (RILaws LocBareType)
+  , liftedDsize      :: [([LocBareType], F.LocSymbol)]
   , liftedDvariance  :: HashSet (F.LocSymbol, [Variance])
     -- ^ ? Where do these come from ?!
   , liftedBounds     :: RRBEnv LocBareType
@@ -628,6 +632,7 @@ emptyLiftedSpec = LiftedSpec
   , liftedRinstance  = mempty
   , liftedIlaws      = mempty
   , liftedDvariance  = mempty
+  , liftedDsize      = mempty
   , liftedBounds     = mempty
   , liftedDefs       = mempty
   , liftedAxeqs      = mempty
@@ -815,6 +820,7 @@ liftedSpecGetter = to toLiftedSpec
       , liftedRinstance  = S.fromList . rinstance $ a
       , liftedIlaws      = S.fromList . ilaws $ a
       , liftedDvariance  = S.fromList . dvariance $ a
+      , liftedDsize      = dsize a 
       , liftedBounds     = bounds a
       , liftedDefs       = defs a
       , liftedAxeqs      = S.fromList . axeqs $ a
@@ -863,6 +869,7 @@ unsafeFromLiftedSpec a = Spec
   , rinstance  = S.toList . liftedRinstance $ a
   , ilaws      = S.toList . liftedIlaws $ a
   , dvariance  = S.toList . liftedDvariance $ a
+  , dsize      = liftedDsize  a
   , bounds     = liftedBounds a
   , defs       = liftedDefs a
   , axeqs      = S.toList . liftedAxeqs $ a

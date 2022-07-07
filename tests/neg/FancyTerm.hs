@@ -7,12 +7,13 @@ data Tree a where
     Leaf :: a -> Tree a 
     Node :: (Int -> (Tree a)) -> Tree a 
 
+{-@ data size (Tree a) tsize @-}
 
 {-@ measure tsize :: Tree a -> Nat @-}
 {-@ data Tree a where 
       Leaf :: a -> {t:Tree a  | tsize t == 0 } 
-      Node :: f:(Int -> ({tt:Tree a | tsize tt < tsize this && 0 <= tsize tt })) 
-           -> {t:Tree a | 0 <= tsize t}  @-}
+      Node :: f:(Int -> Tree a) 
+           -> Tree a   @-}
 
 {-@ ignore node @-}
 {-@ node :: (Int -> {tin:Tree a |  0 <= tsize tin}) -> {t:Tree a | 0 <= tsize t} @-}

@@ -4,7 +4,7 @@ module FancyMutualTerm where
 import Language.Haskell.Liquid.This
 
 {-@ measure tsize :: Tree a -> Nat @-}
-{-@ invariant {t:Tree a | 0 <= tsize t} @-}
+{-@ data size (Tree a) tsize @-}
 
 data Tree a where 
     Leaf :: a -> Tree a 
@@ -12,8 +12,7 @@ data Tree a where
 
 {-@ data Tree a where 
       Leaf :: a -> {t:Tree a  | tsize t == 0 } 
-      Node :: f:(Int -> ({tt:Tree a | tsize tt < tsize this })) 
-           -> Tree a  @-}
+      Node :: f:(Int -> Tree a) -> Tree a  @-}
 
 
 {-@ mapTr :: (a -> a) -> t:Tree a -> Tree a / [tsize t, 2] @-}

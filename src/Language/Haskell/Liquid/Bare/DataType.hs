@@ -41,6 +41,7 @@ import qualified Language.Fixpoint.Misc                 as Misc
 import qualified Language.Haskell.Liquid.Misc           as Misc
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.WiredIn
+import           Language.Haskell.Liquid.Types.Names (selfSymbol)
 
 import qualified Language.Haskell.Liquid.Measure        as Ms
 import qualified Language.Haskell.Liquid.Bare.Types     as Bare  
@@ -385,12 +386,44 @@ makeConTypes' :: ModName -> Bare.Env -> (ModName, Ms.BareSpec)
              -> Bare.Lookup ([(ModName, TyConP, Maybe DataPropDecl)], [[Located DataConP]])
 makeConTypes' _myName env (name, spec) = do
   dcs'   <- canonizeDecls env name dcs
-  let gvs = groupVariances dcs' vdcs
+  let dcs'' = makeSize ds <$> dcs'   
+  let gvs = groupVariances dcs'' vdcs
   zong <- catLookups . map (uncurry (ofBDataDecl env name)) $ gvs
   return (unzip zong)
   where
     dcs  = Ms.dataDecls spec 
     vdcs = Ms.dvariance spec 
+    ds   = normalizeDSize $ Ms.dsize spec 
+
+
+type DSizeMap = M.HashMap F.Symbol (F.Symbol, [F.Symbol])
+normalizeDSize :: [([LocBareType], F.LocSymbol)] -> DSizeMap
+normalizeDSize ds = M.fromList (concatMap go ds)
+  where go (ts,x) = let xs = Mb.catMaybes (getTc . val <$> ts)  
+                    in [(tc, (val x, xs)) | tc <- xs]
+        getTc (RAllT _ t _)  = getTc t 
+        getTc (RApp c _ _ _) = Just (val $ btc_tc c) 
+        getTc _ = Nothing 
+
+makeSize :: DSizeMap -> DataDecl -> DataDecl 
+makeSize smap d
+  | Just p <- M.lookup (F.symbol $ tycName d) smap 
+  = d {tycDCons = fmap (fmap (makeSizeCtor p)) (tycDCons d) }
+  | otherwise
+   = d 
+
+makeSizeCtor :: (F.Symbol, [F.Symbol]) -> DataCtor -> DataCtor 
+makeSizeCtor (s,xs) d = d {dcFields = Misc.mapSnd (mapBot go) <$> dcFields d}
+  where 
+    go (RApp c ts rs r) | F.symbol c `elem` xs 
+                        = RApp c ts rs (r `F.meet` rsz)
+    go t                = t 
+    rsz  = MkUReft (F.Reft (F.vv_, F.PAtom F.Lt 
+                                      (F.EApp (F.EVar s) (F.EVar F.vv_))
+                                      (F.EApp (F.EVar s) (F.EVar selfSymbol))
+                                      )) 
+                   mempty
+
 
 catLookups :: [Bare.Lookup a] -> Bare.Lookup [a]
 catLookups = sequence . Mb.mapMaybe skipResolve
