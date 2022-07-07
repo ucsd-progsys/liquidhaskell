@@ -106,6 +106,25 @@ data LL a = BXYZ { size  :: {v: Int | v > 0 }
 @-}
 ```
 
+You can also specify a decreasing size for each data. 
+For example, see [tests/pos/FancyMutualTerm.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/8e74281a9e1c6809f07d3ba7be08d93395247a13/tests/pos/FancyMutualTerm.hs):
+
+```haskell
+{-@ measure tsize :: Tree a -> Nat @-}
+{-@ data size (Tree a) tsize @-}
+
+{-@ data Tree a where 
+      Leaf :: a -> {t:Tree a  | tsize t == 0 } 
+      Node :: f:(Int -> Tree a) -> Tree a  @-}
+```
+
+The annotation `data size (Tree a) tsize`
+ensures that each `Tree a` in the fields of `Tree`
+has `tsize` less than the result `Tree`. 
+The `data size` annotation can be used for mutually defined types 
+as  `data size (M1 a, M2 a) msize`.
+
+
 Finally you can specify the variance of type variables for data types.
 For example, see [tests/pos/Variance.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/Variance.hs), where data type `Foo` has four
 type variables `a`, `b`, `c`, `d`, specified as invariant, bivariant,
