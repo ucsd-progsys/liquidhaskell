@@ -1,0 +1,58 @@
+# Warnings currently triggered by your code
+- ignore: {name: "Avoid lambda"} # 4 hints
+- ignore: {name: "Avoid lambda using `infix`"} # 4 hints
+- ignore: {name: "Eta reduce"} # 51 hints
+- ignore: {name: "Functor law"} # 8 hints
+- ignore: {name: "Fuse concatMap/map"} # 1 hint
+- ignore: {name: "Fuse foldMap/fmap"} # 1 hint
+- ignore: {name: "Fuse traverse/map"} # 1 hint
+- ignore: {name: "Hoist not"} # 2 hints
+- ignore: {name: "Move brackets to avoid $"} # 52 hints
+- ignore: {name: "Move guards forward"} # 2 hints
+- ignore: {name: "Move reverse out"} # 1 hint
+- ignore: {name: "Parse error: on input `,'"} # 1 hint
+- ignore: {name: "Parse error: possibly incorrect indentation or mismatched brackets"} # 3 hints
+- ignore: {name: "Redundant $"} # 41 hints
+- ignore: {name: "Redundant <$>"} # 5 hints
+- ignore: {name: "Redundant bracket"} # 232 hints
+- ignore: {name: "Redundant fmap"} # 1 hint
+- ignore: {name: "Redundant id"} # 1 hint
+- ignore: {name: "Redundant lambda"} # 7 hints
+- ignore: {name: "Redundant multi-way if"} # 1 hint
+- ignore: {name: "Redundant pure"} # 1 hint
+- ignore: {name: "Redundant return"} # 3 hints
+- ignore: {name: "Redundant uncurry"} # 1 hint
+- ignore: {name: "Replace case with fromMaybe"} # 2 hints
+- ignore: {name: "Unused LANGUAGE pragma"} # 9 hints
+- ignore: {name: "Use ++"} # 1 hint
+- ignore: {name: "Use /="} # 1 hint
+- ignore: {name: "Use :"} # 1 hint
+- ignore: {name: "Use <$>"} # 10 hints
+- ignore: {name: "Use <&>"} # 3 hints
+- ignore: {name: "Use =<<"} # 1 hint
+- ignore: {name: "Use camelCase"} # 61 hints
+- ignore: {name: "Use catMaybes"} # 1 hint
+- ignore: {name: "Use concatMap"} # 4 hints
+- ignore: {name: "Use const"} # 5 hints
+- ignore: {name: "Use elemIndex"} # 2 hints
+- ignore: {name: "Use fewer LANGUAGE pragmas"} # 2 hints
+- ignore: {name: "Use first"} # 1 hint
+- ignore: {name: "Use fmap"} # 65 hints
+- ignore: {name: "Use forM_"} # 1 hint
+- ignore: {name: "Use gets"} # 26 hints
+- ignore: {name: "Use guards"} # 1 hint
+- ignore: {name: "Use if"} # 2 hints
+- ignore: {name: "Use infix"} # 3 hints
+- ignore: {name: "Use list comprehension"} # 4 hints
+- ignore: {name: "Use map"} # 2 hints
+- ignore: {name: "Use mapM"} # 1 hint
+- ignore: {name: "Use mapM_"} # 1 hint
+- ignore: {name: "Use mapMaybe"} # 8 hints
+- ignore: {name: "Use maybe"} # 1 hint
+- ignore: {name: "Use newtype instead of data"} # 4 hints
+- ignore: {name: "Use null"} # 2 hints
+- ignore: {name: "Use record patterns"} # 26 hints
+- ignore: {name: "Use section"} # 1 hint
+- ignore: {name: "Use tuple-section"} # 1 hint
+- ignore: {name: "Use uncurry"} # 3 hints
+- ignore: {name: "Use void"} # 1 hint
