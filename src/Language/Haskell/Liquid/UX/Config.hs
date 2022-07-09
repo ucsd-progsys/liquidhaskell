@@ -159,10 +159,10 @@ terminationCheck :: (HasConfig t) => t -> Bool
 terminationCheck = terminationCheck' . getConfig
 
 totalityCheck' :: Config -> Bool
-totalityCheck' cfg = (not (nototality cfg)) || totalHaskell cfg
+totalityCheck' cfg = not (nototality cfg) || totalHaskell cfg
 
 terminationCheck' :: Config -> Bool
-terminationCheck' cfg = (totalHaskell cfg || not (notermination cfg))
+terminationCheck' cfg = totalHaskell cfg || not (notermination cfg)
 
 structuralTerm :: (HasConfig a) => a -> Bool
 structuralTerm = not . nostructuralterm . getConfig

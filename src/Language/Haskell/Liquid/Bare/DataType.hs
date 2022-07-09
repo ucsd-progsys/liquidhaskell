@@ -341,7 +341,7 @@ makeDataFields :: F.TCEmb Ghc.TyCon -> F.FTycon -> [RTyVar] -> [(F.LocSymbol, Sp
 makeDataFields tce _c as xts = [ F.DField x (fSort t) | (x, t) <- xts]
   where
     su    = zip (F.symbol <$> as) [0..]
-    fSort = F.substVars su . F.mapFVar (+ (length as)) . RT.rTypeSort tce
+    fSort = F.substVars su . F.mapFVar (+ length as) . RT.rTypeSort tce
 
 {- 
 muSort :: F.FTycon -> Int -> F.Sort -> F.Sort
@@ -533,7 +533,7 @@ ofBDataDecl env name (Just dd@(DataDecl tc as ps cts pos sfun pt _)) maybe_invar
   tc'             <- getDnTyCon env name tc
   cts'            <- mapM (ofBDataCtor env name lc lc' tc' αs ps πs) (Mb.fromMaybe [] cts)
   unless (checkDataDecl tc' dd) (Left [err])  
-  let pd           = Bare.ofBareType env name lc (Just []) <$> (F.tracepp "ofBDataDecl-prop" pt)
+  let pd           = Bare.ofBareType env name lc (Just []) <$> F.tracepp "ofBDataDecl-prop" pt
   let tys          = [t | dcp <- cts', (_, t) <- dcpTyArgs dcp]
   let varInfo      = L.nub $  concatMap (getPsSig initmap True) tys
   let defPs        = varSignToVariance varInfo <$> [0 .. (length πs - 1)]
@@ -638,7 +638,7 @@ getPsSigPs m pos (RProp _ (RHole r)) = addps m pos r
 getPsSigPs m pos (RProp _ t) = getPsSig m pos t
 
 addps :: [(UsedPVar, a)] -> b -> UReft t -> [(a, b)]
-addps m pos (MkUReft _ ps) = (flip (,)) pos . f  <$> pvars ps
+addps m pos (MkUReft _ ps) = flip (,) pos . f  <$> pvars ps
   where 
     f = Mb.fromMaybe (panic Nothing "Bare.addPs: notfound") . (`L.lookup` m) . RT.uPVar
 

@@ -64,7 +64,7 @@ checkPositives tys = mkDiagnostics [] $ mkNonPosError (getNonPositivesTyCon tys)
 
 mkNonPosError :: [(TyCon, [DataCon])]  -> [Error]
 mkNonPosError tcs = [ ErrPosTyCon (getSrcSpan tc) (pprint tc) (pprint dc <+> ":" <+> pprint (dataConRepType dc)) 
-                    | (tc, (dc:_)) <- tcs]
+                    | (tc, dc:_) <- tcs]
 
 ----------------------------------------------------------------------------------------------
 -- | Checking BareSpec ------------------------------------------------------------------------
@@ -167,8 +167,8 @@ checkTargetSpec specs src env cbs sp
                      <> checkLawInstances (gsLaws sp)
                      <> checkRewrites sp
 
-    _rClasses         = concatMap (Ms.classes  ) specs
-    _rInsts           = concatMap (Ms.rinstance) specs
+    _rClasses         = concatMap Ms.classes specs
+    _rInsts           = concatMap Ms.rinstance specs
     tAliases          = concat [Ms.aliases sp  | sp <- specs]
     eAliases          = concat [Ms.ealiases sp | sp <- specs]
     emb              = gsTcEmbeds (gsName sp)
@@ -495,8 +495,8 @@ checkRType allowHO bsc emb env lt
 tyToBind :: F.TCEmb TyCon -> RTVar RTyVar RSort  -> [(F.Symbol, F.SortedReft)]
 tyToBind emb = go . ty_var_info
   where
-    go (RTVInfo {..}) = [(rtv_name, rTypeSortedReft emb rtv_kind)]
-    go (RTVNoInfo {}) = []
+    go RTVInfo{..} = [(rtv_name, rTypeSortedReft emb rtv_kind)]
+    go RTVNoInfo{} = []
 
 checkAppTys :: RType RTyCon t t1 -> Maybe Doc
 checkAppTys = go
@@ -517,7 +517,7 @@ checkAppTys = go
     go (RHole _)        = Nothing
 
 checkTcArity :: RTyCon -> Arity -> Maybe Doc
-checkTcArity (RTyCon { rtc_tc = tc }) givenArity
+checkTcArity RTyCon{ rtc_tc = tc } givenArity
   | expectedArity < givenArity
     = Just $ text "Type constructor" <+> pprint tc
         <+> text "expects a maximum" <+> pprint expectedArity
@@ -645,11 +645,11 @@ checkMBody γ emb _ sort (Def m c _ bs body) = checkMBody' emb sort γ' sp body
 
 checkMBodyUnify
   :: RType t t2 t1 -> RType c tv r -> [(t2,RType c tv (),RType c tv r)]
-checkMBodyUnify                 = go
+checkMBodyUnify = go
   where
-    go (RVar tv _) t            = [(tv, toRSort t, t)]
-    go t@(RApp {}) t'@(RApp {}) = concat $ zipWith go (rt_args t) (rt_args t')
-    go _ _                      = []
+    go (RVar tv _) t      = [(tv, toRSort t, t)]
+    go t@RApp{} t'@RApp{} = concat $ zipWith go (rt_args t) (rt_args t')
+    go _ _                = []
 
 checkMBody' :: (PPrint r, F.Reftable r,SubsTy RTyVar RSort r, F.Reftable (RTProp RTyCon RTyVar r))
             => F.TCEmb TyCon

@@ -158,7 +158,7 @@ data CoreVisitor env acc = CoreVisitor
   , exprF :: env -> acc -> CoreExpr -> acc 
   }
 
-coreVisitor :: (CoreVisitor env acc) -> env -> acc -> [CoreBind] -> acc
+coreVisitor :: CoreVisitor env acc -> env -> acc -> [CoreBind] -> acc
 coreVisitor vis env acc cbs   = snd (foldl' step (env, acc) cbs) 
   where
     stepXE (env, acc) (x,e)   = (env', stepE env' acc'   e)  

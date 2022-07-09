@@ -129,7 +129,7 @@ data MeasEnv = MeasEnv
   , meDataCons    :: ![(Ghc.Var,  LocSpecType)]           
   , meClasses     :: ![DataConP]                           
   , meMethods     :: ![(ModName, Ghc.Var, LocSpecType)]  
-  , meCLaws       :: !([(Ghc.Class, [(ModName, Ghc.Var, LocSpecType)])])  
+  , meCLaws       :: ![(Ghc.Class, [(ModName, Ghc.Var, LocSpecType)])]  
   }
 
 instance Semigroup MeasEnv where

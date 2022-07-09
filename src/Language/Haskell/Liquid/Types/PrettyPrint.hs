@@ -147,7 +147,7 @@ instance PPrint a => Show (AnnInfo a) where
 
 pprAnnInfoBinds :: (PPrint a, PPrint b) => F.Tidy -> (SrcSpan, [(Maybe a, b)]) -> Doc
 pprAnnInfoBinds k (l, xvs)
-  = vcat $ (pprAnnInfoBind k . (l,)) <$> xvs
+  = vcat $ pprAnnInfoBind k . (l,) <$> xvs
 
 pprAnnInfoBind :: (PPrint a, PPrint b) => F.Tidy -> (SrcSpan, (Maybe a, b)) -> Doc
 pprAnnInfoBind k (Ghc.RealSrcSpan sp _, xv)
@@ -361,8 +361,8 @@ ppr_rty_fun' bb t
 -}
 
 brkFun :: RType c tv r -> ([(F.Symbol, RType c tv r, Doc)], RType c tv r)
-brkFun (RImpF b _ t t' _) = ((b, t, (text "~>")) : args, out)   where (args, out)     = brkFun t'
-brkFun (RFun b _ t t' _)  = ((b, t, (text "->")) : args, out)   where (args, out)     = brkFun t'
+brkFun (RImpF b _ t t' _) = ((b, t, text "~>") : args, out)   where (args, out)     = brkFun t'
+brkFun (RFun b _ t t' _)  = ((b, t, text "->") : args, out)   where (args, out)     = brkFun t'
 brkFun out                = ([], out)
 
 
@@ -417,7 +417,7 @@ ppr_pvar_def bb p (PV s t _ xts)
 
 ppr_pvar_kind :: (OkRT c tv ()) => PPEnv -> Prec -> PVKind (RType c tv ()) -> Doc
 ppr_pvar_kind bb p (PVProp t) = ppr_pvar_sort bb p t <+> arrow <+> ppr_name F.boolConName -- propConName
-ppr_pvar_kind _ _ (PVHProp)   = panic Nothing "TODO: ppr_pvar_kind:hprop" -- ppr_name hpropConName
+ppr_pvar_kind _ _ PVHProp     = panic Nothing "TODO: ppr_pvar_kind:hprop" -- ppr_name hpropConName
 
 ppr_name :: F.Symbol -> Doc
 ppr_name                      = text . F.symbolString

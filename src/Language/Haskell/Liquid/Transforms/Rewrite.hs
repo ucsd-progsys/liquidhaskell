@@ -251,7 +251,7 @@ _tidyAlt :: Int -> Maybe CoreExpr -> Maybe CoreExpr
 
 _tidyAlt n (Just (Let (NonRec x e) rest))
   | Just (yes, e') <- takeBinds n rest
-  = Just $ Let (NonRec x e) $ foldl (\e (x, ex) -> Let (NonRec x ex) e) e' ((reverse $ go $ reverse yes))
+  = Just $ Let (NonRec x e) $ foldl (\e (x, ex) -> Let (NonRec x ex) e) e' (reverse $ go $ reverse yes)
 
   where
     go xes@((_, e):_) = let bs = grapBinds e in mapSnd (replaceBinds bs) <$> xes

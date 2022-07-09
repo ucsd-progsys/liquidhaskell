@@ -266,7 +266,7 @@ solveCs cfg tgt cgi info names = do
                                  `addErrors` makeFailErrors (S.toList failBs) rf 
                                  `addErrors` makeFailUseErrors (S.toList failBs) (giCbs $ giSrc info)
   let lErrors       = applySolution sol <$> logErrors cgi
-  hErrors          <- if (typedHoles cfg) 
+  hErrors          <- if typedHoles cfg 
                         then synthesize tgt fcfg (cgi{holesMap = applySolution sol <$> holesMap  cgi}) 
                         else return [] 
   let resModel      = resModel' `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors)) 
@@ -283,8 +283,8 @@ cidE2u cfg s (subcId, e) =
   let e' = attachSubcId e
    in fmap F.pprint (tidyError cfg s e')
   where
-    attachSubcId es@(ErrSubType{}) = es { cid = Just subcId }
-    attachSubcId es@(ErrSubTypeModel{}) = es { cid = Just subcId }
+    attachSubcId es@ErrSubType{}      = es { cid = Just subcId }
+    attachSubcId es@ErrSubTypeModel{} = es { cid = Just subcId }
     attachSubcId es = es
 
 -- writeCGI tgt cgi = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str
@@ -310,7 +310,7 @@ makeFailErrors :: [F.Located Var] -> [Cinfo] -> [UserError]
 makeFailErrors bs cis = [ mkError x | x <- bs, notElem (val x) vs ]  
   where 
     mkError  x = ErrFail (GM.sourcePosSrcSpan $ loc x) (pprint $ val x)
-    vs         = [v | Just v <- (ci_var <$> cis) ]
+    vs         = [v | Just v <- ci_var <$> cis ]
 
 splitFails :: S.HashSet Var -> F.FixResult (a, Cinfo) -> (F.FixResult (a, Cinfo),  [Cinfo])
 splitFails _ r@(F.Crash _ _) = (r,mempty)

@@ -76,8 +76,8 @@ makeRTEnv env m mySpec iSpecs lmap
 --   hidden inside @RExprArg@ or as strange type parameters. 
 renameRTArgs :: BareRTEnv -> BareRTEnv 
 renameRTArgs rte = RTE 
-  { typeAliases = M.map (fmap ( renameTys . renameVV . renameRTVArgs)) (typeAliases rte) 
-  , exprAliases = M.map (fmap (                        renameRTVArgs)) (exprAliases rte) 
+  { typeAliases = M.map (fmap (renameTys . renameVV . renameRTVArgs)) (typeAliases rte) 
+  , exprAliases = M.map (fmap                         renameRTVArgs) (exprAliases rte) 
   } 
 
 makeREAliases :: [Located (RTAlias F.Symbol F.Expr)] -> BareRTEnv 
@@ -397,9 +397,9 @@ expandBareType rtEnv _ = go
     go (RAllE x t1 t2)   = RAllE x (go t1) (go t2)
     go (REx x t1 t2)     = REx   x (go t1) (go t2)
     go (RRTy e r o t)    = RRTy  e r o     (go t)
-    go t@(RHole {})      = t 
-    go t@(RVar {})       = t 
-    go t@(RExprArg {})   = t 
+    go t@RHole{}         = t 
+    go t@RVar{}          = t 
+    go t@RExprArg{}      = t 
     goRef (RProp ss t)   = RProp ss (go t)
 
 lookupRTEnv :: BTyCon -> BareRTEnv -> Maybe (Located BareRTAlias)
@@ -751,12 +751,12 @@ addExists t = liftM (M.foldlWithKey' addExist t) getBinds
 addExist :: SpecType -> F.Symbol -> (RSort, F.Expr) -> SpecType
 addExist t x (tx, e) = REx x t' t
   where 
-    t'               = (ofRSort tx) `strengthen` uTop r
+    t'               = ofRSort tx `strengthen` uTop r
     r                = F.exprReft e
 
 expToBindRef :: UReft r -> State ExSt (UReft r)
 expToBindRef (MkUReft r (Pr p))
-  = mapM expToBind p >>= return . (MkUReft r) . Pr
+  = mapM expToBind p >>= return . MkUReft r . Pr
 
 expToBind :: UsedPVar -> State ExSt UsedPVar
 expToBind p = do 

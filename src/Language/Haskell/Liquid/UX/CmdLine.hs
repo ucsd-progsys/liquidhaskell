@@ -189,7 +189,7 @@ config = cmdArgsMode $ Config {
 
  , gdepth
     = 1
-    &= help ("Size of gradual conretizations, 1 by default")
+    &= help "Size of gradual conretizations, 1 by default"
     &= name "gradual-depth"
 
  , ginteractive
@@ -823,7 +823,7 @@ mkErrorDoc sSpan doc =
   -- pprint sSpan <> (text ": error: " <+> doc)
 
   -- Nice on screen, invisible in Ghcid ...
-  (pprint sSpan <> text ": error: ") $+$ (nest 4 doc)
+  (pprint sSpan <> text ": error: ") $+$ nest 4 doc
 
 
 -- | Given a 'FixResult' parameterised over a 'CError', this function returns the \"header\" to show to

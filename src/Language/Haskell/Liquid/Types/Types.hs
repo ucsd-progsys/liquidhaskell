@@ -851,7 +851,7 @@ makeRTVar :: tv -> RTVar tv s
 makeRTVar a = RTVar a (RTVNoInfo True)
 
 instance (Eq tv) => Eq (RTVar tv s) where
-  t1 == t2 = (ty_var_value t1) == (ty_var_value t2)
+  t1 == t2 = ty_var_value t1 == ty_var_value t2
 
 data RTVar tv s = RTVar
   { ty_var_value :: tv
@@ -1185,13 +1185,13 @@ type HAxiom = Axiom Var    Type CoreExpr
 
 instance Show (Axiom Var Type CoreExpr) where
   show (Axiom (n, c) v bs _ts lhs rhs) = "Axiom : " ++
-                                         "\nFun Name: " ++ (showPpr n) ++
-                                         "\nReal Name: " ++ (showPpr v) ++
-                                         "\nData Con: " ++ (showPpr c) ++
-                                         "\nArguments:" ++ (showPpr bs)  ++
+                                         "\nFun Name: " ++ showPpr n ++
+                                         "\nReal Name: " ++ showPpr v ++
+                                         "\nData Con: " ++ showPpr c ++
+                                         "\nArguments:" ++ showPpr bs  ++
                                          -- "\nTypes    :" ++ (showPpr ts)  ++
-                                         "\nLHS      :" ++ (showPpr lhs) ++
-                                         "\nRHS      :" ++ (showPpr rhs)
+                                         "\nLHS      :" ++ showPpr lhs ++
+                                         "\nRHS      :" ++ showPpr rhs
 
 --------------------------------------------------------------------------------
 -- | Data type refinements
@@ -1307,7 +1307,7 @@ instance Show DataName where
   show (DnCon  c) = "datacon:" ++ show (F.val c)
 
 instance F.PPrint SizeFun where
-  pprintTidy _ (IdSizeFun)    = "[id]"
+  pprintTidy _ IdSizeFun      = "[id]"
   pprintTidy _ (SymSizeFun x) = brackets (F.pprint (F.val x))
 
 instance F.Symbolic DataName where
@@ -1363,7 +1363,7 @@ data RTypeRep c tv r = RTypeRep
   , ty_info   :: [RFInfo]
   , ty_refts  :: [r]
   , ty_args   :: [RType c tv r]
-  , ty_res    :: (RType c tv r)
+  , ty_res    :: RType c tv r
   }
 
 fromRTypeRep :: RTypeRep c tv r -> RType c tv r
@@ -1739,7 +1739,7 @@ mapReftM f (RAppTy t t' r)    = liftM3  RAppTy (mapReftM f t) (mapReftM f t') (f
 mapReftM f (RHole r)          = liftM   RHole       (f r)
 mapReftM f (RRTy xts r o t)   = liftM4  RRTy (mapM (mapSndM (mapReftM f)) xts) (f r) (return o) (mapReftM f t)
 
-mapRefM  :: (Monad m) => (t -> m s) -> (RTProp c tv t) -> m (RTProp c tv s)
+mapRefM  :: (Monad m) => (t -> m s) -> RTProp c tv t -> m (RTProp c tv s)
 mapRefM  f (RProp s t)         = liftM   (RProp s)      (mapReftM f t)
 
 mapPropM :: (Monad m) => (RTProp c tv r -> m (RTProp c tv r)) -> RType c tv r -> m (RType c tv r)
@@ -1829,7 +1829,7 @@ efoldReft logicBind bsc cb dty g f fp = go
 
     -- folding over Ref
     ho  γ z (RProp ss (RHole r))       = f (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) Nothing r z
-    ho  γ z (RProp ss t)               = go (insertsSEnv γ ((mapSnd (g . ofRSort)) <$> ss)) z t
+    ho  γ z (RProp ss t)               = go (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) z t
 
     -- folding over [RType]
     go' γ z ts                 = foldr (flip $ go γ) z ts
@@ -2212,7 +2212,7 @@ instance F.Loc (Measure a b) where
 instance Bifunctor Def where
   -- first f  (Def m ps c s bs b) = Def m (second f <$> ps) c (f <$> s) ((second (fmap f)) <$> bs) b
   -- second f (Def m ps c s bs b) = Def m ps (f c) s bs b
-  first f  (Def m c s bs b) = Def m c (f <$> s) ((second (fmap f)) <$> bs) b
+  first f  (Def m c s bs b) = Def m c (f <$> s) (second (fmap f) <$> bs) b
   second f (Def m c s bs b) = Def m (f c) s bs b
 
 
@@ -2472,8 +2472,8 @@ hole :: Expr
 hole = F.PKVar "HOLE" mempty
 
 isHole :: Expr -> Bool
-isHole (F.PKVar ("HOLE") _) = True
-isHole _                    = False
+isHole (F.PKVar "HOLE" _) = True
+isHole _                  = False
 
 hasHole :: F.Reftable r => r -> Bool
 hasHole = any isHole . F.conjuncts . F.reftPred . F.toReft

@@ -129,7 +129,7 @@ substCoercion x tx (FunCo r cN c1 c2)
 #endif
 substCoercion x tx (ForAllCo y c1 c2)
   | symbol x == symbol y 
-  = (ForAllCo y c1 c2)
+  = ForAllCo y c1 c2
   | otherwise 
   = ForAllCo y (subst x tx c1) (subst x tx c2)
 substCoercion _ _ (CoVarCo y)
