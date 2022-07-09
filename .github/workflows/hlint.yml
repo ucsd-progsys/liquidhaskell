@@ -1,0 +1,26 @@
+name: hlint
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  build:
+    name: hlint
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+
+    - uses: haskell/actions/hlint-setup@v2
+      name: Set up HLint
+      with:
+        version: "3.4"
+
+    - uses: haskell/actions/hlint-run@v2
+      name: hlint
+      with:
+        path: '["src/"]'
+        fail-on: suggestion
