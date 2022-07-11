@@ -32,7 +32,7 @@ transformRecExpr cbs = pg
   -- TODO-REBARE weird GHC crash on Data/Text/Array.hs = pg
   -- TODO-REBARE weird GHC crash on Data/Text/Array.hs | otherwise
   -- TODO-REBARE weird GHC crash on Data/Text/Array.hs = panic Nothing ("Type-check" ++ showSDoc (pprMessageBag e))
-  where 
+  where
     pg     = inlineFailCases pg0
     pg0    = evalState (transPg (inlineLoopBreaker <$> cbs)) initEnv
     -- (_, e) = lintCoreBindings [] pg
@@ -75,7 +75,7 @@ inlineFailCases = (go [] <$>)
 
     goalt su (c, xs, e)     = (c, xs, go' su e)
 
-    isFailId x  = isLocalId x && (isSystemName $ varName x) && L.isPrefixOf "fail" (show x)
+    isFailId x  = isLocalId x && isSystemName (varName x) && L.isPrefixOf "fail" (show x)
     getFailExpr = L.lookup
 
     addFailExpr x (Lam _ e) su = (x, e):su
@@ -87,7 +87,7 @@ inlineFailCases = (go [] <$>)
 
 -- No need for this transformation after ghc-8!!!
 transformScope :: [Bind Id] -> [Bind Id]
-transformScope = outerScTr . innerScTr 
+transformScope = outerScTr . innerScTr
 
 outerScTr :: [Bind Id] -> [Bind Id]
 outerScTr = mapNonRec (go [])

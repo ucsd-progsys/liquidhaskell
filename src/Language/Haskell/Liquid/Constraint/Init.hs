@@ -56,22 +56,22 @@ initEnv info
        f1'      <- refreshArgs' $ makeExactDc dcsty                   -- data constructors
        f2       <- refreshArgs' $ assm info                           -- assumed refinements      (for imported vars)
        f3'      <- refreshArgs' =<< recSelectorsTy info                      -- assumed refinements      (for record selectors)
-       f3       <- addPolyInfo' <$> (refreshArgs' $ vals gsAsmSigs (gsSig sp))                 -- assumed refinedments     (with `assume`)
-       f40      <- makeExactDc <$> (refreshArgs' $ vals gsCtors (gsData sp)) -- constructor refinements  (for measures)
+       f3       <- addPolyInfo' <$> refreshArgs' (vals gsAsmSigs (gsSig sp))                 -- assumed refinedments     (with `assume`)
+       f40      <- makeExactDc <$> refreshArgs' (vals gsCtors (gsData sp)) -- constructor refinements  (for measures)
        f5       <- refreshArgs' $ vals gsInSigs (gsSig sp)                   -- internal refinements     (from Haskell measures)
        fi       <- refreshArgs' $ catMaybes $ [(x,) . val <$> getMethodType mt | (x, mt) <- gsMethods $ gsSig $ giSpec info ]
        (invs1, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty  (gsAutosize (gsTerm sp)) dcs
        (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (gsAutosize (gsTerm sp)) dcs'
        let f4    = mergeDataConTypes tce (mergeDataConTypes tce f40 (f41 ++ f42)) (filter (isDataConId . fst) f2)
        let tx    = mapFst F.symbol . addRInv ialias . predsUnify sp
-       f6       <- map tx . addPolyInfo' <$> (refreshArgs' $ vals gsRefSigs (gsSig sp))  
+       f6       <- map tx . addPolyInfo' <$> refreshArgs' (vals gsRefSigs (gsSig sp))
        let bs    = (tx <$> ) <$> [f0 ++ f0' ++ fi, f1 ++ f1', f2, f3 ++ f3', f4, f5]
        modify $ \s -> s { dataConTys = f4 }
        lt1s     <- F.toListSEnv . cgLits <$> get
        let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
        let cbs   = giCbs . giSrc $ info
-       rTrue   <- mapM (mapSndM (true allowTC)) f6 
+       rTrue   <- mapM (mapSndM (true allowTC)) f6
        let γ0    = measEnv sp (head bs) cbs tcb lt1s lt2s (f6 ++ bs!!3) (bs!!5) hs info
        γ  <- globalize <$> foldM (+=) γ0 ( [("initEnv", x, y) | (x, y) <- concat $ (rTrue:tail bs)])
        return γ {invs = is (invs1 ++ invs2)}
@@ -83,19 +83,19 @@ initEnv info
     mapSndM f    = \(x,y) -> (x,) <$> f y
     makeExactDc dcs = if exactDCFlag info then map strengthenDataConType dcs else dcs
     is autoinv   = mkRTyConInv    (gsInvariants (gsData sp) ++ ((Nothing,) <$> autoinv))
-    addPolyInfo' = if reflection (getConfig info) then map (mapSnd addPolyInfo) else id 
+    addPolyInfo' = if reflection (getConfig info) then map (mapSnd addPolyInfo) else id
 
 addPolyInfo :: SpecType -> SpecType
-addPolyInfo t = mkUnivs (go <$> as) ps t' 
-  where 
-    (as, ps, t') = bkUniv t 
-    pos          = tyVarsPosition t' 
-    go (a,r) = if {- ty_var_value a `elem` ppos pos && -}  ty_var_value a `notElem` pneg pos 
-               then (setRtvPol a False,r)  
-               else (a,r) 
+addPolyInfo t = mkUnivs (go <$> as) ps t'
+  where
+    (as, ps, t') = bkUniv t
+    pos          = tyVarsPosition t'
+    go (a,r) = if {- ty_var_value a `elem` ppos pos && -}  ty_var_value a `notElem` pneg pos
+               then (setRtvPol a False,r)
+               else (a,r)
 
 makeDataConTypes :: Bool -> Var -> CG (Var, SpecType)
-makeDataConTypes allowTC x = (x,) <$> (trueTy allowTC $ varType x)
+makeDataConTypes allowTC x = (x,) <$> trueTy allowTC (varType x)
 
 makeAutoDecrDataCons :: [(Id, SpecType)] -> S.HashSet TyCon -> [Id] -> ([LocSpecType], [(Id, SpecType)])
 makeAutoDecrDataCons dcts specenv dcs
@@ -209,7 +209,7 @@ assm :: TargetInfo -> [(Var, SpecType)]
 assm = assmGrty (giImpVars . giSrc)
 
 grty :: TargetInfo -> [(Var, SpecType)]
-grty = assmGrty (giDefVars . giSrc) 
+grty = assmGrty (giDefVars . giSrc)
 
 assmGrty :: (TargetInfo -> [Var]) -> TargetInfo -> [(Var, SpecType)]
 assmGrty f info = [ (x, val t) | (x, t) <- sigs, x `S.member` xs ]
@@ -225,7 +225,7 @@ recSelectorsTy info = forM topVs $ \v -> (v,) <$> trueTy (typeclass (getConfig i
     isTop v      = isExportedVar (giSrc info) v && not (v `S.member` sigVs) &&  isRecordSelector v
     sigVs        = S.fromList [v | (v,_) <- gsTySigs sp ++ gsAsmSigs sp ++ gsRefSigs sp ++ gsInSigs sp]
     sp           = gsSig . giSpec $ info
-    
+
 
 
 grtyTop :: TargetInfo -> CG [(Var, SpecType)]
@@ -284,7 +284,7 @@ initCGI cfg info = CGInfo {
   , unsorted   = F.notracepp "UNSORTED" $ F.makeTemplates $ gsUnsorted $ gsData spc
   }
   where
-    tce        = gsTcEmbeds nspc 
+    tce        = gsTcEmbeds nspc
     tspc       = gsTerm spc
     spc        = giSpec info
     tyi        = gsTyconEnv nspc
