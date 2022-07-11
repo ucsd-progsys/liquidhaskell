@@ -38,7 +38,7 @@ genTerms' :: SearchMode -> SpecType -> SM [CoreExpr]
 genTerms' i specTy = 
   do  goalTys <- sGoalTys <$> get
       case find (== toType False specTy) goalTys of 
-        Nothing -> modify (\s -> s { sGoalTys = (toType False specTy) : sGoalTys s })
+        Nothing -> modify (\s -> s { sGoalTys = toType False specTy : sGoalTys s })
         Just _  -> return ()
       fixEMem specTy 
       fnTys <- functionCands (toType False specTy)

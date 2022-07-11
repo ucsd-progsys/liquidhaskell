@@ -106,7 +106,7 @@ expandVarDefs :: [(F.Symbol, F.Expr)] -> F.Subst
 expandVarDefs      = go mempty 
   where 
     go !su xes     
-      | null yes   = su `mappend` (F.mkSubst xes)
+      | null yes   = su `mappend` F.mkSubst xes
       | otherwise  = go (su `mappend` su') xes''
       where  
        xes''       = [(z, F.subst su' e) | (z, e) <- zes] 

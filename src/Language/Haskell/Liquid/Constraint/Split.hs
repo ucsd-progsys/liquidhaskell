@@ -257,7 +257,7 @@ splitC allowTC (SubC _ (RApp c1 _ _ _) (RApp c2 _ _ _)) | (if allowTC then isEmb
 splitC _ (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
   = do (t1',t2') <- unifyVV t1 t2
        cs    <- bsplitC γ t1' t2'
-       γ'    <- if (bscope (getConfig γ)) then γ `extendEnvWithVV` t1' else return γ
+       γ'    <- if bscope (getConfig γ) then γ `extendEnvWithVV` t1' else return γ
        let RApp c t1s r1s _ = t1'
        let RApp _ t2s r2s _ = t2'
        let isapplied = True -- TC.tyConArity (rtc_tc c) == length t1s
@@ -317,7 +317,7 @@ splitsCWithVariance :: CGEnv
                     -> [Variance]
                     -> CG [FixSubC]
 splitsCWithVariance γ t1s t2s variants
-  = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> (splitC (typeclass (getConfig γ)) (SubC γ s1 s2))) t1 t2 v) (zip3 t1s t2s variants)
+  = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> splitC (typeclass (getConfig γ)) (SubC γ s1 s2)) t1 t2 v) (zip3 t1s t2s variants)
 
 rsplitsCWithVariance :: Bool
                      -> CGEnv
@@ -395,8 +395,8 @@ replaceReft rr (F.RR _ r) = rr {ur_reft = F.Reft (v, F.subst1  p (vr, F.EVar v) 
 
 unifyVV :: SpecType -> SpecType -> CG (SpecType, SpecType)
 unifyVV t1@(RApp _ _ _ _) t2@(RApp _ _ _ _)
-  = do vv     <- (F.vv . Just) <$> fresh
-       return  $ (shiftVV t1 vv,  (shiftVV t2 vv) )
+  = do vv <- F.vv . Just <$> fresh
+       return $ (shiftVV t1 vv, shiftVV t2 vv)
 
 unifyVV _ _
   = panic Nothing $ "Constraint.Generate.unifyVV called on invalid inputs"
@@ -421,7 +421,7 @@ rsplitC γ (RProp s1 r1) (RProp s2 r2)
 -- | Reftypes from F.Fixpoint Expressions --------------------------------------
 --------------------------------------------------------------------------------
 forallExprRefType     :: CGEnv -> SpecType -> SpecType
-forallExprRefType γ t = t `strengthen` (uTop r')
+forallExprRefType γ t = t `strengthen` uTop r'
   where
     r'                = fromMaybe mempty $ forallExprReft γ r
     r                 = F.sr_reft $ rTypeSortedReft (emb γ) t

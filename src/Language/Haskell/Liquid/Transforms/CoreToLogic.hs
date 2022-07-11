@@ -425,7 +425,7 @@ toLogicApp allowTC e = do
     C.Var _ -> do args <- mapM (coreToLg allowTC) es
                   lmap <- lsSymMap <$> getState
                   def  <- (`mkEApp` args) <$> tosymbol f
-                  ((\x -> makeApp def lmap x args) <$> (tosymbol' f))
+                  (\x -> makeApp def lmap x args) <$> tosymbol' f
     _       -> do fe   <- coreToLg allowTC f
                   args <- mapM (coreToLg allowTC) es
                   return $ foldl EApp fe args
@@ -656,7 +656,7 @@ isUndefined :: (t, t1, C.Expr t2) -> Bool
 isUndefined (_, _, e) = isUndefinedExpr e
   where
    -- auto generated undefined case: (\_ -> (patError @type "error message")) void
-   isUndefinedExpr (C.App (C.Var x) _) | (show x) `elem` perrors = True
+   isUndefinedExpr (C.App (C.Var x) _) | show x `elem` perrors = True
    isUndefinedExpr (C.Let _ e) = isUndefinedExpr e
    -- otherwise
    isUndefinedExpr _ = False

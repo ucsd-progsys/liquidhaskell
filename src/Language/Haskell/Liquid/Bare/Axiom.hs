@@ -92,7 +92,7 @@ makeAssumeType allowTC tce lmap dm x mbT v def
     τ     = Ghc.varType v
     at    = axiomType allowTC x t
     out   = rTypeSort tce $ ares at 
-    xArgs = (F.EVar . fst) <$> aargs at
+    xArgs = F.EVar . fst <$> aargs at
     _msg  = unwords [showpp x, showpp mbT]
     le    = case runToLogicWithBoolBinds bbs tce lmap dm mkErr (coreToLogic allowTC def') of
               Right e -> e
@@ -112,17 +112,17 @@ grabBody :: Bool -- ^ typeclass enabled
          -> Ghc.Type -> Ghc.CoreExpr -> ([Ghc.Var], Ghc.CoreExpr)
 grabBody allowTC (Ghc.ForAllTy _ t) e 
   = grabBody allowTC t e 
-grabBody allowTC@False (Ghc.FunTy { Ghc.ft_arg = tx, Ghc.ft_res = t}) e | Ghc.isClassPred tx 
+grabBody allowTC@False Ghc.FunTy{ Ghc.ft_arg = tx, Ghc.ft_res = t} e | Ghc.isClassPred tx 
   = grabBody allowTC t e 
-grabBody allowTC@True (Ghc.FunTy { Ghc.ft_arg = tx, Ghc.ft_res = t}) e | isEmbeddedDictType tx 
+grabBody allowTC@True Ghc.FunTy{ Ghc.ft_arg = tx, Ghc.ft_res = t} e | isEmbeddedDictType tx 
   = grabBody allowTC t e 
 grabBody allowTC torig@Ghc.FunTy {} (Ghc.Let (Ghc.NonRec x e) body) 
   = grabBody allowTC torig (subst (x,e) body)
-grabBody allowTC (Ghc.FunTy { Ghc.ft_res = t}) (Ghc.Lam x e) 
+grabBody allowTC Ghc.FunTy{ Ghc.ft_res = t} (Ghc.Lam x e) 
   = (x:xs, e') where (xs, e') = grabBody allowTC t e
 grabBody allowTC t (Ghc.Tick _ e) 
   = grabBody allowTC t e
-grabBody allowTC t@(Ghc.FunTy {}) e               
+grabBody allowTC t@Ghc.FunTy{} e               
   = (txs++xs, e') 
    where (ts,tr)  = splitFun t 
          (xs, e') = grabBody allowTC tr (foldl Ghc.App e (Ghc.Var <$> txs))
@@ -132,8 +132,8 @@ grabBody _ _ e
 
 splitFun :: Ghc.Type -> ([Ghc.Type], Ghc.Type)
 splitFun = go [] 
-  where go acc (Ghc.FunTy { Ghc.ft_arg = tx, Ghc.ft_res = t}) = go (tx:acc) t 
-        go acc t                                              = (reverse acc, t)
+  where go acc Ghc.FunTy{ Ghc.ft_arg = tx, Ghc.ft_res = t} = go (tx:acc) t 
+        go acc t                                           = (reverse acc, t)
 
 
 isBoolBind :: Ghc.Var -> Bool
@@ -255,7 +255,7 @@ makeCompositionExpression x
       "\n inline spec = " ++ GM.showPpr (Ghc.inl_inline $ Ghc.inlinePragInfo $ Ghc.idInfo x)  
      ) x 
    where  
-    go (Ghc.ForAllTy a (Ghc.ForAllTy b (Ghc.ForAllTy c (Ghc.FunTy { Ghc.ft_arg = tf, Ghc.ft_res = Ghc.FunTy { Ghc.ft_arg = tg, Ghc.ft_res = tx}}))))
+    go (Ghc.ForAllTy a (Ghc.ForAllTy b (Ghc.ForAllTy c Ghc.FunTy{ Ghc.ft_arg = tf, Ghc.ft_res = Ghc.FunTy { Ghc.ft_arg = tg, Ghc.ft_res = tx}})))
       = let f = stringVar "f" tf 
             g = stringVar "g" tg
             x = stringVar "x" tx 

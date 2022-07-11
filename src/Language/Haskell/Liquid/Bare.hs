@@ -1025,7 +1025,7 @@ measureTypeToInv env name (x, (v, t))
     res  = ty_res   trep
     z    = last args
     tz   = last ts
-    usorted = if isSimpleADT tz then Nothing else ((mapFst (:[])) <$> mkReft (dummyLoc $ F.symbol v) z tz res)
+    usorted = if isSimpleADT tz then Nothing else mapFst (:[]) <$> mkReft (dummyLoc $ F.symbol v) z tz res
     mtype
       | null ts 
       = uError $ ErrHMeas (GM.sourcePosSrcSpan $ loc t) (pprint x) "Measure has no arguments!"
@@ -1184,7 +1184,7 @@ makeLiftedSpec name src _env refl sData sig qual myRTE lSpec0 = lSpec0
   { Ms.asmSigs    = F.notracepp   ("makeLiftedSpec : ASSUMED-SIGS " ++ F.showpp name ) $ (xbs ++ myDCs) 
   , Ms.reflSigs   = F.notracepp "REFL-SIGS"         xbs
   , Ms.sigs       = F.notracepp   ("makeLiftedSpec : LIFTED-SIGS " ++ F.showpp name )  $ mkSigs (gsTySigs sig)  
-  , Ms.invariants = [ ((varLocSym <$> x), Bare.specToBare <$> t) 
+  , Ms.invariants = [ (varLocSym <$> x, Bare.specToBare <$> t) 
                        | (x, t) <- gsInvariants sData 
                        , isLocInFile srcF t
                     ]
@@ -1197,7 +1197,7 @@ makeLiftedSpec name src _env refl sData sig qual myRTE lSpec0 = lSpec0
     myDCs         = [(x,t) | (x,t) <- mkSigs (gsCtors sData)
                            , F.symbol name == fst (GM.splitModuleName $ val x)]
     mkSigs xts    = [ toBare (x, t) | (x, t) <- xts
-                    ,  S.member x sigVars && (isExportedVar (view targetSrcIso src) x) 
+                    ,  S.member x sigVars && isExportedVar (view targetSrcIso src) x 
                     ] 
     toBare (x, t) = (varLocSym x, Bare.specToBare <$> t)
     xbs           = toBare <$> reflTySigs 

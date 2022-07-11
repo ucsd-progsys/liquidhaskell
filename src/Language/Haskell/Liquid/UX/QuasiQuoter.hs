@@ -89,7 +89,7 @@ mkSpecDecs (Asrts (names, (ty, _))) =
   (\t -> (`SigD` t) . symbolName <$> names)
     <$> simplifyBareType (head names) (quantifyFreeRTy $ val ty)
 mkSpecDecs (Alias rta) =
-  return . (TySynD name tvs) <$> simplifyBareType lsym (rtBody (val rta))
+  return . TySynD name tvs <$> simplifyBareType lsym (rtBody (val rta))
   where
     lsym = F.atLoc rta n 
     name = symbolName n 

@@ -124,8 +124,8 @@ tokenSpans = scanl plusLoc . fromMaybe (L (1, 1))
 plusLoc :: Loc -> String -> Loc
 plusLoc (L (l, c)) s
   = case '\n' `elemIndices` s of
-      [] -> L (l, (c + n))
-      is -> L ((l + length is), (n - maximum is))
+      [] -> L (l, c + n)
+      is -> L (l + length is, n - maximum is)
     where n = length s
 
 renderAnnotToken :: (TokenType, String, Annotation) -> String
@@ -150,7 +150,7 @@ renderLinAnnot (Just d) s   = printf "<span class=hs-linenum>%s: </span>%s" (lin
 renderLinAnnot Nothing  s   = s
 
 lineString :: Show t => (t, Int) -> [Char]
-lineString (i, w) = (replicate (w - (length is)) ' ') ++ is
+lineString (i, w) = replicate (w - length is) ' ' ++ is
   where is        = show i
 
 {- Example Annotation:
@@ -166,10 +166,10 @@ insertAnnotAnchors toks
 
 stitch ::  Eq b => [(b, c)] -> [Either a b] -> [Either a c]
 stitch xys ((Left a) : rest)
-  = (Left a) : stitch xys rest
+  = Left a : stitch xys rest
 stitch ((x,y):xys) ((Right x'):rest)
   | x == x'
-  = (Right y) : stitch xys rest
+  = Right y : stitch xys rest
   | otherwise
   = panic Nothing "stitch"
 stitch _ []
@@ -219,19 +219,19 @@ parseLines mname i ("":ls)
 
 parseLines mname i (_:_:l:c:"0":l':c':rest')
   = Right (L (line, col), L (line', col')) : parseLines mname (i + 7) rest'
-    where line  = (read l)  :: Int
-          col   = (read c)  :: Int
-          line' = (read l') :: Int
-          col'  = (read c') :: Int
+    where line  = read l  :: Int
+          col   = read c  :: Int
+          line' = read l' :: Int
+          col'  = read c' :: Int
 
 parseLines mname i (x:f:l:c:n:rest)
   | f /= mname
   = parseLines mname (i + 5 + num) rest'
   | otherwise
   = Left (L (line, col), (x, anns)) : parseLines mname (i + 5 + num) rest'
-    where line  = (read l) :: Int
-          col   = (read c) :: Int
-          num   = (read n) :: Int
+    where line  = read l :: Int
+          col   = read c :: Int
+          num   = read n :: Int
           anns  = intercalate "\n" $ take num rest
           rest' = drop num rest
 
@@ -241,7 +241,7 @@ parseLines _ i _
 instance Show AnnMap where
   show (Ann ts es _ _) =  "\n\n" 
                       ++ (concatMap ppAnnotTyp $ M.toList ts)
-                      ++ (concatMap ppAnnotErr [(x,y) | (x,y,_) <- es])
+                      ++ concatMap ppAnnotErr [(x,y) | (x,y,_) <- es]
 
 ppAnnotTyp :: (PrintfArg t, PrintfType t1) => (Loc, (t, String)) -> t1
 ppAnnotTyp (L (l, c), (x, s))     = printf "%s\n%d\n%d\n%d\n%s\n\n\n" x l c (length $ lines s) s

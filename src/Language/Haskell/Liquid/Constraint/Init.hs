@@ -64,7 +64,7 @@ initEnv info
        (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (gsAutosize (gsTerm sp)) dcs'
        let f4    = mergeDataConTypes tce (mergeDataConTypes tce f40 (f41 ++ f42)) (filter (isDataConId . fst) f2)
        let tx    = mapFst F.symbol . addRInv ialias . predsUnify sp
-       f6       <- (map tx . addPolyInfo') <$> (refreshArgs' $ vals gsRefSigs (gsSig sp))  
+       f6       <- map tx . addPolyInfo' <$> (refreshArgs' $ vals gsRefSigs (gsSig sp))  
        let bs    = (tx <$> ) <$> [f0 ++ f0' ++ fi, f1 ++ f1', f2, f3 ++ f3', f4, f5]
        modify $ \s -> s { dataConTys = f4 }
        lt1s     <- F.toListSEnv . cgLits <$> get
@@ -80,7 +80,7 @@ initEnv info
     sp           = giSpec info
     ialias       = mkRTyConIAl (gsIaliases (gsData sp))
     vals f       = map (mapSnd val) . f
-    mapSndM f    = \(x,y) -> ((x,) <$> f y)
+    mapSndM f    = \(x,y) -> (x,) <$> f y
     makeExactDc dcs = if exactDCFlag info then map strengthenDataConType dcs else dcs
     is autoinv   = mkRTyConInv    (gsInvariants (gsData sp) ++ ((Nothing,) <$> autoinv))
     addPolyInfo' = if reflection (getConfig info) then map (mapSnd addPolyInfo) else id 
@@ -126,7 +126,7 @@ makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_r
       trep   = toRTypeRep t
       tres   = ty_res trep `strengthen` MkUReft (F.Reft (F.vv_, F.PAtom F.Eq (lenOf F.vv_) computelen)) mempty
 
-      recarguments = filter (\(t,_) -> (toRSort t == toRSort tres)) (zip (ty_args trep) (ty_binds trep))
+      recarguments = filter (\(t,_) -> toRSort t == toRSort tres) (zip (ty_args trep) (ty_binds trep))
       computelen   = foldr (F.EBin F.Plus) (F.ECon $ F.I n) (lenOf .  snd <$> recarguments)
 
 mergeDataConTypes ::  F.TCEmb TyCon -> [(Var, SpecType)] -> [(Var, SpecType)] -> [(Var, SpecType)]
@@ -270,7 +270,7 @@ initCGI cfg info = CGInfo {
   , termExprs  = M.fromList [(v, es) | (v, _, es) <- gsTexprs (gsSig spc) ]
   , specDecr   = gsDecr  tspc
   , specLVars  = gsLvars (gsVars spc)
-  , specLazy   = dictionaryVar `S.insert` (gsLazy tspc)
+  , specLazy   = dictionaryVar `S.insert` gsLazy tspc
   , specTmVars = gsNonStTerm tspc
   , tcheck     = terminationCheck cfg
   , pruneRefs  = pruneUnsorted cfg

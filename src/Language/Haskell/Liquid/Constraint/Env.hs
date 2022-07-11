@@ -90,7 +90,7 @@ updREnvLocal rE f      = rE { reLocal = f (reLocal rE) }
 
 -- RJ: REnv-Split-Bug?
 filterREnv :: (SpecType -> Bool) -> REnv -> REnv
-filterREnv f rE        = rE `updREnvLocal` (M.filter f)
+filterREnv f rE        = rE `updREnvLocal` M.filter f
 
 fromListREnv :: [(F.Symbol, SpecType)] -> [(F.Symbol, SpecType)] -> REnv
 fromListREnv gXts lXts = REnv
@@ -100,10 +100,10 @@ fromListREnv gXts lXts = REnv
 
 -- RJ: REnv-Split-Bug?
 deleteREnv :: F.Symbol -> REnv -> REnv
-deleteREnv x rE = rE `updREnvLocal` (M.delete x)
+deleteREnv x rE = rE `updREnvLocal` M.delete x
 
 insertREnv :: F.Symbol -> SpecType -> REnv -> REnv
-insertREnv x y rE = {- trace ("insertREnv: " ++ show x) $ -} rE `updREnvLocal` (M.insert x y)
+insertREnv x y rE = {- trace ("insertREnv: " ++ show x) $ -} rE `updREnvLocal` M.insert x y
 
 lookupREnv :: F.Symbol -> REnv -> Maybe SpecType
 lookupREnv x rE = msum $ M.lookup x <$> renvMaps rE
@@ -138,7 +138,7 @@ toListREnv re = globalsREnv re ++ localsREnv re
 extendEnvWithVV :: CGEnv -> SpecType -> CG CGEnv
 --------------------------------------------------------------------------------
 extendEnvWithVV γ t
-  | F.isNontrivialVV vv && not (vv `memberREnv` (renv γ))
+  | F.isNontrivialVV vv && not (vv `memberREnv` renv γ)
   = γ += ("extVV", vv, t)
   | otherwise
   = return γ
@@ -217,7 +217,7 @@ _dupBindError eMsg x γ r = panic Nothing s
   where
     s = unlines [ eMsg ++ " Duplicate binding for " ++ F.symbolString x
                 , "   New: " ++ showpp r
-                , "   Old: " ++ showpp (x `lookupREnv` (renv γ)) ]
+                , "   Old: " ++ showpp (x `lookupREnv` renv γ) ]
 
 --------------------------------------------------------------------------------
 globalize :: CGEnv -> CGEnv

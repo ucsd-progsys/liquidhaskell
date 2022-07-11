@@ -124,7 +124,7 @@ makeRewrites info sub = concatMap (makeRewriteOne tce) $ filter ((`S.member` rws
         Nothing ->
           Mb.listToMaybe $ do
             D s e v <- coreDefs $ giCbs $ giSrc info
-            let (Ghc.RealSrcSpan cc _) = (ci_loc $ F.sinfo sub)
+            let (Ghc.RealSrcSpan cc _) = ci_loc $ F.sinfo sub
             guard $ s <= Ghc.srcSpanStartLine cc && e >= Ghc.srcSpanEndLine cc
             return v
 
@@ -167,7 +167,7 @@ refinementEQs t =
     tres = ty_res tRep
     tRep = toRTypeRep $ val t 
   
-makeRewriteOne :: (F.TCEmb TyCon) -> (Var, LocSpecType) -> [F.AutoRewrite]
+makeRewriteOne :: F.TCEmb TyCon -> (Var, LocSpecType) -> [F.AutoRewrite]
 makeRewriteOne tce (_, t)
   = [rw | (lhs, rhs) <- refinementEQs t , rw <- rewrites lhs rhs ]
   where

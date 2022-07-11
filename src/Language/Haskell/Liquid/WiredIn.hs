@@ -65,7 +65,7 @@ wiredInNames :: S.HashSet F.Symbol
 wiredInNames = S.fromList [ "head", "tail", "fst", "snd", "len"]
 
 isWiredInShape :: F.LocSymbol -> Bool
-isWiredInShape x = any (`F.isPrefixOfSym` (val x)) [F.anfPrefix, F.tempPrefix, dcPrefix]
+isWiredInShape x = any (`F.isPrefixOfSym` val x) [F.anfPrefix, F.tempPrefix, dcPrefix]
   -- where s        = val x
         -- dcPrefix = "lqdc"
 
@@ -128,9 +128,9 @@ charDataCon = dummyLoc (DataConP l0 Ghc.charDataCon  [] [] [] [("charX",lt)] lt 
     lt = rApp c [] [] mempty
     
 listTyDataCons :: ([TyConP] , [DataConP])
-listTyDataCons   = ( [(TyConP l0 c [RTV tyv] [p] [Covariant] [Covariant] (Just fsize))]
-                   , [(DataConP l0 Ghc.nilDataCon  [RTV tyv] [p] [] []    lt False wiredInName l0)
-                     ,(DataConP l0 Ghc.consDataCon [RTV tyv] [p] [] cargs lt False wiredInName l0)])
+listTyDataCons   = ( [TyConP l0 c [RTV tyv] [p] [Covariant] [Covariant] (Just fsize)]
+                   , [DataConP l0 Ghc.nilDataCon  [RTV tyv] [p] [] []    lt False wiredInName l0
+                   ,  DataConP l0 Ghc.consDataCon [RTV tyv] [p] [] cargs lt False wiredInName l0])
     where
       l0         = F.dummyPos "LH.Bare.listTyDataCons"
       c          = Ghc.listTyCon
@@ -151,8 +151,8 @@ wiredInName :: F.Symbol
 wiredInName = "WiredIn"
 
 tupleTyDataCons :: Int -> ([TyConP] , [DataConP])
-tupleTyDataCons n = ( [(TyConP   l0 c  (RTV <$> tyvs) ps tyvarinfo pdvarinfo Nothing)]
-                    , [(DataConP l0 dc (RTV <$> tyvs) ps []  cargs  lt False wiredInName l0)])
+tupleTyDataCons n = ( [TyConP   l0 c  (RTV <$> tyvs) ps tyvarinfo pdvarinfo Nothing]
+                    , [DataConP l0 dc (RTV <$> tyvs) ps []  cargs  lt False wiredInName l0])
   where
     tyvarinfo     = replicate n     Covariant
     pdvarinfo     = replicate (n-1) Covariant

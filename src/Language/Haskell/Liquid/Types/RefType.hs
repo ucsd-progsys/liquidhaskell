@@ -146,7 +146,7 @@ strengthenDataConType (x, t) = (x, fromRTypeRep trep {ty_res = tres})
   where
     tres     = F.notracepp _msg $ ty_res trep `strengthen` MkUReft (exprReft expr) mempty
     trep     = toRTypeRep t
-    _msg     = "STRENGTHEN-DATACONTYPE x = " ++ F.showpp (x, (zip xs ts))
+    _msg     = "STRENGTHEN-DATACONTYPE x = " ++ F.showpp (x, zip xs ts)
     (xs, ts) = dataConArgs trep
     as       = ty_vars  trep
     x'       = symbol x
@@ -236,13 +236,13 @@ instance ( SubsTy tv (RType c tv ()) c
     | isTauto r1 = RProp s2 (RHole r2)
     | isTauto r2 = RProp s1 (RHole r1)
     | otherwise  = RProp s1 $ RHole $ r1 `meet`
-                               (subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) r2)
+                               subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) r2
 
   (<>) (RProp s1 t1) (RProp s2 t2)
     | isTrivial t1 = RProp s2 t2
     | isTrivial t2 = RProp s1 t1
     | otherwise    = RProp s1 $ t1  `strengthenRefType`
-                                (subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) t2)
+                                subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) t2
 
 -- TODO: remove and use only Semigroup?
 instance ( SubsTy tv (RType c tv ()) c
@@ -754,7 +754,7 @@ addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 expandRApp :: (PPrint r, Reftable r, SubsTy RTyVar RSort r, Reftable (RRProp r))
            => TCEmb TyCon -> TyConMap -> RRType r -> RRType r
 -------------------------------------------------------------------------
-expandRApp tce tyi t@(RApp {}) = RApp rc' ts rs' r
+expandRApp tce tyi t@RApp{} = RApp rc' ts rs' r
   where
     RApp rc ts rs r            = t
     (rc', _)                   = appRTyCon tce tyi rc as
@@ -1072,7 +1072,7 @@ subsFree m s z@(α, τ, _) (RApp c ts rs r)
           c' = if α `S.member` s then c else subt z' c
 subsFree meet s (α', τ, t') (RVar α r)
   | α == α' && not (α `S.member` s)
-  = if meet then t' `strengthen` (subt (α, τ) r) else t'
+  = if meet then t' `strengthen` subt (α, τ) r else t'
   | otherwise
   = RVar (subt (α', τ) α) r
 subsFree m s z (RAllE x t t')
@@ -1357,8 +1357,8 @@ instance SubsTy BTyVar BSort BSort where
   subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
 
 instance (SubsTy tv ty (UReft r), SubsTy tv ty (RType c tv ())) => SubsTy tv ty (RTProp c tv (UReft r))  where
-  subt m (RProp ss (RHole p)) = RProp ((mapSnd (subt m)) <$> ss) $ RHole $ subt m p
-  subt m (RProp ss t) = RProp ((mapSnd (subt m)) <$> ss) $ fmap (subt m) t
+  subt m (RProp ss (RHole p)) = RProp (mapSnd (subt m) <$> ss) $ RHole $ subt m p
+  subt m (RProp ss t) = RProp (mapSnd (subt m) <$> ss) $ fmap (subt m) t
 
 subvUReft     :: (UsedPVar -> UsedPVar) -> UReft Reft -> UReft Reft
 subvUReft f (MkUReft r p) = MkUReft r (subvPredicate f p)
@@ -1504,7 +1504,7 @@ toType useRFInfo (RAllP _ t)
   = toType useRFInfo t
 toType _ (RVar (RTV α) _)
   = TyVarTy α
-toType useRFInfo (RApp (RTyCon {rtc_tc = c}) ts _ _)
+toType useRFInfo (RApp RTyCon{rtc_tc = c} ts _ _)
   = TyConApp c (toType useRFInfo <$> filter notExprArg ts)
   where
     notExprArg (RExprArg _) = False
@@ -1731,10 +1731,10 @@ classBinds _ (RApp c ts _ _)
   = [(symbol a, trueSortedReft FFrac) | (RVar a _) <- ts]
   | isNumCls c
   = [(symbol a, trueSortedReft FNum) | (RVar a _) <- ts]
-classBinds emb (RApp c [_, _, (RVar a _), t] _ _)
+classBinds emb (RApp c [_, _, RVar a _, t] _ _)
   | isEqual c
   = [(symbol a, rTypeSortedReft emb t)]
-classBinds  emb ty@(RApp c [_, (RVar a _), t] _ _)
+classBinds  emb ty@(RApp c [_, RVar a _, t] _ _)
   | isEqualityConstr ty 
   = [(symbol a, rTypeSortedReft emb t)]
   | otherwise 
@@ -1814,7 +1814,8 @@ mkDecrFun _ _
 -- | [NOTE]: THIS IS WHERE THE TERMINATION METRIC REFINEMENTS ARE CREATED.
 cmpLexRef :: [(t1, t1, t1 -> Expr)] -> (t, t, t -> Expr) -> Expr
 cmpLexRef vxs (v, x, g)
-  = pAnd $  (PAtom Lt (g x) (g v)) : (PAtom Ge (g x) zero)
+  = pAnd $   PAtom Lt (g x) (g v)
+         :   PAtom Ge (g x) zero
          :  [PAtom Eq (f y) (f z) | (y, z, f) <- vxs]
          ++ [PAtom Ge (f y) zero  | (y, _, f) <- vxs]
   where zero = ECon $ I 0
@@ -1831,8 +1832,8 @@ makeLexReft _ acc [] []
 makeLexReft old acc (e:es) (e':es')
   = makeLexReft ((e,e'):old) (r:acc) es es'
   where
-    r    = pAnd $  (PAtom Lt e' e)
-                :  (PAtom Ge e' zero)
+    r    = pAnd $   PAtom Lt e' e
+                :   PAtom Ge e' zero
                 :  [PAtom Eq o' o    | (o,o') <- old]
                 ++ [PAtom Ge o' zero | (_,o') <- old]
     zero = ECon $ I 0
@@ -1869,7 +1870,7 @@ instance PPrint DataDecl where
 instance PPrint DataCtor where
   -- pprintTidy k (DataCtor c as _   xts Nothing)  = pprintTidy k c <+> dcolon ppVars as <+> braces (ppFields k ", " xts)
   -- pprintTidy k (DataCtor c as ths xts (Just t)) = pprintTidy k c <+> dcolon <+> ppVars as <+> ppThetas ths <+> (ppFields k " ->" xts) <+> "->" <+> pprintTidy k t
-  pprintTidy k (DataCtor c as ths xts t) = pprintTidy k c <+> dcolon <+> ppVars k as <+> ppThetas ths <+> (ppFields k " ->" xts) <+> "->" <+> res 
+  pprintTidy k (DataCtor c as ths xts t) = pprintTidy k c <+> dcolon <+> ppVars k as <+> ppThetas ths <+> ppFields k " ->" xts <+> "->" <+> res 
     where
       res         = maybe "*" (pprintTidy k) t 
       ppThetas [] = empty
@@ -1926,9 +1927,9 @@ tyVarsPosition = go (Just True)
     getPosition b Contravariant = not <$> b 
     getPosition b _             = b  
 
-    report Nothing v      = (Pos [] [] [v])
-    report (Just True) v  = (Pos [v] [] [])
-    report (Just False) v = (Pos [] [v] [])
+    report Nothing v      = Pos [] [] [v]
+    report (Just True) v  = Pos [v] [] []
+    report (Just False) v = Pos [] [v] []
     flip = fmap not
 
 data Positions a = Pos {ppos :: [a], pneg ::  [a], punknown :: [a]}

@@ -82,7 +82,7 @@ mkLiquidLib s = LiquidLib s mempty
 
 -- | Adds a set of dependencies to the input 'LiquidLib'.
 addLibDependencies :: TargetDependencies -> LiquidLib -> LiquidLib
-addLibDependencies deps lib = lib { llDeps = deps <> (llDeps lib) }
+addLibDependencies deps lib = lib { llDeps = deps <> llDeps lib }
 
 -- | Returns the target 'LiftedSpec' of this 'LiquidLib'.
 libTarget :: LiquidLib -> LiftedSpec

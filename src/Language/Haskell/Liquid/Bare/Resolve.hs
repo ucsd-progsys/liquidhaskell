@@ -912,9 +912,9 @@ bareTCApp :: (Expandable r)
           -> Located Ghc.TyCon
           -> [RTProp RTyCon RTyVar r]
           -> [RType RTyCon RTyVar r]
-          -> (RType RTyCon RTyVar r)
+          -> RType RTyCon RTyVar r
 bareTCApp r (Loc l _ c) rs ts | Just rhs <- Ghc.synTyConRhs_maybe c
-  = if (GM.kindTCArity c < length ts) 
+  = if GM.kindTCArity c < length ts 
       then Ex.throw err -- error (F.showpp err)
       else tyApp (RT.subsTyVars_meet su $ RT.ofType rhs) (drop nts ts) rs r
     where
@@ -970,7 +970,7 @@ txRefSort :: TyConMap -> F.TCEmb Ghc.TyCon -> LocSpecType -> LocSpecType
 txRefSort tyi tce t = F.atLoc t $ mapBot (addSymSort (GM.fSrcSpan t) tce tyi) (val t)
 
 addSymSort :: Ghc.SrcSpan -> F.TCEmb Ghc.TyCon -> TyConMap -> SpecType -> SpecType 
-addSymSort sp tce tyi (RApp rc@(RTyCon {}) ts rs r)
+addSymSort sp tce tyi (RApp rc@RTyCon{} ts rs r)
   = RApp rc ts (zipWith3 (addSymSortRef sp rc) pvs rargs [1..]) r'
   where
     (_, pvs)           = RT.appRTyCon tce tyi rc ts

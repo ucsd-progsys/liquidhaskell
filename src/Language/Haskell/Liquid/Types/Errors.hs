@@ -164,7 +164,7 @@ makeContext :: Int -> Int -> Int -> [String] -> Doc
 makeContext _ _ _  []  = empty
 makeContext l c c' [s] = makeContext1 l c c' s
 makeContext l _ _  ss  = vcat $ text " "
-                              : (zipWith makeContextLine [l..] ss)
+                              : zipWith makeContextLine [l..] ss
                               ++ [ text " "
                                  , text " " ]
 
@@ -647,7 +647,7 @@ pprintBind :: PPrint t => Tidy -> Symbol -> t -> Doc
 pprintBind td v t = pprintTidy td v <+> char ':' <+> pprintTidy td t
 
 ppReqModelInContext
-  :: (PPrint t) => Tidy -> WithModel t -> t -> (M.HashMap Symbol (WithModel t)) -> Doc
+  :: (PPrint t) => Tidy -> WithModel t -> t -> M.HashMap Symbol (WithModel t) -> Doc
 ppReqModelInContext td tA tE c
   = sepVcat blankLine
       [ nests 2 [ text "The inferred type"
@@ -735,7 +735,7 @@ instance ToJSONKey SrcSpan
 instance FromJSONKey SrcSpan
 
 instance (PPrint a, Show a) => ToJSON (TError a) where
-  toJSON e = object [ "pos" .= (pos e)
+  toJSON e = object [ "pos" .= pos e
                     , "msg" .= (render $ ppError' Full empty e)
                     ]
 
@@ -930,7 +930,7 @@ ppError' _ _ (ErrFailUsed _ s xs)
 ppError' _ dCtx (ErrResolve _ kind v msg)
   = (text "Unknown" <+> kind <+> ppTicks v)
         $+$ dCtx
-        $+$ (nest 4 msg)
+        $+$ nest 4 msg
 
 ppError' _ dCtx (ErrPartPred _ c p i eN aN)
   = text "Malformed predicate application"
@@ -947,14 +947,14 @@ ppError' _ dCtx (ErrPartPred _ c p i eN aN)
 ppError' _ dCtx e@(ErrMismatch _ x msg τ t cause hsSp)
   = "Specified type does not refine Haskell type for" <+> ppTicks x <+> parens msg
         $+$ dCtx
-        $+$ (sepVcat blankLine
+        $+$ sepVcat blankLine
               [ "The Liquid type"
               , nest 4 t
               , "is inconsistent with the Haskell type"
               , nest 4 τ
               , "defined at" <+> pprint hsSp
               , maybe empty ppCause cause
-              ])
+              ]
     where
       ppCause (hsD, lqD) = sepVcat blankLine
               [ "Specifically, the Liquid component"
@@ -1026,7 +1026,7 @@ ppError' _ dCtx (ErrMClass _ v)
   = text "Standalone class method refinement"
     $+$ dCtx
     $+$ (text "Invalid type specification for" <+> v)
-    $+$ (text "Use class or instance refinements instead.")
+    $+$ text "Use class or instance refinements instead."
 
 ppError' _ _ (ErrRClass p0 c is)
   = text "Refined classes cannot have refined instances"
@@ -1052,12 +1052,12 @@ ppError' _ dCtx (ErrRewrite _ msg )
 ppError' _ dCtx (ErrPosTyCon _ tc dc)
   = text "Negative occurence of" <+> tc <+> "in" <+> dc 
         $+$ dCtx
-        $+$ (vcat
+        $+$ vcat
             ["\n"
              , "To deactivate or understand the need of positivity check, see:"
              , " "
              , nest 2 "https://ucsd-progsys.github.io/liquidhaskell/options/#positivity-check"
-            ])
+            ]
 
 ppError' _ dCtx (ErrParseAnn _ msg)
   = text "Malformed annotation"

@@ -46,7 +46,7 @@ inlineLoopBreaker (NonRec x e) | Just (lbx, lbe) <- hasLoopBreaker be
   where
     (αs, as, be) = collectTyAndValBinders e
 
-    e' = L.foldl' App (L.foldl' App (Var x) ((Type . TyVarTy) <$> αs)) (Var <$> as)
+    e' = L.foldl' App (L.foldl' App (Var x) (Type . TyVarTy <$> αs)) (Var <$> as)
 
     hasLoopBreaker (Let (Rec [(x1, e1)]) (Var x2)) | isLoopBreaker x1 && x1 == x2 = Just (x1, e1)
     hasLoopBreaker _                               = Nothing
@@ -130,7 +130,7 @@ transBd (Rec xes)    = liftM Rec $ mapM (mapSndM (mapBdM transBd)) xes
 
 transExpr :: CoreExpr -> TE CoreExpr
 transExpr e
-  | (isNonPolyRec e') && (not (null tvs))
+  | isNonPolyRec e' && not (null tvs)
   = trans tvs ids bs e'
   | otherwise
   = return e
@@ -164,7 +164,7 @@ trans vs ids bs (Let (Rec xes) e)
         mkLet e = foldr Let e bs
         mkLam e = foldr Lam e $ vs ++ liveIds
         e'      = Let (Rec xes') e
-        xes'    = (second mkLet) <$> xes
+        xes'    = second mkLet <$> xes
 
 trans _ _ _ _ = panic Nothing "TransformRec.trans called with invalid input"
 
@@ -196,7 +196,7 @@ mkRecBinds xes rs e = Let rs (L.foldl' f e xes)
 mkSubs :: (Eq k, Hashable k)
        => [k] -> [Var] -> [Id] -> [(k, Id)] -> M.HashMap k (Expr b)
 mkSubs ids tvs xs ys = M.fromList $ s1 ++ s2
-  where s1 = (second (appTysAndIds tvs xs)) <$> ys
+  where s1 = second (appTysAndIds tvs xs) <$> ys
         s2 = zip ids (Var <$> xs)
 
 mkFreshIds :: [TyVar]

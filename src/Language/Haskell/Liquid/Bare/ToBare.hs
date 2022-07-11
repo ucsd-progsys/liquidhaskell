@@ -39,7 +39,7 @@ measureToBare :: SpecMeasure -> BareMeasure
 measureToBare = bimap (fmap specToBare) dataConToBare
 
 dataConToBare :: DataCon -> LocSymbol
-dataConToBare d = (dropModuleNames . F.symbol) <$> locNamedThing d
+dataConToBare d = dropModuleNames . F.symbol <$> locNamedThing d
   where
     _msg  = "dataConToBare dc = " ++ show d ++ " v = " ++ show v ++ " vx = " ++ show vx
     v     = dataConWorkId d

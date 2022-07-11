@@ -89,9 +89,9 @@ makeOccurrences tycons
     dctypes    dc = irrelevantMult <$> dataConOrigArgTys dc
 
     -- Construct the map for all TyCons that appear in the definitions 
-    tycons' = L.nub ((concatMap tcs (concat (tycontypes <$> tycons))) ++ tycons) 
+    tycons' = L.nub (concatMap tcs (concat (tycontypes <$> tycons)) ++ tycons) 
 
-    tcs (TyConApp tc' ts) = tc':(concatMap tcs ts)
+    tcs (TyConApp tc' ts) = tc': concatMap tcs ts
     tcs (AppTy t1 t2)     = tcs t1 ++ tcs t2 
     tcs (ForAllTy _ t)    = tcs t 
     tcs (FunTy _ _ t1 t2) = tcs t1 ++ tcs t2 

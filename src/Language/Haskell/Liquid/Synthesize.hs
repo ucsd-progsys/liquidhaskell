@@ -95,7 +95,7 @@ synthesize' ctx cgi senv tx xtop ttop foralls st2
     go t@RFun{} 
          = do ys <- mapM freshVar txs
               let su = F.mkSubst $ zip xs (EVar . symbol <$> ys) 
-              mapM_ (uncurry addEnv) (zip ys ((subst su)<$> txs)) 
+              mapM_ (uncurry addEnv) (zip ys (subst su<$> txs)) 
               let dt = decrType xtop ttop ys (zip xs txs)
               addEnv xtop dt 
               mapM_ (uncurry addEmem) (zip ys (subst su <$> txs)) 
@@ -154,7 +154,7 @@ matchOnExpr t (GHC.Var v, tx, c)
   = matchOn t (v, tx, c)
 matchOnExpr t (e, tx, c)
   = do  freshV <- freshVarType tx
-        freshSpecTy <- liftCG $ (trueTy False) tx
+        freshSpecTy <- liftCG $ trueTy False tx
         -- use consE
         addEnv freshV freshSpecTy
         es <- matchOn t (freshV, tx, c)

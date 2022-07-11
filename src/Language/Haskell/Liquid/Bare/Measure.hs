@@ -82,8 +82,8 @@ makeUnSorted allowTC t defs
     ta = go $ Ghc.expandTypeSynonyms t
 
     go (Ghc.ForAllTy _ t) = go t 
-    go (Ghc.FunTy { Ghc.ft_arg = p, Ghc.ft_res = t}) | isErasable p = go t 
-    go (Ghc.FunTy { Ghc.ft_arg = t }) = t 
+    go Ghc.FunTy{ Ghc.ft_arg = p, Ghc.ft_res = t} | isErasable p = go t 
+    go Ghc.FunTy{ Ghc.ft_arg = t } = t 
     go t                  = t -- this should never happen!
 
     isMeasureType (Ghc.TyConApp _ ts) = all Ghc.isTyVarTy ts
@@ -219,8 +219,8 @@ tyConDataDecl ((tc, dn), NoDecl szF)
 
 tyConDataName :: Bool -> Ghc.TyCon -> Maybe DataName
 tyConDataName full tc
-  | vanillaTc  = Just (DnName ((post . F.symbol) <$> GM.locNamedThing tc))
-  | d:_ <- dcs = Just (DnCon  ((post . F.symbol) <$> GM.locNamedThing d ))
+  | vanillaTc  = Just (DnName (post . F.symbol <$> GM.locNamedThing tc))
+  | d:_ <- dcs = Just (DnCon  (post . F.symbol <$> GM.locNamedThing d ))
   | otherwise  = Nothing
   where
     post       = if full then id else GM.dropModuleNamesAndUnique
@@ -254,12 +254,12 @@ dataConDecl d     = {- F.notracepp msg $ -} DataCtor dx (F.symbol <$> as) [] xts
 makeMeasureSelectors :: Config -> Bare.DataConMap -> Located DataConP -> [Measure SpecType Ghc.DataCon]
 makeMeasureSelectors cfg dm (Loc l l' c)
   = (Misc.condNull (exactDCFlag cfg) $ checker : Mb.catMaybes (go' <$> fields)) --  internal measures, needed for reflection
- ++ (Misc.condNull (autofields)      $           Mb.catMaybes (go  <$> fields)) --  user-visible measures.
+ ++ (Misc.condNull autofields        $           Mb.catMaybes (go  <$> fields)) --  user-visible measures.
   where
     dc         = dcpCon    c 
     isGadt     = dcpIsGadt c 
     xts        = dcpTyArgs c
-    autofields = not (isGadt)
+    autofields = not isGadt
     go ((x, t), i)
       -- do not make selectors for functional fields
       | isFunTy t && not (higherOrderFlag cfg)
@@ -326,15 +326,15 @@ makeMeasureSelector :: (Show a1) => LocSymbol -> SpecType -> Ghc.DataCon -> Int 
 makeMeasureSelector x s dc n i = M { msName = x, msSort = s, msEqns = [eqn], msKind = MsSelector, msUnSorted = mempty}
   where
     eqn                        = Def x dc Nothing args (E (F.EVar $ mkx i))
-    args                       = ((, Nothing) . mkx) <$> [1 .. n]
+    args                       = (, Nothing) . mkx <$> [1 .. n]
     mkx j                      = F.symbol ("xx" ++ show j)
 
 makeMeasureChecker :: LocSymbol -> SpecType -> Ghc.DataCon -> Int -> Measure SpecType Ghc.DataCon
 makeMeasureChecker x s0 dc n = M { msName = x, msSort = s, msEqns = eqn : (eqns <$> filter (/= dc) dcs), msKind = MsChecker, msUnSorted = mempty }
   where
     s       = F.notracepp ("makeMeasureChecker: " ++ show x) s0
-    eqn     = Def x dc Nothing (((, Nothing) . mkx) <$> [1 .. n])       (P F.PTrue)
-    eqns d  = Def x d  Nothing (((, Nothing) . mkx) <$> [1 .. nArgs d]) (P F.PFalse)
+    eqn     = Def x dc Nothing ((, Nothing) . mkx <$> [1 .. n])       (P F.PTrue)
+    eqns d  = Def x d  Nothing ((, Nothing) . mkx <$> [1 .. nArgs d]) (P F.PFalse)
     nArgs d = length (Ghc.dataConOrigArgTys d)
     mkx j   = F.symbol ("xx" ++ show j)
     dcs     = Ghc.tyConDataCons (Ghc.dataConTyCon dc)
@@ -451,7 +451,7 @@ isSimpleType = isFirstOrder . RT.typeSort mempty
 
 makeClassMeasureSpec :: MSpec (RType c tv (UReft r2)) t
                      -> [(LocSymbol, CMeasure (RType c tv r2))]
-makeClassMeasureSpec (Ms.MSpec {..}) = tx <$> M.elems cmeasMap
+makeClassMeasureSpec Ms.MSpec{..} = tx <$> M.elems cmeasMap
   where
     tx (M n s _ _ _) = (n, CM n (mapReft ur_reft s))
 

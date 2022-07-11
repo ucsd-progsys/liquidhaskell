@@ -20,7 +20,7 @@ instance REq SpecType where
 compareRType :: SpecType -> SpecType -> Bool 
 compareRType i1 i2 = res && unify vs   
   where 
-    unify vs = and (sndEq <$> (L.groupBy (\(x1,_) (x2,_) -> x1 == x2) vs)) 
+    unify vs = and (sndEq <$> L.groupBy (\(x1,_) (x2,_) -> x1 == x2) vs) 
     sndEq [] = True 
     sndEq [_] = True 
     sndEq ((_,y):xs) = all (==y) (snd <$> xs)
@@ -49,7 +49,7 @@ compareRType i1 i2 = res && unify vs
     go (RApp x1 ts1 ps1 r1) (RApp x2 ts2 ps2 r2)
       | x1 == x2 &&  
         r1 =*= r2 && and (zipWith (=*=) ps1 ps2) 
-      = and <$> (zipWithM go ts1 ts2)
+      = and <$> zipWithM go ts1 ts2
     go (RAllE x1 t11 t12) (RAllE x2 t21 t22) | x1 == x2 
       = liftM2 (&&) (go t11 t21) (go t12 t22) 
     go (REx x1 t11 t12) (REx x2 t21 t22) | x1 == x2

@@ -155,7 +155,7 @@ dataConResultTy dc αs t = mkFamilyTyConApp tc tArgs'
 meetWorkWrapRep :: DataCon -> SpecRep -> SpecRep -> SpecRep
 meetWorkWrapRep c workR wrapR
   | 0 <= pad
-  = workR { ty_binds = xs ++ (ty_binds wrapR)
+  = workR { ty_binds = xs ++ ty_binds wrapR
           , ty_args  = ts ++ zipWith F.meet ts' (ty_args wrapR) 
           , ty_res   = strengthenRType (ty_res workR)    (ty_res  wrapR)
           , ty_preds = ty_preds wrapR
@@ -183,7 +183,7 @@ dcWrapSpecType allowTC dc (DataConP _ _ vs ps cs yts rt _ _ _)
   where
     isCls    = Ghc.isClassTyCon $ Ghc.dataConTyCon dc
     (xs, ts) = unzip (reverse yts)
-    mkDSym z = (F.symbol z) `F.suffixSymbol` (F.symbol dc)
+    mkDSym z = F.symbol z `F.suffixSymbol` F.symbol dc
     ys       = mkDSym <$> xs
     tx _  []     []     []     = []
     tx su (x:xs) (y:ys) (t:ts) = (y, classRFInfo allowTC , if allowTC && isCls then t else F.subst (F.mkSubst su) t, mempty)
@@ -220,8 +220,8 @@ instance PPrint DataConP where
     <+> (parens $ hsep (punctuate comma (pprintTidy k <$> ps)))
     <+> (parens $ hsep (punctuate comma (pprintTidy k <$> cs)))
     <+> (parens $ hsep (punctuate comma (pprintTidy k <$> yts)))
-    <+> (pprintTidy k isGadt)
-    <+> (pprintTidy k mname)
+    <+> pprintTidy k isGadt
+    <+> pprintTidy k mname
     <+>  pprintTidy k t
 
 instance Show DataConP where
@@ -260,7 +260,7 @@ pVartoRConc p (v, args) | length args == length (pargs p)
 pVartoRConc p (v, args)
   = pApp (pname p) $ F.EVar v : args'
   where
-    args' = (thd3 <$> args) ++ (drop (length args) (thd3 <$> pargs p))
+    args' = (thd3 <$> args) ++ drop (length args) (thd3 <$> pargs p)
 
 -----------------------------------------------------------------------
 -- | @pvarRType π@ returns a trivial @RType@ corresponding to the
@@ -370,7 +370,7 @@ substPred msg su@(π, _ ) (RApp c ts rs r)
     t'                          = RApp c (substPred msg su <$> ts) (substPredP msg su <$> rs) r
     (r2', πs)                   = splitRPvar π r
 
-substPred msg (p, tp) (RAllP (q@(PV _ _ _ _)) t)
+substPred msg (p, tp) (RAllP q@(PV _ _ _ _) t)
   | p /= q                      = RAllP q $ substPred msg (p, tp) t
   | otherwise                   = RAllP q t
 
@@ -494,7 +494,7 @@ freeArgsPs p (RRTy env r _ t)
   = L.nub $ concatMap (freeArgsPs p) (snd <$> env) ++ freeArgsPsRef p r ++ freeArgsPs p t
 
 freeArgsPsRef :: PVar t1 -> UReft t -> [F.Symbol]
-freeArgsPsRef p (MkUReft _ (Pr ps)) = [x | (_, x, w) <- (concatMap pargs ps'),  (F.EVar x) == w]
+freeArgsPsRef p (MkUReft _ (Pr ps)) = [x | (_, x, w) <- concatMap pargs ps', F.EVar x == w]
   where
    ps' = f <$> filter (uPVar p ==) ps
    f q = q {pargs = pargs q ++ drop (length (pargs q)) (pargs $ uPVar p)}
@@ -509,14 +509,14 @@ meetListWithPSubsRef :: (Foldable t, F.Reftable (RType t1 t2 t3))
                      -> Ref τ (RType t1 t2 t3)
                      -> Ref τ (RType t1 t2 t3)
                      -> Ref τ (RType t1 t2 t3)
-meetListWithPSubsRef πs ss r1 r2 = L.foldl' ((meetListWithPSubRef ss) r1) r2 πs
+meetListWithPSubsRef πs ss r1 r2 = L.foldl' (meetListWithPSubRef ss r1) r2 πs
 
 meetListWithPSub ::  (F.Reftable r, PPrint t) => [(F.Symbol, RSort)]-> r -> r -> PVar t -> r
 meetListWithPSub ss r1 r2 π
   | all (\(_, x, F.EVar y) -> x == y) (pargs π)
   = r2 `F.meet` r1
   | all (\(_, x, F.EVar y) -> x /= y) (pargs π)
-  = r2 `F.meet` (F.subst su r1)
+  = r2 `F.meet` F.subst su r1
   | otherwise
   = panic Nothing $ "PredType.meetListWithPSub partial application to " ++ showpp π
   where
@@ -534,9 +534,9 @@ meetListWithPSubRef _ _ (RProp _ (RHole _)) _
   = panic Nothing "PredType.meetListWithPSubRef called with invalid input"
 meetListWithPSubRef ss (RProp s1 r1) (RProp s2 r2) π
   | all (\(_, x, F.EVar y) -> x == y) (pargs π)
-  = RProp s1 $ (F.subst su' r2) `F.meet` r1
+  = RProp s1 $ F.subst su' r2 `F.meet` r1
   | all (\(_, x, F.EVar y) -> x /= y) (pargs π)
-  = RProp s2 $ r2 `F.meet` (F.subst su r1)
+  = RProp s2 $ r2 `F.meet` F.subst su r1
   | otherwise
   = panic Nothing $ "PredType.meetListWithPSubRef partial application to " ++ showpp π
   where
@@ -561,7 +561,7 @@ symbolType = TyVarTy . symbolTyVar
 substParg :: Functor f => (F.Symbol, F.Expr) -> f Predicate -> f Predicate
 substParg (x, y) = fmap fp
   where
-    fxy s        = if (s == F.EVar x) then y else s
+    fxy s        = if s == F.EVar x then y else s
     fp           = subvPredicate (\pv -> pv { pargs = mapThd3 fxy <$> pargs pv })
 
 -------------------------------------------------------------------------------

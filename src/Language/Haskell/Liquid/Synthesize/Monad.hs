@@ -122,7 +122,7 @@ addsEnv xts =
 addsEmem :: [(Var, SpecType)] -> SM () 
 addsEmem xts = do 
   curAppDepth <- sExprId <$> get
-  mapM_ (\(x,t) -> modify (\s -> s {sExprMem = (toType False t, GHC.Var x, curAppDepth+1) : (sExprMem s)})) xts  
+  mapM_ (\(x,t) -> modify (\s -> s {sExprMem = (toType False t, GHC.Var x, curAppDepth+1) : sExprMem s})) xts  
   
 
 addEnv :: Var -> SpecType -> SM ()
@@ -382,7 +382,7 @@ findCandidates :: Type ->         -- Goal type: Find all candidate expressions o
                   SM ExprMemory
 findCandidates goalTy = do
   sEMem <- sExprMem <$> get
-  return (filter ((goalType goalTy) . fst3) sEMem)
+  return (filter (goalType goalTy . fst3) sEMem)
 
 functionCands :: Type -> SM [(Type, GHC.CoreExpr, Int)]
 functionCands goalTy = do 
