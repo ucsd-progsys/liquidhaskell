@@ -6,7 +6,7 @@
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
-module Language.Haskell.Liquid.Bare.Check 
+module Language.Haskell.Liquid.Bare.Check
   ( checkTargetSpec
   , checkBareSpec
   , checkTargetSrc
@@ -31,10 +31,10 @@ import qualified Data.List                                 as L
 import qualified Data.HashMap.Strict                       as M
 import qualified Data.HashSet                              as S
 import           Data.Hashable
-import qualified Language.Fixpoint.Misc                    as Misc  
+import qualified Language.Fixpoint.Misc                    as Misc
 import           Language.Fixpoint.SortCheck               (checkSorted, checkSortedReftFull, checkSortFull)
-import qualified Language.Fixpoint.Types                   as F 
-import qualified Language.Haskell.Liquid.GHC.Misc          as GM 
+import qualified Language.Fixpoint.Types                   as F
+import qualified Language.Haskell.Liquid.GHC.Misc          as GM
 import           Language.Haskell.Liquid.GHC.Play          (getNonPositivesTyCon)
 import           Language.Haskell.Liquid.Misc              (condNull, thd5)
 import           Language.Haskell.Liquid.Types
@@ -42,28 +42,28 @@ import           Language.Haskell.Liquid.WiredIn
 import           Language.Haskell.Liquid.LawInstances      (checkLawInstances)
 
 import qualified Language.Haskell.Liquid.Measure           as Ms
-import qualified Language.Haskell.Liquid.Bare.Types        as Bare 
-import qualified Language.Haskell.Liquid.Bare.Resolve      as Bare 
+import qualified Language.Haskell.Liquid.Bare.Types        as Bare
+import qualified Language.Haskell.Liquid.Bare.Resolve      as Bare
 
 
 ----------------------------------------------------------------------------------------------
 -- | Checking TargetSrc ------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------
 checkTargetSrc :: Config -> TargetSrc -> Either Diagnostics ()
-checkTargetSrc cfg spec 
-  |  nopositivity cfg 
+checkTargetSrc cfg spec
+  |  nopositivity cfg
   || nopositives == emptyDiagnostics
-  = Right () 
-  | otherwise 
+  = Right ()
+  | otherwise
   = Left nopositives
   where nopositives = checkPositives (gsTcs spec)
 
 
 checkPositives :: [TyCon] -> Diagnostics
-checkPositives tys = mkDiagnostics [] $ mkNonPosError (getNonPositivesTyCon tys)  
+checkPositives tys = mkDiagnostics [] $ mkNonPosError (getNonPositivesTyCon tys)
 
 mkNonPosError :: [(TyCon, [DataCon])]  -> [Error]
-mkNonPosError tcs = [ ErrPosTyCon (getSrcSpan tc) (pprint tc) (pprint dc <+> ":" <+> pprint (dataConRepType dc)) 
+mkNonPosError tcs = [ ErrPosTyCon (getSrcSpan tc) (pprint tc) (pprint dc <+> ":" <+> pprint (dataConRepType dc))
                     | (tc, dc:_) <- tcs]
 
 ----------------------------------------------------------------------------------------------
@@ -90,28 +90,28 @@ checkBareSpec _ sp
     fields    = concatMap dataDeclFields (Ms.dataDecls sp)
 
 dataDeclFields :: DataDecl -> [F.LocSymbol]
-dataDeclFields = filter (not . GM.isTmpSymbol . F.val) 
-               . Misc.hashNubWith val 
-               . concatMap dataCtorFields 
+dataDeclFields = filter (not . GM.isTmpSymbol . F.val)
+               . Misc.hashNubWith val
+               . concatMap dataCtorFields
                . fromMaybe []
                . tycDCons
 
 dataCtorFields :: DataCtor -> [F.LocSymbol]
-dataCtorFields c 
-  | isGadt c  = [] 
+dataCtorFields c
+  | isGadt c  = []
   | otherwise = F.atLoc c <$> [ f | (f,_) <- dcFields c ]
 
-isGadt :: DataCtor -> Bool 
-isGadt = isJust . dcResult 
+isGadt :: DataCtor -> Bool
+isGadt = isJust . dcResult
 
 checkUnique :: String -> [F.LocSymbol] -> Diagnostics
-checkUnique _ = mkDiagnostics mempty . checkUnique' F.val GM.fSrcSpan 
+checkUnique _ = mkDiagnostics mempty . checkUnique' F.val GM.fSrcSpan
 
-checkUnique' :: (PPrint a, Eq a, Hashable a) 
+checkUnique' :: (PPrint a, Eq a, Hashable a)
              => (t -> a) -> (t -> Ghc.SrcSpan) -> [t] -> [Error]
-checkUnique' nameF locF ts = [ErrDupSpecs l (pprint n) ls | (n, ls@(l:_)) <- dups] 
+checkUnique' nameF locF ts = [ErrDupSpecs l (pprint n) ls | (n, ls@(l:_)) <- dups]
   where
-    dups                   = [ z      | z@(_, _:_:_) <- Misc.groupList nts       ] 
+    dups                   = [ z      | z@(_, _:_:_) <- Misc.groupList nts       ]
     nts                    = [ (n, l) | t <- ts, let n = nameF t, let l = locF t ]
 
 checkDisjoints :: [S.HashSet F.LocSymbol] -> Diagnostics
@@ -212,7 +212,7 @@ checkTySigs allowHO bsc cbs emb tcEnv env sig
                    -- ++ (mapMaybe   (checkE env) [ (x, t, es) | (x, (t, Just es)) <- topTs]) 
                   <> coreVisitor checkVisitor env emptyDiagnostics cbs
                    -- ++ coreVisitor checkVisitor env [] cbs 
-  where 
+  where
     check env      = checkSigTExpr allowHO bsc emb tcEnv env
     locTm          = M.fromList locTs
     (locTs, topTs) = Bare.partitionLocalBinds vtes
@@ -226,17 +226,17 @@ checkTySigs allowHO bsc cbs emb tcEnv env sig
                        , exprF = \_   acc _ -> acc
                        }
     vSort            = Bare.varSortedReft emb
-    errs env v       = case M.lookup v locTm of 
+    errs env v       = case M.lookup v locTm of
                          Nothing -> emptyDiagnostics
-                         Just t  -> check env (v, t) 
+                         Just t  -> check env (v, t)
 
-checkSigTExpr :: Bool -> BScope -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft 
-              -> (Var, (LocSpecType, Maybe [Located F.Expr])) 
+checkSigTExpr :: Bool -> BScope -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft
+              -> (Var, (LocSpecType, Maybe [Located F.Expr]))
               -> Diagnostics
-checkSigTExpr allowHO bsc emb tcEnv env (x, (t, es)) 
+checkSigTExpr allowHO bsc emb tcEnv env (x, (t, es))
            = mbErr1 <> mbErr2
-   where 
-    mbErr1 = checkBind allowHO bsc empty emb tcEnv env (x, t) 
+   where
+    mbErr1 = checkBind allowHO bsc empty emb tcEnv env (x, t)
     mbErr2 = maybe emptyDiagnostics (checkTerminationExpr emb env . (x, t,)) es
     -- mbErr2 = checkTerminationExpr emb env . (x, t,) =<< es 
 
@@ -245,7 +245,7 @@ _checkQualifiers = mapMaybe . checkQualifier
 
 checkQualifier       :: F.SEnv F.SortedReft -> F.Qualifier -> Maybe Error
 checkQualifier env q =  mkE <$> checkSortFull (F.srcSpan q) γ F.boolSort  (F.qBody q)
-  where 
+  where
     γ                = L.foldl' (\e (x, s) -> F.insertSEnv x (F.RR s mempty) e) env (F.qualBinds q ++ wiredSortedSyms)
     mkE              = ErrBadQual (GM.fSrcSpan q) (pprint $ F.qName q)
 
@@ -375,7 +375,7 @@ checkTerminationExpr :: (Eq v, PPrint v)
                      -> (v, LocSpecType, [F.Located F.Expr])
                      -> Diagnostics
 checkTerminationExpr emb env (v, Loc l _ t, les)
-            = (mkErr "ill-sorted" $ go les) <> (mkErr "non-numeric" $ go' les)
+            = mkErr "ill-sorted" (go les) <> mkErr "non-numeric" (go' les)
   where
     -- es      = val <$> les
     mkErr :: Doc -> Maybe (F.Expr, Doc) -> Diagnostics
@@ -632,7 +632,7 @@ checkMBody γ emb _ sort (Def m c _ bs body) = checkMBody' emb sort γ' sp body
   where
     sp    = F.srcSpan m
     γ'    = L.foldl' (\γ (x, t) -> F.insertSEnv x t γ) γ xts
-    xts   = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su  <$> 
+    xts   = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su  <$>
             filter keep (ty_args trep)
     keep | allowTC = not . isEmbeddedClass
          | otherwise = not . isClassType
@@ -655,7 +655,7 @@ checkMBody' :: (PPrint r, F.Reftable r,SubsTy RTyVar RSort r, F.Reftable (RTProp
             => F.TCEmb TyCon
             -> RType RTyCon RTyVar r
             -> F.SEnv F.SortedReft
-            -> F.SrcSpan 
+            -> F.SrcSpan
             -> Body
             -> Maybe Doc
 checkMBody' emb sort γ sp body = case body of

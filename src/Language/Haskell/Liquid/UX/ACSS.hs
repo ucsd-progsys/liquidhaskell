@@ -28,7 +28,7 @@ import Text.Printf
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types.Errors (panic, impossible)
 
-data AnnMap  = Ann 
+data AnnMap  = Ann
   { types   :: M.HashMap Loc (String, String) -- ^ Loc -> (Var, Type)
   , errors  :: [(Loc, Loc, String)]           -- ^ List of error intervals
   , status  :: !Status
@@ -81,7 +81,7 @@ hsannot' baseLoc anchor tx =
     . annotTokenise baseLoc tx
 
 tokeniseWithLoc :: CommentTransform -> String -> [(TokenType, String, Loc)]
-tokeniseWithLoc tx str = zipWith (\(x,y) z -> (x, y, z)) toks spans  
+tokeniseWithLoc tx str = zipWith (\(x,y) z -> (x, y, z)) toks spans
   where
     toks       = tokeniseWithCommentTransform tx str
     spans      = tokenSpans Nothing $ map snd toks
@@ -239,8 +239,8 @@ parseLines _ i _
   = panic Nothing $ "Error Parsing Annot Input on Line: " ++ show i
 
 instance Show AnnMap where
-  show (Ann ts es _ _) =  "\n\n" 
-                      ++ (concatMap ppAnnotTyp $ M.toList ts)
+  show (Ann ts es _ _) =  "\n\n"
+                      ++ concatMap ppAnnotTyp (M.toList ts)
                       ++ concatMap ppAnnotErr [(x,y) | (x,y,_) <- es]
 
 ppAnnotTyp :: (PrintfArg t, PrintfType t1) => (Loc, (t, String)) -> t1

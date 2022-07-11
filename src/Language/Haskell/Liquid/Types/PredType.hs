@@ -45,7 +45,7 @@ import           Language.Haskell.Liquid.GHC.API hiding ( panic
 import           Language.Haskell.Liquid.GHC.TypeRep ()
 import           Data.Hashable
 import qualified Data.HashMap.Strict             as M
-import qualified Data.Maybe                                 as Mb 
+import qualified Data.Maybe                                 as Mb
 import qualified Data.List         as L -- (foldl', partition)
 -- import           Data.List                       (nub)
 
@@ -53,7 +53,7 @@ import           Language.Fixpoint.Misc
 
 -- import           Language.Fixpoint.Types         hiding (Expr, Predicate)
 import qualified Language.Fixpoint.Types                    as F
-import qualified Language.Haskell.Liquid.GHC.API            as Ghc 
+import qualified Language.Haskell.Liquid.GHC.API            as Ghc
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.RefType hiding (generalize)
@@ -61,23 +61,23 @@ import           Language.Haskell.Liquid.Types.Types
 import           Data.Default
 
 makeTyConInfo :: F.TCEmb Ghc.TyCon -> [Ghc.TyCon] -> [TyConP] -> TyConMap
-makeTyConInfo tce fiTcs tcps = TyConMap 
+makeTyConInfo tce fiTcs tcps = TyConMap
   { tcmTyRTy    = tcM
-  , tcmFIRTy    = tcInstM 
+  , tcmFIRTy    = tcInstM
   , tcmFtcArity = arities
   }
-  where 
+  where
     tcM         = M.fromList [(tcpCon tcp, mkRTyCon tcp) | tcp <- tcps ]
-    tcInstM     = mkFInstRTyCon tce fiTcs tcM 
+    tcInstM     = mkFInstRTyCon tce fiTcs tcM
     arities     = safeFromList "makeTyConInfo" [ (c, length ts) | (c, ts) <- M.keys tcInstM ]
 
 mkFInstRTyCon :: F.TCEmb Ghc.TyCon -> [Ghc.TyCon] -> M.HashMap Ghc.TyCon RTyCon -> M.HashMap (Ghc.TyCon, [F.Sort]) RTyCon
-mkFInstRTyCon tce fiTcs tcm = M.fromList 
-  [ ((c, typeSort tce <$> ts), rtc) 
+mkFInstRTyCon tce fiTcs tcm = M.fromList
+  [ ((c, typeSort tce <$> ts), rtc)
     | fiTc    <- fiTcs
     , rtc     <- Mb.maybeToList (M.lookup fiTc tcm)
     , (c, ts) <- Mb.maybeToList (famInstArgs fiTc)
-  ] 
+  ]
 
 mkRTyCon ::  TyConP -> RTyCon
 mkRTyCon (TyConP _ tc αs' ps tyvariance predvariance size)
@@ -156,7 +156,7 @@ meetWorkWrapRep :: DataCon -> SpecRep -> SpecRep -> SpecRep
 meetWorkWrapRep c workR wrapR
   | 0 <= pad
   = workR { ty_binds = xs ++ ty_binds wrapR
-          , ty_args  = ts ++ zipWith F.meet ts' (ty_args wrapR) 
+          , ty_args  = ts ++ zipWith F.meet ts' (ty_args wrapR)
           , ty_res   = strengthenRType (ty_res workR)    (ty_res  wrapR)
           , ty_preds = ty_preds wrapR
           }
@@ -197,18 +197,18 @@ dcWrapSpecType allowTC dc (DataConP _ _ vs ps cs yts rt _ _ _)
     makeVars' = zip makeVars (repeat mempty)
 
 instance PPrint TyConP where
-  pprintTidy k tc = "data" <+> pprintTidy k (tcpCon tc) 
-                           <+> ppComm     k (tcpFreeTyVarsTy tc) 
-                           <+> ppComm     k (tcpFreePredTy   tc) 
+  pprintTidy k tc = "data" <+> pprintTidy k (tcpCon tc)
+                           <+> ppComm     k (tcpFreeTyVarsTy tc)
+                           <+> ppComm     k (tcpFreePredTy   tc)
       --  (parens $ hsep (punctuate comma (pprintTidy k <$> vs))) <+>
       -- (parens $ hsep (punctuate comma (pprintTidy k <$> ps))) <+>
       -- (parens $ hsep (punctuate comma (pprintTidy k <$> ls)))
 
-ppComm :: PPrint a => F.Tidy -> [a] -> Doc 
+ppComm :: PPrint a => F.Tidy -> [a] -> Doc
 ppComm k = parens . hsep . punctuate comma . fmap (pprintTidy k)
 
 
-    
+
 
 instance Show TyConP where
  show = showpp -- showSDoc . ppr
@@ -216,10 +216,10 @@ instance Show TyConP where
 instance PPrint DataConP where
   pprintTidy k (DataConP _ dc vs ps cs yts t isGadt mname _)
      =  pprintTidy k dc
-    <+> (parens $ hsep (punctuate comma (pprintTidy k <$> vs)))
-    <+> (parens $ hsep (punctuate comma (pprintTidy k <$> ps)))
-    <+> (parens $ hsep (punctuate comma (pprintTidy k <$> cs)))
-    <+> (parens $ hsep (punctuate comma (pprintTidy k <$> yts)))
+    <+> parens (hsep (punctuate comma (pprintTidy k <$> vs)))
+    <+> parens (hsep (punctuate comma (pprintTidy k <$> ps)))
+    <+> parens (hsep (punctuate comma (pprintTidy k <$> cs)))
+    <+> parens (hsep (punctuate comma (pprintTidy k <$> yts)))
     <+> pprintTidy k isGadt
     <+> pprintTidy k mname
     <+>  pprintTidy k t
@@ -321,14 +321,14 @@ replacePreds msg                 = L.foldl' go
 --         go z (π, RPropP r) = replacePVarReft (π, r) <$> z
 
 -------------------------------------------------------------------------------------
-substPVar :: PVar BSort -> PVar BSort -> BareType -> BareType 
+substPVar :: PVar BSort -> PVar BSort -> BareType -> BareType
 -------------------------------------------------------------------------------------
 substPVar src dst = go
   where
     go :: BareType -> BareType
     go (RVar a r)         = RVar a (goRR r)
     go (RApp c ts rs r)   = RApp c (go <$> ts) (goR <$> rs) (goRR r)
-    go (RAllP q t)        
+    go (RAllP q t)
      | pname q == pname src = RAllP q t
      | otherwise            = RAllP q (go t)
     go (RAllT a t r)      = RAllT a   (go t)  (goRR r)
@@ -344,12 +344,12 @@ substPVar src dst = go
     goR rp = rp {rf_body = go (rf_body rp) }
     goRR :: RReft -> RReft
     goRR rr = rr { ur_pred = goP (ur_pred rr) }
-    goP :: Predicate -> Predicate 
+    goP :: Predicate -> Predicate
     goP (Pr ps) = Pr (goPV <$> ps)
     goPV :: UsedPVar -> UsedPVar
-    goPV pv 
+    goPV pv
       | pname pv == pname src = pv { pname = pname dst }
-      | otherwise             = pv 
+      | otherwise             = pv
 
 -------------------------------------------------------------------------------
 substPred :: String -> (RPVar, SpecProp) -> SpecType -> SpecType
@@ -431,7 +431,7 @@ substRCon msg (_, RProp ss t1@(RApp c1 ts1 rs1 r1)) t2@(RApp c2 ts2 rs2 _) πs r
 
     su = F.mkSubst $ zipWith (\s1 s2 -> (s1, F.EVar s2)) (rvs t1) (rvs t2)
 
-    rvs      = foldReft False (\_ r acc -> rvReft r : acc) [] 
+    rvs      = foldReft False (\_ r acc -> rvReft r : acc) []
     rvReft r = let F.Reft(s,_) = F.toReft r in s
 
 substRCon msg su t _ _        = {- panic Nothing -} errorP "substRCon: " $ msg ++ " " ++ showpp (su, t)

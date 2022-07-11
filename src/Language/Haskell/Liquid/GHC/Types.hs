@@ -26,7 +26,7 @@ instance Hashable StableName where
 
 instance Eq StableName where
   (MkStableName n1) == (MkStableName n2) = -- n1 `stableNameCmp` n2 == EQ
-    let sameOccName = (occNameString $ nameOccName n1) == (occNameString $ nameOccName n2)
+    let sameOccName = occNameString (nameOccName n1) == occNameString (nameOccName n2)
         sameModule  = nameModule  n1 == nameModule  n2
         sameSrcLoc  = nameSrcLoc  n1 == nameSrcLoc  n2
         sameSrcSpan = nameSrcSpan n1 == nameSrcSpan n2
@@ -44,7 +44,7 @@ availsToStableNameSet avails = foldr add mempty avails
 --------------------------------------------------------------------------------
 -- | Datatype For Holding GHC ModGuts ------------------------------------------
 --------------------------------------------------------------------------------
-data MGIModGuts = MI 
+data MGIModGuts = MI
   { mgi_binds     :: !CoreProgram
   , mgi_module    :: !Module
   , mgi_deps      :: !Dependencies
@@ -57,7 +57,7 @@ data MGIModGuts = MI
   }
 
 miModGuts :: Maybe [ClsInst] -> ModGuts -> MGIModGuts
-miModGuts cls mg  = MI 
+miModGuts cls mg  = MI
   { mgi_binds     = mg_binds mg
   , mgi_module    = mg_module mg
   , mgi_deps      = mg_deps mg

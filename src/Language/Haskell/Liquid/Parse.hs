@@ -36,13 +36,13 @@ import qualified Data.Maybe                             as Mb -- (isNothing, fro
 import           Data.Char                              (isSpace, isAlphaNum)
 import           Data.List                              (foldl', partition)
 import           GHC                                    (ModuleName, mkModuleName)
-import qualified Text.PrettyPrint.HughesPJ              as PJ 
-import           Text.PrettyPrint.HughesPJ.Compat       ((<+>)) 
+import qualified Text.PrettyPrint.HughesPJ              as PJ
+import           Text.PrettyPrint.HughesPJ.Compat       ((<+>))
 import           Language.Fixpoint.Types                hiding (panic, SVar, DDecl, DataDecl, DataCtor (..), Error, R, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc       hiding (getSourcePos)
 import           Language.Haskell.Liquid.Types
 -- import           Language.Haskell.Liquid.Types.Errors
-import qualified Language.Fixpoint.Misc                 as Misc      
+import qualified Language.Fixpoint.Misc                 as Misc
 import qualified Language.Haskell.Liquid.Misc           as Misc
 import qualified Language.Haskell.Liquid.Measure        as Measure
 import           Language.Fixpoint.Parse                hiding (defineP, dataDeclP, refBindP, refP, refDefP, parseTest')
@@ -483,7 +483,7 @@ bTyConP :: Parser BTyCon
 bTyConP
   =  (reservedOp "'" >> (mkPromotedBTyCon <$> locUpperIdP))
  <|> mkBTyCon <$> locUpperIdP
- <|> (reserved "*" >> (return $ mkBTyCon (dummyLoc $ symbol ("*" :: String))))
+ <|> (reserved "*" >> return (mkBTyCon (dummyLoc $ symbol ("*" :: String))))
  <?> "bTyConP"
 
 mkPromotedBTyCon :: LocSymbol -> BTyCon
@@ -552,7 +552,7 @@ rrTy ct = RRTy (xts ++ [(dummySymbol, tr)]) mempty OCons
 --  "forall x y <z :: Nat, w :: Int> . TYPE"
 bareAllP :: Parser BareType
 bareAllP = do
-  sp <- getSourcePos 
+  sp <- getSourcePos
   as  <- tyVarDefsP
   ps  <- angles inAngles
         <|> return []
@@ -565,16 +565,16 @@ bareAllP = do
 
 -- See #1907 for why we have to alpha-rename pvar binders
 rAllP :: SourcePos -> PVar BSort -> BareType -> BareType
-rAllP sp p t = RAllP p' ({- F.tracepp "rAllP" $ -} substPVar p p' t) 
-  where 
+rAllP sp p t = RAllP p' ({- F.tracepp "rAllP" $ -} substPVar p p' t)
+  where
     p'  = p { pname = pn' }
-    pn' = pname p `intSymbol` lin `intSymbol` col 
+    pn' = pname p `intSymbol` lin `intSymbol` col
     lin = unPos (sourceLine sp)
     col = unPos (sourceColumn  sp)
 
 tyVarDefsP :: Parser [BTyVar]
 tyVarDefsP
-  = (parens $ many (bTyVar <$> tyKindVarIdP))
+  = parens (many (bTyVar <$> tyKindVarIdP))
  <|> many (bTyVar <$> tyVarIdP)
  <?> "tyVarDefsP"
 
@@ -588,7 +588,7 @@ kindP = bareAtomBindP
 
 predVarDefsP :: Parser [PVar BSort]
 predVarDefsP
-  =  (angles $ sepBy1 predVarDefP comma)
+  =  angles (sepBy1 predVarDefP comma)
  <|> return []
  <?> "predVarDefP"
 
@@ -667,7 +667,7 @@ dummyRSort
 predicatesP :: (IsString tv, Monoid r)
             => Parser [Ref (RType c tv r) BareType]
 predicatesP
-   =  (angles $ sepBy1 predicate1P comma)
+   =  angles (sepBy1 predicate1P comma)
   <|> return []
   <?> "predicatesP"
 
@@ -676,7 +676,7 @@ predicate1P :: (IsString tv, Monoid r)
 predicate1P
    =  try (RProp <$> symsP <*> refP bbaseP)
   <|> (rPropP [] . predUReft <$> monoPredicate1P)
-  <|> (braces $ bRProp <$> symsP' <*> refaP)
+  <|> braces (bRProp <$> symsP' <*> refaP)
   <?> "predicate1P"
    where
     symsP'       = do ss    <- symsP
@@ -882,105 +882,105 @@ data Pspec ty ctor
   | Define  (LocSymbol, Symbol)                           -- ^ 'define' annotation for specifying aliases c.f. `include-CoreToLogic.lg`
   deriving (Data, Show, Typeable)
 
-instance (PPrint ty, PPrint ctor) => PPrint (Pspec ty ctor) where 
-  pprintTidy = ppPspec 
+instance (PPrint ty, PPrint ctor) => PPrint (Pspec ty ctor) where
+  pprintTidy = ppPspec
 
 splice :: PJ.Doc -> [PJ.Doc] -> PJ.Doc
 splice sep = PJ.hcat . PJ.punctuate sep
 
 ppAsserts :: (PPrint t) => Tidy -> [LocSymbol] -> t -> Maybe [Located Expr] -> PJ.Doc
-ppAsserts k lxs t les 
+ppAsserts k lxs t les
   = PJ.hcat [ splice ", " (pprintTidy k <$> (val <$> lxs))
-            , " :: " 
-            , pprintTidy k t   
-            , ppLes les 
+            , " :: "
+            , pprintTidy k t
+            , ppLes les
             ]
-  where 
+  where
     ppLes Nothing    = ""
     ppLes (Just les) = "/" <+> pprintTidy k (val <$> les)
 
 ppPspec :: (PPrint t, PPrint c) => Tidy -> Pspec t c -> PJ.Doc
-ppPspec k (Meas m)        
-  = "measure" <+> pprintTidy k m 
-ppPspec k (Assm (lx, t))  
-  = "assume"  <+> pprintTidy k (val lx) <+> "::" <+> pprintTidy k t 
-ppPspec k (Asrt (lx, t))  
-  = "assert"  <+> pprintTidy k (val lx) <+> "::" <+> pprintTidy k t 
-ppPspec k (LAsrt (lx, t)) 
-  = "local assert"  <+> pprintTidy k (val lx) <+> "::" <+> pprintTidy k t 
-ppPspec k (Asrts (lxs, (t, les))) 
+ppPspec k (Meas m)
+  = "measure" <+> pprintTidy k m
+ppPspec k (Assm (lx, t))
+  = "assume"  <+> pprintTidy k (val lx) <+> "::" <+> pprintTidy k t
+ppPspec k (Asrt (lx, t))
+  = "assert"  <+> pprintTidy k (val lx) <+> "::" <+> pprintTidy k t
+ppPspec k (LAsrt (lx, t))
+  = "local assert"  <+> pprintTidy k (val lx) <+> "::" <+> pprintTidy k t
+ppPspec k (Asrts (lxs, (t, les)))
   = ppAsserts k lxs t les
-ppPspec k (Impt  x) 
-  = "import" <+> pprintTidy k x 
-ppPspec k (DDecl d) 
-  = pprintTidy k d 
-ppPspec k (NTDecl d) 
-  = "newtype" <+> pprintTidy k d 
-ppPspec _ (Incl f) 
+ppPspec k (Impt  x)
+  = "import" <+> pprintTidy k x
+ppPspec k (DDecl d)
+  = pprintTidy k d
+ppPspec k (NTDecl d)
+  = "newtype" <+> pprintTidy k d
+ppPspec _ (Incl f)
   = "include" <+> "<" PJ.<> PJ.text f PJ.<> ">"
 ppPspec k (Invt t)
-  = "invariant" <+> pprintTidy k t 
-ppPspec k (Using (t1, t2)) 
+  = "invariant" <+> pprintTidy k t
+ppPspec k (Using (t1, t2))
   = "using" <+> pprintTidy k t1 <+> "as" <+> pprintTidy k t2
-ppPspec k (Alias   (Loc _ _ rta)) 
-  = "type" <+> pprintTidy k rta 
-ppPspec k (EAlias  (Loc _ _ rte)) 
-  = "predicate" <+> pprintTidy k rte 
-ppPspec k (Embed   (lx, tc, NoArgs)) 
-  = "embed" <+> pprintTidy k (val lx)         <+> "as" <+> pprintTidy k tc 
-ppPspec k (Embed   (lx, tc, WithArgs)) 
-  = "embed" <+> pprintTidy k (val lx) <+> "*" <+> "as" <+> pprintTidy k tc 
-ppPspec k (Qualif  q)              
-  = pprintTidy k q 
-ppPspec k (Decr (lx, ns))        
+ppPspec k (Alias   (Loc _ _ rta))
+  = "type" <+> pprintTidy k rta
+ppPspec k (EAlias  (Loc _ _ rte))
+  = "predicate" <+> pprintTidy k rte
+ppPspec k (Embed   (lx, tc, NoArgs))
+  = "embed" <+> pprintTidy k (val lx)         <+> "as" <+> pprintTidy k tc
+ppPspec k (Embed   (lx, tc, WithArgs))
+  = "embed" <+> pprintTidy k (val lx) <+> "*" <+> "as" <+> pprintTidy k tc
+ppPspec k (Qualif  q)
+  = pprintTidy k q
+ppPspec k (Decr (lx, ns))
   = "decreasing" <+> pprintTidy k (val lx) <+> pprintTidy k ns
-ppPspec k (LVars   lx) 
-  = "lazyvar" <+> pprintTidy k (val lx) 
-ppPspec k (Lazy   lx) 
-  = "lazy" <+> pprintTidy k (val lx) 
-ppPspec k (Rewrite   lx) 
-  = "rewrite" <+> pprintTidy k (val lx) 
-ppPspec k (Rewritewith (lx, lxs)) 
-  = "rewriteWith" <+> pprintTidy k (val lx) <+> (PJ.hsep $ map go lxs)
+ppPspec k (LVars   lx)
+  = "lazyvar" <+> pprintTidy k (val lx)
+ppPspec k (Lazy   lx)
+  = "lazy" <+> pprintTidy k (val lx)
+ppPspec k (Rewrite   lx)
+  = "rewrite" <+> pprintTidy k (val lx)
+ppPspec k (Rewritewith (lx, lxs))
+  = "rewriteWith" <+> pprintTidy k (val lx) <+> PJ.hsep (map go lxs)
   where
     go s = pprintTidy k $ val s
-ppPspec k (Fail   lx) 
-  = "fail" <+> pprintTidy k (val lx) 
-ppPspec k (Insts   (lx, mbN)) 
-  = "automatic-instances" <+> pprintTidy k (val lx) <+> maybe "" (("with" <+>) . pprintTidy k) mbN 
-ppPspec k (HMeas   lx) 
-  = "measure" <+> pprintTidy k (val lx) 
-ppPspec k (Reflect lx) 
-  = "reflect" <+> pprintTidy k (val lx) 
-ppPspec k (Inline  lx) 
-  = "inline" <+> pprintTidy k (val lx) 
-ppPspec k (Ignore  lx) 
-  = "ignore" <+> pprintTidy k (val lx) 
-ppPspec k (HBound  lx) 
-  = "bound" <+> pprintTidy k (val lx) 
-ppPspec k (ASize   lx) 
-  = "autosize" <+> pprintTidy k (val lx) 
-ppPspec k (PBound  bnd) 
-  = pprintTidy k bnd 
-ppPspec _ (Pragma  (Loc _ _ s)) 
-  = "LIQUID" <+> PJ.text s 
-ppPspec k (CMeas   m) 
+ppPspec k (Fail   lx)
+  = "fail" <+> pprintTidy k (val lx)
+ppPspec k (Insts   (lx, mbN))
+  = "automatic-instances" <+> pprintTidy k (val lx) <+> maybe "" (("with" <+>) . pprintTidy k) mbN
+ppPspec k (HMeas   lx)
+  = "measure" <+> pprintTidy k (val lx)
+ppPspec k (Reflect lx)
+  = "reflect" <+> pprintTidy k (val lx)
+ppPspec k (Inline  lx)
+  = "inline" <+> pprintTidy k (val lx)
+ppPspec k (Ignore  lx)
+  = "ignore" <+> pprintTidy k (val lx)
+ppPspec k (HBound  lx)
+  = "bound" <+> pprintTidy k (val lx)
+ppPspec k (ASize   lx)
+  = "autosize" <+> pprintTidy k (val lx)
+ppPspec k (PBound  bnd)
+  = pprintTidy k bnd
+ppPspec _ (Pragma  (Loc _ _ s))
+  = "LIQUID" <+> PJ.text s
+ppPspec k (CMeas   m)
   = "class measure" <+> pprintTidy k m
-ppPspec k (IMeas   m) 
+ppPspec k (IMeas   m)
   = "instance  measure" <+> pprintTidy k m
-ppPspec k (Class   cls) 
-  = pprintTidy k cls 
-ppPspec k (CLaws  cls) 
-  = pprintTidy k cls 
-ppPspec k (RInst   inst) 
-  = pprintTidy k inst 
-ppPspec k (Varia   (lx, vs))  
-  = "data variance" <+> pprintTidy k (val lx) <+> splice " " (pprintTidy k <$> vs) 
+ppPspec k (Class   cls)
+  = pprintTidy k cls
+ppPspec k (CLaws  cls)
+  = pprintTidy k cls
+ppPspec k (RInst   inst)
+  = pprintTidy k inst
+ppPspec k (Varia   (lx, vs))
+  = "data variance" <+> pprintTidy k (val lx) <+> splice " " (pprintTidy k <$> vs)
 ppPspec _ (BFix    _)           -- 
   = "fixity"
-ppPspec k (Define  (lx, y))     
-  = "define" <+> pprintTidy k (val lx) <+> "=" <+> pprintTidy k y 
-ppPspec _ ILaws{} 
+ppPspec k (Define  (lx, y))
+  = "define" <+> pprintTidy k (val lx) <+> "=" <+> pprintTidy k y
+ppPspec _ ILaws{}
   = "TBD-INSTANCE-LAWS"
 
 
@@ -1053,7 +1053,7 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
   , Measure.localSigs  = []
   , Measure.reflSigs   = []
   , Measure.impSigs    = []
-  , Measure.expSigs    = [] 
+  , Measure.expSigs    = []
   , Measure.invariants = [(Nothing, t) | Invt   t <- xs]
   , Measure.ialiases   = [t | Using t <- xs]
   , Measure.imports    = [i | Impt   i <- xs]
@@ -1112,7 +1112,7 @@ specP
     <|> fallbackSpecP "inline"      (liftM Inline  inlineP  )
     <|> fallbackSpecP "ignore"      (liftM Ignore  inlineP  )
 
-    <|> fallbackSpecP "bound"       (liftM PBound  boundP 
+    <|> fallbackSpecP "bound"       (liftM PBound  boundP
                                  <|> liftM HBound  hboundP  )
     <|> (reserved "class"
          >> ((reserved "measure"  >> liftM CMeas  cMeasureP )
@@ -1368,7 +1368,7 @@ instanceP
     toRCls x = x
 
     iargsP   =   (mkVar . bTyVar <$> tyVarIdP)
-            <|> (parens $ located $ bareTypeP)
+            <|> parens (located $ bareTypeP)
 
 
     mkVar v  = dummyLoc $ RVar v mempty
@@ -1533,9 +1533,9 @@ adtDataConP as = do
   return $ DataCtor x (tRepVars as tr) [] (tRepFields tr) (Just $ ty_res tr)
 
 tRepVars :: Symbolic a => [Symbol] -> RTypeRep c a r -> [Symbol]
-tRepVars as tr = case fst <$> ty_vars tr of 
-  [] -> as 
-  vs -> symbol . ty_var_value <$> vs 
+tRepVars as tr = case fst <$> ty_vars tr of
+  [] -> as
+  vs -> symbol . ty_var_value <$> vs
 
 tRepFields :: RTypeRep c tv r -> [(Symbol, RType c tv r)]
 tRepFields tr = zip (ty_binds tr) (ty_args tr)

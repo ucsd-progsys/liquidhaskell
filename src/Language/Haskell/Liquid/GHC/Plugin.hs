@@ -527,8 +527,8 @@ processModule LiquidHaskellContext{..} = do
     when debugLogs $
       forM_ (HM.keys . getDependencies $ dependencies) $ debugLog . moduleStableString . unStableModule
 
-    debugLog $ "mg_exports => " ++ (O.showSDocUnsafe $ O.ppr $ mg_exports modGuts)
-    debugLog $ "mg_tcs => " ++ (O.showSDocUnsafe $ O.ppr $ mg_tcs modGuts)
+    debugLog $ "mg_exports => " ++ O.showSDocUnsafe (O.ppr $ mg_exports modGuts)
+    debugLog $ "mg_tcs => " ++ O.showSDocUnsafe (O.ppr $ mg_tcs modGuts)
 
     targetSrc  <- makeTargetSrc moduleCfg file lhModuleTcData modGuts hscEnv
     dynFlags <- getDynFlags
@@ -614,8 +614,8 @@ makeTargetSrc cfg file tcData modGuts hscEnv = do
   debugLog $ "gsFiDcs   => " ++ show fiDcs
   debugLog $ "gsPrimTcs => " ++ (O.showSDocUnsafe . O.ppr $ GHC.primTyCons)
   debugLog $ "things   => " ++ (O.showSDocUnsafe . O.vcat . map O.ppr $ things)
-  debugLog $ "allImports => " ++ (show $ tcAllImports tcData)
-  debugLog $ "qualImports => " ++ (show $ tcQualifiedImports tcData)
+  debugLog $ "allImports => " ++ show (tcAllImports tcData)
+  debugLog $ "qualImports => " ++ show (tcQualifiedImports tcData)
 
   return $ TargetSrc
     { giIncDir    = mempty

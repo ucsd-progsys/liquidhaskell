@@ -261,7 +261,7 @@ ppr_rtype bb p (RRTy e _ OCons t)
 ppr_rtype bb p (RRTy e r o t)
   = sep [ppp (pprint o <+> ppe <+> pprint r), ppr_rtype bb p t]
   where
-    ppe  = (hsep $ punctuate comma (ppxt <$> e)) <+> dcolon
+    ppe  = hsep (punctuate comma (ppxt <$> e)) <+> dcolon
     ppp  = \doc -> text "<<" <+> doc <+> text ">>"
     ppxt = \(x, t) -> pprint x <+> ":" <+> ppr_rtype bb p t
 ppr_rtype _ _ (RHole r)
@@ -310,7 +310,7 @@ ppAllExpr
   => PPEnv -> Prec -> RType c tv r -> Doc
 ppAllExpr bb p t
   = text "forall" <+> brackets (intersperse comma [ppr_dbind bb topPrec x t | (x, t) <- zs]) <-> dot <-> ppr_rtype bb p t'
-    where 
+    where
       (zs,  t')               = split [] t
       split zs (RAllE x t t') = split ((x,t):zs) t'
       split zs t              = (reverse zs, t)
@@ -385,7 +385,7 @@ ppr_forall bb p t = maybeParen p funPrec $ sep [
     ppr_foralls True αs πs = text "forall" <+> dαs αs <+> dπs (ppPs bb) πs <-> dot
 
     ppr_clss []               = empty
-    ppr_clss cs               = (parens $ hsep $ punctuate comma (uncurry (ppr_cls bb p) <$> cs)) <+> text "=>"
+    ppr_clss cs               = parens (hsep $ punctuate comma (uncurry (ppr_cls bb p) <$> cs)) <+> text "=>"
 
     dαs αs                    = ppr_rtvar_def αs
 

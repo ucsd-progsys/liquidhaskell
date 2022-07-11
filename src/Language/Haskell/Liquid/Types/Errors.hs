@@ -479,7 +479,7 @@ data TError t =
   | ErrPosTyCon { pos  :: SrcSpan
                 , tc   :: !Doc
                 , dc   :: !Doc
-                } 
+                }
 
 
   | ErrOther    { pos   :: SrcSpan
@@ -736,7 +736,7 @@ instance FromJSONKey SrcSpan
 
 instance (PPrint a, Show a) => ToJSON (TError a) where
   toJSON e = object [ "pos" .= pos e
-                    , "msg" .= (render $ ppError' Full empty e)
+                    , "msg" .= render (ppError' Full empty e)
                     ]
 
 instance FromJSON (TError a) where
@@ -766,7 +766,7 @@ ppError' :: (PPrint a, Show a) => Tidy -> Doc -> TError a -> Doc
 ppError' td dCtx (ErrAssType _ o _ c p)
   = pprintTidy td o
         $+$ dCtx
-        $+$ (ppFull td $ ppPropInContext td p c)
+        $+$ ppFull td (ppPropInContext td p c)
 
 ppError' td dCtx err@(ErrSubType _ _ _ _ _ tE)
   | totalityType td tE
@@ -786,28 +786,28 @@ ppError' _td _dCtx (ErrHole _ msg _ x t)
 
 ppError' td dCtx (ErrSubType _ _ cid c tA tE)
   = text "Liquid Type Mismatch"
-    $+$ nest 4 
-          (blankLine 
+    $+$ nest 4
+          (blankLine
            $+$ dCtx
-           $+$ (ppFull td $ ppReqInContext td tA tE c)
+           $+$ ppFull td (ppReqInContext td tA tE c)
            $+$ maybe mempty (\i -> text "Constraint id" <+> text (show i)) cid)
 
 ppError' td dCtx (ErrSubTypeModel _ _ cid c tA tE)
   = text "Liquid Type Mismatch"
-    $+$ nest 4 
+    $+$ nest 4
           (dCtx
-          $+$ (ppFull td $ ppReqModelInContext td tA tE c)
+          $+$ ppFull td (ppReqModelInContext td tA tE c)
           $+$ maybe mempty (\i -> text "Constraint id" <+> text (show i)) cid)
 
 ppError' td  dCtx (ErrFCrash _ _ c tA tE)
   = text "Fixpoint Crash on Constraint"
         $+$ dCtx
-        $+$ (ppFull td $ ppReqInContext td tA tE c)
+        $+$ ppFull td (ppReqInContext td tA tE c)
 
 ppError' _ dCtx (ErrParse _ _ e)
   = text "Cannot parse specification:"
         $+$ dCtx
-        $+$ (nest 4 $ pprint e)
+        $+$ nest 4 (pprint e)
 
 ppError' _ dCtx (ErrTySpec _ _k v t s)
   = ("Illegal type specification for" <+> ppTicks v) --  <-> ppKind k <-> ppTicks v)
@@ -893,7 +893,7 @@ ppError' _ dCtx (ErrDupMeas _ v ls)
 ppError' _ dCtx (ErrDupField _ dc x)
   = text "Malformed refined data constructor" <+> dc
         $+$ dCtx
-        $+$ (nest 4 $ text "Duplicated definitions for field" <+> ppTicks x)
+        $+$ nest 4 (text "Duplicated definitions for field" <+> ppTicks x)
 
 ppError' _ dCtx (ErrDupNames _ x ns)
   = text "Ambiguous specification symbol" <+> ppTicks x
@@ -916,7 +916,7 @@ ppError' _ dCtx (ErrUnbPred _ p)
 ppError' _ dCtx (ErrGhc _ s)
   = text "GHC Error"
         $+$ dCtx
-        $+$ (nest 4 $ pprint s)
+        $+$ nest 4 (pprint s)
 
 ppError' _ _ (ErrFail _ s)
   = text "Failure Error:"
@@ -925,7 +925,7 @@ ppError' _ _ (ErrFail _ s)
 ppError' _ _ (ErrFailUsed _ s xs)
   = text "Failure Error:"
         $+$ text "Binder" <+> pprint s <+> text "declared to fail is used by"
-        <+> (hsep $ L.intersperse comma xs)
+        <+> hsep (L.intersperse comma xs)
 
 ppError' _ dCtx (ErrResolve _ kind v msg)
   = (text "Unknown" <+> kind <+> ppTicks v)
@@ -935,7 +935,7 @@ ppError' _ dCtx (ErrResolve _ kind v msg)
 ppError' _ dCtx (ErrPartPred _ c p i eN aN)
   = text "Malformed predicate application"
         $+$ dCtx
-        $+$ (nest 4 $ vcat
+        $+$ nest 4 (vcat
                         [ "The" <+> text (Misc.intToString i) <+> "argument of" <+> c <+> "is predicate" <+> ppTicks p
                         , "which expects" <+> pprint eN <+> "arguments" <+> "but is given only" <+> pprint aN
                         , " "
@@ -967,7 +967,7 @@ ppError' _ dCtx e@(ErrMismatch _ x msg τ t cause hsSp)
 ppError' _ dCtx (ErrAliasCycle _ acycle)
   = text "Cyclic type alias definition for" <+> ppTicks n0
         $+$ dCtx
-        $+$ (nest 4 $ sepVcat blankLine (hdr : map describe acycle))
+        $+$ nest 4 (sepVcat blankLine (hdr : map describe acycle))
   where
     hdr             = text "The following alias definitions form a cycle:"
     describe (p, n) = text "*" <+> ppTicks n <+> parens (text "defined at:" <+> pprint p)
@@ -982,8 +982,8 @@ ppError' _ dCtx (ErrIllegalAliasApp _ dn dl)
 ppError' _ dCtx (ErrAliasApp _ name dl s)
   = text "Malformed application of type alias" <+> ppTicks name
         $+$ dCtx
-        $+$ (nest 4 $ vcat [ text "The alias" <+> ppTicks name <+> "defined at:" <+> pprint dl
-                           , s ] )
+        $+$ nest 4 (vcat [ text "The alias" <+> ppTicks name <+> "defined at:" <+> pprint dl
+                           , s ])
 
 ppError' _ dCtx (ErrSaved _ name s)
   = name -- <+> "(saved)"
@@ -1011,7 +1011,7 @@ ppError' _ dCtx (ErrOther _ s)
 ppError' _ dCtx (ErrTermin _ xs s)
   = text "Termination Error"
         $+$ dCtx
-        <+> (hsep $ L.intersperse comma xs) $+$ s
+        <+> hsep (L.intersperse comma xs) $+$ s
 
 ppError' _ dCtx (ErrStTerm _ x s)
   = text "Structural Termination Error"
@@ -1030,7 +1030,7 @@ ppError' _ dCtx (ErrMClass _ v)
 
 ppError' _ _ (ErrRClass p0 c is)
   = text "Refined classes cannot have refined instances"
-    $+$ (nest 4 $ sepVcat blankLine $ describeCls : map describeInst is)
+    $+$ nest 4 (sepVcat blankLine $ describeCls : map describeInst is)
   where
     describeCls
       =   text "Refined class definition for:" <+> c
@@ -1050,7 +1050,7 @@ ppError' _ dCtx (ErrRewrite _ msg )
         $+$ nest 4 msg
 
 ppError' _ dCtx (ErrPosTyCon _ tc dc)
-  = text "Negative occurence of" <+> tc <+> "in" <+> dc 
+  = text "Negative occurence of" <+> tc <+> "in" <+> dc
         $+$ dCtx
         $+$ vcat
             ["\n"
