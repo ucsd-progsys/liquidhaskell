@@ -1368,7 +1368,7 @@ instanceP
     toRCls x = x
 
     iargsP   =   (mkVar . bTyVar <$> tyVarIdP)
-            <|> parens (located $ bareTypeP)
+            <|> parens (located bareTypeP)
 
 
     mkVar v  = dummyLoc $ RVar v mempty

@@ -537,16 +537,19 @@ elaborateSpecType' partialTp coreToLogic simplify t =
           hsExpr =
             buildHsExpr (fixExprToHsExpr (S.fromList origBinders) e)
                         querySpecType :: LHsExpr GhcPs
-          exprWithTySigs = noLoc $ ExprWithTySig
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)        
+          exprWithTySigs = noLoc $ ExprWithTySig
             (mkLHsSigWcType (specTypeToLHsType querySpecType))
             hsExpr
 #else
+          exprWithTySigs = noLoc $ ExprWithTySig
             Ghc.noExtField
             hsExpr
             (mkLHsSigWcType (specTypeToLHsType querySpecType))
 #endif
+#else
+          exprWithTySigs = noLoc ExprWithTySig
 #endif
         eeWithLamsCore <- GM.elabRnExpr TM_Inst exprWithTySigs
         eeWithLamsCore' <- simplify eeWithLamsCore

@@ -782,7 +782,7 @@ rtPropTop
    => PVar (RType c tv ()) -> Ref (RType c tv ()) (RType c tv r)
 rtPropTop pv = case ptype pv of
                  PVProp t -> RProp xts $ ofRSort t
-                 PVHProp  -> RProp xts $ mempty
+                 PVHProp  -> RProp xts mempty
                where
                  xts      =  pvArgs pv
 
@@ -936,7 +936,7 @@ allTyVars' :: (Eq tv) => RType c tv r -> [tv]
 allTyVars' t = fmap ty_var_value $ vs ++ vs'
   where
     vs      = map fst . fst3 . bkUniv $ t
-    vs'     = freeTyVars    $ t
+    vs'     = freeTyVars t
 
 
 freeTyVars :: Eq tv => RType c tv r -> [RTVar tv (RType c tv ())]
@@ -1716,7 +1716,7 @@ mkProductTy :: forall t r. (Monoid t, Monoid r)
             -> [(Symbol, RFInfo, RType RTyCon RTyVar r, t)]
 mkProductTy (τ, x, i, t, r) = maybe [(x, i, t, r)] f $ do
   DataConAppContext{..} <- deepSplitProductType_maybe menv τ
-  pure $ (dcac_dc, dcac_tys, map (\(t,s) -> (irrelevantMult t, s)) dcac_arg_tys, dcac_co)
+  pure (dcac_dc, dcac_tys, map (\(t,s) -> (irrelevantMult t, s)) dcac_arg_tys, dcac_co)
   where
     f    :: (DataCon, [Type], [(Type, StrictnessMark)], Coercion) -> [(Symbol, RFInfo, RType RTyCon RTyVar r, t)]
     f    = map ((dummySymbol, defRFInfo, , mempty) . ofType . fst) . third4

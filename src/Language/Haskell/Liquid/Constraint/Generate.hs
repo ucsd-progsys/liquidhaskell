@@ -299,7 +299,7 @@ consCBSizedTys :: CGEnv -> [(Var, CoreExpr)] -> CG CGEnv
 consCBSizedTys γ xes
   = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        autoenv  <- autoSize <$> get
-       ts       <- mapM (T.mapM refreshArgs) $ (thd3 <$> xets)
+       ts       <- mapM (T.mapM refreshArgs) (thd3 <$> xets)
        let vs    = zipWith collectArgs ts es
        is       <- mapM makeDecrIndex (zip3 xs ts vs) >>= checkSameLens
        let xeets = (\vis -> [(vis, x) | x <- zip3 xs is $ map unTemplate ts]) <$> zip vs is
@@ -357,7 +357,7 @@ makeTermEnvs γ xtes xes ts ts' = setTRec γ . zip xs <$> rts
     ys'  = fst5 . bkArrowDeep <$> ts'
     sus' = zipWith mkSub ys ys'
     sus  = zipWith mkSub ys ((F.symbol <$>) <$> vs)
-    ess  = (\x -> safeFromJust (err x) $ (x `L.lookup` xtes)) <$> xs
+    ess  = (\x -> safeFromJust (err x) (x `L.lookup` xtes)) <$> xs
     tes  = zipWith (\su es -> F.subst su <$> es)  sus ess
     tes' = zipWith (\su es -> F.subst su <$> es)  sus' ess
     rss  = zipWith makeLexRefa tes' <$> (repeat <$> tes)
@@ -389,7 +389,7 @@ consCB True _ γ (Rec xes)
     where
       xs = fst (unzip xes)
       check ys r | length ys == length xs = r
-                 | otherwise              = panic (Just loc) $ msg
+                 | otherwise              = panic (Just loc) msg
       msg        = "Termination expressions must be provided for all mutually recursive binders"
       loc        = getSrcSpan (head xs)
       lookup k m = (k,) <$> M.lookup k m
@@ -1003,7 +1003,7 @@ consPattern γ p@Rs.PatSelfRecBind{} _ =
 mkRAppTy :: SpecType -> SpecType -> SpecType -> SpecType
 mkRAppTy mt et (RAppTy _ _ _)    = RAppTy mt et mempty
 mkRAppTy _  et (RApp c [_] [] _) = RApp c [et] [] mempty
-mkRAppTy _  _  _                 = panic Nothing $ "Unexpected return-pattern"
+mkRAppTy _  _  _                 = panic Nothing "Unexpected return-pattern"
 
 checkMonad :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
 checkMonad x g = go . unRRTy
@@ -1043,7 +1043,7 @@ castTy' γ τ (Var x)
                 else eCoerc (typeSort (emb γ) $ Ghc.expandTypeSynonyms $ varType x)
                        (typeSort (emb γ) τ)
                        $ F.expr x
-       return (t `strengthen` uTop (F.uexprReft $ ce) {- `F.meet` tx -})
+       return (t `strengthen` uTop (F.uexprReft ce) {- `F.meet` tx -})
   where eCoerc s t e
          | s == t    = e
          | otherwise = F.ECoerc s t e
