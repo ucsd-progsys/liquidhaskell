@@ -13,7 +13,6 @@
 - ignore: {name: "Parse error: possibly incorrect indentation or mismatched brackets"} # 3 hints
 - ignore: {name: "Redundant $"} # 41 hints
 - ignore: {name: "Redundant <$>"} # 5 hints
-- ignore: {name: "Redundant id"} # 1 hint
 - ignore: {name: "Redundant lambda"} # 7 hints
 - ignore: {name: "Redundant return"} # 3 hints
 - ignore: {name: "Replace case with fromMaybe"} # 2 hints
