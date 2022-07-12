@@ -4,7 +4,6 @@
 {-# LANGUAGE TemplateHaskell           #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE NamedFieldPuns            #-}
-{-# LANGUAGE MultiWayIf                #-}
 {-# LANGUAGE ViewPatterns              #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
