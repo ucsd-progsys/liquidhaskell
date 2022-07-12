@@ -760,7 +760,9 @@ reportResult :: MonadIO m
 reportResult logResultFull cfg targets out = do
   annm <- {-# SCC "annotate" #-} liftIO $ annotate cfg targets out
   liftIO $ whenNormal $ donePhase Loud "annotate"
-  if json cfg then liftIO $ reportResultJson annm else do
+  if json cfg then
+    liftIO $ reportResultJson annm
+   else do
          let r = o_result out
          liftIO $ writeCheckVars $ o_vars out
          cr <- liftIO $ resultWithContext r
