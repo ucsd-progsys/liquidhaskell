@@ -369,8 +369,8 @@ bareMSpec env sigEnv myName name spec = Ms.mkMSpec ms cms ims
     expMeas    = expandMeasure env name  rtEnv
     rtEnv      = Bare.sigRTEnv          sigEnv
     force      = name == myName
-    inScope1 z = F.notracepp ("inScope1: " ++ F.showpp (msName z)) $ (force ||  okSort z)
-    inScope2 z = F.notracepp ("inScope2: " ++ F.showpp (msName z)) $ (force || (okSort z && okCtors z))
+    inScope1 z = F.notracepp ("inScope1: " ++ F.showpp (msName z)) (force ||  okSort z)
+    inScope2 z = F.notracepp ("inScope2: " ++ F.showpp (msName z)) (force || (okSort z && okCtors z))
     okSort     = Bare.knownGhcType env name . msSort
     okCtors    = all (Bare.knownGhcDataCon env name . ctor) . msEqns
 

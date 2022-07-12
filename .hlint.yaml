@@ -11,7 +11,6 @@
 - ignore: {name: "Move reverse out"} # 1 hint
 - ignore: {name: "Parse error: on input `,'"} # 1 hint
 - ignore: {name: "Parse error: possibly incorrect indentation or mismatched brackets"} # 3 hints
-- ignore: {name: "Redundant $"} # 41 hints
 - ignore: {name: "Redundant <$>"} # 5 hints
 - ignore: {name: "Redundant fmap"} # 1 hint
 - ignore: {name: "Redundant id"} # 1 hint

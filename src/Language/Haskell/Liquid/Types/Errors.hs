@@ -850,9 +850,9 @@ ppError' _ dCtx (ErrBadQual _ n d)
 ppError' _ dCtx (ErrTermSpec _ v msg e t s)
   = text "Illegal termination specification for" <+> ppTicks v
         $+$ dCtx
-        $+$ (nest 4 $ ((text "Termination metric" <+> ppTicks e <+> text "is" <+> msg <+> "in type signature")
-                        $+$ nest 4 (pprint t)
-                        $+$ pprint s))
+        $+$ nest 4 ((text "Termination metric" <+> ppTicks e <+> text "is" <+> msg <+> "in type signature")
+                     $+$ nest 4 (pprint t)
+                     $+$ pprint s)
 
 ppError' _ _ (ErrInvt _ t s)
   = text "Bad Invariant Specification"

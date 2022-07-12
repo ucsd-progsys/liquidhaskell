@@ -29,7 +29,7 @@ import           Prelude hiding (error)
 
 import           Text.PrettyPrint.HughesPJ hiding (first, parens)
 
-import           Data.Maybe          (fromMaybe) 
+import           Data.Maybe          (fromMaybe)
 import           Control.Monad
 import           Control.Monad.State (get)
 import qualified Control.Exception as Ex
@@ -104,7 +104,7 @@ splitW (WfC γ (REx x tx t))
         return $ ws ++ ws'
 
 splitW (WfC γ (RRTy _ _ _ t))
-  = splitW (WfC γ t) 
+  = splitW (WfC γ t)
 
 splitW (WfC _ t)
   = panic Nothing $ "splitW cannot handle: " ++ showpp t
@@ -290,9 +290,9 @@ splitC _ (SubR γ o r)
     src = getLocation γ
     g   = reLocal $ renv γ
 
-traceTy :: SpecType -> String 
+traceTy :: SpecType -> String
 traceTy (RVar v _)      = parens ("RVar " ++ showpp v)
-traceTy (RApp c ts _ _) = parens ("RApp " ++ showpp c ++ unwords (traceTy <$> ts)) 
+traceTy (RApp c ts _ _) = parens ("RApp " ++ showpp c ++ unwords (traceTy <$> ts))
 traceTy (RAllP _ t)     = parens ("RAllP " ++ traceTy t)
 traceTy (RAllT _ t _)   = parens ("RAllT " ++ traceTy t)
 traceTy (RImpF _ _ t t' _) = parens ("RImpF " ++ parens (traceTy t) ++ parens (traceTy t'))
@@ -396,10 +396,10 @@ replaceReft rr (F.RR _ r) = rr {ur_reft = F.Reft (v, F.subst1  p (vr, F.EVar v) 
 unifyVV :: SpecType -> SpecType -> CG (SpecType, SpecType)
 unifyVV t1@(RApp _ _ _ _) t2@(RApp _ _ _ _)
   = do vv <- F.vv . Just <$> fresh
-       return $ (shiftVV t1 vv, shiftVV t2 vv)
+       return (shiftVV t1 vv, shiftVV t2 vv)
 
 unifyVV _ _
-  = panic Nothing $ "Constraint.Generate.unifyVV called on invalid inputs"
+  = panic Nothing "Constraint.Generate.unifyVV called on invalid inputs"
 
 rsplitC :: CGEnv
         -> SpecProp
@@ -466,4 +466,4 @@ getTag γ = maybe Tg.defaultTag (`Tg.getTag` tgEnv γ) (tgKey γ)
 -- | Constraint Generation Panic -----------------------------------------------
 --------------------------------------------------------------------------------
 panicUnbound :: (PPrint x) => CGEnv -> x -> a
-panicUnbound γ x = Ex.throw $ (ErrUnbound (getLocation γ) (F.pprint x) :: Error)
+panicUnbound γ x = Ex.throw (ErrUnbound (getLocation γ) (F.pprint x) :: Error)

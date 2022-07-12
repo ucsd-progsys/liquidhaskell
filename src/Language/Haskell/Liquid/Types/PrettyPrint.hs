@@ -283,8 +283,8 @@ ppr_rsubtype bb p e
   where
     (el, r)  = (init e,  last e)
     (env, l) = (init el, last el)
-    tr   = snd $ r
-    tl   = snd $ l
+    tr   = snd r
+    tl   = snd l
     pprint_bind (x, t) = pprint x <+> colon <-> colon <+> ppr_rtype bb p t
     pprint_env         = hsep $ punctuate comma (pprint_bind <$> env)
 

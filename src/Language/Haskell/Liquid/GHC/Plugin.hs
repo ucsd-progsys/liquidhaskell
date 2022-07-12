@@ -591,7 +591,7 @@ makeTargetSrc cfg file tcData modGuts hscEnv = do
   -- the ones exported. This covers the case of \"wrapper modules\" that simply re-exports
   -- everything from the imported modules.
   let availTcs    = tcAvailableTyCons tcData
-  let allTcs      = L.nub $ (mgi_tcs mgiModGuts ++ availTcs)
+  let allTcs      = L.nub (mgi_tcs mgiModGuts ++ availTcs)
 
   let dataCons       = concatMap (map dataConWorkId . tyConDataCons) allTcs
   let (fiTcs, fiDcs) = LH.makeFamInstEnv (getFamInstances modGuts)

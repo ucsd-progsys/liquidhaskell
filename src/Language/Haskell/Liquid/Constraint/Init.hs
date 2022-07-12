@@ -73,7 +73,7 @@ initEnv info
        let cbs   = giCbs . giSrc $ info
        rTrue   <- mapM (mapSndM (true allowTC)) f6
        let γ0    = measEnv sp (head bs) cbs tcb lt1s lt2s (f6 ++ bs!!3) (bs!!5) hs info
-       γ  <- globalize <$> foldM (+=) γ0 ( [("initEnv", x, y) | (x, y) <- concat $ (rTrue:tail bs)])
+       γ  <- globalize <$> foldM (+=) γ0 ( [("initEnv", x, y) | (x, y) <- concat (rTrue:tail bs)])
        return γ {invs = is (invs1 ++ invs2)}
   where
     allowTC        = typeclass (getConfig info)
