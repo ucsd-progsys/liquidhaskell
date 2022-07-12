@@ -59,9 +59,7 @@ findRelevantSpecs :: forall m. GhcMonadLike m
                   -> [Module]
                   -- ^ Any relevant module fetched during dependency-discovery.
                   -> m [SpecFinderResult]
-findRelevantSpecs eps hpt mods = do
-  res  <- foldlM loadRelevantSpec mempty mods
-  pure res
+findRelevantSpecs eps hpt mods = foldlM loadRelevantSpec mempty mods
   where
 
     loadRelevantSpec :: [SpecFinderResult] -> Module -> m [SpecFinderResult]

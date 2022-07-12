@@ -16,7 +16,6 @@
 - ignore: {name: "Redundant fmap"} # 1 hint
 - ignore: {name: "Redundant id"} # 1 hint
 - ignore: {name: "Redundant lambda"} # 7 hints
-- ignore: {name: "Redundant pure"} # 1 hint
 - ignore: {name: "Redundant return"} # 3 hints
 - ignore: {name: "Replace case with fromMaybe"} # 2 hints
 - ignore: {name: "Unused LANGUAGE pragma"} # 9 hints
