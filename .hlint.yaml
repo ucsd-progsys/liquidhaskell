@@ -39,7 +39,6 @@
 - ignore: {name: "Use guards"} # 1 hint
 - ignore: {name: "Use if"} # 2 hints
 - ignore: {name: "Use infix"} # 3 hints
-- ignore: {name: "Use list comprehension"} # 4 hints
 - ignore: {name: "Use map"} # 2 hints
 - ignore: {name: "Use mapM"} # 1 hint
 - ignore: {name: "Use mapM_"} # 1 hint

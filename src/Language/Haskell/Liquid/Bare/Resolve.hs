@@ -125,7 +125,7 @@ localBinds                    = concatMap (bgo S.empty)
   where
     add  x g                  = maybe g (`S.insert` g) (localKey x)
     adds b g                  = foldr add g (Ghc.bindersOf b)
-    take x g                  = maybe [] (\k -> if S.member k g then [] else [x]) (localKey x)
+    take x g                  = maybe [] (\k -> [x | not (S.member k g)]) (localKey x)
     pgo g (x, e)              = take x g ++ go (add x g) e
     bgo g (Ghc.NonRec x e)    = pgo g (x, e)
     bgo g (Ghc.Rec xes)       = concatMap (pgo g) xes

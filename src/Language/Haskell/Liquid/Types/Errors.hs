@@ -544,7 +544,7 @@ pprRealSrcSpan span
     hcat $ [ pathDoc <-> colon
            , int sline <-> colon
            , int scol
-           ] ++ if ecol - scol <= 1 then [] else [char '-' <-> int (ecol - 1)]
+           ] ++ [char '-' <-> int (ecol - 1) | (ecol - scol) > 1]
   | otherwise =
     hcat [ pathDoc <-> colon
          , parens (int sline <-> comma <-> int scol)
