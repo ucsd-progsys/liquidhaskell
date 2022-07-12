@@ -28,7 +28,6 @@
 - ignore: {name: "Use catMaybes"} # 1 hint
 - ignore: {name: "Use concatMap"} # 4 hints
 - ignore: {name: "Use const"} # 5 hints
-- ignore: {name: "Use elemIndex"} # 2 hints
 - ignore: {name: "Use fewer LANGUAGE pragmas"} # 2 hints
 - ignore: {name: "Use first"} # 1 hint
 - ignore: {name: "Use fmap"} # 65 hints

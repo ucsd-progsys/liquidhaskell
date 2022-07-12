@@ -22,7 +22,7 @@ import qualified Language.Haskell.HsColour.CSS as CSS
 import Data.Either (partitionEithers)
 import Data.Maybe  (fromMaybe)
 import qualified Data.HashMap.Strict as M
-import Data.List   (find, isPrefixOf, findIndex, elemIndices, intercalate)
+import Data.List   (find, isPrefixOf, findIndex, elemIndices, intercalate, elemIndex)
 import Data.Char   (isSpace)
 import Text.Printf
 import Language.Haskell.Liquid.GHC.Misc
@@ -180,7 +180,7 @@ stitch _ _
 splitSrcAndAnns ::  String -> (String, AnnMap)
 splitSrcAndAnns s =
   let ls = lines s in
-  case findIndex (breakS ==) ls of
+  case elemIndex breakS ls of
     Nothing -> (s, Ann M.empty [] Safe mempty)
     Just i  -> (src, ann)
                where (codes, _:mname:annots) = splitAt i ls
@@ -192,7 +192,7 @@ srcModuleName = fromMaybe "Main" . tokenModule . tokenise
 
 tokenModule :: [(TokenType, [Char])] -> Maybe [Char]
 tokenModule toks
-  = do i <- findIndex ((Keyword, "module") ==) toks
+  = do i <- elemIndex (Keyword, "module") toks
        let (_, toks')  = splitAt (i+2) toks
        j <- findIndex ((Space ==) . fst) toks'
        let (toks'', _) = splitAt j toks'
