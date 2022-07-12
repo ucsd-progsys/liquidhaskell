@@ -381,7 +381,7 @@ checkTerminationExpr emb env (v, Loc l _ t, les)
     mkErr :: Doc -> Maybe (F.Expr, Doc) -> Diagnostics
     mkErr _ Nothing = emptyDiagnostics
     mkErr k (Just e) =
-      mkDiagnostics mempty [uncurry (\ e d -> ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) k e t d) e]
+      mkDiagnostics mempty [(\ (e, d) -> ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) k e t d) e]
     -- mkErr   = uncurry (\ e d -> ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) (text "ill-sorted" ) e t d)
     -- mkErr'  = uncurry (\ e d -> ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) (text "non-numeric") e t d)
 
