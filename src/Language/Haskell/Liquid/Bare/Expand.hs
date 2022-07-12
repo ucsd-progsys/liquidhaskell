@@ -493,8 +493,7 @@ cookSpecTypeE :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> Lo
               -> Bare.Lookup LocSpecType 
 -----------------------------------------------------------------------------------------
 cookSpecTypeE env sigEnv name@(ModName _ _) x bt
-  = id
-  . fmap (if doplug || not allowTC then plugHoles allowTC sigEnv name x else id) 
+  = fmap (if doplug || not allowTC then plugHoles allowTC sigEnv name x else id) 
   . fmap (fmap (addTyConInfo   embs tyi))
   . fmap (Bare.txRefSort tyi embs)     
   . fmap (fmap txExpToBind)      -- What does this function DO

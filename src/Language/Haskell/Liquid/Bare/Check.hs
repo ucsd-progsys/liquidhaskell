@@ -279,7 +279,7 @@ _checkRefinedClasses definitions instances
   = mkError <$> duplicates
   where
     duplicates
-      = mapMaybe checkCls (rcName <$> definitions)
+      = mapMaybe (checkCls . rcName) definitions
     checkCls cls
       = case findConflicts cls of
           []        -> Nothing
