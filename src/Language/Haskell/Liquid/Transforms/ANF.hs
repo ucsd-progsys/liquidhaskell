@@ -221,7 +221,7 @@ normalize γ (Case e x t as)
        x'    <- lift $ freshNormalVar γ τx -- rename "wild" to avoid shadowing
        let γ' = extendAnfEnv γ x x'
        as'   <- forM as $ \(c, xs, e') -> fmap (c, xs,) (stitch (incrCaseDepth c γ') e')
-       as''  <- lift $ expandDefaultCase γ τx as'
+       as''  <- lift . expandDefaultCase γ τx $ replaceDefaultCaseBody t as'
        return $ Case n x' t as''
     where τx = GM.expandVarType x
 
@@ -294,6 +294,10 @@ normalizePattern γ p@(Rs.PatSelfRecBind {}) = do
   e'    <- normalize γ (Rs.patE p)
   return $ Rs.lower p { Rs.patE = e' }
 
+replaceDefaultCaseBody :: Type -> [(AltCon, a, CoreExpr)] -> [(AltCon, a, CoreExpr)]
+replaceDefaultCaseBody t ((DEFAULT, as, _body) : dcs)
+    | t == Ghc.unitTy      = ((DEFAULT, as, Ghc.Var Ghc.unitDataConId) : dcs)
+replaceDefaultCaseBody _ z = z
 
 --------------------------------------------------------------------------------
 expandDefault :: AnfEnv -> Bool
@@ -323,8 +327,8 @@ expandDefaultCase γ tyapp@(TyConApp tc _) z@((DEFAULT, _ ,_):dcs)
 expandDefaultCase _ _ z
    = return z
 
-expandDefaultCase'
-  :: AnfEnv -> Type -> [(AltCon, [Id], c)] -> DsM [(AltCon, [Id], c)]
+expandDefaultCase' 
+  :: AnfEnv -> Type -> [(AltCon, [Id], CoreExpr)] -> DsM [(AltCon, [Id], CoreExpr)]
 expandDefaultCase' γ t ((DEFAULT, _, e) : dcs)
   | Just dtss <- GM.defaultDataCons t (F.fst3 <$> dcs) = do
       dcs'    <- warnCaseExpand γ <$> forM dtss (cloneCase γ e)
@@ -332,10 +336,13 @@ expandDefaultCase' γ t ((DEFAULT, _, e) : dcs)
 expandDefaultCase' _ _ z
    = return z
 
-cloneCase :: AnfEnv -> e -> (DataCon, [TyVar], [Type]) -> DsM (AltCon, [Id], e)
-cloneCase γ e (d, as, ts) = do
-  xs  <- mapM (freshNormalVar γ) ts
-  return (DataAlt d, as ++ xs, e)
+cloneCase :: AnfEnv -> CoreExpr -> (DataCon, [TyVar], [Type]) -> DsM (AltCon, [Id], CoreExpr)
+cloneCase γ e (d, as, ts) = do 
+  xs  <- mapM (freshNormalVar γ) ts 
+  return (DataAlt d, as ++ xs, Tick tt e)
+  where
+    RealSrcSpan sp _ = Sp.srcSpan (aeSrcSpan γ) -- FIXME: irrefutable pattern
+    tt = SourceNote sp $ "Totality error: missing `" ++ showPpr d ++ "` case"
 
 sortCases :: [(AltCon, b, c)] -> [(AltCon, b, c)]
 sortCases = sortBy (cmpAltCon `on` F.fst3)

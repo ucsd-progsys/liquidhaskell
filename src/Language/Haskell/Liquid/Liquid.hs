@@ -20,13 +20,14 @@ module Language.Haskell.Liquid.Liquid (
   ) where
 
 import           Prelude hiding (error)
-import           Data.Bifunctor
+import           Data.Bifunctor as Bif
 import qualified Data.HashSet as S 
 import           System.Exit
 import           Text.PrettyPrint.HughesPJ
 import           System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
 import           Control.Monad (when, unless)
 import qualified Data.Maybe as Mb
+import qualified Data.Map.Strict as Map
 import qualified Data.List  as L 
 import qualified Control.Exception as Ex
 import qualified Language.Haskell.Liquid.UX.DiffCheck as DC
@@ -258,13 +259,15 @@ solveCs cfg tgt cgi info names = do
   let fcfg          = fixConfig tgt cfg
   F.Result {resStatus=r0, resSolution=sol} <- solve fcfg finfo
   let failBs        = gsFail $ gsTerm $ giSpec info
-  let (r,rf)        = splitFails (S.map val failBs) r0 
-  let resErr        = second (applySolution sol . cinfoError) <$> r
+  let (r1,rf)       = splitFails (S.map val failBs) r0
+  let (r2,ntErrs)   = splitNontotalErrors (giCbs $ giSrc info) r1
+  let resErr        = second (applySolution sol . cinfoError) <$> r2
   -- resModel_        <- fmap (e2u cfg sol) <$> getModels info cfg resErr
   let resModel_     = cidE2u cfg sol <$> resErr
   let resModel'     = resModel_  `addErrors` (e2u cfg sol <$> logErrors cgi)
                                  `addErrors` makeFailErrors (S.toList failBs) rf 
                                  `addErrors` makeFailUseErrors (S.toList failBs) (giCbs $ giSrc info)
+                                 `addErrors` (fmap (e2u cfg sol) . Mb.catMaybes . fmap ci_err $ ntErrs)
   let lErrors       = applySolution sol <$> logErrors cgi
   hErrors          <- if typedHoles cfg 
                         then synthesize tgt fcfg (cgi{holesMap = applySolution sol <$> holesMap  cgi}) 
@@ -311,6 +314,38 @@ makeFailErrors bs cis = [ mkError x | x <- bs, notElem (val x) vs ]
   where 
     mkError  x = ErrFail (GM.sourcePosSrcSpan $ loc x) (pprint $ val x)
     vs         = Mb.mapMaybe ci_var cis
+
+-- | Kind of merged bits of splitFails and makeFailUseErrors to detect &
+-- extract totality errors
+splitNontotalErrors :: [CoreBind] -> F.FixResult (a, Cinfo) -> (F.FixResult (a, Cinfo),  [Cinfo])
+splitNontotalErrors _ r@(F.Crash _ _) = (r,mempty)
+splitNontotalErrors _ r@(F.Safe _)    = (r,mempty)
+splitNontotalErrors cbs (F.Unsafe s xs)  = (mkRes r, injectMatchingTotalityError . snd <$> rtots)
+  where
+    (rtots,r) = L.partition (errorMatchesTotalityAnnot . snd) xs -- partition to those which match something in tts
+
+    totalityAnnot :: Tickish Id -> Maybe (RealSrcSpan, String)
+    totalityAnnot (SourceNote span note) | "Totality error:" `L.isPrefixOf` note = Just (span, note)
+    totalityAnnot _ = Nothing
+
+    totalityAnnots
+        = Map.fromList
+        . fmap (Bif.first $ \rss -> RealSrcSpan rss Nothing)
+        . Mb.catMaybes
+        . fmap totalityAnnot
+        $ ticks cbs
+
+    errorMatchesTotalityAnnot :: Cinfo -> Bool
+    errorMatchesTotalityAnnot ci = Map.member (ci_loc ci) totalityAnnots
+
+    injectMatchingTotalityError :: Cinfo -> Cinfo
+    injectMatchingTotalityError ci = case Map.lookup (ci_loc ci) totalityAnnots of
+        Just s -> ci { ci_err = Just ErrOther { pos = ci_loc ci, msg = text $ s } }
+        Nothing -> ci
+
+    -- DRY_UP: copied from splitFails
+    mkRes [] = F.Safe s
+    mkRes ys = F.Unsafe s ys
 
 splitFails :: S.HashSet Var -> F.FixResult (a, Cinfo) -> (F.FixResult (a, Cinfo),  [Cinfo])
 splitFails _ r@(F.Crash _ _) = (r,mempty)

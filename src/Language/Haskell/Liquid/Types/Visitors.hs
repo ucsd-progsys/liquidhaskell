@@ -35,6 +35,7 @@ class CBVisitable a where
   readVars :: a -> [Var]
   letVars  :: a -> [Var]
   literals :: a -> [Literal]
+  ticks    :: a -> [Tickish Id]
 
 instance CBVisitable [CoreBind] where
   freeVars env cbs = sortNub xs \\ ys
@@ -44,6 +45,7 @@ instance CBVisitable [CoreBind] where
   readVars = concatMap readVars
   letVars  = concatMap letVars
   literals = concatMap literals
+  ticks    = concatMap ticks
 
 instance CBVisitable CoreBind where
   freeVars env (NonRec x e) = freeVars (extendEnv env [x]) e
@@ -63,11 +65,15 @@ instance CBVisitable CoreBind where
   literals (NonRec _ e)      = literals e
   literals (Rec xes)         = concatMap (literals . snd) xes
 
+  ticks (NonRec _ e) = ticks e
+  ticks (Rec xes)    = concatMap (ticks . snd) xes
+
 instance CBVisitable (Expr Var) where
   freeVars = exprFreeVars
   readVars = exprReadVars
   letVars  = exprLetVars
   literals = exprLiterals
+  ticks    = exprTicks
 
 exprFreeVars :: S.HashSet Id -> Expr Id -> [Id]
 exprFreeVars = go
@@ -126,6 +132,21 @@ exprLiterals = go
     tyLitToLit (StrTyLit fs) = LitString (bytesFS fs)
     tyLitToLit (NumTyLit i)  = LitNumber LitNumInt (fromIntegral i) intPrimTy
 
+exprTicks :: (CBVisitable (Alt t), CBVisitable (Bind t))
+             => Expr t -> [Tickish Id]
+exprTicks = go
+  where
+    go (Var _)             = []
+    go (Lit _)             = []
+    go (App e a)           = concatMap go [e, a]
+    go (Lam _ e)           = go e
+    go (Let b e)           = ticks b ++ go e
+    go (Case e _ _ cs)     = go e ++ concatMap ticks cs
+    go (Cast e _)          = go e
+    go (Tick tt e)         = tt : go e
+    go (Type _)            = []
+    go (Coercion _)        = []
+
 
 
 instance CBVisitable (Alt Var) where
@@ -133,6 +154,7 @@ instance CBVisitable (Alt Var) where
   readVars (_,_, e)       = readVars e
   letVars  (_,xs,e)       = xs ++ letVars e
   literals (c,_, e)       = literals c ++ literals e
+  ticks    (_,_, e)       = ticks e
 
 instance CBVisitable AltCon where
   freeVars _ (DataAlt dc) = [ x | AnId x <- dataConImplicitTyThings dc]
@@ -141,6 +163,7 @@ instance CBVisitable AltCon where
   letVars  _              = []
   literals (LitAlt l)     = [l]
   literals _              = []
+  ticks _                 = []
 
 extendEnv :: (Eq a, Hashable a) => S.HashSet a -> [a] -> S.HashSet a
 extendEnv = foldl' (flip S.insert)

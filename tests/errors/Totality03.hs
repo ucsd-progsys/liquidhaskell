@@ -1,4 +1,3 @@
-{-@ LIQUID "--expect-error-containing=totalityError" @-}
 
 -- | Demonstrate that handling only C is total, because A trivially-holds and B
 -- is trivially-impossible. There's no error. (Compare to Totality02 and
