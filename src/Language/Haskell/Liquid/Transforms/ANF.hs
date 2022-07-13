@@ -342,7 +342,7 @@ cloneCase γ e (d, as, ts) = do
   return (DataAlt d, as ++ xs, Tick tt e)
   where
     RealSrcSpan sp _ = Sp.srcSpan (aeSrcSpan γ) -- FIXME: irrefutable pattern
-    tt = SourceNote sp $ "Totality error: missing `" ++ showPpr d ++ "` case"
+    tt = SourceNote sp $ "Totality error: missing case for `" ++ showPpr d ++ "`"
 
 sortCases :: [(AltCon, b, c)] -> [(AltCon, b, c)]
 sortCases = sortBy (cmpAltCon `on` F.fst3)

@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=Totality error: missing `Totality02.C` case" @-}
+{-@ LIQUID "--expect-error-containing=Totality error: missing case for `Totality02.C`" @-}
 
 -- | Demonstrate that handling only A is nontotal, because C is a subgoal that
 -- LH cannot prove by itself. (Compare to Totality00)
