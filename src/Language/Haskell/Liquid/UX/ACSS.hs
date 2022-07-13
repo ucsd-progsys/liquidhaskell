@@ -100,7 +100,7 @@ spanAnnot :: Int -> AnnMap -> Loc -> Annotation
 spanAnnot w (Ann ts es _ _) span = A t e b
   where
     t = fmap snd (M.lookup span ts)
-    e = fmap (\_ -> "ERROR") $ find (span `inRange`) [(x,y) | (x,y,_) <- es]
+    e = (\_ -> "ERROR") <$> find (span `inRange`) [(x,y) | (x,y,_) <- es]
     b = spanLine w span
 
 spanLine :: t -> Loc -> Maybe (Int, t)

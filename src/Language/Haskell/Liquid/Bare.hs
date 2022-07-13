@@ -446,13 +446,13 @@ reflectedVars :: Ms.BareSpec -> [Ghc.CoreBind] -> [Ghc.Var]
 reflectedVars spec cbs = fst <$> xDefs
   where
     xDefs              = Mb.mapMaybe (`GM.findVarDef` cbs) reflSyms
-    reflSyms           = fmap val $ S.toList (Ms.reflects spec)
+    reflSyms           = val <$> S.toList (Ms.reflects spec)
 
 measureVars :: Ms.BareSpec -> [Ghc.CoreBind] -> [Ghc.Var]
 measureVars spec cbs = fst <$> xDefs
   where
     xDefs              = Mb.mapMaybe (`GM.findVarDef` cbs) measureSyms
-    measureSyms        = fmap val $ S.toList (Ms.hmeas spec)
+    measureSyms        = val <$> S.toList (Ms.hmeas spec)
 
 ------------------------------------------------------------------------------------------
 makeSpecVars :: Config -> GhcSrc -> Ms.BareSpec -> Bare.Env -> Bare.MeasEnv
