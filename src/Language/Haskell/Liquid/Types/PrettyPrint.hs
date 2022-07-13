@@ -529,7 +529,7 @@ filterReportErrorsWith FilterReportErrorsArgs {..} errs =
     (unmatchedErrors, matchedFilters) =
       L.partition (null . snd) [ (e, fs) | e <- errs, let fs = matchingFilters e ]
     unmatchedFilters = Set.toList $
-      Set.fromList filters `Set.difference` Set.fromList (concat $ map snd matchedFilters)
+      Set.fromList filters `Set.difference` Set.fromList (concatMap snd matchedFilters)
   in
     if null unmatchedErrors then
       if null unmatchedFilters then

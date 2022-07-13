@@ -248,8 +248,7 @@ makeSpecDictionaryOne env sigEnv name (RI x t xts)
 resolveDictionaries :: Bare.Env -> ModName -> [(F.Symbol, M.HashMap F.Symbol (RISig LocSpecType))]
                     -> [Maybe (Ghc.Var, M.HashMap F.Symbol (RISig LocSpecType))]
 resolveDictionaries env name = fmap lookupVar
-                             . concat
-                             . fmap addInstIndex
+                             . concatMap addInstIndex
                              . Misc.groupList
   where
     lookupVar (x, inst)      = (, inst) <$> Bare.maybeResolveSym env name "resolveDict" (F.dummyLoc x)
