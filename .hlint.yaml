@@ -17,8 +17,6 @@
 - ignore: {name: "Use /="} # 1 hint
 - ignore: {name: "Use <&>"} # 3 hints
 - ignore: {name: "Use camelCase"} # 61 hints
-- ignore: {name: "Use catMaybes"} # 1 hint
-- ignore: {name: "Use concatMap"} # 4 hints
 - ignore: {name: "Use const"} # 5 hints
 - ignore: {name: "Use fewer LANGUAGE pragmas"} # 2 hints
 - ignore: {name: "Use first"} # 1 hint
@@ -31,7 +29,6 @@
 - ignore: {name: "Use map"} # 2 hints
 - ignore: {name: "Use mapM"} # 1 hint
 - ignore: {name: "Use mapM_"} # 1 hint
-- ignore: {name: "Use mapMaybe"} # 8 hints
 - ignore: {name: "Use maybe"} # 1 hint
 - ignore: {name: "Use newtype instead of data"} # 4 hints
 - ignore: {name: "Use null"} # 2 hints

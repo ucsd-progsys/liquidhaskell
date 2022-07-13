@@ -981,7 +981,7 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
     mySpec       = M.lookupDefault mempty name specs
     name         = _giTargetMod      src
     (minvs,usI)  = makeMeasureInvariants env name sig mySpec
-    invs         = minvs ++ concat (makeInvariants env sigEnv <$> M.toList specs)
+    invs         = minvs ++ concatMap (makeInvariants env sigEnv) (M.toList specs)
 
 makeIAliases :: Bare.Env -> Bare.SigEnv -> (ModName, Ms.BareSpec) -> [(LocSpecType, LocSpecType)]
 makeIAliases env sigEnv (name, spec)

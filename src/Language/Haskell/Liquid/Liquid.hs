@@ -310,7 +310,7 @@ makeFailErrors :: [F.Located Var] -> [Cinfo] -> [UserError]
 makeFailErrors bs cis = [ mkError x | x <- bs, notElem (val x) vs ]  
   where 
     mkError  x = ErrFail (GM.sourcePosSrcSpan $ loc x) (pprint $ val x)
-    vs         = [v | Just v <- ci_var <$> cis ]
+    vs         = Mb.mapMaybe ci_var cis
 
 splitFails :: S.HashSet Var -> F.FixResult (a, Cinfo) -> (F.FixResult (a, Cinfo),  [Cinfo])
 splitFails _ r@(F.Crash _ _) = (r,mempty)
