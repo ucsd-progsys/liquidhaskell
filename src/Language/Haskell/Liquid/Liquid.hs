@@ -315,32 +315,29 @@ makeFailErrors bs cis = [ mkError x | x <- bs, notElem (val x) vs ]
     mkError  x = ErrFail (GM.sourcePosSrcSpan $ loc x) (pprint $ val x)
     vs         = Mb.mapMaybe ci_var cis
 
--- | Kind of merged bits of splitFails and makeFailUseErrors to detect &
+-- | DRY_UP: Merged bits of splitFails and makeFailUseErrors to detect &
 -- extract totality errors
 splitNontotalErrors :: [CoreBind] -> F.FixResult (a, Cinfo) -> (F.FixResult (a, Cinfo),  [Cinfo])
 splitNontotalErrors _ r@(F.Crash _ _) = (r,mempty)
 splitNontotalErrors _ r@(F.Safe _)    = (r,mempty)
-splitNontotalErrors cbs (F.Unsafe s xs)  = (mkRes r, injectMatchingTotalityError . snd <$> rtots)
+splitNontotalErrors cbs (F.Unsafe s xs)  = (mkRes r, ciInflateTotalityError . snd <$> rtots)
   where
-    (rtots,r) = L.partition (errorMatchesTotalityAnnot . snd) xs -- partition to those which match something in tts
+    (rtots,r) = L.partition (ciMatchesTotalityAnnot . snd) xs -- partition to those which match something in tts
 
-    totalityAnnot :: Tickish Id -> Maybe (RealSrcSpan, String)
-    totalityAnnot (SourceNote sp note) | "Totality error:" `L.isPrefixOf` note = Just (sp, note)
-    totalityAnnot _ = Nothing
+    totalityAnnotSpans = Mb.catMaybes . fmap unTickTotalityAnnot $ ticks cbs
 
-    totalityAnnots
-        = fmap (Bif.first $ \rss -> RealSrcSpan rss Nothing)
-        . Mb.catMaybes
-        . fmap totalityAnnot
-        $ ticks cbs
+    ciMatchesTotalityAnnot :: Cinfo -> Bool
+    ciMatchesTotalityAnnot Ci{ci_loc=RealSrcSpan ta _} = elem ta totalityAnnotSpans
+    ciMatchesTotalityAnnot _ = False
 
-    errorMatchesTotalityAnnot :: Cinfo -> Bool
-    errorMatchesTotalityAnnot ci = Mb.isJust $ lookup (ci_loc ci) totalityAnnots
-
-    injectMatchingTotalityError :: Cinfo -> Cinfo
-    injectMatchingTotalityError ci = case lookup (ci_loc ci) totalityAnnots of
-        Just s -> ci { ci_err = Just ErrOther { pos = ci_loc ci, msg = text $ s } }
-        Nothing -> ci
+    ciInflateTotalityError :: Cinfo -> Cinfo
+    ciInflateTotalityError ci
+        | RealSrcSpan ta _ <- ci_loc ci
+        , Just (rss, d) <- unSpanTotalityAnnot ta =
+            let sp = RealSrcSpan rss Nothing
+                err = ErrOther { pos=sp, msg=text $ "Totality error: missing case for `" ++ d ++ "`" }
+            in ci { ci_loc=sp, ci_err=Just err }
+        | otherwise = ci
 
     -- DRY_UP: copied from splitFails
     mkRes [] = F.Safe s

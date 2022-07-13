@@ -48,6 +48,11 @@ module Language.Haskell.Liquid.Types.Errors (
   , realSrcSpan
   , unpackRealSrcSpan
   , srcSpanFileMb
+
+  -- * Totality annotations
+  , totalityAnnot
+  , unTickTotalityAnnot
+  , unSpanTotalityAnnot
   ) where
 
 import           Prelude                      hiding (error, span)
@@ -67,6 +72,7 @@ import           Data.Void
 import           System.Directory
 import           System.FilePath
 import           Text.PrettyPrint.HughesPJ
+import           Text.Read                    (readMaybe)
 import qualified Text.Megaparsec              as P
 
 import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( Expr
@@ -748,6 +754,29 @@ errSaved :: SrcSpan -> String -> TError a
 errSaved sp body = ErrSaved sp (text n) (text $ unlines m)
   where
     n : m        = lines body
+
+-- | Store a 'Show' in the filename field of a source span.
+pushRealSrcSpan :: Show a => a -> RealSrcSpan -> RealSrcSpan
+pushRealSrcSpan x rss = realSrcSpan (show (f, x)) l1 c1 l2 c2
+  where (f, l1, c1, l2, c2) = unpackRealSrcSpan rss
+
+-- | Extract a 'Read' from the filename field of a source span.
+popRealSrcSpan :: Read a => RealSrcSpan -> Maybe (RealSrcSpan, a)
+popRealSrcSpan rss
+    | Just (f, x) <- readMaybe fEnc = Just (realSrcSpan f l1 c1 l2 c2, x)
+    | otherwise = Nothing
+  where (fEnc, l1, c1, l2, c2) = unpackRealSrcSpan rss
+
+totalityAnnot :: String -> RealSrcSpan -> Tickish a
+totalityAnnot d rss = SourceNote uniqueSp "totality-annotation"
+    where uniqueSp = d `pushRealSrcSpan` rss
+
+unTickTotalityAnnot :: Tickish a -> Maybe RealSrcSpan
+unTickTotalityAnnot (SourceNote rss "totality-annotation") = Just rss
+unTickTotalityAnnot _ = Nothing
+
+unSpanTotalityAnnot :: RealSrcSpan -> Maybe (RealSrcSpan, String)
+unSpanTotalityAnnot = popRealSrcSpan
 
 totalityType :: PPrint a =>  Tidy -> a -> Bool
 totalityType td tE = pprintTidy td tE == text "{VV : Addr# | 5 < 4}"
