@@ -303,7 +303,7 @@ consCBSizedTys γ xes
        let vs    = zipWith collectArgs ts es
        is       <- mapM makeDecrIndex (zip3 xs ts vs) >>= checkSameLens
        let xeets = (\vis -> [(vis, x) | x <- zip3 xs is $ map unTemplate ts]) <$> zip vs is
-       _ <- (L.transpose <$> mapM checkIndex (zip4 xs vs ts is)) >>= checkEqTypes
+       _ <- mapM checkIndex (zip4 xs vs ts is) >>= checkEqTypes . L.transpose
        let rts   = (recType autoenv <$>) <$> xeets
        let xts   = zip xs ts
        γ'       <- foldM extender γ xts
@@ -963,8 +963,7 @@ consPattern γ (Rs.PatBind e1 x e2 _ _ _ _ _) _ = do
   tx <- checkMonad (msg, e1) γ <$> consE γ e1
   γ' <- γ += ("consPattern", F.symbol x, tx)
   addIdA x (AnnDef tx)
-  mt <- consE γ' e2
-  return mt
+  consE γ' e2
   where
     msg = "This expression has a refined monadic type; run with --no-pattern-inline: "
 
@@ -1187,8 +1186,7 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
 caseEnv γ x acs a _ _ = do
   let x'  = F.symbol x
   xt'    <- (`strengthen` uTop (altReft γ acs a)) <$> (γ ??= x)
-  cγ     <- addBinders γ x' [(x', xt')]
-  return cγ
+  addBinders γ x' [(x', xt')]
 
 --------------------------------------------------------------------------------
 -- | `projectTypes` masks (i.e. true's out) all types EXCEPT those
@@ -1340,9 +1338,8 @@ lamExpr _ _           = Nothing
 --------------------------------------------------------------------------------
 varRefType :: (?callStack :: CallStack) => CGEnv -> Var -> CG SpecType
 --------------------------------------------------------------------------------
-varRefType γ x = do
-  xt <- varRefType' γ x <$> (γ ??= x)
-  return xt -- F.tracepp (printf "varRefType x = [%s]" (showpp x))
+varRefType γ x =
+  varRefType' γ x <$> (γ ??= x) -- F.tracepp (printf "varRefType x = [%s]" (showpp x))
 
 varRefType' :: CGEnv -> Var -> SpecType -> SpecType
 varRefType' γ x t'

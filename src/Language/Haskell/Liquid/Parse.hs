@@ -335,10 +335,7 @@ bareTypeP = do
 bareTypeBracesP :: Parser ParamComp
 bareTypeBracesP = do
   t <-  try (braces (
-            try (do
-               ct <- constraintP
-               return $ Right ct
-                     )
+            try (Right <$> constraintP)
            <|>
             (do
                     x  <- symbolP
@@ -524,13 +521,12 @@ constraintP
   = do xts <- constraintEnvP
        t1  <- bareTypeP
        reservedOp "<:"
-       t2  <- bareTypeP
-       return $ fromRTypeRep $ RTypeRep [] [] []
+       fromRTypeRep . RTypeRep [] [] []
                                         [] [] []
                                         ((val . fst <$> xts) ++ [dummySymbol])
                                         (replicate (length xts + 1) defRFInfo)
                                         (replicate (length xts + 1) mempty)
-                                        ((snd <$> xts) ++ [t1]) t2
+                                        ((snd <$> xts) ++ [t1]) <$> bareTypeP
 
 constraintEnvP :: Parser [(LocSymbol, BareType)]
 constraintEnvP
@@ -612,7 +608,7 @@ propositionSortP :: Parser [(Symbol, BSort)]
 propositionSortP = map (Misc.mapSnd toRSort) <$> propositionTypeP
 
 propositionTypeP :: Parser [(Symbol, BareType)]
-propositionTypeP = either fail return =<< (mkPropositionType <$> bareTypeP)
+propositionTypeP = either fail return . mkPropositionType =<< bareTypeP
 
 mkPropositionType :: BareType -> Either String [(Symbol, BareType)]
 mkPropositionType t
@@ -722,8 +718,7 @@ boundP = do
   vs     <- bvsP
   params <- many (parens tyBindP)
   args   <- bargsP
-  body   <- predP
-  return $ Bound name vs params args body
+  Bound name vs params args <$> predP
  where
     bargsP =     ( do reservedOp "\\"
                       xs <- many (parens tyBindP)
@@ -1402,8 +1397,7 @@ rawBodyP
   = braces $ do
       v <- symbolP
       reservedOp "|"
-      p <- predP
-      return $ R v p
+      R v <$> predP
 
 tyBodyP :: Located BareType -> Parser Body
 tyBodyP ty
