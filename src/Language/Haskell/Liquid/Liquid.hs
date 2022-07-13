@@ -27,7 +27,6 @@ import           Text.PrettyPrint.HughesPJ
 import           System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
 import           Control.Monad (when, unless)
 import qualified Data.Maybe as Mb
-import qualified Data.Map.Strict as Map
 import qualified Data.List  as L 
 import qualified Control.Exception as Ex
 import qualified Language.Haskell.Liquid.UX.DiffCheck as DC
@@ -329,17 +328,16 @@ splitNontotalErrors cbs (F.Unsafe s xs)  = (mkRes r, injectMatchingTotalityError
     totalityAnnot _ = Nothing
 
     totalityAnnots
-        = Map.fromList
-        . fmap (Bif.first $ \rss -> RealSrcSpan rss Nothing)
+        = fmap (Bif.first $ \rss -> RealSrcSpan rss Nothing)
         . Mb.catMaybes
         . fmap totalityAnnot
         $ ticks cbs
 
     errorMatchesTotalityAnnot :: Cinfo -> Bool
-    errorMatchesTotalityAnnot ci = Map.member (ci_loc ci) totalityAnnots
+    errorMatchesTotalityAnnot ci = Mb.isJust $ lookup (ci_loc ci) totalityAnnots
 
     injectMatchingTotalityError :: Cinfo -> Cinfo
-    injectMatchingTotalityError ci = case Map.lookup (ci_loc ci) totalityAnnots of
+    injectMatchingTotalityError ci = case lookup (ci_loc ci) totalityAnnots of
         Just s -> ci { ci_err = Just ErrOther { pos = ci_loc ci, msg = text $ s } }
         Nothing -> ci
 
