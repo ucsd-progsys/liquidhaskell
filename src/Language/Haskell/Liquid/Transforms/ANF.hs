@@ -221,7 +221,7 @@ normalize γ (Case e x t as)
        x'    <- lift $ freshNormalVar γ τx -- rename "wild" to avoid shadowing
        let γ' = extendAnfEnv γ x x'
        as'   <- forM as $ \(c, xs, e') -> fmap (c, xs,) (stitch (incrCaseDepth c γ') e')
-       as''  <- lift . expandDefaultCase γ τx $ replaceDefaultCaseBody t as'
+       as''  <- lift $ expandDefaultCase γ τx $ replaceDefaultCaseBody γ t as'
        return $ Case n x' t as''
     where τx = GM.expandVarType x
 
@@ -294,10 +294,11 @@ normalizePattern γ p@(Rs.PatSelfRecBind {}) = do
   e'    <- normalize γ (Rs.patE p)
   return $ Rs.lower p { Rs.patE = e' }
 
-replaceDefaultCaseBody :: Type -> [(AltCon, a, CoreExpr)] -> [(AltCon, a, CoreExpr)]
-replaceDefaultCaseBody t ((DEFAULT, as, _body) : dcs)
-    | t == Ghc.unitTy      = ((DEFAULT, as, Ghc.Var Ghc.unitDataConId) : dcs)
-replaceDefaultCaseBody _ z = z
+replaceDefaultCaseBody :: AnfEnv -> Type -> [(AltCon, a, CoreExpr)] -> [(AltCon, a, CoreExpr)]
+replaceDefaultCaseBody γ t ((DEFAULT, as, _body) : dcs)
+    | t == Ghc.unitTy && totalityCheck γ =
+        ((DEFAULT, as, Ghc.Var Ghc.unitDataConId) : dcs)
+replaceDefaultCaseBody _ _ z = z
 
 --------------------------------------------------------------------------------
 expandDefault :: AnfEnv -> Bool
