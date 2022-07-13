@@ -17,7 +17,6 @@
 - ignore: {name: "Use /="} # 1 hint
 - ignore: {name: "Use <&>"} # 3 hints
 - ignore: {name: "Use camelCase"} # 61 hints
-- ignore: {name: "Use catMaybes"} # 1 hint
 - ignore: {name: "Use concatMap"} # 4 hints
 - ignore: {name: "Use const"} # 5 hints
 - ignore: {name: "Use fewer LANGUAGE pragmas"} # 2 hints
