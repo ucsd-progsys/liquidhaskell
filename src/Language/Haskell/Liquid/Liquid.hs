@@ -325,7 +325,7 @@ splitNontotalErrors cbs (F.Unsafe s xs)  = (mkRes r, injectMatchingTotalityError
     (rtots,r) = L.partition (errorMatchesTotalityAnnot . snd) xs -- partition to those which match something in tts
 
     totalityAnnot :: Tickish Id -> Maybe (RealSrcSpan, String)
-    totalityAnnot (SourceNote span note) | "Totality error:" `L.isPrefixOf` note = Just (span, note)
+    totalityAnnot (SourceNote sp note) | "Totality error:" `L.isPrefixOf` note = Just (sp, note)
     totalityAnnot _ = Nothing
 
     totalityAnnots
