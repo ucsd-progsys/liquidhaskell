@@ -684,12 +684,12 @@ getRewriteErrors (rw, t)
                 ++ show rw
                 ++ " as a rewrite because it does not prove an equality, or the equality it proves is trivial." ]
   | otherwise
-  = refErrs ++ if cannotInstantiate then
-        [ErrRewrite (GM.fSrcSpan t) $
+  = refErrs ++
+      [ ErrRewrite (GM.fSrcSpan t) $
         text $ "Could not generate any rewrites from equality. Likely causes: "
         ++ "\n - There are free (uninstantiatable) variables on both sides of the "
-        ++ "equality\n - The rewrite would diverge"]
-        else []
+        ++ "equality\n - The rewrite would diverge"
+      | cannotInstantiate]
     where
         refErrs = map getInnerRefErr (filter (hasInnerRefinement . fst) (zip tyArgs syms))
         allowedRWs = [ (lhs, rhs) | (lhs , rhs) <- refinementEQs t
