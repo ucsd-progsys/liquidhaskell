@@ -10,7 +10,7 @@ import Prelude hiding (error)
 import           Control.Arrow       ((***))
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
-import qualified Data.Maybe          as Mb 
+import qualified Data.Maybe          as Mb
 
 import Language.Haskell.Liquid.GHC.API as Ghc hiding (substTysWith, panic,showPpr)
 import Language.Haskell.Liquid.GHC.Misc ()
@@ -26,11 +26,11 @@ import Language.Haskell.Liquid.Types.Variance
 -- then (T,(Di, Dj)) will appear in the result list.  
 
 getNonPositivesTyCon :: [TyCon] -> [(TyCon, [DataCon])]
-getNonPositivesTyCon tcs = Mb.catMaybes $ map go (M.toList $ makeOccurrences tcs)
-  where 
-    go (tc,dcocs) = case filter (\(_,occ) -> elem tc (negOcc occ)) dcocs of  
+getNonPositivesTyCon tcs = Mb.mapMaybe go (M.toList $ makeOccurrences tcs)
+  where
+    go (tc,dcocs) = case filter (\(_,occ) -> elem tc (negOcc occ)) dcocs of
                       [] -> Nothing
-                      xs -> Just (tc, fst <$> xs) 
+                      xs -> Just (tc, fst <$> xs)
 
 
 -- OccurrenceMap maps type constructors to their TyConOccurrence. 
@@ -47,17 +47,17 @@ getNonPositivesTyCon tcs = Mb.catMaybes $ map go (M.toList $ makeOccurrences tcs
 -- For positivity check, ultimately we only care about self occurences, 
 -- but we keep track of all the TyCons for the mutually inductive data types. 
 -- We separate the occurences per data constructor only to provide better error messages. 
-type OccurrenceMap = M.HashMap TyCon [(DataCon, TyConOccurrence)] 
+type OccurrenceMap = M.HashMap TyCon [(DataCon, TyConOccurrence)]
 
-data TyConOccurrence 
+data TyConOccurrence
     = TyConOcc { posOcc :: [TyCon] -- TyCons that occur in positive positions
                , negOcc :: [TyCon] -- TyCons that occur in negative positions
                }
   deriving Eq
 
-instance Monoid TyConOccurrence where 
-  mempty = TyConOcc mempty mempty 
-instance Semigroup TyConOccurrence where 
+instance Monoid TyConOccurrence where
+  mempty = TyConOcc mempty mempty
+instance Semigroup TyConOccurrence where
   TyConOcc p1 n1 <> TyConOcc p2 n2 = TyConOcc (L.nub (p1 <> p2)) (L.nub (n1 <> n2))
 instance Outputable TyConOccurrence where
   ppr (TyConOcc pos neg) = text "pos" <+> ppr pos <+>  text "neg" <+> ppr neg
@@ -67,20 +67,20 @@ instance Outputable OccurrenceMap where
   ppr m = ppr (M.toList m)
 
 
-makeOccurrences :: [TyCon] -> OccurrenceMap 
-makeOccurrences tycons 
-  = let m0 = M.fromList [(tc, map (\dc -> (dc, makeOccurrence tcInfo (dctypes dc))) (tyConDataCons tc)) 
+makeOccurrences :: [TyCon] -> OccurrenceMap
+makeOccurrences tycons
+  = let m0 = M.fromList [(tc, map (\dc -> (dc, makeOccurrence tcInfo (dctypes dc))) (tyConDataCons tc))
                         | tc <- tycons']
     -- fixpoint to find occurrences of mutually recursive data definitons
-    in fix (\m -> foldl merge m tycons') m0 
-  where 
-    fix f x = let x' = f x in if x == x' then x else fix f x' 
+    in fix (\m -> foldl merge m tycons') m0
+  where
+    fix f x = let x' = f x in if x == x' then x else fix f x'
     tcInfo = M.fromList $ zip tycons' (makeTyConVariance <$> tycons')
-    merge m tc = M.update (mergeList m) tc m 
+    merge m tc = M.update (mergeList m) tc m
     mergeList m xs = Just [(dc, mergeApp m am) | (dc,am) <- xs]
-    mergeApp m (TyConOcc pos neg) = 
+    mergeApp m (TyConOcc pos neg) =
         let TyConOcc pospos posneg = mconcat (findOccurrence m <$> pos)
-            TyConOcc negpos negneg = mconcat (findOccurrence m <$> neg) 
+            TyConOcc negpos negneg = mconcat (findOccurrence m <$> neg)
         -- Keep positive, flip negative 
         in TyConOcc (L.nub (pos <> pospos <> negneg)) (L.nub (neg <> negpos <> posneg))
 
@@ -89,38 +89,38 @@ makeOccurrences tycons
     dctypes    dc = irrelevantMult <$> dataConOrigArgTys dc
 
     -- Construct the map for all TyCons that appear in the definitions 
-    tycons' = L.nub (concatMap tcs (concat (tycontypes <$> tycons)) ++ tycons) 
+    tycons' = L.nub (concatMap tcs (concat (tycontypes <$> tycons)) ++ tycons)
 
     tcs (TyConApp tc' ts) = tc': concatMap tcs ts
-    tcs (AppTy t1 t2)     = tcs t1 ++ tcs t2 
-    tcs (ForAllTy _ t)    = tcs t 
-    tcs (FunTy _ _ t1 t2) = tcs t1 ++ tcs t2 
-    tcs (TyVarTy _ )      = [] 
-    tcs (LitTy _)         = [] 
-    tcs (CastTy _ _)      = [] 
-    tcs (CoercionTy _)    = []  
+    tcs (AppTy t1 t2)     = tcs t1 ++ tcs t2
+    tcs (ForAllTy _ t)    = tcs t
+    tcs (FunTy _ _ t1 t2) = tcs t1 ++ tcs t2
+    tcs (TyVarTy _ )      = []
+    tcs (LitTy _)         = []
+    tcs (CastTy _ _)      = []
+    tcs (CoercionTy _)    = []
 
-makeOccurrence :: M.HashMap TyCon VarianceInfo -> [Type] -> TyConOccurrence 
+makeOccurrence :: M.HashMap TyCon VarianceInfo -> [Type] -> TyConOccurrence
 makeOccurrence tcInfo = foldl (go Covariant) mempty
-  where 
+  where
     go :: Variance -> TyConOccurrence -> Type -> TyConOccurrence
-    go p m (TyConApp tc ts)  = addOccurrence p tc 
-                             $ foldl (\m' (t, v) -> go (v <> p) m' t) m 
-                                (zip ts (M.lookupDefault (repeat Bivariant) tc tcInfo)) 
-    go _ m (TyVarTy _ )      = m 
-    go _ m (AppTy t1 t2)     = go Bivariant (go Bivariant m t1) t2  
-    go p m (ForAllTy _ t)    = go p m t 
-    go p m (FunTy _ _ t1 t2) = go p (go (flipVariance p) m t1) t2 
-    go _ m (LitTy _)         = m 
-    go _ m (CastTy _ _)      = m  
-    go _ m (CoercionTy _)    = m   
+    go p m (TyConApp tc ts)  = addOccurrence p tc
+                             $ foldl (\m' (t, v) -> go (v <> p) m' t) m
+                                (zip ts (M.lookupDefault (repeat Bivariant) tc tcInfo))
+    go _ m (TyVarTy _ )      = m
+    go _ m (AppTy t1 t2)     = go Bivariant (go Bivariant m t1) t2
+    go p m (ForAllTy _ t)    = go p m t
+    go p m (FunTy _ _ t1 t2) = go p (go (flipVariance p) m t1) t2
+    go _ m (LitTy _)         = m
+    go _ m (CastTy _ _)      = m
+    go _ m (CoercionTy _)    = m
 
-    addOccurrence p tc (TyConOcc pos neg) 
-      = case p of 
-         Covariant     -> TyConOcc (L.nub (tc:pos)) neg  
-         Contravariant -> TyConOcc pos (L.nub (tc:neg))  
-         Bivariant     -> TyConOcc (L.nub (tc:pos)) (L.nub (tc:neg))  
-         Invariant     -> TyConOcc pos neg 
+    addOccurrence p tc (TyConOcc pos neg)
+      = case p of
+         Covariant     -> TyConOcc (L.nub (tc:pos)) neg
+         Contravariant -> TyConOcc pos (L.nub (tc:neg))
+         Bivariant     -> TyConOcc (L.nub (tc:pos)) (L.nub (tc:neg))
+         Invariant     -> TyConOcc pos neg
 
 findOccurrence :: OccurrenceMap -> TyCon -> TyConOccurrence
 findOccurrence m tc = mconcat (snd <$> M.lookupDefault mempty tc m)
@@ -128,23 +128,23 @@ findOccurrence m tc = mconcat (snd <$> M.lookupDefault mempty tc m)
 
 
 
-isRecursivenewTyCon :: TyCon -> Bool 
-isRecursivenewTyCon c 
+isRecursivenewTyCon :: TyCon -> Bool
+isRecursivenewTyCon c
   | not (isNewTyCon c)
-  = False 
-isRecursivenewTyCon c 
-  = go t 
-  where 
+  = False
+isRecursivenewTyCon c
+  = go t
+  where
     t = snd $ newTyConRhs c
-    go (AppTy t1 t2)      = go t1 || go t2 
-    go (TyConApp c' ts)   = c == c' || any go ts 
-    go (ForAllTy _ t1)    = go t1 
+    go (AppTy t1 t2)      = go t1 || go t2
+    go (TyConApp c' ts)   = c == c' || any go ts
+    go (ForAllTy _ t1)    = go t1
     go (FunTy _ _ t1 t2)  = go t1 || go t2
-    go (CastTy t1 _)      = go t1 
-    go _                  = False   
-  
+    go (CastTy t1 _)      = go t1
+    go _                  = False
 
-isHoleVar :: Var -> Bool 
+
+isHoleVar :: Var -> Bool
 isHoleVar x = L.isPrefixOf "_" (show x)
 
 dataConImplicitIds :: DataCon -> [Id]
@@ -218,23 +218,23 @@ substTysWith s (TyConApp c ts)     = TyConApp c (map (substTysWith s) ts)
 substTysWith s (AppTy t1 t2)       = AppTy (substTysWith s t1) (substTysWith s t2)
 substTysWith _ (LitTy t)           = LitTy t
 substTysWith s (CastTy t c)        = CastTy (substTysWith s t) c
-substTysWith _ (CoercionTy c)      = CoercionTy c 
+substTysWith _ (CoercionTy c)      = CoercionTy c
 
 substExpr :: M.HashMap Var Var -> CoreExpr -> CoreExpr
-substExpr s = go 
+substExpr s = go
   where
     subsVar v                = M.lookupDefault v v s
     go (Var v)               = Var $ subsVar v
-    go (Lit l)               = Lit l 
-    go (App e1 e2)           = App (go e1) (go e2) 
+    go (Lit l)               = Lit l
+    go (App e1 e2)           = App (go e1) (go e2)
     go (Lam x e)             = Lam (subsVar x) (go e)
-    go (Let (NonRec x ex) e) = Let (NonRec (subsVar x) (go ex)) (go e) 
+    go (Let (NonRec x ex) e) = Let (NonRec (subsVar x) (go ex)) (go e)
     go (Let (Rec xes) e)     = Let (Rec [(subsVar x', go e') | (x',e') <- xes]) (go e)
     go (Case e b t alts)     = Case (go e) (subsVar b) t [(c, subsVar <$> xs, go e') | (c, xs, e') <- alts]
-    go (Cast e c)            = Cast (go e) c 
+    go (Cast e c)            = Cast (go e) c
     go (Tick t e)            = Tick t (go e)
-    go (Type t)              = Type t 
-    go (Coercion c)          = Coercion c 
+    go (Type t)              = Type t
+    go (Coercion c)          = Coercion c
 
 mapType :: (Type -> Type) -> Type -> Type
 mapType f = go
@@ -246,11 +246,11 @@ mapType f = go
     go (ForAllTy v t)       = f $ ForAllTy v (go t)
     go t@(LitTy _)          = f t
     go (CastTy t c)         = CastTy (go t) c
-    go (CoercionTy c)       = f $ CoercionTy c 
+    go (CoercionTy c)       = f $ CoercionTy c
 
 
 stringClassArg :: Type -> Maybe Type
-stringClassArg t | isFunTy t 
+stringClassArg t | isFunTy t
   = Nothing
 stringClassArg t
   = case (tyConAppTyCon_maybe t, tyConAppArgs_maybe t) of

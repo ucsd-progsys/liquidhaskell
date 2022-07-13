@@ -18,7 +18,7 @@ module Language.Haskell.Liquid.Constraint.Init (
 
 import           Prelude                                       hiding (error, undefined)
 import           Control.Monad.State
-import           Data.Maybe                                    (isNothing, fromMaybe, catMaybes)
+import           Data.Maybe                                    (isNothing, fromMaybe, catMaybes, mapMaybe)
 import qualified Data.HashMap.Strict                           as M
 import qualified Data.HashSet                                  as S
 import qualified Data.List                                     as L
@@ -102,7 +102,7 @@ makeAutoDecrDataCons dcts specenv dcs
   = (simplify invs, tys)
   where
     (invs, tys) = unzip $ concatMap go tycons
-    tycons      = L.nub $ catMaybes $ map idTyCon dcs
+    tycons      = L.nub $ mapMaybe idTyCon dcs
 
     go tycon
       | S.member tycon specenv =  zipWith (makeSizedDataCons dcts) (tyConDataCons tycon) [0..]

@@ -253,8 +253,8 @@ dataConDecl d     = {- F.notracepp msg $ -} DataCtor dx (F.symbol <$> as) [] xts
 
 makeMeasureSelectors :: Config -> Bare.DataConMap -> Located DataConP -> [Measure SpecType Ghc.DataCon]
 makeMeasureSelectors cfg dm (Loc l l' c)
-  = Misc.condNull (exactDCFlag cfg) (checker : Mb.catMaybes (go' <$> fields)) --  internal measures, needed for reflection
- ++ Misc.condNull autofields (Mb.catMaybes (go  <$> fields)) --  user-visible measures.
+  = Misc.condNull (exactDCFlag cfg) (checker : Mb.mapMaybe go' fields) --  internal measures, needed for reflection
+ ++ Misc.condNull autofields (Mb.mapMaybe go fields) --  user-visible measures.
   where
     dc         = dcpCon    c
     isGadt     = dcpIsGadt c

@@ -34,7 +34,7 @@ import           Language.Haskell.Liquid.GHC.API                   as Ghc hiding
 import           Language.Haskell.Liquid.GHC.TypeRep           ()
 import           Text.PrettyPrint.HughesPJ hiding ((<>))
 import           Control.Monad.State
-import           Data.Maybe                                    (fromMaybe, catMaybes, isJust)
+import           Data.Maybe                                    (fromMaybe, catMaybes, isJust, mapMaybe)
 import qualified Data.HashMap.Strict                           as M
 import qualified Data.HashSet                                  as S
 import qualified Data.List                                     as L
@@ -333,7 +333,7 @@ consCBWithExprs :: CGEnv -> [(Var, CoreExpr)] -> CG CGEnv
 consCBWithExprs γ xes
   = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        texprs    <- termExprs <$> get
-       let xtes   = catMaybes $ (`lookup` texprs) <$> xs
+       let xtes   = mapMaybe (`lookup` texprs) xs
        let ts    = safeFromAsserted err . thd3 <$> xets
        ts'      <- mapM refreshArgs ts
        let xts   = zip xs (Asserted <$> ts')
@@ -382,7 +382,7 @@ consCB :: Bool -> Bool -> CGEnv -> CoreBind -> CG CGEnv
 consCB True _ γ (Rec xes)
   = do texprs <- termExprs <$> get
        modify $ \i -> i { recCount = recCount i + length xes }
-       let xxes = catMaybes $ (`lookup` texprs) <$> xs
+       let xxes = mapMaybe (`lookup` texprs) xs
        if null xxes
          then consCBSizedTys γ xes
          else check xxes <$> consCBWithExprs γ xes
