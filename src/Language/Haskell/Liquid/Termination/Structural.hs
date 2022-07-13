@@ -29,7 +29,7 @@ terminationVars info = failingBinds info >>= allBoundVars
 
 failingBinds :: TargetInfo -> [CoreBind]
 failingBinds info = filter (hasErrors . checkBind) structBinds
-  where 
+  where
     structCheckWholeProgram = structuralTerm info
     program = giCbs . giSrc $ info
     structFuns = gsStTerm . gsTerm . giSpec $ info
@@ -61,7 +61,7 @@ nextBinds :: CoreExpr -> [CoreBind]
 nextBinds = \case
   App e a -> nextBinds e ++ nextBinds a
   Lam _ e -> nextBinds e
-  Let b e -> [b] ++ nextBinds e
+  Let b e -> b : nextBinds e
   Case scrut _ _ alts -> nextBinds scrut ++ ([body | (_, _, body) <- alts] >>= nextBinds)
   Cast e _ -> nextBinds e
   Tick _ e -> nextBinds e
@@ -79,7 +79,7 @@ data Result a = Result
   , resultErrors :: [TermError]
   } deriving (Show)
 
-data TermError = TE 
+data TermError = TE
   { teVar   :: Var
   , teError :: UserError
   } deriving (Show)

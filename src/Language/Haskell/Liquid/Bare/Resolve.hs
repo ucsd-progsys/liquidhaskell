@@ -269,10 +269,7 @@ srcVars src = filter Ghc.isId .  fmap Misc.thd3 . Misc.fstByRank $ concat
     _dump msg x = fst . myTracepp msg $ (x, RT.ofType (Ghc.expandTypeSynonyms (Ghc.varType x)) :: SpecType)
 
 dataConVars :: [Ghc.DataCon] -> [Ghc.Var]
-dataConVars dcs = concat
-  [ Ghc.dataConWorkId <$> dcs
-  , Ghc.dataConWrapId <$> dcs
-  ]
+dataConVars dcs = (Ghc.dataConWorkId <$> dcs) ++ (Ghc.dataConWrapId <$> dcs)
 
 -------------------------------------------------------------------------------
 -- | Qualify various names 

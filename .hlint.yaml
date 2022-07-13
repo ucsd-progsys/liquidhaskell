@@ -16,9 +16,7 @@
 - ignore: {name: "Redundant return"} # 3 hints
 - ignore: {name: "Replace case with fromMaybe"} # 2 hints
 - ignore: {name: "Unused LANGUAGE pragma"} # 9 hints
-- ignore: {name: "Use ++"} # 1 hint
 - ignore: {name: "Use /="} # 1 hint
-- ignore: {name: "Use :"} # 1 hint
 - ignore: {name: "Use <$>"} # 10 hints
 - ignore: {name: "Use <&>"} # 3 hints
 - ignore: {name: "Use =<<"} # 1 hint
@@ -26,7 +24,6 @@
 - ignore: {name: "Use catMaybes"} # 1 hint
 - ignore: {name: "Use concatMap"} # 4 hints
 - ignore: {name: "Use const"} # 5 hints
-- ignore: {name: "Use elemIndex"} # 2 hints
 - ignore: {name: "Use fewer LANGUAGE pragmas"} # 2 hints
 - ignore: {name: "Use first"} # 1 hint
 - ignore: {name: "Use fmap"} # 65 hints
