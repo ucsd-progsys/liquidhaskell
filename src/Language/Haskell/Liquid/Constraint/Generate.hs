@@ -303,7 +303,7 @@ consCBSizedTys γ xes
        let vs    = zipWith collectArgs ts es
        is       <- mapM makeDecrIndex (zip3 xs ts vs) >>= checkSameLens
        let xeets = (\vis -> [(vis, x) | x <- zip3 xs is $ map unTemplate ts]) <$> zip vs is
-       _ <- (L.transpose <$> mapM checkIndex (zip4 xs vs ts is)) >>= checkEqTypes
+       _ <- mapM checkIndex (zip4 xs vs ts is) >>= checkEqTypes . L.transpose
        let rts   = (recType autoenv <$>) <$> xeets
        let xts   = zip xs ts
        γ'       <- foldM extender γ xts

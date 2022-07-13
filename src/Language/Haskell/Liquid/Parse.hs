@@ -612,7 +612,7 @@ propositionSortP :: Parser [(Symbol, BSort)]
 propositionSortP = map (Misc.mapSnd toRSort) <$> propositionTypeP
 
 propositionTypeP :: Parser [(Symbol, BareType)]
-propositionTypeP = either fail return =<< (mkPropositionType <$> bareTypeP)
+propositionTypeP = either fail return . mkPropositionType =<< bareTypeP
 
 mkPropositionType :: BareType -> Either String [(Symbol, BareType)]
 mkPropositionType t

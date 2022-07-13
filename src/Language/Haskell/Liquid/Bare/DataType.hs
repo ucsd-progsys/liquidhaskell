@@ -719,7 +719,7 @@ strengthenClassSel v lt = lt { val = t }
   go (RAllT a t r) = RAllT a <$> go t <*> pure r
   go (RAllP p t  ) = RAllP p <$> go t
   go (RFun x i tx t r) | isEmbeddedClass tx =
-    RFun <$> pure x <*> return i <*> pure tx <*> go t <*> pure r
+    pure (RFun x) <*> return i <*> pure tx <*> go t <*> pure r
   go (RFun x i tx t r) = do
     x' <- unDummy x <$> reader fst
     r' <- singletonApp s <$> (L.reverse <$> reader snd)

@@ -82,7 +82,7 @@ freshTy_reftype allowTC k _t = (fixTy t >>= refresh allowTC) =>> addKVars k
 --   definitions, and also to update the KVar profile.
 addKVars        :: KVKind -> SpecType -> CG ()
 addKVars !k !t  = do
-    cfg <- getConfig  <$> gets ghcI
+    cfg <- gets (getConfig . ghcI)
     when True          $ modify $ \s -> s { kvProf = updKVProf k ks (kvProf s) }
     when (isKut cfg k) $ addKuts k t
   where
