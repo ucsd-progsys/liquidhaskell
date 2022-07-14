@@ -5,11 +5,11 @@
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.Haskell.Liquid.Types.Visitors (
-  
+
   CBVisitable (..)
-  
+
   -- * visitors
-  , coreVisitor 
+  , coreVisitor
   , CoreVisitor (..)
 
   ) where
@@ -72,7 +72,7 @@ instance CBVisitable (Expr Var) where
 exprFreeVars :: S.HashSet Id -> Expr Id -> [Id]
 exprFreeVars = go
   where
-    go env (Var x)         = if x `S.member` env then [] else [x]
+    go env (Var x)         = [x | not (x `S.member` env)]
     go env (App e a)       = go env e ++ go env a
     go env (Lam x e)       = go (extendEnv env [x]) e
     go env (Let b e)       = freeVars env b ++ go (extendEnv env (bindings b)) e
@@ -152,22 +152,22 @@ bindings (Rec  xes  ) = map fst xes
 ----------------------------------------------------------------------------------------
 -- | @BindVisitor@ allows for generic, context sensitive traversals over the @CoreBinds@ 
 ----------------------------------------------------------------------------------------
-data CoreVisitor env acc = CoreVisitor 
-  { envF  :: env -> Var             -> env 
-  , bindF :: env -> acc -> Var      -> acc  
-  , exprF :: env -> acc -> CoreExpr -> acc 
+data CoreVisitor env acc = CoreVisitor
+  { envF  :: env -> Var             -> env
+  , bindF :: env -> acc -> Var      -> acc
+  , exprF :: env -> acc -> CoreExpr -> acc
   }
 
-coreVisitor :: (CoreVisitor env acc) -> env -> acc -> [CoreBind] -> acc
-coreVisitor vis env acc cbs   = snd (foldl' step (env, acc) cbs) 
+coreVisitor :: CoreVisitor env acc -> env -> acc -> [CoreBind] -> acc
+coreVisitor vis env acc cbs   = snd (foldl' step (env, acc) cbs)
   where
-    stepXE (env, acc) (x,e)   = (env', stepE env' acc'   e)  
-      where 
-        env'                  = envF  vis env     x 
-        acc'                  = bindF vis env acc x  
+    stepXE (env, acc) (x,e)   = (env', stepE env' acc'   e)
+      where
+        env'                  = envF  vis env     x
+        acc'                  = bindF vis env acc x
 
-    step ea (NonRec x e)      = stepXE ea (x, e) 
-    step ea (Rec    xes)      = foldl' stepXE ea xes 
+    step ea (NonRec x e)      = stepXE ea (x, e)
+    step ea (Rec    xes)      = foldl' stepXE ea xes
 
     -- step (env, acc) (NonRec x e) = stepXE env acc x e 
     -- step (env, acc) (Rec    xes) = (env', foldl' (stepE env') acc' es) 
@@ -178,18 +178,18 @@ coreVisitor vis env acc cbs   = snd (foldl' step (env, acc) cbs)
         -- es                       = snd <$> xes
         -- foldl' (\(env, acc) (x, e) ->  )
 
-    stepE env acc e              = goE env (exprF vis env acc e) e 
+    stepE env acc e              = goE env (exprF vis env acc e) e
 
-    goE _   acc (Var _)          = acc 
-    goE env acc (App e1 e2)      = stepE  env (stepE env acc e1) e2 
-    goE env acc (Tick _ e)       = stepE  env acc e 
-    goE env acc (Cast e _)       = stepE  env acc e  
+    goE _   acc (Var _)          = acc
+    goE env acc (App e1 e2)      = stepE  env (stepE env acc e1) e2
+    goE env acc (Tick _ e)       = stepE  env acc e
+    goE env acc (Cast e _)       = stepE  env acc e
     goE env acc (Lam x e)        = snd (stepXE (env, acc) (x, e))
-    goE env acc (Let b e)        = stepE env' acc' e where (env', acc') = step (env, acc) b 
+    goE env acc (Let b e)        = stepE env' acc' e where (env', acc') = step (env, acc) b
     goE env acc (Case e _ _ cs)  = foldl' (goC env) (stepE env acc e) cs
-    goE _   acc _                = acc 
+    goE _   acc _                = acc
 
-    goC env acc (_, xs, e)       = stepE  env' acc' e 
+    goC env acc (_, xs, e)       = stepE  env' acc' e
       where
-        env'                     = foldl' (envF  vis)     env xs 
+        env'                     = foldl' (envF  vis)     env xs
         acc'                     = foldl' (bindF vis env) acc xs

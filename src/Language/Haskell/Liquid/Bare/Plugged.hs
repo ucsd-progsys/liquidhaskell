@@ -3,7 +3,7 @@
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
-module Language.Haskell.Liquid.Bare.Plugged 
+module Language.Haskell.Liquid.Bare.Plugged
   ( makePluggedSig
   , makePluggedDataCon
   ) where
@@ -16,16 +16,16 @@ import           Text.PrettyPrint.HughesPJ
 import qualified Control.Exception                 as Ex
 import qualified Data.HashMap.Strict               as M
 import qualified Data.HashSet                      as S
-import qualified Data.Maybe                        as Mb 
-import qualified Data.List                         as L 
+import qualified Data.Maybe                        as Mb
+import qualified Data.List                         as L
 import qualified Language.Fixpoint.Types           as F
 import qualified Language.Fixpoint.Types.Visitor   as F
-import qualified Language.Haskell.Liquid.GHC.Misc  as GM 
-import qualified Language.Haskell.Liquid.GHC.API   as Ghc 
+import qualified Language.Haskell.Liquid.GHC.Misc  as GM
+import qualified Language.Haskell.Liquid.GHC.API   as Ghc
 import           Language.Haskell.Liquid.GHC.Types (StableName, mkStableName)
 import           Language.Haskell.Liquid.Types.RefType ()
 import           Language.Haskell.Liquid.Types
-import qualified Language.Haskell.Liquid.Misc       as Misc 
+import qualified Language.Haskell.Liquid.Misc       as Misc
 import qualified Language.Haskell.Liquid.Bare.Types as Bare
 import qualified Language.Haskell.Liquid.Bare.Misc  as Bare
 
@@ -53,10 +53,10 @@ makePluggedSig :: Bool -> ModName -> F.TCEmb Ghc.TyCon -> TyConMap -> S.HashSet 
                -> Bare.PlugTV Ghc.Var -> LocSpecType
                -> LocSpecType
 
-makePluggedSig allowTC name embs tyi exports kx t 
-  | Just x <- kxv = mkPlug x 
+makePluggedSig allowTC name embs tyi exports kx t
+  | Just x <- kxv = mkPlug x
   | otherwise     = t
-  where 
+  where
     kxv           = Bare.plugSrc kx
     mkPlug x      = plugHoles allowTC kx embs tyi  r τ t
       where
@@ -71,7 +71,7 @@ makePluggedSig allowTC name embs tyi exports kx t
 
 -- plugHoles _         = plugHoles_old
 
-plugHoles :: (Ghc.NamedThing a, PPrint a, Show a) 
+plugHoles :: (Ghc.NamedThing a, PPrint a, Show a)
           => Bool
           -> Bare.PlugTV a
           -> F.TCEmb Ghc.TyCon
@@ -80,37 +80,37 @@ plugHoles :: (Ghc.NamedThing a, PPrint a, Show a)
           -> Ghc.Type
           -> LocSpecType
           -> LocSpecType
-plugHoles allowTC (Bare.HsTV x) a b = plugHoles_old allowTC a b x 
-plugHoles allowTC (Bare.LqTV x) a b = plugHoles_new allowTC a b x 
+plugHoles allowTC (Bare.HsTV x) a b = plugHoles_old allowTC a b x
+plugHoles allowTC (Bare.LqTV x) a b = plugHoles_new allowTC a b x
 plugHoles _ _                   _ _ = \_ _ t -> t
 
 
 makePluggedDataCon :: Bool -> F.TCEmb Ghc.TyCon -> Bare.TyConMap -> Located DataConP -> Located DataConP
-makePluggedDataCon allowTC embs tyi ldcp 
+makePluggedDataCon allowTC embs tyi ldcp
   | mismatchFlds      = Ex.throw (err "fields") -- (err $  "fields:" <+> F.pprint (length dts) <+> " vs " <+> F.pprint ( dcArgs))
   | mismatchTyVars    = Ex.throw (err "type variables")
-  | otherwise         = F.atLoc ldcp $ F.notracepp "makePluggedDataCon" $ dcp 
+  | otherwise         = F.atLoc ldcp $ F.notracepp "makePluggedDataCon" $ dcp
                           { dcpFreeTyVars = dcVars
-                          , dcpTyArgs     = reverse tArgs 
-                          , dcpTyRes      = tRes 
+                          , dcpTyArgs     = reverse tArgs
+                          , dcpTyRes      = tRes
                           }
-  where 
+  where
     (tArgs, tRes)     = plugMany allowTC  embs tyi ldcp (das, dts, dt) (dcVars, dcArgs, dcpTyRes dcp)
     (das, _, dts, dt) = {- F.notracepp ("makePluggedDC: " ++ F.showpp dc) $ -} Ghc.dataConSig dc
     dcArgs            = filter (not . (if allowTC then isEmbeddedClass else isClassType) . snd) $ reverse (dcpTyArgs dcp)
-    dcVars            = if isGADT 
-                          then padGADVars $ L.nub (dcpFreeTyVars dcp ++ (concatMap (map ty_var_value . freeTyVars) (dcpTyRes dcp:(snd <$> dcArgs))))
-                          else dcpFreeTyVars dcp 
+    dcVars            = if isGADT
+                          then padGADVars $ L.nub (dcpFreeTyVars dcp ++ concatMap (map ty_var_value . freeTyVars) (dcpTyRes dcp:(snd <$> dcArgs)))
+                          else dcpFreeTyVars dcp
     dc                = dcpCon        dcp
-    dcp               = val           ldcp 
+    dcp               = val           ldcp
 
     isGADT            = Ghc.isGadtSyntaxTyCon $ Ghc.dataConTyCon dc
 
     -- hack to match LH and GHC GADT vars, since it is unclear how ghc generates free vars 
     padGADVars vs = (RTV <$> take (length das - length vs) das) ++ vs
 
-    mismatchFlds      = length dts /= length dcArgs 
-    mismatchTyVars    = length das /= length dcVars 
+    mismatchFlds      = length dts /= length dcArgs
+    mismatchTyVars    = length das /= length dcVars
     err things        = ErrBadData (GM.fSrcSpan dcp) (pprint dc) ("GHC and Liquid specifications have different numbers of" <+> things) :: UserError
 
 
@@ -129,29 +129,29 @@ makePluggedDataCon allowTC embs tyi ldcp
 -- 
 --   and not, forall b. a -> a -> Bool.
 
-plugMany :: Bool -> F.TCEmb Ghc.TyCon -> Bare.TyConMap 
-         -> Located DataConP            
+plugMany :: Bool -> F.TCEmb Ghc.TyCon -> Bare.TyConMap
+         -> Located DataConP
          -> ([Ghc.Var], [Ghc.Type],             Ghc.Type)   -- ^ hs type 
          -> ([RTyVar] , [(F.Symbol, SpecType)], SpecType)   -- ^ lq type 
          -> ([(F.Symbol, SpecType)], SpecType)              -- ^ plugged lq type
-plugMany allowTC embs tyi ldcp (hsAs, hsArgs, hsRes) (lqAs, lqArgs, lqRes) 
-                     = F.notracepp msg (drop nTyVars (zip xs ts), t) 
-  where 
-    (_,(xs,_,ts,_), t) = bkArrow (val pT) 
+plugMany allowTC embs tyi ldcp (hsAs, hsArgs, hsRes) (lqAs, lqArgs, lqRes)
+                     = F.notracepp msg (drop nTyVars (zip xs ts), t)
+  where
+    (_,(xs,_,ts,_), t) = bkArrow (val pT)
     pT               = plugHoles allowTC (Bare.LqTV dcName) embs tyi (const killHoles) hsT (F.atLoc ldcp lqT)
-    hsT              = foldr (Ghc.mkFunTy Ghc.VisArg Ghc.Many) hsRes hsArgs' 
-    lqT              = foldr (uncurry (rFun' (classRFInfo allowTC))) lqRes lqArgs' 
-    hsArgs'          = [ Ghc.mkTyVarTy a               | a <- hsAs] ++ hsArgs 
-    lqArgs'          = [(F.dummySymbol, RVar a mempty) | a <- lqAs] ++ lqArgs 
+    hsT              = foldr (Ghc.mkFunTy Ghc.VisArg Ghc.Many) hsRes hsArgs'
+    lqT              = foldr (uncurry (rFun' (classRFInfo allowTC))) lqRes lqArgs'
+    hsArgs'          = [ Ghc.mkTyVarTy a               | a <- hsAs] ++ hsArgs
+    lqArgs'          = [(F.dummySymbol, RVar a mempty) | a <- lqAs] ++ lqArgs
     nTyVars          = length hsAs -- == length lqAs
     dcName           = Ghc.dataConName . dcpCon . val $ ldcp
     msg              = "plugMany: " ++ F.showpp (dcName, hsT, lqT)
 
-plugHoles_old, plugHoles_new 
+plugHoles_old, plugHoles_new
   :: (Ghc.NamedThing a, PPrint a, Show a)
   => Bool
   -> F.TCEmb Ghc.TyCon
-  -> Bare.TyConMap 
+  -> Bare.TyConMap
   -> a
   -> (SpecType -> RReft -> RReft)
   -> Ghc.Type
@@ -159,102 +159,102 @@ plugHoles_old, plugHoles_new
   -> LocSpecType
 
 -- NOTE: this use of toType is safe as rt' is derived from t.
-plugHoles_old allowTC tce tyi x f t0 zz@(Loc l l' st0) 
-    = Loc l l' 
-    . mkArrow (zip (updateRTVar <$> αs') rs) ps' [] [] 
-    . makeCls cs' 
-    . goPlug tce tyi err f (subts su rt) 
-    . mapExprReft (\_ -> F.applyCoSub coSub) 
-    . subts su 
+plugHoles_old allowTC tce tyi x f t0 zz@(Loc l l' st0)
+    = Loc l l'
+    . mkArrow (zip (updateRTVar <$> αs') rs) ps' [] []
+    . makeCls cs'
+    . goPlug tce tyi err f (subts su rt)
+    . mapExprReft (\_ -> F.applyCoSub coSub)
+    . subts su
     $ st
-  where 
+  where
     tyvsmap      = case Bare.runMapTyVars allowTC (toType False rt) st err of
-                          Left e  -> Ex.throw e 
+                          Left e  -> Ex.throw e
                           Right s -> Bare.vmap s
     su           = [(y, rTyVar x)           | (x, y) <- tyvsmap]
     su'          = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
     coSub        = M.fromList [(F.symbol y, F.FObj (F.symbol x)) | (y, x) <- su]
     ps'          = fmap (subts su') <$> ps
-    cs'          = [(F.dummySymbol, RApp c ts [] mempty) | (c, ts) <- cs ] 
+    cs'          = [(F.dummySymbol, RApp c ts [] mempty) | (c, ts) <- cs ]
     (αs', rs)    = unzip αs
     (αs,_,cs,rt) = bkUnivClass (F.notracepp "hs-spec" $ ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
     (_,ps,_ ,st) = bkUnivClass (F.notracepp "lq-spec" st0)
 
     makeCls cs t = foldr (uncurry (rFun' (classRFInfo allowTC))) t cs
-    err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
+    err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint x)
                           (text "Plugged Init types old")
                           (pprint $ Ghc.expandTypeSynonyms t0)
                           (pprint $ toRSort st0)
                           (Just (hsT, lqT))
-                          (Ghc.getSrcSpan x) 
+                          (Ghc.getSrcSpan x)
 
 
 
-plugHoles_new allowTC@False tce tyi x f t0 zz@(Loc l l' st0) 
-    = Loc l l' 
-    . mkArrow (zip (updateRTVar <$> as'') rs) ps [] [] 
-    . makeCls cs' 
-    . goPlug tce tyi err f rt' 
-    $ st 
-  where 
+plugHoles_new allowTC@False tce tyi x f t0 zz@(Loc l l' st0)
+    = Loc l l'
+    . mkArrow (zip (updateRTVar <$> as'') rs) ps [] []
+    . makeCls cs'
+    . goPlug tce tyi err f rt'
+    $ st
+  where
     rt'          = tx rt
     as''         = subRTVar su <$> as'
-    (as',rs)     = unzip as 
+    (as',rs)     = unzip as
     cs'          = [ (F.dummySymbol, ct) | (c, t) <- cs, let ct = tx (RApp c t [] mempty) ]
     tx           = subts su
     su           = case Bare.runMapTyVars allowTC (toType False rt) st err of
-                          Left e  -> Ex.throw e 
+                          Left e  -> Ex.throw e
                           Right s -> [ (rTyVar x, y) | (x, y) <- Bare.vmap s]
     (as,_,cs,rt) = bkUnivClass (ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
     (_,ps,_ ,st) = bkUnivClass st0
 
     makeCls cs t = foldr (uncurry (rFun' (classRFInfo allowTC))) t cs
-    err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
+    err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint x)
                           (text "Plugged Init types new")
                           (pprint $ Ghc.expandTypeSynonyms t0)
                           (pprint $ toRSort st0)
                           (Just (hsT, lqT))
-                          (Ghc.getSrcSpan x) 
+                          (Ghc.getSrcSpan x)
 
 
-plugHoles_new allowTC@True tce tyi x f t0 zz@(Loc l l' st0) 
-    = Loc l l' 
+plugHoles_new allowTC@True tce tyi x f t0 zz@(Loc l l' st0)
+    = Loc l l'
     . mkArrow (zip (updateRTVar <$> as'') rs) ps [] (if length cs > length cs' then cs else cs')
     -- . makeCls cs' 
-    . goPlug tce tyi err f rt' 
-    $ st 
-  where 
+    . goPlug tce tyi err f rt'
+    $ st
+  where
     rt'          = tx rt
     as''         = subRTVar su <$> as'
-    (as',rs)     = unzip as 
+    (as',rs)     = unzip as
     -- cs'          = [ (F.dummySymbol, ct) | (c, t) <- cs, let ct = tx (RApp c t [] mempty) ]
     tx           = subts su
     su           = case Bare.runMapTyVars allowTC (toType False rt) st err of
-                          Left e  -> Ex.throw e 
+                          Left e  -> Ex.throw e
                           Right s -> [ (rTyVar x, y) | (x, y) <- Bare.vmap s]
     (as,_,cs0,rt) = bkUnivClass' (ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
     (_,ps,cs0' ,st) = bkUnivClass' st0
     cs  = [ (x, classRFInfo allowTC, t, r) | (x,t,r)<-cs0]
     cs' = [ (x, classRFInfo allowTC, t, r) | (x,t,r)<-cs0']
 
-    err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
+    err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint x)
                           (text "Plugged Init types new")
                           (pprint $ Ghc.expandTypeSynonyms t0)
                           (pprint $ toRSort st0)
                           (Just (hsT, lqT))
-                          (Ghc.getSrcSpan x) 
+                          (Ghc.getSrcSpan x)
 
-subRTVar :: [(RTyVar, RTyVar)] -> SpecRTVar -> SpecRTVar 
+subRTVar :: [(RTyVar, RTyVar)] -> SpecRTVar -> SpecRTVar
 subRTVar su a@(RTVar v i) = Mb.maybe a (`RTVar` i) (lookup v su)
 
 goPlug :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> (Doc -> Doc -> Error) -> (SpecType -> RReft -> RReft) -> SpecType -> SpecType
        -> SpecType
-goPlug tce tyi err f = go 
+goPlug tce tyi err f = go
   where
     go t (RHole r) = (addHoles t') { rt_reft = f t r }
       where
         t'         = everywhere (mkT $ addRefs tce tyi) t
-        addHoles   = everywhere (mkT $ addHole)
+        addHoles   = everywhere (mkT addHole)
         -- NOTE: make sure we only add holes to RVar and RApp (NOT RFun)
         addHole :: SpecType -> SpecType
         addHole t@(RVar v _)       = RVar v (f t (uReft ("v", hole)))
@@ -273,7 +273,7 @@ goPlug tce tyi err f = go
     go (RAppTy t1 t2 _) (RAppTy t1' t2' r) = RAppTy     (go t1 t1') (go t2 t2') r
     -- zipWithDefM: if ts and ts' have different length then the liquid and haskell types are different.
     -- keep different types for now, as a pretty error message will be created at Bare.Check
-    go (RApp _ ts _ _)  (RApp c ts' p r)   
+    go (RApp _ ts _ _)  (RApp c ts' p r)
       | length ts == length ts'            = RApp c     (Misc.zipWithDef go ts $ Bare.matchKindArgs ts ts') p r
     go hsT lqT                             = Ex.throw (err (F.pprint hsT) (F.pprint lqT))
 

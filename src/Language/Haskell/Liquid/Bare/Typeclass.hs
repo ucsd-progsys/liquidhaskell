@@ -312,7 +312,7 @@ renameTvs rename t
   = RRTy (over (each % _2) (renameTvs rename) env) r obl (renameTvs rename ty)
   | RHole _ <- t
   = t
-  
+
 
 makeClassAuxTypes ::
      (SpecType -> Ghc.TcRn SpecType)
@@ -356,19 +356,19 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     elaboratedSig  <- flip addCoherenceOblig preft <$> elab fullSig
 
     let retSig =  mapExprReft (\_ -> substAuxMethod dfunSym methodsSet) (F.notracepp ("elaborated" ++ GM.showPpr method) elaboratedSig)
-    let tysub  = F.notracepp "tysub" $ M.fromList $ zip (F.notracepp "newtype-vars" $ allTyVars' (F.notracepp "new-type" $  retSig)) (F.notracepp "ghc-type-vars" (allTyVars' ((F.notracepp "ghc-type" $ ofType (Ghc.varType method)) :: SpecType)))
+    let tysub  = F.notracepp "tysub" $ M.fromList $ zip (F.notracepp "newtype-vars" $ allTyVars' (F.notracepp "new-type" retSig)) (F.notracepp "ghc-type-vars" (allTyVars' ((F.notracepp "ghc-type" $ ofType (Ghc.varType method)) :: SpecType)))
         cosub  = M.fromList [ (F.symbol a, F.fObj (GM.namedLocSymbol b)) |  (a,RTV b) <- M.toList tysub]
         tysubf x = F.notracepp ("cosub:" ++ F.showpp cosub) $ tysub ^. at x % non x
         subbedTy = mapReft (Bare.coSubRReft cosub) (renameTvs tysubf retSig)
     -- need to make the variable names consistent
-    pure (method, F.dummyLoc (F.notracepp ("vars:" ++ F.showpp (F.symbol <$> allTyVars' subbedTy)) $ subbedTy))
+    pure (method, F.dummyLoc (F.notracepp ("vars:" ++ F.showpp (F.symbol <$> allTyVars' subbedTy)) subbedTy))
 
   -- "is" is used as a shorthand for instance, following the convention of the Ghc api
   where
     -- recsel = F.symbol ("lq$recsel" :: String)
     (_,predTys,_,_) = Ghc.instanceSig inst
     dfunApped = F.mkEApp dfunSymL [F.eVar $ F.vv (Just i) | (i,_) <- zip [0,1..] predTys]
-    prefts  = L.reverse . take (length yts) $ fmap (F.notracepp "prefts" . Just . (flip MkUReft mempty) . mconcat) preftss ++ repeat Nothing
+    prefts  = L.reverse . take (length yts) $ fmap (F.notracepp "prefts" . Just . flip MkUReft mempty . mconcat) preftss ++ repeat Nothing
     preftss = F.notracepp "preftss" $ (fmap.fmap) (uncurry (GM.coherenceObligToRefE dfunApped)) (GM.buildCoherenceOblig cls)
     yts' = zip (fst <$> yts) (zip (snd <$> yts) prefts)
     cls = Mb.fromJust . Ghc.tyConClass_maybe $ Ghc.dataConTyCon (dcpCon dcp)

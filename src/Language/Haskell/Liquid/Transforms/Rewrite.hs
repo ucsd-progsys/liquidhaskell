@@ -44,9 +44,9 @@ import qualified Data.HashMap.Strict as M
 --------------------------------------------------------------------------------
 rewriteBinds :: Config -> [CoreBind] -> [CoreBind]
 rewriteBinds cfg
-  | simplifyCore cfg 
+  | simplifyCore cfg
   = fmap (normalizeTuples . rewriteBindWith tidyTuples . rewriteBindWith simplifyPatTuple)
-  | otherwise        
+  | otherwise
   = id
 
 simplifyCore :: Config -> Bool
@@ -88,23 +88,23 @@ tidyTuples e = Just $ evalState (go e) []
             Just bs' -> return (c, bs', substTuple bs' bs e)
             Nothing  -> do let bs' = mkAlive <$> bs
                            modify (((c,v),bs'):)
-                           return $ (c, bs', e)
+                           return (c, bs', e)
 
 
 
 normalizeTuples :: CoreBind -> CoreBind
-normalizeTuples b 
-  | NonRec x e <- b 
-  = NonRec x $ go e 
-  | Rec xes <- b 
-  = let (xs,es) = unzip xes in 
-    Rec $ zip xs (go <$> es) 
-  where 
+normalizeTuples b
+  | NonRec x e <- b
+  = NonRec x $ go e
+  | Rec xes <- b
+  = let (xs,es) = unzip xes in
+    Rec $ zip xs (go <$> es)
+  where
     go (Let (NonRec x ex) e)
-      | Case _ _ _ alts  <- unTickExpr ex 
-      , [(_, vs, Var z)] <- alts 
+      | Case _ _ _ alts  <- unTickExpr ex
+      , [(_, vs, Var z)] <- alts
       , z `elem` vs
-      = Let (NonRec z (go ex)) (substTuple [z] [x] (go e)) 
+      = Let (NonRec z (go ex)) (substTuple [z] [x] (go e))
     go (Let (NonRec x ex) e)
       = Let (NonRec x (go ex)) (go e)
     go (Let (Rec xes) e)
@@ -116,17 +116,17 @@ normalizeTuples b
     go (Case e b t alt)
       = Case (go e) b t (mapThd3 go <$> alt)
     go (Cast e c)
-      = Cast (go e) c 
+      = Cast (go e) c
     go (Tick t e)
       = Tick t (go e)
     go (Type t)
-      = Type t 
+      = Type t
     go (Coercion c)
       = Coercion c
     go (Lit l)
-      = Lit l 
+      = Lit l
     go (Var x)
-      = Var x 
+      = Var x
 
 
 --------------------------------------------------------------------------------
@@ -251,7 +251,7 @@ _tidyAlt :: Int -> Maybe CoreExpr -> Maybe CoreExpr
 
 _tidyAlt n (Just (Let (NonRec x e) rest))
   | Just (yes, e') <- takeBinds n rest
-  = Just $ Let (NonRec x e) $ foldl (\e (x, ex) -> Let (NonRec x ex) e) e' ((reverse $ go $ reverse yes))
+  = Just $ Let (NonRec x e) $ foldl (\e (x, ex) -> Let (NonRec x ex) e) e' (reverse $ go $ reverse yes)
 
   where
     go xes@((_, e):_) = let bs = grapBinds e in mapSnd (replaceBinds bs) <$> xes
@@ -313,8 +313,8 @@ matchTypes xes ts =  xN == tN
 
 isProjection :: CoreExpr -> Bool
 isProjection e = case lift e of
-                   Just (PatProject {}) -> True
-                   _                    -> False
+                   Just PatProject{} -> True
+                   _                 -> False
 
 --------------------------------------------------------------------------------
 -- | `hasTuple ys e` CHECKS if `e` contains a tuple that "looks like" (y1...yn)
@@ -412,7 +412,7 @@ replaceIrrefutPat' t e
 isIrrefutErrorVar :: Var -> Bool
 -- isIrrefutErrorVar _x = False -- Ghc.iRREFUT_PAT_ERROR_ID == x -- TODO:GHC-863
 isIrrefutErrorVar x = x == Ghc.pAT_ERROR_ID
- 
+
 --------------------------------------------------------------------------------
 -- | `substTuple xs ys e'` returns e' [y1 := x1,...,yn := xn]
 --------------------------------------------------------------------------------

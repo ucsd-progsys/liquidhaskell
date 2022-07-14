@@ -45,7 +45,7 @@ import           Language.Haskell.Liquid.GHC.API hiding ( panic
 import           Language.Haskell.Liquid.GHC.TypeRep ()
 import           Data.Hashable
 import qualified Data.HashMap.Strict             as M
-import qualified Data.Maybe                                 as Mb 
+import qualified Data.Maybe                                 as Mb
 import qualified Data.List         as L -- (foldl', partition)
 -- import           Data.List                       (nub)
 
@@ -53,7 +53,7 @@ import           Language.Fixpoint.Misc
 
 -- import           Language.Fixpoint.Types         hiding (Expr, Predicate)
 import qualified Language.Fixpoint.Types                    as F
-import qualified Language.Haskell.Liquid.GHC.API            as Ghc 
+import qualified Language.Haskell.Liquid.GHC.API            as Ghc
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.RefType hiding (generalize)
@@ -61,23 +61,23 @@ import           Language.Haskell.Liquid.Types.Types
 import           Data.Default
 
 makeTyConInfo :: F.TCEmb Ghc.TyCon -> [Ghc.TyCon] -> [TyConP] -> TyConMap
-makeTyConInfo tce fiTcs tcps = TyConMap 
+makeTyConInfo tce fiTcs tcps = TyConMap
   { tcmTyRTy    = tcM
-  , tcmFIRTy    = tcInstM 
+  , tcmFIRTy    = tcInstM
   , tcmFtcArity = arities
   }
-  where 
+  where
     tcM         = M.fromList [(tcpCon tcp, mkRTyCon tcp) | tcp <- tcps ]
-    tcInstM     = mkFInstRTyCon tce fiTcs tcM 
+    tcInstM     = mkFInstRTyCon tce fiTcs tcM
     arities     = safeFromList "makeTyConInfo" [ (c, length ts) | (c, ts) <- M.keys tcInstM ]
 
 mkFInstRTyCon :: F.TCEmb Ghc.TyCon -> [Ghc.TyCon] -> M.HashMap Ghc.TyCon RTyCon -> M.HashMap (Ghc.TyCon, [F.Sort]) RTyCon
-mkFInstRTyCon tce fiTcs tcm = M.fromList 
-  [ ((c, typeSort tce <$> ts), rtc) 
+mkFInstRTyCon tce fiTcs tcm = M.fromList
+  [ ((c, typeSort tce <$> ts), rtc)
     | fiTc    <- fiTcs
     , rtc     <- Mb.maybeToList (M.lookup fiTc tcm)
     , (c, ts) <- Mb.maybeToList (famInstArgs fiTc)
-  ] 
+  ]
 
 mkRTyCon ::  TyConP -> RTyCon
 mkRTyCon (TyConP _ tc αs' ps tyvariance predvariance size)
@@ -155,8 +155,8 @@ dataConResultTy dc αs t = mkFamilyTyConApp tc tArgs'
 meetWorkWrapRep :: DataCon -> SpecRep -> SpecRep -> SpecRep
 meetWorkWrapRep c workR wrapR
   | 0 <= pad
-  = workR { ty_binds = xs ++ (ty_binds wrapR)
-          , ty_args  = ts ++ zipWith F.meet ts' (ty_args wrapR) 
+  = workR { ty_binds = xs ++ ty_binds wrapR
+          , ty_args  = ts ++ zipWith F.meet ts' (ty_args wrapR)
           , ty_res   = strengthenRType (ty_res workR)    (ty_res  wrapR)
           , ty_preds = ty_preds wrapR
           }
@@ -183,7 +183,7 @@ dcWrapSpecType allowTC dc (DataConP _ _ vs ps cs yts rt _ _ _)
   where
     isCls    = Ghc.isClassTyCon $ Ghc.dataConTyCon dc
     (xs, ts) = unzip (reverse yts)
-    mkDSym z = (F.symbol z) `F.suffixSymbol` (F.symbol dc)
+    mkDSym z = F.symbol z `F.suffixSymbol` F.symbol dc
     ys       = mkDSym <$> xs
     tx _  []     []     []     = []
     tx su (x:xs) (y:ys) (t:ts) = (y, classRFInfo allowTC , if allowTC && isCls then t else F.subst (F.mkSubst su) t, mempty)
@@ -197,18 +197,18 @@ dcWrapSpecType allowTC dc (DataConP _ _ vs ps cs yts rt _ _ _)
     makeVars' = zip makeVars (repeat mempty)
 
 instance PPrint TyConP where
-  pprintTidy k tc = "data" <+> pprintTidy k (tcpCon tc) 
-                           <+> ppComm     k (tcpFreeTyVarsTy tc) 
-                           <+> ppComm     k (tcpFreePredTy   tc) 
+  pprintTidy k tc = "data" <+> pprintTidy k (tcpCon tc)
+                           <+> ppComm     k (tcpFreeTyVarsTy tc)
+                           <+> ppComm     k (tcpFreePredTy   tc)
       --  (parens $ hsep (punctuate comma (pprintTidy k <$> vs))) <+>
       -- (parens $ hsep (punctuate comma (pprintTidy k <$> ps))) <+>
       -- (parens $ hsep (punctuate comma (pprintTidy k <$> ls)))
 
-ppComm :: PPrint a => F.Tidy -> [a] -> Doc 
+ppComm :: PPrint a => F.Tidy -> [a] -> Doc
 ppComm k = parens . hsep . punctuate comma . fmap (pprintTidy k)
 
 
-    
+
 
 instance Show TyConP where
  show = showpp -- showSDoc . ppr
@@ -216,12 +216,12 @@ instance Show TyConP where
 instance PPrint DataConP where
   pprintTidy k (DataConP _ dc vs ps cs yts t isGadt mname _)
      =  pprintTidy k dc
-    <+> (parens $ hsep (punctuate comma (pprintTidy k <$> vs)))
-    <+> (parens $ hsep (punctuate comma (pprintTidy k <$> ps)))
-    <+> (parens $ hsep (punctuate comma (pprintTidy k <$> cs)))
-    <+> (parens $ hsep (punctuate comma (pprintTidy k <$> yts)))
-    <+> (pprintTidy k isGadt)
-    <+> (pprintTidy k mname)
+    <+> parens (hsep (punctuate comma (pprintTidy k <$> vs)))
+    <+> parens (hsep (punctuate comma (pprintTidy k <$> ps)))
+    <+> parens (hsep (punctuate comma (pprintTidy k <$> cs)))
+    <+> parens (hsep (punctuate comma (pprintTidy k <$> yts)))
+    <+> pprintTidy k isGadt
+    <+> pprintTidy k mname
     <+>  pprintTidy k t
 
 instance Show DataConP where
@@ -260,7 +260,7 @@ pVartoRConc p (v, args) | length args == length (pargs p)
 pVartoRConc p (v, args)
   = pApp (pname p) $ F.EVar v : args'
   where
-    args' = (thd3 <$> args) ++ (drop (length args) (thd3 <$> pargs p))
+    args' = (thd3 <$> args) ++ drop (length args) (thd3 <$> pargs p)
 
 -----------------------------------------------------------------------
 -- | @pvarRType π@ returns a trivial @RType@ corresponding to the
@@ -321,14 +321,14 @@ replacePreds msg                 = L.foldl' go
 --         go z (π, RPropP r) = replacePVarReft (π, r) <$> z
 
 -------------------------------------------------------------------------------------
-substPVar :: PVar BSort -> PVar BSort -> BareType -> BareType 
+substPVar :: PVar BSort -> PVar BSort -> BareType -> BareType
 -------------------------------------------------------------------------------------
 substPVar src dst = go
   where
     go :: BareType -> BareType
     go (RVar a r)         = RVar a (goRR r)
     go (RApp c ts rs r)   = RApp c (go <$> ts) (goR <$> rs) (goRR r)
-    go (RAllP q t)        
+    go (RAllP q t)
      | pname q == pname src = RAllP q t
      | otherwise            = RAllP q (go t)
     go (RAllT a t r)      = RAllT a   (go t)  (goRR r)
@@ -344,12 +344,12 @@ substPVar src dst = go
     goR rp = rp {rf_body = go (rf_body rp) }
     goRR :: RReft -> RReft
     goRR rr = rr { ur_pred = goP (ur_pred rr) }
-    goP :: Predicate -> Predicate 
+    goP :: Predicate -> Predicate
     goP (Pr ps) = Pr (goPV <$> ps)
     goPV :: UsedPVar -> UsedPVar
-    goPV pv 
+    goPV pv
       | pname pv == pname src = pv { pname = pname dst }
-      | otherwise             = pv 
+      | otherwise             = pv
 
 -------------------------------------------------------------------------------
 substPred :: String -> (RPVar, SpecProp) -> SpecType -> SpecType
@@ -370,7 +370,7 @@ substPred msg su@(π, _ ) (RApp c ts rs r)
     t'                          = RApp c (substPred msg su <$> ts) (substPredP msg su <$> rs) r
     (r2', πs)                   = splitRPvar π r
 
-substPred msg (p, tp) (RAllP (q@(PV _ _ _ _)) t)
+substPred msg (p, tp) (RAllP q@(PV _ _ _ _) t)
   | p /= q                      = RAllP q $ substPred msg (p, tp) t
   | otherwise                   = RAllP q t
 
@@ -431,7 +431,7 @@ substRCon msg (_, RProp ss t1@(RApp c1 ts1 rs1 r1)) t2@(RApp c2 ts2 rs2 _) πs r
 
     su = F.mkSubst $ zipWith (\s1 s2 -> (s1, F.EVar s2)) (rvs t1) (rvs t2)
 
-    rvs      = foldReft False (\_ r acc -> rvReft r : acc) [] 
+    rvs      = foldReft False (\_ r acc -> rvReft r : acc) []
     rvReft r = let F.Reft(s,_) = F.toReft r in s
 
 substRCon msg su t _ _        = {- panic Nothing -} errorP "substRCon: " $ msg ++ " " ++ showpp (su, t)
@@ -494,7 +494,7 @@ freeArgsPs p (RRTy env r _ t)
   = L.nub $ concatMap (freeArgsPs p) (snd <$> env) ++ freeArgsPsRef p r ++ freeArgsPs p t
 
 freeArgsPsRef :: PVar t1 -> UReft t -> [F.Symbol]
-freeArgsPsRef p (MkUReft _ (Pr ps)) = [x | (_, x, w) <- (concatMap pargs ps'),  (F.EVar x) == w]
+freeArgsPsRef p (MkUReft _ (Pr ps)) = [x | (_, x, w) <- concatMap pargs ps', F.EVar x == w]
   where
    ps' = f <$> filter (uPVar p ==) ps
    f q = q {pargs = pargs q ++ drop (length (pargs q)) (pargs $ uPVar p)}
@@ -509,14 +509,14 @@ meetListWithPSubsRef :: (Foldable t, F.Reftable (RType t1 t2 t3))
                      -> Ref τ (RType t1 t2 t3)
                      -> Ref τ (RType t1 t2 t3)
                      -> Ref τ (RType t1 t2 t3)
-meetListWithPSubsRef πs ss r1 r2 = L.foldl' ((meetListWithPSubRef ss) r1) r2 πs
+meetListWithPSubsRef πs ss r1 r2 = L.foldl' (meetListWithPSubRef ss r1) r2 πs
 
 meetListWithPSub ::  (F.Reftable r, PPrint t) => [(F.Symbol, RSort)]-> r -> r -> PVar t -> r
 meetListWithPSub ss r1 r2 π
   | all (\(_, x, F.EVar y) -> x == y) (pargs π)
   = r2 `F.meet` r1
   | all (\(_, x, F.EVar y) -> x /= y) (pargs π)
-  = r2 `F.meet` (F.subst su r1)
+  = r2 `F.meet` F.subst su r1
   | otherwise
   = panic Nothing $ "PredType.meetListWithPSub partial application to " ++ showpp π
   where
@@ -534,9 +534,9 @@ meetListWithPSubRef _ _ (RProp _ (RHole _)) _
   = panic Nothing "PredType.meetListWithPSubRef called with invalid input"
 meetListWithPSubRef ss (RProp s1 r1) (RProp s2 r2) π
   | all (\(_, x, F.EVar y) -> x == y) (pargs π)
-  = RProp s1 $ (F.subst su' r2) `F.meet` r1
+  = RProp s1 $ F.subst su' r2 `F.meet` r1
   | all (\(_, x, F.EVar y) -> x /= y) (pargs π)
-  = RProp s2 $ r2 `F.meet` (F.subst su r1)
+  = RProp s2 $ r2 `F.meet` F.subst su r1
   | otherwise
   = panic Nothing $ "PredType.meetListWithPSubRef partial application to " ++ showpp π
   where
@@ -561,7 +561,7 @@ symbolType = TyVarTy . symbolTyVar
 substParg :: Functor f => (F.Symbol, F.Expr) -> f Predicate -> f Predicate
 substParg (x, y) = fmap fp
   where
-    fxy s        = if (s == F.EVar x) then y else s
+    fxy s        = if s == F.EVar x then y else s
     fp           = subvPredicate (\pv -> pv { pargs = mapThd3 fxy <$> pargs pv })
 
 -------------------------------------------------------------------------------

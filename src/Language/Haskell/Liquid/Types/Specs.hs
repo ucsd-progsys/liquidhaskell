@@ -326,7 +326,7 @@ instance Monoid GhcSpecRefl where
                   mempty mempty mempty
                   mempty mempty mempty
 data GhcSpecLaws = SpLaws 
-  { gsLawDefs :: !([(Class, [(Var, LocSpecType)])])
+  { gsLawDefs :: ![(Class, [(Var, LocSpecType)])]
   , gsLawInst :: ![LawInstance]
   }
 

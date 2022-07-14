@@ -55,7 +55,7 @@ anormalize cfg hscEnv modGuts = do
     putStrLn $ GM.showCBs untidy orig_cbs
     putStrLn "***************************** RWR CoreBinds ***************************"
     putStrLn $ GM.showCBs untidy rwr_cbs
-  (fromMaybe err . snd) <$> initDsWithModGuts hscEnv modGuts act -- hscEnv m grEnv tEnv emptyFamInstEnv act
+  fromMaybe err . snd <$> initDsWithModGuts hscEnv modGuts act -- hscEnv m grEnv tEnv emptyFamInstEnv act
     where
       err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
       act      = Misc.concatMapM (normalizeTopBind γ0) rwr_cbs

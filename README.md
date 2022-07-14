@@ -78,8 +78,17 @@ This is how you can use this:
 #### Stack
 
 ```
-env LIQUID_DEV_MODE=true stack build
+LIQUID_DEV_MODE=true stack build
 ```
+
+If on NixOS
+
+```
+LIQUID_DEV_MODE=true stack --no-nix-pure build
+```
+
+With the above, `stack` will unregister and re-register the libraries,
+but hopefully it won't rebuild any modules.
 
 #### Cabal
 
@@ -161,7 +170,7 @@ which will produce `tmp/*.json` files.
 
 Then a csv report can be generated from this json files with
 ```
-cabal v2-run benchmark-timings -- tmp/*.json --phase CoreTidy --phase LiquidHaskell -o summary.csv
+cabal v2-run benchmark-timings -- tmp/*.json --phase LiquidHaskell -o summary.csv
 ```
 On each line, the report will contain the time taken by each test.
 

@@ -163,7 +163,7 @@ isIncludeFile :: FilePath -> FilePath -> Bool
 isIncludeFile incDir src = -- do 
   -- incDir <- getIncludeDir 
   -- return 
-  (incDir `L.isPrefixOf` src)
+  incDir `L.isPrefixOf` src
 
 getIncludeDir :: IO FilePath
 getIncludeDir = dropFileName <$> getDataFileName ("include" </> "Prelude.spec")

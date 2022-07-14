@@ -4,7 +4,6 @@
 {-# LANGUAGE TemplateHaskell           #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE NamedFieldPuns            #-}
-{-# LANGUAGE MultiWayIf                #-}
 {-# LANGUAGE ViewPatterns              #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -189,7 +188,7 @@ config = cmdArgsMode $ Config {
 
  , gdepth
     = 1
-    &= help ("Size of gradual conretizations, 1 by default")
+    &= help "Size of gradual conretizations, 1 by default"
     &= name "gradual-depth"
 
  , ginteractive
@@ -761,8 +760,9 @@ reportResult :: MonadIO m
 reportResult logResultFull cfg targets out = do
   annm <- {-# SCC "annotate" #-} liftIO $ annotate cfg targets out
   liftIO $ whenNormal $ donePhase Loud "annotate"
-  if | json cfg  -> liftIO $ reportResultJson annm
-     | otherwise -> do
+  if json cfg then
+    liftIO $ reportResultJson annm
+   else do
          let r = o_result out
          liftIO $ writeCheckVars $ o_vars out
          cr <- liftIO $ resultWithContext r
@@ -823,7 +823,7 @@ mkErrorDoc sSpan doc =
   -- pprint sSpan <> (text ": error: " <+> doc)
 
   -- Nice on screen, invisible in Ghcid ...
-  (pprint sSpan <> text ": error: ") $+$ (nest 4 doc)
+  (pprint sSpan <> text ": error: ") $+$ nest 4 doc
 
 
 -- | Given a 'FixResult' parameterised over a 'CError', this function returns the \"header\" to show to

@@ -22,13 +22,13 @@ import qualified Language.Haskell.HsColour.CSS as CSS
 import Data.Either (partitionEithers)
 import Data.Maybe  (fromMaybe)
 import qualified Data.HashMap.Strict as M
-import Data.List   (find, isPrefixOf, findIndex, elemIndices, intercalate)
+import Data.List   (find, isPrefixOf, findIndex, elemIndices, intercalate, elemIndex)
 import Data.Char   (isSpace)
 import Text.Printf
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types.Errors (panic, impossible)
 
-data AnnMap  = Ann 
+data AnnMap  = Ann
   { types   :: M.HashMap Loc (String, String) -- ^ Loc -> (Var, Type)
   , errors  :: [(Loc, Loc, String)]           -- ^ List of error intervals
   , status  :: !Status
@@ -81,7 +81,7 @@ hsannot' baseLoc anchor tx =
     . annotTokenise baseLoc tx
 
 tokeniseWithLoc :: CommentTransform -> String -> [(TokenType, String, Loc)]
-tokeniseWithLoc tx str = zipWith (\(x,y) z -> (x, y, z)) toks spans  
+tokeniseWithLoc tx str = zipWith (\(x,y) z -> (x, y, z)) toks spans
   where
     toks       = tokeniseWithCommentTransform tx str
     spans      = tokenSpans Nothing $ map snd toks
@@ -100,7 +100,7 @@ spanAnnot :: Int -> AnnMap -> Loc -> Annotation
 spanAnnot w (Ann ts es _ _) span = A t e b
   where
     t = fmap snd (M.lookup span ts)
-    e = fmap (\_ -> "ERROR") $ find (span `inRange`) [(x,y) | (x,y,_) <- es]
+    e = (\_ -> "ERROR") <$> find (span `inRange`) [(x,y) | (x,y,_) <- es]
     b = spanLine w span
 
 spanLine :: t -> Loc -> Maybe (Int, t)
@@ -124,8 +124,8 @@ tokenSpans = scanl plusLoc . fromMaybe (L (1, 1))
 plusLoc :: Loc -> String -> Loc
 plusLoc (L (l, c)) s
   = case '\n' `elemIndices` s of
-      [] -> L (l, (c + n))
-      is -> L ((l + length is), (n - maximum is))
+      [] -> L (l, c + n)
+      is -> L (l + length is, n - maximum is)
     where n = length s
 
 renderAnnotToken :: (TokenType, String, Annotation) -> String
@@ -150,7 +150,7 @@ renderLinAnnot (Just d) s   = printf "<span class=hs-linenum>%s: </span>%s" (lin
 renderLinAnnot Nothing  s   = s
 
 lineString :: Show t => (t, Int) -> [Char]
-lineString (i, w) = (replicate (w - (length is)) ' ') ++ is
+lineString (i, w) = replicate (w - length is) ' ' ++ is
   where is        = show i
 
 {- Example Annotation:
@@ -166,10 +166,10 @@ insertAnnotAnchors toks
 
 stitch ::  Eq b => [(b, c)] -> [Either a b] -> [Either a c]
 stitch xys ((Left a) : rest)
-  = (Left a) : stitch xys rest
+  = Left a : stitch xys rest
 stitch ((x,y):xys) ((Right x'):rest)
   | x == x'
-  = (Right y) : stitch xys rest
+  = Right y : stitch xys rest
   | otherwise
   = panic Nothing "stitch"
 stitch _ []
@@ -180,7 +180,7 @@ stitch _ _
 splitSrcAndAnns ::  String -> (String, AnnMap)
 splitSrcAndAnns s =
   let ls = lines s in
-  case findIndex (breakS ==) ls of
+  case elemIndex breakS ls of
     Nothing -> (s, Ann M.empty [] Safe mempty)
     Just i  -> (src, ann)
                where (codes, _:mname:annots) = splitAt i ls
@@ -192,7 +192,7 @@ srcModuleName = fromMaybe "Main" . tokenModule . tokenise
 
 tokenModule :: [(TokenType, [Char])] -> Maybe [Char]
 tokenModule toks
-  = do i <- findIndex ((Keyword, "module") ==) toks
+  = do i <- elemIndex (Keyword, "module") toks
        let (_, toks')  = splitAt (i+2) toks
        j <- findIndex ((Space ==) . fst) toks'
        let (toks'', _) = splitAt j toks'
@@ -219,19 +219,19 @@ parseLines mname i ("":ls)
 
 parseLines mname i (_:_:l:c:"0":l':c':rest')
   = Right (L (line, col), L (line', col')) : parseLines mname (i + 7) rest'
-    where line  = (read l)  :: Int
-          col   = (read c)  :: Int
-          line' = (read l') :: Int
-          col'  = (read c') :: Int
+    where line  = read l  :: Int
+          col   = read c  :: Int
+          line' = read l' :: Int
+          col'  = read c' :: Int
 
 parseLines mname i (x:f:l:c:n:rest)
   | f /= mname
   = parseLines mname (i + 5 + num) rest'
   | otherwise
   = Left (L (line, col), (x, anns)) : parseLines mname (i + 5 + num) rest'
-    where line  = (read l) :: Int
-          col   = (read c) :: Int
-          num   = (read n) :: Int
+    where line  = read l :: Int
+          col   = read c :: Int
+          num   = read n :: Int
           anns  = intercalate "\n" $ take num rest
           rest' = drop num rest
 
@@ -239,9 +239,9 @@ parseLines _ i _
   = panic Nothing $ "Error Parsing Annot Input on Line: " ++ show i
 
 instance Show AnnMap where
-  show (Ann ts es _ _) =  "\n\n" 
-                      ++ (concatMap ppAnnotTyp $ M.toList ts)
-                      ++ (concatMap ppAnnotErr [(x,y) | (x,y,_) <- es])
+  show (Ann ts es _ _) =  "\n\n"
+                      ++ concatMap ppAnnotTyp (M.toList ts)
+                      ++ concatMap ppAnnotErr [(x,y) | (x,y,_) <- es]
 
 ppAnnotTyp :: (PrintfArg t, PrintfType t1) => (Loc, (t, String)) -> t1
 ppAnnotTyp (L (l, c), (x, s))     = printf "%s\n%d\n%d\n%d\n%s\n\n\n" x l c (length $ lines s) s

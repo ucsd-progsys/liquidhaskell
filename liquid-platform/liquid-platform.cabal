@@ -31,6 +31,7 @@ executable liquidhaskell
                       , liquid-vector     >= 0.12.1.2 && < 0.13
                       , liquid-bytestring >= 0.10.0.0 && < 0.11
                       , liquidhaskell     >= 0.8.10.2
+                      , filepath
                       , process           >= 1.6.0.0 && < 1.7
                       , cmdargs           >= 0.10    && < 0.11
 

@@ -165,7 +165,7 @@ renderPandoc' pandocPath htmlFile srcFile css body = do
     cmd    = pandocCmd pandocPath mdFile htmlFile
 
 checkExitCode :: Monad m => String -> ExitCode -> m ()
-checkExitCode _   (ExitSuccess)   = return ()
+checkExitCode _    ExitSuccess    = return ()
 checkExitCode cmd (ExitFailure n) = panic Nothing $ "cmd: " ++ cmd ++ " failure code " ++ show n
 
 pandocCmd :: FilePath -> FilePath -> FilePath -> String

@@ -6,8 +6,8 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
-module Language.Haskell.Liquid.Types.Variance ( 
-  Variance(..), VarianceInfo, makeTyConVariance, flipVariance 
+module Language.Haskell.Liquid.Types.Variance (
+  Variance(..), VarianceInfo, makeTyConVariance, flipVariance
   ) where
 
 import Prelude hiding (error)
@@ -41,7 +41,7 @@ flipVariance Bivariant     = Bivariant
 flipVariance Contravariant = Covariant
 flipVariance Covariant     = Contravariant
 
-instance Semigroup Variance where 
+instance Semigroup Variance where
   Bivariant     <> _         = Bivariant
   _             <> Bivariant = Bivariant
   Invariant     <> v         = v
@@ -49,7 +49,7 @@ instance Semigroup Variance where
   Covariant     <> v         = v
   Contravariant <> v         = flipVariance v
 
-instance Monoid Variance where 
+instance Monoid Variance where
   mempty = Bivariant
 
 instance Binary Variance
@@ -101,7 +101,7 @@ makeTyConVariance c = varSignToVariance <$> tvs
     goTyConApp pos Covariant     t = go pos       t
     goTyConApp pos Contravariant t = go (not pos) t
 
-    mutuallyRecursive c c' = c `S.member` (dataConsOfTyCon c')
+    mutuallyRecursive c c' = c `S.member` dataConsOfTyCon c'
 
 
 dataConsOfTyCon :: TyCon -> S.HashSet TyCon
@@ -116,7 +116,7 @@ dataConsOfTyCon = dcs S.empty
       | c `S.member` vis
       = S.empty
       | otherwise
-      = (S.insert c $ mconcat $ go vis <$> ts) `S.union` dcs (S.insert c vis) c
+      = S.insert c (mconcat $ go vis <$> ts) `S.union` dcs (S.insert c vis) c
     go  _   (LitTy _)       = S.empty
     go  _   (CoercionTy _)  = S.empty
     go  vis (CastTy t _)    = go vis t

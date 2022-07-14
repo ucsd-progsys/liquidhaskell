@@ -89,7 +89,7 @@ mkSpecDecs (Asrts (names, (ty, _))) =
   (\t -> (`SigD` t) . symbolName <$> names)
     <$> simplifyBareType (head names) (quantifyFreeRTy $ val ty)
 mkSpecDecs (Alias rta) =
-  return . (TySynD name tvs) <$> simplifyBareType lsym (rtBody (val rta))
+  return . TySynD name tvs <$> simplifyBareType lsym (rtBody (val rta))
   where
     lsym = F.atLoc rta n 
     name = symbolName n 
@@ -114,10 +114,10 @@ simplifyBareType s t = case simplifyBareType' t of
   Simplified t' ->
     Right t'
   FoundExprArg l ->
-    Left $ ErrTySpec l Nothing (pprint $ val s) (pprint t) $ 
+    Left $ ErrTySpec l Nothing (pprint $ val s) (pprint t) 
       "Found expression argument in bad location in type"
   FoundHole ->
-    Left $ ErrTySpec (fSrcSpan s) Nothing (pprint $ val s) (pprint t) $ 
+    Left $ ErrTySpec (fSrcSpan s) Nothing (pprint $ val s) (pprint t) 
       "Can't write LiquidHaskell type with hole in a quasiquoter"
 
 simplifyBareType' :: BareType -> Simpl Type

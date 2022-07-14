@@ -37,7 +37,7 @@ import           Language.Haskell.Liquid.Types
 -- import           Language.Haskell.Liquid.Types.RefType
 -- import           Language.Haskell.Liquid.Types.Fresh
 import           Language.Haskell.Liquid.Constraint.Types
-import qualified Language.Haskell.Liquid.GHC.Misc as GM 
+import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import           Language.Haskell.Liquid.GHC.API as Ghc
 
 --------------------------------------------------------------------------------
@@ -67,7 +67,7 @@ refreshArgsTop (x, t)
 --   Constraint generation should ONLY use @freshTy_type@ and @freshTy_expr@
 
 freshTy_type        :: Bool -> KVKind -> CoreExpr -> Type -> CG SpecType
-freshTy_type allowTC k e τ  =  F.notracepp ("freshTy_type: " ++ F.showpp k ++ GM.showPpr e) 
+freshTy_type allowTC k e τ  =  F.notracepp ("freshTy_type: " ++ F.showpp k ++ GM.showPpr e)
                    <$> freshTy_reftype allowTC k (ofType τ)
 
 freshTy_expr        :: Bool -> KVKind -> CoreExpr -> Type -> CG SpecType
@@ -82,8 +82,8 @@ freshTy_reftype allowTC k _t = (fixTy t >>= refresh allowTC) =>> addKVars k
 --   definitions, and also to update the KVar profile.
 addKVars        :: KVKind -> SpecType -> CG ()
 addKVars !k !t  = do
-    cfg <- getConfig  <$> gets ghcI
-    when (True)        $ modify $ \s -> s { kvProf = updKVProf k ks (kvProf s) }
+    cfg <- gets (getConfig . ghcI)
+    when True          $ modify $ \s -> s { kvProf = updKVProf k ks (kvProf s) }
     when (isKut cfg k) $ addKuts k t
   where
     ks         = F.KS $ S.fromList $ specTypeKVars t
@@ -102,7 +102,7 @@ addKuts _x t = modify $ \s -> s { kuts = mappend (F.KS ks) (kuts s)   }
        | otherwise  = {- F.tracepp ("addKuts: " ++ showpp _x) -} ks'
 
 specTypeKVars :: SpecType -> [F.KVar]
-specTypeKVars = foldReft False (\ _ r ks -> (kvarsExpr $ F.reftPred $ ur_reft r) ++ ks) []
+specTypeKVars = foldReft False (\ _ r ks -> kvarsExpr (F.reftPred $ ur_reft r) ++ ks) []
 
 --------------------------------------------------------------------------------
 trueTy  :: Bool -> Type -> CG SpecType

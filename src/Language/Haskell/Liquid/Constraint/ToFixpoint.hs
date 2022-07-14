@@ -50,7 +50,7 @@ fixConfig tgt cfg = def
   , FC.elimBound                = elimBound         cfg
   , FC.allowHO                  = higherOrderFlag   cfg
   , FC.allowHOqs                = higherorderqs     cfg
-  , FC.smtTimeout               = smtTimeout        cfg 
+  , FC.smtTimeout               = smtTimeout        cfg
   , FC.stringTheory             = stringTheory      cfg
   , FC.gradual                  = gradual           cfg
   , FC.ginteractive             = ginteractive       cfg
@@ -58,7 +58,7 @@ fixConfig tgt cfg = def
   , FC.rewriteAxioms            = Config.allowPLE   cfg
   , FC.pleWithUndecidedGuards   = Config.pleWithUndecidedGuards cfg
   , FC.etaElim                  = not (exactDC cfg) && extensionality cfg -- SEE: https://github.com/ucsd-progsys/liquidhaskell/issues/1601
-  , FC.extensionality           = extensionality    cfg 
+  , FC.extensionality           = extensionality    cfg
   , FC.interpreter              = interpreter    cfg
   , FC.oldPLE                   = oldPLE cfg
   , FC.rwTerminationCheck       = rwTerminationCheck cfg
@@ -93,18 +93,18 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
 
 makeAxiomEnvironment :: TargetInfo -> [(Var, SpecType)] -> M.HashMap F.SubcId (F.SubC Cinfo) -> F.AxiomEnv
 makeAxiomEnvironment info xts fcs
-  = F.AEnv eqs  
+  = F.AEnv eqs
            (concatMap makeSimplify xts)
            (doExpand sp cfg <$> fcs)
            (makeRewrites info <$> fcs)
   where
     eqs      = if oldPLE cfg
                 then makeEquations (typeclass cfg) sp ++ map (uncurry $ specTypeEq emb) xts
-                else axioms  
+                else axioms
     emb      = gsTcEmbeds (gsName sp)
     cfg      = getConfig  info
     sp       = giSpec     info
-    axioms   = gsMyAxioms refl ++ gsImpAxioms refl 
+    axioms   = gsMyAxioms refl ++ gsImpAxioms refl
     refl     = gsRefl sp
 
 
@@ -124,7 +124,7 @@ makeRewrites info sub = concatMap (makeRewriteOne tce) $ filter ((`S.member` rws
         Nothing ->
           Mb.listToMaybe $ do
             D s e v <- coreDefs $ giCbs $ giSrc info
-            let (Ghc.RealSrcSpan cc _) = (ci_loc $ F.sinfo sub)
+            let (Ghc.RealSrcSpan cc _) = ci_loc $ F.sinfo sub
             guard $ s <= Ghc.srcSpanStartLine cc && e >= Ghc.srcSpanEndLine cc
             return v
 
@@ -165,9 +165,9 @@ refinementEQs t =
       []
   where
     tres = ty_res tRep
-    tRep = toRTypeRep $ val t 
-  
-makeRewriteOne :: (F.TCEmb TyCon) -> (Var, LocSpecType) -> [F.AutoRewrite]
+    tRep = toRTypeRep $ val t
+
+makeRewriteOne :: F.TCEmb TyCon -> (Var, LocSpecType) -> [F.AutoRewrite]
 makeRewriteOne tce (_, t)
   = [rw | (lhs, rhs) <- refinementEQs t , rw <- rewrites lhs rhs ]
   where
@@ -183,16 +183,15 @@ makeRewriteOne tce (_, t)
       (sym, arg) <- zip (ty_binds tRep) (ty_args tRep)
       let e = maybe F.PTrue (F.reftPred . F.toReft) (stripRTypeBase arg)
       return $ F.RR (rTypeSort tce arg) (F.Reft (sym, e))
-       
-    tRep = toRTypeRep $ val t 
+
+    tRep = toRTypeRep $ val t
 
 _isClassOrDict :: Id -> Bool
-_isClassOrDict x = F.tracepp ("isClassOrDict: " ++ F.showpp x) 
-                    $ (hasClassArg x || GM.isDictionary x || Mb.isJust (Ghc.isClassOpId_maybe x))
+_isClassOrDict x = F.tracepp ("isClassOrDict: " ++ F.showpp x) (hasClassArg x || GM.isDictionary x || Mb.isJust (Ghc.isClassOpId_maybe x))
 
 hasClassArg :: Id -> Bool
-hasClassArg x = F.tracepp msg $ (GM.isDataConId x && any Ghc.isClassPred (t:ts'))
-  where 
+hasClassArg x = F.tracepp msg (GM.isDataConId x && any Ghc.isClassPred (t:ts'))
+  where
     msg       = "hasClassArg: " ++ showpp (x, t:ts')
     (ts, t)   = Ghc.splitFunTys . snd . Ghc.splitForAllTys . Ghc.varType $ x
     ts'       = map Ghc.irrelevantMult ts
@@ -222,8 +221,8 @@ specTypeEq emb f t = F.mkEquation (F.symbol f) xts body tOut
 makeSimplify :: (Var, SpecType) -> [F.Rewrite]
 makeSimplify (x, t)
   | not (GM.isDataConId x)
-  = [] 
-  | otherwise 
+  = []
+  | otherwise
   = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t
   where
     go (F.PAnd es) = concatMap go es
@@ -231,13 +230,13 @@ makeSimplify (x, t)
     go (F.PAtom eq (F.EApp (F.EVar f) dc) bd)
       | eq `elem` [F.Eq, F.Ueq]
       , (F.EVar dc, xs) <- F.splitEApp dc
-      , dc == F.symbol x 
+      , dc == F.symbol x
       , all isEVar xs
       = [F.SMeasure f dc (fromEVar <$> xs) bd]
 
     go (F.PIff (F.EApp (F.EVar f) dc) bd)
       | (F.EVar dc, xs) <- F.splitEApp dc
-      , dc == F.symbol x 
+      , dc == F.symbol x
       , all isEVar xs
       = [F.SMeasure f dc (fromEVar <$> xs) bd]
 
@@ -263,12 +262,12 @@ makeSimplify (x, t)
 
 makeEquations :: Bool -> TargetSpec -> [F.Equation]
 makeEquations allowTC sp = [ F.mkEquation f xts (equationBody allowTC (F.EVar f) xArgs e mbT) t
-                      | F.Equ f xts e t _ <- axioms 
+                      | F.Equ f xts e t _ <- axioms
                       , let xArgs          = F.EVar . fst <$> xts
                       , let mbT            = if null xArgs then Nothing else M.lookup f sigs
                    ]
   where
-    axioms       = gsMyAxioms refl ++ gsImpAxioms refl 
+    axioms       = gsMyAxioms refl ++ gsImpAxioms refl
     refl         = gsRefl sp
     sigs         = M.fromList [ (GM.simplesymbol v, t) | (v, t) <- gsTySigs (gsSig sp) ]
 

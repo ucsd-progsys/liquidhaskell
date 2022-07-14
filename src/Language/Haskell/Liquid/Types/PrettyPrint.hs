@@ -147,7 +147,7 @@ instance PPrint a => Show (AnnInfo a) where
 
 pprAnnInfoBinds :: (PPrint a, PPrint b) => F.Tidy -> (SrcSpan, [(Maybe a, b)]) -> Doc
 pprAnnInfoBinds k (l, xvs)
-  = vcat $ (pprAnnInfoBind k . (l,)) <$> xvs
+  = vcat $ pprAnnInfoBind k . (l,) <$> xvs
 
 pprAnnInfoBind :: (PPrint a, PPrint b) => F.Tidy -> (SrcSpan, (Maybe a, b)) -> Doc
 pprAnnInfoBind k (Ghc.RealSrcSpan sp _, xv)
@@ -261,7 +261,7 @@ ppr_rtype bb p (RRTy e _ OCons t)
 ppr_rtype bb p (RRTy e r o t)
   = sep [ppp (pprint o <+> ppe <+> pprint r), ppr_rtype bb p t]
   where
-    ppe  = (hsep $ punctuate comma (ppxt <$> e)) <+> dcolon
+    ppe  = hsep (punctuate comma (ppxt <$> e)) <+> dcolon
     ppp  = \doc -> text "<<" <+> doc <+> text ">>"
     ppxt = \(x, t) -> pprint x <+> ":" <+> ppr_rtype bb p t
 ppr_rtype _ _ (RHole r)
@@ -283,8 +283,8 @@ ppr_rsubtype bb p e
   where
     (el, r)  = (init e,  last e)
     (env, l) = (init el, last el)
-    tr   = snd $ r
-    tl   = snd $ l
+    tr   = snd r
+    tl   = snd l
     pprint_bind (x, t) = pprint x <+> colon <-> colon <+> ppr_rtype bb p t
     pprint_env         = hsep $ punctuate comma (pprint_bind <$> env)
 
@@ -310,7 +310,7 @@ ppAllExpr
   => PPEnv -> Prec -> RType c tv r -> Doc
 ppAllExpr bb p t
   = text "forall" <+> brackets (intersperse comma [ppr_dbind bb topPrec x t | (x, t) <- zs]) <-> dot <-> ppr_rtype bb p t'
-    where 
+    where
       (zs,  t')               = split [] t
       split zs (RAllE x t t') = split ((x,t):zs) t'
       split zs t              = (reverse zs, t)
@@ -361,8 +361,8 @@ ppr_rty_fun' bb t
 -}
 
 brkFun :: RType c tv r -> ([(F.Symbol, RType c tv r, Doc)], RType c tv r)
-brkFun (RImpF b _ t t' _) = ((b, t, (text "~>")) : args, out)   where (args, out)     = brkFun t'
-brkFun (RFun b _ t t' _)  = ((b, t, (text "->")) : args, out)   where (args, out)     = brkFun t'
+brkFun (RImpF b _ t t' _) = ((b, t, text "~>") : args, out)   where (args, out)     = brkFun t'
+brkFun (RFun b _ t t' _)  = ((b, t, text "->") : args, out)   where (args, out)     = brkFun t'
 brkFun out                = ([], out)
 
 
@@ -385,7 +385,7 @@ ppr_forall bb p t = maybeParen p funPrec $ sep [
     ppr_foralls True αs πs = text "forall" <+> dαs αs <+> dπs (ppPs bb) πs <-> dot
 
     ppr_clss []               = empty
-    ppr_clss cs               = (parens $ hsep $ punctuate comma (uncurry (ppr_cls bb p) <$> cs)) <+> text "=>"
+    ppr_clss cs               = parens (hsep $ punctuate comma (uncurry (ppr_cls bb p) <$> cs)) <+> text "=>"
 
     dαs αs                    = ppr_rtvar_def αs
 
@@ -417,7 +417,7 @@ ppr_pvar_def bb p (PV s t _ xts)
 
 ppr_pvar_kind :: (OkRT c tv ()) => PPEnv -> Prec -> PVKind (RType c tv ()) -> Doc
 ppr_pvar_kind bb p (PVProp t) = ppr_pvar_sort bb p t <+> arrow <+> ppr_name F.boolConName -- propConName
-ppr_pvar_kind _ _ (PVHProp)   = panic Nothing "TODO: ppr_pvar_kind:hprop" -- ppr_name hpropConName
+ppr_pvar_kind _ _ PVHProp     = panic Nothing "TODO: ppr_pvar_kind:hprop" -- ppr_name hpropConName
 
 ppr_name :: F.Symbol -> Doc
 ppr_name                      = text . F.symbolString
@@ -529,7 +529,7 @@ filterReportErrorsWith FilterReportErrorsArgs {..} errs =
     (unmatchedErrors, matchedFilters) =
       L.partition (null . snd) [ (e, fs) | e <- errs, let fs = matchingFilters e ]
     unmatchedFilters = Set.toList $
-      Set.fromList filters `Set.difference` Set.fromList (concat $ map snd matchedFilters)
+      Set.fromList filters `Set.difference` Set.fromList (concatMap snd matchedFilters)
   in
     if null unmatchedErrors then
       if null unmatchedFilters then

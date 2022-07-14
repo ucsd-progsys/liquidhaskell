@@ -83,8 +83,7 @@ instance Binary StableModule where
 
     get = do
       uidStr <- get
-      mnStr  <- get
-      pure $ mkStableModule (GHC.stringToUnitId uidStr) (GHC.mkModuleName mnStr)
+      mkStableModule (GHC.stringToUnitId uidStr) . GHC.mkModuleName <$> get
 
 --
 -- Compat shim layer

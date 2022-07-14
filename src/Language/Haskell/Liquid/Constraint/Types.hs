@@ -62,7 +62,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
 import           Control.DeepSeq
-import           Data.Maybe               (catMaybes, isJust)
+import           Data.Maybe               (isJust, mapMaybe)
 import           Control.Monad.State
 
 import           Language.Haskell.Liquid.GHC.SpanStack
@@ -319,7 +319,7 @@ lookupRInv :: SpecType -> RTyConInv -> Maybe [SpecType]
 lookupRInv (RApp c ts _ _) m
   = case M.lookup c m of
       Nothing   -> Nothing
-      Just invs -> Just (catMaybes $ goodInvs ts <$> invs)
+      Just invs -> Just (mapMaybe (goodInvs ts) invs)
 lookupRInv _ _
   = Nothing
 
@@ -339,7 +339,7 @@ unifiable t1 t2 = isJust $ tcUnifyTy (toType False t1) (toType False t2)
 addRInv :: RTyConInv -> (Var, SpecType) -> (Var, SpecType)
 addRInv m (x, t)
   | x `elem` ids , Just invs <- lookupRInv (res t) m
-  = (x, addInvCond t (mconcat $ catMaybes (stripRTypeBase <$> invs)))
+  = (x, addInvCond t (mconcat $ mapMaybe stripRTypeBase invs))
   | otherwise
   = (x, t)
    where

@@ -7,7 +7,7 @@ module WhyLH where
 -- https://www.tweag.io/blog/2022-01-19-why-liquid-haskell/
 --
 import Language.Haskell.Liquid.ProofCombinators (pleUnfold)
-import Prelude hiding (Maybe(..), isJust, length, max)
+import Prelude hiding (length, max)
 
 {-@
 type Nat = {i:Int | 0 <= i}
@@ -79,22 +79,22 @@ length :: [a] -> Int
 length [] = 0
 length (_:xs) = 1 + length xs
 
--- XXX: Verification crashes when using @Maybe Ty@ instead of @MaybeTy@
-{-@ data MaybeTy = Nothing | Just Ty @-}
-data MaybeTy = Nothing | Just Ty
-
 {-@ reflect inferType @-}
-{-@ inferType :: ctx:[Ty] -> UExpN (length ctx) -> MaybeTy @-}
-inferType :: [Ty] -> UExp -> MaybeTy
+{-@ inferType :: ctx:[Ty] -> UExpN (length ctx) -> Maybe Ty @-}
+inferType :: [Ty] -> UExp -> Maybe Ty
 inferType ctx (UVar i) = Just (elemAt ctx i)
 inferType ctx (ULam t body) = case inferType (t:ctx) body of
   Just r -> Just (TyFun t r)
   Nothing -> Nothing
-inferType ctx (UApp e0 e1) = case inferType ctx e0 of
-  Just (TyFun a r) -> case inferType ctx e1 of
-    Just t -> if a == t then Just r else Nothing
-    Nothing -> Nothing
-  _ -> Nothing
+inferType ctx (UApp e0 e1) =
+  pleUnfold  -- needed by uappArgT to avoid breaking the verification
+             -- in all of these cases
+    (case inferType ctx e0 of
+      Just (TyFun a r) -> case inferType ctx e1 of
+        Just t -> if a == t then Just r else Nothing
+        Nothing -> Nothing
+      _ -> Nothing
+    )
 
 {-@ type WellTypedExp CTX TY = { e:UExp | freeVarBound e <= length CTX && inferType CTX e == Just TY } @-}
 
@@ -127,12 +127,13 @@ isUApp :: UExp -> Bool
 isUApp (UApp _ _) = True
 isUApp _ = False
 
+-- Either inline or both reflect and pleUnfold are needed by `uappArgT`.
 {-@ inline isJustTy @-}
-isJustTy :: MaybeTy -> Bool
+isJustTy :: Maybe a -> Bool
 isJustTy (Just _) = True
 isJustTy _ = False
 
 {-@ inline funTyM @-}
-funTyM :: MaybeTy -> MaybeTy -> MaybeTy
+funTyM :: Maybe Ty -> Maybe Ty -> Maybe Ty
 funTyM (Just a) (Just b) = Just (TyFun a b)
 funTyM _ _ = Nothing
