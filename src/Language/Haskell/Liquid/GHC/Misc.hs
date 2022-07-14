@@ -875,6 +875,21 @@ defaultDataCons (TyConApp tc argτs) ds = do
 defaultDataCons _ _ = 
   Nothing
 
+-- | 'isUndefined alt' answers: Is the body of @alt@ an expression injected by
+-- GHC containing a pattern error?
+--
+-- QQQ: should we also check whether the AltCon is DEFAULT?
+isUndefined :: (t, t1, Ghc.Expr t2) -> Bool
+isUndefined (_, _, e) = isUndefinedExpr e
+  where
+   -- auto generated undefined case: (\_ -> (patError @type "error message")) void
+   isUndefinedExpr (App (Var x) _) | (show x) `elem` perrors = True
+   isUndefinedExpr (Let _ e) = isUndefinedExpr e
+   -- otherwise
+   isUndefinedExpr _ = False
+
+   perrors = ["Control.Exception.Base.patError"]
+
 
 
 isEvVar :: Id -> Bool 
