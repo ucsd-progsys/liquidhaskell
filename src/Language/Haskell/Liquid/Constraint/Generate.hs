@@ -428,7 +428,7 @@ consCB _ _ γ (NonRec x def)
   | Just (w, τ) <- grepDictionary def
   , Just d      <- dlookup (denv γ) w
   = do t        <- mapM (trueTy (typeclass (getConfig γ))) τ
-       _ <- mapM addW (WfC γ <$> t)
+       mapM_ addW (WfC γ <$> t)
        let xts   = dmap (fmap (f t)) d
        let  γ'   = γ { denv = dinsert (denv γ) x xts }
        t        <- trueTy (typeclass (getConfig γ)) (varType x)
