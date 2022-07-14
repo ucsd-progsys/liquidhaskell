@@ -588,17 +588,17 @@ nlzP ps (RAppTy t1 t2 r)
 nlzP ps (RAllT v t r)
  = (RAllT v t' r, ps ++ ps')
   where (t', ps') = nlzP [] t
-nlzP ps t@(RApp _ _ _ _)
+nlzP ps t@RApp{}
  = (t, ps)
 nlzP ps (RAllP p t)
  = (t', [p] ++ ps ++ ps')
   where (t', ps') = nlzP [] t
-nlzP ps t@(REx _ _ _)
+nlzP ps t@REx{}
  = (t, ps)
 nlzP ps t@(RRTy _ _ _ t')
  = (t, ps ++ ps')
  where ps' = snd $ nlzP [] t'
-nlzP ps t@(RAllE _ _ _)
+nlzP ps t@RAllE{}
  = (t, ps)
 nlzP _ t
  = panic Nothing $ "RefType.nlzP: cannot handle " ++ show t
@@ -1465,7 +1465,7 @@ isBaseTy :: Type -> Bool
 isBaseTy (TyVarTy _)      = True
 isBaseTy (AppTy _ _)      = False
 isBaseTy (TyConApp _ ts)  = and $ isBaseTy <$> ts
-isBaseTy (FunTy _ _ _ _)  = False
+isBaseTy FunTy{}          = False
 isBaseTy (ForAllTy _ _)   = False
 isBaseTy (LitTy _)        = True
 isBaseTy (CastTy _ _)     = False

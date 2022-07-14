@@ -178,13 +178,13 @@ addCGEnv tx γ (_, x, t') = do
   let t  = tx $ normalize idx t'
   let l  = getLocation γ
   let γ' = γ { renv = insertREnv x t (renv γ) }
-  tem   <- getTemplates 
+  tem   <- getTemplates
   is    <- (:) <$> addBind l x (rTypeSortedReft' γ' tem t) <*> addClassBind γ' l t
   return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
 rTypeSortedReft' :: (PPrint r, F.Reftable r, SubsTy RTyVar RSort r, F.Reftable (RTProp RTyCon RTyVar r))
     => CGEnv -> F.Templates -> RRType r -> F.SortedReft
-rTypeSortedReft' γ t 
+rTypeSortedReft' γ t
   = pruneUnsortedReft (feEnv $ fenv γ) t . f
    where
    f         = rTypeSortedReft (emb γ)
@@ -194,7 +194,7 @@ normalize :: Integer -> SpecType -> SpecType
 normalize idx = normalizeVV idx . normalizePds
 
 normalizeVV :: Integer -> SpecType -> SpecType
-normalizeVV idx t@(RApp _ _ _ _)
+normalizeVV idx t@RApp{}
   | not (F.isNontrivialVV (rTypeValueVar t))
   = shiftVV t (F.vv $ Just idx)
 

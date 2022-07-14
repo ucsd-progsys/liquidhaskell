@@ -1000,7 +1000,7 @@ consPattern γ p@Rs.PatSelfRecBind{} _ =
   cconsFreshE LetE γ (Rs.lower p)
 
 mkRAppTy :: SpecType -> SpecType -> SpecType -> SpecType
-mkRAppTy mt et (RAppTy _ _ _)    = RAppTy mt et mempty
+mkRAppTy mt et RAppTy{}          = RAppTy mt et mempty
 mkRAppTy _  et (RApp c [_] [] _) = RApp c [et] [] mempty
 mkRAppTy _  _  _                 = panic Nothing "Unexpected return-pattern"
 
@@ -1239,16 +1239,16 @@ instantiatePvs           = L.foldl' go
     go t               _ = errorP "" ("Constraint.instantiatePvs: t = " ++ showpp t)
 
 checkTyCon :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
-checkTyCon _ _ t@(RApp _ _ _ _) = t
-checkTyCon x g t                = checkErr x g t
+checkTyCon _ _ t@RApp{} = t
+checkTyCon x g t        = checkErr x g t
 
 checkFun :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
-checkFun _ _ t@(RFun _ _ _ _ _) = t
-checkFun x g t                  = checkErr x g t
+checkFun _ _ t@RFun{} = t
+checkFun x g t        = checkErr x g t
 
 checkAll :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
-checkAll _ _ t@(RAllT _ _ _)  = t
-checkAll x g t                = checkErr x g t
+checkAll _ _ t@RAllT{} = t
+checkAll x g t         = checkErr x g t
 
 checkErr :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
 checkErr (msg, e) γ t         = panic (Just sp) $ msg ++ GM.showPpr e ++ ", type: " ++ showpp t

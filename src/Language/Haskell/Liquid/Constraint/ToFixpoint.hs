@@ -297,9 +297,9 @@ specTypeToLogic allowTC es e t
     okClass = all (F.isTauto . snd) cls
     okArgs  = all okArg ts
 
-    okArg (RVar _ _)       = True
-    okArg t@(RApp _ _ _ _) = F.isTauto (t{rt_reft = mempty})
-    okArg _                = False
+    okArg (RVar _ _) = True
+    okArg t@RApp{}   = F.isTauto (t{rt_reft = mempty})
+    okArg _          = False
 
 
     su           = F.mkSubst $ zip xs es
