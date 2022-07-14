@@ -1191,7 +1191,7 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
   let ys''         = F.symbol <$> filter (not . if allowTC then GM.isEmbeddedDictVar else GM.isEvVar) ys
   let r1           = dataConReft   c   ys''
   let r2           = dataConMsReft rtd ys''
-  let xt           = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
+  let xt           = (xt0 `F.meet` rtd) `strengthen` uTop (r1 `F.meet` r2)
   let cbs          = safeZip "cconsCase" (x':ys') 
                          (map (`F.subst1` (selfSymbol, F.EVar x')) 
                          (xt0 : yts))

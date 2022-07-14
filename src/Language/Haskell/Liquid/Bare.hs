@@ -998,7 +998,7 @@ makeInvariants env sigEnv (name, spec) =
     , Bare.knownGhcType env name bt
     , let t = Bare.cookSpecType env sigEnv name Bare.GenTV bt
   ] ++ 
-  concat [ ((Nothing,) . makeSizeInv l) <$>  ts  
+  concat [ (Nothing,) . makeSizeInv l <$>  ts  
     | (bts, l) <- Ms.dsize spec 
     , all (Bare.knownGhcType env name) bts
     , let ts = Bare.cookSpecType env sigEnv name Bare.GenTV <$> bts
