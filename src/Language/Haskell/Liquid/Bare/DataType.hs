@@ -400,7 +400,7 @@ makeConTypes' _myName env (name, spec) = do
 type DSizeMap = M.HashMap F.Symbol (F.Symbol, [F.Symbol])
 normalizeDSize :: [([LocBareType], F.LocSymbol)] -> DSizeMap
 normalizeDSize ds = M.fromList (concatMap go ds)
-  where go (ts,x) = let xs = mapMaybe (getTc . val) ts  
+  where go (ts,x) = let xs = Mb.mapMaybe (getTc . val) ts  
                     in [(tc, (val x, xs)) | tc <- xs]
         getTc (RAllT _ t _)  = getTc t 
         getTc (RApp c _ _ _) = Just (val $ btc_tc c) 
