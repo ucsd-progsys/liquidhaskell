@@ -297,7 +297,7 @@ doTermCheck cfg bind = do
 -- RJ: AAAAAAARGHHH!!!!!! THIS CODE IS HORRIBLE!!!!!!!!!
 consCBSizedTys :: CGEnv -> [(Var, CoreExpr)] -> CG CGEnv
 consCBSizedTys γ xes
-  = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+  = do xets     <- forM xes $ \(x, e) -> fmap (x, e,) (varTemplate γ (x, Just e))
        autoenv  <- autoSize <$> get
        ts       <- mapM (T.mapM refreshArgs) (thd3 <$> xets)
        let vs    = zipWith collectArgs ts es
@@ -331,7 +331,7 @@ consCBSizedTys γ xes
 
 consCBWithExprs :: CGEnv -> [(Var, CoreExpr)] -> CG CGEnv
 consCBWithExprs γ xes
-  = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+  = do xets     <- forM xes $ \(x, e) -> fmap (x, e,) (varTemplate γ (x, Just e))
        texprs    <- termExprs <$> get
        let xtes   = mapMaybe (`lookup` texprs) xs
        let ts    = safeFromAsserted err . thd3 <$> xets
@@ -405,7 +405,7 @@ consCB _ False γ (Rec xes)
 
 -- don't do termination checking, and don't do any strata checks either?
 consCB _ _ γ (Rec xes)
-  = do xets   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+  = do xets   <- forM xes $ \(x, e) -> fmap (x, e,) (varTemplate γ (x, Just e))
        modify $ \i -> i { recCount = recCount i + length xes }
        let xts = [(x, to) | (x, _, to) <- xets]
        γ'     <- foldM extender (γ `setRecs` (fst <$> xts)) xts

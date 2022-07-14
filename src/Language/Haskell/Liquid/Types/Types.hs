@@ -274,7 +274,7 @@ import           GHC.Generics
 import           Prelude                          hiding  (error)
 import qualified Prelude
 
-import           Control.Monad                          (liftM, liftM2, liftM3, liftM4)
+import           Control.Monad                          (liftM2, liftM3, liftM4)
 import           Control.DeepSeq
 import           Data.Bifunctor
 import           Data.Typeable                          (Typeable)
@@ -1726,9 +1726,9 @@ isFunTy _                = False
 
 
 mapReftM :: (Monad m) => (r1 -> m r2) -> RType c tv r1 -> m (RType c tv r2)
-mapReftM f (RVar α r)         = liftM   (RVar  α)   (f r)
+mapReftM f (RVar α r)         = fmap    (RVar  α)   (f r)
 mapReftM f (RAllT α t r)      = liftM2  (RAllT α)   (mapReftM f t)          (f r)
-mapReftM f (RAllP π t)        = liftM   (RAllP π)   (mapReftM f t)
+mapReftM f (RAllP π t)        = fmap    (RAllP π)   (mapReftM f t)
 mapReftM f (RImpF x i t t' r) = liftM3  (RImpF x i) (mapReftM f t)          (mapReftM f t')       (f r)
 mapReftM f (RFun x i t t' r)  = liftM3  (RFun x i)  (mapReftM f t)          (mapReftM f t')       (f r)
 mapReftM f (RApp c ts rs r)   = liftM3  (RApp  c)   (mapM (mapReftM f) ts)  (mapM (mapRefM f) rs) (f r)
@@ -1736,16 +1736,16 @@ mapReftM f (RAllE z t t')     = liftM2  (RAllE z)   (mapReftM f t)          (map
 mapReftM f (REx z t t')       = liftM2  (REx z)     (mapReftM f t)          (mapReftM f t')
 mapReftM _ (RExprArg e)       = return  $ RExprArg e
 mapReftM f (RAppTy t t' r)    = liftM3  RAppTy (mapReftM f t) (mapReftM f t') (f r)
-mapReftM f (RHole r)          = liftM   RHole       (f r)
+mapReftM f (RHole r)          = fmap    RHole       (f r)
 mapReftM f (RRTy xts r o t)   = liftM4  RRTy (mapM (mapSndM (mapReftM f)) xts) (f r) (return o) (mapReftM f t)
 
 mapRefM  :: (Monad m) => (t -> m s) -> RTProp c tv t -> m (RTProp c tv s)
-mapRefM  f (RProp s t)         = liftM   (RProp s)      (mapReftM f t)
+mapRefM  f (RProp s t)        = fmap    (RProp s)      (mapReftM f t)
 
 mapPropM :: (Monad m) => (RTProp c tv r -> m (RTProp c tv r)) -> RType c tv r -> m (RType c tv r)
 mapPropM _ (RVar α r)         = return $ RVar  α r
 mapPropM f (RAllT α t r)      = liftM2  (RAllT α)   (mapPropM f t)          (return r)
-mapPropM f (RAllP π t)        = liftM   (RAllP π)   (mapPropM f t)
+mapPropM f (RAllP π t)        = fmap    (RAllP π)   (mapPropM f t)
 mapPropM f (RImpF x i t t' r) = liftM3  (RImpF x i)    (mapPropM f t)         (mapPropM f t') (return r)
 mapPropM f (RFun x i t t' r)  = liftM3  (RFun x i)    (mapPropM f t)          (mapPropM f t') (return r)
 mapPropM f (RApp c ts rs r)   = liftM3  (RApp  c)   (mapM (mapPropM f) ts)  (mapM f rs)     (return r)
@@ -1775,8 +1775,8 @@ foldReft' :: (F.Reftable r, TyConable c)
           -> (F.SEnv b -> Maybe (RType c tv r) -> r -> a -> a)
           -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
-foldReft' logicBind bsc g f 
-  = efoldReft logicBind bsc 
+foldReft' logicBind bsc g f
+  = efoldReft logicBind bsc
               (\_ _ -> [])
               (\_ -> [])
               g
