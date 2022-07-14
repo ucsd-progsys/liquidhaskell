@@ -19,6 +19,7 @@ module Language.Haskell.Liquid.Bare.DataType
   , meetDataConSpec
   -- , makeTyConEmbeds
 
+  , dataDeclSize
   ) where
 
 import           Prelude                                hiding (error)
@@ -45,6 +46,7 @@ import           Language.Haskell.Liquid.Types.Names (selfSymbol)
 
 import qualified Language.Haskell.Liquid.Measure        as Ms
 import qualified Language.Haskell.Liquid.Bare.Types     as Bare  
+import qualified Language.Haskell.Liquid.Bare.Misc
 import qualified Language.Haskell.Liquid.Bare.Resolve   as Bare 
 import           Text.Printf                     (printf)
 import Text.PrettyPrint ((<+>))
@@ -386,14 +388,13 @@ makeConTypes' :: ModName -> Bare.Env -> (ModName, Ms.BareSpec)
              -> Bare.Lookup ([(ModName, TyConP, Maybe DataPropDecl)], [[Located DataConP]])
 makeConTypes' _myName env (name, spec) = do
   dcs'   <- canonizeDecls env name dcs
-  let dcs'' = makeSize ds <$> dcs'   
+  let dcs'' = dataDeclSize spec dcs'   
   let gvs = groupVariances dcs'' vdcs
   zong <- catLookups . map (uncurry (ofBDataDecl env name)) $ gvs
   return (unzip zong)
   where
     dcs  = Ms.dataDecls spec 
     vdcs = Ms.dvariance spec 
-    ds   = normalizeDSize $ Ms.dsize spec 
 
 
 type DSizeMap = M.HashMap F.Symbol (F.Symbol, [F.Symbol])
@@ -404,6 +405,11 @@ normalizeDSize ds = M.fromList (concatMap go ds)
         getTc (RAllT _ t _)  = getTc t 
         getTc (RApp c _ _ _) = Just (val $ btc_tc c) 
         getTc _ = Nothing 
+
+dataDeclSize :: Ms.BareSpec -> [DataDecl] -> [DataDecl]
+dataDeclSize spec dcs = makeSize smap <$> dcs
+  where smap = normalizeDSize $ Ms.dsize spec  
+
 
 makeSize :: DSizeMap -> DataDecl -> DataDecl 
 makeSize smap d
@@ -495,7 +501,6 @@ checkDataCtors  env  name  c  dd (Just cons) = do
   -- The data constructors in the spec (which we have to qualify for them to match the GHC data constructors)
   mbDcs <- mapM (Bare.failMaybe env name . Bare.lookupGhcDataCon env name "checkDataCtors" . dcName) cons
   let rdcs = S.fromList . fmap F.symbol . Mb.catMaybes $ mbDcs
-
   if dcs == rdcs
     then mapM checkDataCtorDupField cons
     else Left [errDataConMismatch (dataNameSymbol (tycName dd)) dcs rdcs]
