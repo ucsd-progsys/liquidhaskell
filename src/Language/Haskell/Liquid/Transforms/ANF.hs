@@ -294,10 +294,12 @@ normalizePattern γ p@(Rs.PatSelfRecBind {}) = do
   e'    <- normalize γ (Rs.patE p)
   return $ Rs.lower p { Rs.patE = e' }
 
+-- | Replace the DEFAULT case expression body with unit, if totality checking
+-- is on, the type of the case is unit, and the case body isn't user defined.
 replaceDefaultCaseBody :: AnfEnv -> Type -> [(AltCon, a, CoreExpr)] -> [(AltCon, a, CoreExpr)]
-replaceDefaultCaseBody γ t ((DEFAULT, as, _body) : dcs)
-    | t == Ghc.unitTy && totalityCheck γ =
-        ((DEFAULT, as, Ghc.Var Ghc.unitDataConId) : dcs)
+replaceDefaultCaseBody γ t (dc@(DEFAULT, as, _body) : dcs)
+    | totalityCheck γ && t == Ghc.unitTy && isUndefined dc =
+        (DEFAULT, as, Ghc.Var Ghc.unitDataConId) : dcs
 replaceDefaultCaseBody _ _ z = z
 
 --------------------------------------------------------------------------------
