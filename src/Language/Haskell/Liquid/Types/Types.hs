@@ -285,7 +285,7 @@ import           Data.Hashable
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
 import qualified Data.List                              as L
-import           Data.Maybe                             (fromMaybe, mapMaybe)
+import           Data.Maybe                             (mapMaybe)
 import           Data.Function                          (on)
 import           Data.List                              as L (foldl', nub, null)
 import           Data.Text                              (Text)
@@ -1926,7 +1926,7 @@ rTypeValueVar :: (F.Reftable r) => RType c tv r -> Symbol
 rTypeValueVar t = vv where F.Reft (vv,_) =  rTypeReft t
 
 rTypeReft :: (F.Reftable r) => RType c tv r -> F.Reft
-rTypeReft = fromMaybe F.trueReft . fmap F.toReft . stripRTypeBase
+rTypeReft = maybe F.trueReft F.toReft . stripRTypeBase
 
 -- stripRTypeBase ::  RType a -> Maybe a
 stripRTypeBase :: RType c tv r -> Maybe r
