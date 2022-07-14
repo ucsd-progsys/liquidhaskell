@@ -19,9 +19,9 @@
 
 module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints, generateConstraintsWithEnv, caseEnv, consE ) where
 
-#if !MIN_VERSION_base(4,14,0)
-import Control.Monad.Fail
-#endif
+
+
+
 
 import           Prelude                                       hiding (error)
 import           GHC.Stack
@@ -1025,9 +1025,7 @@ castTy γ t e (AxiomInstCo ca _ _)
 
 castTy γ t e (SymCo (AxiomInstCo ca _ _))
   = do mtc <- lookupNewType (coAxiomTyCon ca)
-       case mtc of
-        Just tc -> cconsE γ e tc
-        Nothing -> return ()
+       F.forM_ mtc (cconsE γ e)
        castTy' γ t e
 
 castTy γ t e _

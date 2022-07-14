@@ -21,7 +21,6 @@
 - ignore: {name: "Use fewer LANGUAGE pragmas"} # 2 hints
 - ignore: {name: "Use first"} # 1 hint
 - ignore: {name: "Use fmap"} # 65 hints
-- ignore: {name: "Use forM_"} # 1 hint
 - ignore: {name: "Use gets"} # 26 hints
 - ignore: {name: "Use guards"} # 1 hint
 - ignore: {name: "Use if"} # 2 hints
