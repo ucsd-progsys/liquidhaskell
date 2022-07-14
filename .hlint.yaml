@@ -6,7 +6,6 @@
 - ignore: {name: "Fuse concatMap/map"} # 1 hint
 - ignore: {name: "Fuse foldMap/fmap"} # 1 hint
 - ignore: {name: "Fuse traverse/map"} # 1 hint
-- ignore: {name: "Hoist not"} # 2 hints
 - ignore: {name: "Move guards forward"} # 2 hints
 - ignore: {name: "Move reverse out"} # 1 hint
 - ignore: {name: "Parse error: on input `,'"} # 1 hint
