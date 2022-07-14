@@ -267,7 +267,6 @@ solveCs cfg tgt cgi info names = do
                                  `addErrors` makeFailErrors (S.toList failBs) rf 
                                  `addErrors` makeFailUseErrors (S.toList failBs) (giCbs $ giSrc info)
                                  `addErrors` (fmap (e2u cfg sol) . Mb.catMaybes . fmap ci_err $ if totalityCheck cfg then ntErrs else [])
-
   let lErrors       = applySolution sol <$> logErrors cgi
   hErrors          <- if typedHoles cfg 
                         then synthesize tgt fcfg (cgi{holesMap = applySolution sol <$> holesMap  cgi}) 
