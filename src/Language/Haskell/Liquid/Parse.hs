@@ -473,8 +473,8 @@ maybeBind p = do {bd <- maybeP' bbindP; ty <- p ; return (bd, ty)}
 
 lowerIdTail :: Symbol -> Parser (Reft -> BareType)
 lowerIdTail l =
-          liftM2 bAppTy (return $ bTyVar l) (some bareTyArgP)
-      <|> liftM2 bRVar  (return $ bTyVar l) monoPredicateP
+          fmap (bAppTy (bTyVar l)) (some bareTyArgP)
+      <|> fmap (bRVar (bTyVar l)) monoPredicateP
 
 bTyConP :: Parser BTyCon
 bTyConP
@@ -1089,65 +1089,65 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
 -- | Parse a single top level liquid specification
 specP :: Parser BPspec
 specP
-  =     fallbackSpecP "assume"      (liftM Assm    tyBindP  )
-    <|> fallbackSpecP "assert"      (liftM Asrt    tyBindP  )
-    <|> fallbackSpecP "autosize"    (liftM ASize   asizeP   )
-    <|> (reserved "local"         >> liftM LAsrt   tyBindP  )
+  =     fallbackSpecP "assume"      (fmap Assm    tyBindP  )
+    <|> fallbackSpecP "assert"      (fmap Asrt    tyBindP  )
+    <|> fallbackSpecP "autosize"    (fmap ASize   asizeP   )
+    <|> (reserved "local"         >> fmap LAsrt   tyBindP  )
 
     -- TODO: These next two are synonyms, kill one
-    <|> fallbackSpecP "axiomatize"  (liftM Reflect axiomP   )
-    <|> fallbackSpecP "reflect"     (liftM Reflect axiomP   )
+    <|> fallbackSpecP "axiomatize"  (fmap Reflect axiomP   )
+    <|> fallbackSpecP "reflect"     (fmap Reflect axiomP   )
 
     <|> fallbackSpecP "measure"    hmeasureP
 
-    <|> fallbackSpecP "define"      (liftM Define  defineP  )
-    <|> (reserved "infixl"        >> liftM BFix    infixlP  )
-    <|> (reserved "infixr"        >> liftM BFix    infixrP  )
-    <|> (reserved "infix"         >> liftM BFix    infixP   )
-    <|> fallbackSpecP "inline"      (liftM Inline  inlineP  )
-    <|> fallbackSpecP "ignore"      (liftM Ignore  inlineP  )
+    <|> fallbackSpecP "define"      (fmap Define  defineP  )
+    <|> (reserved "infixl"        >> fmap BFix    infixlP  )
+    <|> (reserved "infixr"        >> fmap BFix    infixrP  )
+    <|> (reserved "infix"         >> fmap BFix    infixP   )
+    <|> fallbackSpecP "inline"      (fmap Inline  inlineP  )
+    <|> fallbackSpecP "ignore"      (fmap Ignore  inlineP  )
 
-    <|> fallbackSpecP "bound"       (liftM PBound  boundP
-                                 <|> liftM HBound  hboundP  )
+    <|> fallbackSpecP "bound"       (fmap PBound  boundP
+                                 <|> fmap HBound  hboundP  )
     <|> (reserved "class"
-         >> ((reserved "measure"  >> liftM CMeas  cMeasureP )
-         <|> (reserved "laws"     >> liftM CLaws  classP)
-         <|> liftM Class  classP                            ))
+         >> ((reserved "measure"  >> fmap CMeas  cMeasureP )
+         <|> (reserved "laws"     >> fmap CLaws  classP)
+         <|> fmap Class  classP                            ))
     <|> (reserved "instance"
-         >> ((reserved "measure"  >> liftM IMeas  iMeasureP )
-         <|> (reserved "laws"     >> liftM ILaws instanceLawP)
-         <|> liftM RInst  instanceP ))
+         >> ((reserved "measure"  >> fmap IMeas  iMeasureP )
+         <|> (reserved "laws"     >> fmap ILaws instanceLawP)
+         <|> fmap RInst  instanceP ))
 
-    <|> (reserved "import"        >> liftM Impt   symbolP   )
+    <|> (reserved "import"        >> fmap Impt   symbolP   )
 
     <|> (reserved "data"
-        >> ((reserved "variance"  >> liftM Varia  datavarianceP)
-                                 <|> liftM DDecl  dataDeclP ))
+        >> ((reserved "variance"  >> fmap Varia  datavarianceP)
+                                 <|> fmap DDecl  dataDeclP ))
 
-    <|> (reserved "newtype"       >> liftM NTDecl dataDeclP )
-    <|> (reserved "include"       >> liftM Incl   filePathP )
-    <|> fallbackSpecP "invariant"   (liftM Invt   invariantP)
-    <|> (reserved "using"          >> liftM Using invaliasP )
-    <|> (reserved "type"          >> liftM Alias  aliasP    )
+    <|> (reserved "newtype"       >> fmap NTDecl dataDeclP )
+    <|> (reserved "include"       >> fmap Incl   filePathP )
+    <|> fallbackSpecP "invariant"   (fmap Invt   invariantP)
+    <|> (reserved "using"          >> fmap Using invaliasP )
+    <|> (reserved "type"          >> fmap Alias  aliasP    )
 
     -- TODO: Next two are basically synonyms
-    <|> fallbackSpecP "predicate"   (liftM EAlias ealiasP   )
-    <|> fallbackSpecP "expression"  (liftM EAlias ealiasP   )
+    <|> fallbackSpecP "predicate"   (fmap EAlias ealiasP   )
+    <|> fallbackSpecP "expression"  (fmap EAlias ealiasP   )
 
-    <|> fallbackSpecP "embed"       (liftM Embed  embedP    )
-    <|> fallbackSpecP "qualif"      (liftM Qualif (qualifierP sortP))
-    <|> (reserved "decrease"      >> liftM Decr   decreaseP )
-    <|> (reserved "lazyvar"       >> liftM LVars  lazyVarP  )
+    <|> fallbackSpecP "embed"       (fmap Embed  embedP    )
+    <|> fallbackSpecP "qualif"      (fmap Qualif (qualifierP sortP))
+    <|> (reserved "decrease"      >> fmap Decr   decreaseP )
+    <|> (reserved "lazyvar"       >> fmap LVars  lazyVarP  )
 
-    <|> (reserved "lazy"          >> liftM Lazy   lazyVarP  )
-    <|> (reserved "rewrite"       >> liftM Rewrite   rewriteVarP )
-    <|> (reserved "rewriteWith"   >> liftM Rewritewith   rewriteWithP )
-    <|> (reserved "fail"          >> liftM Fail   failVarP  )
-    <|> (reserved "ple"           >> liftM Insts autoinstP  )
-    <|> (reserved "automatic-instances" >> liftM Insts autoinstP  )
-    <|> (reserved "LIQUID"        >> liftM Pragma pragmaP   )
-    <|> (reserved "liquid"        >> liftM Pragma pragmaP   )
-    <|> {- DEFAULT -}                liftM Asrts  tyBindsP
+    <|> (reserved "lazy"          >> fmap Lazy   lazyVarP  )
+    <|> (reserved "rewrite"       >> fmap Rewrite   rewriteVarP )
+    <|> (reserved "rewriteWith"   >> fmap Rewritewith   rewriteWithP )
+    <|> (reserved "fail"          >> fmap Fail   failVarP  )
+    <|> (reserved "ple"           >> fmap Insts autoinstP  )
+    <|> (reserved "automatic-instances" >> fmap Insts autoinstP  )
+    <|> (reserved "LIQUID"        >> fmap Pragma pragmaP   )
+    <|> (reserved "liquid"        >> fmap Pragma pragmaP   )
+    <|> {- DEFAULT -}                fmap Asrts  tyBindsP
     <?> "specP"
 
 -- | Try the given parser on the tail after matching the reserved word, and if
@@ -1156,7 +1156,7 @@ specP
 fallbackSpecP :: String -> Parser BPspec -> Parser BPspec
 fallbackSpecP kw p = do
   (Loc l1 l2 _) <- locReserved kw
-  p <|> liftM Asrts (tyBindsRemP (Loc l1 l2 (symbol kw)) )
+  p <|> fmap Asrts (tyBindsRemP (Loc l1 l2 (symbol kw)) )
 
 -- | Same as tyBindsP, except the single initial symbol has already been matched
 tyBindsRemP :: LocSymbol -> Parser ([LocSymbol], (Located BareType, Maybe [Located Expr]))

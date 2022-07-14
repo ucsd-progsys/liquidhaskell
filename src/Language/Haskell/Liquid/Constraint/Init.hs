@@ -46,7 +46,7 @@ initEnv info
        let fVars = giImpVars (giSrc info)
        let dcs   = filter isConLikeId (snd <$> gsFreeSyms (gsName sp))
        let dcs'  = filter isConLikeId fVars
-       defaults <- forM fVars $ \x -> liftM (x,) (trueTy allowTC $ varType x)
+       defaults <- forM fVars $ \x -> fmap (x,) (trueTy allowTC $ varType x)
        dcsty    <- forM dcs   (makeDataConTypes allowTC)
        dcsty'   <- forM dcs'  (makeDataConTypes allowTC)
        (hs,f0)  <- refreshHoles allowTC $ grty info                           -- asserted refinements     (for defined vars)

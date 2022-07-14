@@ -125,8 +125,8 @@ transPg = mapM transBd
 
 transBd :: Bind CoreBndr
         -> State TrEnv (Bind CoreBndr)
-transBd (NonRec x e) = liftM (NonRec x) (transExpr =<< mapBdM transBd e)
-transBd (Rec xes)    = liftM Rec $ mapM (mapSndM (mapBdM transBd)) xes
+transBd (NonRec x e) = fmap (NonRec x) (transExpr =<< mapBdM transBd e)
+transBd (Rec xes)    = Rec <$> mapM (mapSndM (mapBdM transBd)) xes
 
 transExpr :: CoreExpr -> TE CoreExpr
 transExpr e
@@ -159,7 +159,7 @@ trans :: Foldable t
       -> Expr Var
       -> State TrEnv (Expr Id)
 trans vs ids bs (Let (Rec xes) e)
-  = liftM (mkLam . mkLet) (makeTrans vs liveIds e')
+  = fmap (mkLam . mkLet) (makeTrans vs liveIds e')
   where liveIds = mkAlive <$> ids
         mkLet e = foldr Let e bs
         mkLam e = foldr Lam e $ vs ++ liveIds
@@ -244,7 +244,7 @@ instance Freshable Unique where
   fresh _ = freshUnique
 
 instance Freshable Var where
-  fresh v = liftM (setVarUnique v) freshUnique
+  fresh v = fmap (setVarUnique v) freshUnique
 
 freshInt :: MonadState TrEnv m => m Int
 freshInt
@@ -254,7 +254,7 @@ freshInt
        return n
 
 freshUnique :: MonadState TrEnv m => m Unique
-freshUnique = liftM (mkUnique 'X') freshInt
+freshUnique = fmap (mkUnique 'X') freshInt
 
 
 mapNonRec :: (b -> [Bind b] -> [Bind b]) -> [Bind b] -> [Bind b]
