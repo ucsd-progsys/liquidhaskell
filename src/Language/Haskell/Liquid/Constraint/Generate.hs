@@ -387,7 +387,7 @@ consCB True _ γ (Rec xes)
          then consCBSizedTys γ xes
          else check xxes <$> consCBWithExprs γ xes
     where
-      xs = fst (unzip xes)
+      xs = map fst xes
       check ys r | length ys == length xs = r
                  | otherwise              = panic (Just loc) msg
       msg        = "Termination expressions must be provided for all mutually recursive binders"
