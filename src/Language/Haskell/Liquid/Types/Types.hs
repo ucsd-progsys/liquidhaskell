@@ -274,7 +274,7 @@ import           GHC.Generics
 import           Prelude                          hiding  (error)
 import qualified Prelude
 
-import           Control.Monad                          (liftM2, liftM3, liftM4)
+import           Control.Monad                          (liftM2, liftM3, liftM4, void)
 import           Control.DeepSeq
 import           Data.Bifunctor
 import           Data.Typeable                          (Typeable)
@@ -1898,7 +1898,7 @@ ofRSort ::  F.Reftable r => RType c tv () -> RType c tv r
 ofRSort = fmap mempty
 
 toRSort :: RType c tv r -> RType c tv ()
-toRSort = stripAnnotations . mapBind (const F.dummySymbol) . fmap (const ())
+toRSort = stripAnnotations . mapBind (const F.dummySymbol) . void
 
 stripAnnotations :: RType c tv r -> RType c tv r
 stripAnnotations (RAllT α t r)    = RAllT α (stripAnnotations t) r

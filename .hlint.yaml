@@ -31,4 +31,3 @@
 - ignore: {name: "Use section"} # 1 hint
 - ignore: {name: "Use tuple-section"} # 1 hint
 - ignore: {name: "Use uncurry"} # 3 hints
-- ignore: {name: "Use void"} # 1 hint
