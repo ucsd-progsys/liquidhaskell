@@ -57,7 +57,7 @@ module Language.Haskell.Liquid.Constraint.Types
   ) where
 
 import Prelude hiding (error)
-import           Text.PrettyPrint.HughesPJ hiding ((<>)) 
+import           Text.PrettyPrint.HughesPJ hiding ((<>))
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
@@ -202,7 +202,7 @@ instance PPrint WfC where
 --------------------------------------------------------------------------------
 -- | Generation: Types ---------------------------------------------------------
 --------------------------------------------------------------------------------
-data CGInfo = CGInfo 
+data CGInfo = CGInfo
   { fEnv       :: !(F.SEnv F.Sort)             -- ^ top-level fixpoint env
   , hsCs       :: ![SubC]                      -- ^ subtyping constraints over RType
   , hsWfs      :: ![WfC]                       -- ^ wellformedness constraints over RType
@@ -241,11 +241,11 @@ data CGInfo = CGInfo
 
 
 getTemplates :: CG F.Templates
-getTemplates = do 
+getTemplates = do
   fg     <- pruneRefs <$> get
   ts     <- unsorted  <$> get
-  return $ if fg then F.anything else ts 
-       
+  return $ if fg then F.anything else ts
+
 
 instance PPrint CGInfo where
   pprintTidy = pprCGInfo
@@ -377,7 +377,7 @@ removeInvariant γ cbs
         | otherwise
         = True
     binds (NonRec x _) = [x]
-    binds (Rec xes)    = fst $ unzip xes
+    binds (Rec xes)    = map fst xes
 
 restoreInvariant :: CGEnv -> RTyConInv -> CGEnv
 restoreInvariant γ is = γ {invs = is}

@@ -297,7 +297,7 @@ doTermCheck cfg bind = do
 -- RJ: AAAAAAARGHHH!!!!!! THIS CODE IS HORRIBLE!!!!!!!!!
 consCBSizedTys :: CGEnv -> [(Var, CoreExpr)] -> CG CGEnv
 consCBSizedTys γ xes
-  = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+  = do xets     <- forM xes $ \(x, e) -> fmap (x, e,) (varTemplate γ (x, Just e))
        autoenv  <- autoSize <$> get
        ts       <- mapM (T.mapM refreshArgs) (thd3 <$> xets)
        let vs    = zipWith collectArgs ts es
@@ -331,7 +331,7 @@ consCBSizedTys γ xes
 
 consCBWithExprs :: CGEnv -> [(Var, CoreExpr)] -> CG CGEnv
 consCBWithExprs γ xes
-  = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+  = do xets     <- forM xes $ \(x, e) -> fmap (x, e,) (varTemplate γ (x, Just e))
        texprs    <- termExprs <$> get
        let xtes   = mapMaybe (`lookup` texprs) xs
        let ts    = safeFromAsserted err . thd3 <$> xets
@@ -387,7 +387,7 @@ consCB True _ γ (Rec xes)
          then consCBSizedTys γ xes
          else check xxes <$> consCBWithExprs γ xes
     where
-      xs = fst (unzip xes)
+      xs = map fst xes
       check ys r | length ys == length xs = r
                  | otherwise              = panic (Just loc) msg
       msg        = "Termination expressions must be provided for all mutually recursive binders"
@@ -405,7 +405,7 @@ consCB _ False γ (Rec xes)
 
 -- don't do termination checking, and don't do any strata checks either?
 consCB _ _ γ (Rec xes)
-  = do xets   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+  = do xets   <- forM xes $ \(x, e) -> fmap (x, e,) (varTemplate γ (x, Just e))
        modify $ \i -> i { recCount = recCount i + length xes }
        let xts = [(x, to) | (x, _, to) <- xets]
        γ'     <- foldM extender (γ `setRecs` (fst <$> xts)) xts
@@ -428,7 +428,7 @@ consCB _ _ γ (NonRec x def)
   | Just (w, τ) <- grepDictionary def
   , Just d      <- dlookup (denv γ) w
   = do t        <- mapM (trueTy (typeclass (getConfig γ))) τ
-       _ <- mapM addW (WfC γ <$> t)
+       mapM_ addW (WfC γ <$> t)
        let xts   = dmap (fmap (f t)) d
        let  γ'   = γ { denv = dinsert (denv γ) x xts }
        t        <- trueTy (typeclass (getConfig γ)) (varType x)
@@ -1039,9 +1039,7 @@ castTy γ t e (AxiomInstCo ca _ _)
 
 castTy γ t e (SymCo (AxiomInstCo ca _ _))
   = do mtc <- lookupNewType (coAxiomTyCon ca)
-       case mtc of
-        Just tc -> cconsE γ e tc
-        Nothing -> return ()
+       F.forM_ mtc (cconsE γ e)
        castTy' γ t e
 
 castTy γ t e _

@@ -25,7 +25,7 @@ import qualified Language.Fixpoint.Misc     as F
 import qualified Language.Fixpoint.Types    as F
 
 import           Language.Haskell.Liquid.UX.Config  as UX
-import qualified Language.Haskell.Liquid.Misc       as Misc 
+import qualified Language.Haskell.Liquid.Misc       as Misc
 import           Language.Haskell.Liquid.GHC.Misc   as GM
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Transforms.InlineAux
@@ -37,7 +37,7 @@ import qualified Language.Haskell.Liquid.GHC.Resugar   as Rs
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
 import           Data.Function                    (on)
-import qualified Text.Printf as Printf 
+import qualified Text.Printf as Printf
 import           Data.Hashable
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HM
@@ -96,13 +96,13 @@ normalizeTopBind γ (Rec xes)
 
 normalizeTyVars :: Bind Id -> Bind Id
 normalizeTyVars (NonRec x e) = NonRec (setVarType x t') $ normalizeForAllTys e
-  where 
+  where
     t'       = subst msg as as' bt
     msg      = "WARNING: unable to renameVars on " ++ GM.showPpr x
     as'      = fst $ splitForAllTys $ exprType e
     (as, bt) = splitForAllTys (varType x)
 normalizeTyVars (Rec xes)    = Rec xes'
-  where 
+  where
     nrec     = normalizeTyVars <$> ((\(x, e) -> NonRec x e) <$> xes)
     xes'     = (\(NonRec x e) -> (x, e)) <$> nrec
 
@@ -179,8 +179,8 @@ normalizeName γ e
        return $ Var x
 
 shouldNormalize :: Literal -> Bool
-shouldNormalize (LitNumber {})  = True 
-shouldNormalize (LitString {})    = True 
+shouldNormalize (LitNumber {})  = True
+shouldNormalize (LitString {})    = True
 shouldNormalize _               = False
 
 add :: [CoreBind] -> DsMW ()
@@ -202,7 +202,7 @@ normalize γ e
   , Just p <- Rs.lift e
   = normalizePattern γ p
 
-normalize γ (Lam x e) | isTyVar x 
+normalize γ (Lam x e) | isTyVar x
   = do e' <- normalize γ e
        return $ Lam x e'
 
@@ -220,7 +220,7 @@ normalize γ (Case e x t as)
   = do n     <- normalizeName γ e
        x'    <- lift $ freshNormalVar γ τx -- rename "wild" to avoid shadowing
        let γ' = extendAnfEnv γ x x'
-       as'   <- forM as $ \(c, xs, e') -> liftM (c, xs,) (stitch (incrCaseDepth c γ') e')
+       as'   <- forM as $ \(c, xs, e') -> fmap (c, xs,) (stitch (incrCaseDepth c γ') e')
        as''  <- lift $ expandDefaultCase γ τx as'
        return $ Case n x' t as''
     where τx = GM.expandVarType x
@@ -296,9 +296,9 @@ normalizePattern γ p@(Rs.PatSelfRecBind {}) = do
 
 
 --------------------------------------------------------------------------------
-expandDefault :: AnfEnv -> Bool 
+expandDefault :: AnfEnv -> Bool
 --------------------------------------------------------------------------------
-expandDefault γ = aeCaseDepth γ <= maxCaseExpand γ 
+expandDefault γ = aeCaseDepth γ <= maxCaseExpand γ
 
 --------------------------------------------------------------------------------
 expandDefaultCase :: AnfEnv
@@ -315,46 +315,46 @@ expandDefaultCase γ tyapp@(TyConApp tc _) z@((DEFAULT, _ ,_):dcs)
                      let n   = length ds'
                      if n == 1
                        then expandDefaultCase' γ tyapp z
-                       else if maxCaseExpand γ /= 2 
-                            then return z 
-                            else return (trace (expandMessage False γ n) z) 
+                       else if maxCaseExpand γ /= 2
+                            then return z
+                            else return (trace (expandMessage False γ n) z)
        Nothing -> return z --
 
 expandDefaultCase _ _ z
    = return z
 
-expandDefaultCase' 
+expandDefaultCase'
   :: AnfEnv -> Type -> [(AltCon, [Id], c)] -> DsM [(AltCon, [Id], c)]
 expandDefaultCase' γ t ((DEFAULT, _, e) : dcs)
-  | Just dtss <- GM.defaultDataCons t (F.fst3 <$> dcs) = do 
+  | Just dtss <- GM.defaultDataCons t (F.fst3 <$> dcs) = do
       dcs'    <- warnCaseExpand γ <$> forM dtss (cloneCase γ e)
       return   $ sortCases (dcs' ++ dcs)
 expandDefaultCase' _ _ z
-   = return z 
+   = return z
 
 cloneCase :: AnfEnv -> e -> (DataCon, [TyVar], [Type]) -> DsM (AltCon, [Id], e)
-cloneCase γ e (d, as, ts) = do 
-  xs  <- mapM (freshNormalVar γ) ts 
+cloneCase γ e (d, as, ts) = do
+  xs  <- mapM (freshNormalVar γ) ts
   return (DataAlt d, as ++ xs, e)
 
 sortCases :: [(AltCon, b, c)] -> [(AltCon, b, c)]
-sortCases = sortBy (cmpAltCon `on` F.fst3) 
+sortCases = sortBy (cmpAltCon `on` F.fst3)
 
-warnCaseExpand :: AnfEnv -> [a] -> [a] 
-warnCaseExpand γ xs  
-  | 10 < n          = trace (expandMessage True γ n) xs 
+warnCaseExpand :: AnfEnv -> [a] -> [a]
+warnCaseExpand γ xs
+  | 10 < n          = trace (expandMessage True γ n) xs
   | otherwise       = xs
-  where 
-   n                = length xs 
+  where
+   n                = length xs
 
-expandMessage :: Bool -> AnfEnv -> Int -> String 
-expandMessage expand γ n = unlines [msg1, msg2]   
-  where 
-    msg1            = Printf.printf "WARNING: (%s) %s DEFAULT with %d cases at depth %d" (showPpr sp) v1 n d 
-    msg2            = Printf.printf "%s expansion with --max-case-expand=%d" v2 d' 
-    (v1, v2, d') 
+expandMessage :: Bool -> AnfEnv -> Int -> String
+expandMessage expand γ n = unlines [msg1, msg2]
+  where
+    msg1            = Printf.printf "WARNING: (%s) %s DEFAULT with %d cases at depth %d" (showPpr sp) v1 n d
+    msg2            = Printf.printf "%s expansion with --max-case-expand=%d" v2 d'
+    (v1, v2, d')
       | expand      = ("Expanding"    , "Disable", d-1) :: (String, String, Int)
-      | otherwise   = ("Not expanding", "Enable" , d+1) 
+      | otherwise   = ("Not expanding", "Enable" , d+1)
     d               = aeCaseDepth γ
     sp              = Sp.srcSpan (aeSrcSpan γ)
 
@@ -427,9 +427,9 @@ lookupAnfEnv γ x (StableId -> y) = HM.lookupDefault x y (aeVarEnv γ)
 extendAnfEnv :: AnfEnv -> Id -> Id -> AnfEnv
 extendAnfEnv γ (StableId -> x) y = γ { aeVarEnv = HM.insert x y (aeVarEnv γ) }
 
-incrCaseDepth :: AltCon -> AnfEnv -> AnfEnv 
+incrCaseDepth :: AltCon -> AnfEnv -> AnfEnv
 incrCaseDepth DEFAULT γ = γ { aeCaseDepth = 1 + aeCaseDepth γ }
-incrCaseDepth _       γ = γ 
+incrCaseDepth _       γ = γ
 
 at :: AnfEnv -> Tickish Id -> AnfEnv
 at γ tt = γ { aeSrcSpan = Sp.push (Sp.Tick tt) (aeSrcSpan γ)}
