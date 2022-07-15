@@ -74,7 +74,7 @@ makeTyConVariance c = varSignToVariance <$> tvs
                             _        -> Bivariant
 
 
-    goDCon dc = concatMap (go True) (map irrelevantMult $ Ghc.dataConOrigArgTys dc)
+    goDCon dc = concatMap (go True . irrelevantMult) (Ghc.dataConOrigArgTys dc)
 
     go pos (FunTy _ _ t1 t2) = go (not pos) t1 ++ go pos t2
     go pos (ForAllTy _ t)    = go pos t
