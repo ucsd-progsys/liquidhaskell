@@ -266,7 +266,7 @@ solveCs cfg tgt cgi info names = do
   let resModel'     = resModel_  `addErrors` (e2u cfg sol <$> logErrors cgi)
                                  `addErrors` makeFailErrors (S.toList failBs) rf 
                                  `addErrors` makeFailUseErrors (S.toList failBs) (giCbs $ giSrc info)
-                                 `addErrors` (fmap (e2u cfg sol) . Mb.catMaybes . fmap ci_err $ if totalityCheck cfg then ntErrs else [])
+                                 `addErrors` (fmap (e2u cfg sol) $ Mb.mapMaybe ci_err $ if totalityCheck cfg then ntErrs else [])
   let lErrors       = applySolution sol <$> logErrors cgi
   hErrors          <- if typedHoles cfg 
                         then synthesize tgt fcfg (cgi{holesMap = applySolution sol <$> holesMap  cgi}) 
@@ -323,7 +323,7 @@ splitNontotalErrors cbs (F.Unsafe s xs)  = (mkRes r, ciInflateTotalityError . sn
   where
     (rtots,r) = L.partition (ciMatchesTotalityAnnot . snd) xs -- partition to those which match something in tts
 
-    totalityAnnotSpans = Mb.catMaybes . fmap unTickTotalityAnnot $ ticks cbs
+    totalityAnnotSpans = Mb.mapMaybe unTickTotalityAnnot $ ticks cbs
 
     ciMatchesTotalityAnnot :: Cinfo -> Bool
     ciMatchesTotalityAnnot Ci{ci_loc=RealSrcSpan ta _} = elem ta totalityAnnotSpans
