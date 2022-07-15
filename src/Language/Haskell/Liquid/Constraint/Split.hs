@@ -31,7 +31,7 @@ import           Text.PrettyPrint.HughesPJ hiding (first, parens)
 
 import           Data.Maybe          (fromMaybe)
 import           Control.Monad
-import           Control.Monad.State (get)
+import           Control.Monad.State (gets)
 import qualified Control.Exception as Ex
 
 import qualified Language.Fixpoint.Types            as F
@@ -123,7 +123,7 @@ rsplitW γ (RProp ss t0) = do
 bsplitW :: CGEnv -> SpecType -> CG [FixWfC]
 bsplitW γ t =
   do temp  <- getTemplates
-     isHO  <- allowHO   <$> get
+     isHO  <- gets allowHO
      return $ bsplitW' γ t temp isHO
 
 bsplitW' :: (PPrint r, F.Reftable r, SubsTy RTyVar RSort r, F.Reftable (RTProp RTyCon RTyVar r))
@@ -337,7 +337,7 @@ bsplitC :: CGEnv
         -> CG [F.SubC Cinfo]
 bsplitC γ t1 t2 = do
   temp   <- getTemplates
-  isHO   <- allowHO   <$> get
+  isHO   <- gets allowHO
   t1'    <- addLhsInv γ <$> refreshVV t1
   return  $ bsplitC' γ t1' t2 temp isHO
 

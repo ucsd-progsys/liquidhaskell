@@ -242,8 +242,8 @@ data CGInfo = CGInfo
 
 getTemplates :: CG F.Templates
 getTemplates = do
-  fg     <- pruneRefs <$> get
-  ts     <- unsorted  <$> get
+  fg    <- gets pruneRefs
+  ts    <- gets unsorted
   return $ if fg then F.anything else ts
 
 
