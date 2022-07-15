@@ -1125,9 +1125,9 @@ specP
     <|> (reserved "import"        >> fmap Impt   symbolP   )
 
     <|> (reserved "data"
-        >> ((reserved "variance"  >> liftM Varia  datavarianceP)
-        <|> (reserved "size"      >> liftM DSize  dsizeP)
-        <|> liftM DDecl  dataDeclP ))
+        >> ((reserved "variance"  >> fmap Varia  datavarianceP)
+        <|> (reserved "size"      >> fmap DSize  dsizeP)
+        <|> fmap DDecl  dataDeclP ))
     <|> (reserved "newtype"       >> fmap NTDecl dataDeclP )
     <|> (reserved "include"       >> fmap Incl   filePathP )
     <|> fallbackSpecP "invariant"   (fmap Invt   invariantP)
