@@ -35,6 +35,7 @@ import Language.Haskell.Liquid.Types.Types
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.Types.PredType
+import Language.Haskell.Liquid.Types.Names (selfSymbol)
 
 -- import Language.Fixpoint.Types hiding (panic)
 import qualified Language.Fixpoint.Types as F
@@ -73,8 +74,8 @@ dcPrefix :: F.Symbol
 dcPrefix = "lqdc"
 
 wiredSortedSyms :: [(F.Symbol, F.Sort)]
-wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
-
+wiredSortedSyms = (selfSymbol,selfSort):[(pappSym n, pappSort n) | n <- [1..pappArity]]
+  where selfSort = F.FAbs 1 (F.FVar 0)
 --------------------------------------------------------------------------------
 -- | LH Primitive TyCons -------------------------------------------------------
 --------------------------------------------------------------------------------

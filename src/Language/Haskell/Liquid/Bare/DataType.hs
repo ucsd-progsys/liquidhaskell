@@ -19,6 +19,7 @@ module Language.Haskell.Liquid.Bare.DataType
   , meetDataConSpec
   -- , makeTyConEmbeds
 
+  , dataDeclSize
   ) where
 
 import           Prelude                                hiding (error)
@@ -41,8 +42,10 @@ import qualified Language.Fixpoint.Misc                 as Misc
 import qualified Language.Haskell.Liquid.Misc           as Misc
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.WiredIn
+import           Language.Haskell.Liquid.Types.Names (selfSymbol)
 
 import qualified Language.Haskell.Liquid.Measure        as Ms
+
 import qualified Language.Haskell.Liquid.Bare.Types     as Bare
 import qualified Language.Haskell.Liquid.Bare.Resolve   as Bare
 import           Text.Printf                     (printf)
@@ -385,12 +388,48 @@ makeConTypes' :: ModName -> Bare.Env -> (ModName, Ms.BareSpec)
              -> Bare.Lookup ([(ModName, TyConP, Maybe DataPropDecl)], [[Located DataConP]])
 makeConTypes' _myName env (name, spec) = do
   dcs'   <- canonizeDecls env name dcs
-  let gvs = groupVariances dcs' vdcs
+  let dcs'' = dataDeclSize spec dcs'   
+  let gvs = groupVariances dcs'' vdcs
   zong <- catLookups . map (uncurry (ofBDataDecl env name)) $ gvs
   return (unzip zong)
   where
     dcs  = Ms.dataDecls spec
     vdcs = Ms.dvariance spec
+
+
+type DSizeMap = M.HashMap F.Symbol (F.Symbol, [F.Symbol])
+normalizeDSize :: [([LocBareType], F.LocSymbol)] -> DSizeMap
+normalizeDSize ds = M.fromList (concatMap go ds)
+  where go (ts,x) = let xs = Mb.mapMaybe (getTc . val) ts  
+                    in [(tc, (val x, xs)) | tc <- xs]
+        getTc (RAllT _ t _)  = getTc t 
+        getTc (RApp c _ _ _) = Just (val $ btc_tc c) 
+        getTc _ = Nothing 
+
+dataDeclSize :: Ms.BareSpec -> [DataDecl] -> [DataDecl]
+dataDeclSize spec dcs = makeSize smap <$> dcs
+  where smap = normalizeDSize $ Ms.dsize spec  
+
+
+makeSize :: DSizeMap -> DataDecl -> DataDecl 
+makeSize smap d
+  | Just p <- M.lookup (F.symbol $ tycName d) smap 
+  = d {tycDCons = fmap (fmap (makeSizeCtor p)) (tycDCons d) }
+  | otherwise
+   = d 
+
+makeSizeCtor :: (F.Symbol, [F.Symbol]) -> DataCtor -> DataCtor 
+makeSizeCtor (s,xs) d = d {dcFields = Misc.mapSnd (mapBot go) <$> dcFields d}
+  where 
+    go (RApp c ts rs r) | F.symbol c `elem` xs 
+                        = RApp c ts rs (r `F.meet` rsz)
+    go t                = t 
+    rsz  = MkUReft (F.Reft (F.vv_, F.PAtom F.Lt 
+                                      (F.EApp (F.EVar s) (F.EVar F.vv_))
+                                      (F.EApp (F.EVar s) (F.EVar selfSymbol))
+                                      )) 
+                   mempty
+
 
 catLookups :: [Bare.Lookup a] -> Bare.Lookup [a]
 catLookups = sequence . Mb.mapMaybe skipResolve
@@ -462,7 +501,6 @@ checkDataCtors  env  name  c  dd (Just cons) = do
   -- The data constructors in the spec (which we have to qualify for them to match the GHC data constructors)
   mbDcs <- mapM (Bare.failMaybe env name . Bare.lookupGhcDataCon env name "checkDataCtors" . dcName) cons
   let rdcs = S.fromList . fmap F.symbol . Mb.catMaybes $ mbDcs
-
   if dcs == rdcs
     then mapM checkDataCtorDupField cons
     else Left [errDataConMismatch (dataNameSymbol (tycName dd)) dcs rdcs]

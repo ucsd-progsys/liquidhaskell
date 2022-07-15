@@ -154,7 +154,8 @@ makeHaskellDataDecls :: Config -> ModName -> Ms.BareSpec -> [Ghc.TyCon]
                      -> [DataDecl]
 --------------------------------------------------------------------------------
 makeHaskellDataDecls cfg name spec tcs
-  | exactDCFlag cfg = Mb.mapMaybe tyConDataDecl
+  | exactDCFlag cfg = Bare.dataDeclSize spec
+                    . Mb.mapMaybe tyConDataDecl
                     -- . F.tracepp "makeHaskellDataDecls-3"
                     . zipMap   (hasDataDecl name spec . fst)
                     -- . F.tracepp "makeHaskellDataDecls-2"

@@ -269,7 +269,7 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
     , _gsLSpec  = finalLiftedSpec
                 { impSigs   = makeImports mspecs
                 , expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ]
-                , dataDecls = dataDecls mySpec
+                , dataDecls = Bare.dataDeclSize mySpec $ dataDecls mySpec
                 , measures  = Ms.measures mySpec
                   -- We want to export measures in a 'LiftedSpec', especially if they are
                   -- required to check termination of some 'liftedSigs' we export. Due to the fact
@@ -997,7 +997,20 @@ makeInvariants env sigEnv (name, spec) =
     | (_, bt) <- Ms.invariants spec
     , Bare.knownGhcType env name bt
     , let t = Bare.cookSpecType env sigEnv name Bare.GenTV bt
-  ]
+  ] ++ 
+  concat [ (Nothing,) . makeSizeInv l <$>  ts  
+    | (bts, l) <- Ms.dsize spec 
+    , all (Bare.knownGhcType env name) bts
+    , let ts = Bare.cookSpecType env sigEnv name Bare.GenTV <$> bts
+  ]  
+
+makeSizeInv :: F.LocSymbol -> Located SpecType -> Located SpecType
+makeSizeInv s t = t{val = go (val t)}
+  where go (RApp c ts rs r) = RApp c ts rs (r `meet` nat)
+        go (RAllT a t r)    = RAllT a (go t) r 
+        go t = t 
+        nat  = MkUReft (Reft (vv_, PAtom Le (ECon $ I 0) (EApp (EVar $ val s) (eVar vv_)))) 
+                       mempty 
 
 makeMeasureInvariants :: Bare.Env -> ModName -> GhcSpecSig -> Ms.BareSpec
                       -> ([(Maybe Ghc.Var, LocSpecType)], [UnSortedExpr])

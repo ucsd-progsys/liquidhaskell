@@ -873,6 +873,7 @@ data Pspec ty ctor
   | CMeas   (Measure ty ())                               -- ^ 'class measure' definition
   | IMeas   (Measure ty ctor)                             -- ^ 'instance measure' definition
   | Varia   (LocSymbol, [Variance])                       -- ^ 'variance' annotations, marking type constructor params as co-, contra-, or in-variant
+  | DSize   ([ty], LocSymbol)                             -- ^ 'data size' annotations, generating fancy termination metric 
   | BFix    ()                                            -- ^ fixity annotation
   | Define  (LocSymbol, Symbol)                           -- ^ 'define' annotation for specifying aliases c.f. `include-CoreToLogic.lg`
   deriving (Data, Show, Typeable)
@@ -963,14 +964,16 @@ ppPspec k (CMeas   m)
   = "class measure" <+> pprintTidy k m
 ppPspec k (IMeas   m)
   = "instance  measure" <+> pprintTidy k m
-ppPspec k (Class   cls)
-  = pprintTidy k cls
-ppPspec k (CLaws  cls)
-  = pprintTidy k cls
-ppPspec k (RInst   inst)
-  = pprintTidy k inst
-ppPspec k (Varia   (lx, vs))
-  = "data variance" <+> pprintTidy k (val lx) <+> splice " " (pprintTidy k <$> vs)
+ppPspec k (Class   cls) 
+  = pprintTidy k cls 
+ppPspec k (CLaws  cls) 
+  = pprintTidy k cls 
+ppPspec k (RInst   inst) 
+  = pprintTidy k inst 
+ppPspec k (Varia   (lx, vs))  
+  = "data variance" <+> pprintTidy k (val lx) <+> splice " " (pprintTidy k <$> vs) 
+ppPspec k (DSize   (ds, ss))  
+  = "data size" <+> splice " " (pprintTidy k <$> ds) <+> pprintTidy k (val ss) 
 ppPspec _ (BFix    _)           -- 
   = "fixity"
 ppPspec k (Define  (lx, y))
@@ -1068,6 +1071,7 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
   , Measure.classes    = [c | Class  c <- xs]
   , Measure.claws      = [c | CLaws  c <- xs]
   , Measure.dvariance  = [v | Varia  v <- xs]
+  , Measure.dsize      = [v | DSize  v <- xs]
   , Measure.rinstance  = [i | RInst  i <- xs]
   , Measure.ilaws      = [i | ILaws  i <- xs]
   , Measure.termexprs  = [(y, es) | Asrts (ys, (_, Just es)) <- xs, y <- ys]
@@ -1121,9 +1125,9 @@ specP
     <|> (reserved "import"        >> fmap Impt   symbolP   )
 
     <|> (reserved "data"
-        >> ((reserved "variance"  >> fmap Varia  datavarianceP)
-                                 <|> fmap DDecl  dataDeclP ))
-
+        >> ((reserved "variance"  >> liftM Varia  datavarianceP)
+        <|> (reserved "size"      >> liftM DSize  dsizeP)
+        <|> liftM DDecl  dataDeclP ))
     <|> (reserved "newtype"       >> fmap NTDecl dataDeclP )
     <|> (reserved "include"       >> fmap Incl   filePathP )
     <|> fallbackSpecP "invariant"   (fmap Invt   invariantP)
@@ -1214,6 +1218,10 @@ filePathP     = angles $ some pathCharP
 
 datavarianceP :: Parser (Located Symbol, [Variance])
 datavarianceP = liftM2 (,) locUpperIdP (many varianceP)
+
+dsizeP :: Parser ([Located BareType], Located Symbol)
+dsizeP = liftM2 (,) (parens $ sepBy (located genBareTypeP) comma) locBinderP
+
 
 varianceP :: Parser Variance
 varianceP = (reserved "bivariant"     >> return Bivariant)

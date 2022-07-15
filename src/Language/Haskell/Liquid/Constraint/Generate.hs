@@ -92,7 +92,7 @@ consAct γ cfg info = do
   hws <- gets hsWfs
   fcs <- concat <$> mapM (splitC (typeclass (getConfig info))) hcs
   fws <- concat <$> mapM splitW hws
-  modify $ \st -> st { fEnv     = feEnv (fenv γ)
+  modify $ \st -> st { fEnv     = fEnv    st `mappend` feEnv (fenv γ)
                      , cgLits   = litEnv   γ
                      , cgConsts = cgConsts st `mappend` constEnv γ
                      , fixCs    = fcs
@@ -804,6 +804,20 @@ consE γ e
 
 -- [NOTE: PLE-OPT] We *disable* refined instantiation for 
 -- reflected functions inside proofs.
+
+-- If datacon definitions have references to self for fancy termination,
+-- ignore them at the construction. 
+consE γ (Var x) | GM.isDataConId x 
+  = do t0 <- varRefType γ x
+       -- NV: The check is expected to fail most times, so 
+       --     it is cheaper than direclty fmap ignoreSelf. 
+       let hasSelf = selfSymbol `elem` F.syms t0
+       let t = if hasSelf 
+                then fmap ignoreSelf <$> t0
+                else t0  
+       addLocA (Just x) (getLocation γ) (varAnn γ x t)
+       return t
+
 consE γ (Var x)
   = do t <- varRefType γ x
        addLocA (Just x) (getLocation γ) (varAnn γ x t)
@@ -1176,15 +1190,31 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
   let r1           = dataConReft   c   ys''
   let r2           = dataConMsReft rtd ys''
   let xt           = (xt0 `F.meet` rtd) `strengthen` uTop (r1 `F.meet` r2)
-  let cbs          = safeZip "cconsCase" (x':ys') (xt0 : yts)
-  cγ'             <- addBinders γ   x' cbs
-  addBinders cγ' x' [(x', xt)]
+  let cbs          = safeZip "cconsCase" (x':ys') 
+                         (map (`F.subst1` (selfSymbol, F.EVar x')) 
+                         (xt0 : yts))
+  cγ'             <- addBinders γ x' cbs
+  addBinders cγ' x' [(x', substSelf <$> xt)]
   where allowTC    = typeclass (getConfig γ)
 
 caseEnv γ x acs a _ _ = do
   let x'  = F.symbol x
   xt'    <- (`strengthen` uTop (altReft γ acs a)) <$> (γ ??= x)
   addBinders γ x' [(x', xt')]
+
+
+------------------------------------------------------
+-- SELF special substitutions 
+------------------------------------------------------
+
+substSelf :: UReft F.Reft -> UReft F.Reft 
+substSelf (MkUReft r p) = MkUReft (substSelfReft r) p
+
+substSelfReft :: F.Reft -> F.Reft 
+substSelfReft (F.Reft (v, e)) = F.Reft (v, F.subst1 e (selfSymbol, F.EVar v))
+
+ignoreSelf :: F.Reft -> F.Reft 
+ignoreSelf = F.mapExpr (\r -> if selfSymbol `elem` F.syms r then F.PTrue else r)
 
 --------------------------------------------------------------------------------
 -- | `projectTypes` masks (i.e. true's out) all types EXCEPT those
