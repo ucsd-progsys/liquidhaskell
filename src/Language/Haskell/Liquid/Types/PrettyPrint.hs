@@ -228,9 +228,9 @@ ppr_rtype bb p t@(RAllP _ _)
   = ppr_forall bb p t
 ppr_rtype _ _ (RVar a r)
   = F.ppTy r $ pprint a
-ppr_rtype bb p t@(RImpF _ _ _ _ _)
+ppr_rtype bb p t@RImpF{}
   = maybeParen p funPrec (ppr_rty_fun bb empty t)
-ppr_rtype bb p t@(RFun _ _ _ _ _)
+ppr_rtype bb p t@RFun{}
   = maybeParen p funPrec (ppr_rty_fun bb empty t)
 ppr_rtype bb p (RApp c [t] rs r)
   | isList c
@@ -248,9 +248,9 @@ ppr_rtype bb p (RApp c ts rs r)
     tsDoc            = hsep (ppr_rtype bb p <$> ts)
     ppT              = ppTyConB bb
 
-ppr_rtype bb p t@(REx _ _ _)
+ppr_rtype bb p t@REx{}
   = ppExists bb p t
-ppr_rtype bb p t@(RAllE _ _ _)
+ppr_rtype bb p t@RAllE{}
   = ppAllExpr bb p t
 ppr_rtype _ _ (RExprArg e)
   = braces $ pprint e

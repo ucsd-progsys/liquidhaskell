@@ -254,7 +254,7 @@ splitC allowTC (SubC γ t1'@(RAllT α1 t1 _) t2'@(RAllT α2 t2 _))
 splitC allowTC (SubC _ (RApp c1 _ _ _) (RApp c2 _ _ _)) | (if allowTC then isEmbeddedDict else isClass) c1 && c1 == c2
   = return []
 
-splitC _ (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
+splitC _ (SubC γ t1@RApp{} t2@RApp{})
   = do (t1',t2') <- unifyVV t1 t2
        cs    <- bsplitC γ t1' t2'
        γ'    <- if bscope (getConfig γ) then γ `extendEnvWithVV` t1' else return γ
@@ -394,7 +394,7 @@ replaceReft rr (F.RR _ r) = rr {ur_reft = F.Reft (v, F.subst1  p (vr, F.EVar v) 
     F.Reft (vr,p)         = r
 
 unifyVV :: SpecType -> SpecType -> CG (SpecType, SpecType)
-unifyVV t1@(RApp _ _ _ _) t2@(RApp _ _ _ _)
+unifyVV t1@RApp{} t2@RApp{}
   = do vv <- F.vv . Just <$> fresh
        return (shiftVV t1 vv, shiftVV t2 vv)
 

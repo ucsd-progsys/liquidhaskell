@@ -18,7 +18,7 @@ import           Data.Hashable
 import           Prelude                                   hiding (error)
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types.PrettyPrint ()
-import qualified Language.Haskell.Liquid.GHC.Misc       as GM 
+import qualified Language.Haskell.Liquid.GHC.Misc       as GM
 import qualified Language.Haskell.Liquid.GHC.API        as Ghc
 import           Language.Haskell.Liquid.Types.Types
 -- import           Language.Haskell.Liquid.Types.Visitors (freeVars)
@@ -41,7 +41,7 @@ makeDictionaryName :: LocSymbol -> [LocSpecType] -> F.Symbol
 makeDictionaryName t ts
   = F.notracepp _msg $ F.symbol ("$f" ++ F.symbolString (val t) ++ concatMap mkName ts)
   where
-    mkName = makeDicTypeName sp . dropUniv . val 
+    mkName = makeDicTypeName sp . dropUniv . val
     sp     = GM.fSrcSpan t
     _msg   = "MAKE-DICTIONARY " ++ F.showpp (val t, ts)
 
@@ -50,13 +50,13 @@ makeDictionaryName t ts
 --   class resolution.
 
 makeDicTypeName :: Ghc.SrcSpan -> SpecType -> String
-makeDicTypeName _ (RFun _ _ _ _ _) = "(->)"
+makeDicTypeName _ RFun{}           = "(->)"
 makeDicTypeName _ (RApp c _ _ _)   = F.symbolString . GM.dropModuleNamesCorrect . F.symbol . rtc_tc $ c
-makeDicTypeName _ (RVar (RTV a) _) = show (Ghc.getName a)      
+makeDicTypeName _ (RVar (RTV a) _) = show (Ghc.getName a)
 makeDicTypeName sp t               = panic (Just sp) ("makeDicTypeName: called with invalid type " ++ show t)
 
-dropUniv :: SpecType -> SpecType 
-dropUniv t = t' where (_,_,t') = bkUniv t 
+dropUniv :: SpecType -> SpecType
+dropUniv t = t' where (_,_,t') = bkUniv t
 
 --------------------------------------------------------------------------------
 -- | Dictionary Environment ----------------------------------------------------

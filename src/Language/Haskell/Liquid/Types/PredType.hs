@@ -370,7 +370,7 @@ substPred msg su@(π, _ ) (RApp c ts rs r)
     t'                          = RApp c (substPred msg su <$> ts) (substPredP msg su <$> rs) r
     (r2', πs)                   = splitRPvar π r
 
-substPred msg (p, tp) (RAllP q@(PV _ _ _ _) t)
+substPred msg (p, tp) (RAllP q@PV{} t)
   | p /= q                      = RAllP q $ substPred msg (p, tp) t
   | otherwise                   = RAllP q t
 

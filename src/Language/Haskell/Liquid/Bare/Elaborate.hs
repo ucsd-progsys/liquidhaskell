@@ -511,8 +511,7 @@ elaborateSpecType' partialTp coreToLogic simplify t =
     -- in the future
     RExprArg _ -> impossible Nothing "RExprArg should not appear here"
     RHole    _ -> impossible Nothing "RHole should not appear here"
-    RRTy _ _ _ _ ->
-      todo Nothing ("Not sure how to elaborate RRTy" ++ F.showpp t)
+    RRTy{}     -> todo Nothing ("Not sure how to elaborate RRTy" ++ F.showpp t)
  where
   boolType = RApp (RTyCon boolTyCon [] def) [] [] mempty :: SpecType
   elaborateReft
@@ -617,7 +616,7 @@ renameBinderCoerc f = rename
   rename (   F.PIff e0 e1      ) = F.PIff (rename e0) (rename e1)
   rename (   F.PAtom brel e0 e1) = F.PAtom brel (rename e0) (rename e1)
   rename (F.ECoerc _ _ e') = rename e'
-    
+
   rename e = panic
     Nothing
     ("renameBinderCoerc: Not sure how to handle the expression " ++ F.showpp e)
@@ -641,7 +640,7 @@ renameBinderSort f = rename
 
 mkHsTyConApp ::  IdP (GhcPass p) -> [LHsType (GhcPass p)] -> LHsType (GhcPass p)
 #if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-mkHsTyConApp = nlHsTyConApp 
+mkHsTyConApp = nlHsTyConApp
 #else
 mkHsTyConApp tyconId tyargs = nlHsTyConApp Prefix tyconId (map HsValArg tyargs)
 #endif
@@ -765,7 +764,7 @@ specTypeToLHsType =
   flip (ghylo (distPara @SpecType) distAna) (fmap pure . project) $ \case
     RVarF (RTV tv) _ -> nlHsTyVar
       -- (GM.notracePpr ("varRdr" ++ F.showpp (F.symbol tv)) $ getRdrName tv)
-      (symbolToRdrNameNs tvName (F.symbol tv)) 
+      (symbolToRdrNameNs tvName (F.symbol tv))
     RFunF _ _ (tin, tin') (_, tout) _
       | isClassType tin -> noLoc $ HsQualTy Ghc.noExtField (noLoc [tin']) tout
       | otherwise       -> nlHsFunTy tin' tout
