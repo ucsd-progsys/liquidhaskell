@@ -2,7 +2,7 @@
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
-module Language.Haskell.Liquid.Bare.Misc 
+module Language.Haskell.Liquid.Bare.Misc
   ( joinVar
   , mkVarExpr
   , vmap
@@ -22,7 +22,7 @@ import           Control.Monad.Except                  (MonadError, throwError)
 import           Control.Monad.State
 import qualified Data.Maybe                            as Mb --(fromMaybe, isNothing)
 
-import qualified Text.PrettyPrint.HughesPJ             as PJ 
+import qualified Text.PrettyPrint.HughesPJ             as PJ
 import qualified Data.List                             as L
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.GHC.Misc
@@ -49,7 +49,7 @@ makeSymbols f vs xs
       hasBasicArgs (FunTy _ tx t)   = isBaseTy tx && hasBasicArgs t
       hasBasicArgs _              = True
 
--} 
+-}
 
 {- 
 HEAD
@@ -102,12 +102,12 @@ freeSyms ty    = [ F.atLoc ty x | x <- tySyms ]
 --     f γ _ r xs = let F.Reft (v, _) = F.toReft r in
 --                  [ x | x <- F.syms r, x /= v, not (x `F.memberSEnv` γ)] : xs
 
--} 
+-}
 -------------------------------------------------------------------------------
 -- Renaming Type Variables in Haskell Signatures ------------------------------
 -------------------------------------------------------------------------------
 runMapTyVars :: Bool -> Type -> SpecType -> (PJ.Doc -> PJ.Doc -> Error) -> Either Error MapTyVarST
-runMapTyVars allowTC τ t err = execStateT (mapTyVars allowTC τ t) (MTVST [] err) 
+runMapTyVars allowTC τ t err = execStateT (mapTyVars allowTC τ t) (MTVST [] err)
 
 data MapTyVarST = MTVST
   { vmap   :: [(Var, RTyVar)]
@@ -117,7 +117,7 @@ data MapTyVarST = MTVST
 mapTyVars :: Bool -> Type -> SpecType -> StateT MapTyVarST (Either Error) ()
 mapTyVars allowTC t (RImpF _ _ _ t' _)
    = mapTyVars allowTC t t'
-mapTyVars allowTC (FunTy { ft_arg = τ, ft_res = τ'}) t 
+mapTyVars allowTC (FunTy { ft_arg = τ, ft_res = τ'}) t
   | isErasable τ
   = mapTyVars allowTC τ' t
   where isErasable = if allowTC then isEmbeddedDictType else isClassPred
@@ -151,8 +151,8 @@ mapTyVars _ k _ | isKind k
 mapTyVars allowTC (ForAllTy _ τ) t
   = mapTyVars allowTC τ t
 mapTyVars _ hsT lqT
-  = do err <- errmsg <$> get
-       throwError (err (F.pprint hsT) (F.pprint lqT)) 
+  = do err <- gets errmsg
+       throwError (err (F.pprint hsT) (F.pprint lqT))
 
 isKind :: Kind -> Bool
 isKind = classifiesTypeWithValues -- TODO:GHC-863 isStarKind k --  typeKind k

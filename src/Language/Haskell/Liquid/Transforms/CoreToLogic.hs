@@ -140,7 +140,7 @@ data LState = LState
 
 throw :: String -> LogicM a
 throw str = do
-  fmkError  <- lsError <$> get
+  fmkError  <- gets lsError
   throwError $ fmkError str
 
 getState :: LogicM LState

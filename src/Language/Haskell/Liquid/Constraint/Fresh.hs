@@ -113,8 +113,8 @@ ofType' :: Type -> CG SpecType
 ofType' = fixTy . ofType
 
 fixTy :: SpecType -> CG SpecType
-fixTy t = do tyi   <- tyConInfo  <$> get
-             tce   <- tyConEmbed <$> get
+fixTy t = do tyi   <- gets tyConInfo
+             tce   <- gets tyConEmbed
              return $ addTyConInfo tce tyi t
 
 exprRefType :: CoreExpr -> SpecType

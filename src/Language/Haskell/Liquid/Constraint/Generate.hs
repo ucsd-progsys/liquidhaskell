@@ -130,8 +130,8 @@ makeDecrIndex _ = return []
 
 makeDecrIndexTy :: Var -> SpecType -> [Var] -> CG (Either (TError t) [Int])
 makeDecrIndexTy x t args
-  = do spDecr <- specDecr <$> get
-       autosz <- autoSize <$> get
+  = do spDecr <- gets specDecr
+       autosz <- gets autoSize
        hint   <- checkHint' autosz (L.lookup x spDecr)
        case dindex autosz of
          Nothing -> return $ Left msg
@@ -239,7 +239,7 @@ checkValidHint x ts f n
 consCBLet :: CGEnv -> CoreBind -> CG CGEnv
 --------------------------------------------------------------------------------
 consCBLet γ cb = do
-  oldtcheck <- tcheck <$> get
+  oldtcheck <- gets tcheck
   isStr     <- doTermCheck (getConfig γ) cb
   -- TODO: yuck.
   modify $ \s -> s { tcheck = oldtcheck && isStr }
@@ -261,7 +261,7 @@ consCBTop cfg info γ cb
        addB γ x = tt x >>= (\t -> γ += ("derived", F.symbol x, t))
 
 consCBTop _ _ γ cb
-  = do oldtcheck <- tcheck <$> get
+  = do oldtcheck <- gets tcheck
        -- lazyVars  <- specLazy <$> get
        isStr     <- doTermCheck (getConfig γ) cb
        modify $ \s -> s { tcheck = oldtcheck && isStr}
@@ -283,8 +283,8 @@ derivedVar src x = S.member x (giDerVars src)
 
 doTermCheck :: Config -> Bind Var -> CG Bool
 doTermCheck cfg bind = do
-  lazyVs    <- specLazy   <$> get
-  termVs    <- specTmVars <$> get
+  lazyVs    <- gets specLazy
+  termVs    <- gets specTmVars
   let skip   = any (\x -> S.member x lazyVs || nocheck x) xs
   let chk    = not (structuralTerm cfg) || any (\x -> S.member x termVs) xs
   return     $ chk && not skip
@@ -298,7 +298,7 @@ doTermCheck cfg bind = do
 consCBSizedTys :: CGEnv -> [(Var, CoreExpr)] -> CG CGEnv
 consCBSizedTys γ xes
   = do xets     <- forM xes $ \(x, e) -> fmap (x, e,) (varTemplate γ (x, Just e))
-       autoenv  <- autoSize <$> get
+       autoenv  <- gets autoSize
        ts       <- mapM (T.mapM refreshArgs) (thd3 <$> xets)
        let vs    = zipWith collectArgs ts es
        is       <- mapM makeDecrIndex (zip3 xs ts vs) >>= checkSameLens
@@ -332,8 +332,8 @@ consCBSizedTys γ xes
 consCBWithExprs :: CGEnv -> [(Var, CoreExpr)] -> CG CGEnv
 consCBWithExprs γ xes
   = do xets     <- forM xes $ \(x, e) -> fmap (x, e,) (varTemplate γ (x, Just e))
-       texprs    <- termExprs <$> get
-       let xtes   = mapMaybe (`lookup` texprs) xs
+       texprs   <- gets termExprs
+       let xtes  = mapMaybe (`lookup` texprs) xs
        let ts    = safeFromAsserted err . thd3 <$> xets
        ts'      <- mapM refreshArgs ts
        let xts   = zip xs (Asserted <$> ts')
@@ -380,7 +380,7 @@ consCB :: Bool -> Bool -> CGEnv -> CoreBind -> CG CGEnv
 --------------------------------------------------------------------------------
 -- do termination checking
 consCB True _ γ (Rec xes)
-  = do texprs <- termExprs <$> get
+  = do texprs <- gets termExprs
        modify $ \i -> i { recCount = recCount i + length xes }
        let xxes = mapMaybe (`lookup` texprs) xs
        if null xxes
@@ -595,7 +595,7 @@ varTemplate' γ (x, eo)
 -- | @topSpecType@ strips out the top-level refinement of "derived var"
 topSpecType :: Var -> SpecType -> CG SpecType
 topSpecType x t = do
-  info  <- ghcI <$> get
+  info <- gets ghcI
   return $ if derivedVar (giSrc info) x then topRTypeBase t else t
 
 --------------------------------------------------------------------------------
@@ -620,7 +620,7 @@ cconsE' γ e t
     in void $ consCBLet γ' (Rec [(x, e')])
 
 cconsE' γ e@(Let b@(NonRec x _) ee) t
-  = do sp <- specLVars <$> get
+  = do sp <- gets specLVars
        if x `S.member` sp
          then cconsLazyLet γ e t
          else do γ'  <- consCBLet γ b
@@ -711,7 +711,7 @@ addFunctionConstraint γ x e (RFun y i ty t r)
        t'       <- true (typeclass (getConfig γ)) t
        let truet = RFun y i ty' t'
        case (lamExpr γ e, higherOrderFlag γ) of
-          (Just e', True) -> do tce    <- tyConEmbed <$> get
+          (Just e', True) -> do tce    <- gets tyConEmbed
                                 let sx  = typeSort tce $ varType x
                                 let ref = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
                                 addC (SubC γ (truet ref) $ truet r)    "function constraint singleton"
@@ -807,14 +807,14 @@ consE γ e
 
 -- If datacon definitions have references to self for fancy termination,
 -- ignore them at the construction. 
-consE γ (Var x) | GM.isDataConId x 
+consE γ (Var x) | GM.isDataConId x
   = do t0 <- varRefType γ x
        -- NV: The check is expected to fail most times, so 
        --     it is cheaper than direclty fmap ignoreSelf. 
        let hasSelf = selfSymbol `elem` F.syms t0
-       let t = if hasSelf 
+       let t = if hasSelf
                 then fmap ignoreSelf <$> t0
-                else t0  
+                else t0
        addLocA (Just x) (getLocation γ) (varAnn γ x t)
        return t
 
@@ -883,7 +883,7 @@ consE γ  e@(Lam x e1)
        t1      <- consE γ' e1
        addIdA x $ AnnDef tx
        addW     $ WfC γ tx
-       tce     <- tyConEmbed <$> get
+       tce     <- gets tyConEmbed
        return   $ RFun (F.symbol x) (mkRFInfo $ getConfig γ) tx t1 $ lambdaSingleton γ tce x e1
     where
       FunTy { ft_arg = τx } = exprType e
@@ -1190,8 +1190,8 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
   let r1           = dataConReft   c   ys''
   let r2           = dataConMsReft rtd ys''
   let xt           = (xt0 `F.meet` rtd) `strengthen` uTop (r1 `F.meet` r2)
-  let cbs          = safeZip "cconsCase" (x':ys') 
-                         (map (`F.subst1` (selfSymbol, F.EVar x')) 
+  let cbs          = safeZip "cconsCase" (x':ys')
+                         (map (`F.subst1` (selfSymbol, F.EVar x'))
                          (xt0 : yts))
   cγ'             <- addBinders γ x' cbs
   addBinders cγ' x' [(x', substSelf <$> xt)]
@@ -1207,13 +1207,13 @@ caseEnv γ x acs a _ _ = do
 -- SELF special substitutions 
 ------------------------------------------------------
 
-substSelf :: UReft F.Reft -> UReft F.Reft 
+substSelf :: UReft F.Reft -> UReft F.Reft
 substSelf (MkUReft r p) = MkUReft (substSelfReft r) p
 
-substSelfReft :: F.Reft -> F.Reft 
+substSelfReft :: F.Reft -> F.Reft
 substSelfReft (F.Reft (v, e)) = F.Reft (v, F.subst1 e (selfSymbol, F.EVar v))
 
-ignoreSelf :: F.Reft -> F.Reft 
+ignoreSelf :: F.Reft -> F.Reft
 ignoreSelf = F.mapExpr (\r -> if selfSymbol `elem` F.syms r then F.PTrue else r)
 
 --------------------------------------------------------------------------------

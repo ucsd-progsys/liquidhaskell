@@ -740,7 +740,7 @@ expToBindReft (RProp s t)  = RProp s  <$> expToBindT t
 
 getBinds :: State ExSt (M.HashMap F.Symbol (RSort, F.Expr))
 getBinds
-  = do bds <- emap <$> get
+  = do bds <- gets emap
        modify $ \st -> st{emap = M.empty}
        return bds
 
@@ -759,7 +759,7 @@ expToBindRef (MkUReft r (Pr p))
 
 expToBind :: UsedPVar -> State ExSt UsedPVar
 expToBind p = do
-  res <- fmap (M.lookup (pname p)) (pmap <$> get)
+  res <- gets (M.lookup (pname p) . pmap)
   case res of
     Nothing ->
       panic Nothing ("expToBind: " ++ show p)
@@ -782,7 +782,7 @@ expToBindExpr e t
 
 freshSymbol :: State ExSt F.Symbol
 freshSymbol
-  = do n <- fresh <$> get
+  = do n <- gets fresh
        modify $ \s -> s {fresh = n+1}
        return $ F.symbol $ "ex#" ++ show n
 

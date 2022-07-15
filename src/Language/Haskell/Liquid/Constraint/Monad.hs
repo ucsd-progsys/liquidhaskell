@@ -12,7 +12,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.Text           as T
 
 import           Control.Monad
-import           Control.Monad.State (get, modify)
+import           Control.Monad.State (get, gets, modify)
 import           Language.Haskell.Liquid.Types hiding (loc)
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Env
@@ -28,10 +28,10 @@ addC :: SubC -> String -> CG ()
 --------------------------------------------------------------------------------
 addC c@(SubC γ t1 t2) _msg
   | toType False t1 /= toType False t2
-  = panic (Just $ getLocation γ) $ "addC: malformed constraint:\n" ++ _msg ++ showpp t1 ++ "\n <: \n" ++ showpp t2 
+  = panic (Just $ getLocation γ) $ "addC: malformed constraint:\n" ++ _msg ++ showpp t1 ++ "\n <: \n" ++ showpp t2
   | otherwise
   = modify $ \s -> s { hsCs  = c : hsCs s }
- 
+
 
 addC c _msg
   = modify $ \s -> s { hsCs  = c : hsCs s }
@@ -55,8 +55,8 @@ addPost γ (RRTy cts _ OCons t)
        addPost γ t
   where
     (xts, t1, t2) = envToSub cts
-addPost _ t 
-  = return t 
+addPost _ t
+  = return t
 
 --------------------------------------------------------------------------------
 -- | Add Well formedness Constraint
@@ -92,14 +92,14 @@ addLocA !xo !l !t
 
 -- | Used for annotating holes 
 
-addHole :: Var -> SpecType -> CGEnv -> CG () 
-addHole x t γ 
-  | typedHoles (getConfig γ) = 
-      do  st <- get 
+addHole :: Var -> SpecType -> CGEnv -> CG ()
+addHole x t γ
+  | typedHoles (getConfig γ) =
+      do  st <- get
           modify $ \s -> s {holesMap = M.insert x (hinfo (st, γ)) $ holesMap s}
           -- addWarning $ ErrHole loc ("hole found") (reGlobal env <> reLocal env) x' t 
   | otherwise = return ()
-    where 
+    where
       hinfo = HoleInfo t loc env
       loc   = srcSpan $ cgLoc γ
       env   = mconcat [renv γ, grtys γ, assms γ, intys γ]
@@ -128,7 +128,7 @@ addA _ _ _ !a
 
 lookupNewType :: Ghc.TyCon -> CG (Maybe SpecType)
 lookupNewType tc
-  = M.lookup tc . newTyEnv <$> get
+  = gets (M.lookup tc . newTyEnv)
 
 
 --------------------------------------------------------------------------------
