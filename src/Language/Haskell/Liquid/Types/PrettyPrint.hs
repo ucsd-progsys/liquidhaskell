@@ -538,7 +538,7 @@ filterReportErrorsWith FilterReportErrorsArgs {..} errs =
         filterReporter unmatchedFilters
         failure
     else do
-      msgs <- traverse pprinter (map fst unmatchedErrors)
+      msgs <- traverse (pprinter . fst) unmatchedErrors
       void $ msgReporter msgs
       failure
 
