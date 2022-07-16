@@ -103,7 +103,7 @@ normalizeTyVars (NonRec x e) = NonRec (setVarType x t') $ normalizeForAllTys e
     (as, bt) = splitForAllTys (varType x)
 normalizeTyVars (Rec xes)    = Rec xes'
   where
-    nrec     = normalizeTyVars <$> ((\(x, e) -> NonRec x e) <$> xes)
+    nrec     = normalizeTyVars <$> (uncurry NonRec <$> xes)
     xes'     = (\(NonRec x e) -> (x, e)) <$> nrec
 
 subst :: String -> [TyVar] -> [TyVar] -> Type -> Type
