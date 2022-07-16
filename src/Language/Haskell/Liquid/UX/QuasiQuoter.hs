@@ -7,7 +7,7 @@
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
-module Language.Haskell.Liquid.UX.QuasiQuoter 
+module Language.Haskell.Liquid.UX.QuasiQuoter
 -- (
 --     -- * LiquidHaskell Specification QuasiQuoter
 --     lq
@@ -91,8 +91,8 @@ mkSpecDecs (Asrts (names, (ty, _))) =
 mkSpecDecs (Alias rta) =
   return . TySynD name tvs <$> simplifyBareType lsym (rtBody (val rta))
   where
-    lsym = F.atLoc rta n 
-    name = symbolName n 
+    lsym = F.atLoc rta n
+    name = symbolName n
     n    = rtName (val rta)
 #if MIN_VERSION_template_haskell(2,17,0)
     tvs  = (\a -> PlainTV (symbolName a) ()) <$> rtTArgs (val rta)
@@ -114,10 +114,10 @@ simplifyBareType s t = case simplifyBareType' t of
   Simplified t' ->
     Right t'
   FoundExprArg l ->
-    Left $ ErrTySpec l Nothing (pprint $ val s) (pprint t) 
+    Left $ ErrTySpec l Nothing (pprint $ val s) (pprint t)
       "Found expression argument in bad location in type"
   FoundHole ->
-    Left $ ErrTySpec (fSrcSpan s) Nothing (pprint $ val s) (pprint t) 
+    Left $ ErrTySpec (fSrcSpan s) Nothing (pprint $ val s) (pprint t)
       "Can't write LiquidHaskell type with hole in a quasiquoter"
 
 simplifyBareType' :: BareType -> Simpl Type
@@ -209,7 +209,7 @@ newtype LiquidQuote = LiquidQuote { liquidQuoteSpec :: BPspec }
 
 locSourcePos :: Loc -> SourcePos
 locSourcePos loc =
-  safeSourcePos (loc_filename loc) (fst $ loc_start loc) (snd $ loc_start loc)
+  uncurry (safeSourcePos (loc_filename loc)) (loc_start loc)
 
 dataToExpQ' :: Data a => a -> Q Exp
 dataToExpQ' = dataToExpQ (const Nothing `extQ` textToExpQ)
