@@ -2,7 +2,6 @@
 - ignore: {name: "Avoid lambda"} # 4 hints
 - ignore: {name: "Avoid lambda using `infix`"} # 4 hints
 - ignore: {name: "Eta reduce"} # 51 hints
-- ignore: {name: "Functor law"} # 8 hints
 - ignore: {name: "Move guards forward"} # 2 hints
 - ignore: {name: "Parse error: on input `,'"} # 1 hint
 - ignore: {name: "Parse error: possibly incorrect indentation or mismatched brackets"} # 3 hints
