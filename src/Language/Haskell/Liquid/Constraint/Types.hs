@@ -114,7 +114,7 @@ data CGEnv = CGE
 instance HasConfig CGEnv where
   getConfig = getConfig . cgInfo
 
-data LConstraint = LC [[(F.Symbol, SpecType)]]
+newtype LConstraint = LC [[(F.Symbol, SpecType)]]
 
 instance Monoid LConstraint where
   mempty  = LC []
