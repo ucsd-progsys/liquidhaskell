@@ -388,7 +388,7 @@ makeConTypes' :: ModName -> Bare.Env -> (ModName, Ms.BareSpec)
              -> Bare.Lookup ([(ModName, TyConP, Maybe DataPropDecl)], [[Located DataConP]])
 makeConTypes' _myName env (name, spec) = do
   dcs'   <- canonizeDecls env name dcs
-  let dcs'' = dataDeclSize spec dcs'   
+  let dcs'' = dataDeclSize spec dcs'
   let gvs = groupVariances dcs'' vdcs
   zong <- catLookups . map (uncurry (ofBDataDecl env name)) $ gvs
   return (unzip zong)
@@ -400,34 +400,34 @@ makeConTypes' _myName env (name, spec) = do
 type DSizeMap = M.HashMap F.Symbol (F.Symbol, [F.Symbol])
 normalizeDSize :: [([LocBareType], F.LocSymbol)] -> DSizeMap
 normalizeDSize ds = M.fromList (concatMap go ds)
-  where go (ts,x) = let xs = Mb.mapMaybe (getTc . val) ts  
+  where go (ts,x) = let xs = Mb.mapMaybe (getTc . val) ts
                     in [(tc, (val x, xs)) | tc <- xs]
-        getTc (RAllT _ t _)  = getTc t 
-        getTc (RApp c _ _ _) = Just (val $ btc_tc c) 
-        getTc _ = Nothing 
+        getTc (RAllT _ t _)  = getTc t
+        getTc (RApp c _ _ _) = Just (val $ btc_tc c)
+        getTc _ = Nothing
 
 dataDeclSize :: Ms.BareSpec -> [DataDecl] -> [DataDecl]
 dataDeclSize spec dcs = makeSize smap <$> dcs
-  where smap = normalizeDSize $ Ms.dsize spec  
+  where smap = normalizeDSize $ Ms.dsize spec
 
 
-makeSize :: DSizeMap -> DataDecl -> DataDecl 
+makeSize :: DSizeMap -> DataDecl -> DataDecl
 makeSize smap d
-  | Just p <- M.lookup (F.symbol $ tycName d) smap 
+  | Just p <- M.lookup (F.symbol $ tycName d) smap
   = d {tycDCons = fmap (fmap (makeSizeCtor p)) (tycDCons d) }
   | otherwise
-   = d 
+   = d
 
-makeSizeCtor :: (F.Symbol, [F.Symbol]) -> DataCtor -> DataCtor 
+makeSizeCtor :: (F.Symbol, [F.Symbol]) -> DataCtor -> DataCtor
 makeSizeCtor (s,xs) d = d {dcFields = Misc.mapSnd (mapBot go) <$> dcFields d}
-  where 
-    go (RApp c ts rs r) | F.symbol c `elem` xs 
+  where
+    go (RApp c ts rs r) | F.symbol c `elem` xs
                         = RApp c ts rs (r `F.meet` rsz)
-    go t                = t 
-    rsz  = MkUReft (F.Reft (F.vv_, F.PAtom F.Lt 
+    go t                = t
+    rsz  = MkUReft (F.Reft (F.vv_, F.PAtom F.Lt
                                       (F.EApp (F.EVar s) (F.EVar F.vv_))
                                       (F.EApp (F.EVar s) (F.EVar selfSymbol))
-                                      )) 
+                                      ))
                    mempty
 
 
@@ -676,7 +676,7 @@ getPsSigPs m pos (RProp _ (RHole r)) = addps m pos r
 getPsSigPs m pos (RProp _ t) = getPsSig m pos t
 
 addps :: [(UsedPVar, a)] -> b -> UReft t -> [(a, b)]
-addps m pos (MkUReft _ ps) = flip (,) pos . f  <$> pvars ps
+addps m pos (MkUReft _ ps) = (, pos) . f  <$> pvars ps
   where
     f = Mb.fromMaybe (panic Nothing "Bare.addPs: notfound") . (`L.lookup` m) . RT.uPVar
 
