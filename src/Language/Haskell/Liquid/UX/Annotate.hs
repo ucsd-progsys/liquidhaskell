@@ -382,7 +382,7 @@ chopAltDBG y = filter (/= "")
 -- | JSON: Annotation Data Types ---------------------------------------
 ------------------------------------------------------------------------
 
-data Assoc k a    = Asc (M.HashMap k a)
+newtype Assoc k a = Asc (M.HashMap k a)
 type AnnTypes     = Assoc Int (Assoc Int Annot1)
 newtype AnnErrors = AnnErrors [(Loc, Loc, String)]
 data Annot1       = A1  { ident :: String

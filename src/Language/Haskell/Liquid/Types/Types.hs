@@ -324,7 +324,7 @@ data TyConMap = TyConMap
   }
 
 
-data RFInfo = RFInfo {permitTC :: Maybe Bool }
+newtype RFInfo = RFInfo {permitTC :: Maybe Bool }
   deriving (Generic, Data, Typeable, Show, Eq)
 
 defRFInfo :: RFInfo

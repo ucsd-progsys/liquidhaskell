@@ -127,7 +127,7 @@ normalizeForAllTys e = case e of
 newtype DsM a = DsM {runDsM :: Ghc.DsM a}
    deriving (Functor, Monad, MonadUnique, Applicative)
 
-data DsST = DsST { st_binds :: [CoreBind] }
+newtype DsST = DsST { st_binds :: [CoreBind] }
 
 type DsMW = StateT DsST DsM
 
