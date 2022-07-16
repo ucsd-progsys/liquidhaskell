@@ -636,7 +636,7 @@ ppReqInContext td tA tE c
 
 ppContext :: PPrint t => Tidy -> M.HashMap Symbol t -> Doc
 ppContext td c
-  | 0 < length xts = nests 2 [ text "in the context"
+  | not (null xts) = nests 2 [ text "in the context"
                              , vsep (map (uncurry (pprintBind td)) xts)
                              ]
   | otherwise      = empty
