@@ -725,9 +725,9 @@ instance ToJSON SrcSpan where
 
 instance FromJSON SrcSpan where
   parseJSON (Object v) = do tag <- v .: "realSpan"
-                            case tag of
-                              False -> return noSrcSpan
-                              True  -> RealSrcSpan <$> v .: "spanInfo" <*> pure Nothing
+                            if tag
+                              then RealSrcSpan <$> v .: "spanInfo" <*> pure Nothing
+                              else return noSrcSpan
   parseJSON _          = mempty
 
 -- Default definition use ToJSON and FromJSON
