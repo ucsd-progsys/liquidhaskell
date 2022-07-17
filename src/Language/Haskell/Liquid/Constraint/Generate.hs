@@ -1022,7 +1022,7 @@ checkMonad :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
 checkMonad x g = go . unRRTy
  where
    go (RApp _ ts [] _)
-     | length ts > 0 = last ts
+     | not (null ts) = last ts
    go (RAppTy _ t _) = t
    go t              = checkErr x g t
 

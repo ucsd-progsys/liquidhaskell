@@ -62,7 +62,7 @@ useAlsQuals :: (HasConfig t) => t -> Bool
 useAlsQuals i = useQuals i && i `hasOpt` higherOrderFlag && not (needQuals i)
 
 useQuals :: (HasConfig t) => t -> Bool
-useQuals = not . (FC.All == ) . eliminate . getConfig
+useQuals = (FC.All /=) . eliminate . getConfig
 
 needQuals :: (HasConfig t) => t -> Bool
 needQuals = (FC.None == ) . eliminate . getConfig

@@ -397,9 +397,8 @@ instance Eq StableId where
     -- We first use the default 'Eq' instance, which works on uniques (basically, integers) and is
     -- efficient. If we get 'False' it means those 'Unique' are really different, but if we get 'True',
     -- we need to be /really/ sure that's the case by using the 'stableNameCmp' function on the 'Name's.
-    case id1 == id2 of
-      False -> False -- Nothing to do, as the uniques are /really/ different
-      True  -> stableNameCmp (getName id1) (getName id2) == EQ -- Avoid unique clashing.
+    -- Nothing to do when id1 == id2 as the uniques are /really/ different.
+    (id1 == id2) && (stableNameCmp (getName id1) (getName id2) == EQ) -- Avoid unique clashing.
 
 -- For the 'Hashable' instance, we rely on the 'Unique'. This means in pratice there is a tiny chance
 -- of collision, but this should only marginally affects the efficiency of the data structure.
