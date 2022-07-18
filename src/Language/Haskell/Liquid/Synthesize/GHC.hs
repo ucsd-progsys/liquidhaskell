@@ -356,7 +356,7 @@ getBody (GHC.Rec _)   _ = error "Assuming our top-level binder is non-recursive 
 --                       | Current top-level binder |
 varsP :: GHC.CoreProgram -> Var -> (GHC.CoreExpr -> [Var]) -> [Var]
 varsP cp tlVar f =
-  case filter (\cb -> isInCB cb tlVar) cp of
+  case filter (`isInCB` tlVar) cp of
     [cb] -> varsCB cb f
     _    -> error " Every top-level corebind must be unique! "
 
