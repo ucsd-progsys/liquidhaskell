@@ -1780,7 +1780,7 @@ foldReft' logicBind bsc g f
               (\_ _ -> [])
               (const [])
               g
-              (\γ t r z -> f γ t r z)
+              f
               (\_ γ -> γ)
               F.emptySEnv
 

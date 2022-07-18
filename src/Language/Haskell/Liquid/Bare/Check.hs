@@ -592,7 +592,7 @@ checkAbstractRefs t = go t
 checkReft                    :: (PPrint r, F.Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, F.Reftable (RTProp RTyCon RTyVar (UReft r)))
                              => F.SrcSpan -> F.SEnv F.SortedReft -> F.TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> Maybe Doc
 checkReft _ _   _   Nothing _   = Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.
-checkReft sp env emb (Just t) _ = (\z -> dr $+$ z) <$> checkSortedReftFull sp env r
+checkReft sp env emb (Just t) _ = (dr $+$) <$> checkSortedReftFull sp env r
   where
     r                           = rTypeSortedReft emb t
     dr                          = text "Sort Error in Refinement:" <+> pprint r

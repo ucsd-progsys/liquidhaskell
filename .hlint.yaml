@@ -1,5 +1,4 @@
 # Warnings currently triggered by your code
-- ignore: {name: "Avoid lambda"} # 4 hints
 - ignore: {name: "Avoid lambda using `infix`"} # 4 hints
 - ignore: {name: "Eta reduce"} # 51 hints
 - ignore: {name: "Move guards forward"} # 2 hints

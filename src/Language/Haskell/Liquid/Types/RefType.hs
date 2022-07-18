@@ -550,7 +550,7 @@ gApp tc αs πs = rApp tc
                   mempty
 
 pdVarReft :: PVar t -> UReft Reft
-pdVarReft = (\p -> MkUReft mempty p) . pdVar
+pdVarReft = MkUReft mempty . pdVar
 
 tyConRTyCon :: TyCon -> RTyCon
 tyConRTyCon c = RTyCon c [] (mkTyConInfo c [] [] Nothing)
