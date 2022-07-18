@@ -9,7 +9,6 @@
 - ignore: {name: "Unused LANGUAGE pragma"} # 9 hints
 - ignore: {name: "Use <&>"} # 3 hints
 - ignore: {name: "Use camelCase"} # 61 hints
-- ignore: {name: "Use const"} # 5 hints
 - ignore: {name: "Use fewer LANGUAGE pragmas"} # 2 hints
 - ignore: {name: "Use first"} # 1 hint
 - ignore: {name: "Use infix"} # 3 hints

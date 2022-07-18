@@ -1778,7 +1778,7 @@ foldReft' :: (F.Reftable r, TyConable c)
 foldReft' logicBind bsc g f
   = efoldReft logicBind bsc
               (\_ _ -> [])
-              (\_ -> [])
+              (const [])
               g
               (\γ t r z -> f γ t r z)
               (\_ γ -> γ)

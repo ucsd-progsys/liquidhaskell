@@ -650,7 +650,7 @@ pprt_raw = render . rtypeDoc Full
 
 strengthenRefType t1 t2
   -- | _meetable t1 t2
-  = strengthenRefType_ (\x _ -> x) t1 t2
+  = strengthenRefType_ const t1 t2
   -- | otherwise
   -- = panic Nothing msg
   -- where
