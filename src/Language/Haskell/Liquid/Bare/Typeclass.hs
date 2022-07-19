@@ -401,7 +401,7 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     clsTvs = dcpFreeTyVars dcp
         -- copy/pasted from Bare/Class.hs
     subst [] t = t
-    subst ((a, ta):su) t = subsTyVar_meet' (a, ta) (subst su t)
+    subst ((a, ta):su) t = subsTyVarMeet' (a, ta) (subst su t)
 
 substAuxMethod :: F.Symbol -> M.HashMap F.Symbol F.Symbol -> F.Expr -> F.Expr
 substAuxMethod dfun methods e = F.notracepp "substAuxMethod" $ go e

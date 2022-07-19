@@ -13,8 +13,8 @@ module Language.Haskell.Liquid.Constraint.Fresh
   ( -- module Language.Haskell.Liquid.Types.Fresh
     -- , 
     refreshArgsTop
-  , freshTy_type
-  , freshTy_expr
+  , freshTyType
+  , freshTyExpr
   , trueTy
   , addKuts
   )
@@ -64,19 +64,19 @@ refreshArgsTop (x, t)
 -- | Right now, we generate NO new pvars. Rather than clutter code
 --   with `uRType` calls, put it in one place where the above
 --   invariant is /obviously/ enforced.
---   Constraint generation should ONLY use @freshTy_type@ and @freshTy_expr@
+--   Constraint generation should ONLY use @freshTyType@ and @freshTyExpr@
 
-freshTy_type        :: Bool -> KVKind -> CoreExpr -> Type -> CG SpecType
-freshTy_type allowTC k e τ  =  F.notracepp ("freshTy_type: " ++ F.showpp k ++ GM.showPpr e)
-                   <$> freshTy_reftype allowTC k (ofType τ)
+freshTyType        :: Bool -> KVKind -> CoreExpr -> Type -> CG SpecType
+freshTyType allowTC k e τ  =  F.notracepp ("freshTyType: " ++ F.showpp k ++ GM.showPpr e)
+                   <$> freshTyReftype allowTC k (ofType τ)
 
-freshTy_expr        :: Bool -> KVKind -> CoreExpr -> Type -> CG SpecType
-freshTy_expr allowTC k e _  = freshTy_reftype allowTC k $ exprRefType e
+freshTyExpr        :: Bool -> KVKind -> CoreExpr -> Type -> CG SpecType
+freshTyExpr allowTC k e _  = freshTyReftype allowTC k $ exprRefType e
 
-freshTy_reftype     :: Bool -> KVKind -> SpecType -> CG SpecType
-freshTy_reftype allowTC k _t = (fixTy t >>= refresh allowTC) =>> addKVars k
+freshTyReftype     :: Bool -> KVKind -> SpecType -> CG SpecType
+freshTyReftype allowTC k _t = (fixTy t >>= refresh allowTC) =>> addKVars k
   where
-    t                = {- F.tracepp ("freshTy_reftype:" ++ show k) -} _t
+    t                = {- F.tracepp ("freshTyReftype:" ++ show k) -} _t
 
 -- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive
 --   definitions, and also to update the KVar profile.

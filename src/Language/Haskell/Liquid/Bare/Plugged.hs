@@ -66,10 +66,10 @@ makePluggedSig allowTC name embs tyi exports kx t
 
 
 -- makePluggedDataCon = makePluggedDataCon_old 
--- plugHoles          = plugHoles_old 
+-- plugHoles          = plugHolesOld 
 -- makePluggedDataCon = makePluggedDataCon_new 
 
--- plugHoles _         = plugHoles_old
+-- plugHoles _         = plugHolesOld
 
 plugHoles :: (Ghc.NamedThing a, PPrint a, Show a)
           => Bool
@@ -80,8 +80,8 @@ plugHoles :: (Ghc.NamedThing a, PPrint a, Show a)
           -> Ghc.Type
           -> LocSpecType
           -> LocSpecType
-plugHoles allowTC (Bare.HsTV x) a b = plugHoles_old allowTC a b x
-plugHoles allowTC (Bare.LqTV x) a b = plugHoles_new allowTC a b x
+plugHoles allowTC (Bare.HsTV x) a b = plugHolesOld allowTC a b x
+plugHoles allowTC (Bare.LqTV x) a b = plugHolesNew allowTC a b x
 plugHoles _ _                   _ _ = \_ _ t -> t
 
 
@@ -147,7 +147,7 @@ plugMany allowTC embs tyi ldcp (hsAs, hsArgs, hsRes) (lqAs, lqArgs, lqRes)
     dcName           = Ghc.dataConName . dcpCon . val $ ldcp
     msg              = "plugMany: " ++ F.showpp (dcName, hsT, lqT)
 
-plugHoles_old, plugHoles_new
+plugHolesOld, plugHolesNew
   :: (Ghc.NamedThing a, PPrint a, Show a)
   => Bool
   -> F.TCEmb Ghc.TyCon
@@ -159,7 +159,7 @@ plugHoles_old, plugHoles_new
   -> LocSpecType
 
 -- NOTE: this use of toType is safe as rt' is derived from t.
-plugHoles_old allowTC tce tyi x f t0 zz@(Loc l l' st0)
+plugHolesOld allowTC tce tyi x f t0 zz@(Loc l l' st0)
     = Loc l l'
     . mkArrow (zip (updateRTVar <$> αs') rs) ps' [] []
     . makeCls cs'
@@ -190,7 +190,7 @@ plugHoles_old allowTC tce tyi x f t0 zz@(Loc l l' st0)
 
 
 
-plugHoles_new allowTC@False tce tyi x f t0 zz@(Loc l l' st0)
+plugHolesNew allowTC@False tce tyi x f t0 zz@(Loc l l' st0)
     = Loc l l'
     . mkArrow (zip (updateRTVar <$> as'') rs) ps [] []
     . makeCls cs'
@@ -217,7 +217,7 @@ plugHoles_new allowTC@False tce tyi x f t0 zz@(Loc l l' st0)
                           (Ghc.getSrcSpan x)
 
 
-plugHoles_new allowTC@True tce tyi x f t0 zz@(Loc l l' st0)
+plugHolesNew allowTC@True tce tyi x f t0 zz@(Loc l l' st0)
     = Loc l l'
     . mkArrow (zip (updateRTVar <$> as'') rs) ps [] (if length cs > length cs' then cs else cs')
     -- . makeCls cs' 

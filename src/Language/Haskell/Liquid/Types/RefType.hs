@@ -53,8 +53,8 @@ module Language.Haskell.Liquid.Types.RefType (
 
   -- * Substitutions
   , subts, subvPredicate, subvUReft
-  , subsTyVar_meet, subsTyVar_meet', subsTyVar_nomeet
-  , subsTyVars_nomeet, subsTyVars_meet
+  , subsTyVarMeet, subsTyVarMeet', subsTyVarNoMeet
+  , subsTyVarsNoMeet, subsTyVarsMeet
 
   -- * Destructors
   , addTyConInfo
@@ -630,10 +630,10 @@ strengthenRefTypeGen t1 t2 = strengthenRefType_ f t1 t2
     f (RVar v1 r1) t  = RVar v1 (r1 `meet` fromMaybe mempty (stripRTypeBase t))
     f t (RVar _ r1)  = t `strengthen` r1
     f t1 t2           = panic Nothing $ printf "strengthenRefTypeGen on differently shaped types \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
-                         (pprt_raw t1) (showpp (toRSort t1)) (pprt_raw t2) (showpp (toRSort t2))
+                         (pprRaw t1) (showpp (toRSort t1)) (pprRaw t2) (showpp (toRSort t2))
 
-pprt_raw :: (OkRT c tv r) => RType c tv r -> String
-pprt_raw = render . rtypeDoc Full
+pprRaw :: (OkRT c tv r) => RType c tv r -> String
+pprRaw = render . rtypeDoc Full
 
 {- [NOTE:StrengthenRefType] disabling the `meetable` check because
 
@@ -662,7 +662,7 @@ _meetable :: (OkRT c tv r) => RType c tv r -> RType c tv r -> Bool
 _meetable t1 t2 = toRSort t1 == toRSort t2
 
 strengthenRefType_ f (RAllT a1 t1 r1) (RAllT a2 t2 r2)
-  = RAllT a1 (strengthenRefType_ f t1 (subsTyVar_meet (ty_var_value a2, toRSort t, t) t2)) (r1 `meet` r2)
+  = RAllT a1 (strengthenRefType_ f t1 (subsTyVarMeet (ty_var_value a2, toRSort t, t) t2)) (r1 `meet` r2)
   where t = RVar (ty_var_value a1) mempty
 
 strengthenRefType_ f (RAllT a t1 r1) t2
@@ -978,50 +978,50 @@ tyClasses t               = panic Nothing ("RefType.tyClasses cannot handle" ++ 
 -- TODO: Rewrite subsTyvars with Traversable
 --------------------------------------------------------------------------------
 
-subsTyVars_meet
+subsTyVarsMeet
   :: (Eq tv, Foldable t, Hashable tv, Reftable r, TyConable c,
       SubsTy tv (RType c tv ()) c, SubsTy tv (RType c tv ()) r,
       SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv,
       SubsTy tv (RType c tv ()) tv,
       SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ())))
   => t (tv, RType c tv (), RType c tv r) -> RType c tv r -> RType c tv r
-subsTyVars_meet        = subsTyVars True
+subsTyVarsMeet        = subsTyVars True
 
-subsTyVars_nomeet
+subsTyVarsNoMeet
   :: (Eq tv, Foldable t, Hashable tv, Reftable r, TyConable c,
       SubsTy tv (RType c tv ()) c, SubsTy tv (RType c tv ()) r,
       SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv,
       SubsTy tv (RType c tv ()) tv,
       SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ())))
   => t (tv, RType c tv (), RType c tv r) -> RType c tv r -> RType c tv r
-subsTyVars_nomeet      = subsTyVars False
+subsTyVarsNoMeet      = subsTyVars False
 
-subsTyVar_nomeet
+subsTyVarNoMeet
   :: (Eq tv, Hashable tv, Reftable r, TyConable c,
       SubsTy tv (RType c tv ()) c, SubsTy tv (RType c tv ()) r,
       SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv,
       SubsTy tv (RType c tv ()) tv,
       SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ())))
   => (tv, RType c tv (), RType c tv r) -> RType c tv r -> RType c tv r
-subsTyVar_nomeet       = subsTyVar False
+subsTyVarNoMeet       = subsTyVar False
 
-subsTyVar_meet
+subsTyVarMeet
   :: (Eq tv, Hashable tv, Reftable r, TyConable c,
       SubsTy tv (RType c tv ()) c, SubsTy tv (RType c tv ()) r,
       SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv,
       SubsTy tv (RType c tv ()) tv,
       SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ())))
   => (tv, RType c tv (), RType c tv r) -> RType c tv r -> RType c tv r
-subsTyVar_meet         = subsTyVar True
+subsTyVarMeet         = subsTyVar True
 
-subsTyVar_meet'
+subsTyVarMeet'
   :: (Eq tv, Hashable tv, Reftable r, TyConable c,
       SubsTy tv (RType c tv ()) c, SubsTy tv (RType c tv ()) r,
       SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv,
       SubsTy tv (RType c tv ()) tv,
       SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ())))
   => (tv, RType c tv r) -> RType c tv r -> RType c tv r
-subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
+subsTyVarMeet' (α, t) = subsTyVarMeet (α, toRSort t, t)
 
 subsTyVars
   :: (Eq tv, Foldable t, Hashable tv, Reftable r, TyConable c,
@@ -1329,20 +1329,20 @@ instance SubsTy RTyVar RSort RTyCon where
 
 -- NOTE: This DOES NOT substitute at the binders
 instance SubsTy RTyVar RSort PrType where
-  subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
+  subt (α, τ) = subsTyVarMeet (α, τ, ofRSort τ)
 
 instance SubsTy RTyVar RSort SpecType where
-  subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
+  subt (α, τ) = subsTyVarMeet (α, τ, ofRSort τ)
 
 instance SubsTy TyVar Type SpecType where
-  subt (α, τ) = subsTyVar_meet (RTV α, ofType τ, ofType τ)
+  subt (α, τ) = subsTyVarMeet (RTV α, ofType τ, ofType τ)
 
 instance SubsTy RTyVar RTyVar SpecType where
   subt (α, a) = subt (α, RVar a () :: RSort)
 
 
 instance SubsTy RTyVar RSort RSort where
-  subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
+  subt (α, τ) = subsTyVarMeet (α, τ, ofRSort τ)
 
 instance SubsTy tv RSort Predicate where
   subt _ = id -- NV TODO
@@ -1355,7 +1355,7 @@ instance SubsTy BTyVar BSort BTyCon where
   subt _ t = t
 
 instance SubsTy BTyVar BSort BSort where
-  subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
+  subt (α, τ) = subsTyVarMeet (α, τ, ofRSort τ)
 
 instance (SubsTy tv ty (UReft r), SubsTy tv ty (RType c tv ())) => SubsTy tv ty (RTProp c tv (UReft r))  where
   subt m (RProp ss (RHole p)) = RProp (mapSnd (subt m) <$> ss) $ RHole $ subt m p

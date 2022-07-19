@@ -632,7 +632,7 @@ checkMBody γ emb _ sort (Def m c _ bs body) = checkMBody' emb sort γ' sp body
   where
     sp    = F.srcSpan m
     γ'    = L.foldl' (\γ (x, t) -> F.insertSEnv x t γ) γ xts
-    xts   = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su  <$>
+    xts   = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVarsMeet su  <$>
             filter keep (ty_args trep)
     keep | allowTC = not . isEmbeddedClass
          | otherwise = not . isClassType

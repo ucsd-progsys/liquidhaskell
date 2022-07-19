@@ -246,7 +246,7 @@ splitC allowTC (SubC γ t1'@(RAllT α1 t1 _) t2'@(RAllT α2 t2 _))
        cs' <- splitC allowTC $ SubC γ' t1 (F.subst su t2'')
        return (cs ++ cs')
   where
-    t2'' = subsTyVar_meet' (ty_var_value α2, RVar (ty_var_value α1) mempty) t2
+    t2'' = subsTyVarMeet' (ty_var_value α2, RVar (ty_var_value α1) mempty) t2
     su = case (rTVarToBind α1, rTVarToBind α2) of
           (Just (x1, _), Just (x2, _)) -> F.mkSubst [(x1, F.EVar x2)]
           _                            -> F.mkSubst []

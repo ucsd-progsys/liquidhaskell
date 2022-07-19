@@ -886,12 +886,12 @@ rTVarToBind = go . ty_var_info
     go RTVInfo{..} | rtv_is_val = Just (rtv_name, rtv_kind)
     go _                        = Nothing
 
-ty_var_is_val :: RTVar tv s -> Bool
-ty_var_is_val = rtvinfo_is_val . ty_var_info
+tyVarIsVal :: RTVar tv s -> Bool
+tyVarIsVal = rtvinfoIsVal . ty_var_info
 
-rtvinfo_is_val :: RTVInfo s -> Bool
-rtvinfo_is_val RTVNoInfo{} = False
-rtvinfo_is_val RTVInfo{..} = rtv_is_val
+rtvinfoIsVal :: RTVInfo s -> Bool
+rtvinfoIsVal RTVNoInfo{} = False
+rtvinfoIsVal RTVInfo{..} = rtv_is_val
 
 instance (B.Binary tv, B.Binary s) => B.Binary (RTVar tv s)
 instance (NFData tv, NFData s)     => NFData   (RTVar tv s)
@@ -1526,8 +1526,8 @@ instance UReftable () where
    ofUReft _ = mempty
 
 instance (F.PPrint r, F.Reftable r) => F.Reftable (UReft r) where
-  isTauto               = isTauto_ureft
-  ppTy                  = ppTy_ureft
+  isTauto               = isTautoUreft
+  ppTy                  = ppTyUreft
   toReft (MkUReft r ps) = F.toReft r `F.meet` F.toReft ps
   params (MkUReft r _)  = F.params r
   bot (MkUReft r _)     = MkUReft (F.bot r) (Pr [])
@@ -1539,16 +1539,16 @@ instance F.Expression (UReft ()) where
 
 
 
-isTauto_ureft :: F.Reftable r => UReft r -> Bool
-isTauto_ureft u      = F.isTauto (ur_reft u) && F.isTauto (ur_pred u)
+isTautoUreft :: F.Reftable r => UReft r -> Bool
+isTautoUreft u = F.isTauto (ur_reft u) && F.isTauto (ur_pred u)
 
-ppTy_ureft :: F.Reftable r => UReft r -> Doc -> Doc
-ppTy_ureft u@(MkUReft r p) d
-  | isTauto_ureft  u  = d
-  | otherwise         = ppr_reft r (F.ppTy p d)
+ppTyUreft :: F.Reftable r => UReft r -> Doc -> Doc
+ppTyUreft u@(MkUReft r p) d
+  | isTautoUreft u = d
+  | otherwise      = pprReft r (F.ppTy p d)
 
-ppr_reft :: (F.Reftable r) => r -> Doc -> Doc
-ppr_reft r d = braces (F.pprint v <+> colon <+> d <+> text "|" <+> F.pprint r')
+pprReft :: (F.Reftable r) => r -> Doc -> Doc
+pprReft r d = braces (F.pprint v <+> colon <+> d <+> text "|" <+> F.pprint r')
   where
     r'@(F.Reft (v, _)) = F.toReft r
 
@@ -1804,10 +1804,10 @@ efoldReft logicBind bsc cb dty g f fp = go
     -- folding over RType
     go γ z me@(RVar _ r)                = f γ (Just me) r z
     go γ z me@(RAllT a t r)
-       | ty_var_is_val a                = f γ (Just me) r (go (insertsSEnv γ (dty a)) z t)
+       | tyVarIsVal a                   = f γ (Just me) r (go (insertsSEnv γ (dty a)) z t)
        | otherwise                      = f γ (Just me) r (go γ z t)
     go γ z (RAllP p t)                  = go (fp p γ) z t
-    go γ z (RImpF x i t t' r)             = go γ z (RFun x i t t' r)
+    go γ z (RImpF x i t t' r)           = go γ z (RFun x i t t' r)
     go γ z me@(RFun _ RFInfo{permitTC = permitTC} (RApp c ts _ _) t' r)
        | (if permitTC == Just True then isEmbeddedDict else isClass)
          c  = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
@@ -1961,12 +1961,12 @@ mapRBase _ t                = t
 -----------------------------------------------------------------------------
 
 instance F.PPrint (PVar a) where
-  pprintTidy _ = ppr_pvar
+  pprintTidy _ = pprPvar
 
-ppr_pvar :: PVar a -> Doc
-ppr_pvar (PV s _ _ xts) = F.pprint s <+> hsep (F.pprint <$> dargs xts)
+pprPvar :: PVar a -> Doc
+pprPvar (PV s _ _ xts) = F.pprint s <+> hsep (F.pprint <$> dargs xts)
   where
-    dargs               = map thd3 . takeWhile (\(_, x, y) -> F.EVar x /= y)
+    dargs              = map thd3 . takeWhile (\(_, x, y) -> F.EVar x /= y)
 
 
 instance F.PPrint Predicate where

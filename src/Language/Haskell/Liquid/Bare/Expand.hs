@@ -409,7 +409,7 @@ lookupRTEnv c rtEnv = M.lookup (F.symbol c) (typeAliases rtEnv)
 expandRTAliasApp :: F.SourcePos -> Located BareRTAlias -> [BareType] -> RReft -> BareType
 expandRTAliasApp l (Loc la _ rta) args r = case isOK of
   Just e     -> Ex.throw e
-  Nothing    -> F.subst esu . (`RT.strengthen` r) . RT.subsTyVars_meet tsu $ rtBody rta
+  Nothing    -> F.subst esu . (`RT.strengthen` r) . RT.subsTyVarsMeet tsu $ rtBody rta
   where
     tsu       = zipWith (\α t -> (α, toRSort t, t)) αs ts
     esu       = F.mkSubst $ zip (F.symbol <$> εs) es
