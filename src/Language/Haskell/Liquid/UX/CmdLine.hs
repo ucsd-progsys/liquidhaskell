@@ -49,6 +49,7 @@ import Prelude hiding (error)
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Maybe
+import Data.Functor ((<&>))
 import Data.Aeson (encode)
 import qualified Data.ByteString.Lazy.Char8 as B
 import Development.GitRev (gitCommitCount)
@@ -637,7 +638,7 @@ canonConfig cfg = cfg
 withPragmas :: MonadIO m => Config -> FilePath -> [Located String] -> (Config -> m a) -> m a
 --------------------------------------------------------------------------------
 withPragmas cfg fp ps action
-  = do cfg' <- liftIO $ processPragmas cfg ps >>= canonicalizePaths fp >>= (return . canonConfig)
+  = do cfg' <- liftIO $ (processPragmas cfg ps >>= canonicalizePaths fp) <&> canonConfig
        -- As the verbosity is set /globally/ via the cmdargs lib, re-set it.
        liftIO $ setVerbosity (loggingVerbosity cfg')
        res <- action cfg'

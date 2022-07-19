@@ -34,6 +34,7 @@ import           Language.Haskell.Liquid.GHC.API                   as Ghc hiding
 import           Language.Haskell.Liquid.GHC.TypeRep           ()
 import           Text.PrettyPrint.HughesPJ hiding ((<>))
 import           Control.Monad.State
+import           Data.Functor ((<&>))
 import           Data.Maybe                                    (fromMaybe, catMaybes, isJust, mapMaybe)
 import qualified Data.HashMap.Strict                           as M
 import qualified Data.HashSet                                  as S
@@ -220,7 +221,7 @@ checkHint x _ _ (Just ns) | L.sort ns /= ns
     dx  = F.pprint x
 
 checkHint x ts f (Just ns)
-  = mapM (checkValidHint x ts f) ns >>= (return . Just . catMaybes)
+  = mapM (checkValidHint x ts f) ns <&> (Just . catMaybes)
 
 checkValidHint :: (NamedThing a, PPrint a, PPrint a1)
                => a -> [a1] -> (a1 -> Bool) -> Int -> CG (Maybe Int)

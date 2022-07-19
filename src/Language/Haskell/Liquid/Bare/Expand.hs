@@ -29,6 +29,7 @@ import Data.Graph hiding (Graph)
 import Data.Maybe
 
 import           Control.Monad.State
+import           Data.Functor ((<&>))
 import qualified Control.Exception         as Ex
 import qualified Data.HashMap.Strict       as M
 import qualified Data.Char                 as Char
@@ -753,7 +754,7 @@ addExist t x (tx, e) = REx x t' t
 
 expToBindRef :: UReft r -> State ExSt (UReft r)
 expToBindRef (MkUReft r (Pr p))
-  = mapM expToBind p >>= return . MkUReft r . Pr
+  = mapM expToBind p <&> (MkUReft r . Pr)
 
 expToBind :: UsedPVar -> State ExSt UsedPVar
 expToBind p = do
