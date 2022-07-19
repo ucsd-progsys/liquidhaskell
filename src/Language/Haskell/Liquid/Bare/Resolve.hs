@@ -140,9 +140,9 @@ localBinds                    = concatMap (bgo S.empty)
 
 localVarMap :: [Ghc.Var] -> LocalVars
 localVarMap vs =
-  Misc.group [ (x, (i, v)) | v    <- vs
-                           , x    <- Mb.maybeToList (localKey v)
+  Misc.group [ (x, (i, v)) | v <- vs
                            , let i = F.unPos (F.srcLine v)
+                           , x <- Mb.maybeToList (localKey v)
              ]
 
 localKey   :: Ghc.Var -> Maybe F.Symbol
@@ -156,9 +156,9 @@ makeVarSubst :: GhcSrc -> F.Subst
 makeVarSubst src = F.mkSubst unqualSyms
   where
     unqualSyms   = [ (x, mkVarExpr v)
-                       | (x, mxs) <- M.toList       (makeSymMap src)
-                       , v        <- Mb.maybeToList (okUnqualified me mxs)
+                       | (x, mxs) <- M.toList (makeSymMap src)
                        , not (isWiredInName x)
+                       , v <- Mb.maybeToList (okUnqualified me mxs)
                    ]
     me           = F.symbol (_giTargetMod src)
 
