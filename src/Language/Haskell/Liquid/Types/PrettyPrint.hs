@@ -208,7 +208,7 @@ pprints k c = sep . punctuate c . map (pprintTidy k)
 --------------------------------------------------------------------------------
 rtypeDoc :: (OkRT c tv r) => F.Tidy -> RType c tv r -> Doc
 --------------------------------------------------------------------------------
-rtypeDoc k      = ppr_rtype (ppE k) topPrec
+rtypeDoc k      = pprRtype (ppE k) topPrec
   where
     ppE F.Lossy = ppEnvShort ppEnv
     ppE F.Full  = ppEnv
@@ -220,51 +220,51 @@ instance PPrint F.Tidy where
 type Prec = PprPrec
 
 --------------------------------------------------------------------------------
-ppr_rtype :: (OkRT c tv r) => PPEnv -> Prec -> RType c tv r -> Doc
+pprRtype :: (OkRT c tv r) => PPEnv -> Prec -> RType c tv r -> Doc
 --------------------------------------------------------------------------------
-ppr_rtype bb p t@(RAllT _ _ r)
-  = F.ppTy r $ ppr_forall bb p t
-ppr_rtype bb p t@(RAllP _ _)
-  = ppr_forall bb p t
-ppr_rtype _ _ (RVar a r)
+pprRtype bb p t@(RAllT _ _ r)
+  = F.ppTy r $ pprForall bb p t
+pprRtype bb p t@(RAllP _ _)
+  = pprForall bb p t
+pprRtype _ _ (RVar a r)
   = F.ppTy r $ pprint a
-ppr_rtype bb p t@RImpF{}
-  = maybeParen p funPrec (ppr_rty_fun bb empty t)
-ppr_rtype bb p t@RFun{}
-  = maybeParen p funPrec (ppr_rty_fun bb empty t)
-ppr_rtype bb p (RApp c [t] rs r)
+pprRtype bb p t@RImpF{}
+  = maybeParen p funPrec (pprRtyFun bb empty t)
+pprRtype bb p t@RFun{}
+  = maybeParen p funPrec (pprRtyFun bb empty t)
+pprRtype bb p (RApp c [t] rs r)
   | isList c
-  = F.ppTy r $ brackets (ppr_rtype bb p t) <-> ppReftPs bb p rs
-ppr_rtype bb p (RApp c ts rs r)
+  = F.ppTy r $ brackets (pprRtype bb p t) <-> ppReftPs bb p rs
+pprRtype bb p (RApp c ts rs r)
   | isTuple c
-  = F.ppTy r $ parens (intersperse comma (ppr_rtype bb p <$> ts)) <-> ppReftPs bb p rs
-ppr_rtype bb p (RApp c ts rs r)
+  = F.ppTy r $ parens (intersperse comma (pprRtype bb p <$> ts)) <-> ppReftPs bb p rs
+pprRtype bb p (RApp c ts rs r)
   | isEmpty rsDoc && isEmpty tsDoc
   = F.ppTy r $ ppT c
   | otherwise
   = F.ppTy r $ parens $ ppT c <+> rsDoc <+> tsDoc
   where
     rsDoc            = ppReftPs bb p rs
-    tsDoc            = hsep (ppr_rtype bb p <$> ts)
+    tsDoc            = hsep (pprRtype bb p <$> ts)
     ppT              = ppTyConB bb
 
-ppr_rtype bb p t@REx{}
+pprRtype bb p t@REx{}
   = ppExists bb p t
-ppr_rtype bb p t@RAllE{}
+pprRtype bb p t@RAllE{}
   = ppAllExpr bb p t
-ppr_rtype _ _ (RExprArg e)
+pprRtype _ _ (RExprArg e)
   = braces $ pprint e
-ppr_rtype bb p (RAppTy t t' r)
-  = F.ppTy r $ ppr_rtype bb p t <+> ppr_rtype bb p t'
-ppr_rtype bb p (RRTy e _ OCons t)
-  = sep [braces (ppr_rsubtype bb p e) <+> "=>", ppr_rtype bb p t]
-ppr_rtype bb p (RRTy e r o t)
-  = sep [ppp (pprint o <+> ppe <+> pprint r), ppr_rtype bb p t]
+pprRtype bb p (RAppTy t t' r)
+  = F.ppTy r $ pprRtype bb p t <+> pprRtype bb p t'
+pprRtype bb p (RRTy e _ OCons t)
+  = sep [braces (pprRsubtype bb p e) <+> "=>", pprRtype bb p t]
+pprRtype bb p (RRTy e r o t)
+  = sep [ppp (pprint o <+> ppe <+> pprint r), pprRtype bb p t]
   where
     ppe  = hsep (punctuate comma (ppxt <$> e)) <+> dcolon
     ppp  = \doc -> text "<<" <+> doc <+> text ">>"
-    ppxt = \(x, t) -> pprint x <+> ":" <+> ppr_rtype bb p t
-ppr_rtype _ _ (RHole r)
+    ppxt = \(x, t) -> pprint x <+> ":" <+> pprRtype bb p t
+pprRtype _ _ (RHole r)
   = F.ppTy r $ text "_"
 
 ppTyConB :: TyConable c => PPEnv -> c -> Doc
@@ -275,17 +275,17 @@ ppTyConB bb
 shortModules :: Doc -> Doc
 shortModules = text . F.symbolString . dropModuleNames . F.symbol . render
 
-ppr_rsubtype
+pprRsubtype
   :: (OkRT c tv r, PPrint a, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> Prec -> [(a, RType c tv r)] -> Doc
-ppr_rsubtype bb p e
-  = pprint_env <+> text "|-" <+> ppr_rtype bb p tl <+> "<:" <+> ppr_rtype bb p tr
+pprRsubtype bb p e
+  = pprint_env <+> text "|-" <+> pprRtype bb p tl <+> "<:" <+> pprRtype bb p tr
   where
     (el, r)  = (init e,  last e)
     (env, l) = (init el, last el)
     tr   = snd r
     tl   = snd l
-    pprint_bind (x, t) = pprint x <+> colon <-> colon <+> ppr_rtype bb p t
+    pprint_bind (x, t) = pprint x <+> colon <-> colon <+> pprRtype bb p t
     pprint_env         = hsep $ punctuate comma (pprint_bind <$> env)
 
 -- | From GHC: TypeRep
@@ -300,7 +300,7 @@ ppExists
       F.Reftable (RTProp c tv ()))
   => PPEnv -> Prec -> RType c tv r -> Doc
 ppExists bb p t
-  = text "exists" <+> brackets (intersperse comma [ppr_dbind bb topPrec x t | (x, t) <- zs]) <-> dot <-> ppr_rtype bb p t'
+  = text "exists" <+> brackets (intersperse comma [pprDbind bb topPrec x t | (x, t) <- zs]) <-> dot <-> pprRtype bb p t'
     where (zs,  t')               = split [] t
           split zs (REx x t t')   = split ((x,t):zs) t'
           split zs t                = (reverse zs, t)
@@ -309,7 +309,7 @@ ppAllExpr
   :: (OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> Prec -> RType c tv r -> Doc
 ppAllExpr bb p t
-  = text "forall" <+> brackets (intersperse comma [ppr_dbind bb topPrec x t | (x, t) <- zs]) <-> dot <-> ppr_rtype bb p t'
+  = text "forall" <+> brackets (intersperse comma [pprDbind bb topPrec x t | (x, t) <- zs]) <-> dot <-> pprRtype bb p t'
     where
       (zs,  t')               = split [] t
       split zs (RAllE x t t') = split ((x,t):zs) t'
@@ -322,42 +322,42 @@ ppReftPs
 ppReftPs _ _ rs
   | all F.isTauto rs   = empty
   | not (ppPs ppEnv) = empty
-  | otherwise        = angleBrackets $ hsep $ punctuate comma $ ppr_ref <$> rs
+  | otherwise        = angleBrackets $ hsep $ punctuate comma $ pprRef <$> rs
 
-ppr_dbind
+pprDbind
   :: (OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> Prec -> F.Symbol -> RType c tv r -> Doc
-ppr_dbind bb p x t
+pprDbind bb p x t
   | F.isNonSymbol x || (x == F.dummySymbol)
-  = ppr_rtype bb p t
+  = pprRtype bb p t
   | otherwise
-  = pprint x <-> colon <-> ppr_rtype bb p t
+  = pprint x <-> colon <-> pprRtype bb p t
 
 
 
-ppr_rty_fun
+pprRtyFun
   :: ( OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> Doc -> RType c tv r -> Doc
-ppr_rty_fun bb prefix t = hsep (prefix : dArgs ++ [dOut])
+pprRtyFun bb prefix t = hsep (prefix : dArgs ++ [dOut])
   where
     dArgs               = concatMap ppArg args
-    dOut                = ppr_rtype bb topPrec out
-    ppArg (b, t, a)     = [ppr_dbind bb funPrec b t, a]
+    dOut                = pprRtype bb topPrec out
+    ppArg (b, t, a)     = [pprDbind bb funPrec b t, a]
     (args, out)         = brkFun t
 
 {- 
-ppr_rty_fun bb prefix t
-  = prefix <+> ppr_rty_fun' bb t
+pprRtyFun bb prefix t
+  = prefix <+> pprRtyFun' bb t
 
-ppr_rty_fun'
+pprRtyFun'
   :: ( OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> RType c tv r -> Doc
-ppr_rty_fun' bb (RImpF b t t' r)
-  = F.ppTy r $ ppr_dbind bb funPrec b t $+$ ppr_rty_fun bb (text "~>") t'
-ppr_rty_fun' bb (RFun b t t' r)
-  = F.ppTy r $ ppr_dbind bb funPrec b t $+$ ppr_rty_fun bb arrow t'
-ppr_rty_fun' bb t
-  = ppr_rtype bb topPrec t
+pprRtyFun' bb (RImpF b t t' r)
+  = F.ppTy r $ pprDbind bb funPrec b t $+$ pprRtyFun bb (text "~>") t'
+pprRtyFun' bb (RFun b t t' r)
+  = F.ppTy r $ pprDbind bb funPrec b t $+$ pprRtyFun bb arrow t'
+pprRtyFun' bb t
+  = pprRtype bb topPrec t
 -}
 
 brkFun :: RType c tv r -> ([(F.Symbol, RType c tv r, Doc)], RType c tv r)
@@ -368,11 +368,11 @@ brkFun out                = ([], out)
 
 
 
-ppr_forall :: (OkRT c tv r) => PPEnv -> Prec -> RType c tv r -> Doc
-ppr_forall bb p t = maybeParen p funPrec $ sep [
-                      ppr_foralls (ppPs bb) (fst <$> ty_vars trep) (ty_preds trep)
-                    , ppr_clss cls
-                    , ppr_rtype bb topPrec t'
+pprForall :: (OkRT c tv r) => PPEnv -> Prec -> RType c tv r -> Doc
+pprForall bb p t = maybeParen p funPrec $ sep [
+                      pprForalls (ppPs bb) (fst <$> ty_vars trep) (ty_preds trep)
+                    , pprClss cls
+                    , pprRtype bb topPrec t'
                     ]
   where
     trep          = toRTypeRep t
@@ -380,54 +380,54 @@ ppr_forall bb p t = maybeParen p funPrec $ sep [
     (cls, t')     = bkClass $ fromRTypeRep $ trep {ty_vars = [], ty_preds = []}
     -- t' = fromRTypeRep $ trep {ty_vars = [], ty_preds = []}
 
-    ppr_foralls False _ _  = empty
-    ppr_foralls _    [] [] = empty
-    ppr_foralls True αs πs = text "forall" <+> dαs αs <+> dπs (ppPs bb) πs <-> dot
+    pprForalls False _ _  = empty
+    pprForalls _    [] [] = empty
+    pprForalls True αs πs = text "forall" <+> dαs αs <+> dπs (ppPs bb) πs <-> dot
 
-    ppr_clss []               = empty
-    ppr_clss cs               = parens (hsep $ punctuate comma (uncurry (ppr_cls bb p) <$> cs)) <+> text "=>"
+    pprClss []               = empty
+    pprClss cs               = parens (hsep $ punctuate comma (uncurry (pprCls bb p) <$> cs)) <+> text "=>"
 
-    dαs αs                    = ppr_rtvar_def αs
+    dαs αs                    = pprRtvarDef αs
 
     -- dπs :: Bool -> [PVar a] -> Doc
     dπs _ []                  = empty
     dπs False _               = empty
-    dπs True πs               = angleBrackets $ intersperse comma $ ppr_pvar_def bb p <$> πs
+    dπs True πs               = angleBrackets $ intersperse comma $ pprPvarDef bb p <$> πs
 
-ppr_rtvar_def :: (PPrint tv) => [RTVar tv (RType c tv ())] -> Doc
-ppr_rtvar_def = sep . map (pprint . ty_var_value)
+pprRtvarDef :: (PPrint tv) => [RTVar tv (RType c tv ())] -> Doc
+pprRtvarDef = sep . map (pprint . ty_var_value)
 
-ppr_cls
+pprCls
   :: (OkRT c tv r, PPrint a, PPrint (RType c tv r),
       PPrint (RType c tv ()))
   => PPEnv -> Prec -> a -> [RType c tv r] -> Doc
-ppr_cls bb p c ts
-  = pp c <+> hsep (map (ppr_rtype bb p) ts)
+pprCls bb p c ts
+  = pp c <+> hsep (map (pprRtype bb p) ts)
   where
     pp | ppShort bb = text . F.symbolString . dropModuleNames . F.symbol . render . pprint
        | otherwise  = pprint
 
 
-ppr_pvar_def :: (OkRT c tv ()) => PPEnv -> Prec -> PVar (RType c tv ()) -> Doc
-ppr_pvar_def bb p (PV s t _ xts)
-  = pprint s <+> dcolon <+> intersperse arrow dargs <+> ppr_pvar_kind bb p t
+pprPvarDef :: (OkRT c tv ()) => PPEnv -> Prec -> PVar (RType c tv ()) -> Doc
+pprPvarDef bb p (PV s t _ xts)
+  = pprint s <+> dcolon <+> intersperse arrow dargs <+> pprPvarKind bb p t
   where
-    dargs = [ppr_pvar_sort bb p xt | (xt,_,_) <- xts]
+    dargs = [pprPvarSort bb p xt | (xt,_,_) <- xts]
 
 
-ppr_pvar_kind :: (OkRT c tv ()) => PPEnv -> Prec -> PVKind (RType c tv ()) -> Doc
-ppr_pvar_kind bb p (PVProp t) = ppr_pvar_sort bb p t <+> arrow <+> ppr_name F.boolConName -- propConName
-ppr_pvar_kind _ _ PVHProp     = panic Nothing "TODO: ppr_pvar_kind:hprop" -- ppr_name hpropConName
+pprPvarKind :: (OkRT c tv ()) => PPEnv -> Prec -> PVKind (RType c tv ()) -> Doc
+pprPvarKind bb p (PVProp t) = pprPvarSort bb p t <+> arrow <+> pprName F.boolConName -- propConName
+pprPvarKind _ _ PVHProp     = panic Nothing "TODO: pprPvarKind:hprop" -- pprName hpropConName
 
-ppr_name :: F.Symbol -> Doc
-ppr_name                      = text . F.symbolString
+pprName :: F.Symbol -> Doc
+pprName                      = text . F.symbolString
 
-ppr_pvar_sort :: (OkRT c tv ()) => PPEnv -> Prec -> RType c tv () -> Doc
-ppr_pvar_sort bb p t = ppr_rtype bb p t
+pprPvarSort :: (OkRT c tv ()) => PPEnv -> Prec -> RType c tv () -> Doc
+pprPvarSort bb p t = pprRtype bb p t
 
-ppr_ref :: (OkRT c tv r) => Ref (RType c tv ()) (RType c tv r) -> Doc
-ppr_ref  (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint s
--- ppr_ref (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
+pprRef :: (OkRT c tv r) => Ref (RType c tv ()) (RType c tv r) -> Doc
+pprRef  (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint s
+-- pprRef (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
 
 ppRefArgs :: [F.Symbol] -> Doc
 ppRefArgs [] = empty

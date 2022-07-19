@@ -61,7 +61,7 @@ miModGuts cls mg  = MI
   { mgi_binds     = mg_binds mg
   , mgi_module    = mg_module mg
   , mgi_deps      = mg_deps mg
-  , mgi_dir_imps  = mg_dir_imps mg
+  , mgi_dir_imps  = mgDirImps mg
   , mgi_rdr_env   = mg_rdr_env mg
   , mgi_tcs       = mg_tcs mg
   , mgi_fam_insts = mg_fam_insts mg
@@ -72,8 +72,8 @@ miModGuts cls mg  = MI
 nameSetToStableNameSet :: NameSet -> HashSet StableName
 nameSetToStableNameSet = fromList . map mkStableName . nameSetElemsStable
 
-mg_dir_imps :: ModGuts -> [ModuleName]
-mg_dir_imps = map gwib_mod . getDependenciesModuleNames . mg_deps
+mgDirImps :: ModGuts -> [ModuleName]
+mgDirImps = map gwib_mod . getDependenciesModuleNames . mg_deps
 
-mgi_namestring :: MGIModGuts -> String
-mgi_namestring = moduleNameString . moduleName . mgi_module
+mgiNamestring :: MGIModGuts -> String
+mgiNamestring = moduleNameString . moduleName . mgi_module

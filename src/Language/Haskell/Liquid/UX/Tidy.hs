@@ -40,7 +40,7 @@ import qualified Language.Haskell.Liquid.GHC.Misc          as GM
 -- (dropModuleNames, showPpr, stringTyVar)
 import           Language.Fixpoint.Types                   hiding (Result, SrcSpan, Error)
 import           Language.Haskell.Liquid.Types.Types
-import           Language.Haskell.Liquid.Types.RefType     (rVar, subsTyVars_meet, FreeVar)
+import           Language.Haskell.Liquid.Types.RefType     (rVar, subsTyVarsMeet, FreeVar)
 import           Language.Haskell.Liquid.Types.PrettyPrint
 import           Data.Generics                             (everywhere, mkT)
 import           Text.PrettyPrint.HughesPJ
@@ -186,7 +186,7 @@ subsTyVarsAll ats = go
   where
     abm            = M.fromList [(a, b) | (a, _, RVar b _) <- ats]
     go (RAllT a t r) = RAllT (makeRTVar $ M.lookupDefault (ty_var_value a) (ty_var_value a) abm) (go t) r
-    go t           = subsTyVars_meet ats t
+    go t           = subsTyVarsMeet ats t
 
 
 funBinds :: RType t t1 t2 -> [Symbol]

@@ -913,7 +913,7 @@ bareTCApp :: (Expandable r)
 bareTCApp r (Loc l _ c) rs ts | Just rhs <- Ghc.synTyConRhs_maybe c
   = if GM.kindTCArity c < length ts
       then Ex.throw err -- error (F.showpp err)
-      else tyApp (RT.subsTyVars_meet su $ RT.ofType rhs) (drop nts ts) rs r
+      else tyApp (RT.subsTyVarsMeet su $ RT.ofType rhs) (drop nts ts) rs r
     where
        tvs = [ v | (v, b) <- zip (GM.tyConTyVarsDef c) (Ghc.tyConBinders c), GM.isAnonBinder b]
        su  = zipWith (\a t -> (RT.rTyVar a, toRSort t, t)) tvs ts

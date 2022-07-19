@@ -435,8 +435,8 @@ consCB _ _ γ (NonRec x def)
        t        <- trueTy (typeclass (getConfig γ)) (varType x)
        extender γ' (x, Assumed t)
    where
-    f [t']    (RAllT α te _) = subsTyVar_meet' (ty_var_value α, t') te
-    f (t':ts) (RAllT α te _) = f ts $ subsTyVar_meet' (ty_var_value α, t') te
+    f [t']    (RAllT α te _) = subsTyVarMeet' (ty_var_value α, t') te
+    f (t':ts) (RAllT α te _) = f ts $ subsTyVarMeet' (ty_var_value α, t') te
     f _ _ = impossible Nothing "consCB on Dictionary: this should not happen"
 
 consCB _ _ γ (NonRec x e)
@@ -588,7 +588,7 @@ varTemplate' γ (x, eo)
       (_, Just t, _, _) -> Asserted <$> refreshArgsTop (x, t)
       (_, _, _, Just t) -> Internal <$> refreshArgsTop (x, t)
       (_, _, Just t, _) -> Assumed  <$> refreshArgsTop (x, t)
-      (Just e, _, _, _) -> do t  <- freshTy_expr (typeclass (getConfig γ)) (RecBindE x) e (exprType e)
+      (Just e, _, _, _) -> do t  <- freshTyExpr (typeclass (getConfig γ)) (RecBindE x) e (exprType e)
                               addW (WfC γ t)
                               Asserted <$> refreshArgsTop (x, t)
       (_,      _, _, _) -> return Unknown
@@ -649,7 +649,7 @@ cconsE' γ (Case e x _ cases) t
 cconsE' γ (Lam α e) (RAllT α' t r) | isTyVar α
   = do γ' <- updateEnvironment γ α
        addForAllConstraint γ' α e (RAllT α' t r)
-       cconsE γ' e $ subsTyVar_meet' (ty_var_value α', rVar α) t
+       cconsE γ' e $ subsTyVarMeet' (ty_var_value α', rVar α) t
 
 cconsE' γ (Lam x e) (RFun y i ty t r)
   | not (isTyVar x)
@@ -830,11 +830,11 @@ consE _ (Lit c)
 consE γ e'@(App e a@(Type τ))
   = do RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
        t            <- if not (nopolyinfer (getConfig γ)) && isPos α && isGenericVar (ty_var_value α) te
-                         then freshTy_type (typeclass (getConfig γ)) TypeInstE e τ
+                         then freshTyType (typeclass (getConfig γ)) TypeInstE e τ
                          else trueTy (typeclass (getConfig γ)) τ
        addW          $ WfC γ t
        t'           <- refreshVV t
-       tt0          <- instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
+       tt0          <- instantiatePreds γ e' (subsTyVarMeet' (ty_var_value α, t') te)
        let tt        = makeSingleton γ (simplify e') $ subsTyReft γ (ty_var_value α) τ tt0
        case rTVarToBind α of
          Just (x, _) -> return $ maybe (checkUnbound γ e' x tt a) (F.subst1 tt . (x,)) (argType τ)
@@ -867,7 +867,7 @@ consE γ e'@(App e a)
        tout <- makeSingleton γ'' (simplify e') <$> addPost γ'' (maybe (checkUnbound γ'' e' x t a) (F.subst1 t . (x,)) (argExpr γ $ simplify a))
        if hasGhost
           then do
-           tk   <- freshTy_type (typeclass (getConfig γ)) ImplictE e' $ exprType e'
+           tk   <- freshTyType (typeclass (getConfig γ)) ImplictE e' $ exprType e'
            addW $ WfC γ tk
            addC (SubC γ'' tout tk) ""
            return tk
@@ -879,7 +879,7 @@ consE γ (Lam α e) | isTyVar α
        return $ RAllT (makeRTVar $ rTyVar α) t' mempty
 
 consE γ  e@(Lam x e1)
-  = do tx      <- freshTy_type (typeclass (getConfig γ)) LamE (Var x) τx
+  = do tx      <- freshTyType (typeclass (getConfig γ)) LamE (Var x) τx
        γ'      <- γ += ("consE", F.symbol x, tx)
        t1      <- consE γ' e1
        addIdA x $ AnnDef tx
@@ -1002,7 +1002,7 @@ consPattern γ (Rs.PatReturn e m _ _ _) t = do
 
 consPattern γ (Rs.PatProject xe _ τ c ys i) _ = do
   let yi = ys !! i
-  t    <- (addW . WfC γ) <<= freshTy_type (typeclass (getConfig γ)) ProjectE (Var yi) τ
+  t    <- (addW . WfC γ) <<= freshTyType (typeclass (getConfig γ)) ProjectE (Var yi) τ
   γ'   <- caseEnv γ xe [] (DataAlt c) ys (Just [i])
   ti   <- {- γ' ??= yi -} varRefType γ' yi
   addC (SubC γ' ti t) "consPattern:project"
@@ -1125,7 +1125,7 @@ isClassConCo co
 --------------------------------------------------------------------------------
 cconsFreshE :: KVKind -> CGEnv -> CoreExpr -> CG SpecType
 cconsFreshE kvkind γ e = do
-  t   <- freshTy_type (typeclass (getConfig γ)) kvkind e $ exprType e
+  t   <- freshTyType (typeclass (getConfig γ)) kvkind e $ exprType e
   addW $ WfC γ t
   cconsE γ e t
   return t
@@ -1260,7 +1260,7 @@ unfoldR _  _                _  = panic Nothing "Constraint.hs : unfoldR"
 instantiateTys :: SpecType -> [SpecType] -> SpecType
 instantiateTys = L.foldl' go
   where
-    go (RAllT α tbody _) t = subsTyVar_meet' (ty_var_value α, t) tbody
+    go (RAllT α tbody _) t = subsTyVarMeet' (ty_var_value α, t) tbody
     go _ _                 = panic Nothing "Constraint.instantiateTy"
 
 instantiatePvs :: SpecType -> [SpecProp] -> SpecType
@@ -1296,7 +1296,7 @@ varAnn γ x t
 -----------------------------------------------------------------------
 freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG SpecProp
 freshPredRef γ e (PV _ (PVProp τ) _ as)
-  = do t    <- freshTy_type (typeclass (getConfig γ))  PredInstE e (toType False τ)
+  = do t    <- freshTyType (typeclass (getConfig γ))  PredInstE e (toType False τ)
        args <- mapM (const fresh) as
        let targs = [(x, s) | (x, (s, y, z)) <- zip args as, F.EVar y == z ]
        γ' <- foldM (+=) γ [("freshPredRef", x, ofRSort τ) | (x, τ) <- targs]

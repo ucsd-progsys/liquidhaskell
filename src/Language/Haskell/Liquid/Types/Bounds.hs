@@ -79,7 +79,7 @@ makeBound :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)
 makeBound (Bound _  vs ps xs p) ts qs
          = RRTy cts mempty OCons
   where
-    cts  = (\(x, t) -> (x, foldr subsTyVar_meet t su)) <$> cts'
+    cts  = (\(x, t) -> (x, foldr subsTyVarMeet t su)) <$> cts'
 
     cts' = makeBoundType penv rs xs
 

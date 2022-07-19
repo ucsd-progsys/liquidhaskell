@@ -67,7 +67,7 @@ makeMethodTypes allowTC (DEnv m) cls cbs
       mkSymbol x = F.dropSym 2 $ GM.simplesymbol x
 
       subst [] t = t
-      subst ((a,ta):su) t = subsTyVar_meet' (a,ofType ta) (subst su t)
+      subst ((a,ta):su) t = subsTyVarMeet' (a,ofType ta) (subst su t)
 
 addCC :: Bool -> Ghc.Var -> LocSpecType -> LocSpecType
 addCC allowTC x zz@(Loc l l' st0)
