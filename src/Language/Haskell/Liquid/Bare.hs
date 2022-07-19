@@ -933,8 +933,7 @@ makeNewTypes :: Bare.Env -> Bare.SigEnv -> [(ModName, Ms.BareSpec)] ->
                 Bare.Lookup [(Ghc.TyCon, LocSpecType)]
 makeNewTypes env sigEnv specs = do
   fmap concat $
-    forM nameDecls $ \(name, d) ->
-      makeNewType env sigEnv name d
+    forM nameDecls $ uncurry (makeNewType env sigEnv)
   where
     nameDecls = [(name, d) | (name, spec) <- specs, d <- Ms.newtyDecls spec]
 
@@ -997,20 +996,20 @@ makeInvariants env sigEnv (name, spec) =
     | (_, bt) <- Ms.invariants spec
     , Bare.knownGhcType env name bt
     , let t = Bare.cookSpecType env sigEnv name Bare.GenTV bt
-  ] ++ 
-  concat [ (Nothing,) . makeSizeInv l <$>  ts  
-    | (bts, l) <- Ms.dsize spec 
+  ] ++
+  concat [ (Nothing,) . makeSizeInv l <$>  ts
+    | (bts, l) <- Ms.dsize spec
     , all (Bare.knownGhcType env name) bts
     , let ts = Bare.cookSpecType env sigEnv name Bare.GenTV <$> bts
-  ]  
+  ]
 
 makeSizeInv :: F.LocSymbol -> Located SpecType -> Located SpecType
 makeSizeInv s t = t{val = go (val t)}
   where go (RApp c ts rs r) = RApp c ts rs (r `meet` nat)
-        go (RAllT a t r)    = RAllT a (go t) r 
-        go t = t 
-        nat  = MkUReft (Reft (vv_, PAtom Le (ECon $ I 0) (EApp (EVar $ val s) (eVar vv_)))) 
-                       mempty 
+        go (RAllT a t r)    = RAllT a (go t) r
+        go t = t
+        nat  = MkUReft (Reft (vv_, PAtom Le (ECon $ I 0) (EApp (EVar $ val s) (eVar vv_))))
+                       mempty
 
 makeMeasureInvariants :: Bare.Env -> ModName -> GhcSpecSig -> Ms.BareSpec
                       -> ([(Maybe Ghc.Var, LocSpecType)], [UnSortedExpr])
