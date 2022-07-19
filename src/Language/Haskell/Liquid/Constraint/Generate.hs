@@ -287,7 +287,7 @@ doTermCheck cfg bind = do
   lazyVs    <- gets specLazy
   termVs    <- gets specTmVars
   let skip   = any (\x -> S.member x lazyVs || nocheck x) xs
-  let chk    = not (structuralTerm cfg) || any (\x -> S.member x termVs) xs
+  let chk    = not (structuralTerm cfg) || any (`S.member` termVs) xs
   return     $ chk && not skip
   where
     nocheck  = if typeclass cfg then GM.isEmbeddedDictVar else GM.isInternal
