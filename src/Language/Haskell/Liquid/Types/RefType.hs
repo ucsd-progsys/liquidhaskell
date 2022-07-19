@@ -96,6 +96,7 @@ module Language.Haskell.Liquid.Types.RefType (
 import Prelude hiding (error)
 -- import qualified Prelude
 import           Data.Maybe               (fromMaybe, isJust)
+import           Data.Bifunctor           (first)
 import           Data.Monoid              (First(..))
 import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
@@ -103,7 +104,7 @@ import qualified Data.HashSet         as S
 import qualified Data.List as L
 import           Control.Monad  (void)
 import           Text.Printf
-import           Text.PrettyPrint.HughesPJ hiding ((<>))
+import           Text.PrettyPrint.HughesPJ hiding ((<>), first)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types hiding (DataDecl (..), DataCtor (..), panic, shiftVV, Predicate, isNumeric)
 import           Language.Fixpoint.Types.Visitor (mapKVars, Visitable)
@@ -1716,7 +1717,7 @@ mkProductTy :: forall t r. (Monoid t, Monoid r)
             -> [(Symbol, RFInfo, RType RTyCon RTyVar r, t)]
 mkProductTy (τ, x, i, t, r) = maybe [(x, i, t, r)] f $ do
   DataConAppContext{..} <- deepSplitProductType_maybe menv τ
-  pure (dcac_dc, dcac_tys, map (\(t,s) -> (irrelevantMult t, s)) dcac_arg_tys, dcac_co)
+  pure (dcac_dc, dcac_tys, map (first irrelevantMult) dcac_arg_tys, dcac_co)
   where
     f    :: (DataCon, [Type], [(Type, StrictnessMark)], Coercion) -> [(Symbol, RFInfo, RType RTyCon RTyVar r, t)]
     f    = map ((dummySymbol, defRFInfo, , mempty) . ofType . fst) . third4
