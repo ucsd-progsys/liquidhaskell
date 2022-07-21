@@ -1,9 +1,9 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveFunctor      #-}
-{-# LANGUAGE TemplateHaskell    #-}
-{-# LANGUAGE TupleSections      #-}
-{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE DeriveFunctor         #-}
+{-# LANGUAGE TemplateHaskellQuotes #-}
+{-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
