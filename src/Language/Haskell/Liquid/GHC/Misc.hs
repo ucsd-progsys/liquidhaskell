@@ -138,7 +138,7 @@ isTmpSymbol    :: Symbol -> Bool
 isTmpSymbol x  = any (`isPrefixOfSym` x) [anfPrefix, tempPrefix, "ds_"]
 
 validTyVar :: String -> Bool
-validTyVar s@(c:_) = isLower c && all (not . isSpace) s
+validTyVar s@(c:_) = isLower c && not (any isSpace s)
 validTyVar _       = False
 
 tvId :: TyVar -> String
