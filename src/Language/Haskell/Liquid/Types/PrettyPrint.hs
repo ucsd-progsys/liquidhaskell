@@ -261,9 +261,9 @@ pprRtype bb p (RRTy e _ OCons t)
 pprRtype bb p (RRTy e r o t)
   = sep [ppp (pprint o <+> ppe <+> pprint r), pprRtype bb p t]
   where
-    ppe  = hsep (punctuate comma (ppxt <$> e)) <+> dcolon
-    ppp  = \doc -> text "<<" <+> doc <+> text ">>"
-    ppxt = \(x, t) -> pprint x <+> ":" <+> pprRtype bb p t
+    ppe         = hsep (punctuate comma (ppxt <$> e)) <+> dcolon
+    ppp  doc    = text "<<" <+> doc <+> text ">>"
+    ppxt (x, t) = pprint x <+> ":" <+> pprRtype bb p t
 pprRtype _ _ (RHole r)
   = F.ppTy r $ text "_"
 

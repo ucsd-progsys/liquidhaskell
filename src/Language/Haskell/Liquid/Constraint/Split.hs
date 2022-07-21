@@ -364,11 +364,12 @@ bsplitC' γ t1 t2 tem isHO
     γ'  = feBinds $ fenv γ
     r1' = rTypeSortedReft' γ tem t1
     r2' = rTypeSortedReft' γ tem t2
-    ci  = \sr -> Ci src (err sr) (cgVar γ)
     tag = getTag γ
-    err = \sr -> Just $ fromMaybe (ErrSubType src (text "subtype") Nothing g t1 (replaceTop t2 sr)) (cerr γ)
     src = getLocation γ
     g   = reLocal $ renv γ
+
+    ci sr  = Ci src (err sr) (cgVar γ)
+    err sr = Just $ fromMaybe (ErrSubType src (text "subtype") Nothing g t1 (replaceTop t2 sr)) (cerr γ)
 
 mkSubC :: F.IBindEnv -> F.SortedReft -> F.SortedReft -> F.Tag -> (F.SortedReft -> a) -> [F.SubC a]
 mkSubC g sr1 sr2 tag ci = concatMap (\sr2' -> F.subC g sr1 sr2' Nothing tag (ci sr2')) (splitSortedReft sr2)
