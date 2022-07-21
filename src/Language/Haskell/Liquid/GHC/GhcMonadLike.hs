@@ -109,12 +109,12 @@ instance (ExceptionMonad m, GhcMonadLike m) => GhcMonadLike (GhcT m)
 
 -- NOTE(adn) Taken from the GHC API, adapted to work for a 'GhcMonadLike' monad.
 getModuleGraph :: GhcMonadLike m => m ModuleGraph
-getModuleGraph = liftM hsc_mod_graph askHscEnv
+getModuleGraph = fmap hsc_mod_graph askHscEnv
 
 -- NOTE(adn) Taken from the GHC API, adapted to work for a 'GhcMonadLike' monad.
 getModSummary :: GhcMonadLike m => ModuleName -> m ModSummary
 getModSummary mdl = do
-   mg <- liftM hsc_mod_graph askHscEnv
+   mg <- fmap hsc_mod_graph askHscEnv
    let mods_by_name = [ ms | ms <- mgModSummaries mg
                       , ms_mod_name ms == mdl
                       , not (isBootInterface . isBootSummary $ ms) ]
@@ -133,7 +133,7 @@ isBootInterface NotBoot = False
 
 lookupModSummary :: GhcMonadLike m => ModuleName -> m (Maybe ModSummary)
 lookupModSummary mdl = do
-   mg <- liftM hsc_mod_graph askHscEnv
+   mg <- fmap hsc_mod_graph askHscEnv
    let mods_by_name = [ ms | ms <- mgModSummaries mg
                       , ms_mod_name ms == mdl
                       , not (isBootInterface . isBootSummary $ ms) ]
