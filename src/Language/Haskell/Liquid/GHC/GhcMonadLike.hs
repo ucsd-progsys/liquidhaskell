@@ -91,7 +91,7 @@ instance HasHscEnv TcM where
   askHscEnv = env_top <$> getEnv
 
 instance HasHscEnv Hsc where
-  askHscEnv = Hsc $ \e w -> pure (e, w)
+  askHscEnv = Hsc $ curry pure
 
 instance (ExceptionMonad m, HasHscEnv m) => HasHscEnv (GhcT m) where
   askHscEnv = getSession
