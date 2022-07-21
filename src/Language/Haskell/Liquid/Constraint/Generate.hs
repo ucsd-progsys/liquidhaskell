@@ -138,14 +138,15 @@ makeDecrIndexTy x t args
          Nothing -> return $ Left msg
          Just i  -> return $ Right $ fromMaybe [i] hint
     where
-       ts         = ty_args trep
-       tvs        = zip ts args
-       checkHint' = \autosz -> checkHint x ts (isDecreasing autosz cenv)
-       dindex     = \autosz -> L.findIndex (p autosz) tvs
-       p autosz (t, v) = isDecreasing autosz cenv t && not (isIdTRecBound v)
-       msg        = ErrTermin (getSrcSpan x) [F.pprint x] (text "No decreasing parameter")
-       cenv       = makeNumEnv ts
-       trep       = toRTypeRep $ unOCons t
+       ts   = ty_args trep
+       tvs  = zip ts args
+       msg  = ErrTermin (getSrcSpan x) [F.pprint x] (text "No decreasing parameter")
+       cenv = makeNumEnv ts
+       trep = toRTypeRep $ unOCons t
+
+       p autosz (t, v)   = isDecreasing autosz cenv t && not (isIdTRecBound v)
+       checkHint' autosz = checkHint x ts (isDecreasing autosz cenv)
+       dindex     autosz = L.findIndex (p autosz) tvs
 
 
 recType :: F.Symbolic a

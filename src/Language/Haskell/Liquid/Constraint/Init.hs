@@ -76,14 +76,15 @@ initEnv info
        γ  <- globalize <$> foldM (+=) γ0 ( [("initEnv", x, y) | (x, y) <- concat (rTrue:tail bs)])
        return γ {invs = is (invs1 ++ invs2)}
   where
-    allowTC        = typeclass (getConfig info)
+    allowTC      = typeclass (getConfig info)
     sp           = giSpec info
     ialias       = mkRTyConIAl (gsIaliases (gsData sp))
     vals f       = map (mapSnd val) . f
-    mapSndM f    = \(x,y) -> (x,) <$> f y
-    makeExactDc dcs = if exactDCFlag info then map strengthenDataConType dcs else dcs
     is autoinv   = mkRTyConInv    (gsInvariants (gsData sp) ++ ((Nothing,) <$> autoinv))
     addPolyInfo' = if reflection (getConfig info) then map (mapSnd addPolyInfo) else id
+
+    mapSndM f (x,y) = (x,) <$> f y
+    makeExactDc dcs = if exactDCFlag info then map strengthenDataConType dcs else dcs
 
 addPolyInfo :: SpecType -> SpecType
 addPolyInfo t = mkUnivs (go <$> as) ps t'
