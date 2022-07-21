@@ -150,7 +150,7 @@ realTargets  mbEnv cfg tgtFs
     tgts       = S.fromList tgtFs
 
 getInterfaceDynFlags :: Maybe HscEnv -> Config -> IO DynFlags
-getInterfaceDynFlags mbEnv cfg = runLiquidGhc mbEnv cfg $ getSessionDynFlags
+getInterfaceDynFlags mbEnv cfg = runLiquidGhc mbEnv cfg getSessionDynFlags
 
 orderTargets :: Maybe HscEnv -> Config -> [FilePath] -> IO [FilePath]
 orderTargets mbEnv cfg tgtFiles = runLiquidGhc mbEnv cfg $ do
@@ -588,7 +588,7 @@ makeGhcSrc cfg file typechecked modSum = do
   availableTcs      <- availableTyCons hscEnv modSum (fst $ tm_internals_ typechecked) (mg_exports modGuts')
 
   let impVars        = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)
-  incDir            <- liftIO $ Misc.getIncludeDir
+  incDir            <- liftIO Misc.getIncludeDir
 
   --liftIO $ do
   --  print $ "_gsTcs   => " ++ show (nub $ (mgi_tcs      modGuts) ++ availableTcs)

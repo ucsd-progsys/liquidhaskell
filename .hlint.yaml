@@ -1,5 +1,3 @@
-# Warnings currently triggered by your code
-
 # To be compatible with GHC naming turn off the camelCase rule.
 - ignore: {name: "Use camelCase", within: [Language.Haskell.Liquid.GHC.Misc]} # 4 hints
 # Linting LANGUAGE pragmas with complex CPP ifdefs is too hard.
