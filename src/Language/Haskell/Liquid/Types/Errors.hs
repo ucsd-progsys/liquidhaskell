@@ -3,7 +3,6 @@
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE DeriveFunctor       #-}
-{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE DerivingVia         #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- TODO(#1918): Only needed for GHC <9.0.1.
