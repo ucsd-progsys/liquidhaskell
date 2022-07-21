@@ -62,7 +62,6 @@ import Prelude hiding (error)
 
 import GHC.Paths (libdir)
 
-import           Language.Haskell.Liquid.GHC.GhcMonadLike (isBootInterface)
 import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( text
                                                                , (<+>)
                                                                , panic
@@ -104,7 +103,7 @@ import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.GHC.Types (MGIModGuts(..), miModGuts)
 import Language.Haskell.Liquid.GHC.Play
 import qualified Language.Haskell.Liquid.GHC.GhcMonadLike as GhcMonadLike
-import Language.Haskell.Liquid.GHC.GhcMonadLike (GhcMonadLike, askHscEnv)
+import Language.Haskell.Liquid.GHC.GhcMonadLike (GhcMonadLike, isBootInterface, askHscEnv)
 import Language.Haskell.Liquid.WiredIn (isDerivedInstance)
 import qualified Language.Haskell.Liquid.Measure  as Ms
 import qualified Language.Haskell.Liquid.Misc     as Misc
