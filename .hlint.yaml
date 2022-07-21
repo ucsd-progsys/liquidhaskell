@@ -1,6 +1,5 @@
 # Warnings currently triggered by your code
-# Warnings currently triggered by your code
-- ignore: {name: "Redundant lambda"} # 7 hints
+
 # To be compatible with GHC naming turn off the camelCase rule.
 - ignore: {name: "Use camelCase", within: [Language.Haskell.Liquid.GHC.Misc]} # 4 hints
 # Linting LANGUAGE pragmas with complex CPP ifdefs is too hard.
