@@ -32,7 +32,6 @@ module Language.Haskell.Liquid.GHC.GhcMonadLike (
   , apiComments
   ) where
 
-import Control.Monad
 import Control.Monad.IO.Class
 import Control.Exception (throwIO)
 
