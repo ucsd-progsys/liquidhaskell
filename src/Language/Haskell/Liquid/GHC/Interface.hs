@@ -710,12 +710,12 @@ _dumpTypeEnv tm = do
 
 tcmTyThings :: TypecheckedModule -> Maybe [Name]
 tcmTyThings
-  = id
+  =
   -- typeEnvElts 
   -- . tcg_type_env . fst 
   -- . md_types . snd
   -- . tm_internals_
-  . modInfoTopLevelScope
+  modInfoTopLevelScope
   . tm_checked_module_info
 
 
