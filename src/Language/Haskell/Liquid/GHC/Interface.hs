@@ -62,7 +62,6 @@ import Prelude hiding (error)
 
 import GHC.Paths (libdir)
 
-import           Language.Haskell.Liquid.GHC.GhcMonadLike (isBootInterface)
 import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( text
                                                                , (<+>)
                                                                , panic
@@ -104,8 +103,8 @@ import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.GHC.Types (MGIModGuts(..), miModGuts)
 import Language.Haskell.Liquid.GHC.Play
 import qualified Language.Haskell.Liquid.GHC.GhcMonadLike as GhcMonadLike
-import Language.Haskell.Liquid.GHC.GhcMonadLike (GhcMonadLike, askHscEnv)
-import Language.Haskell.Liquid.WiredIn (isDerivedInstance) 
+import Language.Haskell.Liquid.GHC.GhcMonadLike (GhcMonadLike, isBootInterface, askHscEnv)
+import Language.Haskell.Liquid.WiredIn (isDerivedInstance)
 import qualified Language.Haskell.Liquid.Measure  as Ms
 import qualified Language.Haskell.Liquid.Misc     as Misc
 import Language.Haskell.Liquid.Parse
@@ -120,7 +119,7 @@ import Language.Fixpoint.Utils.Files
 
 import Optics hiding (ix)
 
-import qualified Debug.Trace as Debug 
+import qualified Debug.Trace as Debug
 
 
 --------------------------------------------------------------------------------
@@ -135,40 +134,40 @@ import qualified Debug.Trace as Debug
 
  -}
 --------------------------------------------------------------------------------
-realTargets :: Maybe HscEnv -> Config -> [FilePath] -> IO [FilePath] 
-realTargets  mbEnv cfg tgtFs 
+realTargets :: Maybe HscEnv -> Config -> [FilePath] -> IO [FilePath]
+realTargets  mbEnv cfg tgtFs
   | noCheckImports cfg = return tgtFs
-  | otherwise          = do 
-    incDir   <- Misc.getIncludeDir 
+  | otherwise          = do
+    incDir   <- Misc.getIncludeDir
     allFs    <- orderTargets mbEnv cfg tgtFs
     let srcFs = filter (not . Misc.isIncludeFile incDir) allFs
     realFs   <- filterM check srcFs
     dir      <- getCurrentDirectory
     return      (makeRelative dir <$> realFs)
-  where 
-    check f    = not <$> skipTarget tgts f 
+  where
+    check f    = not <$> skipTarget tgts f
     tgts       = S.fromList tgtFs
 
 getInterfaceDynFlags :: Maybe HscEnv -> Config -> IO DynFlags
-getInterfaceDynFlags mbEnv cfg = runLiquidGhc mbEnv cfg $ getSessionDynFlags
+getInterfaceDynFlags mbEnv cfg = runLiquidGhc mbEnv cfg getSessionDynFlags
 
-orderTargets :: Maybe HscEnv -> Config -> [FilePath] -> IO [FilePath] 
-orderTargets mbEnv cfg tgtFiles = runLiquidGhc mbEnv cfg $ do 
+orderTargets :: Maybe HscEnv -> Config -> [FilePath] -> IO [FilePath]
+orderTargets mbEnv cfg tgtFiles = runLiquidGhc mbEnv cfg $ do
   homeModules <- configureGhcTargets tgtFiles
   return         (modSummaryHsFile <$> mgModSummaries homeModules)
 
 
 skipTarget :: S.HashSet FilePath -> FilePath -> IO Bool
-skipTarget tgts f 
+skipTarget tgts f
   | S.member f tgts = return False          -- Always check target file 
   | otherwise       = hasFreshBinSpec f     -- But skip an import with fresh .bspec
 
 hasFreshBinSpec :: FilePath -> IO Bool
-hasFreshBinSpec srcF = do 
+hasFreshBinSpec srcF = do
   let specF = extFileName BinSpec srcF
-  srcMb    <- Misc.lastModified srcF 
-  specMb   <- Misc.lastModified specF 
-  case (srcMb, specMb) of 
+  srcMb    <- Misc.lastModified srcF
+  specMb   <- Misc.lastModified specF
+  case (srcMb, specMb) of
     (Just srcT, Just specT) -> return (srcT < specT)
     _                       -> return False
 
@@ -181,8 +180,8 @@ hasFreshBinSpec srcF = do
 getTargetInfos :: Maybe HscEnv -> Config -> [FilePath] -> IO ([TargetInfo], HscEnv)
 getTargetInfos hscEnv cfg tgtFiles' = do
   tgtFiles <- mapM canonicalizePath tgtFiles'
-  _        <- mapM checkFilePresent tgtFiles
-  _        <- mapM_ createTempDirectoryIfMissing tgtFiles
+  mapM_ checkFilePresent tgtFiles
+  mapM_ createTempDirectoryIfMissing tgtFiles
   logicMap <- liftIO makeLogicMap
   runLiquidGhc hscEnv cfg (getTargetInfos' cfg logicMap tgtFiles)
 
@@ -215,8 +214,8 @@ runLiquidGhc hscEnv cfg act =
       df <- configureDynFlags cfg tmp
       prettyPrintGhcErrors df act
 
-updateIncludePaths :: DynFlags -> [FilePath] -> IncludeSpecs 
-updateIncludePaths df ps = addGlobalInclude (includePaths df) ps 
+updateIncludePaths :: DynFlags -> [FilePath] -> IncludeSpecs
+updateIncludePaths df ps = addGlobalInclude (includePaths df) ps
 
 configureDynFlags :: Config -> FilePath -> Ghc DynFlags
 configureDynFlags cfg tmp = do
@@ -229,7 +228,7 @@ configureDynFlags cfg tmp = do
                  , packageFlags = ExposePackage ""
                                                 (PackageArg "ghc-prim")
                                                 (ModRenaming True [])
-                                : (packageFlags df')
+                                : packageFlags df'
 
                  , debugLevel   = 1               -- insert SourceNotes
                  -- , profAuto     = ProfAutoCalls
@@ -237,12 +236,14 @@ configureDynFlags cfg tmp = do
                  , hscTarget    = HscInterpreted
                  , ghcMode      = CompManager
                  -- prevent GHC from printing anything, unless in Loud mode
-                 , log_action   = if loud
-                                    then defaultLogAction
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+                 , log_action   = if loud
+                                    then defaultLogAction
                                     else \_ _ _ _ _ _ -> return ()
 #else
+                 , log_action   = if loud
+                                    then defaultLogAction
                                     else \_ _ _ _ _   -> return ()
 #endif
 #endif
@@ -281,7 +282,7 @@ compileCFiles :: Config -> Ghc ()
 compileCFiles cfg = do
   df  <- getSessionDynFlags
   _   <- setSessionDynFlags $
-           df { includePaths = updateIncludePaths df (idirs cfg) 
+           df { includePaths = updateIncludePaths df (idirs cfg)
               , importPaths  = nub $ idirs cfg ++ importPaths df
               , libraryPaths = nub $ idirs cfg ++ libraryPaths df }
   hsc <- getSession
@@ -318,7 +319,7 @@ buildDepGraph homeModules =
   graphFromEdgedVerticesOrd <$> mapM mkDepGraphNode (mgModSummaries homeModules)
 
 mkDepGraphNode :: ModSummary -> Ghc DepGraphNode
-mkDepGraphNode modSummary = 
+mkDepGraphNode modSummary =
   DigraphNode () (ms_mod modSummary) <$> (filterM isHomeModule =<< modSummaryImports modSummary)
 
 isHomeModule :: GhcMonadLike m => Module -> m Bool
@@ -352,19 +353,19 @@ classCons :: Maybe [ClsInst] -> [Id]
 classCons Nothing   = []
 classCons (Just cs) = concatMap (dataConImplicitIds . head . tyConDataCons . classTyCon . is_cls) cs
 
-derivedVars :: Config -> MGIModGuts -> [Var]  
-derivedVars cfg mg  = concatMap (dFunIdVars cbs . is_dfun) derInsts 
-  where 
-    derInsts        
-      | checkDer    = insts 
+derivedVars :: Config -> MGIModGuts -> [Var]
+derivedVars cfg mg  = concatMap (dFunIdVars cbs . is_dfun) derInsts
+  where
+    derInsts
+      | checkDer    = insts
       | otherwise   = filter isDerivedInstance insts
-    insts           = mgClsInstances mg 
+    insts           = mgClsInstances mg
     checkDer        = checkDerived cfg
     cbs             = mgi_binds mg
-               
+
 
 mgClsInstances :: MGIModGuts -> [ClsInst]
-mgClsInstances = fromMaybe [] . mgi_cls_inst 
+mgClsInstances = fromMaybe [] . mgi_cls_inst
 
 dFunIdVars :: CoreProgram -> DFunId -> [Id]
 dFunIdVars cbs fd  = notracepp msg $ concatMap bindersOf cbs' ++ deps
@@ -404,7 +405,7 @@ processModules :: Config -> LogicMap -> [FilePath] -> DepGraph -> ModuleGraph ->
 processModules cfg logicMap tgtFiles depGraph homeModules = do
   -- DO NOT DELETE: liftIO $ putStrLn $ "Process Modules: TargetFiles = " ++ show tgtFiles
   catMaybes . snd <$> Misc.mapAccumM go emptyModuleEnv (mgModSummaries homeModules)
-  where                                             
+  where
     go = processModule cfg logicMap (S.fromList tgtFiles) depGraph
 
 processModule :: Config -> LogicMap -> S.HashSet FilePath -> DepGraph -> SpecEnv -> ModSummary
@@ -430,9 +431,9 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
                      then Just <$> processTargetModule cfg logicMap depGraph specEnv file typechecked bareSpec
                      else return Nothing
 
-updLiftedSpec :: Ms.BareSpec -> Maybe Ms.BareSpec -> Ms.BareSpec 
-updLiftedSpec s1 Nothing   = s1 
-updLiftedSpec s1 (Just s2) = (clearSpec s1) `mappend` s2 
+updLiftedSpec :: Ms.BareSpec -> Maybe Ms.BareSpec -> Ms.BareSpec
+updLiftedSpec s1 Nothing   = s1
+updLiftedSpec s1 (Just s2) = clearSpec s1 `mappend` s2
 
 clearSpec :: Ms.BareSpec -> Ms.BareSpec
 clearSpec s = s { sigs = [], asmSigs = [], aliases = [], ealiases = [], qualifiers = [], dataDecls = [] }
@@ -536,11 +537,11 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   --         throw (allErrors diagnostics)
   --       Right (warns, targetSpec, liftedSpec) -> do
   --         mapM_ (liftIO . printWarning dynFlags) warns
-      
+
   --     -- makeTargetSpec cfg logicMap targetSrc (view bareSpecIso bareSpec) dependencies >>= \case
   --     --   Left  validationErrors -> Bare.checkThrow (Left validationErrors)
   --     --   Right (targetSpec, liftedSpec) -> do
-      
+
   --     -- The call below is temporary, we should really load & save directly 'LiftedSpec's.
   --         _          <- liftIO $ saveLiftedSpec (_giTarget ghcSrc) (unsafeFromLiftedSpec liftedSpec)
   --         return      $ TargetInfo targetSrc targetSpec
@@ -571,7 +572,7 @@ loadContext bareSpec dependencies targetSrc = do
 -- | @makeGhcSrc@ builds all the source-related information needed for consgen 
 ---------------------------------------------------------------------------------------
 
-makeGhcSrc :: Config -> FilePath -> TypecheckedModule -> ModSummary -> Ghc GhcSrc 
+makeGhcSrc :: Config -> FilePath -> TypecheckedModule -> ModSummary -> Ghc GhcSrc
 makeGhcSrc cfg file typechecked modSum = do
   modGuts'          <- GhcMonadLike.desugarModule modSum typechecked
 
@@ -586,7 +587,7 @@ makeGhcSrc cfg file typechecked modSum = do
   availableTcs      <- availableTyCons hscEnv modSum (fst $ tm_internals_ typechecked) (mg_exports modGuts')
 
   let impVars        = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)
-  incDir            <- liftIO $ Misc.getIncludeDir
+  incDir            <- liftIO Misc.getIncludeDir
 
   --liftIO $ do
   --  print $ "_gsTcs   => " ++ show (nub $ (mgi_tcs      modGuts) ++ availableTcs)
@@ -595,52 +596,52 @@ makeGhcSrc cfg file typechecked modSum = do
   --  print $ "dataCons => " ++ show dataCons
   --  print $ "defVars  => " ++ show (dataCons ++ (letVars coreBinds))
 
-  return $ Src 
-    { _giIncDir    = incDir 
+  return $ Src
+    { _giIncDir    = incDir
     , _giTarget    = file
     , _giTargetMod = ModName Target (moduleName (ms_mod modSum))
     , _giCbs       = coreBinds
-    , _giImpVars   = impVars 
-    , _giDefVars   = dataCons ++ (letVars coreBinds) 
+    , _giImpVars   = impVars
+    , _giDefVars   = dataCons ++ letVars coreBinds
     , _giUseVars   = readVars coreBinds
-    , _giDerVars   = S.fromList (derivedVars cfg modGuts) 
-    , _gsExports   = mgi_exports  modGuts 
-    , _gsTcs       = nub $ (mgi_tcs      modGuts) ++ availableTcs
-    , _gsCls       = mgi_cls_inst modGuts 
-    , _gsFiTcs     = fiTcs 
+    , _giDerVars   = S.fromList (derivedVars cfg modGuts)
+    , _gsExports   = mgi_exports  modGuts
+    , _gsTcs       = nub $ mgi_tcs modGuts ++ availableTcs
+    , _gsCls       = mgi_cls_inst modGuts
+    , _gsFiTcs     = fiTcs
     , _gsFiDcs     = fiDcs
     , _gsPrimTcs   = Ghc.primTyCons
     , _gsQualImps  = qualifiedImports (maybe mempty (view _2) (tm_renamed_source typechecked))
     , _gsAllImps   = allImports       (maybe mempty (view _2) (tm_renamed_source typechecked))
-    , _gsTyThings  = [ t | (_, Just t) <- things ] 
+    , _gsTyThings  = [ t | (_, Just t) <- things ]
     }
 
 _impThings :: [Var] -> [TyThing] -> [TyThing]
 _impThings vars  = filter ok
   where
-    vs          = S.fromList vars 
-    ok (AnId x) = S.member x vs  
-    ok _        = True 
+    vs          = S.fromList vars
+    ok (AnId x) = S.member x vs
+    ok _        = True
 
-allImports :: [LImportDecl GhcRn] -> S.HashSet Symbol 
+allImports :: [LImportDecl GhcRn] -> S.HashSet Symbol
 allImports = \case
-  []-> Debug.trace "WARNING: Missing RenamedSource" mempty 
+  []-> Debug.trace "WARNING: Missing RenamedSource" mempty
   imps -> S.fromList (symbol . unLoc . ideclName . unLoc <$> imps)
 
-qualifiedImports :: [LImportDecl GhcRn] -> QImports 
+qualifiedImports :: [LImportDecl GhcRn] -> QImports
 qualifiedImports = \case
-  []   -> Debug.trace "WARNING: Missing RenamedSource" (qImports mempty) 
+  []   -> Debug.trace "WARNING: Missing RenamedSource" (qImports mempty)
   imps -> qImports [ (qn, n) | i         <- imps
                                           , let decl   = unLoc i
-                                          , let m      = unLoc (ideclName decl)  
-                                          , qm        <- maybeToList (unLoc <$> ideclAs decl) 
-                                          , let [n,qn] = symbol <$> [m, qm] 
+                                          , let m      = unLoc (ideclName decl)
+                                          , qm        <- maybeToList (unLoc <$> ideclAs decl)
+                                          , let [n,qn] = symbol <$> [m, qm]
                                           ]
 
-qImports :: [(Symbol, Symbol)] -> QImports 
-qImports qns  = QImports 
-  { qiNames   = Misc.group qns 
-  , qiModules = S.fromList (snd <$> qns) 
+qImports :: [(Symbol, Symbol)] -> QImports
+qImports qns  = QImports
+  { qiNames   = Misc.group qns
+  , qiModules = S.fromList (snd <$> qns)
   }
 
 
@@ -652,7 +653,7 @@ qImports qns  = QImports
 lookupTyThings :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> m [(Name, Maybe TyThing)]
 lookupTyThings hscEnv modSum tcGblEnv = forM names (lookupTyThing hscEnv modSum tcGblEnv)
   where
-    names :: [Ghc.Name] 
+    names :: [Ghc.Name]
     names  = liftM2 (++)
              (fmap Ghc.gre_name . Ghc.globalRdrEnvElts . tcg_rdr_env)
              (fmap is_dfun_name . tcg_insts) tcGblEnv
@@ -676,12 +677,12 @@ availableTyThings hscEnv modSum tcGblEnv avails = fmap (catMaybes . mconcat) $ f
 
 -- | Returns all the available (i.e. exported) 'TyCon's (type constructors) for the input 'Module'.
 availableTyCons :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [Ghc.TyCon]
-availableTyCons hscEnv modSum tcGblEnv avails = 
+availableTyCons hscEnv modSum tcGblEnv avails =
   fmap (\things -> [tyCon | (ATyCon tyCon) <- things]) (availableTyThings hscEnv modSum tcGblEnv avails)
 
 -- | Returns all the available (i.e. exported) 'Var's for the input 'Module'.
 availableVars :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [Ghc.Var]
-availableVars hscEnv modSum tcGblEnv avails = 
+availableVars hscEnv modSum tcGblEnv avails =
   fmap (\things -> [var | (AnId var) <- things]) (availableTyThings hscEnv modSum tcGblEnv avails)
 
 -- lookupTyThings :: HscEnv -> TypecheckedModule -> MGIModGuts -> Ghc [(Name, Maybe TyThing)] 
@@ -701,34 +702,34 @@ availableVars hscEnv modSum tcGblEnv avails =
 -- modInfoLookupName :: GhcMonad m => ModuleInfo -> Name -> m (Maybe TyThing)  
 -- lookupGlobalName  :: GhcMonad m => Name -> m (Maybe TyThing)  
 
-_dumpTypeEnv :: TypecheckedModule -> IO () 
-_dumpTypeEnv tm = do 
+_dumpTypeEnv :: TypecheckedModule -> IO ()
+_dumpTypeEnv tm = do
   print ("DUMP-TYPE-ENV" :: String)
   print (showpp <$> tcmTyThings tm)
 
-tcmTyThings :: TypecheckedModule -> Maybe [Name] 
-tcmTyThings 
-  = id 
+tcmTyThings :: TypecheckedModule -> Maybe [Name]
+tcmTyThings
+  =
   -- typeEnvElts 
   -- . tcg_type_env . fst 
   -- . md_types . snd
   -- . tm_internals_
-  . modInfoTopLevelScope
+  modInfoTopLevelScope
   . tm_checked_module_info
 
 
-_dumpRdrEnv :: HscEnv -> MGIModGuts -> IO () 
-_dumpRdrEnv _hscEnv modGuts = do 
+_dumpRdrEnv :: HscEnv -> MGIModGuts -> IO ()
+_dumpRdrEnv _hscEnv modGuts = do
   print ("DUMP-RDR-ENV" :: String)
   print (mgNames modGuts)
   -- print (hscNames hscEnv) 
   -- print (mgDeps modGuts) 
-  where 
-    _mgDeps   = Ghc.dep_mods . mgi_deps 
+  where
+    _mgDeps   = Ghc.dep_mods . mgi_deps
     _hscNames = fmap showPpr . Ghc.ic_tythings . Ghc.hsc_IC
 
-mgNames :: MGIModGuts -> [Ghc.Name] 
-mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env 
+mgNames :: MGIModGuts -> [Ghc.Name]
+mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env
 
 ---------------------------------------------------------------------------------------
 -- | @makeDependencies@ loads BareSpec for target and imported modules 
@@ -738,9 +739,9 @@ mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env
 -- specs will share the same `UnitId`, which for the sake of the executable is an
 -- acceptable compromise, as long as we don't create duplicates.
 ---------------------------------------------------------------------------------------
-makeDependencies :: Config -> DepGraph -> SpecEnv -> ModSummary -> Ms.BareSpec 
+makeDependencies :: Config -> DepGraph -> SpecEnv -> ModSummary -> Ms.BareSpec
                  -> Ghc TargetDependencies
-makeDependencies cfg depGraph specEnv modSum _ = do 
+makeDependencies cfg depGraph specEnv modSum _ = do
   let paths     = S.fromList $ idirs cfg ++ importPaths (ms_hspp_opts modSum)
   _            <- liftIO $ whenLoud $ putStrLn $ "paths = " ++ show paths
   let reachable = reachableModules depGraph (ms_mod modSum)
@@ -808,7 +809,7 @@ getFamInstances :: HscEnv -> IO [FamInst]
 getFamInstances env = do
   (_, Just (pkg_fie, home_fie)) <- runTcInteractive env tcGetFamInstEnvs
   return $ famInstEnvElts home_fie ++ famInstEnvElts pkg_fie
- 
+
 --------------------------------------------------------------------------------
 -- | Extract Specifications from GHC -------------------------------------------
 --------------------------------------------------------------------------------
@@ -833,8 +834,8 @@ extractSpecComment (Ghc.L sp (AnnBlockComment txt))
 extractSpecComment _ = Nothing
 
 extractSpecQuotes :: TypecheckedModule -> [BPspec]
-extractSpecQuotes = 
-  extractSpecQuotes' (ms_mod . pm_mod_summary . tm_parsed_module) 
+extractSpecQuotes =
+  extractSpecQuotes' (ms_mod . pm_mod_summary . tm_parsed_module)
                      (tcg_anns . fst . tm_internals_)
 
 extractSpecQuotes' :: (a -> Module) -> (a -> [Annotation]) -> a -> [BPspec]
@@ -848,7 +849,7 @@ extractSpecQuotes' thisModule getAnns a = mapMaybe extractSpecQuote anns
     isOurModTarget _ = False
 
 extractSpecQuote :: AnnPayload -> Maybe BPspec
-extractSpecQuote payload = 
+extractSpecQuote payload =
   case Ghc.fromSerialized Ghc.deserializeWithData payload of
     Nothing -> Nothing
     Just qt -> Just $ refreshSymbols $ liquidQuoteSpec qt
@@ -907,7 +908,7 @@ getRealSpec modGraph paths freal
 
 transParseSpecs :: ModuleGraph
                 -> S.HashSet FilePath
-                -> S.HashSet FilePath 
+                -> S.HashSet FilePath
                 -> [(ModName, Ms.BareSpec)]
                 -> [FilePath]
                 -> IO [(ModName, Ms.BareSpec)]
@@ -1036,15 +1037,10 @@ instance PPrint TargetInfo where
     , "*************** Core Bindings ***************"
     , pprintCBs $ _giCbs (review targetSrcIso $ giSrc info) ]
 
--- RJ: the silly guards below are to silence the unused-var checker
--- LDM: GHC 9.0.1 is having none of it unfortunately: "Pattern match is redundant".
 pprintCBs :: [CoreBind] -> Doc
-pprintCBs
-  | otherwise = pprintCBsTidy
-  -- | otherwise = pprintCBsVerbose
-  where
-    pprintCBsTidy    = pprDoc . tidyCBs
-    -- pprintCBsVerbose = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs
+pprintCBs = pprDoc . tidyCBs
+    -- To print verbosely 
+    --    = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs
 
 instance Show TargetInfo where
   show = showpp

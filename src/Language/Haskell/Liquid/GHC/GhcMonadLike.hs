@@ -32,7 +32,6 @@ module Language.Haskell.Liquid.GHC.GhcMonadLike (
   , apiComments
   ) where
 
-import Control.Monad
 import Control.Monad.IO.Class
 import Control.Exception (throwIO)
 
@@ -91,7 +90,7 @@ instance HasHscEnv TcM where
   askHscEnv = env_top <$> getEnv
 
 instance HasHscEnv Hsc where
-  askHscEnv = Hsc $ \e w -> pure (e, w)
+  askHscEnv = Hsc $ curry pure
 
 instance (ExceptionMonad m, HasHscEnv m) => HasHscEnv (GhcT m) where
   askHscEnv = getSession
@@ -109,12 +108,12 @@ instance (ExceptionMonad m, GhcMonadLike m) => GhcMonadLike (GhcT m)
 
 -- NOTE(adn) Taken from the GHC API, adapted to work for a 'GhcMonadLike' monad.
 getModuleGraph :: GhcMonadLike m => m ModuleGraph
-getModuleGraph = liftM hsc_mod_graph askHscEnv
+getModuleGraph = fmap hsc_mod_graph askHscEnv
 
 -- NOTE(adn) Taken from the GHC API, adapted to work for a 'GhcMonadLike' monad.
 getModSummary :: GhcMonadLike m => ModuleName -> m ModSummary
 getModSummary mdl = do
-   mg <- liftM hsc_mod_graph askHscEnv
+   mg <- fmap hsc_mod_graph askHscEnv
    let mods_by_name = [ ms | ms <- mgModSummaries mg
                       , ms_mod_name ms == mdl
                       , not (isBootInterface . isBootSummary $ ms) ]
@@ -133,7 +132,7 @@ isBootInterface NotBoot = False
 
 lookupModSummary :: GhcMonadLike m => ModuleName -> m (Maybe ModSummary)
 lookupModSummary mdl = do
-   mg <- liftM hsc_mod_graph askHscEnv
+   mg <- fmap hsc_mod_graph askHscEnv
    let mods_by_name = [ ms | ms <- mgModSummaries mg
                       , ms_mod_name ms == mdl
                       , not (isBootInterface . isBootSummary $ ms) ]
@@ -321,14 +320,18 @@ lookupModule mod_name Nothing = do
 
 -- Compatibility shim to extract the comments out of an 'ApiAnns', as modern GHCs now puts the
 -- comments (i.e. Haskell comments) in a different field ('apiAnnRogueComments').
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 apiComments :: ApiAnns -> [Ghc.Located AnnotationComment]
 apiComments apiAnns =
   let comments = concat . M.elems . apiAnnComments $ apiAnns
   in
-#ifdef MIN_VERSION_GLASGOW_HASKELL
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
       comments
 #else
+apiComments :: ApiAnns -> [Ghc.Located AnnotationComment]
+apiComments apiAnns =
+  let comments = concat . M.elems . apiAnnComments $ apiAnns
+  in
      map toRealSrc $ mappend comments (apiAnnRogueComments apiAnns)
   where
     toRealSrc (L x e) = L (RealSrcSpan x Nothing) e

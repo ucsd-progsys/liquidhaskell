@@ -51,7 +51,7 @@ import qualified Text.PrettyPrint.HughesPJ                  as PJ
 import           Language.Fixpoint.Types                    hiding (L, panic, Loc (..), SrcSpan, Constant, SESearch (..))
 import qualified Language.Fixpoint.Types                    as F
 import           Language.Fixpoint.Misc                     (safeHead, safeLast, errorstar) -- , safeLast, safeInit)
-import           Language.Haskell.Liquid.Misc               (keyDiff) 
+import           Language.Haskell.Liquid.Misc               (keyDiff)
 import           Control.DeepSeq
 import           Language.Haskell.Liquid.Types.Errors
 
@@ -86,7 +86,7 @@ tickSrcSpan _                 = noSrcSpan
 -- FIXME: reusing uniques like this is really dangerous
 stringTyVar :: String -> TyVar
 stringTyVar s = mkTyVar name liftedTypeKind
-  where 
+  where
     name      = mkInternalName (mkUnique 'x' 24)  occ noSrcSpan
     occ       = mkTyVarOcc s
 
@@ -101,10 +101,10 @@ stringVar s t = mkLocalVar VanillaId name Many t vanillaIdInfo
 maybeAuxVar :: Symbol -> Maybe Var
 maybeAuxVar s
   | isMethod sym = Just sv
-  | otherwise = Nothing 
+  | otherwise = Nothing
   where (_, uid) = splitModuleUnique s
         sym = dropModuleNames s
-        sv = mkExportedLocalId VanillaId name anyTy 
+        sv = mkExportedLocalId VanillaId name anyTy
         -- 'x' is chosen for no particular reason..
         name = mkInternalName (mkUnique 'x' uid) occ noSrcSpan
         occ = mkVarOcc (T.unpack (symbolText sym))
@@ -131,14 +131,14 @@ isBaseType (TyConApp _ ts) = all isBaseType ts
 isBaseType (AppTy t1 t2)   = isBaseType t1 && isBaseType t2
 isBaseType _               = False
 
-isTmpVar :: Var -> Bool 
-isTmpVar = isTmpSymbol . dropModuleNamesAndUnique . symbol 
+isTmpVar :: Var -> Bool
+isTmpVar = isTmpSymbol . dropModuleNamesAndUnique . symbol
 
 isTmpSymbol    :: Symbol -> Bool
 isTmpSymbol x  = any (`isPrefixOfSym` x) [anfPrefix, tempPrefix, "ds_"]
 
 validTyVar :: String -> Bool
-validTyVar s@(c:_) = isLower c && all (not . isSpace) s
+validTyVar s@(c:_) = isLower c && not (any isSpace s)
 validTyVar _       = False
 
 tvId :: TyVar -> String
@@ -235,8 +235,8 @@ instance Hashable SrcSpan where
 fSrcSpan :: (F.Loc a) => a -> SrcSpan
 fSrcSpan = fSrcSpanSrcSpan . F.srcSpan
 
-fSourcePos :: (F.Loc a) => a -> F.SourcePos 
-fSourcePos = F.sp_start . F.srcSpan 
+fSourcePos :: (F.Loc a) => a -> F.SourcePos
+fSourcePos = F.sp_start . F.srcSpan
 
 fSrcSpanSrcSpan :: F.SrcSpan -> SrcSpan
 fSrcSpanSrcSpan (F.SS p p') = sourcePos2SrcSpan p p'
@@ -310,8 +310,8 @@ locNamedThing x = F.Loc l lE x
     l          = getSourcePos  x
     lE         = getSourcePosE x
 
-instance F.Loc Var where 
-  srcSpan v = SS (getSourcePos v) (getSourcePosE v) 
+instance F.Loc Var where
+  srcSpan v = SS (getSourcePos v) (getSourcePosE v)
 
 namedLocSymbol :: (F.Symbolic a, NamedThing a) => a -> F.Located F.Symbol
 namedLocSymbol d = F.symbol <$> locNamedThing d
@@ -370,7 +370,7 @@ idDataConM :: Id -> Maybe DataCon
 idDataConM x = case idDetails x of
   DataConWorkId d -> Just d
   DataConWrapId d -> Just d
-  _               -> Nothing 
+  _               -> Nothing
 
 isDataConId :: Id -> Bool
 isDataConId = isJust . idDataConM
@@ -445,7 +445,7 @@ lookupRdrName hsc_env mod_name rdr_name = do
 
 ignoreInline :: ParsedModule -> ParsedModule
 ignoreInline x = x {pm_parsed_source = go <$> pm_parsed_source x}
-  where 
+  where
     go  y      = y {hsmodDecls = filter go' (hsmodDecls y) }
     go' :: LHsDecl GhcPs -> Bool
     go' z
@@ -471,12 +471,12 @@ localVarSymbol v
   | otherwise             = suffixSymbol vs us
   where
     us                    = symbol $ showPpr $ getDataConVarUnique v
-    vs                    = exportedVarSymbol v 
+    vs                    = exportedVarSymbol v
 
 exportedVarSymbol :: Var -> Symbol
-exportedVarSymbol x = notracepp msg . symbol . getName $ x            
-  where 
-    msg = "exportedVarSymbol: " ++ showPpr x 
+exportedVarSymbol x = notracepp msg . symbol . getName $ x
+  where
+    msg = "exportedVarSymbol: " ++ showPpr x
 
 qualifiedNameSymbol :: Name -> Symbol
 qualifiedNameSymbol n = symbol $ concatFS [modFS, occFS, uniqFS]
@@ -507,7 +507,7 @@ tyConTyVarsDef c
   --  none         = tracepp ("tyConTyVarsDef: " ++ show c) (noTyVars c)
 
 noTyVars :: TyCon -> Bool
-noTyVars c =  (Ghc.isPrimTyCon c || isFunTyCon c || Ghc.isPromotedDataCon c)
+noTyVars c =  Ghc.isPrimTyCon c || isFunTyCon c || Ghc.isPromotedDataCon c
 
 --------------------------------------------------------------------------------
 -- | Symbol Instances
@@ -608,7 +608,7 @@ dropModuleNamesAndUnique :: Symbol -> Symbol
 dropModuleNamesAndUnique = dropModuleUnique . dropModuleNames
 
 dropModuleNames  :: Symbol -> Symbol
-dropModuleNames = dropModuleNamesCorrect 
+dropModuleNames = dropModuleNamesCorrect
 {- 
 dropModuleNames = mungeNames lastName sepModNames "dropModuleNames: "
  where
@@ -630,8 +630,8 @@ takeModuleNames  = F.symbol . go [] . F.symbolText
     go acc s = case T.uncons s of
                 Just (c,tl) -> if isUpper c && T.any (== '.') tl
                                  then go (getModule' s:acc) $ snd $ fromJust $ T.uncons $ T.dropWhile (/= '.') s
-                                 else T.intercalate "." (reverse acc) 
-                Nothing -> T.intercalate "." (reverse acc) 
+                                 else T.intercalate "." (reverse acc)
+                Nothing -> T.intercalate "." (reverse acc)
     getModule' = T.takeWhile (/= '.')
 
 {- 
@@ -668,7 +668,7 @@ qualifySymbol (symbolText -> m) x'@(symbolText -> x)
   | otherwise      = symbol (m `mappend` "." `mappend` x)
 
 isQualifiedSym :: Symbol -> Bool
-isQualifiedSym (symbolText -> x) = isQualified x 
+isQualifiedSym (symbolText -> x) = isQualified x
 
 isQualified :: T.Text -> Bool
 isQualified y = "." `T.isInfixOf` y
@@ -688,9 +688,9 @@ isMethod = isPrefixOfSym "$c" . dropModuleNames . symbol
 isInternal :: Symbolic a => a -> Bool
 isInternal   = isPrefixOfSym "$"  . dropModuleNames . symbol
 
-isWorker :: Symbolic a => a -> Bool 
-isWorker s = notracepp ("isWorkerSym: s = " ++ ss) $ "$W" `L.isInfixOf` ss 
-  where 
+isWorker :: Symbolic a => a -> Bool
+isWorker s = notracepp ("isWorkerSym: s = " ++ ss) $ "$W" `L.isInfixOf` ss
+  where
     ss     = symbolString (symbol s)
 
 isSCSel :: Symbolic a => a -> Bool
@@ -740,14 +740,14 @@ showCBs untidy
 
 
 ignoreCoreBinds :: S.HashSet Var -> [CoreBind] -> [CoreBind]
-ignoreCoreBinds vs cbs 
-  | S.null vs         = cbs 
+ignoreCoreBinds vs cbs
+  | S.null vs         = cbs
   | otherwise         = concatMap go cbs
   where
     go :: CoreBind -> [CoreBind]
-    go b@(NonRec x _) 
-      | S.member x vs = [] 
-      | otherwise     = [b] 
+    go b@(NonRec x _)
+      | S.member x vs = []
+      | otherwise     = [b]
     go (Rec xes)      = [Rec (filter ((`notElem` vs) . fst) xes)]
 
 
@@ -772,7 +772,7 @@ findVarDefMethod sym cbs =
     rcbs | isMethod sym = mCbs
          | isDictionary (dropModuleNames sym) = dCbs
          | otherwise  = xCbs
-    xCbs            = [ cb | cb <- concatMap unRec cbs, sym `elem` coreBindSymbols cb 
+    xCbs            = [ cb | cb <- concatMap unRec cbs, sym `elem` coreBindSymbols cb
                            ]
     mCbs            = [ cb | cb <- concatMap unRec cbs, sym `elem` methodSymbols cb]
     dCbs            = [ cb | cb <- concatMap unRec cbs, sym `elem` dictionarySymbols cb]
@@ -866,18 +866,18 @@ anyF ps x = or [ p x | p <- ps ]
 --   corresponding to the _missing_ cases, i.e. _other_ than those in 'ds',
 --   that are being handled by DEFAULT.
 defaultDataCons :: Type -> [AltCon] -> Maybe [(DataCon, [TyVar], [Type])]
-defaultDataCons (TyConApp tc argτs) ds = do 
+defaultDataCons (TyConApp tc argτs) ds = do
   allDs     <- Ghc.tyConDataCons_maybe tc
   let seenDs = [d | DataAlt d <- ds ]
-  let defDs  = keyDiff showPpr allDs seenDs 
-  return [ (d, Ghc.dataConExTyVars d, map irrelevantMult $ Ghc.dataConInstArgTys d argτs) | d <- defDs ] 
+  let defDs  = keyDiff showPpr allDs seenDs
+  return [ (d, Ghc.dataConExTyVars d, map irrelevantMult $ Ghc.dataConInstArgTys d argτs) | d <- defDs ]
 
-defaultDataCons _ _ = 
+defaultDataCons _ _ =
   Nothing
 
 
 
-isEvVar :: Id -> Bool 
+isEvVar :: Id -> Bool
 isEvVar x = isPredVar x || isTyVar x || isCoVar x
 
 
@@ -1053,22 +1053,26 @@ withWiredIn m = discardConstraints $ do
   --     (Ghc.NonRecursive, unitBag (Ghc.L locSpan b))
   --   ) wiredIns
 
-  sigs wiredIns = concatMap (\w ->
-      let inf = maybeToList $ fmap (\(fPrec, fDir) -> Ghc.L locSpan $ FixSig Ghc.noExtField $ FixitySig Ghc.noExtField [Ghc.L locSpan (tcWiredInName w)] $ Ghc.Fixity Ghc.NoSourceText fPrec fDir) $ tcWiredInFixity w in
-      let t = 
-            let ext = 
-#ifdef MIN_VERSION_GLASGOW_HASKELL
-#if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
-                      HsIBRn {hsib_vars = [], hsib_closed = True} in -- TODO: What goes here? XXX
-#else
-                      [] in
-#endif
-#endif
+  sigsExt ext wiredIns = concatMap (\w ->
+      let inf = maybeToList $ (\(fPrec, fDir) -> Ghc.L locSpan $ FixSig Ghc.noExtField $ FixitySig Ghc.noExtField [Ghc.L locSpan (tcWiredInName w)] $ Ghc.Fixity Ghc.NoSourceText fPrec fDir) <$> tcWiredInFixity w in
+      let t =
             let ext' = [] in
             [Ghc.L locSpan $ TypeSig Ghc.noExtField [Ghc.L locSpan (tcWiredInName w)] $ HsWC ext' $ HsIB ext $ tcWiredInType w]
       in
       inf <> t
     ) wiredIns
+
+  sigs = sigsExt cppExt
+
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
+  cppExt = HsIBRn {hsib_vars = [], hsib_closed = True} in -- TODO: What goes here? XXX
+#else
+  cppExt = []
+#endif
+#else
+  cppExt = []
+#endif
 
   locSpan = UnhelpfulSpan (UnhelpfulOther "Language.Haskell.Liquid.GHC.Misc: WiredIn")
 
@@ -1090,7 +1094,7 @@ withWiredIn m = discardConstraints $ do
     -- return $ Ghc.L locSpan $ HsTyVar Ghc.noExtField Ghc.NotPromoted $ Ghc.L locSpan boolName
   intTy' = nameToTy $ toLoc intTyConName
   listTy lt = toLoc $ HsAppTy Ghc.noExtField (nameToTy $ toLoc listTyConName) lt
- 
+
   -- infixr 1 ==> :: Bool -> Bool -> Bool
   impl = do
     n <- toName "==>"
@@ -1118,7 +1122,7 @@ withWiredIn m = discardConstraints $ do
              (mkHsForAllInvisTele [Ghc.L locSpan $ UserTyVar Ghc.noExtField SpecifiedSpec aName]) $ mkHsFunTy aTy (mkHsFunTy aTy boolTy')
 #endif
     return $ TcWiredIn n (Just (4, Ghc.InfixN)) ty
-  
+
   -- TODO: This is defined as a measure in liquid-base GHC.Base. We probably want to insert all measures to the environment.
   -- len :: forall a. [a] -> Int
   len = do

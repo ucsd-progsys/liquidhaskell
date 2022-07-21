@@ -1,8 +1,15 @@
-# Warnings currently triggered by your code
-- ignore: {name: "Parse error: on input `,'"} # 1 hint
-- ignore: {name: "Parse error: possibly incorrect indentation or mismatched brackets"} # 3 hints
+# To be compatible with GHC naming turn off the camelCase rule.
+- ignore: {name: "Use camelCase", within: [Language.Haskell.Liquid.GHC.Misc]} # 4 hints
 # Linting LANGUAGE pragmas with complex CPP ifdefs is too hard.
-- ignore: {name: "Unused LANGUAGE pragma", within: [Language.Haskell.Liquid.GHC.API]} # 8 hints
+- ignore: {
+    name: "Unused LANGUAGE pragma",
+    within: [
+      Language.Haskell.Liquid.GHC.API,
+      Language.Haskell.Liquid.GHC.Interface,
+      Language.Haskell.Liquid.GHC.GhcMonadLike,
+      Language.Haskell.Liquid.GHC.Misc
+    ]
+  }
 # The following are kept for usability and style sake
 - ignore: {name: "Avoid lambda"} # 4 hints
 - ignore: {name: "Eta reduce"} # 51 hints
