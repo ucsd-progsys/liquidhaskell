@@ -321,14 +321,18 @@ lookupModule mod_name Nothing = do
 
 -- Compatibility shim to extract the comments out of an 'ApiAnns', as modern GHCs now puts the
 -- comments (i.e. Haskell comments) in a different field ('apiAnnRogueComments').
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 apiComments :: ApiAnns -> [Ghc.Located AnnotationComment]
 apiComments apiAnns =
   let comments = concat . M.elems . apiAnnComments $ apiAnns
   in
-#ifdef MIN_VERSION_GLASGOW_HASKELL
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
       comments
 #else
+apiComments :: ApiAnns -> [Ghc.Located AnnotationComment]
+apiComments apiAnns =
+  let comments = concat . M.elems . apiAnnComments $ apiAnns
+  in
      map toRealSrc $ mappend comments (apiAnnRogueComments apiAnns)
   where
     toRealSrc (L x e) = L (RealSrcSpan x Nothing) e

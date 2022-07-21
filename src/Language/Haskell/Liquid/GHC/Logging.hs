@@ -51,14 +51,16 @@ putLogMsg dynFlags reason sev srcSpan _mbStyle =
 #endif
 
 
-defaultErrStyle :: GHC.DynFlags -> GHC.PprStyle
-defaultErrStyle _dynFlags =
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-  GHC.defaultErrStyle _dynFlags
+defaultErrStyle :: GHC.DynFlags -> GHC.PprStyle
+defaultErrStyle _dynFlags = GHC.defaultErrStyle _dynFlags
 #else
-  GHC.defaultErrStyle
+defaultErrStyle :: GHC.DynFlags -> GHC.PprStyle
+defaultErrStyle _dynFlags = GHC.defaultErrStyle
 #endif
+#else
+  #error MIN_VERSION_GLASGOW_HASKELL is not defined
 #endif
 
 putWarnMsg :: GHC.DynFlags -> GHC.SrcSpan -> PJ.Doc -> IO ()

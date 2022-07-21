@@ -237,12 +237,14 @@ configureDynFlags cfg tmp = do
                  , hscTarget    = HscInterpreted
                  , ghcMode      = CompManager
                  -- prevent GHC from printing anything, unless in Loud mode
-                 , log_action   = if loud
-                                    then defaultLogAction
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+                 , log_action   = if loud
+                                    then defaultLogAction
                                     else \_ _ _ _ _ _ -> return ()
 #else
+                 , log_action   = if loud
+                                    then defaultLogAction
                                     else \_ _ _ _ _   -> return ()
 #endif
 #endif

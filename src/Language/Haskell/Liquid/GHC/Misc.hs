@@ -1053,22 +1053,26 @@ withWiredIn m = discardConstraints $ do
   --     (Ghc.NonRecursive, unitBag (Ghc.L locSpan b))
   --   ) wiredIns
 
-  sigs wiredIns = concatMap (\w ->
+  sigsExt ext wiredIns = concatMap (\w ->
       let inf = maybeToList $ fmap (\(fPrec, fDir) -> Ghc.L locSpan $ FixSig Ghc.noExtField $ FixitySig Ghc.noExtField [Ghc.L locSpan (tcWiredInName w)] $ Ghc.Fixity Ghc.NoSourceText fPrec fDir) $ tcWiredInFixity w in
       let t = 
-            let ext = 
-#ifdef MIN_VERSION_GLASGOW_HASKELL
-#if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
-                      HsIBRn {hsib_vars = [], hsib_closed = True} in -- TODO: What goes here? XXX
-#else
-                      [] in
-#endif
-#endif
             let ext' = [] in
             [Ghc.L locSpan $ TypeSig Ghc.noExtField [Ghc.L locSpan (tcWiredInName w)] $ HsWC ext' $ HsIB ext $ tcWiredInType w]
       in
       inf <> t
     ) wiredIns
+
+  sigs = sigsExt cppExt
+
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
+  cppExt = HsIBRn {hsib_vars = [], hsib_closed = True} in -- TODO: What goes here? XXX
+#else
+  cppExt = []
+#endif
+#else
+  cppExt = []
+#endif
 
   locSpan = UnhelpfulSpan (UnhelpfulOther "Language.Haskell.Liquid.GHC.Misc: WiredIn")
 
