@@ -1038,15 +1038,10 @@ instance PPrint TargetInfo where
     , "*************** Core Bindings ***************"
     , pprintCBs $ _giCbs (review targetSrcIso $ giSrc info) ]
 
--- RJ: the silly guards below are to silence the unused-var checker
--- LDM: GHC 9.0.1 is having none of it unfortunately: "Pattern match is redundant".
 pprintCBs :: [CoreBind] -> Doc
-pprintCBs
-  | otherwise = pprintCBsTidy
-  -- | otherwise = pprintCBsVerbose
-  where
-    pprintCBsTidy    = pprDoc . tidyCBs
-    -- pprintCBsVerbose = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs
+pprintCBs = pprDoc . tidyCBs
+    -- To print verbosely 
+    --    = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs
 
 instance Show TargetInfo where
   show = showpp
