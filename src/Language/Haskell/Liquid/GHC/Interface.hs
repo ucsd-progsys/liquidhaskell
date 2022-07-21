@@ -181,8 +181,8 @@ hasFreshBinSpec srcF = do
 getTargetInfos :: Maybe HscEnv -> Config -> [FilePath] -> IO ([TargetInfo], HscEnv)
 getTargetInfos hscEnv cfg tgtFiles' = do
   tgtFiles <- mapM canonicalizePath tgtFiles'
-  _        <- mapM_ checkFilePresent tgtFiles
-  _        <- mapM_ createTempDirectoryIfMissing tgtFiles
+  mapM_ checkFilePresent tgtFiles
+  mapM_ createTempDirectoryIfMissing tgtFiles
   logicMap <- liftIO makeLogicMap
   runLiquidGhc hscEnv cfg (getTargetInfos' cfg logicMap tgtFiles)
 
