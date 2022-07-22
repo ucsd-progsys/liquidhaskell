@@ -8,8 +8,6 @@ To run `liquid` you need to install:
 
 ## Step 1: Install SMT Solver
 
-You can skip this if you will be building LiquidHaskell with [Nix][nix].
-
 Download and install *at least one* of
 
 + [Z3](https://github.com/Z3Prover/z3/releases) or [Microsoft official binary](https://www.microsoft.com/en-us/download/details.aspx?id=52270)
@@ -38,15 +36,6 @@ GHC version is in the environment. As an example,
 If you want the most recent version, you can build from source as follows,
 either using `stack` (recommended) or `cabal`. In either case: *recursively*
 clone the repo and then build:
-
-### Build with `stack` and `Nix`
-
-This doesn't require to install `stack` or `z3` in advance. Though it will require
-installing [Nix][nix].
-
-    git clone --recursive git@github.com:ucsd-progsys/liquidhaskell.git
-    cd liquidhaskell
-    nix-shell --pure --run "stack install liquid-platform"
 
 ### Build with `stack` (recommended)
 
@@ -98,5 +87,4 @@ After that, running `liquid` anywhere from the filesystem should work.
     stack exec -- liquid path/to/file.hs
     ```
 
-[nix]: https://nixos.org/download.html
 [stack]: https://github.com/commercialhaskell/stack/blob/master/doc/install_and_upgrade.md
