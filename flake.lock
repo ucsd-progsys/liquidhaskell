@@ -1,0 +1,68 @@
+{
+  "nodes": {
+    "flake-utils": {
+      "locked": {
+        "lastModified": 1652776076,
+        "narHash": "sha256-gzTw/v1vj4dOVbpBSJX4J0DwUR6LIyXo7/SuuTJp1kM=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "04c1b180862888302ddfb2e3ad9eaa63afc60cf8",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "liquid-fixpoint": {
+      "inputs": {
+        "flake-utils": [
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1653693908,
+        "narHash": "sha256-IYrQB9M/XdDaDzQ1576iUNvbehJ4fUlKvPtg5l/Z5xU=",
+        "owner": "plredmond",
+        "repo": "liquid-fixpoint",
+        "rev": "8ce7686045c49b25b46ea3024e9c0dd2979d8488",
+        "type": "github"
+      },
+      "original": {
+        "owner": "plredmond",
+        "ref": "nix-flake",
+        "repo": "liquid-fixpoint",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1653504306,
+        "narHash": "sha256-bqjEskV+/tqOQqSEaCu4e6uWZ0F7ekBiMR16xpn4V0k=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "6efc186e6079ff3f328a2497ff3d36741ac60f6e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-22.05",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "flake-utils": "flake-utils",
+        "liquid-fixpoint": "liquid-fixpoint",
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
