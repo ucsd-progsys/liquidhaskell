@@ -7,7 +7,7 @@ import           Text.PrettyPrint.HughesPJ                  hiding ((<>))
 
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Equality
-import           Language.Haskell.Liquid.GHC.API            hiding ((<+>), text)
+import           Liquid.GHC.API            hiding ((<+>), text)
 import qualified Language.Fixpoint.Types                    as F
 
 checkLawInstances :: GhcSpecLaws -> Diagnostics

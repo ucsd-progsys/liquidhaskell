@@ -78,8 +78,8 @@ import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Generics
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds 
-import           Language.Haskell.Liquid.GHC.API hiding (text, (<+>))
-import           Language.Haskell.Liquid.GHC.Types
+import           Liquid.GHC.API hiding (text, (<+>))
+import           Liquid.GHC.Types
 import           Text.PrettyPrint.HughesPJ              (text, (<+>))
 
 

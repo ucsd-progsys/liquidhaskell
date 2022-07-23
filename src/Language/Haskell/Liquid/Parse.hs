@@ -39,7 +39,7 @@ import           GHC                                    (ModuleName, mkModuleNam
 import qualified Text.PrettyPrint.HughesPJ              as PJ
 import           Text.PrettyPrint.HughesPJ.Compat       ((<+>))
 import           Language.Fixpoint.Types                hiding (panic, SVar, DDecl, DataDecl, DataCtor (..), Error, R, Predicate)
-import           Language.Haskell.Liquid.GHC.Misc       hiding (getSourcePos)
+import           Liquid.GHC.Misc       hiding (getSourcePos)
 import           Language.Haskell.Liquid.Types
 -- import           Language.Haskell.Liquid.Types.Errors
 import qualified Language.Fixpoint.Misc                 as Misc

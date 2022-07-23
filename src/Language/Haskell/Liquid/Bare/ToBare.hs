@@ -16,8 +16,8 @@ import           Data.Bifunctor
 
 import           Language.Fixpoint.Misc (mapSnd)
 import qualified Language.Fixpoint.Types as F
-import           Language.Haskell.Liquid.GHC.Misc
-import           Language.Haskell.Liquid.GHC.API
+import           Liquid.GHC.Misc
+import           Liquid.GHC.API
 import           Language.Haskell.Liquid.Types
 -- import           Language.Haskell.Liquid.Measure
 -- import           Language.Haskell.Liquid.Types.RefType

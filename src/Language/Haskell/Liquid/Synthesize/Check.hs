@@ -21,11 +21,11 @@ import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.ToFixpoint
 import           Language.Haskell.Liquid.Synthesize.Monad
 import           Language.Haskell.Liquid.Synthesize.GHC
-import           Language.Haskell.Liquid.GHC.API as Ghc
+import           Liquid.GHC.API as Ghc
 import           Language.Haskell.Liquid.Misc   ( mapThd3 )
 import           Control.Monad.State.Lazy
 import           System.Console.CmdArgs.Verbosity
-import           Language.Haskell.Liquid.GHC.TypeRep
+import           Liquid.GHC.TypeRep
 import           Language.Haskell.Liquid.Types
 
 hasType :: SpecType -> CoreExpr -> SM Bool

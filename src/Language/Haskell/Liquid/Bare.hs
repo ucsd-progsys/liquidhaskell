@@ -42,9 +42,9 @@ import           Language.Fixpoint.Misc                     as Misc
 import           Language.Fixpoint.Types                    hiding (dcFields, DataDecl, Error, panic)
 import qualified Language.Fixpoint.Types                    as F
 import qualified Language.Haskell.Liquid.Misc               as Misc -- (nubHashOn)
-import qualified Language.Haskell.Liquid.GHC.Misc           as GM
-import qualified Language.Haskell.Liquid.GHC.API            as Ghc
-import           Language.Haskell.Liquid.GHC.Types          (StableName)
+import qualified Liquid.GHC.Misc           as GM
+import qualified Liquid.GHC.API            as Ghc
+import           Liquid.GHC.Types          (StableName)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.WiredIn
 import qualified Language.Haskell.Liquid.Measure            as Ms

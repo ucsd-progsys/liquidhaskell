@@ -67,8 +67,8 @@ import qualified Language.Fixpoint.Utils.Files         as F
 import qualified Language.Fixpoint.Types               as F
 import qualified Language.Fixpoint.Types.Visitor       as F
 import qualified Language.Fixpoint.Misc                as Misc
-import qualified Language.Haskell.Liquid.GHC.API       as Ghc
-import qualified Language.Haskell.Liquid.GHC.Misc      as GM
+import qualified Liquid.GHC.API       as Ghc
+import qualified Liquid.GHC.Misc      as GM
 import qualified Language.Haskell.Liquid.Misc          as Misc
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import qualified Language.Haskell.Liquid.Types.Errors  as Errors

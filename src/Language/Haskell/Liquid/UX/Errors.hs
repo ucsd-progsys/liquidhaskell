@@ -21,7 +21,7 @@ import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Transforms.Simplify
 import           Language.Haskell.Liquid.UX.Tidy
 import           Language.Haskell.Liquid.Types
-import qualified Language.Haskell.Liquid.GHC.Misc    as GM
+import qualified Liquid.GHC.Misc    as GM
 import qualified Language.Haskell.Liquid.Misc        as Misc
 import qualified Language.Fixpoint.Misc              as Misc
 

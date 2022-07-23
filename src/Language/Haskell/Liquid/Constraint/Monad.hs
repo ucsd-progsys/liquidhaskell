@@ -17,9 +17,9 @@ import           Language.Haskell.Liquid.Types hiding (loc)
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Fixpoint.Misc hiding (errorstar)
-import           Language.Haskell.Liquid.GHC.Misc -- (concatMapM)
-import           Language.Haskell.Liquid.GHC.SpanStack (srcSpan)
-import           Language.Haskell.Liquid.GHC.API as Ghc hiding (panic, showPpr)
+import           Liquid.GHC.Misc -- (concatMapM)
+import           Liquid.GHC.SpanStack (srcSpan)
+import           Liquid.GHC.API as Ghc hiding (panic, showPpr)
 
 --------------------------------------------------------------------------------
 -- | `addC` adds a subtyping constraint into the global pool.

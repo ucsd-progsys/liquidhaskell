@@ -6,7 +6,7 @@
 
 module Language.Haskell.Liquid.Synthesize.Generate where
 
-import           Language.Haskell.Liquid.GHC.API as GHC hiding (Depth)
+import           Liquid.GHC.API as GHC hiding (Depth)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Synthesize.GHC
                                          hiding ( SSEnv )

@@ -11,7 +11,7 @@ module Language.Haskell.Liquid.GHC.Plugin.SpecFinder
     , configToRedundantDependencies
     ) where
 
-import           Language.Haskell.Liquid.GHC.GhcMonadLike as GhcMonadLike ( GhcMonadLike
+import           Liquid.GHC.GhcMonadLike as GhcMonadLike ( GhcMonadLike
                                                                           , lookupModSummary
                                                                           , askHscEnv
                                                                           )
@@ -24,8 +24,8 @@ import           Language.Haskell.Liquid.Parse            ( specSpecificationP )
 import           Language.Fixpoint.Utils.Files            ( Ext(Spec), withExt )
 
 import           Optics
-import qualified Language.Haskell.Liquid.GHC.API         as O
-import           Language.Haskell.Liquid.GHC.API         as GHC
+import qualified Liquid.GHC.API         as O
+import           Liquid.GHC.API         as GHC
 
 import           Data.Bifunctor
 import           Data.Maybe

@@ -25,13 +25,13 @@ import Control.Monad.Fail
 
 import           Prelude                                       hiding (error)
 import           GHC.Stack
-import           Language.Haskell.Liquid.GHC.API                   as Ghc hiding ( panic
+import           Liquid.GHC.API                   as Ghc hiding ( panic
                                                                                  , checkErr
                                                                                  , (<+>)
                                                                                  , text
                                                                                  , vcat
                                                                                  )
-import           Language.Haskell.Liquid.GHC.TypeRep           ()
+import           Liquid.GHC.TypeRep           ()
 import           Text.PrettyPrint.HughesPJ hiding ((<>))
 import           Control.Monad.State
 import           Data.Functor ((<&>))
@@ -52,10 +52,10 @@ import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Haskell.Liquid.Constraint.Monad
 import           Language.Haskell.Liquid.Constraint.Split
 import           Language.Haskell.Liquid.Types.Dictionaries
-import           Language.Haskell.Liquid.GHC.Play          (isHoleVar)
-import qualified Language.Haskell.Liquid.GHC.Resugar           as Rs
-import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
-import qualified Language.Haskell.Liquid.GHC.Misc         as GM -- ( isInternal, collectArguments, tickSrcSpan, showPpr )
+import           Liquid.GHC.Play          (isHoleVar)
+import qualified Liquid.GHC.Resugar           as Rs
+import qualified Liquid.GHC.SpanStack         as Sp
+import qualified Liquid.GHC.Misc         as GM -- ( isInternal, collectArguments, tickSrcSpan, showPpr )
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint

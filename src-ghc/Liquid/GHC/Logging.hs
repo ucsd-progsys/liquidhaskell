@@ -11,14 +11,14 @@
 
 {-# LANGUAGE CPP #-}
 
-module Language.Haskell.Liquid.GHC.Logging (
+module Liquid.GHC.Logging (
     fromPJDoc
   , putWarnMsg
   , putErrMsg
   , mkLongErrAt
   ) where
 
-import qualified Language.Haskell.Liquid.GHC.API as GHC
+import qualified Liquid.GHC.API as GHC
 import qualified Text.PrettyPrint.HughesPJ as PJ
 
 -- Unfortunately we need the import below to bring in scope 'PPrint' instances.

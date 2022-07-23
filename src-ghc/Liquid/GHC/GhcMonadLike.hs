@@ -6,7 +6,7 @@
 -- 'ExceptionMonad', and can therefore be used for both 'CoreM' and 'Ghc'.
 --
 
-module Language.Haskell.Liquid.GHC.GhcMonadLike (
+module Liquid.GHC.GhcMonadLike (
   -- * Types and type classes
     HasHscEnv
   , GhcMonadLike
@@ -37,8 +37,8 @@ import Control.Exception (throwIO)
 
 import Data.IORef (readIORef)
 
-import qualified Language.Haskell.Liquid.GHC.API   as Ghc
-import           Language.Haskell.Liquid.GHC.API   hiding ( ModuleInfo
+import qualified Liquid.GHC.API   as Ghc
+import           Liquid.GHC.API   hiding ( ModuleInfo
                                                           , findModule
                                                           , desugarModule
                                                           , typecheckModule

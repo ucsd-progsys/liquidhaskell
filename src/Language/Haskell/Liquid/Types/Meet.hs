@@ -8,7 +8,7 @@ import           Text.PrettyPrint.HughesPJ (Doc)
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.RefType ()
-import           Language.Haskell.Liquid.GHC.API as Ghc
+import           Liquid.GHC.API as Ghc
 
 meetVarTypes :: F.TCEmb TyCon -> Doc -> (SrcSpan, SpecType) -> (SrcSpan, SpecType) -> SpecType
 meetVarTypes _emb _v hs lq = {- meetError emb err -} F.meet hsT lqT

@@ -39,15 +39,15 @@ import           Language.Haskell.Liquid.Synthesize (synthesize)
 import           Language.Haskell.Liquid.UX.Errors
 import           Language.Haskell.Liquid.UX.CmdLine
 import           Language.Haskell.Liquid.UX.Tidy
-import           Language.Haskell.Liquid.GHC.Misc (showCBs, ignoreCoreBinds) -- howPpr)
-import           Language.Haskell.Liquid.GHC.Interface
+import           Liquid.GHC.Misc (showCBs, ignoreCoreBinds) -- howPpr)
+import           Liquid.GHC.Interface
 import           Language.Haskell.Liquid.Constraint.Generate
 import           Language.Haskell.Liquid.Constraint.ToFixpoint
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.UX.Annotate (mkOutput)
 import qualified Language.Haskell.Liquid.Termination.Structural as ST
-import qualified Language.Haskell.Liquid.GHC.Misc          as GM 
-import           Language.Haskell.Liquid.GHC.API as GHC hiding (text, vcat, ($+$), getOpts, (<+>))
+import qualified Liquid.GHC.Misc          as GM 
+import           Liquid.GHC.API as GHC hiding (text, vcat, ($+$), getOpts, (<+>))
 
 type MbEnv = Maybe HscEnv
 

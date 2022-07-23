@@ -7,12 +7,12 @@ import           Control.Monad ((<=<))
 
 import qualified Language.Haskell.Liquid.Measure            as Ms
 import qualified Language.Fixpoint.Types                    as F
-import qualified Language.Haskell.Liquid.GHC.Misc           as GM
+import qualified Liquid.GHC.Misc           as GM
 import           Language.Haskell.Liquid.Bare.Types         as Bare
 import           Language.Haskell.Liquid.Bare.Resolve       as Bare
 import           Language.Haskell.Liquid.Bare.Expand        as Bare
 import           Language.Haskell.Liquid.Types
-import           Language.Haskell.Liquid.GHC.API
+import           Liquid.GHC.API
 
 
 

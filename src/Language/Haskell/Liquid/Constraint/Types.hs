@@ -65,8 +65,8 @@ import           Control.DeepSeq
 import           Data.Maybe               (isJust, mapMaybe)
 import           Control.Monad.State
 
-import           Language.Haskell.Liquid.GHC.SpanStack
-import           Language.Haskell.Liquid.GHC.API    as Ghc hiding ( (<+>)
+import           Liquid.GHC.SpanStack
+import           Liquid.GHC.API    as Ghc hiding ( (<+>)
                                                                   , vcat
                                                                   , parens
                                                                   , ($+$)

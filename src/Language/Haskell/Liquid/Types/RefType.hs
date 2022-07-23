@@ -116,9 +116,9 @@ import           Language.Haskell.Liquid.Types.Types hiding (R, DataConP (..))
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Names
-import qualified Language.Haskell.Liquid.GHC.Misc as GM
-import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg, isRecursivenewTyCon)
-import           Language.Haskell.Liquid.GHC.API        as Ghc hiding ( Expr
+import qualified Liquid.GHC.Misc as GM
+import           Liquid.GHC.Play (mapType, stringClassArg, isRecursivenewTyCon)
+import           Liquid.GHC.API        as Ghc hiding ( Expr
                                                                       , Located
                                                                       , tyConName
                                                                       , punctuate
@@ -133,7 +133,7 @@ import           Language.Haskell.Liquid.GHC.API        as Ghc hiding ( Expr
                                                                       , panic
                                                                       , text
                                                                       )
-import           Language.Haskell.Liquid.GHC.TypeRep () -- Eq Type instance
+import           Liquid.GHC.TypeRep () -- Eq Type instance
 import Data.List (foldl')
 
 

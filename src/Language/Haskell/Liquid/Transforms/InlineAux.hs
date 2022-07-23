@@ -8,9 +8,9 @@ module Language.Haskell.Liquid.Transforms.InlineAux
   )
 where
 import qualified Language.Haskell.Liquid.UX.Config  as UX
-import           Language.Haskell.Liquid.GHC.API
+import           Liquid.GHC.API
 import           Control.Arrow                  (second)
-import qualified Language.Haskell.Liquid.GHC.Misc
+import qualified Liquid.GHC.Misc
                                                as GM
 import qualified Data.HashMap.Strict           as M
 

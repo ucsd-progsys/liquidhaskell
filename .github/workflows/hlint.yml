@@ -22,5 +22,5 @@ jobs:
     - uses: haskell/actions/hlint-run@v2
       name: hlint
       with:
-        path: '["src/"]'
+        path: '["src/", "src-ghc/"]'
         fail-on: suggestion

@@ -20,8 +20,8 @@ import           Data.List                        (foldl', (\\), delete)
 import qualified Data.HashSet                     as S
 import           Prelude                          hiding (error)
 import           Language.Fixpoint.Misc
-import           Language.Haskell.Liquid.GHC.API
-import           Language.Haskell.Liquid.GHC.Misc ()
+import           Liquid.GHC.API
+import           Liquid.GHC.Misc ()
 
 
 ------------------------------------------------------------------------------

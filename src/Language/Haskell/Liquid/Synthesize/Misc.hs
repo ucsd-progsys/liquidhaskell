@@ -9,8 +9,8 @@ import qualified Language.Fixpoint.Types        as F
 import           Control.Monad.State.Lazy
 import           Text.PrettyPrint.HughesPJ (text, Doc, vcat, ($+$))
 import           Language.Haskell.Liquid.Synthesize.GHC
-import           Language.Haskell.Liquid.GHC.TypeRep
-import           Language.Haskell.Liquid.GHC.API hiding (text, ($+$), vcat)
+import           Liquid.GHC.TypeRep
+import           Liquid.GHC.API hiding (text, ($+$), vcat)
 import           Language.Fixpoint.Types
 
 

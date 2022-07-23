@@ -11,8 +11,8 @@ import qualified Language.Fixpoint.Types       as F
 import           Language.Haskell.Liquid.Types
 import           Data.Default
 import           Data.Maybe                     ( fromMaybe )
-import           Language.Haskell.Liquid.GHC.TypeRep
-import           Language.Haskell.Liquid.GHC.API as GHC
+import           Liquid.GHC.TypeRep
+import           Liquid.GHC.API as GHC
 import           Language.Fixpoint.Types
 import qualified Data.HashMap.Strict           as M
 

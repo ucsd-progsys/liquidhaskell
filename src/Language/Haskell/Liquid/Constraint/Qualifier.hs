@@ -19,10 +19,10 @@ import           Language.Fixpoint.Types                  hiding (panic, mkQual)
 import qualified Language.Fixpoint.Types.Config as FC
 import           Language.Fixpoint.SortCheck
 import           Language.Haskell.Liquid.Types.RefType
-import           Language.Haskell.Liquid.GHC.Misc         (getSourcePos)
+import           Liquid.GHC.Misc         (getSourcePos)
 import           Language.Haskell.Liquid.Misc             (condNull)
 import           Language.Haskell.Liquid.Types.PredType
-import           Language.Haskell.Liquid.GHC.API hiding (Expr, mkQual, panic)
+import           Liquid.GHC.API hiding (Expr, mkQual, panic)
 
 import           Language.Haskell.Liquid.Types
 

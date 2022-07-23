@@ -3,7 +3,7 @@
 module Language.Haskell.Liquid.Synthesize.Env where 
 
 import           Language.Fixpoint.Types
-import           Language.Haskell.Liquid.GHC.API as GHC
+import           Liquid.GHC.API as GHC
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Synthesize.Monad
