@@ -28,9 +28,9 @@ module Language.Haskell.Liquid.WiredIn
 import Prelude                                hiding (error)
 
 -- import Language.Fixpoint.Misc           (mapSnd)
-import Language.Haskell.Liquid.GHC.Misc
-import qualified Language.Haskell.Liquid.GHC.API as Ghc
-import Language.Haskell.Liquid.GHC.API (Var, Arity, TyVar, Bind(..), Boxity(..), Expr(..), ArgFlag(..))
+import Liquid.GHC.Misc
+import qualified Liquid.GHC.API as Ghc
+import Liquid.GHC.API (Var, Arity, TyVar, Bind(..), Boxity(..), Expr(..), ArgFlag(..))
 import Language.Haskell.Liquid.Types.Types
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.Variance
@@ -41,7 +41,7 @@ import Language.Haskell.Liquid.Types.Names (selfSymbol)
 import qualified Language.Fixpoint.Types as F
 import qualified Data.HashSet as S 
 
-import Language.Haskell.Liquid.GHC.TypeRep ()
+import Liquid.GHC.TypeRep ()
 
 -- | Horrible hack to support hardwired symbols like
 --      `head`, `tail`, `fst`, `snd`

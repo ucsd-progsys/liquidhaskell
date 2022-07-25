@@ -10,16 +10,14 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- TODO(#1918): Only needed for GHC <9.0.1.
 {-# OPTIONS_GHC -Wno-orphans #-}
 
--- | This module contains a wrappers and utility functions for
--- accessing GHC module information. It should NEVER depend on
-module Language.Haskell.Liquid.GHC.TypeRep (
+module Liquid.GHC.TypeRep (
   mkTyArg, 
 
   showTy
   ) where
 
-import           Language.Haskell.Liquid.GHC.Misc (showPpr)
-import           Language.Haskell.Liquid.GHC.API as Ghc hiding (mkTyArg, showPpr, panic)
+import           Liquid.GHC.Misc (showPpr)
+import           Liquid.GHC.API as Ghc hiding (mkTyArg, showPpr, panic)
 import           Language.Fixpoint.Types (symbol)
 
 -- e368f3265b80aeb337fbac3f6a70ee54ab14edfd

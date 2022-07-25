@@ -6,7 +6,7 @@
 module Language.Haskell.Liquid.Synthesize.Monad where
 
 
-import           Language.Haskell.Liquid.GHC.API as GHC
+import           Liquid.GHC.API as GHC
 import           Language.Haskell.Liquid.Bare.Resolve
                                                as B
 import           Language.Haskell.Liquid.Types

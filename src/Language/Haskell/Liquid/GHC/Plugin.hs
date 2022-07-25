@@ -16,29 +16,29 @@ module Language.Haskell.Liquid.GHC.Plugin (
 
   ) where
 
-import qualified Language.Haskell.Liquid.GHC.API         as O
-import           Language.Haskell.Liquid.GHC.API         as GHC hiding (Target, Type)
+import qualified Liquid.GHC.API         as O
+import           Liquid.GHC.API         as GHC hiding (Target, Type)
 import qualified Text.PrettyPrint.HughesPJ               as PJ
 import qualified Language.Fixpoint.Types                 as F
-import qualified Language.Haskell.Liquid.GHC.Misc        as LH
+import qualified Liquid.GHC.Misc        as LH
 import qualified Language.Haskell.Liquid.UX.CmdLine      as LH
-import qualified Language.Haskell.Liquid.GHC.Interface   as LH
+import qualified Liquid.GHC.Interface   as LH
 import qualified Language.Haskell.Liquid.Liquid          as LH
 import qualified Language.Haskell.Liquid.Types.PrettyPrint as LH ( filterReportErrors
                                                                  , filterReportErrorsWith
                                                                  , defaultFilterReporter
                                                                  , reduceFilters )
-import qualified Language.Haskell.Liquid.GHC.Logging     as LH   (fromPJDoc)
+import qualified Liquid.GHC.Logging     as LH   (fromPJDoc)
 
 import           Language.Haskell.Liquid.GHC.Plugin.Types
 import           Language.Haskell.Liquid.GHC.Plugin.Util as Util
 import           Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                                                          as SpecFinder
 
-import           Language.Haskell.Liquid.GHC.Types       (MGIModGuts(..), miModGuts)
-import qualified Language.Haskell.Liquid.GHC.GhcMonadLike
+import           Liquid.GHC.Types       (MGIModGuts(..), miModGuts)
+import qualified Liquid.GHC.GhcMonadLike
                                                          as GhcMonadLike
-import           Language.Haskell.Liquid.GHC.GhcMonadLike ( GhcMonadLike
+import           Liquid.GHC.GhcMonadLike ( GhcMonadLike
                                                           , askHscEnv
                                                           , isBootInterface
                                                           )

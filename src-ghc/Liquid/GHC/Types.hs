@@ -1,10 +1,10 @@
 {-# LANGUAGE DeriveGeneric #-}
-module Language.Haskell.Liquid.GHC.Types where
+module Liquid.GHC.Types where
 
 import           Data.HashSet (HashSet, fromList)
 import           Data.Hashable
 import           GHC.Generics hiding (moduleName)
-import           Language.Haskell.Liquid.GHC.API
+import           Liquid.GHC.API
 
 -- | A 'StableName' is virtually isomorphic to a GHC's 'Name' but crucially we don't use
 -- the 'Eq' instance defined on a 'Name' because it's 'Unique'-based. In particular, GHC

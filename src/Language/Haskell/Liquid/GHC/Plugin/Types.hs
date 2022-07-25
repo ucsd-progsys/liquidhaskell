@@ -62,8 +62,8 @@ import           Data.Hashable
 
 import           Language.Fixpoint.Types.Spans
 import           Language.Haskell.Liquid.Types.Specs
-import           Language.Haskell.Liquid.GHC.API         as GHC
-import qualified Language.Haskell.Liquid.GHC.Interface   as LH
+import           Liquid.GHC.API         as GHC
+import qualified Liquid.GHC.Interface   as LH
 import           Language.Fixpoint.Types.Names            ( Symbol )
 
 

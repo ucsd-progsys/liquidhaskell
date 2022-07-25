@@ -77,13 +77,13 @@ import Language.Fixpoint.Solver.Stats as Solver
 import Language.Haskell.Liquid.UX.Annotate
 import Language.Haskell.Liquid.UX.Config
 import Language.Haskell.Liquid.UX.SimpleVersion (simpleVersion)
-import Language.Haskell.Liquid.GHC.Misc
+import Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.PrettyPrint ()
 import Language.Haskell.Liquid.Types       hiding (typ)
 import qualified Language.Haskell.Liquid.UX.ACSS as ACSS
 
-import qualified Language.Haskell.Liquid.GHC.API as GHC
+import qualified Liquid.GHC.API as GHC
 import           Language.Haskell.TH.Syntax.Compat (fromCode, toCode)
 
 import Text.PrettyPrint.HughesPJ           hiding (Mode, (<>))

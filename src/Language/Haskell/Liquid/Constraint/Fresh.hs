@@ -37,8 +37,8 @@ import           Language.Haskell.Liquid.Types
 -- import           Language.Haskell.Liquid.Types.RefType
 -- import           Language.Haskell.Liquid.Types.Fresh
 import           Language.Haskell.Liquid.Constraint.Types
-import qualified Language.Haskell.Liquid.GHC.Misc as GM
-import           Language.Haskell.Liquid.GHC.API as Ghc
+import qualified Liquid.GHC.Misc as GM
+import           Liquid.GHC.API as Ghc
 
 --------------------------------------------------------------------------------
 -- | This is all hardwiring stuff to CG ----------------------------------------

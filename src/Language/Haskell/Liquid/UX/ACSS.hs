@@ -12,7 +12,7 @@ module Language.Haskell.Liquid.UX.ACSS (
   ) where
 
 import Prelude hiding (error)
-import qualified Language.Haskell.Liquid.GHC.API as SrcLoc
+import qualified Liquid.GHC.API as SrcLoc
 
 import Language.Haskell.HsColour.Anchors
 import Language.Haskell.HsColour.Classify as Classify
@@ -25,7 +25,7 @@ import qualified Data.HashMap.Strict as M
 import Data.List   (find, isPrefixOf, findIndex, elemIndices, intercalate, elemIndex)
 import Data.Char   (isSpace)
 import Text.Printf
-import Language.Haskell.Liquid.GHC.Misc
+import Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types.Errors (panic, impossible)
 
 data AnnMap  = Ann

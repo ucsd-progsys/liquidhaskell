@@ -18,21 +18,21 @@
 -- accessing GHC module information. It should NEVER depend on
 -- ANY module inside the Language.Haskell.Liquid.* tree.
 
-module Language.Haskell.Liquid.GHC.Misc where
+module Liquid.GHC.Misc where
 
 import           Data.String
 import qualified Data.List as L
 import           Debug.Trace
 
 import           Prelude                                    hiding (error)
-import           Language.Haskell.Liquid.GHC.API            as Ghc hiding ( L
+import           Liquid.GHC.API            as Ghc hiding ( L
                                                                           , sourceName
                                                                           , showPpr
                                                                           , showSDocDump
                                                                           , panic
                                                                           , showSDoc
                                                                           )
-import qualified Language.Haskell.Liquid.GHC.API            as Ghc (GenLocated (L), showSDoc, panic, showSDocDump)
+import qualified Liquid.GHC.API            as Ghc (GenLocated (L), showSDoc, panic, showSDocDump)
 
 
 import           Data.Char                                  (isLower, isSpace, isUpper)
@@ -1074,7 +1074,7 @@ withWiredIn m = discardConstraints $ do
   cppExt = []
 #endif
 
-  locSpan = UnhelpfulSpan (UnhelpfulOther "Language.Haskell.Liquid.GHC.Misc: WiredIn")
+  locSpan = UnhelpfulSpan (UnhelpfulOther "Liquid.GHC.Misc: WiredIn")
 
   mkHsFunTy :: LHsType GhcRn -> LHsType GhcRn -> LHsType GhcRn
   mkHsFunTy a b = nlHsFunTy a b

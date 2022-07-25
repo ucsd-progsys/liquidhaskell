@@ -50,8 +50,8 @@ import qualified Data.Set                         as Set
 import           Data.String
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types          as F
-import qualified Language.Haskell.Liquid.GHC.API  as Ghc
-import           Language.Haskell.Liquid.GHC.API  as Ghc ( Class
+import qualified Liquid.GHC.API  as Ghc
+import           Liquid.GHC.API  as Ghc ( Class
                                                          , SrcSpan
                                                          , PprPrec
                                                          , DynFlags
@@ -66,8 +66,8 @@ import           Language.Haskell.Liquid.GHC.API  as Ghc ( Class
                                                          , srcSpanStartLine
                                                          , srcSpanStartCol
                                                          )
-import           Language.Haskell.Liquid.GHC.Logging (putErrMsg, mkLongErrAt)
-import           Language.Haskell.Liquid.GHC.Misc
+import           Liquid.GHC.Logging (putErrMsg, mkLongErrAt)
+import           Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Types
 import           Prelude                          hiding (error)

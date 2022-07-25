@@ -15,7 +15,7 @@ The intended use of this module is to shelter LiquidHaskell from changes to the 
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE BangPatterns #-}
 
-module Language.Haskell.Liquid.GHC.API (
+module Liquid.GHC.API (
     module Ghc
   , module StableModule
 
@@ -116,7 +116,7 @@ module Language.Haskell.Liquid.GHC.API (
 
   ) where
 
-import           Language.Haskell.Liquid.GHC.API.StableModule      as StableModule
+import           Liquid.GHC.API.StableModule      as StableModule
 import           GHC                                               as Ghc hiding ( Warning
                                                                                  , SrcSpan(RealSrcSpan, UnhelpfulSpan)
                                                                                  , exprType

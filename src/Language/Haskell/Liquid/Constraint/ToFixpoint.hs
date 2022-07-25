@@ -10,8 +10,8 @@ module Language.Haskell.Liquid.Constraint.ToFixpoint
   ) where
 
 import           Prelude hiding (error)
-import qualified Language.Haskell.Liquid.GHC.API as Ghc
-import           Language.Haskell.Liquid.GHC.API (Var, Id, TyCon)
+import qualified Liquid.GHC.API as Ghc
+import           Liquid.GHC.API (Var, Id, TyCon)
 import qualified Language.Fixpoint.Types.Config as FC
 import           System.Console.CmdArgs.Default (def)
 import qualified Language.Fixpoint.Types        as F
@@ -26,7 +26,7 @@ import qualified Data.Maybe as Mb
 -- imports for AxiomEnv
 import qualified Language.Haskell.Liquid.UX.Config as Config
 import           Language.Haskell.Liquid.UX.DiffCheck (coreDefs, coreDeps, dependsOn, Def(..))
-import qualified Language.Haskell.Liquid.GHC.Misc  as GM -- (simplesymbol)
+import qualified Liquid.GHC.Misc  as GM -- (simplesymbol)
 import qualified Data.List                         as L
 import qualified Data.HashMap.Strict               as M
 import qualified Data.HashSet                      as S

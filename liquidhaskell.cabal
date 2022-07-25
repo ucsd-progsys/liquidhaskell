@@ -118,17 +118,17 @@ library
                       Language.Haskell.Liquid.Constraint.Split
                       Language.Haskell.Liquid.Constraint.ToFixpoint
                       Language.Haskell.Liquid.Constraint.Types
-                      Language.Haskell.Liquid.GHC.API
-                      Language.Haskell.Liquid.GHC.API.StableModule
-                      Language.Haskell.Liquid.GHC.GhcMonadLike
-                      Language.Haskell.Liquid.GHC.Interface
-                      Language.Haskell.Liquid.GHC.Logging
-                      Language.Haskell.Liquid.GHC.Misc
-                      Language.Haskell.Liquid.GHC.Play
-                      Language.Haskell.Liquid.GHC.Resugar
-                      Language.Haskell.Liquid.GHC.SpanStack
-                      Language.Haskell.Liquid.GHC.Types
-                      Language.Haskell.Liquid.GHC.TypeRep
+                      Liquid.GHC.API
+                      Liquid.GHC.API.StableModule
+                      Liquid.GHC.GhcMonadLike
+                      Liquid.GHC.Interface
+                      Liquid.GHC.Logging
+                      Liquid.GHC.Misc
+                      Liquid.GHC.Play
+                      Liquid.GHC.Resugar
+                      Liquid.GHC.SpanStack
+                      Liquid.GHC.Types
+                      Liquid.GHC.TypeRep
                       Language.Haskell.Liquid.Interactive.Handler
                       Language.Haskell.Liquid.Interactive.Types
                       Language.Haskell.Liquid.LawInstances
@@ -195,9 +195,9 @@ library
       other-modules:      Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                           Language.Haskell.Liquid.GHC.Plugin.Types
                           Language.Haskell.Liquid.GHC.Plugin.Util
-      hs-source-dirs:     src
+      hs-source-dirs:     src src-ghc
   else
-      hs-source-dirs:     src include
+      hs-source-dirs:     src src-ghc include
       exposed-modules:    Language.Haskell.Liquid.RTick
                           Language.Haskell.Liquid.Prelude
                           Language.Haskell.Liquid.Foreign

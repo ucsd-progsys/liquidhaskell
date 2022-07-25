@@ -28,7 +28,7 @@ import qualified Data.HashMap.Strict    as M
 import qualified Data.Graph             as G
 
 import Language.Fixpoint.Types          (Tag)
-import Language.Haskell.Liquid.GHC.API
+import Liquid.GHC.API
 import Language.Haskell.Liquid.Types.Visitors (freeVars)
 import Language.Haskell.Liquid.Types.PrettyPrint ()
 import Language.Fixpoint.Misc     (mapSnd)

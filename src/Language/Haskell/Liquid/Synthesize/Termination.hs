@@ -8,7 +8,7 @@ import           Language.Haskell.Liquid.Types
 import qualified Language.Haskell.Liquid.Types.RefType
                                                as R
 import qualified Language.Fixpoint.Types       as F
-import           Language.Haskell.Liquid.GHC.API
+import           Liquid.GHC.API
 
 decrType :: Var -> SpecType -> [Var] -> [(F.Symbol, SpecType)] -> SpecType
 decrType _x ti xs _xts =

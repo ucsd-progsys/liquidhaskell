@@ -8,7 +8,7 @@ module Language.Haskell.Liquid.Types.Equality where
 
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types
-import qualified Language.Haskell.Liquid.GHC.API as Ghc
+import qualified Liquid.GHC.API as Ghc
 
 import Control.Monad.Writer.Lazy
 -- import Control.Monad

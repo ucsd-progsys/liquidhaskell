@@ -16,7 +16,7 @@ module Language.Haskell.Liquid.Bare.Misc
 
 import           Prelude                               hiding (error)
 
-import           Language.Haskell.Liquid.GHC.API       as Ghc  hiding (Located, showPpr)
+import           Liquid.GHC.API       as Ghc  hiding (Located, showPpr)
 
 import           Control.Monad.Except                  (MonadError, throwError)
 import           Control.Monad.State
@@ -25,7 +25,7 @@ import qualified Data.Maybe                            as Mb --(fromMaybe, isNot
 import qualified Text.PrettyPrint.HughesPJ             as PJ
 import qualified Data.List                             as L
 import qualified Language.Fixpoint.Types as F
-import           Language.Haskell.Liquid.GHC.Misc
+import           Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.Types
 

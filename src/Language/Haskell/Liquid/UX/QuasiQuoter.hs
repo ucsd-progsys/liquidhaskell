@@ -29,8 +29,8 @@ import Language.Haskell.TH.Quote
 import Language.Fixpoint.Types hiding (Error, Loc, SrcSpan)
 import qualified Language.Fixpoint.Types as F
 
-import Language.Haskell.Liquid.GHC.Misc (fSrcSpan)
-import Language.Haskell.Liquid.GHC.API  (SrcSpan)
+import Liquid.GHC.Misc (fSrcSpan)
+import Liquid.GHC.API  (SrcSpan)
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Types
 

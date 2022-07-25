@@ -25,7 +25,7 @@ import           Data.Maybe                               ( listToMaybe )
 import           Data.Data
 import           Data.Either                              ( partitionEithers )
 
-import           Language.Haskell.Liquid.GHC.API
+import           Liquid.GHC.API
 import           Language.Haskell.Liquid.GHC.Plugin.Types ( SpecComment
                                                           , LiquidLib
                                                           )

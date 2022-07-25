@@ -22,9 +22,9 @@ import qualified Language.Fixpoint.Types       as F
 import qualified Language.Fixpoint.Misc        as Misc
 import           Optics
 import           Language.Haskell.Liquid.Bare.Elaborate
-import qualified Language.Haskell.Liquid.GHC.Misc
+import qualified Liquid.GHC.Misc
                                                as GM
-import qualified Language.Haskell.Liquid.GHC.API
+import qualified Liquid.GHC.API
                                                as Ghc
 import qualified Language.Haskell.Liquid.Misc  as Misc
 import           Language.Haskell.Liquid.Types

@@ -34,7 +34,7 @@ module Language.Haskell.Liquid.Types.PredType (
 
 import           Prelude                         hiding (error)
 import           Text.PrettyPrint.HughesPJ
-import           Language.Haskell.Liquid.GHC.API hiding ( panic
+import           Liquid.GHC.API hiding ( panic
                                                         , (<+>)
                                                         , hsep
                                                         , punctuate
@@ -42,7 +42,7 @@ import           Language.Haskell.Liquid.GHC.API hiding ( panic
                                                         , parens
                                                         , showPpr
                                                         )
-import           Language.Haskell.Liquid.GHC.TypeRep ()
+import           Liquid.GHC.TypeRep ()
 import           Data.Hashable
 import qualified Data.HashMap.Strict             as M
 import qualified Data.Maybe                                 as Mb
@@ -53,8 +53,8 @@ import           Language.Fixpoint.Misc
 
 -- import           Language.Fixpoint.Types         hiding (Expr, Predicate)
 import qualified Language.Fixpoint.Types                    as F
-import qualified Language.Haskell.Liquid.GHC.API            as Ghc
-import           Language.Haskell.Liquid.GHC.Misc
+import qualified Liquid.GHC.API            as Ghc
+import           Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.RefType hiding (generalize)
 import           Language.Haskell.Liquid.Types.Types

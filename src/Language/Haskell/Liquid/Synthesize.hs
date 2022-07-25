@@ -23,7 +23,7 @@ import           Language.Fixpoint.Types hiding (SEnv, SVar, Error)
 import qualified Language.Fixpoint.Types        as F
 import qualified Language.Fixpoint.Types.Config as F
 import           Language.Haskell.Liquid.Synthesize.Env
-import           Language.Haskell.Liquid.GHC.API as GHC hiding (text, ($+$))
+import           Liquid.GHC.API as GHC hiding (text, ($+$))
 
 import           Text.PrettyPrint.HughesPJ (text, ($+$))
 import           Control.Monad.State.Lazy

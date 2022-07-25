@@ -24,8 +24,8 @@ import qualified Language.Fixpoint.Types                    as F
 import qualified Language.Fixpoint.Types.Visitor            as F
 
 import           Language.Haskell.Liquid.Types.Dictionaries
-import qualified Language.Haskell.Liquid.GHC.Misc           as GM
-import qualified Language.Haskell.Liquid.GHC.API            as Ghc
+import qualified Liquid.GHC.Misc           as GM
+import qualified Liquid.GHC.API            as Ghc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types              hiding (freeTyVars)

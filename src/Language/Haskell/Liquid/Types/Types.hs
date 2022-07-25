@@ -242,7 +242,7 @@ module Language.Haskell.Liquid.Types.Types (
   )
   where
 
-import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( Expr
+import           Liquid.GHC.API as Ghc hiding ( Expr
                                                                , Target
                                                                , isFunTy
                                                                , LM
@@ -296,8 +296,8 @@ import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types as F
 
 import           Language.Haskell.Liquid.Types.Generics
-import           Language.Haskell.Liquid.GHC.Misc
-import           Language.Haskell.Liquid.GHC.Logging as GHC
+import           Liquid.GHC.Misc
+import           Liquid.GHC.Logging as GHC
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Misc

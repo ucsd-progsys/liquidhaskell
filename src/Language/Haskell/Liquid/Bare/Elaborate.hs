@@ -26,8 +26,8 @@ where
 
 import qualified Language.Fixpoint.Types       as F
 -- import           Control.Arrow
-import           Language.Haskell.Liquid.GHC.API hiding (panic, varName)
-import qualified Language.Haskell.Liquid.GHC.Misc
+import           Liquid.GHC.API hiding (panic, varName)
+import qualified Liquid.GHC.Misc
                                                as GM
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.RefType
@@ -57,7 +57,7 @@ import           OccName
 -- import           FastString
 -- import           CoreSyn
 -- import           PrelNames
-import qualified Language.Haskell.Liquid.GHC.API as Ghc
+import qualified Liquid.GHC.API as Ghc
                                                 (noExtField)
 
 -- import qualified Outputable                    as O
