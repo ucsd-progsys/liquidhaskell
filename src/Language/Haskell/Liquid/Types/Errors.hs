@@ -755,26 +755,33 @@ errSaved sp body = ErrSaved sp (text n) (text $ unlines m)
   where
     n : m        = lines body
 
--- | Store a 'Show' in the filename field of a source span.
+-- | Store a 'Show' in the filename field of a 'RealSrcSpan'.
 pushRealSrcSpan :: Show a => a -> RealSrcSpan -> RealSrcSpan
 pushRealSrcSpan x rss = realSrcSpan (show (f, x)) l1 c1 l2 c2
   where (f, l1, c1, l2, c2) = unpackRealSrcSpan rss
 
--- | Extract a 'Read' from the filename field of a source span.
+-- | Extract a 'Read' from the filename field of a 'RealSrcSpan'.
 popRealSrcSpan :: Read a => RealSrcSpan -> Maybe (RealSrcSpan, a)
 popRealSrcSpan rss
     | Just (f, x) <- readMaybe fEnc = Just (realSrcSpan f l1 c1 l2 c2, x)
     | otherwise = Nothing
   where (fEnc, l1, c1, l2, c2) = unpackRealSrcSpan rss
 
+-- | Push 'String' into a stack stored in the 'RealSrcSpan' filename field and
+-- package the result in a 'Tickish' labeled as a totality-annotation.
 totalityAnnot :: String -> RealSrcSpan -> Tickish a
 totalityAnnot d rss = SourceNote uniqueSp "totality-annotation"
     where uniqueSp = d `pushRealSrcSpan` rss
 
+-- | Extract the 'RealSrcsSpan' from a 'Tickish' that was produced by
+-- 'totalityAnnot'.
 unTickTotalityAnnot :: Tickish a -> Maybe RealSrcSpan
 unTickTotalityAnnot (SourceNote rss "totality-annotation") = Just rss
 unTickTotalityAnnot _ = Nothing
 
+-- | Pop the 'String' and restore the original 'RealSrcSpan' from a
+-- 'RealSrcSpan' produced by 'totalityAnnot'. Use 'unTickTotalityAnnot' before
+-- this function.
 unSpanTotalityAnnot :: RealSrcSpan -> Maybe (RealSrcSpan, String)
 unSpanTotalityAnnot = popRealSrcSpan
 
