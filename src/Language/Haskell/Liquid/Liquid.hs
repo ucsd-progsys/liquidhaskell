@@ -314,8 +314,6 @@ makeFailErrors bs cis = [ mkError x | x <- bs, notElem (val x) vs ]
     mkError  x = ErrFail (GM.sourcePosSrcSpan $ loc x) (pprint $ val x)
     vs         = Mb.mapMaybe ci_var cis
 
--- | DRY_UP: Merged bits of splitFails and makeFailUseErrors to detect &
--- extract totality errors
 splitNontotalErrors :: [CoreBind] -> F.FixResult (a, Cinfo) -> (F.FixResult (a, Cinfo),  [Cinfo])
 splitNontotalErrors _ r@(F.Crash _ _) = (r,mempty)
 splitNontotalErrors _ r@(F.Safe _)    = (r,mempty)
