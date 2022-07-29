@@ -321,14 +321,15 @@ splitNontotalErrors _ r@(F.Crash _ _) = (r,mempty)
 splitNontotalErrors _ r@(F.Safe _)    = (r,mempty)
 splitNontotalErrors cbs (F.Unsafe s xs)  = (mkRes r, ciInflateTotalityError . snd <$> rtots)
   where
-    (rtots,r) = L.partition (ciMatchesTotalityAnnot . snd) xs -- partition to those which match something in tts
-
+    -- Extract totality annot RealSrcSpans from CORE.
     totalityAnnotSpans = Mb.mapMaybe unTickTotalityAnnot $ ticks cbs
-
+    -- Does the Cinfo RealSrcSpan match one of the totality annots?
     ciMatchesTotalityAnnot :: Cinfo -> Bool
     ciMatchesTotalityAnnot Ci{ci_loc=RealSrcSpan ta _} = elem ta totalityAnnotSpans
     ciMatchesTotalityAnnot _ = False
-
+    -- Extract totality errors.
+    (rtots,r) = L.partition (ciMatchesTotalityAnnot . snd) xs
+    -- Turn a Cinfo error into a totality error.
     ciInflateTotalityError :: Cinfo -> Cinfo
     ciInflateTotalityError ci
         | RealSrcSpan ta _ <- ci_loc ci
@@ -337,8 +338,7 @@ splitNontotalErrors cbs (F.Unsafe s xs)  = (mkRes r, ciInflateTotalityError . sn
                 err = ErrOther { pos=sp, msg=text $ "Totality error: missing case for `" ++ d ++ "`" }
             in ci { ci_loc=sp, ci_err=Just err }
         | otherwise = ci
-
-    -- DRY_UP: copied from splitFails
+    -- Reconstruct FixResult based on whether there are errors.
     mkRes [] = F.Safe s
     mkRes ys = F.Unsafe s ys
 
