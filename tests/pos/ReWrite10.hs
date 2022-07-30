@@ -10,10 +10,12 @@ import Prelude hiding (length, (++))
 data N = S N | Z
 
 
+{-@ lazy    f @-}
 {-@ reflect f @-}
 f :: N -> N
 f x = g x
 
+{-@ lazy    g @-}
 {-@ reflect g @-}
 g (S x) = f x
 g Z     = Z

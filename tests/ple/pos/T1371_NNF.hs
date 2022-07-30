@@ -26,6 +26,7 @@ eval s (And f g) = (eval s f) && (eval s g)
 eval s (Or  f g) = (eval s f) || (eval s g)
 eval s (Not f)   = not (eval s f)
 
+{-@ lazy    nnf @-}
 {-@ reflect nnf @-}
 nnf :: Pred -> Pred
 nnf (Var i)    = (Var i)
@@ -33,6 +34,7 @@ nnf (And p q)  = And (nnf p) (nnf q)
 nnf (Or  p q)  = Or  (nnf p) (nnf q)
 nnf (Not f)    = nnf' f
 
+{-@ lazy    nnf' @-}
 {-@ reflect nnf' @-}
 nnf' :: Pred -> Pred
 nnf' (Not g)   = nnf g
