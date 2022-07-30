@@ -5,8 +5,6 @@
 {-# LANGUAGE PartialTypeSignatures     #-}
 {-# LANGUAGE OverloadedStrings         #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 -- | This module contains the functions that convert /from/ descriptions of
 --   symbols, names and types (over freshly parsed /bare/ Strings),
 --   /to/ representations connected to GHC 'Var's, 'Name's, and 'Type's.
@@ -289,13 +287,13 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
   where
     -- typeclass elaboration
 
-    coreToLg e =
+    coreToLg ce =
       case CoreToLogic.runToLogic
              embs
              lmap
              dm
              (\x -> todo Nothing ("coreToLogic not working " ++ x))
-             (CoreToLogic.coreToLogic allowTC e) of
+             (CoreToLogic.coreToLogic allowTC ce) of
         Left msg -> panic Nothing (F.showpp msg)
         Right e -> e
     elaborateSig si auxsig = do
@@ -504,9 +502,9 @@ makeSpecQual _cfg env tycEnv measEnv _rtEnv specs = SpQual
                    ++ (fst <$> Bare.meClassSyms measEnv)
 
 makeQualifiers :: Bare.Env -> Bare.TycEnv -> (ModName, Ms.Spec ty bndr) -> [F.Qualifier]
-makeQualifiers env tycEnv (mod, spec)
-  = fmap        (Bare.qualifyTopDummy env        mod)
-  . Mb.mapMaybe (resolveQParams       env tycEnv mod)
+makeQualifiers env tycEnv (modn, spec)
+  = fmap        (Bare.qualifyTopDummy env        modn)
+  . Mb.mapMaybe (resolveQParams       env tycEnv modn)
   $ Ms.qualifiers spec
 
 
@@ -557,10 +555,10 @@ makeSpecTerm cfg mySpec env name = do
   lazies <- makeLazy     env name mySpec
   autos  <- makeAutoSize env name mySpec
   decr   <- makeDecrs env name mySpec
-  fail   <- makeFail env name mySpec
+  gfail  <- makeFail env name mySpec
   return  $ SpTerm
     { gsLazy       = S.insert dictionaryVar (lazies `mappend` sizes)
-    , gsFail       = fail
+    , gsFail       = gfail
     , gsStTerm     = sizes
     , gsAutosize   = autos
     , gsDecr       = decr
@@ -827,12 +825,12 @@ rawAsmSigs env myName specs = do
 myAsmSig :: Ghc.Var -> [(Bool, ModName, LocBareType)] -> (ModName, LocBareType)
 myAsmSig v sigs = Mb.fromMaybe errImp (Misc.firstMaybes [mbHome, mbImp])
   where
-    mbHome      = takeUnique err                  sigsHome
-    mbImp       = takeUnique err (Misc.firstGroup sigsImp) -- see [NOTE:Prioritize-Home-Spec] 
+    mbHome      = takeUnique mkErr                  sigsHome
+    mbImp       = takeUnique mkErr (Misc.firstGroup sigsImp) -- see [NOTE:Prioritize-Home-Spec] 
     sigsHome    = [(m, t)      | (True,  m, t) <- sigs ]
     sigsImp     = F.notracepp ("SIGS-IMP: " ++ F.showpp v)
                   [(d, (m, t)) | (False, m, t) <- sigs, let d = nameDistance vName m]
-    err ts      = ErrDupSpecs (Ghc.getSrcSpan v) (F.pprint v) (GM.sourcePosSrcSpan . F.loc . snd <$> ts) :: UserError
+    mkErr ts    = ErrDupSpecs (Ghc.getSrcSpan v) (F.pprint v) (GM.sourcePosSrcSpan . F.loc . snd <$> ts) :: UserError
     errImp      = impossible Nothing "myAsmSig: cannot happen as sigs is non-null"
     vName       = GM.takeModuleNames (F.symbol v)
 
@@ -942,16 +940,16 @@ makeNewType :: Bare.Env -> Bare.SigEnv -> ModName -> DataDecl ->
 makeNewType env sigEnv name d = do
   tcMb <- Bare.lookupGhcDnTyCon env name "makeNewType" tcName
   case tcMb of
-    Just tc -> return [(tc, t)]
+    Just tc -> return [(tc, lst)]
     _       -> return []
   where
     tcName                    = tycName d
-    t                         = Bare.cookSpecType env sigEnv name Bare.GenTV bt
+    lst                       = Bare.cookSpecType env sigEnv name Bare.GenTV bt
     bt                        = getTy tcName (tycSrcPos d) (Mb.fromMaybe [] (tycDCons d))
     getTy _ l [c]
       | [(_, t)] <- dcFields c = Loc l l t
-    getTy n l _                = Ex.throw (err n l)
-    err n l                    = ErrOther (GM.sourcePosSrcSpan l) ("Bad new type declaration:" <+> F.pprint n) :: UserError
+    getTy n l _                = Ex.throw (mkErr n l)
+    mkErr n l                  = ErrOther (GM.sourcePosSrcSpan l) ("Bad new type declaration:" <+> F.pprint n) :: UserError
 
 ------------------------------------------------------------------------------------------
 makeSpecData :: GhcSrc -> Bare.Env -> Bare.SigEnv -> Bare.MeasEnv -> GhcSpecSig -> Bare.ModSpecs
@@ -987,8 +985,8 @@ makeIAliases env sigEnv (name, spec)
   = [ z | Right z <- mkIA <$> Ms.ialiases spec ]
   where
     -- mkIA :: (LocBareType, LocBareType) -> Either _ (LocSpecType, LocSpecType)
-    mkIA (t1, t2) = (,) <$> mkI t1 <*> mkI t2
-    mkI           = Bare.cookSpecTypeE env sigEnv name Bare.GenTV
+    mkIA (t1, t2) = (,) <$> mkI' t1 <*> mkI' t2
+    mkI'          = Bare.cookSpecTypeE env sigEnv name Bare.GenTV
 
 makeInvariants :: Bare.Env -> Bare.SigEnv -> (ModName, Ms.BareSpec) -> [(Maybe Ghc.Var, Located SpecType)]
 makeInvariants env sigEnv (name, spec) =
@@ -1004,7 +1002,7 @@ makeInvariants env sigEnv (name, spec) =
   ]
 
 makeSizeInv :: F.LocSymbol -> Located SpecType -> Located SpecType
-makeSizeInv s t = t{val = go (val t)}
+makeSizeInv s lst = lst{val = go (val lst)}
   where go (RApp c ts rs r) = RApp c ts rs (r `meet` nat)
         go (RAllT a t r)    = RAllT a (go t) r
         go t = t
@@ -1032,14 +1030,14 @@ measureTypeToInv env name (x, (v, t))
   = notracepp "measureTypeToInv" ((Just v, t {val = Bare.qualifyTop env name (F.loc x) mtype}), usorted)
   where
     trep = toRTypeRep (val t)
-    ts   = ty_args  trep
+    rts  = ty_args  trep
     args = ty_binds trep
     res  = ty_res   trep
     z    = last args
-    tz   = last ts
+    tz   = last rts
     usorted = if isSimpleADT tz then Nothing else mapFst (:[]) <$> mkReft (dummyLoc $ F.symbol v) z tz res
     mtype
-      | null ts
+      | null rts
       = uError $ ErrHMeas (GM.sourcePosSrcSpan $ loc t) (pprint x) "Measure has no arguments!"
       | otherwise
       = mkInvariant x z tz res
@@ -1047,9 +1045,9 @@ measureTypeToInv env name (x, (v, t))
     isSimpleADT _               = False
 
 mkInvariant :: LocSymbol -> Symbol -> SpecType -> SpecType -> SpecType
-mkInvariant x z t tr = strengthen (top <$> t) (MkUReft reft mempty)
+mkInvariant x z t tr = strengthen (top <$> t) (MkUReft reft' mempty)
       where
-        reft  = Mb.maybe mempty Reft mreft
+        reft' = Mb.maybe mempty Reft mreft
         mreft = mkReft x z t tr
 
 
