@@ -120,7 +120,7 @@ makeDecrIndex :: (Var, Template SpecType, [Var]) -> CG [Int]
 makeDecrIndex (x, Assumed t, args)
   = do dindex <- makeDecrIndexTy x t args
        case dindex of
-         Left _  -> return []
+         Left msg -> addWarning msg >> return []
          Right i -> return i
 makeDecrIndex (x, Asserted t, args)
   = do dindex <- makeDecrIndexTy x t args
