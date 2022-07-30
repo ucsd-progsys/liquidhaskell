@@ -78,6 +78,7 @@ empty = goEmpty ()
 -- XXX: Making goEmpty local to empty, causes LH to crash when
 -- building Check.hs.
 {-@ reflect goEmpty @-}
+{-@ lazy    goEmpty @-} -- With PR 2069 a termination error appears 
 -- XXX: For some reason, GHC aggrees to fire emptyImpl only if
 -- empty appears in an auxiliar definition like this one.
 goEmpty :: () -> Map a b
