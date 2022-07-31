@@ -1,7 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Haskell.Liquid.WiredIn
        ( wiredTyCons
        , wiredDataCons
@@ -53,10 +51,10 @@ isWiredIn :: F.LocSymbol -> Bool
 isWiredIn x = isWiredInLoc x  || isWiredInName (val x) || isWiredInShape x
 
 isWiredInLoc :: F.LocSymbol -> Bool
-isWiredInLoc x  = l == l' && l == F.safePos 1 && c == c' && c' == F.safePos 1
+isWiredInLoc sym  = ln == ln' && ln == F.safePos 1 && c == c' && c' == F.safePos 1
   where
-    (l , c)  = spe (loc x)
-    (l', c') = spe (locE x)
+    (ln , c)  = spe (loc sym)
+    (ln', c') = spe (locE sym)
     spe l    = (x, y) where (_, x, y) = F.sourcePosElts l
 
 isWiredInName :: F.Symbol -> Bool
