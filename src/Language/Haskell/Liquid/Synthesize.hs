@@ -2,8 +2,6 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Haskell.Liquid.Synthesize (
     synthesize
   ) where
@@ -63,8 +61,8 @@ synthesize tgt fcfg cginfo =
 
 
 synthesize' :: SMT.Context -> CGInfo -> SSEnv -> SpecType ->  Var -> SpecType -> [Var] -> SState -> IO [CoreExpr]
-synthesize' ctx cgi senv tx xtop ttop foralls st2
- = evalSM (go tx) ctx senv st2
+synthesize' ctx cgi ssenv tx xtop ttop foralls st2
+ = evalSM (go tx) ctx ssenv st2
   where
 
     go :: SpecType -> SM [CoreExpr]
@@ -84,7 +82,7 @@ synthesize' ctx cgi senv tx xtop ttop foralls st2
                   if null ts  then modify (\s -> s { sUGoalTy = Nothing } )
                               else modify (\s -> s { sUGoalTy = Just ts } )
                   modify (\s -> s {sForalls = (foralls, [])})
-                  emem0 <- insEMem0 senv
+                  emem0 <- insEMem0 ssenv
                   modify (\s -> s { sExprMem = emem0 })
                   synthesizeBasic t
 
@@ -101,8 +99,8 @@ synthesize' ctx cgi senv tx xtop ttop foralls st2
               mapM_ (uncurry addEmem) (zip ys (subst su <$> txs))
               addEmem xtop dt
               senv1 <- getSEnv
-              let goalType = subst su to
-                  hsGoalTy = toType False goalType
+              let goalType' = subst su to
+                  hsGoalTy = toType False goalType'
                   ts = unifyWith hsGoalTy
               if null ts  then modify (\s -> s { sUGoalTy = Nothing } )
                           else modify (\s -> s { sUGoalTy = Just ts } )
@@ -112,7 +110,7 @@ synthesize' ctx cgi senv tx xtop ttop foralls st2
               mapM_ (`addDecrTerm` []) ys
               scruts <- synthesizeScrut ys
               modify (\s -> s { scrutinees = scruts })
-              GHC.mkLams ys <$$> synthesizeBasic goalType
+              GHC.mkLams ys <$$> synthesizeBasic goalType'
       where (_, (xs, _,txs, _), to) = bkArrow t
 
     go t = error (" Unmatched t = " ++ show t)
@@ -133,10 +131,10 @@ synthesizeMatch t = do
   scruts <- scrutinees <$> get
   i <- incrCase
   case safeIxScruts i scruts of
-    Nothing ->  return []
-    Just id ->  if null scruts
+    Nothing  ->  return []
+    Just id' ->  if null scruts
                   then return []
-                  else withIncrDepth (matchOnExpr t (scruts !! id))
+                  else withIncrDepth (matchOnExpr t (scruts !! id'))
 
 synthesizeScrut :: [Var] -> SM [(CoreExpr, Type, TyCon)]
 synthesizeScrut vs = do
@@ -166,7 +164,7 @@ matchOn t (v, tx, c) =
 
 
 makeAlt :: SpecType -> (Var, Type) -> DataCon -> SM [GHC.CoreAlt]
-makeAlt t (x, TyConApp _ ts) c = locally $ do
+makeAlt t (x, TyConApp _ kts) c = locally $ do
   ts <- liftCG $ mapM (trueTy False) τs
   xs <- mapM freshVar ts
   newScruts <- synthesizeScrut xs
@@ -178,5 +176,5 @@ makeAlt t (x, TyConApp _ ts) c = locally $ do
   es <- synthesizeBasic t
   return $ (GHC.DataAlt c, xs, ) <$> es
   where
-    (_, _, τs) = dataConInstSig c ts
+    (_, _, τs) = dataConInstSig c kts
 makeAlt _ _ _ = error "makeAlt.bad argument "
