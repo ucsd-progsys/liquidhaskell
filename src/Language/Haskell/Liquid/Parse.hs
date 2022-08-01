@@ -7,8 +7,6 @@
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Haskell.Liquid.Parse
   ( hsSpecificationP
   , specSpecificationP
@@ -62,21 +60,21 @@ hsSpecificationP modName specComments specQuotes =
   case go ([], []) initPStateWithList $ reverse specComments of
     ([], specs) ->
       Right $ mkSpec (ModName SrcImport modName) (specs ++ specQuotes)
-    (errs, _) ->
-      Left errs
+    (errors, _) ->
+      Left errors
   where
     go :: ([Error], [BPspec])   -- accumulated errors and parsed specs (in reverse order)
        -> PState                -- parser state (primarily infix operator priorities)
        -> [(SourcePos, String)] -- remaining unparsed spec comments
        -> ([Error], [BPspec])   -- final errors and parsed specs
-    go (errs, specs) _ []
-      = (reverse errs, reverse specs)
-    go (errs, specs) pstate ((pos, specComment):xs)
+    go (errors, specs) _ []
+      = (reverse errors, reverse specs)
+    go (errors, specs) pstate ((pos, specComment):xs)
       = -- 'specP' parses a single spec comment, i.e., a single LH directive
         -- we allow a "block" of specs now
         case parseWithError pstate (block specP) pos specComment of
-          Left err        -> go (parseErrorBundleToErrors err ++ errs, specs) pstate xs
-          Right (st,spec) -> go (errs,spec ++ specs) st xs
+          Left err'       -> go (parseErrorBundleToErrors err' ++ errors, specs) pstate xs
+          Right (st,spec) -> go (errors,spec ++ specs) st xs
 
 initPStateWithList :: PState
 initPStateWithList
@@ -254,16 +252,16 @@ btP = do
     PcExplicit b -> parseFun c b
   <?> "btP"
   where
-    parseFun c@(PC sb t1) b  =
+    parseFun c@(PC sb t1) sym  =
       (do
             reservedOp "->"
             PC _ t2 <- btP
-            return (PC sb (rFun b t1 t2)))
+            return (PC sb (rFun sym t1 t2)))
         <|>
          (do
             reservedOp "~>"
             PC _ t2 <- btP
-            return (PC sb (rImpF b t1 t2)))
+            return (PC sb (rImpF sym t1 t2)))
         <|>
          (do
             reservedOp "=>"
@@ -415,8 +413,8 @@ refDefP :: Symbol
         -> Parser Expr
         -> Parser (Reft -> BareType)
         -> Parser BareType
-refDefP vv rp kindP' = braces $ do
-  x       <- optBindP vv
+refDefP sym rp kindP' = braces $ do
+  x       <- optBindP sym
   -- NOSUBST i       <- freshIntP
   t       <- try (kindP' <* reservedOp "|") <|> return (RHole . uTop) <?> "refDefP"
   ra      <- rp
@@ -466,7 +464,7 @@ bbaseP
      lowerIdTail l
 
 maybeBind :: Parser a -> Parser (Maybe Symbol, a)
-maybeBind p = do {bd <- maybeP' bbindP; ty <- p ; return (bd, ty)}
+maybeBind parser = do {bd <- maybeP' bbindP; ty <- parser ; return (bd, ty)}
   where
     maybeP' p = try (Just <$> p)
              <|> return Nothing
@@ -600,7 +598,7 @@ bPVar :: Symbol -> t -> [(Symbol, t1)] -> PVar t1
 bPVar p _ xts  = PV p (PVProp τ) dummySymbol τxs
   where
     (_, τ) = safeLast "bPVar last" xts
-    τxs    = [ (τ, x, EVar x) | (x, τ) <- init xts ]
+    τxs    = [ (τ', x, EVar x) | (x, τ') <- init xts ]
     safeLast _ xs@(_:_) = last xs
     safeLast msg _      = panic Nothing $ "safeLast with empty list " ++ msg
 
@@ -613,11 +611,11 @@ propositionTypeP = either fail return . mkPropositionType =<< bareTypeP
 mkPropositionType :: BareType -> Either String [(Symbol, BareType)]
 mkPropositionType t
   | isOk      = Right $ zip (ty_binds tRep) (ty_args tRep)
-  | otherwise = Left err
+  | otherwise = Left mkErr
   where
     isOk      = isPropBareType (ty_res tRep)
     tRep      = toRTypeRep t
-    err       = "Proposition type with non-Bool output: " ++ showpp t
+    mkErr     = "Proposition type with non-Bool output: " ++ showpp t
 
 xyP :: Parser x -> Parser a -> Parser y -> Parser (x, y)
 xyP lP sepP rP =
@@ -715,10 +713,10 @@ boundP :: Parser (Bound (Located BareType) Expr)
 boundP = do
   name   <- locUpperIdP
   reservedOp "="
-  vs     <- bvsP
-  params <- many (parens tyBindP)
-  args   <- bargsP
-  Bound name vs params args <$> predP
+  vs      <- bvsP
+  params' <- many (parens tyBindP)
+  args    <- bargsP
+  Bound name vs params' args <$> predP
  where
     bargsP =     ( do reservedOp "\\"
                       xs <- many (parens tyBindP)
@@ -762,12 +760,12 @@ maybeDigit
 bRProp :: [((Symbol, τ), Symbol)]
        -> Expr -> Ref τ (RType c BTyVar (UReft Reft))
 bRProp []    _    = panic Nothing "Parse.bRProp empty list"
-bRProp syms' expr = RProp ss $ bRVar (BTV dummyName) mempty r
+bRProp syms' epr  = RProp ss $ bRVar (BTV dummyName) mempty r
   where
-    (ss, (v, _))  = (init syms, last syms)
-    syms          = [(y, s) | ((_, s), y) <- syms']
+    (ss, (v, _))  = (init symsf, last symsf)
+    symsf         = [(y, s) | ((_, s), y) <- syms']
     su            = mkSubst [(x, EVar y) | ((x, _), y) <- syms']
-    r             = su `subst` Reft (v, expr)
+    r             = su `subst` Reft (v, epr)
 
 bRVar :: tv -> Predicate -> r -> RType c tv (UReft r)
 bRVar α p r = RVar α (MkUReft r p)
@@ -885,11 +883,11 @@ splice :: PJ.Doc -> [PJ.Doc] -> PJ.Doc
 splice sep = PJ.hcat . PJ.punctuate sep
 
 ppAsserts :: (PPrint t) => Tidy -> [LocSymbol] -> t -> Maybe [Located Expr] -> PJ.Doc
-ppAsserts k lxs t les
+ppAsserts k lxs t mles
   = PJ.hcat [ splice ", " (pprintTidy k <$> (val <$> lxs))
             , " :: "
             , pprintTidy k t
-            , ppLes les
+            , ppLes mles
             ]
   where
     ppLes Nothing    = ""
