@@ -2,8 +2,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections     #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Haskell.Liquid.Bare.DataType
   ( dataConMap
 
@@ -111,10 +109,10 @@ addClassEmbeds instenv fiTcs = makeFamInstEmbeds fiTcs . makeNumEmbeds instenv
 --   with the actual family instance  types that have numeric instances as int [Check!]
 --------------------------------------------------------------------------------
 makeFamInstEmbeds :: [Ghc.TyCon] -> F.TCEmb Ghc.TyCon -> F.TCEmb Ghc.TyCon
-makeFamInstEmbeds cs0 embs = L.foldl' embed embs famInstSorts
+makeFamInstEmbeds cs0 embeds = L.foldl' embed embeds famInstSorts
   where
     famInstSorts          = F.notracepp "famInstTcs"
-                            [ (c, RT.typeSort embs ty)
+                            [ (c, RT.typeSort embeds ty)
                                 | c   <- cs
                                 , ty  <- Mb.maybeToList (RT.famInstTyConType c) ]
     embed embs (c, t)     = F.tceInsert c t F.NoArgs embs
@@ -270,8 +268,8 @@ mkWarnDecl d = mkWarning (GM.fSrcSpan d) ("Non-regular data declaration" <+> ppr
 -}
 resolveTyCons :: ModName -> [(ModName, Ghc.TyCon, DataPropDecl)]
               -> [(Ghc.TyCon, (ModName, DataPropDecl))]
-resolveTyCons m mtds = [(tc, (m, d)) | (tc, mds) <- M.toList tcDecls
-                                     , (m, d)    <- Mb.maybeToList $ resolveDecls m tc mds ]
+resolveTyCons mn mtds = [(tc, (m, d)) | (tc, mds) <- M.toList tcDecls
+                                      , (m, d)    <- Mb.maybeToList $ resolveDecls mn tc mds ]
   where
     tcDecls          = Misc.group [ (tc, (m, d)) | (m, tc, d) <- mtds ]
 
@@ -453,8 +451,8 @@ left' es = Just (Left es)
 --   instead of the unlifted versions.
 
 canonizeDecls :: Bare.Env -> ModName -> [DataDecl] -> Bare.Lookup [DataDecl]
-canonizeDecls env name ds = do
-  kds <- forM ds $ \d -> do
+canonizeDecls env name dataDecls = do
+  kds <- forM dataDecls $ \d -> do
            k <- dataDeclKey env name d
            return (fmap (, d) k)
   case Misc.uniqueByKey' selectDD (Mb.catMaybes kds) of
@@ -509,10 +507,10 @@ checkDataCtors  env  name  c  dd (Just cons) = do
 --
 checkDataCtorDupField :: DataCtor -> Bare.Lookup DataCtor
 checkDataCtorDupField d
-  | x : _ <- dups = Left [err lc x]
+  | x : _ <- dups = Left [err sym x]
   | otherwise     = return d
     where
-      lc          = dcName   d
+      sym         = dcName   d
       xts         = dcFields d
       dups        = [ x | (x, ts) <- Misc.groupList xts, 2 <= length ts ]
       err lc x    = ErrDupField (GM.sourcePosSrcSpan $ loc lc) (pprint $ val lc) (pprint x)
@@ -719,11 +717,11 @@ normalizeField c i (x, t)
 type CtorType = ([(F.Symbol, SpecType)], SpecType)
 
 qualifyDataCtor :: Bool -> ModName -> F.Located a -> CtorType -> CtorType
-qualifyDataCtor qualFlag name l ct@(xts, t)
+qualifyDataCtor qualFlag name l ct@(xts, st)
  | qualFlag  = (xts', t')
  | otherwise = ct
  where
-   t'        = F.subst su <$> t
+   t'        = F.subst su <$> st
    xts'      = [ (qx, F.subst su t)       | (qx, t, _) <- fields ]
    su        = F.mkSubst [ (x, F.eVar qx) | (qx, _, Just x) <- fields ]
    fields    = [ (qx, t, mbX) | (x, t) <- xts, let (mbX, qx) = qualifyField name (F.atLoc l x) ]
@@ -738,18 +736,18 @@ qualifyField name lx
    needsQual = not (isWiredIn lx)
 
 checkRecordSelectorSigs :: [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
-checkRecordSelectorSigs vts = [ (v, take1 v ts) | (v, ts) <- Misc.groupList vts ]
+checkRecordSelectorSigs vts = [ (v, take1 v lspecTys) | (v, lspecTys) <- Misc.groupList vts ]
   where
-    take1 v ts              = case Misc.nubHashOn (showpp . val) ts of
+    take1 v lsts            = case Misc.nubHashOn (showpp . val) lsts of
                                 [t]    -> t
                                 (t:ts) -> Ex.throw (ErrDupSpecs (GM.fSrcSpan t) (pprint v) (GM.fSrcSpan <$> ts) :: Error)
                                 _      -> impossible Nothing "checkRecordSelectorSigs"
 
 
 strengthenClassSel :: Ghc.Var -> LocSpecType -> LocSpecType
-strengthenClassSel v lt = lt { val = t }
+strengthenClassSel v lt = lt { val = st }
  where
-  t = runReader (go (F.val lt)) (1, [])
+  st = runReader (go (F.val lt)) (1, [])
   s = GM.namedLocSymbol v
   extend :: F.Symbol -> (Int, [F.Symbol]) -> (Int, [F.Symbol])
   extend x (i, xs) = (i + 1, x : xs)

@@ -3,8 +3,6 @@
 {-# LANGUAGE ParallelListComp  #-}
 {-# LANGUAGE TupleSections     #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Haskell.Liquid.Bare.Class
   ( makeClasses
   , makeCLaws
@@ -45,8 +43,8 @@ import Control.Monad (forM)
 -------------------------------------------------------------------------------
 makeMethodTypes :: Bool -> DEnv Ghc.Var LocSpecType -> [DataConP] -> [Ghc.CoreBind] -> [(Ghc.Var, MethodType LocSpecType)]
 -------------------------------------------------------------------------------
-makeMethodTypes allowTC (DEnv m) cls cbs
-  = [(x, MT (addCC allowTC x . fromRISig <$> methodType d x m) (addCC allowTC x <$> classType (splitDictionary e) x)) | (d,e) <- ds, x <- grepMethods e]
+makeMethodTypes allowTC (DEnv hm) cls cbs
+  = [(x, MT (addCC allowTC x . fromRISig <$> methodType d x hm) (addCC allowTC x <$> classType (splitDictionary e) x)) | (d,e) <- ds, x <- grepMethods e]
     where
       grepMethods = filter GM.isMethod . freeVars mempty
       ds = filter (GM.isDictionary . fst) (concatMap unRec cbs)
@@ -70,7 +68,7 @@ makeMethodTypes allowTC (DEnv m) cls cbs
       subst ((a,ta):su) t = subsTyVarMeet' (a,ofType ta) (subst su t)
 
 addCC :: Bool -> Ghc.Var -> LocSpecType -> LocSpecType
-addCC allowTC x zz@(Loc l l' st0)
+addCC allowTC var zz@(Loc l l' st0)
   = Loc l l'
   . addForall hst
   . mkArrow [] ps' [] []
@@ -80,7 +78,7 @@ addCC allowTC x zz@(Loc l l' st0)
   $ st
   where
     hst           = ofType (Ghc.expandTypeSynonyms t0) :: SpecType
-    t0            = Ghc.varType x
+    t0            = Ghc.varType var
     tyvsmap       = case Bare.runMapTyVars allowTC t0 st err of
                           Left e  -> Ex.throw e
                           Right s -> Bare.vmap s
@@ -92,13 +90,13 @@ addCC allowTC x zz@(Loc l l' st0)
     (_,_,cs,_)    = bkUnivClass (F.notracepp "hs-spec" $ ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
     (_,ps,_ ,st)  = bkUnivClass (F.notracepp "lq-spec" st0)
 
-    makeCls cs t  = foldr (uncurry rFun) t cs
-    err hsT lqT   = ErrMismatch (GM.fSrcSpan zz) (pprint x)
+    makeCls c t  = foldr (uncurry rFun) t c
+    err hsT lqT   = ErrMismatch (GM.fSrcSpan zz) (pprint var)
       (text "makeMethodTypes")
       (pprint $ Ghc.expandTypeSynonyms t0)
       (pprint $ toRSort st0)
       (Just (hsT, lqT))
-      (Ghc.getSrcSpan x)
+      (Ghc.getSrcSpan var)
 
     addForall (RAllT v t r) tt@(RAllT v' _ _)
       | v == v'
@@ -133,8 +131,8 @@ makeCLaws :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs
           -> Bare.Lookup [(Ghc.Class, [(ModName, Ghc.Var, LocSpecType)])]
 -------------------------------------------------------------------------------
 makeCLaws env sigEnv myName specs = do
-  zMbs <- forM classTcs $ \(name, cls, tc) -> do
-            clsMb <- mkClass env sigEnv myName name cls tc
+  zMbs <- forM classTcs $ \(name, clss, tc) -> do
+            clsMb <- mkClass env sigEnv myName name clss tc
             case clsMb of
               Nothing ->
                 return Nothing
@@ -177,7 +175,7 @@ mkClassE env sigEnv _myName name (RClass cc ss as ms) tc = do
     meths  <- mapM (makeMethod env sigEnv name) ms'
     let vts = [ (m, v, t) | (m, kv, t) <- meths, v <- Mb.maybeToList (plugSrc kv) ]
     let sts = [(val s, unClass $ val t) | (s, _) <- ms | (_, _, t) <- meths]
-    let dcp = DataConP l dc αs [] (val <$> ss') (reverse sts) t False (F.symbol name) l'
+    let dcp = DataConP l dc αs [] (val <$> ss') (reverse sts) rt False (F.symbol name) l'
     return  $ F.notracepp msg (dcp, vts)
   where
     c      = btc_tc cc
@@ -188,7 +186,7 @@ mkClassE env sigEnv _myName name (RClass cc ss as ms) tc = do
     αs     = bareRTyVar <$> as
     as'    = [rVar $ GM.symbolTyVar $ F.symbol a | a <- as ]
     ms'    = [ (s, rFun "" (RApp cc (flip RVar mempty <$> as) [] mempty) <$> t) | (s, t) <- ms]
-    t      = rCls tc as'
+    rt     = rCls tc as'
 
 mkConstr :: Bare.Env -> Bare.SigEnv -> ModName -> LocBareType -> Bare.Lookup LocSpecType
 mkConstr env sigEnv name = fmap (fmap dropUniv) . Bare.cookSpecTypeE env sigEnv name Bare.GenTV
@@ -225,11 +223,11 @@ makeSpecDictionary env sigEnv (name, spec)
 makeSpecDictionaryOne :: Bare.Env -> Bare.SigEnv -> ModName
                       -> RInstance LocBareType
                       -> (F.Symbol, M.HashMap F.Symbol (RISig LocSpecType))
-makeSpecDictionaryOne env sigEnv name (RI x t xts)
-         = makeDictionary $ F.notracepp "RI" $ RI x ts [(x, mkLSpecIType t) | (x, t) <- xts ]
+makeSpecDictionaryOne env sigEnv name (RI bt lbt xts)
+         = makeDictionary $ F.notracepp "RI" $ RI bt ts [(x, mkLSpecIType t) | (x, t) <- xts ]
   where
-    ts      = mkTy' <$> t
-    as      = concatMap (univs . val) ts
+    ts      = mkTy' <$> lbt
+    rts     = concatMap (univs . val) ts
     univs t = (\(RTVar tv _, _) -> tv) <$> as where (as, _, _) = bkUniv t
 
     mkTy' :: LocBareType -> LocSpecType
@@ -240,7 +238,7 @@ makeSpecDictionaryOne env sigEnv name (RI x t xts)
     mapUnis f t = mkUnivs (f as) ps t0 where (as, ps, t0) = bkUniv t
 
     tidy vs = l ++ r
-      where (l,r) = L.partition (\(RTVar tv _,_) -> tv `elem` as) vs
+      where (l,r) = L.partition (\(RTVar tv _,_) -> tv `elem` rts) vs
 
     mkLSpecIType :: RISig LocBareType -> RISig LocSpecType
     mkLSpecIType t = fmap mkTy t
@@ -256,7 +254,7 @@ resolveDictionaries env name = fmap lookupVar
 -- formerly, addIndex
 -- GHC internal postfixed same name dictionaries with ints
 addInstIndex            :: (F.Symbol, [a]) -> [(F.Symbol, a)]
-addInstIndex (x, is) = go (0::Int) (reverse is)
+addInstIndex (x, ks) = go (0::Int) (reverse ks)
   where
     go _ []          = []
     go _ [i]         = [(x, i)]
