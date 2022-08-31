@@ -1334,7 +1334,7 @@ argExpr _ _           = Nothing
 
 
 lamExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
-lamExpr g e = case runToLogic (emb g) mempty mempty (\x -> todo Nothing ("coreToLogic not working lamExpr" ++ x)) (coreToLogic True e) of 
+lamExpr g e = case runToLogic (emb g) mempty mempty (\x -> todo Nothing ("coreToLogic not working lamExpr: " ++ x)) (coreToLogic True e) of 
                Left  _  -> Nothing 
                Right ce -> Just ce 
                
