@@ -60,7 +60,7 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint
 import           Language.Haskell.Liquid.Transforms.Rec
-import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult)
+import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult, runToLogic, coreToLogic)
 import           Language.Haskell.Liquid.Bare.DataType (makeDataConChecker)
 
 import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, Def)
@@ -1333,26 +1333,11 @@ argExpr γ (App e (Type _)) = argExpr γ e
 argExpr _ _           = Nothing
 
 
--- NIKI TODO: merge arg/lam/fun-Expr
 lamExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
-lamExpr _ (Var v)     =  Just $ F.eVar v
-lamExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
-lamExpr γ (Tick _ e)  = lamExpr γ e
-lamExpr γ (App e (Type _)) = lamExpr γ e
-lamExpr γ (App e1 e2) = case (lamExpr γ e1, lamExpr γ e2) of
-                              (Just p1, Just p2) | not ((if allowTC then GM.isEmbeddedDictExpr else GM.isPredExpr) e2) -- (isClassPred $ exprType e2)
-                                                 -> Just $ F.EApp p1 p2
-                              (Just p1, Just _ ) -> Just p1
-                              _  -> Nothing
-  where allowTC = typeclass (getConfig γ)
-lamExpr γ (Let (NonRec x ex) e) = case (lamExpr γ ex, lamExpr γ e) of
-                                       (Just px, Just p) -> Just (p `F.subst1` (F.symbol x, px))
-                                       _  -> Nothing
-lamExpr γ (Lam x e)   = case lamExpr γ e of
-                            Just p -> Just $ F.ELam (F.symbol x, typeSort (emb γ) $ Ghc.expandTypeSynonyms $ varType x) p
-                            _ -> Nothing
-lamExpr _ _           = Nothing
-
+lamExpr g e = case runToLogic (emb g) mempty mempty (\x -> todo Nothing ("coreToLogic not working lamExpr" ++ x)) (coreToLogic True e) of 
+               Left  _  -> Nothing 
+               Right ce -> Just ce 
+               
 --------------------------------------------------------------------------------
 (??=) :: (?callStack :: CallStack) => CGEnv -> Var -> CG SpecType
 --------------------------------------------------------------------------------
