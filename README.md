@@ -35,7 +35,7 @@ having your PR accepted:
 * Please be sure to include test cases that illustrate the effect of the PR
     - e.g. show new features that that are supported or how it fixes some previous issue
 * If you're making user-visible changes, please also add documentation
-    - e.g. [options.md](options.md), [specifications.md](specifications.md), the [main tutorial](https:///github.com/ucsd-progsys/intro-refinement-types) (as relevant)
+    - e.g. [options.md](docs/mkDocs/docs/options.md), [specifications.md](docs/mkDocs/docs/specifications.md), the [main tutorial](https:///github.com/ucsd-progsys/intro-refinement-types) (as relevant)
 
 Pull requests don't just have to be about code: documentation can often be improved too!
 
