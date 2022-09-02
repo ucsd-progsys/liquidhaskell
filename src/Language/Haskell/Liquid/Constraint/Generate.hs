@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP                       #-}
 {-# LANGUAGE DeriveTraversable         #-}
+{-# LANGUAGE LambdaCase                #-}
 {-# LANGUAGE StandaloneDeriving        #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -61,7 +62,7 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult, runToLogic, coreToLogic)
-import           Language.Haskell.Liquid.Bare.DataType (makeDataConChecker)
+import           Language.Haskell.Liquid.Bare.DataType (dataConMap, makeDataConChecker)
 
 import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, Def)
 
@@ -683,14 +684,16 @@ cconsE' γ e t
         te' <- instantiatePreds γ e te >>= addPost γ
         addC (SubC γ te' t) ("cconsE: " ++ "\n t = " ++ showpp t ++ "\n te = " ++ showpp te ++ GM.showPpr e)
 
-lambdaSingleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> UReft F.Reft
+lambdaSingleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> CG (UReft F.Reft)
 lambdaSingleton γ tce x e
-  | higherOrderFlag γ, Just e' <- lamExpr γ e
-  = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
+  | higherOrderFlag γ
+  = lamExpr γ e >>= \case
+      Just e' -> return $ uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
+      _ -> return mempty
   where
     sx = typeSort tce $ Ghc.expandTypeSynonyms $ varType x
 lambdaSingleton _ _ _ _
-  = mempty
+  = return mempty
 
 addForAllConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
 addForAllConstraint γ _ _ (RAllT a t r)
@@ -712,7 +715,8 @@ addFunctionConstraint γ x e (RFun y i ty t r)
   = do ty'      <- true (typeclass (getConfig γ)) ty
        t'       <- true (typeclass (getConfig γ)) t
        let truet = RFun y i ty' t'
-       case (lamExpr γ e, higherOrderFlag γ) of
+       lamE <- lamExpr γ e
+       case (lamE, higherOrderFlag γ) of
           (Just e', True) -> do tce    <- gets tyConEmbed
                                 let sx  = typeSort tce $ varType x
                                 let ref = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
@@ -886,7 +890,8 @@ consE γ  e@(Lam x e1)
        addIdA x $ AnnDef tx
        addW     $ WfC γ tx
        tce     <- gets tyConEmbed
-       return   $ RFun (F.symbol x) (mkRFInfo $ getConfig γ) tx t1 $ lambdaSingleton γ tce x e1
+       lamSing <- lambdaSingleton γ tce x e1
+       return   $ RFun (F.symbol x) (mkRFInfo $ getConfig γ) tx t1 lamSing
     where
       FunTy { ft_arg = τx } = exprType e
 
@@ -1333,11 +1338,14 @@ argExpr γ (App e (Type _)) = argExpr γ e
 argExpr _ _           = Nothing
 
 
-lamExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
-lamExpr g e = case runToLogic (emb g) mempty mempty (\x -> todo Nothing ("coreToLogic not working lamExpr: " ++ x)) (coreToLogic True e) of 
-               Left  _  -> Nothing 
-               Right ce -> Just ce 
-               
+lamExpr :: CGEnv -> CoreExpr -> CG (Maybe F.Expr)
+lamExpr g e = do
+    adts <- gets cgADTs
+    let dm = dataConMap adts
+    case runToLogic (emb g) mempty dm (\x -> todo Nothing ("coreToLogic not working lamExpr: " ++ x)) (coreToLogic True e) of 
+               Left  _  -> return Nothing
+               Right ce -> return (Just ce)
+
 --------------------------------------------------------------------------------
 (??=) :: (?callStack :: CallStack) => CGEnv -> Var -> CG SpecType
 --------------------------------------------------------------------------------
