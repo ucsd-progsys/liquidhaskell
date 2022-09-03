@@ -1341,8 +1341,9 @@ argExpr _ _           = Nothing
 lamExpr :: CGEnv -> CoreExpr -> CG (Maybe F.Expr)
 lamExpr g e = do
     adts <- gets cgADTs
+    allowTC <- gets cgiTypeclass
     let dm = dataConMap adts
-    case runToLogic (emb g) mempty dm (\x -> todo Nothing ("coreToLogic not working lamExpr: " ++ x)) (coreToLogic True e) of 
+    case runToLogic (emb g) mempty dm (\x -> todo Nothing ("coreToLogic not working lamExpr: " ++ x)) (coreToLogic allowTC e) of
                Left  _  -> return Nothing
                Right ce -> return (Just ce)
 
