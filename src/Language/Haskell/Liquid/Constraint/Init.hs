@@ -274,6 +274,7 @@ initCGI cfg info = CGInfo {
   , specLazy   = dictionaryVar `S.insert` gsLazy tspc
   , specTmVars = gsNonStTerm tspc
   , tcheck     = terminationCheck cfg
+  , cgiTypeclass = typeclass cfg
   , pruneRefs  = pruneUnsorted cfg
   , logErrors  = []
   , kvProf     = emptyKVProf

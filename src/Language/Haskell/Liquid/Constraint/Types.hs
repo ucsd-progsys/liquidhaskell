@@ -228,6 +228,7 @@ data CGInfo = CGInfo
   , cgConsts   :: !(F.SEnv F.Sort)             -- ^ Distinct constant symbols in the refinement logic
   , cgADTs     :: ![F.DataDecl]                -- ^ ADTs extracted from Haskell 'data' definitions
   , tcheck     :: !Bool                        -- ^ Check Termination (?)
+  , cgiTypeclass :: !Bool                      -- ^ Enable typeclass support
   , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
   , logErrors  :: ![Error]                     -- ^ Errors during constraint generation
   , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars
