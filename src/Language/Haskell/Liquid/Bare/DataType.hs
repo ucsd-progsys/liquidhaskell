@@ -92,7 +92,7 @@ dcSymbol = {- simpleSymbolVar -} F.symbol . Ghc.dataConWorkId
 symbolMeasure :: String -> F.Symbol -> Maybe Int -> F.Symbol
 symbolMeasure f d iMb = foldr1 F.suffixSymbol (dcPrefix : F.symbol f : d : rest)
   where
-    rest          = maybe [] (Misc.singleton . F.symbol . show) iMb
+    rest          = maybe [] (Misc.single . F.symbol . show) iMb
 
 
 --------------------------------------------------------------------------------
