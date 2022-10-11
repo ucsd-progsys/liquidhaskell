@@ -249,10 +249,10 @@ consRelCheck γ ψ l1@(Let (NonRec x1 d1) e1) l2@(Let (NonRec x2 d2) e2) t1 t2 p
     let (vs2, ts2) = vargs s2
     let binders = vs1 ++ vs2 ++ concatMap (fst . vargs) ts1 ++ concatMap (fst . vargs) ts2
     let qs' = traceWhenLoud ("Let qs: " ++ F.showpp qs) qs
-    let (ho, fo) = L.partition (F.containsVars binders) qs'
-    γ''' <- γ'' `addPreds` map (F.subst rs2xs) fo
-    let ψ' = ψ ++ map (\q -> toRel (evar1, evar2, s1, s2, q)) ho
-    consRelCheck γ''' ψ' e1' e2' t1 t2 p
+    -- let (ho, fo) = L.partition (F.containsVars binders) qs'
+    -- γ''' <- γ'' `addPreds` map (F.subst rs2xs) fo
+    -- let ψ' = ψ ++ map (\q -> toRel (evar1, evar2, s1, s2, q)) ho
+    consRelCheck γ'' ψ' e1' e2' t1 t2 p
   where 
     -- unapp    = L.foldl' (\p (v1, v2) -> unapplyRelArgs v1 v2 p)
     toRel (f1, f2, t1, t2, q) =
@@ -280,8 +280,8 @@ consRelCheck γ ψ l1@(Let (Rec ((x1, d1):bs1)) e1) l2@(Let (Rec ((x2, d2):bs2))
     let (vs1, ts1) = vargs s1
     let (vs2, ts2) = vargs s2
     let binders = vs1 ++ vs2 ++ concatMap (fst . vargs) ts1 ++ concatMap (fst . vargs) ts2
-    γ''' <- γ'' `addPreds` map (F.subst rs2xs) (filter (not . F.containsVars binders) qs)
-    consRelCheck γ''' ψ (Let (Rec bs1) e1') (Let (Rec bs2) e2') t1 t2 p
+    -- γ''' <- γ'' `addPreds` map (F.subst rs2xs) (filter (not . F.containsVars binders) qs)
+    consRelCheck γ'' ψ (Let (Rec bs1) e1') (Let (Rec bs2) e2') t1 t2 p
 
 {- consRelCheck γ ψ c1@(Case e1 x1 _ alts1) c2@(Case e2 x2 _ alts2) t1 t2 p 
   | Just alts <- unifyAlts x1 x2 alts1 alts2 = 
