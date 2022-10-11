@@ -1,8 +1,9 @@
+{-@ LIQUID "--expect-any-error" @-}
 -- TAG: reflection 
 
 {-@ LIQUID "--reflection" @-}
 
-module Peano where
+module AdtPeano2 where
 
 data Influx = Silly { goo :: Int }
 

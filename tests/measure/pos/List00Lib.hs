@@ -1,4 +1,4 @@
-module List00Lib where 
+module List00Lib where
 
 data List yy
   = Emp 

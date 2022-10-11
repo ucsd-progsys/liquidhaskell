@@ -1,8 +1,9 @@
+{-@ LIQUID "--expect-error-containing=Illegal type specification for `BadSig1.EZ`" @-}
 {-# LANGUAGE GADTs #-}
 
 {-@ LIQUID "--exact-data-con" @-}
 
-module Ev where
+module BadSig1 where
 
 data Peano where
   Z :: Peano

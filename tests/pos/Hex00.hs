@@ -1,4 +1,4 @@
-module Hex where 
+module Hex00 where
 
 foo :: Int -> Int -> Int 
 foo x y = x + y

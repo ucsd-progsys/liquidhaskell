@@ -1,4 +1,5 @@
-module Fixme where
+{-@ LIQUID "--expect-any-error" @-}
+module NameResolution where
 
 import Prelude hiding ((==), (++))
 import Language.Haskell.Liquid.Equational 

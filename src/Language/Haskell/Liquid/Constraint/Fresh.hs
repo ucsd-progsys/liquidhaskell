@@ -3,18 +3,18 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TupleSections         #-}
-{-# LANGUAGE TypeSynonymInstances  #-}
 {-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE BangPatterns          #-}
 {-# LANGUAGE ConstraintKinds       #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Language.Haskell.Liquid.Constraint.Fresh
   ( -- module Language.Haskell.Liquid.Types.Fresh
     -- , 
     refreshArgsTop
-  , freshTy_type
-  , freshTy_expr
+  , freshTyType
+  , freshTyExpr
   , trueTy
   , addKuts
   )
@@ -32,13 +32,13 @@ import           Prelude                        hiding (error)
 
 import           Language.Fixpoint.Misc  ((=>>))
 import qualified Language.Fixpoint.Types as F
-import           Language.Fixpoint.Types.Visitor (kvars)
+import           Language.Fixpoint.Types.Visitor (kvarsExpr)
 import           Language.Haskell.Liquid.Types
 -- import           Language.Haskell.Liquid.Types.RefType
 -- import           Language.Haskell.Liquid.Types.Fresh
 import           Language.Haskell.Liquid.Constraint.Types
-import qualified Language.Haskell.Liquid.GHC.Misc as GM 
-import           Language.Haskell.Liquid.GHC.API as Ghc
+import qualified Liquid.GHC.Misc as GM
+import           Liquid.GHC.API as Ghc
 
 --------------------------------------------------------------------------------
 -- | This is all hardwiring stuff to CG ----------------------------------------
@@ -64,26 +64,26 @@ refreshArgsTop (x, t)
 -- | Right now, we generate NO new pvars. Rather than clutter code
 --   with `uRType` calls, put it in one place where the above
 --   invariant is /obviously/ enforced.
---   Constraint generation should ONLY use @freshTy_type@ and @freshTy_expr@
+--   Constraint generation should ONLY use @freshTyType@ and @freshTyExpr@
 
-freshTy_type        :: KVKind -> CoreExpr -> Type -> CG SpecType
-freshTy_type k e τ  =  F.notracepp ("freshTy_type: " ++ F.showpp k ++ GM.showPpr e) 
-                   <$> freshTy_reftype k (ofType τ)
+freshTyType        :: Bool -> KVKind -> CoreExpr -> Type -> CG SpecType
+freshTyType allowTC k e τ  =  F.notracepp ("freshTyType: " ++ F.showpp k ++ GM.showPpr e)
+                   <$> freshTyReftype allowTC k (ofType τ)
 
-freshTy_expr        :: KVKind -> CoreExpr -> Type -> CG SpecType
-freshTy_expr k e _  = freshTy_reftype k $ exprRefType e
+freshTyExpr        :: Bool -> KVKind -> CoreExpr -> Type -> CG SpecType
+freshTyExpr allowTC k e _  = freshTyReftype allowTC k $ exprRefType e
 
-freshTy_reftype     :: KVKind -> SpecType -> CG SpecType
-freshTy_reftype k _t = (fixTy t >>= refresh) =>> addKVars k
+freshTyReftype     :: Bool -> KVKind -> SpecType -> CG SpecType
+freshTyReftype allowTC k _t = (fixTy t >>= refresh allowTC) =>> addKVars k
   where
-    t                = {- F.tracepp ("freshTy_reftype:" ++ show k) -} _t
+    t                = {- F.tracepp ("freshTyReftype:" ++ show k) -} _t
 
 -- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive
 --   definitions, and also to update the KVar profile.
 addKVars        :: KVKind -> SpecType -> CG ()
 addKVars !k !t  = do
-    cfg <- getConfig  <$> gets ghcI
-    when (True)        $ modify $ \s -> s { kvProf = updKVProf k ks (kvProf s) }
+    cfg <- gets (getConfig . ghcI)
+    when True          $ modify $ \s -> s { kvProf = updKVProf k ks (kvProf s) }
     when (isKut cfg k) $ addKuts k t
   where
     ks         = F.KS $ S.fromList $ specTypeKVars t
@@ -102,19 +102,19 @@ addKuts _x t = modify $ \s -> s { kuts = mappend (F.KS ks) (kuts s)   }
        | otherwise  = {- F.tracepp ("addKuts: " ++ showpp _x) -} ks'
 
 specTypeKVars :: SpecType -> [F.KVar]
-specTypeKVars = foldReft False (\ _ r ks -> (kvars $ ur_reft r) ++ ks) []
+specTypeKVars = foldReft False (\ _ r ks -> kvarsExpr (F.reftPred $ ur_reft r) ++ ks) []
 
 --------------------------------------------------------------------------------
-trueTy  :: Type -> CG SpecType
+trueTy  :: Bool -> Type -> CG SpecType
 --------------------------------------------------------------------------------
-trueTy = ofType' >=> true
+trueTy allowTC = ofType' >=> true allowTC
 
 ofType' :: Type -> CG SpecType
 ofType' = fixTy . ofType
 
 fixTy :: SpecType -> CG SpecType
-fixTy t = do tyi   <- tyConInfo  <$> get
-             tce   <- tyConEmbed <$> get
+fixTy t = do tyi   <- gets tyConInfo
+             tce   <- gets tyConEmbed
              return $ addTyConInfo tce tyi t
 
 exprRefType :: CoreExpr -> SpecType

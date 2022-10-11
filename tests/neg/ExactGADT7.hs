@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
 
@@ -5,7 +6,7 @@
 {-@ LIQUID "--no-adt"         @-}
 {-@ LIQUID "--exact-data-con" @-}
 
-module Blank where
+module ExactGADT7 where
 
 data Some a where
   SomeBool  :: Bool -> Some Bool

@@ -1,6 +1,8 @@
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE BangPatterns #-}
+
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Haskell.Liquid.Synthesize.Check (check, hasType, isWellTyped, checkError) where
 
 
@@ -19,11 +21,11 @@ import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.ToFixpoint
 import           Language.Haskell.Liquid.Synthesize.Monad
 import           Language.Haskell.Liquid.Synthesize.GHC
-import           Language.Haskell.Liquid.GHC.API as Ghc
+import           Liquid.GHC.API as Ghc
 import           Language.Haskell.Liquid.Misc   ( mapThd3 )
 import           Control.Monad.State.Lazy
 import           System.Console.CmdArgs.Verbosity
-import           Language.Haskell.Liquid.GHC.TypeRep
+import           Liquid.GHC.TypeRep
 import           Language.Haskell.Liquid.Types
 
 hasType :: SpecType -> CoreExpr -> SM Bool
@@ -31,7 +33,7 @@ hasType t !e' = notrace (" [ Check ] " ++ show e') $ do
   x  <- freshVar t 
   st <- get 
   let tpOfE = exprType e'
-      ht    = toType t
+      ht    = toType False t
   if tpOfE == ht
     then liftIO $ quietly $ check (sCGI st) (sCGEnv st) (sFCfg st) x e (Just t) 
     else error $ " [ hasType ] Expression = " ++ show e' ++ " with type " ++ showTy tpOfE ++ " , specType = " ++ show t
@@ -40,7 +42,7 @@ hasType t !e' = notrace (" [ Check ] " ++ show e') $ do
 -- Returns true if the expression is well-typed.
 isWellTyped :: CoreExpr -> SM Bool
 isWellTyped e =  do 
-  t <- liftCG $ trueTy $ exprType e 
+  t <- liftCG $ trueTy False $ exprType e 
   hasType t e 
 
 
@@ -77,7 +79,7 @@ check cgi γ cfg x e t = do
 checkError :: SpecType -> SM (Maybe CoreExpr)
 checkError t = do 
   errVar <- varError
-  let errorExpr   = App (App (Var errVar) (Type (toType t))) errorInt
+  let errorExpr   = App (App (Var errVar) (Type (toType False t))) errorInt
       globalFlags = unsafeGlobalDynFlags
       platform    = targetPlatform globalFlags
       errorInt    = mkIntExprInt platform 42

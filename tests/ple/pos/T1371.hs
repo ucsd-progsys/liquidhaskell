@@ -1,7 +1,7 @@
 {-@ LIQUID "--reflection"  @-}
 {-@ LIQUID "--ple"         @-}
 
-module Bug where 
+module T1371 where
 
 data Thing  
   = N Int 

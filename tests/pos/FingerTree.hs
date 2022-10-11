@@ -1,8 +1,7 @@
 {-@ LIQUID "--reflection"     @-}
-{-@ LIQUID "--no-adt"         @-}
 {-@ LIQUID "--ple"            @-}
 
-module FingerTree where 
+module FingerTree where
 
 import Language.Haskell.Liquid.ProofCombinators 
 

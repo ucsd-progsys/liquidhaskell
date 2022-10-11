@@ -6,7 +6,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module MatchIdxs where
+module AmbiguousInline where
 
 import qualified Data.ByteString as BS
 -- RJ import qualified Data.ByteString.Search as BS

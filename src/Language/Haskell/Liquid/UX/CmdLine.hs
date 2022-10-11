@@ -3,11 +3,13 @@
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TemplateHaskell           #-}
 {-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE NamedFieldPuns            #-}
-{-# LANGUAGE MultiWayIf                #-}
 {-# LANGUAGE ViewPatterns              #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wwarn=deprecations #-}
 {-# OPTIONS_GHC -fno-cse #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 -- | This module contains all the code needed to output the result which
 --   is either: `SAFE` or `WARNING` with some reasonable error message when
@@ -47,10 +49,10 @@ import Prelude hiding (error)
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Maybe
+import Data.Functor ((<&>))
 import Data.Aeson (encode)
 import qualified Data.ByteString.Lazy.Char8 as B
 import Development.GitRev (gitCommitCount)
-import Options.Applicative.Simple (simpleVersion)
 import qualified Paths_liquidhaskell as Meta
 import System.Directory
 import System.Exit
@@ -74,13 +76,14 @@ import qualified Language.Fixpoint.Types as F
 import Language.Fixpoint.Solver.Stats as Solver
 import Language.Haskell.Liquid.UX.Annotate
 import Language.Haskell.Liquid.UX.Config
-import Language.Haskell.Liquid.GHC.Misc
+import Language.Haskell.Liquid.UX.SimpleVersion (simpleVersion)
+import Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.PrettyPrint ()
 import Language.Haskell.Liquid.Types       hiding (typ)
 import qualified Language.Haskell.Liquid.UX.ACSS as ACSS
 
-import qualified Language.Haskell.Liquid.GHC.API as GHC
+import qualified Liquid.GHC.API as GHC
 import           Language.Haskell.TH.Syntax.Compat (fromCode, toCode)
 
 import Text.PrettyPrint.HughesPJ           hiding (Mode, (<>))
@@ -158,6 +161,11 @@ config = cmdArgsMode $ Config {
           &= help "Disable Termination Check"
           &= name "no-termination-check"
 
+ , nopositivity
+    = def
+          &= help "Disable Data Type Positivity Check"
+          &= name "no-positivity-check"
+
  , rankNTypes
     = def &= help "Adds precise reasoning on presence of rankNTypes"
           &= name "rankNTypes"
@@ -181,7 +189,7 @@ config = cmdArgsMode $ Config {
 
  , gdepth
     = 1
-    &= help ("Size of gradual conretizations, 1 by default")
+    &= help "Size of gradual conretizations, 1 by default"
     &= name "gradual-depth"
 
  , ginteractive
@@ -275,6 +283,14 @@ config = cmdArgsMode $ Config {
     = def &= help "Do not generate ADT representations in refinement logic"
           &= name "no-adt"
 
+ , expectErrorContaining
+    = def &= help "Expect an error which containing the provided string from verification (can be provided more than once)"
+          &= name "expect-error-containing"
+
+ , expectAnyError
+    = def &= help "Expect an error, no matter which kind or what it contains"
+          &= name "expect-any-error"
+
  , scrapeImports
     = False &= help "Scrape qualifiers from imported specifications"
             &= name "scrape-imports"
@@ -348,10 +364,21 @@ config = cmdArgsMode $ Config {
         &= help "Enable Proof-by-Logical-Evaluation"
         &= name "ple"
 
+  , pleWithUndecidedGuards
+    = def
+        &= help "Unfold invocations with undecided guards in PLE"
+        &= name "ple-with-undecided-guards"
+        &= explicit
+
   , oldPLE
     = def
         &= help "Enable Proof-by-Logical-Evaluation"
         &= name "oldple"
+
+  , interpreter
+    = def
+        &= help "Use an interpreter to assist PLE in solving constraints"
+        &= name "interpreter"
 
   , proofLogicEvalLocal
     = def
@@ -387,6 +414,14 @@ config = cmdArgsMode $ Config {
     = def
         &= name "typed-holes"
         &= help "Use (refinement) typed-holes [currently warns on '_x' variables]"
+  , typeclass
+    = def
+        &= help "Enable Typeclass"
+        &= name "typeclass"
+  , auxInline
+    = def
+        &= help "Enable inlining of class methods"
+        &= name "aux-inline"
   , maxMatchDepth
     = def
         &= name "max-match-depth"
@@ -398,20 +433,13 @@ config = cmdArgsMode $ Config {
     = def
         &= name "max-args-depth"
   ,
-    maxRWOrderingConstraints
-    = def
-        &= name "max-rw-ordering-constraints"
-        &= help (   "Maximium number of symbols to compare for rewrite termination. " 
-                 ++ "Lower values can speedup verification, but rewriting may terminate prematurely. "
-                 ++ "Leave empty to consider all symbols." )
-  ,
     rwTerminationCheck
     = def
         &= name "rw-termination-check"
-        &= help (   "Enable the rewrite divergence checker. " 
+        &= help (   "Enable the rewrite divergence checker. "
                  ++ "Can speed up verification if rewriting terminates, but can also cause divergence."
                 )
-  , 
+  ,
     skipModule
     = def
         &= name "skip-module"
@@ -421,11 +449,34 @@ config = cmdArgsMode $ Config {
     = def
         &= name "no-lazy-ple"
         &= help "Don't use Lazy PLE"
- 
-  , fuel 
-    = Nothing 
+
+  , fuel
+    = Nothing
         &= help "Maximum fuel (per-function unfoldings) for PLE"
 
+  , environmentReduction
+    = def
+        &= explicit
+        &= name "environment-reduction"
+        &= help "perform environment reduction (disabled by default)"
+  , noEnvironmentReduction
+    = def
+        &= explicit
+        &= name "no-environment-reduction"
+        &= help "Don't perform environment reduction"
+  , inlineANFBindings
+    = False
+        &= explicit
+        &= name "inline-anf-bindings"
+        &= help (unwords
+          [ "Inline ANF bindings."
+          , "Sometimes improves performance and sometimes worsens it."
+          , "Disabled by --no-environment-reduction"
+          ])
+  , pandocHtml
+    = False
+      &= name "pandoc-html"
+      &= help "Use pandoc to generate html."
   } &= program "liquid"
     &= help    "Refinement Types for Haskell"
     &= summary copyright
@@ -584,16 +635,30 @@ canonConfig cfg = cfg
   }
 
 --------------------------------------------------------------------------------
-withPragmas :: Config -> FilePath -> [Located String] -> IO Config
+withPragmas :: MonadIO m => Config -> FilePath -> [Located String] -> (Config -> m a) -> m a
 --------------------------------------------------------------------------------
-withPragmas cfg fp ps
-  = foldM withPragma cfg ps >>= canonicalizePaths fp >>= (return . canonConfig)
+withPragmas cfg fp ps action
+  = do cfg' <- liftIO $ (processPragmas cfg ps >>= canonicalizePaths fp) <&> canonConfig
+       -- As the verbosity is set /globally/ via the cmdargs lib, re-set it.
+       liftIO $ setVerbosity (loggingVerbosity cfg')
+       res <- action cfg'
+       liftIO $ setVerbosity (loggingVerbosity cfg) -- restore the original verbosity.
+       pure res
+  where
+    processPragmas :: Config -> [Located String] -> IO Config
+    processPragmas c pragmas =
+      withArgs (val <$> pragmas) $
+        cmdArgsRun config { modeValue = (modeValue config) { cmdArgsValue = c } }
 
+-- | Note that this function doesn't process list arguments properly, like
+-- 'cFiles' or 'expectErrorContaining'
+-- TODO: This is only used to parse the contents of the env var LIQUIDHASKELL_OPTS
+-- so it should be able to parse multiple arguments instead. See issue #1990.
 withPragma :: Config -> Located String -> IO Config
 withPragma c s = withArgs [val s] $ cmdArgsRun
-          config { modeValue = (modeValue config) { cmdArgsValue = c } }
+                   config { modeValue = (modeValue config) { cmdArgsValue = c } }
 
-parsePragma   :: Located String -> IO Config
+parsePragma :: Located String -> IO Config
 parsePragma = withPragma defConfig
 
 defConfig :: Config
@@ -613,6 +678,7 @@ defConfig = Config
   , nostructuralterm         = def
   , noCheckUnknown           = def
   , notermination            = False
+  , nopositivity             = False
   , rankNTypes               = False
   , noclasscheck             = False
   , gradual                  = False
@@ -629,6 +695,8 @@ defConfig = Config
   , pruneUnsorted            = def
   , exactDC                  = def
   , noADT                    = def
+  , expectErrorContaining    = def
+  , expectAnyError           = False
   , cores                    = def
   , minPartSize              = FC.defaultMinPartSize
   , maxPartSize              = FC.defaultMaxPartSize
@@ -656,7 +724,9 @@ defConfig = Config
   , noslice                  = False
   , noLiftedImport           = False
   , proofLogicEval           = False
+  , pleWithUndecidedGuards   = False
   , oldPLE                   = False
+  , interpreter              = False
   , proofLogicEvalLocal      = False
   , reflection               = False
   , extensionality           = False
@@ -664,19 +734,24 @@ defConfig = Config
   , compileSpec              = False
   , noCheckImports           = False
   , typedHoles               = False
+  , typeclass                = False
+  , auxInline                = False
   , maxMatchDepth            = 4
   , maxAppDepth              = 2
   , maxArgsDepth             = 1
-  , maxRWOrderingConstraints = Nothing
   , rwTerminationCheck       = False
   , skipModule               = False
   , noLazyPLE                = False
-  , fuel 	             = Nothing
+  , fuel                     = Nothing
+  , environmentReduction     = False
+  , noEnvironmentReduction   = False
+  , inlineANFBindings        = False
+  , pandocHtml               = False
   }
 
-
--- | Writes the annotations (i.e. the files in the \".liquid\" hidden folder) and report the result
--- of the checking using a supplied function.
+-- | Write the annotations (i.e. the files in the \".liquid\" hidden folder) and
+-- report the result of the checking using a supplied function, or using an
+-- implicit JSON function, if @json@ flag is set.
 reportResult :: MonadIO m
              => (OutputResult -> m ())
              -> Config
@@ -686,8 +761,9 @@ reportResult :: MonadIO m
 reportResult logResultFull cfg targets out = do
   annm <- {-# SCC "annotate" #-} liftIO $ annotate cfg targets out
   liftIO $ whenNormal $ donePhase Loud "annotate"
-  if | json cfg  -> liftIO $ reportResultJson annm
-     | otherwise -> do
+  if json cfg then
+    liftIO $ reportResultJson annm
+   else do
          let r = o_result out
          liftIO $ writeCheckVars $ o_vars out
          cr <- liftIO $ resultWithContext r
@@ -696,7 +772,6 @@ reportResult logResultFull cfg targets out = do
          -- passed as input.
          liftIO $ printHeader (colorResult r) (orHeader outputResult)
          logResultFull outputResult
-  pure ()
   where
     tidy :: F.Tidy
     tidy = if shortErrors cfg then F.Lossy else F.Full
@@ -704,11 +779,10 @@ reportResult logResultFull cfg targets out = do
     printHeader :: Moods -> Doc -> IO ()
     printHeader mood d = colorPhaseLn mood "" (render d)
 
-
 ------------------------------------------------------------------------
 exitWithResult :: Config -> [FilePath] -> Output Doc -> IO ()
 ------------------------------------------------------------------------
-exitWithResult cfg = reportResult writeResultStdout cfg
+exitWithResult cfg targets out = void $ reportResult writeResultStdout cfg targets out
 
 reportResultJson :: ACSS.AnnMap -> IO ()
 reportResultJson annm = do
@@ -724,7 +798,7 @@ instance Show (CtxError Doc) where
   show = showpp
 
 writeCheckVars :: Symbolic a => Maybe [a] -> IO ()
-writeCheckVars Nothing     = return ()
+writeCheckVars Nothing    = return ()
 writeCheckVars (Just [])   = colorPhaseLn Loud "Checked Binders: None" ""
 writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" ""
                           >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
@@ -745,12 +819,12 @@ writeResultStdout (orMessages -> messages) = do
   forM_ messages $ \(sSpan, doc) -> putStrLn (render $ mkErrorDoc sSpan doc {- pprint sSpan <> (text ": error: " <+> doc)-})
 
 mkErrorDoc :: PPrint a => a -> Doc -> Doc
-mkErrorDoc sSpan doc = 
+mkErrorDoc sSpan doc =
   -- Gross on screen, nice for Ghcid
   -- pprint sSpan <> (text ": error: " <+> doc)
 
   -- Nice on screen, invisible in Ghcid ...
-  (pprint sSpan <> text ": error: ") $+$ (nest 4 doc)
+  (pprint sSpan <> text ": error: ") $+$ nest 4 doc
 
 
 -- | Given a 'FixResult' parameterised over a 'CError', this function returns the \"header\" to show to
@@ -760,6 +834,11 @@ resDocs _ (F.Safe  stats) =
   OutputResult {
     orHeader   = text $ "LIQUID: SAFE (" <> show (Solver.numChck stats) <> " constraints checked)"
   , orMessages = mempty
+  }
+resDocs _k (F.Crash [] s)  =
+  OutputResult {
+    orHeader = text "LIQUID: ERROR"
+  , orMessages = [(GHC.noSrcSpan, text s)]
   }
 resDocs k (F.Crash xs s)  =
   OutputResult {
@@ -779,7 +858,7 @@ cErrToSpanned k CtxError{ctErr} = (pos ctErr, pprintTidy k ctErr)
 errToFCrash :: CtxError a -> CtxError a
 errToFCrash ce = ce { ctErr    = tx $ ctErr ce}
   where
-    tx (ErrSubType l m g t t') = ErrFCrash l m g t t'
+    tx (ErrSubType l m _ g t t') = ErrFCrash l m g t t'
     tx e                       = e
 
 {-

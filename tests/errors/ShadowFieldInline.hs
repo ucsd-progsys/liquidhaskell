@@ -1,6 +1,7 @@
+{-@ LIQUID "--expect-error-containing=Multiple specifications for `pig`" @-}
 {-@ LIQUID "--exactdc" @-}
 
-module Range where
+module ShadowFieldInline where
 
 -- LH should give an error message that the field selectors `pig`
 -- is shadowed and should be renamed.

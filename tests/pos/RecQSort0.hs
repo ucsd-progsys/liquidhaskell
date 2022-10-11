@@ -1,4 +1,4 @@
-module GhcSort () where
+module RecQSort0 () where
 
 {-@ type OList a =  [a]<{\fld v -> (v >= fld)}>  @-}
 

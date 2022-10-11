@@ -1,4 +1,5 @@
-module LazyWhere () where
+{-@ LIQUID "--expect-any-error" @-}
+module LazyWhere1 () where
 
 import Language.Haskell.Liquid.Prelude
 

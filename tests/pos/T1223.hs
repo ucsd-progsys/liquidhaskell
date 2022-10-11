@@ -3,7 +3,7 @@
 {-@ LIQUID "--ple-local" @-}
 {-@ infix   ++ @-}
 
-module Reverse where
+module T1223 where
 
 import Prelude hiding (reverse, (++))
 

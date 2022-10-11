@@ -1,5 +1,8 @@
+{-@ LIQUID "--expect-error-containing=Illegal type specification for `MissingReflect.empty_foo`" @-}
 {-@ LIQUID "--reflection"                     @-}
 {-@ LIQUID "--ple"                                @-}
+
+module MissingReflect where
 
 import Language.Haskell.Liquid.ProofCombinators 
 

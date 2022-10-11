@@ -1,6 +1,7 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--reflection" @-}
 
-module Example  where 
+module T1553 where
 
 negPos :: (a -> ()) -> ()
 {-@ assume negPos :: (a -> {v:() | 0 == 1 }) -> {v:() | 0 == 1 } @-}

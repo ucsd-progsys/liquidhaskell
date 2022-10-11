@@ -1,7 +1,8 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
-module Ple1Lib where 
+module Ple1Lib where
 
 {-@ reflect adder @-}
 adder :: Int -> Int -> Int 

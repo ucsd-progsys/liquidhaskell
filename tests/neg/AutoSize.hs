@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module AutoSize where
 
 import GHC.Base

@@ -1,4 +1,5 @@
-module Blank where
+{-@ LIQUID "--expect-any-error" @-}
+module MultipleInvariants where
 
 import Data.Word
 import GHC.Ptr

@@ -7,6 +7,9 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE FlexibleInstances #-}
 
+{-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Haskell.Liquid.UX.DiffCheck (
 
    -- * Changed binders + Unchanged Errors
@@ -28,6 +31,8 @@ module Language.Haskell.Liquid.UX.DiffCheck (
    , filterBinds
    , coreDeps
    , dependsOn
+   , Def(..)
+   , coreDefs
    )
    where
 
@@ -47,8 +52,8 @@ import           Language.Fixpoint.Types                (atLoc, FixResult (..), 
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Solver.Stats ()     
 import           Language.Haskell.Liquid.Misc           (mkGraph)
-import           Language.Haskell.Liquid.GHC.Misc
-import           Language.Haskell.Liquid.GHC.API        as Ghc hiding ( Located
+import           Liquid.GHC.Misc
+import           Liquid.GHC.API        as Ghc hiding ( Located
                                                                       , sourceName
                                                                       , text
                                                                       , panic

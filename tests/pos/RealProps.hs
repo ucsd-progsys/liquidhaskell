@@ -2,7 +2,7 @@
 
 -- TAG: class
 
-module Div where
+module RealProps where
 
 {-@ type Valid = {v:Bool | v } @-}
 

@@ -5,6 +5,8 @@ module Language.Haskell.Liquid.WiredIn
        , wiredDataCons
        , wiredSortedSyms
 
+       , charDataCon
+
        -- * Constants for automatic proofs
        , dictionaryVar
        , dictionaryTyVar
@@ -24,19 +26,20 @@ module Language.Haskell.Liquid.WiredIn
 import Prelude                                hiding (error)
 
 -- import Language.Fixpoint.Misc           (mapSnd)
-import Language.Haskell.Liquid.GHC.Misc
-import qualified Language.Haskell.Liquid.GHC.API as Ghc
-import Language.Haskell.Liquid.GHC.API (Var, Arity, TyVar, Bind(..), Boxity(..), Expr(..), ArgFlag(..))
+import Liquid.GHC.Misc
+import qualified Liquid.GHC.API as Ghc
+import Liquid.GHC.API (Var, Arity, TyVar, Bind(..), Boxity(..), Expr(..), ArgFlag(..))
 import Language.Haskell.Liquid.Types.Types
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.Types.PredType
+import Language.Haskell.Liquid.Types.Names (selfSymbol)
 
 -- import Language.Fixpoint.Types hiding (panic)
 import qualified Language.Fixpoint.Types as F
 import qualified Data.HashSet as S 
 
-import Language.Haskell.Liquid.GHC.TypeRep ()
+import Liquid.GHC.TypeRep ()
 
 -- | Horrible hack to support hardwired symbols like
 --      `head`, `tail`, `fst`, `snd`
@@ -48,10 +51,10 @@ isWiredIn :: F.LocSymbol -> Bool
 isWiredIn x = isWiredInLoc x  || isWiredInName (val x) || isWiredInShape x
 
 isWiredInLoc :: F.LocSymbol -> Bool
-isWiredInLoc x  = l == l' && l == F.safePos 1 && c == c' && c' == F.safePos 1
+isWiredInLoc sym  = ln == ln' && ln == F.safePos 1 && c == c' && c' == F.safePos 1
   where
-    (l , c)  = spe (loc x)
-    (l', c') = spe (locE x)
+    (ln , c)  = spe (loc sym)
+    (ln', c') = spe (locE sym)
     spe l    = (x, y) where (_, x, y) = F.sourcePosElts l
 
 isWiredInName :: F.Symbol -> Bool
@@ -61,7 +64,7 @@ wiredInNames :: S.HashSet F.Symbol
 wiredInNames = S.fromList [ "head", "tail", "fst", "snd", "len"]
 
 isWiredInShape :: F.LocSymbol -> Bool
-isWiredInShape x = any (`F.isPrefixOfSym` (val x)) [F.anfPrefix, F.tempPrefix, dcPrefix]
+isWiredInShape x = any (`F.isPrefixOfSym` val x) [F.anfPrefix, F.tempPrefix, dcPrefix]
   -- where s        = val x
         -- dcPrefix = "lqdc"
 
@@ -69,8 +72,8 @@ dcPrefix :: F.Symbol
 dcPrefix = "lqdc"
 
 wiredSortedSyms :: [(F.Symbol, F.Sort)]
-wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
-
+wiredSortedSyms = (selfSymbol,selfSort):[(pappSym n, pappSort n) | n <- [1..pappArity]]
+  where selfSort = F.FAbs 1 (F.FVar 0)
 --------------------------------------------------------------------------------
 -- | LH Primitive TyCons -------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -116,10 +119,17 @@ wiredTyDataCons = (concat tcs, dummyLoc <$> concat dcs)
   where
     (tcs, dcs)  = unzip $ listTyDataCons : map tupleTyDataCons [2..maxArity]
 
+charDataCon :: Located DataConP
+charDataCon = dummyLoc (DataConP l0 Ghc.charDataCon  [] [] [] [("charX",lt)] lt False wiredInName l0)
+  where 
+    l0 = F.dummyPos "LH.Bare.charTyDataCons"
+    c  = Ghc.charTyCon
+    lt = rApp c [] [] mempty
+    
 listTyDataCons :: ([TyConP] , [DataConP])
-listTyDataCons   = ( [(TyConP l0 c [RTV tyv] [] [Covariant] [] (Just fsize))]
-                   , [(DataConP l0 Ghc.nilDataCon  [RTV tyv] [] [] []    lt False wiredInName l0)
-                     ,(DataConP l0 Ghc.consDataCon [RTV tyv] [] [] cargs lt False wiredInName l0)])
+listTyDataCons   = ( [TyConP l0 c [RTV tyv] [p] [Covariant] [Covariant] (Just fsize)]
+                   , [DataConP l0 Ghc.nilDataCon  [RTV tyv] [p] [] []    lt False wiredInName l0
+                   ,  DataConP l0 Ghc.consDataCon [RTV tyv] [p] [] cargs lt False wiredInName l0])
     where
       l0         = F.dummyPos "LH.Bare.listTyDataCons"
       c          = Ghc.listTyCon
@@ -140,8 +150,8 @@ wiredInName :: F.Symbol
 wiredInName = "WiredIn"
 
 tupleTyDataCons :: Int -> ([TyConP] , [DataConP])
-tupleTyDataCons n = ( [(TyConP   l0 c  (RTV <$> tyvs) ps tyvarinfo pdvarinfo Nothing)]
-                    , [(DataConP l0 dc (RTV <$> tyvs) ps []  cargs  lt False wiredInName l0)])
+tupleTyDataCons n = ( [TyConP   l0 c  (RTV <$> tyvs) ps tyvarinfo pdvarinfo Nothing]
+                    , [DataConP l0 dc (RTV <$> tyvs) ps []  cargs  lt False wiredInName l0])
   where
     tyvarinfo     = replicate n     Covariant
     pdvarinfo     = replicate (n-1) Covariant

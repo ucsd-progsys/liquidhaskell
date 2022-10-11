@@ -1,13 +1,14 @@
 packages: .
-          ./liquid-base
           ./liquid-bytestring
           ./liquid-containers
           ./liquid-fixpoint
-          ./liquid-ghc-prim
           ./liquid-parallel
           ./liquid-prelude
           ./liquid-vector
           ./liquid-platform
+          ./tests
+          ./tests/benchmarks/popl18/lib
+          ./benchmark-timings
 
 package liquid-fixpoint
   flags: +devel
@@ -15,27 +16,24 @@ package liquid-fixpoint
 package liquid-platform
   flags: +devel
 
--- Temporary section for 9.0.0 support
+tests: True
 
-repository head.hackage.ghc.haskell.org
-   url: https://ghc.gitlab.haskell.org/head.hackage/
-   secure: True
-   key-threshold: 3
-   root-keys:
-       f76d08be13e9a61a377a85e2fb63f4c5435d40f8feb3e12eb05905edb8cdea89
-       7541f32a4ccca4f97aea3b22f5e593ba2c0267546016b992dfadcd2fe944e55d
-       26021a13b401500c8eb2761ca95c61f2d625bfef951b939a8124ed12ecf07329
+with-compiler: ghc-9.0.1
 
-with-compiler: ghc-9.0.0.20200925
+source-repository-package
+    type: git
+    location: https://github.com/liquidhaskell/liquid-ghc-prim.git
+    tag: v0.7.0
 
-allow-newer:
-  Cabal,
-  base,
-  ghc,
-  ghc-prim,
-  integer-gmp,
-  template-haskell,
-  time
+source-repository-package
+    type: git
+    location: https://github.com/facundominguez/liquid-base.git
+    tag: 8ad2378cee5ccf7937d9e08aacd5c5b7128318e8
+
+source-repository-package
+    type: git
+    location: https://github.com/qnikst/ghc-timings-report
+    tag: 45ef3498e35897712bde8e002ce18df6d55f8b15
 
 constraints:
   any.Cabal ==3.4.0.0,
@@ -45,7 +43,7 @@ constraints:
   FPretty ==1.1,
   HTTP ==4000.3.15,
   ListLike ==4.7.2,
-  QuickCheck ==2.13.2 || ==2.14.1,
+  QuickCheck ==2.14.2,
   active ==0.2.0.14,
   aivika ==5.9,
   aivika-transformers ==5.9,
@@ -56,7 +54,7 @@ constraints:
   chaselev-deque ==0.5.0.5,
   combinat ==0.2.9.0,
   commonmark ==0.1.0.2,
-  conduit ==1.3.2.1,
+  conduit ==1.3.4.2,
   cql ==4.0.2,
   critbit ==0.2.0.0,
   cryptonite ==0.27,
@@ -68,13 +66,14 @@ constraints:
   enumeration ==0.2.0,
   fclabels ==2.0.5,
   foundation ==0.0.25,
-  free ==5.1.3,
+  free ==5.1.7,
+  recursion-schemes ==5.2.2,
   free-algebras ==0.1.0.0,
-  generic-deriving ==1.13.1,
+  generic-deriving ==1.14.1,
   generic-lens ==2.0.0.0,
   generic-lens-core ==2.0.0.0,
   generics-sop ==0.5.1.0,
-  haskeline ==0.7.5.0,
+  haskeline ==0.8.2,
   haskell-src-meta ==0.8.5,
   heterocephalus ==1.0.5.4,
   hgeometry ==0.11.0.0,
@@ -90,8 +89,8 @@ constraints:
   kind-generics-th ==0.2.2.1,
   language-haskell-extract ==0.2.4,
   lens ==4.19.2,
-  lens-family ==2.1.0,
-  lens-family-th ==0.5.1.0,
+  lens-family ==2.1.1,
+  lens-family-th ==0.5.2.1,
   memory ==0.15.0,
   microlens ==0.4.11.2,
   microlens-th ==0.4.3.6,
@@ -99,8 +98,8 @@ constraints:
   mustache ==2.3.1,
   network-uri ==2.6.3.0,
   obdd ==0.8.2,
-  optics-extra ==0.3,
-  optics-th ==0.3.0.2,
+  optics-extra ==0.4,
+  optics-th ==0.4,
   packman ==0.5.0,
   pandoc ==2.11,
   parameterized-utils ==2.1.1,
@@ -121,16 +120,17 @@ constraints:
   semirings ==0.5.4,
   shake ==0.19.1,
   singletons ==2.6 || ==2.7,
-  store-core ==0.4.4.3,
+  store ==0.7.12,
+  store-core ==0.4.4.4,
   streaming-bytestring ==0.1.6,
-  syb ==0.7.1,
+  syb ==0.7.2.1,
   texmath ==0.12.0.3,
-  text-show ==3.8.5,
-  th-abstraction ==0.3.2.0,
+  text-show ==3.9.6,
+  th-abstraction ==0.4.2.0,
   th-desugar ==1.10 || ==1.11,
-  th-expand-syns ==0.4.6.0,
-  th-lift-instances ==0.1.17,
-  th-utilities ==0.2.4.0,
+  th-expand-syns ==0.4.8.0,
+  th-lift-instances ==0.1.18,
+  th-utilities ==0.2.4.3,
   tpdb ==2.2.0,
   trivial-constraint ==0.6.0.0,
   true-name ==0.1.0.3,

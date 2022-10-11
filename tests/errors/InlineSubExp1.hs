@@ -1,10 +1,11 @@
+{-@ LIQUID "--expect-error-containing== f B (g A)" @-}
 
 -- https://github.com/ucsd-progsys/liquidhaskell/issues/1258
 
 {-@ LIQUID "--reflection"  @-}
 {-@ LIQUID "--short-names" @-}
 
-module T1258 where 
+module InlineSubExp1 where
 
 import Language.Haskell.Liquid.ProofCombinators 
 

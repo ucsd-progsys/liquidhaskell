@@ -7,7 +7,7 @@ module Language.Haskell.Liquid.Bare.DataType
 
   -- * Names for accessing Data Constuctors 
   , makeDataConChecker
-  , makeDataConSelector 
+  , makeDataConSelector
   , addClassEmbeds
 
   -- * Constructors
@@ -17,25 +17,21 @@ module Language.Haskell.Liquid.Bare.DataType
   , meetDataConSpec
   -- , makeTyConEmbeds
 
+  , dataDeclSize
   ) where
 
 import           Prelude                                hiding (error)
 
--- import           Text.Parsec
--- import           Var
--- import           Data.Maybe
--- import           Language.Haskell.Liquid.GHC.TypeRep
-
 import qualified Control.Exception                      as Ex
+import           Control.Monad.Reader
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
-import qualified Data.Maybe                             as Mb 
+import qualified Data.Maybe                             as Mb
 
--- import qualified Language.Fixpoint.Types.Visitor        as V
 import qualified Language.Fixpoint.Types                as F
-import qualified Language.Haskell.Liquid.GHC.Misc       as GM 
-import qualified Language.Haskell.Liquid.GHC.API        as Ghc 
+import qualified Liquid.GHC.Misc       as GM
+import qualified Liquid.GHC.API        as Ghc
 import           Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
 import qualified Language.Haskell.Liquid.Types.RefType  as RT
 import           Language.Haskell.Liquid.Types.Types
@@ -44,17 +40,14 @@ import qualified Language.Fixpoint.Misc                 as Misc
 import qualified Language.Haskell.Liquid.Misc           as Misc
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.WiredIn
+import           Language.Haskell.Liquid.Types.Names (selfSymbol)
 
 import qualified Language.Haskell.Liquid.Measure        as Ms
-import qualified Language.Haskell.Liquid.Bare.Types     as Bare  
-import qualified Language.Haskell.Liquid.Bare.Resolve   as Bare 
 
--- import qualified Language.Haskell.Liquid.Bare.Misc      as GM
--- import           Language.Haskell.Liquid.Bare.Env
--- import           Language.Haskell.Liquid.Bare.Lookup
--- import           Language.Haskell.Liquid.Bare.OfType
-
+import qualified Language.Haskell.Liquid.Bare.Types     as Bare
+import qualified Language.Haskell.Liquid.Bare.Resolve   as Bare
 import           Text.Printf                     (printf)
+import Text.PrettyPrint ((<+>))
 
 --------------------------------------------------------------------------------
 -- | 'DataConMap' stores the names of those ctor-fields that have been declared
@@ -74,7 +67,7 @@ dataConMap ds = M.fromList $ do
 --------------------------------------------------------------------------------
 makeDataConChecker :: Ghc.DataCon -> F.Symbol
 --------------------------------------------------------------------------------
-makeDataConChecker = F.testSymbol . F.symbol 
+makeDataConChecker = F.testSymbol . F.symbol
 
 --------------------------------------------------------------------------------
 -- | 'makeDataConSelector d' creates the selector `select$d$i`
@@ -84,10 +77,10 @@ makeDataConChecker = F.testSymbol . F.symbol
 --------------------------------------------------------------------------------
 makeDataConSelector :: Maybe Bare.DataConMap -> Ghc.DataCon -> Int -> F.Symbol
 makeDataConSelector dmMb d i = M.lookupDefault def (F.symbol d, i) dm
-  where 
-    dm                       = Mb.fromMaybe M.empty dmMb 
+  where
+    dm                       = Mb.fromMaybe M.empty dmMb
     def                      = makeDataConSelector' d i
- 
+
 
 makeDataConSelector' :: Ghc.DataCon -> Int -> F.Symbol
 makeDataConSelector' d i
@@ -99,13 +92,13 @@ dcSymbol = {- simpleSymbolVar -} F.symbol . Ghc.dataConWorkId
 symbolMeasure :: String -> F.Symbol -> Maybe Int -> F.Symbol
 symbolMeasure f d iMb = foldr1 F.suffixSymbol (dcPrefix : F.symbol f : d : rest)
   where
-    rest          = maybe [] (Misc.singleton . F.symbol . show) iMb
+    rest          = maybe [] (Misc.single . F.symbol . show) iMb
 
 
 --------------------------------------------------------------------------------
 -- | makeClassEmbeds: sort-embeddings for numeric, and family-instance tycons
 --------------------------------------------------------------------------------
-addClassEmbeds :: Maybe [Ghc.ClsInst] -> [Ghc.TyCon] -> F.TCEmb Ghc.TyCon 
+addClassEmbeds :: Maybe [Ghc.ClsInst] -> [Ghc.TyCon] -> F.TCEmb Ghc.TyCon
                -> F.TCEmb Ghc.TyCon
 addClassEmbeds instenv fiTcs = makeFamInstEmbeds fiTcs . makeNumEmbeds instenv
 
@@ -116,10 +109,10 @@ addClassEmbeds instenv fiTcs = makeFamInstEmbeds fiTcs . makeNumEmbeds instenv
 --   with the actual family instance  types that have numeric instances as int [Check!]
 --------------------------------------------------------------------------------
 makeFamInstEmbeds :: [Ghc.TyCon] -> F.TCEmb Ghc.TyCon -> F.TCEmb Ghc.TyCon
-makeFamInstEmbeds cs0 embs = L.foldl' embed embs famInstSorts
+makeFamInstEmbeds cs0 embeds = L.foldl' embed embeds famInstSorts
   where
     famInstSorts          = F.notracepp "famInstTcs"
-                            [ (c, RT.typeSort embs ty)
+                            [ (c, RT.typeSort embeds ty)
                                 | c   <- cs
                                 , ty  <- Mb.maybeToList (RT.famInstTyConType c) ]
     embed embs (c, t)     = F.tceInsert c t F.NoArgs embs
@@ -217,16 +210,33 @@ type DataPropDecl = (DataDecl, Maybe SpecType)
 makeDataDecls :: Config -> F.TCEmb Ghc.TyCon -> ModName
               -> [(ModName, Ghc.TyCon, DataPropDecl)]
               -> [Located DataConP]
-              -> [F.DataDecl]
+              -> (Diagnostics, [F.DataDecl])
 makeDataDecls cfg tce name tds ds
-  | makeDecls = [ makeFDataDecls tce tc dd ctors
-                | (tc, (dd, ctors)) <- groupDataCons tds' (F.notracepp "makeDataDecls" ds)
-                , tc /= Ghc.listTyCon
-                ]
-  | otherwise = []
+  | makeDecls        = (mkDiagnostics warns [], okDecs)
+  | otherwise        = (mempty, [])
   where
-    makeDecls = exactDCFlag cfg && not (noADT cfg)
-    tds'      = resolveTyCons name tds
+    makeDecls        = exactDCFlag cfg && not (noADT cfg)
+    warns            = (mkWarnDecl . fst . fst . snd <$> badTcs) ++ (mkWarnDecl <$> badDecs)
+    tds'             = resolveTyCons name tds
+    tcDds            = filter ((/= Ghc.listTyCon) . fst)
+                     $ groupDataCons tds' ds
+    (okTcs, badTcs)  = L.partition isVanillaTc tcDds
+    decs             = [ makeFDataDecls tce tc dd ctors | (tc, (dd, ctors)) <- okTcs]
+    (okDecs,badDecs) = checkRegularData decs
+
+isVanillaTc :: (a, (b, [(Ghc.DataCon, c)])) -> Bool
+isVanillaTc (_, (_, ctors)) = all (Ghc.isVanillaDataCon . fst) ctors
+
+checkRegularData :: [F.DataDecl] -> ([F.DataDecl], [F.DataDecl])
+checkRegularData ds = (oks, badDs)
+  where
+    badDs           = F.checkRegular ds
+    badSyms         = {- F.notracepp "BAD-Data" . -} S.fromList . fmap F.symbol $ badDs
+    oks             = [ d |  d <- ds, not (S.member (F.symbol d) badSyms) ]
+
+mkWarnDecl :: (F.Loc a, F.Symbolic a) => a -> Warning
+mkWarnDecl d = mkWarning (GM.fSrcSpan d) ("Non-regular data declaration" <+> pprint (F.symbol d))
+
 
 -- [NOTE:Orphan-TyCons]
 
@@ -258,8 +268,8 @@ makeDataDecls cfg tce name tds ds
 -}
 resolveTyCons :: ModName -> [(ModName, Ghc.TyCon, DataPropDecl)]
               -> [(Ghc.TyCon, (ModName, DataPropDecl))]
-resolveTyCons m mtds = [(tc, (m, d)) | (tc, mds) <- M.toList tcDecls
-                                     , (m, d)    <- Mb.maybeToList $ resolveDecls m tc mds ]
+resolveTyCons mn mtds = [(tc, (m, d)) | (tc, mds) <- M.toList tcDecls
+                                      , (m, d)    <- Mb.maybeToList $ resolveDecls mn tc mds ]
   where
     tcDecls          = Misc.group [ (tc, (m, d)) | (m, tc, d) <- mtds ]
 
@@ -291,7 +301,6 @@ isResolvedDataConP m dp = F.symbol m == dcpModule dp
 makeFDataDecls :: F.TCEmb Ghc.TyCon -> Ghc.TyCon -> DataPropDecl -> [(Ghc.DataCon, DataConP)]
                -> F.DataDecl
 makeFDataDecls tce tc dd ctors = makeDataDecl tce tc (fst dd) ctors
-                               -- ++ maybeToList (makePropDecl tce tc dd) -- TODO: AUTO-INDPRED
 
 makeDataDecl :: F.TCEmb Ghc.TyCon -> Ghc.TyCon -> DataDecl -> [(Ghc.DataCon, DataConP)]
              -> F.DataDecl
@@ -333,7 +342,7 @@ makeDataFields :: F.TCEmb Ghc.TyCon -> F.FTycon -> [RTyVar] -> [(F.LocSymbol, Sp
 makeDataFields tce _c as xts = [ F.DField x (fSort t) | (x, t) <- xts]
   where
     su    = zip (F.symbol <$> as) [0..]
-    fSort = F.substVars su . F.mapFVar (+ (length as)) . RT.rTypeSort tce
+    fSort = F.substVars su . F.mapFVar (+ length as) . RT.rTypeSort tce
 
 {- 
 muSort :: F.FTycon -> Int -> F.Sort -> F.Sort
@@ -345,59 +354,128 @@ muSort c n  = V.mapSort tx
 -}
 
 --------------------------------------------------------------------------------
-meetDataConSpec :: F.TCEmb Ghc.TyCon -> [(Ghc.Var, SpecType)] -> [DataConP] 
+meetDataConSpec :: Bool -> F.TCEmb Ghc.TyCon -> [(Ghc.Var, SpecType)] -> [DataConP]
                 -> [(Ghc.Var, SpecType)]
 --------------------------------------------------------------------------------
-meetDataConSpec emb xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 xts
+meetDataConSpec allowTC emb xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 xts
   where
-    dcm0                     = M.fromList (dataConSpec' dcs)
+    dcm0                     = M.fromList (dataConSpec' allowTC dcs)
     upd dcm (x, t)           = M.insert x (Ghc.getSrcSpan x, tx') dcm
                                 where
                                   tx' = maybe t (meetX x t) (M.lookup x dcm)
-    meetX x t (sp', t')      = F.notracepp (_msg x t t') $ meetVarTypes emb (pprint x) (Ghc.getSrcSpan x, t) (sp', t') 
+    meetX x t (sp', t')      = F.notracepp (_msg x t t') $ meetVarTypes emb (pprint x) (Ghc.getSrcSpan x, t) (sp', t')
     _msg x t t'              = "MEET-VAR-TYPES: " ++ showpp (x, t, t')
 
-dataConSpec' :: [DataConP] -> [(Ghc.Var, (Ghc.SrcSpan, SpecType))]
-dataConSpec' = concatMap tx 
+dataConSpec' :: Bool -> [DataConP] -> [(Ghc.Var, (Ghc.SrcSpan, SpecType))]
+dataConSpec' allowTC = concatMap tx
   where
-    tx dcp   =  [ (x, res) | (x, t0) <- dataConPSpecType dcp
-                          , let t    = RT.expandProductType x t0  
+    tx dcp   =  [ (x, res) | (x, t0) <- dataConPSpecType allowTC dcp
+                          , let t    = RT.expandProductType x t0
                           , let res  = (GM.fSrcSpan dcp, t)
                 ]
 --------------------------------------------------------------------------------
 -- | Bare Predicate: DataCon Definitions ---------------------------------------
 --------------------------------------------------------------------------------
-makeConTypes :: Bare.Env -> (ModName, Ms.BareSpec) 
-             -> ([(ModName, TyConP, Maybe DataPropDecl)], [[Located DataConP]])
-makeConTypes env (name, spec) 
-         = unzip  [ ofBDataDecl env name x y | (x, y) <- gvs ] 
-  where 
-    gvs  = groupVariances dcs' vdcs
-    dcs' = canonizeDecls env name dcs
-    dcs  = Ms.dataDecls spec 
-    vdcs = Ms.dvariance spec 
+makeConTypes :: ModName -> Bare.Env -> [(ModName, Ms.BareSpec)]
+             -> Bare.Lookup ([(ModName, TyConP, Maybe DataPropDecl)], [[Located DataConP]])
+makeConTypes myName env specs =
+  Misc.concatUnzip <$> mapM (makeConTypes' myName env) specs
+
+
+makeConTypes' :: ModName -> Bare.Env -> (ModName, Ms.BareSpec)
+             -> Bare.Lookup ([(ModName, TyConP, Maybe DataPropDecl)], [[Located DataConP]])
+makeConTypes' _myName env (name, spec) = do
+  dcs'   <- canonizeDecls env name dcs
+  let dcs'' = dataDeclSize spec dcs'
+  let gvs = groupVariances dcs'' vdcs
+  zong <- catLookups . map (uncurry (ofBDataDecl env name)) $ gvs
+  return (unzip zong)
+  where
+    dcs  = Ms.dataDecls spec
+    vdcs = Ms.dvariance spec
+
+
+type DSizeMap = M.HashMap F.Symbol (F.Symbol, [F.Symbol])
+normalizeDSize :: [([LocBareType], F.LocSymbol)] -> DSizeMap
+normalizeDSize ds = M.fromList (concatMap go ds)
+  where go (ts,x) = let xs = Mb.mapMaybe (getTc . val) ts
+                    in [(tc, (val x, xs)) | tc <- xs]
+        getTc (RAllT _ t _)  = getTc t
+        getTc (RApp c _ _ _) = Just (val $ btc_tc c)
+        getTc _ = Nothing
+
+dataDeclSize :: Ms.BareSpec -> [DataDecl] -> [DataDecl]
+dataDeclSize spec dcs = makeSize smap <$> dcs
+  where smap = normalizeDSize $ Ms.dsize spec
+
+
+makeSize :: DSizeMap -> DataDecl -> DataDecl
+makeSize smap d
+  | Just p <- M.lookup (F.symbol $ tycName d) smap
+  = d {tycDCons = fmap (fmap (makeSizeCtor p)) (tycDCons d) }
+  | otherwise
+   = d
+
+makeSizeCtor :: (F.Symbol, [F.Symbol]) -> DataCtor -> DataCtor
+makeSizeCtor (s,xs) d = d {dcFields = Misc.mapSnd (mapBot go) <$> dcFields d}
+  where
+    go (RApp c ts rs r) | F.symbol c `elem` xs
+                        = RApp c ts rs (r `F.meet` rsz)
+    go t                = t
+    rsz  = MkUReft (F.Reft (F.vv_, F.PAtom F.Lt
+                                      (F.EApp (F.EVar s) (F.EVar F.vv_))
+                                      (F.EApp (F.EVar s) (F.EVar selfSymbol))
+                                      ))
+                   mempty
+
+
+catLookups :: [Bare.Lookup a] -> Bare.Lookup [a]
+catLookups = sequence . Mb.mapMaybe skipResolve
+
+skipResolve  :: Bare.Lookup a -> Maybe (Bare.Lookup a)
+skipResolve (Left es) = left' (filter (not . isErrResolve) es)
+skipResolve (Right v) = Just (Right v)
+
+isErrResolve :: TError t -> Bool
+isErrResolve ErrResolve {} = True
+isErrResolve _             =  False
+
+left' :: [e] -> Maybe (Either [e] a)
+left' [] = Nothing
+left' es = Just (Left es)
+
 
 -- | 'canonizeDecls ds' returns a subset of 'ds' with duplicates, e.g. arising
 --   due to automatic lifting (via 'makeHaskellDataDecls'). We require that the
 --   lifted versions appear LATER in the input list, and always use those
 --   instead of the unlifted versions.
 
-canonizeDecls :: Bare.Env -> ModName -> [DataDecl] -> [DataDecl]
-canonizeDecls env name ds =
-  case Misc.uniqueByKey' selectDD kds of
-    Left  decls  -> err    decls
-    Right decls  -> decls
+canonizeDecls :: Bare.Env -> ModName -> [DataDecl] -> Bare.Lookup [DataDecl]
+canonizeDecls env name dataDecls = do
+  kds <- forM dataDecls $ \d -> do
+           k <- dataDeclKey env name d
+           return (fmap (, d) k)
+  case Misc.uniqueByKey' selectDD (Mb.catMaybes kds) of
+    Left  decls  -> Left [err decls]
+    Right decls  -> return decls
+            -- [ (k, d) | d <- ds, k <- rights [dataDeclKey env name d] ] 
+  -- case Misc.uniqueByKey' selectDD kds of
+    -- Left  decls  -> err    decls
+    -- Right decls  -> decls
   where
-    kds          = [ (k, d) | d <- ds, k <- Mb.maybeToList (dataDeclKey env name d) ] 
-    err ds@(d:_) = uError (errDupSpecs (pprint $ tycName d)(GM.fSrcSpan <$> ds))
+    -- kds          = F.tracepp "canonizeDecls" [ (k, d) | d <- ds, k <- rights [dataDeclKey env name d] ] 
+    err ds@(d:_) = {- uError $ -} errDupSpecs (pprint (tycName d)) (GM.fSrcSpan <$> ds)
     err _        = impossible Nothing "canonizeDecls"
 
-dataDeclKey :: Bare.Env -> ModName -> DataDecl -> Maybe F.Symbol 
--- dataDeclKey env name = fmap F.symbol . Bare.lookupGhcDnTyCon env name "canonizeDecls" . tycName
-dataDeclKey env name d = do 
-  tc    <- Bare.lookupGhcDnTyCon env name "canonizeDecls" (tycName d)
-  _     <- checkDataCtors env name tc d (tycDCons d)
-  return (F.symbol tc)
+dataDeclKey :: Bare.Env -> ModName -> DataDecl -> Bare.Lookup (Maybe F.Symbol)
+dataDeclKey env name d = do
+  tcMb  <- Bare.lookupGhcDnTyCon env name "canonizeDecls" (tycName d)
+  case tcMb of
+    Nothing ->
+      return Nothing
+    Just tc -> do
+      _ <- checkDataCtors env name tc d (tycDCons d)
+      return $ Just (F.symbol tc)
 
 -- | Perform sanity check on the data constructors of a LH datatype declaration.
 --
@@ -411,34 +489,31 @@ dataDeclKey env name d = do
 --
 -- We also check that constructors do not have duplicate fields.
 --
-checkDataCtors :: Bare.Env -> ModName -> Ghc.TyCon -> DataDecl -> Maybe [DataCtor] -> Maybe [DataCtor]
+checkDataCtors :: Bare.Env -> ModName -> Ghc.TyCon -> DataDecl -> Maybe [DataCtor] -> Bare.Lookup [DataCtor]
 checkDataCtors _env _name _c _dd Nothing     = return []
 checkDataCtors  env  name  c  dd (Just cons) = do
   -- The GHC data constructors (these are qualified)
   let dcs :: S.HashSet F.Symbol
-      dcs = S.fromList . fmap F.symbol $ Ghc.tyConDataCons c
+      dcs = S.fromList . fmap F.symbol . Ghc.tyConDataCons $ c
+
   -- The data constructors in the spec (which we have to qualify for them to match the GHC data constructors)
-  rdcs <-
-      fmap (S.fromList . fmap F.symbol)
-    $ mapM (\ x -> Bare.failMaybe env name
-          (Bare.resolveLocSym env name "checkDataCtors" (dcName x) :: Either UserError Ghc.DataCon)) cons
+  mbDcs <- mapM (Bare.failMaybe env name . Bare.lookupGhcDataCon env name "checkDataCtors" . dcName) cons
+  let rdcs = S.fromList . fmap F.symbol . Mb.catMaybes $ mbDcs
   if dcs == rdcs
     then mapM checkDataCtorDupField cons
-    else Ex.throw (errDataConMismatch (dataNameSymbol (tycName dd)) dcs rdcs)
+    else Left [errDataConMismatch (dataNameSymbol (tycName dd)) dcs rdcs]
 
 -- | Checks whether the given data constructor has duplicate fields.
 --
-checkDataCtorDupField :: DataCtor -> Maybe DataCtor 
-checkDataCtorDupField d 
-  | x : _ <- dups = uError (err lc x :: UserError)
-  | otherwise     = return d 
+checkDataCtorDupField :: DataCtor -> Bare.Lookup DataCtor
+checkDataCtorDupField d
+  | x : _ <- dups = Left [err sym x]
+  | otherwise     = return d
     where
-      lc          = dcName   d 
+      sym         = dcName   d
       xts         = dcFields d
       dups        = [ x | (x, ts) <- Misc.groupList xts, 2 <= length ts ]
       err lc x    = ErrDupField (GM.sourcePosSrcSpan $ loc lc) (pprint $ val lc) (pprint x)
-
-
 
 selectDD :: (a, [DataDecl]) -> Either [DataDecl] DataDecl
 selectDD (_,[d]) = Right d
@@ -455,8 +530,8 @@ groupVariances dcs vdcs     =  merge (L.sort dcs) (L.sortBy (\x y -> compare (fs
       | F.symbol d == sym v = (Just d, Just v)  : merge ds vs
       | F.symbol d <  sym v = (Just d, Nothing) : merge ds (v:vs)
       | otherwise           = (Nothing, Just v) : merge (d:ds) vs
-    merge []     vs         = ((Nothing,) . Just) <$> vs
-    merge ds     []         = ((,Nothing) . Just) <$> ds
+    merge []     vs         = (Nothing,) . Just <$> vs
+    merge ds     []         = (,Nothing) . Just <$> ds
     sym                     = val . fst
 
 
@@ -473,43 +548,45 @@ checkDataDecl c d = F.notracepp _msg (isGADT || cN == dN || null (tycDCons d))
     dN            = length (tycTyVars         d)
     isGADT        = Ghc.isGadtSyntaxTyCon c
 
-getDnTyCon :: Bare.Env -> ModName -> DataName -> Ghc.TyCon
-getDnTyCon env name dn = Mb.fromMaybe ugh (Bare.lookupGhcDnTyCon env name "ofBDataDecl-1" dn)
-  where 
-    ugh                = impossible Nothing "getDnTyCon"
+getDnTyCon :: Bare.Env -> ModName -> DataName -> Bare.Lookup Ghc.TyCon
+getDnTyCon env name dn = do
+  tcMb <- Bare.lookupGhcDnTyCon env name "ofBDataDecl-1" dn
+  case tcMb of
+    Just tc -> return tc
+    Nothing -> Left [ ErrBadData (GM.fSrcSpan dn) (pprint dn) "Unknown Type Constructor" ]
+  --  ugh              = impossible Nothing "getDnTyCon"
+
 
 -- FIXME: ES: why the maybes?
-ofBDataDecl :: Bare.Env -> ModName -> Maybe DataDecl -> (Maybe (LocSymbol, [Variance]))
-            -> ( (ModName, TyConP, Maybe DataPropDecl), [Located DataConP])
-ofBDataDecl env name (Just dd@(DataDecl tc as ps cts pos sfun pt _)) maybe_invariance_info
-  | not (checkDataDecl tc' dd)
-  = uError err
-  | otherwise
-  = ((name, tcp, Just (dd { tycDCons = cts }, pd)), Loc lc lc' <$> cts')
+ofBDataDecl :: Bare.Env -> ModName -> Maybe DataDecl -> Maybe (LocSymbol, [Variance])
+            -> Bare.Lookup ( (ModName, TyConP, Maybe DataPropDecl), [Located DataConP] )
+ofBDataDecl env name (Just dd@(DataDecl tc as ps cts pos sfun pt _)) maybe_invariance_info = do
+  let Loc lc lc' _ = dataNameSymbol tc
+  let πs           = Bare.ofBPVar env name pos <$> ps
+  let αs           = RTV . GM.symbolTyVar <$> as
+  let n            = length αs
+  let initmap      = zip (RT.uPVar <$> πs) [0..]
+  tc'             <- getDnTyCon env name tc
+  cts'            <- mapM (ofBDataCtor env name lc lc' tc' αs ps πs) (Mb.fromMaybe [] cts)
+  unless (checkDataDecl tc' dd) (Left [err])
+  let pd           = Bare.ofBareType env name lc (Just []) <$> F.tracepp "ofBDataDecl-prop" pt
+  let tys          = [t | dcp <- cts', (_, t) <- dcpTyArgs dcp]
+  let varInfo      = L.nub $  concatMap (getPsSig initmap True) tys
+  let defPs        = varSignToVariance varInfo <$> [0 .. (length πs - 1)]
+  let (tvi, pvi)   = case maybe_invariance_info of
+                       Nothing     -> ([], defPs)
+                       Just (_,is) -> let is_n = drop n is in
+                                      (take n is, if null is_n then defPs else is_n)
+  let tcp          = TyConP lc tc' αs πs tvi pvi sfun
+  return ((name, tcp, Just (dd { tycDCons = cts }, pd)), Loc lc lc' <$> cts')
   where
-    πs         = Bare.ofBPVar env name pos <$> ps
-    tc'        = getDnTyCon env name tc
-    -- cts        = checkDataCtors env name tc' cts0
-    cts'       = ofBDataCtor env name lc lc' tc' αs ps πs <$> Mb.fromMaybe [] cts
-    pd         = Bare.ofBareType env name lc (Just []) <$> pt
-    tys        = [t | dcp <- cts', (_, t) <- dcpTyArgs dcp]
-    initmap    = zip (RT.uPVar <$> πs) [0..]
-    varInfo    = L.nub $  concatMap (getPsSig initmap True) tys
-    defPs      = varSignToVariance varInfo <$> [0 .. (length πs - 1)]
-    (tvi, pvi) = f defPs
-    tcp          = TyConP lc tc' αs πs tvi pvi sfun
-    err          = ErrBadData (GM.fSrcSpan tc) (pprint tc) "Mismatch in number of type variables" :: UserError
-    αs           = RTV . GM.symbolTyVar <$> as
-    n            = length αs
-    Loc lc lc' _ = dataNameSymbol tc
-    f defPs      = case maybe_invariance_info of
-                     Nothing     -> ([], defPs)
-                     Just (_,is) -> (take n is, if null (drop n is) then defPs else (drop n is))
+    err            = ErrBadData (GM.fSrcSpan tc) (pprint tc) "Mismatch in number of type variables"
 
-ofBDataDecl env name Nothing (Just (tc, is))
-  = ((name, TyConP srcpos tc' [] [] tcov tcontr Nothing, Nothing), [])
+ofBDataDecl env name Nothing (Just (tc, is)) =
+  case Bare.lookupGhcTyCon env name "ofBDataDecl-2" tc of
+    Left e    -> Left e
+    Right tc' -> Right ((name, TyConP srcpos tc' [] [] tcov tcontr Nothing, Nothing), [])
   where
-    tc'            = Bare.lookupGhcTyCon env name "ofBDataDecl-2" tc
     (tcov, tcontr) = (is, [])
     srcpos         = F.dummyPos "LH.DataType.Variance"
 
@@ -517,7 +594,7 @@ ofBDataDecl _ _ Nothing Nothing
   = panic Nothing "Bare.DataType.ofBDataDecl called on invalid inputs"
 
 -- TODO:EFFECTS:ofBDataCon
-ofBDataCtor :: Bare.Env 
+ofBDataCtor :: Bare.Env
             -> ModName
             -> F.SourcePos
             -> F.SourcePos
@@ -526,41 +603,44 @@ ofBDataCtor :: Bare.Env
             -> [PVar BSort]
             -> [PVar RSort]
             -> DataCtor
-            -> DataConP
-ofBDataCtor env name l l' tc αs ps πs _ctor@(DataCtor c as _ xts res) = DataConP 
-  { dcpLoc        = l                
-  , dcpCon        = c'                
-  , dcpFreeTyVars = RT.symbolRTyVar <$> as 
-  , dcpFreePred   = πs                 
-  , dcpTyConstrs  = cs                
-  , dcpTyArgs     = zts                 
-  , dcpTyRes      = ot                
-  , dcpIsGadt     = isGadt                
-  , dcpModule     = F.symbol name          
-  , dcpLocE       = l'
-  } 
+            -> Bare.Lookup DataConP
+ofBDataCtor env name l l' tc αs ps πs dc = do
+  c' <- Bare.lookupGhcDataCon env name "ofBDataCtor" (dcName dc)
+  return (ofBDataCtorTc env name l l' tc αs ps πs dc c')
+
+ofBDataCtorTc :: Bare.Env -> ModName -> F.SourcePos -> F.SourcePos ->
+                 Ghc.TyCon -> [RTyVar] -> [PVar BSort] -> [PVar RSort] -> DataCtor -> Ghc.DataCon ->
+                 DataConP
+ofBDataCtorTc env name l l' tc αs ps πs _ctor@(DataCtor _c as _ xts res) c' =
+  DataConP
+    { dcpLoc        = l
+    , dcpCon        = c'
+    , dcpFreeTyVars = RT.symbolRTyVar <$> as
+    , dcpFreePred   = πs
+    , dcpTyConstrs  = cs
+    , dcpTyArgs     = zts
+    , dcpTyRes      = ot
+    , dcpIsGadt     = isGadt
+    , dcpModule     = F.symbol name
+    , dcpLocE       = l'
+    }
   where
-    c'            = Bare.lookupGhcDataCon env name "ofBDataCtor" c
     ts'           = Bare.ofBareType env name l (Just ps) <$> ts
     res'          = Bare.ofBareType env name l (Just ps) <$> res
     t0'           = dataConResultTy c' αs t0 res'
-    _cfg          = getConfig env 
-    (yts, ot)     = -- F.tracepp ("dataConTys: " ++ F.showpp (c, αs)) $ 
-                      qualifyDataCtor (not isGadt) name dLoc (zip xs ts', t0')
+    _cfg          = getConfig env
+    (yts, ot)     = qualifyDataCtor (not isGadt) name dLoc (zip xs ts', t0')
     zts           = zipWith (normalizeField c') [1..] (reverse yts)
     usedTvs       = S.fromList (ty_var_value <$> concatMap RT.freeTyVars (t0':ts'))
     cs            = [ p | p <- RT.ofType <$> Ghc.dataConTheta c', keepPredType usedTvs p ]
     (xs, ts)      = unzip xts
     t0            = case RT.famInstTyConType tc of
-                      Nothing -> F.notracepp "dataConResult-3: " $ RT.gApp tc αs πs
+                      Nothing -> RT.gApp tc αs πs
                       Just ty -> RT.ofType ty
     isGadt        = Mb.isJust res
     dLoc          = F.Loc l l' ()
 
-
-
-
-errDataConMismatch :: LocSymbol -> S.HashSet F.Symbol -> S.HashSet F.Symbol -> UserError
+errDataConMismatch :: LocSymbol -> S.HashSet F.Symbol -> S.HashSet F.Symbol -> Error
 errDataConMismatch d dcs rdcs = ErrDataConMismatch sp v (ppTicks <$> S.toList dcs) (ppTicks <$> S.toList rdcs)
   where
     v                 = pprint (val d)
@@ -582,7 +662,7 @@ getPsSig m pos (RVar _ r)
   = addps m pos r
 getPsSig m pos (RAppTy t1 t2 r)
   = addps m pos r ++ getPsSig m pos t1 ++ getPsSig m pos t2
-getPsSig m pos (RFun _ t1 t2 r)
+getPsSig m pos (RFun _ _ t1 t2 r)
   = addps m pos r ++ getPsSig m pos t2 ++ getPsSig m (not pos) t1
 getPsSig m pos (RHole r)
   = addps m pos r
@@ -594,8 +674,8 @@ getPsSigPs m pos (RProp _ (RHole r)) = addps m pos r
 getPsSigPs m pos (RProp _ t) = getPsSig m pos t
 
 addps :: [(UsedPVar, a)] -> b -> UReft t -> [(a, b)]
-addps m pos (MkUReft _ ps) = (flip (,)) pos . f  <$> pvars ps
-  where 
+addps m pos (MkUReft _ ps) = (, pos) . f  <$> pvars ps
+  where
     f = Mb.fromMaybe (panic Nothing "Bare.addPs: notfound") . (`L.lookup` m) . RT.uPVar
 
 keepPredType :: S.HashSet RTyVar -> SpecType -> Bool
@@ -612,18 +692,15 @@ dataConResultTy :: Ghc.DataCon
                 -> SpecType         -- ^ vanilla result type
                 -> Maybe SpecType   -- ^ user-provided result type
                 -> SpecType
-dataConResultTy _ _ _ (Just t) = t
+dataConResultTy c _ _ (Just t) = F.notracepp ("dataConResultTy-3 : vanilla = " ++ show (Ghc.isVanillaDataCon c) ++ " : ") t
 dataConResultTy c _ t _
-  | Ghc.isVanillaDataCon c     = F.notracepp ("dataConResultTy-1 : " ++ F.showpp c) $ t
+  | Ghc.isVanillaDataCon c     = F.notracepp ("dataConResultTy-1 : " ++ F.showpp c) t
   | otherwise                  = F.notracepp ("dataConResultTy-2 : " ++ F.showpp c) $ RT.ofType ct
   where
     (_,_,_,_,_,ct)             = Ghc.dataConFullSig c
-    -- _tr0                    = Ghc.dataConRepType c
-    -- _tr1                    = Ghc.varType (Ghc.dataConWorkId c)
-    -- _tr2                    = Ghc.varType (Ghc.dataConWrapId c)
 
 eqSubst :: SpecType -> Maybe (RTyVar, SpecType)
-eqSubst (RApp c [_, _, (RVar a _), t] _ _)
+eqSubst (RApp c [_, _, RVar a _, t] _ _)
   | rtc_tc c == Ghc.eqPrimTyCon = Just (a, t)
 eqSubst _                       = Nothing
 
@@ -640,18 +717,18 @@ normalizeField c i (x, t)
 type CtorType = ([(F.Symbol, SpecType)], SpecType)
 
 qualifyDataCtor :: Bool -> ModName -> F.Located a -> CtorType -> CtorType
-qualifyDataCtor qualFlag name l ct@(xts, t)
+qualifyDataCtor qualFlag name l ct@(xts, st)
  | qualFlag  = (xts', t')
  | otherwise = ct
  where
-   t'        = F.subst su <$> t
+   t'        = F.subst su <$> st
    xts'      = [ (qx, F.subst su t)       | (qx, t, _) <- fields ]
    su        = F.mkSubst [ (x, F.eVar qx) | (qx, _, Just x) <- fields ]
    fields    = [ (qx, t, mbX) | (x, t) <- xts, let (mbX, qx) = qualifyField name (F.atLoc l x) ]
 
 qualifyField :: ModName -> LocSymbol -> (Maybe F.Symbol, F.Symbol)
 qualifyField name lx
- | needsQual = (Just x, F.notracepp msg $ qualifyModName name x) 
+ | needsQual = (Just x, F.notracepp msg $ qualifyModName name x)
  | otherwise = (Nothing, x)
  where
    msg       = "QUALIFY-NAME: " ++ show x ++ " in module " ++ show (F.symbol name)
@@ -659,42 +736,75 @@ qualifyField name lx
    needsQual = not (isWiredIn lx)
 
 checkRecordSelectorSigs :: [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
-checkRecordSelectorSigs vts = [ (v, take1 v ts) | (v, ts) <- Misc.groupList vts ] 
-  where 
-    take1 v ts              = case Misc.nubHashOn (showpp . val) ts of 
-                                [t]    -> t 
+checkRecordSelectorSigs vts = [ (v, take1 v lspecTys) | (v, lspecTys) <- Misc.groupList vts ]
+  where
+    take1 v lsts            = case Misc.nubHashOn (showpp . val) lsts of
+                                [t]    -> t
                                 (t:ts) -> Ex.throw (ErrDupSpecs (GM.fSrcSpan t) (pprint v) (GM.fSrcSpan <$> ts) :: Error)
                                 _      -> impossible Nothing "checkRecordSelectorSigs"
+
+
+strengthenClassSel :: Ghc.Var -> LocSpecType -> LocSpecType
+strengthenClassSel v lt = lt { val = st }
+ where
+  st = runReader (go (F.val lt)) (1, [])
+  s = GM.namedLocSymbol v
+  extend :: F.Symbol -> (Int, [F.Symbol]) -> (Int, [F.Symbol])
+  extend x (i, xs) = (i + 1, x : xs)
+  go :: SpecType -> Reader (Int, [F.Symbol]) SpecType
+  go (RAllT a t r) = RAllT a <$> go t <*> pure r
+  go (RAllP p t  ) = RAllP p <$> go t
+  go (RFun x i tx t r) | isEmbeddedClass tx =
+    RFun x i tx <$> go t <*> pure r
+  go (RFun x i tx t r) = do
+    x' <- unDummy x <$> reader fst
+    r' <- singletonApp s <$> (L.reverse <$> reader snd)
+    RFun x' i tx <$> local (extend x') (go t) <*> pure (F.meet r r')
+  go t = RT.strengthen t . singletonApp s . L.reverse <$> reader snd
+
+singletonApp :: F.Symbolic a => F.LocSymbol -> [a] -> UReft F.Reft
+singletonApp s ys = MkUReft r mempty
+  where r = F.exprReft (F.mkEApp s (F.eVar <$> ys))
+
+
+unDummy :: F.Symbol -> Int -> F.Symbol
+unDummy x i | x /= F.dummySymbol = x
+            | otherwise          = F.symbol ("_cls_lq" ++ show i)
 
 makeRecordSelectorSigs :: Bare.Env -> ModName -> [Located DataConP] -> [(Ghc.Var, LocSpecType)]
 makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
   where
   makeOne (Loc l l' dcp)
+    | Just cls <- maybe_cls
+    = let cfs = Ghc.classAllSelIds cls in
+        fmap ((,) <$> fst <*> uncurry strengthenClassSel)
+          [(v, Loc l l' t)| (v,t) <- zip cfs (reverse $ fmap snd args)]
     | null fls                    --    no field labels
     || any (isFunTy . snd) args && not (higherOrderFlag env)   -- OR function-valued fields
     || dcpIsGadt dcp              -- OR GADT style datcon
     = []
-    | otherwise 
-    = [ (v, t) | (Just v, t) <- zip fs ts ] 
+    | otherwise
+    = [ (v, t) | (Just v, t) <- zip fs ts ]
     where
+      maybe_cls = Ghc.tyConClass_maybe (Ghc.dataConTyCon dc)
       dc  = dcpCon dcp
       fls = Ghc.dataConFieldLabels dc
-      fs  = Bare.lookupGhcNamedVar env name . Ghc.flSelector <$> fls 
+      fs  = Bare.lookupGhcNamedVar env name . Ghc.flSelector <$> fls
       ts :: [ LocSpecType ]
       ts = [ Loc l l' (mkArrow (zip (makeRTVar <$> dcpFreeTyVars dcp) (repeat mempty)) []
-                                 [] [(z, res, mempty)]
+                                 [] [(z, classRFInfo True, res, mempty)]
                                  (dropPreds (F.subst su t `RT.strengthen` mt)))
              | (x, t) <- reverse args -- NOTE: the reverse here is correct
              , let vv = rTypeValueVar t
                -- the measure singleton refinement, eg `v = getBar foo`
              , let mt = RT.uReft (vv, F.PAtom F.Eq (F.EVar vv) (F.EApp (F.EVar x) (F.EVar z)))
              ]
-  
+
       su   = F.mkSubst [ (x, F.EApp (F.EVar x) (F.EVar z)) | x <- fst <$> args ]
       args = dcpTyArgs dcp
-      z    = F.notracepp ("makeRecordSelectorSigs:" ++ show args) "lq$recSel"
+      z    = "lq$recSel"
       res  = dropPreds (dcpTyRes dcp)
-  
+
       -- FIXME: this is clearly imprecise, but the preds in the DataConP seem
       -- to be malformed. If we leave them in, tests/pos/kmp.hs fails with
       -- a malformed predicate application. Niki, help!!

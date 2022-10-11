@@ -1,12 +1,13 @@
-module Measures where
+{-@ LIQUID "--expect-any-error" @-}
+module MeasureDups where
 
-import Data.Set 
+import Data.Set
 
 {-@ LIQUID "--no-termination" @-}
 {-@ measure elements @-}
 {-@ measure dups @-}
 
-data F a = F a |  C a (F a) | E 
+data F a = F a |  C a (F a) | E
 
 dups :: Ord a => F a -> Set a
 dups E        = empty
@@ -30,5 +31,5 @@ foo (C x xs) = if member x (elements xs) then singleton x `union` foo xs else fo
 
 {-@ prop :: { v: Bool | v } @-}
 prop = dups s == empty
-  where 
-  	s = C 1 (C 3 (F 1)) :: F Int
+  where
+    s = C 1 (C 3 (F 1)) :: F Int

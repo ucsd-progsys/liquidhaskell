@@ -1,11 +1,10 @@
 -- | This module contains various functions that add/update in the CG monad.
 
-{-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE BangPatterns              #-}
-{-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE OverloadedStrings         #-}
-{-# LANGUAGE ImplicitParams            #-}
 {-# LANGUAGE FlexibleContexts          #-}
+
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.Haskell.Liquid.Constraint.Monad  where
 
@@ -13,14 +12,14 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.Text           as T
 
 import           Control.Monad
-import           Control.Monad.State (get, modify)
+import           Control.Monad.State (get, gets, modify)
 import           Language.Haskell.Liquid.Types hiding (loc)
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Fixpoint.Misc hiding (errorstar)
-import           Language.Haskell.Liquid.GHC.Misc -- (concatMapM)
-import           Language.Haskell.Liquid.GHC.SpanStack (srcSpan)
-import           Language.Haskell.Liquid.GHC.API as Ghc hiding (panic, showPpr)
+import           Liquid.GHC.Misc -- (concatMapM)
+import           Liquid.GHC.SpanStack (srcSpan)
+import           Liquid.GHC.API as Ghc hiding (panic, showPpr)
 
 --------------------------------------------------------------------------------
 -- | `addC` adds a subtyping constraint into the global pool.
@@ -28,11 +27,11 @@ import           Language.Haskell.Liquid.GHC.API as Ghc hiding (panic, showPpr)
 addC :: SubC -> String -> CG ()
 --------------------------------------------------------------------------------
 addC c@(SubC γ t1 t2) _msg
-  | toType t1 /= toType t2
-  = panic (Just $ getLocation γ) $ "addC: malformed constraint:\n" ++ _msg ++ showpp t1 ++ "\n <: \n" ++ showpp t2 
+  | toType False t1 /= toType False t2
+  = panic (Just $ getLocation γ) $ "addC: malformed constraint:\n" ++ _msg ++ showpp t1 ++ "\n <: \n" ++ showpp t2
   | otherwise
-  = modify $ \s -> s { hsCs  = c : (hsCs s) }
- 
+  = modify $ \s -> s { hsCs  = c : hsCs s }
+
 
 addC c _msg
   = modify $ \s -> s { hsCs  = c : hsCs s }
@@ -56,15 +55,15 @@ addPost γ (RRTy cts _ OCons t)
        addPost γ t
   where
     (xts, t1, t2) = envToSub cts
-addPost _ t 
-  = return t 
+addPost _ t
+  = return t
 
 --------------------------------------------------------------------------------
 -- | Add Well formedness Constraint
 --------------------------------------------------------------------------------
 addW   :: WfC -> CG ()
 --------------------------------------------------------------------------------
-addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
+addW !w = modify $ \s -> s { hsWfs = w : hsWfs s }
 
 --------------------------------------------------------------------------------
 -- | Add a warning
@@ -93,14 +92,14 @@ addLocA !xo !l !t
 
 -- | Used for annotating holes 
 
-addHole :: Var -> SpecType -> CGEnv -> CG () 
-addHole x t γ 
-  | typedHoles (getConfig γ) = 
-      do  st <- get 
+addHole :: Var -> SpecType -> CGEnv -> CG ()
+addHole x t γ
+  | typedHoles (getConfig γ) =
+      do  st <- get
           modify $ \s -> s {holesMap = M.insert x (hinfo (st, γ)) $ holesMap s}
           -- addWarning $ ErrHole loc ("hole found") (reGlobal env <> reLocal env) x' t 
   | otherwise = return ()
-    where 
+    where
       hinfo = HoleInfo t loc env
       loc   = srcSpan $ cgLoc γ
       env   = mconcat [renv γ, grtys γ, assms γ, intys γ]
@@ -129,7 +128,7 @@ addA _ _ _ !a
 
 lookupNewType :: Ghc.TyCon -> CG (Maybe SpecType)
 lookupNewType tc
-  = M.lookup tc . newTyEnv <$> get
+  = gets (M.lookup tc . newTyEnv)
 
 
 --------------------------------------------------------------------------------

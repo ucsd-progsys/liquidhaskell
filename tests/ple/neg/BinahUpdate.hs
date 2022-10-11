@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--no-adt" 	                           @-}
 {-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--higherorder"                         @-}
@@ -6,7 +7,7 @@
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
-module BinahUpdate where 
+module BinahUpdate where
 
 class PersistEntity record where
     data EntityField record typ :: *

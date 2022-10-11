@@ -1,4 +1,5 @@
-module Nats where
+{-@ LIQUID "--expect-any-error" @-}
+module BadNats where
 
 {-@ poo :: {v:Int | v == 0 } @-}
 poo :: Int 

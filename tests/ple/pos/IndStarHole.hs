@@ -3,7 +3,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
-module Star where
+module IndStarHole where
 
 type Rel a = a -> a -> Bool
 

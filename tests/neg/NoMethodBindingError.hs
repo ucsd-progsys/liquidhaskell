@@ -1,4 +1,6 @@
-module Foo where
+{-# OPTIONS_GHC -Wno-missing-methods #-}
+{-@ LIQUID "--expect-any-error" @-}
+module NoMethodBindingError where
 
 class Foo a where
   foo :: a -> a

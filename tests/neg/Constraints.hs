@@ -1,4 +1,5 @@
-module Compose where
+{-@ LIQUID "--expect-any-error" @-}
+module Constraints where
 
 {-@
 cmp :: forall < pref :: b -> Bool, postf :: b -> c -> Bool

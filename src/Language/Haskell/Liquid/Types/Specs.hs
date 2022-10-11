@@ -1,14 +1,13 @@
+{-# LANGUAGE DeriveAnyClass #-}
 -- | This module contains the top-level structures that hold 
 --   information about specifications.
 
-{-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE DerivingVia                #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE RecordWildCards            #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Language.Haskell.Liquid.Types.Specs (
   -- * Different types of specifications
@@ -79,8 +78,8 @@ import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Generics
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds 
-import           Language.Haskell.Liquid.GHC.API hiding (text, (<+>))
-import           Language.Haskell.Liquid.GHC.Types
+import           Liquid.GHC.API hiding (text, (<+>))
+import           Liquid.GHC.Types
 import           Text.PrettyPrint.HughesPJ              (text, (<+>))
 
 
@@ -210,6 +209,17 @@ data GhcSpecVars = SpVar
   , gsCMethods   :: ![Var]                        -- ^ Refined Class methods 
   }
 
+instance Semigroup GhcSpecVars where
+  sv1 <> sv2 = SpVar 
+    { gsTgtVars    = gsTgtVars    sv1 <> gsTgtVars    sv2
+    , gsIgnoreVars = gsIgnoreVars sv1 <> gsIgnoreVars sv2
+    , gsLvars      = gsLvars      sv1 <> gsLvars      sv2
+    , gsCMethods   = gsCMethods   sv1 <> gsCMethods   sv2
+    }
+
+instance Monoid GhcSpecVars where
+  mempty = SpVar mempty mempty mempty mempty
+
 data GhcSpecQual = SpQual 
   { gsQualifiers :: ![F.Qualifier]                -- ^ Qualifiers in Source/Spec files e.g tests/pos/qualTest.hs
   , gsRTAliases  :: ![F.Located SpecRTAlias]      -- ^ Refinement type aliases (only used for qualifiers)
@@ -228,6 +238,28 @@ data GhcSpecSig = SpSig
   , gsAsmRel   :: ![(Var, Var, LocSpecType, LocSpecType, RelExpr, RelExpr)]
   }
 
+instance Semigroup GhcSpecSig where
+  x <> y = SpSig 
+    { gsTySigs   = gsTySigs x   <> gsTySigs y   
+    , gsAsmSigs  = gsAsmSigs x  <> gsAsmSigs y   
+    , gsRefSigs  = gsRefSigs x  <> gsRefSigs y   
+    , gsInSigs   = gsInSigs x   <> gsInSigs y   
+    , gsNewTypes = gsNewTypes x <> gsNewTypes y   
+    , gsDicts    = gsDicts x    <> gsDicts y   
+    , gsMethods  = gsMethods x  <> gsMethods y   
+    , gsTexprs   = gsTexprs x   <> gsTexprs y   
+
+    }
+
+
+
+
+
+
+
+instance Monoid GhcSpecSig where
+  mempty = SpSig mempty mempty mempty mempty mempty mempty mempty mempty  
+
 data GhcSpecData = SpData 
   { gsCtors      :: ![(Var, LocSpecType)]         -- ^ Data Constructor Measure Sigs
   , gsMeas       :: ![(F.Symbol, LocSpecType)]    -- ^ Measure Types eg.  len :: [a] -> Int
@@ -236,7 +268,6 @@ data GhcSpecData = SpData
   , gsMeasures   :: ![Measure SpecType DataCon]   -- ^ Measure definitions
   , gsUnsorted   :: ![UnSortedExpr]
   }
-
 data GhcSpecNames = SpNames 
   { gsFreeSyms   :: ![(F.Symbol, Var)]            -- ^ List of `Symbol` free in spec and corresponding GHC var, eg. (Cons, Cons#7uz) from tests/pos/ex1.hs
   , gsDconsP     :: ![F.Located DataCon]          -- ^ Predicated Data-Constructors, e.g. see tests/pos/Map.hs
@@ -255,6 +286,18 @@ data GhcSpecTerm = SpTerm
   , gsNonStTerm  :: !(S.HashSet Var)              -- ^ Binders to CHECK using REFINEMENT-TYPES/termination metrics 
   }
 
+instance Semigroup GhcSpecTerm where
+  t1 <> t2 = SpTerm
+    { gsStTerm    = gsStTerm t1    <> gsStTerm t2
+    , gsAutosize  = gsAutosize t1  <> gsAutosize t2
+    , gsLazy      = gsLazy t1      <> gsLazy t2
+    , gsFail      = gsFail t1      <> gsFail t2
+    , gsDecr      = gsDecr t1      <> gsDecr t2
+    , gsNonStTerm = gsNonStTerm t1 <> gsNonStTerm t2
+    }
+
+instance Monoid GhcSpecTerm where
+  mempty = SpTerm mempty mempty mempty mempty mempty mempty
 data GhcSpecRefl = SpRefl 
   { gsAutoInst     :: !(M.HashMap Var (Maybe Int))      -- ^ Binders to USE PLE 
   , gsHAxioms      :: ![(Var, LocSpecType, F.Equation)] -- ^ Lifted definitions 
@@ -267,8 +310,25 @@ data GhcSpecRefl = SpRefl
   , gsRewritesWith :: M.HashMap Var [Var]
   }
 
+instance Semigroup GhcSpecRefl where
+  x <> y = SpRefl 
+    { gsAutoInst = gsAutoInst x <> gsAutoInst y 
+    , gsHAxioms  = gsHAxioms x <> gsHAxioms y
+    , gsImpAxioms = gsImpAxioms x <> gsImpAxioms y
+    , gsMyAxioms = gsMyAxioms x <> gsMyAxioms y
+    , gsReflects = gsReflects x <> gsReflects y
+    , gsLogicMap = gsLogicMap x <> gsLogicMap y
+    , gsWiredReft = gsWiredReft x <> gsWiredReft y
+    , gsRewrites = gsRewrites x <> gsRewrites y
+    , gsRewritesWith = gsRewritesWith x <> gsRewritesWith y
+    } 
+
+instance Monoid GhcSpecRefl where
+  mempty = SpRefl mempty mempty mempty
+                  mempty mempty mempty
+                  mempty mempty mempty
 data GhcSpecLaws = SpLaws 
-  { gsLawDefs :: !([(Class, [(Var, LocSpecType)])])
+  { gsLawDefs :: ![(Class, [(Var, LocSpecType)])]
   , gsLawInst :: ![LawInstance]
   }
 
@@ -300,7 +360,16 @@ type SpecMeasure   = Measure LocSpecType DataCon
 -- to undefined or out-of-scope entities.
 newtype BareSpec =
   MkBareSpec { getBareSpec :: Spec LocBareType F.LocSymbol }
-  deriving (Generic, Show, Semigroup, Monoid, Binary)
+  deriving (Generic, Show, Binary)
+
+instance Semigroup BareSpec where
+  x <> y = MkBareSpec { getBareSpec = getBareSpec x <> getBareSpec y }
+
+instance Monoid BareSpec where
+  mempty = MkBareSpec { getBareSpec = mempty } 
+
+
+-- instance Semigroup (Spec ty bndr) where
 
 -- | A generic 'Spec' type, polymorphic over the inner choice of type and binder.
 data Spec ty bndr  = Spec
@@ -325,7 +394,7 @@ data Spec ty bndr  = Spec
   , lvars      :: !(S.HashSet F.LocSymbol)        -- ^ Variables that should be checked in the environment they are used
   , lazy       :: !(S.HashSet F.LocSymbol)        -- ^ Ignore Termination Check in these Functions
   , rewrites    :: !(S.HashSet F.LocSymbol)        -- ^ Theorems turned into rewrite rules 
-  , rewriteWith :: !(M.HashMap F.LocSymbol [F.LocSymbol]) -- ^ Definitions using rewrite rules 
+  , rewriteWith :: !(M.HashMap F.LocSymbol [F.LocSymbol]) -- ^ Definitions using rewrite rules
   , fails      :: !(S.HashSet F.LocSymbol)        -- ^ These Functions should be unsafe
   , reflects   :: !(S.HashSet F.LocSymbol)        -- ^ Binders to reflect
   , autois     :: !(M.HashMap F.LocSymbol (Maybe Int))  -- ^ Automatically instantiate axioms in these Functions with maybe specified fuel
@@ -345,6 +414,7 @@ data Spec ty bndr  = Spec
   , rinstance  :: ![RInstance ty]
   , ilaws      :: ![RILaws ty]
   , dvariance  :: ![(F.LocSymbol, [Variance])]         -- ^ ? Where do these come from ?!
+  , dsize      :: ![([ty], F.LocSymbol)]      -- ^ Size measure to enforce fancy termination 
   , bounds     :: !(RRBEnv ty)
   , defs       :: !(M.HashMap F.LocSymbol F.Symbol)    -- ^ Temporary (?) hack to deal with dictionaries in specifications
                                                        --   see tests/pos/NatClass.hs
@@ -388,6 +458,7 @@ instance Semigroup (Spec ty bndr) where
            , rinstance  =           rinstance  s1 ++ rinstance  s2
            , ilaws      =               ilaws  s1 ++ ilaws      s2 
            , dvariance  =           dvariance  s1 ++ dvariance  s2
+           , dsize      =               dsize  s1 ++ dsize      s2
            , axeqs      =           axeqs s1      ++ axeqs s2
            , embeds     = mappend   (embeds   s1)  (embeds   s2)
            , lvars      = S.union   (lvars    s1)  (lvars    s2)
@@ -450,6 +521,7 @@ instance Monoid (Spec ty bndr) where
            , rinstance  = []
            , ilaws      = [] 
            , dvariance  = []
+           , dsize      = []
            , axeqs      = []
            , bounds     = M.empty
            , defs       = M.empty
@@ -526,6 +598,7 @@ data LiftedSpec = LiftedSpec
     -- ^ Refined Type-Classe Laws
   , liftedRinstance  :: HashSet (RInstance LocBareType)
   , liftedIlaws      :: HashSet (RILaws LocBareType)
+  , liftedDsize      :: [([LocBareType], F.LocSymbol)]
   , liftedDvariance  :: HashSet (F.LocSymbol, [Variance])
     -- ^ ? Where do these come from ?!
   , liftedBounds     :: RRBEnv LocBareType
@@ -537,6 +610,8 @@ data LiftedSpec = LiftedSpec
   } deriving (Eq, Generic, Show)
     deriving Hashable via Generically LiftedSpec 
     deriving Binary   via Generically LiftedSpec 
+
+instance Binary F.Equation 
 
 emptyLiftedSpec :: LiftedSpec
 emptyLiftedSpec = LiftedSpec
@@ -565,6 +640,7 @@ emptyLiftedSpec = LiftedSpec
   , liftedRinstance  = mempty
   , liftedIlaws      = mempty
   , liftedDvariance  = mempty
+  , liftedDsize      = mempty
   , liftedBounds     = mempty
   , liftedDefs       = mempty
   , liftedAxeqs      = mempty
@@ -575,8 +651,19 @@ emptyLiftedSpec = LiftedSpec
 -- | The /target/ dependencies that concur to the creation of a 'TargetSpec' and a 'LiftedSpec'.
 newtype TargetDependencies =
   TargetDependencies { getDependencies :: HashMap StableModule LiftedSpec }
-  deriving (Eq, Show, Semigroup, Monoid, Generic)
+  deriving (Eq, Show, Generic)
   deriving Binary via Generically TargetDependencies
+
+-- instance S.Store TargetDependencies
+
+instance Semigroup TargetDependencies where
+  x <> y = TargetDependencies 
+             { getDependencies = getDependencies x <> getDependencies y 
+             }
+
+
+instance Monoid TargetDependencies where
+  mempty = TargetDependencies mempty
 
 -- | Drop the given 'StableModule' from the dependencies.
 dropDependency :: StableModule -> TargetDependencies -> TargetDependencies
@@ -642,10 +729,6 @@ data GhcSpec = SP
 instance HasConfig GhcSpec where
   getConfig = _gsConfig
 
-{- 
-instance HasConfig GhcInfo where
-  getConfig = getConfig . _giSpec
--}
 
 {- $provisionalBackCompat
 
@@ -745,6 +828,7 @@ liftedSpecGetter = to toLiftedSpec
       , liftedRinstance  = S.fromList . rinstance $ a
       , liftedIlaws      = S.fromList . ilaws $ a
       , liftedDvariance  = S.fromList . dvariance $ a
+      , liftedDsize      = dsize a 
       , liftedBounds     = bounds a
       , liftedDefs       = defs a
       , liftedAxeqs      = S.fromList . axeqs $ a
@@ -795,6 +879,7 @@ unsafeFromLiftedSpec a = Spec
   , rinstance  = S.toList . liftedRinstance $ a
   , ilaws      = S.toList . liftedIlaws $ a
   , dvariance  = S.toList . liftedDvariance $ a
+  , dsize      = liftedDsize  a
   , bounds     = liftedBounds a
   , defs       = liftedDefs a
   , axeqs      = S.toList . liftedAxeqs $ a

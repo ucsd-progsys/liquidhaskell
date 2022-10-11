@@ -6,8 +6,9 @@
 
 {-# LANGUAGE GADTs #-}
 
-module RE where
+module RegexpDerivative where
 
+import Language.Haskell.Liquid.ProofCombinators (pleUnfold)
 import Prelude hiding ((++))
 
 -------------------------------------------------------------------
@@ -54,9 +55,10 @@ derivs r (Cons c cs) = derivs (deriv r c) cs
 deriv :: (Eq a) => RE a -> a -> RE a
 deriv None        _  = None
 deriv Empty       _  = None
-deriv (Char y)    x
-  | x == y           = Empty
-  | otherwise        = None
+deriv (Char y)    x  =
+    pleUnfold -- simplifies the proof in lem1a by avoiding to break
+              -- verification in cases according to x==y.
+      (if x == y then Empty else None)
 deriv (Alt r1 r2) x  = Alt (deriv r1 x) (deriv r2 x)
 deriv (Star r)    x  = Cat (deriv r x) (Star r)
 deriv (Cat r1 r2) x
@@ -273,9 +275,6 @@ app_nil_nil Nil Nil = ()
 --------------------------------------------------------------------------------
 -- | Boilerplate
 --------------------------------------------------------------------------------
-
-{-@ measure prop :: a -> b           @-}
-{-@ type Prop E = {v:_ | prop v = E} @-}
 
 (&) = seq
 

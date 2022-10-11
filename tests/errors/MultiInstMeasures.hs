@@ -1,4 +1,5 @@
-module Blank where
+{-@ LIQUID "--expect-error-containing=Multiple instance measures `sizeOf` for type `GHC.Ptr.Ptr`" @-}
+module MultiInstMeasures where
 
 import Data.Word
 import GHC.Ptr

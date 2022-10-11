@@ -1,4 +1,5 @@
-module ListSort () where
+{-@ LIQUID "--expect-any-error" @-}
+module ConstraintsAppend () where
 
 {-@ LIQUID "--no-termination" @-}
 

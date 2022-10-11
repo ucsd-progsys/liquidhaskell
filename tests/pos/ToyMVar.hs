@@ -1,5 +1,6 @@
 {-# LANGUAGE MagicHash     #-}
 {-# LANGUAGE UnboxedTuples #-}
+{-# OPTIONS_GHC -Wno-missing-methods #-}
 
 {-@ LIQUID "--no-totality"       @-}
 {-@ LIQUID "--no-termination"    @-}

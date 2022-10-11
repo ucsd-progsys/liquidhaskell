@@ -56,9 +56,9 @@ safeFromJust :: String -> Maybe t -> t
 safeFromJust _  (Just x) = x
 safeFromJust err _       = errorstar err
 
-safeFromLeft :: String -> Either a b -> a 
-safeFromLeft _   (Left l) = l 
-safeFromLeft err _        = errorstar err 
+safeFromLeft :: String -> Either a b -> a
+safeFromLeft _   (Left l) = l
+safeFromLeft err _        = errorstar err
 
 
 takeLast :: Int -> [a] -> [a]
@@ -77,9 +77,15 @@ fst4 (a,_,_,_) = a
 snd4 :: (t, t1, t2, t3) -> t1
 snd4 (_,b,_,_) = b
 
+thd4 :: (t1, t2, t3, t4) -> t3
+thd4 (_,_,b,_) = b
+
+
 thrd3 :: (t1, t2, t3) -> t3
 thrd3 (_,_,c) = c
 
+mapFifth5 :: (t -> t4) -> (t0, t1, t2, t3, t) -> (t0, t1, t2, t3, t4)
+mapFifth5 f (a, x, y, z, w) = (a, x, y, z, f w)
 
 mapFourth4 :: (t -> t4) -> (t1, t2, t3, t) -> (t1, t2, t3, t4)
 mapFourth4 f (x, y, z, w) = (x, y, z, f w)
@@ -98,6 +104,16 @@ dropThd3 (x, y, _) = (x, y)
 
 replaceN :: (Enum a, Eq a, Num a) => a -> t -> [t] -> [t]
 replaceN n y ls = [if i == n then y else x | (x, i) <- zip ls [0..]]
+
+
+thd5 :: (t0, t1, t2, t3,t4) -> t2
+thd5 (_,_,x,_,_) = x
+
+snd5 :: (t0, t1, t2, t3,t4) -> t1
+snd5 (_,x,_,_,_) = x
+
+fst5 :: (t0, t1, t2, t3,t4) -> t0
+fst5 (x,_,_,_,_) = x
 
 fourth4 :: (t, t1, t2, t3) -> t3
 fourth4 (_,_,_,x) = x
@@ -131,11 +147,23 @@ zip4 :: [t] -> [t1] -> [t2] -> [t3] -> [(t, t1, t2, t3)]
 zip4 (x1:xs1) (x2:xs2) (x3:xs3) (x4:xs4) = (x1, x2, x3, x4) : zip4 xs1 xs2 xs3 xs4
 zip4 _ _ _ _                             = []
 
-isIncludeFile :: FilePath -> FilePath -> Bool 
+zip5 :: [t] -> [t1] -> [t2] -> [t3] -> [t4] -> [(t, t1, t2, t3, t4)]
+zip5 (x1:xs1) (x2:xs2) (x3:xs3) (x4:xs4) (x5:xs5) = (x1, x2, x3, x4,x5) : zip5 xs1 xs2 xs3 xs4 xs5
+zip5 _ _ _ _ _                                    = []
+
+
+
+unzip4 :: [(t, t1, t2, t3)] -> ([t],[t1],[t2],[t3])
+unzip4 = go [] [] [] []
+  where go a1 a2 a3 a4 ((x1,x2,x3,x4):xs) = go (x1:a1) (x2:a2) (x3:a3) (x4:a4) xs
+        go a1 a2 a3 a4 [] = (reverse  a1, reverse a2, reverse a3, reverse a4)
+
+
+isIncludeFile :: FilePath -> FilePath -> Bool
 isIncludeFile incDir src = -- do 
   -- incDir <- getIncludeDir 
   -- return 
-  (incDir `L.isPrefixOf` src)
+  incDir `L.isPrefixOf` src
 
 getIncludeDir :: IO FilePath
 getIncludeDir = dropFileName <$> getDataFileName ("include" </> "Prelude.spec")
@@ -152,10 +180,10 @@ getCoreToLogicPath = do
     exePath <- dropFileName <$> getExecutablePath
     let atExe = exePath </> fileName
     exists <- doesFileExist atExe
-    
-    if exists then 
+
+    if exists then
       return atExe
-    else 
+    else
       fmap (</> fileName) getIncludeDir
 
 
@@ -178,8 +206,14 @@ safeZip3WithError msg (x:xs) (y:ys) (z:zs) = (x,y,z) : safeZip3WithError msg xs 
 safeZip3WithError _   []     []     []     = []
 safeZip3WithError msg _      _      _      = errorstar msg
 
+safeZip4WithError :: String -> [t1] -> [t2] -> [t3] -> [t4] -> [(t1, t2, t3, t4)]
+safeZip4WithError msg (x:xs) (y:ys) (z:zs) (w:ws) = (x,y,z,w) : safeZip4WithError msg xs ys zs ws
+safeZip4WithError _   []     []     []     []     = []
+safeZip4WithError msg _      _      _      _      = errorstar msg
+
+
 mapNs :: (Eq a, Num a, Foldable t) => t a -> (a1 -> a1) -> [a1] -> [a1]
-mapNs ns f xs = foldl (\xs n -> mapN n f xs) xs ns
+mapNs ns f xs = foldl (\ys n -> mapN n f ys) xs ns
 
 mapN :: (Eq a, Num a) => a -> (a1 -> a1) -> [a1] -> [a1]
 mapN 0 f (x:xs) = f x : xs
@@ -219,7 +253,7 @@ firstMaybes :: [Maybe a] -> Maybe a
 firstMaybes = listToMaybe . catMaybes
 
 fromFirstMaybes :: a -> [Maybe a] -> a
-fromFirstMaybes x = fromMaybe x . firstMaybes 
+fromFirstMaybes x = fromMaybe x . firstMaybes
 -- fromFirstMaybes x = fromMaybe x . listToMaybe . catMaybes
 
 hashMapMapWithKey   :: (k -> v1 -> v2) -> M.HashMap k v1 -> M.HashMap k v2
@@ -233,17 +267,17 @@ concatMapM f = fmap concat . mapM f
 
 replaceSubset :: (Eq k, Hashable k) => [(k, a)] -> [(k, a)] -> [(k, a)]
 replaceSubset kvs kvs' = M.toList (L.foldl' upd m0 kvs')
-  where 
-    m0                = M.fromList kvs 
-    upd m (k, v') 
-      | M.member k m  = M.insert k v' m 
-      | otherwise     = m 
+  where
+    m0                = M.fromList kvs
+    upd m (k, v')
+      | M.member k m  = M.insert k v' m
+      | otherwise     = m
 
 replaceWith :: (Eq a, Hashable a) => (b -> a) -> [b] -> [b] -> [b]
-replaceWith f xs ys = snd <$> replaceSubset xs' ys' 
-  where 
-    xs'             = [ (f x, x) | x <- xs ] 
-    ys'             = [ (f y, y) | y <- ys ] 
+replaceWith f xs ys = snd <$> replaceSubset xs' ys'
+  where
+    xs'             = [ (f x, x) | x <- xs ]
+    ys'             = [ (f y, y) | y <- ys ]
 
 
 
@@ -294,7 +328,7 @@ mkGraph :: (Eq a, Eq b, Hashable a, Hashable b) => [(a, b)] -> M.HashMap a (S.Ha
 mkGraph = fmap S.fromList . group
 
 tryIgnore :: String -> IO () -> IO ()
-tryIgnore s a = 
+tryIgnore s a =
   Ex.catch a $ \e -> do
     let err = show (e :: Ex.IOException)
     writeLoud ("Warning: Couldn't do " ++ s ++ ": " ++ err)
@@ -336,7 +370,7 @@ uniqueByKey = uniqueByKey' tx
     tx (k, vs)  = Left  (k, vs)
 
 uniqueByKey' :: (Eq k, Hashable k) => ((k, [v]) -> Either e v) -> [(k, v)] -> Either e [v]
-uniqueByKey' tx = sequence . map tx . groupList
+uniqueByKey' tx = mapM tx . groupList
 
 
 join :: (Eq b, Hashable b) => [(a, b)] -> [(b, c)] -> [(a, c)]
@@ -355,10 +389,10 @@ fstByRank rkvs = [ (r, k, v) | (k, rvs) <- krvss, let (r, v) = getFst rvs ]
 sortOn :: (Ord b) => (a -> b) -> [a] -> [a]
 sortOn f = L.sortBy (compare `on` f)
 
-firstGroup :: (Eq k, Ord k, Hashable k) => [(k, a)] -> [a] 
-firstGroup kvs = case groupList kvs of 
-  []   -> [] 
-  kvss -> snd . head . sortOn fst $ kvss 
+firstGroup :: (Eq k, Ord k, Hashable k) => [(k, a)] -> [a]
+firstGroup kvs = case groupList kvs of
+  []   -> []
+  kvss -> snd . head . sortOn fst $ kvss
 
 {- mapEither :: (a -> Either b c) -> [a] -> ([b], [c])
 mapEither f []     = ([], [])
@@ -368,24 +402,49 @@ mapEither f (x:xs) = case f x of
                      where 
                        (ys, zs) = mapEither f xs 
 -}
+mapErr :: (a -> Either e b) -> [a] -> Either [e] [b]
+mapErr f xs = catEithers (map f xs)
+
+catEithers :: [ Either a b ] -> Either [a] [b]
+catEithers zs = case ls of
+  [] -> Right rs
+  _  -> Left ls
+  where
+    ls = [ l | Left  l <- zs ]
+    rs = [ r | Right r <- zs ]
+
 
 keyDiff :: (Eq k, Hashable k) => (a -> k) -> [a] -> [a] -> [a]
 keyDiff f x1s x2s = M.elems (M.difference (m x1s) (m x2s))
-  where 
-    m xs          = M.fromList [(f x, x) | x <- xs] 
+  where
+    m xs          = M.fromList [(f x, x) | x <- xs]
 
 concatUnzip :: [([a], [b])] -> ([a], [b])
 concatUnzip xsyss = (concatMap fst xsyss, concatMap snd xsyss)
 
 
-sayReadFile :: FilePath -> IO String 
-sayReadFile f = do 
+sayReadFile :: FilePath -> IO String
+sayReadFile f = do
   -- print ("SAY-READ-FILE: " ++ f)
-  res <- readFile f 
+  res <- readFile f
   Ex.evaluate res
 
-lastModified :: FilePath -> IO (Maybe UTCTime) 
-lastModified f = do 
+lastModified :: FilePath -> IO (Maybe UTCTime)
+lastModified f = do
   ex  <- doesFileExist f
   if ex then Just <$> getModificationTime f
         else return   Nothing
+
+
+data Validate e a = Err e | Val a
+
+instance Functor (Validate e) where
+  fmap _ (Err e) = Err e
+  fmap f (Val v)  = Val (f v)
+
+instance Monoid e => Applicative (Validate e) where
+  pure = Val
+  (Err e1) <*> Err e2 = Err (e1 <> e2)
+  (Err e1) <*> _      = Err e1
+  _        <*> Err e2 = Err e2
+  (Val f)  <*> Val x  = Val (f x)

@@ -1,5 +1,6 @@
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE Trustworthy #-}
 module Data.ByteString.Char8 ( module Exports ) where
 
 import Data.Int

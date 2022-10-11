@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-overlapping-patterns #-}
+{-@ LIQUID "--expect-any-error" @-}
 module ReWrite4 where
 
 {-@ LIQUID "--reflection" @-}

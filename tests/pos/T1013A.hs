@@ -1,9 +1,8 @@
 {-@ LIQUID "--reflection"  @-}
-{-@ LIQUID "--no-adt"      @-} -- TODO: embed HKTs in SMTLIB2 ADTs (e.g. `Rec`)
 
 {-# LANGUAGE RankNTypes #-}
 
-module Bug where
+module T1013A where
 
 import Prelude hiding (fmap)
 

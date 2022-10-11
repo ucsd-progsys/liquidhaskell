@@ -1,4 +1,5 @@
-module Search where
+{-@ LIQUID "--expect-any-error" @-}
+module TermReal where
 
 {-@ search :: { hi : Int | 0 < hi } -> Int @-}
 search :: Int -> Int

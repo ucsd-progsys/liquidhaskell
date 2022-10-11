@@ -1,7 +1,7 @@
 {-@ LIQUID "--exactdc"     @-}                                                            
 {-@ LIQUID "--higherorder" @-}                                                            
 
-module Bug where                                                                          
+module T1025a where
                                                                                           
 import Language.Haskell.Liquid.ProofCombinators                                           
 import Prelude hiding (Either (..))

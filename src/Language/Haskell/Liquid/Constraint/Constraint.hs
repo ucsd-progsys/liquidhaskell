@@ -1,5 +1,6 @@
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
+
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 -- TODO: what exactly is the purpose of this module? What do these functions do?
 

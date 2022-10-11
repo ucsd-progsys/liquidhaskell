@@ -1,6 +1,7 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-@ LIQUID "--no-termination" @-}
-module Class where
+module Class3 where
 
 import Language.Haskell.Liquid.Prelude
 import Prelude hiding (sum, length, (!!), Functor(..))

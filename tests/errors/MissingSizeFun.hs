@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-error-containing=Unknown variable `llen2`" @-}
 {-@ LIQUID "--nostruct" @-}
 
 module MissingSizeFun where

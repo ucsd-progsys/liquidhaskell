@@ -1,6 +1,7 @@
+{-# OPTIONS_GHC -Wno-missing-methods #-}
 {-@ LIQUID "--no-totality" @-}
 
-module Fractional where
+module FractionalInstance where
 
 data Frac a
 

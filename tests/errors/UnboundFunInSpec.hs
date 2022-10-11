@@ -1,4 +1,5 @@
-module Goo () where
+{-@ LIQUID "--expect-error-containing=Illegal type specification for `UnboundFunInSpec.three`" @-}
+module UnboundFunInSpec () where
 
 cnt   :: Int -> Int
 cnt 0 = 0

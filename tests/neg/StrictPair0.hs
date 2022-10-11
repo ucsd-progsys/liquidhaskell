@@ -1,6 +1,7 @@
+{-@ LIQUID "--expect-any-error" @-}
 -- Compare with tests/neg/StrictPair1.hs
 
-module SPair (poo) where
+module StrictPair0 (poo) where
 
 {-@ measure tsnd @-}
 tsnd :: (a, b) -> b 

@@ -1,5 +1,8 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
+
+module MultiParamTypeClasses where
 
 class Add a b where
     rAdd :: [a] -> [b] -> [a]

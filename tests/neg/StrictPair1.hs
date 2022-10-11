@@ -1,9 +1,10 @@
+{-@ LIQUID "--expect-any-error" @-}
 -- From Data.ByteString.Fusion
 
 -- Compare with tests/neg/StrictPair0.hs
 
-module SPair (
-    PairS(..)
+module StrictPair1
+  ( PairS(..)
   , moo
   ) where
 

@@ -8,8 +8,8 @@ module Language.Haskell.Liquid.Types.Literals
   ) where
 
 import Prelude hiding (error)
-import Language.Haskell.Liquid.GHC.TypeRep ()
-import Language.Haskell.Liquid.GHC.API hiding (panic)
+import Liquid.GHC.TypeRep ()
+import Liquid.GHC.API hiding (panic)
 
 import Language.Haskell.Liquid.Types.Types
 import Language.Haskell.Liquid.Types.RefType

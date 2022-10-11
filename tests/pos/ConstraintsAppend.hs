@@ -1,4 +1,4 @@
-module ListSort () where
+module ConstraintsAppend () where
 
 {-@ LIQUID "--no-termination" @-}
 

@@ -1,4 +1,5 @@
-module Inc04 where 
+{-@ LIQUID "--expect-any-error" @-}
+module Inc04 where
 
 import Inc04Lib 
 

@@ -1,7 +1,9 @@
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Haskell.Liquid.Synthesize.Env where 
 
 import           Language.Fixpoint.Types
-import           Language.Haskell.Liquid.GHC.API as GHC
+import           Liquid.GHC.API as GHC
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Synthesize.Monad
@@ -26,7 +28,7 @@ tpToCons (RAllT _a t _x)
   = tpToCons t 
 tpToCons (RApp c args _ _r) 
   = tyConDataCons (rtc_tc c) ++ concatMap tpToCons args
-tpToCons (RFun _sym rt0 rt1 _reft)
+tpToCons (RFun _sym _ rt0 rt1 _reft)
   = tpToCons rt0 ++ tpToCons rt1
 tpToCons RVar{} 
   = []

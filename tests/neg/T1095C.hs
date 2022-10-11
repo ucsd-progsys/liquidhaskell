@@ -1,7 +1,8 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--max-case-expand=0" @-}
 {-@ LIQUID "--no-termination" @-}
 
-module Foo where
+module T1095C where
 
 data Foo 
   = A Foo 

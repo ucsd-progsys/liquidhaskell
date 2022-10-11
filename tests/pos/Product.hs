@@ -1,4 +1,4 @@
-module Vectors where
+module Product where
 
 import Prelude hiding (sum, product, zipWith)
 

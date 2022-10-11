@@ -1,5 +1,5 @@
 {-@ LIQUID "--no-totality" @-}
-module BST where
+module BST000 where
 
 import Language.Haskell.Liquid.Prelude
 

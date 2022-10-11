@@ -1,6 +1,6 @@
 {-@ LIQUID "--exactdc"      @-}
 {-@ LIQUID "--higherorder"  @-}
-module Data.Foo where
+module ReflectBooleanFunctions where
 
 
 {-@ reflect foo @-}

@@ -2,7 +2,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--extensionality" @-}
 
-module T1560 where 
+module T1560 where
 
 k :: a -> b -> b
 k _ b = b

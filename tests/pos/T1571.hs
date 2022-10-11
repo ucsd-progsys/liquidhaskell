@@ -1,4 +1,4 @@
-module MalformedTypeclass where
+module T1571 where
 
   data TaggedT m a = TaggedT (m a)
   

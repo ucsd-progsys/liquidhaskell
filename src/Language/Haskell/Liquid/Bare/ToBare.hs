@@ -1,6 +1,8 @@
 -- | This module contains functions that convert things
 --   to their `Bare` versions, e.g. SpecType -> BareType etc.
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Haskell.Liquid.Bare.ToBare
   ( -- * Types
     specToBare
@@ -14,8 +16,8 @@ import           Data.Bifunctor
 
 import           Language.Fixpoint.Misc (mapSnd)
 import qualified Language.Fixpoint.Types as F
-import           Language.Haskell.Liquid.GHC.Misc
-import           Language.Haskell.Liquid.GHC.API
+import           Liquid.GHC.Misc
+import           Liquid.GHC.API
 import           Language.Haskell.Liquid.Types
 -- import           Language.Haskell.Liquid.Measure
 -- import           Language.Haskell.Liquid.Types.RefType
@@ -37,7 +39,7 @@ measureToBare :: SpecMeasure -> BareMeasure
 measureToBare = bimap (fmap specToBare) dataConToBare
 
 dataConToBare :: DataCon -> LocSymbol
-dataConToBare d = (dropModuleNames . F.symbol) <$> locNamedThing d
+dataConToBare d = dropModuleNames . F.symbol <$> locNamedThing d
   where
     _msg  = "dataConToBare dc = " ++ show d ++ " v = " ++ show v ++ " vx = " ++ show vx
     v     = dataConWorkId d
@@ -56,8 +58,8 @@ txRType cF vF = go
     go (RVar α r)          = RVar  (vF α) r
     go (RAllT α t r)       = RAllT (goRTV α) (go t) r
     go (RAllP π t)         = RAllP (goPV  π) (go t)
-    go (RImpF x t t' r)     = RImpF  x         (go t) (go t') r
-    go (RFun x t t' r)     = RFun  x         (go t) (go t') r
+    go (RImpF x i t t' r)  = RImpF  x i      (go t) (go t') r
+    go (RFun x i t t' r)   = RFun   x i      (go t) (go t') r
     go (RAllE x t t')      = RAllE x         (go t) (go t')
     go (REx x t t')        = REx   x         (go t) (go t')
     go (RAppTy t t' r)     = RAppTy          (go t) (go t') r

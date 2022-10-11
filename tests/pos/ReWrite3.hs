@@ -1,8 +1,10 @@
+{-# OPTIONS_GHC -Wno-overlapping-patterns #-}
 -- Ensure that rewrites work with refinements
-module ReWrite3 where 
+module ReWrite3 where
 
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
+{-@ LIQUID "--rw-termination-check" @-}
 {-@ infix ++ @-}
 
 import Prelude hiding ((++), drop, length)

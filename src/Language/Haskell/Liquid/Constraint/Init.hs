@@ -1,11 +1,12 @@
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE OverloadedStrings         #-}
+
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 -- | This module defines the representation of Subtyping and WF Constraints,
 --   and the code for syntax-directed constraint generation.
@@ -17,7 +18,7 @@ module Language.Haskell.Liquid.Constraint.Init (
 
 import           Prelude                                       hiding (error, undefined)
 import           Control.Monad.State
-import           Data.Maybe                                    (isNothing, fromMaybe, catMaybes)
+import           Data.Maybe                                    (isNothing, fromMaybe, catMaybes, mapMaybe)
 import qualified Data.HashMap.Strict                           as M
 import qualified Data.HashSet                                  as S
 import qualified Data.List                                     as L
@@ -28,9 +29,9 @@ import qualified Language.Haskell.Liquid.UX.CTags              as Tg
 import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Haskell.Liquid.WiredIn               (dictionaryVar)
-import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
-import           Language.Haskell.Liquid.GHC.Misc             ( idDataConM, hasBaseTypeVar, isDataConId) -- dropModuleNames, simplesymbol)
-import           Language.Haskell.Liquid.GHC.API               as Ghc hiding (mapSndM)
+import qualified Liquid.GHC.SpanStack         as Sp
+import           Liquid.GHC.Misc             ( idDataConM, hasBaseTypeVar, isDataConId) -- dropModuleNames, simplesymbol)
+import           Liquid.GHC.API               as Ghc hiding (mapSndM)
 import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.Constraint.Types
@@ -45,69 +46,71 @@ initEnv info
        let fVars = giImpVars (giSrc info)
        let dcs   = filter isConLikeId (snd <$> gsFreeSyms (gsName sp))
        let dcs'  = filter isConLikeId fVars
-       defaults <- forM fVars $ \x -> liftM (x,) (trueTy $ varType x)
-       dcsty    <- forM dcs   makeDataConTypes
-       dcsty'   <- forM dcs'  makeDataConTypes
-       (hs,f0)  <- refreshHoles $ grty info                           -- asserted refinements     (for defined vars)
+       defaults <- forM fVars $ \x -> fmap (x,) (trueTy allowTC $ varType x)
+       dcsty    <- forM dcs   (makeDataConTypes allowTC)
+       dcsty'   <- forM dcs'  (makeDataConTypes allowTC)
+       (hs,f0)  <- refreshHoles allowTC $ grty info                           -- asserted refinements     (for defined vars)
        f0''     <- refreshArgs' =<< grtyTop info                      -- default TOP reftype      (for exported vars without spec)
        let f0'   = if notruetypes $ getConfig sp then [] else f0''
        f1       <- refreshArgs'   defaults                            -- default TOP reftype      (for all vars)
        f1'      <- refreshArgs' $ makeExactDc dcsty                   -- data constructors
        f2       <- refreshArgs' $ assm info                           -- assumed refinements      (for imported vars)
        f3'      <- refreshArgs' =<< recSelectorsTy info                      -- assumed refinements      (for record selectors)
-       f3       <- addPolyInfo' <$> (refreshArgs' $ vals gsAsmSigs (gsSig sp))                 -- assumed refinedments     (with `assume`)
-       f40      <- makeExactDc <$> (refreshArgs' $ vals gsCtors (gsData sp)) -- constructor refinements  (for measures)
+       f3       <- addPolyInfo' <$> refreshArgs' (vals gsAsmSigs (gsSig sp))                 -- assumed refinedments     (with `assume`)
+       f40      <- makeExactDc <$> refreshArgs' (vals gsCtors (gsData sp)) -- constructor refinements  (for measures)
        f5       <- refreshArgs' $ vals gsInSigs (gsSig sp)                   -- internal refinements     (from Haskell measures)
        fi       <- refreshArgs' $ catMaybes $ [(x,) . val <$> getMethodType mt | (x, mt) <- gsMethods $ gsSig $ giSpec info ]
        (invs1, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty  (gsAutosize (gsTerm sp)) dcs
        (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (gsAutosize (gsTerm sp)) dcs'
        let f4    = mergeDataConTypes tce (mergeDataConTypes tce f40 (f41 ++ f42)) (filter (isDataConId . fst) f2)
        let tx    = mapFst F.symbol . addRInv ialias . predsUnify sp
-       f6       <- (map tx . addPolyInfo') <$> (refreshArgs' $ vals gsRefSigs (gsSig sp))  
+       f6       <- map tx . addPolyInfo' <$> refreshArgs' (vals gsRefSigs (gsSig sp))
        let bs    = (tx <$> ) <$> [f0 ++ f0' ++ fi, f1 ++ f1', f2, f3 ++ f3', f4, f5]
        modify $ \s -> s { dataConTys = f4 }
-       lt1s     <- F.toListSEnv . cgLits <$> get
+       lt1s     <- gets (F.toListSEnv . cgLits)
        let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
        let cbs   = giCbs . giSrc $ info
-       rTrue   <- mapM (mapSndM true) f6 
+       rTrue   <- mapM (mapSndM (true allowTC)) f6
        let γ0    = measEnv sp (head bs) cbs tcb lt1s lt2s (f6 ++ bs!!3) (bs!!5) hs info
-       γ  <- globalize <$> foldM (+=) γ0 ( [("initEnv", x, y) | (x, y) <- concat $ (rTrue:tail bs)])
+       γ  <- globalize <$> foldM (+=) γ0 ( [("initEnv", x, y) | (x, y) <- concat (rTrue:tail bs)])
        return γ {invs = is (invs1 ++ invs2)}
   where
+    allowTC      = typeclass (getConfig info)
     sp           = giSpec info
     ialias       = mkRTyConIAl (gsIaliases (gsData sp))
     vals f       = map (mapSnd val) . f
-    mapSndM f    = \(x,y) -> ((x,) <$> f y)
-    makeExactDc dcs = if exactDCFlag info then map strengthenDataConType dcs else dcs
     is autoinv   = mkRTyConInv    (gsInvariants (gsData sp) ++ ((Nothing,) <$> autoinv))
-    addPolyInfo' = if reflection (getConfig info) then map (mapSnd addPolyInfo) else id 
+    addPolyInfo' = if reflection (getConfig info) then map (mapSnd addPolyInfo) else id
+
+    mapSndM f (x,y) = (x,) <$> f y
+    makeExactDc dcs = if exactDCFlag info then map strengthenDataConType dcs else dcs
 
 addPolyInfo :: SpecType -> SpecType
-addPolyInfo t = mkUnivs (go <$> as) ps t' 
-  where 
-    (as, ps, t') = bkUniv t 
-    pos          = tyVarsPosition t' 
-    go (a,r) = if {- ty_var_value a `elem` ppos pos && -}  ty_var_value a `notElem` pneg pos 
-               then (setRtvPol a False,r)  
-               else (a,r) 
+addPolyInfo t = mkUnivs (go <$> as) ps t'
+  where
+    (as, ps, t') = bkUniv t
+    pos          = tyVarsPosition t'
+    go (a,r) = if {- ty_var_value a `elem` ppos pos && -}  ty_var_value a `notElem` pneg pos
+               then (setRtvPol a False,r)
+               else (a,r)
 
-makeDataConTypes :: Var -> CG (Var, SpecType)
-makeDataConTypes x = (x,) <$> (trueTy $ varType x)
+makeDataConTypes :: Bool -> Var -> CG (Var, SpecType)
+makeDataConTypes allowTC x = (x,) <$> trueTy allowTC (varType x)
 
 makeAutoDecrDataCons :: [(Id, SpecType)] -> S.HashSet TyCon -> [Id] -> ([LocSpecType], [(Id, SpecType)])
 makeAutoDecrDataCons dcts specenv dcs
   = (simplify invs, tys)
   where
     (invs, tys) = unzip $ concatMap go tycons
-    tycons      = L.nub $ catMaybes $ map idTyCon dcs
+    tycons      = L.nub $ mapMaybe idTyCon dcs
 
     go tycon
       | S.member tycon specenv =  zipWith (makeSizedDataCons dcts) (tyConDataCons tycon) [0..]
     go _
       = []
 
-    simplify invs = dummyLoc . (`strengthen` invariant) .  fmap (\_ -> mempty) <$> L.nub invs
+    simplify invs = dummyLoc . (`strengthen` invariant) .  fmap (const mempty) <$> L.nub invs
     invariant = MkUReft (F.Reft (F.vv_, F.PAtom F.Ge (lenOf F.vv_) (F.ECon $ F.I 0)) ) mempty
 
 idTyCon :: Id -> Maybe TyCon
@@ -124,7 +127,7 @@ makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_r
       trep   = toRTypeRep t
       tres   = ty_res trep `strengthen` MkUReft (F.Reft (F.vv_, F.PAtom F.Eq (lenOf F.vv_) computelen)) mempty
 
-      recarguments = filter (\(t,_) -> (toRSort t == toRSort tres)) (zip (ty_args trep) (ty_binds trep))
+      recarguments = filter (\(t,_) -> toRSort t == toRSort tres) (zip (ty_args trep) (ty_binds trep))
       computelen   = foldr (F.EBin F.Plus) (F.ECon $ F.I n) (lenOf .  snd <$> recarguments)
 
 mergeDataConTypes ::  F.TCEmb TyCon -> [(Var, SpecType)] -> [(Var, SpecType)] -> [(Var, SpecType)]
@@ -208,7 +211,7 @@ assm :: TargetInfo -> [(Var, SpecType)]
 assm = assmGrty (giImpVars . giSrc)
 
 grty :: TargetInfo -> [(Var, SpecType)]
-grty = assmGrty (giDefVars . giSrc) 
+grty = assmGrty (giDefVars . giSrc)
 
 assmGrty :: (TargetInfo -> [Var]) -> TargetInfo -> [(Var, SpecType)]
 assmGrty f info = [ (x, val t) | (x, t) <- sigs, x `S.member` xs ]
@@ -218,17 +221,17 @@ assmGrty f info = [ (x, val t) | (x, t) <- sigs, x `S.member` xs ]
 
 
 recSelectorsTy :: TargetInfo -> CG [(Var, SpecType)]
-recSelectorsTy info = forM topVs $ \v -> (v,) <$> trueTy (varType v)
+recSelectorsTy info = forM topVs $ \v -> (v,) <$> trueTy (typeclass (getConfig info)) (varType v)
   where
     topVs        = filter isTop $ giDefVars (giSrc info)
     isTop v      = isExportedVar (giSrc info) v && not (v `S.member` sigVs) &&  isRecordSelector v
     sigVs        = S.fromList [v | (v,_) <- gsTySigs sp ++ gsAsmSigs sp ++ gsRefSigs sp ++ gsInSigs sp]
     sp           = gsSig . giSpec $ info
-    
+
 
 
 grtyTop :: TargetInfo -> CG [(Var, SpecType)]
-grtyTop info     = forM topVs $ \v -> (v,) <$> trueTy (varType v)
+grtyTop info     = forM topVs $ \v -> (v,) <$> trueTy (typeclass (getConfig info)) (varType v)
   where
     topVs        = filter isTop $ giDefVars (giSrc info)
     isTop v      = isExportedVar (giSrc info) v && not (v `S.member` sigVs) && not (isRecordSelector v)
@@ -269,9 +272,10 @@ initCGI cfg info = CGInfo {
   , termExprs  = M.fromList [(v, es) | (v, _, es) <- gsTexprs (gsSig spc) ]
   , specDecr   = gsDecr  tspc
   , specLVars  = gsLvars (gsVars spc)
-  , specLazy   = dictionaryVar `S.insert` (gsLazy tspc)
+  , specLazy   = dictionaryVar `S.insert` gsLazy tspc
   , specTmVars = gsNonStTerm tspc
   , tcheck     = terminationCheck cfg
+  , cgiTypeclass = typeclass cfg
   , pruneRefs  = pruneUnsorted cfg
   , logErrors  = []
   , kvProf     = emptyKVProf
@@ -283,7 +287,7 @@ initCGI cfg info = CGInfo {
   , unsorted   = F.notracepp "UNSORTED" $ F.makeTemplates $ gsUnsorted $ gsData spc
   }
   where
-    tce        = gsTcEmbeds nspc 
+    tce        = gsTcEmbeds nspc
     tspc       = gsTerm spc
     spc        = giSpec info
     tyi        = gsTyconEnv nspc

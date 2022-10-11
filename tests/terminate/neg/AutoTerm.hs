@@ -1,6 +1,7 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--nostruct" @-}
 
-module Isort where
+module AutoTerm where
 
 data F = F | C Int F  
 

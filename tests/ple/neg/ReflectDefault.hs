@@ -1,9 +1,10 @@
+{-@ LIQUID "--expect-any-error" @-}
 
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 {-@ LIQUID "--max-case-expand=0" @-}
 
-module ReflectDefault where 
+module ReflectDefault where
 
 data Thing = A | B | C | D 
 

@@ -1,4 +1,5 @@
-module Abs where
+{-@ LIQUID "--expect-any-error" @-}
+module DoubleLit where
 
 {-@ inline absD @-}
 absD :: Double -> Double

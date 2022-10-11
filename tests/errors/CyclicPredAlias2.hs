@@ -1,4 +1,6 @@
-module Test2 () where
+{-@ LIQUID "--expect-error-containing=Cyclic type alias definition for `CyclicC1`" @-}
+
+module CyclicPredAlias2 () where
 
 {-@ predicate CyclicC1 Q = CyclicC2 Q && CyclicC3 Q @-}
 {-@ predicate CyclicC2 Q = CyclicC1 Q @-}

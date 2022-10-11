@@ -1,4 +1,7 @@
+{-@ LIQUID "--expect-error-containing=Multiple specifications for `DupFunSigs.fromWeekDayNum`" @-}
 -- See https://github.com/ucsd-progsys/liquidhaskell/issues/1137
+
+module DupFunSigs where
 
 import Data.List
 

@@ -1,4 +1,5 @@
-module Class00 where 
+{-@ LIQUID "--expect-any-error" @-}
+module Class00 where
 
 class Zoo a where 
   zoo :: Int -> a 

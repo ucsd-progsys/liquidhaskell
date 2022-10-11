@@ -2,7 +2,7 @@ module RewriteClient where
 
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
-{-@ LIQUID "--max-rw-ordering-constraints=1" @-}
+{-@ LIQUID "--rw-termination-check" @-}
 
 {-@ infix ++ @-}
 

@@ -1,4 +1,5 @@
-module TerminationExpr where
+{-@ LIQUID "--expect-error-containing=Illegal termination specification for `TerminationExprNum.showSep`" @-}
+module TerminationExprNum where
 
 {-@ showSep :: _ -> xs:_ -> _ / [xs] @-} -- use xs as reducing param
 showSep :: String -> [String] -> String

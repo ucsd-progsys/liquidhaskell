@@ -1,8 +1,9 @@
+{-@ LIQUID "--expect-any-error" @-}
 
 {-@ LIQUID "--reflection"     @-}
 {-@ LIQUID "--ple"            @-}
 
-module Query where
+module EvalQuery where
 
 data Atom  = VarX
            | VarY

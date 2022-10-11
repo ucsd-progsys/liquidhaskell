@@ -1,4 +1,5 @@
-module OverWrite where
+{-@ LIQUID "--expect-error-containing=Unknown variable `goober`" @-}
+module MissingAssume where
 
 import qualified Data.Set
 

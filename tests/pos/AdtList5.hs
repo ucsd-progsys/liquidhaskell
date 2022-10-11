@@ -4,7 +4,7 @@
 
 {-@ LIQUID "--exact-data-cons" @-}
 
-module AdtList where
+module AdtList5 where
 
 data Zing = ZZ (Int -> ())
 

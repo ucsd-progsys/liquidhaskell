@@ -1,8 +1,11 @@
+{-@ LIQUID "--expect-error-containing=Specified type does not refine Haskell type for `Inconsistent0.id1`" @-}
 -- FAILING TEST: this test SHOULD FAIL BUT DOESN'T
 -- issue #519
 
+{-@ LIQUID "--no-positivity-check" @-}
+
 {-# LANGUAGE DeriveFunctor #-}
-module Ast where
+module Inconsistent0 where
 
 data AstIndex = IxExpr | IxType
 

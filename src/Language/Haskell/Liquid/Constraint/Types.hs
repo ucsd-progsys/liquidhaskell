@@ -1,10 +1,9 @@
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE TupleSections        #-}
-{-# LANGUAGE EmptyDataDecls       #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.Haskell.Liquid.Constraint.Types
   ( -- * Constraint Generation Monad
@@ -53,19 +52,21 @@ module Language.Haskell.Liquid.Constraint.Types
   , removeInvariant, restoreInvariant, makeRecInvariants
 
   , getTemplates
+
+  , getLocation
   ) where
 
 import Prelude hiding (error)
-import           Text.PrettyPrint.HughesPJ hiding ((<>)) 
+import           Text.PrettyPrint.HughesPJ hiding ((<>))
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
 import           Control.DeepSeq
-import           Data.Maybe               (catMaybes, isJust)
+import           Data.Maybe               (isJust, mapMaybe)
 import           Control.Monad.State
 
-import           Language.Haskell.Liquid.GHC.SpanStack
-import           Language.Haskell.Liquid.GHC.API    as Ghc hiding ( (<+>)
+import           Liquid.GHC.SpanStack
+import           Liquid.GHC.API    as Ghc hiding ( (<+>)
                                                                   , vcat
                                                                   , parens
                                                                   , ($+$)
@@ -114,7 +115,7 @@ data CGEnv = CGE
 instance HasConfig CGEnv where
   getConfig = getConfig . cgInfo
 
-data LConstraint = LC [[(F.Symbol, SpecType)]]
+newtype LConstraint = LC [[(F.Symbol, SpecType)]]
 
 instance Monoid LConstraint where
   mempty  = LC []
@@ -128,6 +129,9 @@ instance PPrint CGEnv where
 
 instance Show CGEnv where
   show = showpp
+
+getLocation :: CGEnv -> SrcSpan
+getLocation = srcSpan . cgLoc
 
 --------------------------------------------------------------------------------
 -- | Subtyping Constraints -----------------------------------------------------
@@ -155,14 +159,42 @@ subVar :: FixSubC -> Maybe Var
 subVar = ci_var . F.sinfo
 
 instance PPrint SubC where
-  pprintTidy k c@(SubC {}) = pprintTidy k (senv c)
-                             $+$ ("||-" <+> vcat [ pprintTidy k (lhs c)
-                                                 , "<:"
-                                                 , pprintTidy k (rhs c) ] )
-  pprintTidy k c@(SubR {}) = pprintTidy k (senv c)
-                             $+$ ("||-" <+> vcat [ pprintTidy k (ref c)
-                                                 , parens (pprintTidy k (oblig c))])
+  pprintTidy k c@(SubC {}) =
+    "The environment:"
+    $+$
+    ""
+    $+$
+    pprintTidy k (senv c)
+    $+$
+    ""
+    $+$
+    "Location: " <> pprintTidy k (getLocation (senv c))
+    $+$
+    "The constraint:"
+    $+$
+    ""
+    $+$
+    "||-" <+> vcat [ pprintTidy k (lhs c)
+                   , "<:"
+                   , pprintTidy k (rhs c) ]
 
+  pprintTidy k c@(SubR {}) =
+    "The environment:"
+    $+$
+    ""
+    $+$
+    pprintTidy k (senv c)
+    $+$
+    ""
+    $+$
+    "Location: " <> pprintTidy k (getLocation (senv c))
+    $+$
+    "The constraint:"
+    $+$
+    ""
+    $+$
+    "||-" <+> vcat [ pprintTidy k (ref c)
+                   , parens (pprintTidy k (oblig c))]
 
 instance PPrint WfC where
   pprintTidy k (WfC _ r) = {- pprintTidy k w <> text -} "<...> |-" <+> pprintTidy k r
@@ -171,7 +203,7 @@ instance PPrint WfC where
 --------------------------------------------------------------------------------
 -- | Generation: Types ---------------------------------------------------------
 --------------------------------------------------------------------------------
-data CGInfo = CGInfo 
+data CGInfo = CGInfo
   { fEnv       :: !(F.SEnv F.Sort)             -- ^ top-level fixpoint env
   , hsCs       :: ![SubC]                      -- ^ subtyping constraints over RType
   , hsWfs      :: ![WfC]                       -- ^ wellformedness constraints over RType
@@ -197,6 +229,7 @@ data CGInfo = CGInfo
   , cgConsts   :: !(F.SEnv F.Sort)             -- ^ Distinct constant symbols in the refinement logic
   , cgADTs     :: ![F.DataDecl]                -- ^ ADTs extracted from Haskell 'data' definitions
   , tcheck     :: !Bool                        -- ^ Check Termination (?)
+  , cgiTypeclass :: !Bool                      -- ^ Enable typeclass support
   , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
   , logErrors  :: ![Error]                     -- ^ Errors during constraint generation
   , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars
@@ -210,11 +243,11 @@ data CGInfo = CGInfo
 
 
 getTemplates :: CG F.Templates
-getTemplates = do 
-  fg     <- pruneRefs <$> get
-  ts     <- unsorted  <$> get
-  return $ if fg then F.anything else ts 
-       
+getTemplates = do
+  fg    <- gets pruneRefs
+  ts    <- gets unsorted
+  return $ if fg then F.anything else ts
+
 
 instance PPrint CGInfo where
   pprintTidy = pprCGInfo
@@ -288,7 +321,7 @@ lookupRInv :: SpecType -> RTyConInv -> Maybe [SpecType]
 lookupRInv (RApp c ts _ _) m
   = case M.lookup c m of
       Nothing   -> Nothing
-      Just invs -> Just (catMaybes $ goodInvs ts <$> invs)
+      Just invs -> Just (mapMaybe (goodInvs ts) invs)
 lookupRInv _ _
   = Nothing
 
@@ -303,12 +336,12 @@ goodInvs ts (RInv ts' t _)
 
 
 unifiable :: RSort -> RSort -> Bool
-unifiable t1 t2 = isJust $ tcUnifyTy (toType t1) (toType t2)
+unifiable t1 t2 = isJust $ tcUnifyTy (toType False t1) (toType False t2)
 
 addRInv :: RTyConInv -> (Var, SpecType) -> (Var, SpecType)
 addRInv m (x, t)
   | x `elem` ids , Just invs <- lookupRInv (res t) m
-  = (x, addInvCond t (mconcat $ catMaybes (stripRTypeBase <$> invs)))
+  = (x, addInvCond t (mconcat $ mapMaybe stripRTypeBase invs))
   | otherwise
   = (x, t)
    where
@@ -346,7 +379,7 @@ removeInvariant γ cbs
         | otherwise
         = True
     binds (NonRec x _) = [x]
-    binds (Rec xes)    = fst $ unzip xes
+    binds (Rec xes)    = map fst xes
 
 restoreInvariant :: CGEnv -> RTyConInv -> CGEnv
 restoreInvariant γ is = γ {invs = is}
@@ -354,7 +387,7 @@ restoreInvariant γ is = γ {invs = is}
 makeRecInvariants :: CGEnv -> [Var] -> CGEnv
 makeRecInvariants γ [x] = γ {invs = M.unionWith (++) (invs γ) is}
   where
-    is  =  M.map (map f . filter (isJust . (varType x `tcUnifyTy`) . toType . _rinv_type)) (rinvs γ)
+    is  =  M.map (map f . filter (isJust . (varType x `tcUnifyTy`) . toType False . _rinv_type)) (rinvs γ)
     f i = i{_rinv_type = guard $ _rinv_type i}
 
     guard (RApp c ts rs r)

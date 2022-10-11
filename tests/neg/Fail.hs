@@ -1,4 +1,5 @@
-module Fail where 
+{-@ LIQUID "--expect-any-error" @-}
+module Fail where
 
 {-@ fail incr @-}
 {-@ incr :: x:Int -> {v:Int |  x < v } @-}

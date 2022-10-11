@@ -1,4 +1,5 @@
-module T1498 where
+{-@ LIQUID "--expect-any-error" @-}
+module T1498A where
 
 class FromTo a where 
   from :: a -> Int 

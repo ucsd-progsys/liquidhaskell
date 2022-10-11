@@ -1,17 +1,13 @@
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
-{-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE BangPatterns              #-}
-{-# LANGUAGE PatternGuards             #-}
-{-# LANGUAGE DeriveFunctor             #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE OverloadedStrings         #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImplicitParams            #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
+
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 -- | This module defines the representation for Environments needed
 --   during constraint generation.
@@ -72,9 +68,9 @@ import           Language.Fixpoint.SortCheck (pruneUnsortedReft)
 
 
 
-import           Language.Haskell.Liquid.GHC.API hiding (panic)
+import           Liquid.GHC.API hiding (panic)
 import           Language.Haskell.Liquid.Types.RefType
-import qualified Language.Haskell.Liquid.GHC.SpanStack as Sp
+import qualified Liquid.GHC.SpanStack as Sp
 import           Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Fresh ()
@@ -94,7 +90,7 @@ updREnvLocal rE f      = rE { reLocal = f (reLocal rE) }
 
 -- RJ: REnv-Split-Bug?
 filterREnv :: (SpecType -> Bool) -> REnv -> REnv
-filterREnv f rE        = rE `updREnvLocal` (M.filter f)
+filterREnv f rE        = rE `updREnvLocal` M.filter f
 
 fromListREnv :: [(F.Symbol, SpecType)] -> [(F.Symbol, SpecType)] -> REnv
 fromListREnv gXts lXts = REnv
@@ -104,10 +100,10 @@ fromListREnv gXts lXts = REnv
 
 -- RJ: REnv-Split-Bug?
 deleteREnv :: F.Symbol -> REnv -> REnv
-deleteREnv x rE = rE `updREnvLocal` (M.delete x)
+deleteREnv x rE = rE `updREnvLocal` M.delete x
 
 insertREnv :: F.Symbol -> SpecType -> REnv -> REnv
-insertREnv x y rE = {- trace ("insertREnv: " ++ show x) $ -} rE `updREnvLocal` (M.insert x y)
+insertREnv x y rE = {- trace ("insertREnv: " ++ show x) $ -} rE `updREnvLocal` M.insert x y
 
 lookupREnv :: F.Symbol -> REnv -> Maybe SpecType
 lookupREnv x rE = msum $ M.lookup x <$> renvMaps rE
@@ -142,7 +138,7 @@ toListREnv re = globalsREnv re ++ localsREnv re
 extendEnvWithVV :: CGEnv -> SpecType -> CG CGEnv
 --------------------------------------------------------------------------------
 extendEnvWithVV γ t
-  | F.isNontrivialVV vv && not (vv `memberREnv` (renv γ))
+  | F.isNontrivialVV vv && not (vv `memberREnv` renv γ)
   = γ += ("extVV", vv, t)
   | otherwise
   = return γ
@@ -182,13 +178,13 @@ addCGEnv tx γ (_, x, t') = do
   let t  = tx $ normalize idx t'
   let l  = getLocation γ
   let γ' = γ { renv = insertREnv x t (renv γ) }
-  tem   <- getTemplates 
+  tem   <- getTemplates
   is    <- (:) <$> addBind l x (rTypeSortedReft' γ' tem t) <*> addClassBind γ' l t
   return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
 rTypeSortedReft' :: (PPrint r, F.Reftable r, SubsTy RTyVar RSort r, F.Reftable (RTProp RTyCon RTyVar r))
     => CGEnv -> F.Templates -> RRType r -> F.SortedReft
-rTypeSortedReft' γ t 
+rTypeSortedReft' γ t
   = pruneUnsortedReft (feEnv $ fenv γ) t . f
    where
    f         = rTypeSortedReft (emb γ)
@@ -198,7 +194,7 @@ normalize :: Integer -> SpecType -> SpecType
 normalize idx = normalizeVV idx . normalizePds
 
 normalizeVV :: Integer -> SpecType -> SpecType
-normalizeVV idx t@(RApp _ _ _ _)
+normalizeVV idx t@RApp{}
   | not (F.isNontrivialVV (rTypeValueVar t))
   = shiftVV t (F.vv $ Just idx)
 
@@ -221,7 +217,7 @@ _dupBindError eMsg x γ r = panic Nothing s
   where
     s = unlines [ eMsg ++ " Duplicate binding for " ++ F.symbolString x
                 , "   New: " ++ showpp r
-                , "   Old: " ++ showpp (x `lookupREnv` (renv γ)) ]
+                , "   Old: " ++ showpp (x `lookupREnv` renv γ) ]
 
 --------------------------------------------------------------------------------
 globalize :: CGEnv -> CGEnv
@@ -292,8 +288,3 @@ setTRec γ xts  = γ' {trec = Just $ M.fromList xts' `M.union` trec'}
     γ'         = γ `setRecs` (fst <$> xts)
     trec'      = fromMaybe M.empty $ trec γ
     xts'       = first F.symbol <$> xts
-
-------------------------------------------------------------------------
-getLocation :: CGEnv -> SrcSpan
-------------------------------------------------------------------------
-getLocation = Sp.srcSpan . cgLoc

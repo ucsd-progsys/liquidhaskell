@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-error-containing=Mismatch in number of type variables for `L`" @-}
 -- | With ADTs, the below fails with a nasty 'elaborate' error, when
 --   the actual problem is a malformed refined data-declaration where
 --   the type variable 'a' has been left out.
@@ -7,7 +8,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-} 
 
-module MonoidList where
+module BadDataDeclTyVars where
 
 {-@ data L = Emp | Cons {x::a, xs:: (L a)} @-}
 --       ^ whoops, missing a tyvar!

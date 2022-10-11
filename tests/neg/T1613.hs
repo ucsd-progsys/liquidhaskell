@@ -1,6 +1,7 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-# LANGUAGE RankNTypes #-}
 {-@ LIQUID "--reflection" @-}
-module Subclass2 where
+module T1613 where
 
 data MyFunctor f = CMyFunctor {myfmap :: forall a b. (a -> b) -> f a -> f b}
 

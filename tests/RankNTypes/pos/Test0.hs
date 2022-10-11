@@ -1,7 +1,7 @@
 {-@ LIQUID "--reflection" @-}
 {-# LANGUAGE RankNTypes   #-}
 
-module CCC where
+module Test0 where
 
 import Language.Haskell.Liquid.Equational 
 

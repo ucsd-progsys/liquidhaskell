@@ -1,6 +1,6 @@
 {-@ LIQUID "--prune-unsorted" @-}
 
-module Boolability where
+module Propability where
 
 {-@ type Boolability = {v:Double | ((0.0 <= v) && (v <= 1.0)) } @-}
 

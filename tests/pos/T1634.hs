@@ -1,7 +1,7 @@
 {-@ LIQUID "--reflection" @-} 
 {-@ LIQUID "--ple"        @-} 
 
-module Readers where
+module T1634 where
 
 import Language.Haskell.Liquid.ProofCombinators 
 type Reader a b = a -> b

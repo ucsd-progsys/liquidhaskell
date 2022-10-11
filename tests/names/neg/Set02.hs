@@ -1,4 +1,5 @@
-module Set00 where 
+{-@ LIQUID "--expect-any-error" @-}
+module Set02 where 
 
 import Data.Set as S
 

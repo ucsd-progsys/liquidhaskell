@@ -5,85 +5,54 @@
 
 packages:
 - completed:
-    hackage: tasty-rerun-1.1.14@sha256:ba9c19a281535bea566e1044bc02c36ef17abcb310af4b6a149ec11780c7ce35,3083
+    hackage: blaze-colonnade-1.2.2.1@sha256:b27601f0366b006e86ee33297a722fe33c94ac058e61d4eace387d132e656a21,1394
     pantry-tree:
-      size: 284
-      sha256: f6b89e2e06d38d0a2d73c220648811a54684b476778904416b22f1ccae7eab67
+      size: 279
+      sha256: e1a52f56ec0cab647ec7af0d75bfbb45f09cccea4a8127996cb7b132bd73bd2c
   original:
-    hackage: tasty-rerun-1.1.14
+    hackage: blaze-colonnade-1.2.2.1@sha256:b27601f0366b006e86ee33297a722fe33c94ac058e61d4eace387d132e656a21,1394
 - completed:
-    hackage: fgl-visualize-0.1.0.1@sha256:e682066053a6e75478a08fd6822dd0143a3b8ea23244bdb01dd389a266447c5e,995
+    hackage: colonnade-1.2.0.2@sha256:e0b43a1fe4f87072f3f7cd9eaccdb790f7df8ceff5f73c3a4e242aba9337485f,2099
     pantry-tree:
-      size: 224
-      sha256: 969d6b60ea298ffb81697dd350e76774a2f876103a147117f832400451ad2cc3
+      size: 327
+      sha256: 2010fda4c4af2dd9da64786d9e902f387b6a9cb034eb6573d678e752deecc319
   original:
-    hackage: fgl-visualize-0.1.0.1
+    hackage: colonnade-1.2.0.2@sha256:e0b43a1fe4f87072f3f7cd9eaccdb790f7df8ceff5f73c3a4e242aba9337485f,2099
 - completed:
-    hackage: located-base-0.1.1.1@sha256:7c6395f2b6fbf2d5f76c3514f774423838c0ea94e1c6a5530dd3c94b30c9d1c8,1904
+    hackage: hashable-1.3.5.0@sha256:3a2beeafb220f9de706568a7e4a5b3c762cc4c9f25c94d7ef795b8c2d6a691d7,4240
     pantry-tree:
-      size: 534
-      sha256: 9d7b96ce785b464253dcf0ac2d8eb0be4cae6b96ed3960d66b81c373b540ed3f
+      size: 1248
+      sha256: 4df2f6b536a0fcc5f7d562cb29e373f27dc4a2747452ac5cc74c1599cab22fc5
   original:
-    hackage: located-base-0.1.1.1
+    hackage: hashable-1.3.5.0
 - completed:
-    hackage: hashable-1.3.0.0@sha256:4c70f1407881059e93550d3742191254296b2737b793a742bd901348fb3e1fb1,5206
+    hackage: rest-rewrite-0.3.0@sha256:398f937a5faf6bd3329650ee9aed31bbfe7ed1c23252710908ad7295e3252c94,3890
     pantry-tree:
-      size: 1521
-      sha256: 84aba72926c33debd71fb9c670869d842025f8ea45ad10084289a34f0448250f
+      size: 3943
+      sha256: 6e42cf85257cbc2abf50a9c8f3bac8777920f1b970e6f2cae9358690e1186e99
   original:
-    hackage: hashable-1.3.0.0
+    hackage: rest-rewrite-0.3.0
 - completed:
-    hackage: optics-0.3@sha256:5f62fca47b01ce065bb999724b8cdd45e747537892ee00faeac4b4b20d821aee,6494
+    name: ghc-timings
+    version: '0.1'
+    git: https://github.com/qnikst/ghc-timings-report
     pantry-tree:
-      size: 1077
-      sha256: 20d41262ffcb59bf63801c9529d639b9a1037be7cc0a812e2379007f151ff463
+      size: 7544
+      sha256: 72622264696c78cda23cf96382dee7a3d14e3eafdb8977486338f113681dcec4
+    commit: 45ef3498e35897712bde8e002ce18df6d55f8b15
   original:
-    hackage: optics-0.3
+    git: https://github.com/qnikst/ghc-timings-report
+    commit: 45ef3498e35897712bde8e002ce18df6d55f8b15
 - completed:
-    hackage: optics-core-0.3@sha256:0464583aaef715f8e48b8c9ce3fab9866345de93e740dae32d5c5e9a57097bf7,4532
+    hackage: strip-ansi-escape-0.1.0.0@sha256:08f2ed93b16086a837ec46eab7ce8d27cf39d47783caaeb818878ea33c2ff75f,1628
     pantry-tree:
-      size: 5030
-      sha256: d87366c3a2d4099a7a1d54df029a38e24b591ba8fb88d56fabf0c5c4bc345a51
+      size: 671
+      sha256: cf7712453587e8ea69b96f33e2e8015c22d3b448259d4cace663cc15657309d7
   original:
-    hackage: optics-core-0.3
-- completed:
-    hackage: optics-th-0.3@sha256:b4746b3d142feb2dc9dfcf76b49a11fd04321aa0ee9c1bcd297c5e8dc393803c,1965
-    pantry-tree:
-      size: 653
-      sha256: 24e990405793450726f6364034614c715537b0ed3f21fafc9ce0267979feb01b
-  original:
-    hackage: optics-th-0.3
-- completed:
-    hackage: optics-extra-0.3@sha256:b1b9917596a4305069aa95eaf3083afe88c6db3c84ed6f52e926c82d0c56eea9,3382
-    pantry-tree:
-      size: 1809
-      sha256: 1f5bed915d1696d2f217e494f9e2d70929f33d6a9647996c3fa6c36f4f189c9d
-  original:
-    hackage: optics-extra-0.3
-- completed:
-    hackage: Diff-0.4.0@sha256:b5cfbeed498f555a18774ffd549bbeff7a24bdfe5984154dcfc9f4328a3c2847,1275
-    pantry-tree:
-      size: 415
-      sha256: 01b215c454152a0fe10a5378a4013d92e89da2f0695ffffc466ead5f3343cf3a
-  original:
-    hackage: Diff-0.4.0
-- completed:
-    hackage: aeson-1.4.7.1@sha256:6d8d2fd959b7122a1df9389cf4eca30420a053d67289f92cdc0dbc0dab3530ba,7098
-    pantry-tree:
-      size: 40133
-      sha256: caa9306e519c601ab0170d113daa03c1163db53e5466be2968bbd61a771bebcb
-  original:
-    hackage: aeson-1.4.7.1
-- completed:
-    hackage: th-compat-0.1@sha256:ff11df2bbd6ad519987f8fe5b2fd783349260681a91565a40d4096bb0a536b0b,2818
-    pantry-tree:
-      size: 529
-      sha256: c794a1d447edb8cf039f47514f50eee20c2584452f1a60848f905dc710c9b59f
-  original:
-    hackage: th-compat-0.1
+    hackage: strip-ansi-escape-0.1.0.0@sha256:08f2ed93b16086a837ec46eab7ce8d27cf39d47783caaeb818878ea33c2ff75f,1628
 snapshots:
 - completed:
-    size: 532379
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/16/8.yaml
-    sha256: 2ad3210d2ad35f3176005d68369a18e4d984517bfaa2caade76f28ed0b2e0521
-  original: lts-16.8
+    size: 590102
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/18/27.yaml
+    sha256: 79a786674930a89301b0e908fad2822a48882f3d01486117693c377b8edffdbe
+  original: lts-18.27

@@ -4,8 +4,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE EmptyDataDecls #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -64,8 +62,8 @@ import           Data.Hashable
 
 import           Language.Fixpoint.Types.Spans
 import           Language.Haskell.Liquid.Types.Specs
-import           Language.Haskell.Liquid.GHC.API         as GHC
-import qualified Language.Haskell.Liquid.GHC.Interface   as LH
+import           Liquid.GHC.API         as GHC
+import qualified Liquid.GHC.Interface   as LH
 import           Language.Fixpoint.Types.Names            ( Symbol )
 
 
@@ -84,7 +82,7 @@ mkLiquidLib s = LiquidLib s mempty
 
 -- | Adds a set of dependencies to the input 'LiquidLib'.
 addLibDependencies :: TargetDependencies -> LiquidLib -> LiquidLib
-addLibDependencies deps lib = lib { llDeps = deps <> (llDeps lib) }
+addLibDependencies deps lib = lib { llDeps = deps <> llDeps lib }
 
 -- | Returns the target 'LiftedSpec' of this 'LiquidLib'.
 libTarget :: LiquidLib -> LiftedSpec

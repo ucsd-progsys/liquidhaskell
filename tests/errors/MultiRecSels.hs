@@ -1,5 +1,6 @@
+{-@ LIQUID "--expect-error-containing=Duplicated definitions for field `left`" @-}
 {-@ LIQUID "--no-termination" @-}
-module RedBlack  where
+module MultiRecSels where
 
 data RBTree a = Leaf
               | Node Color a !(RBTree a) !(RBTree a)

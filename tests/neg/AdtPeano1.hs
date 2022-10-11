@@ -1,7 +1,8 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--higherorder"                         @-}
 
-module Peano where
+module AdtPeano1 where
 
 data Influx = Silly { goo :: Int }
 

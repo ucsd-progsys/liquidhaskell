@@ -1,11 +1,13 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveFunctor      #-}
-{-# LANGUAGE TemplateHaskell    #-}
-{-# LANGUAGE TupleSections      #-}
-{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE DeriveFunctor         #-}
+{-# LANGUAGE TemplateHaskellQuotes #-}
+{-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
-module Language.Haskell.Liquid.UX.QuasiQuoter 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
+module Language.Haskell.Liquid.UX.QuasiQuoter
 -- (
 --     -- * LiquidHaskell Specification QuasiQuoter
 --     lq
@@ -27,8 +29,8 @@ import Language.Haskell.TH.Quote
 import Language.Fixpoint.Types hiding (Error, Loc, SrcSpan)
 import qualified Language.Fixpoint.Types as F
 
-import Language.Haskell.Liquid.GHC.Misc (fSrcSpan)
-import Language.Haskell.Liquid.GHC.API  (SrcSpan)
+import Liquid.GHC.Misc (fSrcSpan)
+import Liquid.GHC.API  (SrcSpan)
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Types
 
@@ -87,10 +89,10 @@ mkSpecDecs (Asrts (names, (ty, _))) =
   (\t -> (`SigD` t) . symbolName <$> names)
     <$> simplifyBareType (head names) (quantifyFreeRTy $ val ty)
 mkSpecDecs (Alias rta) =
-  return . (TySynD name tvs) <$> simplifyBareType lsym (rtBody (val rta))
+  return . TySynD name tvs <$> simplifyBareType lsym (rtBody (val rta))
   where
-    lsym = F.atLoc rta n 
-    name = symbolName n 
+    lsym = F.atLoc rta n
+    name = symbolName n
     n    = rtName (val rta)
 #if MIN_VERSION_template_haskell(2,17,0)
     tvs  = (\a -> PlainTV (symbolName a) ()) <$> rtTArgs (val rta)
@@ -112,10 +114,10 @@ simplifyBareType s t = case simplifyBareType' t of
   Simplified t' ->
     Right t'
   FoundExprArg l ->
-    Left $ ErrTySpec l Nothing (pprint $ val s) (pprint t) $ 
+    Left $ ErrTySpec l Nothing (pprint $ val s) (pprint t)
       "Found expression argument in bad location in type"
   FoundHole ->
-    Left $ ErrTySpec (fSrcSpan s) Nothing (pprint $ val s) (pprint t) $ 
+    Left $ ErrTySpec (fSrcSpan s) Nothing (pprint $ val s) (pprint t)
       "Can't write LiquidHaskell type with hole in a quasiquoter"
 
 simplifyBareType' :: BareType -> Simpl Type
@@ -127,7 +129,7 @@ simplifyBareType'' ([], []) (RVar v _) =
   return $ VarT $ symbolName v
 simplifyBareType'' ([], []) (RAppTy t1 t2 _) =
   AppT <$> simplifyBareType' t1 <*> simplifyBareType' t2
-simplifyBareType'' ([], []) (RFun _ i o _) =
+simplifyBareType'' ([], []) (RFun _ _ i o _) =
   (\x y -> ArrowT `AppT` x `AppT` y)
     <$> simplifyBareType' i <*> simplifyBareType' o
 simplifyBareType'' ([], []) (RApp cc as _ _) =
@@ -152,7 +154,7 @@ simplifyBareType'' s (REx _ _ t) =
 simplifyBareType'' s (RRTy _ _ _ t) =
   simplifyBareType'' s t
 
-simplifyBareType'' (tvs, cls) (RFun _ i o _)
+simplifyBareType'' (tvs, cls) (RFun _ _ i o _)
   | isClassType i = simplifyBareType'' (tvs, i : cls) o
 simplifyBareType'' (tvs, cls) (RAllT tv t _) =
   simplifyBareType'' (ty_var_value tv : tvs, cls) t
@@ -207,7 +209,7 @@ newtype LiquidQuote = LiquidQuote { liquidQuoteSpec :: BPspec }
 
 locSourcePos :: Loc -> SourcePos
 locSourcePos loc =
-  safeSourcePos (loc_filename loc) (fst $ loc_start loc) (snd $ loc_start loc)
+  uncurry (safeSourcePos (loc_filename loc)) (loc_start loc)
 
 dataToExpQ' :: Data a => a -> Q Exp
 dataToExpQ' = dataToExpQ (const Nothing `extQ` textToExpQ)

@@ -1,4 +1,5 @@
-module Repro2 () where
+{-@ LIQUID "--expect-any-error" @-}
+module T1490A () where
 
 newtype Embed a = Embed a
 

@@ -1,6 +1,6 @@
 {-@ LIQUID "--no-termination" @-}
 
-module Foo where
+module RBTree where
 
 import Language.Haskell.Liquid.Prelude
 

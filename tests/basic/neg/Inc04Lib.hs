@@ -1,4 +1,5 @@
-module Inc04Lib where 
+{-@ LIQUID "--expect-any-error" @-}
+module Inc04Lib where
 
 {-@ type NN = {v:Int | 0 <= v } @-}
 

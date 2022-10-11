@@ -1,10 +1,9 @@
 {-# LANGUAGE EmptyDataDecls, GADTs, ExistentialQuantification #-}
 
-{-@ LIQUID "--no-adt" 	      @-}
 {-@ LIQUID "--exact-data-con" @-}
 {-@ LIQUID "--higherorder"    @-}
 
-module Field where
+module T1302 where
 
 data CreditCard = CreditCard { creditCardNumber :: Int, creditCardHolder :: [Char]}
 

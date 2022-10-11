@@ -1,6 +1,7 @@
+{-# OPTIONS_GHC -Wno-missing-methods #-}
 {-@ LIQUID "--no-totality" @-}
 
-module Compose where
+module ClassReg where
 
 
 data ST s a = ST {runState :: s -> (a,s)}

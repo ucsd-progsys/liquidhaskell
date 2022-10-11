@@ -1,4 +1,5 @@
-module GhcSort () where
+{-@ LIQUID "--expect-any-error" @-}
+module RecQSort () where
 
 {-@ type OList a =  [a]<{\fld v -> (v >= fld)}>  @-}
 

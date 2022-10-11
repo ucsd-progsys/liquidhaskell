@@ -1,0 +1,42 @@
+table {
+  flex-wrap: wrap;
+  margin: 0 auto;
+  padding: 2rem 0rem 0rem 0rem;
+}
+
+
+table td, table th {
+  box-sizing: border-box;
+  flex-grow: 1;
+  padding: 0.8em 1.2em;
+  overflow: hidden;
+  list-style-type: none;
+  outline: 1px solid #ddd;
+  text-align: center;
+  font-weight: 300;
+  margin: {
+    top: 1px;
+    left: 1px;
+  }
+}
+
+td.number {
+  text-align:right
+}
+
+td.module {
+  text-align: left;
+  font-weight: bold;
+}
+
+table td.lev1 {
+  background-color: yellow;
+}
+
+table td.lev2 {
+  background-color: orange;
+}
+
+table td.lev3 {
+  background-color: rgba(255,0,0,0.75);
+}

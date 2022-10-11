@@ -1,8 +1,9 @@
 {-# LANGUAGE FlexibleContexts         #-}
 
-module Language.Haskell.Liquid.Bare.Misc 
-  ( freeSymbols
-  , joinVar
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
+module Language.Haskell.Liquid.Bare.Misc
+  ( joinVar
   , mkVarExpr
   , vmap
   , runMapTyVars
@@ -15,18 +16,16 @@ module Language.Haskell.Liquid.Bare.Misc
 
 import           Prelude                               hiding (error)
 
-import           Language.Haskell.Liquid.GHC.API       as Ghc  hiding (Located, showPpr)
+import           Liquid.GHC.API       as Ghc  hiding (Located, showPpr)
 
 import           Control.Monad.Except                  (MonadError, throwError)
 import           Control.Monad.State
 import qualified Data.Maybe                            as Mb --(fromMaybe, isNothing)
 
-import qualified Text.PrettyPrint.HughesPJ             as PJ 
+import qualified Text.PrettyPrint.HughesPJ             as PJ
 import qualified Data.List                             as L
-import qualified Data.HashMap.Strict                   as M
-import           Language.Fixpoint.Misc                as Misc -- (singleton, sortNub)
 import qualified Language.Fixpoint.Types as F
-import           Language.Haskell.Liquid.GHC.Misc
+import           Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.Types
 
@@ -50,13 +49,15 @@ makeSymbols f vs xs
       hasBasicArgs (FunTy _ tx t)   = isBaseTy tx && hasBasicArgs t
       hasBasicArgs _              = True
 
--} 
+-}
 
+{- 
+HEAD
 freeSymbols :: (F.Reftable r, F.Reftable r1, F.Reftable r2, TyConable c, TyConable c1, TyConable c2)
             => [F.Symbol]
             -> [(a1, Located (RType c2 tv2 r2))]
             -> [(a, Located (RType c1 tv1 r1))]
-            -> [(Located (RType c tv r))]
+            -> [Located (RType c tv r)]
             -> [LocSymbol]
 freeSymbols xs' xts yts ivs =  [ lx | lx <- Misc.sortNub $ zs ++ zs' ++ zs'' , not (M.member (val lx) knownM) ]
   where
@@ -67,62 +68,91 @@ freeSymbols xs' xts yts ivs =  [ lx | lx <- Misc.sortNub $ zs ++ zs' ++ zs'' , n
 
 
 
+-------------------------------------------------------------------------------
 freeSyms :: (F.Reftable r, TyConable c) => Located (RType c tv r) -> [LocSymbol]
+-------------------------------------------------------------------------------
 freeSyms ty    = [ F.atLoc ty x | x <- tySyms ]
   where
-    tySyms     = Misc.sortNub $ concat $ efoldReft (\_ _ -> True) False (\_ _ -> []) (\_ -> []) (const ()) f (const id) F.emptySEnv [] (val ty)
+    tySyms     = Misc.sortNub $ concat $ efoldReft (\_ _ -> True) False (\_ _ -> []) (const []) (const ()) f (const id) F.emptySEnv [] (val ty)
     f γ _ r xs = let F.Reft (v, _) = F.toReft r in
                  [ x | x <- F.syms r, x /= v, not (x `F.memberSEnv` γ)] : xs
 
+--- ABOVE IS THE T1773 STUFF
+--- BELOW IS THE develop-classes STUFF 
+
+-- freeSymbols :: (F.Reftable r, F.Reftable r1, F.Reftable r2, TyConable c, TyConable c1, TyConable c2)
+--             => [F.Symbol]
+--             -> [(a1, Located (RType c2 tv2 r2))]
+--             -> [(a, Located (RType c1 tv1 r1))]
+--             -> [(Located (RType c tv r))]
+--             -> [LocSymbol]
+-- freeSymbols xs' xts yts ivs =  [ lx | lx <- Misc.sortNub $ zs ++ zs' ++ zs'' , not (M.member (val lx) knownM) ]
+--   where
+--     knownM                  = M.fromList [ (x, ()) | x <- xs' ]
+--     zs                      = concatMap freeSyms (snd <$> xts)
+--     zs'                     = concatMap freeSyms (snd <$> yts)
+--     zs''                    = concatMap freeSyms ivs
+
+
+
+-- freeSyms :: (F.Reftable r, TyConable c) => Located (RType c tv r) -> [LocSymbol]
+-- freeSyms ty    = [ F.atLoc ty x | x <- tySyms ]
+--   where
+--     tySyms     = Misc.sortNub $ concat $ efoldReft (\_ _ -> True) False (\_ _ -> []) (\_ -> []) (const ()) f (const id) F.emptySEnv [] (val ty)
+--     f γ _ r xs = let F.Reft (v, _) = F.toReft r in
+--                  [ x | x <- F.syms r, x /= v, not (x `F.memberSEnv` γ)] : xs
+
+-}
 -------------------------------------------------------------------------------
 -- Renaming Type Variables in Haskell Signatures ------------------------------
 -------------------------------------------------------------------------------
-runMapTyVars :: Type -> SpecType -> (PJ.Doc -> PJ.Doc -> Error) -> Either Error MapTyVarST
-runMapTyVars τ t err = execStateT (mapTyVars τ t) (MTVST [] err) 
+runMapTyVars :: Bool -> Type -> SpecType -> (PJ.Doc -> PJ.Doc -> Error) -> Either Error MapTyVarST
+runMapTyVars allowTC τ t err = execStateT (mapTyVars allowTC τ t) (MTVST [] err)
 
 data MapTyVarST = MTVST
   { vmap   :: [(Var, RTyVar)]
   , errmsg :: PJ.Doc -> PJ.Doc -> Error
   }
 
-mapTyVars :: Type -> SpecType -> StateT MapTyVarST (Either Error) ()
-mapTyVars t (RImpF _ _ t' _)
-   = mapTyVars t t'
-mapTyVars (FunTy { ft_arg = τ, ft_res = τ'}) t 
-  | isClassPred τ
-  = mapTyVars τ' t
-mapTyVars (FunTy { ft_arg = τ, ft_res = τ'}) (RFun _ t t' _)
-   = mapTyVars τ t >> mapTyVars τ' t'
-mapTyVars τ (RAllT _ t _)
-  = mapTyVars τ t
-mapTyVars (TyConApp _ τs) (RApp _ ts _ _)
-   = zipWithM_ mapTyVars τs (matchKindArgs' τs ts)
-mapTyVars (TyVarTy α) (RVar a _)
+mapTyVars :: Bool -> Type -> SpecType -> StateT MapTyVarST (Either Error) ()
+mapTyVars allowTC t (RImpF _ _ _ t' _)
+   = mapTyVars allowTC t t'
+mapTyVars allowTC (FunTy { ft_arg = τ, ft_res = τ'}) t
+  | isErasable τ
+  = mapTyVars allowTC τ' t
+  where isErasable = if allowTC then isEmbeddedDictType else isClassPred
+mapTyVars allowTC (FunTy { ft_arg = τ, ft_res = τ'}) (RFun _ _ t t' _)
+   = mapTyVars allowTC τ t >> mapTyVars allowTC τ' t'
+mapTyVars allowTC τ (RAllT _ t _)
+  = mapTyVars allowTC τ t
+mapTyVars allowTC (TyConApp _ τs) (RApp _ ts _ _)
+   = zipWithM_ (mapTyVars allowTC) τs (matchKindArgs' τs ts)
+mapTyVars _ (TyVarTy α) (RVar a _)
    = do s  <- get
         s' <- mapTyRVar α a s
         put s'
-mapTyVars τ (RAllP _ t)
-  = mapTyVars τ t
-mapTyVars τ (RAllE _ _ t)
-  = mapTyVars τ t
-mapTyVars τ (RRTy _ _ _ t)
-  = mapTyVars τ t
-mapTyVars τ (REx _ _ t)
-  = mapTyVars τ t
-mapTyVars _ (RExprArg _)
+mapTyVars allowTC τ (RAllP _ t)
+  = mapTyVars allowTC τ t
+mapTyVars allowTC τ (RAllE _ _ t)
+  = mapTyVars allowTC τ t
+mapTyVars allowTC τ (RRTy _ _ _ t)
+  = mapTyVars allowTC τ t
+mapTyVars allowTC τ (REx _ _ t)
+  = mapTyVars allowTC τ t
+mapTyVars _ _ (RExprArg _)
   = return ()
-mapTyVars (AppTy τ τ') (RAppTy t t' _)
-  = do  mapTyVars τ t
-        mapTyVars τ' t'
-mapTyVars _ (RHole _)
+mapTyVars allowTC (AppTy τ τ') (RAppTy t t' _)
+  = do  mapTyVars allowTC τ t
+        mapTyVars allowTC τ' t'
+mapTyVars _ _ (RHole _)
   = return ()
-mapTyVars k _ | isKind k
+mapTyVars _ k _ | isKind k
   = return ()
-mapTyVars (ForAllTy _ τ) t
-  = mapTyVars τ t
-mapTyVars hsT lqT
-  = do err <- errmsg <$> get
-       throwError (err (F.pprint hsT) (F.pprint lqT)) 
+mapTyVars allowTC (ForAllTy _ τ) t
+  = mapTyVars allowTC τ t
+mapTyVars _ hsT lqT
+  = do err <- gets errmsg
+       throwError (err (F.pprint hsT) (F.pprint lqT))
 
 isKind :: Kind -> Bool
 isKind = classifiesTypeWithValues -- TODO:GHC-863 isStarKind k --  typeKind k

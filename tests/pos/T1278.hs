@@ -1,4 +1,4 @@
-module Term where
+module T1278 where
 
 data List a = Nil | Cons a (List a)
 

@@ -1,4 +1,4 @@
-module Data00 where 
+module Data00 where
 
 import Data00Lib 
 

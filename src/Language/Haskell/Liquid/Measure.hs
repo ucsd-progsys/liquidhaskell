@@ -3,7 +3,6 @@
 {-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE ConstraintKinds        #-}
-{-# LANGUAGE DeriveGeneric          #-}
 
 module Language.Haskell.Liquid.Measure (
   -- * Specifications
@@ -33,8 +32,8 @@ import qualified Data.Maybe                             as Mb -- (fromMaybe, isN
 
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types                hiding (panic, R, DataDecl, SrcSpan, LocSymbol)
-import           Language.Haskell.Liquid.GHC.API        as Ghc hiding (Expr, showPpr, panic, (<+>))
-import           Language.Haskell.Liquid.GHC.Misc
+import           Liquid.GHC.API        as Ghc hiding (Expr, showPpr, panic, (<+>))
+import           Liquid.GHC.Misc
 -- import qualified Language.Haskell.Liquid.Misc as Misc
 import           Language.Haskell.Liquid.Types.Types    -- hiding (GhcInfo(..), GhcSpec (..))
 import           Language.Haskell.Liquid.Types.RefType
@@ -69,36 +68,36 @@ mkMSpec ms cms ims = MSpec cm mm cmm ims
 
 
 checkDuplicateMeasure :: [Measure ty ctor] -> [Measure ty ctor]
-checkDuplicateMeasure ms
+checkDuplicateMeasure measures
   = case M.toList dups of
-      []         -> ms
-      (m,ms):_   -> uError $ err m (msName <$> ms)
+      []         -> measures
+      (m,ms):_   -> uError $ mkErr m (msName <$> ms)
     where
-      gms        = group [(msName m , m) | m <- ms]
+      gms        = group [(msName m , m) | m <- measures]
       dups       = M.filter ((1 <) . length) gms
-      err m ms   = ErrDupMeas (fSrcSpan m) (pprint (val m)) (fSrcSpan <$> ms)
+      mkErr m ms = ErrDupMeas (fSrcSpan m) (pprint (val m)) (fSrcSpan <$> ms)
 
 
-dataConTypes :: MSpec (RRType Reft) DataCon -> ([(Var, RRType Reft)], [(LocSymbol, RRType Reft)])
-dataConTypes  s = (ctorTys, measTys)
+dataConTypes :: Bool -> MSpec (RRType Reft) DataCon -> ([(Var, RRType Reft)], [(LocSymbol, RRType Reft)])
+dataConTypes allowTC  s = (ctorTys, measTys)
   where
     measTys     = [(msName m, msSort m) | m <- M.elems (measMap s) ++ imeas s]
-    ctorTys     = concatMap makeDataConType (notracepp "HOHOH" . snd <$> M.toList (ctorMap s))
+    ctorTys     = concatMap (makeDataConType allowTC) (notracepp "HOHOH" . snd <$> M.toList (ctorMap s))
 
-makeDataConType :: [Def (RRType Reft) DataCon] -> [(Var, RRType Reft)]
-makeDataConType []
+makeDataConType :: Bool -> [Def (RRType Reft) DataCon] -> [(Var, RRType Reft)]
+makeDataConType _ []
   = []
-makeDataConType ds | Mb.isNothing (dataConWrapId_maybe dc)
+makeDataConType allowTC ds | Mb.isNothing (dataConWrapId_maybe dc)
   = notracepp _msg [(woId, notracepp _msg $ combineDCTypes "cdc0" t ts)]
   where
     dc   = ctor (head ds)
     woId = dataConWorkId dc
     t    = varType woId
-    ts   = defRefType t <$> ds
+    ts   = defRefType allowTC t <$> ds
     _msg  = "makeDataConType0" ++ showpp (woId, t, ts)
 
-makeDataConType ds
-  = [(woId, extend loci woRType wrRType), (wrId, extend loci wrRType woRType)]
+makeDataConType allowTC ds
+  = [(woId, extend allowTC loci woRType wrRType), (wrId, extend allowTC loci wrRType woRType)]
   where
     (wo, wr) = L.partition isWorkerDef ds
     dc       = ctor $ head ds
@@ -107,8 +106,8 @@ makeDataConType ds
     wot      = varType woId
     wrId     = dataConWrapId dc
     wrt      = varType wrId
-    wots     = defRefType wot <$> wo
-    wrts     = defRefType wrt <$> wr
+    wots     = defRefType allowTC wot <$> wo
+    wrts     = defRefType allowTC wrt <$> wr
 
     wrRType  = combineDCTypes "cdc1" wrt wrts
     woRType  = combineDCTypes "cdc2" wot wots
@@ -123,12 +122,13 @@ makeDataConType ds
       = length (binds def) == length (fst $ splitFunTys $ snd $ splitForAllTys wot)
 
 
-extend :: SourcePos
+extend :: Bool
+       -> SourcePos
        -> RType RTyCon RTyVar Reft
        -> RRType Reft
        -> RType RTyCon RTyVar Reft
-extend lc t1' t2
-  | Just su <- mapArgumens lc t1 t2
+extend allowTC lc t1' t2
+  | Just su <- mapArgumens allowTC lc t1 t2
   = t1 `strengthenResult` subst su (Mb.fromMaybe mempty (stripRTypeBase $ resultTy t2))
   | otherwise
   = t1
@@ -153,14 +153,14 @@ noDummySyms t
   = t
   where
     rep = toRTypeRep t
-    xs' = zipWith (\_ i -> symbol ("x" ++ show i)) (ty_binds rep) [1..]
+    xs' = zipWith (\_ i -> symbol ("x" ++ show i)) (ty_binds rep) [(1::Int)..]
     su  = mkSubst $ zip (ty_binds rep) (EVar <$> xs')
 
 combineDCTypes :: String -> Type -> [RRType Reft] -> RRType Reft
 combineDCTypes _msg t ts = L.foldl' strengthenRefTypeGen (ofType t) ts
 
-mapArgumens :: SourcePos -> RRType Reft -> RRType Reft -> Maybe Subst
-mapArgumens lc t1 t2 = go xts1' xts2'
+mapArgumens :: Bool -> SourcePos -> RRType Reft -> RRType Reft -> Maybe Subst
+mapArgumens allowTC lc t1 t2 = go xts1' xts2'
   where
     xts1 = zip (ty_binds rep1) (ty_args rep1)
     xts2 = zip (ty_binds rep2) (ty_args rep2)
@@ -170,7 +170,7 @@ mapArgumens lc t1 t2 = go xts1' xts2'
     xts1' = dropWhile canDrop xts1
     xts2' = dropWhile canDrop xts2
 
-    canDrop (_, t) = isClassType t || isEqType t
+    canDrop (_, t) = if allowTC then isEmbeddedClass t else isClassType t || isEqType t
 
     go xs ys
       | length xs == length ys && and (zipWith (==) (toRSort . snd <$> xts1') (toRSort . snd <$> xts2'))
@@ -180,11 +180,11 @@ mapArgumens lc t1 t2 = go xts1' xts2'
           ++ show t1 ++ "\n" ++ show t2 )
 
 -- should constructors have implicits? probably not
-defRefType :: Type -> Def (RRType Reft) DataCon -> RRType Reft
-defRefType tdc (Def f dc mt xs body)
+defRefType :: Bool -> Type -> Def (RRType Reft) DataCon -> RRType Reft
+defRefType allowTC tdc (Def f dc mt xs body)
                     = generalize $ mkArrow as' [] [] xts t'
   where
-    xts             = stitchArgs (fSrcSpan f) dc xs ts 
+    xts             = stitchArgs allowTC (fSrcSpan f) dc xs ts 
     t'              = refineWithCtorBody dc f body t
     t               = Mb.fromMaybe (ofType tr) mt
     (αs, ts, tr)    = splitType tdc
@@ -198,24 +198,25 @@ splitType t  = (αs, map irrelevantMult ts, tr)
     (ts, tr) = splitFunTys tb
 
 stitchArgs :: (Monoid t1, PPrint a)
-           => SrcSpan
+           => Bool
+           -> SrcSpan
            -> a
            -> [(Symbol, Maybe (RRType Reft))]
            -> [Type]
-           -> [(Symbol, RRType Reft, t1)]
-stitchArgs sp dc allXs allTs
+           -> [(Symbol, RFInfo, RRType Reft, t1)]
+stitchArgs allowTC sp dc allXs allTs
   | nXs == nTs         = (g (dummySymbol, Nothing) . ofType <$> pts)
                       ++ zipWith g xs (ofType <$> ts)
   | otherwise          = panicFieldNumMismatch sp dc nXs nTs
     where
-      (pts, ts)        = L.partition (\t -> notracepp ("isPredTy: " ++ showpp t) $ Ghc.isEvVarType t) allTs
+      (pts, ts)        = L.partition (\t -> notracepp ("isPredTy: " ++ showpp t) $ (if allowTC then isEmbeddedDictType else Ghc.isEvVarType ) t) allTs
       (_  , xs)        = L.partition (coArg . snd) allXs
       nXs              = length xs
       nTs              = length ts
-      g (x, Just t) _  = (x, t, mempty)
-      g (x, _)      t  = (x, t, mempty)
+      g (x, Just t) _  = (x, classRFInfo allowTC, t, mempty)
+      g (x, _)      t  = (x, classRFInfo allowTC, t, mempty)
       coArg Nothing    = False
-      coArg (Just t)   = Ghc.isEvVarType . toType $ t
+      coArg (Just t)   = (if allowTC then isEmbeddedDictType else Ghc.isEvVarType ). toType False $ t
 
 panicFieldNumMismatch :: (PPrint a, PPrint a1, PPrint a3)
                       => SrcSpan -> a3 -> a1 -> a -> a2

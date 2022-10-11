@@ -1,7 +1,8 @@
-
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 ---------------------------------------------------------------------
 -- | This module contains functions for cleaning up types before
@@ -35,11 +36,11 @@ import qualified Data.HashSet                              as S
 import qualified Data.List                                 as L
 import qualified Data.Text                                 as T
 import qualified Control.Exception                         as Ex
-import qualified Language.Haskell.Liquid.GHC.Misc          as GM 
+import qualified Liquid.GHC.Misc          as GM 
 -- (dropModuleNames, showPpr, stringTyVar)
 import           Language.Fixpoint.Types                   hiding (Result, SrcSpan, Error)
 import           Language.Haskell.Liquid.Types.Types
-import           Language.Haskell.Liquid.Types.RefType     (rVar, subsTyVars_meet, FreeVar)
+import           Language.Haskell.Liquid.Types.RefType     (rVar, subsTyVarsMeet, FreeVar)
 import           Language.Haskell.Liquid.Types.PrettyPrint
 import           Data.Generics                             (everywhere, mkT)
 import           Text.PrettyPrint.HughesPJ
@@ -148,21 +149,21 @@ tidyTyVars t = subsTyVarsAll αβs t
     αβs  = zipWith (\α β -> (α, toRSort β, β)) αs βs
     αs   = L.nub (tyVars t)
     βs   = map (rVar . GM.stringTyVar) pool
-    pool = [[c] | c <- ['a'..'z']] ++ [ "t" ++ show i | i <- [1..]]
+    pool = [[c] | c <- ['a'..'z']] ++ [ "t" ++ show i | i <- [(1::Int)..]]
 
 
 bindersTx :: [Symbol] -> Symbol -> Symbol
 bindersTx ds   = \y -> M.lookupDefault y y m
   where
-    m          = M.fromList $ zip ds $ var <$> [1..]
+    m          = M.fromList $ zip ds $ var <$> [(1::Int)..]
     var        = symbol . ('x' :) . show
 
 
 tyVars :: RType c tv r -> [tv]
 tyVars (RAllP _ t)     = tyVars t
 tyVars (RAllT α t _)   = ty_var_value α : tyVars t
-tyVars (RImpF _ t t' _) = tyVars t ++ tyVars t'
-tyVars (RFun _ t t' _) = tyVars t ++ tyVars t'
+tyVars (RImpF _ _ t t' _) = tyVars t ++ tyVars t'
+tyVars (RFun _ _ t t' _) = tyVars t ++ tyVars t'
 tyVars (RAppTy t t' _) = tyVars t ++ tyVars t'
 tyVars (RApp _ ts _ _) = concatMap tyVars ts
 tyVars (RVar α _)      = [α]
@@ -185,14 +186,14 @@ subsTyVarsAll ats = go
   where
     abm            = M.fromList [(a, b) | (a, _, RVar b _) <- ats]
     go (RAllT a t r) = RAllT (makeRTVar $ M.lookupDefault (ty_var_value a) (ty_var_value a) abm) (go t) r
-    go t           = subsTyVars_meet ats t
+    go t           = subsTyVarsMeet ats t
 
 
 funBinds :: RType t t1 t2 -> [Symbol]
 funBinds (RAllT _ t _)    = funBinds t
 funBinds (RAllP _ t)      = funBinds t
-funBinds (RImpF b t1 t2 _) = b : funBinds t1 ++ funBinds t2
-funBinds (RFun b t1 t2 _) = b : funBinds t1 ++ funBinds t2
+funBinds (RImpF b _ t1 t2 _) = b : funBinds t1 ++ funBinds t2
+funBinds (RFun b _ t1 t2 _) = b : funBinds t1 ++ funBinds t2
 funBinds (RApp _ ts _ _)  = concatMap funBinds ts
 funBinds (RAllE b t1 t2)  = b : funBinds t1 ++ funBinds t2
 funBinds (REx b t1 t2)    = b : funBinds t1 ++ funBinds t2

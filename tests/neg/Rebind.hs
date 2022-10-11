@@ -1,6 +1,7 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-# LANGUAGE RebindableSyntax #-}
 
-module Rebind () where 
+module Rebind () where
 
 import Prelude hiding ((>>), (>>=), return)
 

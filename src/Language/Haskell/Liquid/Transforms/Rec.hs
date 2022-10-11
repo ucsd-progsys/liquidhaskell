@@ -1,10 +1,9 @@
-{-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
-{-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE TypeSynonymInstances      #-}
+
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.Haskell.Liquid.Transforms.Rec (
      transformRecExpr, transformScope
@@ -16,9 +15,9 @@ import           Control.Arrow                        (second)
 import           Control.Monad.State
 import qualified Data.HashMap.Strict                  as M
 import           Data.Hashable
-import           Language.Haskell.Liquid.GHC.API      as Ghc hiding (panic, mapSndM)
-import           Language.Haskell.Liquid.GHC.Misc
-import           Language.Haskell.Liquid.GHC.Play
+import           Liquid.GHC.API      as Ghc hiding (panic, mapSndM)
+import           Liquid.GHC.Misc
+import           Liquid.GHC.Play
 import           Language.Haskell.Liquid.Misc         (mapSndM)
 import           Language.Fixpoint.Misc               (mapSnd) -- , traceShow)
 import           Language.Haskell.Liquid.Types.Errors
@@ -33,7 +32,7 @@ transformRecExpr cbs = pg
   -- TODO-REBARE weird GHC crash on Data/Text/Array.hs = pg
   -- TODO-REBARE weird GHC crash on Data/Text/Array.hs | otherwise
   -- TODO-REBARE weird GHC crash on Data/Text/Array.hs = panic Nothing ("Type-check" ++ showSDoc (pprMessageBag e))
-  where 
+  where
     pg     = inlineFailCases pg0
     pg0    = evalState (transPg (inlineLoopBreaker <$> cbs)) initEnv
     -- (_, e) = lintCoreBindings [] pg
@@ -47,7 +46,7 @@ inlineLoopBreaker (NonRec x e) | Just (lbx, lbe) <- hasLoopBreaker be
   where
     (αs, as, be) = collectTyAndValBinders e
 
-    e' = L.foldl' App (L.foldl' App (Var x) ((Type . TyVarTy) <$> αs)) (Var <$> as)
+    e' = L.foldl' App (L.foldl' App (Var x) (Type . TyVarTy <$> αs)) (Var <$> as)
 
     hasLoopBreaker (Let (Rec [(x1, e1)]) (Var x2)) | isLoopBreaker x1 && x1 == x2 = Just (x1, e1)
     hasLoopBreaker _                               = Nothing
@@ -76,7 +75,7 @@ inlineFailCases = (go [] <$>)
 
     goalt su (c, xs, e)     = (c, xs, go' su e)
 
-    isFailId x  = isLocalId x && (isSystemName $ varName x) && L.isPrefixOf "fail" (show x)
+    isFailId x  = isLocalId x && isSystemName (varName x) && L.isPrefixOf "fail" (show x)
     getFailExpr = L.lookup
 
     addFailExpr x (Lam _ e) su = (x, e):su
@@ -88,7 +87,7 @@ inlineFailCases = (go [] <$>)
 
 -- No need for this transformation after ghc-8!!!
 transformScope :: [Bind Id] -> [Bind Id]
-transformScope = outerScTr . innerScTr 
+transformScope = outerScTr . innerScTr
 
 outerScTr :: [Bind Id] -> [Bind Id]
 outerScTr = mapNonRec (go [])
@@ -126,12 +125,12 @@ transPg = mapM transBd
 
 transBd :: Bind CoreBndr
         -> State TrEnv (Bind CoreBndr)
-transBd (NonRec x e) = liftM (NonRec x) (transExpr =<< mapBdM transBd e)
-transBd (Rec xes)    = liftM Rec $ mapM (mapSndM (mapBdM transBd)) xes
+transBd (NonRec x e) = fmap (NonRec x) (transExpr =<< mapBdM transBd e)
+transBd (Rec xes)    = Rec <$> mapM (mapSndM (mapBdM transBd)) xes
 
 transExpr :: CoreExpr -> TE CoreExpr
 transExpr e
-  | (isNonPolyRec e') && (not (null tvs))
+  | isNonPolyRec e' && not (null tvs)
   = trans tvs ids bs e'
   | otherwise
   = return e
@@ -160,12 +159,12 @@ trans :: Foldable t
       -> Expr Var
       -> State TrEnv (Expr Id)
 trans vs ids bs (Let (Rec xes) e)
-  = liftM (mkLam . mkLet) (makeTrans vs liveIds e')
+  = fmap (mkLam . mkLet) (makeTrans vs liveIds e')
   where liveIds = mkAlive <$> ids
         mkLet e = foldr Let e bs
         mkLam e = foldr Lam e $ vs ++ liveIds
         e'      = Let (Rec xes') e
-        xes'    = (second mkLet) <$> xes
+        xes'    = second mkLet <$> xes
 
 trans _ _ _ _ = panic Nothing "TransformRec.trans called with invalid input"
 
@@ -197,7 +196,7 @@ mkRecBinds xes rs e = Let rs (L.foldl' f e xes)
 mkSubs :: (Eq k, Hashable k)
        => [k] -> [Var] -> [Id] -> [(k, Id)] -> M.HashMap k (Expr b)
 mkSubs ids tvs xs ys = M.fromList $ s1 ++ s2
-  where s1 = (second (appTysAndIds tvs xs)) <$> ys
+  where s1 = second (appTysAndIds tvs xs) <$> ys
         s2 = zip ids (Var <$> xs)
 
 mkFreshIds :: [TyVar]
@@ -245,7 +244,7 @@ instance Freshable Unique where
   fresh _ = freshUnique
 
 instance Freshable Var where
-  fresh v = liftM (setVarUnique v) freshUnique
+  fresh v = fmap (setVarUnique v) freshUnique
 
 freshInt :: MonadState TrEnv m => m Int
 freshInt
@@ -255,7 +254,7 @@ freshInt
        return n
 
 freshUnique :: MonadState TrEnv m => m Unique
-freshUnique = liftM (mkUnique 'X') freshInt
+freshUnique = fmap (mkUnique 'X') freshInt
 
 
 mapNonRec :: (b -> [Bind b] -> [Bind b]) -> [Bind b] -> [Bind b]

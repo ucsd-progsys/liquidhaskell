@@ -1,8 +1,9 @@
 {-# LANGUAGE TypeFamilies #-}
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
+{-@ LIQUID "--ple-with-undecided-guards" @-}
 
-module B where
+module T1670A where
 
 data LWW t a = LWW {
     lwwTime  :: t

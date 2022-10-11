@@ -1,7 +1,8 @@
+{-@ LIQUID "--expect-any-error" @-}
 -- TEST that the name `member` is properly resolved to Set_mem. 
 -- TAG: LOGICMAP 
 
-module Set00 where 
+module Set01 where 
 
 import Data.Set as S
 

@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--no-adt" 	                           @-}
 {-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--higherorder"                         @-}
@@ -10,7 +11,7 @@
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
-module Query where
+module BinahQuery where
 
 import Prelude hiding (filter)
 

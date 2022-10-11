@@ -1,10 +1,9 @@
-module Fold where
+module Foldl where
 
 {-@ LIQUID "--no-termination" @-}
 import Prelude hiding (foldr)
 
 data Vec a = Nil | Cons a (Vec a)
-
 
 
 {-@
@@ -20,14 +19,6 @@ efoldl :: (a -> b -> b) -> Vec a -> b -> b
 efoldl op Nil b         = b
 efoldl op (Cons x xs) b = efoldl op xs (x `op` b)
 
-
-
-
-{-
-step x b b' <=> b' = b + 1
-inv ys b <=> b + len ys = len xs
--}
-
 {-@ size_invariant_qualifier :: xs: Vec a -> ys:Vec a -> {v:Int | v + llen xs ==  llen ys} @-}
 size_invariant_qualifier :: Vec a -> Vec a -> Int
 size_invariant_qualifier xs ys = undefined
@@ -40,7 +31,6 @@ size xs = efoldl (\_ n -> n + 1) xs 0
 -- | We can encode the notion of length as an inductive measure @llen@
 
 {-@ measure llen @-}
-
 llen :: Vec a -> Int
 llen (Nil)       = 0
 llen (Cons x xs) = 1 + llen(xs)

@@ -1,9 +1,10 @@
+{-@ LIQUID "--expect-any-error" @-}
 
 -- cf https://github.com/ucsd-progsys/liquidhaskell/issues/1044
 
 {-@ LIQUID "--reflection" @-}
 
-module ReflectString where 
+module ReflString1 where
 
 data Vname = V String 
 

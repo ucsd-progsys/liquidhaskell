@@ -1,10 +1,11 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--pruneunsorted"  @-}
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--short-names"    @-}
 {-@ LIQUID "--reflection"     @-}
 {-@ LIQUID "--ple"            @-}
 
-module MultiParams where
+module Solver where
 
 
 import Data.Tuple
@@ -47,19 +48,19 @@ nil = []
 asgns :: Formula -> [Asgn] -- generates all possible T/F vectors
 asgns = go . vars
   where
-  	go [] = []
-  	go (x:xs) = let ass = go xs in (inject (x, VTrue) ass) ++ (inject (x, VFalse) ass)
+    go [] = []
+    go (x:xs) = let ass = go xs in (inject (x, VTrue) ass) ++ (inject (x, VFalse) ass)
 
-  	inject x xs = map (\y -> x:y) xs
+    inject x xs = map (\y -> x:y) xs
 
 vars :: Formula -> [Var]
 vars = nub . go
   where
-  	go [] = []
-  	go (ls:xs) = map go' ls ++ go xs
+    go [] = []
+    go (ls:xs) = map go' ls ++ go xs
 
-  	go' (Pos x) = x
-  	go' (Neg x) = x
+    go' (Pos x) = x
+    go' (Neg x) = x
 
 -- | Satisfaction
 

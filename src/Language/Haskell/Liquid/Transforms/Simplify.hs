@@ -20,7 +20,7 @@ dropBoundLike p
   | isBoundLikePred p = mempty
   | otherwise         = p
   where
-    isKvar            = not . null . kvars
+    isKvar            = not . null . kvarsExpr
 
 isBoundLikePred :: Expr -> Bool
 isBoundLikePred (PAnd ps) = simplifyLen <= length [p | p <- ps, isImp p ]

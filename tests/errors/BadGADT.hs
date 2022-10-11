@@ -1,6 +1,9 @@
+{-@ LIQUID "--expect-error-containing=Specified type does not refine Haskell type for `BadGADT.Nil2`" @-}
 {-# LANGUAGE GADTs #-}
 
 {-@ LIQUID "--no-termination" @-}
+
+module BadGADT where
 
 {-@ data List a where
        Nil  :: List a

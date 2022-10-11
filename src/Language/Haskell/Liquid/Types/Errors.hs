@@ -1,13 +1,12 @@
-{-# LANGUAGE ImplicitParams      #-}
-{-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE DeriveFunctor       #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE DerivingStrategies  #-}
 {-# LANGUAGE DerivingVia         #-}
+
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- TODO(#1918): Only needed for GHC <9.0.1.
+{-# OPTIONS_GHC -Wno-orphans #-} -- PPrint and aeson instances.
 
 -- | This module contains the *types* related creating Errors.
 --   It depends only on Fixpoint and basic haskell libraries,
@@ -50,7 +49,7 @@ module Language.Haskell.Liquid.Types.Errors (
   , srcSpanFileMb
   ) where
 
-import           Prelude                      hiding (error)
+import           Prelude                      hiding (error, span)
 
 import           GHC.Generics
 import           Control.DeepSeq
@@ -69,7 +68,7 @@ import           System.FilePath
 import           Text.PrettyPrint.HughesPJ
 import qualified Text.Megaparsec              as P
 
-import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( Expr
+import           Liquid.GHC.API as Ghc hiding ( Expr
                                                                , panicDoc
                                                                , ($+$)
                                                                , nest
@@ -86,8 +85,9 @@ import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( Expr
                                                                , panic
                                                                , int
                                                                , hcat
+                                                               , spans
                                                                )
-import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr)
+import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr, SubcId)
 import qualified Language.Fixpoint.Misc       as Misc
 import qualified Language.Haskell.Liquid.Misc     as Misc
 import           Language.Haskell.Liquid.Misc ((<->))
@@ -163,7 +163,7 @@ makeContext :: Int -> Int -> Int -> [String] -> Doc
 makeContext _ _ _  []  = empty
 makeContext l c c' [s] = makeContext1 l c c' s
 makeContext l _ _  ss  = vcat $ text " "
-                              : (zipWith makeContextLine [l..] ss)
+                              : zipWith makeContextLine [l..] ss
                               ++ [ text " "
                                  , text " " ]
 
@@ -223,6 +223,7 @@ ppOblig ORel  = text "Relational Check"
 data TError t =
     ErrSubType { pos  :: !SrcSpan
                , msg  :: !Doc
+               , cid  :: Maybe SubcId
                , ctx  :: !(M.HashMap Symbol t)
                , tact :: !t
                , texp :: !t
@@ -231,6 +232,7 @@ data TError t =
   | ErrSubTypeModel
                { pos  :: !SrcSpan
                , msg  :: !Doc
+               , cid  :: Maybe SubcId
                , ctxM  :: !(M.HashMap Symbol (WithModel t))
                , tactM :: !(WithModel t)
                , texp :: !t
@@ -476,6 +478,12 @@ data TError t =
                 , msg :: !Doc
                 }
 
+  | ErrPosTyCon { pos  :: SrcSpan
+                , tc   :: !Doc
+                , dc   :: !Doc
+                }
+
+
   | ErrOther    { pos   :: SrcSpan
                 , msg   :: !Doc
                 } -- ^ Sigh. Other.
@@ -538,7 +546,7 @@ pprRealSrcSpan span
     hcat $ [ pathDoc <-> colon
            , int sline <-> colon
            , int scol
-           ] ++ if ecol - scol <= 1 then [] else [char '-' <-> int (ecol - 1)]
+           ] ++ [char '-' <-> int (ecol - 1) | (ecol - scol) > 1]
   | otherwise =
     hcat [ pathDoc <-> colon
          , parens (int sline <-> comma <-> int scol)
@@ -630,7 +638,7 @@ ppReqInContext td tA tE c
 
 ppContext :: PPrint t => Tidy -> M.HashMap Symbol t -> Doc
 ppContext td c
-  | 0 < length xts = nests 2 [ text "in the context"
+  | not (null xts) = nests 2 [ text "in the context"
                              , vsep (map (uncurry (pprintBind td)) xts)
                              ]
   | otherwise      = empty
@@ -641,7 +649,7 @@ pprintBind :: PPrint t => Tidy -> Symbol -> t -> Doc
 pprintBind td v t = pprintTidy td v <+> char ':' <+> pprintTidy td t
 
 ppReqModelInContext
-  :: (PPrint t) => Tidy -> WithModel t -> t -> (M.HashMap Symbol (WithModel t)) -> Doc
+  :: (PPrint t) => Tidy -> WithModel t -> t -> M.HashMap Symbol (WithModel t) -> Doc
 ppReqModelInContext td tA tE c
   = sepVcat blankLine
       [ nests 2 [ text "The inferred type"
@@ -719,9 +727,9 @@ instance ToJSON SrcSpan where
 
 instance FromJSON SrcSpan where
   parseJSON (Object v) = do tag <- v .: "realSpan"
-                            case tag of
-                              False -> return noSrcSpan
-                              True  -> RealSrcSpan <$> v .: "spanInfo" <*> pure Nothing
+                            if tag
+                              then RealSrcSpan <$> v .: "spanInfo" <*> pure Nothing
+                              else return noSrcSpan
   parseJSON _          = mempty
 
 -- Default definition use ToJSON and FromJSON
@@ -729,8 +737,8 @@ instance ToJSONKey SrcSpan
 instance FromJSONKey SrcSpan
 
 instance (PPrint a, Show a) => ToJSON (TError a) where
-  toJSON e = object [ "pos" .= (pos e)
-                    , "msg" .= (render $ ppError' Full empty e)
+  toJSON e = object [ "pos" .= pos e
+                    , "msg" .= render (ppError' Full empty e)
                     ]
 
 instance FromJSON (TError a) where
@@ -743,17 +751,16 @@ errSaved sp body = ErrSaved sp (text n) (text $ unlines m)
   where
     n : m        = lines body
 
-
 totalityType :: PPrint a =>  Tidy -> a -> Bool
 totalityType td tE = pprintTidy td tE == text "{VV : Addr# | 5 < 4}"
 
 hint :: TError a -> Doc
 hint e = maybe empty (\d -> "" $+$ ("HINT:" <+> d)) (go e)
   where
-    go (ErrMismatch {}) = Just "Use the hole '_' instead of the mismatched component (in the Liquid specification)"
-    go (ErrSubType {})  = Just "Use \"--no-totality\" to deactivate totality checking."
-    go (ErrNoSpec {})   = Just "Run 'liquid' on the source file first."
-    go _                = Nothing
+    go ErrMismatch {} = Just "Use the hole '_' instead of the mismatched component (in the Liquid specification)"
+    go ErrSubType {}  = Just "Use \"--no-totality\" to deactivate totality checking."
+    go ErrNoSpec {}   = Just "Run 'liquid' on the source file first."
+    go _              = Nothing
 
 --------------------------------------------------------------------------------
 ppError' :: (PPrint a, Show a) => Tidy -> Doc -> TError a -> Doc
@@ -761,9 +768,9 @@ ppError' :: (PPrint a, Show a) => Tidy -> Doc -> TError a -> Doc
 ppError' td dCtx (ErrAssType _ o _ c p)
   = pprintTidy td o
         $+$ dCtx
-        $+$ (ppFull td $ ppPropInContext td p c)
+        $+$ ppFull td (ppPropInContext td p c)
 
-ppError' td dCtx err@(ErrSubType _ _ _ _ tE)
+ppError' td dCtx err@(ErrSubType _ _ _ _ _ tE)
   | totalityType td tE
   = text "Totality Error"
         $+$ dCtx
@@ -779,28 +786,30 @@ ppError' _td _dCtx (ErrHole _ msg _ x t)
         $+$ pprint x <+> "::" <+> pprint t
         $+$ msg
 
-ppError' td dCtx (ErrSubType _ msg c tA tE)
+ppError' td dCtx (ErrSubType _ msg cid c tA tE)
   = text "Liquid Type Mismatch " $+$ msg 
-    $+$ nest 4 
-          (blankLine 
+    $+$ nest 4
+          (blankLine
            $+$ dCtx
-           $+$ (ppFull td $ ppReqInContext td tA tE c))
+           $+$ ppFull td (ppReqInContext td tA tE c)
+           $+$ maybe mempty (\i -> text "Constraint id" <+> text (show i)) cid)
 
-ppError' td dCtx (ErrSubTypeModel _ _ c tA tE)
+ppError' td dCtx (ErrSubTypeModel _ _ cid c tA tE)
   = text "Liquid Type Mismatch"
-    $+$ nest 4 
+    $+$ nest 4
           (dCtx
-          $+$ (ppFull td $ ppReqModelInContext td tA tE c))
+          $+$ ppFull td (ppReqModelInContext td tA tE c)
+          $+$ maybe mempty (\i -> text "Constraint id" <+> text (show i)) cid)
 
 ppError' td  dCtx (ErrFCrash _ _ c tA tE)
   = text "Fixpoint Crash on Constraint"
         $+$ dCtx
-        $+$ (ppFull td $ ppReqInContext td tA tE c)
+        $+$ ppFull td (ppReqInContext td tA tE c)
 
 ppError' _ dCtx (ErrParse _ _ e)
   = text "Cannot parse specification:"
         $+$ dCtx
-        $+$ (nest 4 $ pprint e)
+        $+$ nest 4 (pprint e)
 
 ppError' _ dCtx (ErrTySpec _ _k v t s)
   = ("Illegal type specification for" <+> ppTicks v) --  <-> ppKind k <-> ppTicks v)
@@ -808,6 +817,7 @@ ppError' _ dCtx (ErrTySpec _ _k v t s)
         $+$ dCtx
         $+$ nest 4 (vcat [ pprint v <+> Misc.dcolon <+> pprint t
                          , pprint s
+                         , pprint _k
                          ])
     where
       _ppKind Nothing  = empty
@@ -816,7 +826,7 @@ ppError' _ dCtx (ErrTySpec _ _k v t s)
 ppError' _ dCtx (ErrLiftExp _ v)
   = text "Cannot lift" <+> ppTicks v <+> "into refinement logic"
         $+$ dCtx
-        $+$ (nest 4 $ text "Please export the binder from the module to enable lifting.")
+        $+$ nest 4 (text "Please export the binder from the module to enable lifting.")
 
 ppError' _ dCtx (ErrBadData _ v s)
   = text "Bad Data Specification"
@@ -842,30 +852,30 @@ ppError' _ dCtx (ErrBadQual _ n d)
 ppError' _ dCtx (ErrTermSpec _ v msg e t s)
   = text "Illegal termination specification for" <+> ppTicks v
         $+$ dCtx
-        $+$ (nest 4 $ ((text "Termination metric" <+> ppTicks e <+> text "is" <+> msg <+> "in type signature")
-                        $+$ nest 4 (pprint t)
-                        $+$ pprint s))
+        $+$ nest 4 ((text "Termination metric" <+> ppTicks e <+> text "is" <+> msg <+> "in type signature")
+                     $+$ nest 4 (pprint t)
+                     $+$ pprint s)
 
 ppError' _ _ (ErrInvt _ t s)
   = text "Bad Invariant Specification"
-        $+$ (nest 4 $ text "invariant " <+> pprint t $+$ pprint s)
+        $+$ nest 4 (text "invariant " <+> pprint t $+$ pprint s)
 
 ppError' _ _ (ErrIAl _ t s)
   = text "Bad Using Specification"
-        $+$ (nest 4 $ text "as" <+> pprint t $+$ pprint s)
+        $+$ nest 4 (text "as" <+> pprint t $+$ pprint s)
 
 ppError' _ _ (ErrIAlMis _ t1 t2 s)
   = text "Incompatible Using Specification"
-        $+$ (nest 4 $ (text "using" <+> pprint t1 <+> text "as" <+> pprint t2) $+$ pprint s)
+        $+$ nest 4 ((text "using" <+> pprint t1 <+> text "as" <+> pprint t2) $+$ pprint s)
 
 ppError' _ _ (ErrMeas _ t s)
   = text "Bad Measure Specification"
-        $+$ (nest 4 $ text "measure " <+> pprint t $+$ pprint s)
+        $+$ nest 4 (text "measure " <+> pprint t $+$ pprint s)
 
 ppError' _ dCtx (ErrHMeas _ t s)
   = text "Cannot lift Haskell function" <+> ppTicks t <+> text "to logic"
         $+$ dCtx
-        $+$ (nest 4 $ pprint s)
+        $+$ nest 4 (pprint s)
 
 ppError' _ dCtx (ErrDupSpecs _ v ls)
   = text "Multiple specifications for" <+> ppTicks v <+> colon
@@ -885,7 +895,7 @@ ppError' _ dCtx (ErrDupMeas _ v ls)
 ppError' _ dCtx (ErrDupField _ dc x)
   = text "Malformed refined data constructor" <+> dc
         $+$ dCtx
-        $+$ (nest 4 $ text "Duplicated definitions for field" <+> ppTicks x)
+        $+$ nest 4 (text "Duplicated definitions for field" <+> ppTicks x)
 
 ppError' _ dCtx (ErrDupNames _ x ns)
   = text "Ambiguous specification symbol" <+> ppTicks x
@@ -908,7 +918,7 @@ ppError' _ dCtx (ErrUnbPred _ p)
 ppError' _ dCtx (ErrGhc _ s)
   = text "GHC Error"
         $+$ dCtx
-        $+$ (nest 4 $ pprint s)
+        $+$ nest 4 (pprint s)
 
 ppError' _ _ (ErrFail _ s)
   = text "Failure Error:"
@@ -917,17 +927,17 @@ ppError' _ _ (ErrFail _ s)
 ppError' _ _ (ErrFailUsed _ s xs)
   = text "Failure Error:"
         $+$ text "Binder" <+> pprint s <+> text "declared to fail is used by"
-        <+> (hsep $ L.intersperse comma xs)
+        <+> hsep (L.intersperse comma xs)
 
 ppError' _ dCtx (ErrResolve _ kind v msg)
   = (text "Unknown" <+> kind <+> ppTicks v)
         $+$ dCtx
-        $+$ (nest 4 msg)
+        $+$ nest 4 msg
 
 ppError' _ dCtx (ErrPartPred _ c p i eN aN)
   = text "Malformed predicate application"
         $+$ dCtx
-        $+$ (nest 4 $ vcat
+        $+$ nest 4 (vcat
                         [ "The" <+> text (Misc.intToString i) <+> "argument of" <+> c <+> "is predicate" <+> ppTicks p
                         , "which expects" <+> pprint eN <+> "arguments" <+> "but is given only" <+> pprint aN
                         , " "
@@ -939,14 +949,14 @@ ppError' _ dCtx (ErrPartPred _ c p i eN aN)
 ppError' _ dCtx e@(ErrMismatch _ x msg τ t cause hsSp)
   = "Specified type does not refine Haskell type for" <+> ppTicks x <+> parens msg
         $+$ dCtx
-        $+$ (sepVcat blankLine
+        $+$ sepVcat blankLine
               [ "The Liquid type"
               , nest 4 t
               , "is inconsistent with the Haskell type"
               , nest 4 τ
               , "defined at" <+> pprint hsSp
               , maybe empty ppCause cause
-              ])
+              ]
     where
       ppCause (hsD, lqD) = sepVcat blankLine
               [ "Specifically, the Liquid component"
@@ -959,7 +969,7 @@ ppError' _ dCtx e@(ErrMismatch _ x msg τ t cause hsSp)
 ppError' _ dCtx (ErrAliasCycle _ acycle)
   = text "Cyclic type alias definition for" <+> ppTicks n0
         $+$ dCtx
-        $+$ (nest 4 $ sepVcat blankLine (hdr : map describe acycle))
+        $+$ nest 4 (sepVcat blankLine (hdr : map describe acycle))
   where
     hdr             = text "The following alias definitions form a cycle:"
     describe (p, n) = text "*" <+> ppTicks n <+> parens (text "defined at:" <+> pprint p)
@@ -974,8 +984,8 @@ ppError' _ dCtx (ErrIllegalAliasApp _ dn dl)
 ppError' _ dCtx (ErrAliasApp _ name dl s)
   = text "Malformed application of type alias" <+> ppTicks name
         $+$ dCtx
-        $+$ (nest 4 $ vcat [ text "The alias" <+> ppTicks name <+> "defined at:" <+> pprint dl
-                           , s ] )
+        $+$ nest 4 (vcat [ text "The alias" <+> ppTicks name <+> "defined at:" <+> pprint dl
+                           , s ])
 
 ppError' _ dCtx (ErrSaved _ name s)
   = name -- <+> "(saved)"
@@ -1003,7 +1013,7 @@ ppError' _ dCtx (ErrOther _ s)
 ppError' _ dCtx (ErrTermin _ xs s)
   = text "Termination Error"
         $+$ dCtx
-        <+> (hsep $ L.intersperse comma xs) $+$ s
+        <+> hsep (L.intersperse comma xs) $+$ s
 
 ppError' _ dCtx (ErrStTerm _ x s)
   = text "Structural Termination Error"
@@ -1018,11 +1028,11 @@ ppError' _ dCtx (ErrMClass _ v)
   = text "Standalone class method refinement"
     $+$ dCtx
     $+$ (text "Invalid type specification for" <+> v)
-    $+$ (text "Use class or instance refinements instead.")
+    $+$ text "Use class or instance refinements instead."
 
 ppError' _ _ (ErrRClass p0 c is)
   = text "Refined classes cannot have refined instances"
-    $+$ (nest 4 $ sepVcat blankLine $ describeCls : map describeInst is)
+    $+$ nest 4 (sepVcat blankLine $ describeCls : map describeInst is)
   where
     describeCls
       =   text "Refined class definition for:" <+> c
@@ -1040,6 +1050,16 @@ ppError' _ dCtx (ErrRewrite _ msg )
   = text "Rewrite error"
         $+$ dCtx
         $+$ nest 4 msg
+
+ppError' _ dCtx (ErrPosTyCon _ tc dc)
+  = text "Negative occurence of" <+> tc <+> "in" <+> dc
+        $+$ dCtx
+        $+$ vcat
+            ["\n"
+             , "To deactivate or understand the need of positivity check, see:"
+             , " "
+             , nest 2 "https://ucsd-progsys.github.io/liquidhaskell/options/#positivity-check"
+            ]
 
 ppError' _ dCtx (ErrParseAnn _ msg)
   = text "Malformed annotation"

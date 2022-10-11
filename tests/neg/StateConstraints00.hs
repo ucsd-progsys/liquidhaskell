@@ -1,4 +1,5 @@
-module Compose where
+{-@ LIQUID "--expect-any-error" @-}
+module StateConstraints00 where
 
 import Prelude hiding (Monad, return )
 

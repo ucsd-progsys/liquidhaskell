@@ -1,6 +1,6 @@
 {-@ LIQUID "--reflection" @-}
 
-module Data.Foo where
+module T819 where
 
 import Language.Haskell.Liquid.ProofCombinators
 import Prelude hiding ((<>))

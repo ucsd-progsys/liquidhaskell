@@ -1,22 +1,18 @@
-{-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE DeriveFunctor              #-}
-{-# LANGUAGE DeriveFoldable             #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DeriveTraversable          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
-{-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE ConstraintKinds            #-}
-{-# LANGUAGE BangPatterns               #-}
-{-# LANGUAGE TupleSections              #-}
-{-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE DerivingVia                #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 -- | This module should contain all the global type definitions and basic instances.
 
@@ -54,7 +50,7 @@ module Language.Haskell.Liquid.Types.Types (
   , rTyConPVs
   , rTyConPropVs
   -- , isClassRTyCon
-  , isClassType, isEqType, isRVar, isBool
+  , isClassType, isEqType, isRVar, isBool, isEmbeddedClass
 
   -- * Refinement Types
   , RType (..), Ref(..), RTProp, rPropP
@@ -118,8 +114,8 @@ module Language.Haskell.Liquid.Types.Types (
   -- * Constructing & Destructing RTypes
   , RTypeRep(..), fromRTypeRep, toRTypeRep
   , mkArrow, bkArrowDeep, bkArrow, safeBkArrow
-  , mkUnivs, bkUniv, bkClass, bkUnivClass
-  , rImpF, rFun, rCls, rRCls
+  , mkUnivs, bkUniv, bkClass, bkUnivClass, bkUnivClass'
+  , rImpF, rFun, rFun', rCls, rRCls, rFunDebug
 
   -- * Manipulating `Predicates`
   , pvars, pappSym, pApp
@@ -128,13 +124,13 @@ module Language.Haskell.Liquid.Types.Types (
   , isBase
   , isFunTy
   , isTrivial
-  , hasHole 
+  , hasHole
 
   -- * Traversing `RType`
   , efoldReft, foldReft, foldReft'
   , emapReft, mapReft, mapReftM, mapPropM
   , mapExprReft
-  , mapBot, mapBind
+  , mapBot, mapBind, mapRFInfo
   , foldRType
 
 
@@ -207,7 +203,7 @@ module Language.Haskell.Liquid.Types.Types (
   , Def (..)
   , Body (..)
   , MSpec (..)
-  
+
   -- * Scoping Info
   , BScope
 
@@ -242,11 +238,14 @@ module Language.Haskell.Liquid.Types.Types (
   -- , rtyVarUniqueSymbol, tyVarUniqueSymbol
   , rtyVarType, tyVarVar
 
+  -- * Refined Function Info 
+  , RFInfo(..), defRFInfo, mkRFInfo, classRFInfo, classRFInfoType
+
   , ordSrcSpan
   )
   where
 
-import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( Expr
+import           Liquid.GHC.API as Ghc hiding ( Expr
                                                                , Target
                                                                , isFunTy
                                                                , LM
@@ -278,7 +277,7 @@ import           GHC.Generics
 import           Prelude                          hiding  (error)
 import qualified Prelude
 
-import           Control.Monad                          (liftM, liftM2, liftM3, liftM4)
+import           Control.Monad                          (liftM2, liftM3, liftM4, void)
 import           Control.DeepSeq
 import           Data.Bifunctor
 import           Data.Typeable                          (Typeable)
@@ -289,19 +288,19 @@ import           Data.Hashable
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
 import qualified Data.List                              as L
-import           Data.Maybe                             (fromMaybe, mapMaybe)
+import           Data.Maybe                             (mapMaybe)
 import           Data.Function                          (on)
 import           Data.List                              as L (foldl', nub, null)
 import           Data.Text                              (Text)
-import           Text.PrettyPrint.HughesPJ              hiding (first, (<>)) 
+import           Text.PrettyPrint.HughesPJ              hiding (first, (<>))
 import           Text.Printf
 import           Language.Fixpoint.Misc
 
 import qualified Language.Fixpoint.Types as F
 
 import           Language.Haskell.Liquid.Types.Generics
-import           Language.Haskell.Liquid.GHC.Misc
-import           Language.Haskell.Liquid.GHC.Logging as GHC
+import           Liquid.GHC.Misc
+import           Liquid.GHC.Logging as GHC
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Misc
@@ -317,22 +316,43 @@ If BScope = True , then the outer binder out is     in scope on ri
 If BScope = False, then the outer binder out is not in scope on ri
 -}
 
-type BScope = Bool    
+type BScope = Bool
 -----------------------------------------------------------------------------
 -- | Information about Type Constructors
 -----------------------------------------------------------------------------
-data TyConMap = TyConMap 
+data TyConMap = TyConMap
   { tcmTyRTy    :: M.HashMap TyCon             RTyCon  -- ^ Map from GHC TyCon to RTyCon 
   , tcmFIRTy    :: M.HashMap (TyCon, [F.Sort]) RTyCon  -- ^ Map from GHC Family-Instances to RTyCon
   , tcmFtcArity :: M.HashMap TyCon             Int     -- ^ Arity of each Family-Tycon 
   }
- 
+
+
+newtype RFInfo = RFInfo {permitTC :: Maybe Bool }
+  deriving (Generic, Data, Typeable, Show, Eq)
+
+defRFInfo :: RFInfo
+defRFInfo = RFInfo Nothing
+
+classRFInfo :: Bool -> RFInfo
+classRFInfo b = RFInfo (Just b)
+
+classRFInfoType :: Bool -> RType c tv r -> RType c tv r
+classRFInfoType b = fromRTypeRep .
+                    (\trep@RTypeRep{..} -> trep{ty_info = map (\i -> i{permitTC = pure b}) ty_info}) .
+                    toRTypeRep
+
+mkRFInfo :: Config  -> RFInfo
+mkRFInfo cfg = RFInfo $ Just (typeclass cfg)
+
+instance Hashable RFInfo
+instance NFData RFInfo
+instance B.Binary RFInfo
 
 -----------------------------------------------------------------------------
 -- | Printer ----------------------------------------------------------------
 -----------------------------------------------------------------------------
 
-data PPEnv = PP 
+data PPEnv = PP
   { ppPs    :: Bool -- ^ print abstract-predicates 
   , ppTyVar :: Bool -- ^ print the unique suffix for each tyvar
   , ppShort :: Bool -- ^ print the tycons without qualification 
@@ -341,8 +361,8 @@ data PPEnv = PP
   deriving (Show)
 
 ppEnv :: PPEnv
-ppEnv = ppEnvDef 
-          { ppPs    = True }   
+ppEnv = ppEnvDef
+          { ppPs    = True }
           { ppDebug = True }   -- RJ: needed for resolution, because pp is used for serialization?
 
 {- | [NOTE:ppEnv] For some mysterious reason, `ppDebug` must equal `True`
@@ -442,7 +462,6 @@ data DataConP = DataConP
   , dcpTyConstrs  :: ![SpecType]             -- ^ ? Class constraints (via `dataConStupidTheta`)
   , dcpTyArgs     :: ![(Symbol, SpecType)]   -- ^ Value parameters
   , dcpTyRes      :: !SpecType               -- ^ Result type
-  -- , tyData     :: !SpecType               -- ^ The 'generic' ADT, see [NOTE:DataCon-Data]
   , dcpIsGadt     :: !Bool                   -- ^ Was this specified in GADT style (if so, DONT use function names as fields)
   , dcpModule     :: !F.Symbol               -- ^ Which module was this defined in
   , dcpLocE       :: !F.SourcePos
@@ -513,7 +532,7 @@ instance NFData a   => NFData   (PVKind a)
 
 type UsedPVar      = PVar ()
 
-newtype Predicate  = Pr [UsedPVar] 
+newtype Predicate  = Pr [UsedPVar]
   deriving (Generic, Data, Typeable)
   deriving Hashable via Generically Predicate
 
@@ -624,7 +643,7 @@ data RTyCon = RTyCon
   deriving (Generic, Data, Typeable)
 
 instance F.Symbolic RTyCon where
-  symbol = F.symbol . rtc_tc 
+  symbol = F.symbol . rtc_tc
 
 instance F.Symbolic BTyCon where
   symbol = F.val . btc_tc
@@ -648,7 +667,7 @@ mkBTyCon x = BTyCon x False False
 -- | Accessors for @RTyCon@
 
 isBool :: RType RTyCon t t1 -> Bool
-isBool (RApp (RTyCon{rtc_tc = c}) _ _ _) = c == boolTyCon
+isBool (RApp RTyCon{rtc_tc = c} _ _ _) = c == boolTyCon
 isBool _                                 = False
 
 isRVar :: RType c tv r -> Bool
@@ -678,6 +697,10 @@ isEqType _              = False
 isClassType :: TyConable c => RType c t t1 -> Bool
 isClassType (RApp c _ _ _) = isClass c
 isClassType _              = False
+
+isEmbeddedClass :: TyConable c => RType c t t1 -> Bool
+isEmbeddedClass (RApp c _ _ _) = isEmbeddedDict c
+isEmbeddedClass _              = False
 
 -- rTyConPVHPs = filter isHPropPV . rtc_pvars
 -- isHPropPV   = not . isPropPV
@@ -739,6 +762,7 @@ data RType c tv r
 
   | RFun  {
       rt_bind   :: !Symbol
+    , rt_rinfo  :: !RFInfo
     , rt_in     :: !(RType c tv r)
     , rt_out    :: !(RType c tv r)
     , rt_reft   :: !r
@@ -746,6 +770,7 @@ data RType c tv r
 
   | RImpF  {
       rt_bind   :: !Symbol
+    , rt_rinfo  :: !RFInfo -- NNV TODO merge with RFun
     , rt_in     :: !(RType c tv r)
     , rt_out    :: !(RType c tv r)
     , rt_reft   :: !r
@@ -760,7 +785,7 @@ data RType c tv r
   -- | "forall x y <z :: Nat, w :: Int> . TYPE"
   --               ^^^^^^^^^^^^^^^^^^^ (rt_pvbind)
   | RAllP {
-      rt_pvbind :: !(PVU c tv)  -- ar (RType c tv ()))
+      rt_pvbind :: !(PVU c tv)
     , rt_ty     :: !(RType c tv r)
     }
 
@@ -814,8 +839,8 @@ ignoreOblig (RRTy _ _ _ t) = t
 ignoreOblig t              = t
 
 dropImplicits :: RType c tv r -> RType c tv r
-dropImplicits (RImpF _ _ o _) = dropImplicits o
-dropImplicits (RFun  x i o r) = RFun x (dropImplicits i) (dropImplicits o) r
+dropImplicits (RImpF _ _ _ o _) = dropImplicits o
+dropImplicits (RFun x ii i o r) = RFun x ii (dropImplicits i) (dropImplicits o) r
 dropImplicits (RAllP p t) = RAllP p (dropImplicits t)
 dropImplicits (RAllT p t r) = RAllT p (dropImplicits t) r
 dropImplicits (RApp c as ps r) = RApp c (dropImplicits <$> as) (dropImplicitsRP <$> ps) r
@@ -833,7 +858,7 @@ makeRTVar :: tv -> RTVar tv s
 makeRTVar a = RTVar a (RTVNoInfo True)
 
 instance (Eq tv) => Eq (RTVar tv s) where
-  t1 == t2 = (ty_var_value t1) == (ty_var_value t2)
+  t1 == t2 = ty_var_value t1 == ty_var_value t2
 
 data RTVar tv s = RTVar
   { ty_var_value :: tv
@@ -859,21 +884,21 @@ data RTVInfo s
               deriving Hashable via Generically (RTVInfo s)
 
 
-setRtvPol :: RTVar tv a -> Bool -> RTVar tv a 
+setRtvPol :: RTVar tv a -> Bool -> RTVar tv a
 setRtvPol (RTVar a i) b = RTVar a (i{rtv_is_pol = b})
 
 rTVarToBind :: RTVar RTyVar s  -> Maybe (Symbol, s)
 rTVarToBind = go . ty_var_info
   where
-    go (RTVInfo {..}) | rtv_is_val = Just (rtv_name, rtv_kind)
-    go _                           = Nothing
+    go RTVInfo{..} | rtv_is_val = Just (rtv_name, rtv_kind)
+    go _                        = Nothing
 
-ty_var_is_val :: RTVar tv s -> Bool
-ty_var_is_val = rtvinfo_is_val . ty_var_info
+tyVarIsVal :: RTVar tv s -> Bool
+tyVarIsVal = rtvinfoIsVal . ty_var_info
 
-rtvinfo_is_val :: RTVInfo s -> Bool
-rtvinfo_is_val (RTVNoInfo {..}) = False
-rtvinfo_is_val (RTVInfo {..})   = rtv_is_val
+rtvinfoIsVal :: RTVInfo s -> Bool
+rtvinfoIsVal RTVNoInfo{} = False
+rtvinfoIsVal RTVInfo{..} = rtv_is_val
 
 instance (B.Binary tv, B.Binary s) => B.Binary (RTVar tv s)
 instance (NFData tv, NFData s)     => NFData   (RTVar tv s)
@@ -942,16 +967,16 @@ type SpecRep     = RRep      RReft
 type SpecProp    = RRProp    RReft
 type RRProp r    = Ref       RSort (RRType r)
 type BRProp r    = Ref       BSort (BRType r)
-type SpecRTVar   = RTVar     RTyVar RSort 
+type SpecRTVar   = RTVar     RTyVar RSort
 
 
 
 type LocBareType = F.Located BareType
 type LocSpecType = F.Located SpecType
 
-type SpecRTEnv   = RTEnv RTyVar SpecType 
-type BareRTEnv   = RTEnv Symbol BareType 
-type BareRTAlias = RTAlias Symbol BareType 
+type SpecRTEnv   = RTEnv RTyVar SpecType
+type BareRTEnv   = RTEnv Symbol BareType
+type BareRTAlias = RTAlias Symbol BareType
 type SpecRTAlias = RTAlias RTyVar SpecType
 
 
@@ -964,12 +989,18 @@ class (Eq c) => TyConable c where
   isTuple  :: c -> Bool
   ppTycon  :: c -> Doc
   isClass  :: c -> Bool
+  isEmbeddedDict :: c -> Bool
   isEqual  :: c -> Bool
+  isOrdCls  :: c -> Bool
+  isEqCls   :: c -> Bool
 
   isNumCls  :: c -> Bool
   isFracCls :: c -> Bool
 
   isClass   = const False
+  isEmbeddedDict c = isNumCls c || isEqual c || isOrdCls c || isEqCls c
+  isOrdCls  = const False
+  isEqCls   = const False
   isEqual   = const False
   isNumCls  = const False
   isFracCls = const False
@@ -1001,6 +1032,8 @@ instance TyConable RTyCon where
                 (tyConClass_maybe $ rtc_tc c)
   isFracCls c = maybe False (isClassOrSubClass isFractionalClass)
                 (tyConClass_maybe $ rtc_tc c)
+  isOrdCls  c = maybe False isOrdClass (tyConClass_maybe $ rtc_tc c)
+  isEqCls   c = isEqCls (rtc_tc c)
 
 
 instance TyConable TyCon where
@@ -1012,10 +1045,12 @@ instance TyConable TyCon where
   ppTycon    = text . showPpr
 
   isNumCls c  = maybe False (isClassOrSubClass isNumericClass)
-                (tyConClass_maybe $ c)
+                (tyConClass_maybe c)
   isFracCls c = maybe False (isClassOrSubClass isFractionalClass)
-                (tyConClass_maybe $ c)
-
+                (tyConClass_maybe c)
+  isOrdCls c  = maybe False isOrdClass
+                (tyConClass_maybe c)
+  isEqCls  c  = isPrelEqTyCon c
 
 isClassOrSubClass :: (Class -> Bool) -> Class -> Bool
 isClassOrSubClass p cls
@@ -1049,7 +1084,7 @@ instance Eq RTyCon where
 instance Eq BTyCon where
   x == y = btc_tc x == btc_tc y
 
-instance Ord BTyCon where 
+instance Ord BTyCon where
   compare x y = compare (btc_tc x) (btc_tc y)
 
 instance F.Fixpoint RTyCon where
@@ -1065,12 +1100,12 @@ instance Show Cinfo where
   show = show . F.toFix
 
 instance F.PPrint RTyCon where
-  pprintTidy k c 
-    | ppDebug ppEnv = F.pprintTidy k tc  <-> (angleBrackets $ F.pprintTidy k pvs)
+  pprintTidy k c
+    | ppDebug ppEnv = F.pprintTidy k tc  <-> angleBrackets (F.pprintTidy k pvs)
     | otherwise     = text . showPpr . rtc_tc $ c
-    where 
-      tc            = F.symbol (rtc_tc c) 
-      pvs           = rtc_pvars c 
+    where
+      tc            = F.symbol (rtc_tc c)
+      pvs           = rtc_pvars c
 
 instance F.PPrint BTyCon where
   pprintTidy _ = text . F.symbolString . F.val . btc_tc
@@ -1084,8 +1119,8 @@ instance Show RTyCon where
 instance Show BTyCon where
   show = F.showpp
 
-instance F.Loc BTyCon where 
-  srcSpan = F.srcSpan . btc_tc 
+instance F.Loc BTyCon where
+  srcSpan = F.srcSpan . btc_tc
 
 --------------------------------------------------------------------------------
 -- | Refined Instances ---------------------------------------------------------
@@ -1112,16 +1147,16 @@ data RISig t = RIAssumed t | RISig t
   deriving Hashable via Generically (RISig t)
 
 instance F.PPrint t => F.PPrint (RISig t) where
-  pprintTidy k = ppRISig k (empty :: Doc) 
+  pprintTidy k = ppRISig k (empty :: Doc)
 
 ppRISig :: (F.PPrint k, F.PPrint t) => F.Tidy -> k -> RISig t -> Doc
-ppRISig k x (RIAssumed t) = "assume" <+> F.pprintTidy k x <+> "::" <+> F.pprintTidy k t 
-ppRISig k x (RISig t)     =              F.pprintTidy k x <+> "::" <+> F.pprintTidy k t 
+ppRISig k x (RIAssumed t) = "assume" <+> F.pprintTidy k x <+> "::" <+> F.pprintTidy k t
+ppRISig k x (RISig t)     =              F.pprintTidy k x <+> "::" <+> F.pprintTidy k t
 
 instance F.PPrint t => F.PPrint (RInstance t) where
-  pprintTidy k (RI n ts mts) = ppMethods k "instance" n ts mts 
+  pprintTidy k (RI n ts mts) = ppMethods k "instance" n ts mts
 
-  
+
 instance (B.Binary t) => B.Binary (RInstance t)
 instance (B.Binary t) => B.Binary (RISig t)
 instance (B.Binary t) => B.Binary (RILaws t)
@@ -1134,9 +1169,9 @@ type RDEnv = DEnv Var SpecType
 data MethodType t = MT {tyInstance :: !(Maybe t), tyClass :: !(Maybe t) }
   deriving (Show)
 
-getMethodType :: MethodType t -> Maybe t 
-getMethodType (MT (Just t) _ ) = Just t 
-getMethodType (MT _ t) = t 
+getMethodType :: MethodType t -> Maybe t
+getMethodType (MT (Just t) _ ) = Just t
+getMethodType (MT _ t) = t
 
 --------------------------------------------------------------------------
 -- | Values Related to Specifications ------------------------------------
@@ -1157,13 +1192,13 @@ type HAxiom = Axiom Var    Type CoreExpr
 
 instance Show (Axiom Var Type CoreExpr) where
   show (Axiom (n, c) v bs _ts lhs rhs) = "Axiom : " ++
-                                         "\nFun Name: " ++ (showPpr n) ++
-                                         "\nReal Name: " ++ (showPpr v) ++
-                                         "\nData Con: " ++ (showPpr c) ++
-                                         "\nArguments:" ++ (showPpr bs)  ++
+                                         "\nFun Name: " ++ showPpr n ++
+                                         "\nReal Name: " ++ showPpr v ++
+                                         "\nData Con: " ++ showPpr c ++
+                                         "\nArguments:" ++ showPpr bs  ++
                                          -- "\nTypes    :" ++ (showPpr ts)  ++
-                                         "\nLHS      :" ++ (showPpr lhs) ++
-                                         "\nRHS      :" ++ (showPpr rhs)
+                                         "\nLHS      :" ++ showPpr lhs ++
+                                         "\nRHS      :" ++ showPpr rhs
 
 --------------------------------------------------------------------------------
 -- | Data type refinements
@@ -1279,7 +1314,7 @@ instance Show DataName where
   show (DnCon  c) = "datacon:" ++ show (F.val c)
 
 instance F.PPrint SizeFun where
-  pprintTidy _ (IdSizeFun)    = "[id]"
+  pprintTidy _ IdSizeFun      = "[id]"
   pprintTidy _ (SymSizeFun x) = brackets (F.pprint (F.val x))
 
 instance F.Symbolic DataName where
@@ -1327,70 +1362,72 @@ lmapEAlias (LMap v ys e) = F.atLoc v (RTA (F.val v) [] ys e) -- (F.loc v) (F.loc
 data RTypeRep c tv r = RTypeRep
   { ty_vars   :: [(RTVar tv (RType c tv ()), r)]
   , ty_preds  :: [PVar (RType c tv ())]
-  , ty_ebinds  :: [Symbol]
-  , ty_erefts  :: [r]
-  , ty_eargs   :: [RType c tv r]
+  , ty_ebinds :: [Symbol]
+  , ty_einfo  :: [RFInfo]
+  , ty_erefts :: [r]
+  , ty_eargs  :: [RType c tv r]
   , ty_binds  :: [Symbol]
+  , ty_info   :: [RFInfo]
   , ty_refts  :: [r]
   , ty_args   :: [RType c tv r]
-  , ty_res    :: (RType c tv r)
+  , ty_res    :: RType c tv r
   }
 
 fromRTypeRep :: RTypeRep c tv r -> RType c tv r
-fromRTypeRep (RTypeRep {..})
+fromRTypeRep RTypeRep{..}
   = mkArrow ty_vars ty_preds earrs arrs ty_res
   where
-    arrs  = safeZip3WithError ("fromRTypeRep: " ++ show (length ty_binds, length ty_args, length ty_refts)) ty_binds ty_args ty_refts
-    earrs = safeZip3WithError ("fromRTypeRep: " ++ show (length ty_ebinds, length ty_eargs, length ty_erefts)) ty_ebinds ty_eargs ty_erefts
+    arrs  = safeZip4WithError ("fromRTypeRep: " ++ show (length ty_binds, length ty_info, length ty_args, length ty_refts)) ty_binds ty_info ty_args ty_refts
+    earrs = safeZip4WithError ("fromRTypeRep: " ++ show (length ty_ebinds, length ty_einfo, length ty_eargs, length ty_erefts)) ty_ebinds ty_einfo ty_eargs ty_erefts
 
 --------------------------------------------------------------------------------
 toRTypeRep           :: RType c tv r -> RTypeRep c tv r
 --------------------------------------------------------------------------------
-toRTypeRep t         = RTypeRep αs πs xs' rs' ts' xs rs ts t''
+toRTypeRep t         = RTypeRep αs πs xs' is' rs' ts' xs is rs ts t''
   where
     (αs, πs, t')  = bkUniv  t
-    ((xs',ts',rs'),(xs, ts, rs), t'') = bkArrow t'
+    ((xs',is', ts',rs'),(xs, is, ts, rs), t'') = bkArrow t'
 
 mkArrow :: [(RTVar tv (RType c tv ()), r)]
         -> [PVar (RType c tv ())]
-        -> [(Symbol, RType c tv r, r)]
-        -> [(Symbol, RType c tv r, r)]
+        -> [(Symbol, RFInfo, RType c tv r, r)]
+        -> [(Symbol, RFInfo, RType c tv r, r)]
         -> RType c tv r
         -> RType c tv r
 mkArrow αs πs yts xts = mkUnivs αs πs . mkArrs RImpF yts. mkArrs RFun xts
   where
-    mkArrs f xts t  = foldr (\(b,t1,r) t2 -> f b t1 t2 r) t xts
+    mkArrs f xts t  = foldr (\(b,i,t1,r) t2 -> f b i t1 t2 r) t xts
 
 -- Do I need to keep track of implicits here too?
-bkArrowDeep :: RType t t1 a -> ([Symbol], [RType t t1 a], [a], RType t t1 a)
+bkArrowDeep :: RType t t1 a -> ([Symbol], [RFInfo], [RType t t1 a], [a], RType t t1 a)
 bkArrowDeep (RAllT _ t _)   = bkArrowDeep t
 bkArrowDeep (RAllP _ t)     = bkArrowDeep t
-bkArrowDeep (RImpF x t t' r)= bkArrowDeep (RFun x t t' r)
-bkArrowDeep (RFun x t t' r) = let (xs, ts, rs, t'') = bkArrowDeep t'  in (x:xs, t:ts, r:rs, t'')
-bkArrowDeep t               = ([], [], [], t)
+bkArrowDeep (RImpF x i t t' r)= bkArrowDeep (RFun x i t t' r)
+bkArrowDeep (RFun x i t t' r) = let (xs, is, ts, rs, t'') = bkArrowDeep t'  in (x:xs, i:is, t:ts, r:rs, t'')
+bkArrowDeep t               = ([], [], [], [], t)
 
-bkArrow :: RType t t1 a -> ( ([Symbol], [RType t t1 a], [a])
-                           , ([Symbol], [RType t t1 a], [a])
+bkArrow :: RType t t1 a -> ( ([Symbol], [RFInfo], [RType t t1 a], [a])
+                           , ([Symbol], [RFInfo], [RType t t1 a], [a])
                            , RType t t1 a )
-bkArrow t                = ((xs,ts,rs),(xs',ts',rs'),t'')
-  where 
-    (xs, ts, rs, t')     = bkImp t
-    (xs', ts', rs', t'') = bkFun t'
+bkArrow t                = ((xs,is,ts,rs),(xs',is',ts',rs'),t'')
+  where
+    (xs, is, ts, rs, t')     = bkImp t
+    (xs', is', ts', rs', t'') = bkFun t'
 
 
-bkFun :: RType t t1 a -> ([Symbol], [RType t t1 a], [a], RType t t1 a)
-bkFun (RFun x t t' r) = let (xs, ts, rs, t'') = bkFun t'  in (x:xs, t:ts, r:rs, t'')
-bkFun t               = ([], [], [], t)
+bkFun :: RType t t1 a -> ([Symbol], [RFInfo], [RType t t1 a], [a], RType t t1 a)
+bkFun (RFun x i t t' r) = let (xs, is, ts, rs, t'') = bkFun t'  in (x:xs, i:is, t:ts, r:rs, t'')
+bkFun t                 = ([], [], [], [], t)
 
-bkImp :: RType t t1 a -> ([Symbol], [RType t t1 a], [a], RType t t1 a)
-bkImp (RImpF x t t' r) = let (xs, ts, rs, t'') = bkImp t'  in (x:xs, t:ts, r:rs, t'')
-bkImp t                = ([], [], [], t)
+bkImp :: RType t t1 a -> ([Symbol], [RFInfo], [RType t t1 a], [a], RType t t1 a)
+bkImp (RImpF x i t t' r) = let (xs, is, ts, rs, t'') = bkImp t'  in (x:xs, i:is, t:ts, r:rs, t'')
+bkImp t                  = ([], [], [], [], t)
 
-safeBkArrow ::(F.PPrint (RType t t1 a)) 
-            => RType t t1 a -> ( ([Symbol], [RType t t1 a], [a])
-                               , ([Symbol], [RType t t1 a], [a])
+safeBkArrow ::(F.PPrint (RType t t1 a))
+            => RType t t1 a -> ( ([Symbol], [RFInfo], [RType t t1 a], [a])
+                               , ([Symbol], [RFInfo], [RType t t1 a], [a])
                                , RType t t1 a )
-safeBkArrow t@(RAllT _ _ _) = Prelude.error {- panic Nothing -} $ "safeBkArrow on RAllT" ++ F.showpp t
+safeBkArrow t@RAllT {} = Prelude.error {- panic Nothing -} $ "safeBkArrow on RAllT" ++ F.showpp t
 safeBkArrow (RAllP _ _)     = Prelude.error {- panic Nothing -} "safeBkArrow on RAllP"
 safeBkArrow t               = bkArrow t
 
@@ -1402,8 +1439,8 @@ mkUnivs :: (Foldable t, Foldable t1)
 mkUnivs αs πs t = foldr (\(a,r) t -> RAllT a t r) (foldr RAllP t πs) αs
 
 bkUnivClass :: SpecType -> ([(SpecRTVar, RReft)],[PVar RSort], [(RTyCon, [SpecType])], SpecType )
-bkUnivClass t        = (as, ps, cs, t2) 
-  where 
+bkUnivClass t        = (as, ps, cs, t2)
+  where
     (as, ps, t1) = bkUniv  t
     (cs, t2)     = bkClass t1
 
@@ -1413,11 +1450,35 @@ bkUniv (RAllT α t r) = let (αs, πs, t') = bkUniv t in ((α, r):αs, πs, t')
 bkUniv (RAllP π t)   = let (αs, πs, t') = bkUniv t in (αs, π:πs, t')
 bkUniv t             = ([], [], t)
 
+
+-- bkFun :: RType t t1 a -> ([Symbol], [RType t t1 a], [a], RType t t1 a)
+-- bkFun (RFun x t t' r) = let (xs, ts, rs, t'') = bkFun t'  in (x:xs, t:ts, r:rs, t'')
+-- bkFun t               = ([], [], [], t)
+
+bkUnivClass' :: SpecType ->
+  ([(SpecRTVar, RReft)], [PVar RSort], [(Symbol, SpecType, RReft)], SpecType)
+bkUnivClass' t = (as, ps, zip3 bs ts rs, t2)
+  where
+    (as, ps, t1) = bkUniv  t
+    (bs, ts, rs, t2)     = bkClass' t1
+
+bkClass' :: TyConable t => RType t t1 a -> ([Symbol], [RType t t1 a], [a], RType t t1 a)
+bkClass' (RImpF x _ t@(RApp c _ _ _) t' r)
+  | isClass c
+  = let (xs, ts, rs, t'') = bkClass' t' in (x:xs, t:ts, r:rs, t'')
+bkClass' (RFun x _ t@(RApp c _ _ _) t' r)
+  | isClass c
+  = let (xs, ts, rs, t'') = bkClass' t' in (x:xs, t:ts, r:rs, t'')
+bkClass' (RRTy e r o t)
+  = let (xs, ts, rs, t'') = bkClass' t in (xs, ts, rs, RRTy e r o t'')
+bkClass' t
+  = ([], [],[],t)
+
 bkClass :: (F.PPrint c, TyConable c) => RType c tv r -> ([(c, [RType c tv r])], RType c tv r)
-bkClass (RImpF _ (RApp c t _ _) t' _)
+bkClass (RImpF _ _ (RApp c t _ _) t' _)
   | isClass c
   = let (cs, t'') = bkClass t' in ((c, t):cs, t'')
-bkClass (RFun _ (RApp c t _ _) t' _)
+bkClass (RFun _ _ (RApp c t _ _) t' _)
   | F.notracepp ("IS-CLASS: " ++ F.showpp c) $ isClass c
   = let (cs, t'') = bkClass t' in ((c, t):cs, t'')
 bkClass (RRTy e r o t)
@@ -1426,10 +1487,16 @@ bkClass t
   = ([], t)
 
 rImpF :: Monoid r => Symbol -> RType c tv r -> RType c tv r -> RType c tv r
-rImpF b t t' = RImpF b t t' mempty
+rImpF b t t' = RImpF b defRFInfo t t' mempty
 
 rFun :: Monoid r => Symbol -> RType c tv r -> RType c tv r -> RType c tv r
-rFun b t t' = RFun b t t' mempty
+rFun b t t' = RFun b defRFInfo t t' mempty
+
+rFun' :: Monoid r => RFInfo -> Symbol -> RType c tv r -> RType c tv r -> RType c tv r
+rFun' i b t t' = RFun b i t t' mempty
+
+rFunDebug :: Monoid r => Symbol -> RType c tv r -> RType c tv r -> RType c tv r
+rFunDebug b t t' = RFun b (classRFInfo True) t t' mempty
 
 rCls :: Monoid r => TyCon -> [RType RTyCon tv r] -> RType RTyCon tv r
 rCls c ts   = RApp (RTyCon c [] defaultTyConInfo) ts [] mempty
@@ -1466,8 +1533,8 @@ instance UReftable () where
    ofUReft _ = mempty
 
 instance (F.PPrint r, F.Reftable r) => F.Reftable (UReft r) where
-  isTauto               = isTauto_ureft
-  ppTy                  = ppTy_ureft
+  isTauto               = isTautoUreft
+  ppTy                  = ppTyUreft
   toReft (MkUReft r ps) = F.toReft r `F.meet` F.toReft ps
   params (MkUReft r _)  = F.params r
   bot (MkUReft r _)     = MkUReft (F.bot r) (Pr [])
@@ -1479,24 +1546,24 @@ instance F.Expression (UReft ()) where
 
 
 
-isTauto_ureft :: F.Reftable r => UReft r -> Bool
-isTauto_ureft u      = F.isTauto (ur_reft u) && F.isTauto (ur_pred u) 
+isTautoUreft :: F.Reftable r => UReft r -> Bool
+isTautoUreft u = F.isTauto (ur_reft u) && F.isTauto (ur_pred u)
 
-ppTy_ureft :: F.Reftable r => UReft r -> Doc -> Doc
-ppTy_ureft u@(MkUReft r p) d
-  | isTauto_ureft  u  = d
-  | otherwise         = ppr_reft r (F.ppTy p d)
+ppTyUreft :: F.Reftable r => UReft r -> Doc -> Doc
+ppTyUreft u@(MkUReft r p) d
+  | isTautoUreft u = d
+  | otherwise      = pprReft r (F.ppTy p d)
 
-ppr_reft :: (F.Reftable r) => r -> Doc -> Doc
-ppr_reft r d = braces (F.pprint v <+> colon <+> d <+> text "|" <+> F.pprint r')
+pprReft :: (F.Reftable r) => r -> Doc -> Doc
+pprReft r d = braces (F.pprint v <+> colon <+> d <+> text "|" <+> F.pprint r')
   where
     r'@(F.Reft (v, _)) = F.toReft r
 
 instance F.Subable r => F.Subable (UReft r) where
   syms (MkUReft r p)     = F.syms r ++ F.syms p
-  subst s (MkUReft r z)  = MkUReft (F.subst s r)  (F.subst s z)  
-  substf f (MkUReft r z) = MkUReft (F.substf f r) (F.substf f z) 
-  substa f (MkUReft r z) = MkUReft (F.substa f r) (F.substa f z) 
+  subst s (MkUReft r z)  = MkUReft (F.subst s r)  (F.subst s z)
+  substf f (MkUReft r z) = MkUReft (F.substf f r) (F.substf f z)
+  substa f (MkUReft r z) = MkUReft (F.substa f r) (F.substa f z)
 
 instance (F.Reftable r, TyConable c) => F.Subable (RTProp c tv r) where
   syms (RProp  ss r)     = (fst <$> ss) ++ F.syms r
@@ -1527,7 +1594,7 @@ instance F.Reftable Predicate where
   bot (Pr _)           = panic Nothing "No BOT instance for Predicate"
   ppTy r d | F.isTauto r      = d
            | not (ppPs ppEnv) = d
-           | otherwise        = d <-> (angleBrackets $ F.pprint r)
+           | otherwise        = d <-> angleBrackets (F.pprint r)
 
   toReft (Pr ps@(p:_))        = F.Reft (parg p, F.pAnd $ pToRef <$> ps)
   toReft _                    = mempty
@@ -1536,7 +1603,7 @@ instance F.Reftable Predicate where
   ofReft = todo Nothing "TODO: Predicate.ofReft"
 
 pToRef :: PVar a -> F.Expr
-pToRef p = pApp (pname p) $ (F.EVar $ parg p) : (thd3 <$> pargs p)
+pToRef p = pApp (pname p) $ F.EVar (parg p) : (thd3 <$> pargs p)
 
 pApp      :: Symbol -> [Expr] -> Expr
 pApp p es = F.mkEApp fn (F.EVar p:es)
@@ -1555,8 +1622,10 @@ mapExprReft f = mapReft g
   where
     g (MkUReft (F.Reft (x, e)) p) = MkUReft (F.Reft (x, f x e)) p
 
+-- const False (not dropping dict) is probably fine since there will not be refinement on
+-- dictionaries
 isTrivial :: (F.Reftable r, TyConable c) => RType c tv r -> Bool
-isTrivial t = foldReft False (\_ r b -> F.isTauto r && b) True t
+isTrivial = foldReft False (\_ r b -> F.isTauto r && b) True
 
 mapReft ::  (r1 -> r2) -> RType c tv r1 -> RType c tv r2
 mapReft f = emapReft (const f) []
@@ -1565,8 +1634,8 @@ emapReft ::  ([Symbol] -> r1 -> r2) -> [Symbol] -> RType c tv r1 -> RType c tv r
 emapReft f γ (RVar α r)          = RVar  α (f γ r)
 emapReft f γ (RAllT α t r)       = RAllT α (emapReft f γ t) (f γ r)
 emapReft f γ (RAllP π t)         = RAllP π (emapReft f γ t)
-emapReft f γ (RImpF x t t' r)    = RImpF  x (emapReft f γ t) (emapReft f (x:γ) t') (f (x:γ) r)
-emapReft f γ (RFun x t t' r)     = RFun  x (emapReft f γ t) (emapReft f (x:γ) t') (f (x:γ) r)
+emapReft f γ (RImpF x i t t' r)  = RImpF x i (emapReft f γ t) (emapReft f (x:γ) t') (f (x:γ) r)
+emapReft f γ (RFun x i t t' r)   = RFun  x i (emapReft f γ t) (emapReft f (x:γ) t') (f (x:γ) r)
 emapReft f γ (RApp c ts rs r)    = RApp  c (emapReft f γ <$> ts) (emapRef f γ <$> rs) (f γ r)
 emapReft f γ (RAllE z t t')      = RAllE z (emapReft f γ t) (emapReft f γ t')
 emapReft f γ (REx z t t')        = REx   z (emapReft f γ t) (emapReft f γ t')
@@ -1582,34 +1651,34 @@ emapRef  f γ (RProp s t)         = RProp s $ emapReft f γ t
 emapExprArg :: ([Symbol] -> Expr -> Expr) -> [Symbol] -> RType c tv r -> RType c tv r
 emapExprArg f = go
   where
-    go _ t@(RVar {})        = t
-    go _ t@(RHole {})       = t
-    go γ (RAllT α t r)      = RAllT α (go γ t) r 
+    go _ t@RVar{}           = t
+    go _ t@RHole{}          = t
+    go γ (RAllT α t r)      = RAllT α (go γ t) r
     go γ (RAllP π t)        = RAllP π (go γ t)
-    go γ (RImpF x t t' r)   = RImpF x (go γ t) (go (x:γ) t') r
-    go γ (RFun x t t' r)    = RFun  x (go γ t) (go (x:γ) t') r
+    go γ (RImpF x i t t' r) = RImpF x i (go γ t) (go (x:γ) t') r
+    go γ (RFun x i t t' r)  = RFun  x i (go γ t) (go (x:γ) t') r
     go γ (RApp c ts rs r)   = RApp  c (go γ <$> ts) (mo γ <$> rs) r
     go γ (RAllE z t t')     = RAllE z (go γ t) (go γ t')
     go γ (REx z t t')       = REx   z (go γ t) (go γ t')
     go γ (RExprArg e)       = RExprArg (f γ <$> F.notracepp "RExprArg" e) -- <---- actual substitution
     go γ (RAppTy t t' r)    = RAppTy (go γ t) (go γ t') r
     go γ (RRTy e r o t)     = RRTy  (mapSnd (go γ) <$> e) r o (go γ t)
-    mo _ t@(RProp _ (RHole {})) = t
-    mo γ (RProp s t)            = RProp s (go γ t)
+    mo _ t@(RProp _ RHole{}) = t
+    mo γ (RProp s t)        = RProp s (go γ t)
 
 foldRType :: (acc -> RType c tv r -> acc) -> acc -> RType c tv r -> acc
 foldRType f = go
   where
     step a t                = go (f a t) t
-    prep a (RProp _ (RHole {})) = a
+    prep a (RProp _ RHole{}) = a
     prep a (RProp _ t)      = step a t
-    go a (RVar {})          = a
-    go a (RHole {})         = a
-    go a (RExprArg {})      = a
+    go a RVar{}             = a
+    go a RHole{}            = a
+    go a RExprArg{}         = a
     go a (RAllT _ t _)      = step a t
     go a (RAllP _ t)        = step a t
-    go a (RImpF _ t t' _)   = foldl' step a [t, t']
-    go a (RFun _ t t' _)    = foldl' step a [t, t']
+    go a (RImpF _ _ t t' _) = foldl' step a [t, t']
+    go a (RFun _ _ t t' _)  = foldl' step a [t, t']
     go a (RAllE _ t t')     = foldl' step a [t, t']
     go a (REx _ t t')       = foldl' step a [t, t']
     go a (RAppTy t t' _)    = foldl' step a [t, t']
@@ -1630,8 +1699,8 @@ isBase (RAllT _ t _)    = isBase t
 isBase (RAllP _ t)      = isBase t
 isBase (RVar _ _)       = True
 isBase (RApp _ ts _ _)  = all isBase ts
-isBase (RImpF _ _ _ _)  = False
-isBase (RFun _ _ _ _)   = False
+isBase RImpF{}          = False
+isBase RFun{}           = False
 isBase (RAppTy t1 t2 _) = isBase t1 && isBase t2
 isBase (RRTy _ _ _ t)   = isBase t
 isBase (RAllE _ _ t)    = isBase t
@@ -1639,17 +1708,17 @@ isBase (REx _ _ t)      = isBase t
 isBase _                = False
 
 hasHoleTy :: RType t t1 t2 -> Bool
-hasHoleTy (RVar _ _)       = False 
-hasHoleTy (RAllT _ t _)    = hasHoleTy t 
+hasHoleTy (RVar _ _)       = False
+hasHoleTy (RAllT _ t _)    = hasHoleTy t
 hasHoleTy (RAllP _ t)      = hasHoleTy t
-hasHoleTy (RImpF _ t t' _) = hasHoleTy t || hasHoleTy t'
-hasHoleTy (RFun _ t t' _)  = hasHoleTy t || hasHoleTy t'
-hasHoleTy (RApp _ ts _ _)  = any hasHoleTy ts 
+hasHoleTy (RImpF _ _ t t' _) = hasHoleTy t || hasHoleTy t'
+hasHoleTy (RFun _ _ t t' _)  = hasHoleTy t || hasHoleTy t'
+hasHoleTy (RApp _ ts _ _)  = any hasHoleTy ts
 hasHoleTy (RAllE _ t t')   = hasHoleTy t || hasHoleTy t'
 hasHoleTy (REx _ t t')     = hasHoleTy t || hasHoleTy t'
-hasHoleTy (RExprArg _)     = False 
+hasHoleTy (RExprArg _)     = False
 hasHoleTy (RAppTy t t' _)  = hasHoleTy t || hasHoleTy t'
-hasHoleTy (RHole _)        = True 
+hasHoleTy (RHole _)        = True
 hasHoleTy (RRTy xts _ _ t) = hasHoleTy t || any hasHoleTy (snd <$> xts)
 
 
@@ -1658,34 +1727,34 @@ isFunTy :: RType t t1 t2 -> Bool
 isFunTy (RAllE _ _ t)    = isFunTy t
 isFunTy (RAllT _ t _)    = isFunTy t
 isFunTy (RAllP _ t)      = isFunTy t
-isFunTy (RImpF _ _ _ _)  = True
-isFunTy (RFun _ _ _ _)   = True
+isFunTy RImpF{}          = True
+isFunTy RFun{}           = True
 isFunTy _                = False
 
 
 mapReftM :: (Monad m) => (r1 -> m r2) -> RType c tv r1 -> m (RType c tv r2)
-mapReftM f (RVar α r)         = liftM   (RVar  α)   (f r)
+mapReftM f (RVar α r)         = fmap    (RVar  α)   (f r)
 mapReftM f (RAllT α t r)      = liftM2  (RAllT α)   (mapReftM f t)          (f r)
-mapReftM f (RAllP π t)        = liftM   (RAllP π)   (mapReftM f t)
-mapReftM f (RImpF x t t' r)   = liftM3  (RImpF x)   (mapReftM f t)          (mapReftM f t')       (f r)
-mapReftM f (RFun x t t' r)    = liftM3  (RFun x)    (mapReftM f t)          (mapReftM f t')       (f r)
+mapReftM f (RAllP π t)        = fmap    (RAllP π)   (mapReftM f t)
+mapReftM f (RImpF x i t t' r) = liftM3  (RImpF x i) (mapReftM f t)          (mapReftM f t')       (f r)
+mapReftM f (RFun x i t t' r)  = liftM3  (RFun x i)  (mapReftM f t)          (mapReftM f t')       (f r)
 mapReftM f (RApp c ts rs r)   = liftM3  (RApp  c)   (mapM (mapReftM f) ts)  (mapM (mapRefM f) rs) (f r)
 mapReftM f (RAllE z t t')     = liftM2  (RAllE z)   (mapReftM f t)          (mapReftM f t')
 mapReftM f (REx z t t')       = liftM2  (REx z)     (mapReftM f t)          (mapReftM f t')
 mapReftM _ (RExprArg e)       = return  $ RExprArg e
 mapReftM f (RAppTy t t' r)    = liftM3  RAppTy (mapReftM f t) (mapReftM f t') (f r)
-mapReftM f (RHole r)          = liftM   RHole       (f r)
+mapReftM f (RHole r)          = fmap    RHole       (f r)
 mapReftM f (RRTy xts r o t)   = liftM4  RRTy (mapM (mapSndM (mapReftM f)) xts) (f r) (return o) (mapReftM f t)
 
-mapRefM  :: (Monad m) => (t -> m s) -> (RTProp c tv t) -> m (RTProp c tv s)
-mapRefM  f (RProp s t)         = liftM   (RProp s)      (mapReftM f t)
+mapRefM  :: (Monad m) => (t -> m s) -> RTProp c tv t -> m (RTProp c tv s)
+mapRefM  f (RProp s t)        = fmap    (RProp s)      (mapReftM f t)
 
 mapPropM :: (Monad m) => (RTProp c tv r -> m (RTProp c tv r)) -> RType c tv r -> m (RType c tv r)
 mapPropM _ (RVar α r)         = return $ RVar  α r
 mapPropM f (RAllT α t r)      = liftM2  (RAllT α)   (mapPropM f t)          (return r)
-mapPropM f (RAllP π t)        = liftM   (RAllP π)   (mapPropM f t)
-mapPropM f (RImpF x t t' r)   = liftM3  (RImpF x)    (mapPropM f t)         (mapPropM f t') (return r)
-mapPropM f (RFun x t t' r)    = liftM3  (RFun x)    (mapPropM f t)          (mapPropM f t') (return r)
+mapPropM f (RAllP π t)        = fmap    (RAllP π)   (mapPropM f t)
+mapPropM f (RImpF x i t t' r) = liftM3  (RImpF x i)    (mapPropM f t)         (mapPropM f t') (return r)
+mapPropM f (RFun x i t t' r)  = liftM3  (RFun x i)    (mapPropM f t)          (mapPropM f t') (return r)
 mapPropM f (RApp c ts rs r)   = liftM3  (RApp  c)   (mapM (mapPropM f) ts)  (mapM f rs)     (return r)
 mapPropM f (RAllE z t t')     = liftM2  (RAllE z)   (mapPropM f t)          (mapPropM f t')
 mapPropM f (REx z t t')       = liftM2  (REx z)     (mapPropM f t)          (mapPropM f t')
@@ -1703,7 +1772,7 @@ mapPropM f (RRTy xts r o t)   = liftM4  RRTy (mapM (mapSndM (mapPropM f)) xts) (
 --------------------------------------------------------------------------------
 foldReft :: (F.Reftable r, TyConable c) => BScope -> (F.SEnv (RType c tv r) -> r -> a -> a) -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
-foldReft  bsc f = foldReft' (\_ _ -> False) bsc id (\γ _ -> f γ)
+foldReft bsc f = foldReft'  (\_ _ -> False) bsc id (\γ _ -> f γ)
 
 --------------------------------------------------------------------------------
 foldReft' :: (F.Reftable r, TyConable c)
@@ -1713,10 +1782,10 @@ foldReft' :: (F.Reftable r, TyConable c)
           -> (F.SEnv b -> Maybe (RType c tv r) -> r -> a -> a)
           -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
-foldReft' logicBind bsc g f 
-  = efoldReft logicBind bsc 
+foldReft' logicBind bsc g f
+  = efoldReft logicBind bsc
               (\_ _ -> [])
-              (\_ -> [])
+              (const [])
               g
               (\γ t r z -> f γ t r z)
               (\_ γ -> γ)
@@ -1742,19 +1811,20 @@ efoldReft logicBind bsc cb dty g f fp = go
     -- folding over RType
     go γ z me@(RVar _ r)                = f γ (Just me) r z
     go γ z me@(RAllT a t r)
-       | ty_var_is_val a                = f γ (Just me) r (go (insertsSEnv γ (dty a)) z t)
+       | tyVarIsVal a                   = f γ (Just me) r (go (insertsSEnv γ (dty a)) z t)
        | otherwise                      = f γ (Just me) r (go γ z t)
     go γ z (RAllP p t)                  = go (fp p γ) z t
-    go γ z (RImpF x t t' r)             = go γ z (RFun x t t' r)
-    go γ z me@(RFun _ (RApp c ts _ _) t' r)
-       | isClass c                      = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
-    go γ z me@(RFun x t t' r)
+    go γ z (RImpF x i t t' r)           = go γ z (RFun x i t t' r)
+    go γ z me@(RFun _ RFInfo{permitTC = permitTC} (RApp c ts _ _) t' r)
+       | (if permitTC == Just True then isEmbeddedDict else isClass)
+         c  = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
+    go γ z me@(RFun x _ t t' r)
        | logicBind x t                  = f γ (Just me) r (go γ' (go γ z t) t')
        | otherwise                      = f γ (Just me) r (go γ  (go γ z t) t')
        where
          γ'                             = insertSEnv x (g t) γ
     go γ z me@(RApp _ ts rs r)          = f γ (Just me) r (ho' γ (go' γ' z ts) rs)
-       where γ' = if bsc then insertSEnv (rTypeValueVar me) (g me) γ else γ 
+       where γ' = if bsc then insertSEnv (rTypeValueVar me) (g me) γ else γ
 
     go γ z (RAllE x t t')               = go (insertSEnv x (g t) γ) (go γ z t) t'
     go γ z (REx x t t')                 = go (insertSEnv x (g t) γ) (go γ z t) t'
@@ -1766,7 +1836,7 @@ efoldReft logicBind bsc cb dty g f fp = go
 
     -- folding over Ref
     ho  γ z (RProp ss (RHole r))       = f (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) Nothing r z
-    ho  γ z (RProp ss t)               = go (insertsSEnv γ ((mapSnd (g . ofRSort)) <$> ss)) z t
+    ho  γ z (RProp ss t)               = go (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) z t
 
     -- folding over [RType]
     go' γ z ts                 = foldr (flip $ go γ) z ts
@@ -1776,11 +1846,28 @@ efoldReft logicBind bsc cb dty g f fp = go
 
     envtoType xts = foldr (\(x,t1) t2 -> rFun x t1 t2) (snd $ last xts) (init xts)
 
+mapRFInfo :: (RFInfo -> RFInfo) -> RType c tv r -> RType c tv r
+mapRFInfo f (RAllT α t r)     = RAllT α (mapRFInfo f t) r
+mapRFInfo f (RAllP π t)       = RAllP π (mapRFInfo f t)
+mapRFInfo f (RImpF x i t t' r) = RImpF x (f i) (mapRFInfo f t) (mapRFInfo f t') r
+mapRFInfo f (RFun x i t t' r)  = RFun x (f i) (mapRFInfo f t) (mapRFInfo f t') r
+mapRFInfo f (RAppTy t t' r)   = RAppTy (mapRFInfo f t) (mapRFInfo f t') r
+mapRFInfo f (RApp c ts rs r)  = RApp c (mapRFInfo f <$> ts) (mapRFInfoRef f <$> rs) r
+mapRFInfo f (REx b t1 t2)     = REx b  (mapRFInfo f t1) (mapRFInfo f t2)
+mapRFInfo f (RAllE b t1 t2)   = RAllE b  (mapRFInfo f t1) (mapRFInfo f t2)
+mapRFInfo f (RRTy e r o t)    = RRTy (mapSnd (mapRFInfo f) <$> e) r o (mapRFInfo f t)
+mapRFInfo _ t'                = t'
+
+mapRFInfoRef :: (RFInfo -> RFInfo)
+          -> Ref τ (RType c tv r) -> Ref τ (RType c tv r)
+mapRFInfoRef _ (RProp s (RHole r)) = RProp s $ RHole r
+mapRFInfoRef f (RProp s t)    = RProp  s $ mapRFInfo f t
+
 mapBot :: (RType c tv r -> RType c tv r) -> RType c tv r -> RType c tv r
 mapBot f (RAllT α t r)     = RAllT α (mapBot f t) r
 mapBot f (RAllP π t)       = RAllP π (mapBot f t)
-mapBot f (RImpF x t t' r)  = RImpF x (mapBot f t) (mapBot f t') r
-mapBot f (RFun x t t' r)   = RFun x (mapBot f t) (mapBot f t') r
+mapBot f (RImpF x i t t' r) = RImpF x i (mapBot f t) (mapBot f t') r
+mapBot f (RFun x i t t' r)  = RFun x i (mapBot f t) (mapBot f t') r
 mapBot f (RAppTy t t' r)   = RAppTy (mapBot f t) (mapBot f t') r
 mapBot f (RApp c ts rs r)  = f $ RApp c (mapBot f <$> ts) (mapBotRef f <$> rs) r
 mapBot f (REx b t1 t2)     = REx b  (mapBot f t1) (mapBot f t2)
@@ -1796,8 +1883,8 @@ mapBotRef f (RProp s t)    = RProp  s $ mapBot f t
 mapBind :: (Symbol -> Symbol) -> RType c tv r -> RType c tv r
 mapBind f (RAllT α t r)    = RAllT α (mapBind f t) r
 mapBind f (RAllP π t)      = RAllP π (mapBind f t)
-mapBind f (RImpF b t1 t2 r)= RImpF (f b)  (mapBind f t1) (mapBind f t2) r
-mapBind f (RFun b t1 t2 r) = RFun (f b)  (mapBind f t1) (mapBind f t2) r
+mapBind f (RImpF b i t1 t2 r)= RImpF (f b) i (mapBind f t1) (mapBind f t2) r
+mapBind f (RFun b i t1 t2 r) = RFun (f b) i (mapBind f t1) (mapBind f t2) r
 mapBind f (RApp c ts rs r) = RApp c (mapBind f <$> ts) (mapBindRef f <$> rs) r
 mapBind f (RAllE b t1 t2)  = RAllE  (f b) (mapBind f t1) (mapBind f t2)
 mapBind f (REx b t1 t2)    = REx    (f b) (mapBind f t1) (mapBind f t2)
@@ -1818,15 +1905,15 @@ ofRSort ::  F.Reftable r => RType c tv () -> RType c tv r
 ofRSort = fmap mempty
 
 toRSort :: RType c tv r -> RType c tv ()
-toRSort = stripAnnotations . mapBind (const F.dummySymbol) . fmap (const ())
+toRSort = stripAnnotations . mapBind (const F.dummySymbol) . void
 
 stripAnnotations :: RType c tv r -> RType c tv r
 stripAnnotations (RAllT α t r)    = RAllT α (stripAnnotations t) r
 stripAnnotations (RAllP _ t)      = stripAnnotations t
 stripAnnotations (RAllE _ _ t)    = stripAnnotations t
 stripAnnotations (REx _ _ t)      = stripAnnotations t
-stripAnnotations (RImpF x t t' r) = RImpF x (stripAnnotations t) (stripAnnotations t') r
-stripAnnotations (RFun x t t' r)  = RFun x (stripAnnotations t) (stripAnnotations t') r
+stripAnnotations (RImpF x i t t' r) = RImpF x i (stripAnnotations t) (stripAnnotations t') r
+stripAnnotations (RFun x i t t' r)  = RFun x i (stripAnnotations t) (stripAnnotations t') r
 stripAnnotations (RAppTy t t' r)  = RAppTy (stripAnnotations t) (stripAnnotations t') r
 stripAnnotations (RApp c ts rs r) = RApp c (stripAnnotations <$> ts) (stripAnnotationsRef <$> rs) r
 stripAnnotations (RRTy _ _ _ t)   = stripAnnotations t
@@ -1846,7 +1933,7 @@ rTypeValueVar :: (F.Reftable r) => RType c tv r -> Symbol
 rTypeValueVar t = vv where F.Reft (vv,_) =  rTypeReft t
 
 rTypeReft :: (F.Reftable r) => RType c tv r -> F.Reft
-rTypeReft = fromMaybe F.trueReft . fmap F.toReft . stripRTypeBase
+rTypeReft = maybe F.trueReft F.toReft . stripRTypeBase
 
 -- stripRTypeBase ::  RType a -> Maybe a
 stripRTypeBase :: RType c tv r -> Maybe r
@@ -1854,14 +1941,14 @@ stripRTypeBase (RApp _ _ _ x)
   = Just x
 stripRTypeBase (RVar _ x)
   = Just x
-stripRTypeBase (RImpF _ _ _ x)
+stripRTypeBase (RImpF _ _ _ _ x)
   = Just x
-stripRTypeBase (RFun _ _ _ x)
+stripRTypeBase (RFun _ _ _ _ x)
   = Just x
 stripRTypeBase (RAppTy _ _ x)
   = Just x
 stripRTypeBase (RAllT _ _ x)
-  = Just x 
+  = Just x
 stripRTypeBase _
   = Nothing
 
@@ -1871,8 +1958,8 @@ topRTypeBase = mapRBase F.top
 mapRBase :: (r -> r) -> RType c tv r -> RType c tv r
 mapRBase f (RApp c ts rs r) = RApp c ts rs $ f r
 mapRBase f (RVar a r)       = RVar a $ f r
-mapRBase f (RImpF x t1 t2 r)= RImpF x t1 t2 $ f r
-mapRBase f (RFun x t1 t2 r) = RFun x t1 t2 $ f r
+mapRBase f (RImpF x i t1 t2 r)= RImpF x i t1 t2 $ f r
+mapRBase f (RFun x i t1 t2 r) = RFun x i t1 t2 $ f r
 mapRBase f (RAppTy t1 t2 r) = RAppTy t1 t2 $ f r
 mapRBase _ t                = t
 
@@ -1881,12 +1968,12 @@ mapRBase _ t                = t
 -----------------------------------------------------------------------------
 
 instance F.PPrint (PVar a) where
-  pprintTidy _ = ppr_pvar
+  pprintTidy _ = pprPvar
 
-ppr_pvar :: PVar a -> Doc
-ppr_pvar (PV s _ _ xts) = F.pprint s <+> hsep (F.pprint <$> dargs xts)
+pprPvar :: PVar a -> Doc
+pprPvar (PV s _ _ xts) = F.pprint s <+> hsep (F.pprint <$> dargs xts)
   where
-    dargs               = map thd3 . takeWhile (\(_, x, y) -> F.EVar x /= y)
+    dargs              = map thd3 . takeWhile (\(_, x, y) -> F.EVar x /= y)
 
 
 instance F.PPrint Predicate where
@@ -1901,29 +1988,40 @@ instance F.PPrint Predicate where
 --   + global : many bindings, shared across all constraints
 --   + local  : few bindings, relevant to particular constraints
 
-type REnv = AREnv SpecType 
+type REnv = AREnv SpecType
 
 data AREnv t = REnv
   { reGlobal :: M.HashMap Symbol t -- ^ the "global" names for module
   , reLocal  :: M.HashMap Symbol t -- ^ the "local" names for sub-exprs
   }
 
-instance Functor AREnv where 
+instance Functor AREnv where
   fmap f (REnv g l) = REnv (fmap f g) (fmap f l)
 
 instance (F.PPrint t) => F.PPrint (AREnv t) where
-  pprintTidy k re = "RENV LOCAL" $+$ F.pprintTidy k (reLocal re) <>
-                    "\nRENV GLOBAL" $+$ F.pprintTidy k (reGlobal re)
-  
+  pprintTidy k re =
+    "RENV LOCAL"
+    $+$
+    ""
+    $+$
+    F.pprintTidy k (reLocal re)
+    $+$
+    ""
+    $+$
+    "RENV GLOBAL"
+    $+$
+    ""
+    $+$
+    F.pprintTidy k (reGlobal re)
 
-instance Semigroup REnv where 
-  REnv g1 l1 <> REnv g2 l2 = REnv (g1 <> g2) (l1 <> l2)  
+instance Semigroup REnv where
+  REnv g1 l1 <> REnv g2 l2 = REnv (g1 <> g2) (l1 <> l2)
 
-instance Monoid REnv where 
+instance Monoid REnv where
   mempty = REnv mempty mempty
 
 instance NFData REnv where
-  rnf (REnv {}) = ()
+  rnf REnv{} = ()
 
 --------------------------------------------------------------------------------
 -- | Diagnostic info -----------------------------------------------------------
@@ -2000,16 +2098,16 @@ instance NFData Cinfo
 -- | Module Names --------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-data ModName = ModName !ModType !ModuleName 
+data ModName = ModName !ModType !ModuleName
   deriving (Eq, Ord, Show, Generic, Data, Typeable)
 
-data ModType = Target | SrcImport | SpecImport 
+data ModType = Target | SrcImport | SpecImport
   deriving (Eq, Ord, Show, Generic, Data, Typeable)
 
 -- instance B.Binary ModType 
 -- instance B.Binary ModName 
 
-instance Hashable ModType 
+instance Hashable ModType
 
 instance Hashable ModName where
   hashWithSalt i (ModName t n) = hashWithSalt i (t, show n)
@@ -2024,9 +2122,9 @@ instance F.Symbolic ModuleName where
   symbol = F.symbol . moduleNameFS
 
 
-isTarget :: ModName -> Bool 
-isTarget (ModName Target _) = True 
-isTarget _                  = False 
+isTarget :: ModName -> Bool
+isTarget (ModName Target _) = True
+isTarget _                  = False
 
 isSrcImport :: ModName -> Bool
 isSrcImport (ModName SrcImport _) = True
@@ -2096,7 +2194,7 @@ data Measure ty ctor = M
   { msName :: F.LocSymbol
   , msSort :: ty
   , msEqns :: [Def ty ctor]
-  , msKind :: !MeasureKind 
+  , msKind :: !MeasureKind
   , msUnSorted :: !UnSortedExprs -- potential unsorted expressions used at measure denifinitions
   } deriving (Eq, Data, Typeable, Generic, Functor)
     deriving Hashable via Generically (Measure ty ctor)
@@ -2104,7 +2202,7 @@ data Measure ty ctor = M
 type UnSortedExprs = [UnSortedExpr] -- mempty = []
 type UnSortedExpr  = ([F.Symbol], F.Expr)
 
-data MeasureKind 
+data MeasureKind
   = MsReflect     -- ^ due to `reflect foo` 
   | MsMeasure     -- ^ due to `measure foo` with old-style (non-haskell) equations
   | MsLifted      -- ^ due to `measure foo` with new-style haskell equations
@@ -2115,21 +2213,21 @@ data MeasureKind
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
   deriving Hashable via Generically MeasureKind
 
-instance F.Loc (Measure a b) where 
+instance F.Loc (Measure a b) where
   srcSpan = F.srcSpan . msName
 
 instance Bifunctor Def where
   -- first f  (Def m ps c s bs b) = Def m (second f <$> ps) c (f <$> s) ((second (fmap f)) <$> bs) b
   -- second f (Def m ps c s bs b) = Def m ps (f c) s bs b
-  first f  (Def m c s bs b) = Def m c (f <$> s) ((second (fmap f)) <$> bs) b
+  first f  (Def m c s bs b) = Def m c (f <$> s) (second (fmap f) <$> bs) b
   second f (Def m c s bs b) = Def m (f c) s bs b
 
 
 instance Bifunctor Measure where
   first  f (M n s es k u) = M n (f s) (first f <$> es) k u
-  second f (M n s es k u) = M n s (second f <$> es)    k u 
+  second f (M n s es k u) = M n s (second f <$> es)    k u
 
-instance                             B.Binary MeasureKind 
+instance                             B.Binary MeasureKind
 instance                             B.Binary Body
 instance (B.Binary t, B.Binary c) => B.Binary (Def     t c)
 instance (B.Binary t, B.Binary c) => B.Binary (Measure t c)
@@ -2171,7 +2269,7 @@ instance F.PPrint (CMeasure t) => Show (CMeasure t) where
 
 
 instance F.Subable (Measure ty ctor) where
-  syms  m     = concatMap F.syms (msEqns m) 
+  syms  m     = concatMap F.syms (msEqns m)
   substa f m  = m { msEqns = F.substa f  <$> msEqns m }
   substf f m  = m { msEqns = F.substf f  <$> msEqns m }
   subst  su m = m { msEqns = F.subst  su <$> msEqns m }
@@ -2218,40 +2316,40 @@ data RClass ty = RClass
     deriving Hashable via Generically (RClass ty)
 
 
-instance F.PPrint t => F.PPrint (RClass t) where 
-  pprintTidy k (RClass n ts as mts) 
-                = ppMethods k ("class" <+> supers ts) n as [(m, RISig t) | (m, t) <- mts] 
-    where 
-      supers [] = "" 
+instance F.PPrint t => F.PPrint (RClass t) where
+  pprintTidy k (RClass n ts as mts)
+                = ppMethods k ("class" <+> supers ts) n as [(m, RISig t) | (m, t) <- mts]
+    where
+      supers [] = ""
       supers ts = tuplify (F.pprintTidy k   <$> ts) <+> "=>"
       tuplify   = parens . hcat . punctuate ", "
 
 
 instance F.PPrint t => F.PPrint (RILaws t) where
-  pprintTidy k (RIL n ss ts mts _) = ppEqs k ("instance laws" <+> supers ss) n ts mts 
-   where 
-    supers [] = "" 
+  pprintTidy k (RIL n ss ts mts _) = ppEqs k ("instance laws" <+> supers ss) n ts mts
+   where
+    supers [] = ""
     supers ts = tuplify (F.pprintTidy k   <$> ts) <+> "=>"
     tuplify   = parens . hcat . punctuate ", "
 
 
-ppEqs :: (F.PPrint x, F.PPrint t, F.PPrint a, F.PPrint n) 
+ppEqs :: (F.PPrint x, F.PPrint t, F.PPrint a, F.PPrint n)
           => F.Tidy -> Doc -> n -> [a] -> [(x, t)] -> Doc
-ppEqs k hdr name args mts 
-  = vcat $ hdr <+> dName <+> "where" 
-         : [ nest 4 (bind m t) | (m, t) <- mts ] 
-    where 
+ppEqs k hdr name args mts
+  = vcat $ hdr <+> dName <+> "where"
+         : [ nest 4 (bind m t) | (m, t) <- mts ]
+    where
       dName    = parens  (F.pprintTidy k name <+> dArgs)
       dArgs    = gaps    (F.pprintTidy k      <$> args)
       gaps     = hcat . punctuate " "
-      bind m t = F.pprintTidy k m <+> "=" <+> F.pprintTidy k t 
+      bind m t = F.pprintTidy k m <+> "=" <+> F.pprintTidy k t
 
-ppMethods :: (F.PPrint x, F.PPrint t, F.PPrint a, F.PPrint n) 
+ppMethods :: (F.PPrint x, F.PPrint t, F.PPrint a, F.PPrint n)
           => F.Tidy -> Doc -> n -> [a] -> [(x, RISig t)] -> Doc
-ppMethods k hdr name args mts 
-  = vcat $ hdr <+> dName <+> "where" 
-         : [ nest 4 (bind m t) | (m, t) <- mts ] 
-    where 
+ppMethods k hdr name args mts
+  = vcat $ hdr <+> dName <+> "where"
+         : [ nest 4 (bind m t) | (m, t) <- mts ]
+    where
       dName    = parens  (F.pprintTidy k name <+> dArgs)
       dArgs    = gaps    (F.pprintTidy k      <$> args)
       gaps     = hcat . punctuate " "
@@ -2266,12 +2364,12 @@ instance B.Binary ty => B.Binary (RClass ty)
 
 data HoleInfo i t = HoleInfo {htype :: t, hloc :: SrcSpan, henv :: AREnv t, info :: i }
 
-instance Functor (HoleInfo i) where 
+instance Functor (HoleInfo i) where
   fmap f hinfo = hinfo{htype = f (htype hinfo), henv = fmap f (henv hinfo)}
 
 instance (F.PPrint t) => F.PPrint (HoleInfo  i t) where
-  pprintTidy k hinfo = text "type:" <+> F.pprintTidy k (htype hinfo) 
-                       <+> text "\n loc:" <+> F.pprintTidy k (hloc hinfo) 
+  pprintTidy k hinfo = text "type:" <+> F.pprintTidy k (htype hinfo)
+                       <+> text "\n loc:" <+> F.pprintTidy k (hloc hinfo)
   -- to print the hole environment uncomment the following
   --                     <+> text "\n env:" <+> F.pprintTidy k (henv hinfo)
 
@@ -2381,8 +2479,8 @@ hole :: Expr
 hole = F.PKVar "HOLE" mempty
 
 isHole :: Expr -> Bool
-isHole (F.PKVar ("HOLE") _) = True
-isHole _                    = False
+isHole (F.PKVar "HOLE" _) = True
+isHole _                  = False
 
 hasHole :: F.Reftable r => r -> Bool
 hasHole = any isHole . F.conjuncts . F.reftPred . F.toReft
@@ -2393,14 +2491,14 @@ instance F.Symbolic DataCon where
 instance F.PPrint DataCon where
   pprintTidy _ = text . showPpr
 
-instance Ord TyCon where 
-  compare = compare `on` F.symbol 
+instance Ord TyCon where
+  compare = compare `on` F.symbol
 
-instance Ord DataCon where 
-  compare = compare `on` F.symbol 
+instance Ord DataCon where
+  compare = compare `on` F.symbol
 
-instance F.PPrint TyThing where 
-  pprintTidy _ = text . showPpr 
+instance F.PPrint TyThing where
+  pprintTidy _ = text . showPpr
 
 instance Show DataCon where
   show = F.showpp
@@ -2429,7 +2527,7 @@ instance Bifunctor MSpec   where
   second                    = fmap
 
 instance (F.PPrint t, F.PPrint a) => F.PPrint (MSpec t a) where
-  pprintTidy k =  vcat . fmap (F.pprintTidy k) . fmap snd . M.toList . measMap
+  pprintTidy k =  vcat . fmap (F.pprintTidy k . snd) . M.toList . measMap
 
 instance (Show ty, Show ctor, F.PPrint ctor, F.PPrint ty) => Show (MSpec ty ctor) where
   show (MSpec ct m cm im)

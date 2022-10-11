@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE RankNTypes   #-}
@@ -12,7 +11,7 @@ module Language.Haskell.Liquid.GHC.Plugin.SpecFinder
     , configToRedundantDependencies
     ) where
 
-import           Language.Haskell.Liquid.GHC.GhcMonadLike as GhcMonadLike ( GhcMonadLike
+import           Liquid.GHC.GhcMonadLike as GhcMonadLike ( GhcMonadLike
                                                                           , lookupModSummary
                                                                           , askHscEnv
                                                                           )
@@ -25,8 +24,8 @@ import           Language.Haskell.Liquid.Parse            ( specSpecificationP )
 import           Language.Fixpoint.Utils.Files            ( Ext(Spec), withExt )
 
 import           Optics
-import qualified Language.Haskell.Liquid.GHC.API         as O
-import           Language.Haskell.Liquid.GHC.API         as GHC hiding (linear)
+import qualified Liquid.GHC.API         as O
+import           Liquid.GHC.API         as GHC
 
 import           Data.Bifunctor
 import           Data.Maybe
@@ -60,9 +59,7 @@ findRelevantSpecs :: forall m. GhcMonadLike m
                   -> [Module]
                   -- ^ Any relevant module fetched during dependency-discovery.
                   -> m [SpecFinderResult]
-findRelevantSpecs eps hpt mods = do
-  res  <- foldlM loadRelevantSpec mempty mods
-  pure res
+findRelevantSpecs eps hpt mods = foldlM loadRelevantSpec mempty mods
   where
 
     loadRelevantSpec :: [SpecFinderResult] -> Module -> m [SpecFinderResult]
@@ -120,10 +117,10 @@ lookupCompanionSpec thisModule = do
 configToRedundantDependencies :: forall m. GhcMonadLike m => Config -> m [StableModule]
 configToRedundantDependencies cfg = do
   env <- askHscEnv
-  catMaybes <$> mapM (lookupModule env . first ($ cfg)) configSensitiveDependencies
+  catMaybes <$> mapM (lookupModule' env . first ($ cfg)) configSensitiveDependencies
   where
-    lookupModule :: HscEnv -> (Bool, ModuleName) -> m (Maybe StableModule)
-    lookupModule env (fetchModule, modName)
+    lookupModule' :: HscEnv -> (Bool, ModuleName) -> m (Maybe StableModule)
+    lookupModule' env (fetchModule, modName)
       | fetchModule = liftIO $ lookupLiquidBaseModule env modName
       | otherwise   = pure Nothing
 

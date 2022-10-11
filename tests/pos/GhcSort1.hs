@@ -1,10 +1,11 @@
+{-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 {-# Language ScopedTypeVariables   #-}
 {-# Language PartialTypeSignatures #-}
 
 -- TODO: Fix resolve so we can remove this/add termination metrics
 {-@ LIQUID "--no-termination" @-}
 
-module ListSort () where
+module GhcSort1 () where
 
 import Language.Haskell.Liquid.Prelude 
 

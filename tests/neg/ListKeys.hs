@@ -1,6 +1,7 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--pruneunsorted" @-}
 
-module Foo () where
+module ListKeys () where
 import Data.Set (Set(..)) 
 
 {-@ measure listKeys :: [(k, v)] -> (Set k)

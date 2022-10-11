@@ -1,7 +1,4 @@
-{-# LANGUAGE NamedFieldPuns      #-}
-{-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE RecordWildCards     #-}
 
 {-@ LIQUID "--diff"     @-}
 
@@ -42,17 +39,18 @@ import           Language.Haskell.Liquid.Synthesize (synthesize)
 import           Language.Haskell.Liquid.UX.Errors
 import           Language.Haskell.Liquid.UX.CmdLine
 import           Language.Haskell.Liquid.UX.Tidy
-import           Language.Haskell.Liquid.GHC.Misc (showCBs, ignoreCoreBinds) -- howPpr)
-import           Language.Haskell.Liquid.GHC.Interface
+import           Liquid.GHC.Misc (showCBs, ignoreCoreBinds) -- howPpr)
+import           Liquid.GHC.Interface
 import           Language.Haskell.Liquid.Constraint.Generate
 import           Language.Haskell.Liquid.Constraint.ToFixpoint
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.UX.Annotate (mkOutput)
 import qualified Language.Haskell.Liquid.Termination.Structural as ST
-import qualified Language.Haskell.Liquid.GHC.Misc          as GM 
-import           Language.Haskell.Liquid.GHC.API as GHC hiding (text, vcat, ($+$), getOpts, (<+>))
+import qualified Liquid.GHC.Misc          as GM 
+import           Liquid.GHC.API as GHC hiding (text, vcat, ($+$), getOpts, (<+>))
 
 type MbEnv = Maybe HscEnv
+
 
 --------------------------------------------------------------------------------
 liquid :: [String] -> IO b
@@ -87,7 +85,7 @@ checkTargets :: Config -> MbEnv -> [FilePath] -> IO (ExitCode, MbEnv)
 checkTargets cfg  = go 
   where
     go env []     = return (ExitSuccess, env)
-    go env (f:fs) = do whenLoud $ colorPhaseLn Loud ("[Checking: " ++ f ++ "]") ""
+    go env (f:fs) = do -- whenLoud $ colorPhaseLn Loud ("[Checking: " ++ f ++ "]") ""
                        (ec, env') <- runLiquidTargets env cfg [f] 
                        case ec of 
                          ExitSuccess -> go env' fs
@@ -170,7 +168,7 @@ checkTargetInfo info = do
     check :: IO (Output Doc)
     check
       | compileSpec cfg = do
-        donePhase Loud "Only compiling specifications [skipping verification]"
+        -- donePhase Loud "Only compiling specifications [skipping verification]"
         pure mempty { o_result = F.Safe mempty }
       | otherwise = do
         whenNormal $ donePhase Loud "Extracted Core using GHC"
@@ -178,7 +176,7 @@ checkTargetInfo info = do
                      -- putStrLn "*************** Original CoreBinds ***************************"
                      -- putStrLn $ render $ pprintCBs (cbs info)
         whenNormal $ donePhase Loud "Transformed Core"
-        whenLoud  $ do donePhase Loud "transformRecExpr"
+        whenLoud  $ do donePhase Loud "transformRecExpr-1773-hoho"
                        putStrLn "*************** Transform Rec Expr CoreBinds *****************"
                        putStrLn $ showCBs (untidyCore cfg) cbs'
                        -- putStrLn $ render $ pprintCBs cbs'
@@ -258,17 +256,17 @@ solveCs :: Config -> FilePath -> CGInfo -> TargetInfo -> Maybe [String] -> IO (O
 solveCs cfg tgt cgi info names = do
   finfo            <- cgInfoFInfo info cgi
   let fcfg          = fixConfig tgt cfg
-  F.Result r0 sol _ <- solve fcfg finfo
+  F.Result {resStatus=r0, resSolution=sol} <- solve fcfg finfo
   let failBs        = gsFail $ gsTerm $ giSpec info
   let (r,rf)        = splitFails (S.map val failBs) r0 
-  let resErr        = applySolution sol . cinfoError . snd <$> r
+  let resErr        = second (applySolution sol . cinfoError) <$> r
   -- resModel_        <- fmap (e2u cfg sol) <$> getModels info cfg resErr
-  let resModel_     = e2u cfg sol <$> resErr
+  let resModel_     = cidE2u cfg sol <$> resErr
   let resModel'     = resModel_  `addErrors` (e2u cfg sol <$> logErrors cgi)
                                  `addErrors` makeFailErrors (S.toList failBs) rf 
                                  `addErrors` makeFailUseErrors (S.toList failBs) (giCbs $ giSrc info)
   let lErrors       = applySolution sol <$> logErrors cgi
-  hErrors          <- if (typedHoles cfg) 
+  hErrors          <- if typedHoles cfg 
                         then synthesize tgt fcfg (cgi{holesMap = applySolution sol <$> holesMap  cgi}) 
                         else return [] 
   let resModel      = resModel' `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors)) 
@@ -279,6 +277,15 @@ solveCs cfg tgt cgi info names = do
 
 e2u :: Config -> F.FixSolution -> Error -> UserError
 e2u cfg s = fmap F.pprint . tidyError cfg s
+
+cidE2u :: Config -> F.FixSolution -> (Integer, Error) -> UserError
+cidE2u cfg s (subcId, e) =
+  let e' = attachSubcId e
+   in fmap F.pprint (tidyError cfg s e')
+  where
+    attachSubcId es@ErrSubType{}      = es { cid = Just subcId }
+    attachSubcId es@ErrSubTypeModel{} = es { cid = Just subcId }
+    attachSubcId es = es
 
 -- writeCGI tgt cgi = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str
 --   where
@@ -303,7 +310,7 @@ makeFailErrors :: [F.Located Var] -> [Cinfo] -> [UserError]
 makeFailErrors bs cis = [ mkError x | x <- bs, notElem (val x) vs ]  
   where 
     mkError  x = ErrFail (GM.sourcePosSrcSpan $ loc x) (pprint $ val x)
-    vs         = [v | Just v <- (ci_var <$> cis) ]
+    vs         = Mb.mapMaybe ci_var cis
 
 splitFails :: S.HashSet Var -> F.FixResult (a, Cinfo) -> (F.FixResult (a, Cinfo),  [Cinfo])
 splitFails _ r@(F.Crash _ _) = (r,mempty)

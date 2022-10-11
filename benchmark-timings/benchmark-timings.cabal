@@ -1,0 +1,45 @@
+cabal-version:      2.4
+name:               benchmark-timings
+version:            0.1.0.0
+
+-- A short (one-line) description of the package.
+-- synopsis:
+
+-- A longer description of the package.
+-- description:
+
+-- A URL where users can report bugs.
+-- bug-reports:
+
+-- The license under which the package is released.
+-- license:
+author:             The Liquid Haskell Developers
+
+-- A copyright notice.
+-- copyright:
+-- category:
+extra-source-files: CHANGELOG.md
+
+flag devel
+  default:     False
+  description: Enable more warnings and fail compilation when warnings occur.
+               Turn this flag on in CI.
+
+executable benchmark-timings
+    main-is:          Main.hs
+
+    -- Modules included in this executable, other than Main.
+    -- other-modules:
+
+    -- LANGUAGE extensions used by modules in this package.
+    -- other-extensions:
+    build-depends:    base
+                    , aeson ^>=1.5.6
+                    , cassava ^>=0.5.2
+                    , bytestring ^>=0.10.12
+                    , optparse-applicative ^>=0.16.1
+    ghc-options:    -Wall
+    hs-source-dirs:   app
+    default-language: Haskell2010
+    if flag(devel)
+      ghc-options:  -Werror

@@ -1,10 +1,11 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module DependeTypes where
+module DependentTypes where
 
 import GHC.TypeLits
 

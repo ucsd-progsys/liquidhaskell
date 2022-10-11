@@ -1,4 +1,5 @@
-module ListSort () where
+{-@ LIQUID "--expect-any-error" @-}
+module ListISort () where
 
 import Language.Haskell.Liquid.Prelude
 

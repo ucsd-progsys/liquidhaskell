@@ -1,4 +1,5 @@
-module Newtypes0 where
+{-@ LIQUID "--expect-any-error" @-}
+module NewTypes0 where
 
 newtype Foo a = Bar Int
 

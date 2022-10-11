@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-missing-methods #-}
 {-@ LIQUID "--no-totality" @-}
 
 {-# LANGUAGE GADTs #-}
@@ -8,9 +9,9 @@ import Control.Category
 import Prelude hiding ((.), id)
 
 
-{- 
+{-
 class Category cat where
-  id :: cat a a 
+  id :: cat a a
   (.) :: cat b c -> cat a b -> cat a c
 -}
 

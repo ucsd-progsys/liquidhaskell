@@ -1,6 +1,7 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-@ LIQUID "--no-termination" @-}
-module Class () where
+module Class2 () where
 
 import Language.Haskell.Liquid.Prelude
 

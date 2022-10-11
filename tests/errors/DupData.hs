@@ -1,6 +1,7 @@
+{-@ LIQUID "--expect-error-containing=Multiple specifications for `OVec`" @-}
 -- | See https://github.com/ucsd-progsys/liquidhaskell/issues/1175
 
-module BadVec where
+module DupData where
 
 data OVec a = ONil
             | (:>>) {oHd :: a, oTl :: OVec a}

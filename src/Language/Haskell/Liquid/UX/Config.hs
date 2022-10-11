@@ -39,6 +39,7 @@ data Config = Config
   , checks                   :: [String]   -- ^ set of binders to check
   , noCheckUnknown           :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination            :: Bool       -- ^ disable termination check
+  , nopositivity             :: Bool       -- ^ disable positivity check
   , rankNTypes               :: Bool       -- ^ Adds precise reasoning on presence of rankNTypes
   , noclasscheck             :: Bool       -- ^ disable checking class instances
   -- , structuralTerm        :: Bool       -- ^ use structural termination checker
@@ -69,6 +70,8 @@ data Config = Config
   , port                     :: Int        -- ^ port at which lhi should listen
   , exactDC                  :: Bool       -- ^ Automatically generate singleton types for data constructors
   , noADT                    :: Bool       -- ^ Disable ADTs (only used with exactDC)
+  , expectErrorContaining    :: [String]   -- ^ expect failure from Liquid with at least one of the following messages
+  , expectAnyError           :: Bool       -- ^ expect failure from Liquid with any message
   , scrapeImports            :: Bool       -- ^ scrape qualifiers from imported specifications
   , scrapeInternals          :: Bool       -- ^ scrape qualifiers from auto specifications
   , scrapeUsedImports        :: Bool       -- ^ scrape qualifiers from used, imported specifications
@@ -84,7 +87,9 @@ data Config = Config
   , noslice                  :: Bool       -- ^ Disable non-concrete KVar slicing
   , noLiftedImport           :: Bool       -- ^ Disable loading lifted specifications (for "legacy" libs)
   , proofLogicEval           :: Bool       -- ^ Enable proof-by-logical-evaluation
+  , pleWithUndecidedGuards   :: Bool       -- ^ Unfold invocations with undecided guards in PLE
   , oldPLE                   :: Bool       -- ^ Enable proof-by-logical-evaluation
+  , interpreter              :: Bool       -- ^ Use an interpreter to assist PLE
   , proofLogicEvalLocal      :: Bool       -- ^ Enable proof-by-logical-evaluation locally, per function
   , extensionality           :: Bool       -- ^ Enable extensional interpretation of function equality
   , nopolyinfer              :: Bool       -- ^ No inference of polymorphic type application.
@@ -92,14 +97,20 @@ data Config = Config
   , compileSpec              :: Bool       -- ^ Only "compile" the spec -- into .bspec file -- don't do any checking.
   , noCheckImports           :: Bool       -- ^ Do not check the transitive imports
   , typedHoles               :: Bool       -- ^ Warn about "typed-holes"
+  , typeclass                :: Bool        -- ^ enable typeclass support.
+  , auxInline                :: Bool        -- ^ 
   , maxMatchDepth            :: Int
   , maxAppDepth              :: Int
   , maxArgsDepth             :: Int
-  , maxRWOrderingConstraints :: Maybe Int
-  , rwTerminationCheck       :: Bool
+  , rwTerminationCheck       :: Bool       -- ^ Enable termination checking for rewriting
   , skipModule               :: Bool       -- ^ Skip this module entirely (don't even compile any specs in it)
   , noLazyPLE                :: Bool
   , fuel                     :: Maybe Int  -- ^ Maximum PLE "fuel" (unfold depth) (default=infinite) 
+  , environmentReduction     :: Bool       -- ^ Perform environment reduction
+  , noEnvironmentReduction   :: Bool       -- ^ Don't perform environment reduction
+  , inlineANFBindings        :: Bool       -- ^ Inline ANF bindings.
+                                           -- Sometimes improves performance and sometimes worsens it.
+  , pandocHtml               :: Bool       -- ^ Use pandoc to generate html
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 allowPLE :: Config -> Bool
@@ -148,11 +159,10 @@ terminationCheck :: (HasConfig t) => t -> Bool
 terminationCheck = terminationCheck' . getConfig
 
 totalityCheck' :: Config -> Bool
-totalityCheck' cfg = (not (nototality cfg)) || totalHaskell cfg
+totalityCheck' cfg = not (nototality cfg) || totalHaskell cfg
 
 terminationCheck' :: Config -> Bool
-terminationCheck' cfg = (totalHaskell cfg || not (notermination cfg))
+terminationCheck' cfg = totalHaskell cfg || not (notermination cfg)
 
 structuralTerm :: (HasConfig a) => a -> Bool
 structuralTerm = not . nostructuralterm . getConfig
-

@@ -1,7 +1,6 @@
 -- Rewrites should be applied recursively
 module ReWrite5 where
 
-{-@ LIQUID "--max-rw-ordering-constraints=0" @-}
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
 {-@ infix ++ @-}

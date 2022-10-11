@@ -28,7 +28,6 @@ module Language.Haskell.Liquid.Bare.Types
   , failMaybe
   ) where 
 
-import qualified Control.Exception                     as Ex 
 import qualified Text.PrettyPrint.HughesPJ             as PJ 
 import qualified Data.HashSet                          as S
 import qualified Data.HashMap.Strict                   as M
@@ -37,8 +36,8 @@ import qualified Language.Haskell.Liquid.Measure       as Ms
 import qualified Language.Haskell.Liquid.Types.RefType as RT 
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Specs   hiding (BareSpec)
-import           Language.Haskell.Liquid.GHC.API       as Ghc hiding (Located, Env)
-import           Language.Haskell.Liquid.GHC.Types     (StableName)
+import           Liquid.GHC.API       as Ghc hiding (Located, Env)
+import           Liquid.GHC.Types     (StableName)
 
 
 type ModSpecs = M.HashMap ModName Ms.BareSpec
@@ -130,8 +129,13 @@ data MeasEnv = MeasEnv
   , meDataCons    :: ![(Ghc.Var,  LocSpecType)]           
   , meClasses     :: ![DataConP]                           
   , meMethods     :: ![(ModName, Ghc.Var, LocSpecType)]  
-  , meCLaws       :: !([(Ghc.Class, [(ModName, Ghc.Var, LocSpecType)])])  
+  , meCLaws       :: ![(Ghc.Class, [(ModName, Ghc.Var, LocSpecType)])]  
   }
+
+instance Semigroup MeasEnv where
+  (<>) = error "FIXME:1773"
+instance Monoid MeasEnv where
+  mempty = error "FIXME:1773"
 
 -------------------------------------------------------------------------------
 -- | Converting @Var@ to @Sort@
@@ -145,12 +149,12 @@ varRSort  = RT.ofType . Ghc.varType
 -------------------------------------------------------------------------------
 -- | Handling failed resolution 
 -------------------------------------------------------------------------------
-failMaybe :: Env -> ModName -> Either UserError r -> Maybe r
+failMaybe :: Env -> ModName -> Either e r -> Either e (Maybe r)
 failMaybe env name res = case res of 
-  Right r -> Just r 
+  Right r -> Right (Just r) 
   Left  e -> if isTargetModName env name 
-              then Ex.throw e
-              else Nothing 
+              then Left e
+              else Right Nothing 
 
 isTargetModName :: Env -> ModName -> Bool 
 isTargetModName env name = name == _giTargetMod (reSrc env) 

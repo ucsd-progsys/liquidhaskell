@@ -3,7 +3,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
-module IndPalindrome where
+module IndPal0 where
 
 import Prelude hiding ((++))
 import Language.Haskell.Liquid.ProofCombinators

@@ -1,7 +1,8 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
-module SExec where
+module T1814 where
 
 import qualified Data.Set as S 
 

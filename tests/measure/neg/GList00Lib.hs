@@ -1,4 +1,5 @@
-module GList00Lib where 
+{-@ LIQUID "--expect-any-error" @-}
+module GList00Lib where
 
 {-@ die :: {v: () | false} -> a @-}
 die :: () -> a

@@ -1,5 +1,6 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--higherorder"     @-}
-module HigherOrder where
+module FunctionRef where
 
 {-@ measure ackF :: Int -> Int -> Int  @-}
 

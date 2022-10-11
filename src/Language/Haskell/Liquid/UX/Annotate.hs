@@ -1,10 +1,10 @@
 {-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleInstances          #-}
 
+{-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 ---------------------------------------------------------------------------
 -- | This module contains the code that uses the inferred types to generate
@@ -56,8 +56,8 @@ import qualified Language.Haskell.Liquid.UX.ACSS              as ACSS
 import           Language.Haskell.HsColour.Classify
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Misc
-import           Language.Haskell.Liquid.GHC.Misc
-import qualified Language.Haskell.Liquid.GHC.API              as SrcLoc
+import           Liquid.GHC.Misc
+import qualified Liquid.GHC.API              as SrcLoc
 import           Language.Fixpoint.Types                      hiding (panic, Error, Loc, Constant (..), Located (..))
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.PrettyPrint
@@ -91,6 +91,7 @@ mkOutput cfg res sol anna
 annotate :: Config -> [FilePath] -> Output Doc -> IO ACSS.AnnMap
 -------------------------------------------------------------------
 annotate cfg srcFs out
+  -- TODO(matt.walker): Make this obey json!
   = do when showWarns  $ forM_ bots (printf "WARNING: Found false in %s\n" . showPpr)
        when doAnnotate $ mapM_ (doGenerate cfg tplAnnMap typAnnMap annTyp) srcFs
        return typAnnMap
@@ -106,11 +107,12 @@ annotate cfg srcFs out
 
 doGenerate :: Config -> ACSS.AnnMap -> ACSS.AnnMap -> AnnInfo Doc -> FilePath -> IO ()
 doGenerate cfg tplAnnMap typAnnMap annTyp srcF
-  = do generateHtml srcF tpHtmlF tplAnnMap
-       generateHtml srcF tyHtmlF typAnnMap
+  = do generateHtml pandocF srcF tpHtmlF tplAnnMap
+       generateHtml pandocF srcF tyHtmlF typAnnMap
        writeFile         vimF  $ vimAnnot cfg annTyp
        B.writeFile       jsonF $ encode typAnnMap
     where
+       pandocF    = pandocHtml cfg 
        tyHtmlF    = extFileName Html                   srcF
        tpHtmlF    = extFileName Html $ extFileName Cst srcF
        _annF      = extFileName Annot srcF
@@ -131,14 +133,14 @@ copyFileCreateParentDirIfMissing src tgt = do
 writeFilesOrStrings :: FilePath -> [Either FilePath String] -> IO ()
 writeFilesOrStrings tgtFile = mapM_ $ either (`copyFileCreateParentDirIfMissing` tgtFile) (tgtFile `appendFile`)
 
-generateHtml :: FilePath -> FilePath -> ACSS.AnnMap -> IO ()
-generateHtml srcF htmlF annm
-  = do src     <- Misc.sayReadFile srcF
-       let lhs  = isExtFile LHs srcF
-       let body = {-# SCC "hsannot" #-} ACSS.hsannot False (Just tokAnnot) lhs (src, annm)
-       cssFile <- getCssPath
-       copyFileCreateParentDirIfMissing cssFile (dropFileName htmlF </> takeFileName cssFile)
-       renderHtml lhs htmlF srcF (takeFileName cssFile) body
+generateHtml :: Bool -> FilePath -> FilePath -> ACSS.AnnMap -> IO ()
+generateHtml pandocF srcF htmlF annm = do 
+  src     <- Misc.sayReadFile srcF
+  let lhs  = isExtFile LHs srcF
+  let body      = {-# SCC "hsannot" #-} ACSS.hsannot False (Just tokAnnot) lhs (src, annm)
+  cssFile <- getCssPath
+  copyFileCreateParentDirIfMissing cssFile (dropFileName htmlF </> takeFileName cssFile)
+  renderHtml (pandocF && lhs) htmlF srcF (takeFileName cssFile) body
 
 renderHtml :: Bool -> FilePath -> String -> String -> String -> IO ()
 renderHtml True  = renderPandoc
@@ -163,7 +165,7 @@ renderPandoc' pandocPath htmlFile srcFile css body = do
     cmd    = pandocCmd pandocPath mdFile htmlFile
 
 checkExitCode :: Monad m => String -> ExitCode -> m ()
-checkExitCode _   (ExitSuccess)   = return ()
+checkExitCode _    ExitSuccess    = return ()
 checkExitCode cmd (ExitFailure n) = panic Nothing $ "cmd: " ++ cmd ++ " failure code " ++ show n
 
 pandocCmd :: FilePath -> FilePath -> FilePath -> String
@@ -380,7 +382,7 @@ chopAltDBG y = filter (/= "")
 -- | JSON: Annotation Data Types ---------------------------------------
 ------------------------------------------------------------------------
 
-data Assoc k a    = Asc (M.HashMap k a)
+newtype Assoc k a = Asc (M.HashMap k a)
 type AnnTypes     = Assoc Int (Assoc Int Annot1)
 newtype AnnErrors = AnnErrors [(Loc, Loc, String)]
 data Annot1       = A1  { ident :: String
@@ -445,7 +447,7 @@ dropErrorLoc msg
 instance (Show k, ToJSON a) => ToJSON (Assoc k a) where
   toJSON (Asc kas) = object [ tshow k .= toJSON a | (k, a) <- M.toList kas ]
     where
-      tshow        = T.pack . show
+      tshow        = fromString . show
 
 instance ToJSON ACSS.AnnMap where
   toJSON a = object [ "types"   .= toJSON (annTypes     a)

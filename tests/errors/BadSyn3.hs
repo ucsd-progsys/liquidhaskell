@@ -1,4 +1,5 @@
-module Zoo where
+{-@ LIQUID "--expect-error-containing=Malformed application of type alias `BadSyn3.Foo`" @-}
+module BadSyn3 where
 
 type Foo = Int
 

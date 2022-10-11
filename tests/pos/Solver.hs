@@ -5,7 +5,7 @@
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--short-names"    @-}
 
-module MultiParams where
+module Solver where
 
 import Data.Tuple
 import Language.Haskell.Liquid.Prelude ((==>))
@@ -33,10 +33,10 @@ solve f = find (\a -> sat a f) (asgns f)
             {y::a, b::{v:Bool<w y> | v} |- {v:a | v == y} <: a<p>}
             (x:a -> Bool<w x>) -> [a] -> Maybe (a<p>) @-}
 find :: (a -> Bool) -> [a] -> Maybe a
-find f (x:xs) 
-	| f x       = Just x
+find f (x:xs)
+    | f x       = Just x
     | otherwise = Nothing
-find f [] 	    = Nothing
+find f []       = Nothing
 
 cons x xs = (x:xs)
 nil       = []
@@ -46,19 +46,19 @@ nil       = []
 asgns :: Formula -> [Asgn] -- generates all possible T/F vectors
 asgns = go . vars
   where
-  	go [] = []
-  	go (x:xs) = let ass = go xs in (inject (x, VTrue) ass) ++ (inject (x, VFalse) ass)
+    go [] = []
+    go (x:xs) = let ass = go xs in (inject (x, VTrue) ass) ++ (inject (x, VFalse) ass)
 
-  	inject x xs = map (\y -> x:y) xs
+    inject x xs = map (\y -> x:y) xs
 
 vars :: Formula -> [Var]
 vars = nub . go
   where
-  	go [] = []
-  	go (ls:xs) = map go' ls ++ go xs
+    go [] = []
+    go (ls:xs) = map go' ls ++ go xs
 
-  	go' (Pos x) = x
-  	go' (Neg x) = x
+    go' (Pos x) = x
+    go' (Neg x) = x
 
 -- | Satisfaction
 

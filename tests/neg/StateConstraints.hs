@@ -1,4 +1,5 @@
-module Compose where
+{-@ LIQUID "--expect-any-error" @-}
+module StateConstraints where
 
 data ST s = ST {runState :: s -> s}
 

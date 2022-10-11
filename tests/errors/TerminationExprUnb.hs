@@ -1,4 +1,5 @@
-module LocalTermExpr where
+{-@ LIQUID "--expect-error-containing=Illegal termination specification for `go`" @-}
+module TerminationExprUnb where
 
 {- assume (!!) :: xs:[a] -> {v:Nat | v < len xs} -> a @-}
 

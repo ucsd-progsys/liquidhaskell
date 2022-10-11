@@ -1,7 +1,8 @@
+{-@ LIQUID "--expect-any-error" @-}
 
 {-@ LIQUID "--prune-unsorted" @-}
 
-module Propability where
+module Propability0 where
 
 {-@ type Propability = {v:Double | ((0.0 <= v) && (v <= 1.0)) } @-}
 

@@ -4,7 +4,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
-module Gadt where
+module T1424A where
 
 
 -- Placeholder for Data.Persistent's Filter type

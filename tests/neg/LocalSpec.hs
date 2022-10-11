@@ -1,4 +1,5 @@
-module Foo () where
+{-@ LIQUID "--expect-any-error" @-}
+module LocalSpec () where
 
 import Language.Haskell.Liquid.Prelude (choose)
 

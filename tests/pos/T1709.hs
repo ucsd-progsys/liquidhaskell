@@ -1,4 +1,4 @@
-module T1709 where 
+module T1709 where
 
 {-@ incr :: x:Int -> {v:Int | x < v } @-}
 incr :: Int -> Int 

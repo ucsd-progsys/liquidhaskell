@@ -7,7 +7,7 @@ import           Text.PrettyPrint.HughesPJ                  hiding ((<>))
 
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Equality
-import           Language.Haskell.Liquid.GHC.API            hiding ((<+>), text)
+import           Liquid.GHC.API            hiding ((<+>), text)
 import qualified Language.Fixpoint.Types                    as F
 
 checkLawInstances :: GhcSpecLaws -> Diagnostics
@@ -63,7 +63,7 @@ unify mkError c li t1 t2
     t22 = fromRTypeRep (trep2 {ty_vars = [], ty_binds = fst <$> args2, ty_args = snd <$> args2, ty_refts = drop (length tc2) (ty_refts trep2)})
     t11 = fromRTypeRep (trep1 { ty_vars = []
                               , ty_binds = fst <$> args2
-                              , ty_args = (tx . snd) <$> args1
+                              , ty_args = tx . snd <$> args1
                               , ty_refts = F.subst esubst <$> drop (length tc1) (ty_refts trep1)
                               , ty_res = tx $ ty_res trep1})
     tx = subtsSpec tsubst . F.subst esubst
@@ -76,10 +76,10 @@ unify mkError c li t1 t2
     esubst = F.mkSubst (esubst1
                  ++  [(F.symbol x, F.EVar (F.symbol y)) | (Left x, (Left y, _)) <- lilEqus li]
                      )
-    esubst1 = zip  (fst <$> args1) ((F.EVar . fst) <$> args2)
+    esubst1 = zip  (fst <$> args1) (F.EVar . fst <$> args2)
 
     tsubst = reverse $ zip ((\(RTV v) -> v) <$> (findTyVars tc1 ++ (ty_var_value <$> concat argVars)))
-                 (toType <$> (argBds ++ (((`RVar` mempty) . ty_var_value) <$> (fst <$> ty_vars trep2))))
+                 (toType False <$> (argBds ++ ((`RVar` mempty) . ty_var_value <$> (fst <$> ty_vars trep2))))
 
     (argVars, argBds) = unzip (splitForall [] . val <$> lilTyArgs li)
 

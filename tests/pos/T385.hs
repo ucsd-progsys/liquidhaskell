@@ -1,5 +1,5 @@
 {-@ LIQUID "--noclasscheck"    @-}
-module Compose where
+module T385 where
 
 import Prelude hiding (Functor, Monad)
 

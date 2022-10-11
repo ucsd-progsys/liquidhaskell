@@ -1,4 +1,5 @@
-module Example where
+{-@ LIQUID "--expect-any-error" @-}
+module T1286 where
 
 {-@ fails :: {v:Bool | v} @-}
 fails =  'a' == 'b'

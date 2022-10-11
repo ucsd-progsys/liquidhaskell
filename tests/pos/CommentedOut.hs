@@ -1,4 +1,4 @@
-module Nats where 
+module CommentedOut where
 
 {- {-@ nats :: [Nat] @-} -}
 nats :: [Int]

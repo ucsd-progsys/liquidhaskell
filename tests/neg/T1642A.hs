@@ -1,10 +1,11 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--reflection" @-} 
 
 {-# LANGUAGE RankNTypes     #-}
 {-# LANGUAGE GADTs          #-}
 {-# LANGUAGE KindSignatures #-}
 
-module RefinedEquality where 
+module T1642A where
 
 
 {-@ measure eqT :: a -> a -> Bool @-}

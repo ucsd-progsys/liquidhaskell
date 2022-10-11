@@ -1,11 +1,11 @@
 {-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE ViewPatterns          #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE FlexibleContexts      #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.Haskell.Liquid.Constraint.Qualifier
-  ( giQuals 
+  ( giQuals
   , useSpcQuals
   )
   where
@@ -19,10 +19,10 @@ import           Language.Fixpoint.Types                  hiding (panic, mkQual)
 import qualified Language.Fixpoint.Types.Config as FC
 import           Language.Fixpoint.SortCheck
 import           Language.Haskell.Liquid.Types.RefType
-import           Language.Haskell.Liquid.GHC.Misc         (getSourcePos)
+import           Liquid.GHC.Misc         (getSourcePos)
 import           Language.Haskell.Liquid.Misc             (condNull)
 import           Language.Haskell.Liquid.Types.PredType
-import           Language.Haskell.Liquid.GHC.API hiding (Expr, mkQual, panic)
+import           Liquid.GHC.API hiding (Expr, mkQual, panic)
 
 import           Language.Haskell.Liquid.Types
 
@@ -62,7 +62,7 @@ useAlsQuals :: (HasConfig t) => t -> Bool
 useAlsQuals i = useQuals i && i `hasOpt` higherOrderFlag && not (needQuals i)
 
 useQuals :: (HasConfig t) => t -> Bool
-useQuals = not . (FC.All == ) . eliminate . getConfig
+useQuals = (FC.All /=) . eliminate . getConfig
 
 needQuals :: (HasConfig t) => t -> Bool
 needQuals = (FC.None == ) . eliminate . getConfig
@@ -106,18 +106,18 @@ sigQualifiers info lEnv
 qualifyingBinders :: TargetInfo -> S.HashSet Var
 qualifyingBinders info = S.difference sTake sDrop
   where
-    sTake              = S.fromList $ giDefVars src ++ giUseVars src ++ scrapeVars cfg src 
+    sTake              = S.fromList $ giDefVars src ++ giUseVars src ++ scrapeVars cfg src
     sDrop              = S.fromList $ specAxiomVars info
-    cfg                = getConfig info 
-    src                = giSrc     info 
-    
+    cfg                = getConfig info
+    src                = giSrc     info
+
 -- NOTE: this mines extra, useful qualifiers but causes
 -- a significant increase in running time, so we hide it
 -- behind `--scrape-imports` and `--scrape-used-imports`
 scrapeVars :: Config -> TargetSrc -> [Var]
-scrapeVars cfg src 
-  | cfg `hasOpt` scrapeUsedImports = giUseVars src 
-  | cfg `hasOpt` scrapeImports     = giImpVars src 
+scrapeVars cfg src
+  | cfg `hasOpt` scrapeUsedImports = giUseVars src
+  | cfg `hasOpt` scrapeImports     = giImpVars src
   | otherwise                      = []
 
 specBinders :: TargetInfo -> [(Var, LocSpecType)]
@@ -162,9 +162,9 @@ refTypeQuals lEnv l tce t0    = go emptySEnv t0
     goBind x t γ t'           = go (add x t γ) t'
     go γ t@(RVar _ _)         = scrape γ t
     go γ (RAllT _ t _)        = go γ t
-    go γ (RAllP p t)          = go (insertSEnv (pname p) (rTypeSort tce $ (pvarRType p :: RSort)) γ) t
+    go γ (RAllP p t)          = go (insertSEnv (pname p) (rTypeSort tce (pvarRType p :: RSort)) γ) t
     go γ t@(RAppTy t1 t2 _)   = go γ t1 ++ go γ t2 ++ scrape γ t
-    go γ (RFun x t t' _)      = go γ t ++ goBind x t γ t'
+    go γ (RFun x _ t t' _)    = go γ t ++ goBind x t γ t'
     go γ t@(RApp c ts rs _)   = scrape γ t ++ concatMap (go γ') ts ++ goRefs c γ' rs
                                 where γ' = add (rTypeValueVar t) t γ
     go γ (RAllE x t t')       = go γ t ++ goBind x t γ t'
@@ -189,7 +189,7 @@ refTopQuals lEnv l tce t0 γ t
                    , pa                        <- conjuncts ra
                    , not $ isHole    pa
                    , not $ isGradual pa
-                   , notracepp ("refTopQuals: " ++ showpp pa) 
+                   , notracepp ("refTopQuals: " ++ showpp pa)
                      $ isNothing $ checkSorted (srcSpan l) (insertSEnv v so γ') pa
     ]
     ++

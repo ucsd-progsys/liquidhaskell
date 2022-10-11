@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 -- LH#1424 
 -- ISSUE: what is the "sort" for `ty` ? is is `bob` -- NO! because then sometimes `funky Field y == y :: Bool`
 -- which makes SMT unhappy; is it `Bool` NO! because in the other case it CAN be an `int` which would make SMT unhappy. SIGH.
@@ -7,7 +8,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
-module Gadt where
+module T1424 where
 
 ---------------------------------------------------------------
 

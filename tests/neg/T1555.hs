@@ -1,8 +1,9 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--rankNTypes" @-}
 {-# LANGUAGE RankNTypes   #-}
 
-module Theorems where
+module T1555 where
 
 import Language.Haskell.Liquid.Equational 
 

@@ -3,7 +3,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-} 
 
-module ListClient where
+module Lists where
 
 import Prelude hiding (concat, filter, foldr, map)
 
