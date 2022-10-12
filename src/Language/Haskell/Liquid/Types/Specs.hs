@@ -248,7 +248,8 @@ instance Semigroup GhcSpecSig where
     , gsDicts    = gsDicts x    <> gsDicts y   
     , gsMethods  = gsMethods x  <> gsMethods y   
     , gsTexprs   = gsTexprs x   <> gsTexprs y   
-
+    , gsRelation = gsRelation x <> gsRelation y
+    , gsAsmRel   = gsAsmRel x   <> gsAsmRel y
     }
 
 
@@ -258,7 +259,7 @@ instance Semigroup GhcSpecSig where
 
 
 instance Monoid GhcSpecSig where
-  mempty = SpSig mempty mempty mempty mempty mempty mempty mempty mempty  
+  mempty = SpSig mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty  
 
 data GhcSpecData = SpData 
   { gsCtors      :: ![(Var, LocSpecType)]         -- ^ Data Constructor Measure Sigs

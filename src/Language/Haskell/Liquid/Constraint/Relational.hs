@@ -26,47 +26,34 @@ import           Control.Monad.Fail
 #endif
 
 
-import           Control.Applicative                            ( ZipList (..) )
 import           Control.Monad.State
 import           Data.Bifunctor                                 ( Bifunctor(bimap) )
 import qualified Data.HashMap.Strict                            as M
 import qualified Data.List                                      as L
-import qualified Data.Maybe                                     as MB
 import           Data.String                                    ( IsString(..) )
-import qualified Debug.Trace                                    as D
-import           Language.Fixpoint.Misc
+-- import qualified Debug.Trace                                    as D
 import qualified Language.Fixpoint.Types                        as F
-import qualified Language.Fixpoint.Types.Names                  as F
 import qualified Language.Fixpoint.Types.Visitor                as F
-import           Language.Haskell.Liquid.Bare.DataType          (makeDataConChecker)
-import           Language.Haskell.Liquid.Constraint.Constraint
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Haskell.Liquid.Constraint.Fresh
-import           Language.Haskell.Liquid.Constraint.Init
 import           Language.Haskell.Liquid.Constraint.Monad
-import           Language.Haskell.Liquid.Constraint.Split
 import           Language.Haskell.Liquid.Constraint.Types
-import           Language.Haskell.Liquid.GHC.API                ( Alt(..)
-                                                                , AltCon(..)
-                                                                , Bind(..)
-                                                                , CoreBind(..)
-                                                                , CoreBndr(..)
-                                                                , CoreExpr(..)
-                                                                , DataCon(..)
-                                                                , Expr(..)
-                                                                , Type(..)
-                                                                , TyVar(..)
-                                                                , Var(..))
-import qualified Language.Haskell.Liquid.GHC.API                as Ghc
-import qualified Language.Haskell.Liquid.GHC.Misc               as GM
-import           Language.Haskell.Liquid.GHC.Play               (isHoleVar, Subable(sub, subTy))
-import qualified Language.Haskell.Liquid.GHC.Resugar            as Rs
-import qualified Language.Haskell.Liquid.GHC.SpanStack          as Sp
-import           Language.Haskell.Liquid.GHC.TypeRep            ()
+import           Liquid.GHC.API                 ( Alt
+                                                , AltCon(..)
+                                                , Bind(..)
+                                                , CoreBind
+                                                , CoreBndr
+                                                , CoreExpr
+                                                , Expr(..)
+                                                , Type(..)
+                                                , TyVar
+                                                , Var(..))
+import qualified Liquid.GHC.API                as Ghc
+import qualified Liquid.GHC.Misc               as GM
+import           Liquid.GHC.Play               (Subable(sub, subTy))
+import qualified Liquid.GHC.SpanStack          as Sp
+import           Liquid.GHC.TypeRep            ()
 import           Language.Haskell.Liquid.Misc
-import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult)
-import           Language.Haskell.Liquid.Transforms.Rec
-import           Language.Haskell.Liquid.Types.Dictionaries
 import           Language.Haskell.Liquid.Types                  hiding (Def,
                                                                  Loc, binds,
                                                                  loc)
@@ -83,10 +70,9 @@ data RelPred
             } deriving Show
 
 type PrEnv = [RelPred]
-type RelAlt = (AltCon, [Var], [Var], CoreExpr, CoreExpr)
 
 consAssmRel :: Config -> TargetInfo -> (PrEnv, CGEnv) -> (Var, Var, LocSpecType, LocSpecType, RelExpr, RelExpr) -> CG (PrEnv, CGEnv)
-consAssmRel _ ti (ψ, γ) (x, y, t, s, _, rp) = traceChk "Assm" x y t s p $ do
+consAssmRel _ _ (ψ, γ) (x, y, t, s, _, rp) = traceChk "Assm" x y t s p $ do
   traceWhenLoud ("ASSUME " ++ F.showpp (fromRelExpr p', p)) $ subUnarySig γ' x t'
   subUnarySig γ' y s'
   γ'' <- if base t' && base s'
@@ -105,7 +91,7 @@ consAssmRel _ ti (ψ, γ) (x, y, t, s, _, rp) = traceChk "Assm" x y t s p $ do
     (us, ss) = vargs s'
     bs = zip vs (fst . vargs <$> ts)
     cs = zip us (fst . vargs <$> ss)
-    p' = L.foldl (\p (v, u) -> unapplyRelArgsR v u p) rp (zip vs us)
+    p' = L.foldl (\q (v, u) -> unapplyRelArgsR v u q) rp (zip vs us)
 
 consRelTop :: Config -> TargetInfo -> CGEnv -> PrEnv -> (Var, Var, LocSpecType, LocSpecType, RelExpr, RelExpr) -> CG ()
 consRelTop _ ti γ ψ (x, y, t, s, ra, rp) = traceChk "Init" e d t s p $ do
@@ -158,7 +144,7 @@ consRelCheckBind γ ψ b1@(Rec [(f1, e1)]) b2@(Rec [(f2, e2)]) t1 t2 ra rp
     let (xs1', xs2') = unzip xs'
     let (e1'', e2'') = L.foldl' subRel (e1', e2') (zip xs1 xs2)
     γ' <- γ += ("Bind Rec f1", F.symbol f1', t1) >>= (+= ("Bind Rec f2", F.symbol f2', t2))
-    γ'' <- foldM (\γ (x, t) -> γ += ("Bind Rec x1", F.symbol x, t)) γ' (zip (xs1' ++ xs2') (ts1 ++ ts2))
+    γ'' <- foldM (\γγ (x, t) -> γγ += ("Bind Rec x1", F.symbol x, t)) γ' (zip (xs1' ++ xs2') (ts1 ++ ts2))
     let vs2xs =  F.subst $ F.mkSubst $ zip (vs1 ++ vs2) $ map (F.EVar . F.symbol) (xs1' ++ xs2')
     let (ho, fo) = partitionArgs xs1 xs2 ts1 ts2 qs
     γ''' <- γ'' `addPreds` traceWhenLoud ("PRECONDITION " ++ F.showpp (vs2xs (F.PAnd fo)) ++ "\n" ++
@@ -166,8 +152,8 @@ consRelCheckBind γ ψ b1@(Rec [(f1, e1)]) b2@(Rec [(f2, e2)]) t1 t2 ra rp
                               map vs2xs [F.PAnd fo, a]
     -- TODO: replace ho prems with true
     let p' = unapp rp (zip vs1 vs2)
-    let bs1 = zip vs1 (fst . vargs <$> ts1)
-    let bs2 = zip vs2 (fst . vargs <$> ts2)
+    -- let bs1 = zip vs1 (fst . vargs <$> ts1)
+    -- let bs2 = zip vs2 (fst . vargs <$> ts2)
     let ψ' = ho ++ ψ
     consRelCheck γ''' ψ' (xbody e1'') (xbody e2'') (vs2xs $ ret t1) (vs2xs $ ret t2) (vs2xs $ concl (fromRelExpr p'))
   where
@@ -176,10 +162,10 @@ consRelCheckBind γ ψ b1@(Rec [(f1, e1)]) b2@(Rec [(f2, e2)]) t1 t2 ra rp
     (f1', f2') = mkRelCopies f1 f2
     (e1', e2') = subRelCopies e1 f1 e2 f2
     unapp :: RelExpr -> [(F.Symbol, F.Symbol)] -> RelExpr
-    unapp = L.foldl' (\p (v1, v2) -> unapplyRelArgsR v1 v2 p)
-    subRel (e1, e2) (x1, x2) = subRelCopies e1 x1 e2 x2
+    unapp = L.foldl' (\p' (v1, v2) -> unapplyRelArgsR v1 v2 p')
+    subRel (e1'', e2'') (x1, x2) = subRelCopies e1'' x1 e2'' x2
 
-consRelCheckBind _ _ b1@(Rec [(f1, e1)]) b2@(Rec [(f2, e2)]) t1 t2 _ rp
+consRelCheckBind _ _ (Rec [(_, e1)]) (Rec [(_, e2)]) t1 t2 _ rp
   = F.panic $ "consRelCheckBind Rec: exprs, types, and pred should have same number of args " ++
     show (args e1 e2 t1 t2 p)
     where
@@ -202,16 +188,16 @@ consRelCheck γ ψ l1@(Lam α1 e1) e2 rt1@(RAllT s1 t1 r1) t2 p
   = traceChk "Lam Type L" l1 e2 rt1 t2 p $ do
     entlFunReft γ r1 "consRelCheck Lam Type"
     γ'  <- γ `extendWithTyVar` α1
-    consRelCheck γ' ψ e1 e2 (sub (s1, α1) t1) t2 p
-  where sub (s, α) = subsTyVar_meet' (ty_var_value s, rVar α)
+    consRelCheck γ' ψ e1 e2 (sb (s1, α1) t1) t2 p
+  where sb (s, α) = subsTyVarMeet' (ty_var_value s, rVar α)
 
 consRelCheck γ ψ e1 l2@(Lam α2 e2) t1 rt2@(RAllT s2 t2 r2) p
   | Ghc.isTyVar α2
   = traceChk "Lam Type" e1 l2 t1 rt2 p $ do
     entlFunReft γ r2 "consRelCheck Lam Type"
     γ'  <- γ `extendWithTyVar` α2
-    consRelCheck γ' ψ e1 e2 t1 (sub (s2, α2) t2) p
-  where sub (s, α) = subsTyVar_meet' (ty_var_value s, rVar α)
+    consRelCheck γ' ψ e1 e2 t1 (sb (s2, α2) t2) p
+  where sb (s, α) = subsTyVarMeet' (ty_var_value s, rVar α)
 
 consRelCheck γ ψ l1@(Lam α1 e1) l2@(Lam α2 e2) rt1@(RAllT s1 t1 r1) rt2@(RAllT s2 t2 r2) p
   | Ghc.isTyVar α1 && Ghc.isTyVar α2
@@ -219,10 +205,10 @@ consRelCheck γ ψ l1@(Lam α1 e1) l2@(Lam α2 e2) rt1@(RAllT s1 t1 r1) rt2@(RAl
     entlFunRefts γ r1 r2 "consRelCheck Lam Type"
     γ'  <- γ `extendWithTyVar` α1
     γ'' <- γ' `extendWithTyVar` α2
-    consRelCheck γ'' ψ e1 e2 (sub (s1, α1) t1) (sub (s2, α2) t2) p
-  where sub (s, α) = subsTyVar_meet' (ty_var_value s, rVar α)
+    consRelCheck γ'' ψ e1 e2 (sb (s1, α1) t1) (sb (s2, α2) t2) p
+  where sb (s, α) = subsTyVarMeet' (ty_var_value s, rVar α)
 
-consRelCheck γ ψ l1@(Lam x1 e1) l2@(Lam x2 e2) rt1@(RFun v1 s1 t1 r1) rt2@(RFun v2 s2 t2 r2) pr@(F.PImp q p)
+consRelCheck γ ψ l1@(Lam x1 e1) l2@(Lam x2 e2) rt1@(RFun v1 _ s1 t1 r1) rt2@(RFun v2 _ s2 t2 r2) pr@(F.PImp q p)
   = traceChk "Lam Expr" l1 l2 rt1 rt2 pr $ do
     entlFunRefts γ r1 r2 "consRelCheck Lam Expr"
     let (pvar1, pvar2) = (F.symbol evar1, F.symbol evar2)
@@ -239,30 +225,30 @@ consRelCheck γ ψ l1@(Lam x1 e1) l2@(Lam x2 e2) rt1@(RFun v1 s1 t1 r1) rt2@(RFu
 
 consRelCheck γ ψ l1@(Let (NonRec x1 d1) e1) l2@(Let (NonRec x2 d2) e2) t1 t2 p
   = traceChk "Let" l1 l2 t1 t2 p $ do
-    (s1, s2, qs) <- consRelSynth γ ψ d1 d2
+    (s1, s2, _) <- consRelSynth γ ψ d1 d2
     let (evar1, evar2) = mkRelCopies x1 x2
     let (e1', e2')     = subRelCopies e1 x1 e2 x2
     γ'  <- γ += ("consRelCheck Let L", F.symbol evar1, s1)
     γ'' <- γ' += ("consRelCheck Let R", F.symbol evar2, s2)
-    let rs2xs = F.mkSubst [(resL, F.EVar $ F.symbol evar1), (resR, F.EVar $ F.symbol evar2)]
-    let (vs1, ts1) = vargs s1
-    let (vs2, ts2) = vargs s2
-    let binders = vs1 ++ vs2 ++ concatMap (fst . vargs) ts1 ++ concatMap (fst . vargs) ts2
-    let qs' = traceWhenLoud ("Let qs: " ++ F.showpp qs) qs
+    -- let rs2xs = F.mkSubst [(resL, F.EVar $ F.symbol evar1), (resR, F.EVar $ F.symbol evar2)]
+    -- let (vs1, ts1) = vargs s1
+    -- let (vs2, ts2) = vargs s2
+    -- let binders = vs1 ++ vs2 ++ concatMap (fst . vargs) ts1 ++ concatMap (fst . vargs) ts2
+    -- let qs' = traceWhenLoud ("Let qs: " ++ F.showpp qs) qs
     -- let (ho, fo) = L.partition (F.containsVars binders) qs'
     -- γ''' <- γ'' `addPreds` map (F.subst rs2xs) fo
     -- let ψ' = ψ ++ map (\q -> toRel (evar1, evar2, s1, s2, q)) ho
-    consRelCheck γ'' ψ' e1' e2' t1 t2 p
-  where 
-    -- unapp    = L.foldl' (\p (v1, v2) -> unapplyRelArgs v1 v2 p)
-    toRel (f1, f2, t1, t2, q) =
-      let (vs1, ts1) = vargs t1
-      in  let (vs2, ts2) = vargs t2
-          in  let bs1 = zip vs1 (fst . vargs <$> ts1)
-              in  let bs2 = zip vs2 (fst . vargs <$> ts2)
-                  -- TODO: add symmetric RelPred
-                  in  let rp = RelPred f1 f2 bs1 bs2 $ ERBasic q
-                      in traceWhenLoud ("consRelCheck toRel: " ++ F.showpp (f1, f2, bs1, bs2, q)) rp
+    consRelCheck γ'' ψ e1' e2' t1 t2 p
+  -- where 
+  --   -- unapp    = L.foldl' (\p (v1, v2) -> unapplyRelArgs v1 v2 p)
+  --   toRel (f1, f2, t1', t2', q) =
+  --     let (vs1, ts1) = vargs t1'
+  --     in  let (vs2, ts2) = vargs t2'
+  --         in  let bs1 = zip vs1 (fst . vargs <$> ts1)
+  --             in  let bs2 = zip vs2 (fst . vargs <$> ts2)
+  --                 -- TODO: add symmetric RelPred
+  --                 in  let rp = RelPred f1 f2 bs1 bs2 $ ERBasic q
+  --                     in traceWhenLoud ("consRelCheck toRel: " ++ F.showpp (f1, f2, bs1, bs2, q)) rp
   
 
 consRelCheck γ ψ l1@(Let (Rec []) e1) l2@(Let (Rec []) e2) t1 t2 p
@@ -271,15 +257,15 @@ consRelCheck γ ψ l1@(Let (Rec []) e1) l2@(Let (Rec []) e2) t1 t2 p
 
 consRelCheck γ ψ l1@(Let (Rec ((x1, d1):bs1)) e1) l2@(Let (Rec ((x2, d2):bs2)) e2) t1 t2 p
   = traceChk "Let Rec Cons" l1 l2 t1 t2 p $ do
-    (s1, s2, qs) <- consRelSynth γ ψ d1 d2
+    (s1, s2, _) <- consRelSynth γ ψ d1 d2
     let (evar1, evar2) = mkRelCopies x1 x2
     let (e1', e2')     = subRelCopies e1 x1 e2 x2
     γ'  <- γ += ("consRelCheck Let L", F.symbol evar1, s1)
     γ'' <- γ' += ("consRelCheck Let R", F.symbol evar2, s2)
-    let rs2xs = F.mkSubst [(resL, F.EVar $ F.symbol evar1), (resR, F.EVar $ F.symbol evar2)]
-    let (vs1, ts1) = vargs s1
-    let (vs2, ts2) = vargs s2
-    let binders = vs1 ++ vs2 ++ concatMap (fst . vargs) ts1 ++ concatMap (fst . vargs) ts2
+    -- let rs2xs = F.mkSubst [(resL, F.EVar $ F.symbol evar1), (resR, F.EVar $ F.symbol evar2)]
+    -- let (vs1, ts1) = vargs s1
+    -- let (vs2, ts2) = vargs s2
+    -- let binders = vs1 ++ vs2 ++ concatMap (fst . vargs) ts1 ++ concatMap (fst . vargs) ts2
     -- γ''' <- γ'' `addPreds` map (F.subst rs2xs) (filter (not . F.containsVars binders) qs)
     consRelCheck γ'' ψ (Let (Rec bs1) e1') (Let (Rec bs2) e2') t1 t2 p
 
@@ -322,15 +308,15 @@ consRelCheck γ ψ e d t1 t2 p =
   addC (SubC γ s1 t1) ("consRelCheck (Synth): s1 = " ++ F.showpp s1 ++ " t1 = " ++ F.showpp t1)
   addC (SubC γ s2 t2) ("consRelCheck (Synth): s2 = " ++ F.showpp s2 ++ " t2 = " ++ F.showpp t2)
 
-consSameCtors :: CGEnv -> PrEnv -> F.Symbol -> F.Symbol -> SpecType -> SpecType -> [AltCon] -> AltCon  -> CG ()
-consSameCtors γ ψ x1 x2 s1 s2 alts (DataAlt c) | isBoolDataCon c
-  = entl γ (F.PIff (F.EVar x1) (F.EVar x2)) "consSameCtors DataAlt Bool"
-consSameCtors γ ψ x1 x2 s1 s2 alts (DataAlt c)
-  = entl γ (F.PIff (isCtor c $ F.EVar x1) (isCtor c $ F.EVar x2)) "consSameCtors DataAlt"
-consSameCtors γ ψ x1 x2 _ _ _ (LitAlt l)
-  = F.panic "consSameCtors undefined for literals"
-consSameCtors _ _ _ _ _ _ alts DEFAULT
-  = F.panic "consSameCtors undefined for default"
+-- consSameCtors :: CGEnv -> PrEnv -> F.Symbol -> F.Symbol -> SpecType -> SpecType -> [AltCon] -> AltCon  -> CG ()
+-- consSameCtors γ _ x1 x2 _ _ _ (DataAlt c) | isBoolDataCon c
+--   = entl γ (F.PIff (F.EVar x1) (F.EVar x2)) "consSameCtors DataAlt Bool"
+-- consSameCtors γ _ x1 x2 _ _ _ (DataAlt c)
+--   = entl γ (F.PIff (isCtor c $ F.EVar x1) (isCtor c $ F.EVar x2)) "consSameCtors DataAlt"
+-- consSameCtors _ _ _ _ _ _ _ (LitAlt _)
+--   = F.panic "consSameCtors undefined for literals"
+-- consSameCtors _ _ _ _ _ _ _ DEFAULT
+--   = F.panic "consSameCtors undefined for default"
 
 consExtAltEnv :: CGEnv -> F.Symbol -> SpecType -> AltCon -> [Var] -> CoreExpr -> String -> CG (CGEnv, CoreExpr)
 consExtAltEnv γ x s c bs e suf = do
@@ -349,12 +335,12 @@ consRelCheckAltAsyncR γ ψ t1 t2 p e1 x2 s2 (c, bs2, e2) = do
   (γ', e2') <- consExtAltEnv γ x2 s2 c bs2 e2 relSuffixR
   consRelCheck γ' ψ e1 e2' t1 t2 p
 
-consRelCheckAltSync :: CGEnv -> PrEnv -> SpecType -> SpecType -> F.Expr ->
-  F.Symbol -> F.Symbol -> SpecType -> SpecType -> RelAlt -> CG ()
-consRelCheckAltSync γ ψ t1 t2 p x1 x2 s1 s2 (c, bs1, bs2, e1, e2) = do
-  (γ', e1') <- consExtAltEnv γ x1 s1 c bs1 e1 relSuffixL
-  (γ'', e2') <- consExtAltEnv γ' x2 s2 c bs2 e2 relSuffixR
-  consRelCheck γ'' ψ e1' e2' t1 t2 p
+-- consRelCheckAltSync :: CGEnv -> PrEnv -> SpecType -> SpecType -> F.Expr ->
+--   F.Symbol -> F.Symbol -> SpecType -> SpecType -> RelAlt -> CG ()
+-- consRelCheckAltSync γ ψ t1 t2 p x1 x2 s1 s2 (c, bs1, bs2, e1, e2) = do
+--   (γ', e1') <- consExtAltEnv γ x1 s1 c bs1 e1 relSuffixL
+--   (γ'', e2') <- consExtAltEnv γ' x2 s2 c bs2 e2 relSuffixR
+--   consRelCheck γ'' ψ e1' e2' t1 t2 p
 
 ctorTy :: CGEnv -> AltCon -> SpecType -> CG SpecType
 ctorTy γ (DataAlt c) (RApp _ ts _ _)
@@ -367,7 +353,7 @@ ctorTy _ (LitAlt c) _ = return $ uTop <$> literalFRefType c
 ctorTy _ DEFAULT t = return t
 
 unapply :: CGEnv -> F.Symbol -> SpecType -> [Var] -> SpecType -> CoreExpr -> String -> CG (CGEnv, CoreExpr)
-unapply γ y yt (z : zs) (RFun x s t _) e suffix = do
+unapply γ y yt (z : zs) (RFun x _ s t _) e suffix = do
   γ' <- γ += ("unapply arg", evar, s)
   unapply γ' y yt zs (t `F.subst1` (x, F.EVar evar)) e' suffix
   where
@@ -383,7 +369,7 @@ unapply γ y yt [] t e _ = do
 instantiateTys :: SpecType -> [SpecType] -> SpecType
 instantiateTys = L.foldl' go
  where
-  go (RAllT α tbody _) t = subsTyVar_meet' (ty_var_value α, t) tbody
+  go (RAllT α tbody _) t = subsTyVarMeet' (ty_var_value α, t) tbody
   go tbody             t =
     F.panic $ "instantiateTys: non-polymorphic type " ++ F.showpp tbody ++ " to instantiate with " ++ F.showpp t
 
@@ -401,16 +387,16 @@ consRelSynth γ ψ e (Tick tt d) =
 consRelSynth γ ψ a1@(App e1 d1) e2 | Type t1 <- GM.unTickExpr d1 =
   traceSyn "App Ty L" a1 e2 $ do
     (ft1', t2, ps) <- consRelSynth γ ψ e1 e2
-    let (α1, ft1, r1) = unRAllT ft1' "consRelSynth App Ty L"
-    t1' <- trueTy t1
-    return (subsTyVar_meet' (ty_var_value α1, t1') ft1, t2, ps)
+    let (α1, ft1, _) = unRAllT ft1' "consRelSynth App Ty L"
+    t1' <- trueTy (typeclass (getConfig γ)) t1
+    return (subsTyVarMeet' (ty_var_value α1, t1') ft1, t2, ps)
 
 consRelSynth γ ψ e1 a2@(App e2 d2) | Type t2 <- GM.unTickExpr d2 =
   traceSyn "App Ty R" e1 a2 $ do
     (t1, ft2', ps) <- consRelSynth γ ψ e1 e2
-    let (α2, ft2, r2) = unRAllT ft2' "consRelSynth App Ty R"
-    t2' <- trueTy t2
-    return (t1, subsTyVar_meet' (ty_var_value α2, t2') ft2, ps)
+    let (α2, ft2, _) = unRAllT ft2' "consRelSynth App Ty R"
+    t2' <- trueTy (typeclass (getConfig γ)) t2
+    return (t1, subsTyVarMeet' (ty_var_value α2, t2') ft2, ps)
 
 consRelSynth γ ψ a1@(App e1 d1) a2@(App e2 d2) = traceSyn "App Exp Exp" a1 a2 $ do
   (ft1, ft2, fps) <- consRelSynth γ ψ e1 e2
@@ -448,14 +434,14 @@ consRelSynthApp γ ψ ft1 ft2 ps (Tick t1 e1) e2 =
   -- TODO: create span
   consRelSynthApp (γ `setLocation` Sp.Tick t1) ψ ft1 ft2 ps e1 e2
 
-consRelSynthApp γ ψ ft1@(RFun v1 s1{- @RFun{} -} t1 r1) ft2@(RFun v2 s2{- @RFun{} -} t2 r2) (ps@[F.PImp q p]) d1@(Var x1) d2@(Var x2)
+consRelSynthApp γ ψ ft1@(RFun v1 _ s1{- @RFun{} -} t1 r1) ft2@(RFun v2 _ s2{- @RFun{} -} t2 r2) (ps@[F.PImp q p]) d1@(Var x1) d2@(Var x2)
   = traceSynApp ft1 ft2 ps d1 d2 $ do
     entlFunRefts γ r1 r2 "consRelSynthApp HO"
     let qsubst = F.subst $ F.mkSubst [(v1, F.EVar resL), (v2, F.EVar resR)]
     consRelCheck γ ψ d1 d2 s1 s2 (qsubst q)
     let subst = F.subst $ F.mkSubst [(v1, F.EVar $ F.symbol x1), (v2, F.EVar $ F.symbol x2)]
     return (subst t1, subst t2, [(subst . unapplyRelArgs v1 v2) p])
-consRelSynthApp γ ψ ft1@(RFun v1 s1 t1 r1) ft2@(RFun v2 s2 t2 r2) ps@[] d1@(Var x1) d2@(Var x2)
+consRelSynthApp γ ψ ft1@(RFun v1 _ s1 t1 r1) ft2@(RFun v2 _ s2 t2 r2) ps@[] d1@(Var x1) d2@(Var x2)
   = traceSynApp ft1 ft2 ps d1 d2 $ do
     entlFunRefts γ r1 r2 "consRelSynthApp FO"
     consUnaryCheck γ d1 s1
@@ -465,7 +451,7 @@ consRelSynthApp γ ψ ft1@(RFun v1 s1 t1 r1) ft2@(RFun v2 s2 t2 r2) ps@[] d1@(Va
           F.subst $ F.mkSubst
             [(v1, F.EVar $ F.symbol x1), (v2, F.EVar $ F.symbol x2)]
     return (subst t1, subst t2, map subst qs)
-consRelSynthApp γ ψ (RFun v1 s1 t1 r1) (RFun v2 s2 t2 r2) ps d1@(Var x1) d2@(Var x2)
+consRelSynthApp _ _ (RFun {}) (RFun {}) ps d1@(Var _) d2@(Var _)
   = F.panic $ "consRelSynthApp: multiple rel sigs not supported " ++ F.showpp (ps, d1, d2)
 -- do
 --     entlFunRefts γ r1 r2 "consRelSynthApp FO"
@@ -498,7 +484,7 @@ consUnarySynth γ (Var x) = return $ traceWhenLoud ("SELFIFICATION " ++ F.showpp
 consUnarySynth _ (Lit c) = return $ uRType $ literalFRefType c
 consUnarySynth γ e@(Let _ _) =
   traceUSyn "Let" e $ do
-  t   <- freshTy_type LetE e $ Ghc.exprType e
+  t   <- freshTyType (typeclass (getConfig γ)) LetE e $ Ghc.exprType e
   addW $ WfC γ t
   consUnaryCheck γ e t
   return t
@@ -511,13 +497,13 @@ consUnarySynth γ (Lam α e) | Ghc.isTyVar α = do
   return $ RAllT (makeRTVar $ rTyVar α) t' mempty
 consUnarySynth γ e@(Lam x d)  = do
   let Ghc.FunTy { ft_arg = s' } = checkFun e $ Ghc.exprType e
-  s  <- freshTy_type LamE (Var x) s'
+  s  <- freshTyType (typeclass (getConfig γ)) LamE (Var x) s'
   γ' <- γ += ("consUnarySynth (Lam)", F.symbol x, s)
   t  <- consUnarySynth γ' d
   addW $ WfC γ s
-  return $ RFun (F.symbol x) s t mempty
+  return $ RFun (F.symbol x) (mkRFInfo $ getConfig γ) s t mempty
 consUnarySynth γ e@(Case _ _ _ alts) = do
-  t   <- freshTy_type (caseKVKind alts) e $ Ghc.exprType e
+  t   <- freshTyType (typeclass (getConfig γ)) (caseKVKind alts) e $ Ghc.exprType e
   addW $ WfC γ t
   -- consUnaryCheck γ e t
   return t
@@ -539,7 +525,7 @@ base RVar{} = True
 base _      = False
 
 selfifyExpr :: SpecType -> F.Expr -> Maybe SpecType
-selfifyExpr (RFun v s t r) f = (\t -> RFun v s t r) <$> selfifyExpr t (F.EApp f (F.EVar v))
+selfifyExpr (RFun v i s t r) f = (\t' -> RFun v i s t' r) <$> selfifyExpr t (F.EApp f (F.EVar v))
 -- selfifyExpr (RAllT α t r) f = (\t -> RAllT α t r) <$> selfifyExpr t f
 -- selfifyExpr (RAllT α t r) f = (\t -> RAllT α t r) <$> selfifyExpr t (F.ETApp f (F.FVar 0))
 selfifyExpr t e | base t = Just $ t `strengthen` eq e
@@ -555,13 +541,13 @@ selfify t _ = t
 consUnarySynthApp :: CGEnv -> SpecType -> CoreExpr -> CG SpecType
 consUnarySynthApp γ t (Tick y e) = do
   consUnarySynthApp (γ `setLocation` (Sp.Tick y)) t e
-consUnarySynthApp γ (RFun x s t _) d@(Var y) = do
+consUnarySynthApp γ (RFun x _ s t _) d@(Var y) = do
   consUnaryCheck γ d s
   return $ t `F.subst1` (x, F.EVar $ F.symbol y)
-consUnarySynthApp _ (RAllT α t _) (Type s) = do
-    s' <- trueTy s
-    return $ subsTyVar_meet' (ty_var_value α, s') t
-consUnarySynthApp γ RFun{} d =
+consUnarySynthApp γ (RAllT α t _) (Type s) = do
+    s' <- trueTy (typeclass (getConfig γ)) s
+    return $ subsTyVarMeet' (ty_var_value α, s') t
+consUnarySynthApp _ RFun{} d =
   F.panic $ "consUnarySynthApp expected Var as a funciton arg, got " ++ F.showpp d
 consUnarySynthApp _ ft d =
   F.panic $ "consUnarySynthApp malformed function type " ++ F.showpp ft ++
@@ -581,28 +567,28 @@ consUnaryCheck γ e t = do
 --------------------------------------------------------------
 
 consRelSub :: CGEnv -> SpecType -> SpecType -> F.Expr -> F.Expr -> CG ()
-consRelSub γ f1@(RFun g1 s1@(RFun x1' s1' t1' _) t1 _) f2@(RFun g2 s2@(RFun x2' s2' t2' _) t2 _)
-             pr1@(F.PImp qr1@(F.PImp q1 q1') p1)            pr2@(F.PImp qr2@(F.PImp q2 q2') p2)
+consRelSub γ f1@(RFun g1 _ s1@(RFun{}) t1 _) f2@(RFun g2 _ s2@(RFun{}) t2 _)
+             pr1@(F.PImp qr1@(F.PImp{}) p1)            pr2@(F.PImp qr2@(F.PImp{}) p2)
   = traceSub "hof" f1 f2 pr1 pr2 $ do
     consRelSub γ s1 s2 qr2 qr1
     γ' <- γ += ("consRelSub HOF", F.symbol g1, s1)
     γ'' <- γ' += ("consRelSub HOF", F.symbol g2, s2)
     let psubst = unapplyArg resL g1 <> unapplyArg resR g2
     consRelSub γ'' t1 t2 (psubst p1) (psubst p2)
-consRelSub γ f1@(RFun g1 s1@(RFun x1' s1' t1' _) t1 _) f2@(RFun g2 s2@(RFun x2' s2' t2' _) t2 _)
-             pr1@(F.PAnd [F.PImp qr1@(F.PImp q1 q1') p1])            pr2@(F.PImp qr2@(F.PImp q2 q2') p2)
+consRelSub γ f1@(RFun g1 _ s1@(RFun _ _ _ _ _) t1 _) f2@(RFun g2 _ s2@(RFun _ _ _ _ _) t2 _)
+             pr1@(F.PAnd [F.PImp qr1@(F.PImp{}) p1])            pr2@(F.PImp qr2@(F.PImp{}) p2)
   = traceSub "hof" f1 f2 pr1 pr2 $ do
     consRelSub γ s1 s2 qr2 qr1
     γ' <- γ += ("consRelSub HOF", F.symbol g1, s1)
     γ'' <- γ' += ("consRelSub HOF", F.symbol g2, s2)
     let psubst = unapplyArg resL g1 <> unapplyArg resR g2
     consRelSub γ'' t1 t2 (psubst p1) (psubst p2)
-consRelSub γ f1@(RFun x1 s1 e1 _) f2 p1 p2 =
+consRelSub γ f1@(RFun x1 _ s1 e1 _) f2 p1 p2 =
   traceSub "fun" f1 f2 p1 p2 $ do
     γ' <- γ += ("consRelSub RFun L", F.symbol x1, s1)
     let psubst = unapplyArg resL x1
     consRelSub γ' e1 f2 (psubst p1) (psubst p2)
-consRelSub γ f1 f2@(RFun x2 s2 e2 _) p1 p2 =
+consRelSub γ f1 f2@(RFun x2 _ s2 e2 _) p1 p2 =
   traceSub "fun" f1 f2 p1 p2 $ do
     γ' <- γ += ("consRelSub RFun R", F.symbol x2, s2)
     let psubst = unapplyArg resR x2
@@ -629,26 +615,16 @@ consRelSub _ t1 t2 _ _ =  F.panic $ "consRelSub is undefined for different types
 -- Predicate Well-Formedness ---------------------------------
 --------------------------------------------------------------
 
-wfTruth :: SpecType -> SpecType -> F.Expr
-wfTruth (RAllT _ t1 _) t2 = wfTruth t1 t2
-wfTruth t1 (RAllT _ t2 _) = wfTruth t1 t2
-wfTruth (RFun _ _ t1 _) (RFun _ _ t2 _) =
-  F.PImp F.PTrue $ wfTruth t1 t2
-wfTruth _ _ = F.PTrue
+-- wfTruth :: SpecType -> SpecType -> F.Expr
+-- wfTruth (RAllT _ t1 _) t2 = wfTruth t1 t2
+-- wfTruth t1 (RAllT _ t2 _) = wfTruth t1 t2
+-- wfTruth (RFun _ _ _ t1 _) (RFun _ _ _ t2 _) =
+--   F.PImp F.PTrue $ wfTruth t1 t2
+-- wfTruth _ _ = F.PTrue
 
 --------------------------------------------------------------
 -- Helper Definitions ----------------------------------------
 --------------------------------------------------------------
-
-zip5 :: [a] -> [b] -> [c] -> [d] -> [e] -> [(a, b, c, d, e)]
-zip5 as bs cs ds es =
-  getZipList
-    $   (\a b c d e -> (a, b, c, d, e))
-    <$> ZipList as
-    <*> ZipList bs
-    <*> ZipList cs
-    <*> ZipList ds
-    <*> ZipList es
 
 isFuncPred :: F.Expr -> Bool
 isFuncPred (F.PImp _ _) = True
@@ -663,10 +639,10 @@ partitionArgs xs1 xs2 ts1 ts2 qs = (map toRel ho, map toUnary fo)
   (ho, fo) = L.partition (isFuncPred . toUnary) (zip5 xs1 xs2 ts1 ts2 qs)
   -- unapp    = L.foldl' (\p (v1, v2) -> unapplyRelArgs v1 v2 p)
   toRel (f1, f2, t1, t2, q) =
-    let (vs1, ts1) = vargs t1
-    in  let (vs2, ts2) = vargs t2
-        in  let bs1 = zip vs1 (fst . vargs <$> ts1)
-            in  let bs2 = zip vs2 (fst . vargs <$> ts2)
+    let (vs1, ts1') = vargs t1
+    in  let (vs2, ts2') = vargs t2
+        in  let bs1 = zip vs1 (fst . vargs <$> ts1')
+            in  let bs2 = zip vs2 (fst . vargs <$> ts2')
                 -- TODO: add symmetric RelPred
                 in  let rp = RelPred f1 f2 bs1 bs2 $ ERBasic $ q
                     in traceWhenLoud ("partitionArgs toRel: " ++ F.showpp (f1, f2, bs1, bs2, q)) rp
@@ -676,17 +652,17 @@ unRAllT :: SpecType -> String -> (RTVU RTyCon RTyVar, SpecType, RReft)
 unRAllT (RAllT α2 ft2 r2) _ = (α2, ft2, r2)
 unRAllT t msg = F.panic $ msg ++ ": expected RAllT, got: " ++ F.showpp t
 
-isCtor :: Ghc.DataCon -> F.Expr -> F.Expr
-isCtor d = F.EApp (F.EVar $ makeDataConChecker d)
+-- isCtor :: Ghc.DataCon -> F.Expr -> F.Expr
+-- isCtor d = F.EApp (F.EVar $ makeDataConChecker d)
 
-isAltCon :: AltCon -> F.Symbol -> F.Expr
-isAltCon (DataAlt c) x | c == Ghc.trueDataCon  = F.EVar x
-isAltCon (DataAlt c) x | c == Ghc.falseDataCon = F.PNot $ F.EVar x
-isAltCon (DataAlt c) x                         = isCtor c (F.EVar x)
-isAltCon _           _                         = F.PTrue
+-- isAltCon :: AltCon -> F.Symbol -> F.Expr
+-- isAltCon (DataAlt c) x | c == Ghc.trueDataCon  = F.EVar x
+-- isAltCon (DataAlt c) x | c == Ghc.falseDataCon = F.PNot $ F.EVar x
+-- isAltCon (DataAlt c) x                         = isCtor c (F.EVar x)
+-- isAltCon _           _                         = F.PTrue
 
-isBoolDataCon :: DataCon -> Bool
-isBoolDataCon c = c == Ghc.trueDataCon || c == Ghc.falseDataCon
+-- isBoolDataCon :: DataCon -> Bool
+-- isBoolDataCon c = c == Ghc.trueDataCon || c == Ghc.falseDataCon
 
 args :: CoreExpr -> CoreExpr -> SpecType -> SpecType -> F.Expr ->
   Maybe ([Var], [Var], [F.Symbol], [F.Symbol], [SpecType], [SpecType], [F.Expr])
@@ -711,118 +687,118 @@ xbody e          = e
 
 refts :: SpecType -> [RReft]
 refts (RAllT _ t r ) = r : refts t
-refts (RFun _ _ t r) = r : refts t
+refts (RFun _ _ _ t r) = r : refts t
 refts _              = []
 
 vargs :: SpecType -> ([F.Symbol], [SpecType])
 vargs (RAllT _ t _ ) = vargs t
-vargs (RFun v s t _) = bimap (v :) (s :) $ vargs t
+vargs (RFun v _ s t _) = bimap (v :) (s :) $ vargs t
 vargs _              = ([], [])
 
 ret :: SpecType -> SpecType
 ret (RAllT _ t _ ) = ret t
-ret (RFun _ _ t _) = ret t
+ret (RFun _ _ _ t _) = ret t
 ret t              = t
 
 prems :: F.Expr -> [F.Expr]
 prems (F.PImp q p) = q : prems p
 prems _            = []
 
-conclRel :: RelExpr -> F.Expr
-conclRel (ERBasic e      ) = e
-conclRel (ERChecked   _ b) = conclRel b
-conclRel (ERUnChecked _ b) = conclRel b
+-- conclRel :: RelExpr -> F.Expr
+-- conclRel (ERBasic e      ) = e
+-- conclRel (ERChecked   _ b) = conclRel b
+-- conclRel (ERUnChecked _ b) = conclRel b
 
 concl :: F.Expr -> F.Expr
 concl (F.PImp _ p) = concl p
 concl p            = p
 
-unpackApp :: CoreExpr -> Maybe [Var]
-unpackApp = fmap reverse . unpack' . GM.unTickExpr
- where
-  unpack' :: CoreExpr -> Maybe [Var]
-  unpack' (Tick _ e)                      = unpack' e
-  unpack' (Var f   )                      = Just [f]
-  unpack' (App e (Var α)) | Ghc.isTyVar α = unpack' e
-  unpack' (App e (Type α))                = unpack' e
-  unpack' (App e (Var  x))                = (x :) <$> unpack' e
-  unpack' e = traceWhenLoud ("can't unpackApp APP " ++ show e) Nothing
+-- unpackApp :: CoreExpr -> Maybe [Var]
+-- unpackApp = fmap reverse . unpack' . GM.unTickExpr
+--  where
+--   unpack' :: CoreExpr -> Maybe [Var]
+--   unpack' (Tick _ e)                      = unpack' e
+--   unpack' (Var f   )                      = Just [f]
+--   unpack' (App e (Var α)) | Ghc.isTyVar α = unpack' e
+--   unpack' (App e (Type _))                = unpack' e
+--   unpack' (App e (Var  x))                = (x :) <$> unpack' e
+--   unpack' e = traceWhenLoud ("can't unpackApp APP " ++ show e) Nothing
 
-instantiateApp :: CoreExpr -> CoreExpr -> CGEnv -> PrEnv -> CG [F.Expr]
-instantiateApp e1 e2 γ ψ = traceWhenLoud
-  ("instantiateApp " ++ F.showpp e1 ++ " " ++ F.showpp e2 ++ " " ++ (concatMap ((++ "\n"). show) ψ))
-  concatMapM (inst (unpackApp e1) (unpackApp e2)) ψ
- where
-  inst :: Maybe [Var] -> Maybe [Var] -> RelPred -> CG [F.Expr]
-  inst (Just (f1:xs1)) (Just (f2:xs2)) qpr
-    | fun1 qpr == f1
-    , fun2 qpr == f2
-    , length (args1 qpr) == length xs1
-    , length (args2 qpr) == length xs2
-    = do
-        p <- traceWhenLoud ("instantiateApp qpr pred: " ++ F.showpp (fromRelExpr (prop qpr)))
-              consTotalHOPred xs1 xs2 (args1 qpr) (args2 qpr) (prop qpr) []
-        return $
-          traceWhenLoud ("instantiateApp: " ++ F.showpp p)
-            [p]
-  inst _ _ _ = return []
-  consTotalHOPred :: [Var] -> [Var] -> [(F.Symbol, [F.Symbol])] -> [(F.Symbol, [F.Symbol])] -> RelExpr -> [F.Expr] -> CG F.Expr
-  consTotalHOPred [] [] [] [] rps qs = return $ if null p then F.PTrue else L.foldr1 F.PImp p
-    where
-      ps = fromRelExpr rps
-      p = reverse qs ++ (prems ps ++ [concl ps])
-  consTotalHOPred (x1:xs1) (x2:xs2) ((b1, bs1@(_:_)):vs1) ((b2, bs2@(_:_)):vs2) ps' qs
-    | Just (q, ps) <- traceWhenLoud ("consTotalHOPred ps' (chk) " ++ F.showpp (fromRelExpr ps')) unImp ps' = do
-        (tf1, tf2, _) <- consRelSynth γ ψ (Var x1) (Var x2)
-        case (tf1, tf2) of
-          (RFun x1' s1 _ _, RFun x2' s2 _ _) -> do
-            fqs <- instantiateApp (App (Var x1) (Var evar1)) (App (Var x2) (Var evar2)) γ ψ
-            let fqsub = F.mkSubst [(F.symbol evar1, F.EVar x1'), (F.symbol evar2, F.EVar x2')]
-            let bs2args = zip (bs1 ++ bs2) (F.EVar <$> fst (vargs tf1) ++ fst (vargs tf2))
-            let qsub = F.mkSubst (traceWhenLoud ("subst qpr prem " ++ show bs2args) bs2args)
-            let p = F.subst fqsub $ F.PAnd (unapplyRelArgs (F.symbol x1) (F.symbol x2) <$> fqs)
-            let q' = F.subst qsub q
-            consRelSub γ tf1 tf2 (traceWhenLoud ("consTotalHOPred fqs for (" ++ F.showpp evar1 ++ " " ++ F.showpp evar2 ++ "): "
-                                                  ++ F.showpp fqs ++ " consTotalHOPred p: " ++ F.showpp p) p)
-                                 (traceWhenLoud ("consTotalHOPred q: " ++ F.showpp q') q')
-            let bs2fs = F.mkSubst [(b1, F.EVar (F.symbol x1)), (b2, F.EVar (F.symbol x2))]
-            consTotalHOPred xs1 xs2 vs1 vs2
-                  (substR bs2fs $ unapplyRelArgsR (F.symbol x1) (F.symbol x2) ps) qs
-          _ -> F.panic "consTotalHOPred: bs "
-      where
-        (evar1, evar2) = mkRelCopies x1 x2
-        f1 = symbolType γ x1 "consTotalHOPred funArg L"
-        f2 = symbolType γ x2 "consTotalHOPred funArg R"
-  consTotalHOPred (x1:xs1) (x2:xs2) ((b1, _):vs1) ((b2, _):vs2) (ERChecked q ps) qs
-        = do
-            (tf1, tf2, _) <- consRelSynth γ ψ (Var x1) (Var x2)
-            fqs <- instantiateApp (Var x1) (Var x2) γ ψ
-            let bs2rs = [(b1, F.EVar resL), (b2, F.EVar resR)]
-            let qsub = F.mkSubst bs2rs
-            let p = F.PAnd (unapplyRelArgs (F.symbol x1) (F.symbol x2) <$> fqs)
-            let q' = F.subst qsub q
-            consRelSub γ tf1 tf2 (traceWhenLoud ("consTotalHOPred fqs: " ++ F.showpp fqs ++ " consTotalHOPred p: " ++ F.showpp p) p)
-                                 (traceWhenLoud ("consTotalHOPred q: " ++ F.showpp q') q')
-            let bs2args = F.mkSubst [(b1, F.EVar (F.symbol x1)), (b2, F.EVar (F.symbol x2))]
-            consTotalHOPred xs1 xs2 vs1 vs2
-                  (substR bs2args $ unapplyRelArgsR (F.symbol x1) (F.symbol x2) ps) qs
-  consTotalHOPred (x1:xs1) (x2:xs2) ((v1, _):vs1) ((v2, _):vs2) (ERUnChecked q ps) qs
-      = consTotalHOPred xs1 xs2 vs1 vs2 (substR sub $ unapplyRelArgsR (F.symbol x1) (F.symbol x2) ps) (F.subst sub <$> q : qs)
-    where
-      sub = F.mkSubst [(v1, F.EVar $ F.symbol x1), (v2, F.EVar $ F.symbol x2)]
-  -- TODO: change the parser to prioritise ERUnChecked q ps
-  consTotalHOPred (x1:xs1) (x2:xs2) ((v1, _):vs1) ((v2, _):vs2) (ERBasic (F.PImp q ps)) qs
-    = consTotalHOPred xs1 xs2 vs1 vs2 (substR sub $ unapplyRelArgsR (F.symbol x1) (F.symbol x2) (ERBasic ps)) (F.subst sub <$> q : qs)
-    where
-      sub = F.mkSubst [(v1, F.EVar $ F.symbol x1), (v2, F.EVar $ F.symbol x2)]
-  consTotalHOPred xs1 xs2 vs1 vs2 ps qs = F.panic $ "consTotalHOPred: number of premises should be >= length of arg list" ++
-                                                    F.showpp xs1 ++ " " ++ F.showpp xs2 ++ " " ++ F.showpp vs1 ++ " " ++ F.showpp vs2 ++
-                                                    " " ++ F.showpp (fromRelExpr ps) ++ " " ++ F.showpp qs
+-- instantiateApp :: CoreExpr -> CoreExpr -> CGEnv -> PrEnv -> CG [F.Expr]
+-- instantiateApp e1 e2 γ ψ = traceWhenLoud
+--   ("instantiateApp " ++ F.showpp e1 ++ " " ++ F.showpp e2 ++ " " ++ (concatMap ((++ "\n"). show) ψ))
+--   concatMapM (inst (unpackApp e1) (unpackApp e2)) ψ
+--  where
+--   inst :: Maybe [Var] -> Maybe [Var] -> RelPred -> CG [F.Expr]
+--   inst (Just (f1:xs1)) (Just (f2:xs2)) qpr
+--     | fun1 qpr == f1
+--     , fun2 qpr == f2
+--     , length (args1 qpr) == length xs1
+--     , length (args2 qpr) == length xs2
+--     = do
+--         p <- traceWhenLoud ("instantiateApp qpr pred: " ++ F.showpp (fromRelExpr (prop qpr)))
+--               consTotalHOPred xs1 xs2 (args1 qpr) (args2 qpr) (prop qpr) []
+--         return $
+--           traceWhenLoud ("instantiateApp: " ++ F.showpp p)
+--             [p]
+--   inst _ _ _ = return []
+--   consTotalHOPred :: [Var] -> [Var] -> [(F.Symbol, [F.Symbol])] -> [(F.Symbol, [F.Symbol])] -> RelExpr -> [F.Expr] -> CG F.Expr
+--   consTotalHOPred [] [] [] [] rps qs = return $ if null p then F.PTrue else L.foldr1 F.PImp p
+--     where
+--       ps = fromRelExpr rps
+--       p = reverse qs ++ (prems ps ++ [concl ps])
+--   consTotalHOPred (x1:xs1) (x2:xs2) ((b1, bs1@(_:_)):vs1) ((b2, bs2@(_:_)):vs2) ps' qs
+--     | Just (q, ps) <- traceWhenLoud ("consTotalHOPred ps' (chk) " ++ F.showpp (fromRelExpr ps')) unImp ps' = do
+--         (tf1, tf2, _) <- consRelSynth γ ψ (Var x1) (Var x2)
+--         case (tf1, tf2) of
+--           (RFun x1' _ _ _ _, RFun x2' _ _ _ _) -> do
+--             fqs <- instantiateApp (App (Var x1) (Var evar1)) (App (Var x2) (Var evar2)) γ ψ
+--             let fqsub = F.mkSubst [(F.symbol evar1, F.EVar x1'), (F.symbol evar2, F.EVar x2')]
+--             let bs2args = zip (bs1 ++ bs2) (F.EVar <$> fst (vargs tf1) ++ fst (vargs tf2))
+--             let qsub = F.mkSubst (traceWhenLoud ("subst qpr prem " ++ show bs2args) bs2args)
+--             let p = F.subst fqsub $ F.PAnd (unapplyRelArgs (F.symbol x1) (F.symbol x2) <$> fqs)
+--             let q' = F.subst qsub q
+--             consRelSub γ tf1 tf2 (traceWhenLoud ("consTotalHOPred fqs for (" ++ F.showpp evar1 ++ " " ++ F.showpp evar2 ++ "): "
+--                                                   ++ F.showpp fqs ++ " consTotalHOPred p: " ++ F.showpp p) p)
+--                                  (traceWhenLoud ("consTotalHOPred q: " ++ F.showpp q') q')
+--             let bs2fs = F.mkSubst [(b1, F.EVar (F.symbol x1)), (b2, F.EVar (F.symbol x2))]
+--             consTotalHOPred xs1 xs2 vs1 vs2
+--                   (substR bs2fs $ unapplyRelArgsR (F.symbol x1) (F.symbol x2) ps) qs
+--           _ -> F.panic "consTotalHOPred: bs "
+--       where
+--         (evar1, evar2) = mkRelCopies x1 x2
+--         -- f1 = symbolType γ x1 "consTotalHOPred funArg L"
+--         -- f2 = symbolType γ x2 "consTotalHOPred funArg R"
+--   consTotalHOPred (x1:xs1) (x2:xs2) ((b1, _):vs1) ((b2, _):vs2) (ERChecked q ps) qs
+--         = do
+--             (tf1, tf2, _) <- consRelSynth γ ψ (Var x1) (Var x2)
+--             fqs <- instantiateApp (Var x1) (Var x2) γ ψ
+--             let bs2rs = [(b1, F.EVar resL), (b2, F.EVar resR)]
+--             let qsub = F.mkSubst bs2rs
+--             let p = F.PAnd (unapplyRelArgs (F.symbol x1) (F.symbol x2) <$> fqs)
+--             let q' = F.subst qsub q
+--             consRelSub γ tf1 tf2 (traceWhenLoud ("consTotalHOPred fqs: " ++ F.showpp fqs ++ " consTotalHOPred p: " ++ F.showpp p) p)
+--                                  (traceWhenLoud ("consTotalHOPred q: " ++ F.showpp q') q')
+--             let bs2args = F.mkSubst [(b1, F.EVar (F.symbol x1)), (b2, F.EVar (F.symbol x2))]
+--             consTotalHOPred xs1 xs2 vs1 vs2
+--                   (substR bs2args $ unapplyRelArgsR (F.symbol x1) (F.symbol x2) ps) qs
+--   consTotalHOPred (x1:xs1) (x2:xs2) ((v1, _):vs1) ((v2, _):vs2) (ERUnChecked q ps) qs
+--       = consTotalHOPred xs1 xs2 vs1 vs2 (substR sb $ unapplyRelArgsR (F.symbol x1) (F.symbol x2) ps) (F.subst sb <$> q : qs)
+--     where
+--       sb = F.mkSubst [(v1, F.EVar $ F.symbol x1), (v2, F.EVar $ F.symbol x2)]
+--   -- TODO: change the parser to prioritise ERUnChecked q ps
+--   consTotalHOPred (x1:xs1) (x2:xs2) ((v1, _):vs1) ((v2, _):vs2) (ERBasic (F.PImp q ps)) qs
+--     = consTotalHOPred xs1 xs2 vs1 vs2 (substR sb $ unapplyRelArgsR (F.symbol x1) (F.symbol x2) (ERBasic ps)) (F.subst sb <$> q : qs)
+--     where
+--       sb = F.mkSubst [(v1, F.EVar $ F.symbol x1), (v2, F.EVar $ F.symbol x2)]
+--   consTotalHOPred xs1 xs2 vs1 vs2 ps qs = F.panic $ "consTotalHOPred: number of premises should be >= length of arg list" ++
+--                                                     F.showpp xs1 ++ " " ++ F.showpp xs2 ++ " " ++ F.showpp vs1 ++ " " ++ F.showpp vs2 ++
+--                                                     " " ++ F.showpp (fromRelExpr ps) ++ " " ++ F.showpp qs
 
-substR :: F.Subst -> RelExpr -> RelExpr
-substR sub (ERChecked p rp) = ERChecked (F.subst sub p) (substR sub rp)
-substR sub (ERUnChecked p rp) = ERUnChecked (F.subst sub p) (substR sub rp)
-substR sub (ERBasic p) = ERBasic (F.subst sub p)
+-- substR :: F.Subst -> RelExpr -> RelExpr
+-- substR sb (ERChecked p rp) = ERChecked (F.subst sb p) (substR sb rp)
+-- substR sb (ERUnChecked p rp) = ERUnChecked (F.subst sb p) (substR sb rp)
+-- substR sb (ERBasic p) = ERBasic (F.subst sb p)
 
 extendWithTyVar :: CGEnv -> TyVar -> CG CGEnv
 extendWithTyVar γ a
@@ -831,19 +807,19 @@ extendWithTyVar γ a
   | otherwise
   = return γ
 
-unifyAlts :: CoreBndr -> CoreBndr -> [Alt CoreBndr] -> [Alt CoreBndr] -> Maybe [RelAlt]
-unifyAlts x1 x2 alts1 alts2 = mapM subRelCopiesAlts (zip alts1 alts2)
-  where
-    subRelCopiesAlts ((a1, bs1, e1), (a2, bs2, e2))
-      | a1 /= a2  = Nothing
-      | otherwise = let (e1', e2') = L.foldl' sub (subRelCopies e1 x1 e2 x2) (zip bs1 bs2)
-                     in Just (a1, mkLCopies bs1, mkRCopies bs2, e1', e2')
-    sub (e1, e2) (x1, x2) = subRelCopies e1 x1 e2 x2
+-- unifyAlts :: CoreBndr -> CoreBndr -> [Alt CoreBndr] -> [Alt CoreBndr] -> Maybe [RelAlt]
+-- unifyAlts x1 x2 alts1 alts2 = mapM subRelCopiesAlts (zip alts1 alts2)
+--   where
+--     subRelCopiesAlts ((a1, bs1, e1), (a2, bs2, e2))
+--       | a1 /= a2  = Nothing
+--       | otherwise = let (e1', e2') = L.foldl' sb (subRelCopies e1 x1 e2 x2) (zip bs1 bs2)
+--                      in Just (a1, mkLCopies bs1, mkRCopies bs2, e1', e2')
+--     sb (e1, e2) (x1', x2') = subRelCopies e1 x1' e2 x2'
 
 matchFunArgs :: SpecType -> SpecType -> F.Symbol -> F.Expr
 matchFunArgs (RAllT _ t1 _) t2 x = matchFunArgs t1 t2 x
 matchFunArgs t1 (RAllT _ t2 _) x = matchFunArgs t1 t2 x
-matchFunArgs (RFun x1 _ t1 _) (RFun x2 _ t2 _) x =
+matchFunArgs (RFun x1 _ _ t1 _) (RFun x2 _ _ t2 _) x =
   if x == x1 then F.EVar x2 else matchFunArgs t1 t2 x
 matchFunArgs t1 t2 x | isBase t1 && isBase t2 = F.EVar x
 matchFunArgs t1 t2 _ = F.panic $ "matchFunArgs undefined for " ++ F.showpp (t1, t2)
@@ -870,11 +846,11 @@ subVarAndTy x v = subTy (M.singleton x $ TyVarTy v) . sub (M.singleton x $ Var v
 mkRelCopies :: Var -> Var -> (Var, Var)
 mkRelCopies x1 x2 = (mkCopyWithSuffix relSuffixL x1, mkCopyWithSuffix relSuffixR x2)
 
-mkLCopies :: [Var] -> [Var]
-mkLCopies = (mkCopyWithSuffix relSuffixL <$>)
+-- mkLCopies :: [Var] -> [Var]
+-- mkLCopies = (mkCopyWithSuffix relSuffixL <$>)
 
-mkRCopies :: [Var] -> [Var]
-mkRCopies = (mkCopyWithSuffix relSuffixR <$>)
+-- mkRCopies :: [Var] -> [Var]
+-- mkRCopies = (mkCopyWithSuffix relSuffixR <$>)
 
 mkCopyWithName :: String -> Var -> Var
 mkCopyWithName s v =
@@ -888,14 +864,14 @@ lookupBind x bs = case lookup x (concatMap binds bs) of
   Nothing -> F.panic $ "Not found definition for " ++ show x
   Just e  -> e
  where
-  binds b@(NonRec x _) = [ (x, b) ]
-  binds b@(Rec bs    ) = [ (x, Rec [(x,e)]) | (x,e) <- bs ]
+  binds b@(NonRec x' _) = [ (x', b) ]
+  binds   (Rec bs'    ) = [ (x', Rec [(x',e)]) | (x',e) <- bs' ]
 
 subUnarySig :: CGEnv -> Var -> SpecType -> CG ()
 subUnarySig γ x tRel =
-  forM_ args $ \(rt, ut) -> addC (SubC γ{ warns = text "subUnarySig":warns γ} ut rt) $ "subUnarySig tUn = " ++ F.showpp ut ++ " tRel = " ++ F.showpp rt
+  forM_ mkargs $ \(rt, ut) -> addC (SubC γ{ warns = text "subUnarySig":warns γ} ut rt) $ "subUnarySig tUn = " ++ F.showpp ut ++ " tRel = " ++ F.showpp rt
   where
-    args = zip (snd $ vargs tRel) (snd $ vargs tUn)
+    mkargs = zip (snd $ vargs tRel) (snd $ vargs tUn)
     tUn = symbolType γ x $ "subUnarySig " ++ F.showpp x
 
 addPred :: CGEnv -> F.Expr -> CG CGEnv
@@ -911,12 +887,12 @@ extendWithExprs γ ps = do
   γ += ("extend with predicate env", dummy, RVar (symbolRTyVar F.dummySymbol) reft)
 
 unapplyArg :: F.Symbol -> F.Symbol -> F.Expr -> F.Expr
-unapplyArg f y e = F.mapExpr sub e
+unapplyArg f y e = F.mapExpr sb e
   where
-    sub :: F.Expr -> F.Expr
-    sub (F.EApp (F.EVar r) (F.EVar x))
+    sb :: F.Expr -> F.Expr
+    sb (F.EApp (F.EVar r) (F.EVar x))
       | r == f && x == y = F.EVar r
-    sub e = e
+    sb e' = e'
 
 unapplyRelArgs :: F.Symbol -> F.Symbol -> F.Expr -> F.Expr
 unapplyRelArgs x1 x2 = unapplyArg resL x1 . unapplyArg resR x2
@@ -935,52 +911,52 @@ fromRelExpr (ERBasic e) = e
 fromRelExpr (ERChecked a b) = F.PImp a (fromRelExpr b)
 fromRelExpr (ERUnChecked a b) = F.PImp a (fromRelExpr b)
 
-unImp :: RelExpr -> Maybe (F.Expr, RelExpr)
-unImp (ERBasic (F.PImp a b)) = Just (a, ERBasic b)
-unImp (ERChecked a b) = Just (a, b)
-unImp (ERUnChecked a b) = Just (a, b)
-unImp _ = Nothing
+-- unImp :: RelExpr -> Maybe (F.Expr, RelExpr)
+-- unImp (ERBasic (F.PImp a b)) = Just (a, ERBasic b)
+-- unImp (ERChecked a b) = Just (a, b)
+-- unImp (ERUnChecked a b) = Just (a, b)
+-- unImp _ = Nothing
 
-toBasic :: RelExpr -> Maybe F.Expr
-toBasic (ERBasic e) = Just e
-toBasic (ERChecked _ _) = Nothing
-toBasic (ERUnChecked a b) = F.PImp a <$> toBasic b
+-- toBasic :: RelExpr -> Maybe F.Expr
+-- toBasic (ERBasic e) = Just e
+-- toBasic (ERChecked _ _) = Nothing
+-- toBasic (ERUnChecked a b) = F.PImp a <$> toBasic b
 
-toBasicOr :: F.Expr -> RelExpr -> F.Expr
-toBasicOr t = MB.fromMaybe t . toBasic
+-- toBasicOr :: F.Expr -> RelExpr -> F.Expr
+-- toBasicOr t = MB.fromMaybe t . toBasic
 
 
 --------------------------------------------------------------
 -- Debug -----------------------------------------------------
 --------------------------------------------------------------
 
-showType :: SpecType -> String
-showType (RAllP _ t  ) = "RAllP " ++ showType t
-showType (RAllT _ t _) = "RAllT " ++ showType t
-showType (RImpF _ t t' _) =
-  "RImpF(" ++ showType t ++ ", " ++ showType t' ++ ") "
-showType (RFun _ t t' _) = "RFun(" ++ showType t ++ ", " ++ showType t' ++ ") "
-showType (RAllE _ t t' ) = "RAllE(" ++ showType t ++ ", " ++ showType t' ++ ") "
-showType (REx   _ t t' ) = "REx(" ++ showType t ++ ", " ++ showType t' ++ ") "
-showType (RAppTy t t' _) =
-  "RAppTy(" ++ showType t ++ ", " ++ showType t' ++ ") "
-showType (RApp _ ts _ _) = "RApp" ++ show (showType <$> ts)
-showType (RRTy xts _ _ t) =
-  "RRTy("
-    ++ show (map (\(_, t) -> showType t) xts)
-    ++ ", "
-    ++ showType t
-    ++ ") "
-showType v@(RVar _ _  ) = "RVar " ++ F.showpp v
-showType v@(RExprArg _) = "RExprArg " ++ F.showpp v
-showType v@(RHole    _) = "RHole" ++ F.showpp v
+-- showType :: SpecType -> String
+-- showType (RAllP _ t  ) = "RAllP " ++ showType t
+-- showType (RAllT _ t _) = "RAllT " ++ showType t
+-- showType (RImpF _ _ t t' _) =
+--   "RImpF(" ++ showType t ++ ", " ++ showType t' ++ ") "
+-- showType (RFun _ _ t t' _) = "RFun(" ++ showType t ++ ", " ++ showType t' ++ ") "
+-- showType (RAllE _ t t' ) = "RAllE(" ++ showType t ++ ", " ++ showType t' ++ ") "
+-- showType (REx   _ t t' ) = "REx(" ++ showType t ++ ", " ++ showType t' ++ ") "
+-- showType (RAppTy t t' _) =
+--   "RAppTy(" ++ showType t ++ ", " ++ showType t' ++ ") "
+-- showType (RApp _ ts _ _) = "RApp" ++ show (showType <$> ts)
+-- showType (RRTy xts _ _ t) =
+--   "RRTy("
+--     ++ show (map (\(_, s) -> showType s) xts)
+--     ++ ", "
+--     ++ showType t
+--     ++ ") "
+-- showType v@(RVar _ _  ) = "RVar " ++ F.showpp v
+-- showType v@(RExprArg _) = "RExprArg " ++ F.showpp v
+-- showType v@(RHole    _) = "RHole" ++ F.showpp v
 
-traceUnapply :: (PPrint x1, PPrint x2, PPrint e1, PPrint e2) => x1 -> x2 -> e1 -> e2 -> e2
-traceUnapply x1 x2 e1 e2 = traceWhenLoud ("Unapply\n"
-                      ++ "x1: " ++ F.showpp x1 ++ "\n\n"
-                      ++ "x2: " ++ F.showpp x2 ++ "\n\n"
-                      ++ "e1: " ++ F.showpp e1 ++ "\n\n"
-                      ++ "e2: " ++ F.showpp e2) e2
+-- traceUnapply :: (PPrint x1, PPrint x2, PPrint e1, PPrint e2) => x1 -> x2 -> e1 -> e2 -> e2
+-- traceUnapply x1 x2 e1 e2 = traceWhenLoud ("Unapply\n"
+--                       ++ "x1: " ++ F.showpp x1 ++ "\n\n"
+--                       ++ "x2: " ++ F.showpp x2 ++ "\n\n"
+--                       ++ "e1: " ++ F.showpp e1 ++ "\n\n"
+--                       ++ "e2: " ++ F.showpp e2) e2
 
 
 traceSub :: (PPrint t, PPrint s, PPrint p, PPrint q) => String -> t -> s -> p -> q -> a -> a

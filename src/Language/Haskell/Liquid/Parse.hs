@@ -986,6 +986,16 @@ ppPspec k (Define  (lx, y))
   = "define" <+> pprintTidy k (val lx) <+> "=" <+> pprintTidy k y
 ppPspec _ ILaws{}
   = "TBD-INSTANCE-LAWS"
+ppPspec k (Relational (lxl, lxr, tl, tr, q, p))
+  = "relational" 
+        <+> pprintTidy k (val lxl) <+> "::" <+> pprintTidy k tl <+> "~" 
+        <+> pprintTidy k (val lxr) <+> "::" <+> pprintTidy k tr <+> "|" 
+        <+> pprintTidy k (q) <+> "=>" <+> pprintTidy k p
+ppPspec k (AssmRel (lxl, lxr, tl, tr, q, p))
+  = "assume relational" 
+        <+> pprintTidy k (val lxl) <+> "::" <+> pprintTidy k tl <+> "~" 
+        <+> pprintTidy k (val lxr) <+> "::" <+> pprintTidy k tr <+> "|" 
+        <+> pprintTidy k q <+> "=>" <+> pprintTidy k p
 
 
 -- | For debugging
@@ -1582,8 +1592,8 @@ relationalP = do
    ty <- located genBareTypeP
    reserved "~~"
    assm <- try (relrefaP <* reserved "|-") <|> return (ERBasic PTrue)
-   expr <- relrefaP
-   return (x,y,tx,ty,assm,expr)
+   ex <- relrefaP
+   return (x,y,tx,ty,assm,ex)
 
 dataDeclP :: Parser DataDecl
 dataDeclP = do

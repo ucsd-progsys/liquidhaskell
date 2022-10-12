@@ -573,13 +573,14 @@ makeDecrs env name mySpec =
     return (v, z)
 
 makeRelation :: Bare.Env -> ModName -> Bare.SigEnv ->
-  [(LocSymbol, LocSymbol, LocBareType, LocBareType, RelExpr, RelExpr)] -> [(Ghc.Var, Ghc.Var, LocSpecType, LocSpecType, RelExpr, RelExpr)]
-makeRelation env name sigEnv = map go
+  [(LocSymbol, LocSymbol, LocBareType, LocBareType, RelExpr, RelExpr)] -> Bare.Lookup [(Ghc.Var, Ghc.Var, LocSpecType, LocSpecType, RelExpr, RelExpr)]
+makeRelation env name sigEnv = mapM go
  where
-  go (x, y, tx, ty, a, e) =
-    let vx = Bare.lookupGhcVar env name "Var" x
-        vy = Bare.lookupGhcVar env name "Var" y
-    in  ( vx
+  go (x, y, tx, ty, a, e) = do
+    vx <- Bare.lookupGhcVar env name "Var" x
+    vy <- Bare.lookupGhcVar env name "Var" y
+    return  
+        ( vx
         , vy
         , Bare.cookSpecType env sigEnv name (Bare.HsTV vx) tx
         , Bare.cookSpecType env sigEnv name (Bare.HsTV vy) ty
@@ -747,6 +748,8 @@ makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = do
                   , [(v, (3, t)) | (v, t  ) <- makeMsrSigs env rtEnv allSpecs ]   -- the binders used in USER-defined sigs 
                   ]                                                               -- as they appear in termination metrics
   newTys     <-  makeNewTypes env sigEnv allSpecs
+  relation   <-  makeRelation env name sigEnv (Ms.relational mySpec)
+  asmRel     <-  makeRelation env name sigEnv (Ms.asmRel mySpec)
   return SpSig
     { gsTySigs   = tySigs
     , gsAsmSigs  = asmSigs
@@ -757,8 +760,8 @@ makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = do
     , gsInSigs   = mempty
     , gsNewTypes = newTys
     , gsTexprs   = [ (v, t, es) | (v, t, Just es) <- mySigs ]
-    , gsRelation = makeRelation env name sigEnv (Ms.relational mySpec)
-    , gsAsmRel   = makeRelation env name sigEnv (Ms.asmRel mySpec)
+    , gsRelation = relation
+    , gsAsmRel   = asmRel
   }
   where
     dicts      = Bare.makeSpecDictionaries env sigEnv specs

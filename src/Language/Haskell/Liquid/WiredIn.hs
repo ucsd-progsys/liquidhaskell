@@ -139,7 +139,6 @@ listTyDataCons   = ( [TyConP l0 c [RTV tyv] [p] [Covariant] [Covariant] (Just fs
       xHead      = "head"
       xTail      = "tail"
       p          = PV "p" (PVProp t) (F.vv Nothing) [(t, fld, F.EVar fld)]
-      px         = pdVarReft $ PV "p" (PVProp t) (F.vv Nothing) [(t, fld, F.EVar xHead)]
       lt         = rApp c [xt] [] mempty
       xt         = rVar tyv
       xst        = rApp c [RVar (RTV tyv) mempty] [] mempty

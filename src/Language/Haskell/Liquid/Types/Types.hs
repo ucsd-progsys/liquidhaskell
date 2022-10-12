@@ -594,6 +594,11 @@ data RelExpr = ERBasic F.Expr | ERChecked Expr RelExpr | ERUnChecked Expr RelExp
 
 instance B.Binary RelExpr
 
+instance F.PPrint RelExpr where
+  pprintTidy k (ERBasic e)       = F.pprintTidy k e
+  pprintTidy k (ERChecked e r)   = F.pprintTidy k e <+> "!=>" <+> F.pprintTidy k r
+  pprintTidy k (ERUnChecked e r) = F.pprintTidy k e <+>  "=>" <+> F.pprintTidy k r
+
 newtype BTyVar = BTV Symbol deriving (Show, Generic, Data, Typeable)
 
 newtype RTyVar = RTV TyVar deriving (Generic, Data, Typeable)
