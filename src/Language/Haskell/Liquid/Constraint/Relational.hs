@@ -512,8 +512,8 @@ consUnarySynth γ e@(Lam x d)  =
   t  <- consUnarySynth γ' d
   addW $ WfC γ s
   return $ RFun (F.symbol x) (mkRFInfo $ getConfig γ) s t mempty
-consUnarySynth γ e'@(Case _ _ _ alts) =
-  traceUSyn "Case" e' $ do
+consUnarySynth γ e@(Case _ _ _ alts) =
+  traceUSyn "Case" e $ do
   t   <- freshTyType (typeclass (getConfig γ)) (caseKVKind alts) e $ Ghc.exprType e
   addW $ WfC γ t
   -- consUnaryCheck γ e t
