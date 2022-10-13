@@ -384,10 +384,10 @@ instantiateTys = L.foldl' go
 
 consRelSynth :: CGEnv -> PrEnv -> CoreExpr -> CoreExpr -> CG (SpecType, SpecType, [F.Expr])
 consRelSynth γ ψ (Tick tt e) d =
-  {- traceSyn "Left Tick" e d -} consRelSynth (γ `setLocation` (Sp.Tick tt)) ψ e d
+  {- traceSyn "Left Tick" e d -} consRelSynth (γ `setLocation` Sp.Tick tt) ψ e d
 
 consRelSynth γ ψ e (Tick tt d) =
-  {- traceSyn "Right Tick" e d -} consRelSynth (γ `setLocation` (Sp.Tick tt)) ψ e d
+  {- traceSyn "Right Tick" e d -} consRelSynth (γ `setLocation` Sp.Tick tt) ψ e d
 
 consRelSynth γ ψ a1@(App e1 d1) e2 | Type t1 <- GM.unTickExpr d1 =
   traceSyn "App Ty L" a1 e2 $ do
@@ -439,7 +439,7 @@ consRelSynthApp γ ψ ft1 ft2 ps (Tick t1 e1) e2 =
   -- TODO: create span
   consRelSynthApp (γ `setLocation` Sp.Tick t1) ψ ft1 ft2 ps e1 e2
 
-consRelSynthApp γ ψ ft1@(RFun v1 _ s1{- @RFun{} -} t1 r1) ft2@(RFun v2 _ s2{- @RFun{} -} t2 r2) (ps@[F.PImp q p]) d1@(Var x1) d2@(Var x2)
+consRelSynthApp γ ψ ft1@(RFun v1 _ s1{- @RFun{} -} t1 r1) ft2@(RFun v2 _ s2{- @RFun{} -} t2 r2) ps@[F.PImp q p] d1@(Var x1) d2@(Var x2)
   = traceSynApp ft1 ft2 ps d1 d2 $ do
     entlFunRefts γ r1 r2 "consRelSynthApp HO"
     let qsubst = F.subst $ F.mkSubst [(v1, F.EVar resL), (v2, F.EVar resR)]
@@ -456,7 +456,7 @@ consRelSynthApp γ ψ ft1@(RFun v1 _ s1 t1 r1) ft2@(RFun v2 _ s2 t2 r2) ps@[] d1
           F.subst $ F.mkSubst
             [(v1, F.EVar $ F.symbol x1), (v2, F.EVar $ F.symbol x2)]
     return (subst t1, subst t2, map subst qs)
-consRelSynthApp _ _ (RFun {}) (RFun {}) ps d1@(Var _) d2@(Var _)
+consRelSynthApp _ _ RFun{} RFun{} ps d1@(Var _) d2@(Var _)
   = F.panic $ "consRelSynthApp: multiple rel sigs not supported " ++ F.showpp (ps, d1, d2)
 -- do
 --     entlFunRefts γ r1 r2 "consRelSynthApp FO"
@@ -483,7 +483,7 @@ symbolType γ x msg
   | otherwise = F.panic $ msg ++ " " ++ F.showpp x ++ " not in scope " ++ F.showpp γ
 
 consUnarySynth :: CGEnv -> CoreExpr -> CG SpecType
-consUnarySynth γ (Tick t e) = consUnarySynth (γ `setLocation` (Sp.Tick t)) e
+consUnarySynth γ (Tick t e) = consUnarySynth (γ `setLocation` Sp.Tick t) e
 consUnarySynth γ (Var x) = return $ traceWhenLoud ("SELFIFICATION " ++ F.showpp (x, t, selfify t x)) selfify t x
   where t = symbolType γ x "consUnarySynth (Var)"
 consUnarySynth _ e@(Lit c) =
@@ -551,7 +551,7 @@ selfify t _ = t
 
 consUnarySynthApp :: CGEnv -> SpecType -> CoreExpr -> CG SpecType
 consUnarySynthApp γ t (Tick y e) = do
-  consUnarySynthApp (γ `setLocation` (Sp.Tick y)) t e
+  consUnarySynthApp (γ `setLocation` Sp.Tick y) t e
 consUnarySynthApp γ (RFun x _ s t _) d@(Var y) = do
   consUnaryCheck γ d s
   return $ t `F.subst1` (x, F.EVar $ F.symbol y)
@@ -560,7 +560,7 @@ consUnarySynthApp γ (RAllT α t _) (Type s) = do
     return $ subsTyVarMeet' (ty_var_value α, s') t
 consUnarySynthApp _ RFun{} d =
   F.panic $ "consUnarySynthApp expected Var as a funciton arg, got " ++ F.showpp d
-consUnarySynthApp _ p@(RAllP {}) _ = F.panic $ "consUnarySynthApp got RAllP!! " ++ F.showpp p
+consUnarySynthApp _ p@RAllP{} _ = F.panic $ "consUnarySynthApp got RAllP!! " ++ F.showpp p
 consUnarySynthApp _ ft d =
   F.panic $ "consUnarySynthApp malformed function type " ++ F.showpp ft ++
             " for argument " ++ F.showpp d
@@ -579,16 +579,16 @@ consUnaryCheck γ e t = do
 --------------------------------------------------------------
 
 consRelSub :: CGEnv -> SpecType -> SpecType -> F.Expr -> F.Expr -> CG ()
-consRelSub γ f1@(RFun g1 _ s1@(RFun{}) t1 _) f2@(RFun g2 _ s2@(RFun{}) t2 _)
-             pr1@(F.PImp qr1@(F.PImp{}) p1)            pr2@(F.PImp qr2@(F.PImp{}) p2)
+consRelSub γ f1@(RFun g1 _ s1@RFun{} t1 _) f2@(RFun g2 _ s2@RFun{} t2 _)
+             pr1@(F.PImp qr1@F.PImp{} p1)  pr2@(F.PImp qr2@F.PImp{} p2)
   = traceSub "hof" f1 f2 pr1 pr2 $ do
     consRelSub γ s1 s2 qr2 qr1
     γ' <- γ += ("consRelSub HOF", F.symbol g1, s1)
     γ'' <- γ' += ("consRelSub HOF", F.symbol g2, s2)
     let psubst = unapplyArg resL g1 <> unapplyArg resR g2
     consRelSub γ'' t1 t2 (psubst p1) (psubst p2)
-consRelSub γ f1@(RFun g1 _ s1@(RFun _ _ _ _ _) t1 _) f2@(RFun g2 _ s2@(RFun _ _ _ _ _) t2 _)
-             pr1@(F.PAnd [F.PImp qr1@(F.PImp{}) p1])            pr2@(F.PImp qr2@(F.PImp{}) p2)
+consRelSub γ f1@(RFun g1 _ s1@RFun{} t1 _) f2@(RFun g2 _ s2@RFun{} t2 _)
+             pr1@(F.PAnd [F.PImp qr1@F.PImp{} p1])            pr2@(F.PImp qr2@F.PImp{} p2)
   = traceSub "hof" f1 f2 pr1 pr2 $ do
     consRelSub γ s1 s2 qr2 qr1
     γ' <- γ += ("consRelSub HOF", F.symbol g1, s1)
@@ -611,7 +611,7 @@ consRelSub γ t1 t2 p1 p2 | isBase t1 && isBase t2 =
     rr <- fresh
     γ' <- γ += ("consRelSub Base L", rl, t1)
     γ'' <- γ' += ("consRelSub Base R", rr, t2)
-    let cstr = (F.subst (F.mkSubst [(resL, F.EVar rl), (resR, F.EVar rr)]) $ F.PImp p1 p2)
+    let cstr = F.subst (F.mkSubst [(resL, F.EVar rl), (resR, F.EVar rr)]) $ F.PImp p1 p2
     entl γ'' (traceWhenLoud ("consRelSub Base cstr " ++ F.showpp cstr) cstr) "consRelSub Base"
 consRelSub _ t1@(RHole _) t2@(RHole _) _ _ = F.panic $ "consRelSub is undefined for RHole " ++ show (t1, t2)
 consRelSub _ t1@(RExprArg _) t2@(RExprArg _) _ _ = F.panic $ "consRelSub is undefined for RExprArg " ++ show (t1, t2)
@@ -656,7 +656,7 @@ partitionArgs xs1 xs2 ts1 ts2 qs = (map toRel ho, map toUnary fo)
         in  let bs1 = zip vs1 (fst . vargs <$> ts1')
             in  let bs2 = zip vs2 (fst . vargs <$> ts2')
                 -- TODO: add symmetric RelPred
-                in  let rp = RelPred f1 f2 bs1 bs2 $ ERBasic $ q
+                in  let rp = RelPred f1 f2 bs1 bs2 $ ERBasic q
                     in traceWhenLoud ("partitionArgs toRel: " ++ F.showpp (f1, f2, bs1, bs2, q)) rp
   toUnary (_, _, _, _, q) = q
 
@@ -995,7 +995,7 @@ traceSyn expr e d cg
 traceSynApp
   :: (PPrint e, PPrint d, PPrint a, PPrint b, PPrint c)
   => e -> d -> a -> b -> c -> t -> t
-traceSynApp = trace ("SYNTH APP TO ")
+traceSynApp = trace "SYNTH APP TO "
 
 traceUSyn
   :: (PPrint e, PPrint a)
