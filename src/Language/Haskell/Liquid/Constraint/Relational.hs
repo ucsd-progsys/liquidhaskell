@@ -104,9 +104,21 @@ consRelTop _ ti γ ψ (x, y, t, s, ra, rp) = traceChk "Init" e d t s p $ do
     cbs = giCbs $ giSrc ti
     e = lookupBind x cbs
     d = lookupBind y cbs
-    t' = val t
-    s' = val s
+    t' = removeAbsRef $ val t
+    s' = removeAbsRef $ val s
 
+removeAbsRef :: SpecType -> SpecType
+-- removeAbsRef (RVar)
+removeAbsRef (RFun  b i s t r)  = RFun  b i (removeAbsRef s) (removeAbsRef t) r
+removeAbsRef (RImpF b i s t r)  = RImpF b i (removeAbsRef s) (removeAbsRef t) r
+removeAbsRef (RAllT b t r)      = RAllT b (removeAbsRef t) r
+removeAbsRef (RAllP _ t)        = removeAbsRef t
+removeAbsRef (RApp  c as pas r) = RApp  c as (map (const mempty) pas) r
+removeAbsRef (RAllE b a t)      = RAllE b (removeAbsRef a) (removeAbsRef t)
+removeAbsRef (REx   b a t)      = REx   b (removeAbsRef a) (removeAbsRef t)
+removeAbsRef (RAppTy s t r)     = RAppTy (removeAbsRef s) (removeAbsRef t) r
+removeAbsRef (RRTy  e r o t)    = RRTy  e r o (removeAbsRef t)
+removeAbsRef t = t
 --------------------------------------------------------------
 -- Core Checking Rules ---------------------------------------
 --------------------------------------------------------------
@@ -360,6 +372,7 @@ unapply γ y yt (z : zs) (RFun x _ s t _) e suffix = do
     z' = mkCopyWithSuffix suffix z
     evar = F.symbol z'
     e' = subVarAndTy z z' e
+unapply γ y yt l@(_ : _) (RAllP _ ty) e suffix = unapply γ y yt l ty e suffix  -- F.panic $ "can't unapply type " ++ F.showpp t
 unapply _ _ _ (_ : _) t _ _ = F.panic $ "can't unapply type " ++ F.showpp t
 unapply γ y yt [] t e _ = do
   let yt' = t `F.meet` yt
@@ -481,28 +494,34 @@ consUnarySynth :: CGEnv -> CoreExpr -> CG SpecType
 consUnarySynth γ (Tick t e) = consUnarySynth (γ `setLocation` (Sp.Tick t)) e
 consUnarySynth γ (Var x) = return $ traceWhenLoud ("SELFIFICATION " ++ F.showpp (x, t, selfify t x)) selfify t x
   where t = symbolType γ x "consUnarySynth (Var)"
-consUnarySynth _ (Lit c) = return $ uRType $ literalFRefType c
+consUnarySynth _ e@(Lit c) =
+  traceUSyn "Lit" e $ do
+  return $ removeAbsRef $ uRType $ literalFRefType c
 consUnarySynth γ e@(Let _ _) =
   traceUSyn "Let" e $ do
   t   <- freshTyType (typeclass (getConfig γ)) LetE e $ Ghc.exprType e
   addW $ WfC γ t
   consUnaryCheck γ e t
   return t
-consUnarySynth γ (App e d) = do
+consUnarySynth γ e'@(App e d) =
+  traceUSyn "App" e' $ do
   et <- consUnarySynth γ e
   consUnarySynthApp γ et d
-consUnarySynth γ (Lam α e) | Ghc.isTyVar α = do
+consUnarySynth γ e'@(Lam α e) | Ghc.isTyVar α =
+                             traceUSyn "LamTyp" e' $ do
   γ' <- γ `extendWithTyVar` α
   t' <- consUnarySynth γ' e
   return $ RAllT (makeRTVar $ rTyVar α) t' mempty
-consUnarySynth γ e@(Lam x d)  = do
+consUnarySynth γ e@(Lam x d)  =
+  traceUSyn "Lam" e $ do
   let Ghc.FunTy { ft_arg = s' } = checkFun e $ Ghc.exprType e
   s  <- freshTyType (typeclass (getConfig γ)) LamE (Var x) s'
   γ' <- γ += ("consUnarySynth (Lam)", F.symbol x, s)
   t  <- consUnarySynth γ' d
   addW $ WfC γ s
   return $ RFun (F.symbol x) (mkRFInfo $ getConfig γ) s t mempty
-consUnarySynth γ e@(Case _ _ _ alts) = do
+consUnarySynth γ e'@(Case _ _ _ alts) =
+  traceUSyn "Case" e' $ do
   t   <- freshTyType (typeclass (getConfig γ)) (caseKVKind alts) e $ Ghc.exprType e
   addW $ WfC γ t
   -- consUnaryCheck γ e t
@@ -549,6 +568,7 @@ consUnarySynthApp γ (RAllT α t _) (Type s) = do
     return $ subsTyVarMeet' (ty_var_value α, s') t
 consUnarySynthApp _ RFun{} d =
   F.panic $ "consUnarySynthApp expected Var as a funciton arg, got " ++ F.showpp d
+consUnarySynthApp _ p@(RAllP {}) _ = F.panic $ "consUnarySynthApp got RAllP!! " ++ F.showpp p
 consUnarySynthApp _ ft d =
   F.panic $ "consUnarySynthApp malformed function type " ++ F.showpp ft ++
             " for argument " ++ F.showpp d
