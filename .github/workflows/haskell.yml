@@ -22,7 +22,7 @@ jobs:
       with:
         ghc-version: '8.10.3'
         enable-stack: true
-        stack-version: 'latest'
+        stack-version: '2.7.5'
 
     - name: Cache
       uses: actions/cache@v3
