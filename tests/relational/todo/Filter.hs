@@ -3,6 +3,17 @@
 d :: a -> a -> Double
 d x y = undefined
 
+-- Lam. fix filter(f). Lam. Lam. lam l. caseL l of 
+--    nil => pack nil
+--  | h::tl => let r' = filter f [] [] tl in
+--    	    let b = (f h) in
+--             unpack r' as r in if b then pack (h::r) else pack r
+-- 
+-- <= 0 : forall k.  ((B ((U int) [diff, k] -> U bool)) => forall i; alpha. 
+--  (list[i,alpha] U int) [diff, k * alpha] -> U (exists j ::size.  (list[j] int)))
+--
+-- From: https://github.com/ezgicicek/BiRelCost/blob/master/examples/binary/filter.br
+
 {-@ reflect diff @-}
 {-@ diff :: xs:[Int] -> ys:{[Int]|len ys == len xs} -> Int @-}
 diff :: [Int] -> [Int] -> Int
