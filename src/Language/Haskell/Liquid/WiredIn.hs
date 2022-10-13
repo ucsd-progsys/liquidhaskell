@@ -139,9 +139,10 @@ listTyDataCons   = ( [TyConP l0 c [RTV tyv] [p] [Covariant] [Covariant] (Just fs
       xHead      = "head"
       xTail      = "tail"
       p          = PV "p" (PVProp t) (F.vv Nothing) [(t, fld, F.EVar fld)]
-      lt         = rApp c [xt] [] mempty
+      px         = pdVarReft $ PV "p" (PVProp t) (F.vv Nothing) [(t, fld, F.EVar xHead)]
+      lt         = rApp c [xt] [rPropP [] $ pdVarReft p] mempty
       xt         = rVar tyv
-      xst        = rApp c [RVar (RTV tyv) mempty] [] mempty
+      xst        = rApp c [RVar (RTV tyv) px] [rPropP [] $ pdVarReft p] mempty
       cargs      = [(xTail, xst), (xHead, xt)]
       fsize      = SymSizeFun (dummyLoc "len")
 

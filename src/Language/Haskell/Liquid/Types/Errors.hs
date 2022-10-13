@@ -192,7 +192,7 @@ data Oblig
   = OTerm -- ^ Obligation that proves termination
   | OInv  -- ^ Obligation that proves invariants
   | OCons -- ^ Obligation that proves subtyping constraints
-  | ORel -- ^ Obligation that proves subtyping constraints
+  | ORel -- ^ Obligation that proves relational constraints
   deriving (Eq, Generic, Data, Typeable)
   deriving Hashable via Generically Oblig
 
