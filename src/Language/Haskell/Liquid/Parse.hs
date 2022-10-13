@@ -990,7 +990,7 @@ ppPspec k (Relational (lxl, lxr, tl, tr, q, p))
   = "relational" 
         <+> pprintTidy k (val lxl) <+> "::" <+> pprintTidy k tl <+> "~" 
         <+> pprintTidy k (val lxr) <+> "::" <+> pprintTidy k tr <+> "|" 
-        <+> pprintTidy k (q) <+> "=>" <+> pprintTidy k p
+        <+> pprintTidy k q <+> "=>" <+> pprintTidy k p
 ppPspec k (AssmRel (lxl, lxr, tl, tr, q, p))
   = "assume relational" 
         <+> pprintTidy k (val lxl) <+> "::" <+> pprintTidy k tl <+> "~" 

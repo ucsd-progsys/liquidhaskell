@@ -1,19 +1,11 @@
 {-# LANGUAGE CPP                        #-}
-{-# LANGUAGE DeriveFoldable             #-}
-{-# LANGUAGE DeriveFunctor              #-}
-{-# LANGUAGE DeriveTraversable          #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ImplicitParams             #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE PatternGuards              #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
-{-# LANGUAGE StandaloneDeriving         #-}
-{-# LANGUAGE TupleSections              #-}
-{-# LANGUAGE TypeSynonymInstances       #-}
 
 -- | This module defines the representation of Subtyping and WF Constraints,
 --   and the code for syntax-directed constraint generation.
@@ -190,10 +182,10 @@ consRelCheckBind _ _ b1@(Rec _) b2@(Rec _) _ _ _ _
 consRelCheck :: CGEnv -> PrEnv -> CoreExpr -> CoreExpr ->
   SpecType -> SpecType -> F.Expr -> CG ()
 consRelCheck γ ψ (Tick tt e) d t s p =
-  {- traceChk "Left Tick" e d t s p $ -} consRelCheck (γ `setLocation` (Sp.Tick tt)) ψ e d t s p
+  {- traceChk "Left Tick" e d t s p $ -} consRelCheck (γ `setLocation` Sp.Tick tt) ψ e d t s p
 
 consRelCheck γ ψ e (Tick tt d) t s p =
-  {- traceChk "Right Tick" e d t s p $ -} consRelCheck (γ `setLocation` (Sp.Tick tt)) ψ e d t s p
+  {- traceChk "Right Tick" e d t s p $ -} consRelCheck (γ `setLocation` Sp.Tick tt) ψ e d t s p
 
 consRelCheck γ ψ l1@(Lam α1 e1) e2 rt1@(RAllT s1 t1 r1) t2 p
   | Ghc.isTyVar α1
