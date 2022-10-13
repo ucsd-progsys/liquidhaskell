@@ -22,7 +22,7 @@ jobs:
       with:
         ghc-version: '8.10.3'
         enable-stack: true
-        stack-version: '2.7.5'
+        stack-version: 'latest'
 
     - name: Cache
       uses: actions/cache@v3
@@ -38,13 +38,13 @@ jobs:
 
     - name: Install Z3
       run: |
-        wget https://github.com/Z3Prover/z3/releases/download/z3-4.11.2/z3-4.11.2-x64-glibc-2.31.zip
-        unzip z3-4.11.2-x64-glibc-2.31.zip
-        rm -f z3-4.11.2-x64-glibc-2.31.zip
-        sudo cp z3-4.11.2-x64-glibc-2.31/bin/libz3.a /usr/local/lib
-        sudo cp z3-4.11.2-x64-glibc-2.31/bin/z3 /usr/local/bin
-        sudo cp z3-4.11.2-x64-glibc-2.31/include/* /usr/local/include
-        rm -rf z3-4.11.2-x64-glibc-2.31
+        wget https://github.com/Z3Prover/z3/releases/download/z3-4.9.1/z3-4.9.1-x64-glibc-2.31.zip
+        unzip z3-4.9.1-x64-glibc-2.31.zip
+        rm -f z3-4.9.1-x64-glibc-2.31.zip
+        sudo cp z3-4.9.1-x64-glibc-2.31/bin/libz3.a /usr/local/lib
+        sudo cp z3-4.9.1-x64-glibc-2.31/bin/z3 /usr/local/bin
+        sudo cp z3-4.9.1-x64-glibc-2.31/include/* /usr/local/include
+        rm -rf z3-4.9.1-x64-glibc-2.31
         z3 --version
     - name: Build
       run: stack setup && stack install && stack test
