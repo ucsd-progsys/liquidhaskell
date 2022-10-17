@@ -14,22 +14,43 @@ d x y = undefined
 --
 -- From: https://github.com/ezgicicek/BiRelCost/blob/master/examples/binary/filter.br
 
+data List a = Nil | Cons a (List a)
+
+{-@ reflect lenList @-}
+{-@ lenList :: List a -> Int @-}
+lenList :: List a -> Int
+lenList Nil = 0
+lenList (Cons _ xs) = 1 + (lenList xs)
+
+-- {-@ reflect diff @-} {-@ diff :: xs:[Int] -> ys:{[Int]|len ys ==
+-- len xs} -> Int @-} diff :: [Int] -> [Int] -> Int diff (x : xs) (y :
+-- ys) | x == y = diff xs ys diff (x : xs) (y : ys) | x /= y = 1 +
+-- diff xs ys diff _ _ = 0
+
 {-@ reflect diff @-}
-{-@ diff :: xs:[Int] -> ys:{[Int]|len ys == len xs} -> Int @-}
-diff :: [Int] -> [Int] -> Int
-diff (x : xs) (y : ys) | x == y = diff xs ys
-diff (x : xs) (y : ys) | x /= y = 1 + diff xs ys
+{-@ diff :: xs:List Int -> ys:{List Int|lenList ys == lenList xs} -> Int @-}
+diff :: List Int -> List Int -> Int
+diff (Cons x xs) (Cons y ys)
+  | x == y = diff xs ys
+diff (Cons x xs) (Cons y ys)
+  | x /= y = 1 + diff xs ys
 diff _ _                        = 0
 
-filter' :: Double -> (Int -> Bool) -> [Int] -> [Int]
-filter' _ _ [] = []
-filter' k pred (el:els) | pred el   = el:filter' k pred els
-                        | otherwise =    filter' k pred els
+filter' :: Double -> (Int -> Bool) -> List Int -> List Int
+filter' _ _ Nil = Nil
+filter' k pred (Cons el els)
+  | pred el   = Cons el (filter' k pred els)
+  | otherwise = filter' k pred els
 {-@ relational filter' ~ filter' ::
-                        k1:Double -> f1:(x1:Int -> Bool) -> xs1:[Int] -> [Int] ~
-                        k2:Double -> f2:(x2:Int -> Bool) -> xs2:[Int] -> [Int]
-                         ~~ k1 = k2 => (true => d x1 x2 <= k1) => len xs1 = len xs2
-                            => d(r1 f1 xs1, r2 f2 xs2)
+                        k1:Double -> f1:(x1:Int -> Bool) -> xs1:List Int -> List Int ~
+                        k2:Double -> f2:(x2:Int -> Bool) -> xs2:List Int -> List Int
+                         ~~ k1 = k2 => lenList xs1 = lenList xs2 => f1 = f2 => true @-}
+
+{- relational filter' ~ filter' ::
+                        k1:Double -> f1:(x1:Int -> Bool) -> xs1:List Int -> List Int ~
+                        k2:Double -> f2:(x2:Int -> Bool) -> xs2:List Int -> List Int
+                         ~~ k1 = k2 => (true => d x1 x2 <= k1) => lenList xs1 = lenList xs2
+                            => d (r1 f1 xs1) (r2 f2 xs2)
                                      <= diff xs1 xs2 * k1 @-}
 
 
