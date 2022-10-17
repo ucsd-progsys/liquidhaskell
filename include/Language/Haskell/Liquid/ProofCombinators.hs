@@ -31,11 +31,10 @@ module Language.Haskell.Liquid.ProofCombinators (
   -- * Combining Proofs
   , (&&&)
   , withProof 
-  , impossible
+  , impossible 
 
 
 ) where
-
 
 -------------------------------------------------------------------------------
 -- | Proof is just a () alias -------------------------------------------------
