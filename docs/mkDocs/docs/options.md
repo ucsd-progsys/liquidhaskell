@@ -45,14 +45,14 @@ You can see many examples of proofs by logical evaluation in `tests/benchmarks/p
 
 This flag is **global** and will symbolically evaluate all the terms that appear in the specifications.
 
-As an alternative, the `liquidinstanceslocal` flag has local behavior. [See](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/benchmarks/popl18/ple/pos/Unification.hs)
+As an alternative, the `--ple-local` flag has local behavior. [See](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/benchmarks/popl18/ple/pos/Unification.hs)
 
 ```
 {-@ LIQUID "--ple-local" @-}
 ```
 
 will only evaluate terms appearing in the specifications
-of the function `theorem`, in the function `theorem` is
+of the function `theorem`, if the function `theorem` is
 annotated for automatic instantiation using the following
 liquid annotation
 
@@ -62,7 +62,7 @@ liquid annotation
 
 Normally, PLE will only unfold invocations only if the arguments are known
 with enough precision to enter some of the equations of the function. For
-instance
+instance, in
 
 ```Haskell
 {-@ reflect boolToInt @-}
@@ -75,15 +75,15 @@ nonNegativeInt :: Bool -> ()
 nonNegativeInt _ = ()
 ```
 
-The equations `boolToInt False = 0` and `boolToInt True = 1` would only be
-used if `b` is known to be wither `True` or `False`. Now, if nothing is
+the equations `boolToInt False = 0` and `boolToInt True = 1` would only be
+used if `b` is known to be either `True` or `False`. Now, if nothing is
 known about `b` and we still would like to use the fact that
 
 ```Haskell
 boolToInt b = if b then 1 else 0
 ```
 
-we can instruct Liquid Haskell to do so and accept `nonNegativeIsEmpty` with
+we can instruct Liquid Haskell to do so and accept `nonNegativeInt` with
 
 ```
 {-@ LIQUID "--ple-with-undecided-guards" @-}
