@@ -51,7 +51,6 @@ import           Language.Haskell.Liquid.Types                  hiding (Def,
                                                                  loc)
 import           System.Console.CmdArgs.Verbosity               (whenLoud)
 import           System.IO.Unsafe                               (unsafePerformIO)
-import           Text.PrettyPrint.HughesPJ                      hiding ( (<>) )
 
 data RelPred
   = RelPred { fun1 :: Var
@@ -100,12 +99,13 @@ consRelTop _ ti γ ψ (x, y, t, s, ra, rp) = traceChk "Init" e d t s p $ do
     s' = removeAbsRef $ val s
 
 removeAbsRef :: SpecType -> SpecType
--- removeAbsRef (RVar)
 removeAbsRef (RFun  b i s t r)  = RFun  b i (removeAbsRef s) (removeAbsRef t) r
 removeAbsRef (RImpF b i s t r)  = RImpF b i (removeAbsRef s) (removeAbsRef t) r
 removeAbsRef (RAllT b t r)      = RAllT b (removeAbsRef t) r
-removeAbsRef (RAllP _ t)        = removeAbsRef t
-removeAbsRef (RApp  c as pas r) = RApp  c as (map (const mempty) pas) r
+removeAbsRef (RAllP p t)         
+   = replacePredsWithRefs su <$> t
+   where su = (uPVar p, pVartoRConc p)
+removeAbsRef (RApp  c as _ r) = RApp  c as [] r
 removeAbsRef (RAllE b a t)      = RAllE b (removeAbsRef a) (removeAbsRef t)
 removeAbsRef (REx   b a t)      = REx   b (removeAbsRef a) (removeAbsRef t)
 removeAbsRef (RAppTy s t r)     = RAppTy (removeAbsRef s) (removeAbsRef t) r
@@ -560,7 +560,12 @@ consUnarySynthApp γ (RAllT α t _) (Type s) = do
     return $ subsTyVarMeet' (ty_var_value α, s') t
 consUnarySynthApp _ RFun{} d =
   F.panic $ "consUnarySynthApp expected Var as a funciton arg, got " ++ F.showpp d
-consUnarySynthApp _ p@RAllP{} _ = F.panic $ "consUnarySynthApp got RAllP!! " ++ F.showpp p
+consUnarySynthApp γ (RAllP p t) e
+  = consUnarySynthApp γ t' e
+  where
+    t'         = replacePredsWithRefs su <$> t
+    su         = (uPVar p, pVartoRConc p)
+
 consUnarySynthApp _ ft d =
   F.panic $ "consUnarySynthApp malformed function type " ++ F.showpp ft ++
             " for argument " ++ F.showpp d
@@ -837,7 +842,7 @@ matchFunArgs t1 t2 x | isBase t1 && isBase t2 = F.EVar x
 matchFunArgs t1 t2 _ = F.panic $ "matchFunArgs undefined for " ++ F.showpp (t1, t2)
 
 entl :: CGEnv -> F.Expr -> String -> CG ()
-entl γ p = addC (SubR γ ORel $ uReft (F.vv_, F.PIff (F.EVar F.vv_) p))
+entl γ p = addC (SubR γ OCons $ uReft (F.vv_, F.PIff (F.EVar F.vv_) p))
 
 entlFunReft :: CGEnv -> RReft -> String -> CG ()
 entlFunReft γ r msg = do
@@ -881,7 +886,7 @@ lookupBind x bs = case lookup x (concatMap binds bs) of
 
 subUnarySig :: CGEnv -> Var -> SpecType -> CG ()
 subUnarySig γ x tRel =
-  forM_ mkargs $ \(rt, ut) -> addC (SubC γ{ warns = text "subUnarySig":warns γ} ut rt) $ "subUnarySig tUn = " ++ F.showpp ut ++ " tRel = " ++ F.showpp rt
+  forM_ mkargs $ \(rt, ut) -> addC (SubC γ ut rt) $ "subUnarySig tUn = " ++ F.showpp ut ++ " tRel = " ++ F.showpp rt
   where
     mkargs = zip (snd $ vargs tRel) (snd $ vargs tUn)
     tUn = symbolType γ x $ "subUnarySig " ++ F.showpp x
