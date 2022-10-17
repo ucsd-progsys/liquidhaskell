@@ -786,8 +786,8 @@ ppError' _td _dCtx (ErrHole _ msg _ x t)
         $+$ pprint x <+> "::" <+> pprint t
         $+$ msg
 
-ppError' td dCtx (ErrSubType _ msg cid c tA tE)
-  = text "Liquid Type Mismatch " $+$ msg 
+ppError' td dCtx (ErrSubType _ _ cid c tA tE)
+  = text "Liquid Type Mismatch"
     $+$ nest 4
           (blankLine
            $+$ dCtx
