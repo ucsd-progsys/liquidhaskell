@@ -1,3 +1,5 @@
+module Filter where
+
 {-@ measure d :: a -> a -> Double @-}
 {-@ assume d :: x:a -> y:a -> {v:Double | v = d x y } @-}
 d :: a -> a -> Double
@@ -20,7 +22,7 @@ data List a = Nil | Cons a (List a)
 {-@ lenList :: List a -> Int @-}
 lenList :: List a -> Int
 lenList Nil = 0
-lenList (Cons _ xs) = 1 + (lenList xs)
+lenList (Cons _ xs) = 1 + lenList xs
 
 -- {-@ reflect diff @-} {-@ diff :: xs:[Int] -> ys:{[Int]|len ys ==
 -- len xs} -> Int @-} diff :: [Int] -> [Int] -> Int diff (x : xs) (y :
@@ -42,9 +44,9 @@ filter' k pred (Cons el els)
   | pred el   = Cons el (filter' k pred els)
   | otherwise = filter' k pred els
 {-@ relational filter' ~ filter' ::
-                        k1:Double -> f1:(x1:Int -> Bool) -> xs1:List Int -> List Int ~
-                        k2:Double -> f2:(x2:Int -> Bool) -> xs2:List Int -> List Int
-                         ~~ k1 = k2 => lenList xs1 = lenList xs2 => f1 = f2 => true @-}
+      k1:Double -> f1:(Int -> Bool) -> xs1:List Int -> List Int ~
+      k2:Double -> f2:(Int -> Bool) -> xs2:List Int -> List Int
+         ~~ k1 = k2 => true => f1 = f2 && Filter.lenList xs1 = Filter.lenList xs2 => true @-}
 
 {- relational filter' ~ filter' ::
                         k1:Double -> f1:(x1:Int -> Bool) -> xs1:List Int -> List Int ~

@@ -102,9 +102,9 @@ removeAbsRef :: SpecType -> SpecType
 removeAbsRef (RFun  b i s t r)  = RFun  b i (removeAbsRef s) (removeAbsRef t) r
 removeAbsRef (RImpF b i s t r)  = RImpF b i (removeAbsRef s) (removeAbsRef t) r
 removeAbsRef (RAllT b t r)      = RAllT b (removeAbsRef t) r
-removeAbsRef (RAllP p t)         
-   = replacePredsWithRefs su <$> t
-   where su = (uPVar p, pVartoRConc p)
+removeAbsRef (RAllP _ t)        = t         
+  --  = replacePredsWithRefs su <$> t
+  --  where su = (uPVar p, pVartoRConc p)
 removeAbsRef (RApp  c as _ r) = RApp  c as [] r
 removeAbsRef (RAllE b a t)      = RAllE b (removeAbsRef a) (removeAbsRef t)
 removeAbsRef (REx   b a t)      = REx   b (removeAbsRef a) (removeAbsRef t)
@@ -560,11 +560,11 @@ consUnarySynthApp γ (RAllT α t _) (Type s) = do
     return $ subsTyVarMeet' (ty_var_value α, s') t
 consUnarySynthApp _ RFun{} d =
   F.panic $ "consUnarySynthApp expected Var as a funciton arg, got " ++ F.showpp d
-consUnarySynthApp γ (RAllP p t) e
-  = consUnarySynthApp γ t' e
-  where
-    t'         = replacePredsWithRefs su <$> t
-    su         = (uPVar p, pVartoRConc p)
+consUnarySynthApp γ (RAllP _ t) e
+  = consUnarySynthApp γ t e
+  -- where
+  --   t'         = replacePredsWithRefs su <$> t
+  --   su         = (uPVar p, pVartoRConc p)
 
 consUnarySynthApp _ ft d =
   F.panic $ "consUnarySynthApp malformed function type " ++ F.showpp ft ++
