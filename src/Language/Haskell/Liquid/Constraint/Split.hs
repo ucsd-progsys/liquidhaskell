@@ -367,6 +367,7 @@ bsplitC' γ t1 t2 tem isHO
     tag = getTag γ
     src = getLocation γ
     g   = reLocal $ renv γ
+
     ci sr  = Ci src (err sr) (cgVar γ)
     err sr = Just $ fromMaybe (ErrSubType src (text "subtype") Nothing g t1 (replaceTop t2 sr)) (cerr γ)
 
