@@ -47,4 +47,11 @@ jobs:
         rm -rf z3-4.9.1-x64-glibc-2.31
         z3 --version
     - name: Build
-      run: stack setup && stack install && stack test
+      run: stack setup && stack install
+    - name: Test Relational
+      run: |
+         chmod +x ./tests/relational/rtest
+         ./tests/relational/rtest
+      shell: bash  
+    - name: Test Non-Relational
+      run: stack test
