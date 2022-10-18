@@ -50,8 +50,12 @@ jobs:
       run: stack setup && stack install
     - name: Test Relational
       run: |
-         chmod +x ./tests/relational/rtest
-         ./tests/relational/rtest
+        chmod +x ./tests/relational/rtest
+        ./tests/relational/rtest
       shell: bash  
     - name: Test Non-Relational
-      run: stack test
+      run: |
+        stack --no-terminal --stack-yaml stack.yaml run test-driver
+        stack --no-terminal --stack-yaml stack.yaml test tests:tasty
+        stack --no-terminal --stack-yaml stack.yaml test -j1 liquidhaskell:liquidhaskell-parser --flag liquidhaskell:devel
+
