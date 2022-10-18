@@ -102,9 +102,9 @@ removeAbsRef :: SpecType -> SpecType
 removeAbsRef (RFun  b i s t r)  = RFun  b i (removeAbsRef s) (removeAbsRef t) r
 removeAbsRef (RImpF b i s t r)  = RImpF b i (removeAbsRef s) (removeAbsRef t) r
 removeAbsRef (RAllT b t r)      = RAllT b (removeAbsRef t) r
-removeAbsRef (RAllP _ t)        = t         
-  --  = replacePredsWithRefs su <$> t
-  --  where su = (uPVar p, pVartoRConc p)
+removeAbsRef (RAllP p t)       
+   = replacePredsWithRefs su <$> t
+   where su = (uPVar p, pVartoRConc p)
 removeAbsRef (RApp  c as _ r) = RApp  c as [] r
 removeAbsRef (RAllE b a t)      = RAllE b (removeAbsRef a) (removeAbsRef t)
 removeAbsRef (REx   b a t)      = REx   b (removeAbsRef a) (removeAbsRef t)
@@ -484,7 +484,7 @@ symbolType γ x msg
 
 consUnarySynth :: CGEnv -> CoreExpr -> CG SpecType
 consUnarySynth γ (Tick t e) = consUnarySynth (γ `setLocation` Sp.Tick t) e
-consUnarySynth γ (Var x) = return $ traceWhenLoud ("SELFIFICATION " ++ F.showpp (x, t, selfify t x)) selfify t x
+consUnarySynth γ (Var x) = return $ removeAbsRef $ traceWhenLoud ("SELFIFICATION " ++ F.showpp (x, t, selfify t x)) selfify t x
   where t = symbolType γ x "consUnarySynth (Var)"
 consUnarySynth _ e@(Lit c) =
   traceUSyn "Lit" e $ do
@@ -494,7 +494,7 @@ consUnarySynth γ e@(Let _ _) =
   t   <- freshTyType (typeclass (getConfig γ)) LetE e $ Ghc.exprType e
   addW $ WfC γ t
   consUnaryCheck γ e t
-  return t
+  return $ removeAbsRef t
 consUnarySynth γ e'@(App e d) =
   traceUSyn "App" e' $ do
   et <- consUnarySynth γ e
@@ -503,7 +503,7 @@ consUnarySynth γ e'@(Lam α e) | Ghc.isTyVar α =
                              traceUSyn "LamTyp" e' $ do
   γ' <- γ `extendWithTyVar` α
   t' <- consUnarySynth γ' e
-  return $ RAllT (makeRTVar $ rTyVar α) t' mempty
+  return $ removeAbsRef $ RAllT (makeRTVar $ rTyVar α) t' mempty
 consUnarySynth γ e@(Lam x d)  =
   traceUSyn "Lam" e $ do
   let Ghc.FunTy { ft_arg = s' } = checkFun e $ Ghc.exprType e
@@ -511,13 +511,13 @@ consUnarySynth γ e@(Lam x d)  =
   γ' <- γ += ("consUnarySynth (Lam)", F.symbol x, s)
   t  <- consUnarySynth γ' d
   addW $ WfC γ s
-  return $ RFun (F.symbol x) (mkRFInfo $ getConfig γ) s t mempty
+  return $ removeAbsRef $ RFun (F.symbol x) (mkRFInfo $ getConfig γ) s t mempty
 consUnarySynth γ e@(Case _ _ _ alts) =
   traceUSyn "Case" e $ do
   t   <- freshTyType (typeclass (getConfig γ)) (caseKVKind alts) e $ Ghc.exprType e
   addW $ WfC γ t
   -- consUnaryCheck γ e t
-  return t
+  return $ removeAbsRef t
 consUnarySynth _ e@(Cast _ _) = F.panic $ "consUnarySynth is undefined for Cast " ++ F.showpp e
 consUnarySynth _ e@(Type _) = F.panic $ "consUnarySynth is undefined for Type " ++ F.showpp e
 consUnarySynth _ e@(Coercion _) = F.panic $ "consUnarySynth is undefined for Coercion " ++ F.showpp e
@@ -560,11 +560,11 @@ consUnarySynthApp γ (RAllT α t _) (Type s) = do
     return $ subsTyVarMeet' (ty_var_value α, s') t
 consUnarySynthApp _ RFun{} d =
   F.panic $ "consUnarySynthApp expected Var as a funciton arg, got " ++ F.showpp d
-consUnarySynthApp γ (RAllP _ t) e
-  = consUnarySynthApp γ t e
-  -- where
-  --   t'         = replacePredsWithRefs su <$> t
-  --   su         = (uPVar p, pVartoRConc p)
+consUnarySynthApp γ (RAllP p t) e
+  = consUnarySynthApp γ t' e
+  where
+    t'         = replacePredsWithRefs su <$> t
+    su         = (uPVar p, pVartoRConc p)
 
 consUnarySynthApp _ ft d =
   F.panic $ "consUnarySynthApp malformed function type " ++ F.showpp ft ++
