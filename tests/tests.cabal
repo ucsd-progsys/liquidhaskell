@@ -2024,6 +2024,8 @@ executable relational-pos
                     , AsynchCase
                     , Axiom
                     , CheckedImp
+                    , Isort
+                    , MapFusion
                     , MutRec
                     , SndOrdPredNonRel
 

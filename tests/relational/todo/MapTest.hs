@@ -39,7 +39,7 @@ diff' _ _                        = True
 map :: (Int -> Int) -> List Int -> List Int
 map _ Nil = Nil
 map f (Cons x xs) = Cons (f x) (map f xs)
-{-@ relational map ~ map ::
+{- relational map ~ map ::
                     f1:(x1:Int -> Int) -> xs1:List Int -> List Int ~
                     f2:(x2:Int -> Int) -> xs2:List Int -> List Int 
                      ~~ f1 = f2 => MapTest.lenList xs1 = MapTest.lenList xs2 => MapTest.diff' xs1 xs2 @-}

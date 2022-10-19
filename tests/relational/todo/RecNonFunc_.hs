@@ -16,3 +16,10 @@ r = let cons = (:) in 0 `cons` r
 
 r' :: Bool
 r' = if True then False else r'
+
+{-@ relational r' ~ r' :: Bool ~ Bool ~~ r1 = r2 @-}
+
+r'' :: Bool
+r'' = if True then r' else False
+
+{-@ relational r'' ~ r'' :: Bool ~ Bool ~~ r1 = r2 @-}
