@@ -2011,6 +2011,65 @@ executable absref-neg
 
     default-language: Haskell2010
 
+flag relational-pos
+     default: False
+
+executable relational-pos
+    main-is:          Main.hs
+    if !flag(relational-pos) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      Abs
+                    , AsynchCase
+                    , Axiom
+                    , CheckedImp
+                    , MutRec
+                    , SndOrdPredNonRel
+
+    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
+    if flag(measure-timings)
+      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquid-vector
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , relational/pos
+
+    default-language: Haskell2010
+
+flag relational-neg
+     default: False
+
+executable relational-neg
+    main-is:          Main.hs
+    if !flag(relational-neg) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      Abs
+                    , ApSum
+                    , ApSumAsynch
+                    , Axiom
+                    , CheckedImp
+                    , CaseOnRec
+                    , SndOrdPred
+
+    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
+    if flag(measure-timings)
+      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
+    build-depends:    liquid-base
+                    , liquid-prelude
+                    , liquid-vector
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , relational/neg
+
+    default-language: Haskell2010
+
 flag basic-neg
      default: False
 
