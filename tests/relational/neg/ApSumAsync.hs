@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module ApSumAsync where
 
 apsum :: Int -> Int -> Int

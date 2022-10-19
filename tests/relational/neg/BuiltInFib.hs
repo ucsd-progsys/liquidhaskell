@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module BuiltInFib where
 
 fib :: Int -> Int

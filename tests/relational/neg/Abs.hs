@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Abs where
 
 abs :: Int -> Int

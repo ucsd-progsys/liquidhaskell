@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module SndOrdPred where
 
 {-@ assume relational foo ~ foo :: x1:_ -> _ ~ x2:_ -> _ 

@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Fixme where
 
 f :: Int -> Int

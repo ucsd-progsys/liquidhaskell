@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Fixme where
 
 data N = Z | S N

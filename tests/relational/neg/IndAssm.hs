@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module IndAssm where
 
 {-@ f :: Nat -> y:Nat -> Nat / [y] @-}

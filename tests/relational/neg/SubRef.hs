@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module SubRef where
 
 foo :: Int -> Int

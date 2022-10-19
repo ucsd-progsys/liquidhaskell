@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module Fixme where
 
 {-@ foo :: { v:(x1:Int -> Int) | x1 /= x1 } @-}

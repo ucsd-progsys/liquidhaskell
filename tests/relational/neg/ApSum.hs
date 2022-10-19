@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 module ApSum where
 
 apsum :: Int -> Int -> Int
