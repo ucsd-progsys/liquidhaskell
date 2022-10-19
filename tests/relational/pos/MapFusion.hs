@@ -1,3 +1,4 @@
+{-@ LIQUID "--reflection"  @-}
 module MapFusion where
 
 import           Prelude                 hiding ( mapM
