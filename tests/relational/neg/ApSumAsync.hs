@@ -1,4 +1,4 @@
-module Fixme where
+module ApSumAsync where
 
 apsum :: Int -> Int -> Int
 apsum n a = if n <= 0 then a else a + n + apsum (n - 1) a

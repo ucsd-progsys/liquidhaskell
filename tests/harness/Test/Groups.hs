@@ -70,6 +70,12 @@ errorsTestGroups =
   , "parsing-errors"
   ]
 
+relationalTestGroups :: [Text]
+relationalTestGroups =
+  [ "relational-pos"
+  , "relational-neg"
+  ]
+
 -- | Update this when you add new "classes" of test groups
 allTestGroupNames :: [Text]
 allTestGroupNames =
@@ -77,4 +83,5 @@ allTestGroupNames =
           , benchmarkTestGroups
           , proverTestGroups
           , errorsTestGroups
+          , relationalTestGroups
           ]

@@ -1,4 +1,4 @@
-module Fixme where
+module Abs where
 
 abs :: Int -> Int
 abs x = if x < 0 then -x else x

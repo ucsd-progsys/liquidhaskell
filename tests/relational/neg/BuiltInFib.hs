@@ -1,4 +1,4 @@
-module Fixme where
+module BuiltInFib where
 
 fib :: Int -> Int
 fib x | x <= 1 = 1

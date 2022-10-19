@@ -1,4 +1,4 @@
-module Fixme where
+module CaseOnRec where
 
 data Parity = Even | Odd
 
