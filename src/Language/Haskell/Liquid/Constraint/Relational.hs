@@ -102,10 +102,8 @@ removeAbsRef :: SpecType -> SpecType
 removeAbsRef (RFun  b i s t r)  = RFun  b i (removeAbsRef s) (removeAbsRef t) r
 removeAbsRef (RImpF b i s t r)  = RImpF b i (removeAbsRef s) (removeAbsRef t) r
 removeAbsRef (RAllT b t r)      = RAllT b (removeAbsRef t) r
-removeAbsRef (RAllP p t)       
-   = replacePredsWithRefs su <$> t
-   where su = (uPVar p, pVartoRConc p)
-removeAbsRef (RApp  c as _ r) = RApp  c as [] r
+removeAbsRef (RAllP p t)        = removeAbsRef (forgetRAllP p t)
+removeAbsRef (RApp  c as _ r)   = RApp  c as [] r
 removeAbsRef (RAllE b a t)      = RAllE b (removeAbsRef a) (removeAbsRef t)
 removeAbsRef (REx   b a t)      = REx   b (removeAbsRef a) (removeAbsRef t)
 removeAbsRef (RAppTy s t r)     = RAppTy (removeAbsRef s) (removeAbsRef t) r
@@ -364,7 +362,7 @@ unapply γ y yt (z : zs) (RFun x _ s t _) e suffix = do
     z' = mkCopyWithSuffix suffix z
     evar = F.symbol z'
     e' = subVarAndTy z z' e
-unapply γ y yt l@(_ : _) (RAllP _ ty) e suffix = unapply γ y yt l ty e suffix  -- F.panic $ "can't unapply type " ++ F.showpp t
+unapply γ y yt l@(_ : _) (RAllP p ty) e suffix = unapply γ y yt l (forgetRAllP p ty) e suffix 
 unapply _ _ _ (_ : _) t _ _ = F.panic $ "can't unapply type " ++ F.showpp t
 unapply γ y yt [] t e _ = do
   let yt' = t `F.meet` yt
@@ -561,10 +559,7 @@ consUnarySynthApp γ (RAllT α t _) (Type s) = do
 consUnarySynthApp _ RFun{} d =
   F.panic $ "consUnarySynthApp expected Var as a funciton arg, got " ++ F.showpp d
 consUnarySynthApp γ (RAllP p t) e
-  = consUnarySynthApp γ t' e
-  where
-    t'         = replacePredsWithRefs su <$> t
-    su         = (uPVar p, pVartoRConc p)
+  = consUnarySynthApp γ (forgetRAllP p t) e
 
 consUnarySynthApp _ ft d =
   F.panic $ "consUnarySynthApp malformed function type " ++ F.showpp ft ++
@@ -668,6 +663,10 @@ partitionArgs xs1 xs2 ts1 ts2 qs = (map toRel ho, map toUnary fo)
 unRAllT :: SpecType -> String -> (RTVU RTyCon RTyVar, SpecType, RReft)
 unRAllT (RAllT α2 ft2 r2) _ = (α2, ft2, r2)
 unRAllT t msg = F.panic $ msg ++ ": expected RAllT, got: " ++ F.showpp t
+
+forgetRAllP :: PVU RTyCon RTyVar -> SpecType -> SpecType
+forgetRAllP p t = replacePredsWithRefs su <$> t
+  where su = (uPVar p, pVartoRConc p)
 
 -- isCtor :: Ghc.DataCon -> F.Expr -> F.Expr
 -- isCtor d = F.EApp (F.EVar $ makeDataConChecker d)
