@@ -2051,7 +2051,7 @@ executable relational-neg
     other-modules:
                       Abs
                     , ApSum
-                    , ApSumAsynch
+                    , ApSumAsync
                     , Axiom
                     , CheckedImp
                     , CaseOnRec
