@@ -99,16 +99,43 @@ consRelTop _ ti γ ψ (x, y, t, s, ra, rp) = traceChk "Init" e d t s p $ do
     s' = removeAbsRef $ val s
 
 removeAbsRef :: SpecType -> SpecType
-removeAbsRef (RFun  b i s t r)  = RFun  b i (removeAbsRef s) (removeAbsRef t) r
-removeAbsRef (RImpF b i s t r)  = RImpF b i (removeAbsRef s) (removeAbsRef t) r
-removeAbsRef (RAllT b t r)      = RAllT b (removeAbsRef t) r
-removeAbsRef (RAllP p t)        = removeAbsRef (forgetRAllP p t)
-removeAbsRef (RApp  c as _ r)   = RApp  c as [] r
-removeAbsRef (RAllE b a t)      = RAllE b (removeAbsRef a) (removeAbsRef t)
-removeAbsRef (REx   b a t)      = REx   b (removeAbsRef a) (removeAbsRef t)
-removeAbsRef (RAppTy s t r)     = RAppTy (removeAbsRef s) (removeAbsRef t) r
-removeAbsRef (RRTy  e r o t)    = RRTy  e r o (removeAbsRef t)
-removeAbsRef t = t
+removeAbsRef (RVar v (MkUReft r _)) 
+  = out
+    where 
+      r' = MkUReft r mempty
+      out = RVar  v r' 
+removeAbsRef (RFun  b i s t (MkUReft r _))  
+  = out
+    where 
+      r' = MkUReft r mempty
+      out = RFun  b i (removeAbsRef s) (removeAbsRef t) r'
+removeAbsRef (RImpF b i s t (MkUReft r _))  
+  = out
+    where 
+      r' = MkUReft r mempty
+      out = RImpF b i (removeAbsRef s) (removeAbsRef t) r'
+removeAbsRef (RAllT b t r)      
+  = RAllT b (removeAbsRef t) r
+removeAbsRef (RAllP p t)        
+  = removeAbsRef (forgetRAllP p t)
+removeAbsRef (RApp  (RTyCon c _ i) as _ (MkUReft r _))   
+  = out
+    where 
+      c' = RTyCon c [] i
+      as' = map removeAbsRef as
+      r' = MkUReft r mempty
+      out = RApp c' as' [] r'
+removeAbsRef (RAllE b a t)      
+  = RAllE b (removeAbsRef a) (removeAbsRef t)
+removeAbsRef (REx   b a t)      
+  = REx   b (removeAbsRef a) (removeAbsRef t)
+removeAbsRef (RAppTy s t r)     
+  = RAppTy (removeAbsRef s) (removeAbsRef t) r
+removeAbsRef (RRTy  e r o t)    
+  = RRTy  e r o (removeAbsRef t)
+removeAbsRef t 
+  = t
+
 --------------------------------------------------------------
 -- Core Checking Rules ---------------------------------------
 --------------------------------------------------------------
@@ -323,7 +350,7 @@ consRelCheck γ ψ e d t1 t2 p =
 consExtAltEnv :: CGEnv -> F.Symbol -> SpecType -> AltCon -> [Var] -> CoreExpr -> String -> CG (CGEnv, CoreExpr)
 consExtAltEnv γ x s c bs e suf = do
   ct <- ctorTy γ c s
-  unapply γ x s bs ct e suf
+  unapply γ x s bs (removeAbsRef ct) e suf
 
 consRelCheckAltAsyncL :: CGEnv -> PrEnv -> SpecType -> SpecType -> F.Expr ->
   F.Symbol -> SpecType -> CoreExpr -> Alt CoreBndr -> CG ()
@@ -362,7 +389,7 @@ unapply γ y yt (z : zs) (RFun x _ s t _) e suffix = do
     z' = mkCopyWithSuffix suffix z
     evar = F.symbol z'
     e' = subVarAndTy z z' e
-unapply γ y yt l@(_ : _) (RAllP p ty) e suffix = unapply γ y yt l (forgetRAllP p ty) e suffix 
+-- unapply γ y yt l@(_ : _) (RAllP p ty) e suffix = unapply γ y yt l (forgetRAllP p ty) e suffix 
 unapply _ _ _ (_ : _) t _ _ = F.panic $ "can't unapply type " ++ F.showpp t
 unapply γ y yt [] t e _ = do
   let yt' = t `F.meet` yt
@@ -482,7 +509,7 @@ symbolType γ x msg
 
 consUnarySynth :: CGEnv -> CoreExpr -> CG SpecType
 consUnarySynth γ (Tick t e) = consUnarySynth (γ `setLocation` Sp.Tick t) e
-consUnarySynth γ (Var x) = return $ removeAbsRef $ traceWhenLoud ("SELFIFICATION " ++ F.showpp (x, t, selfify t x)) selfify t x
+consUnarySynth γ (Var x) = return $ traceWhenLoud ("SELFIFICATION " ++ F.showpp (x, removeAbsRef $ selfify t x)) removeAbsRef $ selfify t x
   where t = symbolType γ x "consUnarySynth (Var)"
 consUnarySynth _ e@(Lit c) =
   traceUSyn "Lit" e $ do
@@ -558,8 +585,8 @@ consUnarySynthApp γ (RAllT α t _) (Type s) = do
     return $ subsTyVarMeet' (ty_var_value α, s') t
 consUnarySynthApp _ RFun{} d =
   F.panic $ "consUnarySynthApp expected Var as a funciton arg, got " ++ F.showpp d
-consUnarySynthApp γ (RAllP p t) e
-  = consUnarySynthApp γ (forgetRAllP p t) e
+consUnarySynthApp γ t@(RAllP{}) e
+  = consUnarySynthApp γ (removeAbsRef t) e
 
 consUnarySynthApp _ ft d =
   F.panic $ "consUnarySynthApp malformed function type " ++ F.showpp ft ++
@@ -665,8 +692,7 @@ unRAllT (RAllT α2 ft2 r2) _ = (α2, ft2, r2)
 unRAllT t msg = F.panic $ msg ++ ": expected RAllT, got: " ++ F.showpp t
 
 forgetRAllP :: PVU RTyCon RTyVar -> SpecType -> SpecType
-forgetRAllP p t = replacePredsWithRefs su <$> t
-  where su = (uPVar p, pVartoRConc p)
+forgetRAllP _ t = t
 
 -- isCtor :: Ghc.DataCon -> F.Expr -> F.Expr
 -- isCtor d = F.EApp (F.EVar $ makeDataConChecker d)

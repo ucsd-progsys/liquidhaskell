@@ -1,4 +1,4 @@
-module Assump where
+module Axiom where
 
 foo :: Int -> Int
 foo x = x

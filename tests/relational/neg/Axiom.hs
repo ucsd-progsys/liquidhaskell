@@ -1,4 +1,5 @@
-module Assump where
+{-@ LIQUID "--expect-any-error" @-}
+module Axiom where
 
 foo :: Int -> Int
 foo x = x

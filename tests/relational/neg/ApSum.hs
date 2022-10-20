@@ -1,4 +1,5 @@
-module Fixme where
+{-@ LIQUID "--expect-any-error" @-}
+module ApSum where
 
 apsum :: Int -> Int -> Int
 apsum n a = if n <= 0 then a else a + n + apsum (n - 1) a

@@ -1,4 +1,5 @@
-module Fixme where
+{-@ LIQUID "--expect-any-error" @-}
+module CaseOnRec where
 
 data Parity = Even | Odd
 
