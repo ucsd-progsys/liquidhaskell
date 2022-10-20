@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# Return code
+rc=0
+
+# Test pos
+for f in tests/relational/pos/* 
+do 
+    echo 
+    echo $f 
+    if ! liquid $f --ple --reflection 
+    then 
+        rc=1
+    fi
+done
+
+# Test neg
+for f in tests/relational/neg/* 
+do 
+    echo
+    echo $f 
+    liquid $f --reflection --ple
+    if ! [[ $(liquid $f --reflection --ple) =~ "LIQUID: UNSAFE" ]]
+    then 
+        rc=1
+    fi
+done
+
+exit $rc

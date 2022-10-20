@@ -118,6 +118,7 @@ library
                       Language.Haskell.Liquid.Constraint.Split
                       Language.Haskell.Liquid.Constraint.ToFixpoint
                       Language.Haskell.Liquid.Constraint.Types
+                      Language.Haskell.Liquid.Constraint.Relational
                       Liquid.GHC.API
                       Liquid.GHC.API.StableModule
                       Liquid.GHC.GhcMonadLike

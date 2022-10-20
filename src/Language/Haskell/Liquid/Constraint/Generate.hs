@@ -52,6 +52,7 @@ import           Language.Haskell.Liquid.Constraint.Init
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Haskell.Liquid.Constraint.Monad
 import           Language.Haskell.Liquid.Constraint.Split
+import           Language.Haskell.Liquid.Constraint.Relational (consAssmRel, consRelTop)
 import           Language.Haskell.Liquid.Types.Dictionaries
 import           Liquid.GHC.Play          (isHoleVar)
 import qualified Liquid.GHC.Resugar           as Rs
@@ -88,7 +89,11 @@ consAct γ cfg info = do
   let sSpc = gsSig . giSpec $ info
   let gSrc = giSrc info
   when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs sSpc ++ gsAsmSigs sSpc))
-  foldM_ (consCBTop cfg info) γ (giCbs gSrc)
+  γ' <- foldM (consCBTop cfg info) γ (giCbs gSrc)
+  -- Relational Checking: the following only runs when the list of relational specs is not empty
+  (ψ, γ'') <- foldM (consAssmRel cfg info) ([], γ') (gsAsmRel sSpc ++ gsRelation sSpc)
+  mapM_ (consRelTop cfg info γ'' ψ) (gsRelation sSpc)
+  -- End: Relational Checking
   mapM_ (consClass γ) (gsMethods $ gsSig $ giSpec info)
   hcs <- gets hsCs
   hws <- gets hsWfs

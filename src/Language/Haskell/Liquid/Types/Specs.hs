@@ -234,6 +234,8 @@ data GhcSpecSig = SpSig
   , gsDicts    :: !(DEnv Var LocSpecType)            -- ^ Refined Classes from Instances 
   , gsMethods  :: ![(Var, MethodType LocSpecType)]   -- ^ Refined Classes from Classes 
   , gsTexprs   :: ![(Var, LocSpecType, [F.Located F.Expr])]  -- ^ Lexicographically ordered expressions for termination
+  , gsRelation :: ![(Var, Var, LocSpecType, LocSpecType, RelExpr, RelExpr)]
+  , gsAsmRel   :: ![(Var, Var, LocSpecType, LocSpecType, RelExpr, RelExpr)]
   }
 
 instance Semigroup GhcSpecSig where
@@ -246,7 +248,8 @@ instance Semigroup GhcSpecSig where
     , gsDicts    = gsDicts x    <> gsDicts y   
     , gsMethods  = gsMethods x  <> gsMethods y   
     , gsTexprs   = gsTexprs x   <> gsTexprs y   
-
+    , gsRelation = gsRelation x <> gsRelation y
+    , gsAsmRel   = gsAsmRel x   <> gsAsmRel y
     }
 
 
@@ -256,7 +259,7 @@ instance Semigroup GhcSpecSig where
 
 
 instance Monoid GhcSpecSig where
-  mempty = SpSig mempty mempty mempty mempty mempty mempty mempty mempty  
+  mempty = SpSig mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty  
 
 data GhcSpecData = SpData 
   { gsCtors      :: ![(Var, LocSpecType)]         -- ^ Data Constructor Measure Sigs
@@ -406,6 +409,8 @@ data Spec ty bndr  = Spec
   , imeasures  :: ![Measure ty bndr]              -- ^ Mappings from (measure,type) -> measure
   , classes    :: ![RClass ty]                    -- ^ Refined Type-Classes
   , claws      :: ![RClass ty]                    -- ^ Refined Type-Classe Laws
+  , relational :: ![(LocSymbol, LocSymbol, ty, ty, RelExpr, RelExpr)] -- ^ Relational types
+  , asmRel     :: ![(LocSymbol, LocSymbol, ty, ty, RelExpr, RelExpr)] -- ^ Assumed relational types
   , termexprs  :: ![(F.LocSymbol, [F.Located F.Expr])] -- ^ Terminating Conditions for functions
   , rinstance  :: ![RInstance ty]
   , ilaws      :: ![RILaws ty]
@@ -448,6 +453,8 @@ instance Semigroup (Spec ty bndr) where
            , imeasures  =           imeasures  s1 ++ imeasures  s2
            , classes    =           classes    s1 ++ classes    s2
            , claws      =           claws      s1 ++ claws      s2
+           , relational =           relational s1 ++ relational s2 
+           , asmRel     =           asmRel     s1 ++ asmRel     s2 
            , termexprs  =           termexprs  s1 ++ termexprs  s2
            , rinstance  =           rinstance  s1 ++ rinstance  s2
            , ilaws      =               ilaws  s1 ++ ilaws      s2 
@@ -508,7 +515,9 @@ instance Monoid (Spec ty bndr) where
            , cmeasures  = []
            , imeasures  = []
            , classes    = []
-           , claws      = [] 
+           , claws      = []
+           , relational = []  
+           , asmRel     = []  
            , termexprs  = []
            , rinstance  = []
            , ilaws      = [] 
@@ -837,6 +846,8 @@ unsafeFromLiftedSpec a = Spec
   , sigs       = S.toList . liftedSigs $ a
   , localSigs  = mempty
   , reflSigs   = mempty
+  , relational = mempty 
+  , asmRel     = mempty 
   , invariants = S.toList . liftedInvariants $ a
   , ialiases   = S.toList . liftedIaliases $ a
   , imports    = S.toList . liftedImports $ a

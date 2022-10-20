@@ -429,6 +429,12 @@ refDefP sym rp kindP' = braces $ do
 refP :: Parser (Reft -> BareType) -> Parser BareType
 refP = refBindBindP refaP
 
+relrefaP :: Parser RelExpr 
+relrefaP =
+  try (ERUnChecked <$> refaP <* (reserved "=>" <|> reserved "==>") <*> relrefaP)
+    <|> try (ERChecked <$> refaP <* reserved "!=>" <*> relrefaP)
+    <|> ERBasic <$> refaP
+
 -- "sym :" or return the devault sym
 optBindP :: Symbol -> Parser Symbol
 optBindP x = try bindP <|> return x
@@ -842,6 +848,8 @@ data Pspec ty ctor
   | Impt    Symbol                                        -- ^ 'import' a specification module
   | DDecl   DataDecl                                      -- ^ refined 'data'    declaration 
   | NTDecl  DataDecl                                      -- ^ refined 'newtype' declaration
+  | Relational (LocSymbol, LocSymbol, ty, ty, RelExpr, RelExpr) -- ^ relational signature
+  | AssmRel (LocSymbol, LocSymbol, ty, ty, RelExpr, RelExpr) -- ^ 'assume' relational signature
   | Class   (RClass ty)                                   -- ^ refined 'class' definition
   | CLaws   (RClass ty)                                   -- ^ 'class laws' definition
   | ILaws   (RILaws ty)
@@ -978,6 +986,16 @@ ppPspec k (Define  (lx, y))
   = "define" <+> pprintTidy k (val lx) <+> "=" <+> pprintTidy k y
 ppPspec _ ILaws{}
   = "TBD-INSTANCE-LAWS"
+ppPspec k (Relational (lxl, lxr, tl, tr, q, p))
+  = "relational" 
+        <+> pprintTidy k (val lxl) <+> "::" <+> pprintTidy k tl <+> "~" 
+        <+> pprintTidy k (val lxr) <+> "::" <+> pprintTidy k tr <+> "|" 
+        <+> pprintTidy k q <+> "=>" <+> pprintTidy k p
+ppPspec k (AssmRel (lxl, lxr, tl, tr, q, p))
+  = "assume relational" 
+        <+> pprintTidy k (val lxl) <+> "::" <+> pprintTidy k tl <+> "~" 
+        <+> pprintTidy k (val lxr) <+> "::" <+> pprintTidy k tr <+> "|" 
+        <+> pprintTidy k q <+> "=>" <+> pprintTidy k p
 
 
 -- | For debugging
@@ -1067,6 +1085,8 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
   , Measure.cmeasures  = [m | CMeas  m <- xs]
   , Measure.imeasures  = [m | IMeas  m <- xs]
   , Measure.classes    = [c | Class  c <- xs]
+  , Measure.relational = [r | Relational r <- xs]
+  , Measure.asmRel     = [r | AssmRel r <- xs]
   , Measure.claws      = [c | CLaws  c <- xs]
   , Measure.dvariance  = [v | Varia  v <- xs]
   , Measure.dsize      = [v | DSize  v <- xs]
@@ -1091,7 +1111,9 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
 -- | Parse a single top level liquid specification
 specP :: Parser BPspec
 specP
-  =     fallbackSpecP "assume"      (fmap Assm    tyBindP  )
+  =     fallbackSpecP "assume"      
+    ((reserved "relational" >>  fmap AssmRel relationalP)
+        <|>                           fmap Assm   tyBindP  )
     <|> fallbackSpecP "assert"      (fmap Asrt    tyBindP  )
     <|> fallbackSpecP "autosize"    (fmap ASize   asizeP   )
     <|> (reserved "local"         >> fmap LAsrt   tyBindP  )
@@ -1127,6 +1149,7 @@ specP
         <|> (reserved "size"      >> fmap DSize  dsizeP)
         <|> fmap DDecl  dataDeclP ))
     <|> (reserved "newtype"       >> fmap NTDecl dataDeclP )
+    <|> (reserved "relational"    >> fmap Relational relationalP )
     <|> (reserved "include"       >> fmap Incl   filePathP )
     <|> fallbackSpecP "invariant"   (fmap Invt   invariantP)
     <|> (reserved "using"          >> fmap Using invaliasP )
@@ -1557,6 +1580,20 @@ dataSizeP :: Parser (Maybe SizeFun)
 dataSizeP
   = brackets (Just . SymSizeFun <$> locLowerIdP)
   <|> return Nothing
+
+relationalP :: Parser (LocSymbol, LocSymbol, LocBareType, LocBareType, RelExpr, RelExpr)
+relationalP = do 
+   x <- locBinderP
+   reserved "~"
+   y <- locBinderP
+   reserved "::"
+   tx <- located genBareTypeP
+   reserved "~"
+   ty <- located genBareTypeP
+   reserved "~~"
+   assm <- try (relrefaP <* reserved "|-") <|> return (ERBasic PTrue)
+   ex <- relrefaP
+   return (x,y,tx,ty,assm,ex)
 
 dataDeclP :: Parser DataDecl
 dataDeclP = do
