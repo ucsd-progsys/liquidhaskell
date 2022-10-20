@@ -1,4 +1,5 @@
 {-@ LIQUID "--reflection"  @-}
+{-@ LIQUID "--ple"         @-}
 module Isort where
 
 import           Prelude                 hiding ( Applicative(..)
