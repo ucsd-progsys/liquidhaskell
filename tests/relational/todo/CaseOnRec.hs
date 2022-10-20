@@ -30,7 +30,7 @@ f n = case f (if n < 0 then n + 1 else n - 1) of
   Odd  -> Even
 
 {-@ relational isEven ~ isEven :: n1:_ -> _ ~ n2:_ -> _ 
-                     ~~ (n1 mod 2 = n2 mod 2) => (r1 n1 = r2 n2) @-}
+                     | (n1 mod 2 = n2 mod 2) => (r1 n1 = r2 n2) @-}
 
 isEven :: Int -> Bool
 isEven 0 = True
@@ -49,4 +49,4 @@ isEven n = if isEven n' then False else True
 
 
 {-@ relational isEven ~ isEven :: n1:_ -> _ ~ n2:_ -> _ 
-                     ~~ true => ((r1 n1 == r2 n2) <=> (n1 mod 2 = n2 mod 2)) @-}
+                     | true => ((r1 n1 == r2 n2) <=> (n1 mod 2 = n2 mod 2)) @-}

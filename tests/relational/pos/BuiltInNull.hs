@@ -7,4 +7,4 @@ null' _  = False
 
 {-@ relational null' ~ null' :: l1:_ -> _
                               ~ l2:_ -> _
-                             ~~ len l1 = len l2 => Fixme.null' l1 = Fixme.null' l2 @-}
+                             | len l1 = len l2 => Fixme.null' l1 = Fixme.null' l2 @-}

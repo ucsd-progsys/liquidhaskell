@@ -13,4 +13,4 @@ f g = g h
 
 {-@ relational f ~ f :: g1:(h1:(x1:Int -> Int) -> Int) -> Int 
                       ~ g2:(h2:(x2:Int -> Int) -> Int) -> Int 
-                     ~~ ((x1 < x2 => true) => r1 h1 < r2 h2) => r1 g1 < r2 g2 @-}
+                     | ((x1 < x2 => true) => r1 h1 < r2 h2) => r1 g1 < r2 g2 @-}

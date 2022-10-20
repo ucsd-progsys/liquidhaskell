@@ -36,18 +36,18 @@ lip = 10
 
 {-@ relational update ~ update :: z1:DataPoint -> ws1:[Weight] -> α1:StepSize -> {v:[Weight]|len v = len ws1}
                                 ~ z2:DataPoint -> ws2:[Weight] -> α2:StepSize -> {v:[Weight]|len v = len ws2}
-                               ~~ z1 = z2 => true => true => 
+                               | z1 = z2 => true => true => 
                                     dist (r1 z1 ws1 α1) (r2 z2 ws2 α2) <= 
                                       dist ws1 ws2 @-}
     
 {-@ relational update ~ update :: z1:DataPoint -> ws1:[Weight] -> α1:StepSize -> {v:[Weight]|len v = len ws1}
                                 ~ z2:DataPoint -> ws2:[Weight] -> α2:StepSize -> {v:[Weight]|len v = len ws2}
-                               ~~ true => true => true => 
+                               | true => true => true => 
                                     dist (r1 z1 ws1 α1) (r2 z2 ws2 α2) <=
                                       dist ws1 ws2 + 2.0 @-}
 
 {-@ relational gd ~ gd :: zs1:[DataPoint] -> ws1:[Weight] -> α1:StepSize -> {v:[Weight]|len v == len ws1} 
                         ~ zs2:[DataPoint] -> ws2:[Weight] -> α2:StepSize -> {v:[Weight]|len v == len ws2}
-                       ~~ len zs1 = len zs2 => true => true =>
+                       | len zs1 = len zs2 => true => true =>
                               dist (r1 zs1 ws1 α1) (r2 zs2 ws2 α2) <= 
                                   dist ws1 ws2 + 2.0 * GD.diff zs1 zs2 @-}

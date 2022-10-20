@@ -30,7 +30,7 @@ compMap f g (x : xs) = step 1 $ liftA2 cons (g fx) (compMap f g xs)
 
 {-@ relational seqMap ~ compMap :: f1:(Int -> Tick Int) -> g1:(Int -> Tick Int) -> xs1:[Int] -> {v:Tick [Int]|v = mapM f1 xs1 >>= mapM g1}
                                  ~ f2:(Int -> Tick Int) -> g2:(Int -> Tick Int) -> xs2:[Int] -> {v:Tick [Int]|v = mapM (f2 >=> g2) xs2}
-                                ~~ f1 = f2 => g1 = g2 => xs1 = xs2 => 
+                                | f1 = f2 => g1 = g2 => xs1 = xs2 => 
                                     MapFusion.tcost (r1 f1 g1 xs1) = len xs1 + MapFusion.tcost (r2 f2 g2 xs2) &&
                                       MapFusion.tval (r1 f1 g1 xs1) = MapFusion.tval (r2 f2 g2 xs2) @-}
 

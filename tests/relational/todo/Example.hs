@@ -3,7 +3,7 @@ foo a = if a then 0 else 2
 bar b = if b then 1 else 3
 
 {-@ relational foo ~ bar :: x1:Bool -> Int ~ x2:Bool -> Int
-                         ~~ x1 == x2 => r1 x1 < r2 x2 @-}
+                         | x1 == x2 => r1 x1 < r2 x2 @-}
 
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
@@ -36,7 +36,7 @@ III. not (isEven (if n < 0 then n + 1 else n - 1)) ~ not (isEven (if m < 0 then 
 -}
 
 {-@ relational isEven ~ isEven :: n:Int -> Bool ~ m:Int -> Bool
-                               ~~ n mod 2 /= m mod 2 => r1 n /= r2 m @-}
+                               | n mod 2 /= m mod 2 => r1 n /= r2 m @-}
 isEven_isEven :: Int -> Int -> ()
 isEven_isEven _ _ = ()
 
@@ -53,7 +53,7 @@ theorem n m = theorem n' m'
   m' = if m < 0 then m + 1 else m - 1
 
 {- isEven :: n:A -> B @-}
-{- isEven :: n:A' -> B' ~ n:A' -> B' ~~ n mod 2 = m mod 2 => false @-}
+{- isEven :: n:A' -> B' ~ n:A' -> B' | n mod 2 = m mod 2 => false @-}
 
 {- emp |- A <: A'
    A  |- B' <: B -}

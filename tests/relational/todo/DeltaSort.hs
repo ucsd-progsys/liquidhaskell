@@ -13,7 +13,7 @@ delta [] [] = 0
 delta (x:xs) (y:ys) = max (abs (x - y)) (delta xs ys)
 
 {-@ relational sort ~ sort :: xs:[Int] -> [Int] ~ ys:[Int] -> [Int]
-                           ~~ true => DeltaSort.delta xs ys >= DeltaSort.delta (r1 xs) (r2 ys) @-}
+                           | true => DeltaSort.delta xs ys >= DeltaSort.delta (r1 xs) (r2 ys) @-}
 
 ---------------------
 ------- Utils -------

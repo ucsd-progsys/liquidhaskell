@@ -44,21 +44,21 @@ gPrefix g xs ys = prefix (map g xs) ys
 
 {-@ relational take ~ map :: n:Int -> xs:[Int] -> [Int]
                            ~ g:(Int -> Int) -> ys:[Int] -> [Int]
-                          ~~ true => xs = ys => 
+                          | true => xs = ys => 
                               TakeMap.gPrefix g (r1 n xs) (r2 g ys) &&
                                 len (r1 n xs) = TakeMap.min n (len xs) &&
                                   len (r2 g ys) = len ys @-}
 
 {-@ relational map ~ take :: g:(Int -> Int) -> xs:[Int] -> [Int]
                            ~ n:Int -> ys:[Int] -> [Int]
-                          ~~ true => TakeMap.gPrefix g xs ys && n >= len xs => 
+                          | true => TakeMap.gPrefix g xs ys && n >= len xs => 
                               TakeMap.prefix (r1 g xs) (r2 n ys) &&
                                 len (r1 g xs) = len xs &&
                                   len (r2 n ys) = TakeMap.min n (len ys) @-}
 
 {-@ relational mapTake ~ takeMap 
       :: n1:Int -> g1:(Int -> Int) -> l1:[Int] -> [Int] ~ n2:Int -> g2:(Int -> Int) -> l2:[Int] -> [Int]
-      ~~ n1 = n2 => g1 = g2 => l1 = l2 => 
+      | n1 = n2 => g1 = g2 => l1 = l2 => 
           TakeMap.prefix (r1 n1 g1 l1) (r2 n2 g2 l2) && 
             len (r1 n1 g1 l1) = TakeMap.min n1 (len l1) &&
               len (r2 n2 g2 l2) = TakeMap.min n2 (len l2) @-}

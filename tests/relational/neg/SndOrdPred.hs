@@ -2,20 +2,20 @@
 module SndOrdPred where
 
 {-@ assume relational foo ~ foo :: x1:_ -> _ ~ x2:_ -> _ 
-                         ~~ x1 < x2 => r1 < r2 @-}
+                         | x1 < x2 => r1 < r2 @-}
 -- x1 < x2 => r1 x1 > r2 x2
 foo :: Int -> Int
 foo x = x
 
 {-@ assume relational bar ~ bar :: f1:(x1':_ -> _) -> x1:_ -> _ 
                           ~ f2:(x2':_ -> _) -> x2:_ -> _ 
-                         ~~ (x1' < x2' => r1 < r2) => x1 < x2 => r1 f1 x1 < r2 f2 x2 @-}
+                         | (x1' < x2' => r1 < r2) => x1 < x2 => r1 f1 x1 < r2 f2 x2 @-}
 bar :: (Int -> Int) -> Int -> Int
 bar f x = f (x + 1)
 
 {-@ assume relational bar' ~ bar' :: x1:_ -> f1:(x1':_ -> _) -> _ 
                           ~ x2:_ -> f2:(x2':_ -> _) -> _ 
-                         ~~ x1 < x2 => (x1' < x2' => r1 < r2) => r1 x1 f1 < r2 x2 f2 @-}
+                         | x1 < x2 => (x1' < x2' => r1 < r2) => r1 x1 f1 < r2 x2 f2 @-}
 bar' :: Int -> (Int -> Int) -> Int
 bar' x f = f (x + 1)
 
@@ -37,7 +37,7 @@ bar' x f = f (x + 1)
  ------------------------------------------------------------------------------
  bar (-1) x ~ bar (-1) x | true (chk) -}
 
-{-@  relational baz ~ baz :: x1:Int -> Int ~ x2:Int -> Int ~~ true => true @-}
+{-@  relational baz ~ baz :: x1:Int -> Int ~ x2:Int -> Int | true => true @-}
 baz :: Int -> Int
 baz x = bar' x foo 
 

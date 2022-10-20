@@ -1590,7 +1590,7 @@ relationalP = do
    tx <- located genBareTypeP
    reserved "~"
    ty <- located genBareTypeP
-   reserved "~~"
+   reserved "|"
    assm <- try (relrefaP <* reserved "|-") <|> return (ERBasic PTrue)
    ex <- relrefaP
    return (x,y,tx,ty,assm,ex)

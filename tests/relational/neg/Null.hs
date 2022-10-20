@@ -11,4 +11,4 @@ null Nil = True
 null _   = False
 
 {-@ relational null ~ null :: l1:List Int -> Bool ~ l2:List Int -> Bool 
-                          ~~ true => r1 l1 == r2 l2 @-}
+                          | true => r1 l1 == r2 l2 @-}

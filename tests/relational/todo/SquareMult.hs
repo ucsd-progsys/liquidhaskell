@@ -18,4 +18,4 @@ sam x (I : bs) =
   let (SqMul s m r) = sam x bs in SqMul (1 + s) (1 + m) (x * r * r)
 
 {-@ relational sam ~ sam :: x1:_ -> p1:_ -> _ ~ x2:_ -> p2:_ -> _
-                         ~~ true => true => (len p1 == 0) @-}
+                         | true => true => (len p1 == 0) @-}

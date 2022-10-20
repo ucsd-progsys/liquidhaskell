@@ -11,4 +11,4 @@ bar A = 1
 bar _ = 3
 
 {-@ relational foo ~ bar :: x1:D -> Int ~ x2:D -> Int
-                         ~~ x1 == x2 => r1 x1 < r2 x2 @-}
+                         | x1 == x2 => r1 x1 < r2 x2 @-}

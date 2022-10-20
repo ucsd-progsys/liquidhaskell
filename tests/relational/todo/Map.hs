@@ -14,4 +14,4 @@ map _ [] = []
 map f (x:xs) = f x : map f xs
 
 {-@ relational map ~ map :: f1:(x1:_ -> _) -> xs1:_ -> _ ~ f2:(x2:_ -> _) -> xs2:_ -> _ 
-                         ~~ true => len xs1 = len xs2 && f1 = f2 => Fixme.diff xs1 xs2 >= Fixme.diff (r1 f1 xs1) (r2 f2 xs2) @-}
+                         | true => len xs1 = len xs2 && f1 = f2 => Fixme.diff xs1 xs2 >= Fixme.diff (r1 f1 xs1) (r2 f2 xs2) @-}

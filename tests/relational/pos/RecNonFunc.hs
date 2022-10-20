@@ -7,4 +7,4 @@ r :: Int
 r = 1 + r
 
 {-@ relational r ~ r :: _ ~ _ 
-                     ~~ r1 == r2 @-}
+                     | r1 == r2 @-}

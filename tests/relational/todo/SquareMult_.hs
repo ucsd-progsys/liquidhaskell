@@ -18,7 +18,7 @@ sam x (I : bs) =
   let (SqMul s m r) = sam x bs in SqMul (1 + s) (1 + m) (x * r * r)
 
 {-@ relational sam ~ sam :: x1:_ -> p1:_ -> _ ~ x2:_ -> p2:_ -> _
-                         ~~ true => len p1 == len p2 => 
+                         | true => len p1 == len p2 => 
                          Fixme.weight p1 - Fixme.weight p2 == 
                            Fixme.mul (r1 x1 p1) - Fixme.mul (r2 x2 p2) 
                            && Fixme.sq (r1 x1 p1) == Fixme.sq (r2 x2 p2) @-}

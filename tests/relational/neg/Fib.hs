@@ -16,7 +16,7 @@ leq _     Z     = False
 leq (S n) (S m) = leq n m
 
 {-@ relational fib ~ fib :: n1:_ -> _ ~ n2:_ -> _ 
-                         ~~ Fixme.leq n1 n2 => r1 < r2 @-}
+                         | Fixme.leq n1 n2 => r1 < r2 @-}
 
 
 

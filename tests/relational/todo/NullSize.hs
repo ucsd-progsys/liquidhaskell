@@ -22,4 +22,4 @@ null _   = False
 
 {-@ relational null ~ null :: l1:List Int -> Bool 
                             ~ l2:List Int -> Bool 
-                           ~~ (Fixme.size l1 == Fixme.size l2) => ((r1 l1) <=> (r2 l2)) @-} 
+                           | (Fixme.size l1 == Fixme.size l2) => ((r1 l1) <=> (r2 l2)) @-} 

@@ -36,7 +36,7 @@ isort (x : xs) = step t $ insert x xs'
 
 {-@ relational isort ~ isort :: xs1:[Int] -> Tick [Int]
                               ~ xs2:[Int] -> Tick [Int]
-                             ~~ Isort.sorted xs1 && len xs1 = len xs2 => 
+                             | Isort.sorted xs1 && len xs1 = len xs2 => 
                                   Isort.tcost (r1 xs1) <= Isort.tcost (r2 xs2) @-}
 
 -- Axiomatization

@@ -46,12 +46,12 @@ filter' k pred (Cons el els)
 {-@ relational filter' ~ filter' ::
       k1:Double -> f1:(Int -> Bool) -> xs1:List Int -> List Int ~
       k2:Double -> f2:(Int -> Bool) -> xs2:List Int -> List Int
-         ~~ k1 = k2 => true => f1 = f2 && Filter.lenList xs1 = Filter.lenList xs2 => true @-}
+         | k1 = k2 => true => f1 = f2 && Filter.lenList xs1 = Filter.lenList xs2 => true @-}
 
 {- relational filter' ~ filter' ::
                         k1:Double -> f1:(x1:Int -> Bool) -> xs1:List Int -> List Int ~
                         k2:Double -> f2:(x2:Int -> Bool) -> xs2:List Int -> List Int
-                         ~~ k1 = k2 => (true => d x1 x2 <= k1) => lenList xs1 = lenList xs2
+                         | k1 = k2 => (true => d x1 x2 <= k1) => lenList xs1 = lenList xs2
                             => d (r1 f1 xs1) (r2 f2 xs2)
                                      <= diff xs1 xs2 * k1 @-}
 
@@ -61,7 +61,7 @@ add :: Int -> Int -> Int
 add x y = x + y
 {-@ relational add ~ add :: x1:Int -> y1:Int -> Int ~
                             x2:Int -> y2:Int -> Int
-                         ~~ x1 == x2 => y1 == y2 =>
+                         | x1 == x2 => y1 == y2 =>
                             r1 x1 y1 == r2 x2 y2 @-}
 
 abs :: Int -> Int
@@ -69,5 +69,5 @@ abs x = if x < 0 then -x else x
 
 {-@ relational abs ~ abs :: x1:Int -> Int ~
                             x2:Int -> Int
-                         ~~ 0 <= x1 && x1 < x2 =>
+                         | 0 <= x1 && x1 < x2 =>
                             r1 x1 < r2 x2 @-}

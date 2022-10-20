@@ -68,5 +68,5 @@ countT []           = 0
 countT (True  : xs) = 1 + countT xs
 countT (False : xs) = countT xs
 
-{-@ relational foo ~ foo :: xs1:_ -> n1:_ -> _ ~ xs2:_ -> n2:_ -> _ ~~ 
+{-@ relational foo ~ foo :: xs1:_ -> n1:_ -> _ ~ xs2:_ -> n2:_ -> _ | 
                             xs1 = xs2 => true => r1 xs1 n1 - r2 xs2 n2 = n1 - n2 @-}

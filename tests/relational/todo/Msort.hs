@@ -16,7 +16,7 @@ bsplit = undefined
 merge :: [Int] -> [Int] -> Tick [Int]
 merge = undefined
 
-{-@ relational msort ~ msort :: xs1:_ -> _ ~ xs2:_ -> _ ~~ diff xs1 xs2  @-}
+{-@ relational msort ~ msort :: xs1:_ -> _ ~ xs2:_ -> _ | diff xs1 xs2  @-}
 msort :: [Int] -> Tick [Int]
 msort [] = T [] 0
 msort [x] = T [x] 1
