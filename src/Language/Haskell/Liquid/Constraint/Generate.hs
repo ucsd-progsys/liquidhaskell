@@ -90,8 +90,10 @@ consAct γ cfg info = do
   let gSrc = giSrc info
   when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs sSpc ++ gsAsmSigs sSpc))
   γ' <- foldM (consCBTop cfg info) γ (giCbs gSrc)
+  -- Relational Checking: the following only runs when the list of relational specs is not empty
   (ψ, γ'') <- foldM (consAssmRel cfg info) ([], γ') (gsAsmRel sSpc ++ gsRelation sSpc)
   mapM_ (consRelTop cfg info γ'' ψ) (gsRelation sSpc)
+  -- End: Relational Checking
   mapM_ (consClass γ) (gsMethods $ gsSig $ giSpec info)
   hcs <- gets hsCs
   hws <- gets hsWfs
