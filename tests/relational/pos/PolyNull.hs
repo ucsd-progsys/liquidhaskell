@@ -15,6 +15,6 @@ null :: List a -> Bool
 null Nil = True
 null _   = False
 
-{-@ relational null ~ null :: l1:List a -> Bool 
+{-@ relational null ~ null :: { l1:List a -> Bool 
                             ~ l2:List b -> Bool 
-                           | Fixme.size l1 == Fixme.size l2 ==> r1 l1 == r2 l2 @-}
+                           | Fixme.size l1 == Fixme.size l2 ==> r1 l1 == r2 l2 } @-}

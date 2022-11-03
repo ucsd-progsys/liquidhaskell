@@ -31,18 +31,17 @@ data Split = S { l :: [Int], r :: [Int] }
 --   let T (S ls rs) t = bsplit xs in T (S (x : ls) (y : rs)) (t + 2)
 
 -- {-@ relational bsplit ~ bsplit :: xs1:_ -> _ ~ xs2:_ -> _
---                                | true => Fixme.diff xs1 xs2 == 
+--                                | true :=> Fixme.diff xs1 xs2 == 
 --                                              Fixme.diff (Fixme.l (Fixme.res (r1 xs1))) ((Fixme.l (Fixme.res (r2 xs2))))
 --                                                 + Fixme.diff (Fixme.r (Fixme.res (r1 xs1))) (Fixme.r (Fixme.res (r2 xs2))) @-}
 
 bsplit' :: [Int] -> Split
-bsplit' []  = S [] []
-bsplit' [x] = S [x] []
-bsplit' (x : y : xs) =
-  let S ls rs = bsplit' xs in S (x : ls) (y : rs)
+bsplit' []           = S [] []
+bsplit' [x         ] = S [x] []
+bsplit' (x : y : xs) = let S ls rs = bsplit' xs in S (x : ls) (y : rs)
 
-{-@ relational bsplit' ~ bsplit' :: xs1:_ -> _ ~ xs2:_ -> _
-                               | true => Fixme.diff xs1 xs2 == 
+{-@ relational bsplit' ~ bsplit' :: {xs1:_ -> _ ~ xs2:_ -> _
+                               | true :=> Fixme.diff xs1 xs2 == 
                                              Fixme.diff (Fixme.l ((r1 xs1))) ((Fixme.l ((r2 xs2))))
-                                                + Fixme.diff (Fixme.r ((r1 xs1))) (Fixme.r ((r2 xs2))) @-}
+                                                + Fixme.diff (Fixme.r ((r1 xs1))) (Fixme.r ((r2 xs2)))} @-}
 

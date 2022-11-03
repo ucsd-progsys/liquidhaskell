@@ -29,24 +29,24 @@ f n = case f (if n < 0 then n + 1 else n - 1) of
   Even -> Odd
   Odd  -> Even
 
-{-@ relational isEven ~ isEven :: n1:_ -> _ ~ n2:_ -> _ 
-                     | (n1 mod 2 = n2 mod 2) => (r1 n1 = r2 n2) @-}
+{-@ relational isEven ~ isEven :: {n1:_ -> _ ~ n2:_ -> _ 
+                     | (n1 mod 2 = n2 mod 2) :=> (r1 n1 = r2 n2)} @-}
 
 isEven :: Int -> Bool
 isEven 0 = True
 isEven n = if isEven n' then False else True
-    where n' = if n < 0 then n + 1 else n - 1
+  where n' = if n < 0 then n + 1 else n - 1
 
 -- if isEven n' then False else True ~ if isEven n' then False else True
 
 -- Asynch:
--- I. isEven n1' = True, isEven n2' = True |- False ~ False | (n1 mod 2 = n2 mod 2) => (r1 = r2)
--- II. isEven n1' = True, isEven n2' = False |- False ~ True | (n1 mod 2 = n2 mod 2) => (r1 = r2)
+-- I. isEven n1' = True, isEven n2' = True |- False ~ False | (n1 mod 2 = n2 mod 2) :=> (r1 = r2)
+-- II. isEven n1' = True, isEven n2' = False |- False ~ True | (n1 mod 2 = n2 mod 2) :=> (r1 = r2)
 
--- isEven n1' ~ isEven n2' | (n1' mod 2 = n2' mod 2) => (r1 = r2)
+-- isEven n1' ~ isEven n2' | (n1' mod 2 = n2' mod 2) :=> (r1 = r2)
 
 -- isEven n1' ~ isEven n2' | r1 = r2
 
 
-{-@ relational isEven ~ isEven :: n1:_ -> _ ~ n2:_ -> _ 
-                     | true => ((r1 n1 == r2 n2) <=> (n1 mod 2 = n2 mod 2)) @-}
+{-@ relational isEven ~ isEven :: {n1:_ -> _ ~ n2:_ -> _ 
+                     | true :=> ((r1 n1 == r2 n2) <=> (n1 mod 2 = n2 mod 2))} @-}

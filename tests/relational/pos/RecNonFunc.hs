@@ -6,5 +6,5 @@ module Fixme where
 r :: Int
 r = 1 + r
 
-{-@ relational r ~ r :: _ ~ _ 
-                     | r1 == r2 @-}
+{-@ relational r ~ r :: { _ ~ _ 
+                     | r1 == r2 } @-}

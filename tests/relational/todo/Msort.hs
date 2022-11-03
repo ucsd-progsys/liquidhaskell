@@ -16,7 +16,7 @@ bsplit = undefined
 merge :: [Int] -> [Int] -> Tick [Int]
 merge = undefined
 
-{-@ relational msort ~ msort :: xs1:_ -> _ ~ xs2:_ -> _ | diff xs1 xs2  @-}
+{-@ relational msort ~ msort :: {xs1:_ -> _ ~ xs2:_ -> _ | diff xs1 xs2 } @-}
 msort :: [Int] -> Tick [Int]
 msort [] = T [] 0
 msort [x] = T [x] 1
@@ -27,10 +27,10 @@ msort xs@(_:_:_) = T xs' (tsplit + tmerge)
         
 {-
 fix msort(z). lam f. Lam. Lam. lam l. caseL l of 
-   nil   => nil
- | h::tl => caseL tl of 
-   	    nil     => h::nil
-	  | h'::tl' => let r = bsplit () [] [] l in
+   nil   :=> nil
+ | h::tl :=> caseL tl of 
+   	    nil     :=> h::nil
+	  | h'::tl' :=> let r = bsplit () [] [] l in
 	    	       unpack r as y in
 		       clet y as x in
 		       let r1 = (msort () f [] [] (fst x)) in
@@ -38,7 +38,7 @@ fix msort(z). lam f. Lam. Lam. lam l. caseL l of
 	  	       merge () f [] [] r1 r2
 
 <= 0 : 
-B (unitR => (B (U ((int X int) [max,0]-> bool, (int X int) [min,0]-> bool))) =>
+B (unitR :=> (B (U ((int X int) [max,0]-> bool, (int X int) [min,0]-> bool))) :=>
 forall i; alpha.
 (list [i, alpha] U int) [diff, sum(minpowlin (alpha, i), {0, cl(log (i))})] -> U (list [i] int)
 )

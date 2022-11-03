@@ -1,4 +1,4 @@
-module Fixme where 
+module Fixme where
 
 data Bit = O | I
 
@@ -17,5 +17,5 @@ sam x (O : bs) = let (SqMul s m r) = sam x bs in SqMul (1 + s) m (r * r)
 sam x (I : bs) =
   let (SqMul s m r) = sam x bs in SqMul (1 + s) (1 + m) (x * r * r)
 
-{-@ relational sam ~ sam :: x1:_ -> p1:_ -> _ ~ x2:_ -> p2:_ -> _
-                         | true => true => (len p1 == 0) @-}
+{-@ relational sam ~ sam :: {x1:_ -> p1:_ -> _ ~ x2:_ -> p2:_ -> _
+                         | true :=> true :=> (len p1 == 0)} @-}

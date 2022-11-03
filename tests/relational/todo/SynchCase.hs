@@ -9,7 +9,7 @@ y = 0
 foo :: Int -> Bool
 foo x = if x == 0 then True else False
 
-{-@ relational foo ~ foo :: x:_ -> _ ~ y:_ -> _ | x = y => r1 x = r2 y @-}
+{-@ relational foo ~ foo :: {x:_ -> _ ~ y:_ -> _ | x = y :=> r1 x = r2 y} @-}
 
 foox, fooy :: Bool
 foox = foo x

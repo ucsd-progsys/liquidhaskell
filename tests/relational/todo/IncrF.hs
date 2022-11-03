@@ -14,5 +14,5 @@ incrf x = let tmp = \f -> add (f x) 1 in tmp incr
 {-@ type Pos = {v:Int|v > 0} @-}
 
 {-@ relational incrf ~ incrf 
-        :: x1:Nat -> Pos ~ x2:Nat -> Pos
-        | x1 == x2 => r1 x1 == r2 x2      @-}
+        :: {x1:Nat -> Pos ~ x2:Nat -> Pos
+        | x1 == x2 :=> r1 x1 == r2 x2 }     @-}

@@ -14,5 +14,5 @@ null' :: List Int -> Bool
 null' (Cons _ _)   = False
 null' Nil = True
 
-{-@ relational null' ~ null :: l1:List Int -> Bool ~ l2:List Int -> Bool 
-                            | l1 == l2 ==> r1 l1 == r2 l2 @-}
+{-@ relational null' ~ null :: { l1:List Int -> Bool ~ l2:List Int -> Bool 
+                            | l1 == l2 ==> r1 l1 == r2 l2 } @-}

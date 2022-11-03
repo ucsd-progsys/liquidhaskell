@@ -13,4 +13,4 @@ nullInt, nullBool :: Bool
 nullInt = null (Cons () Nil)
 nullBool = null (Cons True Nil)
 
-{-@ relational nullInt ~ nullBool :: _ ~ _ | r1 == r2 @-}
+{-@ relational nullInt ~ nullBool :: { _ ~ _ | r1 == r2 } @-}

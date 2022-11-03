@@ -1,19 +1,21 @@
 module DeltaSort where
 
-import Prelude hiding (abs, max)
+import           Prelude                 hiding ( abs
+                                                , max
+                                                )
 
 sort :: [Int] -> [Int]
-sort [] = []
-sort (x:xs) = sort (filter (< x) xs) ++ [x] ++ sort (filter (>= x) xs)
+sort []       = []
+sort (x : xs) = sort (filter (< x) xs) ++ [x] ++ sort (filter (>= x) xs)
 
 {-@ reflect delta @-}
 {-@ delta :: xs:[Int] -> {ys:[Int]|len ys = len xs} -> Int @-}
 delta :: [Int] -> [Int] -> Int
-delta [] [] = 0
-delta (x:xs) (y:ys) = max (abs (x - y)) (delta xs ys)
+delta []       []       = 0
+delta (x : xs) (y : ys) = max (abs (x - y)) (delta xs ys)
 
-{-@ relational sort ~ sort :: xs:[Int] -> [Int] ~ ys:[Int] -> [Int]
-                           | true => DeltaSort.delta xs ys >= DeltaSort.delta (r1 xs) (r2 ys) @-}
+{-@ relational sort ~ sort :: {xs:[Int] -> [Int] ~ ys:[Int] -> [Int]
+                           | true :=> DeltaSort.delta xs ys >= DeltaSort.delta (r1 xs) (r2 ys)} @-}
 
 ---------------------
 ------- Utils -------
