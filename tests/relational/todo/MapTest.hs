@@ -8,7 +8,7 @@ data List a = Nil | Cons a (List a) deriving Eq
 {-@ lenList :: List a -> Int @-}
 lenList :: List a -> Int
 lenList Nil         = 0
-lenList (Cons _ xs) = 1 + (lenList xs)
+lenList (Cons _ xs) = 1 + lenList xs
 
 {-@ reflect diff @-}
 {-@ diff :: xs:List Int -> ys:{List Int|lenList ys == lenList xs} -> Int @-}

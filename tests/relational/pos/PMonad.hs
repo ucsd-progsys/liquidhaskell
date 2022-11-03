@@ -58,6 +58,8 @@ foo _ x = ppure x
 foo (α : a) x =
   if α then pbind (ppure (upd x α)) (foo a) else qbind (ppure (upd x α)) (foo a)
 
+{- HLINT ignore "Use foldr" -}
+
 {-@ reflect all @-}
 {-@ all :: xs:[Bool] -> Bool @-}
 all :: [Bool] -> Bool

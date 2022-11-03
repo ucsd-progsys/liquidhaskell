@@ -3,6 +3,8 @@ module AssumeRelational where
 update :: Int -> Int -> Int
 update _ _ = 0
 
+{- HLINT ignore "Use foldl" -}
+
 updates :: [Int] -> Int -> Int
 updates []       w = w
 updates (z : zs) w = updates zs (update z w)

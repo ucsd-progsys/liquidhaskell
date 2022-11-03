@@ -2,6 +2,8 @@ module Fixme where
 
 data N = Z | S N
 
+{- HLINT ignore "Use lambda-case" -}
+
 {-@ fib :: N -> { v:Int | v >= 1 } @-}
 fib :: N -> Int
 fib =

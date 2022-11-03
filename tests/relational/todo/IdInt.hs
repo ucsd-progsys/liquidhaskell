@@ -1,4 +1,4 @@
-i :: (Num a) :=> a -> a
+i :: Num a => a -> a
 i x = x
 
 j :: Int -> Int

@@ -45,6 +45,8 @@ mapFusion f g (_ : xs) = mapFusion f g xs
 
 -- Data.Lists
 
+{- HLINT ignore "Use foldr" -}
+
 {-@ measure length @-}
 {-@ length :: [a] -> Nat @-}
 length :: [a] -> Int

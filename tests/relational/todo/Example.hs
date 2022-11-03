@@ -13,7 +13,7 @@ bar b = if b then 1 else 3
 {-@ isEven :: n:Int -> {v:Bool|(v <=> n mod 2 = 0)} / [if n >= 0 then n else -n] @-}
 isEven :: Int -> Bool
 isEven 0 = True
-isEven n = if (isEven (if n < 0 then n + 1 else n - 1)) then False else True
+isEven n = if isEven (if n < 0 then n + 1 else n - 1) then False else True
 
 {-
 isEven ~ isEven | n mod 2 /= m mod 2 :=> r1 n /= r2 m
@@ -34,6 +34,8 @@ III. not (isEven (if n < 0 then n + 1 else n - 1)) ~ not (isEven (if m < 0 then 
          c) isEven (if n < 0 then n + 1 else n - 1) ~ isEven (if m < 0 then m + 1 else m - 1) 
                | n' mod 2 /= m' mod 2 :=> isEven n' /= isEven m'
 -}
+
+{- HLINT ignore "Use camelCase" -}
 
 {-@ relational isEven ~ isEven :: {n:Int -> Bool ~ m:Int -> Bool
                                | n mod 2 /= m mod 2 :=> r1 n /= r2 m} @-}

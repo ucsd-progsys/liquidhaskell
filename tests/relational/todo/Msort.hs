@@ -23,7 +23,7 @@ msort [x] = T [x] 1
 msort xs@(_:_:_) = T xs' (tsplit + tmerge)
     where 
 		T (S ls rs) tsplit = bsplit xs
-		T xs' tmerge = merge (msort ls) (msort rs)) 0
+		T xs' tmerge = merge (msort ls) (msort rs) 0
         
 {-
 fix msort(z). lam f. Lam. Lam. lam l. caseL l of 
