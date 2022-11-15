@@ -42,7 +42,6 @@ library
                       Language.Stitch.LH.Check
                       -- Language.Stitch.LH.CSE
                       Language.Stitch.LH.Data.List
-                      Language.Stitch.LH.Data.Map
                       Language.Stitch.LH.Eval
                       Language.Stitch.LH.Lex
                       Language.Stitch.LH.Monad
