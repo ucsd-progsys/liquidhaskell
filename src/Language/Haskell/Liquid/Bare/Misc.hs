@@ -1,6 +1,5 @@
 {-# LANGUAGE FlexibleContexts         #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.Haskell.Liquid.Bare.Misc
   ( joinVar
@@ -167,7 +166,7 @@ mapTyRVar α a s@(MTVST αas err)
       Nothing             -> return $ MTVST ((α,a):αas) err
 
 matchKindArgs' :: [Type] -> [SpecType] -> [SpecType]
-matchKindArgs' ts1 ts2 = reverse $ go (reverse ts1) (reverse ts2)
+matchKindArgs' ts1' = reverse . go (reverse ts1') . reverse
   where
     go (_:ts1) (t2:ts2) = t2:go ts1 ts2
     go ts      []       | all isKind ts
@@ -176,7 +175,7 @@ matchKindArgs' ts1 ts2 = reverse $ go (reverse ts1) (reverse ts2)
 
 
 matchKindArgs :: [SpecType] -> [SpecType] -> [SpecType]
-matchKindArgs ts1 ts2 = reverse $ go (reverse ts1) (reverse ts2)
+matchKindArgs ts1' = reverse . go (reverse ts1') . reverse
   where
     go (_:ts1) (t2:ts2) = t2:go ts1 ts2
     go ts      []       = ts
