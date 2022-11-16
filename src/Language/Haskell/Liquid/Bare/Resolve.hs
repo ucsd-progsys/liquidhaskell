@@ -11,8 +11,6 @@
 {-# LANGUAGE ConstraintKinds       #-}
 {-# LANGUAGE TupleSections         #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Haskell.Liquid.Bare.Resolve
   ( -- * Creating the Environment
     makeEnv
@@ -125,8 +123,8 @@ localBinds                    = concatMap (bgo S.empty)
   where
     add  x g                  = maybe g (`S.insert` g) (localKey x)
     adds b g                  = foldr add g (Ghc.bindersOf b)
-    take x g                  = maybe [] (\k -> [x | not (S.member k g)]) (localKey x)
-    pgo g (x, e)              = take x g ++ go (add x g) e
+    take' x g                 = maybe [] (\k -> [x | not (S.member k g)]) (localKey x)
+    pgo g (x, e)              = take' x g ++ go (add x g) e
     bgo g (Ghc.NonRec x e)    = pgo g (x, e)
     bgo g (Ghc.Rec xes)       = concatMap (pgo g) xes
     go  g (Ghc.App e a)       = concatMap (go  g) [e, a]
@@ -640,16 +638,16 @@ rankedThings f ias = case Misc.sortOn fst (Misc.groupList ibs) of
 -------------------------------------------------------------------------------
 lookupTyThing :: Env -> ModName -> LocSymbol -> [((Int, F.Symbol), Ghc.TyThing)]
 -------------------------------------------------------------------------------
-lookupTyThing env name lsym = [ (k, t) | (k, ts) <- ordMatches, t <- ts]
+lookupTyThing env mdname lsym = [ (k, t) | (k, ts) <- ordMatches, t <- ts]
 
   where
     ordMatches             = Misc.sortOn fst (Misc.groupList matches)
     matches                = myTracepp ("matches-" ++ msg)
                              [ ((k, m), t) | (m, t) <- lookupThings env x
-                                           , k      <- myTracepp msg $ mm nameSym m mods ]
-    msg                    = "lookupTyThing: " ++ F.showpp (lsym, x, mods)
-    (x, mods)              = symbolModules env (F.val lsym)
-    nameSym                = F.symbol name
+                                           , k      <- myTracepp msg $ mm nameSym m mds ]
+    msg                    = "lookupTyThing: " ++ F.showpp (lsym, x, mds)
+    (x, mds)               = symbolModules env (F.val lsym)
+    nameSym                = F.symbol mdname
     allowExt               = allowExtResolution env lsym
     mm name m mods         = myTracepp ("matchMod: " ++ F.showpp (lsym, name, m, mods, allowExt)) $
                                matchMod env name m allowExt mods
@@ -776,9 +774,9 @@ maybeResolveSym env name kind x = case resolveLocSym env name kind x of
 -- | @ofBareType@ and @ofBareTypeE@ should be the _only_ @SpecType@ constructors
 -------------------------------------------------------------------------------
 ofBareType :: Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> SpecType
-ofBareType env name l ps t = either fail id (ofBareTypeE env name l ps t)
+ofBareType env name l ps t = either fail' id (ofBareTypeE env name l ps t)
   where
-    fail                   = Ex.throw
+    fail'                  = Ex.throw
     -- fail                   = Misc.errorP "error-ofBareType" . F.showpp 
 
 ofBareTypeE :: Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> Lookup SpecType
@@ -845,7 +843,7 @@ type Expandable r = ( PPrint r
 
 ofBRType :: (Expandable r) => Env -> ModName -> ([F.Symbol] -> r -> r) -> F.SourcePos -> BRType r
          -> Lookup (RRType r)
-ofBRType env name f l t  = go [] t
+ofBRType env name f l = go []
   where
     goReft bs r             = return (f bs r)
     goRImpF bs x i t1 t2 r  = RImpF x i <$> (rebind x <$> go bs t1) <*> go (x:bs) t2 <*> goReft bs r
@@ -967,13 +965,13 @@ txRefSort :: TyConMap -> F.TCEmb Ghc.TyCon -> LocSpecType -> LocSpecType
 txRefSort tyi tce t = F.atLoc t $ mapBot (addSymSort (GM.fSrcSpan t) tce tyi) (val t)
 
 addSymSort :: Ghc.SrcSpan -> F.TCEmb Ghc.TyCon -> TyConMap -> SpecType -> SpecType
-addSymSort sp tce tyi (RApp rc@RTyCon{} ts rs r)
-  = RApp rc ts (zipWith3 (addSymSortRef sp rc) pvs rargs [1..]) r'
+addSymSort sp tce tyi (RApp rc@RTyCon{} ts rs rr)
+  = RApp rc ts (zipWith3 (addSymSortRef sp rc) pvs rargs [1..]) r2
   where
     (_, pvs)           = RT.appRTyCon tce tyi rc ts
     -- pvs             = rTyConPVs rc'
     (rargs, rrest)     = splitAt (length pvs) rs
-    r'                 = L.foldl' go r rrest
+    r2                 = L.foldl' go rr rrest
     go r (RProp _ (RHole r')) = r' `F.meet` r
     go r (RProp  _ t' )       = let r' = Mb.fromMaybe mempty (stripRTypeBase t') in r `F.meet` r'
 
@@ -1014,7 +1012,7 @@ addSymSortRef' _ _ _ p (RProp s t)
       xs = spliceArgs "addSymSortRef 2" s p
 
 spliceArgs :: String  -> [(F.Symbol, b)] -> PVar t -> [(F.Symbol, t)]
-spliceArgs msg s p = go (fst <$> s) (pargs p)
+spliceArgs msg syms p = go (fst <$> syms) (pargs p)
   where
     go []     []           = []
     go []     ((s,x,_):as) = (x, s):go [] as
