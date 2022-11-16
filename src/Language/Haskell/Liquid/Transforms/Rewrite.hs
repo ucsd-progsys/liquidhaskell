@@ -100,7 +100,7 @@ undollar = go
  
 
 untick :: CoreExpr -> CoreExpr 
-untick (Tick _ e) = e 
+untick (Tick _ e) = untick e 
 untick e          = e 
 
 tidyTuples :: RewriteRule
