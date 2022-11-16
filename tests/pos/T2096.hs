@@ -5,6 +5,8 @@
 {-@ embed GHC.Natural.Natural as int @-}
 {-@ LIQUID "--no-totality" @-}
 
+module T2096 where
+
 import Prelude 
 import GHC.TypeLits
 import GHC.Natural
