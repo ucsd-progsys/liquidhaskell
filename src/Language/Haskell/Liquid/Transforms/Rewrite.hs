@@ -45,12 +45,63 @@ import qualified Data.HashMap.Strict as M
 rewriteBinds :: Config -> [CoreBind] -> [CoreBind]
 rewriteBinds cfg
   | simplifyCore cfg
-  = fmap (normalizeTuples . rewriteBindWith tidyTuples . rewriteBindWith simplifyPatTuple)
+  = fmap (normalizeTuples 
+       . rewriteBindWith undollar 
+       . rewriteBindWith tidyTuples 
+       . rewriteBindWith simplifyPatTuple)
   | otherwise
   = id
 
 simplifyCore :: Config -> Bool
 simplifyCore = not . noSimplifyCore
+
+undollar :: RewriteRule
+undollar = go 
+  where 
+    go e 
+     -- matches `$ t1 t2 t3 f a`  
+     | App e1 a  <- untick e
+     , App e2 f  <- untick e1
+     , App e3 t3 <- untick e2 
+     , App e4 t2 <- untick e3 
+     , App d t1  <- untick e4 
+     , Var v     <- untick d 
+     , v `hasKey` dollarIdKey
+     , Type _    <- untick t1
+     , Type _    <- untick t2
+     , Type _    <- untick t3
+     = Just $ App f a 
+    go (Tick t e)
+      = Tick t <$> go e
+    go (Let (NonRec x ex) e)
+      = do ex' <- go ex
+           e'  <- go e
+           return $ Let (NonRec x ex') e'
+    go (Let (Rec bes) e)
+      = Let <$> (Rec <$> mapM goRec bes) <*> go e
+    go (Case e x t alts)
+      = Case e x t <$> mapM goAlt alts
+    go (App e1 e2)
+      = App <$> go e1 <*> go e2
+    go (Lam x e)
+      = Lam x <$> go e
+    go (Cast e c)
+      = (`Cast` c) <$> go e
+    go e
+      = return e
+
+    goRec (x, e)
+      = (x,) <$> go e
+
+    goAlt (c, bs, e)
+      = (c, bs,) <$> go e
+
+  
+ 
+
+untick :: CoreExpr -> CoreExpr 
+untick (Tick _ e) = untick e 
+untick e          = e 
 
 tidyTuples :: RewriteRule
 tidyTuples e = Just $ evalState (go e) []
