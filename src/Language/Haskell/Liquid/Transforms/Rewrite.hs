@@ -69,7 +69,7 @@ undollar = go
      , App d t1  <- untick e4 
      , Type _    <- untick t1
      , Var v     <- untick d 
-     , show v == "GHC.Base.$" 
+     , v `hasKey` dollarIdKey
      = Just $ App f a 
     go (Tick t e)
       = Tick t <$> go e
