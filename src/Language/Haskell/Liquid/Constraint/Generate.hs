@@ -1059,9 +1059,9 @@ castTy γ t e _
 
 
 castTy' γ τ (Var x)
-  = do t <- trueTy (typeclass (getConfig γ)) τ
-       -- tx <- varRefType γ x -- NV HERE: the refinements of the var x do not get into the 
-       --                      -- environment. Check 
+  = do t0 <- trueTy (typeclass (getConfig γ)) τ
+       tx <- varRefType γ x 
+       let t = mergeCastTys t0 tx 
        let ce = if typeclass (getConfig γ) && noADT (getConfig γ) then F.expr x
                 else eCoerc (typeSort (emb γ) $ Ghc.expandTypeSynonyms $ varType x)
                        (typeSort (emb γ) τ)
@@ -1076,6 +1076,24 @@ castTy' γ t (Tick _ e)
 
 castTy' _ _ e
   = panic Nothing $ "castTy cannot handle expr " ++ GM.showPpr e
+
+
+{-
+mergeCastTys tcorrect trefined 
+  tcorrect has the correct GHC skeleton, 
+  trefined has the correct refinements (before coercion)
+  mergeCastTys keeps the trefined when the two GHC types match 
+-}
+
+mergeCastTys :: SpecType -> SpecType -> SpecType 
+mergeCastTys t1 t2 
+  | toType False t1 == toType False t2 
+  = t2 
+mergeCastTys (RApp c1 ts1 ps1 r1) (RApp c2 ts2 _ _) 
+  | c1 == c2 
+  = RApp c1 (zipWith mergeCastTys ts1 ts2) ps1 r1
+mergeCastTys t _ 
+  = t
 
 {-
 showCoercion :: Coercion -> String
