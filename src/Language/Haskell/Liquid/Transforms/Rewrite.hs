@@ -63,13 +63,13 @@ undollar = go
      | App e1 a  <- untick e
      , App e2 f  <- untick e1
      , App e3 t3 <- untick e2 
-     , Type _    <- untick t3 
      , App e4 t2 <- untick e3 
-     , Type _    <- untick t2 
      , App d t1  <- untick e4 
-     , Type _    <- untick t1
      , Var v     <- untick d 
      , v `hasKey` dollarIdKey
+     , Type _    <- untick t1
+     , Type _    <- untick t2
+     , Type _    <- untick t3
      = Just $ App f a 
     go (Tick t e)
       = Tick t <$> go e
