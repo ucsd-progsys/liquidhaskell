@@ -3,8 +3,11 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE GADTs #-}
 {-@ embed GHC.Natural.Natural as int @-}
+{-@ embed GHC.Num.Natural.Natural as int @-}
 {-@ LIQUID "--no-totality" @-}
 
+module T2093 where 
+    
 import Prelude 
 import GHC.TypeLits
 import GHC.Natural
