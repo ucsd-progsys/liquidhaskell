@@ -18,23 +18,12 @@ jobs:
     - uses: actions/checkout@v3
       with:
         submodules: recursive
+    - uses: freckle/stack-cache-action@main
     - uses: actions/setup-haskell@v1
       with:
         ghc-version: '8.10.3'
         enable-stack: true
         stack-version: 'latest'
-
-    - name: Cache
-      uses: actions/cache@v3
-      env:
-        cache-name: cache
-      with:
-        path: ~/.stack-work
-        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('~/stack.yaml') }}
-        restore-keys: |
-          ${{ runner.os }}-build-${{ env.cache-name }}-
-          ${{ runner.os }}-build-
-          ${{ runner.os }}-
 
     - name: Install Z3
       run: |
