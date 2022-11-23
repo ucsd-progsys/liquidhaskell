@@ -6,8 +6,6 @@
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE OverloadedStrings         #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 -- | This module defines the representation of Subtyping and WF Constraints,
 --   and the code for syntax-directed constraint generation.
 
@@ -83,7 +81,6 @@ initEnv info
     is autoinv   = mkRTyConInv    (gsInvariants (gsData sp) ++ ((Nothing,) <$> autoinv))
     addPolyInfo' = if reflection (getConfig info) then map (mapSnd addPolyInfo) else id
 
-    mapSndM f (x,y) = (x,) <$> f y
     makeExactDc dcs = if exactDCFlag info then map strengthenDataConType dcs else dcs
 
 addPolyInfo :: SpecType -> SpecType
@@ -100,9 +97,9 @@ makeDataConTypes allowTC x = (x,) <$> trueTy allowTC (varType x)
 
 makeAutoDecrDataCons :: [(Id, SpecType)] -> S.HashSet TyCon -> [Id] -> ([LocSpecType], [(Id, SpecType)])
 makeAutoDecrDataCons dcts specenv dcs
-  = (simplify invs, tys)
+  = (simplify rsorts, tys)
   where
-    (invs, tys) = unzip $ concatMap go tycons
+    (rsorts, tys) = unzip $ concatMap go tycons
     tycons      = L.nub $ mapMaybe idTyCon dcs
 
     go tycon
@@ -123,8 +120,8 @@ makeSizedDataCons :: [(Id, SpecType)] -> DataCon -> Integer -> (RSort, (Id, Spec
 makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_res = tres}))
     where
       x      = dataConWorkId x'
-      t      = fromMaybe (impossible Nothing "makeSizedDataCons: this should never happen") $ L.lookup x dcts
-      trep   = toRTypeRep t
+      st     = fromMaybe (impossible Nothing "makeSizedDataCons: this should never happen") $ L.lookup x dcts
+      trep   = toRTypeRep st
       tres   = ty_res trep `strengthen` MkUReft (F.Reft (F.vv_, F.PAtom F.Eq (lenOf F.vv_) computelen)) mempty
 
       recarguments = filter (\(t,_) -> toRSort t == toRSort tres) (zip (ty_args trep) (ty_binds trep))
