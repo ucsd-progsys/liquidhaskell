@@ -4,8 +4,6 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE FlexibleContexts          #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Haskell.Liquid.Constraint.Monad  where
 
 import qualified Data.HashMap.Strict as M
@@ -41,18 +39,18 @@ addC c _msg
 --------------------------------------------------------------------------------
 addPost :: CGEnv -> SpecType -> CG SpecType
 --------------------------------------------------------------------------------
-addPost γ (RRTy e r OInv t)
-  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("addPost", x,t)) γ e
-       addC (SubR γ' OInv r) "precondition-oinv" >> return t
+addPost cgenv (RRTy e r OInv rt)
+  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("addPost", x,t)) cgenv e
+       addC (SubR γ' OInv r) "precondition-oinv" >> return rt
 
-addPost γ (RRTy e r OTerm t)
-  = do γ' <- foldM (\γ (x, t) -> γ += ("addPost", x, t)) γ e
-       addC (SubR γ' OTerm r) "precondition-oterm" >> return t
+addPost cgenv (RRTy e r OTerm rt)
+  = do γ' <- foldM (\γ (x, t) -> γ += ("addPost", x, t)) cgenv e
+       addC (SubR γ' OTerm r) "precondition-oterm" >> return rt
 
-addPost γ (RRTy cts _ OCons t)
-  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ xts
+addPost cgenv (RRTy cts _ OCons rt)
+  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) cgenv xts
        addC (SubC  γ' t1 t2)  "precondition-ocons"
-       addPost γ t
+       addPost cgenv rt
   where
     (xts, t1, t2) = envToSub cts
 addPost _ t
