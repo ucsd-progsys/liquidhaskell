@@ -7,8 +7,6 @@
 {-# LANGUAGE ImplicitParams            #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 -- | This module defines the representation for Environments needed
 --   during constraint generation.
 
@@ -165,8 +163,8 @@ addCGEnv tx γ (eMsg, x, REx y tyy tyx) = do
   γ' <- addCGEnv tx γ (eMsg, y', tyy)
   addCGEnv tx γ' (eMsg, x, tyx `F.subst1` (y, F.EVar y'))
 
-addCGEnv tx γ (eMsg, x, RAllE yy tyy tyx)
-  = addCGEnv tx γ (eMsg, x, t)
+addCGEnv tx γ (eMsg, sym, RAllE yy tyy tyx)
+  = addCGEnv tx γ (eMsg, sym, t)
   where
     xs            = localBindsOfType tyy (renv γ)
     t             = L.foldl' F.meet ttrue [ tyx' `F.subst1` (yy, F.EVar x) | x <- xs]
