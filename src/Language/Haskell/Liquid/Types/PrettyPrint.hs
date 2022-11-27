@@ -58,7 +58,6 @@ import           Liquid.GHC.API  as Ghc ( Class
                                                          , Type
                                                          , Var
                                                          , Name
-                                                         , ErrMsg
                                                          , SourceError
                                                          , TyCon
                                                          , topPrec
@@ -72,6 +71,7 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Types
 import           Prelude                          hiding (error)
 import           Text.PrettyPrint.HughesPJ        hiding ((<>))
+
 
 -- | `Filter`s match errors. They are used to ignore classes of errors they
 -- match. `AnyFilter` matches all errors. `StringFilter` matches any error whose
@@ -101,7 +101,7 @@ pprintSymbol x = char '‘' <-> pprint x <-> char '’'
 --------------------------------------------------------------------------------
 -- | A whole bunch of PPrint instances follow ----------------------------------
 --------------------------------------------------------------------------------
-instance PPrint ErrMsg where
+instance PPrint (Ghc.MsgEnvelope Ghc.DecoratedSDoc) where
   pprintTidy _ = text . show
 
 instance PPrint SourceError where
@@ -452,8 +452,8 @@ instance (PPrint r, F.Reftable r) => PPrint (UReft r) where
 -- | Pretty-printing errors ----------------------------------------------------
 --------------------------------------------------------------------------------
 
-printError :: (Show e, F.PPrint e) => F.Tidy -> DynFlags -> TError e -> IO ()
-printError k dyn err = putErrMsg dyn (pos err) (ppError k empty err)
+printError :: (Show e, F.PPrint e) => Ghc.Logger -> F.Tidy -> DynFlags -> TError e -> IO ()
+printError logger k dyn err = putErrMsg logger dyn (pos err) (ppError k empty err)
 
 -- | Similar in spirit to 'reportErrors' from the GHC API, but it uses our
 -- pretty-printer and shim functions under the hood. Also filters the errors

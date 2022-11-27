@@ -114,7 +114,7 @@ debugLog msg = when debugLogs $ liftIO (putStrLn msg)
 plugin :: GHC.Plugin
 plugin = GHC.defaultPlugin {
     typeCheckResultAction = liquidPlugin
-  , dynflagsPlugin        = customDynFlags
+  , driverPlugin          = customDynFlags
   , pluginRecompile       = purePlugin
   }
   where
@@ -126,8 +126,9 @@ plugin = GHC.defaultPlugin {
     -- for a post-mortem.
     liquidPlugin :: [CommandLineOption] -> ModSummary -> TcGblEnv -> TcM TcGblEnv
     liquidPlugin opts summary gblEnv = do
+      logger <- getLogger
       dynFlags <- getDynFlags
-      withTiming dynFlags (text "LiquidHaskell" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $ do
+      withTiming logger dynFlags (text "LiquidHaskell" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $ do
         if gopt Opt_Haddock dynFlags
           then do
             -- Warn the user
@@ -136,7 +137,7 @@ plugin = GHC.defaultPlugin {
                                   ]
             let srcLoc  = mkSrcLoc (mkFastString $ ms_hspp_file summary) 1 1
             let warning = mkWarning (mkSrcSpan srcLoc srcLoc) msg
-            liftIO $ printWarning dynFlags warning
+            liftIO $ printWarning logger dynFlags warning
             pure gblEnv
           else do
             newGblEnv <- typecheckHook opts summary gblEnv
@@ -157,21 +158,21 @@ plugin = GHC.defaultPlugin {
 -- | Overrides the default 'DynFlags' options. Specifically, we need the GHC
 -- lexer not to throw away block comments, as this is where the LH spec comments
 -- would live. This is why we set the 'Opt_KeepRawTokenStream' option.
-customDynFlags :: [CommandLineOption] -> DynFlags -> IO DynFlags
-customDynFlags opts dflags = do
+customDynFlags :: [CommandLineOption] -> HscEnv -> IO HscEnv
+customDynFlags opts hscEnv = do
   cfg <- liftIO $ LH.getOpts opts
   writeIORef cfgRef cfg
-  configureDynFlags dflags
+  return (hscEnv { hsc_dflags = configureDynFlags (hsc_dflags hscEnv) })
   where
-    configureDynFlags :: DynFlags -> IO DynFlags
+    configureDynFlags :: DynFlags -> DynFlags
     configureDynFlags df =
-      pure $ df `gopt_set` Opt_ImplicitImportQualified
-                `gopt_set` Opt_PIC
-                `gopt_set` Opt_DeferTypedHoles
-                `gopt_set` Opt_KeepRawTokenStream
-                `xopt_set` MagicHash
-                `xopt_set` DeriveGeneric
-                `xopt_set` StandaloneDeriving
+      df `gopt_set` Opt_ImplicitImportQualified
+         `gopt_set` Opt_PIC
+         `gopt_set` Opt_DeferTypedHoles
+         `gopt_set` Opt_KeepRawTokenStream
+         `xopt_set` MagicHash
+         `xopt_set` DeriveGeneric
+         `xopt_set` StandaloneDeriving
 
 --------------------------------------------------------------------------------
 -- | \"Unoptimising\" things ----------------------------------------------------
@@ -190,7 +191,7 @@ instance Unoptimise DynFlags where
   unoptimise df = updOptLevel 0 df
     { debugLevel   = 1
     , ghcLink      = LinkInMemory
-    , hscTarget    = HscInterpreted
+    , backend      = Interpreter
     , ghcMode      = CompManager
     }
 
@@ -222,9 +223,9 @@ typecheckHook :: [CommandLineOption] -> ModSummary -> TcGblEnv -> TcM (Either Li
 typecheckHook _ (unoptimise -> modSummary) tcGblEnv = do
   debugLog $ "We are in module: " <> show (toStableModule thisModule)
 
-  parsed        <- GhcMonadLike.parseModule (LH.keepRawTokenStream cleanedSummary)
-  let comments  = LH.extractSpecComments (pm_annotations parsed)
-  typechecked     <- GhcMonadLike.typecheckModule (LH.ignoreInline parsed)
+  parsed          <- GhcMonadLike.parseModule (LH.keepRawTokenStream modSummary)
+  let comments    = LH.extractSpecComments parsed
+  typechecked     <- updTopEnv dropPlugins $ GhcMonadLike.typecheckModule (LH.ignoreInline parsed)
   env             <- askHscEnv
   resolvedNames   <- LH.lookupTyThings env modSummary tcGblEnv
   availTyCons     <- LH.availableTyCons env modSummary tcGblEnv (tcg_exports tcGblEnv)
@@ -241,12 +242,7 @@ typecheckHook _ (unoptimise -> modSummary) tcGblEnv = do
     thisModule :: Module
     thisModule = tcg_mod tcGblEnv
 
-    cleanedSummary :: ModSummary
-    cleanedSummary =
-        modSummary { ms_hspp_opts = (ms_hspp_opts modSummary) { cachedPlugins = []
-                                                              , staticPlugins = []
-                                                              }
-                   }
+    dropPlugins hsc_env = hsc_env { hsc_plugins = [], hsc_static_plugins = [] }
 
 serialiseSpec :: Module -> TcGblEnv -> LiquidLib -> TcM TcGblEnv
 serialiseSpec thisModule tcGblEnv liquidLib = do
@@ -531,6 +527,7 @@ processModule LiquidHaskellContext{..} = do
     debugLog $ "mg_tcs => " ++ O.showSDocUnsafe (O.ppr $ mg_tcs modGuts)
 
     targetSrc  <- makeTargetSrc moduleCfg file lhModuleTcData modGuts hscEnv
+    logger <- getLogger
     dynFlags <- getDynFlags
 
     -- See https://github.com/ucsd-progsys/liquidhaskell/issues/1711
@@ -548,10 +545,10 @@ processModule LiquidHaskellContext{..} = do
     (case result of
       -- Print warnings and errors, aborting the compilation.
       Left diagnostics -> do
-        liftIO $ mapM_ (printWarning dynFlags)    (allWarnings diagnostics)
+        liftIO $ mapM_ (printWarning logger dynFlags)    (allWarnings diagnostics)
         reportErrs $ allErrors diagnostics
       Right (warnings, targetSpec, liftedSpec) -> do
-        liftIO $ mapM_ (printWarning dynFlags) warnings
+        liftIO $ mapM_ (printWarning logger dynFlags) warnings
         let targetInfo = TargetInfo targetSrc targetSpec
 
         debugLog $ "bareSpec ==> "   ++ show bareSpec

@@ -27,26 +27,28 @@ fromPJDoc = GHC.text . PJ.render
 
 -- | Like the original 'putLogMsg', but internally converts the input 'Doc' (from the \"pretty\" library)
 -- into GHC's internal 'SDoc'.
-putLogMsg :: GHC.DynFlags
+putLogMsg :: GHC.Logger
+          -> GHC.DynFlags
           -> GHC.WarnReason
           -> GHC.Severity
           -> GHC.SrcSpan
           -> Maybe GHC.PprStyle
           -> PJ.Doc
           -> IO ()
-putLogMsg dynFlags reason sev srcSpan _mbStyle =
-  GHC.putLogMsg dynFlags reason sev srcSpan . GHC.text . PJ.render
+putLogMsg logger dynFlags reason sev srcSpan _mbStyle =
+  GHC.putLogMsg logger dynFlags reason sev srcSpan . GHC.text . PJ.render
 
 defaultErrStyle :: GHC.DynFlags -> GHC.PprStyle
 defaultErrStyle _dynFlags = GHC.defaultErrStyle
 
-putWarnMsg :: GHC.DynFlags -> GHC.SrcSpan -> PJ.Doc -> IO ()
-putWarnMsg dynFlags srcSpan doc =
-  putLogMsg dynFlags GHC.NoReason GHC.SevWarning srcSpan (Just $ defaultErrStyle dynFlags) doc
+putWarnMsg :: GHC.Logger -> GHC.DynFlags -> GHC.SrcSpan -> PJ.Doc -> IO ()
+putWarnMsg logger dynFlags srcSpan doc =
+  putLogMsg logger dynFlags GHC.NoReason GHC.SevWarning srcSpan (Just $ defaultErrStyle dynFlags) doc
 
-putErrMsg :: GHC.DynFlags -> GHC.SrcSpan -> PJ.Doc -> IO ()
-putErrMsg dynFlags srcSpan doc = putLogMsg dynFlags GHC.NoReason GHC.SevError srcSpan Nothing doc
+putErrMsg :: GHC.Logger -> GHC.DynFlags -> GHC.SrcSpan -> PJ.Doc -> IO ()
+putErrMsg logger dynFlags srcSpan doc =
+  putLogMsg logger dynFlags GHC.NoReason GHC.SevError srcSpan Nothing doc
 
 -- | Like GHC's 'mkLongErrAt', but it builds the final 'ErrMsg' out of two \"HughesPJ\"'s 'Doc's.
-mkLongErrAt :: GHC.SrcSpan -> PJ.Doc -> PJ.Doc -> GHC.TcRn GHC.ErrMsg
+mkLongErrAt :: GHC.SrcSpan -> PJ.Doc -> PJ.Doc -> GHC.TcRn (GHC.MsgEnvelope GHC.DecoratedSDoc)
 mkLongErrAt srcSpan msg extra = GHC.mkLongErrAt srcSpan (fromPJDoc msg) (fromPJDoc extra)

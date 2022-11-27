@@ -43,8 +43,8 @@ push !s stk -- @(SpanStack stk)
 
 -- | A single span
 data Span
-  = Var  !Ghc.Var               -- ^ binder for whom we are generating constraint
-  | Tick !(Ghc.Tickish Ghc.Var) -- ^ nearest known Source Span
+  = Var  !Ghc.Var         -- ^ binder for whom we are generating constraint
+  | Tick !Ghc.CoreTickish -- ^ nearest known Source Span
   | Span SrcSpan
 
 instance Show Span where

@@ -6,6 +6,8 @@
 {-# LANGUAGE PatternGuards              #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+
 -- | This module defines the representation of Subtyping and WF Constraints,
 --   and the code for syntax-directed constraint generation.
 
@@ -294,13 +296,13 @@ consExtAltEnv γ x s c bs e suf = do
 
 consRelCheckAltAsyncL :: CGEnv -> PrEnv -> SpecType -> SpecType -> F.Expr ->
   F.Symbol -> SpecType -> CoreExpr -> Alt CoreBndr -> CG ()
-consRelCheckAltAsyncL γ ψ t1 t2 p x1 s1 e2 (c, bs1, e1) = do
+consRelCheckAltAsyncL γ ψ t1 t2 p x1 s1 e2 (Ghc.Alt c bs1 e1) = do
   (γ', e1') <- consExtAltEnv γ x1 s1 c bs1 e1 relSuffixL
   consRelCheck γ' ψ e1' e2 t1 t2 p
 
 consRelCheckAltAsyncR :: CGEnv -> PrEnv -> SpecType -> SpecType -> F.Expr ->
   CoreExpr -> F.Symbol -> SpecType -> Alt CoreBndr -> CG ()
-consRelCheckAltAsyncR γ ψ t1 t2 p e1 x2 s2 (c, bs2, e2) = do
+consRelCheckAltAsyncR γ ψ t1 t2 p e1 x2 s2 (Ghc.Alt c bs2 e2) = do
   (γ', e2') <- consExtAltEnv γ x2 s2 c bs2 e2 relSuffixR
   consRelCheck γ' ψ e1 e2' t1 t2 p
 
@@ -467,7 +469,7 @@ consUnarySynth _ e@(Type _) = F.panic $ "consUnarySynth is undefined for Type " 
 consUnarySynth _ e@(Coercion _) = F.panic $ "consUnarySynth is undefined for Coercion " ++ F.showpp e
 
 caseKVKind :: [Alt Var] -> KVKind
-caseKVKind [(DataAlt _, _, Var _)] = ProjectE
+caseKVKind [Ghc.Alt (DataAlt _) _ (Var _)] = ProjectE
 caseKVKind cs                      = CaseE (length cs)
 
 checkFun :: CoreExpr -> Type -> Type

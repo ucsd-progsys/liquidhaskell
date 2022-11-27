@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE DeriveGeneric       #-}
@@ -44,7 +45,7 @@ module Language.Haskell.Liquid.Types.Errors (
   , ppTicks
 
   -- * SrcSpan Helpers
-  , realSrcSpan
+  , packRealSrcSpan
   , unpackRealSrcSpan
   , srcSpanFileMb
   ) where
@@ -700,15 +701,17 @@ unpackRealSrcSpan rsp = (f, l1, c1, l2, c2)
 
 
 instance FromJSON RealSrcSpan where
-  parseJSON (Object v) = realSrcSpan <$> v .: "filename"
-                                     <*> v .: "startLine"
-                                     <*> v .: "startCol"
-                                     <*> v .: "endLine"
-                                     <*> v .: "endCol"
+  parseJSON (Object v) =
+    packRealSrcSpan
+      <$> v .: "filename"
+      <*> v .: "startLine"
+      <*> v .: "startCol"
+      <*> v .: "endLine"
+      <*> v .: "endCol"
   parseJSON _          = mempty
 
-realSrcSpan :: FilePath -> Int -> Int -> Int -> Int -> RealSrcSpan
-realSrcSpan f l1 c1 l2 c2 = mkRealSrcSpan loc1 loc2
+packRealSrcSpan :: FilePath -> Int -> Int -> Int -> Int -> RealSrcSpan
+packRealSrcSpan f l1 c1 l2 c2 = mkRealSrcSpan loc1 loc2
   where
     loc1                  = mkRealSrcLoc (fsLit f) l1 c1
     loc2                  = mkRealSrcLoc (fsLit f) l2 c2
@@ -744,9 +747,7 @@ instance FromJSON (TError a) where
   parseJSON _          = mempty
 
 errSaved :: SrcSpan -> String -> TError a
-errSaved sp body = ErrSaved sp (text n) (text $ unlines m)
-  where
-    n : m        = lines body
+errSaved sp body | n : m <- lines body = ErrSaved sp (text n) (text $ unlines m)
 
 totalityType :: PPrint a =>  Tidy -> a -> Bool
 totalityType td tE = pprintTidy td tE == text "{VV : Addr# | 5 < 4}"
@@ -1082,10 +1083,9 @@ ppList d ls
 -- | Convert a GHC error into a list of our errors.
 
 sourceErrors :: String -> SourceError -> [TError t]
-sourceErrors s = concatMap (errMsgErrors s) . bagToList . srcErrorMessages
-
-errMsgErrors :: String -> ErrMsg -> [TError t]
-errMsgErrors s e = [ ErrGhc (errMsgSpan e) msg ]
-   where
-     msg         =  text s
-                $+$ nest 4 (text (show e))
+sourceErrors s =
+  concatMap errMsgErrors . bagToList . srcErrorMessages
+  where
+    errMsgErrors e = [ ErrGhc (errMsgSpan e) msg ]
+      where
+        msg = text s $+$ nest 4 (text (show e))

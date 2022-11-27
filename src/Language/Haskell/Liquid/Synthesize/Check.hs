@@ -22,7 +22,6 @@ import           Language.Haskell.Liquid.Constraint.ToFixpoint
 import           Language.Haskell.Liquid.Synthesize.Monad
 import           Language.Haskell.Liquid.Synthesize.GHC
 import           Liquid.GHC.API as Ghc
-import           Language.Haskell.Liquid.Misc   ( mapThd3 )
 import           Control.Monad.State.Lazy
 import           System.Console.CmdArgs.Verbosity
 import           Liquid.GHC.TypeRep
@@ -47,7 +46,7 @@ isWellTyped e =  do
 
 
 tx :: CoreExpr -> CoreExpr
-tx (Case e b t alts) = Case e b t (mapThd3 tx <$> alts)
+tx (Case e b t alts) = Case e b t ((\(Alt c bs e) -> Alt c bs (tx e)) <$> alts)
 tx e@(Let _ _) = let (bs,e') = unbind e in foldr Let e' bs 
 tx e = e 
 
@@ -80,7 +79,7 @@ checkError :: SpecType -> SM (Maybe CoreExpr)
 checkError t = do 
   errVar <- varError
   let errorExpr   = App (App (Var errVar) (Type (toType False t))) errorInt
-      globalFlags = unsafeGlobalDynFlags
+      globalFlags = undefined
       platform    = targetPlatform globalFlags
       errorInt    = mkIntExprInt platform 42
   b <- hasType t errorExpr

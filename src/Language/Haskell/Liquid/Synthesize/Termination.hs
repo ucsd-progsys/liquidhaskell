@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleInstances    #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+
 module Language.Haskell.Liquid.Synthesize.Termination (
     decrType
   ) where
