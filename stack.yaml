@@ -36,3 +36,4 @@ resolver: lts-18.27
 
 nix:
   packages: [cacert, git, hostname, z3]
+  path: [nixpkgs=./nixpkgs.nix]
