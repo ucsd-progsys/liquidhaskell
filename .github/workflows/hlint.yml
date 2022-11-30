@@ -10,6 +10,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: fix ncurses version
+      run: ln -s /usr/lib/libncursesw.so.6 /usr/lib/libtinfo.so.5
+    
     - uses: actions/checkout@v3
       with:
         submodules: true
