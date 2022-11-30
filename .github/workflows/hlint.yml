@@ -11,7 +11,7 @@ jobs:
 
     steps:
     - name: fix ncurses version
-      run: ln -s /usr/lib/libncursesw.so.6 /usr/lib/libtinfo.so.5
+      run: sudo ln -s /usr/lib/libncursesw.so.6 /usr/lib/libtinfo.so.5
     
     - uses: actions/checkout@v3
       with:
