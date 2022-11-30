@@ -11,7 +11,7 @@ jobs:
 
     steps:    
     - name: fix ncurses version
-      run: sudo apt-get install ncurses5
+      run: sudo apt-get install libncurses5
       
     - uses: actions/checkout@v3
       with:
