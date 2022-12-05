@@ -99,13 +99,14 @@ fromAnf' t@Type{} bnds
   = (t, bnds)
 fromAnf' l@Lit{} bnds
   = (l, bnds)
-fromAnf' _ _
-  = error " Should not reach this point. "
+fromAnf' (Tick _ e) bnds = fromAnf' e bnds
+fromAnf' e _
+  = error $ "fromAnf: unsupported core expression " ++ F.showpp e
 
 -- | Function used for pretty printing core as Haskell source.
 --   Input does not contain let bindings.
 coreToHs :: SpecType -> Var -> CoreExpr -> String
-coreToHs t v e = pprintSymbols (discardModName v ++ pprintFormals caseIndent v e (tracepp " cnt " cnt) [])
+coreToHs t v e = pprintSymbols (discardModName v ++ pprintFormals caseIndent e (tracepp " cnt " cnt) [])
   where cnt = countTcConstraints t
 
 symbols :: String
@@ -140,12 +141,12 @@ maintainRParen ts
       then  ")"
       else  ""
 
-pprintFormals :: Int -> Var -> CoreExpr -> Int -> [Var] -> String
-pprintFormals i v (Lam b e) cnt vs
-  | isTyVar b = pprintFormals i v e cnt vs
-  | cnt > 0 = pprintFormals i v e (cnt - 1) (b:vs)
-  | otherwise = " " ++ show b ++ pprintFormals i v e cnt vs
-pprintFormals i _ e _ vs
+pprintFormals :: Int -> CoreExpr -> Int -> [Var] -> String
+pprintFormals i (Lam b e) cnt vs
+  | isTyVar b = pprintFormals i e cnt vs
+  | cnt > 0 = pprintFormals i e (cnt - 1) (b:vs)
+  | otherwise = " " ++ show b ++ pprintFormals i e cnt vs
+pprintFormals i e _ vs
   = " =" ++ pprintBody vs i e
 
 caseIndent :: Int
@@ -164,8 +165,8 @@ pprintVar :: Var -> String
 pprintVar v = if isTyVar v then "" else " " ++ discardModName v
 
 pprintBody :: [Var] -> Int -> CoreExpr -> String
-pprintBody vs i (Lam b e)
-  = pprintFormals i b e 0 vs
+pprintBody vs i (Lam _ e)
+  = pprintFormals i e 0 vs
 pprintBody vs _ (Var v)
   = case find (== v) vs of
       Nothing -> pprintVar v
