@@ -431,7 +431,8 @@ refP = refBindBindP refaP
 
 relrefaP :: Parser RelExpr 
 relrefaP =
-  try (ERUnChecked <$> refaP <* reserved ":=>" <*> relrefaP)
+  -- TODO: support =>
+  try (ERUnChecked <$> refaP <* (reserved ":=>" <|> reserved "=>") <*> relrefaP)
     <|> try (ERChecked <$> refaP <* reserved "!=>" <*> relrefaP)
     <|> ERBasic <$> refaP
 

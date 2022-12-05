@@ -414,6 +414,10 @@ config = cmdArgsMode $ Config {
     = def
         &= name "typed-holes"
         &= help "Use (refinement) typed-holes [currently warns on '_x' variables]"
+  , relationalHints
+    = def 
+        &= name "relational-hints"
+        &= help "Generate unary proofs for relational specs"
   , typeclass
     = def
         &= help "Enable Typeclass"
@@ -734,6 +738,7 @@ defConfig = Config
   , compileSpec              = False
   , noCheckImports           = False
   , typedHoles               = False
+  , relationalHints          = False
   , typeclass                = False
   , auxInline                = False
   , maxMatchDepth            = 4

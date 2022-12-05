@@ -97,6 +97,7 @@ data Config = Config
   , compileSpec              :: Bool       -- ^ Only "compile" the spec -- into .bspec file -- don't do any checking.
   , noCheckImports           :: Bool       -- ^ Do not check the transitive imports
   , typedHoles               :: Bool       -- ^ Warn about "typed-holes"
+  , relationalHints          :: Bool       -- ^ Generate unary proofs for relational specs.
   , typeclass                :: Bool        -- ^ enable typeclass support.
   , auxInline                :: Bool        -- ^ 
   , maxMatchDepth            :: Int

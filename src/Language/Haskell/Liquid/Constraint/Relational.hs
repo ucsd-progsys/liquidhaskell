@@ -10,7 +10,7 @@
 -- | This module defines the representation of Subtyping and WF Constraints,
 --   and the code for syntax-directed constraint generation.
 
-module Language.Haskell.Liquid.Constraint.Relational (consAssmRel, consRelTop) where
+module Language.Haskell.Liquid.Constraint.Relational (consAssmRel, consRelTop, relHint) where
 
 
 #if !MIN_VERSION_base(4,14,0)
@@ -22,7 +22,10 @@ import           Control.Monad.State
 import           Data.Bifunctor                                 ( Bifunctor(bimap) )
 import qualified Data.HashMap.Strict                            as M
 import qualified Data.List                                      as L
+import           Data.List.Split                                as L
 import           Data.String                                    ( IsString(..) )
+import           Data.Char                                      ( toUpper )
+import           Data.Default                                   ( def )
 -- import qualified Debug.Trace                                    as D
 import qualified Language.Fixpoint.Types                        as F
 import qualified Language.Fixpoint.Types.Visitor                as F
@@ -30,6 +33,8 @@ import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Monad
 import           Language.Haskell.Liquid.Constraint.Types
+import           Language.Haskell.Liquid.Synthesize.GHC (coreToHs, fromAnf)
+
 import           Liquid.GHC.API                 ( Alt
                                                 , AltCon(..)
                                                 , Bind(..)
@@ -51,6 +56,8 @@ import           Language.Haskell.Liquid.Types                  hiding (Def,
                                                                  loc)
 import           System.Console.CmdArgs.Verbosity               (whenLoud)
 import           System.IO.Unsafe                               (unsafePerformIO)
+
+import           Text.PrettyPrint.HughesPJ (text)
 
 data RelPred
   = RelPred { fun1 :: Var
@@ -85,11 +92,21 @@ consAssmRel _ _ (ψ, γ) (x, y, t, s, _, rp) = traceChk "Assm" x y t s p $ do
     p' = L.foldl (\q (v, u) -> unapplyRelArgsR v u q) rp (zip vs us)
 
 consRelTop :: Config -> TargetInfo -> CGEnv -> PrEnv -> (Var, Var, LocSpecType, LocSpecType, RelExpr, RelExpr) -> CG ()
-consRelTop _ ti γ ψ (x, y, t, s, ra, rp) = traceChk "Init" e d t s p $ do
+consRelTop cfg ti γ ψ (x, y, t, s, ra, rp) = traceChk "Init" e d t s p $ do
   subUnarySig γ' x t'
   subUnarySig γ' y s'
   consRelCheckBind γ' ψ e d t' s' ra rp
+  modify $ \cgi -> if relationalHints cfg
+    then cgi
+      { relHints = relHint (GM.fSrcSpan $ F.loc t)
+                           (relSigToUnSig (toExpr x) (toExpr y) t' s' rp)
+                           hintName
+                           (relTermToUnTerm x y hintName (GM.unTickExpr $ binderToExpr e) (GM.unTickExpr $ binderToExpr d))
+                     : relHints cgi
+      }
+    else cgi
   where
+    toExpr = F.EVar . F.symbol
     p = fromRelExpr rp
     γ' = γ `setLocation` Sp.Span (GM.fSrcSpan (F.loc t))
     cbs = giCbs $ giSrc ti
@@ -97,6 +114,7 @@ consRelTop _ ti γ ψ (x, y, t, s, ra, rp) = traceChk "Init" e d t s p $ do
     d = lookupBind y cbs
     t' = removeAbsRef $ val t
     s' = removeAbsRef $ val s
+    hintName = mkRelThmVar x y
 
 removeAbsRef :: SpecType -> SpecType
 removeAbsRef (RVar v (MkUReft r _)) 
@@ -135,6 +153,116 @@ removeAbsRef (RRTy  e r o t)
   = RRTy  e r o (removeAbsRef t)
 removeAbsRef t 
   = t
+
+--------------------------------------------------------------
+-- Rel to Unary Translation ----------------------------------
+--------------------------------------------------------------
+
+relSigToUnSig :: F.Expr -> F.Expr -> SpecType -> SpecType -> RelExpr -> SpecType
+{- relSigToUnSig :: EVar -> EVar -> t1:SpecType -> t2:SpecType -> p:RelExpr -> t:SpecType
+      translates rel type {t1 ~ t2 | p} to unary t
+
+   FIRST-ORDER types:
+  
+    relational incr ~ incr :: { (x1:Int) -> Int 
+                              ~ (x2:Int) -> Int
+                              | x1 < x2 => r1 x1 < r2 x2 }
+
+              translates to:
+                      
+    relIncrIncr :: x1:Int -> {x2:Int | x1 < x2} -> {incr x1 < incr x2} 
+
+
+   HIGHER-ORDER types:
+
+   relational any ~ any :: { p1:(x1:Int -> Bool) -> xs1:[Int] -> Bool
+                           ~ p2:(x2:Int -> Bool) -> xs2:[Int] -> Bool
+                           | (x1 = x2 => (r1 x1 => r2 x2)) && p1 == p2  !=> xs1 = xs2 => (r1 p1 xs1 => r2 p2 xs2)}
+
+              translates to:
+                      
+   relAnyAny :: p1:(x1:Int -> Bool) -> p2:(x2:Int -> Bool) 
+             -> relP1P2: (x1:Int -> {x2:Int|x1 = x2} -> {p1 x1 => p2 x2})
+             -> xs1:[Int] -> xs2:[Int]
+             -> {relXs1Xs2:()|xs1 = xs2}
+             -> {any p1 xs1 => any p2 xs2} 
+
+  map p1 = map p2 ????
+  
+  TODO: How to handle funciton equality?
+
+  E.g.:
+   
+   relational any ~ any :: { p1:(x1:Int -> Bool) -> xs1:[Int] -> Bool
+                           ~ p2:(x2:Int -> Bool) -> xs2:[Int] -> Bool
+                           | p1 = p2 => xs1 = xs2 => r1 p1 xs1 => r2 p2 xs2}
+
+  p1 = p2 => map p1 = map p2 -- we get it for free
+
+ -}
+
+-- Higher-Order Case. Argument types are functons && checking mode is on:
+relSigToUnSig e1 e2 (RFun x1 i1 s1@RFun{} t1 r1) (RFun x2 i2 s2@RFun{} t2 r2) (ERChecked q p)
+  = traceWhenLoud "relSigToUnSig RFun RFun ERChecked" $ 
+      RFun x1 i1 s1 
+        (RFun x2 i2 s2 
+                            -- TODO: how to get i?    -- TODO: Recursive syntax for RelExpr
+          (RFun (mkRelLemma x1 x2) i2 (relSigToUnSig (F.EVar x1) (F.EVar x2) s1 s2 (toRelExpr q)) (relSigToUnSig e1 e2 t1 t2 p) r2) r2) r1 
+-- First-Order Cases:
+relSigToUnSig e1 e2 (RFun x1 i1 s1 t1 r1) (RFun x2 i2 s2 t2 r2) (ERUnChecked q p)
+  = traceWhenLoud "relSigToUnSig RFun RFun ERUnChecked" $ 
+    RFun x1 i1 s1 (RFun x2 i2 (s2 `strengthen` exprToUReft q) (relSigToUnSig e1 e2 t1 t2 p) r2) r1
+relSigToUnSig e1 e2 (RFun x1 i1 s1 t1 r1) (RFun x2 i2 s2 t2 r2) (ERChecked q p)
+  = traceWhenLoud "relSigToUnSig RFun RFun ERChecked" $ 
+    RFun x1 i1 s1 (RFun x2 i2 (s2 `strengthen` exprToUReft q) (relSigToUnSig e1 e2 t1 t2 p) r2) r1
+relSigToUnSig _ _ RFun{} RFun{} p@ERBasic{}
+  = traceWhenLoud "relSigToUnSig RFun RFun ERBasic" $ 
+    F.panic $ "relSigToUnSig: predicate " ++ F.showpp p ++ " too short for function types"
+relSigToUnSig _ _ t1@RFun{} t2 p
+  = F.panic $ "relSigToUnSig: unsuppoted pair of types RFun and non-RFun " ++ F.showpp (t1, t2, p) 
+relSigToUnSig _ _ t1 t2@RFun{} p
+  = F.panic $ "relSigToUnSig: unsuppoted pair of types non-RFun and RFun " ++ F.showpp (t1, t2, p) 
+relSigToUnSig e1 e2 t1 t2 (ERBasic p) | isBasicType t1 && isBasicType t2
+  = traceWhenLoud "relSigToUnSig Base Base ERBasic" $ 
+    unitTy `strengthen` uReft (F.vv_, rs2es (F.PAnd [p]))
+    where 
+      rs2es =  F.subst $ F.mkSubst [(resL, e1), (resR, e2)]
+      unitTy = RApp (RTyCon Ghc.unitTyCon [] def) [] [] mempty
+relSigToUnSig _ _ t1 t2 p | isBasicType t1 && isBasicType t2
+  = F.panic $ "relSigToUnSig: predicate " ++ F.showpp p ++ " too long for basic types"
+relSigToUnSig _ _ t1 t2 p 
+  = F.panic $ "relSigToUnSig: unsuppoted pair of types " ++ F.showpp (t1, t2, p)
+
+isBasicType :: SpecType -> Bool
+isBasicType RVar{} = True
+isBasicType RApp{} = True
+isBasicType _      = False
+
+mkRelLemma :: F.Symbol -> F.Symbol -> F.Symbol
+mkRelLemma s1 s2 = F.symbol $ "lemma" ++ cap (F.symbolString s1) ++ cap (F.symbolString s2)
+
+mkRelThmVar :: Var -> Var -> Var
+mkRelThmVar x y = mkCopyWithName ("rel" ++ cap (trimModuleName $ show x) ++ cap (trimModuleName $ show y)) x
+  where
+    trimModuleName = last . L.splitOn "."
+
+cap :: String -> String
+cap (c:cs) = toUpper c : cs
+cap cs = cs
+
+relTermToUnTerm :: Var -> Var -> Var -> CoreExpr -> CoreExpr -> CoreExpr
+relTermToUnTerm e1 e2 relThm = relTermToUnTerm' [((e1, e2), Var relThm)]
+
+relTermToUnTerm' :: [((Var, Var), CoreExpr)] -> CoreExpr -> CoreExpr -> CoreExpr
+relTermToUnTerm' relTerms (Var x1) (Var x2)
+  | Just relX <- lookup (x1, x2) relTerms = relX
+relTermToUnTerm' _relTerms (App _f1 _x1) (App _f2 _x2) = Ghc.unitExpr
+relTermToUnTerm' _relTerms (Lam _b1 _e1) (Lam _b2 _e2) = Ghc.unitExpr
+relTermToUnTerm' _relTerms (Let _b1 _e1) (Let _b2 _e2) = Ghc.unitExpr
+relTermToUnTerm' _relTerms (Case _e1 _b1 _t1 _as1) (Case _e2 _b2 _t2 _as2) = Ghc.unitExpr
+relTermToUnTerm' _ e1 e2
+  = traceWhenLoud ("relTermToUnTerm: can't proceed proof generation on \n" ++ F.showpp e1 ++ "\n" ++ F.showpp e2)
+      Ghc.unitExpr
 
 --------------------------------------------------------------
 -- Core Checking Rules ---------------------------------------
@@ -201,7 +329,7 @@ consRelCheckBind _ _ (Rec [(_, e1)]) (Rec [(_, e2)]) t1 t2 _ rp
       p = fromRelExpr rp
 
 consRelCheckBind _ _ b1@(Rec _) b2@(Rec _) _ _ _ _
-  = F.panic $ "consRelCheckBind Rec: multiple binders are not supported " ++ F.showpp (b1, b2)
+  = F.panic $ "consRelCheckBind Rec: mutually recursive binders are not supported " ++ F.showpp (b1, b2)
 
 -- Definition of CoreExpr: https://hackage.haskell.org/package/ghc-8.10.1/docs/CoreSyn.html
 consRelCheck :: CGEnv -> PrEnv -> CoreExpr -> CoreExpr ->
@@ -585,7 +713,7 @@ consUnarySynthApp γ (RAllT α t _) (Type s) = do
     return $ subsTyVarMeet' (ty_var_value α, s') t
 consUnarySynthApp _ RFun{} d =
   F.panic $ "consUnarySynthApp expected Var as a funciton arg, got " ++ F.showpp d
-consUnarySynthApp γ t@(RAllP{}) e
+consUnarySynthApp γ t@RAllP{} e
   = consUnarySynthApp γ (removeAbsRef t) e
 
 consUnarySynthApp _ ft d =
@@ -726,6 +854,11 @@ xbody :: CoreExpr -> CoreExpr
 xbody (Tick _ e) = xbody e
 xbody (Lam  _ e) = xbody e
 xbody e          = e
+
+binderToExpr :: CoreBind -> CoreExpr
+binderToExpr (NonRec _ e) = e
+binderToExpr (Rec ((_, e):_)) = e
+binderToExpr _ = F.panic "binderToExpr: no expr in binder"
 
 refts :: SpecType -> [RReft]
 refts (RAllT _ t r ) = r : refts t
@@ -944,6 +1077,12 @@ unapplyRelArgsR x1 x2 (ERBasic e) = ERBasic (unapplyRelArgs x1 x2 e)
 unapplyRelArgsR x1 x2 (ERChecked e re) = ERChecked (unapplyRelArgs x1 x2 e) (unapplyRelArgsR x1 x2 re)
 unapplyRelArgsR x1 x2 (ERUnChecked e re) = ERUnChecked (unapplyRelArgs x1 x2 e) (unapplyRelArgsR x1 x2 re)
 
+
+exprToUReft :: F.Expr -> RReft
+exprToUReft e
+  = traceWhenLoud ("exprToUReft " ++ F.showpp e ++ " to " ++ F.showpp r) r
+    where r = uTop (F.Reft (F.vv_, F.pAnd [e]))
+
 --------------------------------------------------------------
 -- RelExpr & F.Expr ------------------------------------------
 --------------------------------------------------------------
@@ -952,6 +1091,10 @@ fromRelExpr :: RelExpr -> F.Expr
 fromRelExpr (ERBasic e) = e
 fromRelExpr (ERChecked a b) = F.PImp a (fromRelExpr b)
 fromRelExpr (ERUnChecked a b) = F.PImp a (fromRelExpr b)
+
+toRelExpr :: F.Expr -> RelExpr
+toRelExpr (F.PImp a b) = ERUnChecked a (toRelExpr b)
+toRelExpr p = ERBasic p
 
 -- unImp :: RelExpr -> Maybe (F.Expr, RelExpr)
 -- unImp (ERBasic (F.PImp a b)) = Just (a, ERBasic b)
@@ -967,6 +1110,16 @@ fromRelExpr (ERUnChecked a b) = F.PImp a (fromRelExpr b)
 -- toBasicOr :: F.Expr -> RelExpr -> F.Expr
 -- toBasicOr t = MB.fromMaybe t . toBasic
 
+
+--------------------------------------------------------------
+-- Pretty Printing Unary Proofs ------------------------------
+--------------------------------------------------------------
+
+relHint :: Ghc.SrcSpan -> SpecType -> Ghc.Var -> CoreExpr -> Error
+relHint loc t v e 
+  = ErrRelHint loc
+      (text $ F.showpp v ++ " :: " ++ F.showpp t)
+      (text $ coreToHs t v (fromAnf e))
 
 --------------------------------------------------------------
 -- Debug -----------------------------------------------------
