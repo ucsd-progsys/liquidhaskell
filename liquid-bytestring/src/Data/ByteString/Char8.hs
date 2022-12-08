@@ -6,7 +6,7 @@ import Data.Int
 import GHC.IO.Handle
 
 
-#ifdef MIN_VERSION_GLASGOW_HASKELL
+#ifdef MIN_VERSION_bytestring
 #if MIN_VERSION_bytestring(0,10,12)
 
 -- bytestring >= 0.10.12.0 is now exporting 'partition' as part of 'Data.ByteString.Char8', which means
