@@ -11,7 +11,6 @@ ghc-options:
 packages:
 - liquid-fixpoint
 - liquid-ghc-prim
-- liquid-base
 - liquid-bytestring
 - liquid-prelude
 - liquid-vector
@@ -31,6 +30,8 @@ extra-deps:
   commit: 45ef3498e35897712bde8e002ce18df6d55f8b15
 # for tests
 - strip-ansi-escape-0.1.0.0@sha256:08f2ed93b16086a837ec46eab7ce8d27cf39d47783caaeb818878ea33c2ff75f,1628
+- git: https://github.com/facundominguez/liquid-base
+  commit: 8ad2378cee5ccf7937d9e08aacd5c5b7128318e8
 
 resolver: lts-19.33
 
