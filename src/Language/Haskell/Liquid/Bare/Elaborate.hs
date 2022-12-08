@@ -42,33 +42,12 @@ import           Data.Functor.Foldable         hiding (Fix)
 import           Data.Functor.Foldable
 #endif
 
--- import           TcRnMonad (TcRn)
 import           Data.Char                      ( isUpper )
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 import           GHC.Types.Name.Occurrence
-#else
-import           OccName
-#endif
--- import           GHC
--- import           GhcPlugins                     ( isDFunId
---                                                 )
-
--- import           FastString
--- import           CoreSyn
--- import           PrelNames
 import qualified Liquid.GHC.API as Ghc
                                                 (noExtField)
-
--- import qualified Outputable                    as O
--- import           TysWiredIn                     ( boolTyCon
---                                                 , true_RDR
---                                                 )
--- import           RdrName
--- import           BasicTypes
 import           Data.Default                   ( def )
 import qualified Data.Maybe                    as Mb
--- import qualified CoreUtils                     as Utils
-
 
 -- TODO: make elaboration monadic so typeclass names are unified to something
 -- that is generated in advance. This can greatly simplify the implementation
@@ -535,20 +514,10 @@ elaborateSpecType' partialTp coreToLogic simplify t =
           hsExpr =
             buildHsExpr (fixExprToHsExpr (S.fromList origBinders) e)
                         querySpecType :: LHsExpr GhcPs
-#ifdef MIN_VERSION_GLASGOW_HASKELL
-#if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)        
-          exprWithTySigs = noLoc $ ExprWithTySig
-            (mkLHsSigWcType (specTypeToLHsType querySpecType))
-            hsExpr
-#else
           exprWithTySigs = noLoc $ ExprWithTySig
             Ghc.noExtField
             hsExpr
             (mkLHsSigWcType (specTypeToLHsType querySpecType))
-#endif
-#else
-          exprWithTySigs = noLoc ExprWithTySig
-#endif
         eeWithLamsCore <- GM.elabRnExpr TM_Inst exprWithTySigs
         eeWithLamsCore' <- simplify eeWithLamsCore
         let
@@ -638,11 +607,7 @@ renameBinderSort f = rename
 
 
 mkHsTyConApp ::  IdP (GhcPass p) -> [LHsType (GhcPass p)] -> LHsType (GhcPass p)
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-mkHsTyConApp = nlHsTyConApp
-#else
 mkHsTyConApp tyconId tyargs = nlHsTyConApp Prefix tyconId (map HsValArg tyargs)
-#endif
 
 -- | Embed fixpoint expressions into parsed haskell expressions.
 --   It allows us to bypass the GHC parser and use arbitrary symbols
@@ -770,14 +735,7 @@ specTypeToLHsType =
     RImpFF _ _ (_, tin) (_, tout) _              -> nlHsFunTy tin tout
     RAllTF (ty_var_value -> (RTV tv)) (_, t) _ -> noLoc $ HsForAllTy
       Ghc.noExtField
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-#if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
-      ForallInvis
-#endif
-      [noLoc $ UserTyVar Ghc.noExtField (noLoc $ symbolToRdrNameNs tvName (F.symbol tv))]
-#else
       (mkHsForAllInvisTele [noLoc $ UserTyVar Ghc.noExtField SpecifiedSpec (noLoc $ symbolToRdrNameNs tvName (F.symbol tv))])
-#endif
       t
     RAllPF _ (_, ty)                    -> ty
     RAppF RTyCon { rtc_tc = tc } ts _ _ -> mkHsTyConApp

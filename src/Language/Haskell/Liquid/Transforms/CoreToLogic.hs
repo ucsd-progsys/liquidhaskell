@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE CPP                    #-}
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE OverloadedStrings      #-}
@@ -261,11 +260,7 @@ coreToLogic allowTC cb = coreToLg allowTC (normalize allowTC cb)
 
 coreToLg :: Bool -> C.CoreExpr -> LogicM Expr
 coreToLg allowTC  (C.Let (C.NonRec x (C.Coercion c)) e)
-  = coreToLg allowTC (C.substExpr
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-                      C.empty
-#endif
-                      (C.extendCvSubst C.emptySubst x c) e)
+  = coreToLg allowTC (C.substExpr (C.extendCvSubst C.emptySubst x c) e)
 coreToLg allowTC  (C.Let b e)
   = subst1 <$> coreToLg allowTC e <*>  makesub allowTC b
 coreToLg allowTC (C.Tick _ e)          = coreToLg allowTC e

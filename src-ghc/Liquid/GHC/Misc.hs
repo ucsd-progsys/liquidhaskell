@@ -904,35 +904,6 @@ isEvVar x = isPredVar x || isTyVar x || isCoVar x
 --   hsc_env <- Ghc.getHscEnv
 --   liftIO $ elabRnExpr hsc_env mode expr
 
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-elabRnExpr
-  :: TcRnExprMode -> LHsExpr GhcPs -> TcRn CoreExpr
-elabRnExpr mode rdr_expr = do
-    (rn_expr, _fvs) <- rnLExpr rdr_expr
-    failIfErrsM
-    uniq <- newUnique
-    let fresh_it = itName uniq (getLoc rdr_expr)
-        orig     = Ghc.lexprCtOrigin rn_expr
-    (tclvl, lie, (tc_expr, res_ty)) <- pushLevelAndCaptureConstraints $ do
-      (_tc_expr, expr_ty) <- tcInferSigma rn_expr
-      expr_ty'            <- if inst
-        then snd <$> deeplyInstantiate orig expr_ty
-        else return expr_ty
-      return (_tc_expr, expr_ty')
-    (_, _, evbs, residual, _) <- simplifyInfer tclvl
-                                            infer_mode
-                                            []    {- No sig vars -}
-                                            [(fresh_it, res_ty)]
-                                            lie
-    evbs' <- perhaps_disable_default_warnings $ simplifyInteractive residual
-    full_expr <- zonkTopLExpr (mkHsDictLet (EvBinds evbs') (mkHsDictLet evbs tc_expr))
-    initDsTc $ dsLExpr full_expr
- where
-  (inst, infer_mode, perhaps_disable_default_warnings) = case mode of
-    TM_Inst    -> (True, NoRestrictions, id)
-    TM_NoInst  -> (False, NoRestrictions, id)
-    TM_Default -> (True, EagerDefaulting, unsetWOptM Opt_WarnTypeDefaults)
-#else
 elabRnExpr
   :: TcRnExprMode -> LHsExpr GhcPs -> TcRn CoreExpr
 elabRnExpr mode rdr_expr = do
@@ -970,7 +941,7 @@ elabRnExpr mode rdr_expr = do
       TM_Inst    -> (True,  NoRestrictions, id)
       TM_NoInst  -> (False, NoRestrictions, id)
       TM_Default -> (True,  EagerDefaulting, unsetWOptM Opt_WarnTypeDefaults)
-#endif
+
 newtype HashableType = HashableType {getHType :: Type}
 
 instance Eq HashableType where
@@ -1064,15 +1035,7 @@ withWiredIn m = discardConstraints $ do
 
   sigs = sigsExt cppExt
 
-#ifdef MIN_VERSION_GLASGOW_HASKELL
-#if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
-  cppExt = HsIBRn {hsib_vars = [], hsib_closed = True} in -- TODO: What goes here? XXX
-#else
   cppExt = []
-#endif
-#else
-  cppExt = []
-#endif
 
   locSpan = UnhelpfulSpan (UnhelpfulOther "Liquid.GHC.Misc: WiredIn")
 
@@ -1113,14 +1076,7 @@ withWiredIn m = discardConstraints $ do
     aName <- Ghc.L locSpan <$> toName "a"
     let aTy = nameToTy aName
     let ty = noLoc $ HsForAllTy Ghc.noExtField
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-#if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
-             ForallInvis
-#endif
-             [Ghc.L locSpan $ UserTyVar Ghc.noExtField aName] $ mkHsFunTy aTy (mkHsFunTy aTy boolTy')
-#else
              (mkHsForAllInvisTele [Ghc.L locSpan $ UserTyVar Ghc.noExtField SpecifiedSpec aName]) $ mkHsFunTy aTy (mkHsFunTy aTy boolTy')
-#endif
     return $ TcWiredIn n (Just (4, Ghc.InfixN)) ty
 
   -- TODO: This is defined as a measure in liquid-base GHC.Base. We probably want to insert all measures to the environment.
@@ -1131,18 +1087,8 @@ withWiredIn m = discardConstraints $ do
     let aTy = nameToTy aName
     let ty =
           noLoc $ HsForAllTy Ghc.noExtField
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-#if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
-               ForallInvis
-#endif
-               [Ghc.L locSpan $ UserTyVar Ghc.noExtField aName] $ mkHsFunTy (listTy aTy) intTy'
-    return $ TcWiredIn n Nothing ty
-#else
                (mkHsForAllInvisTele [Ghc.L locSpan $ UserTyVar Ghc.noExtField SpecifiedSpec aName]) $ mkHsFunTy (listTy aTy) intTy'
     return $ TcWiredIn n Nothing ty
-#endif
-
-
 
 prependGHCRealQual :: FastString -> RdrName
 prependGHCRealQual = varQual_RDR gHC_REAL

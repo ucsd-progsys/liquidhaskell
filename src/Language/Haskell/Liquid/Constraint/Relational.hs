@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
@@ -11,12 +10,6 @@
 --   and the code for syntax-directed constraint generation.
 
 module Language.Haskell.Liquid.Constraint.Relational (consAssmRel, consRelTop) where
-
-
-#if !MIN_VERSION_base(4,14,0)
-import           Control.Monad.Fail
-#endif
-
 
 import           Control.Monad.State
 import           Data.Bifunctor                                 ( Bifunctor(bimap) )
