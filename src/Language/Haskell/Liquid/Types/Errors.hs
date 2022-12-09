@@ -255,8 +255,9 @@ data TError t =
                } -- ^ hole dependencies form a cycle error
 
   | ErrRelHint { pos  :: !SrcSpan
-               , utyp :: !Doc
-               , uexp :: !Doc
+               , unTyp :: !Doc
+               , hsTyp :: !Doc
+               , unExp :: !Doc
                }
 
   | ErrAssType { pos  :: !SrcSpan
@@ -788,9 +789,10 @@ ppError' _td _dCtx (ErrHole _ msg _ x t)
         $+$ pprint x <+> "::" <+> pprint t
         $+$ msg
 
-ppError' _td _dCtx (ErrRelHint _ typ body)
+ppError' _td _dCtx (ErrRelHint _ unTyp hsTyp body)
   = "Relational Hint"
-        $+$ typ
+        $+$ unTyp
+        $+$ hsTyp
         $+$ body
 
 ppError' td dCtx (ErrSubType _ _ cid c tA tE)

@@ -10,7 +10,7 @@
 -- | This module defines the representation of Subtyping and WF Constraints,
 --   and the code for syntax-directed constraint generation.
 
-module Language.Haskell.Liquid.Constraint.Relational (consAssmRel, consRelTop, relHint) where
+module Language.Haskell.Liquid.Constraint.Relational (consAssmRel, consRelTop) where
 
 
 #if !MIN_VERSION_base(4,14,0)
@@ -27,13 +27,17 @@ import           Data.String                                    ( IsString(..) )
 import           Data.Char                                      ( toUpper )
 import           Data.Default                                   ( def )
 -- import qualified Debug.Trace                                    as D
-import qualified Language.Fixpoint.Types                        as F
-import qualified Language.Fixpoint.Types.Visitor                as F
+import qualified Language.Fixpoint.Types       as F
+import qualified Language.Fixpoint.Types.Visitor
+                                               as F
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Monad
 import           Language.Haskell.Liquid.Constraint.Types
-import           Language.Haskell.Liquid.Synthesize.GHC (coreToHs, fromAnf)
+import           Language.Haskell.Liquid.Synthesize.GHC
+                                                ( coreToHs
+                                                , fromAnf
+                                                )
 
 import           Liquid.GHC.API                 ( Alt
                                                 , AltCon(..)
@@ -44,7 +48,8 @@ import           Liquid.GHC.API                 ( Alt
                                                 , Expr(..)
                                                 , Type(..)
                                                 , TyVar
-                                                , Var(..))
+                                                , Var(..)
+                                                )
 import qualified Liquid.GHC.API                as Ghc
 import qualified Liquid.GHC.Misc               as GM
 import           Liquid.GHC.Play               (Subable(sub, subTy))
@@ -101,12 +106,13 @@ consRelTop cfg ti γ ψ (x, y, t, s, ra, rp) = traceChk "Init" e d t s p $ do
       { relHints = relHint (GM.fSrcSpan $ F.loc t)
                            (relSigToUnSig (toExpr x) (toExpr y) t' s' rp)
                            hintName
-                           (relTermToUnTerm x y hintName (GM.unTickExpr $ binderToExpr e) (GM.unTickExpr $ binderToExpr d))
+                           (relTermToUnTerm x y hintName (toCoreExpr e) (toCoreExpr d))
                      : relHints cgi
       }
     else cgi
   where
     toExpr = F.EVar . F.symbol
+    toCoreExpr = GM.unTickExpr . binderToExpr
     p = fromRelExpr rp
     γ' = γ `setLocation` Sp.Span (GM.fSrcSpan (F.loc t))
     cbs = giCbs $ giSrc ti
@@ -261,7 +267,7 @@ relTermToUnTerm' _relTerms (Lam _b1 _e1) (Lam _b2 _e2) = Ghc.unitExpr
 relTermToUnTerm' _relTerms (Let _b1 _e1) (Let _b2 _e2) = Ghc.unitExpr
 relTermToUnTerm' _relTerms (Case _e1 _b1 _t1 _as1) (Case _e2 _b2 _t2 _as2) = Ghc.unitExpr
 relTermToUnTerm' _ e1 e2
-  = traceWhenLoud ("relTermToUnTerm: can't proceed proof generation on \n" ++ F.showpp e1 ++ "\n" ++ F.showpp e2)
+  = traceWhenLoud ("relTermToUnTerm': can't proceed proof generation on e1:\n" ++ F.showpp e1 ++ "\ne2:\n" ++ F.showpp e2)
       Ghc.unitExpr
 
 --------------------------------------------------------------
@@ -1118,7 +1124,9 @@ toRelExpr p = ERBasic p
 relHint :: Ghc.SrcSpan -> SpecType -> Ghc.Var -> CoreExpr -> Error
 relHint loc t v e 
   = ErrRelHint loc
-      (text $ F.showpp v ++ " :: " ++ F.showpp t)
+      (text $ "{-@ " ++ F.showpp v ++ " :: " ++ F.showpp t ++ " @-}")
+      -- TODO: Strip module names from GHC types
+      (text $ F.showpp v ++ " :: " ++ F.showpp (toType False t))
       (text $ coreToHs t v (fromAnf e))
 
 --------------------------------------------------------------
