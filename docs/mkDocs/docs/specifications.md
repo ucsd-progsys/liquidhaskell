@@ -1014,24 +1014,25 @@ incr = (+ 1)
 Monotonicity states that for any `x1, x2 :: Int` such that `x1 < x2`, inequality `incr x1 < incr x2` holds. This can be expressed as a comparison property on `incr`.
 
 ```haskell
-{-@ relational incr ~ incr 
-        :: x1:Int -> Int ~ x2:Int -> Int ~~ x1 < x2 => r1 x1 < r2 x2 @-}
+{-@ relational incr ~ incr :: { x1:Int -> Int 
+                              ~ x2:Int -> Int 
+                              | x1 < x2 :=> r1 x1 < r2 x2 } @-}
 ```
 
 Relational signature starts with the keyword `relational`. Next, it contains two functions being compared `incr ~ incr`. To prove monotonicity, we compare `incr` to itself. In the general case, it is possible to compare two different functions.
 
-Related expressions are followed by their type signatures `x1:Int -> Int` and `x2:Int -> Int` separated with a tilde. The last component of the signature is a predicate `x1 < x2 => r1 x1 < r2 x2`. 
+Related expressions are followed by their type signatures `x1:Int -> Int` and `x2:Int -> Int` separated with a tilde. The last component of the signature is a predicate `x1 < x2 :=> r1 x1 < r2 x2`. 
 
-Binders `x1` and `x2` refer to the functions' arguments. Keywords `r1` and `r2` are aliases for lhs `incr` and rhs `incr` respectively. 
+Binders `x1` and `x2` refer to the functions' arguments. Keywords `r1` and `r2` are aliases for lhs `incr` and rhs `incr` respectively. The predicate is logically equivalent to `x1 < x2 => r1 x1 < r2 x2`. Implication symbol `:=>` separates the precondition on the arguments from the postcondition on the return values.
 
 ### Relational Predicate Syntax
 
-A relational predicate is a sequence of clauses separated by top-level implication connectives `=>`:
+A relational predicate is a sequence of clauses separated by top-level implication connectives `:=>` (logically equivalent to `=>`):
 
 ```
-x1 < x2 => y1 < y2 => r1 x1 y1 < r2 x2 y2
-^^^^^^^    ^^^^^^^    ^^^^^^^^^^^^^^^^^^^
-  1st        2nd           3rd clause               
+x1 < x2 :=> y1 < y2 :=> r1 x1 y1 < r2 x2 y2
+^^^^^^^     ^^^^^^^     ^^^^^^^^^^^^^^^^^^^
+  1st         2nd            3rd clause               
 ```
 
 * Number of Clauses
@@ -1044,16 +1045,15 @@ x1 < x2 => y1 < y2 => r1 x1 y1 < r2 x2 y2
 
     -- clauses == arguments + 1
      
-    {-@ relational plus ~ plus 
-                :: x1:Int  -> y1:Int  -> Int 
-                 ~ x2:Int  -> y2:Int  -> Int
-                ~~ x1 < x2 => y1 < y2 => r1 x1 y1 < r2 x2 y2 @-}
-                   ^^^^^^^    ^^^^^^^    ^^^^^^^^^^^^^^^^^^^    
+    {-@ relational plus ~ plus :: { x1:Int   -> y1:Int   -> Int 
+                                  ~ x2:Int   -> y2:Int   -> Int
+                                  | x1 < x2 :=> y1 < y2 :=> r1 x1 y1 < r2 x2 y2 } @-}
+                                    ^^^^^^^     ^^^^^^^     ^^^^^^^^^^^^^^^^^^^    
     ```
     
-    For example, function `incr` has 1 argument. Its relational predicate has 1 implication that separates the precondition from the postcondition: `x1 < x2 => r1 x1 < r2 x2`. 
+    For example, function `incr` has 1 argument. Its relational predicate has 1 implication that separates the precondition from the postcondition: `x1 < x2 :=> r1 x1 < r2 x2`. 
     
-    Nested, non-top-level implications are allowed, e.g. `(true => x1 < x2) => (r1 x1 < r2 x2)`.
+    Nested, non-top-level implications are allowed, e.g. `(true => x1 < x2) :=> (r1 x1 < r2 x2)`.
 
 * Argument Scopes
 
@@ -1063,43 +1063,38 @@ x1 < x2 => y1 < y2 => r1 x1 y1 < r2 x2 y2
     ```haskell
     -- ERROR: clauses < arguments + 1 
 
-    {-@ relational plus ~ plus 
-            :: x1:Int  -> y1:Int  -> Int 
-             ~ x2:Int  -> y2:Int  -> Int
-            ~~ x1 < x2 && y1 < y2 => r1 x1 y1 < r2 x2 y2 @-}
+    {-@ relational plus ~ plus :: { x1:Int -> y1:Int -> Int 
+                                  ~ x2:Int -> y2:Int -> Int
+                                  | x1 < x2 && y1 < y2 :=> r1 x1 y1 < r2 x2 y2 } @-}
 
 
     -- ERROR: y1 and y2 used before their introduction
 
-    {-@ relational plus ~ plus 
-            :: x1:Int  -> y1:Int  -> Int 
-             ~ x2:Int  -> y2:Int  -> Int
-            ~~ y1 < y2 => x1 < x2 => r1 x1 y1 < r2 x2 y2 @-}
+    {-@ relational plus ~ plus :: { x1:Int -> y1:Int -> Int 
+                                  ~ x2:Int -> y2:Int -> Int
+                                  | y1 < y2 :=> x1 < x2 :=> r1 x1 y1 < r2 x2 y2 } @-}
 
     ```
     
 
     Correct versions could look like this:
     ```haskell
-    {-@ relational plus ~ plus 
-                :: x1:Int  -> y1:Int  -> Int 
-                 ~ x2:Int  -> y2:Int  -> Int
-                ~~ x1 < x2 => y1 < y2 => r1 x1 y1 < r2 x2 y2 @-}
+    {-@ relational plus ~ plus :: { x1:Int   -> y1:Int   -> Int 
+                                  ~ x2:Int   -> y2:Int   -> Int
+                                  | x1 < x2 :=> y1 < y2 :=> r1 x1 y1 < r2 x2 y2 } @-}
 
-    {-@ relational plus ~ plus 
-            :: x1:Int  -> y1:Int  -> Int 
-             ~ x2:Int  -> y2:Int  -> Int
-            ~~ true => x1 < x2 && y1 < y2 => r1 x1 y1 < r2 x2 y2 @-}
+    {-@ relational plus ~ plus :: { x1:Int -> y1:Int -> Int 
+                                  ~ x2:Int -> y2:Int -> Int
+                                  | true :=> x1 < x2 && y1 < y2 :=> r1 x1 y1 < r2 x2 y2 } @-}
 
-    {-@ relational plus ~ plus 
-            :: x1:Int  -> y1:Int  -> Int 
-             ~ x2:Int  -> y2:Int  -> Int
-            ~~ true => true => (x1 < x2 => y1 < y2 => r1 x1 y1 < r2 x2 y2) @-}
+    {-@ relational plus ~ plus :: { x1:Int -> y1:Int -> Int 
+                                  ~ x2:Int -> y2:Int -> Int
+                                  | true :=> true :=> x1 < x2 => y1 < y2 => r1 x1 y1 < r2 x2 y2 } @-} 
     ```
 
 ### Provided Guarantees
 
-For all possible inputs of the two compared functions, it is guaranteed that the relational predicate holds.
+For all possible inputs of the two compared functions, it is guaranteed that the relational predicate holds. 
 
 ### Running Relational Checks
 
@@ -1115,6 +1110,6 @@ Or in a Haskell source file:
 
 ### Current limitations
 
-- No support for abstract refinements. Notably, means no support for the standard list `[a]` and tuple `(a, b)` types which have implicit abstract refinements. Please use user-defined lists and tuples instead.
+- No support for abstract refinements. All abstract refinements are erased before relational typechecking. Notably, this happens for the standard list `[a]` and tuple `(a, b)` types!
 
-- Limited support for higher-order relational signatures.
+- Limited support for higher-order relational signatures. Use `!=>` instead of `:=>` after the function arguments to enable higher-order checking.
