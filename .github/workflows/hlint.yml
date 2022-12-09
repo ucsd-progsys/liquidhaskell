@@ -20,7 +20,7 @@ jobs:
     - uses: haskell/actions/hlint-setup@v2
       name: Set up HLint
       with:
-          version: "3.4"
+        version: "3.4"
 
     - uses: haskell/actions/hlint-run@v2
       name: hlint
