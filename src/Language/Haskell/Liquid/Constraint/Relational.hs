@@ -259,15 +259,52 @@ cap cs = cs
 relTermToUnTerm :: Var -> Var -> Var -> CoreExpr -> CoreExpr -> CoreExpr
 relTermToUnTerm e1 e2 relThm = relTermToUnTerm' [((e1, e2), Var relThm)]
 
+-- TODO: add types of e1 and e2
 relTermToUnTerm' :: [((Var, Var), CoreExpr)] -> CoreExpr -> CoreExpr -> CoreExpr
 relTermToUnTerm' relTerms (Var x1) (Var x2)
   | Just relX <- lookup (x1, x2) relTerms = relX
-relTermToUnTerm' _relTerms (App _f1 _x1) (App _f2 _x2) = Ghc.unitExpr
-relTermToUnTerm' _relTerms (Lam _b1 _e1) (Lam _b2 _e2) = Ghc.unitExpr
-relTermToUnTerm' _relTerms (Let _b1 _e1) (Let _b2 _e2) = Ghc.unitExpr
-relTermToUnTerm' _relTerms (Case _e1 _b1 _t1 _as1) (Case _e2 _b2 _t2 _as2) = Ghc.unitExpr
+relTermToUnTerm' relTerms (App f1 x1) (App f2 x2) = App (App (relTermToUnTerm' relTerms f1 f2) x1) x2
+relTermToUnTerm' relTerms (Lam x1 e1) (Lam x2 e2) = Lam x1l $ Lam x2r $ relTermToUnTerm' relTerms e1l e2r
+  where
+    (x1l, x2r) = mkRelCopies x1 x2
+    (e1l, e2r) = subRelCopies e1 x1 e2 x2
+relTermToUnTerm' relTerms (Let (NonRec x1 d1) e1) (Let (NonRec x2 d2) e2) =
+  Let (NonRec x1l d1) $ Let (NonRec x2r d2) $ 
+    Let (NonRec relX relD) $ relTermToUnTerm' (((x1l, x2r), Var relX) : relTerms) e1l e2r
+    where 
+      relX = mkRelThmVar x1 x2
+      relD = relTermToUnTerm' relTerms d1 d2
+      (x1l, x2r) = mkRelCopies x1 x2
+      (e1l, e2r) = subRelCopies e1 x1 e2 x2
+{- WIP
+relTermToUnTerm' relTerms (Let (NonRec x1 d1) e1) (Let (Rec bs2) e2) =
+  Let (NonRec x1l d1) $ Let (Rec x2r d2) $ 
+    Let (NonRec relX relD) $ relTermToUnTerm' (((x1l, x2r), Var relX) : relTerms) e1l e2r
+    where 
+      relX = mkRelThmVar x1 x2
+      relD = relTermToUnTerm' relTerms d1 d2
+      x1l  = mkCopyWithSuffix relSuffixL x1
+      bs2r = map (\(x, d) -> (mkCopyWithSuffix relSuffixR x, d)) bs2
+      (e1l, e2r) = subRelCopies e1 x1 e2 x2
+-}
+relTermToUnTerm' relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
+  -- TODO: mk left and right copies of alts
+  Case d1 x1l t1 $ map
+    (\(c1, bs1, e1) ->
+      ( c1
+      , bs1
+      , Case d2 x2r t2 $ map
+        (\(c2, bs2, e2) ->
+          let (e1l, e2r) = subRelCopies e1 x1 e2 x2
+          in  (c2, bs2, relTermToUnTerm' relTerms e1l e2r)
+        )
+        as2
+      ))
+    as1
+    where (x1l, x2r) = mkRelCopies x1 x2  
 relTermToUnTerm' _ e1 e2
   = traceWhenLoud ("relTermToUnTerm': can't proceed proof generation on e1:\n" ++ F.showpp e1 ++ "\ne2:\n" ++ F.showpp e2)
+      -- TODO: add args if function type
       Ghc.unitExpr
 
 --------------------------------------------------------------
@@ -461,6 +498,7 @@ consRelCheck γ ψ e1 c2@(Case e2 x2 _ alts2) t1 t2 p =
     γ' <- γ += ("consRelCheck Case Async R", x2', s2)
     forM_ alts2 $ consRelCheckAltAsyncR γ' ψ t1 t2 p e1 x2' s2
   where
+    -- TODO: where is subRelCopies?
     x2' = F.symbol $ mkCopyWithSuffix relSuffixR x2
 
 consRelCheck γ ψ e d t1 t2 p =
