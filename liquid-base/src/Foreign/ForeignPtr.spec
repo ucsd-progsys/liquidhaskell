@@ -3,7 +3,7 @@ module spec Foreign.ForeignPtr where
 import GHC.ForeignPtr
 import Foreign.Ptr
 
-Foreign.ForeignPtr.withForeignPtr :: forall a b. fp:(GHC.ForeignPtr.ForeignPtr a) 
+GHC.ForeignPtr.withForeignPtr :: forall a b. fp:(GHC.ForeignPtr.ForeignPtr a)
   -> ((PtrN a (fplen fp)) -> GHC.Types.IO b) 
   -> (GHC.Types.IO b)
 
