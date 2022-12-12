@@ -34,6 +34,7 @@ extra-deps:
   commit: 8ad2378cee5ccf7937d9e08aacd5c5b7128318e8
 
 resolver: lts-19.33
+allow-newer: true
 
 nix:
   packages: [cacert, git, hostname, z3]
