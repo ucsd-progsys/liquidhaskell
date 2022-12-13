@@ -19,7 +19,7 @@ import           Control.Monad.Fail
 
 
 import           Control.Monad.State
-import           Data.Bifunctor                                 ( Bifunctor(bimap) )
+import           Data.Bifunctor                                 as B
 import qualified Data.HashMap.Strict                            as M
 import qualified Data.List                                      as L
 import           Data.List.Split                                as L
@@ -1074,8 +1074,8 @@ subVarAndTy x v = subTy (M.singleton x $ TyVarTy v) . sub (M.singleton x $ Var v
 subVarAndTys :: [(Var, Var)] -> CoreExpr -> CoreExpr
 subVarAndTys xs = subTy (M.fromList xsTyVars) . sub (M.fromList xsVars)
   where 
-    xsVars   = map (\(x, v) -> (x, Var v)) xs
-    xsTyVars = map (\(x, v) -> (x, TyVarTy v)) xs
+    xsVars   = map (B.second Var) xs
+    xsTyVars = map (B.second TyVarTy) xs
 
 mkRelCopies :: Var -> Var -> (Var, Var)
 mkRelCopies x1 x2 = (mkCopyWithSuffix relSuffixL x1, mkCopyWithSuffix relSuffixR x2)
@@ -1095,10 +1095,10 @@ mkCopyWithSuffix :: String -> Var -> Var
 mkCopyWithSuffix s v = mkCopyWithName (Ghc.getOccString v ++ s) v
 
 mkLeftCopies :: [(Var, CoreExpr)] -> [(Var, CoreExpr)]
-mkLeftCopies = map (\(x, d) -> (mkCopyWithSuffix relSuffixL x, d))
+mkLeftCopies = map (B.first (mkCopyWithSuffix relSuffixL))
 
 mkRightCopies :: [(Var, CoreExpr)] -> [(Var, CoreExpr)]
-mkRightCopies = map (\(x, d) -> (mkCopyWithSuffix relSuffixR x, d))
+mkRightCopies = map (B.first (mkCopyWithSuffix relSuffixR))
 
 subOneSideCopies :: CoreExpr -> [(Var, CoreExpr)] -> [(Var, CoreExpr)] -> CoreExpr
 subOneSideCopies e bs bs' = L.foldl' (\e' ((x, _), (xr, _)) -> subVarAndTy x xr e') e $ zip bs bs'
