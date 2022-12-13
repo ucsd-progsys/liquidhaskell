@@ -113,16 +113,22 @@ symbols :: String
 symbols = [':']
 
 pprintSymbols :: String -> String
-pprintSymbols txt = foldr (\x xs -> pprintSym symbols x ++ xs) [] txt
+pprintSymbols txt = foldr (\x xs -> pprintSym symbols x ++ "\n" ++ xs) [] $ splitOn "\n" txt
 
-pprintSym :: String -> Char -> String
+pprintSym :: String -> String -> String
 pprintSym symbols s
-  = case find (== s) symbols of
-      Nothing -> [s]
-      Just s' -> ['(', s', ')']
+  | [] <- suffix = s 
+  | (c:cs) <- suffix =
+    case find (== c) symbols of
+      Nothing -> s
+      Just s' -> prefix ++ ['(', s', ')'] ++ cs
+      where 
+        prefix = takeWhile (== ' ') s
+        suffix = dropWhile (== ' ') s
 
 discardModName :: Var -> String
 discardModName v = last (splitOn "." (show v))
+  -- last (splitOn "." (getOccString (varName v)))
 
 rmModName :: String -> String
 rmModName s =
@@ -146,6 +152,7 @@ pprintFormals i (Lam b e) cnt vs
   | isTyVar b = pprintFormals i e cnt vs
   | cnt > 0 = pprintFormals i e (cnt - 1) (b:vs)
   | otherwise = " " ++ show b ++ pprintFormals i e cnt vs
+  -- | otherwise = " " ++ getOccString (varName b) ++ pprintFormals i e cnt vs
 pprintFormals i e _ vs
   = " =" ++ pprintBody vs i e
 

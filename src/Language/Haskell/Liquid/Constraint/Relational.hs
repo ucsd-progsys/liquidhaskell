@@ -259,7 +259,6 @@ cap cs = cs
 relTermToUnTerm :: Var -> Var -> Var -> CoreExpr -> CoreExpr -> CoreExpr
 relTermToUnTerm e1 e2 relThm = relTermToUnTerm' [((e1, e2), Var relThm)]
 
--- TODO: add types of e1 and e2
 relTermToUnTerm' :: [((Var, Var), CoreExpr)] -> CoreExpr -> CoreExpr -> CoreExpr
 relTermToUnTerm' relTerms (Var x1) (Var x2)
   | Just relX <- lookup (x1, x2) relTerms = relX
@@ -276,36 +275,46 @@ relTermToUnTerm' relTerms (Let (NonRec x1 d1) e1) (Let (NonRec x2 d2) e2) =
       relD = relTermToUnTerm' relTerms d1 d2
       (x1l, x2r) = mkRelCopies x1 x2
       (e1l, e2r) = subRelCopies e1 x1 e2 x2
-{- WIP
-relTermToUnTerm' relTerms (Let (NonRec x1 d1) e1) (Let (Rec bs2) e2) =
-  Let (NonRec x1l d1) $ Let (Rec x2r d2) $ 
-    Let (NonRec relX relD) $ relTermToUnTerm' (((x1l, x2r), Var relX) : relTerms) e1l e2r
+-- TODO: test recursive and mutually recursive lets
+relTermToUnTerm' relTerms (Let (Rec bs1) e1) (Let (Rec bs2) e2) 
+  | length bs1 == length bs2 = 
+    Let (Rec bs1l) $ Let (Rec bs2r) $ Let (Rec relBs) $ relTermToUnTerm' relTerms' e1l e2r
     where 
-      relX = mkRelThmVar x1 x2
-      relD = relTermToUnTerm' relTerms d1 d2
-      x1l  = mkCopyWithSuffix relSuffixL x1
-      bs2r = map (\(x, d) -> (mkCopyWithSuffix relSuffixR x, d)) bs2
-      (e1l, e2r) = subRelCopies e1 x1 e2 x2
--}
+      bs1l = mkLeftCopies bs1
+      bs2r = mkRightCopies bs2
+      e1l  = subOneSideCopies e1 bs1 bs1l
+      e2r  = subOneSideCopies e2 bs2 bs2r
+      relTermsBs = zipWith (\(x1, d1) (x2, d2) -> ((x1, x2), relTermToUnTerm' relTerms d1 d2)) bs1 bs2
+      relTerms' = relTermsBs ++ relTerms
+      relBs = zipWith (\(x1, d1) (x2, d2) -> (mkRelThmVar x1 x2, relTermToUnTerm' relTerms' d1 d2)) bs1 bs2
 relTermToUnTerm' relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
-  -- TODO: mk left and right copies of alts
   Case d1 x1l t1 $ map
     (\(c1, bs1, e1) ->
+      let bs1l = map (mkCopyWithSuffix relSuffixL) bs1 in
       ( c1
-      , bs1
+      , bs1l
       , Case d2 x2r t2 $ map
         (\(c2, bs2, e2) ->
-          let (e1l, e2r) = subRelCopies e1 x1 e2 x2
-          in  (c2, bs2, relTermToUnTerm' relTerms e1l e2r)
+          let bs2r = map (mkCopyWithSuffix relSuffixR) bs2
+              e1l  = subVarAndTys ((x1, x1l) : zip bs1 bs1l) e1
+              e2r  = subVarAndTys ((x2, x2r) : zip bs2 bs2r) e2 
+          in  (c2, bs2r, relTermToUnTerm' relTerms e1l e2r)
         )
         as2
       ))
     as1
-    where (x1l, x2r) = mkRelCopies x1 x2  
+    where (x1l, x2r) = mkRelCopies x1 x2
 relTermToUnTerm' _ e1 e2
   = traceWhenLoud ("relTermToUnTerm': can't proceed proof generation on e1:\n" ++ F.showpp e1 ++ "\ne2:\n" ++ F.showpp e2)
-      -- TODO: add args if function type
-      Ghc.unitExpr
+      mkLambdaUnit (Ghc.exprType e1) (Ghc.exprType e2)
+      
+mkLambdaUnit :: Type -> Type -> CoreExpr
+mkLambdaUnit (Ghc.ForAllTy _ t1) t2 = mkLambdaUnit t1 t2
+mkLambdaUnit t1 (Ghc.ForAllTy _ t2) = mkLambdaUnit t1 t2
+mkLambdaUnit (Ghc.FunTy _ _ _ t1) (Ghc.FunTy _ _ _ t2) = Lam (GM.stringVar "_" Ghc.unitTy) $ Lam (GM.stringVar "_" Ghc.unitTy) $ mkLambdaUnit t1 t2
+mkLambdaUnit t1@Ghc.FunTy{} t2 = F.panic $ "relTermToUnTerm: asked to relate unmatching types " ++ F.showpp t1 ++ " " ++ F.showpp t2
+mkLambdaUnit t1 t2@Ghc.FunTy{} = F.panic $ "relTermToUnTerm: asked to relate unmatching types " ++ F.showpp t1 ++ " " ++ F.showpp t2
+mkLambdaUnit _ _ = Ghc.unitExpr
 
 --------------------------------------------------------------
 -- Core Checking Rules ---------------------------------------
@@ -1062,6 +1071,12 @@ subRelCopies e1 x1 e2 x2 = (subVarAndTy x1 evar1 e1, subVarAndTy x2 evar2 e2)
 subVarAndTy :: Var -> Var -> CoreExpr -> CoreExpr
 subVarAndTy x v = subTy (M.singleton x $ TyVarTy v) . sub (M.singleton x $ Var v)
 
+subVarAndTys :: [(Var, Var)] -> CoreExpr -> CoreExpr
+subVarAndTys xs = subTy (M.fromList xsTyVars) . sub (M.fromList xsVars)
+  where 
+    xsVars   = map (\(x, v) -> (x, Var v)) xs
+    xsTyVars = map (\(x, v) -> (x, TyVarTy v)) xs
+
 mkRelCopies :: Var -> Var -> (Var, Var)
 mkRelCopies x1 x2 = (mkCopyWithSuffix relSuffixL x1, mkCopyWithSuffix relSuffixR x2)
 
@@ -1072,11 +1087,21 @@ mkRelCopies x1 x2 = (mkCopyWithSuffix relSuffixL x1, mkCopyWithSuffix relSuffixR
 -- mkRCopies = (mkCopyWithSuffix relSuffixR <$>)
 
 mkCopyWithName :: String -> Var -> Var
-mkCopyWithName s v =
+mkCopyWithName s v = 
+  -- GM.stringVar s (Ghc.exprType (Var v))
   Ghc.setVarName v $ Ghc.mkSystemName (Ghc.getUnique v) (Ghc.mkVarOcc s)
 
 mkCopyWithSuffix :: String -> Var -> Var
 mkCopyWithSuffix s v = mkCopyWithName (Ghc.getOccString v ++ s) v
+
+mkLeftCopies :: [(Var, CoreExpr)] -> [(Var, CoreExpr)]
+mkLeftCopies = map (\(x, d) -> (mkCopyWithSuffix relSuffixL x, d))
+
+mkRightCopies :: [(Var, CoreExpr)] -> [(Var, CoreExpr)]
+mkRightCopies = map (\(x, d) -> (mkCopyWithSuffix relSuffixR x, d))
+
+subOneSideCopies :: CoreExpr -> [(Var, CoreExpr)] -> [(Var, CoreExpr)] -> CoreExpr
+subOneSideCopies e bs bs' = L.foldl' (\e' ((x, _), (xr, _)) -> subVarAndTy x xr e') e $ zip bs bs'
 
 lookupBind :: Var -> [CoreBind] -> CoreBind
 lookupBind x bs = case lookup x (concatMap binds bs) of
