@@ -61,3 +61,5 @@ tests/**/*.o-boot
 
 .idea
 *.iml
+
+.DS_Store
