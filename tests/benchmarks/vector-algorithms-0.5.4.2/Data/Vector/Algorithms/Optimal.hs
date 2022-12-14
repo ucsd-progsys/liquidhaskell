@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP #-}
-
+{-@ LIQUID "--no-exact-data-con" @-}
 -- ---------------------------------------------------------------------------
 -- |
 -- Module      : Data.Vector.Algorithms.Optimal

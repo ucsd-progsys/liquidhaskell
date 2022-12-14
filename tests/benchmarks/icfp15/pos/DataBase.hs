@@ -1,5 +1,6 @@
 {-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "totality"         @-}
+{-@ LIQUID "--totality"         @-}
+{-@ LIQUID "--no-exact-data-con" @-}
 
 module DataBase (
 

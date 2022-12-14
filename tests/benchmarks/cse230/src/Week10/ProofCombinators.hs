@@ -5,7 +5,7 @@
 
 module ProofCombinators (
 
-  -- ATTENTION! `Admit` and `(==!)` are UNSAFE: they should not belong the final proof term
+  -- ATTENTION! `(==!)` is UNSAFE: it should not belong the final proof term
 
   -- * Proof is just a () alias
   Proof
@@ -70,10 +70,7 @@ infixl 3 ***
 (***) :: a -> QED -> Proof
 _ *** _ = ()
 
-data QED = Admit | QED
-
-{-@ measure isAdmit :: QED -> Bool @-}
-{-@ Admit :: {v:QED | isAdmit v } @-}
+data QED = QED
 
 
 -------------------------------------------------------------------------------

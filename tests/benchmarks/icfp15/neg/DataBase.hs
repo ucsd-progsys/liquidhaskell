@@ -1,6 +1,7 @@
 {-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "totality" @-}
+{-@ LIQUID "--totality" @-}
+{-@ LIQUID "--no-exact-data-con" @-}
 {-# OPTIONS_GHC -Wno-overlapping-patterns #-}
 
 module DataBase (
