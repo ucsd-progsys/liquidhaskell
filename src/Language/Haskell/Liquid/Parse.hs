@@ -431,7 +431,7 @@ refP = refBindBindP refaP
 
 relrefaP :: Parser RelExpr 
 relrefaP =
-  try (ERUnChecked <$> refaP <* (reserved "=>" <|> reserved "==>") <*> relrefaP)
+  try (ERUnChecked <$> refaP <* reserved ":=>" <*> relrefaP)
     <|> try (ERChecked <$> refaP <* reserved "!=>" <*> relrefaP)
     <|> ERBasic <$> refaP
 
@@ -1357,6 +1357,11 @@ oneClassArg
                <|> ((:) <$> (fmap bTyVar <$> locLowerIdP) <*> classParams)
     sing x      = [x]
 
+
+superP :: Parser (Located BareType)
+superP = located (toRCls <$> bareAtomBindP)
+  where toRCls x = x
+
 instanceLawP :: Parser (RILaws (Located BareType))
 instanceLawP
   = do l1   <- getSourcePos
@@ -1367,11 +1372,9 @@ instanceLawP
        l2   <- getSourcePos
        return $ RIL c sups tvs ms (Loc l1 l2 ())
   where
-    superP   = located (toRCls <$> bareAtomBindP)
     supersP  = try ((parens (superP `sepBy1` comma) <|> fmap pure superP)
                        <* reservedOp "=>")
                <|> return []
-    toRCls x = x
 
     eqBinderP = xyP xP (reservedOp "=") xP
 
@@ -1385,11 +1388,9 @@ instanceP
        ms   <- block riMethodSigP
        return $ RI c tvs ms
   where
-    superP   = located (toRCls <$> bareAtomBindP)
     supersP  = try ((parens (superP `sepBy1` comma) <|> fmap pure superP)
                        <* reservedOp "=>")
                <|> return []
-    toRCls x = x
 
     iargsP   =   (mkVar . bTyVar <$> tyVarIdP)
             <|> parens (located bareTypeP)
@@ -1415,11 +1416,9 @@ classP
        ms   <- block tyBindP -- <|> sepBy tyBindP semi
        return $ RClass c sups tvs ms
   where
-    superP   = located (toRCls <$> bareAtomBindP)
     supersP  = try ((parens (superP `sepBy1` comma) <|> fmap pure superP)
                        <* reservedOp "=>")
                <|> return []
-    toRCls x = x
 
 rawBodyP :: Parser Body
 rawBodyP
@@ -1587,13 +1586,14 @@ relationalP = do
    reserved "~"
    y <- locBinderP
    reserved "::"
-   tx <- located genBareTypeP
-   reserved "~"
-   ty <- located genBareTypeP
-   reserved "~~"
-   assm <- try (relrefaP <* reserved "|-") <|> return (ERBasic PTrue)
-   ex <- relrefaP
-   return (x,y,tx,ty,assm,ex)
+   braces $ do 
+    tx <- located genBareTypeP
+    reserved "~"
+    ty <- located genBareTypeP
+    reserved "|"
+    assm <- try (relrefaP <* reserved "|-") <|> return (ERBasic PTrue)
+    ex <- relrefaP
+    return (x,y,tx,ty,assm,ex)
 
 dataDeclP :: Parser DataDecl
 dataDeclP = do

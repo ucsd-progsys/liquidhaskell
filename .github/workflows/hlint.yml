@@ -9,7 +9,10 @@ jobs:
     name: hlint
     runs-on: ubuntu-latest
 
-    steps:
+    steps:    
+    - name: fix ncurses version
+      run: sudo apt-get install libncurses5
+      
     - uses: actions/checkout@v3
       with:
         submodules: true

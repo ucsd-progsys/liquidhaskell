@@ -12,7 +12,7 @@ import           Prelude                 hiding ( Applicative(..)
 {-@ infix   :   @-}
 
 -- {-@ reflect insert @-}
--- {-@ insert :: y:Int -> xs:[Int] -> {v:Tick [Int]| leq y xs => Isort.tcost v <= 1} @-}
+-- {-@ insert :: y:Int -> xs:[Int] -> {v:Tick [Int]| leq y xs :=> Isort.tcost v <= 1} @-}
 insert :: Int -> [Int] -> Tick [Int]
 insert y []                  = pure [y]
 insert y xs@(x : _) | y <= x = step 1 $ pure (y : xs)
@@ -21,8 +21,7 @@ insert y (x : xs)            = step 1 $ fmap (cons x) (insert y xs)
 -- {-@ reflect isort @-}
 isort :: [Int] -> Tick [Int]
 isort []       = pure []
-isort (x : xs) = step t $ insert x xs'
-  where Tick t xs' = isort xs
+isort (x : xs) = step t $ insert x xs' where Tick t xs' = isort xs
 
 -- Unary 
 
@@ -34,10 +33,10 @@ isort (x : xs) = step t $ insert x xs'
 
 -- Relational
 
-{-@ relational isort ~ isort :: xs1:[Int] -> Tick [Int]
+{-@ relational isort ~ isort :: {xs1:[Int] -> Tick [Int]
                               ~ xs2:[Int] -> Tick [Int]
-                             ~~ Isort.sorted xs1 && len xs1 = len xs2 => 
-                                  Isort.tcost (r1 xs1) <= Isort.tcost (r2 xs2) @-}
+                             | Isort.sorted xs1 && len xs1 = len xs2 :=> 
+                                  Isort.tcost (r1 xs1) <= Isort.tcost (r2 xs2)} @-}
 
 -- Axiomatization
 
@@ -52,6 +51,8 @@ sorted []       = True
 sorted (x : xs) = sorted xs && leq x xs
 
 -- Data.Lists
+
+{- HLINT ignore "Use foldr" -}
 
 {-@ measure length @-}
 {-@ length :: [a] -> Nat @-}
