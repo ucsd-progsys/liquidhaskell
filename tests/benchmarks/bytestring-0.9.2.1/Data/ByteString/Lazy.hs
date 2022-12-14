@@ -1,5 +1,6 @@
 {-@ LIQUID "--no-totality"   @-}
 {-@ LIQUID "--pruneunsorted" @-}
+{-@ LIQUID "--no-exact-data-types" @-}
 
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans -fno-warn-incomplete-patterns #-}
 
