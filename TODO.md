@@ -1308,6 +1308,7 @@ GHC 7.10
 
     to
 
+ 
       D:Foo foo
 
     but it still breaks when we don't have an LH class decl
