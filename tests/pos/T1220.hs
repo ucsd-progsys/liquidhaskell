@@ -1,5 +1,3 @@
-{-@ LIQUID "--exactdc" @-}
-
 module T1220 where
 
 {-@ unsafe :: {t : AB | not (isA t)} -> {t /= A}  @-}

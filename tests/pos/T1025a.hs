@@ -1,6 +1,5 @@
-{-@ LIQUID "--exactdc"     @-}                                                            
-{-@ LIQUID "--higherorder" @-}                                                            
-
+{-@ LIQUID "--reflection" @-}
+                                                          
 module T1025a where
                                                                                           
 import Language.Haskell.Liquid.ProofCombinators                                           

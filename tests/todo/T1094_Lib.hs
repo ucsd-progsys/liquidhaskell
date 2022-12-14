@@ -1,5 +1,4 @@
-{-@ LIQUID "--higherorder" @-}
-{-@ LIQUID "--exactdc"     @-}
+{-@ LIQUID "--reflection" @-}
 
 module T1094_Lib where
 

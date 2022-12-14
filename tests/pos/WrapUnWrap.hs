@@ -1,5 +1,5 @@
-{-@ LIQUID "--higherorder"  @-}
-{-@ LIQUID "--exactdc"      @-}
+{-@ LIQUID "--reflection" @-}
+
 module WrapUnWrap where
 
 

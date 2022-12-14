@@ -1,5 +1,3 @@
-{-@ LIQUID "--exact-data-cons" @-}
-
 module T1278_2 where
 
 {-@ data List [sz] @-}

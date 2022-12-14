@@ -39,7 +39,6 @@ their [nifty new tool][hs-to-coq].
 <div class="hidden">
 \begin{code}
 {-@ LIQUID "--short-names"    @-}
-{-@ LIQUID "--exact-data-con" @-}
 {-@ LIQUID "--no-adt"         @-}
 {-@ LIQUID "--prune-unsorted" @-}
 {-@ LIQUID "--higherorder"    @-}

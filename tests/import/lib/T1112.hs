@@ -1,6 +1,5 @@
+{-@ LIQUID "--reflection" @-}
 
-{-@ LIQUID "--higherorder"    @-}
-{-@ LIQUID "--exact-data-con" @-}
 
 module T1112 where
 

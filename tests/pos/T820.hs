@@ -1,5 +1,4 @@
-{-@ LIQUID "--exactdc"      @-}
-{-@ LIQUID "--higherorder"  @-}
+{-@ LIQUID "--reflection" @-}
 
 module T820 where
 

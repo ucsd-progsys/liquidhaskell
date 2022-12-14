@@ -2,7 +2,6 @@
 
 module T1100 where
 
-{-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--no-termination"                      @-}
 

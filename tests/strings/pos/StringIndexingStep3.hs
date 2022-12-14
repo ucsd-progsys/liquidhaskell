@@ -15,9 +15,8 @@ NV TODO
 {-# LANGUAGE GADTs               #-}
 
 
-{-@ LIQUID "--higherorder"         @-}
 {-@ LIQUID "--totality"            @-}
-{-@ LIQUID "--exactdc"             @-}
+{-@ LIQUID "--reflection" @-}
 
 module Main where
 

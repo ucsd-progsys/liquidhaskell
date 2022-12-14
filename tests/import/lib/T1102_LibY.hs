@@ -1,5 +1,3 @@
-{-@ LIQUID "--exact-data-con" @-}
-
 module T1102_LibY where 
 
 import T1102_LibZ 

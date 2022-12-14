@@ -1,7 +1,6 @@
 -- VS.hs
-{-@ LIQUID "--higherorder"    @-}
 {-@ LIQUID "--totality"       @-}
-{-@ LIQUID "--exactdc"        @-}
+{-@ LIQUID "--reflection" @-}
 
 module TODOVarInTypeAlias where
 

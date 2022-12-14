@@ -1,6 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
-{-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--ple" @-}
 
 -----------------------------------------------------------------------------

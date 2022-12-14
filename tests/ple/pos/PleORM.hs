@@ -1,8 +1,7 @@
 module PleORM where
 
-{-@ LIQUID "--exact-data-con" @-}
-{-@ LIQUID "--higherorder"    @-}
-{-@ LIQUID "--ple"            @-}
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-}
 
 import Prelude hiding (length, filter)
 

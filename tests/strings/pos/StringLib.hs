@@ -1,8 +1,7 @@
 {-# LANGUAGE OverloadedStrings   #-}
 
-{-@ LIQUID "--higherorder"         @-}
+{-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--totality"            @-}
-{-@ LIQUID "--exactdc"             @-}
 
 module StringLib where
 

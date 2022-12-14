@@ -1,5 +1,3 @@
-{-@ LIQUID "--exactdc" @-}
-
 import AALib
 
 {-@ lazy bar @-}

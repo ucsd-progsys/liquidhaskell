@@ -1,6 +1,5 @@
-{-@ LIQUID "--higherorder"         @-}
+{-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--totality"            @-}
-{-@ LIQUID "--exactdc"             @-}
 {-@ LIQUID "--no-measure-fields"   @-}
 
 

@@ -5,8 +5,7 @@
 -- nonlinear-cuts (i.e. they add new cut vars that require qualifiers.) why?
 -- where? switch off non-lin-cuts in higher-order mode?
 
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--exact-data-cons" @-}
+{-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--eliminate=all"   @-}
 
 module Unification where

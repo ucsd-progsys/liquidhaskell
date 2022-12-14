@@ -1,8 +1,6 @@
 {-@ LIQUID "--expect-any-error" @-}
 
-{-@ LIQUID "--higherorder"      @-}
-{- LIQUID "--autoproofs"      @-}
-{-@ LIQUID "--exact-data-cons" @-}
+{-@ LIQUID "--reflection" @-}
 module BasicLambdas where
 
 import Proves 

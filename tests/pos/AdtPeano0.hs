@@ -1,5 +1,4 @@
-{-@ LIQUID "--exact-data-con" @-}
-{-@ LIQUID "--higherorder"    @-}
+{-@ LIQUID "--reflection" @-}
 
 module AdtPeano0 where
 

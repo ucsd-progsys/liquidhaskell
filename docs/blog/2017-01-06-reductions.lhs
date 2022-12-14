@@ -45,7 +45,6 @@ This proof reduction is possible since Peano numbers are homomorphic to Natural 
 \begin{code}
 {-@ LIQUID "--higherorder"    @-}
 {-@ LIQUID "--totalhaskell"   @-}
-{-@ LIQUID "--exactdc"        @-}
 {-@ LIQUID "--diffcheck"      @-}
 {-@ LIQUID "--pruneunsorted"  @-}
 {-@ LIQUID "--eliminate=some" @-}

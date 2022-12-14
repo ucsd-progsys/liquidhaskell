@@ -94,7 +94,7 @@ data Config = Config
   , proofLogicEvalLocal      :: Bool       -- ^ Enable proof-by-logical-evaluation locally, per function
   , extensionality           :: Bool       -- ^ Enable extensional interpretation of function equality
   , nopolyinfer              :: Bool       -- ^ No inference of polymorphic type application.
-  , reflection               :: Bool       -- ^ Allow "reflection"; switches on "--higherorder" and "--exactdc"
+  , reflection               :: Bool       -- ^ Allow "reflection"; switches on "--higherorder"
   , compileSpec              :: Bool       -- ^ Only "compile" the spec -- into .bspec file -- don't do any checking.
   , noCheckImports           :: Bool       -- ^ Do not check the transitive imports
   , typedHoles               :: Bool       -- ^ Warn about "typed-holes"

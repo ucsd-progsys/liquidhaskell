@@ -1,5 +1,5 @@
-{-@ LIQUID "--exactdc"      @-}
-{-@ LIQUID "--higherorder"  @-}
+{-@ LIQUID "--reflection" @-}
+
 module ReflectBooleanFunctions where
 
 

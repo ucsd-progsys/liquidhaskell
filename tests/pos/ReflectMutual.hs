@@ -1,5 +1,3 @@
-{-@ LIQUID "--exactdc" @-}
-
 module ReflectMutual where
 
 data Foo = Foo {getFoo :: Int}

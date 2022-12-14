@@ -1,5 +1,4 @@
-{-@ LIQUID "--higherorder"        @-}
-{-@ LIQUID "--exactdc"            @-}
+{-@ LIQUID "--reflection" @-}
 
 module T1117Lib where
 

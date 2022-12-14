@@ -14,7 +14,6 @@ demo: Iso.hs
 \begin{code}
 {-@ LIQUID "--higherorder" @-}
 {-@ LIQUID "--totalhaskell" @-}
-{-@ LIQUID "--exactdc" @-}
 {-@ LIQUID "--diffcheck" @-}
 
 module Iso where

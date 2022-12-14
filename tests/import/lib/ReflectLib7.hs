@@ -1,5 +1,4 @@
-{-@ LIQUID "--higherorder"    @-}
-{-@ LIQUID "--exactdc"        @-}
+{-@ LIQUID "--reflection" @-}
 
 module ReflectLib7 where
 

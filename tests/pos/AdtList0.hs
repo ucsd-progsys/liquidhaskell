@@ -1,6 +1,3 @@
-
-{-@ LIQUID "--exact-data-cons" @-}
-
 module AdtList0 where
 
 data LL a = Emp | Cons a (LL a) 

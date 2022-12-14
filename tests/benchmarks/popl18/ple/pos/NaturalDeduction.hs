@@ -5,8 +5,7 @@
 
 module NaturalDeduction where
 
-{-@ LIQUID "--higherorder" @-}
-{-@ LIQUID "--exact-data-cons" @-}
+{-@ LIQUID "--reflection" @-}
 
 import Language.Haskell.Liquid.ProofCombinators
 

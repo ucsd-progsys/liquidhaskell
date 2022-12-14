@@ -2,8 +2,6 @@
 --   we instantiate the output of `app` with quals like `v < xs` `v > xs` etc.
 --   where v, xs are of the ADT sort `List a`.
 
-{-@ LIQUID "--exact-data-cons" @-}
-
 module AdtList4 where
 
 data LL a = Emp | Cons a (LL a) 

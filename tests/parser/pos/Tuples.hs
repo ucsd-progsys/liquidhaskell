@@ -1,5 +1,3 @@
-{-@ LIQUID "--exact-data-cons" @-}
-
 module Tuples where
 
 {-@ reflect f @-}

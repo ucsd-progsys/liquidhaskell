@@ -1,4 +1,3 @@
-{-@ LIQUID "--exact-data-con" @-}
 {-@ LIQUID "--ple" @-}
 
 module Basics

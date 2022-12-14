@@ -1,7 +1,6 @@
 {-# LANGUAGE GADTs #-}
 
-{-@ LIQUID "--exact-data-con" @-}
-{-@ LIQUID "--higherorder"    @-}
+{-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"            @-}
 {-@ LIQUID "--noadt"          @-}
 

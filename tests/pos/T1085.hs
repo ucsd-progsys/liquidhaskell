@@ -1,5 +1,3 @@
-{-@ LIQUID "--exact-data-cons"   @-}
-
 module T1085 where
 
 {-@ data HEither a b = HLeft a | HRight b @-}

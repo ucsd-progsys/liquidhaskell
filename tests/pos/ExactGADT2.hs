@@ -1,5 +1,3 @@
-{-@ LIQUID "--exact-data-con" @-}
-
 {-# LANGUAGE  GADTs #-}
 
 module ExactGADT2 where

@@ -11,7 +11,6 @@
 ----------------------------------------------------------------------------
 
 {-# LANGUAGE LambdaCase #-}
-{- LIQUID "--exact-data-cons" @-}
 
 module Language.Stitch.LH.Unchecked where
 

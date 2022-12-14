@@ -1,5 +1,4 @@
 {-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
-{-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--ple" @-}
 module Tests.Check where
 

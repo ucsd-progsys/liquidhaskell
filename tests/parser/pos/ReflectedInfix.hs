@@ -1,6 +1,5 @@
 module ReflectedInfix where
-{-@ LIQUID "--higherorder"    @-}
-{-@ LIQUID "--exact-data-con" @-}
+{-@ LIQUID "--reflection" @-}
 
 import Language.Haskell.Liquid.ProofCombinators 
 import Prelude hiding ((++))

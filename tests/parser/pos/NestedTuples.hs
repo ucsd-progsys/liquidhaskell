@@ -1,6 +1,4 @@
-{-@ LIQUID "--exact-data-cons" @-}
-
-module NestedTuples where
+qmodule NestedTuples where
 
 {-@ reflect f @-}
 f :: Int -> Int

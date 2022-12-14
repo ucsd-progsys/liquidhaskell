@@ -1,7 +1,6 @@
 {-# LANGUAGE GADTs            #-}
-{-@ LIQUID "--exact-data-con" @-}
-{-@ LIQUID "--higherorder"    @-}
-{-@ LIQUID "--ple"            @-}
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-}
 
 module IndPerm where
 

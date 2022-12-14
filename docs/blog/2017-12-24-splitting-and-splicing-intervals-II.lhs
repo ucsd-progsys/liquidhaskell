@@ -40,7 +40,6 @@ simplify the overhead of proof.
 <div class="hidden">
 \begin{code}
 {-@ LIQUID "--short-names"    @-}
-{-@ LIQUID "--exact-data-con" @-}
 {-@ LIQUID "--no-adt"         @-}
 {-@ LIQUID "--higherorder"    @-}
 {-@ LIQUID "--diff"           @-}

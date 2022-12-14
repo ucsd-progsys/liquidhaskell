@@ -1,5 +1,3 @@
-{-@ LIQUID "--exact-data-con"                      @-}
-
 module Induction where
 
 import qualified Prelude

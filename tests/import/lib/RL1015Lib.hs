@@ -1,5 +1,4 @@
-{-@ LIQUID "--exactdc" @-}
-{-@ LIQUID "--higherorder" @-}
+{-@ LIQUID "--reflection" @-}
 
 module RL1015Lib where
 

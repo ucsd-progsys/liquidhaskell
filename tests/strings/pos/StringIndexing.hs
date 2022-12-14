@@ -7,9 +7,8 @@
 
 
 {-@ LIQUID "--cores=10"            @-}
-{-@ LIQUID "--higherorder"         @-}
 {-@ LIQUID "--totality"            @-}
-{-@ LIQUID "--exactdc"             @-}
+{-@ LIQUID "--reflection" @-}
 
 module Main where
 

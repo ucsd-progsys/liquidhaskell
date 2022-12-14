@@ -1,7 +1,6 @@
 -- LH issue #1023
 
-{-@ LIQUID "--exactdc"     @-}
-{-@ LIQUID "--higherorder" @-}
+{-@ LIQUID "--reflection" @-}
 
 module ExportReflect0 (foo, zogbert) where
 

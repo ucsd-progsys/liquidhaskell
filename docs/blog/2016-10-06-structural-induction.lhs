@@ -108,7 +108,7 @@ Reflecting Lists into the Logic
 To talk about lists in the logic, we use the annotation
 
 \begin{code}
-{-@ LIQUID "--exact-data-cons" @-}
+{- LIQUID "--exact-data-cons" @-}
 \end{code}
 
 which **automatically** derives measures for

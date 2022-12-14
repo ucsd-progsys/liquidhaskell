@@ -1,5 +1,4 @@
-{-@ LIQUID "--higherorder"        @-}
-{-@ LIQUID "--exactdc"            @-}
+{-@ LIQUID "--reflection" @-}
 
 module T1037A where
 

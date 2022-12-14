@@ -1,6 +1,5 @@
-{-@ LIQUID "--higherorder"     @-}
+{-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--totality"        @-}
-{-@ LIQUID "--exact-data-cons" @-}
 
 module Soundness where
 

@@ -1,5 +1,3 @@
-{-@ LIQUID "--exact-data-cons" @-}
-
 module Record0 () where
 
 import Language.Haskell.Liquid.Prelude
