@@ -1,3 +1,5 @@
+{-@ LIQUID "--no-exact-data-types" @-}
+
 module Data.ByteString.Lazy ( module Exports ) where
 
 import Data.String
