@@ -356,9 +356,11 @@ makeEmbeds src env
 
 makeTyConEmbeds :: Bare.Env -> (ModName, Ms.BareSpec) -> F.TCEmb Ghc.TyCon
 makeTyConEmbeds env (name, spec)
-  = F.tceFromList [ (tc, t) | (c,t) <- F.tceToList (Ms.embeds spec), tc <- symTc c ]
+  = F.tceFromList (booltce:[ (tc, t) | (c,t) <- F.tceToList (Ms.embeds spec)
+                                     , tc    <- symTc c ])
     where
       symTc = Mb.maybeToList . Bare.maybeResolveSym env name "embed-tycon"
+      booltce = (Ghc.boolTyCon, (boolSort, F.NoArgs))
 
 --------------------------------------------------------------------------------
 -- | [NOTE]: REFLECT-IMPORTS

@@ -1,11 +1,5 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE TypeFamilies          #-}
-{-# LANGUAGE IncoherentInstances   #-}
-
 module Language.Haskell.Liquid.ProofCombinators (
 
-  -- ATTENTION! `Admit` and `(==!)` are UNSAFE: they should not belong the final proof term
 
   -- * Proof is just a () alias
   Proof
@@ -20,7 +14,7 @@ module Language.Haskell.Liquid.ProofCombinators (
   -- * These two operators check all intermediate equalities
   , (===) -- proof of equality is implicit eg. x === y
   , (=<=) -- proof of equality is implicit eg. x <= y
-  , (=>=)  -- proof of equality is implicit eg. x =>= y 
+  , (=>=) -- proof of equality is implicit eg. x =>= y 
 
   -- * This operator does not check intermediate equalities
   , (==.) 
@@ -63,17 +57,12 @@ unreachable =  ()
 
 -- | proof casting
 -- | `x *** QED`: x is a proof certificate* strong enough for SMT to prove your theorem
--- | `x *** Admit`: x is an unfinished proof
 
 infixl 3 ***
-{-@ assume (***) :: a -> p:QED -> { if (isAdmit p) then false else true } @-}
 (***) :: a -> QED -> Proof
 _ *** _ = ()
 
-data QED = Admit | QED
-
-{-@ measure isAdmit :: QED -> Bool @-}
-{-@ Admit :: {v:QED | isAdmit v } @-}
+data QED = QED
 
 
 -------------------------------------------------------------------------------

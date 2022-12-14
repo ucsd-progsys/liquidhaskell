@@ -275,9 +275,9 @@ config = cmdArgsMode $ Config {
           &= name "port"
           &= help "Port at which lhi should listen"
 
- , exactDC
-    = def &= help "Exact Type for Data Constructors"
-          &= name "exact-data-cons"
+ , noexactDC
+    = def &= help "Not Exact Type for Data Constructors"
+          &= name "no-exact-data-cons"
 
  , noADT
     = def &= help "Do not generate ADT representations in refinement logic"
@@ -600,7 +600,6 @@ gitMsg gi = concat
   , "] "
   ]
 
-
 -- [NOTE:searchpath]
 -- 1. we used to add the directory containing the file to the searchpath,
 --    but this is bad because GHC does NOT do this, and it causes spurious
@@ -693,7 +692,7 @@ defConfig = Config
   , notruetypes              = def
   , nototality               = False
   , pruneUnsorted            = def
-  , exactDC                  = def
+  , noexactDC                = def
   , noADT                    = def
   , expectErrorContaining    = def
   , expectAnyError           = False

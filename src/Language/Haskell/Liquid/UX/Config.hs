@@ -7,6 +7,7 @@ module Language.Haskell.Liquid.UX.Config (
      Config (..)
    , HasConfig (..)
    , allowPLE, allowLocalPLE, allowGlobalPLE
+   , exactDC
    , patternFlag
    , higherOrderFlag
    , pruneFlag
@@ -68,7 +69,7 @@ data Config = Config
   , cFiles                   :: [String]   -- ^ .c files to compile and link against (for GHC)
   , eliminate                :: Eliminate  -- ^ eliminate (i.e. don't use qualifs for) for "none", "cuts" or "all" kvars
   , port                     :: Int        -- ^ port at which lhi should listen
-  , exactDC                  :: Bool       -- ^ Automatically generate singleton types for data constructors
+  , noexactDC                :: Bool       -- ^ Do not automatically generate singleton types for data constructors
   , noADT                    :: Bool       -- ^ Disable ADTs (only used with exactDC)
   , expectErrorContaining    :: [String]   -- ^ expect failure from Liquid with at least one of the following messages
   , expectAnyError           :: Bool       -- ^ expect failure from Liquid with any message
@@ -142,6 +143,9 @@ exactDCFlag :: (HasConfig t) => t -> Bool
 exactDCFlag x = exactDC cfg || reflection cfg
   where
     cfg       = getConfig x
+
+exactDC :: Config -> Bool 
+exactDC = not . noexactDC
 
 pruneFlag :: (HasConfig t) => t -> Bool
 pruneFlag = pruneUnsorted . getConfig

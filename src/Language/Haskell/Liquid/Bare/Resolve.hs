@@ -898,7 +898,7 @@ matchTyCon env name lc@(Loc _ _ c) arity
   | isTuple c               = Right tuplTc
   | otherwise               = resolveLocSym env name msg lc
   where
-    msg                     = "matchTyCon: " ++ F.showpp c
+    msg                     = "matchTyCon: " ++ F.showpp c ++ "\n\n Try using the \"--no-exact-data-cons\" flag"
     tuplTc                  = Ghc.tupleTyCon Ghc.Boxed arity
 
 

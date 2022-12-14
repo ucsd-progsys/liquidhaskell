@@ -2,6 +2,7 @@ module GHC.Types (module Exports) where
 
 import "ghc-prim" GHC.Types as Exports
 
+{-@ LIQUID "--no-exact-data-cons"   @-}
 {-@ embed GHC.Prim.Int#     as int  @-}
 {-@ embed GHC.Prim.Addr#    as Str  @-}
 {-@ embed GHC.Prim.Char#    as Char @-}

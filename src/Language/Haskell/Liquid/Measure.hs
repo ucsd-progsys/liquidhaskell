@@ -177,7 +177,7 @@ mapArgumens allowTC lc t1 t2 = go xts1' xts2'
       = Just $ mkSubst $ zipWith (\y x -> (fst x, EVar $ fst y)) xts1' xts2'
       | otherwise
       = panic (Just $ sourcePosSrcSpan lc) ("The types for the wrapper and worker data constructors cannot be merged\n"
-          ++ show t1 ++ "\n" ++ show t2 )
+          ++ show t1 ++ "\n" ++ show t2 ++ "\n\n Try using the \"--no-exact-data-cons\" flag")
 
 -- should constructors have implicits? probably not
 defRefType :: Bool -> Type -> Def (RRType Reft) DataCon -> RRType Reft
