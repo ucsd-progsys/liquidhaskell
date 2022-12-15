@@ -254,12 +254,6 @@ data TError t =
                , holesCycle :: [Symbol] -- Var?
                } -- ^ hole dependencies form a cycle error
 
-  | ErrRelHint { pos  :: !SrcSpan
-               , unTyp :: !Doc
-               , hsTyp :: !Doc
-               , unExp :: !Doc
-               }
-
   | ErrAssType { pos  :: !SrcSpan
                , obl  :: !Oblig
                , msg  :: !Doc
@@ -788,12 +782,6 @@ ppError' _td _dCtx (ErrHole _ msg _ x t)
   = "Hole Found"
         $+$ pprint x <+> "::" <+> pprint t
         $+$ msg
-
-ppError' _td _dCtx (ErrRelHint _ unTyp hsTyp body)
-  = "Relational Hint"
-        $+$ unTyp
-        $+$ hsTyp
-        $+$ body
 
 ppError' td dCtx (ErrSubType _ _ cid c tA tE)
   = text "Liquid Type Mismatch"

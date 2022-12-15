@@ -38,6 +38,8 @@ import           Language.Haskell.Liquid.Constraint.Types
 
 import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, freeTyVars, Def)
 
+import qualified Text.PrettyPrint.HughesPJ    as Doc
+
 --------------------------------------------------------------------------------
 initEnv :: TargetInfo -> CG CGEnv
 --------------------------------------------------------------------------------
@@ -260,7 +262,7 @@ initCGI cfg info = CGInfo {
   , ebinds     = []
   , annotMap   = AI M.empty
   , holesMap   = M.empty
-  , relHints   = []
+  , relHints   = Doc.empty
   , newTyEnv   = M.fromList (mapSnd val <$> gsNewTypes (gsSig spc))
   , tyConInfo  = tyi
   , tyConEmbed = tce
