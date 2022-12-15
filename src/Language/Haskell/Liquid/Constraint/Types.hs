@@ -152,7 +152,6 @@ data WfC      = WfC  !CGEnv !SpecType
 
 type FixSubC    = F.SubC Cinfo
 type FixWfC     = F.WfC Cinfo
-type FixBindEnv = F.BindEnv Cinfo
 
 subVar :: FixSubC -> Maybe Var
 subVar = ci_var . F.sinfo
@@ -209,7 +208,7 @@ data CGInfo = CGInfo
   , fixCs      :: ![FixSubC]                   -- ^ subtyping over Sort (post-splitting)
   , fixWfs     :: ![FixWfC]                    -- ^ wellformedness constraints over Sort (post-splitting)
   , freshIndex :: !Integer                     -- ^ counter for generating fresh KVars
-  , binds      :: !FixBindEnv                   -- ^ set of environment binders
+  , binds      :: !F.BindEnv                   -- ^ set of environment binders
   , ebinds     :: ![F.BindId]                  -- ^ existentials
   , annotMap   :: !(AnnInfo (Annot SpecType))  -- ^ source-position annotation map
   , holesMap   :: !(M.HashMap Var (HoleInfo (CGInfo, CGEnv) SpecType))    -- ^ information for ghc hole expressions
