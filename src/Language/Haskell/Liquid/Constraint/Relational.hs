@@ -62,7 +62,7 @@ import           Language.Haskell.Liquid.Types                  hiding (Def,
 import           System.Console.CmdArgs.Verbosity               (whenLoud)
 import           System.IO.Unsafe                               (unsafePerformIO)
 
-import           Text.PrettyPrint.HughesPJ (text)
+import           Text.PrettyPrint.HughesPJ (text, Doc, ($+$))
 
 data RelPred
   = RelPred { fun1 :: Var
@@ -103,11 +103,10 @@ consRelTop cfg ti γ ψ (x, y, t, s, ra, rp) = traceChk "Init" e d t s p $ do
   consRelCheckBind γ' ψ e d t' s' ra rp
   modify $ \cgi -> if relationalHints cfg
     then cgi
-      { relHints = relHint (GM.fSrcSpan $ F.loc t)
-                           (relSigToUnSig (toExpr x) (toExpr y) t' s' rp)
-                           hintName
-                           (relTermToUnTerm x y hintName (toCoreExpr e) (toCoreExpr d))
-                     : relHints cgi
+      { relHints =
+        (relHint {- (GM.fSrcSpan $ F.loc t) -} (relSigToUnSig (toExpr x) (toExpr y) t' s' rp) hintName
+         (relTermToUnTerm x y hintName (toCoreExpr e) (toCoreExpr d)))
+        <> relHints cgi
       }
     else cgi
   where
@@ -268,8 +267,7 @@ relTermToUnTerm' relTerms (Lam x1 e1) (Lam x2 e2) = Lam x1l $ Lam x2r $ relTermT
     (x1l, x2r) = mkRelCopies x1 x2
     (e1l, e2r) = subRelCopies e1 x1 e2 x2
 relTermToUnTerm' relTerms (Let (NonRec x1 d1) e1) (Let (NonRec x2 d2) e2) =
-  Let (NonRec x1l d1) $ Let (NonRec x2r d2) $ 
-    Let (NonRec relX relD) $ relTermToUnTerm' (((x1l, x2r), Var relX) : relTerms) e1l e2r
+  Let (NonRec x1l d1) $ Let (NonRec x2r d2) $ Let (NonRec relX relD) $ relTermToUnTerm' (((x1l, x2r), Var relX) : relTerms) e1l e2r
     where 
       relX = mkRelThmVar x1 x2
       relD = relTermToUnTerm' relTerms d1 d2
@@ -1188,13 +1186,19 @@ fromRelExpr (ERUnChecked a b) = F.PImp a (fromRelExpr b)
 -- Pretty Printing Unary Proofs ------------------------------
 --------------------------------------------------------------
 
-relHint :: Ghc.SrcSpan -> SpecType -> Ghc.Var -> CoreExpr -> Error
-relHint loc t v e 
-  = ErrRelHint loc
-      (text $ "{-@ " ++ F.showpp v ++ " :: " ++ F.showpp t ++ " @-}")
+-- relHint :: Ghc.SrcSpan -> SpecType -> Ghc.Var -> CoreExpr -> Doc
+-- relHint loc t v e 
+--   = (text $ "{-@ " ++ F.showpp v ++ " :: " ++ F.showpp t ++ " @-}") <$>
+--       -- TODO: Strip module names from GHC types
+--     (text $ F.showpp v ++ " :: " ++ F.showpp (toType False t)) <$>
+--     (text $ coreToHs t v (fromAnf e))
+
+relHint :: SpecType -> Ghc.Var -> CoreExpr -> Doc
+relHint t v e 
+  = (text $ "{-@ " ++ F.showpp v ++ " :: " ++ F.showpp t ++ " @-}") $+$
       -- TODO: Strip module names from GHC types
-      (text $ F.showpp v ++ " :: " ++ F.showpp (toType False t))
-      (text $ coreToHs t v (fromAnf e))
+    (text $ F.showpp v ++ " :: " ++ F.showpp (toType False t)) $+$
+    (text $ coreToHs t v (fromAnf e))
 
 --------------------------------------------------------------
 -- Debug -----------------------------------------------------

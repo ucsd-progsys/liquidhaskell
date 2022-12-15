@@ -23,6 +23,7 @@ import           Prelude hiding (error)
 import           Data.Bifunctor
 import qualified Data.HashSet as S 
 import           System.Exit
+import           System.FilePath
 import           Text.PrettyPrint.HughesPJ
 import           System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
 import           Control.Monad (when, unless)
@@ -48,6 +49,7 @@ import           Language.Haskell.Liquid.UX.Annotate (mkOutput)
 import qualified Language.Haskell.Liquid.Termination.Structural as ST
 import qualified Liquid.GHC.Misc          as GM 
 import           Liquid.GHC.API as GHC hiding (text, vcat, ($+$), getOpts, (<+>))
+
 
 type MbEnv = Maybe HscEnv
 
@@ -266,11 +268,14 @@ solveCs cfg tgt cgi info names = do
                                  `addErrors` makeFailErrors (S.toList failBs) rf 
                                  `addErrors` makeFailUseErrors (S.toList failBs) (giCbs $ giSrc info)
   let lErrors       = applySolution sol <$> logErrors cgi
-  hErrors          <- if typedHoles cfg 
-                        then synthesize tgt fcfg (cgi{holesMap = applySolution sol <$> holesMap  cgi}) 
-                        else return [] 
-  let rErrors       = if relationalHints cfg then relHints cgi else [] 
-  let resModel      = resModel' `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors ++ rErrors)) 
+  hErrors           <- if typedHoles cfg 
+                       then synthesize tgt fcfg (cgi{holesMap = applySolution sol <$> holesMap  cgi}) 
+                       else return []
+  _                 <- if relationalHints cfg
+                       then do writeFile (replaceBaseName tgt ((takeBaseName tgt) ++ "_relToUn"))
+                                 (render $ relHints cgi)
+                       else return ()
+  let resModel      = resModel' `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors)) 
   let out0          = mkOutput cfg resModel sol (annotMap cgi)
   return            $ out0 { o_vars    = names    }
                            { o_result  = resModel }

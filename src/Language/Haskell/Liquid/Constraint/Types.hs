@@ -213,7 +213,7 @@ data CGInfo = CGInfo
   , ebinds     :: ![F.BindId]                  -- ^ existentials
   , annotMap   :: !(AnnInfo (Annot SpecType))  -- ^ source-position annotation map
   , holesMap   :: !(M.HashMap Var (HoleInfo (CGInfo, CGEnv) SpecType))    -- ^ information for ghc hole expressions
-  , relHints   :: ![Error]                     -- ^ Unary proofs generated for relational specs
+  , relHints   :: !Doc                         -- ^ Unary proofs generated for relational specs
   , tyConInfo  :: !TyConMap                    -- ^ information about type-constructors
   , specDecr   :: ![(Var, [Int])]              -- ^ ^ Lexicographic order of decreasing args (DEPRECATED) 
   , newTyEnv   :: !(M.HashMap Ghc.TyCon SpecType)        -- ^ Mapping of new type type constructors with their refined types.
