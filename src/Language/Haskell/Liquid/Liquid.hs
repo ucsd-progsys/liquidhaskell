@@ -271,10 +271,8 @@ solveCs cfg tgt cgi info names = do
   hErrors           <- if typedHoles cfg 
                        then synthesize tgt fcfg (cgi{holesMap = applySolution sol <$> holesMap  cgi}) 
                        else return []
-  _                 <- if relationalHints cfg
-                       then do writeFile (replaceBaseName tgt ((takeBaseName tgt) ++ "_relToUn"))
-                                 (render $ relHints cgi)
-                       else return ()
+  when (relationalHints cfg) $ do 
+    writeFile (replaceBaseName tgt (takeBaseName tgt ++ "_relToUn")) (render $ relHints cgi)
   let resModel      = resModel' `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors)) 
   let out0          = mkOutput cfg resModel sol (annotMap cgi)
   return            $ out0 { o_vars    = names    }

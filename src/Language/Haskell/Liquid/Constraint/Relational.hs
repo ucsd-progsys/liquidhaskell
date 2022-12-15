@@ -104,9 +104,9 @@ consRelTop cfg ti γ ψ (x, y, t, s, ra, rp) = traceChk "Init" e d t s p $ do
   modify $ \cgi -> if relationalHints cfg
     then cgi
       { relHints =
-        (relHint {- (GM.fSrcSpan $ F.loc t) -} (relSigToUnSig (toExpr x) (toExpr y) t' s' rp) hintName
-         (relTermToUnTerm x y hintName (toCoreExpr e) (toCoreExpr d)))
-        <> relHints cgi
+        relHint (relSigToUnSig (toExpr x) (toExpr y) t' s' rp) hintName
+         (relTermToUnTerm x y hintName (toCoreExpr e) (toCoreExpr d))
+        $+$ relHints cgi
       }
     else cgi
   where
@@ -1195,10 +1195,10 @@ fromRelExpr (ERUnChecked a b) = F.PImp a (fromRelExpr b)
 
 relHint :: SpecType -> Ghc.Var -> CoreExpr -> Doc
 relHint t v e 
-  = (text $ "{-@ " ++ F.showpp v ++ " :: " ++ F.showpp t ++ " @-}") $+$
+  = text ("{-@ " ++ F.showpp v ++ " :: " ++ F.showpp t ++ " @-}") $+$
       -- TODO: Strip module names from GHC types
-    (text $ F.showpp v ++ " :: " ++ F.showpp (toType False t)) $+$
-    (text $ coreToHs t v (fromAnf e))
+    text (F.showpp v ++ " :: " ++ F.showpp (toType False t)) $+$
+    text (coreToHs t v (fromAnf e))
 
 --------------------------------------------------------------
 -- Debug -----------------------------------------------------
