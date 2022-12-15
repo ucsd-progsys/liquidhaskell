@@ -429,11 +429,10 @@ refDefP sym rp kindP' = braces $ do
 refP :: Parser (Reft -> BareType) -> Parser BareType
 refP = refBindBindP refaP
 
-relrefaP :: Parser RelExpr 
+relrefaP :: Parser RelExpr
 relrefaP =
-  -- TODO: support =>
-  try (ERUnChecked <$> refaP <* (reserved ":=>" <|> reserved "=>") <*> relrefaP)
-    <|> try (ERChecked <$> refaP <* reserved "!=>" <*> relrefaP)
+  try (ERUnChecked <$> refaP <* reserved ":=>" <*> relrefaP)
+    <|> try (ERChecked <$> (reserved "!" *> parens relrefaP <* reserved ":=>") <*> relrefaP)
     <|> ERBasic <$> refaP
 
 -- "sym :" or return the devault sym

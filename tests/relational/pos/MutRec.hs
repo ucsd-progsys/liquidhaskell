@@ -25,7 +25,7 @@ isEven n                 = True
 {- HLINT ignore "Redundant if" -}
 
 {-@ relational isOdd ~ isOdd :: { n1:_ -> _ ~ n2:_ -> _ 
-                             | (n1 = n2 && ((n1  mod 2) == 1) && ((n2 mod 2) == 1)) !=> (r1 n1 && r2 n2 && r1 n1 <=> (n1 mod 2 == 1) && r2 n2 <=> (n2 mod 2 == 1) )} @-}
+                             | !(n1 = n2 && ((n1  mod 2) == 1) && ((n2 mod 2) == 1)) :=> (r1 n1 && r2 n2 && r1 n1 <=> (n1 mod 2 == 1) && r2 n2 <=> (n2 mod 2 == 1) )} @-}
 {-@ isOdd :: n:Nat -> Bool  / [if n >= 0 then n else 0, 1] @-}
 isOdd :: Int -> Bool
 isOdd n | n <= 0 = False

@@ -589,14 +589,14 @@ instance F.Subable Predicate where
 
 instance NFData r => NFData (UReft r)
 
-data RelExpr = ERBasic F.Expr | ERChecked Expr RelExpr | ERUnChecked Expr RelExpr
+data RelExpr = ERBasic F.Expr | ERChecked RelExpr RelExpr | ERUnChecked Expr RelExpr
   deriving (Eq, Show, Data, Generic)
 
 instance B.Binary RelExpr
 
 instance F.PPrint RelExpr where
   pprintTidy k (ERBasic e)       = F.pprintTidy k e
-  pprintTidy k (ERChecked e r)   = F.pprintTidy k e <+> "!=>" <+> F.pprintTidy k r
+  pprintTidy k (ERChecked e r)   = "!(" <+> F.pprintTidy k e <+> ") :=>" <+> F.pprintTidy k r
   pprintTidy k (ERUnChecked e r) = F.pprintTidy k e <+> ":=>" <+> F.pprintTidy k r
 
 newtype BTyVar = BTV Symbol deriving (Show, Generic, Data, Typeable)

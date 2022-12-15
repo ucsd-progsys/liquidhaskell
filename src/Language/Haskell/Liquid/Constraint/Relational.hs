@@ -213,14 +213,14 @@ relSigToUnSig e1 e2 (RFun x1 i1 s1@RFun{} t1 r1) (RFun x2 i2 s2@RFun{} t2 r2) (E
       RFun x1 i1 s1 
         (RFun x2 i2 s2 
                             -- TODO: how to get i?    -- TODO: Recursive syntax for RelExpr
-          (RFun (mkRelLemma x1 x2) i2 (relSigToUnSig (F.EVar x1) (F.EVar x2) s1 s2 (toRelExpr q)) (relSigToUnSig e1 e2 t1 t2 p) r2) r2) r1 
+          (RFun (mkRelLemma x1 x2) i2 (relSigToUnSig (F.EVar x1) (F.EVar x2) s1 s2 q) (relSigToUnSig e1 e2 t1 t2 p) r2) r2) r1 
 -- First-Order Cases:
 relSigToUnSig e1 e2 (RFun x1 i1 s1 t1 r1) (RFun x2 i2 s2 t2 r2) (ERUnChecked q p)
   = traceWhenLoud "relSigToUnSig RFun RFun ERUnChecked" $ 
     RFun x1 i1 s1 (RFun x2 i2 (s2 `strengthen` exprToUReft q) (relSigToUnSig e1 e2 t1 t2 p) r2) r1
 relSigToUnSig e1 e2 (RFun x1 i1 s1 t1 r1) (RFun x2 i2 s2 t2 r2) (ERChecked q p)
   = traceWhenLoud "relSigToUnSig RFun RFun ERChecked" $ 
-    RFun x1 i1 s1 (RFun x2 i2 (s2 `strengthen` exprToUReft q) (relSigToUnSig e1 e2 t1 t2 p) r2) r1
+    RFun x1 i1 s1 (RFun x2 i2 (s2 `strengthen` exprToUReft (fromRelExpr q)) (relSigToUnSig e1 e2 t1 t2 p) r2) r1
 relSigToUnSig _ _ RFun{} RFun{} p@ERBasic{}
   = traceWhenLoud "relSigToUnSig RFun RFun ERBasic" $ 
     F.panic $ "relSigToUnSig: predicate " ++ F.showpp p ++ " too short for function types"
@@ -1142,9 +1142,13 @@ unapplyRelArgs :: F.Symbol -> F.Symbol -> F.Expr -> F.Expr
 unapplyRelArgs x1 x2 = unapplyArg resL x1 . unapplyArg resR x2
 
 unapplyRelArgsR :: F.Symbol -> F.Symbol -> RelExpr -> RelExpr
-unapplyRelArgsR x1 x2 (ERBasic e) = ERBasic (unapplyRelArgs x1 x2 e)
-unapplyRelArgsR x1 x2 (ERChecked e re) = ERChecked (unapplyRelArgs x1 x2 e) (unapplyRelArgsR x1 x2 re)
-unapplyRelArgsR x1 x2 (ERUnChecked e re) = ERUnChecked (unapplyRelArgs x1 x2 e) (unapplyRelArgsR x1 x2 re)
+unapplyRelArgsR x1 x2 (ERBasic e     ) = ERBasic (unapplyRelArgs x1 x2 e)
+unapplyRelArgsR x1 x2 (ERChecked e re) = 
+  ERChecked
+    (ERBasic $ unapplyRelArgs x1 x2 (fromRelExpr e))
+    (unapplyRelArgsR x1 x2 re)
+unapplyRelArgsR x1 x2 (ERUnChecked e re) =
+  ERUnChecked (unapplyRelArgs x1 x2 e) (unapplyRelArgsR x1 x2 re)
 
 
 exprToUReft :: F.Expr -> RReft
@@ -1158,12 +1162,12 @@ exprToUReft e
 
 fromRelExpr :: RelExpr -> F.Expr
 fromRelExpr (ERBasic e) = e
-fromRelExpr (ERChecked a b) = F.PImp a (fromRelExpr b)
+fromRelExpr (ERChecked a b) = F.PImp (fromRelExpr a) (fromRelExpr b)
 fromRelExpr (ERUnChecked a b) = F.PImp a (fromRelExpr b)
 
-toRelExpr :: F.Expr -> RelExpr
-toRelExpr (F.PImp a b) = ERUnChecked a (toRelExpr b)
-toRelExpr p = ERBasic p
+-- toRelExpr :: F.Expr -> RelExpr
+-- toRelExpr (F.PImp a b) = ERUnChecked a (toRelExpr b)
+-- toRelExpr p = ERBasic p
 
 -- unImp :: RelExpr -> Maybe (F.Expr, RelExpr)
 -- unImp (ERBasic (F.PImp a b)) = Just (a, ERBasic b)
