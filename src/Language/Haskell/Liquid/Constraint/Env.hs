@@ -149,7 +149,7 @@ addBinders γ0 x' cbs   = foldM (++=) (γ0 -= x') [("addBinders", x, t) | (x, t)
 addBind :: SrcSpan -> F.Symbol -> F.SortedReft -> CG ((F.Symbol, F.Sort), F.BindId)
 addBind l x r = do
   st          <- get
-  let (i, bs') = F.insertBindEnv x r (binds st)
+  let (i, bs') = F.insertBindEnv x r (Ci l Nothing Nothing) (binds st)
   put          $ st { binds = bs' } { bindSpans = M.insert i l (bindSpans st) }
   return ((x, F.sr_sort r), {- traceShow ("addBind: " ++ showpp x) -} i)
 

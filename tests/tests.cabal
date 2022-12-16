@@ -650,10 +650,12 @@ executable errors
                     , DupData
                     , DupFunSigs
                     , DupMeasure
-                    -- , ElabLocation
+                    , ElabLocation
+                    , ElabLocation2
+                    , ElabLocation3
                     , EmptyData
-                    -- , ErrLocation2
-                    -- , ErrLocation
+                    , ErrLocation
+                    , ErrLocation2
                     -- , ExportMeasure0
                     -- , ExportReflect0
                     , Fractional

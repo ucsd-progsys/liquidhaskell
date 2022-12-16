@@ -475,8 +475,8 @@ filterReportErrors path failure continue filters k =
                            , filters = filters
                            }
   where
-    renderer :: TError e' -> String
-    renderer = render . ppError k empty
+    renderer e = render (ppError k empty e $+$ pprint (pos e))
+
 
 -- | Retrieve the `Filter`s from the Config.
 getFilters :: Config -> [Filter]
@@ -487,12 +487,15 @@ getFilters cfg = anyFilter <> stringFilters
 
 -- | Return the list of @filters@ that matched the @err@ , given a @renderer@
 -- for the @err@ and some @filters@
-reduceFilters :: forall e. (e -> String) -> [Filter] -> e -> [Filter]
-reduceFilters renderer fs err = filter (filterDoesMatchErr err) fs
-  where
-    filterDoesMatchErr :: e -> Filter -> Bool
-    filterDoesMatchErr _ AnyFilter = True
-    filterDoesMatchErr e (StringFilter filter) = filter `L.isInfixOf` renderer e
+reduceFilters :: (e -> String) -> [Filter] -> e -> [Filter]
+reduceFilters renderer fs err = filter (filterDoesMatchErr renderer err) fs
+
+filterDoesMatchErr :: (e -> String) -> e -> Filter -> Bool
+filterDoesMatchErr _        _ AnyFilter = True
+filterDoesMatchErr renderer e (StringFilter filter) = stringMatch filter (renderer e)
+
+stringMatch :: String -> String -> Bool
+stringMatch filter str = F.notracepp ("TRACE: stringMatch " ++ show (filter, str)) $ filter `L.isInfixOf` str
 
 -- | Used in `filterReportErrorsWith'`
 data FilterReportErrorsArgs m filter msg e a =

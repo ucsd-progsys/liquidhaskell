@@ -383,7 +383,7 @@ errorLogger file filters outputResult = do
                            , failure = GHC.failM
                            , continue = pure ()
                            , pprinter = \(spn, e) -> mkLongErrAt spn (LH.fromPJDoc e) O.empty
-                           , matchingFilters = LH.reduceFilters (PJ.render . snd) filters
+                           , matchingFilters = LH.reduceFilters (\(src, doc) -> PJ.render doc ++ showpp src) filters
                            , filters = filters
                            }
     (LH.orMessages outputResult)
