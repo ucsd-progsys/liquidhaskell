@@ -123,14 +123,14 @@ import qualified Debug.Trace as Debug
 
 
 --------------------------------------------------------------------------------
-{- | @realTargets mE cfg targets@ uses `Interface.configureGhcTargets` to 
+{- | @realTargets mE cfg targets@ uses `Interface.configureGhcTargets` to
      return a list of files
 
        [i1, i2, ... ] ++ [f1, f2, ...]
 
-     1. Where each file only (transitively imports) PRECEDIING ones; 
+     1. Where each file only (transitively imports) PRECEDIING ones;
      2. `f1..` are a permutation of the original `targets`;
-     3. `i1..` either don't have "fresh" .bspec files. 
+     3. `i1..` either don't have "fresh" .bspec files.
 
  -}
 --------------------------------------------------------------------------------
@@ -159,7 +159,7 @@ orderTargets mbEnv cfg tgtFiles = runLiquidGhc mbEnv cfg $ do
 
 skipTarget :: S.HashSet FilePath -> FilePath -> IO Bool
 skipTarget tgts f
-  | S.member f tgts = return False          -- Always check target file 
+  | S.member f tgts = return False          -- Always check target file
   | otherwise       = hasFreshBinSpec f     -- But skip an import with fresh .bspec
 
 hasFreshBinSpec :: FilePath -> IO Bool
@@ -224,7 +224,7 @@ configureDynFlags cfg tmp = do
   loud <- liftIO isLoud
   let df'' = df' { importPaths  = nub $ idirs cfg ++ importPaths df'
                  , libraryPaths = nub $ idirs cfg ++ libraryPaths df'
-                 , includePaths = updateIncludePaths df' (idirs cfg) -- addGlobalInclude (includePaths df') (idirs cfg) 
+                 , includePaths = updateIncludePaths df' (idirs cfg) -- addGlobalInclude (includePaths df') (idirs cfg)
                  , packageFlags = ExposePackage ""
                                                 (PackageArg "ghc-prim")
                                                 (ModRenaming True [])
@@ -298,9 +298,9 @@ compileCFiles cfg = do
       Bar.hs --> Foo.hs --> Bar.hs-boot
 
       we'll get
-      
+
       [Bar.hs, Foo.hs]
-    
+
       which is backwards..
  -}
 --------------------------------------------------------------------------------
@@ -484,10 +484,10 @@ loadModule' tm = loadModule tm'
       --     Ghc.execOptions
       --   void $ Ghc.execStmt
       --     "let {infixl 7 /; (/) :: Num a => a -> a -> a; _ / _ = undefined}"
-      --     Ghc.execOptions        
+      --     Ghc.execOptions
       --   void $ Ghc.execStmt
       --     "let {len :: [a] -> Int; len _ = undefined}"
-      --     Ghc.execOptions        
+      --     Ghc.execOptions
 processTargetModule :: Config -> LogicMap -> DepGraph -> SpecEnv -> FilePath -> TypecheckedModule -> Ms.BareSpec
                     -> Ghc TargetInfo
 processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = do
@@ -569,7 +569,7 @@ loadContext bareSpec dependencies targetSrc = do
     legacyBareSpec = review bareSpecIso bareSpec
 
 ---------------------------------------------------------------------------------------
--- | @makeGhcSrc@ builds all the source-related information needed for consgen 
+-- | @makeGhcSrc@ builds all the source-related information needed for consgen
 ---------------------------------------------------------------------------------------
 
 makeGhcSrc :: Config -> FilePath -> TypecheckedModule -> ModSummary -> Ghc GhcSrc
@@ -646,9 +646,9 @@ qImports qns  = QImports
 
 
 ---------------------------------------------------------------------------------------
--- | @lookupTyThings@ grabs all the @Name@s and associated @TyThing@ known to GHC 
---   for this module; we will use this to create our name-resolution environment 
---   (see `Bare.Resolve`)                                          
+-- | @lookupTyThings@ grabs all the @Name@s and associated @TyThing@ known to GHC
+--   for this module; we will use this to create our name-resolution environment
+--   (see `Bare.Resolve`)
 ---------------------------------------------------------------------------------------
 lookupTyThings :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> m [(Name, Maybe TyThing)]
 lookupTyThings hscEnv modSum tcGblEnv = forM names (lookupTyThing hscEnv modSum tcGblEnv)
@@ -685,22 +685,22 @@ availableVars :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInf
 availableVars hscEnv modSum tcGblEnv avails =
   fmap (\things -> [var | (AnId var) <- things]) (availableTyThings hscEnv modSum tcGblEnv avails)
 
--- lookupTyThings :: HscEnv -> TypecheckedModule -> MGIModGuts -> Ghc [(Name, Maybe TyThing)] 
+-- lookupTyThings :: HscEnv -> TypecheckedModule -> MGIModGuts -> Ghc [(Name, Maybe TyThing)]
 -- lookupTyThings hscEnv tcm mg =
---   forM (mgNames mg ++ instNames mg) $ \n -> do 
---     tt1 <-          lookupName                   n 
---     tt2 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n 
---     tt3 <-          modInfoLookupName mi         n 
---     tt4 <-          lookupGlobalName             n 
+--   forM (mgNames mg ++ instNames mg) $ \n -> do
+--     tt1 <-          lookupName                   n
+--     tt2 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n
+--     tt3 <-          modInfoLookupName mi         n
+--     tt4 <-          lookupGlobalName             n
 --     return (n, Misc.firstMaybes [tt1, tt2, tt3, tt4])
---     where 
+--     where
 --       mi = tm_checked_module_info tcm
 
 
--- lookupName        :: GhcMonad m => Name -> m (Maybe TyThing) 
+-- lookupName        :: GhcMonad m => Name -> m (Maybe TyThing)
 -- hscTcRcLookupName :: HscEnv -> Name -> IO (Maybe TyThing)
--- modInfoLookupName :: GhcMonad m => ModuleInfo -> Name -> m (Maybe TyThing)  
--- lookupGlobalName  :: GhcMonad m => Name -> m (Maybe TyThing)  
+-- modInfoLookupName :: GhcMonad m => ModuleInfo -> Name -> m (Maybe TyThing)
+-- lookupGlobalName  :: GhcMonad m => Name -> m (Maybe TyThing)
 
 _dumpTypeEnv :: TypecheckedModule -> IO ()
 _dumpTypeEnv tm = do
@@ -710,8 +710,8 @@ _dumpTypeEnv tm = do
 tcmTyThings :: TypecheckedModule -> Maybe [Name]
 tcmTyThings
   =
-  -- typeEnvElts 
-  -- . tcg_type_env . fst 
+  -- typeEnvElts
+  -- . tcg_type_env . fst
   -- . md_types . snd
   -- . tm_internals_
   modInfoTopLevelScope
@@ -722,8 +722,8 @@ _dumpRdrEnv :: HscEnv -> MGIModGuts -> IO ()
 _dumpRdrEnv _hscEnv modGuts = do
   print ("DUMP-RDR-ENV" :: String)
   print (mgNames modGuts)
-  -- print (hscNames hscEnv) 
-  -- print (mgDeps modGuts) 
+  -- print (hscNames hscEnv)
+  -- print (mgDeps modGuts)
   where
     _mgDeps   = Ghc.dep_mods . mgi_deps
     _hscNames = fmap showPpr . Ghc.ic_tythings . Ghc.hsc_IC
@@ -732,8 +732,8 @@ mgNames :: MGIModGuts -> [Ghc.Name]
 mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env
 
 ---------------------------------------------------------------------------------------
--- | @makeDependencies@ loads BareSpec for target and imported modules 
--- /IMPORTANT(adn)/: We \"cheat\" a bit by creating a 'Module' out the 'ModuleName' we 
+-- | @makeDependencies@ loads BareSpec for target and imported modules
+-- /IMPORTANT(adn)/: We \"cheat\" a bit by creating a 'Module' out the 'ModuleName' we
 -- parse from the spec, and convert the former into a 'StableModule' for the purpose
 -- of dependency tracking. This means, in practice, that all the \"wired-in-prelude\"
 -- specs will share the same `UnitId`, which for the sake of the executable is an
@@ -1039,7 +1039,7 @@ instance PPrint TargetInfo where
 
 pprintCBs :: [CoreBind] -> Doc
 pprintCBs = pprDoc . tidyCBs
-    -- To print verbosely 
+    -- To print verbosely
     --    = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs
 
 instance Show TargetInfo where
@@ -1054,4 +1054,4 @@ instance PPrint TargetVars where
 ------------------------------------------------------------------------
 
 instance Result SourceError where
-  result = (`Crash` "Invalid Source") . sourceErrors ""
+  result e = Crash ((, Nothing) <$> sourceErrors "" e) "Invalid Source"

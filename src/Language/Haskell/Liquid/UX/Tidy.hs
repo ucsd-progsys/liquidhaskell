@@ -36,7 +36,7 @@ import qualified Data.HashSet                              as S
 import qualified Data.List                                 as L
 import qualified Data.Text                                 as T
 import qualified Control.Exception                         as Ex
-import qualified Liquid.GHC.Misc          as GM 
+import qualified Liquid.GHC.Misc          as GM
 -- (dropModuleNames, showPpr, stringTyVar)
 import           Language.Fixpoint.Types                   hiding (Result, SrcSpan, Error)
 import           Language.Haskell.Liquid.Types.Types
@@ -54,10 +54,10 @@ class Result a where
   result :: a -> FixResult UserError
 
 instance Result UserError where
-  result e = Crash [e] ""
+  result e = Crash [(e, Nothing)] ""
 
 instance Result [Error] where
-  result es = Crash (errorToUserError <$> es) ""
+  result es = Crash ([ (errorToUserError e, Nothing) | e <- es]) ""
 
 instance Result Error where
   result e  = result [e] --  Crash [pprint e] ""
@@ -71,16 +71,16 @@ errorToUserError = fmap ppSpecTypeErr
 -- TODO: move to Types.hs
 cinfoError :: Cinfo -> Error
 cinfoError (Ci _ (Just e) _) = e
-cinfoError (Ci l _ _)        = ErrOther l (text $ "Cinfo:" ++ GM.showPpr l)
+cinfoError (Ci l _ _)        = ErrOther l (text $ "Cinfo: " ++ GM.showPpr l)
 
 -------------------------------------------------------------------------
 tidySpecType :: Tidy -> SpecType -> SpecType
 -------------------------------------------------------------------------
-tidySpecType k 
-  = tidyEqual 
+tidySpecType k
+  = tidyEqual
   . tidyValueVars
   . tidyDSymbols
-  . tidySymbols k 
+  . tidySymbols k
   . tidyInternalRefas
   . tidyLocalRefas k
   . tidyFunBinds
@@ -105,9 +105,9 @@ tidySymbols k t = substa (shortSymbol k . tidySymbol) $ mapBind dropBind t
     xs          = S.fromList (syms t)
     dropBind x  = if x `S.member` xs then tidySymbol x else nonSymbol
 
-shortSymbol :: Tidy -> Symbol -> Symbol 
-shortSymbol Lossy = GM.dropModuleNames 
-shortSymbol _     = id 
+shortSymbol :: Tidy -> Symbol -> Symbol
+shortSymbol Lossy = GM.dropModuleNames
+shortSymbol _     = id
 
 tidyLocalRefas   :: Tidy -> SpecType -> SpecType
 tidyLocalRefas k = mapReft (txReft' k)
@@ -120,7 +120,7 @@ tidyLocalRefas k = mapReft (txReft' k)
 
 tidyEqual :: SpecType -> SpecType
 tidyEqual = mapReft txReft
-  where 
+  where
     txReft u                      = u { ur_reft = mapPredReft dropInternals $ ur_reft u }
     dropInternals                 = pAnd . L.nub . conjuncts
 
@@ -230,7 +230,7 @@ instance PPrint (CtxError SpecType) where
 
 instance PPrint Error where
   pprintTidy k = ppError k empty . fmap ppSpecTypeErr
- 
+
 ppSpecTypeErr :: SpecType -> Doc
 ppSpecTypeErr = ppSpecType Lossy
 

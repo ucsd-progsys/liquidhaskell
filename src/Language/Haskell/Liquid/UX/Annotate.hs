@@ -51,7 +51,7 @@ import qualified Data.Vector                                  as V
 import qualified Data.ByteString.Lazy                         as B
 import qualified Data.Text                                    as T
 import qualified Data.HashMap.Strict                          as M
-import qualified Language.Haskell.Liquid.Misc                 as Misc 
+import qualified Language.Haskell.Liquid.Misc                 as Misc
 import qualified Language.Haskell.Liquid.UX.ACSS              as ACSS
 import           Language.Haskell.HsColour.Classify
 import           Language.Fixpoint.Utils.Files
@@ -112,7 +112,7 @@ doGenerate cfg tplAnnMap typAnnMap annTyp srcF
        writeFile         vimF  $ vimAnnot cfg annTyp
        B.writeFile       jsonF $ encode typAnnMap
     where
-       pandocF    = pandocHtml cfg 
+       pandocF    = pandocHtml cfg
        tyHtmlF    = extFileName Html                   srcF
        tpHtmlF    = extFileName Html $ extFileName Cst srcF
        _annF      = extFileName Annot srcF
@@ -123,7 +123,7 @@ mkBots :: Reftable r => AnnInfo (RType c tv r) -> [GHC.SrcSpan]
 mkBots (AI m) = [ src | (src, (Just _, t) : _) <- sortBy (ordSrcSpan `on` fst) $ M.toList m
                       , isFalse (rTypeReft t) ]
 
--- | Like 'copyFile' from 'System.Directory', but ensure that the parent /temporary/ directory 
+-- | Like 'copyFile' from 'System.Directory', but ensure that the parent /temporary/ directory
 -- (i.e. \".liquid\") exists on disk, creating it if necessary.
 copyFileCreateParentDirIfMissing :: FilePath -> FilePath -> IO ()
 copyFileCreateParentDirIfMissing src tgt = do
@@ -134,7 +134,7 @@ writeFilesOrStrings :: FilePath -> [Either FilePath String] -> IO ()
 writeFilesOrStrings tgtFile = mapM_ $ either (`copyFileCreateParentDirIfMissing` tgtFile) (tgtFile `appendFile`)
 
 generateHtml :: Bool -> FilePath -> FilePath -> ACSS.AnnMap -> IO ()
-generateHtml pandocF srcF htmlF annm = do 
+generateHtml pandocF srcF htmlF annm = do
   src     <- Misc.sayReadFile srcF
   let lhs  = isExtFile LHs srcF
   let body      = {-# SCC "hsannot" #-} ACSS.hsannot False (Just tokAnnot) lhs (src, annm)
@@ -237,10 +237,10 @@ cssHTML css = unlines
 --   annotations.
 
 mkAnnMap :: Config -> ErrorResult -> AnnInfo Doc -> ACSS.AnnMap
-mkAnnMap cfg res ann     = ACSS.Ann 
-                             { ACSS.types   = mkAnnMapTyp cfg ann 
-                             , ACSS.errors  = mkAnnMapErr res 
-                             , ACSS.status  = mkStatus res 
+mkAnnMap cfg res ann     = ACSS.Ann
+                             { ACSS.types   = mkAnnMapTyp cfg ann
+                             , ACSS.errors  = mkAnnMapErr res
+                             , ACSS.status  = mkStatus res
                              , ACSS.sptypes = mkAnnMapBinders cfg ann
                              }
 
@@ -254,7 +254,7 @@ mkStatus (Crash _ _)     = ACSS.Error
 mkAnnMapErr :: PPrint (TError t)
             => FixResult (TError t) -> [(Loc, Loc, String)]
 mkAnnMapErr (Unsafe _ ls) = mapMaybe cinfoErr ls
-mkAnnMapErr (Crash ls _)  = mapMaybe cinfoErr ls
+mkAnnMapErr (Crash ls _)  = mapMaybe cinfoErr (fst <$> ls)
 mkAnnMapErr _             = []
 
 cinfoErr :: PPrint (TError t) => TError t -> Maybe (Loc, Loc, String)
@@ -453,15 +453,15 @@ instance ToJSON ACSS.AnnMap where
   toJSON a = object [ "types"   .= toJSON (annTypes     a)
                     , "errors"  .= toJSON (annErrors    a)
                     , "status"  .= toJSON (ACSS.status  a)
-                    , "sptypes" .= (toJ <$> ACSS.sptypes a) 
+                    , "sptypes" .= (toJ <$> ACSS.sptypes a)
                     ]
-    where 
-      toJ (sp, (x,t)) = object [ "start" .= toJSON (srcSpanStartLoc sp) 
-                               , "stop"  .= toJSON (srcSpanEndLoc   sp) 
-                               , "ident" .= toJSON x 
-                               , "ann"  .= toJSON t 
-                               ] 
-                      
+    where
+      toJ (sp, (x,t)) = object [ "start" .= toJSON (srcSpanStartLoc sp)
+                               , "stop"  .= toJSON (srcSpanEndLoc   sp)
+                               , "ident" .= toJSON x
+                               , "ann"  .= toJSON t
+                               ]
+
 annErrors :: ACSS.AnnMap -> AnnErrors
 annErrors = AnnErrors . ACSS.errors
 
