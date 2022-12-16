@@ -254,7 +254,7 @@ mkStatus (Crash _ _)     = ACSS.Error
 mkAnnMapErr :: PPrint (TError t)
             => FixResult (TError t) -> [(Loc, Loc, String)]
 mkAnnMapErr (Unsafe _ ls) = mapMaybe cinfoErr ls
-mkAnnMapErr (Crash ls _)  = mapMaybe cinfoErr (fst <$> ls)
+mkAnnMapErr (Crash ls _)  = mapMaybe (cinfoErr . fst) ls
 mkAnnMapErr _             = []
 
 cinfoErr :: PPrint (TError t) => TError t -> Maybe (Loc, Loc, String)

@@ -511,7 +511,7 @@ adjustTypes lm cm (AI m)          = AI $ if True then mempty else M.fromList -- 
 
 adjustResult :: LMap -> ChkItv -> ErrorResult -> ErrorResult
 adjustResult lm cm (Unsafe s es)  = errorsResult (Unsafe s)  $ mapMaybe (adjustError  lm cm) es
-adjustResult lm cm (Crash es z)   = errorsResult (`Crash` z) $ (, Nothing) <$> mapMaybe (adjustError lm cm) (fst <$> es)
+adjustResult lm cm (Crash es z)   = errorsResult (`Crash` z) $ (, Nothing) <$>mapMaybe (adjustError lm cm . fst) es
 adjustResult _  _  r              = r
 
 errorsResult :: ([a] -> FixResult b) -> [a] -> FixResult b
