@@ -345,7 +345,7 @@ pprRtyFun bb prefix t = hsep (prefix : dArgs ++ [dOut])
     ppArg (b, t, a)     = [pprDbind bb funPrec b t, a]
     (args, out)         = brkFun t
 
-{- 
+{-
 pprRtyFun bb prefix t
   = prefix <+> pprRtyFun' bb t
 
@@ -495,7 +495,7 @@ filterDoesMatchErr _        _ AnyFilter = True
 filterDoesMatchErr renderer e (StringFilter filter) = stringMatch filter (renderer e)
 
 stringMatch :: String -> String -> Bool
-stringMatch filter str = F.notracepp ("TRACE: stringMatch " ++ show (filter, str)) $ filter `L.isInfixOf` str
+stringMatch filter str = F.tracepp ("TRACE: stringMatch " ++ show (filter, str)) $ filter `L.isInfixOf` str
 
 -- | Used in `filterReportErrorsWith'`
 data FilterReportErrorsArgs m filter msg e a =

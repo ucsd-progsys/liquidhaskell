@@ -22,6 +22,22 @@ invoke either stack or cabal to compile specific test groups, kept in
 `tests.cabal` as separate executables. The rest of this file describes how to
 modify the test suite by adding new tests.
 
+### Running a Particular Test Suite
+
+With `stack` you can do (you may have to set certain flags to `True` in `tests.cabal`)
+
+```
+$ cd tests
+$ stack test tests:exe:errors --fast
+```
+
+and with `cabal` you could try
+
+```
+$ cd tests
+$ cabal v2-run tests:errors
+```
+
 ### Adding a New Test to an Existing Test Group
 
 Create a new file in the source directory specified in the cabal file for that

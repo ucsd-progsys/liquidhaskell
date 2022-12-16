@@ -1,5 +1,5 @@
-{-@ LIQUID "--expect-error-containing=ElabLocation2.hs:18:54-66" @-}
-module ElabLocation2 where 
+{-@ LIQUID "--expect-error-containing=ElabLocation2.hs:18:54-67" @-}
+module ElabLocation2 where
 type Range = (Int,Int)
 
 {-@ measure start @-}

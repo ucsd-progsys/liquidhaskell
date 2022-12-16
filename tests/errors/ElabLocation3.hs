@@ -9,7 +9,7 @@ import Prelude hiding (id)
 
 {-@ incr :: Pos -> Pos @-}
 incr :: Int -> Int
-incr x = x + 1
+incr x = x + 2
 
 
 
