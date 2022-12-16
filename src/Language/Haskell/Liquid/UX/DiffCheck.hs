@@ -9,6 +9,7 @@
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# LANGUAGE TupleSections #-}
 
 module Language.Haskell.Liquid.UX.DiffCheck (
 
@@ -50,7 +51,7 @@ import           System.Directory                       (copyFile, doesFileExist
 import           Language.Fixpoint.Types                (atLoc, FixResult (..), SourcePos(..), safeSourcePos, unPos)
 -- import qualified Language.Fixpoint.Misc                 as Misc
 import           Language.Fixpoint.Utils.Files
-import           Language.Fixpoint.Solver.Stats ()     
+import           Language.Fixpoint.Solver.Stats ()
 import           Language.Haskell.Liquid.Misc           (mkGraph)
 import           Liquid.GHC.Misc
 import           Liquid.GHC.API        as Ghc hiding ( Located
@@ -61,7 +62,7 @@ import           Liquid.GHC.API        as Ghc hiding ( Located
                                                                       )
 import           Text.PrettyPrint.HughesPJ              (text, render, Doc)
 import qualified Data.ByteString                        as B
-import qualified Data.ByteString.Lazy                   as LB                                               
+import qualified Data.ByteString.Lazy                   as LB
 
 import           Language.Haskell.Liquid.Types          hiding (Def, LMap)
 
@@ -70,7 +71,7 @@ import           Language.Haskell.Liquid.Types          hiding (Def, LMap)
 --------------------------------------------------------------------------------
 
 -- | Main type of value returned for diff-check.
-data DiffCheck = DC 
+data DiffCheck = DC
   { newBinds  :: [CoreBind]
   , oldOutput :: !(Output Doc)
   , newSpec   :: !TargetSpec
@@ -81,7 +82,7 @@ instance PPrint DiffCheck where
 
 
 -- | Variable definitions
-data Def  = D 
+data Def  = D
   { start  :: Int -- ^ line at which binder definition starts
   , end    :: Int -- ^ line at which binder definition ends
   , binder :: Var -- ^ name of binder
@@ -116,10 +117,10 @@ checkedVars              = concatMap names . newBinds
 --------------------------------------------------------------------------------
 slice :: FilePath -> [CoreBind] -> TargetSpec -> IO (Maybe DiffCheck)
 --------------------------------------------------------------------------------
-slice target cbs sp = do 
+slice target cbs sp = do
   ex <- doesFileExist savedFile
-  if ex 
-    then doDiffCheck 
+  if ex
+    then doDiffCheck
     else return Nothing
   where
     savedFile       = extFileName Saved target
@@ -151,7 +152,7 @@ sliceSaved' srcF is lm (DC coreBinds result spec)
 assumeSpec :: M.HashMap Var LocSpecType -> TargetSpec -> TargetSpec
 assumeSpec sigm sp = sp { gsSig = gsig { gsAsmSigs = M.toList $ M.union sigm assm } }
   where
-    assm           = M.fromList (gsAsmSigs gsig) 
+    assm           = M.fromList (gsAsmSigs gsig)
     gsig           = gsSig sp
 
 diffVars :: [Int] -> [Def] -> [Var]
@@ -211,7 +212,7 @@ thinWith :: S.HashSet Var -> [CoreBind] -> [Var] -> [CoreBind]
 thinWith sigs cbs xs = filterBinds cbs calls
   where
     calls    = txClosure cbDeps sigs (S.fromList xs)
-    cbDeps   = coreDeps cbs 
+    cbDeps   = coreDeps cbs
 
 coreDeps    :: [CoreBind] -> Deps
 coreDeps bs = mkGraph $ calls ++ calls'
@@ -220,7 +221,7 @@ coreDeps bs = mkGraph $ calls ++ calls'
     calls'  = [(y, x) | (x, y) <- calls]
     deps b  = [(x, y) | x <- bindersOf b
                       , y <- freeVars S.empty b
-                      , S.member y defVars 
+                      , S.member y defVars
               ]
     defVars = S.fromList (letVars bs)
 
@@ -268,8 +269,8 @@ specDefs srcF  = map def . filter sameFile . specSigs
     sameFile   = (srcF ==) . file . snd
 
 specSigs :: TargetSpec -> [(Var, LocSpecType)]
-specSigs sp = gsTySigs  (gsSig  sp) 
-           ++ gsAsmSigs (gsSig  sp) 
+specSigs sp = gsTySigs  (gsSig  sp)
+           ++ gsAsmSigs (gsSig  sp)
            ++ gsCtors   (gsData sp)
 
 instance PPrint Def where
@@ -285,9 +286,9 @@ coreDefs cbs = coreExprDefs xm xes
     xm       = varBounds xes
 
 coreExprDefs :: M.HashMap Var (Int, Int) -> [(Var, CoreExpr)]-> [Def]
-coreExprDefs xm xes = 
-  L.sort 
-    [ D l l' x 
+coreExprDefs xm xes =
+  L.sort
+    [ D l l' x
       | (x, e) <- xes
       , (l, l') <- maybeToList $ coreExprDef xm (x, e)
     ]
@@ -302,43 +303,43 @@ coreExprDef m (x, e) = meetSpans eSp vSp
 coreVarExprs :: [CoreBind] -> [(Var, CoreExpr)]
 coreVarExprs = filter ok . concatMap varExprs
   where
-    ok       = isGoodSrcSpan . getSrcSpan . fst 
+    ok       = isGoodSrcSpan . getSrcSpan . fst
 
 varExprs :: Bind a -> [(a, Expr a)]
 varExprs (NonRec x e) = [(x, e)]
 varExprs (Rec xes)    = xes
 
--- | varBounds computes upper and lower bounds on where each top-level binder's 
+-- | varBounds computes upper and lower bounds on where each top-level binder's
 --   definition can be by using ONLY the lines where the binder is defined.
 varBounds :: [(Var, CoreExpr)] -> M.HashMap Var (Int, Int)
-varBounds = M.fromList . defBounds . varDefs 
+varBounds = M.fromList . defBounds . varDefs
 
 varDefs :: [(Var, CoreExpr)] -> [(Int, Var)]
-varDefs xes = 
+varDefs xes =
   L.sort [ (l, x) | (x,_) <- xes, let Just (l, _) = lineSpan x (getSrcSpan x) ]
 
 defBounds :: [(Int, Var)] -> [(Var, (Int, Int) )]
 defBounds ((l, x) : lxs@((l', _) : _ )) = (x, (l, l' - 1)) : defBounds lxs
 defBounds _                             = []
 
-{- 
+{-
 --------------------------------------------------------------------------------
 coreDefs     :: [CoreBind] -> [Def]
 --------------------------------------------------------------------------------
-coreDefs cbs = tracepp "coreDefs" $ 
+coreDefs cbs = tracepp "coreDefs" $
                L.sort [D l l' x | b <- cbs
                                 , x <- bindersOf b
                                 , isGoodSrcSpan (getSrcSpan x)
                                 , (l, l') <- coreDef b]
 
 coreDef :: CoreBind -> [(Int, Int)]
-coreDef b 
+coreDef b
   | True  = tracepp ("coreDef: " ++ showpp (vs, vSp)) $ maybeToList vSp
   | False = tracepp ("coreDef: " ++ showpp (b, eSp, vSp)) $ meetSpans b eSp vSp
   where
     eSp   = lineSpan b $ catSpans b $ bindSpans b
     vSp   = lineSpan b $ catSpans b $ getSrcSpan <$> vs
-    vs    = bindersOf b 
+    vs    = bindersOf b
 
 meetSpans :: Maybe (Int, Int) -> Maybe (Int, Int) -> Maybe (Int, Int)
 meetSpans Nothing       _
@@ -478,7 +479,7 @@ diffShifts = go 1 1
 --------------------------------------------------------------------------------
 saveResult :: FilePath -> Output Doc -> IO ()
 --------------------------------------------------------------------------------
-saveResult target res = do 
+saveResult target res = do
   copyFile target saveF
   B.writeFile errF $ LB.toStrict $ encode res
   where
@@ -488,13 +489,13 @@ saveResult target res = do
 --------------------------------------------------------------------------------
 loadResult   :: FilePath -> IO (Output Doc)
 --------------------------------------------------------------------------------
-loadResult f = do 
+loadResult f = do
   ex <- doesFileExist jsonF
-  if ex 
+  if ex
     then convert <$> B.readFile jsonF
     else return mempty
   where
-    convert  = fromMaybe mempty . decode . LB.fromStrict 
+    convert  = fromMaybe mempty . decode . LB.fromStrict
     jsonF    = extFileName Cache f
 
 --------------------------------------------------------------------------------
@@ -509,20 +510,18 @@ adjustTypes lm cm (AI m)          = AI $ if True then mempty else M.fromList -- 
                                               , Just sp' <- [adjustSrcSpan lm cm sp]]
 
 adjustResult :: LMap -> ChkItv -> ErrorResult -> ErrorResult
-adjustResult lm cm (Unsafe s es)  = errorsResult (Unsafe s)  $ adjustErrors lm cm es
-adjustResult lm cm (Crash es z)   = errorsResult (`Crash` z) $ adjustErrors lm cm es
+adjustResult lm cm (Unsafe s es)  = errorsResult (Unsafe s)  $ mapMaybe (adjustError  lm cm) es
+adjustResult lm cm (Crash es z)   = errorsResult (`Crash` z) $ (, Nothing) <$>mapMaybe (adjustError lm cm . fst) es
 adjustResult _  _  r              = r
 
 errorsResult :: ([a] -> FixResult b) -> [a] -> FixResult b
 errorsResult _ []                 = Safe mempty
 errorsResult f es                 = f es
 
-adjustErrors :: (PPrint (TError a)) => LMap -> ChkItv -> [TError a] -> [TError a]
-adjustErrors lm cm                = mapMaybe adjustError
-  where
-    adjustError e                = case adjustSrcSpan lm cm (pos e) of
-                                     Just sp' -> Just (e {pos = sp'})
-                                     Nothing  -> Nothing
+adjustError :: (PPrint (TError a)) => LMap -> ChkItv -> TError a -> Maybe (TError a)
+adjustError lm cm e = case adjustSrcSpan lm cm (pos e) of
+  Just sp' -> Just (e {pos = sp'})
+  Nothing  -> Nothing
 
 --------------------------------------------------------------------------------
 adjustSrcSpan :: LMap -> ChkItv -> SrcSpan -> Maybe SrcSpan

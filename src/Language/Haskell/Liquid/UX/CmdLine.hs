@@ -10,6 +10,7 @@
 {-# OPTIONS_GHC -Wwarn=deprecations #-}
 {-# OPTIONS_GHC -fno-cse #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 -- | This module contains all the code needed to output the result which
 --   is either: `SAFE` or `WARNING` with some reasonable error message when
@@ -791,8 +792,14 @@ reportResultJson annm = do
 
 resultWithContext :: F.FixResult UserError -> IO (FixResult CError)
 resultWithContext (F.Unsafe s es)  = F.Unsafe s    <$> errorsWithContext es
-resultWithContext (F.Crash  es s)  = (`F.Crash` s) <$> errorsWithContext es
 resultWithContext (F.Safe   stats) = return (F.Safe stats)
+resultWithContext (F.Crash  es s)  = do
+  let (errs, msgs) = unzip es
+  errs' <- errorsWithContext errs
+  return (F.Crash (zip errs' msgs) s)
+
+
+
 
 instance Show (CtxError Doc) where
   show = showpp
@@ -842,7 +849,7 @@ resDocs _k (F.Crash [] s)  =
   }
 resDocs k (F.Crash xs s)  =
   OutputResult {
-    orHeader = text "LIQUID: ERROR" <+> text s
+    orHeader = text "LIQUID: ERROR:" <+> text s
   , orMessages = map (cErrToSpanned k . errToFCrash) xs
   }
 resDocs k (F.Unsafe _ xs)   =
@@ -855,11 +862,15 @@ resDocs k (F.Unsafe _ xs)   =
 cErrToSpanned :: F.Tidy -> CError -> (GHC.SrcSpan, Doc)
 cErrToSpanned k CtxError{ctErr} = (pos ctErr, pprintTidy k ctErr)
 
-errToFCrash :: CtxError a -> CtxError a
-errToFCrash ce = ce { ctErr    = tx $ ctErr ce}
+errToFCrash :: (CError, Maybe String) -> CError
+errToFCrash (ce, Just msg) = ce { ctErr = ErrOther (pos (ctErr ce)) (fixMessageDoc msg) }
+errToFCrash (ce, Nothing)  = ce { ctErr = tx $ ctErr ce}
   where
     tx (ErrSubType l m _ g t t') = ErrFCrash l m g t t'
-    tx e                       = e
+    tx e                         = F.notracepp "errToFCrash?" e
+
+fixMessageDoc :: String -> Doc
+fixMessageDoc msg = vcat (text <$> lines msg)
 
 {-
    TODO: Never used, do I need to exist?
