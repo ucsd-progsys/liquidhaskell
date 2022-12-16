@@ -3,6 +3,8 @@
 --   is compared against '0' which appears in the refinement for '/'.)
 --   You can fix this by `embed Ratio * as Int` 
 
+{-@ LIQUID "--expect-error-containing=ElabLocation.hs:15:14-15:15" @-}
+
 module ElabLocation where
 
 import Data.Ratio 

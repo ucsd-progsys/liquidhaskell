@@ -11,7 +11,7 @@ version:            0.1.0.0
 author:             The Liquid Haskell Developers
 
 flag stack
-  default:     False
+  default:     True
   description: Enable when building with stack to prevent tests
                from using cabal-install, and to mark all executables as
                " buildable: False " by default
@@ -606,7 +606,7 @@ flag errors
 executable errors
     main-is:          Main.hs
     if !flag(errors) && flag(stack)
-      buildable:      False
+      buildable:      True
 
     other-modules:
                       BadAliasApp
@@ -650,10 +650,12 @@ executable errors
                     , DupData
                     , DupFunSigs
                     , DupMeasure
-                    -- , ElabLocation
+                    , ElabLocation
+                    , ElabLocation2
+                    , ElabLocation3
                     , EmptyData
-                    -- , ErrLocation2
-                    -- , ErrLocation
+                    , ErrLocation
+                    , ErrLocation2
                     -- , ExportMeasure0
                     -- , ExportReflect0
                     , Fractional
