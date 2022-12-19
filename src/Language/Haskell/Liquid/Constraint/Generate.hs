@@ -91,7 +91,7 @@ consAct γ cfg info = do
   when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs sSpc ++ gsAsmSigs sSpc))
   γ' <- foldM (consCBTop cfg info) γ (giCbs gSrc)
   (ψ, γ'') <- foldM (consAssmRel cfg info) ([], γ') (gsAsmRel sSpc ++ gsRelation sSpc)
-  mapM_ (consRelTop cfg info γ'' ψ) (gsRelation sSpc)
+  mapM_ (consRelTop cfg info cconsE consE γ'' ψ) (gsRelation sSpc)
   mapM_ (consClass γ) (gsMethods $ gsSig $ giSpec info)
   hcs <- gets hsCs
   hws <- gets hsWfs

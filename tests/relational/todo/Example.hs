@@ -44,7 +44,7 @@ isEven_isEven _ _ = ()
 
 
 
-{-@ theorem :: n:Int -> m:Int -> {n mod 2 = m mod 2 :=> isEven n /= isEven m} / [if n >= 0 then n else -n] @-}
+{-@ theorem :: n:Int -> m:Int -> {n mod 2 = m mod 2 => isEven n /= isEven m} / [if n >= 0 then n else -n] @-}
 theorem :: Int -> Int -> ()
 theorem 0 0 = ()
 theorem n 0 = if isEven n then () else ()

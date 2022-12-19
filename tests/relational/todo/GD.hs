@@ -19,7 +19,7 @@ update _ ws _ = ws
 
 {-@ reflect diff @-}
 {-@ diff :: xs:[a] -> ys:{[a]|len ys == len xs} -> {v:Dbl|0 <= v} @-}
-diff :: Eq a :=> [a] -> [a] -> Dbl
+diff :: Eq a => [a] -> [a] -> Dbl
 diff (x : xs) (y : ys) | x == y = diff xs ys
 diff (x : xs) (y : ys) | x /= y = 1 + diff xs ys
 diff _ _                        = 0

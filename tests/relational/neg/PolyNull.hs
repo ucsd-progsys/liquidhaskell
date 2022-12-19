@@ -18,4 +18,4 @@ null _   = False
 
 {-@ relational null ~ null :: {l1:List a -> Bool 
                             ~ l2:List b -> Bool 
-                           | true ==> r1 l1 == r2 l2} @-}
+                           | true :=> r1 l1 == r2 l2} @-}

@@ -25,5 +25,5 @@ apsum n a = if n <= 0 then a else a + n + apsum (n - 1) a
 foo :: Int -> Int
 foo n = apsum n 1
 
-{-@ relational foo ~ foo :: n1:_ -> _ ~ n2:_ -> _
-                         | n1 < n2 :=> r1 n1 <= r2 n2 @-}
+{-@ relational foo ~ foo :: {n1:_ -> _ ~ n2:_ -> _
+                         | n1 < n2 :=> r1 n1 <= r2 n2} @-}
