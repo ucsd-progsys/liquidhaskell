@@ -143,7 +143,7 @@ lookupName name = do
 -- | Our own simplified version of 'ModuleInfo' to overcome the fact we cannot construct the \"original\"
 -- one as the constructor is not exported, and 'getHomeModuleInfo' and 'getPackageModuleInfo' are not
 -- exported either, so we had to backport them as well.
-data ModuleInfo = ModuleInfo { minf_type_env :: UniqFM Name TyThing }
+newtype ModuleInfo = ModuleInfo { minf_type_env :: UniqFM Name TyThing }
 
 modInfoLookupName :: GhcMonadLike m
                   => ModuleInfo
