@@ -130,6 +130,8 @@ library
                       Liquid.GHC.SpanStack
                       Liquid.GHC.Types
                       Liquid.GHC.TypeRep
+                      Language.Haskell.Liquid.GHC.Plugin
+                      Language.Haskell.Liquid.GHC.Plugin.Tutorial
                       Language.Haskell.Liquid.Interactive.Handler
                       Language.Haskell.Liquid.Interactive.Types
                       Language.Haskell.Liquid.LawInstances
@@ -183,15 +185,6 @@ library
                       Language.Haskell.Liquid.WiredIn
                       LiquidHaskell
                       Paths_liquidhaskell
-
-  -- FIXME: Temporary measure to ensure that if the source plugin is available, then:
-  --   1. we compile it;
-  --   2. We don't rely on the \"liquid-prelude\" Haskell files previously shipped as part of LH itself.
-  -- Once the source plugin is out, we should also removed the duplicate \"liquid-prelude\" files from
-  -- the \"include\" directory.
-
-  exposed-modules:    Language.Haskell.Liquid.GHC.Plugin
-                      Language.Haskell.Liquid.GHC.Plugin.Tutorial
   other-modules:      Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                       Language.Haskell.Liquid.GHC.Plugin.Types
                       Language.Haskell.Liquid.GHC.Plugin.Util
