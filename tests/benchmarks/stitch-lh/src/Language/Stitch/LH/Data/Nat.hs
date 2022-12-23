@@ -2,7 +2,6 @@ module Language.Stitch.LH.Data.Nat where
 
 import Prelude hiding (max)
 
-{-@ type Nat = { v : Int | v >= 0 } @-}
 type Nat = Int
 
 {-@ inline max @-}
