@@ -147,7 +147,7 @@ commands:
 
 jobs:
 
-  stack_810:
+  stack_900:
     machine:
       image: ubuntu-2004:202107-02
     steps:
@@ -180,6 +180,6 @@ workflows:
   version: 2
   build_stack_and_cabal:
     jobs:
-      - stack_810
+      - stack_900
       - cabal_810
       - cabal_900

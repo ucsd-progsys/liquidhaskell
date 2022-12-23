@@ -50,9 +50,20 @@ packages:
       sha256: cf7712453587e8ea69b96f33e2e8015c22d3b448259d4cace663cc15657309d7
   original:
     hackage: strip-ansi-escape-0.1.0.0@sha256:08f2ed93b16086a837ec46eab7ce8d27cf39d47783caaeb818878ea33c2ff75f,1628
+- completed:
+    name: liquid-base
+    version: 4.15.0.1
+    git: https://github.com/facundominguez/liquid-base
+    pantry-tree:
+      size: 15554
+      sha256: 464e5c7c7cc77fa5c039e614232e562bf0de9e44554a22d0e6193ea4e8b2fe85
+    commit: 8ad2378cee5ccf7937d9e08aacd5c5b7128318e8
+  original:
+    git: https://github.com/facundominguez/liquid-base
+    commit: 8ad2378cee5ccf7937d9e08aacd5c5b7128318e8
 snapshots:
 - completed:
-    size: 590102
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/18/27.yaml
-    sha256: 79a786674930a89301b0e908fad2822a48882f3d01486117693c377b8edffdbe
-  original: lts-18.27
+    size: 619204
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/19/33.yaml
+    sha256: 6d1532d40621957a25bad5195bfca7938e8a06d923c91bc52aa0f3c41181f2d4
+  original: lts-19.33
