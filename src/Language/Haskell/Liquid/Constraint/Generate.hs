@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE DeriveTraversable         #-}
 {-# LANGUAGE LambdaCase                #-}
 {-# LANGUAGE StandaloneDeriving        #-}
@@ -18,10 +17,6 @@
 --   and the code for syntax-directed constraint generation.
 
 module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints, generateConstraintsWithEnv, caseEnv, consE ) where
-
-#if !MIN_VERSION_base(4,14,0)
-import Control.Monad.Fail
-#endif
 
 import           Prelude                                       hiding (error)
 import           GHC.Stack

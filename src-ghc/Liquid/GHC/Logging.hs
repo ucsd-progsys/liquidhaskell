@@ -9,8 +9,6 @@
      to pay the price of a pretty-printing \"roundtrip\".
 -}
 
-{-# LANGUAGE CPP #-}
-
 module Liquid.GHC.Logging (
     fromPJDoc
   , putWarnMsg
@@ -37,31 +35,10 @@ putLogMsg :: GHC.DynFlags
           -> PJ.Doc
           -> IO ()
 putLogMsg dynFlags reason sev srcSpan _mbStyle =
-#ifdef MIN_VERSION_GLASGOW_HASKELL
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
- GHC.putLogMsg dynFlags reason sev srcSpan style' . GHC.text . PJ.render
-   where
-    style' :: GHC.PprStyle
-    style' = case _mbStyle of
-               Nothing  -> defaultErrStyle dynFlags
-               Just sty -> sty
-#else
   GHC.putLogMsg dynFlags reason sev srcSpan . GHC.text . PJ.render
-#endif
-#endif
 
-
-#ifdef MIN_VERSION_GLASGOW_HASKELL
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-defaultErrStyle :: GHC.DynFlags -> GHC.PprStyle
-defaultErrStyle _dynFlags = GHC.defaultErrStyle _dynFlags
-#else
 defaultErrStyle :: GHC.DynFlags -> GHC.PprStyle
 defaultErrStyle _dynFlags = GHC.defaultErrStyle
-#endif
-#else
-  #error MIN_VERSION_GLASGOW_HASKELL is not defined
-#endif
 
 putWarnMsg :: GHC.DynFlags -> GHC.SrcSpan -> PJ.Doc -> IO ()
 putWarnMsg dynFlags srcSpan doc =

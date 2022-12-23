@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP              #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
@@ -78,12 +77,8 @@ inlineAuxExpr dfunId methodToAux e = go e
   go :: CoreExpr -> CoreExpr
   go (Lam b body) = Lam b (go body)
   go (Let b body)
-    | NonRec x e <- b, isDictId x = go
-     $ substExpr
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)     
-        empty
-#endif
-        (extendIdSubst emptySubst x e) body
+    | NonRec x e <- b, isDictId x =
+        go $ substExpr (extendIdSubst emptySubst x e) body
     | otherwise = Let (mapBnd go b) (go body)
   go (Case e x t alts) = Case (go e) x t (fmap (mapAlt go) alts)
   go (Cast e c       ) = Cast (go e) c

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
@@ -236,17 +235,9 @@ configureDynFlags cfg tmp = do
                  , hscTarget    = HscInterpreted
                  , ghcMode      = CompManager
                  -- prevent GHC from printing anything, unless in Loud mode
-#ifdef MIN_VERSION_GLASGOW_HASKELL
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-                 , log_action   = if loud
-                                    then defaultLogAction
-                                    else \_ _ _ _ _ _ -> return ()
-#else
                  , log_action   = if loud
                                     then defaultLogAction
                                     else \_ _ _ _ _   -> return ()
-#endif
-#endif
                  -- redirect .hi/.o/etc files to temp directory
                  , objectDir    = Just tmp
                  , hiDir        = Just tmp

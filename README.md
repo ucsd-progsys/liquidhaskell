@@ -300,10 +300,22 @@ Bash script. The script doesn't accept any argument and it tries to determine th
 to upload by scanning the `$PWD` for packages named appropriately. It will ask the user for confirmation
 before proceeding, and `stack upload` will be used under the hood.
 
+## GHC support policy
+
+LH supports only one version of GHC at any given time. This is because LH depends heavily on the `ghc` library
+and there is currently no distinction between public API's and API's internal to GHC. There are currently no
+release notes for the `ghc` library and breaking changes happen without notice and without deprecation
+periods. Supporting only one GHC version saves developer time because it obviates the need for `#ifdef`'s
+throughout the codebase, or for an compatibility layer that becomes increasingly difficult to write as we
+attempt to support more GHC versions. Porting to newer GHC versions takes less time, the code is easier to
+read and there is less code duplication.
+
+Users of older versions of GHC can still use older versions of LH.
+
 ## The GHC.API module
 
-In order to allow LH to work with multiple GHC versions, we need a way to abstract over all the breaking
-changes of the `ghc` library, which might change substantially with every major GHC release. This is
+In order to minimize the effort in porting LH to new releases of GHC, we need a way to abstract over breaking
+changes in the `ghc` library, which might change substantially with every major GHC release. This is
 accomplished by the [GHC.API][] module. The idea is that **rather than importing multiple `ghc` modules,
 LH developers must import this single module in order to write future-proof code**. This is especially
 important for versions of the compiler greater than 9, where the module hierarchy changed substantially,

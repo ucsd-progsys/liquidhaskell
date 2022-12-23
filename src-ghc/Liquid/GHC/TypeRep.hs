@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE GADTs                     #-}
@@ -116,15 +115,8 @@ substCoercion x tx (TyConAppCo r c cs)
   = TyConAppCo (subst x tx r) c (subst x tx <$> cs)
 substCoercion x tx (AppCo c1 c2)
   = AppCo (subst x tx c1) (subst x tx c2)
-#ifdef MIN_VERSION_GLASGOW_HASKELL
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-substCoercion x tx (FunCo r c1 c2)
-  = FunCo r (subst x tx c1) (subst x tx c2)
-#else
 substCoercion x tx (FunCo r cN c1 c2)
   = FunCo r cN (subst x tx c1) (subst x tx c2) -- TODO(adinapoli) Is this the correct substitution?
-#endif
-#endif
 substCoercion x tx (ForAllCo y c1 c2)
   | symbol x == symbol y 
   = ForAllCo y c1 c2
@@ -152,22 +144,6 @@ substCoercion x tx (KindCo c)
   = KindCo (subst x tx c)
 substCoercion x tx (SubCo c)
   = SubCo (subst x tx c)
-#ifdef MIN_VERSION_GLASGOW_HASKELL
-#if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
-substCoercion x tx (Refl r t)
-  = Refl (subst x tx r) (subst x tx t)
-substCoercion x tx (CoherenceCo c1 c2)
-  = CoherenceCo (subst x tx c1) (subst x tx c2)
-#endif
-#if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
-substCoercion x tx (Refl t)
-  = Refl (subst x tx t)
-substCoercion x tx (GRefl r t co) -- FIXME(adn) Is this a correct substitution?
-  = GRefl r (subst x tx t) co     -- FIXME(adn) Is this a correct substitution?
-substCoercion _x _tx (HoleCo cH)
-  = HoleCo cH                     -- FIXME(adn) Is this a correct substitution?
-#endif
-#endif
 
 instance SubstTy Role where
 instance SubstTy (CoAxiom Branched) where
