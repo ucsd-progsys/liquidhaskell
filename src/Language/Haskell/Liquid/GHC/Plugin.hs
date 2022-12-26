@@ -225,6 +225,9 @@ typecheckHook _ (unoptimise -> modSummary) tcGblEnv = do
 
   parsed          <- GhcMonadLike.parseModule (LH.keepRawTokenStream modSummary)
   let comments    = LH.extractSpecComments parsed
+  -- The LH plugin itself calls the type checker (see following line). This
+  -- would lead to a loop if we didn't remove the plugin when calling the type
+  -- checker.
   typechecked     <- updTopEnv dropPlugins $ GhcMonadLike.typecheckModule (LH.ignoreInline parsed)
   env             <- askHscEnv
   resolvedNames   <- LH.lookupTyThings env modSummary tcGblEnv
