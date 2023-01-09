@@ -2022,7 +2022,6 @@ executable relational-pos
     other-modules:
                       Abs
                     , AsynchCase
-                    , Axiom
                     , CheckedImp
                     , Isort
                     , MapFusion
@@ -2054,7 +2053,6 @@ executable relational-neg
                       Abs
                     , ApSum
                     , ApSumAsync
-                    , Axiom
                     , CheckedImp
                     , CaseOnRec
                     , SndOrdPred
