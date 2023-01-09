@@ -273,7 +273,8 @@ solveCs cfg tgt cgi info names = do
                        else return []
   when (relationalHints cfg) $ do 
     let hintFile = replaceBaseName tgt (takeBaseName tgt ++ "_relToUn")
-    writeFile hintFile (render $ relHints cgi)
+    let flags    = "{-@ LIQUID \"--reflection\" @-}\n{-@ LIQUID \"--ple\"        @-}\n\n"
+    writeFile hintFile (flags ++ (render $ relHints cgi))
     putStrLn "****** Relational Hints ********************************************************"
     putStrLn $ "Saved to file: " ++ hintFile
   let resModel      = resModel' `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors)) 

@@ -9,6 +9,9 @@ module Language.Haskell.Liquid.Synthesize.GHC where
 
 import qualified Language.Fixpoint.Types       as F
 import           Language.Haskell.Liquid.Types
+
+import           Liquid.GHC.Misc ( isEmbeddedDictVar )
+
 import           Data.Default
 import           Data.Maybe                     ( fromMaybe )
 import           Liquid.GHC.TypeRep
@@ -148,13 +151,14 @@ maintainRParen ts
       else  ""
 
 pprintFormals :: Int -> CoreExpr -> Int -> [Var] -> String
-pprintFormals i (Lam b e) cnt vs
-  | isTyVar b = pprintFormals i e cnt vs
-  | cnt > 0 = pprintFormals i e (cnt - 1) (b:vs)
-  | otherwise = " " ++ show b ++ pprintFormals i e cnt vs
-  -- | otherwise = " " ++ getOccString (varName b) ++ pprintFormals i e cnt vs
-pprintFormals i e _ vs
-  = " =" ++ pprintBody vs i e
+pprintFormals i e cnt vs = handleLam " = " i e cnt vs
+
+handleLam :: String -> Int -> CoreExpr -> Int -> [Var] -> String
+handleLam char i (Lam b e) cnt vs
+  | isTyVar b = handleLam char i e cnt vs
+  | cnt > 0   = handleLam char i e (cnt - 1) (b:vs)
+  | otherwise = " " ++ (show $ varName b) ++ handleLam char i e cnt vs
+handleLam char i e _ vs = char ++ pprintBody vs i e
 
 caseIndent :: Int
 caseIndent = 4
@@ -173,29 +177,47 @@ pprintVar v = if isTyVar v then "" else " " ++ discardModName v
 
 pprintBody :: [Var] -> Int -> CoreExpr -> String
 pprintBody vs i (Lam _ e)
-  = pprintFormals i e 0 vs
+  = "\\" ++ handleLam " ->" i e 0 vs
 pprintBody vs _ (Var v)
-  = case find (== v) vs of
-      Nothing -> pprintVar v
-      Just _  -> ""
-pprintBody vs _ e@App{}
-  = let pprintApp = fixApplication (show e)
-        noTcVars  = filter (\x -> case find (== x) (map show vs) of
-                                    Nothing -> True
-                                    Just _  -> False) (words pprintApp)
-    in  if errorExprPp e
-          then " error \" Dead code! \" "
-          else " " ++ unwords noTcVars
+  | isTyVar   v = "{- Type Variable here -}"
+  | isTcTyVar v = "{- TyVar for inference -}"
+  | otherwise   = case find (== v) vs of
+                    Nothing ->
+                      occNameString $
+                      nameOccName $
+                      varName v
+                    Just _  -> "{- empty -}"
+
+pprintBody vs i (App e1 (Type{})) =
+  pprintBody vs i e1
+
+pprintBody vs i (App e1 e2)
+  | Var v2 <- untick e2 
+  , isEmbeddedDictVar v2 = pprintBody vs i e1
+  | otherwise = "(" ++ left ++ ")" ++ right
+  where
+    left  = pprintBody vs i e1
+    right = pprintBody vs i e2
+
+
 pprintBody _ _ l@Lit{}
   = " " ++ show l
+
 pprintBody vs i (Case scr _ _ alts)
   = "\n" ++ indent i ++
     "case" ++ pprintBody vs i scr ++ " of\n" ++
     concatMap (pprintAlts vs (i + caseIndent)) alts
+
 pprintBody _ _ Type{}
-  = ""
+  = "{- Type -}"
+
 pprintBody _ _ e
   = error (" Not yet implemented for e = " ++ show e)
+
+
+untick :: CoreExpr -> CoreExpr
+untick (Tick _ e) = e
+untick e = e 
 
 fixApplication :: String -> String
 fixApplication e =
