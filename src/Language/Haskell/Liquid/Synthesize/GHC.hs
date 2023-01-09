@@ -192,8 +192,7 @@ pprintBody vs i (App e1 (Type{})) =
   pprintBody vs i e1
 
 pprintBody vs i (App e1 e2)
-  | Var v2 <- untick e2 
-  , isEmbeddedDictVar v2 = pprintBody vs i e1
+  | Var v2 <- untick e2 , isEmbeddedDictVar v2 = pprintBody vs i e1
   | otherwise = "(" ++ left ++ ")" ++ right
   where
     left  = pprintBody vs i e1
