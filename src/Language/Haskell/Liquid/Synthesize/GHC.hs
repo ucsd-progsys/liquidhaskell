@@ -155,9 +155,12 @@ pprintFormals i e cnt vs = handleLam " = " i e cnt vs
 
 handleLam :: String -> Int -> CoreExpr -> Int -> [Var] -> String
 handleLam char i (Lam b e) cnt vs
-  | isTyVar b = handleLam char i e cnt vs
-  | cnt > 0   = handleLam char i e (cnt - 1) (b:vs)
-  | otherwise = " " ++ (show $ varName b) ++ handleLam char i e cnt vs
+  | isTyVar b = " {- tyVar -}"
+                ++ handleLam char i e cnt vs
+  | cnt > 0   = " {- cnt -}"
+                ++ handleLam char i e (cnt - 1) (b:vs)
+  | otherwise = " {- oth -}"
+                ++ (show $ varName b) ++ handleLam char i e cnt vs
 handleLam char i e _ vs = char ++ pprintBody vs i e
 
 caseIndent :: Int
@@ -175,17 +178,21 @@ errorExprPp _
 pprintVar :: Var -> String
 pprintVar v = if isTyVar v then "" else " " ++ discardModName v
 
+-- handleVar :: Var -> String
+-- handleVar
+
 pprintBody :: [Var] -> Int -> CoreExpr -> String
-pprintBody vs i (Lam _ e)
+pprintBody vs i e@(Lam {})
   = "\\" ++ handleLam " ->" i e 0 vs
+
 pprintBody vs _ (Var v)
   | isTyVar   v = "{- Type Variable here -}"
   | isTcTyVar v = "{- TyVar for inference -}"
   | otherwise   = case find (== v) vs of
-                    Nothing ->
-                      occNameString $
-                      nameOccName $
-                      varName v
+                    Nothing -> pprintVar $ v
+--                      occNameString $
+--                      nameOccName $
+--                      varName v
                     Just _  -> "{- empty -}"
 
 pprintBody vs i (App e1 (Type{})) =
