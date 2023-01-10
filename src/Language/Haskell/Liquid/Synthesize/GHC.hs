@@ -109,7 +109,9 @@ fromAnf' e _
 -- | Function used for pretty printing core as Haskell source.
 --   Input does not contain let bindings.
 coreToHs :: SpecType -> Var -> CoreExpr -> String
-coreToHs t v e = pprintSymbols (discardModName v ++ pprintFormals caseIndent e (tracepp " cnt " cnt) [])
+coreToHs t v e = pprintSymbols (
+  handleVar v ++ " " ++
+  pprintFormals caseIndent e (tracepp " cnt " cnt) [])
   where cnt = countTcConstraints t
 
 symbols :: String
@@ -154,13 +156,12 @@ pprintFormals :: Int -> CoreExpr -> Int -> [Var] -> String
 pprintFormals i e cnt vs = handleLam " = " i e cnt vs
 
 handleLam :: String -> Int -> CoreExpr -> Int -> [Var] -> String
-handleLam char i (Lam b e) cnt vs
-  | isTyVar b = " {- tyVar -}"
+handleLam char i (Lam v e) cnt vs
+  | isTyVar v = " {- tyVar -}"
                 ++ handleLam char i e cnt vs
   | cnt > 0   = " {- cnt -}"
-                ++ handleLam char i e (cnt - 1) (b:vs)
-  | otherwise = " {- oth -}"
-                ++ (show $ varName b) ++ handleLam char i e cnt vs
+                ++ handleLam char i e (cnt - 1) (v:vs)
+  | otherwise = (handleVar v) ++ " " ++ handleLam char i e cnt vs
 handleLam char i e _ vs = char ++ pprintBody vs i e
 
 caseIndent :: Int
@@ -175,32 +176,44 @@ errorExprPp (GHC.App (GHC.App err@(GHC.Var _) (GHC.Type _)) _)
 errorExprPp _
   = False
 
-pprintVar :: Var -> String
-pprintVar v = if isTyVar v then "" else " " ++ discardModName v
+{- Handling external names -}
+handleExtName :: Name -> String
+handleExtName extName
+  | elem (moduleUnitId $ nameModule extName) wiredInUnitIds =
+    getOccString (localiseName extName)
+  | otherwise = getOccString extName
 
--- handleVar :: Var -> String
--- handleVar
+handleVar :: Var -> String
+handleVar v
+  | isTyConName     var_name = "{- TyConName -}"
+  | isSystemName    var_name = (show var_name)
+  | isInternalName  var_name = getOccString var_name
+{-
+ExternalName:
+- Name thing declared in other modules
+- Name thing wired in the compiler, primitives defined in the compiler
+-}
+  | isExternalName  var_name = handleExtName var_name
+  | otherwise                = (getOccString var_name)
+--    "{- otherwise-} " ++ (show $ varName v)
+  where
+    var_name :: Name
+    var_name = varName v
 
 pprintBody :: [Var] -> Int -> CoreExpr -> String
 pprintBody vs i e@(Lam {})
-  = "\\" ++ handleLam " ->" i e 0 vs
+  = "\\" ++ handleLam " -> " i e 0 vs
 
 pprintBody vs _ (Var v)
-  | isTyVar   v = "{- Type Variable here -}"
-  | isTcTyVar v = "{- TyVar for inference -}"
-  | otherwise   = case find (== v) vs of
-                    Nothing -> pprintVar $ v
---                      occNameString $
---                      nameOccName $
---                      varName v
-                    Just _  -> "{- empty -}"
+  | elem v vs = ""
+  | otherwise = handleVar v
 
 pprintBody vs i (App e1 (Type{})) =
   pprintBody vs i e1
 
 pprintBody vs i (App e1 e2)
   | Var v2 <- untick e2 , isEmbeddedDictVar v2 = pprintBody vs i e1
-  | otherwise = "(" ++ left ++ ")" ++ right
+  | otherwise = "(" ++ left ++ ") " ++ right
   where
     left  = pprintBody vs i e1
     right = pprintBody vs i e2
