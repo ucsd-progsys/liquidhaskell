@@ -184,14 +184,14 @@ current directory.
 The current formatting is optimized for comparing the outputs of running
 the benchmarks alone.
 
-    $ scripts/test/test_810_plugin.sh
+    $ scripts/test/test_810_plugin.sh \
         benchmark-stitch-lh \
         benchmark-bytestring \
-        benchmark-vector-algorithms
+        benchmark-vector-algorithms \
         benchmark-cse230 \
         benchmark-esop2013 \
         benchmark-icfp15-pos \
-        benchmark-icfp15-ne
+        benchmark-icfp15-neg
 
 ## How to Profile
 
