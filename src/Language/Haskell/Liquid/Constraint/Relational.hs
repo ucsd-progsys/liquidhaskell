@@ -1216,13 +1216,17 @@ fromRelExpr (ERUnChecked a b) = F.PImp a (fromRelExpr b)
 --------------------------------------------------------------
 
 relHint :: SpecType -> Ghc.Var -> CoreExpr -> Doc
-relHint t v e 
-  = text "import GHC.Types" $+$
-    text "" $+$
-    text "{- HLINT ignore \"Use camelCase\" -}" $+$
-    text ("{-@ " ++ F.showpp v ++ " :: " ++ F.showpp t ++ " @-}") $+$
-    text (F.showpp v ++ " :: " ++ removeIdent (toType False t)) $+$
-    text (coreToHs t v (fromAnf e))
+relHint t v e = text "import GHC.Types"
+                $+$ text ""
+                $+$ text "{- HLINT ignore \"Use camelCase\" -}"
+                $+$ text ("{-@ " ++ F.showpp v
+                           ++ " :: "
+                           ++ F.showpp t
+                           ++ " @-}")
+                $+$ text (F.showpp v
+                           ++ " :: "
+                           ++ removeIdent (toType False t))
+                $+$ text (coreToHs t v (fromAnf e))
 
 removeIdent :: Type -> String
 removeIdent t = withNoLines noIdent $ F.pprint t
