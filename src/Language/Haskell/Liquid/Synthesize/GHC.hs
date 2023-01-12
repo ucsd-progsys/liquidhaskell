@@ -118,7 +118,9 @@ symbols :: String
 symbols = [':']
 
 pprintSymbols :: String -> String
-pprintSymbols txt = foldr (\x xs -> pprintSym symbols x ++ "\n" ++ xs) [] $ splitOn "\n" txt
+pprintSymbols txt =
+  foldr (\x xs -> pprintSym symbols x ++ "\n" ++ xs) [] $
+  splitOn "\n" txt
 
 pprintSym :: String -> String -> String
 pprintSym symbols s
@@ -130,15 +132,6 @@ pprintSym symbols s
       where 
         prefix = takeWhile (== ' ') s
         suffix = dropWhile (== ' ') s
-
-discardModName :: Var -> String
-discardModName v = last (splitOn "." (show v))
-  -- last (splitOn "." (getOccString (varName v)))
-
-rmModName :: String -> String
-rmModName s =
-  let ts = splitOn "." s
-  in  maintainLParen ts ++ last ts ++ maintainRParen ts
 
 maintainLParen :: [String] -> String
 maintainLParen ts
@@ -176,12 +169,21 @@ errorExprPp (GHC.App (GHC.App err@(GHC.Var _) (GHC.Type _)) _)
 errorExprPp _
   = False
 
+{-
+Check if a Name with module is wired in the compiler or not.
+If Name has no module, returns False.
+-}
+wiredIn :: Name -> Bool
+wiredIn name =
+  case nameModule_maybe name of
+    Nothing  -> False
+    Just m -> elem (moduleUnitId m) wiredInUnitIds
+
 {- Handling external names -}
 handleExtName :: Name -> String
 handleExtName extName
-  | elem (moduleUnitId $ nameModule extName) wiredInUnitIds =
-    getOccString (localiseName extName)
-  | otherwise = getOccString extName
+  | wiredIn extName = getOccString (localiseName extName)
+  | otherwise       = getOccString extName
 
 handleVar :: Var -> String
 handleVar v
@@ -193,9 +195,8 @@ ExternalName:
 - Name thing declared in other modules
 - Name thing wired in the compiler, primitives defined in the compiler
 -}
-  | isExternalName  var_name = handleExtName var_name
+  | isExternalName var_name = handleExtName var_name
   | otherwise                = (getOccString var_name)
---    "{- otherwise-} " ++ (show $ varName v)
   where
     var_name :: Name
     var_name = varName v
@@ -224,7 +225,7 @@ pprintBody _ _ l@Lit{}
 
 pprintBody vs i (Case scr _ _ alts)
   = "\n" ++ indent i ++
-    "case" ++ pprintBody vs i scr ++ " of\n" ++
+    "case " ++ pprintBody vs i scr ++ " of\n" ++
     concatMap (pprintAlts vs (i + caseIndent)) alts
 
 pprintBody _ _ Type{}
@@ -233,17 +234,9 @@ pprintBody _ _ Type{}
 pprintBody _ _ e
   = error (" Not yet implemented for e = " ++ show e)
 
-
 untick :: CoreExpr -> CoreExpr
 untick (Tick _ e) = e
-untick e = e 
-
-fixApplication :: String -> String
-fixApplication e =
-  let ws' = words (replaceNewLine e)
-      ws = handleCommas ws'
-      cleanWs = rmTypeAppl ws
-  in  unwords (fixCommas $ fixParen (map rmModName cleanWs))
+untick e = e
 
 handleCommas :: [String] -> [String]
 handleCommas [] = []
