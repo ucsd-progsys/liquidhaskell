@@ -63,7 +63,13 @@ import           Language.Haskell.Liquid.Types                  hiding (Def,
 import           System.Console.CmdArgs.Verbosity               (whenLoud)
 import           System.IO.Unsafe                               (unsafePerformIO)
 
-import           Text.PrettyPrint.HughesPJ (text, Doc, ($+$))
+import           Text.PrettyPrint.HughesPJ (text
+                                           , Doc
+                                           , ($+$)
+                                           , Mode(..)
+                                           , Style(..)
+                                           , TextDetails(..)
+                                           , fullRender)
 
 data RelPred
   = RelPred { fun1 :: Var
@@ -1210,13 +1216,39 @@ fromRelExpr (ERUnChecked a b) = F.PImp a (fromRelExpr b)
 --------------------------------------------------------------
 
 relHint :: SpecType -> Ghc.Var -> CoreExpr -> Doc
-relHint t v e 
-  = text "import GHC.Types" $+$
-    text "" $+$
-    text "{- HLINT ignore \"Use camelCase\" -}" $+$
-    text ("{-@ " ++ F.showpp v ++ " :: " ++ F.showpp t ++ " @-}") $+$
-    text (F.showpp v ++ " :: " ++ F.showpp (toType False t)) $+$
-    text (coreToHs t v (fromAnf e))
+relHint t v e = text "import GHC.Types"
+                $+$ text ""
+                $+$ text "{- HLINT ignore \"Use camelCase\" -}"
+                $+$ text ("{-@ " ++ F.showpp v
+                           ++ " :: "
+                           ++ F.showpp t
+                           ++ " @-}")
+                $+$ text (F.showpp v
+                           ++ " :: "
+                           ++ removeIdent (toType False t))
+                $+$ text (coreToHs t v (fromAnf e))
+
+removeIdent :: Type -> String
+removeIdent t = withNoLines noIdent $ F.pprint t
+
+withNoLines :: Style -> Doc -> String
+withNoLines style doc = fullRender m l r noSpace "" doc
+  where
+    m = mode style
+    l = lineLength style
+    r = ribbonsPerLine style
+
+noSpace :: TextDetails -> String -> String
+noSpace (Chr '\n')    s  = ' ':s
+noSpace (Chr c)       s  = c:s
+noSpace (Str  s1)     s2 = unwords (lines s1) ++ s2
+noSpace (PStr s1)     s2 = s1 ++ s2
+
+{- Style for OneLineMode -}
+noIdent :: Style
+noIdent = Style { mode = OneLineMode
+                , lineLength = 0
+                , ribbonsPerLine = 0}
 
 --------------------------------------------------------------
 -- Debug -----------------------------------------------------
