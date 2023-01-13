@@ -275,9 +275,11 @@ solveCs cfg tgt cgi info names = do
     let hintFile     = replaceBaseName tgt (takeBaseName tgt ++ "_relToUn")
     let flags        = "{-@ LIQUID \"--reflection\" @-}\n{-@ LIQUID \"--ple\"        @-}\n\n"
     let orginalFile  = "import " ++ takeBaseName tgt ++ "\n"
-    writeFile hintFile (flags ++ orginalFile ++ render (relHints cgi))
-    putStrLn "****** Relational Hints ********************************************************"
-    putStrLn $ "Saved to file: " ++ hintFile
+    let hints        = render (relHints cgi)
+    when (not $ null hints) $ do
+      writeFile hintFile (flags ++ orginalFile ++ hints)
+      putStrLn "****** Relational Hints ********************************************************"
+      putStrLn $ "Saved to file: " ++ hintFile
   let resModel      = resModel' `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors)) 
   let out0          = mkOutput cfg resModel sol (annotMap cgi)
   return            $ out0 { o_vars    = names    }
