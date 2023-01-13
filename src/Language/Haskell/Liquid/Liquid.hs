@@ -276,7 +276,7 @@ solveCs cfg tgt cgi info names = do
     let flags        = "{-@ LIQUID \"--reflection\" @-}\n{-@ LIQUID \"--ple\"        @-}\n\n"
     let orginalFile  = "import " ++ takeBaseName tgt ++ "\n"
     let hints        = render (relHints cgi)
-    when (not $ null hints) $ do
+    unless (null hints) $ do
       writeFile hintFile (flags ++ orginalFile ++ hints)
       putStrLn "****** Relational Hints ********************************************************"
       putStrLn $ "Saved to file: " ++ hintFile
