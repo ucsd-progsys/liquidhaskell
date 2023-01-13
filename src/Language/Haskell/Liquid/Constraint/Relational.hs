@@ -1241,7 +1241,7 @@ withNoLines style doc = fullRender m l r noSpace "" doc
 noSpace :: TextDetails -> String -> String
 noSpace (Chr '\n')    s  = ' ':s
 noSpace (Chr c)       s  = c:s
-noSpace (Str  s1)     s2 = (unwords $ lines s1) ++ s2
+noSpace (Str  s1)     s2 = unwords (lines s1) ++ s2
 noSpace (PStr s1)     s2 = s1 ++ s2
 
 {- Style for OneLineMode -}

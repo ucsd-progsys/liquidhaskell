@@ -154,7 +154,7 @@ handleLam char i (Lam v e) cnt vs
                 ++ handleLam char i e cnt vs
   | cnt > 0   = " {- cnt -}"
                 ++ handleLam char i e (cnt - 1) (v:vs)
-  | otherwise = (handleVar v) ++ " " ++ handleLam char i e cnt vs
+  | otherwise = handleVar v ++ " " ++ handleLam char i e cnt vs
 handleLam char i e _ vs = char ++ pprintBody vs i e
 
 caseIndent :: Int
@@ -188,15 +188,15 @@ handleExtName extName
 handleVar :: Var -> String
 handleVar v
   | isTyConName     var_name = "{- TyConName -}"
-  | isSystemName    var_name = (show var_name)
+  | isSystemName    var_name = show var_name
   | isInternalName  var_name = getOccString var_name
 {-
 ExternalName:
 - Name thing declared in other modules
 - Name thing wired in the compiler, primitives defined in the compiler
 -}
-  | isExternalName var_name = handleExtName var_name
-  | otherwise                = (getOccString var_name)
+  | isExternalName var_name  = handleExtName var_name
+  | otherwise                = getOccString var_name
   where
     var_name :: Name
     var_name = varName v
