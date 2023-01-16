@@ -291,7 +291,7 @@ filter
     -> { o : Data.ByteString.ByteString | bslen o <= bslen i }
 
 partition
-    :: (_ -> GHC.Types.Bool)
+    :: (GHC.Types.Char -> GHC.Types.Bool)
     -> i : Data.ByteString.ByteString
     -> ( { l : Data.ByteString.ByteString | bslen l <= bslen i }
        , { r : Data.ByteString.ByteString | bslen r <= bslen i }
