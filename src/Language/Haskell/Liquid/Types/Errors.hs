@@ -795,6 +795,7 @@ ppError' _td _dCtx (ErrHole _ msg _ x t)
 
 ppError' _td _dCtx (ErrRelationalWf _ lexp rexp ltyp rtyp rpr msg)
   = text "Invalid Relational Spec for " <+> ppTicks lexp <+> text "~" <+> ppTicks rexp <+> parens msg
+        $+$ ""
         $+$ "These components are inconsistent:"
         $+$ "Left type"
         $+$ nest 4 ltyp
