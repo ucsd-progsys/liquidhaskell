@@ -176,7 +176,7 @@ handleVar v
 
 pprintBody :: [Var] -> Int -> CoreExpr -> String
 pprintBody vs i e@(Lam {})
-  = "(\\" ++ (handleLam " -> " i e vs) ++ ")"
+  = "(\\" ++ handleLam " -> " i e vs ++ ")"
 
 pprintBody vs _ (Var v)
   | elem v vs = ""
