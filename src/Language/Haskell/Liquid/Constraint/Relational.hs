@@ -281,13 +281,20 @@ relTermToUnTerm' relTerms (Var x1) (Var x2)
   | Just relX <- lookup (x1, x2) relTerms 
   = relX
 relTermToUnTerm' relTerms (App f1 α1) (App f2 α2) 
-  | Type{} <- GM.unTickExpr α1, Type{} <- GM.unTickExpr α2 
+  | Type{} <- GM.unTickExpr α1
+  , Type{} <- GM.unTickExpr α2
+  , areCompatible f1 f2
   = relTermToUnTerm' relTerms f1 f2
 relTermToUnTerm' relTerms (App f1 (Var x1)) (App f2 (Var x2)) 
-  | GM.isEmbeddedDictVar x1, GM.isEmbeddedDictVar x2
+  | GM.isEmbeddedDictVar x1
+  , GM.isEmbeddedDictVar x2
+  , areCompatible f1 f2
   = relTermToUnTerm' relTerms f1 f2
 relTermToUnTerm' relTerms (App f1 x1) (App f2 x2) 
-  | isCommonArg x1, isCommonArg x2
+  | isCommonArg x1
+  , isCommonArg x2
+  , areCompatible f1 f2
+  , areCompatible x1 x2
   = App (App (relTermToUnTerm' relTerms f1 f2) x1) x2
   where 
     isCommonArg x | Type{} <- GM.unTickExpr x = False
@@ -303,6 +310,7 @@ relTermToUnTerm' relTerms (Lam x1 e1) (Lam x2 e2)
     (x1l, x2r) = mkRelCopies x1 x2
     (e1l, e2r) = subRelCopies e1 x1 e2 x2
 relTermToUnTerm' relTerms (Let (NonRec x1 d1) e1) (Let (NonRec x2 d2) e2) 
+  | areCompatible d1 d2
   = Let (NonRec x1l d1) $ Let (NonRec x2r d2) $ Let (NonRec relX relD) $ relTermToUnTerm' (((x1l, x2r), Var relX) : relTerms) e1l e2r
     where 
       relX = mkRelThmVar x1 x2
@@ -311,7 +319,8 @@ relTermToUnTerm' relTerms (Let (NonRec x1 d1) e1) (Let (NonRec x2 d2) e2)
       (e1l, e2r) = subRelCopies e1 x1 e2 x2
 -- TODO: test recursive and mutually recursive lets
 relTermToUnTerm' relTerms (Let (Rec bs1) e1) (Let (Rec bs2) e2) 
-  | length bs1 == length bs2 
+  | length bs1 == length bs2
+  , all (== True) $ zipWith areCompatible (map snd bs1) (map snd bs2)
   = Let (Rec bs1l) $ Let (Rec bs2r) $ Let (Rec relBs) $ relTermToUnTerm' relTerms' e1l e2r
     where 
       bs1l = mkLeftCopies bs1
@@ -341,7 +350,26 @@ relTermToUnTerm' relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2)
 relTermToUnTerm' _ e1 e2
   = traceWhenLoud ("relTermToUnTerm': can't proceed proof generation on e1:\n" ++ F.showpp e1 ++ "\ne2:\n" ++ F.showpp e2)
       mkLambdaUnit (Ghc.exprType e1) (Ghc.exprType e2)
-      
+
+areCompatible :: CoreExpr -> CoreExpr -> Bool
+areCompatible e1 e2 = areCompatibleTy (Ghc.exprType e1) (Ghc.exprType e2)
+
+areCompatibleTy :: Type -> Type -> Bool
+areCompatibleTy t1 t2 
+  | isBaseGhcTy t1, isBaseGhcTy t2 = True
+  where 
+    isBaseGhcTy TyVarTy{}  = True
+    isBaseGhcTy TyConApp{} = True
+    isBaseGhcTy LitTy{}    = True
+    isBaseGhcTy _          = False
+areCompatibleTy (Ghc.FunTy _ _ s1 t1) (Ghc.FunTy _ _ s2 t2) 
+  = areCompatibleTy s1 s2 && areCompatibleTy t1 t2 
+areCompatibleTy (Ghc.ForAllTy _ t1) t2 
+  = areCompatibleTy t1 t2
+areCompatibleTy t1 (Ghc.ForAllTy _ t2) 
+  = areCompatibleTy t1 t2
+areCompatibleTy _ _ = False
+
 mkLambdaUnit :: Type -> Type -> CoreExpr
 mkLambdaUnit (Ghc.ForAllTy _ t1) t2 = mkLambdaUnit t1 t2
 mkLambdaUnit t1 (Ghc.ForAllTy _ t2) = mkLambdaUnit t1 t2
