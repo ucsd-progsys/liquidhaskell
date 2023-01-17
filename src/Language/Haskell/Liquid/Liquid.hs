@@ -272,10 +272,14 @@ solveCs cfg tgt cgi info names = do
                        then synthesize tgt fcfg (cgi{holesMap = applySolution sol <$> holesMap  cgi}) 
                        else return []
   when (relationalHints cfg) $ do 
-    let hintFile = replaceBaseName tgt (takeBaseName tgt ++ "_relToUn")
-    writeFile hintFile (render $ relHints cgi)
-    putStrLn "****** Relational Hints ********************************************************"
-    putStrLn $ "Saved to file: " ++ hintFile
+    let hintFile     = replaceBaseName tgt (takeBaseName tgt ++ "_relToUn")
+    let flags        = "{-@ LIQUID \"--reflection\" @-}\n{-@ LIQUID \"--ple\"        @-}\n\n"
+    let orginalFile  = "import " ++ takeBaseName tgt ++ "\n"
+    let hints        = render (relHints cgi)
+    unless (null hints) $ do
+      writeFile hintFile (flags ++ orginalFile ++ hints)
+      putStrLn "****** Relational Hints ********************************************************"
+      putStrLn $ "Saved to file: " ++ hintFile
   let resModel      = resModel' `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors)) 
   let out0          = mkOutput cfg resModel sol (annotMap cgi)
   return            $ out0 { o_vars    = names    }
