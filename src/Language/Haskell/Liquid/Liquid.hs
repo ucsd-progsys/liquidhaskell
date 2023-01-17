@@ -280,7 +280,7 @@ solveCs cfg tgt cgi info names = do
       writeFile hintFile (flags ++ orginalFile ++ hints)
       putStrLn "****** Relational Hints ********************************************************"
       putStrLn $ "Saved to file: " ++ hintFile
-  let resModel      = resModel' `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors)) 
+  let resModel      = resModel' `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors ++ relWf cgi)) 
   let out0          = mkOutput cfg resModel sol (annotMap cgi)
   return            $ out0 { o_vars    = names    }
                            { o_result  = resModel }

@@ -88,17 +88,21 @@ data UnaryTyping = UnaryTyping { chk :: UnaryChecking
                                }
 
 consAssmRel :: Config -> TargetInfo -> (RelEnv, CGEnv) -> (Var, Var, LocSpecType, LocSpecType, RelExpr, RelExpr) -> CG (RelEnv, CGEnv)
-consAssmRel _ _ (ψ, γ) (x, y, t, s, ra, rp) = traceChk "Assm" x y t s p $ do
-  traceWhenLoud ("ASSUME " ++ F.showpp (fromRelExpr p', p)) $ subUnarySig γ' x t'
-  _ <- wf t' s' ra rp
-  subUnarySig γ' y s'
-  γ'' <- if isBasicType t' && isBasicType s'
-    then γ' `addPred` F.subst
-      (F.mkSubst [(resL, F.EVar $ F.symbol x), (resR, F.EVar $ F.symbol y)])
-      (fromRelExpr rp)
-    else return γ'
-  return (RelPred x' y' bs cs rp : ψ, γ'')
+consAssmRel _ _ (ψ, γ) (x, y, t, s, ra, rp) = do
+  modify $ \cgi -> cgi { relWf = errs ++ relWf cgi }
+  if not (null errs) 
+    then return (ψ, γ) 
+    else traceChk "Assm" x y t s p $ do
+      traceWhenLoud ("ASSUME " ++ F.showpp (fromRelExpr p', p)) $ subUnarySig γ' x t'
+      subUnarySig γ' y s'
+      γ'' <- if isBasicType t' && isBasicType s'
+        then γ' `addPred` F.subst
+          (F.mkSubst [(resL, F.EVar $ F.symbol x), (resR, F.EVar $ F.symbol y)])
+          (fromRelExpr rp)
+        else return γ'
+      return (RelPred x' y' bs cs rp : ψ, γ'')
  where
+    errs = wfErrors (F.loc t) x y t' s' ra rp
     p = fromRelExpr rp
     γ' = γ `setLocation` Sp.Span (GM.fSrcSpan (F.loc t))
     (x', y') = mkRelCopies x y
@@ -112,18 +116,17 @@ consAssmRel _ _ (ψ, γ) (x, y, t, s, ra, rp) = traceChk "Assm" x y t s p $ do
 
 consRelTop :: Config -> TargetInfo -> UnaryChecking -> UnarySynthesis -> CGEnv -> RelEnv -> (Var, Var, LocSpecType, LocSpecType, RelExpr, RelExpr) -> CG ()
 consRelTop cfg ti chk _ γ ψ (x, y, t, s, ra, rp) = traceChk "Init" e d t s p $ do
-  _ <- wf t' s' ra rp
-  subUnarySig γ' x t'
-  subUnarySig γ' y s'
-  consRelCheckBind (UnaryTyping chk consUnarySynth) γ' ψ e d t' s' ra rp
-  modify $ \cgi -> if relationalHints cfg
-    then cgi
-      { relHints =
-        relHint (relSigToUnSig (toExpr x) (toExpr y) t' s' rp) hintName
-         (relTermToUnTerm x y hintName (toCoreExpr e) (toCoreExpr d))
-        $+$ relHints cgi
+    subUnarySig γ' x t'
+    subUnarySig γ' y s'
+    consRelCheckBind (UnaryTyping chk consUnarySynth) γ' ψ e d t' s' ra rp
+    when (relationalHints cfg) $ 
+      modify $ \cgi -> cgi
+      { relHints = relHint
+                      (relSigToUnSig (toExpr x) (toExpr y) t' s' rp)
+                      hintName
+                      (relTermToUnTerm x y hintName (toCoreExpr e) (toCoreExpr d))
+                    $+$ relHints cgi
       }
-    else cgi
   where
     toExpr = F.EVar . F.symbol
     toCoreExpr = GM.unTickExpr . binderToExpr
@@ -366,19 +369,17 @@ isSupported RAllT{} = True
 isSupported RFun{} = True
 isSupported _ = False
 
-wf :: SpecType -> SpecType -> RelExpr -> RelExpr -> CG Bool
-wf t1 _ _ _ | not (isSupported t1) = F.panic $ "unsupported type " ++ F.showpp t1
-wf _ t2 _ _ | not (isSupported t2) = F.panic $ "unsupported type " ++ F.showpp t2
-wf (RAllT _ t1 _) t2 a p = wf t1 t2 a p
-wf t1 (RAllT _ t2 _) a p = wf t1 t2 a p
-wf t1 t2 _ (ERBasic _) | isBasicType t1 && isBasicType t2 = return True
-wf (RFun _ _ _ t1 _) (RFun _ _ _ t2 _) a (ERUnChecked _ p) = wf t1 t2 a p
-wf (RFun _ _ s1 t1 _) (RFun _ _ s2 t2 _) a (ERChecked q p) 
-  = do wf1 <- wf s1 s2 a q
-       wf2 <- wf t1 t2 a p
-       return $ wf1 && wf2
-wf t1@RFun{} t2@RFun{} _ p = F.panic $ "unexpected base relational predicate " ++ F.showpp p ++ " for function types " ++ F.showpp t1 ++ ", " ++ F.showpp t2
-wf t1 t2 _ _ = F.panic $ "mismatch of function and base types in relational signature: " ++ F.showpp t1 ++ ", " ++ F.showpp t2
+wfErrors :: F.SourcePos -> Var -> Var -> SpecType -> SpecType -> RelExpr -> RelExpr -> [Error]
+wfErrors loc e1 e2 t1 t2 _ p | not (isSupported t1) = [relWfError loc e1 e2 t1 t2 p "unsupported left type"]
+wfErrors loc e1 e2 t1 t2 _ p | not (isSupported t2) = [relWfError loc e1 e2 t1 t2 p "unsupported right type"]
+wfErrors loc e1 e2 (RAllT _ t1 _) t2 a p = wfErrors loc e1 e2 t1 t2 a p
+wfErrors loc e1 e2 t1 (RAllT _ t2 _) a p = wfErrors loc e1 e2 t1 t2 a p
+wfErrors _ _ _ t1 t2 _ (ERBasic _) | isBasicType t1 && isBasicType t2 = []
+wfErrors loc e1 e2 (RFun _ _ _ t1 _) (RFun _ _ _ t2 _) a (ERUnChecked _ p) = wfErrors loc e1 e2 t1 t2 a p
+wfErrors loc e1 e2 (RFun _ _ s1 t1 _) (RFun _ _ s2 t2 _) a (ERChecked q p) 
+  = wfErrors loc e1 e2 s1 s2 a q ++ wfErrors loc e1 e2 t1 t2 a p
+wfErrors loc e1 e2 t1@RFun{} t2@RFun{} _ p = [relWfError loc e1 e2 t1 t2 p "unexpected base predicate for function types"]
+wfErrors loc e1 e2 t1 t2 _ p = [relWfError loc e1 e2 t1 t2 p "function type compared against base type"]
 
 consRelCheckBind :: UnaryTyping -> CGEnv -> RelEnv -> CoreBind -> CoreBind -> SpecType -> SpecType -> RelExpr -> RelExpr -> CG ()
 consRelCheckBind unary γ ψ b1@(NonRec _ e1) b2@(NonRec _ e2) t1 t2 ra rp
@@ -1229,6 +1230,21 @@ fromRelExpr (ERUnChecked a b) = F.PImp a (fromRelExpr b)
 -- toBasicOr :: F.Expr -> RelExpr -> F.Expr
 -- toBasicOr t = MB.fromMaybe t . toBasic
 
+
+--------------------------------------------------------------
+-- Pretty Printing Errors ------------------------------------
+--------------------------------------------------------------
+
+relWfError :: F.SourcePos -> Ghc.Var -> Ghc.Var -> SpecType -> SpecType -> RelExpr -> String -> Error
+relWfError loc e1 e2 t1 t2 p msg
+  = ErrRelationalWf 
+      (GM.fSrcSpan loc)
+      (F.symbol e1)
+      (F.symbol e2)
+      (text $ F.showpp t1)
+      (text $ F.showpp t2)
+      (text $ F.showpp p)
+      (text msg)
 
 --------------------------------------------------------------
 -- Pretty Printing Unary Proofs ------------------------------
