@@ -159,16 +159,9 @@ handleLam char i (Lam v e) vs
   | isTcTyVar v = " {- isTcTyVar -}" ++ handleLam char i e vs
   | isTyCoVar v = " {- isTyCoVar -}" ++ handleLam char i e vs
   | isCoVar   v = " {- isCoVar -}"   ++ handleLam char i e vs
-  | isId      v = handleVar v ++ " " ++ handleLam char i e vs
-  
+  | isId      v = handleVar v ++ " " ++ handleLam char i e vs  
   | otherwise   = handleVar v ++ " " ++ handleLam char i e vs
 handleLam char i e vs = char ++ pprintBody vs i e
-
-errorExprPp :: CoreExpr -> Bool
-errorExprPp (GHC.App (GHC.App err@(GHC.Var _) (GHC.Type _)) _)
-  = show err == "Language.Haskell.Liquid.Synthesize.Error.err"
-errorExprPp _
-  = False
 
 handleVar :: Var -> String
 handleVar v
@@ -182,7 +175,7 @@ ExternalName:
 - Name thing declared in other modules
 - Name thing wired in the compiler, primitives defined in the compiler
 -}
-  | isEmbeddedDictVar v = "()"
+  | isEmbeddedDictVar v      = "()"
   | otherwise                = "{- Not properly handled -}"
                                ++ show var_name
   where
@@ -203,16 +196,13 @@ pprintBody vs i (App e1 e2) = "(" ++ left ++ " " ++ right ++ ")"
     left  = pprintBody vs i e1
     right = pprintBody vs i e2
 
-
 pprintBody _ _ l@Lit{}
   = " " ++ show l
 
 pprintBody vs i (Case e _ _ alts)
-  = -- "\n {- " ++ show var ++ " -}" ++
-    -- "\n {- " ++ " -}" ++
-    "\n" ++ indent i ++
-    "case " ++ pprintBody vs i e ++ " of\n" ++
-    concatMap (pprintAlts vs (i + caseIndent)) alts
+  = "\n" ++ indent i ++
+    "case " ++ pprintBody vs i e ++ " of\n"
+    ++ concatMap (pprintAlts vs (i + caseIndent)) alts
 
 pprintBody _ _ Type{}
   = "{- Type -}"
@@ -279,8 +269,11 @@ replaceNewLine (c:cs)
 
 pprintAlts :: [Var] -> Int -> Alt Var -> String
 pprintAlts vars i (DataAlt dataCon, vs, e)
-  = indent i ++ show dataCon ++ concatMap (\v -> " " ++ show v) vs ++ " ->" ++
-    pprintBody vars (i+caseIndent) e ++ "\n"
+  = indent i
+  ++ show dataCon
+  ++ concatMap (\v -> " " ++ show v) vs
+  ++ " ->" ++ pprintBody vars (i+caseIndent) e
+  ++ "\n"
 pprintAlts _ _ _ =
   error " Pretty printing for pattern match on datatypes. "
 
