@@ -10,8 +10,6 @@ module Language.Haskell.Liquid.Synthesize.GHC where
 import qualified Language.Fixpoint.Types       as F
 import           Language.Haskell.Liquid.Types
 
-import           Liquid.GHC.Misc ( isEmbeddedDictVar )
-
 import           Data.Default
 import           Data.Maybe                     ( fromMaybe )
 import           Liquid.GHC.TypeRep
@@ -170,12 +168,6 @@ handleVar v
   | isSystemName    var_name = show var_name
   | isWiredInName   var_name = getOccString (localiseName var_name)
   | isInternalName  var_name = getOccString var_name
-{-
-ExternalName:
-- Name thing declared in other modules
-- Name thing wired in the compiler, primitives defined in the compiler
--}
-  | isEmbeddedDictVar v      = "()"
   | otherwise                = "{- Not properly handled -}"
                                ++ show var_name
   where
@@ -189,8 +181,7 @@ pprintBody vs i e@(Lam {})
 pprintBody vs _ (Var v)
   | elem v vs = ""
   | otherwise = handleVar v
-
-pprintBody vs i (App e1 (Type{})) = pprintBody vs i e1
+  
 pprintBody vs i (App e1 e2) = "(" ++ left ++ " " ++ right ++ ")"
   where
     left  = pprintBody vs i e1
@@ -272,7 +263,7 @@ pprintAlts vars i (DataAlt dataCon, vs, e)
   = indent i
   ++ show dataCon
   ++ concatMap (\v -> " " ++ show v) vs
-  ++ " ->" ++ pprintBody vars (i+caseIndent) e
+  ++ " -> " ++ pprintBody vars (i+caseIndent) e
   ++ "\n"
 pprintAlts _ _ _ =
   error " Pretty printing for pattern match on datatypes. "
