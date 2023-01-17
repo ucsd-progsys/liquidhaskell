@@ -269,14 +269,32 @@ relTermToUnTerm e1 e2 relThm = relTermToUnTerm' [((e1, e2), Var relThm)]
 
 relTermToUnTerm' :: [((Var, Var), CoreExpr)] -> CoreExpr -> CoreExpr -> CoreExpr
 relTermToUnTerm' relTerms (Var x1) (Var x2)
-  | Just relX <- lookup (x1, x2) relTerms = relX
-relTermToUnTerm' relTerms (App f1 x1) (App f2 x2) = App (App (relTermToUnTerm' relTerms f1 f2) x1) x2
-relTermToUnTerm' relTerms (Lam x1 e1) (Lam x2 e2) = Lam x1l $ Lam x2r $ relTermToUnTerm' relTerms e1l e2r
+  | Just relX <- lookup (x1, x2) relTerms 
+  = relX
+relTermToUnTerm' relTerms (App f1 α1) (App f2 α2) 
+  | Type{} <- GM.unTickExpr α1, Type{} <- GM.unTickExpr α2 
+  = relTermToUnTerm' relTerms f1 f2
+relTermToUnTerm' relTerms (App f1 (Var x1)) (App f2 (Var x2)) 
+  | GM.isEmbeddedDictVar x1, GM.isEmbeddedDictVar x2
+  = relTermToUnTerm' relTerms f1 f2
+relTermToUnTerm' relTerms (App f1 x1) (App f2 x2) 
+  | isCommonArg x1, isCommonArg x2
+  = App (App (relTermToUnTerm' relTerms f1 f2) x1) x2
+  where 
+    isCommonArg x | Type{} <- GM.unTickExpr x = False
+    isCommonArg x | Var v <- GM.unTickExpr x = not (GM.isEmbeddedDictVar v)
+    isCommonArg _ = True
+relTermToUnTerm' relTerms (Lam α1 e1) (Lam α2 e2) 
+  | Ghc.isTyVar α1, Ghc.isTyVar α2
+  = relTermToUnTerm' relTerms e1 e2
+relTermToUnTerm' relTerms (Lam x1 e1) (Lam x2 e2)
+  | not (Ghc.isTyVar x1), not (Ghc.isTyVar x2)
+  = Lam x1l $ Lam x2r $ relTermToUnTerm' relTerms e1l e2r
   where
     (x1l, x2r) = mkRelCopies x1 x2
     (e1l, e2r) = subRelCopies e1 x1 e2 x2
-relTermToUnTerm' relTerms (Let (NonRec x1 d1) e1) (Let (NonRec x2 d2) e2) =
-  Let (NonRec x1l d1) $ Let (NonRec x2r d2) $ Let (NonRec relX relD) $ relTermToUnTerm' (((x1l, x2r), Var relX) : relTerms) e1l e2r
+relTermToUnTerm' relTerms (Let (NonRec x1 d1) e1) (Let (NonRec x2 d2) e2) 
+  = Let (NonRec x1l d1) $ Let (NonRec x2r d2) $ Let (NonRec relX relD) $ relTermToUnTerm' (((x1l, x2r), Var relX) : relTerms) e1l e2r
     where 
       relX = mkRelThmVar x1 x2
       relD = relTermToUnTerm' relTerms d1 d2
@@ -284,8 +302,8 @@ relTermToUnTerm' relTerms (Let (NonRec x1 d1) e1) (Let (NonRec x2 d2) e2) =
       (e1l, e2r) = subRelCopies e1 x1 e2 x2
 -- TODO: test recursive and mutually recursive lets
 relTermToUnTerm' relTerms (Let (Rec bs1) e1) (Let (Rec bs2) e2) 
-  | length bs1 == length bs2 = 
-    Let (Rec bs1l) $ Let (Rec bs2r) $ Let (Rec relBs) $ relTermToUnTerm' relTerms' e1l e2r
+  | length bs1 == length bs2 
+  = Let (Rec bs1l) $ Let (Rec bs2r) $ Let (Rec relBs) $ relTermToUnTerm' relTerms' e1l e2r
     where 
       bs1l = mkLeftCopies bs1
       bs2r = mkRightCopies bs2
@@ -294,8 +312,8 @@ relTermToUnTerm' relTerms (Let (Rec bs1) e1) (Let (Rec bs2) e2)
       relTermsBs = zipWith (\(x1, d1) (x2, d2) -> ((x1, x2), relTermToUnTerm' relTerms d1 d2)) bs1 bs2
       relTerms' = relTermsBs ++ relTerms
       relBs = zipWith (\(x1, d1) (x2, d2) -> (mkRelThmVar x1 x2, relTermToUnTerm' relTerms' d1 d2)) bs1 bs2
-relTermToUnTerm' relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
-  Case d1 x1l t1 $ map
+relTermToUnTerm' relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) 
+  = Case d1 x1l t1 $ map
     (\(c1, bs1, e1) ->
       let bs1l = map (mkCopyWithSuffix relSuffixL) bs1 in
       ( c1
@@ -318,7 +336,8 @@ relTermToUnTerm' _ e1 e2
 mkLambdaUnit :: Type -> Type -> CoreExpr
 mkLambdaUnit (Ghc.ForAllTy _ t1) t2 = mkLambdaUnit t1 t2
 mkLambdaUnit t1 (Ghc.ForAllTy _ t2) = mkLambdaUnit t1 t2
-mkLambdaUnit (Ghc.FunTy _ _ _ t1) (Ghc.FunTy _ _ _ t2) = Lam (GM.stringVar "_" Ghc.unitTy) $ Lam (GM.stringVar "_" Ghc.unitTy) $ mkLambdaUnit t1 t2
+mkLambdaUnit (Ghc.FunTy Ghc.InvisArg _ _ t1) (Ghc.FunTy Ghc.InvisArg _ _ t2) = mkLambdaUnit t1 t2
+mkLambdaUnit (Ghc.FunTy Ghc.VisArg _ _ t1) (Ghc.FunTy Ghc.VisArg _ _ t2) = Lam (GM.stringVar "_" Ghc.unitTy) $ Lam (GM.stringVar "_" Ghc.unitTy) $ mkLambdaUnit t1 t2
 mkLambdaUnit t1@Ghc.FunTy{} t2 = F.panic $ "relTermToUnTerm: asked to relate unmatching types " ++ F.showpp t1 ++ " " ++ F.showpp t2
 mkLambdaUnit t1 t2@Ghc.FunTy{} = F.panic $ "relTermToUnTerm: asked to relate unmatching types " ++ F.showpp t1 ++ " " ++ F.showpp t2
 mkLambdaUnit _ _ = Ghc.unitExpr
