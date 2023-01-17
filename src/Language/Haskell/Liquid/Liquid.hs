@@ -271,10 +271,16 @@ solveCs cfg tgt cgi info names = do
   hErrors           <- if typedHoles cfg 
                        then synthesize tgt fcfg (cgi{holesMap = applySolution sol <$> holesMap  cgi}) 
                        else return []
-  when (relationalHints cfg) $ do 
-    let hintFile     = replaceBaseName tgt (takeBaseName tgt ++ "_relToUn")
+  when (relationalHints cfg) $ do
+    let hintName     = takeBaseName tgt ++ "_relToUn"
+    let hintFile     = replaceBaseName tgt hintName
     let flags        = "{-@ LIQUID \"--reflection\" @-}\n{-@ LIQUID \"--ple\"        @-}\n\n"
-    let orginalFile  = "import " ++ takeBaseName tgt ++ "\n"
+    let orginalFile  = "module " ++
+                       hintName ++
+                       " ( module " ++
+                       hintName ++
+                       ") where\nimport " ++
+                       takeBaseName tgt ++ "\n"
     let hints        = render (relHints cgi)
     unless (null hints) $ do
       writeFile hintFile (flags ++ orginalFile ++ hints)
