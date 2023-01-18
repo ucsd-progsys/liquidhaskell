@@ -10,8 +10,6 @@ module Language.Haskell.Liquid.Synthesize.GHC where
 import qualified Language.Fixpoint.Types       as F
 import           Language.Haskell.Liquid.Types
 
-import           Liquid.GHC.Misc ( isEmbeddedDictVar )
-
 import           Data.Default
 import           Data.Maybe                     ( fromMaybe )
 import           Liquid.GHC.TypeRep
@@ -109,10 +107,15 @@ fromAnf' e _
 -- | Function used for pretty printing core as Haskell source.
 --   Input does not contain let bindings.
 coreToHs :: SpecType -> Var -> CoreExpr -> String
-coreToHs t v e = pprintSymbols (
-  handleVar v ++ " " ++
-  pprintFormals caseIndent e (tracepp " cnt " cnt) [])
-  where cnt = countTcConstraints t
+coreToHs _ v e = pprintSymbols (handleVar v
+                                ++ " "
+                                ++ pprintFormals caseIndent e [])
+
+caseIndent :: Int
+caseIndent = 4
+
+indent :: Int -> String
+indent i = replicate i ' '
 
 symbols :: String
 symbols = [':']
@@ -145,88 +148,52 @@ maintainRParen ts
       then  ")"
       else  ""
 
-pprintFormals :: Int -> CoreExpr -> Int -> [Var] -> String
-pprintFormals i e cnt vs = handleLam " = " i e cnt vs
+pprintFormals :: Int -> CoreExpr -> [Var] -> String
+pprintFormals i e vs = handleLam "= " i e vs
 
-handleLam :: String -> Int -> CoreExpr -> Int -> [Var] -> String
-handleLam char i (Lam v e) cnt vs
-  | isTyVar v = " {- tyVar -}"
-                ++ handleLam char i e cnt vs
-  | cnt > 0   = " {- cnt -}"
-                ++ handleLam char i e (cnt - 1) (v:vs)
-  | otherwise = handleVar v ++ " " ++ handleLam char i e cnt vs
-handleLam char i e _ vs = char ++ pprintBody vs i e
-
-caseIndent :: Int
-caseIndent = 4
-
-indent :: Int -> String
-indent i = replicate i ' '
-
-errorExprPp :: CoreExpr -> Bool
-errorExprPp (GHC.App (GHC.App err@(GHC.Var _) (GHC.Type _)) _)
-  = show err == "Language.Haskell.Liquid.Synthesize.Error.err"
-errorExprPp _
-  = False
-
-{-
-Check if a Name with module is wired in the compiler or not.
-If Name has no module, returns False.
--}
-wiredIn :: Name -> Bool
-wiredIn name =
-  case nameModule_maybe name of
-    Nothing  -> False
-    Just m -> elem (moduleUnitId m) wiredInUnitIds
-
-{- Handling external names -}
-handleExtName :: Name -> String
-handleExtName extName
-  | wiredIn extName = getOccString (localiseName extName)
-  | otherwise       = getOccString extName
+handleLam :: String -> Int -> CoreExpr -> [Var] -> String
+handleLam char i (Lam v e) vs
+  | isTyVar   v = " {- tyVar -}"     ++ handleLam char i e vs
+  | isTcTyVar v = " {- isTcTyVar -}" ++ handleLam char i e vs
+  | isTyCoVar v = " {- isTyCoVar -}" ++ handleLam char i e vs
+  | isCoVar   v = " {- isCoVar -}"   ++ handleLam char i e vs
+  | isId      v = handleVar v ++ " " ++ handleLam char i e vs  
+  | otherwise   = handleVar v ++ " " ++ handleLam char i e vs
+handleLam char i e vs = char ++ pprintBody vs i e
 
 handleVar :: Var -> String
 handleVar v
   | isTyConName     var_name = "{- TyConName -}"
+  | isTyVarName     var_name = "{- TyVar -}"
   | isSystemName    var_name = show var_name
+  | isWiredInName   var_name = getOccString (localiseName var_name)
   | isInternalName  var_name = getOccString var_name
-{-
-ExternalName:
-- Name thing declared in other modules
-- Name thing wired in the compiler, primitives defined in the compiler
--}
-  | isExternalName var_name  = handleExtName var_name
-  | otherwise                = getOccString var_name
+  | otherwise                = "{- Not properly handled -}"
+                               ++ show var_name
   where
     var_name :: Name
     var_name = varName v
 
 pprintBody :: [Var] -> Int -> CoreExpr -> String
 pprintBody vs i e@(Lam {})
-  = "\\" ++ handleLam " -> " i e 0 vs
+  = "(\\" ++ handleLam " -> " i e vs ++ ")"
 
 pprintBody vs _ (Var v)
   | elem v vs = ""
   | otherwise = handleVar v
-
-pprintBody vs i (App e1 (Type{})) =
-  pprintBody vs i e1
-
-pprintBody vs i (App e1 e2)
-  | Var v2 <- untick e2 , isEmbeddedDictVar v2 = pprintBody vs i e1
-  | otherwise = "(" ++ left ++ ")(" ++ right ++ ")"
+  
+pprintBody vs i (App e1 e2) = "(" ++ left ++ " " ++ right ++ ")"
   where
     left  = pprintBody vs i e1
     right = pprintBody vs i e2
 
-
 pprintBody _ _ l@Lit{}
   = " " ++ show l
 
-pprintBody vs i (Case scr _ _ alts)
+pprintBody vs i (Case e _ _ alts)
   = "\n" ++ indent i ++
-    "case " ++ pprintBody vs i scr ++ " of\n" ++
-    concatMap (pprintAlts vs (i + caseIndent)) alts
+    "case " ++ pprintBody vs i e ++ " of\n"
+    ++ concatMap (pprintAlts vs (i + caseIndent)) alts
 
 pprintBody _ _ Type{}
   = "{- Type -}"
@@ -293,10 +260,13 @@ replaceNewLine (c:cs)
 
 pprintAlts :: [Var] -> Int -> Alt Var -> String
 pprintAlts vars i (DataAlt dataCon, vs, e)
-  = indent i ++ show dataCon ++ concatMap (\v -> " " ++ show v) vs ++ " ->" ++
-    pprintBody vars (i+caseIndent) e ++ "\n"
-pprintAlts _ _ _
-  = error " Pretty printing for pattern match on datatypes. "
+  = indent i
+  ++ show dataCon
+  ++ concatMap (\v -> " " ++ show v) vs
+  ++ " -> " ++ pprintBody vars (i+caseIndent) e
+  ++ "\n"
+pprintAlts _ _ _ =
+  error " Pretty printing for pattern match on datatypes. "
 
 -- TODO Remove variables generated for type class constraints
 countTcConstraints :: SpecType -> Int
