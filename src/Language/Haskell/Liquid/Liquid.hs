@@ -275,15 +275,16 @@ solveCs cfg tgt cgi info names = do
     let hintName     = takeBaseName tgt ++ "_relToUn"
     let hintFile     = replaceBaseName tgt hintName
     let flags        = "{-@ LIQUID \"--reflection\" @-}\n{-@ LIQUID \"--ple\"        @-}\n\n"
-    let orginalFile  = "module " ++
+    let moduleFile   = "module " ++
                        hintName ++
                        " ( module " ++
                        hintName ++
                        ") where\nimport " ++
                        takeBaseName tgt ++ "\n"
+    let imports      = L.intercalate "\n" $ map (\imp -> "import " ++ F.symbolString imp) (S.toList $ gsAllImps $ giSrc info)
     let hints        = render (relHints cgi)
     unless (null hints) $ do
-      writeFile hintFile (flags ++ orginalFile ++ hints)
+      writeFile hintFile (flags ++ moduleFile ++ imports ++ "\n" ++ hints)
       putStrLn "****** Relational Hints ********************************************************"
       putStrLn $ "Saved to file: " ++ hintFile
   let resModel      = resModel' `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors)) 
