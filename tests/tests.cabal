@@ -2224,6 +2224,9 @@ executable import-cli
                     , T1738Lib
                     , WrapLib
                     , WrapLibCode
+                    , Language 
+                    , B
+                    , C
 
     ghc-options:      -fplugin=LiquidHaskell
                       -fkeep-going
