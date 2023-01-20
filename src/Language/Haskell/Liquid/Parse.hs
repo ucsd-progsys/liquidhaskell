@@ -198,7 +198,7 @@ toLogicOneP
   = do reserved "define"
        (x:xs) <- some locSymbolP
        reservedOp "="
-       e      <- (exprP <|> predP)
+       e      <- exprP <|> predP
        return (x, val <$> xs, e)
 
 
