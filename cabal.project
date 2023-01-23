@@ -19,6 +19,15 @@ source-repository-package
     location: https://github.com/qnikst/ghc-timings-report
     tag: 45ef3498e35897712bde8e002ce18df6d55f8b15
 
+source-repository-package
+    type: git
+    location: https://github.com/tweag/smtlib-backends
+    tag: 712cb070a8cf697876554ab190058e8cfd0bcd80
+    subdir:
+      .
+      smtlib-backends-z3
+      smtlib-backends-process
+
 package liquid-fixpoint
   flags: +devel
 
