@@ -300,11 +300,13 @@ data ApiComment
 -- | Extract top-level comments from a module.
 apiComments :: ParsedModule -> [Ghc.Located ApiComment]
 apiComments pm =
-  case pm_parsed_source pm of
-    L _ (HsModule { hsmodAnn = anns' }) ->
-      mapMaybe (tokComment . toRealSrc) $
-      priorComments $
-      epAnnComments anns'
+    let hs = unLoc (pm_parsed_source pm)
+        modComments = epAnnComments (hsmodAnn hs)
+        declComments = map (epAnnComments . ann . getLoc) (hsmodDecls hs)
+     in
+        mapMaybe (tokComment . toRealSrc) $
+          concatMap priorComments $
+          modComments : declComments
   where
     tokComment (L sp (EpaComment (EpaLineComment s) _)) = Just (L sp (ApiLineComment s))
     tokComment (L sp (EpaComment (EpaBlockComment s) _)) = Just (L sp (ApiBlockComment s))
