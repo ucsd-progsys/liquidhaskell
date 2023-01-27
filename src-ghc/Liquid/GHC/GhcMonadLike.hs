@@ -1,7 +1,9 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE RankNTypes #-}
 -- | This module introduces a \"lighter\" "GhcMonad" typeclass which doesn't require an instance of
 -- 'ExceptionMonad', and can therefore be used for both 'CoreM' and 'Ghc'.
 --
@@ -36,6 +38,8 @@ module Liquid.GHC.GhcMonadLike (
 import Control.Monad.IO.Class
 import Control.Exception (throwIO)
 
+import Data.Data (Data, gmapQr)
+import Data.Generics (extQ)
 import qualified Liquid.GHC.API   as Ghc
 import           Liquid.GHC.API   hiding ( ModuleInfo
                                                           , findModule
@@ -303,14 +307,9 @@ data ApiComment
 apiComments :: ParsedModule -> [Ghc.Located ApiComment]
 apiComments pm =
     let hs = unLoc (pm_parsed_source pm)
-        importComments = map (epAnnComments . ann . getLoc) (hsmodImports hs)
-        modComments = epAnnComments (hsmodAnn hs)
-        declComments = concat $ concat
-          [ [funBindMatchComments d, [ epAnnComments (ann sp)]] | L sp d <- hsmodDecls hs ]
-     in
-        mapMaybe (tokComment . toRealSrc) $
-          concatMap priorComments $
-          importComments ++ modComments : declComments
+        go :: forall a. Data a => a -> [LEpaComment]
+        go = gmapQr (++) [] go `extQ` (id @[LEpaComment])
+     in mapMaybe (tokComment . toRealSrc) $ go hs
   where
     tokComment (L sp (EpaComment (EpaLineComment s) _)) = Just (L sp (ApiLineComment s))
     tokComment (L sp (EpaComment (EpaBlockComment s) _)) = Just (L sp (ApiBlockComment s))
@@ -319,7 +318,3 @@ apiComments pm =
     -- TODO: take into account anchor_op, which only matters if the source was
     -- pre-processed by an exact-print-aware tool.
     toRealSrc (L a e) = L (RealSrcSpan (anchor a) Nothing) e
-
-    funBindMatchComments (ValD _ fb@FunBind{}) =
-      map (epAnnComments . ann . getLoc) $ unLoc $ mg_alts $ fun_matches fb
-    funBindMatchComments _ = []
