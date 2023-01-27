@@ -296,17 +296,19 @@ lookupModule mod_name Nothing = do
 data ApiComment
   = ApiLineComment String
   | ApiBlockComment String
+  deriving Show
 
 -- | Extract top-level comments from a module.
 apiComments :: ParsedModule -> [Ghc.Located ApiComment]
 apiComments pm =
     let hs = unLoc (pm_parsed_source pm)
+        importComments = map (epAnnComments . ann . getLoc) (hsmodImports hs)
         modComments = epAnnComments (hsmodAnn hs)
         declComments = map (epAnnComments . ann . getLoc) (hsmodDecls hs)
      in
         mapMaybe (tokComment . toRealSrc) $
           concatMap priorComments $
-          modComments : declComments
+          importComments ++ modComments : declComments
   where
     tokComment (L sp (EpaComment (EpaLineComment s) _)) = Just (L sp (ApiLineComment s))
     tokComment (L sp (EpaComment (EpaBlockComment s) _)) = Just (L sp (ApiBlockComment s))
