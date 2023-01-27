@@ -29,7 +29,7 @@ executable liquidhaskell
                       , liquid-containers >= 0.6.2.1  && < 0.7
                       , liquid-prelude    >= 0.8.10.2
                       , liquid-vector     >= 0.12.1.2 && < 0.13
-                      , liquid-bytestring >= 0.10.0.0 && < 0.11
+                      , liquid-bytestring >= 0.11 && < 0.12
                       , liquidhaskell     >= 0.8.10.2
                       , filepath
                       , process           >= 1.6.0.0 && < 1.7
