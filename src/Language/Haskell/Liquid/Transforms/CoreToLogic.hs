@@ -331,7 +331,7 @@ casesToLg allowTC v e alts = mapM (altToLg allowTC e) normAlts >>= go
     go ((d,p):dps) = do c <- checkDataAlt d e
                         e' <- go dps
                         return (EIte c p e' `subst1` su)
-    go []          = panic (Just (getSrcSpan v)) "Unexpected empty cases in casesToLg"
+    go []          = panic (Just (getSrcSpan v)) $ "Unexpected empty cases in casesToLg: " ++ show e
     su             = (symbol v, e)
 
 checkDataAlt :: C.AltCon -> Expr -> LogicM Expr
