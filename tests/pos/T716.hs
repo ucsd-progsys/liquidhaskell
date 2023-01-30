@@ -24,8 +24,8 @@ import GHC.Word
 
 {-@ data Word = W# {w :: {v:Word# | undefinedOffset v >= 64}} @-}
 
-grabWord16_SAFE (Ptr ip#) = let x = byteSwap16# (indexWord16OffAddr# ip# 0#) in W# (narrow16Word# x)
+grabWord16_SAFE (Ptr ip#) = let x = byteSwap16# (indexWordOffAddr# ip# 0#) in W# (narrow16Word# x)
 
-grabWord16_UNSAFE (Ptr ip#) = W# (narrow16Word# (byteSwap16# (indexWord16OffAddr# ip# 0#)))
+grabWord16_UNSAFE (Ptr ip#) = W# (narrow16Word# (byteSwap16# (indexWordOffAddr# ip# 0#)))
 
 
