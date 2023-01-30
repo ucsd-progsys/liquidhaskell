@@ -40,6 +40,7 @@ import Control.Exception (throwIO)
 
 import Data.Data (Data, gmapQr)
 import Data.Generics (extQ)
+import qualified Data.List
 import qualified Liquid.GHC.API   as Ghc
 import           Liquid.GHC.API   hiding ( ModuleInfo
                                                           , findModule
@@ -309,7 +310,8 @@ apiComments pm =
     let hs = unLoc (pm_parsed_source pm)
         go :: forall a. Data a => a -> [LEpaComment]
         go = gmapQr (++) [] go `extQ` (id @[LEpaComment])
-     in mapMaybe (tokComment . toRealSrc) $ go hs
+     in Data.List.sortOn (spanToLineColumn . getLoc) $
+          mapMaybe (tokComment . toRealSrc) $ go hs
   where
     tokComment (L sp (EpaComment (EpaLineComment s) _)) = Just (L sp (ApiLineComment s))
     tokComment (L sp (EpaComment (EpaBlockComment s) _)) = Just (L sp (ApiBlockComment s))
@@ -318,3 +320,6 @@ apiComments pm =
     -- TODO: take into account anchor_op, which only matters if the source was
     -- pre-processed by an exact-print-aware tool.
     toRealSrc (L a e) = L (RealSrcSpan (anchor a) Nothing) e
+
+    spanToLineColumn =
+      fmap (\s -> (srcSpanStartLine s, srcSpanStartCol s)) . srcSpanToRealSrcSpan
