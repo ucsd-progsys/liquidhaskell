@@ -647,11 +647,18 @@ instance Simplify C.CoreExpr where
   inline _ (C.Coercion c)      = C.Coercion c
   inline _ (C.Type t)          = C.Type t
 
-isUndefined :: Alt b -> Bool
+isUndefined :: CoreAlt -> Bool
 isUndefined (Alt _ _ e) = isUndefinedExpr e
   where
-   -- auto generated undefined case: (\_ -> (patError @type "error message")) void
-   isUndefinedExpr (C.App (C.Var x) _) | show x `elem` perrors = True
+   isUndefinedExpr :: C.CoreExpr -> Bool
+   -- auto generated undefined case: (\_ -> (patError @levity @type "error message")) void
+   -- Type arguments are erased before calling isUndefined
+   isUndefinedExpr (C.App (C.Var x) _)
+     | show x `elem` perrors = True
+   -- another auto generated undefined case:
+   -- let lqanf_... = patError "error message") in case lqanf_... of {}
+   isUndefinedExpr (C.Let (C.NonRec x e) (C.Case (C.Var v) _ _ []))
+     | x == v = isUndefinedExpr e
    isUndefinedExpr (C.Let _ e) = isUndefinedExpr e
    -- otherwise
    isUndefinedExpr _ = False
