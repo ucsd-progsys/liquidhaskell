@@ -282,9 +282,10 @@ solveCs cfg tgt cgi info names = do
                        ") where\nimport " ++
                        takeBaseName tgt ++ "\n"
     let imports      = L.intercalate "\n" $ map (\imp -> "import " ++ F.symbolString imp) (S.toList $ gsAllImps $ giSrc info)
+    let extraImports = "import GHC.Exts ( Int ( I# ))\n"
     let hints        = render (relHints cgi)
     unless (null hints) $ do
-      writeFile hintFile (flags ++ moduleFile ++ imports ++ "\n" ++ hints)
+      writeFile hintFile (flags ++ moduleFile ++ imports ++ "\n" ++ extraImports ++ hints)
       putStrLn "****** Relational Hints ********************************************************"
       putStrLn $ "Saved to file: " ++ hintFile
   let resModel      = resModel' `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors)) 

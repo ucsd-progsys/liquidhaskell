@@ -10,6 +10,7 @@ module Language.Haskell.Liquid.Synthesize.GHC where
 import qualified Language.Fixpoint.Types       as F
 import           Language.Haskell.Liquid.Types
 
+
 import           Data.Default
 import           Data.Maybe                     ( fromMaybe )
 import           Liquid.GHC.TypeRep
@@ -161,13 +162,19 @@ handleLam char i (Lam v e) vs
   | otherwise   = handleVar v ++ " " ++ handleLam char i e vs
 handleLam char i e vs = char ++ pprintBody vs i e
 
+-- showWiredIn :: OccName -> String
+-- showWiredIn occName = show occName
+  -- occNameString occName
+  -- getOccString (localiseName name)
+
 handleVar :: Var -> String
 handleVar v
   | isTyConName     var_name = "{- TyConName -}"
   | isTyVarName     var_name = "{- TyVar -}"
-  | isSystemName    var_name = show var_name
-  | isWiredInName   var_name = getOccString (localiseName var_name)
-  | isInternalName  var_name = getOccString var_name
+  | isSystemName    var_name = (show var_name) -- ++ "{- SysName -}"
+  | isWiredInName   var_name = "{- WiredIn -}"
+    ++ getOccString (localiseName var_name)
+  | isInternalName  var_name = "{- Internal -}" ++ getOccString var_name
   | otherwise                = "{- Not properly handled -}"
                                ++ show var_name
   where
