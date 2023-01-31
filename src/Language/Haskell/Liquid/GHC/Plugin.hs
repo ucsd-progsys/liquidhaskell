@@ -371,6 +371,9 @@ checkLiquidHaskellContext lhContext = do
         -- will throw an exception.
         case o_result out of
           F.Safe _ -> return $ Right pmrClientLib
+          F.Crash{} -> do
+               liftIO $ print (o_result out)
+               GHC.failM
           _ | json moduleCfg -> failM
             | otherwise -> return $ Left $ ErrorsOccurred []
 
