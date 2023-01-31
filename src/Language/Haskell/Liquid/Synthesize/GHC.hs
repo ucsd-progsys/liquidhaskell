@@ -162,19 +162,24 @@ handleLam char i (Lam v e) vs
   | otherwise   = handleVar v ++ " " ++ handleLam char i e vs
 handleLam char i e vs = char ++ pprintBody vs i e
 
--- showWiredIn :: OccName -> String
--- showWiredIn occName = show occName
-  -- occNameString occName
-  -- getOccString (localiseName name)
+handleWiredIn :: Name -> String
+handleWiredIn w
+  | getModule w == "GHC.Types" = "{- " ++ show w ++ " -}"
+  | otherwise                  = getOccString (localiseName w)
+  where
+    getModule :: Name -> String
+    getModule n = moduleNameString (moduleName $ nameModule n)
 
 handleVar :: Var -> String
 handleVar v
   | isTyConName     var_name = "{- TyConName -}"
   | isTyVarName     var_name = "{- TyVar -}"
-  | isSystemName    var_name = (show var_name) -- ++ "{- SysName -}"
-  | isWiredInName   var_name = "{- WiredIn -}"
-    ++ getOccString (localiseName var_name)
-  | isInternalName  var_name = "{- Internal -}" ++ getOccString var_name
+  | isSystemName    var_name = (show var_name)
+                               -- ++ "{- SysName -}"
+  | isWiredInName   var_name = handleWiredIn var_name
+                               -- ++ "{- WiredInName -}"
+  | isInternalName  var_name = getOccString var_name
+                               -- ++ "{- Internal -}"
   | otherwise                = "{- Not properly handled -}"
                                ++ show var_name
   where
@@ -194,8 +199,11 @@ pprintBody vs i (App e1 e2) = "(" ++ left ++ " " ++ right ++ ")"
     left  = pprintBody vs i e1
     right = pprintBody vs i e2
 
-pprintBody _ _ l@Lit{}
-  = " " ++ show l
+pprintBody _ _ l@(Lit literal) =
+  case (isLitValue_maybe literal) of
+    Just i   -> show i
+    Nothing  -> "{- Lit is not LitChar or LitNumber -}" ++ show l
+      
 
 pprintBody vs i (Case e _ _ alts)
   = "\n" ++ indent i ++
