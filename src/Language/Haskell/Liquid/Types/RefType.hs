@@ -513,7 +513,9 @@ kindToRType_ ofType        = ofType . go
      | otherwise           = t
 
 isValKind :: Kind -> Bool
-isValKind x = x == naturalTy || x == typeSymbolKind
+isValKind x0 =
+    let x = expandTypeSynonyms x0
+     in x == naturalTy || x == typeSymbolKind
 
 bTyVar :: Symbol -> BTyVar
 bTyVar      = BTV
