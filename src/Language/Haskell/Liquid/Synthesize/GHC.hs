@@ -174,7 +174,7 @@ handleVar :: Var -> String
 handleVar v
   | isTyConName     var_name = "{- TyConName -}"
   | isTyVarName     var_name = "{- TyVar -}"
-  | isSystemName    var_name = (show var_name)
+  | isSystemName    var_name = show var_name
                                -- ++ "{- SysName -}"
   | isWiredInName   var_name = handleWiredIn var_name
                                -- ++ "{- WiredInName -}"
@@ -200,7 +200,7 @@ pprintBody vs i (App e1 e2) = "(" ++ left ++ " " ++ right ++ ")"
     right = pprintBody vs i e2
 
 pprintBody _ _ l@(Lit literal) =
-  case (isLitValue_maybe literal) of
+  case isLitValue_maybe literal of
     Just i   -> show i
     Nothing  -> "{- Lit is not LitChar or LitNumber -}" ++ show l
       
