@@ -282,9 +282,16 @@ solveCs cfg tgt cgi info names = do
                        ") where\nimport " ++
                        takeBaseName tgt ++ "\n"
     let imports      = L.intercalate "\n" $ map (\imp -> "import " ++ F.symbolString imp) (S.toList $ gsAllImps $ giSrc info)
-    let test_        = "{- " ++ (show $ gsAllImps $ giSrc info) ++ " -}"
-    let qImports     = "{- " ++ (show $ gsQualImps $ giSrc info) ++ " -}"
---    let extraImports = "import GHC.Exts ( Int ( I# ))\n"
+    {-
+      Modules that have the form of: "import moduleName (function)",
+      are being outputed as "import moduleName". I don't seem to find
+      the place where the specific functions being imported is stored.
+
+      let test_        = "{- " ++ (show $ gsAllImps $ giSrc info) ++ " -}"
+      let qImports     = "{- " ++ (show $ gsQualImps $ giSrc info) ++ " -}"
+
+      AR
+    -}    
     let hints        = render (relHints cgi)
     unless (null hints) $ do
       writeFile hintFile (flags ++ moduleFile ++ imports ++ "\n" ++ qImports ++ "\n" ++ test_ ++ "\n" ++ hints)
