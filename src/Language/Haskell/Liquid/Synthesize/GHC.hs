@@ -165,14 +165,20 @@ handleLam char i e vs = char ++ pprintBody vs i e
 handleWiredIn :: Name -> String
 handleWiredIn w
   | getLocaln w == "I#" = "{- " ++ show w ++ " -}"
---  | getModule w == "GHC.Types" = "{- " ++ show w ++ " -}"
+  {-
+    Excluding GHC.Types also excludes Boolean values,
+    "GHC.Type.True" on RConstantTimeComparison for
+    example.
+
+    getModule w == "GHC.Types" = "{- " ++ show w ++ " -}"
+  -}
   | otherwise                  = getLocaln w
   where
-    getModule :: Name -> String
-    getModule n = moduleNameString (moduleName $ nameModule n)
+    -- getModule :: Name -> String
+    -- getModule n = moduleNameString (moduleName $ nameModule n)
 
     getLocaln :: Name -> String
-    getLocaln n = getOccString (localiseName w)
+    getLocaln n = getOccString (localiseName n)
 
 handleVar :: Var -> String
 handleVar v
