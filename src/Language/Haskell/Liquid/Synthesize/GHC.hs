@@ -203,7 +203,7 @@ pprintBody vs i e@(Lam {})
 pprintBody vs _ (Var v)
   | elem v vs = ""
   | otherwise = handleVar v
-  
+
 pprintBody vs i (App e1 e2) = "((" ++ left ++ ")\n"
                               ++ indent (i + 1)
                               ++ "(" ++ right ++ "))"
@@ -218,8 +218,7 @@ pprintBody _ _ l@(Lit literal) =
       
 
 pprintBody vs i (Case e _ _ alts)
-  = "\n" ++ indent i ++
-    "case " ++ pprintBody vs i e ++ " of\n"
+  = "case " ++ pprintBody vs i e ++ " of\n"
     ++ concatMap (pprintAlts vs (i + caseIndent)) alts
 
 pprintBody _ _ Type{}
@@ -258,18 +257,6 @@ fixParen (x:y:xs)
                       else w0
             in  w : fixParen xs
       else x : fixParen (y:xs)
-
-rmTypeAppl :: [String] -> [String]
-rmTypeAppl []
-  = []
-rmTypeAppl (c:cs)
-  = if c == "@"
-      then  case cs of
-              [] -> error " Type application: Badly formatted string. "
-              (c': cs') ->
-                let p = paren c'
-                in  if null p then rmTypeAppl cs' else p : rmTypeAppl cs'
-      else c:rmTypeAppl cs
 
 paren :: String -> String
 paren []
