@@ -79,7 +79,7 @@ checkError :: SpecType -> SM (Maybe CoreExpr)
 checkError t = do 
   errVar <- varError
   let errorExpr   = App (App (Var errVar) (Type (toType False t))) errorInt
-      globalFlags = undefined
+      globalFlags = error "broken in https://github.com/ucsd-progsys/liquidhaskell/pull/2129"
       platform    = targetPlatform globalFlags
       errorInt    = mkIntExprInt platform 42
   b <- hasType t errorExpr
