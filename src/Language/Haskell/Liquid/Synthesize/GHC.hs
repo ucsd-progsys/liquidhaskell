@@ -162,39 +162,55 @@ handleLam char i (Lam v e) vs
   | otherwise   = handleVar v ++ " " ++ handleLam char i e vs
 handleLam char i e vs = char ++ pprintBody vs i e
 
-handleWiredIn :: Name -> String
-handleWiredIn w
-  | getLocaln w == "I#" = "{- " ++ show w ++ " -}"
-  {-
-    Excluding GHC.Types also excludes Boolean values,
-    "GHC.Type.True" on RConstantTimeComparison for
-    example.
+----------------------------------------------------------------------
+{- Helper functions for print body -}
 
-    getModule w == "GHC.Types" = "{- " ++ show w ++ " -}"
-  -}
-  | otherwise                  = getLocaln w
-  where
-    -- getModule :: Name -> String
-    -- getModule n = moduleNameString (moduleName $ nameModule n)
+-- handleWiredIn :: Name -> String
+-- handleWiredIn w
+--   | getLocaln w == "I#" = "{- " ++ show w ++ " -}"
+--   {-
+--     Excluding GHC.Types also excludes Boolean values,
+--     "GHC.Type.True" on RConstantTimeComparison for
+--     example.
+-- 
+--     getModule w == "GHC.Types" = "{- " ++ show w ++ " -}"
+--   -}
+--   | otherwise                  = getLocaln w
+--   where
+--     -- getModule :: Name -> String
+--     -- getModule n = moduleNameString (moduleName $ nameModule n)
 
-    getLocaln :: Name -> String
-    getLocaln n = getOccString (localiseName n)
+{- If a specific function is built-in into haskell it will still
+contain a module. To remove it and print it properly we localise
+the name first. -}
+getLocalName :: Name -> String
+getLocalName n = getOccString (localiseName n)
 
+{- Handle the multiple types of variables one might encounter
+in Haskell. -}
 handleVar :: Var -> String
 handleVar v
-  | isTyConName     var_name = "{- TyConName -}"
-  | isTyVarName     var_name = "{- TyVar -}"
-  | isSystemName    var_name = show var_name
-                               -- ++ "{- SysName -}"
-  | isWiredInName   var_name = handleWiredIn var_name
-                               -- ++ "{- WiredInName -}"
-  | isInternalName  var_name = getOccString var_name
-                               -- ++ "{- Internal -}"
-  | otherwise                = "{- Not properly handled -}"
-                               ++ show var_name
+  | isTyConName     name = "{- TyConName -}"
+  | isTyVarName     name = "{- TyVar -}"
+  | isSystemName    name = show name
+                           -- ++ "{- SysName -}"
+  | isWiredInName   name = getLocalName name
+                           -- ++ "{- WiredInName -}"
+  | isInternalName  name = getOccString name
+                           -- ++ "{- Internal -}"
+  | otherwise            = "{- Not properly handled -}"
+                           ++ show name
   where
-    var_name :: Name
-    var_name = varName v
+    name :: Name
+    name = varName v
+
+{- Should not be done here, but function used to check if is an
+undesirable variable or not (I#) -}
+undesirableVar :: Var -> Bool
+undesirableVar v
+  | getOccString (localiseName (varName v)) == "I#" = True
+  | otherwise = False
+----------------------------------------------------------------------
 
 pprintBody :: [Var] -> Int -> CoreExpr -> String
 pprintBody vs i e@(Lam {})
@@ -204,6 +220,10 @@ pprintBody vs _ (Var v)
   | elem v vs = ""
   | otherwise = handleVar v
 
+pprintBody vs i e@(App (Var v) e2)
+  | undesirableVar v = pprintBody vs i e2
+  | otherwise        = pprintBody vs i e
+    
 pprintBody vs i (App e1 e2) = "((" ++ left ++ ")\n"
                               ++ indent (i + 1)
                               ++ "(" ++ right ++ "))"
