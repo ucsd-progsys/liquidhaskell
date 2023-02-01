@@ -1925,6 +1925,7 @@ executable unit-pos-2
                     , Loo
                     , LooLib
                     , LooLibLib
+                    , LNot 
 
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
