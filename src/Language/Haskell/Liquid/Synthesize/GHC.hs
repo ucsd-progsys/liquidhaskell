@@ -235,46 +235,12 @@ pprintBody _ _ Type{}
 pprintBody _ _ e
   = error (" Not yet implemented for e = " ++ show e)
 
-handleCommas :: [String] -> [String]
-handleCommas [] = []
-handleCommas (c:cs)
-  = if last c == ','
-      then init c : "," : handleCommas cs
-      else c : handleCommas cs
-
-fixCommas :: [String] -> [String]
-fixCommas [] = []
-fixCommas [x] = [x]
-fixCommas (x:y:xs)
-  = if y == ","
-      then (x++y) : fixCommas xs
-      else x : fixCommas (y:xs)
-
-fixParen :: [String] -> [String]
-fixParen [] = []
-fixParen [x] = [x]
-fixParen (x:y:xs)
-  = if replicate (length y) ')' == y
-      then  let w0 = x ++ y
-                w = if head w0 == '(' && last w0 == ')'
-                      then tail (init w0)
-                      else w0
-            in  w : fixParen xs
-      else x : fixParen (y:xs)
-
-paren :: String -> String
-paren []
-  = []
-paren (c:cs)
-  = if c == ')' then c : paren cs else paren cs
-
 pprintAlts :: [Var] -> Int -> Alt Var -> String
 pprintAlts vars i (DataAlt dataCon, vs, e)
-  = indent i
+  = "\n" ++ indent i
   ++ show dataCon
   ++ concatMap (\v -> " " ++ show v) vs
   ++ " -> " ++ pprintBody vars (i+caseIndent) e
---  ++ "\n"
 pprintAlts _ _ _ =
   error " Pretty printing for pattern match on datatypes. "
 
