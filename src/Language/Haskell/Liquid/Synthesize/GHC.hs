@@ -137,18 +137,6 @@ pprintSym symbols s
         prefix = takeWhile (== ' ') s
         suffix = dropWhile (== ' ') s
 
-maintainLParen :: [String] -> String
-maintainLParen ts
-  = if length ts > 1 && head (head ts) == '('
-      then  "("
-      else  ""
-
-maintainRParen :: [String] -> String
-maintainRParen ts
-  = if last (last ts) == '('
-      then  ")"
-      else  ""
-
 pprintFormals :: Int -> CoreExpr -> [Var] -> String
 pprintFormals i e vs = handleLam "= " i e vs
 
@@ -247,10 +235,6 @@ pprintBody _ _ Type{}
 pprintBody _ _ e
   = error (" Not yet implemented for e = " ++ show e)
 
-untick :: CoreExpr -> CoreExpr
-untick (Tick _ e) = e
-untick e = e
-
 handleCommas :: [String] -> [String]
 handleCommas [] = []
 handleCommas (c:cs)
@@ -284,21 +268,13 @@ paren []
 paren (c:cs)
   = if c == ')' then c : paren cs else paren cs
 
-replaceNewLine :: String -> String
-replaceNewLine []
-  = []
-replaceNewLine (c:cs)
-  = if c == '\n'
-      then ' ' : replaceNewLine cs
-      else c : replaceNewLine cs
-
 pprintAlts :: [Var] -> Int -> Alt Var -> String
 pprintAlts vars i (DataAlt dataCon, vs, e)
   = indent i
   ++ show dataCon
   ++ concatMap (\v -> " " ++ show v) vs
   ++ " -> " ++ pprintBody vars (i+caseIndent) e
-  ++ "\n"
+--  ++ "\n"
 pprintAlts _ _ _ =
   error " Pretty printing for pattern match on datatypes. "
 
