@@ -113,7 +113,7 @@ coreToHs _ v e = pprintSymbols (handleVar v
                                 ++ pprintFormals caseIndent e [])
 
 caseIndent :: Int
-caseIndent = 4
+caseIndent = 2
 
 indent :: Int -> String
 indent i = replicate i ' '
@@ -164,11 +164,15 @@ handleLam char i e vs = char ++ pprintBody vs i e
 
 handleWiredIn :: Name -> String
 handleWiredIn w
-  | getModule w == "GHC.Types" = "{- " ++ show w ++ " -}"
-  | otherwise                  = getOccString (localiseName w)
+  | getLocaln w == "I#" = "{- " ++ show w ++ " -}"
+--  | getModule w == "GHC.Types" = "{- " ++ show w ++ " -}"
+  | otherwise                  = getLocaln w
   where
     getModule :: Name -> String
     getModule n = moduleNameString (moduleName $ nameModule n)
+
+    getLocaln :: Name -> String
+    getLocaln n = getOccString (localiseName w)
 
 handleVar :: Var -> String
 handleVar v
@@ -194,10 +198,12 @@ pprintBody vs _ (Var v)
   | elem v vs = ""
   | otherwise = handleVar v
   
-pprintBody vs i (App e1 e2) = "(" ++ left ++ " " ++ right ++ ")"
+pprintBody vs i (App e1 e2) = "((" ++ left ++ ")\n"
+                              ++ indent (i + 1)
+                              ++ "(" ++ right ++ "))"
   where
     left  = pprintBody vs i e1
-    right = pprintBody vs i e2
+    right = pprintBody vs (i+1) e2
 
 pprintBody _ _ l@(Lit literal) =
   case isLitValue_maybe literal of
