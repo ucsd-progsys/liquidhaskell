@@ -369,6 +369,8 @@ checkLiquidHaskellContext lhContext = do
         -- If there are unmatched filters or errors, and we are not reporting with
         -- json, we don't make it to this part of the code because errorLogger
         -- will throw an exception.
+        --
+        -- F.Crash is also handled by reportResult and errorLogger
         case o_result out of
           F.Safe _ -> return $ Right pmrClientLib
           _ | json moduleCfg -> failM
