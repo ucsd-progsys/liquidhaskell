@@ -222,11 +222,10 @@ pprintBody vs i (App e1 e2) = "((" ++ left ++ ")\n"
 pprintBody _ _ l@(Lit literal) =
   case isLitValue_maybe literal of
     Just i   -> show i
-    Nothing  -> "{- Lit is not LitChar or LitNumber -}" ++ show l
-      
+    Nothing  -> "{- Lit is not LitChar or LitNumber -}" ++ show l      
 
 pprintBody vs i (Case e _ _ alts)
-  = "case " ++ pprintBody vs i e ++ " of\n"
+  = "case " ++ pprintBody vs i e ++ " of"
     ++ concatMap (pprintAlts vs (i + caseIndent)) alts
 
 pprintBody _ _ Type{}
@@ -248,7 +247,6 @@ pprintAlts _ _ _ =
 countTcConstraints :: SpecType -> Int
 countTcConstraints t =
   let ws = words (show t)
-
       countCommas :: [String] -> Int
       countCommas []     = 0
       countCommas (x:xs) =
