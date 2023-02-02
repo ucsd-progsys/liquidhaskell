@@ -208,9 +208,14 @@ pprintBody vs _ (Var v)
   | elem v vs = ""
   | otherwise = handleVar v
 
-pprintBody vs i e@(App (Var v) e2)
+pprintBody vs i (App (Var v) e2)
   | undesirableVar v = pprintBody vs i e2
-  | otherwise        = pprintBody vs i e
+  | otherwise        = "((" ++ left ++ ")\n"
+                       ++ indent (i + 1)
+                       ++ "(" ++ right ++ "))"
+  where
+    left  = handleVar v
+    right = pprintBody vs (i+1) e2
     
 pprintBody vs i (App e1 e2) = "((" ++ left ++ ")\n"
                               ++ indent (i + 1)
