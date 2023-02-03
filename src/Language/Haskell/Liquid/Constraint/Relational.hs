@@ -1247,7 +1247,6 @@ relHint t v e = text "import GHC.Types"
                            ++ " :: "
                            ++ removeIdent (toType False t))
                 $+$ text (coreToHs t v (fromAnf e))
-                $+$ text ("{- " ++ F.showpp e ++ " -}")
 
 removeIdent :: Type -> String
 removeIdent t = withNoLines noIdent $ F.pprint t

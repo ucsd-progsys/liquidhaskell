@@ -86,9 +86,6 @@ fromAnf'
 fromAnf' (Lam b e) bnds
   = let (e', bnds') = fromAnf' e bnds
     in  (Lam b e', bnds')
-
-fromAnf' (Let (Rec {}) _) _ =
-  error " By construction, no recursive bindings in let expression. "
   
 fromAnf' (Let (NonRec rb lb) e) bnds
   | elem '#' (show rb) = let (lb', bnds') = fromAnf' lb bnds
@@ -99,21 +96,30 @@ fromAnf' (Let (NonRec rb lb) e) bnds
     (lb', bnds') = fromAnf' lb bnds
     (e', binds'') = fromAnf' e ((rb, lb') : bnds')
 
+fromAnf' (Let (Rec {}) _) _ =
+  error " By construction, no recursive bindings in let expression. "
+
 fromAnf' (Var var) bnds
   = (fromMaybe (Var var) (lookup var bnds), bnds)
+
 fromAnf' (Case scr bnd tp alts) bnds
-  = (Case scr bnd tp (map (\(altc, xs, e) -> (altc, xs, fst $ fromAnf' e bnds)) alts), bnds)
+  = (Case scr bnd tp (
+        map (\(altc, xs, e) -> (altc, xs, fst $ fromAnf' e bnds))
+          alts), bnds)
+
 fromAnf' (App e1 e2) bnds
   = let (e1', bnds')  = fromAnf' e1 bnds
         (e2', bnds'') = fromAnf' e2 bnds'
     in  (App e1' e2', bnds'')
-fromAnf' t@Type{} bnds
-  = (t, bnds)
-fromAnf' l@Lit{} bnds
-  = (l, bnds)
+
+fromAnf' t@Type{} bnds = (t, bnds)
+
+fromAnf' l@Lit{} bnds = (l, bnds)
+
 fromAnf' (Tick _ e) bnds = fromAnf' e bnds
-fromAnf' e _
-  = error $ "fromAnf: unsupported core expression " ++ F.showpp e
+
+fromAnf' e _ = error $ "fromAnf: unsupported core expression "
+               ++ F.showpp e
 
 -- | Function used for pretty printing core as Haskell source.
 --   Input does not contain let bindings.
