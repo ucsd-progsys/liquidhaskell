@@ -702,9 +702,16 @@ strengthenRefType_ f (RImpF x1 i t1 t1' r1) (RImpF x2 _ t2 t2' r2)
 
 -- YL: Evidence that we need a Monoid instance for RFInfo?
 strengthenRefType_ f (RFun x1 i1 t1 t1' r1) (RFun x2 i2 t2 t2' r2)
+  | x2 /= F.dummySymbol
   = RFun x2 i1{permitTC = getFirst b} t t' (r1 `meet` r2)
     where t  = strengthenRefType_ f t1 t2
           t' = strengthenRefType_ f (subst1 t1' (x1, EVar x2)) t2'
+          b  = First (permitTC i1) <> First (permitTC i2)
+
+strengthenRefType_ f (RFun x1 i1 t1 t1' r1) (RFun x2 i2 t2 t2' r2)
+  = RFun x1 i1{permitTC = getFirst b} t t' (r1 `meet` r2)
+    where t  = strengthenRefType_ f t1 t2
+          t' = strengthenRefType_ f t1' (subst1 t2' (x2, EVar x1))
           b  = First (permitTC i1) <> First (permitTC i2)
 
 strengthenRefType_ f (RApp tid t1s rs1 r1) (RApp _ t2s rs2 r2)

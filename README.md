@@ -129,7 +129,7 @@ and you can list all the possible test options with
 
 or get a list of just the test groups, one per line, with
 
-    $ LIQUID_DEV_MODE=true ./scripts/tests/test_810_plugin.sh --show-all
+    $ LIQUID_DEV_MODE=true ./scripts/test/test_810_plugin.sh --show-all
 
 To pass in specific parameters and run a subset of the tests, you can invoke cabal directly with
 
@@ -155,7 +155,7 @@ For details on adding tests, see note [Parallel_Tests] in `tests/test.hs`.
 
 When `liquidhaskell` tests run, we can collect timing information with
 
-    $ ./scripts/tests/test_810_plugin.sh --measure-timings
+    $ ./scripts/test/test_810_plugin.sh --measure-timings
 
 Measures will be collected in `.dump-timings` files. These can be converted to json
 data with
@@ -184,14 +184,14 @@ current directory.
 The current formatting is optimized for comparing the outputs of running
 the benchmarks alone.
 
-    $ scripts/test/test_810_plugin.sh
+    $ scripts/test/test_810_plugin.sh \
         benchmark-stitch-lh \
         benchmark-bytestring \
-        benchmark-vector-algorithms
+        benchmark-vector-algorithms \
         benchmark-cse230 \
         benchmark-esop2013 \
         benchmark-icfp15-pos \
-        benchmark-icfp15-ne
+        benchmark-icfp15-neg
 
 ## How to Profile
 
