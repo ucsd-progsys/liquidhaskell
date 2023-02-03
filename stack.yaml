@@ -8,6 +8,7 @@ flags:
 extra-package-dbs: []
 ghc-options:
   hscolour: -w
+  liquidhaskell: -j
 packages:
 - liquid-fixpoint
 - liquid-ghc-prim

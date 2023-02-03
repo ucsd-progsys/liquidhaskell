@@ -22,5 +22,8 @@ source-repository-package
 package liquid-fixpoint
   flags: +devel
 
+package liquidhaskell
+  ghc-options: -j
+
 package liquid-platform
   flags: +devel

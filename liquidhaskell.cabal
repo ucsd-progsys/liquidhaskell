@@ -67,6 +67,7 @@ source-repository head
 
 flag devel
   default:     False
+  manual:      True
   description: Enable more warnings and fail compilation when warnings occur.
                Turn this flag on in CI.
 
@@ -235,7 +236,7 @@ library
                     , extra
   default-language:   Haskell98
   default-extensions: PatternGuards, RecordWildCards, DoAndIfThenElse
-  ghc-options:        -W -fwarn-missing-signatures -j
+  ghc-options:        -W -fwarn-missing-signatures
 
   if flag(devel)
     ghc-options:      -Wall -Werror
