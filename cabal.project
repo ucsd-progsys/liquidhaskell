@@ -27,3 +27,12 @@ package liquidhaskell
 
 package liquid-platform
   flags: +devel
+
+source-repository-package
+    type: git
+    location: https://github.com/tweag/smtlib-backends
+    tag: d309d6cc09298cd575020c791b7affa7e0098f1f
+    subdir:
+      .
+      smtlib-backends-z3
+      smtlib-backends-process
