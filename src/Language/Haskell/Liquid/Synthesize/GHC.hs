@@ -81,14 +81,24 @@ fromAnf e = fst $ fromAnf' e []
 -- | Replace let bindings in applications.
 --   > If you find a binding add it to the second argument.
 --                    | (lhs, rhs)      |
-fromAnf' :: CoreExpr -> [(Var, CoreExpr)] -> (CoreExpr, [(Var, CoreExpr)])
+fromAnf'
+  :: CoreExpr -> [(Var, CoreExpr)] -> (CoreExpr, [(Var, CoreExpr)])
 fromAnf' (Lam b e) bnds
   = let (e', bnds') = fromAnf' e bnds
     in  (Lam b e', bnds')
-fromAnf' (Let bnd e) bnds
-  = case bnd of Rec {}       -> error " By construction, no recursive bindings in let expression. "
-                NonRec rb lb -> let (lb', bnds') = fromAnf' lb bnds
-                                in  fromAnf' e ((rb, lb') : bnds')
+
+fromAnf' (Let (Rec {}) _) _ =
+  error " By construction, no recursive bindings in let expression. "
+  
+fromAnf' (Let (NonRec rb lb) e) bnds
+  | elem '#' (show rb) = let (lb', bnds') = fromAnf' lb bnds
+                         in  fromAnf' e ((rb, lb') : bnds')
+
+  | otherwise = (Let (NonRec rb lb') e', binds'')
+  where
+    (lb', bnds') = fromAnf' lb bnds
+    (e', binds'') = fromAnf' e ((rb, lb') : bnds')
+
 fromAnf' (Var var) bnds
   = (fromMaybe (Var var) (lookup var bnds), bnds)
 fromAnf' (Case scr bnd tp alts) bnds
@@ -231,10 +241,15 @@ pprintBody _ _ l@(Lit literal) =
 
 pprintBody vs i (Case e _ _ alts)
   = "case " ++ pprintBody vs i e ++ " of"
-    ++ concatMap (pprintAlts vs (i + caseIndent)) alts
+  ++ concatMap (pprintAlts vs (i + caseIndent)) alts
 
 pprintBody _ _ Type{}
   = "{- Type -}"
+
+pprintBody vs i (Let (NonRec x e1) e2) =
+  "let " ++ handleVar x ++ " = ("
+  ++ pprintBody vs i e1 ++ ") in " ++ pprintBody vs i e2
+pprintBody _ _ (Let (Rec {}) _) = "{- let rec -}"
 
 pprintBody _ _ e
   = error (" Not yet implemented for e = " ++ show e)
