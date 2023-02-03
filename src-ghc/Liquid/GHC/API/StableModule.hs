@@ -38,15 +38,12 @@ moduleUnitId = GHC.toUnitId . GHC.moduleUnit
 
 renderModule :: GHC.Module -> String
 renderModule m =    "Module { unitId = " <> (GHC.unitIdString . moduleUnitId $ m)
-                 <> ", name = " <> show (GHC.moduleName m)
+                 <> ", name = " <> GHC.moduleNameString (GHC.moduleName m)
                  <> " }"
 
 -- These two orphans originally lived inside module 'Language.Haskell.Liquid.Types.Types'.
 instance Hashable GHC.ModuleName where
-  hashWithSalt i = hashWithSalt i . show
-
-instance Show GHC.ModuleName where
-  show = GHC.moduleNameString
+  hashWithSalt i = hashWithSalt i . GHC.moduleNameString
 
 instance Hashable StableModule where
   hashWithSalt s (StableModule mdl) = hashWithSalt s (GHC.moduleStableString mdl)

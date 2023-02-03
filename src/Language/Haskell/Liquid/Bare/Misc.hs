@@ -192,7 +192,7 @@ varFunSymbol = dummyLoc . F.symbol . idDataCon
 isFunVar :: Id -> Bool
 isFunVar v   = isDataConId v && not (null αs) && Mb.isNothing tf
   where
-    (αs, t)  = splitForAllTys $ varType v
+    (αs, t)  = splitForAllTyCoVars $ varType v
     tf       = splitFunTy_maybe t
 
 -- the Vars we lookup in GHC don't always have the same tyvars as the Vars

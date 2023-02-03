@@ -36,8 +36,8 @@ executable benchmark-timings
     build-depends:    base
                     , aeson >= 1.5.6 && < 2.1
                     , cassava ^>=0.5.2
-                    , bytestring ^>=0.10.12
-                    , optparse-applicative ^>=0.16.1
+                    , bytestring >=0.10.12 && <0.12
+                    , optparse-applicative >=0.16.1 && <0.18
     ghc-options:    -Wall
     hs-source-dirs:   app
     default-language: Haskell2010

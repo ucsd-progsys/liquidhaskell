@@ -1,5 +1,4 @@
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 module Language.Haskell.Liquid.Synthesize (
@@ -174,7 +173,7 @@ makeAlt t (x, TyConApp _ kts) c = locally $ do
   addDecrTerm x xs
   liftCG0 (\γ -> caseEnv γ x mempty (GHC.DataAlt c) xs Nothing)
   es <- synthesizeBasic t
-  return $ (GHC.DataAlt c, xs, ) <$> es
+  return $ Alt (GHC.DataAlt c) xs <$> es
   where
     (_, _, τs) = dataConInstSig c kts
 makeAlt _ _ _ = error "makeAlt.bad argument "

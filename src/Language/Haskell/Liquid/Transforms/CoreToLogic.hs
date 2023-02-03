@@ -173,13 +173,13 @@ coreAltToDef allowTC x z zs y t alts
   where
     myArgs   = reverse zs
     cc       = if eqType t boolTy then P else E
-    defAlts  = GM.defaultDataCons (GM.expandVarType y) (Misc.fst3 <$> alts)
-    defExpr  = listToMaybe [ e |   (C.DEFAULT  , _, e) <- alts ]
-    dataAlts =             [ a | a@(C.DataAlt _, _, _) <- alts ]
-    litAlts  =             [ a | a@(C.LitAlt _, _, _) <- alts ]
+    defAlts  = GM.defaultDataCons (GM.expandVarType y) ((\(Alt c _ _) -> c) <$> alts)
+    defExpr  = listToMaybe [ e |   (Alt C.DEFAULT _ e) <- alts ]
+    dataAlts =             [ a | a@(Alt (C.DataAlt _) _ _) <- alts ]
+    litAlts  =             [ a | a@(Alt (C.LitAlt _) _ _) <- alts ]
 
     -- mkAlt :: LocSymbol -> (Expr -> Body) -> [Var] -> Var -> (C.AltCon, [Var], C.CoreExpr)
-    mkAlt x ctor _args dx (C.DataAlt d, xs, e)
+    mkAlt x ctor _args dx (Alt (C.DataAlt d) xs e)
       = Def x {- (toArgs id args) -} d (Just $ varRType dx) (toArgs Just xs')
       . ctor
       . (`subst1` (F.symbol dx, F.mkEApp (GM.namedLocSymbol d) (F.eVar <$> xs')))
@@ -214,7 +214,7 @@ coreToDef allowTC x _ e                   = go [] $ inlinePreds $ simplify allow
     go args   (C.Tick _ e)        = go args e
     go (z:zs) (C.Case _ y t alts) = coreAltToDef allowTC x z zs y t alts
     go (z:zs) e
-      | Just t <- isMeasureArg z  = coreAltToDef allowTC x z zs z t [(C.DEFAULT, [], e)]
+      | Just t <- isMeasureArg z  = coreAltToDef allowTC x z zs z t [Alt C.DEFAULT [] e]
     go _ _                        = measureFail x "Does not have a case-of at the top-level"
 
     inlinePreds   = inline (eqType boolTy . GM.expandVarType)
@@ -312,11 +312,11 @@ typeEqToLg (s, t) = do
   return $ F.notracepp "TYPE-EQ-TO-LOGIC" (tx s, tx t)
 
 checkBoolAlts :: [C.CoreAlt] -> LogicM (C.CoreExpr, C.CoreExpr)
-checkBoolAlts [(C.DataAlt false, [], efalse), (C.DataAlt true, [], etrue)]
+checkBoolAlts [Alt (C.DataAlt false) [] efalse, Alt (C.DataAlt true) [] etrue]
   | false == falseDataCon, true == trueDataCon
   = return (efalse, etrue)
 
-checkBoolAlts [(C.DataAlt true, [], etrue), (C.DataAlt false, [], efalse)]
+checkBoolAlts [Alt (C.DataAlt true) [] etrue, Alt (C.DataAlt false) [] efalse]
   | false == falseDataCon, true == trueDataCon
   = return (efalse, etrue)
 checkBoolAlts alts
@@ -331,7 +331,7 @@ casesToLg allowTC v e alts = mapM (altToLg allowTC e) normAlts >>= go
     go ((d,p):dps) = do c <- checkDataAlt d e
                         e' <- go dps
                         return (EIte c p e' `subst1` su)
-    go []          = panic (Just (getSrcSpan v)) "Unexpected empty cases in casesToLg"
+    go []          = panic (Just (getSrcSpan v)) $ "Unexpected empty cases in casesToLg: " ++ show e
     su             = (symbol v, e)
 
 checkDataAlt :: C.AltCon -> Expr -> LogicM Expr
@@ -346,16 +346,16 @@ normalizeAlts :: [C.CoreAlt] -> [C.CoreAlt]
 normalizeAlts alts      = ctorAlts ++ defAlts
   where
     (defAlts, ctorAlts) = L.partition isDefault alts
-    isDefault (c,_,_)   = c == C.DEFAULT
+    isDefault (Alt c _ _)   = c == C.DEFAULT
 
 altToLg :: Bool -> Expr -> C.CoreAlt -> LogicM (C.AltCon, Expr)
-altToLg allowTC de (a@(C.DataAlt d), xs, e) = do
+altToLg allowTC de (Alt a@(C.DataAlt d) xs e) = do
   p  <- coreToLg allowTC e
   dm <- gets lsDCMap
   let su = mkSubst $ concat [ dataConProj dm de d x i | (x, i) <- zip (filter (not . if allowTC then GM.isEmbeddedDictVar else GM.isEvVar) xs) [1..]]
   return (a, subst su p)
 
-altToLg allowTC _ (a, _, e)
+altToLg allowTC _ (Alt a _ e)
   = (a, ) <$> coreToLg allowTC e
 
 dataConProj :: DataConMap -> Expr -> DataCon -> Var -> Int -> [(Symbol, Expr)]
@@ -558,7 +558,7 @@ ignoreVar i = simpleSymbolVar i `elem` ["I#", "D#"]
 -- We need the disjuction for GHC >= 9, where the Integer now comes from the \"ghc-bignum\" package,
 -- and it has different names for the constructors.
 isBangInteger :: [C.CoreAlt] -> Bool
-isBangInteger [(C.DataAlt s, _, _), (C.DataAlt jp,_,_), (C.DataAlt jn,_,_)]
+isBangInteger [Alt (C.DataAlt s) _ _, Alt (C.DataAlt jp) _ _, Alt (C.DataAlt jn) _ _]
   =  (symbol s  == "GHC.Integer.Type.S#"  || symbol s  == "GHC.Num.Integer.IS")
   && (symbol jp == "GHC.Integer.Type.Jp#" || symbol jp == "GHC.Num.Integer.IP")
   && (symbol jn == "GHC.Integer.Type.Jn#" || symbol jn == "GHC.Num.Integer.IN")
@@ -619,7 +619,7 @@ instance Simplify C.CoreExpr where
     = simplify allowTC e
   simplify allowTC (C.Let xes e)
     = C.Let (simplify allowTC xes) (simplify allowTC e)
-  simplify allowTC (C.Case e x _t alts@[(_,_,ee),_,_]) | isBangInteger alts
+  simplify allowTC (C.Case e x _t alts@[Alt _ _ ee,_,_]) | isBangInteger alts
   -- XXX(matt): seems to be for debugging?
     = -- Misc.traceShow ("To simplify allowTC case") $ 
        sub (M.singleton x (simplify allowTC e)) (simplify allowTC ee)
@@ -647,11 +647,18 @@ instance Simplify C.CoreExpr where
   inline _ (C.Coercion c)      = C.Coercion c
   inline _ (C.Type t)          = C.Type t
 
-isUndefined :: (t, t1, C.Expr t2) -> Bool
-isUndefined (_, _, e) = isUndefinedExpr e
+isUndefined :: CoreAlt -> Bool
+isUndefined (Alt _ _ e) = isUndefinedExpr e
   where
-   -- auto generated undefined case: (\_ -> (patError @type "error message")) void
-   isUndefinedExpr (C.App (C.Var x) _) | show x `elem` perrors = True
+   isUndefinedExpr :: C.CoreExpr -> Bool
+   -- auto generated undefined case: (\_ -> (patError @levity @type "error message")) void
+   -- Type arguments are erased before calling isUndefined
+   isUndefinedExpr (C.App (C.Var x) _)
+     | show x `elem` perrors = True
+   -- another auto generated undefined case:
+   -- let lqanf_... = patError "error message") in case lqanf_... of {}
+   isUndefinedExpr (C.Let (C.NonRec x e) (C.Case (C.Var v) _ _ []))
+     | x == v = isUndefinedExpr e
    isUndefinedExpr (C.Let _ e) = isUndefinedExpr e
    -- otherwise
    isUndefinedExpr _ = False
@@ -667,7 +674,7 @@ instance Simplify C.CoreBind where
   inline p (C.Rec xes)    = C.Rec (Misc.mapSnd (inline p) <$> xes)
 
 instance Simplify C.CoreAlt where
-  simplify allowTC (c, xs, e) = (c, xs, simplify allowTC e)
+  simplify allowTC (Alt c xs e) = Alt c xs (simplify allowTC e)
     -- where xs   = F.tracepp _msg xs0
     --      _msg = "isCoVars? " ++ F.showpp [(x, isCoVar x, varType x) | x <- xs0]
-  inline p (c, xs, e) = (c, xs, inline p e)
+  inline p (Alt c xs e) = Alt c xs (inline p e)

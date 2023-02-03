@@ -187,10 +187,10 @@ checkTargetSpec specs src env cbs tsp
 
 
 checkPlugged :: PPrint v => [(v, LocSpecType)] -> Diagnostics
-checkPlugged xs = mkDiagnostics mempty (map mkErr (filter (hasHoleTy . val . snd) xs))
+checkPlugged xs = mkDiagnostics mempty (map mkError (filter (hasHoleTy . val . snd) xs))
   where
-    mkErr (x,t) = ErrBadData (GM.sourcePosSrcSpan $ loc t) (pprint x) msg
-    msg        = "Cannot resolve type hole `_`. Use explicit type instead."
+    mkError (x,t) = ErrBadData (GM.sourcePosSrcSpan $ loc t) (pprint x) msg
+    msg           = "Cannot resolve type hole `_`. Use explicit type instead."
 
 
 --------------------------------------------------------------------------------
@@ -294,9 +294,9 @@ _checkDuplicateFieldNames :: [(DataCon, DataConP)]  -> [Error]
 _checkDuplicateFieldNames = mapMaybe go
   where
     go (d, dts)          = checkNoDups (dcpLoc dts) d (fst <$> dcpTyArgs dts)
-    checkNoDups l d xs   = mkErr l d <$> _firstDuplicate xs
+    checkNoDups l d xs   = mkError l d <$> _firstDuplicate xs
 
-    mkErr l d x = ErrBadData (GM.sourcePosSrcSpan l)
+    mkError l d x = ErrBadData (GM.sourcePosSrcSpan l)
                              (pprint d)
                              (text "Multiple declarations of record selector" <+> pprintSymbol x)
 
@@ -373,12 +373,12 @@ checkTerminationExpr :: (Eq v, PPrint v)
                      -> (v, LocSpecType, [F.Located F.Expr])
                      -> Diagnostics
 checkTerminationExpr emb env (v, Loc l _ st, les)
-            = mkErr "ill-sorted" (go les) <> mkErr "non-numeric" (go' les)
+            = mkError "ill-sorted" (go les) <> mkError "non-numeric" (go' les)
   where
     -- es      = val <$> les
-    mkErr :: Doc -> Maybe (F.Expr, Doc) -> Diagnostics
-    mkErr _ Nothing = emptyDiagnostics
-    mkErr k (Just expr') =
+    mkError :: Doc -> Maybe (F.Expr, Doc) -> Diagnostics
+    mkError _ Nothing = emptyDiagnostics
+    mkError k (Just expr') =
       mkDiagnostics mempty [(\ (e, d) -> ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) k e st d) expr']
     -- mkErr   = uncurry (\ e d -> ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) (text "ill-sorted" ) e t d)
     -- mkErr'  = uncurry (\ e d -> ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) (text "non-numeric") e t d)
@@ -440,13 +440,13 @@ checkClassMethods (Just clsis) cms xts =
     cls  = F.notracepp "CLS" cms
 
 checkDuplicateRTAlias :: String -> [Located (RTAlias s a)] -> Diagnostics
-checkDuplicateRTAlias s tas = mkDiagnostics mempty (map mkErr dups)
+checkDuplicateRTAlias s tas = mkDiagnostics mempty (map mkError dups)
   where
-    mkErr xs@(x:_)          = ErrDupAlias (GM.fSrcSpan x)
+    mkError xs@(x:_)          = ErrDupAlias (GM.fSrcSpan x)
                                           (text s)
                                           (pprint . rtName . val $ x)
                                           (GM.fSrcSpan <$> xs)
-    mkErr []                = panic Nothing "mkError: called on empty list"
+    mkError []                = panic Nothing "mkError: called on empty list"
     dups                    = [z | z@(_:_:_) <- L.groupBy ((==) `on` (rtName . val)) tas]
 
 

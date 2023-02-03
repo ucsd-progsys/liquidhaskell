@@ -73,7 +73,7 @@ inlineFailCases = (go [] <$>)
     go' su (Tick t e)       = Tick t (go' su e)
     go' _  e                = e
 
-    goalt su (c, xs, e)     = (c, xs, go' su e)
+    goalt su (Alt c xs e)   = Alt c xs (go' su e)
 
     isFailId x  = isLocalId x && isSystemName (varName x) && L.isPrefixOf "fail" (show x)
     getFailExpr = L.lookup
@@ -142,7 +142,7 @@ isNonPolyRec (Let (Rec xes) _) = any nonPoly (snd <$> xes)
 isNonPolyRec _                 = False
 
 nonPoly :: CoreExpr -> Bool
-nonPoly = null . fst . splitForAllTys . exprType
+nonPoly = null . fst . splitForAllTyCoVars . exprType
 
 collectNonRecLets :: Expr t -> ([Bind t], Expr t)
 collectNonRecLets = go []
@@ -275,8 +275,8 @@ mapExpr f (Case e b t alt)        = Case e b t (map (mapAlt f) alt)
 mapExpr f (Tick t e)              = Tick t (mapExpr f e)
 mapExpr _  e                      = e
 
-mapAlt :: (b -> Expr b -> Expr b) -> (t, t1, Expr b) -> (t, t1, Expr b)
-mapAlt f (d, bs, e) = (d, bs, mapExpr f e)
+mapAlt :: (b -> Expr b -> Expr b) -> Alt b -> Alt b
+mapAlt f (Alt d bs e) = Alt d bs (mapExpr f e)
 
 -- Do not apply transformations to inner code
 

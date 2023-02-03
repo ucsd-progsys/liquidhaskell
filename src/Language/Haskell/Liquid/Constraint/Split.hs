@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts      #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 --------------------------------------------------------------------------------
 -- | Constraint Splitting ------------------------------------------------------

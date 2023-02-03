@@ -89,7 +89,7 @@ fromAnf' (Let bnd e) bnds
 fromAnf' (Var var) bnds
   = (fromMaybe (Var var) (lookup var bnds), bnds)
 fromAnf' (Case scr bnd tp alts) bnds
-  = (Case scr bnd tp (map (\(altc, xs, e) -> (altc, xs, fst $ fromAnf' e bnds)) alts), bnds)
+  = (Case scr bnd tp (map (\(Alt altc xs e) -> Alt altc xs (fst $ fromAnf' e bnds)) alts), bnds)
 fromAnf' (App e1 e2) bnds
   = let (e1', bnds')  = fromAnf' e1 bnds
         (e2', bnds'') = fromAnf' e2 bnds'
@@ -249,7 +249,7 @@ replaceNewLine (c:cs)
       else c : replaceNewLine cs
 
 pprintAlts :: [Var] -> Int -> Alt Var -> String
-pprintAlts vars i (DataAlt dataCon, vs, e)
+pprintAlts vars i (Alt (DataAlt dataCon) vs e)
   = indent i ++ show dataCon ++ concatMap (\v -> " " ++ show v) vs ++ " ->" ++
     pprintBody vars (i+caseIndent) e ++ "\n"
 pprintAlts _ _ _
@@ -370,14 +370,14 @@ varsCB (GHC.Rec _) _ = notrace " [ symbolToVarCB ] Rec " []
 varsE :: GHC.CoreExpr -> [Var]
 varsE (GHC.Lam a e) = a : varsE e
 varsE (GHC.Let (GHC.NonRec b _) e) = b : varsE e
-varsE (GHC.Case _ b _ alts) = foldr (\(_, vars, e) res -> vars ++ varsE e ++ res) [b] alts
+varsE (GHC.Case _ b _ alts) = foldr (\(Alt _ vars e) res -> vars ++ varsE e ++ res) [b] alts
 varsE (GHC.Tick _ e) = varsE e
 varsE _ = []
 
 caseVarsE :: GHC.CoreExpr -> [Var]
 caseVarsE (GHC.Lam _ e) = caseVarsE e
 caseVarsE (GHC.Let (GHC.NonRec _ _) e) = caseVarsE e
-caseVarsE (GHC.Case _ b _ alts) = foldr (\(_, _, e) res -> caseVarsE e ++ res) [b] alts
+caseVarsE (GHC.Case _ b _ alts) = foldr (\(Alt _ _ e) res -> caseVarsE e ++ res) [b] alts
 caseVarsE (GHC.Tick _ e) = caseVarsE e
 caseVarsE _ = []
 

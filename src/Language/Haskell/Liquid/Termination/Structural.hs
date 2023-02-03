@@ -62,7 +62,7 @@ nextBinds = \case
   App e a -> nextBinds e ++ nextBinds a
   Lam _ e -> nextBinds e
   Let b e -> b : nextBinds e
-  Case scrut _ _ alts -> nextBinds scrut ++ ([body | (_, _, body) <- alts] >>= nextBinds)
+  Case scrut _ _ alts -> nextBinds scrut ++ ([body | Alt _ _ body <- alts] >>= nextBinds)
   Cast e _ -> nextBinds e
   Tick _ e -> nextBinds e
   Var{} -> []
@@ -269,12 +269,12 @@ getCallInfoExpr env = \case
 
   Case (toVar -> Just var) bndr _ alts -> foldMap getCallInfoAlt alts
     where
-      getCallInfoAlt (_, subterms, body) = getCallInfoExpr (branchEnv subterms) body
+      getCallInfoAlt (Alt _ subterms body) = getCallInfoExpr (branchEnv subterms) body
       branchEnv subterms = addSubterms var subterms . addSynonym var bndr $ env
 
   Case scrut _ _ alts -> getCallInfoExpr env scrut <> foldMap getCallInfoAlt alts
     where
-      getCallInfoAlt (_, _, body) = getCallInfoExpr env body
+      getCallInfoAlt (Alt _ _ body) = getCallInfoExpr env body
 
   Cast e _ -> getCallInfoExpr env e
   Tick _ e -> getCallInfoExpr env e

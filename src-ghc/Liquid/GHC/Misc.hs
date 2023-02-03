@@ -71,10 +71,10 @@ mkAlive x
 --------------------------------------------------------------------------------
 -- | Encoding and Decoding Location --------------------------------------------
 --------------------------------------------------------------------------------
-srcSpanTick :: Module -> SrcSpan -> Tickish a
+srcSpanTick :: Module -> SrcSpan -> CoreTickish
 srcSpanTick m sp = ProfNote (AllCafsCC m sp) False True
 
-tickSrcSpan ::  Outputable a => Tickish a -> SrcSpan
+tickSrcSpan :: CoreTickish -> SrcSpan
 tickSrcSpan (ProfNote cc _ _) = cc_loc cc
 tickSrcSpan (SourceNote ss _) = RealSrcSpan ss Nothing
 tickSrcSpan _                 = noSrcSpan
@@ -156,7 +156,7 @@ unTickExpr (App e a)          = App (unTickExpr e) (unTickExpr a)
 unTickExpr (Lam b e)          = Lam b (unTickExpr e)
 unTickExpr (Let b e)          = Let (unTick b) (unTickExpr e)
 unTickExpr (Case e b t as)    = Case (unTickExpr e) b t (map unTickAlt as)
-    where unTickAlt (a, b', e') = (a, b', unTickExpr e')
+  where unTickAlt (Alt a b' e') = Alt a b' (unTickExpr e')
 unTickExpr (Cast e c)         = Cast (unTickExpr e) c
 unTickExpr (Tick _ e)         = unTickExpr e
 unTickExpr x                  = x
@@ -196,14 +196,17 @@ showPpr       = showSDoc . ppr
 -- FIXME: somewhere we depend on this printing out all GHC entities with
 -- fully-qualified names...
 showSDoc :: Ghc.SDoc -> String
-showSDoc sdoc = Ghc.renderWithStyle unsafeGlobalDynFlags sdoc (Ghc.mkUserStyle unsafeGlobalDynFlags myQualify {- Ghc.alwaysQualify -} Ghc.AllTheWay)
+showSDoc = Ghc.renderWithContext ctx
+  where
+    style = Ghc.mkUserStyle myQualify Ghc.AllTheWay
+    ctx = Ghc.defaultSDocContext { sdocStyle = style }
 
 myQualify :: Ghc.PrintUnqualified
 myQualify = Ghc.neverQualify { Ghc.queryQualifyName = Ghc.alwaysQualifyNames }
 -- { Ghc.queryQualifyName = \_ _ -> Ghc.NameNotInScope1 }
 
 showSDocDump :: Ghc.SDoc -> String
-showSDocDump  = Ghc.showSDocDump unsafeGlobalDynFlags
+showSDocDump  = Ghc.showSDocDump Ghc.defaultSDocContext
 
 instance Outputable a => Outputable (S.HashSet a) where
   ppr = ppr . S.toList
@@ -248,7 +251,7 @@ srcSpanFSrcSpan sp = F.SS p p'
     p'             = srcSpanSourcePosE sp
 
 sourcePos2SrcSpan :: SourcePos -> SourcePos -> SrcSpan
-sourcePos2SrcSpan p p' = RealSrcSpan (realSrcSpan f (unPos l) (unPos c) (unPos l') (unPos c')) Nothing
+sourcePos2SrcSpan p p' = RealSrcSpan (packRealSrcSpan f (unPos l) (unPos c) (unPos l') (unPos c')) Nothing
   where
     (f, l,  c)         = F.sourcePosElts p
     (_, l', c')        = F.sourcePosElts p'
@@ -431,11 +434,11 @@ lookupRdrName hsc_env mod_name rdr_name = do
                                 Nothing -> mkGlobalRdrEnv (gresFromAvails provenance (mi_exports iface))
                                 Just e -> e
                     case lookupGRE_RdrName rdr_name env of
-                        [gre] -> return (Just (gre_name gre))
+-- XXX                        [gre] -> return (Just (gre_name gre))
                         []    -> return Nothing
                         _     -> Ghc.panic "lookupRdrNameInModule"
                 Nothing -> throwCmdLineErrorS dflags $ Ghc.hsep [Ghc.ptext (sLit "Could not determine the exports of the module"), ppr mod_name]
-        err' -> throwCmdLineErrorS dflags $ cannotFindModule dflags mod_name err'
+        err' -> throwCmdLineErrorS dflags $ cannotFindModule hsc_env mod_name err'
   where dflags = hsc_dflags hsc_env
         throwCmdLineErrorS dflags' = throwCmdLineError . Ghc.showSDoc dflags'
         throwCmdLineError = throwGhcException . CmdLineError
@@ -724,20 +727,22 @@ gHC_VERSION = show (__GLASGOW_HASKELL__ :: Int)
 symbolFastString :: Symbol -> FastString
 symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
 
-lintCoreBindings :: [Var] -> CoreProgram -> (Bag MsgDoc, Bag MsgDoc)
+lintCoreBindings :: [Var] -> CoreProgram -> (Bag SDoc, Bag SDoc)
 lintCoreBindings = Ghc.lintCoreBindings (defaultDynFlags undefined (undefined ("LlvmTargets" :: String))) CoreDoNothing
 
 synTyConRhs_maybe :: TyCon -> Maybe Type
 synTyConRhs_maybe = Ghc.synTyConRhs_maybe
 
-tcRnLookupRdrName :: HscEnv -> Ghc.Located RdrName -> IO (Messages, Maybe [Name])
+tcRnLookupRdrName :: HscEnv -> Ghc.LocatedN RdrName -> IO (Messages DecoratedSDoc, Maybe [Name])
 tcRnLookupRdrName = Ghc.tcRnLookupRdrName
 
 showCBs :: Bool -> [CoreBind] -> String
 showCBs untidy
-  | untidy    = Ghc.showSDocDebug unsafeGlobalDynFlags . ppr . tidyCBs
+  | untidy    =
+    Ghc.renderWithContext ctx . ppr . tidyCBs
   | otherwise = showPpr
-
+  where
+    ctx = Ghc.defaultSDocContext { sdocPprDebug = True }
 
 ignoreCoreBinds :: S.HashSet Var -> [CoreBind] -> [CoreBind]
 ignoreCoreBinds vs cbs
@@ -904,43 +909,31 @@ isEvVar x = isPredVar x || isTyVar x || isCoVar x
 --   hsc_env <- Ghc.getHscEnv
 --   liftIO $ elabRnExpr hsc_env mode expr
 
-elabRnExpr
-  :: TcRnExprMode -> LHsExpr GhcPs -> TcRn CoreExpr
-elabRnExpr mode rdr_expr = do
+elabRnExpr :: LHsExpr GhcPs -> TcRn CoreExpr
+elabRnExpr rdr_expr = do
     (rn_expr, _fvs) <- rnLExpr rdr_expr
     failIfErrsM
 
-        -- Now typecheck the expression, and generalise its type
-        -- it might have a rank-2 type (e.g. :t runST)
-    uniq <- newUnique ;
-    let fresh_it  = itName uniq (getLoc rdr_expr) 
+    -- Typecheck the expression
     ((tclvl, (tc_expr, res_ty)), lie)
           <- captureTopConstraints $
              pushTcLevelM          $
-             tc_infer rn_expr
+             tcInferRho rn_expr
 
     -- Generalise
-    (_qtvs, _dicts, evbs, residual, _)
-         <- simplifyInfer tclvl infer_mode
+    uniq <- newUnique
+    let { fresh_it = itName uniq (getLocA rdr_expr) }
+    ((_qtvs, _dicts, evbs, _), residual)
+         <- captureConstraints $
+            simplifyInfer tclvl NoRestrictions
                           []    {- No sig vars -}
                           [(fresh_it, res_ty)]
                           lie
 
     -- Ignore the dictionary bindings
-    evbs' <- perhaps_disable_default_warnings $
-         simplifyInteractive residual
+    evbs' <- simplifyInteractive residual
     full_expr <- zonkTopLExpr (mkHsDictLet (EvBinds evbs') (mkHsDictLet evbs tc_expr))
     initDsTc $ dsLExpr full_expr
-  where
-    tc_infer expr' | inst      = tcInferRho expr'
-                   | otherwise = tcInferSigma expr'
-                  -- tcInferSigma: see Note [Implementing :type]
-
-    -- See Note [TcRnExprMode]
-    (inst, infer_mode, perhaps_disable_default_warnings) = case mode of
-      TM_Inst    -> (True,  NoRestrictions, id)
-      TM_NoInst  -> (False, NoRestrictions, id)
-      TM_Default -> (True,  EagerDefaulting, unsetWOptM Opt_WarnTypeDefaults)
 
 newtype HashableType = HashableType {getHType :: Type}
 
@@ -1024,20 +1017,17 @@ withWiredIn m = discardConstraints $ do
   --     (Ghc.NonRecursive, unitBag (Ghc.L locSpan b))
   --   ) wiredIns
 
-  sigsExt ext wiredIns = concatMap (\w ->
-      let inf = maybeToList $ (\(fPrec, fDir) -> Ghc.L locSpan $ FixSig Ghc.noExtField $ FixitySig Ghc.noExtField [Ghc.L locSpan (tcWiredInName w)] $ Ghc.Fixity Ghc.NoSourceText fPrec fDir) <$> tcWiredInFixity w in
+  sigs wiredIns = concatMap (\w ->
+      let inf = maybeToList $ (\(fPrec, fDir) -> Ghc.L locSpanAnn $ Ghc.FixSig Ghc.noAnn $ Ghc.FixitySig Ghc.noExtField [Ghc.L locSpanAnn (tcWiredInName w)] $ Ghc.Fixity Ghc.NoSourceText fPrec fDir) <$> tcWiredInFixity w in
       let t =
             let ext' = [] in
-            [Ghc.L locSpan $ TypeSig Ghc.noExtField [Ghc.L locSpan (tcWiredInName w)] $ HsWC ext' $ HsIB ext $ tcWiredInType w]
+            [Ghc.L locSpanAnn $ TypeSig Ghc.noAnn [Ghc.L locSpanAnn (tcWiredInName w)] $ HsWC ext' $ Ghc.L locSpanAnn $ HsSig Ghc.noExtField (HsOuterImplicit ext') $ tcWiredInType w]
       in
       inf <> t
     ) wiredIns
 
-  sigs = sigsExt cppExt
-
-  cppExt = []
-
   locSpan = UnhelpfulSpan (UnhelpfulOther "Liquid.GHC.Misc: WiredIn")
+  locSpanAnn = noAnnSrcSpan locSpan
 
   mkHsFunTy :: LHsType GhcRn -> LHsType GhcRn -> LHsType GhcRn
   mkHsFunTy a b = nlHsFunTy a b
@@ -1048,8 +1038,8 @@ withWiredIn m = discardConstraints $ do
     u <- getUniqueM
     return $ Ghc.mkInternalName u (Ghc.mkVarOcc s) locSpan
 
-  toLoc = Ghc.L locSpan
-  nameToTy = Ghc.L locSpan . HsTyVar Ghc.noExtField Ghc.NotPromoted
+  toLoc = Ghc.L locSpanAnn
+  nameToTy = Ghc.L locSpanAnn . HsTyVar Ghc.noAnn Ghc.NotPromoted
 
   boolTy' :: LHsType GhcRn
   boolTy' = nameToTy $ toLoc boolTyConName
@@ -1073,21 +1063,20 @@ withWiredIn m = discardConstraints $ do
   -- infix 4 == :: forall a . a -> a -> Bool
   eq = do
     n <- toName "=="
-    aName <- Ghc.L locSpan <$> toName "a"
+    aName <- toLoc <$> toName "a"
     let aTy = nameToTy aName
-    let ty = noLoc $ HsForAllTy Ghc.noExtField
-             (mkHsForAllInvisTele [Ghc.L locSpan $ UserTyVar Ghc.noExtField SpecifiedSpec aName]) $ mkHsFunTy aTy (mkHsFunTy aTy boolTy')
+    let ty = toLoc $ HsForAllTy Ghc.noExtField
+             (mkHsForAllInvisTele Ghc.noAnn [toLoc $ UserTyVar Ghc.noAnn SpecifiedSpec aName]) $ mkHsFunTy aTy (mkHsFunTy aTy boolTy')
     return $ TcWiredIn n (Just (4, Ghc.InfixN)) ty
 
   -- TODO: This is defined as a measure in liquid-base GHC.Base. We probably want to insert all measures to the environment.
   -- len :: forall a. [a] -> Int
   len = do
     n <- toName "len"
-    aName <- Ghc.L locSpan <$> toName "a"
+    aName <- toLoc <$> toName "a"
     let aTy = nameToTy aName
-    let ty =
-          noLoc $ HsForAllTy Ghc.noExtField
-               (mkHsForAllInvisTele [Ghc.L locSpan $ UserTyVar Ghc.noExtField SpecifiedSpec aName]) $ mkHsFunTy (listTy aTy) intTy'
+    let ty = toLoc $ HsForAllTy Ghc.noExtField
+               (mkHsForAllInvisTele Ghc.noAnn [toLoc $ UserTyVar Ghc.noAnn SpecifiedSpec aName]) $ mkHsFunTy (listTy aTy) intTy'
     return $ TcWiredIn n Nothing ty
 
 prependGHCRealQual :: FastString -> RdrName

@@ -100,5 +100,5 @@ mapBnd :: (Expr b -> Expr b) -> Bind b -> Bind b
 mapBnd f (NonRec b e) = NonRec b (f e)
 mapBnd f (Rec bs    ) = Rec (map (second f) bs)
 
-mapAlt :: (Expr b -> Expr b) -> (t, t1, Expr b) -> (t, t1, Expr b)
-mapAlt f (d, bs, e) = (d, bs, f e)
+mapAlt :: (Expr b -> Expr b) -> Alt b -> Alt b
+mapAlt f (Alt d bs e) = Alt d bs (f e)

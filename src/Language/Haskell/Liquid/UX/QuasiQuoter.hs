@@ -175,8 +175,6 @@ instance Applicative Simpl where
   FoundHole      <*> _              = FoundHole
 
 instance Monad Simpl where
-  return = Simplified
-
   Simplified   x >>= f = f x
   FoundExprArg l >>= _ = FoundExprArg l
   FoundHole      >>= _ = FoundHole

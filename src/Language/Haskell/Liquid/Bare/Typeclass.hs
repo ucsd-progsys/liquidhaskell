@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE FlexibleContexts          #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+
 module Language.Haskell.Liquid.Bare.Typeclass
   ( compileClasses
   , elaborateClassDcp

@@ -248,7 +248,6 @@ module Language.Haskell.Liquid.Types.Types (
 import           Liquid.GHC.API as Ghc hiding ( Expr
                                                                , Target
                                                                , isFunTy
-                                                               , LM
                                                                , ($+$)
                                                                , nest
                                                                , text
@@ -2071,8 +2070,8 @@ allErrors = dErrors
 -- | Printing Warnings ---------------------------------------------------------
 --------------------------------------------------------------------------------
 
-printWarning :: DynFlags -> Warning -> IO ()
-printWarning dyn (Warning span doc) = GHC.putWarnMsg dyn span doc
+printWarning :: Logger -> DynFlags -> Warning -> IO ()
+printWarning logger dyn (Warning span doc) = GHC.putWarnMsg logger dyn span doc
 
 --------------------------------------------------------------------------------
 -- | Error Data Type -----------------------------------------------------------

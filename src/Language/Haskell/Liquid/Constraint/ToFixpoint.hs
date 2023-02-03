@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts          #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Language.Haskell.Liquid.Constraint.ToFixpoint
   ( cgInfoFInfo
@@ -193,7 +194,7 @@ hasClassArg :: Id -> Bool
 hasClassArg x = F.tracepp msg (GM.isDataConId x && any Ghc.isClassPred (t:ts'))
   where
     msg       = "hasClassArg: " ++ showpp (x, t:ts')
-    (ts, t)   = Ghc.splitFunTys . snd . Ghc.splitForAllTys . Ghc.varType $ x
+    (ts, t)   = Ghc.splitFunTys . snd . Ghc.splitForAllTyCoVars . Ghc.varType $ x
     ts'       = map Ghc.irrelevantMult ts
 
 

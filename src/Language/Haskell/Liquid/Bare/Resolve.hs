@@ -132,7 +132,7 @@ localBinds                    = concatMap (bgo S.empty)
     go  g (Ghc.Let b e)       = bgo g b ++ go (adds b g) e
     go  g (Ghc.Tick _ e)      = go g e
     go  g (Ghc.Cast e _)      = go g e
-    go  g (Ghc.Case e _ _ cs) = go g e ++ concatMap (go g . Misc.thd3) cs
+    go  g (Ghc.Case e _ _ cs) = go g e ++ concatMap (go g . (\(Ghc.Alt _ _ e') -> e')) cs
     go  _ (Ghc.Var _)         = []
     go  _ _                   = []
 

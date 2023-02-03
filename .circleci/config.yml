@@ -159,7 +159,7 @@ jobs:
       image: ubuntu-2004:202107-02
     steps:
       - cabal_build_and_test:
-          ghc_version: "9.0.2"
+          ghc_version: "9.2.5"
           liquid_runner: "--liquid-runner=cabal -v0 v2-exec liquidhaskell -- -v0 \
                           -package-env=$(./scripts/generate_testing_ghc_env) \
                           -package=liquidhaskell -package=Cabal "
