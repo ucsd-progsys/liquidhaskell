@@ -3,12 +3,11 @@
 --------------------------------------------------------------------------------
 
 {-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
-{-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE ViewPatterns               #-}
-
 
 module Language.Haskell.Liquid.Transforms.ANF (anormalize) where
 
@@ -21,7 +20,6 @@ import           Liquid.GHC.API  as Ghc hiding ( mkTyArg
 import qualified Liquid.GHC.API  as Ghc
 import           Control.Monad.State.Lazy
 import           System.Console.CmdArgs.Verbosity (whenLoud)
-import qualified Language.Fixpoint.Misc     as F
 import qualified Language.Fixpoint.Types    as F
 
 import           Language.Haskell.Liquid.UX.Config  as UX
@@ -36,7 +34,6 @@ import qualified Liquid.GHC.SpanStack as Sp
 import qualified Liquid.GHC.Resugar   as Rs
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
-import           Data.Function                    (on)
 import qualified Text.Printf as Printf
 import           Data.Hashable
 import Data.HashMap.Strict (HashMap)
@@ -99,12 +96,12 @@ normalizeTyVars (NonRec x e) = NonRec (setVarType x t') $ normalizeForAllTys e
   where
     t'       = subst msg as as' bt
     msg      = "WARNING: unable to renameVars on " ++ GM.showPpr x
-    as'      = fst $ splitForAllTys $ exprType e
-    (as, bt) = splitForAllTys (varType x)
+    as'      = fst $ splitForAllTyCoVars $ exprType e
+    (as, bt) = splitForAllTyCoVars (varType x)
 normalizeTyVars (Rec xes)    = Rec xes'
   where
     nrec     = normalizeTyVars <$> (uncurry NonRec <$> xes)
-    xes'     = (\(NonRec x e) -> (x, e)) <$> nrec
+    xes'     = (\case NonRec x e -> (x, e); _ -> impossible Nothing "This cannot happen") <$> nrec
 
 subst :: String -> [TyVar] -> [TyVar] -> Type -> Type
 subst msg as as' bt
@@ -121,7 +118,7 @@ normalizeForAllTys e = case e of
     -> e
   _ -> mkLams tvs (mkTyApps e (map mkTyVarTy tvs))
   where
-  (tvs, _) = splitForAllTys (exprType e)
+  (tvs, _) = splitForAllTyCoVars (exprType e)
 
 
 newtype DsM a = DsM {runDsM :: Ghc.DsM a}
@@ -220,7 +217,7 @@ normalize γ (Case e x t as)
   = do n     <- normalizeName γ e
        x'    <- lift $ freshNormalVar γ τx -- rename "wild" to avoid shadowing
        let γ' = extendAnfEnv γ x x'
-       as'   <- forM as $ \(c, xs, e') -> fmap (c, xs,) (stitch (incrCaseDepth c γ') e')
+       as'   <- forM as $ \(Alt c xs e') -> fmap (Alt c xs) (stitch (incrCaseDepth c γ') e')
        as''  <- lift $ expandDefaultCase γ τx as'
        return $ Case n x' t as''
     where τx = GM.expandVarType x
@@ -303,15 +300,15 @@ expandDefault γ = aeCaseDepth γ <= maxCaseExpand γ
 --------------------------------------------------------------------------------
 expandDefaultCase :: AnfEnv
                   -> Type
-                  -> [(AltCon, [Id], CoreExpr)]
-                  -> DsM [(AltCon, [Id], CoreExpr)]
+                  -> [CoreAlt]
+                  -> DsM [CoreAlt]
 --------------------------------------------------------------------------------
-expandDefaultCase γ tyapp zs@((DEFAULT, _ ,_) : _) | expandDefault γ
+expandDefaultCase γ tyapp zs@(Alt DEFAULT _ _ : _) | expandDefault γ
   = expandDefaultCase' γ tyapp zs
 
-expandDefaultCase γ tyapp@(TyConApp tc _) z@((DEFAULT, _ ,_):dcs)
+expandDefaultCase γ tyapp@(TyConApp tc _) z@(Alt DEFAULT _ _:dcs)
   = case tyConDataCons_maybe tc of
-       Just ds -> do let ds' = ds \\ [ d | (DataAlt d, _ , _) <- dcs]
+       Just ds -> do let ds' = ds \\ [ d | Alt (DataAlt d) _ _ <- dcs]
                      let n   = length ds'
                      if n == 1
                        then expandDefaultCase' γ tyapp z
@@ -324,21 +321,21 @@ expandDefaultCase _ _ z
    = return z
 
 expandDefaultCase'
-  :: AnfEnv -> Type -> [(AltCon, [Id], c)] -> DsM [(AltCon, [Id], c)]
-expandDefaultCase' γ t ((DEFAULT, _, e) : dcs)
-  | Just dtss <- GM.defaultDataCons t (F.fst3 <$> dcs) = do
+  :: AnfEnv -> Type -> [CoreAlt] -> DsM [CoreAlt]
+expandDefaultCase' γ t (Alt DEFAULT _ e : dcs)
+  | Just dtss <- GM.defaultDataCons t ((\(Alt dc _ _) -> dc) <$> dcs) = do
       dcs'    <- warnCaseExpand γ <$> forM dtss (cloneCase γ e)
       return   $ sortCases (dcs' ++ dcs)
 expandDefaultCase' _ _ z
    = return z
 
-cloneCase :: AnfEnv -> e -> (DataCon, [TyVar], [Type]) -> DsM (AltCon, [Id], e)
+cloneCase :: AnfEnv -> CoreExpr -> (DataCon, [TyVar], [Type]) -> DsM CoreAlt
 cloneCase γ e (d, as, ts) = do
   xs  <- mapM (freshNormalVar γ) ts
-  return (DataAlt d, as ++ xs, e)
+  return (Alt (DataAlt d) (as ++ xs) e)
 
-sortCases :: [(AltCon, b, c)] -> [(AltCon, b, c)]
-sortCases = sortBy (cmpAltCon `on` F.fst3)
+sortCases :: [CoreAlt] -> [CoreAlt]
+sortCases = sortBy Ghc.cmpAlt
 
 warnCaseExpand :: AnfEnv -> [a] -> [a]
 warnCaseExpand γ xs
@@ -430,5 +427,5 @@ incrCaseDepth :: AltCon -> AnfEnv -> AnfEnv
 incrCaseDepth DEFAULT γ = γ { aeCaseDepth = 1 + aeCaseDepth γ }
 incrCaseDepth _       γ = γ
 
-at :: AnfEnv -> Tickish Id -> AnfEnv
+at :: AnfEnv -> CoreTickish -> AnfEnv
 at γ tt = γ { aeSrcSpan = Sp.push (Sp.Tick tt) (aeSrcSpan γ)}

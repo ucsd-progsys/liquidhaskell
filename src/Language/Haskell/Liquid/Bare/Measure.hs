@@ -488,7 +488,7 @@ toBound v x (vs, Left p) = (x', Bound x' fvs ps xs p)
     (ps , xs)  = (txp <$> ps', txx <$> xs')
     txp v      = (dummyLoc $ simpleSymbolVar v, RT.ofType $ varType v)
     txx v      = (dummyLoc $ symbol v,          RT.ofType $ varType v)
-    fvs        = (((`RVar` mempty) . RTV) <$> fst (splitForAllTys $ varType v)) :: [RSort]
+    fvs        = (((`RVar` mempty) . RTV) <$> fst (splitForAllTyCoVars $ varType v)) :: [RSort]
 
 toBound v x (vs, Right e) = toBound v x (vs, Left e)
 

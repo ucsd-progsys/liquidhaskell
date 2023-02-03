@@ -2,6 +2,8 @@
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+
 -- | This module contains the code that DOES reflection; i.e. converts Haskell
 --   definitions into refinements.
 
@@ -175,7 +177,7 @@ instance Subable Ghc.CoreExpr where
     = e
 
 instance Subable Ghc.CoreAlt where
-  subst su (c, xs, e) = (c, xs, subst su e)
+  subst su (Ghc.Alt c xs e) = Ghc.Alt c xs (subst su e)
 
 data AxiomType = AT { aty :: SpecType, aargs :: [(F.Symbol, SpecType)], ares :: SpecType }
 

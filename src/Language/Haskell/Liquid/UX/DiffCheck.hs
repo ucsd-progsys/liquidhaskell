@@ -6,10 +6,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TupleSections     #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
-{-# LANGUAGE TupleSections #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Language.Haskell.Liquid.UX.DiffCheck (
 
@@ -421,8 +422,8 @@ exprSpans (Cast e _)      = exprSpans e
 exprSpans (Case e x _ cs) = getSrcSpan x : exprSpans e ++ concatMap altSpans cs
 exprSpans _               = []
 
-altSpans :: (NamedThing a, NamedThing a1) => (t, [a], Expr a1) -> [SrcSpan]
-altSpans (_, xs, e)       = map getSrcSpan xs ++ exprSpans e
+altSpans :: (NamedThing b) => Alt b -> [SrcSpan]
+altSpans (Alt _ xs e)     = map getSrcSpan xs ++ exprSpans e
 
 isJunkSpan :: SrcSpan -> Bool
 isJunkSpan RealSrcSpan{} = False
@@ -545,7 +546,7 @@ adjustSpan _  sp                  = Just sp
 
 adjustReal :: LMap -> RealSrcSpan -> Maybe RealSrcSpan
 adjustReal lm rsp
-  | Just δ <- sh                  = Just $ realSrcSpan f (l1 + δ) c1 (l2 + δ) c2
+  | Just δ <- sh                  = Just $ packRealSrcSpan f (l1 + δ) c1 (l2 + δ) c2
   | otherwise                     = Nothing
   where
     (f, l1, c1, l2, c2)           = unpackRealSrcSpan rsp

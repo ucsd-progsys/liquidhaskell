@@ -12,6 +12,7 @@
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_GHC -Wwarn=deprecations #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Liquid.GHC.Interface (
 
@@ -219,8 +220,11 @@ updateIncludePaths df ps = addGlobalInclude (includePaths df) ps
 configureDynFlags :: Config -> FilePath -> Ghc DynFlags
 configureDynFlags cfg tmp = do
   df <- getSessionDynFlags
-  (df',_,_) <- parseDynamicFlags df $ map noLoc $ ghcOptions cfg
+  logger <- getLogger
+  (df',_,_) <- parseDynamicFlags logger df $ map noLoc $ ghcOptions cfg
   loud <- liftIO isLoud
+  pushLogHookM $ \_ ->
+    if loud then defaultLogAction else \_ _ _ _ _ -> return ()
   let df'' = df' { importPaths  = nub $ idirs cfg ++ importPaths df'
                  , libraryPaths = nub $ idirs cfg ++ libraryPaths df'
                  , includePaths = updateIncludePaths df' (idirs cfg) -- addGlobalInclude (includePaths df') (idirs cfg)
@@ -232,12 +236,8 @@ configureDynFlags cfg tmp = do
                  , debugLevel   = 1               -- insert SourceNotes
                  -- , profAuto     = ProfAutoCalls
                  , ghcLink      = LinkInMemory
-                 , hscTarget    = HscInterpreted
+                 , backend      = Interpreter
                  , ghcMode      = CompManager
-                 -- prevent GHC from printing anything, unless in Loud mode
-                 , log_action   = if loud
-                                    then defaultLogAction
-                                    else \_ _ _ _ _   -> return ()
                  -- redirect .hi/.o/etc files to temp directory
                  , objectDir    = Just tmp
                  , hiDir        = Just tmp
@@ -258,11 +258,12 @@ configureGhcTargets tgtFiles = do
   moduleGraph     <- depanal [] False -- see [NOTE:DROP-BOOT-FILES]
 
   let homeModules  = filter (not . isBootInterface . isBootSummary) $
-                     flattenSCCs $ topSortModuleGraph False moduleGraph Nothing
+                     flattenSCCs $ filterToposortToModules $
+                     topSortModuleGraph False moduleGraph Nothing
   let homeNames    = moduleName . ms_mod <$> homeModules
   _               <- setTargetModules homeNames
   liftIO $ whenLoud $ print ("Module Dependencies" :: String, homeNames)
-  return $ mkModuleGraph homeModules
+  return $ mkModuleGraph (map Ghc.extendModSummaryNoDeps homeModules)
 
 setTargetModules :: [ModuleName] -> Ghc ()
 setTargetModules modNames = setTargets $ mkTarget <$> modNames
@@ -334,7 +335,7 @@ importDeclModule fromMod (mpkgQual, locModName) = do
       dflags <- getDynFlags
       liftIO $ throwGhcExceptionIO $ ProgramError $
         O.showPpr dflags (moduleName fromMod) ++ ": " ++
-        O.showSDoc dflags (cannotFindModule dflags modName res)
+        O.showSDoc dflags (cannotFindModule hscEnv modName res)
 
 --------------------------------------------------------------------------------
 -- | Extract Ids ---------------------------------------------------------------
@@ -408,7 +409,7 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   let isTarget'        = file `S.member` tgtFiles
   _                   <- loadDependenciesOf $ moduleName mod'
   parsed              <- parseModule $ keepRawTokenStream modSummary
-  let specComments     = extractSpecComments (pm_annotations parsed)
+  let specComments     = extractSpecComments parsed
   typechecked         <- typecheckModule $ ignoreInline parsed
   let specQuotes       = extractSpecQuotes typechecked
   _                   <- loadModule' typechecked
@@ -445,7 +446,7 @@ loadModule' tm = loadModule tm'
     pm   = tm_parsed_module tm
     ms   = pm_mod_summary pm
     df   = ms_hspp_opts ms
-    df'  = df { hscTarget = HscNothing, ghcLink = NoLink }
+    df'  = df { backend = NoBackend, ghcLink = NoLink }
     ms'  = ms { ms_hspp_opts = df' }
     pm'  = pm { pm_mod_summary = ms' }
     tm'  = tm { tm_parsed_module = pm' }
@@ -495,14 +496,21 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
     (msgs, specM) <- Ghc.withSession $ \hsc_env -> liftIO $ runTcInteractive hsc_env
       (makeTargetSpec cfg logicMap targetSrc (view bareSpecIso bareSpec) dependencies)
     case specM of
-      Nothing -> panic Nothing  $ O.showSDoc dynFlags $ O.sep (Ghc.pprErrMsgBagWithLoc (snd msgs))
-      Just spec ->
+      Nothing ->
+        panic Nothing $
+        O.showSDoc dynFlags $
+        O.sep $
+        Ghc.pprMsgEnvelopeBagWithLoc
+        -- TODO use getMessages from GHC 9.4 onwards.
+        (Ghc.getErrorMessages msgs `Ghc.unionBags` Ghc.getWarningMessages msgs)
+      Just spec -> do
+        logger <- getLogger
         case spec of
           Left diagnostics -> do
-            mapM_ (liftIO . printWarning dynFlags) (allWarnings diagnostics)
+            mapM_ (liftIO . printWarning logger dynFlags) (allWarnings diagnostics)
             throw (allErrors diagnostics)
           Right (warns, targetSpec, liftedSpec) -> do
-            mapM_ (liftIO . printWarning dynFlags) warns
+            mapM_ (liftIO . printWarning logger dynFlags) warns
             -- The call below is temporary, we should really load & save directly 'LiftedSpec's.
             _          <- liftIO $ saveLiftedSpec (_giTarget ghcSrc) (unsafeFromLiftedSpec liftedSpec)
             return      $ TargetInfo targetSrc targetSpec
@@ -646,7 +654,7 @@ lookupTyThings hscEnv modSum tcGblEnv = forM names (lookupTyThing hscEnv modSum 
   where
     names :: [Ghc.Name]
     names  = liftM2 (++)
-             (fmap Ghc.gre_name . Ghc.globalRdrEnvElts . tcg_rdr_env)
+             (fmap Ghc.greMangledName . Ghc.globalRdrEnvElts . tcg_rdr_env)
              (fmap is_dfun_name . tcg_insts) tcGblEnv
 -- | Lookup a single 'Name' in the GHC environment, yielding back the 'Name' alongside the 'TyThing',
 -- if one is found.
@@ -662,8 +670,11 @@ lookupTyThing hscEnv modSum tcGblEnv n = do
 availableTyThings :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [TyThing]
 availableTyThings hscEnv modSum tcGblEnv avails = fmap (catMaybes . mconcat) $ forM avails $ \a -> do
   results <- case a of
-    Avail n        -> pure <$> lookupTyThing hscEnv modSum tcGblEnv n
-    AvailTC n ns _ -> forM (n : ns) $ lookupTyThing hscEnv modSum tcGblEnv
+    Avail n      ->
+      pure <$> lookupTyThing hscEnv modSum tcGblEnv (Ghc.greNameMangledName n)
+    AvailTC n ns ->
+      forM (n : map Ghc.greNameMangledName ns) $
+      lookupTyThing hscEnv modSum tcGblEnv
   pure . map snd $ results
 
 -- | Returns all the available (i.e. exported) 'TyCon's (type constructors) for the input 'Module'.
@@ -720,7 +731,7 @@ _dumpRdrEnv _hscEnv modGuts = do
     _hscNames = fmap showPpr . Ghc.ic_tythings . Ghc.hsc_IC
 
 mgNames :: MGIModGuts -> [Ghc.Name]
-mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env
+mgNames  = fmap Ghc.greMangledName . Ghc.globalRdrEnvElts .  mgi_rdr_env
 
 ---------------------------------------------------------------------------------------
 -- | @makeDependencies@ loads BareSpec for target and imported modules
@@ -804,7 +815,7 @@ getFamInstances env = do
 --------------------------------------------------------------------------------
 -- | Extract Specifications from GHC -------------------------------------------
 --------------------------------------------------------------------------------
-extractSpecComments :: ApiAnns -> [(SourcePos, String)]
+extractSpecComments :: ParsedModule -> [(SourcePos, String)]
 extractSpecComments = mapMaybe extractSpecComment . GhcMonadLike.apiComments
 
 -- | 'extractSpecComment' pulls out the specification part from a full comment
@@ -813,8 +824,8 @@ extractSpecComments = mapMaybe extractSpecComment . GhcMonadLike.apiComments
 --   2. '{-@ ... -}' then it throws a malformed SPECIFICATION ERROR, and
 --   3. Otherwise it is just treated as a plain comment so we return Nothing.
 
-extractSpecComment :: Ghc.Located AnnotationComment -> Maybe (SourcePos, String)
-extractSpecComment (Ghc.L sp (AnnBlockComment txt))
+extractSpecComment :: Ghc.Located GhcMonadLike.ApiComment -> Maybe (SourcePos, String)
+extractSpecComment (Ghc.L sp (GhcMonadLike.ApiBlockComment txt))
   | isPrefixOf "{-@" txt && isSuffixOf "@-}" txt          -- valid   specification
   = Just (offsetPos, take (length txt - 6) $ drop 3 txt)
   | isPrefixOf "{-@" txt                                   -- invalid specification

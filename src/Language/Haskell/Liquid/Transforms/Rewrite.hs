@@ -8,6 +8,7 @@
 {-# LANGUAGE FlexibleContexts          #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 -- | This module contains functions for recursively "rewriting"
 --   GHC core using "rules".
@@ -30,7 +31,7 @@ import           Data.Maybe     (fromMaybe)
 import           Control.Monad.State hiding (lift)
 import           Language.Fixpoint.Misc       ({- mapFst, -}  mapSnd)
 import qualified          Language.Fixpoint.Types as F
-import           Language.Haskell.Liquid.Misc (safeZipWithError, mapThd3, Nat)
+import           Language.Haskell.Liquid.Misc (safeZipWithError, Nat)
 import           Liquid.GHC.Play (substExpr)
 import           Liquid.GHC.Resugar
 import           Liquid.GHC.Misc (unTickExpr, isTupleId, showPpr, mkAlive) -- , showPpr, tracePpr)
@@ -92,8 +93,8 @@ undollar = go
     goRec (x, e)
       = (x,) <$> go e
 
-    goAlt (c, bs, e)
-      = (c, bs,) <$> go e
+    goAlt (Alt c bs e)
+      = Alt c bs <$> go e
 
   
  
@@ -129,16 +130,16 @@ tidyTuples e = Just $ evalState (go e) []
     goRec (x, e)
       = (x,) <$> go e
 
-    goAlt (c, bs, e)
-      = (c, bs,) <$> go e
+    goAlt (Alt c bs e)
+      = Alt c bs <$> go e
 
-    goAltR v (c, bs, e)
+    goAltR v (Alt c bs e)
       = do m <- get
            case L.lookup (c,v) m of
-            Just bs' -> return (c, bs', substTuple bs' bs e)
+            Just bs' -> return (Alt c bs' (substTuple bs' bs e))
             Nothing  -> do let bs' = mkAlive <$> bs
                            modify (((c,v),bs'):)
-                           return (c, bs', e)
+                           return (Alt c bs' e)
 
 
 
@@ -152,7 +153,7 @@ normalizeTuples b
   where
     go (Let (NonRec x ex) e)
       | Case _ _ _ alts  <- unTickExpr ex
-      , [(_, vs, Var z)] <- alts
+      , [Alt _ vs (Var z)] <- alts
       , z `elem` vs
       = Let (NonRec z (go ex)) (substTuple [z] [x] (go e))
     go (Let (NonRec x ex) e)
@@ -164,7 +165,7 @@ normalizeTuples b
     go (Lam x e)
       = Lam x (go e)
     go (Case e b t alt)
-      = Case (go e) b t (mapThd3 go <$> alt)
+      = Case (go e) b t ((\(Alt c bs e') -> Alt c bs (go e')) <$> alt)
     go (Cast e c)
       = Cast (go e) c
     go (Tick t e)
@@ -205,7 +206,7 @@ rewriteWith tx           = go
     step (Lam x e)       = Lam x       (go e)
     step (Cast e c)      = Cast (go e) c
     step (Tick t e)      = Tick t      (go e)
-    step (Case e x t cs) = Case (go e) x t (mapThd3 go <$> cs)
+    step (Case e x t cs) = Case (go e) x t ((\(Alt c bs e') -> Alt c bs (go e')) <$> cs)
     step e@(Type _)      = e
     step e@(Lit _)       = e
     step e@(Var _)       = e
@@ -309,13 +310,13 @@ _tidyAlt n (Just (Let (NonRec x e) rest))
     replaceBinds bs (Case c x t alt) = Case c x t (replaceBindsAlt bs <$> alt)
     replaceBinds bs (Tick t e)       = Tick t (replaceBinds bs e)
     replaceBinds _ e                 = e
-    replaceBindsAlt bs (c, _, e)     = (c, bs, e)
+    replaceBindsAlt bs (Alt c _ e)     = Alt c bs e
 
     grapBinds (Case _ _ _ alt) = grapBinds' alt
     grapBinds (Tick _ e) = grapBinds e
     grapBinds _ = []
     grapBinds' [] = []
-    grapBinds' ((_,bs,_):_) = bs
+    grapBinds' (Alt _ bs _ : _) = bs
 
 _tidyAlt _ e
   = e
@@ -376,8 +377,8 @@ hasTuple ys = stepE
     stepE e
      | Just xs <- isVarTup ys e = Just xs
      | otherwise                = go e
-    stepA (DEFAULT,_,_)         = Nothing
-    stepA (_, _, e)             = stepE e
+    stepA (Alt DEFAULT _ _)     = Nothing
+    stepA (Alt _ _ e)           = stepE e
     go (Let _ e)                = stepE e
     go (Case _ _ _ cs)          = msum (stepA <$> cs)
     go _                        = Nothing
@@ -393,8 +394,8 @@ replaceTuple ys e e'           = stepE e
     stepE e
      | Just xs <- isVarTup ys e = Just $ substTuple xs ys e'
      | otherwise                = go e
-    stepA (DEFAULT, xs, err)    = Just (DEFAULT, xs, replaceIrrefutPat t' err)
-    stepA (c, xs, e)            = (c, xs,)   <$> stepE e
+    stepA (Alt DEFAULT xs err)  = Just (Alt DEFAULT xs (replaceIrrefutPat t' err))
+    stepA (Alt c xs e)          = Alt c xs   <$> stepE e
     go (Let b e)                = Let b      <$> stepE e
     go (Case e x t cs)          = fixCase e x t <$> mapM stepA cs
     go _                        = Nothing
@@ -409,7 +410,7 @@ _showExpr e = show' e
     show' (Case e x _ alt) = "Case " ++ _showVar x ++ " = " ++ show' e ++ " OF " ++ unlines (showAlt' <$> alt)
     show' e           = showPpr e
 
-    showAlt' (c, bs, e) = showPpr c ++ unwords (_showVar <$> bs) ++ " -> " ++ show' e
+    showAlt' (Alt c bs e) = showPpr c ++ unwords (_showVar <$> bs) ++ " -> " ++ show' e
 
 _showVar :: Var -> String
 _showVar = show . F.symbol
@@ -433,7 +434,7 @@ fixCase :: CoreExpr -> Var -> Type -> ListNE (Alt Var) -> CoreExpr
 fixCase e x _t cs' = Case e x t' cs'
   where
     t'            = Ghc.exprType body
-    (_,_,body)    = c
+    Alt _ _ body  = c
     c:_           = cs'
 
 {-@  type ListNE a = {v:[a] | len v > 0} @-}

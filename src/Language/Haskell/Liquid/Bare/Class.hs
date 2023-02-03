@@ -3,6 +3,8 @@
 {-# LANGUAGE ParallelListComp  #-}
 {-# LANGUAGE TupleSections     #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+
 module Language.Haskell.Liquid.Bare.Class
   ( makeClasses
   , makeCLaws

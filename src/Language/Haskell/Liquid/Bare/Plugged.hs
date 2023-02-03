@@ -1,6 +1,9 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-record-updates #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+
 module Language.Haskell.Liquid.Bare.Plugged
   ( makePluggedSig
   , makePluggedDataCon

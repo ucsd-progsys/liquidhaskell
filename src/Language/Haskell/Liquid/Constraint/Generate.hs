@@ -12,6 +12,7 @@
 {-# LANGUAGE ImplicitParams            #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 -- | This module defines the representation of Subtyping and WF Constraints,
 --   and the code for syntax-directed constraint generation.
@@ -644,7 +645,7 @@ cconsE' γ (Case e x _ cases) t
   = do γ'  <- consCBLet γ (NonRec x e)
        forM_ cases $ cconsCase γ' x t nonDefAlts
     where
-       nonDefAlts = [a | (a, _, _) <- cases, a /= DEFAULT]
+       nonDefAlts = [a | Alt a _ _ <- cases, a /= DEFAULT]
        _msg = "cconsE' #nonDefAlts = " ++ show (length nonDefAlts)
 
 cconsE' γ (Lam α e) (RAllT α' t r) | isTyVar α
@@ -924,7 +925,7 @@ consE _ e@(Type t)
   = panic Nothing $ "consE cannot handle type " ++ GM.showPpr (e, t)
 
 caseKVKind ::[Alt Var] -> KVKind
-caseKVKind [(DataAlt _, _, Var _)] = ProjectE
+caseKVKind [Alt (DataAlt _) _ (Var _)] = ProjectE
 caseKVKind cs                      = CaseE (length cs)
 
 updateEnvironment :: CGEnv  -> TyVar -> CG CGEnv
@@ -1183,9 +1184,9 @@ dropConstraints cgenv (RRTy cts _ OCons rt)
 dropConstraints _ t = return t
 
 -------------------------------------------------------------------------------------
-cconsCase :: CGEnv -> Var -> SpecType -> [AltCon] -> (AltCon, [Var], CoreExpr) -> CG ()
+cconsCase :: CGEnv -> Var -> SpecType -> [AltCon] -> CoreAlt -> CG ()
 -------------------------------------------------------------------------------------
-cconsCase γ x t acs (ac, ys, ce)
+cconsCase γ x t acs (Alt ac ys ce)
   = do cγ <- caseEnv γ x acs ac ys mempty
        cconsE cγ ce t
 

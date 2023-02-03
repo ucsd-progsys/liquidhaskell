@@ -5,6 +5,7 @@
 {-# LANGUAGE DeriveGeneric      #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Language.Haskell.Liquid.Types.Bounds (
 

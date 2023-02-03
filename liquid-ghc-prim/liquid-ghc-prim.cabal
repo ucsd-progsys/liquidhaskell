@@ -1,4 +1,4 @@
-cabal-version:      1.24
+cabal-version:      2.0
 name:               liquid-ghc-prim
 version:            0.6.1
 synopsis:           Drop-in ghc-prim replacement for LiquidHaskell
@@ -28,15 +28,15 @@ library
                     GHC.CString
                     GHC.Classes
                     GHC.Debug
-                    GHC.IntWord64
                     GHC.Magic
+                    GHC.Prim.Exception
                     GHC.Prim.Ext
-                    GHC.PrimopWrappers
+                    GHC.Prim.Panic
                     GHC.Tuple
                     GHC.Types
 
   hs-source-dirs:     src
-  build-depends:      ghc-prim             >= 0.6.1 && < 0.8
+  build-depends:      ghc-prim             ^>= 0.8
                     , liquidhaskell        >= 0.8.10.1
   default-language:   Haskell2010
   default-extensions: PackageImports

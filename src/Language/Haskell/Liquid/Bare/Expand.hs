@@ -532,10 +532,10 @@ generalizeVar :: Ghc.Var -> SpecType -> SpecType
 generalizeVar v t = mkUnivs (zip as (repeat mempty)) [] t
   where
     as            = filter isGen (freeTyVars t)
-    (vas,_)       = Ghc.splitForAllTys (GM.expandVarType v)
+    (vas,_)       = Ghc.splitForAllTyCoVars (GM.expandVarType v)
     isGen (RTVar (RTV a) _) = a `elem` vas
 
--- splitForAllTys :: Type -> ([TyVar], Type)
+-- splitForAllTyCoVars :: Type -> ([TyVar], Type)
 -- 
 -- generalize :: (Eq tv) => RType c tv r -> RType c tv r
 -- generalize t = mkUnivs (freeTyVars t) [] [] t 
