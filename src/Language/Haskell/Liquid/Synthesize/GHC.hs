@@ -257,8 +257,8 @@ pprintBody _ _ Type{}
 pprintBody vs i (Let (NonRec x e1) e2) =
   "\n" ++ indent i ++
   "let " ++ handleVar x ++ " = ("
-  ++ pprintBody vs (newIdent) e1 ++ ") in " ++
-  pprintBody vs (newIdent) e2
+  ++ pprintBody vs newIdent e1 ++ ") in " ++
+  pprintBody vs newIdent e2
   where
     newIdent :: Int
     newIdent = i + 5
