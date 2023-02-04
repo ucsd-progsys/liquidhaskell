@@ -31,10 +31,6 @@ flag devel
   description: Enable more warnings and fail compilation when warnings occur.
                Turn this flag on in CI.
 
-flag include
-  default:     False
-  description: use in-tree include directory
-
 flag deterministic-profiling
   default:     False
   description: Support building against GHC with <https://phabricator.haskell.org/D4388>
@@ -195,9 +191,6 @@ library
 
   if flag(devel)
     ghc-options:      -Wall -Werror
-
-  if flag(include)
-    hs-source-dirs: devel
 
   if flag(deterministic-profiling)
     cpp-options: -DDETERMINISTIC_PROFILING
