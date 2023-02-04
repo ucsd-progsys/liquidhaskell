@@ -155,8 +155,7 @@ instance HasConfig TargetInfo where
 -- information (for example, 'giDefVars' are populated with datacons from the module plus the
 -- let vars derived from the A-normalisation).
 data TargetSrc = TargetSrc
-  { giIncDir    :: !FilePath              -- ^ Path for LH include/prelude directory
-  , giTarget    :: !FilePath              -- ^ Source file for module
+  { giTarget    :: !FilePath              -- ^ Source file for module
   , giTargetMod :: !ModName               -- ^ Name for module
   , giCbs       :: ![CoreBind]            -- ^ Source Code
   , gsTcs       :: ![TyCon]               -- ^ All used Type constructors
@@ -694,8 +693,7 @@ data GhcInfo = GI
 -}
 
 data GhcSrc = Src 
-  { _giIncDir    :: !FilePath              -- ^ Path for LH include/prelude directory
-  , _giTarget    :: !FilePath              -- ^ Source file for module
+  { _giTarget    :: !FilePath              -- ^ Source file for module
   , _giTargetMod :: !ModName               -- ^ Name for module
   , _giCbs       :: ![CoreBind]            -- ^ Source Code
   , _gsTcs       :: ![TyCon]               -- ^ All used Type constructors
@@ -741,8 +739,7 @@ targetSrcIso :: Iso' GhcSrc TargetSrc
 targetSrcIso = iso toTargetSrc fromTargetSrc
   where
     toTargetSrc a = TargetSrc
-      { giIncDir    = _giIncDir a
-      , giTarget    = _giTarget a
+      { giTarget    = _giTarget a
       , giTargetMod = _giTargetMod a
       , giCbs       = _giCbs a
       , gsTcs       = _gsTcs a
@@ -761,8 +758,7 @@ targetSrcIso = iso toTargetSrc fromTargetSrc
       }
 
     fromTargetSrc a = Src
-      { _giIncDir    = giIncDir a
-      , _giTarget    = giTarget a
+      { _giTarget    = giTarget a
       , _giTargetMod = giTargetMod a
       , _giCbs       = giCbs a
       , _gsTcs       = gsTcs a

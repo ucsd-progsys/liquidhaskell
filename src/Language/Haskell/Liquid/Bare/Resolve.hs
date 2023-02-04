@@ -664,10 +664,9 @@ allowExtResolution :: Env -> LocSymbol -> Bool
 allowExtResolution env lx = case fileMb of
   Nothing   -> True
   Just f    -> myTracepp ("allowExt: " ++ show (f, tgtFile))
-                 $ f == tgtFile || Misc.isIncludeFile incDir f || F.isExtFile F.Spec f
+                 $ f == tgtFile || F.isExtFile F.Spec f
   where
     tgtFile = _giTarget (reSrc env)
-    incDir  = _giIncDir (reSrc env)
     fileMb  = Errors.srcSpanFileMb (GM.fSrcSpan lx)
 
 lookupThings :: Env -> F.Symbol -> [(F.Symbol, Ghc.TyThing)]

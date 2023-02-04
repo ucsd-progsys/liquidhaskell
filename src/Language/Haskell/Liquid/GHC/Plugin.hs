@@ -620,8 +620,7 @@ makeTargetSrc cfg file tcData modGuts hscEnv = do
   debugLog $ "qualImports => " ++ show (tcQualifiedImports tcData)
 
   return $ TargetSrc
-    { giIncDir    = mempty
-    , giTarget    = file
+    { giTarget    = file
     , giTargetMod = ModName Target (moduleName (mg_module modGuts))
     , giCbs       = coreBinds
     , giImpVars   = impVars
