@@ -1,7 +1,0 @@
-
-// Qualifiers about complex length relationships
-// qualif LenSum(v:[a], ~A:[b], ~B:[c]): len([v]) = (len([~A]) [ +; - ] len([~B]))
-
-qualif LenSum(v:[a], xs:[b], ys:[c]): len([v]) = (len([xs]) + len([ys]))
-qualif LenSum(v:[a], xs:[b], ys:[c]): len([v]) = (len([xs]) - len([ys]))
-
