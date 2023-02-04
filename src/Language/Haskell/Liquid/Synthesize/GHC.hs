@@ -81,29 +81,45 @@ fromAnf e = fst $ fromAnf' e []
 -- | Replace let bindings in applications.
 --   > If you find a binding add it to the second argument.
 --                    | (lhs, rhs)      |
-fromAnf' :: CoreExpr -> [(Var, CoreExpr)] -> (CoreExpr, [(Var, CoreExpr)])
+fromAnf'
+  :: CoreExpr -> [(Var, CoreExpr)] -> (CoreExpr, [(Var, CoreExpr)])
 fromAnf' (Lam b e) bnds
   = let (e', bnds') = fromAnf' e bnds
     in  (Lam b e', bnds')
-fromAnf' (Let bnd e) bnds
-  = case bnd of Rec {}       -> error " By construction, no recursive bindings in let expression. "
-                NonRec rb lb -> let (lb', bnds') = fromAnf' lb bnds
-                                in  fromAnf' e ((rb, lb') : bnds')
+  
+fromAnf' (Let (NonRec rb lb) e) bnds
+  | elem '#' (show rb) = let (lb', bnds') = fromAnf' lb bnds
+                         in  fromAnf' e ((rb, lb') : bnds')
+
+  | otherwise = (Let (NonRec rb lb') e', binds'')
+  where
+    (lb', bnds') = fromAnf' lb bnds
+    (e', binds'') = fromAnf' e ((rb, lb') : bnds')
+
+fromAnf' (Let (Rec {}) _) _ =
+  error " By construction, no recursive bindings in let expression. "
+
 fromAnf' (Var var) bnds
   = (fromMaybe (Var var) (lookup var bnds), bnds)
+
 fromAnf' (Case scr bnd tp alts) bnds
-  = (Case scr bnd tp (map (\(altc, xs, e) -> (altc, xs, fst $ fromAnf' e bnds)) alts), bnds)
+  = (Case scr bnd tp (
+        map (\(altc, xs, e) -> (altc, xs, fst $ fromAnf' e bnds))
+          alts), bnds)
+
 fromAnf' (App e1 e2) bnds
   = let (e1', bnds')  = fromAnf' e1 bnds
         (e2', bnds'') = fromAnf' e2 bnds'
     in  (App e1' e2', bnds'')
-fromAnf' t@Type{} bnds
-  = (t, bnds)
-fromAnf' l@Lit{} bnds
-  = (l, bnds)
+
+fromAnf' t@Type{} bnds = (t, bnds)
+
+fromAnf' l@Lit{} bnds = (l, bnds)
+
 fromAnf' (Tick _ e) bnds = fromAnf' e bnds
-fromAnf' e _
-  = error $ "fromAnf: unsupported core expression " ++ F.showpp e
+
+fromAnf' e _ = error $ "fromAnf: unsupported core expression "
+               ++ F.showpp e
 
 -- | Function used for pretty printing core as Haskell source.
 --   Input does not contain let bindings.
@@ -186,6 +202,8 @@ handleVar v
                            -- ++ "{- WiredInName -}"
   | isInternalName  name = getOccString name
                            -- ++ "{- Internal -}"
+  | isExternalName  name = getOccString name
+--                           ++ "{- external name -}"
   | otherwise            = "{- Not properly handled -}"
                            ++ show name
   where
@@ -208,9 +226,14 @@ pprintBody vs _ (Var v)
   | elem v vs = ""
   | otherwise = handleVar v
 
-pprintBody vs i e@(App (Var v) e2)
+pprintBody vs i (App (Var v) e2)
   | undesirableVar v = pprintBody vs i e2
-  | otherwise        = pprintBody vs i e
+  | otherwise        = "((" ++ left ++ ")\n"
+                       ++ indent (i + 1)
+                       ++ "(" ++ right ++ "))"
+  where
+    left  = handleVar v
+    right = pprintBody vs (i+1) e2
     
 pprintBody vs i (App e1 e2) = "((" ++ left ++ ")\n"
                               ++ indent (i + 1)
@@ -226,10 +249,21 @@ pprintBody _ _ l@(Lit literal) =
 
 pprintBody vs i (Case e _ _ alts)
   = "case " ++ pprintBody vs i e ++ " of"
-    ++ concatMap (pprintAlts vs (i + caseIndent)) alts
+  ++ concatMap (pprintAlts vs (i + caseIndent)) alts
 
 pprintBody _ _ Type{}
   = "{- Type -}"
+
+pprintBody vs i (Let (NonRec x e1) e2) =
+  "\n" ++ indent i ++
+  "let " ++ handleVar x ++ " = ("
+  ++ pprintBody vs newIdent e1 ++ ") in " ++
+  pprintBody vs newIdent e2
+  where
+    newIdent :: Int
+    newIdent = i + 5
+    
+pprintBody _ _ (Let (Rec {}) _) = "{- let rec -}"
 
 pprintBody _ _ e
   = error (" Not yet implemented for e = " ++ show e)
