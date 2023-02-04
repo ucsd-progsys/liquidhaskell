@@ -190,75 +190,14 @@ the benchmarks alone.
         benchmark-icfp15-pos \
         benchmark-icfp15-neg
 
-## How to Profile
+## Miscelaneous tasks
 
-See the instructions in [scripts/ProfilingDriver.hs][]
+* **Profiling** See the instructions in [scripts/ProfilingDriver.hs][].
+* **Getting stack traces on exceptions** See `-xc` flag in the [GHC user's guide][ghc-users-guide].
+* **Working with submodules** See `man gitsubmodules` or the [git documentation site][git-documentation].
 
-## How to Get Stack Traces On Exceptions
-
-1. Build with profiling on
-
-    ```
-    $ stack build liquidhaskell --fast --profile
-    ```
-
-2. Run with backtraces
-
-    ```
-    $ liquid +RTS -xc -RTS foo.hs
-    ```
-
-    ```
-    stack exec -- liquid List00.hs +RTS -p -xc -RTS
-    ```
-
-## Working With Submodules
-
-To update the `liquid-fixpoint` submodule, run:
-
-```
-cd ./liquid-fixpoint
-git fetch --all
-git checkout <remote>/<branch>
-cd ..
-```
-
-This will update `liquid-fixpoint` to the latest version on `<branch>` (usually `master`) 
-from `<remote>` (usually `origin`). After updating `liquid-fixpoint`, make sure to include this change in a
-commit! Running:
-
-```
-git add ./liquid-fixpoint
-```
-
-will save the current commit hash of `liquid-fixpoint` in your next commit to the `liquidhaskell` repository.
-For the best experience, **don't** make changes directly to the `./liquid-fixpoint` submodule, or else git
-may get confused. Do any `liquid-fixpoint` development inside a separate clone/copy elsewhere. If something
-goes wrong, run:
-
-```
-rm -r ./liquid-fixpoint
-git submodule update --init
-```
-
-to blow away your copy of the `liquid-fixpoint` submodule and revert to the last saved commit hash.
-
-Want to work fully offline? `git` lets you add a local directory as a remote. Run:
-
-```
-cd ./liquid-fixpoint
-git remote add local /path/to/your/fixpoint/clone
-cd ..
-```
-
-Then to update the submodule from your local clone, you can run:
-
-```
-cd ./liquid-fixpoint
-git fetch local
-git checkout local/<branch>
-cd ..
-```
+[ghc-users-guide]: https://downloads.haskell.org/ghc/latest/docs/users_guide/
+[git-documentation]: https://git-scm.com/doc
 
 ## Releasing on Hackage
 
