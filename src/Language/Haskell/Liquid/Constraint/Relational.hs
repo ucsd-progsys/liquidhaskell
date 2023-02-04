@@ -320,7 +320,7 @@ relTermToUnTerm' relTerms (Let (Rec bs1) e1) (Let (Rec bs2) e2)
       relTerms' = relTermsBs ++ relTerms
       relBs = zipWith (\(x1, d1) (x2, d2) -> (mkRelThmVar x1 x2, relTermToUnTerm' relTerms' d1 d2)) bs1 bs2
 relTermToUnTerm' relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
---  = Let (NonRec x1l d1) $ Let (NonRec x2r d2) $ 
+--  Let (NonRec x1l d1) $ Let (NonRec x2r d2) $ 
   Case d1 x1l t1 $ map
     (\(c1, bs1, e1) ->
       let bs1l = map (mkCopyWithSuffix relSuffixL) bs1 in

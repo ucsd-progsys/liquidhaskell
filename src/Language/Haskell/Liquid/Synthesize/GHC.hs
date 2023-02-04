@@ -202,6 +202,8 @@ handleVar v
                            -- ++ "{- WiredInName -}"
   | isInternalName  name = getOccString name
                            -- ++ "{- Internal -}"
+  | isExternalName  name = getOccString name
+--                           ++ "{- external name -}"
   | otherwise            = "{- Not properly handled -}"
                            ++ show name
   where
@@ -253,8 +255,14 @@ pprintBody _ _ Type{}
   = "{- Type -}"
 
 pprintBody vs i (Let (NonRec x e1) e2) =
+  "\n" ++ indent i ++
   "let " ++ handleVar x ++ " = ("
-  ++ pprintBody vs i e1 ++ ") in " ++ pprintBody vs i e2
+  ++ pprintBody vs (newIdent) e1 ++ ") in " ++
+  pprintBody vs (newIdent) e2
+  where
+    newIdent :: Int
+    newIdent = i + 5
+    
 pprintBody _ _ (Let (Rec {}) _) = "{- let rec -}"
 
 pprintBody _ _ e
