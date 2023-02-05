@@ -25,7 +25,6 @@ library
                     Language.Haskell.Liquid.Equational
                     Language.Haskell.Liquid.Bag
                     Language.Haskell.Liquid.ProofCombinators
-                    Language.Haskell.Liquid.Synthesize.Error
                     KMeansHelper
   hs-source-dirs:     src
   build-depends:      liquid-base          < 5

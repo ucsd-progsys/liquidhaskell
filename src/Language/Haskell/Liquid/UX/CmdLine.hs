@@ -410,10 +410,6 @@ config = cmdArgsMode $ Config {
         &= name "no-check-imports"
         &= help "Do not check the transitive imports; only check the target files."
 
-  , typedHoles
-    = def
-        &= name "typed-holes"
-        &= help "Use (refinement) typed-holes [currently warns on '_x' variables]"
   , typeclass
     = def
         &= help "Enable Typeclass"
@@ -422,16 +418,6 @@ config = cmdArgsMode $ Config {
     = def
         &= help "Enable inlining of class methods"
         &= name "aux-inline"
-  , maxMatchDepth
-    = def
-        &= name "max-match-depth"
-        &= help "Define the number of expressions to pattern match on (typed-holes must be on to use this flag)."
-  , maxAppDepth
-    = def
-        &= name "max-app-depth"
-  , maxArgsDepth
-    = def
-        &= name "max-args-depth"
   ,
     rwTerminationCheck
     = def
@@ -730,12 +716,8 @@ defConfig = Config
   , nopolyinfer              = False
   , compileSpec              = False
   , noCheckImports           = False
-  , typedHoles               = False
   , typeclass                = False
   , auxInline                = False
-  , maxMatchDepth            = 4
-  , maxAppDepth              = 2
-  , maxArgsDepth             = 1
   , rwTerminationCheck       = False
   , skipModule               = False
   , noLazyPLE                = False

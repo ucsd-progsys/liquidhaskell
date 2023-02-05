@@ -49,7 +49,6 @@ import           Language.Haskell.Liquid.Constraint.Monad
 import           Language.Haskell.Liquid.Constraint.Split
 import           Language.Haskell.Liquid.Constraint.Relational (consAssmRel, consRelTop)
 import           Language.Haskell.Liquid.Types.Dictionaries
-import           Liquid.GHC.Play          (isHoleVar)
 import qualified Liquid.GHC.Resugar           as Rs
 import qualified Liquid.GHC.SpanStack         as Sp
 import qualified Liquid.GHC.Misc         as GM -- ( isInternal, collectArguments, tickSrcSpan, showPpr )
@@ -423,10 +422,6 @@ consCB _ _ γ (NonRec x _) | isDictionary x
     where
        isDictionary = isJust . dlookup (denv γ)
 
-
-consCB _ _ γ (NonRec x _ ) | isHoleVar x && typedHoles (getConfig γ)
-  = return γ
-
 consCB _ _ γ (NonRec x def)
   | Just (w, τ) <- grepDictionary def
   , Just d      <- dlookup (denv γ) w
@@ -675,9 +670,6 @@ cconsE' γ (Cast e co) t
 cconsE' γ e@(Cast e' c) t
   = do t' <- castTy γ (exprType e) e' c
        addC (SubC γ (F.notracepp ("Casted Type for " ++ GM.showPpr e ++ "\n init type " ++ showpp t) t') t) ("cconsE Cast: " ++ GM.showPpr e)
-
-cconsE' γ (Var x) t | isHoleVar x && typedHoles (getConfig γ)
-  = addHole x t γ
 
 cconsE' γ e t
   = do  te  <- consE γ e

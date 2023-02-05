@@ -144,9 +144,6 @@ isRecursivenewTyCon c
     go _                  = False
 
 
-isHoleVar :: Var -> Bool
-isHoleVar x = L.isPrefixOf "_" (show x)
-
 dataConImplicitIds :: DataCon -> [Id]
 dataConImplicitIds dc = [ x | AnId x <- dataConImplicitTyThings dc]
 
