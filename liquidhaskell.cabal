@@ -14,48 +14,8 @@ build-type:         Simple
 tested-with:        GHC == 9.2.5
 extra-source-files: CHANGES.md
                     README.md
-                    devel/Paths_liquidhaskell.hs
-                    tests/pos/*.hs
-                    tests/neg/*.hs
-                    tests/import/lib/*.hs
-                    tests/import/client/*.hs
-                    tests/errors/*.hs
-                    tests/pos/*.hquals
-                    tests/ffi-include/foo.c
-                    tests/ffi-include/foo.h
 
--- The legacy executable requires a set of hardcoded specifications
--- provided by the files in the 'include' directory. This
--- directory is now deprecated and you should never edit it, unless you
--- are specifically fixing a bug in the legacy executable.
--- Remove these lines below once we stop supporting the legacy plugin.
-data-files:         include/*.hquals
-                    include/*.hs
-                    include/*.spec
-                    include/CoreToLogic.lg
-                    include/Control/*.spec
-                    include/Control/Parallel/*.spec
-                    include/Data/*.hquals
-                    include/Data/*.spec
-                    include/Data/Text/*.spec
-                    include/Data/Text/Fusion/*.spec
-                    include/Data/Text/Lazy/*.spec
-                    include/Data/ByteString/*.spec
-                    include/Foreign/*.spec
-                    include/Foreign/C/*.spec
-                    include/Foreign/Marshal/*.spec
-                    include/GHC/*.hquals
-                    include/GHC/*.spec
-                    include/GHC/IO/*.spec
-                    include/Language/Haskell/Liquid/*.hs
-                    include/Language/Haskell/Liquid/Synthesize/*.hs
-                    include/Language/Haskell/Liquid/*.pred
-                    include/System/*.spec
-                    include/710/Data/*.spec
-                    include/*.hs
-                    include/Language/Haskell/Liquid/*.hs
-                    include/Language/Haskell/Liquid/*.pred
-
+data-files:         include/CoreToLogic.lg
                     syntax/liquid.css
 
                     -- Needed for the mirror-modules helper
@@ -71,19 +31,10 @@ flag devel
   description: Enable more warnings and fail compilation when warnings occur.
                Turn this flag on in CI.
 
-flag include
-  default:     False
-  description: use in-tree include directory
-
 flag deterministic-profiling
   default:     False
   description: Support building against GHC with <https://phabricator.haskell.org/D4388>
                backported
-
-flag no-plugin
-  default:     False
-  manual:      True
-  description: Use the legacy executable for testing.
 
 flag mirror-modules-helper
   default:     False
@@ -241,25 +192,8 @@ library
   if flag(devel)
     ghc-options:      -Wall -Werror
 
-  if flag(include)
-    hs-source-dirs: devel
-
   if flag(deterministic-profiling)
     cpp-options: -DDETERMINISTIC_PROFILING
-
-  if flag(no-plugin)
-    cpp-options: -DLIQUID_NO_PLUGIN
-
--- This is the (legacy) 'liquid' executable which uses the old GHC Interface.
-executable liquid
-  main-is:            exe/Liquid.hs
-  build-depends:      base >= 4.9.1.0 && < 5, liquidhaskell
-  default-language:   Haskell98
-  default-extensions: PatternGuards
-  ghc-options:        -W -threaded
-
-  if flag(devel)
-    ghc-options:      -Wall -Wno-name-shadowing -Werror
 
 test-suite liquidhaskell-parser
   type:             exitcode-stdio-1.0

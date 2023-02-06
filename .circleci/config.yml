@@ -68,7 +68,7 @@ commands:
             echo 'export PATH=~/.ghcup/bin:$PATH' >> $BASH_ENV
             << parameters.cabal_update_command >>
             cabal v2-clean
-            cabal v2-build --project-file << parameters.project_file >> --flag include --flag devel -j --enable-tests liquid liquidhaskell-parser synthesis liquid-base liquid-prelude liquid-bytestring liquid-containers liquid-ghc-prim liquid-parallel liquid-vector liquid-platform test-driver
+            cabal v2-build --project-file << parameters.project_file >> --flag devel -j --enable-tests liquidhaskell-parser synthesis liquid-base liquid-prelude liquid-bytestring liquid-containers liquid-ghc-prim liquid-parallel liquid-vector liquid-platform test-driver
       - save_cache:
           key: cabal-cache-v3-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
           paths:
@@ -85,8 +85,13 @@ commands:
           command: |
             LIQUID_CABAL_PROJECT_FILE=<<parameters.project_file>> cabal v2-run --project-file << parameters.project_file >> test-driver || (<<parameters.allow_test_failures>>)
             cabal v2-test --project-file << parameters.project_file >> tests:tasty || (<<parameters.allow_test_failures>>)
-            (liquidhaskell_datadir=$PWD cabal v2-test -j1 --project-file << parameters.project_file >> liquidhaskell:liquidhaskell-parser --flag include --flag devel --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml") || (<<parameters.allow_test_failures>>)
+            (liquidhaskell_datadir=$PWD cabal v2-test -j1 --project-file << parameters.project_file >> liquidhaskell:liquidhaskell-parser --flag devel --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml") || (<<parameters.allow_test_failures>>)
           no_output_timeout: 30m
+
+      - run:
+          name: Test building the profiling driver
+          command: |
+            cabal exec -- ghc scripts/ProfilingDriver.hs
 
   stack_build_and_test:
     description: "Build and test the project using Stack"

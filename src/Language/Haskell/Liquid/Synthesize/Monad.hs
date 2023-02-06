@@ -403,8 +403,7 @@ varError = do
 
 toGhcSrc :: TargetSrc -> GhcSrc
 toGhcSrc a = Src
-      { _giIncDir    = giIncDir a
-      , _giTarget    = giTarget a
+      { _giTarget    = giTarget a
       , _giTargetMod = giTargetMod a
       , _giCbs       = giCbs a
       , _gsTcs       = gsTcs a
