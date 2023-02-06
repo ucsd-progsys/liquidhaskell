@@ -19,6 +19,27 @@ packages:
   original:
     hackage: rest-rewrite-0.4.0
 - completed:
+    hackage: smtlib-backends-0.3@sha256:917d88540a9ede7beedbe2ed13b492acddbce394d30ccf5d0ef4f4fba9aa2c12,1157
+    pantry-tree:
+      sha256: 59b578ae7df155a6c73a513358370747e3cc6229ebb44adaba9e0935f811539c
+      size: 275
+  original:
+    hackage: smtlib-backends-0.3
+- completed:
+    hackage: smtlib-backends-process-0.3@sha256:d4d7d02859383e0a43db2d8ce7ef01deffe1bcd356b2ff8626925c3a1c8db922,1600
+    pantry-tree:
+      sha256: d7d8ec52d07f4a59614000fd93d77b109d085d58f2d96e2c4b972f541c4e8287
+      size: 461
+  original:
+    hackage: smtlib-backends-process-0.3
+- completed:
+    hackage: smtlib-backends-z3-0.3@sha256:cca514fa7349a34becb659ff747ec144b7d1902fec2826ff3a51f81388e1eafd,1822
+    pantry-tree:
+      sha256: e7aee82930b082ed4af91b32a80b8b65249441d458e392cbf2b4d47338e62404
+      size: 499
+  original:
+    hackage: smtlib-backends-z3-0.3
+- completed:
     commit: 45ef3498e35897712bde8e002ce18df6d55f8b15
     git: https://github.com/qnikst/ghc-timings-report
     name: ghc-timings
@@ -36,45 +57,6 @@ packages:
       size: 671
   original:
     hackage: strip-ansi-escape-0.1.0.0@sha256:08f2ed93b16086a837ec46eab7ce8d27cf39d47783caaeb818878ea33c2ff75f,1628
-- completed:
-    commit: d309d6cc09298cd575020c791b7affa7e0098f1f
-    git: https://github.com/tweag/smtlib-backends
-    name: smtlib-backends
-    pantry-tree:
-      sha256: a73fe54aaa4fda7359595978928fd951c7d23cefc1bef2c2434de993d28fce3b
-      size: 2761
-    subdir: .
-    version: '0.3'
-  original:
-    commit: d309d6cc09298cd575020c791b7affa7e0098f1f
-    git: https://github.com/tweag/smtlib-backends
-    subdir: .
-- completed:
-    commit: d309d6cc09298cd575020c791b7affa7e0098f1f
-    git: https://github.com/tweag/smtlib-backends
-    name: smtlib-backends-z3
-    pantry-tree:
-      sha256: 4960cfc73b3d3621f8b93aaa1a674e961a4acfde097ec9cde96d83e649ee0ea8
-      size: 512
-    subdir: smtlib-backends-z3
-    version: '0.3'
-  original:
-    commit: d309d6cc09298cd575020c791b7affa7e0098f1f
-    git: https://github.com/tweag/smtlib-backends
-    subdir: smtlib-backends-z3
-- completed:
-    commit: d309d6cc09298cd575020c791b7affa7e0098f1f
-    git: https://github.com/tweag/smtlib-backends
-    name: smtlib-backends-process
-    pantry-tree:
-      sha256: c7661a98f129a1e8d78531353d03a68aa127d53506803b12f0b775e506ba2319
-      size: 528
-    subdir: smtlib-backends-process
-    version: '0.3'
-  original:
-    commit: d309d6cc09298cd575020c791b7affa7e0098f1f
-    git: https://github.com/tweag/smtlib-backends
-    subdir: smtlib-backends-process
 snapshots:
 - completed:
     sha256: b73b2b116143aea728c70e65c3239188998bac5bc3be56465813dacd74215dc5
