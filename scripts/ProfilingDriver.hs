@@ -1,5 +1,4 @@
--- | This programs calls ghc using the provided command line arguments
---
+-- | This program calls ghc using the provided command line arguments.
 -- Use it to profile the liquidhaskell plugin.
 --
 -- Build liquid-platform first with profiling enabled.
