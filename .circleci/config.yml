@@ -88,6 +88,11 @@ commands:
             (liquidhaskell_datadir=$PWD cabal v2-test -j1 --project-file << parameters.project_file >> liquidhaskell:liquidhaskell-parser --flag devel --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml") || (<<parameters.allow_test_failures>>)
           no_output_timeout: 30m
 
+      - run:
+          name: Test building the profiling driver
+          command: |
+            cabal exec -- ghc scripts/ProfilingDriver.hs
+
   stack_build_and_test:
     description: "Build and test the project using Stack"
     parameters:

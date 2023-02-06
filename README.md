@@ -194,33 +194,7 @@ the benchmarks alone.
 
 ## How to Profile
 
-1. Build with profiling on
-
-    ```
-    $ stack build liquidhaskell --fast --profile
-    ```
-
-2. Run with profiling
-
-    ```
-    $ stack exec -- liquid range.hs +RTS -hc -p
-    $ stack exec -- liquid range.hs +RTS -hy -p
-    ```
-
-    Followed by this which shows the stats file
-
-    ```
-    $ more liquid.prof
-    ```
-
-    or by this to see the graph
-
-    ```
-    $ hp2ps -e8in -c liquid.hp
-    $ gv liquid.ps
-    ```
-
-    etc.
+See the instructions in [scripts/ProfilingDriver.hs][]
 
 ## How to Get Stack Traces On Exceptions
 
