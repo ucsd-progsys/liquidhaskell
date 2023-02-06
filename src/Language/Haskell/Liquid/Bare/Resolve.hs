@@ -61,7 +61,6 @@ import qualified Data.HashMap.Strict               as M
 import qualified Data.Text                         as T
 import qualified Text.PrettyPrint.HughesPJ         as PJ
 
-import qualified Language.Fixpoint.Utils.Files         as F
 import qualified Language.Fixpoint.Types               as F
 import qualified Language.Fixpoint.Types.Visitor       as F
 import qualified Language.Fixpoint.Misc                as Misc
@@ -69,7 +68,6 @@ import qualified Liquid.GHC.API       as Ghc
 import qualified Liquid.GHC.Misc      as GM
 import qualified Language.Haskell.Liquid.Misc          as Misc
 import qualified Language.Haskell.Liquid.Types.RefType as RT
-import qualified Language.Haskell.Liquid.Types.Errors  as Errors
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Measure       (BareSpec)
 import           Language.Haskell.Liquid.Types.Specs   hiding (BareSpec)
@@ -648,27 +646,8 @@ lookupTyThing env mdname lsym = [ (k, t) | (k, ts) <- ordMatches, t <- ts]
     msg                    = "lookupTyThing: " ++ F.showpp (lsym, x, mds)
     (x, mds)               = symbolModules env (F.val lsym)
     nameSym                = F.symbol mdname
-    allowExt               = allowExtResolution env lsym
-    mm name m mods         = myTracepp ("matchMod: " ++ F.showpp (lsym, name, m, mods, allowExt)) $
-                               matchMod env name m allowExt mods
-
--- | [NOTE:External-Resolution] @allowExtResolution@ determines whether a @LocSymbol@ 
---   can be resolved by a @TyThing@ that is _outside_ the module corresponding to @LocSymbol@. 
---   We need to allow this, e.g. to resolve names like @Data.Set.Set@ with @Data.Set.Internal.Set@, 
---   but should do so ONLY when the LocSymbol comes from a "hand-written" .spec file or 
---   something from the LH prelude. Other names, e.g. from "machine-generated" .bspec files 
---   should already be FULLY-qualified to to their actual definition (e.g. Data.Set.Internal.Set) 
---   and so we should DISALLOW external-resolution in such cases.
-
-allowExtResolution :: Env -> LocSymbol -> Bool
-allowExtResolution env lx = case fileMb of
-  Nothing   -> True
-  Just f    -> myTracepp ("allowExt: " ++ show (f, tgtFile))
-                 $ f == tgtFile || Misc.isIncludeFile incDir f || F.isExtFile F.Spec f
-  where
-    tgtFile = _giTarget (reSrc env)
-    incDir  = _giIncDir (reSrc env)
-    fileMb  = Errors.srcSpanFileMb (GM.fSrcSpan lx)
+    mm name m mods         = myTracepp ("matchMod: " ++ F.showpp (lsym, name, m, mods)) $
+                               matchMod env name m mods
 
 lookupThings :: Env -> F.Symbol -> [(F.Symbol, Ghc.TyThing)]
 lookupThings env x = myTracepp ("lookupThings: " ++ F.showpp x)
@@ -676,8 +655,8 @@ lookupThings env x = myTracepp ("lookupThings: " ++ F.showpp x)
   where
     get z          = M.lookup z (_reTyThings env)
 
-matchMod :: Env -> F.Symbol -> F.Symbol -> Bool -> Maybe [F.Symbol] -> [Int]
-matchMod env tgtName defName allowExt = go
+matchMod :: Env -> F.Symbol -> F.Symbol -> Maybe [F.Symbol] -> [Int]
+matchMod env tgtName defName = go
   where
     go Nothing               -- Score UNQUALIFIED names 
      | defName == tgtName = [0]                       -- prioritize names defined in *this* module 
@@ -688,7 +667,7 @@ matchMod env tgtName defName allowExt = go
      |  isEmptySymbol defName
      && ms == [tgtName]   = [0]                       -- local variable, see tests-names-pos-local00.hs
      | ms == [defName]    = [1]
-     | allowExt && isExt  = [matchImp env defName 2]  -- to allow matching re-exported names e.g. Data.Set.union for Data.Set.Internal.union
+     | isExt              = [matchImp env defName 2]  -- to allow matching re-exported names e.g. Data.Set.union for Data.Set.Internal.union
      | otherwise          = []
      where
        isExt              = any (`isParentModuleOf` defName) ms

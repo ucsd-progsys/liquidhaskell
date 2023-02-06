@@ -44,37 +44,8 @@ The following sections detail more variety for the uses of the above annotations
 
 ## Modules WITHOUT code
 
-The following section is slightly different depending on whether you are using the plugin (which you should!)
-or the legacy executable.
-
-### (Plugin) Adding refinements for external modules
-
 See the [installation](install.md) section, which cointains a link to a walkthrough document that describes how to add
 refinements for external packages (cfr. **"Providing Specifications for Existing Packages"**)
-
-### (Legacy executable) Adding refinements for external modules
-
-When checking a file `target.hs`, you can specify an _include_ directory by
-
-    liquid -i /path/to/include/  target.hs
-
-Now, to write specifications for some **external module** `Foo.Bar.Baz` for which
-you **do not have the code**, you can create a `.spec` file at:
-
-    /path/to/include/Foo/Bar/Baz.spec
-
-See, for example, the contents of:
-
-+ [include/Prelude.spec](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Prelude.spec)
-+ [include/Data/List.spec](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/List.spec)
-+ [include/Data/Vector.spec](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Vector.spec)
-
-**Note**:
-
-+ The above directories are part of the LH prelude, and included by
-  default when running `liquid`.
-+ The `.spec` mechanism is *only for external modules** without code,
-  see below for standalone specifications for **internal** or **home** modules.
 
 ## Modules WITH code: Data
 

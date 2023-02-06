@@ -79,7 +79,6 @@ import Language.Haskell.Liquid.UX.Annotate
 import Language.Haskell.Liquid.UX.Config
 import Language.Haskell.Liquid.UX.SimpleVersion (simpleVersion)
 import Liquid.GHC.Misc
-import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.PrettyPrint ()
 import Language.Haskell.Liquid.Types       hiding (typ)
 import qualified Language.Haskell.Liquid.UX.ACSS as ACSS
@@ -619,11 +618,8 @@ gitMsg gi = concat
 mkOpts :: Config -> IO Config
 mkOpts cfg = do
   let files' = sortNub $ files cfg
-  id0       <- getIncludeDir
   return     $ cfg { files       = files'
                                    -- See NOTE [searchpath]
-                   , idirs       = [id0 </> gHC_VERSION, id0]
-                                ++ idirs cfg
                    }
 
 --------------------------------------------------------------------------------

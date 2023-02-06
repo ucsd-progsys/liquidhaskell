@@ -138,9 +138,7 @@ realTargets :: Maybe HscEnv -> Config -> [FilePath] -> IO [FilePath]
 realTargets  mbEnv cfg tgtFs
   | noCheckImports cfg = return tgtFs
   | otherwise          = do
-    incDir   <- Misc.getIncludeDir
-    allFs    <- orderTargets mbEnv cfg tgtFs
-    let srcFs = filter (not . Misc.isIncludeFile incDir) allFs
+    srcFs    <- orderTargets mbEnv cfg tgtFs
     realFs   <- filterM check srcFs
     dir      <- getCurrentDirectory
     return      (makeRelative dir <$> realFs)
@@ -586,7 +584,6 @@ makeGhcSrc cfg file typechecked modSum = do
   availableTcs      <- availableTyCons hscEnv modSum (fst $ tm_internals_ typechecked) (mg_exports modGuts')
 
   let impVars        = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)
-  incDir            <- liftIO Misc.getIncludeDir
 
   --liftIO $ do
   --  print $ "_gsTcs   => " ++ show (nub $ (mgi_tcs      modGuts) ++ availableTcs)
@@ -596,8 +593,7 @@ makeGhcSrc cfg file typechecked modSum = do
   --  print $ "defVars  => " ++ show (dataCons ++ (letVars coreBinds))
 
   return $ Src
-    { _giIncDir    = incDir
-    , _giTarget    = file
+    { _giTarget    = file
     , _giTargetMod = ModName Target (moduleName (ms_mod modSum))
     , _giCbs       = coreBinds
     , _giImpVars   = impVars

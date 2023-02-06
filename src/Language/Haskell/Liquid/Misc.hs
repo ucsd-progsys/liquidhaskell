@@ -159,16 +159,6 @@ unzip4 = go [] [] [] []
         go a1 a2 a3 a4 [] = (reverse  a1, reverse a2, reverse a3, reverse a4)
 
 
-isIncludeFile :: FilePath -> FilePath -> Bool
-isIncludeFile incDir src = -- do 
-  -- incDir <- getIncludeDir 
-  -- return 
-  incDir `L.isPrefixOf` src
-
-getIncludeDir :: IO FilePath
-getIncludeDir = dropFileName <$> getDataFileName ("include" </> "Prelude.spec")
-{-# DEPRECATED getIncludeDir "getIncludeDir is deprecated. The hardcoded include folder will be removed in the future." #-}
-
 getCssPath :: IO FilePath
 getCssPath         = getDataFileName $ "syntax" </> "liquid.css"
 
@@ -184,8 +174,7 @@ getCoreToLogicPath = do
     if exists then
       return atExe
     else
-      fmap (</> fileName) getIncludeDir
-
+      getDataFileName ("include" </> fileName)
 
 {-@ type ListN a N = {v:[a] | len v = N} @-}
 {-@ type ListL a L = ListN a (len L) @-}

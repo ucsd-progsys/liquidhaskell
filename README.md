@@ -21,8 +21,7 @@ to let us know. If possible, try to:
 * State as clearly as possible what is the problem you are facing;
 * Provide a small Haskell file producing the issue;
 * Write down the expected behaviour vs the actual behaviour;
-* If possible, let us know if you have used the [plugin](install.md) or the [executable](legacy.md) and
-  which _GHC version_ you are using.
+* Please, let us know which liquidhaskell version you are using.
 
 ## Your first Pull Request
 
@@ -195,33 +194,7 @@ the benchmarks alone.
 
 ## How to Profile
 
-1. Build with profiling on
-
-    ```
-    $ stack build liquidhaskell --fast --profile
-    ```
-
-2. Run with profiling
-
-    ```
-    $ stack exec -- liquid range.hs +RTS -hc -p
-    $ stack exec -- liquid range.hs +RTS -hy -p
-    ```
-
-    Followed by this which shows the stats file
-
-    ```
-    $ more liquid.prof
-    ```
-
-    or by this to see the graph
-
-    ```
-    $ hp2ps -e8in -c liquid.hp
-    $ gv liquid.ps
-    ```
-
-    etc.
+See the instructions in [scripts/ProfilingDriver.hs][]
 
 ## How to Get Stack Traces On Exceptions
 
@@ -356,8 +329,7 @@ the code provided as part of the `release/0.8.10.2` branch, commit `9a2f8284c5fe
 The module [GHC.Plugin][] is the main entrypoint for all the plugin functionalities. Whenever possible, this
 module is reusing common functionalities from the [GHC.Interface][], which is the original module used to
 interface LH with the old executable. Generally speaking, the [GHC.Interface][] module is considered "legacy"
-and it's rarely what one wants to modify. It will probably be removed once the old executable stops being
-supported, with the functions now in use by the [GHC.Plugin][] being moved into the latter.
+and it's rarely what one wants to modify. It will probably be removed at some point.
 
 ## The GhcMonadLike shim
 
