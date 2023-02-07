@@ -12,10 +12,13 @@ you could curl up with:
 
 ### Haskell
 
+- [REST: Integrating Term Rewriting with Program Verification, ECOOP 2022](https://drops.dagstuhl.de/opus/volltexte/2022/16210/)
+- [Refinement Reflection: Complete Verification with SMT, POPL 2018](https://ranjitjhala.github.io/static/refinement_reflection.pdf)
+- [Local Refinement Typing, ICFP 2017](https://ranjitjhala.github.io/static/local_refinement_typing.pdf)
+- [Bounded Refinement Types, ICFP 2015](http://goto.ucsd.edu/~nvazou/icfp15/main.pdf)
 - [Refinement Types For Haskell, ICFP 2014](http://goto.ucsd.edu/~rjhala/papers/refinement_types_for_haskell.pdf)
 - [LiquidHaskell in the Real World, Haskell 2014](http://goto.ucsd.edu/~rjhala/papers/real_world_liquid.pdf)
 - [Abstract Refinement Types, ESOP 2013](http://goto.ucsd.edu/~rjhala/papers/abstract_refinement_types.pdf)
-
 
 ### ML
 
@@ -33,10 +36,20 @@ you could curl up with:
 
 ## Talks
 
+- [Resource Analysis with Refinement Types, YOW! Lambda Jam 2021](https://skillsmatter.com/skillscasts/16729-resource-analysis-with-refinement-types)
+- [Liquid Haskell: Theorem Proving for All, Haskell Exchange 2018](https://skillsmatter.com/skillscasts/11068-keynote-looking-forward-to-niki-vazou-s-keynote-at-haskellx-2018)
+- [Scrap your Bounds Checks with Liquid Haskell, Haskell Exchange 2017](https://skillsmatter.com/skillscasts/10690-keynote-scrap-your-bounds-checks-with-liquid-haskell) [(slides)](https://github.com/Gabriella439/slides/blob/main/liquidhaskell/slides.md)
+
 The following talks are good tutorial introductions to the techniques.
 
 - [Tutorial at VMCAI](http://goto.ucsd.edu/~rjhala/talks/liquid_types_VMCAI.pptx)
 - [Tutorial at CAV](http://goto.ucsd.edu/~rjhala/talks/liquid_types_CAV2011.pptx)
+
+## Other articles
+
+- [A Dialog with Liquid Haskell, Tweag blog 2022](https://www.tweag.io/blog/2022-07-21-lh-introspection/)
+- [Why Liquid Haskell Matters, Tweag blog 2022](https://www.tweag.io/blog/2022-01-19-why-liquid-haskell/)
+- [Compile-time memory safety using Liquid Haskell, Haskell for all blog 2015](https://www.haskellforall.com/2015/12/compile-time-memory-safety-using-liquid.html)
 
 ## People
 
