@@ -14,7 +14,8 @@ import           Language.Haskell.Liquid.Types
 import           Data.Default
 import           Data.Maybe                     ( fromMaybe )
 import           Liquid.GHC.TypeRep
-import           Liquid.GHC.API as GHC
+import           Liquid.GHC.API                as GHC
+
 import           Language.Fixpoint.Types
 import qualified Data.HashMap.Strict           as M
 
@@ -197,11 +198,11 @@ handleVar v
   | isTyConName     name = "{- TyConName -}"
   | isTyVarName     name = "{- TyVar -}"
   | isSystemName    name = show name
-                           -- ++ "{- SysName -}"
+--                           ++ "{- SysName -}"
   | isWiredInName   name = getLocalName name
-                           -- ++ "{- WiredInName -}"
+--                           ++ "{- WiredInName -}"
   | isInternalName  name = getOccString name
-                           -- ++ "{- Internal -}"
+--                           ++ "{- Internal -}"
   | isExternalName  name = getOccString name
 --                           ++ "{- external name -}"
   | otherwise            = "{- Not properly handled -}"
@@ -268,11 +269,18 @@ pprintBody _ _ (Let (Rec {}) _) = "{- let rec -}"
 pprintBody _ _ e
   = error (" Not yet implemented for e = " ++ show e)
 
+{-
+data Alt Var = Alt AltCon [Var] (Expr Var)
+
+data AltCon = DataAlt DataCon
+            | LitAlt  Literal
+            | DEFAULT
+-}
 pprintAlts :: [Var] -> Int -> Alt Var -> String
 pprintAlts vars i (DataAlt dataCon, vs, e)
   = "\n" ++ indent i
-  ++ show dataCon
-  ++ concatMap (\v -> " " ++ show v) vs
+  ++ getOccString (getName dataCon)
+  ++ concatMap (\v -> " " ++ handleVar v) vs
   ++ " -> " ++ pprintBody vars (i+caseIndent) e
 pprintAlts _ _ _ =
   error " Pretty printing for pattern match on datatypes. "

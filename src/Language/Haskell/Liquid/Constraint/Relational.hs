@@ -10,7 +10,8 @@
 -- | This module defines the representation of Subtyping and WF Constraints,
 --   and the code for syntax-directed constraint generation.
 
-module Language.Haskell.Liquid.Constraint.Relational (consAssmRel, consRelTop) where
+module Language.Haskell.Liquid.Constraint.Relational (consAssmRel
+                                                     , consRelTop) where
 
 
 #if !MIN_VERSION_base(4,14,0)
@@ -84,19 +85,21 @@ type RelEnv = [RelPred]
 type UnaryChecking = CGEnv -> CoreExpr -> SpecType -> CG ()
 type UnarySynthesis = CGEnv -> CoreExpr -> CG SpecType
 data UnaryTyping = UnaryTyping { chk :: UnaryChecking
-                               , syn :: UnarySynthesis
-                               }
+                               , syn :: UnarySynthesis }
 
 consAssmRel :: Config -> TargetInfo -> (RelEnv, CGEnv) -> (Var, Var, LocSpecType, LocSpecType, RelExpr, RelExpr) -> CG (RelEnv, CGEnv)
-consAssmRel _ _ (ψ, γ) (x, y, t, s, ra, rp) = traceChk "Assm" x y t s p $ do
-  traceWhenLoud ("ASSUME " ++ F.showpp (fromRelExpr p', p)) $ subUnarySig γ' x t'
+consAssmRel _ _ (ψ, γ) (x, y, t, s, ra, rp) =
+  traceChk "Assm" x y t s p $ do
+  traceWhenLoud ("ASSUME " ++ F.showpp (fromRelExpr p', p)) $
+    subUnarySig γ' x t'
   _ <- wf t' s' ra rp
   subUnarySig γ' y s'
   γ'' <- if isBasicType t' && isBasicType s'
-    then γ' `addPred` F.subst
-      (F.mkSubst [(resL, F.EVar $ F.symbol x), (resR, F.EVar $ F.symbol y)])
-      (fromRelExpr rp)
-    else return γ'
+         then γ' `addPred` F.subst
+              (F.mkSubst [(resL, F.EVar $ F.symbol x),
+                          (resR, F.EVar $ F.symbol y)])
+              (fromRelExpr rp)
+         else return γ'
   return (RelPred x' y' bs cs rp : ψ, γ'')
  where
     p = fromRelExpr rp
@@ -111,7 +114,8 @@ consAssmRel _ _ (ψ, γ) (x, y, t, s, ra, rp) = traceChk "Assm" x y t s p $ do
     p' = L.foldl (\q (v, u) -> unapplyRelArgsR v u q) rp (zip vs us)
 
 consRelTop :: Config -> TargetInfo -> UnaryChecking -> UnarySynthesis -> CGEnv -> RelEnv -> (Var, Var, LocSpecType, LocSpecType, RelExpr, RelExpr) -> CG ()
-consRelTop cfg ti chk _ γ ψ (x, y, t, s, ra, rp) = traceChk "Init" e d t s p $ do
+consRelTop cfg ti chk _ γ ψ (x, y, t, s, ra, rp) =
+  traceChk "Init" e d t s p $ do
   _ <- wf t' s' ra rp
   subUnarySig γ' x t'
   subUnarySig γ' y s'
@@ -119,8 +123,9 @@ consRelTop cfg ti chk _ γ ψ (x, y, t, s, ra, rp) = traceChk "Init" e d t s p $
   modify $ \cgi -> if relationalHints cfg
     then cgi
       { relHints =
-        relHint (relSigToUnSig (toExpr x) (toExpr y) t' s' rp) hintName
-         (relTermToUnTerm x y hintName (toCoreExpr e) (toCoreExpr d))
+        relHint (relSigToUnSig (toExpr x) (toExpr y) t' s' rp)
+        hintName (relTermToUnTerm x y
+                  hintName (toCoreExpr e) (toCoreExpr d))
         $+$ relHints cgi
       }
     else cgi
@@ -348,7 +353,10 @@ mkLambdaUnit (Ghc.FunTy Ghc.InvisArg _ _ t1) (Ghc.FunTy Ghc.InvisArg _ _ t2) = m
 mkLambdaUnit (Ghc.FunTy Ghc.VisArg _ _ t1) (Ghc.FunTy Ghc.VisArg _ _ t2) = Lam (GM.stringVar "_" Ghc.unitTy) $ Lam (GM.stringVar "_" Ghc.unitTy) $ mkLambdaUnit t1 t2
 mkLambdaUnit t1@Ghc.FunTy{} t2 = F.panic $ "relTermToUnTerm: asked to relate unmatching types " ++ F.showpp t1 ++ " " ++ F.showpp t2
 mkLambdaUnit t1 t2@Ghc.FunTy{} = F.panic $ "relTermToUnTerm: asked to relate unmatching types " ++ F.showpp t1 ++ " " ++ F.showpp t2
+-- mkLambdaUnit (Ghc.AppTy l1 l2) (Ghc.AppTy r1 r2) = App 
 mkLambdaUnit _ _ = Ghc.unitExpr
+--  Ghc.App
+--  Ghc.setVarName v $ Ghc.mkSystemName (Ghc.getUnique v) (Ghc.mkVarOcc s)
 
 --------------------------------------------------------------
 -- Core Checking Rules ---------------------------------------
@@ -1161,7 +1169,8 @@ lookupBind x bs = case lookup x (concatMap binds bs) of
 
 subUnarySig :: CGEnv -> Var -> SpecType -> CG ()
 subUnarySig γ x tRel =
-  forM_ mkargs $ \(rt, ut) -> addC (SubC γ ut rt) $ "subUnarySig tUn = " ++ F.showpp ut ++ " tRel = " ++ F.showpp rt
+  forM_ mkargs $ \(rt, ut) -> addC (SubC γ ut rt) $
+  "subUnarySig tUn = " ++ F.showpp ut ++ " tRel = " ++ F.showpp rt
   where
     mkargs = zip (snd $ vargs tRel) (snd $ vargs tUn)
     tUn = symbolType γ x $ "subUnarySig " ++ F.showpp x
