@@ -107,28 +107,26 @@ For documentation on the `test-driver` executable itself, please refer to the
 `README.md` in `tests/` or run `cabal run tests:test-driver -- --help` or `stack
 run test-driver -- --help`
 
-_For a way of running the test suite for multiple GHC versions, consult the General Development FAQs. below_
-
 There are particular scripts for running LH in the different modes, e.g. for different 
 compiler versions. These scripts are in:
 
     $ ./scripts/test
 
-So you can run *all* the tests for say the ghc-8.10 version by
+So you can run *all* the tests by
 
-    $ ./scripts/test/test_810_plugin.sh
+    $ ./scripts/test/test_plugin.sh
 
 You can run a bunch of particular test-groups instead by
 
-    $ LIQUID_DEV_MODE=true ./scripts/test/test_810_plugin.sh <test-group-name1> <test-group-name2> ...
+    $ LIQUID_DEV_MODE=true ./scripts/test/test_plugin.sh <test-group-name1> <test-group-name2> ...
 
 and you can list all the possible test options with 
 
-    $ LIQUID_DEV_MODE=true ./scripts/test/test_810_plugin.sh --help
+    $ LIQUID_DEV_MODE=true ./scripts/test/test_plugin.sh --help
 
 or get a list of just the test groups, one per line, with
 
-    $ LIQUID_DEV_MODE=true ./scripts/test/test_810_plugin.sh --show-all
+    $ LIQUID_DEV_MODE=true ./scripts/test/test_plugin.sh --show-all
 
 To pass in specific parameters and run a subset of the tests, you can invoke cabal directly with
 
@@ -154,7 +152,7 @@ For details on adding tests, see note [Parallel_Tests] in `tests/test.hs`.
 
 When `liquidhaskell` tests run, we can collect timing information with
 
-    $ ./scripts/test/test_810_plugin.sh --measure-timings
+    $ ./scripts/test/test_plugin.sh --measure-timings
 
 Measures will be collected in `.dump-timings` files. These can be converted to json
 data with
@@ -183,7 +181,7 @@ current directory.
 The current formatting is optimized for comparing the outputs of running
 the benchmarks alone.
 
-    $ scripts/test/test_810_plugin.sh \
+    $ scripts/test/test_plugin.sh \
         benchmark-stitch-lh \
         benchmark-bytestring \
         benchmark-vector-algorithms \
@@ -192,75 +190,14 @@ the benchmarks alone.
         benchmark-icfp15-pos \
         benchmark-icfp15-neg
 
-## How to Profile
+## Miscelaneous tasks
 
-See the instructions in [scripts/ProfilingDriver.hs][]
+* **Profiling** See the instructions in [scripts/ProfilingDriver.hs][].
+* **Getting stack traces on exceptions** See `-xc` flag in the [GHC user's guide][ghc-users-guide].
+* **Working with submodules** See `man gitsubmodules` or the [git documentation site][git-documentation].
 
-## How to Get Stack Traces On Exceptions
-
-1. Build with profiling on
-
-    ```
-    $ stack build liquidhaskell --fast --profile
-    ```
-
-2. Run with backtraces
-
-    ```
-    $ liquid +RTS -xc -RTS foo.hs
-    ```
-
-    ```
-    stack exec -- liquid List00.hs +RTS -p -xc -RTS
-    ```
-
-## Working With Submodules
-
-To update the `liquid-fixpoint` submodule, run:
-
-```
-cd ./liquid-fixpoint
-git fetch --all
-git checkout <remote>/<branch>
-cd ..
-```
-
-This will update `liquid-fixpoint` to the latest version on `<branch>` (usually `master`) 
-from `<remote>` (usually `origin`). After updating `liquid-fixpoint`, make sure to include this change in a
-commit! Running:
-
-```
-git add ./liquid-fixpoint
-```
-
-will save the current commit hash of `liquid-fixpoint` in your next commit to the `liquidhaskell` repository.
-For the best experience, **don't** make changes directly to the `./liquid-fixpoint` submodule, or else git
-may get confused. Do any `liquid-fixpoint` development inside a separate clone/copy elsewhere. If something
-goes wrong, run:
-
-```
-rm -r ./liquid-fixpoint
-git submodule update --init
-```
-
-to blow away your copy of the `liquid-fixpoint` submodule and revert to the last saved commit hash.
-
-Want to work fully offline? `git` lets you add a local directory as a remote. Run:
-
-```
-cd ./liquid-fixpoint
-git remote add local /path/to/your/fixpoint/clone
-cd ..
-```
-
-Then to update the submodule from your local clone, you can run:
-
-```
-cd ./liquid-fixpoint
-git fetch local
-git checkout local/<branch>
-cd ..
-```
+[ghc-users-guide]: https://downloads.haskell.org/ghc/latest/docs/users_guide/
+[git-documentation]: https://git-scm.com/doc
 
 ## Releasing on Hackage
 
@@ -418,18 +355,18 @@ action by looking at the pattern synonym for [FunTy][].
 
 Yes. The easiest way is to run one of the scripts inside the `scripts/test` directory. We provide scripts
 to run the testsuite for a variety of GHC versions, mostly using `stack` but also with `cabal` (e.g.
-`test_810_plugin.sh`). If run without arguments, the script will run the _full_ testsuite. If an argument
+`test_plugin.sh`). If run without arguments, the script will run the _full_ testsuite. If an argument
 is given, only a particular pattern/test will be run. Running
 
 ```
-./scripts/test/test_810_plugin.sh BST
+./scripts/test/test_plugin.sh BST
 ```
 
 will run all the tests which name matches "BST". In case the "fast recompilation" is desired, it's totally
 possibly to pass `LIQUID_DEV_MODE` to the script, for example:
 
 ```
-LIQUID_DEV_MODE=true ./scripts/test/test_810_plugin.sh
+LIQUID_DEV_MODE=true ./scripts/test/test_plugin.sh
 ```
 
 [GHC.API]: https://github.com/ucsd-progsys/liquidhaskell/blob/develop/src/Language/Haskell/Liquid/GHC/API.hs
