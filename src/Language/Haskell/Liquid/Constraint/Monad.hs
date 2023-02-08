@@ -10,13 +10,12 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.Text           as T
 
 import           Control.Monad
-import           Control.Monad.State (get, gets, modify)
+import           Control.Monad.State (gets, modify)
 import           Language.Haskell.Liquid.Types hiding (loc)
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Fixpoint.Misc hiding (errorstar)
 import           Liquid.GHC.Misc -- (concatMapM)
-import           Liquid.GHC.SpanStack (srcSpan)
 import           Liquid.GHC.API as Ghc hiding (panic, showPpr)
 
 --------------------------------------------------------------------------------
@@ -86,21 +85,6 @@ boundRecVar l (AI m) = not $ null [t | (_, AnnRDf t) <- M.lookupDefault [] l m]
 addLocA :: Maybe Var -> SrcSpan -> Annot SpecType -> CG ()
 addLocA !xo !l !t
   = modify $ \s -> s { annotMap = addA l xo t $ annotMap s }
-
-
--- | Used for annotating holes 
-
-addHole :: Var -> SpecType -> CGEnv -> CG ()
-addHole x t γ
-  | typedHoles (getConfig γ) =
-      do  st <- get
-          modify $ \s -> s {holesMap = M.insert x (hinfo (st, γ)) $ holesMap s}
-          -- addWarning $ ErrHole loc ("hole found") (reGlobal env <> reLocal env) x' t 
-  | otherwise = return ()
-    where
-      hinfo = HoleInfo t loc env
-      loc   = srcSpan $ cgLoc γ
-      env   = mconcat [renv γ, grtys γ, assms γ, intys γ]
 
 --------------------------------------------------------------------------------
 -- | Update annotations for a location, due to (ghost) predicate applications

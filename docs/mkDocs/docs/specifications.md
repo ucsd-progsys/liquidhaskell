@@ -916,57 +916,6 @@ you can write
 {-@ lazy foo @-}
 ```
 
-# Synthesis
-
-**Status:** `experimental`
-
-LH has some very preliminary support for program synthesis.
-
-### How to use it
-
-Activate the flag for typed holes in LiquidHaskell. E.g.
-from command line: 
-
-    liquid --typedholes
-
-In a Haskell source file: 
-
-    {-@ LIQUID --typed-holes @-}
-
-Using the flag for typed holes, two more flags can be used:
-
-- **max-match-depth**: Maximum number of pattern match expressions used during synthesis (default value: 4).
-
-- **max-app-depth**: Maximum number of same function applications used during synthesis (default value: 2).
-
-Having the program specified in a Haskell source file, use 
-GHC' s hole variables, e.g.:
-
-```haskell
-{-@ myMap :: (a -> b) -> xs:[a] -> {v:[b] | len v == len xs} @-}
-myMap :: (a -> b) -> [a] -> [b]
-myMap = _goal
-```
-
-## Limitations
-
-This is an experimental feature, so potential users could only 
-expect to synthesize programs, like [these](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/synthesis).
-
-Current limitations include:
-
-- No boolean conditionals are synthesized.
-- Holes can only appear at top level, e.g.: 
-
-        {-@ f :: x: [a] -> { v: [a] | v == x } @-}
-        f :: [a] -> [a]
-        -- This works
-        f = _hole
-        -- This does not work
-        f x = _hole
-
-- Only one hole can appear in each module.
-
 # Relational Types
 
 **Status:** `experimental`

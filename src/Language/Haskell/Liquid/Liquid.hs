@@ -32,7 +32,6 @@ import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Solver
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types
-import           Language.Haskell.Liquid.Synthesize (synthesize)
 import           Language.Haskell.Liquid.UX.Errors
 import           Language.Haskell.Liquid.UX.CmdLine
 import           Language.Haskell.Liquid.UX.Tidy
@@ -253,10 +252,7 @@ solveCs cfg tgt cgi info names = do
                                  `addErrors` makeFailErrors (S.toList failBs) rf 
                                  `addErrors` makeFailUseErrors (S.toList failBs) (giCbs $ giSrc info)
   let lErrors       = applySolution sol <$> logErrors cgi
-  hErrors          <- if typedHoles cfg 
-                        then synthesize tgt fcfg (cgi{holesMap = applySolution sol <$> holesMap  cgi}) 
-                        else return [] 
-  let resModel      = resModel' `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors)) 
+  let resModel      = resModel' `addErrors` (e2u cfg sol <$> lErrors)
   let out0          = mkOutput cfg resModel sol (annotMap cgi)
   return            $ out0 { o_vars    = names    }
                            { o_result  = resModel }
