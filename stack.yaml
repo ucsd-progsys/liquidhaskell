@@ -26,6 +26,8 @@ packages:
 extra-deps:
 - hashable-1.3.5.0
 - rest-rewrite-0.4.0
+- smtlib-backends-0.3
+- smtlib-backends-process-0.3
 - git: https://github.com/qnikst/ghc-timings-report
   commit: 45ef3498e35897712bde8e002ce18df6d55f8b15
 # for tests
