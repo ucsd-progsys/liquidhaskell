@@ -369,13 +369,14 @@ relTermToUnTerm' i relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
       ))
     as1
     where (x1l, x2r) = mkRelCopies x1 x2
+  
 relTermToUnTerm' i _ e1 e2 =
   traceWhenLoud
   ("relTermToUnTerm': can't proceed proof generation on e1:\n"
    ++ F.showpp e1
    ++ "\ne2:\n"
-   ++ F.showpp e2) mkLambdaUnit i (Ghc.exprType e1) (Ghc.exprType e2)
-      
+   ++ F.showpp e2)
+  mkLambdaUnit i (Ghc.exprType e1) (Ghc.exprType e2)
 
 
 mkLambdaUnit :: Int -> Type -> Type -> CoreExpr
@@ -413,20 +414,20 @@ mkLambdaUnit _ t1 t2@Ghc.FunTy{} =
 -- mkLambdaUnit i (Ghc.TyVarTy var1) (Ghc.TyVarTy var2) =
 --   buildConsApp i var1 var2
 
-mkLambdaUnit i (TyConApp {}) (TyConApp {}) =
-  buildConsApp (i+2) (unit i) (unit (i + 1))
+mkLambdaUnit _ (TyConApp {}) (TyConApp {}) = Ghc.unitExpr
+--  buildConsApp (i+2) (unit i) (unit (i + 1))
 
 mkLambdaUnit _ _ _ = Ghc.unitExpr
 
-unit :: Int -> Var
-unit i = GM.mkLocVar (i) "()" Ghc.unitTy
+-- unit :: Int -> Var
+-- unit i = GM.mkLocVar (i) "()" Ghc.unitTy
 
-buildConsApp :: Int -> Var -> Var -> CoreExpr
-buildConsApp i v1 v2 =
-  App genConst $ App Ghc.unitExpr $
-  App genConst (App (Var v1) (Var v2))
-  where
-    genConst = Var $ GM.mkLocVar (i) "const" Ghc.unitTy
+-- buildConsApp :: Int -> Var -> Var -> CoreExpr
+-- buildConsApp i v1 v2 =
+--   App genConst $ App Ghc.unitExpr $
+--   App genConst (App (Var v1) (Var v2))
+--   where
+--     genConst = Var $ GM.mkLocVar (i) "const" Ghc.unitTy
 
 --------------------------------------------------------------
 -- Core Checking Rules ---------------------------------------
