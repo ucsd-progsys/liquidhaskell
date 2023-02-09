@@ -285,21 +285,6 @@ pprintAlts vars i (DataAlt dataCon, vs, e)
 pprintAlts _ _ _ =
   error " Pretty printing for pattern match on datatypes. "
 
--- TODO Remove variables generated for type class constraints
-countTcConstraints :: SpecType -> Int
-countTcConstraints t =
-  let ws = words (show t)
-      countCommas :: [String] -> Int
-      countCommas []     = 0
-      countCommas (x:xs) =
-        case find (== ',') x of
-          Nothing -> countCommas xs
-          Just _  -> 1 + countCommas xs
-
-  in  case find (== "=>") ws of
-        Nothing -> 0
-        Just _  -> 1 + countCommas (takeWhile (/= "=>") ws)
-
 
 
 -----------------------------------------------------------------------------------
