@@ -10,6 +10,7 @@ module Language.Haskell.Liquid.Synthesize.GHC where
 import qualified Language.Fixpoint.Types       as F
 import           Language.Haskell.Liquid.Types
 
+
 import           Data.Default
 import           Data.Maybe                     ( fromMaybe )
 import           Liquid.GHC.TypeRep
@@ -80,29 +81,45 @@ fromAnf e = fst $ fromAnf' e []
 -- | Replace let bindings in applications.
 --   > If you find a binding add it to the second argument.
 --                    | (lhs, rhs)      |
-fromAnf' :: CoreExpr -> [(Var, CoreExpr)] -> (CoreExpr, [(Var, CoreExpr)])
+fromAnf'
+  :: CoreExpr -> [(Var, CoreExpr)] -> (CoreExpr, [(Var, CoreExpr)])
 fromAnf' (Lam b e) bnds
   = let (e', bnds') = fromAnf' e bnds
     in  (Lam b e', bnds')
-fromAnf' (Let bnd e) bnds
-  = case bnd of Rec {}       -> error " By construction, no recursive bindings in let expression. "
-                NonRec rb lb -> let (lb', bnds') = fromAnf' lb bnds
-                                in  fromAnf' e ((rb, lb') : bnds')
+  
+fromAnf' (Let (NonRec rb lb) e) bnds
+  | elem '#' (show rb) = let (lb', bnds') = fromAnf' lb bnds
+                         in  fromAnf' e ((rb, lb') : bnds')
+
+  | otherwise = (Let (NonRec rb lb') e', binds'')
+  where
+    (lb', bnds') = fromAnf' lb bnds
+    (e', binds'') = fromAnf' e ((rb, lb') : bnds')
+
+fromAnf' (Let (Rec {}) _) _ =
+  error " By construction, no recursive bindings in let expression. "
+
 fromAnf' (Var var) bnds
   = (fromMaybe (Var var) (lookup var bnds), bnds)
+
 fromAnf' (Case scr bnd tp alts) bnds
-  = (Case scr bnd tp (map (\(altc, xs, e) -> (altc, xs, fst $ fromAnf' e bnds)) alts), bnds)
+  = (Case scr bnd tp (
+        map (\(altc, xs, e) -> (altc, xs, fst $ fromAnf' e bnds))
+          alts), bnds)
+
 fromAnf' (App e1 e2) bnds
   = let (e1', bnds')  = fromAnf' e1 bnds
         (e2', bnds'') = fromAnf' e2 bnds'
     in  (App e1' e2', bnds'')
-fromAnf' t@Type{} bnds
-  = (t, bnds)
-fromAnf' l@Lit{} bnds
-  = (l, bnds)
+
+fromAnf' t@Type{} bnds = (t, bnds)
+
+fromAnf' l@Lit{} bnds = (l, bnds)
+
 fromAnf' (Tick _ e) bnds = fromAnf' e bnds
-fromAnf' e _
-  = error $ "fromAnf: unsupported core expression " ++ F.showpp e
+
+fromAnf' e _ = error $ "fromAnf: unsupported core expression "
+               ++ F.showpp e
 
 -- | Function used for pretty printing core as Haskell source.
 --   Input does not contain let bindings.
@@ -112,7 +129,7 @@ coreToHs _ v e = pprintSymbols (handleVar v
                                 ++ pprintFormals caseIndent e [])
 
 caseIndent :: Int
-caseIndent = 4
+caseIndent = 2
 
 indent :: Int -> String
 indent i = replicate i ' '
@@ -136,18 +153,6 @@ pprintSym symbols s
         prefix = takeWhile (== ' ') s
         suffix = dropWhile (== ' ') s
 
-maintainLParen :: [String] -> String
-maintainLParen ts
-  = if length ts > 1 && head (head ts) == '('
-      then  "("
-      else  ""
-
-maintainRParen :: [String] -> String
-maintainRParen ts
-  = if last (last ts) == '('
-      then  ")"
-      else  ""
-
 pprintFormals :: Int -> CoreExpr -> [Var] -> String
 pprintFormals i e vs = handleLam "= " i e vs
 
@@ -161,18 +166,57 @@ handleLam char i (Lam v e) vs
   | otherwise   = handleVar v ++ " " ++ handleLam char i e vs
 handleLam char i e vs = char ++ pprintBody vs i e
 
+----------------------------------------------------------------------
+{- Helper functions for print body -}
+
+-- handleWiredIn :: Name -> String
+-- handleWiredIn w
+--   | getLocaln w == "I#" = "{- " ++ show w ++ " -}"
+--   {-
+--     Excluding GHC.Types also excludes Boolean values,
+--     "GHC.Type.True" on RConstantTimeComparison for
+--     example.
+-- 
+--     getModule w == "GHC.Types" = "{- " ++ show w ++ " -}"
+--   -}
+--   | otherwise                  = getLocaln w
+--   where
+--     -- getModule :: Name -> String
+--     -- getModule n = moduleNameString (moduleName $ nameModule n)
+
+{- If a specific function is built-in into haskell it will still
+contain a module. To remove it and print it properly we localise
+the name first. -}
+getLocalName :: Name -> String
+getLocalName n = getOccString (localiseName n)
+
+{- Handle the multiple types of variables one might encounter
+in Haskell. -}
 handleVar :: Var -> String
 handleVar v
-  | isTyConName     var_name = "{- TyConName -}"
-  | isTyVarName     var_name = "{- TyVar -}"
-  | isSystemName    var_name = show var_name
-  | isWiredInName   var_name = getOccString (localiseName var_name)
-  | isInternalName  var_name = getOccString var_name
-  | otherwise                = "{- Not properly handled -}"
-                               ++ show var_name
+  | isTyConName     name = "{- TyConName -}"
+  | isTyVarName     name = "{- TyVar -}"
+  | isSystemName    name = show name
+                           -- ++ "{- SysName -}"
+  | isWiredInName   name = getLocalName name
+                           -- ++ "{- WiredInName -}"
+  | isInternalName  name = getOccString name
+                           -- ++ "{- Internal -}"
+  | isExternalName  name = getOccString name
+--                           ++ "{- external name -}"
+  | otherwise            = "{- Not properly handled -}"
+                           ++ show name
   where
-    var_name :: Name
-    var_name = varName v
+    name :: Name
+    name = varName v
+
+{- Should not be done here, but function used to check if is an
+undesirable variable or not (I#) -}
+undesirableVar :: Var -> Bool
+undesirableVar v
+  | getOccString (localiseName (varName v)) == "I#" = True
+  | otherwise = False
+----------------------------------------------------------------------
 
 pprintBody :: [Var] -> Int -> CoreExpr -> String
 pprintBody vs i e@(Lam {})
@@ -181,90 +225,55 @@ pprintBody vs i e@(Lam {})
 pprintBody vs _ (Var v)
   | elem v vs = ""
   | otherwise = handleVar v
-  
-pprintBody vs i (App e1 e2) = "(" ++ left ++ " " ++ right ++ ")"
+
+pprintBody vs i (App (Var v) e2)
+  | undesirableVar v = pprintBody vs i e2
+  | otherwise        = "((" ++ left ++ ")\n"
+                       ++ indent (i + 1)
+                       ++ "(" ++ right ++ "))"
+  where
+    left  = handleVar v
+    right = pprintBody vs (i+1) e2
+    
+pprintBody vs i (App e1 e2) = "((" ++ left ++ ")\n"
+                              ++ indent (i + 1)
+                              ++ "(" ++ right ++ "))"
   where
     left  = pprintBody vs i e1
-    right = pprintBody vs i e2
+    right = pprintBody vs (i+1) e2
 
-pprintBody _ _ l@Lit{}
-  = " " ++ show l
+pprintBody _ _ l@(Lit literal) =
+  case isLitValue_maybe literal of
+    Just i   -> show i
+    Nothing  -> "{- Lit is not LitChar or LitNumber -}" ++ show l      
 
 pprintBody vs i (Case e _ _ alts)
-  = "\n" ++ indent i ++
-    "case " ++ pprintBody vs i e ++ " of\n"
-    ++ concatMap (pprintAlts vs (i + caseIndent)) alts
+  = "case " ++ pprintBody vs i e ++ " of"
+  ++ concatMap (pprintAlts vs (i + caseIndent)) alts
 
 pprintBody _ _ Type{}
   = "{- Type -}"
 
+pprintBody vs i (Let (NonRec x e1) e2) =
+  "\n" ++ indent i ++
+  "let " ++ handleVar x ++ " = ("
+  ++ pprintBody vs newIdent e1 ++ ") in " ++
+  pprintBody vs newIdent e2
+  where
+    newIdent :: Int
+    newIdent = i + 5
+    
+pprintBody _ _ (Let (Rec {}) _) = "{- let rec -}"
+
 pprintBody _ _ e
   = error (" Not yet implemented for e = " ++ show e)
 
-untick :: CoreExpr -> CoreExpr
-untick (Tick _ e) = e
-untick e = e
-
-handleCommas :: [String] -> [String]
-handleCommas [] = []
-handleCommas (c:cs)
-  = if last c == ','
-      then init c : "," : handleCommas cs
-      else c : handleCommas cs
-
-fixCommas :: [String] -> [String]
-fixCommas [] = []
-fixCommas [x] = [x]
-fixCommas (x:y:xs)
-  = if y == ","
-      then (x++y) : fixCommas xs
-      else x : fixCommas (y:xs)
-
-fixParen :: [String] -> [String]
-fixParen [] = []
-fixParen [x] = [x]
-fixParen (x:y:xs)
-  = if replicate (length y) ')' == y
-      then  let w0 = x ++ y
-                w = if head w0 == '(' && last w0 == ')'
-                      then tail (init w0)
-                      else w0
-            in  w : fixParen xs
-      else x : fixParen (y:xs)
-
-rmTypeAppl :: [String] -> [String]
-rmTypeAppl []
-  = []
-rmTypeAppl (c:cs)
-  = if c == "@"
-      then  case cs of
-              [] -> error " Type application: Badly formatted string. "
-              (c': cs') ->
-                let p = paren c'
-                in  if null p then rmTypeAppl cs' else p : rmTypeAppl cs'
-      else c:rmTypeAppl cs
-
-paren :: String -> String
-paren []
-  = []
-paren (c:cs)
-  = if c == ')' then c : paren cs else paren cs
-
-replaceNewLine :: String -> String
-replaceNewLine []
-  = []
-replaceNewLine (c:cs)
-  = if c == '\n'
-      then ' ' : replaceNewLine cs
-      else c : replaceNewLine cs
-
 pprintAlts :: [Var] -> Int -> Alt Var -> String
 pprintAlts vars i (DataAlt dataCon, vs, e)
-  = indent i
+  = "\n" ++ indent i
   ++ show dataCon
   ++ concatMap (\v -> " " ++ show v) vs
   ++ " -> " ++ pprintBody vars (i+caseIndent) e
-  ++ "\n"
 pprintAlts _ _ _ =
   error " Pretty printing for pattern match on datatypes. "
 
@@ -272,7 +281,6 @@ pprintAlts _ _ _ =
 countTcConstraints :: SpecType -> Int
 countTcConstraints t =
   let ws = words (show t)
-
       countCommas :: [String] -> Int
       countCommas []     = 0
       countCommas (x:xs) =
