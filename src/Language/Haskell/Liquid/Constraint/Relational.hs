@@ -276,56 +276,83 @@ cap (c:cs) = toUpper c : cs
 cap cs = cs
 
 relTermToUnTerm :: Var -> Var -> Var -> CoreExpr -> CoreExpr -> CoreExpr
-relTermToUnTerm e1 e2 relThm = relTermToUnTerm' [((e1, e2), Var relThm)]
+relTermToUnTerm e1 e2 relThm =
+  relTermToUnTerm' 1 [((e1, e2), Var relThm)]
 
-relTermToUnTerm' :: [((Var, Var), CoreExpr)] -> CoreExpr -> CoreExpr -> CoreExpr
-relTermToUnTerm' relTerms (Var x1) (Var x2)
-  | Just relX <- lookup (x1, x2) relTerms 
-  = relX
+relTermToUnTerm'
+  :: Int
+  -> [((Var, Var), CoreExpr)]
+  -> CoreExpr
+  -> CoreExpr
+  -> CoreExpr
 
-relTermToUnTerm' relTerms (App f1 α1) (App f2 α2) 
-  | Type{} <- GM.unTickExpr α1, Type{} <- GM.unTickExpr α2 
-  = relTermToUnTerm' relTerms f1 f2
-relTermToUnTerm' relTerms (App f1 (Var x1)) (App f2 (Var x2)) 
-  | GM.isEmbeddedDictVar x1, GM.isEmbeddedDictVar x2
-  = relTermToUnTerm' relTerms f1 f2
-relTermToUnTerm' relTerms (App f1 x1) (App f2 x2) 
-  | isCommonArg x1, isCommonArg x2
-  = App (App (relTermToUnTerm' relTerms f1 f2) x1) x2
+relTermToUnTerm' _ relTerms (Var x1) (Var x2)
+  | Just relX <- lookup (x1, x2) relTerms = relX
+
+relTermToUnTerm' i relTerms (App f1 α1) (App f2 α2) 
+  | Type{} <- GM.unTickExpr α1
+  , Type{} <- GM.unTickExpr α2 = relTermToUnTerm' i relTerms f1 f2
+  
+relTermToUnTerm' i relTerms (App f1 (Var x1)) (App f2 (Var x2)) 
+  | GM.isEmbeddedDictVar x1
+  , GM.isEmbeddedDictVar x2 = relTermToUnTerm' i relTerms f1 f2
+
+relTermToUnTerm' i relTerms (App f1 x1) (App f2 x2) 
+  | isCommonArg x1
+  , isCommonArg x2 = App (App (relTermToUnTerm' i relTerms f1 f2) x1) x2
   where 
     isCommonArg x | Type{} <- GM.unTickExpr x = False
-    isCommonArg x | Var v <- GM.unTickExpr x = not (GM.isEmbeddedDictVar v)
+    isCommonArg x | Var v <- GM.unTickExpr x =
+                      not (GM.isEmbeddedDictVar v)
     isCommonArg _ = True
-relTermToUnTerm' relTerms (Lam α1 e1) (Lam α2 e2) 
-  | Ghc.isTyVar α1, Ghc.isTyVar α2
-  = relTermToUnTerm' relTerms e1 e2
-relTermToUnTerm' relTerms (Lam x1 e1) (Lam x2 e2)
-  | not (Ghc.isTyVar x1), not (Ghc.isTyVar x2)
-  = Lam x1l $ Lam x2r $ relTermToUnTerm' relTerms e1l e2r
+
+relTermToUnTerm' i relTerms (Lam α1 e1) (Lam α2 e2) 
+  | Ghc.isTyVar α1
+  , Ghc.isTyVar α2 = relTermToUnTerm' i relTerms e1 e2
+
+relTermToUnTerm' i relTerms (Lam x1 e1) (Lam x2 e2)
+  | not (Ghc.isTyVar x1)
+  , not (Ghc.isTyVar x2)
+  = Lam x1l $ Lam x2r $ relTermToUnTerm' i relTerms e1l e2r
   where
     (x1l, x2r) = mkRelCopies x1 x2
     (e1l, e2r) = subRelCopies e1 x1 e2 x2
-relTermToUnTerm' relTerms (Let (NonRec x1 d1) e1) (Let (NonRec x2 d2) e2) 
-  = Let (NonRec x1l d1) $ Let (NonRec x2r d2) $ Let (NonRec relX relD) $ relTermToUnTerm' (((x1l, x2r), Var relX) : relTerms) e1l e2r
+
+relTermToUnTerm' i relTerms
+  (Let (NonRec x1 d1) e1)
+  (Let (NonRec x2 d2) e2)
+  = Let (NonRec x1l d1) $
+    Let (NonRec x2r d2) $
+    Let (NonRec relX relD) $
+    relTermToUnTerm' i (((x1l, x2r), Var relX) : relTerms) e1l e2r
     where 
       relX = mkRelThmVar x1 x2
-      relD = relTermToUnTerm' relTerms d1 d2
+      relD = relTermToUnTerm' i relTerms d1 d2
       (x1l, x2r) = mkRelCopies x1 x2
       (e1l, e2r) = subRelCopies e1 x1 e2 x2
+
 -- TODO: test recursive and mutually recursive lets
-relTermToUnTerm' relTerms (Let (Rec bs1) e1) (Let (Rec bs2) e2) 
+relTermToUnTerm' i relTerms (Let (Rec bs1) e1) (Let (Rec bs2) e2) 
   | length bs1 == length bs2 
-  = Let (Rec bs1l) $ Let (Rec bs2r) $ Let (Rec relBs) $ relTermToUnTerm' relTerms' e1l e2r
+  = Let (Rec bs1l)  $
+    Let (Rec bs2r)  $
+    Let (Rec relBs) $
+    relTermToUnTerm' i relTerms' e1l e2r
     where 
       bs1l = mkLeftCopies bs1
       bs2r = mkRightCopies bs2
       e1l  = subOneSideCopies e1 bs1 bs1l
       e2r  = subOneSideCopies e2 bs2 bs2r
-      relTermsBs = zipWith (\(x1, d1) (x2, d2) -> ((x1, x2), relTermToUnTerm' relTerms d1 d2)) bs1 bs2
+      relTermsBs =
+        zipWith (\(x1, d1) (x2, d2) ->
+                   ((x1, x2),
+                    relTermToUnTerm' i relTerms d1 d2)) bs1 bs2
       relTerms' = relTermsBs ++ relTerms
-      relBs = zipWith (\(x1, d1) (x2, d2) -> (mkRelThmVar x1 x2, relTermToUnTerm' relTerms' d1 d2)) bs1 bs2
-relTermToUnTerm' relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
---  Let (NonRec x1l d1) $ Let (NonRec x2r d2) $ 
+      relBs = zipWith (\(x1, d1) (x2, d2) ->
+                         (mkRelThmVar x1 x2,
+                          relTermToUnTerm' i relTerms' d1 d2)) bs1 bs2
+
+relTermToUnTerm' i relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
   Case d1 x1l t1 $ map
     (\(c1, bs1, e1) ->
       let bs1l = map (mkCopyWithSuffix relSuffixL) bs1 in
@@ -336,27 +363,70 @@ relTermToUnTerm' relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
           let bs2r = map (mkCopyWithSuffix relSuffixR) bs2
               e1l  = subVarAndTys ((x1, x1l) : zip bs1 bs1l) e1
               e2r  = subVarAndTys ((x2, x2r) : zip bs2 bs2r) e2 
-          in  (c2, bs2r, relTermToUnTerm' relTerms e1l e2r)
+          in  (c2, bs2r, relTermToUnTerm' i relTerms e1l e2r)
         )
         as2
       ))
     as1
     where (x1l, x2r) = mkRelCopies x1 x2
-relTermToUnTerm' _ e1 e2
-  = traceWhenLoud ("relTermToUnTerm': can't proceed proof generation on e1:\n" ++ F.showpp e1 ++ "\ne2:\n" ++ F.showpp e2)
-      mkLambdaUnit (Ghc.exprType e1) (Ghc.exprType e2)
+relTermToUnTerm' i _ e1 e2 =
+  traceWhenLoud
+  ("relTermToUnTerm': can't proceed proof generation on e1:\n"
+   ++ F.showpp e1
+   ++ "\ne2:\n"
+   ++ F.showpp e2) mkLambdaUnit i (Ghc.exprType e1) (Ghc.exprType e2)
       
-mkLambdaUnit :: Type -> Type -> CoreExpr
-mkLambdaUnit (Ghc.ForAllTy _ t1) t2 = mkLambdaUnit t1 t2
-mkLambdaUnit t1 (Ghc.ForAllTy _ t2) = mkLambdaUnit t1 t2
-mkLambdaUnit (Ghc.FunTy Ghc.InvisArg _ _ t1) (Ghc.FunTy Ghc.InvisArg _ _ t2) = mkLambdaUnit t1 t2
-mkLambdaUnit (Ghc.FunTy Ghc.VisArg _ _ t1) (Ghc.FunTy Ghc.VisArg _ _ t2) = Lam (GM.stringVar "_" Ghc.unitTy) $ Lam (GM.stringVar "_" Ghc.unitTy) $ mkLambdaUnit t1 t2
-mkLambdaUnit t1@Ghc.FunTy{} t2 = F.panic $ "relTermToUnTerm: asked to relate unmatching types " ++ F.showpp t1 ++ " " ++ F.showpp t2
-mkLambdaUnit t1 t2@Ghc.FunTy{} = F.panic $ "relTermToUnTerm: asked to relate unmatching types " ++ F.showpp t1 ++ " " ++ F.showpp t2
--- mkLambdaUnit (Ghc.AppTy l1 l2) (Ghc.AppTy r1 r2) = App 
-mkLambdaUnit _ _ = Ghc.unitExpr
---  Ghc.App
---  Ghc.setVarName v $ Ghc.mkSystemName (Ghc.getUnique v) (Ghc.mkVarOcc s)
+
+
+mkLambdaUnit :: Int -> Type -> Type -> CoreExpr
+mkLambdaUnit i (Ghc.ForAllTy _ t1) t2 = mkLambdaUnit i t1 t2
+
+mkLambdaUnit i t1 (Ghc.ForAllTy _ t2) = mkLambdaUnit i t1 t2
+
+mkLambdaUnit i (Ghc.FunTy Ghc.InvisArg _ _ t1)
+  (Ghc.FunTy Ghc.InvisArg _ _ t2) = mkLambdaUnit i t1 t2
+  
+mkLambdaUnit i (Ghc.FunTy Ghc.VisArg _ _ t1)
+  (Ghc.FunTy Ghc.VisArg _ _ t2) =
+  Lam (GM.mkLocVar i "_" Ghc.unitTy) $
+  Lam (GM.mkLocVar (i+1) "_" Ghc.unitTy)
+  $ mkLambdaUnit (i+2) t1 t2
+
+mkLambdaUnit _ t1@Ghc.FunTy{} t2 =
+  F.panic $
+  "relTermToUnTerm: asked to relate unmatching types " ++
+  F.showpp t1 ++
+  " " ++
+  F.showpp t2
+mkLambdaUnit _ t1 t2@Ghc.FunTy{} =
+  F.panic $
+  "relTermToUnTerm: asked to relate unmatching types " ++
+  F.showpp t1 ++
+  " " ++
+  F.showpp t2
+  
+-- mkLambdaUnit i (Ghc.AppTy _ _) (Ghc.AppTy _ _) =
+--   App genConst (App Ghc.unitExpr Ghc.unitExpr)  
+--   where
+--     genConst = Var $ GM.mkLocVar (i) "const" Ghc.unitTy
+-- 
+-- mkLambdaUnit i (Ghc.TyVarTy var1) (Ghc.TyVarTy var2) =
+--   buildConsApp i var1 var2
+
+mkLambdaUnit i (TyConApp {}) (TyConApp {}) =
+  buildConsApp (i+2) (unit i) (unit (i + 1))
+
+mkLambdaUnit _ _ _ = Ghc.unitExpr
+
+unit :: Int -> Var
+unit i = GM.mkLocVar (i) "()" Ghc.unitTy
+
+buildConsApp :: Int -> Var -> Var -> CoreExpr
+buildConsApp i v1 v2 =
+  App genConst $ App Ghc.unitExpr $
+  App genConst (App (Var v1) (Var v2))
+  where
+    genConst = Var $ GM.mkLocVar (i) "const" Ghc.unitTy
 
 --------------------------------------------------------------
 -- Core Checking Rules ---------------------------------------
