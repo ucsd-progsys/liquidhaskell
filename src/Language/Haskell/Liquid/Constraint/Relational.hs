@@ -352,6 +352,10 @@ relTermToUnTerm' i relTerms (Let (Rec bs1) e1) (Let (Rec bs2) e2)
                          (mkRelThmVar x1 x2,
                           relTermToUnTerm' i relTerms' d1 d2)) bs1 bs2
 
+{-
+Left  -> Case (Expr Var) Var Type [Alt Var]
+Right -> Case (Expr Var) Var Type [Alt Var]
+-}
 relTermToUnTerm' i relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
   Case d1 x1l t1 $ map
     (\(c1, bs1, e1) ->
@@ -367,7 +371,7 @@ relTermToUnTerm' i relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
         )
         as2
       ))
-    as1
+    as1 
     where (x1l, x2r) = mkRelCopies x1 x2
   
 relTermToUnTerm' i _ e1 e2 =
@@ -376,36 +380,39 @@ relTermToUnTerm' i _ e1 e2 =
    ++ F.showpp e1
    ++ "\ne2:\n"
    ++ F.showpp e2)
-  mkLambdaUnit i (Ghc.exprType e1) (Ghc.exprType e2)
+  mkLambdaUnit i  e1 e2 (Ghc.exprType e1) (Ghc.exprType e2)
 
+{-
+Insert information about the proof that needs to be done.
+-}
 
-mkLambdaUnit :: Int -> Type -> Type -> CoreExpr
-mkLambdaUnit i (Ghc.ForAllTy _ t1) t2 = mkLambdaUnit i t1 t2
+mkLambdaUnit :: Int -> CoreExpr -> CoreExpr -> Type -> Type -> CoreExpr
+mkLambdaUnit i e1 e2 (Ghc.ForAllTy _ t1) t2 = mkLambdaUnit i e1 e2 t1 t2
 
-mkLambdaUnit i t1 (Ghc.ForAllTy _ t2) = mkLambdaUnit i t1 t2
+mkLambdaUnit i e1 e2 t1 (Ghc.ForAllTy _ t2) = mkLambdaUnit i e1 e2 t1 t2
 
-mkLambdaUnit i (Ghc.FunTy Ghc.InvisArg _ _ t1)
-  (Ghc.FunTy Ghc.InvisArg _ _ t2) = mkLambdaUnit i t1 t2
+mkLambdaUnit i e1 e2 (Ghc.FunTy Ghc.InvisArg _ _ t1)
+  (Ghc.FunTy Ghc.InvisArg _ _ t2) = mkLambdaUnit i e1 e2 t1 t2
   
-mkLambdaUnit i (Ghc.FunTy Ghc.VisArg _ _ t1)
+mkLambdaUnit i e1 e2 (Ghc.FunTy Ghc.VisArg _ _ t1)
   (Ghc.FunTy Ghc.VisArg _ _ t2) =
   Lam (GM.mkLocVar i "_" Ghc.unitTy) $
   Lam (GM.mkLocVar (i+1) "_" Ghc.unitTy)
-  $ mkLambdaUnit (i+2) t1 t2
+  $ mkLambdaUnit (i+2) e1 e2 t1 t2
 
-mkLambdaUnit _ t1@Ghc.FunTy{} t2 =
+mkLambdaUnit _ _ _ t1@Ghc.FunTy{} t2 =
   F.panic $
   "relTermToUnTerm: asked to relate unmatching types " ++
   F.showpp t1 ++
   " " ++
   F.showpp t2
-mkLambdaUnit _ t1 t2@Ghc.FunTy{} =
+mkLambdaUnit _ _ _ t1 t2@Ghc.FunTy{} =
   F.panic $
   "relTermToUnTerm: asked to relate unmatching types " ++
   F.showpp t1 ++
   " " ++
   F.showpp t2
-  
+
 -- mkLambdaUnit i (Ghc.AppTy _ _) (Ghc.AppTy _ _) =
 --   App genConst (App Ghc.unitExpr Ghc.unitExpr)  
 --   where
@@ -414,10 +421,16 @@ mkLambdaUnit _ t1 t2@Ghc.FunTy{} =
 -- mkLambdaUnit i (Ghc.TyVarTy var1) (Ghc.TyVarTy var2) =
 --   buildConsApp i var1 var2
 
-mkLambdaUnit _ (TyConApp {}) (TyConApp {}) = Ghc.unitExpr
+-- mkLambdaUnit _ (TyConApp {}) (TyConApp {}) = Ghc.unitExpr
 --  buildConsApp (i+2) (unit i) (unit (i + 1))
 
-mkLambdaUnit _ _ _ = Ghc.unitExpr
+mkLambdaUnit i e1 e2 _ _ = output
+  where
+    output :: CoreExpr
+    output = App (App (App genConst genConstU) e1) e2
+
+    genConst  = Var $ GM.mkLocVar i "const" Ghc.unitTy
+    genConstU = App genConst Ghc.unitExpr
 
 -- unit :: Int -> Var
 -- unit i = GM.mkLocVar (i) "()" Ghc.unitTy
