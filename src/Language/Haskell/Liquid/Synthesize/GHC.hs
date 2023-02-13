@@ -196,7 +196,7 @@ getExternalName n = mod ++ outName
   where
     outName = getOccString n
     mod     = case nameModule_maybe n of
-                Just m  -> (moduleNameString $ moduleName m) ++ "."
+                Just m  -> moduleNameString (moduleName m) ++ "."
                 Nothing -> ""
 
 {- Handle the multiple types of variables one might encounter
