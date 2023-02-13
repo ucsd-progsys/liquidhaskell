@@ -211,6 +211,7 @@ getExternalName n = mod ++ outName
 in Haskell. -}
 handleVar :: Var -> String
 handleVar v
+  | undesirableVar  v    = "{- undesirable: " ++ show v ++ "-}"
   | isTyConName     name = "{- TyConName -}"
   | isTyVarName     name = "{- TyVar -}"
   | isSystemName    name = show name
