@@ -196,8 +196,16 @@ getExternalName n = mod ++ outName
   where
     outName = getOccString n
     mod     = case nameModule_maybe n of
-                Just m  -> moduleNameString (moduleName m) ++ "."
+                Just m  -> checkUnitReturn m (unitComment m)
                 Nothing -> ""
+    
+    unitComment :: Module -> String
+    unitComment m = unitIdString (moduleUnitId m)
+
+    checkUnitReturn :: Module -> String -> String
+    checkUnitReturn _ "base" = ""
+    checkUnitReturn m _      = moduleNameString (moduleName m) ++ "."
+
 
 {- Handle the multiple types of variables one might encounter
 in Haskell. -}
@@ -209,10 +217,10 @@ handleVar v
 --                           ++ "{- SysName -}"
   | isWiredInName   name = getLocalName name
 --                           ++ "{- WiredInName -}"
-  | isExternalName  name = getExternalName name
-                           ++ "{- external name -}"
   | isInternalName  name = getOccString name
 --                           ++ "{- Internal -}"
+  | isExternalName  name = getExternalName name
+--                           ++ "{- external name -}"
   | otherwise            = "{- Not properly handled -}"
                            ++ show name
   where
