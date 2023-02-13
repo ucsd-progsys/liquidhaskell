@@ -191,6 +191,14 @@ the name first. -}
 getLocalName :: Name -> String
 getLocalName n = getOccString (localiseName n)
 
+getExternalName :: Name -> String
+getExternalName n = mod ++ outName
+  where
+    outName = getOccString n
+    mod     = case nameModule_maybe n of
+                Just m  -> (moduleNameString $ moduleName m) ++ "."
+                Nothing -> ""
+
 {- Handle the multiple types of variables one might encounter
 in Haskell. -}
 handleVar :: Var -> String
@@ -201,10 +209,10 @@ handleVar v
 --                           ++ "{- SysName -}"
   | isWiredInName   name = getLocalName name
 --                           ++ "{- WiredInName -}"
+  | isExternalName  name = getExternalName name
+                           ++ "{- external name -}"
   | isInternalName  name = getOccString name
 --                           ++ "{- Internal -}"
-  | isExternalName  name = getOccString name
---                           ++ "{- external name -}"
   | otherwise            = "{- Not properly handled -}"
                            ++ show name
   where
@@ -227,18 +235,20 @@ pprintBody vs _ (Var v)
   | elem v vs = ""
   | otherwise = handleVar v
 
+pprintBody vs i (App e (Type{})) = pprintBody vs i e
+
 pprintBody vs i (App (Var v) e2)
   | undesirableVar v = pprintBody vs i e2
-  | otherwise        = "((" ++ left ++ ")\n"
+  | otherwise        = "" ++ left ++ "\n"
                        ++ indent (i + 1)
-                       ++ "(" ++ right ++ "))"
+                       ++ "(" ++ right ++ ")"
   where
     left  = handleVar v
     right = pprintBody vs (i+1) e2
     
-pprintBody vs i (App e1 e2) = "((" ++ left ++ ")\n"
+pprintBody vs i (App e1 e2) = "(" ++ left ++ ")\n"
                               ++ indent (i + 1)
-                              ++ "(" ++ right ++ "))"
+                              ++ "(" ++ right ++ ")"
   where
     left  = pprintBody vs i e1
     right = pprintBody vs (i+1) e2
