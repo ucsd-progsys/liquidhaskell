@@ -129,7 +129,7 @@ fromAnf' e _ = error $ "fromAnf: unsupported core expression "
 coreToHs :: SpecType -> Var -> CoreExpr -> String
 coreToHs _ v e = pprintSymbols (handleVar v
                                 ++ " "
-                                ++ pprintFormals caseIndent e [])
+                                ++ pprintFormals caseIndent e)
 
 caseIndent :: Int
 caseIndent = 2
@@ -156,18 +156,18 @@ pprintSym symbols s
         prefix = takeWhile (== ' ') s
         suffix = dropWhile (== ' ') s
 
-pprintFormals :: Int -> CoreExpr -> [Var] -> String
-pprintFormals i e vs = handleLam "= " i e vs
+pprintFormals :: Int -> CoreExpr -> String
+pprintFormals i e = handleLam "= " i e
 
-handleLam :: String -> Int -> CoreExpr -> [Var] -> String
-handleLam char i (Lam v e) vs
-  | isTyVar   v = " {- tyVar -}"     ++ handleLam char i e vs
-  | isTcTyVar v = " {- isTcTyVar -}" ++ handleLam char i e vs
-  | isTyCoVar v = " {- isTyCoVar -}" ++ handleLam char i e vs
-  | isCoVar   v = " {- isCoVar -}"   ++ handleLam char i e vs
-  | isId      v = handleVar v ++ " " ++ handleLam char i e vs  
-  | otherwise   = handleVar v ++ " " ++ handleLam char i e vs
-handleLam char i e vs = char ++ pprintBody vs i e
+handleLam :: String -> Int -> CoreExpr -> String
+handleLam char i (Lam v e)
+  | isTyVar   v = " {- tyVar -}"     ++ handleLam char i e
+  | isTcTyVar v = " {- isTcTyVar -}" ++ handleLam char i e
+  | isTyCoVar v = " {- isTyCoVar -}" ++ handleLam char i e
+  | isCoVar   v = " {- isCoVar -}"   ++ handleLam char i e
+  | isId      v = handleVar v ++ " " ++ handleLam char i e  
+  | otherwise   = handleVar v ++ " " ++ handleLam char i e
+handleLam char i e = char ++ pprintBody i e
 
 ----------------------------------------------------------------------
 {- Helper functions for print body -}
@@ -238,64 +238,59 @@ undesirableVar v
   | otherwise = False
 ----------------------------------------------------------------------
 pprintBody' :: CoreExpr -> String
-pprintBody' = pprintBody [] 0
+pprintBody' = pprintBody 0
 
-pprintBody :: [Var] -> Int -> CoreExpr -> String
-pprintBody vs i e@(Lam {})
-  = "(\\" ++ handleLam " -> " i e vs ++ ")"
+pprintBody :: Int -> CoreExpr -> String
+pprintBody i e@(Lam {}) = "(\\" ++ handleLam " -> " i e ++ ")"
 
-pprintBody vs _ (Var v)
-  | elem v vs = ""
-  | otherwise = handleVar v
+pprintBody _ (Var v) = handleVar v
 
-pprintBody vs i (App e (Type{})) = pprintBody vs i e
+pprintBody i (App e (Type{})) = pprintBody i e
 
-pprintBody vs i (App (Var v) e2)
-  | undesirableVar v = pprintBody vs i e2
+pprintBody i (App (Var v) e2)
+  | undesirableVar v = pprintBody i e2
   | otherwise        = "" ++ left ++ "\n"
                        ++ indent (i + 1)
                        ++ "(" ++ right ++ ")"
   where
     left  = handleVar v
-    right = pprintBody vs (i+1) e2
+    right = pprintBody (i+1) e2
     
-pprintBody vs i (App e1 e2) = "(" ++ left ++ ")\n"
-                              ++ indent (i + 1)
-                              ++ "(" ++ right ++ ")"
+pprintBody i (App e1 e2) = "(" ++ left ++ ")\n"
+                           ++ indent (i + 1)
+                           ++ "(" ++ right ++ ")"
   where
-    left  = pprintBody vs i e1
-    right = pprintBody vs (i+1) e2
+    left  = pprintBody i e1
+    right = pprintBody (i+1) e2
 
-pprintBody _ _ l@(Lit literal) =
+pprintBody _ l@(Lit literal) =
   case isLitValue_maybe literal of
     Just i   -> show i
     Nothing  -> "{- Lit is not LitChar or LitNumber -}" ++ show l      
 
-pprintBody vs i (Case e _ _ alts)
-  = "case " ++ pprintBody vs i e ++ " of"
-  ++ concatMap (pprintAlts vs (i + caseIndent)) alts
+pprintBody i (Case e _ _ alts)
+  = "case " ++ pprintBody i e ++ " of"
+  ++ concatMap (pprintAlts (i + caseIndent)) alts
 
-pprintBody _ _ Type{}
-  = "{- Type -}"
+pprintBody _ Type{} = "{- Type -}"
 
-pprintBody vs i (Let (NonRec x e1) e2) =
+pprintBody i (Let (NonRec x e1) e2) =
   "\n" ++ indent i ++
   "let " ++ handleVar x ++ " = ("
-  ++ pprintBody vs newIdent e1 ++ ") in " ++
-  pprintBody vs newIdent e2
+  ++ pprintBody newIdent e1 ++ ") in " ++
+  pprintBody newIdent e2
   where
     newIdent :: Int
     newIdent = i + 5
     
-pprintBody _ _ (Let (Rec {}) _) = "{- let rec -}"
+pprintBody _ (Let (Rec {}) _) = "{- let rec -}"
 
-pprintBody vs i (Tick (SourceNote _ s) e) =
-   "{- " ++ s ++ " -}" ++ pprintBody vs i e
+pprintBody i (Tick (SourceNote _ s) e) = "{- " ++ s ++ " -}"
+                                         ++ pprintBody i e
 
-pprintBody vs i (Tick _ e) = pprintBody vs i e
+pprintBody i (Tick _ e) = pprintBody i e
 
-pprintBody _ _ e
-  = error (" Not yet implemented for e = " ++ show e)
+pprintBody _ e = error (" Not yet implemented for e = " ++ show e)
 
 {-
 data Alt Var = Alt AltCon [Var] (Expr Var)
@@ -304,13 +299,13 @@ data AltCon = DataAlt DataCon
             | LitAlt  Literal
             | DEFAULT
 -}
-pprintAlts :: [Var] -> Int -> Alt Var -> String
-pprintAlts vars i (DataAlt dataCon, vs, e)
+pprintAlts :: Int -> Alt Var -> String
+pprintAlts i (DataAlt dataCon, vs, e)
   = "\n" ++ indent i
   ++ getOccString (getName dataCon)
   ++ concatMap (\v -> " " ++ handleVar v) vs
-  ++ " -> " ++ pprintBody vars (i+caseIndent) e
-pprintAlts _ _ _ =
+  ++ " -> " ++ pprintBody (i+caseIndent) e
+pprintAlts _ _ =
   error " Pretty printing for pattern match on datatypes. "
 
 
