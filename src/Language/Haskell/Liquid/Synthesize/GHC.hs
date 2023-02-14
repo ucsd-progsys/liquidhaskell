@@ -290,7 +290,7 @@ pprintBody vs i (Let (NonRec x e1) e2) =
 pprintBody _ _ (Let (Rec {}) _) = "{- let rec -}"
 
 pprintBody vs i (Tick (SourceNote _ s) e) =
-   "{- " ++ s ++ " -}" ++ (pprintBody vs i e)
+   "{- " ++ s ++ " -}" ++ pprintBody vs i e
 
 pprintBody vs i (Tick _ e) = pprintBody vs i e
 
