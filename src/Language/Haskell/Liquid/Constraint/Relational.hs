@@ -39,7 +39,7 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Synthesize.GHC
                                                 ( coreToHs
                                                 , fromAnf
-                                                )
+                                                , pprintBody' )
 
 import           Liquid.GHC.API                 ( Alt
                                                 , AltCon(..)
@@ -124,7 +124,7 @@ consRelTop cfg ti chk _ γ ψ (x, y, t, s, ra, rp) =
     then cgi
       { relHints =
         relHint (relSigToUnSig (toExpr x) (toExpr y) t' s' rp)
-        hintName (relTermToUnTerm x y
+        hintName (relTermToUnTerm loc x y
                   hintName (toCoreExpr e) (toCoreExpr d))
         $+$ relHints cgi
       }
@@ -140,6 +140,7 @@ consRelTop cfg ti chk _ γ ψ (x, y, t, s, ra, rp) =
     t' = removeAbsRef $ val t
     s' = removeAbsRef $ val s
     hintName = mkRelThmVar x y
+    loc = GM.fSrcSpan (F.loc t)
 
 removeAbsRef :: SpecType -> SpecType
 removeAbsRef (RVar v (MkUReft r _)) 
@@ -275,69 +276,72 @@ cap :: String -> String
 cap (c:cs) = toUpper c : cs
 cap cs = cs
 
-relTermToUnTerm :: Var -> Var -> Var -> CoreExpr -> CoreExpr -> CoreExpr
-relTermToUnTerm e1 e2 relThm =
-  relTermToUnTerm' 1 [((e1, e2), Var relThm)]
+relTermToUnTerm
+  :: Ghc.SrcSpan -> Var -> Var -> Var -> CoreExpr -> CoreExpr -> CoreExpr
+relTermToUnTerm loc e1 e2 relThm =
+  relTermToUnTerm' loc 1 [((e1, e2), Var relThm)]
 
 relTermToUnTerm'
-  :: Int
+  :: Ghc.SrcSpan
+  -> Int
   -> [((Var, Var), CoreExpr)]
   -> CoreExpr
   -> CoreExpr
   -> CoreExpr
 
-relTermToUnTerm' _ relTerms (Var x1) (Var x2)
+relTermToUnTerm' _ _ relTerms (Var x1) (Var x2)
   | Just relX <- lookup (x1, x2) relTerms = relX
 
-relTermToUnTerm' i relTerms (App f1 α1) (App f2 α2) 
+relTermToUnTerm' loc i relTerms (App f1 α1) (App f2 α2) 
   | Type{} <- GM.unTickExpr α1
-  , Type{} <- GM.unTickExpr α2 = relTermToUnTerm' i relTerms f1 f2
+  , Type{} <- GM.unTickExpr α2 = relTermToUnTerm' loc i relTerms f1 f2
   
-relTermToUnTerm' i relTerms (App f1 (Var x1)) (App f2 (Var x2)) 
+relTermToUnTerm' loc i relTerms (App f1 (Var x1)) (App f2 (Var x2)) 
   | GM.isEmbeddedDictVar x1
-  , GM.isEmbeddedDictVar x2 = relTermToUnTerm' i relTerms f1 f2
+  , GM.isEmbeddedDictVar x2 = relTermToUnTerm' loc i relTerms f1 f2
 
-relTermToUnTerm' i relTerms (App f1 x1) (App f2 x2) 
+relTermToUnTerm' loc i relTerms (App f1 x1) (App f2 x2) 
   | isCommonArg x1
-  , isCommonArg x2 = App (App (relTermToUnTerm' i relTerms f1 f2) x1) x2
+  , isCommonArg x2 = App
+                     (App (relTermToUnTerm' loc i relTerms f1 f2) x1) x2
   where 
     isCommonArg x | Type{} <- GM.unTickExpr x = False
     isCommonArg x | Var v <- GM.unTickExpr x =
                       not (GM.isEmbeddedDictVar v)
     isCommonArg _ = True
 
-relTermToUnTerm' i relTerms (Lam α1 e1) (Lam α2 e2) 
+relTermToUnTerm' loc i relTerms (Lam α1 e1) (Lam α2 e2) 
   | Ghc.isTyVar α1
-  , Ghc.isTyVar α2 = relTermToUnTerm' i relTerms e1 e2
+  , Ghc.isTyVar α2 = relTermToUnTerm' loc i relTerms e1 e2
 
-relTermToUnTerm' i relTerms (Lam x1 e1) (Lam x2 e2)
+relTermToUnTerm' loc i relTerms (Lam x1 e1) (Lam x2 e2)
   | not (Ghc.isTyVar x1)
   , not (Ghc.isTyVar x2)
-  = Lam x1l $ Lam x2r $ relTermToUnTerm' i relTerms e1l e2r
+  = Lam x1l $ Lam x2r $ relTermToUnTerm' loc i relTerms e1l e2r
   where
     (x1l, x2r) = mkRelCopies x1 x2
     (e1l, e2r) = subRelCopies e1 x1 e2 x2
 
-relTermToUnTerm' i relTerms
+relTermToUnTerm' loc i relTerms
   (Let (NonRec x1 d1) e1)
   (Let (NonRec x2 d2) e2)
   = Let (NonRec x1l d1) $
     Let (NonRec x2r d2) $
     Let (NonRec relX relD) $
-    relTermToUnTerm' i (((x1l, x2r), Var relX) : relTerms) e1l e2r
+    relTermToUnTerm' loc i (((x1l, x2r), Var relX) : relTerms) e1l e2r
     where 
       relX = mkRelThmVar x1 x2
-      relD = relTermToUnTerm' i relTerms d1 d2
+      relD = relTermToUnTerm' loc i relTerms d1 d2
       (x1l, x2r) = mkRelCopies x1 x2
       (e1l, e2r) = subRelCopies e1 x1 e2 x2
 
 -- TODO: test recursive and mutually recursive lets
-relTermToUnTerm' i relTerms (Let (Rec bs1) e1) (Let (Rec bs2) e2) 
+relTermToUnTerm' loc i relTerms (Let (Rec bs1) e1) (Let (Rec bs2) e2) 
   | length bs1 == length bs2 
   = Let (Rec bs1l)  $
     Let (Rec bs2r)  $
     Let (Rec relBs) $
-    relTermToUnTerm' i relTerms' e1l e2r
+    relTermToUnTerm' loc i relTerms' e1l e2r
     where 
       bs1l = mkLeftCopies bs1
       bs2r = mkRightCopies bs2
@@ -346,18 +350,18 @@ relTermToUnTerm' i relTerms (Let (Rec bs1) e1) (Let (Rec bs2) e2)
       relTermsBs =
         zipWith (\(x1, d1) (x2, d2) ->
                    ((x1, x2),
-                    relTermToUnTerm' i relTerms d1 d2)) bs1 bs2
+                    relTermToUnTerm' loc i relTerms d1 d2)) bs1 bs2
       relTerms' = relTermsBs ++ relTerms
       relBs = zipWith (\(x1, d1) (x2, d2) ->
                          (mkRelThmVar x1 x2,
-                          relTermToUnTerm' i relTerms' d1 d2)) bs1 bs2
+                          relTermToUnTerm' loc i relTerms' d1 d2)) bs1 bs2
 
 {-
 Left  -> Case (Expr Var) Var Type [Alt Var]
 Right -> Case (Expr Var) Var Type [Alt Var]
 -}
-relTermToUnTerm' i relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
-  Case d1 x1l t1 $ map
+relTermToUnTerm' loc i relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2)
+  = Case d1 x1l t1 $ map
     (\(c1, bs1, e1) ->
       let bs1l = map (mkCopyWithSuffix relSuffixL) bs1 in
       ( c1
@@ -367,24 +371,27 @@ relTermToUnTerm' i relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
           let bs2r = map (mkCopyWithSuffix relSuffixR) bs2
               e1l  = subVarAndTys ((x1, x1l) : zip bs1 bs1l) e1
               e2r  = subVarAndTys ((x2, x2r) : zip bs2 bs2r) e2 
-          in  (c2, bs2r, relTermToUnTerm' i relTerms e1l e2r)
+          in  (c2, bs2r, relTermToUnTerm' loc i relTerms e1l e2r)
         )
         as2
       ))
     as1 
     where (x1l, x2r) = mkRelCopies x1 x2
   
-relTermToUnTerm' i _ e1 e2 =
+relTermToUnTerm' _ i _ e1 e2 =
   traceWhenLoud
   ("relTermToUnTerm': can't proceed proof generation on e1:\n"
    ++ F.showpp e1
    ++ "\ne2:\n"
    ++ F.showpp e2)
+  Tick (Ghc.SourceNote realSpan info) $
   mkLambdaUnit i  e1 e2 (Ghc.exprType e1) (Ghc.exprType e2)
-
-{-
-Insert information about the proof that needs to be done.
--}
+  where
+    realLoc  = Ghc.mkRealSrcLoc (Ghc.mkFastString "") 0 0
+    realSpan = Ghc.mkRealSrcSpan realLoc realLoc
+    left     = pprintBody' $ fromAnf e1
+    right    = pprintBody' $ fromAnf e2
+    info     = "GOAL: " ++ left ++ " ~ " ++ right
 
 mkLambdaUnit :: Int -> CoreExpr -> CoreExpr -> Type -> Type -> CoreExpr
 mkLambdaUnit i e1 e2 (Ghc.ForAllTy _ t1) t2 = mkLambdaUnit i e1 e2 t1 t2
@@ -412,17 +419,6 @@ mkLambdaUnit _ _ _ t1 t2@Ghc.FunTy{} =
   F.showpp t1 ++
   " " ++
   F.showpp t2
-
--- mkLambdaUnit i (Ghc.AppTy _ _) (Ghc.AppTy _ _) =
---   App genConst (App Ghc.unitExpr Ghc.unitExpr)  
---   where
---     genConst = Var $ GM.mkLocVar (i) "const" Ghc.unitTy
--- 
--- mkLambdaUnit i (Ghc.TyVarTy var1) (Ghc.TyVarTy var2) =
---   buildConsApp i var1 var2
-
--- mkLambdaUnit _ (TyConApp {}) (TyConApp {}) = Ghc.unitExpr
---  buildConsApp (i+2) (unit i) (unit (i + 1))
 
 mkLambdaUnit i e1 e2 _ _ = output
   where

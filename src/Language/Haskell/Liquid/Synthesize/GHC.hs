@@ -117,7 +117,9 @@ fromAnf' t@Type{} bnds = (t, bnds)
 
 fromAnf' l@Lit{} bnds = (l, bnds)
 
-fromAnf' (Tick _ e) bnds = fromAnf' e bnds
+fromAnf' (Tick s e) bnds = (Tick s e', bnds')
+  where
+    (e', bnds') = fromAnf' e bnds
 
 fromAnf' e _ = error $ "fromAnf: unsupported core expression "
                ++ F.showpp e
@@ -235,6 +237,8 @@ undesirableVar v
   | getOccString (localiseName (varName v)) == "I#" = True
   | otherwise = False
 ----------------------------------------------------------------------
+pprintBody' :: CoreExpr -> String
+pprintBody' = pprintBody [] 0
 
 pprintBody :: [Var] -> Int -> CoreExpr -> String
 pprintBody vs i e@(Lam {})
@@ -284,6 +288,11 @@ pprintBody vs i (Let (NonRec x e1) e2) =
     newIdent = i + 5
     
 pprintBody _ _ (Let (Rec {}) _) = "{- let rec -}"
+
+pprintBody vs i (Tick (SourceNote _ s) e) =
+   "{- " ++ s ++ " -}" ++ (pprintBody vs i e)
+
+pprintBody vs i (Tick _ e) = pprintBody vs i e
 
 pprintBody _ _ e
   = error (" Not yet implemented for e = " ++ show e)
