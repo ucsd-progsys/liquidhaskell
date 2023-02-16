@@ -2,8 +2,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Haskell.Liquid.Termination.Structural (terminationVars) where
 
 import Language.Haskell.Liquid.Types hiding (isDecreasing)
@@ -176,12 +174,12 @@ addParam param env = case envCurrentFun env of
       | otherwise = fun
 
 addSynonym :: Var -> Var -> Env -> Env
-addSynonym oldName newName env = env { envCheckedFuns = updateFun <$> envCheckedFuns env }
+addSynonym oldName newName' env = env { envCheckedFuns = updateFun <$> envCheckedFuns env }
   where
     updateFun fun = fun { funParams = updateParam <$> funParams fun }
     updateParam param
-      | oldName `elemVarSet` paramNames param = param { paramNames = paramNames param `extendVarSet` newName }
-      | oldName `elemVarSet` paramSubterms param = param { paramSubterms = paramSubterms param `extendVarSet` newName }
+      | oldName `elemVarSet` paramNames param = param { paramNames = paramNames param `extendVarSet` newName' }
+      | oldName `elemVarSet` paramSubterms param = param { paramSubterms = paramSubterms param `extendVarSet` newName' }
       | otherwise = param
 
 addSubterms :: Var -> [Var] -> Env -> Env
