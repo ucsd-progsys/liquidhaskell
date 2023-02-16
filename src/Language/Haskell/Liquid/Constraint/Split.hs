@@ -2,7 +2,6 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE FlexibleContexts      #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 --------------------------------------------------------------------------------
@@ -186,18 +185,18 @@ splitC allowTC (SubC γ t1 (RAllE x tx t2))
        γ' <- γ += ("addAllBind 2", y, forallExprRefType γ tx)
        splitC allowTC (SubC γ' t1 (F.subst1 t2 (x, F.EVar y)))
 
-splitC allowTC (SubC γ (RRTy env _ OCons t1) t2)
-  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ xts
+splitC allowTC (SubC cgenv (RRTy env _ OCons t1) t2)
+  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) cgenv xts
        c1 <- splitC allowTC (SubC γ' t1' t2')
-       c2 <- splitC allowTC (SubC γ  t1  t2 )
+       c2 <- splitC allowTC (SubC cgenv  t1  t2 )
        return $ c1 ++ c2
   where
     (xts, t1', t2') = envToSub env
 
-splitC allowTC (SubC γ (RRTy e r o t1) t2)
-  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ e
+splitC allowTC (SubC cgenv (RRTy e r o t1) t2)
+  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) cgenv e
        c1 <- splitC allowTC (SubR γ' o  r)
-       c2 <- splitC allowTC (SubC γ t1 t2)
+       c2 <- splitC allowTC (SubC cgenv t1 t2)
        return $ c1 ++ c2
 
 splitC allowTC (SubC γ (RFun x1 i1 t1 t1' r1) (RFun x2 i2 t2 t2' r2))
@@ -452,10 +451,10 @@ forallExprReft_ _ _
 forallExprReftLookup :: CGEnv
                      -> F.Symbol
                      -> Maybe ([F.Symbol], [RFInfo], [SpecType], [RReft], SpecType)
-forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
+forallExprReftLookup γ sym = snap <$> F.lookupSEnv sym (syenv γ)
   where
-    snap     = mapFifth5 ignoreOblig . (\(_,(x,a,b,c),t)->(x,a,b,c,t)) . bkArrow . thd3 . bkUniv . lookup
-    lookup z = fromMaybe (panicUnbound γ z) (γ ?= F.symbol z)
+    snap     = mapFifth5 ignoreOblig . (\(_,(x,a,b,c),t)->(x,a,b,c,t)) . bkArrow . thd3 . bkUniv . lookup'
+    lookup' z = fromMaybe (panicUnbound γ z) (γ ?= F.symbol z)
 
 
 --------------------------------------------------------------------------------

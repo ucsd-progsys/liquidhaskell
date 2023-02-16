@@ -3,8 +3,6 @@
 {-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Haskell.Liquid.Constraint.Types
   ( -- * Constraint Generation Monad
     CG
@@ -297,7 +295,7 @@ type RTyConIAl = M.HashMap RTyCon [RInv]
 --------------------------------------------------------------------------------
 mkRTyConInv    :: [(Maybe Var, F.Located SpecType)] -> RTyConInv
 --------------------------------------------------------------------------------
-mkRTyConInv ts = group [ (c, RInv (go ts) t v) | (v, t@(RApp c ts _ _)) <- strip <$> ts]
+mkRTyConInv tss = group [ (c, RInv (go ts) t v) | (v, t@(RApp c ts _ _)) <- strip <$> tss]
   where
     strip = mapSnd (thrd3 . bkUniv . val)
     go ts | generic (toRSort <$> ts) = []
@@ -343,9 +341,9 @@ addRInv m (x, t)
   | otherwise
   = (x, t)
    where
-     ids = [id | tc <- M.keys m
+     ids = [id' | tc <- M.keys m
                , dc <- Ghc.tyConDataCons $ rtc_tc tc
-               , AnId id <- Ghc.dataConImplicitTyThings dc]
+               , AnId id' <- Ghc.dataConImplicitTyThings dc]
      res = ty_res . toRTypeRep
 
 conjoinInvariantShift :: SpecType -> SpecType -> SpecType
@@ -385,15 +383,15 @@ restoreInvariant γ is = γ {invs = is}
 makeRecInvariants :: CGEnv -> [Var] -> CGEnv
 makeRecInvariants γ [x] = γ {invs = M.unionWith (++) (invs γ) is}
   where
-    is  =  M.map (map f . filter (isJust . (varType x `tcUnifyTy`) . toType False . _rinv_type)) (rinvs γ)
-    f i = i{_rinv_type = guard $ _rinv_type i}
+    is  =  M.map (map g . filter (isJust . (varType x `tcUnifyTy`) . toType False . _rinv_type)) (rinvs γ)
+    g i = i{_rinv_type = guard' $ _rinv_type i}
 
-    guard (RApp c ts rs r)
+    guard' (RApp c ts rs r)
       | Just f <- szFun <$> sizeFunction (rtc_info c)
       = RApp c ts rs (MkUReft (ref f $ F.toReft r) mempty)
       | otherwise
       = RApp c ts rs mempty
-    guard t
+    guard' t
       = t
 
     ref f (F.Reft(v, rr))
