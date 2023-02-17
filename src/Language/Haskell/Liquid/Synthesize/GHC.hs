@@ -169,23 +169,6 @@ handleLam char i (Lam v e)
   | otherwise   = handleVar v ++ " " ++ handleLam char i e
 handleLam char i e = char ++ pprintBody i e
 
-----------------------------------------------------------------------
-{- Helper functions for print body -}
-
--- handleWiredIn :: Name -> String
--- handleWiredIn w
---   | getLocaln w == "I#" = "{- " ++ show w ++ " -}"
---   {-
---     Excluding GHC.Types also excludes Boolean values,
---     "GHC.Type.True" on RConstantTimeComparison for
---     example.
--- 
---     getModule w == "GHC.Types" = "{- " ++ show w ++ " -}"
---   -}
---   | otherwise                  = getLocaln w
---   where
---     -- getModule :: Name -> String
---     -- getModule n = moduleNameString (moduleName $ nameModule n)
 
 {- If a specific function is built-in into haskell it will still
 contain a module. To remove it and print it properly we localise
@@ -213,7 +196,6 @@ getExternalName n = mod ++ outName
 in Haskell. -}
 handleVar :: Var -> String
 handleVar v
-  | undesirableVar  v    = "{- undesirable: " ++ show v ++ "-}"
   | isTyConName     name = "{- TyConName -}"
   | isTyVarName     name = "{- TyVar -}"
   | isSystemName    name = show name
@@ -232,10 +214,17 @@ handleVar v
 
 {- Should not be done here, but function used to check if is an
 undesirable variable or not (I#) -}
-undesirableVar :: Var -> Bool
-undesirableVar v
+undesirableVar :: CoreExpr -> Bool
+undesirableVar (Var v)
   | getOccString (localiseName (varName v)) == "I#" = True
   | otherwise = False
+undesirableVar _ = False
+
+checkUnit :: CoreExpr -> Bool
+checkUnit (Var v)
+  | getOccString (localiseName (varName v)) == "()" = True
+  | otherwise = False
+checkUnit _ = False  
 ----------------------------------------------------------------------
 pprintBody' :: CoreExpr -> String
 pprintBody' = pprintBody 0
@@ -243,22 +232,21 @@ pprintBody' = pprintBody 0
 pprintBody :: Int -> CoreExpr -> String
 pprintBody i e@(Lam {}) = "(\\" ++ handleLam " -> " i e ++ ")"
 
-pprintBody _ (Var v) = handleVar v
+pprintBody _ var@(Var v)
+  | undesirableVar var = ""
+  | otherwise          = handleVar v
 
 pprintBody i (App e (Type{})) = pprintBody i e
-
-pprintBody i (App (Var v) e2)
-  | undesirableVar v = pprintBody i e2
-  | otherwise        = "" ++ left ++ "\n"
-                       ++ indent (i + 1)
-                       ++ "(" ++ right ++ ")"
-  where
-    left  = handleVar v
-    right = pprintBody (i+1) e2
     
-pprintBody i (App e1 e2) = "(" ++ left ++ ")\n"
-                           ++ indent (i + 1)
-                           ++ "(" ++ right ++ ")"
+pprintBody i (App e1 e2)
+  | undesirableVar e1 = pprintBody i e2
+  | undesirableVar e2 = pprintBody i e1
+  | checkUnit e2      = pprintBody i e1
+                        ++ " "
+                        ++ pprintBody i e2
+  | otherwise = "(" ++ left ++ ")\n"
+                ++ indent (i + 1)
+                ++ "(" ++ right ++ ")"
   where
     left  = pprintBody i e1
     right = pprintBody (i+1) e2
@@ -266,7 +254,7 @@ pprintBody i (App e1 e2) = "(" ++ left ++ ")\n"
 pprintBody _ l@(Lit literal) =
   case isLitValue_maybe literal of
     Just i   -> show i
-    Nothing  -> "{- Lit is not LitChar or LitNumber -}" ++ show l      
+    Nothing  -> show l      
 
 pprintBody i (Case e _ _ alts)
   = "case " ++ pprintBody i e ++ " of"
@@ -275,17 +263,18 @@ pprintBody i (Case e _ _ alts)
 pprintBody _ Type{} = "{- Type -}"
 
 pprintBody i (Let (NonRec x e1) e2) =
-  "\n" ++ indent i ++
-  "let " ++ handleVar x ++ " = ("
-  ++ pprintBody newIdent e1 ++ ") in " ++
-  pprintBody newIdent e2
+  first ++ pprintBody firstIdent e1 ++ " in "
+  ++ pprintBody secondIdent e2
   where
-    newIdent :: Int
-    newIdent = i + 5
+    first       = "let " ++ handleVar x ++ " = "
+    firstIdent  = i + 4 + length first
+    secondIdent = 4 + firstIdent
     
 pprintBody _ (Let (Rec {}) _) = "{- let rec -}"
 
-pprintBody i (Tick (SourceNote _ s) e) = "{- " ++ s ++ " -}"
+pprintBody i (Tick (SourceNote _ s) e) = "\n" ++ indent i
+                                         ++ "{- " ++ s ++ " -}"
+                                         ++ "\n" ++ indent i
                                          ++ pprintBody i e
 
 pprintBody i (Tick _ e) = pprintBody i e
