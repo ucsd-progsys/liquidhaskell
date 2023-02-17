@@ -8,7 +8,7 @@ LiquidHaskell _(LH)_ refines Haskell's types with logical predicates that let yo
 <div class="example-row">
 <p>
 LH warns you that head is not total as it is missing the case for <code>[]</code> and checks that it is total on <code>NonEmpty</code> lists.
-<a href="../blogposts/2013-01-31-safely-catching-a-list-by-its-tail.lhs/">(more...)</a>
+<a href="blogposts/2013-01-31-safely-catching-a-list-by-its-tail.lhs">(more...)</a>
 </p>
 <img src="static/img/splash-head.gif">
 </div>
@@ -25,7 +25,7 @@ The input contract propagates to uses of <code>head</code> which are verified by
 <div class="example-row">
 <p>
 LH lets you avoid off-by-one errors that can lead to crashes or buffer overflows.
-<a href="../2013-03-04-bounding-vectors.lhs/">(more...)</a>
+<a href="blogposts/2013-03-04-bounding-vectors.lhs">(more...)</a>
 </p>
 <img src="static/img/splash-vectorsum.gif">
 </div>
@@ -59,7 +59,7 @@ LH checks that functions terminate and so warns about the infinite recursion due
 <div class="example-row">
 <p>
 Write correctness requirements, for example a list is ordered, as refinements. LH makes illegal values be <em>unrepresentable</em>.
-<a href="../blogposts/2013-07-29-putting-things-in-order.lhs/">(more...)</a>
+<a href="blogposts/2013-07-29-putting-things-in-order.lhs">(more...)</a>
 </p>
 <img src="static/img/splash-ups.gif">
 </div>
