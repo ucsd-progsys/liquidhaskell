@@ -280,12 +280,11 @@ relTermToUnTerm
 relTermToUnTerm e1 e2 relThm =
   relTermToUnTerm' 1 [((e1, e2), Var relThm)]
 
-relTermToUnTerm'
-  :: Int
-  -> [((Var, Var), CoreExpr)]
-  -> CoreExpr
-  -> CoreExpr
-  -> CoreExpr
+relTermToUnTerm' :: Int
+                 -> [((Var, Var), CoreExpr)]
+                 -> CoreExpr
+                 -> CoreExpr
+                 -> CoreExpr
 
 relTermToUnTerm' _ relTerms (Var x1) (Var x2)
   | Just relX <- lookup (x1, x2) relTerms = relX
@@ -383,9 +382,18 @@ relTermToUnTerm' i _ e1 e2 =
   where
     realLoc  = Ghc.mkRealSrcLoc (Ghc.mkFastString "") 0 0
     realSpan = Ghc.mkRealSrcSpan realLoc realLoc
-    left     = pprintBody' $ fromAnf e1
-    right    = pprintBody' $ fromAnf e2
+    left     = coreToGoal True e1
+    right    = coreToGoal True e2
     info     = "GOAL: " ++ left ++ " ~ " ++ right
+
+coreToGoal :: Bool -> CoreExpr -> String
+coreToGoal short e
+  | short && length goal <= 20 = goal
+  | short                     = (take 20 goal) ++ " (...) "
+  | otherwise                 = goal
+  where
+    goal = unwords $ words $ concat $ splitOn "\n" $
+           pprintBody' $ fromAnf e
 
 mkLambdaUnit :: Int -> CoreExpr -> CoreExpr -> Type -> Type -> CoreExpr
 mkLambdaUnit i e1 e2 (Ghc.ForAllTy _ t1) t2 = mkLambdaUnit i e1 e2 t1 t2
@@ -414,23 +422,50 @@ mkLambdaUnit _ _ _ t1 t2@Ghc.FunTy{} =
   " " ++
   F.showpp t2
 
-mkLambdaUnit i e1 e2 _ _ = output
+mkLambdaUnit i e1 e2 _ _ = cleanUnTerms output
   where
     output :: CoreExpr
-    output = App (App (App genConst genConstU) e1) e2
+    output =
+      App (App (App genConst genConstU) e1) e2
 
     genConst  = Var $ GM.mkLocVar i "const" Ghc.unitTy
     genConstU = App genConst Ghc.unitExpr
 
--- unit :: Int -> Var
--- unit i = GM.mkLocVar (i) "()" Ghc.unitTy
+cleanUnTerms :: CoreExpr -> CoreExpr
+{- Maybe have to do some cleaning to the vars here -}
+cleanUnTerms (Var v) = (Var v)
 
--- buildConsApp :: Int -> Var -> Var -> CoreExpr
--- buildConsApp i v1 v2 =
---   App genConst $ App Ghc.unitExpr $
---   App genConst (App (Var v1) (Var v2))
+-- cleanUnTerms (Lit (Ghc.LitString bs)) =
+--   Tick (Ghc.SourceNote realSpan info) Ghc.unitExpr
 --   where
---     genConst = Var $ GM.mkLocVar (i) "const" Ghc.unitTy
+--     realLoc  = Ghc.mkRealSrcLoc (Ghc.mkFastString "") 0 0
+--     realSpan = Ghc.mkRealSrcSpan realLoc realLoc
+--     info = last $ splitOn "|" $ show bs
+
+cleanUnTerms l@(Lit {}) = l
+
+cleanUnTerms (App f e)
+  | Type{} <- GM.unTickExpr e = cleanUnTerms f
+
+cleanUnTerms (App f (Var v))
+  | GM.isEmbeddedDictVar v = cleanUnTerms f
+
+cleanUnTerms (App f e) = App (cleanUnTerms f) $ cleanUnTerms e
+
+cleanUnTerms (Lam α e)
+  | Ghc.isTyVar α = cleanUnTerms e
+  | otherwise     = Lam α $ cleanUnTerms e
+
+cleanUnTerms (Let (NonRec v e1) e2) = 
+  Let (NonRec v (cleanUnTerms e1)) $ cleanUnTerms e2
+
+cleanUnTerms (Let r e) = Let r $ cleanUnTerms e
+
+cleanUnTerms (Case e v t alts) =
+  Case (cleanUnTerms e) v t $
+  map (\(altc, vs, alte) -> (altc, vs, cleanUnTerms alte)) alts
+
+cleanUnTerms e = error ("Ups cleanUnTerms: " ++ F.showpp e)
 
 --------------------------------------------------------------
 -- Core Checking Rules ---------------------------------------
