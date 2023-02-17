@@ -63,3 +63,4 @@ tests/**/*.o-boot
 *.iml
 
 .DS_Store
+docs/mkDocs/site
