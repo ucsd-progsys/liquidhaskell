@@ -281,8 +281,12 @@ solveCs cfg tgt cgi info names = do
                        " ) where\nimport " ++
                        takeBaseName tgt ++ "\n"
 
-    let listOfImps   = map (\imp -> F.symbolicString imp) (S.toList $ gsAllImps $ giSrc info)
-    let imports      = L.intercalate "\n" $ map (\imp -> "import " ++ imp) listOfImps
+    let listOfImps   = [ "GHC.Classes"
+                       , "Control.Exception.Base" ]
+                       ++ map (\imp -> F.symbolicString imp)
+                       (S.toList $ gsAllImps $ giSrc info)          
+    let imports      =
+          L.intercalate "\n" $ map (\imp -> "import " ++ imp) listOfImps
 
     {-
       Modules that have the form of: "import moduleName (function)",
@@ -299,7 +303,11 @@ solveCs cfg tgt cgi info names = do
 --      putStrLn $ "{- " ++ (show $ fstTupleList $ gsImps $ giSpec info) ++ " -}"
 --      putStrLn $ "{- " ++ (show $ gsAllImps $ giSrc info) ++ " -}" 
 --      putStrLn $ "{- " ++ (show $ gsQualImps $ giSrc info) ++ " -}"
-      writeFile hintFile (flags ++ moduleFile ++ imports ++ "\n" ++ hints)
+      writeFile hintFile ( flags
+                           ++ moduleFile
+                           ++ imports
+                           ++ "\n"
+                           ++ hints )
       putStrLn "****** Relational Hints ********************************************************"
       putStrLn $ "Saved to file: " ++ hintFile
   let resModel      = resModel' `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors)) 
