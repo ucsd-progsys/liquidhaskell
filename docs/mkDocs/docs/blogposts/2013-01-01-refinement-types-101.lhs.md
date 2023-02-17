@@ -239,7 +239,7 @@ deducing that `n` is trivially non-negative when `0 < n` and that in
 the `otherwise` case, i.e. when `not (0 < n)` the value `0 - n` is
 indeed non-negative (lets not worry about underflows for the moment.)
 LiquidHaskell is able to automatically make these arithmetic deductions
-by using an [SMT solver](http://rise4fun.com/Z3/) which has decision
+by using an [SMT solver](https://github.com/Z3Prover/z3) which has decision
 built-in procedures for arithmetic, to reason about the logical
 refinements.
 
@@ -310,8 +310,8 @@ Modular Verification
 --------------------
 
 Incidentally, note the `import` statement at the top. Rather than rolling
-our own `lAssert` we can import and use a pre-defined version `liquidAssert` 
-defined in an external [module](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Language/Haskell/Liquid/Prelude.hs)
+our own `lAssert` we can import and use a pre-defined version `liquidAssert`
+defined in an external [module](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/liquid-prelude/src/Language/Haskell/Liquid/Prelude.hs)
 
 
 <pre><span class=hs-linenum>286: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>truncate''</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyword'>@-}</span>
