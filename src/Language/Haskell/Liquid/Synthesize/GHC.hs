@@ -263,17 +263,15 @@ pprintBody i (Case e _ _ alts)
 pprintBody _ Type{} = "{- Type -}"
 
 pprintBody i (Let (NonRec x e1) e2) =
-  first ++ pprintBody firstIdent e1 ++ " in "
-  ++ pprintBody secondIdent e2
+  first ++ pprintBody firstIdent e1 ++ " in\n"
+  ++ indent i ++ pprintBody (i+1) e2
   where
     first       = "let " ++ handleVar x ++ " = "
     firstIdent  = i + 4 + length first
-    secondIdent = 4 + firstIdent
     
 pprintBody _ (Let (Rec {}) _) = "{- let rec -}"
 
-pprintBody i (Tick (SourceNote _ s) e) = "\n" ++ indent i
-                                         ++ "{- " ++ s ++ " -}"
+pprintBody i (Tick (SourceNote _ s) e) = "{- " ++ s ++ " -}"
                                          ++ "\n" ++ indent i
                                          ++ pprintBody i e
 
@@ -291,9 +289,14 @@ data AltCon = DataAlt DataCon
 pprintAlts :: Int -> Alt Var -> String
 pprintAlts i (DataAlt dataCon, vs, e)
   = "\n" ++ indent i
-  ++ getOccString (getName dataCon)
-  ++ concatMap (\v -> " " ++ handleVar v) vs
-  ++ " -> " ++ pprintBody (i+caseIndent) e
+    ++ elCase
+    ++ pprintBody (i + newIndent) e
+  where
+    elCase = getOccString (getName dataCon)
+             ++ concatMap (\v -> " " ++ handleVar v) vs
+             ++ " -> "
+    newIndent = length elCase
+    
 pprintAlts _ _ =
   error " Pretty printing for pattern match on datatypes. "
 
