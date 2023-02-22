@@ -1,7 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Haskell.Liquid.Transforms.InlineAux
   ( inlineAux
   )
@@ -17,18 +15,18 @@ inlineAux :: UX.Config -> Module -> CoreProgram -> CoreProgram
 inlineAux cfg m cbs =  if UX.auxInline cfg then occurAnalysePgm m (const False) (const False) [] (map f cbs) else cbs
  where
   f :: CoreBind -> CoreBind
-  f all@(NonRec x e)
+  f all'@(NonRec x e)
     | Just (dfunId, methodToAux) <- M.lookup x auxToMethodToAux = NonRec
       x
       (inlineAuxExpr dfunId methodToAux e)
-    | otherwise = all
+    | otherwise = all'
   f (Rec bs) = Rec (fmap g bs)
    where
-    g all@(x, e)
+    g all'@(x, e)
       | Just (dfunId, methodToAux) <- M.lookup x auxToMethodToAux
       = (x, inlineAuxExpr dfunId methodToAux e)
       | otherwise
-      = all
+      = all'
   auxToMethodToAux = mconcat $ fmap (uncurry dfunIdSubst) (grepDFunIds cbs)
 
 
@@ -72,7 +70,7 @@ dfunIdSubst dfunId e = M.fromList $ zip auxIds (repeat (dfunId, methodToAux))
   methods = classAllSelIds cls
 
 inlineAuxExpr :: DFunId -> M.HashMap Id Id -> CoreExpr -> CoreExpr
-inlineAuxExpr dfunId methodToAux e = go e
+inlineAuxExpr dfunId methodToAux = go
  where
   go :: CoreExpr -> CoreExpr
   go (Lam b body) = Lam b (go body)
