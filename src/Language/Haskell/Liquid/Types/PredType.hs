@@ -5,7 +5,6 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Language.Haskell.Liquid.Types.PredType (
@@ -155,7 +154,7 @@ dataConResultTy dc αs t = mkFamilyTyConApp tc tArgs'
 
 meetWorkWrapRep :: DataCon -> SpecRep -> SpecRep -> SpecRep
 meetWorkWrapRep c workR wrapR
-  | 0 <= pad
+  | 0 <= pad'
   = workR { ty_binds = xs ++ ty_binds wrapR
           , ty_args  = ts ++ zipWith F.meet ts' (ty_args wrapR)
           , ty_res   = strengthenRType (ty_res workR)    (ty_res  wrapR)
@@ -164,9 +163,9 @@ meetWorkWrapRep c workR wrapR
   | otherwise
   = panic (Just (getSrcSpan c)) errMsg
   where
-    pad       = {- F.tracepp ("MEETWKRAP: " ++ show (ty_vars workR)) $ -} workN - wrapN
-    (xs, _)   = splitAt pad (ty_binds workR)
-    (ts, ts') = splitAt pad (ty_args  workR)
+    pad'      = {- F.tracepp ("MEETWKRAP: " ++ show (ty_vars workR)) $ -} workN - wrapN
+    (xs, _)   = splitAt pad' (ty_binds workR)
+    (ts, ts') = splitAt pad' (ty_args  workR)
     workN     = length      (ty_args  workR)
     wrapN     = length      (ty_args  wrapR)
     errMsg    = "Unsupported Work/Wrap types for Data Constructor " ++ showPpr c
@@ -183,17 +182,17 @@ dcWrapSpecType allowTC dc (DataConP _ _ vs ps cs yts rt _ _ _)
     mkArrow makeVars' ps [] ts' rt'
   where
     isCls    = Ghc.isClassTyCon $ Ghc.dataConTyCon dc
-    (xs, ts) = unzip (reverse yts)
+    (as, sts) = unzip (reverse yts)
     mkDSym z = F.symbol z `F.suffixSymbol` F.symbol dc
-    ys       = mkDSym <$> xs
+    bs       = mkDSym <$> as
     tx _  []     []     []     = []
     tx su (x:xs) (y:ys) (t:ts) = (y, classRFInfo allowTC , if allowTC && isCls then t else F.subst (F.mkSubst su) t, mempty)
                                : tx ((x, F.EVar y):su) xs ys ts
     tx _ _ _ _ = panic Nothing "PredType.dataConPSpecType.tx called on invalid inputs"
-    yts'     = tx [] xs ys ts
+    yts'     = tx [] as bs sts
     ts'      = map ("" , classRFInfo allowTC , , mempty) cs ++ yts'
-    su       = F.mkSubst [(x, F.EVar y) | (x, y) <- zip xs ys]
-    rt'      = F.subst su rt
+    subst    = F.mkSubst [(x, F.EVar y) | (x, y) <- zip as bs]
+    rt'      = F.subst subst rt
     makeVars = zipWith (\v a -> RTVar v (rTVarInfo a :: RTVInfo RSort)) vs (fst $ splitForAllTyCoVars $ dataConRepType dc)
     makeVars' = zip makeVars (repeat mempty)
 
@@ -337,7 +336,7 @@ substPVar src dst = go
     go (RImpF x i t t' r) = RImpF x i (go t)  (go t') (goRR r)
     go (RAllE x t t')     = RAllE x   (go t)  (go t')
     go (REx x t t')       = REx x     (go t)  (go t')
-    go (RRTy e r o t)     = RRTy e'   (goRR r) o (go t) where e' = [(x, go t) | (x, t) <- e]
+    go (RRTy e r o rt)    = RRTy e'   (goRR r) o (go rt) where e' = [(x, go t) | (x, t) <- e]
     go (RAppTy t1 t2 r)   = RAppTy    (go t1) (go t2) (goRR r)
     go (RHole r)          = RHole     (goRR r)
     go t@(RExprArg  _)    = t
@@ -356,12 +355,12 @@ substPVar src dst = go
 substPred :: String -> (RPVar, SpecProp) -> SpecType -> SpecType
 -------------------------------------------------------------------------------
 
-substPred _   (π, RProp ss (RVar a1 r1)) t@(RVar a2 r2)
+substPred _   (rp, RProp ss (RVar a1 r1)) t@(RVar a2 r2)
   | isPredInReft && a1 == a2    = RVar a1 $ meetListWithPSubs πs ss r1 r2'
   | isPredInReft                = panic Nothing ("substPred RVar Var Mismatch" ++ show (a1, a2))
   | otherwise                   = t
   where
-    (r2', πs)                   = splitRPvar π r2
+    (r2', πs)                   = splitRPvar rp r2
     isPredInReft                = not $ null πs
 
 substPred msg su@(π, _ ) (RApp c ts rs r)
@@ -377,22 +376,22 @@ substPred msg (p, tp) (RAllP q@PV{} t)
 
 substPred msg su (RAllT a t r)  = RAllT a (substPred msg su t) r
 
-substPred msg su@(π,prop) (RFun x i t t' r)
+substPred msg su@(rp,prop) (RFun x i rt rt' r)
 --                        = RFun x (substPred msg su t) (substPred msg su t') r
-  | null πs                     = RFun x i (substPred msg su t) (substPred msg su t') r
+  | null πs                     = RFun x i (substPred msg su rt) (substPred msg su rt') r
   | otherwise                   =
       let sus = (\π -> F.mkSubst (zip (fst <$> rf_args prop) (thd3 <$> pargs π))) <$> πs in
-      foldl (\t su -> t `F.meet` F.subst su (rf_body prop)) (RFun x i (substPred msg su t) (substPred msg su t') r') sus
-  where (r', πs)                = splitRPvar π r
+      foldl (\t subst -> t `F.meet` F.subst subst (rf_body prop)) (RFun x i (substPred msg su rt) (substPred msg su rt') r') sus
+  where (r', πs)                = splitRPvar rp r
 -- ps has   , pargs :: ![(t, Symbol, Expr)]
 
 -- AT: just a copy of the other case, mutatis mutandi. (is there a less hacky way?)
-substPred msg su@(π,prop) (RImpF x i t t' r)
-  | null πs                     = RImpF x i (substPred msg su t) (substPred msg su t') r
+substPred msg su@(rp,prop) (RImpF x i rt rt' r)
+  | null πs                     = RImpF x i (substPred msg su rt) (substPred msg su rt') r
   | otherwise                   =
       let sus = (\π -> F.mkSubst (zip (fst <$> rf_args prop) (thd3 <$> pargs π))) <$> πs in
-      foldl (\t su -> t `F.meet` F.subst su (rf_body prop)) (RImpF x i (substPred msg su t) (substPred msg su t') r') sus
-  where (r', πs)                = splitRPvar π r
+      foldl (\t subst -> t `F.meet` F.subst subst (rf_body prop)) (RImpF x i (substPred msg su rt) (substPred msg su rt') r') sus
+  where (r', πs)                = splitRPvar rp r
 
 
 
@@ -427,8 +426,8 @@ substRCon msg (_, RProp ss t1@(RApp c1 ts1 rs1 r1)) t2@(RApp c2 ts2 rs2 _) πs r
     ts                     = F.subst su $ safeZipWith (msg ++ ": substRCon")  strSub  ts1  ts2
     rs                     = F.subst su $ safeZipWith (msg ++ ": substRCon2") strSubR rs1' rs2'
     (rs1', rs2')           = pad "substRCon" F.top rs1 rs2
-    strSub r1 r2           = meetListWithPSubs πs ss r1 r2
-    strSubR r1 r2          = meetListWithPSubsRef πs ss r1 r2
+    strSub x r2           = meetListWithPSubs πs ss x r2
+    strSubR x r2          = meetListWithPSubsRef πs ss x r2
 
     su = F.mkSubst $ zipWith (\s1 s2 -> (s1, F.EVar s2)) (rvs t1) (rvs t2)
 
