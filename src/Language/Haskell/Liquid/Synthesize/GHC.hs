@@ -105,8 +105,8 @@ fromAnf' (Var var) bnds
 
 fromAnf' (Case scr bnd tp alts) bnds
   = (Case scr bnd tp (
-        map (\(altc, xs, e) -> (altc, xs, fst $ fromAnf' e bnds))
-          alts), bnds)
+        map (\(altc, xs, e) ->
+               (altc, xs, fst $ fromAnf' e bnds)) alts), bnds)
 
 fromAnf' (App e1 e2) bnds
   = let (e1', bnds')  = fromAnf' e1 bnds
@@ -198,11 +198,11 @@ handleVar :: Var -> String
 handleVar v
   | isTyConName     name = "{- TyConName -}"
   | isTyVarName     name = "{- TyVar -}"
-  | isSystemName    name = show name
+  | isSystemName    name = getSysName name
 --                           ++ "{- SysName -}"
   | isWiredInName   name = getLocalName name
 --                           ++ "{- WiredInName -}"
-  | isInternalName  name = getOccString name
+  | isInternalName  name = show name
 --                           ++ "{- Internal -}"
   | isExternalName  name = getExternalName name
 --                           ++ "{- external name -}"
@@ -212,6 +212,15 @@ handleVar v
     name :: Name
     name = varName v
 
+
+getSysName :: Name -> String
+getSysName n
+  | elem '#' occ = (head $ splitOn "$##" $ occ)
+                     ++ show num ++ "_" ++ [tag]
+  | otherwise      = show n
+  where
+    (tag, num) = unpkUnique $ getUnique n
+    occ        = getOccString n
 {- Should not be done here, but function used to check if is an
 undesirable variable or not (I#) -}
 undesirableVar :: CoreExpr -> Bool
@@ -263,11 +272,13 @@ pprintBody i (Case e _ _ alts)
 pprintBody _ Type{} = "{- Type -}"
 
 pprintBody i (Let (NonRec x e1) e2) =
-  first ++ pprintBody firstIdent e1 ++ " in\n"
-  ++ indent i ++ pprintBody (i+1) e2
+  letExp ++
+  eqlExp ++
+  indent i ++ pprintBody (i+1) e2
   where
-    first       = "let " ++ handleVar x ++ " = "
-    firstIdent  = i + 4 + length first
+    letExp      = "let " ++ handleVar x ++ " = "
+    eqlExp      = pprintBody firstIdent e1 ++ " in\n"
+    firstIdent  = i + caseIndent*2 + length letExp
     
 pprintBody _ (Let (Rec {}) _) = "{- let rec -}"
 

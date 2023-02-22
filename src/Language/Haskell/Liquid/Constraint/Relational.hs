@@ -297,10 +297,9 @@ relTermToUnTerm' i relTerms (App f1 (Var x1)) (App f2 (Var x2))
   | GM.isEmbeddedDictVar x1
   , GM.isEmbeddedDictVar x2 = relTermToUnTerm' i relTerms f1 f2
 
-relTermToUnTerm' i relTerms (App f1 x1) (App f2 x2) 
+relTermToUnTerm' i relTerms (App f1 x1) (App f2 x2)
   | isCommonArg x1
-  , isCommonArg x2 = App
-                     (App (relTermToUnTerm' i relTerms f1 f2) x1) x2
+  , isCommonArg x2 = App (App (relTermToUnTerm' i relTerms f1 f2) x1) x2
   where 
     isCommonArg x | Type{} <- GM.unTickExpr x = False
     isCommonArg x | Var v <- GM.unTickExpr x =
