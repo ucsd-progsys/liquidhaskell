@@ -2,7 +2,6 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.Haskell.Liquid.Transforms.RefSplit (
 
@@ -68,11 +67,11 @@ splitRType f (RAppTy tx t r) = (RAppTy tx1 t1 r1, RAppTy tx2 t2 r2)
         (tx1, tx2) = splitRType f tx
         (t1,  t2)  = splitRType f t
         (r1,  r2)  = splitRef   f r
-splitRType f (RRTy xs r o t) = (RRTy xs1 r1 o t1, RRTy xs2 r2 o t2)
+splitRType f (RRTy xs r o rt) = (RRTy xs1 r1 o rt1, RRTy xs2 r2 o rt2)
   where
         (xs1, xs2) = unzip (go <$> xs)
         (r1, r2) = splitRef   f r
-        (t1, t2) = splitRType f t
+        (rt1, rt2) = splitRType f rt
 
         go (x, t) = let (t1, t2) = splitRType f t in ((x,t1), (x, t2))
 splitRType f (RHole r) = (RHole r1, RHole r2)
