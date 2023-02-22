@@ -12,7 +12,6 @@
 {-# LANGUAGE ScopedTypeVariables  #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.Haskell.Liquid.Types.PrettyPrint
   ( -- * Printable RTypes
@@ -258,8 +257,8 @@ pprRtype bb p (RAppTy t t' r)
   = F.ppTy r $ pprRtype bb p t <+> pprRtype bb p t'
 pprRtype bb p (RRTy e _ OCons t)
   = sep [braces (pprRsubtype bb p e) <+> "=>", pprRtype bb p t]
-pprRtype bb p (RRTy e r o t)
-  = sep [ppp (pprint o <+> ppe <+> pprint r), pprRtype bb p t]
+pprRtype bb p (RRTy e r o rt)
+  = sep [ppp (pprint o <+> ppe <+> pprint r), pprRtype bb p rt]
   where
     ppe         = hsep (punctuate comma (ppxt <$> e)) <+> dcolon
     ppp  doc    = text "<<" <+> doc <+> text ">>"
@@ -299,19 +298,19 @@ ppExists
       PPrint (RType c tv ()), F.Reftable (RTProp c tv r),
       F.Reftable (RTProp c tv ()))
   => PPEnv -> Prec -> RType c tv r -> Doc
-ppExists bb p t
-  = text "exists" <+> brackets (intersperse comma [pprDbind bb topPrec x t | (x, t) <- zs]) <-> dot <-> pprRtype bb p t'
-    where (zs,  t')               = split [] t
+ppExists bb p rt
+  = text "exists" <+> brackets (intersperse comma [pprDbind bb topPrec x t | (x, t) <- ws]) <-> dot <-> pprRtype bb p rt'
+    where (ws,  rt')               = split [] rt
           split zs (REx x t t')   = split ((x,t):zs) t'
           split zs t                = (reverse zs, t)
 
 ppAllExpr
   :: (OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> Prec -> RType c tv r -> Doc
-ppAllExpr bb p t
-  = text "forall" <+> brackets (intersperse comma [pprDbind bb topPrec x t | (x, t) <- zs]) <-> dot <-> pprRtype bb p t'
+ppAllExpr bb p rt
+  = text "forall" <+> brackets (intersperse comma [pprDbind bb topPrec x t | (x, t) <- ws]) <-> dot <-> pprRtype bb p rt'
     where
-      (zs,  t')               = split [] t
+      (ws,  rt')               = split [] rt
       split zs (RAllE x t t') = split ((x,t):zs) t'
       split zs t              = (reverse zs, t)
 
@@ -338,12 +337,12 @@ pprDbind bb p x t
 pprRtyFun
   :: ( OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> Doc -> RType c tv r -> Doc
-pprRtyFun bb prefix t = hsep (prefix : dArgs ++ [dOut])
+pprRtyFun bb prefix rt = hsep (prefix : dArgs ++ [dOut])
   where
     dArgs               = concatMap ppArg args
     dOut                = pprRtype bb topPrec out
     ppArg (b, t, a)     = [pprDbind bb funPrec b t, a]
-    (args, out)         = brkFun t
+    (args, out)         = brkFun rt
 
 {-
 pprRtyFun bb prefix t
@@ -492,10 +491,10 @@ reduceFilters renderer fs err = filter (filterDoesMatchErr renderer err) fs
 
 filterDoesMatchErr :: (e -> String) -> e -> Filter -> Bool
 filterDoesMatchErr _        _ AnyFilter = True
-filterDoesMatchErr renderer e (StringFilter filter) = stringMatch filter (renderer e)
+filterDoesMatchErr renderer e (StringFilter filter') = stringMatch filter' (renderer e)
 
 stringMatch :: String -> String -> Bool
-stringMatch filter str = filter `L.isInfixOf` str
+stringMatch filter' str = filter' `L.isInfixOf` str
 
 -- | Used in `filterReportErrorsWith'`
 data FilterReportErrorsArgs m filter msg e a =
