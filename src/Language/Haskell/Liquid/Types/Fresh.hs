@@ -7,8 +7,6 @@
 {-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE ConstraintKinds       #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Haskell.Liquid.Types.Fresh
   ( Freshable(..)
   , refreshTy
@@ -137,13 +135,13 @@ refreshRefType allowTC (RAllT α t r)
 refreshRefType allowTC (RAllP π t)
   = RAllP π <$> refresh allowTC t
 
-refreshRefType allowTC (RImpF b i t t' _)
-  | b == F.dummySymbol = (\b t1 t2 -> RImpF b i t1 t2 mempty) <$> fresh <*> refresh allowTC t <*> refresh allowTC t'
-  | otherwise          = (\t1 t2 -> RImpF b i t1 t2 mempty)   <$> refresh allowTC t <*> refresh allowTC t'
+refreshRefType allowTC (RImpF sym i t t' _)
+  | sym == F.dummySymbol = (\b t1 t2 -> RImpF b i t1 t2 mempty) <$> fresh <*> refresh allowTC t <*> refresh allowTC t'
+  | otherwise          = (\t1 t2 -> RImpF sym i t1 t2 mempty)   <$> refresh allowTC t <*> refresh allowTC t'
 
-refreshRefType allowTC (RFun b i t t' _)
-  | b == F.dummySymbol = (\b t1 t2 -> RFun b i t1 t2 mempty) <$> fresh <*> refresh allowTC t <*> refresh allowTC t'
-  | otherwise          = (\t1 t2 -> RFun b i t1 t2 mempty)   <$> refresh allowTC t <*> refresh allowTC t'
+refreshRefType allowTC (RFun sym i t t' _)
+  | sym == F.dummySymbol = (\b t1 t2 -> RFun b i t1 t2 mempty) <$> fresh <*> refresh allowTC t <*> refresh allowTC t'
+  | otherwise          = (\t1 t2 -> RFun sym i t1 t2 mempty)   <$> refresh allowTC t <*> refresh allowTC t'
 
 refreshRefType _ (RApp rc ts _ _) | isClass rc
   = return $ rRCls rc ts
@@ -261,8 +259,8 @@ refreshArgsSub t
 refreshPs :: (FreshM m) => SpecType -> m SpecType
 refreshPs = mapPropM go
   where
-    go (RProp s t) = do
-      t'    <- refreshPs t
+    go (RProp s st) = do
+      t'    <- refreshPs st
       xs    <- mapM (const fresh) s
       let su = F.mkSubst [(y, F.EVar x) | (x, (y, _)) <- zip xs s]
       return $ RProp [(x, t) | (x, (_, t)) <- zip xs s] $ F.subst su t'

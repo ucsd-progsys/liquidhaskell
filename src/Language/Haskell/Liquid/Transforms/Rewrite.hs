@@ -7,7 +7,6 @@
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE FlexibleContexts          #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 -- | This module contains functions for recursively "rewriting"
@@ -104,7 +103,7 @@ untick (Tick _ e) = untick e
 untick e          = e 
 
 tidyTuples :: RewriteRule
-tidyTuples e = Just $ evalState (go e) []
+tidyTuples ce = Just $ evalState (go ce) []
   where
     go (Tick t e)
       = Tick t <$> go e
@@ -144,10 +143,10 @@ tidyTuples e = Just $ evalState (go e) []
 
 
 normalizeTuples :: CoreBind -> CoreBind
-normalizeTuples b
-  | NonRec x e <- b
+normalizeTuples cb
+  | NonRec x e <- cb
   = NonRec x $ go e
-  | Rec xes <- b
+  | Rec xes <- cb
   = let (xs,es) = unzip xes in
     Rec $ zip xs (go <$> es)
   where
@@ -300,9 +299,9 @@ simplifyPatTuple :: RewriteRule
 
 _tidyAlt :: Int -> Maybe CoreExpr -> Maybe CoreExpr
 
-_tidyAlt n (Just (Let (NonRec x e) rest))
+_tidyAlt n (Just (Let (NonRec cb expr) rest))
   | Just (yes, e') <- takeBinds n rest
-  = Just $ Let (NonRec x e) $ foldl (\e (x, ex) -> Let (NonRec x ex) e) e' (reverse $ go $ reverse yes)
+  = Just $ Let (NonRec cb expr) $ foldl (\e (x, ex) -> Let (NonRec x ex) e) e' (reverse $ go $ reverse yes)
 
   where
     go xes@((_, e):_) = let bs = grapBinds e in mapSnd (replaceBinds bs) <$> xes
@@ -342,9 +341,9 @@ varTuple x
   = Nothing
 
 takeBinds  :: Nat -> CoreExpr -> Maybe ([(Var, CoreExpr)], CoreExpr)
-takeBinds n e
-  | n < 2     = Nothing
-  | otherwise = {- mapFst reverse <$> -} go n e
+takeBinds nat ce
+  | nat < 2     = Nothing
+  | otherwise = {- mapFst reverse <$> -} go nat ce
     where
       go 0 e                      = Just ([], e)
       go n (Let (NonRec x e) e')  = do (xes, e'') <- go (n-1) e'
@@ -388,11 +387,11 @@ hasTuple ys = stepE
 --------------------------------------------------------------------------------
 
 replaceTuple :: [Var] -> CoreExpr -> CoreExpr -> Maybe CoreExpr
-replaceTuple ys e e'           = stepE e
+replaceTuple ys ce ce'           = stepE ce
   where
-    t'                          = Ghc.exprType e'
+    t'                          = Ghc.exprType ce'
     stepE e
-     | Just xs <- isVarTup ys e = Just $ substTuple xs ys e'
+     | Just xs <- isVarTup ys e = Just $ substTuple xs ys ce'
      | otherwise                = go e
     stepA (Alt DEFAULT xs err)  = Just (Alt DEFAULT xs (replaceIrrefutPat t' err))
     stepA (Alt c xs e)          = Alt c xs   <$> stepE e
@@ -401,7 +400,7 @@ replaceTuple ys e e'           = stepE e
     go _                        = Nothing
 
 _showExpr :: CoreExpr -> String
-_showExpr e = show' e
+_showExpr = show'
   where
     show' (App e1 e2) = show' e1 ++ " " ++ show' e2
     show' (Var x)     = _showVar x
