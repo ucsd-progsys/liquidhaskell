@@ -260,6 +260,7 @@ pprintBody i (App e1 e2)
     left  = pprintBody i e1
     right = pprintBody (i+1) e2
 
+-- pprintBody _ (Lit (LitString bs)) = show bs
 pprintBody _ l@(Lit literal) =
   case isLitValue_maybe literal of
     Just i   -> show i
