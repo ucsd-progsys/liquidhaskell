@@ -39,7 +39,8 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Synthesize.GHC
                                                 ( coreToHs
                                                 , fromAnf
-                                                , pprintBody' )
+                                                , pprintBody'
+                                                , handleVar )
 
 import           Liquid.GHC.API                 ( Alt
                                                 , AltCon(..)
@@ -381,20 +382,26 @@ relTermToUnTerm' i _ e1 e2 =
   where
     realLoc  = Ghc.mkRealSrcLoc (Ghc.mkFastString "") 0 0
     realSpan = Ghc.mkRealSrcSpan realLoc realLoc
-    left     = coreToGoal True e1
+    left     = coreToGoal True e1 
     right    = coreToGoal True e2
     info     = "GOAL: " ++ left ++ " ~ " ++ right
 
+{- function to print CoreExpr as strings in order to
+insert them as goal comments on the output of the proof.
+when the boolean argument short is true, if the goal is
+bigger then 20 chars then the string is trimed. -}
 coreToGoal :: Bool -> CoreExpr -> String
 coreToGoal short e
+  | bool                      = "()"
   | short && length goal <= 20 = goal
   | short                     = (take 20 goal) ++ " (...) "
   | otherwise                 = goal
   where
-    goal = unwords $ words $ concat $ splitOn "\n" $
-           pprintBody' $ fromAnf e
+    goal = unwords $ words $ concat $ splitOn "\n" $ pprintBody' $ expr
+    (expr, bool) = cleanUnTerms $ fromAnf e
 
 mkLambdaUnit :: Int -> CoreExpr -> CoreExpr -> Type -> Type -> CoreExpr
+
 mkLambdaUnit i e1 e2 (Ghc.ForAllTy _ t1) t2 = mkLambdaUnit i e1 e2 t1 t2
 
 mkLambdaUnit i e1 e2 t1 (Ghc.ForAllTy _ t2) = mkLambdaUnit i e1 e2 t1 t2
@@ -421,18 +428,28 @@ mkLambdaUnit _ _ _ t1 t2@Ghc.FunTy{} =
   " " ++
   F.showpp t2
 
-mkLambdaUnit i e1 e2 _ _ = cleanUnTerms output
+mkLambdaUnit i e1 e2 _ _
+  | Ghc.FunTy {}    <- Ghc.exprType e1
+  , Ghc.FunTy {}    <- Ghc.exprType e2 = Ghc.unitExpr
+  | Ghc.ForAllTy {} <- Ghc.exprType e1
+  , Ghc.ForAllTy {} <- Ghc.exprType e2 = Ghc.unitExpr
+  | bool1 || bool2  = Ghc.unitExpr
+  | otherwise       = App (App (App genConst genConstU) cle1) cle2
   where
-    output :: CoreExpr
-    output =
-      App (App (App genConst genConstU) e1) e2
+    genConst         = Var $ GM.mkLocVar i "const" Ghc.unitTy
+    genConstU        = App genConst Ghc.unitExpr
+    (cle1, bool1)    = cleanUnTerms e1
+    (cle2, bool2)    = cleanUnTerms e2
 
-    genConst  = Var $ GM.mkLocVar i "const" Ghc.unitTy
-    genConstU = App genConst Ghc.unitExpr
-
-cleanUnTerms :: CoreExpr -> CoreExpr
+cleanUnTerms :: CoreExpr -> (CoreExpr, Bool)
 {- Maybe have to do some cleaning to the vars here -}
-cleanUnTerms (Var v) = (Var v)
+cleanUnTerms var@(Var v)
+  | handleVar v == "patError" = (var, True)
+  | otherwise                 = (var, False)
+--  where
+--    paterror = Lam (GM.mkLocVar 0 "_" Ghc.unitTy) Ghc.unitExpr
+-- Var (GM.mkLocVar 0 "error" Ghc.unitTy)
+--      Lam (GM.mkLocVar 0 "_" Ghc.unitTy) Ghc.unitExpr
 
 -- cleanUnTerms (Lit (Ghc.LitString bs)) =
 --   Tick (Ghc.SourceNote realSpan info) Ghc.unitExpr
@@ -441,7 +458,8 @@ cleanUnTerms (Var v) = (Var v)
 --     realSpan = Ghc.mkRealSrcSpan realLoc realLoc
 --     info = last $ splitOn "|" $ show bs
 
-cleanUnTerms l@(Lit {}) = l
+cleanUnTerms (Lit (Ghc.LitString _)) = (Ghc.unitExpr, False)
+cleanUnTerms l@(Lit {}) = (l, False)
 
 cleanUnTerms (App f e)
   | Type{} <- GM.unTickExpr e = cleanUnTerms f
@@ -449,23 +467,50 @@ cleanUnTerms (App f e)
 cleanUnTerms (App f (Var v))
   | GM.isEmbeddedDictVar v = cleanUnTerms f
 
-cleanUnTerms (App f e) = App (cleanUnTerms f) $ cleanUnTerms e
+-- cleanUnTerms (App (Var v) e)
+--   | handleVar v == "patError" =
+--     Lam (GM.mkLocVar 0 "_" Ghc.unitTy) $ cleanUnTerms e
+--    App (Var (GM.mkLocVar 0 "error" Ghc.unitTy)) $
+--    Lit (Ghc.mkLitString "patError")
+
+cleanUnTerms (App f e) = (App core1 core2, bool1 || bool2)
+  where
+    (core1, bool1) = cleanUnTerms f
+    (core2, bool2) = cleanUnTerms e
 
 cleanUnTerms (Lam α e)
   | Ghc.isTyVar α = cleanUnTerms e
-  | otherwise     = Lam α $ cleanUnTerms e
+  | otherwise     = (Lam α core, bool)
+    where
+      (core, bool) = cleanUnTerms e
 
 cleanUnTerms (Let (NonRec v e1) e2) = 
-  Let (NonRec v (cleanUnTerms e1)) $ cleanUnTerms e2
+  (Let (NonRec v core1) core2, bool1 || bool2)
+  where
+    (core1, bool1) = cleanUnTerms e1
+    (core2, bool2) = cleanUnTerms e2
 
-cleanUnTerms (Let r e) = Let r $ cleanUnTerms e
+cleanUnTerms (Let r e) = (Let r core, bool)
+  where
+    (core, bool) = cleanUnTerms e
 
-cleanUnTerms (Case e v t alts) =
-  Case (cleanUnTerms e) v t $
-  map (\(altc, vs, alte) -> (altc, vs, cleanUnTerms alte)) alts
-
+cleanUnTerms (Case e v t alts) = (Case core v t clAlts, bool1 || bool2)
+  where
+    (core,   bool1) = cleanUnTerms e
+    (clAlts, bool2) = cleanCase alts
+    
+-- 
 cleanUnTerms e = error ("Ups cleanUnTerms: " ++ F.showpp e)
 
+cleanCase :: [(a, b, CoreExpr)] -> ([(a, b, CoreExpr)], Bool)
+cleanCase alts = (zip3 altcs vss cores, bool)
+  where
+    (altcs, vss, altesBools) = unzip3 $
+                               map (\(altc, vs, alte) ->
+                                       (altc, vs, cleanUnTerms alte)) alts
+    (cores, bool) = fmap or $ unzip altesBools
+
+-- 
 --------------------------------------------------------------
 -- Core Checking Rules ---------------------------------------
 --------------------------------------------------------------
