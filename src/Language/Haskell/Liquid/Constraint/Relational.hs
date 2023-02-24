@@ -300,12 +300,20 @@ relTermToUnTerm' i relTerms (App f1 (Var x1)) (App f2 (Var x2))
 
 relTermToUnTerm' i relTerms (App f1 x1) (App f2 x2)
   | isCommonArg x1
-  , isCommonArg x2 = App (App (relTermToUnTerm' i relTerms f1 f2) x1) x2
+  , isCommonArg x2 =
+      App (App (relTermToUnTerm' i relTerms f1 f2)
+             $ Tick (Ghc.SourceNote realSpan info1) x1)
+      $ Tick (Ghc.SourceNote realSpan info2) x2
   where 
     isCommonArg x | Type{} <- GM.unTickExpr x = False
     isCommonArg x | Var v <- GM.unTickExpr x =
                       not (GM.isEmbeddedDictVar v)
     isCommonArg _ = True
+    
+    realLoc  = Ghc.mkRealSrcLoc (Ghc.mkFastString "") 0 0
+    realSpan = Ghc.mkRealSrcSpan realLoc realLoc
+    info1     = "internal right of app: " ++ pprintBody' x1
+    info2     = "external right of app: " ++ pprintBody' x2
 
 relTermToUnTerm' i relTerms (Lam α1 e1) (Lam α2 e2) 
   | Ghc.isTyVar α1
@@ -458,7 +466,7 @@ cleanUnTerms var@(Var v)
 --     realSpan = Ghc.mkRealSrcSpan realLoc realLoc
 --     info = last $ splitOn "|" $ show bs
 
-cleanUnTerms (Lit (Ghc.LitString _)) = (Ghc.unitExpr, False)
+-- cleanUnTerms (Lit (Ghc.LitString _)) = (Ghc.unitExpr, False)
 cleanUnTerms l@(Lit {}) = (l, False)
 
 cleanUnTerms (App f e)

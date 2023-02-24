@@ -115,6 +115,8 @@ fromAnf' (App e1 e2) bnds
 
 fromAnf' t@Type{} bnds = (t, bnds)
 
+fromAnf' (Lit (GHC.LitString _)) bnds = (GHC.unitExpr, bnds)
+
 fromAnf' l@Lit{} bnds = (l, bnds)
 
 fromAnf' (Tick s e) bnds = (Tick s e', bnds')
@@ -260,11 +262,10 @@ pprintBody i (App e1 e2)
     left  = pprintBody i e1
     right = pprintBody (i+1) e2
 
--- pprintBody _ (Lit (LitString bs)) = show bs
 pprintBody _ l@(Lit literal) =
   case isLitValue_maybe literal of
     Just i   -> show i
-    Nothing  -> show l      
+    Nothing  -> show l
 
 pprintBody i (Case e _ _ alts)
   = "case " ++ pprintBody i e ++ " of"
