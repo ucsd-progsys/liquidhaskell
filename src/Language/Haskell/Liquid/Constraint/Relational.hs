@@ -395,10 +395,10 @@ coreToGoal :: Bool -> CoreExpr -> String
 coreToGoal short e
   | bool                      = "()"
   | short && length goal <= 20 = goal
-  | short                     = (take 20 goal) ++ " (...) "
+  | short                     = take 20 goal ++ " (...) "
   | otherwise                 = goal
   where
-    goal = unwords $ words $ concat $ splitOn "\n" $ pprintBody' $ expr
+    goal = unwords $ words $ concat $ splitOn "\n" $ pprintBody' expr
     (expr, bool) = cleanUnTerms $ fromAnf e
 
 mkLambdaUnit :: Int -> CoreExpr -> CoreExpr -> Type -> Type -> CoreExpr
@@ -507,7 +507,7 @@ cleanCase alts = (zip3 altcs vss cores, bool)
     (altcs, vss, altesBools) = unzip3 $
                                map (\(altc, vs, alte) ->
                                        (altc, vs, cleanUnTerms alte)) alts
-    (cores, bool) = fmap or $ unzip altesBools
+    (cores, bool) = or <$> unzip altesBools
 
 -- 
 --------------------------------------------------------------

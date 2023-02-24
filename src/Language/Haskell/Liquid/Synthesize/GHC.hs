@@ -217,8 +217,8 @@ handleVar v
 
 getSysName :: Name -> String
 getSysName n
-  | elem '#' occ = (head $ splitOn "$##" $ occ)
-                     ++ show num ++ "_" ++ [tag]
+  | elem '#' occ = head (splitOn "$##" occ)
+                   ++ show num ++ "_" ++ [tag]
   | otherwise      = show n
   where
     (tag, num) = unpkUnique $ getUnique n
