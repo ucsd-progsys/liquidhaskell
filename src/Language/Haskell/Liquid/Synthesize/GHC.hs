@@ -284,9 +284,13 @@ pprintBody i (Let (NonRec x e1) e2) =
     
 pprintBody _ (Let (Rec {}) _) = "{- let rec -}"
 
-pprintBody i (Tick (SourceNote _ s) e) = "{- " ++ s ++ " -}"
-                                         ++ "\n" ++ indent i
-                                         ++ pprintBody i e
+pprintBody i (Tick (SourceNote _ s) e)
+  | expr == "()" = "{- " ++ s ++ " -} " ++ expr
+  | otherwise    = "{- " ++ s ++ " -}"
+                   ++ "\n" ++ indent i
+                   ++ expr
+  where
+    expr = pprintBody i e
 
 pprintBody i (Tick _ e) = pprintBody i e
 
