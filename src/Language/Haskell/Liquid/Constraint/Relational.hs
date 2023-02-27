@@ -224,14 +224,13 @@ relSigToUnSig :: F.Expr -> F.Expr -> SpecType -> SpecType -> RelExpr -> SpecType
 
  -}
 
--- Higher-Order Case. Argument types are functons && checking mode is on:
-relSigToUnSig e1 e2 (RFun x1 i1 s1@RFun{} t1 r1) (RFun x2 i2 s2@RFun{} t2 r2) (ERChecked q p)
+relSigToUnSig e1 e2 (RFun x1 i1 s1 t1 r1) (RFun x2 i2 s2 t2 r2) (ERChecked q p)
   = traceWhenLoud "relSigToUnSig RFun RFun ERChecked" $ 
       RFun x1 i1 s1 
         (RFun x2 i2 s2 
                             -- TODO: how to get i?    
           (RFun (mkRelLemma x1 x2) i2 (relSigToUnSig (F.EVar x1) (F.EVar x2) s1 s2 q) (relSigToUnSig e1 e2 t1 t2 p) r2) r2) r1 
-relSigToUnSig e1 e2 (RFun x1 i1 s1@RFun{} t1 r1) (RFun x2 i2 s2@RFun{} t2 r2) (ERUnChecked q p)
+relSigToUnSig e1 e2 (RFun x1 i1 s1 t1 r1) (RFun x2 i2 s2 t2 r2) (ERUnChecked q p)
   = traceWhenLoud "relSigToUnSig RFun RFun ERChecked" $ 
       RFun x1 i1 s1 
         (RFun x2 i2 s2 
@@ -239,13 +238,6 @@ relSigToUnSig e1 e2 (RFun x1 i1 s1@RFun{} t1 r1) (RFun x2 i2 s2@RFun{} t2 r2) (E
           (RFun (mkRelLemma x1 x2) i2 
                 (relSigToUnSig (F.EVar x1) (F.EVar x2) s1 s2 (wfRelExpr q s1 s2)) 
                 (relSigToUnSig e1 e2 t1 t2 p) r2) r2) r1           
--- First-Order Cases:
-relSigToUnSig e1 e2 (RFun x1 i1 s1 t1 r1) (RFun x2 i2 s2 t2 r2) (ERUnChecked q p)
-  = traceWhenLoud "relSigToUnSig RFun RFun ERUnChecked" $ 
-    RFun x1 i1 s1 (RFun x2 i2 (s2 `strengthen` exprToUReft q) (relSigToUnSig e1 e2 t1 t2 p) r2) r1
-relSigToUnSig e1 e2 (RFun x1 i1 s1 t1 r1) (RFun x2 i2 s2 t2 r2) (ERChecked q p)
-  = traceWhenLoud "relSigToUnSig RFun RFun ERChecked" $ 
-    RFun x1 i1 s1 (RFun x2 i2 (s2 `strengthen` exprToUReft (fromRelExpr q)) (relSigToUnSig e1 e2 t1 t2 p) r2) r1
 relSigToUnSig _ _ RFun{} RFun{} p@ERBasic{}
   = traceWhenLoud "relSigToUnSig RFun RFun ERBasic" $ 
     F.panic $ "relSigToUnSig: predicate " ++ F.showpp p ++ " too short for function types"
@@ -327,17 +319,11 @@ relTermToUnTerm' relTerms (App f1 x1) (App f2 x2)
   , areCompatible x1 x2
   = traceWhenLoud
       ("relTermToUnTerm App common arg " ++ show x1 ++ " " ++ show x2) $ 
-    App (App (relTermToUnTerm' relTerms f1 f2) x1) x2    
+    App (App (App (relTermToUnTerm' relTerms f1 f2) x1) x2) relX
+    where relX = mkLambdaUnit (Ghc.exprType x1) (Ghc.exprType x2)
 relTermToUnTerm' relTerms (Lam α1 e1) (Lam α2 e2) 
   | Ghc.isTyVar α1, Ghc.isTyVar α2
   = relTermToUnTerm' relTerms e1 e2
-relTermToUnTerm' relTerms (Lam x1 e1) (Lam x2 e2)
-  | not (Ghc.isTyVar x1), not (Ghc.isTyVar x2)
-  , isBaseGhcTy (Ghc.varType x1), isBaseGhcTy (Ghc.varType x2)
-  = Lam x1l $ Lam x2r $ relTermToUnTerm' relTerms e1l e2r
-  where
-    (x1l, x2r) = mkRelCopies x1 x2
-    (e1l, e2r) = subRelCopies e1 x1 e2 x2
 relTermToUnTerm' relTerms (Lam x1 e1) (Lam x2 e2)
   | not (Ghc.isTyVar x1), not (Ghc.isTyVar x2)
   = Lam x1l $ Lam x2r $ Lam relX $ 
@@ -369,7 +355,6 @@ relTermToUnTerm' relTerms (Let (Rec bs1) e1) (Let (Rec bs2) e2)
       relTerms' = relTermsBs ++ relTerms
       relBs = zipWith (\(x1, d1) (x2, d2) -> (mkRelThmVar x1 x2, relTermToUnTerm' relTerms' d1 d2)) bs1 bs2
 relTermToUnTerm' relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
---  Let (NonRec x1l d1) $ Let (NonRec x2r d2) $ 
   Case d1 x1l t1 $ map
     (\(c1, bs1, e1) ->
       let bs1l = map (mkCopyWithSuffix relSuffixL) bs1 in
@@ -413,10 +398,6 @@ areCompatibleTy _ _ = False
 mkLambdaUnit :: Type -> Type -> CoreExpr
 mkLambdaUnit (Ghc.ForAllTy _ t1) t2 = mkLambdaUnit t1 t2
 mkLambdaUnit t1 (Ghc.ForAllTy _ t2) = mkLambdaUnit t1 t2
-mkLambdaUnit (Ghc.FunTy Ghc.VisArg _ s1 t1) (Ghc.FunTy Ghc.VisArg _ s2 t2) 
-  | isBaseGhcTy s1, isBaseGhcTy s2
-  = Lam (GM.stringVar "_" Ghc.unitTy) $ 
-      Lam (GM.stringVar "_" Ghc.unitTy) $ mkLambdaUnit t1 t2
 mkLambdaUnit (Ghc.FunTy Ghc.InvisArg _ _ t1) (Ghc.FunTy Ghc.InvisArg _ _ t2) = mkLambdaUnit t1 t2
 mkLambdaUnit (Ghc.FunTy Ghc.VisArg _ _ t1) (Ghc.FunTy Ghc.VisArg _ _ t2) 
   = Lam (GM.stringVar "_" Ghc.unitTy) $ 
@@ -1177,10 +1158,10 @@ unapplyRelArgsR x1 x2 (ERUnChecked e re) =
   ERUnChecked (unapplyRelArgs x1 x2 e) (unapplyRelArgsR x1 x2 re)
 
 
-exprToUReft :: F.Expr -> RReft
-exprToUReft e
-  = traceWhenLoud ("exprToUReft " ++ F.showpp e ++ " to " ++ F.showpp r) r
-    where r = uTop (F.Reft (F.vv_, F.pAnd [e]))
+-- exprToUReft :: F.Expr -> RReft
+-- exprToUReft e
+--   = traceWhenLoud ("exprToUReft " ++ F.showpp e ++ " to " ++ F.showpp r) r
+--     where r = uTop (F.Reft (F.vv_, F.pAnd [e]))
 
 --------------------------------------------------------------
 -- RelExpr & F.Expr ------------------------------------------
