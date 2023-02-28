@@ -241,7 +241,7 @@ pprintBody' :: CoreExpr -> String
 pprintBody' = pprintBody 0
 
 pprintBody :: Int -> CoreExpr -> String
-pprintBody i e@(Lam {}) = "(\\" ++ handleLam " -> " i e ++ ")"
+pprintBody i e@Lam{} = "(\\" ++ handleLam " -> " i e ++ ")"
 
 pprintBody _ var@(Var v)
   | undesirableVar var = ""

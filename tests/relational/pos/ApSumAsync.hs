@@ -1,4 +1,4 @@
-module Fixme where
+module ApSumAsync where
 
 {-@ reflect apsum @-}
 apsum :: Int -> Int -> Int
