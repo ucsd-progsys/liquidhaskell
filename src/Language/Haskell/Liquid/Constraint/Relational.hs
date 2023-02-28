@@ -126,10 +126,11 @@ consRelTop cfg ti chk syn γ ψ (x, y, t, s, ra, rp) = traceChk "Init" e d t s p
       { relHints = relHint
                       (relSigToUnSig (toExpr x) (toExpr y) t' s' rp)
                       hintName
-                      (relTermToUnTerm x y hintName (toCoreExpr e) (toCoreExpr d))
+                      (relTermToUnTerm argNames x y hintName (toCoreExpr e) (toCoreExpr d))
                     $+$ relHints cgi
       }
   where
+    argNames = (fst $ vargs t', fst $ vargs s')
     toExpr = F.EVar . F.symbol
     toCoreExpr = GM.unTickExpr . binderToExpr
     p = fromRelExpr rp
@@ -272,40 +273,41 @@ mkRelLemma :: F.Symbol -> F.Symbol -> F.Symbol
 mkRelLemma s1 s2 = F.symbol $ "lemma" ++ cap (F.symbolString s1) ++ cap (F.symbolString s2)
 
 mkRelThmVar :: Var -> Var -> Var
-mkRelThmVar x y = mkCopyWithName ("rel" ++ cap (trimModuleName $ show x) ++ cap (trimModuleName $ show y)) x
-  where
-    trimModuleName = last . L.splitOn "."
-
+mkRelThmVar x y = mkCopyWithName ("rel" ++ pretty x ++ pretty y) x
+  where pretty = cap . Ghc.occNameString . Ghc.getOccName
+  
 cap :: String -> String
 cap (c:cs) = toUpper c : cs
 cap cs = cs
 
-relTermToUnTerm :: Var -> Var -> Var -> CoreExpr -> CoreExpr -> CoreExpr
-relTermToUnTerm e1 e2 relThm = relTermToUnTerm' [((e1, e2), Var relThm)]
+type ArgMapping = ([F.Symbol], [F.Symbol])
+
+relTermToUnTerm :: ArgMapping -> Var -> Var -> Var -> CoreExpr -> CoreExpr -> CoreExpr
+relTermToUnTerm m e1 e2 relThm = relTermToUnTerm' m [((e1, e2), Var relThm)]
 
 isCommonArg :: CoreExpr -> Bool
 isCommonArg x | Type{} <- GM.unTickExpr x = False
 isCommonArg x | Var v <- GM.unTickExpr x = not (GM.isEmbeddedDictVar v)
 isCommonArg _ = True
 
-relTermToUnTerm' :: [((Var, Var), CoreExpr)] -> CoreExpr -> CoreExpr -> CoreExpr
-relTermToUnTerm' relTerms (Var x1) (Var x2)
+relTermToUnTerm' :: ArgMapping -> [((Var, Var), CoreExpr)] -> CoreExpr -> CoreExpr -> CoreExpr
+relTermToUnTerm' _ relTerms (Var x1) (Var x2)
   | Just relX <- lookup (x1, x2) relTerms 
   = relX
 
-relTermToUnTerm' relTerms (App f1 α1) (App f2 α2) 
+relTermToUnTerm' m relTerms (App f1 α1) (App f2 α2) 
   | Type{} <- GM.unTickExpr α1
   , Type{} <- GM.unTickExpr α2
   , areCompatible f1 f2
-  = relTermToUnTerm' relTerms f1 f2
-relTermToUnTerm' relTerms (App f1 v1) (App f2 v2) 
+  = relTermToUnTerm' m relTerms f1 f2
+relTermToUnTerm' m relTerms (App f1 v1) (App f2 v2) 
   | Var x1 <- GM.unTickExpr v1
   , Var x2 <- GM.unTickExpr v2
   , GM.isEmbeddedDictVar x1
   , GM.isEmbeddedDictVar x2
   , areCompatible f1 f2
-  = relTermToUnTerm' relTerms f1 f2
-relTermToUnTerm' relTerms (App f1 v1) (App f2 v2) 
+  = relTermToUnTerm' m relTerms f1 f2
+relTermToUnTerm' m relTerms (App f1 v1) (App f2 v2) 
   | Var x1 <- GM.unTickExpr v1
   , Var x2 <- GM.unTickExpr v2
   , areCompatible f1 f2
@@ -313,50 +315,50 @@ relTermToUnTerm' relTerms (App f1 v1) (App f2 v2)
   , Just relX <- lookup (x1, x2) relTerms
   = traceWhenLoud
       ("relTermToUnTerm App lookup " ++ show x1 ++ " ~ " ++ show x2 ++ " ~> " ++ show relX) $ 
-    App (App (App (relTermToUnTerm' relTerms f1 f2) v1) v2) relX
-relTermToUnTerm' relTerms (App f1 x1) (App f2 x2) 
+    App (App (App (relTermToUnTerm' m relTerms f1 f2) v1) v2) relX
+relTermToUnTerm' m relTerms (App f1 x1) (App f2 x2) 
   | isCommonArg x1
   , isCommonArg x2
   , areCompatible f1 f2
   , areCompatible x1 x2
   = traceWhenLoud
       ("relTermToUnTerm App common arg " ++ show x1 ++ " " ++ show x2) $ 
-    App (App (App (relTermToUnTerm' relTerms f1 f2) x1) x2) relX
+    App (App (App (relTermToUnTerm' m relTerms f1 f2) x1) x2) relX
     where relX = mkLambdaUnit x1 x2 (Ghc.exprType x1) (Ghc.exprType x2)
-relTermToUnTerm' relTerms (Lam α1 e1) (Lam α2 e2) 
+relTermToUnTerm' m relTerms (Lam α1 e1) (Lam α2 e2) 
   | Ghc.isTyVar α1, Ghc.isTyVar α2
-  = relTermToUnTerm' relTerms e1 e2
-relTermToUnTerm' relTerms (Lam x1 e1) (Lam x2 e2)
+  = relTermToUnTerm' m relTerms e1 e2
+relTermToUnTerm' m relTerms (Lam x1 e1) (Lam x2 e2)
   | not (Ghc.isTyVar x1), not (Ghc.isTyVar x2)
   = Lam x1l $ Lam x2r $ Lam relX $ 
-    relTermToUnTerm' (((x1l, x2r), Var relX) : relTerms) e1l e2r
+    relTermToUnTerm' m' (((x1l, x2r), Var relX) : relTerms) e1l e2r
   where
-    relX = mkRelThmVar x1 x2
-    (x1l, x2r) = mkRelCopies x1 x2
-    (e1l, e2r) = subRelCopies e1 x1 e2 x2
-relTermToUnTerm' relTerms (Let (NonRec x1 d1) e1) (Let (NonRec x2 d2) e2) 
+    relX = mkRelThmVar x1l x2r
+    (x1l, x2r, m') = mkRelCopiesWithMapping m x1 x2
+    (e1l, e2r) = subRelCopiesWithMapping m e1 x1 e2 x2
+relTermToUnTerm' m relTerms (Let (NonRec x1 d1) e1) (Let (NonRec x2 d2) e2) 
   | areCompatible d1 d2
   = Let (NonRec x1l d1) $ Let (NonRec x2r d2) $ Let (NonRec relX relD) $ 
-    relTermToUnTerm' (((x1l, x2r), Var relX) : relTerms) e1l e2r
+    relTermToUnTerm' m (((x1l, x2r), Var relX) : relTerms) e1l e2r
     where 
       relX = mkRelThmVar x1 x2
-      relD = relTermToUnTerm' relTerms d1 d2
+      relD = relTermToUnTerm' m relTerms d1 d2
       (x1l, x2r) = mkRelCopies x1 x2
       (e1l, e2r) = subRelCopies e1 x1 e2 x2
 -- TODO: test recursive and mutually recursive lets
-relTermToUnTerm' relTerms (Let (Rec bs1) e1) (Let (Rec bs2) e2) 
+relTermToUnTerm' m relTerms (Let (Rec bs1) e1) (Let (Rec bs2) e2) 
   | length bs1 == length bs2
   , all (== True) $ zipWith areCompatible (map snd bs1) (map snd bs2)
-  = Let (Rec bs1l) $ Let (Rec bs2r) $ Let (Rec relBs) $ relTermToUnTerm' relTerms' e1l e2r
+  = Let (Rec bs1l) $ Let (Rec bs2r) $ Let (Rec relBs) $ relTermToUnTerm' m relTerms' e1l e2r
     where 
       bs1l = mkLeftCopies bs1
       bs2r = mkRightCopies bs2
       e1l  = subOneSideCopies e1 bs1 bs1l
       e2r  = subOneSideCopies e2 bs2 bs2r
-      relTermsBs = zipWith (\(x1, d1) (x2, d2) -> ((x1, x2), relTermToUnTerm' relTerms d1 d2)) bs1 bs2
+      relTermsBs = zipWith (\(x1, d1) (x2, d2) -> ((x1, x2), relTermToUnTerm' m relTerms d1 d2)) bs1 bs2
       relTerms' = relTermsBs ++ relTerms
-      relBs = zipWith (\(x1, d1) (x2, d2) -> (mkRelThmVar x1 x2, relTermToUnTerm' relTerms' d1 d2)) bs1 bs2
-relTermToUnTerm' relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
+      relBs = zipWith (\(x1, d1) (x2, d2) -> (mkRelThmVar x1 x2, relTermToUnTerm' m relTerms' d1 d2)) bs1 bs2
+relTermToUnTerm' m relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
   Case d1 x1l t1 $ map
     (\(c1, bs1, e1) ->
       let bs1l = map (mkCopyWithSuffix relSuffixL) bs1 in
@@ -367,13 +369,13 @@ relTermToUnTerm' relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
           let bs2r = map (mkCopyWithSuffix relSuffixR) bs2
               e1l  = subVarAndTys ((x1, x1l) : zip bs1 bs1l) e1
               e2r  = subVarAndTys ((x2, x2r) : zip bs2 bs2r) e2 
-          in  (c2, bs2r, relTermToUnTerm' relTerms e1l e2r)
+          in  (c2, bs2r, relTermToUnTerm' m relTerms e1l e2r)
         )
         as2
       ))
     as1
     where (x1l, x2r) = mkRelCopies x1 x2
-relTermToUnTerm' _ e1 e2
+relTermToUnTerm' _ _ e1 e2
   = traceWhenLoud ("relTermToUnTerm': can't proceed proof generation on e1:\n" ++ F.showpp e1 ++ "\ne2:\n" ++ F.showpp e2) $
       Tick (Ghc.SourceNote realSpan info) $
         mkLambdaUnit e1 e2 (Ghc.exprType e1) (Ghc.exprType e2)
@@ -497,8 +499,8 @@ resL = fromString "r1"
 resR = fromString "r2"
 
 relSuffixL, relSuffixR :: String
-relSuffixL = "l"
-relSuffixR = "r"
+relSuffixL = "1"
+relSuffixR = "2"
 
 isSupported :: SpecType -> Bool
 isSupported t | isBasicType t = True
@@ -1157,6 +1159,14 @@ subRelCopies :: CoreExpr -> Var -> CoreExpr -> Var -> (CoreExpr, CoreExpr)
 subRelCopies e1 x1 e2 x2 = (subVarAndTy x1 evar1 e1, subVarAndTy x2 evar2 e2)
   where (evar1, evar2) = mkRelCopies x1 x2
 
+subRelCopiesWithMapping :: ArgMapping -> CoreExpr -> Var -> CoreExpr -> Var -> (CoreExpr, CoreExpr)
+subRelCopiesWithMapping ([], []) e1 x1 e2 x2 = subRelCopies e1 x1 e2 x2
+subRelCopiesWithMapping m        e1 x1 e2 x2 = (e1', e2')
+ where
+  (x1', x2', _) = getMapping m x1 x2
+  e1'           = subVarAndTy x1 x1' e1
+  e2'           = subVarAndTy x2 x2' e2
+
 subVarAndTy :: Var -> Var -> CoreExpr -> CoreExpr
 subVarAndTy x v = subTy (M.singleton x $ TyVarTy v) . sub (M.singleton x $ Var v)
 
@@ -1165,6 +1175,23 @@ subVarAndTys xs = subTy (M.fromList xsTyVars) . sub (M.fromList xsVars)
   where 
     xsVars   = map (B.second Var) xs
     xsTyVars = map (B.second TyVarTy) xs
+
+getMapping :: ArgMapping -> Var -> Var -> (Var, Var, ArgMapping)
+getMapping m@([], []) x1 x2 = (x1, x2, m)
+getMapping (x1' : xs1, x2' : xs2) x1 x2 =
+  ( mkCopyWithName (F.symbolString x1') x1
+  , mkCopyWithName (F.symbolString x2') x2
+  , (xs1, xs2)
+  )
+getMapping (m1, m2) x1 x2
+  = F.panic $ 
+      "getMapping " ++ F.showpp x1 ++ F.showpp x2 ++ ":" 
+        ++ "expected the same number of args on left and right, got " ++ F.showpp m1 ++ "; " ++ F.showpp m2
+
+mkRelCopiesWithMapping :: ArgMapping -> Var -> Var -> (Var, Var, ArgMapping)
+mkRelCopiesWithMapping m@([], []) x1 x2 = (x1', x2', m)
+  where (x1', x2') = mkRelCopies x1 x2
+mkRelCopiesWithMapping m x1 x2 = getMapping m x1 x2
 
 mkRelCopies :: Var -> Var -> (Var, Var)
 mkRelCopies x1 x2 = (mkCopyWithSuffix relSuffixL x1, mkCopyWithSuffix relSuffixR x2)
