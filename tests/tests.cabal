@@ -2021,11 +2021,10 @@ executable relational-pos
 
     other-modules:
                       Abs
+                    , ApSumAsync
                     , AsynchCase
                     , CheckedImp
-                    , Isort
-                    , MapFusion
-                    , MutRec
+                    , PredAbs
                     , SndOrdPredNonRel
 
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0

@@ -263,6 +263,7 @@ initCGI cfg info = CGInfo {
   , annotMap   = AI M.empty
   , holesMap   = M.empty
   , relHints   = Doc.empty
+  , relWf      = []
   , newTyEnv   = M.fromList (mapSnd val <$> gsNewTypes (gsSig spc))
   , tyConInfo  = tyi
   , tyConEmbed = tce

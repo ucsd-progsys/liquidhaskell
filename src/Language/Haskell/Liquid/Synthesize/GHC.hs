@@ -247,7 +247,7 @@ pprintBody _ var@(Var v)
   | undesirableVar var = ""
   | otherwise          = handleVar v
 
-pprintBody i (App e (Type{})) = pprintBody i e
+pprintBody i (App e Type{}) = pprintBody i e
     
 pprintBody i (App e1 e2)
   | undesirableVar e1 = pprintBody i e2
@@ -282,7 +282,7 @@ pprintBody i (Let (NonRec x e1) e2) =
     eqlExp      = pprintBody firstIdent e1 ++ " in\n"
     firstIdent  = i + caseIndent*2 + length letExp
     
-pprintBody _ (Let (Rec {}) _) = "{- let rec -}"
+pprintBody _ (Let Rec{} _) = "{- let rec -}"
 
 pprintBody i (Tick (SourceNote _ s) e)
   | expr == "()" = "{- " ++ s ++ " -} " ++ expr

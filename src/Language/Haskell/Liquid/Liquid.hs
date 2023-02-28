@@ -278,15 +278,13 @@ solveCs cfg tgt cgi info names = do
                        hintName ++
                        " ( module " ++
                        hintName ++
-                       " ) where\nimport " ++
+                       ") where\nimport " ++
                        takeBaseName tgt ++ "\n"
 
-    let listOfImps   = [ "GHC.Classes"
-                       , "Control.Exception.Base" ]
-                       ++ map (\imp -> F.symbolicString imp)
-                       (S.toList $ gsAllImps $ giSrc info)          
+    let listOfImps   = map (\imp -> F.symbolicString imp)
+                       (S.toList $ gsAllImps $ giSrc info)
     let imports      =
-          L.intercalate "\n" $ map (\imp -> "import " ++ imp) listOfImps
+          L.intercalate "\n" $ map ("import " ++) listOfImps
 
     {-
       Modules that have the form of: "import moduleName (function)",
@@ -300,9 +298,6 @@ solveCs cfg tgt cgi info names = do
     -}    
     let hints        = render (relHints cgi)
     unless (null hints) $ do
---      putStrLn $ "{- " ++ (show $ fstTupleList $ gsImps $ giSpec info) ++ " -}"
---      putStrLn $ "{- " ++ (show $ gsAllImps $ giSrc info) ++ " -}" 
---      putStrLn $ "{- " ++ (show $ gsQualImps $ giSrc info) ++ " -}"
       writeFile hintFile ( flags
                            ++ moduleFile
                            ++ imports
@@ -310,7 +305,7 @@ solveCs cfg tgt cgi info names = do
                            ++ hints )
       putStrLn "****** Relational Hints ********************************************************"
       putStrLn $ "Saved to file: " ++ hintFile
-  let resModel      = resModel' `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors)) 
+  let resModel      = resModel' `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors ++ relWf cgi)) 
   let out0          = mkOutput cfg resModel sol (annotMap cgi)
   return            $ out0 { o_vars    = names    }
                            { o_result  = resModel }

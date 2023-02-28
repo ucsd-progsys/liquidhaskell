@@ -253,6 +253,16 @@ data TError t =
                { pos  :: !SrcSpan
                , holesCycle :: [Symbol] -- Var?
                } -- ^ hole dependencies form a cycle error
+  
+  | ErrRelationalWf    
+               { pos  :: !SrcSpan
+               , lexp :: !Symbol
+               , rexp :: !Symbol
+               , ltyp :: !Doc
+               , rtyp :: !Doc
+               , rpr  :: !Doc
+               , msg  :: !Doc
+               } -- ^ relational error
 
   | ErrAssType { pos  :: !SrcSpan
                , obl  :: !Oblig
@@ -782,6 +792,17 @@ ppError' _td _dCtx (ErrHole _ msg _ x t)
   = "Hole Found"
         $+$ pprint x <+> "::" <+> pprint t
         $+$ msg
+
+ppError' _td _dCtx (ErrRelationalWf _ lexp rexp ltyp rtyp rpr msg)
+  = text "Invalid Relational Spec for " <+> ppTicks lexp <+> text "~" <+> ppTicks rexp <+> parens msg
+        $+$ ""
+        $+$ "These components are inconsistent:"
+        $+$ "Left type"
+        $+$ nest 4 ltyp
+        $+$ "Right type"
+        $+$ nest 4 rtyp
+        $+$ "Predicate"
+        $+$ nest 4 rpr
 
 ppError' td dCtx (ErrSubType _ _ cid c tA tE)
   = text "Liquid Type Mismatch"
