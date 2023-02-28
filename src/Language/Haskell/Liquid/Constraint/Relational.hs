@@ -38,6 +38,8 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Synthesize.GHC
                                                 ( coreToHs
                                                 , fromAnf
+                                                , pprintBody'
+                                                , handleVar
                                                 )
 
 import           Liquid.GHC.API                 ( Alt
@@ -320,7 +322,7 @@ relTermToUnTerm' relTerms (App f1 x1) (App f2 x2)
   = traceWhenLoud
       ("relTermToUnTerm App common arg " ++ show x1 ++ " " ++ show x2) $ 
     App (App (App (relTermToUnTerm' relTerms f1 f2) x1) x2) relX
-    where relX = mkLambdaUnit (Ghc.exprType x1) (Ghc.exprType x2)
+    where relX = mkLambdaUnit x1 x2 (Ghc.exprType x1) (Ghc.exprType x2)
 relTermToUnTerm' relTerms (Lam α1 e1) (Lam α2 e2) 
   | Ghc.isTyVar α1, Ghc.isTyVar α2
   = relTermToUnTerm' relTerms e1 e2
@@ -437,7 +439,7 @@ mkLambdaUnit e1 e2 _ _
     genConst          = Var $ GM.stringVar "const" Ghc.unitTy
     genConstU         = App genConst Ghc.unitExpr
     (cle1, patError1) = cleanUnTerms e1
-    (cle2, patError1) = cleanUnTerms e2
+    (cle2, patError2) = cleanUnTerms e2
 
 cleanUnTerms :: CoreExpr -> (CoreExpr, Bool)
 {- Maybe have to do some cleaning to the vars here -}
