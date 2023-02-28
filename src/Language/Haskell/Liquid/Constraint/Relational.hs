@@ -10,8 +10,7 @@
 -- | This module defines the representation of Subtyping and WF Constraints,
 --   and the code for syntax-directed constraint generation.
 
-module Language.Haskell.Liquid.Constraint.Relational (consAssmRel
-                                                     , consRelTop) where
+module Language.Haskell.Liquid.Constraint.Relational (consAssmRel, consRelTop) where
 
 
 #if !MIN_VERSION_base(4,14,0)
@@ -87,7 +86,8 @@ type RelEnv = [RelPred]
 type UnaryChecking = CGEnv -> CoreExpr -> SpecType -> CG ()
 type UnarySynthesis = CGEnv -> CoreExpr -> CG SpecType
 data UnaryTyping = UnaryTyping { chk :: UnaryChecking
-                               , syn :: UnarySynthesis }
+                               , syn :: UnarySynthesis
+                               }
 
 consAssmRel :: Config -> TargetInfo -> (RelEnv, CGEnv) -> (Var, Var, LocSpecType, LocSpecType, RelExpr, RelExpr) -> CG (RelEnv, CGEnv)
 consAssmRel _ _ (ψ, γ) (x, y, t, s, ra, rp) = do
@@ -340,10 +340,9 @@ relTermToUnTerm' relTerms (Let (NonRec x1 d1) e1) (Let (NonRec x2 d2) e2)
     relTermToUnTerm' (((x1l, x2r), Var relX) : relTerms) e1l e2r
     where 
       relX = mkRelThmVar x1 x2
-      relD = relTermToUnTerm' i relTerms d1 d2
+      relD = relTermToUnTerm' relTerms d1 d2
       (x1l, x2r) = mkRelCopies x1 x2
       (e1l, e2r) = subRelCopies e1 x1 e2 x2
-
 -- TODO: test recursive and mutually recursive lets
 relTermToUnTerm' relTerms (Let (Rec bs1) e1) (Let (Rec bs2) e2) 
   | length bs1 == length bs2
@@ -354,10 +353,7 @@ relTermToUnTerm' relTerms (Let (Rec bs1) e1) (Let (Rec bs2) e2)
       bs2r = mkRightCopies bs2
       e1l  = subOneSideCopies e1 bs1 bs1l
       e2r  = subOneSideCopies e2 bs2 bs2r
-      relTermsBs =
-        zipWith (\(x1, d1) (x2, d2) ->
-                   ((x1, x2),
-                    relTermToUnTerm' i relTerms d1 d2)) bs1 bs2
+      relTermsBs = zipWith (\(x1, d1) (x2, d2) -> ((x1, x2), relTermToUnTerm' relTerms d1 d2)) bs1 bs2
       relTerms' = relTermsBs ++ relTerms
       relBs = zipWith (\(x1, d1) (x2, d2) -> (mkRelThmVar x1 x2, relTermToUnTerm' relTerms' d1 d2)) bs1 bs2
 relTermToUnTerm' relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
@@ -371,11 +367,11 @@ relTermToUnTerm' relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
           let bs2r = map (mkCopyWithSuffix relSuffixR) bs2
               e1l  = subVarAndTys ((x1, x1l) : zip bs1 bs1l) e1
               e2r  = subVarAndTys ((x2, x2r) : zip bs2 bs2r) e2 
-          in  (c2, bs2r, relTermToUnTerm' i relTerms e1l e2r)
+          in  (c2, bs2r, relTermToUnTerm' relTerms e1l e2r)
         )
         as2
       ))
-    as1 
+    as1
     where (x1l, x2r) = mkRelCopies x1 x2
 relTermToUnTerm' _ e1 e2
   = traceWhenLoud ("relTermToUnTerm': can't proceed proof generation on e1:\n" ++ F.showpp e1 ++ "\ne2:\n" ++ F.showpp e2) $
@@ -490,6 +486,7 @@ cleanCase alts = (zip3 altcs vss cores, bool)
                                map (\(altc, vs, alte) ->
                                        (altc, vs, cleanUnTerms alte)) alts
     (cores, bool) = or <$> unzip altesBools
+
 
 --------------------------------------------------------------
 -- Core Checking Rules ---------------------------------------

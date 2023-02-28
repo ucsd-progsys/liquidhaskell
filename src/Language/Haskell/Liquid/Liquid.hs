@@ -298,11 +298,7 @@ solveCs cfg tgt cgi info names = do
     -}    
     let hints        = render (relHints cgi)
     unless (null hints) $ do
-      writeFile hintFile ( flags
-                           ++ moduleFile
-                           ++ imports
-                           ++ "\n"
-                           ++ hints )
+      writeFile hintFile (flags ++ moduleFile ++ imports ++ "\n" ++ hints)
       putStrLn "****** Relational Hints ********************************************************"
       putStrLn $ "Saved to file: " ++ hintFile
   let resModel      = resModel' `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors ++ relWf cgi)) 
