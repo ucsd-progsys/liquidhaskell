@@ -204,7 +204,7 @@ handleVar v
 --                           ++ "{- SysName -}"
   | isWiredInName   name = getLocalName name
 --                           ++ "{- WiredInName -}"
-  | isInternalName  name = show name
+  | isInternalName  name = getOccString name
 --                           ++ "{- Internal -}"
   | isExternalName  name = getExternalName name
 --                           ++ "{- external name -}"
@@ -218,10 +218,8 @@ handleVar v
 getSysName :: Name -> String
 getSysName n
   | elem '#' occ = head (splitOn "$##" occ)
-                   ++ show num ++ "_" ++ [tag]
-  | otherwise      = show n
+  | otherwise      = occ
   where
-    (tag, num) = unpkUnique $ getUnique n
     occ        = getOccString n
 {- Should not be done here, but function used to check if is an
 undesirable variable or not (I#) -}

@@ -270,16 +270,23 @@ isBasicType t@RApp{} = isBase t
 isBasicType _        = False
 
 mkRelLemma :: F.Symbol -> F.Symbol -> F.Symbol
-mkRelLemma s1 s2 = F.symbol $ "lemma" ++ cap (F.symbolString s1) ++ cap (F.symbolString s2)
+mkRelLemma s1 s2 = F.symbol $ F.symbolString s1 ++ F.symbolString s2 ++ "Lemma"
 
 mkRelThmVar :: Var -> Var -> Var
-mkRelThmVar x y = mkCopyWithName ("rel" ++ pretty x ++ pretty y) x
-  where pretty = cap . Ghc.occNameString . Ghc.getOccName
-  
+mkRelThmVar = mkRelThmVar' True "Theorem"
+
+mkRelLemmaVar :: Var -> Var -> Var
+mkRelLemmaVar = mkRelThmVar' False "Lemma"
+
+mkRelThmVar' :: Bool -> String -> Var -> Var -> Var
+mkRelThmVar' c thm x y = mkCopyWithName (name x ++ cname y ++ thm) x
+  where 
+    name = Ghc.occNameString . Ghc.getOccName
+    cname = if c then cap . name else  name
+
 cap :: String -> String
 cap (c:cs) = toUpper c : cs
 cap cs = cs
-
 type ArgMapping = ([F.Symbol], [F.Symbol])
 
 relTermToUnTerm :: ArgMapping -> Var -> Var -> Var -> CoreExpr -> CoreExpr -> CoreExpr
@@ -333,7 +340,7 @@ relTermToUnTerm' m relTerms (Lam x1 e1) (Lam x2 e2)
   = Lam x1l $ Lam x2r $ Lam relX $ 
     relTermToUnTerm' m' (((x1l, x2r), Var relX) : relTerms) e1l e2r
   where
-    relX = mkRelThmVar x1l x2r
+    relX = mkRelLemmaVar x1l x2r
     (x1l, x2r, m') = mkRelCopiesWithMapping m x1 x2
     (e1l, e2r) = subRelCopiesWithMapping m e1 x1 e2 x2
 relTermToUnTerm' m relTerms (Let (NonRec x1 d1) e1) (Let (NonRec x2 d2) e2) 
@@ -341,7 +348,7 @@ relTermToUnTerm' m relTerms (Let (NonRec x1 d1) e1) (Let (NonRec x2 d2) e2)
   = Let (NonRec x1l d1) $ Let (NonRec x2r d2) $ Let (NonRec relX relD) $ 
     relTermToUnTerm' m (((x1l, x2r), Var relX) : relTerms) e1l e2r
     where 
-      relX = mkRelThmVar x1 x2
+      relX = mkRelLemmaVar x1 x2
       relD = relTermToUnTerm' m relTerms d1 d2
       (x1l, x2r) = mkRelCopies x1 x2
       (e1l, e2r) = subRelCopies e1 x1 e2 x2
@@ -357,7 +364,7 @@ relTermToUnTerm' m relTerms (Let (Rec bs1) e1) (Let (Rec bs2) e2)
       e2r  = subOneSideCopies e2 bs2 bs2r
       relTermsBs = zipWith (\(x1, d1) (x2, d2) -> ((x1, x2), relTermToUnTerm' m relTerms d1 d2)) bs1 bs2
       relTerms' = relTermsBs ++ relTerms
-      relBs = zipWith (\(x1, d1) (x2, d2) -> (mkRelThmVar x1 x2, relTermToUnTerm' m relTerms' d1 d2)) bs1 bs2
+      relBs = zipWith (\(x1, d1) (x2, d2) -> (mkRelLemmaVar x1 x2, relTermToUnTerm' m relTerms' d1 d2)) bs1 bs2
 relTermToUnTerm' m relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
   Case d1 x1l t1 $ map
     (\(c1, bs1, e1) ->
@@ -1203,9 +1210,9 @@ mkRelCopies x1 x2 = (mkCopyWithSuffix relSuffixL x1, mkCopyWithSuffix relSuffixR
 -- mkRCopies = (mkCopyWithSuffix relSuffixR <$>)
 
 mkCopyWithName :: String -> Var -> Var
-mkCopyWithName s v = 
-  -- GM.stringVar s (Ghc.exprType (Var v))
-  Ghc.setVarName v $ Ghc.mkSystemName (Ghc.getUnique v) (Ghc.mkVarOcc s)
+mkCopyWithName s v = traceWhenLoud ("mkCopyWithName: produced an occ name " ++ Ghc.getOccString (varName v')) v'
+  -- where v' = GM.stringVar s (Ghc.exprType (Var v))
+  where v' = Ghc.setVarName v $ Ghc.mkSystemName (Ghc.getUnique v) (Ghc.mkVarOcc s)
 
 mkCopyWithSuffix :: String -> Var -> Var
 mkCopyWithSuffix s v = mkCopyWithName (Ghc.getOccString v ++ s) v
@@ -1318,11 +1325,11 @@ relHint :: SpecType -> Ghc.Var -> CoreExpr -> Doc
 relHint t v e = text "import GHC.Types"
                 $+$ text ""
                 $+$ text "{- HLINT ignore \"Use camelCase\" -}"
-                $+$ text ("{-@ " ++ F.showpp v
+                $+$ text ("{-@ " ++ name
                            ++ " :: "
                            ++ F.showpp t
                            ++ " @-}")
-                $+$ text (F.showpp v
+                $+$ text (name
                            ++ " :: "
                            ++ removeIdent (toType False t))
                 $+$ text (coreToHs t v (fromAnf e))
@@ -1330,6 +1337,7 @@ relHint t v e = text "import GHC.Types"
                 $+$ text "{- BARE CORE"
                 $+$ text (show e)
                 $+$ text "-}"
+  where name = Ghc.occNameString $ Ghc.getOccName v
 
 removeIdent :: Type -> String
 removeIdent t = withNoLines noIdent $ F.pprint t
