@@ -224,20 +224,20 @@ relSigToUnSig :: F.Expr -> F.Expr -> SpecType -> SpecType -> RelExpr -> SpecType
 
  -}
 
--- Higher-Order Case. Argument types are functons && checking mode is on:
-relSigToUnSig e1 e2 (RFun x1 i1 s1@RFun{} t1 r1) (RFun x2 i2 s2@RFun{} t2 r2) (ERChecked q p)
+relSigToUnSig e1 e2 (RFun x1 i1 s1 t1 r1) (RFun x2 i2 s2 t2 r2) (ERChecked q p)
   = traceWhenLoud "relSigToUnSig RFun RFun ERChecked" $ 
       RFun x1 i1 s1 
         (RFun x2 i2 s2 
                             -- TODO: how to get i?    
           (RFun (mkRelLemma x1 x2) i2 (relSigToUnSig (F.EVar x1) (F.EVar x2) s1 s2 q) (relSigToUnSig e1 e2 t1 t2 p) r2) r2) r1 
--- First-Order Cases:
 relSigToUnSig e1 e2 (RFun x1 i1 s1 t1 r1) (RFun x2 i2 s2 t2 r2) (ERUnChecked q p)
-  = traceWhenLoud "relSigToUnSig RFun RFun ERUnChecked" $ 
-    RFun x1 i1 s1 (RFun x2 i2 (s2 `strengthen` exprToUReft q) (relSigToUnSig e1 e2 t1 t2 p) r2) r1
-relSigToUnSig e1 e2 (RFun x1 i1 s1 t1 r1) (RFun x2 i2 s2 t2 r2) (ERChecked q p)
   = traceWhenLoud "relSigToUnSig RFun RFun ERChecked" $ 
-    RFun x1 i1 s1 (RFun x2 i2 (s2 `strengthen` exprToUReft (fromRelExpr q)) (relSigToUnSig e1 e2 t1 t2 p) r2) r1
+      RFun x1 i1 s1 
+        (RFun x2 i2 s2 
+                            -- TODO: how to get i?    
+          (RFun (mkRelLemma x1 x2) i2 
+                (relSigToUnSig (F.EVar x1) (F.EVar x2) s1 s2 (wfRelExpr q s1 s2)) 
+                (relSigToUnSig e1 e2 t1 t2 p) r2) r2) r1           
 relSigToUnSig _ _ RFun{} RFun{} p@ERBasic{}
   = traceWhenLoud "relSigToUnSig RFun RFun ERBasic" $ 
     F.panic $ "relSigToUnSig: predicate " ++ F.showpp p ++ " too short for function types"
@@ -247,14 +247,19 @@ relSigToUnSig _ _ t1 t2@RFun{} p
   = F.panic $ "relSigToUnSig: unsuppoted pair of types non-RFun and RFun " ++ F.showpp (t1, t2, p) 
 relSigToUnSig e1 e2 t1 t2 (ERBasic p) | isBasicType t1 && isBasicType t2
   = traceWhenLoud "relSigToUnSig Base Base ERBasic" $ 
-    unitTy `strengthen` uReft (F.vv_, rs2es (F.PAnd [p]))
+    unitTyReft $ rs2es (F.PAnd [p])
     where 
       rs2es =  F.subst $ F.mkSubst [(resL, e1), (resR, e2)]
-      unitTy = RApp (RTyCon Ghc.unitTyCon [] def) [] [] mempty
 relSigToUnSig _ _ t1 t2 p | isBasicType t1 && isBasicType t2
   = F.panic $ "relSigToUnSig: predicate " ++ F.showpp p ++ " too long for basic types"
 relSigToUnSig _ _ t1 t2 p 
   = F.panic $ "relSigToUnSig: unsuppoted pair of types " ++ F.showpp (t1, t2, p)
+
+unitTy :: SpecType
+unitTy = RApp (RTyCon Ghc.unitTyCon [] def) [] [] mempty
+
+unitTyReft :: F.Expr -> SpecType
+unitTyReft p = unitTy `strengthen` uReft (F.vv_, p)
 
 isBasicType :: SpecType -> Bool
 isBasicType RVar{}   = True
@@ -276,6 +281,11 @@ cap cs = cs
 relTermToUnTerm :: Var -> Var -> Var -> CoreExpr -> CoreExpr -> CoreExpr
 relTermToUnTerm e1 e2 relThm = relTermToUnTerm' [((e1, e2), Var relThm)]
 
+isCommonArg :: CoreExpr -> Bool
+isCommonArg x | Type{} <- GM.unTickExpr x = False
+isCommonArg x | Var v <- GM.unTickExpr x = not (GM.isEmbeddedDictVar v)
+isCommonArg _ = True
+
 relTermToUnTerm' :: [((Var, Var), CoreExpr)] -> CoreExpr -> CoreExpr -> CoreExpr
 relTermToUnTerm' relTerms (Var x1) (Var x2)
   | Just relX <- lookup (x1, x2) relTerms 
@@ -286,33 +296,46 @@ relTermToUnTerm' relTerms (App f1 α1) (App f2 α2)
   , Type{} <- GM.unTickExpr α2
   , areCompatible f1 f2
   = relTermToUnTerm' relTerms f1 f2
-relTermToUnTerm' relTerms (App f1 (Var x1)) (App f2 (Var x2)) 
-  | GM.isEmbeddedDictVar x1
+relTermToUnTerm' relTerms (App f1 v1) (App f2 v2) 
+  | Var x1 <- GM.unTickExpr v1
+  , Var x2 <- GM.unTickExpr v2
+  , GM.isEmbeddedDictVar x1
   , GM.isEmbeddedDictVar x2
   , areCompatible f1 f2
   = relTermToUnTerm' relTerms f1 f2
+relTermToUnTerm' relTerms (App f1 v1) (App f2 v2) 
+  | Var x1 <- GM.unTickExpr v1
+  , Var x2 <- GM.unTickExpr v2
+  , areCompatible f1 f2
+  , areCompatible v1 v2
+  , Just relX <- lookup (x1, x2) relTerms
+  = traceWhenLoud
+      ("relTermToUnTerm App lookup " ++ show x1 ++ " ~ " ++ show x2 ++ " ~> " ++ show relX) $ 
+    App (App (App (relTermToUnTerm' relTerms f1 f2) v1) v2) relX
 relTermToUnTerm' relTerms (App f1 x1) (App f2 x2) 
   | isCommonArg x1
   , isCommonArg x2
   , areCompatible f1 f2
   , areCompatible x1 x2
-  = App (App (relTermToUnTerm' relTerms f1 f2) x1) x2
-  where 
-    isCommonArg x | Type{} <- GM.unTickExpr x = False
-    isCommonArg x | Var v <- GM.unTickExpr x = not (GM.isEmbeddedDictVar v)
-    isCommonArg _ = True
+  = traceWhenLoud
+      ("relTermToUnTerm App common arg " ++ show x1 ++ " " ++ show x2) $ 
+    App (App (App (relTermToUnTerm' relTerms f1 f2) x1) x2) relX
+    where relX = mkLambdaUnit (Ghc.exprType x1) (Ghc.exprType x2)
 relTermToUnTerm' relTerms (Lam α1 e1) (Lam α2 e2) 
   | Ghc.isTyVar α1, Ghc.isTyVar α2
   = relTermToUnTerm' relTerms e1 e2
 relTermToUnTerm' relTerms (Lam x1 e1) (Lam x2 e2)
   | not (Ghc.isTyVar x1), not (Ghc.isTyVar x2)
-  = Lam x1l $ Lam x2r $ relTermToUnTerm' relTerms e1l e2r
+  = Lam x1l $ Lam x2r $ Lam relX $ 
+    relTermToUnTerm' (((x1l, x2r), Var relX) : relTerms) e1l e2r
   where
+    relX = mkRelThmVar x1 x2
     (x1l, x2r) = mkRelCopies x1 x2
     (e1l, e2r) = subRelCopies e1 x1 e2 x2
 relTermToUnTerm' relTerms (Let (NonRec x1 d1) e1) (Let (NonRec x2 d2) e2) 
   | areCompatible d1 d2
-  = Let (NonRec x1l d1) $ Let (NonRec x2r d2) $ Let (NonRec relX relD) $ relTermToUnTerm' (((x1l, x2r), Var relX) : relTerms) e1l e2r
+  = Let (NonRec x1l d1) $ Let (NonRec x2r d2) $ Let (NonRec relX relD) $ 
+    relTermToUnTerm' (((x1l, x2r), Var relX) : relTerms) e1l e2r
     where 
       relX = mkRelThmVar x1 x2
       relD = relTermToUnTerm' relTerms d1 d2
@@ -332,7 +355,6 @@ relTermToUnTerm' relTerms (Let (Rec bs1) e1) (Let (Rec bs2) e2)
       relTerms' = relTermsBs ++ relTerms
       relBs = zipWith (\(x1, d1) (x2, d2) -> (mkRelThmVar x1 x2, relTermToUnTerm' relTerms' d1 d2)) bs1 bs2
 relTermToUnTerm' relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
---  Let (NonRec x1l d1) $ Let (NonRec x2r d2) $ 
   Case d1 x1l t1 $ map
     (\(c1, bs1, e1) ->
       let bs1l = map (mkCopyWithSuffix relSuffixL) bs1 in
@@ -356,14 +378,15 @@ relTermToUnTerm' _ e1 e2
 areCompatible :: CoreExpr -> CoreExpr -> Bool
 areCompatible e1 e2 = areCompatibleTy (Ghc.exprType e1) (Ghc.exprType e2)
 
+isBaseGhcTy :: Type -> Bool
+isBaseGhcTy TyVarTy{}  = True
+isBaseGhcTy TyConApp{} = True
+isBaseGhcTy LitTy{}    = True
+isBaseGhcTy _          = False
+
 areCompatibleTy :: Type -> Type -> Bool
 areCompatibleTy t1 t2 
   | isBaseGhcTy t1, isBaseGhcTy t2 = True
-  where 
-    isBaseGhcTy TyVarTy{}  = True
-    isBaseGhcTy TyConApp{} = True
-    isBaseGhcTy LitTy{}    = True
-    isBaseGhcTy _          = False
 areCompatibleTy (Ghc.FunTy _ _ s1 t1) (Ghc.FunTy _ _ s2 t2) 
   = areCompatibleTy s1 s2 && areCompatibleTy t1 t2 
 areCompatibleTy (Ghc.ForAllTy _ t1) t2 
@@ -376,7 +399,10 @@ mkLambdaUnit :: Type -> Type -> CoreExpr
 mkLambdaUnit (Ghc.ForAllTy _ t1) t2 = mkLambdaUnit t1 t2
 mkLambdaUnit t1 (Ghc.ForAllTy _ t2) = mkLambdaUnit t1 t2
 mkLambdaUnit (Ghc.FunTy Ghc.InvisArg _ _ t1) (Ghc.FunTy Ghc.InvisArg _ _ t2) = mkLambdaUnit t1 t2
-mkLambdaUnit (Ghc.FunTy Ghc.VisArg _ _ t1) (Ghc.FunTy Ghc.VisArg _ _ t2) = Lam (GM.stringVar "_" Ghc.unitTy) $ Lam (GM.stringVar "_" Ghc.unitTy) $ mkLambdaUnit t1 t2
+mkLambdaUnit (Ghc.FunTy Ghc.VisArg _ _ t1) (Ghc.FunTy Ghc.VisArg _ _ t2) 
+  = Lam (GM.stringVar "_" Ghc.unitTy) $ 
+      Lam (GM.stringVar "_" Ghc.unitTy) $ 
+        Lam (GM.stringVar "_" Ghc.unitTy) $ mkLambdaUnit t1 t2
 mkLambdaUnit t1@Ghc.FunTy{} t2 = F.panic $ "relTermToUnTerm: asked to relate unmatching types " ++ F.showpp t1 ++ " " ++ F.showpp t2
 mkLambdaUnit t1 t2@Ghc.FunTy{} = F.panic $ "relTermToUnTerm: asked to relate unmatching types " ++ F.showpp t1 ++ " " ++ F.showpp t2
 mkLambdaUnit _ _ = Ghc.unitExpr
@@ -810,12 +836,12 @@ consRelSub _ _ _ t1 t2 _ _ =  F.panic $ "consRelSub is undefined for different t
 -- Predicate Well-Formedness ---------------------------------
 --------------------------------------------------------------
 
--- wfTruth :: SpecType -> SpecType -> F.Expr
--- wfTruth (RAllT _ t1 _) t2 = wfTruth t1 t2
--- wfTruth t1 (RAllT _ t2 _) = wfTruth t1 t2
--- wfTruth (RFun _ _ _ t1 _) (RFun _ _ _ t2 _) =
---   F.PImp F.PTrue $ wfTruth t1 t2
--- wfTruth _ _ = F.PTrue
+wfRelExpr :: F.Expr -> SpecType -> SpecType -> RelExpr
+wfRelExpr p (RAllT _ t1 _) t2 = wfRelExpr p t1 t2
+wfRelExpr p t1 (RAllT _ t2 _) = wfRelExpr p t1 t2
+wfRelExpr p (RFun _ _ _ t1 _) (RFun _ _ _ t2 _) =
+  ERUnChecked F.PTrue $ wfRelExpr p t1 t2
+wfRelExpr p _ _ = ERBasic p
 
 --------------------------------------------------------------
 -- Helper Definitions ----------------------------------------
@@ -1132,10 +1158,10 @@ unapplyRelArgsR x1 x2 (ERUnChecked e re) =
   ERUnChecked (unapplyRelArgs x1 x2 e) (unapplyRelArgsR x1 x2 re)
 
 
-exprToUReft :: F.Expr -> RReft
-exprToUReft e
-  = traceWhenLoud ("exprToUReft " ++ F.showpp e ++ " to " ++ F.showpp r) r
-    where r = uTop (F.Reft (F.vv_, F.pAnd [e]))
+-- exprToUReft :: F.Expr -> RReft
+-- exprToUReft e
+--   = traceWhenLoud ("exprToUReft " ++ F.showpp e ++ " to " ++ F.showpp r) r
+--     where r = uTop (F.Reft (F.vv_, F.pAnd [e]))
 
 --------------------------------------------------------------
 -- RelExpr & F.Expr ------------------------------------------
