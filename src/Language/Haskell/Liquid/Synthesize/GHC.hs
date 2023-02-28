@@ -14,7 +14,8 @@ import           Language.Haskell.Liquid.Types
 import           Data.Default
 import           Data.Maybe                     ( fromMaybe )
 import           Liquid.GHC.TypeRep
-import           Liquid.GHC.API as GHC
+import           Liquid.GHC.API                as GHC
+
 import           Language.Fixpoint.Types
 import qualified Data.HashMap.Strict           as M
 
@@ -104,8 +105,8 @@ fromAnf' (Var var) bnds
 
 fromAnf' (Case scr bnd tp alts) bnds
   = (Case scr bnd tp (
-        map (\(altc, xs, e) -> (altc, xs, fst $ fromAnf' e bnds))
-          alts), bnds)
+        map (\(altc, xs, e) ->
+               (altc, xs, fst $ fromAnf' e bnds)) alts), bnds)
 
 fromAnf' (App e1 e2) bnds
   = let (e1', bnds')  = fromAnf' e1 bnds
@@ -114,9 +115,13 @@ fromAnf' (App e1 e2) bnds
 
 fromAnf' t@Type{} bnds = (t, bnds)
 
+fromAnf' (Lit (GHC.LitString _)) bnds = (GHC.unitExpr, bnds)
+
 fromAnf' l@Lit{} bnds = (l, bnds)
 
-fromAnf' (Tick _ e) bnds = fromAnf' e bnds
+fromAnf' (Tick s e) bnds = (Tick s e', bnds')
+  where
+    (e', bnds') = fromAnf' e bnds
 
 fromAnf' e _ = error $ "fromAnf: unsupported core expression "
                ++ F.showpp e
@@ -126,7 +131,7 @@ fromAnf' e _ = error $ "fromAnf: unsupported core expression "
 coreToHs :: SpecType -> Var -> CoreExpr -> String
 coreToHs _ v e = pprintSymbols (handleVar v
                                 ++ " "
-                                ++ pprintFormals caseIndent e [])
+                                ++ pprintFormals caseIndent e)
 
 caseIndent :: Int
 caseIndent = 2
@@ -153,36 +158,19 @@ pprintSym symbols s
         prefix = takeWhile (== ' ') s
         suffix = dropWhile (== ' ') s
 
-pprintFormals :: Int -> CoreExpr -> [Var] -> String
-pprintFormals i e vs = handleLam "= " i e vs
+pprintFormals :: Int -> CoreExpr -> String
+pprintFormals i e = handleLam "= " i e
 
-handleLam :: String -> Int -> CoreExpr -> [Var] -> String
-handleLam char i (Lam v e) vs
-  | isTyVar   v = " {- tyVar -}"     ++ handleLam char i e vs
-  | isTcTyVar v = " {- isTcTyVar -}" ++ handleLam char i e vs
-  | isTyCoVar v = " {- isTyCoVar -}" ++ handleLam char i e vs
-  | isCoVar   v = " {- isCoVar -}"   ++ handleLam char i e vs
-  | isId      v = handleVar v ++ " " ++ handleLam char i e vs  
-  | otherwise   = handleVar v ++ " " ++ handleLam char i e vs
-handleLam char i e vs = char ++ pprintBody vs i e
+handleLam :: String -> Int -> CoreExpr -> String
+handleLam char i (Lam v e)
+  | isTyVar   v = " {- tyVar -}"     ++ handleLam char i e
+  | isTcTyVar v = " {- isTcTyVar -}" ++ handleLam char i e
+  | isTyCoVar v = " {- isTyCoVar -}" ++ handleLam char i e
+  | isCoVar   v = " {- isCoVar -}"   ++ handleLam char i e
+  | isId      v = handleVar v ++ " " ++ handleLam char i e  
+  | otherwise   = handleVar v ++ " " ++ handleLam char i e
+handleLam char i e = char ++ pprintBody i e
 
-----------------------------------------------------------------------
-{- Helper functions for print body -}
-
--- handleWiredIn :: Name -> String
--- handleWiredIn w
---   | getLocaln w == "I#" = "{- " ++ show w ++ " -}"
---   {-
---     Excluding GHC.Types also excludes Boolean values,
---     "GHC.Type.True" on RConstantTimeComparison for
---     example.
--- 
---     getModule w == "GHC.Types" = "{- " ++ show w ++ " -}"
---   -}
---   | otherwise                  = getLocaln w
---   where
---     -- getModule :: Name -> String
---     -- getModule n = moduleNameString (moduleName $ nameModule n)
 
 {- If a specific function is built-in into haskell it will still
 contain a module. To remove it and print it properly we localise
@@ -190,19 +178,35 @@ the name first. -}
 getLocalName :: Name -> String
 getLocalName n = getOccString (localiseName n)
 
+getExternalName :: Name -> String
+getExternalName n = mod ++ outName
+  where
+    outName = getOccString n
+    mod     = case nameModule_maybe n of
+                Just m  -> checkUnitReturn m (unitComment m)
+                Nothing -> ""
+    
+    unitComment :: Module -> String
+    unitComment m = unitIdString (moduleUnitId m)
+
+    checkUnitReturn :: Module -> String -> String
+    checkUnitReturn _ "base" = ""
+    checkUnitReturn m _      = moduleNameString (moduleName m) ++ "."
+
+
 {- Handle the multiple types of variables one might encounter
 in Haskell. -}
 handleVar :: Var -> String
 handleVar v
   | isTyConName     name = "{- TyConName -}"
   | isTyVarName     name = "{- TyVar -}"
-  | isSystemName    name = show name
-                           -- ++ "{- SysName -}"
+  | isSystemName    name = getSysName name
+--                           ++ "{- SysName -}"
   | isWiredInName   name = getLocalName name
-                           -- ++ "{- WiredInName -}"
-  | isInternalName  name = getOccString name
-                           -- ++ "{- Internal -}"
-  | isExternalName  name = getOccString name
+--                           ++ "{- WiredInName -}"
+  | isInternalName  name = show name
+--                           ++ "{- Internal -}"
+  | isExternalName  name = getExternalName name
 --                           ++ "{- external name -}"
   | otherwise            = "{- Not properly handled -}"
                            ++ show name
@@ -210,87 +214,108 @@ handleVar v
     name :: Name
     name = varName v
 
+
+getSysName :: Name -> String
+getSysName n
+  | elem '#' occ = head (splitOn "$##" occ)
+                   ++ show num ++ "_" ++ [tag]
+  | otherwise      = show n
+  where
+    (tag, num) = unpkUnique $ getUnique n
+    occ        = getOccString n
 {- Should not be done here, but function used to check if is an
 undesirable variable or not (I#) -}
-undesirableVar :: Var -> Bool
-undesirableVar v
+undesirableVar :: CoreExpr -> Bool
+undesirableVar (Var v)
   | getOccString (localiseName (varName v)) == "I#" = True
   | otherwise = False
+undesirableVar _ = False
+
+checkUnit :: CoreExpr -> Bool
+checkUnit (Var v)
+  | getOccString (localiseName (varName v)) == "()" = True
+  | otherwise = False
+checkUnit _ = False  
 ----------------------------------------------------------------------
+pprintBody' :: CoreExpr -> String
+pprintBody' = pprintBody 0
 
-pprintBody :: [Var] -> Int -> CoreExpr -> String
-pprintBody vs i e@(Lam {})
-  = "(\\" ++ handleLam " -> " i e vs ++ ")"
+pprintBody :: Int -> CoreExpr -> String
+pprintBody i e@Lam{} = "(\\" ++ handleLam " -> " i e ++ ")"
 
-pprintBody vs _ (Var v)
-  | elem v vs = ""
-  | otherwise = handleVar v
+pprintBody _ var@(Var v)
+  | undesirableVar var = ""
+  | otherwise          = handleVar v
 
-pprintBody vs i (App (Var v) e2)
-  | undesirableVar v = pprintBody vs i e2
-  | otherwise        = "((" ++ left ++ ")\n"
-                       ++ indent (i + 1)
-                       ++ "(" ++ right ++ "))"
-  where
-    left  = handleVar v
-    right = pprintBody vs (i+1) e2
+pprintBody i (App e Type{}) = pprintBody i e
     
-pprintBody vs i (App e1 e2) = "((" ++ left ++ ")\n"
-                              ++ indent (i + 1)
-                              ++ "(" ++ right ++ "))"
+pprintBody i (App e1 e2)
+  | undesirableVar e1 = pprintBody i e2
+  | undesirableVar e2 = pprintBody i e1
+  | checkUnit e2      = pprintBody i e1
+                        ++ " "
+                        ++ pprintBody i e2
+  | otherwise = "(" ++ left ++ ")\n"
+                ++ indent (i + 1)
+                ++ "(" ++ right ++ ")"
   where
-    left  = pprintBody vs i e1
-    right = pprintBody vs (i+1) e2
+    left  = pprintBody i e1
+    right = pprintBody (i+1) e2
 
-pprintBody _ _ l@(Lit literal) =
+pprintBody _ l@(Lit literal) =
   case isLitValue_maybe literal of
     Just i   -> show i
-    Nothing  -> "{- Lit is not LitChar or LitNumber -}" ++ show l      
+    Nothing  -> show l
 
-pprintBody vs i (Case e _ _ alts)
-  = "case " ++ pprintBody vs i e ++ " of"
-  ++ concatMap (pprintAlts vs (i + caseIndent)) alts
+pprintBody i (Case e _ _ alts)
+  = "case " ++ pprintBody i e ++ " of"
+  ++ concatMap (pprintAlts (i + caseIndent)) alts
 
-pprintBody _ _ Type{}
-  = "{- Type -}"
+pprintBody _ Type{} = "{- Type -}"
 
-pprintBody vs i (Let (NonRec x e1) e2) =
-  "\n" ++ indent i ++
-  "let " ++ handleVar x ++ " = ("
-  ++ pprintBody vs newIdent e1 ++ ") in " ++
-  pprintBody vs newIdent e2
+pprintBody i (Let (NonRec x e1) e2) =
+  letExp ++
+  eqlExp ++
+  indent i ++ pprintBody (i+1) e2
   where
-    newIdent :: Int
-    newIdent = i + 5
+    letExp      = "let " ++ handleVar x ++ " = "
+    eqlExp      = pprintBody firstIdent e1 ++ " in\n"
+    firstIdent  = i + caseIndent*2 + length letExp
     
-pprintBody _ _ (Let (Rec {}) _) = "{- let rec -}"
+pprintBody _ (Let Rec{} _) = "{- let rec -}"
 
-pprintBody _ _ e
-  = error (" Not yet implemented for e = " ++ show e)
+pprintBody i (Tick (SourceNote _ s) e)
+  | expr == "()" = "{- " ++ s ++ " -} " ++ expr
+  | otherwise    = "{- " ++ s ++ " -}"
+                   ++ "\n" ++ indent i
+                   ++ expr
+  where
+    expr = pprintBody i e
 
-pprintAlts :: [Var] -> Int -> Alt Var -> String
-pprintAlts vars i (DataAlt dataCon, vs, e)
+pprintBody i (Tick _ e) = pprintBody i e
+
+pprintBody _ e = error (" Not yet implemented for e = " ++ show e)
+
+{-
+data Alt Var = Alt AltCon [Var] (Expr Var)
+
+data AltCon = DataAlt DataCon
+            | LitAlt  Literal
+            | DEFAULT
+-}
+pprintAlts :: Int -> Alt Var -> String
+pprintAlts i (DataAlt dataCon, vs, e)
   = "\n" ++ indent i
-  ++ show dataCon
-  ++ concatMap (\v -> " " ++ show v) vs
-  ++ " -> " ++ pprintBody vars (i+caseIndent) e
-pprintAlts _ _ _ =
+    ++ elCase
+    ++ pprintBody (i + newIndent) e
+  where
+    elCase = getOccString (getName dataCon)
+             ++ concatMap (\v -> " " ++ handleVar v) vs
+             ++ " -> "
+    newIndent = length elCase
+    
+pprintAlts _ _ =
   error " Pretty printing for pattern match on datatypes. "
-
--- TODO Remove variables generated for type class constraints
-countTcConstraints :: SpecType -> Int
-countTcConstraints t =
-  let ws = words (show t)
-      countCommas :: [String] -> Int
-      countCommas []     = 0
-      countCommas (x:xs) =
-        case find (== ',') x of
-          Nothing -> countCommas xs
-          Just _  -> 1 + countCommas xs
-
-  in  case find (== "=>") ws of
-        Nothing -> 0
-        Just _  -> 1 + countCommas (takeWhile (/= "=>") ws)
 
 
 

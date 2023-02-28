@@ -50,7 +50,6 @@ import qualified Language.Haskell.Liquid.Termination.Structural as ST
 import qualified Liquid.GHC.Misc          as GM 
 import           Liquid.GHC.API as GHC hiding (text, vcat, ($+$), getOpts, (<+>))
 
-
 type MbEnv = Maybe HscEnv
 
 
@@ -281,7 +280,12 @@ solveCs cfg tgt cgi info names = do
                        hintName ++
                        ") where\nimport " ++
                        takeBaseName tgt ++ "\n"
-    let imports      = L.intercalate "\n" $ map (\imp -> "import " ++ F.symbolString imp) (S.toList $ gsAllImps $ giSrc info)
+
+    let listOfImps   = map (\imp -> F.symbolicString imp)
+                       (S.toList $ gsAllImps $ giSrc info)
+    let imports      =
+          L.intercalate "\n" $ map ("import " ++) listOfImps
+
     {-
       Modules that have the form of: "import moduleName (function)",
       are being outputed as "import moduleName". I don't seem to find
@@ -301,7 +305,6 @@ solveCs cfg tgt cgi info names = do
   let out0          = mkOutput cfg resModel sol (annotMap cgi)
   return            $ out0 { o_vars    = names    }
                            { o_result  = resModel }
-
 
 e2u :: Config -> F.FixSolution -> Error -> UserError
 e2u cfg s = fmap F.pprint . tidyError cfg s

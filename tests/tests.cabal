@@ -2052,11 +2052,8 @@ executable relational-neg
                       Abs
                     , ApSum
                     , ApSumAsync
-                    , BasePredWf
                     , CheckedImp
                     , CaseOnRec
-                    , FunBaseWf
-                    , HigherOrderWf
                     , SndOrdPred
 
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0

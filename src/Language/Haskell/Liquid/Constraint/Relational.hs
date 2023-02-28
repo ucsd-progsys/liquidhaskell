@@ -372,8 +372,29 @@ relTermToUnTerm' relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
     as1
     where (x1l, x2r) = mkRelCopies x1 x2
 relTermToUnTerm' _ e1 e2
-  = traceWhenLoud ("relTermToUnTerm': can't proceed proof generation on e1:\n" ++ F.showpp e1 ++ "\ne2:\n" ++ F.showpp e2)
-      mkLambdaUnit (Ghc.exprType e1) (Ghc.exprType e2)
+  = traceWhenLoud ("relTermToUnTerm': can't proceed proof generation on e1:\n" ++ F.showpp e1 ++ "\ne2:\n" ++ F.showpp e2) $
+      Tick (Ghc.SourceNote realSpan info) $
+        mkLambdaUnit e1 e2 (Ghc.exprType e1) (Ghc.exprType e2)
+  where
+    realLoc  = Ghc.mkRealSrcLoc (Ghc.mkFastString "") 0 0
+    realSpan = Ghc.mkRealSrcSpan realLoc realLoc
+    left     = coreToGoal True e1 
+    right    = coreToGoal True e2
+    info     = "GOAL: " ++ left ++ " ~ " ++ right
+
+{- function to print CoreExpr as strings in order to
+insert them as goal comments on the output of the proof.
+when the boolean argument short is true, if the goal is
+bigger then 20 chars then the string is trimed. -}
+coreToGoal :: Bool -> CoreExpr -> String
+coreToGoal short e
+  | bool                      = "()"
+  | short && length goal <= 20 = goal
+  | short                     = take 20 goal ++ " (...) "
+  | otherwise                 = goal
+  where
+    goal = unwords $ words $ concat $ splitOn "\n" $ pprintBody' expr
+    (expr, bool) = cleanUnTerms $ fromAnf e
 
 areCompatible :: CoreExpr -> CoreExpr -> Bool
 areCompatible e1 e2 = areCompatibleTy (Ghc.exprType e1) (Ghc.exprType e2)
@@ -395,17 +416,75 @@ areCompatibleTy t1 (Ghc.ForAllTy _ t2)
   = areCompatibleTy t1 t2
 areCompatibleTy _ _ = False
 
-mkLambdaUnit :: Type -> Type -> CoreExpr
-mkLambdaUnit (Ghc.ForAllTy _ t1) t2 = mkLambdaUnit t1 t2
-mkLambdaUnit t1 (Ghc.ForAllTy _ t2) = mkLambdaUnit t1 t2
-mkLambdaUnit (Ghc.FunTy Ghc.InvisArg _ _ t1) (Ghc.FunTy Ghc.InvisArg _ _ t2) = mkLambdaUnit t1 t2
-mkLambdaUnit (Ghc.FunTy Ghc.VisArg _ _ t1) (Ghc.FunTy Ghc.VisArg _ _ t2) 
+mkLambdaUnit :: CoreExpr -> CoreExpr -> Type -> Type -> CoreExpr
+mkLambdaUnit e1 e2 (Ghc.ForAllTy _ t1) (Ghc.ForAllTy _ t2) = mkLambdaUnit e1 e2 t1 t2
+mkLambdaUnit e1 e2 (Ghc.FunTy Ghc.InvisArg _ _ t1) (Ghc.FunTy Ghc.InvisArg _ _ t2) = mkLambdaUnit e1 e2 t1 t2
+mkLambdaUnit e1 e2 (Ghc.FunTy Ghc.VisArg _ _ t1) (Ghc.FunTy Ghc.VisArg _ _ t2) 
   = Lam (GM.stringVar "_" Ghc.unitTy) $ 
       Lam (GM.stringVar "_" Ghc.unitTy) $ 
-        Lam (GM.stringVar "_" Ghc.unitTy) $ mkLambdaUnit t1 t2
-mkLambdaUnit t1@Ghc.FunTy{} t2 = F.panic $ "relTermToUnTerm: asked to relate unmatching types " ++ F.showpp t1 ++ " " ++ F.showpp t2
-mkLambdaUnit t1 t2@Ghc.FunTy{} = F.panic $ "relTermToUnTerm: asked to relate unmatching types " ++ F.showpp t1 ++ " " ++ F.showpp t2
-mkLambdaUnit _ _ = Ghc.unitExpr
+        Lam (GM.stringVar "_" Ghc.unitTy) $ mkLambdaUnit e1 e2 t1 t2
+mkLambdaUnit _ _ t1@Ghc.FunTy{} t2 = F.panic $ "relTermToUnTerm: asked to relate unmatching types " ++ F.showpp t1 ++ " " ++ F.showpp t2
+mkLambdaUnit _ _ t1 t2@Ghc.FunTy{} = F.panic $ "relTermToUnTerm: asked to relate unmatching types " ++ F.showpp t1 ++ " " ++ F.showpp t2
+
+mkLambdaUnit e1 e2 _ _
+  | Ghc.FunTy {}    <- Ghc.exprType e1
+  , Ghc.FunTy {}    <- Ghc.exprType e2 = Ghc.unitExpr
+  | Ghc.ForAllTy {} <- Ghc.exprType e1
+  , Ghc.ForAllTy {} <- Ghc.exprType e2 = Ghc.unitExpr
+  | patError1 || patError2 = Ghc.unitExpr
+  | otherwise              = App (App (App genConst genConstU) cle1) cle2
+  where
+    genConst          = Var $ GM.stringVar "const" Ghc.unitTy
+    genConstU         = App genConst Ghc.unitExpr
+    (cle1, patError1) = cleanUnTerms e1
+    (cle2, patError1) = cleanUnTerms e2
+
+cleanUnTerms :: CoreExpr -> (CoreExpr, Bool)
+{- Maybe have to do some cleaning to the vars here -}
+cleanUnTerms var@(Var v)
+  | handleVar v == "patError" = (var, True)
+  | otherwise                 = (var, False)
+cleanUnTerms l@Lit{} = (l, False)
+cleanUnTerms (App f e)
+  | Type{} <- GM.unTickExpr e = cleanUnTerms f
+cleanUnTerms (App f (Var v))
+  | GM.isEmbeddedDictVar v = cleanUnTerms f
+cleanUnTerms (App f e) = (App core1 core2, bool1 || bool2)
+  where
+    (core1, bool1) = cleanUnTerms f
+    (core2, bool2) = cleanUnTerms e
+cleanUnTerms (Lam α e)
+  | Ghc.isTyVar α = cleanUnTerms e
+  | otherwise     = (Lam α core, bool)
+    where
+      (core, bool) = cleanUnTerms e
+
+cleanUnTerms (Let (NonRec v e1) e2) = 
+  (Let (NonRec v core1) core2, bool1 || bool2)
+  where
+    (core1, bool1) = cleanUnTerms e1
+    (core2, bool2) = cleanUnTerms e2
+
+cleanUnTerms (Let r e) = (Let r core, bool)
+  -- TODO: cleanUnTerms <$> r
+  where
+    (core, bool) = cleanUnTerms e
+
+cleanUnTerms (Case e v t alts) = (Case core v t clAlts, bool1 || bool2)
+  where
+    (core,   bool1) = cleanUnTerms e
+    (clAlts, bool2) = cleanCase alts
+
+cleanUnTerms e = error ("cleanUnTerms: " ++ F.showpp e)
+
+cleanCase :: [(a, b, CoreExpr)] -> ([(a, b, CoreExpr)], Bool)
+cleanCase alts = (zip3 altcs vss cores, bool)
+  where
+    (altcs, vss, altesBools) = unzip3 $
+                               map (\(altc, vs, alte) ->
+                                       (altc, vs, cleanUnTerms alte)) alts
+    (cores, bool) = or <$> unzip altesBools
+
 
 --------------------------------------------------------------
 -- Core Checking Rules ---------------------------------------
@@ -1063,6 +1142,7 @@ matchFunArgs t1 t2 _ = F.panic $ "matchFunArgs undefined for " ++ F.showpp (t1, 
 entl :: CGEnv -> F.Expr -> String -> CG ()
 entl γ p = addC (SubR γ OCons $ uReft (F.vv_, F.PIff (F.EVar F.vv_) p))
 
+-- TODO: handle properly
 entlFunReft :: CGEnv -> RReft -> String -> CG ()
 entlFunReft _ _ _ = return ()
 
@@ -1120,7 +1200,8 @@ lookupBind x bs = case lookup x (concatMap binds bs) of
 
 subUnarySig :: CGEnv -> Var -> SpecType -> CG ()
 subUnarySig γ x tRel =
-  forM_ mkargs $ \(rt, ut) -> addC (SubC γ ut rt) $ "subUnarySig tUn = " ++ F.showpp ut ++ " tRel = " ++ F.showpp rt
+  forM_ mkargs $ \(rt, ut) -> addC (SubC γ ut rt) $
+  "subUnarySig tUn = " ++ F.showpp ut ++ " tRel = " ++ F.showpp rt
   where
     mkargs = zip (snd $ vargs tRel) (snd $ vargs tUn)
     tUn = symbolType γ x $ "subUnarySig " ++ F.showpp x
@@ -1156,12 +1237,6 @@ unapplyRelArgsR x1 x2 (ERChecked e re) =
     (unapplyRelArgsR x1 x2 re)
 unapplyRelArgsR x1 x2 (ERUnChecked e re) =
   ERUnChecked (unapplyRelArgs x1 x2 e) (unapplyRelArgsR x1 x2 re)
-
-
--- exprToUReft :: F.Expr -> RReft
--- exprToUReft e
---   = traceWhenLoud ("exprToUReft " ++ F.showpp e ++ " to " ++ F.showpp r) r
---     where r = uTop (F.Reft (F.vv_, F.pAnd [e]))
 
 --------------------------------------------------------------
 -- RelExpr & F.Expr ------------------------------------------
