@@ -1222,6 +1222,10 @@ relHint t v e = text "import GHC.Types"
                            ++ " :: "
                            ++ removeIdent (toType False t))
                 $+$ text (coreToHs t v (fromAnf e))
+                $+$ text ""
+                $+$ text "{- BARE CORE"
+                $+$ text (show e)
+                $+$ text "-}"
 
 removeIdent :: Type -> String
 removeIdent t = withNoLines noIdent $ F.pprint t
