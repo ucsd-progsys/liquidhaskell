@@ -231,31 +231,31 @@ relSigToUnSig e1 e2 (RFun x1 i1 s1 t1 r1) (RFun x2 i2 s2 t2 r2) (ERChecked q p)
   = traceWhenLoud "relSigToUnSig RFun RFun ERChecked" $ 
       RFun x1 i1 s1 
         (RFun x2 i2 s2 
-                            -- TODO: how to get i?
+                            -- TODO: how to get i?    
           (RFun (mkRelLemma x1 x2) i2 (relSigToUnSig (F.EVar x1) (F.EVar x2) s1 s2 q) (relSigToUnSig e1 e2 t1 t2 p) r2) r2) r1 
 relSigToUnSig e1 e2 (RFun x1 i1 s1 t1 r1) (RFun x2 i2 s2 t2 r2) (ERUnChecked q p)
-  = traceWhenLoud "relSigToUnSig RFun RFun ERChecked" $
-      RFun x1 i1 s1
-        (RFun x2 i2 s2
-                            -- TODO: how to get i?
-          (RFun (mkRelLemma x1 x2) i2
+  = traceWhenLoud "relSigToUnSig RFun RFun ERChecked" $ 
+      RFun x1 i1 s1 
+        (RFun x2 i2 s2 
+                            -- TODO: how to get i?    
+          (RFun (mkRelLemma x1 x2) i2 
                 (relSigToUnSig (F.EVar x1) (F.EVar x2) s1 s2 (wfRelExpr q s1 s2)) 
-                (relSigToUnSig e1 e2 t1 t2 p) r2) r2) r1
+                (relSigToUnSig e1 e2 t1 t2 p) r2) r2) r1           
 relSigToUnSig _ _ RFun{} RFun{} p@ERBasic{}
-  = traceWhenLoud "relSigToUnSig RFun RFun ERBasic" $
+  = traceWhenLoud "relSigToUnSig RFun RFun ERBasic" $ 
     F.panic $ "relSigToUnSig: predicate " ++ F.showpp p ++ " too short for function types"
 relSigToUnSig _ _ t1@RFun{} t2 p
   = F.panic $ "relSigToUnSig: unsuppoted pair of types RFun and non-RFun " ++ F.showpp (t1, t2, p) 
 relSigToUnSig _ _ t1 t2@RFun{} p
   = F.panic $ "relSigToUnSig: unsuppoted pair of types non-RFun and RFun " ++ F.showpp (t1, t2, p) 
 relSigToUnSig e1 e2 t1 t2 (ERBasic p) | isBasicType t1 && isBasicType t2
-  = traceWhenLoud "relSigToUnSig Base Base ERBasic" $
+  = traceWhenLoud "relSigToUnSig Base Base ERBasic" $ 
     unitTyReft $ rs2es (F.PAnd [p])
-    where
+    where 
       rs2es =  F.subst $ F.mkSubst [(resL, e1), (resR, e2)]
 relSigToUnSig _ _ t1 t2 p | isBasicType t1 && isBasicType t2
   = F.panic $ "relSigToUnSig: predicate " ++ F.showpp p ++ " too long for basic types"
-relSigToUnSig _ _ t1 t2 p
+relSigToUnSig _ _ t1 t2 p 
   = F.panic $ "relSigToUnSig: unsuppoted pair of types " ++ F.showpp (t1, t2, p)
 
 unitTy :: SpecType
@@ -321,31 +321,18 @@ relTermToUnTerm' m relTerms (App f1 v1) (App f2 v2)
   , areCompatible v1 v2
   , Just relX <- lookup (x1, x2) relTerms
   = traceWhenLoud
-      ("relTermToUnTerm App lookup "
-       ++ show x1
-       ++ " ~ "
-       ++ show x2
-       ++ " ~> "
-       ++ show relX) $
-    App (App (App (relTermToUnTerm' m relTerms f1 f2) clv1) clv2) relX
-  where
-    (clv1, _) = cleanUnTerms v1
-    (clv2, _) = cleanUnTerms v2
-
-relTermToUnTerm' m relTerms (App f1 x1) (App f2 x2)
+      ("relTermToUnTerm App lookup " ++ show x1 ++ " ~ " ++ show x2 ++ " ~> " ++ show relX) $ 
+    App (App (App (relTermToUnTerm' m relTerms f1 f2) v1) v2) relX
+relTermToUnTerm' m relTerms (App f1 x1) (App f2 x2) 
   | isCommonArg x1
   , isCommonArg x2
   , areCompatible f1 f2
   , areCompatible x1 x2
   = traceWhenLoud
       ("relTermToUnTerm App common arg " ++ show x1 ++ " " ++ show x2) $ 
-    App (App (App (relTermToUnTerm' m relTerms f1 f2) clx1) clx2) relX
-    where
-      relX = mkLambdaUnit x1 x2 (Ghc.exprType x1) (Ghc.exprType x2)
-      (clx1, _) = cleanUnTerms x1
-      (clx2, _) = cleanUnTerms x2
-
-relTermToUnTerm' relTerms m (Lam α1 e1) (Lam α2 e2) 
+    App (App (App (relTermToUnTerm' m relTerms f1 f2) x1) x2) relX
+    where relX = mkLambdaUnit x1 x2 (Ghc.exprType x1) (Ghc.exprType x2)
+relTermToUnTerm' m relTerms (Lam α1 e1) (Lam α2 e2) 
   | Ghc.isTyVar α1, Ghc.isTyVar α2
   = relTermToUnTerm' m relTerms e1 e2
 relTermToUnTerm' m relTerms (Lam x1 e1) (Lam x2 e2)
@@ -466,12 +453,9 @@ mkLambdaUnit e1 e2 _ _
 cleanUnTerms :: CoreExpr -> (CoreExpr, Bool)
 {- Maybe have to do some cleaning to the vars here -}
 cleanUnTerms var@(Var v)
-  | handleVar v == "patError"    = (var, True)
-  | otherwise                    = (var, False)
-
-cleanUnTerms (Lit (Ghc.LitString _)) = (Ghc.unitExpr, False)
+  | handleVar v == "patError" = (var, True)
+  | otherwise                 = (var, False)
 cleanUnTerms l@Lit{} = (l, False)
-
 cleanUnTerms (App f e)
   | Type{} <- GM.unTickExpr e = cleanUnTerms f
 cleanUnTerms (App f (Var v))

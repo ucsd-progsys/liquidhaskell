@@ -115,6 +115,8 @@ fromAnf' (App e1 e2) bnds
 
 fromAnf' t@Type{} bnds = (t, bnds)
 
+fromAnf' (Lit (GHC.LitString _)) bnds = (GHC.unitExpr, bnds)
+
 fromAnf' l@Lit{} bnds = (l, bnds)
 
 fromAnf' (Tick s e) bnds = (Tick s e', bnds')
