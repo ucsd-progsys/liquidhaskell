@@ -12,7 +12,6 @@
 {-# LANGUAGE DerivingVia                #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 -- | This module should contain all the global type definitions and basic instances.
 
@@ -418,7 +417,7 @@ toLogicMap ls = mempty {lmSymDefs = M.fromList $ map toLMap ls}
     toLMap (x, ys, e) = (F.val x, LMap {lmVar = x, lmArgs = ys, lmExpr = e})
 
 eAppWithMap :: LogicMap -> F.Located Symbol -> [Expr] -> Expr -> Expr
-eAppWithMap lmap f es def
+eAppWithMap lmap f es expr
   | Just (LMap _ xs e) <- M.lookup (F.val f) (lmSymDefs lmap)
   , length xs == length es
   = F.subst (F.mkSubst $ zip xs es) e
@@ -426,7 +425,7 @@ eAppWithMap lmap f es def
   , isApp e
   = F.subst (F.mkSubst $ zip xs es) $ dropApp e (length xs - length es)
   | otherwise
-  = def
+  = expr
 
 dropApp :: Expr -> Int -> Expr
 dropApp e i | i <= 0 = e
@@ -1398,7 +1397,7 @@ mkArrow :: [(RTVar tv (RType c tv ()), r)]
         -> [(Symbol, RFInfo, RType c tv r, r)]
         -> RType c tv r
         -> RType c tv r
-mkArrow αs πs yts xts = mkUnivs αs πs . mkArrs RImpF yts. mkArrs RFun xts
+mkArrow αs πs yts zts = mkUnivs αs πs . mkArrs RImpF yts . mkArrs RFun zts
   where
     mkArrs f xts t  = foldr (\(b,i,t1,r) t2 -> f b i t1 t2 r) t xts
 
@@ -1440,7 +1439,7 @@ mkUnivs :: (Foldable t, Foldable t1)
         -> t1 (PVar (RType c tv ()))
         -> RType c tv r
         -> RType c tv r
-mkUnivs αs πs t = foldr (\(a,r) t -> RAllT a t r) (foldr RAllP t πs) αs
+mkUnivs αs πs rt = foldr (\(a,r) t -> RAllT a t r) (foldr RAllP rt πs) αs
 
 bkUnivClass :: SpecType -> ([(SpecRTVar, RReft)],[PVar RSort], [(RTyCon, [SpecType])], SpecType )
 bkUnivClass t        = (as, ps, cs, t2)
@@ -2071,7 +2070,7 @@ allErrors = dErrors
 --------------------------------------------------------------------------------
 
 printWarning :: Logger -> DynFlags -> Warning -> IO ()
-printWarning logger dyn (Warning span doc) = GHC.putWarnMsg logger dyn span doc
+printWarning logger dyn (Warning srcSpan doc) = GHC.putWarnMsg logger dyn srcSpan doc
 
 --------------------------------------------------------------------------------
 -- | Error Data Type -----------------------------------------------------------
@@ -2326,7 +2325,7 @@ instance F.PPrint t => F.PPrint (RClass t) where
                 = ppMethods k ("class" <+> supers ts) n as [(m, RISig t) | (m, t) <- mts]
     where
       supers [] = ""
-      supers ts = tuplify (F.pprintTidy k   <$> ts) <+> "=>"
+      supers xs = tuplify (F.pprintTidy k   <$> xs) <+> "=>"
       tuplify   = parens . hcat . punctuate ", "
 
 
@@ -2334,7 +2333,7 @@ instance F.PPrint t => F.PPrint (RILaws t) where
   pprintTidy k (RIL n ss ts mts _) = ppEqs k ("instance laws" <+> supers ss) n ts mts
    where
     supers [] = ""
-    supers ts = tuplify (F.pprintTidy k   <$> ts) <+> "=>"
+    supers xs = tuplify (F.pprintTidy k   <$> xs) <+> "=>"
     tuplify   = parens . hcat . punctuate ", "
 
 
