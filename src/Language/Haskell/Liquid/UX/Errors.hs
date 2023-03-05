@@ -3,8 +3,6 @@
 {-# LANGUAGE TupleSections     #-}
 {-# LANGUAGE BangPatterns      #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 -- | This module contains the functions related to @Error@ type,
 -- in particular, to @tidyError@ using a solution, and @pprint@ errors.
 
