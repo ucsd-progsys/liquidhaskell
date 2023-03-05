@@ -4,8 +4,6 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE OverloadedStrings     #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Haskell.Liquid.UX.QuasiQuoter
 -- (
 --     -- * LiquidHaskell Specification QuasiQuoter
@@ -62,14 +60,14 @@ lqDec src = do
       prg <- pragAnnD ModuleAnnotation $
                conE 'LiquidQuote `appE` dataToExpQ' spec
       case mkSpecDecs spec of
-        Left err ->
-          throwErrorInQ err
+        Left uerr ->
+          throwErrorInQ uerr
         Right decs ->
           return $ prg : decs
 
 throwErrorInQ :: UserError -> Q a
-throwErrorInQ err =
-  fail . showpp =<< runIO (errorsWithContext [err])
+throwErrorInQ uerr =
+  fail . showpp =<< runIO (errorsWithContext [uerr])
 
 --------------------------------------------------------------------------------
 -- Liquid Haskell to Template Haskell ------------------------------------------
@@ -154,10 +152,10 @@ simplifyBareType'' (tvs, cls) (RFun _ _ i o _)
 simplifyBareType'' (tvs, cls) (RAllT tv t _) =
   simplifyBareType'' (ty_var_value tv : tvs, cls) t
 
-simplifyBareType'' (tvs, cls) t =
+simplifyBareType'' (tvs, cls) bt =
   ForallT ((\t -> PlainTV (symbolName t) SpecifiedSpec) <$> reverse tvs)
     <$> mapM simplifyBareType' (reverse cls)
-    <*> simplifyBareType' t
+    <*> simplifyBareType' bt
 
 
 data Simpl a = Simplified a
