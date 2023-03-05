@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.Haskell.Liquid.Types.Visitors (
 
@@ -160,7 +159,7 @@ data CoreVisitor env acc = CoreVisitor
   }
 
 coreVisitor :: CoreVisitor env acc -> env -> acc -> [CoreBind] -> acc
-coreVisitor vis env acc cbs   = snd (foldl' step (env, acc) cbs)
+coreVisitor vis cenv cacc cbs = snd (foldl' step (cenv, cacc) cbs)
   where
     stepXE (env, acc) (x,e)   = (env', stepE env' acc'   e)
       where

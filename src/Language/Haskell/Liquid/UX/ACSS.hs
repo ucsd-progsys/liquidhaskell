@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -Wno-name-shadowing -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 -- | Formats Haskell source code as HTML with CSS and Mouseover Type Annotations
 module Language.Haskell.Liquid.UX.ACSS (
@@ -97,11 +97,11 @@ annotTokenise baseLoc tx (src, annm) = zipWith (\(x,y) z -> (x,y,z)) toks annots
     linWidth   = length $ show $ length $ lines src
 
 spanAnnot :: Int -> AnnMap -> Loc -> Annotation
-spanAnnot w (Ann ts es _ _) span = A t e b
+spanAnnot w (Ann ts es _ _) loc = A t e b
   where
-    t = fmap snd (M.lookup span ts)
-    e = "ERROR" <$ find (span `inRange`) [(x,y) | (x,y,_) <- es]
-    b = spanLine w span
+    t = fmap snd (M.lookup loc ts)
+    e = "ERROR" <$ find (loc `inRange`) [(x,y) | (x,y,_) <- es]
+    b = spanLine w loc
 
 spanLine :: t -> Loc -> Maybe (Int, t)
 spanLine w (L (l, c))
@@ -114,7 +114,7 @@ inRange (L (l0, c0)) (L (l, c), L (l', c'))
 
 tokeniseWithCommentTransform :: Maybe (String -> [(TokenType, String)]) -> String -> [(TokenType, String)]
 tokeniseWithCommentTransform Nothing  = tokenise
-tokeniseWithCommentTransform (Just f) = concatMap (expand f) . tokenise
+tokeniseWithCommentTransform (Just g) = concatMap (expand g) . tokenise
   where expand f (Comment, s) = f s
         expand _ z            = [z]
 
@@ -261,7 +261,7 @@ data Lit = Code {unL :: String} | Lit {unL :: String} deriving (Show)
 -- Also, importantly, accepts non-standard DOS and Mac line ending characters.
 -- And retains the trailing '\n' character in each resultant string.
 inlines :: String -> [String]
-inlines s = lines' s id
+inlines str = lines' str id
   where
   lines' []             acc = [acc []]
   lines' ('\^M':'\n':s) acc = acc ['\n'] : lines' s id  -- DOS
@@ -296,4 +296,4 @@ joinL :: [Lit] -> [Lit]
 joinL []                  = []
 joinL (Code c:Code c2:xs) = joinL (Code (c++c2):xs)
 joinL (Lit c :Lit c2 :xs) = joinL (Lit  (c++c2):xs)
-joinL (any:xs)            = any: joinL xs
+joinL (lit:xs)            = lit: joinL xs

@@ -4,7 +4,6 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- TODO(#1918): Only needed for GHC <9.0.1.
 {-# OPTIONS_GHC -Wno-orphans #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.Haskell.Liquid.Types.Variance (
   Variance(..), VarianceInfo, makeTyConVariance, flipVariance
@@ -60,13 +59,13 @@ instance F.PPrint Variance where
 
 
 makeTyConVariance :: TyCon -> VarianceInfo
-makeTyConVariance c = varSignToVariance <$> tvs
+makeTyConVariance tyCon = varSignToVariance <$> tvs
   where
-    tvs = GM.tyConTyVarsDef c
+    tvs = GM.tyConTyVarsDef tyCon
 
-    varsigns = if Ghc.isTypeSynonymTyCon c
-                  then go True (fromJust $ Ghc.synTyConRhs_maybe c)
-                  else L.nub $ concatMap goDCon $ Ghc.tyConDataCons c
+    varsigns = if Ghc.isTypeSynonymTyCon tyCon
+                  then go True (fromJust $ Ghc.synTyConRhs_maybe tyCon)
+                  else L.nub $ concatMap goDCon $ Ghc.tyConDataCons tyCon
 
     varSignToVariance v = case filter (\p -> GM.showPpr (fst p) == GM.showPpr v) varsigns of
                             []       -> Invariant
@@ -81,13 +80,13 @@ makeTyConVariance c = varSignToVariance <$> tvs
     go pos (TyVarTy v)       = [(v, pos)]
     go pos (AppTy t1 t2)     = go pos t1 ++ go pos t2
     go pos (TyConApp c' ts)
-       | c == c'
+       | tyCon == c'
        = []
 
 -- NV fix that: what happens if we have mutually recursive data types?
 -- now just provide "default" Bivariant for mutually rec types.
 -- but there should be a finer solution
-       | mutuallyRecursive c c'
+       | mutuallyRecursive tyCon c'
        = concatMap (goTyConApp pos Bivariant) ts
        | otherwise
        = concat $ zipWith (goTyConApp pos) (makeTyConVariance c') ts
