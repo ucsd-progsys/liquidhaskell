@@ -139,9 +139,7 @@ You can directly extend and run the tests by modifying the files in
 
 ### Parallelism in Tests
 
-Most tests run in parallel, with a few module dependencies built sequentially in
-advance. Benchmarks are run sequentially after all other tests have finished.
-For details on adding tests, see note [Parallel_Tests] in `tests/test.hs`.
+Tests run in parallel, unless the flag `--measure-timings` is specified to `test_plugin.sh`.
 
 ## How to create performance comparison charts
 
