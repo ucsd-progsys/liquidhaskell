@@ -107,7 +107,7 @@ For documentation on the `test-driver` executable itself, please refer to the
 `README.md` in `tests/` or run `cabal run tests:test-driver -- --help` or `stack
 run test-driver -- --help`
 
-So you can run *all* the tests by
+You can run *all* the tests by
 
     $ ./scripts/test/test_plugin.sh
 
