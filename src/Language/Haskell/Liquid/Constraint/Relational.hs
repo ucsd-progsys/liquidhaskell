@@ -40,6 +40,7 @@ import           Language.Haskell.Liquid.Synthesize.GHC
                                                 , fromAnf
                                                 , pprintBody'
                                                 , handleVar
+                                                , RenVars
                                                 )
 
 import           Liquid.GHC.API                 ( Alt
@@ -123,15 +124,17 @@ consRelTop cfg ti chk syn γ ψ (x, y, t, s, ra, rp) = traceChk "Init" e d t s p
     consRelCheckBind (UnaryTyping chk (\γγ ee -> removeAbsRef <$> syn γγ ee)) γ' ψ e d t' s' ra rp
     when (relationalHints cfg) $ 
       modify $ \cgi -> cgi
-      { relHints = relHint
-                      (relSigToUnSig (toExpr x) (toExpr y) t' s' rp)
-                      hintName
-                      (relTermToUnTerm argNames x y hintName (toCoreExpr e) (toCoreExpr d))
+      { relHints = relHint renVars
+                   (relSigToUnSig (toExpr x) (toExpr y) t' s' rp)
+                   hintName
+                   (relTermToUnTerm argNames x y hintName
+                    (toCoreExpr e) (toCoreExpr d))
                     $+$ relHints cgi
       }
   where
-    argNames = (fst $ vargs t', fst $ vargs s')
-    toExpr = F.EVar . F.symbol
+    argNames@(left, right) = (fst $ vargs t', fst $ vargs s')
+    renVars = map F.symbolSafeString $ left ++ right
+    toExpr  = F.EVar . F.symbol
     toCoreExpr = GM.unTickExpr . binderToExpr
     p = fromRelExpr rp
     γ' = γ `setLocation` Sp.Span (GM.fSrcSpan (F.loc t))
@@ -287,6 +290,7 @@ mkRelThmVar' c thm x y = mkCopyWithName (name x ++ cname y ++ thm) x
 cap :: String -> String
 cap (c:cs) = toUpper c : cs
 cap cs = cs
+
 type ArgMapping = ([F.Symbol], [F.Symbol])
 
 relTermToUnTerm :: ArgMapping -> Var -> Var -> Var -> CoreExpr -> CoreExpr -> CoreExpr
@@ -329,9 +333,10 @@ relTermToUnTerm' m relTerms (App f1 x1) (App f2 x2)
   , areCompatible f1 f2
   , areCompatible x1 x2
   = traceWhenLoud
-      ("relTermToUnTerm App common arg " ++ show x1 ++ " " ++ show x2) $ 
-    App (App (App (relTermToUnTerm' m relTerms f1 f2) x1) x2) relX
-    where relX = mkLambdaUnit x1 x2 (Ghc.exprType x1) (Ghc.exprType x2)
+      ("relTermToUnTerm App common arg " ++ show x1 ++ " " ++ show x2)
+      $ App (App (App (relTermToUnTerm' m relTerms f1 f2) x1) x2) relX
+    where
+      relX = mkLambdaUnit m x1 x2 (Ghc.exprType x1) (Ghc.exprType x2)
 relTermToUnTerm' m relTerms (Lam α1 e1) (Lam α2 e2) 
   | Ghc.isTyVar α1, Ghc.isTyVar α2
   = relTermToUnTerm' m relTerms e1 e2
@@ -382,30 +387,32 @@ relTermToUnTerm' m relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
       ))
     as1
     where (x1l, x2r) = mkRelCopies x1 x2
-relTermToUnTerm' _ _ e1 e2
+relTermToUnTerm' m _ e1 e2
   = traceWhenLoud ("relTermToUnTerm': can't proceed proof generation on e1:\n" ++ F.showpp e1 ++ "\ne2:\n" ++ F.showpp e2) $
       Tick (Ghc.SourceNote realSpan info) $
-        mkLambdaUnit e1 e2 (Ghc.exprType e1) (Ghc.exprType e2)
+        mkLambdaUnit m e1 e2 (Ghc.exprType e1) (Ghc.exprType e2)
   where
     realLoc  = Ghc.mkRealSrcLoc (Ghc.mkFastString "") 0 0
     realSpan = Ghc.mkRealSrcSpan realLoc realLoc
-    left     = coreToGoal True e1 
-    right    = coreToGoal True e2
+    renVars  = map F.symbolSafeString $ fst m ++ snd m
+    left     = coreToGoal renVars True e1 
+    right    = coreToGoal renVars True e2
     info     = "GOAL: " ++ left ++ " ~ " ++ right
 
 {- function to print CoreExpr as strings in order to
 insert them as goal comments on the output of the proof.
 when the boolean argument short is true, if the goal is
 bigger then 20 chars then the string is trimed. -}
-coreToGoal :: Bool -> CoreExpr -> String
-coreToGoal short e
+coreToGoal :: RenVars -> Bool -> CoreExpr -> String
+coreToGoal rvs short e
   | bool                      = "()"
   | short && length goal <= 20 = goal
   | short                     = take 20 goal ++ " (...) "
   | otherwise                 = goal
   where
-    goal = unwords $ words $ concat $ splitOn "\n" $ pprintBody' expr
-    (expr, bool) = cleanUnTerms $ fromAnf e
+    goal = unwords $ words $ concat $ splitOn "\n"
+           $ pprintBody' rvs expr
+    (expr, bool) = cleanUnTerms rvs $ fromAnf e
 
 areCompatible :: CoreExpr -> CoreExpr -> Bool
 areCompatible e1 e2 = areCompatibleTy (Ghc.exprType e1) (Ghc.exprType e2)
@@ -427,17 +434,19 @@ areCompatibleTy t1 (Ghc.ForAllTy _ t2)
   = areCompatibleTy t1 t2
 areCompatibleTy _ _ = False
 
-mkLambdaUnit :: CoreExpr -> CoreExpr -> Type -> Type -> CoreExpr
-mkLambdaUnit e1 e2 (Ghc.ForAllTy _ t1) (Ghc.ForAllTy _ t2) = mkLambdaUnit e1 e2 t1 t2
-mkLambdaUnit e1 e2 (Ghc.FunTy Ghc.InvisArg _ _ t1) (Ghc.FunTy Ghc.InvisArg _ _ t2) = mkLambdaUnit e1 e2 t1 t2
-mkLambdaUnit e1 e2 (Ghc.FunTy Ghc.VisArg _ _ t1) (Ghc.FunTy Ghc.VisArg _ _ t2) 
+mkLambdaUnit :: ArgMapping
+             -> CoreExpr -> CoreExpr -> Type -> Type -> CoreExpr
+mkLambdaUnit m e1 e2 (Ghc.ForAllTy _ t1) (Ghc.ForAllTy _ t2) =
+  mkLambdaUnit m e1 e2 t1 t2
+mkLambdaUnit m e1 e2 (Ghc.FunTy Ghc.InvisArg _ _ t1) (Ghc.FunTy Ghc.InvisArg _ _ t2) = mkLambdaUnit m e1 e2 t1 t2
+mkLambdaUnit m e1 e2 (Ghc.FunTy Ghc.VisArg _ _ t1) (Ghc.FunTy Ghc.VisArg _ _ t2) 
   = Lam (GM.stringVar "_" Ghc.unitTy) $ 
       Lam (GM.stringVar "_" Ghc.unitTy) $ 
-        Lam (GM.stringVar "_" Ghc.unitTy) $ mkLambdaUnit e1 e2 t1 t2
-mkLambdaUnit _ _ t1@Ghc.FunTy{} t2 = F.panic $ "relTermToUnTerm: asked to relate unmatching types " ++ F.showpp t1 ++ " " ++ F.showpp t2
-mkLambdaUnit _ _ t1 t2@Ghc.FunTy{} = F.panic $ "relTermToUnTerm: asked to relate unmatching types " ++ F.showpp t1 ++ " " ++ F.showpp t2
+        Lam (GM.stringVar "_" Ghc.unitTy) $ mkLambdaUnit m e1 e2 t1 t2
+mkLambdaUnit _ _ _ t1@Ghc.FunTy{} t2 = F.panic $ "relTermToUnTerm: asked to relate unmatching types " ++ F.showpp t1 ++ " " ++ F.showpp t2
+mkLambdaUnit _ _ _ t1 t2@Ghc.FunTy{} = F.panic $ "relTermToUnTerm: asked to relate unmatching types " ++ F.showpp t1 ++ " " ++ F.showpp t2
 
-mkLambdaUnit e1 e2 _ _
+mkLambdaUnit m e1 e2 _ _
   | Ghc.FunTy {}    <- Ghc.exprType e1
   , Ghc.FunTy {}    <- Ghc.exprType e2 = Ghc.unitExpr
   | Ghc.ForAllTy {} <- Ghc.exprType e1
@@ -447,53 +456,59 @@ mkLambdaUnit e1 e2 _ _
   where
     genConst          = Var $ GM.stringVar "const" Ghc.unitTy
     genConstU         = App genConst Ghc.unitExpr
-    (cle1, patError1) = cleanUnTerms e1
-    (cle2, patError2) = cleanUnTerms e2
+    renVars           = map F.symbolSafeString $ fst m ++ snd m
+    (cle1, patError1) = cleanUnTerms renVars e1
+    (cle2, patError2) = cleanUnTerms renVars e2
 
-cleanUnTerms :: CoreExpr -> (CoreExpr, Bool)
+cleanUnTerms :: RenVars -> CoreExpr -> (CoreExpr, Bool)
 {- Maybe have to do some cleaning to the vars here -}
-cleanUnTerms var@(Var v)
-  | handleVar v == "patError" = (var, True)
+cleanUnTerms rvs var@(Var v)
+  | handleVar rvs v == "patError" = (var, True)
   | otherwise                 = (var, False)
-cleanUnTerms l@Lit{} = (l, False)
-cleanUnTerms (App f e)
-  | Type{} <- GM.unTickExpr e = cleanUnTerms f
-cleanUnTerms (App f (Var v))
-  | GM.isEmbeddedDictVar v = cleanUnTerms f
-cleanUnTerms (App f e) = (App core1 core2, bool1 || bool2)
+
+cleanUnTerms _ (Lit (Ghc.LitString _)) = (Ghc.unitExpr, False)
+cleanUnTerms _ l@Lit{} = (l, False)
+
+cleanUnTerms rvs (App f e)
+  | Type{} <- GM.unTickExpr e = cleanUnTerms rvs f
+cleanUnTerms rvs (App f (Var v))
+  | GM.isEmbeddedDictVar v = cleanUnTerms rvs f
+cleanUnTerms rvs (App f e) = (App core1 core2, bool1 || bool2)
   where
-    (core1, bool1) = cleanUnTerms f
-    (core2, bool2) = cleanUnTerms e
-cleanUnTerms (Lam α e)
-  | Ghc.isTyVar α = cleanUnTerms e
+    (core1, bool1) = cleanUnTerms rvs f
+    (core2, bool2) = cleanUnTerms rvs e
+cleanUnTerms rvs (Lam α e)
+  | Ghc.isTyVar α = cleanUnTerms rvs e
   | otherwise     = (Lam α core, bool)
     where
-      (core, bool) = cleanUnTerms e
+      (core, bool) = cleanUnTerms rvs e
 
-cleanUnTerms (Let (NonRec v e1) e2) = 
+cleanUnTerms rvs (Let (NonRec v e1) e2) = 
   (Let (NonRec v core1) core2, bool1 || bool2)
   where
-    (core1, bool1) = cleanUnTerms e1
-    (core2, bool2) = cleanUnTerms e2
+    (core1, bool1) = cleanUnTerms rvs e1
+    (core2, bool2) = cleanUnTerms rvs e2
 
-cleanUnTerms (Let r e) = (Let r core, bool)
+cleanUnTerms rvs (Let r e) = (Let r core, bool)
   -- TODO: cleanUnTerms <$> r
   where
-    (core, bool) = cleanUnTerms e
+    (core, bool) = cleanUnTerms rvs e
 
-cleanUnTerms (Case e v t alts) = (Case core v t clAlts, bool1 || bool2)
+cleanUnTerms rvs (Case e v t alts) = (Case core v t clAlts, bool1 || bool2)
   where
-    (core,   bool1) = cleanUnTerms e
-    (clAlts, bool2) = cleanCase alts
+    (core,   bool1) = cleanUnTerms rvs e
+    (clAlts, bool2) = cleanCase rvs alts
 
-cleanUnTerms e = error ("cleanUnTerms: " ++ F.showpp e)
+cleanUnTerms _ e = error ("cleanUnTerms: " ++ F.showpp e)
 
-cleanCase :: [(a, b, CoreExpr)] -> ([(a, b, CoreExpr)], Bool)
-cleanCase alts = (zip3 altcs vss cores, bool)
+cleanCase :: RenVars -> [(a, b, CoreExpr)] -> ([(a, b, CoreExpr)], Bool)
+cleanCase rvs alts = (zip3 altcs vss cores, bool)
   where
     (altcs, vss, altesBools) = unzip3 $
                                map (\(altc, vs, alte) ->
-                                       (altc, vs, cleanUnTerms alte)) alts
+                                       (altc
+                                       , vs
+                                       , cleanUnTerms rvs alte)) alts
     (cores, bool) = or <$> unzip altesBools
 
 
@@ -1321,22 +1336,22 @@ relWfError loc e1 e2 t1 t2 p msg
 -- Pretty Printing Unary Proofs ------------------------------
 --------------------------------------------------------------
 
-relHint :: SpecType -> Ghc.Var -> CoreExpr -> Doc
-relHint t v e = text "import GHC.Types"
-                $+$ text ""
-                $+$ text "{- HLINT ignore \"Use camelCase\" -}"
-                $+$ text ("{-@ " ++ name
-                           ++ " :: "
-                           ++ F.showpp t
-                           ++ " @-}")
-                $+$ text (name
-                           ++ " :: "
-                           ++ removeIdent (toType False t))
-                $+$ text (coreToHs t v (fromAnf e))
-                $+$ text ""
-                $+$ text "{- BARE CORE"
-                $+$ text (show e)
-                $+$ text "-}"
+relHint :: RenVars -> SpecType -> Ghc.Var -> CoreExpr -> Doc
+relHint rvs t v e = text "import GHC.Types"
+                    $+$ text ""
+                    $+$ text "{- HLINT ignore \"Use camelCase\" -}"
+                    $+$ text ("{-@ " ++ name
+                              ++ " :: "
+                              ++ F.showpp t
+                              ++ " @-}")
+                    $+$ text (name
+                              ++ " :: "
+                              ++ removeIdent (toType False t))
+                    $+$ text (coreToHs rvs t v (fromAnf e))
+                    $+$ text ""
+                    $+$ text "{- BARE CORE"
+                    $+$ text (show e)
+                    $+$ text "-}"
   where name = Ghc.occNameString $ Ghc.getOccName v
 
 removeIdent :: Type -> String

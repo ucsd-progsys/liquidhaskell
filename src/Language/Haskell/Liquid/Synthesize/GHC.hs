@@ -10,7 +10,6 @@ module Language.Haskell.Liquid.Synthesize.GHC where
 import qualified Language.Fixpoint.Types       as F
 import           Language.Haskell.Liquid.Types
 
-
 import           Data.Default
 import           Data.Maybe                     ( fromMaybe )
 import           Liquid.GHC.TypeRep
@@ -115,8 +114,6 @@ fromAnf' (App e1 e2) bnds
 
 fromAnf' t@Type{} bnds = (t, bnds)
 
-fromAnf' (Lit (GHC.LitString _)) bnds = (GHC.unitExpr, bnds)
-
 fromAnf' l@Lit{} bnds = (l, bnds)
 
 fromAnf' (Tick s e) bnds = (Tick s e', bnds')
@@ -128,10 +125,14 @@ fromAnf' e _ = error $ "fromAnf: unsupported core expression "
 
 -- | Function used for pretty printing core as Haskell source.
 --   Input does not contain let bindings.
-coreToHs :: SpecType -> Var -> CoreExpr -> String
-coreToHs _ v e = pprintSymbols (handleVar v
-                                ++ " "
-                                ++ pprintFormals caseIndent e)
+coreToHs :: RenVars -> SpecType -> Var -> CoreExpr -> String
+coreToHs rvs _ v e = pprintSymbols (handleVar ((getOccString v):rvs) v
+                                     ++ " "
+                                     ++ pprintFormals
+                                     ((getOccString v):rvs)
+                                     caseIndent e)
+
+type RenVars       = [String]
 
 caseIndent :: Int
 caseIndent = 2
@@ -158,18 +159,18 @@ pprintSym symbols s
         prefix = takeWhile (== ' ') s
         suffix = dropWhile (== ' ') s
 
-pprintFormals :: Int -> CoreExpr -> String
-pprintFormals i e = handleLam "= " i e
+pprintFormals :: RenVars -> Int -> CoreExpr -> String
+pprintFormals rvs i e = handleLam rvs "= " i e
 
-handleLam :: String -> Int -> CoreExpr -> String
-handleLam char i (Lam v e)
-  | isTyVar   v = " {- tyVar -}"     ++ handleLam char i e
-  | isTcTyVar v = " {- isTcTyVar -}" ++ handleLam char i e
-  | isTyCoVar v = " {- isTyCoVar -}" ++ handleLam char i e
-  | isCoVar   v = " {- isCoVar -}"   ++ handleLam char i e
-  | isId      v = handleVar v ++ " " ++ handleLam char i e  
-  | otherwise   = handleVar v ++ " " ++ handleLam char i e
-handleLam char i e = char ++ pprintBody i e
+handleLam :: RenVars -> String -> Int -> CoreExpr -> String
+handleLam rvs char i (Lam v e)
+  | isTyVar   v = " {- tyVar -}"         ++ handleLam rvs char i e
+  | isTcTyVar v = " {- isTcTyVar -}"     ++ handleLam rvs char i e
+  | isTyCoVar v = " {- isTyCoVar -}"     ++ handleLam rvs char i e
+  | isCoVar   v = " {- isCoVar -}"       ++ handleLam rvs char i e
+  | isId      v = handleVar rvs v ++ " " ++ handleLam rvs char i e  
+  | otherwise   = handleVar rvs v ++ " " ++ handleLam rvs char i e
+handleLam rvs char i e = char ++ pprintBody rvs i e
 
 
 {- If a specific function is built-in into haskell it will still
@@ -196,11 +197,11 @@ getExternalName n = mod ++ outName
 
 {- Handle the multiple types of variables one might encounter
 in Haskell. -}
-handleVar :: Var -> String
-handleVar v
+handleVar :: RenVars -> Var -> String
+handleVar vars v
   | isTyConName     name = "{- TyConName -}"
   | isTyVarName     name = "{- TyVar -}"
-  | isSystemName    name = getSysName name
+  | isSystemName    name = getSysName vars name
 --                           ++ "{- SysName -}"
   | isWiredInName   name = getLocalName name
 --                           ++ "{- WiredInName -}"
@@ -215,12 +216,15 @@ handleVar v
     name = varName v
 
 
-getSysName :: Name -> String
-getSysName n
-  | elem '#' occ = head (splitOn "$##" occ)
-  | otherwise      = occ
+getSysName :: RenVars -> Name -> String
+getSysName vars n
+  | elem occ vars = occ
+  | elem '#' occ  = (head $ splitOn "$##" occ) ++ ['_', last uni]
+  | otherwise     = occ ++ ['_', last uni]
   where
-    occ        = getOccString n
+    occ = getOccString n
+    uni = show $ nameUnique n
+
 {- Should not be done here, but function used to check if is an
 undesirable variable or not (I#) -}
 undesirableVar :: CoreExpr -> Bool
@@ -235,64 +239,64 @@ checkUnit (Var v)
   | otherwise = False
 checkUnit _ = False  
 ----------------------------------------------------------------------
-pprintBody' :: CoreExpr -> String
-pprintBody' = pprintBody 0
+pprintBody' :: RenVars -> CoreExpr -> String
+pprintBody' rvs e = pprintBody rvs 0 e
 
-pprintBody :: Int -> CoreExpr -> String
-pprintBody i e@Lam{} = "(\\" ++ handleLam " -> " i e ++ ")"
+pprintBody :: RenVars -> Int -> CoreExpr -> String
+pprintBody rvs i e@Lam{} = "(\\" ++ handleLam rvs " -> " i e ++ ")"
 
-pprintBody _ var@(Var v)
+pprintBody rvs _ var@(Var v)
   | undesirableVar var = ""
-  | otherwise          = handleVar v
+  | otherwise          = handleVar rvs v
 
-pprintBody i (App e Type{}) = pprintBody i e
+pprintBody rvs i (App e Type{}) = pprintBody rvs i e
     
-pprintBody i (App e1 e2)
-  | undesirableVar e1 = pprintBody i e2
-  | undesirableVar e2 = pprintBody i e1
-  | checkUnit e2      = pprintBody i e1
+pprintBody rvs i (App e1 e2)
+  | undesirableVar e1 = pprintBody rvs i e2
+  | undesirableVar e2 = pprintBody rvs i e1
+  | checkUnit e2      = pprintBody rvs i e1
                         ++ " "
-                        ++ pprintBody i e2
+                        ++ pprintBody rvs i e2
   | otherwise = "(" ++ left ++ ")\n"
                 ++ indent (i + 1)
                 ++ "(" ++ right ++ ")"
   where
-    left  = pprintBody i e1
-    right = pprintBody (i+1) e2
+    left  = pprintBody rvs i e1
+    right = pprintBody rvs (i+1) e2
 
-pprintBody _ l@(Lit literal) =
+pprintBody _ _ l@(Lit literal) =
   case isLitValue_maybe literal of
     Just i   -> show i
     Nothing  -> show l
 
-pprintBody i (Case e _ _ alts)
-  = "case " ++ pprintBody i e ++ " of"
-  ++ concatMap (pprintAlts (i + caseIndent)) alts
+pprintBody rvs i (Case e _ _ alts)
+  = "case " ++ pprintBody rvs i e ++ " of"
+  ++ concatMap (pprintAlts rvs (i + caseIndent)) alts
 
-pprintBody _ Type{} = "{- Type -}"
+pprintBody _ _ Type{} = "{- Type -}"
 
-pprintBody i (Let (NonRec x e1) e2) =
+pprintBody rvs i (Let (NonRec x e1) e2) =
   letExp ++
   eqlExp ++
-  indent i ++ pprintBody (i+1) e2
+  indent i ++ pprintBody rvs (i+1) e2
   where
-    letExp      = "let " ++ handleVar x ++ " = "
-    eqlExp      = pprintBody firstIdent e1 ++ " in\n"
+    letExp      = "let " ++ handleVar rvs x ++ " = "
+    eqlExp      = pprintBody rvs firstIdent e1 ++ " in\n"
     firstIdent  = i + caseIndent*2 + length letExp
     
-pprintBody _ (Let Rec{} _) = "{- let rec -}"
+pprintBody _ _ (Let Rec{} _) = "{- let rec -}"
 
-pprintBody i (Tick (SourceNote _ s) e)
+pprintBody rvs i (Tick (SourceNote _ s) e)
   | expr == "()" = "{- " ++ s ++ " -} " ++ expr
   | otherwise    = "{- " ++ s ++ " -}"
                    ++ "\n" ++ indent i
                    ++ expr
   where
-    expr = pprintBody i e
+    expr = pprintBody rvs i e
 
-pprintBody i (Tick _ e) = pprintBody i e
+pprintBody rvs i (Tick _ e) = pprintBody rvs i e
 
-pprintBody _ e = error (" Not yet implemented for e = " ++ show e)
+pprintBody _ _ e = error (" Not yet implemented for e = " ++ show e)
 
 {-
 data Alt Var = Alt AltCon [Var] (Expr Var)
@@ -301,18 +305,18 @@ data AltCon = DataAlt DataCon
             | LitAlt  Literal
             | DEFAULT
 -}
-pprintAlts :: Int -> Alt Var -> String
-pprintAlts i (DataAlt dataCon, vs, e)
+pprintAlts :: RenVars -> Int -> Alt Var -> String
+pprintAlts rvs i (DataAlt dataCon, vs, e)
   = "\n" ++ indent i
     ++ elCase
-    ++ pprintBody (i + newIndent) e
+    ++ pprintBody rvs (i + newIndent) e
   where
     elCase = getOccString (getName dataCon)
-             ++ concatMap (\v -> " " ++ handleVar v) vs
+             ++ concatMap (\v -> " " ++ handleVar rvs v) vs
              ++ " -> "
     newIndent = length elCase
     
-pprintAlts _ _ =
+pprintAlts _ _ _ =
   error " Pretty printing for pattern match on datatypes. "
 
 
