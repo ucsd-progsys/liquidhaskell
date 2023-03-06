@@ -354,13 +354,6 @@ that can be tested with `./scripts/test/test_plugin.sh`.
 
 # GHC Plugin Development FAQs
 
-## Is it possible that the behaviour of the old executable and the new / the plugin differ?
-
-It might happen, yes, but the surface area is fairly small. Both modules work by producing a [TargetSrc][]
-that is passed to the internal LH API, which is shared by _both_ modules. Therefore, any difference in 
-behaviour has to be researched in the code path that produces such [TargetSrc][]. For the [GHC.Plugin][] this
-happens in the `makeTargetSrc`, whereas for the [GHC.Interface][] this happens inside the [makeGhcSrc][] function.
-
 ## Why is the GHC.Interface using slightly different types than the GHC.Plugin module?
 
 Mostly for backward-compatibility and for historical reasons. Types like [BareSpec][] used to be type alias
