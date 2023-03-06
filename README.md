@@ -350,8 +350,7 @@ patter synonym to deal with changes in type constructors.
 Currently, no. Only one version of GHC is supported and that is the one
 that can be tested with `./scripts/test/test_plugin.sh`.
 
-[GHC.API]: https://github.com/ucsd-progsys/liquidhaskell/blob/develop/src/Language/Haskell/Liquid/GHC/API.hs
-[FunTy]: https://github.com/ucsd-progsys/liquidhaskell/blob/develop/src/Language/Haskell/Liquid/GHC/API.hs#L224
+[GHC.API]: src-ghc/Liquid/GHC/API.hs
 
 # GHC Plugin Development FAQs
 
@@ -372,23 +371,23 @@ to map back and forth (sometimes in a partial way) between old and new data stru
 using**.
 
 
-[Plugin]:              https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/GHC/Plugin.hs
-[GHC.Plugin]:          https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/GHC/Plugin.hs
-[GHC.Interface]:       https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/GHC/Interface.hs
-[SpecFinder]:          https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/GHC/Plugin/SpecFinder.hs
-[BareSpec]:            https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/Types/Specs.hs#L301
-[LiftedSpec]:          https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/Types/Specs.hs#L476
-[TargetSrc]:           https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/Types/Specs.hs#L160
+[Plugin]:              src/Language/Haskell/Liquid/GHC/Plugin.hs
+[GHC.Plugin]:          src/Language/Haskell/Liquid/GHC/Plugin.hs
+[GHC.Interface]:       src-ghc/Liquid/GHC/Interface.hs
+[SpecFinder]:          src/Language/Haskell/Liquid/GHC/Plugin/SpecFinder.hs
+[BareSpec]:            src/Language/Haskell/Liquid/Types/Specs.hs#L361
+[LiftedSpec]:          src/Language/Haskell/Liquid/Types/Specs.hs#L554
+[TargetSrc]:           src/Language/Haskell/Liquid/Types/Specs.hs#L157
 [Ghc monad]:           https://hackage.haskell.org/package/ghc-8.10.1/docs/GHC.html#t:Ghc
 [HscEnv]:              https://hackage.haskell.org/package/ghc-8.10.1/docs/GHC.html#t:HscEnv
 [DynFlags]:            https://hackage.haskell.org/package/ghc-8.10.1/docs/GHC.html#t:DynFlags
 [GhcMonad]:            https://hackage.haskell.org/package/ghc-8.10.1/docs/GHC.html#t:GhcMonad
-[GhcMonadLike]:        https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/GHC/GhcMonadLike.hs
-[typechecking phase]:  https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/GHC/Plugin.hs#L196-L224
+[GhcMonadLike]:        src-ghc/Liquid/GHC/GhcMonadLike.hs
+[typechecking phase]:  src/Language/Haskell/Liquid/GHC/Plugin.hs#L206-L222
 [ghcide]:              https://github.com/haskell/ghcide
-[findRelevantSpecs]:   https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/GHC/Plugin/SpecFinder.hs#L61
+[findRelevantSpecs]:   src/Language/Haskell/Liquid/GHC/Plugin/SpecFinder.hs#L61
 [core binds]:          https://hackage.haskell.org/package/ghc-8.10.1/docs/CoreSyn.html#t:CoreBind
-[configureGhcTargets]: https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/GHC/Interface.hs#L268
-[processTargetModule]: https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/GHC/Interface.hs#L468
-[processModule]:       https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/GHC/Plugin.hs#L393
+[configureGhcTargets]: src-ghc/Liquid/GHC/Interface.hs#L252
+[processTargetModule]: src-ghc/Liquid/GHC/Interface.hs#L481
+[processModule]:       src/Language/Haskell/Liquid/GHC/Plugin.hs#L393
 
