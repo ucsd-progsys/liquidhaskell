@@ -107,11 +107,6 @@ For documentation on the `test-driver` executable itself, please refer to the
 `README.md` in `tests/` or run `cabal run tests:test-driver -- --help` or `stack
 run test-driver -- --help`
 
-There are particular scripts for running LH in the different modes, e.g. for different 
-compiler versions. These scripts are in:
-
-    $ ./scripts/test
-
 So you can run *all* the tests by
 
     $ ./scripts/test/test_plugin.sh
@@ -141,7 +136,6 @@ Or your favorite number of threads, depending on cores etc.
 You can directly extend and run the tests by modifying the files in
 
     tests/harness/
-
 
 ### Parallelism in Tests
 
