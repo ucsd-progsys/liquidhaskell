@@ -343,26 +343,12 @@ compilation might fail with an error, typically because some `ghc` API function 
 The way to fix it is to modify the [GHC.API][] shim module and perform any required change, likely by 
 conditionally compiling some code in a `CPP` block. For minor changes, it's usually enough to perform small
 changes, but for more tricky migrations it might be necessary to backport some GHC code, or create some
-patter synonym to deal with changes in type constructors. You can see an example of this technique in
-action by looking at the pattern synonym for [FunTy][].
+patter synonym to deal with changes in type constructors.
 
 ## Is there a way to run the testsuite for different versions of GHC?
 
-Yes. The easiest way is to run one of the scripts inside the `scripts/test` directory. We provide scripts
-to run the testsuite for a variety of GHC versions, mostly using `stack` but also with `cabal` (e.g.
-`test_plugin.sh`). If run without arguments, the script will run the _full_ testsuite. If an argument
-is given, only a particular pattern/test will be run. Running
-
-```
-./scripts/test/test_plugin.sh BST
-```
-
-will run all the tests which name matches "BST". In case the "fast recompilation" is desired, it's totally
-possibly to pass `LIQUID_DEV_MODE` to the script, for example:
-
-```
-LIQUID_DEV_MODE=true ./scripts/test/test_plugin.sh
-```
+Currently, no. Only one version of GHC is supported and that is the one
+that can be tested with `./scripts/test/test_plugin.sh`.
 
 [GHC.API]: https://github.com/ucsd-progsys/liquidhaskell/blob/develop/src/Language/Haskell/Liquid/GHC/API.hs
 [FunTy]: https://github.com/ucsd-progsys/liquidhaskell/blob/develop/src/Language/Haskell/Liquid/GHC/API.hs#L224
