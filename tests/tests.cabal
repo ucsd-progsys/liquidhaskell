@@ -1123,6 +1123,7 @@ executable unit-neg
 
     other-modules:
                       AbsApp
+                    , AbsNegTest
                     , AdtPeano0
                     , AdtPeano1
                     , Alias00
@@ -1711,6 +1712,7 @@ executable unit-pos-2
 
     other-modules:
                       Abs
+                    , AbsPosTest
                     , Absref_crash0
                     , Absref_crash
                     , Ackermann

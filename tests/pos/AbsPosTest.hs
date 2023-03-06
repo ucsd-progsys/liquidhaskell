@@ -12,6 +12,6 @@ g x = abs x
 h :: Int -> Int
 h x = abs x
 
-{-@ f :: Int -> {n:Int | n >= 0} @-}
-f :: Int -> Int
-f x = abs x
+{-@ f2 :: Int -> {n:Int | n >= 0} @-}
+f2 :: Int -> Int
+f2 x = abs x
