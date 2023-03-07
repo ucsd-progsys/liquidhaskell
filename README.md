@@ -107,12 +107,7 @@ For documentation on the `test-driver` executable itself, please refer to the
 `README.md` in `tests/` or run `cabal run tests:test-driver -- --help` or `stack
 run test-driver -- --help`
 
-There are particular scripts for running LH in the different modes, e.g. for different 
-compiler versions. These scripts are in:
-
-    $ ./scripts/test
-
-So you can run *all* the tests by
+You can run *all* the tests by
 
     $ ./scripts/test/test_plugin.sh
 
@@ -142,12 +137,9 @@ You can directly extend and run the tests by modifying the files in
 
     tests/harness/
 
-
 ### Parallelism in Tests
 
-Most tests run in parallel, with a few module dependencies built sequentially in
-advance. Benchmarks are run sequentially after all other tests have finished.
-For details on adding tests, see note [Parallel_Tests] in `tests/test.hs`.
+Tests run in parallel, unless the flag `--measure-timings` is specified to `test_plugin.sh`.
 
 ## How to create performance comparison charts
 
@@ -349,38 +341,16 @@ compilation might fail with an error, typically because some `ghc` API function 
 The way to fix it is to modify the [GHC.API][] shim module and perform any required change, likely by 
 conditionally compiling some code in a `CPP` block. For minor changes, it's usually enough to perform small
 changes, but for more tricky migrations it might be necessary to backport some GHC code, or create some
-patter synonym to deal with changes in type constructors. You can see an example of this technique in
-action by looking at the pattern synonym for [FunTy][].
+patter synonym to deal with changes in type constructors.
 
 ## Is there a way to run the testsuite for different versions of GHC?
 
-Yes. The easiest way is to run one of the scripts inside the `scripts/test` directory. We provide scripts
-to run the testsuite for a variety of GHC versions, mostly using `stack` but also with `cabal` (e.g.
-`test_plugin.sh`). If run without arguments, the script will run the _full_ testsuite. If an argument
-is given, only a particular pattern/test will be run. Running
+Currently, no. Only one version of GHC is supported and that is the one
+that can be tested with `./scripts/test/test_plugin.sh`.
 
-```
-./scripts/test/test_plugin.sh BST
-```
-
-will run all the tests which name matches "BST". In case the "fast recompilation" is desired, it's totally
-possibly to pass `LIQUID_DEV_MODE` to the script, for example:
-
-```
-LIQUID_DEV_MODE=true ./scripts/test/test_plugin.sh
-```
-
-[GHC.API]: https://github.com/ucsd-progsys/liquidhaskell/blob/develop/src/Language/Haskell/Liquid/GHC/API.hs
-[FunTy]: https://github.com/ucsd-progsys/liquidhaskell/blob/develop/src/Language/Haskell/Liquid/GHC/API.hs#L224
+[GHC.API]: src-ghc/Liquid/GHC/API.hs
 
 # GHC Plugin Development FAQs
-
-## Is it possible that the behaviour of the old executable and the new / the plugin differ?
-
-It might happen, yes, but the surface area is fairly small. Both modules work by producing a [TargetSrc][]
-that is passed to the internal LH API, which is shared by _both_ modules. Therefore, any difference in 
-behaviour has to be researched in the code path that produces such [TargetSrc][]. For the [GHC.Plugin][] this
-happens in the `makeTargetSrc`, whereas for the [GHC.Interface][] this happens inside the [makeGhcSrc][] function.
 
 ## Why is the GHC.Interface using slightly different types than the GHC.Plugin module?
 
@@ -392,23 +362,23 @@ to map back and forth (sometimes in a partial way) between old and new data stru
 using**.
 
 
-[Plugin]:              https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/GHC/Plugin.hs
-[GHC.Plugin]:          https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/GHC/Plugin.hs
-[GHC.Interface]:       https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/GHC/Interface.hs
-[SpecFinder]:          https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/GHC/Plugin/SpecFinder.hs
-[BareSpec]:            https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/Types/Specs.hs#L301
-[LiftedSpec]:          https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/Types/Specs.hs#L476
-[TargetSrc]:           https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/Types/Specs.hs#L160
+[Plugin]:              src/Language/Haskell/Liquid/GHC/Plugin.hs
+[GHC.Plugin]:          src/Language/Haskell/Liquid/GHC/Plugin.hs
+[GHC.Interface]:       src-ghc/Liquid/GHC/Interface.hs
+[SpecFinder]:          src/Language/Haskell/Liquid/GHC/Plugin/SpecFinder.hs
+[BareSpec]:            src/Language/Haskell/Liquid/Types/Specs.hs#L361
+[LiftedSpec]:          src/Language/Haskell/Liquid/Types/Specs.hs#L554
+[TargetSrc]:           src/Language/Haskell/Liquid/Types/Specs.hs#L157
 [Ghc monad]:           https://hackage.haskell.org/package/ghc-8.10.1/docs/GHC.html#t:Ghc
 [HscEnv]:              https://hackage.haskell.org/package/ghc-8.10.1/docs/GHC.html#t:HscEnv
 [DynFlags]:            https://hackage.haskell.org/package/ghc-8.10.1/docs/GHC.html#t:DynFlags
 [GhcMonad]:            https://hackage.haskell.org/package/ghc-8.10.1/docs/GHC.html#t:GhcMonad
-[GhcMonadLike]:        https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/GHC/GhcMonadLike.hs
-[typechecking phase]:  https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/GHC/Plugin.hs#L196-L224
+[GhcMonadLike]:        src-ghc/Liquid/GHC/GhcMonadLike.hs
+[typechecking phase]:  src/Language/Haskell/Liquid/GHC/Plugin.hs#L206-L222
 [ghcide]:              https://github.com/haskell/ghcide
-[findRelevantSpecs]:   https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/GHC/Plugin/SpecFinder.hs#L61
+[findRelevantSpecs]:   src/Language/Haskell/Liquid/GHC/Plugin/SpecFinder.hs#L61
 [core binds]:          https://hackage.haskell.org/package/ghc-8.10.1/docs/CoreSyn.html#t:CoreBind
-[configureGhcTargets]: https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/GHC/Interface.hs#L268
-[processTargetModule]: https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/GHC/Interface.hs#L468
-[processModule]:       https://github.com/ucsd-progsys/liquidhaskell/blob/9a2f8284c5fe5b18ed0410e842acd3329a629a6b/src/Language/Haskell/Liquid/GHC/Plugin.hs#L393
+[configureGhcTargets]: src-ghc/Liquid/GHC/Interface.hs#L252
+[processTargetModule]: src-ghc/Liquid/GHC/Interface.hs#L481
+[processModule]:       src/Language/Haskell/Liquid/GHC/Plugin.hs#L393
 
