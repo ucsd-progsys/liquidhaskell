@@ -135,7 +135,7 @@ consRelTop cfg ti chk syn γ ψ (x, y, t, s, ra, rp) = traceChk "Init" e d t s p
     argNames@(left, right) = (fst $ vargs t', fst $ vargs s')
     renVars = map F.symbolSafeString $ left ++ right
     toExpr  = F.EVar . F.symbol
-    toCoreExpr = GM.unTickExpr . binderToExpr
+    toCoreExpr = fromAnf . GM.unTickExpr . binderToExpr
     p = fromRelExpr rp
     γ' = γ `setLocation` Sp.Span (GM.fSrcSpan (F.loc t))
     cbs = giCbs $ giSrc ti
@@ -325,17 +325,25 @@ relTermToUnTerm' m relTerms (App f1 v1) (App f2 v2)
   , areCompatible v1 v2
   , Just relX <- lookup (x1, x2) relTerms
   = traceWhenLoud
-      ("relTermToUnTerm App lookup " ++ show x1 ++ " ~ " ++ show x2 ++ " ~> " ++ show relX) $ 
-    App (App (App (relTermToUnTerm' m relTerms f1 f2) v1) v2) relX
-relTermToUnTerm' m relTerms (App f1 x1) (App f2 x2) 
+      ("relTermToUnTerm App lookup "
+       ++ show x1 ++ " ~ " ++ show x2 ++ " ~> " ++ show relX) $ 
+    App (App (App (relTermToUnTerm' m relTerms f1 f2) v1') v2') relX
+    where
+      renVars  = map F.symbolSafeString $ fst m ++ snd m
+      (v1', _) = cleanUnTerms renVars v1
+      (v2', _) = cleanUnTerms renVars v2
+relTermToUnTerm' m relTerms (App f1 x1) (App f2 x2)
   | isCommonArg x1
   , isCommonArg x2
   , areCompatible f1 f2
   , areCompatible x1 x2
   = traceWhenLoud
       ("relTermToUnTerm App common arg " ++ show x1 ++ " " ++ show x2)
-      $ App (App (App (relTermToUnTerm' m relTerms f1 f2) x1) x2) relX
+      $ App (App (App (relTermToUnTerm' m relTerms f1 f2) x1') x2') relX
     where
+      renVars  = map F.symbolSafeString $ fst m ++ snd m
+      (x1', _) = cleanUnTerms renVars x1
+      (x2', _) = cleanUnTerms renVars x2
       relX = mkLambdaUnit m x1 x2 (Ghc.exprType x1) (Ghc.exprType x2)
 relTermToUnTerm' m relTerms (Lam α1 e1) (Lam α2 e2) 
   | Ghc.isTyVar α1, Ghc.isTyVar α2
@@ -350,13 +358,18 @@ relTermToUnTerm' m relTerms (Lam x1 e1) (Lam x2 e2)
     (e1l, e2r) = subRelCopiesWithMapping m e1 x1 e2 x2
 relTermToUnTerm' m relTerms (Let (NonRec x1 d1) e1) (Let (NonRec x2 d2) e2) 
   | areCompatible d1 d2
-  = Let (NonRec x1l d1) $ Let (NonRec x2r d2) $ Let (NonRec relX relD) $ 
+  = Let (NonRec x1l d1')
+    $ Let (NonRec x2r d2')
+    $ Let (NonRec relX relD) $ 
     relTermToUnTerm' m (((x1l, x2r), Var relX) : relTerms) e1l e2r
     where 
       relX = mkRelLemmaVar x1 x2
       relD = relTermToUnTerm' m relTerms d1 d2
       (x1l, x2r) = mkRelCopies x1 x2
       (e1l, e2r) = subRelCopies e1 x1 e2 x2
+      renVars    = map F.symbolSafeString $ fst m ++ snd m
+      (d1', _)   = cleanUnTerms renVars d1
+      (d2', _)   = cleanUnTerms renVars d2
 -- TODO: test recursive and mutually recursive lets
 relTermToUnTerm' m relTerms (Let (Rec bs1) e1) (Let (Rec bs2) e2) 
   | length bs1 == length bs2
@@ -1347,7 +1360,7 @@ relHint rvs t v e = text "import GHC.Types"
                     $+$ text (name
                               ++ " :: "
                               ++ removeIdent (toType False t))
-                    $+$ text (coreToHs rvs t v (fromAnf e))
+                    $+$ text (coreToHs rvs t v e)
                     $+$ text ""
                     $+$ text "{- BARE CORE"
                     $+$ text (show e)
