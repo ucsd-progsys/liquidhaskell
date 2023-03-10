@@ -1,5 +1,4 @@
--- positive tests for real exponentiation
-module Foo where
+module ExponentialPosTest where
 
 {-@ ex1 :: Float -> Nat -> Float @-}
 ex1 :: Float -> Int -> Float

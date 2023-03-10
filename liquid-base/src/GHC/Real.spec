@@ -2,7 +2,7 @@ module spec GHC.Real where
 
 import GHC.Types
 
-(GHC.Real.^) :: (GHC.Num.Num a, GHC.Real.Integral b) => n:a -> {m:b | m >= 0} -> {k:a | (m == 0 => k == 1) && ((n == 0 && m /= 0) <=> k == 0)}
+(GHC.Real.^) :: (GHC.Num.Num a, GHC.Real.Integral b) => x:a -> y:{n:b | n >= 0} -> {z:a | (y == 0 => z == 1) && ((x == 0 && y /= 0) <=> z == 0)}
 
 GHC.Real.fromIntegral    :: (GHC.Real.Integral a, GHC.Num.Num b) => x:a -> {v:b|v=x}
 
