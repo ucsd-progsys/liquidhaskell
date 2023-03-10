@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-error-containing=ExpNegTest.hs:6:1" @-}
 module ExpNegTest where
 
 {-@ test :: a -> {x:a | x <= 0} @-}
