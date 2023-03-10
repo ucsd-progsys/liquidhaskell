@@ -1,6 +1,6 @@
 cabal-version:      1.22
 name:               liquid-platform
-version:            0.8.10.2
+version:            0.9.0.2
 synopsis:           A battery-included platform for LiquidHaskell
 description:        A battery-included platform for LiquidHaskell.
 license:            BSD3
@@ -25,34 +25,34 @@ executable liquidhaskell
     buildable: False
   else
     buildable: True
-    build-depends:      liquid-base       >= 4.14.1.0 && < 5
-                      , liquid-containers >= 0.6.2.1  && < 0.7
-                      , liquid-prelude    >= 0.8.10.2
-                      , liquid-vector     >= 0.12.1.2 && < 0.13
-                      , liquid-bytestring >= 0.10.0.0 && < 0.11
-                      , liquidhaskell     >= 0.8.10.2
+    build-depends:      liquid-base       >= 4.15.1.0 && < 5
+                      , liquid-containers >= 0.6.4.1  && < 0.7
+                      , liquid-prelude    >= 0.9.0.2
+                      , liquid-vector     >= 0.12.3.1 && < 0.13
+                      , liquid-bytestring >= 0.10.12.1 && < 0.11
+                      , liquidhaskell     >= 0.9.0.2
                       , filepath
                       , process           >= 1.6.0.0 && < 1.7
                       , cmdargs           >= 0.10    && < 0.11
 
   if flag(devel)
     ghc-options: -Werror
-  
+
 
 executable gradual
   main-is:          src/Gradual.hs
-  build-depends:    base            >= 4.8.1.0 && < 5
+  build-depends:    base            >= 4.15.1.0 && < 5
                   , cmdargs
                   , hscolour
-                  , liquid-fixpoint >= 0.7.0.5
-                  , liquidhaskell   >= 0.8.10.1
+                  , liquid-fixpoint >= 0.9.0.2
+                  , liquidhaskell   >= 0.9.0.2
   default-language: Haskell2010
   buildable:        False
   ghc-options:      -W -threaded
 
   if flag(devel)
     ghc-options: -Werror
-  
+
 
 executable target
   main-is:          src/Target.hs
