@@ -1123,6 +1123,7 @@ executable unit-neg
 
     other-modules:
                       AbsApp
+                    , AbsNegTest
                     , AdtPeano0
                     , AdtPeano1
                     , Alias00
@@ -1169,6 +1170,8 @@ executable unit-neg
                     , ExactGADT6
                     , ExactGADT7
                     , ExpNegTest
+                    , Exponential1NegTest
+                    , Exponential2NegTest
                     , ExponentiationNegTest
                     , Fail1
                     , Fail
@@ -1719,6 +1722,7 @@ executable unit-pos-2
 
     other-modules:
                       Abs
+                    , AbsPosTest
                     , Absref_crash0
                     , Absref_crash
                     , Ackermann
@@ -1832,6 +1836,7 @@ executable unit-pos-2
                     , ExactGADT6
                     , ExactGADT
                     , Exp0
+                    , ExponentialPosTest
                     , ExponentiationPosTest
                     , ExpPosTest
                     , Extype

@@ -9,7 +9,6 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_GHC -Wwarn=deprecations #-}
 {-# OPTIONS_GHC -fno-cse #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 -- | This module contains all the code needed to output the result which
@@ -526,9 +525,9 @@ findSmtSolver :: FC.SMTSolver -> IO (Maybe FC.SMTSolver)
 findSmtSolver smt = maybe Nothing (const $ Just smt) <$> findExecutable (show smt)
 
 fixConfig :: Config -> IO Config
-fixConfig cfg = do
+fixConfig config' = do
   pwd <- getCurrentDirectory
-  cfg <- canonicalizePaths pwd cfg
+  cfg <- canonicalizePaths pwd config'
   return $ canonConfig cfg
 
 -- | Attempt to canonicalize all `FilePath's in the `Config' so we don't have
@@ -772,8 +771,8 @@ resultWithContext :: F.FixResult UserError -> IO (FixResult CError)
 resultWithContext (F.Unsafe s es)  = F.Unsafe s    <$> errorsWithContext es
 resultWithContext (F.Safe   stats) = return (F.Safe stats)
 resultWithContext (F.Crash  es s)  = do
-  let (errs, msgs) = unzip es
-  errs' <- errorsWithContext errs
+  let (userErrs, msgs) = unzip es
+  errs' <- errorsWithContext userErrs
   return (F.Crash (zip errs' msgs) s)
 
 
@@ -855,10 +854,10 @@ fixMessageDoc msg = vcat (text <$> lines msg)
 reportUrl = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell" -}
 
 addErrors :: FixResult a -> [a] -> FixResult a
-addErrors r []               = r
-addErrors (Safe s) errs      = Unsafe s errs
-addErrors (Unsafe s xs) errs = Unsafe s (xs ++ errs)
-addErrors r  _               = r
+addErrors r []                 = r
+addErrors (Safe s) errors      = Unsafe s errors
+addErrors (Unsafe s xs) errors = Unsafe s (xs ++ errors)
+addErrors r  _                 = r
 
 instance Fixpoint (F.FixResult CError) where
   toFix = vcat . map snd . orMessages . resDocs F.Full
