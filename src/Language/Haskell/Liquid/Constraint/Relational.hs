@@ -135,8 +135,15 @@ consRelTop cfg ti chk syn γ ψ (x, y, t, s, ra, rp) = traceChk "Init" e d t s p
     argNames@(left, right) = (fst $ vargs t', fst $ vargs s')
     renVars = map F.symbolSafeString $ left ++ right
     toExpr  = F.EVar . F.symbol
-    toCoreExpr =
-      fst . cleanUnTerms renVars . fromAnf . GM.unTickExpr . binderToExpr
+
+    {- cleanUnTerms in toCoreExpr generates:
+       Expression: patError ()
+       Type: forall a. Addr# -> a
+       Args: [()]
+    -}    
+    toCoreExpr = fromAnf . GM.unTickExpr . binderToExpr
+--      fst . cleanUnTerms renVars
+--      . fromAnf . GM.unTickExpr . binderToExpr
     p = fromRelExpr rp
     γ' = γ `setLocation` Sp.Span (GM.fSrcSpan (F.loc t))
     cbs = giCbs $ giSrc ti
