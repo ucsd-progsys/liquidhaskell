@@ -41,6 +41,7 @@ jobs:
       run: |
         chmod +x ./tests/relational/rtest
         ./tests/relational/rtest
+        ./tests/relational/rtest
       shell: bash  
     - name: Test Non-Relational
       run: |
