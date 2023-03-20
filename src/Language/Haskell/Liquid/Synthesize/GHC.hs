@@ -220,7 +220,7 @@ handleVar vars v
 getSysName :: RenVars -> Name -> String
 getSysName vars n
   | elem occ vars = occ
-  | elem '#' occ  = (head $ splitOn "$##" occ) ++ ['_', last uni]
+  | elem '#' occ  = head (splitOn "$##" occ) ++ ['_', last uni]
   | otherwise     = occ ++ ['_', last uni]
   where
     occ = getOccString n
