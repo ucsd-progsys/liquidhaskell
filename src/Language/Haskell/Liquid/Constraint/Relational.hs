@@ -133,7 +133,7 @@ consRelTop cfg ti chk syn γ ψ (x, y, t, s, ra, rp) = traceChk "Init" e d t s p
       }
   where
     argNames = (fst $ vargs t', fst $ vargs s')
-    toExpr  = F.EVar . F.symbol
+    toExpr   = F.EVar . F.symbol
 
     {- cleanUnTerms in toCoreExpr generates:
        Expression: patError ()
@@ -328,7 +328,7 @@ relTermToUnTerm' m relTerms (App f1 v1) (App f2 v2)
   , GM.isEmbeddedDictVar x2
   , areCompatible f1 f2
   = relTermToUnTerm' m relTerms f1 f2
-relTermToUnTerm' m relTerms (App f1 v1) (App f2 v2) 
+relTermToUnTerm' m relTerms _e1@(App f1 v1) _e2@(App f2 v2) 
   | Var x1 <- GM.unTickExpr v1
   , Var x2 <- GM.unTickExpr v2
   , areCompatible f1 f2
@@ -348,8 +348,8 @@ relTermToUnTerm' m relTerms (App f1 x1) (App f2 x2)
   , areCompatible f1 f2
   , areCompatible x1 x2
   = traceWhenLoud
-      ("relTermToUnTerm App common arg " ++ show x1 ++ " " ++ show x2)
-      $ App (App (App (relTermToUnTerm' m relTerms f1 f2) x1') x2') relX
+      ("relTermToUnTerm App common arg " ++ show x1 ++ " " ++ show x2) $ 
+        App (App (App (relTermToUnTerm' m relTerms f1 f2) x1') x2') relX
     where
       rvs = renVars m
       (x1', _) = cleanUnTerms rvs x1
@@ -368,9 +368,7 @@ relTermToUnTerm' m relTerms (Lam x1 e1) (Lam x2 e2)
     (e1l, e2r) = subRelCopiesWithMapping m e1 x1 e2 x2
 relTermToUnTerm' m relTerms (Let (NonRec x1 d1) e1) (Let (NonRec x2 d2) e2) 
   | areCompatible d1 d2
-  = Let (NonRec x1l d1')
-    $ Let (NonRec x2r d2')
-    $ Let (NonRec relX relD) $ 
+  = Let (NonRec x1l d1') $ Let (NonRec x2r d2') $ Let (NonRec relX relD) $ 
     relTermToUnTerm' m (((x1l, x2r), Var relX) : relTerms) e1l e2r
     where 
       relX = mkRelLemmaVar x1 x2
@@ -433,8 +431,7 @@ coreToGoal rvs short e
   | short                     = take 20 goal ++ " (...) "
   | otherwise                 = goal
   where
-    goal = unwords $ words $ concat $ splitOn "\n"
-           $ pprintBody rvs expr
+    goal = unwords $ words $ concat $ splitOn "\n" $ pprintBody rvs expr
     (expr, bool) = cleanUnTerms rvs $ fromAnf e
 
 areCompatible :: CoreExpr -> CoreExpr -> Bool
@@ -475,14 +472,19 @@ mkLambdaUnit m e1 e2 _ _
   | Ghc.ForAllTy {} <- Ghc.exprType e1
   , Ghc.ForAllTy {} <- Ghc.exprType e2 = Ghc.unitExpr
   | patError1 || patError2 = Ghc.unitExpr
-  | otherwise              = App (App (App genConst genConstU) cle1) cle2
+  | otherwise              = Ghc.unitExpr `addLemma` cle1 `addLemma` cle2
   where
-    genConst          = Var $ GM.stringVar "const" Ghc.unitTy
-    genConstU         = App genConst Ghc.unitExpr
     rvs               = renVars m
     (cle1, patError1) = cleanUnTerms rvs e1
     (cle2, patError2) = cleanUnTerms rvs e2
 
+-- Generates proof: e ? lm
+addLemma :: CoreExpr -> CoreExpr -> CoreExpr
+addLemma e lm = App (App cnst e) lm
+  where
+    cnst = Var $ GM.stringVar "const" Ghc.unitTy
+    -- q = Var $ GM.stringVar "?" Ghc.unitTy
+    
 cleanUnTerms :: RenVars -> CoreExpr -> (CoreExpr, Bool)
 {- Maybe have to do some cleaning to the vars here -}
 cleanUnTerms rvs var@(Var v)

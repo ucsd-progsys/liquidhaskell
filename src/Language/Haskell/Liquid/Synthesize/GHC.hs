@@ -86,14 +86,15 @@ fromAnf'
 fromAnf' (Lam b e) bnds
   = let (e', bnds') = fromAnf' e bnds
     in  (Lam b e', bnds')
+  
+fromAnf' (Let (NonRec rb lb) e) bnds
+  | elem '#' (show rb) = let (lb', bnds') = fromAnf' lb bnds
+                         in  fromAnf' e ((rb, lb') : bnds')
 
-fromAnf' (Let (NonRec rb lb) e) bnds = fromAnf' e ((rb, lb') : bnds')
---  | elem '#' (show rb) = let (lb', bnds') = fromAnf' lb bnds
---                         in  fromAnf' e ((rb, lb') : bnds')
---  | otherwise = (Let (NonRec rb lb') e', binds'')
+  | otherwise = (Let (NonRec rb lb') e', binds'')
   where
-    (lb', bnds')  = fromAnf' lb bnds
---    (e', binds'') = fromAnf' e ((rb, lb') : bnds')
+    (lb', bnds') = fromAnf' lb bnds
+    (e', binds'') = fromAnf' e ((rb, lb') : bnds')
 
 fromAnf' (Let (Rec {}) _) _ =
   error " By construction, no recursive bindings in let expression. "
@@ -222,11 +223,9 @@ occStr = getOccString . varName
 getSysName :: RenVars -> Name -> String
 getSysName vars n
   | elem occ vars = occ
-  | elem '#' occ  = head (splitOn "$##" occ) ++ ['_', last uni]
-  | otherwise     = occ ++ ['_', last uni]
+  | otherwise     = filter (not . (`elem` "$#")) occ
   where
     occ = getOccString n
-    uni = show $ nameUnique n
 
 {- Should not be done here, but function used to check if is an
 undesirable variable or not (I#) -}
