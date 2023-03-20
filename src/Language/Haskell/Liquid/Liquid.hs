@@ -274,12 +274,10 @@ solveCs cfg tgt cgi info names = do
     let hintName     = takeBaseName tgt ++ "_relToUn"
     let hintFile     = replaceBaseName tgt hintName
     let flags        = "{-@ LIQUID \"--reflection\" @-}\n{-@ LIQUID \"--ple\"        @-}\n\n"
-    let moduleFile   = "module " ++
-                       hintName ++
-                       " ( module " ++
-                       hintName ++
-                       ") where\nimport " ++
-                       takeBaseName tgt ++ "\n"
+    let moduleFile   = "module " ++ hintName ++ " ( module " ++ hintName ++ ") where\n" 
+                        ++ "import " ++ takeBaseName tgt ++ "\n"
+                        ++ "import Language.Haskell.Liquid.ProofCombinators\n"
+                        ++ "import GHC.Types\n"
 
     let listOfImps   = map (\imp -> F.symbolicString imp)
                        (S.toList $ gsAllImps $ giSrc info)

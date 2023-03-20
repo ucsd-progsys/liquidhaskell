@@ -287,6 +287,7 @@ mkRelThmVar' c thm x y = mkCopyWithName (name x ++ cname y ++ thm) x
 cap :: String -> String
 cap (c:cs) = toUpper c : cs
 cap cs = cs
+
 type ArgMapping = ([F.Symbol], [F.Symbol])
 
 relTermToUnTerm :: ArgMapping -> Var -> Var -> Var -> CoreExpr -> CoreExpr -> CoreExpr
@@ -314,7 +315,7 @@ relTermToUnTerm' m relTerms (App f1 v1) (App f2 v2)
   , GM.isEmbeddedDictVar x2
   , areCompatible f1 f2
   = relTermToUnTerm' m relTerms f1 f2
-relTermToUnTerm' m relTerms (App f1 v1) (App f2 v2) 
+relTermToUnTerm' m relTerms _e1@(App f1 v1) _e2@(App f2 v2) 
   | Var x1 <- GM.unTickExpr v1
   , Var x2 <- GM.unTickExpr v2
   , areCompatible f1 f2
@@ -322,7 +323,11 @@ relTermToUnTerm' m relTerms (App f1 v1) (App f2 v2)
   , Just relX <- lookup (x1, x2) relTerms
   = traceWhenLoud
       ("relTermToUnTerm App lookup " ++ show x1 ++ " ~ " ++ show x2 ++ " ~> " ++ show relX) $ 
-    App (App (App (relTermToUnTerm' m relTerms f1 f2) v1) v2) relX
+    App (App (App (relTermToUnTerm' m relTerms f1 f2) v1) v2) relX 
+    --   `addLemma` cle1 `addLemma` cle2
+    -- where 
+    --   (cle1, _) = cleanUnTerms e1
+    --   (cle2, _) = cleanUnTerms e2
 relTermToUnTerm' m relTerms (App f1 x1) (App f2 x2) 
   | isCommonArg x1
   , isCommonArg x2
@@ -443,13 +448,18 @@ mkLambdaUnit e1 e2 _ _
   | Ghc.ForAllTy {} <- Ghc.exprType e1
   , Ghc.ForAllTy {} <- Ghc.exprType e2 = Ghc.unitExpr
   | patError1 || patError2 = Ghc.unitExpr
-  | otherwise              = App (App (App genConst genConstU) cle1) cle2
+  | otherwise              = Ghc.unitExpr `addLemma` cle1 `addLemma` cle2
   where
-    genConst          = Var $ GM.stringVar "const" Ghc.unitTy
-    genConstU         = App genConst Ghc.unitExpr
     (cle1, patError1) = cleanUnTerms e1
     (cle2, patError2) = cleanUnTerms e2
 
+-- Generates proof: e ? lm
+addLemma :: CoreExpr -> CoreExpr -> CoreExpr
+addLemma e lm = App (App cnst e) lm
+  where
+    cnst = Var $ GM.stringVar "const" Ghc.unitTy
+    -- q = Var $ GM.stringVar "?" Ghc.unitTy
+    
 cleanUnTerms :: CoreExpr -> (CoreExpr, Bool)
 {- Maybe have to do some cleaning to the vars here -}
 cleanUnTerms var@(Var v)
@@ -1322,9 +1332,7 @@ relWfError loc e1 e2 t1 t2 p msg
 --------------------------------------------------------------
 
 relHint :: SpecType -> Ghc.Var -> CoreExpr -> Doc
-relHint t v e = text "import GHC.Types"
-                $+$ text ""
-                $+$ text "{- HLINT ignore \"Use camelCase\" -}"
+relHint t v e = text "{- HLINT ignore \"Use camelCase\" -}"
                 $+$ text ("{-@ " ++ name
                            ++ " :: "
                            ++ F.showpp t

@@ -216,11 +216,9 @@ handleVar v
 
 
 getSysName :: Name -> String
-getSysName n
-  | elem '#' occ = head (splitOn "$##" occ)
-  | otherwise      = occ
-  where
-    occ        = getOccString n
+getSysName n = filter (not . (`elem` "$#")) occ
+  where occ = getOccString n
+
 {- Should not be done here, but function used to check if is an
 undesirable variable or not (I#) -}
 undesirableVar :: CoreExpr -> Bool
