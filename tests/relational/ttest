@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# USAGE (runs translation tests from https://github.com/oquechy/relational-liquid-haskell): 
+# $ cd liquidhaskell
+# $ chmod +x tests/relational/ttest
+# $ ./tests/relational/ttest <local path to relational-liquid-haskell (../relational-liquid-haskell by default)>
+
+relpath="../relational-liquid-haskell"
+if [ ! -z "$1" ]
+  then
+    relpath="$1"
+fi
+
+# Return code
+rc=0
+
+
+# Test relational examples
+echo "$relpath/examples/relational/"* | tr " " "\n" | grep -v "_relToUn\.hs$" \
+    | while read -r f ; do
+    echo 
+    echo $f 
+    if ! liquid $f --ple --reflection --relational-hints --idirs="$relpath/examples/relational" --idirs="$relpath/examples/src"
+    then 
+        rc=1
+    fi
+done
+
+# Test translations
+echo "$relpath/examples/relational/"* | tr " " "\n" | grep "_relToUn\.hs$" \
+    | while read -r f ; do
+    echo 
+    echo $f 
+    if ! liquid $f --ple --reflection --relational-hints --idirs="$relpath/examples/relational" --idirs="$relpath/examples/src"
+    then 
+        rc=1
+    fi
+done
+
+exit $rc
