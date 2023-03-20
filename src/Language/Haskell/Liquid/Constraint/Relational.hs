@@ -124,7 +124,7 @@ consRelTop cfg ti chk syn γ ψ (x, y, t, s, ra, rp) = traceChk "Init" e d t s p
     consRelCheckBind (UnaryTyping chk (\γγ ee -> removeAbsRef <$> syn γγ ee)) γ' ψ e d t' s' ra rp
     when (relationalHints cfg) $ 
       modify $ \cgi -> cgi
-      { relHints = relHint renVars
+      { relHints = relHint (renVars argNames)
                    (relSigToUnSig (toExpr x) (toExpr y) t' s' rp)
                    hintName
                    (relTermToUnTerm argNames x y hintName
@@ -132,8 +132,7 @@ consRelTop cfg ti chk syn γ ψ (x, y, t, s, ra, rp) = traceChk "Init" e d t s p
                     $+$ relHints cgi
       }
   where
-    argNames@(left, right) = (fst $ vargs t', fst $ vargs s')
-    renVars = map F.symbolSafeString $ left ++ right
+    argNames = (fst $ vargs t', fst $ vargs s')
     toExpr  = F.EVar . F.symbol
 
     {- cleanUnTerms in toCoreExpr generates:
@@ -309,6 +308,9 @@ isCommonArg x | Type{} <- GM.unTickExpr x = False
 isCommonArg x | Var v <- GM.unTickExpr x = not (GM.isEmbeddedDictVar v)
 isCommonArg _ = True
 
+renVars :: ArgMapping -> RenVars
+renVars (lvars, rvars) = map F.symbolSafeString $ lvars ++ rvars
+
 relTermToUnTerm' :: ArgMapping -> [((Var, Var), CoreExpr)] -> CoreExpr -> CoreExpr -> CoreExpr
 relTermToUnTerm' _ relTerms (Var x1) (Var x2)
   | Just relX <- lookup (x1, x2) relTerms 
@@ -337,9 +339,9 @@ relTermToUnTerm' m relTerms (App f1 v1) (App f2 v2)
        ++ show x1 ++ " ~ " ++ show x2 ++ " ~> " ++ show relX) $ 
     App (App (App (relTermToUnTerm' m relTerms f1 f2) v1') v2') relX
     where
-      renVars  = map F.symbolSafeString $ fst m ++ snd m
-      (v1', _) = cleanUnTerms renVars v1
-      (v2', _) = cleanUnTerms renVars v2
+      rvs = renVars m
+      (v1', _) = cleanUnTerms rvs v1
+      (v2', _) = cleanUnTerms rvs v2
 relTermToUnTerm' m relTerms (App f1 x1) (App f2 x2)
   | isCommonArg x1
   , isCommonArg x2
@@ -349,9 +351,9 @@ relTermToUnTerm' m relTerms (App f1 x1) (App f2 x2)
       ("relTermToUnTerm App common arg " ++ show x1 ++ " " ++ show x2)
       $ App (App (App (relTermToUnTerm' m relTerms f1 f2) x1') x2') relX
     where
-      renVars  = map F.symbolSafeString $ fst m ++ snd m
-      (x1', _) = cleanUnTerms renVars x1
-      (x2', _) = cleanUnTerms renVars x2
+      rvs = renVars m
+      (x1', _) = cleanUnTerms rvs x1
+      (x2', _) = cleanUnTerms rvs x2
       relX = mkLambdaUnit m x1 x2 (Ghc.exprType x1) (Ghc.exprType x2)
 relTermToUnTerm' m relTerms (Lam α1 e1) (Lam α2 e2) 
   | Ghc.isTyVar α1, Ghc.isTyVar α2
@@ -375,9 +377,9 @@ relTermToUnTerm' m relTerms (Let (NonRec x1 d1) e1) (Let (NonRec x2 d2) e2)
       relD = relTermToUnTerm' m relTerms d1 d2
       (x1l, x2r) = mkRelCopies x1 x2
       (e1l, e2r) = subRelCopies e1 x1 e2 x2
-      renVars    = map F.symbolSafeString $ fst m ++ snd m
-      (d1', _)   = cleanUnTerms renVars d1
-      (d2', _)   = cleanUnTerms renVars d2
+      rvs        = renVars m
+      (d1', _)   = cleanUnTerms rvs d1
+      (d2', _)   = cleanUnTerms rvs d2
 -- TODO: test recursive and mutually recursive lets
 relTermToUnTerm' m relTerms (Let (Rec bs1) e1) (Let (Rec bs2) e2) 
   | length bs1 == length bs2
@@ -415,9 +417,9 @@ relTermToUnTerm' m _ e1 e2
   where
     realLoc  = Ghc.mkRealSrcLoc (Ghc.mkFastString "") 0 0
     realSpan = Ghc.mkRealSrcSpan realLoc realLoc
-    renVars  = map F.symbolSafeString $ fst m ++ snd m
-    left     = coreToGoal renVars True e1 
-    right    = coreToGoal renVars True e2
+    rvs      = renVars m
+    left     = coreToGoal rvs True e1 
+    right    = coreToGoal rvs True e2
     info     = "GOAL: " ++ left ++ " ~ " ++ right
 
 {- function to print CoreExpr as strings in order to
@@ -477,9 +479,9 @@ mkLambdaUnit m e1 e2 _ _
   where
     genConst          = Var $ GM.stringVar "const" Ghc.unitTy
     genConstU         = App genConst Ghc.unitExpr
-    renVars           = map F.symbolSafeString $ fst m ++ snd m
-    (cle1, patError1) = cleanUnTerms renVars e1
-    (cle2, patError2) = cleanUnTerms renVars e2
+    rvs               = renVars m
+    (cle1, patError1) = cleanUnTerms rvs e1
+    (cle2, patError2) = cleanUnTerms rvs e2
 
 cleanUnTerms :: RenVars -> CoreExpr -> (CoreExpr, Bool)
 {- Maybe have to do some cleaning to the vars here -}
@@ -1362,13 +1364,8 @@ relHint :: RenVars -> SpecType -> Ghc.Var -> CoreExpr -> Doc
 relHint rvs t v e = text "import GHC.Types"
                     $+$ text ""
                     $+$ text "{- HLINT ignore \"Use camelCase\" -}"
-                    $+$ text ("{-@ " ++ name
-                              ++ " :: "
-                              ++ F.showpp t
-                              ++ " @-}")
-                    $+$ text (name
-                              ++ " :: "
-                              ++ removeIdent (toType False t))
+                    $+$ text ("{-@ " ++ name ++ " :: " ++ F.showpp t ++ " @-}")
+                    $+$ text (name ++ " :: " ++ removeIdent (toType False t))
                     $+$ text (coreToHs rvs t v e)
                     $+$ text ""
                     $+$ text "{- BARE CORE"

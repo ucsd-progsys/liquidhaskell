@@ -127,10 +127,10 @@ fromAnf' e _ = error $ "fromAnf: unsupported core expression "
 -- | Function used for pretty printing core as Haskell source.
 --   Input does not contain let bindings.
 coreToHs :: RenVars -> SpecType -> Var -> CoreExpr -> String
-coreToHs rvs _ v e = pprintSymbols (handleVar ((getOccString v):rvs) v
+coreToHs rvs _ v e = pprintSymbols (handleVar (getOccString v:rvs) v
                                      ++ " "
                                      ++ pprintFormals
-                                     ((getOccString v):rvs)
+                                     (getOccString v:rvs)
                                      caseIndent e)
 
 type RenVars       = [String]
