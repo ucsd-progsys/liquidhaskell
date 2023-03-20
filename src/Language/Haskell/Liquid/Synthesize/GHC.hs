@@ -171,7 +171,7 @@ handleLam rvs char i (Lam v e)
   | isCoVar   v = " {- isCoVar -}"       ++ handleLam rvs char i e
   | isId      v = handleVar rvs v ++ " " ++ handleLam rvs char i e  
   | otherwise   = handleVar rvs v ++ " " ++ handleLam rvs char i e
-handleLam rvs char i e = char ++ pprintBody rvs i e
+handleLam rvs char i e = char ++ pprintBody' rvs i e
 
 
 {- If a specific function is built-in into haskell it will still
@@ -216,6 +216,8 @@ handleVar vars v
     name :: Name
     name = varName v
 
+occStr :: Var -> String
+occStr = getOccString . varName
 
 getSysName :: RenVars -> Name -> String
 getSysName vars n
@@ -240,64 +242,69 @@ checkUnit (Var v)
   | otherwise = False
 checkUnit _ = False  
 ----------------------------------------------------------------------
-pprintBody' :: RenVars -> CoreExpr -> String
-pprintBody' rvs e = pprintBody rvs 0 e
+pprintBody :: RenVars -> CoreExpr -> String
+pprintBody rvs = pprintBody' rvs 0
 
-pprintBody :: RenVars -> Int -> CoreExpr -> String
-pprintBody rvs i e@Lam{} = "(\\" ++ handleLam rvs " -> " i e ++ ")"
+pprintBody' :: RenVars -> Int -> CoreExpr -> String
+pprintBody' rvs i e@Lam{} = "(\\" ++ handleLam rvs " -> " i e ++ ")"
 
-pprintBody rvs _ var@(Var v)
+pprintBody' rvs _ var@(Var v)
   | undesirableVar var = ""
   | otherwise          = handleVar rvs v
 
-pprintBody rvs i (App e Type{}) = pprintBody rvs i e
+pprintBody' rvs i (App e Type{}) = pprintBody' rvs i e
     
-pprintBody rvs i (App e1 e2)
-  | undesirableVar e1 = pprintBody rvs i e2
-  | undesirableVar e2 = pprintBody rvs i e1
-  | checkUnit e2      = pprintBody rvs i e1
-                        ++ " "
-                        ++ pprintBody rvs i e2
-  | otherwise = "(" ++ left ++ ")\n"
-                ++ indent (i + 1)
-                ++ "(" ++ right ++ ")"
-  where
-    left  = pprintBody rvs i e1
-    right = pprintBody rvs (i+1) e2
+pprintBody' rvs i (App e1 e2)
+  | undesirableVar e1 = pprintBody' rvs i e2
+  | undesirableVar e2 = pprintBody' rvs i e1
+  | otherwise = paren e1 True left ++ " " ++ paren e2 False right
+  where  
+    left  = pprintBody' rvs i e1
+    right = pprintBody' rvs (i+1) e2
 
-pprintBody _ _ l@(Lit literal) =
+pprintBody' _ _ l@(Lit literal) =
   case isLitValue_maybe literal of
     Just i   -> show i
     Nothing  -> show l
 
-pprintBody rvs i (Case e _ _ alts)
-  = "case " ++ pprintBody rvs i e ++ " of"
+pprintBody' rvs i (Case e _ _ alts)
+  = "case " ++ pprintBody' rvs i e ++ " of"
   ++ concatMap (pprintAlts rvs (i + caseIndent)) alts
 
-pprintBody _ _ Type{} = "{- Type -}"
+pprintBody' _ _ Type{} = "{- Type -}"
 
-pprintBody rvs i (Let (NonRec x e1) e2) =
+pprintBody' rvs i (Let (NonRec x e1) e2) =
   letExp ++
   eqlExp ++
-  indent i ++ pprintBody rvs (i+1) e2
+  indent i ++ pprintBody' rvs (i+1) e2
   where
     letExp      = "let " ++ handleVar rvs x ++ " = "
-    eqlExp      = pprintBody rvs firstIdent e1 ++ " in\n"
+    eqlExp      = pprintBody' rvs firstIdent e1 ++ " in\n"
     firstIdent  = i + caseIndent*2 + length letExp
     
-pprintBody _ _ (Let Rec{} _) = "{- let rec -}"
+pprintBody' _ _ (Let Rec{} _) = "{- let rec -}"
 
-pprintBody rvs i (Tick (SourceNote _ s) e)
+pprintBody' rvs i (Tick (SourceNote _ s) e)
   | expr == "()" = "{- " ++ s ++ " -} " ++ expr
   | otherwise    = "{- " ++ s ++ " -}"
                    ++ "\n" ++ indent i
                    ++ expr
   where
-    expr = pprintBody rvs i e
+    expr = pprintBody' rvs i e
 
-pprintBody rvs i (Tick _ e) = pprintBody rvs i e
+pprintBody' rvs i (Tick _ e) = pprintBody' rvs i e
 
-pprintBody _ _ e = error (" Not yet implemented for e = " ++ show e)
+pprintBody' _ _ e = error (" Not yet implemented for e = " ++ show e)
+
+parenVars :: [String]
+parenVars = ["+", "-", "*", "/", "%", "?", ":", "++", "==", "/="]
+
+paren :: CoreExpr -> Bool -> String -> String
+paren (Var v) _ res | occStr v `notElem` parenVars = res
+paren (App _ _) True res = res
+paren Tick{} _ res = res
+paren Lit{} _ res = res
+paren _ _ res = "(" ++ res ++ ")"
 
 {-
 data Alt Var = Alt AltCon [Var] (Expr Var)
@@ -310,7 +317,7 @@ pprintAlts :: RenVars -> Int -> Alt Var -> String
 pprintAlts rvs i (DataAlt dataCon, vs, e)
   = "\n" ++ indent i
     ++ elCase
-    ++ pprintBody rvs (i + newIndent) e
+    ++ pprintBody' rvs (i + newIndent) e
   where
     elCase = getOccString (getName dataCon)
              ++ concatMap (\v -> " " ++ handleVar rvs v) vs

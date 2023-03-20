@@ -8,7 +8,7 @@ for f in tests/relational/pos/*
 do 
     echo 
     echo $f 
-    if ! liquid $f --ple --reflection 
+    if ! liquid $f --ple --reflection --idirs=tests/relational/pos
     then 
         rc=1
     fi

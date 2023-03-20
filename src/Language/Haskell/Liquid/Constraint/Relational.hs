@@ -38,7 +38,7 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Synthesize.GHC
                                                 ( coreToHs
                                                 , fromAnf
-                                                , pprintBody'
+                                                , pprintBody
                                                 , handleVar
                                                 , RenVars
                                                 )
@@ -434,7 +434,7 @@ coreToGoal rvs short e
   | otherwise                 = goal
   where
     goal = unwords $ words $ concat $ splitOn "\n"
-           $ pprintBody' rvs expr
+           $ pprintBody rvs expr
     (expr, bool) = cleanUnTerms rvs $ fromAnf e
 
 areCompatible :: CoreExpr -> CoreExpr -> Bool
@@ -1361,9 +1361,7 @@ relWfError loc e1 e2 t1 t2 p msg
 --------------------------------------------------------------
 
 relHint :: RenVars -> SpecType -> Ghc.Var -> CoreExpr -> Doc
-relHint rvs t v e = text "import GHC.Types"
-                    $+$ text ""
-                    $+$ text "{- HLINT ignore \"Use camelCase\" -}"
+relHint rvs t v e = text "{- HLINT ignore \"Use camelCase\" -}"
                     $+$ text ("{-@ " ++ name ++ " :: " ++ F.showpp t ++ " @-}")
                     $+$ text (name ++ " :: " ++ removeIdent (toType False t))
                     $+$ text (coreToHs rvs t v e)

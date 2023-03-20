@@ -29,6 +29,8 @@ import           System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
 import           Control.Monad (when, unless)
 import qualified Data.Maybe as Mb
 import qualified Data.List  as L 
+import qualified Data.Text  as T 
+import           Ormolu (ormolu, defaultConfig, OrmoluException)
 import qualified Control.Exception as Ex
 import qualified Language.Haskell.Liquid.UX.DiffCheck as DC
 import           Language.Haskell.Liquid.Misc
@@ -273,18 +275,13 @@ solveCs cfg tgt cgi info names = do
   when (relationalHints cfg) $ do
     let hintName     = takeBaseName tgt ++ "_relToUn"
     let hintFile     = replaceBaseName tgt hintName
-    let flags        = "{-@ LIQUID \"--reflection\" @-}\n{-@ LIQUID \"--ple\"        @-}\n\n"
-    let moduleFile   = "module " ++
-                       hintName ++
-                       " ( module " ++
-                       hintName ++
-                       ") where\nimport " ++
-                       takeBaseName tgt ++ "\n"
-
+    let flags        = "{-@ LIQUID \"--reflection\" @-}\n"
+                        ++ "{-@ LIQUID \"--ple\"        @-}\n\n"
+    let moduleFile   = "module " ++ hintName ++ " ( module " ++ hintName ++ ") where\n"
     let listOfImps   = map (\imp -> F.symbolicString imp)
-                       (S.toList $ gsAllImps $ giSrc info)
-    let imports      =
-          L.intercalate "\n" $ map ("import " ++) listOfImps
+                        (S.toList $ gsAllImps $ giSrc info) 
+                        ++ [takeBaseName tgt, "GHC.Types", "GHC.Classes"]
+    let imports      = L.intercalate "\n" $ map ("import " ++) listOfImps
 
     {-
       Modules that have the form of: "import moduleName (function)",
@@ -298,7 +295,12 @@ solveCs cfg tgt cgi info names = do
     -}    
     let hints        = render (relHints cgi)
     unless (null hints) $ do
-      writeFile hintFile (flags ++ moduleFile ++ imports ++ "\n" ++ hints)
+      let hintRaw = flags ++ moduleFile ++ imports ++ "\n" ++ hints
+      hintOrmolu <- try (ormolu defaultConfig hintFile hintRaw) :: IO (Either OrmoluException T.Text)
+      case hintOrmolu of
+        Left ex -> do writeFile hintFile hintRaw
+                      whenLoud $ print ex
+        Right hintFormatted -> writeFile hintFile (T.unpack hintFormatted) 
       putStrLn "****** Relational Hints ********************************************************"
       putStrLn $ "Saved to file: " ++ hintFile
   let resModel      = resModel' `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors ++ relWf cgi)) 
