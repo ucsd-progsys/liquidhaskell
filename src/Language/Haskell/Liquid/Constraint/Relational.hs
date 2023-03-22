@@ -371,7 +371,7 @@ relTermToUnTerm' m relTerms (Let (NonRec x1 d1) e1) (Let (NonRec x2 d2) e2)
   = Let (NonRec x1l d1') $ Let (NonRec x2r d2') $ Let (NonRec relX relD) $ 
     relTermToUnTerm' m (((x1l, x2r), Var relX) : relTerms) e1l e2r
     where 
-      relX = mkRelLemmaVar x1 x2
+      relX = mkRelLemmaVar x1l x2r
       relD = relTermToUnTerm' m relTerms d1 d2
       (x1l, x2r) = mkRelCopies x1 x2
       (e1l, e2r) = subRelCopies e1 x1 e2 x2
@@ -484,9 +484,8 @@ addLemma e lm = App (App cnst e) lm
   where
     cnst = Var $ GM.stringVar "const" Ghc.unitTy
     -- q = Var $ GM.stringVar "?" Ghc.unitTy
-    
+
 cleanUnTerms :: RenVars -> CoreExpr -> (CoreExpr, Bool)
-{- Maybe have to do some cleaning to the vars here -}
 cleanUnTerms rvs var@(Var v)
   | handleVar rvs v == "patError" = (var, True)
   | otherwise                 = (var, False)
@@ -1253,7 +1252,7 @@ mkRelCopies x1 x2 = (mkCopyWithSuffix relSuffixL x1, mkCopyWithSuffix relSuffixR
 mkCopyWithName :: String -> Var -> Var
 mkCopyWithName s v = traceWhenLoud ("mkCopyWithName: produced an occ name " ++ Ghc.getOccString (varName v')) v'
   -- where v' = GM.stringVar s (Ghc.exprType (Var v))
-  where v' = Ghc.setVarName v $ Ghc.mkSystemName (Ghc.getUnique v) (Ghc.mkVarOcc s)
+  where v' = Ghc.setVarName v $ Ghc.mkInternalName (Ghc.getUnique v) (Ghc.mkVarOcc s) (Ghc.getSrcSpan v)
 
 mkCopyWithSuffix :: String -> Var -> Var
 mkCopyWithSuffix s v = mkCopyWithName (Ghc.getOccString v ++ s) v

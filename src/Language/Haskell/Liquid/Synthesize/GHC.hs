@@ -102,12 +102,20 @@ fromAnf' (Let (Rec {}) _) _ =
 fromAnf' (Var var) bnds
   = (fromMaybe (Var var) (lookup var bnds), bnds)
 
+fromAnf' (Case scr bnd _ [(GHC.DataAlt c, [x], e)]) bnds
+  | c == GHC.intDataCon
+  = fromAnf' e $ (x, scr'):bnds''
+  where
+    bnds'' = (bnd, scr'):bnds'
+    (scr', bnds') = fromAnf' scr bnds
+
 fromAnf' (Case scr bnd tp alts) bnds
   = (Case scr' bnd tp
-      ( map (\(altc, xs, e) ->
-                (altc, xs, fst $ fromAnf' e bnds)) alts), bnds')
+      (map (\(altc, xs, e) ->
+                (altc, xs, fst $ fromAnf' e bnds'')) alts), bnds'')
   where
-    ( scr', bnds' ) = fromAnf' scr bnds
+    bnds'' = (bnd, scr'):bnds'
+    (scr', bnds') = fromAnf' scr bnds
 
 fromAnf' (App e1 e2) bnds
   = let (e1', bnds')  = fromAnf' e1 bnds
@@ -200,14 +208,14 @@ getExternalName n = mod ++ outName
 {- Handle the multiple types of variables one might encounter
 in Haskell. -}
 handleVar :: RenVars -> Var -> String
-handleVar vars v
+handleVar vars v 
   | isTyConName     name = "{- TyConName -}"
   | isTyVarName     name = "{- TyVar -}"
   | isSystemName    name = getSysName vars name
 --                           ++ "{- SysName -}"
   | isWiredInName   name = getLocalName name
 --                           ++ "{- WiredInName -}"
-  | isInternalName  name = getOccString name
+  | isInternalName  name = getSysName vars name
 --                           ++ "{- Internal -}"
   | isExternalName  name = getExternalName name
 --                           ++ "{- external name -}"
@@ -301,6 +309,7 @@ parenVars = ["+", "-", "*", "/", "%", "?", ":", "++", "==", "/="]
 paren :: CoreExpr -> Bool -> String -> String
 paren (Var v) _ res | occStr v `notElem` parenVars = res
 paren (App _ _) True res = res
+paren (App (Var i) _) _ res | occStr i == "I#" = res
 paren Tick{} _ res = res
 paren Lit{} _ res = res
 paren _ _ res = "(" ++ res ++ ")"
