@@ -328,7 +328,7 @@ relTermToUnTerm' m relTerms (App f1 v1) (App f2 v2)
   , GM.isEmbeddedDictVar x2
   , areCompatible f1 f2
   = relTermToUnTerm' m relTerms f1 f2
-relTermToUnTerm' m relTerms _e1@(App f1 v1) _e2@(App f2 v2) 
+relTermToUnTerm' m relTerms e1@(App f1 v1) e2@(App f2 v2) 
   | Var x1 <- GM.unTickExpr v1
   , Var x2 <- GM.unTickExpr v2
   , areCompatible f1 f2
@@ -338,11 +338,14 @@ relTermToUnTerm' m relTerms _e1@(App f1 v1) _e2@(App f2 v2)
       ("relTermToUnTerm App lookup "
        ++ show x1 ++ " ~ " ++ show x2 ++ " ~> " ++ show relX) $ 
     App (App (App (relTermToUnTerm' m relTerms f1 f2) v1') v2') relX
+      `addLemma` guardLemma p1 e1' `addLemma` guardLemma p2 e2'
     where
       rvs = renVars m
       (v1', _) = cleanUnTerms rvs v1
       (v2', _) = cleanUnTerms rvs v2
-relTermToUnTerm' m relTerms (App f1 x1) (App f2 x2)
+      (e1', p1) = cleanUnTerms rvs e1
+      (e2', p2) = cleanUnTerms rvs e2
+relTermToUnTerm' m relTerms e1@(App f1 x1) e2@(App f2 x2)
   | isCommonArg x1
   , isCommonArg x2
   , areCompatible f1 f2
@@ -350,10 +353,13 @@ relTermToUnTerm' m relTerms (App f1 x1) (App f2 x2)
   = traceWhenLoud
       ("relTermToUnTerm App common arg " ++ show x1 ++ " " ++ show x2) $ 
         App (App (App (relTermToUnTerm' m relTerms f1 f2) x1') x2') relX
+          `addLemma` guardLemma p1 e1' `addLemma` guardLemma p2 e2'
     where
       rvs = renVars m
       (x1', _) = cleanUnTerms rvs x1
       (x2', _) = cleanUnTerms rvs x2
+      (e1', p1) = cleanUnTerms rvs e1
+      (e2', p2) = cleanUnTerms rvs e2
       relX = mkLambdaUnit m x1 x2 (Ghc.exprType x1) (Ghc.exprType x2)
 relTermToUnTerm' m relTerms (Lam α1 e1) (Lam α2 e2) 
   | Ghc.isTyVar α1, Ghc.isTyVar α2
@@ -419,6 +425,10 @@ relTermToUnTerm' m _ e1 e2
     left     = coreToGoal rvs True e1 
     right    = coreToGoal rvs True e2
     info     = "GOAL: " ++ left ++ " ~ " ++ right
+
+guardLemma :: Bool -> CoreExpr -> CoreExpr
+guardLemma True  _ = Ghc.unitExpr
+guardLemma False e = e
 
 {- function to print CoreExpr as strings in order to
 insert them as goal comments on the output of the proof.
