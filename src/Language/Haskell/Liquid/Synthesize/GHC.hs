@@ -220,7 +220,7 @@ handleVar vars v
   | isExternalName  name = getExternalName name
 --                           ++ "{- external name -}"
   | otherwise            = "{- Not properly handled -}"
-                           ++ show name
+                           ++ show (getOccString name)
   where
     name :: Name
     name = varName v
@@ -310,7 +310,6 @@ paren :: CoreExpr -> Bool -> String -> String
 paren (Var v) _ res | occStr v `notElem` parenVars = res
 paren (App _ _) True res = res
 paren (App (Var i) _) _ res | occStr i == "I#" = res
-paren Tick{} _ res = res
 paren Lit{} _ res = res
 paren _ _ res = "(" ++ res ++ ")"
 
