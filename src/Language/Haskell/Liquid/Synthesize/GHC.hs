@@ -308,7 +308,7 @@ parenVars = ["+", "-", "*", "/", "%", "?", ":", "++", "==", "/="]
 
 paren :: CoreExpr -> Bool -> String -> String
 paren (Var v) _ res | occStr v `notElem` parenVars = res
-paren (App _ _) True res = res
+-- paren (App _ _) True res = res
 paren (App (Var i) _) _ res | occStr i == "I#" = res
 paren Lit{} _ res = res
 paren _ _ res = "(" ++ res ++ ")"
