@@ -253,6 +253,7 @@ library
                     , recursion-schemes    < 5.3
                     , data-fix
                     , extra
+                    , ormolu               
   default-language:   Haskell98
   default-extensions: PatternGuards, RecordWildCards, DoAndIfThenElse
   ghc-options:        -W -fwarn-missing-signatures -j
