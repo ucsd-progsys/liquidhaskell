@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE FlexibleContexts          #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Language.Haskell.Liquid.Bare.Typeclass
   ( compileClasses
@@ -48,7 +48,7 @@ compileClasses
   -> [(ModName, Ms.BareSpec)]
   -> (Ms.BareSpec, [(Ghc.ClsInst, [Ghc.Var])])
 compileClasses src env (name, spec) rest =
-  (spec { sigs = sigs' } <> clsSpec, instmethods)
+  (spec { sigs = sigsNew } <> clsSpec, instmethods)
  where
   clsSpec = mempty
     { dataDecls = clsDecls
@@ -65,13 +65,13 @@ compileClasses src env (name, spec) rest =
     }
   clsDecls                = makeClassDataDecl (M.toList refinedMethods)
       -- class methods
-  (refinedMethods, sigs') = foldr grabClassSig (mempty, mempty) (sigs spec)
+  (refinedMethods, sigsNew) = foldr grabClassSig (mempty, mempty) (sigs spec)
   grabClassSig
     :: (F.LocSymbol, ty)
     -> (M.HashMap Ghc.Class [(Ghc.Id, ty)], [(F.LocSymbol, ty)])
     -> (M.HashMap Ghc.Class [(Ghc.Id, ty)], [(F.LocSymbol, ty)])
-  grabClassSig sig@(lsym, ref) (refs, sigs') = case clsOp of
-    Nothing         -> (refs, sig : sigs')
+  grabClassSig sigPair@(lsym, ref) (refs, sigs') = case clsOp of
+    Nothing         -> (refs, sigPair : sigs')
     Just (cls, sig) -> (M.alter (merge sig) cls refs, sigs')
    where
     clsOp = do
@@ -234,19 +234,19 @@ elaborateClassDcp coreToLg simplifier dcp = do
     t
   -- YL: is this redundant if we already have strengthenClassSel?
   strengthenTy :: F.Symbol -> SpecType -> SpecType
-  strengthenTy x t = mkUnivs tvs pvs (RFun z i cls (t' `RT.strengthen` mt) r)
+  strengthenTy x t = mkUnivs tvs pvs (RFun z i clas (t' `RT.strengthen` mt) r)
    where
-    (tvs, pvs, RFun z i cls t' r) = bkUniv t
+    (tvs, pvs, RFun z i clas t' r) = bkUniv t
     vv = rTypeValueVar t'
     mt = RT.uReft (vv, F.PAtom F.Eq (F.EVar vv) (F.EApp (F.EVar x) (F.EVar z)))
 
 
 elaborateMethod :: F.Symbol -> S.HashSet F.Symbol -> SpecType -> SpecType
-elaborateMethod dc methods t = mapExprReft
-  (\_ -> substClassOpBinding tcbind dc methods)
-  t
+elaborateMethod dc methods st = mapExprReft
+  (\_ -> substClassOpBinding tcbindSym dc methods)
+  st
  where
-  tcbind = grabtcbind t
+  tcbindSym = grabtcbind st
   grabtcbind :: SpecType -> F.Symbol
   grabtcbind t =
     F.notracepp "grabtcbind"
@@ -263,7 +263,7 @@ elaborateMethod dc methods t = mapExprReft
 -- After: Funcctor.fmap ($p1Applicative##GHC.Base.Applicative)
 substClassOpBinding
   :: F.Symbol -> F.Symbol -> S.HashSet F.Symbol -> F.Expr -> F.Expr
-substClassOpBinding tcbind dc methods e = go e
+substClassOpBinding tcbind dc methods = go
  where
   go :: F.Expr -> F.Expr
   go (F.EApp e0 e1)
@@ -404,7 +404,7 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     subst ((a, ta):su) t = subsTyVarMeet' (a, ta) (subst su t)
 
 substAuxMethod :: F.Symbol -> M.HashMap F.Symbol F.Symbol -> F.Expr -> F.Expr
-substAuxMethod dfun methods e = F.notracepp "substAuxMethod" $ go e
+substAuxMethod dfun methods = F.notracepp "substAuxMethod" . go
   where go :: F.Expr -> F.Expr
         go (F.EApp e0 e1)
           | F.EVar x <- F.notracepp "e0" e0

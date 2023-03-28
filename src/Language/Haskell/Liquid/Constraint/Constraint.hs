@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleInstances    #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 -- TODO: what exactly is the purpose of this module? What do these functions do?
 
@@ -37,18 +37,18 @@ constraintToLogicOne γ binds
           (last (fst <$> xts), r))
           | xts <- xss]
   where
-   xts      = init binds
-   (xs, ts) = unzip xts
+   symRts   = init binds
+   (xs, ts) = unzip symRts
    r        = snd $ last binds
    xss      = combinations ((\t -> [(x, t) | x <- localBindsOfType t γ]) <$> ts)
 
 subConstraintToLogicOne :: (Foldable t, Reftable r, Reftable r1)
                         => t (Symbol, (Symbol, RType t1 t2 r))
                         -> (Symbol, (Symbol, RType t3 t4 r1)) -> Expr
-subConstraintToLogicOne xts (x', (x, t)) = PImp (pAnd rs) r
+subConstraintToLogicOne xts (sym', (sym, rt)) = PImp (pAnd rs) r
   where
-        (rs , su) = foldl go ([], []) xts
-        ([r], _ ) = go ([], su) (x', (x, t))
+        (rs , symExprs) = foldl go ([], []) xts
+        ([r], _ ) = go ([], symExprs) (sym', (sym, rt))
         go (acc, su) (x', (x, t)) = let (Reft(v, p)) = toReft (fromMaybe mempty (stripRTypeBase t))
                                         su'          = (x', EVar x):(v, EVar x) : su
                                     in

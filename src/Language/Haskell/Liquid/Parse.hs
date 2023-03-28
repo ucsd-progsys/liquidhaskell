@@ -57,7 +57,7 @@ hsSpecificationP :: ModuleName
                  -> [BPspec]
                  -> Either [Error] (ModName, Measure.BareSpec)
 hsSpecificationP modName specComments specQuotes =
-  case go ([], []) initPStateWithList $ reverse specComments of
+  case go ([], []) initPStateWithList specComments of
     ([], specs) ->
       Right $ mkSpec (ModName SrcImport modName) (specs ++ specQuotes)
     (errors, _) ->
@@ -198,7 +198,7 @@ toLogicOneP
   = do reserved "define"
        (x:xs) <- some locSymbolP
        reservedOp "="
-       e      <- exprP
+       e      <- exprP <|> predP
        return (x, val <$> xs, e)
 
 

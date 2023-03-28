@@ -34,7 +34,6 @@ commands:
         default: "cabal v2-update"
       ghc_version:
         type: string
-        default: "8.10.7"
       project_file:
         type: string
         default: "cabal.project"
@@ -69,7 +68,7 @@ commands:
             echo 'export PATH=~/.ghcup/bin:$PATH' >> $BASH_ENV
             << parameters.cabal_update_command >>
             cabal v2-clean
-            cabal v2-build --project-file << parameters.project_file >> --flag include --flag devel -j --enable-tests liquid liquidhaskell-parser synthesis liquid-base liquid-prelude liquid-bytestring liquid-containers liquid-ghc-prim liquid-parallel liquid-vector liquid-platform test-driver
+            cabal v2-build --project-file << parameters.project_file >> --flag devel -j --enable-tests liquidhaskell-parser liquid-base liquid-prelude liquid-bytestring liquid-containers liquid-ghc-prim liquid-parallel liquid-vector liquid-platform test-driver
       - save_cache:
           key: cabal-cache-v3-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
           paths:
@@ -86,8 +85,13 @@ commands:
           command: |
             LIQUID_CABAL_PROJECT_FILE=<<parameters.project_file>> cabal v2-run --project-file << parameters.project_file >> test-driver || (<<parameters.allow_test_failures>>)
             cabal v2-test --project-file << parameters.project_file >> tests:tasty || (<<parameters.allow_test_failures>>)
-            (liquidhaskell_datadir=$PWD cabal v2-test -j1 --project-file << parameters.project_file >> liquidhaskell:liquidhaskell-parser --flag include --flag devel --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml") || (<<parameters.allow_test_failures>>)
+            (liquidhaskell_datadir=$PWD cabal v2-test -j1 --project-file << parameters.project_file >> liquidhaskell:liquidhaskell-parser --flag devel --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml") || (<<parameters.allow_test_failures>>)
           no_output_timeout: 30m
+
+      - run:
+          name: Test building the profiling driver
+          command: |
+            cabal exec -- ghc scripts/ProfilingDriver.hs
 
   stack_build_and_test:
     description: "Build and test the project using Stack"
@@ -147,7 +151,7 @@ commands:
 
 jobs:
 
-  stack_810:
+  stack_900:
     machine:
       image: ubuntu-2004:202107-02
     steps:
@@ -155,31 +159,19 @@ jobs:
             stack_yaml_file: "stack.yaml"
             extra_build_flags: "--flag liquidhaskell:devel"
             extra_test_flags: " liquid-platform:liquidhaskell "
-
-  cabal_810:
-    machine:
-      image: ubuntu-2004:202107-02
-    steps:
-      - cabal_build_and_test:
-          liquid_runner: "--liquid-runner=cabal -v0 v2-exec liquidhaskell -- -v0 \
-                          -package-env=$(./scripts/generate_testing_ghc_env) \
-                          -package=liquidhaskell -package=Cabal "
-
   cabal_900:
     machine:
       image: ubuntu-2004:202107-02
     steps:
       - cabal_build_and_test:
-          ghc_version: "9.0.1"
-          project_file: "cabal.ghc9.project"
-          liquid_runner: "--liquid-runner=cabal -v0 v2-exec --project-file cabal.ghc9.project liquidhaskell -- -v0 \
-                          -package-env=$(./scripts/generate_testing_ghc_env cabal.ghc9.project) \
+          ghc_version: "9.2.5"
+          liquid_runner: "--liquid-runner=cabal -v0 v2-exec liquidhaskell -- -v0 \
+                          -package-env=$(./scripts/generate_testing_ghc_env) \
                           -package=liquidhaskell -package=Cabal "
 
 workflows:
   version: 2
   build_stack_and_cabal:
     jobs:
-      - stack_810
-      - cabal_810
+      - stack_900
       - cabal_900

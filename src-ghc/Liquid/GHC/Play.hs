@@ -144,9 +144,6 @@ isRecursivenewTyCon c
     go _                  = False
 
 
-isHoleVar :: Var -> Bool
-isHoleVar x = L.isPrefixOf "_" (show x)
-
 dataConImplicitIds :: DataCon -> [Id]
 dataConImplicitIds dc = [ x | AnId x <- dataConImplicitTyThings dc]
 
@@ -187,8 +184,8 @@ instance Subable Coercion where
   subTy _ _              = panic Nothing "subTy Coercion"
 
 instance Subable (Alt Var) where
- sub s (a, b, e)   = (a, map (sub s) b,   sub s e)
- subTy s (a, b, e) = (a, map (subTy s) b, subTy s e)
+ sub s (Alt a b e)   = Alt a (map (sub s) b)   (sub s e)
+ subTy s (Alt a b e) = Alt a (map (subTy s) b) (subTy s e)
 
 instance Subable Var where
  sub s v   | M.member v s = subVar $ s M.! v
@@ -230,7 +227,7 @@ substExpr s = go
     go (Lam x e)             = Lam (subsVar x) (go e)
     go (Let (NonRec x ex) e) = Let (NonRec (subsVar x) (go ex)) (go e)
     go (Let (Rec xes) e)     = Let (Rec [(subsVar x', go e') | (x',e') <- xes]) (go e)
-    go (Case e b t alts)     = Case (go e) (subsVar b) t [(c, subsVar <$> xs, go e') | (c, xs, e') <- alts]
+    go (Case e b t alts)     = Case (go e) (subsVar b) t [Alt c (subsVar <$> xs) (go e') | Alt c xs e' <- alts]
     go (Cast e c)            = Cast (go e) c
     go (Tick t e)            = Tick t (go e)
     go (Type t)              = Type t

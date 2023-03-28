@@ -96,13 +96,9 @@ data Config = Config
   , reflection               :: Bool       -- ^ Allow "reflection"; switches on "--higherorder" and "--exactdc"
   , compileSpec              :: Bool       -- ^ Only "compile" the spec -- into .bspec file -- don't do any checking.
   , noCheckImports           :: Bool       -- ^ Do not check the transitive imports
-  , typedHoles               :: Bool       -- ^ Warn about "typed-holes"
   , relationalHints          :: Bool       -- ^ Generate unary proofs for relational specs.
   , typeclass                :: Bool        -- ^ enable typeclass support.
   , auxInline                :: Bool        -- ^ 
-  , maxMatchDepth            :: Int
-  , maxAppDepth              :: Int
-  , maxArgsDepth             :: Int
   , rwTerminationCheck       :: Bool       -- ^ Enable termination checking for rewriting
   , skipModule               :: Bool       -- ^ Skip this module entirely (don't even compile any specs in it)
   , noLazyPLE                :: Bool

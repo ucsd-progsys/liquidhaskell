@@ -1,7 +1,4 @@
-{-# LANGUAGE CPP              #-}
 {-# LANGUAGE FlexibleContexts #-}
-
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.Haskell.Liquid.Transforms.InlineAux
   ( inlineAux
@@ -18,18 +15,18 @@ inlineAux :: UX.Config -> Module -> CoreProgram -> CoreProgram
 inlineAux cfg m cbs =  if UX.auxInline cfg then occurAnalysePgm m (const False) (const False) [] (map f cbs) else cbs
  where
   f :: CoreBind -> CoreBind
-  f all@(NonRec x e)
+  f all'@(NonRec x e)
     | Just (dfunId, methodToAux) <- M.lookup x auxToMethodToAux = NonRec
       x
       (inlineAuxExpr dfunId methodToAux e)
-    | otherwise = all
+    | otherwise = all'
   f (Rec bs) = Rec (fmap g bs)
    where
-    g all@(x, e)
+    g all'@(x, e)
       | Just (dfunId, methodToAux) <- M.lookup x auxToMethodToAux
       = (x, inlineAuxExpr dfunId methodToAux e)
       | otherwise
-      = all
+      = all'
   auxToMethodToAux = mconcat $ fmap (uncurry dfunIdSubst) (grepDFunIds cbs)
 
 
@@ -73,17 +70,13 @@ dfunIdSubst dfunId e = M.fromList $ zip auxIds (repeat (dfunId, methodToAux))
   methods = classAllSelIds cls
 
 inlineAuxExpr :: DFunId -> M.HashMap Id Id -> CoreExpr -> CoreExpr
-inlineAuxExpr dfunId methodToAux e = go e
+inlineAuxExpr dfunId methodToAux = go
  where
   go :: CoreExpr -> CoreExpr
   go (Lam b body) = Lam b (go body)
   go (Let b body)
-    | NonRec x e <- b, isDictId x = go
-     $ substExpr
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)     
-        empty
-#endif
-        (extendIdSubst emptySubst x e) body
+    | NonRec x e <- b, isDictId x =
+        go $ substExpr (extendIdSubst emptySubst x e) body
     | otherwise = Let (mapBnd go b) (go body)
   go (Case e x t alts) = Case (go e) x t (fmap (mapAlt go) alts)
   go (Cast e c       ) = Cast (go e) c
@@ -105,5 +98,5 @@ mapBnd :: (Expr b -> Expr b) -> Bind b -> Bind b
 mapBnd f (NonRec b e) = NonRec b (f e)
 mapBnd f (Rec bs    ) = Rec (map (second f) bs)
 
-mapAlt :: (Expr b -> Expr b) -> (t, t1, Expr b) -> (t, t1, Expr b)
-mapAlt f (d, bs, e) = (d, bs, f e)
+mapAlt :: (Expr b -> Expr b) -> Alt b -> Alt b
+mapAlt f (Alt d bs e) = Alt d bs (f e)

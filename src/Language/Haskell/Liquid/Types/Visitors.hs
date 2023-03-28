@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.Haskell.Liquid.Types.Visitors (
 
@@ -123,16 +122,17 @@ exprLiterals = go
     go' _                  = []
 
 
+    tyLitToLit (CharTyLit c) = LitChar c
     tyLitToLit (StrTyLit fs) = LitString (bytesFS fs)
     tyLitToLit (NumTyLit i)  = LitNumber LitNumInt (fromIntegral i) intPrimTy
 
 
 
 instance CBVisitable (Alt Var) where
-  freeVars env (a, xs, e) = freeVars env a ++ freeVars (extendEnv env xs) e
-  readVars (_,_, e)       = readVars e
-  letVars  (_,xs,e)       = xs ++ letVars e
-  literals (c,_, e)       = literals c ++ literals e
+  freeVars env (Alt a xs e) = freeVars env a ++ freeVars (extendEnv env xs) e
+  readVars (Alt _ _ e)       = readVars e
+  letVars  (Alt _ xs e)       = xs ++ letVars e
+  literals (Alt c _ e)       = literals c ++ literals e
 
 instance CBVisitable AltCon where
   freeVars _ (DataAlt dc) = [ x | AnId x <- dataConImplicitTyThings dc]
@@ -159,7 +159,7 @@ data CoreVisitor env acc = CoreVisitor
   }
 
 coreVisitor :: CoreVisitor env acc -> env -> acc -> [CoreBind] -> acc
-coreVisitor vis env acc cbs   = snd (foldl' step (env, acc) cbs)
+coreVisitor vis cenv cacc cbs = snd (foldl' step (cenv, cacc) cbs)
   where
     stepXE (env, acc) (x,e)   = (env', stepE env' acc'   e)
       where
@@ -189,7 +189,7 @@ coreVisitor vis env acc cbs   = snd (foldl' step (env, acc) cbs)
     goE env acc (Case e _ _ cs)  = foldl' (goC env) (stepE env acc e) cs
     goE _   acc _                = acc
 
-    goC env acc (_, xs, e)       = stepE  env' acc' e
+    goC env acc (Alt _ xs e)     = stepE  env' acc' e
       where
         env'                     = foldl' (envF  vis)     env xs
         acc'                     = foldl' (bindF vis env) acc xs

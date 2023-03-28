@@ -180,7 +180,7 @@ How *does* LiquidHaskell verify the above function?
 
 The key step is that LiquidHaskell deduces that the expression 
 `"divide by zero"` is not merely of type `String`, but in fact 
-has the the refined type `{v:String | false}` *in the context* 
+has the refined type `{v:String | false}` *in the context* 
 in which the call to `error'` occurs.
 
 LiquidHaskell arrives at this conclusion by using the fact that 

@@ -44,42 +44,13 @@ The following sections detail more variety for the uses of the above annotations
 
 ## Modules WITHOUT code
 
-The following section is slightly different depending on whether you are using the plugin (which you should!)
-or the legacy executable.
-
-### (Plugin) Adding refinements for external modules
-
 See the [installation](install.md) section, which cointains a link to a walkthrough document that describes how to add
 refinements for external packages (cfr. **"Providing Specifications for Existing Packages"**)
-
-### (Legacy executable) Adding refinements for external modules
-
-When checking a file `target.hs`, you can specify an _include_ directory by
-
-    liquid -i /path/to/include/  target.hs
-
-Now, to write specifications for some **external module** `Foo.Bar.Baz` for which
-you **do not have the code**, you can create a `.spec` file at:
-
-    /path/to/include/Foo/Bar/Baz.spec
-
-See, for example, the contents of:
-
-+ [include/Prelude.spec](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Prelude.spec)
-+ [include/Data/List.spec](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/List.spec)
-+ [include/Data/Vector.spec](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Vector.spec)
-
-**Note**:
-
-+ The above directories are part of the LH prelude, and included by
-  default when running `liquid`.
-+ The `.spec` mechanism is *only for external modules** without code,
-  see below for standalone specifications for **internal** or **home** modules.
 
 ## Modules WITH code: Data
 
 Write the specification directly into the .hs or .lhs file,
-above the data definition. See, for example, [tests/pos/Map.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/Map.hs):
+above the data definition. See, for example, [tests/pos/Map.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Map.hs):
 
 ```haskell
 {-@
@@ -96,7 +67,7 @@ data Map k a = Tip
 ```
 
 You can also write invariants for data type definitions
-together with the types. For example, see [tests/pos/record0.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/record0.hs):
+together with the types. For example, see [tests/pos/record0.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Record0.hs):
 
 ```haskell
 {-@ 
@@ -126,7 +97,7 @@ as  `data size (M1 a, M2 a) msize`.
 
 
 Finally you can specify the variance of type variables for data types.
-For example, see [tests/pos/Variance.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/Variance.hs), where data type `Foo` has four
+For example, see [tests/pos/Variance.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Variance.hs), where data type `Foo` has four
 type variables `a`, `b`, `c`, `d`, specified as invariant, bivariant,
 covariant and contravariant, respectively.
 
@@ -138,7 +109,7 @@ data Foo a b c d
 ## Modules WITH code: Functions
 
 Write the specification directly into the .hs or .lhs file,
-above the function definition. [For example](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/spec0.hs):
+above the function definition. [For example](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Spec0.hs):
 
 ```haskell
 {-@ incr :: x:{v: Int | v > 0} -> {v: Int | v > x} @-}
@@ -148,7 +119,7 @@ incr x = x + 1
 
 ## Modules WITH code: Type Classes
 
-Write the specification directly into the .hs or .lhs file. The constrained variable must match the one from the class definition. A class must have at least one refinement signature (even if it's a trivial one) to be lifted to the refinement logic. [For example](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/Class.hs):
+Write the specification directly into the .hs or .lhs file. The constrained variable must match the one from the class definition. A class must have at least one refinement signature (even if it's a trivial one) to be lifted to the refinement logic. [For example](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Class.hs):
 ```haskell
 class Semigroup a where
     {-@ mappend :: a -> a -> a @-}
@@ -180,7 +151,7 @@ The example above inlines the proofs directly into the instance definition. This
 ## Modules WITH code: Type Classes (Legacy)
 
 Write the specification directly into the .hs or .lhs file,
-above the type class definition. [For example](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/Class.hs):
+above the type class definition. [For example](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Class.hs):
 
 ```haskell
 {-@ class Sized s where
@@ -194,7 +165,7 @@ Any measures used in the refined class definition will need to be
 *generic* (see [Specifying Measures](#specifying-measures)).
 
 As an alternative, you can refine class instances.
-[For example](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/classes/pos/Inst00.hs):
+[For example](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/classes/pos/Inst00.hs):
 
 ```haskell
 instance Compare Int where
@@ -327,7 +298,7 @@ following examples for details:
 
 **Status:** `experimental`
 
-There is experimental support for implicit arguments, solved for with congruence closure. For example, consider [Implicit1.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Implicit1.hs):
+There is experimental support for implicit arguments, solved for with congruence closure. For example, consider [Implicit1.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/implicit/pos/Implicit1.hs):
 
 ```haskell
 {-@ type IntN N = {v:Int | v = N} @-}
@@ -354,7 +325,7 @@ verbose. You can write predicate aliases like so:
 {-@ predicate Ge X Y = not (Lt X Y) @-}
 ```
 
-and then use the aliases inside refinements, [for example](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/pred.hs)
+and then use the aliases inside refinements, [for example](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Pred.hs)
 
 ```haskell
 {-@ incr :: x:{v:Int | (Pos v)} -> { v:Int | ((Pos v) && (Ge v x))} @-}
@@ -362,7 +333,7 @@ incr :: Int -> Int
 incr x = x + 1
 ```
 
-See [Data.Map](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/benchmarks/esop2013-submission/Base.hs) for a more substantial
+See [Data.Map](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/benchmarks/esop2013-submission/Base.hs) for a more substantial
 and compelling example.
 
 **Syntax:** The key requirements for type aliases are:
@@ -417,13 +388,13 @@ and:
 
     {-@ assert insert :: (Ord a) => a -> SortedList a -> SortedList a @-}
 
-see [tests/pos/ListSort.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/ListSort.hs)
+see [tests/pos/ListSort.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/ListSort.hs)
 
 and:
 
     {-@ assert insert :: (Ord k) => k -> a -> OMap k a -> OMap k a @-}
 
-see [tests/pos/Map.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/Map.hs)
+see [tests/pos/Map.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Map.hs)
 
 **Syntax:** The key requirements for type aliases are:
 
@@ -439,7 +410,7 @@ For example, if `(+++)` is defined as a measure or reflected function, you can u
 
 Note: infix operators cannot contain the dot character `.`.
 
-If `(==>)` is a Haskell infix type ([see](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/T1567.hs)) 
+If `(==>)` is a Haskell infix type ([see](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/T1567.hs))
 
     infixr 1 ==> 
 
@@ -452,13 +423,13 @@ then to use it as infix in the refinements types you need to add the refinement 
 
 They can be placed in a `.spec` file or in a .hs/.lhs file wrapped around `{-@ @-}`.
 
-Value measures: [GHC/Base.spec](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/liquid-base/src/GHC/Base.spec)
+Value measures: [GHC/Base.spec](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/liquid-base/src/GHC/Base.spec)
 
     measure len :: forall a. [a] -> GHC.Types.Int
     len ([])     = 0
     len (y:ys)   = 1 + len(ys)
 
-Propositional measures: [tests/pos/LambdaEval.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/LambdaEval.hs)
+Propositional measures: [tests/pos/LambdaEval.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/LambdaEval.hs)
 
 ```haskell
 {-@
@@ -474,7 +445,7 @@ isValue (Pair e1 e2) = ((? (isValue(e1))) && (? (isValue(e2))))
 @-}
 ```
 
-Raw measures: [tests/pos/meas8.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/meas8.hs)
+Raw measures: [tests/pos/meas8.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Meas8.hs)
 
 ```haskell
 {-@ measure rlen :: [a] -> Int
@@ -483,7 +454,7 @@ rlen (y:ys) = {v | v = (1 + rlen(ys))}
 @-}
 ```
 
-Generic measures: [tests/pos/Class.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/Class.hs)
+Generic measures: [tests/pos/Class.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Class.hs)
 
 ```haskell
 {-@ class measure size :: a -> Int @-}
@@ -499,9 +470,9 @@ Generic measures: [tests/pos/Class.hs](https://github.com/ucsd-progsys/liquidhas
 
 **Note:** Measure names **do not** have to be the same as
 field name, e.g. we could call the measure `sz` in the above
-as shown in [tests/pos/Class2.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/Class2.hs).
+as shown in [tests/pos/Class2.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Class2.hs).
 
-Haskell Functions as Measures (beta): [tests/pos/HaskellMeasure.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/HaskellMeasure.hs)
+Haskell Functions as Measures (beta): [tests/pos/HaskellMeasure.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/HaskellMeasure.hs)
 
 Inductive Haskell Functions from Data Types to some type can be lifted to logic
 
@@ -564,7 +535,7 @@ states that the *inner* `a` enjoys the property that the *outer* container
 is definitely a `Just` and furthermore, the inner value is exactly the same
 as the `fromJust` property of the outer container.
 
-As another example, suppose we have a [measure](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/liquid-containers/src/Data/Set.spec):
+As another example, suppose we have a [measure](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/liquid-containers/src/Data/Set.spec):
 
     measure listElts :: [a] -> (Set a)
     listElts([])   = {v | (? Set_emp(v))}
@@ -579,16 +550,16 @@ set of the elements belonging to the entire list.
 
 One often needs these *circular* or *self* invariants to connect different
 levels (or rather, to *reify* the connections between the two levels.) See
-[this test](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/maybe4.hs) for a simple example and `hedgeUnion` and
-[Data.Map.Base](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/benchmarks/esop2013-submission/Base.hs) for a complex one.
+[this test](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Maybe4.hs) for a simple example and `hedgeUnion` and
+[Data.Map.Base](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/benchmarks/esop2013-submission/Base.hs) for a complex one.
 
 
 # Abstract and Bounded Refinements
 
 This is probably the best example of the abstract refinement syntax:
 
-+ [Abstract Refinements](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/Map.hs)
-+ [Bounded Refinements](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/benchmarks/icfp15/pos/Overview.lhs)
++ [Abstract Refinements](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Map.hs)
++ [Bounded Refinements](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/benchmarks/icfp15/pos/Overview.lhs)
 
 Unfortunately, the best documentation for these two advanced features
 is the relevant papers at:
@@ -616,7 +587,7 @@ Invariants
 
 LH lets you locally associate invariants with specific data types.
 
-For example, in [tests/measure/pos/Using00.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/measure/pos/Using00.hs) every
+For example, in [tests/measure/pos/Using00.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/measure/pos/Using00.hs) every
 list is treated as a `Stream`. To establish this local invariant one can use the
 `using` declaration
 
@@ -629,9 +600,9 @@ calls* to List's constructors (ie., `:` and `[]`) satisfy it, and
 will assume that each list element that is created satisfies
 this invariant.
 
-With this, at the [above](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/measure/neg/Using00.hs) test LiquidHaskell
+With this, at the [above](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/measure/neg/Using00.hs) test LiquidHaskell
 proves that taking the `head` of a list is safe.
-But, at [tests/measure/neg/Using00.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/measure/neg/Using00.hs) the usage of
+But, at [tests/measure/neg/Using00.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/measure/neg/Using00.hs) the usage of
 `[]` falsifies this local invariant resulting in an "Invariant Check" error.
 
 **WARNING:** There is an older _global_ invariant mechanism that
@@ -682,7 +653,7 @@ You can also annotate a function as being a global rewrite rule by using the
 ## Limitations
 
 Currently, rewriting does not work if the equality that uses the rewrite rule
-includes parameters that contain inner refinements ([test](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/errors/ReWrite5.hs)).
+includes parameters that contain inner refinements ([test](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/errors/ReWrite5.hs)).
 
 Rewriting works by pattern-matching expressions to determine if there is a
 variable substitution that would allow it to match against either side of a
@@ -691,7 +662,7 @@ corresponding equality is generated. If one side of the equality contains any
 parameters that are not bound on the other side, it will not be possible to
 generate a rewrite in that direction, because those variables cannot be
 instantiated. Likewise, if there are free variables on both sides of an
-equality, no rewrite can be generated at all ([test](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/errors/ReWrite7.hs)).
+equality, no rewrite can be generated at all ([test](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/errors/ReWrite7.hs)).
 
 It's possible in theory for rewriting rules to diverge. We have a simple check 
 to ensure that rewriting rules that will always diverge do not get instantiated. 
@@ -744,7 +715,7 @@ There are several ways to specify qualifiers.
 
 ## By Separate `.hquals` Files
 
-You can write qualifier files e.g. [Prelude.hquals](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/include/Prelude.hquals)..
+You can write qualifier files e.g. [Prelude.hquals](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/include/Prelude.hquals)..
 
 If a module is called or imports
 
@@ -760,13 +731,13 @@ Additional qualifiers may be used by adding lines of the form:
 
     {-@ include <path/to/file.hquals> @-}
 
-to the Haskell source. See, [this](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/meas5.hs) for example.
+to the Haskell source. See, [this](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Meas5.hs) for example.
 
 
 ## In Haskell Source or Spec Files
 
 Finally, you can specifiers directly inside source (.hs or .lhs) or spec (.spec)
-files by writing as shown [here](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/qualTest.hs)
+files by writing as shown [here](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/QualTest.hs)
 
     {-@ qualif Foo(v:Int, a: Int) : (v = a + 100)   @-}
 
@@ -899,7 +870,7 @@ isOdd  n = not $ isEven n
 thus recovering a decreasing measure for the pair of functions, the
 pair of arguments. This can be encoded with the lexicographic
 termination annotation as shown above.
-See [tests/pos/mutrec.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/mutrec.hs) 
+See [tests/pos/mutrec.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Mutrec.hs)
 for the full example.
 
 ## Automatic Termination Metrics
@@ -945,57 +916,6 @@ you can write
 {-@ lazy foo @-}
 ```
 
-# Synthesis
-
-**Status:** `experimental`
-
-LH has some very preliminary support for program synthesis.
-
-### How to use it
-
-Activate the flag for typed holes in LiquidHaskell. E.g.
-from command line: 
-
-    liquid --typedholes
-
-In a Haskell source file: 
-
-    {-@ LIQUID --typed-holes @-}
-
-Using the flag for typed holes, two more flags can be used:
-
-- **max-match-depth**: Maximum number of pattern match expressions used during synthesis (default value: 4).
-
-- **max-app-depth**: Maximum number of same function applications used during synthesis (default value: 2).
-
-Having the program specified in a Haskell source file, use 
-GHC' s hole variables, e.g.:
-
-```haskell
-{-@ myMap :: (a -> b) -> xs:[a] -> {v:[b] | len v == len xs} @-}
-myMap :: (a -> b) -> [a] -> [b]
-myMap = _goal
-```
-
-## Limitations
-
-This is an experimental feature, so potential users could only 
-expect to synthesize programs, like [these](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/synthesis).
-
-Current limitations include:
-
-- No boolean conditionals are synthesized.
-- Holes can only appear at top level, e.g.: 
-
-        {-@ f :: x: [a] -> { v: [a] | v == x } @-}
-        f :: [a] -> [a]
-        -- This works
-        f = _hole
-        -- This does not work
-        f x = _hole
-
-- Only one hole can appear in each module.
-
 # Relational Types
 
 **Status:** `experimental`
@@ -1014,24 +934,25 @@ incr = (+ 1)
 Monotonicity states that for any `x1, x2 :: Int` such that `x1 < x2`, inequality `incr x1 < incr x2` holds. This can be expressed as a comparison property on `incr`.
 
 ```haskell
-{-@ relational incr ~ incr 
-        :: x1:Int -> Int ~ x2:Int -> Int ~~ x1 < x2 => r1 x1 < r2 x2 @-}
+{-@ relational incr ~ incr :: { x1:Int -> Int 
+                              ~ x2:Int -> Int 
+                              | x1 < x2 :=> r1 x1 < r2 x2 } @-}
 ```
 
 Relational signature starts with the keyword `relational`. Next, it contains two functions being compared `incr ~ incr`. To prove monotonicity, we compare `incr` to itself. In the general case, it is possible to compare two different functions.
 
-Related expressions are followed by their type signatures `x1:Int -> Int` and `x2:Int -> Int` separated with a tilde. The last component of the signature is a predicate `x1 < x2 => r1 x1 < r2 x2`. 
+Related expressions are followed by their type signatures `x1:Int -> Int` and `x2:Int -> Int` separated with a tilde. The last component of the signature is a predicate `x1 < x2 :=> r1 x1 < r2 x2`. 
 
-Binders `x1` and `x2` refer to the functions' arguments. Keywords `r1` and `r2` are aliases for lhs `incr` and rhs `incr` respectively. 
+Binders `x1` and `x2` refer to the functions' arguments. Keywords `r1` and `r2` are aliases for lhs `incr` and rhs `incr` respectively. The predicate is logically equivalent to `x1 < x2 => r1 x1 < r2 x2`. Implication symbol `:=>` separates the precondition on the arguments from the postcondition on the return values.
 
 ### Relational Predicate Syntax
 
-A relational predicate is a sequence of clauses separated by top-level implication connectives `=>`:
+A relational predicate is a sequence of clauses separated by top-level implication connectives `:=>` (logically equivalent to `=>`):
 
 ```
-x1 < x2 => y1 < y2 => r1 x1 y1 < r2 x2 y2
-^^^^^^^    ^^^^^^^    ^^^^^^^^^^^^^^^^^^^
-  1st        2nd           3rd clause               
+x1 < x2 :=> y1 < y2 :=> r1 x1 y1 < r2 x2 y2
+^^^^^^^     ^^^^^^^     ^^^^^^^^^^^^^^^^^^^
+  1st         2nd            3rd clause               
 ```
 
 * Number of Clauses
@@ -1044,16 +965,15 @@ x1 < x2 => y1 < y2 => r1 x1 y1 < r2 x2 y2
 
     -- clauses == arguments + 1
      
-    {-@ relational plus ~ plus 
-                :: x1:Int  -> y1:Int  -> Int 
-                 ~ x2:Int  -> y2:Int  -> Int
-                ~~ x1 < x2 => y1 < y2 => r1 x1 y1 < r2 x2 y2 @-}
-                   ^^^^^^^    ^^^^^^^    ^^^^^^^^^^^^^^^^^^^    
+    {-@ relational plus ~ plus :: { x1:Int   -> y1:Int   -> Int 
+                                  ~ x2:Int   -> y2:Int   -> Int
+                                  | x1 < x2 :=> y1 < y2 :=> r1 x1 y1 < r2 x2 y2 } @-}
+                                    ^^^^^^^     ^^^^^^^     ^^^^^^^^^^^^^^^^^^^    
     ```
     
-    For example, function `incr` has 1 argument. Its relational predicate has 1 implication that separates the precondition from the postcondition: `x1 < x2 => r1 x1 < r2 x2`. 
+    For example, function `incr` has 1 argument. Its relational predicate has 1 implication that separates the precondition from the postcondition: `x1 < x2 :=> r1 x1 < r2 x2`. 
     
-    Nested, non-top-level implications are allowed, e.g. `(true => x1 < x2) => (r1 x1 < r2 x2)`.
+    Nested, non-top-level implications are allowed, e.g. `(true => x1 < x2) :=> (r1 x1 < r2 x2)`.
 
 * Argument Scopes
 
@@ -1063,43 +983,38 @@ x1 < x2 => y1 < y2 => r1 x1 y1 < r2 x2 y2
     ```haskell
     -- ERROR: clauses < arguments + 1 
 
-    {-@ relational plus ~ plus 
-            :: x1:Int  -> y1:Int  -> Int 
-             ~ x2:Int  -> y2:Int  -> Int
-            ~~ x1 < x2 && y1 < y2 => r1 x1 y1 < r2 x2 y2 @-}
+    {-@ relational plus ~ plus :: { x1:Int -> y1:Int -> Int 
+                                  ~ x2:Int -> y2:Int -> Int
+                                  | x1 < x2 && y1 < y2 :=> r1 x1 y1 < r2 x2 y2 } @-}
 
 
     -- ERROR: y1 and y2 used before their introduction
 
-    {-@ relational plus ~ plus 
-            :: x1:Int  -> y1:Int  -> Int 
-             ~ x2:Int  -> y2:Int  -> Int
-            ~~ y1 < y2 => x1 < x2 => r1 x1 y1 < r2 x2 y2 @-}
+    {-@ relational plus ~ plus :: { x1:Int -> y1:Int -> Int 
+                                  ~ x2:Int -> y2:Int -> Int
+                                  | y1 < y2 :=> x1 < x2 :=> r1 x1 y1 < r2 x2 y2 } @-}
 
     ```
     
 
     Correct versions could look like this:
     ```haskell
-    {-@ relational plus ~ plus 
-                :: x1:Int  -> y1:Int  -> Int 
-                 ~ x2:Int  -> y2:Int  -> Int
-                ~~ x1 < x2 => y1 < y2 => r1 x1 y1 < r2 x2 y2 @-}
+    {-@ relational plus ~ plus :: { x1:Int   -> y1:Int   -> Int 
+                                  ~ x2:Int   -> y2:Int   -> Int
+                                  | x1 < x2 :=> y1 < y2 :=> r1 x1 y1 < r2 x2 y2 } @-}
 
-    {-@ relational plus ~ plus 
-            :: x1:Int  -> y1:Int  -> Int 
-             ~ x2:Int  -> y2:Int  -> Int
-            ~~ true => x1 < x2 && y1 < y2 => r1 x1 y1 < r2 x2 y2 @-}
+    {-@ relational plus ~ plus :: { x1:Int -> y1:Int -> Int 
+                                  ~ x2:Int -> y2:Int -> Int
+                                  | true :=> x1 < x2 && y1 < y2 :=> r1 x1 y1 < r2 x2 y2 } @-}
 
-    {-@ relational plus ~ plus 
-            :: x1:Int  -> y1:Int  -> Int 
-             ~ x2:Int  -> y2:Int  -> Int
-            ~~ true => true => (x1 < x2 => y1 < y2 => r1 x1 y1 < r2 x2 y2) @-}
+    {-@ relational plus ~ plus :: { x1:Int -> y1:Int -> Int 
+                                  ~ x2:Int -> y2:Int -> Int
+                                  | true :=> true :=> x1 < x2 => y1 < y2 => r1 x1 y1 < r2 x2 y2 } @-} 
     ```
 
 ### Provided Guarantees
 
-For all possible inputs of the two compared functions, it is guaranteed that the relational predicate holds.
+For all possible inputs of the two compared functions, it is guaranteed that the relational predicate holds. 
 
 ### Running Relational Checks
 
@@ -1115,6 +1030,6 @@ Or in a Haskell source file:
 
 ### Current limitations
 
-- No support for abstract refinements. Notably, means no support for the standard list `[a]` and tuple `(a, b)` types which have implicit abstract refinements. Please use user-defined lists and tuples instead.
+- No support for abstract refinements. All abstract refinements are erased before relational typechecking. Notably, this happens for the standard list `[a]` and tuple `(a, b)` types!
 
-- Limited support for higher-order relational signatures.
+- Limited support for higher-order relational signatures. Use `!=>` instead of `:=>` after the function arguments to enable higher-order checking.

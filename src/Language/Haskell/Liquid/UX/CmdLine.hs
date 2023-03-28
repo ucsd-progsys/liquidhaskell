@@ -9,7 +9,7 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_GHC -Wwarn=deprecations #-}
 {-# OPTIONS_GHC -fno-cse #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 -- | This module contains all the code needed to output the result which
 --   is either: `SAFE` or `WARNING` with some reasonable error message when
@@ -78,7 +78,6 @@ import Language.Haskell.Liquid.UX.Annotate
 import Language.Haskell.Liquid.UX.Config
 import Language.Haskell.Liquid.UX.SimpleVersion (simpleVersion)
 import Liquid.GHC.Misc
-import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.PrettyPrint ()
 import Language.Haskell.Liquid.Types       hiding (typ)
 import qualified Language.Haskell.Liquid.UX.ACSS as ACSS
@@ -410,10 +409,6 @@ config = cmdArgsMode $ Config {
         &= name "no-check-imports"
         &= help "Do not check the transitive imports; only check the target files."
 
-  , typedHoles
-    = def
-        &= name "typed-holes"
-        &= help "Use (refinement) typed-holes [currently warns on '_x' variables]"
   , relationalHints
     = def 
         &= name "relational-hints"
@@ -426,16 +421,6 @@ config = cmdArgsMode $ Config {
     = def
         &= help "Enable inlining of class methods"
         &= name "aux-inline"
-  , maxMatchDepth
-    = def
-        &= name "max-match-depth"
-        &= help "Define the number of expressions to pattern match on (typed-holes must be on to use this flag)."
-  , maxAppDepth
-    = def
-        &= name "max-app-depth"
-  , maxArgsDepth
-    = def
-        &= name "max-args-depth"
   ,
     rwTerminationCheck
     = def
@@ -544,9 +529,9 @@ findSmtSolver :: FC.SMTSolver -> IO (Maybe FC.SMTSolver)
 findSmtSolver smt = maybe Nothing (const $ Just smt) <$> findExecutable (show smt)
 
 fixConfig :: Config -> IO Config
-fixConfig cfg = do
+fixConfig config' = do
   pwd <- getCurrentDirectory
-  cfg <- canonicalizePaths pwd cfg
+  cfg <- canonicalizePaths pwd config'
   return $ canonConfig cfg
 
 -- | Attempt to canonicalize all `FilePath's in the `Config' so we don't have
@@ -622,11 +607,8 @@ gitMsg gi = concat
 mkOpts :: Config -> IO Config
 mkOpts cfg = do
   let files' = sortNub $ files cfg
-  id0       <- getIncludeDir
   return     $ cfg { files       = files'
                                    -- See NOTE [searchpath]
-                   , idirs       = [id0 </> gHC_VERSION, id0]
-                                ++ idirs cfg
                    }
 
 --------------------------------------------------------------------------------
@@ -737,13 +719,9 @@ defConfig = Config
   , nopolyinfer              = False
   , compileSpec              = False
   , noCheckImports           = False
-  , typedHoles               = False
   , relationalHints          = False
   , typeclass                = False
   , auxInline                = False
-  , maxMatchDepth            = 4
-  , maxAppDepth              = 2
-  , maxArgsDepth             = 1
   , rwTerminationCheck       = False
   , skipModule               = False
   , noLazyPLE                = False
@@ -796,8 +774,14 @@ reportResultJson annm = do
 
 resultWithContext :: F.FixResult UserError -> IO (FixResult CError)
 resultWithContext (F.Unsafe s es)  = F.Unsafe s    <$> errorsWithContext es
-resultWithContext (F.Crash  es s)  = (`F.Crash` s) <$> errorsWithContext es
 resultWithContext (F.Safe   stats) = return (F.Safe stats)
+resultWithContext (F.Crash  es s)  = do
+  let (userErrs, msgs) = unzip es
+  errs' <- errorsWithContext userErrs
+  return (F.Crash (zip errs' msgs) s)
+
+
+
 
 instance Show (CtxError Doc) where
   show = showpp
@@ -847,7 +831,7 @@ resDocs _k (F.Crash [] s)  =
   }
 resDocs k (F.Crash xs s)  =
   OutputResult {
-    orHeader = text "LIQUID: ERROR" <+> text s
+    orHeader = text "LIQUID: ERROR:" <+> text s
   , orMessages = map (cErrToSpanned k . errToFCrash) xs
   }
 resDocs k (F.Unsafe _ xs)   =
@@ -860,21 +844,25 @@ resDocs k (F.Unsafe _ xs)   =
 cErrToSpanned :: F.Tidy -> CError -> (GHC.SrcSpan, Doc)
 cErrToSpanned k CtxError{ctErr} = (pos ctErr, pprintTidy k ctErr)
 
-errToFCrash :: CtxError a -> CtxError a
-errToFCrash ce = ce { ctErr    = tx $ ctErr ce}
+errToFCrash :: (CError, Maybe String) -> CError
+errToFCrash (ce, Just msg) = ce { ctErr = ErrOther (pos (ctErr ce)) (fixMessageDoc msg) }
+errToFCrash (ce, Nothing)  = ce { ctErr = tx $ ctErr ce}
   where
     tx (ErrSubType l m _ g t t') = ErrFCrash l m g t t'
-    tx e                       = e
+    tx e                         = F.notracepp "errToFCrash?" e
+
+fixMessageDoc :: String -> Doc
+fixMessageDoc msg = vcat (text <$> lines msg)
 
 {-
    TODO: Never used, do I need to exist?
 reportUrl = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell" -}
 
 addErrors :: FixResult a -> [a] -> FixResult a
-addErrors r []               = r
-addErrors (Safe s) errs      = Unsafe s errs
-addErrors (Unsafe s xs) errs = Unsafe s (xs ++ errs)
-addErrors r  _               = r
+addErrors r []                 = r
+addErrors (Safe s) errors      = Unsafe s errors
+addErrors (Unsafe s xs) errors = Unsafe s (xs ++ errors)
+addErrors r  _                 = r
 
 instance Fixpoint (F.FixResult CError) where
   toFix = vcat . map snd . orMessages . resDocs F.Full

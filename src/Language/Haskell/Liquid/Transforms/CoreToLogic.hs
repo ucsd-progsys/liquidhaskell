@@ -1,12 +1,10 @@
 {-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE CPP                    #-}
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE TupleSections          #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.Haskell.Liquid.Transforms.CoreToLogic
   ( coreToDef
@@ -58,8 +56,8 @@ logicType :: (Reftable r) => Bool -> Type -> RRType r
 logicType allowTC τ      = fromRTypeRep $ t { ty_binds = bs, ty_info = is, ty_args = as, ty_refts = rs}
   where
     t            = toRTypeRep $ ofType τ
-    (bs, is, as, rs) = Misc.unzip4 $ dropWhile (isErasable . Misc.thd4) $ Misc.zip4 (ty_binds t) (ty_info t) (ty_args t) (ty_refts t)
-    isErasable   = if allowTC then isEmbeddedClass else isClassType
+    (bs, is, as, rs) = Misc.unzip4 $ dropWhile (isErasable' . Misc.thd4) $ Misc.zip4 (ty_binds t) (ty_info t) (ty_args t) (ty_refts t)
+    isErasable'  = if allowTC then isEmbeddedClass else isClassType
 
 {- | [NOTE:inlineSpecType type]: the refinement depends on whether the result type is a Bool or not:
       CASE1: measure f@logic :: X -> Bool <=> f@haskell :: x:X -> {v:Bool | v <=> (f@logic x)}
@@ -69,16 +67,16 @@ logicType allowTC τ      = fromRTypeRep $ t { ty_binds = bs, ty_info = is, ty_a
 inlineSpecType :: Bool -> Var -> SpecType
 inlineSpecType  allowTC v = fromRTypeRep $ rep {ty_res = res `strengthen` r , ty_binds = xs}
   where
-    r              = MkUReft (mkR (mkEApp f (mkA <$> vxs))) mempty
+    r              = MkUReft (mkReft (mkEApp f (mkA <$> vxs))) mempty
     rep            = toRTypeRep t
     res            = ty_res rep
     xs             = intSymbol (symbol ("x" :: String)) <$> [1..length $ ty_binds rep]
-    vxs            = dropWhile (isErasable . snd) $ zip xs (ty_args rep)
-    isErasable     = if allowTC then isEmbeddedClass else isClassType
+    vxs            = dropWhile (isErasable' . snd) $ zip xs (ty_args rep)
+    isErasable'    = if allowTC then isEmbeddedClass else isClassType
     f              = dummyLoc (symbol v)
     t              = ofType (GM.expandVarType v) :: SpecType
     mkA            = EVar . fst
-    mkR            = if isBool res then propReft else exprReft
+    mkReft         = if isBool res then propReft else exprReft
 
 -- | Refine types of measures: keep going until you find the last data con!
 --   this code is a hack! we refine the last data constructor,
@@ -89,14 +87,14 @@ inlineSpecType  allowTC v = fromRTypeRep $ rep {ty_res = res `strengthen` r , ty
 
 -- formerly: strengthenResult'
 measureSpecType :: Bool -> Var -> SpecType
-measureSpecType allowTC v = go mkT [] [(1::Int)..] t
+measureSpecType allowTC v = go mkT [] [(1::Int)..] st
   where
-    mkR | boolRes   = propReft
-        | otherwise = exprReft
-    mkT xs          = MkUReft (mkR $ mkEApp f (EVar <$> reverse xs)) mempty
-    f               = dummyLoc (symbol v)
-    t               = ofType (GM.expandVarType v) :: SpecType
-    boolRes         =  isBool $ ty_res $ toRTypeRep t
+    mkReft | boolRes   = propReft
+           | otherwise = exprReft
+    mkT xs          = MkUReft (mkReft $ mkEApp locSym (EVar <$> reverse xs)) mempty
+    locSym          = dummyLoc (symbol v)
+    st              = ofType (GM.expandVarType v) :: SpecType
+    boolRes         =  isBool $ ty_res $ toRTypeRep st
 
     go f args i (RAllT a t r)    = RAllT a (go f args i t) r
     go f args i (RAllP p t)      = RAllP p $ go f args i t
@@ -165,22 +163,22 @@ runToLogicWithBoolBinds xs tce lmap dm ferror m
 
 coreAltToDef :: (Reftable r) => Bool -> LocSymbol -> Var -> [Var] -> Var -> Type -> [C.CoreAlt]
              -> LogicM [Def (Located (RRType r)) DataCon]
-coreAltToDef allowTC x z zs y t alts
-  | not (null litAlts) = measureFail x "Cannot lift definition with literal alternatives"
+coreAltToDef allowTC locSym z zs y t alts
+  | not (null litAlts) = measureFail locSym "Cannot lift definition with literal alternatives"
   | otherwise          = do
-      d1s <- F.notracepp "coreAltDefs-1" <$> mapM (mkAlt x cc myArgs z) dataAlts
-      d2s <- F.notracepp "coreAltDefs-2" <$>       mkDef x cc myArgs z  defAlts defExpr
+      d1s <- F.notracepp "coreAltDefs-1" <$> mapM (mkAlt locSym cc myArgs z) dataAlts
+      d2s <- F.notracepp "coreAltDefs-2" <$>       mkDef locSym cc myArgs z  defAlts defExpr
       return (d1s ++ d2s)
   where
     myArgs   = reverse zs
     cc       = if eqType t boolTy then P else E
-    defAlts  = GM.defaultDataCons (GM.expandVarType y) (Misc.fst3 <$> alts)
-    defExpr  = listToMaybe [ e |   (C.DEFAULT  , _, e) <- alts ]
-    dataAlts =             [ a | a@(C.DataAlt _, _, _) <- alts ]
-    litAlts  =             [ a | a@(C.LitAlt _, _, _) <- alts ]
+    defAlts  = GM.defaultDataCons (GM.expandVarType y) ((\(Alt c _ _) -> c) <$> alts)
+    defExpr  = listToMaybe [ e |   (Alt C.DEFAULT _ e) <- alts ]
+    dataAlts =             [ a | a@(Alt (C.DataAlt _) _ _) <- alts ]
+    litAlts  =             [ a | a@(Alt (C.LitAlt _) _ _) <- alts ]
 
     -- mkAlt :: LocSymbol -> (Expr -> Body) -> [Var] -> Var -> (C.AltCon, [Var], C.CoreExpr)
-    mkAlt x ctor _args dx (C.DataAlt d, xs, e)
+    mkAlt x ctor _args dx (Alt (C.DataAlt d) xs e)
       = Def x {- (toArgs id args) -} d (Just $ varRType dx) (toArgs Just xs')
       . ctor
       . (`subst1` (F.symbol dx, F.mkEApp (GM.namedLocSymbol d) (F.eVar <$> xs')))
@@ -209,14 +207,14 @@ defArgs x     = zipWith (\i t -> (defArg i, defRTyp t)) [0..]
 
 coreToDef :: Reftable r => Bool -> LocSymbol -> Var -> C.CoreExpr
           -> LogicM [Def (Located (RRType r)) DataCon]
-coreToDef allowTC x _ e                   = go [] $ inlinePreds $ simplify allowTC  e
+coreToDef allowTC locSym _                   = go [] . inlinePreds . simplify allowTC
   where
     go args   (C.Lam  x e)        = go (x:args) e
     go args   (C.Tick _ e)        = go args e
-    go (z:zs) (C.Case _ y t alts) = coreAltToDef allowTC x z zs y t alts
+    go (z:zs) (C.Case _ y t alts) = coreAltToDef allowTC locSym z zs y t alts
     go (z:zs) e
-      | Just t <- isMeasureArg z  = coreAltToDef allowTC x z zs z t [(C.DEFAULT, [], e)]
-    go _ _                        = measureFail x "Does not have a case-of at the top-level"
+      | Just t <- isMeasureArg z  = coreAltToDef allowTC locSym z zs z t [Alt C.DEFAULT [] e]
+    go _ _                        = measureFail locSym "Does not have a case-of at the top-level"
 
     inlinePreds   = inline (eqType boolTy . GM.expandVarType)
 
@@ -242,7 +240,7 @@ varRType :: (Reftable r) => Var -> Located (RRType r)
 varRType = GM.varLocInfo ofType
 
 coreToFun :: Bool -> LocSymbol -> Var -> C.CoreExpr ->  LogicM ([Var], Either Expr Expr)
-coreToFun allowTC _ _v e = go [] $ normalize allowTC e
+coreToFun allowTC _ _v = go [] . normalize allowTC
   where
     isE = if allowTC then GM.isEmbeddedDictVar else isErasable
     go acc (C.Lam x e)  | isTyVar    x = go acc e
@@ -261,11 +259,7 @@ coreToLogic allowTC cb = coreToLg allowTC (normalize allowTC cb)
 
 coreToLg :: Bool -> C.CoreExpr -> LogicM Expr
 coreToLg allowTC  (C.Let (C.NonRec x (C.Coercion c)) e)
-  = coreToLg allowTC (C.substExpr
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-                      C.empty
-#endif
-                      (C.extendCvSubst C.emptySubst x c) e)
+  = coreToLg allowTC (C.substExpr (C.extendCvSubst C.emptySubst x c) e)
 coreToLg allowTC  (C.Let b e)
   = subst1 <$> coreToLg allowTC e <*>  makesub allowTC b
 coreToLg allowTC (C.Tick _ e)          = coreToLg allowTC e
@@ -317,11 +311,11 @@ typeEqToLg (s, t) = do
   return $ F.notracepp "TYPE-EQ-TO-LOGIC" (tx s, tx t)
 
 checkBoolAlts :: [C.CoreAlt] -> LogicM (C.CoreExpr, C.CoreExpr)
-checkBoolAlts [(C.DataAlt false, [], efalse), (C.DataAlt true, [], etrue)]
+checkBoolAlts [Alt (C.DataAlt false) [] efalse, Alt (C.DataAlt true) [] etrue]
   | false == falseDataCon, true == trueDataCon
   = return (efalse, etrue)
 
-checkBoolAlts [(C.DataAlt true, [], etrue), (C.DataAlt false, [], efalse)]
+checkBoolAlts [Alt (C.DataAlt true) [] etrue, Alt (C.DataAlt false) [] efalse]
   | false == falseDataCon, true == trueDataCon
   = return (efalse, etrue)
 checkBoolAlts alts
@@ -336,7 +330,7 @@ casesToLg allowTC v e alts = mapM (altToLg allowTC e) normAlts >>= go
     go ((d,p):dps) = do c <- checkDataAlt d e
                         e' <- go dps
                         return (EIte c p e' `subst1` su)
-    go []          = panic (Just (getSrcSpan v)) "Unexpected empty cases in casesToLg"
+    go []          = panic (Just (getSrcSpan v)) $ "Unexpected empty cases in casesToLg: " ++ show e
     su             = (symbol v, e)
 
 checkDataAlt :: C.AltCon -> Expr -> LogicM Expr
@@ -351,16 +345,16 @@ normalizeAlts :: [C.CoreAlt] -> [C.CoreAlt]
 normalizeAlts alts      = ctorAlts ++ defAlts
   where
     (defAlts, ctorAlts) = L.partition isDefault alts
-    isDefault (c,_,_)   = c == C.DEFAULT
+    isDefault (Alt c _ _)   = c == C.DEFAULT
 
 altToLg :: Bool -> Expr -> C.CoreAlt -> LogicM (C.AltCon, Expr)
-altToLg allowTC de (a@(C.DataAlt d), xs, e) = do
+altToLg allowTC de (Alt a@(C.DataAlt d) xs e) = do
   p  <- coreToLg allowTC e
   dm <- gets lsDCMap
   let su = mkSubst $ concat [ dataConProj dm de d x i | (x, i) <- zip (filter (not . if allowTC then GM.isEmbeddedDictVar else GM.isEvVar) xs) [1..]]
   return (a, subst su p)
 
-altToLg allowTC _ (a, _, e)
+altToLg allowTC _ (Alt a _ e)
   = (a, ) <$> coreToLg allowTC e
 
 dataConProj :: DataConMap -> Expr -> DataCon -> Var -> Int -> [(Symbol, Expr)]
@@ -503,9 +497,9 @@ bops = M.fromList [ (numSymbol "+", Plus)
     realSymbol =  symbol . (++) "GHC.Real."
 
 splitArgs :: Bool -> C.Expr t -> (C.Expr t, [C.Arg t])
-splitArgs allowTC e = (f, reverse es)
+splitArgs allowTC exprt = (exprt', reverse args)
  where
-    (f, es) = go e
+    (exprt', args) = go exprt
 
     go (C.App (C.Var i) e) | ignoreVar i       = go e
     go (C.App f (C.Var v)) | if allowTC then GM.isEmbeddedDictVar v else isErasable v   = go f
@@ -563,7 +557,7 @@ ignoreVar i = simpleSymbolVar i `elem` ["I#", "D#"]
 -- We need the disjuction for GHC >= 9, where the Integer now comes from the \"ghc-bignum\" package,
 -- and it has different names for the constructors.
 isBangInteger :: [C.CoreAlt] -> Bool
-isBangInteger [(C.DataAlt s, _, _), (C.DataAlt jp,_,_), (C.DataAlt jn,_,_)]
+isBangInteger [Alt (C.DataAlt s) _ _, Alt (C.DataAlt jp) _ _, Alt (C.DataAlt jn) _ _]
   =  (symbol s  == "GHC.Integer.Type.S#"  || symbol s  == "GHC.Num.Integer.IS")
   && (symbol jp == "GHC.Integer.Type.Jp#" || symbol jp == "GHC.Num.Integer.IP")
   && (symbol jn == "GHC.Integer.Type.Jn#" || symbol jn == "GHC.Num.Integer.IN")
@@ -624,7 +618,7 @@ instance Simplify C.CoreExpr where
     = simplify allowTC e
   simplify allowTC (C.Let xes e)
     = C.Let (simplify allowTC xes) (simplify allowTC e)
-  simplify allowTC (C.Case e x _t alts@[(_,_,ee),_,_]) | isBangInteger alts
+  simplify allowTC (C.Case e x _t alts@[Alt _ _ ee,_,_]) | isBangInteger alts
   -- XXX(matt): seems to be for debugging?
     = -- Misc.traceShow ("To simplify allowTC case") $ 
        sub (M.singleton x (simplify allowTC e)) (simplify allowTC ee)
@@ -652,11 +646,18 @@ instance Simplify C.CoreExpr where
   inline _ (C.Coercion c)      = C.Coercion c
   inline _ (C.Type t)          = C.Type t
 
-isUndefined :: (t, t1, C.Expr t2) -> Bool
-isUndefined (_, _, e) = isUndefinedExpr e
+isUndefined :: CoreAlt -> Bool
+isUndefined (Alt _ _ exprCoreBndr) = isUndefinedExpr exprCoreBndr
   where
-   -- auto generated undefined case: (\_ -> (patError @type "error message")) void
-   isUndefinedExpr (C.App (C.Var x) _) | show x `elem` perrors = True
+   isUndefinedExpr :: C.CoreExpr -> Bool
+   -- auto generated undefined case: (\_ -> (patError @levity @type "error message")) void
+   -- Type arguments are erased before calling isUndefined
+   isUndefinedExpr (C.App (C.Var x) _)
+     | show x `elem` perrors = True
+   -- another auto generated undefined case:
+   -- let lqanf_... = patError "error message") in case lqanf_... of {}
+   isUndefinedExpr (C.Let (C.NonRec x e) (C.Case (C.Var v) _ _ []))
+     | x == v = isUndefinedExpr e
    isUndefinedExpr (C.Let _ e) = isUndefinedExpr e
    -- otherwise
    isUndefinedExpr _ = False
@@ -672,7 +673,7 @@ instance Simplify C.CoreBind where
   inline p (C.Rec xes)    = C.Rec (Misc.mapSnd (inline p) <$> xes)
 
 instance Simplify C.CoreAlt where
-  simplify allowTC (c, xs, e) = (c, xs, simplify allowTC e)
+  simplify allowTC (Alt c xs e) = Alt c xs (simplify allowTC e)
     -- where xs   = F.tracepp _msg xs0
     --      _msg = "isCoVars? " ++ F.showpp [(x, isCoVar x, varType x) | x <- xs0]
-  inline p (c, xs, e) = (c, xs, inline p e)
+  inline p (Alt c xs e) = Alt c xs (inline p e)

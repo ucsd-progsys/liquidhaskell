@@ -192,11 +192,6 @@ Currently, LiquidHaskell supports
 To use these solvers, you must install the corresponding binaries
 from the above web-pages into your `PATH`.
 
-You can also build and link against the Z3 API (faster but requires more
-dependencies). If you do so, you can use that interface with:
-
-    $ liquid --smtsolver=z3mem foo.hs
-
 ## Short Error Messages
 
 **Options:** `short-errors`

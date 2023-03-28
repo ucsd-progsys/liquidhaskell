@@ -69,7 +69,6 @@ executable benchmark-stitch-lh
                       Language.Stitch.LH.Check
                     -- , Language.Stitch.LH.CSE
                     , Language.Stitch.LH.Data.List
-                    , Language.Stitch.LH.Data.Map
                     , Language.Stitch.LH.Eval
                     , Language.Stitch.LH.Lex
                     , Language.Stitch.LH.Monad
@@ -651,10 +650,12 @@ executable errors
                     , DupData
                     , DupFunSigs
                     , DupMeasure
-                    -- , ElabLocation
+                    , ElabLocation
+                    , ElabLocation2
+                    , ElabLocation3
                     , EmptyData
-                    -- , ErrLocation2
-                    -- , ErrLocation
+                    , ErrLocation
+                    , ErrLocation2
                     -- , ExportMeasure0
                     -- , ExportReflect0
                     , Fractional
@@ -1122,6 +1123,7 @@ executable unit-neg
 
     other-modules:
                       AbsApp
+                    , AbsNegTest
                     , AdtPeano0
                     , AdtPeano1
                     , Alias00
@@ -1166,6 +1168,8 @@ executable unit-neg
                     , ExactADT6
                     , ExactGADT6
                     , ExactGADT7
+                    , Exponential1NegTest
+                    , Exponential2NegTest
                     , Fail1
                     , Fail
                     , FilterAbs
@@ -1596,6 +1600,9 @@ executable unit-pos-1
                     , T1775
                     , T1812
                     , T1874
+                    , T2091
+                    , T2093
+                    , T2096
                     , T385
                     , T531
                     , T595a
@@ -1707,6 +1714,7 @@ executable unit-pos-2
 
     other-modules:
                       Abs
+                    , AbsPosTest
                     , Absref_crash0
                     , Absref_crash
                     , Ackermann
@@ -1819,6 +1827,7 @@ executable unit-pos-2
                     , ExactGADT6
                     , ExactGADT
                     , Exp0
+                    , ExponentialPosTest
                     , Extype
                     , Fail
                     , FailName
@@ -1921,6 +1930,7 @@ executable unit-pos-2
                     , Loo
                     , LooLib
                     , LooLibLib
+                    , LNot 
 
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
@@ -2220,6 +2230,9 @@ executable import-cli
                     , T1738Lib
                     , WrapLib
                     , WrapLibCode
+                    , Language 
+                    , B
+                    , C
 
     ghc-options:      -fplugin=LiquidHaskell
                       -fkeep-going
@@ -2273,6 +2286,7 @@ executable ple-pos
                     , Ple0
                     , PleORM
                     , Ple_sum
+                    , Permutations
                     , ReflectDefault
                     , RegexpDerivative
                     , RosePLEDiv

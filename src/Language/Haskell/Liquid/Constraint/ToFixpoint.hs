@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts          #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Language.Haskell.Liquid.Constraint.ToFixpoint
   ( cgInfoFInfo
@@ -148,13 +148,13 @@ makeRewrites info sub = concatMap (makeRewriteOne tce) $ filter ((`S.member` rws
 
 
 canRewrite :: S.HashSet F.Symbol -> F.Expr -> F.Expr -> Bool
-canRewrite freeVars from to = noFreeSyms && doesNotDiverge
+canRewrite freeVars' from to = noFreeSyms && doesNotDiverge
   where
-    fromSyms           = S.intersection freeVars (S.fromList $ F.syms from)
-    toSyms             = S.intersection freeVars (S.fromList $ F.syms to)
+    fromSyms           = S.intersection freeVars' (S.fromList $ F.syms from)
+    toSyms             = S.intersection freeVars' (S.fromList $ F.syms to)
     noFreeSyms         = S.null $ S.difference toSyms fromSyms
-    doesNotDiverge     = Mb.isNothing (unify (S.toList freeVars) from to)
-                      || Mb.isJust (unify (S.toList freeVars) to from)
+    doesNotDiverge     = Mb.isNothing (unify (S.toList freeVars') from to)
+                      || Mb.isJust (unify (S.toList freeVars') to from)
 
 refinementEQs :: LocSpecType -> [(F.Expr, F.Expr)]
 refinementEQs t =
@@ -174,10 +174,10 @@ makeRewriteOne tce (_, t)
 
     rewrites :: F.Expr -> F.Expr -> [F.AutoRewrite]
     rewrites lhs rhs =
-         (guard (canRewrite freeVars lhs rhs) >> [F.AutoRewrite xs lhs rhs])
-      ++ (guard (canRewrite freeVars rhs lhs) >> [F.AutoRewrite xs rhs lhs])
+         (guard (canRewrite freeVars' lhs rhs) >> [F.AutoRewrite xs lhs rhs])
+      ++ (guard (canRewrite freeVars' rhs lhs) >> [F.AutoRewrite xs rhs lhs])
 
-    freeVars = S.fromList (ty_binds tRep)
+    freeVars' = S.fromList (ty_binds tRep)
 
     xs = do
       (sym, arg) <- zip (ty_binds tRep) (ty_args tRep)
@@ -193,7 +193,7 @@ hasClassArg :: Id -> Bool
 hasClassArg x = F.tracepp msg (GM.isDataConId x && any Ghc.isClassPred (t:ts'))
   where
     msg       = "hasClassArg: " ++ showpp (x, t:ts')
-    (ts, t)   = Ghc.splitFunTys . snd . Ghc.splitForAllTys . Ghc.varType $ x
+    (ts, t)   = Ghc.splitFunTys . snd . Ghc.splitForAllTyCoVars . Ghc.varType $ x
     ts'       = map Ghc.irrelevantMult ts
 
 
@@ -219,36 +219,36 @@ specTypeEq emb f t = F.mkEquation (F.symbol f) xts body tOut
     bExp           = F.eApps (F.eVar f) (F.EVar <$> xs)
 
 makeSimplify :: (Var, SpecType) -> [F.Rewrite]
-makeSimplify (x, t)
-  | not (GM.isDataConId x)
+makeSimplify (var, t)
+  | not (GM.isDataConId var)
   = []
   | otherwise
-  = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t
+  = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol var) (F.EVar <$> ty_binds (toRTypeRep t))) t
   where
     go (F.PAnd es) = concatMap go es
 
-    go (F.PAtom eq (F.EApp (F.EVar f) dc) bd)
+    go (F.PAtom eq (F.EApp (F.EVar f) expr) bd)
       | eq `elem` [F.Eq, F.Ueq]
-      , (F.EVar dc, xs) <- F.splitEApp dc
-      , dc == F.symbol x
+      , (F.EVar dc, xs) <- F.splitEApp expr
+      , dc == F.symbol var
       , all isEVar xs
       = [F.SMeasure f dc (fromEVar <$> xs) bd]
 
-    go (F.PIff (F.EApp (F.EVar f) dc) bd)
-      | (F.EVar dc, xs) <- F.splitEApp dc
-      , dc == F.symbol x
+    go (F.PIff (F.EApp (F.EVar f) expr) bd)
+      | (F.EVar dc, xs) <- F.splitEApp expr
+      , dc == F.symbol var
       , all isEVar xs
       = [F.SMeasure f dc (fromEVar <$> xs) bd]
 
-    go (F.EApp (F.EVar f) dc)
-      | (F.EVar dc, xs) <- F.splitEApp dc
-      , dc == F.symbol x
+    go (F.EApp (F.EVar f) expr)
+      | (F.EVar dc, xs) <- F.splitEApp expr
+      , dc == F.symbol var
       , all isEVar xs
       = [F.SMeasure f dc (fromEVar <$> xs) F.PTrue]
 
-    go (F.PNot (F.EApp (F.EVar f) dc))
-      | (F.EVar dc, xs) <- F.splitEApp dc
-      , dc == F.symbol x
+    go (F.PNot (F.EApp (F.EVar f) expr))
+      | (F.EVar dc, xs) <- F.splitEApp expr
+      , dc == F.symbol var
       , all isEVar xs
       = [F.SMeasure f dc (fromEVar <$> xs) F.PFalse]
 
@@ -282,11 +282,11 @@ equationBody allowTC f xArgs e mbT
 -- NV Move this to types?
 -- sound but imprecise approximation of a type in the logic
 specTypeToLogic :: Bool -> [F.Expr] -> F.Expr -> SpecType -> F.Expr
-specTypeToLogic allowTC es e t
+specTypeToLogic allowTC es expr st
   | ok        = F.subst su (F.PImp (F.pAnd args) res)
   | otherwise = F.PTrue
   where
-    res       = specTypeToResultRef e t
+    res       = specTypeToResultRef expr st
     args      = zipWith mkExpr (mkReft <$> ts) es
     mkReft t  =  F.toReft $ Mb.fromMaybe mempty (stripRTypeBase t)
     mkExpr (F.Reft (v, ev)) e = F.subst1 ev (v, e)
@@ -307,7 +307,7 @@ specTypeToLogic allowTC es e t
                  :: ([(F.Symbol, SpecType)], [(F.Symbol, SpecType)])
     (xs, ts)     = unzip nocls :: ([F.Symbol], [SpecType])
 
-    trep = toRTypeRep t
+    trep = toRTypeRep st
 
 
 specTypeToResultRef :: F.Expr -> SpecType -> F.Expr

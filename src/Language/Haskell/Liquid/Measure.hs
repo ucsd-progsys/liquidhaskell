@@ -71,11 +71,11 @@ checkDuplicateMeasure :: [Measure ty ctor] -> [Measure ty ctor]
 checkDuplicateMeasure measures
   = case M.toList dups of
       []         -> measures
-      (m,ms):_   -> uError $ mkErr m (msName <$> ms)
+      (m,ms):_   -> uError $ mkError m (msName <$> ms)
     where
       gms        = group [(msName m , m) | m <- measures]
       dups       = M.filter ((1 <) . length) gms
-      mkErr m ms = ErrDupMeas (fSrcSpan m) (pprint (val m)) (fSrcSpan <$> ms)
+      mkError m ms = ErrDupMeas (fSrcSpan m) (pprint (val m)) (fSrcSpan <$> ms)
 
 
 dataConTypes :: Bool -> MSpec (RRType Reft) DataCon -> ([(Var, RRType Reft)], [(LocSymbol, RRType Reft)])
@@ -119,7 +119,7 @@ makeDataConType allowTC ds
       | any Mb.isNothing (snd <$> binds def)
       = True
       | otherwise
-      = length (binds def) == length (fst $ splitFunTys $ snd $ splitForAllTys wot)
+      = length (binds def) == length (fst $ splitFunTys $ snd $ splitForAllTyCoVars wot)
 
 
 extend :: Bool
@@ -194,7 +194,7 @@ defRefType allowTC tdc (Def f dc mt xs body)
 splitType :: Type -> ([TyVar],[Type], Type)
 splitType t  = (αs, map irrelevantMult ts, tr)
   where
-    (αs, tb) = splitForAllTys t
+    (αs, tb) = splitForAllTyCoVars t
     (ts, tr) = splitFunTys tb
 
 stitchArgs :: (Monoid t1, PPrint a)

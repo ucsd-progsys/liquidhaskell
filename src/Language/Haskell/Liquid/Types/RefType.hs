@@ -15,7 +15,7 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- TODO(#1918): Only needed for GHC <9.0.1.
 {-# OPTIONS_GHC -Wno-orphans #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-incomplete-record-updates #-}
 
 -- | Refinement Types. Mostly mirroring the GHC Type definition, but with
 --   room for refinements of various sorts.
@@ -96,7 +96,6 @@ module Language.Haskell.Liquid.Types.RefType (
 import Prelude hiding (error)
 -- import qualified Prelude
 import           Data.Maybe               (fromMaybe, isJust)
-import           Data.Bifunctor           (first)
 import           Data.Monoid              (First(..))
 import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
@@ -145,14 +144,14 @@ import Data.List (foldl')
 strengthenDataConType :: (Var, SpecType) -> (Var, SpecType)
 strengthenDataConType (x, t) = (x, fromRTypeRep trep {ty_res = tres})
   where
-    tres     = F.notracepp _msg $ ty_res trep `strengthen` MkUReft (exprReft expr) mempty
+    tres     = F.notracepp _msg $ ty_res trep `strengthen` MkUReft (exprReft expr') mempty
     trep     = toRTypeRep t
     _msg     = "STRENGTHEN-DATACONTYPE x = " ++ F.showpp (x, zip xs ts)
     (xs, ts) = dataConArgs trep
     as       = ty_vars  trep
     x'       = symbol x
-    expr | null xs && null as = EVar x'
-         | otherwise          = mkEApp (dummyLoc x') (EVar <$> xs)
+    expr' | null xs && null as = EVar x'
+          | otherwise          = mkEApp (dummyLoc x') (EVar <$> xs)
 
 
 dataConArgs :: SpecRep -> ([Symbol], [SpecType])
@@ -167,9 +166,9 @@ pdVar :: PVar t -> Predicate
 pdVar v        = Pr [uPVar v]
 
 findPVar :: [PVar (RType c tv ())] -> UsedPVar -> PVar (RType c tv ())
-findPVar ps p = PV name ty v (zipWith (\(_, _, e) (t, s, _) -> (t, s, e)) (pargs p) args)
+findPVar ps upv = PV name ty v (zipWith (\(_, _, e) (t, s, _) -> (t, s, e)) (pargs upv) args)
   where
-    PV name ty v args = fromMaybe (msg p) $ L.find ((== pname p) . pname) ps
+    PV name ty v args = fromMaybe (msg upv) $ L.find ((== pname upv) . pname) ps
     msg p = panic Nothing $ "RefType.findPVar" ++ showpp p ++ "not found"
 
 -- | Various functions for converting vanilla `Reft` to `Spec`
@@ -221,7 +220,6 @@ instance ( SubsTy tv (RType c tv ()) (RType c tv ())
          )
         => Monoid (RType c tv r)  where
   mempty  = panic Nothing "mempty: RType"
-  mappend = strengthenRefType
 
 -- MOVE TO TYPES
 instance ( SubsTy tv (RType c tv ()) c
@@ -506,15 +504,17 @@ kindToBRType :: Monoid r => Type -> BRType r
 kindToBRType = kindToRType_ bareOfType
 
 kindToRType_ :: (Type -> z) -> Type -> z
-kindToRType_ ofType        = ofType . go
+kindToRType_ ofType'       = ofType' . go
   where
     go t
      | t == typeSymbolKind = stringTy
-     | t == typeNatKind    = intTy
+     | t == naturalTy      = intTy
      | otherwise           = t
 
 isValKind :: Kind -> Bool
-isValKind x = x == typeNatKind || x == typeSymbolKind
+isValKind x0 =
+    let x = expandTypeSynonyms x0
+     in x == naturalTy || x == typeSymbolKind
 
 bTyVar :: Symbol -> BTyVar
 bTyVar      = BTV
@@ -535,7 +535,7 @@ rPred     = RAllP
 
 rEx :: Foldable t
     => t (Symbol, RType c tv r) -> RType c tv r -> RType c tv r
-rEx xts t = foldr (\(x, tx) t -> REx x tx t) t xts
+rEx xts rt = foldr (\(x, tx) t -> REx x tx t) rt xts
 
 rApp :: TyCon
      -> [RType RTyCon tv r]
@@ -625,7 +625,7 @@ strengthenRefType_ ::
          ) => (RType c tv r -> RType c tv r -> RType c tv r)
            ->  RType c tv r -> RType c tv r -> RType c tv r
 
-strengthenRefTypeGen t1 t2 = strengthenRefType_ f t1 t2
+strengthenRefTypeGen = strengthenRefType_ f
   where
     f (RVar v1 r1) t  = RVar v1 (r1 `meet` fromMaybe mempty (stripRTypeBase t))
     f t (RVar _ r1)  = t `strengthen` r1
@@ -701,9 +701,16 @@ strengthenRefType_ f (RImpF x1 i t1 t1' r1) (RImpF x2 _ t2 t2' r2)
 
 -- YL: Evidence that we need a Monoid instance for RFInfo?
 strengthenRefType_ f (RFun x1 i1 t1 t1' r1) (RFun x2 i2 t2 t2' r2)
+  | x2 /= F.dummySymbol
   = RFun x2 i1{permitTC = getFirst b} t t' (r1 `meet` r2)
     where t  = strengthenRefType_ f t1 t2
           t' = strengthenRefType_ f (subst1 t1' (x1, EVar x2)) t2'
+          b  = First (permitTC i1) <> First (permitTC i2)
+
+strengthenRefType_ f (RFun x1 i1 t1 t1' r1) (RFun x2 i2 t2 t2' r2)
+  = RFun x1 i1{permitTC = getFirst b} t t' (r1 `meet` r2)
+    where t  = strengthenRefType_ f t1 t2
+          t' = strengthenRefType_ f t1' (subst1 t2' (x2, EVar x1))
           b  = First (permitTC i1) <> First (permitTC i2)
 
 strengthenRefType_ f (RApp tid t1s rs1 r1) (RApp _ t2s rs2 r2)
@@ -1033,7 +1040,7 @@ subsTyVars
   -> t (tv, RType c tv (), RType c tv r)
   -> RType c tv r
   -> RType c tv r
-subsTyVars meet ats t = foldl' (flip (subsTyVar meet)) t ats
+subsTyVars meet' ats t = foldl' (flip (subsTyVar meet')) t ats
 
 subsTyVar
   :: (Eq tv, Hashable tv, Reftable r, TyConable c,
@@ -1045,7 +1052,7 @@ subsTyVar
   -> (tv, RType c tv (), RType c tv r)
   -> RType c tv r
   -> RType c tv r
-subsTyVar meet        = subsFree meet S.empty
+subsTyVar meet'        = subsFree meet' S.empty
 
 subsFree
   :: (Eq tv, Hashable tv, Reftable r, TyConable c,
@@ -1071,9 +1078,9 @@ subsFree m s z@(α, τ, _) (RApp c ts rs r)
   = RApp c' (subsFree m s z <$> ts) (subsFreeRef m s z <$> rs) (subt (α, τ) r)
     where z' = (α, τ) -- UNIFY: why instantiating INSIDE parameters?
           c' = if α `S.member` s then c else subt z' c
-subsFree meet s (α', τ, t') (RVar α r)
+subsFree meet' s (α', τ, t') (RVar α r)
   | α == α' && not (α `S.member` s)
-  = if meet then t' `strengthen` subt (α, τ) r else t'
+  = if meet' then t' `strengthen` subt (α, τ) r else t'
   | otherwise
   = RVar (subt (α', τ) α) r
 subsFree m s z (RAllE x t t')
@@ -1318,7 +1325,7 @@ instance (SubsTy tv ty ty) => SubsTy tv ty (PVKind ty) where
   subt _   PVHProp   = PVHProp
 
 instance (SubsTy tv ty ty) => SubsTy tv ty (PVar ty) where
-  subt su (PV n t v xts) = PV n (subt su t) v [(subt su t, x, y) | (t,x,y) <- xts]
+  subt su (PV n pvk v xts) = PV n (subt su pvk) v [(subt su t, x, y) | (t,x,y) <- xts]
 
 instance SubsTy RTyVar RSort RTyCon where
    subt z c = RTyCon tc ps' i
@@ -1574,9 +1581,9 @@ rTypeSort tce = typeSort tce . toType True
 --------------------------------------------------------------------------------
 applySolution :: (Functor f) => FixSolution -> f SpecType -> f SpecType
 --------------------------------------------------------------------------------
-applySolution = fmap . fmap . mapReft . appSolRefa
+applySolution = fmap . fmap . mapReft' . appSolRefa
   where
-    mapReft f (MkUReft (Reft (x, z)) p) = MkUReft (Reft (x, f z)) p
+    mapReft' f (MkUReft (Reft (x, z)) p) = MkUReft (Reft (x, f z)) p
 
 appSolRefa :: Visitable t
            => M.HashMap KVar Expr -> t -> t
@@ -1664,7 +1671,7 @@ typeSortForAll tce τ  = F.notracepp ("typeSortForall " ++ showpp τ) $ genSort 
   where
     sbody             = typeSort tce tbody
     genSort t         = foldl' (flip FAbs) (sortSubst su t) [i..n+i-1]
-    (as, tbody)       = F.notracepp ("splitForallTys" ++ GM.showPpr τ) (splitForAllTys τ)
+    (as, tbody)       = F.notracepp ("splitForallTys" ++ GM.showPpr τ) (splitForAllTyCoVars τ)
     su                = M.fromList $ zip sas (FVar <$>  [i..])
     sas               = symbol <$> as
     n                 = length as
@@ -1701,27 +1708,56 @@ grabArgs τs τ
 expandProductType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
                   => Var -> RType RTyCon RTyVar r -> RType RTyCon RTyVar r
 expandProductType x t
-  | isTrivial       = t
+  | isTrivial'      = t
   | otherwise       = fromRTypeRep $ trep {ty_binds = xs', ty_info=is', ty_args = ts', ty_refts = rs'}
      where
-      isTrivial     = ofType (varType x) == toRSort t
-      τs            = map irrelevantMult $ fst $ splitFunTys $ snd $ splitForAllTys $ toType False t
+      isTrivial'    = ofType (varType x) == toRSort t
+      τs            = map irrelevantMult $ fst $ splitFunTys $ snd $ splitForAllTyCoVars $ toType False t
       trep          = toRTypeRep t
       (xs',is',ts',rs') = unzip4 $ concatMap mkProductTy $ zip5 τs (ty_binds trep) (ty_info trep) (ty_args trep) (ty_refts trep)
 
 -- splitFunTys :: Type -> ([Type], Type)
 
+data DataConAppContext
+  = DataConAppContext
+  { dcac_dc      :: !DataCon
+  , dcac_tys     :: ![Type]
+  , dcac_arg_tys :: ![(Type, StrictnessMark)]
+  , dcac_co      :: !Coercion
+  }
 
 mkProductTy :: forall t r. (Monoid t, Monoid r)
             => (Type, Symbol, RFInfo, RType RTyCon RTyVar r, t)
             -> [(Symbol, RFInfo, RType RTyCon RTyVar r, t)]
-mkProductTy (τ, x, i, t, r) = maybe [(x, i, t, r)] f $ do
-  DataConAppContext{..} <- deepSplitProductType_maybe menv τ
-  pure (dcac_dc, dcac_tys, map (first irrelevantMult) dcac_arg_tys, dcac_co)
+mkProductTy (τ, x, i, t, r) = maybe [(x, i, t, r)] f (deepSplitProductType menv τ)
   where
-    f    :: (DataCon, [Type], [(Type, StrictnessMark)], Coercion) -> [(Symbol, RFInfo, RType RTyCon RTyVar r, t)]
-    f    = map ((dummySymbol, defRFInfo, , mempty) . ofType . fst) . third4
+    f    :: DataConAppContext -> [(Symbol, RFInfo, RType RTyCon RTyVar r, t)]
+    f    DataConAppContext{..} = map ((dummySymbol, defRFInfo, , mempty) . ofType . fst) dcac_arg_tys
     menv = (emptyFamInstEnv, emptyFamInstEnv)
+
+-- Copied from GHC 9.0.2.
+orElse :: Maybe a -> a -> a
+orElse = flip fromMaybe
+
+-- Copied from GHC 9.0.2.
+deepSplitProductType :: FamInstEnvs -> Type -> Maybe DataConAppContext
+-- If    deepSplitProductType_maybe ty = Just (dc, tys, arg_tys, co)
+-- then  dc @ tys (args::arg_tys) :: rep_ty
+--       co :: ty ~ rep_ty
+-- Why do we return the strictness of the data-con arguments?
+-- Answer: see Note [Record evaluated-ness in worker/wrapper]
+deepSplitProductType fam_envs ty
+  | let (co, ty1) = topNormaliseType_maybe fam_envs ty
+                    `orElse` (mkRepReflCo ty, ty)
+  , Just (tc, tc_args) <- splitTyConApp_maybe ty1
+  , Just con <- tyConSingleDataCon_maybe tc
+  , let arg_tys = dataConInstArgTys con tc_args
+        strict_marks = dataConRepStrictness con
+  = Just DataConAppContext { dcac_dc = con
+                           , dcac_tys = tc_args
+                           , dcac_arg_tys = zipEqual "dspt" (map irrelevantMult arg_tys) strict_marks
+                           , dcac_co = co }
+deepSplitProductType _ _ = Nothing
 
 -----------------------------------------------------------------------------------------
 -- | Binders generated by class predicates, typically for constraining tyvars (e.g. FNum)
@@ -1781,11 +1817,11 @@ mkDType :: Symbolic a
 mkDType autoenv xvs acc [(v, (x, t))]
   = Left ((x, ) $ t `strengthen` tr)
   where
-    tr = uTop $ Reft (vv, pOr (r:acc))
-    r  = cmpLexRef xvs (v', vv, f)
-    v' = symbol v
-    f  = mkDecrFun autoenv  t
-    vv = "vvRec"
+    tr  = uTop $ Reft (vv', pOr (r:acc))
+    r   = cmpLexRef xvs (v', vv', f)
+    v'  = symbol v
+    f   = mkDecrFun autoenv  t
+    vv' = "vvRec"
 
 mkDType autoenv xvs acc ((v, (x, t)):vxts)
   = mkDType autoenv ((v', x, f):xvs) (r:acc) vxts
@@ -1822,10 +1858,10 @@ cmpLexRef vxs (v, x, g)
   where zero = ECon $ I 0
 
 makeLexRefa :: [Located Expr] -> [Located Expr] -> UReft Reft
-makeLexRefa es' es = uTop $ Reft (vv, PIff (EVar vv) $ pOr rs)
+makeLexRefa es' es = uTop $ Reft (vv', PIff (EVar vv') $ pOr rs)
   where
-    rs = makeLexReft [] [] (val <$> es) (val <$> es')
-    vv = "vvRec"
+    rs  = makeLexReft [] [] (val <$> es) (val <$> es')
+    vv' = "vvRec"
 
 makeLexReft :: [(Expr, Expr)] -> [Expr] -> [Expr] -> [Expr] -> [Expr]
 makeLexReft _ acc [] []
@@ -1882,7 +1918,7 @@ ppVars :: (PPrint a) => Tidy -> [a] -> Doc
 ppVars k as = "forall" <+> hcat (punctuate " " (F.pprintTidy k <$> as)) <+> "."
 
 ppFields :: (PPrint k, PPrint v) => Tidy -> Doc -> [(k, v)] -> Doc
-ppFields k sep kvs = hcat $ punctuate sep (F.pprintTidy k <$> kvs)
+ppFields k sep' kvs = hcat $ punctuate sep' (F.pprintTidy k <$> kvs)
 
 ppMbSizeFun :: Maybe SizeFun -> Doc
 ppMbSizeFun Nothing  = ""
@@ -1912,8 +1948,8 @@ tyVarsPosition :: RType RTyCon tv r -> Positions tv
 tyVarsPosition = go (Just True)
   where
     go p (RVar t _)        = report p t
-    go p (RFun _ _ t1 t2 _)  = go (flip p) t1 <> go p t2
-    go p (RImpF _ _ t1 t2 _) = go (flip p) t1 <> go p t2
+    go p (RFun _ _ t1 t2 _)  = go (flip' p) t1 <> go p t2
+    go p (RImpF _ _ t1 t2 _) = go (flip' p) t1 <> go p t2
     go p (RAllT _ t _)     = go p t
     go p (RAllP _ t)       = go p t
     go p (RApp c ts _ _)   = mconcat (zipWith go (getPosition p <$> varianceTyArgs (rtc_info c)) ts)
@@ -1931,7 +1967,7 @@ tyVarsPosition = go (Just True)
     report Nothing v      = Pos [] [] [v]
     report (Just True) v  = Pos [v] [] []
     report (Just False) v = Pos [] [v] []
-    flip = fmap not
+    flip' = fmap not
 
 data Positions a = Pos {ppos :: [a], pneg ::  [a], punknown :: [a]}
 

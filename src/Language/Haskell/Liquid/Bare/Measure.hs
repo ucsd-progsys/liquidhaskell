@@ -2,8 +2,6 @@
 {-# LANGUAGE RecordWildCards  #-}
 {-# LANGUAGE TupleSections    #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 -- | This module contains (most of) the code needed to lift Haskell entitites,
 --   . code- (CoreBind), and data- (Tycon) definitions into the spec level.
 
@@ -65,21 +63,21 @@ makeMeasureDefinition :: Bool -> Bare.TycEnv -> LogicMap -> [Ghc.CoreBind] -> Lo
                       -> Measure LocSpecType Ghc.DataCon
 makeMeasureDefinition allowTC tycEnv lmap cbs x =
   case GM.findVarDef (val x) cbs of
-    Nothing       -> Ex.throw $ errHMeas x "Cannot extract measure from haskell function"
-    Just (v, def) -> Ms.mkM vx vinfo mdef MsLifted (makeUnSorted allowTC (Ghc.varType v) mdef)
+    Nothing        -> Ex.throw $ errHMeas x "Cannot extract measure from haskell function"
+    Just (v, cexp) -> Ms.mkM vx vinfo mdef MsLifted (makeUnSorted allowTC (Ghc.varType v) mdef)
                      where
                        vx           = F.atLoc x (F.symbol v)
-                       mdef         = coreToDef' allowTC tycEnv lmap vx v def
+                       mdef         = coreToDef' allowTC tycEnv lmap vx v cexp
                        vinfo        = GM.varLocInfo (logicType allowTC) v
 
 makeUnSorted :: Bool -> Ghc.Type -> [Def LocSpecType Ghc.DataCon] -> UnSortedExprs
-makeUnSorted allowTC t defs
+makeUnSorted allowTC ty defs
   | isMeasureType ta
   = mempty
   | otherwise
   = map defToUnSortedExpr defs
   where
-    ta = go $ Ghc.expandTypeSynonyms t
+    ta = go $ Ghc.expandTypeSynonyms ty
 
     go (Ghc.ForAllTy _ t) = go t
     go Ghc.FunTy{ Ghc.ft_arg = p, Ghc.ft_res = t} | isErasable p = go t
@@ -89,16 +87,16 @@ makeUnSorted allowTC t defs
     isMeasureType (Ghc.TyConApp _ ts) = all Ghc.isTyVarTy ts
     isMeasureType _                   = False
 
-    defToUnSortedExpr def = (xx:(fst <$> binds def),
-                             Ms.bodyPred (F.mkEApp (measure def) [F.expr xx]) (body def))
+    defToUnSortedExpr defn = (xx:(fst <$> binds defn),
+                             Ms.bodyPred (F.mkEApp (measure defn) [F.expr xx]) (body defn))
 
     xx = F.vv $ Just 10000
     isErasable = if allowTC then GM.isEmbeddedDictType else Ghc.isClassPred
 
 coreToDef' :: Bool -> Bare.TycEnv -> LogicMap -> LocSymbol -> Ghc.Var -> Ghc.CoreExpr
            -> [Def LocSpecType Ghc.DataCon]
-coreToDef' allowTC tycEnv lmap vx v def =
-  case runToLogic embs lmap dm (errHMeas vx) (coreToDef allowTC vx v def) of
+coreToDef' allowTC tycEnv lmap vx v defn =
+  case runToLogic embs lmap dm (errHMeas vx) (coreToDef allowTC vx v defn) of
     Right l -> l
     Left e  -> Ex.throw e
   where
@@ -122,8 +120,8 @@ makeMeasureInline :: Bool -> F.TCEmb Ghc.TyCon -> LogicMap -> [Ghc.CoreBind] -> 
                   -> (LocSymbol, LMap)
 makeMeasureInline allowTC embs lmap cbs x =
   case GM.findVarDef (val x) cbs of
-    Nothing       -> Ex.throw $ errHMeas x "Cannot inline haskell function"
-    Just (v, def) -> (vx, coreToFun' allowTC embs Nothing lmap vx v def ok)
+    Nothing        -> Ex.throw $ errHMeas x "Cannot inline haskell function"
+    Just (v, defn) -> (vx, coreToFun' allowTC embs Nothing lmap vx v defn ok)
                      where
                        vx         = F.atLoc x (F.symbol v)
                        ok (xs, e) = LMap vx (F.symbol <$> xs) (either id id e)
@@ -135,10 +133,10 @@ makeMeasureInline allowTC embs lmap cbs x =
 
 coreToFun' :: Bool -> F.TCEmb Ghc.TyCon -> Maybe Bare.DataConMap -> LogicMap -> LocSymbol -> Ghc.Var -> Ghc.CoreExpr
            -> (([Ghc.Var], Either F.Expr F.Expr) -> a) -> a
-coreToFun' allowTC embs dmMb lmap x v def ok = either Ex.throw ok act
+coreToFun' allowTC embs dmMb lmap x v defn ok = either Ex.throw ok act
   where
     act  = runToLogic embs lmap dm err xFun
-    xFun = coreToFun allowTC x v def
+    xFun = coreToFun allowTC x v defn
     err  = errHMeas x
     dm   = Mb.fromMaybe mempty dmMb
 
@@ -186,20 +184,20 @@ zipMapMaybe :: (a -> Maybe b) -> [a] -> [(a, b)]
 zipMapMaybe f = Mb.mapMaybe (\x -> (x, ) <$> f x)
 
 hasDataDecl :: ModName -> Ms.BareSpec -> Ghc.TyCon -> HasDataDecl
-hasDataDecl mod spec
-                 = \tc -> F.notracepp (msg tc) $ M.lookupDefault def (tcName tc) decls
+hasDataDecl modName spec
+                 = \tc -> F.notracepp (msg tc) $ M.lookupDefault defn (tcName tc) decls
   where
     msg tc       = "hasDataDecl " ++ show (tcName tc)
-    def          = NoDecl Nothing
-    tcName       = fmap (qualifiedDataName mod) . tyConDataName True
-    dcName       =       qualifiedDataName mod  . tycName
+    defn         = NoDecl Nothing
+    tcName       = fmap (qualifiedDataName modName) . tyConDataName True
+    dcName       =       qualifiedDataName modName  . tycName
     decls        = M.fromList [ (Just dn, hasDecl d)
                                 | d     <- Ms.dataDecls spec
                                 , let dn = dcName d]
 
 qualifiedDataName :: ModName -> DataName -> DataName
-qualifiedDataName mod (DnName lx) = DnName (qualifyModName mod <$> lx)
-qualifiedDataName mod (DnCon  lx) = DnCon  (qualifyModName mod <$> lx)
+qualifiedDataName modName (DnName lx) = DnName (qualifyModName modName <$> lx)
+qualifiedDataName modName (DnCon  lx) = DnCon  (qualifyModName modName <$> lx)
 
 {-tyConDataDecl :: {tc:TyCon | isAlgTyCon tc} -> Maybe DataDecl @-}
 tyConDataDecl :: ((Ghc.TyCon, DataName), HasDataDecl) -> Maybe DataDecl
@@ -236,11 +234,11 @@ dataConDecl d     = {- F.notracepp msg $ -} DataCtor dx (F.symbol <$> as) [] xts
     xts           = [(Bare.makeDataConSelector Nothing d i, RT.bareOfType t) | (i, t) <- its ]
     dx            = F.symbol <$> GM.locNamedThing d
     its           = zip [1..] ts
-    (as,_ps,ts,t)  = Ghc.dataConSig d
-    outT          = Just (RT.bareOfType t :: BareType)
+    (as,_ps,ts,ty)  = Ghc.dataConSig d
+    outT          = Just (RT.bareOfType ty :: BareType)
     _outT :: Maybe BareType
     _outT
-      | isGadt    = Just (RT.bareOfType t)
+      | isGadt    = Just (RT.bareOfType ty)
       | otherwise = Nothing
 
 
@@ -295,18 +293,18 @@ dataConSel permitTC dc n (Proj i) = mkArrow (zip as (repeat mempty)) [] [] [xt] 
 
 -- bkDataCon :: DataCon -> Int -> ([RTVar RTyVar RSort], [SpecType], (Symbol, SpecType, RReft))
 bkDataCon :: (F.Reftable (RTProp RTyCon RTyVar r), PPrint r, F.Reftable r) => Bool -> Ghc.DataCon -> Int -> ([RTVar RTyVar RSort], [RRType r], (F.Symbol, RFInfo, RRType r, r))
-bkDataCon permitTC dc nFlds  = (as, ts, (F.dummySymbol, classRFInfo permitTC, t, mempty))
+bkDataCon permitTC dcn nFlds  = (as, ts, (F.dummySymbol, classRFInfo permitTC, t, mempty))
   where
     ts                = RT.ofType <$> Misc.takeLast nFlds (map Ghc.irrelevantMult _ts)
     t                 = -- Misc.traceShow ("bkDataConResult" ++ GM.showPpr (dc, _t, _t0)) $
                           RT.ofType  $ Ghc.mkTyConApp tc tArgs'
     as                = makeRTVar . RT.rTyVar <$> (αs ++ αs')
-    ((αs,αs',_,_,_ts,_t), _t0) = hammer dc
+    ((αs,αs',_,_,_ts,_t), _t0) = hammer dcn
     tArgs'            = take (nArgs - nVars) tArgs ++ (Ghc.mkTyVarTy <$> αs)
     nVars             = length αs
     nArgs             = length tArgs
     (tc, tArgs)       = Mb.fromMaybe err (Ghc.splitTyConApp_maybe _t)
-    err               = GM.namedPanic dc ("Cannot split result type of DataCon " ++ show dc)
+    err               = GM.namedPanic dcn ("Cannot split result type of DataCon " ++ show dcn)
     hammer dc         = (Ghc.dataConFullSig dc, Ghc.varType . Ghc.dataConWorkId $ dc)
 
 data DataConSel = Check | Proj Int
@@ -490,7 +488,7 @@ toBound v x (vs, Left p) = (x', Bound x' fvs ps xs p)
     (ps , xs)  = (txp <$> ps', txx <$> xs')
     txp v      = (dummyLoc $ simpleSymbolVar v, RT.ofType $ varType v)
     txx v      = (dummyLoc $ symbol v,          RT.ofType $ varType v)
-    fvs        = (((`RVar` mempty) . RTV) <$> fst (splitForAllTys $ varType v)) :: [RSort]
+    fvs        = (((`RVar` mempty) . RTV) <$> fst (splitForAllTyCoVars $ varType v)) :: [RSort]
 
 toBound v x (vs, Right e) = toBound v x (vs, Left e)
 

@@ -1,7 +1,5 @@
 {-# LANGUAGE FlexibleInstances    #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 -- Syntactic Equality of Types up tp forall type renaming
 
 module Language.Haskell.Liquid.Types.Equality where 
@@ -18,14 +16,14 @@ instance REq SpecType where
   t1 =*= t2 = compareRType t1 t2 
   
 compareRType :: SpecType -> SpecType -> Bool 
-compareRType i1 i2 = res && unify vs   
+compareRType i1 i2 = res && unify ys
   where 
     unify vs = and (sndEq <$> L.groupBy (\(x1,_) (x2,_) -> x1 == x2) vs) 
     sndEq [] = True 
     sndEq [_] = True 
     sndEq ((_,y):xs) = all (==y) (snd <$> xs)
 
-    (res, vs) = runWriter (go i1 i2)
+    (res, ys) = runWriter (go i1 i2)
     go :: SpecType -> SpecType -> Writer [(RTyVar, RTyVar)] Bool  
     go (RAllT x1 t1 r1) (RAllT x2 t2 r2)
       | RTV v1 <- ty_var_value x1

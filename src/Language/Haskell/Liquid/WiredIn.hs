@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+
 module Language.Haskell.Liquid.WiredIn
        ( wiredTyCons
        , wiredDataCons
@@ -213,6 +215,7 @@ derivingClasses = S.fromList
   , "GHC.Base.Functor"
   , "Data.Foldable.Foldable"
   , "Data.Traversable.Traversable"
+  , "GHC.Real.Fractional"
   -- , "GHC.Enum.Bounded"
   -- , "GHC.Base.Monoid"
   ]

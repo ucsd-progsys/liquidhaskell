@@ -4,7 +4,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric      #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Language.Haskell.Liquid.Types.Bounds (
 
@@ -62,13 +62,13 @@ instance (PPrint e, PPrint t) => (Show (Bound t e)) where
 
 
 instance (PPrint e, PPrint t) => (PPrint (Bound t e)) where
-  pprintTidy k (Bound s vs ps xs e) = "bound" <+> pprintTidy k s <+>
+  pprintTidy k (Bound s vs ps ys e) = "bound" <+> pprintTidy k s <+>
                                       "forall" <+> pprintTidy k vs <+> "." <+>
                                       pprintTidy k (fst <$> ps) <+> "=" <+>
-                                      ppBsyms k (fst <$> xs) <+> pprintTidy k e
+                                      ppBsyms k (fst <$> ys) <+> pprintTidy k e
     where
       ppBsyms _ [] = ""
-      ppBsyms k xs = "\\" <+> pprintTidy k xs <+> "->"
+      ppBsyms k' xs = "\\" <+> pprintTidy k' xs <+> "->"
 
 instance Bifunctor Bound where
   first  f (Bound s vs ps xs e) = Bound s (f <$> vs) (Misc.mapSnd f <$> ps) (Misc.mapSnd f <$> xs) e
@@ -76,7 +76,7 @@ instance Bifunctor Bound where
 
 makeBound :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)
           => RRBound RSort -> [RRType r] -> [F.Symbol] -> RRType r -> RRType r
-makeBound (Bound _  vs ps xs p) ts qs
+makeBound (Bound _  vs ps xs expr) ts qs
          = RRTy cts mempty OCons
   where
     cts  = (\(x, t) -> (x, foldr subsTyVarMeet t su)) <$> cts'
@@ -84,7 +84,7 @@ makeBound (Bound _  vs ps xs p) ts qs
     cts' = makeBoundType penv rs xs
 
     penv = zip (val . fst <$> ps) qs
-    rs   = bkImp [] p
+    rs   = bkImp [] expr
 
     bkImp acc (F.PImp p q) = bkImp (p:acc) q
     bkImp acc p          = p:acc
@@ -128,10 +128,10 @@ isPApp penv (F.EApp e _)         = isPApp penv e
 isPApp _    _                  = False
 
 toUsedPVars :: [(F.Symbol, F.Symbol)] -> F.Expr -> (F.Symbol, [PVar ()])
-toUsedPVars penv q@(F.EApp _ e) = (x, [toUsedPVar penv q])
+toUsedPVars penv q@(F.EApp _ expr) = (sym, [toUsedPVar penv q])
   where
     -- NV : TODO make this a better error
-    x = case {- unProp -} e of {F.EVar x -> x; e -> todo Nothing ("Bound fails in " ++ show e) }
+    sym = case {- unProp -} expr of {F.EVar x -> x; e -> todo Nothing ("Bound fails in " ++ show e) }
 toUsedPVars _ _ = impossible Nothing "This cannot happen"
 
 toUsedPVar :: [(F.Symbol, F.Symbol)] -> F.Expr -> PVar ()

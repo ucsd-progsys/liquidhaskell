@@ -12,7 +12,6 @@
 {-# LANGUAGE ScopedTypeVariables  #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.Haskell.Liquid.Types.PrettyPrint
   ( -- * Printable RTypes
@@ -58,7 +57,6 @@ import           Liquid.GHC.API  as Ghc ( Class
                                                          , Type
                                                          , Var
                                                          , Name
-                                                         , ErrMsg
                                                          , SourceError
                                                          , TyCon
                                                          , topPrec
@@ -72,6 +70,7 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Types
 import           Prelude                          hiding (error)
 import           Text.PrettyPrint.HughesPJ        hiding ((<>))
+
 
 -- | `Filter`s match errors. They are used to ignore classes of errors they
 -- match. `AnyFilter` matches all errors. `StringFilter` matches any error whose
@@ -101,7 +100,7 @@ pprintSymbol x = char '‘' <-> pprint x <-> char '’'
 --------------------------------------------------------------------------------
 -- | A whole bunch of PPrint instances follow ----------------------------------
 --------------------------------------------------------------------------------
-instance PPrint ErrMsg where
+instance PPrint (Ghc.MsgEnvelope Ghc.DecoratedSDoc) where
   pprintTidy _ = text . show
 
 instance PPrint SourceError where
@@ -258,8 +257,8 @@ pprRtype bb p (RAppTy t t' r)
   = F.ppTy r $ pprRtype bb p t <+> pprRtype bb p t'
 pprRtype bb p (RRTy e _ OCons t)
   = sep [braces (pprRsubtype bb p e) <+> "=>", pprRtype bb p t]
-pprRtype bb p (RRTy e r o t)
-  = sep [ppp (pprint o <+> ppe <+> pprint r), pprRtype bb p t]
+pprRtype bb p (RRTy e r o rt)
+  = sep [ppp (pprint o <+> ppe <+> pprint r), pprRtype bb p rt]
   where
     ppe         = hsep (punctuate comma (ppxt <$> e)) <+> dcolon
     ppp  doc    = text "<<" <+> doc <+> text ">>"
@@ -299,19 +298,19 @@ ppExists
       PPrint (RType c tv ()), F.Reftable (RTProp c tv r),
       F.Reftable (RTProp c tv ()))
   => PPEnv -> Prec -> RType c tv r -> Doc
-ppExists bb p t
-  = text "exists" <+> brackets (intersperse comma [pprDbind bb topPrec x t | (x, t) <- zs]) <-> dot <-> pprRtype bb p t'
-    where (zs,  t')               = split [] t
+ppExists bb p rt
+  = text "exists" <+> brackets (intersperse comma [pprDbind bb topPrec x t | (x, t) <- ws]) <-> dot <-> pprRtype bb p rt'
+    where (ws,  rt')               = split [] rt
           split zs (REx x t t')   = split ((x,t):zs) t'
           split zs t                = (reverse zs, t)
 
 ppAllExpr
   :: (OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> Prec -> RType c tv r -> Doc
-ppAllExpr bb p t
-  = text "forall" <+> brackets (intersperse comma [pprDbind bb topPrec x t | (x, t) <- zs]) <-> dot <-> pprRtype bb p t'
+ppAllExpr bb p rt
+  = text "forall" <+> brackets (intersperse comma [pprDbind bb topPrec x t | (x, t) <- ws]) <-> dot <-> pprRtype bb p rt'
     where
-      (zs,  t')               = split [] t
+      (ws,  rt')               = split [] rt
       split zs (RAllE x t t') = split ((x,t):zs) t'
       split zs t              = (reverse zs, t)
 
@@ -338,14 +337,14 @@ pprDbind bb p x t
 pprRtyFun
   :: ( OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> Doc -> RType c tv r -> Doc
-pprRtyFun bb prefix t = hsep (prefix : dArgs ++ [dOut])
+pprRtyFun bb prefix rt = hsep (prefix : dArgs ++ [dOut])
   where
     dArgs               = concatMap ppArg args
     dOut                = pprRtype bb topPrec out
     ppArg (b, t, a)     = [pprDbind bb funPrec b t, a]
-    (args, out)         = brkFun t
+    (args, out)         = brkFun rt
 
-{- 
+{-
 pprRtyFun bb prefix t
   = prefix <+> pprRtyFun' bb t
 
@@ -452,8 +451,8 @@ instance (PPrint r, F.Reftable r) => PPrint (UReft r) where
 -- | Pretty-printing errors ----------------------------------------------------
 --------------------------------------------------------------------------------
 
-printError :: (Show e, F.PPrint e) => F.Tidy -> DynFlags -> TError e -> IO ()
-printError k dyn err = putErrMsg dyn (pos err) (ppError k empty err)
+printError :: (Show e, F.PPrint e) => Ghc.Logger -> F.Tidy -> DynFlags -> TError e -> IO ()
+printError logger k dyn err = putErrMsg logger dyn (pos err) (ppError k empty err)
 
 -- | Similar in spirit to 'reportErrors' from the GHC API, but it uses our
 -- pretty-printer and shim functions under the hood. Also filters the errors
@@ -475,8 +474,8 @@ filterReportErrors path failure continue filters k =
                            , filters = filters
                            }
   where
-    renderer :: TError e' -> String
-    renderer = render . ppError k empty
+    renderer e = render (ppError k empty e $+$ pprint (pos e))
+
 
 -- | Retrieve the `Filter`s from the Config.
 getFilters :: Config -> [Filter]
@@ -487,12 +486,15 @@ getFilters cfg = anyFilter <> stringFilters
 
 -- | Return the list of @filters@ that matched the @err@ , given a @renderer@
 -- for the @err@ and some @filters@
-reduceFilters :: forall e. (e -> String) -> [Filter] -> e -> [Filter]
-reduceFilters renderer fs err = filter (filterDoesMatchErr err) fs
-  where
-    filterDoesMatchErr :: e -> Filter -> Bool
-    filterDoesMatchErr _ AnyFilter = True
-    filterDoesMatchErr e (StringFilter filter) = filter `L.isInfixOf` renderer e
+reduceFilters :: (e -> String) -> [Filter] -> e -> [Filter]
+reduceFilters renderer fs err = filter (filterDoesMatchErr renderer err) fs
+
+filterDoesMatchErr :: (e -> String) -> e -> Filter -> Bool
+filterDoesMatchErr _        _ AnyFilter = True
+filterDoesMatchErr renderer e (StringFilter filter') = stringMatch filter' (renderer e)
+
+stringMatch :: String -> String -> Bool
+stringMatch filter' str = filter' `L.isInfixOf` str
 
 -- | Used in `filterReportErrorsWith'`
 data FilterReportErrorsArgs m filter msg e a =

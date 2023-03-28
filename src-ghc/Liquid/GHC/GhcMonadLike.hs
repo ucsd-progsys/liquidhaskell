@@ -1,7 +1,9 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE RankNTypes #-}
 -- | This module introduces a \"lighter\" "GhcMonad" typeclass which doesn't require an instance of
 -- 'ExceptionMonad', and can therefore be used for both 'CoreM' and 'Ghc'.
 --
@@ -29,14 +31,16 @@ module Liquid.GHC.GhcMonadLike (
   , findModule
   , lookupModule
   , isBootInterface
+  , ApiComment(..)
   , apiComments
   ) where
 
 import Control.Monad.IO.Class
 import Control.Exception (throwIO)
 
-import Data.IORef (readIORef)
-
+import Data.Data (Data, gmapQr)
+import Data.Generics (extQ)
+import qualified Data.List
 import qualified Liquid.GHC.API   as Ghc
 import           Liquid.GHC.API   hiding ( ModuleInfo
                                                           , findModule
@@ -54,24 +58,12 @@ import           Liquid.GHC.API   hiding ( ModuleInfo
                                                           , tm_renamed_source
                                                           )
 
--- Shared imports for GHC < 9
-#ifdef MIN_VERSION_GLASGOW_HASKELL
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-import qualified CoreMonad
-import qualified EnumSet
-import Maybes
-import GhcMake
-import Exception (ExceptionMonad)
-#else
 import GHC.Data.Maybe
 import GHC.Driver.Make
 import GHC.Utils.Exception (ExceptionMonad)
 import qualified GHC.Core.Opt.Monad as CoreMonad
 import qualified GHC.Data.EnumSet as EnumSet
-#endif
-#endif
 
-import qualified Data.Map.Strict as M
 import Optics
 
 class HasHscEnv m where
@@ -119,10 +111,10 @@ getModSummary mdl = do
                       , not (isBootInterface . isBootSummary $ ms) ]
    case mods_by_name of
      [] -> do dflags <- getDynFlags
-              liftIO $ throwIO $ mkApiErr dflags (text "Module not part of module graph")
+              liftIO $ throwIO $ GhcApiError (showSDoc dflags (text "Module not part of module graph"))
      [ms] -> return ms
      multiple -> do dflags <- getDynFlags
-                    liftIO $ throwIO $ mkApiErr dflags (text "getModSummary is ambiguous: " <+> ppr multiple)
+                    liftIO $ throwIO $ GhcApiError (showSDoc dflags (text "getModSummary is ambiguous: " <+> ppr multiple))
 
 
 -- Converts a 'IsBootInterface' into a 'Bool'.
@@ -144,7 +136,7 @@ lookupModSummary mdl = do
 lookupGlobalName :: GhcMonadLike m => Name -> m (Maybe TyThing)
 lookupGlobalName name = do
   hsc_env <- askHscEnv
-  liftIO $ lookupTypeHscEnv hsc_env name
+  liftIO $ lookupType hsc_env name
 
 -- NOTE(adn) Taken from the GHC API, adapted to work for a 'GhcMonadLike' monad.
 lookupName :: GhcMonadLike m => Name -> m (Maybe TyThing)
@@ -155,17 +147,7 @@ lookupName name = do
 -- | Our own simplified version of 'ModuleInfo' to overcome the fact we cannot construct the \"original\"
 -- one as the constructor is not exported, and 'getHomeModuleInfo' and 'getPackageModuleInfo' are not
 -- exported either, so we had to backport them as well.
-#ifdef MIN_VERSION_GLASGOW_HASKELL
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-
--- For GHC < 9, UniqFM has a single parameter.
-data ModuleInfo = ModuleInfo { minf_type_env :: UniqFM TyThing }
-#else
--- For GHC >= 9, UniqFM has two parameters.
--- just fine.
-data ModuleInfo = ModuleInfo { minf_type_env :: UniqFM Name TyThing }
-#endif
-#endif
+newtype ModuleInfo = ModuleInfo { minf_type_env :: UniqFM Name TyThing }
 
 modInfoLookupName :: GhcMonadLike m
                   => ModuleInfo
@@ -175,9 +157,8 @@ modInfoLookupName minf name = do
   hsc_env <- askHscEnv
   case lookupTypeEnv (minf_type_env minf) name of
     Just tyThing -> return (Just tyThing)
-    Nothing      -> do
-      eps   <- liftIO $ readIORef (hsc_EPS hsc_env)
-      return $! lookupType (hsc_dflags hsc_env) (hsc_HPT hsc_env) (eps_PTE eps) name
+    Nothing      -> liftIO $ do
+      lookupType hsc_env name
 
 moduleInfoTc :: GhcMonadLike m => ModSummary -> TcGblEnv -> m ModuleInfo
 moduleInfoTc ms tcGblEnv = do
@@ -194,8 +175,7 @@ parseModule ms = do
   hsc_env <- askHscEnv
   let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
   hpm <- liftIO $ hscParse hsc_env_tmp ms
-  return (ParsedModule ms (hpm_module hpm) (hpm_src_files hpm)
-                           (hpm_annotations hpm))
+  return (ParsedModule ms (hpm_module hpm) (hpm_src_files hpm))
 
 -- | Our own simplified version of 'TypecheckedModule'.
 data TypecheckedModule = TypecheckedModule { 
@@ -216,8 +196,7 @@ typecheckModule pmod = do
   (tc_gbl_env, rn_info)
         <- liftIO $ hscTypecheckRename hsc_env_tmp ms $
                        HsParsedModule { hpm_module = parsedSource pmod,
-                                        hpm_src_files = pm_extra_src_files pmod,
-                                        hpm_annotations = pm_annotations pmod }
+                                        hpm_src_files = pm_extra_src_files pmod }
   return TypecheckedModule {
       tm_parsed_module  = pmod
     , tm_renamed_source = rn_info
@@ -271,13 +250,13 @@ findModule mod_name maybe_pkg = do
   let
     dflags   = hsc_dflags hsc_env
     this_pkg = thisPackage dflags
-  --
+    throwNoModError err = throwOneError $ noModError hsc_env noSrcSpan mod_name err
   case maybe_pkg of
     Just pkg | fsToUnitId pkg /= this_pkg && pkg /= fsLit "this" -> liftIO $ do
       res <- findImportedModule hsc_env mod_name maybe_pkg
       case res of
         Found _ m -> return m
-        err       -> throwOneError $ noModError dflags noSrcSpan mod_name err
+        err       -> throwNoModError err
     _otherwise -> do
       home <- lookupLoadedHomeModule mod_name
       case home of
@@ -287,7 +266,7 @@ findModule mod_name maybe_pkg = do
            case res of
              Found loc m | moduleUnitId m /= this_pkg -> return m
                          | otherwise -> modNotLoadedError dflags m loc
-             err -> throwOneError $ noModError dflags noSrcSpan mod_name err
+             err -> throwNoModError err
 
 
 lookupLoadedHomeModule :: GhcMonadLike m => ModuleName -> m (Maybe Module)
@@ -316,24 +295,31 @@ lookupModule mod_name Nothing = do
       res <- findExposedPackageModule hsc_env mod_name Nothing
       case res of
         Found _ m -> return m
-        err       -> throwOneError $ noModError (hsc_dflags hsc_env) noSrcSpan mod_name err
+        err       ->
+          throwOneError $ noModError hsc_env noSrcSpan mod_name err
 
--- Compatibility shim to extract the comments out of an 'ApiAnns', as modern GHCs now puts the
--- comments (i.e. Haskell comments) in a different field ('apiAnnRogueComments').
-#ifdef MIN_VERSION_GLASGOW_HASKELL
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-apiComments :: ApiAnns -> [Ghc.Located AnnotationComment]
-apiComments apiAnns =
-  let comments = concat . M.elems . apiAnnComments $ apiAnns
-  in
-      comments
-#else
-apiComments :: ApiAnns -> [Ghc.Located AnnotationComment]
-apiComments apiAnns =
-  let comments = concat . M.elems . apiAnnComments $ apiAnns
-  in
-     map toRealSrc $ mappend comments (apiAnnRogueComments apiAnns)
+-- | Abstraction of 'EpaComment'.
+data ApiComment
+  = ApiLineComment String
+  | ApiBlockComment String
+  deriving Show
+
+-- | Extract top-level comments from a module.
+apiComments :: ParsedModule -> [Ghc.Located ApiComment]
+apiComments pm =
+    let hs = unLoc (pm_parsed_source pm)
+        go :: forall a. Data a => a -> [LEpaComment]
+        go = gmapQr (++) [] go `extQ` (id @[LEpaComment])
+     in Data.List.sortOn (spanToLineColumn . getLoc) $
+          mapMaybe (tokComment . toRealSrc) $ go hs
   where
-    toRealSrc (L x e) = L (RealSrcSpan x Nothing) e
-#endif
-#endif
+    tokComment (L sp (EpaComment (EpaLineComment s) _)) = Just (L sp (ApiLineComment s))
+    tokComment (L sp (EpaComment (EpaBlockComment s) _)) = Just (L sp (ApiBlockComment s))
+    tokComment _ = Nothing
+
+    -- TODO: take into account anchor_op, which only matters if the source was
+    -- pre-processed by an exact-print-aware tool.
+    toRealSrc (L a e) = L (RealSrcSpan (anchor a) Nothing) e
+
+    spanToLineColumn =
+      fmap (\s -> (srcSpanStartLine s, srcSpanStartCol s)) . srcSpanToRealSrcSpan

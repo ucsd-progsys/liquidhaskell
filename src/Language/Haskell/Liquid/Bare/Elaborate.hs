@@ -42,33 +42,12 @@ import           Data.Functor.Foldable         hiding (Fix)
 import           Data.Functor.Foldable
 #endif
 
--- import           TcRnMonad (TcRn)
 import           Data.Char                      ( isUpper )
-#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 import           GHC.Types.Name.Occurrence
-#else
-import           OccName
-#endif
--- import           GHC
--- import           GhcPlugins                     ( isDFunId
---                                                 )
-
--- import           FastString
--- import           CoreSyn
--- import           PrelNames
 import qualified Liquid.GHC.API as Ghc
                                                 (noExtField)
-
--- import qualified Outputable                    as O
--- import           TysWiredIn                     ( boolTyCon
---                                                 , true_RDR
---                                                 )
--- import           RdrName
--- import           BasicTypes
 import           Data.Default                   ( def )
 import qualified Data.Maybe                    as Mb
--- import qualified CoreUtils                     as Utils
-
 
 -- TODO: make elaboration monadic so typeclass names are unified to something
 -- that is generated in advance. This can greatly simplify the implementation
@@ -535,21 +514,11 @@ elaborateSpecType' partialTp coreToLogic simplify t =
           hsExpr =
             buildHsExpr (fixExprToHsExpr (S.fromList origBinders) e)
                         querySpecType :: LHsExpr GhcPs
-#ifdef MIN_VERSION_GLASGOW_HASKELL
-#if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)        
-          exprWithTySigs = noLoc $ ExprWithTySig
-            (mkLHsSigWcType (specTypeToLHsType querySpecType))
+          exprWithTySigs = noLocA $ ExprWithTySig
+            noAnn
             hsExpr
-#else
-          exprWithTySigs = noLoc $ ExprWithTySig
-            Ghc.noExtField
-            hsExpr
-            (mkLHsSigWcType (specTypeToLHsType querySpecType))
-#endif
-#else
-          exprWithTySigs = noLoc ExprWithTySig
-#endif
-        eeWithLamsCore <- GM.elabRnExpr TM_Inst exprWithTySigs
+            (hsTypeToHsSigWcType (specTypeToLHsType querySpecType))
+        eeWithLamsCore <- GM.elabRnExpr exprWithTySigs
         eeWithLamsCore' <- simplify eeWithLamsCore
         let
           (_, tyBinders) =
@@ -637,12 +606,8 @@ renameBinderSort f = rename
   rename (   F.FApp t0 t1 ) = F.FApp (rename t0) (rename t1)
 
 
-mkHsTyConApp ::  IdP (GhcPass p) -> [LHsType (GhcPass p)] -> LHsType (GhcPass p)
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-mkHsTyConApp = nlHsTyConApp
-#else
+mkHsTyConApp ::  IdP GhcPs -> [LHsType GhcPs] -> LHsType GhcPs
 mkHsTyConApp tyconId tyargs = nlHsTyConApp Prefix tyconId (map HsValArg tyargs)
-#endif
 
 -- | Embed fixpoint expressions into parsed haskell expressions.
 --   It allows us to bypass the GHC parser and use arbitrary symbols
@@ -702,15 +667,15 @@ fixExprToHsExpr _ e =
 constantToHsExpr :: F.Constant -> LHsExpr GhcPs
 -- constantToHsExpr (F.I c) = noLoc (HsLit NoExt (HsInt NoExt (mkIntegralLit c)))
 constantToHsExpr (F.I i) =
-  noLoc (HsOverLit Ghc.noExtField (mkHsIntegral (mkIntegralLit i)))
+  noLocA (HsOverLit noAnn (mkHsIntegral (mkIntegralLit i)))
 constantToHsExpr (F.R d) =
-  noLoc (HsOverLit Ghc.noExtField (mkHsFractional (mkFractionalLit d)))
+  noLocA (HsOverLit noAnn (mkHsFractional (mkTHFractionalLit (toRational d))))
 constantToHsExpr _ =
   todo Nothing "constantToHsExpr: Not sure how to handle constructor L"
 
 -- This probably won't work because of the qualifiers
 bopToHsExpr :: F.Bop -> LHsExpr GhcPs
-bopToHsExpr bop = noLoc (HsVar Ghc.noExtField (noLoc (f bop)))
+bopToHsExpr bop = noLocA (HsVar Ghc.noExtField (noLocA (f bop)))
  where
   f F.Plus   = plus_RDR
   f F.Minus  = minus_RDR
@@ -721,7 +686,7 @@ bopToHsExpr bop = noLoc (HsVar Ghc.noExtField (noLoc (f bop)))
   f F.RDiv   = GM.prependGHCRealQual (fsLit "/")
 
 brelToHsExpr :: F.Brel -> LHsExpr GhcPs
-brelToHsExpr brel = noLoc (HsVar Ghc.noExtField (noLoc (f brel)))
+brelToHsExpr brel = noLocA (HsVar Ghc.noExtField (noLocA (f brel)))
  where
   f F.Eq = mkVarUnqual (mkFastString "==")
   f F.Gt = gt_RDR
@@ -765,19 +730,12 @@ specTypeToLHsType =
       -- (GM.notracePpr ("varRdr" ++ F.showpp (F.symbol tv)) $ getRdrName tv)
       (symbolToRdrNameNs tvName (F.symbol tv))
     RFunF _ _ (tin, tin') (_, tout) _
-      | isClassType tin -> noLoc $ HsQualTy Ghc.noExtField (noLoc [tin']) tout
+      | isClassType tin -> noLocA $ HsQualTy Ghc.noExtField (Just (noLocA [tin'])) tout
       | otherwise       -> nlHsFunTy tin' tout
     RImpFF _ _ (_, tin) (_, tout) _              -> nlHsFunTy tin tout
-    RAllTF (ty_var_value -> (RTV tv)) (_, t) _ -> noLoc $ HsForAllTy
+    RAllTF (ty_var_value -> (RTV tv)) (_, t) _ -> noLocA $ HsForAllTy
       Ghc.noExtField
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-#if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
-      ForallInvis
-#endif
-      [noLoc $ UserTyVar Ghc.noExtField (noLoc $ symbolToRdrNameNs tvName (F.symbol tv))]
-#else
-      (mkHsForAllInvisTele [noLoc $ UserTyVar Ghc.noExtField SpecifiedSpec (noLoc $ symbolToRdrNameNs tvName (F.symbol tv))])
-#endif
+      (mkHsForAllInvisTele noAnn [noLocA $ UserTyVar noAnn SpecifiedSpec (noLocA $ symbolToRdrNameNs tvName (F.symbol tv))])
       t
     RAllPF _ (_, ty)                    -> ty
     RAppF RTyCon { rtc_tc = tc } ts _ _ -> mkHsTyConApp
@@ -794,6 +752,6 @@ specTypeToLHsType =
     RAppTyF (_, t) (_, t') _ -> nlHsAppTy t t'
     -- YL: todo..
     RRTyF _ _ _ (_, t)       -> t
-    RHoleF _                 -> noLoc $ HsWildCardTy Ghc.noExtField
+    RHoleF _                 -> noLocA $ HsWildCardTy Ghc.noExtField
     RExprArgF _ ->
       todo Nothing "Oops, specTypeToLHsType doesn't know how to handle RExprArg"

@@ -1,11 +1,8 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE TemplateHaskellQuotes #-}
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE OverloadedStrings     #-}
-
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.Haskell.Liquid.UX.QuasiQuoter
 -- (
@@ -63,14 +60,14 @@ lqDec src = do
       prg <- pragAnnD ModuleAnnotation $
                conE 'LiquidQuote `appE` dataToExpQ' spec
       case mkSpecDecs spec of
-        Left err ->
-          throwErrorInQ err
+        Left uerr ->
+          throwErrorInQ uerr
         Right decs ->
           return $ prg : decs
 
 throwErrorInQ :: UserError -> Q a
-throwErrorInQ err =
-  fail . showpp =<< runIO (errorsWithContext [err])
+throwErrorInQ uerr =
+  fail . showpp =<< runIO (errorsWithContext [uerr])
 
 --------------------------------------------------------------------------------
 -- Liquid Haskell to Template Haskell ------------------------------------------
@@ -94,11 +91,7 @@ mkSpecDecs (Alias rta) =
     lsym = F.atLoc rta n
     name = symbolName n
     n    = rtName (val rta)
-#if MIN_VERSION_template_haskell(2,17,0)
     tvs  = (\a -> PlainTV (symbolName a) ()) <$> rtTArgs (val rta)
-#else
-    tvs  = PlainTV . symbolName <$> rtTArgs (val rta)
-#endif
 mkSpecDecs _ =
   Right []
 
@@ -159,14 +152,10 @@ simplifyBareType'' (tvs, cls) (RFun _ _ i o _)
 simplifyBareType'' (tvs, cls) (RAllT tv t _) =
   simplifyBareType'' (ty_var_value tv : tvs, cls) t
 
-simplifyBareType'' (tvs, cls) t =
-#if MIN_VERSION_template_haskell(2,17,0)
+simplifyBareType'' (tvs, cls) bt =
   ForallT ((\t -> PlainTV (symbolName t) SpecifiedSpec) <$> reverse tvs)
-#else
-  ForallT (PlainTV . symbolName <$> reverse tvs)
-#endif
     <$> mapM simplifyBareType' (reverse cls)
-    <*> simplifyBareType' t
+    <*> simplifyBareType' bt
 
 
 data Simpl a = Simplified a
@@ -184,8 +173,6 @@ instance Applicative Simpl where
   FoundHole      <*> _              = FoundHole
 
 instance Monad Simpl where
-  return = Simplified
-
   Simplified   x >>= f = f x
   FoundExprArg l >>= _ = FoundExprArg l
   FoundHole      >>= _ = FoundHole

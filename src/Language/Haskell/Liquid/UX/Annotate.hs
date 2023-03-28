@@ -4,7 +4,6 @@
 {-# LANGUAGE FlexibleInstances          #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 ---------------------------------------------------------------------------
 -- | This module contains the code that uses the inferred types to generate
@@ -51,7 +50,7 @@ import qualified Data.Vector                                  as V
 import qualified Data.ByteString.Lazy                         as B
 import qualified Data.Text                                    as T
 import qualified Data.HashMap.Strict                          as M
-import qualified Language.Haskell.Liquid.Misc                 as Misc 
+import qualified Language.Haskell.Liquid.Misc                 as Misc
 import qualified Language.Haskell.Liquid.UX.ACSS              as ACSS
 import           Language.Haskell.HsColour.Classify
 import           Language.Fixpoint.Utils.Files
@@ -112,7 +111,7 @@ doGenerate cfg tplAnnMap typAnnMap annTyp srcF
        writeFile         vimF  $ vimAnnot cfg annTyp
        B.writeFile       jsonF $ encode typAnnMap
     where
-       pandocF    = pandocHtml cfg 
+       pandocF    = pandocHtml cfg
        tyHtmlF    = extFileName Html                   srcF
        tpHtmlF    = extFileName Html $ extFileName Cst srcF
        _annF      = extFileName Annot srcF
@@ -123,7 +122,7 @@ mkBots :: Reftable r => AnnInfo (RType c tv r) -> [GHC.SrcSpan]
 mkBots (AI m) = [ src | (src, (Just _, t) : _) <- sortBy (ordSrcSpan `on` fst) $ M.toList m
                       , isFalse (rTypeReft t) ]
 
--- | Like 'copyFile' from 'System.Directory', but ensure that the parent /temporary/ directory 
+-- | Like 'copyFile' from 'System.Directory', but ensure that the parent /temporary/ directory
 -- (i.e. \".liquid\") exists on disk, creating it if necessary.
 copyFileCreateParentDirIfMissing :: FilePath -> FilePath -> IO ()
 copyFileCreateParentDirIfMissing src tgt = do
@@ -134,7 +133,7 @@ writeFilesOrStrings :: FilePath -> [Either FilePath String] -> IO ()
 writeFilesOrStrings tgtFile = mapM_ $ either (`copyFileCreateParentDirIfMissing` tgtFile) (tgtFile `appendFile`)
 
 generateHtml :: Bool -> FilePath -> FilePath -> ACSS.AnnMap -> IO ()
-generateHtml pandocF srcF htmlF annm = do 
+generateHtml pandocF srcF htmlF annm = do
   src     <- Misc.sayReadFile srcF
   let lhs  = isExtFile LHs srcF
   let body      = {-# SCC "hsannot" #-} ACSS.hsannot False (Just tokAnnot) lhs (src, annm)
@@ -237,10 +236,10 @@ cssHTML css = unlines
 --   annotations.
 
 mkAnnMap :: Config -> ErrorResult -> AnnInfo Doc -> ACSS.AnnMap
-mkAnnMap cfg res ann     = ACSS.Ann 
-                             { ACSS.types   = mkAnnMapTyp cfg ann 
-                             , ACSS.errors  = mkAnnMapErr res 
-                             , ACSS.status  = mkStatus res 
+mkAnnMap cfg res ann     = ACSS.Ann
+                             { ACSS.types   = mkAnnMapTyp cfg ann
+                             , ACSS.errors  = mkAnnMapErr res
+                             , ACSS.status  = mkStatus res
                              , ACSS.sptypes = mkAnnMapBinders cfg ann
                              }
 
@@ -254,7 +253,7 @@ mkStatus (Crash _ _)     = ACSS.Error
 mkAnnMapErr :: PPrint (TError t)
             => FixResult (TError t) -> [(Loc, Loc, String)]
 mkAnnMapErr (Unsafe _ ls) = mapMaybe cinfoErr ls
-mkAnnMapErr (Crash ls _)  = mapMaybe cinfoErr ls
+mkAnnMapErr (Crash ls _)  = mapMaybe (cinfoErr . fst) ls
 mkAnnMapErr _             = []
 
 cinfoErr :: PPrint (TError t) => TError t -> Maybe (Loc, Loc, String)
@@ -427,7 +426,7 @@ instance ToJSON Loc where
                              , "column"   .= toJSON c ]
 
 instance ToJSON AnnErrors where
-  toJSON (AnnErrors errs) = Array $ V.fromList (toJ <$> errs)
+  toJSON (AnnErrors errors) = Array $ V.fromList (toJ <$> errors)
     where
       toJ (l,l',s)        = object [ "start"   .= toJSON l
                                    , "stop"    .= toJSON l'
@@ -445,32 +444,32 @@ dropErrorLoc msg
     (_, msg') = break (' ' ==) msg
 
 instance (Show k, ToJSON a) => ToJSON (Assoc k a) where
-  toJSON (Asc kas) = object [ tshow k .= toJSON a | (k, a) <- M.toList kas ]
+  toJSON (Asc kas) = object [ tshow' k .= toJSON a | (k, a) <- M.toList kas ]
     where
-      tshow        = fromString . show
+      tshow'       = fromString . show
 
 instance ToJSON ACSS.AnnMap where
   toJSON a = object [ "types"   .= toJSON (annTypes     a)
                     , "errors"  .= toJSON (annErrors    a)
                     , "status"  .= toJSON (ACSS.status  a)
-                    , "sptypes" .= (toJ <$> ACSS.sptypes a) 
+                    , "sptypes" .= (toJ <$> ACSS.sptypes a)
                     ]
-    where 
-      toJ (sp, (x,t)) = object [ "start" .= toJSON (srcSpanStartLoc sp) 
-                               , "stop"  .= toJSON (srcSpanEndLoc   sp) 
-                               , "ident" .= toJSON x 
-                               , "ann"  .= toJSON t 
-                               ] 
-                      
+    where
+      toJ (sp, (x,t)) = object [ "start" .= toJSON (srcSpanStartLoc sp)
+                               , "stop"  .= toJSON (srcSpanEndLoc   sp)
+                               , "ident" .= toJSON x
+                               , "ann"  .= toJSON t
+                               ]
+
 annErrors :: ACSS.AnnMap -> AnnErrors
 annErrors = AnnErrors . ACSS.errors
 
 annTypes         :: ACSS.AnnMap -> AnnTypes
-annTypes a       = grp [(l, c, ann1 l c x s) | (l, c, x, s) <- binders]
+annTypes a       = grp [(l, c, ann1 l c x s) | (l, c, x, s) <- binders']
   where
     ann1 l c x s = A1 x s l c
     grp          = L.foldl' (\m (r,c,x) -> ins r c x m) (Asc M.empty)
-    binders      = [(l, c, x, s) | (L (l, c), (x, s)) <- M.toList $ ACSS.types a]
+    binders'     = [(l, c, x, s) | (L (l, c), (x, s)) <- M.toList $ ACSS.types a]
 
 ins :: (Eq k, Eq k1, Hashable k, Hashable k1)
     => k -> k1 -> a -> Assoc k (Assoc k1 a) -> Assoc k (Assoc k1 a)
@@ -499,25 +498,29 @@ tokeniseWithLoc = ACSS.tokeniseWithLoc (Just tokAnnot)
 --------------------------------------------------------------------------------
 
 _anns :: AnnTypes
-_anns = i [(5,   i [( 14, A1 { ident = "foo"
-                             , ann   = "int -> int"
-                             , row   = 5
-                             , col   = 14
-                             })
-                  ]
-          )
-         ,(9,   i [( 22, A1 { ident = "map"
-                            , ann   = "(a -> b) -> [a] -> [b]"
-                            , row   = 9
-                            , col   = 22
-                            })
-                  ,( 28, A1 { ident = "xs"
-                            , ann   = "[b]"
-                            , row   = 9
-                            , col   = 28
-                            })
-                  ])
-         ]
+_anns =
+  mkAssoc
+    [ (5, mkAssoc
+            [ ( 14, A1 { ident = "foo"
+                       , ann   = "int -> int"
+                       , row   = 5
+                       , col   = 14
+                       })
+            ]
+      )
+    , (9, mkAssoc
+            [ ( 22, A1 { ident = "map"
+                       , ann   = "(a -> b) -> [a] -> [b]"
+                       , row   = 9
+                       , col   = 22
+                       })
+            , ( 28, A1 { ident = "xs"
+                       , ann   = "[b]"
+                       , row   = 9
+                       , col   = 28
+                       })
+            ])
+    ]
 
-i :: (Eq k, Hashable k) => [(k, a)] -> Assoc k a
-i = Asc . M.fromList
+mkAssoc :: (Eq k, Hashable k) => [(k, a)] -> Assoc k a
+mkAssoc = Asc . M.fromList

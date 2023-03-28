@@ -155,7 +155,7 @@ non-negative `n` guarantee holds trivially.
 **Reason 2: The Specification is a Fib**
 
 If you run the above in the demo, you will see that LiquidHaskell still
-doth protest loudly, and frankly, one might start getting a little
+does protest loudly, and frankly, one might start getting a little
 frustrated at the stubbornness and petulance of the checker.
 
 \begin{code} However, if you stare at the implementation, you will see that it in fact, *does not* meet the specification, as
@@ -194,7 +194,7 @@ recursive calls --- we get the above by plugging the parameters
 \end{code}
 
 \begin{code} Finally, to check the output guarantee is met, LiquidHaskell asks the SMT solver to prove that
-(b >= 2n - 2)  =>  (b >= n)
+(b >= 2n - 3)  =>  (b >= n)
 \end{code}
 
 The SMT solver will refuse, of course, since the above implication is 
@@ -258,5 +258,5 @@ There are several things to take away.
 [concolic]: http://en.wikipedia.org/wiki/Concolic_testing
 [icse04]: http://goto.ucsd.edu/~rjhala/papers/generating_tests_from_counterexamples.html
 [dsd]: http://dl.acm.org/citation.cfm?doid=1348250.1348254
-[mlton]: http://www.cs.purdue.edu/homes/zhu103/pubs/vmcai13.pdf
+[mlton]: https://www.cs.purdue.edu/homes/suresh/papers/vmcai13.pdf
 

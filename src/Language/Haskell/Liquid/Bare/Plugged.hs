@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-incomplete-record-updates #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Language.Haskell.Liquid.Bare.Plugged
   ( makePluggedSig
@@ -159,7 +160,7 @@ plugHolesOld, plugHolesNew
   -> LocSpecType
 
 -- NOTE: this use of toType is safe as rt' is derived from t.
-plugHolesOld allowTC tce tyi x f t0 zz@(Loc l l' st0)
+plugHolesOld allowTC tce tyi xx f t0 zz@(Loc l l' st0)
     = Loc l l'
     . mkArrow (zip (updateRTVar <$> αs') rs) ps' [] []
     . makeCls cs'
@@ -175,22 +176,22 @@ plugHolesOld allowTC tce tyi x f t0 zz@(Loc l l' st0)
     su'          = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
     coSub        = M.fromList [(F.symbol y, F.FObj (F.symbol x)) | (y, x) <- su]
     ps'          = fmap (subts su') <$> ps
-    cs'          = [(F.dummySymbol, RApp c ts [] mempty) | (c, ts) <- cs ]
+    cs'          = [(F.dummySymbol, RApp c ts [] mempty) | (c, ts) <- cs2 ]
     (αs', rs)    = unzip αs
-    (αs,_,cs,rt) = bkUnivClass (F.notracepp "hs-spec" $ ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
+    (αs,_,cs2,rt) = bkUnivClass (F.notracepp "hs-spec" $ ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
     (_,ps,_ ,st) = bkUnivClass (F.notracepp "lq-spec" st0)
 
     makeCls cs t = foldr (uncurry (rFun' (classRFInfo allowTC))) t cs
-    err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint x)
+    err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint xx)
                           (text "Plugged Init types old")
                           (pprint $ Ghc.expandTypeSynonyms t0)
                           (pprint $ toRSort st0)
                           (Just (hsT, lqT))
-                          (Ghc.getSrcSpan x)
+                          (Ghc.getSrcSpan xx)
 
 
 
-plugHolesNew allowTC@False tce tyi x f t0 zz@(Loc l l' st0)
+plugHolesNew allowTC@False tce tyi xx f t0 zz@(Loc l l' st0)
     = Loc l l'
     . mkArrow (zip (updateRTVar <$> as'') rs) ps [] []
     . makeCls cs'
@@ -200,24 +201,24 @@ plugHolesNew allowTC@False tce tyi x f t0 zz@(Loc l l' st0)
     rt'          = tx rt
     as''         = subRTVar su <$> as'
     (as',rs)     = unzip as
-    cs'          = [ (F.dummySymbol, ct) | (c, t) <- cs, let ct = tx (RApp c t [] mempty) ]
+    cs'          = [ (F.dummySymbol, ct) | (c, t) <- tyCons, let ct = tx (RApp c t [] mempty) ]
     tx           = subts su
     su           = case Bare.runMapTyVars allowTC (toType False rt) st err of
                           Left e  -> Ex.throw e
                           Right s -> [ (rTyVar x, y) | (x, y) <- Bare.vmap s]
-    (as,_,cs,rt) = bkUnivClass (ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
+    (as,_,tyCons,rt) = bkUnivClass (ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
     (_,ps,_ ,st) = bkUnivClass st0
 
     makeCls cs t = foldr (uncurry (rFun' (classRFInfo allowTC))) t cs
-    err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint x)
+    err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint xx)
                           (text "Plugged Init types new")
                           (pprint $ Ghc.expandTypeSynonyms t0)
                           (pprint $ toRSort st0)
                           (Just (hsT, lqT))
-                          (Ghc.getSrcSpan x)
+                          (Ghc.getSrcSpan xx)
 
 
-plugHolesNew allowTC@True tce tyi x f t0 zz@(Loc l l' st0)
+plugHolesNew allowTC@True tce tyi a f t0 zz@(Loc l l' st0)
     = Loc l l'
     . mkArrow (zip (updateRTVar <$> as'') rs) ps [] (if length cs > length cs' then cs else cs')
     -- . makeCls cs' 
@@ -237,12 +238,12 @@ plugHolesNew allowTC@True tce tyi x f t0 zz@(Loc l l' st0)
     cs  = [ (x, classRFInfo allowTC, t, r) | (x,t,r)<-cs0]
     cs' = [ (x, classRFInfo allowTC, t, r) | (x,t,r)<-cs0']
 
-    err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint x)
+    err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint a)
                           (text "Plugged Init types new")
                           (pprint $ Ghc.expandTypeSynonyms t0)
                           (pprint $ toRSort st0)
                           (Just (hsT, lqT))
-                          (Ghc.getSrcSpan x)
+                          (Ghc.getSrcSpan a)
 
 subRTVar :: [(RTyVar, RTyVar)] -> SpecRTVar -> SpecRTVar
 subRTVar su a@(RTVar v i) = Mb.maybe a (`RTVar` i) (lookup v su)
@@ -251,9 +252,9 @@ goPlug :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> (Doc -> Doc -> Error) -> (SpecTy
        -> SpecType
 goPlug tce tyi err f = go
   where
-    go t (RHole r) = (addHoles t') { rt_reft = f t r }
+    go st (RHole r) = (addHoles t') { rt_reft = f st r }
       where
-        t'         = everywhere (mkT $ addRefs tce tyi) t
+        t'         = everywhere (mkT $ addRefs tce tyi) st
         addHoles   = everywhere (mkT addHole)
         -- NOTE: make sure we only add holes to RVar and RApp (NOT RFun)
         addHole :: SpecType -> SpecType

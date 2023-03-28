@@ -3,11 +3,8 @@
 {-@ LIQUID "--diff"     @-}
 
 module Language.Haskell.Liquid.Liquid (
-   -- * Executable command
-    liquid
-
    -- * Single query
-  , runLiquid
+   runLiquid
 
    -- * Ghci State
   , MbEnv
@@ -38,7 +35,6 @@ import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Solver
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types
-import           Language.Haskell.Liquid.Synthesize (synthesize)
 import           Language.Haskell.Liquid.UX.Errors
 import           Language.Haskell.Liquid.UX.CmdLine
 import           Language.Haskell.Liquid.UX.Tidy
@@ -53,16 +49,6 @@ import qualified Liquid.GHC.Misc          as GM
 import           Liquid.GHC.API as GHC hiding (text, vcat, ($+$), getOpts, (<+>))
 
 type MbEnv = Maybe HscEnv
-
-
---------------------------------------------------------------------------------
-liquid :: [String] -> IO b
---------------------------------------------------------------------------------
-liquid args = do 
-  cfg     <- getOpts args 
-  printLiquidHaskellBanner
-  (ec, _) <- runLiquid Nothing cfg
-  exitWith ec
 
 --------------------------------------------------------------------------------
 liquidConstraints :: Config -> IO (Either [CGInfo] ExitCode) 

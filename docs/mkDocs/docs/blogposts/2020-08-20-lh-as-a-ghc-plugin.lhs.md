@@ -110,9 +110,9 @@ run LH on the changed modules! If you use `stack` you may have to specify
 a few more dependencies, as the various packages are not (yet) on stackage, 
 as shown in the [demo `stack.yaml`](https://github.com/ucsd-progsys/lh-plugin-demo/blob/main/stack.yaml).
 No extra dependencies are needede if you use `cabal-v2`. In both cases,
-you can use the respective files [`stack.yaml`](https://github.com/ucsd-progsys/lh-plugin-demo/blob/main/stack.yaml.github) 
-and [`cabal.project`](https://github.com/ucsd-progsys/lh-plugin-demo/blob/main/cabal.project.github) 
-point to specific git snapshots if you want to use the most recent versions. 
+you can use the respective files [`stack.yaml`](https://github.com/ucsd-progsys/lh-plugin-demo/blob/main/stack.yaml)
+and [`cabal.project`](https://github.com/ucsd-progsys/lh-plugin-demo/blob/main/cabal.project)
+point to specific git snapshots if you want to use the most recent versions.
 If you clone the repo and run, e.g. `cabal v2-build` or `stack build` you'll get the following result, after the relevant dependencies 
 are downloaded and built of course...
 

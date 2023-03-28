@@ -12,7 +12,6 @@
 {-# LANGUAGE DerivingVia                #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 -- | This module should contain all the global type definitions and basic instances.
 
@@ -143,7 +142,7 @@ module Language.Haskell.Liquid.Types.Types (
   , AnnInfo (..)
   , Annot (..)
 
-  -- * Hole Information 
+  -- * Hole Information
   , HoleInfo(..)
 
   -- * Overall Output
@@ -238,7 +237,7 @@ module Language.Haskell.Liquid.Types.Types (
   -- , rtyVarUniqueSymbol, tyVarUniqueSymbol
   , rtyVarType, tyVarVar
 
-  -- * Refined Function Info 
+  -- * Refined Function Info
   , RFInfo(..), defRFInfo, mkRFInfo, classRFInfo, classRFInfoType
 
   , ordSrcSpan
@@ -248,7 +247,6 @@ module Language.Haskell.Liquid.Types.Types (
 import           Liquid.GHC.API as Ghc hiding ( Expr
                                                                , Target
                                                                , isFunTy
-                                                               , LM
                                                                , ($+$)
                                                                , nest
                                                                , text
@@ -321,9 +319,9 @@ type BScope = Bool
 -- | Information about Type Constructors
 -----------------------------------------------------------------------------
 data TyConMap = TyConMap
-  { tcmTyRTy    :: M.HashMap TyCon             RTyCon  -- ^ Map from GHC TyCon to RTyCon 
+  { tcmTyRTy    :: M.HashMap TyCon             RTyCon  -- ^ Map from GHC TyCon to RTyCon
   , tcmFIRTy    :: M.HashMap (TyCon, [F.Sort]) RTyCon  -- ^ Map from GHC Family-Instances to RTyCon
-  , tcmFtcArity :: M.HashMap TyCon             Int     -- ^ Arity of each Family-Tycon 
+  , tcmFtcArity :: M.HashMap TyCon             Int     -- ^ Arity of each Family-Tycon
   }
 
 
@@ -353,9 +351,9 @@ instance B.Binary RFInfo
 -----------------------------------------------------------------------------
 
 data PPEnv = PP
-  { ppPs    :: Bool -- ^ print abstract-predicates 
+  { ppPs    :: Bool -- ^ print abstract-predicates
   , ppTyVar :: Bool -- ^ print the unique suffix for each tyvar
-  , ppShort :: Bool -- ^ print the tycons without qualification 
+  , ppShort :: Bool -- ^ print the tycons without qualification
   , ppDebug :: Bool -- ^ gross with full info
   }
   deriving (Show)
@@ -419,7 +417,7 @@ toLogicMap ls = mempty {lmSymDefs = M.fromList $ map toLMap ls}
     toLMap (x, ys, e) = (F.val x, LMap {lmVar = x, lmArgs = ys, lmExpr = e})
 
 eAppWithMap :: LogicMap -> F.Located Symbol -> [Expr] -> Expr -> Expr
-eAppWithMap lmap f es def
+eAppWithMap lmap f es expr
   | Just (LMap _ xs e) <- M.lookup (F.val f) (lmSymDefs lmap)
   , length xs == length es
   = F.subst (F.mkSubst $ zip xs es) e
@@ -427,7 +425,7 @@ eAppWithMap lmap f es def
   , isApp e
   = F.subst (F.mkSubst $ zip xs es) $ dropApp e (length xs - length es)
   | otherwise
-  = def
+  = expr
 
 dropApp :: Expr -> Int -> Expr
 dropApp e i | i <= 0 = e
@@ -456,7 +454,7 @@ instance F.Loc TyConP where
 -- TODO: just use Located instead of dc_loc, dc_locE
 data DataConP = DataConP
   { dcpLoc        :: !F.SourcePos
-  , dcpCon        :: !DataCon                -- ^ Corresponding GHC DataCon 
+  , dcpCon        :: !DataCon                -- ^ Corresponding GHC DataCon
   , dcpFreeTyVars :: ![RTyVar]               -- ^ Type parameters
   , dcpFreePred   :: ![PVar RSort]           -- ^ Abstract Refinement parameters
   , dcpTyConstrs  :: ![SpecType]             -- ^ ? Class constraints (via `dataConStupidTheta`)
@@ -882,9 +880,9 @@ data RTVInfo s
   | RTVInfo { rtv_name   :: Symbol
             , rtv_kind   :: s
             , rtv_is_val :: Bool
-            , rtv_is_pol :: Bool -- true iff the type variable gets instantiated with 
-                                 -- any refinement (ie is polymorphic on refinements), 
-                                 -- false iff instantiation is with true refinement 
+            , rtv_is_pol :: Bool -- true iff the type variable gets instantiated with
+                                 -- any refinement (ie is polymorphic on refinements),
+                                 -- false iff instantiation is with true refinement
             } deriving (Generic, Data, Typeable, Functor)
               deriving Hashable via Generically (RTVInfo s)
 
@@ -1231,7 +1229,7 @@ data DataCtor = DataCtor
   { dcName   :: F.LocSymbol            -- ^ DataCon name
   , dcTyVars :: [F.Symbol]             -- ^ Type parameters
   , dcTheta  :: [BareType]             -- ^ The GHC ThetaType corresponding to DataCon.dataConSig
-  , dcFields :: [(Symbol, BareType)]   -- ^ field-name and field-Type pairs 
+  , dcFields :: [(Symbol, BareType)]   -- ^ field-name and field-Type pairs
   , dcResult :: Maybe BareType         -- ^ Possible output (if in GADT form)
   } deriving (Data, Typeable, Generic)
     deriving Hashable via Generically DataCtor
@@ -1399,7 +1397,7 @@ mkArrow :: [(RTVar tv (RType c tv ()), r)]
         -> [(Symbol, RFInfo, RType c tv r, r)]
         -> RType c tv r
         -> RType c tv r
-mkArrow αs πs yts xts = mkUnivs αs πs . mkArrs RImpF yts. mkArrs RFun xts
+mkArrow αs πs yts zts = mkUnivs αs πs . mkArrs RImpF yts . mkArrs RFun zts
   where
     mkArrs f xts t  = foldr (\(b,i,t1,r) t2 -> f b i t1 t2 r) t xts
 
@@ -1441,7 +1439,7 @@ mkUnivs :: (Foldable t, Foldable t1)
         -> t1 (PVar (RType c tv ()))
         -> RType c tv r
         -> RType c tv r
-mkUnivs αs πs t = foldr (\(a,r) t -> RAllT a t r) (foldr RAllP t πs) αs
+mkUnivs αs πs rt = foldr (\(a,r) t -> RAllT a t r) (foldr RAllP rt πs) αs
 
 bkUnivClass :: SpecType -> ([(SpecRTVar, RReft)],[PVar RSort], [(RTyCon, [SpecType])], SpecType )
 bkUnivClass t        = (as, ps, cs, t2)
@@ -2071,8 +2069,8 @@ allErrors = dErrors
 -- | Printing Warnings ---------------------------------------------------------
 --------------------------------------------------------------------------------
 
-printWarning :: DynFlags -> Warning -> IO ()
-printWarning dyn (Warning span doc) = GHC.putWarnMsg dyn span doc
+printWarning :: Logger -> DynFlags -> Warning -> IO ()
+printWarning logger dyn (Warning srcSpan doc) = GHC.putWarnMsg logger dyn srcSpan doc
 
 --------------------------------------------------------------------------------
 -- | Error Data Type -----------------------------------------------------------
@@ -2088,11 +2086,12 @@ instance NFData a => NFData (TError a)
 -- | Source Information Associated With Constraints ----------------------------
 --------------------------------------------------------------------------------
 
-data Cinfo    = Ci { ci_loc :: !SrcSpan
-                   , ci_err :: !(Maybe Error)
-                   , ci_var :: !(Maybe Var)
-                   }
-                deriving (Eq, Generic)
+data Cinfo    = Ci
+  { ci_loc :: !SrcSpan
+  , ci_err :: !(Maybe Error)
+  , ci_var :: !(Maybe Var)
+  }
+  deriving (Eq, Generic)
 
 instance F.Loc Cinfo where
   srcSpan = srcSpanFSrcSpan . ci_loc
@@ -2109,8 +2108,8 @@ data ModName = ModName !ModType !ModuleName
 data ModType = Target | SrcImport | SpecImport
   deriving (Eq, Ord, Show, Generic, Data, Typeable)
 
--- instance B.Binary ModType 
--- instance B.Binary ModName 
+-- instance B.Binary ModType
+-- instance B.Binary ModName
 
 instance Hashable ModType
 
@@ -2166,7 +2165,7 @@ instance Monoid (RTEnv tv t) where
 instance Semigroup (RTEnv tv t) where
   RTE x y <> RTE x' y' = RTE (x `M.union` x') (y `M.union` y')
 
--- mapRT :: (M.HashMap Symbol (RTAlias tv t) -> M.HashMap Symbol (RTAlias tv t)) 
+-- mapRT :: (M.HashMap Symbol (RTAlias tv t) -> M.HashMap Symbol (RTAlias tv t))
 --      -> RTEnv tv t -> RTEnv tv t
 -- mapRT f e = e { typeAliases = f (typeAliases e) }
 
@@ -2208,13 +2207,13 @@ type UnSortedExprs = [UnSortedExpr] -- mempty = []
 type UnSortedExpr  = ([F.Symbol], F.Expr)
 
 data MeasureKind
-  = MsReflect     -- ^ due to `reflect foo` 
+  = MsReflect     -- ^ due to `reflect foo`
   | MsMeasure     -- ^ due to `measure foo` with old-style (non-haskell) equations
   | MsLifted      -- ^ due to `measure foo` with new-style haskell equations
-  | MsClass       -- ^ due to `class measure` definition 
+  | MsClass       -- ^ due to `class measure` definition
   | MsAbsMeasure  -- ^ due to `measure foo` without equations c.f. tests/pos/T1223.hs
-  | MsSelector    -- ^ due to selector-fields e.g. `data Foo = Foo { fld :: Int }` 
-  | MsChecker     -- ^ due to checkers  e.g. `is-F` for `data Foo = F ... | G ...` 
+  | MsSelector    -- ^ due to selector-fields e.g. `data Foo = Foo { fld :: Int }`
+  | MsChecker     -- ^ due to checkers  e.g. `is-F` for `data Foo = F ... | G ...`
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
   deriving Hashable via Generically MeasureKind
 
@@ -2326,7 +2325,7 @@ instance F.PPrint t => F.PPrint (RClass t) where
                 = ppMethods k ("class" <+> supers ts) n as [(m, RISig t) | (m, t) <- mts]
     where
       supers [] = ""
-      supers ts = tuplify (F.pprintTidy k   <$> ts) <+> "=>"
+      supers xs = tuplify (F.pprintTidy k   <$> xs) <+> "=>"
       tuplify   = parens . hcat . punctuate ", "
 
 
@@ -2334,7 +2333,7 @@ instance F.PPrint t => F.PPrint (RILaws t) where
   pprintTidy k (RIL n ss ts mts _) = ppEqs k ("instance laws" <+> supers ss) n ts mts
    where
     supers [] = ""
-    supers ts = tuplify (F.pprintTidy k   <$> ts) <+> "=>"
+    supers xs = tuplify (F.pprintTidy k   <$> xs) <+> "=>"
     tuplify   = parens . hcat . punctuate ", "
 
 
@@ -2358,7 +2357,7 @@ ppMethods k hdr name args mts
       dName    = parens  (F.pprintTidy k name <+> dArgs)
       dArgs    = gaps    (F.pprintTidy k      <$> args)
       gaps     = hcat . punctuate " "
-      bind m t = ppRISig k m t -- F.pprintTidy k m <+> "::" <+> F.pprintTidy k t 
+      bind m t = ppRISig k m t -- F.pprintTidy k m <+> "::" <+> F.pprintTidy k t
 
 instance B.Binary ty => B.Binary (RClass ty)
 
@@ -2508,8 +2507,8 @@ instance F.PPrint TyThing where
 instance Show DataCon where
   show = F.showpp
 
--- instance F.Symbolic TyThing where 
---  symbol = tyThingSymbol 
+-- instance F.Symbolic TyThing where
+--  symbol = tyThingSymbol
 
 liquidBegin :: String
 liquidBegin = ['{', '-', '@']

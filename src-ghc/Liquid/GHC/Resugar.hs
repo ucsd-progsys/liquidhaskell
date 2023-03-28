@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE GADTs                     #-}
@@ -105,7 +104,7 @@ exprArgs _e (Var op, [Type m, d, Type a, Type b, e1, Lam x e2])
   | op `is` Ghc.bindMName
   = Just (PatBind e1 x e2 m d a b op)
 
-exprArgs (Case (Var xe) x t [(DataAlt c, ys, Var y)]) _
+exprArgs (Case (Var xe) x t [Alt (DataAlt c) ys (Var y)]) _
   | Just i <- y `L.elemIndex` ys
   = Just (PatProject xe x t c ys i)
 
@@ -154,7 +153,7 @@ lower (PatReturn e m d t op)
   = Ghc.mkCoreApps (Var op) [Type m, d, Type t, e]
 
 lower (PatProject xe x t c ys i)
-  = Case (Var xe) x t [(DataAlt c, ys, Var yi)] where yi = ys !! i
+  = Case (Var xe) x t [Alt (DataAlt c) ys (Var yi)] where yi = ys !! i
 
 lower (PatSelfBind x e)
   = Let (NonRec x e) (Var x)

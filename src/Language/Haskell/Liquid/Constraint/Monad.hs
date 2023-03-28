@@ -4,21 +4,18 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE FlexibleContexts          #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Haskell.Liquid.Constraint.Monad  where
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.Text           as T
 
 import           Control.Monad
-import           Control.Monad.State (get, gets, modify)
+import           Control.Monad.State (gets, modify)
 import           Language.Haskell.Liquid.Types hiding (loc)
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Fixpoint.Misc hiding (errorstar)
 import           Liquid.GHC.Misc -- (concatMapM)
-import           Liquid.GHC.SpanStack (srcSpan)
 import           Liquid.GHC.API as Ghc hiding (panic, showPpr)
 
 --------------------------------------------------------------------------------
@@ -41,18 +38,18 @@ addC c _msg
 --------------------------------------------------------------------------------
 addPost :: CGEnv -> SpecType -> CG SpecType
 --------------------------------------------------------------------------------
-addPost γ (RRTy e r OInv t)
-  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("addPost", x,t)) γ e
-       addC (SubR γ' OInv r) "precondition-oinv" >> return t
+addPost cgenv (RRTy e r OInv rt)
+  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("addPost", x,t)) cgenv e
+       addC (SubR γ' OInv r) "precondition-oinv" >> return rt
 
-addPost γ (RRTy e r OTerm t)
-  = do γ' <- foldM (\γ (x, t) -> γ += ("addPost", x, t)) γ e
-       addC (SubR γ' OTerm r) "precondition-oterm" >> return t
+addPost cgenv (RRTy e r OTerm rt)
+  = do γ' <- foldM (\γ (x, t) -> γ += ("addPost", x, t)) cgenv e
+       addC (SubR γ' OTerm r) "precondition-oterm" >> return rt
 
-addPost γ (RRTy cts _ OCons t)
-  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ xts
+addPost cgenv (RRTy cts _ OCons rt)
+  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) cgenv xts
        addC (SubC  γ' t1 t2)  "precondition-ocons"
-       addPost γ t
+       addPost cgenv rt
   where
     (xts, t1, t2) = envToSub cts
 addPost _ t
@@ -88,21 +85,6 @@ boundRecVar l (AI m) = not $ null [t | (_, AnnRDf t) <- M.lookupDefault [] l m]
 addLocA :: Maybe Var -> SrcSpan -> Annot SpecType -> CG ()
 addLocA !xo !l !t
   = modify $ \s -> s { annotMap = addA l xo t $ annotMap s }
-
-
--- | Used for annotating holes 
-
-addHole :: Var -> SpecType -> CGEnv -> CG ()
-addHole x t γ
-  | typedHoles (getConfig γ) =
-      do  st <- get
-          modify $ \s -> s {holesMap = M.insert x (hinfo (st, γ)) $ holesMap s}
-          -- addWarning $ ErrHole loc ("hole found") (reGlobal env <> reLocal env) x' t 
-  | otherwise = return ()
-    where
-      hinfo = HoleInfo t loc env
-      loc   = srcSpan $ cgLoc γ
-      env   = mconcat [renv γ, grtys γ, assms γ, intys γ]
 
 --------------------------------------------------------------------------------
 -- | Update annotations for a location, due to (ghost) predicate applications

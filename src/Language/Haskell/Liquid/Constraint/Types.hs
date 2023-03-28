@@ -3,8 +3,6 @@
 {-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Haskell.Liquid.Constraint.Types
   ( -- * Constraint Generation Monad
     CG
@@ -103,7 +101,7 @@ data CGEnv = CGE
   , tgKey  :: !(Maybe Tg.TagKey)                     -- ^ Current top-level binder
   , trec   :: !(Maybe (M.HashMap F.Symbol SpecType)) -- ^ Type of recursive function with decreasing constraints
   , lcb    :: !(M.HashMap F.Symbol CoreExpr)         -- ^ Let binding that have not been checked (c.f. LAZYVARs)
-  , forallcb :: !(M.HashMap Var F.Expr)              -- ^ Polymorhic let bindings 
+  , forallcb :: !(M.HashMap Var F.Expr)              -- ^ Polymorhic let bindings
   , holes  :: !HEnv                                  -- ^ Types with holes, will need refreshing
   , lcs    :: !LConstraint                           -- ^ Logical Constraints
   , cerr   :: !(Maybe (TError SpecType))             -- ^ error that should be reported at the user
@@ -150,15 +148,15 @@ data SubC     = SubC { senv  :: !CGEnv
 data WfC      = WfC  !CGEnv !SpecType
               -- deriving (Data, Typeable)
 
-type FixSubC  = F.SubC Cinfo
-type FixWfC   = F.WfC Cinfo
-
+type FixSubC    = F.SubC Cinfo
+type FixWfC     = F.WfC Cinfo
+type FixBindEnv = F.BindEnv Cinfo
 
 subVar :: FixSubC -> Maybe Var
 subVar = ci_var . F.sinfo
 
 instance PPrint SubC where
-  pprintTidy k c@(SubC {}) =
+  pprintTidy k c@SubC {} =
     "The environment:"
     $+$
     ""
@@ -177,7 +175,7 @@ instance PPrint SubC where
                    , "<:"
                    , pprintTidy k (rhs c) ]
 
-  pprintTidy k c@(SubR {}) =
+  pprintTidy k c@SubR {} =
     "The environment:"
     $+$
     ""
@@ -209,19 +207,18 @@ data CGInfo = CGInfo
   , fixCs      :: ![FixSubC]                   -- ^ subtyping over Sort (post-splitting)
   , fixWfs     :: ![FixWfC]                    -- ^ wellformedness constraints over Sort (post-splitting)
   , freshIndex :: !Integer                     -- ^ counter for generating fresh KVars
-  , binds      :: !F.BindEnv                   -- ^ set of environment binders
+  , binds      :: !FixBindEnv                   -- ^ set of environment binders
   , ebinds     :: ![F.BindId]                  -- ^ existentials
   , annotMap   :: !(AnnInfo (Annot SpecType))  -- ^ source-position annotation map
-  , holesMap   :: !(M.HashMap Var (HoleInfo (CGInfo, CGEnv) SpecType))    -- ^ information for ghc hole expressions
   , relHints   :: !Doc                         -- ^ Unary proofs generated for relational specs
   , relWf      :: ![Error]                         -- ^ Relational well-formedness errors
   , tyConInfo  :: !TyConMap                    -- ^ information about type-constructors
-  , specDecr   :: ![(Var, [Int])]              -- ^ ^ Lexicographic order of decreasing args (DEPRECATED) 
+  , specDecr   :: ![(Var, [Int])]              -- ^ ^ Lexicographic order of decreasing args (DEPRECATED)
   , newTyEnv   :: !(M.HashMap Ghc.TyCon SpecType)        -- ^ Mapping of new type type constructors with their refined types.
   , termExprs  :: !(M.HashMap Var [F.Located F.Expr])   -- ^ Terminating Metrics for Recursive functions
   , specLVars  :: !(S.HashSet Var)             -- ^ Set of variables to ignore for termination checking
   , specLazy   :: !(S.HashSet Var)             -- ^ "Lazy binders", skip termination checking
-  , specTmVars :: !(S.HashSet Var)             -- ^ Binders that FAILED struct termination check that MUST be checked 
+  , specTmVars :: !(S.HashSet Var)             -- ^ Binders that FAILED struct termination check that MUST be checked
   , autoSize   :: !(S.HashSet Ghc.TyCon)        -- ^ ? FIX THIS
   , tyConEmbed :: !(F.TCEmb Ghc.TyCon)          -- ^ primitive Sorts into which TyCons should be embedded
   , kuts       :: !F.Kuts                      -- ^ Fixpoint Kut variables (denoting "back-edges"/recursive KVars)
@@ -300,7 +297,7 @@ type RTyConIAl = M.HashMap RTyCon [RInv]
 --------------------------------------------------------------------------------
 mkRTyConInv    :: [(Maybe Var, F.Located SpecType)] -> RTyConInv
 --------------------------------------------------------------------------------
-mkRTyConInv ts = group [ (c, RInv (go ts) t v) | (v, t@(RApp c ts _ _)) <- strip <$> ts]
+mkRTyConInv tss = group [ (c, RInv (go ts) t v) | (v, t@(RApp c ts _ _)) <- strip <$> tss]
   where
     strip = mapSnd (thrd3 . bkUniv . val)
     go ts | generic (toRSort <$> ts) = []
@@ -346,9 +343,9 @@ addRInv m (x, t)
   | otherwise
   = (x, t)
    where
-     ids = [id | tc <- M.keys m
+     ids = [id' | tc <- M.keys m
                , dc <- Ghc.tyConDataCons $ rtc_tc tc
-               , AnId id <- Ghc.dataConImplicitTyThings dc]
+               , AnId id' <- Ghc.dataConImplicitTyThings dc]
      res = ty_res . toRTypeRep
 
 conjoinInvariantShift :: SpecType -> SpecType -> SpecType
@@ -388,15 +385,15 @@ restoreInvariant γ is = γ {invs = is}
 makeRecInvariants :: CGEnv -> [Var] -> CGEnv
 makeRecInvariants γ [x] = γ {invs = M.unionWith (++) (invs γ) is}
   where
-    is  =  M.map (map f . filter (isJust . (varType x `tcUnifyTy`) . toType False . _rinv_type)) (rinvs γ)
-    f i = i{_rinv_type = guard $ _rinv_type i}
+    is  =  M.map (map g . filter (isJust . (varType x `tcUnifyTy`) . toType False . _rinv_type)) (rinvs γ)
+    g i = i{_rinv_type = guard' $ _rinv_type i}
 
-    guard (RApp c ts rs r)
+    guard' (RApp c ts rs r)
       | Just f <- szFun <$> sizeFunction (rtc_info c)
       = RApp c ts rs (MkUReft (ref f $ F.toReft r) mempty)
       | otherwise
       = RApp c ts rs mempty
-    guard t
+    guard' t
       = t
 
     ref f (F.Reft(v, rr))

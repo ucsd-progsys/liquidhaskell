@@ -3,8 +3,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Haskell.Liquid.Transforms.Rec (
      transformRecExpr, transformScope
      , outerScTr , innerScTr
@@ -73,7 +71,7 @@ inlineFailCases = (go [] <$>)
     go' su (Tick t e)       = Tick t (go' su e)
     go' _  e                = e
 
-    goalt su (c, xs, e)     = (c, xs, go' su e)
+    goalt su (Alt c xs e)   = Alt c xs (go' su e)
 
     isFailId x  = isLocalId x && isSystemName (varName x) && L.isPrefixOf "fail" (show x)
     getFailExpr = L.lookup
@@ -103,8 +101,8 @@ innerScTr :: Functor f => f (Bind Id) -> f (Bind Id)
 innerScTr = (mapBnd scTrans <$>)
 
 scTrans :: Id -> Expr Id -> Expr Id
-scTrans x e = mapExpr scTrans $ foldr Let e0 bs
-  where (bs, e0)           = go [] x e
+scTrans id' expr = mapExpr scTrans $ foldr Let e0 bindIds
+  where (bindIds, e0)           = go [] id' expr
         go bs x (Let b e)  | isCaseArg x b = go (b:bs) x e
         go bs x (Tick t e) = second (Tick t) $ go bs x e
         go bs _ e          = (bs, e)
@@ -142,7 +140,7 @@ isNonPolyRec (Let (Rec xes) _) = any nonPoly (snd <$> xes)
 isNonPolyRec _                 = False
 
 nonPoly :: CoreExpr -> Bool
-nonPoly = null . fst . splitForAllTys . exprType
+nonPoly = null . fst . splitForAllTyCoVars . exprType
 
 collectNonRecLets :: Expr t -> ([Bind t], Expr t)
 collectNonRecLets = go []
@@ -158,13 +156,13 @@ trans :: Foldable t
       -> t (Bind Id)
       -> Expr Var
       -> State TrEnv (Expr Id)
-trans vs ids bs (Let (Rec xes) e)
-  = fmap (mkLam . mkLet) (makeTrans vs liveIds e')
+trans vs ids bs (Let (Rec xes) expr)
+  = fmap (mkLam . mkLet') (makeTrans vs liveIds e')
   where liveIds = mkAlive <$> ids
-        mkLet e = foldr Let e bs
+        mkLet' e = foldr Let e bs
         mkLam e = foldr Lam e $ vs ++ liveIds
-        e'      = Let (Rec xes') e
-        xes'    = second mkLet <$> xes
+        e'      = Let (Rec xes') expr
+        xes'    = second mkLet' <$> xes
 
 trans _ _ _ _ = panic Nothing "TransformRec.trans called with invalid input"
 
@@ -190,7 +188,7 @@ makeTrans vs ids (Let (Rec xes) e)
 makeTrans _ _ _ = panic Nothing "TransformRec.makeTrans called with invalid input"
 
 mkRecBinds :: [(b, Expr b)] -> Bind b -> Expr b -> Expr b
-mkRecBinds xes rs e = Let rs (L.foldl' f e xes)
+mkRecBinds xes rs expr = Let rs (L.foldl' f expr xes)
   where f e (x, xe) = Let (NonRec x xe) e
 
 mkSubs :: (Eq k, Hashable k)
@@ -203,11 +201,11 @@ mkFreshIds :: [TyVar]
            -> [Var]
            -> Var
            -> State TrEnv ([Var], Id)
-mkFreshIds tvs ids x
-  = do ids'  <- mapM fresh ids
+mkFreshIds tvs origIds var
+  = do ids'  <- mapM fresh origIds
        let ids'' = map setIdTRecBound ids'
-       let t  = mkForAllTys ((`Bndr` Required) <$> tvs) $ mkType (reverse ids'') $ varType x
-       let x' = setVarType x t
+       let t  = mkForAllTys ((`Bndr` Required) <$> tvs) $ mkType (reverse ids'') $ varType var
+       let x' = setVarType var t
        return (ids'', x')
   where
     mkType ids ty = foldl (\t x -> FunTy VisArg Many (varType x) t) ty ids -- FIXME(adinapoli): Is 'VisArg' OK here?
@@ -275,8 +273,8 @@ mapExpr f (Case e b t alt)        = Case e b t (map (mapAlt f) alt)
 mapExpr f (Tick t e)              = Tick t (mapExpr f e)
 mapExpr _  e                      = e
 
-mapAlt :: (b -> Expr b -> Expr b) -> (t, t1, Expr b) -> (t, t1, Expr b)
-mapAlt f (d, bs, e) = (d, bs, mapExpr f e)
+mapAlt :: (b -> Expr b -> Expr b) -> Alt b -> Alt b
+mapAlt f (Alt d bs e) = Alt d bs (mapExpr f e)
 
 -- Do not apply transformations to inner code
 

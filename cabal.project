@@ -1,3 +1,5 @@
+with-compiler: ghc-9.2.5
+
 packages: .
           ./liquid-base
           ./liquid-bytestring
@@ -17,8 +19,13 @@ source-repository-package
     location: https://github.com/qnikst/ghc-timings-report
     tag: 45ef3498e35897712bde8e002ce18df6d55f8b15
 
+allow-newer: ghc-timings:base, rest-rewrite:time
+
 package liquid-fixpoint
   flags: +devel
+
+package liquidhaskell
+  ghc-options: -j
 
 package liquid-platform
   flags: +devel
