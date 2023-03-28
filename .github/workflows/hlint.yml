@@ -7,12 +7,9 @@ on:
 jobs:
   build:
     name: hlint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:    
-    - name: fix ncurses version
-      run: sudo apt-get install libncurses5
-      
     - uses: actions/checkout@v3
       with:
         submodules: true
@@ -20,7 +17,7 @@ jobs:
     - uses: haskell/actions/hlint-setup@v2
       name: Set up HLint
       with:
-          version: "3.4"
+        version: "3.4"
 
     - uses: haskell/actions/hlint-run@v2
       name: hlint
