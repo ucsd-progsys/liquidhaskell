@@ -379,16 +379,15 @@ relTermToUnTerm' m relTerms (Let (Rec bs1) e1) (Let (Rec bs2) e2)
       relBs = zipWith (\(x1, d1) (x2, d2) -> (mkRelLemmaVar x1 x2, relTermToUnTerm' m relTerms' d1 d2)) bs1 bs2
 relTermToUnTerm' m relTerms (Case d1 x1 t1 as1) (Case d2 x2 t2 as2) =
   Case d1 x1l t1 $ map
-    (\(c1, bs1, e1) ->
+    (\(Ghc.Alt c1 bs1 e1) ->
       let bs1l = map (mkCopyWithSuffix relSuffixL) bs1 in
-      ( c1
-      , bs1l
-      , Case d2 x2r t2 $ map
-        (\(c2, bs2, e2) ->
+      ( Ghc.Alt c1 bs1l $
+        Case d2 x2r t2 $ map
+        (\(Ghc.Alt c2 bs2 e2) ->
           let bs2r = map (mkCopyWithSuffix relSuffixR) bs2
               e1l  = subVarAndTys ((x1, x1l) : zip bs1 bs1l) e1
               e2r  = subVarAndTys ((x2, x2r) : zip bs2 bs2r) e2 
-          in  (c2, bs2r, relTermToUnTerm' m relTerms e1l e2r)
+          in  (Ghc.Alt c2 bs2r $ relTermToUnTerm' m relTerms e1l e2r)
         )
         as2
       ))
@@ -516,11 +515,12 @@ cleanUnTerms rvs (Case e v t alts) =
 
 cleanUnTerms _ e = error ("cleanUnTerms: " ++ F.showpp e)
 
-cleanCase :: RenVars -> [(a, b, CoreExpr)] -> ([(a, b, CoreExpr)], Bool)
-cleanCase rvs alts = (zip3 altcs vss cores, bool)
+cleanCase :: RenVars -> [Ghc.Alt CoreBndr] -> ([Ghc.Alt CoreBndr], Bool)
+cleanCase rvs alts = ( map (\(a, b, c) -> Ghc.Alt a b c) $ zip3 altcs vss cores
+                     , bool)
   where
     (altcs, vss, altesBools) = unzip3 $
-                               map (\(altc, vs, alte) ->
+                               map (\(Ghc.Alt altc vs alte) ->
                                        (altc
                                        , vs
                                        , cleanUnTerms rvs alte)) alts
@@ -1067,29 +1067,6 @@ subRelCopiesWithMapping m        e1 x1 e2 x2 = (e1', e2')
 
 subVarAndTy :: Var -> Var -> CoreExpr -> CoreExpr
 subVarAndTy x v = subTy (M.singleton x $ TyVarTy v) . sub (M.singleton x $ Var v)
-
-subVarAndTys :: [(Var, Var)] -> CoreExpr -> CoreExpr
-subVarAndTys xs = subTy (M.fromList xsTyVars) . sub (M.fromList xsVars)
-  where 
-    xsVars   = map (B.second Var) xs
-    xsTyVars = map (B.second TyVarTy) xs
-
-getMapping :: ArgMapping -> Var -> Var -> (Var, Var, ArgMapping)
-getMapping m@([], []) x1 x2 = (x1, x2, m)
-getMapping (x1' : xs1, x2' : xs2) x1 x2 =
-  ( mkCopyWithName (F.symbolString x1') x1
-  , mkCopyWithName (F.symbolString x2') x2
-  , (xs1, xs2)
-  )
-getMapping (m1, m2) x1 x2
-  = F.panic $ 
-      "getMapping " ++ F.showpp x1 ++ F.showpp x2 ++ ":" 
-        ++ "expected the same number of args on left and right, got " ++ F.showpp m1 ++ "; " ++ F.showpp m2
-
-mkRelCopiesWithMapping :: ArgMapping -> Var -> Var -> (Var, Var, ArgMapping)
-mkRelCopiesWithMapping m@([], []) x1 x2 = (x1', x2', m)
-  where (x1', x2') = mkRelCopies x1 x2
-mkRelCopiesWithMapping m x1 x2 = getMapping m x1 x2
 
 subVarAndTys :: [(Var, Var)] -> CoreExpr -> CoreExpr
 subVarAndTys xs = subTy (M.fromList xsTyVars) . sub (M.fromList xsVars)

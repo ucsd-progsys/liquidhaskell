@@ -97,20 +97,6 @@ stringVar s t = mkLocalVar VanillaId name Many t vanillaIdInfo
       name = mkInternalName (mkUnique 'x' 25) occ noSrcSpan
       occ  = mkVarOcc s
 
-mkLocVar :: Int -> String -> Type -> Var
-mkLocVar i s t = mkLocalVar VanillaId name Many t vanillaIdInfo
-  where
-    name   = mkInternalName unique occ noSrcSpan
-    unique = mkLocalUnique i
-    occ    = mkVarOcc s
-
-{-
-Taken from GHC.Types.Unique
-url: https://hackage.haskell.org/package/ghc-9.4.4/docs/src/GHC.Types.Unique.html#Unique
--}
-mkLocalUnique :: Int -> Unique
-mkLocalUnique i = mkUnique 'X' i
-
 -- FIXME: plugging in dummy type like this is really dangerous
 maybeAuxVar :: Symbol -> Maybe Var
 maybeAuxVar s

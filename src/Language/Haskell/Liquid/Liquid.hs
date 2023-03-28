@@ -255,9 +255,6 @@ solveCs cfg tgt cgi info names = do
                                  `addErrors` makeFailErrors (S.toList failBs) rf 
                                  `addErrors` makeFailUseErrors (S.toList failBs) (giCbs $ giSrc info)
   let lErrors       = applySolution sol <$> logErrors cgi
-  hErrors           <- if typedHoles cfg 
-                       then synthesize tgt fcfg (cgi{holesMap = applySolution sol <$> holesMap  cgi}) 
-                       else return []
   when (relationalHints cfg) $ do
     let hintName     = takeBaseName tgt ++ "_relToUn"
     let hintFile     = replaceBaseName tgt hintName
@@ -289,10 +286,11 @@ solveCs cfg tgt cgi info names = do
         Right hintFormatted -> writeFile hintFile (T.unpack hintFormatted) 
       putStrLn "****** Relational Hints ********************************************************"
       putStrLn $ "Saved to file: " ++ hintFile
-  let resModel      = resModel' `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors ++ relWf cgi)) 
+  let resModel      = resModel' `addErrors` (e2u cfg sol <$> (lErrors ++ relWf cgi)) 
   let out0          = mkOutput cfg resModel sol (annotMap cgi)
   return            $ out0 { o_vars    = names    }
                            { o_result  = resModel }
+
 
 e2u :: Config -> F.FixSolution -> Error -> UserError
 e2u cfg s = fmap F.pprint . tidyError cfg s
