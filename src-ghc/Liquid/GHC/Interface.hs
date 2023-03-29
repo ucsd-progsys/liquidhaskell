@@ -56,6 +56,7 @@ module Liquid.GHC.Interface (
   , availableVars
   , updLiftedSpec
   , loadDependenciesOf
+  , getTyThingsFromExternalModules
   ) where
 
 import Prelude hiding (error)
@@ -80,6 +81,7 @@ import Control.Monad
 
 import Data.Bifunctor
 import Data.Data
+import Data.IORef
 import Data.List hiding (intersperse)
 import Data.Maybe
 
@@ -682,6 +684,20 @@ availableTyCons hscEnv modSum tcGblEnv avails =
 availableVars :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [Ghc.Var]
 availableVars hscEnv modSum tcGblEnv avails =
   fmap (\things -> [var | (AnId var) <- things]) (availableTyThings hscEnv modSum tcGblEnv avails)
+
+-- | TyThings of modules in external packages
+getTyThingsFromExternalModules :: GhcMonadLike m => [Module] -> m [TyThing]
+getTyThingsFromExternalModules mods = do
+    hscEnv <- askHscEnv
+    eps <- liftIO $ readIORef $ hsc_EPS hscEnv
+    let names = availableNames $ concatMap mi_exports $ mapMaybe (lookupModuleEnv $ eps_PIT eps) mods
+    fmap catMaybes $ liftIO $ mapM (Ghc.hscTcRcLookupName hscEnv) names
+
+availableNames :: [AvailInfo] -> [Name]
+availableNames =
+    concatMap $ \case
+      Avail n -> [Ghc.greNameMangledName n]
+      AvailTC n ns -> n : map Ghc.greNameMangledName ns
 
 -- lookupTyThings :: HscEnv -> TypecheckedModule -> MGIModGuts -> Ghc [(Name, Maybe TyThing)]
 -- lookupTyThings hscEnv tcm mg =

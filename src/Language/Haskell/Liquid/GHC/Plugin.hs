@@ -531,7 +531,10 @@ processModule LiquidHaskellContext{..} = do
     debugLog $ "mg_exports => " ++ O.showSDocUnsafe (O.ppr $ mg_exports modGuts)
     debugLog $ "mg_tcs => " ++ O.showSDocUnsafe (O.ppr $ mg_tcs modGuts)
 
-    targetSrc  <- makeTargetSrc moduleCfg file lhModuleTcData modGuts hscEnv
+    -- We collect the TyThings needed for the dependencies, otherwise,
+    -- LH would fail to validate the specs that depend on them.
+    extraTyThings <- getTyThingsFromWiredInModules dependencies
+    targetSrc  <- makeTargetSrc moduleCfg file lhModuleTcData modGuts hscEnv extraTyThings
     logger <- getLogger
     dynFlags <- getDynFlags
 
@@ -585,8 +588,9 @@ makeTargetSrc :: GhcMonadLike m
               -> TcData
               -> ModGuts
               -> HscEnv
+              -> [TyThing]
               -> m TargetSrc
-makeTargetSrc cfg file tcData modGuts hscEnv = do
+makeTargetSrc cfg file tcData modGuts hscEnv extraTyThings = do
   coreBinds      <- liftIO $ anormalize cfg hscEnv modGuts
 
   -- The type constructors for a module are the (nubbed) union of the ones defined and
@@ -618,7 +622,6 @@ makeTargetSrc cfg file tcData modGuts hscEnv = do
   debugLog $ "things   => " ++ (O.showSDocUnsafe . O.vcat . map O.ppr $ things)
   debugLog $ "allImports => " ++ show (tcAllImports tcData)
   debugLog $ "qualImports => " ++ show (tcQualifiedImports tcData)
-
   return $ TargetSrc
     { giTarget    = file
     , giTargetMod = ModName Target (moduleName (mg_module modGuts))
@@ -635,7 +638,10 @@ makeTargetSrc cfg file tcData modGuts hscEnv = do
     , gsPrimTcs   = GHC.primTyCons
     , gsQualImps  = tcQualifiedImports tcData
     , gsAllImps   = tcAllImports       tcData
-    , gsTyThings  = [ t | (_, Just t) <- things ]
+                    -- the extra TyThings for dependencies go first so they are
+                    -- overwritten by local things when buiding maps with
+                    -- HashMap.fromList
+    , gsTyThings  = extraTyThings ++ [ t | (_, Just t) <- things ]
     }
   where
     mgiModGuts :: MGIModGuts

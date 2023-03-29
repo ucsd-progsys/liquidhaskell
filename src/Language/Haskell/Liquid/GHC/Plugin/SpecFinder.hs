@@ -9,6 +9,7 @@ module Language.Haskell.Liquid.GHC.Plugin.SpecFinder
     , SpecFinderResult(..)
     , SearchLocation(..)
     , configToRedundantDependencies
+    , getTyThingsFromWiredInModules
     ) where
 
 import           Liquid.GHC.GhcMonadLike as GhcMonadLike ( GhcMonadLike
@@ -29,7 +30,7 @@ import           Optics
 import           Paths_liquidhaskell (getDataFileName)
 import qualified Liquid.GHC.API         as O
 import           Liquid.GHC.API         as GHC
-import           Liquid.GHC.Interface (parseSpecFile)
+import           Liquid.GHC.Interface (getTyThingsFromExternalModules, parseSpecFile)
 
 import           Data.Bifunctor
 import qualified Data.HashMap.Strict as HashMap
@@ -158,6 +159,13 @@ wiredInSpecsEnv = unsafePerformIO $ do
       knownPackages
       knownSpecs
       knownSpecsCache
+
+getTyThingsFromWiredInModules
+  :: GhcMonadLike m => TargetDependencies -> m [TyThing]
+getTyThingsFromWiredInModules dependencies =
+    getTyThingsFromExternalModules $
+      filter ((`elem` knownPackages wiredInSpecsEnv) . unitString . moduleUnit) $
+      map unStableModule $ HashMap.keys $ getDependencies dependencies
 
 -- | Reads a spec file updating the cache in the given environment
 readWiredInSpec :: WiredInSpecsEnv -> FilePath -> IO (ModName, Measure.BareSpec)
