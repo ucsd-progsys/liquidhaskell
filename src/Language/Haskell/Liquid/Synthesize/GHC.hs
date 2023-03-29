@@ -112,7 +112,7 @@ fromAnf' (Case scr bnd _ [GHC.Alt (GHC.DataAlt c) [x] e]) bnds
 fromAnf' (Case scr bnd tp alts) bnds
   = (Case scr' bnd tp
       (map (\(GHC.Alt altc xs e) ->
-                (GHC.Alt altc xs (fst $ fromAnf' e bnds''))) alts), bnds'')
+                GHC.Alt altc xs (fst $ fromAnf' e bnds'')) alts), bnds'')
   where
     bnds'' = (bnd, scr'):bnds'
     (scr', bnds') = fromAnf' scr bnds
