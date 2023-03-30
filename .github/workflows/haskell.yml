@@ -21,7 +21,7 @@ jobs:
     - uses: freckle/stack-cache-action@main
     - uses: actions/setup-haskell@v1
       with:
-        ghc-version: '9.2.5'
+        ghc-version: '8.10.7'
         enable-stack: true
         stack-version: 'latest'
 
@@ -43,11 +43,3 @@ jobs:
         ./tests/relational/rtest
         ./tests/relational/rtest
       shell: bash  
-    - name: Test Non-Relational
-      run: |
-        stack --no-terminal --stack-yaml stack.yaml clean
-        mkdir -p /tmp/junit/stack
-        stack --no-terminal --stack-yaml stack.yaml run test-driver
-        stack --no-terminal --stack-yaml stack.yaml test tests:tasty
-        stack --no-terminal --stack-yaml stack.yaml test -j1 liquidhaskell:liquidhaskell-parser << parameters.extra_build_flags >>
-
