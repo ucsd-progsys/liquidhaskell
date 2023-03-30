@@ -666,14 +666,10 @@ lookupTyThing hscEnv modSum tcGblEnv n = do
   return (n, Misc.firstMaybes [tt1, tt2, tt3, tt4])
 
 availableTyThings :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [TyThing]
-availableTyThings hscEnv modSum tcGblEnv avails = fmap (catMaybes . mconcat) $ forM avails $ \a -> do
-  results <- case a of
-    Avail n      ->
-      pure <$> lookupTyThing hscEnv modSum tcGblEnv (Ghc.greNameMangledName n)
-    AvailTC n ns ->
-      forM (n : map Ghc.greNameMangledName ns) $
-      lookupTyThing hscEnv modSum tcGblEnv
-  pure . map snd $ results
+availableTyThings hscEnv modSum tcGblEnv avails =
+    fmap catMaybes $
+      mapM (fmap snd . lookupTyThing hscEnv modSum tcGblEnv) $
+      availableNames avails
 
 -- | Returns all the available (i.e. exported) 'TyCon's (type constructors) for the input 'Module'.
 availableTyCons :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [Ghc.TyCon]
