@@ -44,7 +44,7 @@ library
                       -- Data.ByteString.Lazy.Char8
 
   hs-source-dirs:     src
-  build-depends:      liquid-base          < 5
+  build-depends:      base                 < 5
                     , bytestring           >= 0.11 && < 0.12
                     , liquidhaskell        >= 0.9.0.2
   default-language:   Haskell2010

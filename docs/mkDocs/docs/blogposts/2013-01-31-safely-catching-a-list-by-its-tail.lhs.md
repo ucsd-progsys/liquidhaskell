@@ -44,7 +44,7 @@ That is, measures will appear in specifications but *never* inside code.
 
 
 
- Let's reuse this mechanism, this time, providing a [definition](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/liquid-base/src/GHC/Base.spec) for the measure
+ Let's reuse this mechanism, this time, providing a [definition](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/include/known-packages/base/GHC.Base.spec) for the measure
 <pre><span class=hs-linenum>48: </span><span class='hs-definition'>measure</span> <span class='hs-varid'>len</span> <span class='hs-keyglyph'>::</span> <span class='hs-keyword'>forall</span> <span class='hs-varid'>a</span><span class='hs-varop'>.</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>GHC</span><span class='hs-varop'>.</span><span class='hs-conid'>Types</span><span class='hs-varop'>.</span><span class='hs-conid'>Int</span>
 <span class=hs-linenum>49: </span><span class='hs-definition'>len</span> <span class='hs-layout'>(</span><span class='hs-conid'>[]</span><span class='hs-layout'>)</span>     <span class='hs-keyglyph'>=</span> <span class='hs-num'>0</span>
 <span class=hs-linenum>50: </span><span class='hs-definition'>len</span> <span class='hs-layout'>(</span><span class='hs-varid'>y</span><span class='hs-conop'>:</span><span class='hs-varid'>ys</span><span class='hs-layout'>)</span>   <span class='hs-keyglyph'>=</span> <span class='hs-num'>1</span> <span class='hs-varop'>+</span> <span class='hs-layout'>(</span><span class='hs-varid'>len</span> <span class='hs-varid'>ys</span><span class='hs-layout'>)</span> 

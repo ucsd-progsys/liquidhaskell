@@ -95,7 +95,6 @@ To "check" this code with LH we need only tell GHC to use it as a plugin, in two
 
 ```
   build-depends:
-      liquid-base,
       liquidhaskell >= 0.8.10
 ```
 
@@ -245,7 +244,6 @@ dependencies:
 
 ```
   build-depends:
-      liquid-base,
       liquidhaskell,
       lh-plugin-demo
 ````

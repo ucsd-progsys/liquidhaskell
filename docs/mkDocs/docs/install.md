@@ -17,7 +17,7 @@ Note: The SMT solver binary should be on your `PATH`; LiquidHaskell will execute
 
 LiquidHaskell itself is installed&enabled by adding it as a dependency in your project's `.cabal` file.
 
-Just add `liquidhaskell` and `liquid-base` to the `build-depends` section of your `.cabal` file, as you would any other dependency.
+Just add `liquidhaskell` to the `build-depends` section of your `.cabal` file, as you would any other dependency.
 
 This causes `stack` (or `cabal`) to automatically:
 

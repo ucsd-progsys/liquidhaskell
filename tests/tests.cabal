@@ -61,7 +61,7 @@ executable benchmark-stitch-lh
                     , hashable >= 1.2.7.0
                     , deepseq >= 1.4
                     , liquidhaskell
-                    , liquid-base
+                    , base
                     , liquid-containers
                     , liquid-prelude
 
@@ -134,7 +134,7 @@ executable benchmark-bytestring
                     , Data.ByteString.Lazy
                     , Data.ByteString.LazyZip
 
-  build-depends:      liquid-base
+  build-depends:      base
                     , liquid-prelude
                     , syb >= 0.7.2
                     , liquidhaskell
@@ -169,7 +169,7 @@ executable benchmark-vector-algorithms
                     , Data.Vector.Algorithms.Termination
 
 
-  build-depends:      liquid-base
+  build-depends:      base
                     , liquid-prelude
                     , liquid-vector
                     , liquid-bytestring
@@ -203,7 +203,7 @@ executable benchmark-cse230
                     , State
                     , Verifier
 
-  build-depends:      liquid-base
+  build-depends:      base
                     , liquid-prelude
                     , liquidhaskell
 
@@ -232,7 +232,7 @@ executable benchmark-esop2013
                     , Splay
                     , Toy
 
-  build-depends:      liquid-base
+  build-depends:      base
                     , liquid-prelude
                     , liquidhaskell
                     , deepseq >= 1.4
@@ -276,7 +276,7 @@ executable benchmark-icfp15-pos
                     -- , FindRec
 
 
-  build-depends:      liquid-base
+  build-depends:      base
                     , liquid-prelude
                     , liquid-containers
                     , ghc-prim
@@ -308,7 +308,7 @@ executable benchmark-icfp15-neg
                     , TwiceM
                     , WhileM
 
-  build-depends:      liquid-base
+  build-depends:      base
                     , liquid-prelude
                     , liquid-containers
                     , ghc-prim
@@ -335,7 +335,7 @@ executable prover-foundations
                     , InductionRJ
                     , Lists
 
-  build-depends:      liquid-base
+  build-depends:      base
                     , liquid-prelude
                     , liquidhaskell
 
@@ -388,7 +388,7 @@ executable prover-nople-pos
                     -- , ApplicativeReader
                     -- , OverviewListInfix
 
-  build-depends:      liquid-base
+  build-depends:      base
                     , liquid-prelude
                     , liquid-containers
                     , liquidhaskell
@@ -426,7 +426,7 @@ executable prover-nople-neg
                     -- , ApplicativeList
                     -- , ApplicativeReader
 
-  build-depends:      liquid-base
+  build-depends:      base
                     , liquid-prelude
                     , liquid-containers
                     , liquidhaskell
@@ -478,7 +478,7 @@ executable prover-ple-pos
                     -- , Ackermann
                     -- , OverviewListInfix
 
-  build-depends:      liquid-base
+  build-depends:      base
                     , liquid-prelude
                     , liquid-containers
                     , liquidhaskell
@@ -554,7 +554,7 @@ executable benchmark-text
       liquid-containers
     , integer-gmp >= 0.2
     , syb
-    , liquid-base
+    , base
     , liquid-prelude
     , liquid-bytestring
     , ghc-prim
@@ -590,7 +590,7 @@ executable parsing-errors
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
 
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-bytestring
                     , liquid-prelude
                     , liquidhaskell
@@ -719,7 +719,7 @@ executable errors
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
 
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquid-bytestring
                     , liquid-containers
@@ -757,7 +757,7 @@ executable parser-pos
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
 
@@ -807,7 +807,7 @@ executable names-pos
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquid-vector
                     , liquid-containers
@@ -841,7 +841,7 @@ executable names-neg
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquid-vector
                     , liquid-bytestring
@@ -869,7 +869,7 @@ executable reflect-pos
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
 
@@ -899,7 +899,7 @@ executable class-pos
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
 
@@ -925,7 +925,7 @@ executable class-neg
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
 
@@ -950,7 +950,7 @@ executable reflect-neg
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
 
@@ -997,7 +997,7 @@ executable measure-pos
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
 
@@ -1033,7 +1033,7 @@ executable measure-neg
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
                     , liquid-containers
@@ -1070,7 +1070,7 @@ executable datacon-pos
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
 
@@ -1101,7 +1101,7 @@ executable datacon-neg
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
 
@@ -1331,7 +1331,7 @@ executable unit-neg
 
                     -- XXX(matt.walker): double frees on -j
     ghc-options:      -fplugin=LiquidHaskell -ddump-to-file -fkeep-going -O0
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquid-containers
                     , liquid-vector
@@ -1684,7 +1684,7 @@ executable unit-pos-1
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquid-containers
                     , liquid-vector
@@ -1935,7 +1935,7 @@ executable unit-pos-2
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquid-containers
                     , liquid-vector
@@ -1981,7 +1981,7 @@ executable absref-pos
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquid-vector
                     , liquidhaskell
@@ -2011,7 +2011,7 @@ executable absref-neg
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquid-vector
                     , liquidhaskell
@@ -2042,7 +2042,7 @@ executable relational-pos
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquid-vector
                     , liquidhaskell
@@ -2072,7 +2072,7 @@ executable relational-neg
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquid-vector
                     , liquidhaskell
@@ -2104,7 +2104,7 @@ executable basic-neg
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
                     , liquid-bytestring
@@ -2145,7 +2145,7 @@ executable basic-pos
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
 
@@ -2241,7 +2241,7 @@ executable import-cli
                       -iimport-cli/lib
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
 
@@ -2319,7 +2319,7 @@ executable ple-pos
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquid-containers
                     , liquidhaskell
@@ -2359,7 +2359,7 @@ executable ple-neg
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquid-containers
                     , liquidhaskell
@@ -2386,7 +2386,7 @@ executable rankN-pos
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
 
@@ -2428,7 +2428,7 @@ executable terminate-pos
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquid-containers
                     , liquidhaskell
@@ -2466,7 +2466,7 @@ executable terminate-neg
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
 
@@ -2500,7 +2500,7 @@ executable pattern-pos
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
                     , template-haskell
@@ -2529,7 +2529,7 @@ executable implicit-pos
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
 
@@ -2552,7 +2552,7 @@ executable implicit-neg
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
 
@@ -2581,7 +2581,7 @@ executable typeclass-pos
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    liquid-base
+    build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
 

@@ -22,7 +22,7 @@ library
                       Control.Parallel
                       Control.Parallel.Strategies
   hs-source-dirs:     src
-  build-depends:      liquid-base          < 4.16
+  build-depends:      base                 < 5
                     , parallel             >= 3.2.2.0 && < 3.3
                     , liquidhaskell        >= 0.9.0.2
   default-language:   Haskell2010

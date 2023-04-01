@@ -423,7 +423,7 @@ then to use it as infix in the refinements types you need to add the refinement 
 
 They can be placed in a `.spec` file or in a .hs/.lhs file wrapped around `{-@ @-}`.
 
-Value measures: [GHC/Base.spec](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/liquid-base/src/GHC/Base.spec)
+Value measures: [GHC/Base.spec](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/include/known-packages/base/GHC.Base.spec)
 
     measure len :: forall a. [a] -> GHC.Types.Int
     len ([])     = 0
