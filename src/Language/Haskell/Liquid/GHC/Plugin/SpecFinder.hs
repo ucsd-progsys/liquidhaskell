@@ -35,17 +35,17 @@ import           Liquid.GHC.Interface (getTyThingsFromExternalModules, parseSpec
 import           Data.Bifunctor
 import qualified Data.HashMap.Strict as HashMap
 import           Data.IORef
+import           Data.List (isPrefixOf)
 import           Data.Maybe
-import qualified Data.Set as Set
 
 import           Control.Exception
-import           Control.Monad                            ( forM )
+import           Control.Monad                            ( forM, guard )
 import           Control.Monad.Trans                      ( lift )
 import           Control.Monad.Trans.Maybe
 
 import           Text.Megaparsec.Error
 import           System.Directory (listDirectory)
-import           System.FilePath ((</>))
+import           System.FilePath ((</>), dropExtension)
 import           System.IO.Unsafe (unsafePerformIO)
 
 type SpecFinder m = GhcMonadLike m => Module -> MaybeT m SpecFinderResult
@@ -90,34 +90,32 @@ findWiredInSpecs :: [Module] -> IO [SpecFinderResult]
 findWiredInSpecs mods = fmap catMaybes $ forM mods $ \m ->
     let u = unitString (moduleUnit m)
         ms = moduleNameString (moduleName m)
-     in case findSpecFile u ms (knownPackages wiredInSpecsEnv) of
+     in case findSpecFile u ms of
           Nothing -> return Nothing
           Just specFile -> do
             (_, spec) <- parseSpecFile specFile
-            importSpecs <- parseSpecFileTree u (imports spec)
+            importSpecs <- parseSpecFileTree ms (imports spec)
             let liquidLib = mkLiquidLibFromDeps m spec importSpecs
             return $ Just $ LibFound m DiskLocation liquidLib
   where
     -- | Finds a spec file given the unit name, the module name, and the
     -- list of known packages.
-    findSpecFile :: String -> String -> [String] -> Maybe FilePath
-    findSpecFile _u _ms [] = Nothing
-    findSpecFile u ms (p:ps) = do
-      let specFile = p </> ms <> ".spec"
-      if p == u && Set.member specFile (knownSpecs wiredInSpecsEnv) then
-        Just $ knownPackagesDir wiredInSpecsEnv </> specFile
-      else
-        findSpecFile u ms ps
+    findSpecFile :: String -> String -> Maybe FilePath
+    findSpecFile u ms = do
+      fp <- HashMap.lookup ms (knownSpecs wiredInSpecsEnv)
+      guard ((u ++ "/") `isPrefixOf` fp)
+      return (knownPackagesDir wiredInSpecsEnv </> fp)
 
-    -- | Yields the list of transitively imported modules from a given unit name
-    -- and list of module names (as symbols).
+    -- | Yields the list of transitively imported modules from a
+    -- list of module names (as symbols).
     parseSpecFileTree :: String -> [Symbol] -> IO [(ModName, Measure.BareSpec)]
-    parseSpecFileTree u importSyms = do
+    parseSpecFileTree ms importSyms = do
       let symbolToSpecFile s =
-            knownPackagesDir wiredInSpecsEnv </> u </> symbolString s <> ".spec"
+            fromMaybe (error $ "unknown import: " ++ symbolString s ++ " in " ++ ms ++ ".spec")
+              $ HashMap.lookup (symbolString s) (knownSpecs wiredInSpecsEnv)
       rs <- mapM (readWiredInSpec wiredInSpecsEnv . symbolToSpecFile) importSyms
-      fmap concat $ forM rs $ \r@(_, spec) -> do
-        importSpecs <- parseSpecFileTree u (imports spec)
+      fmap concat $ forM rs $ \r@(m, spec) -> do
+        importSpecs <- parseSpecFileTree (moduleNameString (getModName m)) (imports spec)
         return (r : importSpecs)
 
     mkLiquidLibFromDeps
@@ -138,8 +136,9 @@ data WiredInSpecsEnv = WiredInSpecsEnv
          knownPackagesDir :: FilePath
          -- | Names of known packages
        , knownPackages :: [String]
-         -- | Paths to spec files relative to the knownPackagesDir
-       , knownSpecs :: Set.Set FilePath
+         -- | Maps module names to the paths of their spec files relative
+         -- to 'knownPackagesDir'
+       , knownSpecs :: HashMap.HashMap String FilePath
          -- | Specs loaded so far
        , knownSpecsCache :: IORef (HashMap.HashMap FilePath (ModName,Measure.BareSpec))
        }
@@ -149,9 +148,10 @@ wiredInSpecsEnv :: WiredInSpecsEnv
 wiredInSpecsEnv = unsafePerformIO $ do
     knownPackagesDir <- getDataFileName "include/known-packages"
     knownPackages <- listDirectory knownPackagesDir
-    knownSpecs <- fmap (Set.fromList . concat) $
-      forM knownPackages $ \p ->
-        fmap (p </>) <$> listDirectory (knownPackagesDir </> p)
+    mods <- fmap concat $ forM knownPackages $ \p -> do
+      fs <- listDirectory (knownPackagesDir </> p)
+      return $ zip (map dropExtension fs) (map (p </>) fs)
+    let knownSpecs = HashMap.fromList mods
     knownSpecsCache <- newIORef mempty
 
     return $ WiredInSpecsEnv
@@ -173,7 +173,7 @@ readWiredInSpec env f = do
     c0 <- readIORef (knownSpecsCache env)
     case HashMap.lookup f c0 of
       Nothing -> do
-        r <- parseSpecFile f
+        r <- parseSpecFile (knownPackagesDir env </> f)
         atomicModifyIORef (knownSpecsCache env) $ \c ->
           (HashMap.insert f r c, r)
       Just r ->
