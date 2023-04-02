@@ -95,7 +95,7 @@ findWiredInSpecs mods = fmap catMaybes $ forM mods $ \m ->
           Just specFile -> do
             (_, spec) <- parseSpecFile specFile
             importSpecs <- parseSpecFileTree ms (imports spec)
-            let liquidLib = mkLiquidLibFromDeps m spec importSpecs
+            let liquidLib = mkLiquidLibFromDeps spec importSpecs
             return $ Just $ LibFound m DiskLocation liquidLib
   where
     -- | Finds a spec file given the unit name, the module name, and the
@@ -108,22 +108,25 @@ findWiredInSpecs mods = fmap catMaybes $ forM mods $ \m ->
 
     -- | Yields the list of transitively imported modules from a
     -- list of module names (as symbols).
-    parseSpecFileTree :: String -> [Symbol] -> IO [(ModName, Measure.BareSpec)]
+    parseSpecFileTree :: String -> [Symbol] -> IO [(StableModule, Measure.BareSpec)]
     parseSpecFileTree ms importSyms = do
       let symbolToSpecFile s =
             fromMaybe (error $ "unknown import: " ++ symbolString s ++ " in " ++ ms ++ ".spec")
               $ HashMap.lookup (symbolString s) (knownSpecs wiredInSpecsEnv)
-      rs <- mapM (readWiredInSpec wiredInSpecsEnv . symbolToSpecFile) importSyms
+      rs <- mapM (readSpecWithStableModule . symbolToSpecFile) importSyms
       fmap concat $ forM rs $ \r@(m, spec) -> do
-        importSpecs <- parseSpecFileTree (moduleNameString (getModName m)) (imports spec)
+        importSpecs <- parseSpecFileTree (moduleNameString $ moduleName $ unStableModule m) (imports spec)
         return (r : importSpecs)
 
+    readSpecWithStableModule f = do
+      let u = takeWhile (/= '/') f
+      (mn, sp) <- readWiredInSpec wiredInSpecsEnv f
+      return (mkStableModule (stringToUnitId u) (getModName mn), sp)
+
     mkLiquidLibFromDeps
-      :: Module -> Measure.BareSpec -> [(ModName, Measure.BareSpec)] -> LiquidLib
-    mkLiquidLibFromDeps m spec importSpecs =
-      let depsList = [ ( mkStableModule (moduleUnitId m) (getModName mn)
-                       , view liftedSpecGetter sp
-                       )
+      :: Measure.BareSpec -> [(StableModule, Measure.BareSpec)] -> LiquidLib
+    mkLiquidLibFromDeps spec importSpecs =
+      let depsList = [ (mn, view liftedSpecGetter sp)
                      | (mn, sp) <- importSpecs
                      ]
           deps = TargetDependencies $ HashMap.fromList depsList
