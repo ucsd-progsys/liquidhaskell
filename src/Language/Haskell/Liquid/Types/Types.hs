@@ -1305,11 +1305,12 @@ instance F.Loc DataName where
 
 -- | For debugging.
 instance Show DataDecl where
-  show dd = printf "DataDecl: data = %s, tyvars = %s, sizeFun = %s, kind = %s" -- [at: %s]"
+  show dd = printf "DataDecl: data = %s, tyvars = %s, sizeFun = %s, kind = %s, dcons = %s" -- [at: %s]"
               (show $ tycName   dd)
               (show $ tycTyVars dd)
               (show $ tycSFun   dd)
               (show $ tycKind   dd)
+              (show $ map dcName <$> tycDCons  dd)
 
 
 instance Show DataName where
