@@ -28,6 +28,7 @@ import           Prelude                                    hiding (error)
 import           Liquid.GHC.API            as Ghc hiding ( L
                                                                           , sourceName
                                                                           , showPpr
+                                                                          , showSDocDebug
                                                                           , showSDocDump
                                                                           , panic
                                                                           , showSDoc
@@ -193,6 +194,9 @@ pprDoc    = sDocDoc . ppr
 showPpr :: Outputable a => a -> String
 showPpr       = showSDoc . ppr
 
+showPprDebug :: Outputable a => a -> String
+showPprDebug       = Liquid.GHC.Misc.showSDocDebug . ppr
+
 -- FIXME: somewhere we depend on this printing out all GHC entities with
 -- fully-qualified names...
 showSDoc :: Ghc.SDoc -> String
@@ -200,6 +204,12 @@ showSDoc = Ghc.renderWithContext ctx
   where
     style = Ghc.mkUserStyle myQualify Ghc.AllTheWay
     ctx = Ghc.defaultSDocContext { sdocStyle = style }
+
+showSDocDebug :: Ghc.SDoc -> String
+showSDocDebug = Ghc.renderWithContext ctx
+  where
+    style = Ghc.mkUserStyle myQualify Ghc.AllTheWay
+    ctx = Ghc.defaultSDocContext { sdocStyle = style, sdocPprDebug = True }
 
 myQualify :: Ghc.PrintUnqualified
 myQualify = Ghc.neverQualify { Ghc.queryQualifyName = Ghc.alwaysQualifyNames }
