@@ -19,9 +19,9 @@ jobs:
       with:
         submodules: recursive
     - uses: freckle/stack-cache-action@main
-    - uses: actions/setup-haskell@v1
+    - uses: actions/setup-haskell@v2
       with:
-        ghc-version: '8.10.7'
+        ghc-version: '9.2.5'
         enable-stack: true
         stack-version: 'latest'
 
