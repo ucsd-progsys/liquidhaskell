@@ -527,7 +527,9 @@ noTyVars c =  Ghc.isPrimTyCon c || isFunTyCon c || Ghc.isPromotedDataCon c
 --------------------------------------------------------------------------------
 
 instance Symbolic TyCon where
-  symbol = symbol . getName
+  symbol tc =
+    let s = symbol (getName tc)
+     in if isPromotedDataCon tc then mappendSym "'" s else s
 
 instance Symbolic Class where
   symbol = symbol . getName
