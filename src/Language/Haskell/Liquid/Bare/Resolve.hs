@@ -534,14 +534,35 @@ instance ResolveSym Ghc.Var where
                     _          -> Nothing
 
 instance ResolveSym Ghc.TyCon where
-  resolveLocSym = resolveWith "type constructor" $ \case
-                    Ghc.ATyCon x -> Just x
-                    _            -> Nothing
+  resolveLocSym e n str s0 =
+    case T.uncons $ F.symbolText $ F.val s0 of
+      Just ('\'', rest) ->
+        resolveLocSym e n str (F.symbol rest <$ s0)
+      _ ->
+        resolveWith "type constructor"
+          (\case
+              Ghc.ATyCon x -> Just x
+              _            -> Nothing
+          )
+          e
+          n
+          str
+          s0
 
 instance ResolveSym Ghc.DataCon where
-  resolveLocSym = resolveWith "data constructor" $ \case
-                    Ghc.AConLike (Ghc.RealDataCon x) -> Just x
-                    _                                -> Nothing
+  resolveLocSym e n str s0 =
+      let s1 = case T.uncons $ F.symbolText $ F.val s0 of
+                 Just ('\'', rest) -> F.symbol rest <$ s0
+                 _ -> s0
+       in resolveWith "data constructor"
+            (\case
+                Ghc.AConLike (Ghc.RealDataCon x) -> Just x
+                _                                -> Nothing
+            )
+            e
+            n
+            str
+            s1
 
 
 {- Note [ResolveSym for Symbol]
