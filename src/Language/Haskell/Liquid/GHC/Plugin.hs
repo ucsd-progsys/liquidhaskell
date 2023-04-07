@@ -407,7 +407,7 @@ loadDependencies :: forall m. GhcMonadLike m
 loadDependencies currentModuleConfig eps hpt thisModule mods = do
   results   <- SpecFinder.findRelevantSpecs eps hpt mods
   deps      <- foldlM processResult mempty (reverse results)
-  redundant <- configToRedundantDependencies currentModuleConfig
+  let redundant = configToRedundantDependencies currentModuleConfig
 
   debugLog $ "Redundant dependencies ==> " ++ show redundant
 

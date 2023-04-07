@@ -12,10 +12,7 @@ module Language.Haskell.Liquid.GHC.Plugin.SpecFinder
     , getTyThingsFromWiredInModules
     ) where
 
-import           Liquid.GHC.GhcMonadLike as GhcMonadLike ( GhcMonadLike
-                                                                          , lookupModSummary
-                                                                          , askHscEnv
-                                                                          )
+import           Liquid.GHC.GhcMonadLike as GhcMonadLike (GhcMonadLike, lookupModSummary)
 import           Language.Haskell.Liquid.GHC.Plugin.Util  ( pluginAbort, deserialiseLiquidLib )
 import           Language.Haskell.Liquid.GHC.Plugin.Types
 import           Language.Haskell.Liquid.Types.Types
@@ -32,7 +29,6 @@ import qualified Liquid.GHC.API         as O
 import           Liquid.GHC.API         as GHC
 import           Liquid.GHC.Interface (getTyThingsFromExternalModules, parseSpecFile)
 
-import           Data.Bifunctor
 import qualified Data.HashMap.Strict as HashMap
 import           Data.IORef
 import           Data.List (isPrefixOf)
@@ -228,22 +224,8 @@ lookupCompanionSpec thisModule = do
 -- | Returns a list of 'StableModule's which can be filtered out of the dependency list, because they are
 -- selectively \"toggled\" on and off by the LiquidHaskell's configuration, which granularity can be
 -- /per module/.
-configToRedundantDependencies :: forall m. GhcMonadLike m => Config -> m [StableModule]
-configToRedundantDependencies cfg = do
-  env <- askHscEnv
-  catMaybes <$> mapM (lookupModule' env . first ($ cfg)) configSensitiveDependencies
-  where
-    lookupModule' :: HscEnv -> (Bool, ModuleName) -> m (Maybe StableModule)
-    lookupModule' env (fetchModule, modName)
-      | fetchModule = liftIO $ lookupLiquidBaseModule env modName
-      | otherwise   = pure Nothing
-
-    lookupLiquidBaseModule :: HscEnv -> ModuleName -> IO (Maybe StableModule)
-    lookupLiquidBaseModule env mn = do
-      res <- liftIO $ findExposedPackageModule env mn (Just "liquid-base")
-      case res of
-        Found _ mdl -> pure $ Just (toStableModule mdl)
-        _           -> pure Nothing
+configToRedundantDependencies :: Config -> [StableModule]
+configToRedundantDependencies cfg = map snd $ filter (($ cfg) . fst) configSensitiveDependencies
 
 -- | Static associative map of the 'ModuleName' that needs to be filtered from the final 'TargetDependencies'
 -- due to some particular configuration options.
@@ -251,9 +233,10 @@ configToRedundantDependencies cfg = do
 -- Modify this map to add any extra special case. Remember that the semantic is not which module will be
 -- /added/, but rather which one will be /removed/ from the final list of dependencies.
 --
-configSensitiveDependencies :: [(Config -> Bool, ModuleName)]
-configSensitiveDependencies = [
-    (not . totalityCheck, mkModuleName "Liquid.Prelude.Totality")
-  , (not . linear, mkModuleName "Liquid.Prelude.NotReal")
-  , (linear, mkModuleName "Liquid.Prelude.Real")
-  ]
+configSensitiveDependencies :: [(Config -> Bool, StableModule)]
+configSensitiveDependencies =
+  let mkM s = mkStableModule (stringToUnitId "base") (mkModuleName s)
+   in [ (not . totalityCheck, mkM "Liquid.Prelude.Totality")
+      , (not . linear, mkM "Liquid.Prelude.NotReal")
+      , (linear, mkM "Liquid.Prelude.Real")
+      ]
