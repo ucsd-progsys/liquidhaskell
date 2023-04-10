@@ -279,7 +279,7 @@ executable benchmark-icfp15-pos
   build-depends:      liquid-base
                     , liquid-prelude
                     , liquid-containers
-                    , liquid-ghc-prim
+                    , ghc-prim
                     , liquidhaskell
 
   ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
@@ -311,7 +311,7 @@ executable benchmark-icfp15-neg
   build-depends:      liquid-base
                     , liquid-prelude
                     , liquid-containers
-                    , liquid-ghc-prim
+                    , ghc-prim
                     , liquidhaskell
 
   ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
@@ -557,7 +557,7 @@ executable benchmark-text
     , liquid-base
     , liquid-prelude
     , liquid-bytestring
-    , liquid-ghc-prim
+    , ghc-prim
     , liquidhaskell
 
   cpp-options: -DINTEGER_GMP
@@ -1336,7 +1336,7 @@ executable unit-neg
                     , liquid-containers
                     , liquid-vector
                     , liquid-bytestring
-                    , liquid-ghc-prim
+                    , ghc-prim
                     , liquidhaskell
                     , binary
                     , primitive
@@ -1689,7 +1689,7 @@ executable unit-pos-1
                     , liquid-containers
                     , liquid-vector
                     , liquid-bytestring
-                    , liquid-ghc-prim
+                    , ghc-prim
                     , liquidhaskell
                     , transformers
                     , primitive
@@ -1940,7 +1940,7 @@ executable unit-pos-2
                     , liquid-containers
                     , liquid-vector
                     , liquid-bytestring
-                    , liquid-ghc-prim
+                    , ghc-prim
                     , liquidhaskell
                     , transformers
                     , primitive

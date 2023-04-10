@@ -28,7 +28,7 @@ library
                     KMeansHelper
   hs-source-dirs:     src
   build-depends:      liquid-base          < 5
-                    , liquid-ghc-prim
+                    , ghc-prim
                     , bytestring           >= 0.10.12.1 && < 0.12
                     , containers           >= 0.6.4.1  && < 0.7
                     , liquidhaskell        >= 0.9.0.2

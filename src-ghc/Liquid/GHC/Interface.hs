@@ -56,6 +56,7 @@ module Liquid.GHC.Interface (
   , availableVars
   , updLiftedSpec
   , loadDependenciesOf
+  , getTyThingsFromExternalModules
   ) where
 
 import Prelude hiding (error)
@@ -80,6 +81,7 @@ import Control.Monad
 
 import Data.Bifunctor
 import Data.Data
+import Data.IORef
 import Data.List hiding (intersperse)
 import Data.Maybe
 
@@ -664,14 +666,10 @@ lookupTyThing hscEnv modSum tcGblEnv n = do
   return (n, Misc.firstMaybes [tt1, tt2, tt3, tt4])
 
 availableTyThings :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [TyThing]
-availableTyThings hscEnv modSum tcGblEnv avails = fmap (catMaybes . mconcat) $ forM avails $ \a -> do
-  results <- case a of
-    Avail n      ->
-      pure <$> lookupTyThing hscEnv modSum tcGblEnv (Ghc.greNameMangledName n)
-    AvailTC n ns ->
-      forM (n : map Ghc.greNameMangledName ns) $
-      lookupTyThing hscEnv modSum tcGblEnv
-  pure . map snd $ results
+availableTyThings hscEnv modSum tcGblEnv avails =
+    fmap catMaybes $
+      mapM (fmap snd . lookupTyThing hscEnv modSum tcGblEnv) $
+      availableNames avails
 
 -- | Returns all the available (i.e. exported) 'TyCon's (type constructors) for the input 'Module'.
 availableTyCons :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [Ghc.TyCon]
@@ -682,6 +680,20 @@ availableTyCons hscEnv modSum tcGblEnv avails =
 availableVars :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [Ghc.Var]
 availableVars hscEnv modSum tcGblEnv avails =
   fmap (\things -> [var | (AnId var) <- things]) (availableTyThings hscEnv modSum tcGblEnv avails)
+
+-- | TyThings of modules in external packages
+getTyThingsFromExternalModules :: GhcMonadLike m => [Module] -> m [TyThing]
+getTyThingsFromExternalModules mods = do
+    hscEnv <- askHscEnv
+    eps <- liftIO $ readIORef $ hsc_EPS hscEnv
+    let names = availableNames $ concatMap mi_exports $ mapMaybe (lookupModuleEnv $ eps_PIT eps) mods
+    fmap catMaybes $ liftIO $ mapM (Ghc.hscTcRcLookupName hscEnv) names
+
+availableNames :: [AvailInfo] -> [Name]
+availableNames =
+    concatMap $ \case
+      Avail n -> [Ghc.greNameMangledName n]
+      AvailTC n ns -> n : map Ghc.greNameMangledName ns
 
 -- lookupTyThings :: HscEnv -> TypecheckedModule -> MGIModGuts -> Ghc [(Name, Maybe TyThing)]
 -- lookupTyThings hscEnv tcm mg =

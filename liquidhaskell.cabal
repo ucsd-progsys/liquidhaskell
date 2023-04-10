@@ -16,6 +16,7 @@ extra-source-files: CHANGES.md
                     README.md
 
 data-files:         include/CoreToLogic.lg
+                    include/known-packages/**/*.spec
                     syntax/liquid.css
 
                     -- Needed for the mirror-modules helper

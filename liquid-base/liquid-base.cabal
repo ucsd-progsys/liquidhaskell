@@ -245,7 +245,7 @@ library
 
   hs-source-dirs:     src
   build-depends:      base                 ^>= 4.16.0.0
-                    , liquid-ghc-prim
+                    , ghc-prim
                     , liquidhaskell        >= 0.9.0.2
   default-language:   Haskell2010
   default-extensions: PackageImports

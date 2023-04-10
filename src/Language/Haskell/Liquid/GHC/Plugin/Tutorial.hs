@@ -212,8 +212,8 @@ be so easy, for a number of reasons:
 
 The designed workflow in these cases is to create a __brand new package__ (that we can call \"mirror\" package),
 which would re-export /everything/ from the \"mirrored\" package while adding all the required /LH/
-annotations. This is what we have done for things like @base@, @ghc-prim@ and @containers@, for example, by
-providing @liquid-containers@, @liquid-ghc-prim@ and @liquid-base@, the latter being what we have used in
+annotations. This is what we have done for things like @base@ and @containers@, for example, by
+providing @liquid-containers@ and @liquid-base@, the latter being what we have used in
 the tutorial to get started.
 
 There are some very simple guidelines to drive this process:

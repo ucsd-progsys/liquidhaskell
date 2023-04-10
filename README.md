@@ -49,11 +49,11 @@ For those diving into the implementation of LiquidHaskell, here are a few tips:
 
 When working on the `liquidhaskell` library, usually all we want is to make changes and quickly recompile
 only the bare minimum, to try out new ideas. Using a fully-fledged GHC plugin doesn't help in this sense,
-because packages like `liquid-base` or `liquid-ghc-prim` all have a direct dependency on `liquidhaskell`, and
+because packages like `liquid-base` have a direct dependency on `liquidhaskell`, and
 therefore every time the latter changes, an expensive rebuild of those packages is triggered, which
 might become tedious overtime. To mitigate this, we offer a faster, "dev-style" build mode which is based
 on the assumption that most changes to the `liquidhaskell` library do not alter the validity of
-already-checked libraries, and therefore things like `liquid-base` and `liquid-ghc-prim` can be considered
+already-checked libraries, and therefore things like `liquid-base` can be considered
 "static assets", avoiding the need for a recompilation. In other terms, we explicitly disable recompilation
 of any of the `liquid-*` ancillary library in dev mode, so that rebuilds would also influence the 
 `liquidhaskell` library.
@@ -64,7 +64,7 @@ This is how you can use this:
 
 * To begin with, perform a **full** build of **all** the libraries, by doing either `cabal v2-build` or `stack build`,
   **without** specifying any extra environment variables from the command line. This is needed to ensure that
-  we things like `liquid-base` and `liquid-ghc-prim` are compiled at least once, as we would need the
+  we things like `liquid-base` are compiled at least once, as we would need the
   refinements they contain to correctly checks other downstream programs;
 
 * At this point, the content of the `liquid-*` packages is considered "trusted" and "frozen", until you won't
