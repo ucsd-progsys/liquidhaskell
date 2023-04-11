@@ -40,12 +40,16 @@ custom-setup
 
 library
   exposed-modules:    LiquidHaskell
+                      GHC.Classes_LHAssumptions
+                      GHC.CString_LHAssumptions
+                      GHC.Types_LHAssumptions
   hs-source-dirs:     src
 
   build-depends:      base                 >= 4.11.1.0 && < 5,
-                      liquidhaskell-boot   == 0.9.2.5.0
+                      liquidhaskell-boot   == 0.9.2.5.0,
+                      ghc-prim
   default-language:   Haskell98
-  ghc-options:        -W -fwarn-missing-signatures
+  ghc-options:        -W -fwarn-missing-signatures -fplugin=LiquidHaskellBoot
 
   if flag(devel)
     ghc-options:      -Wall -Werror

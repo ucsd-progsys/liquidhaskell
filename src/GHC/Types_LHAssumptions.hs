@@ -1,5 +1,14 @@
-module spec GHC.Types where
+{-# LANGUAGE MagicHash #-}
+{-# OPTIONS_GHC -Wno-missing-signatures #-}
+module GHC.Types_LHAssumptions() where
 
+import GHC.Types
+
+-- This definition is needed to make the listed data constructors
+-- visible to LH
+_f = (D#, F#, W#)
+
+{-@
 //  Boxed types
 embed GHC.Types.Double  as real
 embed GHC.Prim.Double#  as real
@@ -40,3 +49,4 @@ type FF      = {v: GHC.Types.Bool | not v}
 type String  = [GHC.Types.Char]
 
 class measure len :: forall f a. f a -> GHC.Types.Int
+@-}
