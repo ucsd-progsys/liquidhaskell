@@ -19,6 +19,20 @@ packages:
   original:
     hackage: rest-rewrite-0.4.0
 - completed:
+    hackage: smtlib-backends-0.3@sha256:917d88540a9ede7beedbe2ed13b492acddbce394d30ccf5d0ef4f4fba9aa2c12,1157
+    pantry-tree:
+      sha256: 59b578ae7df155a6c73a513358370747e3cc6229ebb44adaba9e0935f811539c
+      size: 275
+  original:
+    hackage: smtlib-backends-0.3
+- completed:
+    hackage: smtlib-backends-process-0.3@sha256:d4d7d02859383e0a43db2d8ce7ef01deffe1bcd356b2ff8626925c3a1c8db922,1600
+    pantry-tree:
+      sha256: d7d8ec52d07f4a59614000fd93d77b109d085d58f2d96e2c4b972f541c4e8287
+      size: 461
+  original:
+    hackage: smtlib-backends-process-0.3
+- completed:
     commit: 45ef3498e35897712bde8e002ce18df6d55f8b15
     git: https://github.com/qnikst/ghc-timings-report
     name: ghc-timings
