@@ -49,10 +49,10 @@ library
                       liquidhaskell-boot   == 0.9.2.5.0,
                       ghc-prim
   default-language:   Haskell98
-  ghc-options:        -W -fwarn-missing-signatures -fplugin=LiquidHaskellBoot
+  ghc-options:        -Wall -fplugin=LiquidHaskellBoot
 
   if flag(devel)
-    ghc-options:      -Wall -Werror
+    ghc-options:      -Werror
 
   if flag(deterministic-profiling)
     cpp-options: -DDETERMINISTIC_PROFILING

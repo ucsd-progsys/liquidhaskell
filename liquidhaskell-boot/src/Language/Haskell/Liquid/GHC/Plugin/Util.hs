@@ -7,6 +7,7 @@ module Language.Haskell.Liquid.GHC.Plugin.Util (
       -- * Serialising and deserialising things from/to specs.
       , serialiseLiquidLib
       , deserialiseLiquidLib
+      , deserialiseLiquidLibFromEPS
 
       -- * Aborting the plugin execution
       , pluginAbort
@@ -68,16 +69,24 @@ extractModuleAnnotations guts = (guts', extracted)
 -- Serialising and deserialising Specs
 --
 
+deserialiseBinaryObjectFromEPS
+  :: forall a. (Typeable a, Binary a)
+  => Module
+  -> ExternalPackageState
+  -> Maybe a
+deserialiseBinaryObjectFromEPS thisModule eps = extractFromEps
+  where
+    extractFromEps :: Maybe a
+    extractFromEps = listToMaybe $ findAnns (B.decode . B.pack) (eps_ann_env eps) (ModuleTarget thisModule)
+
 deserialiseBinaryObject :: forall a. (Typeable a, Binary a)
                         => Module
                         -> ExternalPackageState
                         -> HomePackageTable
                         -> Maybe a
-deserialiseBinaryObject thisModule eps hpt = asum [extractFromHpt, extractFromEps]
+deserialiseBinaryObject thisModule eps hpt =
+    asum [extractFromHpt, deserialiseBinaryObjectFromEPS thisModule eps]
   where
-    extractFromEps :: Maybe a
-    extractFromEps = listToMaybe $ findAnns deserialise (eps_ann_env eps) (ModuleTarget thisModule)
-
     extractFromHpt :: Maybe a
     extractFromHpt = do
       modInfo <- lookupUDFM hpt (moduleName thisModule)
@@ -100,3 +109,6 @@ serialiseLiquidLib lib = serialiseBinaryObject @LiquidLib lib
 
 deserialiseLiquidLib :: Module -> ExternalPackageState -> HomePackageTable -> Maybe LiquidLib
 deserialiseLiquidLib thisModule = deserialiseBinaryObject @LiquidLib thisModule
+
+deserialiseLiquidLibFromEPS :: Module -> ExternalPackageState -> Maybe LiquidLib
+deserialiseLiquidLibFromEPS = deserialiseBinaryObjectFromEPS @LiquidLib

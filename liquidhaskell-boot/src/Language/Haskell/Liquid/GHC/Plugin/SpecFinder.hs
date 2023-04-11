@@ -9,44 +9,35 @@ module Language.Haskell.Liquid.GHC.Plugin.SpecFinder
     , SpecFinderResult(..)
     , SearchLocation(..)
     , configToRedundantDependencies
-    , getTyThingsFromWiredInModules
     ) where
 
 import           Liquid.GHC.GhcMonadLike as GhcMonadLike ( GhcMonadLike
                                                                           , lookupModSummary
                                                                           , askHscEnv
                                                                           )
-import           Language.Haskell.Liquid.GHC.Plugin.Util  ( pluginAbort, deserialiseLiquidLib )
+import qualified Language.Haskell.Liquid.GHC.Plugin.Util as Util
 import           Language.Haskell.Liquid.GHC.Plugin.Types
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Specs     hiding (Spec)
-import qualified Language.Haskell.Liquid.Measure         as Measure
 import qualified Language.Haskell.Liquid.Misc            as Misc
 import           Language.Haskell.Liquid.Parse            ( specSpecificationP )
 import           Language.Fixpoint.Utils.Files            ( Ext(Spec), withExt )
-import           Language.Fixpoint.Types.Names            ( Symbol, symbolString )
 
 import           Optics
-import           Paths_liquidhaskell_boot (getDataFileName)
 import qualified Liquid.GHC.API         as O
 import           Liquid.GHC.API         as GHC
-import           Liquid.GHC.Interface (getTyThingsFromExternalModules, parseSpecFile)
 
 import           Data.Bifunctor
-import qualified Data.HashMap.Strict as HashMap
 import           Data.IORef
-import           Data.List (isPrefixOf)
+import           Data.List (find)
 import           Data.Maybe
 
 import           Control.Exception
-import           Control.Monad                            ( forM, guard )
 import           Control.Monad.Trans                      ( lift )
 import           Control.Monad.Trans.Maybe
+import           GHC.Driver.Plugins
 
 import           Text.Megaparsec.Error
-import           System.Directory (listDirectory)
-import           System.FilePath ((</>), dropExtension)
-import           System.IO.Unsafe (unsafePerformIO)
 
 type SpecFinder m = GhcMonadLike m => Module -> MaybeT m SpecFinderResult
 
@@ -65,123 +56,56 @@ data SearchLocation =
 
 -- | Load any relevant spec for the input list of 'Module's, by querying both the 'ExternalPackageState'
 -- and the 'HomePackageTable'.
-findRelevantSpecs :: forall m. GhcMonadLike m
-                  => ExternalPackageState
+findRelevantSpecs :: ExternalPackageState
                   -> HomePackageTable
                   -> [Module]
                   -- ^ Any relevant module fetched during dependency-discovery.
-                  -> m [SpecFinderResult]
+                  -> TcM [SpecFinderResult]
 findRelevantSpecs eps hpt mods = do
-    rs <- liftIO $ findWiredInSpecs mods
-    (++ rs) <$> foldlM loadRelevantSpec mempty mods
+    hscEnv <- askHscEnv
+    foldlM (loadRelevantSpec (pluginUnit hscEnv)) mempty mods
   where
 
-    loadRelevantSpec :: [SpecFinderResult] -> Module -> m [SpecFinderResult]
-    loadRelevantSpec !acc currentModule = do
+    loadRelevantSpec :: Unit -> [SpecFinderResult] -> Module -> TcM [SpecFinderResult]
+    loadRelevantSpec plUnit !acc currentModule = do
       res <- runMaybeT $ lookupInterfaceAnnotations eps hpt currentModule
-      pure $ case res of
-        Nothing         -> SpecNotFound currentModule : acc
-        Just specResult -> specResult : acc
+      case res of
+        Nothing         ->
+          if knownModule currentModule then do
+            mAssm <- loadKnownAssumptions plUnit currentModule
+            case mAssm of
+              Nothing ->
+                return $ SpecNotFound currentModule : acc
+              Just specResult ->
+                return (specResult : acc)
+          else
+            return $ SpecNotFound currentModule : acc
+        Just specResult -> return (specResult : acc)
 
+    loadKnownAssumptions plUnit m = do
+      let assMod = assumptionsModule plUnit m
+      -- loadInterface might mutate the EPS if the module is
+      -- not already loaded
+      _ <- initIfaceTcRn $ loadInterface "liquidhaskell assumptions" assMod ImportBySystem
+      -- read the EPS again
+      hscEnv <- askHscEnv
+      eps2 <- liftIO $ readIORef (hsc_EPS hscEnv)
+      -- now look up the assumptions
+      runMaybeT $ lookupInterfaceAnnotationsEPS eps2 assMod
 
--- | Yields the spec files from the boot libraries corresponding to
--- any modules mentioned in the given list.
-findWiredInSpecs :: [Module] -> IO [SpecFinderResult]
-findWiredInSpecs mods = fmap catMaybes $ forM mods $ \m ->
-    let u = unitString (moduleUnit m)
-        ms = moduleNameString (moduleName m)
-     in case findSpecFile u ms of
-          Nothing -> return Nothing
-          Just specFile -> do
-            (_, spec) <- parseSpecFile specFile
-            importSpecs <- parseSpecFileTree ms (imports spec)
-            let liquidLib = mkLiquidLibFromDeps spec importSpecs
-            return $ Just $ LibFound m DiskLocation liquidLib
-  where
-    -- | Finds a spec file given the unit name, the module name, and the
-    -- list of known packages.
-    findSpecFile :: String -> String -> Maybe FilePath
-    findSpecFile u ms = do
-      fp <- HashMap.lookup ms (knownSpecs wiredInSpecsEnv)
-      guard ((u ++ "/") `isPrefixOf` fp)
-      return (knownPackagesDir wiredInSpecsEnv </> fp)
-
-    -- | Yields the list of transitively imported modules from a
-    -- list of module names (as symbols).
-    parseSpecFileTree :: String -> [Symbol] -> IO [(StableModule, Measure.BareSpec)]
-    parseSpecFileTree ms importSyms = do
-      let symbolToSpecFile s =
-            fromMaybe (error $ "unknown import: " ++ symbolString s ++ " in " ++ ms ++ ".spec")
-              $ HashMap.lookup (symbolString s) (knownSpecs wiredInSpecsEnv)
-      rs <- mapM (readSpecWithStableModule . symbolToSpecFile) importSyms
-      fmap concat $ forM rs $ \r@(m, spec) -> do
-        importSpecs <- parseSpecFileTree (moduleNameString $ moduleName $ unStableModule m) (imports spec)
-        return (r : importSpecs)
-
-    readSpecWithStableModule f = do
-      let u = takeWhile (/= '/') f
-      (mn, sp) <- readWiredInSpec wiredInSpecsEnv f
-      return (mkStableModule (stringToUnitId u) (getModName mn), sp)
-
-    mkLiquidLibFromDeps
-      :: Measure.BareSpec -> [(StableModule, Measure.BareSpec)] -> LiquidLib
-    mkLiquidLibFromDeps spec importSpecs =
-      let depsList = [ (mn, view liftedSpecGetter sp)
-                     | (mn, sp) <- importSpecs
-                     ]
-          deps = TargetDependencies $ HashMap.fromList depsList
-       in
-          addLibDependencies deps $ mkLiquidLib (view liftedSpecGetter spec)
-
--- | Information about wired in packages
-data WiredInSpecsEnv = WiredInSpecsEnv
-       { -- | Directory containing the spec files of the known packages
-         knownPackagesDir :: FilePath
-         -- | Names of known packages
-       , knownPackages :: [String]
-         -- | Maps module names to the paths of their spec files relative
-         -- to 'knownPackagesDir'
-       , knownSpecs :: HashMap.HashMap String FilePath
-         -- | Specs loaded so far
-       , knownSpecsCache :: IORef (HashMap.HashMap FilePath (ModName,Measure.BareSpec))
-       }
-
-{-# NOINLINE wiredInSpecsEnv #-}
-wiredInSpecsEnv :: WiredInSpecsEnv
-wiredInSpecsEnv = unsafePerformIO $ do
-    knownPackagesDir <- getDataFileName "include/known-packages"
-    knownPackages <- listDirectory knownPackagesDir
-    mods <- fmap concat $ forM knownPackages $ \p -> do
-      fs <- listDirectory (knownPackagesDir </> p)
-      return $ zip (map dropExtension fs) (map (p </>) fs)
-    let knownSpecs = HashMap.fromList mods
-    knownSpecsCache <- newIORef mempty
-
-    return $ WiredInSpecsEnv
-      knownPackagesDir
-      knownPackages
-      knownSpecs
-      knownSpecsCache
-
-getTyThingsFromWiredInModules
-  :: GhcMonadLike m => TargetDependencies -> m [TyThing]
-getTyThingsFromWiredInModules dependencies =
-    getTyThingsFromExternalModules $
-      filter ((`elem` knownPackages wiredInSpecsEnv) . unitString . moduleUnit) $
-      map unStableModule $ HashMap.keys $ getDependencies dependencies
-
--- | Reads a spec file updating the cache in the given environment
-readWiredInSpec :: WiredInSpecsEnv -> FilePath -> IO (ModName, Measure.BareSpec)
-readWiredInSpec env f = do
-    c0 <- readIORef (knownSpecsCache env)
-    case HashMap.lookup f c0 of
-      Nothing -> do
-        r <- parseSpecFile (knownPackagesDir env </> f)
-        atomicModifyIORef (knownSpecsCache env) $ \c ->
-          (HashMap.insert f r c, r)
-      Just r ->
-        return r
-
+    pluginUnit =
+        moduleUnit
+      . fromMaybe (error "liquidhaskell error: can't find plugin module")
+      . find isLHPluginModule
+      . map (mi_module . lpModule)
+      . hsc_plugins
+    isLHPluginModule :: Module -> Bool
+    isLHPluginModule m = elem (moduleNameString (moduleName m)) ["LiquidHaskell", "LiquidHaskellBoot"]
+    knownModule m = elem (unitString (moduleUnit m)) ["ghc-prim"]
+    assumptionsModule plUnit m =
+      mkModule plUnit
+        $ mkModuleName
+        $ moduleNameString (moduleName m) ++ "_LHAssumptions"
 
 -- | If this module has a \"companion\" '.spec' file sitting next to it, this 'SpecFinder'
 -- will try loading it.
@@ -195,7 +119,12 @@ findCompanionSpec m = do
 -- | Load a spec by trying to parse the relevant \".spec\" file from the filesystem.
 lookupInterfaceAnnotations :: ExternalPackageState -> HomePackageTable -> SpecFinder m
 lookupInterfaceAnnotations eps hpt thisModule = do
-  lib <- MaybeT $ pure $ deserialiseLiquidLib thisModule eps hpt
+  lib <- MaybeT $ pure $ Util.deserialiseLiquidLib thisModule eps hpt
+  pure $ LibFound thisModule InterfaceLocation lib
+
+lookupInterfaceAnnotationsEPS :: ExternalPackageState -> SpecFinder m
+lookupInterfaceAnnotationsEPS eps thisModule = do
+  lib <- MaybeT $ pure $ Util.deserialiseLiquidLibFromEPS thisModule eps
   pure $ LibFound thisModule InterfaceLocation lib
 
 -- | If this module has a \"companion\" '.spec' file sitting next to it, this 'SpecFinder'
@@ -217,7 +146,7 @@ lookupCompanionSpec thisModule = do
       let errMsg = O.text "Error when parsing "
              O.<+> O.text (specFile file) O.<+> O.text ":"
              O.<+> O.text (errorBundlePretty peb)
-      lift $ pluginAbort (O.showSDoc dynFlags errMsg)
+      lift $ Util.pluginAbort (O.showSDoc dynFlags errMsg)
     Right (_, spec) -> do
       let bareSpec = view bareSpecIso spec
       pure $ SpecFound thisModule DiskLocation bareSpec

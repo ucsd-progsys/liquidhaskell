@@ -396,14 +396,13 @@ isIgnore (MkBareSpec sp) = any ((== "--skip-module") . F.val) (pragmas sp)
 -- | Working with bare & lifted specs ------------------------------------------
 --------------------------------------------------------------------------------
 
-loadDependencies :: forall m. GhcMonadLike m
-                 => Config
+loadDependencies :: Config
                  -- ^ The 'Config' associated to the /current/ module being compiled.
                  -> ExternalPackageState
                  -> HomePackageTable
                  -> Module
                  -> [Module]
-                 -> m TargetDependencies
+                 -> TcM TargetDependencies
 loadDependencies currentModuleConfig eps hpt thisModule mods = do
   results   <- SpecFinder.findRelevantSpecs eps hpt mods
   deps      <- foldlM processResult mempty (reverse results)
@@ -413,7 +412,7 @@ loadDependencies currentModuleConfig eps hpt thisModule mods = do
 
   pure $ foldl' (flip dropDependency) deps redundant
   where
-    processResult :: TargetDependencies -> SpecFinderResult -> m TargetDependencies
+    processResult :: TargetDependencies -> SpecFinderResult -> TcM TargetDependencies
     processResult !acc (SpecNotFound mdl) = do
       debugLog $ "[T:" ++ renderModule thisModule
               ++ "] Spec not found for " ++ renderModule mdl
@@ -531,10 +530,7 @@ processModule LiquidHaskellContext{..} = do
     debugLog $ "mg_exports => " ++ O.showSDocUnsafe (O.ppr $ mg_exports modGuts)
     debugLog $ "mg_tcs => " ++ O.showSDocUnsafe (O.ppr $ mg_tcs modGuts)
 
-    -- We collect the TyThings needed for the dependencies, otherwise,
-    -- LH would fail to validate the specs that depend on them.
-    extraTyThings <- getTyThingsFromWiredInModules dependencies
-    targetSrc  <- makeTargetSrc moduleCfg file lhModuleTcData modGuts hscEnv extraTyThings
+    targetSrc  <- makeTargetSrc moduleCfg file lhModuleTcData modGuts hscEnv
     logger <- getLogger
     dynFlags <- getDynFlags
 
@@ -588,9 +584,8 @@ makeTargetSrc :: GhcMonadLike m
               -> TcData
               -> ModGuts
               -> HscEnv
-              -> [TyThing]
               -> m TargetSrc
-makeTargetSrc cfg file tcData modGuts hscEnv extraTyThings = do
+makeTargetSrc cfg file tcData modGuts hscEnv = do
   coreBinds      <- liftIO $ anormalize cfg hscEnv modGuts
 
   -- The type constructors for a module are the (nubbed) union of the ones defined and
@@ -638,10 +633,7 @@ makeTargetSrc cfg file tcData modGuts hscEnv extraTyThings = do
     , gsPrimTcs   = GHC.primTyCons
     , gsQualImps  = tcQualifiedImports tcData
     , gsAllImps   = tcAllImports       tcData
-                    -- the extra TyThings for dependencies go first so they are
-                    -- overwritten by local things when buiding maps with
-                    -- HashMap.fromList
-    , gsTyThings  = extraTyThings ++ [ t | (_, Just t) <- things ]
+    , gsTyThings  = [ t | (_, Just t) <- things ]
     }
   where
     mgiModGuts :: MGIModGuts
