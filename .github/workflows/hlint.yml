@@ -22,5 +22,5 @@ jobs:
     - uses: haskell/actions/hlint-run@v2
       name: hlint
       with:
-        path: '["src/", "src-ghc/"]'
+        path: '["liquidhaskell-boot/src/", "liquidhaskell-boot/src-ghc/"]'
         fail-on: suggestion

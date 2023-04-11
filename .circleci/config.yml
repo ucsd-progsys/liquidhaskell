@@ -85,7 +85,7 @@ commands:
           command: |
             LIQUID_CABAL_PROJECT_FILE=<<parameters.project_file>> cabal v2-run --project-file << parameters.project_file >> test-driver || (<<parameters.allow_test_failures>>)
             cabal v2-test --project-file << parameters.project_file >> tests:tasty || (<<parameters.allow_test_failures>>)
-            (liquidhaskell_datadir=$PWD cabal v2-test -j1 --project-file << parameters.project_file >> liquidhaskell:liquidhaskell-parser --flag devel --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml") || (<<parameters.allow_test_failures>>)
+            (liquidhaskell_datadir=$PWD/liquidhaskell-boot cabal v2-test -j1 --project-file << parameters.project_file >> liquidhaskell-boot:liquidhaskell-parser --flag devel --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml") || (<<parameters.allow_test_failures>>)
           no_output_timeout: 30m
 
       - run:
@@ -135,7 +135,7 @@ commands:
             mkdir -p /tmp/junit/stack
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> run test-driver
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> test tests:tasty
-            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:liquidhaskell-parser << parameters.extra_build_flags >>
+            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell-boot:liquidhaskell-parser << parameters.extra_build_flags >>
           no_output_timeout: 30m
       - run:
           name: Generate haddock
@@ -157,7 +157,7 @@ jobs:
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
-            extra_build_flags: "--flag liquidhaskell:devel"
+            extra_build_flags: "--flag liquidhaskell-boot:devel"
             extra_test_flags: " liquid-platform:liquidhaskell "
   cabal_900:
     machine:

@@ -9,6 +9,7 @@ packages: .
           ./liquid-prelude
           ./liquid-vector
           ./liquid-platform
+          ./liquidhaskell-boot
           ./tests
           ./tests/benchmarks/popl18/lib
           ./benchmark-timings
@@ -23,7 +24,7 @@ allow-newer: ghc-timings:base, rest-rewrite:time
 package liquid-fixpoint
   flags: +devel
 
-package liquidhaskell
+package liquidhaskell-boot
   ghc-options: -j
 
 package liquid-platform

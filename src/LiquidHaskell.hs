@@ -1,9 +1,4 @@
-module LiquidHaskell (
-    -- * LiquidHaskell Specification QuasiQuoter
-    lq
-    -- * LiquidHaskell as a compiler plugin
-  , plugin
-  ) where
+{-# OPTIONS_GHC -Wno-missing-signatures -fplugin-opt=LiquidHaskellBoot:--skip-module #-}
+module LiquidHaskell (plugin, lq) where
 
-import Language.Haskell.Liquid.UX.QuasiQuoter
-import Language.Haskell.Liquid.GHC.Plugin (plugin)
+import LiquidHaskellBoot(plugin, lq)

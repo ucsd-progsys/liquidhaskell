@@ -1,12 +1,6 @@
-import Distribution.Simple
+module Main where
 
+import Language.Haskell.Liquid.Cabal (liquidHaskellMain)
 
-
-main = defaultMain
-
--- 
--- --- main = defaultMainWithHooks fixpointHooks 
---  
--- fixpointHooks   = defaultUserHooks { postInst = cpFix }
---    where 
---      cpFix _ _ _ lbi = putStrLn $ "CPFIXSAYS: " ++ show lbi  
+main :: IO ()
+main = liquidHaskellMain

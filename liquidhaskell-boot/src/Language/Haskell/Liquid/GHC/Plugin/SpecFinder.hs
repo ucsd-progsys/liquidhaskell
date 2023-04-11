@@ -27,7 +27,7 @@ import           Language.Fixpoint.Utils.Files            ( Ext(Spec), withExt )
 import           Language.Fixpoint.Types.Names            ( Symbol, symbolString )
 
 import           Optics
-import           Paths_liquidhaskell (getDataFileName)
+import           Paths_liquidhaskell_boot (getDataFileName)
 import qualified Liquid.GHC.API         as O
 import           Liquid.GHC.API         as GHC
 import           Liquid.GHC.Interface (getTyThingsFromExternalModules, parseSpecFile)

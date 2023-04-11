@@ -12,7 +12,7 @@
 -- Then run the liquidhaskell executable pointing it to this driver with
 -- the LIQUID_GHC_PATH env var.
 --
--- > LIQUID_GHC_PATH=scripts/ProfilingDriver liquidhaskell_datadir=$PWD \
+-- > LIQUID_GHC_PATH=scripts/ProfilingDriver liquidhaskell_datadir=$PWD/liquidhaskell-boot \
 -- >   cabal exec -- liquidhaskell +RTS -p -RTS tests/pos/Bag.hs
 --
 module Main where

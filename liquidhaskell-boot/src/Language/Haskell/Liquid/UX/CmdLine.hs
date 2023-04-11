@@ -53,7 +53,7 @@ import Data.Functor ((<&>))
 import Data.Aeson (encode)
 import qualified Data.ByteString.Lazy.Char8 as B
 import Development.GitRev (gitCommitCount)
-import qualified Paths_liquidhaskell as Meta
+import qualified Paths_liquidhaskell_boot as Meta
 import System.Directory
 import System.Exit
 import System.Environment

@@ -25,7 +25,7 @@ import           Data.ByteString.Char8 (pack, unpack)
 import qualified Text.PrettyPrint.HughesPJ as PJ -- (char, Doc)
 import           Text.Printf
 import           Language.Fixpoint.Misc
-import           Paths_liquidhaskell
+import           Paths_liquidhaskell_boot
 
 type Nat = Int
 
