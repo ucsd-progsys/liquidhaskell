@@ -81,6 +81,7 @@ import           Language.Haskell.Liquid.Types.Bounds
 import           Liquid.GHC.API hiding (text, (<+>))
 import           Liquid.GHC.Types
 import           Text.PrettyPrint.HughesPJ              (text, (<+>))
+import           Text.PrettyPrint.HughesPJ as HughesPJ (($$))
 
 
 {- $differentSpecTypes
@@ -425,6 +426,10 @@ instance Binary (Spec LocBareType F.LocSymbol)
 
 instance (Show ty, Show bndr, F.PPrint ty, F.PPrint bndr) => F.PPrint (Spec ty bndr) where
     pprintTidy k sp = text "dataDecls = " <+> pprintTidy k  (dataDecls sp)
+                         HughesPJ.$$
+                      text "classes = " <+> pprintTidy k (classes sp)
+                         HughesPJ.$$
+                      text "sigs = " <+> pprintTidy k (sigs sp)
 
 -- /NOTA BENE/: These instances below are considered legacy, because merging two 'Spec's together doesn't
 -- really make sense, and we provide this only for legacy purposes.
