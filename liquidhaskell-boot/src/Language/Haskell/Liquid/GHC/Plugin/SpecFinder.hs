@@ -70,19 +70,16 @@ findRelevantSpecs eps hpt mods = do
     loadRelevantSpec plUnit !acc currentModule = do
       res <- runMaybeT $ lookupInterfaceAnnotations eps hpt currentModule
       case res of
-        Nothing         ->
-          if knownModule currentModule then do
-            mAssm <- loadKnownAssumptions plUnit currentModule
-            case mAssm of
-              Nothing ->
-                return $ SpecNotFound currentModule : acc
-              Just specResult ->
-                return (specResult : acc)
-          else
-            return $ SpecNotFound currentModule : acc
+        Nothing         -> do
+          mAssm <- loadModuleAssumptionsIfAny plUnit currentModule
+          case mAssm of
+            Nothing ->
+              return $ SpecNotFound currentModule : acc
+            Just specResult ->
+              return (specResult : acc)
         Just specResult -> return (specResult : acc)
 
-    loadKnownAssumptions plUnit m = do
+    loadModuleAssumptionsIfAny plUnit m = do
       let assMod = assumptionsModule plUnit m
       -- loadInterface might mutate the EPS if the module is
       -- not already loaded
@@ -101,7 +98,6 @@ findRelevantSpecs eps hpt mods = do
       . hsc_plugins
     isLHPluginModule :: Module -> Bool
     isLHPluginModule m = elem (moduleNameString (moduleName m)) ["LiquidHaskell", "LiquidHaskellBoot"]
-    knownModule m = elem (unitString (moduleUnit m)) ["ghc-prim"]
     assumptionsModule plUnit m =
       mkModule plUnit
         $ mkModuleName
@@ -169,7 +165,7 @@ configToRedundantDependencies cfg = do
 
     lookupLiquidBaseModule :: HscEnv -> ModuleName -> IO (Maybe StableModule)
     lookupLiquidBaseModule env mn = do
-      res <- liftIO $ findExposedPackageModule env mn (Just "liquid-base")
+      res <- liftIO $ findExposedPackageModule env mn (Just "liquidhaskell")
       case res of
         Found _ mdl -> pure $ Just (toStableModule mdl)
         _           -> pure Nothing
@@ -182,7 +178,6 @@ configToRedundantDependencies cfg = do
 --
 configSensitiveDependencies :: [(Config -> Bool, ModuleName)]
 configSensitiveDependencies = [
-    (not . totalityCheck, mkModuleName "Liquid.Prelude.Totality")
-  , (not . linear, mkModuleName "Liquid.Prelude.NotReal")
-  , (linear, mkModuleName "Liquid.Prelude.Real")
+    (not . totalityCheck, mkModuleName "Liquid.Prelude.Totality_LHAssumptions")
+  , (linear, mkModuleName "Liquid.Prelude.Real_LHAssumptions")
   ]

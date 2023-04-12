@@ -13,7 +13,7 @@ homepage:           https://github.com/ucsd-progsys/liquidhaskell
 build-type:         Custom
 
 custom-setup
-  setup-depends: Cabal<4, base<5, liquidhaskell
+  setup-depends: Cabal<4, base<5, liquidhaskell-boot
 
 library
   exposed-modules:  Language.Haskell.Liquid.RTick
@@ -27,7 +27,7 @@ library
                     Language.Haskell.Liquid.ProofCombinators
                     KMeansHelper
   hs-source-dirs:     src
-  build-depends:      liquid-base          < 5
+  build-depends:      base          < 5
                     , ghc-prim
                     , bytestring           >= 0.10.12.1 && < 0.12
                     , containers           >= 0.6.4.1  && < 0.7

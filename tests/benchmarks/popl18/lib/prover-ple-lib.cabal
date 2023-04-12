@@ -16,7 +16,7 @@ library
   exposed-modules:    Helper
                     , Proves
 
-  build-depends:      liquid-base
+  build-depends:      base
                     , liquid-prelude
                     , liquidhaskell
 

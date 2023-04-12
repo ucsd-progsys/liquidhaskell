@@ -25,12 +25,13 @@ executable liquidhaskell
     buildable: False
   else
     buildable: True
-    build-depends:      liquid-base       >= 4.15.1.0 && < 5
+    build-depends:      base       >= 4.15.1.0 && < 5
                       , liquid-containers >= 0.6.4.1  && < 0.7
                       , liquid-prelude    >= 0.9.0.2
                       , liquid-vector     >= 0.12.3.1 && < 0.13
                       , liquid-bytestring >= 0.11.3.1 && < 0.12
                       , liquidhaskell     >= 0.9.0.2
+                      , liquidhaskell-boot >= 0.9.0.2
                       , filepath
                       , process           >= 1.6.0.0 && < 1.7
                       , cmdargs           >= 0.10    && < 0.11

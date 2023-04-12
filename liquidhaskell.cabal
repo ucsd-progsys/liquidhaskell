@@ -43,6 +43,37 @@ library
                       GHC.Classes_LHAssumptions
                       GHC.CString_LHAssumptions
                       GHC.Types_LHAssumptions
+
+                      Data.Bits_LHAssumptions
+                      Data.Either_LHAssumptions
+                      Data.Foldable_LHAssumptions
+                      Data.Int_LHAssumptions
+                      Data.Maybe_LHAssumptions
+                      Data.String_LHAssumptions
+                      Data.Tuple_LHAssumptions
+                      Data.Word_LHAssumptions
+                      Foreign.C.String_LHAssumptions
+                      Foreign.C.Types_LHAssumptions
+                      Foreign.Concurrent_LHAssumptions
+                      Foreign.Marshal.Alloc_LHAssumptions
+                      Foreign.ForeignPtr_LHAssumptions
+                      Foreign.Ptr_LHAssumptions
+                      Foreign.Storable_LHAssumptions
+                      GHC.Base_LHAssumptions
+                      GHC.Exts_LHAssumptions
+                      GHC.Float_LHAssumptions
+                      GHC.ForeignPtr_LHAssumptions
+                      GHC.Int_LHAssumptions
+                      GHC.IO.Handle_LHAssumptions
+                      GHC.List_LHAssumptions
+                      GHC.Num_LHAssumptions
+                      GHC.Maybe_LHAssumptions
+                      GHC.Ptr_LHAssumptions
+                      GHC.Real_LHAssumptions
+                      GHC.Word_LHAssumptions
+                      Liquid.Prelude.Real_LHAssumptions
+                      Liquid.Prelude.Totality_LHAssumptions
+                      Prelude_LHAssumptions
   hs-source-dirs:     src
 
   build-depends:      base                 >= 4.11.1.0 && < 5,

@@ -20,7 +20,7 @@ data-files:           src/Data/ByteString.spec
                       src/Data/ByteString/Lazy/Char8.spec
 
 custom-setup
-  setup-depends: Cabal<4, base<5, liquidhaskell
+  setup-depends: Cabal<4, base<5, liquidhaskell-boot
 
 library
   exposed-modules:    Data.ByteString
@@ -44,7 +44,7 @@ library
                       -- Data.ByteString.Lazy.Char8
 
   hs-source-dirs:     src
-  build-depends:      liquid-base          < 5
+  build-depends:      base          < 5
                     , bytestring           >= 0.11 && < 0.12
                     , liquidhaskell        >= 0.9.0.2
   default-language:   Haskell2010

@@ -1,5 +1,6 @@
 module Maybe3 () where
 
+import Data.Maybe() -- to get isJust and fromJust
 
 {-@ foo :: lo0 : Maybe a
         -> lo  : {v: Maybe {v: a | isJust lo0 && v = fromJust lo0 } | v = lo0 }  

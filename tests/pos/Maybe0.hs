@@ -1,6 +1,7 @@
 module Maybe0 () where
 
 import Language.Haskell.Liquid.Prelude
+import Data.Maybe() -- to get isJust and fromJust
 
 {-@ foo :: x:Maybe a -> {v:a | ((isJust(x)) => (fromJust(x) = v)) } @-}
 foo :: Maybe a -> a 

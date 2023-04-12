@@ -26,15 +26,15 @@ embed GHC.Prim.Addr#    as Str
 embed GHC.Integer.Type.Integer as int
 embed GHC.Num.Integer as int
 
-GHC.Types.True  :: {v:GHC.Types.Bool | v     }
-GHC.Types.False :: {v:GHC.Types.Bool | (~ v) }
-GHC.Types.isTrue#  :: n:_ -> {v:GHC.Types.Bool | (n = 1 <=> v)}
+assume GHC.Types.True  :: {v:GHC.Types.Bool | v     }
+assume GHC.Types.False :: {v:GHC.Types.Bool | (~ v) }
+assume GHC.Types.isTrue#  :: n:_ -> {v:GHC.Types.Bool | (n = 1 <=> v)}
 
-GHC.Types.D# :: x:GHC.Prim.Double# -> {v: GHC.Types.Double | v = (x :: real) }
-GHC.Types.F# :: x:GHC.Prim.Float# -> {v: GHC.Types.Float | v = (x :: real) }
-GHC.Types.I# :: x:GHC.Prim.Int# -> {v: GHC.Types.Int | v = (x :: int) }
-GHC.Types.C# :: x:GHC.Prim.Char# -> {v: GHC.Types.Char | v = (x :: Char) }
-GHC.Types.W# :: w:_ -> {v:GHC.Types.Word | v == w }
+assume GHC.Types.D# :: x:GHC.Prim.Double# -> {v: GHC.Types.Double | v = (x :: real) }
+assume GHC.Types.F# :: x:GHC.Prim.Float# -> {v: GHC.Types.Float | v = (x :: real) }
+assume GHC.Types.I# :: x:GHC.Prim.Int# -> {v: GHC.Types.Int | v = (x :: int) }
+assume GHC.Types.C# :: x:GHC.Prim.Char# -> {v: GHC.Types.Char | v = (x :: Char) }
+assume GHC.Types.W# :: w:_ -> {v:GHC.Types.Word | v == w }
 
 measure addrLen :: GHC.Prim.Addr# -> GHC.Types.Int
 

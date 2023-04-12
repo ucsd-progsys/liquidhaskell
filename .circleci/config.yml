@@ -68,7 +68,7 @@ commands:
             echo 'export PATH=~/.ghcup/bin:$PATH' >> $BASH_ENV
             << parameters.cabal_update_command >>
             cabal v2-clean
-            cabal v2-build --project-file << parameters.project_file >> --flag devel -j --enable-tests liquidhaskell-parser liquid-base liquid-prelude liquid-bytestring liquid-containers liquid-parallel liquid-vector liquid-platform test-driver
+            cabal v2-build --project-file << parameters.project_file >> --flag devel -j --enable-tests liquidhaskell-parser liquid-prelude liquid-bytestring liquid-containers liquid-parallel liquid-vector liquid-platform test-driver
       - save_cache:
           key: cabal-cache-v3-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
           paths:

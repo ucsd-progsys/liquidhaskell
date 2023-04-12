@@ -15,7 +15,7 @@ build-type:         Custom
 data-files:           src/Data/Vector.spec
 
 custom-setup
-  setup-depends: Cabal<4, base<5, liquidhaskell
+  setup-depends: Cabal<4, base<5, liquidhaskell-boot
 
 library
   exposed-modules:    Data.Vector.Internal.Check
@@ -45,7 +45,7 @@ library
                       Data.Vector.Mutable
                       Data.Vector
   hs-source-dirs:     src
-  build-depends:      liquid-base          < 4.16
+  build-depends:      base          < 5
                     , vector               >= 0.12.3.1 && < 0.13
                     , liquidhaskell        >= 0.9.0.2
   default-language:   Haskell2010

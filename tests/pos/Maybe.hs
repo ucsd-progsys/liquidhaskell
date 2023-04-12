@@ -1,6 +1,7 @@
 module Maybe () where
 
 import Language.Haskell.Liquid.Prelude (liquidAssert)
+import Data.Maybe() -- to get isJust and fromJust
 
 {-@ type OList a = [a]<{\fld v -> (v >= fld)}> @-}
 

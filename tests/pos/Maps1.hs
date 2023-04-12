@@ -19,6 +19,7 @@ prop1 m x y = (z == 10)
     z       = m2 ! x
 
 {-@ prop2   :: _ -> x:_ -> y:{_ | y == x} -> TT @-}
+prop2       :: (Eq v, Num v, Ord k) => Map k v -> k -> k -> Bool
 prop2 m x y = (z == 20)
   where
     m1      = insert x 10 m
