@@ -10,7 +10,7 @@ import Liquid.Prelude.Totality_LHAssumptions()
 
 {-@
 
-GHC.Err.error :: {v:_ | false} -> a
+assume GHC.Err.error :: {v:_ | false} -> a
 
 // assume GHC.Integer.smallInteger :: x:GHC.Prim.Int# -> { v:GHC.Integer.Type | v = (x :: int) }
 

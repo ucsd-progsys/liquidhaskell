@@ -4,8 +4,8 @@ module Data.Tuple_LHAssumptions where
 import Data.Tuple
 
 {-@
-Data.Tuple.fst :: {f:(x:(a,b) -> {v:a | v = (fst x)}) | f == fst }
-Data.Tuple.snd :: {f:(x:(a,b) -> {v:b | v = (snd x)}) | f == snd }
+assume Data.Tuple.fst :: {f:(x:(a,b) -> {v:a | v = (fst x)}) | f == fst }
+assume Data.Tuple.snd :: {f:(x:(a,b) -> {v:b | v = (snd x)}) | f == snd }
 
 measure fst :: (a, b) -> a
   fst (a, b) = a

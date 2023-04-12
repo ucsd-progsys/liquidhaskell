@@ -4,9 +4,9 @@ module GHC.Real_LHAssumptions(Integral(..), Fractional(..)) where
 import GHC.Types_LHAssumptions()
 
 {-@
-(GHC.Real.^) :: (GHC.Num.Num a, GHC.Real.Integral b) => x:a -> y:{n:b | n >= 0} -> {z:a | (y == 0 => z == 1) && ((x == 0 && y /= 0) <=> z == 0)}
+assume (GHC.Real.^) :: (GHC.Num.Num a, GHC.Real.Integral b) => x:a -> y:{n:b | n >= 0} -> {z:a | (y == 0 => z == 1) && ((x == 0 && y /= 0) <=> z == 0)}
 
-GHC.Real.fromIntegral    :: (GHC.Real.Integral a, GHC.Num.Num b) => x:a -> {v:b|v=x}
+assume GHC.Real.fromIntegral    :: (GHC.Real.Integral a, GHC.Num.Num b) => x:a -> {v:b|v=x}
 
 class (GHC.Num.Num a) => GHC.Real.Fractional a where
   (GHC.Real./)   :: x:a -> y:{v:a | v /= 0} -> {v:a | v == x / y}
