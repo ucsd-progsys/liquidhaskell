@@ -1,6 +1,7 @@
 {-@ LIQUID "--reflection"  @-}
 {-@ LIQUID "--ple"         @-}
 {-@ LIQUID "--short-names" @-}
+{-@ LIQUID "--exact-data-cons" @-}
 
 {-@ infixr ++  @-}  -- TODO: Silly to have to rewrite this annotation!
 {-@ infixr <~  @-}  -- TODO: Silly to have to rewrite this annotation!
