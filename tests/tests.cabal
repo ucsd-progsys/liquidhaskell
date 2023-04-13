@@ -12,6 +12,7 @@ author:             The Liquid Haskell Developers
 
 flag stack
   default:     False
+  manual:      True
   description: Enable when building with stack to prevent tests
                from using cabal-install, and to mark all executables as
                " buildable: False " by default
