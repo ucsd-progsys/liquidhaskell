@@ -20,8 +20,6 @@ module Language.Haskell.Liquid.Bare.DataType
   , dataDeclSize
   ) where
 
-import           Prelude                                hiding (error)
-
 import qualified Control.Exception                      as Ex
 import           Control.Monad.Reader
 import qualified Data.List                              as L
@@ -277,12 +275,22 @@ resolveTyCons mn mtds = [(tc, (m, d)) | (tc, mds) <- M.toList tcDecls
 --   DataDecls to use.
 resolveDecls :: ModName -> Ghc.TyCon -> Misc.ListNE (ModName, DataPropDecl)
              -> Maybe (ModName, DataPropDecl)
-resolveDecls mName tc mds  = F.notracepp msg $ Misc.firstMaybes $ (`L.find` mds) <$> [ isHomeDef , isMyDef]
+resolveDecls mName tc mds  = F.notracepp msg $
+    case filter isHomeDef mds of
+      x:_ -> Just x
+      _ -> case filter isLHAssumptionsDef mds of
+        [x] -> Just x
+        xs@(_:_) -> error $
+          "Multiple spec declarations of " ++ show (F.symbol tc) ++
+          " found in _LHAssumption modules: " ++ show (map fst xs) ++
+          ". Please, remove some of them."
+        [] -> L.find isMyDef mds
   where
     msg                    = "resolveDecls" ++ F.showpp (mName, tc)
     isMyDef                = (mName ==)             . fst
     isHomeDef              = (tcHome ==) . F.symbol . fst
     tcHome                 = GM.takeModuleNames (F.symbol tc)
+    isLHAssumptionsDef     = L.isSuffixOf "_LHAssumptions" . Ghc.moduleNameString . getModName . fst
 
 groupDataCons :: [(Ghc.TyCon, (ModName, DataPropDecl))]
               -> [Located DataConP]
