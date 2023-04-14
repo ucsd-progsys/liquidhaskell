@@ -246,7 +246,7 @@ mkWarnDecl d = mkWarning (GM.fSrcSpan d) ("Non-regular data declaration" <+> ppr
       1. A  "home"-definition is one that belongs to its home module,
       2. An "orphan"-definition is one that belongs to some non-home module.
 
-      A 'DataUser' definition MUST be a "home" definition
+      A 'DataUser' definition SHOULD be a "home" definition
           - otherwise you can avoid importing the definition
             and hence, unsafely pass its invariants!
 
@@ -256,12 +256,11 @@ mkWarnDecl d = mkWarning (GM.fSrcSpan d) ("Non-regular data declaration" <+> ppr
           then use it, and IGNORE others.
 
       (b) If there are ONLY "orphan" definitions,
-          then pick the one from module being analyzed.
+          then pick the one from an _LHAssumptions module.
 
-      We COULD relax to allow for exactly one orphan `DataUser` definition
-      which is the one that should be selected, but that seems like a
-      slippery slope, as you can avoid importing the definition
-      and hence, unsafely pass its invariants! (Feature not bug?)
+      (c) If there are ONLY "orphan" definitions,
+          and none in _LHAssumptions modules,
+          then pick the one from the module being analyzed.
 
 -}
 resolveTyCons :: ModName -> [(ModName, Ghc.TyCon, DataPropDecl)]
