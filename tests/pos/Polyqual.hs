@@ -18,7 +18,12 @@ minKey  = fst . minimumBy (\x y -> compare (snd x) (snd y))
 
 {- distance :: a:[Double] -> {v:[Double] | (len v) = (len a)} -> Double -}
 distance     :: [Double] -> [Double] -> Double 
-distance a b = sqrt . sum $ safeZipWith (\v1 v2 -> (v1 - v2) ^ 2) a b
+distance a b = safeSqrt . sum $ safeZipWith (\v1 v2 -> (v1 - v2) ^ 2) a b
+
+safeSqrt :: (Ord a, Floating a) => a -> a
+safeSqrt x
+  | x >= 0 = sqrt x
+  | x < 0  = 0
 
 {-@ safeZipWith :: (a -> b -> c) -> xs:[a] -> (List b (len xs)) -> (List c (len xs)) @-}
 safeZipWith f (a:as) (b:bs) = f a b : safeZipWith f as bs

@@ -1153,6 +1153,7 @@ executable unit-neg
                     , Constraints
                     , Contra0
                     , Coretologic
+                    , CosNegTest
                     , Csv
                     , Datacon_eq
                     , DependentTypes
@@ -1168,8 +1169,10 @@ executable unit-neg
                     , ExactADT6
                     , ExactGADT6
                     , ExactGADT7
+                    , ExpNegTest
                     , Exponential1NegTest
                     , Exponential2NegTest
+                    , ExponentiationNegTest
                     , Fail1
                     , Fail
                     , FilterAbs
@@ -1200,6 +1203,7 @@ executable unit-neg
                     , ListRange
                     , Lit
                     , LocalSpec
+                    , LogNegTest
                     , Mapreduce
                     , Mapreduce_tiny
                     , Maps
@@ -1257,7 +1261,9 @@ executable unit-neg
                     , RG
                     , Risers
                     , SafePartialFunctions
+                    , SinNegTest
                     , Solver
+                    , SqrtNegTest
                     , Stacks
                     , State00
                     , State0
@@ -1502,7 +1508,9 @@ executable unit-pos-1
                     , SimplerNotation
                     , SimplifyTup00
                     , SingletonLists
+                    , SinPosTest
                     , Solver
+                    , SqrtPosTest
                     , Spec0
                     , StackClass
                     , StackMachine
@@ -1779,6 +1787,7 @@ executable unit-pos-2
                     , ConstraintsAppend
                     , Constraints
                     , Coretologic
+                    , CosPosTest
                     , CountMonad
                     , Csgordon_issue_296
                     , Cut00
@@ -1828,6 +1837,8 @@ executable unit-pos-2
                     , ExactGADT
                     , Exp0
                     , ExponentialPosTest
+                    , ExponentiationPosTest
+                    , ExpPosTest
                     , Extype
                     , Fail
                     , FailName
@@ -1927,6 +1938,7 @@ executable unit-pos-2
                     , LocalSpec
                     , LocalSpecLib
                     , LogicCurry1
+                    , LogPosTest
                     , Loo
                     , LooLib
                     , LooLibLib
