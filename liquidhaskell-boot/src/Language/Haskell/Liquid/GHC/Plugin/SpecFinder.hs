@@ -56,52 +56,55 @@ data SearchLocation =
 
 -- | Load any relevant spec for the input list of 'Module's, by querying both the 'ExternalPackageState'
 -- and the 'HomePackageTable'.
-findRelevantSpecs :: ExternalPackageState
-                  -> HomePackageTable
+--
+-- Specs come from the interface files of the given modules or their matching
+-- _LHAssumptions modules. A module @M@ only matches with a module named
+-- @M_LHAssumptions@.
+--
+-- Assumptions are taken from _LHAssumptions modules only if the interface
+-- file of the matching module contains no spec.
+findRelevantSpecs :: HscEnv
                   -> [Module]
                   -- ^ Any relevant module fetched during dependency-discovery.
                   -> TcM [SpecFinderResult]
-findRelevantSpecs eps hpt mods = do
-    hscEnv <- askHscEnv
-    foldlM (loadRelevantSpec (pluginUnit hscEnv)) mempty mods
+findRelevantSpecs hscEnv mods = do
+    eps <- liftIO $ readIORef (hsc_EPS hscEnv)
+    foldlM (loadRelevantSpec eps) mempty mods
   where
 
-    loadRelevantSpec :: Unit -> [SpecFinderResult] -> Module -> TcM [SpecFinderResult]
-    loadRelevantSpec plUnit !acc currentModule = do
-      res <- runMaybeT $ lookupInterfaceAnnotations eps hpt currentModule
+    loadRelevantSpec :: ExternalPackageState -> [SpecFinderResult] -> Module -> TcM [SpecFinderResult]
+    loadRelevantSpec eps !acc currentModule = do
+      res <- runMaybeT $
+        lookupInterfaceAnnotations eps (hsc_HPT hscEnv) currentModule
       case res of
         Nothing         -> do
-          mAssm <- loadModuleAssumptionsIfAny plUnit currentModule
-          case mAssm of
-            Nothing ->
-              return $ SpecNotFound currentModule : acc
-            Just specResult ->
-              return (specResult : acc)
-        Just specResult -> return (specResult : acc)
+          mAssm <- loadModuleLHAssumptionsIfAny currentModule
+          return $ fromMaybe (SpecNotFound currentModule) mAssm : acc
+        Just specResult ->
+          return (specResult : acc)
 
-    loadModuleAssumptionsIfAny plUnit m = do
-      let assMod = assumptionsModule plUnit m
+    loadModuleLHAssumptionsIfAny m = do
+      let assMod = assumptionsModule m
       -- loadInterface might mutate the EPS if the module is
       -- not already loaded
       _ <- initIfaceTcRn $ loadInterface "liquidhaskell assumptions" assMod ImportBySystem
       -- read the EPS again
-      hscEnv <- askHscEnv
       eps2 <- liftIO $ readIORef (hsc_EPS hscEnv)
       -- now look up the assumptions
       runMaybeT $ lookupInterfaceAnnotationsEPS eps2 assMod
 
     pluginUnit =
         moduleUnit
-      . fromMaybe (error "liquidhaskell error: can't find plugin module")
-      . find isLHPluginModule
-      . map (mi_module . lpModule)
-      . hsc_plugins
+      $ fromMaybe (error "liquidhaskell error: can't find plugin module")
+      $ find isLHPluginModule
+      $ map (mi_module . lpModule)
+      $ hsc_plugins hscEnv
     isLHPluginModule :: Module -> Bool
     isLHPluginModule m = elem (moduleNameString (moduleName m)) ["LiquidHaskell", "LiquidHaskellBoot"]
-    assumptionsModule plUnit m =
-      mkModule plUnit
-        $ mkModuleName
-        $ moduleNameString (moduleName m) ++ "_LHAssumptions"
+    assumptionsModule m =
+      mkModule pluginUnit
+        $ mkModuleNameFS
+        $ moduleNameFS (moduleName m) <> "_LHAssumptions"
 
 -- | If this module has a \"companion\" '.spec' file sitting next to it, this 'SpecFinder'
 -- will try loading it.

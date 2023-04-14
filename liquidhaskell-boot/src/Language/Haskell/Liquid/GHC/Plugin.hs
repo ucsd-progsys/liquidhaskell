@@ -398,13 +398,12 @@ isIgnore (MkBareSpec sp) = any ((== "--skip-module") . F.val) (pragmas sp)
 
 loadDependencies :: Config
                  -- ^ The 'Config' associated to the /current/ module being compiled.
-                 -> ExternalPackageState
-                 -> HomePackageTable
                  -> Module
                  -> [Module]
                  -> TcM TargetDependencies
-loadDependencies currentModuleConfig eps hpt thisModule mods = do
-  results   <- SpecFinder.findRelevantSpecs eps hpt mods
+loadDependencies currentModuleConfig thisModule mods = do
+  hscEnv    <- askHscEnv
+  results   <- SpecFinder.findRelevantSpecs hscEnv mods
   deps      <- foldlM processResult mempty (reverse results)
   redundant <- configToRedundantDependencies currentModuleConfig
 
@@ -515,11 +514,7 @@ processModule LiquidHaskellContext{..} = do
   _                   <- LH.checkFilePragmas $ Ms.pragmas (review bareSpecIso bareSpec)
 
   withPragmas lhGlobalCfg file (Ms.pragmas $ review bareSpecIso bareSpec) $ \moduleCfg -> do
-    eps                 <- liftIO $ readIORef (hsc_EPS hscEnv)
-
     dependencies       <- loadDependencies moduleCfg
-                                           eps
-                                           (hsc_HPT hscEnv)
                                            thisModule
                                            (S.toList lhRelevantModules)
 
