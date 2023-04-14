@@ -40,9 +40,6 @@ commands:
       extra_test_flags:
         type: string
         default: ""
-      liquid_runner:
-        type: string
-        default: "--liquid-runner=cabal v2-run liquidhaskell -- "
       ghc_options:
         type: string
         default: "--ghc-options=\"+RTS -M2G -RTS\""
@@ -99,9 +96,6 @@ commands:
       stack_yaml_file:
         type: string
         default: "stack.yaml"
-      liquid_runner:
-        type: string
-        default: "stack --silent exec -- liquidhaskell -v0"
       extra_test_flags:
         type: string
         default: ""
@@ -165,9 +159,6 @@ jobs:
     steps:
       - cabal_build_and_test:
           ghc_version: "9.2.5"
-          liquid_runner: "--liquid-runner=cabal -v0 v2-exec liquidhaskell -- -v0 \
-                          -package-env=$(./scripts/generate_testing_ghc_env) \
-                          -package=liquidhaskell -package=Cabal "
 
 workflows:
   version: 2
