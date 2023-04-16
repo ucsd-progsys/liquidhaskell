@@ -173,7 +173,7 @@ executable benchmark-vector-algorithms
   build-depends:      base
                     , liquid-prelude
                     , liquid-vector
-                    , liquid-bytestring
+                    , bytestring
                     , primitive
                     , liquidhaskell
 
@@ -557,7 +557,7 @@ executable benchmark-text
     , syb
     , base
     , liquid-prelude
-    , liquid-bytestring
+    , bytestring
     , ghc-prim
     , liquidhaskell
 
@@ -592,7 +592,7 @@ executable parsing-errors
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
 
     build-depends:    base
-                    , liquid-bytestring
+                    , bytestring
                     , liquid-prelude
                     , liquidhaskell
 
@@ -722,7 +722,7 @@ executable errors
 
     build-depends:    base
                     , liquid-prelude
-                    , liquid-bytestring
+                    , bytestring
                     , liquid-containers
                     , liquidhaskell
 
@@ -812,7 +812,7 @@ executable names-pos
                     , liquid-prelude
                     , liquid-vector
                     , liquid-containers
-                    , liquid-bytestring
+                    , bytestring
                     , liquidhaskell
 
     hs-source-dirs:   app
@@ -845,7 +845,7 @@ executable names-neg
     build-depends:    base
                     , liquid-prelude
                     , liquid-vector
-                    , liquid-bytestring
+                    , bytestring
                     , liquid-containers
                     , liquidhaskell
 
@@ -1342,7 +1342,7 @@ executable unit-neg
                     , liquid-prelude
                     , liquid-containers
                     , liquid-vector
-                    , liquid-bytestring
+                    , bytestring
                     , ghc-prim
                     , liquidhaskell
                     , binary
@@ -1697,7 +1697,7 @@ executable unit-pos-1
                     , liquid-prelude
                     , liquid-containers
                     , liquid-vector
-                    , liquid-bytestring
+                    , bytestring
                     , ghc-prim
                     , liquidhaskell
                     , transformers
@@ -1952,7 +1952,7 @@ executable unit-pos-2
                     , liquid-prelude
                     , liquid-containers
                     , liquid-vector
-                    , liquid-bytestring
+                    , bytestring
                     , ghc-prim
                     , liquidhaskell
                     , transformers
@@ -2120,7 +2120,7 @@ executable basic-neg
     build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
-                    , liquid-bytestring
+                    , bytestring
 
     hs-source-dirs:   app
                     , basic/neg
