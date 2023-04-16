@@ -13,7 +13,7 @@ assume Data.ByteString.Lazy.Char8.singleton
 
 assume Data.ByteString.Lazy.Char8.pack
     :: w8s : [Char]
-    -> { bs : Data.ByteString.ByteString | bllen bs == len w8s }
+    -> { bs : Data.ByteString.Lazy.ByteString | bllen bs == len w8s }
 
 assume Data.ByteString.Lazy.Char8.unpack
     :: bs : Data.ByteString.Lazy.ByteString
@@ -180,12 +180,12 @@ assume Data.ByteString.Lazy.Char8.unwords
 assume Data.ByteString.Lazy.Char8.elem
     :: Char
     -> bs : Data.ByteString.Lazy.ByteString
-    -> { b : GHC.Types.Bool | bllen b == 0 ==> not b }
+    -> { b : GHC.Types.Bool | bllen bs == 0 ==> not b }
 
 assume Data.ByteString.Lazy.Char8.notElem
     :: Char
     -> bs : Data.ByteString.Lazy.ByteString
-    -> { b : GHC.Types.Bool | bllen b == 0 ==> b }
+    -> { b : GHC.Types.Bool | bllen bs == 0 ==> b }
 
 assume Data.ByteString.Lazy.Char8.find
     :: (Char -> GHC.Types.Bool)
