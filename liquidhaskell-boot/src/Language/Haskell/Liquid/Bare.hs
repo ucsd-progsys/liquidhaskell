@@ -910,12 +910,42 @@ takeUnique f xs  = Ex.throw (f xs)
 allAsmSigs :: Bare.Env -> ModName -> Bare.ModSpecs ->
               Bare.Lookup [(Ghc.Var, [(Bool, ModName, LocBareType)])]
 allAsmSigs env myName specs = do
-  let aSigs = [ (name, must, x, t) | (name, spec) <- M.toList specs
-                                   , (must, x, t) <- getAsmSigs myName name spec ]
-  vSigs    <- forM aSigs $ \(name, must, x, t) -> do
-                vMb <- resolveAsmVar env name must x
-                return (vMb, (must, name, t))
+  let aSigs = [ (name, locallyDefined, x, t) | (name, spec) <- M.toList specs
+                                   , (locallyDefined, x, t) <- getAsmSigs myName name spec ]
+  vSigs    <- forM aSigs $ \(name, locallyDefined, x, t) -> do
+                -- Qualified assumes that refer to module aliases import declarations
+                -- are resolved looking at import declarations
+                let (mm, s) = Bare.unQualifySymbol (val x)
+                vMb <- if not (isAbsoluteQualifiedSym mm) then resolveAsmVar env name locallyDefined x
+                       else if locallyDefined then
+                         -- Fully qualified assumes that are locally defined produce an error if they aren't found
+                         lookupImportedSym x (mm, s)
+                       else
+                         -- Imported fully qualified assumes do not produce an error if they
+                         -- aren't found, and we looked them anyway without considering
+                         -- import declarations.
+                         -- LH seems to send here assumes for data constructors that
+                         -- yield Nothing, like for GHC.Types.W#
+                         return $ lookupImportedSymMaybe (mm, s)
+                return (vMb, (locallyDefined, name, t))
   return    $ Misc.groupList [ (v, z) | (Just v, z) <- vSigs ]
+  where
+    lookupImportedSym x qp =
+      let errRes = Left [Bare.errResolve "variable" "Var" x]
+       in maybe errRes (Right . Just) $
+            lookupImportedSymMaybe qp
+    lookupImportedSymMaybe (mm, s) = do
+      mts <- M.lookup s (Bare._reTyThings env)
+      m <- mm
+      ty <- lookup m mts
+      case ty of
+        Ghc.AnId v -> Just v
+        _ -> Nothing
+
+    isAbsoluteQualifiedSym (Just m) =
+       not $ M.member m $ qiNames (Bare.reQualImps env)
+    isAbsoluteQualifiedSym Nothing =
+       False
 
 resolveAsmVar :: Bare.Env -> ModName -> Bool -> LocSymbol -> Bare.Lookup (Maybe Ghc.Var)
 resolveAsmVar env name True  lx = Just  <$> Bare.lookupGhcVar env name "resolveAsmVar-True"  lx

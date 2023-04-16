@@ -35,9 +35,10 @@ module Language.Haskell.Liquid.Bare.Resolve
   , knownGhcDataCon
   , knownGhcType
 
-  -- * Misc 
+  -- * Misc
   , srcVars
   , coSubRReft
+  , unQualifySymbol
 
   -- * Conversions from Bare
   , ofBareTypeE
