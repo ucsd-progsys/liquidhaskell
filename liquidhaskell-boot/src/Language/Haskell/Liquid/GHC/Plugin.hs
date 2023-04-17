@@ -403,7 +403,8 @@ loadDependencies :: Config
                  -> TcM TargetDependencies
 loadDependencies currentModuleConfig thisModule mods = do
   hscEnv    <- askHscEnv
-  results   <- SpecFinder.findRelevantSpecs hscEnv mods
+  results   <- SpecFinder.findRelevantSpecs
+                 (excludeAutomaticAssumptionsFor currentModuleConfig) hscEnv mods
   deps      <- foldlM processResult mempty (reverse results)
   redundant <- configToRedundantDependencies currentModuleConfig
 

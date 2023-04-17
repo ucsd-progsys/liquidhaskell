@@ -107,6 +107,7 @@ data Config = Config
   , inlineANFBindings        :: Bool       -- ^ Inline ANF bindings.
                                            -- Sometimes improves performance and sometimes worsens it.
   , pandocHtml               :: Bool       -- ^ Use pandoc to generate html
+  , excludeAutomaticAssumptionsFor :: [String]
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 allowPLE :: Config -> Bool

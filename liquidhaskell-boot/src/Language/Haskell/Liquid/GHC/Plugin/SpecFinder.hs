@@ -28,6 +28,7 @@ import qualified Liquid.GHC.API         as O
 import           Liquid.GHC.API         as GHC
 
 import           Data.Bifunctor
+import qualified Data.Char
 import           Data.IORef
 import           Data.List (find)
 import           Data.Maybe
@@ -63,11 +64,12 @@ data SearchLocation =
 --
 -- Assumptions are taken from _LHAssumptions modules only if the interface
 -- file of the matching module contains no spec.
-findRelevantSpecs :: HscEnv
+findRelevantSpecs :: [String] -- ^ Package to exclude for loading LHAssumptions
+                  -> HscEnv
                   -> [Module]
                   -- ^ Any relevant module fetched during dependency-discovery.
                   -> TcM [SpecFinderResult]
-findRelevantSpecs hscEnv mods = do
+findRelevantSpecs lhAssmPkgExcludes hscEnv mods = do
     eps <- liftIO $ readIORef (hsc_EPS hscEnv)
     foldlM (loadRelevantSpec eps) mempty mods
   where
@@ -83,7 +85,8 @@ findRelevantSpecs hscEnv mods = do
         Just specResult ->
           return (specResult : acc)
 
-    loadModuleLHAssumptionsIfAny m = do
+    loadModuleLHAssumptionsIfAny m | isImportExcluded m = return Nothing
+                                   | otherwise = do
       let assMod = assumptionsModule m
       -- loadInterface might mutate the EPS if the module is
       -- not already loaded
@@ -92,6 +95,10 @@ findRelevantSpecs hscEnv mods = do
       eps2 <- liftIO $ readIORef (hsc_EPS hscEnv)
       -- now look up the assumptions
       runMaybeT $ lookupInterfaceAnnotationsEPS eps2 assMod
+
+    isImportExcluded m =
+      let s = takeWhile Data.Char.isAlphaNum $ unitString (moduleUnit m)
+       in elem s lhAssmPkgExcludes
 
     pluginUnit =
         moduleUnit

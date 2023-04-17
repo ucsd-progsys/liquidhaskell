@@ -462,6 +462,12 @@ config = cmdArgsMode $ Config {
     = False
       &= name "pandoc-html"
       &= help "Use pandoc to generate html."
+  , excludeAutomaticAssumptionsFor
+    = []
+      &= explicit
+      &= name "exclude-automatic-assumptions-for"
+      &= help "Stop loading LHAssumptions modules for imports in these packages."
+      &= typ "PACKAGE"
   } &= program "liquid"
     &= help    "Refinement Types for Haskell"
     &= summary copyright
@@ -725,6 +731,7 @@ defConfig = Config
   , noEnvironmentReduction   = False
   , inlineANFBindings        = False
   , pandocHtml               = False
+  , excludeAutomaticAssumptionsFor = []
   }
 
 -- | Write the annotations (i.e. the files in the \".liquid\" hidden folder) and
