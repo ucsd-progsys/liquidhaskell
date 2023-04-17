@@ -18,7 +18,7 @@ assume GHC.Base.. :: forall <p :: b -> c -> Bool, q :: a -> b -> Bool, r :: a ->
 measure autolen :: forall a. a -> GHC.Types.Int
 
 //  Useless as compiled into GHC primitive, which is ignored
-assume assert :: {v:Bool | v } -> a -> a
+assume GHC.Base.assert :: {v:Bool | v } -> a -> a
 
 instance measure len :: forall a. [a] -> GHC.Types.Int
   len []     = 0
