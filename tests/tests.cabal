@@ -2287,6 +2287,7 @@ executable ple-pos
                     , IndPerm
                     , IndStarHole
                     , IndStar
+                    , Isort_erase
                     , ListAnd
                     , Lists
                     , MergeSort
