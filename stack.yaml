@@ -13,7 +13,6 @@ packages:
 - liquid-fixpoint
 - liquid-prelude
 - liquid-vector
-- liquid-containers
 - liquid-parallel
 - liquid-platform
 - liquidhaskell-boot

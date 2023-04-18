@@ -86,10 +86,8 @@ main = do
                          , "-no-link"
                          , "-fplugin=LiquidHaskell"
                          , "-plugin-package", "liquidhaskell"
-                         , "-package", "liquid-containers"
                          , "-package", "liquid-prelude"
                          , "-package", "liquid-vector"
-                         , "-hide-package", "containers"
                          , "-hide-package", "vector"
                          , "-fplugin-opt=LiquidHaskell:--normal" -- normal logging.
                          ]

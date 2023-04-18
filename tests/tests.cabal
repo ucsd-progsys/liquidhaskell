@@ -63,7 +63,7 @@ executable benchmark-stitch-lh
                     , deepseq >= 1.4
                     , liquidhaskell
                     , base
-                    , liquid-containers
+                    , containers
                     , liquid-prelude
 
     other-modules:
@@ -279,7 +279,7 @@ executable benchmark-icfp15-pos
 
   build-depends:      base
                     , liquid-prelude
-                    , liquid-containers
+                    , containers
                     , ghc-prim
                     , liquidhaskell
 
@@ -311,7 +311,7 @@ executable benchmark-icfp15-neg
 
   build-depends:      base
                     , liquid-prelude
-                    , liquid-containers
+                    , containers
                     , ghc-prim
                     , liquidhaskell
 
@@ -391,7 +391,7 @@ executable prover-nople-pos
 
   build-depends:      base
                     , liquid-prelude
-                    , liquid-containers
+                    , containers
                     , liquidhaskell
                     , prover-ple-lib
 
@@ -429,7 +429,7 @@ executable prover-nople-neg
 
   build-depends:      base
                     , liquid-prelude
-                    , liquid-containers
+                    , containers
                     , liquidhaskell
                     , prover-ple-lib
 
@@ -481,7 +481,7 @@ executable prover-ple-pos
 
   build-depends:      base
                     , liquid-prelude
-                    , liquid-containers
+                    , containers
                     , liquidhaskell
                     , prover-ple-lib
 
@@ -552,7 +552,7 @@ executable benchmark-text
     Data.Text.Util
 
   build-depends:
-      liquid-containers
+      containers
     , integer-gmp >= 0.2
     , syb
     , base
@@ -723,7 +723,7 @@ executable errors
     build-depends:    base
                     , liquid-prelude
                     , bytestring
-                    , liquid-containers
+                    , containers
                     , liquidhaskell
 
     hs-source-dirs:   app
@@ -811,7 +811,7 @@ executable names-pos
     build-depends:    base
                     , liquid-prelude
                     , liquid-vector
-                    , liquid-containers
+                    , containers
                     , bytestring
                     , liquidhaskell
 
@@ -846,7 +846,7 @@ executable names-neg
                     , liquid-prelude
                     , liquid-vector
                     , bytestring
-                    , liquid-containers
+                    , containers
                     , liquidhaskell
 
     hs-source-dirs:   app
@@ -1037,7 +1037,7 @@ executable measure-neg
     build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
-                    , liquid-containers
+                    , containers
 
     hs-source-dirs:   app
                     , measure/neg
@@ -1340,7 +1340,7 @@ executable unit-neg
     ghc-options:      -fplugin=LiquidHaskell -ddump-to-file -fkeep-going -O0
     build-depends:    base
                     , liquid-prelude
-                    , liquid-containers
+                    , containers
                     , liquid-vector
                     , bytestring
                     , ghc-prim
@@ -1695,7 +1695,7 @@ executable unit-pos-1
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
-                    , liquid-containers
+                    , containers
                     , liquid-vector
                     , bytestring
                     , ghc-prim
@@ -1950,7 +1950,7 @@ executable unit-pos-2
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
-                    , liquid-containers
+                    , containers
                     , liquid-vector
                     , bytestring
                     , ghc-prim
@@ -2334,7 +2334,7 @@ executable ple-pos
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
-                    , liquid-containers
+                    , containers
                     , liquidhaskell
 
     hs-source-dirs:   app
@@ -2374,7 +2374,7 @@ executable ple-neg
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
-                    , liquid-containers
+                    , containers
                     , liquidhaskell
 
     hs-source-dirs:   app
@@ -2443,7 +2443,7 @@ executable terminate-pos
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
-                    , liquid-containers
+                    , containers
                     , liquidhaskell
 
     hs-source-dirs:   app
