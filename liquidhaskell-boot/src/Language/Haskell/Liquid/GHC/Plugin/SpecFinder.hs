@@ -30,13 +30,11 @@ import           Liquid.GHC.API         as GHC
 import           Data.Bifunctor
 import qualified Data.Char
 import           Data.IORef
-import           Data.List (find)
 import           Data.Maybe
 
 import           Control.Exception
 import           Control.Monad.Trans                      ( lift )
 import           Control.Monad.Trans.Maybe
-import           GHC.Driver.Plugins
 
 import           Text.Megaparsec.Error
 
@@ -87,31 +85,26 @@ findRelevantSpecs lhAssmPkgExcludes hscEnv mods = do
 
     loadModuleLHAssumptionsIfAny m | isImportExcluded m = return Nothing
                                    | otherwise = do
-      let assMod = assumptionsModule m
+      let assModName = assumptionsModuleName m
       -- loadInterface might mutate the EPS if the module is
       -- not already loaded
-      _ <- initIfaceTcRn $ loadInterface "liquidhaskell assumptions" assMod ImportBySystem
-      -- read the EPS again
-      eps2 <- liftIO $ readIORef (hsc_EPS hscEnv)
-      -- now look up the assumptions
-      runMaybeT $ lookupInterfaceAnnotationsEPS eps2 assMod
+      res <- liftIO $ findImportedModule hscEnv assModName Nothing
+      case res of
+        Found _ assMod -> do
+          _ <- initIfaceTcRn $ loadInterface "liquidhaskell assumptions" assMod ImportBySystem
+          -- read the EPS again
+          eps2 <- liftIO $ readIORef (hsc_EPS hscEnv)
+          -- now look up the assumptions
+          runMaybeT $ lookupInterfaceAnnotationsEPS eps2 assMod
+        FoundMultiple{} -> failWithTc $ cannotFindModule hscEnv assModName res
+        _ -> return Nothing
 
     isImportExcluded m =
       let s = takeWhile Data.Char.isAlphaNum $ unitString (moduleUnit m)
        in elem s lhAssmPkgExcludes
 
-    pluginUnit =
-        moduleUnit
-      $ fromMaybe (error "liquidhaskell error: can't find plugin module")
-      $ find isLHPluginModule
-      $ map (mi_module . lpModule)
-      $ hsc_plugins hscEnv
-    isLHPluginModule :: Module -> Bool
-    isLHPluginModule m = elem (moduleNameString (moduleName m)) ["LiquidHaskell", "LiquidHaskellBoot"]
-    assumptionsModule m =
-      mkModule pluginUnit
-        $ mkModuleNameFS
-        $ moduleNameFS (moduleName m) <> "_LHAssumptions"
+    assumptionsModuleName m =
+      mkModuleNameFS $ moduleNameFS (moduleName m) <> "_LHAssumptions"
 
 -- | If this module has a \"companion\" '.spec' file sitting next to it, this 'SpecFinder'
 -- will try loading it.
