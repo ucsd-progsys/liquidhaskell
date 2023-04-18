@@ -12,38 +12,11 @@ category:           Language
 homepage:           https://github.com/ucsd-progsys/liquidhaskell
 build-type:         Custom
 
-data-files:           src/Data/Vector.spec
-
 custom-setup
   setup-depends: Cabal<4, base<5, liquidhaskell-boot
 
 library
-  exposed-modules:    Data.Vector.Internal.Check
-                      Data.Vector.Fusion.Util
-                      Data.Vector.Fusion.Stream.Monadic
-                      Data.Vector.Fusion.Bundle.Size
-                      Data.Vector.Fusion.Bundle.Monadic
-                      Data.Vector.Fusion.Bundle
-
-                      Data.Vector.Generic.Mutable.Base
-                      Data.Vector.Generic.Mutable
-                      Data.Vector.Generic.Base
-                      Data.Vector.Generic.New
-                      Data.Vector.Generic
-
-                      Data.Vector.Primitive.Mutable
-                      Data.Vector.Primitive
-
-                      Data.Vector.Storable.Internal
-                      Data.Vector.Storable.Mutable
-                      Data.Vector.Storable
-
-                      Data.Vector.Unboxed.Base
-                      Data.Vector.Unboxed.Mutable
-                      Data.Vector.Unboxed
-
-                      Data.Vector.Mutable
-                      Data.Vector
+  exposed-modules:    Data.Vector_LHAssumptions
   hs-source-dirs:     src
   build-depends:      base          < 5
                     , vector               >= 0.12.3.1 && < 0.13
@@ -52,4 +25,4 @@ library
   default-extensions: PackageImports
   if impl(ghc >= 8.10)
     ghc-options: -fplugin=LiquidHaskell -fplugin-opt=LiquidHaskell:--no-positivity-check
-  
+

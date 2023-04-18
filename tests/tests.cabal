@@ -176,6 +176,7 @@ executable benchmark-vector-algorithms
                     , bytestring
                     , primitive
                     , liquidhaskell
+                    , vector
 
   ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
   if flag(measure-timings)
@@ -814,6 +815,7 @@ executable names-pos
                     , containers
                     , bytestring
                     , liquidhaskell
+                    , vector
 
     hs-source-dirs:   app
                     , names/pos
@@ -848,6 +850,7 @@ executable names-neg
                     , bytestring
                     , containers
                     , liquidhaskell
+                    , vector
 
     hs-source-dirs:   app
                     , names/neg
@@ -1347,6 +1350,7 @@ executable unit-neg
                     , liquidhaskell
                     , binary
                     , primitive
+                    , vector
 
     default-language: Haskell2010
 
@@ -1704,6 +1708,7 @@ executable unit-pos-1
                     , primitive
                     , template-haskell
                     , deepseq
+                    , vector
 
     hs-source-dirs:   app
                     , pos
@@ -1959,6 +1964,7 @@ executable unit-pos-2
                     , primitive
                     , template-haskell
                     , deepseq
+                    , vector
 
     hs-source-dirs:   app
                     , pos
@@ -1998,6 +2004,7 @@ executable absref-pos
                     , liquid-prelude
                     , liquid-vector
                     , liquidhaskell
+                    , vector
 
     hs-source-dirs:   app
                     , absref/pos
@@ -2028,6 +2035,7 @@ executable absref-neg
                     , liquid-prelude
                     , liquid-vector
                     , liquidhaskell
+                    , vector
 
     hs-source-dirs:   app
                     , absref/neg
@@ -2059,6 +2067,7 @@ executable relational-pos
                     , liquid-prelude
                     , liquid-vector
                     , liquidhaskell
+                    , vector
 
     hs-source-dirs:   app
                     , relational/pos
@@ -2089,6 +2098,7 @@ executable relational-neg
                     , liquid-prelude
                     , liquid-vector
                     , liquidhaskell
+                    , vector
 
     hs-source-dirs:   app
                     , relational/neg
