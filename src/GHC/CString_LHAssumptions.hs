@@ -12,5 +12,5 @@ measure strLen :: Addr# -> GHC.Types.Int
 
 assume GHC.CString.unpackCString#
   :: x:GHC.Prim.Addr#
-  -> {v:[Char] | v ~~ x && len v == strLen x}
+  -> {v:[GHC.Types.Char] | v ~~ x && len v == strLen x}
 @-}
