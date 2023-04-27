@@ -17,7 +17,7 @@ Note: The SMT solver binary should be on your `PATH`; LiquidHaskell will execute
 
 LiquidHaskell itself is installed&enabled by adding it as a dependency in your project's `.cabal` file.
 
-Just add `liquidhaskell` and `liquid-base` to the `build-depends` section of your `.cabal` file, as you would any other dependency.
+Just add `liquidhaskell` to the `build-depends` section of your `.cabal` file, as you would any other dependency.
 
 This causes `stack` (or `cabal`) to automatically:
 
@@ -39,7 +39,16 @@ codebase.
 
 ### Liquid Dependencies
 
-If you project depends on some well known library package `foo` (e.g. `base` or `containers`), then it's likely that the LiquidHaksell developers have annotated it with Liquid Types. You can use these annotations by adding the `liquid-foo` package to your `build-depends`.
+If you project depends on some well known library package `foo` (e.g. `base` or `vector`), then it's likely that the LiquidHaskell developers have written some specs for it. For boot libraries, that is those comming with the compiler, they are provided without further configuration. For other libraries like `vector`, a package like `liquid-vector` needs to be added to your `build-depends`.
+
+In order to see what specs are used for boot libraries, you can check the
+modules in [src](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/src).
+
+For the vector library, you can find the specs [here](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/liquid-vector).
+
+In general, whenever your module imports another module `A.B.C`, Liquid Haskell
+will look for additional specs in any module of packages in `build-depends` with name
+`A.B.C_LHAssumptions`.
 
 ### Editor Integration
 

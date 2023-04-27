@@ -33,8 +33,8 @@ library
                     , hashable >= 1.2.7.0
                     , deepseq >= 1.4
                     , liquidhaskell
-                    , liquid-base
-                    , liquid-containers
+                    , base
+                    , containers
                     , liquid-prelude
 
   exposed-modules:
@@ -61,7 +61,7 @@ library
   default-language:   Haskell2010
 
 executable stitch-lh
-  build-depends:      liquid-base >= 4.10 && < 5
+  build-depends:      base >= 4.10 && < 5
                     , stitch-lh
 
   hs-source-dirs:     main
@@ -81,9 +81,9 @@ test-suite tests
                       Tests.Lex
                       Tests.Util
 
-  build-depends:      liquid-base >= 4.10 && < 5
+  build-depends:      base >= 4.10 && < 5
                     , liquidhaskell
-                    , liquid-containers
+                    , containers
                     , stitch-lh
                     , template-haskell
                     , ansi-wl-pprint >= 0.6.7.1

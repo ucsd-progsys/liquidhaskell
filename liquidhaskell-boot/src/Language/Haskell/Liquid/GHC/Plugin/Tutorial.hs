@@ -32,15 +32,10 @@ __minimum supported version of GHC is 8.10.1.__
 {- $firstPackage
 
 Generally speaking, in order to integrate LiquidHaskell (/LH/ for brevity from now on) with your existing
-(or brand new) project, we need a few things:
+(or brand new) project, we need to tell GHC that we want to __use the LH plugin__, and it can be done
+by adding the @-fplugin=LiquidHaskell@ option in the @ghc-options@ of your Cabal manifest.
 
-* We need to tell GHC that we want to __use the LH plugin__, and it can be done by adding the
-  @-fplugin=LiquidHaskell@ option in the @ghc-options@ of your Cabal manifest;
-
-* We need to tell LH where to find the /specs/ (i.e. the refinements) for the types in @base@. To do this,
-  we need to depend on a special, __drop-in replacement__ for @base@ called @liquid-base@.
-
-If we do all the above, our Cabal manifest should look similar to this:
+If we do the above, our Cabal manifest should look similar to this:
 
 @
 cabal-version: 1.12
@@ -63,8 +58,8 @@ library
   hs-source-dirs:
       src
   build-depends:
-        liquid-base                    -- Add this!
-      , liquidhaskell
+        base
+      , liquidhaskell                  -- Add this!
   default-language: Haskell2010
   ghc-options: -fplugin=LiquidHaskell  -- Add this!
 @
@@ -210,19 +205,21 @@ be so easy, for a number of reasons:
 * The package is fairly important in the Haskell ecosystem and making changes to it might not be so easy,
   especially for packages which come as part of a GHC installation (think @base@, for example).
 
-The designed workflow in these cases is to create a __brand new package__ (that we can call \"mirror\" package),
-which would re-export /everything/ from the \"mirrored\" package while adding all the required /LH/
-annotations. This is what we have done for things like @base@ and @containers@, for example, by
-providing @liquid-containers@ and @liquid-base@, the latter being what we have used in
-the tutorial to get started.
+The designed workflow in these cases is to create a __brand new package__ (that we can call an \"assumptions\" package),
+which would contain the required /LH/ annotations. This is what we have done for things like @vector@ and @parallel@,
+for example, by providing @liquid-vector@ and @liquid-parallel@.
 
-There are some very simple guidelines to drive this process:
+There are some guidelines to drive this process:
 
 1. Typically you want to clearly identify this package as part of the /LH ecosystem/ by using an
    appropriate prefix for your package name, something like @liquid-foo@ where @foo@ is the original
    package you are adding annotations for;
 
-2. You need to abide to a set of PVP rules, like tracking the version of the upstream package first and
+2. If you want to have Liquid Haskell load the specs automatically when finding
+   an import of a module @A.B.C@, put the specs in a module named
+   @A.B.C_LHAssumptions@.
+
+3. You need to abide to a set of PVP rules, like tracking the version of the upstream package first and
    in case of changes to either the LH language or the specs in the mirror package, bump the last two
    digits of the version scheme, in a format like this:
 
@@ -231,6 +228,6 @@ There are some very simple guidelines to drive this process:
    Where @A.B.C.D@ would be used to track the upstream package version and @X.Y@ would enumerate the
    versions of this mirror package. Bumping @X@ would signify there was a breaking change in the /LH/
    language that required a new release of this plugin, whereas bumping @Y@ would mean something changed
-   in the __specs__ provided as part of this mirror package (e.g. more refinements were added, bugs were
-   fixed etc).
+   in the __specs__ provided as part of this assumptions package (e.g. more refinements were added,
+   bugs were fixed etc).
 -}
