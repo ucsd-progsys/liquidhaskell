@@ -11,10 +11,8 @@ ghc-options:
   liquidhaskell-boot: -j
 packages:
 - liquid-fixpoint
-- liquid-bytestring
 - liquid-prelude
 - liquid-vector
-- liquid-containers
 - liquid-parallel
 - liquid-platform
 - liquidhaskell-boot

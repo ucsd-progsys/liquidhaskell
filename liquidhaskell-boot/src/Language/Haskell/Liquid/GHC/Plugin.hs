@@ -118,14 +118,19 @@ plugin = GHC.defaultPlugin {
   , pluginRecompile       = purePlugin
   }
   where
+    liquidPlugin :: [CommandLineOption] -> ModSummary -> TcGblEnv -> TcM TcGblEnv
+    liquidPlugin _ summary gblEnv = do
+      cfg <- liftIO getConfig
+      if skipModule cfg then return gblEnv
+      else liquidPluginGo summary gblEnv
+
     -- Unfortunately, we can't make Haddock run the LH plugin, because the former
     -- does mangle the '.hi' files, causing annotations to not be persisted in the
     -- 'ExternalPackageState' and/or 'HomePackageTable'. For this reason we disable
-    -- the plugin altogether is the module is being compiled with Haddock.
+    -- the plugin altogether if the module is being compiled with Haddock.
     -- See also: https://github.com/ucsd-progsys/liquidhaskell/issues/1727
     -- for a post-mortem.
-    liquidPlugin :: [CommandLineOption] -> ModSummary -> TcGblEnv -> TcM TcGblEnv
-    liquidPlugin opts summary gblEnv = do
+    liquidPluginGo summary gblEnv = do
       logger <- getLogger
       dynFlags <- getDynFlags
       withTiming logger dynFlags (text "LiquidHaskell" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $ do
@@ -140,7 +145,7 @@ plugin = GHC.defaultPlugin {
             liftIO $ printWarning logger dynFlags warning
             pure gblEnv
           else do
-            newGblEnv <- typecheckHook opts summary gblEnv
+            newGblEnv <- typecheckHook summary gblEnv
             case newGblEnv of
               -- Exit with success if all expected errors were found
               Left (ErrorsOccurred []) -> pure gblEnv
@@ -219,8 +224,8 @@ instance Unoptimise (DynFlags, HscEnv) where
 --    grab from parsing (again) the module by using the GHC API, so we are really
 --    independent from the \"normal\" compilation pipeline.
 --
-typecheckHook :: [CommandLineOption] -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
-typecheckHook _ (unoptimise -> modSummary) tcGblEnv = do
+typecheckHook :: ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
+typecheckHook (unoptimise -> modSummary) tcGblEnv = do
   debugLog $ "We are in module: " <> show (toStableModule thisModule)
 
   parsed          <- GhcMonadLike.parseModule (LH.keepRawTokenStream modSummary)

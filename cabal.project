@@ -1,8 +1,6 @@
 with-compiler: ghc-9.2.5
 
 packages: .
-          ./liquid-bytestring
-          ./liquid-containers
           ./liquid-fixpoint
           ./liquid-parallel
           ./liquid-prelude

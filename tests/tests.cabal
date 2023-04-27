@@ -63,7 +63,7 @@ executable benchmark-stitch-lh
                     , deepseq >= 1.4
                     , liquidhaskell
                     , base
-                    , liquid-containers
+                    , containers
                     , liquid-prelude
 
     other-modules:
@@ -173,9 +173,10 @@ executable benchmark-vector-algorithms
   build-depends:      base
                     , liquid-prelude
                     , liquid-vector
-                    , liquid-bytestring
+                    , bytestring
                     , primitive
                     , liquidhaskell
+                    , vector
 
   ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
   if flag(measure-timings)
@@ -279,7 +280,7 @@ executable benchmark-icfp15-pos
 
   build-depends:      base
                     , liquid-prelude
-                    , liquid-containers
+                    , containers
                     , ghc-prim
                     , liquidhaskell
 
@@ -311,7 +312,7 @@ executable benchmark-icfp15-neg
 
   build-depends:      base
                     , liquid-prelude
-                    , liquid-containers
+                    , containers
                     , ghc-prim
                     , liquidhaskell
 
@@ -391,7 +392,7 @@ executable prover-nople-pos
 
   build-depends:      base
                     , liquid-prelude
-                    , liquid-containers
+                    , containers
                     , liquidhaskell
                     , prover-ple-lib
 
@@ -429,7 +430,7 @@ executable prover-nople-neg
 
   build-depends:      base
                     , liquid-prelude
-                    , liquid-containers
+                    , containers
                     , liquidhaskell
                     , prover-ple-lib
 
@@ -481,7 +482,7 @@ executable prover-ple-pos
 
   build-depends:      base
                     , liquid-prelude
-                    , liquid-containers
+                    , containers
                     , liquidhaskell
                     , prover-ple-lib
 
@@ -552,12 +553,12 @@ executable benchmark-text
     Data.Text.Util
 
   build-depends:
-      liquid-containers
+      containers
     , integer-gmp >= 0.2
     , syb
     , base
     , liquid-prelude
-    , liquid-bytestring
+    , bytestring
     , ghc-prim
     , liquidhaskell
 
@@ -592,7 +593,7 @@ executable parsing-errors
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
 
     build-depends:    base
-                    , liquid-bytestring
+                    , bytestring
                     , liquid-prelude
                     , liquidhaskell
 
@@ -722,8 +723,8 @@ executable errors
 
     build-depends:    base
                     , liquid-prelude
-                    , liquid-bytestring
-                    , liquid-containers
+                    , bytestring
+                    , containers
                     , liquidhaskell
 
     hs-source-dirs:   app
@@ -811,9 +812,10 @@ executable names-pos
     build-depends:    base
                     , liquid-prelude
                     , liquid-vector
-                    , liquid-containers
-                    , liquid-bytestring
+                    , containers
+                    , bytestring
                     , liquidhaskell
+                    , vector
 
     hs-source-dirs:   app
                     , names/pos
@@ -845,9 +847,10 @@ executable names-neg
     build-depends:    base
                     , liquid-prelude
                     , liquid-vector
-                    , liquid-bytestring
-                    , liquid-containers
+                    , bytestring
+                    , containers
                     , liquidhaskell
+                    , vector
 
     hs-source-dirs:   app
                     , names/neg
@@ -1037,7 +1040,7 @@ executable measure-neg
     build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
-                    , liquid-containers
+                    , containers
 
     hs-source-dirs:   app
                     , measure/neg
@@ -1340,13 +1343,14 @@ executable unit-neg
     ghc-options:      -fplugin=LiquidHaskell -ddump-to-file -fkeep-going -O0
     build-depends:    base
                     , liquid-prelude
-                    , liquid-containers
+                    , containers
                     , liquid-vector
-                    , liquid-bytestring
+                    , bytestring
                     , ghc-prim
                     , liquidhaskell
                     , binary
                     , primitive
+                    , vector
 
     default-language: Haskell2010
 
@@ -1695,15 +1699,16 @@ executable unit-pos-1
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
-                    , liquid-containers
+                    , containers
                     , liquid-vector
-                    , liquid-bytestring
+                    , bytestring
                     , ghc-prim
                     , liquidhaskell
                     , transformers
                     , primitive
                     , template-haskell
                     , deepseq
+                    , vector
 
     hs-source-dirs:   app
                     , pos
@@ -1950,15 +1955,16 @@ executable unit-pos-2
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
-                    , liquid-containers
+                    , containers
                     , liquid-vector
-                    , liquid-bytestring
+                    , bytestring
                     , ghc-prim
                     , liquidhaskell
                     , transformers
                     , primitive
                     , template-haskell
                     , deepseq
+                    , vector
 
     hs-source-dirs:   app
                     , pos
@@ -1998,6 +2004,7 @@ executable absref-pos
                     , liquid-prelude
                     , liquid-vector
                     , liquidhaskell
+                    , vector
 
     hs-source-dirs:   app
                     , absref/pos
@@ -2028,6 +2035,7 @@ executable absref-neg
                     , liquid-prelude
                     , liquid-vector
                     , liquidhaskell
+                    , vector
 
     hs-source-dirs:   app
                     , absref/neg
@@ -2059,6 +2067,7 @@ executable relational-pos
                     , liquid-prelude
                     , liquid-vector
                     , liquidhaskell
+                    , vector
 
     hs-source-dirs:   app
                     , relational/pos
@@ -2089,6 +2098,7 @@ executable relational-neg
                     , liquid-prelude
                     , liquid-vector
                     , liquidhaskell
+                    , vector
 
     hs-source-dirs:   app
                     , relational/neg
@@ -2120,7 +2130,7 @@ executable basic-neg
     build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
-                    , liquid-bytestring
+                    , bytestring
 
     hs-source-dirs:   app
                     , basic/neg
@@ -2334,7 +2344,7 @@ executable ple-pos
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
-                    , liquid-containers
+                    , containers
                     , liquidhaskell
 
     hs-source-dirs:   app
@@ -2374,7 +2384,7 @@ executable ple-neg
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
-                    , liquid-containers
+                    , containers
                     , liquidhaskell
 
     hs-source-dirs:   app
@@ -2443,7 +2453,7 @@ executable terminate-pos
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
-                    , liquid-containers
+                    , containers
                     , liquidhaskell
 
     hs-source-dirs:   app
