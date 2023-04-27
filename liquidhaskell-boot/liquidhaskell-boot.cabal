@@ -30,11 +30,6 @@ flag deterministic-profiling
   description: Support building against GHC with <https://phabricator.haskell.org/D4388>
                backported
 
-flag mirror-modules-helper
-  default:     False
-  manual:      True
-  description: Build the "mirror-modules" helper executable.
-
 library
   autogen-modules:    Paths_liquidhaskell_boot
   exposed-modules:    Language.Haskell.Liquid.Cabal
