@@ -483,3 +483,32 @@ verification attempts.
 
   It is also possible to generate *slide shows* from the above.
   See the [slides directory](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/docs/slides) for an example.
+
+
+## Loading specifications automatically
+
+By default, Liquid Haskell will load the specifications from module
+`A.B.C_LHAssumptions` whenever it finds an import of module `A.B.C`.
+For instance,
+
+```Haskell
+import Data.Vector
+import Data.Vector.Unboxed
+```
+
+would cause Liquid Haskell to try modules `Data.Vector_LHAssumptions`
+and `Data.Vector.Unboxed_LHAssumptions`. If the `_LHAssumptions` module
+is missing, vecrification proceeds without any extra specifications.
+
+`A.B.C_LHAssumptions` is looked in any package that is visible to GHC
+when verifying a module. But the following flag can be used to stop
+this automatic loading when the imported module belongs to the given
+package.
+
+**Options:** `--exclude-automatic-assumptions-for=PACKAGE`
+
+Liquid Haskell will not load `_LHAssumptions` modules upon finding
+an import of a module coming from package `PACKAGE`. e.g.
+`--exclude-automatic-assumptions-for=vector` would stop loading
+`_LHAssumptions` modules for any imports coming from package
+`vector`.
