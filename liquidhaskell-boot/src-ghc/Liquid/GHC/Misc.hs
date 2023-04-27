@@ -1069,7 +1069,7 @@ withWiredIn m = discardConstraints $ do
              (mkHsForAllInvisTele Ghc.noAnn [toLoc $ UserTyVar Ghc.noAnn SpecifiedSpec aName]) $ mkHsFunTy aTy (mkHsFunTy aTy boolTy')
     return $ TcWiredIn n (Just (4, Ghc.InfixN)) ty
 
-  -- TODO: This is defined as a measure in liquid-base GHC.Base. We probably want to insert all measures to the environment.
+  -- TODO: This is defined as a measure in liquidhaskell GHC.Base_LHAssumptions. We probably want to insert all measures to the environment.
   -- len :: forall a. [a] -> Int
   len = do
     n <- toName "len"

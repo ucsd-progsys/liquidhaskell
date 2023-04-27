@@ -47,16 +47,16 @@ For those diving into the implementation of LiquidHaskell, here are a few tips:
 
 ## Fast (re)compilation
 
-When working on the `liquidhaskell` library, usually all we want is to make changes and quickly recompile
+When working on the `liquidhaskell-boot` library, usually all we want is to make changes and quickly recompile
 only the bare minimum, to try out new ideas. Using a fully-fledged GHC plugin doesn't help in this sense,
-because packages like `liquid-base` have a direct dependency on `liquidhaskell`, and
+because packages like `liquidhaskell` or `liquid-prelude` have a direct dependency on `liquidhaskell-boot`, and
 therefore every time the latter changes, an expensive rebuild of those packages is triggered, which
 might become tedious overtime. To mitigate this, we offer a faster, "dev-style" build mode which is based
 on the assumption that most changes to the `liquidhaskell` library do not alter the validity of
-already-checked libraries, and therefore things like `liquid-base` can be considered
+already-checked libraries, and therefore things like `liquid-prelude` can be considered
 "static assets", avoiding the need for a recompilation. In other terms, we explicitly disable recompilation
-of any of the `liquid-*` ancillary library in dev mode, so that rebuilds would also influence the 
-`liquidhaskell` library.
+of any of the `liquid-*` ancillary library in dev mode, so that rebuilds only affect the
+`liquidhaskell-boot` library.
 
 ### Usage and recommended workflow
 
@@ -64,13 +64,13 @@ This is how you can use this:
 
 * To begin with, perform a **full** build of **all** the libraries, by doing either `cabal v2-build` or `stack build`,
   **without** specifying any extra environment variables from the command line. This is needed to ensure that
-  we things like `liquid-base` are compiled at least once, as we would need the
+  things like `liquid-prelude` or `liquidhaskell` are compiled at least once, as we would need the
   refinements they contain to correctly checks other downstream programs;
 
 * At this point, the content of the `liquid-*` packages is considered "trusted" and "frozen", until you won't
   force another full, _non-dev_ build;
 
-* In order to quickly test changes to the `liquidhaskell` library without recompiling the `liquid-*` packages,
+* In order to quickly test changes to the `liquidhaskell-boot` library without recompiling the `liquid-*` packages,
   we need to start a build passing the `LIQUID_DEV_MODE` env var as part of the build command. Examples:
 
 #### Stack
