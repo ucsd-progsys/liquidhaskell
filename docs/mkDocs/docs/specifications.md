@@ -535,7 +535,7 @@ states that the *inner* `a` enjoys the property that the *outer* container
 is definitely a `Just` and furthermore, the inner value is exactly the same
 as the `fromJust` property of the outer container.
 
-As another example, suppose we have a [measure](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/liquid-containers/src/Data/Set.spec):
+As another example, suppose we have a [measure](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/src/Data/Set_LHAssumptions.hs):
 
     measure listElts :: [a] -> (Set a)
     listElts([])   = {v | (? Set_emp(v))}
