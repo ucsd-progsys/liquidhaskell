@@ -86,15 +86,6 @@ main = do
                          , "-no-link"
                          , "-fplugin=LiquidHaskell"
                          , "-plugin-package", "liquidhaskell"
-                         , "-package", "liquid-base"
-                         , "-package", "liquid-containers"
-                         , "-package", "liquid-prelude"
-                         , "-package", "liquid-vector"
-                         , "-package", "liquid-bytestring"
-                         , "-hide-package", "base"
-                         , "-hide-package", "containers"
-                         , "-hide-package", "vector"
-                         , "-hide-package", "bytestring"
                          , "-fplugin-opt=LiquidHaskell:--normal" -- normal logging.
                          ]
                          <> map (mappend "-fplugin-opt=LiquidHaskell:") liquidArgs

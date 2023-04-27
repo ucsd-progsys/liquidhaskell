@@ -131,6 +131,7 @@ import Hugs.ForeignPtr          (newForeignPtr_)
 #elif __GLASGOW_HASKELL__<=604
 import Foreign.ForeignPtr       (newForeignPtr_)
 #endif
+import Data.Maybe () -- brings isJust measure into scope
 
 -- CFILES stuff is Hugs only
 {-# CFILES cbits/fpstring.c #-}

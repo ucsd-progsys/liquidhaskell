@@ -8,16 +8,14 @@ flags:
 extra-package-dbs: []
 ghc-options:
   hscolour: -w
-  liquidhaskell: -j
+  liquidhaskell-boot: -j
 packages:
 - liquid-fixpoint
-- liquid-base
-- liquid-bytestring
 - liquid-prelude
 - liquid-vector
-- liquid-containers
 - liquid-parallel
 - liquid-platform
+- liquidhaskell-boot
 - tests
 - tests/benchmarks/popl18/lib
 - benchmark-timings

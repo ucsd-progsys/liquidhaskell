@@ -32,7 +32,7 @@ install:
 
 build_script:
 - echo "" | rm -rf .stack-work
-- echo "" | stack --no-terminal build --flag liquidhaskell:devel liquidhaskell
+- echo "" | stack --no-terminal build --flag liquidhaskell-boot:devel liquidhaskell
 
 # Copy runtime DLLs
 - call appveyor-copy.bat
@@ -42,4 +42,4 @@ build_script:
 
 # Run the tests
 test_script:
-- echo "" | stack --no-terminal test --flag liquidhaskell:devel liquidhaskell:liquidhaskell-parser
+- echo "" | stack --no-terminal test --flag liquidhaskell-boot:devel liquidhaskell-boot:liquidhaskell-parser
