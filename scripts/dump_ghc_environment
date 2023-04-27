@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-
-set -eu
-set -o pipefail
-
-cat $GHC_ENVIRONMENT
