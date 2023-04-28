@@ -140,21 +140,9 @@ refreshRefType allowTC (RImpF sym i t t' _)
   | otherwise          = (\t1 t2 -> RImpF sym i t1 t2 mempty)   <$> refresh allowTC t <*> refresh allowTC t'
 
 refreshRefType allowTC (RFun sym i t t' _)
-  = go <$> rt 
-  where 
-    rt | sym == F.dummySymbol = (\b t1 t2 -> RFun b i t1 t2 mempty) <$> fresh <*> refresh allowTC t <*> refresh allowTC t'
-       | otherwise            = (\t1 t2 -> RFun sym i t1 t2 mempty) <$> refresh allowTC t <*> refresh allowTC t'
+  | sym == F.dummySymbol = (\b t1 t2 -> RFun b i t1 t2 mempty) <$> fresh <*> refresh allowTC t <*> refresh allowTC t'
+  | otherwise            = (\t1 t2 -> RFun sym i t1 t2 mempty) <$> refresh allowTC t <*> refresh allowTC t'
     
-    -- This removes the top-level k-var from the first argument of a multi argument function, 
-    -- because all top level refinements should be captured in the last argument. 
-    go (RFun x ix tx (RFun y iy ty tt tr) rr) = RFun x ix (trueTop tx) (RFun y iy ty tt tr) rr
-    go tt = tt 
-    trueTop (RImpF s i' tx tt _) = RImpF s i' tx tt mempty
-    trueTop (RApp rc ts rs _)    = RApp rc ts rs mempty
-    trueTop (RVar a _)           = RVar a mempty
-    trueTop (RAppTy tx tt _)     = RAppTy tx tt mempty
-    trueTop tt                   = tt 
-
 refreshRefType _ (RApp rc ts _ _) | isClass rc
   = return $ rRCls rc ts
 

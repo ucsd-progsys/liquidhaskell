@@ -585,10 +585,31 @@ varTemplate' γ (x, eo)
       (_, Just t, _, _) -> Asserted <$> refreshArgsTop (x, t)
       (_, _, _, Just t) -> Internal <$> refreshArgsTop (x, t)
       (_, _, Just t, _) -> Assumed  <$> refreshArgsTop (x, t)
-      (Just e, _, _, _) -> do t  <- freshTyExpr (typeclass (getConfig γ)) (RecBindE x) e (exprType e)
+      (Just e, _, _, _) -> do t <- minimizeKVars <$> freshTyExpr (typeclass (getConfig γ)) (RecBindE x) e (exprType e)
                               addW (WfC γ t)
                               Asserted <$> refreshArgsTop (x, t)
       (_,      _, _, _) -> return Unknown
+
+-- | @minimizeKVars@ strips out the k vars from all the arguments but the last 
+minimizeKVars :: SpecType -> SpecType
+minimizeKVars = go 
+  where  
+    go (RFun x ix tx (RFun y iy ty tt tr) rr) 
+      | hasTop ty 
+      = RFun x ix (trueTop tx) (RFun y iy ty tt tr) rr
+    go tt = tt 
+    trueTop (RImpF s i' tx tt _) = RImpF s i' tx tt mempty
+    trueTop (RApp rc ts rs _)    = RApp rc ts rs mempty
+    trueTop (RVar a _)           = RVar a mempty
+    trueTop (RAppTy tx tt _)     = RAppTy tx tt mempty
+    trueTop tt                   = tt 
+
+    hasTop (RImpF _ _ _ _ _) = True 
+    hasTop (RApp _ _ _ _)    = True
+    hasTop (RVar _ _)        = True
+    hasTop (RAppTy _ _ _)    = True
+    hasTop _                 = False
+
 
 -- | @topSpecType@ strips out the top-level refinement of "derived var"
 topSpecType :: Var -> SpecType -> CG SpecType
