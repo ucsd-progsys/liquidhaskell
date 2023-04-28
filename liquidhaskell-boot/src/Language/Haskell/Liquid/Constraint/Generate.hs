@@ -604,11 +604,11 @@ minimizeKVars = go
     trueTop (RAppTy tx tt _)     = RAppTy tx tt mempty
     trueTop tt                   = tt 
 
-    hasTop (RImpF _ _ _ _ _) = True 
-    hasTop (RApp _ _ _ _)    = True
-    hasTop (RVar _ _)        = True
-    hasTop (RAppTy _ _ _)    = True
-    hasTop _                 = False
+    hasTop (RImpF {})  = True 
+    hasTop (RApp {})   = True
+    hasTop (RVar {})   = True
+    hasTop (RAppTy {}) = True
+    hasTop _           = False
 
 
 -- | @topSpecType@ strips out the top-level refinement of "derived var"
