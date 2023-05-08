@@ -34,13 +34,13 @@ import qualified Language.Haskell.Liquid.Bare.Misc  as Bare
 -- [NOTE: Plug-Holes-TyVars] We have _two_ versions of `plugHoles:
 -- * `HsTyVars` ensures that the returned signature uses the GHC type variables;
 --   We need this as these tyvars can appear in the SOURCE (as type annotations, or
---   as the types of lambdas) and renaming them will cause problems; 
--- * `LqTyVars` ensures that the returned signatuer uses the LIQUID type variables; 
---   We need this e.g. for class specifications where we cannot change the tyvars 
---   used inside method signatures as that messes up the type for the data-constructor 
---   for the dictionary (as we need to use the same tyvars as are "bound" in the class 
+--   as the types of lambdas) and renaming them will cause problems;
+-- * `LqTyVars` ensures that the returned signatuer uses the LIQUID type variables;
+--   We need this e.g. for class specifications where we cannot change the tyvars
+--   used inside method signatures as that messes up the type for the data-constructor
+--   for the dictionary (as we need to use the same tyvars as are "bound" in the class
 --   definition).
--- In short, use `HsTyVars` when we also have to analyze the binder's SOURCE; and 
+-- In short, use `HsTyVars` when we also have to analyze the binder's SOURCE; and
 -- otherwise, use `LqTyVars`.
 ---------------------------------------------------------------------------------------
 
@@ -66,9 +66,9 @@ makePluggedSig allowTC name embs tyi exports kx t
     -- x = case kx of { Bare.HsTV x -> x ; Bare.LqTV x -> x }
 
 
--- makePluggedDataCon = makePluggedDataCon_old 
--- plugHoles          = plugHolesOld 
--- makePluggedDataCon = makePluggedDataCon_new 
+-- makePluggedDataCon = makePluggedDataCon_old
+-- plugHoles          = plugHolesOld
+-- makePluggedDataCon = makePluggedDataCon_new
 
 -- plugHoles _         = plugHolesOld
 
@@ -107,7 +107,7 @@ makePluggedDataCon allowTC embs tyi ldcp
 
     isGADT            = Ghc.isGadtSyntaxTyCon $ Ghc.dataConTyCon dc
 
-    -- hack to match LH and GHC GADT vars, since it is unclear how ghc generates free vars 
+    -- hack to match LH and GHC GADT vars, since it is unclear how ghc generates free vars
     padGADVars vs = (RTV <$> take (length das - length vs) das) ++ vs
 
     mismatchFlds      = length dts /= length dcArgs
@@ -115,25 +115,25 @@ makePluggedDataCon allowTC embs tyi ldcp
     err things        = ErrBadData (GM.fSrcSpan dcp) (pprint dc) ("GHC and Liquid specifications have different numbers of" <+> things) :: UserError
 
 
--- | @plugMany@ is used to "simultaneously" plug several different types, 
---   e.g. as arise in the fields of a data constructor. To do so we create 
---   a single "function type" that is then passed into @plugHoles@. 
---   We also pass in the type parameters as dummy arguments, because, e.g. 
+-- | @plugMany@ is used to "simultaneously" plug several different types,
+--   e.g. as arise in the fields of a data constructor. To do so we create
+--   a single "function type" that is then passed into @plugHoles@.
+--   We also pass in the type parameters as dummy arguments, because, e.g.
 --   we want @plugMany@ on the two types
---  
---      forall a. a -> a -> Bool 
---      forall b. _ -> _ -> _ 
--- 
---   to return something like 
--- 
+--
+--      forall a. a -> a -> Bool
+--      forall b. _ -> _ -> _
+--
+--   to return something like
+--
 --      forall b. b -> b -> Bool
--- 
+--
 --   and not, forall b. a -> a -> Bool.
 
 plugMany :: Bool -> F.TCEmb Ghc.TyCon -> Bare.TyConMap
          -> Located DataConP
-         -> ([Ghc.Var], [Ghc.Type],             Ghc.Type)   -- ^ hs type 
-         -> ([RTyVar] , [(F.Symbol, SpecType)], SpecType)   -- ^ lq type 
+         -> ([Ghc.Var], [Ghc.Type],             Ghc.Type)   -- ^ hs type
+         -> ([RTyVar] , [(F.Symbol, SpecType)], SpecType)   -- ^ lq type
          -> ([(F.Symbol, SpecType)], SpecType)              -- ^ plugged lq type
 plugMany allowTC embs tyi ldcp (hsAs, hsArgs, hsRes) (lqAs, lqArgs, lqRes)
                      = F.notracepp msg (drop nTyVars (zip xs ts), t)
@@ -221,7 +221,7 @@ plugHolesNew allowTC@False tce tyi xx f t0 zz@(Loc l l' st0)
 plugHolesNew allowTC@True tce tyi a f t0 zz@(Loc l l' st0)
     = Loc l l'
     . mkArrow (zip (updateRTVar <$> as'') rs) ps [] (if length cs > length cs' then cs else cs')
-    -- . makeCls cs' 
+    -- . makeCls cs'
     . goPlug tce tyi err f rt'
     $ st
   where
@@ -235,8 +235,8 @@ plugHolesNew allowTC@True tce tyi a f t0 zz@(Loc l l' st0)
                           Right s -> [ (rTyVar x, y) | (x, y) <- Bare.vmap s]
     (as,_,cs0,rt) = bkUnivClass' (ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
     (_,ps,cs0' ,st) = bkUnivClass' st0
-    cs  = [ (x, classRFInfo allowTC, t, r) | (x,t,r)<-cs0]
-    cs' = [ (x, classRFInfo allowTC, t, r) | (x,t,r)<-cs0']
+    cs  = [ (x, Just allowTC, t, r) | (x,t,r)<-cs0]
+    cs' = [ (x, Just allowTC, t, r) | (x,t,r)<-cs0']
 
     err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint a)
                           (text "Plugged Init types new")
@@ -263,8 +263,9 @@ goPlug tce tyi err f = go
         addHole t                  = t
 
     go (RVar _ _)       v@(RVar _ _)       = v
-    go t'               (RImpF x ii i o r)   = RImpF x ii i  (go t' o)             r
-    go (RFun _ _ i o _) (RFun x ii i' o' r)  = RFun x  ii   (go i i')   (go o o') r
+--    go t'               (RImpF x ii i o r)   = RImpF x ii i  (go t' o)             r
+    go t'               (RFun x ii i o r) | isImplicit ii = RFun x ii i  (go t' o)             r
+    go (RFun _ _ i o _) (RFun x ii i' o' r)               = RFun x ii    (go i i')   (go o o') r
     go (RAllT _ t _)    (RAllT a t' r)     = RAllT a    (go t t') r
     go (RAllT a t r)    t'                 = RAllT a    (go t t') r
     go t                (RAllP p t')       = RAllP p    (go t t')
@@ -278,7 +279,7 @@ goPlug tce tyi err f = go
       | length ts == length ts'            = RApp c     (Misc.zipWithDef go ts $ Bare.matchKindArgs ts ts') p r
     go hsT lqT                             = Ex.throw (err (F.pprint hsT) (F.pprint lqT))
 
-    -- otherwise                          = Ex.throw err 
+    -- otherwise                          = Ex.throw err
     -- If we reach the default case, there's probably an error, but we defer
     -- throwing it as checkGhcSpec does a much better job of reporting the
     -- problem to the user.

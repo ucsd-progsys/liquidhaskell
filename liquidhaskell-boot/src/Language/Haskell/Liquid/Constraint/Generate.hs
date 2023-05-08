@@ -749,7 +749,7 @@ instantiateGhosts γ t = return (False, γ, t)
 bkImplicit :: RType c tv r
            -> ( [(F.Symbol, RType c tv r)]
               , RType c tv r)
-bkImplicit (RImpF x _ tx t _) = ((x,tx):acc, t')
+bkImplicit (RFun x i tx t _) | isImplicit i = ((x,tx):acc, t')
   where (acc,t') = bkImplicit t
 bkImplicit t = ([],t)
 
@@ -798,17 +798,17 @@ consE γ e
 -- NV CHECK 3 (unVar and does this hack even needed?)
 -- NV (below) is a hack to type polymorphic axiomatized functions
 -- no need to check this code with flag, the axioms environment with
--- is empty if there is no axiomatization. 
+-- is empty if there is no axiomatization.
 
--- [NOTE: PLE-OPT] We *disable* refined instantiation for 
+-- [NOTE: PLE-OPT] We *disable* refined instantiation for
 -- reflected functions inside proofs.
 
 -- If datacon definitions have references to self for fancy termination,
--- ignore them at the construction. 
+-- ignore them at the construction.
 consE γ (Var x) | GM.isDataConId x
   = do t0 <- varRefType γ x
-       -- NV: The check is expected to fail most times, so 
-       --     it is cheaper than direclty fmap ignoreSelf. 
+       -- NV: The check is expected to fail most times, so
+       --     it is cheaper than direclty fmap ignoreSelf.
        let hasSelf = selfSymbol `elem` F.syms t0
        let t = if hasSelf
                 then fmap ignoreSelf <$> t0
@@ -946,11 +946,11 @@ getExprDict γ           =  go
     go _                = Nothing
 
 --------------------------------------------------------------------------------
--- | With GADTs and reflection, refinements can contain type variables, 
---   as 'coercions' (see ucsd-progsys/#1424). At application sites, we 
+-- | With GADTs and reflection, refinements can contain type variables,
+--   as 'coercions' (see ucsd-progsys/#1424). At application sites, we
 --   must also substitute those from the refinements (not just the types).
 --      https://github.com/ucsd-progsys/liquidhaskell/issues/1424
--- 
+--
 --   see: tests/ple/{pos,neg}/T1424.hs
 --
 --------------------------------------------------------------------------------
@@ -1047,8 +1047,8 @@ castTy γ t e _
 
 castTy' γ τ (Var x)
   = do t0 <- trueTy (typeclass (getConfig γ)) τ
-       tx <- varRefType γ x 
-       let t = mergeCastTys t0 tx 
+       tx <- varRefType γ x
+       let t = mergeCastTys t0 tx
        let ce = if typeclass (getConfig γ) && noADT (getConfig γ) then F.expr x
                 else eCoerc (typeSort (emb γ) $ Ghc.expandTypeSynonyms $ varType x)
                        (typeSort (emb γ) τ)
@@ -1066,20 +1066,20 @@ castTy' _ _ e
 
 
 {-
-mergeCastTys tcorrect trefined 
-  tcorrect has the correct GHC skeleton, 
+mergeCastTys tcorrect trefined
+  tcorrect has the correct GHC skeleton,
   trefined has the correct refinements (before coercion)
-  mergeCastTys keeps the trefined when the two GHC types match 
+  mergeCastTys keeps the trefined when the two GHC types match
 -}
 
-mergeCastTys :: SpecType -> SpecType -> SpecType 
-mergeCastTys t1 t2 
-  | toType False t1 == toType False t2 
-  = t2 
-mergeCastTys (RApp c1 ts1 ps1 r1) (RApp c2 ts2 _ _) 
-  | c1 == c2 
+mergeCastTys :: SpecType -> SpecType -> SpecType
+mergeCastTys t1 t2
+  | toType False t1 == toType False t2
+  = t2
+mergeCastTys (RApp c1 ts1 ps1 r1) (RApp c2 ts2 _ _)
+  | c1 == c2
   = RApp c1 (zipWith mergeCastTys ts1 ts2) ps1 r1
-mergeCastTys t _ 
+mergeCastTys t _
   = t
 
 {-
@@ -1182,14 +1182,14 @@ cconsCase γ x t acs (Alt ac ys ce)
   = do cγ <- caseEnv γ x acs ac ys mempty
        cconsE cγ ce t
 
-{- 
+{-
 
-case x :: List b of 
-  Emp -> e 
+case x :: List b of
+  Emp -> e
 
-  Emp :: tdc          forall a. {v: List a | cons v === 0} 
-  x   :: xt           List b 
-  ys  == binders      [] 
+  Emp :: tdc          forall a. {v: List a | cons v === 0}
+  x   :: xt           List b
+  ys  == binders      []
 
 -}
 -------------------------------------------------------------------------------------
@@ -1221,7 +1221,7 @@ caseEnv γ x acs a _ _ = do
 
 
 ------------------------------------------------------
--- SELF special substitutions 
+-- SELF special substitutions
 ------------------------------------------------------
 
 substSelf :: UReft F.Reft -> UReft F.Reft
@@ -1489,7 +1489,7 @@ isGenericVar α st =  all (\(c, α') -> (α'/=α) || isGenericClass c ) (classCo
                         , α'      <- freeTyVars t']
     isGenericClass c = className c `elem` [ordClassName, eqClassName] -- , functorClassName, monadClassName]
 
--- instance MonadFail CG where 
+-- instance MonadFail CG where
 --  fail msg = panic Nothing msg
 
 instance MonadFail Data.Functor.Identity.Identity where

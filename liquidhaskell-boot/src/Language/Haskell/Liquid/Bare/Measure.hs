@@ -126,10 +126,10 @@ makeMeasureInline allowTC embs lmap cbs x =
                        vx         = F.atLoc x (F.symbol v)
                        ok (xs, e) = LMap vx (F.symbol <$> xs) (either id id e)
 
--- | @coreToFun'@ takes a @Maybe DataConMap@: we need a proper map when lifting 
+-- | @coreToFun'@ takes a @Maybe DataConMap@: we need a proper map when lifting
 --   measures and reflects (which have case-of, and hence, need the projection symbols),
---   but NOT when lifting inlines (which do not have case-of). 
---   For details, see [NOTE:Lifting-Stages] 
+--   but NOT when lifting inlines (which do not have case-of).
+--   For details, see [NOTE:Lifting-Stages]
 
 coreToFun' :: Bool -> F.TCEmb Ghc.TyCon -> Maybe Bare.DataConMap -> LogicMap -> LocSymbol -> Ghc.Var -> Ghc.CoreExpr
            -> (([Ghc.Var], Either F.Expr F.Expr) -> a) -> a
@@ -292,8 +292,8 @@ dataConSel permitTC dc n (Proj i) = mkArrow (zip as (repeat mempty)) [] [] [xt] 
     err                  = panic Nothing $ "DataCon " ++ show dc ++ "does not have " ++ show i ++ " fields"
 
 -- bkDataCon :: DataCon -> Int -> ([RTVar RTyVar RSort], [SpecType], (Symbol, SpecType, RReft))
-bkDataCon :: (F.Reftable (RTProp RTyCon RTyVar r), PPrint r, F.Reftable r) => Bool -> Ghc.DataCon -> Int -> ([RTVar RTyVar RSort], [RRType r], (F.Symbol, RFInfo, RRType r, r))
-bkDataCon permitTC dcn nFlds  = (as, ts, (F.dummySymbol, classRFInfo permitTC, t, mempty))
+bkDataCon :: (F.Reftable (RTProp RTyCon RTyVar r), PPrint r, F.Reftable r) => Bool -> Ghc.DataCon -> Int -> ([RTVar RTyVar RSort], [RRType r], (F.Symbol, Maybe Bool, RRType r, r))
+bkDataCon permitTC dcn nFlds  = (as, ts, (F.dummySymbol, Just permitTC, t, mempty))
   where
     ts                = RT.ofType <$> Misc.takeLast nFlds (map Ghc.irrelevantMult _ts)
     t                 = -- Misc.traceShow ("bkDataConResult" ++ GM.showPpr (dc, _t, _t0)) $
@@ -380,7 +380,7 @@ mkMeasureDCon env name m = do
   return $ mkMeasureDCon_ m (zip (val <$> ns) dcs)
 
 -- mkMeasureDCon env name m = mkMeasureDCon_ m [ (val n, symDC n) | n <- measureCtors m ]
---   where 
+--   where
 --     symDC                = Bare.lookupGhcDataCon env name "measure-datacon"
 
 mkMeasureDCon_ :: Ms.MSpec t LocSymbol -> [(F.Symbol, Ghc.DataCon)] -> Ms.MSpec t Ghc.DataCon
@@ -455,11 +455,11 @@ makeClassMeasureSpec Ms.MSpec{..} = tx <$> M.elems cmeasMap
     tx (M n s _ _ _) = (n, CM n (mapReft ur_reft s))
 
 
-{- 
+{-
 expandMeasureBody :: Bare.Env -> ModName -> BareRTEnv -> SourcePos -> Body -> Body
-expandMeasureBody env name rtEnv l (P   p) = P   (Bare.expandQualify env name rtEnv l p) 
-expandMeasureBody env name rtEnv l (R x p) = R x (Bare.expandQualify env name rtEnv l p) 
-expandMeasureBody env name rtEnv l (E   e) = E   (Bare.expandQualify env name rtEnv l e) 
+expandMeasureBody env name rtEnv l (P   p) = P   (Bare.expandQualify env name rtEnv l p)
+expandMeasureBody env name rtEnv l (R x p) = R x (Bare.expandQualify env name rtEnv l p)
+expandMeasureBody env name rtEnv l (E   e) = E   (Bare.expandQualify env name rtEnv l e)
 
 
 makeHaskellBounds :: F.TCEmb TyCon -> CoreProgram -> S.HashSet (Var, LocSymbol) -> BareM RBEnv  -- TODO-REBARE

@@ -574,10 +574,10 @@ addPds ps t             = foldl' (flip rPred) t ps
 nlzP :: (OkRT c tv r) => [PVar (RType c tv ())] -> RType c tv r -> (RType c tv r, [PVar (RType c tv ())])
 nlzP ps t@(RVar _ _ )
  = (t, ps)
-nlzP ps (RImpF b i t1 t2 r)
- = (RImpF b i t1' t2' r, ps ++ ps1 ++ ps2)
-  where (t1', ps1) = nlzP [] t1
-        (t2', ps2) = nlzP [] t2
+--nlzP ps (RImpF b i t1 t2 r)
+-- = (RImpF b i t1' t2' r, ps ++ ps1 ++ ps2)
+--  where (t1', ps1) = nlzP [] t1
+--        (t2', ps2) = nlzP [] t2
 nlzP ps (RFun b i t1 t2 r)
  = (RFun b i t1' t2' r, ps ++ ps1 ++ ps2)
   where (t1', ps1) = nlzP [] t1
@@ -694,6 +694,21 @@ strengthenRefType_ f (RAppTy t1 t1' r1) (RAppTy t2 t2' r2)
     where t  = strengthenRefType_ f t1 t2
           t' = strengthenRefType_ f t1' t2'
 
+strengthenRefType_ f f1@(RFun x1 i1 t1 t1' r1) f2@(RFun x2 i2 t2 t2' r2)
+  | isImplicit i1 && isImplicit i2 =
+      RFun x2 i1 t t1'' (r1 `meet` r2)
+  -- YL: Evidence that we need a Monoid instance for RFInfo?
+  | not (isImplicit i1 || isImplicit i2) =
+    if x2 /= F.dummySymbol
+      then RFun x2 i1{permitTC = getFirst b} t t1'' (r1 `meet` r2)
+      else RFun x1 i1{permitTC = getFirst b} t t2'' (r1 `meet` r2)
+  | otherwise = f f1 f2
+    where t  = strengthenRefType_ f t1 t2
+          t1'' = strengthenRefType_ f (subst1 t1' (x1, EVar x2)) t2'
+          t2'' = strengthenRefType_ f t1' (subst1 t2' (x2, EVar x1))
+          b  = First (permitTC i1) <> First (permitTC i2)
+
+{-
 strengthenRefType_ f (RImpF x1 i t1 t1' r1) (RImpF x2 _ t2 t2' r2)
   = RImpF x2 i t t' (r1 `meet` r2)
     where t  = strengthenRefType_ f t1 t2
@@ -712,6 +727,7 @@ strengthenRefType_ f (RFun x1 i1 t1 t1' r1) (RFun x2 i2 t2 t2' r2)
     where t  = strengthenRefType_ f t1 t2
           t' = strengthenRefType_ f t1' (subst1 t2' (x2, EVar x1))
           b  = First (permitTC i1) <> First (permitTC i2)
+-}
 
 strengthenRefType_ f (RApp tid t1s rs1 r1) (RApp _ t2s rs2 r2)
   = RApp tid ts rs (r1 `meet` r2)
@@ -734,7 +750,7 @@ meets rs rs'
 strengthen :: Reftable r => RType c tv r -> r -> RType c tv r
 strengthen (RApp c ts rs r) r'  = RApp c ts rs (r `F.meet` r')
 strengthen (RVar a r) r'        = RVar a       (r `F.meet` r')
-strengthen (RImpF b i t1 t2 r) r' = RImpF b i t1 t2 (r `F.meet` r')
+--strengthen (RImpF b i t1 t2 r) r' = RImpF b i t1 t2 (r `F.meet` r')
 strengthen (RFun b i t1 t2 r) r'  = RFun b i t1 t2 (r `F.meet` r')
 strengthen (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `F.meet` r')
 strengthen (RAllT a t r)    r'  = RAllT a t    (r `F.meet` r')
@@ -818,7 +834,7 @@ pvArgs :: PVar t -> [(Symbol, t)]
 pvArgs pv = [(s, t) | (t, s, _) <- pargs pv]
 
 {- | [NOTE:FamInstPredVars] related to [NOTE:FamInstEmbeds]
-     See tests/datacon/pos/T1446.hs 
+     See tests/datacon/pos/T1446.hs
      The function txRefSort converts
 
         Int<p>              ===> {v:Int | p v}
@@ -826,7 +842,7 @@ pvArgs pv = [(s, t) | (t, s, _) <- pargs pv]
      which is fine, but also converts
 
         Field<q> Blob a     ===> {v:Field Blob a | q v}
-        
+
      which is NOT ok, because q expects a different arg.
 
      The above happens because, thanks to instance-family stuff,
@@ -834,12 +850,12 @@ pvArgs pv = [(s, t) | (t, s, _) <- pargs pv]
      Note that Field itself has no args, but Field Blob does...
 
      That is, it is not enough to store the refined `TyCon` info,
-     solely in the `RTyCon` as with family instances, you need BOTH 
-     the `TyCon` and the args to determine the extra info. 
-     
-     We do so in `TyConMap`, and by crucially extending 
+     solely in the `RTyCon` as with family instances, you need BOTH
+     the `TyCon` and the args to determine the extra info.
 
-     @RefType.appRTyCon@ whose job is to use the Refined @TyCon@ 
+     We do so in `TyConMap`, and by crucially extending
+
+     @RefType.appRTyCon@ whose job is to use the Refined @TyCon@
      that is, the @RTyCon@ generated from the @TyConP@ to strengthen
      individual occurrences of the TyCon applied to various arguments.
 
@@ -854,7 +870,7 @@ appRTyCon tce tyi rc ts = F.notracepp _msg (resTc, ps'')
 
     (rc', ps') = rTyConWithPVars tyi rc (rTypeSort tce <$> ts)
     -- TODO:faminst-preds rc'   = M.lookupDefault rc c (tcmTyRTy tyi)
-    -- TODO:faminst-preds ps'   = rTyConPVs rc' 
+    -- TODO:faminst-preds ps'   = rTyConPVs rc'
 
     -- TODO:faminst-preds: these substitutions may be WRONG if we are using FAMINST.
     ps''  = subts (zip (RTV <$> αs) ts') <$> ps'
@@ -872,10 +888,10 @@ rTyConWithPVars tyi rc ts = case famInstTyConMb tyi rc ts of
   where
     (rc', ps') = plainRTyConPVars tyi rc
 
--- | @famInstTyConMb rc args@ uses the @RTyCon@ AND @args@ to see if 
+-- | @famInstTyConMb rc args@ uses the @RTyCon@ AND @args@ to see if
 --   this is a family instance @RTyCon@, and if so, returns it.
 --   see [NOTE:FamInstPredVars]
---   eg: 'famInstTyConMb tyi Field [Blob, a]' should give 'Just R:FieldBlob' 
+--   eg: 'famInstTyConMb tyi Field [Blob, a]' should give 'Just R:FieldBlob'
 
 famInstTyConMb :: TyConMap -> RTyCon -> [F.Sort] -> Maybe RTyCon
 famInstTyConMb tyi rc ts = do
@@ -886,8 +902,8 @@ famInstTyConMb tyi rc ts = do
 famInstTyConType :: Ghc.TyCon -> Maybe Ghc.Type
 famInstTyConType c = uncurry Ghc.mkTyConApp <$> famInstArgs c
 
--- | @famInstArgs c@ destructs a family-instance @TyCon@ into its components, e.g. 
---   e.g. 'famInstArgs R:FieldBlob' is @(Field, [Blob])@ 
+-- | @famInstArgs c@ destructs a family-instance @TyCon@ into its components, e.g.
+--   e.g. 'famInstArgs R:FieldBlob' is @(Field, [Blob])@
 
 famInstArgs :: Ghc.TyCon -> Maybe (Ghc.TyCon, [Ghc.Type])
 famInstArgs c = case Ghc.tyConFamInst_maybe c of
@@ -898,7 +914,7 @@ famInstArgs c = case Ghc.tyConFamInst_maybe c of
       cArity      = Ghc.tyConRealArity c
 
 -- TODO:faminst-preds: case Ghc.tyConFamInst_maybe c of
--- TODO:faminst-preds:   Just (c', ts) -> F.tracepp ("famInstTyConType: " ++ F.showpp (c, Ghc.tyConArity c, ts)) 
+-- TODO:faminst-preds:   Just (c', ts) -> F.tracepp ("famInstTyConType: " ++ F.showpp (c, Ghc.tyConArity c, ts))
 -- TODO:faminst-preds:                    $ Just (famInstType (Ghc.tyConArity c) c' ts)
 -- TODO:faminst-preds:   Nothing       -> Nothing
 
@@ -908,9 +924,9 @@ famInstArgs c = case Ghc.tyConFamInst_maybe c of
 
 
 
--- | @plainTyConPVars@ uses the @TyCon@ to return the 
---   "refined" @RTyCon@ and @RPVars@ from the refined 
---   'data' definition for the @TyCon@, e.g. will use 
+-- | @plainTyConPVars@ uses the @TyCon@ to return the
+--   "refined" @RTyCon@ and @RPVars@ from the refined
+--   'data' definition for the @TyCon@, e.g. will use
 --   'List Int' to return 'List<p> Int' (if List has an abs-ref).
 plainRTyConPVars :: TyConMap -> RTyCon -> (RTyCon, [RPVar])
 plainRTyConPVars tyi rc = (rc', rTyConPVs rc')
@@ -950,7 +966,7 @@ allTyVars' t = fmap ty_var_value $ vs ++ vs'
 freeTyVars :: Eq tv => RType c tv r -> [RTVar tv (RType c tv ())]
 freeTyVars (RAllP _ t)     = freeTyVars t
 freeTyVars (RAllT α t _)   = freeTyVars t L.\\ [α]
-freeTyVars (RImpF _ _ t t' _)= freeTyVars t `L.union` freeTyVars t'
+--freeTyVars (RImpF _ _ t t' _)= freeTyVars t `L.union` freeTyVars t'
 freeTyVars (RFun _ _ t t' _) = freeTyVars t `L.union` freeTyVars t'
 freeTyVars (RApp _ ts _ _) = L.nub $ concatMap freeTyVars ts
 freeTyVars (RVar α _)      = [makeRTVar α]
@@ -967,7 +983,7 @@ tyClasses (RAllP _ t)     = tyClasses t
 tyClasses (RAllT _ t _)   = tyClasses t
 tyClasses (RAllE _ _ t)   = tyClasses t
 tyClasses (REx _ _ t)     = tyClasses t
-tyClasses (RImpF _ _ t t' _) = tyClasses t ++ tyClasses t'
+--tyClasses (RImpF _ _ t t' _) = tyClasses t ++ tyClasses t'
 tyClasses (RFun _ _ t t' _) = tyClasses t ++ tyClasses t'
 tyClasses (RAppTy t t' _) = tyClasses t ++ tyClasses t'
 tyClasses (RApp c ts _ _)
@@ -1070,8 +1086,8 @@ subsFree m s z@(α, τ,_) (RAllP π t)
 subsFree m s z@(a, τ, _) (RAllT α t r)
   -- subt inside the type variable instantiates the kind of the variable
   = RAllT (subt (a, τ) α) (subsFree m (ty_var_value α `S.insert` s) z t) (subt (a, τ) r)
-subsFree m s z@(α, τ, _) (RImpF x i t t' r)
-  = RImpF x i (subsFree m s z t) (subsFree m s z t') (subt (α, τ) r)
+--subsFree m s z@(α, τ, _) (RImpF x i t t' r)
+--  = RImpF x i (subsFree m s z t) (subsFree m s z t') (subt (α, τ) r)
 subsFree m s z@(α, τ, _) (RFun x i t t' r)
   = RFun x i (subsFree m s z t) (subsFree m s z t') (subt (α, τ) r)
 subsFree m s z@(α, τ, _) (RApp c ts rs r)
@@ -1129,9 +1145,9 @@ subsFreeRAppTy _ _ t t' r'
   = RAppTy t t' r'
 
 
--- | @mkRApp@ is the refined variant of GHC's @mkTyConApp@ which ensures that 
---    that applications of the "function" type constructor are normalized to 
---    the special case @FunTy _@ representation. The extra `_rep1`, and `_rep2` 
+-- | @mkRApp@ is the refined variant of GHC's @mkTyConApp@ which ensures that
+--    that applications of the "function" type constructor are normalized to
+--    the special case @FunTy _@ representation. The extra `_rep1`, and `_rep2`
 --    parameters come from the "levity polymorphism" changes in GHC 8.6 (?)
 --    See [NOTE:Levity-Polymorphism]
 
@@ -1156,28 +1172,28 @@ mkRApp m s c ts rs r r'
   where
     zs = [(tv, toRSort t, t) | (tv, t) <- zip (freeVars c) ts]
 
-{-| [NOTE:Levity-Polymorphism] 
- 
-     Thanks to Joachim Brietner and Simon Peyton-Jones!
-     With GHC's "levity polymorphism feature", see more here 
+{-| [NOTE:Levity-Polymorphism]
 
-         https://stackoverflow.com/questions/35318562/what-is-levity-polymorphism     
+     Thanks to Joachim Brietner and Simon Peyton-Jones!
+     With GHC's "levity polymorphism feature", see more here
+
+         https://stackoverflow.com/questions/35318562/what-is-levity-polymorphism
 
      The function type constructor actually has type
 
         (->) :: forall (r1::RuntimeRep) (r2::RuntimeRep).  TYPE r1 -> TYPE r2 -> TYPE LiftedRep
 
-     so we have to be careful to follow GHC's @mkTyConApp@ 
-     
+     so we have to be careful to follow GHC's @mkTyConApp@
+
         https://hackage.haskell.org/package/ghc-8.6.4/docs/src/Type.html#mkTyConApp
 
-     which normalizes applications of the `FunTyCon` constructor to use the special 
-     case `FunTy _` representation thus, so that we are not stuck with incompatible 
-     representations e.g. 
+     which normalizes applications of the `FunTyCon` constructor to use the special
+     case `FunTy _` representation thus, so that we are not stuck with incompatible
+     representations e.g.
 
         thing -> thing                                                  ... (using RFun)
 
-     and 
+     and
 
         (-> 'GHC.Types.LiftedRep 'GHC.Types.LiftedRep thing thing)      ... (using RApp)
 
@@ -1185,17 +1201,17 @@ mkRApp m s c ts rs r r'
      More details from Joachim Brietner:
 
      Now you might think that the function arrow has the following kind: `(->) :: * -> * -> *`.
-     But that is not the full truth: You can have functions that accept or return things with 
+     But that is not the full truth: You can have functions that accept or return things with
      different representations than just the usual lifted one.
 
      So the function arrow actually has kind `(->) :: forall r1 r2. TYPE r1 -> TYPE r2 -> *`.
-     And in `(-> 'GHC.Types.LiftedRep 'GHC.Types.LiftedRep thing thing)`  you see this spelled 
+     And in `(-> 'GHC.Types.LiftedRep 'GHC.Types.LiftedRep thing thing)`  you see this spelled
      out explicitly. But it really is just `(thing -> thing)`, just printed with more low-level detail.
 
      Also see
 
        • https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/glasgow_exts.html#levity-polymorphism
-       • and other links from https://stackoverflow.com/a/35320729/946226 (edited) 
+       • and other links from https://stackoverflow.com/a/35320729/946226 (edited)
  -}
 
 refAppTyToFun :: Reftable r => r -> r
@@ -1263,7 +1279,7 @@ instance SubsTy Symbol Symbol (BRType r) where
     | BTV x == v = RAllT (RTVar v i) t r
     | otherwise  = RAllT (RTVar v i) (subt (x,y) t) r
   subt su (RFun x i t1 t2 r)  = RFun x i (subt su t1) (subt su t2) r
-  subt su (RImpF x i t1 t2 r) = RImpF x i (subt su t1) (subt su t2) r
+  --subt su (RImpF x i t1 t2 r) = RImpF x i (subt su t1) (subt su t2) r
   subt su (RAllP p t)       = RAllP p (subt su t)
   subt su (RApp c ts ps r)  = RApp c (subt su <$> ts) (subt su <$> ps) r
   subt su (RAllE x t1 t2)   = RAllE x (subt su t1) (subt su t2)
@@ -1497,10 +1513,10 @@ type ToTypeable r = (Reftable r, PPrint r, SubsTy RTyVar (RRType ()) r, Reftable
 -- TODO: remove toType, generalize typeSort
 -- YL: really should take a type-level Bool
 toType  :: (ToTypeable r) => Bool -> RRType r -> Type
-toType useRFInfo (RImpF x i t t' r)
- = toType useRFInfo (RFun x i t t' r)
+--toType useRFInfo (RImpF x i t t' r)
+-- = toType useRFInfo (RFun x i t t' r)
 toType useRFInfo (RFun _ RFInfo{permitTC = permitTC} t@(RApp c _ _ _) t' _)
-  | useRFInfo && isErasable c  = toType useRFInfo t'
+  | useRFInfo && isErasable c = toType useRFInfo t'
   | otherwise
   = FunTy VisArg Many (toType useRFInfo t) (toType useRFInfo t')
   where isErasable = if permitTC == Just True then isEmbeddedDict else isClass
@@ -1534,25 +1550,25 @@ toType _ (RHole _)
 -- toType t
 --  = {- impossible Nothing -} Prelude.error $ "RefType.toType cannot handle: " ++ show t
 
-{- | [NOTE:Hole-Lit] 
+{- | [NOTE:Hole-Lit]
 
-We use `toType` to convert RType to GHC.Type to expand any GHC 
-related type-aliases, e.g. in Bare.Resolve.expandRTypeSynonyms. 
+We use `toType` to convert RType to GHC.Type to expand any GHC
+related type-aliases, e.g. in Bare.Resolve.expandRTypeSynonyms.
 If the RType has a RHole then what to do?
 
-We, encode `RHole` as `LitTy "LH_HOLE"` -- which is a bit of 
-a *hack*. The only saving grace is it is used *temporarily* 
-and then swiftly turned back into an `RHole` via `ofType` 
+We, encode `RHole` as `LitTy "LH_HOLE"` -- which is a bit of
+a *hack*. The only saving grace is it is used *temporarily*
+and then swiftly turned back into an `RHole` via `ofType`
 (after GHC has done its business of expansion).
 
 Of course, we hope this doesn't break any GHC invariants!
-See issue #1476 and #1477 
+See issue #1476 and #1477
 
 The other option is to *not* use `toType` on things that have
-holes in them, but this seems worse, e.g. because you may define 
+holes in them, but this seems worse, e.g. because you may define
 a plain GHC alias like:
 
-    type ToNat a = a -> Nat 
+    type ToNat a = a -> Nat
 
 and then you might write refinement types like:
 
@@ -1601,8 +1617,8 @@ shiftVV t@(RApp _ ts rs r) vv'
       { rt_pargs = subst1 rs (rTypeValueVar t, EVar vv') }
       { rt_reft  = (`F.shiftVV` vv') <$> r }
 
-shiftVV t@(RImpF _ _ _ _ r) vv'
-  = t { rt_reft = (`F.shiftVV` vv') <$> r }
+--shiftVV t@(RImpF _ _ _ _ r) vv'
+--  = t { rt_reft = (`F.shiftVV` vv') <$> r }
 
 shiftVV t@(RFun _ _ _ _ r) vv'
   = t { rt_reft = (`F.shiftVV` vv') <$> r }
@@ -1727,12 +1743,12 @@ data DataConAppContext
   }
 
 mkProductTy :: forall t r. (Monoid t, Monoid r)
-            => (Type, Symbol, RFInfo, RType RTyCon RTyVar r, t)
-            -> [(Symbol, RFInfo, RType RTyCon RTyVar r, t)]
+            => (Type, Symbol, Maybe Bool, RType RTyCon RTyVar r, t)
+            -> [(Symbol, Maybe Bool, RType RTyCon RTyVar r, t)]
 mkProductTy (τ, x, i, t, r) = maybe [(x, i, t, r)] f (deepSplitProductType menv τ)
   where
-    f    :: DataConAppContext -> [(Symbol, RFInfo, RType RTyCon RTyVar r, t)]
-    f    DataConAppContext{..} = map ((dummySymbol, defRFInfo, , mempty) . ofType . fst) dcac_arg_tys
+    f    :: DataConAppContext -> [(Symbol, Maybe Bool, RType RTyCon RTyVar r, t)]
+    f    DataConAppContext{..} = map ((dummySymbol, Nothing, , mempty) . ofType . fst) dcac_arg_tys
     menv = (emptyFamInstEnv, emptyFamInstEnv)
 
 -- Copied from GHC 9.0.2.
@@ -1940,7 +1956,7 @@ instance PPrint (RTProp c tv r) => Show (RTProp c tv r) where
 
 
 -------------------------------------------------------------------------------
--- | tyVarsPosition t returns the type variables appearing 
+-- | tyVarsPosition t returns the type variables appearing
 -- | (in positive positions, in negative positions, in undetermined positions)
 -- | undetermined positions are due to type constructors and type application
 -------------------------------------------------------------------------------
@@ -1949,7 +1965,7 @@ tyVarsPosition = go (Just True)
   where
     go p (RVar t _)        = report p t
     go p (RFun _ _ t1 t2 _)  = go (flip' p) t1 <> go p t2
-    go p (RImpF _ _ t1 t2 _) = go (flip' p) t1 <> go p t2
+    --go p (RImpF _ _ t1 t2 _) = go (flip' p) t1 <> go p t2
     go p (RAllT _ t _)     = go p t
     go p (RAllP _ t)       = go p t
     go p (RApp c ts _ _)   = mconcat (zipWith go (getPosition p <$> varianceTyArgs (rtc_info c)) ts)

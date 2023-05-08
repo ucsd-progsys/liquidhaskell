@@ -162,7 +162,7 @@ bindersTx ds   = \y -> M.lookupDefault y y m
 tyVars :: RType c tv r -> [tv]
 tyVars (RAllP _ t)     = tyVars t
 tyVars (RAllT α t _)   = ty_var_value α : tyVars t
-tyVars (RImpF _ _ t t' _) = tyVars t ++ tyVars t'
+--tyVars (RImpF _ _ t t' _) = tyVars t ++ tyVars t'
 tyVars (RFun _ _ t t' _) = tyVars t ++ tyVars t'
 tyVars (RAppTy t t' _) = tyVars t ++ tyVars t'
 tyVars (RApp _ ts _ _) = concatMap tyVars ts
@@ -192,7 +192,7 @@ subsTyVarsAll ats = go
 funBinds :: RType t t1 t2 -> [Symbol]
 funBinds (RAllT _ t _)    = funBinds t
 funBinds (RAllP _ t)      = funBinds t
-funBinds (RImpF b _ t1 t2 _) = b : funBinds t1 ++ funBinds t2
+--funBinds (RImpF b _ t1 t2 _) = b : funBinds t1 ++ funBinds t2
 funBinds (RFun b _ t1 t2 _) = b : funBinds t1 ++ funBinds t2
 funBinds (RApp _ ts _ _)  = concatMap funBinds ts
 funBinds (RAllE b t1 t2)  = b : funBinds t1 ++ funBinds t2

@@ -164,7 +164,7 @@ classDeclToDataDecl cls refinedIds = DataDecl
 
   tyVarSubst = [ (GM.dropModuleUnique v, v) | v <- tyVars ]
 
-  -- FIXME: dropTheta should not be needed as long as we 
+  -- FIXME: dropTheta should not be needed as long as we
   -- handle classes and ordinary data types separately
   -- Might be helpful if we add an additional field for
   -- typeclasses
@@ -226,7 +226,7 @@ elaborateClassDcp coreToLg simplifier dcp = do
     []
     []
     [ ( recsel{- F.symbol dc-}
-      , classRFInfo True
+      , Just True
       , resTy
       , mempty
       )
@@ -291,8 +291,8 @@ renameTvs rename t
   = RVar (rename tv) r
   | RFun b i tin tout r <- t
   = RFun b i (renameTvs rename tin) (renameTvs rename tout) r
-  | RImpF b i tin tout r <- t
-  = RImpF b i (renameTvs rename tin) (renameTvs rename tout) r
+--  | RImpF b i tin tout r <- t
+--  = RImpF b i (renameTvs rename tin) (renameTvs rename tout) r
   | RAllT (RTVar tv info) tres r <- t
   = RAllT (RTVar (rename tv) info) (renameTvs rename tres) r
   | RAllP b tres <- t
@@ -343,8 +343,8 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
             Just sig -> sig
         -- dict binder will never be changed because we optimized PAnd[]
         -- lq0 lq1 ...
-            -- 
-        ptys    = [(F.vv (Just i), classRFInfo True, pty, mempty) | (i,pty) <- zip [0,1..] isPredSpecTys]
+            --
+        ptys    = [(F.vv (Just i), Just True, pty, mempty) | (i,pty) <- zip [0,1..] isPredSpecTys]
         fullSig =
           mkArrow
             (zip isRTvs (repeat mempty))
@@ -378,7 +378,7 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
       where rrep = toRTypeRep t
             res  = ty_res rrep    -- (Monoid.mappend -> $cmappend##Int, ...)
     -- core rewriting mark2: do the same thing except they don't have to be symbols
-    -- YL: poorly written. use a comprehension instead of assuming 
+    -- YL: poorly written. use a comprehension instead of assuming
     methodsSet = F.notracepp "methodSet" $ M.fromList (zip (F.symbol <$> clsMethods) (F.symbol <$> methods))
     -- core rewriting mark1: dfunId
     -- ()

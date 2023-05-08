@@ -1,5 +1,5 @@
--- | This module has the code for applying refinement (and) type aliases 
---   and the pipeline for "cooking" a @BareType@ into a @SpecType@. 
+-- | This module has the code for applying refinement (and) type aliases
+--   and the pipeline for "cooking" a @BareType@ into a @SpecType@.
 --   TODO: _only_ export `makeRTEnv`, `cookSpecType` and maybe `qualifyExpand`...
 
 {-# LANGUAGE FlexibleInstances     #-}
@@ -10,7 +10,7 @@ module Language.Haskell.Liquid.Bare.Expand
   ( -- * Create alias expansion environment
     makeRTEnv
 
-    -- * Expand and Qualify 
+    -- * Expand and Qualify
   , qualifyExpand
 
     -- * Converting BareType to SpecType
@@ -36,9 +36,9 @@ import qualified Text.Printf               as Printf
 import qualified Text.PrettyPrint.HughesPJ as PJ
 
 import qualified Language.Fixpoint.Types               as F
--- import qualified Language.Fixpoint.Types.Visitor       as F 
+-- import qualified Language.Fixpoint.Types.Visitor       as F
 import qualified Language.Fixpoint.Misc                as Misc
-import           Language.Fixpoint.Types (Expr(..)) -- , Symbol, symbol) 
+import           Language.Fixpoint.Types (Expr(..)) -- , Symbol, symbol)
 import qualified Liquid.GHC.Misc      as GM
 import qualified Liquid.GHC.API       as Ghc
 import qualified Language.Haskell.Liquid.Types.RefType as RT
@@ -70,9 +70,9 @@ makeRTEnv env modName mySpec iSpecs lmap
                                   , let e    = lmapEAlias xl             ]
     specs = (modName, mySpec) : M.toList iSpecs
 
--- | We apply @renameRTArgs@ *after* expanding each alias-definition, to 
---   ensure that the substitutions work properly (i.e. don't miss expressions 
---   hidden inside @RExprArg@ or as strange type parameters. 
+-- | We apply @renameRTArgs@ *after* expanding each alias-definition, to
+--   ensure that the substitutions work properly (i.e. don't miss expressions
+--   hidden inside @RExprArg@ or as strange type parameters.
 renameRTArgs :: BareRTEnv -> BareRTEnv
 renameRTArgs rte = RTE
   { typeAliases = M.map (fmap (renameTys . renameVV . renameRTVArgs)) (typeAliases rte)
@@ -85,7 +85,7 @@ makeREAliases = graphExpand buildExprEdges f mempty
     f rtEnv xt = setREAlias rtEnv (expandLoc rtEnv xt)
 
 
--- | @renameTys@ ensures that @RTAlias@ type parameters have distinct names 
+-- | @renameTys@ ensures that @RTAlias@ type parameters have distinct names
 --   to avoid variable capture e.g. as in T1556.hs
 renameTys :: RTAlias F.Symbol BareType -> RTAlias F.Symbol BareType
 renameTys rt = rt { rtTArgs = ys, rtBody = sbts (rtBody rt) (zip xs ys) }
@@ -98,7 +98,7 @@ renameTys rt = rt { rtTArgs = ys, rtBody = sbts (rtBody rt) (zip xs ys) }
 renameVV :: RTAlias F.Symbol BareType -> RTAlias F.Symbol BareType
 renameVV rt = rt { rtBody = RT.shiftVV (rtBody rt) (F.vv (Just 0)) }
 
--- | @renameRTVArgs@ ensures that @RTAlias@ value parameters have distinct names 
+-- | @renameRTVArgs@ ensures that @RTAlias@ value parameters have distinct names
 --   to avoid variable capture e.g. as in tests-names-pos-Capture01.hs
 renameRTVArgs :: (F.PPrint a, F.Subable a) => RTAlias x a -> RTAlias x a
 renameRTVArgs rt = rt { rtVArgs = newArgs
@@ -128,7 +128,7 @@ graphExpand :: (PPrint t)
             -> (thing -> Located (RTAlias x t) -> thing) -- ^ update
             -> thing                                     -- ^ initial
             -> [Located (RTAlias x t)]                   -- ^ vertices
-            -> thing                                     -- ^ final 
+            -> thing                                     -- ^ final
 graphExpand buildEdges expBody env lxts
            = L.foldl' expBody env (genExpandOrder table' graph)
   where
@@ -211,7 +211,7 @@ buildTypeEdges table = ordNub . go
   where
     -- go :: t -> [Symbol]
     go (RApp c ts rs _) = go_alias (F.symbol c) ++ concatMap go ts ++ concatMap go (mapMaybe go_ref rs)
-    go (RImpF _ _ t1 t2 _) = go t1 ++ go t2
+--    go (RImpF _ _ t1 t2 _) = go t1 ++ go t2
     go (RFun _ _ t1 t2 _) = go t1 ++ go t2
     go (RAppTy t1 t2 _) = go t1 ++ go t2
     go (RAllE _ t1 t2)  = go t1 ++ go t2
@@ -256,7 +256,7 @@ buildExprEdges table  = ordNub . go
 
 
 ----------------------------------------------------------------------------------
--- | Using the `BareRTEnv` to do alias-expansion 
+-- | Using the `BareRTEnv` to do alias-expansion
 ----------------------------------------------------------------------------------
 class Expand a where
   expand :: BareRTEnv -> F.SourcePos -> a -> a
@@ -298,9 +298,9 @@ expandReft rtEnv l = fmap (expand rtEnv l)
 -- expandReft rtEnv l = emapReft (expand rtEnv l)
 
 
--- | @expand@ on a SpecType simply expands the refinements, 
---   i.e. *does not* apply the type aliases, but just the 
---   1. predicate aliases, 
+-- | @expand@ on a SpecType simply expands the refinements,
+--   i.e. *does not* apply the type aliases, but just the
+--   1. predicate aliases,
 --   2. inlines,
 --   3. stuff from @LogicMap@
 
@@ -389,7 +389,7 @@ expandBareType rtEnv _ = go
                              Just rta -> expandRTAliasApp (GM.fSourcePos c) rta (go <$> ts) r
                              Nothing  -> RApp c (go <$> ts) (goRef <$> rs) r
     go (RAppTy t1 t2 r)  = RAppTy (go t1) (go t2) r
-    go (RImpF x i t1 t2 r) = RImpF x i (go t1) (go t2) r
+--    go (RImpF x i t1 t2 r) = RImpF x i (go t1) (go t2) r
     go (RFun  x i t1 t2 r) = RFun  x i (go t1) (go t2) r
     go (RAllT a t r)     = RAllT a (go t) r
     go (RAllP a t)       = RAllP a (go t)
@@ -474,8 +474,8 @@ exprArg l msg = F.notracepp ("exprArg: " ++ msg) . go
 
 
 ----------------------------------------------------------------------------------------
--- | @cookSpecType@ is the central place where a @BareType@ gets processed, 
---   in multiple steps, into a @SpecType@. See [NOTE:Cooking-SpecType] for 
+-- | @cookSpecType@ is the central place where a @BareType@ gets processed,
+--   in multiple steps, into a @SpecType@. See [NOTE:Cooking-SpecType] for
 --   details of each of the individual steps.
 ----------------------------------------------------------------------------------------
 cookSpecType :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocBareType
@@ -520,8 +520,8 @@ cookSpecTypeE env sigEnv name@(ModName _ _) x bt
     tyi    = Bare.sigTyRTyMap sigEnv
     l      = F.loc bt
 
--- | We don't want to generalize type variables that maybe bound in the 
---   outer scope, e.g. see tests/basic/pos/LocalPlug00.hs 
+-- | We don't want to generalize type variables that maybe bound in the
+--   outer scope, e.g. see tests/basic/pos/LocalPlug00.hs
 
 generalizeWith :: Bare.PlugTV Ghc.Var -> SpecType -> SpecType
 generalizeWith (Bare.HsTV v) t = generalizeVar v t
@@ -536,9 +536,9 @@ generalizeVar v t = mkUnivs (zip as (repeat mempty)) [] t
     isGen (RTVar (RTV a) _) = a `elem` vas
 
 -- splitForAllTyCoVars :: Type -> ([TyVar], Type)
--- 
+--
 -- generalize :: (Eq tv) => RType c tv r -> RType c tv r
--- generalize t = mkUnivs (freeTyVars t) [] [] t 
+-- generalize t = mkUnivs (freeTyVars t) [] [] t
 
 
 bareExpandType :: BareRTEnv -> LocBareType -> LocBareType
@@ -564,31 +564,31 @@ plugHoles allowTC sigEnv name = Bare.makePluggedSig allowTC name embs tyi export
     tyi               = Bare.sigTyRTyMap sigEnv
     exports           = Bare.sigExports  sigEnv
 
-{- [NOTE:Cooking-SpecType] 
-    A @SpecType@ is _raw_ when it is obtained directly from a @BareType@, i.e. 
-    just by replacing all the @BTyCon@ with @RTyCon@. Before it can be used 
+{- [NOTE:Cooking-SpecType]
+    A @SpecType@ is _raw_ when it is obtained directly from a @BareType@, i.e.
+    just by replacing all the @BTyCon@ with @RTyCon@. Before it can be used
     for constraint generation, we need to _cook_ it via the following transforms:
 
     A @SigEnv@ should contain _all_ the information needed to do the below steps.
 
-    - expand               : resolving all type/refinement etc. aliases 
+    - expand               : resolving all type/refinement etc. aliases
     - ofType               : convert BareType -> SpecType
     - plugged              : filling in any remaining "holes"
-    - txRefSort            : filling in the abstract-refinement predicates etc. (YUCK) 
+    - txRefSort            : filling in the abstract-refinement predicates etc. (YUCK)
     - resolve              : renaming / qualifying symbols?
     - expand (again)       : as the "resolve" step can rename variables to trigger more aliases (e.g. member -> Data.Set.Internal.Member -> Set_mem)
-    - generalize           : (universally) quantify free type variables 
+    - generalize           : (universally) quantify free type variables
     - strengthen-measures  : ?
-    - strengthen-inline(?) : ? 
+    - strengthen-inline(?) : ?
 
 -}
 
 -----------------------------------------------------------------------------------------------
--- | From BareOLD.Expand 
+-- | From BareOLD.Expand
 -----------------------------------------------------------------------------------------------
 
 
-{- TODO-REBARE 
+{- TODO-REBARE
 instance Expand ty => Expand (Def ty ctor) where
   expand z (Def f xts c t bxts b) =
     Def f <$> expand z xts
@@ -610,10 +610,10 @@ instance Expand DataConP where
 -}
 
 --------------------------------------------------------------------------------
--- | @expandExpr@ applies the aliases and inlines in @BareRTEnv@ to its argument 
---   @Expr@. It must first @resolve@ the symbols in the refinement to see if 
---   they correspond to alias definitions. However, we ensure that we do not 
---   resolve bound variables (e.g. those bound in output refinements by input 
+-- | @expandExpr@ applies the aliases and inlines in @BareRTEnv@ to its argument
+--   @Expr@. It must first @resolve@ the symbols in the refinement to see if
+--   they correspond to alias definitions. However, we ensure that we do not
+--   resolve bound variables (e.g. those bound in output refinements by input
 --   parameters), and we use the @bs@ parameter to pass in the bound symbols.
 --------------------------------------------------------------------------------
 expandExpr :: BareRTEnv -> F.SourcePos -> Expr -> Expr

@@ -23,7 +23,7 @@ module Language.Haskell.Liquid.Measure (
 
 import           GHC                                    hiding (Located)
 import           Prelude                                hiding (error)
-import           Text.PrettyPrint.HughesPJ              hiding ((<>)) 
+import           Text.PrettyPrint.HughesPJ              hiding ((<>))
 -- import           Data.Binary                            as B
 -- import           GHC.Generics
 import qualified Data.HashMap.Strict                    as M
@@ -184,7 +184,7 @@ defRefType :: Bool -> Type -> Def (RRType Reft) DataCon -> RRType Reft
 defRefType allowTC tdc (Def f dc mt xs body)
                     = generalize $ mkArrow as' [] [] xts t'
   where
-    xts             = stitchArgs allowTC (fSrcSpan f) dc xs ts 
+    xts             = stitchArgs allowTC (fSrcSpan f) dc xs ts
     t'              = refineWithCtorBody dc f body t
     t               = Mb.fromMaybe (ofType tr) mt
     (αs, ts, tr)    = splitType tdc
@@ -203,7 +203,7 @@ stitchArgs :: (Monoid t1, PPrint a)
            -> a
            -> [(Symbol, Maybe (RRType Reft))]
            -> [Type]
-           -> [(Symbol, RFInfo, RRType Reft, t1)]
+           -> [(Symbol, Maybe Bool, RRType Reft, t1)]
 stitchArgs allowTC sp dc allXs allTs
   | nXs == nTs         = (g (dummySymbol, Nothing) . ofType <$> pts)
                       ++ zipWith g xs (ofType <$> ts)
@@ -213,8 +213,8 @@ stitchArgs allowTC sp dc allXs allTs
       (_  , xs)        = L.partition (coArg . snd) allXs
       nXs              = length xs
       nTs              = length ts
-      g (x, Just t) _  = (x, classRFInfo allowTC, t, mempty)
-      g (x, _)      t  = (x, classRFInfo allowTC, t, mempty)
+      g (x, Just t) _  = (x, Just allowTC, t, mempty)
+      g (x, _)      t  = (x, Just allowTC, t, mempty)
       coArg Nothing    = False
       coArg (Just t)   = (if allowTC then isEmbeddedDictType else Ghc.isEvVarType ). toType False $ t
 

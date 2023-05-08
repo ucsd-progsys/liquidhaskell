@@ -78,17 +78,17 @@ instance (Freshable m Integer, Freshable m r, F.Reftable r ) => Freshable m (RRT
 trueRefType :: (Freshable m Integer, Freshable m r, F.Reftable r) => Bool -> RRType r -> m (RRType r)
 -----------------------------------------------------------------------------------------------
 trueRefType allowTC (RAllT α t r)
-  = RAllT α <$> true allowTC t <*> true allowTC r 
+  = RAllT α <$> true allowTC t <*> true allowTC r
 
 trueRefType allowTC (RAllP π t)
   = RAllP π <$> true allowTC t
 
-trueRefType allowTC (RImpF _ _ t t' _)
-  = rImpF <$> fresh <*> true allowTC t <*> true allowTC t'
+--trueRefType allowTC (RImpF _ _ t t' _)
+--  = rImpF                       <$> fresh <*> true allowTC t <*> true allowTC t'
 
-trueRefType allowTC (RFun _ _ t t' _)
+trueRefType allowTC (RFun _ i t t' _)
   -- YL: attaching rfinfo here is crucial
-  = rFun' (classRFInfo allowTC) <$> fresh <*> true allowTC t <*> true allowTC t'
+  = rFun' (if isImplicit i then i else i{permitTC = Just allowTC}) <$> fresh <*> true allowTC t <*> true allowTC t'
 
 trueRefType allowTC (RApp c ts _  _) | if allowTC then isEmbeddedDict c else isClass c
   = rRCls c <$> mapM (true allowTC) ts
@@ -135,9 +135,9 @@ refreshRefType allowTC (RAllT α t r)
 refreshRefType allowTC (RAllP π t)
   = RAllP π <$> refresh allowTC t
 
-refreshRefType allowTC (RImpF sym i t t' _)
-  | sym == F.dummySymbol = (\b t1 t2 -> RImpF b i t1 t2 mempty) <$> fresh <*> refresh allowTC t <*> refresh allowTC t'
-  | otherwise          = (\t1 t2 -> RImpF sym i t1 t2 mempty)   <$> refresh allowTC t <*> refresh allowTC t'
+--refreshRefType allowTC (RImpF sym i t t' _)
+--  | sym == F.dummySymbol = (\b t1 t2 -> RImpF b i t1 t2 mempty) <$> fresh <*> refresh allowTC t <*> refresh allowTC t'
+--  | otherwise          = (\t1 t2 -> RImpF sym i t1 t2 mempty)   <$> refresh allowTC t <*> refresh allowTC t'
 
 refreshRefType allowTC (RFun sym i t t' _)
   | sym == F.dummySymbol = (\b t1 t2 -> RFun b i t1 t2 mempty) <$> fresh <*> refresh allowTC t <*> refresh allowTC t'
@@ -188,38 +188,38 @@ type FreshM m = Freshable m Integer
 --------------------------------------------------------------------------------
 refreshVV :: FreshM m => SpecType -> m SpecType
 --------------------------------------------------------------------------------
-refreshVV (RAllT a t r) = 
-  RAllT a <$> refreshVV t <*> return r 
+refreshVV (RAllT a t r) =
+  RAllT a <$> refreshVV t <*> return r
 
-refreshVV (RAllP p t) = 
+refreshVV (RAllP p t) =
   RAllP p <$> refreshVV t
 
-refreshVV (REx x t1 t2) = do 
+refreshVV (REx x t1 t2) = do
   t1' <- refreshVV t1
   t2' <- refreshVV t2
   shiftVV (REx x t1' t2') <$> fresh
 
-refreshVV (RImpF x i t1 t2 r) = do
-  t1' <- refreshVV t1
-  t2' <- refreshVV t2
-  shiftVV (RImpF x i t1' t2' r) <$> fresh
+--refreshVV (RImpF x i t1 t2 r) = do
+--  t1' <- refreshVV t1
+--  t2' <- refreshVV t2
+--  shiftVV (RImpF x i t1' t2' r) <$> fresh
 
 refreshVV (RFun x i t1 t2 r) = do
   t1' <- refreshVV t1
   t2' <- refreshVV t2
   shiftVV (RFun x i t1' t2' r) <$> fresh
 
-refreshVV (RAppTy t1 t2 r) = do 
+refreshVV (RAppTy t1 t2 r) = do
   t1' <- refreshVV t1
   t2' <- refreshVV t2
   shiftVV (RAppTy t1' t2' r) <$> fresh
 
-refreshVV (RApp c ts rs r) = do 
+refreshVV (RApp c ts rs r) = do
   ts' <- mapM refreshVV    ts
   rs' <- mapM refreshVVRef rs
   shiftVV (RApp c ts' rs' r) <$> fresh
 
-refreshVV t = 
+refreshVV t =
   shiftVV t <$> fresh
 
 refreshVVRef :: Freshable m Integer => Ref b SpecType -> m (Ref b SpecType)

@@ -207,9 +207,9 @@ checkTySigs allowHO bsc cbs emb tcEnv senv sig
                    = mconcat (map (check senv) topTs)
                    -- = concatMap (check env) topTs
                    -- (mapMaybe   (checkT env) [ (x, t)     | (x, (t, _)) <- topTs])
-                   -- ++ (mapMaybe   (checkE env) [ (x, t, es) | (x, (t, Just es)) <- topTs]) 
+                   -- ++ (mapMaybe   (checkE env) [ (x, t, es) | (x, (t, Just es)) <- topTs])
                   <> coreVisitor checkVisitor senv emptyDiagnostics cbs
-                   -- ++ coreVisitor checkVisitor env [] cbs 
+                   -- ++ coreVisitor checkVisitor env [] cbs
   where
     check env      = checkSigTExpr allowHO bsc emb tcEnv env
     locTm          = M.fromList locTs
@@ -236,7 +236,7 @@ checkSigTExpr allowHO bsc emb tcEnv env (x, (t, es))
    where
     mbErr1 = checkBind allowHO bsc empty emb tcEnv env (x, t)
     mbErr2 = maybe emptyDiagnostics (checkTerminationExpr emb env . (x, t,)) es
-    -- mbErr2 = checkTerminationExpr emb env . (x, t,) =<< es 
+    -- mbErr2 = checkTerminationExpr emb env . (x, t,) =<< es
 
 _checkQualifiers :: F.SEnv F.SortedReft -> [F.Qualifier] -> [Error]
 _checkQualifiers = mapMaybe . checkQualifier
@@ -504,7 +504,7 @@ checkAppTys = go
     go (RApp rtc ts _ _)
       = checkTcArity rtc (length ts) <|>
         L.foldl' (\merr t -> merr <|> go t) Nothing ts
-    go (RImpF _ _ t1 t2 _)= go t1 <|> go t2
+--  go (RImpF _ _ t1 t2 _)= go t1 <|> go t2
     go (RFun _ _ t1 t2 _) = go t1 <|> go t2
     go (RVar _ _)       = Nothing
     go (RAllE _ t1 t2)  = go t1 <|> go t2
@@ -537,7 +537,7 @@ checkAbstractRefs rt = go rt
     go t@(RAllT _ t1 r)   = check (toRSort t :: RSort) r <|>  go t1
     go (RAllP _ t)        = go t
     go t@(RApp c ts rs r) = check (toRSort t :: RSort) r <|>  efold go ts <|> go' c rs
-    go t@(RImpF _ _ t1 t2 r)= check (toRSort t :: RSort) r <|> go t1 <|> go t2
+--  go t@(RImpF _ _ t1 t2 r)= check (toRSort t :: RSort) r <|> go t1 <|> go t2
     go t@(RFun _ _ t1 t2 r) = check (toRSort t :: RSort) r <|> go t1 <|> go t2
     go t@(RVar _ r)       = check (toRSort t :: RSort) r
     go (RAllE _ t1 t2)    = go t1 <|> go t2
@@ -635,7 +635,7 @@ checkMBody senv emb _ sort (Def m c _ bs body) = checkMBody' emb sort γ' sp bod
     keep | allowTC = not . isEmbeddedClass
          | otherwise = not . isClassType
     -- YL: extract permitTC information from sort
-    allowTC = or $ fmap (fromMaybe False . permitTC) (ty_info $ toRTypeRep sort)
+    allowTC = or $ fmap (fromMaybe False) (ty_info $ toRTypeRep sort)
     trep  = toRTypeRep ct
     su    = checkMBodyUnify (ty_res trep) (last txs)
     txs   = thd5 $ bkArrowDeep sort
@@ -715,8 +715,8 @@ isRefined ty
 hasInnerRefinement :: F.Reftable r => RType c tv r -> Bool
 hasInnerRefinement (RFun _ _ rIn rOut _) =
   isRefined rIn || isRefined rOut
-hasInnerRefinement (RImpF _ _ rIn rOut _) =
-  isRefined rIn || isRefined rOut
+--hasInnerRefinement (RImpF _ _ rIn rOut _) =
+--  isRefined rIn || isRefined rOut
 hasInnerRefinement (RAllT _ ty  _) =
   isRefined ty
 hasInnerRefinement (RAllP _ ty) =
