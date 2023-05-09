@@ -702,7 +702,6 @@ strengthenRefType_ f f1@(RFun x1 i1 t1 t1' r1) f2@(RFun x2 i2 t2 t2' r2)
     if x2 /= F.dummySymbol
       then RFun x2 i1{permitTC = getFirst b} t t1'' (r1 `meet` r2)
       else RFun x1 i1{permitTC = getFirst b} t t2'' (r1 `meet` r2)
-  | otherwise = f f1 f2
     where t  = strengthenRefType_ f t1 t2
           t1'' = strengthenRefType_ f (subst1 t1' (x1, EVar x2)) t2'
           t2'' = strengthenRefType_ f t1' (subst1 t2' (x2, EVar x1))

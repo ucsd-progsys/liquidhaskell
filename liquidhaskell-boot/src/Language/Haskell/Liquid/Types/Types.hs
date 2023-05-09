@@ -1419,13 +1419,11 @@ bkArrow t                = ((xs,is,ts,rs),
 bkFun :: RType t t1 a -> ([Symbol], [Maybe Bool], [RType t t1 a], [a], RType t t1 a)
 bkFun (RFun x i t t' r) | not (isImplicit i) = let (xs, is, ts, rs, t'') = bkFun t' in
                                                (x:xs, permitTC i:is, t:ts, r:rs, t'')
-                        | otherwise = ([], [], [], [], t)
 bkFun t                 = ([], [], [], [], t)
 
 bkImp :: RType t t1 a -> ([Symbol], [Maybe Bool], [RType t t1 a], [a], RType t t1 a)
 bkImp (RFun x i t t' r) | isImplicit i = let (xs, is, ts, rs, t'') = bkImp t' in
                                          (x:xs, permitTC i:is, t:ts, r:rs, t'')
-                        | otherwise = ([], [], [], [], t)
 bkImp t                 = ([], [], [], [], t)
 
 safeBkArrow ::(F.PPrint (RType t t1 a))
