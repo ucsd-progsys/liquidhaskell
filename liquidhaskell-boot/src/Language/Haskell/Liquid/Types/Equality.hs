@@ -35,8 +35,8 @@ compareRType i1 i2 = res && unify ys
       = do tell [(v1, v2)]
            return (r1 =*= r2)
      -- = v1 == v2 && r1 =*= r2
-    go (RFun x1 i1 t11 t12 r1) (RFun x2 i2 t21 t22 r2)
-      | x1 == x2 && isImplicit i1 == isImplicit i2 && r1 =*= r2
+    go (RFun x1 if1 t11 t12 r1) (RFun x2 if2 t21 t22 r2)
+      | x1 == x2 && isImplicit if1 == isImplicit if2 && r1 =*= r2
       = liftM2 (&&) (go t11 t21) (go t12 t22)
 --    go (RImpF x1 _ t11 t12 r1) (RImpF x2 _ t21 t22 r2)
 --      | x1 == x2    && r1 =*= r2
