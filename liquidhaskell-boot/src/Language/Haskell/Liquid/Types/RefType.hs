@@ -694,7 +694,7 @@ strengthenRefType_ f (RAppTy t1 t1' r1) (RAppTy t2 t2' r2)
     where t  = strengthenRefType_ f t1 t2
           t' = strengthenRefType_ f t1' t2'
 
-strengthenRefType_ f f1@(RFun x1 i1 t1 t1' r1) f2@(RFun x2 i2 t2 t2' r2)
+strengthenRefType_ f (RFun x1 i1 t1 t1' r1) (RFun x2 i2 t2 t2' r2)
   | isImplicit i1 && isImplicit i2 =
       RFun x2 i1 t t1'' (r1 `meet` r2)
   -- YL: Evidence that we need a Monoid instance for RFInfo?
