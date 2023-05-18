@@ -57,7 +57,7 @@ module Language.Haskell.Liquid.Types.Types (
   , RTAlias (..)
   , OkRT
   , lmapEAlias
-  , dropImplicits
+-- , dropImplicits
 
   -- * Worlds
   , HSeg (..)
@@ -326,22 +326,22 @@ data TyConMap = TyConMap
   }
 
 
-data RFInfo = RFInfo { permitTC :: Maybe Bool, isImplicit :: Bool }
+newtype RFInfo = RFInfo {permitTC :: Maybe Bool }
   deriving (Generic, Data, Typeable, Show, Eq)
 
 defRFInfo :: RFInfo
-defRFInfo = RFInfo Nothing False
+defRFInfo = RFInfo Nothing
 
 classRFInfo :: Bool -> RFInfo
-classRFInfo b = RFInfo (Just b) False
+classRFInfo b = RFInfo (Just b)
 
 classRFInfoType :: Bool -> RType c tv r -> RType c tv r
 classRFInfoType b = fromRTypeRep .
-                    (\trep@RTypeRep{..} -> trep{ty_info = map (\_ -> pure b) ty_info}) .
+                    (\trep@RTypeRep{..} -> trep{ty_info = map (\i -> i{permitTC = pure b}) ty_info}) .
                     toRTypeRep
 
 mkRFInfo :: Config  -> RFInfo
-mkRFInfo cfg = RFInfo (Just (typeclass cfg)) False
+mkRFInfo cfg = RFInfo (Just (typeclass cfg))
 
 instance Hashable RFInfo
 instance NFData RFInfo
@@ -834,9 +834,9 @@ ignoreOblig :: RType t t1 t2 -> RType t t1 t2
 ignoreOblig (RRTy _ _ _ t) = t
 ignoreOblig t              = t
 
+{-
 dropImplicits :: RType c tv r -> RType c tv r
-dropImplicits (RFun x ii i o r) | isImplicit ii = dropImplicits o
-                                | otherwise = RFun x ii (dropImplicits i) (dropImplicits o) r
+dropImplicits (RFun x ii i o r) = RFun x ii (dropImplicits i) (dropImplicits o) r
 dropImplicits (RAllP p t) = RAllP p (dropImplicits t)
 dropImplicits (RAllT p t r) = RAllT p (dropImplicits t) r
 dropImplicits (RApp c as ps r) = RApp c (dropImplicits <$> as) (dropImplicitsRP <$> ps) r
@@ -848,7 +848,7 @@ dropImplicits t = t
 
 dropImplicitsRP :: RTProp c tv r -> RTProp c tv r
 dropImplicitsRP (RProp as b) = RProp (second dropImplicits <$> as) (dropImplicits b)
-
+-}
 
 makeRTVar :: tv -> RTVar tv s
 makeRTVar a = RTVar a (RTVNoInfo True)
@@ -1358,12 +1358,12 @@ lmapEAlias (LMap v ys e) = F.atLoc v (RTA (F.val v) [] ys e) -- (F.loc v) (F.loc
 data RTypeRep c tv r = RTypeRep
   { ty_vars   :: [(RTVar tv (RType c tv ()), r)]
   , ty_preds  :: [PVar (RType c tv ())]
-  , ty_ebinds :: [Symbol]
-  , ty_einfo  :: [Maybe Bool]
-  , ty_erefts :: [r]
-  , ty_eargs  :: [RType c tv r]
+--  , ty_ebinds :: [Symbol]
+--  , ty_einfo  :: [Maybe Bool]
+--  , ty_erefts :: [r]
+--  , ty_eargs  :: [RType c tv r]
   , ty_binds  :: [Symbol]
-  , ty_info   :: [Maybe Bool]
+  , ty_info   :: [RFInfo]
   , ty_refts  :: [r]
   , ty_args   :: [RType c tv r]
   , ty_res    :: RType c tv r
@@ -1371,51 +1371,58 @@ data RTypeRep c tv r = RTypeRep
 
 fromRTypeRep :: RTypeRep c tv r -> RType c tv r
 fromRTypeRep RTypeRep{..}
-  = mkArrow ty_vars ty_preds earrs arrs ty_res
+  = mkArrow ty_vars ty_preds {-earrs-} arrs ty_res
   where
     arrs  = safeZip4WithError ("fromRTypeRep: " ++ show (length ty_binds,  length ty_info,  length ty_args,  length ty_refts))  ty_binds  ty_info  ty_args  ty_refts
-    earrs = safeZip4WithError ("fromRTypeRep: " ++ show (length ty_ebinds, length ty_einfo, length ty_eargs, length ty_erefts)) ty_ebinds ty_einfo ty_eargs ty_erefts
+  --  earrs = safeZip4WithError ("fromRTypeRep: " ++ show (length ty_ebinds, length ty_einfo, length ty_eargs, length ty_erefts)) ty_ebinds ty_einfo ty_eargs ty_erefts
 
 --------------------------------------------------------------------------------
 toRTypeRep           :: RType c tv r -> RTypeRep c tv r
 --------------------------------------------------------------------------------
-toRTypeRep t         = RTypeRep αs πs xs' is' rs' ts' xs is rs ts t''
+toRTypeRep t         = RTypeRep αs πs {-xs' is' rs' ts'-} xs is rs ts t''
   where
     (αs, πs, t') = bkUniv t
-    ((xs',is', ts',rs'),(xs, is, ts, rs), t'') = bkArrow t'
+    ({-(xs',is', ts',rs'),-}(xs, is, ts, rs), t'') = bkArrow t'
 
 mkArrow :: [(RTVar tv (RType c tv ()), r)]
         -> [PVar (RType c tv ())]
-        -> [(Symbol, Maybe Bool, RType c tv r, r)]
-        -> [(Symbol, Maybe Bool, RType c tv r, r)]
+--        -> [(Symbol, Maybe Bool, RType c tv r, r)]
+        -> [(Symbol, RFInfo, RType c tv r, r)]
         -> RType c tv r
         -> RType c tv r
-mkArrow αs πs yts zts = mkUnivs αs πs . mkRFuns True yts . mkRFuns False zts
+mkArrow αs πs {-yts-} zts = mkUnivs αs πs . mkRFuns zts -- . mkRFuns True yts . mkRFuns False zts
   where
-    mkRFuns imp xts t  = foldr (\(b,i,t1,r) t2 -> RFun b (RFInfo i imp) t1 t2 r) t xts
+    mkRFuns xts t  = foldr (\(b,i,t1,r) t2 -> RFun b i t1 t2 r) t xts
 --mkArrow αs πs yts zts = mkUnivs αs πs . mkArrs RImpF yts . mkArrs RFun zts
 --  where
 --    mkArrs f xts t  = foldr (\(b,i,t1,r) t2 -> f b i t1 t2 r) t xts
 
 -- Do I need to keep track of implicits here too?
-bkArrowDeep :: RType t t1 a -> ([Symbol], [Maybe Bool], [RType t t1 a], [a], RType t t1 a)
+bkArrowDeep :: RType t t1 a -> ([Symbol], [RFInfo], [RType t t1 a], [a], RType t t1 a)
 bkArrowDeep (RAllT _ t _)   = bkArrowDeep t
 bkArrowDeep (RAllP _ t)     = bkArrowDeep t
 bkArrowDeep (RFun x i t t' r) = let (xs, is, ts, rs, t'') = bkArrowDeep t' in
-                                (x:xs, permitTC i:is, t:ts, r:rs, t'')
+                                (x:xs, i:is, t:ts, r:rs, t'')
 bkArrowDeep t               = ([], [], [], [], t)
 
-bkArrow :: RType t t1 a -> ( ([Symbol], [Maybe Bool], [RType t t1 a], [a])
-                           , ([Symbol], [Maybe Bool], [RType t t1 a], [a])
+bkArrow :: RType t t1 a -> ( ([Symbol], [RFInfo], [RType t t1 a], [a])
+--                           , ([Symbol], [RFInfo], [RType t t1 a], [a])
                            , RType t t1 a )
 bkArrow t                = ((xs,is,ts,rs),
-                            (xs',is',ts',rs'),
-                            t'')
+--                            (xs',is',ts',rs'),
+--                            t'')
+                             t')
   where
-    (xs,  is,  ts,  rs,  t')  = bkImp t
-    (xs', is', ts', rs', t'') = bkFun t'
+        (xs,  is,  ts,  rs,  t')  = bkFun t
+--    (xs,  is,  ts,  rs,  t')  = bkImp t
+--    (xs', is', ts', rs', t'') = bkFun t'
 
+bkFun :: RType t t1 a -> ([Symbol], [RFInfo], [RType t t1 a], [a], RType t t1 a)
+bkFun (RFun x i t t' r) = let (xs, is, ts, rs, t'') = bkFun t' in
+                          (x:xs, i:is, t:ts, r:rs, t'')
+bkFun t                 = ([], [], [], [], t)
 
+{-
 bkFun :: RType t t1 a -> ([Symbol], [Maybe Bool], [RType t t1 a], [a], RType t t1 a)
 bkFun (RFun x i t t' r) | not (isImplicit i) = let (xs, is, ts, rs, t'') = bkFun t' in
                                                (x:xs, permitTC i:is, t:ts, r:rs, t'')
@@ -1425,10 +1432,11 @@ bkImp :: RType t t1 a -> ([Symbol], [Maybe Bool], [RType t t1 a], [a], RType t t
 bkImp (RFun x i t t' r) | isImplicit i = let (xs, is, ts, rs, t'') = bkImp t' in
                                          (x:xs, permitTC i:is, t:ts, r:rs, t'')
 bkImp t                 = ([], [], [], [], t)
+-}
 
 safeBkArrow ::(F.PPrint (RType t t1 a))
-            => RType t t1 a -> ( ([Symbol], [Maybe Bool], [RType t t1 a], [a])
-                               , ([Symbol], [Maybe Bool], [RType t t1 a], [a])
+            => RType t t1 a -> ( ([Symbol], [RFInfo], [RType t t1 a], [a])
+--                               , ([Symbol], [RFInfo], [RType t t1 a], [a])
                                , RType t t1 a )
 safeBkArrow t@RAllT {} = Prelude.error {- panic Nothing -} $ "safeBkArrow on RAllT" ++ F.showpp t
 safeBkArrow (RAllP _ _)     = Prelude.error {- panic Nothing -} "safeBkArrow on RAllP"
@@ -2453,7 +2461,7 @@ data KVKind
   | LamE
   | CaseE       Int -- ^ Int is the number of cases
   | LetE
-  | ImplictE
+--  | ImplictE
   | ProjectE        -- ^ Projecting out field of
   deriving (Generic, Eq, Ord, Show, Data, Typeable)
 

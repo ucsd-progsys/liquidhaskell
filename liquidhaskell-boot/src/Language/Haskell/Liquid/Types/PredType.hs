@@ -179,18 +179,18 @@ strengthenRType wkT wrT = maybe wkT (strengthen wkT) (stripRTypeBase wrT)
 dcWrapSpecType :: Bool -> DataCon -> DataConP -> SpecType
 dcWrapSpecType allowTC dc (DataConP _ _ vs ps cs yts rt _ _ _)
   = {- F.tracepp ("dcWrapSpecType: " ++ show dc ++ " " ++ F.showpp rt) $ -}
-    mkArrow makeVars' ps [] ts' rt'
+    mkArrow makeVars' ps {-[]-} ts' rt'
   where
     isCls    = Ghc.isClassTyCon $ Ghc.dataConTyCon dc
     (as, sts) = unzip (reverse yts)
     mkDSym z = F.symbol z `F.suffixSymbol` F.symbol dc
     bs       = mkDSym <$> as
     tx _  []     []     []     = []
-    tx su (x:xs) (y:ys) (t:ts) = (y, Just allowTC , if allowTC && isCls then t else F.subst (F.mkSubst su) t, mempty)
+    tx su (x:xs) (y:ys) (t:ts) = (y, classRFInfo allowTC , if allowTC && isCls then t else F.subst (F.mkSubst su) t, mempty)
                                : tx ((x, F.EVar y):su) xs ys ts
     tx _ _ _ _ = panic Nothing "PredType.dataConPSpecType.tx called on invalid inputs"
     yts'     = tx [] as bs sts
-    ts'      = map ("" , Just allowTC , , mempty) cs ++ yts'
+    ts'      = map ("" , classRFInfo allowTC , , mempty) cs ++ yts'
     subst    = F.mkSubst [(x, F.EVar y) | (x, y) <- zip as bs]
     rt'      = F.subst subst rt
     makeVars = zipWith (\v a -> RTVar v (rTVarInfo a :: RTVInfo RSort)) vs (fst $ splitForAllTyCoVars $ dataConRepType dc)

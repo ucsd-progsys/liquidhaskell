@@ -73,7 +73,7 @@ addCC :: Bool -> Ghc.Var -> LocSpecType -> LocSpecType
 addCC allowTC var zz@(Loc l l' st0)
   = Loc l l'
   . addForall hst
-  . mkArrow [] ps' [] []
+  . mkArrow [] ps' {-[]-} []
   . makeCls cs'
   . mapExprReft (\_ -> F.applyCoSub coSub)
   . subts su

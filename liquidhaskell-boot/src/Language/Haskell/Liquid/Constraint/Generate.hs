@@ -370,12 +370,13 @@ makeTermEnvs γ xtes xes ts ts' = setTRec γ . zip xs <$> rts
     err x        = "Constant: makeTermEnvs: no terminating expression for " ++ GM.showPpr x
 
 addObligation :: Oblig -> SpecType -> RReft -> SpecType
-addObligation o t r  = mkArrow αs πs yts xts $ RRTy [] r o t2
+addObligation o t r  = mkArrow αs πs {-yts-} xts $ RRTy [] r o t2
   where
     (αs, πs, t1) = bkUniv t
-    ((xs',is',ts',rs'),(xs, is, ts, rs), t2) = bkArrow t1
+    ((xs, is, ts, rs), t2) = bkArrow t1
+    --((xs',is',ts',rs'),(xs, is, ts, rs), t2) = bkArrow t1
     xts              = zip4 xs is ts rs
-    yts              = zip4 xs' is' ts' rs'
+    --yts              = zip4 xs' is' ts' rs'
 
 --------------------------------------------------------------------------------
 consCB :: Bool -> Bool -> CGEnv -> CoreBind -> CG CGEnv
@@ -463,14 +464,16 @@ consBind isRec' γ (x, e, Asserted spect)
        cgenv    <- foldM addPToEnv γ' πs
 
        -- take implcits out of the function's SpecType and into the env
-       let tyr = toRTypeRep spect
-       let spect' = fromRTypeRep (tyr { ty_ebinds = [], ty_einfo = [], ty_eargs = [], ty_erefts = [] })
-       γπ <- foldM (+=) cgenv $ (\(y,t)->("implicitError",y,t)) <$> zip (ty_ebinds tyr) (ty_eargs tyr)
+       --let tyr = toRTypeRep spect
+       --let spect' = fromRTypeRep tyr --(tyr { ty_ebinds = [], ty_einfo = [], ty_eargs = [], ty_erefts = [] })
+       --γπ <- foldM (+=) cgenv $ (\(y,t)->("implicitError",y,t)) <$> zip (ty_ebinds tyr) (ty_eargs tyr)
 
-       cconsE γπ e (weakenResult (typeclass (getConfig γ)) x spect')
+       cconsE cgenv e (weakenResult (typeclass (getConfig γ)) x spect)
+       --cconsE γπ e (weakenResult (typeclass (getConfig γ)) x spect')
        when (F.symbol x `elemHEnv` holes γ) $
          -- have to add the wf constraint here for HOLEs so we have the proper env
-         addW $ WfC γπ $ fmap killSubst spect
+         addW $ WfC cgenv $ fmap killSubst spect
+         --addW $ WfC γπ $ fmap killSubst spect
        addIdA x (defAnn isRec' spect)
        return $ Asserted spect
 
@@ -732,6 +735,7 @@ splitConstraints _ t
 -- instantiates them with fresh variables, and adds those variables
 -- to the context as @ebind@s TODO: the second half
 -------------------------------------------------------------------
+{-
 instantiateGhosts :: CGEnv
                  -> SpecType
                  -> CG (Bool, CGEnv, SpecType)
@@ -746,12 +750,14 @@ instantiateGhosts γ t | not (null yts)
 
 instantiateGhosts γ t = return (False, γ, t)
 
+
 bkImplicit :: RType c tv r
            -> ( [(F.Symbol, RType c tv r)]
               , RType c tv r)
 bkImplicit (RFun x i tx t _) | isImplicit i = ((x,tx):acc, t')
   where (acc,t') = bkImplicit t
 bkImplicit t = ([],t)
+-}
 
 -------------------------------------------------------------------
 -- | @instantiatePreds@ peels away the universally quantified @PVars@
@@ -858,7 +864,13 @@ consE γ e'@(App e a)
        (γ', te2)  <- dropExists γ te1
        te3        <- dropConstraints γ te2
        updateLocA (exprLoc e) te3
-       (hasGhost, γ'', te4)     <- instantiateGhosts γ' te3
+       --(hasGhost, γ'', te4)     <- instantiateGhosts γ' te3
+       let RFun x _ tx t _ = checkFun ("Non-fun App with caller ", e') γ te3
+       cconsE γ' a tx
+       tout <- makeSingleton γ' (simplify e') <$> addPost γ' (maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ $ simplify a))
+       return tout
+
+       {-
        let RFun x _ tx t _ = checkFun ("Non-fun App with caller ", e') γ te4
        cconsE γ'' a tx
        tout <- makeSingleton γ'' (simplify e') <$> addPost γ'' (maybe (checkUnbound γ'' e' x t a) (F.subst1 t . (x,)) (argExpr γ $ simplify a))
@@ -869,6 +881,7 @@ consE γ e'@(App e a)
            addC (SubC γ'' tout tk) ""
            return tk
           else return tout
+        -}
 
 consE γ (Lam α e) | isTyVar α
   = do γ' <- updateEnvironment γ α
@@ -1261,7 +1274,7 @@ unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
   where
         tbody              = instantiatePvs (instantiateTys td ts) (reverse rs)
         -- TODO: if we ever want to support applying implicits explicitly, will need to rejigger
-        ((_,_,_,_),(ys0,_,yts',_), rt) = safeBkArrow (F.notracepp msg $ instantiateTys tbody tvs')
+        ({-(_,_,_,_),-}(ys0,_,yts',_), rt) = safeBkArrow (F.notracepp msg $ instantiateTys tbody tvs')
         msg                = "INST-TY: " ++ F.showpp (td, ts, tbody, ys, tvs')
         yts''              = zipWith F.subst sus (yts'++[rt])
         (t3,yts)           = (last yts'', init yts'')

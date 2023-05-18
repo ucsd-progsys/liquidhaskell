@@ -800,7 +800,7 @@ makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
       fs  = Bare.lookupGhcNamedVar env name . Ghc.flSelector <$> fls
       ts :: [ LocSpecType ]
       ts = [ Loc l l' (mkArrow (zip (makeRTVar <$> dcpFreeTyVars dcp) (repeat mempty)) []
-                                 [] [(z, Just True, res, mempty)]
+                                 {-[]-} [(z, classRFInfo True, res, mempty)]
                                  (dropPreds (F.subst su t `RT.strengthen` mt)))
              | (x, t) <- reverse args -- NOTE: the reverse here is correct
              , let vv = rTypeValueVar t

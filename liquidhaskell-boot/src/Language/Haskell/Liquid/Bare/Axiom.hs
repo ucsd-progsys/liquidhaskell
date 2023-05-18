@@ -87,7 +87,7 @@ makeAssumeType allowTC tce lmap dm sym mbT v def
   where
     rt    = fromRTypeRep .
             (\trep@RTypeRep{..} ->
-                trep{ty_info = fmap (\_ -> Just allowTC) ty_info}) .
+                trep{ty_info = fmap (\i -> i{permitTC = Just allowTC}) ty_info}) .
             toRTypeRep $ Mb.fromMaybe (ofType τ) mbT
     τ     = Ghc.varType v
     at    = axiomType allowTC sym rt

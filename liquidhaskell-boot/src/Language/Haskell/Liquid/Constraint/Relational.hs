@@ -541,12 +541,12 @@ consRelSub γ f1@(RFun g1 _ s1@RFun{} t1 _) f2@(RFun g2 _ s2@RFun{} t2 _)
     γ'' <- γ' += ("consRelSub HOF", F.symbol g2, s2)
     let psubst = unapplyArg resL g1 <> unapplyArg resR g2
     consRelSub γ'' t1 t2 (psubst p1) (psubst p2)
-consRelSub γ f1@(RFun x1 i1 s1 e1 _) f2 p1 p2 | not (isImplicit i1) =
+consRelSub γ f1@(RFun x1 _ s1 e1 _) f2 p1 p2 {-| not (isImplicit i1)-} =
   traceSub "fun" f1 f2 p1 p2 $ do
     γ' <- γ += ("consRelSub RFun L", F.symbol x1, s1)
     let psubst = unapplyArg resL x1
     consRelSub γ' e1 f2 (psubst p1) (psubst p2)
-consRelSub γ f1 f2@(RFun x2 i2 s2 e2 _) p1 p2 | not (isImplicit i2) =
+consRelSub γ f1 f2@(RFun x2 _ s2 e2 _) p1 p2 {-| not (isImplicit i2)-} =
   traceSub "fun" f1 f2 p1 p2 $ do
     γ' <- γ += ("consRelSub RFun R", F.symbol x2, s2)
     let psubst = unapplyArg resR x2
@@ -566,7 +566,7 @@ consRelSub _ t1@RAllE {} t2@RAllE {} _ _ = F.panic $ "consRelSub is undefined fo
 consRelSub _ t1@RRTy {} t2@RRTy {} _ _ = F.panic $ "consRelSub is undefined for RRTy " ++ show (t1, t2)
 consRelSub _ t1@RAllP {} t2@RAllP {} _ _ = F.panic $ "consRelSub is undefined for RAllP " ++ show (t1, t2)
 consRelSub _ t1@RAllT {} t2@RAllT {} _ _ = F.panic $ "consRelSub is undefined for RAllT " ++ show (t1, t2)
-consRelSub _ t1@(RFun _ i1 _ _ _) t2@(RFun _ i2 _ _ _) _ _ | isImplicit i1 && isImplicit i2 = F.panic $ "consRelSub is undefined for implicit RFun " ++ show (t1, t2)
+--consRelSub _ t1@(RFun _ i1 _ _ _) t2@(RFun _ i2 _ _ _) _ _ | isImplicit i1 && isImplicit i2 = F.panic $ "consRelSub is undefined for implicit RFun " ++ show (t1, t2)
 --consRelSub _ t1@RImpF {} t2@RImpF {} _ _ = F.panic $ "consRelSub is undefined for RImpF " ++ show (t1, t2)
 consRelSub _ t1 t2 _ _ =  F.panic $ "consRelSub is undefined for different types " ++ show (t1, t2)
 

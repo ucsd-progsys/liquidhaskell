@@ -453,9 +453,11 @@ checkDuplicateRTAlias s tas = mkDiagnostics mempty (map mkError dups)
 checkMismatch        :: (Var, LocSpecType) -> Diagnostics
 checkMismatch (x, t) = if ok then emptyDiagnostics else mkDiagnostics mempty [err]
   where
-    ok               = tyCompat x (val t')
-    err              = errTypeMismatch x t'
-    t'               = dropImplicits <$> t
+    ok               = tyCompat x (val t)
+    err              = errTypeMismatch x t
+    --ok               = tyCompat x (val t')
+    --err              = errTypeMismatch x t'
+    --t'               = dropImplicits <$> t
 
 tyCompat :: Var -> RType RTyCon RTyVar r -> Bool
 tyCompat x t         = lqT == hsT
@@ -635,7 +637,7 @@ checkMBody senv emb _ sort (Def m c _ bs body) = checkMBody' emb sort γ' sp bod
     keep | allowTC = not . isEmbeddedClass
          | otherwise = not . isClassType
     -- YL: extract permitTC information from sort
-    allowTC = or $ fmap (fromMaybe False) (ty_info $ toRTypeRep sort)
+    allowTC = or $ fmap (fromMaybe False . permitTC) (ty_info $ toRTypeRep sort)
     trep  = toRTypeRep ct
     su    = checkMBodyUnify (ty_res trep) (last txs)
     txs   = thd5 $ bkArrowDeep sort

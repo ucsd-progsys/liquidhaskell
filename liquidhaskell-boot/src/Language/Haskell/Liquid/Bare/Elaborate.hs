@@ -338,31 +338,32 @@ elaborateSpecType' partialTp coreToLogic simplify t =
         (\bs' ee -> pure (RVar (RTV tv) (MkUReft (F.Reft (vv, ee)) p), bs'))
         -- YL : Fix
     RFun  bind i tin tout ureft@(MkUReft reft@(F.Reft (vv, _oldE)) p) ->
-      if isImplicit i then do
-          -- YL: implicit dictionary param doesn't seem possible..
-        let partialFunTp =
-              Free (RFunF bind i (wrap $ specTypeToPartial tin) (pure ()) ureft) :: PartialSpecType
-            partialTp' = partialTp >> partialFunTp :: PartialSpecType
-        (eTin , bs ) <- elaborateSpecType' partialTp' coreToLogic simplify tin
-        (eTout, bs') <- elaborateSpecType' partialTp' coreToLogic simplify tout
-        let (eToutRenamed, canonicalBinders) =
-              canonicalizeDictBinder bs (eTout, bs')
-
-        -- eTin and eTout might have different dictionary names
-        -- need to do a substitution to make the reference to dictionaries consistent
-        -- if isClassType eTin
-        elaborateReft
-          (reft, t)
-          (pure (RFun bind i eTin eToutRenamed ureft, canonicalBinders))
-          (\bs'' ee -> do
-            let (eeRenamed, canonicalBinders') =
-                  canonicalizeDictBinder canonicalBinders (ee, bs'')
-            pure
-              ( RFun bind i eTin eTout (MkUReft (F.Reft (vv, eeRenamed)) p)
-              , canonicalBinders'
-              )
-          )
-      else do
+      --if isImplicit i then do
+      --    -- YL: implicit dictionary param doesn't seem possible..
+      --  let partialFunTp =
+      --        Free (RFunF bind i (wrap $ specTypeToPartial tin) (pure ()) ureft) :: PartialSpecType
+      --      partialTp' = partialTp >> partialFunTp :: PartialSpecType
+      --  (eTin , bs ) <- elaborateSpecType' partialTp' coreToLogic simplify tin
+      --  (eTout, bs') <- elaborateSpecType' partialTp' coreToLogic simplify tout
+      --  let (eToutRenamed, canonicalBinders) =
+      --        canonicalizeDictBinder bs (eTout, bs')
+--
+      --  -- eTin and eTout might have different dictionary names
+      --  -- need to do a substitution to make the reference to dictionaries consistent
+      --  -- if isClassType eTin
+      --  elaborateReft
+      --    (reft, t)
+      --    (pure (RFun bind i eTin eToutRenamed ureft, canonicalBinders))
+      --    (\bs'' ee -> do
+      --      let (eeRenamed, canonicalBinders') =
+      --            canonicalizeDictBinder canonicalBinders (ee, bs'')
+      --      pure
+      --        ( RFun bind i eTin eTout (MkUReft (F.Reft (vv, eeRenamed)) p)
+      --        , canonicalBinders'
+      --        )
+      --    )
+      --else
+      do
       -- the reft is never actually used by the child
       -- maybe i should enforce this information at the type level
       let partialFunTp =
@@ -730,8 +731,8 @@ specTypeToLHsType =
     RVarF (RTV tv) _ -> nlHsTyVar
       -- (GM.notracePpr ("varRdr" ++ F.showpp (F.symbol tv)) $ getRdrName tv)
       (symbolToRdrNameNs tvName (F.symbol tv))
-    RFunF _ i (tin, tin') (_, tout) _
-      | isClassType tin && not (isImplicit i) -> noLocA $ HsQualTy Ghc.noExtField (Just (noLocA [tin'])) tout
+    RFunF _ _ (tin, tin') (_, tout) _
+      | isClassType tin {-&& not (isImplicit i)-} -> noLocA $ HsQualTy Ghc.noExtField (Just (noLocA [tin'])) tout
       | otherwise       -> nlHsFunTy tin' tout
     RAllTF (ty_var_value -> (RTV tv)) (_, t) _ -> noLocA $ HsForAllTy
       Ghc.noExtField

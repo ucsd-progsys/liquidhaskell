@@ -257,11 +257,11 @@ btP = do
             reservedOp "->"
             PC _ t2 <- btP
             return (PC sb (rFun sym t1 t2)))
-        <|>
+{-        <|>
          (do
             reservedOp "~>"
             PC _ t2 <- btP
-            return (PC sb (rFun' (RFInfo Nothing True) sym t1 t2)))
+            return (PC sb (rFun' (RFInfo Nothing True) sym t1 t2)))-}
         <|>
          (do
             reservedOp "=>"
@@ -525,10 +525,10 @@ constraintP
   = do xts <- constraintEnvP
        t1  <- bareTypeP
        reservedOp "<:"
-       fromRTypeRep . RTypeRep [] [] []
-                                        [] [] []
+       fromRTypeRep . RTypeRep [] []
+                                     --[] [] [] []
                                         ((val . fst <$> xts) ++ [dummySymbol])
-                                        (replicate (length xts + 1) Nothing)
+                                        (replicate (length xts + 1) defRFInfo)
                                         (replicate (length xts + 1) mempty)
                                         ((snd <$> xts) ++ [t1]) <$> bareTypeP
 

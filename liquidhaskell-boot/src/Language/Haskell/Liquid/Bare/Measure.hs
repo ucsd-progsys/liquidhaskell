@@ -281,19 +281,19 @@ makeMeasureSelectors cfg dm (Loc l l' c)
     permitTC = typeclass cfg
 
 dataConSel :: Bool -> Ghc.DataCon -> Int -> DataConSel -> SpecType
-dataConSel permitTC dc n Check    = mkArrow (zip as (repeat mempty)) [] [] [xt] bareBool
+dataConSel permitTC dc n Check    = mkArrow (zip as (repeat mempty)) [] {-[]-} [xt] bareBool
   where
     (as, _, xt)          = {- traceShow ("dataConSel: " ++ show dc) $ -} bkDataCon permitTC dc n
 
-dataConSel permitTC dc n (Proj i) = mkArrow (zip as (repeat mempty)) [] [] [xt] (mempty <$> ti)
+dataConSel permitTC dc n (Proj i) = mkArrow (zip as (repeat mempty)) [] {-[]-} [xt] (mempty <$> ti)
   where
     ti                   = Mb.fromMaybe err $ Misc.getNth (i-1) ts
     (as, ts, xt)         = {- F.tracepp ("bkDatacon dc = " ++ F.showpp (dc, n)) $ -} bkDataCon permitTC dc n
     err                  = panic Nothing $ "DataCon " ++ show dc ++ "does not have " ++ show i ++ " fields"
 
 -- bkDataCon :: DataCon -> Int -> ([RTVar RTyVar RSort], [SpecType], (Symbol, SpecType, RReft))
-bkDataCon :: (F.Reftable (RTProp RTyCon RTyVar r), PPrint r, F.Reftable r) => Bool -> Ghc.DataCon -> Int -> ([RTVar RTyVar RSort], [RRType r], (F.Symbol, Maybe Bool, RRType r, r))
-bkDataCon permitTC dcn nFlds  = (as, ts, (F.dummySymbol, Just permitTC, t, mempty))
+bkDataCon :: (F.Reftable (RTProp RTyCon RTyVar r), PPrint r, F.Reftable r) => Bool -> Ghc.DataCon -> Int -> ([RTVar RTyVar RSort], [RRType r], (F.Symbol, RFInfo, RRType r, r))
+bkDataCon permitTC dcn nFlds  = (as, ts, (F.dummySymbol, classRFInfo permitTC, t, mempty))
   where
     ts                = RT.ofType <$> Misc.takeLast nFlds (map Ghc.irrelevantMult _ts)
     t                 = -- Misc.traceShow ("bkDataConResult" ++ GM.showPpr (dc, _t, _t0)) $

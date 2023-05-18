@@ -694,11 +694,11 @@ strengthenRefType_ f (RAppTy t1 t1' r1) (RAppTy t2 t2' r2)
     where t  = strengthenRefType_ f t1 t2
           t' = strengthenRefType_ f t1' t2'
 
-strengthenRefType_ f (RFun x1 i1 t1 t1' r1) (RFun x2 i2 t2 t2' r2)
-  | isImplicit i1 && isImplicit i2 =
-      RFun x2 i1 t t1'' (r1 `meet` r2)
-  -- YL: Evidence that we need a Monoid instance for RFInfo?
-  | not (isImplicit i1 || isImplicit i2) =
+strengthenRefType_ f (RFun x1 i1 t1 t1' r1) (RFun x2 i2 t2 t2' r2) =
+--  | isImplicit i1 && isImplicit i2 =
+--      RFun x2 i1 t t1'' (r1 `meet` r2)
+--  -- YL: Evidence that we need a Monoid instance for RFInfo?
+--  | not (isImplicit i1 || isImplicit i2) =
     if x2 /= F.dummySymbol
       then RFun x2 i1{permitTC = getFirst b} t t1'' (r1 `meet` r2)
       else RFun x1 i1{permitTC = getFirst b} t t2'' (r1 `meet` r2)
@@ -1742,12 +1742,12 @@ data DataConAppContext
   }
 
 mkProductTy :: forall t r. (Monoid t, Monoid r)
-            => (Type, Symbol, Maybe Bool, RType RTyCon RTyVar r, t)
-            -> [(Symbol, Maybe Bool, RType RTyCon RTyVar r, t)]
+            => (Type, Symbol, RFInfo, RType RTyCon RTyVar r, t)
+            -> [(Symbol, RFInfo, RType RTyCon RTyVar r, t)]
 mkProductTy (τ, x, i, t, r) = maybe [(x, i, t, r)] f (deepSplitProductType menv τ)
   where
-    f    :: DataConAppContext -> [(Symbol, Maybe Bool, RType RTyCon RTyVar r, t)]
-    f    DataConAppContext{..} = map ((dummySymbol, Nothing, , mempty) . ofType . fst) dcac_arg_tys
+    f    :: DataConAppContext -> [(Symbol, RFInfo, RType RTyCon RTyVar r, t)]
+    f    DataConAppContext{..} = map ((dummySymbol, defRFInfo, , mempty) . ofType . fst) dcac_arg_tys
     menv = (emptyFamInstEnv, emptyFamInstEnv)
 
 -- Copied from GHC 9.0.2.

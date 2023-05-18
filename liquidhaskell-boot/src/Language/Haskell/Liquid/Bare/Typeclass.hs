@@ -224,9 +224,9 @@ elaborateClassDcp coreToLg simplifier dcp = do
   fullTy t = mkArrow
     tvars
     []
-    []
+    {-[]-}
     [ ( recsel{- F.symbol dc-}
-      , Just True
+      , classRFInfo True
       , resTy
       , mempty
       )
@@ -250,7 +250,7 @@ elaborateMethod dc methods st = mapExprReft
   grabtcbind :: SpecType -> F.Symbol
   grabtcbind t =
     F.notracepp "grabtcbind"
-      $ case Misc.fst4 . Misc.snd3 . bkArrow . Misc.thd3 . bkUniv $ t of
+      $ case Misc.fst4 . fst . bkArrow . Misc.thd3 . bkUniv $ t of
           tcbind : _ -> tcbind
           []         -> impossible
             Nothing
@@ -344,12 +344,12 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
         -- dict binder will never be changed because we optimized PAnd[]
         -- lq0 lq1 ...
             --
-        ptys    = [(F.vv (Just i), Just True, pty, mempty) | (i,pty) <- zip [0,1..] isPredSpecTys]
+        ptys    = [(F.vv (Just i), classRFInfo True, pty, mempty) | (i,pty) <- zip [0,1..] isPredSpecTys]
         fullSig =
           mkArrow
             (zip isRTvs (repeat mempty))
             []
-            []
+            {-[]-}
             ptys .
           subst (zip clsTvs isSpecTys) $
           headlessSig
