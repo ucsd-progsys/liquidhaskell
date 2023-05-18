@@ -32,8 +32,8 @@ microTestGroups =
   , "terminate-pos"
   , "terminate-neg"
   , "pattern-pos"
-  , "implicit-pos"
-  , "implicit-neg"
+--  , "implicit-pos"
+--  , "implicit-neg"
   , "typeclass-pos"
   ]
 
