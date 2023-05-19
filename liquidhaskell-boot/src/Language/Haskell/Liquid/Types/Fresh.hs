@@ -83,9 +83,9 @@ trueRefType allowTC (RAllT α t r)
 trueRefType allowTC (RAllP π t)
   = RAllP π <$> true allowTC t
 
-trueRefType allowTC (RFun _ i t t' _)
+trueRefType allowTC (RFun _ _ t t' _)
   -- YL: attaching rfinfo here is crucial
-  = rFun' (i{permitTC = Just allowTC}) <$> fresh <*> true allowTC t <*> true allowTC t'
+  = rFun' (classRFInfo allowTC) <$> fresh <*> true allowTC t <*> true allowTC t'
 
 trueRefType allowTC (RApp c ts _  _) | if allowTC then isEmbeddedDict c else isClass c
   = rRCls c <$> mapM (true allowTC) ts

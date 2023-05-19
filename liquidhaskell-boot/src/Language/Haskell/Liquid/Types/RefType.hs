@@ -700,32 +700,10 @@ strengthenRefType_ f (RFun x1 i1 t1 t1' r1) (RFun x2 i2 t2 t2' r2) =
           t2'' = strengthenRefType_ f t1' (subst1 t2' (x2, EVar x1))
           b  = First (permitTC i1) <> First (permitTC i2)
 
-{-
-strengthenRefType_ f (RImpF x1 i t1 t1' r1) (RImpF x2 _ t2 t2' r2)
-  = RImpF x2 i t t' (r1 `meet` r2)
-    where t  = strengthenRefType_ f t1 t2
-          t' = strengthenRefType_ f (subst1 t1' (x1, EVar x2)) t2'
-
--- YL: Evidence that we need a Monoid instance for RFInfo?
-strengthenRefType_ f (RFun x1 i1 t1 t1' r1) (RFun x2 i2 t2 t2' r2)
-  | x2 /= F.dummySymbol
-  = RFun x2 i1{permitTC = getFirst b} t t' (r1 `meet` r2)
-    where t  = strengthenRefType_ f t1 t2
-          t' = strengthenRefType_ f (subst1 t1' (x1, EVar x2)) t2'
-          b  = First (permitTC i1) <> First (permitTC i2)
-
-strengthenRefType_ f (RFun x1 i1 t1 t1' r1) (RFun x2 i2 t2 t2' r2)
-  = RFun x1 i1{permitTC = getFirst b} t t' (r1 `meet` r2)
-    where t  = strengthenRefType_ f t1 t2
-          t' = strengthenRefType_ f t1' (subst1 t2' (x2, EVar x1))
-          b  = First (permitTC i1) <> First (permitTC i2)
--}
-
 strengthenRefType_ f (RApp tid t1s rs1 r1) (RApp _ t2s rs2 r2)
   = RApp tid ts rs (r1 `meet` r2)
     where ts  = zipWith (strengthenRefType_ f) t1s t2s
           rs  = meets rs1 rs2
-
 
 strengthenRefType_ _ (RVar v1 r1)  (RVar v2 r2) | v1 == v2
   = RVar v1 (r1 `meet` r2)
@@ -740,13 +718,12 @@ meets rs rs'
   | otherwise               = panic Nothing "meets: unbalanced rs"
 
 strengthen :: Reftable r => RType c tv r -> r -> RType c tv r
-strengthen (RApp c ts rs r) r'  = RApp c ts rs (r `F.meet` r')
-strengthen (RVar a r) r'        = RVar a       (r `F.meet` r')
-strengthen (RFun b i t1 t2 r) r'  = RFun b i t1 t2 (r `F.meet` r')
-strengthen (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `F.meet` r')
-strengthen (RAllT a t r)    r'  = RAllT a t    (r `F.meet` r')
-strengthen t _                  = t
-
+strengthen (RApp c ts rs r)   r' = RApp c ts rs   (r `F.meet` r')
+strengthen (RVar a r)         r' = RVar a         (r `F.meet` r')
+strengthen (RFun b i t1 t2 r) r' = RFun b i t1 t2 (r `F.meet` r')
+strengthen (RAppTy t1 t2 r)   r' = RAppTy t1 t2   (r `F.meet` r')
+strengthen (RAllT a t r)      r' = RAllT a t      (r `F.meet` r')
+strengthen t                  _  = t
 
 quantifyRTy :: (Monoid r, Eq tv) => [RTVar tv (RType c tv ())] -> RType c tv r -> RType c tv r
 quantifyRTy tvs ty = foldr rAllT ty tvs
@@ -955,17 +932,17 @@ allTyVars' t = fmap ty_var_value $ vs ++ vs'
 
 
 freeTyVars :: Eq tv => RType c tv r -> [RTVar tv (RType c tv ())]
-freeTyVars (RAllP _ t)     = freeTyVars t
-freeTyVars (RAllT α t _)   = freeTyVars t L.\\ [α]
+freeTyVars (RAllP _ t)       = freeTyVars t
+freeTyVars (RAllT α t _)     = freeTyVars t L.\\ [α]
 freeTyVars (RFun _ _ t t' _) = freeTyVars t `L.union` freeTyVars t'
-freeTyVars (RApp _ ts _ _) = L.nub $ concatMap freeTyVars ts
-freeTyVars (RVar α _)      = [makeRTVar α]
-freeTyVars (RAllE _ tx t)  = freeTyVars tx `L.union` freeTyVars t
-freeTyVars (REx _ tx t)    = freeTyVars tx `L.union` freeTyVars t
-freeTyVars (RExprArg _)    = []
-freeTyVars (RAppTy t t' _) = freeTyVars t `L.union` freeTyVars t'
-freeTyVars (RHole _)       = []
-freeTyVars (RRTy e _ _ t)  = L.nub $ concatMap freeTyVars (t:(snd <$> e))
+freeTyVars (RApp _ ts _ _)   = L.nub $ concatMap freeTyVars ts
+freeTyVars (RVar α _)        = [makeRTVar α]
+freeTyVars (RAllE _ tx t)    = freeTyVars tx `L.union` freeTyVars t
+freeTyVars (REx _ tx t)      = freeTyVars tx `L.union` freeTyVars t
+freeTyVars (RExprArg _)      = []
+freeTyVars (RAppTy t t' _)   = freeTyVars t `L.union` freeTyVars t'
+freeTyVars (RHole _)         = []
+freeTyVars (RRTy e _ _ t)    = L.nub $ concatMap freeTyVars (t:(snd <$> e))
 
 
 tyClasses :: (OkRT RTyCon tv r) => RType RTyCon tv r -> [(Class, [RType RTyCon tv r])]
@@ -1944,28 +1921,28 @@ instance PPrint (RTProp c tv r) => Show (RTProp c tv r) where
 tyVarsPosition :: RType RTyCon tv r -> Positions tv
 tyVarsPosition = go (Just True)
   where
-    go p (RVar t _)        = report p t
-    go p (RFun _ _ t1 t2 _)  = go (flip' p) t1 <> go p t2
-    go p (RAllT _ t _)     = go p t
-    go p (RAllP _ t)       = go p t
-    go p (RApp c ts _ _)   = mconcat (zipWith go (getPosition p <$> varianceTyArgs (rtc_info c)) ts)
-    go p (RAllE _ t1 t2)   = go p t1 <> go p t2
-    go p (REx _ t1 t2)     = go p t1 <> go p t2
-    go _ (RExprArg _)      = mempty
-    go p (RAppTy t1 t2 _)  = go p t1 <> go p t2
-    go p (RRTy _ _ _ t)    = go p t
-    go _ (RHole _)         = mempty
+    go p (RVar t _)         = report p t
+    go p (RFun _ _ t1 t2 _) = go (flip' p) t1 <> go p t2
+    go p (RAllT _ t _)      = go p t
+    go p (RAllP _ t)        = go p t
+    go p (RApp c ts _ _)    = mconcat (zipWith go (getPosition p <$> varianceTyArgs (rtc_info c)) ts)
+    go p (RAllE _ t1 t2)    = go p t1 <> go p t2
+    go p (REx _ t1 t2)      = go p t1 <> go p t2
+    go _ (RExprArg _)       = mempty
+    go p (RAppTy t1 t2 _)   = go p t1 <> go p t2
+    go p (RRTy _ _ _ t)     = go p t
+    go _ (RHole _)          = mempty
 
     getPosition :: Maybe Bool -> Variance -> Maybe Bool
     getPosition b Contravariant = not <$> b
     getPosition b _             = b
 
-    report Nothing v      = Pos [] [] [v]
-    report (Just True) v  = Pos [v] [] []
-    report (Just False) v = Pos [] [v] []
+    report (Just True)  v = Pos [v] []  []
+    report (Just False) v = Pos []  [v] []
+    report Nothing v      = Pos []  []  [v]
     flip' = fmap not
 
-data Positions a = Pos {ppos :: [a], pneg ::  [a], punknown :: [a]}
+data Positions a = Pos {ppos :: [a], pneg :: [a], punknown :: [a]}
 
 instance Monoid (Positions a) where
   mempty = Pos [] [] []

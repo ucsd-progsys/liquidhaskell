@@ -1427,10 +1427,10 @@ tyBodyP ty
       Just bt | isPropBareType bt
                 -> P <$> predP
       _         -> E <$> exprP
-    where outTy (RAllT _ t _)  = outTy t
-          outTy (RAllP _ t)    = outTy t
+    where outTy (RAllT _ t _)    = outTy t
+          outTy (RAllP _ t)      = outTy t
           outTy (RFun _ _ _ t _) = Just t
-          outTy _              = Nothing
+          outTy _                = Nothing
 
 locUpperOrInfixIdP :: Parser (Located Symbol)
 locUpperOrInfixIdP = locUpperIdP' <|> locInfixCondIdP

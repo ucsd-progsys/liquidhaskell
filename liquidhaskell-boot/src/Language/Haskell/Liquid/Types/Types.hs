@@ -1681,33 +1681,33 @@ isFunTy RFun{}           = True
 isFunTy _                = False
 
 mapReftM :: (Monad m) => (r1 -> m r2) -> RType c tv r1 -> m (RType c tv r2)
-mapReftM f (RVar α r)         = fmap    (RVar  α)  (f r)
-mapReftM f (RAllT α t r)      = liftM2  (RAllT α)  (mapReftM f t)         (f r)
-mapReftM f (RAllP π t)        = fmap    (RAllP π)  (mapReftM f t)
-mapReftM f (RFun x i t t' r)  = liftM3  (RFun x i) (mapReftM f t)         (mapReftM f t')       (f r)
-mapReftM f (RApp c ts rs r)   = liftM3  (RApp  c)  (mapM (mapReftM f) ts) (mapM (mapRefM f) rs) (f r)
-mapReftM f (RAllE z t t')     = liftM2  (RAllE z)  (mapReftM f t)         (mapReftM f t')
-mapReftM f (REx z t t')       = liftM2  (REx z)    (mapReftM f t)         (mapReftM f t')
-mapReftM _ (RExprArg e)       = return  $ RExprArg e
-mapReftM f (RAppTy t t' r)    = liftM3  RAppTy (mapReftM f t) (mapReftM f t') (f r)
-mapReftM f (RHole r)          = fmap    RHole      (f r)
-mapReftM f (RRTy xts r o t)   = liftM4  RRTy (mapM (mapSndM (mapReftM f)) xts) (f r) (return o) (mapReftM f t)
+mapReftM f (RVar α r)        = fmap   (RVar  α)  (f r)
+mapReftM f (RAllT α t r)     = liftM2 (RAllT α)  (mapReftM f t)         (f r)
+mapReftM f (RAllP π t)       = fmap   (RAllP π)  (mapReftM f t)
+mapReftM f (RFun x i t t' r) = liftM3 (RFun x i) (mapReftM f t)         (mapReftM f t')       (f r)
+mapReftM f (RApp c ts rs r)  = liftM3 (RApp  c)  (mapM (mapReftM f) ts) (mapM (mapRefM f) rs) (f r)
+mapReftM f (RAllE z t t')    = liftM2 (RAllE z)  (mapReftM f t)         (mapReftM f t')
+mapReftM f (REx z t t')      = liftM2 (REx z)    (mapReftM f t)         (mapReftM f t')
+mapReftM _ (RExprArg e)      = return $ RExprArg e
+mapReftM f (RAppTy t t' r)   = liftM3 RAppTy (mapReftM f t) (mapReftM f t') (f r)
+mapReftM f (RHole r)         = fmap   RHole      (f r)
+mapReftM f (RRTy xts r o t)  = liftM4 RRTy (mapM (mapSndM (mapReftM f)) xts) (f r) (return o) (mapReftM f t)
 
 mapRefM  :: (Monad m) => (t -> m s) -> RTProp c tv t -> m (RTProp c tv s)
 mapRefM  f (RProp s t)        = fmap    (RProp s)      (mapReftM f t)
 
 mapPropM :: (Monad m) => (RTProp c tv r -> m (RTProp c tv r)) -> RType c tv r -> m (RType c tv r)
-mapPropM _ (RVar α r)         = return $ RVar  α r
-mapPropM f (RAllT α t r)      = liftM2  (RAllT α)   (mapPropM f t)          (return r)
-mapPropM f (RAllP π t)        = fmap    (RAllP π)   (mapPropM f t)
-mapPropM f (RFun x i t t' r)  = liftM3  (RFun x i)    (mapPropM f t)          (mapPropM f t') (return r)
-mapPropM f (RApp c ts rs r)   = liftM3  (RApp  c)   (mapM (mapPropM f) ts)  (mapM f rs)     (return r)
-mapPropM f (RAllE z t t')     = liftM2  (RAllE z)   (mapPropM f t)          (mapPropM f t')
-mapPropM f (REx z t t')       = liftM2  (REx z)     (mapPropM f t)          (mapPropM f t')
-mapPropM _ (RExprArg e)       = return  $ RExprArg e
-mapPropM f (RAppTy t t' r)    = liftM3  RAppTy (mapPropM f t) (mapPropM f t') (return r)
-mapPropM _ (RHole r)          = return $ RHole r
-mapPropM f (RRTy xts r o t)   = liftM4  RRTy (mapM (mapSndM (mapPropM f)) xts) (return r) (return o) (mapPropM f t)
+mapPropM _ (RVar α r)        = return $ RVar  α r
+mapPropM f (RAllT α t r)     = liftM2 (RAllT α)   (mapPropM f t)          (return r)
+mapPropM f (RAllP π t)       = fmap   (RAllP π)   (mapPropM f t)
+mapPropM f (RFun x i t t' r) = liftM3 (RFun x i)  (mapPropM f t)          (mapPropM f t') (return r)
+mapPropM f (RApp c ts rs r)  = liftM3 (RApp  c)   (mapM (mapPropM f) ts)  (mapM f rs)     (return r)
+mapPropM f (RAllE z t t')    = liftM2 (RAllE z)   (mapPropM f t)          (mapPropM f t')
+mapPropM f (REx z t t')      = liftM2 (REx z)     (mapPropM f t)          (mapPropM f t')
+mapPropM _ (RExprArg e)      = return $ RExprArg e
+mapPropM f (RAppTy t t' r)   = liftM3 RAppTy (mapPropM f t) (mapPropM f t') (return r)
+mapPropM _ (RHole r)         = return $ RHole r
+mapPropM f (RRTy xts r o t)  = liftM4 RRTy (mapM (mapSndM (mapPropM f)) xts) (return r) (return o) (mapPropM f t)
 
 
 --------------------------------------------------------------------------------
