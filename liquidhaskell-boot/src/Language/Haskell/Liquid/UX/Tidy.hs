@@ -160,18 +160,17 @@ bindersTx ds   = \y -> M.lookupDefault y y m
 
 
 tyVars :: RType c tv r -> [tv]
-tyVars (RAllP _ t)     = tyVars t
-tyVars (RAllT α t _)   = ty_var_value α : tyVars t
---tyVars (RImpF _ _ t t' _) = tyVars t ++ tyVars t'
+tyVars (RAllP _ t)       = tyVars t
+tyVars (RAllT α t _)     = ty_var_value α : tyVars t
 tyVars (RFun _ _ t t' _) = tyVars t ++ tyVars t'
-tyVars (RAppTy t t' _) = tyVars t ++ tyVars t'
-tyVars (RApp _ ts _ _) = concatMap tyVars ts
-tyVars (RVar α _)      = [α]
-tyVars (RAllE _ _ t)   = tyVars t
-tyVars (REx _ _ t)     = tyVars t
-tyVars (RExprArg _)    = []
-tyVars (RRTy _ _ _ t)  = tyVars t
-tyVars (RHole _)       = []
+tyVars (RAppTy t t' _)   = tyVars t ++ tyVars t'
+tyVars (RApp _ ts _ _)   = concatMap tyVars ts
+tyVars (RVar α _)        = [α]
+tyVars (RAllE _ _ t)     = tyVars t
+tyVars (REx _ _ t)       = tyVars t
+tyVars (RExprArg _)      = []
+tyVars (RRTy _ _ _ t)    = tyVars t
+tyVars (RHole _)         = []
 
 subsTyVarsAll
   :: (Eq k, Hashable k,
@@ -190,18 +189,17 @@ subsTyVarsAll ats = go
 
 
 funBinds :: RType t t1 t2 -> [Symbol]
-funBinds (RAllT _ t _)    = funBinds t
-funBinds (RAllP _ t)      = funBinds t
---funBinds (RImpF b _ t1 t2 _) = b : funBinds t1 ++ funBinds t2
+funBinds (RAllT _ t _)      = funBinds t
+funBinds (RAllP _ t)        = funBinds t
 funBinds (RFun b _ t1 t2 _) = b : funBinds t1 ++ funBinds t2
-funBinds (RApp _ ts _ _)  = concatMap funBinds ts
-funBinds (RAllE b t1 t2)  = b : funBinds t1 ++ funBinds t2
-funBinds (REx b t1 t2)    = b : funBinds t1 ++ funBinds t2
-funBinds (RVar _ _)       = []
-funBinds (RRTy _ _ _ t)   = funBinds t
-funBinds (RAppTy t1 t2 _) = funBinds t1 ++ funBinds t2
-funBinds (RExprArg _)     = []
-funBinds (RHole _)        = []
+funBinds (RApp _ ts _ _)    = concatMap funBinds ts
+funBinds (RAllE b t1 t2)    = b : funBinds t1 ++ funBinds t2
+funBinds (REx b t1 t2)      = b : funBinds t1 ++ funBinds t2
+funBinds (RVar _ _)         = []
+funBinds (RRTy _ _ _ t)     = funBinds t
+funBinds (RAppTy t1 t2 _)   = funBinds t1 ++ funBinds t2
+funBinds (RExprArg _)       = []
+funBinds (RHole _)          = []
 
 
 --------------------------------------------------------------------------------

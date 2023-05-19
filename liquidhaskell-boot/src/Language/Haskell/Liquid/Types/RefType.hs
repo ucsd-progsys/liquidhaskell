@@ -574,10 +574,6 @@ addPds ps t             = foldl' (flip rPred) t ps
 nlzP :: (OkRT c tv r) => [PVar (RType c tv ())] -> RType c tv r -> (RType c tv r, [PVar (RType c tv ())])
 nlzP ps t@(RVar _ _ )
  = (t, ps)
---nlzP ps (RImpF b i t1 t2 r)
--- = (RImpF b i t1' t2' r, ps ++ ps1 ++ ps2)
---  where (t1', ps1) = nlzP [] t1
---        (t2', ps2) = nlzP [] t2
 nlzP ps (RFun b i t1 t2 r)
  = (RFun b i t1' t2' r, ps ++ ps1 ++ ps2)
   where (t1', ps1) = nlzP [] t1
@@ -695,13 +691,10 @@ strengthenRefType_ f (RAppTy t1 t1' r1) (RAppTy t2 t2' r2)
           t' = strengthenRefType_ f t1' t2'
 
 strengthenRefType_ f (RFun x1 i1 t1 t1' r1) (RFun x2 i2 t2 t2' r2) =
---  | isImplicit i1 && isImplicit i2 =
---      RFun x2 i1 t t1'' (r1 `meet` r2)
---  -- YL: Evidence that we need a Monoid instance for RFInfo?
---  | not (isImplicit i1 || isImplicit i2) =
-    if x2 /= F.dummySymbol
-      then RFun x2 i1{permitTC = getFirst b} t t1'' (r1 `meet` r2)
-      else RFun x1 i1{permitTC = getFirst b} t t2'' (r1 `meet` r2)
+  -- YL: Evidence that we need a Monoid instance for RFInfo?
+  if x2 /= F.dummySymbol
+    then RFun x2 i1{permitTC = getFirst b} t t1'' (r1 `meet` r2)
+    else RFun x1 i1{permitTC = getFirst b} t t2'' (r1 `meet` r2)
     where t  = strengthenRefType_ f t1 t2
           t1'' = strengthenRefType_ f (subst1 t1' (x1, EVar x2)) t2'
           t2'' = strengthenRefType_ f t1' (subst1 t2' (x2, EVar x1))
@@ -749,7 +742,6 @@ meets rs rs'
 strengthen :: Reftable r => RType c tv r -> r -> RType c tv r
 strengthen (RApp c ts rs r) r'  = RApp c ts rs (r `F.meet` r')
 strengthen (RVar a r) r'        = RVar a       (r `F.meet` r')
---strengthen (RImpF b i t1 t2 r) r' = RImpF b i t1 t2 (r `F.meet` r')
 strengthen (RFun b i t1 t2 r) r'  = RFun b i t1 t2 (r `F.meet` r')
 strengthen (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `F.meet` r')
 strengthen (RAllT a t r)    r'  = RAllT a t    (r `F.meet` r')
@@ -950,7 +942,7 @@ addNumSizeFun c
 
 
 generalize :: (Eq tv, Monoid r) => RType c tv r -> RType c tv r
-generalize t = mkUnivs (zip (freeTyVars t) (repeat mempty)) [] t
+generalize t = mkUnivs (map (, mempty) (freeTyVars t)) [] t
 
 allTyVars :: (Ord tv) => RType c tv r -> [tv]
 allTyVars = sortNub . allTyVars'
@@ -965,7 +957,6 @@ allTyVars' t = fmap ty_var_value $ vs ++ vs'
 freeTyVars :: Eq tv => RType c tv r -> [RTVar tv (RType c tv ())]
 freeTyVars (RAllP _ t)     = freeTyVars t
 freeTyVars (RAllT α t _)   = freeTyVars t L.\\ [α]
---freeTyVars (RImpF _ _ t t' _)= freeTyVars t `L.union` freeTyVars t'
 freeTyVars (RFun _ _ t t' _) = freeTyVars t `L.union` freeTyVars t'
 freeTyVars (RApp _ ts _ _) = L.nub $ concatMap freeTyVars ts
 freeTyVars (RVar α _)      = [makeRTVar α]
@@ -982,7 +973,6 @@ tyClasses (RAllP _ t)     = tyClasses t
 tyClasses (RAllT _ t _)   = tyClasses t
 tyClasses (RAllE _ _ t)   = tyClasses t
 tyClasses (REx _ _ t)     = tyClasses t
---tyClasses (RImpF _ _ t t' _) = tyClasses t ++ tyClasses t'
 tyClasses (RFun _ _ t t' _) = tyClasses t ++ tyClasses t'
 tyClasses (RAppTy t t' _) = tyClasses t ++ tyClasses t'
 tyClasses (RApp c ts _ _)
@@ -1085,8 +1075,6 @@ subsFree m s z@(α, τ,_) (RAllP π t)
 subsFree m s z@(a, τ, _) (RAllT α t r)
   -- subt inside the type variable instantiates the kind of the variable
   = RAllT (subt (a, τ) α) (subsFree m (ty_var_value α `S.insert` s) z t) (subt (a, τ) r)
---subsFree m s z@(α, τ, _) (RImpF x i t t' r)
---  = RImpF x i (subsFree m s z t) (subsFree m s z t') (subt (α, τ) r)
 subsFree m s z@(α, τ, _) (RFun x i t t' r)
   = RFun x i (subsFree m s z t) (subsFree m s z t') (subt (α, τ) r)
 subsFree m s z@(α, τ, _) (RApp c ts rs r)
@@ -1278,7 +1266,6 @@ instance SubsTy Symbol Symbol (BRType r) where
     | BTV x == v = RAllT (RTVar v i) t r
     | otherwise  = RAllT (RTVar v i) (subt (x,y) t) r
   subt su (RFun x i t1 t2 r)  = RFun x i (subt su t1) (subt su t2) r
-  --subt su (RImpF x i t1 t2 r) = RImpF x i (subt su t1) (subt su t2) r
   subt su (RAllP p t)       = RAllP p (subt su t)
   subt su (RApp c ts ps r)  = RApp c (subt su <$> ts) (subt su <$> ps) r
   subt su (RAllE x t1 t2)   = RAllE x (subt su t1) (subt su t2)
@@ -1512,8 +1499,6 @@ type ToTypeable r = (Reftable r, PPrint r, SubsTy RTyVar (RRType ()) r, Reftable
 -- TODO: remove toType, generalize typeSort
 -- YL: really should take a type-level Bool
 toType  :: (ToTypeable r) => Bool -> RRType r -> Type
---toType useRFInfo (RImpF x i t t' r)
--- = toType useRFInfo (RFun x i t t' r)
 toType useRFInfo (RFun _ RFInfo{permitTC = permitTC} t@(RApp c _ _ _) t' _)
   | useRFInfo && isErasable c = toType useRFInfo t'
   | otherwise
@@ -1615,9 +1600,6 @@ shiftVV t@(RApp _ ts rs r) vv'
   = t { rt_args  = subst1 ts (rTypeValueVar t, EVar vv') }
       { rt_pargs = subst1 rs (rTypeValueVar t, EVar vv') }
       { rt_reft  = (`F.shiftVV` vv') <$> r }
-
---shiftVV t@(RImpF _ _ _ _ r) vv'
---  = t { rt_reft = (`F.shiftVV` vv') <$> r }
 
 shiftVV t@(RFun _ _ _ _ r) vv'
   = t { rt_reft = (`F.shiftVV` vv') <$> r }
@@ -1964,7 +1946,6 @@ tyVarsPosition = go (Just True)
   where
     go p (RVar t _)        = report p t
     go p (RFun _ _ t1 t2 _)  = go (flip' p) t1 <> go p t2
-    --go p (RImpF _ _ t1 t2 _) = go (flip' p) t1 <> go p t2
     go p (RAllT _ t _)     = go p t
     go p (RAllP _ t)       = go p t
     go p (RApp c ts _ _)   = mconcat (zipWith go (getPosition p <$> varianceTyArgs (rtc_info c)) ts)

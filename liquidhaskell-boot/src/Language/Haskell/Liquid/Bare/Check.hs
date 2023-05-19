@@ -455,9 +455,6 @@ checkMismatch (x, t) = if ok then emptyDiagnostics else mkDiagnostics mempty [er
   where
     ok               = tyCompat x (val t)
     err              = errTypeMismatch x t
-    --ok               = tyCompat x (val t')
-    --err              = errTypeMismatch x t'
-    --t'               = dropImplicits <$> t
 
 tyCompat :: Var -> RType RTyCon RTyVar r -> Bool
 tyCompat x t         = lqT == hsT
@@ -506,7 +503,6 @@ checkAppTys = go
     go (RApp rtc ts _ _)
       = checkTcArity rtc (length ts) <|>
         L.foldl' (\merr t -> merr <|> go t) Nothing ts
---  go (RImpF _ _ t1 t2 _)= go t1 <|> go t2
     go (RFun _ _ t1 t2 _) = go t1 <|> go t2
     go (RVar _ _)       = Nothing
     go (RAllE _ t1 t2)  = go t1 <|> go t2
@@ -539,7 +535,6 @@ checkAbstractRefs rt = go rt
     go t@(RAllT _ t1 r)   = check (toRSort t :: RSort) r <|>  go t1
     go (RAllP _ t)        = go t
     go t@(RApp c ts rs r) = check (toRSort t :: RSort) r <|>  efold go ts <|> go' c rs
---  go t@(RImpF _ _ t1 t2 r)= check (toRSort t :: RSort) r <|> go t1 <|> go t2
     go t@(RFun _ _ t1 t2 r) = check (toRSort t :: RSort) r <|> go t1 <|> go t2
     go t@(RVar _ r)       = check (toRSort t :: RSort) r
     go (RAllE _ t1 t2)    = go t1 <|> go t2
@@ -717,8 +712,6 @@ isRefined ty
 hasInnerRefinement :: F.Reftable r => RType c tv r -> Bool
 hasInnerRefinement (RFun _ _ rIn rOut _) =
   isRefined rIn || isRefined rOut
---hasInnerRefinement (RImpF _ _ rIn rOut _) =
---  isRefined rIn || isRefined rOut
 hasInnerRefinement (RAllT _ ty  _) =
   isRefined ty
 hasInnerRefinement (RAllP _ ty) =

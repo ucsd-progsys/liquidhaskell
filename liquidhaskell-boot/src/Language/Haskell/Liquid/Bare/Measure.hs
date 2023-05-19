@@ -281,11 +281,11 @@ makeMeasureSelectors cfg dm (Loc l l' c)
     permitTC = typeclass cfg
 
 dataConSel :: Bool -> Ghc.DataCon -> Int -> DataConSel -> SpecType
-dataConSel permitTC dc n Check    = mkArrow (zip as (repeat mempty)) [] {-[]-} [xt] bareBool
+dataConSel permitTC dc n Check    = mkArrow (map (, mempty) as) [] [xt] bareBool
   where
     (as, _, xt)          = {- traceShow ("dataConSel: " ++ show dc) $ -} bkDataCon permitTC dc n
 
-dataConSel permitTC dc n (Proj i) = mkArrow (zip as (repeat mempty)) [] {-[]-} [xt] (mempty <$> ti)
+dataConSel permitTC dc n (Proj i) = mkArrow (map (, mempty) as) [] [xt] (mempty <$> ti)
   where
     ti                   = Mb.fromMaybe err $ Misc.getNth (i-1) ts
     (as, ts, xt)         = {- F.tracepp ("bkDatacon dc = " ++ F.showpp (dc, n)) $ -} bkDataCon permitTC dc n

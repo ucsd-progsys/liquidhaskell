@@ -224,7 +224,6 @@ elaborateClassDcp coreToLg simplifier dcp = do
   fullTy t = mkArrow
     tvars
     []
-    {-[]-}
     [ ( recsel{- F.symbol dc-}
       , classRFInfo True
       , resTy
@@ -291,8 +290,6 @@ renameTvs rename t
   = RVar (rename tv) r
   | RFun b i tin tout r <- t
   = RFun b i (renameTvs rename tin) (renameTvs rename tout) r
---  | RImpF b i tin tout r <- t
---  = RImpF b i (renameTvs rename tin) (renameTvs rename tout) r
   | RAllT (RTVar tv info) tres r <- t
   = RAllT (RTVar (rename tv) info) (renameTvs rename tres) r
   | RAllP b tres <- t
@@ -349,7 +346,6 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
           mkArrow
             (zip isRTvs (repeat mempty))
             []
-            {-[]-}
             ptys .
           subst (zip clsTvs isSpecTys) $
           headlessSig

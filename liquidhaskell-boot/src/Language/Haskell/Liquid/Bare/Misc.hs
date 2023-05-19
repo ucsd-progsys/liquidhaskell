@@ -114,8 +114,6 @@ data MapTyVarST = MTVST
   }
 
 mapTyVars :: Bool -> Type -> SpecType -> StateT MapTyVarST (Either Error) ()
---mapTyVars allowTC t (RFun _ i _ t' _) | isImplicit i
---   = mapTyVars allowTC t t'
 mapTyVars allowTC (FunTy { ft_arg = τ, ft_res = τ'}) t
   | isErasable τ
   = mapTyVars allowTC τ' t

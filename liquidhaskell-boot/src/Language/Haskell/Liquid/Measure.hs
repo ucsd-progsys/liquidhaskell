@@ -3,6 +3,7 @@
 {-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE ConstraintKinds        #-}
+{-# LANGUAGE TupleSections    #-}
 
 module Language.Haskell.Liquid.Measure (
   -- * Specifications
@@ -182,14 +183,14 @@ mapArgumens allowTC lc t1 t2 = go xts1' xts2'
 -- should constructors have implicits? probably not
 defRefType :: Bool -> Type -> Def (RRType Reft) DataCon -> RRType Reft
 defRefType allowTC tdc (Def f dc mt xs body)
-                    = generalize $ mkArrow as' [] {-[]-} xts t'
+                    = generalize $ mkArrow as' [] xts t'
   where
     xts             = stitchArgs allowTC (fSrcSpan f) dc xs ts
     t'              = refineWithCtorBody dc f body t
     t               = Mb.fromMaybe (ofType tr) mt
     (αs, ts, tr)    = splitType tdc
     as              = if Mb.isJust mt then [] else makeRTVar . rTyVar <$> αs
-    as'             = zip as (repeat mempty)
+    as'             = map (, mempty) as
 
 splitType :: Type -> ([TyVar],[Type], Type)
 splitType t  = (αs, map irrelevantMult ts, tr)

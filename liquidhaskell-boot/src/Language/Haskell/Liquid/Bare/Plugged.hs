@@ -162,7 +162,7 @@ plugHolesOld, plugHolesNew
 -- NOTE: this use of toType is safe as rt' is derived from t.
 plugHolesOld allowTC tce tyi xx f t0 zz@(Loc l l' st0)
     = Loc l l'
-    . mkArrow (zip (updateRTVar <$> αs') rs) ps' {-[]-} []
+    . mkArrow (zip (updateRTVar <$> αs') rs) ps' []
     . makeCls cs'
     . goPlug tce tyi err f (subts su rt)
     . mapExprReft (\_ -> F.applyCoSub coSub)
@@ -193,7 +193,7 @@ plugHolesOld allowTC tce tyi xx f t0 zz@(Loc l l' st0)
 
 plugHolesNew allowTC@False tce tyi xx f t0 zz@(Loc l l' st0)
     = Loc l l'
-    . mkArrow (zip (updateRTVar <$> as'') rs) ps {-[]-} []
+    . mkArrow (zip (updateRTVar <$> as'') rs) ps []
     . makeCls cs'
     . goPlug tce tyi err f rt'
     $ st
@@ -220,7 +220,7 @@ plugHolesNew allowTC@False tce tyi xx f t0 zz@(Loc l l' st0)
 
 plugHolesNew allowTC@True tce tyi a f t0 zz@(Loc l l' st0)
     = Loc l l'
-    . mkArrow (zip (updateRTVar <$> as'') rs) ps {-[]-} (if length cs > length cs' then cs else cs')
+    . mkArrow (zip (updateRTVar <$> as'') rs) ps (if length cs > length cs' then cs else cs')
     -- . makeCls cs'
     . goPlug tce tyi err f rt'
     $ st
@@ -263,8 +263,6 @@ goPlug tce tyi err f = go
         addHole t                  = t
 
     go (RVar _ _)       v@(RVar _ _)       = v
---    go t'               (RImpF x ii i o r)   = RImpF x ii i  (go t' o)             r
-    --go t'               (RFun x ii i o r) | isImplicit ii = RFun x ii i  (go t' o)             r
     go (RFun _ _ i o _) (RFun x ii i' o' r)               = RFun x ii    (go i i')   (go o o') r
     go (RAllT _ t _)    (RAllT a t' r)     = RAllT a    (go t t') r
     go (RAllT a t r)    t'                 = RAllT a    (go t t') r

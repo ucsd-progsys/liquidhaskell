@@ -83,9 +83,6 @@ trueRefType allowTC (RAllT α t r)
 trueRefType allowTC (RAllP π t)
   = RAllP π <$> true allowTC t
 
---trueRefType allowTC (RImpF _ _ t t' _)
---  = rImpF                       <$> fresh <*> true allowTC t <*> true allowTC t'
-
 trueRefType allowTC (RFun _ i t t' _)
   -- YL: attaching rfinfo here is crucial
   = rFun' (i{permitTC = Just allowTC}) <$> fresh <*> true allowTC t <*> true allowTC t'
@@ -134,10 +131,6 @@ refreshRefType allowTC (RAllT α t r)
 
 refreshRefType allowTC (RAllP π t)
   = RAllP π <$> refresh allowTC t
-
---refreshRefType allowTC (RImpF sym i t t' _)
---  | sym == F.dummySymbol = (\b t1 t2 -> RImpF b i t1 t2 mempty) <$> fresh <*> refresh allowTC t <*> refresh allowTC t'
---  | otherwise          = (\t1 t2 -> RImpF sym i t1 t2 mempty)   <$> refresh allowTC t <*> refresh allowTC t'
 
 refreshRefType allowTC (RFun sym i t t' _)
   | sym == F.dummySymbol = (\b t1 t2 -> RFun b i t1 t2 mempty) <$> fresh <*> refresh allowTC t <*> refresh allowTC t'
@@ -198,11 +191,6 @@ refreshVV (REx x t1 t2) = do
   t1' <- refreshVV t1
   t2' <- refreshVV t2
   shiftVV (REx x t1' t2') <$> fresh
-
---refreshVV (RImpF x i t1 t2 r) = do
---  t1' <- refreshVV t1
---  t2' <- refreshVV t2
---  shiftVV (RImpF x i t1' t2' r) <$> fresh
 
 refreshVV (RFun x i t1 t2 r) = do
   t1' <- refreshVV t1

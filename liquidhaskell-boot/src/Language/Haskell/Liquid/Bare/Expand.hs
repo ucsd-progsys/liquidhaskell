@@ -211,7 +211,6 @@ buildTypeEdges table = ordNub . go
   where
     -- go :: t -> [Symbol]
     go (RApp c ts rs _) = go_alias (F.symbol c) ++ concatMap go ts ++ concatMap go (mapMaybe go_ref rs)
---    go (RImpF _ _ t1 t2 _) = go t1 ++ go t2
     go (RFun _ _ t1 t2 _) = go t1 ++ go t2
     go (RAppTy t1 t2 _) = go t1 ++ go t2
     go (RAllE _ t1 t2)  = go t1 ++ go t2
@@ -389,7 +388,6 @@ expandBareType rtEnv _ = go
                              Just rta -> expandRTAliasApp (GM.fSourcePos c) rta (go <$> ts) r
                              Nothing  -> RApp c (go <$> ts) (goRef <$> rs) r
     go (RAppTy t1 t2 r)  = RAppTy (go t1) (go t2) r
---    go (RImpF x i t1 t2 r) = RImpF x i (go t1) (go t2) r
     go (RFun  x i t1 t2 r) = RFun  x i (go t1) (go t2) r
     go (RAllT a t r)     = RAllT a (go t) r
     go (RAllP a t)       = RAllP a (go t)
