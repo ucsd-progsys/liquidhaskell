@@ -17,7 +17,22 @@ Note: The SMT solver binary should be on your `PATH`; LiquidHaskell will execute
 
 LiquidHaskell itself is installed&enabled by adding it as a dependency in your project's `.cabal` file.
 
-Just add `liquidhaskell` to the `build-depends` section of your `.cabal` file, as you would any other dependency.
+Depending on your version of GHC, you might want to use a build of LiquidHaskell from github or from Hackage.
+
+* `ghc-9.2.5`: use LiquidHaskell from github
+* `ghc-9.0.2`: use liquidhaskell-0.9.0.2.1 and liquid-base-0.4.15.1.0 from Hackage
+* `ghc-8.10.7`: use liquidhaskell-0.8.10.7 and liquid-base-0.4.15.0.0 from Hackage
+
+Newer versions of GHC aren't supported yet.
+
+When using liquidhaskell from github, add `liquidhaskell` to the `build-depends`
+section of your `.cabal` file, and configure `stack` or `cabal`-install to
+look for the package there. The following section points to an example project
+that does this.
+
+When using liquidhaskell from Hackage, add `liquidhaskell` and
+`liquid-base` to the `build-depends` section of your `.cabal` file, as you would
+any other dependency.
 
 This causes `stack` (or `cabal`) to automatically:
 
