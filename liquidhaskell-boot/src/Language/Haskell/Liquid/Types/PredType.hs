@@ -88,7 +88,7 @@ mkRTyCon (TyConP _ tc αs' ps tyvariance predvariance size)
 
 
 -------------------------------------------------------------------------------
--- | @dataConPSpecType@ converts a @DataConP@, LH's internal representation for 
+-- | @dataConPSpecType@ converts a @DataConP@, LH's internal representation for
 --   a (refined) data constructor into a @SpecType@ for that constructor.
 --   TODO: duplicated with Liquid.Measure.makeDataConType
 -------------------------------------------------------------------------------
@@ -179,7 +179,7 @@ strengthenRType wkT wrT = maybe wkT (strengthen wkT) (stripRTypeBase wrT)
 dcWrapSpecType :: Bool -> DataCon -> DataConP -> SpecType
 dcWrapSpecType allowTC dc (DataConP _ _ vs ps cs yts rt _ _ _)
   = {- F.tracepp ("dcWrapSpecType: " ++ show dc ++ " " ++ F.showpp rt) $ -}
-    mkArrow makeVars' ps [] ts' rt'
+    mkArrow makeVars' ps ts' rt'
   where
     isCls    = Ghc.isClassTyCon $ Ghc.dataConTyCon dc
     (as, sts) = unzip (reverse yts)
@@ -194,7 +194,7 @@ dcWrapSpecType allowTC dc (DataConP _ _ vs ps cs yts rt _ _ _)
     subst    = F.mkSubst [(x, F.EVar y) | (x, y) <- zip as bs]
     rt'      = F.subst subst rt
     makeVars = zipWith (\v a -> RTVar v (rTVarInfo a :: RTVInfo RSort)) vs (fst $ splitForAllTyCoVars $ dataConRepType dc)
-    makeVars' = zip makeVars (repeat mempty)
+    makeVars' = map (, mempty) makeVars
 
 instance PPrint TyConP where
   pprintTidy k tc = "data" <+> pprintTidy k (tcpCon tc)
@@ -333,7 +333,6 @@ substPVar src dst = go
      | otherwise            = RAllP q (go t)
     go (RAllT a t r)      = RAllT a   (go t)  (goRR r)
     go (RFun x i t t' r)  = RFun x i  (go t)  (go t') (goRR r)
-    go (RImpF x i t t' r) = RImpF x i (go t)  (go t') (goRR r)
     go (RAllE x t t')     = RAllE x   (go t)  (go t')
     go (REx x t t')       = REx x     (go t)  (go t')
     go (RRTy e r o rt)    = RRTy e'   (goRR r) o (go rt) where e' = [(x, go t) | (x, t) <- e]
@@ -384,16 +383,6 @@ substPred msg su@(rp,prop) (RFun x i rt rt' r)
       foldl (\t subst -> t `F.meet` F.subst subst (rf_body prop)) (RFun x i (substPred msg su rt) (substPred msg su rt') r') sus
   where (r', πs)                = splitRPvar rp r
 -- ps has   , pargs :: ![(t, Symbol, Expr)]
-
--- AT: just a copy of the other case, mutatis mutandi. (is there a less hacky way?)
-substPred msg su@(rp,prop) (RImpF x i rt rt' r)
-  | null πs                     = RImpF x i (substPred msg su rt) (substPred msg su rt') r
-  | otherwise                   =
-      let sus = (\π -> F.mkSubst (zip (fst <$> rf_args prop) (thd3 <$> pargs π))) <$> πs in
-      foldl (\t subst -> t `F.meet` F.subst subst (rf_body prop)) (RImpF x i (substPred msg su rt) (substPred msg su rt') r') sus
-  where (r', πs)                = splitRPvar rp r
-
-
 
 substPred msg su (RRTy e r o t) = RRTy (mapSnd (substPred msg su) <$> e) r o (substPred msg su t)
 substPred msg su (RAllE x t t') = RAllE x (substPred msg su t) (substPred msg su t')
@@ -469,8 +458,6 @@ splitRPvar pv (MkUReft x (Pr pvs)) = (MkUReft x (Pr pvs'), epvs)
 freeArgsPs :: PVar (RType t t1 ()) -> RType t t1 (UReft t2) -> [F.Symbol]
 freeArgsPs p (RVar _ r)
   = freeArgsPsRef p r
-freeArgsPs p (RImpF _ _ t1 t2 r)
-  = L.nub $  freeArgsPsRef p r ++ freeArgsPs p t1 ++ freeArgsPs p t2
 freeArgsPs p (RFun _ _ t1 t2 r)
   = L.nub $  freeArgsPsRef p r ++ freeArgsPs p t1 ++ freeArgsPs p t2
 freeArgsPs p (RAllT _ t r)

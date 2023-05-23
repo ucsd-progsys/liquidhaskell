@@ -21,8 +21,8 @@ module Language.Haskell.Liquid.WiredIn
        , isWiredInName
        , dcPrefix
 
-       -- * Deriving classes 
-       , isDerivedInstance 
+       -- * Deriving classes
+       , isDerivedInstance
        ) where
 
 import Prelude                                hiding (error)
@@ -39,7 +39,7 @@ import Language.Haskell.Liquid.Types.Names (selfSymbol)
 
 -- import Language.Fixpoint.Types hiding (panic)
 import qualified Language.Fixpoint.Types as F
-import qualified Data.HashSet as S 
+import qualified Data.HashSet as S
 
 import Liquid.GHC.TypeRep ()
 
@@ -123,11 +123,11 @@ wiredTyDataCons = (concat tcs, dummyLoc <$> concat dcs)
 
 charDataCon :: Located DataConP
 charDataCon = dummyLoc (DataConP l0 Ghc.charDataCon  [] [] [] [("charX",lt)] lt False wiredInName l0)
-  where 
+  where
     l0 = F.dummyPos "LH.Bare.charTyDataCons"
     c  = Ghc.charTyCon
     lt = rApp c [] [] mempty
-    
+
 listTyDataCons :: ([TyConP] , [DataConP])
 listTyDataCons   = ( [TyConP l0 c [RTV tyv] [p] [Covariant] [Covariant] (Just fsize)]
                    , [DataConP l0 Ghc.nilDataCon  [RTV tyv] [p] [] []    lt False wiredInName l0
@@ -196,15 +196,15 @@ mkps_ _     _       _          _    _ = panic Nothing "Bare : mkps_"
 
 
 --------------------------------------------------------------------------------
-isDerivedInstance :: Ghc.ClsInst -> Bool 
+isDerivedInstance :: Ghc.ClsInst -> Bool
 --------------------------------------------------------------------------------
-isDerivedInstance i = F.notracepp ("IS-DERIVED: " ++ F.showpp classSym) 
-                    $ S.member classSym derivingClasses 
-  where 
+isDerivedInstance i = F.notracepp ("IS-DERIVED: " ++ F.showpp classSym)
+                    $ S.member classSym derivingClasses
+  where
     classSym        = F.symbol . Ghc.is_cls $ i
-  
-derivingClasses :: S.HashSet F.Symbol 
-derivingClasses = S.fromList 
+
+derivingClasses :: S.HashSet F.Symbol
+derivingClasses = S.fromList
   [ "GHC.Classes.Eq"
   , "GHC.Classes.Ord"
   , "GHC.Enum.Enum"

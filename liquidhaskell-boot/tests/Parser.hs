@@ -15,13 +15,13 @@ module Main where
 
 import           Control.Monad (filterM, unless)
 import           Data.Data
-import           Data.Char (isSpace) 
+import           Data.Char (isSpace)
 import           Data.Generics.Aliases
 import           Data.Generics.Schemes
 
 import           Language.Fixpoint.Types.Spans
 import qualified Language.Haskell.Liquid.Parse as LH
-import qualified Language.Fixpoint.Types       as F 
+import qualified Language.Fixpoint.Types       as F
 
 import           System.Directory
 import           System.FilePath
@@ -37,7 +37,7 @@ import           Test.Tasty.Runners.AntXML
 
 -- | Test suite entry point, returns exit failure if any test fails.
 main :: IO ()
--- main = do 
+-- main = do
 --   print $ parseSingleSpec "type IncrListD a D = [a]<{\\x y -> (x+D) <= y}>"
 --   return ()
 main = do
@@ -301,11 +301,11 @@ testSucceeds =
   testGroup "Should succeed"
     [ testCase "x :: Int" $
        (parseSingleSpec "x :: Int") @?==
-          "x :: Int" 
+          "x :: Int"
 
     , testCase "x :: a" $
        (parseSingleSpec "x :: a") @?==
-          "x :: a" 
+          "x :: a"
 
     , testCase "x :: a -> a" $
        (parseSingleSpec "x :: a -> a") @?==
@@ -344,9 +344,9 @@ testSucceeds =
          , "                   }" ])
         @?==
     --      "data Tree [ht] [a] =\n    | Tree :: forall a . key : a ->l : (Tree {v : a | v < key}) ->r : (Tree {v : a | key < v}) -> *\n    | Nil :: forall a . -> *"
-          "data Tree [ht] [a] = \ 
+          "data Tree [ht] [a] = \
            \     | Nil :: forall a . -> * \
-           \     | Tree :: forall a . key : a ->l : (Tree {v : a | v < key}) ->r : (Tree {v : a | key < v}) -> *"    
+           \     | Tree :: forall a . key : a ->l : (Tree {v : a | v < key}) ->r : (Tree {v : a | key < v}) -> *"
 
     , testCase "type spec 6" $
        parseSingleSpec "type AVLL a X    = AVLTree {v:a | v < X}" @?==
@@ -365,7 +365,7 @@ testSucceeds =
       , "  Ord a => OList (a<p>) -> OList (a<q>) -> OList a<r> "])
         @?==
           -- "assume (++) :: forall <p :: a -> Bool, q :: a -> Bool, r :: a -> Bool> .\n               (Ord a) =>\n               {x :: {VV : a<p> | true} |- {VV : a<q> | true} <: {v : a | x <= v}} =>\n               {|- {VV : a<p> | true} <: {VV : a<r> | true}} =>\n               {|- {VV : a<q> | true} <: {VV : a<r> | true}} =>\n               lq_tmp$db##13:(OList {VV : a<p> | true}) -> lq_tmp$db##15:(OList {VV : a<q> | true}) -> (OList {VV : a<r> | true})"
-         (unlines 
+         (unlines
            [ "assume (++) :: forall <p##1##23 :: a -> Bool, q##1##23 :: a -> Bool, r##1##23 :: a -> Bool>."
            , "               (Ord a) =>"
            , "               {x :: {VV : a<p##1##23> | true} |- {VV : a<q##1##23> | true} <: {v : a | x <= v}} =>"
@@ -401,7 +401,7 @@ testSucceeds =
           , "       (Int<p> -> ()) -> x:Int<q> -> ()" ])
           @?==
  --            "app :: forall <p :: Int -> Bool, q :: Int -> Bool> .\n       {|- (Int <{VV : _<q> | true}>) <: (Int <{VV : _<p> | true}>)} =>\n       {x :: (Int <{VV : _<q> | true}>) |- {v : Int | v == x + 1} <: (Int <{VV : _<q> | true}>)} =>\n       lq_tmp$db##8:(lq_tmp$db##9:(Int <{VV : _<p> | true}>) -> ()) -> x:(Int <{VV : _<q> | true}>) -> ()"
-            (unlines 
+            (unlines
               [ "app :: forall <p##1##15 :: Int -> Bool, q##1##15 :: Int -> Bool>."
               , "       {|- (Int <{VV : _<q##1##15> | true}>) <: (Int <{VV : _<p##1##15> | true}>)} =>"
               , "       {x :: (Int <{VV : _<q##1##15> | true}>) |- {v : Int | v == x + 1} <: (Int <{VV : _<q##1##15> | true}>)} =>"
@@ -416,7 +416,7 @@ testSucceeds =
           , "         xs:[{v:a<p> | 0 <= v}] -> {v:a<q> | len xs >= 0 && 0 <= v } "])
           @?==
             -- "ssum :: forall <p :: a -> Bool, q :: a -> Bool> .\n        {|- {v : a | v == 0} <: {VV : a<q> | true}} =>\n        {x :: {VV : a<p> | true} |- {v : a | x <= v} <: {VV : a<q> | true}} =>\n        xs:[{v : a<p> | 0 <= v}] -> {v : a<q> | len xs >= 0\n                                                && 0 <= v}"
-           (unlines 
+           (unlines
               [ "ssum :: forall <p##1##16 :: a -> Bool, q##1##16 :: a -> Bool>."
               , "        {|- {v : a | v == 0} <: {VV : a<q##1##16> | true}} =>"
               , "        {x :: {VV : a<p##1##16> | true} |- {v : a | x <= v} <: {VV : a<q##1##16> | true}} =>"
@@ -507,8 +507,8 @@ testSucceeds =
          [ "data List2 a b <p :: a -> Bool> where"
          , "    Nil2  :: List2 a "
          , "    Cons2 :: listHead:a -> listTail:List a -> List2 a b"])
-        @?== 
-           "data List2  [a, b] = \ 
+        @?==
+           "data List2  [a, b] = \
             \  | Cons2 :: forall a b . listHead : a ->listTail : (List a) -> (List2 a b) \
             \  | Nil2 :: forall a b . -> (List2 a)"
 
@@ -543,7 +543,7 @@ testFails =
               , "1 | x :: Maybe k:Int -> Int"
               , "  |             ^"
               , "unexpected ':'"
-              , "expecting \"->\", \"=>\", \"~>\", '/', bareTyArgP, end of input, mmonoPredicateP, or monoPredicateP"
+              , "expecting \"->\", \"=>\", '/', bareTyArgP, end of input, mmonoPredicateP, or monoPredicateP"
               ]
     ]
 
@@ -561,7 +561,7 @@ testErrorReporting =
               , "1 | assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignPtrN a n "
               , "  |                                             ^"
               , "unexpected '('"
-              , "expecting \"->\", \"=>\", \"~>\", end of input, mmonoPredicateP, or predicatesP"
+              , "expecting \"->\", \"=>\", end of input, mmonoPredicateP, or predicatesP"
               ]
     , testCase "Missing |" $
           parseSingleSpec "ff :: {v:Nat  v >= 0 }" @?==
@@ -571,7 +571,7 @@ testErrorReporting =
               , "1 | ff :: {v:Nat  v >= 0 }"
               , "  |                 ^^"
               , "unexpected \">=\""
-              , "expecting \"->\", \"<:\", \"=>\", \"~>\", '|', bareTyArgP, mmonoPredicateP, or monoPredicateP"
+              , "expecting \"->\", \"<:\", \"=>\", '|', bareTyArgP, mmonoPredicateP, or monoPredicateP"
               ]
     ]
 

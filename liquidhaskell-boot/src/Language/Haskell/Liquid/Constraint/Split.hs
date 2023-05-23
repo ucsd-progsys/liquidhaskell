@@ -58,14 +58,6 @@ splitW (WfC γ t@(RFun x _ t1 t2 _))
         ws'' <- splitW (WfC γ' t2)
         return $ ws ++ ws' ++ ws''
 
-splitW (WfC γ t@(RImpF x _ t1 t2 _))
-  =  do ws'  <- splitW (WfC γ t1)
-        γ'   <- γ += ("splitW", x, t1)
-        ws   <- bsplitW γ t
-        ws'' <- splitW (WfC γ' t2)
-        return $ ws ++ ws' ++ ws''
-
-
 splitW (WfC γ t@(RAppTy t1 t2 _))
   =  do ws   <- bsplitW γ t
         ws'  <- splitW (WfC γ t1)
@@ -208,16 +200,6 @@ splitC allowTC (SubC γ (RFun x1 i1 t1 t1' r1) (RFun x2 i2 t2 t2' r2))
         cs''     <- splitC allowTC  (SubC γ' t1x2' t2')
         return    $ cs ++ cs' ++ cs''
 
-splitC allowTC (SubC γ (RImpF x1 i1 t1 t1' r1) (RImpF x2 i2 t2 t2' r2))
-  =  do cs'      <- splitC allowTC  (SubC γ t2 t1)
-        γ'       <- γ+= ("splitC allowTC", x2, t2)
-        cs       <- bsplitC γ (RImpF x1 i1 t1 t1' (r1 `F.subst1` (x1, F.EVar x2)))
-                              (RImpF x2 i2 t2 t2'  r2)
-        let t1x2' = t1' `F.subst1` (x1, F.EVar x2)
-        cs''     <- splitC allowTC  (SubC γ' t1x2' t2')
-        return    $ cs ++ cs' ++ cs''
-
-
 splitC allowTC (SubC γ t1@(RAppTy r1 r1' _) t2@(RAppTy r2 r2' _))
   =  do cs    <- bsplitC γ t1 t2
         cs'   <- splitC allowTC  (SubC γ r1 r2)
@@ -295,7 +277,6 @@ traceTy (RVar v _)      = parens ("RVar " ++ showpp v)
 traceTy (RApp c ts _ _) = parens ("RApp " ++ showpp c ++ unwords (traceTy <$> ts))
 traceTy (RAllP _ t)     = parens ("RAllP " ++ traceTy t)
 traceTy (RAllT _ t _)   = parens ("RAllT " ++ traceTy t)
-traceTy (RImpF _ _ t t' _) = parens ("RImpF " ++ parens (traceTy t) ++ parens (traceTy t'))
 traceTy (RFun _ _ t t' _) = parens ("RFun " ++ parens (traceTy t) ++ parens (traceTy t'))
 traceTy (RAllE _ tx t)  = parens ("RAllE " ++ parens (traceTy tx) ++ parens (traceTy t))
 traceTy (REx _ tx t)    = parens ("REx " ++ parens (traceTy tx) ++ parens (traceTy t))
@@ -453,7 +434,7 @@ forallExprReftLookup :: CGEnv
                      -> Maybe ([F.Symbol], [RFInfo], [SpecType], [RReft], SpecType)
 forallExprReftLookup γ sym = snap <$> F.lookupSEnv sym (syenv γ)
   where
-    snap     = mapFifth5 ignoreOblig . (\(_,(x,a,b,c),t)->(x,a,b,c,t)) . bkArrow . thd3 . bkUniv . lookup'
+    snap     = mapFifth5 ignoreOblig . (\((x,a,b,c),t)->(x,a,b,c,t)) . bkArrow . thd3 . bkUniv . lookup'
     lookup' z = fromMaybe (panicUnbound γ z) (γ ?= F.symbol z)
 
 

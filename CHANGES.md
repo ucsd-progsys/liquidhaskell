@@ -1,6 +1,10 @@
 # Changes
 
-## NEXT 0.8.10.1
+## NEXT 0.9.XX
+
+- **breaking change** Remove the implicit types mechanism and corresponding tests
+
+## 0.8.10.1
 
 - Support for GHC 8.10.1
 - LiquidHaskell is now available as a GHC Plugin
@@ -38,22 +42,22 @@
 
 ## 0.8.0.1
 
-- Support for GHC 8.0.2 
+- Support for GHC 8.0.2
 
 ## 0.7.0.1
 
 - **DELETED** the gsDcons and generally carrying DataConP beyond Bare; this _may_ cause
   problems with `target` as I removed the `dconEnv` field in `TargetState`. Is it live?
-  To restore: have to apply the substitution syms/su in Bare.hs ALSO to gsDconsP (after 
+  To restore: have to apply the substitution syms/su in Bare.hs ALSO to gsDconsP (after
   restoring the gsDconsP field to [(DataCon, DataConP)])
 
 
-- **breaking change** Remove the `Bool` vs. `Prop` distinction. This means that: 
+- **breaking change** Remove the `Bool` vs. `Prop` distinction. This means that:
 
-    * signatures that use(d) `Prop` as a type, e.g. 
+    * signatures that use(d) `Prop` as a type, e.g.
       `foo :: Int -> Prop` should just be `foo :: Int -> Bool`.
 
-    * refinements that use(d) `Prop v` e.g. 
+    * refinements that use(d) `Prop v` e.g.
       `isNull :: xs:[a] -> {v:Bool | Prop v <=> len xs > 0}`
       should just be `isNull :: xs:[a] -> {v:Bool | v <=> len xs > 0}`.
 
@@ -81,7 +85,7 @@
 
 - Fixed a bug in the specification for `Data.Traversable.sequence`
 - Make interpreted mul and div the default, when `solver = z3`
-- Use `--higherorder` to allow higher order binders into the fixpoint environment 
+- Use `--higherorder` to allow higher order binders into the fixpoint environment
 
 ## 0.5.0.0
 
@@ -105,8 +109,8 @@
 
 - Logical constraints: add extra subtyping constraints to signatures, e.g.
 
-    {-@ 
-    (.) :: forall <p :: b -> c -> Prop, q :: a -> b -> Prop, r :: a -> c -> Prop>. 
+    {-@
+    (.) :: forall <p :: b -> c -> Prop, q :: a -> b -> Prop, r :: a -> c -> Prop>.
            {x::a, w::b<q x> |- c<p w> <: c<r x>}
            (y:b -> c<p y>)
         -> (z:a -> b<q z>)
@@ -136,7 +140,7 @@ If you annotate a Haskell function `foo` with {-@ measure foo @-}, LiquidHaskell
 LiquidHaskell now *requires* ghc-7.8.3.
 
 - Termination
-LiquidHaskell will now attempt to prove all recursive functions terminating. It tries to prove that some parameter (or combination thereof) decreases at each recursive callsite. By default, this will be the first parameter with an associated size measure (see Size Measures), but can be overridden with the `Decreases` annotation or a termination expression (see Termination Expressions). 
+LiquidHaskell will now attempt to prove all recursive functions terminating. It tries to prove that some parameter (or combination thereof) decreases at each recursive callsite. By default, this will be the first parameter with an associated size measure (see Size Measures), but can be overridden with the `Decreases` annotation or a termination expression (see Termination Expressions).
 
 If proving termination is too big of burden, it can be disabled on a per-module basis with the `--no-termination` flag, or on a per-function basis with the `Lazy` annotation.
 
@@ -207,7 +211,7 @@ and instances can be defined using the `instance measure` syntax, which mirrors 
 We have greatly improved our parser to require fewer parentheses! Yay!
 
 - Emacs/Vim Support
-LiquidHaskell now comes with syntax checkers for [flycheck](https://github.com/flycheck/flycheck) in Emacs and [syntastic](https://github.com/scrooloose/syntastic) in Vim. 
+LiquidHaskell now comes with syntax checkers for [flycheck](https://github.com/flycheck/flycheck) in Emacs and [syntastic](https://github.com/scrooloose/syntastic) in Vim.
 
 - Incremental Checking
 LiquidHaskell has a new `--diffcheck` flag that will only check binders that have changed since the last run, which can drastically improve verification times.

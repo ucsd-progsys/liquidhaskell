@@ -5,7 +5,7 @@
 module Language.Haskell.Liquid.Bare.DataType
   ( dataConMap
 
-  -- * Names for accessing Data Constuctors 
+  -- * Names for accessing Data Constuctors
   , makeDataConChecker
   , makeDataConSelector
   , addClassEmbeds
@@ -116,10 +116,10 @@ makeFamInstEmbeds cs0 embeds = L.foldl' embed embeds famInstSorts
     embed embs (c, t)     = F.tceInsert c t F.NoArgs embs
     cs                    = F.notracepp "famInstTcs-all" cs0
 
-{- 
+{-
 famInstTyConType :: Ghc.TyCon -> Maybe Ghc.Type
 famInstTyConType c = case Ghc.tyConFamInst_maybe c of
-    Just (c', ts) -> F.tracepp ("famInstTyConType: " ++ F.showpp (c, Ghc.tyConArity c, ts)) 
+    Just (c', ts) -> F.tracepp ("famInstTyConType: " ++ F.showpp (c, Ghc.tyConArity c, ts))
                      $ Just (famInstType (Ghc.tyConArity c) c' ts)
     Nothing       -> Nothing
 
@@ -127,11 +127,11 @@ famInstType :: Int -> Ghc.TyCon -> [Ghc.Type] -> Ghc.Type
 famInstType n c ts = Ghc.mkTyConApp c (take (length ts - n) ts)
 -}
 
-{- | [NOTE:FamInstEmbeds] GHC represents family instances in two ways: 
+{- | [NOTE:FamInstEmbeds] GHC represents family instances in two ways:
 
-     (1) As an applied type, 
+     (1) As an applied type,
      (2) As a special tycon.
-     
+
      For example, consider `tests/pos/ExactGADT4.hs`:
 
         class PersistEntity record where
@@ -351,7 +351,7 @@ makeDataFields tce _c as xts = [ F.DField x (fSort t) | (x, t) <- xts]
     su    = zip (F.symbol <$> as) [0..]
     fSort = F.substVars su . F.mapFVar (+ length as) . RT.rTypeSort tce
 
-{- 
+{-
 muSort :: F.FTycon -> Int -> F.Sort -> F.Sort
 muSort c n  = V.mapSort tx
   where
@@ -466,12 +466,12 @@ canonizeDecls env name dataDecls = do
   case Misc.uniqueByKey' selectDD (Mb.catMaybes kds) of
     Left  decls  -> Left [err decls]
     Right decls  -> return decls
-            -- [ (k, d) | d <- ds, k <- rights [dataDeclKey env name d] ] 
+            -- [ (k, d) | d <- ds, k <- rights [dataDeclKey env name d] ]
   -- case Misc.uniqueByKey' selectDD kds of
     -- Left  decls  -> err    decls
     -- Right decls  -> decls
   where
-    -- kds          = F.tracepp "canonizeDecls" [ (k, d) | d <- ds, k <- rights [dataDeclKey env name d] ] 
+    -- kds          = F.tracepp "canonizeDecls" [ (k, d) | d <- ds, k <- rights [dataDeclKey env name d] ]
     err ds@(d:_) = {- uError $ -} errDupSpecs (pprint (tycName d)) (GM.fSrcSpan <$> ds)
     err _        = impossible Nothing "canonizeDecls"
 
@@ -799,8 +799,8 @@ makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
       fls = Ghc.dataConFieldLabels dc
       fs  = Bare.lookupGhcNamedVar env name . Ghc.flSelector <$> fls
       ts :: [ LocSpecType ]
-      ts = [ Loc l l' (mkArrow (zip (makeRTVar <$> dcpFreeTyVars dcp) (repeat mempty)) []
-                                 [] [(z, classRFInfo True, res, mempty)]
+      ts = [ Loc l l' (mkArrow (map (, mempty) (makeRTVar <$> dcpFreeTyVars dcp)) []
+                                 [(z, classRFInfo True, res, mempty)]
                                  (dropPreds (F.subst su t `RT.strengthen` mt)))
              | (x, t) <- reverse args -- NOTE: the reverse here is correct
              , let vv = rTypeValueVar t

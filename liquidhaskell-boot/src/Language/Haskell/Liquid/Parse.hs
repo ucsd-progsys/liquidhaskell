@@ -259,11 +259,6 @@ btP = do
             return (PC sb (rFun sym t1 t2)))
         <|>
          (do
-            reservedOp "~>"
-            PC _ t2 <- btP
-            return (PC sb (rImpF sym t1 t2)))
-        <|>
-         (do
             reservedOp "=>"
             PC _ t2 <- btP
             -- TODO:AZ return an error if s == PcExplicit
@@ -429,7 +424,7 @@ refDefP sym rp kindP' = braces $ do
 refP :: Parser (Reft -> BareType) -> Parser BareType
 refP = refBindBindP refaP
 
-relrefaP :: Parser RelExpr 
+relrefaP :: Parser RelExpr
 relrefaP =
   try (ERUnChecked <$> refaP <* reserved ":=>" <*> relrefaP)
     <|> try (ERChecked <$> refaP <* reserved "!=>" <*> relrefaP)
@@ -525,12 +520,11 @@ constraintP
   = do xts <- constraintEnvP
        t1  <- bareTypeP
        reservedOp "<:"
-       fromRTypeRep . RTypeRep [] [] []
-                                        [] [] []
-                                        ((val . fst <$> xts) ++ [dummySymbol])
-                                        (replicate (length xts + 1) defRFInfo)
-                                        (replicate (length xts + 1) mempty)
-                                        ((snd <$> xts) ++ [t1]) <$> bareTypeP
+       fromRTypeRep . RTypeRep [] []
+                               ((val . fst <$> xts) ++ [dummySymbol])
+                               (replicate (length xts + 1) defRFInfo)
+                               (replicate (length xts + 1) mempty)
+                               ((snd <$> xts) ++ [t1]) <$> bareTypeP
 
 constraintEnvP :: Parser [(LocSymbol, BareType)]
 constraintEnvP
@@ -846,7 +840,7 @@ data Pspec ty ctor
   | LAsrt   (LocSymbol, ty)                               -- ^ 'local' assertion -- RJ: what is this
   | Asrts   ([LocSymbol], (ty, Maybe [Located Expr]))     -- ^ RJ: what is this
   | Impt    Symbol                                        -- ^ 'import' a specification module
-  | DDecl   DataDecl                                      -- ^ refined 'data'    declaration 
+  | DDecl   DataDecl                                      -- ^ refined 'data'    declaration
   | NTDecl  DataDecl                                      -- ^ refined 'newtype' declaration
   | Relational (LocSymbol, LocSymbol, ty, ty, RelExpr, RelExpr) -- ^ relational signature
   | AssmRel (LocSymbol, LocSymbol, ty, ty, RelExpr, RelExpr) -- ^ 'assume' relational signature
@@ -854,10 +848,10 @@ data Pspec ty ctor
   | CLaws   (RClass ty)                                   -- ^ 'class laws' definition
   | ILaws   (RILaws ty)
   | RInst   (RInstance ty)                                -- ^ refined 'instance' definition
-  | Incl    FilePath                                      -- ^ 'include' a path -- TODO: deprecate 
+  | Incl    FilePath                                      -- ^ 'include' a path -- TODO: deprecate
   | Invt    ty                                            -- ^ 'invariant' specification
-  | Using  (ty, ty)                                       -- ^ 'using' declaration (for local invariants on a type) 
-  | Alias   (Located (RTAlias Symbol BareType))           -- ^ 'type' alias declaration  
+  | Using  (ty, ty)                                       -- ^ 'using' declaration (for local invariants on a type)
+  | Alias   (Located (RTAlias Symbol BareType))           -- ^ 'type' alias declaration
   | EAlias  (Located (RTAlias Symbol Expr))               -- ^ 'predicate' alias declaration
   | Embed   (LocSymbol, FTycon, TCArgs)                   -- ^ 'embed' declaration
   | Qualif  Qualifier                                     -- ^ 'qualif' definition
@@ -867,7 +861,7 @@ data Pspec ty ctor
   | Fail    LocSymbol                                     -- ^ 'fail' annotation, the binder should be unsafe
   | Rewrite LocSymbol                                     -- ^ 'rewrite' annotation, the binder generates a rewrite rule
   | Rewritewith (LocSymbol, [LocSymbol])                  -- ^ 'rewritewith' annotation, the first binder is using the rewrite rules of the second list,
-  | Insts   (LocSymbol, Maybe Int)                        -- ^ 'auto-inst' or 'ple' annotation; use ple locally on binder 
+  | Insts   (LocSymbol, Maybe Int)                        -- ^ 'auto-inst' or 'ple' annotation; use ple locally on binder
   | HMeas   LocSymbol                                     -- ^ 'measure' annotation; lift Haskell binder as measure
   | Reflect LocSymbol                                     -- ^ 'reflect' annotation; reflect Haskell binder as function in logic
   | Inline  LocSymbol                                     -- ^ 'inline' annotation;  inline (non-recursive) binder as an alias
@@ -879,7 +873,7 @@ data Pspec ty ctor
   | CMeas   (Measure ty ())                               -- ^ 'class measure' definition
   | IMeas   (Measure ty ctor)                             -- ^ 'instance measure' definition
   | Varia   (LocSymbol, [Variance])                       -- ^ 'variance' annotations, marking type constructor params as co-, contra-, or in-variant
-  | DSize   ([ty], LocSymbol)                             -- ^ 'data size' annotations, generating fancy termination metric 
+  | DSize   ([ty], LocSymbol)                             -- ^ 'data size' annotations, generating fancy termination metric
   | BFix    ()                                            -- ^ fixity annotation
   | Define  (LocSymbol, Symbol)                           -- ^ 'define' annotation for specifying aliases c.f. `include-CoreToLogic.lg`
   deriving (Data, Show, Typeable)
@@ -970,31 +964,31 @@ ppPspec k (CMeas   m)
   = "class measure" <+> pprintTidy k m
 ppPspec k (IMeas   m)
   = "instance  measure" <+> pprintTidy k m
-ppPspec k (Class   cls) 
-  = pprintTidy k cls 
-ppPspec k (CLaws  cls) 
-  = pprintTidy k cls 
-ppPspec k (RInst   inst) 
-  = pprintTidy k inst 
-ppPspec k (Varia   (lx, vs))  
-  = "data variance" <+> pprintTidy k (val lx) <+> splice " " (pprintTidy k <$> vs) 
-ppPspec k (DSize   (ds, ss))  
-  = "data size" <+> splice " " (pprintTidy k <$> ds) <+> pprintTidy k (val ss) 
-ppPspec _ (BFix    _)           -- 
+ppPspec k (Class   cls)
+  = pprintTidy k cls
+ppPspec k (CLaws  cls)
+  = pprintTidy k cls
+ppPspec k (RInst   inst)
+  = pprintTidy k inst
+ppPspec k (Varia   (lx, vs))
+  = "data variance" <+> pprintTidy k (val lx) <+> splice " " (pprintTidy k <$> vs)
+ppPspec k (DSize   (ds, ss))
+  = "data size" <+> splice " " (pprintTidy k <$> ds) <+> pprintTidy k (val ss)
+ppPspec _ (BFix    _)           --
   = "fixity"
 ppPspec k (Define  (lx, y))
   = "define" <+> pprintTidy k (val lx) <+> "=" <+> pprintTidy k y
 ppPspec _ ILaws{}
   = "TBD-INSTANCE-LAWS"
 ppPspec k (Relational (lxl, lxr, tl, tr, q, p))
-  = "relational" 
-        <+> pprintTidy k (val lxl) <+> "::" <+> pprintTidy k tl <+> "~" 
-        <+> pprintTidy k (val lxr) <+> "::" <+> pprintTidy k tr <+> "|" 
+  = "relational"
+        <+> pprintTidy k (val lxl) <+> "::" <+> pprintTidy k tl <+> "~"
+        <+> pprintTidy k (val lxr) <+> "::" <+> pprintTidy k tr <+> "|"
         <+> pprintTidy k q <+> "=>" <+> pprintTidy k p
 ppPspec k (AssmRel (lxl, lxr, tl, tr, q, p))
-  = "assume relational" 
-        <+> pprintTidy k (val lxl) <+> "::" <+> pprintTidy k tl <+> "~" 
-        <+> pprintTidy k (val lxr) <+> "::" <+> pprintTidy k tr <+> "|" 
+  = "assume relational"
+        <+> pprintTidy k (val lxl) <+> "::" <+> pprintTidy k tl <+> "~"
+        <+> pprintTidy k (val lxr) <+> "::" <+> pprintTidy k tr <+> "|"
         <+> pprintTidy k q <+> "=>" <+> pprintTidy k p
 
 
@@ -1111,7 +1105,7 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
 -- | Parse a single top level liquid specification
 specP :: Parser BPspec
 specP
-  =     fallbackSpecP "assume"      
+  =     fallbackSpecP "assume"
     ((reserved "relational" >>  fmap AssmRel relationalP)
         <|>                           fmap Assm   tyBindP  )
     <|> fallbackSpecP "assert"      (fmap Asrt    tyBindP  )
@@ -1433,11 +1427,10 @@ tyBodyP ty
       Just bt | isPropBareType bt
                 -> P <$> predP
       _         -> E <$> exprP
-    where outTy (RAllT _ t _)  = outTy t
-          outTy (RAllP _ t)    = outTy t
-          outTy (RImpF _ _ _ t _)= Just t
+    where outTy (RAllT _ t _)    = outTy t
+          outTy (RAllP _ t)      = outTy t
           outTy (RFun _ _ _ t _) = Just t
-          outTy _              = Nothing
+          outTy _                = Nothing
 
 locUpperOrInfixIdP :: Parser (Located Symbol)
 locUpperOrInfixIdP = locUpperIdP' <|> locInfixCondIdP
@@ -1581,12 +1574,12 @@ dataSizeP
   <|> return Nothing
 
 relationalP :: Parser (LocSymbol, LocSymbol, LocBareType, LocBareType, RelExpr, RelExpr)
-relationalP = do 
+relationalP = do
    x <- locBinderP
    reserved "~"
    y <- locBinderP
    reserved "::"
-   braces $ do 
+   braces $ do
     tx <- located genBareTypeP
     reserved "~"
     ty <- located genBareTypeP

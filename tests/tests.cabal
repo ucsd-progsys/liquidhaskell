@@ -125,9 +125,9 @@ executable benchmark-bytestring
                     , benchmarks/bytestring-0.9.2.1
 
   other-modules:      Data.ByteString.Internal
-                    , Data.ByteString.Lazy.Internal 
-                    , Data.ByteString.Fusion 
-                    , Data.ByteString.Fusion.T 
+                    , Data.ByteString.Lazy.Internal
+                    , Data.ByteString.Fusion
+                    , Data.ByteString.Fusion.T
                     , Data.ByteString.Unsafe
                     -- TODO-REBARE
                     -- Data.ByteString.T
@@ -715,7 +715,7 @@ executable errors
                     , UnboundVarInLocSig
                     , UnboundVarInReflect
                     , UnboundVarInSpec
-                    
+
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
 
     if flag(measure-timings)
@@ -1948,7 +1948,7 @@ executable unit-pos-2
                     , Loo
                     , LooLib
                     , LooLibLib
-                    , LNot 
+                    , LNot
 
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
@@ -2253,7 +2253,7 @@ executable import-cli
                     , T1738Lib
                     , WrapLib
                     , WrapLibCode
-                    , Language 
+                    , Language
                     , B
                     , C
 
@@ -2337,7 +2337,7 @@ executable ple-pos
     --                   ... and on GHC 9+ now too
     -- if impl(ghc >= 9.0)
     --   other-modules:  T1302b
-                   
+
 
     -- XXX(matt.walker): RANDOM FAILURES in T1302b when -j provided
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
@@ -2532,56 +2532,6 @@ executable pattern-pos
 
     hs-source-dirs:   app
                     , pattern/pos
-
-    default-language: Haskell2010
-
-
-flag implicit-pos
-     default: False
-
-executable implicit-pos
-    main-is:          Main.hs
-    if !flag(implicit-pos) && flag(stack)
-      buildable:      False
-
-    other-modules:
-                      Implicit1
-                    , Implicit3
-                    , ImplicitDouble
-                    , ImplicitTrivial
-
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    base
-                    , liquid-prelude
-                    , liquidhaskell
-
-    hs-source-dirs:   app
-                    , implicit/pos
-
-    default-language: Haskell2010
-
-flag implicit-neg
-     default: False
-
-executable implicit-neg
-    main-is:          Main.hs
-    if !flag(implicit-neg) && flag(stack)
-      buildable:      False
-
-    other-modules:
-                      Implicit1
-
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-    build-depends:    base
-                    , liquid-prelude
-                    , liquidhaskell
-
-    hs-source-dirs:   app
-                    , implicit/neg
 
     default-language: Haskell2010
 

@@ -370,12 +370,11 @@ makeTermEnvs γ xtes xes ts ts' = setTRec γ . zip xs <$> rts
     err x        = "Constant: makeTermEnvs: no terminating expression for " ++ GM.showPpr x
 
 addObligation :: Oblig -> SpecType -> RReft -> SpecType
-addObligation o t r  = mkArrow αs πs yts xts $ RRTy [] r o t2
+addObligation o t r  = mkArrow αs πs xts $ RRTy [] r o t2
   where
     (αs, πs, t1) = bkUniv t
-    ((xs',is',ts',rs'),(xs, is, ts, rs), t2) = bkArrow t1
+    ((xs, is, ts, rs), t2) = bkArrow t1
     xts              = zip4 xs is ts rs
-    yts              = zip4 xs' is' ts' rs'
 
 --------------------------------------------------------------------------------
 consCB :: Bool -> Bool -> CGEnv -> CoreBind -> CG CGEnv
@@ -461,16 +460,10 @@ consBind isRec' γ (x, e, Asserted spect)
   = do let γ'       = γ `setBind` x
            (_,πs,_) = bkUniv spect
        cgenv    <- foldM addPToEnv γ' πs
-
-       -- take implcits out of the function's SpecType and into the env
-       let tyr = toRTypeRep spect
-       let spect' = fromRTypeRep (tyr { ty_ebinds = [], ty_einfo = [], ty_eargs = [], ty_erefts = [] })
-       γπ <- foldM (+=) cgenv $ (\(y,t)->("implicitError",y,t)) <$> zip (ty_ebinds tyr) (ty_eargs tyr)
-
-       cconsE γπ e (weakenResult (typeclass (getConfig γ)) x spect')
+       cconsE cgenv e (weakenResult (typeclass (getConfig γ)) x spect)
        when (F.symbol x `elemHEnv` holes γ) $
          -- have to add the wf constraint here for HOLEs so we have the proper env
-         addW $ WfC γπ $ fmap killSubst spect
+         addW $ WfC cgenv $ fmap killSubst spect
        addIdA x (defAnn isRec' spect)
        return $ Asserted spect
 
@@ -728,32 +721,6 @@ splitConstraints _ t
   = ([], t)
 
 -------------------------------------------------------------------
--- | @instantiateGhosts@ peels away implicit argument binders,
--- instantiates them with fresh variables, and adds those variables
--- to the context as @ebind@s TODO: the second half
--------------------------------------------------------------------
-instantiateGhosts :: CGEnv
-                 -> SpecType
-                 -> CG (Bool, CGEnv, SpecType)
-instantiateGhosts γ t | not (null yts)
-  = do ys' <- mapM (const fresh) ys
-       γ'  <- foldM addEEnv γ (zip ys' ts)
-
-       let su = F.mkSubst $ zip ys (F.EVar <$> ys')
-       return (True, γ', F.subst su te')
-  where (yts, te') = bkImplicit t
-        (ys, ts)   = unzip yts
-
-instantiateGhosts γ t = return (False, γ, t)
-
-bkImplicit :: RType c tv r
-           -> ( [(F.Symbol, RType c tv r)]
-              , RType c tv r)
-bkImplicit (RImpF x _ tx t _) = ((x,tx):acc, t')
-  where (acc,t') = bkImplicit t
-bkImplicit t = ([],t)
-
--------------------------------------------------------------------
 -- | @instantiatePreds@ peels away the universally quantified @PVars@
 --   of a @RType@, generates fresh @Ref@ for them and substitutes them
 --   in the body.
@@ -798,17 +765,17 @@ consE γ e
 -- NV CHECK 3 (unVar and does this hack even needed?)
 -- NV (below) is a hack to type polymorphic axiomatized functions
 -- no need to check this code with flag, the axioms environment with
--- is empty if there is no axiomatization. 
+-- is empty if there is no axiomatization.
 
--- [NOTE: PLE-OPT] We *disable* refined instantiation for 
+-- [NOTE: PLE-OPT] We *disable* refined instantiation for
 -- reflected functions inside proofs.
 
 -- If datacon definitions have references to self for fancy termination,
--- ignore them at the construction. 
+-- ignore them at the construction.
 consE γ (Var x) | GM.isDataConId x
   = do t0 <- varRefType γ x
-       -- NV: The check is expected to fail most times, so 
-       --     it is cheaper than direclty fmap ignoreSelf. 
+       -- NV: The check is expected to fail most times, so
+       --     it is cheaper than direclty fmap ignoreSelf.
        let hasSelf = selfSymbol `elem` F.syms t0
        let t = if hasSelf
                 then fmap ignoreSelf <$> t0
@@ -858,17 +825,9 @@ consE γ e'@(App e a)
        (γ', te2)  <- dropExists γ te1
        te3        <- dropConstraints γ te2
        updateLocA (exprLoc e) te3
-       (hasGhost, γ'', te4)     <- instantiateGhosts γ' te3
-       let RFun x _ tx t _ = checkFun ("Non-fun App with caller ", e') γ te4
-       cconsE γ'' a tx
-       tout <- makeSingleton γ'' (simplify e') <$> addPost γ'' (maybe (checkUnbound γ'' e' x t a) (F.subst1 t . (x,)) (argExpr γ $ simplify a))
-       if hasGhost
-          then do
-           tk   <- freshTyType (typeclass (getConfig γ)) ImplictE e' $ exprType e'
-           addW $ WfC γ tk
-           addC (SubC γ'' tout tk) ""
-           return tk
-          else return tout
+       let RFun x _ tx t _ = checkFun ("Non-fun App with caller ", e') γ te3
+       cconsE γ' a tx
+       makeSingleton γ' (simplify e') <$> addPost γ' (maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ $ simplify a))
 
 consE γ (Lam α e) | isTyVar α
   = do γ' <- updateEnvironment γ α
@@ -946,11 +905,11 @@ getExprDict γ           =  go
     go _                = Nothing
 
 --------------------------------------------------------------------------------
--- | With GADTs and reflection, refinements can contain type variables, 
---   as 'coercions' (see ucsd-progsys/#1424). At application sites, we 
+-- | With GADTs and reflection, refinements can contain type variables,
+--   as 'coercions' (see ucsd-progsys/#1424). At application sites, we
 --   must also substitute those from the refinements (not just the types).
 --      https://github.com/ucsd-progsys/liquidhaskell/issues/1424
--- 
+--
 --   see: tests/ple/{pos,neg}/T1424.hs
 --
 --------------------------------------------------------------------------------
@@ -1047,8 +1006,8 @@ castTy γ t e _
 
 castTy' γ τ (Var x)
   = do t0 <- trueTy (typeclass (getConfig γ)) τ
-       tx <- varRefType γ x 
-       let t = mergeCastTys t0 tx 
+       tx <- varRefType γ x
+       let t = mergeCastTys t0 tx
        let ce = if typeclass (getConfig γ) && noADT (getConfig γ) then F.expr x
                 else eCoerc (typeSort (emb γ) $ Ghc.expandTypeSynonyms $ varType x)
                        (typeSort (emb γ) τ)
@@ -1066,20 +1025,20 @@ castTy' _ _ e
 
 
 {-
-mergeCastTys tcorrect trefined 
-  tcorrect has the correct GHC skeleton, 
+mergeCastTys tcorrect trefined
+  tcorrect has the correct GHC skeleton,
   trefined has the correct refinements (before coercion)
-  mergeCastTys keeps the trefined when the two GHC types match 
+  mergeCastTys keeps the trefined when the two GHC types match
 -}
 
-mergeCastTys :: SpecType -> SpecType -> SpecType 
-mergeCastTys t1 t2 
-  | toType False t1 == toType False t2 
-  = t2 
-mergeCastTys (RApp c1 ts1 ps1 r1) (RApp c2 ts2 _ _) 
-  | c1 == c2 
+mergeCastTys :: SpecType -> SpecType -> SpecType
+mergeCastTys t1 t2
+  | toType False t1 == toType False t2
+  = t2
+mergeCastTys (RApp c1 ts1 ps1 r1) (RApp c2 ts2 _ _)
+  | c1 == c2
   = RApp c1 (zipWith mergeCastTys ts1 ts2) ps1 r1
-mergeCastTys t _ 
+mergeCastTys t _
   = t
 
 {-
@@ -1182,14 +1141,14 @@ cconsCase γ x t acs (Alt ac ys ce)
   = do cγ <- caseEnv γ x acs ac ys mempty
        cconsE cγ ce t
 
-{- 
+{-
 
-case x :: List b of 
-  Emp -> e 
+case x :: List b of
+  Emp -> e
 
-  Emp :: tdc          forall a. {v: List a | cons v === 0} 
-  x   :: xt           List b 
-  ys  == binders      [] 
+  Emp :: tdc          forall a. {v: List a | cons v === 0}
+  x   :: xt           List b
+  ys  == binders      []
 
 -}
 -------------------------------------------------------------------------------------
@@ -1221,7 +1180,7 @@ caseEnv γ x acs a _ _ = do
 
 
 ------------------------------------------------------
--- SELF special substitutions 
+-- SELF special substitutions
 ------------------------------------------------------
 
 substSelf :: UReft F.Reft -> UReft F.Reft
@@ -1260,8 +1219,7 @@ unfoldR :: SpecType -> SpecType -> [Var] -> (SpecType, [SpecType], SpecType)
 unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
   where
         tbody              = instantiatePvs (instantiateTys td ts) (reverse rs)
-        -- TODO: if we ever want to support applying implicits explicitly, will need to rejigger
-        ((_,_,_,_),(ys0,_,yts',_), rt) = safeBkArrow (F.notracepp msg $ instantiateTys tbody tvs')
+        ((ys0,_,yts',_), rt) = safeBkArrow (F.notracepp msg $ instantiateTys tbody tvs')
         msg                = "INST-TY: " ++ F.showpp (td, ts, tbody, ys, tvs')
         yts''              = zipWith F.subst sus (yts'++[rt])
         (t3,yts)           = (last yts'', init yts'')
@@ -1489,7 +1447,7 @@ isGenericVar α st =  all (\(c, α') -> (α'/=α) || isGenericClass c ) (classCo
                         , α'      <- freeTyVars t']
     isGenericClass c = className c `elem` [ordClassName, eqClassName] -- , functorClassName, monadClassName]
 
--- instance MonadFail CG where 
+-- instance MonadFail CG where
 --  fail msg = panic Nothing msg
 
 instance MonadFail Data.Functor.Identity.Identity where

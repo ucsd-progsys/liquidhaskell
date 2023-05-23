@@ -35,7 +35,7 @@ import           Language.Haskell.Liquid.Types.Types
 
 -- TODO: This is where unsorted stuff is for now. Find proper places for what follows.
 
-{- 
+{-
 -- WTF does this function do?
 makeSymbols :: (Id -> Bool) -> [Id] -> [F.Symbol] -> BareM [(F.Symbol, Var)]
 makeSymbols f vs xs
@@ -50,7 +50,7 @@ makeSymbols f vs xs
 
 -}
 
-{- 
+{-
 HEAD
 freeSymbols :: (F.Reftable r, F.Reftable r1, F.Reftable r2, TyConable c, TyConable c1, TyConable c2)
             => [F.Symbol]
@@ -77,7 +77,7 @@ freeSyms ty    = [ F.atLoc ty x | x <- tySyms ]
                  [ x | x <- F.syms r, x /= v, not (x `F.memberSEnv` γ)] : xs
 
 --- ABOVE IS THE T1773 STUFF
---- BELOW IS THE develop-classes STUFF 
+--- BELOW IS THE develop-classes STUFF
 
 -- freeSymbols :: (F.Reftable r, F.Reftable r1, F.Reftable r2, TyConable c, TyConable c1, TyConable c2)
 --             => [F.Symbol]
@@ -114,8 +114,6 @@ data MapTyVarST = MTVST
   }
 
 mapTyVars :: Bool -> Type -> SpecType -> StateT MapTyVarST (Either Error) ()
-mapTyVars allowTC t (RImpF _ _ _ t' _)
-   = mapTyVars allowTC t t'
 mapTyVars allowTC (FunTy { ft_arg = τ, ft_res = τ'}) t
   | isErasable τ
   = mapTyVars allowTC τ' t

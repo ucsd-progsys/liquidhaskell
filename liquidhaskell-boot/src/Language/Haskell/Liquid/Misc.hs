@@ -106,13 +106,13 @@ replaceN :: (Enum a, Eq a, Num a) => a -> t -> [t] -> [t]
 replaceN n y ls = [if i == n then y else x | (x, i) <- zip ls [0..]]
 
 
-thd5 :: (t0, t1, t2, t3,t4) -> t2
+thd5 :: (t0, t1, t2, t3, t4) -> t2
 thd5 (_,_,x,_,_) = x
 
-snd5 :: (t0, t1, t2, t3,t4) -> t1
+snd5 :: (t0, t1, t2, t3, t4) -> t1
 snd5 (_,x,_,_,_) = x
 
-fst5 :: (t0, t1, t2, t3,t4) -> t0
+fst5 :: (t0, t1, t2, t3, t4) -> t0
 fst5 (x,_,_,_,_) = x
 
 fourth4 :: (t, t1, t2, t3) -> t3
@@ -385,11 +385,11 @@ firstGroup kvs = case groupList kvs of
 
 {- mapEither :: (a -> Either b c) -> [a] -> ([b], [c])
 mapEither f []     = ([], [])
-mapEither f (x:xs) = case f x of 
+mapEither f (x:xs) = case f x of
                        Left y  -> (y:ys, zs)
                        Right z -> (ys, z:zs)
-                     where 
-                       (ys, zs) = mapEither f xs 
+                     where
+                       (ys, zs) = mapEither f xs
 -}
 mapErr :: (a -> Either e b) -> [a] -> Either [e] [b]
 mapErr f xs = catEithers (map f xs)

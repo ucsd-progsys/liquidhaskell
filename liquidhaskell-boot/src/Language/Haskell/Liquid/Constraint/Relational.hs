@@ -93,41 +93,36 @@ consRelTop _ ti γ ψ (x, y, t, s, ra, rp) = traceChk "Init" e d t s p $ do
     s' = removeAbsRef $ val s
 
 removeAbsRef :: SpecType -> SpecType
-removeAbsRef (RVar v (MkUReft r _)) 
+removeAbsRef (RVar v (MkUReft r _))
   = out
-    where 
+    where
       r' = MkUReft r mempty
-      out = RVar  v r' 
-removeAbsRef (RFun  b i s t (MkUReft r _))  
+      out = RVar  v r'
+removeAbsRef (RFun  b i s t (MkUReft r _))
   = out
-    where 
+    where
       r' = MkUReft r mempty
       out = RFun  b i (removeAbsRef s) (removeAbsRef t) r'
-removeAbsRef (RImpF b i s t (MkUReft r _))  
-  = out
-    where 
-      r' = MkUReft r mempty
-      out = RImpF b i (removeAbsRef s) (removeAbsRef t) r'
-removeAbsRef (RAllT b t r)      
+removeAbsRef (RAllT b t r)
   = RAllT b (removeAbsRef t) r
-removeAbsRef (RAllP p t)        
+removeAbsRef (RAllP p t)
   = removeAbsRef (forgetRAllP p t)
-removeAbsRef (RApp  (RTyCon c _ i) as _ (MkUReft r _))   
+removeAbsRef (RApp  (RTyCon c _ i) as _ (MkUReft r _))
   = out
-    where 
+    where
       c' = RTyCon c [] i
       as' = map removeAbsRef as
       r' = MkUReft r mempty
       out = RApp c' as' [] r'
-removeAbsRef (RAllE b a t)      
+removeAbsRef (RAllE b a t)
   = RAllE b (removeAbsRef a) (removeAbsRef t)
-removeAbsRef (REx   b a t)      
+removeAbsRef (REx   b a t)
   = REx   b (removeAbsRef a) (removeAbsRef t)
-removeAbsRef (RAppTy s t r)     
+removeAbsRef (RAppTy s t r)
   = RAppTy (removeAbsRef s) (removeAbsRef t) r
-removeAbsRef (RRTy  e r o t)    
+removeAbsRef (RRTy  e r o t)
   = RRTy  e r o (removeAbsRef t)
-removeAbsRef t 
+removeAbsRef t
   = t
 
 --------------------------------------------------------------
@@ -250,7 +245,7 @@ consRelCheck γ ψ l1@(Let (NonRec x1 d1) e1) l2@(Let (NonRec x2 d2) e2) t1 t2 p
     γ'  <- γ += ("consRelCheck Let L", F.symbol evar1, s1)
     γ'' <- γ' += ("consRelCheck Let R", F.symbol evar2, s2)
     consRelCheck γ'' ψ e1' e2' t1 t2 p
-  
+
 
 consRelCheck γ ψ l1@(Let (Rec []) e1) l2@(Let (Rec []) e2) t1 t2 p
   = traceChk "Let Rec Nil" l1 l2 t1 t2 p $ do
@@ -372,12 +367,12 @@ consRelSynth γ ψ e d = traceSyn "Unary" e d $ do
   s <- consUnarySynth γ d >>= refreshTy
   let ps = lookupRelSig ψ e d t s
   return (t, s, traceWhenLoud ("consRelSynth Unary synthed preds:" ++ F.showpp ps) ps)
-    
-lookupRelSig :: PrEnv -> CoreExpr -> CoreExpr -> SpecType -> SpecType -> [F.Expr] 
+
+lookupRelSig :: PrEnv -> CoreExpr -> CoreExpr -> SpecType -> SpecType -> [F.Expr]
 lookupRelSig ψ (Var x1) (Var x2) t1 t2 = concatMap match ψ
-  where 
+  where
     match :: RelPred -> [F.Expr]
-    match (RelPred f1 f2 bs1 bs2 p) | f1 == x1, f2 == x2 = 
+    match (RelPred f1 f2 bs1 bs2 p) | f1 == x1, f2 == x2 =
         let (vs1, ts1') = vargs t1
             (vs2, ts2') = vargs t2
             vs1' = concatMap (fst . vargs) ts1'
@@ -566,7 +561,6 @@ consRelSub _ t1@RAllE {} t2@RAllE {} _ _ = F.panic $ "consRelSub is undefined fo
 consRelSub _ t1@RRTy {} t2@RRTy {} _ _ = F.panic $ "consRelSub is undefined for RRTy " ++ show (t1, t2)
 consRelSub _ t1@RAllP {} t2@RAllP {} _ _ = F.panic $ "consRelSub is undefined for RAllP " ++ show (t1, t2)
 consRelSub _ t1@RAllT {} t2@RAllT {} _ _ = F.panic $ "consRelSub is undefined for RAllT " ++ show (t1, t2)
-consRelSub _ t1@RImpF {} t2@RImpF {} _ _ = F.panic $ "consRelSub is undefined for RImpF " ++ show (t1, t2)
 consRelSub _ t1 t2 _ _ =  F.panic $ "consRelSub is undefined for different types " ++ show (t1, t2)
 
 --------------------------------------------------------------
