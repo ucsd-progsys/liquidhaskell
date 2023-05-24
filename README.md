@@ -123,13 +123,13 @@ or get a list of just the test groups, one per line, with
 
     $ LIQUID_DEV_MODE=true ./scripts/test/test_plugin.sh --show-all
 
-To pass in specific parameters and run a subset of the tests, you can invoke cabal directly with
+To pass in specific parameters, you can invoke cabal directly with
 
-    $ LIQUID_DEV_MODE=true cabal build tests:<test-group-name> --ghc-options=-fplugin-opt=LiquidHaskell:--no-termination MySpecificTest
+    $ LIQUID_DEV_MODE=true cabal build tests:<test-group-name> --ghc-options=-fplugin-opt=LiquidHaskell:--no-termination
 
 For example:
 
-    $ LIQUID_DEV_MODE=true cabal build tests:unit-neg --ghc-options=--fplugin-opt=LiquidHaskell:--no-termination AbsApp
+    $ LIQUID_DEV_MODE=true cabal build tests:unit-neg --ghc-options=-fplugin-opt=LiquidHaskell:--no-termination
 
 Or your favorite number of threads, depending on cores etc.
 
