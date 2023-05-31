@@ -49,18 +49,18 @@ data Options = Options
 
 options :: Parser Options
 options = Options <$>
-  (many (argument
+  many (argument
          str
           (metavar "FILEPATH..."
-           <> help "The files you wish to process.")))
-  <*> (many (strOption (long "phase"
+           <> help "The files you wish to process."))
+  <*> many (strOption (long "phase"
                         <> short 'p'
                         <> metavar "PHASE"
-                        <> help "Phase to include in summary.  Can be specified more thance once.")))
-  <*> (strOption (long "output"
+                        <> help "Phase to include in summary.  Can be specified more thance once."))
+  <*> strOption (long "output"
                   <> short 'o'
                   <> metavar "OUTPUTFILEPATH"
-                  <> help "File to which to output CSV contents."))
+                  <> help "File to which to output CSV contents.")
 
 opts :: ParserInfo Options
 opts = info (options <**> helper)
