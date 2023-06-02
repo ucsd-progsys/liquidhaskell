@@ -24,7 +24,7 @@ source-repository this
   tag:      v1.0
 
 library
-  build-depends:      ansi-wl-pprint >= 0.6.7.1
+  build-depends:      ansi-wl-pprint >= 0.6.7.1 && < 1.0.0
                     , mtl >= 2.2.1
                     , transformers >= 0.4.0.0
                     , parsec >= 3.1
@@ -86,7 +86,7 @@ test-suite tests
                     , containers
                     , stitch-lh
                     , template-haskell
-                    , ansi-wl-pprint >= 0.6.7.1
+                    , ansi-wl-pprint >= 0.6.7.1 && < 1.0.0
                     , mtl >= 2.2.1
                     , transformers >= 0.4.0.0
                     , parsec >= 3.1
