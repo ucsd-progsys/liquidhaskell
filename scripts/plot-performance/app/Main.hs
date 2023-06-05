@@ -1,6 +1,4 @@
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
---{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -8,12 +6,14 @@
 module Main where
 
 import Prelude hiding (readFile, filter, zip, lookup)
-import Data.Vector as V hiding (concat)
-import Data.Map as M
+import Data.Maybe ( isJust )
+import Data.List ( find, isPrefixOf )
+import Data.Vector as V hiding (concat, null, (++), last, find)
+import Data.Map as M hiding (null)
 import Options.Applicative
 
 import Benchmark
---import Plot
+import Plot (chartToFile)
 
 data Options = Options
   { optsBeforeFile :: FilePath
@@ -75,27 +75,42 @@ splitBenchmarks v1 v2 = go v1 (M.fromList $ V.toList $ V.map kvfun v2)
 
 main :: IO ()
 main = do op <- execParser opts
-          --let filt = optsFilter op
-          let ffilt1 = V.filter (\b -> test b /= "app/Main")
-          --let ffilt = if null filt
-          --              then id
-          --              -- TODO: use something more sophisticated (regexp)?
-          --              else filter (\b -> isJust $ find (\f -> f `isPrefixOf` test b) filt)
 
-          vb <- ffilt1 <$> readCSV (optsBeforeFile op)
-          va <- ffilt1 <$> readCSV (optsAfterFile op)
+          let outdir = let od = optsOutputDir op in
+                       if not (null od) && (last od == '/') then od else od ++ "/"
 
-          case (optSort, optsFilter, optsCombine) of
-            (True, Just n, _:_) ->
-            (True, Just n, _:_) ->
+          -- TODO: use something more sophisticated (regexp)?
+          let f = V.filter (\b -> isJust $ find (\fi -> fi `isPrefixOf` test b) (optsFilter op))
 
-          --let vba = zip vb va
-          --_ <- main1
-          --pure ()
-          let bds = splitBenchmarks vb va
-          let (hi1,hi2) = decouple (hiBenchmarks 50 bds) False
-          let (lo1,lo2) = decouple (loBenchmarks 50 bds) True
-          writeCSV (o ++ "/before-hi.csv") hi1
-          writeCSV (o ++ "/before-lo.csv") lo1
-          writeCSV (o ++ "/after-hi.csv") hi2
-          writeCSV (o ++ "/after-lo.csv") lo2
+          vb <- f0 <$> readCSV (optsBeforeFile op)
+          va <- f0 <$> readCSV (optsAfterFile op)
+
+          case (optsSort op, null $ optsFilter op, optsCombine op) of
+            (Just n , False, True ) ->
+              let bdsf = splitBenchmarks (f vb) (f va)
+                  hif = hiBenchmarks n bdsf
+                  lof = loBenchmarks n bdsf
+              in do chartToFile False "Top filtered speedups (seconds)" hif (outdir ++ "filtered-top.svg")
+                    chartToFile True "Top filtered slowdowns (seconds)" lof (outdir ++ "filtered-bot.svg")
+            (Just n , False, False) ->
+              let bds = splitBenchmarks vb va
+                  bdsf = splitBenchmarks (f vb) (f va)
+                  hi = hiBenchmarks n bds
+                  lo = loBenchmarks n bds
+              in do chartToFile False ("Perf diff: " ++ show (optsFilter op) ++ " (seconds)") bdsf (outdir ++ "filtered.svg")
+                    chartToFile False "Top speedups (seconds)" hi (outdir ++ "top.svg")
+                    chartToFile True "Top slowdowns (seconds)" lo (outdir ++ "bot.svg")
+            (Just n , True , _    ) ->
+              let bds = splitBenchmarks vb va
+                  hi = hiBenchmarks n bds
+                  lo = loBenchmarks n bds
+              in do chartToFile False "Top speedups (seconds)" hi (outdir ++ "top.svg")
+                    chartToFile True "Top slowdowns (seconds)" lo (outdir ++ "bot.svg")
+            (Nothing, False, _    ) ->
+              let bdsf = splitBenchmarks (f vb) (f va)
+              in chartToFile False "Perf diff (seconds)" bdsf (outdir ++ "filtered.svg")
+            (Nothing, True , _    ) ->
+              let bds = splitBenchmarks vb va
+              in do chartToFile False "Perf" bds (outdir ++ "perf.svg")
+  where
+    f0 = V.filter (\b -> test b /= "app/Main")

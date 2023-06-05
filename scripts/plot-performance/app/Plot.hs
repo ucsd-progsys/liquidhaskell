@@ -1,107 +1,103 @@
 module Plot where
 
+import Text.Printf ( printf )
+import Data.Either.Extra (fromEither)
+import Control.Lens ( _Just, (.~) )
 import Graphics.Rendering.Chart
 import Graphics.Rendering.Chart.Backend.Diagrams
-  (renderableToFile, FileFormat(..), FileOptions(..))
+    ( cBackendToFile,
+      loadSansSerifFonts,
+      FileFormat(..),
+      FileOptions(..))
 import Data.Default.Class (Default(..))
-import Control.Lens ((.~))
+import Data.Colour ( opaque, withOpacity )
+import Data.Colour.Names ( green, grey, red )
 
-chart'' :: Renderable ()
-chart'' = toRenderable layout
-  where
-    layout = layout_title .~ "Time (seconds)"
-           $ layout_title_style . font_size .~ 10
-           $ layout_x_axis . laxis_generate .~ autoIndexAxis (map (\(n,_,_) -> n) dat)
-           $ layout_y_axis . laxis_override .~ axisGridHide
-           $ layout_left_axis_visibility . axis_show_ticks .~ True
-           $ layout_plots .~ [ plotBars bars2 ]
-           $ def :: Layout PlotIndex LogValue
+import Benchmark
 
-    bars2 = plot_bars_titles .~ ["Before","After"]
-        $ plot_bars_values .~ addIndexes (map (\(_,a,b) -> [LogValue $ min a b, LogValue $ abs (a-b)]) dat)
-        $ plot_bars_style .~ BarsStacked
-        $ plot_bars_spacing .~ BarsFixGap 5 5
-        $ plot_bars_item_styles .~ map mkstyle (cycle defaultColorSeq)
-        $ def :: PlotBars PlotIndex LogValue
-    mkstyle c = (solidFillStyle c, Nothing)
-
-
-    dat :: [(String, Double, Double)]
-    dat = [("benchmarks/esop2013-submission/Base",50.494239,48.037624),
-           ("pos/RBTree_col_height",2.8764499999999997,1.691758),
-           ("pos/ListSort",1.81999,0.7128519999999999),
-           ("benchmarks/vector-algorithms-0.5.4.2/Data/Vector/Algorithms/AmericanFlag",8.382626,7.340566),
-           ("pos/GhcSort1",1.844271,0.935836),("pos/MapReduceVerified",5.71887,4.853692),
-           ("benchmarks/bytestring-0.9.2.1/Data/ByteString/Fusion/T",31.111687999999997,30.406934),
-           ("benchmarks/icfp15/pos/FoldAbs",6.113898,5.463777),
-           ("pos/Pair",1.198364,0.562416),
-           ("benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy",27.701095000000002,27.103975),
-           ("benchmarks/icfp15/neg/DataBase",3.7489079999999997,3.1742600000000003),
-           ("benchmarks/icfp15/pos/IfM",4.883421,4.365702000000001),
-           ("pos/Map2",5.1833800000000005,4.779614),
-           ("pos/StateConstraints",6.081063,5.704585),
-           ("pos/Meas6",0.6448780000000001,0.29709399999999997),
-
-           ("pos/T1649WorkTypes",0.384089,1.506924),
-           ("pos/GCD",0.33426999999999996,1.085934),
-           ("pos/Polyqual",0.483382,1.1766800000000002),
-           ("pos/RBTree",6.192317,6.871176),
-           ("pos/ReWrite8",2.7452669999999997,3.252186),
-           ("pos/MergeSort_bag",0.47985099999999997,0.830577),
-           ("pos/Meas2",0.262728,0.597352),
-           ("pos/FingerTree",1.7555260000000001,1.975208),
-           ("benchmarks/esop2013-submission/GhcListSort",3.781875,3.995183),
-           ("import/lib/ReflectLib8",0.216977,0.42918900000000004),
-           ("names/pos/Vector04",0.392394,0.5603619999999999),
-           ("benchmarks/popl18/nople/pos/MapFusion",0.8483440000000001,1.009964),
-           ("benchmarks/popl18/ple/pos/Solver",0.680353,0.826187),
-           ("benchmarks/popl18/nople/neg/MonadList",1.328122,1.459384),
-           ("benchmarks/esop2013-submission/Toy",0.555504,0.685884)
-           ]
-
-{-
-chart' :: Bool -> Renderable ()
-chart' borders = toRenderable layout
+chart :: Bool -> String -> BenchmarkDataSet -> Renderable (LayoutPick LogValue PlotIndex PlotIndex)
+chart rev title (BenchmarkDS rs xs as) = layoutToRenderable layout
  where
   layout =
-        layout_title .~ "Sample Bars" ++ btitle
-      $ layout_title_style . font_size .~ 10
-      $ layout_x_axis . laxis_generate .~ autoIndexAxis alabels
-      $ layout_y_axis . laxis_override .~ axisGridHide
-      $ layout_left_axis_visibility . axis_show_ticks .~ False
-      $ layout_plots .~ [ plotBars bars2 ]
-      $ def :: Layout PlotIndex Double
+      -- title + legend
+        layout_title .~ title
+      $ layout_title_style . font_size .~ 30
+      $ layout_legend . _Just . legend_position .~ LegendAbove
+      $ layout_legend . _Just . legend_margin .~ 10
 
-  bars2 = plot_bars_titles .~ ["Cash","Equity"]
-      $ plot_bars_values .~ addIndexes [[20,45],[45,30],[30,20],[70,25]]
+      -- X
+      $ layout_x_axis . laxis_style . axis_grid_style .~ solidLine 0.4 (opaque grey)
+      $ layout_x_axis . laxis_style . axis_label_gap .~ 3
+      $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 18
+      $ layout_x_axis . laxis_override .~ axisGridAtBigTicks
+      $ layout_top_axis_visibility . axis_show_line .~ True
+      $ layout_top_axis_visibility . axis_show_ticks .~ True
+      $ layout_top_axis_visibility . axis_show_labels .~ True
+      $ layout_bottom_axis_visibility . axis_show_ticks .~ True
+
+      -- Y
+      $ layout_y_axis . laxis_generate .~ autoIndexAxis' True lab
+      $ layout_y_axis . laxis_override .~ axisGridAtTicks
+      $ layout_y_axis . laxis_reverse .~ True
+      $ layout_y_axis . laxis_style . axis_grid_style .~ solidLine 0.5 (opaque grey)
+      $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 14
+      $ layout_left_axis_visibility . axis_show_ticks .~ False
+
+      -- data
+      $ layout_plots .~ [ plotHBars bars ]
+
+      $ def :: Layout LogValue PlotIndex
+
+  bars = plot_bars_values_with_labels .~ addIndexes dat
+      $ plot_bars_titles .~ ["","after","before"]
       $ plot_bars_style .~ BarsStacked
-      $ plot_bars_spacing .~ BarsFixGap 30 5
-      $ plot_bars_item_styles .~ map mkstyle (cycle defaultColorSeq)
+      $ plot_bars_spacing .~ BarsFixGap 10 10
+      $ plot_bars_item_styles .~ map (\c -> (solidFillStyle $ withOpacity c 0.7, Nothing)) [grey, red, green]
+      $ plot_bars_label_bar_hanchor .~ BHA_Right
+      $ plot_bars_label_bar_vanchor .~ BVA_Centre
+      $ plot_bars_label_text_hanchor .~ HTA_Left
+      $ plot_bars_label_text_vanchor .~ VTA_Centre
+      $ plot_bars_label_offset .~ Vector 3 0
+      $ plot_bars_label_style . font_slant .~ FontSlantItalic
+      $ plot_bars_label_style . font_size .~ 15
       $ def
 
-  alabels = [ "Jun", "Jul", "Aug", "Sep", "Oct" ]
+  -- TODO we currently ignore the info about test state (via fromEither)
+  (lab, dat) =
+    let
+      (rlab, rdat) = unzip $ map
+        (\(l,d) -> let v = fromEither d in
+                   (l, [ (LogValue 0, "")
+                       , (LogValue 0, "")
+                       , (LogValue v, printf "%0.2f" (-v)) ] )) rs
+      (xlab, xdat) = unzip $ map
+        (\(l,da,db) -> let a = fromEither da
+                           b = fromEither db
+                       in
+                   (l, [ (LogValue (min a b), "")
+                        , if a < b then
+                                     let v = b - a in
+                                     (LogValue v, printf "%0.2f" v)
+                                   else (LogValue 0, "")
+                        , if b < a then
+                                     let v = a - b in
+                                     (LogValue v, printf "%0.2f" (-v))
+                                   else (LogValue 0, "")
+                        ] )) xs
+      (alab, adat) = unzip $ map
+        (\(l,d) -> let v = fromEither d in
+                   (l, [ (LogValue 0, "")
+                       , (LogValue v, printf "%0.2f" v)
+                       , (LogValue 0, "") ] )) as
+    in
+      if rev
+        then (alab ++ xlab ++ rlab, adat ++ xdat ++ rdat)
+        else (rlab ++ xlab ++ alab, rdat ++ xdat ++ adat)
 
-  btitle = if borders then "" else " (no borders)"
-  bstyle = if borders then Just (solidLine 1.0 $ opaque black) else Nothing
-  mkstyle c = (solidFillStyle c, bstyle)
-
-chart :: Renderable ()
-chart = toRenderable layout
-  where
-    values = [ ("Mexico City",19.2,e), ("Mumbai",12.9,e)
-             , ("Sydney",4.3,e), ("London",8.3,e), ("New York",8.2,e1) ]
-    e = 0
-    e1 = 25
-    pitem (s,v,o) = pitem_value .~ v
-                  $ pitem_label .~ s
-                  $ pitem_offset .~ o
-                  $ def
-
-    layout = pie_title .~ "Relative Population"
-           $ pie_plot . pie_data .~ map pitem values
-           $ def
--}
-
-main1 :: IO (PickFn ())
-main1 = renderableToFile def{_fo_format=SVG_EMBEDDED} "example.svg" chart''
-
+chartToFile :: Bool -> String -> BenchmarkDataSet -> FilePath -> IO ()
+chartToFile rev title bds path =
+  do let wh = (2048.0, 2048.0)
+     let fo = FileOptions wh SVG loadSansSerifFonts
+     let cb = render (chart rev title bds) wh
+     _ <- cBackendToFile fo cb path
+     pure ()

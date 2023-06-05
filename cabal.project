@@ -19,8 +19,8 @@ source-repository-package
 
 source-repository-package
     type: git
-    location: /home/alex/github/haskell-chart/
-    tag: b0db367587f6fbd9d55d372a11b49f2002be1f92
+    location: https://github.com/timbod7/haskell-chart
+    tag: c61aca7ce03e6ad38cd49081e9e4171d4456de22
     subdir: chart
 
 allow-newer: ghc-timings:base, rest-rewrite:time
