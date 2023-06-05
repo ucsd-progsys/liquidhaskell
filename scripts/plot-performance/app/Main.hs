@@ -9,7 +9,6 @@ import Prelude hiding (readFile, filter, zip, lookup)
 import Data.Maybe ( isJust )
 import Data.List ( find, isPrefixOf )
 import Data.Vector as V hiding (concat, null, (++), last, find)
-import Data.Map as M hiding (null)
 import Options.Applicative
 
 import Benchmark
@@ -55,31 +54,13 @@ opts = info (options <**> helper)
   (fullDesc
    <> progDesc "Plot test performance difference.")
 
-splitBenchmarks :: Vector Benchmark
-                -> Vector Benchmark
-                -> BenchmarkDataSet
-splitBenchmarks v1 v2 = go v1 (M.fromList $ V.toList $ V.map kvfun v2)
-  where
-  kvfun b =
-    let t = time b in
-    (test b, if result b then Right t else Left t)
-  go :: Vector Benchmark -> Map String BData -> BenchmarkDataSet
-  go vb ma = case V.uncons vb of
-               Just (Benchmark n f r, tl) ->
-                 case M.lookup n ma of
-                   Just a -> let (BenchmarkDS rs xs as) = go tl (M.delete n ma) in
-                             BenchmarkDS rs ((n, if r then Right f else Left f, a) : xs) as
-                   Nothing -> let (BenchmarkDS rs xs as) = go tl ma in
-                              BenchmarkDS ((n, if r then Right f else Left f) : rs) xs as
-               Nothing -> BenchmarkDS [] [] (M.toList ma)
-
 main :: IO ()
 main = do op <- execParser opts
 
           let outdir = let od = optsOutputDir op in
                        if not (null od) && (last od == '/') then od else od ++ "/"
 
-          -- TODO: use something more sophisticated (regexp)?
+          -- TODO: use a regexp?
           let f = V.filter (\b -> isJust $ find (\fi -> fi `isPrefixOf` test b) (optsFilter op))
 
           vb <- f0 <$> readCSV (optsBeforeFile op)
