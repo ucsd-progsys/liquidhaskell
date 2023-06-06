@@ -358,8 +358,6 @@ patter synonym to deal with changes in type constructors.
 Currently, no. Only one version of GHC is supported and that is the one
 that can be tested with `./scripts/test/test_plugin.sh`.
 
-[GHC.API]: src-ghc/Liquid/GHC/API.hs
-
 # GHC Plugin Development FAQs
 
 ## Why is the GHC.Interface using slightly different types than the GHC.Plugin module?
@@ -371,7 +369,7 @@ to map back and forth (sometimes in a partial way) between old and new data stru
 **consider the GHC.Plugin as the single source of truth, and prefer whichever data structure the latter is
 using**.
 
-
+[GHC.API]:             liquidhaskell-boot/src-ghc/Liquid/GHC/API.hs
 [Plugin]:              liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin.hs
 [GHC.Plugin]:          liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin.hs
 [GHC.Interface]:       liquidhaskell-boot/src-ghc/Liquid/GHC/Interface.hs
@@ -379,15 +377,15 @@ using**.
 [BareSpec]:            liquidhaskell-boot/src/Language/Haskell/Liquid/Types/Specs.hs#L362
 [LiftedSpec]:          liquidhaskell-boot/src/Language/Haskell/Liquid/Types/Specs.hs#L559
 [TargetSrc]:           liquidhaskell-boot/src/Language/Haskell/Liquid/Types/Specs.hs#L158
-[Ghc monad]:           https://hackage.haskell.org/package/ghc-8.10.1/docs/GHC.html#t:Ghc
-[HscEnv]:              https://hackage.haskell.org/package/ghc-8.10.1/docs/GHC.html#t:HscEnv
-[DynFlags]:            https://hackage.haskell.org/package/ghc-8.10.1/docs/GHC.html#t:DynFlags
-[GhcMonad]:            https://hackage.haskell.org/package/ghc-8.10.1/docs/GHC.html#t:GhcMonad
+[Ghc monad]:           https://hackage.haskell.org/package/ghc-9.2.5/docs/GHC.html#t:Ghc
+[HscEnv]:              https://hackage.haskell.org/package/ghc-9.2.5/docs/GHC.html#t:HscEnv
+[DynFlags]:            https://hackage.haskell.org/package/ghc-9.2.5/docs/GHC.html#t:DynFlags
+[GhcMonad]:            https://hackage.haskell.org/package/ghc-9.2.5/docs/GHC.html#t:GhcMonad
 [GhcMonadLike]:        liquidhaskell-boot/src-ghc/Liquid/GHC/GhcMonadLike.hs
 [typechecking phase]:  liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin.hs#L211-L226
 [ghcide]:              https://github.com/haskell/ghcide
 [findRelevantSpecs]:   liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin/SpecFinder.hs#L65
-[core binds]:          https://hackage.haskell.org/package/ghc-8.10.1/docs/CoreSyn.html#t:CoreBind
+[core binds]:          https://hackage.haskell.org/package/ghc-9.2.5/docs/CoreSyn.html#t:CoreBind
 [configureGhcTargets]: liquidhaskell-boot/src-ghc/Liquid/GHC/Interface.hs#L254
 [processTargetModule]: liquidhaskell-boot/src-ghc/Liquid/GHC/Interface.hs#L483
 [processModule]:       liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin.hs#L509
