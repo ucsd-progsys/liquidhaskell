@@ -59,6 +59,9 @@ tests/**/*.dyn_o
 tests/**/*.hi-boot
 tests/**/*.o-boot
 
+tmp/
+*.svg
+
 .idea
 *.iml
 
