@@ -4,10 +4,6 @@ import Text.Printf ( printf )
 import Control.Lens ( _Just, (.~) )
 import Graphics.Rendering.Chart
 import Graphics.Rendering.Chart.Backend.Diagrams
-    ( cBackendToFile,
-      loadSansSerifFonts,
-      FileFormat(..),
-      FileOptions(..))
 import Data.Default.Class (Default(..))
 import Data.Colour ( opaque, withOpacity )
 import Data.Colour.Names ( green, grey, red )
@@ -97,6 +93,8 @@ chartToFile :: Bool -> String -> BenchmarkDataSet -> FilePath -> IO ()
 chartToFile rev title bds path =
   do let wh = (2048.0, 2048.0)
      let fo = FileOptions wh SVG loadSansSerifFonts
-     let cb = render (chart rev title bds) wh
+     let plot = chart rev title bds
+     let cb = render plot wh
+     putStrLn $ "Writing " ++ path
      _ <- cBackendToFile fo cb path
      pure ()
