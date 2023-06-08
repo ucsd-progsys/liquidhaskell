@@ -10,7 +10,7 @@ import Prelude hiding (readFile, writeFile, filter, zip, lookup)
 import Data.Ord (Down(..))
 import Data.String (fromString)
 import Data.List as L
-import Data.Vector as V hiding (concat, null, (++), last, find)
+import Data.Vector as V hiding (length, concat, null, (++), last, find)
 import Data.Map as M hiding (null)
 import Data.ByteString.Char8 (unpack)
 import Data.ByteString.Lazy.Char8 (readFile, writeFile)
@@ -61,6 +61,9 @@ data BenchmarkDataSet = BenchmarkDS
   , added :: [(String, BData)]
   } deriving stock (Eq, Ord, Show, Generic)
 
+bdsLen :: BenchmarkDataSet -> Int
+bdsLen (BenchmarkDS rs xs as) = length rs + length xs + length as
+
 splitBenchmarks :: Vector Benchmark
                 -> Vector Benchmark
                 -> BenchmarkDataSet
@@ -81,16 +84,16 @@ hiBenchmarks :: Int -> BenchmarkDataSet -> BenchmarkDataSet
 hiBenchmarks n (BenchmarkDS rs xs as) =
   let rs' = L.take n $ sortOn (Down . fst . snd) rs
       ys = sortOn (\(_, bt, at) -> fst at - fst bt) xs
-      ys' = L.take (n - L.length rs') ys
-      as' = L.take (n - (L.length rs' + L.length ys')) $ sortOn (Down . fst . snd) as
+      ys' = L.take (n - length rs') ys
+      as' = L.take (n - (length rs' + length ys')) $ sortOn (Down . fst . snd) as
   in BenchmarkDS rs' ys' as'
 
 loBenchmarks :: Int -> BenchmarkDataSet -> BenchmarkDataSet
 loBenchmarks n (BenchmarkDS rs xs as) =
   let as' = L.take n $ sortOn (fst . snd) as
       ys = sortOn (\(_, bt, at) -> fst bt - fst at) xs
-      ys' = L.take (n - L.length as') ys
-      rs' = L.take (n - (L.length as' + L.length ys')) $ sortOn (fst . snd) rs
+      ys' = L.take (n - length as') ys
+      rs' = L.take (n - (length as' + length ys')) $ sortOn (fst . snd) rs
   in BenchmarkDS rs' ys' as'
 
 decouple :: BenchmarkDataSet -> Bool -> ([Benchmark], [Benchmark])

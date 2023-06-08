@@ -89,12 +89,23 @@ diffData rev (BenchmarkDS rs xs as) =
                        , (LogValue v, printf "%0.2f" v)
                        , (LogValue 0, "") ] )) as
 
+-- This is fitted to specific values above (font size etc)
+heightHeuristic :: Int -> Double
+heightHeuristic n | n < 10    = 8.0
+                  | n < 28    = 9.0
+                  | n < 65    = 10.0
+                  | n < 138   = 11.0
+                  | n < 283   = 12.0
+                  | n < 577   = 13.0
+                  | otherwise = 14.0
+
 chartToFile :: Bool -> String -> BenchmarkDataSet -> FilePath -> IO ()
 chartToFile rev title bds path =
-  do let wh = (2048.0, 2048.0)
+  do let len = bdsLen bds
+     let wh = (2048.0, 2.0 ** heightHeuristic len)
      let fo = FileOptions wh SVG loadSansSerifFonts
      let plot = chart rev title bds
      let cb = render plot wh
-     putStrLn $ "Writing " ++ path
+     putStrLn $ printf "Writing %s (%d entries, %.0fx%.0f)" path len (fst wh) (snd wh)
      _ <- cBackendToFile fo cb path
      pure ()
