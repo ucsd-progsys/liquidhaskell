@@ -6,10 +6,11 @@
 module Main where
 
 import Prelude hiding (readFile, filter, zip, lookup)
-import Data.Maybe ( isJust )
-import Data.List ( find, isPrefixOf )
+import Data.Maybe (isJust)
+import Data.List (find, isPrefixOf)
 import Data.Vector as V hiding (concat, null, (++), last, find)
 import Options.Applicative
+import System.Directory (createDirectoryIfMissing)
 
 import Benchmark
 import Plot (chartToFile)
@@ -20,34 +21,34 @@ data Options = Options
   , optsCombine :: Bool
   , optsSort :: Maybe Int
   , optsFilter :: [String]
-  , optsOutputDir :: FilePath
+  , optsOutputDir :: Maybe FilePath
   } deriving stock (Eq, Ord, Show)
 
 options :: Parser Options
 options = Options <$>
       strOption (long "before"
-                  <> short 'b'
-                  <> metavar "BEFOREPATH"
-                  <> help "Input CSV file with original benchmark data.")
+                 <> short 'b'
+                 <> metavar "BEFOREPATH"
+                 <> help "Input CSV file with original benchmark data.")
   <*> strOption (long "after"
-                  <> short 'a'
-                  <> metavar "AFTERPATH"
-                  <> help "Input CSV file with modified benchmark data.")
+                 <> short 'a'
+                 <> metavar "AFTERPATH"
+                 <> help "Input CSV file with modified benchmark data.")
   <*> switch (long "combine"
               <> short 'c'
               <> help "If both sort and filter are used, combine their actions instead of doing both in parallel (default)" )
   <*> optional (option auto (long "sort"
-                  <> short 's'
-                  <> metavar "N"
-                  <> help "Generate two graphs for top and bottom N differences."))
+                <> short 's'
+                <> metavar "N"
+                <> help "Generate two graphs for top and bottom N differences."))
   <*> (concat <$> many (option (words <$> str) (long "filter"
                                                  <> short 'f'
                                                  <> metavar "FILTER"
                                                  <> help "Whitespace-separated list of test names to include, in quotes.")))
-  <*> strOption (long "outdir"
-                  <> short 'o'
-                  <> metavar "OUTDIR"
-                  <> help "The folder which will receive output graphs.")
+  <*> optional (strOption (long "outdir"
+                           <> short 'o'
+                           <> metavar "OUTDIR"
+                           <> help "The folder which will receive output graphs."))
 
 opts :: ParserInfo Options
 opts = info (options <**> helper)
@@ -57,8 +58,11 @@ opts = info (options <**> helper)
 main :: IO ()
 main = do op <- execParser opts
 
-          let outdir = let od = optsOutputDir op in
-                       if not (null od) && (last od == '/') then od else od ++ "/"
+          outdir <- maybe (pure "")
+                          (\od -> do let nm = if null od || (not (null od) && (last od == '/')) then od else od ++ "/"
+                                     createDirectoryIfMissing True nm
+                                     pure nm)
+                          (optsOutputDir op)
 
           -- TODO: use a regexp?
           let f = V.filter (\b -> isJust $ find (\fi -> fi `isPrefixOf` test b) (optsFilter op))

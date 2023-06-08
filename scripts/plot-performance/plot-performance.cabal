@@ -42,6 +42,7 @@ executable plot-performance
                     , colour
                     , containers
                     , data-default-class
+                    , directory
                     , lens
                     , optparse-applicative >=0.16.1 && <0.18
                     , vector
