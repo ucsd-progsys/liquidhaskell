@@ -21,11 +21,11 @@ instance Ord Benchmark where
    compare lhs rhs = compare (benchTimestamp lhs) (benchTimestamp rhs)
 
 unionAppend :: Map.Map String [Benchmark]
-               -> Map.Map String Benchmark
-               -> Map.Map String [Benchmark]
+            -> Map.Map String Benchmark
+            -> Map.Map String [Benchmark]
 unionAppend l r = Map.unionWith (++) l r'
    where
-      r' = fmap (\a -> [a]) r
+      r' = (\a -> [a]) <$> r
 
 toBenchMap :: (Foldable f)
               => f Benchmark
@@ -40,8 +40,7 @@ instance FromRecord Benchmark where
                    <*> pure (error ("Shouldn't be evaluated until after"
                                     ++ " reassignment!"))
                    <*> r .! 1
-                   <*> do asStr <- r .! 2
-                          return $ read asStr {- Since the test suite
+                   <*> (read <$> r .! 2) {- Since the test suite
    generates this field by calling show, this read Should Be Safe (TM) -}
 
 csvOutName = "Name"
@@ -51,6 +50,6 @@ csvOutPass = "Success"
 
 instance ToNamedRecord (LocalTime, Benchmark) where
    toNamedRecord (_, bm) = namedRecord [csvOutName .= benchName bm,
-                                   csvOutDate .= (show $ benchTimestamp bm),
-                                   csvOutTime .= (benchTime bm),
-                                   csvOutPass .= (show $ benchPass bm)]
+                                        csvOutDate .= (show $ benchTimestamp bm),
+                                        csvOutTime .= (benchTime bm),
+                                        csvOutPass .= (show $ benchPass bm)]

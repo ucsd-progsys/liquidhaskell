@@ -5,9 +5,7 @@ module Config where
 import System.Console.CmdArgs
 import System.Directory
 
-data OutputType =
-   Svg
-   | Csv
+data OutputType = Svg | Csv
      deriving (Eq, Data, Typeable, Show)
 
 data Config =
@@ -32,7 +30,7 @@ instance Default Config where
 config :: Config
 config = Config
             { logDir = pwd &= help "The directory that contains the logs",
-              outputDir = pwd &= help "The diretory to output graphs to",
+              outputDir = pwd &= help "The directory to output graphs to",
               outputType = Csv &= help "The type of output to produce",
               plotCompare = def &= help "Pairs of benchmarks to compare",
               plot = def &= help "Benchmarks to plot"
