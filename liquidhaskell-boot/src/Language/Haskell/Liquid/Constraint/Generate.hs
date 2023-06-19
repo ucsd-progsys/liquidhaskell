@@ -116,6 +116,7 @@ consClass _ _
 --------------------------------------------------------------------------------
 -- | TERMINATION TYPE ----------------------------------------------------------
 --------------------------------------------------------------------------------
+
 makeDecrIndex :: (Var, Template SpecType, [Var]) -> CG [Int]
 makeDecrIndex (x, Assumed t, args)
   = do dindex <- makeDecrIndexTy x t args
@@ -131,12 +132,12 @@ makeDecrIndex _ = return []
 
 makeDecrIndexTy :: Var -> SpecType -> [Var] -> CG (Either (TError t) [Int])
 makeDecrIndexTy x st args
-  = do spDecr <- gets specDecr
+  = do {-spDecr <- gets specDecr-}
        autosz <- gets autoSize
-       hint   <- checkHint' autosz (L.lookup x spDecr)
+       {-hint   <- checkHint' autosz (L.lookup x spDecr)-}
        case dindex autosz of
          Nothing -> return $ Left msg
-         Just i  -> return $ Right $ fromMaybe [i] hint
+         Just i  -> return $ Right [i]  --fromMaybe [i] hint
     where
        ts   = ty_args trep
        tvs  = zip ts args
@@ -145,7 +146,7 @@ makeDecrIndexTy x st args
        trep = toRTypeRep $ unOCons st
 
        p autosz (t, v)   = isDecreasing autosz cenv t && not (isIdTRecBound v)
-       checkHint' autosz = checkHint x ts (isDecreasing autosz cenv)
+       --checkHint' autosz = checkHint x ts (isDecreasing autosz cenv)
        dindex     autosz = L.findIndex (p autosz) tvs
 
 
@@ -209,7 +210,7 @@ safeLogIndex :: Error -> [a] -> Int -> CG (Maybe a)
 safeLogIndex err ls n
   | n >= length ls = addWarning err >> return Nothing
   | otherwise      = return $ Just $ ls !! n
-
+{-
 checkHint :: (NamedThing a, PPrint a, PPrint a1)
           => a -> [a1] -> (a1 -> Bool) -> Maybe [Int] -> CG (Maybe [Int])
 checkHint _ _ _ Nothing
@@ -236,7 +237,7 @@ checkValidHint x ts f n
                                    , F.pprint ts ])
     loc = getSrcSpan x
     xd  = F.pprint x
-
+-}
 --------------------------------------------------------------------------------
 consCBLet :: CGEnv -> CoreBind -> CG CGEnv
 --------------------------------------------------------------------------------
@@ -386,7 +387,8 @@ consCB True _ γ (Rec xes)
        let xxes = mapMaybe (`lookup'` texprs) xs
        if null xxes
          then consCBSizedTys γ xes
-         else check xxes <$> consCBWithExprs γ xes
+         else
+         check xxes <$> consCBWithExprs γ xes
     where
       xs = map fst xes
       check ys r | length ys == length xs = r

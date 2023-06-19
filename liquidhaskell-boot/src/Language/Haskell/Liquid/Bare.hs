@@ -80,17 +80,17 @@ loadLiftedSpec cfg srcF
                else {- warnMissingLiftedSpec srcF specF >> -} return Nothing
       Ex.evaluate lSp
 
--- warnMissingLiftedSpec :: FilePath -> FilePath -> IO () 
--- warnMissingLiftedSpec srcF specF = do 
---   incDir <- Misc.getIncludeDir 
+-- warnMissingLiftedSpec :: FilePath -> FilePath -> IO ()
+-- warnMissingLiftedSpec srcF specF = do
+--   incDir <- Misc.getIncludeDir
 --   unless (Misc.isIncludeFile incDir srcF)
---     $ Ex.throw (errMissingSpec srcF specF) 
+--     $ Ex.throw (errMissingSpec srcF specF)
 
 saveLiftedSpec :: FilePath -> Ms.BareSpec -> IO ()
 saveLiftedSpec srcF lspec = do
   ensurePath specF
   B.encodeFile specF lspec
-  -- print (errorP "DIE" "HERE" :: String) 
+  -- print (errorP "DIE" "HERE" :: String)
   where
     specF = extFileName BinSpec srcF
 
@@ -151,10 +151,10 @@ makeTargetSpec cfg lmap targetSrc bareSpec dependencies = do
       --     Ghc.execOptions
       --   void $ Ghc.execStmt
       --     "let {infixl 7 /; (/) :: Num a => a -> a -> a; _ / _ = undefined}"
-      --     Ghc.execOptions        
+      --     Ghc.execOptions
       --   void $ Ghc.execStmt
       --     "let {len :: [a] -> Int; len _ = undefined}"
-      --     Ghc.execOptions        
+      --     Ghc.execOptions
 
       diagOrSpec <- makeGhcSpec cfg (review targetSrcIso targetSrc) lmap (allSpecs legacyBareSpec)
       return $ do
@@ -220,8 +220,8 @@ ghcSpecEnv sp = F.notracepp "RENV" $ fromListSEnv binds
 
 
 -------------------------------------------------------------------------------------
--- | @makeGhcSpec0@ slurps up all the relevant information needed to generate 
---   constraints for a target module and packages them into a @GhcSpec@ 
+-- | @makeGhcSpec0@ slurps up all the relevant information needed to generate
+--   constraints for a target module and packages them into a @GhcSpec@
 --   See [NOTE] LIFTING-STAGES to see why we split into lSpec0, lSpec1, etc.
 --   essentially, to get to the `BareRTEnv` as soon as possible, as thats what
 --   lets us use aliases inside data-constructor definitions.
@@ -330,7 +330,7 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
     -- extract name and specs
     env      = Bare.makeEnv cfg src lmap mspecsNoCls
     (mySpec0NoCls, iSpecs0) = splitSpecs name src mspecsNoCls
-    -- check barespecs 
+    -- check barespecs
     name     = F.notracepp ("ALL-SPECS" ++ zzz) $ _giTargetMod  src
     zzz      = F.showpp (fst <$> mspecs)
 
@@ -366,7 +366,7 @@ makeTyConEmbeds env (name, spec)
 -- 1. MAKE the full LiftedSpec, which will eventually, contain:
 --      makeHaskell{Inlines, Measures, Axioms, Bounds}
 -- 2. SAVE the LiftedSpec, which will be reloaded
--- 
+--
 --   This step creates the aliases and inlines etc. It must be done BEFORE
 --   we compute the `SpecType` for (all, including the reflected binders),
 --   as we need the inlines and aliases to properly `expand` the SpecTypes.
@@ -377,12 +377,12 @@ makeLiftedSpec1 config src tycEnv lmap mySpec = mempty
   { Ms.measures  = Bare.makeHaskellMeasures (typeclass config) src tycEnv lmap mySpec }
 
 --------------------------------------------------------------------------------
--- | [NOTE]: LIFTING-STAGES 
--- 
+-- | [NOTE]: LIFTING-STAGES
+--
 -- We split the lifting up into stage:
 -- 0. Where we only lift inlines,
 -- 1. Where we lift reflects, measures, and normalized tySigs
--- 
+--
 -- This is because we need the inlines to build the @BareRTEnv@ which then
 -- does the alias @expand@ business, that in turn, lets us build the DataConP,
 -- i.e. the refined datatypes and their associate selectors, projectors etc,
@@ -508,10 +508,10 @@ makeQualifiers env tycEnv (modn, spec)
   $ Ms.qualifiers spec
 
 
--- | @resolveQualParams@ converts the sorts of parameters from, e.g. 
---     'Int' ===> 'GHC.Types.Int' or 
---     'Ptr' ===> 'GHC.Ptr.Ptr'  
---   It would not be required if _all_ qualifiers are scraped from 
+-- | @resolveQualParams@ converts the sorts of parameters from, e.g.
+--     'Int' ===> 'GHC.Types.Int' or
+--     'Ptr' ===> 'GHC.Ptr.Ptr'
+--   It would not be required if _all_ qualifiers are scraped from
 --   function specs, but we're keeping it around for backwards compatibility.
 
 resolveQParams :: Bare.Env -> Bare.TycEnv -> ModName -> F.Qualifier -> Maybe F.Qualifier
@@ -554,23 +554,23 @@ makeSpecTerm cfg mySpec env name = do
   sizes  <- if structuralTerm cfg then pure mempty else makeSize env name mySpec
   lazies <- makeLazy     env name mySpec
   autos  <- makeAutoSize env name mySpec
-  decr   <- makeDecrs env name mySpec
+--  decr   <- makeDecrs env name mySpec
   gfail  <- makeFail env name mySpec
   return  $ SpTerm
     { gsLazy       = S.insert dictionaryVar (lazies `mappend` sizes)
     , gsFail       = gfail
     , gsStTerm     = sizes
     , gsAutosize   = autos
-    , gsDecr       = decr
+--    , gsDecr       = decr
     , gsNonStTerm  = mempty
     }
 
 -- formerly, makeHints
-makeDecrs :: Bare.Env -> ModName -> Ms.BareSpec -> Bare.Lookup [(Ghc.Var, [Int])]
-makeDecrs env name mySpec =
-  forM (Ms.decr mySpec) $ \(lx, z) -> do
-    v <- Bare.lookupGhcVar env name "decreasing" lx
-    return (v, z)
+--makeDecrs :: Bare.Env -> ModName -> Ms.BareSpec -> Bare.Lookup [(Ghc.Var, [Int])]
+--makeDecrs env name mySpec =
+--  forM (Ms.decr mySpec) $ \(lx, z) -> do
+--    v <- Bare.lookupGhcVar env name "decreasing" lx
+--    return (v, z)
 
 makeRelation :: Bare.Env -> ModName -> Bare.SigEnv ->
   [(LocSymbol, LocSymbol, LocBareType, LocBareType, RelExpr, RelExpr)] -> Bare.Lookup [(Ghc.Var, Ghc.Var, LocSpecType, LocSpecType, RelExpr, RelExpr)]
@@ -579,7 +579,7 @@ makeRelation env name sigEnv = mapM go
   go (x, y, tx, ty, a, e) = do
     vx <- Bare.lookupGhcVar env name "Var" x
     vy <- Bare.lookupGhcVar env name "Var" y
-    return  
+    return
         ( vx
         , vy
         , Bare.cookSpecType env sigEnv name (Bare.HsTV vx) tx
@@ -697,8 +697,8 @@ getReflects  = fmap val . S.toList . S.unions . fmap (names . snd) . M.toList
     names  z = S.unions [ Ms.reflects z, Ms.inlines z, Ms.hmeas z ]
 
 ------------------------------------------------------------------------------------------
--- | @updateReflSpecSig@ uses the information about reflected functions to update the 
---   "assumed" signatures. 
+-- | @updateReflSpecSig@ uses the information about reflected functions to update the
+--   "assumed" signatures.
 ------------------------------------------------------------------------------------------
 addReflSigs :: Bare.Env -> ModName -> BareRTEnv -> GhcSpecRefl -> GhcSpecSig -> GhcSpecSig
 ------------------------------------------------------------------------------------------
@@ -742,10 +742,10 @@ makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = do
               ++ aSigs
               ++ [ (x,t) | (_, x, t) <- concatMap snd (Bare.meCLaws measEnv) ]
   let tySigs  = strengthenSigs . concat $
-                  [ [(v, (0, t)) | (v, t,_) <- mySigs                         ]   -- NOTE: these weights are to priortize 
-                  , [(v, (1, t)) | (v, t  ) <- makeMthSigs measEnv            ]   -- user defined sigs OVER auto-generated 
-                  , [(v, (2, t)) | (v, t  ) <- makeInlSigs env rtEnv allSpecs ]   -- during the strengthening, i.e. to KEEP 
-                  , [(v, (3, t)) | (v, t  ) <- makeMsrSigs env rtEnv allSpecs ]   -- the binders used in USER-defined sigs 
+                  [ [(v, (0, t)) | (v, t,_) <- mySigs                         ]   -- NOTE: these weights are to priortize
+                  , [(v, (1, t)) | (v, t  ) <- makeMthSigs measEnv            ]   -- user defined sigs OVER auto-generated
+                  , [(v, (2, t)) | (v, t  ) <- makeInlSigs env rtEnv allSpecs ]   -- during the strengthening, i.e. to KEEP
+                  , [(v, (3, t)) | (v, t  ) <- makeMsrSigs env rtEnv allSpecs ]   -- the binders used in USER-defined sigs
                   ]                                                               -- as they appear in termination metrics
   newTys     <-  makeNewTypes env sigEnv allSpecs
   relation   <-  makeRelation env name sigEnv (Ms.relational mySpec)
@@ -755,7 +755,7 @@ makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = do
     , gsAsmSigs  = asmSigs
     , gsRefSigs  = []
     , gsDicts    = dicts
-    -- , gsMethods  = if noclasscheck cfg then [] else Bare.makeMethodTypes dicts (Bare.meClasses  measEnv) cbs 
+    -- , gsMethods  = if noclasscheck cfg then [] else Bare.makeMethodTypes dicts (Bare.meClasses  measEnv) cbs
     , gsMethods  = if noclasscheck cfg then [] else Bare.makeMethodTypes (typeclass cfg) dicts (Bare.meClasses  measEnv) cbs
     , gsInSigs   = mempty
     , gsNewTypes = newTys
@@ -768,7 +768,7 @@ makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = do
     mySpec     = M.lookupDefault mempty name specs
     allSpecs   = M.toList specs
     rtEnv      = Bare.sigRTEnv sigEnv
-    -- hmeas      = makeHMeas    env allSpecs 
+    -- hmeas      = makeHMeas    env allSpecs
 
 strengthenSigs :: [(Ghc.Var, (Int, LocSpecType))] ->[(Ghc.Var, LocSpecType)]
 strengthenSigs sigs = go <$> Misc.groupList sigs
@@ -824,7 +824,7 @@ bareTySigs env name spec = checkDuplicateSigs <$> vts
             v <- F.notracepp "LOOKUP-GHC-VAR" $ Bare.lookupGhcVar env name "rawTySigs" x
             return (v, t)
 
--- checkDuplicateSigs :: [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)] 
+-- checkDuplicateSigs :: [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
 checkDuplicateSigs :: (Symbolic x) => [(x, F.Located t)] -> [(x, F.Located t)]
 checkDuplicateSigs xts = case Misc.uniqueByKey symXs  of
   Left (k, ls) -> uError (errDupSpecs (pprint k) (GM.sourcePosSrcSpan <$> ls))
@@ -847,7 +847,7 @@ myAsmSig :: Ghc.Var -> [(Bool, ModName, LocBareType)] -> (ModName, LocBareType)
 myAsmSig v sigs = Mb.fromMaybe errImp (Misc.firstMaybes [mbHome, mbImp])
   where
     mbHome      = takeUnique mkErr                  sigsHome
-    mbImp       = takeUnique mkErr (Misc.firstGroup sigsImp) -- see [NOTE:Prioritize-Home-Spec] 
+    mbImp       = takeUnique mkErr (Misc.firstGroup sigsImp) -- see [NOTE:Prioritize-Home-Spec]
     sigsHome    = [(m, t)      | (True,  m, t) <- sigs ]
     sigsImp     = F.notracepp ("SIGS-IMP: " ++ F.showpp v)
                   [(d, (m, t)) | (False, m, t) <- sigs, let d = nameDistance vName m]
@@ -881,17 +881,17 @@ makeVarTExprs env name spec =
     return (vx, es)
 
 ----------------------------------------------------------------------------------------
--- [NOTE:Prioritize-Home-Spec] Prioritize spec for THING defined in 
--- `Foo.Bar.Baz.Quux.x` over any other specification, IF GHC's 
--- fully qualified name for THING is `Foo.Bar.Baz.Quux.x`. 
+-- [NOTE:Prioritize-Home-Spec] Prioritize spec for THING defined in
+-- `Foo.Bar.Baz.Quux.x` over any other specification, IF GHC's
+-- fully qualified name for THING is `Foo.Bar.Baz.Quux.x`.
 --
--- For example, see tests/names/neg/T1078.hs for example, 
--- which assumes a spec for `head` defined in both 
--- 
+-- For example, see tests/names/neg/T1078.hs for example,
+-- which assumes a spec for `head` defined in both
+--
 --   (1) Data/ByteString.spec
---   (2) Data/ByteString/Char8.spec 
--- 
--- We end up resolving the `head` in (1) to the @Var@ `Data.ByteString.Char8.head` 
+--   (2) Data/ByteString/Char8.spec
+--
+-- We end up resolving the `head` in (1) to the @Var@ `Data.ByteString.Char8.head`
 -- even though there is no exact match, just to account for re-exports of "internal"
 -- modules and such (see `Resolve.matchMod`). However, we should pick the closer name
 -- if its available.
@@ -1021,7 +1021,7 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
   where
     allowTC      = typeclass (getConfig env)
     measVars     = Bare.meSyms      measEnv -- ms'
-                ++ Bare.meClassSyms measEnv -- cms' 
+                ++ Bare.meClassSyms measEnv -- cms'
                 ++ Bare.varMeasures env
     measuresSp   = Bare.meMeasureSpec measEnv
     ms1          = M.elems (Ms.measMap measuresSp)
@@ -1141,9 +1141,9 @@ makeTycEnv0 :: Config -> ModName -> Bare.Env -> TCEmb Ghc.TyCon -> Ms.BareSpec -
 -------------------------------------------------------------------------------------------
 makeTycEnv0 cfg myName env embs mySpec iSpecs = (diag0 <> diag1, datacons, Bare.TycEnv
   { tcTyCons      = tycons
-  , tcDataCons    = mempty -- val <$> datacons 
+  , tcDataCons    = mempty -- val <$> datacons
   , tcSelMeasures = dcSelectors
-  , tcSelVars     = mempty -- recSelectors            
+  , tcSelVars     = mempty -- recSelectors
   , tcTyConMap    = tyi
   , tcAdts        = adts
   , tcDataConMap  = dm
@@ -1233,8 +1233,8 @@ makeMeasEnv env tycEnv sigEnv specs = do
     name          = Bare.tcName        tycEnv
 
 -----------------------------------------------------------------------------------------
--- | @makeLiftedSpec@ is used to generate the BareSpec object that should be serialized 
---   so that downstream files that import this target can access the lifted definitions, 
+-- | @makeLiftedSpec@ is used to generate the BareSpec object that should be serialized
+--   so that downstream files that import this target can access the lifted definitions,
 --   e.g. for measures, reflected functions etc.
 -----------------------------------------------------------------------------------------
 makeLiftedSpec :: ModName -> GhcSrc -> Bare.Env
@@ -1266,7 +1266,7 @@ makeLiftedSpec name src _env refl sData sig qual myRTE lSpec0 = lSpec0
     defVars       = S.fromList (_giDefVars src)
     reflTySigs    = [(x, t) | (x,t,_) <- gsHAxioms refl, x `notElem` gsWiredReft refl]
     reflVars      = S.fromList (fst <$> reflTySigs)
-    -- myAliases fld = M.elems . fld $ myRTE 
+    -- myAliases fld = M.elems . fld $ myRTE
     srcF          = _giTarget src
 
 -- | Returns 'True' if the input determines a location within the input file. Due to the fact we might have
@@ -1291,12 +1291,12 @@ varLocSym :: Ghc.Var -> LocSymbol
 varLocSym v = F.symbol <$> GM.locNamedThing v
 
 -- makeSpecRTAliases :: Bare.Env -> BareRTEnv -> [Located SpecRTAlias]
--- makeSpecRTAliases _env _rtEnv = [] -- TODO-REBARE 
+-- makeSpecRTAliases _env _rtEnv = [] -- TODO-REBARE
 
 
 --------------------------------------------------------------------------------
--- | @myRTEnv@ slices out the part of RTEnv that was generated by aliases defined 
---   in the _target_ file, "cooks" the aliases (by conversion to SpecType), and 
+-- | @myRTEnv@ slices out the part of RTEnv that was generated by aliases defined
+--   in the _target_ file, "cooks" the aliases (by conversion to SpecType), and
 --   then saves them back as BareType.
 --------------------------------------------------------------------------------
 myRTEnv :: GhcSrc -> Bare.Env -> Bare.SigEnv -> BareRTEnv -> BareRTEnv

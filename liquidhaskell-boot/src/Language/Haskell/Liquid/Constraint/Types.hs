@@ -211,7 +211,7 @@ data CGInfo = CGInfo
   , ebinds     :: ![F.BindId]                  -- ^ existentials
   , annotMap   :: !(AnnInfo (Annot SpecType))  -- ^ source-position annotation map
   , tyConInfo  :: !TyConMap                    -- ^ information about type-constructors
-  , specDecr   :: ![(Var, [Int])]              -- ^ ^ Lexicographic order of decreasing args (DEPRECATED)
+--  , specDecr   :: ![(Var, [Int])]              -- ^ ^ Lexicographic order of decreasing args (DEPRECATED)
   , newTyEnv   :: !(M.HashMap Ghc.TyCon SpecType)        -- ^ Mapping of new type type constructors with their refined types.
   , termExprs  :: !(M.HashMap Var [F.Located F.Expr])   -- ^ Terminating Metrics for Recursive functions
   , specLVars  :: !(S.HashSet Var)             -- ^ Set of variables to ignore for termination checking

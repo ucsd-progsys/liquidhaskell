@@ -935,7 +935,7 @@ transParseSpecs modGraph paths seenFiles specs newFiles = do
     specsImports ss = nub $ concatMap (map symbolString . Ms.imports . snd) ss
 
 noTerm :: Ms.BareSpec -> Ms.BareSpec
-noTerm spec = spec { Ms.decr = mempty, Ms.lazy = mempty, Ms.termexprs = mempty }
+noTerm spec = spec { {-Ms.decr = mempty,-} Ms.lazy = mempty, Ms.termexprs = mempty }
 
 -- | Parse a spec file by path.
 --
