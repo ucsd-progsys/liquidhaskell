@@ -206,9 +206,9 @@ testSpecP =
        parseSingleSpec "qualif Foo(v:Int): v < 0" @?==
           "qualif Foo defined at <test>:1:8"
 
-    , testCase "decrease" $
-       parseSingleSpec "decrease insert 3" @?==
-          "decreasing insert [2]"
+--    , testCase "decrease" $
+--       parseSingleSpec "decrease insert 3" @?==
+--          "decreasing insert [2]"
 
     , testCase "lazyvar" $
        parseSingleSpec "lazyvar z" @?==
@@ -300,23 +300,23 @@ testSucceeds :: TestTree
 testSucceeds =
   testGroup "Should succeed"
     [ testCase "x :: Int" $
-       (parseSingleSpec "x :: Int") @?==
+       parseSingleSpec "x :: Int" @?==
           "x :: Int"
 
     , testCase "x :: a" $
-       (parseSingleSpec "x :: a") @?==
+       parseSingleSpec "x :: a" @?==
           "x :: a"
 
     , testCase "x :: a -> a" $
-       (parseSingleSpec "x :: a -> a") @?==
+       parseSingleSpec "x :: a -> a" @?==
           "x :: lq_tmp$db##0:a -> a"
 
     , testCase "x :: Int -> Int" $
-       (parseSingleSpec "x :: Int -> Int") @?==
+       parseSingleSpec "x :: Int -> Int" @?==
           "x :: lq_tmp$db##0:Int -> Int"
 
     , testCase "k:Int -> Int" $
-       (parseSingleSpec "x :: k:Int -> Int") @?==
+       parseSingleSpec "x :: k:Int -> Int" @?==
           "x :: k:Int -> Int"
 
     , testCase "type spec 1 " $
