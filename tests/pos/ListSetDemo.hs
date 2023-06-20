@@ -6,12 +6,12 @@ module ListSetDemo () where
 
 -- First, lets import the `Set` type from @Data.Set@
 
-import qualified Data.Set as S 
+import qualified Data.Set as S
 
 -- Next, lets write a measure for the set of elements in a list.
 
 {-@ measure elts @-}
-elts :: (Ord a) => [a] -> S.Set a 
+elts :: (Ord a) => [a] -> S.Set a
 elts []     = S.empty
 elts (x:xs) = S.union (S.singleton x) (elts xs)
 
@@ -24,13 +24,12 @@ myid []     = []
 myid (x:xs) = x : myid xs
 
 -- | The reverse function should also return the same set of values.
--- Note that the reverse uses the tail-recursive helper @go@. 
+-- Note that the reverse uses the tail-recursive helper @go@.
 -- Mouse over and see what type is inferred for it!
 
-{-@ decrease go 2 @-}
 {-@ myrev :: xs:[a] -> {v:[a]| (elts v) = (elts xs)} @-}
-myrev = go [] 
-  where 
+myrev = go []
+  where
     go acc []     = acc
     go acc (y:ys) = go (y:acc) ys
 
@@ -45,11 +44,6 @@ myapp (x:xs) ys = x : myapp xs ys
 
 {-@ myfilter :: (a -> Bool) -> xs:[a] -> {v:[a]| Set_sub (elts v) (elts xs) } @-}
 myfilter f []     = []
-myfilter f (x:xs) 
-  | f x           = x : myfilter f xs 
+myfilter f (x:xs)
+  | f x           = x : myfilter f xs
   | otherwise     = myfilter f xs
-
-
-
-
-

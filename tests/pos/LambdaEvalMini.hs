@@ -18,7 +18,7 @@ data Expr
   | App Expr Expr
 
 {-@
-data Expr 
+data Expr
   = Lam { eX :: Bndr, eBody :: Expr }
   | Var { eX :: Bndr                }
   | App { eF :: Expr, eArg  ::Expr  }
@@ -56,7 +56,6 @@ evalVar x []
 
 -- A "value" is simply: {v: Expr | isValue v } *)
 
-{-@ decrease eval 2 @-}
 {-@ eval :: [(Bndr, Value)] -> Expr -> ([(Bndr, Value)], Value) @-}
 
 eval sto (Var x)

@@ -27,7 +27,7 @@
 -- Maintainer  : dons@cse.unsw.edu.au
 -- Stability   : experimental
 -- Portability : portable
--- 
+--
 -- A time and space-efficient implementation of byte vectors using
 -- packed Word8 arrays, suitable for high performance use, both in terms
 -- of large data quantities, or high speed requirements. Byte vectors
@@ -304,14 +304,14 @@ assertS s False = unsafeError ("assertion failed at "++s)
 
 -- LIQUID
 import GHC.IO.Buffer
-import Language.Haskell.Liquid.Prelude hiding (eq) 
-import Language.Haskell.Liquid.Foreign 
+import Language.Haskell.Liquid.Prelude hiding (eq)
+import Language.Haskell.Liquid.Foreign
 
 {-@ include <Data/ByteString.hs.hquals> @-}
 
-{-@ memcpy_ptr_baoff :: p:(Ptr a) 
-                     -> RawBuffer b 
-                     -> Int 
+{-@ memcpy_ptr_baoff :: p:(Ptr a)
+                     -> RawBuffer b
+                     -> Int
                      -> {v:CSize | (OkPLen v p)} -> IO (Ptr ())
   @-}
 memcpy_ptr_baoff :: Ptr a -> RawBuffer b -> Int -> CSize -> IO (Ptr ())
@@ -323,21 +323,21 @@ readCharFromBuffer x y = unsafeError "LIQUIDCOMPAT"
 wantReadableHandleLIQUID :: String -> Handle -> (Handle__ -> IO a) -> IO a
 wantReadableHandleLIQUID x y f = unsafeError $ show $ liquidCanaryFusion 12 -- "LIQUIDCOMPAT"
 
--- for unfoldrN 
+-- for unfoldrN
 
 {-@ lengths :: bs:[ByteString] -> {v:Nat | v = (bLengths bs)} @-}
 lengths :: [ByteString] -> Int
 lengths []     = 0
 lengths (b:bs) = length b + lengths bs
 
--- LIQUID HACK: this is to get all the quals from memchr. 
--- Quals needed because IO monad forces liquid-abstraction. 
+-- LIQUID HACK: this is to get all the quals from memchr.
+-- Quals needed because IO monad forces liquid-abstraction.
 -- Solution, scrape quals from predicate defs (e.g. SuffixPtr)
 {-@ dummyForQuals1_elemIndex :: p:(Ptr a) -> n:Int -> (IO {v:(Ptr b) | (SuffixPtr v n p)})  @-}
 dummyForQuals1_elemIndex :: Ptr a -> Int -> IO (Ptr b)
-dummyForQuals1_elemIndex = undefined 
+dummyForQuals1_elemIndex = undefined
 
-{-@ dummyForQuals2_splitWith :: p:(ForeignPtr Word8) -> o:{v:Nat | v <= (fplen p)} -> {v:Nat | (BSValid p o v)} -> ByteString 
+{-@ dummyForQuals2_splitWith :: p:(ForeignPtr Word8) -> o:{v:Nat | v <= (fplen p)} -> {v:Nat | (BSValid p o v)} -> ByteString
   @-}
 dummyForQuals2_splitWith :: ForeignPtr Word8 -> Int -> Int -> ByteString
 dummyForQuals2_splitWith = undefined
@@ -381,7 +381,7 @@ eq a@(PS p s l) b@(PS p' s' l')
     | otherwise          = compareBytes a b == EQ
 {-# INLINE eq #-}
 
--- | /O(n)/ 'compareBytes' provides an 'Ordering' for 'ByteStrings' supporting slices. 
+-- | /O(n)/ 'compareBytes' provides an 'Ordering' for 'ByteStrings' supporting slices.
 compareBytes :: ByteString -> ByteString -> Ordering
 compareBytes (PS x1 s1 l1) (PS x2 s2 l2)
     | l1 == 0  && l2 == 0               = EQ  -- short cut for empty strings
@@ -395,7 +395,7 @@ compareBytes (PS x1 s1 l1) (PS x2 s2 l2)
                         x   -> x
 {-# INLINE compareBytes #-}
 
- 
+
 {-
 --
 -- About 4x slower over 32M
@@ -426,11 +426,11 @@ cmp p1 p2 n len1 len2
 -- Introducing and eliminating 'ByteString's
 
 -- | /O(1)/ The empty 'ByteString'
-{-@ empty :: {v:ByteString | (bLength v) = 0} @-} 
+{-@ empty :: {v:ByteString | (bLength v) = 0} @-}
 empty :: ByteString
 empty = PS nullForeignPtr 0 0
 
- 
+
 -- | /O(1)/ Convert a 'Word8' into a 'ByteString'
 
 {-@ singleton :: Word8 -> {v:ByteString | (bLength v) = 1} @-}
@@ -447,17 +447,17 @@ singleton c = unsafeCreate 1 $ \p -> poke p c
 --
 -- is compiled to:
 --
---  case mallocByteString 2 of 
---      ForeignPtr f internals -> 
---           case writeWord8OffAddr# f 0 255 of _ -> 
+--  case mallocByteString 2 of
+--      ForeignPtr f internals ->
+--           case writeWord8OffAddr# f 0 255 of _ ->
 --           case writeWord8OffAddr# f 0 127 of _ ->
---           case eqAddr# f f of 
---                  False -> case compare (GHC.Prim.plusAddr# f 0) 
+--           case eqAddr# f f of
+--                  False -> case compare (GHC.Prim.plusAddr# f 0)
 --                                        (GHC.Prim.plusAddr# f 0)
 --
 --
 
--- | /O(n)/ Convert a '[Word8]' into a 'ByteString'. 
+-- | /O(n)/ Convert a '[Word8]' into a 'ByteString'.
 --
 -- For applications with large numbers of string literals, pack can be a
 -- bottleneck. In such cases, consider using packAddress (GHC only).
@@ -492,8 +492,8 @@ unpack :: ByteString -> [Word8]
 -- LIQUID -- unpack (PS _  _ 0) = []
 -- LIQUID -- unpack (PS ps s l) = inlinePerformIO $ withForeignPtr ps $ \p ->
 -- LIQUID --         ugo (p `plusPtr` s) (l - 1) []
--- LIQUID -- 
--- LIQUID -- ugo :: ForeignPtr Word8 -> Int -> [Word8] -> IO Word8 
+-- LIQUID --
+-- LIQUID -- ugo :: ForeignPtr Word8 -> Int -> [Word8] -> IO Word8
 -- LIQUID -- ugo p 0 acc = peek p          >>= \e -> return (e : acc)
 -- LIQUID -- ugo p n acc = peekByteOff p n >>= \e -> ugo p (n-1) (e : acc)
 unpack (PS _  _ 0) = []
@@ -509,14 +509,14 @@ unpack (PS ps s l) = inlinePerformIO $ withForeignPtr ps $ \p ->
 
 -- unpack ps = build (unpackFoldr ps)
 
--- LIQUID TODO unpackFoldr :: forall <p :: Int -> a -> Bool>. 
---                   b:ByteString 
+-- LIQUID TODO unpackFoldr :: forall <p :: Int -> a -> Bool>.
+--                   b:ByteString
 --                -> (i:Int -> Word8 -> a<p i> -> a<p (i+1)>)
 --                -> (a<p 0>)
 --                -> (a<p (bLength b)>)
 {-# INLINE unpack #-}
 
--- LIQUID INLINED : unpack ps = build (unpackFoldr ps) = unpackFoldr ps (:) [] 
+-- LIQUID INLINED : unpack ps = build (unpackFoldr ps) = unpackFoldr ps (:) []
 -- LIQUID INLINED : so inline `f` with `:` and `ch` with `[]`
 unpack ps  = unpackFoldrINLINED ps
 
@@ -527,7 +527,7 @@ unpackFoldrINLINED (PS fp off len) = withPtr fp $ \p -> do
         loop q n    acc = do
            a <- peekByteOff q n
            loop q (n-1) (a : acc)
-    loop (p `plusPtr` off) (len-1) [] 
+    loop (p `plusPtr` off) (len-1) []
 
 -- critical this isn't strict in the acc
 -- as it will break in the presence of list fusion. this is a known
@@ -646,8 +646,8 @@ init ps@(PS p s l)
 {-# INLINE init #-}
 
 -- | /O(n)/ Append two ByteStrings
-{-@ append :: b1:ByteString -> b2:ByteString 
-           -> {v:ByteString | (bLength v) = (bLength b1) + (bLength b2)} 
+{-@ append :: b1:ByteString -> b2:ByteString
+           -> {v:ByteString | (bLength v) = (bLength b1) + (bLength b2)}
   @-}
 append :: ByteString -> ByteString -> ByteString
 append xs ys | null xs   = ys
@@ -725,16 +725,16 @@ foldl f v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
     where
         STRICT3(lgo)
         lgo z p q | p == q    = return z
-                  | otherwise = do let p' = liquid_thm_ptr_cmp p q 
+                  | otherwise = do let p' = liquid_thm_ptr_cmp p q
                                    c <- peek p'
                                    lgo (f z c) (p' `plusPtr` 1) q
 {-# INLINE foldl #-}
 
 -- LIQUID: This will go away when we properly embed Ptr a as int -- only in
--- fixpoint to avoid the Sort mismatch hassles. 
-{-@ liquid_thm_ptr_cmp :: p:PtrV a 
-                       -> q:{v:(PtrV a) | ((plen v) <= (plen p) && v != p && (pbase v) = (pbase p))} 
-                       -> {v: (PtrV a)  | ((v = p) && ((plen q) < (plen p))) } 
+-- fixpoint to avoid the Sort mismatch hassles.
+{-@ liquid_thm_ptr_cmp :: p:PtrV a
+                       -> q:{v:(PtrV a) | ((plen v) <= (plen p) && v != p && (pbase v) = (pbase p))}
+                       -> {v: (PtrV a)  | ((v = p) && ((plen q) < (plen p))) }
   @-}
 liquid_thm_ptr_cmp :: Ptr a -> Ptr a -> Ptr a
 liquid_thm_ptr_cmp p q = undefined -- p -- LIQUID : make this undefined to suppress WARNING
@@ -756,21 +756,21 @@ foldr k v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
     where
         STRICT3(go)
         go z p q | p == q    = return z
-                 | otherwise = do let p' = liquid_thm_ptr_cmp' p q 
+                 | otherwise = do let p' = liquid_thm_ptr_cmp' p q
                                   c  <- peek p'
-                                  let n  = 0 - 1  
+                                  let n  = 0 - 1
                                   go (c `k` z) (p' `plusPtr` n) q -- tail recursive
         -- LIQUID go z p q | p == q    = return z
         -- LIQUID          | otherwise = do c  <- peek p
         -- LIQUID                           go (c `k` z) (p `plusPtr` (-1)) q -- tail recursive
 {-# INLINE foldr #-}
 
-{-@ liquid_thm_ptr_cmp' :: p:PtrV a 
-                        -> q:{v:(PtrV a) | ((plen v) >= (plen p) && v != p && (pbase v) = (pbase p))} 
-                        -> {v: (PtrV a)  | ((v = p) && ((plen v) > 0) && ((plen q) > (plen p))) } 
+{-@ liquid_thm_ptr_cmp' :: p:PtrV a
+                        -> q:{v:(PtrV a) | ((plen v) >= (plen p) && v != p && (pbase v) = (pbase p))}
+                        -> {v: (PtrV a)  | ((v = p) && ((plen v) > 0) && ((plen q) > (plen p))) }
   @-}
 liquid_thm_ptr_cmp' :: Ptr a -> Ptr a -> Ptr a
-liquid_thm_ptr_cmp' p q = undefined 
+liquid_thm_ptr_cmp' p q = undefined
 
 -- | 'foldr\'' is like 'foldr', but strict in the accumulator.
 foldr' :: (Word8 -> a -> a) -> a -> ByteString -> a
@@ -779,9 +779,9 @@ foldr' k v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
     where
         STRICT3(go)
         go z p q | p == q    = return z
-                 | otherwise = do let p' = liquid_thm_ptr_cmp' p q 
+                 | otherwise = do let p' = liquid_thm_ptr_cmp' p q
                                   c  <- peek p'
-                                  let n  = 0 - 1  
+                                  let n  = 0 - 1
                                   go (c `k` z) (p' `plusPtr` n) q -- tail recursive
         -- LIQUID go z p q | p == q    = return z
         -- LIQUID          | otherwise = do c  <- peek p
@@ -790,7 +790,7 @@ foldr' k v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
 
 -- | 'foldl1' is a variant of 'foldl' that has no starting value
 -- argument, and thus must be applied to non-empty 'ByteStrings'.
--- This function is subject to array fusion. 
+-- This function is subject to array fusion.
 -- An exception will be thrown in the case of an empty ByteString.
 {-@ foldl1 :: (Word8 -> Word8 -> Word8) -> ByteStringNE -> Word8 @-}
 foldl1 :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
@@ -1009,11 +1009,11 @@ replicate w c
     | otherwise = unsafeCreate w $ \ptr ->
                       memset ptr c (fromIntegral w) >> return ()
 
--- | /O(n)/, where /n/ is the length of the result.  The 'unfoldr' 
--- function is analogous to the List \'unfoldr\'.  'unfoldr' builds a 
--- ByteString from a seed value.  The function takes the element and 
--- returns 'Nothing' if it is done producing the ByteString or returns 
--- 'Just' @(a,b)@, in which case, @a@ is the next byte in the string, 
+-- | /O(n)/, where /n/ is the length of the result.  The 'unfoldr'
+-- function is analogous to the List \'unfoldr\'.  'unfoldr' builds a
+-- ByteString from a seed value.  The function takes the element and
+-- returns 'Nothing' if it is done producing the ByteString or returns
+-- 'Just' @(a,b)@, in which case, @a@ is the next byte in the string,
 -- and @b@ is the seed value for further production.
 --
 -- Examples:
@@ -1045,7 +1045,6 @@ unfoldrN i f x0
     | i < 0     = (empty, Just x0)
     | otherwise = unsafePerformIO $ createAndTrimMEQ i $ \p -> go p x0 0
   where STRICT3(go)
-        {-@ decrease go 4 @-}
         go p x n =
           case f x of
             Nothing      -> return (0 :: Int {- LIQUID -}, n, Nothing)
@@ -1121,7 +1120,7 @@ dropWhile f ps = unsafeDrop (findIndexOrEnd (not . f) ps) ps
 {-@ break :: (Word8 -> Bool) -> b:ByteString -> (ByteStringPair b) @-}
 break :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
 break p ps = case findIndexOrEnd p ps of n -> (unsafeTake n ps, unsafeDrop n ps)
-#if __GLASGOW_HASKELL__ 
+#if __GLASGOW_HASKELL__
 {-# INLINE [1] break #-}
 
 {-# RULES
@@ -1135,7 +1134,7 @@ break p ps = case findIndexOrEnd p ps of n -> (unsafeTake n ps, unsafeDrop n ps)
 -- | 'breakByte' breaks its ByteString argument at the first occurence
 -- of the specified byte. It is more efficient than 'break' as it is
 -- implemented with @memchr(3)@. I.e.
--- 
+--
 -- > break (=='c') "abcd" == breakByte 'c' "abcd"
 --
 
@@ -1147,7 +1146,7 @@ breakByte c p = case elemIndex c p of
 {-# INLINE breakByte #-}
 
 -- | 'breakEnd' behaves like 'break' but from the end of the 'ByteString'
--- 
+--
 -- breakEnd p == spanEnd (not.p)
 
 {-@ breakEnd :: (Word8 -> Bool) -> b:ByteString -> (ByteStringPair b) @-}
@@ -1197,8 +1196,8 @@ spanByte c ps@(PS x s l) = inlinePerformIO $ withForeignPtr x $ \p ->
 -- and
 --
 -- > spanEnd (not . isSpace) ps
--- >    == 
--- > let (x,y) = span (not.isSpace) (reverse ps) in (reverse y, reverse x) 
+-- >    ==
+-- > let (x,y) = span (not.isSpace) (reverse ps) in (reverse y, reverse x)
 --
 {-@ spanEnd :: (Word8 -> Bool) -> b:ByteString -> (ByteStringPair b) @-}
 spanEnd :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
@@ -1258,12 +1257,12 @@ splitWith p ps = loop p ps
 -- > split '\n' "a\nb\nd\ne" == ["a","b","d","e"]
 -- > split 'a'  "aXaXaXa"    == ["","X","X","X",""]
 -- > split 'x'  "x"          == ["",""]
--- 
+--
 -- and
 --
 -- > intercalate [c] . split c == id
 -- > split == splitWith . (==)
--- 
+--
 -- As for all splitting functions in this library, this function does
 -- not copy the substrings, it just constructs new 'ByteStrings' that
 -- are slices of the original.
@@ -1276,7 +1275,7 @@ split w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
         STRICT1(loop)
         loop n =
             -- LIQUID: else lose `plen` info due to subsequent @ Word8 application
-            let ptrn = (ptr `plusPtr` n) :: Ptr Word8 
+            let ptrn = (ptr `plusPtr` n) :: Ptr Word8
                 q = inlinePerformIO $ memchr ptrn {- (ptr `plusPtr` n) -}
                                            w (fromIntegral (l-n))
             in if isNullPtr q {- LIQUID q == nullPtr -}
@@ -1293,20 +1292,20 @@ splitO _ (PS _ _ 0) = []
 splitO w (PS xanadu s l) = inlinePerformIO $ withForeignPtr xanadu $ \pz -> do
     let p   = liquidAssert (fpLen xanadu == pLen pz) pz
     let ptrGOBBLE_ = p `plusPtr` s
-    let ptrGOBBLE  = liquidAssert (l <= pLen ptrGOBBLE_) ptrGOBBLE_ 
+    let ptrGOBBLE  = liquidAssert (l <= pLen ptrGOBBLE_) ptrGOBBLE_
     return (splitLoop xanadu ptrGOBBLE w l s 0)
 
-{-@ splitLoop :: fp:(ForeignPtr Word8) 
-          -> p:(Ptr Word8) 
-          -> Word8 
-          -> l:{v:Nat | v <= (plen p)} 
+{-@ splitLoop :: fp:(ForeignPtr Word8)
+          -> p:(Ptr Word8)
+          -> Word8
+          -> l:{v:Nat | v <= (plen p)}
           -> s:{v:Nat | v + l <= (fplen fp)}
-          -> n:{v:Nat | v <= l} 
-          -> {v:[ByteString] | (bLengths v) + (len v) - 1 = l - n} 
+          -> n:{v:Nat | v <= l}
+          -> {v:[ByteString] | (bLengths v) + (len v) - 1 = l - n}
   @-}
 splitLoop :: ForeignPtr Word8 -> Ptr Word8 -> Word8 -> Int -> Int -> Int -> [ByteString]
-splitLoop xanadu ptrGOBBLE w l s n = 
-  let ptrn = ((ptrGOBBLE `plusPtr` n) :: Ptr Word8) 
+splitLoop xanadu ptrGOBBLE w l s n =
+  let ptrn = ((ptrGOBBLE `plusPtr` n) :: Ptr Word8)
            -- NEEDED: else lose `plen` information without cast
            -- thanks to subsequent @ Word8 application
       q    = inlinePerformIO $ memchr ptrn w (fromIntegral (l-n))
@@ -1345,7 +1344,7 @@ split (W8# w#) (PS fp off len) = splitWith' off len fp
 {-
 -- | Like 'splitWith', except that sequences of adjacent separators are
 -- treated as a single separator. eg.
--- 
+--
 -- > tokens (=='a') "aabbaca" == ["bb","c"]
 --
 tokens :: (Word8 -> Bool) -> ByteString -> [ByteString]
@@ -1361,7 +1360,7 @@ tokens f = P.filter (not.null) . splitWith f
 -- > group "Mississippi" = ["M","i","ss","i","ss","i","pp","i"]
 --
 -- It is a special case of 'groupBy', which allows the programmer to
--- supply their own equality test. It is about 40% faster than 
+-- supply their own equality test. It is about 40% faster than
 -- /groupBy (==)/
 {-@ group :: b:ByteString -> {v: [ByteStringNE] | (bLengths v) = (bLength b)} @-}
 group :: ByteString -> [ByteString]
@@ -1390,9 +1389,9 @@ groupBy k xs
 -- | /O(n)/ The 'intercalate' function takes a 'ByteString' and a list of
 -- 'ByteString's and concatenates the list after interspersing the first
 -- argument between each element of the list.
--- LIQUID FAIL: NonLinear Invariant. 
--- LIQUID {- intercalate :: b:ByteString 
--- LIQUID                -> bs:[ByteString] 
+-- LIQUID FAIL: NonLinear Invariant.
+-- LIQUID {- intercalate :: b:ByteString
+-- LIQUID                -> bs:[ByteString]
 -- LIQUID                -> {v:ByteString | (bLength v) = (bLengths bs) + ((len bs) - 1) * (bLength b)} -}
 -- LIQUID: If we INLINE intersperse then can show simpler
 -- LIQUID {- intersperse :: ByteString -> bs:[ByteString] -> {v:ByteString | (bLengths bs) <= (bLength v)}
@@ -1441,7 +1440,7 @@ index ps n
 
 -- | /O(n)/ The 'elemIndex' function returns the index of the first
 -- element in the given 'ByteString' which is equal to the query
--- element, or 'Nothing' if there is no such element. 
+-- element, or 'Nothing' if there is no such element.
 -- This implementation uses memchr(3).
 
 {-@ elemIndex :: Word8 -> b:ByteString -> Maybe {v:Nat | v < (bLength b)} @-}
@@ -1457,7 +1456,7 @@ elemIndex c (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
 -- element, or 'Nothing' if there is no such element. The following
 -- holds:
 --
--- > elemIndexEnd c xs == 
+-- > elemIndexEnd c xs ==
 -- > (-) (length xs - 1) `fmap` elemIndex c (reverse xs)
 --
 {-@ elemIndexEnd :: Word8 -> b:ByteString -> Maybe {v:Nat | v < (bLength b) } @-}
@@ -1552,7 +1551,7 @@ findIndices :: (Word8 -> Bool) -> ByteString -> [Int]
 findIndices p ps = loop 0 ps
    where
      STRICT2(loop)
-     loop (n :: Int) qs             -- LIQUID CAST 
+     loop (n :: Int) qs             -- LIQUID CAST
         | null qs           = []
         | p (unsafeHead qs) = n : loop (n+1) (unsafeTail qs)
         | otherwise         =     loop (n+1) (unsafeTail qs)
@@ -1635,7 +1634,7 @@ find f p = case findIndex f p of
 {-
 --
 -- fuseable, but we don't want to walk the whole array.
--- 
+--
 find k = foldl findEFL Nothing
     where findEFL a@(Just _) _ = a
           findEFL _          c | k c       = Just c
@@ -1671,7 +1670,7 @@ isPrefixOf (PS x1 s1 l1) (PS x2 s2 l2)
 
 -- | /O(n)/ The 'isSuffixOf' function takes two ByteStrings and returns 'True'
 -- iff the first is a suffix of the second.
--- 
+--
 -- The following holds:
 --
 -- > isSuffixOf x y == reverse x `isPrefixOf` reverse y
@@ -1727,7 +1726,7 @@ findSubstrings :: ByteString -- ^ String to search for.
                -> ByteString -- ^ String to seach in.
                -> [Int]
 
--- LIQUID LATEST 
+-- LIQUID LATEST
 findSubstrings pat str
     | null pat         = rng (length str - 1) -- LIQUID COMPREHENSIONS [0 .. (length str - 1)]
     | otherwise        = search 0 str
@@ -1739,7 +1738,7 @@ findSubstrings pat str
         | otherwise          =     search (n+1) (unsafeTail s)
 
 
-{- 
+{-
 findSubstrings pat@(PS _ _ m) str@(PS _ _ n) = search 0 0
   where
       patc x = pat `unsafeIndex` x
@@ -1795,7 +1794,7 @@ zip ps qs
 -- | 'zipWith' generalises 'zip' by zipping with the function given as
 -- the first argument, instead of a tupling function.  For example,
 -- @'zipWith' (+)@ is applied to two ByteStrings to produce the list of
--- corresponding sums. 
+-- corresponding sums.
 {-@ zipWith :: (Word8 -> Word8 -> a) -> x:ByteString -> y:ByteString -> {v:[a] | (ZipLen v x y)} @-}
 zipWith :: (Word8 -> Word8 -> a) -> ByteString -> ByteString -> [a]
 zipWith f ps qs
@@ -1812,7 +1811,7 @@ zipWith f ps qs
 -- performed on the result of zipWith, but we also export it for
 -- convenience.
 
--- LIQUID NICE-INFERENCE-EXAMPLE! 
+-- LIQUID NICE-INFERENCE-EXAMPLE!
 {-@ predicate ZipLenB V X Y = (bLength V) = (if (bLength X) <= (bLength Y) then (bLength X) else (bLength Y)) @-}
 {-@ zipWith' :: (Word8 -> Word8 -> Word8) -> x:ByteString -> y:ByteString -> {v:ByteString | (ZipLenB v x y)} @-}
 zipWith' :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString -> ByteString
@@ -1847,7 +1846,7 @@ zipWith' f (PS fp s l) (PS fq t m) = inlinePerformIO $
 unzip :: [(Word8,Word8)] -> (ByteString,ByteString)
 unzip ls = (pack (P.map fst ls), pack (P.map snd ls))
 {-# INLINE unzip #-}
- 
+
 -- ---------------------------------------------------------------------
 -- Special lists
 
@@ -1864,7 +1863,7 @@ inits (PS x s l) = PS x s 0 : go 0 (rng 1 l)
 {- rng :: n:Nat -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
 rng :: Int -> [Int]
 rng 0 = [0]
-rng n = n : rng (n-1) 
+rng n = n : rng (n-1)
 
 
 -- | /O(n)/ Return all final segments of the given 'ByteString', longest first.
@@ -1975,12 +1974,12 @@ packCStringLen (cstr, lenFFF) = create lenFFF $ \p ->
 
 ------------------------------------------------------------------------
 
--- | /O(n)/ Make a copy of the 'ByteString' with its own storage. 
+-- | /O(n)/ Make a copy of the 'ByteString' with its own storage.
 -- This is mainly useful to allow the rest of the data pointed
 -- to by the 'ByteString' to be garbage collected, for example
--- if a large string has been read in, and only a small part of it 
+-- if a large string has been read in, and only a small part of it
 -- is needed in the rest of the program.
--- 
+--
 {-@ copy :: b:ByteString -> (ByteStringSZ b) @-}
 copy :: ByteString -> ByteString
 copy (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f ->
@@ -2096,7 +2095,7 @@ hPut :: Handle -> ByteString -> IO ()
 hPut _ (PS _  _ 0) = return ()
 hPut h (PS ps s l) = withForeignPtr ps $ \p-> hPutBuf h (p `plusPtr` s) l
 
--- | A synonym for @hPut@, for compatibility 
+-- | A synonym for @hPut@, for compatibility
 hPutStr :: Handle -> ByteString -> IO ()
 hPutStr = hPut
 
@@ -2302,8 +2301,8 @@ findFromEndUntil f ps@(PS x s l) =
 
 
 
--- // for unfoldrN 
-{-@ qualif PLenNat(v:GHC.Ptr.Ptr a): (0 <= plen v) 
+-- // for unfoldrN
+{-@ qualif PLenNat(v:GHC.Ptr.Ptr a): (0 <= plen v)
   @-}
 
 -- // for UnpackFoldrINLINED
@@ -2318,7 +2317,7 @@ findFromEndUntil f ps@(PS x s l) =
 {-@ qualif BLens(v:List Data.ByteString.Internal.ByteString) : (0 <= bLengths v)
   @-}
 
-{-@ qualif BLenLE(v:GHC.Ptr.Ptr a, bs:List Data.ByteString.Internal.ByteString): (bLengths bs <= plen v) 
+{-@ qualif BLenLE(v:GHC.Ptr.Ptr a, bs:List Data.ByteString.Internal.ByteString): (bLengths bs <= plen v)
   @-}
 
 -- // for ByteString.splitWith
@@ -2330,7 +2329,7 @@ findFromEndUntil f ps@(PS x s l) =
   @-}
 
 -- // for ByteString.split
-{-@ qualif BSValidOff(v:int,l:int,p:GHC.ForeignPtr.ForeignPtr a): (v + l <= fplen p) 
+{-@ qualif BSValidOff(v:int,l:int,p:GHC.ForeignPtr.ForeignPtr a): (v + l <= fplen p)
   @-}
 
 

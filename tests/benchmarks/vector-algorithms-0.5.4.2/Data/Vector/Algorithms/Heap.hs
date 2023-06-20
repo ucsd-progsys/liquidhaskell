@@ -66,11 +66,11 @@ sortBy cmp a = sortByBounds cmp a 0 (length a)
 
 -- | Sorts a portion of an array [l,u) using a custom ordering
 {-@ sortByBounds :: (PrimMonad m, MVector v e)
-                 => Comparison e -> vec:(v (PrimState m) e) 
-                 -> l:{v:Nat | (InRng v 0 (vsize vec))} -> u:{v:Nat | (InRng v l (vsize vec))} 
+                 => Comparison e -> vec:(v (PrimState m) e)
+                 -> l:{v:Nat | (InRng v 0 (vsize vec))} -> u:{v:Nat | (InRng v l (vsize vec))}
                  -> m ()
   @-}
-                 -- -> l:(OkIdx vec) -> u:{v:Nat | (InRngL v l (vsize vec))} 
+                 -- -> l:(OkIdx vec) -> u:{v:Nat | (InRngL v l (vsize vec))}
 sortByBounds :: (PrimMonad m, MVector v e)
              => Comparison e -> v (PrimState m) e -> Int -> Int -> m ()
 sortByBounds cmp a l  u
@@ -104,7 +104,7 @@ selectBy cmp a k = selectByBounds cmp a k 0 (length a)
 -- no particular order.
 {-@ selectByBounds :: (PrimMonad m, MVector v e)
                    => Comparison e -> vec:(NeVec v m e)
-                   -> Pos -> l:(OkIdx vec) -> u:{v:Nat | (InRngL v l (vsize vec))} 
+                   -> Pos -> l:(OkIdx vec) -> u:{v:Nat | (InRngL v l (vsize vec))}
                    -> m ()
   @-}
 selectByBounds :: (PrimMonad m, MVector v e)
@@ -113,7 +113,6 @@ selectByBounds cmp a k l u
   | l + k <= u = heapify cmp a l (l + k) >> go l (l + k) (u - 1)
   | otherwise  = return ()
  where
- {-@ decrease go 3 @-}
  go l m u
    | u < m      = return ()
    | otherwise  = do el <- unsafeRead a l
@@ -142,7 +141,7 @@ partialSortBy cmp a k = partialSortByBounds cmp a k 0 (length a)
 -- into positions [l,k+l), sorted.
 {-@ partialSortByBounds :: (PrimMonad m, MVector v e)
                    => Comparison e -> vec:(NeVec v m e)
-                   -> Pos -> l:(OkIdx vec) -> u:{v:Nat | (InRngL v l (vsize vec))} 
+                   -> Pos -> l:(OkIdx vec) -> u:{v:Nat | (InRngL v l (vsize vec))}
                    -> m ()
   @-}
 partialSortByBounds :: (PrimMonad m, MVector v e)
@@ -167,14 +166,14 @@ partialSortByBounds cmp a k l u
 
 -- | Constructs a heap in a portion of an array [l, u)
 {-@ heapify :: (PrimMonad m, MVector v e)
-            => Comparison e 
-            -> vec:(v (PrimState m) e) 
-            -> l:(OkIdx vec) -> u:{v:Nat | (InRngL v l (vsize vec))} 
+            => Comparison e
+            -> vec:(v (PrimState m) e)
+            -> l:(OkIdx vec) -> u:{v:Nat | (InRngL v l (vsize vec))}
             -> m ()
   @-}
 heapify :: (PrimMonad m, MVector v e)
         => Comparison e -> v (PrimState m) e -> Int -> Int -> m ()
-heapify cmp a l u = loop (k0 + 1) k0 
+heapify cmp a l u = loop (k0 + 1) k0
   where
     k0  = (len - 1) `shiftRI` 2
     len = u - l
@@ -189,8 +188,8 @@ heapify cmp a l u = loop (k0 + 1) k0
 -- top of the heap with the element at u and rebuilds the heap.
 {-@ pop  :: (PrimMonad m, MVector v e)
          => Comparison e -> vec:v (PrimState m) e
-         -> l:{v:Nat | (OkRng v vec 0)} 
-         -> {v:GeInt l | (OkRng v vec 0)} 
+         -> l:{v:Nat | (OkRng v vec 0)}
+         -> {v:GeInt l | (OkRng v vec 0)}
          -> m ()
 @-}
 pop :: (PrimMonad m, MVector v e)
@@ -202,9 +201,9 @@ pop cmp a l u = popTo cmp a l u u
 -- of the heap with the element at position t, and rebuilds the heap.
 {-@ popTo :: (PrimMonad m, MVector v e)
          => Comparison e -> vec:v (PrimState m) e
-         -> l:{v:Nat | (OkRng v vec 0)} 
-         -> {v:GeInt l | (OkRng v vec 0)} 
-         -> {v:Nat | (OkRng v vec 0)} 
+         -> l:{v:Nat | (OkRng v vec 0)}
+         -> {v:GeInt l | (OkRng v vec 0)}
+         -> {v:Nat | (OkRng v vec 0)}
          -> m ()
 @-}
 popTo :: (PrimMonad m, MVector v e)
@@ -221,9 +220,9 @@ popTo cmp a l u t = do al <- unsafeRead a l
 
 {-@ sortHeap :: (PrimMonad m, MVector v e)
          => Comparison e -> vec:v (PrimState m) e
-         -> l:{v:Nat | (OkRng v vec 0)} 
-         -> m:{v:GeInt l | (OkRng v vec 0)} 
-         -> {v:Nat | (InRngL v l (vsize vec))} 
+         -> l:{v:Nat | (OkRng v vec 0)}
+         -> m:{v:GeInt l | (OkRng v vec 0)}
+         -> {v:Nat | (InRngL v l (vsize vec))}
          -> m ()
 @-}
 sortHeap :: (PrimMonad m, MVector v e)
@@ -239,7 +238,7 @@ sortHeap cmp a l m u = loop (u-1) >> unsafeSwap a l m
 -- the heap property should apply for [start + off, start + len + off). val
 -- is the new value to be put in the hole.
 {-@ siftByOffset :: (PrimMonad m, MVector v e)
-                 => Comparison e -> vec:(v (PrimState m) e)  -> e -> off:Nat 
+                 => Comparison e -> vec:(v (PrimState m) e)  -> e -> off:Nat
                  -> (LtIdxOff off vec) -> (LeIdxOff off vec) -> m ()
   @-}
 siftByOffset :: (PrimMonad m, MVector v e)
@@ -261,8 +260,8 @@ siftByOffset cmp a val off start len = sift val (len - start) start len
 
 {- NEED A STRONGER TYPE. Happily, liquid infers it... :)
    maximumChild :: (PrimMonad m, MVector v e)
-                 => Comparison e -> vec:(v (PrimState m) e) -> off:Nat 
-                 -> (LtIdxOff off vec) -> (LeIdxOff off vec) -> m ((LtIdxOff off vec), e) 
+                 => Comparison e -> vec:(v (PrimState m) e) -> off:Nat
+                 -> (LtIdxOff off vec) -> (LeIdxOff off vec) -> m ((LtIdxOff off vec), e)
   -}
 
 maximumChild :: (PrimMonad m, MVector v e)

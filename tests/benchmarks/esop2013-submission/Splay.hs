@@ -50,10 +50,10 @@ import Language.Haskell.Liquid.Prelude
 
 -- LIQUID left depends on value, so their order had to be changed
 {-@ data Splay [slen] a <l :: root:a -> a -> Bool, r :: root:a -> a -> Bool>
-         = Node (value :: a) 
-                (left  :: Splay <l, r> (a <l value>)) 
-                (right :: Splay <l, r> (a <r value>)) 
-         | Leaf 
+         = Node (value :: a)
+                (left  :: Splay <l, r> (a <l value>))
+                (right :: Splay <l, r> (a <r value>))
+         | Leaf
 @-}
 
 {-@ measure slen @-}
@@ -312,8 +312,7 @@ union a b = unionT a b (slen a + slen b)
 --LIQUID   where
 --LIQUID     (ta,_,tb) = split x t
 
-{-@ unionT :: Ord a => a:OSplay a -> b:OSplay a -> SumSLen a b -> OSplay a @-}
-{-@ decrease unionT 4 @-}
+{-@ unionT :: Ord a => a:OSplay a -> b:OSplay a -> s:SumSLen a b -> OSplay a / [s] @-}
 {- LIQUID WITNESS -}
 unionT :: Ord a => Splay a -> Splay a -> Int -> Splay a
 unionT Leaf         t _ = t
@@ -339,7 +338,6 @@ intersection a b = intersectionT a b (slen a + slen b)
 --LIQUID     (l', False, r') -> union (intersection l' l) (intersection r' r)
 
 {-@ intersectionT :: Ord a => a:OSplay a -> b:OSplay a -> SumSLen a b -> OSplay a @-}
-{-@ decrease intersectionT 4 @-}
 {- LIQUID WITNESS -}
 intersectionT :: Ord a => Splay a -> Splay a -> Int -> Splay a
 intersectionT Leaf _          _ = Leaf
@@ -366,7 +364,6 @@ difference a b = differenceT a b (slen a + slen b)
 --LIQUID     (l',_,r') = split x t1
 
 {-@ differenceT :: Ord a => a:OSplay a -> b:OSplay a -> SumSLen a b -> OSplay a @-}
-{-@ decrease differenceT 4 @-}
 {- LIQUID WITNESS -}
 differenceT :: Ord a => Splay a -> Splay a -> Int -> Splay a
 differenceT Leaf _          _ = Leaf
@@ -398,7 +395,6 @@ showSet = showSet_go ""
 
 --LIQUID FIXME: renamed from `showSet'`, must fix parser!
 
-{-@ decrease showSet_go 3 @-}
 showSet_go :: Show a => String -> Splay a -> String
 showSet_go _ Leaf = "\n"
 showSet_go pref (Node x l r) = show x ++ "\n"

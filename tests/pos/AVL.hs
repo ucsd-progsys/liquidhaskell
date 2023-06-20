@@ -3,7 +3,7 @@
 module AVL (Tree, singleton, insert, ht, bFac) where
 
 -- Basic functions
-{-@ data Tree [ht] @-} 
+{-@ data Tree [ht] @-}
 data Tree a = Nil | Tree a (Tree a) (Tree a) deriving Show
 
 {-@ measure ht @-}
@@ -29,7 +29,6 @@ singleton a = Tree a Nil Nil
 
 -- | Insert functions
 
-{-@ decrease insert 3 @-}
 {-@ insert :: a -> s: AVLTree -> {t: AVLTree | EqHt t s || HtDiff t s 1 } @-}
 insert :: (Ord a) => a -> Tree a -> Tree a
 insert a Nil = singleton a

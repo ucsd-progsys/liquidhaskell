@@ -34,8 +34,8 @@ import qualified Data.Vector.Algorithms.Insertion as I
 {- qualif Plus(v:Int, x:Int, y:Int): v = x + y   @-}
 
 {-@ qualif_plus :: x:Int -> y:Int -> {v:Int | v = x + y} @-}
-qualif_plus :: Int -> Int -> Int 
-qualif_plus = undefined 
+qualif_plus :: Int -> Int -> Int
+qualif_plus = undefined
 
 -- | Sorts an array using the default comparison.
 sort :: (PrimMonad m, MVector v e, Ord e) => v (PrimState m) e -> m ()
@@ -81,13 +81,10 @@ merge cmp src buf mid = do unsafeCopy low lower
  high  = unsafeSlice mid nHi src -- upper
  low   = unsafeSlice 0   mid buf -- tmp
  nHi   = nSrc - mid
- nSrc  = length src 
-
-{-@ decrease wroteHigh 1 2 @-}
-{-@ decrease wroteLow 1 2 @-}
-{-@ decrease loopMerge 1 2 @-}
+ nSrc  = length src
 
   {- LIQUID WITNESS -}
+  {-@ wroteHigh :: d1:_ -> d2:_ -> _ -> e -> _ -> _ -> m () / [d1,d2] @-}
  wroteHigh d1 (d2::Int) iLow eLow iHigh iIns
    | iHigh >= length high = unsafeCopy (unsafeSlice iIns (length low - iLow) src)
                                        (unsafeSlice iLow (length low - iLow) low)
@@ -95,17 +92,19 @@ merge cmp src buf mid = do unsafeCopy low lower
                                loopMerge d1 0 iLow eLow iHigh eHigh iIns
 
   {- LIQUID WITNESS -}
+{-@ wroteLow :: d1:_ -> d2:_ -> _ -> _ -> e -> _ -> m () / [d1,d2] @-}
  wroteLow d1 (d2::Int) iLow iHigh eHigh iIns
    | iLow  >= length low  = return ()
    | otherwise            = do eLow <- unsafeRead low iLow
                                loopMerge d1 0 iLow eLow iHigh eHigh iIns
 
   {- LIQUID WITNESS -}
- loopMerge (d::Int) (d2::Int) !iLow !eLow !iHigh !eHigh !iIns = case cmp eHigh eLow of
+ {-@ loopMerge :: d1:_ -> d2:_ -> _ -> e -> _ -> e -> _ -> m () / [d1,d2] @-}
+ loopMerge (d1::Int) (d2::Int) !iLow !eLow !iHigh !eHigh !iIns = case cmp eHigh eLow of
      LT -> do unsafeWrite src iIns eHigh
-              wroteHigh (d-1) 1 iLow eLow (iHigh + 1) (iIns + 1)
+              wroteHigh (d1-1) 1 iLow eLow (iHigh + 1) (iIns + 1)
      _  -> do unsafeWrite src iIns eLow
-              wroteLow (d-1) 1 (iLow + 1) iHigh eHigh (iIns + 1)
+              wroteLow (d1-1) 1 (iLow + 1) iHigh eHigh (iIns + 1)
 {-# INLINE merge #-}
 
 {-@ threshold :: {v:Int | v = 25} @-}
