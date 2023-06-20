@@ -12,7 +12,6 @@
 module Liquid.GHC.Logging (
     fromPJDoc
   , putWarnMsg
-  , putErrMsg
   , mkLongErrAt
   ) where
 
@@ -44,10 +43,6 @@ defaultErrStyle _dynFlags = GHC.defaultErrStyle
 putWarnMsg :: GHC.Logger -> GHC.DynFlags -> GHC.SrcSpan -> PJ.Doc -> IO ()
 putWarnMsg logger dynFlags srcSpan doc =
   putLogMsg logger dynFlags GHC.NoReason GHC.SevWarning srcSpan (Just $ defaultErrStyle dynFlags) doc
-
-putErrMsg :: GHC.Logger -> GHC.DynFlags -> GHC.SrcSpan -> PJ.Doc -> IO ()
-putErrMsg logger dynFlags srcSpan doc =
-  putLogMsg logger dynFlags GHC.NoReason GHC.SevError srcSpan Nothing doc
 
 -- | Like GHC's 'mkLongErrAt', but it builds the final 'ErrMsg' out of two \"HughesPJ\"'s 'Doc's.
 mkLongErrAt :: GHC.SrcSpan -> PJ.Doc -> PJ.Doc -> GHC.TcRn (GHC.MsgEnvelope GHC.DecoratedSDoc)

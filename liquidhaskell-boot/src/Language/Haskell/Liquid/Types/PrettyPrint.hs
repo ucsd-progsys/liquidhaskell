@@ -27,7 +27,6 @@ module Language.Haskell.Liquid.Types.PrettyPrint
 
   -- * Printing diagnostics
   , printWarning
-  , printError
 
   -- * Filtering errors
   , Filter(..)
@@ -53,7 +52,6 @@ import qualified Liquid.GHC.API  as Ghc
 import           Liquid.GHC.API  as Ghc ( Class
                                                          , SrcSpan
                                                          , PprPrec
-                                                         , DynFlags
                                                          , Type
                                                          , Var
                                                          , Name
@@ -64,7 +62,7 @@ import           Liquid.GHC.API  as Ghc ( Class
                                                          , srcSpanStartLine
                                                          , srcSpanStartCol
                                                          )
-import           Liquid.GHC.Logging (putErrMsg, mkLongErrAt)
+import           Liquid.GHC.Logging (mkLongErrAt)
 import           Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Types
@@ -448,9 +446,6 @@ instance (PPrint r, F.Reftable r) => PPrint (UReft r) where
 --------------------------------------------------------------------------------
 -- | Pretty-printing errors ----------------------------------------------------
 --------------------------------------------------------------------------------
-
-printError :: (Show e, F.PPrint e) => Ghc.Logger -> F.Tidy -> DynFlags -> TError e -> IO ()
-printError logger k dyn err = putErrMsg logger dyn (pos err) (ppError k empty err)
 
 -- | Similar in spirit to 'reportErrors' from the GHC API, but it uses our
 -- pretty-printer and shim functions under the hood. Also filters the errors

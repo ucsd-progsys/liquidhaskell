@@ -18,8 +18,6 @@ module Liquid.GHC.GhcMonadLike (
   -- * Functions and typeclass methods
 
   , askHscEnv
-  , getModuleGraph
-  , getModSummary
   , lookupModSummary
   , lookupGlobalName
   , lookupName
@@ -28,38 +26,31 @@ module Liquid.GHC.GhcMonadLike (
   , parseModule
   , typecheckModule
   , desugarModule
-  , findModule
-  , lookupModule
   , isBootInterface
   , ApiComment(..)
   , apiComments
   ) where
 
 import Control.Monad.IO.Class
-import Control.Exception (throwIO)
 
 import Data.Data (Data, gmapQr)
 import Data.Generics (extQ)
 import qualified Data.List
 import qualified Liquid.GHC.API   as Ghc
 import           Liquid.GHC.API   hiding ( ModuleInfo
-                                                          , findModule
                                                           , desugarModule
                                                           , typecheckModule
                                                           , parseModule
                                                           , lookupName
                                                           , lookupGlobalName
-                                                          , getModSummary
                                                           , getModuleGraph
                                                           , modInfoLookupName
-                                                          , lookupModule
                                                           , TypecheckedModule
                                                           , tm_parsed_module
                                                           , tm_renamed_source
                                                           )
 
 import GHC.Data.Maybe
-import GHC.Driver.Make
 import GHC.Utils.Exception (ExceptionMonad)
 import qualified GHC.Core.Opt.Monad as CoreMonad
 import qualified GHC.Data.EnumSet as EnumSet
@@ -97,25 +88,6 @@ instance GhcMonadLike (IfM lcl)
 instance GhcMonadLike TcM
 instance GhcMonadLike Hsc
 instance (ExceptionMonad m, GhcMonadLike m) => GhcMonadLike (GhcT m)
-
--- NOTE(adn) Taken from the GHC API, adapted to work for a 'GhcMonadLike' monad.
-getModuleGraph :: GhcMonadLike m => m ModuleGraph
-getModuleGraph = fmap hsc_mod_graph askHscEnv
-
--- NOTE(adn) Taken from the GHC API, adapted to work for a 'GhcMonadLike' monad.
-getModSummary :: GhcMonadLike m => ModuleName -> m ModSummary
-getModSummary mdl = do
-   mg <- fmap hsc_mod_graph askHscEnv
-   let mods_by_name = [ ms | ms <- mgModSummaries mg
-                      , ms_mod_name ms == mdl
-                      , not (isBootInterface . isBootSummary $ ms) ]
-   case mods_by_name of
-     [] -> do dflags <- getDynFlags
-              liftIO $ throwIO $ GhcApiError (showSDoc dflags (text "Module not part of module graph"))
-     [ms] -> return ms
-     multiple -> do dflags <- getDynFlags
-                    liftIO $ throwIO $ GhcApiError (showSDoc dflags (text "getModSummary is ambiguous: " <+> ppr multiple))
-
 
 -- Converts a 'IsBootInterface' into a 'Bool'.
 isBootInterface :: IsBootInterface -> Bool
@@ -204,14 +176,6 @@ typecheckModule pmod = do
     , tm_gbl_env        = tc_gbl_env
     }
 
-{- | [NOTE:ghc810]
-Something changed in the GHC bowels such that the 'hscTarget' that the 'ModSummary' was inheriting
-was /not/ the one we were setting in 'configureDynFlags'. This is important, because if the 'hscTarget'
-is not 'HscInterpreted' or 'HscNothing', the call to 'targetRetainsAllBindings' will yield 'False'. This
-function is used internally by GHC to do dead-code-elimination and to mark functions as "exported" or not.
-Therefore, the 'CoreBind's passed to LiquidHaskell would be different between GHC 8.6.5 and GHC 8.10.
--}
-
 class IsTypecheckedModule t where
   tmParsedModule :: Lens'  t ParsedModule
   tmModSummary   :: Lens'  t ModSummary
@@ -240,63 +204,6 @@ desugarModule originalModSum typechecked = do
   hsc_env <- askHscEnv
   let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts (view tmModSummary typechecked') }
   liftIO $ hscDesugar hsc_env_tmp (view tmModSummary typechecked') (view tmGblEnv typechecked')
-
--- | Takes a 'ModuleName' and possibly a 'UnitId', and consults the
--- filesystem and package database to find the corresponding 'Module',
--- using the algorithm that is used for an @import@ declaration.
-findModule :: GhcMonadLike m => ModuleName -> Maybe FastString -> m Module
-findModule mod_name maybe_pkg = do
-  hsc_env <- askHscEnv
-  let
-    dflags   = hsc_dflags hsc_env
-    this_pkg = thisPackage dflags
-    throwNoModError err = throwOneError $ noModError hsc_env noSrcSpan mod_name err
-  case maybe_pkg of
-    Just pkg | fsToUnitId pkg /= this_pkg && pkg /= fsLit "this" -> liftIO $ do
-      res <- findImportedModule hsc_env mod_name maybe_pkg
-      case res of
-        Found _ m -> return m
-        err       -> throwNoModError err
-    _otherwise -> do
-      home <- lookupLoadedHomeModule mod_name
-      case home of
-        Just m  -> return m
-        Nothing -> liftIO $ do
-           res <- findImportedModule hsc_env mod_name maybe_pkg
-           case res of
-             Found loc m | moduleUnitId m /= this_pkg -> return m
-                         | otherwise -> modNotLoadedError dflags m loc
-             err -> throwNoModError err
-
-
-lookupLoadedHomeModule :: GhcMonadLike m => ModuleName -> m (Maybe Module)
-lookupLoadedHomeModule mod_name = do
-  hsc_env <- askHscEnv
-  case lookupHpt (hsc_HPT hsc_env) mod_name of
-    Just mod_info      -> return (Just (mi_module (hm_iface mod_info)))
-    _not_a_home_module -> return Nothing
-
-
-modNotLoadedError :: DynFlags -> Module -> ModLocation -> IO a
-modNotLoadedError dflags m loc = throwGhcExceptionIO $ CmdLineError $ showSDoc dflags $
-   text "module is not loaded:" <+>
-   quotes (ppr (moduleName m)) <+>
-   parens (text (expectJust "modNotLoadedError" (ml_hs_file loc)))
-
-
-lookupModule :: GhcMonadLike m => ModuleName -> Maybe FastString -> m Module
-lookupModule mod_name (Just pkg) = findModule mod_name (Just pkg)
-lookupModule mod_name Nothing = do
-  hsc_env <- askHscEnv
-  home <- lookupLoadedHomeModule mod_name
-  case home of
-    Just m  -> return m
-    Nothing -> liftIO $ do
-      res <- findExposedPackageModule hsc_env mod_name Nothing
-      case res of
-        Found _ m -> return m
-        err       ->
-          throwOneError $ noModError hsc_env noSrcSpan mod_name err
 
 -- | Abstraction of 'EpaComment'.
 data ApiComment

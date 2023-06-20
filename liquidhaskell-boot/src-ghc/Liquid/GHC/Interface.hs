@@ -35,7 +35,6 @@ module Liquid.GHC.Interface (
   , qualifiedImports
   , modSummaryHsFile
   , makeFamInstEnv
-  , findAndParseSpecFiles
   , parseSpecFile
   , clearSpec
   , checkFilePragmas
@@ -60,12 +59,10 @@ import           Liquid.GHC.API as Ghc hiding ( text
                                                                , Located
                                                                )
 import qualified Liquid.GHC.API as Ghc
-import qualified Liquid.GHC.API as O
 
 import Control.Exception
 import Control.Monad
 
-import Data.Bifunctor
 import Data.Data
 import Data.IORef
 import Data.List hiding (intersperse)
@@ -77,7 +74,6 @@ import Data.Generics.Schemes (everywhere)
 import qualified Data.HashSet        as S
 
 import System.Console.CmdArgs.Verbosity hiding (Loud)
-import System.FilePath
 import System.IO
 import Text.Megaparsec.Error
 import Text.PrettyPrint.HughesPJ        hiding (first, (<>))
@@ -87,7 +83,7 @@ import Liquid.GHC.Misc
 import Liquid.GHC.Types (MGIModGuts(..), miModGuts)
 import Liquid.GHC.Play
 import qualified Liquid.GHC.GhcMonadLike as GhcMonadLike
-import Liquid.GHC.GhcMonadLike (GhcMonadLike, isBootInterface, askHscEnv)
+import Liquid.GHC.GhcMonadLike (GhcMonadLike, askHscEnv)
 import Language.Haskell.Liquid.WiredIn (isDerivedInstance)
 import qualified Language.Haskell.Liquid.Measure  as Ms
 import qualified Language.Haskell.Liquid.Misc     as Misc
@@ -98,39 +94,11 @@ import Language.Haskell.Liquid.Types hiding (Spec)
 -- import Language.Haskell.Liquid.Types.Visitors
 import Language.Haskell.Liquid.UX.QuasiQuoter
 import Language.Haskell.Liquid.UX.Tidy
-import Language.Fixpoint.Utils.Files
 
 import Optics hiding (ix)
 
 import qualified Debug.Trace as Debug
 
-
---------------------------------------------------------------------------------
--- Home Module Dependency Graph ------------------------------------------------
---------------------------------------------------------------------------------
-
-isHomeModule :: GhcMonadLike m => Module -> m Bool
-isHomeModule mod' = do
-  homePkg <- thisPackage <$> getDynFlags
-  return   $ moduleUnitId mod' == homePkg
-
-modSummaryImports :: GhcMonadLike m => ModSummary -> m [Module]
-modSummaryImports modSummary =
-  mapM (importDeclModule (ms_mod modSummary))
-       (ms_textual_imps modSummary)
-
-importDeclModule :: GhcMonadLike m => Module -> (Maybe FastString,  Ghc.Located ModuleName) -> m Module
-importDeclModule fromMod (mpkgQual, locModName) = do
-  hscEnv <- askHscEnv
-  let modName = unLoc locModName
-  res <- liftIO $ findImportedModule hscEnv modName mpkgQual
-  case res of
-    Ghc.Found _ mod' -> return mod'
-    _ -> do
-      dflags <- getDynFlags
-      liftIO $ throwGhcExceptionIO $ ProgramError $
-        O.showPpr dflags (moduleName fromMod) ++ ": " ++
-        O.showSDoc dflags (cannotFindModule hscEnv modName res)
 
 --------------------------------------------------------------------------------
 -- | Extract Ids ---------------------------------------------------------------
@@ -455,69 +423,6 @@ refreshSymbol = symbol . symbolText
 -- | Finding & Parsing Files ---------------------------------------------------
 --------------------------------------------------------------------------------
 
--- | Handle Spec Files ---------------------------------------------------------
-
-findAndParseSpecFiles :: GhcMonadLike m
-                      => Config
-                      -> S.HashSet FilePath
-                      -> ModSummary
-                      -> [Module]
-                      -> m [(ModName, Ms.BareSpec)]
-findAndParseSpecFiles cfg paths modSummary reachable = do
-  modGraph <- GhcMonadLike.getModuleGraph
-  impSumms <- mapM GhcMonadLike.getModSummary (moduleName <$> reachable)
-  imps''   <- nub . concat <$> mapM modSummaryImports (modSummary : impSumms)
-  imps'    <- filterM ((not <$>) . isHomeModule) imps''
-  let imps  = m2s <$> imps'
-  fs'      <- liftIO $ moduleFiles modGraph Spec paths imps
-  -- liftIO  $ whenLoud  $ print ("moduleFiles-imps'': "  ++ show (m2s <$> imps''))
-  -- liftIO  $ whenLoud  $ print ("moduleFiles-imps' : "  ++ show (m2s <$> imps'))
-  -- liftIO  $ whenLoud  $ print ("moduleFiles-imps  : "  ++ show imps)
-  -- liftIO  $ whenLoud  $ print ("moduleFiles-Paths : "  ++ show paths)
-  -- liftIO  $ whenLoud  $ print ("moduleFiles-Specs : "  ++ show fs')
-  patSpec  <- liftIO $ getPatSpec  modGraph paths $ totalityCheck cfg
-  rlSpec   <- liftIO $ getRealSpec modGraph paths $ not (linear cfg)
-  let fs    = patSpec ++ rlSpec ++ fs'
-  liftIO $ transParseSpecs modGraph paths mempty mempty fs
-  where
-    m2s = moduleNameString . moduleName
-
-getPatSpec :: ModuleGraph -> S.HashSet FilePath -> Bool -> IO [FilePath]
-getPatSpec modGraph paths totalitycheck
- | totalitycheck = moduleFiles modGraph Spec paths [patErrorName]
- | otherwise     = return []
- where
-  patErrorName   = "PatErr"
-
-getRealSpec :: ModuleGraph -> S.HashSet FilePath -> Bool -> IO [FilePath]
-getRealSpec modGraph paths freal
-  | freal     = moduleFiles modGraph Spec paths [realSpecName]
-  | otherwise = moduleFiles modGraph Spec paths [notRealSpecName]
-  where
-    realSpecName    = "Real"
-    notRealSpecName = "NotReal"
-
-transParseSpecs :: ModuleGraph
-                -> S.HashSet FilePath
-                -> S.HashSet FilePath
-                -> [(ModName, Ms.BareSpec)]
-                -> [FilePath]
-                -> IO [(ModName, Ms.BareSpec)]
-transParseSpecs _ _ _ specs [] = return specs
-transParseSpecs modGraph paths seenFiles specs newFiles = do
-  -- liftIO $ print ("TRANS-PARSE-SPECS", seenFiles, newFiles)
-  newSpecs      <- liftIO $ mapM parseSpecFile newFiles
-  impFiles      <- moduleFiles modGraph Spec paths $ specsImports newSpecs
-  let seenFiles' = seenFiles `S.union` S.fromList newFiles
-  let specs'     = specs ++ map (second noTerm) newSpecs
-  let newFiles'  = filter (not . (`S.member` seenFiles')) impFiles
-  transParseSpecs modGraph paths seenFiles' specs' newFiles'
-  where
-    specsImports ss = nub $ concatMap (map symbolString . Ms.imports . snd) ss
-
-noTerm :: Ms.BareSpec -> Ms.BareSpec
-noTerm spec = spec { Ms.decr = mempty, Ms.lazy = mempty, Ms.termexprs = mempty }
-
 -- | Parse a spec file by path.
 --
 -- On a parse error, we fail.
@@ -534,36 +439,6 @@ parseSpecFile file = do
       hPutStrLn stderr (errorBundlePretty peb)
       panic Nothing "parsing spec file failed"
     Right x  -> pure x
-
--- Find Hquals Files -----------------------------------------------------------
-
--- _moduleHquals :: MGIModGuts
---              -> [FilePath]
---              -> FilePath
---              -> [String]
---              -> [FilePath]
---              -> Ghc [FilePath]
--- _moduleHquals mgi paths target imps incs = do
---   hqs   <- specIncludes Hquals paths incs
---   hqs'  <- moduleFiles Hquals paths (mgi_namestring mgi : imps)
---   hqs'' <- liftIO $ filterM doesFileExist [extFileName Hquals target]
---   return $ Misc.sortNub $ hqs'' ++ hqs ++ hqs'
-
--- Find Files for Modules ------------------------------------------------------
-
-moduleFiles :: ModuleGraph -> Ext -> S.HashSet FilePath -> [String] -> IO [FilePath]
-moduleFiles modGraph ext paths names = catMaybes <$> mapM (moduleFile modGraph ext paths) names
-
-moduleFile :: ModuleGraph -> Ext -> S.HashSet FilePath -> String -> IO (Maybe FilePath)
-moduleFile modGraph ext (S.toList -> paths) name
-  | ext `elem` [Hs, LHs] = do
-    let graph = mgModSummaries modGraph
-    case find (\m -> not (isBootInterface . isBootSummary $ m) &&
-                     name == moduleNameString (ms_mod_name m)) graph of
-      Nothing -> getFileInDirs (extModuleName name ext) paths
-      Just ms -> return $ normalise <$> ml_hs_file (ms_location ms)
-  | otherwise = getFileInDirs (extModuleName name ext) paths
-
 
 --------------------------------------------------------------------------------
 -- Assemble Information for Spec Extraction ------------------------------------
