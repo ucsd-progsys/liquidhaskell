@@ -16,14 +16,8 @@
 
 module Liquid.GHC.Interface (
 
-  -- * Determine the build-order for target files
-   realTargets
-
-  , getInterfaceDynFlags
-
   -- * Extract all information needed for verification
-  , getTargetInfos
-  , runLiquidGhc
+    getTargetInfos
 
   -- * Printer
   , pprintCBs
@@ -122,55 +116,6 @@ import Language.Fixpoint.Utils.Files
 import Optics hiding (ix)
 
 import qualified Debug.Trace as Debug
-
-
---------------------------------------------------------------------------------
-{- | @realTargets mE cfg targets@ uses `Interface.configureGhcTargets` to
-     return a list of files
-
-       [i1, i2, ... ] ++ [f1, f2, ...]
-
-     1. Where each file only (transitively imports) PRECEDIING ones;
-     2. `f1..` are a permutation of the original `targets`;
-     3. `i1..` either don't have "fresh" .bspec files.
-
- -}
---------------------------------------------------------------------------------
-realTargets :: Maybe HscEnv -> Config -> [FilePath] -> IO [FilePath]
-realTargets  mbEnv cfg tgtFs
-  | noCheckImports cfg = return tgtFs
-  | otherwise          = do
-    srcFs    <- orderTargets mbEnv cfg tgtFs
-    realFs   <- filterM check srcFs
-    dir      <- getCurrentDirectory
-    return      (makeRelative dir <$> realFs)
-  where
-    check f    = not <$> skipTarget tgts f
-    tgts       = S.fromList tgtFs
-
-getInterfaceDynFlags :: Maybe HscEnv -> Config -> IO DynFlags
-getInterfaceDynFlags mbEnv cfg = runLiquidGhc mbEnv cfg getSessionDynFlags
-
-orderTargets :: Maybe HscEnv -> Config -> [FilePath] -> IO [FilePath]
-orderTargets mbEnv cfg tgtFiles = runLiquidGhc mbEnv cfg $ do
-  homeModules <- configureGhcTargets tgtFiles
-  return         (modSummaryHsFile <$> mgModSummaries homeModules)
-
-
-skipTarget :: S.HashSet FilePath -> FilePath -> IO Bool
-skipTarget tgts f
-  | S.member f tgts = return False          -- Always check target file
-  | otherwise       = hasFreshBinSpec f     -- But skip an import with fresh .bspec
-
-hasFreshBinSpec :: FilePath -> IO Bool
-hasFreshBinSpec srcF = do
-  let specF = extFileName BinSpec srcF
-  srcMb    <- Misc.lastModified srcF
-  specMb   <- Misc.lastModified specF
-  case (srcMb, specMb) of
-    (Just srcT, Just specT) -> return (srcT < specT)
-    _                       -> return False
-
 
 
 --------------------------------------------------------------------------------
