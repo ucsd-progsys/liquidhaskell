@@ -30,7 +30,6 @@ import           Liquid.GHC.API                   as Ghc hiding ( panic
 import           Liquid.GHC.TypeRep           ()
 import           Text.PrettyPrint.HughesPJ hiding ((<>))
 import           Control.Monad.State
-import           Data.Functor ((<&>))
 import           Data.Maybe                                    (fromMaybe, catMaybes, isJust, mapMaybe)
 import qualified Data.HashMap.Strict                           as M
 import qualified Data.HashSet                                  as S
