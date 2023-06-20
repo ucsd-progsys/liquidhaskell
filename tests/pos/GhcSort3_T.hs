@@ -7,12 +7,12 @@ sort3 :: (Ord a) => a -> [a] -> [a]
 sort3 w ls = qsort w ls [] (length ls) 0
 
 qsort :: (Ord a) =>  a -> [a] -> [a] -> Int -> Int -> [a]
-{-@ qsort, rqsort :: (Ord a) =>  w:a -> xs:[{v:a|v<=w}] -> OList {v:a|v>=w} -> {v:Int | v = (len xs) } -> {v2:Int | v2 = 0 } -> OList a / [v,v2] @-}
+{-@ qsort, rqsort :: (Ord a) =>  w:a -> xs:[{v:a|v<=w}] -> OList {v:a|v>=w} -> {v:Int | v = len xs } -> {v2:Int | v2 = 0 } -> OList a / [v,v2] @-}
 qsort _ []     r _ _ = r
 qsort _ [x]    r _ _ = x:r
 qsort w (x:xs) r _ _ = qpart w x xs [] [] r (length xs) (length xs + 1)
 
-{-@ qpart, rqpart :: (Ord a) => w:a -> x:{v:a|v<=w} -> xs:[{v:a|v <= w}] -> lt:[{v:a|((v<=x) && (v<=w))}] -> ge:[{v:a|((v >= x) && (v<=w))}] -> rs:(OList {v:a|v >= w}) -> {v:Int | v = ((len xs) + (len lt) + (len ge))} -> {v2:Int|v2 = (len xs) + 1} -> OList a / [v,v2] @-}
+{-@ qpart, rqpart :: (Ord a) => w:a -> x:{v:a|v<=w} -> xs:[{v:a|v <= w}] -> lt:[{v:a|v<=x && v<=w}] -> ge:[{v:a|v>=x && v<=w}] -> rs:(OList {v:a|v>=w}) -> {v:Int |v = len xs + len lt + len ge} -> {v2:Int|v2 = len xs + 1} -> OList a / [v,v2] @-}
 qpart :: (Ord a) => a -> a -> [a] -> [a] -> [a] -> [a] -> Int -> Int -> [a]
 qpart w x [] rlt rge r _ _ =
     rqsort x rlt (x:rqsort w rge r (length rge) 0) (length rlt) 0
@@ -21,7 +21,7 @@ qpart w x (y:ys) rlt rge r d1 d2 =
         GT -> qpart w x ys (y:rlt) rge r d1 (d2 - 1)
         _  -> qpart w x ys rlt (y:rge) r d1 (d2 - 1)
 
-{- rqsort :: (Ord a) =>  w:a -> xs:[{v:a|v<=w}] -> OList {v:a|v>=w} -> {v:Int | v = (len xs) } -> {v2:Int | v2 = 0 } -> OList a / [v,v2] @-}
+{- rqsort :: (Ord a) =>  w:a -> xs:[{v:a|v<=w}] -> OList {v:a|v>=w} -> {v:Int | v = len xs } -> {v2:Int | v2 = 0 } -> OList a / [v,v2] @-}
 rqsort :: (Ord a) => a -> [a] -> [a] -> Int -> Int -> [a]
 rqsort _ []     r _ _ = r
 rqsort _ [x]    r _ _ = x:r
