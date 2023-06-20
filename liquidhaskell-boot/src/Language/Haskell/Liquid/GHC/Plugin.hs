@@ -45,6 +45,7 @@ import           Liquid.GHC.GhcMonadLike ( GhcMonadLike
 import           GHC.LanguageExtensions
 
 import           Control.Monad
+import qualified Control.Monad.Catch as Ex
 
 import           Data.Coerce
 import           Data.Kind                                ( Type )
@@ -332,9 +333,9 @@ liquidHaskellCheckWithConfig globalCfg pipelineData modSummary tcGblEnv = do
     Right inputSpec ->
       withPragmas globalCfg thisFile (Ms.pragmas $ review bareSpecIso inputSpec) $ \moduleCfg -> do
         processInputSpec moduleCfg pipelineData modSummary tcGblEnv inputSpec
-          `gcatch` (\(e :: UserError) -> reportErrs moduleCfg [e])
-          `gcatch` (\(e :: Error) -> reportErrs moduleCfg [e])
-          `gcatch` (\(es :: [Error]) -> reportErrs moduleCfg es)
+          `Ex.catch` (\(e :: UserError) -> reportErrs moduleCfg [e])
+          `Ex.catch` (\(e :: Error) -> reportErrs moduleCfg [e])
+          `Ex.catch` (\(es :: [Error]) -> reportErrs moduleCfg es)
 
   where
     thisFile :: FilePath
@@ -567,9 +568,9 @@ processModule LiquidHaskellContext{..} = do
             }
 
         pure $ Right result')
-      `gcatch` (\(e :: UserError) -> reportErrs [e])
-      `gcatch` (\(e :: Error) -> reportErrs [e])
-      `gcatch` (\(es :: [Error]) -> reportErrs es)
+      `Ex.catch` (\(e :: UserError) -> reportErrs [e])
+      `Ex.catch` (\(e :: Error) -> reportErrs [e])
+      `Ex.catch` (\(es :: [Error]) -> reportErrs es)
 
   where
     modGuts    = fromUnoptimised lhModuleGuts

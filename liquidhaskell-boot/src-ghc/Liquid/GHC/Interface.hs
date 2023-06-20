@@ -257,10 +257,10 @@ lookupTyThings hscEnv modSum tcGblEnv = forM names (lookupTyThing hscEnv modSum 
 lookupTyThing :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> Name -> m (Name, Maybe TyThing)
 lookupTyThing hscEnv modSum tcGblEnv n = do
   mi  <- GhcMonadLike.moduleInfoTc modSum tcGblEnv
-  tt1 <-          GhcMonadLike.lookupName      n
+  tt1 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n
   tt2 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n
   tt3 <-          GhcMonadLike.modInfoLookupName mi n
-  tt4 <-          GhcMonadLike.lookupGlobalName n
+  tt4 <- liftIO $ Ghc.lookupType hscEnv n
   return (n, Misc.firstMaybes [tt1, tt2, tt3, tt4])
 
 availableTyThings :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [TyThing]

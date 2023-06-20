@@ -525,7 +525,7 @@ makesub allowTC (C.NonRec x e) =  (symbol x,) <$> coreToLg allowTC e
 makesub _       _              = throw "Cannot make Logical Substitution of Recursive Definitions"
 
 mkLit :: Literal -> Maybe Expr
-mkLit (LitNumber _ n _) = mkI n
+mkLit (LitNumber _ n) = mkI n
 -- mkLit (MachInt64  n)    = mkI n
 -- mkLit (MachWord   n)    = mkI n
 -- mkLit (MachWord64 n)    = mkI n

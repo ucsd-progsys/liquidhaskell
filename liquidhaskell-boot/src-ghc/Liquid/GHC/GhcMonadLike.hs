@@ -19,8 +19,6 @@ module Liquid.GHC.GhcMonadLike (
 
   , askHscEnv
   , lookupModSummary
-  , lookupGlobalName
-  , lookupName
   , modInfoLookupName
   , moduleInfoTc
   , parseModule
@@ -51,8 +49,6 @@ import           Liquid.GHC.API   hiding ( ModuleInfo
                                                           )
 
 import GHC.Data.Maybe
-import GHC.Utils.Exception (ExceptionMonad)
-import qualified GHC.Core.Opt.Monad as CoreMonad
 import qualified GHC.Data.EnumSet as EnumSet
 
 import Optics
@@ -60,34 +56,18 @@ import Optics
 class HasHscEnv m where
   askHscEnv :: m HscEnv
 
-instance HasHscEnv CoreMonad.CoreM where
-  askHscEnv = CoreMonad.getHscEnv
-
 instance HasHscEnv Ghc where
   askHscEnv = getSession
 
-instance HasHscEnv (IfM lcl) where
-  askHscEnv = getTopEnv
-
 instance HasHscEnv TcM where
   askHscEnv = env_top <$> getEnv
-
-instance HasHscEnv Hsc where
-  askHscEnv = Hsc $ curry pure
-
-instance (ExceptionMonad m, HasHscEnv m) => HasHscEnv (GhcT m) where
-  askHscEnv = getSession
 
 -- | A typeclass which is /very/ similar to the existing 'GhcMonad', but it doesn't impose a
 -- 'ExceptionMonad' constraint.
 class (Functor m, MonadIO m, HasHscEnv m, HasDynFlags m) => GhcMonadLike m
 
-instance GhcMonadLike CoreMonad.CoreM
 instance GhcMonadLike Ghc
-instance GhcMonadLike (IfM lcl)
 instance GhcMonadLike TcM
-instance GhcMonadLike Hsc
-instance (ExceptionMonad m, GhcMonadLike m) => GhcMonadLike (GhcT m)
 
 -- Converts a 'IsBootInterface' into a 'Bool'.
 isBootInterface :: IsBootInterface -> Bool
@@ -103,18 +83,6 @@ lookupModSummary mdl = do
    case mods_by_name of
      [ms] -> pure (Just ms)
      _    -> pure Nothing
-
--- NOTE(adn) Taken from the GHC API, adapted to work for a 'GhcMonadLike' monad.
-lookupGlobalName :: GhcMonadLike m => Name -> m (Maybe TyThing)
-lookupGlobalName name = do
-  hsc_env <- askHscEnv
-  liftIO $ lookupType hsc_env name
-
--- NOTE(adn) Taken from the GHC API, adapted to work for a 'GhcMonadLike' monad.
-lookupName :: GhcMonadLike m => Name -> m (Maybe TyThing)
-lookupName name = do
-  hsc_env <- askHscEnv
-  liftIO $ hscTcRcLookupName hsc_env name
 
 -- | Our own simplified version of 'ModuleInfo' to overcome the fact we cannot construct the \"original\"
 -- one as the constructor is not exported, and 'getHomeModuleInfo' and 'getPackageModuleInfo' are not
