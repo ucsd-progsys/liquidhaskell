@@ -3,11 +3,8 @@
 {-@ LIQUID "--diff"     @-}
 
 module Language.Haskell.Liquid.Liquid (
-   -- * Single query
-   runLiquid
-
    -- * Ghci State
-  , MbEnv
+    MbEnv
 
    -- * Liquid Constraint Generation 
   , liquidConstraints
@@ -59,68 +56,6 @@ liquidConstraints cfg = do
     Right (gs, _) -> 
       return $ Left $ map generateConstraints gs
 
---------------------------------------------------------------------------------
-runLiquid :: MbEnv -> Config -> IO (ExitCode, MbEnv)
---------------------------------------------------------------------------------
-runLiquid mE cfg  = do 
-  reals <- realTargets mE cfg (files cfg)
-  whenNormal $ putStrLn $ showpp (text "Targets:" <+> vcat (text <$> reals))
-  checkTargets cfg mE reals
-
-checkTargets :: Config -> MbEnv -> [FilePath] -> IO (ExitCode, MbEnv)
-checkTargets cfg  = go 
-  where
-    go env []     = return (ExitSuccess, env)
-    go env (f:fs) = do -- whenLoud $ colorPhaseLn Loud ("[Checking: " ++ f ++ "]") ""
-                       (ec, env') <- runLiquidTargets env cfg [f] 
-                       case ec of 
-                         ExitSuccess -> go env' fs
-                         _           -> return (ec, env')
-
-
---------------------------------------------------------------------------------
--- | @runLiquid@ checks a *target-list* of files, ASSUMING that we have 
---   already  run LH on ALL the (transitive) home imports -- i.e. other 
---   imports files for which we have source -- in order to build the .bspec 
---   files for those specs.
---------------------------------------------------------------------------------
-runLiquidTargets :: MbEnv -> Config -> [FilePath] -> IO (ExitCode, MbEnv)
---------------------------------------------------------------------------------
-runLiquidTargets mE cfg targetFiles = do
-  z <- actOrDie $ second Just <$> getTargetInfos mE cfg targetFiles
-  case z of
-    Left e -> do
-      exitWithResult cfg targetFiles $ mempty { o_result = e }
-      return (resultExit e, mE)
-    Right (gs, mE') -> do
-      d <- checkMany cfg mempty gs
-      return (ec d, mE')
-  where
-    ec = resultExit . o_result
-
---------------------------------------------------------------------------------
-checkMany :: Config -> Output Doc -> [TargetInfo] -> IO (Output Doc)
---------------------------------------------------------------------------------
-checkMany cfg d (g:gs) = do
-  d' <- checkOne cfg g
-  checkMany cfg (d `mappend` d') gs
-
-checkMany _ d [] =
-  return d
-
---------------------------------------------------------------------------------
-checkOne :: Config -> TargetInfo -> IO (Output Doc)
---------------------------------------------------------------------------------
-checkOne cfg g = do
-  z <- actOrDie $ liquidOne g
-  case z of
-    Left  e -> do
-      let out = mempty { o_result = e }
-      exitWithResult cfg [giTarget (giSrc g)] out
-      pure out
-    Right r -> return r
-
-
 actOrDie :: IO a -> IO (Either ErrorResult a)
 actOrDie act =
     (Right <$> act)
@@ -131,17 +66,6 @@ actOrDie act =
 
 handle :: (Result a) => a -> IO (Either ErrorResult b)
 handle = return . Left . result
-
---------------------------------------------------------------------------------
-liquidOne :: TargetInfo -> IO (Output Doc)
---------------------------------------------------------------------------------
-liquidOne info = do
-  out' <- checkTargetInfo info
-  exitWithResult cfg [tgt] out'
-  pure out'
-  where
-    cfg  = getConfig info
-    tgt  = giTarget (giSrc info)
 
 --------------------------------------------------------------------------------
 checkTargetInfo :: TargetInfo -> IO (Output Doc)
