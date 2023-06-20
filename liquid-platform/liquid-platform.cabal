@@ -37,25 +37,3 @@ executable liquidhaskell
 
   if flag(devel)
     ghc-options: -Werror
-
-
-executable gradual
-  main-is:          src/Gradual.hs
-  build-depends:    base            >= 4.15.1.0 && < 5
-                  , cmdargs
-                  , hscolour
-                  , liquid-fixpoint >= 0.9.0.2
-                  , liquidhaskell   >= 0.9.0.2
-  default-language: Haskell2010
-  buildable:        False
-  ghc-options:      -W -threaded
-
-  if flag(devel)
-    ghc-options: -Werror
-
-
-executable target
-  main-is:          src/Target.hs
-  build-depends:    base >= 4.8.1.0 && < 5, hint, liquidhaskell >= 0.8.10.2
-  default-language: Haskell2010
-  buildable:        False
