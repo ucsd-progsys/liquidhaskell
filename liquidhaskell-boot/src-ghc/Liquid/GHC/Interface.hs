@@ -251,20 +251,6 @@ tcmTyThings
   modInfoTopLevelScope
   . tm_checked_module_info
 
-
-_dumpRdrEnv :: HscEnv -> MGIModGuts -> IO ()
-_dumpRdrEnv _hscEnv modGuts = do
-  print ("DUMP-RDR-ENV" :: String)
-  print (mgNames modGuts)
-  -- print (hscNames hscEnv)
-  -- print (mgDeps modGuts)
-  where
-    _mgDeps   = Ghc.dep_mods . mgi_deps
-    _hscNames = fmap showPpr . Ghc.ic_tythings . Ghc.hsc_IC
-
-mgNames :: MGIModGuts -> [Ghc.Name]
-mgNames  = fmap Ghc.greMangledName . Ghc.globalRdrEnvElts .  mgi_rdr_env
-
 modSummaryHsFile :: ModSummary -> FilePath
 modSummaryHsFile modSummary =
   fromMaybe

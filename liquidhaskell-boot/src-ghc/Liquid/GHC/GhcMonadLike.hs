@@ -14,7 +14,6 @@ module Liquid.GHC.GhcMonadLike (
   , parseModule
   , typecheckModule
   , desugarModule
-  , isBootInterface
   , ApiComment(..)
   , apiComments
   ) where
@@ -42,17 +41,12 @@ import GHC.Data.Maybe
 import qualified GHC.Data.EnumSet as EnumSet
 
 
--- Converts a 'IsBootInterface' into a 'Bool'.
-isBootInterface :: IsBootInterface -> Bool
-isBootInterface IsBoot  = True
-isBootInterface NotBoot = False
-
 lookupModSummary :: HscEnv -> ModuleName -> Maybe ModSummary
 lookupModSummary hscEnv mdl = do
    let mg = hsc_mod_graph hscEnv
        mods_by_name = [ ms | ms <- mgModSummaries mg
                       , ms_mod_name ms == mdl
-                      , not (isBootInterface . isBootSummary $ ms) ]
+                      , NotBoot == isBootSummary ms ]
    case mods_by_name of
      [ms] -> Just ms
      _    -> Nothing

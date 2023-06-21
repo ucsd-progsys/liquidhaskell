@@ -38,7 +38,6 @@ import           Language.Haskell.Liquid.GHC.Plugin.SpecFinder
 import           Liquid.GHC.Types       (MGIModGuts(..), miModGuts)
 import qualified Liquid.GHC.GhcMonadLike
                                                          as GhcMonadLike
-import           Liquid.GHC.GhcMonadLike (isBootInterface)
 import           GHC.LanguageExtensions
 
 import           Control.Monad
@@ -431,35 +430,6 @@ loadDependencies currentModuleConfig thisModule mods = do
       pure $ TargetDependencies {
           getDependencies = HM.insert (toStableModule originalModule) (libTarget lib) (getDependencies $ acc <> libDeps lib)
         }
-
--- | The collection of dependencies and usages modules which are relevant for liquidHaskell
-relevantModules :: ModGuts -> Set Module
-relevantModules modGuts = used `S.union` dependencies
-  where
-    dependencies :: Set Module
-    dependencies = S.fromList $ map (toModule . gwib_mod)
-                              . filter (not . isBootInterface . gwib_isBoot)
-                              . getDependenciesModuleNames $ deps
-
-    deps :: Dependencies
-    deps = mg_deps modGuts
-
-    thisModule :: Module
-    thisModule = mg_module modGuts
-
-    toModule :: ModuleName -> Module
-    toModule = unStableModule . mkStableModule (moduleUnitId thisModule)
-
-    used :: Set Module
-    used = S.fromList $ foldl' collectUsage mempty . mg_usages $ modGuts
-      where
-        collectUsage :: [Module] -> Usage -> [Module]
-        collectUsage acc = \case
-          UsagePackageModule     { usg_mod      = modl    } -> modl : acc
-          UsageHomeModule        { usg_mod_name = modName } -> toModule modName : acc
-          UsageMergedRequirement { usg_mod      = modl    } -> modl : acc
-          _ -> acc
-
 
 data LiquidHaskellContext = LiquidHaskellContext {
     lhGlobalCfg        :: Config

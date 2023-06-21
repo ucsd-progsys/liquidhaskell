@@ -24,6 +24,7 @@ module Liquid.GHC.API (
   , renderWithStyle
   , dataConSig
   , getDependenciesModuleNames
+  , relevantModules
   ) where
 
 import           Liquid.GHC.API.StableModule      as StableModule
@@ -35,6 +36,8 @@ import           GHC                                               as Ghc hiding
 import Optics
 
 import Data.Foldable                  (asum)
+import Data.List                      (foldl')
+import qualified Data.Set as S
 import GHC.Builtin.Names              as Ghc
 import GHC.Builtin.Types              as Ghc
 import GHC.Builtin.Types.Prim         as Ghc
@@ -119,7 +122,7 @@ import GHC.Types.TypeEnv              as Ghc
 import GHC.Types.Unique               as Ghc
 import GHC.Types.Unique.DFM           as Ghc
 import GHC.Types.Unique.FM            as Ghc
-import GHC.Types.Unique.Set           as Ghc
+import GHC.Types.Unique.Set           as Ghc (mkUniqSet)
 import GHC.Types.Unique.Supply        as Ghc
 import GHC.Types.Var                  as Ghc
 import GHC.Types.Var.Env              as Ghc
@@ -128,15 +131,38 @@ import GHC.Unit.External              as Ghc
 import GHC.Unit.Finder                as Ghc
 import GHC.Unit.Home.ModInfo          as Ghc
 import GHC.Unit.Module                as Ghc
-import GHC.Unit.Module.Deps           as Ghc
-import GHC.Unit.Module.Graph          as Ghc
-import GHC.Unit.Module.ModDetails     as Ghc
+    ( GenWithIsBoot(gwib_isBoot, gwib_mod)
+    , IsBootInterface(NotBoot, IsBoot)
+    , ModuleNameWithIsBoot
+    , UnitId
+    , fsToUnit
+    , mkModuleNameFS
+    , moduleNameFS
+    , moduleStableString
+    , toUnitId
+    , unitString
+    )
+import GHC.Unit.Module.Deps           as Ghc (Dependencies(dep_mods))
+import GHC.Unit.Module.ModDetails     as Ghc (md_types)
 import GHC.Unit.Module.ModGuts        as Ghc
-import GHC.Unit.Module.ModSummary     as Ghc
+    ( ModGuts
+      ( mg_binds
+      , mg_deps
+      , mg_exports
+      , mg_fam_inst_env
+      , mg_inst_env
+      , mg_module
+      , mg_tcs
+      , mg_usages
+      )
+    )
+import GHC.Unit.Module.ModSummary     as Ghc (isBootSummary)
 import GHC.Utils.Error                as Ghc (withTiming)
 import GHC.Utils.Logger               as Ghc (putLogMsg)
 import GHC.Utils.Outputable           as Ghc hiding ((<>))
 import GHC.Utils.Panic                as Ghc (panic, throwGhcException, throwGhcExceptionIO)
+
+import GHC.Unit.Module.Deps (Usage(..))
 
 -- 'fsToUnitId' is gone in GHC 9, but we can bring code it in terms of 'fsToUnit' and 'toUnitId'.
 fsToUnitId :: FastString -> UnitId
@@ -168,3 +194,31 @@ renderWithStyle dynflags sdoc style = Ghc.renderWithContext (Ghc.initSDocContext
 dataConSig :: DataCon -> ([TyCoVar], ThetaType, [Type], Type)
 dataConSig dc
   = (dataConUnivAndExTyCoVars dc, dataConTheta dc, map irrelevantMult $ dataConOrigArgTys dc, dataConOrigResTy dc)
+
+-- | The collection of dependencies and usages modules which are relevant for liquidHaskell
+relevantModules :: ModGuts -> S.Set Module
+relevantModules modGuts = used `S.union` dependencies
+  where
+    dependencies :: S.Set Module
+    dependencies = S.fromList $ map (toModule . gwib_mod)
+                              . filter ((NotBoot ==) . gwib_isBoot)
+                              . getDependenciesModuleNames $ deps
+
+    deps :: Dependencies
+    deps = mg_deps modGuts
+
+    thisModule :: Module
+    thisModule = mg_module modGuts
+
+    toModule :: ModuleName -> Module
+    toModule = unStableModule . mkStableModule (moduleUnitId thisModule)
+
+    used :: S.Set Module
+    used = S.fromList $ foldl' collectUsage mempty . mg_usages $ modGuts
+      where
+        collectUsage :: [Module] -> Usage -> [Module]
+        collectUsage acc = \case
+          UsagePackageModule     { usg_mod      = modl    } -> modl : acc
+          UsageHomeModule        { usg_mod_name = modName } -> toModule modName : acc
+          UsageMergedRequirement { usg_mod      = modl    } -> modl : acc
+          _ -> acc
