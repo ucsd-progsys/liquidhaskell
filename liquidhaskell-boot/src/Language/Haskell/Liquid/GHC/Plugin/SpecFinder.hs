@@ -11,10 +11,7 @@ module Language.Haskell.Liquid.GHC.Plugin.SpecFinder
     , configToRedundantDependencies
     ) where
 
-import           Liquid.GHC.GhcMonadLike as GhcMonadLike ( GhcMonadLike
-                                                                          , lookupModSummary
-                                                                          , askHscEnv
-                                                                          )
+import           Liquid.GHC.GhcMonadLike as GhcMonadLike (lookupModSummary)
 import qualified Language.Haskell.Liquid.GHC.Plugin.Util as Util
 import           Language.Haskell.Liquid.GHC.Plugin.Types
 import           Language.Haskell.Liquid.Types.Types
@@ -38,7 +35,7 @@ import           Control.Monad.Trans.Maybe
 
 import           Text.Megaparsec.Error
 
-type SpecFinder m = GhcMonadLike m => Module -> MaybeT m SpecFinderResult
+type SpecFinder m = Module -> MaybeT IO SpecFinderResult
 
 -- | The result of searching for a spec.
 data SpecFinderResult = 
@@ -74,7 +71,7 @@ findRelevantSpecs lhAssmPkgExcludes hscEnv mods = do
 
     loadRelevantSpec :: ExternalPackageState -> [SpecFinderResult] -> Module -> TcM [SpecFinderResult]
     loadRelevantSpec eps !acc currentModule = do
-      res <- runMaybeT $
+      res <- liftIO $ runMaybeT $
         lookupInterfaceAnnotations eps (hsc_HPT hscEnv) currentModule
       case res of
         Nothing         -> do
@@ -95,7 +92,7 @@ findRelevantSpecs lhAssmPkgExcludes hscEnv mods = do
           -- read the EPS again
           eps2 <- liftIO $ readIORef (hsc_EPS hscEnv)
           -- now look up the assumptions
-          runMaybeT $ lookupInterfaceAnnotationsEPS eps2 assMod
+          liftIO $ runMaybeT $ lookupInterfaceAnnotationsEPS eps2 assMod
         FoundMultiple{} -> failWithTc $ cannotFindModule hscEnv assModName res
         _ -> return Nothing
 
@@ -108,9 +105,9 @@ findRelevantSpecs lhAssmPkgExcludes hscEnv mods = do
 
 -- | If this module has a \"companion\" '.spec' file sitting next to it, this 'SpecFinder'
 -- will try loading it.
-findCompanionSpec :: GhcMonadLike m => Module -> m SpecFinderResult
-findCompanionSpec m = do
-  res <- runMaybeT $ lookupCompanionSpec m
+findCompanionSpec :: HscEnv -> Module -> IO SpecFinderResult
+findCompanionSpec hscEnv m = do
+  res <- runMaybeT $ lookupCompanionSpec hscEnv m
   case res of
     Nothing -> pure $ SpecNotFound m
     Just s  -> pure s
@@ -128,24 +125,23 @@ lookupInterfaceAnnotationsEPS eps thisModule = do
 
 -- | If this module has a \"companion\" '.spec' file sitting next to it, this 'SpecFinder'
 -- will try loading it.
-lookupCompanionSpec :: SpecFinder m
-lookupCompanionSpec thisModule = do
+lookupCompanionSpec :: HscEnv -> SpecFinder m
+lookupCompanionSpec hscEnv thisModule = do
 
-  modSummary <- MaybeT $ GhcMonadLike.lookupModSummary (moduleName thisModule)
+  modSummary <- MaybeT $ pure $ GhcMonadLike.lookupModSummary hscEnv (moduleName thisModule)
   file       <- MaybeT $ pure (ml_hs_file . ms_location $ modSummary)
   parsed     <- MaybeT $ do
-    mbSpecContent <- liftIO $ try (Misc.sayReadFile (specFile file))
+    mbSpecContent <- try (Misc.sayReadFile (specFile file))
     case mbSpecContent of
       Left (_e :: SomeException) -> pure Nothing
       Right raw -> pure $ Just $ specSpecificationP (specFile file) raw
 
   case parsed of
     Left peb -> do
-      dynFlags <- lift getDynFlags
       let errMsg = O.text "Error when parsing "
              O.<+> O.text (specFile file) O.<+> O.text ":"
              O.<+> O.text (errorBundlePretty peb)
-      lift $ Util.pluginAbort (O.showSDoc dynFlags errMsg)
+      lift $ Util.pluginAbort (O.showSDoc (hsc_dflags hscEnv) errMsg)
     Right (_, spec) -> do
       let bareSpec = view bareSpecIso spec
       pure $ SpecFound thisModule DiskLocation bareSpec
@@ -156,19 +152,18 @@ lookupCompanionSpec thisModule = do
 -- | Returns a list of 'StableModule's which can be filtered out of the dependency list, because they are
 -- selectively \"toggled\" on and off by the LiquidHaskell's configuration, which granularity can be
 -- /per module/.
-configToRedundantDependencies :: forall m. GhcMonadLike m => Config -> m [StableModule]
-configToRedundantDependencies cfg = do
-  env <- askHscEnv
-  catMaybes <$> mapM (lookupModule' env . first ($ cfg)) configSensitiveDependencies
+configToRedundantDependencies :: HscEnv -> Config -> IO [StableModule]
+configToRedundantDependencies env cfg = do
+  catMaybes <$> mapM (lookupModule' . first ($ cfg)) configSensitiveDependencies
   where
-    lookupModule' :: HscEnv -> (Bool, ModuleName) -> m (Maybe StableModule)
-    lookupModule' env (fetchModule, modName)
-      | fetchModule = liftIO $ lookupLiquidBaseModule env modName
+    lookupModule' :: (Bool, ModuleName) -> IO (Maybe StableModule)
+    lookupModule' (fetchModule, modName)
+      | fetchModule = lookupLiquidBaseModule modName
       | otherwise   = pure Nothing
 
-    lookupLiquidBaseModule :: HscEnv -> ModuleName -> IO (Maybe StableModule)
-    lookupLiquidBaseModule env mn = do
-      res <- liftIO $ findExposedPackageModule env mn (Just "liquidhaskell")
+    lookupLiquidBaseModule :: ModuleName -> IO (Maybe StableModule)
+    lookupLiquidBaseModule mn = do
+      res <- findExposedPackageModule env mn (Just "liquidhaskell")
       case res of
         Found _ mdl -> pure $ Just (toStableModule mdl)
         _           -> pure Nothing

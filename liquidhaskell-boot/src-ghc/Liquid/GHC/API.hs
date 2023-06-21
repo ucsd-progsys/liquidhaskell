@@ -18,15 +18,12 @@ module Liquid.GHC.API (
     module Ghc
   , module StableModule
   , tyConRealArity
-  , dataConExTyVars
   , fsToUnitId
   , moduleUnitId
   , thisPackage
   , renderWithStyle
-  , pattern LitNumber
   , dataConSig
   , getDependenciesModuleNames
-  , gcatch
   ) where
 
 import           Liquid.GHC.API.StableModule      as StableModule
@@ -36,7 +33,6 @@ import           GHC                                               as Ghc hiding
                                                                                  )
 
 import Optics
-import qualified Control.Monad.Catch as Ex
 
 import Data.Foldable                  (asum)
 import GHC.Builtin.Names              as Ghc
@@ -111,15 +107,14 @@ import GHC.Types.Error                as Ghc
 import GHC.Types.Fixity               as Ghc
 import GHC.Types.Id                   as Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported)
 import GHC.Types.Id.Info              as Ghc
-import GHC.Types.Literal              as Ghc hiding (LitNumber)
-import qualified GHC.Types.Literal    as Ghc
+import GHC.Types.Literal              as Ghc
 import GHC.Types.Name                 as Ghc hiding (varName, isWiredIn)
 import GHC.Types.Name.Reader          as Ghc
 import GHC.Types.Name.Set             as Ghc
 import GHC.Types.SourceError          as Ghc
 import GHC.Types.SourceText           as Ghc
 import GHC.Types.SrcLoc               as Ghc
-import GHC.Types.Tickish              as Ghc
+import GHC.Types.Tickish              as Ghc (CoreTickish, GenTickish(..))
 import GHC.Types.TypeEnv              as Ghc
 import GHC.Types.Unique               as Ghc
 import GHC.Types.Unique.DFM           as Ghc
@@ -138,12 +133,10 @@ import GHC.Unit.Module.Graph          as Ghc
 import GHC.Unit.Module.ModDetails     as Ghc
 import GHC.Unit.Module.ModGuts        as Ghc
 import GHC.Unit.Module.ModSummary     as Ghc
-import GHC.Utils.Error                as Ghc
-import GHC.Utils.Logger               as Ghc
-import GHC.Utils.Misc                 as Ghc (zipEqual)
-import GHC.Utils.Outputable           as Ghc (mkUserStyle)
-import GHC.Utils.Outputable           as Ghc hiding ((<>), integer, mkUserStyle)
-import GHC.Utils.Panic                as Ghc
+import GHC.Utils.Error                as Ghc (withTiming)
+import GHC.Utils.Logger               as Ghc (putLogMsg)
+import GHC.Utils.Outputable           as Ghc hiding ((<>))
+import GHC.Utils.Panic                as Ghc (panic, throwGhcException, throwGhcExceptionIO)
 
 -- 'fsToUnitId' is gone in GHC 9, but we can bring code it in terms of 'fsToUnit' and 'toUnitId'.
 fsToUnitId :: FastString -> UnitId
@@ -165,30 +158,13 @@ tyConRealArity tc = go 0 (tyConKind tc)
         Nothing -> acc
         Just ks -> go (acc + 1) ks
 
-dataConExTyVars :: DataCon -> [TyVar]
-dataConExTyVars = dataConExTyCoVars
-
 getDependenciesModuleNames :: Dependencies -> [ModuleNameWithIsBoot]
 getDependenciesModuleNames = dep_mods
 
 renderWithStyle :: DynFlags -> SDoc -> PprStyle -> String
 renderWithStyle dynflags sdoc style = Ghc.renderWithContext (Ghc.initSDocContext dynflags style) sdoc
 
---
--- Literal
---
-
--- In GHC 9 'LitNumber' doesn't have the extra 3rd argument, so we simply ignore it in the construction.
-
-pattern LitNumber :: Ghc.LitNumType -> Integer -> Ghc.Type -> Ghc.Literal
-pattern LitNumber numType integer ty <- ((intPrimTy,) -> (ty, Ghc.LitNumber numType integer))
-  where
-    LitNumber numType integer _ = Ghc.LitNumber numType integer
-
 -- This function is gone in GHC 9.
 dataConSig :: DataCon -> ([TyCoVar], ThetaType, [Type], Type)
 dataConSig dc
   = (dataConUnivAndExTyCoVars dc, dataConTheta dc, map irrelevantMult $ dataConOrigArgTys dc, dataConOrigResTy dc)
-
-gcatch :: (Ex.MonadCatch m, Exception e) => m a -> (e -> m a) -> m a
-gcatch = Ex.catch

@@ -271,25 +271,6 @@ module is reusing common functionalities from the [GHC.Interface][], which is th
 interface LH with the old executable. Generally speaking, the [GHC.Interface][] module is considered "legacy"
 and it's rarely what one wants to modify. It will probably be removed at some point.
 
-## The GhcMonadLike shim
-
-Part of the tension in designing the plugin was trying to reuse as much code as possible from the original
-[GHC.Interface][] shipped with LiquidHaskell. Unfortunately this was not possible from the get-go due to the
-fact most of the functions provided by that module were requiring a [GhcMonad][] constraint or usually
-living in the [Ghc monad][], which is also the only concrete type which derives an instance for [GhcMonad][].
-While we could have run each and every function with `runGhc`, this was not very satisfactory due to the
-fact running the `Ghc` monad is fairly expensive as it requires a bit of extra state in order to run it.
-
-However, most of the functions used by the [Ghc.Interface][] didn't require anything specific from the
-underlying [Ghc monad][] if not access to the [HscEnv][] and the ability to grab the [DynFlags][], as well
-as doing `IO`. Therefore, the [GhcMonadLike][] shim was born with the intent of replicating some of the
-functions used by the [GHC.Interface][] but crucially making those polymorphic in a generic [GhcMonadLike][]
-for which we can give instances for `CoreM`, `TcM` etc. We can do this because we do not require the extra
-`ExceptionMonad` constraint and we do not require to implement `setHscEnv`.
-
-This allowed us to change ever so slightly the functions provided by the [GHC.Interface][], expose them and
-reuse them in the [Plugin][] module.
-
 ## Plugin architecture
 
 Broadly speaking, the Plugin is organised this way: In the [typechecking phase][], we typecheck and desugar
@@ -381,7 +362,6 @@ using**.
 [HscEnv]:              https://hackage.haskell.org/package/ghc-9.2.5/docs/GHC.html#t:HscEnv
 [DynFlags]:            https://hackage.haskell.org/package/ghc-9.2.5/docs/GHC.html#t:DynFlags
 [GhcMonad]:            https://hackage.haskell.org/package/ghc-9.2.5/docs/GHC.html#t:GhcMonad
-[GhcMonadLike]:        liquidhaskell-boot/src-ghc/Liquid/GHC/GhcMonadLike.hs
 [typechecking phase]:  liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin.hs#L211-L226
 [ghcide]:              https://github.com/haskell/ghcide
 [findRelevantSpecs]:   liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin/SpecFinder.hs#L65

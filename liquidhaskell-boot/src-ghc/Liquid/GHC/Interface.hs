@@ -30,12 +30,10 @@ module Liquid.GHC.Interface (
   , classCons
   , derivedVars
   , importVars
-  , makeGhcSrc
   , allImports
   , qualifiedImports
   , modSummaryHsFile
   , makeFamInstEnv
-  , findAndParseSpecFiles
   , parseSpecFile
   , clearSpec
   , checkFilePragmas
@@ -45,7 +43,6 @@ module Liquid.GHC.Interface (
   , availableTyCons
   , availableVars
   , updLiftedSpec
-  , getTyThingsFromExternalModules
   ) where
 
 import Prelude hiding (error)
@@ -60,14 +57,12 @@ import           Liquid.GHC.API as Ghc hiding ( text
                                                                , Located
                                                                )
 import qualified Liquid.GHC.API as Ghc
-import qualified Liquid.GHC.API as O
 
 import Control.Exception
 import Control.Monad
+import Control.Monad.Trans.Maybe
 
-import Data.Bifunctor
 import Data.Data
-import Data.IORef
 import Data.List hiding (intersperse)
 import Data.Maybe
 
@@ -76,61 +71,29 @@ import Data.Generics.Schemes (everywhere)
 
 import qualified Data.HashSet        as S
 
-import System.Console.CmdArgs.Verbosity hiding (Loud)
-import System.FilePath
 import System.IO
 import Text.Megaparsec.Error
 import Text.PrettyPrint.HughesPJ        hiding (first, (<>))
 import Language.Fixpoint.Types          hiding (err, panic, Error, Result, Expr)
 import qualified Language.Fixpoint.Misc as Misc
 import Liquid.GHC.Misc
-import Liquid.GHC.Types (MGIModGuts(..), miModGuts)
+import Liquid.GHC.Types (MGIModGuts(..))
 import Liquid.GHC.Play
 import qualified Liquid.GHC.GhcMonadLike as GhcMonadLike
-import Liquid.GHC.GhcMonadLike (GhcMonadLike, isBootInterface, askHscEnv)
 import Language.Haskell.Liquid.WiredIn (isDerivedInstance)
 import qualified Language.Haskell.Liquid.Measure  as Ms
 import qualified Language.Haskell.Liquid.Misc     as Misc
 import Language.Haskell.Liquid.Parse
-import Language.Haskell.Liquid.Transforms.ANF
 import Language.Haskell.Liquid.Types hiding (Spec)
 -- import Language.Haskell.Liquid.Types.PrettyPrint
 -- import Language.Haskell.Liquid.Types.Visitors
 import Language.Haskell.Liquid.UX.QuasiQuoter
 import Language.Haskell.Liquid.UX.Tidy
-import Language.Fixpoint.Utils.Files
 
 import Optics hiding (ix)
 
 import qualified Debug.Trace as Debug
 
-
---------------------------------------------------------------------------------
--- Home Module Dependency Graph ------------------------------------------------
---------------------------------------------------------------------------------
-
-isHomeModule :: GhcMonadLike m => Module -> m Bool
-isHomeModule mod' = do
-  homePkg <- thisPackage <$> getDynFlags
-  return   $ moduleUnitId mod' == homePkg
-
-modSummaryImports :: GhcMonadLike m => ModSummary -> m [Module]
-modSummaryImports modSummary =
-  mapM (importDeclModule (ms_mod modSummary))
-       (ms_textual_imps modSummary)
-
-importDeclModule :: GhcMonadLike m => Module -> (Maybe FastString,  Ghc.Located ModuleName) -> m Module
-importDeclModule fromMod (mpkgQual, locModName) = do
-  hscEnv <- askHscEnv
-  let modName = unLoc locModName
-  res <- liftIO $ findImportedModule hscEnv modName mpkgQual
-  case res of
-    Ghc.Found _ mod' -> return mod'
-    _ -> do
-      dflags <- getDynFlags
-      liftIO $ throwGhcExceptionIO $ ProgramError $
-        O.showPpr dflags (moduleName fromMod) ++ ": " ++
-        O.showSDoc dflags (cannotFindModule hscEnv modName res)
 
 --------------------------------------------------------------------------------
 -- | Extract Ids ---------------------------------------------------------------
@@ -197,52 +160,6 @@ keepRawTokenStream :: ModSummary -> ModSummary
 keepRawTokenStream modSummary = modSummary
   { ms_hspp_opts = ms_hspp_opts modSummary `gopt_set` Opt_KeepRawTokenStream }
 
----------------------------------------------------------------------------------------
--- | @makeGhcSrc@ builds all the source-related information needed for consgen
----------------------------------------------------------------------------------------
-
-makeGhcSrc :: Config -> FilePath -> TypecheckedModule -> ModSummary -> Ghc GhcSrc
-makeGhcSrc cfg file typechecked modSum = do
-  modGuts'          <- GhcMonadLike.desugarModule modSum typechecked
-
-  let modGuts        = makeMGIModGuts modGuts'
-  hscEnv            <- getSession
-  coreBinds         <- liftIO $ anormalize cfg hscEnv modGuts'
-  _                 <- liftIO $ whenNormal $ Misc.donePhase Misc.Loud "A-Normalization"
-  let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)
-  (fiTcs, fiDcs)    <- makeFamInstEnv <$> liftIO (getFamInstances hscEnv)
-  things            <- lookupTyThings hscEnv modSum (fst $ tm_internals_ typechecked)
-
-  availableTcs      <- availableTyCons hscEnv modSum (fst $ tm_internals_ typechecked) (mg_exports modGuts')
-
-  let impVars        = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)
-
-  --liftIO $ do
-  --  print $ "_gsTcs   => " ++ show (nub $ (mgi_tcs      modGuts) ++ availableTcs)
-  --  print $ "_gsFiTcs => " ++ show fiTcs
-  --  print $ "_gsFiDcs => " ++ show fiDcs
-  --  print $ "dataCons => " ++ show dataCons
-  --  print $ "defVars  => " ++ show (dataCons ++ (letVars coreBinds))
-
-  return $ Src
-    { _giTarget    = file
-    , _giTargetMod = ModName Target (moduleName (ms_mod modSum))
-    , _giCbs       = coreBinds
-    , _giImpVars   = impVars
-    , _giDefVars   = dataCons ++ letVars coreBinds
-    , _giUseVars   = readVars coreBinds
-    , _giDerVars   = S.fromList (derivedVars cfg modGuts)
-    , _gsExports   = mgi_exports  modGuts
-    , _gsTcs       = nub $ mgi_tcs modGuts ++ availableTcs
-    , _gsCls       = mgi_cls_inst modGuts
-    , _gsFiTcs     = fiTcs
-    , _gsFiDcs     = fiDcs
-    , _gsPrimTcs   = Ghc.primTyCons
-    , _gsQualImps  = qualifiedImports (maybe mempty (view _2) (tm_renamed_source typechecked))
-    , _gsAllImps   = allImports       (maybe mempty (view _2) (tm_renamed_source typechecked))
-    , _gsTyThings  = [ t | (_, Just t) <- things ]
-    }
-
 _impThings :: [Var] -> [TyThing] -> [TyThing]
 _impThings vars  = filter ok
   where
@@ -277,7 +194,7 @@ qImports qns  = QImports
 --   for this module; we will use this to create our name-resolution environment
 --   (see `Bare.Resolve`)
 ---------------------------------------------------------------------------------------
-lookupTyThings :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> m [(Name, Maybe TyThing)]
+lookupTyThings :: HscEnv -> ModSummary -> TcGblEnv -> IO [(Name, Maybe TyThing)]
 lookupTyThings hscEnv modSum tcGblEnv = forM names (lookupTyThing hscEnv modSum tcGblEnv)
   where
     names :: [Ghc.Name]
@@ -286,61 +203,42 @@ lookupTyThings hscEnv modSum tcGblEnv = forM names (lookupTyThing hscEnv modSum 
              (fmap is_dfun_name . tcg_insts) tcGblEnv
 -- | Lookup a single 'Name' in the GHC environment, yielding back the 'Name' alongside the 'TyThing',
 -- if one is found.
-lookupTyThing :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> Name -> m (Name, Maybe TyThing)
+lookupTyThing :: HscEnv -> ModSummary -> TcGblEnv -> Name -> IO (Name, Maybe TyThing)
 lookupTyThing hscEnv modSum tcGblEnv n = do
-  mi  <- GhcMonadLike.moduleInfoTc modSum tcGblEnv
-  tt1 <-          GhcMonadLike.lookupName      n
-  tt2 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n
-  tt3 <-          GhcMonadLike.modInfoLookupName mi n
-  tt4 <-          GhcMonadLike.lookupGlobalName n
-  return (n, Misc.firstMaybes [tt1, tt2, tt3, tt4])
+  mty <- runMaybeT $
+         MaybeT (Ghc.hscTcRcLookupName hscEnv n)
+         `mplus`
+         MaybeT (Ghc.hscTcRcLookupName hscEnv n)
+         `mplus`
+         MaybeT (
+           do mi  <- GhcMonadLike.moduleInfoTc hscEnv modSum tcGblEnv
+              GhcMonadLike.modInfoLookupName hscEnv mi n
+           )
+         `mplus`
+         MaybeT (Ghc.lookupType hscEnv n)
+  return (n, mty)
 
-availableTyThings :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [TyThing]
+availableTyThings :: HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> IO [TyThing]
 availableTyThings hscEnv modSum tcGblEnv avails =
     fmap catMaybes $
       mapM (fmap snd . lookupTyThing hscEnv modSum tcGblEnv) $
       availableNames avails
 
 -- | Returns all the available (i.e. exported) 'TyCon's (type constructors) for the input 'Module'.
-availableTyCons :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [Ghc.TyCon]
+availableTyCons :: HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> IO [Ghc.TyCon]
 availableTyCons hscEnv modSum tcGblEnv avails =
   fmap (\things -> [tyCon | (ATyCon tyCon) <- things]) (availableTyThings hscEnv modSum tcGblEnv avails)
 
 -- | Returns all the available (i.e. exported) 'Var's for the input 'Module'.
-availableVars :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [Ghc.Var]
+availableVars :: HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> IO [Ghc.Var]
 availableVars hscEnv modSum tcGblEnv avails =
   fmap (\things -> [var | (AnId var) <- things]) (availableTyThings hscEnv modSum tcGblEnv avails)
-
--- | TyThings of modules in external packages
-getTyThingsFromExternalModules :: GhcMonadLike m => [Module] -> m [TyThing]
-getTyThingsFromExternalModules mods = do
-    hscEnv <- askHscEnv
-    eps <- liftIO $ readIORef $ hsc_EPS hscEnv
-    let names = availableNames $ concatMap mi_exports $ mapMaybe (lookupModuleEnv $ eps_PIT eps) mods
-    fmap catMaybes $ liftIO $ mapM (Ghc.hscTcRcLookupName hscEnv) names
 
 availableNames :: [AvailInfo] -> [Name]
 availableNames =
     concatMap $ \case
       Avail n -> [Ghc.greNameMangledName n]
       AvailTC n ns -> n : map Ghc.greNameMangledName ns
-
--- lookupTyThings :: HscEnv -> TypecheckedModule -> MGIModGuts -> Ghc [(Name, Maybe TyThing)]
--- lookupTyThings hscEnv tcm mg =
---   forM (mgNames mg ++ instNames mg) $ \n -> do
---     tt1 <-          lookupName                   n
---     tt2 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n
---     tt3 <-          modInfoLookupName mi         n
---     tt4 <-          lookupGlobalName             n
---     return (n, Misc.firstMaybes [tt1, tt2, tt3, tt4])
---     where
---       mi = tm_checked_module_info tcm
-
-
--- lookupName        :: GhcMonad m => Name -> m (Maybe TyThing)
--- hscTcRcLookupName :: HscEnv -> Name -> IO (Maybe TyThing)
--- modInfoLookupName :: GhcMonad m => ModuleInfo -> Name -> m (Maybe TyThing)
--- lookupGlobalName  :: GhcMonad m => Name -> m (Maybe TyThing)
 
 _dumpTypeEnv :: TypecheckedModule -> IO ()
 _dumpTypeEnv tm = do
@@ -379,7 +277,7 @@ modSummaryHsFile modSummary =
       showPpr (ms_mod modSummary))
     (ml_hs_file $ ms_location modSummary)
 
-checkFilePragmas :: GhcMonadLike m => [Located String] -> m ()
+checkFilePragmas :: [Located String] -> IO ()
 checkFilePragmas = Misc.applyNonNull (return ()) throw . mapMaybe err
   where
     err pragma
@@ -400,11 +298,6 @@ makeFamInstEnv famInsts =
   let fiTcs = [ tc            | FamInst { fi_flavor = DataFamilyInst tc } <- famInsts ]
       fiDcs = [ (symbol d, d) | tc <- fiTcs, d <- tyConDataCons tc ]
   in (fiTcs, fiDcs)
-
-getFamInstances :: HscEnv -> IO [FamInst]
-getFamInstances env = do
-  (_, Just (pkg_fie, home_fie)) <- runTcInteractive env tcGetFamInstEnvs
-  return $ famInstEnvElts home_fie ++ famInstEnvElts pkg_fie
 
 --------------------------------------------------------------------------------
 -- | Extract Specifications from GHC -------------------------------------------
@@ -455,69 +348,6 @@ refreshSymbol = symbol . symbolText
 -- | Finding & Parsing Files ---------------------------------------------------
 --------------------------------------------------------------------------------
 
--- | Handle Spec Files ---------------------------------------------------------
-
-findAndParseSpecFiles :: GhcMonadLike m
-                      => Config
-                      -> S.HashSet FilePath
-                      -> ModSummary
-                      -> [Module]
-                      -> m [(ModName, Ms.BareSpec)]
-findAndParseSpecFiles cfg paths modSummary reachable = do
-  modGraph <- GhcMonadLike.getModuleGraph
-  impSumms <- mapM GhcMonadLike.getModSummary (moduleName <$> reachable)
-  imps''   <- nub . concat <$> mapM modSummaryImports (modSummary : impSumms)
-  imps'    <- filterM ((not <$>) . isHomeModule) imps''
-  let imps  = m2s <$> imps'
-  fs'      <- liftIO $ moduleFiles modGraph Spec paths imps
-  -- liftIO  $ whenLoud  $ print ("moduleFiles-imps'': "  ++ show (m2s <$> imps''))
-  -- liftIO  $ whenLoud  $ print ("moduleFiles-imps' : "  ++ show (m2s <$> imps'))
-  -- liftIO  $ whenLoud  $ print ("moduleFiles-imps  : "  ++ show imps)
-  -- liftIO  $ whenLoud  $ print ("moduleFiles-Paths : "  ++ show paths)
-  -- liftIO  $ whenLoud  $ print ("moduleFiles-Specs : "  ++ show fs')
-  patSpec  <- liftIO $ getPatSpec  modGraph paths $ totalityCheck cfg
-  rlSpec   <- liftIO $ getRealSpec modGraph paths $ not (linear cfg)
-  let fs    = patSpec ++ rlSpec ++ fs'
-  liftIO $ transParseSpecs modGraph paths mempty mempty fs
-  where
-    m2s = moduleNameString . moduleName
-
-getPatSpec :: ModuleGraph -> S.HashSet FilePath -> Bool -> IO [FilePath]
-getPatSpec modGraph paths totalitycheck
- | totalitycheck = moduleFiles modGraph Spec paths [patErrorName]
- | otherwise     = return []
- where
-  patErrorName   = "PatErr"
-
-getRealSpec :: ModuleGraph -> S.HashSet FilePath -> Bool -> IO [FilePath]
-getRealSpec modGraph paths freal
-  | freal     = moduleFiles modGraph Spec paths [realSpecName]
-  | otherwise = moduleFiles modGraph Spec paths [notRealSpecName]
-  where
-    realSpecName    = "Real"
-    notRealSpecName = "NotReal"
-
-transParseSpecs :: ModuleGraph
-                -> S.HashSet FilePath
-                -> S.HashSet FilePath
-                -> [(ModName, Ms.BareSpec)]
-                -> [FilePath]
-                -> IO [(ModName, Ms.BareSpec)]
-transParseSpecs _ _ _ specs [] = return specs
-transParseSpecs modGraph paths seenFiles specs newFiles = do
-  -- liftIO $ print ("TRANS-PARSE-SPECS", seenFiles, newFiles)
-  newSpecs      <- liftIO $ mapM parseSpecFile newFiles
-  impFiles      <- moduleFiles modGraph Spec paths $ specsImports newSpecs
-  let seenFiles' = seenFiles `S.union` S.fromList newFiles
-  let specs'     = specs ++ map (second noTerm) newSpecs
-  let newFiles'  = filter (not . (`S.member` seenFiles')) impFiles
-  transParseSpecs modGraph paths seenFiles' specs' newFiles'
-  where
-    specsImports ss = nub $ concatMap (map symbolString . Ms.imports . snd) ss
-
-noTerm :: Ms.BareSpec -> Ms.BareSpec
-noTerm spec = spec { Ms.decr = mempty, Ms.lazy = mempty, Ms.termexprs = mempty }
-
 -- | Parse a spec file by path.
 --
 -- On a parse error, we fail.
@@ -535,44 +365,9 @@ parseSpecFile file = do
       panic Nothing "parsing spec file failed"
     Right x  -> pure x
 
--- Find Hquals Files -----------------------------------------------------------
-
--- _moduleHquals :: MGIModGuts
---              -> [FilePath]
---              -> FilePath
---              -> [String]
---              -> [FilePath]
---              -> Ghc [FilePath]
--- _moduleHquals mgi paths target imps incs = do
---   hqs   <- specIncludes Hquals paths incs
---   hqs'  <- moduleFiles Hquals paths (mgi_namestring mgi : imps)
---   hqs'' <- liftIO $ filterM doesFileExist [extFileName Hquals target]
---   return $ Misc.sortNub $ hqs'' ++ hqs ++ hqs'
-
--- Find Files for Modules ------------------------------------------------------
-
-moduleFiles :: ModuleGraph -> Ext -> S.HashSet FilePath -> [String] -> IO [FilePath]
-moduleFiles modGraph ext paths names = catMaybes <$> mapM (moduleFile modGraph ext paths) names
-
-moduleFile :: ModuleGraph -> Ext -> S.HashSet FilePath -> String -> IO (Maybe FilePath)
-moduleFile modGraph ext (S.toList -> paths) name
-  | ext `elem` [Hs, LHs] = do
-    let graph = mgModSummaries modGraph
-    case find (\m -> not (isBootInterface . isBootSummary $ m) &&
-                     name == moduleNameString (ms_mod_name m)) graph of
-      Nothing -> getFileInDirs (extModuleName name ext) paths
-      Just ms -> return $ normalise <$> ml_hs_file (ms_location ms)
-  | otherwise = getFileInDirs (extModuleName name ext) paths
-
-
 --------------------------------------------------------------------------------
 -- Assemble Information for Spec Extraction ------------------------------------
 --------------------------------------------------------------------------------
-
-makeMGIModGuts :: ModGuts -> MGIModGuts
-makeMGIModGuts modGuts = miModGuts deriv modGuts
-  where
-    deriv   = Just $ instEnvElts $ mg_inst_env modGuts
 
 makeLogicMap :: IO LogicMap
 makeLogicMap = do
