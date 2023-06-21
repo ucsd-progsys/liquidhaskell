@@ -1,10 +1,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Language.Haskell.Liquid.GHC.Plugin.Util (
-        partitionMaybe
-
       -- * Serialising and deserialising things from/to specs.
-      , serialiseLiquidLib
+        serialiseLiquidLib
       , deserialiseLiquidLib
       , deserialiseLiquidLibFromEPS
 
@@ -22,7 +20,6 @@ import           Data.Binary                              ( Binary )
 import qualified Data.ByteString.Lazy                    as B
 import           Data.Typeable
 import           Data.Maybe                               ( listToMaybe )
-import           Data.Either                              ( partitionEithers )
 
 import           Liquid.GHC.API
 import           Language.Haskell.Liquid.GHC.Plugin.Types (LiquidLib)
@@ -30,10 +27,6 @@ import           Language.Haskell.Liquid.GHC.Plugin.Types (LiquidLib)
 
 pluginAbort :: MonadIO m => String -> m a
 pluginAbort = liftIO . throwGhcExceptionIO . ProgramError
-
--- | Courtesy of [inspection testing](https://github.com/nomeata/inspection-testing/blob/master/src/Test/Inspection/Plugin.hs)
-partitionMaybe :: (a -> Maybe b) -> [a] -> ([a], [b])
-partitionMaybe f = partitionEithers . map (\x -> maybe (Left x) Right (f x))
 
 --
 -- Serialising and deserialising Specs
