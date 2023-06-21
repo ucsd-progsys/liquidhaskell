@@ -19,15 +19,6 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     , allDeps
     , addLibDependencies
 
-    -- * Merging specs together
-    , InputSpec
-    , CompanionSpec
-    , LiquidSpec
-    , downcastSpec
-    , mkInputSpec
-    , mkCompanionSpec
-    , mergeInputWithCompanion
-
     -- * Carrying data across stages of the compilation pipeline
     , PipelineData(..)
 
@@ -87,37 +78,6 @@ libDeps = llDeps
 -- | Extracts all the dependencies from a collection of 'LiquidLib's.
 allDeps :: Foldable f => f LiquidLib -> TargetDependencies
 allDeps = foldl' (\acc lib -> acc <> llDeps lib) mempty
-
----
---- A Liquid spec and its (many) flavours
----
-
-data InputSpec
-data CompanionSpec
-
-data LiquidSpec t where
-    MkInputSpec     :: BareSpec   -> LiquidSpec InputSpec
-    MkCompanionSpec :: BareSpec   -> LiquidSpec CompanionSpec
-
-deriving instance Show (LiquidSpec InputSpec)
-deriving instance Show (LiquidSpec CompanionSpec)
-
-mkInputSpec :: BareSpec -> LiquidSpec InputSpec
-mkInputSpec = MkInputSpec
-
-mkCompanionSpec :: BareSpec -> LiquidSpec CompanionSpec
-mkCompanionSpec = MkCompanionSpec
-
-downcastSpec :: LiquidSpec t -> BareSpec
-downcastSpec = \case
-  MkInputSpec s    -> s
-  MkCompanionSpec s -> s
-
--- | Merges a 'InputSpec' with its 'CompanionSpec'. Here duplicates are not checked as it's
--- user's responsibility to make sure there are no duplicates between the in-module annotations and the
--- companion spec.
-mergeInputWithCompanion :: LiquidSpec InputSpec -> LiquidSpec CompanionSpec -> LiquidSpec InputSpec
-mergeInputWithCompanion (MkInputSpec s1) (MkCompanionSpec s2) = MkInputSpec (s1 <> s2)
 
 -- | Just a small wrapper around the 'SourcePos' and the text fragment of a LH spec comment.
 newtype SpecComment =
