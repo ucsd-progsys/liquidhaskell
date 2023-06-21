@@ -1,8 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 -- | This module introduces a \"lighter\" "GhcMonad" typeclass which doesn't require an instance of
 -- 'ExceptionMonad', and can therefore be used for both 'CoreM' and 'Ghc'.
