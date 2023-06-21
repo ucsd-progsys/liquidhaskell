@@ -574,10 +574,6 @@ processModule LiquidHaskellContext{..} = do
     modGuts    = fromUnoptimised lhModuleGuts
     thisModule = mg_module modGuts
 
----------------------------------------------------------------------------------------
--- | @makeGhcSrc@ builds all the source-related information needed for consgen
----------------------------------------------------------------------------------------
-
 makeTargetSrc :: Config
               -> FilePath
               -> TcData

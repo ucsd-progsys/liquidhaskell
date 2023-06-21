@@ -30,7 +30,6 @@ module Liquid.GHC.Interface (
   , classCons
   , derivedVars
   , importVars
-  , makeGhcSrc
   , allImports
   , qualifiedImports
   , modSummaryHsFile
@@ -71,21 +70,19 @@ import Data.Generics.Schemes (everywhere)
 
 import qualified Data.HashSet        as S
 
-import System.Console.CmdArgs.Verbosity hiding (Loud)
 import System.IO
 import Text.Megaparsec.Error
 import Text.PrettyPrint.HughesPJ        hiding (first, (<>))
 import Language.Fixpoint.Types          hiding (err, panic, Error, Result, Expr)
 import qualified Language.Fixpoint.Misc as Misc
 import Liquid.GHC.Misc
-import Liquid.GHC.Types (MGIModGuts(..), miModGuts)
+import Liquid.GHC.Types (MGIModGuts(..))
 import Liquid.GHC.Play
 import qualified Liquid.GHC.GhcMonadLike as GhcMonadLike
 import Language.Haskell.Liquid.WiredIn (isDerivedInstance)
 import qualified Language.Haskell.Liquid.Measure  as Ms
 import qualified Language.Haskell.Liquid.Misc     as Misc
 import Language.Haskell.Liquid.Parse
-import Language.Haskell.Liquid.Transforms.ANF
 import Language.Haskell.Liquid.Types hiding (Spec)
 -- import Language.Haskell.Liquid.Types.PrettyPrint
 -- import Language.Haskell.Liquid.Types.Visitors
@@ -161,52 +158,6 @@ clearSpec s = s { sigs = [], asmSigs = [], aliases = [], ealiases = [], qualifie
 keepRawTokenStream :: ModSummary -> ModSummary
 keepRawTokenStream modSummary = modSummary
   { ms_hspp_opts = ms_hspp_opts modSummary `gopt_set` Opt_KeepRawTokenStream }
-
----------------------------------------------------------------------------------------
--- | @makeGhcSrc@ builds all the source-related information needed for consgen
----------------------------------------------------------------------------------------
-
-makeGhcSrc :: Config -> FilePath -> TypecheckedModule -> ModSummary -> Ghc GhcSrc
-makeGhcSrc cfg file typechecked modSum = do
-  hscEnv            <- getSession
-  modGuts'          <- liftIO $ GhcMonadLike.desugarModule hscEnv modSum typechecked
-
-  let modGuts        = makeMGIModGuts modGuts'
-  coreBinds         <- liftIO $ anormalize cfg hscEnv modGuts'
-  _                 <- liftIO $ whenNormal $ Misc.donePhase Misc.Loud "A-Normalization"
-  let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)
-  (fiTcs, fiDcs)    <- makeFamInstEnv <$> liftIO (getFamInstances hscEnv)
-  things            <- liftIO $ lookupTyThings hscEnv modSum (fst $ tm_internals_ typechecked)
-
-  availableTcs      <- liftIO $ availableTyCons hscEnv modSum (fst $ tm_internals_ typechecked) (mg_exports modGuts')
-
-  let impVars        = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)
-
-  --liftIO $ do
-  --  print $ "_gsTcs   => " ++ show (nub $ (mgi_tcs      modGuts) ++ availableTcs)
-  --  print $ "_gsFiTcs => " ++ show fiTcs
-  --  print $ "_gsFiDcs => " ++ show fiDcs
-  --  print $ "dataCons => " ++ show dataCons
-  --  print $ "defVars  => " ++ show (dataCons ++ (letVars coreBinds))
-
-  return $ Src
-    { _giTarget    = file
-    , _giTargetMod = ModName Target (moduleName (ms_mod modSum))
-    , _giCbs       = coreBinds
-    , _giImpVars   = impVars
-    , _giDefVars   = dataCons ++ letVars coreBinds
-    , _giUseVars   = readVars coreBinds
-    , _giDerVars   = S.fromList (derivedVars cfg modGuts)
-    , _gsExports   = mgi_exports  modGuts
-    , _gsTcs       = nub $ mgi_tcs modGuts ++ availableTcs
-    , _gsCls       = mgi_cls_inst modGuts
-    , _gsFiTcs     = fiTcs
-    , _gsFiDcs     = fiDcs
-    , _gsPrimTcs   = Ghc.primTyCons
-    , _gsQualImps  = qualifiedImports (maybe mempty (view _2) (tm_renamed_source typechecked))
-    , _gsAllImps   = allImports       (maybe mempty (view _2) (tm_renamed_source typechecked))
-    , _gsTyThings  = [ t | (_, Just t) <- things ]
-    }
 
 _impThings :: [Var] -> [TyThing] -> [TyThing]
 _impThings vars  = filter ok
@@ -358,11 +309,6 @@ makeFamInstEnv famInsts =
       fiDcs = [ (symbol d, d) | tc <- fiTcs, d <- tyConDataCons tc ]
   in (fiTcs, fiDcs)
 
-getFamInstances :: HscEnv -> IO [FamInst]
-getFamInstances env = do
-  (_, Just (pkg_fie, home_fie)) <- runTcInteractive env tcGetFamInstEnvs
-  return $ famInstEnvElts home_fie ++ famInstEnvElts pkg_fie
-
 --------------------------------------------------------------------------------
 -- | Extract Specifications from GHC -------------------------------------------
 --------------------------------------------------------------------------------
@@ -432,11 +378,6 @@ parseSpecFile file = do
 --------------------------------------------------------------------------------
 -- Assemble Information for Spec Extraction ------------------------------------
 --------------------------------------------------------------------------------
-
-makeMGIModGuts :: ModGuts -> MGIModGuts
-makeMGIModGuts modGuts = miModGuts deriv modGuts
-  where
-    deriv   = Just $ instEnvElts $ mg_inst_env modGuts
 
 makeLogicMap :: IO LogicMap
 makeLogicMap = do
