@@ -19,13 +19,6 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     , allDeps
     , addLibDependencies
 
-    -- * Caching specs into interfaces
-    , CachedSpec
-    , toCached
-    , cachedSpecStableModuleId
-    , cachedSpecModule
-    , fromCached
-
     -- * Merging specs together
     , InputSpec
     , CompanionSpec
@@ -58,7 +51,6 @@ import           Data.Foldable
 import           GHC.Generics                      hiding ( moduleName )
 
 import qualified Data.HashSet        as HS
-import           Data.Hashable
 
 import           Language.Fixpoint.Types.Spans
 import           Language.Haskell.Liquid.Types.Specs
@@ -95,32 +87,6 @@ libDeps = llDeps
 -- | Extracts all the dependencies from a collection of 'LiquidLib's.
 allDeps :: Foldable f => f LiquidLib -> TargetDependencies
 allDeps = foldl' (\acc lib -> acc <> llDeps lib) mempty
-
--- | A cached spec which can be serialised into an interface.
-data CachedSpec = CachedSpec GHC.StableModule LiftedSpec deriving (Show, Generic)
-
-instance Binary CachedSpec
-
-instance Eq CachedSpec where
-    (CachedSpec id1 _) == (CachedSpec id2 _) = id1 == id2
-
-instance Hashable CachedSpec where
-    hashWithSalt s (CachedSpec (unStableModule -> mdl) _) =
-      hashWithSalt s (moduleStableString mdl)
-
--- | Converts the input 'BareSpec' into a 'CachedSpec', inforcing the invariant that termination checking
--- needs to be disabled as this is now considered safe to use for \"clients\".
-toCached :: Module -> LiftedSpec -> CachedSpec
-toCached mdl liftedSpec = CachedSpec (toStableModule mdl) liftedSpec
-
-cachedSpecStableModuleId :: CachedSpec -> String
-cachedSpecStableModuleId (CachedSpec (unStableModule -> m) _) = moduleStableString m
-
-cachedSpecModule :: CachedSpec -> Module
-cachedSpecModule (CachedSpec (unStableModule -> m) _) = m
-
-fromCached :: CachedSpec -> (StableModule, LiftedSpec)
-fromCached (CachedSpec sm s) = (sm, s)
 
 ---
 --- A Liquid spec and its (many) flavours
