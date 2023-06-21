@@ -1,8 +1,5 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE RankNTypes #-}
--- | This module introduces a \"lighter\" "GhcMonad" typeclass which doesn't require an instance of
--- 'ExceptionMonad', and can therefore be used for both 'CoreM' and 'Ghc'.
---
 
 module Liquid.GHC.GhcMonadLike (
   -- * Types and type classes
