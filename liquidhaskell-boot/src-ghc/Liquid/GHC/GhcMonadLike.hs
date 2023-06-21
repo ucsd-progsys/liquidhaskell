@@ -10,14 +10,11 @@
 
 module Liquid.GHC.GhcMonadLike (
   -- * Types and type classes
-    HasHscEnv
-  , GhcMonadLike
-  , ModuleInfo
+    ModuleInfo
   , TypecheckedModule(..)
 
   -- * Functions and typeclass methods
 
-  , askHscEnv
   , lookupModSummary
   , modInfoLookupName
   , moduleInfoTc
@@ -53,68 +50,49 @@ import qualified GHC.Data.EnumSet as EnumSet
 
 import Optics
 
-class HasHscEnv m where
-  askHscEnv :: m HscEnv
-
-instance HasHscEnv Ghc where
-  askHscEnv = getSession
-
-instance HasHscEnv TcM where
-  askHscEnv = env_top <$> getEnv
-
--- | A typeclass which is /very/ similar to the existing 'GhcMonad', but it doesn't impose a
--- 'ExceptionMonad' constraint.
-class (Functor m, MonadIO m, HasHscEnv m, HasDynFlags m) => GhcMonadLike m
-
-instance GhcMonadLike Ghc
-instance GhcMonadLike TcM
 
 -- Converts a 'IsBootInterface' into a 'Bool'.
 isBootInterface :: IsBootInterface -> Bool
 isBootInterface IsBoot  = True
 isBootInterface NotBoot = False
 
-lookupModSummary :: GhcMonadLike m => ModuleName -> m (Maybe ModSummary)
-lookupModSummary mdl = do
-   mg <- fmap hsc_mod_graph askHscEnv
-   let mods_by_name = [ ms | ms <- mgModSummaries mg
+lookupModSummary :: HscEnv -> ModuleName -> Maybe ModSummary
+lookupModSummary hscEnv mdl = do
+   let mg = hsc_mod_graph hscEnv
+       mods_by_name = [ ms | ms <- mgModSummaries mg
                       , ms_mod_name ms == mdl
                       , not (isBootInterface . isBootSummary $ ms) ]
    case mods_by_name of
-     [ms] -> pure (Just ms)
-     _    -> pure Nothing
+     [ms] -> Just ms
+     _    -> Nothing
 
 -- | Our own simplified version of 'ModuleInfo' to overcome the fact we cannot construct the \"original\"
 -- one as the constructor is not exported, and 'getHomeModuleInfo' and 'getPackageModuleInfo' are not
 -- exported either, so we had to backport them as well.
 newtype ModuleInfo = ModuleInfo { minf_type_env :: UniqFM Name TyThing }
 
-modInfoLookupName :: GhcMonadLike m
-                  => ModuleInfo
+modInfoLookupName :: HscEnv
+                  -> ModuleInfo
                   -> Name
-                  -> m (Maybe TyThing)
-modInfoLookupName minf name = do
-  hsc_env <- askHscEnv
+                  -> IO (Maybe TyThing)
+modInfoLookupName hscEnv minf name =
   case lookupTypeEnv (minf_type_env minf) name of
     Just tyThing -> return (Just tyThing)
-    Nothing      -> liftIO $ do
-      lookupType hsc_env name
+    Nothing      -> lookupType hscEnv name
 
-moduleInfoTc :: GhcMonadLike m => ModSummary -> TcGblEnv -> m ModuleInfo
-moduleInfoTc ms tcGblEnv = do
-  hsc_env <- askHscEnv
-  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
+moduleInfoTc :: HscEnv -> ModSummary -> TcGblEnv -> IO ModuleInfo
+moduleInfoTc hscEnv ms tcGblEnv = do
+  let hsc_env_tmp = hscEnv { hsc_dflags = ms_hspp_opts ms }
   details <- md_types <$> liftIO (makeSimpleDetails hsc_env_tmp tcGblEnv)
   pure ModuleInfo { minf_type_env = details }
 
 --
 -- Parsing, typechecking and desugaring a module
 --
-parseModule :: GhcMonadLike m => ModSummary -> m ParsedModule
-parseModule ms = do
-  hsc_env <- askHscEnv
-  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
-  hpm <- liftIO $ hscParse hsc_env_tmp ms
+parseModule :: HscEnv -> ModSummary -> IO ParsedModule
+parseModule hscEnv ms = do
+  let hsc_env_tmp = hscEnv { hsc_dflags = ms_hspp_opts ms }
+  hpm <- hscParse hsc_env_tmp ms
   return (ParsedModule ms (hpm_module hpm) (hpm_src_files hpm))
 
 -- | Our own simplified version of 'TypecheckedModule'.
@@ -125,16 +103,15 @@ data TypecheckedModule = TypecheckedModule {
   , tm_gbl_env        :: TcGblEnv
   }
 
-typecheckModule :: GhcMonadLike m => ParsedModule -> m TypecheckedModule
-typecheckModule pmod = do
+typecheckModule :: HscEnv -> ParsedModule -> IO TypecheckedModule
+typecheckModule hscEnv pmod = do
   -- Suppress all the warnings, so that they won't be printed (which would result in them being
   -- printed twice, one by GHC and once here).
   let ms = pm_mod_summary pmod
-  hsc_env <- askHscEnv
   let dynFlags' = ms_hspp_opts ms
-  let hsc_env_tmp = hsc_env { hsc_dflags = dynFlags' { warningFlags = EnumSet.empty } }
+  let hsc_env_tmp = hscEnv { hsc_dflags = dynFlags' { warningFlags = EnumSet.empty } }
   (tc_gbl_env, rn_info)
-        <- liftIO $ hscTypecheckRename hsc_env_tmp ms $
+        <- hscTypecheckRename hsc_env_tmp ms $
                        HsParsedModule { hpm_module = parsedSource pmod,
                                         hpm_src_files = pm_extra_src_files pmod }
   return TypecheckedModule {
@@ -161,17 +138,15 @@ instance IsTypecheckedModule Ghc.TypecheckedModule where
   tmGblEnv       = to (fst . Ghc.tm_internals_)
 
 -- | Desugar a typechecked module.
-desugarModule :: (GhcMonadLike m, IsTypecheckedModule t) => ModSummary -> t -> m ModGuts
-desugarModule originalModSum typechecked = do
+desugarModule :: IsTypecheckedModule t => HscEnv -> ModSummary -> t -> IO ModGuts
+desugarModule hscEnv originalModSum typechecked = do
   -- See [NOTE:ghc810] on why we override the dynFlags here before calling 'desugarModule'.
-  dynFlags          <- getDynFlags
-  let modSum         = originalModSum { ms_hspp_opts = dynFlags }
+  let modSum         = originalModSum { ms_hspp_opts = hsc_dflags hscEnv }
   let parsedMod'     = (view tmParsedModule typechecked) { pm_mod_summary = modSum }
   let typechecked'   = set tmParsedModule parsedMod' typechecked
 
-  hsc_env <- askHscEnv
-  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts (view tmModSummary typechecked') }
-  liftIO $ hscDesugar hsc_env_tmp (view tmModSummary typechecked') (view tmGblEnv typechecked')
+  let hsc_env_tmp = hscEnv { hsc_dflags = ms_hspp_opts (view tmModSummary typechecked') }
+  hscDesugar hsc_env_tmp (view tmModSummary typechecked') (view tmGblEnv typechecked')
 
 -- | Abstraction of 'EpaComment'.
 data ApiComment

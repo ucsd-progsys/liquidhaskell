@@ -44,7 +44,6 @@ module Liquid.GHC.Interface (
   , availableTyCons
   , availableVars
   , updLiftedSpec
-  , getTyThingsFromExternalModules
   ) where
 
 import Prelude hiding (error)
@@ -64,7 +63,6 @@ import Control.Exception
 import Control.Monad
 
 import Data.Data
-import Data.IORef
 import Data.List hiding (intersperse)
 import Data.Maybe
 
@@ -83,7 +81,6 @@ import Liquid.GHC.Misc
 import Liquid.GHC.Types (MGIModGuts(..), miModGuts)
 import Liquid.GHC.Play
 import qualified Liquid.GHC.GhcMonadLike as GhcMonadLike
-import Liquid.GHC.GhcMonadLike (GhcMonadLike, askHscEnv)
 import Language.Haskell.Liquid.WiredIn (isDerivedInstance)
 import qualified Language.Haskell.Liquid.Measure  as Ms
 import qualified Language.Haskell.Liquid.Misc     as Misc
@@ -171,17 +168,17 @@ keepRawTokenStream modSummary = modSummary
 
 makeGhcSrc :: Config -> FilePath -> TypecheckedModule -> ModSummary -> Ghc GhcSrc
 makeGhcSrc cfg file typechecked modSum = do
-  modGuts'          <- GhcMonadLike.desugarModule modSum typechecked
+  hscEnv            <- getSession
+  modGuts'          <- liftIO $ GhcMonadLike.desugarModule hscEnv modSum typechecked
 
   let modGuts        = makeMGIModGuts modGuts'
-  hscEnv            <- getSession
   coreBinds         <- liftIO $ anormalize cfg hscEnv modGuts'
   _                 <- liftIO $ whenNormal $ Misc.donePhase Misc.Loud "A-Normalization"
   let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)
   (fiTcs, fiDcs)    <- makeFamInstEnv <$> liftIO (getFamInstances hscEnv)
-  things            <- lookupTyThings hscEnv modSum (fst $ tm_internals_ typechecked)
+  things            <- liftIO $ lookupTyThings hscEnv modSum (fst $ tm_internals_ typechecked)
 
-  availableTcs      <- availableTyCons hscEnv modSum (fst $ tm_internals_ typechecked) (mg_exports modGuts')
+  availableTcs      <- liftIO $ availableTyCons hscEnv modSum (fst $ tm_internals_ typechecked) (mg_exports modGuts')
 
   let impVars        = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)
 
@@ -245,7 +242,7 @@ qImports qns  = QImports
 --   for this module; we will use this to create our name-resolution environment
 --   (see `Bare.Resolve`)
 ---------------------------------------------------------------------------------------
-lookupTyThings :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> m [(Name, Maybe TyThing)]
+lookupTyThings :: HscEnv -> ModSummary -> TcGblEnv -> IO [(Name, Maybe TyThing)]
 lookupTyThings hscEnv modSum tcGblEnv = forM names (lookupTyThing hscEnv modSum tcGblEnv)
   where
     names :: [Ghc.Name]
@@ -254,38 +251,30 @@ lookupTyThings hscEnv modSum tcGblEnv = forM names (lookupTyThing hscEnv modSum 
              (fmap is_dfun_name . tcg_insts) tcGblEnv
 -- | Lookup a single 'Name' in the GHC environment, yielding back the 'Name' alongside the 'TyThing',
 -- if one is found.
-lookupTyThing :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> Name -> m (Name, Maybe TyThing)
+lookupTyThing :: HscEnv -> ModSummary -> TcGblEnv -> Name -> IO (Name, Maybe TyThing)
 lookupTyThing hscEnv modSum tcGblEnv n = do
-  mi  <- GhcMonadLike.moduleInfoTc modSum tcGblEnv
-  tt1 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n
-  tt2 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n
-  tt3 <-          GhcMonadLike.modInfoLookupName mi n
-  tt4 <- liftIO $ Ghc.lookupType hscEnv n
+  mi  <- GhcMonadLike.moduleInfoTc hscEnv modSum tcGblEnv
+  tt1 <- Ghc.hscTcRcLookupName hscEnv n
+  tt2 <- Ghc.hscTcRcLookupName hscEnv n
+  tt3 <- GhcMonadLike.modInfoLookupName hscEnv mi n
+  tt4 <- Ghc.lookupType hscEnv n
   return (n, Misc.firstMaybes [tt1, tt2, tt3, tt4])
 
-availableTyThings :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [TyThing]
+availableTyThings :: HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> IO [TyThing]
 availableTyThings hscEnv modSum tcGblEnv avails =
     fmap catMaybes $
       mapM (fmap snd . lookupTyThing hscEnv modSum tcGblEnv) $
       availableNames avails
 
 -- | Returns all the available (i.e. exported) 'TyCon's (type constructors) for the input 'Module'.
-availableTyCons :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [Ghc.TyCon]
+availableTyCons :: HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> IO [Ghc.TyCon]
 availableTyCons hscEnv modSum tcGblEnv avails =
   fmap (\things -> [tyCon | (ATyCon tyCon) <- things]) (availableTyThings hscEnv modSum tcGblEnv avails)
 
 -- | Returns all the available (i.e. exported) 'Var's for the input 'Module'.
-availableVars :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [Ghc.Var]
+availableVars :: HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> IO [Ghc.Var]
 availableVars hscEnv modSum tcGblEnv avails =
   fmap (\things -> [var | (AnId var) <- things]) (availableTyThings hscEnv modSum tcGblEnv avails)
-
--- | TyThings of modules in external packages
-getTyThingsFromExternalModules :: GhcMonadLike m => [Module] -> m [TyThing]
-getTyThingsFromExternalModules mods = do
-    hscEnv <- askHscEnv
-    eps <- liftIO $ readIORef $ hsc_EPS hscEnv
-    let names = availableNames $ concatMap mi_exports $ mapMaybe (lookupModuleEnv $ eps_PIT eps) mods
-    fmap catMaybes $ liftIO $ mapM (Ghc.hscTcRcLookupName hscEnv) names
 
 availableNames :: [AvailInfo] -> [Name]
 availableNames =
@@ -347,7 +336,7 @@ modSummaryHsFile modSummary =
       showPpr (ms_mod modSummary))
     (ml_hs_file $ ms_location modSummary)
 
-checkFilePragmas :: GhcMonadLike m => [Located String] -> m ()
+checkFilePragmas :: [Located String] -> IO ()
 checkFilePragmas = Misc.applyNonNull (return ()) throw . mapMaybe err
   where
     err pragma
