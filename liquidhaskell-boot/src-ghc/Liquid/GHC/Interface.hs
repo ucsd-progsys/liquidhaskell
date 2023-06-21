@@ -60,6 +60,7 @@ import qualified Liquid.GHC.API as Ghc
 
 import Control.Exception
 import Control.Monad
+import Control.Monad.Trans.Maybe
 
 import Data.Data
 import Data.List hiding (intersperse)
@@ -204,12 +205,18 @@ lookupTyThings hscEnv modSum tcGblEnv = forM names (lookupTyThing hscEnv modSum 
 -- if one is found.
 lookupTyThing :: HscEnv -> ModSummary -> TcGblEnv -> Name -> IO (Name, Maybe TyThing)
 lookupTyThing hscEnv modSum tcGblEnv n = do
-  mi  <- GhcMonadLike.moduleInfoTc hscEnv modSum tcGblEnv
-  tt1 <- Ghc.hscTcRcLookupName hscEnv n
-  tt2 <- Ghc.hscTcRcLookupName hscEnv n
-  tt3 <- GhcMonadLike.modInfoLookupName hscEnv mi n
-  tt4 <- Ghc.lookupType hscEnv n
-  return (n, Misc.firstMaybes [tt1, tt2, tt3, tt4])
+  mty <- runMaybeT $
+         MaybeT (Ghc.hscTcRcLookupName hscEnv n)
+         `mplus`
+         MaybeT (Ghc.hscTcRcLookupName hscEnv n)
+         `mplus`
+         MaybeT (
+           do mi  <- GhcMonadLike.moduleInfoTc hscEnv modSum tcGblEnv
+              GhcMonadLike.modInfoLookupName hscEnv mi n
+           )
+         `mplus`
+         MaybeT (Ghc.lookupType hscEnv n)
+  return (n, mty)
 
 availableTyThings :: HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> IO [TyThing]
 availableTyThings hscEnv modSum tcGblEnv avails =
@@ -232,23 +239,6 @@ availableNames =
     concatMap $ \case
       Avail n -> [Ghc.greNameMangledName n]
       AvailTC n ns -> n : map Ghc.greNameMangledName ns
-
--- lookupTyThings :: HscEnv -> TypecheckedModule -> MGIModGuts -> Ghc [(Name, Maybe TyThing)]
--- lookupTyThings hscEnv tcm mg =
---   forM (mgNames mg ++ instNames mg) $ \n -> do
---     tt1 <-          lookupName                   n
---     tt2 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n
---     tt3 <-          modInfoLookupName mi         n
---     tt4 <-          lookupGlobalName             n
---     return (n, Misc.firstMaybes [tt1, tt2, tt3, tt4])
---     where
---       mi = tm_checked_module_info tcm
-
-
--- lookupName        :: GhcMonad m => Name -> m (Maybe TyThing)
--- hscTcRcLookupName :: HscEnv -> Name -> IO (Maybe TyThing)
--- modInfoLookupName :: GhcMonad m => ModuleInfo -> Name -> m (Maybe TyThing)
--- lookupGlobalName  :: GhcMonad m => Name -> m (Maybe TyThing)
 
 _dumpTypeEnv :: TypecheckedModule -> IO ()
 _dumpTypeEnv tm = do

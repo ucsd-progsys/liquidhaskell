@@ -55,6 +55,7 @@ module Language.Haskell.Liquid.Bare.Resolve
   ) where
 
 import qualified Control.Exception                 as Ex
+import           Control.Monad (mplus)
 import qualified Data.List                         as L
 import qualified Data.HashSet                      as S
 import qualified Data.Maybe                        as Mb
@@ -652,7 +653,7 @@ lookupTyThing env mdname lsym = [ (k, t) | (k, ts) <- ordMatches, t <- ts]
 
 lookupThings :: Env -> F.Symbol -> [(F.Symbol, Ghc.TyThing)]
 lookupThings env x = myTracepp ("lookupThings: " ++ F.showpp x)
-                   $ Misc.fromFirstMaybes [] (get <$> [x, GM.stripParensSym x])
+                   $ Mb.fromMaybe [] $ get x `mplus` get (GM.stripParensSym x)
   where
     get z          = M.lookup z (_reTyThings env)
 
