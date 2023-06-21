@@ -30,10 +30,6 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     , tcAvailableTyCons
     , tcAvailableVars
     , mkTcData
-
-    -- * Wrapper type to talk about unoptimised things
-    , Unoptimised(fromUnoptimised)
-    , toUnoptimised
     ) where
 
 import           Data.Binary                             as B
@@ -84,11 +80,6 @@ newtype SpecComment =
     SpecComment (SourcePos, String)
     deriving (Show, Data)
 
-newtype Unoptimised a = Unoptimised { fromUnoptimised :: a }
-
-toUnoptimised :: a -> Unoptimised a
-toUnoptimised = Unoptimised
-
 --
 -- Passing data between stages of the pipeline
 --
@@ -99,7 +90,7 @@ toUnoptimised = Unoptimised
 -- 2. Pass data inside IORefs.
 
 data PipelineData = PipelineData {
-    pdUnoptimisedCore :: Unoptimised ModGuts
+    pdUnoptimisedCore :: ModGuts
   , pdTcData :: TcData
   , pdSpecComments :: [SpecComment]
   }

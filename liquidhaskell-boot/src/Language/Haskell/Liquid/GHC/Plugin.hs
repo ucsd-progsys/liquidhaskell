@@ -240,7 +240,7 @@ typecheckHook (unoptimise -> modSummary) tcGblEnv = do
   unoptimisedGuts <- liftIO $ GhcMonadLike.desugarModule env modSummary typechecked
 
   let tcData = mkTcData (tcg_rn_imports tcGblEnv) resolvedNames availTyCons availVars
-  let pipelineData = PipelineData (toUnoptimised unoptimisedGuts) tcData (map SpecComment comments)
+  let pipelineData = PipelineData unoptimisedGuts tcData (map SpecComment comments)
 
   liquidHaskellCheck pipelineData modSummary tcGblEnv
 
@@ -310,7 +310,7 @@ processInputSpec cfg pipelineData modSummary tcGblEnv inputSpec = do
     thisModule = tcg_mod tcGblEnv
 
     modGuts :: ModGuts
-    modGuts = fromUnoptimised . pdUnoptimisedCore $ pipelineData
+    modGuts = pdUnoptimisedCore pipelineData
 
 liquidHaskellCheckWithConfig :: Config -> PipelineData -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
 liquidHaskellCheckWithConfig globalCfg pipelineData modSummary tcGblEnv = do
@@ -467,7 +467,7 @@ data LiquidHaskellContext = LiquidHaskellContext {
   , lhModuleLogicMap   :: LogicMap
   , lhModuleSummary    :: ModSummary
   , lhModuleTcData     :: TcData
-  , lhModuleGuts       :: Unoptimised ModGuts
+  , lhModuleGuts       :: ModGuts
   , lhRelevantModules  :: Set Module
   }
 
@@ -571,7 +571,7 @@ processModule LiquidHaskellContext{..} = do
       `Ex.catch` (\(es :: [Error]) -> reportErrs es)
 
   where
-    modGuts    = fromUnoptimised lhModuleGuts
+    modGuts    = lhModuleGuts
     thisModule = mg_module modGuts
 
 makeTargetSrc :: Config
