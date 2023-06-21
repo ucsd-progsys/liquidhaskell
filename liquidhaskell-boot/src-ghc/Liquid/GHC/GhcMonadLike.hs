@@ -48,8 +48,6 @@ import           Liquid.GHC.API   hiding ( ModuleInfo
 import GHC.Data.Maybe
 import qualified GHC.Data.EnumSet as EnumSet
 
-import Optics
-
 
 -- Converts a 'IsBootInterface' into a 'Bool'.
 isBootInterface :: IsBootInterface -> Bool
@@ -121,32 +119,16 @@ typecheckModule hscEnv pmod = do
     , tm_gbl_env        = tc_gbl_env
     }
 
-class IsTypecheckedModule t where
-  tmParsedModule :: Lens'  t ParsedModule
-  tmModSummary   :: Lens'  t ModSummary
-  tmGblEnv       :: Getter t TcGblEnv
-
-instance IsTypecheckedModule TypecheckedModule where
-  tmParsedModule = lens tm_parsed_module (\s x -> s { tm_parsed_module = x })
-  tmModSummary   = lens tm_mod_summary   (\s x -> s { tm_mod_summary = x })
-  tmGblEnv       = to tm_gbl_env
-
-instance IsTypecheckedModule Ghc.TypecheckedModule where
-  tmParsedModule = lens Ghc.tm_parsed_module (\s x -> s { Ghc.tm_parsed_module = x })
-  tmModSummary   = lens (pm_mod_summary . Ghc.tm_parsed_module)
-                        (\s x -> over tmParsedModule (\pm -> pm { Ghc.pm_mod_summary = x }) s )
-  tmGblEnv       = to (fst . Ghc.tm_internals_)
-
 -- | Desugar a typechecked module.
-desugarModule :: IsTypecheckedModule t => HscEnv -> ModSummary -> t -> IO ModGuts
+desugarModule :: HscEnv -> ModSummary -> TypecheckedModule -> IO ModGuts
 desugarModule hscEnv originalModSum typechecked = do
   -- See [NOTE:ghc810] on why we override the dynFlags here before calling 'desugarModule'.
   let modSum         = originalModSum { ms_hspp_opts = hsc_dflags hscEnv }
-  let parsedMod'     = (view tmParsedModule typechecked) { pm_mod_summary = modSum }
-  let typechecked'   = set tmParsedModule parsedMod' typechecked
+  let parsedMod'     = (tm_parsed_module typechecked) { pm_mod_summary = modSum }
+  let typechecked'   = typechecked { tm_parsed_module = parsedMod' }
 
-  let hsc_env_tmp = hscEnv { hsc_dflags = ms_hspp_opts (view tmModSummary typechecked') }
-  hscDesugar hsc_env_tmp (view tmModSummary typechecked') (view tmGblEnv typechecked')
+  let hsc_env_tmp = hscEnv { hsc_dflags = ms_hspp_opts (tm_mod_summary typechecked') }
+  hscDesugar hsc_env_tmp (tm_mod_summary typechecked') (tm_gbl_env typechecked')
 
 -- | Abstraction of 'EpaComment'.
 data ApiComment
