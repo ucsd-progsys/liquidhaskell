@@ -208,14 +208,10 @@ lookupTyThing hscEnv modSum tcGblEnv n = do
   mty <- runMaybeT $
          MaybeT (Ghc.hscTcRcLookupName hscEnv n)
          `mplus`
-         MaybeT (Ghc.hscTcRcLookupName hscEnv n)
-         `mplus`
          MaybeT (
            do mi  <- GhcMonadLike.moduleInfoTc hscEnv modSum tcGblEnv
               GhcMonadLike.modInfoLookupName hscEnv mi n
            )
-         `mplus`
-         MaybeT (Ghc.lookupType hscEnv n)
   return (n, mty)
 
 availableTyThings :: HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> IO [TyThing]
