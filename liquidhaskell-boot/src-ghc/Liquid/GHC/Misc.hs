@@ -71,8 +71,6 @@ mkAlive x
 --------------------------------------------------------------------------------
 -- | Encoding and Decoding Location --------------------------------------------
 --------------------------------------------------------------------------------
-srcSpanTick :: Module -> SrcSpan -> CoreTickish
-srcSpanTick m sp = ProfNote (AllCafsCC m sp) False True
 
 tickSrcSpan :: CoreTickish -> SrcSpan
 tickSrcSpan (ProfNote cc _ _) = cc_loc cc
@@ -875,7 +873,7 @@ defaultDataCons (TyConApp tc argτs) ds = do
   allDs     <- Ghc.tyConDataCons_maybe tc
   let seenDs = [d | DataAlt d <- ds ]
   let defDs  = keyDiff showPpr allDs seenDs
-  return [ (d, Ghc.dataConExTyVars d, map irrelevantMult $ Ghc.dataConInstArgTys d argτs) | d <- defDs ]
+  return [ (d, Ghc.dataConExTyCoVars d, map irrelevantMult $ Ghc.dataConInstArgTys d argτs) | d <- defDs ]
 
 defaultDataCons _ _ =
   Nothing

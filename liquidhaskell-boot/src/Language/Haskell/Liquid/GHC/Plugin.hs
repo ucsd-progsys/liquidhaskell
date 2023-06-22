@@ -38,13 +38,11 @@ import           Language.Haskell.Liquid.GHC.Plugin.SpecFinder
 import           Liquid.GHC.Types       (MGIModGuts(..), miModGuts)
 import qualified Liquid.GHC.GhcMonadLike
                                                          as GhcMonadLike
-import           Liquid.GHC.GhcMonadLike ( GhcMonadLike
-                                                          , askHscEnv
-                                                          , isBootInterface
-                                                          )
+import           Liquid.GHC.GhcMonadLike (isBootInterface)
 import           GHC.LanguageExtensions
 
 import           Control.Monad
+import qualified Control.Monad.Catch as Ex
 
 import           Data.Coerce
 import           Data.Kind                                ( Type )
@@ -228,18 +226,18 @@ typecheckHook :: ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGb
 typecheckHook (unoptimise -> modSummary) tcGblEnv = do
   debugLog $ "We are in module: " <> show (toStableModule thisModule)
 
-  parsed          <- GhcMonadLike.parseModule (LH.keepRawTokenStream modSummary)
+  env             <- env_top <$> getEnv
+  parsed          <- liftIO $ GhcMonadLike.parseModule env (LH.keepRawTokenStream modSummary)
   let comments    = LH.extractSpecComments parsed
   -- The LH plugin itself calls the type checker (see following line). This
   -- would lead to a loop if we didn't remove the plugin when calling the type
   -- checker.
-  typechecked     <- updTopEnv dropPlugins $ GhcMonadLike.typecheckModule (LH.ignoreInline parsed)
-  env             <- askHscEnv
-  resolvedNames   <- LH.lookupTyThings env modSummary tcGblEnv
-  availTyCons     <- LH.availableTyCons env modSummary tcGblEnv (tcg_exports tcGblEnv)
-  availVars       <- LH.availableVars env modSummary tcGblEnv (tcg_exports tcGblEnv)
+  typechecked     <- liftIO $ GhcMonadLike.typecheckModule (dropPlugins env) (LH.ignoreInline parsed)
+  resolvedNames   <- liftIO $ LH.lookupTyThings env modSummary tcGblEnv
+  availTyCons     <- liftIO $ LH.availableTyCons env modSummary tcGblEnv (tcg_exports tcGblEnv)
+  availVars       <- liftIO $ LH.availableVars env modSummary tcGblEnv (tcg_exports tcGblEnv)
 
-  unoptimisedGuts <- GhcMonadLike.desugarModule modSummary typechecked
+  unoptimisedGuts <- liftIO $ GhcMonadLike.desugarModule env modSummary typechecked
 
   let tcData = mkTcData (tcg_rn_imports tcGblEnv) resolvedNames availTyCons availVars
   let pipelineData = PipelineData (toUnoptimised unoptimisedGuts) tcData (map SpecComment comments)
@@ -332,9 +330,9 @@ liquidHaskellCheckWithConfig globalCfg pipelineData modSummary tcGblEnv = do
     Right inputSpec ->
       withPragmas globalCfg thisFile (Ms.pragmas $ review bareSpecIso inputSpec) $ \moduleCfg -> do
         processInputSpec moduleCfg pipelineData modSummary tcGblEnv inputSpec
-          `gcatch` (\(e :: UserError) -> reportErrs moduleCfg [e])
-          `gcatch` (\(e :: Error) -> reportErrs moduleCfg [e])
-          `gcatch` (\(es :: [Error]) -> reportErrs moduleCfg es)
+          `Ex.catch` (\(e :: UserError) -> reportErrs moduleCfg [e])
+          `Ex.catch` (\(e :: Error) -> reportErrs moduleCfg [e])
+          `Ex.catch` (\(es :: [Error]) -> reportErrs moduleCfg es)
 
   where
     thisFile :: FilePath
@@ -407,11 +405,11 @@ loadDependencies :: Config
                  -> [Module]
                  -> TcM TargetDependencies
 loadDependencies currentModuleConfig thisModule mods = do
-  hscEnv    <- askHscEnv
+  hscEnv    <- env_top <$> getEnv
   results   <- SpecFinder.findRelevantSpecs
                  (excludeAutomaticAssumptionsFor currentModuleConfig) hscEnv mods
   deps      <- foldlM processResult mempty (reverse results)
-  redundant <- configToRedundantDependencies currentModuleConfig
+  redundant <- liftIO $ configToRedundantDependencies hscEnv currentModuleConfig
 
   debugLog $ "Redundant dependencies ==> " ++ show redundant
 
@@ -497,7 +495,8 @@ getLiquidSpec thisFile thisModule specComments specQuotes = do
     Left errors ->
       LH.filterReportErrors thisFile GHC.failM continue (getFilters globalCfg) Full errors
     Right (view bareSpecIso . snd -> commSpec) -> do
-      res <- SpecFinder.findCompanionSpec thisModule
+      env    <- env_top <$> getEnv
+      res <- liftIO $ SpecFinder.findCompanionSpec env thisModule
       case res of
         SpecFound _ _ companionSpec -> do
           debugLog $ "Companion spec found for " ++ renderModule thisModule
@@ -509,7 +508,7 @@ getLiquidSpec thisFile thisModule specComments specQuotes = do
 processModule :: LiquidHaskellContext -> TcM (Either LiquidCheckException ProcessModuleResult)
 processModule LiquidHaskellContext{..} = do
   debugLog ("Module ==> " ++ renderModule thisModule)
-  hscEnv              <- askHscEnv
+  hscEnv              <- env_top <$> getEnv
 
   let bareSpec        = lhInputSpec
   -- /NOTE/: For the Plugin to work correctly, we shouldn't call 'canonicalizePath', because otherwise
@@ -517,7 +516,7 @@ processModule LiquidHaskellContext{..} = do
   -- (cfr. 'allowExtResolution').
   let file            = LH.modSummaryHsFile lhModuleSummary
 
-  _                   <- LH.checkFilePragmas $ Ms.pragmas (review bareSpecIso bareSpec)
+  _                   <- liftIO $ LH.checkFilePragmas $ Ms.pragmas (review bareSpecIso bareSpec)
 
   withPragmas lhGlobalCfg file (Ms.pragmas $ review bareSpecIso bareSpec) $ \moduleCfg -> do
     dependencies       <- loadDependencies moduleCfg
@@ -531,7 +530,7 @@ processModule LiquidHaskellContext{..} = do
     debugLog $ "mg_exports => " ++ O.showSDocUnsafe (O.ppr $ mg_exports modGuts)
     debugLog $ "mg_tcs => " ++ O.showSDocUnsafe (O.ppr $ mg_tcs modGuts)
 
-    targetSrc  <- makeTargetSrc moduleCfg file lhModuleTcData modGuts hscEnv
+    targetSrc  <- liftIO $ makeTargetSrc moduleCfg file lhModuleTcData modGuts hscEnv
     logger <- getLogger
     dynFlags <- getDynFlags
 
@@ -567,27 +566,22 @@ processModule LiquidHaskellContext{..} = do
             }
 
         pure $ Right result')
-      `gcatch` (\(e :: UserError) -> reportErrs [e])
-      `gcatch` (\(e :: Error) -> reportErrs [e])
-      `gcatch` (\(es :: [Error]) -> reportErrs es)
+      `Ex.catch` (\(e :: UserError) -> reportErrs [e])
+      `Ex.catch` (\(e :: Error) -> reportErrs [e])
+      `Ex.catch` (\(es :: [Error]) -> reportErrs es)
 
   where
     modGuts    = fromUnoptimised lhModuleGuts
     thisModule = mg_module modGuts
 
----------------------------------------------------------------------------------------
--- | @makeGhcSrc@ builds all the source-related information needed for consgen
----------------------------------------------------------------------------------------
-
-makeTargetSrc :: GhcMonadLike m
-              => Config
+makeTargetSrc :: Config
               -> FilePath
               -> TcData
               -> ModGuts
               -> HscEnv
-              -> m TargetSrc
+              -> IO TargetSrc
 makeTargetSrc cfg file tcData modGuts hscEnv = do
-  coreBinds      <- liftIO $ anormalize cfg hscEnv modGuts
+  coreBinds      <- anormalize cfg hscEnv modGuts
 
   -- The type constructors for a module are the (nubbed) union of the ones defined and
   -- the ones exported. This covers the case of \"wrapper modules\" that simply re-exports

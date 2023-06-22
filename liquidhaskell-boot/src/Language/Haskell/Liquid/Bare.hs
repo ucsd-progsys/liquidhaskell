@@ -23,7 +23,7 @@ module Language.Haskell.Liquid.Bare (
 
 import           Prelude                                    hiding (error)
 import           Optics
-import           Control.Monad                              (forM)
+import           Control.Monad                              (forM, mplus)
 import           Control.Applicative                        ((<|>))
 import qualified Control.Exception                          as Ex
 import qualified Data.Binary                                as B
@@ -844,7 +844,7 @@ rawAsmSigs env myName specs = do
   return [ (m, v, t) | (v, sigs) <- aSigs, let (m, t) = myAsmSig v sigs ]
 
 myAsmSig :: Ghc.Var -> [(Bool, ModName, LocBareType)] -> (ModName, LocBareType)
-myAsmSig v sigs = Mb.fromMaybe errImp (Misc.firstMaybes [mbHome, mbImp])
+myAsmSig v sigs = Mb.fromMaybe errImp (mbHome `mplus` mbImp)
   where
     mbHome      = takeUnique mkErr                  sigsHome
     mbImp       = takeUnique mkErr (Misc.firstGroup sigsImp) -- see [NOTE:Prioritize-Home-Spec]

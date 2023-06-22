@@ -26,6 +26,7 @@ import Prelude hiding (error)
 import Data.Graph hiding (Graph)
 import Data.Maybe
 
+import           Control.Monad
 import           Control.Monad.State
 import           Data.Functor ((<&>))
 import qualified Control.Exception         as Ex
@@ -655,7 +656,7 @@ expandEApp rtEnv l (EVar f, es) = case mBody of
     Nothing -> F.eApps       (EVar f) es'
   where
     eAs     = exprAliases rtEnv
-    mBody   = Misc.firstMaybes [M.lookup f eAs, M.lookup (GM.dropModuleUnique f) eAs]
+    mBody   = M.lookup f eAs `mplus` M.lookup (GM.dropModuleUnique f) eAs
     es'     = expandExpr rtEnv l <$> es
     _f0     = GM.dropModuleNamesAndUnique f
 

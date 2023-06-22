@@ -124,7 +124,7 @@ exprLiterals = go
 
     tyLitToLit (CharTyLit c) = LitChar c
     tyLitToLit (StrTyLit fs) = LitString (bytesFS fs)
-    tyLitToLit (NumTyLit i)  = LitNumber LitNumInt (fromIntegral i) intPrimTy
+    tyLitToLit (NumTyLit i)  = LitNumber LitNumInt (fromIntegral i)
 
 
 

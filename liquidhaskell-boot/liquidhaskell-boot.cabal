@@ -73,7 +73,6 @@ library
                       Liquid.GHC.TypeRep
                       Language.Haskell.Liquid.GHC.Plugin
                       Language.Haskell.Liquid.GHC.Plugin.Tutorial
-                      Language.Haskell.Liquid.Interactive.Handler
                       Language.Haskell.Liquid.Interactive.Types
                       Language.Haskell.Liquid.LawInstances
                       Language.Haskell.Liquid.Liquid

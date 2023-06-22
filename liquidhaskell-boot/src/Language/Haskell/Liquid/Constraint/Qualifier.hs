@@ -13,6 +13,7 @@ import           Data.List                (delete, nub)
 import           Data.Maybe               (isJust, catMaybes, fromMaybe, isNothing)
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
+import           Debug.Trace (trace)
 import           Language.Fixpoint.Types                  hiding (panic, mkQual)
 import qualified Language.Fixpoint.Types.Config as FC
 import           Language.Fixpoint.SortCheck
