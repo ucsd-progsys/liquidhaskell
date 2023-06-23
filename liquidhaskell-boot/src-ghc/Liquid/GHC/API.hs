@@ -147,7 +147,6 @@ import GHC.Unit.Module.ModDetails     as Ghc (md_types)
 import GHC.Unit.Module.ModGuts        as Ghc
     ( ModGuts
       ( mg_binds
-      , mg_deps
       , mg_exports
       , mg_fam_inst_env
       , mg_inst_env
@@ -163,6 +162,7 @@ import GHC.Utils.Outputable           as Ghc hiding ((<>))
 import GHC.Utils.Panic                as Ghc (panic, throwGhcException, throwGhcExceptionIO)
 
 import GHC.Unit.Module.Deps (Usage(..))
+import GHC.Unit.Module.ModGuts (mg_deps)
 
 -- 'fsToUnitId' is gone in GHC 9, but we can bring code it in terms of 'fsToUnit' and 'toUnitId'.
 fsToUnitId :: FastString -> UnitId
