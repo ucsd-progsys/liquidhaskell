@@ -4,7 +4,6 @@
 module Liquid.GHC.GhcMonadLike (
   -- * Types and type classes
     ModuleInfo
-  , TypecheckedModule(..)
 
   -- * Functions and typeclass methods
 
@@ -81,14 +80,14 @@ parseModule hscEnv ms = do
   return (ParsedModule ms (hpm_module hpm) (hpm_src_files hpm))
 
 -- | Our own simplified version of 'TypecheckedModule'.
-data TypecheckedModule = TypecheckedModule { 
-    tm_parsed_module  :: ParsedModule
-  , tm_renamed_source :: Maybe RenamedSource
-  , tm_mod_summary    :: ModSummary
-  , tm_gbl_env        :: TcGblEnv
+data TypecheckedModuleLH = TypecheckedModuleLH {
+    tmlh_parsed_module  :: ParsedModule
+  , tmlh_renamed_source :: Maybe RenamedSource
+  , tmlh_mod_summary    :: ModSummary
+  , tmlh_gbl_env        :: TcGblEnv
   }
 
-typecheckModule :: HscEnv -> ParsedModule -> IO TypecheckedModule
+typecheckModule :: HscEnv -> ParsedModule -> IO TypecheckedModuleLH
 typecheckModule hscEnv pmod = do
   -- Suppress all the warnings, so that they won't be printed (which would result in them being
   -- printed twice, one by GHC and once here).
@@ -99,23 +98,23 @@ typecheckModule hscEnv pmod = do
         <- hscTypecheckRename hsc_env_tmp ms $
                        HsParsedModule { hpm_module = parsedSource pmod,
                                         hpm_src_files = pm_extra_src_files pmod }
-  return TypecheckedModule {
-      tm_parsed_module  = pmod
-    , tm_renamed_source = rn_info
-    , tm_mod_summary    = ms
-    , tm_gbl_env        = tc_gbl_env
+  return TypecheckedModuleLH {
+      tmlh_parsed_module  = pmod
+    , tmlh_renamed_source = rn_info
+    , tmlh_mod_summary    = ms
+    , tmlh_gbl_env        = tc_gbl_env
     }
 
 -- | Desugar a typechecked module.
-desugarModule :: HscEnv -> ModSummary -> TypecheckedModule -> IO ModGuts
+desugarModule :: HscEnv -> ModSummary -> TypecheckedModuleLH -> IO ModGuts
 desugarModule hscEnv originalModSum typechecked = do
   -- See [NOTE:ghc810] on why we override the dynFlags here before calling 'desugarModule'.
   let modSum         = originalModSum { ms_hspp_opts = hsc_dflags hscEnv }
-  let parsedMod'     = (tm_parsed_module typechecked) { pm_mod_summary = modSum }
-  let typechecked'   = typechecked { tm_parsed_module = parsedMod' }
+  let parsedMod'     = (tmlh_parsed_module typechecked) { pm_mod_summary = modSum }
+  let typechecked'   = typechecked { tmlh_parsed_module = parsedMod' }
 
-  let hsc_env_tmp = hscEnv { hsc_dflags = ms_hspp_opts (tm_mod_summary typechecked') }
-  hscDesugar hsc_env_tmp (tm_mod_summary typechecked') (tm_gbl_env typechecked')
+  let hsc_env_tmp = hscEnv { hsc_dflags = ms_hspp_opts (tmlh_mod_summary typechecked') }
+  hscDesugar hsc_env_tmp (tmlh_mod_summary typechecked') (tmlh_gbl_env typechecked')
 
 -- | Abstraction of 'EpaComment'.
 data ApiComment
