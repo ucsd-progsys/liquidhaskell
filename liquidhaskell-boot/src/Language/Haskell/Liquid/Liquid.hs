@@ -3,11 +3,8 @@
 {-@ LIQUID "--diff"     @-}
 
 module Language.Haskell.Liquid.Liquid (
-   -- * Ghci State
-    MbEnv
-
    -- * Checking a single module
-  , checkTargetInfo
+    checkTargetInfo
   ) where
 
 import           Prelude hiding (error)
@@ -35,8 +32,6 @@ import           Language.Haskell.Liquid.UX.Annotate (mkOutput)
 import qualified Language.Haskell.Liquid.Termination.Structural as ST
 import qualified Liquid.GHC.Misc          as GM 
 import           Liquid.GHC.API as GHC hiding (text, vcat, ($+$), getOpts, (<+>))
-
-type MbEnv = Maybe HscEnv
 
 --------------------------------------------------------------------------------
 checkTargetInfo :: TargetInfo -> IO (Output Doc)
