@@ -285,7 +285,7 @@ makeFamInstEnv famInsts =
 -- | Extract Specifications from GHC -------------------------------------------
 --------------------------------------------------------------------------------
 extractSpecComments :: ParsedModule -> [(Maybe RealSrcLoc, String)]
-extractSpecComments = mapMaybe extractSpecComment . GhcMonadLike.apiComments
+extractSpecComments = mapMaybe extractSpecComment . apiComments
 
 -- | 'extractSpecComment' pulls out the specification part from a full comment
 --   string, i.e. if the string is of the form:
@@ -293,8 +293,8 @@ extractSpecComments = mapMaybe extractSpecComment . GhcMonadLike.apiComments
 --   2. '{-@ ... -}' then it throws a malformed SPECIFICATION ERROR, and
 --   3. Otherwise it is just treated as a plain comment so we return Nothing.
 
-extractSpecComment :: Ghc.Located GhcMonadLike.ApiComment -> Maybe (Maybe RealSrcLoc, String)
-extractSpecComment (Ghc.L sp (GhcMonadLike.ApiBlockComment txt))
+extractSpecComment :: Ghc.Located ApiComment -> Maybe (Maybe RealSrcLoc, String)
+extractSpecComment (Ghc.L sp (ApiBlockComment txt))
   | isPrefixOf "{-@" txt && isSuffixOf "@-}" txt          -- valid   specification
   = Just (offsetPos, take (length txt - 6) $ drop 3 txt)
   | isPrefixOf "{-@" txt                                   -- invalid specification

@@ -36,8 +36,6 @@ import           Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                                                          as SpecFinder
 
 import           Liquid.GHC.Types       (MGIModGuts(..), miModGuts)
-import qualified Liquid.GHC.GhcMonadLike
-                                                         as GhcMonadLike
 import           GHC.LanguageExtensions
 
 import           Control.Monad
@@ -226,17 +224,17 @@ typecheckHook (unoptimise -> modSummary) tcGblEnv = do
   debugLog $ "We are in module: " <> show (toStableModule thisModule)
 
   env             <- env_top <$> getEnv
-  parsed          <- liftIO $ GhcMonadLike.parseModule env (LH.keepRawTokenStream modSummary)
+  parsed          <- liftIO $ parseModuleIO env (LH.keepRawTokenStream modSummary)
   let comments    = LH.extractSpecComments parsed
   -- The LH plugin itself calls the type checker (see following line). This
   -- would lead to a loop if we didn't remove the plugin when calling the type
   -- checker.
-  typechecked     <- liftIO $ GhcMonadLike.typecheckModule (dropPlugins env) (LH.ignoreInline parsed)
+  typechecked     <- liftIO $ typecheckModuleIO (dropPlugins env) (LH.ignoreInline parsed)
   resolvedNames   <- liftIO $ LH.lookupTyThings env modSummary tcGblEnv
   availTyCons     <- liftIO $ LH.availableTyCons env modSummary tcGblEnv (tcg_exports tcGblEnv)
   availVars       <- liftIO $ LH.availableVars env modSummary tcGblEnv (tcg_exports tcGblEnv)
 
-  unoptimisedGuts <- liftIO $ GhcMonadLike.desugarModule env modSummary typechecked
+  unoptimisedGuts <- liftIO $ desugarModuleIO env modSummary typechecked
 
   let tcData = mkTcData (tcg_rn_imports tcGblEnv) resolvedNames availTyCons availVars
   let pipelineData = PipelineData unoptimisedGuts tcData (map mkSpecComment comments)
