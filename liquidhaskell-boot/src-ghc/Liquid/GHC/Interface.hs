@@ -284,7 +284,7 @@ makeFamInstEnv famInsts =
 --------------------------------------------------------------------------------
 -- | Extract Specifications from GHC -------------------------------------------
 --------------------------------------------------------------------------------
-extractSpecComments :: ParsedModule -> [(SourcePos, String)]
+extractSpecComments :: ParsedModule -> [(Maybe RealSrcLoc, String)]
 extractSpecComments = mapMaybe extractSpecComment . GhcMonadLike.apiComments
 
 -- | 'extractSpecComment' pulls out the specification part from a full comment
@@ -293,15 +293,17 @@ extractSpecComments = mapMaybe extractSpecComment . GhcMonadLike.apiComments
 --   2. '{-@ ... -}' then it throws a malformed SPECIFICATION ERROR, and
 --   3. Otherwise it is just treated as a plain comment so we return Nothing.
 
-extractSpecComment :: Ghc.Located GhcMonadLike.ApiComment -> Maybe (SourcePos, String)
+extractSpecComment :: Ghc.Located GhcMonadLike.ApiComment -> Maybe (Maybe RealSrcLoc, String)
 extractSpecComment (Ghc.L sp (GhcMonadLike.ApiBlockComment txt))
   | isPrefixOf "{-@" txt && isSuffixOf "@-}" txt          -- valid   specification
   = Just (offsetPos, take (length txt - 6) $ drop 3 txt)
   | isPrefixOf "{-@" txt                                   -- invalid specification
   = uError $ ErrParseAnn sp "A valid specification must have a closing '@-}'."
   where
-    offsetPos = case srcSpanSourcePos sp of
-      SourcePos file line col -> safeSourcePos file (unPos line) (unPos col + 3)
+    offsetPos = offsetRealSrcLoc . realSrcSpanStart <$> srcSpanToRealSrcSpan sp
+    offsetRealSrcLoc s =
+      mkRealSrcLoc (srcLocFile s) (srcLocLine s) (srcLocCol s + 3)
+
 extractSpecComment _ = Nothing
 
 extractSpecQuotes' :: (a -> Module) -> (a -> [Annotation]) -> a -> [BPspec]

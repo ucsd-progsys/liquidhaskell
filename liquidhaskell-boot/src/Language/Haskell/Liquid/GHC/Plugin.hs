@@ -239,7 +239,7 @@ typecheckHook (unoptimise -> modSummary) tcGblEnv = do
   unoptimisedGuts <- liftIO $ GhcMonadLike.desugarModule env modSummary typechecked
 
   let tcData = mkTcData (tcg_rn_imports tcGblEnv) resolvedNames availTyCons availVars
-  let pipelineData = PipelineData unoptimisedGuts tcData (map SpecComment comments)
+  let pipelineData = PipelineData unoptimisedGuts tcData (map mkSpecComment comments)
 
   liquidHaskellCheck pipelineData modSummary tcGblEnv
 
