@@ -19,19 +19,23 @@ The intended use of this module is to shelter LiquidHaskell from changes to the 
 module Liquid.GHC.API.Extra (
     ApiComment(..)
   , apiComments
-  , tyConRealArity
-  , fsToUnitId
-  , moduleUnitId
-  , thisPackage
-  , renderWithStyle
   , dataConSig
   , desugarModuleIO
+  , fsToUnitId
   , getDependenciesModuleNames
+  , lookupModSummary
+  , modInfoLookupNameIO
+  , moduleInfoTc
+  , moduleUnitId
   , parseModuleIO
   , relevantModules
+  , renderWithStyle
+  , thisPackage
+  , tyConRealArity
   , typecheckModuleIO
   ) where
 
+import Control.Monad.IO.Class
 import           Liquid.GHC.API.StableModule      as StableModule
 import GHC
 import Data.Data (Data, gmapQr)
@@ -50,8 +54,12 @@ import GHC.Driver.Main
 import GHC.Driver.Session             as Ghc
 import GHC.Tc.Types
 import GHC.Types.SrcLoc               as Ghc
+import GHC.Types.TypeEnv
+import GHC.Types.Unique.FM
 
 import GHC.Unit.Module.Deps           as Ghc (Dependencies(dep_mods))
+import GHC.Unit.Module.ModDetails     (md_types)
+import GHC.Unit.Module.ModSummary     (isBootSummary)
 import GHC.Utils.Outputable           as Ghc hiding ((<>))
 
 import GHC.Unit.Module
@@ -188,3 +196,33 @@ apiComments pm =
 
     spanToLineColumn =
       fmap (\s -> (srcSpanStartLine s, srcSpanStartCol s)) . srcSpanToRealSrcSpan
+
+lookupModSummary :: HscEnv -> ModuleName -> Maybe ModSummary
+lookupModSummary hscEnv mdl = do
+   let mg = hsc_mod_graph hscEnv
+       mods_by_name = [ ms | ms <- mgModSummaries mg
+                      , ms_mod_name ms == mdl
+                      , NotBoot == isBootSummary ms ]
+   case mods_by_name of
+     [ms] -> Just ms
+     _    -> Nothing
+
+-- | Our own simplified version of 'ModuleInfo' to overcome the fact we cannot construct the \"original\"
+-- one as the constructor is not exported, and 'getHomeModuleInfo' and 'getPackageModuleInfo' are not
+-- exported either, so we had to backport them as well.
+newtype ModuleInfoLH = ModuleInfoLH { minflh_type_env :: UniqFM Name TyThing }
+
+modInfoLookupNameIO :: HscEnv
+                  -> ModuleInfoLH
+                  -> Name
+                  -> IO (Maybe TyThing)
+modInfoLookupNameIO hscEnv minf name =
+  case lookupTypeEnv (minflh_type_env minf) name of
+    Just tyThing -> return (Just tyThing)
+    Nothing      -> lookupType hscEnv name
+
+moduleInfoTc :: HscEnv -> ModSummary -> TcGblEnv -> IO ModuleInfoLH
+moduleInfoTc hscEnv ms tcGblEnv = do
+  let hsc_env_tmp = hscEnv { hsc_dflags = ms_hspp_opts ms }
+  details <- md_types <$> liftIO (makeSimpleDetails hsc_env_tmp tcGblEnv)
+  pure ModuleInfoLH { minflh_type_env = details }

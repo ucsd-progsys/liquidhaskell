@@ -79,7 +79,6 @@ import qualified Language.Fixpoint.Misc as Misc
 import Liquid.GHC.Misc
 import Liquid.GHC.Types (MGIModGuts(..))
 import Liquid.GHC.Play
-import qualified Liquid.GHC.GhcMonadLike as GhcMonadLike
 import Language.Haskell.Liquid.WiredIn (isDerivedInstance)
 import qualified Language.Haskell.Liquid.Measure  as Ms
 import qualified Language.Haskell.Liquid.Misc     as Misc
@@ -209,8 +208,8 @@ lookupTyThing hscEnv modSum tcGblEnv n = do
          MaybeT (Ghc.hscTcRcLookupName hscEnv n)
          `mplus`
          MaybeT (
-           do mi  <- GhcMonadLike.moduleInfoTc hscEnv modSum tcGblEnv
-              GhcMonadLike.modInfoLookupName hscEnv mi n
+           do mi  <- moduleInfoTc hscEnv modSum tcGblEnv
+              modInfoLookupNameIO hscEnv mi n
            )
   return (n, mty)
 

@@ -131,8 +131,6 @@ import GHC.Unit.Module                as Ghc
     , toUnitId
     , unitString
     )
-import GHC.Unit.Module.Deps           as Ghc (Dependencies(dep_mods))
-import GHC.Unit.Module.ModDetails     as Ghc (md_types)
 import GHC.Unit.Module.ModGuts        as Ghc
     ( ModGuts
       ( mg_binds
@@ -144,7 +142,6 @@ import GHC.Unit.Module.ModGuts        as Ghc
       , mg_usages
       )
     )
-import GHC.Unit.Module.ModSummary     as Ghc (isBootSummary)
 import GHC.Utils.Error                as Ghc (withTiming)
 import GHC.Utils.Logger               as Ghc (putLogMsg)
 import GHC.Utils.Outputable           as Ghc hiding ((<>))

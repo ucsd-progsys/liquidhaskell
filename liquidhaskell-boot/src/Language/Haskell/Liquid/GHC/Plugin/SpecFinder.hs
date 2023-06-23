@@ -11,7 +11,6 @@ module Language.Haskell.Liquid.GHC.Plugin.SpecFinder
     , configToRedundantDependencies
     ) where
 
-import           Liquid.GHC.GhcMonadLike as GhcMonadLike (lookupModSummary)
 import qualified Language.Haskell.Liquid.GHC.Plugin.Util as Util
 import           Language.Haskell.Liquid.GHC.Plugin.Types
 import           Language.Haskell.Liquid.Types.Types
@@ -128,7 +127,7 @@ lookupInterfaceAnnotationsEPS eps thisModule = do
 lookupCompanionSpec :: HscEnv -> SpecFinder m
 lookupCompanionSpec hscEnv thisModule = do
 
-  modSummary <- MaybeT $ pure $ GhcMonadLike.lookupModSummary hscEnv (moduleName thisModule)
+  modSummary <- MaybeT $ pure $ lookupModSummary hscEnv (moduleName thisModule)
   file       <- MaybeT $ pure (ml_hs_file . ms_location $ modSummary)
   parsed     <- MaybeT $ do
     mbSpecContent <- try (Misc.sayReadFile (specFile file))
