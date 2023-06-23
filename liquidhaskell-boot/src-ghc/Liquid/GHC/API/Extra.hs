@@ -1,11 +1,3 @@
-{-| This module re-exports a bunch of the GHC API.
-
-The intended use of this module is to shelter LiquidHaskell from changes to the GHC API, so this is the
-/only/ module LiquidHaskell should import when trying to access any ghc-specific functionality.
-
---}
-
-{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE TypeApplications #-}
