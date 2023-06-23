@@ -28,13 +28,7 @@ module Liquid.GHC.API.Extra (
   ) where
 
 import           Liquid.GHC.API.StableModule      as StableModule
-import           GHC                                               as Ghc hiding ( Warning
-                                                                                 , SrcSpan(RealSrcSpan, UnhelpfulSpan)
-                                                                                 , exprType
-                                                                                 )
-
-import Optics
-
+import GHC
 import Data.Foldable                  (asum)
 import Data.List                      (foldl')
 import qualified Data.Set as S
@@ -67,7 +61,7 @@ tyConRealArity tc = go 0 (tyConKind tc)
   where
     go :: Int -> Kind -> Int
     go !acc k =
-      case asum [fmap (view _3) (splitFunTy_maybe k), fmap snd (splitForAllTyCoVar_maybe k)] of
+      case asum [fmap (\(_, _, c) -> c) (splitFunTy_maybe k), fmap snd (splitForAllTyCoVar_maybe k)] of
         Nothing -> acc
         Just ks -> go (acc + 1) ks
 
