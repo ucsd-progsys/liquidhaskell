@@ -3,7 +3,7 @@
 
 module Liquid.GHC.GhcMonadLike (
   -- * Types and type classes
-    ModuleInfo
+    ModuleInfoLH
 
   -- * Functions and typeclass methods
 
@@ -42,19 +42,19 @@ lookupModSummary hscEnv mdl = do
 -- | Our own simplified version of 'ModuleInfo' to overcome the fact we cannot construct the \"original\"
 -- one as the constructor is not exported, and 'getHomeModuleInfo' and 'getPackageModuleInfo' are not
 -- exported either, so we had to backport them as well.
-newtype ModuleInfo = ModuleInfo { minf_type_env :: UniqFM Name TyThing }
+newtype ModuleInfoLH = ModuleInfoLH { minflh_type_env :: UniqFM Name TyThing }
 
 modInfoLookupName :: HscEnv
-                  -> ModuleInfo
+                  -> ModuleInfoLH
                   -> Name
                   -> IO (Maybe TyThing)
 modInfoLookupName hscEnv minf name =
-  case lookupTypeEnv (minf_type_env minf) name of
+  case lookupTypeEnv (minflh_type_env minf) name of
     Just tyThing -> return (Just tyThing)
     Nothing      -> lookupType hscEnv name
 
-moduleInfoTc :: HscEnv -> ModSummary -> TcGblEnv -> IO ModuleInfo
+moduleInfoTc :: HscEnv -> ModSummary -> TcGblEnv -> IO ModuleInfoLH
 moduleInfoTc hscEnv ms tcGblEnv = do
   let hsc_env_tmp = hscEnv { hsc_dflags = ms_hspp_opts ms }
   details <- md_types <$> liftIO (makeSimpleDetails hsc_env_tmp tcGblEnv)
-  pure ModuleInfo { minf_type_env = details }
+  pure ModuleInfoLH { minflh_type_env = details }
