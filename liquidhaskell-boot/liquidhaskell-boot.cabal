@@ -61,8 +61,8 @@ library
                       Language.Haskell.Liquid.Constraint.Types
                       Language.Haskell.Liquid.Constraint.Relational
                       Liquid.GHC.API
+                      Liquid.GHC.API.Extra
                       Liquid.GHC.API.StableModule
-                      Liquid.GHC.GhcMonadLike
                       Liquid.GHC.Interface
                       Liquid.GHC.Logging
                       Liquid.GHC.Misc
@@ -73,7 +73,6 @@ library
                       Liquid.GHC.TypeRep
                       Language.Haskell.Liquid.GHC.Plugin
                       Language.Haskell.Liquid.GHC.Plugin.Tutorial
-                      Language.Haskell.Liquid.Interactive.Types
                       Language.Haskell.Liquid.LawInstances
                       Language.Haskell.Liquid.Liquid
                       Language.Haskell.Liquid.Measure

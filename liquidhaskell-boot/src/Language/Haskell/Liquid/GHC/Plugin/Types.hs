@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 
 module Language.Haskell.Liquid.GHC.Plugin.Types
@@ -10,6 +9,7 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     -- * Dealing with specs and their dependencies
     , LiquidLib
     , mkLiquidLib
+    , mkSpecComment
     , libTarget
     , libDeps
     , allDeps
@@ -29,17 +29,17 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     ) where
 
 import           Data.Binary                             as B
-import           Data.Data                                ( Data )
 import           Data.Foldable
 import           GHC.Generics                      hiding ( moduleName )
 
 import qualified Data.HashSet        as HS
 
-import           Language.Fixpoint.Types.Spans
 import           Language.Haskell.Liquid.Types.Specs
 import           Liquid.GHC.API         as GHC
 import qualified Liquid.GHC.Interface   as LH
+import           Liquid.GHC.Misc (realSrcLocSourcePos)
 import           Language.Fixpoint.Types.Names            ( Symbol )
+import           Language.Fixpoint.Types.Spans            ( SourcePos, dummyPos )
 
 
 data LiquidLib = LiquidLib
@@ -74,7 +74,13 @@ allDeps = foldl' (\acc lib -> acc <> llDeps lib) mempty
 -- | Just a small wrapper around the 'SourcePos' and the text fragment of a LH spec comment.
 newtype SpecComment =
     SpecComment (SourcePos, String)
-    deriving (Show, Data)
+    deriving Show
+
+mkSpecComment :: (Maybe RealSrcLoc, String) -> SpecComment
+mkSpecComment (m, s) = SpecComment (sourcePos m, s)
+  where
+    sourcePos Nothing = dummyPos "<no source information>"
+    sourcePos (Just sp) = realSrcLocSourcePos sp
 
 --
 -- Passing data between stages of the pipeline

@@ -79,7 +79,6 @@ import qualified Language.Fixpoint.Misc as Misc
 import Liquid.GHC.Misc
 import Liquid.GHC.Types (MGIModGuts(..))
 import Liquid.GHC.Play
-import qualified Liquid.GHC.GhcMonadLike as GhcMonadLike
 import Language.Haskell.Liquid.WiredIn (isDerivedInstance)
 import qualified Language.Haskell.Liquid.Measure  as Ms
 import qualified Language.Haskell.Liquid.Misc     as Misc
@@ -209,8 +208,8 @@ lookupTyThing hscEnv modSum tcGblEnv n = do
          MaybeT (Ghc.hscTcRcLookupName hscEnv n)
          `mplus`
          MaybeT (
-           do mi  <- GhcMonadLike.moduleInfoTc hscEnv modSum tcGblEnv
-              GhcMonadLike.modInfoLookupName hscEnv mi n
+           do mi  <- moduleInfoTc hscEnv modSum tcGblEnv
+              modInfoLookupNameIO hscEnv mi n
            )
   return (n, mty)
 
@@ -251,20 +250,6 @@ tcmTyThings
   modInfoTopLevelScope
   . tm_checked_module_info
 
-
-_dumpRdrEnv :: HscEnv -> MGIModGuts -> IO ()
-_dumpRdrEnv _hscEnv modGuts = do
-  print ("DUMP-RDR-ENV" :: String)
-  print (mgNames modGuts)
-  -- print (hscNames hscEnv)
-  -- print (mgDeps modGuts)
-  where
-    _mgDeps   = Ghc.dep_mods . mgi_deps
-    _hscNames = fmap showPpr . Ghc.ic_tythings . Ghc.hsc_IC
-
-mgNames :: MGIModGuts -> [Ghc.Name]
-mgNames  = fmap Ghc.greMangledName . Ghc.globalRdrEnvElts .  mgi_rdr_env
-
 modSummaryHsFile :: ModSummary -> FilePath
 modSummaryHsFile modSummary =
   fromMaybe
@@ -298,8 +283,8 @@ makeFamInstEnv famInsts =
 --------------------------------------------------------------------------------
 -- | Extract Specifications from GHC -------------------------------------------
 --------------------------------------------------------------------------------
-extractSpecComments :: ParsedModule -> [(SourcePos, String)]
-extractSpecComments = mapMaybe extractSpecComment . GhcMonadLike.apiComments
+extractSpecComments :: ParsedModule -> [(Maybe RealSrcLoc, String)]
+extractSpecComments = mapMaybe extractSpecComment . apiComments
 
 -- | 'extractSpecComment' pulls out the specification part from a full comment
 --   string, i.e. if the string is of the form:
@@ -307,15 +292,17 @@ extractSpecComments = mapMaybe extractSpecComment . GhcMonadLike.apiComments
 --   2. '{-@ ... -}' then it throws a malformed SPECIFICATION ERROR, and
 --   3. Otherwise it is just treated as a plain comment so we return Nothing.
 
-extractSpecComment :: Ghc.Located GhcMonadLike.ApiComment -> Maybe (SourcePos, String)
-extractSpecComment (Ghc.L sp (GhcMonadLike.ApiBlockComment txt))
+extractSpecComment :: Ghc.Located ApiComment -> Maybe (Maybe RealSrcLoc, String)
+extractSpecComment (Ghc.L sp (ApiBlockComment txt))
   | isPrefixOf "{-@" txt && isSuffixOf "@-}" txt          -- valid   specification
   = Just (offsetPos, take (length txt - 6) $ drop 3 txt)
   | isPrefixOf "{-@" txt                                   -- invalid specification
   = uError $ ErrParseAnn sp "A valid specification must have a closing '@-}'."
   where
-    offsetPos = case srcSpanSourcePos sp of
-      SourcePos file line col -> safeSourcePos file (unPos line) (unPos col + 3)
+    offsetPos = offsetRealSrcLoc . realSrcSpanStart <$> srcSpanToRealSrcSpan sp
+    offsetRealSrcLoc s =
+      mkRealSrcLoc (srcLocFile s) (srcLocLine s) (srcLocCol s + 3)
+
 extractSpecComment _ = Nothing
 
 extractSpecQuotes' :: (a -> Module) -> (a -> [Annotation]) -> a -> [BPspec]

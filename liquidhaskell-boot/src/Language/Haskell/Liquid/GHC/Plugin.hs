@@ -5,7 +5,6 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE BangPatterns               #-}
-{-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE ViewPatterns               #-}
@@ -36,9 +35,6 @@ import           Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                                                          as SpecFinder
 
 import           Liquid.GHC.Types       (MGIModGuts(..), miModGuts)
-import qualified Liquid.GHC.GhcMonadLike
-                                                         as GhcMonadLike
-import           Liquid.GHC.GhcMonadLike (isBootInterface)
 import           GHC.LanguageExtensions
 
 import           Control.Monad
@@ -227,20 +223,20 @@ typecheckHook (unoptimise -> modSummary) tcGblEnv = do
   debugLog $ "We are in module: " <> show (toStableModule thisModule)
 
   env             <- env_top <$> getEnv
-  parsed          <- liftIO $ GhcMonadLike.parseModule env (LH.keepRawTokenStream modSummary)
+  parsed          <- liftIO $ parseModuleIO env (LH.keepRawTokenStream modSummary)
   let comments    = LH.extractSpecComments parsed
   -- The LH plugin itself calls the type checker (see following line). This
   -- would lead to a loop if we didn't remove the plugin when calling the type
   -- checker.
-  typechecked     <- liftIO $ GhcMonadLike.typecheckModule (dropPlugins env) (LH.ignoreInline parsed)
+  typechecked     <- liftIO $ typecheckModuleIO (dropPlugins env) (LH.ignoreInline parsed)
   resolvedNames   <- liftIO $ LH.lookupTyThings env modSummary tcGblEnv
   availTyCons     <- liftIO $ LH.availableTyCons env modSummary tcGblEnv (tcg_exports tcGblEnv)
   availVars       <- liftIO $ LH.availableVars env modSummary tcGblEnv (tcg_exports tcGblEnv)
 
-  unoptimisedGuts <- liftIO $ GhcMonadLike.desugarModule env modSummary typechecked
+  unoptimisedGuts <- liftIO $ desugarModuleIO env modSummary typechecked
 
   let tcData = mkTcData (tcg_rn_imports tcGblEnv) resolvedNames availTyCons availVars
-  let pipelineData = PipelineData unoptimisedGuts tcData (map SpecComment comments)
+  let pipelineData = PipelineData unoptimisedGuts tcData (map mkSpecComment comments)
 
   liquidHaskellCheck pipelineData modSummary tcGblEnv
 
@@ -431,35 +427,6 @@ loadDependencies currentModuleConfig thisModule mods = do
       pure $ TargetDependencies {
           getDependencies = HM.insert (toStableModule originalModule) (libTarget lib) (getDependencies $ acc <> libDeps lib)
         }
-
--- | The collection of dependencies and usages modules which are relevant for liquidHaskell
-relevantModules :: ModGuts -> Set Module
-relevantModules modGuts = used `S.union` dependencies
-  where
-    dependencies :: Set Module
-    dependencies = S.fromList $ map (toModule . gwib_mod)
-                              . filter (not . isBootInterface . gwib_isBoot)
-                              . getDependenciesModuleNames $ deps
-
-    deps :: Dependencies
-    deps = mg_deps modGuts
-
-    thisModule :: Module
-    thisModule = mg_module modGuts
-
-    toModule :: ModuleName -> Module
-    toModule = unStableModule . mkStableModule (moduleUnitId thisModule)
-
-    used :: Set Module
-    used = S.fromList $ foldl' collectUsage mempty . mg_usages $ modGuts
-      where
-        collectUsage :: [Module] -> Usage -> [Module]
-        collectUsage acc = \case
-          UsagePackageModule     { usg_mod      = modl    } -> modl : acc
-          UsageHomeModule        { usg_mod_name = modName } -> toModule modName : acc
-          UsageMergedRequirement { usg_mod      = modl    } -> modl : acc
-          _ -> acc
-
 
 data LiquidHaskellContext = LiquidHaskellContext {
     lhGlobalCfg        :: Config

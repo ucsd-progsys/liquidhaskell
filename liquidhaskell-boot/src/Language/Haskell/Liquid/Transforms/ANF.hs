@@ -63,19 +63,6 @@ anormalize cfg hscEnv modGuts = do
       inl_cbs  = inlineAux cfg (mg_module modGuts) $ mg_binds modGuts
       untidy   = UX.untidyCore cfg
 
-{-
-      m        = mgi_module modGuts
-      grEnv    = mgi_rdr_env modGuts
-      tEnv     = modGutsTypeEnv modGuts
-
-modGutsTypeEnv :: MGIModGuts -> TypeEnv
-modGutsTypeEnv mg  = typeEnvFromEntities ids tcs fis
-  where
-    ids            = bindersOfBinds (mgi_binds mg)
-    tcs            = mgi_tcs mg
-    fis            = mgi_fam_insts mg
--}
-
 --------------------------------------------------------------------------------
 -- | A-Normalize a @CoreBind@ --------------------------------------------------
 --------------------------------------------------------------------------------

@@ -291,6 +291,12 @@ realSrcSpanSourcePos s = safeSourcePos file line col
     line               = srcSpanStartLine       s
     col                = srcSpanStartCol        s
 
+realSrcLocSourcePos :: RealSrcLoc -> SourcePos
+realSrcLocSourcePos s = safeSourcePos file line col
+  where
+    file               = unpackFS $ srcLocFile s
+    line               = srcLocLine       s
+    col                = srcLocCol        s
 
 realSrcSpanSourcePosE :: RealSrcSpan -> SourcePos
 realSrcSpanSourcePosE s = safeSourcePos file line col

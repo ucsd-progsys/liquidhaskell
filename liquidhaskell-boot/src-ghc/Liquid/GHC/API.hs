@@ -17,24 +17,16 @@ The intended use of this module is to shelter LiquidHaskell from changes to the 
 module Liquid.GHC.API (
     module Ghc
   , module StableModule
-  , tyConRealArity
-  , fsToUnitId
-  , moduleUnitId
-  , thisPackage
-  , renderWithStyle
-  , dataConSig
-  , getDependenciesModuleNames
   ) where
 
 import           Liquid.GHC.API.StableModule      as StableModule
+import Liquid.GHC.API.Extra as Ghc
+
 import           GHC                                               as Ghc hiding ( Warning
                                                                                  , SrcSpan(RealSrcSpan, UnhelpfulSpan)
                                                                                  , exprType
                                                                                  )
 
-import Optics
-
-import Data.Foldable                  (asum)
 import GHC.Builtin.Names              as Ghc
 import GHC.Builtin.Types              as Ghc
 import GHC.Builtin.Types.Prim         as Ghc
@@ -119,7 +111,7 @@ import GHC.Types.TypeEnv              as Ghc
 import GHC.Types.Unique               as Ghc
 import GHC.Types.Unique.DFM           as Ghc
 import GHC.Types.Unique.FM            as Ghc
-import GHC.Types.Unique.Set           as Ghc
+import GHC.Types.Unique.Set           as Ghc (mkUniqSet)
 import GHC.Types.Unique.Supply        as Ghc
 import GHC.Types.Var                  as Ghc
 import GHC.Types.Var.Env              as Ghc
@@ -128,43 +120,29 @@ import GHC.Unit.External              as Ghc
 import GHC.Unit.Finder                as Ghc
 import GHC.Unit.Home.ModInfo          as Ghc
 import GHC.Unit.Module                as Ghc
-import GHC.Unit.Module.Deps           as Ghc
-import GHC.Unit.Module.Graph          as Ghc
-import GHC.Unit.Module.ModDetails     as Ghc
+    ( GenWithIsBoot(gwib_isBoot, gwib_mod)
+    , IsBootInterface(NotBoot, IsBoot)
+    , ModuleNameWithIsBoot
+    , UnitId
+    , fsToUnit
+    , mkModuleNameFS
+    , moduleNameFS
+    , moduleStableString
+    , toUnitId
+    , unitString
+    )
 import GHC.Unit.Module.ModGuts        as Ghc
-import GHC.Unit.Module.ModSummary     as Ghc
+    ( ModGuts
+      ( mg_binds
+      , mg_exports
+      , mg_fam_inst_env
+      , mg_inst_env
+      , mg_module
+      , mg_tcs
+      , mg_usages
+      )
+    )
 import GHC.Utils.Error                as Ghc (withTiming)
 import GHC.Utils.Logger               as Ghc (putLogMsg)
 import GHC.Utils.Outputable           as Ghc hiding ((<>))
 import GHC.Utils.Panic                as Ghc (panic, throwGhcException, throwGhcExceptionIO)
-
--- 'fsToUnitId' is gone in GHC 9, but we can bring code it in terms of 'fsToUnit' and 'toUnitId'.
-fsToUnitId :: FastString -> UnitId
-fsToUnitId = toUnitId . fsToUnit
-
-moduleUnitId :: Module -> UnitId
-moduleUnitId = toUnitId . moduleUnit
-
-thisPackage :: DynFlags -> UnitId
-thisPackage = homeUnitId_
-
--- See NOTE [tyConRealArity].
-tyConRealArity :: TyCon -> Int
-tyConRealArity tc = go 0 (tyConKind tc)
-  where
-    go :: Int -> Kind -> Int
-    go !acc k =
-      case asum [fmap (view _3) (splitFunTy_maybe k), fmap snd (splitForAllTyCoVar_maybe k)] of
-        Nothing -> acc
-        Just ks -> go (acc + 1) ks
-
-getDependenciesModuleNames :: Dependencies -> [ModuleNameWithIsBoot]
-getDependenciesModuleNames = dep_mods
-
-renderWithStyle :: DynFlags -> SDoc -> PprStyle -> String
-renderWithStyle dynflags sdoc style = Ghc.renderWithContext (Ghc.initSDocContext dynflags style) sdoc
-
--- This function is gone in GHC 9.
-dataConSig :: DataCon -> ([TyCoVar], ThetaType, [Type], Type)
-dataConSig dc
-  = (dataConUnivAndExTyCoVars dc, dataConTheta dc, map irrelevantMult $ dataConOrigArgTys dc, dataConOrigResTy dc)
