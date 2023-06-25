@@ -31,7 +31,7 @@ newtype Generically a = Generically a deriving Generic
 
 -- * 'Hashable'
 
-instance (Generic a, GHashable Zero (Rep a)) => Hashable (Generically a) where
+instance (Eq (Generically a), Generic a, GHashable Zero (Rep a)) => Hashable (Generically a) where
   hashWithSalt s (Generically a) = genericHashWithSalt s a
 
 -- * 'Binary'
