@@ -9,6 +9,7 @@ extra-package-dbs: []
 ghc-options:
   hscolour: -w
   liquidhaskell-boot: -j
+  liquidhaskell: -j
 packages:
 - liquid-fixpoint
 - liquid-prelude

@@ -632,22 +632,21 @@ withPragmas cfg fp ps action
        res <- action cfg'
        liftIO $ setVerbosity (loggingVerbosity cfg) -- restore the original verbosity.
        pure res
-  where
-    processPragmas :: Config -> [Located String] -> IO Config
-    processPragmas c pragmas =
-      withArgs (val <$> pragmas) $
-        cmdArgsRun config { modeValue = (modeValue config) { cmdArgsValue = c } }
+
+processPragmas :: Config -> [Located String] -> IO Config
+processPragmas c pragmas =
+    processValueIO
+      config { modeValue = (modeValue config) { cmdArgsValue = c } }
+      (val <$> pragmas)
+    >>=
+      cmdArgsApply
 
 -- | Note that this function doesn't process list arguments properly, like
 -- 'cFiles' or 'expectErrorContaining'
 -- TODO: This is only used to parse the contents of the env var LIQUIDHASKELL_OPTS
 -- so it should be able to parse multiple arguments instead. See issue #1990.
-withPragma :: Config -> Located String -> IO Config
-withPragma c s = withArgs [val s] $ cmdArgsRun
-                   config { modeValue = (modeValue config) { cmdArgsValue = c } }
-
 parsePragma :: Located String -> IO Config
-parsePragma = withPragma defConfig
+parsePragma = processPragmas defConfig . (:[])
 
 defConfig :: Config
 defConfig = Config

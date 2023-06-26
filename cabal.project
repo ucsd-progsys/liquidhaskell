@@ -28,6 +28,9 @@ allow-newer: ghc-timings:base, rest-rewrite:time
 package liquid-fixpoint
   flags: +devel
 
+package liquidhaskell
+  ghc-options: -j
+
 package liquidhaskell-boot
   ghc-options: -j
 
