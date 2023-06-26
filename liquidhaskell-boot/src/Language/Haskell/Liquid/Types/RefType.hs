@@ -1780,7 +1780,7 @@ isDecreasing _ _ _
 
 makeDecrType :: Symbolic a
              => S.HashSet TyCon
-             -> [(a, (Symbol, RType RTyCon t (UReft Reft)))]
+             -> Maybe (a, (Symbol, RType RTyCon t (UReft Reft)))
              -> Either (Symbol, RType RTyCon t (UReft Reft)) String
 makeDecrType autoenv = mkDType autoenv [] []
 
@@ -1788,9 +1788,9 @@ mkDType :: Symbolic a
         => S.HashSet TyCon
         -> [(Symbol, Symbol, Symbol -> Expr)]
         -> [Expr]
-        -> [(a, (Symbol, RType RTyCon t (UReft Reft)))]
+        -> Maybe (a, (Symbol, RType RTyCon t (UReft Reft)))
         -> Either (Symbol, RType RTyCon t (UReft Reft)) String
-mkDType autoenv xvs acc [(v, (x, t))]
+mkDType autoenv xvs acc (Just (v, (x, t)))
   = Left ((x, ) $ t `strengthen` tr)
   where
     tr  = uTop $ Reft (vv', pOr (r:acc))
@@ -1799,12 +1799,12 @@ mkDType autoenv xvs acc [(v, (x, t))]
     f   = mkDecrFun autoenv  t
     vv' = "vvRec"
 
-mkDType autoenv xvs acc ((v, (x, t)):vxts)
-  = mkDType autoenv ((v', x, f):xvs) (r:acc) vxts
-  where
-    r  = cmpLexRef xvs  (v', x, f)
-    v' = symbol v
-    f  = mkDecrFun autoenv t
+--mkDType autoenv xvs acc ((v, (x, t)):vxts)
+--  = mkDType autoenv ((v', x, f):xvs) (r:acc) vxts
+--  where
+--    r  = cmpLexRef xvs  (v', x, f)
+--    v' = symbol v
+--    f  = mkDecrFun autoenv t
 
 
 mkDType _ _ _ _
