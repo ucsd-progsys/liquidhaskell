@@ -1151,7 +1151,6 @@ specP
 
     <|> fallbackSpecP "embed"       (fmap Embed  embedP    )
     <|> fallbackSpecP "qualif"      (fmap Qualif (qualifierP sortP))
---    <|> (reserved "decrease"      >> fmap Decr   decreaseP )
     <|> (reserved "lazyvar"       >> fmap LVars  lazyVarP  )
 
     <|> (reserved "lazy"          >> fmap Lazy   lazyVarP  )
