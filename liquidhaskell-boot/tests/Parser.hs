@@ -206,10 +206,6 @@ testSpecP =
        parseSingleSpec "qualif Foo(v:Int): v < 0" @?==
           "qualif Foo defined at <test>:1:8"
 
---    , testCase "decrease" $
---       parseSingleSpec "decrease insert 3" @?==
---          "decreasing insert [2]"
-
     , testCase "lazyvar" $
        parseSingleSpec "lazyvar z" @?==
           "lazyvar z"

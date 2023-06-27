@@ -554,23 +554,14 @@ makeSpecTerm cfg mySpec env name = do
   sizes  <- if structuralTerm cfg then pure mempty else makeSize env name mySpec
   lazies <- makeLazy     env name mySpec
   autos  <- makeAutoSize env name mySpec
---  decr   <- makeDecrs env name mySpec
   gfail  <- makeFail env name mySpec
   return  $ SpTerm
     { gsLazy       = S.insert dictionaryVar (lazies `mappend` sizes)
     , gsFail       = gfail
     , gsStTerm     = sizes
     , gsAutosize   = autos
---    , gsDecr       = decr
     , gsNonStTerm  = mempty
     }
-
--- formerly, makeHints
---makeDecrs :: Bare.Env -> ModName -> Ms.BareSpec -> Bare.Lookup [(Ghc.Var, [Int])]
---makeDecrs env name mySpec =
---  forM (Ms.decr mySpec) $ \(lx, z) -> do
---    v <- Bare.lookupGhcVar env name "decreasing" lx
---    return (v, z)
 
 makeRelation :: Bare.Env -> ModName -> Bare.SigEnv ->
   [(LocSymbol, LocSymbol, LocBareType, LocBareType, RelExpr, RelExpr)] -> Bare.Lookup [(Ghc.Var, Ghc.Var, LocSpecType, LocSpecType, RelExpr, RelExpr)]

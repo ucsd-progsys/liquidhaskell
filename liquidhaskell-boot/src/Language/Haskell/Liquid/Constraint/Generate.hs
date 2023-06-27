@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveTraversable         #-}
-{-# LANGUAGE LambdaCase                #-}
 {-# LANGUAGE StandaloneDeriving        #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -29,7 +28,7 @@ import           Liquid.GHC.API                   as Ghc hiding ( panic
                                                                                  )
 import           Liquid.GHC.TypeRep           ()
 import           Text.PrettyPrint.HughesPJ hiding ((<>))
-import           Control.Monad                                 as Md
+import           Control.Monad                                 as CM
 import           Control.Monad.State
 import           Data.Maybe                                    (fromMaybe, catMaybes, isJust, mapMaybe, fromJust)
 import qualified Data.HashMap.Strict                           as M
@@ -132,12 +131,10 @@ makeDecrIndex _ = return Nothing
 
 makeDecrIndexTy :: Var -> SpecType -> [Var] -> CG (Either (TError t) Int)
 makeDecrIndexTy x st args
-  = do {-spDecr <- gets specDecr-}
-       autosz <- gets autoSize
-       {-hint   <- checkHint' autosz (L.lookup x spDecr)-}
+  = do autosz <- gets autoSize
        return $ case dindex autosz of
          Nothing -> Left msg
-         Just i  -> Right i  --fromMaybe [i] hint
+         Just i  -> Right i
     where
        msg  = ErrTermin (getSrcSpan x) [F.pprint x] (text "No decreasing parameter")
        trep = toRTypeRep $ unOCons st
@@ -146,7 +143,6 @@ makeDecrIndexTy x st args
        cenv = makeNumEnv ts
 
        p autosz (t, v)   = isDecreasing autosz cenv t && not (isIdTRecBound v)
-       --checkHint' autosz = checkHint x ts (isDecreasing autosz cenv)
        dindex     autosz = L.findIndex (p autosz) tvs
 
 
@@ -169,7 +165,7 @@ checkIndex :: (NamedThing t, PPrint t, PPrint a)
            -> CG (Maybe (RType c tv r))
 checkIndex (x, vs, t, index)
   = do mapM_ (safeLogIndex msg1 vs) index
-       Md.join <$> mapM (safeLogIndex msg2 ts) index
+       CM.join <$> mapM (safeLogIndex msg2 ts) index
     where
        loc   = getSrcSpan x
        ts    = ty_args $ toRTypeRep $ unOCons $ unTemplate t
@@ -210,34 +206,7 @@ safeLogIndex :: Error -> [a] -> Int -> CG (Maybe a)
 safeLogIndex err ls n
   | n >= length ls = addWarning err >> return Nothing
   | otherwise      = return $ Just $ ls !! n
-{-
-checkHint :: (NamedThing a, PPrint a, PPrint a1)
-          => a -> [a1] -> (a1 -> Bool) -> Maybe [Int] -> CG (Maybe [Int])
-checkHint _ _ _ Nothing
-  = return Nothing
 
-checkHint x _ _ (Just ns) | L.sort ns /= ns
-  = addWarning (ErrTermin loc [dx] (text "The hints should be increasing")) >> return Nothing
-  where
-    loc = getSrcSpan x
-    dx  = F.pprint x
-
-checkHint x ts f (Just ns)
-  = mapM (checkValidHint x ts f) ns <&> (Just . catMaybes)
-
-checkValidHint :: (NamedThing a, PPrint a, PPrint a1)
-               => a -> [a1] -> (a1 -> Bool) -> Int -> CG (Maybe Int)
-checkValidHint x ts f n
-  | n < 0 || n >= length ts = addWarning err >> return Nothing
-  | f (ts L.!! n)           = return $ Just n
-  | otherwise               = addWarning err >> return Nothing
-  where
-    err = ErrTermin loc [xd] (vcat [ "Invalid Hint" <+> F.pprint (n+1) <+> "for" <+> xd
-                                   , "in"
-                                   , F.pprint ts ])
-    loc = getSrcSpan x
-    xd  = F.pprint x
--}
 --------------------------------------------------------------------------------
 consCBLet :: CGEnv -> CoreBind -> CG CGEnv
 --------------------------------------------------------------------------------
@@ -387,8 +356,7 @@ consCB True _ γ (Rec xes)
        let xxes = mapMaybe (`lookup'` texprs) xs
        if null xxes
          then consCBSizedTys γ xes
-         else
-         check xxes <$> consCBWithExprs γ xes
+         else check xxes <$> consCBWithExprs γ xes
     where
       xs = map fst xes
       check ys r | length ys == length xs = r

@@ -1791,21 +1791,13 @@ mkDType :: Symbolic a
         -> Maybe (a, (Symbol, RType RTyCon t (UReft Reft)))
         -> Either (Symbol, RType RTyCon t (UReft Reft)) String
 mkDType autoenv xvs acc (Just (v, (x, t)))
-  = Left ((x, ) $ t `strengthen` tr)
+  = Left (x, t `strengthen` tr)
   where
     tr  = uTop $ Reft (vv', pOr (r:acc))
     r   = cmpLexRef xvs (v', vv', f)
     v'  = symbol v
-    f   = mkDecrFun autoenv  t
+    f   = mkDecrFun autoenv t
     vv' = "vvRec"
-
---mkDType autoenv xvs acc ((v, (x, t)):vxts)
---  = mkDType autoenv ((v', x, f):xvs) (r:acc) vxts
---  where
---    r  = cmpLexRef xvs  (v', x, f)
---    v' = symbol v
---    f  = mkDecrFun autoenv t
-
 
 mkDType _ _ _ _
   = Right "RefType.mkDType called on invalid input"

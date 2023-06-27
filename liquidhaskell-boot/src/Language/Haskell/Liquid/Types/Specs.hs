@@ -283,7 +283,6 @@ data GhcSpecTerm = SpTerm
   , gsAutosize   :: !(S.HashSet TyCon)            -- ^ Binders to IGNORE during termination checking
   , gsLazy       :: !(S.HashSet Var)              -- ^ Binders to IGNORE during termination checking
   , gsFail       :: !(S.HashSet (F.Located Var))    -- ^ Binders to fail type checking
---  , gsDecr       :: ![(Var, [Int])]               -- ^ Lexicographic order of decreasing args (DEPRECATED)
   , gsNonStTerm  :: !(S.HashSet Var)              -- ^ Binders to CHECK using REFINEMENT-TYPES/termination metrics
   }
 
@@ -293,12 +292,11 @@ instance Semigroup GhcSpecTerm where
     , gsAutosize  = gsAutosize t1  <> gsAutosize t2
     , gsLazy      = gsLazy t1      <> gsLazy t2
     , gsFail      = gsFail t1      <> gsFail t2
---    , gsDecr      = gsDecr t1      <> gsDecr t2
     , gsNonStTerm = gsNonStTerm t1 <> gsNonStTerm t2
     }
 
 instance Monoid GhcSpecTerm where
-  mempty = SpTerm mempty mempty mempty mempty {-mempty-} mempty
+  mempty = SpTerm mempty mempty mempty mempty mempty
 data GhcSpecRefl = SpRefl
   { gsAutoInst     :: !(M.HashMap Var (Maybe Int))      -- ^ Binders to USE PLE
   , gsHAxioms      :: ![(Var, LocSpecType, F.Equation)] -- ^ Lifted definitions
@@ -374,52 +372,51 @@ instance Monoid BareSpec where
 
 -- | A generic 'Spec' type, polymorphic over the inner choice of type and binder.
 data Spec ty bndr  = Spec
-  { measures   :: ![Measure ty bndr]              -- ^ User-defined properties for ADTs
-  , impSigs    :: ![(F.Symbol, F.Sort)]           -- ^ Imported variables types
-  , expSigs    :: ![(F.Symbol, F.Sort)]           -- ^ Exported variables types
-  , asmSigs    :: ![(F.LocSymbol, ty)]            -- ^ Assumed (unchecked) types; including reflected signatures
-  , sigs       :: ![(F.LocSymbol, ty)]            -- ^ Imported functions and types
-  , localSigs  :: ![(F.LocSymbol, ty)]            -- ^ Local type signatures
-  , reflSigs   :: ![(F.LocSymbol, ty)]            -- ^ Reflected type signatures
-  , invariants :: ![(Maybe F.LocSymbol, ty)]      -- ^ Data type invariants; the Maybe is the generating measure
-  , ialiases   :: ![(ty, ty)]                     -- ^ Data type invariants to be checked
-  , imports    :: ![F.Symbol]                     -- ^ Loaded spec module names
-  , dataDecls  :: ![DataDecl]                     -- ^ Predicated data definitions
-  , newtyDecls :: ![DataDecl]                     -- ^ Predicated new type definitions
-  , includes   :: ![FilePath]                     -- ^ Included qualifier files
-  , aliases    :: ![F.Located (RTAlias F.Symbol BareType)] -- ^ RefType aliases
-  , ealiases   :: ![F.Located (RTAlias F.Symbol F.Expr)]   -- ^ Expression aliases
-  , embeds     :: !(F.TCEmb F.LocSymbol)                   -- ^ GHC-Tycon-to-fixpoint Tycon map
-  , qualifiers :: ![F.Qualifier]                           -- ^ Qualifiers in source/spec files
---  , decr       :: ![(F.LocSymbol, [Int])]         -- ^ Information on decreasing arguments
-  , lvars      :: !(S.HashSet F.LocSymbol)        -- ^ Variables that should be checked in the environment they are used
-  , lazy       :: !(S.HashSet F.LocSymbol)        -- ^ Ignore Termination Check in these Functions
-  , rewrites    :: !(S.HashSet F.LocSymbol)        -- ^ Theorems turned into rewrite rules
-  , rewriteWith :: !(M.HashMap F.LocSymbol [F.LocSymbol]) -- ^ Definitions using rewrite rules
-  , fails      :: !(S.HashSet F.LocSymbol)        -- ^ These Functions should be unsafe
-  , reflects   :: !(S.HashSet F.LocSymbol)        -- ^ Binders to reflect
-  , autois     :: !(M.HashMap F.LocSymbol (Maybe Int))  -- ^ Automatically instantiate axioms in these Functions with maybe specified fuel
-  , hmeas      :: !(S.HashSet F.LocSymbol)        -- ^ Binders to turn into measures using haskell definitions
-  , hbounds    :: !(S.HashSet F.LocSymbol)        -- ^ Binders to turn into bounds using haskell definitions
-  , inlines    :: !(S.HashSet F.LocSymbol)        -- ^ Binders to turn into logic inline using haskell definitions
-  , ignores    :: !(S.HashSet F.LocSymbol)        -- ^ Binders to ignore during checking; that is DON't check the corebind.
-  , autosize   :: !(S.HashSet F.LocSymbol)        -- ^ Type Constructors that get automatically sizing info
-  , pragmas    :: ![F.Located String]             -- ^ Command-line configurations passed in through source
-  , cmeasures  :: ![Measure ty ()]                -- ^ Measures attached to a type-class
-  , imeasures  :: ![Measure ty bndr]              -- ^ Mappings from (measure,type) -> measure
-  , classes    :: ![RClass ty]                    -- ^ Refined Type-Classes
-  , claws      :: ![RClass ty]                    -- ^ Refined Type-Classe Laws
+  { measures   :: ![Measure ty bndr]                                  -- ^ User-defined properties for ADTs
+  , impSigs    :: ![(F.Symbol, F.Sort)]                               -- ^ Imported variables types
+  , expSigs    :: ![(F.Symbol, F.Sort)]                               -- ^ Exported variables types
+  , asmSigs    :: ![(F.LocSymbol, ty)]                                -- ^ Assumed (unchecked) types; including reflected signatures
+  , sigs       :: ![(F.LocSymbol, ty)]                                -- ^ Imported functions and types
+  , localSigs  :: ![(F.LocSymbol, ty)]                                -- ^ Local type signatures
+  , reflSigs   :: ![(F.LocSymbol, ty)]                                -- ^ Reflected type signatures
+  , invariants :: ![(Maybe F.LocSymbol, ty)]                          -- ^ Data type invariants; the Maybe is the generating measure
+  , ialiases   :: ![(ty, ty)]                                         -- ^ Data type invariants to be checked
+  , imports    :: ![F.Symbol]                                         -- ^ Loaded spec module names
+  , dataDecls  :: ![DataDecl]                                         -- ^ Predicated data definitions
+  , newtyDecls :: ![DataDecl]                                         -- ^ Predicated new type definitions
+  , includes   :: ![FilePath]                                         -- ^ Included qualifier files
+  , aliases    :: ![F.Located (RTAlias F.Symbol BareType)]            -- ^ RefType aliases
+  , ealiases   :: ![F.Located (RTAlias F.Symbol F.Expr)]              -- ^ Expression aliases
+  , embeds     :: !(F.TCEmb F.LocSymbol)                              -- ^ GHC-Tycon-to-fixpoint Tycon map
+  , qualifiers :: ![F.Qualifier]                                      -- ^ Qualifiers in source/spec files
+  , lvars      :: !(S.HashSet F.LocSymbol)                            -- ^ Variables that should be checked in the environment they are used
+  , lazy       :: !(S.HashSet F.LocSymbol)                            -- ^ Ignore Termination Check in these Functions
+  , rewrites    :: !(S.HashSet F.LocSymbol)                           -- ^ Theorems turned into rewrite rules
+  , rewriteWith :: !(M.HashMap F.LocSymbol [F.LocSymbol])             -- ^ Definitions using rewrite rules
+  , fails      :: !(S.HashSet F.LocSymbol)                            -- ^ These Functions should be unsafe
+  , reflects   :: !(S.HashSet F.LocSymbol)                            -- ^ Binders to reflect
+  , autois     :: !(M.HashMap F.LocSymbol (Maybe Int))                -- ^ Automatically instantiate axioms in these Functions with maybe specified fuel
+  , hmeas      :: !(S.HashSet F.LocSymbol)                            -- ^ Binders to turn into measures using haskell definitions
+  , hbounds    :: !(S.HashSet F.LocSymbol)                            -- ^ Binders to turn into bounds using haskell definitions
+  , inlines    :: !(S.HashSet F.LocSymbol)                            -- ^ Binders to turn into logic inline using haskell definitions
+  , ignores    :: !(S.HashSet F.LocSymbol)                            -- ^ Binders to ignore during checking; that is DON't check the corebind.
+  , autosize   :: !(S.HashSet F.LocSymbol)                            -- ^ Type Constructors that get automatically sizing info
+  , pragmas    :: ![F.Located String]                                 -- ^ Command-line configurations passed in through source
+  , cmeasures  :: ![Measure ty ()]                                    -- ^ Measures attached to a type-class
+  , imeasures  :: ![Measure ty bndr]                                  -- ^ Mappings from (measure,type) -> measure
+  , classes    :: ![RClass ty]                                        -- ^ Refined Type-Classes
+  , claws      :: ![RClass ty]                                        -- ^ Refined Type-Classe Laws
   , relational :: ![(LocSymbol, LocSymbol, ty, ty, RelExpr, RelExpr)] -- ^ Relational types
   , asmRel     :: ![(LocSymbol, LocSymbol, ty, ty, RelExpr, RelExpr)] -- ^ Assumed relational types
-  , termexprs  :: ![(F.LocSymbol, [F.Located F.Expr])] -- ^ Terminating Conditions for functions
+  , termexprs  :: ![(F.LocSymbol, [F.Located F.Expr])]                -- ^ Terminating Conditions for functions
   , rinstance  :: ![RInstance ty]
   , ilaws      :: ![RILaws ty]
-  , dvariance  :: ![(F.LocSymbol, [Variance])]         -- ^ ? Where do these come from ?!
-  , dsize      :: ![([ty], F.LocSymbol)]      -- ^ Size measure to enforce fancy termination
+  , dvariance  :: ![(F.LocSymbol, [Variance])]                        -- ^ TODO ? Where do these come from ?!
+  , dsize      :: ![([ty], F.LocSymbol)]                              -- ^ Size measure to enforce fancy termination
   , bounds     :: !(RRBEnv ty)
-  , defs       :: !(M.HashMap F.LocSymbol F.Symbol)    -- ^ Temporary (?) hack to deal with dictionaries in specifications
-                                                       --   see tests/pos/NatClass.hs
-  , axeqs      :: ![F.Equation]                        -- ^ Equalities used for Proof-By-Evaluation
+  , defs       :: !(M.HashMap F.LocSymbol F.Symbol)                   -- ^ Temporary (?) hack to deal with dictionaries in specifications
+                                                                      --   see tests/pos/NatClass.hs
+  , axeqs      :: ![F.Equation]                                       -- ^ Equalities used for Proof-By-Evaluation
   } deriving (Generic, Show)
 
 instance Binary (Spec LocBareType F.LocSymbol)
@@ -451,7 +448,6 @@ instance Semigroup (Spec ty bndr) where
            , aliases    =           aliases    s1 ++ aliases    s2
            , ealiases   =           ealiases   s1 ++ ealiases   s2
            , qualifiers =           qualifiers s1 ++ qualifiers s2
---           , decr       =           decr       s1 ++ decr       s2
            , pragmas    =           pragmas    s1 ++ pragmas    s2
            , cmeasures  =           cmeasures  s1 ++ cmeasures  s2
            , imeasures  =           imeasures  s1 ++ imeasures  s2
@@ -502,7 +498,6 @@ instance Monoid (Spec ty bndr) where
            , ealiases   = []
            , embeds     = mempty
            , qualifiers = []
---           , decr       = []
            , lvars      = S.empty
            , lazy       = S.empty
            , rewrites   = S.empty
@@ -585,8 +580,6 @@ data LiftedSpec = LiftedSpec
     -- ^ GHC-Tycon-to-fixpoint Tycon map
   , liftedQualifiers :: HashSet F.Qualifier
     -- ^ Qualifiers in source/spec files
---  , liftedDecr       :: HashSet (F.LocSymbol, [Int])
---    -- ^ Information on decreasing arguments
   , liftedLvars      :: HashSet F.LocSymbol
     -- ^ Variables that should be checked in the environment they are used
   , liftedAutois     :: M.HashMap F.LocSymbol (Maybe Int)
@@ -634,7 +627,6 @@ emptyLiftedSpec = LiftedSpec
   , liftedEaliases   = mempty
   , liftedEmbeds     = mempty
   , liftedQualifiers = mempty
---  , liftedDecr       = mempty
   , liftedLvars      = mempty
   , liftedAutois     = mempty
   , liftedAutosize   = mempty
@@ -819,7 +811,6 @@ liftedSpecGetter = to toLiftedSpec
       , liftedEaliases   = S.fromList . ealiases $ a
       , liftedEmbeds     = embeds a
       , liftedQualifiers = S.fromList . qualifiers $ a
---     , liftedDecr       = S.fromList . decr $ a
       , liftedLvars      = lvars a
       , liftedAutois     = autois a
       , liftedAutosize   = autosize a
@@ -859,7 +850,6 @@ unsafeFromLiftedSpec a = Spec
   , ealiases   = S.toList . liftedEaliases $ a
   , embeds     = liftedEmbeds a
   , qualifiers = S.toList . liftedQualifiers $ a
---  , decr       = S.toList . liftedDecr $ a
   , lvars      = liftedLvars a
   , lazy       = mempty
   , fails      = mempty

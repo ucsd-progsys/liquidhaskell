@@ -265,7 +265,6 @@ initCGI cfg info = CGInfo {
   , cgConsts   = infoLits (gsMeas . gsData) notFn        info
   , cgADTs     = gsADTs nspc
   , termExprs  = M.fromList [(v, es) | (v, _, es) <- gsTexprs (gsSig spc) ]
---  , specDecr   = gsDecr  tspc
   , specLVars  = gsLvars (gsVars spc)
   , specLazy   = dictionaryVar `S.insert` gsLazy tspc
   , specTmVars = gsNonStTerm tspc
