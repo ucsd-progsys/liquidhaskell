@@ -1782,25 +1782,17 @@ makeDecrType :: Symbolic a
              => S.HashSet TyCon
              -> Maybe (a, (Symbol, RType RTyCon t (UReft Reft)))
              -> Either (Symbol, RType RTyCon t (UReft Reft)) String
-makeDecrType autoenv = mkDType autoenv [] []
-
-mkDType :: Symbolic a
-        => S.HashSet TyCon
-        -> [(Symbol, Symbol, Symbol -> Expr)]
-        -> [Expr]
-        -> Maybe (a, (Symbol, RType RTyCon t (UReft Reft)))
-        -> Either (Symbol, RType RTyCon t (UReft Reft)) String
-mkDType autoenv xvs acc (Just (v, (x, t)))
+makeDecrType autoenv (Just (v, (x, t)))
   = Left (x, t `strengthen` tr)
   where
-    tr  = uTop $ Reft (vv', pOr (r:acc))
-    r   = cmpLexRef xvs (v', vv', f)
+    tr  = uTop $ Reft (vv', pOr [r])
+    r   = cmpLexRef (v', vv', f)
     v'  = symbol v
     f   = mkDecrFun autoenv t
     vv' = "vvRec"
 
-mkDType _ _ _ _
-  = Right "RefType.mkDType called on invalid input"
+makeDecrType _ _
+  = Right "RefType.makeDecrType called on invalid input"
 
 isSizeable  :: S.HashSet TyCon -> TyCon -> Bool
 isSizeable autoenv tc = S.member tc autoenv --   Ghc.isAlgTyCon tc -- && Ghc.isRecursiveTyCon tc
@@ -1817,12 +1809,9 @@ mkDecrFun _ _
   = panic Nothing "RefType.mkDecrFun called on invalid input"
 
 -- | [NOTE]: THIS IS WHERE THE TERMINATION METRIC REFINEMENTS ARE CREATED.
-cmpLexRef :: [(t1, t1, t1 -> Expr)] -> (t, t, t -> Expr) -> Expr
-cmpLexRef vxs (v, x, g)
-  = pAnd $   PAtom Lt (g x) (g v)
-         :   PAtom Ge (g x) zero
-         :  [PAtom Eq (f y) (f z) | (y, z, f) <- vxs]
-         ++ [PAtom Ge (f y) zero  | (y, _, f) <- vxs]
+cmpLexRef :: (t, t, t -> Expr) -> Expr
+cmpLexRef (v, x, g)
+  = pAnd [PAtom Lt (g x) (g v), PAtom Ge (g x) zero]
   where zero = ECon $ I 0
 
 makeLexRefa :: [Located Expr] -> [Located Expr] -> UReft Reft
