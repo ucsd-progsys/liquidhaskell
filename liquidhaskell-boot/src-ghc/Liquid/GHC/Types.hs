@@ -47,11 +47,7 @@ availsToStableNameSet avails = foldr add mempty avails
 data MGIModGuts = MI
   { mgi_binds     :: !CoreProgram
   , mgi_module    :: !Module
-  , mgi_deps      :: !Dependencies
-  , mgi_dir_imps  :: ![ModuleName]
-  , mgi_rdr_env   :: !GlobalRdrEnv
   , mgi_tcs       :: ![TyCon]
-  , mgi_fam_insts :: ![FamInst]
   , mgi_exports   :: !(HashSet StableName)
   , mgi_cls_inst  :: !(Maybe [ClsInst])
   }
@@ -60,20 +56,13 @@ miModGuts :: Maybe [ClsInst] -> ModGuts -> MGIModGuts
 miModGuts cls mg  = MI
   { mgi_binds     = mg_binds mg
   , mgi_module    = mg_module mg
-  , mgi_deps      = mg_deps mg
-  , mgi_dir_imps  = mgDirImps mg
-  , mgi_rdr_env   = mg_rdr_env mg
   , mgi_tcs       = mg_tcs mg
-  , mgi_fam_insts = mg_fam_insts mg
   , mgi_exports   = availsToStableNameSet $ mg_exports mg
   , mgi_cls_inst  = cls
   }
 
 nameSetToStableNameSet :: NameSet -> HashSet StableName
 nameSetToStableNameSet = fromList . map mkStableName . nameSetElemsStable
-
-mgDirImps :: ModGuts -> [ModuleName]
-mgDirImps = map gwib_mod . getDependenciesModuleNames . mg_deps
 
 mgiNamestring :: MGIModGuts -> String
 mgiNamestring = moduleNameString . moduleName . mgi_module

@@ -858,7 +858,7 @@ data RTVInfo s
             , rtv_is_pol :: Bool -- true iff the type variable gets instantiated with
                                  -- any refinement (ie is polymorphic on refinements),
                                  -- false iff instantiation is with true refinement
-            } deriving (Generic, Data, Typeable, Functor)
+            } deriving (Generic, Data, Typeable, Functor, Eq)
               deriving Hashable via Generically (RTVInfo s)
 
 
@@ -1206,14 +1206,14 @@ data DataCtor = DataCtor
   , dcTheta  :: [BareType]             -- ^ The GHC ThetaType corresponding to DataCon.dataConSig
   , dcFields :: [(Symbol, BareType)]   -- ^ field-name and field-Type pairs
   , dcResult :: Maybe BareType         -- ^ Possible output (if in GADT form)
-  } deriving (Data, Typeable, Generic)
+  } deriving (Data, Typeable, Generic, Eq)
     deriving Hashable via Generically DataCtor
 
 -- | Termination expressions
 data SizeFun
   = IdSizeFun              -- ^ \x -> F.EVar x
   | SymSizeFun F.LocSymbol -- ^ \x -> f x
-  deriving (Data, Typeable, Generic)
+  deriving (Data, Typeable, Generic, Eq)
   deriving Hashable via Generically SizeFun
 
 -- | What kind of `DataDecl` is it?

@@ -755,7 +755,6 @@ executable parser-pos
                     , TokensAsPrefixes
                     , Tuples
 
-                    -- XXX(matt.walker): Double frees with -j
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
@@ -1339,7 +1338,6 @@ executable unit-neg
                     -- , QQTySyn2
                     -- , Variance1
 
-                    -- XXX(matt.walker): double frees on -j
     ghc-options:      -fplugin=LiquidHaskell -ddump-to-file -fkeep-going -O0
     build-depends:    base
                     , liquid-prelude
@@ -1693,7 +1691,6 @@ executable unit-pos-1
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
-    -- XXX(matt.walker): Double frees on -j
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
@@ -2339,7 +2336,6 @@ executable ple-pos
     --   other-modules:  T1302b
 
 
-    -- XXX(matt.walker): RANDOM FAILURES in T1302b when -j provided
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file

@@ -61,8 +61,8 @@ library
                       Language.Haskell.Liquid.Constraint.Types
                       Language.Haskell.Liquid.Constraint.Relational
                       Liquid.GHC.API
+                      Liquid.GHC.API.Extra
                       Liquid.GHC.API.StableModule
-                      Liquid.GHC.GhcMonadLike
                       Liquid.GHC.Interface
                       Liquid.GHC.Logging
                       Liquid.GHC.Misc
@@ -73,7 +73,6 @@ library
                       Liquid.GHC.TypeRep
                       Language.Haskell.Liquid.GHC.Plugin
                       Language.Haskell.Liquid.GHC.Plugin.Tutorial
-                      Language.Haskell.Liquid.Interactive.Types
                       Language.Haskell.Liquid.LawInstances
                       Language.Haskell.Liquid.Liquid
                       Language.Haskell.Liquid.Measure
@@ -142,7 +141,7 @@ library
                     , ghc-paths            >= 0.1
                     , ghc-prim
                     , gitrev
-                    , hashable             >= 1.3 && < 1.4
+                    , hashable             >= 1.3 && < 1.5
                     , hscolour             >= 1.22
                     , liquid-fixpoint      == 0.9.0.2.1
                     , mtl                  >= 2.1

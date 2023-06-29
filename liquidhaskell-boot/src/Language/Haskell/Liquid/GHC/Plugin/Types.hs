@@ -1,11 +1,6 @@
-{-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 
 module Language.Haskell.Liquid.GHC.Plugin.Types
@@ -14,26 +9,11 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     -- * Dealing with specs and their dependencies
     , LiquidLib
     , mkLiquidLib
+    , mkSpecComment
     , libTarget
     , libDeps
     , allDeps
     , addLibDependencies
-
-    -- * Caching specs into interfaces
-    , CachedSpec
-    , toCached
-    , cachedSpecStableModuleId
-    , cachedSpecModule
-    , fromCached
-
-    -- * Merging specs together
-    , InputSpec
-    , CompanionSpec
-    , LiquidSpec
-    , downcastSpec
-    , mkInputSpec
-    , mkCompanionSpec
-    , mergeInputWithCompanion
 
     -- * Carrying data across stages of the compilation pipeline
     , PipelineData(..)
@@ -46,25 +26,20 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     , tcAvailableTyCons
     , tcAvailableVars
     , mkTcData
-
-    -- * Wrapper type to talk about unoptimised things
-    , Unoptimised(fromUnoptimised)
-    , toUnoptimised
     ) where
 
 import           Data.Binary                             as B
-import           Data.Data                                ( Data )
 import           Data.Foldable
 import           GHC.Generics                      hiding ( moduleName )
 
 import qualified Data.HashSet        as HS
-import           Data.Hashable
 
-import           Language.Fixpoint.Types.Spans
 import           Language.Haskell.Liquid.Types.Specs
 import           Liquid.GHC.API         as GHC
 import qualified Liquid.GHC.Interface   as LH
+import           Liquid.GHC.Misc (realSrcLocSourcePos)
 import           Language.Fixpoint.Types.Names            ( Symbol )
+import           Language.Fixpoint.Types.Spans            ( SourcePos, dummyPos )
 
 
 data LiquidLib = LiquidLib
@@ -96,72 +71,16 @@ libDeps = llDeps
 allDeps :: Foldable f => f LiquidLib -> TargetDependencies
 allDeps = foldl' (\acc lib -> acc <> llDeps lib) mempty
 
--- | A cached spec which can be serialised into an interface.
-data CachedSpec = CachedSpec GHC.StableModule LiftedSpec deriving (Show, Generic)
-
-instance Binary CachedSpec
-
-instance Eq CachedSpec where
-    (CachedSpec id1 _) == (CachedSpec id2 _) = id1 == id2
-
-instance Hashable CachedSpec where
-    hashWithSalt s (CachedSpec (unStableModule -> mdl) _) =
-      hashWithSalt s (moduleStableString mdl)
-
--- | Converts the input 'BareSpec' into a 'CachedSpec', inforcing the invariant that termination checking
--- needs to be disabled as this is now considered safe to use for \"clients\".
-toCached :: Module -> LiftedSpec -> CachedSpec
-toCached mdl liftedSpec = CachedSpec (toStableModule mdl) liftedSpec
-
-cachedSpecStableModuleId :: CachedSpec -> String
-cachedSpecStableModuleId (CachedSpec (unStableModule -> m) _) = moduleStableString m
-
-cachedSpecModule :: CachedSpec -> Module
-cachedSpecModule (CachedSpec (unStableModule -> m) _) = m
-
-fromCached :: CachedSpec -> (StableModule, LiftedSpec)
-fromCached (CachedSpec sm s) = (sm, s)
-
----
---- A Liquid spec and its (many) flavours
----
-
-data InputSpec
-data CompanionSpec
-
-data LiquidSpec t where
-    MkInputSpec     :: BareSpec   -> LiquidSpec InputSpec
-    MkCompanionSpec :: BareSpec   -> LiquidSpec CompanionSpec
-
-deriving instance Show (LiquidSpec InputSpec)
-deriving instance Show (LiquidSpec CompanionSpec)
-
-mkInputSpec :: BareSpec -> LiquidSpec InputSpec
-mkInputSpec = MkInputSpec
-
-mkCompanionSpec :: BareSpec -> LiquidSpec CompanionSpec
-mkCompanionSpec = MkCompanionSpec
-
-downcastSpec :: LiquidSpec t -> BareSpec
-downcastSpec = \case
-  MkInputSpec s    -> s
-  MkCompanionSpec s -> s
-
--- | Merges a 'InputSpec' with its 'CompanionSpec'. Here duplicates are not checked as it's
--- user's responsibility to make sure there are no duplicates between the in-module annotations and the
--- companion spec.
-mergeInputWithCompanion :: LiquidSpec InputSpec -> LiquidSpec CompanionSpec -> LiquidSpec InputSpec
-mergeInputWithCompanion (MkInputSpec s1) (MkCompanionSpec s2) = MkInputSpec (s1 <> s2)
-
 -- | Just a small wrapper around the 'SourcePos' and the text fragment of a LH spec comment.
 newtype SpecComment =
     SpecComment (SourcePos, String)
-    deriving (Show, Data)
+    deriving Show
 
-newtype Unoptimised a = Unoptimised { fromUnoptimised :: a }
-
-toUnoptimised :: a -> Unoptimised a
-toUnoptimised = Unoptimised
+mkSpecComment :: (Maybe RealSrcLoc, String) -> SpecComment
+mkSpecComment (m, s) = SpecComment (sourcePos m, s)
+  where
+    sourcePos Nothing = dummyPos "<no source information>"
+    sourcePos (Just sp) = realSrcLocSourcePos sp
 
 --
 -- Passing data between stages of the pipeline
@@ -173,7 +92,7 @@ toUnoptimised = Unoptimised
 -- 2. Pass data inside IORefs.
 
 data PipelineData = PipelineData {
-    pdUnoptimisedCore :: Unoptimised ModGuts
+    pdUnoptimisedCore :: ModGuts
   , pdTcData :: TcData
   , pdSpecComments :: [SpecComment]
   }
