@@ -28,7 +28,6 @@ import           Liquid.GHC.API                   as Ghc hiding ( panic
                                                                                  )
 import           Liquid.GHC.TypeRep           ()
 import           Text.PrettyPrint.HughesPJ hiding ((<>))
-import           Control.Monad                                 as CM
 import           Control.Monad.State
 import           Data.Maybe                                    (fromMaybe, catMaybes, isJust, mapMaybe, fromJust)
 import qualified Data.HashMap.Strict                           as M
@@ -163,9 +162,8 @@ recType autoenv ((vs, indexc), (_, index, t))
 checkIndex :: (NamedThing t, PPrint t, PPrint a)
            => (t, [a], Template (RType c tv r), Maybe Int)
            -> CG (Maybe (RType c tv r))
-checkIndex (x, vs, t, index)
-  = do mapM_ (safeLogIndex msg1 vs) index
-       CM.join <$> mapM (safeLogIndex msg2 ts) index
+checkIndex (_,  _, _, Nothing   ) = return Nothing
+checkIndex (x, vs, t, Just index) = safeLogIndex msg1 vs index >> safeLogIndex msg2 ts index
     where
        loc   = getSrcSpan x
        ts    = ty_args $ toRTypeRep $ unOCons $ unTemplate t
@@ -196,11 +194,11 @@ unOCons (RRTy _ _ OCons t) = unOCons t
 unOCons t                  = t
 
 mergecondition :: RType c tv r -> RType c tv r -> RType c tv r
-mergecondition (RAllT _ t1 _) (RAllT v t2 r2)          = RAllT v (mergecondition t1 t2) r2
-mergecondition (RAllP _ t1) (RAllP p t2)               = RAllP p (mergecondition t1 t2)
-mergecondition (RRTy xts r OCons t1) t2                = RRTy xts r OCons (mergecondition t1 t2)
+mergecondition (RAllT _ t1 _)       (RAllT v t2 r2)        = RAllT v (mergecondition t1 t2) r2
+mergecondition (RAllP _ t1)         (RAllP p t2)           = RAllP p (mergecondition t1 t2)
+mergecondition (RRTy xts r OCons t1) t2                    = RRTy xts r OCons (mergecondition t1 t2)
 mergecondition (RFun _ _ t11 t12 _) (RFun x2 i t21 t22 r2) = RFun x2 i (mergecondition t11 t21) (mergecondition t12 t22) r2
-mergecondition _ t                                     = t
+mergecondition _                     t                     = t
 
 safeLogIndex :: Error -> [a] -> Int -> CG (Maybe a)
 safeLogIndex err ls n
