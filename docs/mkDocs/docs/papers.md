@@ -36,6 +36,7 @@ you could curl up with:
 
 ## Talks
 
+- [Untangle your spaghetti with Liquid Haskell](https://www.youtube.com/watch?v=EpJLpeGs9Ao) ([slides](https://res.cloudinary.com/skillsmatter/image/upload/v1670517878/r752ywkoljm1honpxlks.pdf))
 - [Resource Analysis with Refinement Types, YOW! Lambda Jam 2021](https://skillsmatter.com/skillscasts/16729-resource-analysis-with-refinement-types)
 - [Liquid Haskell: Theorem Proving for All, Haskell Exchange 2018](https://skillsmatter.com/skillscasts/11068-keynote-looking-forward-to-niki-vazou-s-keynote-at-haskellx-2018)
 - [Scrap your Bounds Checks with Liquid Haskell, Haskell Exchange 2017](https://skillsmatter.com/skillscasts/10690-keynote-scrap-your-bounds-checks-with-liquid-haskell) [(slides)](https://github.com/Gabriella439/slides/blob/main/liquidhaskell/slides.md)
@@ -47,6 +48,7 @@ The following talks are good tutorial introductions to the techniques.
 
 ## Other articles
 
+- [Assumptions for Liquid Haskell in the Large, Tweag blog 2023](https://www.tweag.io/blog/2023-06-22-lh-assumption-imports/)
 - [A Dialog with Liquid Haskell, Tweag blog 2022](https://www.tweag.io/blog/2022-07-21-lh-introspection/)
 - [Why Liquid Haskell Matters, Tweag blog 2022](https://www.tweag.io/blog/2022-01-19-why-liquid-haskell/)
 - [Compile-time memory safety using Liquid Haskell, Haskell for all blog 2015](https://www.haskellforall.com/2015/12/compile-time-memory-safety-using-liquid.html)
