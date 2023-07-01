@@ -39,7 +39,7 @@ you could curl up with:
 - [Untangle your spaghetti with Liquid Haskell](https://www.youtube.com/watch?v=EpJLpeGs9Ao) ([slides](https://res.cloudinary.com/skillsmatter/image/upload/v1670517878/r752ywkoljm1honpxlks.pdf))
 - [Resource Analysis with Refinement Types, YOW! Lambda Jam 2021](https://skillsmatter.com/skillscasts/16729-resource-analysis-with-refinement-types)
 - [Liquid Haskell: Theorem Proving for All, Haskell Exchange 2018](https://skillsmatter.com/skillscasts/11068-keynote-looking-forward-to-niki-vazou-s-keynote-at-haskellx-2018)
-- [Scrap your Bounds Checks with Liquid Haskell, Haskell Exchange 2017](https://skillsmatter.com/skillscasts/10690-keynote-scrap-your-bounds-checks-with-liquid-haskell) [(slides)](https://github.com/Gabriella439/slides/blob/main/liquidhaskell/slides.md)
+- [Scrap your Bounds Checks with Liquid Haskell, Haskell Exchange 2017](https://skillsmatter.com/skillscasts/10690-keynote-scrap-your-bounds-checks-with-liquid-haskell) ([slides](https://github.com/Gabriella439/slides/blob/main/liquidhaskell/slides.md))
 
 The following talks are good tutorial introductions to the techniques.
 
