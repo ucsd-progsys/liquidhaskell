@@ -320,7 +320,9 @@ Moving forward, all the refinement specifications e.g. for `GHC.List` or `Data.V
 or `Data.Set` or `Data.Bytestring` simply live in packages that *mirror* the original 
 versions, e.g. `liquid-base`,  `liquid-vector`, `liquid-containers`, `liquid-bytestring`.
 Each `liquid-X` package directly _re-exports_ all the contents of the corresponding `X` package,
-but with any additional refinement type specifications. 
+but with any additional refinement type specifications
+(Note: After writing this post the mechanism to handle specifications evolved again. See
+[this other post](https://www.tweag.io/blog/2023-06-22-lh-assumption-imports/) for the details).
 
 So if you want to verify that _your_ code has no `vector`-index overflow errors, you simply 
 build with `liquid-vector` instead of `vector`! Of course, in an ideal, and hopefully 
