@@ -294,25 +294,6 @@ following examples for details:
 * [RegExp Derivatives](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/RegexpDerivative.hs)
 * [Type Safety of STLC](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/STLC2.hs)
 
-## Implicit Arguments
-
-**Status:** `experimental`
-
-There is experimental support for implicit arguments, solved for with congruence closure. For example, consider [Implicit1.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/implicit/pos/Implicit1.hs):
-
-```haskell
-{-@ type IntN N = {v:Int | v = N} @-}
-
-{-@ foo :: n:Int ~> (() -> IntN n) -> IntN {n+1} @-}
-foo f = 1 + f ()
-
-{-@ test1 :: IntN 11 @-}
-test1 = foo (\_ -> 10)
-```
-
-Here, the refinement on `(\_ -> 10) :: Int -> { v:Int | v = 10 }` allows us to solve for `n = 10`, the implicit argument to `foo`.
-
-
 ## Refinement Type Aliases
 
 ### Predicate Aliases
