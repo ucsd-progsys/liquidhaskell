@@ -74,8 +74,8 @@ sortBy cmp a = sortByBounds cmp a 0 (length a)
 
 -- | Sorts a portion of an array [l,u) using a custom ordering
 {-@ sortByBounds :: (PrimMonad m, MVector v e)
-                 => Comparison e -> vec:(v (PrimState m) e) 
-                -> l:(OkIdx vec) -> u:{v:Nat | (InRngL v l (vsize vec))} 
+                 => Comparison e -> vec:(v (PrimState m) e)
+                -> l:(OkIdx vec) -> u:{v:Nat | (InRngL v l (vsize vec))}
                 -> m ()
   @-}
 sortByBounds :: (PrimMonad m, MVector v e)
@@ -92,16 +92,16 @@ sortByBounds cmp a l u
 -- Internal version of the introsort loop which allows partial
 -- sort functions to call with a specified bound on iterations.
 {-@ introsort :: (PrimMonad m, MVector v e)
-              => Comparison e -> vec:(v (PrimState m) e) 
-              -> Nat -> l:(OkIdx vec) -> u:{v:Nat | (InRng v l (vsize vec))} 
+              => Comparison e -> vec:(v (PrimState m) e)
+              -> Nat -> l:(OkIdx vec) -> u:{v:Nat | (InRng v l (vsize vec))}
               -> m ()
   @-}
 introsort :: (PrimMonad m, MVector v e)
           => Comparison e -> v (PrimState m) e -> Int -> Int -> Int -> m ()
 introsort cmp a i l u = sort i l u >> I.sortByBounds cmp a l u
  where
- sort :: Int -> Int -> Int -> _ 
- sort 0 l u = H.sortByBounds cmp a l  u 
+ sort :: Int -> Int -> Int -> _
+ sort 0 l u = H.sortByBounds cmp a l  u
   {- LIQUID WITNESS -}
  sort (d :: Int) l u
    | len < threshold = return ()
@@ -138,7 +138,7 @@ selectBy cmp a k = selectByBounds cmp a k 0 (length a)
 -- [l,k+l) in no particular order.
 {-@ selectByBounds :: (PrimMonad m, MVector v e)
                    => Comparison e -> vec:(NeVec v m e)
-                   -> Pos -> l:(OkIdx vec) -> u:{v:Nat | (InRngL v l (vsize vec))} 
+                   -> Pos -> l:(OkIdx vec) -> u:{v:Nat | (InRngL v l (vsize vec))}
                    -> m ()
   @-}
 selectByBounds :: (PrimMonad m, MVector v e)
@@ -182,8 +182,8 @@ partialSortBy cmp a k = partialSortByBounds cmp a k 0 (length a)
 {-@ partialSortByBounds :: (PrimMonad m, MVector v e)
                    => Comparison e -> vec:(NeVec v m e)
                    -> k:Pos
-                   -> l:(OkIdx vec) 
-                   -> u:{v:Nat | (InRngL v l (vsize vec))} 
+                   -> l:(OkIdx vec)
+                   -> u:{v:Nat | (InRngL v l (vsize vec))}
                    -> m ()
   @-}
 partialSortByBounds :: (PrimMonad m, MVector v e)
@@ -196,8 +196,8 @@ partialSortByBounds cmp a k l u
  {-# INLINE [1] isort #-}
  len = u - l
  m0  = l + k
- {-@ decrease go 1 3 @-} 
- go 0 l n _    = H.partialSortByBounds cmp a k l  u 
+ {-@ go :: n:_ -> _ -> u:_ -> _ -> m () / [n,u] @-}
+ go 0 l n _    = H.partialSortByBounds cmp a k l  u
  go n l u (m :: Int)
    | l == m   = return ()
    | otherwise = do O.sort3ByIndex cmp a c l (u-1)
@@ -212,8 +212,8 @@ partialSortByBounds cmp a k l u
   where c = (u + l) `shiftRI` 1 -- `div` 2
 {-# INLINE partialSortByBounds #-}
 
-{-@ partitionBy :: forall m v e. (PrimMonad m, MVector v e) 
-                => Comparison e -> vec:(v (PrimState m) e) -> e 
+{-@ partitionBy :: forall m v e. (PrimMonad m, MVector v e)
+                => Comparison e -> vec:(v (PrimState m) e) -> e
                 -> l:(OkIdx vec) -> u:{v:Nat | (InRng v l (vsize vec))}
                 -> m {v:Int | (InRng v l u)}
   @-}
@@ -223,16 +223,16 @@ partitionBy cmp a p l u = partUp p l u (u-l)
  where
  -- 6.10 panics without the signatures for partUp and partDown, 6.12 and later
  -- versions don't need them
- {-@ decrease partUp 4 @-}
- {-@ decrease partDown 4 @-}
+ {-@ partUp :: e -> _ -> _ -> d:_ -> _ / [d] @-}
  partUp :: e -> Int -> Int -> Int -> m Int
  partUp p l u _
-   | l < u = do e <- unsafeRead a  l
+   | l < u = do e <- unsafeRead a l
                 case cmp e p of
-                  LT -> partUp p (l+1) u (u-l-1)
-                  _  -> partDown  p l (u-1) (u-l-1)
+                  LT -> partUp   p (l+1) u    (u-l-1)
+                  _  -> partDown p  l   (u-1) (u-l-1)
    | otherwise = return l
 
+ {-@ partDown :: e -> _ -> _ -> d:_ -> _ / [d] @-}
  partDown :: e -> Int -> Int -> Int -> m Int
  partDown p l u _
    | l < u = do e <- unsafeRead a u
@@ -248,7 +248,7 @@ partitionBy cmp a p l u = partUp p l u (u-l)
 ilg :: Int -> Int
 ilg m = 2 * loop m 0
  where
-   {-@ loop :: n:Nat -> {v:Nat | ((n = 0) => (v > 0))} -> Nat @-}  
+   {-@ loop :: n:Nat -> {v:Nat | ((n = 0) => (v > 0))} -> Nat @-}
    loop :: Int -> Int -> Int
    loop 0 !k = k - 1
    loop n !k = loop (n `shiftRI` 1) (k+1)

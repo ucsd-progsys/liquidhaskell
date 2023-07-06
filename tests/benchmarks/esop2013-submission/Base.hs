@@ -70,7 +70,7 @@
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- If the local 'go' function uses an Ord class, it sometimes heap-allocates
 -- the Ord dictionary when the 'go' function does not have explicit type.
--- In that case we give 'go' explicit type. But this slightly decrease
+-- In that case we give 'go' explicit type. But this slightly decreases
 -- performance, as the resulting 'go' function can float out to top level.
 
 
@@ -330,9 +330,9 @@ m1 \\ m2 = difference m1 m2
 
 -- See Note: Order of constructors
 data Map k a  = Bin { mSize :: Size
-                    , key   :: k 
+                    , key   :: k
                     , value :: a
-                    , left  :: (Map k a) 
+                    , left  :: (Map k a)
                     , right :: (Map k a)
                     }
               | Tip
@@ -344,11 +344,11 @@ type Size     = Int
 {-@ qualif_bound1 :: x:k -> {v:Map k a | ((isBin v) => (x < (key v))) } @-}
 {-@ qualif_bound2 :: x:k -> {v:Map k a | ((isBin v) => (x > (key v))) } @-}
 qualif_bound1, qualif_bound2 :: k -> Map k a
-qualif_bound1 = undefined 
-qualif_bound2 = undefined 
+qualif_bound1 = undefined
+qualif_bound2 = undefined
 
 
- 
+
 
 {-@ data Map [mlen] k a <l :: root:k -> k -> Bool, r :: root:k -> k -> Bool>
          = Bin (mSize :: Size)
@@ -1144,7 +1144,6 @@ findIndex = findIndex_go 0
 --LIQUID       EQ -> idx + size l
 
 {-@ findIndex_go :: (Ord k) => Int -> k -> OMap k a -> GHC.Types.Int @-}
-{-@ decrease findIndex_go 4 @-}
 findIndex_go :: Ord k => Int -> k -> Map k a -> Int
 STRICT_1_OF_3(findIndex_go)
 STRICT_2_OF_3(findIndex_go)
@@ -1181,7 +1180,6 @@ lookupIndex = lookupIndex_go 0
 --LIQUID       EQ -> Just $! idx + size l
 
 {-@ lookupIndex_go :: (Ord k) => Int -> k -> OMap k a -> Maybe GHC.Types.Int @-}
-{-@ decrease lookupIndex_go 4 @-}
 lookupIndex_go :: Ord k => Int -> k -> Map k a -> Maybe Int
 STRICT_1_OF_3(lookupIndex_go)
 STRICT_2_OF_3(lookupIndex_go)
@@ -1203,7 +1201,6 @@ lookupIndex_go idx k (Bin _ kx _ l r) = case compare k kx of
 
 
 {-@ elemAt :: GHC.Types.Int -> OMap k a -> (k, a) @-}
-{-@ decrease elemAt 2 @-}
 elemAt :: Int -> Map k a -> (k,a)
 STRICT_1_OF_2(elemAt)
 elemAt _ Tip = error "Map.elemAt: index out of range"
@@ -1228,7 +1225,6 @@ elemAt i (Bin _ kx x l r)
 -- > updateAt (\_ _  -> Nothing)  (-1) (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
 {-@ updateAt :: (k -> a -> Maybe a) -> GHC.Types.Int -> OMap k a -> OMap k a @-}
-{-@ decrease updateAt 3 @-}
 updateAt :: (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
 updateAt f i t = i `seq`
   case t of
@@ -1251,7 +1247,6 @@ updateAt f i t = i `seq`
 -- > deleteAt (-1) (fromList [(5,"a"), (3,"b")])  Error: index out of range
 
 {-@ deleteAt :: GHC.Types.Int -> OMap k a -> OMap k a @-}
-{-@ decrease deleteAt 2 @-}
 deleteAt :: Int -> Map k a -> Map k a
 deleteAt i t = i `seq`
   case t of
@@ -1529,7 +1524,6 @@ difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
                           -> {v: OMap k a | (RootBetween lo hi v) }
                           -> OMap {v: k | (KeyBetween lo hi v) } b
                           -> OMap {v: k | (KeyBetween lo hi v) } a @-}
-{-@ decrease hedgeDiff 5 @-}
 hedgeDiff :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Map a c -> Map a b
 hedgeDiff _  _   Tip _                  = Tip
 hedgeDiff blo bhi (Bin _ kx x l r) Tip  = join kx x (filterGt blo l) (filterLt bhi r)
@@ -2696,7 +2690,6 @@ join k x m1 m2 = joinT k x m1 m2 (mlen m1 + mlen m2)
 --LIQUID   | otherwise            = bin kx x l r
 
 {-@ joinT :: k:k -> a -> a:OMap {v:k | v < k} a -> b:OMap {v:k| v > k} a -> SumMLen a b -> OMap k a @-}
-{-@ decrease joinT 5 @-}
 {- LIQUID WITNESS -}
 joinT :: k -> a -> Map k a -> Map k a -> Int -> Map k a
 joinT kx x Tip r _ = insertMin kx x r
@@ -2734,7 +2727,6 @@ merge k m1 m2 = mergeT k m1 m2 (mlen m1 + mlen m2)
 --LIQUID   | otherwise           = glue kcut l r
 
 {-@ mergeT :: kcut:k -> a:OMap {v:k | v < kcut} a -> b:OMap {v:k| v > kcut} a -> SumMLen a b -> OMap k a @-}
-{-@ decrease mergeT 4 @-}
 {- LIQUID WITNESS -}
 mergeT :: k -> Map k a -> Map k a -> Int -> Map k a
 mergeT _   Tip r _   = r
@@ -3063,7 +3055,6 @@ showTreeWith showelem hang wide t
   | hang      = (showsTreeHang showelem wide [] t) ""
   | otherwise = (showsTree showelem wide [] [] t) ""
 
-{-@ decrease showsTree 5 @-}
 showsTree :: (k -> a -> String) -> Bool -> [String] -> [String] -> Map k a -> ShowS
 showsTree showelem wide lbars rbars t
   = case t of
@@ -3077,7 +3068,6 @@ showsTree showelem wide lbars rbars t
              showWide wide lbars .
              showsTree showelem wide (withEmpty lbars) (withBar lbars) l
 
-{-@ decrease showsTreeHang 4 @-}
 showsTreeHang :: (k -> a -> String) -> Bool -> [String] -> Map k a -> ShowS
 showsTreeHang showelem wide bars t
   = case t of

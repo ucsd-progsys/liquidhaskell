@@ -86,15 +86,15 @@ maxPasses = undefined
 
 {-@ qualif_MaxPasses1 :: p:_ -> {v:_ | v = (maxPassesN - p) }  @-}
 qualif_MaxPasses1 :: Int -> Int
-qualif_MaxPasses1 = undefined 
+qualif_MaxPasses1 = undefined
 
 {-@ qualif_MaxPasses2 :: _ -> {v:_ | v <= maxPassesN }  @-}
-qualif_MaxPasses2 :: () -> Int  
-qualif_MaxPasses2 = undefined 
+qualif_MaxPasses2 :: () -> Int
+qualif_MaxPasses2 = undefined
 
 {-@ qualif_MaxPasses3 :: _ -> {v:_ | v < maxPassesN }  @-}
-qualif_MaxPasses3 :: () -> Int  
-qualif_MaxPasses3 = undefined 
+qualif_MaxPasses3 :: () -> Int
+qualif_MaxPasses3 = undefined
 
 
 
@@ -284,20 +284,19 @@ flagLoop :: (PrimMonad m, MVector v e)
 flagLoop cmp stop count pile v mp radix = go 0 v (mp) 1
  where
 
- go, go' :: Int -> _ -> Int -> Int -> _ 
+ {-@ go, go' :: _ -> _ -> d:_ -> d2:_ -> m () / [d,d2] @-}
+ go, go' :: Int -> _ -> Int -> Int -> _
 
  {- lazy go @-}
- {-@ decrease go 3 4 @-}
   {- LIQUID WITNESS -}
  go pass v (d :: Int) (_ :: Int)
    = do e <- unsafeRead v 0
-        if (stop e $ pass - 1)
+        if stop e $ pass - 1
           then return ()
           else go' pass v (mp-pass) 0
         --LIQUID INLINE unless (stop e $ pass - 1) $ go' pass v (mp-pass) 0
 
  {- lazy go' @-}
- {-@ decrease go' 3 4 @-}
    {- LIQUID WITNESS -}
  go' pass v (d :: Int) (_ :: Int)
    | len < threshold = I.sortByBounds cmp v 0 len

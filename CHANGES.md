@@ -3,6 +3,7 @@
 ## NEXT 0.9.XX
 
 - **breaking change** Remove the implicit types mechanism and corresponding tests
+- **breaking change** Remove the `decrease` keyword and mechanism in favor of the terminating expressions syntax (`/ [a,b]`)
 
 ## 0.8.10.1
 

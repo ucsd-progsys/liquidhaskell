@@ -55,7 +55,7 @@ elen (Snd e)      = 1 + (elen e)
 
 {-@ invariant {v:Expr | (elen v) >= 0} @-}
 
-{-@ measure isValue @-} 
+{-@ measure isValue @-}
 isValue :: Expr -> Bool
 isValue (Const i)    = True
 isValue (Lam x e)    = True
@@ -72,7 +72,6 @@ isValue (Pair e1 e2) = (isValue e1) && (isValue e2)
 -------------------------- The Evaluator ----------------------------
 ---------------------------------------------------------------------
 
-{-@ decrease evalVar 2 @-}
 evalVar :: Bndr -> [(Bndr, Expr)] -> Expr
 evalVar x ((y,v):sto)
   | x == y
@@ -84,7 +83,6 @@ evalVar x []
   = error "unbound variable"
 
 
-{-@ decrease eval 2 @-}
 {-@ eval :: [(Bndr, Value)] -> Expr -> ([(Bndr, Value)], Value) @-}
 eval sto (Const i)
   = (sto, Const i)

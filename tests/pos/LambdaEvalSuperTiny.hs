@@ -2,7 +2,7 @@
 {-@ LIQUID "--no-totality" @-}
 
 module LambdaEvalSuperTiny () where
-import Language.Haskell.Liquid.Prelude 
+import Language.Haskell.Liquid.Prelude
 
 ---------------------------------------------------------------------
 ----------------------- Datatype Definition -------------------------
@@ -33,7 +33,7 @@ elen (App e1 e2) = 1 + (elen e1) + (elen e2)
 
 {-@ invariant {v:Expr | (elen v) >= 0} @-}
 
-{-@  measure isValue @-} 
+{-@  measure isValue @-}
 isValue :: Expr -> Bool
 isValue (Lam x e)    = True
 isValue (Var x)      = False
@@ -51,7 +51,6 @@ evalVar :: Bndr -> LL (Pair Bndr Expr) -> Expr
 evalVar = unsafeError "HIDEME"
 
 {-@ eval :: Store -> e:Expr -> (Pair Store Value) @-}
-{-@ decrease eval 2 @-}
 eval sto (Var x)
   = P sto (evalVar x sto)
 

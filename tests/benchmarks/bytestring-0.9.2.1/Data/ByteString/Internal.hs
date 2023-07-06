@@ -178,10 +178,10 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 -- LiquidHaskell Specifications -----------------------------------------
 -------------------------------------------------------------------------
 
-{-@ measure bLength     :: ByteString -> Int 
-      bLength (PS p o l)  = l  
-  @-}  
-   
+{-@ measure bLength     :: ByteString -> Int
+      bLength (PS p o l)  = l
+  @-}
+
 {-@ measure bOffset     :: ByteString -> Int
       bOffset (PS p o l)  = o
   @-}
@@ -278,7 +278,6 @@ unpackWith k (PS ps s l) = inlinePerformIO $ withForeignPtr ps $ \p ->
 packWith :: (a -> Word8) -> [a] -> ByteString
 packWith k str = unsafeCreate (length str) $ \p -> go p str
     where
-        {-@ decrease go 2 @-}
         STRICT2(go)
         go _ []     = return ()
         go p (x:xs) = poke p (k x) >> go (p `plusPtr` 1) xs -- less space than pokeElemOff

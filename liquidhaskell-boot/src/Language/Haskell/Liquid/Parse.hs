@@ -837,8 +837,8 @@ data Pspec ty ctor
   = Meas    (Measure ty ctor)                             -- ^ 'measure' definition
   | Assm    (LocSymbol, ty)                               -- ^ 'assume' signature (unchecked)
   | Asrt    (LocSymbol, ty)                               -- ^ 'assert' signature (checked)
-  | LAsrt   (LocSymbol, ty)                               -- ^ 'local' assertion -- RJ: what is this
-  | Asrts   ([LocSymbol], (ty, Maybe [Located Expr]))     -- ^ RJ: what is this
+  | LAsrt   (LocSymbol, ty)                               -- ^ 'local' assertion -- TODO RJ: what is this
+  | Asrts   ([LocSymbol], (ty, Maybe [Located Expr]))     -- ^ TODO RJ: what is this
   | Impt    Symbol                                        -- ^ 'import' a specification module
   | DDecl   DataDecl                                      -- ^ refined 'data'    declaration
   | NTDecl  DataDecl                                      -- ^ refined 'newtype' declaration
@@ -855,7 +855,6 @@ data Pspec ty ctor
   | EAlias  (Located (RTAlias Symbol Expr))               -- ^ 'predicate' alias declaration
   | Embed   (LocSymbol, FTycon, TCArgs)                   -- ^ 'embed' declaration
   | Qualif  Qualifier                                     -- ^ 'qualif' definition
-  | Decr    (LocSymbol, [Int])                            -- ^ 'decreasing' annotation -- TODO: deprecate
   | LVars   LocSymbol                                     -- ^ 'lazyvar' annotation, defer checks to *use* sites
   | Lazy    LocSymbol                                     -- ^ 'lazy' annotation, skip termination check on binder
   | Fail    LocSymbol                                     -- ^ 'fail' annotation, the binder should be unsafe
@@ -928,8 +927,6 @@ ppPspec k (Embed   (lx, tc, WithArgs))
   = "embed" <+> pprintTidy k (val lx) <+> "*" <+> "as" <+> pprintTidy k tc
 ppPspec k (Qualif  q)
   = pprintTidy k q
-ppPspec k (Decr (lx, ns))
-  = "decreasing" <+> pprintTidy k (val lx) <+> pprintTidy k ns
 ppPspec k (LVars   lx)
   = "lazyvar" <+> pprintTidy k (val lx)
 ppPspec k (Lazy   lx)
@@ -1072,7 +1069,6 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
   , Measure.ealiases   = [e | EAlias e <- xs]
   , Measure.embeds     = tceFromList [(c, (fTyconSort tc, a)) | Embed (c, tc, a) <- xs]
   , Measure.qualifiers = [q | Qualif q <- xs]
-  , Measure.decr       = [d | Decr d   <- xs]
   , Measure.lvars      = S.fromList [d | LVars d  <- xs]
   , Measure.autois     = M.fromList [s | Insts s <- xs]
   , Measure.pragmas    = [s | Pragma s <- xs]
@@ -1155,7 +1151,6 @@ specP
 
     <|> fallbackSpecP "embed"       (fmap Embed  embedP    )
     <|> fallbackSpecP "qualif"      (fmap Qualif (qualifierP sortP))
-    <|> (reserved "decrease"      >> fmap Decr   decreaseP )
     <|> (reserved "lazyvar"       >> fmap LVars  lazyVarP  )
 
     <|> (reserved "lazy"          >> fmap Lazy   lazyVarP  )
@@ -1216,11 +1211,6 @@ inlineP = locBinderP
 
 asizeP :: Parser LocSymbol
 asizeP = locBinderP
-
-decreaseP :: Parser (LocSymbol, [Int])
-decreaseP = Misc.mapSnd f <$> liftM2 (,) locBinderP (many natural)
-  where
-    f     = ((\n -> fromInteger n - 1) <$>)
 
 filePathP     :: Parser FilePath
 filePathP     = angles $ some pathCharP

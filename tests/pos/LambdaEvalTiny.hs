@@ -2,7 +2,7 @@
 {-@ LIQUID "--no-totality" @-}
 
 module LambdaEvalTiny () where
-import Language.Haskell.Liquid.Prelude 
+import Language.Haskell.Liquid.Prelude
 
 ---------------------------------------------------------------------
 ----------------------- Datatype Definition -------------------------
@@ -16,7 +16,7 @@ data Expr
   | App Expr Expr
 
 {-@
-data Expr 
+data Expr
   = Lam { eX :: Bndr, eBody :: Expr }
   | Var { eX :: Bndr                }
   | App { eF :: Expr, eArg  ::Expr  }
@@ -47,10 +47,7 @@ isValue (App e1 e2)  = False
 evalVar :: Bndr -> [(Bndr, Expr)] -> Expr
 evalVar = unsafeError "HIDEME"
 
-{-@ decrease eval 2 @-}
-
 {-@ eval :: sto:Store -> e:Expr -> (Store, Value) @-}
-
 eval sto (Var x)
   = (sto, evalVar x sto)
 
