@@ -41,6 +41,7 @@ import           Control.Monad
 import qualified Control.Monad.Catch as Ex
 
 import           Data.Coerce
+import           Data.Function                            ((&))
 import           Data.Kind                                ( Type )
 import           Data.List                               as L
                                                    hiding ( intersperse )
@@ -66,8 +67,6 @@ import           Language.Haskell.Liquid.Transforms.ANF
 import           Language.Haskell.Liquid.Types     hiding ( getConfig )
 import           Language.Haskell.Liquid.Bare
 import           Language.Haskell.Liquid.UX.CmdLine
-
-import           Optics
 
 -- | Represents an abnormal but non-fatal state of the plugin. Because it is not
 -- meant to escape the plugin, it is not thrown in IO but instead carried around
@@ -324,7 +323,7 @@ liquidHaskellCheckWithConfig globalCfg pipelineData modSummary tcGblEnv = do
   case inputSpec' of
     Left e -> pure $ Left e
     Right inputSpec ->
-      withPragmas globalCfg thisFile (Ms.pragmas $ review bareSpecIso inputSpec) $ \moduleCfg -> do
+      withPragmas globalCfg thisFile (Ms.pragmas $ fromBareSpec inputSpec) $ \moduleCfg -> do
         processInputSpec moduleCfg pipelineData modSummary tcGblEnv inputSpec
           `Ex.catch` (\(e :: UserError) -> reportErrs moduleCfg [e])
           `Ex.catch` (\(e :: Error) -> reportErrs moduleCfg [e])
@@ -361,7 +360,7 @@ checkLiquidHaskellContext lhContext = do
       let bareSpec = lhInputSpec lhContext
           file = LH.modSummaryHsFile $ lhModuleSummary lhContext
 
-      withPragmas (lhGlobalCfg lhContext) file (Ms.pragmas $ review bareSpecIso bareSpec) $ \moduleCfg ->  do
+      withPragmas (lhGlobalCfg lhContext) file (Ms.pragmas $ fromBareSpec bareSpec) $ \moduleCfg ->  do
         let filters = getFilters moduleCfg
         -- Report the outcome of the checking
         LH.reportResult (errorLogger file filters) moduleCfg [giTarget (giSrc pmrTargetInfo)] out
@@ -461,7 +460,7 @@ getLiquidSpec thisFile thisModule specComments specQuotes = do
   case commSpecE of
     Left errors ->
       LH.filterReportErrors thisFile GHC.failM continue (getFilters globalCfg) Full errors
-    Right (view bareSpecIso . snd -> commSpec) -> do
+    Right (toBareSpec . snd -> commSpec) -> do
       env    <- env_top <$> getEnv
       res <- liftIO $ SpecFinder.findCompanionSpec env thisModule
       case res of
@@ -483,9 +482,9 @@ processModule LiquidHaskellContext{..} = do
   -- (cfr. 'allowExtResolution').
   let file            = LH.modSummaryHsFile lhModuleSummary
 
-  _                   <- liftIO $ LH.checkFilePragmas $ Ms.pragmas (review bareSpecIso bareSpec)
+  _                   <- liftIO $ LH.checkFilePragmas $ Ms.pragmas (fromBareSpec bareSpec)
 
-  withPragmas lhGlobalCfg file (Ms.pragmas $ review bareSpecIso bareSpec) $ \moduleCfg -> do
+  withPragmas lhGlobalCfg file (Ms.pragmas $ fromBareSpec bareSpec) $ \moduleCfg -> do
     dependencies       <- loadDependencies moduleCfg
                                            thisModule
                                            (S.toList lhRelevantModules)

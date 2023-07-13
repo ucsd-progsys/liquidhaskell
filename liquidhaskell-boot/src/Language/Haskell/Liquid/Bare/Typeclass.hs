@@ -13,14 +13,14 @@ where
 
 -- TODO: Handle typeclasses with a single method (newtype)
 
-import           Control.Monad                  ( forM, guard )
+import           Control.Monad                 ( forM, guard )
+import           Data.Bifunctor                (second)
 import qualified Data.List                     as L
 import qualified Data.HashSet                  as S
 import           Data.Hashable                  ()
 import qualified Data.Maybe                    as Mb
 import qualified Language.Fixpoint.Types       as F
 import qualified Language.Fixpoint.Misc        as Misc
-import           Optics
 import           Language.Haskell.Liquid.Bare.Elaborate
 import qualified Liquid.GHC.Misc
                                                as GM
@@ -306,7 +306,7 @@ renameTvs rename t
   | RAppTy arg res r <- t
   = RAppTy (renameTvs rename arg) (renameTvs rename res) r
   | RRTy env r obl ty <- t
-  = RRTy (over (each % _2) (renameTvs rename) env) r obl (renameTvs rename ty)
+  = RRTy (second (renameTvs rename) <$> env) r obl (renameTvs rename ty)
   | RHole _ <- t
   = t
 
@@ -354,8 +354,9 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     let retSig =  mapExprReft (\_ -> substAuxMethod dfunSym methodsSet) (F.notracepp ("elaborated" ++ GM.showPpr method) elaboratedSig)
     let tysub  = F.notracepp "tysub" $ M.fromList $ zip (F.notracepp "newtype-vars" $ allTyVars' (F.notracepp "new-type" retSig)) (F.notracepp "ghc-type-vars" (allTyVars' ((F.notracepp "ghc-type" $ ofType (Ghc.varType method)) :: SpecType)))
         cosub  = M.fromList [ (F.symbol a, F.fObj (GM.namedLocSymbol b)) |  (a,RTV b) <- M.toList tysub]
-        tysubf x = F.notracepp ("cosub:" ++ F.showpp cosub) $ tysub ^. at x % non x
+        tysubf x = F.notracepp ("cosub:" ++ F.showpp cosub) $ M.lookupDefault x x tysub
         subbedTy = mapReft (Bare.coSubRReft cosub) (renameTvs tysubf retSig)
+
     -- need to make the variable names consistent
     pure (method, F.dummyLoc (F.notracepp ("vars:" ++ F.showpp (F.symbol <$> allTyVars' subbedTy)) subbedTy))
 

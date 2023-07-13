@@ -56,15 +56,16 @@ module Language.Haskell.Liquid.Types.Specs (
   , GhcSpec(..)
   -- * Provisional compatibility exports & optics
   -- $provisionalBackCompat
-  , targetSrcIso
-  , targetSpecGetter
-  , bareSpecIso
-  , liftedSpecGetter
+  , toTargetSrc
+  , fromTargetSrc
+  , toTargetSpec
+  , toBareSpec
+  , fromBareSpec
+  , toLiftedSpec
   , unsafeFromLiftedSpec
   , emptyLiftedSpec
   ) where
 
-import           Optics
 import           GHC.Generics            hiding (to, moduleName)
 import           Data.Binary
 import qualified Language.Fixpoint.Types as F
@@ -726,106 +727,100 @@ instance HasConfig GhcSpec where
   getConfig = _gsConfig
 
 
-{- $provisionalBackCompat
+toTargetSrc :: GhcSrc -> TargetSrc
+toTargetSrc a = TargetSrc
+  { giTarget    = _giTarget a
+  , giTargetMod = _giTargetMod a
+  , giCbs       = _giCbs a
+  , gsTcs       = _gsTcs a
+  , gsCls       = _gsCls a
+  , giDerVars   = _giDerVars a
+  , giImpVars   = _giImpVars a
+  , giDefVars   = _giDefVars a
+  , giUseVars   = _giUseVars a
+  , gsExports   = _gsExports a
+  , gsFiTcs     = _gsFiTcs a
+  , gsFiDcs     = _gsFiDcs a
+  , gsPrimTcs   = _gsPrimTcs a
+  , gsQualImps  = _gsQualImps a
+  , gsAllImps   = _gsAllImps a
+  , gsTyThings  = _gsTyThings a
+  }
 
-In order to smooth out the migration process to this API, here we provide some /compat/ 'Iso' and 'Prism'
-to convert from/to the old data structures, so that migration can be done organically over time.
--}
+fromTargetSrc :: TargetSrc -> GhcSrc
+fromTargetSrc a = Src
+  { _giTarget    = giTarget a
+  , _giTargetMod = giTargetMod a
+  , _giCbs       = giCbs a
+  , _gsTcs       = gsTcs a
+  , _gsCls       = gsCls a
+  , _giDerVars   = giDerVars a
+  , _giImpVars   = giImpVars a
+  , _giDefVars   = giDefVars a
+  , _giUseVars   = giUseVars a
+  , _gsExports   = gsExports a
+  , _gsFiTcs     = gsFiTcs a
+  , _gsFiDcs     = gsFiDcs a
+  , _gsPrimTcs   = gsPrimTcs a
+  , _gsQualImps  = gsQualImps a
+  , _gsAllImps   = gsAllImps a
+  , _gsTyThings  = gsTyThings a
+  }
 
-targetSrcIso :: Iso' GhcSrc TargetSrc
-targetSrcIso = iso toTargetSrc fromTargetSrc
+toTargetSpec :: GhcSpec -> (TargetSpec, LiftedSpec)
+toTargetSpec ghcSpec =
+  (targetSpec, (toLiftedSpec . _gsLSpec) ghcSpec)
   where
-    toTargetSrc a = TargetSrc
-      { giTarget    = _giTarget a
-      , giTargetMod = _giTargetMod a
-      , giCbs       = _giCbs a
-      , gsTcs       = _gsTcs a
-      , gsCls       = _gsCls a
-      , giDerVars   = _giDerVars a
-      , giImpVars   = _giImpVars a
-      , giDefVars   = _giDefVars a
-      , giUseVars   = _giUseVars a
-      , gsExports   = _gsExports a
-      , gsFiTcs     = _gsFiTcs a
-      , gsFiDcs     = _gsFiDcs a
-      , gsPrimTcs   = _gsPrimTcs a
-      , gsQualImps  = _gsQualImps a
-      , gsAllImps   = _gsAllImps a
-      , gsTyThings  = _gsTyThings a
+    targetSpec = TargetSpec
+      { gsSig    = _gsSig ghcSpec
+      , gsQual   = _gsQual ghcSpec
+      , gsData   = _gsData ghcSpec
+      , gsName   = _gsName ghcSpec
+      , gsVars   = _gsVars ghcSpec
+      , gsTerm   = _gsTerm ghcSpec
+      , gsRefl   = _gsRefl ghcSpec
+      , gsLaws   = _gsLaws ghcSpec
+      , gsImps   = _gsImps ghcSpec
+      , gsConfig = _gsConfig ghcSpec
       }
 
-    fromTargetSrc a = Src
-      { _giTarget    = giTarget a
-      , _giTargetMod = giTargetMod a
-      , _giCbs       = giCbs a
-      , _gsTcs       = gsTcs a
-      , _gsCls       = gsCls a
-      , _giDerVars   = giDerVars a
-      , _giImpVars   = giImpVars a
-      , _giDefVars   = giDefVars a
-      , _giUseVars   = giUseVars a
-      , _gsExports   = gsExports a
-      , _gsFiTcs     = gsFiTcs a
-      , _gsFiDcs     = gsFiDcs a
-      , _gsPrimTcs   = gsPrimTcs a
-      , _gsQualImps  = gsQualImps a
-      , _gsAllImps   = gsAllImps a
-      , _gsTyThings  = gsTyThings a
-      }
+toBareSpec :: Spec LocBareType F.LocSymbol -> BareSpec
+toBareSpec = MkBareSpec
 
-targetSpecGetter :: Getter GhcSpec (TargetSpec, LiftedSpec)
-targetSpecGetter =
-  to (\ghcSpec -> (toTargetSpec ghcSpec, view (to _gsLSpec % liftedSpecGetter) ghcSpec))
-  where
-    toTargetSpec a = TargetSpec
-      { gsSig    = _gsSig a
-      , gsQual   = _gsQual a
-      , gsData   = _gsData a
-      , gsName   = _gsName a
-      , gsVars   = _gsVars a
-      , gsTerm   = _gsTerm a
-      , gsRefl   = _gsRefl a
-      , gsLaws   = _gsLaws a
-      , gsImps   = _gsImps a
-      , gsConfig = _gsConfig a
-      }
+fromBareSpec :: BareSpec -> Spec LocBareType F.LocSymbol
+fromBareSpec = getBareSpec
 
-bareSpecIso :: Iso' (Spec LocBareType F.LocSymbol) BareSpec
-bareSpecIso = iso MkBareSpec getBareSpec
-
-liftedSpecGetter :: Getter (Spec LocBareType F.LocSymbol) LiftedSpec
-liftedSpecGetter = to toLiftedSpec
-  where
-    toLiftedSpec a = LiftedSpec
-      { liftedMeasures   = S.fromList . measures $ a
-      , liftedImpSigs    = S.fromList . impSigs  $ a
-      , liftedExpSigs    = S.fromList . expSigs  $ a
-      , liftedAsmSigs    = S.fromList . asmSigs  $ a
-      , liftedSigs       = S.fromList . sigs     $ a
-      , liftedInvariants = S.fromList . invariants $ a
-      , liftedIaliases   = S.fromList . ialiases $ a
-      , liftedImports    = S.fromList . imports $ a
-      , liftedDataDecls  = S.fromList . dataDecls $ a
-      , liftedNewtyDecls = S.fromList . newtyDecls $ a
-      , liftedAliases    = S.fromList . aliases $ a
-      , liftedEaliases   = S.fromList . ealiases $ a
-      , liftedEmbeds     = embeds a
-      , liftedQualifiers = S.fromList . qualifiers $ a
-      , liftedLvars      = lvars a
-      , liftedAutois     = autois a
-      , liftedAutosize   = autosize a
-      , liftedCmeasures  = S.fromList . cmeasures $ a
-      , liftedImeasures  = S.fromList . imeasures $ a
-      , liftedClasses    = S.fromList . classes $ a
-      , liftedClaws      = S.fromList . claws $ a
-      , liftedRinstance  = S.fromList . rinstance $ a
-      , liftedIlaws      = S.fromList . ilaws $ a
-      , liftedDvariance  = S.fromList . dvariance $ a
-      , liftedDsize      = dsize a
-      , liftedBounds     = bounds a
-      , liftedDefs       = defs a
-      , liftedAxeqs      = S.fromList . axeqs $ a
-      }
+toLiftedSpec :: Spec LocBareType F.LocSymbol -> LiftedSpec
+toLiftedSpec a = LiftedSpec
+  { liftedMeasures   = S.fromList . measures $ a
+  , liftedImpSigs    = S.fromList . impSigs  $ a
+  , liftedExpSigs    = S.fromList . expSigs  $ a
+  , liftedAsmSigs    = S.fromList . asmSigs  $ a
+  , liftedSigs       = S.fromList . sigs     $ a
+  , liftedInvariants = S.fromList . invariants $ a
+  , liftedIaliases   = S.fromList . ialiases $ a
+  , liftedImports    = S.fromList . imports $ a
+  , liftedDataDecls  = S.fromList . dataDecls $ a
+  , liftedNewtyDecls = S.fromList . newtyDecls $ a
+  , liftedAliases    = S.fromList . aliases $ a
+  , liftedEaliases   = S.fromList . ealiases $ a
+  , liftedEmbeds     = embeds a
+  , liftedQualifiers = S.fromList . qualifiers $ a
+  , liftedLvars      = lvars a
+  , liftedAutois     = autois a
+  , liftedAutosize   = autosize a
+  , liftedCmeasures  = S.fromList . cmeasures $ a
+  , liftedImeasures  = S.fromList . imeasures $ a
+  , liftedClasses    = S.fromList . classes $ a
+  , liftedClaws      = S.fromList . claws $ a
+  , liftedRinstance  = S.fromList . rinstance $ a
+  , liftedIlaws      = S.fromList . ilaws $ a
+  , liftedDvariance  = S.fromList . dvariance $ a
+  , liftedDsize      = dsize a
+  , liftedBounds     = bounds a
+  , liftedDefs       = defs a
+  , liftedAxeqs      = S.fromList . axeqs $ a
+  }
 
 -- This is a temporary internal function that we use to convert the input dependencies into a format
 -- suitable for 'makeGhcSpec'.

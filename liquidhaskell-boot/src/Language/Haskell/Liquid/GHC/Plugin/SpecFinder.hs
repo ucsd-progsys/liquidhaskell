@@ -19,7 +19,6 @@ import qualified Language.Haskell.Liquid.Misc            as Misc
 import           Language.Haskell.Liquid.Parse            ( specSpecificationP )
 import           Language.Fixpoint.Utils.Files            ( Ext(Spec), withExt )
 
-import           Optics
 import qualified Liquid.GHC.API         as O
 import           Liquid.GHC.API         as GHC
 
@@ -142,7 +141,7 @@ lookupCompanionSpec hscEnv thisModule = do
              O.<+> O.text (errorBundlePretty peb)
       lift $ Util.pluginAbort (O.showSDoc (hsc_dflags hscEnv) errMsg)
     Right (_, spec) -> do
-      let bareSpec = view bareSpecIso spec
+      let bareSpec = toBareSpec spec
       pure $ SpecFound thisModule DiskLocation bareSpec
   where
     specFile :: FilePath -> FilePath
