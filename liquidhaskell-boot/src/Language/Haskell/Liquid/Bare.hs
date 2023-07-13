@@ -22,7 +22,6 @@ module Language.Haskell.Liquid.Bare (
   ) where
 
 import           Prelude                                    hiding (error)
-import           Optics
 import           Control.Monad                              (forM, mplus)
 import           Control.Applicative                        ((<|>))
 import qualified Control.Exception                          as Ex
@@ -156,10 +155,10 @@ makeTargetSpec cfg lmap targetSrc bareSpec dependencies = do
       --     "let {len :: [a] -> Int; len _ = undefined}"
       --     Ghc.execOptions
 
-      diagOrSpec <- makeGhcSpec cfg (review targetSrcIso targetSrc) lmap (allSpecs legacyBareSpec)
+      diagOrSpec <- makeGhcSpec cfg (fromTargetSrc targetSrc) lmap (allSpecs legacyBareSpec)
       return $ do
         (warns, ghcSpec) <- diagOrSpec
-        let (targetSpec, liftedSpec) = view targetSpecGetter ghcSpec
+        let (targetSpec, liftedSpec) = toTargetSpec ghcSpec
         pure (phaseOneWarns <> warns, targetSpec, liftedSpec)
 
     toLegacyDep :: (Ghc.StableModule, LiftedSpec) -> (ModName, Ms.BareSpec)
@@ -175,7 +174,7 @@ makeTargetSpec cfg lmap targetSrc bareSpec dependencies = do
     allSpecs validSpec = toLegacyTarget validSpec : legacyDependencies
 
     legacyBareSpec :: Spec LocBareType F.LocSymbol
-    legacyBareSpec = review bareSpecIso bareSpec
+    legacyBareSpec = fromBareSpec bareSpec
 
 -------------------------------------------------------------------------------------
 -- | @makeGhcSpec@ invokes @makeGhcSpec0@ to construct the @GhcSpec@ and then
@@ -190,10 +189,10 @@ makeGhcSpec :: Config
 makeGhcSpec cfg src lmap validatedSpecs = do
   (dg0, sp) <- makeGhcSpec0 cfg src lmap validatedSpecs
   let diagnostics = Bare.checkTargetSpec (map snd validatedSpecs)
-                                         (view targetSrcIso src)
+                                         (toTargetSrc src)
                                          (ghcSpecEnv sp)
                                          (_giCbs src)
-                                         (fst . view targetSpecGetter $ sp)
+                                         (fst . toTargetSpec $ sp)
   pure $ if not (noErrors dg0) then Left dg0 else
            case diagnostics of
              Left dg1
@@ -1249,7 +1248,7 @@ makeLiftedSpec name src _env refl sData sig qual myRTE lSpec0 = lSpec0
     myDCs         = [(x,t) | (x,t) <- mkSigs (gsCtors sData)
                            , F.symbol name == fst (GM.splitModuleName $ val x)]
     mkSigs xts    = [ toBare (x, t) | (x, t) <- xts
-                    ,  S.member x sigVars && isExportedVar (view targetSrcIso src) x
+                    ,  S.member x sigVars && isExportedVar (toTargetSrc src) x
                     ]
     toBare (x, t) = (varLocSym x, Bare.specToBare <$> t)
     xbs           = toBare <$> reflTySigs

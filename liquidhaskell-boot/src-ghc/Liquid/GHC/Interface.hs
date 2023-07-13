@@ -89,8 +89,6 @@ import Language.Haskell.Liquid.Types hiding (Spec)
 import Language.Haskell.Liquid.UX.QuasiQuoter
 import Language.Haskell.Liquid.UX.Tidy
 
-import Optics hiding (ix)
-
 import qualified Debug.Trace as Debug
 
 
@@ -398,13 +396,13 @@ instance PPrint TargetInfo where
       -- , "*************** Includes ********************"
       -- , intersperse comma $ text <$> includes info
       "*************** Imported Variables **********"
-    , pprDoc $ _giImpVars (review targetSrcIso $ giSrc info)
+    , pprDoc $ _giImpVars (fromTargetSrc $ giSrc info)
     , "*************** Defined Variables ***********"
-    , pprDoc $ _giDefVars (review targetSrcIso $ giSrc info)
+    , pprDoc $ _giDefVars (fromTargetSrc $ giSrc info)
     , "*************** Specification ***************"
     , pprintTidy k $ giSpec info
     , "*************** Core Bindings ***************"
-    , pprintCBs $ _giCbs (review targetSrcIso $ giSrc info) ]
+    , pprintCBs $ _giCbs (fromTargetSrc $ giSrc info) ]
 
 pprintCBs :: [CoreBind] -> Doc
 pprintCBs = pprDoc . tidyCBs
