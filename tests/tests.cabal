@@ -2248,6 +2248,7 @@ executable import-cli
                     , T1118Lib2
                     , T1688Lib
                     , T1738Lib
+                    , T2198
                     , WrapLib
                     , WrapLibCode
                     , Language
