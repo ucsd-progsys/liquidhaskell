@@ -1,6 +1,7 @@
 module GHC.Classes_LHAssumptions where
 
 import GHC.Classes()
+import GHC.Types()
 import GHC.Types_LHAssumptions()
 
 {-@
