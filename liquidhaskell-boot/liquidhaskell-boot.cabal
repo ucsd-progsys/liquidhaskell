@@ -58,6 +58,8 @@ library
                       Language.Haskell.Liquid.Constraint.Qualifier
                       Language.Haskell.Liquid.Constraint.Split
                       Language.Haskell.Liquid.Constraint.ToFixpoint
+                      Language.Haskell.Liquid.Constraint.Template
+                      Language.Haskell.Liquid.Constraint.Termination
                       Language.Haskell.Liquid.Constraint.Types
                       Language.Haskell.Liquid.Constraint.Relational
                       Liquid.GHC.API
