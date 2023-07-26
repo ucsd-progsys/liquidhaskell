@@ -50,7 +50,7 @@ unTemplate :: Template t -> t
 unTemplate (Asserted t) = t
 unTemplate (Assumed t)  = t
 unTemplate (Internal t) = t
-unTemplate _            = panic Nothing "Constraint.Generate.unTemplate called on `Unknown`"
+unTemplate _            = panic Nothing "Constraint.Template.unTemplate called on `Unknown`"
 
 addPostTemplate :: CGEnv
                 -> Template SpecType
