@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 -- | This module defines code for generating termination constraints.
 
 module Language.Haskell.Liquid.Constraint.Termination (
@@ -9,31 +10,37 @@ module Language.Haskell.Liquid.Constraint.Termination (
 , checkIndex
 , recType
 , unOCons
+, consCBSizedTys
+, consCBWithExprs
 ) where
 
-import Data.Maybe ( fromJust )
-import qualified Data.List                                     as L
-import qualified Data.HashSet                                  as S
-import Control.Applicative (liftA2)
-import Control.Monad.State ( gets )
-import Text.PrettyPrint.HughesPJ ( (<+>), text )
-import GHC.Types.Var (Var)
-import GHC.Types.Name (NamedThing, getSrcSpan)
-import GHC.Core.TyCon (TyCon)
-import GHC.Core (Bind, CoreExpr, bindersOf)
-import qualified Language.Fixpoint.Types                       as F
-import Language.Fixpoint.Types.PrettyPrint (PPrint)
-import qualified Liquid.GHC.Misc as GM
-import Language.Haskell.Liquid.Types.Types
+import           Data.Maybe ( fromJust, catMaybes, mapMaybe )
+import qualified Data.List                          as L
+import qualified Data.HashSet                       as S
+import qualified Data.Traversable                   as T
+import qualified Data.HashMap.Strict                as M
+import           Control.Applicative (liftA2)
+import           Control.Monad.State ( gets, forM, foldM )
+import           Text.PrettyPrint.HughesPJ ( (<+>), text )
+import           GHC.Types.Var (Var)
+import           GHC.Types.Name (NamedThing, getSrcSpan)
+import           GHC.Core.TyCon (TyCon)
+import           GHC.Core (Bind, CoreExpr, bindersOf)
+import qualified Liquid.GHC.Misc                    as GM
+import qualified Language.Fixpoint.Types            as F
+import           Language.Fixpoint.Types.PrettyPrint (PPrint)
+import           Language.Haskell.Liquid.Constraint.Types (CG, CGInfo (..), CGEnv, makeRecInvariants)
+import           Language.Haskell.Liquid.Constraint.Monad (addWarning)
+import           Language.Haskell.Liquid.Constraint.Env (setTRec)
+import           Language.Haskell.Liquid.Constraint.Template ( Template(..), unTemplate, varTemplate, safeFromAsserted, extender )
+import           Language.Haskell.Liquid.Transforms.Rec (isIdTRecBound)
+import           Language.Haskell.Liquid.Types (refreshArgs, HasConfig (..), toRSort)
+import           Language.Haskell.Liquid.Types.Types
   (SpecType, TError (..), RType (..), RTypeRep (..), Oblig (..), Error, Config (..), RReft,
    toRTypeRep, structuralTerm, bkArrowDeep, mkArrow, bkUniv, bkArrow, fromRTypeRep)
-import Language.Haskell.Liquid.Constraint.Types (CG, CGInfo (..), CGEnv)
-import Language.Haskell.Liquid.Constraint.Monad (addWarning)
-import Language.Haskell.Liquid.Transforms.Rec (isIdTRecBound)
-import Language.Haskell.Liquid.Constraint.Env (setTRec)
-import Language.Haskell.Liquid.Constraint.Template ( Template(..), unTemplate )
-import Language.Haskell.Liquid.Types.RefType (isDecreasing, makeDecrType, makeLexRefa, makeNumEnv)
-import Language.Haskell.Liquid.Misc (safeFromLeft, replaceN, (<->), zip4, safeFromJust, fst5)
+import           Language.Haskell.Liquid.Types.RefType (isDecreasing, makeDecrType, makeLexRefa, makeNumEnv)
+import           Language.Haskell.Liquid.Misc (safeFromLeft, replaceN, (<->), zip4, safeFromJust, fst5)
+
 
 data TCheck = TerminationCheck | StrataCheck | NoCheck
 
@@ -171,3 +178,56 @@ safeLogIndex :: Error -> [a] -> Int -> CG (Maybe a)
 safeLogIndex err ls n
   | n >= length ls = addWarning err >> return Nothing
   | otherwise      = return $ Just $ ls !! n
+
+-- RJ: AAAAAAARGHHH!!!!!! THIS CODE IS HORRIBLE!!!!!!!!!
+consCBSizedTys :: (Bool -> CGEnv -> (Var, CoreExpr, Template SpecType) -> CG (Template SpecType)) ->
+                  CGEnv -> [(Var, CoreExpr)] -> CG CGEnv
+consCBSizedTys consBind γ xes
+  = do ts'      <- forM xes $ \(x, e) -> varTemplate γ (x, Just e)
+       autoenv  <- gets autoSize
+       ts       <- forM ts' $ T.mapM refreshArgs
+       let vs    = zipWith collectArgs' ts es
+       is       <- mapM makeDecrIndex (zip3 vars ts vs) >>= checkSameLens
+       let xeets = zipWith (\v i -> [((v,i), x) | x <- zip3 vars is $ map unTemplate ts]) vs is
+       _        <- mapM checkIndex (zip4 vars vs ts is) >>= checkEqTypes
+       let rts   = (recType autoenv <$>) <$> xeets
+       γ'       <- foldM extender γ (zip vars ts)
+       let γs    = zipWith makeRecInvariants [γ' `setTRec` zip vars rts' | rts' <- rts] (filter (not . noMakeRec) <$> vs)
+       mapM_ (uncurry $ consBind True) (zip γs (zip3 vars es ts))
+       return γ'
+  where
+       noMakeRec      = if allowTC then GM.isEmbeddedDictVar else GM.isPredVar
+       allowTC        = typeclass (getConfig γ)
+       (vars, es)     = unzip xes
+       dxs            = F.pprint <$> vars
+       collectArgs'   = GM.collectArguments . length . ty_binds . toRTypeRep . unOCons . unTemplate
+       checkEqTypes :: [Maybe SpecType] -> CG [SpecType]
+       checkEqTypes x = checkAllVsHead err1 toRSort (catMaybes x)
+       err1           = ErrTermin loc dxs $ text "The decreasing parameters should be of same type"
+       checkSameLens :: [Maybe Int] -> CG [Maybe Int]
+       checkSameLens  = checkAllVsHead err2 length
+       err2           = ErrTermin loc dxs $ text "All Recursive functions should have the same number of decreasing parameters"
+       loc            = getSrcSpan (head vars)
+
+       checkAllVsHead :: Eq b => Error -> (a -> b) -> [a] -> CG [a]
+       checkAllVsHead _   _ []          = return []
+       checkAllVsHead err f (x:xs)
+         | all (== f x) (f <$> xs) = return (x:xs)
+         | otherwise               = addWarning err >> return []
+
+consCBWithExprs :: (Bool -> CGEnv -> (Var, CoreExpr, Template SpecType) -> CG (Template SpecType)) ->
+                   CGEnv -> [(Var, CoreExpr)] -> CG CGEnv
+consCBWithExprs consBind γ xes
+  = do ts0      <- forM xes $ \(x, e) -> varTemplate γ (x, Just e)
+       texprs   <- gets termExprs
+       let xtes  = mapMaybe (`lookup'` texprs) xs
+       let ts    = safeFromAsserted err <$> ts0
+       ts'      <- mapM refreshArgs ts
+       let xts   = zip xs (Asserted <$> ts')
+       γ'       <- foldM extender γ xts
+       let γs    = makeTermEnvs γ' xtes xes ts ts'
+       mapM_ (uncurry $ consBind True) (zip γs (zip3 xs es (Asserted <$> ts')))
+       return γ'
+  where (xs, es) = unzip xes
+        lookup' k m = (k,) <$> M.lookup k m
+        err      = "Constant: consCBWithExprs"

@@ -17,43 +17,40 @@
 module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints, generateConstraintsWithEnv, caseEnv, consE ) where
 
 import           Prelude                                       hiding (error)
-import           GHC.Stack
-import           Liquid.GHC.API                   as Ghc hiding ( panic
-                                                                , checkErr
-                                                                , (<+>)
-                                                                , text
-                                                                , vcat
-                                                                )
-import           Liquid.GHC.TypeRep           ()
+import           GHC.Stack ( CallStack )
+import           Liquid.GHC.API               as Ghc hiding ( panic
+                                                            , checkErr
+                                                            , (<+>)
+                                                            , text
+                                                            , vcat
+                                                            )
 import qualified Liquid.GHC.Resugar           as Rs
 import qualified Liquid.GHC.SpanStack         as Sp
 import qualified Liquid.GHC.Misc              as GM -- ( isInternal, collectArguments, tickSrcSpan, showPpr )
 import Text.PrettyPrint.HughesPJ ( text )
 import           Control.Monad.State
-import           Data.Maybe                                    (fromMaybe, catMaybes, isJust, mapMaybe)
+import           Data.Maybe                                    (fromMaybe, isJust, mapMaybe)
 import           Data.Either.Extra                             (eitherToMaybe)
 import qualified Data.HashMap.Strict                           as M
 import qualified Data.HashSet                                  as S
 import qualified Data.List                                     as L
 import qualified Data.Foldable                                 as F
-import qualified Data.Traversable                              as T
 import qualified Data.Functor.Identity
-import           Language.Fixpoint.Misc
+import Language.Fixpoint.Misc ( (<<=), errorP, mapSnd, safeZip )
 import           Language.Fixpoint.Types.Visitor
 import qualified Language.Fixpoint.Types                       as F
 import qualified Language.Fixpoint.Types.Visitor               as F
-import           Language.Haskell.Liquid.Constraint.Fresh
-import           Language.Haskell.Liquid.Constraint.Init
+import           Language.Haskell.Liquid.Constraint.Fresh ( addKuts, freshTyType, trueTy )
+import           Language.Haskell.Liquid.Constraint.Init ( initEnv, initCGI )
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Haskell.Liquid.Constraint.Monad
 import Language.Haskell.Liquid.Constraint.Split ( splitC, splitW )
 import           Language.Haskell.Liquid.Constraint.Relational (consAssmRel, consRelTop)
 import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, Def)
-import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Constraint.Types
-import Language.Haskell.Liquid.Constraint.Constraint ( addConstraints )
-import Language.Haskell.Liquid.Constraint.Template
-import Language.Haskell.Liquid.Constraint.Termination
+import           Language.Haskell.Liquid.Constraint.Constraint ( addConstraints )
+import           Language.Haskell.Liquid.Constraint.Template
+import           Language.Haskell.Liquid.Constraint.Termination
 import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult, runToLogic, coreToLogic)
 import           Language.Haskell.Liquid.Bare.DataType (dataConMap, makeDataConChecker)
 
@@ -150,58 +147,6 @@ consCBTop _ _ γ cb
       topBind (Rec [(v,_)]) = Just v
       topBind _             = Nothing
 
-
--- RJ: AAAAAAARGHHH!!!!!! THIS CODE IS HORRIBLE!!!!!!!!!
-consCBSizedTys :: CGEnv -> [(Var, CoreExpr)] -> CG CGEnv
-consCBSizedTys γ xes
-  = do ts'      <- forM xes $ \(x, e) -> varTemplate γ (x, Just e)
-       autoenv  <- gets autoSize
-       ts       <- forM ts' $ T.mapM refreshArgs
-       let vs    = zipWith collectArgs' ts es
-       is       <- mapM makeDecrIndex (zip3 vars ts vs) >>= checkSameLens
-       let xeets = zipWith (\v i -> [((v,i), x) | x <- zip3 vars is $ map unTemplate ts]) vs is
-       _        <- mapM checkIndex (zip4 vars vs ts is) >>= checkEqTypes
-       let rts   = (recType autoenv <$>) <$> xeets
-       γ'       <- foldM extender γ (zip vars ts)
-       let γs    = zipWith makeRecInvariants [γ' `setTRec` zip vars rts' | rts' <- rts] (filter (not . noMakeRec) <$> vs)
-       mapM_ (uncurry $ consBind True) (zip γs (zip3 vars es ts))
-       return γ'
-  where
-       noMakeRec      = if allowTC then GM.isEmbeddedDictVar else GM.isPredVar
-       allowTC        = typeclass (getConfig γ)
-       (vars, es)     = unzip xes
-       dxs            = F.pprint <$> vars
-       collectArgs'   = GM.collectArguments . length . ty_binds . toRTypeRep . unOCons . unTemplate
-       checkEqTypes :: [Maybe SpecType] -> CG [SpecType]
-       checkEqTypes x = checkAllVsHead err1 toRSort (catMaybes x)
-       err1           = ErrTermin loc dxs $ text "The decreasing parameters should be of same type"
-       checkSameLens :: [Maybe Int] -> CG [Maybe Int]
-       checkSameLens  = checkAllVsHead err2 length
-       err2           = ErrTermin loc dxs $ text "All Recursive functions should have the same number of decreasing parameters"
-       loc            = getSrcSpan (head vars)
-
-       checkAllVsHead :: Eq b => Error -> (a -> b) -> [a] -> CG [a]
-       checkAllVsHead _   _ []          = return []
-       checkAllVsHead err f (x:xs)
-         | all (== f x) (f <$> xs) = return (x:xs)
-         | otherwise               = addWarning err >> return []
-
-consCBWithExprs :: CGEnv -> [(Var, CoreExpr)] -> CG CGEnv
-consCBWithExprs γ xes
-  = do ts0      <- forM xes $ \(x, e) -> varTemplate γ (x, Just e)
-       texprs   <- gets termExprs
-       let xtes  = mapMaybe (`lookup'` texprs) xs
-       let ts    = safeFromAsserted err <$> ts0
-       ts'      <- mapM refreshArgs ts
-       let xts   = zip xs (Asserted <$> ts')
-       γ'       <- foldM extender γ xts
-       let γs    = makeTermEnvs γ' xtes xes ts ts'
-       mapM_ (uncurry $ consBind True) (zip γs (zip3 xs es (Asserted <$> ts')))
-       return γ'
-  where (xs, es) = unzip xes
-        lookup' k m = (k,) <$> M.lookup k m
-        err      = "Constant: consCBWithExprs"
-
 --------------------------------------------------------------------------------
 consCB :: TCheck -> CGEnv -> CoreBind -> CG CGEnv
 --------------------------------------------------------------------------------
@@ -211,8 +156,8 @@ consCB TerminationCheck γ (Rec xes)
        modify $ \i -> i { recCount = recCount i + length xes }
        let xxes = mapMaybe (`lookup'` texprs) xs
        if null xxes
-         then consCBSizedTys γ xes
-         else check xxes <$> consCBWithExprs γ xes
+         then consCBSizedTys consBind γ xes
+         else check xxes <$> consCBWithExprs consBind γ xes
     where
       xs = map fst xes
       check ys r | length ys == length xs = r
@@ -341,16 +286,6 @@ addPToEnv :: CGEnv
 addPToEnv γ π
   = do γπ <- γ += ("addSpec1", pname π, pvarRType π)
        foldM (+=) γπ [("addSpec2", x, ofRSort t) | (t, x, _) <- pargs π]
-
-extender :: F.Symbolic a => CGEnv -> (a, Template SpecType) -> CG CGEnv
-extender γ (x, Asserted t)
-  = case lookupREnv (F.symbol x) (assms γ) of
-      Just t' -> γ += ("extender", F.symbol x, t')
-      _       -> γ += ("extender", F.symbol x, t)
-extender γ (x, Assumed t)
-  = γ += ("extender", F.symbol x, t)
-extender γ _
-  = return γ
 
 --------------------------------------------------------------------------------
 -- | Bidirectional Constraint Generation: CHECKING -----------------------------

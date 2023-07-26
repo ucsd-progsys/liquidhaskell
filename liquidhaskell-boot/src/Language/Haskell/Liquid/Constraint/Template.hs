@@ -11,23 +11,24 @@ module Language.Haskell.Liquid.Constraint.Template (
 , safeFromAsserted
 , topSpecType
 , derivedVar
+, extender
 ) where
 
-import Prelude hiding (error)
+import           Prelude hiding (error)
 import qualified Data.Foldable                                 as F
 import qualified Data.Traversable                              as T
 import qualified Data.HashSet                                  as S
-import Control.Monad.State ( gets )
-import Text.PrettyPrint.HughesPJ ( text, (<+>) )
-import GHC.Types.Var (Var)
-import GHC.Core (CoreExpr)
-import GHC.Core.Utils ( exprType )
-import Language.Fixpoint.Types ( Symbolic(..) )
-import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Constraint.Types
-import Language.Haskell.Liquid.Constraint.Env ( lookupREnv )
-import Language.Haskell.Liquid.Constraint.Monad (addPost, addW)
-import Language.Haskell.Liquid.Constraint.Fresh (refreshArgsTop, freshTyExpr)
+import           Control.Monad.State ( gets )
+import           Text.PrettyPrint.HughesPJ ( text, (<+>) )
+import           GHC.Types.Var (Var)
+import           GHC.Core (CoreExpr)
+import           GHC.Core.Utils ( exprType )
+import qualified Language.Fixpoint.Types                       as F
+import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Constraint.Types
+import           Language.Haskell.Liquid.Constraint.Env ( lookupREnv, (+=) )
+import           Language.Haskell.Liquid.Constraint.Monad (addPost, addW)
+import           Language.Haskell.Liquid.Constraint.Fresh (refreshArgsTop, freshTyExpr)
 
 -- Template
 
@@ -79,7 +80,7 @@ varTemplate γ (x, eo) = varTemplate' γ (x, eo) >>= mapM (topSpecType x)
 
 varTemplate' :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Template SpecType)
 varTemplate' γ (x, eo)
-  = case (eo, lookupREnv (symbol x) (grtys γ), lookupREnv (symbol x) (assms γ), lookupREnv (symbol x) (intys γ)) of
+  = case (eo, lookupREnv (F.symbol x) (grtys γ), lookupREnv (F.symbol x) (assms γ), lookupREnv (F.symbol x) (intys γ)) of
       (_, Just t, _, _) -> Asserted <$> refreshArgsTop (x, t)
       (_, _, _, Just t) -> Internal <$> refreshArgsTop (x, t)
       (_, _, Just t, _) -> Assumed  <$> refreshArgsTop (x, t)
@@ -96,3 +97,13 @@ topSpecType x t = do
 
 derivedVar :: TargetSrc -> Var -> Bool
 derivedVar src x = S.member x (giDerVars src)
+
+extender :: F.Symbolic a => CGEnv -> (a, Template SpecType) -> CG CGEnv
+extender γ (x, Asserted t)
+  = case lookupREnv (F.symbol x) (assms γ) of
+      Just t' -> γ += ("extender", F.symbol x, t')
+      _       -> γ += ("extender", F.symbol x, t)
+extender γ (x, Assumed t)
+  = γ += ("extender", F.symbol x, t)
+extender γ _
+  = return γ
