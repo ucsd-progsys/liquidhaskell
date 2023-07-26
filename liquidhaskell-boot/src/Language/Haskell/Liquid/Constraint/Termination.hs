@@ -1,5 +1,9 @@
+-- | This module defines code for generating termination constraints.
+
 module Language.Haskell.Liquid.Constraint.Termination (
-  doTermCheck
+  TCheck(..)
+, mkTCheck
+, doTermCheck
 , makeTermEnvs
 , makeDecrIndex
 , checkIndex
@@ -30,6 +34,14 @@ import Language.Haskell.Liquid.Constraint.Env (setTRec)
 import Language.Haskell.Liquid.Constraint.Template ( Template(..), unTemplate )
 import Language.Haskell.Liquid.Types.RefType (isDecreasing, makeDecrType, makeLexRefa, makeNumEnv)
 import Language.Haskell.Liquid.Misc (safeFromLeft, replaceN, (<->), zip4, safeFromJust, fst5)
+
+data TCheck = TerminationCheck | StrataCheck | NoCheck
+
+mkTCheck :: Bool -> Bool -> TCheck
+mkTCheck tc is
+  | not is    = StrataCheck
+  | tc        = TerminationCheck
+  | otherwise = NoCheck
 
 doTermCheck :: Config -> Bind Var -> CG Bool
 doTermCheck cfg bind = do

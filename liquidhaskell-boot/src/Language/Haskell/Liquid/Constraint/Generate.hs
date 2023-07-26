@@ -53,7 +53,7 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Constraint.Types
 import Language.Haskell.Liquid.Constraint.Constraint ( addConstraints )
 import Language.Haskell.Liquid.Constraint.Template
-import Language.Haskell.Liquid.Constraint.Termination ( doTermCheck, makeTermEnvs, makeDecrIndex, recType, checkIndex, unOCons )
+import Language.Haskell.Liquid.Constraint.Termination
 import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult, runToLogic, coreToLogic)
 import           Language.Haskell.Liquid.Bare.DataType (dataConMap, makeDataConChecker)
 
@@ -115,7 +115,7 @@ consCBLet γ cb = do
   isStr     <- doTermCheck (getConfig γ) cb
   -- TODO: yuck.
   modify $ \s -> s { tcheck = oldtcheck && isStr }
-  γ' <- consCB (oldtcheck && isStr) isStr γ cb
+  γ' <- consCB (mkTCheck oldtcheck isStr) γ cb
   modify $ \s -> s{tcheck = oldtcheck}
   return γ'
 
@@ -142,7 +142,7 @@ consCBTop _ _ γ cb
        modify $ \s -> s { tcheck = oldtcheck && isStr}
        -- remove invariants that came from the cb definition
        let (γ', i) = removeInvariant γ cb                 --- DIFF
-       γ'' <- consCB (oldtcheck && isStr) isStr (γ'{cgVar = topBind cb}) cb
+       γ'' <- consCB (mkTCheck oldtcheck isStr) (γ'{cgVar = topBind cb}) cb
        modify $ \s -> s { tcheck = oldtcheck}
        return $ restoreInvariant γ'' i                    --- DIFF
     where
@@ -203,10 +203,10 @@ consCBWithExprs γ xes
         err      = "Constant: consCBWithExprs"
 
 --------------------------------------------------------------------------------
-consCB :: Bool -> Bool -> CGEnv -> CoreBind -> CG CGEnv
+consCB :: TCheck -> CGEnv -> CoreBind -> CG CGEnv
 --------------------------------------------------------------------------------
 -- do termination checking
-consCB True _ γ (Rec xes)
+consCB TerminationCheck γ (Rec xes)
   = do texprs <- gets termExprs
        modify $ \i -> i { recCount = recCount i + length xes }
        let xxes = mapMaybe (`lookup'` texprs) xs
@@ -222,7 +222,7 @@ consCB True _ γ (Rec xes)
       lookup' k m = (k,) <$> M.lookup k m
 
 -- don't do termination checking, but some strata checks?
-consCB _ False γ (Rec xes)
+consCB StrataCheck γ (Rec xes)
   = do xets     <- forM xes $ \(x, e) -> (x, e,) <$> varTemplate γ (x, Just e)
        modify     $ \i -> i { recCount = recCount i + length xes }
        let xts    = [(x, to) | (x, _, to) <- xets]
@@ -231,7 +231,7 @@ consCB _ False γ (Rec xes)
        return γ'
 
 -- don't do termination checking, and don't do any strata checks either?
-consCB _ _ γ (Rec xes)
+consCB NoCheck γ (Rec xes)
   = do xets   <- forM xes $ \(x, e) -> fmap (x, e,) (varTemplate γ (x, Just e))
        modify $ \i -> i { recCount = recCount i + length xes }
        let xts = [(x, to) | (x, _, to) <- xets]
@@ -241,13 +241,13 @@ consCB _ _ γ (Rec xes)
 
 -- | NV: Dictionaries are not checked, because
 -- | class methods' preconditions are not satisfied
-consCB _ _ γ (NonRec x _) | isDictionary x
+consCB _ γ (NonRec x _) | isDictionary x
   = do t  <- trueTy (typeclass (getConfig γ)) (varType x)
        extender γ (x, Assumed t)
     where
        isDictionary = isJust . dlookup (denv γ)
 
-consCB _ _ γ (NonRec x def)
+consCB _ γ (NonRec x def)
   | Just (w, τ) <- grepDictionary def
   , Just d      <- dlookup (denv γ) w
   = do st       <- mapM (trueTy (typeclass (getConfig γ))) τ
@@ -261,7 +261,7 @@ consCB _ _ γ (NonRec x def)
     f (t':ts) (RAllT α te _) = f ts $ subsTyVarMeet' (ty_var_value α, t') te
     f _ _ = impossible Nothing "consCB on Dictionary: this should not happen"
 
-consCB _ _ γ (NonRec x e)
+consCB _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing)
        to' <- consBind False γ (x, e, to) >>= addPostTemplate γ
        extender γ (x, makeSingleton γ (simplify e) <$> to')
