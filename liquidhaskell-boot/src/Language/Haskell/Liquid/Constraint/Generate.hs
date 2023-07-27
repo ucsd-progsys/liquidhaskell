@@ -122,15 +122,13 @@ consCBLet γ cb = do
 consCBTop :: Config -> TargetInfo -> CGEnv -> CoreBind -> CG CGEnv
 --------------------------------------------------------------------------------
 consCBTop cfg info cgenv cb
-  | all (trustVar cfg info) xs
+  | all trustVar xs
   = foldM addB cgenv xs
     where
        xs   = bindersOf cb
        tt   = trueTy (typeclass cfg) . varType
        addB γ x = tt x >>= (\t -> γ += ("derived", F.symbol x, t))
-
-       trustVar :: Config -> TargetInfo -> Var -> Bool
-       trustVar cfg info x = not (checkDerived cfg) && derivedVar (giSrc info) x
+       trustVar x = not (checkDerived cfg) && derivedVar (giSrc info) x
 
 consCBTop _ _ γ cb
   = do oldtcheck <- gets tcheck
