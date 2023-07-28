@@ -215,9 +215,12 @@ refreshVVRef (RProp ss (RHole r))
   = return $ RProp ss (RHole r)
 
 refreshVVRef (RProp ss t)
-  = do xs    <- mapM (const fresh) (fst <$> ss)
-       let su = F.mkSubst $ zip (fst <$> ss) (F.EVar <$> xs)
-       RProp (zip xs (snd <$> ss)) . F.subst su <$> refreshVV t
+  = do xs    <- mapM (const fresh) syms
+       let su = F.mkSubst $ zip syms (F.EVar <$> xs)
+       t'    <- refreshVV t
+       return $ RProp (zip xs bs) (F.subst su t')
+    where
+    (syms, bs) = unzip ss
 
 --------------------------------------------------------------------------------
 refreshArgs :: (FreshM m) => SpecType -> m SpecType
