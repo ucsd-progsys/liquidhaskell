@@ -34,7 +34,7 @@ assume GHC.Types.D# :: x:GHC.Prim.Double# -> {v: GHC.Types.Double | v = (x :: re
 assume GHC.Types.F# :: x:GHC.Prim.Float# -> {v: GHC.Types.Float | v = (x :: real) }
 assume GHC.Types.I# :: x:GHC.Prim.Int# -> {v: GHC.Types.Int | v = (x :: int) }
 assume GHC.Types.C# :: x:GHC.Prim.Char# -> {v: GHC.Types.Char | v = (x :: Char) }
-assume GHC.Types.W# :: w:GHC.Prim.Word# -> {v:GHC.Types.Word | v == w }
+assume GHC.Types.W# :: w:_ -> {v:GHC.Types.Word | v == w }
 
 measure addrLen :: GHC.Prim.Addr# -> GHC.Types.Int
 
