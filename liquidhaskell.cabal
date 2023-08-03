@@ -19,7 +19,7 @@ source-repository head
   type:     git
   location: https://github.com/ucsd-progsys/liquidhaskell/
 
-flag devel
+flag  devel
   default:     False
   manual:      True
   description: Enable more warnings and fail compilation when warnings occur.
