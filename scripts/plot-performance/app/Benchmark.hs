@@ -95,18 +95,3 @@ loBenchmarks n (BenchmarkDS rs xs as) =
       ys' = L.take (n - length as') ys
       rs' = L.take (n - (length as' + length ys')) $ sortOn (fst . snd) rs
   in BenchmarkDS rs' ys' as'
-
-decouple :: BenchmarkDataSet -> Bool -> ([Benchmark], [Benchmark])
-decouple (BenchmarkDS rs xs as) rev =
-  let
-    rb = L.map toBench1 rs
-    (xs1,xs2) = L.unzip $ L.map toBench2 xs
-    ab = L.map toBench1 as
-  in
-  if rev
-    then (L.map nullBench ab ++ xs1 ++ rb, ab ++ xs2 ++ L.map nullBench rb)
-    else (rb ++ xs1 ++ L.map nullBench ab, L.map nullBench rb ++ xs2 ++ ab)
-  where
-    toBench1 (n, (t,f)) = Benchmark n t f
-    toBench2 (n, (t1,f1), (t2,f2)) = (Benchmark n t1 f1, Benchmark n t2 f2)
-    nullBench (Benchmark n _ _) = Benchmark n 0.0 False
