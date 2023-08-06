@@ -70,11 +70,11 @@ diffData rev (BenchmarkDS rs xs as) =
     else (rlab ++ xlab ++ alab, rdat ++ xdat ++ adat)
   where
   (rlab, rdat) = unzip $ map
-    (\(l,(v, _)) -> (l, [ (LogValue 0, "")
+    (\(l,v) -> (l, [ (LogValue 0, "")
                         , (LogValue 0, "")
                         , (LogValue v, printf "%0.2f" (-v)) ] )) rs
   (xlab, xdat) = unzip $ map
-    (\(l,(a,_),(b,_)) -> (l, [ (LogValue (min a b), if a == b then "0.0" else "")
+    (\(l,a,b) -> (l, [ (LogValue (min a b), if a == b then "0.0" else "")
                              , if a < b then
                                    let v = b - a in
                                    (LogValue v, printf "%0.2f" v)
@@ -85,7 +85,7 @@ diffData rev (BenchmarkDS rs xs as) =
                                  else (LogValue 0, "")
                              ] )) xs
   (alab, adat) = unzip $ map
-    (\(l,(v,_)) -> (l, [ (LogValue 0, "")
+    (\(l,v) -> (l, [ (LogValue 0, "")
                        , (LogValue v, printf "%0.2f" v)
                        , (LogValue 0, "") ] )) as
 
