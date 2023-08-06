@@ -6,8 +6,7 @@
 module Main where
 
 import Prelude hiding (readFile, filter, zip, lookup)
-import Data.Maybe (isJust)
-import Data.List (find, isPrefixOf)
+import Data.List (isPrefixOf)
 import Data.Vector as V hiding (concat, null, (++), last, find)
 import Options.Applicative
 import System.Directory (createDirectoryIfMissing)
@@ -65,21 +64,22 @@ main = do op <- execParser opts
                           (optsOutputDir op)
 
           -- TODO: use a regexp?
-          let f = V.filter (\b -> isJust $ find (\fi -> fi `isPrefixOf` test b) (optsFilter op))
+          let isSelectedTest b = Prelude.any (`isPrefixOf` test b) (optsFilter op)
+              selectTests = V.filter isSelectedTest
 
           vb <- f0 <$> readCSV (optsBeforeFile op)
           va <- f0 <$> readCSV (optsAfterFile op)
 
           case (optsSort op, null $ optsFilter op, optsCombine op) of
             (Just n , False, True ) ->
-              let bdsf = splitBenchmarks (f vb) (f va)
+              let bdsf = splitBenchmarks (selectTests vb) (selectTests va)
                   hif = hiBenchmarks n bdsf
                   lof = loBenchmarks n bdsf
               in do chartToFile False "Top filtered speedups (seconds)" hif (outdir ++ "filtered-top.svg")
                     chartToFile True "Top filtered slowdowns (seconds)" lof (outdir ++ "filtered-bot.svg")
             (Just n , False, False) ->
               let bds = splitBenchmarks vb va
-                  bdsf = splitBenchmarks (f vb) (f va)
+                  bdsf = splitBenchmarks (selectTests vb) (selectTests va)
                   hi = hiBenchmarks n bds
                   lo = loBenchmarks n bds
               in do chartToFile False ("Perf diff: " ++ show (optsFilter op) ++ " (seconds)") bdsf (outdir ++ "filtered.svg")
@@ -92,7 +92,7 @@ main = do op <- execParser opts
               in do chartToFile False "Top speedups (seconds)" hi (outdir ++ "top.svg")
                     chartToFile True "Top slowdowns (seconds)" lo (outdir ++ "bot.svg")
             (Nothing, False, _    ) ->
-              let bdsf = splitBenchmarks (f vb) (f va)
+              let bdsf = splitBenchmarks (selectTests vb) (selectTests va)
               in chartToFile False "Perf diff (seconds)" bdsf (outdir ++ "filtered.svg")
             (Nothing, True , _    ) ->
               let bds = splitBenchmarks vb va
