@@ -66,8 +66,7 @@ diffData :: BenchmarkDataSet -> ([String], [[(LogValue, String)]])
 diffData (BenchmarkDS rs xs0 as) = (xlab, xdat)
   where
   xs = [ (l,0,v) | (l,v) <- rs ] ++ xs0 ++ [ (l,v,0) | (l,v) <- as ]
-  (xlab, xdat) = unzip $ map
-    (\(l,a,b) -> (l, [ (LogValue (min a b), if a == b then "0.0" else "")
+  mkPlotData a b = [ (LogValue (min a b), if a == b then "0.0" else "")
                              , if a < b then
                                    let v = b - a in
                                    (LogValue v, printf "%0.2f" v)
@@ -76,7 +75,8 @@ diffData (BenchmarkDS rs xs0 as) = (xlab, xdat)
                                    let v = a - b in
                                    (LogValue v, printf "%0.2f" (-v))
                                  else (LogValue 0, "")
-                             ] )) xs
+                             ]
+  (xlab, xdat) = unzip $ map (\(l,a,b) -> (l, mkPlotData a b)) xs
 
 -- This is fitted to specific values above (font size etc)
 heightHeuristic :: Int -> Double
