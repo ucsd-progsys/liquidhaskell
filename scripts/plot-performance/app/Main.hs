@@ -66,9 +66,10 @@ main = do op <- execParser opts
           -- TODO: use a regexp?
           let isSelectedTest b = Prelude.any (`isPrefixOf` test b) (optsFilter op)
               selectTests = V.filter isSelectedTest
+              dropAppMain = V.filter (\b -> test b /= "app/Main")
 
-          vb <- f0 <$> readCSV (optsBeforeFile op)
-          va <- f0 <$> readCSV (optsAfterFile op)
+          vb <- dropAppMain <$> readCSV (optsBeforeFile op)
+          va <- dropAppMain <$> readCSV (optsAfterFile op)
 
           case (optsSort op, null $ optsFilter op, optsCombine op) of
             (Just n , False, True ) ->
@@ -97,5 +98,3 @@ main = do op <- execParser opts
             (Nothing, True , _    ) ->
               let bds = splitBenchmarks vb va
               in do chartToFile False "Perf" bds (outdir ++ "perf.svg")
-  where
-    f0 = V.filter (\b -> test b /= "app/Main")
