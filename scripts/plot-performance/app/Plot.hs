@@ -62,17 +62,10 @@ chart rev title bds = layoutToRenderable layout
 
   colors = map (\c -> (solidFillStyle $ withOpacity c 0.7, Nothing)) [grey, red, green]
 
--- TODO we currently ignore the test state flag
 diffData :: Bool -> BenchmarkDataSet -> ([String], [[(LogValue, String)]])
-diffData rev (BenchmarkDS rs xs as) =
-  if rev
-    then (alab ++ xlab ++ rlab, adat ++ xdat ++ rdat)
-    else (rlab ++ xlab ++ alab, rdat ++ xdat ++ adat)
+diffData rev (BenchmarkDS rs xs0 as) = (xlab, xdat)
   where
-  (rlab, rdat) = unzip $ map
-    (\(l,v) -> (l, [ (LogValue 0, "")
-                        , (LogValue 0, "")
-                        , (LogValue v, printf "%0.2f" (-v)) ] )) rs
+  xs = [ (l,0,v) | (l,v) <- rs ] ++ xs0 ++ [ (l,v,0) | (l,v) <- as ]
   (xlab, xdat) = unzip $ map
     (\(l,a,b) -> (l, [ (LogValue (min a b), if a == b then "0.0" else "")
                              , if a < b then
@@ -84,10 +77,6 @@ diffData rev (BenchmarkDS rs xs as) =
                                    (LogValue v, printf "%0.2f" (-v))
                                  else (LogValue 0, "")
                              ] )) xs
-  (alab, adat) = unzip $ map
-    (\(l,v) -> (l, [ (LogValue 0, "")
-                       , (LogValue v, printf "%0.2f" v)
-                       , (LogValue 0, "") ] )) as
 
 -- This is fitted to specific values above (font size etc)
 heightHeuristic :: Int -> Double
