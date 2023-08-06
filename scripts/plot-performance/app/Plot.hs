@@ -10,8 +10,8 @@ import Data.Colour.Names ( green, grey, red )
 
 import Benchmark
 
-chart :: Bool -> String -> BenchmarkDataSet -> Renderable (LayoutPick LogValue PlotIndex PlotIndex)
-chart rev title bds = layoutToRenderable layout
+chart :: String -> BenchmarkDataSet -> Renderable (LayoutPick LogValue PlotIndex PlotIndex)
+chart title bds = layoutToRenderable layout
  where
   layout =
       -- title + legend
@@ -58,12 +58,12 @@ chart rev title bds = layoutToRenderable layout
       $ plot_bars_label_style . font_size .~ 15
       $ def
 
-  (lab, dat) = diffData rev bds
+  (lab, dat) = diffData bds
 
   colors = map (\c -> (solidFillStyle $ withOpacity c 0.7, Nothing)) [grey, red, green]
 
-diffData :: Bool -> BenchmarkDataSet -> ([String], [[(LogValue, String)]])
-diffData rev (BenchmarkDS rs xs0 as) = (xlab, xdat)
+diffData :: BenchmarkDataSet -> ([String], [[(LogValue, String)]])
+diffData (BenchmarkDS rs xs0 as) = (xlab, xdat)
   where
   xs = [ (l,0,v) | (l,v) <- rs ] ++ xs0 ++ [ (l,v,0) | (l,v) <- as ]
   (xlab, xdat) = unzip $ map
@@ -88,12 +88,12 @@ heightHeuristic n | n < 10    = 8.0
                   | n < 577   = 13.0
                   | otherwise = 14.0
 
-chartToFile :: Bool -> String -> BenchmarkDataSet -> FilePath -> IO ()
-chartToFile rev title bds path =
+chartToFile :: String -> BenchmarkDataSet -> FilePath -> IO ()
+chartToFile title bds path =
   do let len = bdsLen bds
      let wh = (2048.0, 2.0 ** heightHeuristic len)
      let fo = FileOptions wh SVG loadSansSerifFonts
-     let plot = chart rev title bds
+     let plot = chart title bds
      let cb = render plot wh
      putStrLn $ printf "Writing %s (%d entries, %.0fx%.0f)" path len (fst wh) (snd wh)
      _ <- cBackendToFile fo cb path

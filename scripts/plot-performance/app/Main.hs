@@ -76,25 +76,25 @@ main = do op <- execParser opts
               let bdsf = splitBenchmarks (selectTests vb) (selectTests va)
                   hif = hiBenchmarks n bdsf
                   lof = loBenchmarks n bdsf
-              in do chartToFile False "Top filtered speedups (seconds)" hif (outdir ++ "filtered-top.svg")
-                    chartToFile True "Top filtered slowdowns (seconds)" lof (outdir ++ "filtered-bot.svg")
+              in do chartToFile "Top filtered speedups (seconds)" hif (outdir ++ "filtered-top.svg")
+                    chartToFile "Top filtered slowdowns (seconds)" lof (outdir ++ "filtered-bot.svg")
             (Just n , False, False) ->
               let bds = splitBenchmarks vb va
                   bdsf = splitBenchmarks (selectTests vb) (selectTests va)
                   hi = hiBenchmarks n bds
                   lo = loBenchmarks n bds
-              in do chartToFile False ("Perf diff: " ++ show (optsFilter op) ++ " (seconds)") bdsf (outdir ++ "filtered.svg")
-                    chartToFile False "Top speedups (seconds)" hi (outdir ++ "top.svg")
-                    chartToFile True "Top slowdowns (seconds)" lo (outdir ++ "bot.svg")
+              in do chartToFile ("Perf diff: " ++ show (optsFilter op) ++ " (seconds)") bdsf (outdir ++ "filtered.svg")
+                    chartToFile "Top speedups (seconds)" hi (outdir ++ "top.svg")
+                    chartToFile "Top slowdowns (seconds)" lo (outdir ++ "bot.svg")
             (Just n , True , _    ) ->
               let bds = splitBenchmarks vb va
                   hi = hiBenchmarks n bds
                   lo = loBenchmarks n bds
-              in do chartToFile False "Top speedups (seconds)" hi (outdir ++ "top.svg")
-                    chartToFile True "Top slowdowns (seconds)" lo (outdir ++ "bot.svg")
+              in do chartToFile "Top speedups (seconds)" hi (outdir ++ "top.svg")
+                    chartToFile "Top slowdowns (seconds)" lo (outdir ++ "bot.svg")
             (Nothing, False, _    ) ->
               let bdsf = splitBenchmarks (selectTests vb) (selectTests va)
-              in chartToFile False "Perf diff (seconds)" bdsf (outdir ++ "filtered.svg")
+              in chartToFile "Perf diff (seconds)" bdsf (outdir ++ "filtered.svg")
             (Nothing, True , _    ) ->
               let bds = splitBenchmarks vb va
-              in do chartToFile False "Perf" bds (outdir ++ "perf.svg")
+              in do chartToFile "Perf" bds (outdir ++ "perf.svg")
