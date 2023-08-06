@@ -66,16 +66,22 @@ diffData :: BenchmarkDataSet -> ([String], [[(LogValue, String)]])
 diffData (BenchmarkDS rs xs0 as) = (xlab, xdat)
   where
   xs = [ (l,0,v) | (l,v) <- rs ] ++ xs0 ++ [ (l,v,0) | (l,v) <- as ]
-  mkPlotData a b = [ (LogValue (min a b), if a == b then "0.0" else "")
-                             , if a < b then
-                                   let v = b - a in
-                                   (LogValue v, printf "%0.2f" v)
-                                 else (LogValue 0, "")
-                             , if b < a then
-                                   let v = a - b in
-                                   (LogValue v, printf "%0.2f" (-v))
-                                 else (LogValue 0, "")
-                             ]
+  mkPlotData a b
+    | a == b =
+      [ (LogValue a, "0.0")
+      , (LogValue 0, "")
+      , (LogValue 0, "")
+      ]
+    | a < b =
+      [ (LogValue a, "")
+      , (LogValue (b - a), printf "%0.2f" (b - a))
+      , (LogValue 0, "")
+      ]
+    | otherwise =
+      [ (LogValue b, "")
+      , (LogValue 0, "")
+      , (LogValue (a - b), printf "%0.2f" (b - a))
+      ]
   (xlab, xdat) = unzip $ map (\(l,a,b) -> (l, mkPlotData a b)) xs
 
 -- This is fitted to specific values above (font size etc)
