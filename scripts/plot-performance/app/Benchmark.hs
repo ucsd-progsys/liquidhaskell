@@ -7,7 +7,6 @@
 module Benchmark where
 
 import Prelude hiding (readFile, writeFile, filter, zip, lookup)
-import Data.Ord (Down(..))
 import Data.String (fromString)
 import Data.List as L
 import Data.Vector as V hiding (length, concat, null, (++), last, find)
@@ -53,14 +52,11 @@ writeCSV f dat = do
 
 type BData = Double
 
-data BenchmarkDataSet = BenchmarkDS
-  { removed :: [(String, BData)]
-  , combined :: [(String, BData, BData)]
-  , added :: [(String, BData)]
-  } deriving stock (Eq, Ord, Show, Generic)
+newtype BenchmarkDataSet = BenchmarkDS [(String, BData, BData)]
+  deriving stock (Eq, Ord, Show, Generic)
 
 bdsLen :: BenchmarkDataSet -> Int
-bdsLen (BenchmarkDS rs xs as) = length rs + length xs + length as
+bdsLen (BenchmarkDS xs) = length xs
 
 splitBenchmarks :: Vector Benchmark
                 -> Vector Benchmark
@@ -72,24 +68,14 @@ splitBenchmarks v1 v2 = go v1 (M.fromList $ V.toList $ V.map kvfun v2)
   go vb ma = case V.uncons vb of
                Just (Benchmark n f, tl) ->
                  case M.lookup n ma of
-                   Just a  -> let (BenchmarkDS rs xs as) = go tl (M.delete n ma) in
-                              BenchmarkDS rs ((n, f, a) : xs) as
-                   Nothing -> let (BenchmarkDS rs xs as) = go tl ma in
-                              BenchmarkDS ((n, f) : rs) xs as
-               Nothing -> BenchmarkDS [] [] (M.toList ma)
+                   Just a  -> let BenchmarkDS xs = go tl (M.delete n ma) in
+                              BenchmarkDS ((n, f, a) : xs)
+                   Nothing -> let BenchmarkDS xs = go tl ma in
+                              BenchmarkDS ((n, f, 0) : xs)
+               Nothing -> BenchmarkDS [ (n, 0, f) | (n, f) <- M.toList ma ]
 
 hiBenchmarks :: Int -> BenchmarkDataSet -> BenchmarkDataSet
-hiBenchmarks n (BenchmarkDS rs xs as) =
-  let rs' = L.take n $ sortOn (Down . snd) rs
-      ys = sortOn (\(_, bt, at) -> at - bt) xs
-      ys' = L.take (n - length rs') ys
-      as' = L.take (n - (length rs' + length ys')) $ sortOn (Down . snd) as
-  in BenchmarkDS rs' ys' as'
+hiBenchmarks n (BenchmarkDS xs) = BenchmarkDS $ L.take n $ sortOn (\(_, bt, at) -> at - bt) xs
 
 loBenchmarks :: Int -> BenchmarkDataSet -> BenchmarkDataSet
-loBenchmarks n (BenchmarkDS rs xs as) =
-  let as' = L.take n $ sortOn snd as
-      ys = sortOn (\(_, bt, at) -> bt - at) xs
-      ys' = L.take (n - length as') ys
-      rs' = L.take (n - (length as' + length ys')) $ sortOn snd rs
-  in BenchmarkDS rs' ys' as'
+loBenchmarks n (BenchmarkDS xs) = BenchmarkDS $ L.take n $ sortOn (\(_, bt, at) -> bt - at) xs

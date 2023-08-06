@@ -63,9 +63,8 @@ chart title bds = layoutToRenderable layout
   colors = map (\c -> (solidFillStyle $ withOpacity c 0.7, Nothing)) [grey, red, green]
 
 diffData :: BenchmarkDataSet -> ([String], [[(LogValue, String)]])
-diffData (BenchmarkDS rs xs0 as) = (xlab, xdat)
+diffData (BenchmarkDS xs) = (xlab, xdat)
   where
-  xs = [ (l,0,v) | (l,v) <- rs ] ++ xs0 ++ [ (l,v,0) | (l,v) <- as ]
   mkPlotData a b
     | a == b =
       [ (LogValue a, "0.0")
