@@ -10,7 +10,7 @@ import Prelude hiding (readFile, writeFile, filter, zip, lookup)
 import Data.String (fromString)
 import Data.List as L
 import Data.Vector as V hiding (length, concat, null, (++), last, find)
-import Data.Map as M hiding (null)
+import qualified Data.Map.Strict as Map
 import Data.ByteString.Char8 (unpack)
 import Data.ByteString.Lazy.Char8 (readFile, writeFile)
 import GHC.Generics (Generic)
@@ -52,30 +52,22 @@ writeCSV f dat = do
 
 type BData = Double
 
-newtype BenchmarkComparison = BenchmarkComparison [(String, BData, BData)]
+newtype BenchmarkComparison = BenchmarkComparison [(String, (BData, BData))]
   deriving stock (Eq, Ord, Show, Generic)
 
 bdsLen :: BenchmarkComparison -> Int
 bdsLen (BenchmarkComparison xs) = length xs
 
 compareBenchmarks :: Vector Benchmark -> Vector Benchmark -> BenchmarkComparison
-compareBenchmarks v1 v2 = go v1 (M.fromList $ V.toList $ V.map kvfun v2)
-  where
-  kvfun b = (test b, time b)
-  go :: Vector Benchmark -> Map String BData -> BenchmarkComparison
-  go vb ma = case V.uncons vb of
-               Just (Benchmark n f, tl) ->
-                 case M.lookup n ma of
-                   Just a  -> let BenchmarkComparison xs = go tl (M.delete n ma) in
-                              BenchmarkComparison ((n, f, a) : xs)
-                   Nothing -> let BenchmarkComparison xs = go tl ma in
-                              BenchmarkComparison ((n, f, 0) : xs)
-               Nothing -> BenchmarkComparison [ (n, 0, f) | (n, f) <- M.toList ma ]
+compareBenchmarks v1 v2 = BenchmarkComparison $ Map.toList $
+    Map.unionWith (\(t0, _) (_, t1) -> (t0, t1))
+      (Map.fromList [ (test b, (time b, 0)) | b <- V.toList v1])
+      (Map.fromList [ (test b, (0, time b)) | b <- V.toList v2])
 
 hiBenchmarks :: Int -> BenchmarkComparison -> BenchmarkComparison
 hiBenchmarks n (BenchmarkComparison xs) =
-    BenchmarkComparison $ L.take n $ sortOn (\(_, bt, at) -> at - bt) xs
+    BenchmarkComparison $ L.take n $ sortOn (\(_, (bt, at)) -> at - bt) xs
 
 loBenchmarks :: Int -> BenchmarkComparison -> BenchmarkComparison
 loBenchmarks n (BenchmarkComparison xs) =
-    BenchmarkComparison $ L.take n $ sortOn (\(_, bt, at) -> bt - at) xs
+    BenchmarkComparison $ L.take n $ sortOn (\(_, (bt, at)) -> bt - at) xs

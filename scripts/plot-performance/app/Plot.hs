@@ -81,7 +81,7 @@ diffData (BenchmarkComparison xs) = (xlab, xdat)
       , (LogValue 0, "")
       , (LogValue (a - b), printf "%0.2f" (b - a))
       ]
-  (xlab, xdat) = unzip $ map (\(l,a,b) -> (l, mkPlotData a b)) xs
+  (xlab, xdat) = unzip $ map (\(l,(a,b)) -> (l, mkPlotData a b)) xs
 
 -- This is fitted to specific values above (font size etc)
 heightHeuristic :: Int -> Double
