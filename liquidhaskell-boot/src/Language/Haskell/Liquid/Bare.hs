@@ -927,10 +927,7 @@ allAsmSigs env myName specs = do
     lookupImportedSymMaybe (mm, s) = do
       mts <- M.lookup s (Bare._reTyThings env)
       m <- mm
-      ty <- lookup m mts
-      case ty of
-        Ghc.AnId v -> Just v
-        _ -> Nothing
+      Mb.listToMaybe [ v | (k, Ghc.AnId v) <- mts, k == m ]
 
     isAbsoluteQualifiedSym (Just m) =
        not $ M.member m $ qiNames (Bare.reQualImps env)
