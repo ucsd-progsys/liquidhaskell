@@ -52,22 +52,41 @@ writeCSV f dat = do
 
 type BData = Double
 
-newtype BenchmarkComparison = BenchmarkComparison [(String, (BData, BData))]
+data BenchmarkComparison = BenchmarkComparison
+    { -- | Labels of benchmarks only present in the "before" set
+      bcOnlyBefore :: [String]
+      -- | Labels of benchmarks only present in the "after" set
+    , bcOnlyAfter :: [String]
+      -- | Data of benchmars present in both sets
+    , bcCombined :: [(String, (BData, BData))]
+    }
   deriving stock (Eq, Ord, Show, Generic)
 
 bdsLen :: BenchmarkComparison -> Int
-bdsLen (BenchmarkComparison xs) = length xs
+bdsLen bc = length (bcCombined bc) + warningsLength bc
+
+warningsLength :: BenchmarkComparison -> Int
+warningsLength bc = length (bcOnlyBefore bc) + length (bcOnlyAfter bc)
 
 compareBenchmarks :: Vector Benchmark -> Vector Benchmark -> BenchmarkComparison
-compareBenchmarks v1 v2 = BenchmarkComparison $ Map.toList $
-    Map.unionWith (\(t0, _) (_, t1) -> (t0, t1))
-      (Map.fromList [ (test b, (time b, 0)) | b <- V.toList v1])
-      (Map.fromList [ (test b, (0, time b)) | b <- V.toList v2])
+compareBenchmarks v1 v2 = BenchmarkComparison
+    { bcOnlyBefore = Map.keys (Map.difference before after)
+    , bcOnlyAfter = Map.keys (Map.difference after before)
+    , bcCombined = Map.toList $
+        Map.unionWith (\(t0, _) (_, t1) -> (t0, t1)) before after
+    }
+  where
+    before = Map.fromList [ (test b, (time b, 0)) | b <- V.toList v1]
+    after = Map.fromList [ (test b, (0, time b)) | b <- V.toList v2]
 
 hiBenchmarks :: Int -> BenchmarkComparison -> BenchmarkComparison
-hiBenchmarks n (BenchmarkComparison xs) =
-    BenchmarkComparison $ L.take n $ sortOn (\(_, (bt, at)) -> at - bt) xs
+hiBenchmarks n bc =
+    bc { bcCombined =
+           L.take (n - warningsLength bc) $ sortOn (\(_, (bt, at)) -> at - bt) (bcCombined bc)
+       }
 
 loBenchmarks :: Int -> BenchmarkComparison -> BenchmarkComparison
-loBenchmarks n (BenchmarkComparison xs) =
-    BenchmarkComparison $ L.take n $ sortOn (\(_, (bt, at)) -> bt - at) xs
+loBenchmarks n bc =
+    bc { bcCombined =
+           L.take (n - warningsLength bc) $ sortOn (\(_, (bt, at)) -> bt - at) (bcCombined bc)
+       }

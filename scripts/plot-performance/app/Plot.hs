@@ -63,7 +63,11 @@ chart title bds = layoutToRenderable layout
   colors = map (\c -> (solidFillStyle $ withOpacity c 0.7, Nothing)) [grey, red, green]
 
 diffData :: BenchmarkComparison -> ([String], [[(LogValue, String)]])
-diffData (BenchmarkComparison xs) = (xlab, xdat)
+diffData bc = unzip $ concat
+    [ [ (l, onlyBeforeData) | l <- bcOnlyBefore bc ]
+    , [ (l, onlyAfterData) | l <- bcOnlyAfter bc ]
+    , [ (l, mkPlotData a b) | (l, (a, b)) <- bcCombined bc ]
+    ]
   where
   mkPlotData a b
     | a == b =
@@ -81,7 +85,16 @@ diffData (BenchmarkComparison xs) = (xlab, xdat)
       , (LogValue 0, "")
       , (LogValue (a - b), printf "%0.2f" (b - a))
       ]
-  (xlab, xdat) = unzip $ map (\(l,(a,b)) -> (l, mkPlotData a b)) xs
+  onlyBeforeData =
+      [ (LogValue 0, "")
+      , (LogValue 0, "")
+      , (LogValue 0, "missing After measure")
+      ]
+  onlyAfterData =
+      [ (LogValue 0, "")
+      , (LogValue 0, "")
+      , (LogValue 0, "missing Before measure")
+      ]
 
 -- This is fitted to specific values above (font size etc)
 heightHeuristic :: Int -> Double
