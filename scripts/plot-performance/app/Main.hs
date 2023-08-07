@@ -73,28 +73,28 @@ main = do op <- execParser opts
 
           case (optsSort op, null $ optsFilter op, optsCombine op) of
             (Just n , False, True ) ->
-              let bdsf = splitBenchmarks (selectTests vb) (selectTests va)
+              let bdsf = compareBenchmarks (selectTests vb) (selectTests va)
                   hif = hiBenchmarks n bdsf
                   lof = loBenchmarks n bdsf
               in do chartToFile "Top filtered speedups (seconds)" hif (outdir ++ "filtered-top.svg")
                     chartToFile "Top filtered slowdowns (seconds)" lof (outdir ++ "filtered-bot.svg")
             (Just n , False, False) ->
-              let bds = splitBenchmarks vb va
-                  bdsf = splitBenchmarks (selectTests vb) (selectTests va)
+              let bds = compareBenchmarks vb va
+                  bdsf = compareBenchmarks (selectTests vb) (selectTests va)
                   hi = hiBenchmarks n bds
                   lo = loBenchmarks n bds
               in do chartToFile ("Perf diff: " ++ show (optsFilter op) ++ " (seconds)") bdsf (outdir ++ "filtered.svg")
                     chartToFile "Top speedups (seconds)" hi (outdir ++ "top.svg")
                     chartToFile "Top slowdowns (seconds)" lo (outdir ++ "bot.svg")
             (Just n , True , _    ) ->
-              let bds = splitBenchmarks vb va
+              let bds = compareBenchmarks vb va
                   hi = hiBenchmarks n bds
                   lo = loBenchmarks n bds
               in do chartToFile "Top speedups (seconds)" hi (outdir ++ "top.svg")
                     chartToFile "Top slowdowns (seconds)" lo (outdir ++ "bot.svg")
             (Nothing, False, _    ) ->
-              let bdsf = splitBenchmarks (selectTests vb) (selectTests va)
+              let bdsf = compareBenchmarks (selectTests vb) (selectTests va)
               in chartToFile "Perf diff (seconds)" bdsf (outdir ++ "filtered.svg")
             (Nothing, True , _    ) ->
-              let bds = splitBenchmarks vb va
+              let bds = compareBenchmarks vb va
               in do chartToFile "Perf" bds (outdir ++ "perf.svg")

@@ -58,10 +58,8 @@ newtype BenchmarkDataSet = BenchmarkDS [(String, BData, BData)]
 bdsLen :: BenchmarkDataSet -> Int
 bdsLen (BenchmarkDS xs) = length xs
 
-splitBenchmarks :: Vector Benchmark
-                -> Vector Benchmark
-                -> BenchmarkDataSet
-splitBenchmarks v1 v2 = go v1 (M.fromList $ V.toList $ V.map kvfun v2)
+compareBenchmarks :: Vector Benchmark -> Vector Benchmark -> BenchmarkDataSet
+compareBenchmarks v1 v2 = go v1 (M.fromList $ V.toList $ V.map kvfun v2)
   where
   kvfun b = (test b, time b)
   go :: Vector Benchmark -> Map String BData -> BenchmarkDataSet
