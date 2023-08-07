@@ -10,7 +10,7 @@ import Data.Colour.Names ( green, grey, red )
 
 import Benchmark
 
-chart :: String -> BenchmarkDataSet -> Renderable (LayoutPick LogValue PlotIndex PlotIndex)
+chart :: String -> BenchmarkComparison -> Renderable (LayoutPick LogValue PlotIndex PlotIndex)
 chart title bds = layoutToRenderable layout
  where
   layout =
@@ -62,8 +62,8 @@ chart title bds = layoutToRenderable layout
 
   colors = map (\c -> (solidFillStyle $ withOpacity c 0.7, Nothing)) [grey, red, green]
 
-diffData :: BenchmarkDataSet -> ([String], [[(LogValue, String)]])
-diffData (BenchmarkDS xs) = (xlab, xdat)
+diffData :: BenchmarkComparison -> ([String], [[(LogValue, String)]])
+diffData (BenchmarkComparison xs) = (xlab, xdat)
   where
   mkPlotData a b
     | a == b =
@@ -93,7 +93,7 @@ heightHeuristic n | n < 10    = 8.0
                   | n < 577   = 13.0
                   | otherwise = 14.0
 
-chartToFile :: String -> BenchmarkDataSet -> FilePath -> IO ()
+chartToFile :: String -> BenchmarkComparison -> FilePath -> IO ()
 chartToFile title bds path =
   do let len = bdsLen bds
      let wh = (2048.0, 2.0 ** heightHeuristic len)

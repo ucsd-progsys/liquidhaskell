@@ -52,28 +52,30 @@ writeCSV f dat = do
 
 type BData = Double
 
-newtype BenchmarkDataSet = BenchmarkDS [(String, BData, BData)]
+newtype BenchmarkComparison = BenchmarkComparison [(String, BData, BData)]
   deriving stock (Eq, Ord, Show, Generic)
 
-bdsLen :: BenchmarkDataSet -> Int
-bdsLen (BenchmarkDS xs) = length xs
+bdsLen :: BenchmarkComparison -> Int
+bdsLen (BenchmarkComparison xs) = length xs
 
-compareBenchmarks :: Vector Benchmark -> Vector Benchmark -> BenchmarkDataSet
+compareBenchmarks :: Vector Benchmark -> Vector Benchmark -> BenchmarkComparison
 compareBenchmarks v1 v2 = go v1 (M.fromList $ V.toList $ V.map kvfun v2)
   where
   kvfun b = (test b, time b)
-  go :: Vector Benchmark -> Map String BData -> BenchmarkDataSet
+  go :: Vector Benchmark -> Map String BData -> BenchmarkComparison
   go vb ma = case V.uncons vb of
                Just (Benchmark n f, tl) ->
                  case M.lookup n ma of
-                   Just a  -> let BenchmarkDS xs = go tl (M.delete n ma) in
-                              BenchmarkDS ((n, f, a) : xs)
-                   Nothing -> let BenchmarkDS xs = go tl ma in
-                              BenchmarkDS ((n, f, 0) : xs)
-               Nothing -> BenchmarkDS [ (n, 0, f) | (n, f) <- M.toList ma ]
+                   Just a  -> let BenchmarkComparison xs = go tl (M.delete n ma) in
+                              BenchmarkComparison ((n, f, a) : xs)
+                   Nothing -> let BenchmarkComparison xs = go tl ma in
+                              BenchmarkComparison ((n, f, 0) : xs)
+               Nothing -> BenchmarkComparison [ (n, 0, f) | (n, f) <- M.toList ma ]
 
-hiBenchmarks :: Int -> BenchmarkDataSet -> BenchmarkDataSet
-hiBenchmarks n (BenchmarkDS xs) = BenchmarkDS $ L.take n $ sortOn (\(_, bt, at) -> at - bt) xs
+hiBenchmarks :: Int -> BenchmarkComparison -> BenchmarkComparison
+hiBenchmarks n (BenchmarkComparison xs) =
+    BenchmarkComparison $ L.take n $ sortOn (\(_, bt, at) -> at - bt) xs
 
-loBenchmarks :: Int -> BenchmarkDataSet -> BenchmarkDataSet
-loBenchmarks n (BenchmarkDS xs) = BenchmarkDS $ L.take n $ sortOn (\(_, bt, at) -> bt - at) xs
+loBenchmarks :: Int -> BenchmarkComparison -> BenchmarkComparison
+loBenchmarks n (BenchmarkComparison xs) =
+    BenchmarkComparison $ L.take n $ sortOn (\(_, bt, at) -> bt - at) xs
