@@ -66,6 +66,7 @@ diffData :: BenchmarkComparison -> ([String], [[(LogValue, String)]])
 diffData bc = unzip $ concat
     [ [ (l, onlyBeforeData) | l <- bcOnlyBefore bc ]
     , [ (l, onlyAfterData) | l <- bcOnlyAfter bc ]
+    , [ (l, failedData) | l <- bcFailed bc ]
     , [ (l, mkPlotData a b) | (l, (a, b)) <- bcCombined bc ]
     ]
   where
@@ -94,6 +95,11 @@ diffData bc = unzip $ concat
       [ (LogValue 0, "")
       , (LogValue 0, "")
       , (LogValue 0, "missing Before measure")
+      ]
+  failedData =
+      [ (LogValue 0, "")
+      , (LogValue 0, "")
+      , (LogValue 0, "failed to run either before or after")
       ]
 
 -- This is fitted to specific values above (font size etc)

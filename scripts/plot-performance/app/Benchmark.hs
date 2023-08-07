@@ -21,6 +21,7 @@ import Data.Csv hiding (Options, Parser, lookup)
 data Benchmark = Benchmark
   { test :: String
   , time :: Double
+  , result :: Bool
   } deriving stock (Eq, Ord, Show, Generic)
 
 instance FromField Bool where
@@ -33,6 +34,7 @@ instance FromNamedRecord Benchmark where
     parseNamedRecord m = Benchmark
                          <$> m .: "test"
                          <*> m .: "time"
+                         <*> m .: "result"
 
 instance ToNamedRecord Benchmark
 instance DefaultOrdered Benchmark
@@ -57,6 +59,8 @@ data BenchmarkComparison = BenchmarkComparison
       bcOnlyBefore :: [String]
       -- | Labels of benchmarks only present in the "after" set
     , bcOnlyAfter :: [String]
+      -- | Labels of benchmarks that failed
+    , bcFailed :: [String]
       -- | Data of benchmars present in both sets
     , bcCombined :: [(String, (BData, BData))]
     }
@@ -66,18 +70,23 @@ bdsLen :: BenchmarkComparison -> Int
 bdsLen bc = length (bcCombined bc) + warningsLength bc
 
 warningsLength :: BenchmarkComparison -> Int
-warningsLength bc = length (bcOnlyBefore bc) + length (bcOnlyAfter bc)
+warningsLength bc =
+  length (bcOnlyBefore bc) + length (bcOnlyAfter bc) + length (bcFailed bc)
 
 compareBenchmarks :: Vector Benchmark -> Vector Benchmark -> BenchmarkComparison
 compareBenchmarks v1 v2 = BenchmarkComparison
-    { bcOnlyBefore = Map.keys (Map.difference before after)
-    , bcOnlyAfter = Map.keys (Map.difference after before)
+    { bcOnlyBefore = Map.keys (Map.difference before after) \\ failed
+    , bcOnlyAfter = Map.keys (Map.difference after before) \\ failed
+    , bcFailed = failed
     , bcCombined = Map.toList $
         Map.unionWith (\(t0, _) (_, t1) -> (t0, t1)) before after
     }
   where
-    before = Map.fromList [ (test b, (time b, 0)) | b <- V.toList v1]
-    after = Map.fromList [ (test b, (0, time b)) | b <- V.toList v2]
+    (vBefore, failedBefore) = V.partition result v1
+    (vAfter, failedAfter) = V.partition result v2
+    before = Map.fromList [ (test b, (time b, 0)) | b <- V.toList vBefore]
+    after = Map.fromList [ (test b, (0, time b)) | b <- V.toList vAfter]
+    failed = Prelude.map test $ nub $ V.toList $ failedBefore <> failedAfter
 
 hiBenchmarks :: Int -> BenchmarkComparison -> BenchmarkComparison
 hiBenchmarks n bc =
