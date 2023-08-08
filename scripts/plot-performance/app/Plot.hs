@@ -64,9 +64,7 @@ chart title bds = layoutToRenderable layout
 
 diffData :: BenchmarkComparison -> ([String], [[(LogValue, String)]])
 diffData bc = unzip $ concat
-    [ [ (l, onlyBeforeData) | l <- bcOnlyBefore bc ]
-    , [ (l, onlyAfterData) | l <- bcOnlyAfter bc ]
-    , [ (l, failedData) | l <- bcFailed bc ]
+    [ [ (l, warningData w) | (l, w) <- bcWarnings bc ]
     , [ (l, mkPlotData a b) | (l, (a, b)) <- bcCombined bc ]
     ]
   where
@@ -86,21 +84,15 @@ diffData bc = unzip $ concat
       , (LogValue 0, "")
       , (LogValue (a - b), printf "%0.2f" (b - a))
       ]
-  onlyBeforeData =
+  warningData w =
       [ (LogValue 0, "")
       , (LogValue 0, "")
-      , (LogValue 0, "missing After measure")
+      , (LogValue 0, renderWarning w)
       ]
-  onlyAfterData =
-      [ (LogValue 0, "")
-      , (LogValue 0, "")
-      , (LogValue 0, "missing Before measure")
-      ]
-  failedData =
-      [ (LogValue 0, "")
-      , (LogValue 0, "")
-      , (LogValue 0, "failed to run either before or after")
-      ]
+  renderWarning MissingMeasureAfter = "missing measure after"
+  renderWarning MissingMeasureBefore = "missing measure before"
+  renderWarning FailedRunBefore = "failed to run before"
+  renderWarning FailedRunAfter = "failed to run after"
 
 -- This is fitted to specific values above (font size etc)
 heightHeuristic :: Int -> Double
