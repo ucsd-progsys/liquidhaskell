@@ -66,8 +66,8 @@ data BenchmarkComparison = BenchmarkComparison
     }
   deriving stock (Eq, Ord, Show, Generic)
 
-bdsLen :: BenchmarkComparison -> Int
-bdsLen bc = length (bcCombined bc) + warningsLength bc
+bcLen :: BenchmarkComparison -> Int
+bcLen bc = length (bcCombined bc) + warningsLength bc
 
 warningsLength :: BenchmarkComparison -> Int
 warningsLength bc =

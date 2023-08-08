@@ -114,7 +114,7 @@ heightHeuristic n | n < 10    = 8.0
 
 chartToFile :: String -> BenchmarkComparison -> FilePath -> IO ()
 chartToFile title bds path =
-  do let len = bdsLen bds
+  do let len = bcLen bds
      let wh = (2048.0, 2.0 ** heightHeuristic len)
      let fo = FileOptions wh SVG loadSansSerifFonts
      let plot = chart title bds
