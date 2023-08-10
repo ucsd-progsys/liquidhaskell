@@ -26,9 +26,9 @@ embed GHC.Prim.Addr#    as Str
 embed GHC.Integer.Type.Integer as int
 embed GHC.Num.Integer as int
 
-assume GHC.Types.True  :: {v:GHC.Types.Bool | v     }
-assume GHC.Types.False    :: {v:GHC.Types.Bool | (~ v) }
-assume GHC.Types.isTrue#  :: n:_ -> {v:GHC.Types.Bool | (n = 1 <=> v)}
+assume GHC.Types.True    :: {v:GHC.Types.Bool | v     }
+assume GHC.Types.False   :: {v:GHC.Types.Bool | (~ v) }
+assume GHC.Types.isTrue# :: n:_ -> {v:GHC.Types.Bool | (n = 1 <=> v)}
 
 assume GHC.Types.D# :: x:GHC.Prim.Double# -> {v: GHC.Types.Double | v = (x :: real) }
 assume GHC.Types.F# :: x:GHC.Prim.Float# -> {v: GHC.Types.Float | v = (x :: real) }

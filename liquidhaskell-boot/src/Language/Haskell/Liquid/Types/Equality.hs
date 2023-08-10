@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleInstances    #-}
 
--- Syntactic Equality of Types up tp forall type renaming
+-- Syntactic Equality of Types up to forall type renaming
 
 module Language.Haskell.Liquid.Types.Equality where
 
