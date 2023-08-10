@@ -1,9 +1,18 @@
 # Changes
 
-## NEXT 0.9.XX
+## 0.9.2.7.0
 
-- **breaking change** Remove the implicit types mechanism and corresponding tests
-- **breaking change** Remove the `decrease` keyword and mechanism in favor of the terminating expressions syntax (`/ [a,b]`)
+- Support for GHC 9.2.7
+- Moved from wrapper packages to packages with assumptions to streamline specification maintenance
+- **breaking change** Removed the implicit types mechanism
+- **breaking change** Removed the `decrease` mechanism in favor of the terminating expressions syntax (`/ [a,b]`)
+
+## 0.9.0.2.0
+
+- Support for GHC 9.0.2
+- Added `ple-with-undecided-guards` option to corece PLE into unfolding invocations with variables
+- Added positivity checker for data definitions and `no-positivity-check` option to turn it off
+- Added experimental support for relational refinement types
 
 ## 0.8.10.1
 
