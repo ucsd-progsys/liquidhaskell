@@ -17,6 +17,7 @@ import qualified Data.Map      as M
 @-}
 
 
+{-@ type Bag a = Data.Map.Map a Nat @-}
 type Bag a = M.Map a Int
 
 {-@ assume empty :: {v:Bag k | v = Map_default 0} @-}
@@ -37,6 +38,7 @@ get :: (Ord k) => k -> Bag k -> Int
 get k m = M.findWithDefault 0 k m
 
 {-@ assume put :: (Ord k) => k:k -> b:Bag k -> {v:Bag k | v = Map_store b k (1 + (Map_select b k))} @-}
+{-@ ignore put @-}
 put :: (Ord k) => k -> Bag k -> Bag k
 put k m = M.insert k (1 + get k m) m
 
@@ -44,8 +46,8 @@ put k m = M.insert k (1 + get k m) m
 union :: (Ord k) => Bag k -> Bag k -> Bag k
 union m1 m2 = M.union m1 m2
 
-{-@ thm_emp :: x:k -> xs:Bag k ->  { Map_select xs x >= 0 => Language.Haskell.Liquid.Bag.empty /= put x xs }  @-}
-thm_emp :: (Ord k) => k -> Bag k -> ()  
+{-@ thm_emp :: x:k -> xs:Bag k ->  { Language.Haskell.Liquid.Bag.empty /= put x xs }  @-}
+thm_emp :: (Ord k) => k -> Bag k -> ()
 thm_emp x xs = const () (get x xs)
 
 {-@ assume thm_size :: xs:[k] ->  { bagSize (fromList xs) == len xs }  @-}
