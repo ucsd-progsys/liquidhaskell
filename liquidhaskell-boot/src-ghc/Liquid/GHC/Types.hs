@@ -3,8 +3,27 @@ module Liquid.GHC.Types where
 
 import           Data.HashSet (HashSet, fromList)
 import           Data.Hashable
-import           GHC.Generics hiding (moduleName)
+import           GHC.Generics (Generic)
 import           Liquid.GHC.API
+    ( AvailInfo
+    , ClsInst
+    , CoreProgram
+    , ModGuts(mg_binds, mg_exports, mg_module, mg_tcs)
+    , Module
+    , Name
+    , NameSet
+    , TyCon
+    , availNames
+    , moduleName
+    , moduleNameString
+    , nameModule
+    , nameOccName
+    , nameSetElemsStable
+    , nameSrcLoc
+    , nameSrcSpan
+    , nameStableString
+    , occNameString
+    )
 
 -- | A 'StableName' is virtually isomorphic to a GHC's 'Name' but crucially we don't use
 -- the 'Eq' instance defined on a 'Name' because it's 'Unique'-based. In particular, GHC
