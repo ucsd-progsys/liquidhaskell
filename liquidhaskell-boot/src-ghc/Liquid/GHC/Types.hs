@@ -11,14 +11,12 @@ import           Liquid.GHC.API
     , ModGuts(mg_binds, mg_exports, mg_module, mg_tcs)
     , Module
     , Name
-    , NameSet
     , TyCon
     , availNames
     , moduleName
     , moduleNameString
     , nameModule
     , nameOccName
-    , nameSetElemsStable
     , nameSrcLoc
     , nameSrcSpan
     , nameStableString
@@ -79,9 +77,6 @@ miModGuts cls mg  = MI
   , mgi_exports   = availsToStableNameSet $ mg_exports mg
   , mgi_cls_inst  = cls
   }
-
-nameSetToStableNameSet :: NameSet -> HashSet StableName
-nameSetToStableNameSet = fromList . map mkStableName . nameSetElemsStable
 
 mgiNamestring :: MGIModGuts -> String
 mgiNamestring = moduleNameString . moduleName . mgi_module

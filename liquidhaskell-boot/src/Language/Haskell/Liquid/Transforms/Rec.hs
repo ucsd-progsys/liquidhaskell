@@ -13,7 +13,7 @@ import           Control.Arrow                        (second)
 import           Control.Monad.State
 import qualified Data.HashMap.Strict                  as M
 import           Data.Hashable
-import           Liquid.GHC.API      as Ghc hiding (panic, mapSndM)
+import           Liquid.GHC.API      as Ghc hiding (panic)
 import           Liquid.GHC.Misc
 import           Liquid.GHC.Play
 import           Language.Haskell.Liquid.Misc         (mapSndM)

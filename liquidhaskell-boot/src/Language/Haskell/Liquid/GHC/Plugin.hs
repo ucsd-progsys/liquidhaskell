@@ -39,6 +39,7 @@ import           GHC.LanguageExtensions
 
 import           Control.Monad
 import qualified Control.Monad.Catch as Ex
+import           Control.Monad.IO.Class (MonadIO)
 
 import           Data.Coerce
 import           Data.Function                            ((&))

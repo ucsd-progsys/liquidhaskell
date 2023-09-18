@@ -19,7 +19,6 @@ module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints, genera
 import           Prelude                                       hiding (error)
 import           GHC.Stack ( CallStack )
 import           Liquid.GHC.API               as Ghc hiding ( panic
-                                                            , checkErr
                                                             , (<+>)
                                                             , text
                                                             , vcat

@@ -263,7 +263,6 @@ import           Liquid.GHC.API as Ghc hiding ( Expr
                                                                , hcat
                                                                , showPpr
                                                                , punctuate
-                                                               , mapSndM
                                                                , ($$)
                                                                , braces
                                                                , angleBrackets
