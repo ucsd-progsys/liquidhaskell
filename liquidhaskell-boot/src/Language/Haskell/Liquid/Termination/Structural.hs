@@ -5,7 +5,7 @@
 module Language.Haskell.Liquid.Termination.Structural (terminationVars) where
 
 import Language.Haskell.Liquid.Types hiding (isDecreasing)
-import Liquid.GHC.Misc (showPpr)
+import Language.Haskell.Liquid.GHC.Misc (showPpr)
 import Liquid.GHC.API  as GHC hiding ( showPpr
                                                       , Env
                                                       , text

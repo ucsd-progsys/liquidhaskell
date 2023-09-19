@@ -62,8 +62,8 @@ import           Liquid.GHC.API  as Ghc ( Class
                                                          , srcSpanStartLine
                                                          , srcSpanStartCol
                                                          )
-import           Liquid.GHC.Logging (mkLongErrAt)
-import           Liquid.GHC.Misc
+import           Language.Haskell.Liquid.GHC.Logging (mkLongErrAt)
+import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Types
 import           Prelude                          hiding (error)

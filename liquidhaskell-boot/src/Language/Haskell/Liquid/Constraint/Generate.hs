@@ -19,14 +19,13 @@ module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints, genera
 import           Prelude                                       hiding (error)
 import           GHC.Stack ( CallStack )
 import           Liquid.GHC.API               as Ghc hiding ( panic
-                                                            , checkErr
                                                             , (<+>)
                                                             , text
                                                             , vcat
                                                             )
-import qualified Liquid.GHC.Resugar           as Rs
-import qualified Liquid.GHC.SpanStack         as Sp
-import qualified Liquid.GHC.Misc              as GM -- ( isInternal, collectArguments, tickSrcSpan, showPpr )
+import qualified Language.Haskell.Liquid.GHC.Resugar           as Rs
+import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
+import qualified Language.Haskell.Liquid.GHC.Misc              as GM -- ( isInternal, collectArguments, tickSrcSpan, showPpr )
 import Text.PrettyPrint.HughesPJ ( text )
 import           Control.Monad.State
 import           Data.Maybe                                    (fromMaybe, isJust, mapMaybe)

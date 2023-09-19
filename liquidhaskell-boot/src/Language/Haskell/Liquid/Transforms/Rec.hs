@@ -13,9 +13,9 @@ import           Control.Arrow                        (second)
 import           Control.Monad.State
 import qualified Data.HashMap.Strict                  as M
 import           Data.Hashable
-import           Liquid.GHC.API      as Ghc hiding (panic, mapSndM)
-import           Liquid.GHC.Misc
-import           Liquid.GHC.Play
+import           Liquid.GHC.API      as Ghc hiding (panic)
+import           Language.Haskell.Liquid.GHC.Misc
+import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Misc         (mapSndM)
 import           Language.Fixpoint.Misc               (mapSnd) -- , traceShow)
 import           Language.Haskell.Liquid.Types.Errors

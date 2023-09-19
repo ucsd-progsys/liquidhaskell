@@ -68,7 +68,7 @@ import           Language.Fixpoint.SortCheck (pruneUnsortedReft)
 
 import           Liquid.GHC.API hiding (panic)
 import           Language.Haskell.Liquid.Types.RefType
-import qualified Liquid.GHC.SpanStack as Sp
+import qualified Language.Haskell.Liquid.GHC.SpanStack as Sp
 import           Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Fresh ()

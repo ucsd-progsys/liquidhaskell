@@ -80,7 +80,7 @@ import           Language.Haskell.Liquid.Types.Generics
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds
 import           Liquid.GHC.API hiding (text, (<+>))
-import           Liquid.GHC.Types
+import           Language.Haskell.Liquid.GHC.Types
 import           Text.PrettyPrint.HughesPJ              (text, (<+>))
 import           Text.PrettyPrint.HughesPJ as HughesPJ (($$))
 

@@ -9,7 +9,7 @@
 --   into high-level patterns, that can receive special case handling in
 --   different phases (e.g. ANF, Constraint Generation, etc.)
 
-module Liquid.GHC.Resugar (
+module Language.Haskell.Liquid.GHC.Resugar (
   -- * High-level Source Patterns
     Pattern (..)
 
@@ -22,7 +22,7 @@ module Liquid.GHC.Resugar (
 
 import qualified Data.List as L
 import           Liquid.GHC.API  as Ghc hiding (PatBind)
-import qualified Liquid.GHC.Misc as GM
+import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import qualified Language.Fixpoint.Types          as F 
 import qualified Text.PrettyPrint.HughesPJ        as PJ 
 -- import           Debug.Trace

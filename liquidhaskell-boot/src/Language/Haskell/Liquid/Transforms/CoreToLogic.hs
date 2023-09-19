@@ -22,7 +22,7 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic
 
 import           Data.ByteString                       (ByteString)
 import           Prelude                               hiding (error)
-import           Liquid.GHC.TypeRep   () -- needed for Eq 'Type'
+import           Language.Haskell.Liquid.GHC.TypeRep   () -- needed for Eq 'Type'
 import           Liquid.GHC.API       hiding (Expr, Located, panic)
 import qualified Liquid.GHC.API       as Ghc
 import qualified Liquid.GHC.API       as C
@@ -40,13 +40,13 @@ import qualified Language.Fixpoint.Misc                as Misc
 import qualified Language.Haskell.Liquid.Misc          as Misc
 import           Language.Fixpoint.Types               hiding (panic, Error, R, simplify)
 import qualified Language.Fixpoint.Types               as F
-import qualified Liquid.GHC.Misc      as GM
+import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 
 
 import           Language.Haskell.Liquid.Bare.Types
 import           Language.Haskell.Liquid.Bare.DataType
 import           Language.Haskell.Liquid.Bare.Misc     (simpleSymbolVar)
-import           Liquid.GHC.Play
+import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Types.Types   --     hiding (GhcInfo(..), GhcSpec (..), LM)
 import           Language.Haskell.Liquid.Types.RefType
 

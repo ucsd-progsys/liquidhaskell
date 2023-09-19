@@ -14,7 +14,7 @@
 {-# OPTIONS_GHC -Wwarn=deprecations #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
-module Liquid.GHC.Interface (
+module Language.Haskell.Liquid.GHC.Interface (
 
   -- * Printer
     pprintCBs
@@ -76,9 +76,9 @@ import Text.Megaparsec.Error
 import Text.PrettyPrint.HughesPJ        hiding (first, (<>))
 import Language.Fixpoint.Types          hiding (err, panic, Error, Result, Expr)
 import qualified Language.Fixpoint.Misc as Misc
-import Liquid.GHC.Misc
-import Liquid.GHC.Types (MGIModGuts(..))
-import Liquid.GHC.Play
+import Language.Haskell.Liquid.GHC.Misc
+import Language.Haskell.Liquid.GHC.Types (MGIModGuts(..))
+import Language.Haskell.Liquid.GHC.Play
 import Language.Haskell.Liquid.WiredIn (isDerivedInstance)
 import qualified Language.Haskell.Liquid.Measure  as Ms
 import qualified Language.Haskell.Liquid.Misc     as Misc

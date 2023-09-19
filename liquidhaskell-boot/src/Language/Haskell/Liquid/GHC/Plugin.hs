@@ -19,26 +19,27 @@ import qualified Liquid.GHC.API         as O
 import           Liquid.GHC.API         as GHC hiding (Target, Type)
 import qualified Text.PrettyPrint.HughesPJ               as PJ
 import qualified Language.Fixpoint.Types                 as F
-import qualified Liquid.GHC.Misc        as LH
+import qualified  Language.Haskell.Liquid.GHC.Misc        as LH
 import qualified Language.Haskell.Liquid.UX.CmdLine      as LH
-import qualified Liquid.GHC.Interface   as LH
+import qualified Language.Haskell.Liquid.GHC.Interface   as LH
 import qualified Language.Haskell.Liquid.Liquid          as LH
 import qualified Language.Haskell.Liquid.Types.PrettyPrint as LH ( filterReportErrors
                                                                  , filterReportErrorsWith
                                                                  , defaultFilterReporter
                                                                  , reduceFilters )
-import qualified Liquid.GHC.Logging     as LH   (fromPJDoc)
+import qualified Language.Haskell.Liquid.GHC.Logging     as LH   (fromPJDoc)
 
 import           Language.Haskell.Liquid.GHC.Plugin.Types
 import           Language.Haskell.Liquid.GHC.Plugin.Util as Util
 import           Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                                                          as SpecFinder
 
-import           Liquid.GHC.Types       (MGIModGuts(..), miModGuts)
+import           Language.Haskell.Liquid.GHC.Types       (MGIModGuts(..), miModGuts)
 import           GHC.LanguageExtensions
 
 import           Control.Monad
 import qualified Control.Monad.Catch as Ex
+import           Control.Monad.IO.Class (MonadIO)
 
 import           Data.Coerce
 import           Data.Function                            ((&))

@@ -18,7 +18,7 @@ import           Data.Hashable
 import           Prelude                                   hiding (error)
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types.PrettyPrint ()
-import qualified Liquid.GHC.Misc       as GM
+import qualified Language.Haskell.Liquid.GHC.Misc       as GM
 import qualified Liquid.GHC.API        as Ghc
 import           Language.Haskell.Liquid.Types.Types
 -- import           Language.Haskell.Liquid.Types.Visitors (freeVars)

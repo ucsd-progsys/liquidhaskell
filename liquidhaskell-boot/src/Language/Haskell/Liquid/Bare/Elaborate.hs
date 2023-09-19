@@ -26,7 +26,7 @@ where
 import qualified Language.Fixpoint.Types       as F
 -- import           Control.Arrow
 import           Liquid.GHC.API hiding (panic, varName)
-import qualified Liquid.GHC.Misc
+import qualified Language.Haskell.Liquid.GHC.Misc
                                                as GM
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.RefType

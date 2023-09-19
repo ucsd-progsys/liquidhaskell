@@ -263,7 +263,6 @@ import           Liquid.GHC.API as Ghc hiding ( Expr
                                                                , hcat
                                                                , showPpr
                                                                , punctuate
-                                                               , mapSndM
                                                                , ($$)
                                                                , braces
                                                                , angleBrackets
@@ -296,8 +295,8 @@ import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types as F
 
 import           Language.Haskell.Liquid.Types.Generics
-import           Liquid.GHC.Misc
-import           Liquid.GHC.Logging as GHC
+import           Language.Haskell.Liquid.GHC.Misc
+import           Language.Haskell.Liquid.GHC.Logging as GHC
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Misc

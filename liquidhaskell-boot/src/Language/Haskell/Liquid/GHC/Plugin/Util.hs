@@ -52,7 +52,7 @@ deserialiseBinaryObject thisModule eps hpt =
   where
     extractFromHpt :: Maybe a
     extractFromHpt = do
-      modInfo <- lookupUDFM hpt (moduleName thisModule)
+      modInfo <- lookupHpt hpt (moduleName thisModule)
       guard (thisModule == (mi_module . hm_iface $ modInfo))
       xs <- mapM (fromSerialized deserialise . ifAnnotatedValue) (mi_anns . hm_iface $ modInfo)
       listToMaybe xs

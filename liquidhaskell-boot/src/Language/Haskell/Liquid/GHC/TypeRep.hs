@@ -9,13 +9,13 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- TODO(#1918): Only needed for GHC <9.0.1.
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Liquid.GHC.TypeRep (
+module Language.Haskell.Liquid.GHC.TypeRep (
   mkTyArg, 
 
   showTy
   ) where
 
-import           Liquid.GHC.Misc (showPpr)
+import           Language.Haskell.Liquid.GHC.Misc (showPpr)
 import           Liquid.GHC.API as Ghc hiding (mkTyArg, showPpr, panic)
 import           Language.Fixpoint.Types (symbol)
 

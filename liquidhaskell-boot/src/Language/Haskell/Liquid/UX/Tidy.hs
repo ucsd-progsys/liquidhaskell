@@ -36,7 +36,7 @@ import qualified Data.HashSet                              as S
 import qualified Data.List                                 as L
 import qualified Data.Text                                 as T
 import qualified Control.Exception                         as Ex
-import qualified Liquid.GHC.Misc          as GM
+import qualified Language.Haskell.Liquid.GHC.Misc          as GM
 -- (dropModuleNames, showPpr, stringTyVar)
 import           Language.Fixpoint.Types                   hiding (Result, SrcSpan, Error)
 import           Language.Haskell.Liquid.Types.Types

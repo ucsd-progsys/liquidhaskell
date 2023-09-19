@@ -1,9 +1,14 @@
-{-| This module re-exports a bunch of the GHC API.
+{-| This module re-exports all identifiers that LH needs
+    from the GHC API.
 
-The intended use of this module is to shelter LiquidHaskell from changes to the GHC API, so this is the
-/only/ module LiquidHaskell should import when trying to access any ghc-specific functionality.
+The intended use of this module is to provide a quick look of what
+GHC API features LH depends upon.
 
---}
+The transitive dependencies of this module shouldn't contain modules
+from Language.Haskell.Liquid.* or other non-boot libraries. This makes
+it easy to discover breaking changes in the GHC API.
+
+-}
 
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE LambdaCase #-}
@@ -16,10 +21,8 @@ The intended use of this module is to shelter LiquidHaskell from changes to the 
 
 module Liquid.GHC.API (
     module Ghc
-  , module StableModule
   ) where
 
-import           Liquid.GHC.API.StableModule      as StableModule
 import Liquid.GHC.API.Extra as Ghc
 
 import           GHC                                               as Ghc hiding ( Warning
@@ -73,52 +76,220 @@ import GHC.Plugins                    as Ghc ( deserializeWithData
                                              )
 import GHC.Core.FVs                   as Ghc (exprFreeVarsList)
 import GHC.Core.Opt.OccurAnal         as Ghc
+    ( occurAnalysePgm )
 import GHC.Driver.Env                 as Ghc
+    ( HscEnv(hsc_EPS, hsc_HPT, hsc_dflags, hsc_plugins, hsc_static_plugins) )
 import GHC.Driver.Ppr                 as Ghc
+    ( showPpr
+    , showSDoc
+    , showSDocDump
+    )
 import GHC.HsToCore.Expr              as Ghc
+    ( dsLExpr )
 import GHC.Iface.Load                 as Ghc
+    ( cannotFindModule
+    , loadInterface
+    )
 import GHC.Rename.Expr                as Ghc (rnLExpr)
-import GHC.Runtime.Context            as Ghc
 import GHC.Tc.Gen.App                 as Ghc (tcInferSigma)
 import GHC.Tc.Gen.Bind                as Ghc (tcValBinds)
 import GHC.Tc.Gen.Expr                as Ghc (tcInferRho)
-import GHC.Tc.Instance.Family         as Ghc
 import GHC.Tc.Module                  as Ghc
+    ( getModuleInterface
+    , tcRnLookupRdrName
+    )
 import GHC.Tc.Solver                  as Ghc
+    ( InferMode(NoRestrictions)
+    , captureTopConstraints
+    , simplifyInfer
+    , simplifyInteractive
+    )
 import GHC.Tc.Types                   as Ghc
+    ( Env(env_top)
+    , TcGblEnv(tcg_anns, tcg_exports, tcg_insts, tcg_mod, tcg_rdr_env, tcg_rn_imports)
+    , TcM
+    , TcRn
+    , WhereFrom(ImportBySystem)
+    )
 import GHC.Tc.Types.Evidence          as Ghc
+    ( TcEvBinds(EvBinds) )
 import GHC.Tc.Types.Origin            as Ghc (lexprCtOrigin)
-import GHC.Tc.Utils.Monad             as Ghc hiding (getGHCiMonad)
+import GHC.Tc.Utils.Monad             as Ghc
+    ( captureConstraints
+    , discardConstraints
+    , getEnv
+    , failIfErrsM
+    , failM
+    , failWithTc
+    , initIfaceTcRn
+    , liftIO
+    , mkLongErrAt
+    , pushTcLevelM
+    , reportError
+    , reportErrors
+    )
 import GHC.Tc.Utils.TcType            as Ghc (tcSplitDFunTy, tcSplitMethodTy)
 import GHC.Tc.Utils.Zonk              as Ghc
+    ( zonkTopLExpr )
 import GHC.Types.Annotations          as Ghc
+    ( AnnPayload
+    , AnnTarget(ModuleTarget)
+    , Annotation(Annotation, ann_target, ann_value)
+    , findAnns
+    )
 import GHC.Types.Avail                as Ghc
+    ( AvailInfo(Avail, AvailTC)
+    , availNames
+    , greNameMangledName
+    )
 import GHC.Types.Basic                as Ghc
+    ( Arity
+    , Boxity(Boxed)
+    , PprPrec
+    , PromotionFlag(NotPromoted)
+    , TopLevelFlag(NotTopLevel)
+    , funPrec
+    , InlinePragma(inl_act, inl_inline, inl_rule, inl_sat, inl_src)
+    , isDeadOcc
+    , isStrongLoopBreaker
+    , noOccInfo
+    , topPrec
+    )
 import GHC.Types.CostCentre           as Ghc
+    ( CostCentre(cc_loc)
+    )
 import GHC.Types.Error                as Ghc
+    ( Messages
+    , DecoratedSDoc
+    , MsgEnvelope(errMsgSpan)
+    )
 import GHC.Types.Fixity               as Ghc
-import GHC.Types.Id                   as Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported)
+    ( Fixity(Fixity) )
+import GHC.Types.Id                   as Ghc
+    ( idDetails
+    , isDFunId
+    , idInfo
+    , idOccInfo
+    , isConLikeId
+    , modifyIdInfo
+    , mkExportedLocalId
+    , mkUserLocal
+    , realIdUnfolding
+    , setIdInfo
+    )
 import GHC.Types.Id.Info              as Ghc
+    ( CafInfo(NoCafRefs)
+    , IdDetails(DataConWorkId, DataConWrapId, RecSelId, VanillaId)
+    , IdInfo(occInfo, unfoldingInfo)
+    , cafInfo
+    , inlinePragInfo
+    , mayHaveCafRefs
+    , setCafInfo
+    , setOccInfo
+    , vanillaIdInfo
+    )
 import GHC.Types.Literal              as Ghc
-import GHC.Types.Name                 as Ghc hiding (varName, isWiredIn)
+    ( LitNumType(LitNumInt)
+    , Literal(LitChar, LitDouble, LitFloat, LitNumber, LitString)
+    , literalType
+    )
+import GHC.Types.Name                 as Ghc
+    ( OccName
+    , getOccString
+    , getSrcSpan
+    , isInternalName
+    , isSystemName
+    , mkInternalName
+    , mkSystemName
+    , mkTcOcc
+    , mkTyVarOcc
+    , mkVarOcc
+    , mkVarOccFS
+    , nameModule_maybe
+    , nameOccName
+    , nameSrcLoc
+    , nameStableString
+    , occNameFS
+    , occNameString
+    , stableNameCmp
+    )
 import GHC.Types.Name.Reader          as Ghc
-import GHC.Types.Name.Set             as Ghc
+    ( ImpDeclSpec(ImpDeclSpec, is_as, is_dloc, is_mod, is_qual)
+    , ImportSpec(ImpSpec)
+    , ImpItemSpec(ImpAll)
+    , getRdrName
+    , globalRdrEnvElts
+    , gresFromAvails
+    , greMangledName
+    , lookupGRE_RdrName
+    , mkGlobalRdrEnv
+    , mkQual
+    , mkVarUnqual
+    , mkUnqual
+    , nameRdrName
+    )
 import GHC.Types.SourceError          as Ghc
+    ( SourceError
+    , srcErrorMessages
+    )
 import GHC.Types.SourceText           as Ghc
+    ( SourceText(SourceText,NoSourceText)
+    , mkIntegralLit
+    , mkTHFractionalLit
+    )
 import GHC.Types.SrcLoc               as Ghc
+    ( SrcSpan(RealSrcSpan, UnhelpfulSpan)
+    , UnhelpfulSpanReason
+        ( UnhelpfulGenerated
+        , UnhelpfulInteractive
+        , UnhelpfulNoLocationInfo
+        , UnhelpfulOther
+        , UnhelpfulWiredIn
+        )
+    , combineSrcSpans
+    , mkGeneralSrcSpan
+    , mkRealSrcLoc
+    , mkRealSrcSpan
+    , realSrcSpanStart
+    , srcSpanFileName_maybe
+    , srcSpanToRealSrcSpan
+    )
 import GHC.Types.Tickish              as Ghc (CoreTickish, GenTickish(..))
-import GHC.Types.TypeEnv              as Ghc
 import GHC.Types.Unique               as Ghc
-import GHC.Types.Unique.DFM           as Ghc
-import GHC.Types.Unique.FM            as Ghc
+    ( getKey, mkUnique )
 import GHC.Types.Unique.Set           as Ghc (mkUniqSet)
 import GHC.Types.Unique.Supply        as Ghc
+    ( MonadUnique, getUniqueM )
 import GHC.Types.Var                  as Ghc
+    ( VarBndr(Bndr)
+    , mkLocalVar
+    , mkTyVar
+    , setVarName
+    , setVarType
+    , setVarUnique
+    , varName
+    , varUnique
+    )
 import GHC.Types.Var.Env              as Ghc
+    ( emptyInScopeSet, mkRnEnv2 )
 import GHC.Types.Var.Set              as Ghc
+    ( VarSet
+    , elemVarSet
+    , emptyVarSet
+    , extendVarSet
+    , extendVarSetList
+    , unitVarSet
+    )
 import GHC.Unit.External              as Ghc
+    ( ExternalPackageState (eps_ann_env)
+    )
 import GHC.Unit.Finder                as Ghc
+    ( FindResult(Found, NoPackage, FoundMultiple, NotFound)
+    , findExposedPackageModule
+    , findImportedModule
+    )
 import GHC.Unit.Home.ModInfo          as Ghc
+    ( HomePackageTable, HomeModInfo(hm_iface), lookupHpt )
 import GHC.Unit.Module                as Ghc
     ( GenWithIsBoot(gwib_isBoot, gwib_mod)
     , IsBootInterface(NotBoot, IsBoot)

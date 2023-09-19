@@ -21,9 +21,9 @@ import qualified Data.Maybe                        as Mb
 import qualified Data.List                         as L
 import qualified Language.Fixpoint.Types           as F
 import qualified Language.Fixpoint.Types.Visitor   as F
-import qualified Liquid.GHC.Misc  as GM
+import qualified Language.Haskell.Liquid.GHC.Misc  as GM
 import qualified Liquid.GHC.API   as Ghc
-import           Liquid.GHC.Types (StableName, mkStableName)
+import           Language.Haskell.Liquid.GHC.Types (StableName, mkStableName)
 import           Language.Haskell.Liquid.Types.RefType ()
 import           Language.Haskell.Liquid.Types
 import qualified Language.Haskell.Liquid.Misc       as Misc

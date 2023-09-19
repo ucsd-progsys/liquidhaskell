@@ -1,10 +1,27 @@
 {-# LANGUAGE DeriveGeneric #-}
-module Liquid.GHC.Types where
+module Language.Haskell.Liquid.GHC.Types where
 
 import           Data.HashSet (HashSet, fromList)
 import           Data.Hashable
-import           GHC.Generics hiding (moduleName)
+import           GHC.Generics (Generic)
 import           Liquid.GHC.API
+    ( AvailInfo
+    , ClsInst
+    , CoreProgram
+    , ModGuts(mg_binds, mg_exports, mg_module, mg_tcs)
+    , Module
+    , Name
+    , TyCon
+    , availNames
+    , moduleName
+    , moduleNameString
+    , nameModule
+    , nameOccName
+    , nameSrcLoc
+    , nameSrcSpan
+    , nameStableString
+    , occNameString
+    )
 
 -- | A 'StableName' is virtually isomorphic to a GHC's 'Name' but crucially we don't use
 -- the 'Eq' instance defined on a 'Name' because it's 'Unique'-based. In particular, GHC
@@ -60,9 +77,6 @@ miModGuts cls mg  = MI
   , mgi_exports   = availsToStableNameSet $ mg_exports mg
   , mgi_cls_inst  = cls
   }
-
-nameSetToStableNameSet :: NameSet -> HashSet StableName
-nameSetToStableNameSet = fromList . map mkStableName . nameSetElemsStable
 
 mgiNamestring :: MGIModGuts -> String
 mgiNamestring = moduleNameString . moduleName . mgi_module

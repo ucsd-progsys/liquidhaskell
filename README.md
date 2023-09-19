@@ -353,7 +353,7 @@ using**.
 [GHC.API]:             liquidhaskell-boot/src-ghc/Liquid/GHC/API.hs
 [Plugin]:              liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin.hs
 [GHC.Plugin]:          liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin.hs
-[GHC.Interface]:       liquidhaskell-boot/src-ghc/Liquid/GHC/Interface.hs
+[GHC.Interface]:       liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Interface.hs
 [SpecFinder]:          liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin/SpecFinder.hs
 [BareSpec]:            liquidhaskell-boot/src/Language/Haskell/Liquid/Types/Specs.hs#L362
 [LiftedSpec]:          liquidhaskell-boot/src/Language/Haskell/Liquid/Types/Specs.hs#L559
@@ -366,7 +366,7 @@ using**.
 [ghcide]:              https://github.com/haskell/ghcide
 [findRelevantSpecs]:   liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin/SpecFinder.hs#L65
 [core binds]:          https://hackage.haskell.org/package/ghc-9.2.5/docs/CoreSyn.html#t:CoreBind
-[configureGhcTargets]: liquidhaskell-boot/src-ghc/Liquid/GHC/Interface.hs#L254
-[processTargetModule]: liquidhaskell-boot/src-ghc/Liquid/GHC/Interface.hs#L483
+[configureGhcTargets]: liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Interface.hs#L254
+[processTargetModule]: liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Interface.hs#L483
 [processModule]:       liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin.hs#L509
 

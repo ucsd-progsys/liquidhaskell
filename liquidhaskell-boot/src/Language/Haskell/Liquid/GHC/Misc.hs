@@ -18,7 +18,7 @@
 -- accessing GHC module information. It should NEVER depend on
 -- ANY module inside the Language.Haskell.Liquid.* tree.
 
-module Liquid.GHC.Misc where
+module  Language.Haskell.Liquid.GHC.Misc where
 
 import           Data.String
 import qualified Data.List as L

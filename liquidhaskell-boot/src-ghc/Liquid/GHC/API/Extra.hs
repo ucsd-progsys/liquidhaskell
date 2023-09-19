@@ -4,7 +4,8 @@
 {-# LANGUAGE RankNTypes #-}
 
 module Liquid.GHC.API.Extra (
-    ApiComment(..)
+    module StableModule
+  , ApiComment(..)
   , apiComments
   , dataConSig
   , desugarModuleIO

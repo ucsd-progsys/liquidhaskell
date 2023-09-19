@@ -7,7 +7,7 @@ where
 import qualified Language.Haskell.Liquid.UX.Config  as UX
 import           Liquid.GHC.API
 import           Control.Arrow                  (second)
-import qualified Liquid.GHC.Misc
+import qualified Language.Haskell.Liquid.GHC.Misc
                                                as GM
 import qualified Data.HashMap.Strict           as M
 
