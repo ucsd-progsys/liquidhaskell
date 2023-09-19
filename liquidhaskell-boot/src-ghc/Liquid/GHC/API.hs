@@ -16,10 +16,8 @@ The intended use of this module is to shelter LiquidHaskell from changes to the 
 
 module Liquid.GHC.API (
     module Ghc
-  , module StableModule
   ) where
 
-import           Liquid.GHC.API.StableModule      as StableModule
 import Liquid.GHC.API.Extra as Ghc
 
 import           GHC                                               as Ghc hiding ( Warning
