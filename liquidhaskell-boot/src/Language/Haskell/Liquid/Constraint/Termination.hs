@@ -26,7 +26,7 @@ import           GHC.Types.Var (Var)
 import           GHC.Types.Name (NamedThing, getSrcSpan)
 import           GHC.Core.TyCon (TyCon)
 import           GHC.Core (Bind, CoreExpr, bindersOf)
-import qualified Liquid.GHC.Misc                    as GM
+import qualified Language.Haskell.Liquid.GHC.Misc                    as GM
 import qualified Language.Fixpoint.Types            as F
 import           Language.Fixpoint.Types.PrettyPrint (PPrint)
 import           Language.Haskell.Liquid.Constraint.Types (CG, CGInfo (..), CGEnv, makeRecInvariants)

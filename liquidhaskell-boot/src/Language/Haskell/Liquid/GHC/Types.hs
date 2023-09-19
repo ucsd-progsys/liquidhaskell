@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
-module Liquid.GHC.Types where
+module Language.Haskell.Liquid.GHC.Types where
 
 import           Data.HashSet (HashSet, fromList)
 import           Data.Hashable

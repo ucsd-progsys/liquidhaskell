@@ -25,7 +25,7 @@ import qualified Data.HashMap.Strict as M
 import Data.List   (find, isPrefixOf, findIndex, elemIndices, intercalate, elemIndex)
 import Data.Char   (isSpace)
 import Text.Printf
-import Liquid.GHC.Misc
+import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types.Errors (panic, impossible)
 
 data AnnMap  = Ann

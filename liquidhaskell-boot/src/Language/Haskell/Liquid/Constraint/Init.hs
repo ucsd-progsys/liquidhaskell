@@ -27,8 +27,8 @@ import qualified Language.Haskell.Liquid.UX.CTags              as Tg
 import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Haskell.Liquid.WiredIn               (dictionaryVar)
-import qualified Liquid.GHC.SpanStack         as Sp
-import           Liquid.GHC.Misc             ( idDataConM, hasBaseTypeVar, isDataConId) -- dropModuleNames, simplesymbol)
+import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
+import           Language.Haskell.Liquid.GHC.Misc             ( idDataConM, hasBaseTypeVar, isDataConId) -- dropModuleNames, simplesymbol)
 import           Liquid.GHC.API               as Ghc
 import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc

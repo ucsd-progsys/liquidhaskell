@@ -3,7 +3,7 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- TODO(#1918): Only needed for GHC <9.0.1.
 
-module Liquid.GHC.Play where
+module Language.Haskell.Liquid.GHC.Play where
 
 import Prelude hiding (error)
 
@@ -13,7 +13,7 @@ import qualified Data.List           as L
 import qualified Data.Maybe          as Mb
 
 import Liquid.GHC.API as Ghc hiding (substTysWith, panic,showPpr)
-import Liquid.GHC.Misc ()
+import Language.Haskell.Liquid.GHC.Misc ()
 import Language.Haskell.Liquid.Types.Errors
 import Language.Haskell.Liquid.Types.Variance
 

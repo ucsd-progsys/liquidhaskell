@@ -13,7 +13,7 @@ module Language.Haskell.Liquid.Transforms.ANF (anormalize) where
 
 import           Debug.Trace (trace)
 import           Prelude                          hiding (error)
-import           Liquid.GHC.TypeRep
+import           Language.Haskell.Liquid.GHC.TypeRep
 import           Liquid.GHC.API  as Ghc hiding ( mkTyArg
                                                                 , showPpr
                                                                 , DsM
@@ -25,14 +25,14 @@ import qualified Language.Fixpoint.Types    as F
 
 import           Language.Haskell.Liquid.UX.Config  as UX
 import qualified Language.Haskell.Liquid.Misc       as Misc
-import           Liquid.GHC.Misc   as GM
+import           Language.Haskell.Liquid.GHC.Misc   as GM
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Transforms.InlineAux
 import           Language.Haskell.Liquid.Transforms.Rewrite
 import           Language.Haskell.Liquid.Types.Errors
 
-import qualified Liquid.GHC.SpanStack as Sp
-import qualified Liquid.GHC.Resugar   as Rs
+import qualified Language.Haskell.Liquid.GHC.SpanStack as Sp
+import qualified Language.Haskell.Liquid.GHC.Resugar   as Rs
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
 import qualified Text.Printf as Printf

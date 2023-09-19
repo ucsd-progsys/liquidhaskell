@@ -24,10 +24,10 @@ import           Language.Fixpoint.Misc
 import qualified Language.Haskell.Liquid.Measure as Ms
 import qualified Language.Fixpoint.Types as F
 import qualified Liquid.GHC.API as Ghc
-import qualified Liquid.GHC.Misc as GM
+import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Transforms.CoreToLogic
-import           Liquid.GHC.Misc
+import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types
 
 import           Language.Haskell.Liquid.Bare.Resolve as Bare

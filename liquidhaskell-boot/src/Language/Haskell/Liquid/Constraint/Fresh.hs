@@ -37,7 +37,7 @@ import           Language.Haskell.Liquid.Types
 -- import           Language.Haskell.Liquid.Types.RefType
 -- import           Language.Haskell.Liquid.Types.Fresh
 import           Language.Haskell.Liquid.Constraint.Types
-import qualified Liquid.GHC.Misc as GM
+import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import           Liquid.GHC.API as Ghc
 
 --------------------------------------------------------------------------------

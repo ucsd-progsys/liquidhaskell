@@ -9,7 +9,7 @@
      to pay the price of a pretty-printing \"roundtrip\".
 -}
 
-module Liquid.GHC.Logging (
+module Language.Haskell.Liquid.GHC.Logging (
     fromPJDoc
   , putWarnMsg
   , mkLongErrAt

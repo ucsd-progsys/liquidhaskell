@@ -36,8 +36,8 @@ import qualified Data.HashSet        as HS
 
 import           Language.Haskell.Liquid.Types.Specs
 import           Liquid.GHC.API         as GHC
-import qualified Liquid.GHC.Interface   as LH
-import           Liquid.GHC.Misc (realSrcLocSourcePos)
+import qualified Language.Haskell.Liquid.GHC.Interface   as LH
+import           Language.Haskell.Liquid.GHC.Misc (realSrcLocSourcePos)
 import           Language.Fixpoint.Types.Names            ( Symbol )
 import           Language.Fixpoint.Types.Spans            ( SourcePos, dummyPos )
 

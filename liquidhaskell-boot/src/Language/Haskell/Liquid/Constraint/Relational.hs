@@ -35,10 +35,10 @@ import           Liquid.GHC.API                 ( Alt
                                                 , TyVar
                                                 , Var(..))
 import qualified Liquid.GHC.API                as Ghc
-import qualified Liquid.GHC.Misc               as GM
-import           Liquid.GHC.Play               (Subable(sub, subTy))
-import qualified Liquid.GHC.SpanStack          as Sp
-import           Liquid.GHC.TypeRep            ()
+import qualified Language.Haskell.Liquid.GHC.Misc               as GM
+import           Language.Haskell.Liquid.GHC.Play               (Subable(sub, subTy))
+import qualified Language.Haskell.Liquid.GHC.SpanStack          as Sp
+import           Language.Haskell.Liquid.GHC.TypeRep            ()
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types                  hiding (Def,
                                                                  Loc, binds,

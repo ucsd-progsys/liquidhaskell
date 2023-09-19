@@ -32,8 +32,8 @@ import           Data.Hashable
 import qualified Language.Fixpoint.Misc                    as Misc
 import           Language.Fixpoint.SortCheck               (checkSorted, checkSortedReftFull, checkSortFull)
 import qualified Language.Fixpoint.Types                   as F
-import qualified Liquid.GHC.Misc          as GM
-import           Liquid.GHC.Play          (getNonPositivesTyCon)
+import qualified Language.Haskell.Liquid.GHC.Misc          as GM
+import           Language.Haskell.Liquid.GHC.Play          (getNonPositivesTyCon)
 import           Language.Haskell.Liquid.Misc              (condNull, thd5)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.WiredIn
