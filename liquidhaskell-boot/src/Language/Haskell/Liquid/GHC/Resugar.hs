@@ -21,7 +21,7 @@ module Language.Haskell.Liquid.GHC.Resugar (
   ) where
 
 import qualified Data.List as L
-import           Liquid.GHC.API  as Ghc hiding (PatBind)
+import           Liquid.GHC.API  as Ghc
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import qualified Language.Fixpoint.Types          as F 
 import qualified Text.PrettyPrint.HughesPJ        as PJ 

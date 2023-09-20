@@ -731,9 +731,6 @@ gHC_VERSION = show (__GLASGOW_HASKELL__ :: Int)
 symbolFastString :: Symbol -> FastString
 symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
 
-lintCoreBindings :: [Var] -> CoreProgram -> (Bag SDoc, Bag SDoc)
-lintCoreBindings = Ghc.lintCoreBindings (defaultDynFlags undefined (undefined ("LlvmTargets" :: String))) CoreDoNothing
-
 synTyConRhs_maybe :: TyCon -> Maybe Type
 synTyConRhs_maybe = Ghc.synTyConRhs_maybe
 

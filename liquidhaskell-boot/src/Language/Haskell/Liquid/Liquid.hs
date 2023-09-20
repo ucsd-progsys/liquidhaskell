@@ -31,7 +31,7 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.UX.Annotate (mkOutput)
 import qualified Language.Haskell.Liquid.Termination.Structural as ST
 import qualified Language.Haskell.Liquid.GHC.Misc          as GM
-import           Liquid.GHC.API as GHC hiding (text, vcat, ($+$), getOpts, (<+>))
+import           Liquid.GHC.API as GHC hiding (text, vcat, ($+$), (<+>))
 
 --------------------------------------------------------------------------------
 checkTargetInfo :: TargetInfo -> IO (Output Doc)
