@@ -194,7 +194,7 @@ If one wishes to save time or is not interested in top speedups/slowdowns, the b
 
 ## Miscelaneous tasks
 
-* **Profiling** See the instructions in [scripts/ProfilingDriver.hs](scripts/ProfilingDriver.hs).
+* **Profiling** See the instructions in [scripts/profiling-driver/ProfilingDriver.hs](scripts/profiling-driver/ProfilingDriver.hs).
 * **Getting stack traces on exceptions** See `-xc` flag in the [GHC user's guide][ghc-users-guide].
 * **Working with submodules** See `man gitsubmodules` or the [git documentation site][git-documentation].
 

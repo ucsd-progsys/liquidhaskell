@@ -25,11 +25,6 @@ flag devel
   description: Enable more warnings and fail compilation when warnings occur.
                Turn this flag on in CI.
 
-flag deterministic-profiling
-  default:     False
-  description: Support building against GHC with <https://phabricator.haskell.org/D4388>
-               backported
-
 custom-setup
   setup-depends: Cabal<4, base<5, liquidhaskell-boot
 
@@ -91,6 +86,3 @@ library
 
   if flag(devel)
     ghc-options:      -Werror
-
-  if flag(deterministic-profiling)
-    cpp-options: -DDETERMINISTIC_PROFILING
