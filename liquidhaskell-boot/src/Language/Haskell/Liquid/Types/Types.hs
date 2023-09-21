@@ -244,7 +244,6 @@ module Language.Haskell.Liquid.Types.Types (
   where
 
 import           Liquid.GHC.API as Ghc hiding ( Expr
-                                                               , Target
                                                                , isFunTy
                                                                , ($+$)
                                                                , nest

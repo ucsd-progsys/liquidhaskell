@@ -53,7 +53,6 @@ import           Liquid.GHC.API as Ghc hiding ( text
                                                                , vcat
                                                                , showPpr
                                                                , mkStableModule
-                                                               , Target
                                                                , Located
                                                                )
 import qualified Liquid.GHC.API as Ghc

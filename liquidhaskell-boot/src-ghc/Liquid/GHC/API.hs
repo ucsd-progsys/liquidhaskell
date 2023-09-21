@@ -10,14 +10,7 @@ it easy to discover breaking changes in the GHC API.
 
 -}
 
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE EmptyDataDecls #-}
-{-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE BangPatterns #-}
 
 module Liquid.GHC.API (
     module Ghc
@@ -25,45 +18,433 @@ module Liquid.GHC.API (
 
 import Liquid.GHC.API.Extra as Ghc
 
-import           GHC                                               as Ghc hiding ( Warning
-                                                                                 , SrcSpan(RealSrcSpan, UnhelpfulSpan)
-                                                                                 , exprType
-                                                                                 )
+import           GHC                  as Ghc
+    ( Backend(Interpreter)
+    , Class
+    , DataCon
+    , DesugaredModule(DesugaredModule, dm_typechecked_module, dm_core_module)
+    , DynFlags(backend, debugLevel, ghcLink, ghcMode)
+    , FixityDirection(InfixN, InfixR)
+    , FixitySig(FixitySig)
+    , GenLocated(L)
+    , GeneralFlag
+        ( Opt_DeferTypedHoles
+        , Opt_Haddock
+        , Opt_ImplicitImportQualified
+        , Opt_KeepRawTokenStream
+        , Opt_PIC
+        )
+    , Ghc
+    , GhcException(CmdLineError, ProgramError)
+    , GhcLink(LinkInMemory)
+    , GhcMode(CompManager)
+    , GhcPs
+    , GhcRn
+    , HsDecl(SigD)
+    , HsExpr(ExprWithTySig, HsOverLit, HsVar)
+    , HsModule(hsmodDecls)
+    , HsOuterTyVarBndrs(HsOuterImplicit)
+    , HsSigType(HsSig)
+    , HsTyVarBndr(UserTyVar)
+    , HsType(HsAppTy, HsForAllTy, HsQualTy, HsTyVar, HsWildCardTy)
+    , HsArg(HsValArg)
+    , HsWildCardBndrs(HsWC)
+    , Id
+    , IdP
+    , Kind
+    , LHsDecl
+    , LHsExpr
+    , LHsType
+    , LImportDecl
+    , LexicalFixity(Prefix)
+    , Located
+    , LocatedN
+    , Logger
+    , ModIface_(mi_anns, mi_exports, mi_globals, mi_module)
+    , ModLocation(ml_hs_file)
+    , ModSummary(ms_hspp_file, ms_hspp_opts, ms_location, ms_mod)
+    , Module
+    , ModuleName
+    , Name
+    , NamedThing
+    , ParsedModule (pm_mod_summary, pm_parsed_source)
+    , PredType
+    , RealSrcLoc
+    , RealSrcSpan
+    , RdrName
+    , Severity(SevWarning)
+    , Sig(InlineSig, FixSig, TypeSig)
+    , SrcLoc
+    , StrictnessMark
+    , TyCon
+    , TyThing(AConLike, ATyCon, AnId)
+    , TyVar
+    , TypecheckedModule(tm_checked_module_info, tm_internals_, tm_parsed_module)
+    , classMethods
+    , classSCTheta
+    , dataConTyCon
+    , dataConFieldLabels
+    , dataConWrapperType
+    , getLocA
+    , getLogger
+    , getName
+    , getOccName
+    , getSession
+    , gopt
+    , hsTypeToHsSigType
+    , hsTypeToHsSigWcType
+    , idDataCon
+    , idType
+    , ideclAs
+    , ideclName
+    , instanceDFunId
+    , isClassOpId_maybe
+    , isClassTyCon
+    , isDictonaryId
+    , isExternalName
+    , isFamilyTyCon
+    , isFunTyCon
+    , isGoodSrcSpan
+    , isLocalId
+    , isNewTyCon
+    , isPrimTyCon
+    , isRecordSelector
+    , isTypeSynonymTyCon
+    , isVanillaDataCon
+    , mkHsApp
+    , mkHsDictLet
+    , mkHsForAllInvisTele
+    , mkHsFractional
+    , mkHsIntegral
+    , mkHsLam
+    , mkModuleName
+    , mkSrcLoc
+    , mkSrcSpan
+    , modInfoTopLevelScope
+    , moduleName
+    , moduleNameString
+    , moduleUnit
+    , ms_mod_name
+    , nameModule
+    , nameSrcSpan
+    , nlHsAppTy
+    , nlHsFunTy
+    , nlHsIf
+    , nlHsTyConApp
+    , nlHsTyVar
+    , nlHsVar
+    , nlList
+    , nlVarPat
+    , noAnn
+    , noAnnSrcSpan
+    , noExtField
+    , noLocA
+    , noSrcSpan
+    , splitForAllTyCoVars
+    , srcLocFile
+    , srcLocCol
+    , srcLocLine
+    , srcSpanEndCol
+    , srcSpanEndLine
+    , srcSpanFile
+    , srcSpanStartCol
+    , srcSpanStartLine
+    , synTyConDefn_maybe
+    , synTyConRhs_maybe
+    , tyConArity
+    , tyConClass_maybe
+    , tyConDataCons
+    , tyConKind
+    , tyConTyVars
+    , unLoc
+    )
 
 import GHC.Builtin.Names              as Ghc
+    ( Uniquable
+    , Unique
+    , and_RDR
+    , bindMName
+    , dATA_FOLDABLE
+    , dollarIdKey
+    , eqClassKey
+    , eqClassName
+    , ge_RDR
+    , gt_RDR
+    , fractionalClassKey
+    , fractionalClassKeys
+    , gHC_REAL
+    , getUnique
+    , hasKey
+    , isStringClassName
+    , itName
+    , le_RDR
+    , lt_RDR
+    , minus_RDR
+    , negateName
+    , not_RDR
+    , numericClassKeys
+    , ordClassKey
+    , ordClassName
+    , plus_RDR
+    , times_RDR
+    , varQual_RDR
+    )
 import GHC.Builtin.Types              as Ghc
+    ( anyTy
+    , boolTy
+    , boolTyCon
+    , boolTyConName
+    , charDataCon
+    , charTyCon
+    , consDataCon
+    , falseDataCon
+    , falseDataConId
+    , intDataCon
+    , intTy
+    , intTyCon
+    , intTyConName
+    , liftedTypeKind
+    , listTyCon
+    , listTyConName
+    , naturalTy
+    , nilDataCon
+    , stringTy
+    , true_RDR
+    , trueDataCon
+    , trueDataConId
+    , tupleDataCon
+    , tupleTyCon
+    , typeSymbolKind
+    )
 import GHC.Builtin.Types.Prim         as Ghc
+    ( eqPrimTyCon
+    , eqReprPrimTyCon
+    , primTyCons
+    )
 import GHC.Builtin.Utils              as Ghc
-import GHC.Core                       as Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase)
-import GHC.Core.Class                 as Ghc hiding (FunDep)
+    ( isNumericClass )
+import GHC.Core                       as Ghc
+    ( Alt(Alt)
+    , AltCon(DEFAULT, DataAlt, LitAlt)
+    , Arg
+    , Bind(NonRec, Rec)
+    , CoreAlt
+    , CoreArg
+    , CoreBind
+    , CoreBndr
+    , CoreExpr
+    , CoreProgram
+    , Expr(App, Case, Cast, Coercion, Lam, Let, Lit, Tick, Type, Var)
+    , Unfolding(CoreUnfolding, DFunUnfolding, uf_tmpl)
+    , bindersOf
+    , cmpAlt
+    , collectArgs
+    , collectBinders
+    , collectTyAndValBinders
+    , collectTyBinders
+    , flattenBinds
+    , isId
+    , isTypeArg
+    , maybeUnfoldingTemplate
+    , mkApps
+    , mkLams
+    , mkTyApps
+    , mkTyArg
+    )
+import GHC.Core.Class                 as Ghc
+    ( classAllSelIds
+    , classBigSig
+    , classSCSelIds
+    , Class
+       ( classKey
+       , className
+       , classTyCon
+       , classTyVars
+       )
+    )
 import GHC.Core.Coercion              as Ghc
+    ( Role
+    , Var
+    , coercionKind
+    , isCoVar
+    , mkRepReflCo
+    )
 import GHC.Core.Coercion.Axiom        as Ghc
+    ( Branched
+    , CoAxiom
+    , CoAxiomRule(CoAxiomRule)
+    , coAxiomTyCon
+    )
 import GHC.Core.ConLike               as Ghc
+    ( ConLike(RealDataCon) )
 import GHC.Core.DataCon               as Ghc
-import GHC.Core.FamInstEnv            as Ghc hiding (pprFamInst)
+    ( FieldLabel(flSelector)
+    , classDataCon
+    , dataConExTyCoVars
+    , dataConFullSig
+    , dataConImplicitTyThings
+    , dataConInstArgTys
+    , dataConName
+    , dataConOrigArgTys
+    , dataConRepArgTys
+    , dataConRepType
+    , dataConRepStrictness
+    , dataConTheta
+    , dataConUnivTyVars
+    , dataConWorkId
+    , dataConWrapId
+    , dataConWrapId_maybe
+    , isTupleDataCon
+    )
+import GHC.Core.FamInstEnv            as Ghc
+    ( FamFlavor(DataFamilyInst)
+    , FamInst(FamInst, fi_flavor)
+    , FamInstEnv
+    , FamInstEnvs
+    , emptyFamInstEnv
+    , famInstEnvElts
+    , topNormaliseType_maybe
+    )
 import GHC.Core.InstEnv               as Ghc
-import GHC.Core.Lint                  as Ghc hiding (dumpIfSet)
+    ( ClsInst(is_cls, is_dfun, is_dfun_name, is_tys)
+    , DFunId
+    , instEnvElts
+    , instanceSig
+    )
 import GHC.Core.Make                  as Ghc
-import GHC.Core.Opt.Monad             as Ghc (CoreToDo(..))
-import GHC.Core.Opt.WorkWrap.Utils    as Ghc
+    ( mkCoreApps
+    , mkCoreConApps
+    , mkCoreLams
+    , mkCoreLets
+    , pAT_ERROR_ID
+    )
 import GHC.Core.Predicate             as Ghc (getClassPredTys_maybe, getClassPredTys, isEvVarType, isEqPrimPred, isEqPred, isClassPred, isDictId, mkClassPred)
 import GHC.Core.Subst                 as Ghc (deShadowBinds, emptySubst, extendCvSubst)
 import GHC.Core.TyCo.Rep              as Ghc
+    ( AnonArgFlag(VisArg)
+    , ArgFlag(Required)
+    , Coercion
+        ( AppCo
+        , AxiomRuleCo
+        , AxiomInstCo
+        , CoVarCo
+        , ForAllCo
+        , FunCo
+        , InstCo
+        , KindCo
+        , LRCo
+        , NthCo
+        , SubCo
+        , SymCo
+        , TransCo
+        , TyConAppCo
+        , UnivCo
+        )
+    , TyLit(CharTyLit, NumTyLit, StrTyLit)
+    , Type
+        ( AppTy
+        , CastTy
+        , CoercionTy
+        , ForAllTy
+        , FunTy
+        , LitTy
+        , TyConApp
+        , TyVarTy
+        , ft_arg
+        , ft_res
+        )
+    , UnivCoProvenance(PhantomProv, ProofIrrelProv)
+    , binderVar
+    , mkForAllTys
+    , mkFunTy
+    , mkTyVarTy
+    , mkTyVarTys
+    )
 import GHC.Core.TyCon                 as Ghc
-import GHC.Core.Type                  as Ghc hiding (typeKind , isPredTy, extendCvSubst, linear)
+    ( TyConBinder
+    , TyConBndrVis(AnonTCB)
+    , isAlgTyCon
+    , isBoxedTupleTyCon
+    , isFamInstTyCon
+    , isGadtSyntaxTyCon
+    , isPromotedDataCon
+    , isTupleTyCon
+    , isVanillaAlgTyCon
+    , mkKindTyCon
+    , newTyConRhs
+    , tyConBinders
+    , tyConDataCons_maybe
+    , tyConFamInst_maybe
+    , tyConName
+    , tyConSingleDataCon_maybe
+    )
+import GHC.Core.Type                  as Ghc
+    ( Specificity(SpecifiedSpec)
+    , TyVarBinder
+    , pattern Many
+    , classifiesTypeWithValues
+    , dropForAlls
+    , emptyTvSubstEnv
+    , eqType
+    , expandTypeSynonyms
+    , irrelevantMult
+    , isFunTy
+    , isTyVar
+    , isTyVarTy
+    , mkTvSubstPrs
+    , mkTyConApp
+    , newTyConInstRhs
+    , nonDetCmpType
+    , piResultTys
+    , splitAppTys
+    , splitFunTy_maybe
+    , splitFunTys
+    , splitTyConApp
+    , splitTyConApp_maybe
+    , substTy
+    , substTyWith
+    , tyConAppArgs_maybe
+    , tyConAppTyCon_maybe
+    , tyVarKind
+    , varType
+    )
 import GHC.Core.Unify                 as Ghc
+    ( ruleMatchTyKiX, tcUnifyTy )
 import GHC.Core.Utils                 as Ghc (exprType)
 import GHC.Data.Bag                   as Ghc
+    ( Bag, bagToList )
 import GHC.Data.FastString            as Ghc
-import GHC.Data.Graph.Directed        as Ghc
+    ( FastString
+    , bytesFS
+    , concatFS
+    , fsLit
+    , mkFastString
+    , mkFastStringByteString
+    , sLit
+    , uniq
+    , unpackFS
+    )
 import GHC.Data.Pair                  as Ghc
+    ( Pair(Pair) )
 import GHC.Driver.Main                as Ghc
+    ( hscDesugar
+    , hscTcRcLookupName
+    )
 import GHC.Driver.Phases              as Ghc (Phase(StopLn))
 import GHC.Driver.Pipeline            as Ghc (compileFile)
 import GHC.Driver.Session             as Ghc
+    ( WarnReason(NoReason)
+    , defaultDynFlags
+    , getDynFlags
+    , gopt_set
+    , updOptLevel
+    , xopt_set
+    )
 import GHC.Driver.Monad               as Ghc (withSession)
 import GHC.HsToCore.Monad             as Ghc
+    ( DsM, initDsTc, initDsWithModGuts, newUnique )
 import GHC.Iface.Syntax               as Ghc
+    ( IfaceAnnotation(ifAnnotatedValue) )
 import GHC.Plugins                    as Ghc ( deserializeWithData
                                              , fromSerialized
                                              , toSerialized

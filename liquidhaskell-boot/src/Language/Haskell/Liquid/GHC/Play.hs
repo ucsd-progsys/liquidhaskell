@@ -12,7 +12,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 import qualified Data.Maybe          as Mb
 
-import Liquid.GHC.API as Ghc hiding (substTysWith, panic,showPpr)
+import Liquid.GHC.API as Ghc hiding (panic, showPpr)
 import Language.Haskell.Liquid.GHC.Misc ()
 import Language.Haskell.Liquid.Types.Errors
 import Language.Haskell.Liquid.Types.Variance

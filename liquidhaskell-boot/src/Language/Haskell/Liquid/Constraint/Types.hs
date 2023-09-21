@@ -68,7 +68,6 @@ import           Liquid.GHC.API    as Ghc hiding ( (<+>)
                                                                   , vcat
                                                                   , parens
                                                                   , ($+$)
-                                                                  , LC
                                                                   )
 import           Language.Haskell.Liquid.Misc           (thrd3)
 import           Language.Haskell.Liquid.WiredIn        (wiredSortedSyms)

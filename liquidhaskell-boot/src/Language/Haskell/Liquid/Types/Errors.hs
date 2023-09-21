@@ -85,7 +85,6 @@ import           Liquid.GHC.API as Ghc hiding ( Expr
                                                                , panic
                                                                , int
                                                                , hcat
-                                                               , spans
                                                                )
 import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr, SubcId)
 import qualified Language.Fixpoint.Misc       as Misc

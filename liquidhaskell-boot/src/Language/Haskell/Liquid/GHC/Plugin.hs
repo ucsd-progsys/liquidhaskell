@@ -16,7 +16,7 @@ module Language.Haskell.Liquid.GHC.Plugin (
   ) where
 
 import qualified Liquid.GHC.API         as O
-import           Liquid.GHC.API         as GHC hiding (Target, Type)
+import           Liquid.GHC.API         as GHC hiding (Type)
 import qualified Text.PrettyPrint.HughesPJ               as PJ
 import qualified Language.Fixpoint.Types                 as F
 import qualified  Language.Haskell.Liquid.GHC.Misc        as LH
@@ -404,7 +404,7 @@ loadDependencies currentModuleConfig thisModule mods = do
   hscEnv    <- env_top <$> getEnv
   results   <- SpecFinder.findRelevantSpecs
                  (excludeAutomaticAssumptionsFor currentModuleConfig) hscEnv mods
-  deps      <- foldlM processResult mempty (reverse results)
+  deps      <- foldM processResult mempty (reverse results)
   redundant <- liftIO $ configToRedundantDependencies hscEnv currentModuleConfig
 
   debugLog $ "Redundant dependencies ==> " ++ show redundant
