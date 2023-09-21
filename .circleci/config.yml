@@ -88,7 +88,7 @@ commands:
       - run:
           name: Test building the profiling driver
           command: |
-            cabal exec -- ghc scripts/ProfilingDriver.hs
+            cabal build --enable-profiling --flag devel scripts/profiling-driver
 
   stack_build_and_test:
     description: "Build and test the project using Stack"

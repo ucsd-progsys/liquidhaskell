@@ -7,18 +7,17 @@
 --
 -- Then build this program.
 --
--- > cabal exec --enable-profiling -- ghc -prof scripts/ProfilingDriver.hs
+-- > cabal build --enable-profiling scripts/profiling-driver
 --
 -- Then run the liquidhaskell executable pointing it to this driver with
 -- the LIQUID_GHC_PATH env var.
 --
--- > LIQUID_GHC_PATH=scripts/ProfilingDriver liquidhaskell_datadir=$PWD/liquidhaskell-boot \
+-- > LIQUID_GHC_PATH=path/to/profiling-driver liquidhaskell_datadir=$PWD/liquidhaskell-boot \
 -- >   cabal exec -- liquidhaskell +RTS -p -RTS tests/pos/Bag.hs
 --
 module Main where
 
 import GHC as G
-import GHC.Driver.Session as G
 
 import Control.Monad
 import Control.Monad.IO.Class
@@ -33,7 +32,7 @@ main = do
       df1 <- getSessionDynFlags
       let cmdOpts = ["-fforce-recomp"] ++ filter ("--make" /=) xs
       logger <- liftIO G.initLogger
-      (df2, leftovers, warns) <- G.parseDynamicFlags logger df1 (map G.noLoc cmdOpts)
+      (df2, leftovers, _warns) <- G.parseDynamicFlags logger df1 (map G.noLoc cmdOpts)
       setSessionDynFlags df2
       ts <- mapM (flip G.guessTarget Nothing) $ map unLoc leftovers
       setTargets ts
