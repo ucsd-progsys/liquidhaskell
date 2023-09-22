@@ -7,6 +7,7 @@ module Liquid.GHC.API.Extra (
     module StableModule
   , ApiComment(..)
   , apiComments
+  , apiCommentsParsedSource
   , dataConSig
   , desugarModuleIO
   , fsToUnitId
@@ -163,12 +164,15 @@ desugarModuleIO hscEnv originalModSum typechecked = do
 data ApiComment
   = ApiLineComment String
   | ApiBlockComment String
-  deriving Show
+  deriving (Eq, Show)
 
 -- | Extract top-level comments from a module.
 apiComments :: ParsedModule -> [Ghc.Located ApiComment]
-apiComments pm =
-    let hs = unLoc (pm_parsed_source pm)
+apiComments pm = apiCommentsParsedSource (pm_parsed_source pm)
+
+apiCommentsParsedSource :: Located HsModule -> [Ghc.Located ApiComment]
+apiCommentsParsedSource ps =
+    let hs = unLoc ps
         go :: forall a. Data a => a -> [LEpaComment]
         go = gmapQr (++) [] go `extQ` (id @[LEpaComment])
      in Data.List.sortOn (spanToLineColumn . getLoc) $
