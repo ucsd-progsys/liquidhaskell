@@ -646,24 +646,6 @@ instance Simplify C.CoreExpr where
   inline _ (C.Coercion c)      = C.Coercion c
   inline _ (C.Type t)          = C.Type t
 
-isPatErrorAlt :: CoreAlt -> Bool
-isPatErrorAlt (Alt _ _ exprCoreBndr) = hasPatErrorCall exprCoreBndr
-  where
-   hasPatErrorCall :: C.CoreExpr -> Bool
-   -- auto generated undefined case: (\_ -> (patError @levity @type "error message")) void
-   -- Type arguments are erased before calling isUndefined
-   hasPatErrorCall (C.App (C.Var x) _)
-     | show x `elem` perrors = True
-   -- another auto generated undefined case:
-   -- let lqanf_... = patError "error message") in case lqanf_... of {}
-   hasPatErrorCall (C.Let (C.NonRec x e) (C.Case (C.Var v) _ _ []))
-     | x == v = hasPatErrorCall e
-   hasPatErrorCall (C.Let _ e) = hasPatErrorCall e
-   -- otherwise
-   hasPatErrorCall _ = False
-
-   perrors = ["Control.Exception.Base.patError"]
-
 
 instance Simplify C.CoreBind where
   simplify allowTC (C.NonRec x e) = C.NonRec x (simplify allowTC e)
