@@ -39,6 +39,7 @@ import qualified Data.Set as S
 import GHC.Core                       as Ghc
 import GHC.Core.Coercion              as Ghc
 import GHC.Core.DataCon               as Ghc
+import GHC.Core.Make                  (pAT_ERROR_ID)
 import GHC.Core.Type                  as Ghc hiding (typeKind , isPredTy, extendCvSubst, linear)
 import GHC.Data.FastString            as Ghc
 import qualified GHC.Data.EnumSet as EnumSet
@@ -233,8 +234,7 @@ isPatErrorAlt (Alt _ _ exprCoreBndr) = hasPatErrorCall exprCoreBndr
    hasPatErrorCall :: CoreExpr -> Bool
    -- auto generated undefined case: (\_ -> (patError @levity @type "error message")) void
    -- Type arguments are erased before calling isUndefined
-   hasPatErrorCall (App (Var x) _)
-     | qualifiedNameFS (getName x) `elem` perrors = True
+   hasPatErrorCall (App (Var x) _) = x == pAT_ERROR_ID
    -- another auto generated undefined case:
    -- let lqanf_... = patError "error message") in case lqanf_... of {}
    hasPatErrorCall (Let (NonRec x e) (Case (Var v) _ _ []))
@@ -243,7 +243,6 @@ isPatErrorAlt (Alt _ _ exprCoreBndr) = hasPatErrorCall exprCoreBndr
    -- otherwise
    hasPatErrorCall _ = False
 
-   perrors = [mkFastString "Control.Exception.Base.patError"]
 
 qualifiedNameFS :: Name -> FastString
 qualifiedNameFS n = concatFS [modFS, occFS, uniqFS]
