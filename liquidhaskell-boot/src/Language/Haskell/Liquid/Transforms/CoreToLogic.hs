@@ -647,20 +647,20 @@ instance Simplify C.CoreExpr where
   inline _ (C.Type t)          = C.Type t
 
 isPatErrorAlt :: CoreAlt -> Bool
-isPatErrorAlt (Alt _ _ exprCoreBndr) = isUndefinedExpr exprCoreBndr
+isPatErrorAlt (Alt _ _ exprCoreBndr) = hasPatErrorCall exprCoreBndr
   where
-   isUndefinedExpr :: C.CoreExpr -> Bool
+   hasPatErrorCall :: C.CoreExpr -> Bool
    -- auto generated undefined case: (\_ -> (patError @levity @type "error message")) void
    -- Type arguments are erased before calling isUndefined
-   isUndefinedExpr (C.App (C.Var x) _)
+   hasPatErrorCall (C.App (C.Var x) _)
      | show x `elem` perrors = True
    -- another auto generated undefined case:
    -- let lqanf_... = patError "error message") in case lqanf_... of {}
-   isUndefinedExpr (C.Let (C.NonRec x e) (C.Case (C.Var v) _ _ []))
-     | x == v = isUndefinedExpr e
-   isUndefinedExpr (C.Let _ e) = isUndefinedExpr e
+   hasPatErrorCall (C.Let (C.NonRec x e) (C.Case (C.Var v) _ _ []))
+     | x == v = hasPatErrorCall e
+   hasPatErrorCall (C.Let _ e) = hasPatErrorCall e
    -- otherwise
-   isUndefinedExpr _ = False
+   hasPatErrorCall _ = False
 
    perrors = ["Control.Exception.Base.patError"]
 
