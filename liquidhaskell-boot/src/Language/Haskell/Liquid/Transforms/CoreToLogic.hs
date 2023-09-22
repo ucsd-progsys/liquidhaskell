@@ -623,7 +623,7 @@ instance Simplify C.CoreExpr where
     = -- Misc.traceShow ("To simplify allowTC case") $ 
        sub (M.singleton x (simplify allowTC e)) (simplify allowTC ee)
   simplify allowTC (C.Case e x t alts)
-    = C.Case (simplify allowTC e) x t (filter (not . isUndefined) (simplify allowTC <$> alts))
+    = C.Case (simplify allowTC e) x t (filter (not . isPatErrorAlt) (simplify allowTC <$> alts))
   simplify allowTC (C.Cast e c)
     = C.Cast (simplify allowTC e) c
   simplify allowTC (C.Tick _ e)
@@ -646,8 +646,8 @@ instance Simplify C.CoreExpr where
   inline _ (C.Coercion c)      = C.Coercion c
   inline _ (C.Type t)          = C.Type t
 
-isUndefined :: CoreAlt -> Bool
-isUndefined (Alt _ _ exprCoreBndr) = isUndefinedExpr exprCoreBndr
+isPatErrorAlt :: CoreAlt -> Bool
+isPatErrorAlt (Alt _ _ exprCoreBndr) = isUndefinedExpr exprCoreBndr
   where
    isUndefinedExpr :: C.CoreExpr -> Bool
    -- auto generated undefined case: (\_ -> (patError @levity @type "error message")) void
