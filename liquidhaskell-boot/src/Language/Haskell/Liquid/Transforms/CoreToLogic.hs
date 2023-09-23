@@ -623,7 +623,7 @@ instance Simplify C.CoreExpr where
     = -- Misc.traceShow ("To simplify allowTC case") $ 
        sub (M.singleton x (simplify allowTC e)) (simplify allowTC ee)
   simplify allowTC (C.Case e x t alts)
-    = C.Case (simplify allowTC e) x t (filter (not . isUndefined) (simplify allowTC <$> alts))
+    = C.Case (simplify allowTC e) x t (filter (not . isPatErrorAlt) (simplify allowTC <$> alts))
   simplify allowTC (C.Cast e c)
     = C.Cast (simplify allowTC e) c
   simplify allowTC (C.Tick _ e)
@@ -645,24 +645,6 @@ instance Simplify C.CoreExpr where
   inline _ (C.Lit l)           = C.Lit l
   inline _ (C.Coercion c)      = C.Coercion c
   inline _ (C.Type t)          = C.Type t
-
-isUndefined :: CoreAlt -> Bool
-isUndefined (Alt _ _ exprCoreBndr) = isUndefinedExpr exprCoreBndr
-  where
-   isUndefinedExpr :: C.CoreExpr -> Bool
-   -- auto generated undefined case: (\_ -> (patError @levity @type "error message")) void
-   -- Type arguments are erased before calling isUndefined
-   isUndefinedExpr (C.App (C.Var x) _)
-     | show x `elem` perrors = True
-   -- another auto generated undefined case:
-   -- let lqanf_... = patError "error message") in case lqanf_... of {}
-   isUndefinedExpr (C.Let (C.NonRec x e) (C.Case (C.Var v) _ _ []))
-     | x == v = isUndefinedExpr e
-   isUndefinedExpr (C.Let _ e) = isUndefinedExpr e
-   -- otherwise
-   isUndefinedExpr _ = False
-
-   perrors = ["Control.Exception.Base.patError"]
 
 
 instance Simplify C.CoreBind where

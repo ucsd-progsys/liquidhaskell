@@ -434,7 +434,6 @@ import GHC.Driver.Phases              as Ghc (Phase(StopLn))
 import GHC.Driver.Pipeline            as Ghc (compileFile)
 import GHC.Driver.Session             as Ghc
     ( WarnReason(NoReason)
-    , defaultDynFlags
     , getDynFlags
     , gopt_set
     , updOptLevel
