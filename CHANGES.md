@@ -1,8 +1,8 @@
 # Changes
 
-## 0.9.2.7.0
+## 0.9.2.8.0
 
-- Support for GHC 9.2.7
+- Support for GHC 9.2.8
 - Moved from wrapper packages to packages with assumptions to streamline specification maintenance
 - **breaking change** Removed the implicit types mechanism
 - **breaking change** Removed the `decrease` mechanism in favor of the terminating expressions syntax (`/ [a,b]`)

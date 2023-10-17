@@ -1,6 +1,6 @@
 cabal-version:      2.4
 name:               liquidhaskell-boot
-version:            0.9.2.7.0
+version:            0.9.2.8.0
 synopsis:           Liquid Types for Haskell
 description:        Liquid Types for Haskell.
 license:            BSD-3-Clause
@@ -10,7 +10,7 @@ maintainer:         Ranjit Jhala <jhala@cs.ucsd.edu>
 category:           Language
 homepage:           https://github.com/ucsd-progsys/liquidhaskell
 build-type:         Simple
-tested-with:        GHC == 9.2.7
+tested-with:        GHC == 9.2.8
 
 data-files:         include/CoreToLogic.lg
                     syntax/liquid.css
