@@ -2,7 +2,10 @@ cabal-version:      2.4
 name:               liquidhaskell-boot
 version:            0.9.2.5.0
 synopsis:           Liquid Types for Haskell
-description:        Liquid Types for Haskell.
+description:        This package provides a plugin to verify Haskell programs.
+                    But most likely you should be using the [liquidhaskell package](https://hackage.haskell.org/package/liquidhaskell)
+                    instead, which rexports this plugin together with necessary
+                    specifications for definitions in the boot libraries.
 license:            BSD-3-Clause
 copyright:          2010-19 Ranjit Jhala & Niki Vazou & Eric L. Seidel, University of California, San Diego.
 author:             Ranjit Jhala, Niki Vazou, Eric Seidel
