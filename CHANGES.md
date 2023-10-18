@@ -2,6 +2,16 @@
 
 ## NEXT 0.9.XX
 
+## 0.9.2.5
+
+- Introduce package liquidhaskell-boot and eliminate wrapper packages for boot libraries
+- List all definitions used from the GHC API
+- Allow LH to verify modules in parallel (remove withArgs call)
+- Remove some calls to HashMap.toList which caused some non-determinisms in different machines
+- Implement a Haskell script to plot performance without gnuplot
+
+## 0.9.0.2
+
 - **breaking change** Remove the implicit types mechanism and corresponding tests
 - **breaking change** Remove the `decrease` keyword and mechanism in favor of the terminating expressions syntax (`/ [a,b]`)
 
