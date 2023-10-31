@@ -37,7 +37,7 @@ import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Specs   hiding (BareSpec)
 import           Liquid.GHC.API       as Ghc hiding (Located, Env)
-import           Liquid.GHC.Types     (StableName)
+import           Language.Haskell.Liquid.GHC.Types     (StableName)
 
 
 type ModSpecs = M.HashMap ModName Ms.BareSpec

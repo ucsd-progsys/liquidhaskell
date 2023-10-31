@@ -15,7 +15,7 @@ import           Language.Haskell.Liquid.Types hiding (loc)
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Fixpoint.Misc hiding (errorstar)
-import           Liquid.GHC.Misc -- (concatMapM)
+import           Language.Haskell.Liquid.GHC.Misc -- (concatMapM)
 import           Liquid.GHC.API as Ghc hiding (panic, showPpr)
 
 --------------------------------------------------------------------------------

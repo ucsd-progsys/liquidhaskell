@@ -28,7 +28,7 @@ import qualified Data.HashSet                           as S
 import qualified Data.Maybe                             as Mb
 
 import qualified Language.Fixpoint.Types                as F
-import qualified Liquid.GHC.Misc       as GM
+import qualified Language.Haskell.Liquid.GHC.Misc       as GM
 import qualified Liquid.GHC.API        as Ghc
 import           Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
 import qualified Language.Haskell.Liquid.Types.RefType  as RT

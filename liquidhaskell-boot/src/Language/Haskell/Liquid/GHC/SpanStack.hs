@@ -1,6 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 
-module Liquid.GHC.SpanStack
+module Language.Haskell.Liquid.GHC.SpanStack
    ( -- * Stack of positions
      Span (..)
    , SpanStack
@@ -17,7 +17,7 @@ module Liquid.GHC.SpanStack
 
 import           Prelude                   hiding (error)
 import           Data.Maybe                       (listToMaybe, fromMaybe)
-import           Liquid.GHC.Misc (tickSrcSpan, showPpr)
+import           Language.Haskell.Liquid.GHC.Misc (tickSrcSpan, showPpr)
 import qualified Liquid.GHC.API  as Ghc
 import           Liquid.GHC.API  ( SrcSpan
                                                   , fsLit

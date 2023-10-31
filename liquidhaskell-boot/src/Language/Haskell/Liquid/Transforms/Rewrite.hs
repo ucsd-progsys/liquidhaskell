@@ -25,15 +25,15 @@ module Language.Haskell.Liquid.Transforms.Rewrite
   ) where
 
 import           Liquid.GHC.API as Ghc hiding (showPpr, substExpr)
-import           Liquid.GHC.TypeRep ()
+import           Language.Haskell.Liquid.GHC.TypeRep ()
 import           Data.Maybe     (fromMaybe)
 import           Control.Monad.State hiding (lift)
 import           Language.Fixpoint.Misc       ({- mapFst, -}  mapSnd)
 import qualified          Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Misc (safeZipWithError, Nat)
-import           Liquid.GHC.Play (substExpr)
-import           Liquid.GHC.Resugar
-import           Liquid.GHC.Misc (unTickExpr, isTupleId, showPpr, mkAlive) -- , showPpr, tracePpr)
+import           Language.Haskell.Liquid.GHC.Play (substExpr)
+import           Language.Haskell.Liquid.GHC.Resugar
+import           Language.Haskell.Liquid.GHC.Misc (unTickExpr, isTupleId, showPpr, mkAlive) -- , showPpr, tracePpr)
 import           Language.Haskell.Liquid.UX.Config  (Config, noSimplifyCore)
 import qualified Data.List as L
 import qualified Data.HashMap.Strict as M

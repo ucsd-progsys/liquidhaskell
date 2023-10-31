@@ -51,8 +51,8 @@ commands:
       - run: git ls-tree HEAD liquid-fixpoint > liquid-fixpoint-commit
       - restore_cache:
           keys:
-            - cabal-cache-v3-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
-            - cabal-cache-v3-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}
+            - cabal-cache-v3-{{ checksum "liquidhaskell-boot/liquidhaskell-boot.cabal" }}-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
+            - cabal-cache-v3-{{ checksum "liquidhaskell-boot/liquidhaskell-boot.cabal" }}-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}
       - run:
           name: Dependencies
           command: |
@@ -65,9 +65,9 @@ commands:
             echo 'export PATH=~/.ghcup/bin:$PATH' >> $BASH_ENV
             << parameters.cabal_update_command >>
             cabal v2-clean
-            cabal v2-build --project-file << parameters.project_file >> --flag devel -j --enable-tests liquidhaskell-parser liquid-prelude liquid-parallel liquid-vector liquid-platform test-driver
+            cabal v2-build --project-file << parameters.project_file >> --flag devel -j --enable-tests liquidhaskell-boot liquid-prelude liquid-parallel liquid-vector liquid-platform test-driver
       - save_cache:
-          key: cabal-cache-v3-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
+          key: cabal-cache-v3-{{ checksum "liquidhaskell-boot/liquidhaskell-boot.cabal" }}-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
           paths:
             - ~/.cabal/store
             - ~/.ghcup
@@ -82,13 +82,13 @@ commands:
           command: |
             LIQUID_CABAL_PROJECT_FILE=<<parameters.project_file>> cabal v2-run --project-file << parameters.project_file >> test-driver || (<<parameters.allow_test_failures>>)
             cabal v2-test --project-file << parameters.project_file >> tests:tasty || (<<parameters.allow_test_failures>>)
-            (liquidhaskell_datadir=$PWD/liquidhaskell-boot cabal v2-test -j1 --project-file << parameters.project_file >> liquidhaskell-boot:liquidhaskell-parser --flag devel --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml") || (<<parameters.allow_test_failures>>)
+            (cabal v2-test -j1 --project-file << parameters.project_file >> --enable-test liquidhaskell-boot --flag devel --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml") || (<<parameters.allow_test_failures>>)
           no_output_timeout: 30m
 
       - run:
           name: Test building the profiling driver
           command: |
-            cabal exec -- ghc scripts/ProfilingDriver.hs
+            cabal build --enable-profiling --flag devel scripts/profiling-driver
 
   stack_build_and_test:
     description: "Build and test the project using Stack"
@@ -108,8 +108,8 @@ commands:
       - run: git ls-tree HEAD liquid-fixpoint > liquid-fixpoint-commit
       - restore_cache:
           keys:
-            - stack-cache-v1-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "liquid-fixpoint-commit" }}
-            - stack-cache-v1-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell.cabal" }}
+            - stack-cache-v1-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell-boot/liquidhaskell-boot.cabal" }}-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "liquid-fixpoint-commit" }}
+            - stack-cache-v1-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell-boot/liquidhaskell-boot.cabal" }}-{{ checksum "liquidhaskell.cabal" }}
             - stack-cache-v1-{{ checksum "<< parameters.stack_yaml_file >>" }}
       - run:
           name: Dependencies
@@ -118,7 +118,7 @@ commands:
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> setup
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> build -j4 --only-dependencies --test --no-run-tests << parameters.extra_build_flags >>
       - save_cache:
-          key: stack-cache-v1-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "liquid-fixpoint-commit" }}
+          key: stack-cache-v1-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell-boot/liquidhaskell-boot.cabal" }}-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "liquid-fixpoint-commit" }}
           paths:
             - ~/.stack
             - ./.stack-work
@@ -129,7 +129,7 @@ commands:
             mkdir -p /tmp/junit/stack
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> run test-driver
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> test tests:tasty
-            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell-boot:liquidhaskell-parser << parameters.extra_build_flags >>
+            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell-boot << parameters.extra_build_flags >>
           no_output_timeout: 30m
       - run:
           name: Generate haddock

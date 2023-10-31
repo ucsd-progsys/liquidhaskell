@@ -18,7 +18,7 @@
 -- accessing GHC module information. It should NEVER depend on
 -- ANY module inside the Language.Haskell.Liquid.* tree.
 
-module Liquid.GHC.Misc where
+module  Language.Haskell.Liquid.GHC.Misc where
 
 import           Data.String
 import qualified Data.List as L
@@ -189,15 +189,12 @@ pprDoc    = sDocDoc . ppr
 
 -- Overriding Outputable functions because they now require DynFlags!
 showPpr :: Outputable a => a -> String
-showPpr       = showSDoc . ppr
+showPpr = Ghc.showPprQualified
 
 -- FIXME: somewhere we depend on this printing out all GHC entities with
 -- fully-qualified names...
 showSDoc :: Ghc.SDoc -> String
-showSDoc = Ghc.renderWithContext ctx
-  where
-    style = Ghc.mkUserStyle myQualify Ghc.AllTheWay
-    ctx = Ghc.defaultSDocContext { sdocStyle = style }
+showSDoc = Ghc.showSDocQualified
 
 myQualify :: Ghc.PrintUnqualified
 myQualify = Ghc.neverQualify { Ghc.queryQualifyName = Ghc.alwaysQualifyNames }
@@ -486,19 +483,7 @@ exportedVarSymbol x = notracepp msg . symbol . getName $ x
     msg = "exportedVarSymbol: " ++ showPpr x
 
 qualifiedNameSymbol :: Name -> Symbol
-qualifiedNameSymbol n = symbol $ concatFS [modFS, occFS, uniqFS]
-  where
-  _msg   = showSDoc (ppr n) -- getOccString n
-  modFS = case nameModule_maybe n of
-            Nothing -> fsLit ""
-            Just m  -> concatFS [moduleNameFS (moduleName m), fsLit "."]
-
-  occFS = occNameFS (getOccName n)
-  uniqFS
-    | isSystemName n
-    = concatFS [fsLit "_",  fsLit (showPpr (getUnique n))]
-    | otherwise
-    = fsLit ""
+qualifiedNameSymbol = symbol . Ghc.qualifiedNameFS
 
 instance Symbolic FastString where
   symbol = symbol . fastStringText
@@ -730,9 +715,6 @@ gHC_VERSION = show (__GLASGOW_HASKELL__ :: Int)
 
 symbolFastString :: Symbol -> FastString
 symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
-
-lintCoreBindings :: [Var] -> CoreProgram -> (Bag SDoc, Bag SDoc)
-lintCoreBindings = Ghc.lintCoreBindings (defaultDynFlags undefined (undefined ("LlvmTargets" :: String))) CoreDoNothing
 
 synTyConRhs_maybe :: TyCon -> Maybe Type
 synTyConRhs_maybe = Ghc.synTyConRhs_maybe

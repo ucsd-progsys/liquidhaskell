@@ -22,7 +22,7 @@ import qualified Data.Maybe                    as Mb
 import qualified Language.Fixpoint.Types       as F
 import qualified Language.Fixpoint.Misc        as Misc
 import           Language.Haskell.Liquid.Bare.Elaborate
-import qualified Liquid.GHC.Misc
+import qualified Language.Haskell.Liquid.GHC.Misc
                                                as GM
 import qualified Liquid.GHC.API
                                                as Ghc

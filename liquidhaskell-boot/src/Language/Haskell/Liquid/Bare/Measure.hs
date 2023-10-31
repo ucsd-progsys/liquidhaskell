@@ -35,7 +35,7 @@ import qualified Language.Fixpoint.Misc                as Misc
 import qualified Language.Haskell.Liquid.Misc          as Misc
 import           Language.Haskell.Liquid.Misc             ((.||.))
 import qualified Liquid.GHC.API       as Ghc
-import qualified Liquid.GHC.Misc      as GM
+import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Types
 -- import           Language.Haskell.Liquid.Types.Bounds

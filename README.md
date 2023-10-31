@@ -2,7 +2,6 @@
 
 
 [![Hackage](https://img.shields.io/hackage/v/liquidhaskell.svg)](https://hackage.haskell.org/package/liquidhaskell) [![Hackage-Deps](https://img.shields.io/hackage-deps/v/liquidhaskell.svg)](http://packdeps.haskellers.com/feed?needle=liquidhaskell) [![Build Status](https://img.shields.io/circleci/project/ucsd-progsys/liquidhaskell/master.svg)](https://circleci.com/gh/ucsd-progsys/liquidhaskell)
-[![Windows build status](https://ci.appveyor.com/api/projects/status/78y7uusjcgor5p16/branch/develop?svg=true)](https://ci.appveyor.com/project/varosi/liquidhaskell-nlhra/branch/develop)
 
 This is the **development** site of the LiquidHaskell formal verification tool.
 
@@ -196,7 +195,7 @@ If one wishes to save time or is not interested in top speedups/slowdowns, the b
 
 ## Miscelaneous tasks
 
-* **Profiling** See the instructions in [scripts/ProfilingDriver.hs](scripts/ProfilingDriver.hs).
+* **Profiling** See the instructions in [scripts/profiling-driver/ProfilingDriver.hs](scripts/profiling-driver/ProfilingDriver.hs).
 * **Getting stack traces on exceptions** See `-xc` flag in the [GHC user's guide][ghc-users-guide].
 * **Working with submodules** See `man gitsubmodules` or the [git documentation site][git-documentation].
 
@@ -354,7 +353,7 @@ using**.
 [GHC.API]:             liquidhaskell-boot/src-ghc/Liquid/GHC/API.hs
 [Plugin]:              liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin.hs
 [GHC.Plugin]:          liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin.hs
-[GHC.Interface]:       liquidhaskell-boot/src-ghc/Liquid/GHC/Interface.hs
+[GHC.Interface]:       liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Interface.hs
 [SpecFinder]:          liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin/SpecFinder.hs
 [BareSpec]:            liquidhaskell-boot/src/Language/Haskell/Liquid/Types/Specs.hs#L362
 [LiftedSpec]:          liquidhaskell-boot/src/Language/Haskell/Liquid/Types/Specs.hs#L559

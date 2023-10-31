@@ -53,7 +53,7 @@ import           Language.Fixpoint.Types                (atLoc, FixResult (..), 
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Solver.Stats ()
 import           Language.Haskell.Liquid.Misc           (mkGraph)
-import           Liquid.GHC.Misc
+import           Language.Haskell.Liquid.GHC.Misc
 import           Liquid.GHC.API        as Ghc hiding ( Located
                                                                       , sourceName
                                                                       , text

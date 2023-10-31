@@ -28,6 +28,7 @@ import           Data.IORef
 import           Data.Maybe
 
 import           Control.Exception
+import           Control.Monad                            ( foldM )
 import           Control.Monad.Trans                      ( lift )
 import           Control.Monad.Trans.Maybe
 
@@ -64,7 +65,7 @@ findRelevantSpecs :: [String] -- ^ Package to exclude for loading LHAssumptions
                   -> TcM [SpecFinderResult]
 findRelevantSpecs lhAssmPkgExcludes hscEnv mods = do
     eps <- liftIO $ readIORef (hsc_EPS hscEnv)
-    foldlM (loadRelevantSpec eps) mempty mods
+    foldM (loadRelevantSpec eps) mempty mods
   where
 
     loadRelevantSpec :: ExternalPackageState -> [SpecFinderResult] -> Module -> TcM [SpecFinderResult]

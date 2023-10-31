@@ -4,19 +4,25 @@
 {-# LANGUAGE RankNTypes #-}
 
 module Liquid.GHC.API.Extra (
-    ApiComment(..)
+    module StableModule
+  , ApiComment(..)
   , apiComments
+  , apiCommentsParsedSource
   , dataConSig
   , desugarModuleIO
   , fsToUnitId
   , getDependenciesModuleNames
+  , isPatErrorAlt
   , lookupModSummary
   , modInfoLookupNameIO
   , moduleInfoTc
   , moduleUnitId
   , parseModuleIO
+  , qualifiedNameFS
   , relevantModules
   , renderWithStyle
+  , showPprQualified
+  , showSDocQualified
   , thisPackage
   , tyConRealArity
   , typecheckModuleIO
@@ -30,8 +36,10 @@ import Data.Generics (extQ)
 import Data.Foldable                  (asum)
 import Data.List                      (foldl', sortOn)
 import qualified Data.Set as S
+import GHC.Core                       as Ghc
 import GHC.Core.Coercion              as Ghc
 import GHC.Core.DataCon               as Ghc
+import GHC.Core.Make                  (pAT_ERROR_ID)
 import GHC.Core.Type                  as Ghc hiding (typeKind , isPredTy, extendCvSubst, linear)
 import GHC.Data.FastString            as Ghc
 import qualified GHC.Data.EnumSet as EnumSet
@@ -40,8 +48,10 @@ import GHC.Driver.Env
 import GHC.Driver.Main
 import GHC.Driver.Session             as Ghc
 import GHC.Tc.Types
+import GHC.Types.Name                 (isSystemName, nameModule_maybe, occNameFS)
 import GHC.Types.SrcLoc               as Ghc
 import GHC.Types.TypeEnv
+import GHC.Types.Unique               (getUnique)
 import GHC.Types.Unique.FM
 
 import GHC.Unit.Module.Deps           as Ghc (Dependencies(dep_mods))
@@ -162,12 +172,15 @@ desugarModuleIO hscEnv originalModSum typechecked = do
 data ApiComment
   = ApiLineComment String
   | ApiBlockComment String
-  deriving Show
+  deriving (Eq, Show)
 
 -- | Extract top-level comments from a module.
 apiComments :: ParsedModule -> [Ghc.Located ApiComment]
-apiComments pm =
-    let hs = unLoc (pm_parsed_source pm)
+apiComments pm = apiCommentsParsedSource (pm_parsed_source pm)
+
+apiCommentsParsedSource :: Located HsModule -> [Ghc.Located ApiComment]
+apiCommentsParsedSource ps =
+    let hs = unLoc ps
         go :: forall a. Data a => a -> [LEpaComment]
         go = gmapQr (++) [] go `extQ` (id @[LEpaComment])
      in Data.List.sortOn (spanToLineColumn . getLoc) $
@@ -213,3 +226,48 @@ moduleInfoTc hscEnv ms tcGblEnv = do
   let hsc_env_tmp = hscEnv { hsc_dflags = ms_hspp_opts ms }
   details <- md_types <$> liftIO (makeSimpleDetails hsc_env_tmp tcGblEnv)
   pure ModuleInfoLH { minflh_type_env = details }
+
+-- | Tells if a case alternative calls to patError
+isPatErrorAlt :: CoreAlt -> Bool
+isPatErrorAlt (Alt _ _ exprCoreBndr) = hasPatErrorCall exprCoreBndr
+  where
+   hasPatErrorCall :: CoreExpr -> Bool
+   -- auto generated undefined case: (\_ -> (patError @levity @type "error message")) void
+   -- Type arguments are erased before calling isUndefined
+   hasPatErrorCall (App (Var x) _) = x == pAT_ERROR_ID
+   -- another auto generated undefined case:
+   -- let lqanf_... = patError "error message") in case lqanf_... of {}
+   hasPatErrorCall (Let (NonRec x e) (Case (Var v) _ _ []))
+     | x == v = hasPatErrorCall e
+   hasPatErrorCall (Let _ e) = hasPatErrorCall e
+   -- otherwise
+   hasPatErrorCall _ = False
+
+
+qualifiedNameFS :: Name -> FastString
+qualifiedNameFS n = concatFS [modFS, occFS, uniqFS]
+  where
+  modFS = case nameModule_maybe n of
+            Nothing -> fsLit ""
+            Just m  -> concatFS [moduleNameFS (moduleName m), fsLit "."]
+
+  occFS = occNameFS (getOccName n)
+  uniqFS
+    | isSystemName n
+    = concatFS [fsLit "_",  fsLit (showPprQualified (getUnique n))]
+    | otherwise
+    = fsLit ""
+
+-- Variants of Outputable functions which now require DynFlags!
+showPprQualified :: Outputable a => a -> String
+showPprQualified = showSDocQualified . ppr
+
+showSDocQualified :: Ghc.SDoc -> String
+showSDocQualified = Ghc.renderWithContext ctx
+  where
+    style = Ghc.mkUserStyle myQualify Ghc.AllTheWay
+    ctx = Ghc.defaultSDocContext { sdocStyle = style }
+
+myQualify :: Ghc.PrintUnqualified
+myQualify = Ghc.neverQualify { Ghc.queryQualifyName = Ghc.alwaysQualifyNames }
+-- { Ghc.queryQualifyName = \_ _ -> Ghc.NameNotInScope1 }

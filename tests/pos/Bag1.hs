@@ -3,11 +3,12 @@ module Bag1 where
 import qualified Data.Set as S
 import Language.Haskell.Liquid.Bag as B
 
-{-@ zorg :: {v:B.Bag Int | v = B.empty} @-}
+{-@ zorg :: {v:Bag Int | v = B.empty} @-}
 zorg :: B.Bag Int
 zorg = B.empty
 
 {-@ measure elems @-}
+{-@ elems :: Ord a => [a] -> Bag a @-}
 elems :: (Ord a) => [a] -> B.Bag a
 elems []     = B.empty
 elems (x:xs) = B.put x (elems xs)

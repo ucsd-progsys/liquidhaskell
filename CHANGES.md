@@ -3,16 +3,19 @@
 ## 0.9.2.8.0
 
 - Support for GHC 9.2.8
-- Moved from wrapper packages to packages with assumptions to streamline specification maintenance
-- **breaking change** Removed the implicit types mechanism
-- **breaking change** Removed the `decrease` mechanism in favor of the terminating expressions syntax (`/ [a,b]`)
 
-## 0.9.0.2.0
+## 0.9.2.5
 
-- Support for GHC 9.0.2
-- Added `ple-with-undecided-guards` option to corece PLE into unfolding invocations with variables
-- Added positivity checker for data definitions and `no-positivity-check` option to turn it off
-- Added experimental support for relational refinement types
+- Introduce package liquidhaskell-boot and eliminate wrapper packages for boot libraries
+- List all definitions used from the GHC API
+- Allow LH to verify modules in parallel (remove withArgs call)
+- Remove some calls to HashMap.toList which caused some non-determinisms in different machines
+- Implement a Haskell script to plot performance without gnuplot
+
+## 0.9.0.2
+
+- **breaking change** Remove the implicit types mechanism and corresponding tests
+- **breaking change** Remove the `decrease` keyword and mechanism in favor of the terminating expressions syntax (`/ [a,b]`)
 
 ## 0.8.10.1
 
