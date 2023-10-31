@@ -116,7 +116,7 @@ commands:
           command: |
             wget -qO- https://get.haskellstack.org/ | sudo sh
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> setup
-            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> build -j4 --only-dependencies --test --no-run-tests << parameters.extra_build_flags >> 
+            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> build -j4 --only-dependencies --test --no-run-tests << parameters.extra_build_flags >>
       - save_cache:
           key: stack-cache-v1-{{ checksum "<< parameters.stack_yaml_file >>" }}-{{ checksum "liquidhaskell-boot/liquidhaskell-boot.cabal" }}-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "liquid-fixpoint-commit" }}
           paths:
@@ -158,7 +158,7 @@ jobs:
       image: ubuntu-2004:202107-02
     steps:
       - cabal_build_and_test:
-          ghc_version: "9.2.5"
+          ghc_version: "9.2.8"
 
 workflows:
   version: 2

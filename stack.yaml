@@ -31,7 +31,7 @@ extra-deps:
 # for tests
 - strip-ansi-escape-0.1.0.0@sha256:08f2ed93b16086a837ec46eab7ce8d27cf39d47783caaeb818878ea33c2ff75f,1628
 
-resolver: lts-20.1
+resolver: lts-20.26
 
 nix:
   packages: [cacert, git, hostname, z3]

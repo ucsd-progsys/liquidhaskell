@@ -1,6 +1,8 @@
 # Changes
 
-## NEXT 0.9.XX
+## 0.9.2.8.0
+
+- Support for GHC 9.2.8
 
 ## 0.9.2.5
 

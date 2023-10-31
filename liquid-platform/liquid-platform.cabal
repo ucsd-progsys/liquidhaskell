@@ -1,6 +1,6 @@
 cabal-version:      1.22
 name:               liquid-platform
-version:            0.9.2.5
+version:            0.9.2.8
 synopsis:           A battery-included platform for LiquidHaskell
 description:        A battery-included platform for LiquidHaskell.
 license:            BSD3
@@ -27,10 +27,10 @@ executable liquidhaskell
     buildable: True
     build-depends:      base       >= 4.15.1.0 && < 5
                       , containers >= 0.6.4.1  && < 0.7
-                      , liquid-prelude    >= 0.9.2.5
+                      , liquid-prelude    >= 0.9.2.8
                       , liquid-vector     >= 0.12.3.1.2
-                      , liquidhaskell     >= 0.9.2.5
-                      , liquidhaskell-boot >= 0.9.2.5
+                      , liquidhaskell     >= 0.9.2.8
+                      , liquidhaskell-boot >= 0.9.2.8
                       , filepath
                       , process           >= 1.6.0.0 && < 1.7
                       , cmdargs           >= 0.10    && < 0.11
