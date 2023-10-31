@@ -366,7 +366,7 @@ using**.
 [ghcide]:              https://github.com/haskell/ghcide
 [findRelevantSpecs]:   liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin/SpecFinder.hs#L65
 [core binds]:          https://hackage.haskell.org/package/ghc-9.2.8/docs/GHC-Core.html#t:CoreBind
-[configureGhcTargets]: liquidhaskell-boot/src-ghc/Liquid/GHC/Interface.hs#L254
-[processTargetModule]: liquidhaskell-boot/src-ghc/Liquid/GHC/Interface.hs#L483
+[configureGhcTargets]: liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Interface.hs#L254
+[processTargetModule]: liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Interface.hs#L483
 [processModule]:       liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin.hs#L509
 
