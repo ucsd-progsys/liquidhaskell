@@ -217,10 +217,9 @@ modInfoLookupNameIO hscEnv minf name =
     Just tyThing -> return (Just tyThing)
     Nothing      -> lookupType hscEnv name
 
-moduleInfoTc :: HscEnv -> ModSummary -> TcGblEnv -> IO ModuleInfoLH
-moduleInfoTc hscEnv ms tcGblEnv = do
-  let hsc_env_tmp = hscEnv { hsc_dflags = ms_hspp_opts ms }
-  details <- md_types <$> liftIO (makeSimpleDetails hsc_env_tmp tcGblEnv)
+moduleInfoTc :: HscEnv -> TcGblEnv -> IO ModuleInfoLH
+moduleInfoTc hscEnv tcGblEnv = do
+  details <- md_types <$> liftIO (makeSimpleDetails (hsc_logger hscEnv) tcGblEnv)
   pure ModuleInfoLH { minflh_type_env = details }
 
 -- | Tells if a case alternative calls to patError
