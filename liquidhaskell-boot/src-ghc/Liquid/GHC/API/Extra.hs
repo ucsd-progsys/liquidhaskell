@@ -11,7 +11,6 @@ module Liquid.GHC.API.Extra (
   , dataConSig
   , desugarModuleIO
   , fsToUnitId
-  , getDependenciesModuleNames
   , isPatErrorAlt
   , lookupModSummary
   , modInfoLookupNameIO
@@ -54,7 +53,7 @@ import GHC.Types.TypeEnv
 import GHC.Types.Unique               (getUnique)
 import GHC.Types.Unique.FM
 
-import GHC.Unit.Module.Deps           as Ghc (Dependencies(dep_mods))
+import GHC.Unit.Module.Deps           as Ghc (Dependencies(dep_direct_mods))
 import GHC.Unit.Module.ModDetails     (md_types)
 import GHC.Unit.Module.ModSummary     (isBootSummary)
 import GHC.Utils.Outputable           as Ghc hiding ((<>))
@@ -84,7 +83,7 @@ tyConRealArity tc = go 0 (tyConKind tc)
         Just ks -> go (acc + 1) ks
 
 getDependenciesModuleNames :: Dependencies -> [ModuleNameWithIsBoot]
-getDependenciesModuleNames = dep_mods
+getDependenciesModuleNames = map snd . S.toList . dep_direct_mods
 
 renderWithStyle :: DynFlags -> SDoc -> PprStyle -> String
 renderWithStyle dynflags sdoc style = Ghc.renderWithContext (Ghc.initSDocContext dynflags style) sdoc
