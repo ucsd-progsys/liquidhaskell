@@ -42,6 +42,7 @@ import GHC.Core.Type                  as Ghc hiding (typeKind , isPredTy, extend
 import GHC.Data.FastString            as Ghc
 import qualified GHC.Data.EnumSet as EnumSet
 import GHC.Data.Maybe
+import qualified GHC.Data.Strict
 import GHC.Driver.Env
 import GHC.Driver.Main
 import GHC.Driver.Session             as Ghc
@@ -187,7 +188,7 @@ apiCommentsParsedSource ps =
 
     -- TODO: take into account anchor_op, which only matters if the source was
     -- pre-processed by an exact-print-aware tool.
-    toRealSrc (L a e) = L (RealSrcSpan (anchor a) Nothing) e
+    toRealSrc (L a e) = L (RealSrcSpan (anchor a) GHC.Data.Strict.Nothing) e
 
     spanToLineColumn =
       fmap (\s -> (srcSpanStartLine s, srcSpanStartCol s)) . srcSpanToRealSrcSpan
