@@ -15,7 +15,6 @@ module Liquid.GHC.API.Extra (
   , lookupModSummary
   , modInfoLookupNameIO
   , moduleInfoTc
-  , moduleUnitId
   , parseModuleIO
   , qualifiedNameFS
   , relevantModules
@@ -65,9 +64,6 @@ import GHC.Unit.Module.Deps (Usage(..))
 -- 'fsToUnitId' is gone in GHC 9, but we can bring code it in terms of 'fsToUnit' and 'toUnitId'.
 fsToUnitId :: FastString -> UnitId
 fsToUnitId = toUnitId . fsToUnit
-
-moduleUnitId :: Module -> UnitId
-moduleUnitId = toUnitId . moduleUnit
 
 thisPackage :: DynFlags -> UnitId
 thisPackage = homeUnitId_
