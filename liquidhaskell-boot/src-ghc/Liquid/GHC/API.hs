@@ -457,6 +457,8 @@ import GHC.Core.Opt.OccurAnal         as Ghc
     ( occurAnalysePgm )
 import GHC.Driver.Env                 as Ghc
     ( HscEnv(hsc_unit_env, hsc_dflags, hsc_plugins) )
+import GHC.Driver.Errors              as Ghc
+    ( printMessages )
 import GHC.Driver.Ppr                 as Ghc
     ( showPpr
     , showSDoc
@@ -501,6 +503,7 @@ import GHC.Tc.Utils.Monad             as Ghc
     , initIfaceTcRn
     , liftIO
     , addErrAt
+    , addErrs
     , pushTcLevelM
     , reportDiagnostic
     , reportDiagnostics
@@ -539,8 +542,9 @@ import GHC.Types.Error                as Ghc
     ( Messages(getMessages)
     , MessageClass(MCDiagnostic)
     , DiagnosticReason(WarningWithoutFlag)
-    , DecoratedSDoc
     , MsgEnvelope(errMsgSpan)
+    , errorsOrFatalWarningsFound
+    , mkPlainError
     )
 import GHC.Types.Fixity               as Ghc
     ( Fixity(Fixity) )

@@ -9,8 +9,10 @@
      to pay the price of a pretty-printing \"roundtrip\".
 -}
 
-module Language.Haskell.Liquid.GHC.Logging (
-    fromPJDoc
+module Language.Haskell.Liquid.GHC.Logging
+  ( addTcRnUnknownMessage
+  , addTcRnUnknownMessages
+  , fromPJDoc
   , putWarnMsg
   ) where
 
@@ -37,3 +39,9 @@ putLogMsg logger sev srcSpan _mbStyle =
 putWarnMsg :: GHC.Logger -> GHC.SrcSpan -> PJ.Doc -> IO ()
 putWarnMsg logger srcSpan doc =
   putLogMsg logger GHC.SevWarning srcSpan (Just GHC.defaultErrStyle) doc
+
+addTcRnUnknownMessage :: GHC.SrcSpan -> PJ.Doc -> GHC.TcRn ()
+addTcRnUnknownMessage srcSpan = GHC.addErrAt srcSpan . GHC.TcRnUnknownMessage . GHC.mkPlainError [] . fromPJDoc
+
+addTcRnUnknownMessages :: [(GHC.SrcSpan, PJ.Doc)] -> GHC.TcRn ()
+addTcRnUnknownMessages = GHC.addErrs . map (fmap (GHC.TcRnUnknownMessage . GHC.mkPlainError [] . fromPJDoc))

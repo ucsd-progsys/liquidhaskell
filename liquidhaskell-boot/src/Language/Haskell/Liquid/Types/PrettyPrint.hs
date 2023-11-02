@@ -62,7 +62,7 @@ import           Liquid.GHC.API  as Ghc ( Class
                                                          , srcSpanStartLine
                                                          , srcSpanStartCol
                                                          )
-import           Language.Haskell.Liquid.GHC.Logging (mkLongErrAt)
+import           Language.Haskell.Liquid.GHC.Logging
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Types
@@ -458,11 +458,11 @@ instance (PPrint r, F.Reftable r) => PPrint (UReft r) where
 filterReportErrors :: forall e' a. (Show e', F.PPrint e') => FilePath -> Ghc.TcRn a -> Ghc.TcRn a -> [Filter] -> F.Tidy -> [TError e'] -> Ghc.TcRn a
 filterReportErrors path failure continue filters k =
   filterReportErrorsWith
-    FilterReportErrorsArgs { msgReporter = Ghc.reportErrors
+    FilterReportErrorsArgs { errorReporter = \errs ->
+                               addTcRnUnknownMessages [(pos err, ppError k empty err) | err <- errs]
                            , filterReporter = defaultFilterReporter path
                            , failure = failure
                            , continue = continue
-                           , pprinter = \err -> mkLongErrAt (pos err) (ppError k empty err) mempty
                            , matchingFilters = reduceFilters renderer filters
                            , filters = filters
                            }
@@ -494,7 +494,7 @@ data FilterReportErrorsArgs m filter msg e a =
   FilterReportErrorsArgs
   {
     -- | Report the @msgs@ to the monad (usually IO)
-    msgReporter :: [msg] -> m ()
+    errorReporter :: [e] -> m ()
   ,
     -- | Report unmatched @filters@ to the monad
     filterReporter :: [filter] -> m ()
@@ -504,9 +504,6 @@ data FilterReportErrorsArgs m filter msg e a =
   ,
     -- | Continuation for when there are no unmatched errors or filters
     continue :: m a
-  ,
-    -- | Compute a representation of the given error; does not report the error
-    pprinter :: e -> m msg
   ,
     -- | Yields the filters that map a given error. Must only yield
     -- filters in the @filters@ field.
@@ -533,15 +530,14 @@ filterReportErrorsWith FilterReportErrorsArgs {..} errs =
         filterReporter unmatchedFilters
         failure
     else do
-      msgs <- traverse (pprinter . fst) unmatchedErrors
-      void $ msgReporter msgs
+      errorReporter $ map fst unmatchedErrors
       failure
 
 -- | Report errors via GHC's API stating the given `Filter`s did not get
 -- matched. Does nothing if the list of filters is empty.
 defaultFilterReporter :: FilePath -> [Filter] -> Ghc.TcRn ()
 defaultFilterReporter _ [] = pure ()
-defaultFilterReporter path fs = Ghc.reportError =<< mkLongErrAt srcSpan (vcat $ leaderMsg : (nest 4 <$> filterMsgs)) empty
+defaultFilterReporter path fs = addTcRnUnknownMessage srcSpan (vcat $ leaderMsg : (nest 4 <$> filterMsgs))
   where
     leaderMsg :: Doc
     leaderMsg = text "Could not match the following expected errors with actual thrown errors:"
