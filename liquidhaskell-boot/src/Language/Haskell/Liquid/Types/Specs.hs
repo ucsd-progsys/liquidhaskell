@@ -76,7 +76,6 @@ import           Data.HashSet            (HashSet)
 import qualified Data.HashMap.Strict     as M
 import           Data.HashMap.Strict     (HashMap)
 import           Language.Haskell.Liquid.Types.Types
-import           Language.Haskell.Liquid.Types.Generics
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds
 import           Liquid.GHC.API hiding (text, (<+>))

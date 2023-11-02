@@ -1,33 +1,18 @@
-{- | Geriving instances, generically.
-   This module shares some of the underlying ideas and implementations of the
-   [generic-data](https://hackage.haskell.org/package/generic-data-0.8.1.0/docs/Generic-Data.html)
-   package, allowing us to derive a bunch of instances using the underlying 'Generic' implementation,
-   but in a more declarative way.
-
-   In particular we introduc the 'Generically' newtype wrapper to be used with '-XDerivingVia' to make
-   derivation explicit. For example:
-
-@
-  data Foo = Foo
-       deriving Generic
-       deriving Eq via Generically Foo
-@
+{- | Deriving instances of Hashable and Binary, generically.
 
 -}
 
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
-module Language.Haskell.Liquid.Types.Generics where
+module Language.Haskell.Liquid.Types.Generics() where
 
 import GHC.Generics
 import Data.Hashable
 import Data.Binary
 import Data.Hashable.Generic
 import Data.Function
-
-newtype Generically a = Generically a deriving Generic
 
 -- * 'Hashable'
 
