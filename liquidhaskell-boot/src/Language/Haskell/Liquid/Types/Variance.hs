@@ -24,7 +24,6 @@ import qualified Data.HashSet            as S
 
 import qualified Language.Fixpoint.Types as F
 
-import           Language.Haskell.Liquid.Types.Generics
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import           Liquid.GHC.API        as Ghc hiding (text)
 

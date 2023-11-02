@@ -41,7 +41,6 @@ module Language.Haskell.Liquid.Types.PrettyPrint
 
   ) where
 
-import           Control.Monad                           (void)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L                               -- (sort)
 import qualified Data.Set                         as Set
@@ -98,8 +97,6 @@ pprintSymbol x = char '‘' <-> pprint x <-> char '’'
 --------------------------------------------------------------------------------
 -- | A whole bunch of PPrint instances follow ----------------------------------
 --------------------------------------------------------------------------------
-instance PPrint (Ghc.MsgEnvelope Ghc.DecoratedSDoc) where
-  pprintTidy _ = text . show
 
 instance PPrint SourceError where
   pprintTidy _ = text . show

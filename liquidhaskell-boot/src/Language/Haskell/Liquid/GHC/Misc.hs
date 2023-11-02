@@ -45,7 +45,7 @@ import qualified Data.Text.Encoding.Error                   as TE
 import qualified Data.Text.Encoding                         as T
 import qualified Data.Text                                  as T
 import           Control.Arrow                              (second)
-import           Control.Monad                              ((>=>), foldM)
+import           Control.Monad                              ((>=>), foldM, when)
 import qualified Text.PrettyPrint.HughesPJ                  as PJ
 import           Language.Fixpoint.Types                    hiding (L, panic, Loc (..), SrcSpan, Constant, SESearch (..))
 import qualified Language.Fixpoint.Types                    as F
