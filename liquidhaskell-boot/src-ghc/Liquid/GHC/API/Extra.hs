@@ -21,6 +21,7 @@ module Liquid.GHC.API.Extra (
   , renderWithStyle
   , showPprQualified
   , showSDocQualified
+  , strictNothing
   , thisPackage
   , tyConRealArity
   , typecheckModuleIO
@@ -188,7 +189,7 @@ apiCommentsParsedSource ps =
 
     -- TODO: take into account anchor_op, which only matters if the source was
     -- pre-processed by an exact-print-aware tool.
-    toRealSrc (L a e) = L (RealSrcSpan (anchor a) GHC.Data.Strict.Nothing) e
+    toRealSrc (L a e) = L (RealSrcSpan (anchor a) strictNothing) e
 
     spanToLineColumn =
       fmap (\s -> (srcSpanStartLine s, srcSpanStartCol s)) . srcSpanToRealSrcSpan
@@ -266,3 +267,7 @@ showSDocQualified = Ghc.renderWithContext ctx
 myQualify :: Ghc.PrintUnqualified
 myQualify = Ghc.neverQualify { Ghc.queryQualifyName = Ghc.alwaysQualifyNames }
 -- { Ghc.queryQualifyName = \_ _ -> Ghc.NameNotInScope1 }
+
+
+strictNothing :: GHC.Data.Strict.Maybe a
+strictNothing = GHC.Data.Strict.Nothing

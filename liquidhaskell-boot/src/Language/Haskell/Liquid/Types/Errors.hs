@@ -53,7 +53,6 @@ module Language.Haskell.Liquid.Types.Errors (
 import           Prelude                      hiding (error, span)
 
 import           GHC.Generics
-import qualified GHC.Data.Strict
 import           Control.DeepSeq
 import qualified Control.Exception            as Ex
 import           Data.Typeable                (Typeable)
@@ -727,7 +726,7 @@ instance ToJSON SrcSpan where
 instance FromJSON SrcSpan where
   parseJSON (Object v) = do tag <- v .: "realSpan"
                             if tag
-                              then RealSrcSpan <$> v .: "spanInfo" <*> pure GHC.Data.Strict.Nothing
+                              then RealSrcSpan <$> v .: "spanInfo" <*> pure strictNothing
                               else return noSrcSpan
   parseJSON _          = mempty
 

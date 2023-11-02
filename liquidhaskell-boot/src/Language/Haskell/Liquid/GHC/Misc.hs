@@ -73,7 +73,7 @@ mkAlive x
 
 tickSrcSpan :: CoreTickish -> SrcSpan
 tickSrcSpan (ProfNote cc _ _) = cc_loc cc
-tickSrcSpan (SourceNote ss _) = RealSrcSpan ss Nothing
+tickSrcSpan (SourceNote ss _) = RealSrcSpan ss strictNothing
 tickSrcSpan _                 = noSrcSpan
 
 --------------------------------------------------------------------------------
@@ -245,7 +245,7 @@ srcSpanFSrcSpan sp = F.SS p p'
     p'             = srcSpanSourcePosE sp
 
 sourcePos2SrcSpan :: SourcePos -> SourcePos -> SrcSpan
-sourcePos2SrcSpan p p' = RealSrcSpan (packRealSrcSpan f (unPos l) (unPos c) (unPos l') (unPos c')) Nothing
+sourcePos2SrcSpan p p' = RealSrcSpan (packRealSrcSpan f (unPos l) (unPos c) (unPos l') (unPos c')) strictNothing
   where
     (f, l,  c)         = F.sourcePosElts p
     (_, l', c')        = F.sourcePosElts p'
