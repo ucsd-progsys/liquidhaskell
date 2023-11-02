@@ -1995,8 +1995,8 @@ allErrors = dErrors
 -- | Printing Warnings ---------------------------------------------------------
 --------------------------------------------------------------------------------
 
-printWarning :: Logger -> DynFlags -> Warning -> IO ()
-printWarning logger dyn (Warning srcSpan doc) = GHC.putWarnMsg logger dyn srcSpan doc
+printWarning :: Logger -> Warning -> IO ()
+printWarning logger (Warning srcSpan doc) = GHC.putWarnMsg logger srcSpan doc
 
 --------------------------------------------------------------------------------
 -- | Error Data Type -----------------------------------------------------------
