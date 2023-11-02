@@ -53,6 +53,7 @@ module Language.Haskell.Liquid.Types.Errors (
 import           Prelude                      hiding (error, span)
 
 import           GHC.Generics
+import qualified GHC.Data.Strict
 import           Control.DeepSeq
 import qualified Control.Exception            as Ex
 import           Data.Typeable                (Typeable)
@@ -90,7 +91,7 @@ import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint
 import qualified Language.Fixpoint.Misc       as Misc
 import qualified Language.Haskell.Liquid.Misc     as Misc
 import           Language.Haskell.Liquid.Misc ((<->))
-import           Language.Haskell.Liquid.Types.Generics
+import           Language.Haskell.Liquid.Types.Generics()
 
 type ParseError = P.ParseError String Void
 
@@ -726,7 +727,7 @@ instance ToJSON SrcSpan where
 instance FromJSON SrcSpan where
   parseJSON (Object v) = do tag <- v .: "realSpan"
                             if tag
-                              then RealSrcSpan <$> v .: "spanInfo" <*> pure Nothing
+                              then RealSrcSpan <$> v .: "spanInfo" <*> pure GHC.Data.Strict.Nothing
                               else return noSrcSpan
   parseJSON _          = mempty
 
@@ -1082,8 +1083,8 @@ ppList d ls
 
 sourceErrors :: String -> SourceError -> [TError t]
 sourceErrors s =
-  concatMap errMsgErrors . bagToList . srcErrorMessages
+  concatMap errMsgErrors . bagToList . getMessages . srcErrorMessages
   where
     errMsgErrors e = [ ErrGhc (errMsgSpan e) msg ]
       where
-        msg = text s $+$ nest 4 (text (show e))
+        msg = text s $+$ nest 4 (text $ showSDocQualified (pprLocMsgEnvelope e))
