@@ -111,7 +111,7 @@ stringTyCon = stringTyConWithKind anyTy
 
 -- FIXME: reusing uniques like this is really dangerous
 stringTyConWithKind :: Kind -> Char -> Int -> String -> TyCon
-stringTyConWithKind k c n s = Ghc.mkKindTyCon name [] k [] name
+stringTyConWithKind k c n s = Ghc.mkPrimTyCon name [] k []
   where
     name          = mkInternalName (mkUnique c n) occ noSrcSpan
     occ           = mkTcOcc s
