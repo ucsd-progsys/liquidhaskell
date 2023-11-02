@@ -28,11 +28,10 @@ import           Prelude                                    hiding (error)
 import           Liquid.GHC.API            as Ghc hiding ( L
                                                                           , sourceName
                                                                           , showPpr
-                                                                          , showSDocDump
                                                                           , panic
                                                                           , showSDoc
                                                                           )
-import qualified Liquid.GHC.API            as Ghc (GenLocated (L), showSDoc, panic, showSDocDump)
+import qualified Liquid.GHC.API            as Ghc (GenLocated (L), showSDoc, panic)
 
 
 import           Data.Char                                  (isLower, isSpace, isUpper)
@@ -201,7 +200,7 @@ myQualify = Ghc.neverQualify { Ghc.queryQualifyName = Ghc.alwaysQualifyNames }
 -- { Ghc.queryQualifyName = \_ _ -> Ghc.NameNotInScope1 }
 
 showSDocDump :: Ghc.SDoc -> String
-showSDocDump  = Ghc.showSDocDump Ghc.defaultSDocContext
+showSDocDump  = Ghc.renderWithContext Ghc.defaultSDocContext
 
 instance Outputable a => Outputable (S.HashSet a) where
   ppr = ppr . S.toList
