@@ -438,7 +438,7 @@ lookupRdrName hsc_env mod_name rdr_name = do
 -- XXX                        [gre] -> return (Just (gre_name gre))
                         []    -> return Nothing
                         _     -> Ghc.panic "lookupRdrNameInModule"
-                Nothing -> throwCmdLineErrorS dflags $ Ghc.hsep [Ghc.ptext (sLit "Could not determine the exports of the module"), ppr mod_name]
+                Nothing -> throwCmdLineErrorS dflags $ Ghc.hsep [Ghc.ptext (Ghc.mkPtrString "Could not determine the exports of the module"), ppr mod_name]
         err' -> throwCmdLineErrorS dflags $ cannotFindModule hsc_env mod_name err'
   where dflags = hsc_dflags hsc_env
         throwCmdLineErrorS dflags' = throwCmdLineError . Ghc.showSDoc dflags'
@@ -459,12 +459,6 @@ ignoreInline x = x {pm_parsed_source = go <$> pm_parsed_source x}
 --------------------------------------------------------------------------------
 -- | Symbol Conversions --------------------------------------------------------
 --------------------------------------------------------------------------------
-
-symbolTyConWithKind :: Kind -> Char -> Int -> Symbol -> TyCon
-symbolTyConWithKind k x i n = stringTyConWithKind k x i (symbolString n)
-
-symbolTyCon :: Char -> Int -> Symbol -> TyCon
-symbolTyCon x i n = stringTyCon x i (symbolString n)
 
 symbolTyVar :: Symbol -> TyVar
 symbolTyVar = stringTyVar . symbolString

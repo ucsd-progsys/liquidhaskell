@@ -122,7 +122,7 @@ dFunIdVars cbs fd  = notracepp msg $ concatMap bindersOf cbs' ++ deps
     f (Rec xes)    = any eqFd (fst <$> xes)
     eqFd x         = varName x == varName fd
     deps           = concatMap unfoldDep unfolds
-    unfolds        = unfoldingInfo . idInfo <$> concatMap bindersOf cbs'
+    unfolds        = realUnfoldingInfo . idInfo <$> concatMap bindersOf cbs'
 
 unfoldDep :: Unfolding -> [Id]
 unfoldDep (DFunUnfolding _ _ e)       = concatMap exprDep e

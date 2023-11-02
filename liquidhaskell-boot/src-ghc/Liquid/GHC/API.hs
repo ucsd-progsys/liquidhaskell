@@ -59,7 +59,6 @@ import           GHC                  as Ghc
     , LexicalFixity(Prefix)
     , Located
     , LocatedN
-    , Logger
     , ModIface_(mi_anns, mi_exports, mi_globals, mi_module)
     , ModLocation(ml_hs_file)
     , ModSummary(ms_hspp_file, ms_hspp_opts, ms_location, ms_mod)
@@ -370,7 +369,7 @@ import GHC.Core.TyCon                 as Ghc
     , isPromotedDataCon
     , isTupleTyCon
     , isVanillaAlgTyCon
-    , mkKindTyCon
+    , mkPrimTyCon
     , newTyConRhs
     , tyConBinders
     , tyConDataCons_maybe
@@ -420,7 +419,7 @@ import GHC.Data.FastString            as Ghc
     , fsLit
     , mkFastString
     , mkFastStringByteString
-    , sLit
+    , mkPtrString
     , uniq
     , unpackFS
     )
@@ -433,8 +432,7 @@ import GHC.Driver.Main                as Ghc
 import GHC.Driver.Phases              as Ghc (Phase(StopLn))
 import GHC.Driver.Pipeline            as Ghc (compileFile)
 import GHC.Driver.Session             as Ghc
-    ( WarnReason(NoReason)
-    , getDynFlags
+    ( getDynFlags
     , gopt_set
     , updOptLevel
     , xopt_set
@@ -458,11 +456,10 @@ import GHC.Core.FVs                   as Ghc (exprFreeVarsList)
 import GHC.Core.Opt.OccurAnal         as Ghc
     ( occurAnalysePgm )
 import GHC.Driver.Env                 as Ghc
-    ( HscEnv(hsc_EPS, hsc_HPT, hsc_dflags, hsc_plugins, hsc_static_plugins) )
+    ( HscEnv(hsc_unit_env, hsc_dflags, hsc_plugins) )
 import GHC.Driver.Ppr                 as Ghc
     ( showPpr
     , showSDoc
-    , showSDocDump
     )
 import GHC.HsToCore.Expr              as Ghc
     ( dsLExpr )
@@ -503,10 +500,10 @@ import GHC.Tc.Utils.Monad             as Ghc
     , failWithTc
     , initIfaceTcRn
     , liftIO
-    , mkLongErrAt
+    , addErrAt
     , pushTcLevelM
-    , reportError
-    , reportErrors
+    , reportDiagnostic
+    , reportDiagnostics
     )
 import GHC.Tc.Utils.TcType            as Ghc (tcSplitDFunTy, tcSplitMethodTy)
 import GHC.Tc.Utils.Zonk              as Ghc
@@ -539,7 +536,9 @@ import GHC.Types.CostCentre           as Ghc
     ( CostCentre(cc_loc)
     )
 import GHC.Types.Error                as Ghc
-    ( Messages
+    ( Messages(getMessages)
+    , MessageClass(MCDiagnostic)
+    , DiagnosticReason(WarningWithoutFlag)
     , DecoratedSDoc
     , MsgEnvelope(errMsgSpan)
     )
@@ -560,7 +559,7 @@ import GHC.Types.Id                   as Ghc
 import GHC.Types.Id.Info              as Ghc
     ( CafInfo(NoCafRefs)
     , IdDetails(DataConWorkId, DataConWrapId, RecSelId, VanillaId)
-    , IdInfo(occInfo, unfoldingInfo)
+    , IdInfo(occInfo, realUnfoldingInfo)
     , cafInfo
     , inlinePragInfo
     , mayHaveCafRefs
@@ -693,7 +692,7 @@ import GHC.Unit.Module.ModGuts        as Ghc
       , mg_usages
       )
     )
-import GHC.Utils.Error                as Ghc (withTiming)
-import GHC.Utils.Logger               as Ghc (putLogMsg)
+import GHC.Utils.Error                as Ghc (pprLocMsgEnvelope, withTiming)
+import GHC.Utils.Logger               as Ghc (Logger(logFlags), putLogMsg)
 import GHC.Utils.Outputable           as Ghc hiding ((<>))
 import GHC.Utils.Panic                as Ghc (panic, throwGhcException, throwGhcExceptionIO)
