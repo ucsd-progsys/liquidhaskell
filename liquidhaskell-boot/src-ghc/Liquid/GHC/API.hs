@@ -472,13 +472,13 @@ import GHC.Iface.Load                 as Ghc
     , loadInterface
     )
 import GHC.Rename.Expr                as Ghc (rnLExpr)
+import GHC.Tc.Errors.Types            as Ghc
+    ( TcRnMessage(TcRnUnknownMessage) )
 import GHC.Tc.Gen.App                 as Ghc (tcInferSigma)
 import GHC.Tc.Gen.Bind                as Ghc (tcValBinds)
 import GHC.Tc.Gen.Expr                as Ghc (tcInferRho)
 import GHC.Tc.Module                  as Ghc
-    ( getModuleInterface
-    , tcRnLookupRdrName
-    )
+    ( getModuleInterface )
 import GHC.Tc.Solver                  as Ghc
     ( InferMode(NoRestrictions)
     , captureTopConstraints

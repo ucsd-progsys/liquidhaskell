@@ -712,9 +712,6 @@ symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
 synTyConRhs_maybe :: TyCon -> Maybe Type
 synTyConRhs_maybe = Ghc.synTyConRhs_maybe
 
-tcRnLookupRdrName :: HscEnv -> Ghc.LocatedN RdrName -> IO (Messages DecoratedSDoc, Maybe [Name])
-tcRnLookupRdrName = Ghc.tcRnLookupRdrName
-
 showCBs :: Bool -> [CoreBind] -> String
 showCBs untidy
   | untidy    =
