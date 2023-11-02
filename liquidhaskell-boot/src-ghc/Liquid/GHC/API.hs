@@ -425,6 +425,8 @@ import GHC.Data.FastString            as Ghc
     )
 import GHC.Data.Pair                  as Ghc
     ( Pair(Pair) )
+import GHC.Driver.Config.Diagnostic as Ghc
+    ( initDiagOpts )
 import GHC.Driver.Main                as Ghc
     ( hscDesugar
     , hscTcRcLookupName
@@ -511,6 +513,8 @@ import GHC.Tc.Utils.Monad             as Ghc
 import GHC.Tc.Utils.TcType            as Ghc (tcSplitDFunTy, tcSplitMethodTy)
 import GHC.Tc.Utils.Zonk              as Ghc
     ( zonkTopLExpr )
+import GHC.Types.PkgQual              as Ghc
+    ( PkgQual(NoPkgQual) )
 import GHC.Types.Annotations          as Ghc
     ( AnnPayload
     , AnnTarget(ModuleTarget)

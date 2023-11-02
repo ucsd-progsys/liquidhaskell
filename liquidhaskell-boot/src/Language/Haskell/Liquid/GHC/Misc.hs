@@ -419,7 +419,7 @@ uniqueHash i = hashWithSalt i . getKey . getUnique
 lookupRdrName :: HscEnv -> ModuleName -> RdrName -> IO (Maybe Name)
 lookupRdrName hsc_env mod_name rdr_name = do
     -- First find the package the module resides in by searching exposed packages and home modules
-    found_module <- findImportedModule hsc_env mod_name Nothing
+    found_module <- findImportedModule hsc_env mod_name NoPkgQual
     case found_module of
         Found _ mod' -> do
             -- Find the exports of the module
@@ -912,7 +912,18 @@ elabRnExpr rdr_expr = do
     -- Ignore the dictionary bindings
     evbs' <- simplifyInteractive residual
     full_expr <- zonkTopLExpr (mkHsDictLet (EvBinds evbs') (mkHsDictLet evbs tc_expr))
-    initDsTc $ dsLExpr full_expr
+    (ds_msgs, me) <- initDsTc $ dsLExpr full_expr
+
+    logger <- getLogger
+    diag_opts <- initDiagOpts <$> getDynFlags
+    liftIO $ printMessages logger diag_opts ds_msgs
+
+    case me of
+      Nothing -> failM
+      Just e -> do
+        when (errorsOrFatalWarningsFound ds_msgs)
+          failM
+        return e
 
 newtype HashableType = HashableType {getHType :: Type}
 
