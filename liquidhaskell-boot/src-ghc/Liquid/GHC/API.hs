@@ -472,6 +472,7 @@ import GHC.Iface.Load                 as Ghc
     , loadInterface
     )
 import GHC.Rename.Expr                as Ghc (rnLExpr)
+import GHC.Rename.Names               as Ghc (renamePkgQual)
 import GHC.Tc.Errors.Types            as Ghc
     ( TcRnMessage(TcRnUnknownMessage) )
 import GHC.Tc.Gen.App                 as Ghc (tcInferSigma)
@@ -667,8 +668,11 @@ import GHC.Types.Var.Set              as Ghc
     , extendVarSetList
     , unitVarSet
     )
+import GHC.Unit.Env                   as Ghc
+    ( UnitEnv(ue_eps), ue_hpt )
 import GHC.Unit.External              as Ghc
     ( ExternalPackageState (eps_ann_env)
+    , ExternalUnitCache(euc_eps)
     )
 import GHC.Unit.Finder                as Ghc
     ( FindResult(Found, NoPackage, FoundMultiple, NotFound)
