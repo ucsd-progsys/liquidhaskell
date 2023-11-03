@@ -27,7 +27,7 @@ import qualified Language.Haskell.Liquid.Types.PrettyPrint as LH ( filterReportE
                                                                  , filterReportErrorsWith
                                                                  , defaultFilterReporter
                                                                  , reduceFilters )
-import qualified Language.Haskell.Liquid.GHC.Logging     as LH   (fromPJDoc)
+import qualified Language.Haskell.Liquid.GHC.Logging     as LH   (addTcRnUnknownMessages)
 
 import           Language.Haskell.Liquid.GHC.Plugin.Types
 import           Language.Haskell.Liquid.GHC.Plugin.Util as Util
@@ -127,7 +127,7 @@ plugin = GHC.defaultPlugin {
     liquidPluginGo summary gblEnv = do
       logger <- getLogger
       dynFlags <- getDynFlags
-      withTiming logger dynFlags (text "LiquidHaskell" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $ do
+      withTiming logger (text "LiquidHaskell" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $ do
         if gopt Opt_Haddock dynFlags
           then do
             -- Warn the user
@@ -136,7 +136,7 @@ plugin = GHC.defaultPlugin {
                                   ]
             let srcLoc  = mkSrcLoc (mkFastString $ ms_hspp_file summary) 1 1
             let warning = mkWarning (mkSrcSpan srcLoc srcLoc) msg
-            liftIO $ printWarning logger dynFlags warning
+            liftIO $ printWarning logger warning
             pure gblEnv
           else do
             newGblEnv <- typecheckHook summary gblEnv
@@ -229,9 +229,9 @@ typecheckHook (unoptimise -> modSummary) tcGblEnv = do
   -- would lead to a loop if we didn't remove the plugin when calling the type
   -- checker.
   typechecked     <- liftIO $ typecheckModuleIO (dropPlugins env) (LH.ignoreInline parsed)
-  resolvedNames   <- liftIO $ LH.lookupTyThings env modSummary tcGblEnv
-  availTyCons     <- liftIO $ LH.availableTyCons env modSummary tcGblEnv (tcg_exports tcGblEnv)
-  availVars       <- liftIO $ LH.availableVars env modSummary tcGblEnv (tcg_exports tcGblEnv)
+  resolvedNames   <- liftIO $ LH.lookupTyThings env tcGblEnv
+  availTyCons     <- liftIO $ LH.availableTyCons env tcGblEnv (tcg_exports tcGblEnv)
+  availVars       <- liftIO $ LH.availableVars env tcGblEnv (tcg_exports tcGblEnv)
 
   unoptimisedGuts <- liftIO $ desugarModuleIO env modSummary typechecked
 
@@ -244,7 +244,7 @@ typecheckHook (unoptimise -> modSummary) tcGblEnv = do
     thisModule :: Module
     thisModule = tcg_mod tcGblEnv
 
-    dropPlugins hsc_env = hsc_env { hsc_plugins = [], hsc_static_plugins = [] }
+    dropPlugins hsc_env = hsc_env { hsc_plugins = emptyPlugins }
 
 serialiseSpec :: Module -> TcGblEnv -> LiquidLib -> TcM TcGblEnv
 serialiseSpec thisModule tcGblEnv liquidLib = do
@@ -378,11 +378,11 @@ checkLiquidHaskellContext lhContext = do
 errorLogger :: FilePath -> [Filter] -> OutputResult -> TcM ()
 errorLogger file filters outputResult = do
   LH.filterReportErrorsWith
-    FilterReportErrorsArgs { msgReporter = GHC.reportErrors
+    FilterReportErrorsArgs { errorReporter = \errs ->
+                               LH.addTcRnUnknownMessages [(sp, e) | (sp, e) <- errs]
                            , filterReporter = LH.defaultFilterReporter file
                            , failure = GHC.failM
                            , continue = pure ()
-                           , pprinter = \(spn, e) -> mkLongErrAt spn (LH.fromPJDoc e) O.empty
                            , matchingFilters = LH.reduceFilters (\(src, doc) -> PJ.render doc ++ " at " ++ LH.showPpr src) filters
                            , filters = filters
                            }
@@ -499,7 +499,6 @@ processModule LiquidHaskellContext{..} = do
 
     targetSrc  <- liftIO $ makeTargetSrc moduleCfg file lhModuleTcData modGuts hscEnv
     logger <- getLogger
-    dynFlags <- getDynFlags
 
     -- See https://github.com/ucsd-progsys/liquidhaskell/issues/1711
     -- Due to the fact the internals can throw exceptions from pure code at any point, we need to
@@ -516,10 +515,10 @@ processModule LiquidHaskellContext{..} = do
     (case result of
       -- Print warnings and errors, aborting the compilation.
       Left diagnostics -> do
-        liftIO $ mapM_ (printWarning logger dynFlags)    (allWarnings diagnostics)
+        liftIO $ mapM_ (printWarning logger)    (allWarnings diagnostics)
         reportErrs $ allErrors diagnostics
       Right (warnings, targetSpec, liftedSpec) -> do
-        liftIO $ mapM_ (printWarning logger dynFlags) warnings
+        liftIO $ mapM_ (printWarning logger) warnings
         let targetInfo = TargetInfo targetSrc targetSpec
 
         debugLog $ "bareSpec ==> "   ++ show bareSpec

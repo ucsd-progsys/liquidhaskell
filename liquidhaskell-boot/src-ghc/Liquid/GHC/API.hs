@@ -450,6 +450,7 @@ import GHC.Plugins                    as Ghc ( deserializeWithData
                                              , fromSerialized
                                              , toSerialized
                                              , defaultPlugin
+                                             , emptyPlugins
                                              , Plugin(..)
                                              , CommandLineOption
                                              , purePlugin
