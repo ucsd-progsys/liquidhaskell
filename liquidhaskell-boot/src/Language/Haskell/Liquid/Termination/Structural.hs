@@ -23,7 +23,7 @@ import Control.Monad (liftM, ap)
 import Data.Foldable (fold)
 
 terminationVars :: TargetInfo -> [Var]
-terminationVars info = failingBinds info >>= allBoundVars
+terminationVars info = failingBinds info >>= allLetBoundVars
 
 failingBinds :: TargetInfo -> [CoreBind]
 failingBinds info = filter (hasErrors . checkBind) structBinds
@@ -51,9 +51,9 @@ findStructBinds structFuns program = filter isStructBind program
     isStructBind (Rec []) = False
     isStructBind (Rec ((f,_):xs)) = f `HS.member` structFuns || isStructBind (Rec xs)
 
-allBoundVars :: CoreBind -> [Var]
-allBoundVars (NonRec v e) = v : (nextBinds e >>= allBoundVars)
-allBoundVars (Rec binds) = map fst binds ++ (map snd binds >>= nextBinds >>= allBoundVars)
+allLetBoundVars :: CoreBind -> [Var]
+allLetBoundVars (NonRec v e) = v : (nextBinds e >>= allLetBoundVars)
+allLetBoundVars (Rec binds) = map fst binds ++ (map snd binds >>= nextBinds >>= allLetBoundVars)
 
 nextBinds :: CoreExpr -> [CoreBind]
 nextBinds = \case
