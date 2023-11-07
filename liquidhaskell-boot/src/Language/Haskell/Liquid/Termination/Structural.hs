@@ -37,12 +37,9 @@ failingBinds info = filter (hasErrors . checkBind) structBinds
 
 checkBind :: CoreBind -> Result ()
 checkBind bind = do
-  srcCallInfo <- getCallInfoBind emptyEnv (deShadowBind bind)
+  srcCallInfo <- getCallInfoBind emptyEnv bind
   let structCallInfo = fmap toStructCall <$> srcCallInfo
   fold $ mapWithFun structDecreasing structCallInfo
-
-deShadowBind :: CoreBind -> CoreBind
-deShadowBind bind = head $ deShadowBinds [bind]
 
 findStructBinds :: HashSet Var -> CoreProgram -> [CoreBind]
 findStructBinds structFuns program = filter isStructBind program

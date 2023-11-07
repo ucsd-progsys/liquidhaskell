@@ -320,7 +320,7 @@ import GHC.Core.Make                  as Ghc
 import GHC.Core.Predicate             as Ghc (getClassPredTys_maybe, getClassPredTys, isEvVarType, isEqPrimPred, isEqPred, isClassPred, isDictId, mkClassPred)
 import GHC.Core.Reduction             as Ghc
     ( Reduction(Reduction) )
-import GHC.Core.Subst                 as Ghc (deShadowBinds, emptySubst, extendCvSubst)
+import GHC.Core.Subst                 as Ghc (emptySubst, extendCvSubst)
 import GHC.Core.TyCo.Rep              as Ghc
     ( AnonArgFlag(VisArg)
     , ArgFlag(Required)
