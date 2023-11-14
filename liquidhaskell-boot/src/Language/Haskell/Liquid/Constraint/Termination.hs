@@ -22,10 +22,6 @@ import qualified Data.HashMap.Strict                as M
 import           Control.Applicative (liftA2)
 import           Control.Monad.State ( gets, forM, foldM )
 import           Text.PrettyPrint.HughesPJ ( (<+>), text )
-import           GHC.Types.Var (Var)
-import           GHC.Types.Name (NamedThing, getSrcSpan)
-import           GHC.Core.TyCon (TyCon)
-import           GHC.Core (Bind, CoreExpr, bindersOf)
 import qualified Language.Haskell.Liquid.GHC.Misc                    as GM
 import qualified Language.Fixpoint.Types            as F
 import           Language.Fixpoint.Types.PrettyPrint (PPrint)
@@ -51,7 +47,7 @@ mkTCheck tc is
   | tc        = TerminationCheck
   | otherwise = NoCheck
 
-doTermCheck :: Config -> Bind Var -> CG Bool
+doTermCheck :: Config -> GHC.Bind GHC.Var -> CG Bool
 doTermCheck cfg bind = do
   lazyVs    <- gets specLazy
   termVs    <- gets specTmVars
@@ -60,9 +56,9 @@ doTermCheck cfg bind = do
   return     $ chk && not skip
   where
     nocheck  = if typeclass cfg then GM.isEmbeddedDictVar else GM.isInternal
-    xs       = bindersOf bind
+    xs       = GHC.bindersOf bind
 
-makeTermEnvs :: CGEnv -> [(Var, [F.Located F.Expr])] -> [(Var, CoreExpr)]
+makeTermEnvs :: CGEnv -> [(GHC.Var, [F.Located F.Expr])] -> [(GHC.Var, GHC.CoreExpr)]
              -> [SpecType] -> [SpecType]
              -> [CGEnv]
 makeTermEnvs γ xtes xes ts ts' = setTRec γ . zip xs <$> rts
@@ -93,7 +89,7 @@ addObligation o t r  = mkArrow αs πs xts $ RRTy [] r o t2
 -- | TERMINATION TYPE ----------------------------------------------------------
 --------------------------------------------------------------------------------
 
-makeDecrIndex :: (Var, Template SpecType, [Var]) -> CG (Maybe Int)
+makeDecrIndex :: (GHC.Var, Template SpecType, [GHC.Var]) -> CG (Maybe Int)
 makeDecrIndex (x, Assumed t, args)
   = do dindex <- makeDecrIndexTy x t args
        case dindex of
@@ -106,14 +102,14 @@ makeDecrIndex (x, Asserted t, args)
          Right i  -> return $ Just i
 makeDecrIndex _ = return Nothing
 
-makeDecrIndexTy :: Var -> SpecType -> [Var] -> CG (Either (TError t) Int)
+makeDecrIndexTy :: GHC.Var -> SpecType -> [GHC.Var] -> CG (Either (TError t) Int)
 makeDecrIndexTy x st args
   = do autosz <- gets autoSize
        return $ case dindex autosz of
          Nothing -> Left msg
          Just i  -> Right i
     where
-       msg  = ErrTermin (getSrcSpan x) [F.pprint x] (text "No decreasing parameter")
+       msg  = ErrTermin (GHC.getSrcSpan x) [F.pprint x] (text "No decreasing parameter")
        trep = toRTypeRep $ unOCons st
        ts   = ty_args trep
        tvs  = zip ts args
@@ -123,7 +119,7 @@ makeDecrIndexTy x st args
        dindex     autosz = L.findIndex (p autosz) tvs
 
 recType :: F.Symbolic a
-        => S.HashSet TyCon
+        => S.HashSet GHC.TyCon
         -> (([a], Maybe Int), (t, Maybe Int, SpecType))
         -> SpecType
 recType _       ((_, Nothing), (_, Nothing, t)) = t
@@ -134,20 +130,20 @@ recType autoenv ((vs, indexc), (_, index, t))
         xts  = zip (ty_binds trep) (ty_args trep)
         trep = toRTypeRep $ unOCons t
 
-checkIndex :: (NamedThing t, PPrint t, PPrint a)
+checkIndex :: (GHC.NamedThing t, PPrint t, PPrint a)
            => (t, [a], Template (RType c tv r), Maybe Int)
            -> CG (Maybe (RType c tv r))
 checkIndex (_,  _, _, Nothing   ) = return Nothing
 checkIndex (x, vs, t, Just index) = safeLogIndex msg1 vs index >> safeLogIndex msg2 ts index
     where
-       loc   = getSrcSpan x
+       loc   = GHC.getSrcSpan x
        ts    = ty_args $ toRTypeRep $ unOCons $ unTemplate t
        msg1  = ErrTermin loc [xd] (text "No decreasing" <+> F.pprint index <-> text "-th argument on" <+> xd <+> text "with" <+> F.pprint vs)
        msg2  = ErrTermin loc [xd] (text  "No decreasing parameter")
        xd    = F.pprint x
 
 makeRecType :: (Enum a1, Eq a1, Num a1, F.Symbolic a)
-            => S.HashSet TyCon
+            => S.HashSet GHC.TyCon
             -> SpecType
             -> Maybe a
             -> Maybe (F.Symbol, SpecType)
@@ -181,8 +177,8 @@ safeLogIndex err ls n
   | otherwise      = return $ Just $ ls !! n
 
 -- RJ: AAAAAAARGHHH!!!!!! THIS CODE IS HORRIBLE!!!!!!!!!
-consCBSizedTys :: (Bool -> CGEnv -> (Var, CoreExpr, Template SpecType) -> CG (Template SpecType)) ->
-                  CGEnv -> [(Var, CoreExpr)] -> CG CGEnv
+consCBSizedTys :: (Bool -> CGEnv -> (GHC.Var, GHC.CoreExpr, Template SpecType) -> CG (Template SpecType)) ->
+                  CGEnv -> [(GHC.Var, GHC.CoreExpr)] -> CG CGEnv
 consCBSizedTys consBind γ xes
   = do ts'      <- forM xes $ \(x, e) -> varTemplate γ (x, Just e)
        autoenv  <- gets autoSize
@@ -208,7 +204,7 @@ consCBSizedTys consBind γ xes
        checkSameLens :: [Maybe Int] -> CG [Maybe Int]
        checkSameLens  = checkAllVsHead err2 length
        err2           = ErrTermin loc dxs $ text "All Recursive functions should have the same number of decreasing parameters"
-       loc            = getSrcSpan (head vars)
+       loc            = GHC.getSrcSpan (head vars)
 
        checkAllVsHead :: Eq b => Error -> (a -> b) -> [a] -> CG [a]
        checkAllVsHead _   _ []          = return []
@@ -218,13 +214,13 @@ consCBSizedTys consBind γ xes
 
 -- See Note [Shape of normalized terms] in
 -- Language.Haskell.Liquid.Transforms.ANF
-collectArguments :: Int -> CoreExpr -> [Var]
+collectArguments :: Int -> GHC.CoreExpr -> [GHC.Var]
 collectArguments n e = take n (vs' ++ vs)
   where
     (vs', e')        = collectValBinders' $ snd $ GHC.collectTyBinders e
     vs               = fst $ GHC.collectBinders $ ignoreLetBinds e'
 
-collectValBinders' :: CoreExpr -> ([Var], CoreExpr)
+collectValBinders' :: GHC.CoreExpr -> ([GHC.Var], GHC.CoreExpr)
 collectValBinders' = go []
   where
     go tvs (GHC.Lam b e) | GHC.isTyVar b = go tvs     e
@@ -236,8 +232,8 @@ ignoreLetBinds :: GHC.Expr b -> GHC.Expr b
 ignoreLetBinds (GHC.Let (GHC.NonRec _ _) e') = ignoreLetBinds e'
 ignoreLetBinds e = e
 
-consCBWithExprs :: (Bool -> CGEnv -> (Var, CoreExpr, Template SpecType) -> CG (Template SpecType)) ->
-                   CGEnv -> [(Var, CoreExpr)] -> CG CGEnv
+consCBWithExprs :: (Bool -> CGEnv -> (GHC.Var, GHC.CoreExpr, Template SpecType) -> CG (Template SpecType)) ->
+                   CGEnv -> [(GHC.Var, GHC.CoreExpr)] -> CG CGEnv
 consCBWithExprs consBind γ xes
   = do ts0      <- forM xes $ \(x, e) -> varTemplate γ (x, Just e)
        texprs   <- gets termExprs
