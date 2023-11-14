@@ -330,11 +330,10 @@ namedPanic x msg = panic (Just (getSrcSpan x)) msg
 --------------------------------------------------------------------------------
 
 collectArguments :: Int -> CoreExpr -> [Var]
-collectArguments n e = if length xs > n then take n xs else xs
+collectArguments n e = take n (vs' ++ vs)
   where
     (vs', e')        = collectValBinders' $ snd $ collectTyBinders e
     vs               = fst $ collectBinders $ ignoreLetBinds e'
-    xs               = vs' ++ vs
 
 {-
 collectTyBinders :: CoreExpr -> ([Var], CoreExpr)
