@@ -249,7 +249,21 @@ stitch γ e
        e'    <- normalize γ e
        bs    <- st_binds <$> get
        put bs'
-       return $ mkCoreLets bs e'
+       -- See Note [Shape of normalized terms]
+       let (tvs, e'') = collectTyBinders e'
+       return $ mkLams tvs (mkCoreLets bs e'')
+
+-- Note [Shape of normalized terms]
+--
+-- The termination checker in Termination.collectArguments expects the type
+-- binders to come before lets:
+--
+-- > \ (@a) -> let ... in \ b c d -> ...
+--
+-- Therefore, stitch makes sure to insert new lets after the type binders
+--
+-- > \ (@a) -> let lqanf... = ... in let ... in \ b c d -> ...
+--
 
 _mkCoreLets' :: [CoreBind] -> CoreExpr -> CoreExpr
 _mkCoreLets' bs e = mkCoreLets bs1 e1
