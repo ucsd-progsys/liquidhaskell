@@ -40,6 +40,7 @@ import           Language.Haskell.Liquid.Types.Types
    toRTypeRep, structuralTerm, bkArrowDeep, mkArrow, bkUniv, bkArrow, fromRTypeRep)
 import           Language.Haskell.Liquid.Types.RefType (isDecreasing, makeDecrType, makeLexRefa, makeNumEnv)
 import           Language.Haskell.Liquid.Misc (safeFromLeft, replaceN, (<->), zip4, safeFromJust, fst5)
+import qualified Liquid.GHC.API as GHC
 
 
 data TCheck = TerminationCheck | StrataCheck | NoCheck
@@ -78,7 +79,7 @@ makeTermEnvs γ xtes xes ts ts' = setTRec γ . zip xs <$> rts
     rts  = zipWith (addObligation OTerm) ts' <$> rss
     (xs, ces)    = unzip xes
     mkSub ys ys' = F.mkSubst [(x, F.EVar y) | (x, y) <- zip ys ys']
-    collectArgs' = GM.collectArguments . length . ty_binds . toRTypeRep
+    collectArgs' = collectArguments . length . ty_binds . toRTypeRep
     err x        = "Constant: makeTermEnvs: no terminating expression for " ++ GM.showPpr x
 
 addObligation :: Oblig -> SpecType -> RReft -> SpecType
@@ -200,7 +201,7 @@ consCBSizedTys consBind γ xes
        allowTC        = typeclass (getConfig γ)
        (vars, es)     = unzip xes
        dxs            = F.pprint <$> vars
-       collectArgs'   = GM.collectArguments . length . ty_binds . toRTypeRep . unOCons . unTemplate
+       collectArgs'   = collectArguments . length . ty_binds . toRTypeRep . unOCons . unTemplate
        checkEqTypes :: [Maybe SpecType] -> CG [SpecType]
        checkEqTypes x = checkAllVsHead err1 toRSort (catMaybes x)
        err1           = ErrTermin loc dxs $ text "The decreasing parameters should be of same type"
@@ -214,6 +215,26 @@ consCBSizedTys consBind γ xes
        checkAllVsHead err f (x:xs)
          | all (== f x) (f <$> xs) = return (x:xs)
          | otherwise               = addWarning err >> return []
+
+-- See Note [Shape of normalized terms] in
+-- Language.Haskell.Liquid.Transforms.ANF
+collectArguments :: Int -> CoreExpr -> [Var]
+collectArguments n e = take n (vs' ++ vs)
+  where
+    (vs', e')        = collectValBinders' $ snd $ GHC.collectTyBinders e
+    vs               = fst $ GHC.collectBinders $ ignoreLetBinds e'
+
+collectValBinders' :: CoreExpr -> ([Var], CoreExpr)
+collectValBinders' = go []
+  where
+    go tvs (GHC.Lam b e) | GHC.isTyVar b = go tvs     e
+    go tvs (GHC.Lam b e) | GHC.isId    b = go (b:tvs) e
+    go tvs (GHC.Tick _ e)            = go tvs e
+    go tvs e                         = (reverse tvs, e)
+
+ignoreLetBinds :: GHC.Expr b -> GHC.Expr b
+ignoreLetBinds (GHC.Let (GHC.NonRec _ _) e') = ignoreLetBinds e'
+ignoreLetBinds e = e
 
 consCBWithExprs :: (Bool -> CGEnv -> (Var, CoreExpr, Template SpecType) -> CG (Template SpecType)) ->
                    CGEnv -> [(Var, CoreExpr)] -> CG CGEnv

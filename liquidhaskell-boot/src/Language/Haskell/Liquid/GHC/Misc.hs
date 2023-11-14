@@ -326,39 +326,6 @@ namedPanic :: (NamedThing a) => a -> String -> b
 namedPanic x msg = panic (Just (getSrcSpan x)) msg
 
 --------------------------------------------------------------------------------
--- | Manipulating CoreExpr -----------------------------------------------------
---------------------------------------------------------------------------------
-
-collectArguments :: Int -> CoreExpr -> [Var]
-collectArguments n e = take n (vs' ++ vs)
-  where
-    (vs', e')        = collectValBinders' $ snd $ collectTyBinders e
-    vs               = fst $ collectBinders $ ignoreLetBinds e'
-
-{-
-collectTyBinders :: CoreExpr -> ([Var], CoreExpr)
-collectTyBinders expr
-  = go [] expr
-  where
-    go tvs (Lam b e) | isTyVar b = go (b:tvs) e
-    go tvs e                     = (reverse tvs, e)
--}
-
-collectValBinders' :: Ghc.Expr Var -> ([Var], Ghc.Expr Var)
-collectValBinders' = go []
-  where
-    go tvs (Lam b e) | isTyVar b = go tvs     e
-    go tvs (Lam b e) | isId    b = go (b:tvs) e
-    go tvs (Tick _ e)            = go tvs e
-    go tvs e                     = (reverse tvs, e)
-
-ignoreLetBinds :: Ghc.Expr t -> Ghc.Expr t
-ignoreLetBinds (Let (NonRec _ _) e')
-  = ignoreLetBinds e'
-ignoreLetBinds e
-  = e
-
---------------------------------------------------------------------------------
 -- | Predicates on CoreExpr and DataCons ---------------------------------------
 --------------------------------------------------------------------------------
 
