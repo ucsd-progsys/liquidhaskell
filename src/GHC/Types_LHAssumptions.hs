@@ -16,6 +16,7 @@ embed GHC.Types.Float   as real
 embed GHC.Prim.Float#   as real
 embed GHC.Types.Word    as int
 embed GHC.Prim.Word#    as int
+embed GHC.Prim.Word64#  as int
 embed GHC.Types.Int     as int
 embed GHC.Prim.Int#     as int
 embed GHC.Types.Bool    as bool
