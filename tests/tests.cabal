@@ -1901,6 +1901,7 @@ executable unit-pos-2
                     , Ite1
                     , Ite
                     , Jeff
+                    , KMeansHelper
                     , Keys
                     , Kmp
                     , KmpIO
