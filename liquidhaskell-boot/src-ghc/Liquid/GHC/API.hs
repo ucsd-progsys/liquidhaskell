@@ -461,7 +461,7 @@ import GHC.Core.FVs                   as Ghc (exprFreeVarsList)
 import GHC.Core.Opt.OccurAnal         as Ghc
     ( occurAnalysePgm )
 import GHC.Driver.Env                 as Ghc
-    ( HscEnv(hsc_unit_env, hsc_dflags, hsc_plugins) )
+    ( HscEnv(hsc_mod_graph, hsc_unit_env, hsc_dflags, hsc_plugins) )
 import GHC.Driver.Errors              as Ghc
     ( printMessages )
 import GHC.Driver.Ppr                 as Ghc

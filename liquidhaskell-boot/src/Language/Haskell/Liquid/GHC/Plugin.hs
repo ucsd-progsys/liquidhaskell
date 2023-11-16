@@ -277,8 +277,9 @@ serialiseSpec thisModule tcGblEnv liquidLib = do
 
 processInputSpec :: Config -> PipelineData -> ModSummary -> TcGblEnv -> BareSpec -> TcM (Either LiquidCheckException TcGblEnv)
 processInputSpec cfg pipelineData modSummary tcGblEnv inputSpec = do
+  hscEnv <- env_top <$> getEnv
   debugLog $ " Input spec: \n" ++ show inputSpec
-  debugLog $ "Relevant ===> \n" ++ unlines (renderModule <$> S.toList (relevantModules modGuts))
+  debugLog $ "Relevant ===> \n" ++ unlines (renderModule <$> S.toList (relevantModules (hsc_mod_graph hscEnv) modGuts))
 
   logicMap :: LogicMap <- liftIO LH.makeLogicMap
 
@@ -291,7 +292,7 @@ processInputSpec cfg pipelineData modSummary tcGblEnv inputSpec = do
       , lhModuleSummary   = modSummary
       , lhModuleTcData    = pdTcData pipelineData
       , lhModuleGuts      = pdUnoptimisedCore pipelineData
-      , lhRelevantModules = relevantModules modGuts
+      , lhRelevantModules = relevantModules (hsc_mod_graph hscEnv) modGuts
       }
 
   -- liftIO $ putStrLn ("liquidHaskellCheck 6: " ++ show isIg)

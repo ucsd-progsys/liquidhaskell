@@ -34,6 +34,7 @@ import Data.Data (Data, gmapQr)
 import Data.Generics (extQ)
 import Data.Foldable                  (asum)
 import Data.List                      (foldl', sortOn)
+import qualified Data.Map as Map
 import qualified Data.Set as S
 import GHC.Core                       as Ghc
 import GHC.Core.Coercion              as Ghc
@@ -55,6 +56,11 @@ import GHC.Types.Unique               (getUnique)
 import GHC.Types.Unique.FM
 
 import GHC.Unit.Module.Deps           as Ghc (Dependencies(dep_direct_mods))
+import GHC.Unit.Module.Graph          as Ghc
+  ( NodeKey(NodeKey_Module)
+  , ModNodeKeyWithUid(ModNodeKeyWithUid)
+  , mgTransDeps
+  )
 import GHC.Unit.Module.ModDetails     (md_types)
 import GHC.Unit.Module.ModSummary     (isBootSummary)
 import GHC.Utils.Outputable           as Ghc hiding ((<>))
@@ -80,8 +86,17 @@ tyConRealArity tc = go 0 (tyConKind tc)
         Nothing -> acc
         Just ks -> go (acc + 1) ks
 
-getDependenciesModuleNames :: Dependencies -> [ModuleNameWithIsBoot]
-getDependenciesModuleNames = map snd . S.toList . dep_direct_mods
+getDependenciesModuleNames :: ModuleGraph -> UnitId -> Dependencies -> [ModuleNameWithIsBoot]
+getDependenciesModuleNames mg unitId deps =
+    mapMaybe nodeKeyToModuleName $ S.toList $ S.unions $ catMaybes
+      [ Map.lookup k tdeps
+      | (_, m) <- S.toList $ dep_direct_mods deps
+      , let k = NodeKey_Module $ ModNodeKeyWithUid m unitId
+      ]
+  where
+    tdeps = mgTransDeps mg
+    nodeKeyToModuleName (NodeKey_Module (ModNodeKeyWithUid m _)) = Just m
+    nodeKeyToModuleName _ = Nothing
 
 renderWithStyle :: DynFlags -> SDoc -> PprStyle -> String
 renderWithStyle dynflags sdoc style = Ghc.renderWithContext (Ghc.initSDocContext dynflags style) sdoc
@@ -92,13 +107,13 @@ dataConSig dc
   = (dataConUnivAndExTyCoVars dc, dataConTheta dc, map irrelevantMult $ dataConOrigArgTys dc, dataConOrigResTy dc)
 
 -- | The collection of dependencies and usages modules which are relevant for liquidHaskell
-relevantModules :: ModGuts -> S.Set Module
-relevantModules modGuts = used `S.union` dependencies
+relevantModules :: ModuleGraph -> ModGuts -> S.Set Module
+relevantModules mg modGuts = used `S.union` dependencies
   where
     dependencies :: S.Set Module
     dependencies = S.fromList $ map (toModule . gwib_mod)
                               . filter ((NotBoot ==) . gwib_isBoot)
-                              . getDependenciesModuleNames $ deps
+                              . getDependenciesModuleNames mg thisUnitId $ deps
 
     deps :: Dependencies
     deps = mg_deps modGuts
@@ -106,8 +121,10 @@ relevantModules modGuts = used `S.union` dependencies
     thisModule :: Module
     thisModule = mg_module modGuts
 
+    thisUnitId = moduleUnitId thisModule
+
     toModule :: ModuleName -> Module
-    toModule = unStableModule . mkStableModule (moduleUnitId thisModule)
+    toModule = unStableModule . mkStableModule thisUnitId
 
     used :: S.Set Module
     used = S.fromList $ foldl' collectUsage mempty . mg_usages $ modGuts
