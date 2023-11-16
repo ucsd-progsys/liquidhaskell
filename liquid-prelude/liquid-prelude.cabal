@@ -25,7 +25,6 @@ library
                     Language.Haskell.Liquid.Equational
                     Language.Haskell.Liquid.Bag
                     Language.Haskell.Liquid.ProofCombinators
-                    KMeansHelper
   hs-source-dirs:     src
   build-depends:      base          < 5
                     , ghc-prim
