@@ -40,6 +40,7 @@ import qualified Liquid.GHC.API as GHC
 
 
 data TCheck = TerminationCheck | StrataCheck | NoCheck
+  deriving Show
 
 mkTCheck :: Bool -> Bool -> TCheck
 mkTCheck tc is
