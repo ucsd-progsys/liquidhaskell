@@ -33,7 +33,6 @@ executable liquidhaskell
                       , liquidhaskell-boot >= 0.9.2.8
                       , filepath
                       , process           >= 1.6.0.0 && < 1.7
-                      , cmdargs           >= 0.10    && < 0.11
 
   if flag(devel)
     ghc-options: -Werror
