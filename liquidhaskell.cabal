@@ -57,6 +57,7 @@ library
                       GHC.IO.Handle_LHAssumptions
                       GHC.List_LHAssumptions
                       GHC.Num_LHAssumptions
+                      GHC.Num.Integer_LHAssumptions
                       GHC.Maybe_LHAssumptions
                       GHC.Ptr_LHAssumptions
                       GHC.Real_LHAssumptions
@@ -80,6 +81,7 @@ library
                       liquidhaskell-boot   == 0.9.2.8.0,
                       bytestring           == 0.11.4.0,
                       containers           == 0.6.5.1,
+                      ghc-bignum,
                       ghc-prim
   default-language:   Haskell98
   ghc-options:        -Wall -fplugin=LiquidHaskellBoot
