@@ -7,11 +7,10 @@ import Language.Haskell.Liquid.Types.PrettyPrint (Filter(..), filterReportErrors
 import Data.Functor.Identity (Identity(..))
 
 defArgs :: Monad m => FilterReportErrorsArgs m Filter String String Bool
-defArgs = FilterReportErrorsArgs { msgReporter = const (pure ())
+defArgs = FilterReportErrorsArgs { errorReporter = const (pure ())
                                  , filterReporter = const (pure ())
                                  , failure =  pure False
                                  , continue = pure True
-                                 , pprinter = pure
                                  , matchingFilters = const []
                                  , filters = [] }
 
