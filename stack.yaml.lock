@@ -5,13 +5,6 @@
 
 packages:
 - completed:
-    hackage: hashable-1.4.2.0@sha256:585792335d5541dba78fa8dfcb291a89cd5812a281825ff7a44afa296ab5d58a,4520
-    pantry-tree:
-      sha256: 792a6cab3f15c5db29d759c8ca735d0be5f4c94f363329652f8b9780009d0829
-      size: 1248
-  original:
-    hackage: hashable-1.4.2.0
-- completed:
     hackage: rest-rewrite-0.4.1@sha256:1254960c0a595cf4c9d5a3b986f42644407c63c74578d75b3568a6a12e5143f0,3886
     pantry-tree:
       sha256: 17b4e99420cc1929e2b7d29558a0f909d6fcabd263fbc590dbf2585f893f5a6e
@@ -44,6 +37,13 @@ packages:
     commit: 45ef3498e35897712bde8e002ce18df6d55f8b15
     git: https://github.com/qnikst/ghc-timings-report
 - completed:
+    hackage: vector-0.12.3.1@sha256:39141f312871b7c793a63be76635999e84d442aa3290aec59f30638ec0bf23a7,8218
+    pantry-tree:
+      sha256: c4f50de0598ce416df3a8f01ad7f23d8f1282ef3c5c531d67afe15b1e14a5d8d
+      size: 3842
+  original:
+    hackage: vector-0.12.3.1
+- completed:
     hackage: strip-ansi-escape-0.1.0.0@sha256:08f2ed93b16086a837ec46eab7ce8d27cf39d47783caaeb818878ea33c2ff75f,1628
     pantry-tree:
       sha256: cf7712453587e8ea69b96f33e2e8015c22d3b448259d4cace663cc15657309d7
@@ -52,7 +52,7 @@ packages:
     hackage: strip-ansi-escape-0.1.0.0@sha256:08f2ed93b16086a837ec46eab7ce8d27cf39d47783caaeb818878ea33c2ff75f,1628
 snapshots:
 - completed:
-    sha256: 5a59b2a405b3aba3c00188453be172b85893cab8ebc352b1ef58b0eae5d248a2
-    size: 650475
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/20/26.yaml
-  original: lts-20.26
+    sha256: 5921ddc75f5dd3f197fbc32e1e5676895a8e7b971d4f82ef6b556657801dd18a
+    size: 640054
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/21/20.yaml
+  original: lts-21.20

@@ -1,7 +1,6 @@
 let
-  # NixOS/Nixpkgs master 2022-11-27
-  rev = "a115bb9bd56831941be3776c8a94005867f316a7";
-  sha256 = "1501jzl4661qwr45b9ip7c7bpmbl94816draybhh60s9wgxn068d";
+  rev = "0cbe9f69c234a7700596e943bfae7ef27a31b735";
+  sha256 = "15znwycfmbdcccqgld97x6375s5j028v6zmgvvr811dbny7cgy4c";
 in
 import (fetchTarball {
   inherit sha256;
