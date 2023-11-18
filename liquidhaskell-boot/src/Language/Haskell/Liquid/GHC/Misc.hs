@@ -28,11 +28,10 @@ import           Prelude                                    hiding (error)
 import           Liquid.GHC.API            as Ghc hiding ( L
                                                                           , sourceName
                                                                           , showPpr
-                                                                          , showSDocDump
                                                                           , panic
                                                                           , showSDoc
                                                                           )
-import qualified Liquid.GHC.API            as Ghc (GenLocated (L), showSDoc, panic, showSDocDump)
+import qualified Liquid.GHC.API            as Ghc (GenLocated (L), showSDoc, panic)
 
 
 import           Data.Char                                  (isLower, isSpace, isUpper)
@@ -46,7 +45,7 @@ import qualified Data.Text.Encoding.Error                   as TE
 import qualified Data.Text.Encoding                         as T
 import qualified Data.Text                                  as T
 import           Control.Arrow                              (second)
-import           Control.Monad                              ((>=>), foldM)
+import           Control.Monad                              ((>=>), foldM, when)
 import qualified Text.PrettyPrint.HughesPJ                  as PJ
 import           Language.Fixpoint.Types                    hiding (L, panic, Loc (..), SrcSpan, Constant, SESearch (..))
 import qualified Language.Fixpoint.Types                    as F
@@ -74,7 +73,7 @@ mkAlive x
 
 tickSrcSpan :: CoreTickish -> SrcSpan
 tickSrcSpan (ProfNote cc _ _) = cc_loc cc
-tickSrcSpan (SourceNote ss _) = RealSrcSpan ss Nothing
+tickSrcSpan (SourceNote ss _) = RealSrcSpan ss strictNothing
 tickSrcSpan _                 = noSrcSpan
 
 --------------------------------------------------------------------------------
@@ -112,7 +111,7 @@ stringTyCon = stringTyConWithKind anyTy
 
 -- FIXME: reusing uniques like this is really dangerous
 stringTyConWithKind :: Kind -> Char -> Int -> String -> TyCon
-stringTyConWithKind k c n s = Ghc.mkKindTyCon name [] k [] name
+stringTyConWithKind k c n s = Ghc.mkPrimTyCon name [] k []
   where
     name          = mkInternalName (mkUnique c n) occ noSrcSpan
     occ           = mkTcOcc s
@@ -201,7 +200,7 @@ myQualify = Ghc.neverQualify { Ghc.queryQualifyName = Ghc.alwaysQualifyNames }
 -- { Ghc.queryQualifyName = \_ _ -> Ghc.NameNotInScope1 }
 
 showSDocDump :: Ghc.SDoc -> String
-showSDocDump  = Ghc.showSDocDump Ghc.defaultSDocContext
+showSDocDump  = Ghc.renderWithContext Ghc.defaultSDocContext
 
 instance Outputable a => Outputable (S.HashSet a) where
   ppr = ppr . S.toList
@@ -246,7 +245,7 @@ srcSpanFSrcSpan sp = F.SS p p'
     p'             = srcSpanSourcePosE sp
 
 sourcePos2SrcSpan :: SourcePos -> SourcePos -> SrcSpan
-sourcePos2SrcSpan p p' = RealSrcSpan (packRealSrcSpan f (unPos l) (unPos c) (unPos l') (unPos c')) Nothing
+sourcePos2SrcSpan p p' = RealSrcSpan (packRealSrcSpan f (unPos l) (unPos c) (unPos l') (unPos c')) strictNothing
   where
     (f, l,  c)         = F.sourcePosElts p
     (_, l', c')        = F.sourcePosElts p'
@@ -327,40 +326,6 @@ namedPanic :: (NamedThing a) => a -> String -> b
 namedPanic x msg = panic (Just (getSrcSpan x)) msg
 
 --------------------------------------------------------------------------------
--- | Manipulating CoreExpr -----------------------------------------------------
---------------------------------------------------------------------------------
-
-collectArguments :: Int -> CoreExpr -> [Var]
-collectArguments n e = if length xs > n then take n xs else xs
-  where
-    (vs', e')        = collectValBinders' $ snd $ collectTyBinders e
-    vs               = fst $ collectBinders $ ignoreLetBinds e'
-    xs               = vs' ++ vs
-
-{-
-collectTyBinders :: CoreExpr -> ([Var], CoreExpr)
-collectTyBinders expr
-  = go [] expr
-  where
-    go tvs (Lam b e) | isTyVar b = go (b:tvs) e
-    go tvs e                     = (reverse tvs, e)
--}
-
-collectValBinders' :: Ghc.Expr Var -> ([Var], Ghc.Expr Var)
-collectValBinders' = go []
-  where
-    go tvs (Lam b e) | isTyVar b = go tvs     e
-    go tvs (Lam b e) | isId    b = go (b:tvs) e
-    go tvs (Tick _ e)            = go tvs e
-    go tvs e                     = (reverse tvs, e)
-
-ignoreLetBinds :: Ghc.Expr t -> Ghc.Expr t
-ignoreLetBinds (Let (NonRec _ _) e')
-  = ignoreLetBinds e'
-ignoreLetBinds e
-  = e
-
---------------------------------------------------------------------------------
 -- | Predicates on CoreExpr and DataCons ---------------------------------------
 --------------------------------------------------------------------------------
 
@@ -420,7 +385,7 @@ uniqueHash i = hashWithSalt i . getKey . getUnique
 lookupRdrName :: HscEnv -> ModuleName -> RdrName -> IO (Maybe Name)
 lookupRdrName hsc_env mod_name rdr_name = do
     -- First find the package the module resides in by searching exposed packages and home modules
-    found_module <- findImportedModule hsc_env mod_name Nothing
+    found_module <- findImportedModule hsc_env mod_name NoPkgQual
     case found_module of
         Found _ mod' -> do
             -- Find the exports of the module
@@ -438,7 +403,7 @@ lookupRdrName hsc_env mod_name rdr_name = do
 -- XXX                        [gre] -> return (Just (gre_name gre))
                         []    -> return Nothing
                         _     -> Ghc.panic "lookupRdrNameInModule"
-                Nothing -> throwCmdLineErrorS dflags $ Ghc.hsep [Ghc.ptext (sLit "Could not determine the exports of the module"), ppr mod_name]
+                Nothing -> throwCmdLineErrorS dflags $ Ghc.hsep [Ghc.ptext (Ghc.mkPtrString "Could not determine the exports of the module"), ppr mod_name]
         err' -> throwCmdLineErrorS dflags $ cannotFindModule hsc_env mod_name err'
   where dflags = hsc_dflags hsc_env
         throwCmdLineErrorS dflags' = throwCmdLineError . Ghc.showSDoc dflags'
@@ -459,12 +424,6 @@ ignoreInline x = x {pm_parsed_source = go <$> pm_parsed_source x}
 --------------------------------------------------------------------------------
 -- | Symbol Conversions --------------------------------------------------------
 --------------------------------------------------------------------------------
-
-symbolTyConWithKind :: Kind -> Char -> Int -> Symbol -> TyCon
-symbolTyConWithKind k x i n = stringTyConWithKind k x i (symbolString n)
-
-symbolTyCon :: Char -> Int -> Symbol -> TyCon
-symbolTyCon x i n = stringTyCon x i (symbolString n)
 
 symbolTyVar :: Symbol -> TyVar
 symbolTyVar = stringTyVar . symbolString
@@ -719,9 +678,6 @@ symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
 synTyConRhs_maybe :: TyCon -> Maybe Type
 synTyConRhs_maybe = Ghc.synTyConRhs_maybe
 
-tcRnLookupRdrName :: HscEnv -> Ghc.LocatedN RdrName -> IO (Messages DecoratedSDoc, Maybe [Name])
-tcRnLookupRdrName = Ghc.tcRnLookupRdrName
-
 showCBs :: Bool -> [CoreBind] -> String
 showCBs untidy
   | untidy    =
@@ -919,7 +875,18 @@ elabRnExpr rdr_expr = do
     -- Ignore the dictionary bindings
     evbs' <- simplifyInteractive residual
     full_expr <- zonkTopLExpr (mkHsDictLet (EvBinds evbs') (mkHsDictLet evbs tc_expr))
-    initDsTc $ dsLExpr full_expr
+    (ds_msgs, me) <- initDsTc $ dsLExpr full_expr
+
+    logger <- getLogger
+    diag_opts <- initDiagOpts <$> getDynFlags
+    liftIO $ printMessages logger diag_opts ds_msgs
+
+    case me of
+      Nothing -> failM
+      Just e -> do
+        when (errorsOrFatalWarningsFound ds_msgs)
+          failM
+        return e
 
 newtype HashableType = HashableType {getHType :: Type}
 

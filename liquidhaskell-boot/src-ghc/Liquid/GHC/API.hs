@@ -59,7 +59,6 @@ import           GHC                  as Ghc
     , LexicalFixity(Prefix)
     , Located
     , LocatedN
-    , Logger
     , ModIface_(mi_anns, mi_exports, mi_globals, mi_module)
     , ModLocation(ml_hs_file)
     , ModSummary(ms_hspp_file, ms_hspp_opts, ms_location, ms_mod)
@@ -319,7 +318,9 @@ import GHC.Core.Make                  as Ghc
     , pAT_ERROR_ID
     )
 import GHC.Core.Predicate             as Ghc (getClassPredTys_maybe, getClassPredTys, isEvVarType, isEqPrimPred, isEqPred, isClassPred, isDictId, mkClassPred)
-import GHC.Core.Subst                 as Ghc (deShadowBinds, emptySubst, extendCvSubst)
+import GHC.Core.Reduction             as Ghc
+    ( Reduction(Reduction) )
+import GHC.Core.Subst                 as Ghc (emptySubst, extendCvSubst)
 import GHC.Core.TyCo.Rep              as Ghc
     ( AnonArgFlag(VisArg)
     , ArgFlag(Required)
@@ -370,7 +371,7 @@ import GHC.Core.TyCon                 as Ghc
     , isPromotedDataCon
     , isTupleTyCon
     , isVanillaAlgTyCon
-    , mkKindTyCon
+    , mkPrimTyCon
     , newTyConRhs
     , tyConBinders
     , tyConDataCons_maybe
@@ -420,12 +421,14 @@ import GHC.Data.FastString            as Ghc
     , fsLit
     , mkFastString
     , mkFastStringByteString
-    , sLit
+    , mkPtrString
     , uniq
     , unpackFS
     )
 import GHC.Data.Pair                  as Ghc
     ( Pair(Pair) )
+import GHC.Driver.Config.Diagnostic as Ghc
+    ( initDiagOpts )
 import GHC.Driver.Main                as Ghc
     ( hscDesugar
     , hscTcRcLookupName
@@ -433,8 +436,7 @@ import GHC.Driver.Main                as Ghc
 import GHC.Driver.Phases              as Ghc (Phase(StopLn))
 import GHC.Driver.Pipeline            as Ghc (compileFile)
 import GHC.Driver.Session             as Ghc
-    ( WarnReason(NoReason)
-    , getDynFlags
+    ( getDynFlags
     , gopt_set
     , updOptLevel
     , xopt_set
@@ -448,6 +450,7 @@ import GHC.Plugins                    as Ghc ( deserializeWithData
                                              , fromSerialized
                                              , toSerialized
                                              , defaultPlugin
+                                             , emptyPlugins
                                              , Plugin(..)
                                              , CommandLineOption
                                              , purePlugin
@@ -458,11 +461,12 @@ import GHC.Core.FVs                   as Ghc (exprFreeVarsList)
 import GHC.Core.Opt.OccurAnal         as Ghc
     ( occurAnalysePgm )
 import GHC.Driver.Env                 as Ghc
-    ( HscEnv(hsc_EPS, hsc_HPT, hsc_dflags, hsc_plugins, hsc_static_plugins) )
+    ( HscEnv(hsc_mod_graph, hsc_unit_env, hsc_dflags, hsc_plugins) )
+import GHC.Driver.Errors              as Ghc
+    ( printMessages )
 import GHC.Driver.Ppr                 as Ghc
     ( showPpr
     , showSDoc
-    , showSDocDump
     )
 import GHC.HsToCore.Expr              as Ghc
     ( dsLExpr )
@@ -471,13 +475,14 @@ import GHC.Iface.Load                 as Ghc
     , loadInterface
     )
 import GHC.Rename.Expr                as Ghc (rnLExpr)
+import GHC.Rename.Names               as Ghc (renamePkgQual)
+import GHC.Tc.Errors.Types            as Ghc
+    ( TcRnMessage(TcRnUnknownMessage) )
 import GHC.Tc.Gen.App                 as Ghc (tcInferSigma)
 import GHC.Tc.Gen.Bind                as Ghc (tcValBinds)
 import GHC.Tc.Gen.Expr                as Ghc (tcInferRho)
 import GHC.Tc.Module                  as Ghc
-    ( getModuleInterface
-    , tcRnLookupRdrName
-    )
+    ( getModuleInterface )
 import GHC.Tc.Solver                  as Ghc
     ( InferMode(NoRestrictions)
     , captureTopConstraints
@@ -503,14 +508,17 @@ import GHC.Tc.Utils.Monad             as Ghc
     , failWithTc
     , initIfaceTcRn
     , liftIO
-    , mkLongErrAt
+    , addErrAt
+    , addErrs
     , pushTcLevelM
-    , reportError
-    , reportErrors
+    , reportDiagnostic
+    , reportDiagnostics
     )
 import GHC.Tc.Utils.TcType            as Ghc (tcSplitDFunTy, tcSplitMethodTy)
 import GHC.Tc.Utils.Zonk              as Ghc
     ( zonkTopLExpr )
+import GHC.Types.PkgQual              as Ghc
+    ( PkgQual(NoPkgQual) )
 import GHC.Types.Annotations          as Ghc
     ( AnnPayload
     , AnnTarget(ModuleTarget)
@@ -539,9 +547,12 @@ import GHC.Types.CostCentre           as Ghc
     ( CostCentre(cc_loc)
     )
 import GHC.Types.Error                as Ghc
-    ( Messages
-    , DecoratedSDoc
+    ( Messages(getMessages)
+    , MessageClass(MCDiagnostic)
+    , DiagnosticReason(WarningWithoutFlag)
     , MsgEnvelope(errMsgSpan)
+    , errorsOrFatalWarningsFound
+    , mkPlainError
     )
 import GHC.Types.Fixity               as Ghc
     ( Fixity(Fixity) )
@@ -560,7 +571,7 @@ import GHC.Types.Id                   as Ghc
 import GHC.Types.Id.Info              as Ghc
     ( CafInfo(NoCafRefs)
     , IdDetails(DataConWorkId, DataConWrapId, RecSelId, VanillaId)
-    , IdInfo(occInfo, unfoldingInfo)
+    , IdInfo(occInfo, realUnfoldingInfo)
     , cafInfo
     , inlinePragInfo
     , mayHaveCafRefs
@@ -660,8 +671,11 @@ import GHC.Types.Var.Set              as Ghc
     , extendVarSetList
     , unitVarSet
     )
+import GHC.Unit.Env                   as Ghc
+    ( UnitEnv(ue_eps), ue_hpt )
 import GHC.Unit.External              as Ghc
     ( ExternalPackageState (eps_ann_env)
+    , ExternalUnitCache(euc_eps)
     )
 import GHC.Unit.Finder                as Ghc
     ( FindResult(Found, NoPackage, FoundMultiple, NotFound)
@@ -693,7 +707,7 @@ import GHC.Unit.Module.ModGuts        as Ghc
       , mg_usages
       )
     )
-import GHC.Utils.Error                as Ghc (withTiming)
-import GHC.Utils.Logger               as Ghc (putLogMsg)
+import GHC.Utils.Error                as Ghc (pprLocMsgEnvelope, withTiming)
+import GHC.Utils.Logger               as Ghc (Logger(logFlags), putLogMsg)
 import GHC.Utils.Outputable           as Ghc hiding ((<>))
 import GHC.Utils.Panic                as Ghc (panic, throwGhcException, throwGhcExceptionIO)

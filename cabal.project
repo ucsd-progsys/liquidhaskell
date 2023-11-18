@@ -1,4 +1,4 @@
-with-compiler: ghc-9.2.8
+with-compiler: ghc-9.4.7
 
 packages: .
           ./liquid-fixpoint
@@ -24,7 +24,7 @@ source-repository-package
     tag: ba85444d3c81774a43b8c2b046084e92869914f4
     subdir: chart
 
-allow-newer: ghc-timings:base, rest-rewrite:time
+allow-newer: ghc-timings:base, rest-rewrite:time, Chart:lens
 
 package liquid-fixpoint
   flags: +devel

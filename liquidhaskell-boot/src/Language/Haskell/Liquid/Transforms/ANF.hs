@@ -255,8 +255,9 @@ stitch γ e
 
 -- Note [Shape of normalized terms]
 --
--- The termination checker in Termination.collectArguments expects the type
--- binders to come before lets:
+-- The termination checker in
+-- Language.Haskell.Liquid.Constraint.Termination.collectArguments expects the
+-- type binders to come before lets:
 --
 -- > \ (@a) -> let ... in \ b c d -> ...
 --

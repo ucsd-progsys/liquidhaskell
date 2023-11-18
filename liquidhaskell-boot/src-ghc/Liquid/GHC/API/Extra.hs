@@ -11,18 +11,17 @@ module Liquid.GHC.API.Extra (
   , dataConSig
   , desugarModuleIO
   , fsToUnitId
-  , getDependenciesModuleNames
   , isPatErrorAlt
   , lookupModSummary
   , modInfoLookupNameIO
   , moduleInfoTc
-  , moduleUnitId
   , parseModuleIO
   , qualifiedNameFS
   , relevantModules
   , renderWithStyle
   , showPprQualified
   , showSDocQualified
+  , strictNothing
   , thisPackage
   , tyConRealArity
   , typecheckModuleIO
@@ -35,6 +34,7 @@ import Data.Data (Data, gmapQr)
 import Data.Generics (extQ)
 import Data.Foldable                  (asum)
 import Data.List                      (foldl', sortOn)
+import qualified Data.Map as Map
 import qualified Data.Set as S
 import GHC.Core                       as Ghc
 import GHC.Core.Coercion              as Ghc
@@ -44,6 +44,7 @@ import GHC.Core.Type                  as Ghc hiding (typeKind , isPredTy, extend
 import GHC.Data.FastString            as Ghc
 import qualified GHC.Data.EnumSet as EnumSet
 import GHC.Data.Maybe
+import qualified GHC.Data.Strict
 import GHC.Driver.Env
 import GHC.Driver.Main
 import GHC.Driver.Session             as Ghc
@@ -54,7 +55,12 @@ import GHC.Types.TypeEnv
 import GHC.Types.Unique               (getUnique)
 import GHC.Types.Unique.FM
 
-import GHC.Unit.Module.Deps           as Ghc (Dependencies(dep_mods))
+import GHC.Unit.Module.Deps           as Ghc (Dependencies(dep_direct_mods))
+import GHC.Unit.Module.Graph          as Ghc
+  ( NodeKey(NodeKey_Module)
+  , ModNodeKeyWithUid(ModNodeKeyWithUid)
+  , mgTransDeps
+  )
 import GHC.Unit.Module.ModDetails     (md_types)
 import GHC.Unit.Module.ModSummary     (isBootSummary)
 import GHC.Utils.Outputable           as Ghc hiding ((<>))
@@ -66,9 +72,6 @@ import GHC.Unit.Module.Deps (Usage(..))
 -- 'fsToUnitId' is gone in GHC 9, but we can bring code it in terms of 'fsToUnit' and 'toUnitId'.
 fsToUnitId :: FastString -> UnitId
 fsToUnitId = toUnitId . fsToUnit
-
-moduleUnitId :: Module -> UnitId
-moduleUnitId = toUnitId . moduleUnit
 
 thisPackage :: DynFlags -> UnitId
 thisPackage = homeUnitId_
@@ -83,8 +86,17 @@ tyConRealArity tc = go 0 (tyConKind tc)
         Nothing -> acc
         Just ks -> go (acc + 1) ks
 
-getDependenciesModuleNames :: Dependencies -> [ModuleNameWithIsBoot]
-getDependenciesModuleNames = dep_mods
+getDependenciesModuleNames :: ModuleGraph -> UnitId -> Dependencies -> [ModuleNameWithIsBoot]
+getDependenciesModuleNames mg unitId deps =
+    mapMaybe nodeKeyToModuleName $ S.toList $ S.unions $ catMaybes
+      [ Map.lookup k tdeps
+      | (_, m) <- S.toList $ dep_direct_mods deps
+      , let k = NodeKey_Module $ ModNodeKeyWithUid m unitId
+      ]
+  where
+    tdeps = mgTransDeps mg
+    nodeKeyToModuleName (NodeKey_Module (ModNodeKeyWithUid m _)) = Just m
+    nodeKeyToModuleName _ = Nothing
 
 renderWithStyle :: DynFlags -> SDoc -> PprStyle -> String
 renderWithStyle dynflags sdoc style = Ghc.renderWithContext (Ghc.initSDocContext dynflags style) sdoc
@@ -95,13 +107,13 @@ dataConSig dc
   = (dataConUnivAndExTyCoVars dc, dataConTheta dc, map irrelevantMult $ dataConOrigArgTys dc, dataConOrigResTy dc)
 
 -- | The collection of dependencies and usages modules which are relevant for liquidHaskell
-relevantModules :: ModGuts -> S.Set Module
-relevantModules modGuts = used `S.union` dependencies
+relevantModules :: ModuleGraph -> ModGuts -> S.Set Module
+relevantModules mg modGuts = used `S.union` dependencies
   where
     dependencies :: S.Set Module
     dependencies = S.fromList $ map (toModule . gwib_mod)
                               . filter ((NotBoot ==) . gwib_isBoot)
-                              . getDependenciesModuleNames $ deps
+                              . getDependenciesModuleNames mg thisUnitId $ deps
 
     deps :: Dependencies
     deps = mg_deps modGuts
@@ -109,8 +121,10 @@ relevantModules modGuts = used `S.union` dependencies
     thisModule :: Module
     thisModule = mg_module modGuts
 
+    thisUnitId = moduleUnitId thisModule
+
     toModule :: ModuleName -> Module
-    toModule = unStableModule . mkStableModule (moduleUnitId thisModule)
+    toModule = unStableModule . mkStableModule thisUnitId
 
     used :: S.Set Module
     used = S.fromList $ foldl' collectUsage mempty . mg_usages $ modGuts
@@ -192,7 +206,7 @@ apiCommentsParsedSource ps =
 
     -- TODO: take into account anchor_op, which only matters if the source was
     -- pre-processed by an exact-print-aware tool.
-    toRealSrc (L a e) = L (RealSrcSpan (anchor a) Nothing) e
+    toRealSrc (L a e) = L (RealSrcSpan (anchor a) strictNothing) e
 
     spanToLineColumn =
       fmap (\s -> (srcSpanStartLine s, srcSpanStartCol s)) . srcSpanToRealSrcSpan
@@ -221,10 +235,9 @@ modInfoLookupNameIO hscEnv minf name =
     Just tyThing -> return (Just tyThing)
     Nothing      -> lookupType hscEnv name
 
-moduleInfoTc :: HscEnv -> ModSummary -> TcGblEnv -> IO ModuleInfoLH
-moduleInfoTc hscEnv ms tcGblEnv = do
-  let hsc_env_tmp = hscEnv { hsc_dflags = ms_hspp_opts ms }
-  details <- md_types <$> liftIO (makeSimpleDetails hsc_env_tmp tcGblEnv)
+moduleInfoTc :: HscEnv -> TcGblEnv -> IO ModuleInfoLH
+moduleInfoTc hscEnv tcGblEnv = do
+  details <- md_types <$> liftIO (makeSimpleDetails (hsc_logger hscEnv) tcGblEnv)
   pure ModuleInfoLH { minflh_type_env = details }
 
 -- | Tells if a case alternative calls to patError
@@ -271,3 +284,7 @@ showSDocQualified = Ghc.renderWithContext ctx
 myQualify :: Ghc.PrintUnqualified
 myQualify = Ghc.neverQualify { Ghc.queryQualifyName = Ghc.alwaysQualifyNames }
 -- { Ghc.queryQualifyName = \_ _ -> Ghc.NameNotInScope1 }
+
+
+strictNothing :: GHC.Data.Strict.Maybe a
+strictNothing = GHC.Data.Strict.Nothing

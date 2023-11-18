@@ -23,7 +23,7 @@ import Control.Monad (liftM, ap)
 import Data.Foldable (fold)
 
 terminationVars :: TargetInfo -> [Var]
-terminationVars info = failingBinds info >>= allBoundVars
+terminationVars info = failingBinds info >>= allLetBoundVars
 
 failingBinds :: TargetInfo -> [CoreBind]
 failingBinds info = filter (hasErrors . checkBind) structBinds
@@ -37,12 +37,9 @@ failingBinds info = filter (hasErrors . checkBind) structBinds
 
 checkBind :: CoreBind -> Result ()
 checkBind bind = do
-  srcCallInfo <- getCallInfoBind emptyEnv (deShadowBind bind)
+  srcCallInfo <- getCallInfoBind emptyEnv bind
   let structCallInfo = fmap toStructCall <$> srcCallInfo
   fold $ mapWithFun structDecreasing structCallInfo
-
-deShadowBind :: CoreBind -> CoreBind
-deShadowBind bind = head $ deShadowBinds [bind]
 
 findStructBinds :: HashSet Var -> CoreProgram -> [CoreBind]
 findStructBinds structFuns program = filter isStructBind program
@@ -51,9 +48,9 @@ findStructBinds structFuns program = filter isStructBind program
     isStructBind (Rec []) = False
     isStructBind (Rec ((f,_):xs)) = f `HS.member` structFuns || isStructBind (Rec xs)
 
-allBoundVars :: CoreBind -> [Var]
-allBoundVars (NonRec v e) = v : (nextBinds e >>= allBoundVars)
-allBoundVars (Rec binds) = map fst binds ++ (map snd binds >>= nextBinds >>= allBoundVars)
+allLetBoundVars :: CoreBind -> [Var]
+allLetBoundVars (NonRec v e) = v : (nextBinds e >>= allLetBoundVars)
+allLetBoundVars (Rec binds) = map fst binds ++ (map snd binds >>= nextBinds >>= allLetBoundVars)
 
 nextBinds :: CoreExpr -> [CoreBind]
 nextBinds = \case

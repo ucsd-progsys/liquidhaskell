@@ -34,6 +34,6 @@ main = do
       logger <- liftIO G.initLogger
       (df2, leftovers, _warns) <- G.parseDynamicFlags logger df1 (map G.noLoc cmdOpts)
       setSessionDynFlags df2
-      ts <- mapM (flip G.guessTarget Nothing) $ map unLoc leftovers
+      ts <- mapM (\x-> G.guessTarget x Nothing Nothing) $ map unLoc leftovers
       setTargets ts
       void $ G.load LoadAllTargets

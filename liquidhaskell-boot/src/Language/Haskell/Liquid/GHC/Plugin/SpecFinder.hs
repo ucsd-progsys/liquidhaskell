@@ -64,14 +64,14 @@ findRelevantSpecs :: [String] -- ^ Package to exclude for loading LHAssumptions
                   -- ^ Any relevant module fetched during dependency-discovery.
                   -> TcM [SpecFinderResult]
 findRelevantSpecs lhAssmPkgExcludes hscEnv mods = do
-    eps <- liftIO $ readIORef (hsc_EPS hscEnv)
+    eps <- liftIO $ readIORef (euc_eps $ ue_eps $ hsc_unit_env hscEnv)
     foldM (loadRelevantSpec eps) mempty mods
   where
 
     loadRelevantSpec :: ExternalPackageState -> [SpecFinderResult] -> Module -> TcM [SpecFinderResult]
     loadRelevantSpec eps !acc currentModule = do
       res <- liftIO $ runMaybeT $
-        lookupInterfaceAnnotations eps (hsc_HPT hscEnv) currentModule
+        lookupInterfaceAnnotations eps (ue_hpt $ hsc_unit_env hscEnv) currentModule
       case res of
         Nothing         -> do
           mAssm <- loadModuleLHAssumptionsIfAny currentModule
@@ -81,18 +81,19 @@ findRelevantSpecs lhAssmPkgExcludes hscEnv mods = do
 
     loadModuleLHAssumptionsIfAny m | isImportExcluded m = return Nothing
                                    | otherwise = do
-      let assModName = assumptionsModuleName m
+      let assumptionsModName = assumptionsModuleName m
       -- loadInterface might mutate the EPS if the module is
       -- not already loaded
-      res <- liftIO $ findImportedModule hscEnv assModName Nothing
+      res <- liftIO $ findImportedModule hscEnv assumptionsModName NoPkgQual
       case res of
-        Found _ assMod -> do
-          _ <- initIfaceTcRn $ loadInterface "liquidhaskell assumptions" assMod ImportBySystem
+        Found _ assumptionsMod -> do
+          _ <- initIfaceTcRn $ loadInterface "liquidhaskell assumptions" assumptionsMod ImportBySystem
           -- read the EPS again
-          eps2 <- liftIO $ readIORef (hsc_EPS hscEnv)
+          eps2 <- liftIO $ readIORef (euc_eps $ ue_eps $ hsc_unit_env hscEnv)
           -- now look up the assumptions
-          liftIO $ runMaybeT $ lookupInterfaceAnnotationsEPS eps2 assMod
-        FoundMultiple{} -> failWithTc $ cannotFindModule hscEnv assModName res
+          liftIO $ runMaybeT $ lookupInterfaceAnnotationsEPS eps2 assumptionsMod
+        FoundMultiple{} -> failWithTc $ TcRnUnknownMessage $ mkPlainError [] $
+                             cannotFindModule hscEnv assumptionsModName res
         _ -> return Nothing
 
     isImportExcluded m =
@@ -162,7 +163,7 @@ configToRedundantDependencies env cfg = do
 
     lookupLiquidBaseModule :: ModuleName -> IO (Maybe StableModule)
     lookupLiquidBaseModule mn = do
-      res <- findExposedPackageModule env mn (Just "liquidhaskell")
+      res <- findImportedModule env mn (renamePkgQual (hsc_unit_env env) mn (Just "liquidhaskell"))
       case res of
         Found _ mdl -> pure $ Just (toStableModule mdl)
         _           -> pure Nothing

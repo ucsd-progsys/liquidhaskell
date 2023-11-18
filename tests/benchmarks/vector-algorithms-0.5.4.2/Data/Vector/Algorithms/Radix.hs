@@ -1,5 +1,6 @@
 {-@ LIQUID "--no-totality" @-}
 {-# LANGUAGE ScopedTypeVariables, BangPatterns, TypeOperators #-}
+{-# LANGUAGE MonoLocalBinds #-}
 
 -- ---------------------------------------------------------------------------
 -- |

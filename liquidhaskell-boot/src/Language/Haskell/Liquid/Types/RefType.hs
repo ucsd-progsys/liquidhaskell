@@ -1721,8 +1721,8 @@ deepSplitProductType :: FamInstEnvs -> Type -> Maybe DataConAppContext
 -- Why do we return the strictness of the data-con arguments?
 -- Answer: see Note [Record evaluated-ness in worker/wrapper]
 deepSplitProductType fam_envs ty
-  | let (co, ty1) = topNormaliseType_maybe fam_envs ty
-                    `orElse` (mkRepReflCo ty, ty)
+  | let Reduction co ty1 = topNormaliseType_maybe fam_envs ty
+                    `orElse` Reduction (mkRepReflCo ty) ty
   , Just (tc, tc_args) <- splitTyConApp_maybe ty1
   , Just con <- tyConSingleDataCon_maybe tc
   , let arg_tys = dataConInstArgTys con tc_args

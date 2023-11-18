@@ -6,6 +6,7 @@
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DerivingVia                #-}
+{-# LANGUAGE StandaloneDeriving         #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -76,7 +77,6 @@ import           Data.HashSet            (HashSet)
 import qualified Data.HashMap.Strict     as M
 import           Data.HashMap.Strict     (HashMap)
 import           Language.Haskell.Liquid.Types.Types
-import           Language.Haskell.Liquid.Types.Generics
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds
 import           Liquid.GHC.API hiding (text, (<+>))
@@ -198,6 +198,7 @@ data TargetSpec = TargetSpec
   , gsImps   :: ![(F.Symbol, F.Sort)]  -- ^ Imported Environment
   , gsConfig :: !Config
   }
+  deriving Show
 
 instance HasConfig TargetSpec where
   getConfig = gsConfig
@@ -209,6 +210,7 @@ data GhcSpecVars = SpVar
   , gsLvars      :: !(S.HashSet Var)              -- ^ Variables that should be checked "lazily" in the environment they are used
   , gsCMethods   :: ![Var]                        -- ^ Refined Class methods
   }
+  deriving Show
 
 instance Semigroup GhcSpecVars where
   sv1 <> sv2 = SpVar
@@ -225,6 +227,7 @@ data GhcSpecQual = SpQual
   { gsQualifiers :: ![F.Qualifier]                -- ^ Qualifiers in Source/Spec files e.g tests/pos/qualTest.hs
   , gsRTAliases  :: ![F.Located SpecRTAlias]      -- ^ Refinement type aliases (only used for qualifiers)
   }
+  deriving Show
 
 data GhcSpecSig = SpSig
   { gsTySigs   :: ![(Var, LocSpecType)]           -- ^ Asserted Reftypes
@@ -238,6 +241,7 @@ data GhcSpecSig = SpSig
   , gsRelation :: ![(Var, Var, LocSpecType, LocSpecType, RelExpr, RelExpr)]
   , gsAsmRel   :: ![(Var, Var, LocSpecType, LocSpecType, RelExpr, RelExpr)]
   }
+  deriving Show
 
 instance Semigroup GhcSpecSig where
   x <> y = SpSig
@@ -270,6 +274,8 @@ data GhcSpecData = SpData
   , gsMeasures   :: ![Measure SpecType DataCon]   -- ^ Measure definitions
   , gsUnsorted   :: ![UnSortedExpr]
   }
+  deriving Show
+
 data GhcSpecNames = SpNames
   { gsFreeSyms   :: ![(F.Symbol, Var)]            -- ^ List of `Symbol` free in spec and corresponding GHC var, eg. (Cons, Cons#7uz) from tests/pos/ex1.hs
   , gsDconsP     :: ![F.Located DataCon]          -- ^ Predicated Data-Constructors, e.g. see tests/pos/Map.hs
@@ -278,6 +284,10 @@ data GhcSpecNames = SpNames
   , gsADTs       :: ![F.DataDecl]                 -- ^ ADTs extracted from Haskell 'data' definitions
   , gsTyconEnv   :: !TyConMap
   }
+  deriving Show
+
+deriving instance Show TyConP
+deriving instance Show TyConMap
 
 data GhcSpecTerm = SpTerm
   { gsStTerm     :: !(S.HashSet Var)              -- ^ Binders to CHECK by structural termination
@@ -286,6 +296,7 @@ data GhcSpecTerm = SpTerm
   , gsFail       :: !(S.HashSet (F.Located Var))    -- ^ Binders to fail type checking
   , gsNonStTerm  :: !(S.HashSet Var)              -- ^ Binders to CHECK using REFINEMENT-TYPES/termination metrics
   }
+  deriving Show
 
 instance Semigroup GhcSpecTerm where
   t1 <> t2 = SpTerm
@@ -309,6 +320,7 @@ data GhcSpecRefl = SpRefl
   , gsRewrites     :: S.HashSet (F.Located Var)
   , gsRewritesWith :: M.HashMap Var [Var]
   }
+  deriving Show
 
 instance Semigroup GhcSpecRefl where
   x <> y = SpRefl
@@ -331,6 +343,7 @@ data GhcSpecLaws = SpLaws
   { gsLawDefs :: ![(Class, [(Var, LocSpecType)])]
   , gsLawInst :: ![LawInstance]
   }
+  deriving Show
 
 data LawInstance = LawInstance
   { lilName   :: Class
@@ -339,6 +352,7 @@ data LawInstance = LawInstance
   , lilEqus   :: [(VarOrLocSymbol, (VarOrLocSymbol, Maybe LocSpecType))]
   , lilPos    :: SrcSpan
   }
+  deriving Show
 
 type VarOrLocSymbol = Either Var LocSymbol
 type BareMeasure   = Measure LocBareType F.LocSymbol

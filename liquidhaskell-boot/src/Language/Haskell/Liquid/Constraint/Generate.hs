@@ -14,7 +14,7 @@
 -- | This module defines the representation of Subtyping and WF Constraints,
 --   and the code for syntax-directed constraint generation.
 
-module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints, generateConstraintsWithEnv, caseEnv, consE ) where
+module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints, caseEnv, consE ) where
 
 import           Prelude                                       hiding (error)
 import           GHC.Stack ( CallStack )
@@ -61,13 +61,6 @@ generateConstraints      :: TargetInfo -> CGInfo
 generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg info
   where
     act                  = do { γ <- initEnv info; consAct γ cfg info }
-    cfg                  = getConfig   info
-
-generateConstraintsWithEnv :: TargetInfo -> CGInfo -> CGEnv -> CGInfo
---------------------------------------------------------------------------------
-generateConstraintsWithEnv info cgi γ = {-# SCC "ConsGenEnv" #-} execState act cgi
-  where
-    act                  = consAct γ cfg info
     cfg                  = getConfig   info
 
 consAct :: CGEnv -> Config -> TargetInfo -> CG ()

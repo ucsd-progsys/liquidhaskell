@@ -9,10 +9,11 @@
      to pay the price of a pretty-printing \"roundtrip\".
 -}
 
-module Language.Haskell.Liquid.GHC.Logging (
-    fromPJDoc
+module Language.Haskell.Liquid.GHC.Logging
+  ( addTcRnUnknownMessage
+  , addTcRnUnknownMessages
+  , fromPJDoc
   , putWarnMsg
-  , mkLongErrAt
   ) where
 
 import qualified Liquid.GHC.API as GHC
@@ -27,23 +28,20 @@ fromPJDoc = GHC.text . PJ.render
 -- | Like the original 'putLogMsg', but internally converts the input 'Doc' (from the \"pretty\" library)
 -- into GHC's internal 'SDoc'.
 putLogMsg :: GHC.Logger
-          -> GHC.DynFlags
-          -> GHC.WarnReason
           -> GHC.Severity
           -> GHC.SrcSpan
           -> Maybe GHC.PprStyle
           -> PJ.Doc
           -> IO ()
-putLogMsg logger dynFlags reason sev srcSpan _mbStyle =
-  GHC.putLogMsg logger dynFlags reason sev srcSpan . GHC.text . PJ.render
+putLogMsg logger sev srcSpan _mbStyle =
+  GHC.putLogMsg logger (GHC.logFlags logger) (GHC.MCDiagnostic sev GHC.WarningWithoutFlag) srcSpan . GHC.text . PJ.render
 
-defaultErrStyle :: GHC.DynFlags -> GHC.PprStyle
-defaultErrStyle _dynFlags = GHC.defaultErrStyle
+putWarnMsg :: GHC.Logger -> GHC.SrcSpan -> PJ.Doc -> IO ()
+putWarnMsg logger srcSpan doc =
+  putLogMsg logger GHC.SevWarning srcSpan (Just GHC.defaultErrStyle) doc
 
-putWarnMsg :: GHC.Logger -> GHC.DynFlags -> GHC.SrcSpan -> PJ.Doc -> IO ()
-putWarnMsg logger dynFlags srcSpan doc =
-  putLogMsg logger dynFlags GHC.NoReason GHC.SevWarning srcSpan (Just $ defaultErrStyle dynFlags) doc
+addTcRnUnknownMessage :: GHC.SrcSpan -> PJ.Doc -> GHC.TcRn ()
+addTcRnUnknownMessage srcSpan = GHC.addErrAt srcSpan . GHC.TcRnUnknownMessage . GHC.mkPlainError [] . fromPJDoc
 
--- | Like GHC's 'mkLongErrAt', but it builds the final 'ErrMsg' out of two \"HughesPJ\"'s 'Doc's.
-mkLongErrAt :: GHC.SrcSpan -> PJ.Doc -> PJ.Doc -> GHC.TcRn (GHC.MsgEnvelope GHC.DecoratedSDoc)
-mkLongErrAt srcSpan msg extra = GHC.mkLongErrAt srcSpan (fromPJDoc msg) (fromPJDoc extra)
+addTcRnUnknownMessages :: [(GHC.SrcSpan, PJ.Doc)] -> GHC.TcRn ()
+addTcRnUnknownMessages = GHC.addErrs . map (fmap (GHC.TcRnUnknownMessage . GHC.mkPlainError [] . fromPJDoc))

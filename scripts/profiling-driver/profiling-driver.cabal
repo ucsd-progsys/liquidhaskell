@@ -14,7 +14,7 @@ maintainer:         Facundo Domínguez <jhala@tweag.io>
 category:           Language
 homepage:           https://github.com/ucsd-progsys/liquidhaskell
 build-type:         Simple
-tested-with:        GHC == 9.2.5
+tested-with:        GHC == 9.4.7
 
 source-repository head
   type:     git
@@ -29,7 +29,7 @@ flag devel
 executable profiling-driver
   main-is:          ProfilingDriver.hs
   build-depends:    base            >= 4.8.1.0 && < 5
-                  , ghc             ^>= 9.2
+                  , ghc             ^>= 9.4
                   , ghc-paths
   default-language: Haskell2010
   ghc-options:      -W

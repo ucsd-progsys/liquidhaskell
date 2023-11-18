@@ -2,6 +2,7 @@
 
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE MonoLocalBinds #-}
 
 -- ---------------------------------------------------------------------------
 -- |

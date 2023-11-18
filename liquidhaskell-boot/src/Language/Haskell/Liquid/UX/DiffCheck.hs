@@ -540,7 +540,7 @@ isCheckedRealSpan :: IM.IntervalMap Int a -> RealSrcSpan -> Bool
 isCheckedRealSpan cm              = not . null . (`IM.search` cm) . srcSpanStartLine
 
 adjustSpan :: LMap -> SrcSpan -> Maybe SrcSpan
-adjustSpan lm (RealSrcSpan rsp _) = RealSrcSpan <$> adjustReal lm rsp <*> pure Nothing
+adjustSpan lm (RealSrcSpan rsp _) = RealSrcSpan <$> adjustReal lm rsp <*> pure strictNothing
 adjustSpan _  sp                  = Just sp
 
 adjustReal :: LMap -> RealSrcSpan -> Maybe RealSrcSpan

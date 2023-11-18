@@ -122,7 +122,7 @@ dFunIdVars cbs fd  = notracepp msg $ concatMap bindersOf cbs' ++ deps
     f (Rec xes)    = any eqFd (fst <$> xes)
     eqFd x         = varName x == varName fd
     deps           = concatMap unfoldDep unfolds
-    unfolds        = unfoldingInfo . idInfo <$> concatMap bindersOf cbs'
+    unfolds        = realUnfoldingInfo . idInfo <$> concatMap bindersOf cbs'
 
 unfoldDep :: Unfolding -> [Id]
 unfoldDep (DFunUnfolding _ _ e)       = concatMap exprDep e
@@ -190,8 +190,8 @@ qImports qns  = QImports
 --   for this module; we will use this to create our name-resolution environment
 --   (see `Bare.Resolve`)
 ---------------------------------------------------------------------------------------
-lookupTyThings :: HscEnv -> ModSummary -> TcGblEnv -> IO [(Name, Maybe TyThing)]
-lookupTyThings hscEnv modSum tcGblEnv = forM names (lookupTyThing hscEnv modSum tcGblEnv)
+lookupTyThings :: HscEnv -> TcGblEnv -> IO [(Name, Maybe TyThing)]
+lookupTyThings hscEnv tcGblEnv = forM names (lookupTyThing hscEnv tcGblEnv)
   where
     names :: [Ghc.Name]
     names  = liftM2 (++)
@@ -199,32 +199,32 @@ lookupTyThings hscEnv modSum tcGblEnv = forM names (lookupTyThing hscEnv modSum 
              (fmap is_dfun_name . tcg_insts) tcGblEnv
 -- | Lookup a single 'Name' in the GHC environment, yielding back the 'Name' alongside the 'TyThing',
 -- if one is found.
-lookupTyThing :: HscEnv -> ModSummary -> TcGblEnv -> Name -> IO (Name, Maybe TyThing)
-lookupTyThing hscEnv modSum tcGblEnv n = do
+lookupTyThing :: HscEnv -> TcGblEnv -> Name -> IO (Name, Maybe TyThing)
+lookupTyThing hscEnv tcGblEnv n = do
   mty <- runMaybeT $
          MaybeT (Ghc.hscTcRcLookupName hscEnv n)
          `mplus`
          MaybeT (
-           do mi  <- moduleInfoTc hscEnv modSum tcGblEnv
+           do mi  <- moduleInfoTc hscEnv tcGblEnv
               modInfoLookupNameIO hscEnv mi n
            )
   return (n, mty)
 
-availableTyThings :: HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> IO [TyThing]
-availableTyThings hscEnv modSum tcGblEnv avails =
+availableTyThings :: HscEnv -> TcGblEnv -> [AvailInfo] -> IO [TyThing]
+availableTyThings hscEnv tcGblEnv avails =
     fmap catMaybes $
-      mapM (fmap snd . lookupTyThing hscEnv modSum tcGblEnv) $
+      mapM (fmap snd . lookupTyThing hscEnv tcGblEnv) $
       availableNames avails
 
 -- | Returns all the available (i.e. exported) 'TyCon's (type constructors) for the input 'Module'.
-availableTyCons :: HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> IO [Ghc.TyCon]
-availableTyCons hscEnv modSum tcGblEnv avails =
-  fmap (\things -> [tyCon | (ATyCon tyCon) <- things]) (availableTyThings hscEnv modSum tcGblEnv avails)
+availableTyCons :: HscEnv -> TcGblEnv -> [AvailInfo] -> IO [Ghc.TyCon]
+availableTyCons hscEnv tcGblEnv avails =
+  fmap (\things -> [tyCon | (ATyCon tyCon) <- things]) (availableTyThings hscEnv tcGblEnv avails)
 
 -- | Returns all the available (i.e. exported) 'Var's for the input 'Module'.
-availableVars :: HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> IO [Ghc.Var]
-availableVars hscEnv modSum tcGblEnv avails =
-  fmap (\things -> [var | (AnId var) <- things]) (availableTyThings hscEnv modSum tcGblEnv avails)
+availableVars :: HscEnv -> TcGblEnv -> [AvailInfo] -> IO [Ghc.Var]
+availableVars hscEnv tcGblEnv avails =
+  fmap (\things -> [var | (AnId var) <- things]) (availableTyThings hscEnv tcGblEnv avails)
 
 availableNames :: [AvailInfo] -> [Name]
 availableNames =

@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -ddump-ds #-}
 -- | Tests that liquid haskell can deal fine with HasCallStack.
 --
 -- See https://github.com/ucsd-progsys/liquidhaskell/issues/2235

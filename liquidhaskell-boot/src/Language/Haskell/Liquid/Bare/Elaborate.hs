@@ -568,7 +568,7 @@ renameBinderSort f = rename
 
 
 mkHsTyConApp ::  IdP GhcPs -> [LHsType GhcPs] -> LHsType GhcPs
-mkHsTyConApp tyconId tyargs = nlHsTyConApp Prefix tyconId (map HsValArg tyargs)
+mkHsTyConApp tyconId tyargs = nlHsTyConApp NotPromoted Prefix tyconId (map HsValArg tyargs)
 
 -- | Embed fixpoint expressions into parsed haskell expressions.
 --   It allows us to bypass the GHC parser and use arbitrary symbols
@@ -688,10 +688,11 @@ specTypeToLHsType :: SpecType -> LHsType GhcPs
 specTypeToLHsType =
   flip (ghylo (distPara @SpecType) distAna) (fmap pure . project) $ \case
     RVarF (RTV tv) _ -> nlHsTyVar
+      NotPromoted
       -- (GM.notracePpr ("varRdr" ++ F.showpp (F.symbol tv)) $ getRdrName tv)
       (symbolToRdrNameNs tvName (F.symbol tv))
     RFunF _ _ (tin, tin') (_, tout) _
-      | isClassType tin -> noLocA $ HsQualTy Ghc.noExtField (Just (noLocA [tin'])) tout
+      | isClassType tin -> noLocA $ HsQualTy Ghc.noExtField (noLocA [tin']) tout
       | otherwise       -> nlHsFunTy tin' tout
     RAllTF (ty_var_value -> (RTV tv)) (_, t) _ -> noLocA $ HsForAllTy
       Ghc.noExtField
