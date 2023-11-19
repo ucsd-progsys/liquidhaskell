@@ -66,8 +66,8 @@ sort2ByOffset cmp a off = sort2ByIndex cmp a off (off + 1)
   @-}
 sort2ByIndex :: (PrimMonad m, MVector v e)
              => Comparison e -> v (PrimState m) e -> Int -> Int -> m ()
-sort2ByIndex cmp a i j = UNSAFE_CHECK(checkIndex) "sort2ByIndex" i (length a)
-                       $ UNSAFE_CHECK(checkIndex) "sort2ByIndex" j (length a)  $  do
+sort2ByIndex cmp a i j = UNSAFE_CHECK(checkIndex) i (length a)
+                       $ UNSAFE_CHECK(checkIndex) j (length a)  $  do
   a0 <- unsafeRead a i
   a1 <- unsafeRead a j
   case cmp a0 a1 of
@@ -99,9 +99,9 @@ sort3ByOffset cmp a off = sort3ByIndex cmp a  off  (off + 1) (off + 2)
   @-}
 sort3ByIndex :: (PrimMonad m, MVector v e)
              => Comparison e -> v (PrimState m) e -> Int -> Int -> Int -> m ()
-sort3ByIndex cmp a i j k = UNSAFE_CHECK(checkIndex) "sort3ByIndex" i (length a)
-                         $ UNSAFE_CHECK(checkIndex) "sort3ByIndex" j (length a)
-                         $ UNSAFE_CHECK(checkIndex) "sort3ByIndex" k (length a) $ do
+sort3ByIndex cmp a i j k = UNSAFE_CHECK(checkIndex) i (length a)
+                         $ UNSAFE_CHECK(checkIndex) j (length a)
+                         $ UNSAFE_CHECK(checkIndex) k (length a) $ do
   a0 <- unsafeRead a i
   a1 <- unsafeRead a j
   a2 <- unsafeRead a k
@@ -151,10 +151,10 @@ sort4ByOffset cmp a off = sort4ByIndex cmp a off (off + 1) (off + 2) (off + 3)
   @-}
 sort4ByIndex :: (PrimMonad m, MVector v e)
              => Comparison e -> v (PrimState m) e -> Int -> Int -> Int -> Int -> m ()
-sort4ByIndex cmp a i j k l = UNSAFE_CHECK(checkIndex) "sort4ByIndex" i (length a)
-                           $ UNSAFE_CHECK(checkIndex) "sort4ByIndex" j (length a)
-                           $ UNSAFE_CHECK(checkIndex) "sort4ByIndex" k (length a)
-                           $ UNSAFE_CHECK(checkIndex) "sort4ByIndex" l (length a) $ do
+sort4ByIndex cmp a i j k l = UNSAFE_CHECK(checkIndex) i (length a)
+                           $ UNSAFE_CHECK(checkIndex) j (length a)
+                           $ UNSAFE_CHECK(checkIndex) k (length a)
+                           $ UNSAFE_CHECK(checkIndex) l (length a) $ do
   a0 <- unsafeRead a i
   a1 <- unsafeRead a j
   a2 <- unsafeRead a k

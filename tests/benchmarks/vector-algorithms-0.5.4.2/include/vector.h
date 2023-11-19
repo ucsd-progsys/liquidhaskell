@@ -11,7 +11,7 @@ import qualified Data.Vector.Internal.Check as Ck
 #define ERROR(f)  (Ck.f __FILE__ __LINE__)
 #define ASSERT (Ck.assert __FILE__ __LINE__)
 #define ENSURE (Ck.f __FILE__ __LINE__)
-#define CHECK(f) (Ck.f __FILE__ __LINE__)
+#define CHECK(f) (Ck.f)
 
 #define BOUNDS_ERROR(f) (ERROR(f) Ck.Bounds)
 #define BOUNDS_ASSERT (ASSERT Ck.Bounds)
