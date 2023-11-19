@@ -3,6 +3,8 @@
 ## 0.9.2.8.0
 
 - Support for GHC 9.2.8
+- Fix A normalization when type binder and lets are mixed in the input (#2236)
+- Move KMeansHelper from liquid-prelude to tests
 
 ## 0.9.2.5
 
