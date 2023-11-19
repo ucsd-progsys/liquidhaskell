@@ -37,13 +37,6 @@ packages:
     commit: 45ef3498e35897712bde8e002ce18df6d55f8b15
     git: https://github.com/qnikst/ghc-timings-report
 - completed:
-    hackage: vector-0.12.3.1@sha256:39141f312871b7c793a63be76635999e84d442aa3290aec59f30638ec0bf23a7,8218
-    pantry-tree:
-      sha256: c4f50de0598ce416df3a8f01ad7f23d8f1282ef3c5c531d67afe15b1e14a5d8d
-      size: 3842
-  original:
-    hackage: vector-0.12.3.1
-- completed:
     hackage: strip-ansi-escape-0.1.0.0@sha256:08f2ed93b16086a837ec46eab7ce8d27cf39d47783caaeb818878ea33c2ff75f,1628
     pantry-tree:
       sha256: cf7712453587e8ea69b96f33e2e8015c22d3b448259d4cace663cc15657309d7
