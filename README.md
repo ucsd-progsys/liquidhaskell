@@ -339,33 +339,17 @@ patter synonym to deal with changes in type constructors.
 Currently, no. Only one version of GHC is supported and that is the one
 that can be tested with `./scripts/test/test_plugin.sh`.
 
-# GHC Plugin Development FAQs
-
-## Why is the GHC.Interface using slightly different types than the GHC.Plugin module?
-
-Mostly for backward-compatibility and for historical reasons. Types like [BareSpec][] used to be type alias
-rather than `newtype`s, and things were slightly renamed to reflect better purpose when the support for the
-plugin was added. While doing so we also added a compatibility layer in the form of some `optics` that can be used
-to map back and forth (sometimes in a partial way) between old and new data structures. When in doubt,
-**consider the GHC.Plugin as the single source of truth, and prefer whichever data structure the latter is
-using**.
-
 [GHC.API]:             liquidhaskell-boot/src-ghc/Liquid/GHC/API.hs
 [Plugin]:              liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin.hs
 [GHC.Plugin]:          liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin.hs
 [GHC.Interface]:       liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Interface.hs
 [SpecFinder]:          liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin/SpecFinder.hs
-[BareSpec]:            liquidhaskell-boot/src/Language/Haskell/Liquid/Types/Specs.hs#L362
 [LiftedSpec]:          liquidhaskell-boot/src/Language/Haskell/Liquid/Types/Specs.hs#L559
 [TargetSrc]:           liquidhaskell-boot/src/Language/Haskell/Liquid/Types/Specs.hs#L158
-[Ghc monad]:           https://hackage.haskell.org/package/ghc-9.2.8/docs/GHC.html#t:Ghc
-[HscEnv]:              https://hackage.haskell.org/package/ghc-9.2.8/docs/GHC.html#t:HscEnv
-[DynFlags]:            https://hackage.haskell.org/package/ghc-9.2.8/docs/GHC.html#t:DynFlags
-[GhcMonad]:            https://hackage.haskell.org/package/ghc-9.2.8/docs/GHC.html#t:GhcMonad
 [typechecking phase]:  liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin.hs#L211-L226
 [ghcide]:              https://github.com/haskell/ghcide
 [findRelevantSpecs]:   liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin/SpecFinder.hs#L65
-[core binds]:          https://hackage.haskell.org/package/ghc-9.2.8/docs/GHC-Core.html#t:CoreBind
+[core binds]:          https://hackage.haskell.org/package/ghc-9.4.7/docs/GHC-Core.html#t:CoreBind
 [configureGhcTargets]: liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Interface.hs#L254
 [processTargetModule]: liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Interface.hs#L483
 [processModule]:       liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin.hs#L509
