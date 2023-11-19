@@ -12,8 +12,8 @@ category:           Language
 homepage:           https://github.com/ucsd-progsys/liquidhaskell
 build-type:         Custom
 tested-with:        GHC == 9.2.8
-extra-source-files: CHANGES.md
-                    README.md
+extra-doc-files: CHANGES.md
+                 README.md
 
 source-repository head
   type:     git
