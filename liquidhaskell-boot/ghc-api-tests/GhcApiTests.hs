@@ -7,6 +7,8 @@ import           Liquid.GHC.API
     , Expr(..)
     , Alt(..)
     , AltCon(..)
+    , LitNumType(..)
+    , Literal(..)
     , apiCommentsParsedSource
     , occNameString
     , pAT_ERROR_ID
@@ -17,13 +19,16 @@ import           Test.Tasty.HUnit
 import           Test.Tasty.Runners.AntXML
 
 import qualified GHC as GHC
+import qualified GHC.Builtin.Names as GHC
+import qualified GHC.Builtin.Types as GHC
 import qualified GHC.Core as GHC
 import qualified GHC.Data.EnumSet as EnumSet
 import qualified GHC.Data.FastString as GHC
 import qualified GHC.Data.StringBuffer as GHC
 import qualified GHC.Parser as Parser
 import qualified GHC.Parser.Lexer as GHC
-import qualified GHC.Types.Name.Occurrence as GHC
+import qualified GHC.Types.Id as GHC
+import qualified GHC.Types.Name as GHC
 import qualified GHC.Types.SrcLoc as GHC
 import qualified GHC.Unit.Module.ModGuts as GHC
 import qualified GHC.Utils.Error as GHC
@@ -41,6 +46,7 @@ testTree =
     testGroup "GHC API"
       [ testCase "apiComments" testApiComments
       , testCase "caseDesugaring" testCaseDesugaring
+      , testCase "numericLiteralDesugaring" testNumLitDesugaring
       ]
 
 -- Tests that Liquid.GHC.API.Extra.apiComments can retrieve the comments in
@@ -132,27 +138,61 @@ testCaseDesugaring = do
             -> e3 == pAT_ERROR_ID
           _ -> False
 
-    coreProgram <- compileToCore inputSource
+    coreProgram <- compileToCore "CaseDesugaring" inputSource
     unless (isExpectedDesugaring coreProgram) $
       fail $ unlines $
         "Unexpected desugaring:" : map showPprQualified coreProgram
-  where
-    compileToCore inputSource = do
-      now <- getCurrentTime
-      GHC.runGhc (Just libdir) $ do
-        df1 <- GHC.getSessionDynFlags
-        GHC.setSessionDynFlags df1
-        let target = GHC.Target {
-                     GHC.targetId           = GHC.TargetFile "CaseDesugaring.hs" Nothing
-                   , GHC.targetUnitId       = GHC.homeUnitId_ df1
-                   , GHC.targetAllowObjCode = False
-                   , GHC.targetContents     = Just (GHC.stringToStringBuffer inputSource, now)
-                   }
-        GHC.setTargets [target]
-        void $ GHC.load GHC.LoadAllTargets
 
-        dsMod <- GHC.getModSummary (GHC.mkModuleName "CaseDesugaring")
-               >>= GHC.parseModule
-               >>= GHC.typecheckModule
-               >>= GHC.desugarModule
-        return $ GHC.mg_binds $ GHC.dm_core_module dsMod
+-- | Tests that numeric literal expressions desugar as Liquid Haskell expects.
+testNumLitDesugaring :: IO ()
+testNumLitDesugaring = do
+    let inputSource = unlines
+          [ "module NumLitDesugaring where"
+          , "f :: Num a => a"
+          , "f = 1"
+          ]
+
+        fBind (GHC.NonRec b _e) =
+          occNameString (GHC.occName b) == "f"
+        fBind _ = False
+
+        -- Expected desugaring:
+        --
+        -- NumLitDesugaring.f
+        --      = \@a dict -> fromInteger @a dict (GHC.Num.Integer.IS 1#)
+        --
+        isExpectedDesugaring p = case find fBind p of
+          Just (GHC.NonRec _ e0)
+            | Lam _a (Lam _dict (App fromIntegerApp (App (Var vIS) lit))) <- e0
+            , App (App (Var vFromInteger) _aty) _numDict <- fromIntegerApp
+            , GHC.idName vFromInteger  == GHC.fromIntegerName
+            , GHC.nameStableString (GHC.idName vIS) == GHC.nameStableString GHC.integerISDataConName
+            , Lit (LitNumber LitNumInt 1) <- lit
+            -> True
+          _ -> False
+
+    coreProgram <- compileToCore "NumLitDesugaring" inputSource
+    unless (isExpectedDesugaring coreProgram) $
+      fail $ unlines $
+        "Unexpected desugaring:" : map showPprQualified coreProgram
+
+compileToCore :: String -> String -> IO [GHC.CoreBind]
+compileToCore modName inputSource = do
+    now <- getCurrentTime
+    GHC.runGhc (Just libdir) $ do
+      df1 <- GHC.getSessionDynFlags
+      GHC.setSessionDynFlags df1
+      let target = GHC.Target {
+                   GHC.targetId           = GHC.TargetFile (modName ++ ".hs") Nothing
+                 , GHC.targetUnitId       = GHC.homeUnitId_ df1
+                 , GHC.targetAllowObjCode = False
+                 , GHC.targetContents     = Just (GHC.stringToStringBuffer inputSource, now)
+                 }
+      GHC.setTargets [target]
+      void $ GHC.load GHC.LoadAllTargets
+
+      dsMod <- GHC.getModSummary (GHC.mkModuleName modName)
+             >>= GHC.parseModule
+             >>= GHC.typecheckModule
+             >>= GHC.desugarModule
+      return $ GHC.mg_binds $ GHC.dm_core_module dsMod
