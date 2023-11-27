@@ -17,6 +17,7 @@ import           Prelude                               hiding (error)
 
 import           Liquid.GHC.API       as Ghc  hiding (Located, showPpr)
 
+import           Control.Monad                         (zipWithM_)
 import           Control.Monad.Except                  (MonadError, throwError)
 import           Control.Monad.State
 import qualified Data.Maybe                            as Mb --(fromMaybe, isNothing)
@@ -152,7 +153,7 @@ mapTyVars _ hsT lqT
        throwError (err (F.pprint hsT) (F.pprint lqT))
 
 isKind :: Kind -> Bool
-isKind = classifiesTypeWithValues -- TODO:GHC-863 isStarKind k --  typeKind k
+isKind = isTYPEorCONSTRAINT -- TODO:GHC-863 isStarKind k --  typeKind k
 
 
 mapTyRVar :: MonadError Error m

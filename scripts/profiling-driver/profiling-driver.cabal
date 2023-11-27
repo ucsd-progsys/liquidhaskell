@@ -29,7 +29,7 @@ flag devel
 executable profiling-driver
   main-is:          ProfilingDriver.hs
   build-depends:    base            >= 4.8.1.0 && < 5
-                  , ghc             ^>= 9.4
+                  , ghc             ^>= 9.6
                   , ghc-paths
   default-language: Haskell2010
   ghc-options:      -W

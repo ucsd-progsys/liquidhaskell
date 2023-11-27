@@ -54,12 +54,8 @@ import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Solver.Stats ()
 import           Language.Haskell.Liquid.Misc           (mkGraph)
 import           Language.Haskell.Liquid.GHC.Misc
-import           Liquid.GHC.API        as Ghc hiding ( Located
-                                                                      , sourceName
-                                                                      , text
-                                                                      , panic
-                                                                      , showPpr
-                                                                      )
+import           Liquid.GHC.API        as Ghc hiding
+  (Located, line, sourceName, text, panic, showPpr)
 import           Text.PrettyPrint.HughesPJ              (text, render, Doc)
 import qualified Data.ByteString                        as B
 import qualified Data.ByteString.Lazy                   as LB

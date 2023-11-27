@@ -190,7 +190,7 @@ instance Unoptimise DynFlags where
   unoptimise df = updOptLevel 0 df
     { debugLevel   = 1
     , ghcLink      = LinkInMemory
-    , backend      = Interpreter
+    , backend      = interpreterBackend
     , ghcMode      = CompManager
     }
 

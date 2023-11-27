@@ -49,6 +49,7 @@ module Language.Haskell.Liquid.Constraint.Env (
 import Prelude hiding (error)
 -- import Outputable
 -- import FastString (fsLit)
+import Control.Monad (foldM, msum)
 import Control.Monad.State
 
 -- import           GHC.Err.Located hiding (error)

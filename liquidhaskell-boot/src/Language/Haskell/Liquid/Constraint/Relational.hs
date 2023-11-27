@@ -13,7 +13,7 @@
 
 module Language.Haskell.Liquid.Constraint.Relational (consAssmRel, consRelTop) where
 
-import           Control.Monad.State
+import           Control.Monad (foldM, forM_)
 import           Data.Bifunctor                                 ( Bifunctor(bimap) )
 import qualified Data.HashMap.Strict                            as M
 import qualified Data.List                                      as L

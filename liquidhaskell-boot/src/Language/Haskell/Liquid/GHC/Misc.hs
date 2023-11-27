@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE GADTs                     #-}
+{-# LANGUAGE MagicHash                 #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes                #-}
 {-# LANGUAGE TupleSections             #-}
@@ -25,12 +26,8 @@ import qualified Data.List as L
 import           Debug.Trace
 
 import           Prelude                                    hiding (error)
-import           Liquid.GHC.API            as Ghc hiding ( L
-                                                                          , sourceName
-                                                                          , showPpr
-                                                                          , panic
-                                                                          , showSDoc
-                                                                          )
+import           Liquid.GHC.API            as Ghc hiding
+  (L, line, sourceName, showPpr, panic, showSDoc)
 import qualified Liquid.GHC.API            as Ghc (GenLocated (L), showSDoc, panic)
 
 
@@ -89,7 +86,7 @@ stringTyVar s = mkTyVar name liftedTypeKind
 
 -- FIXME: reusing uniques like this is really dangerous
 stringVar :: String -> Type -> Var
-stringVar s t = mkLocalVar VanillaId name Many t vanillaIdInfo
+stringVar s t = mkLocalVar VanillaId name ManyTy t vanillaIdInfo
    where
       name = mkInternalName (mkUnique 'x' 25) occ noSrcSpan
       occ  = mkVarOcc s
@@ -195,7 +192,7 @@ showPpr = Ghc.showPprQualified
 showSDoc :: Ghc.SDoc -> String
 showSDoc = Ghc.showSDocQualified
 
-myQualify :: Ghc.PrintUnqualified
+myQualify :: Ghc.NamePprCtx
 myQualify = Ghc.neverQualify { Ghc.queryQualifyName = Ghc.alwaysQualifyNames }
 -- { Ghc.queryQualifyName = \_ _ -> Ghc.NameNotInScope1 }
 
@@ -403,7 +400,7 @@ lookupRdrName hsc_env mod_name rdr_name = do
 -- XXX                        [gre] -> return (Just (gre_name gre))
                         []    -> return Nothing
                         _     -> Ghc.panic "lookupRdrNameInModule"
-                Nothing -> throwCmdLineErrorS dflags $ Ghc.hsep [Ghc.ptext (Ghc.mkPtrString "Could not determine the exports of the module"), ppr mod_name]
+                Nothing -> throwCmdLineErrorS dflags $ Ghc.hsep [Ghc.ptext (Ghc.mkPtrString# "Could not determine the exports of the module"#), ppr mod_name]
         err' -> throwCmdLineErrorS dflags $ cannotFindModule hsc_env mod_name err'
   where dflags = hsc_dflags hsc_env
         throwCmdLineErrorS dflags' = throwCmdLineError . Ghc.showSDoc dflags'
@@ -458,7 +455,7 @@ tyConTyVarsDef c
   --  none         = tracepp ("tyConTyVarsDef: " ++ show c) (noTyVars c)
 
 noTyVars :: TyCon -> Bool
-noTyVars c =  Ghc.isPrimTyCon c || isFunTyCon c || Ghc.isPromotedDataCon c
+noTyVars c =  Ghc.isPrimTyCon c || Ghc.isPromotedDataCon c
 
 --------------------------------------------------------------------------------
 -- | Symbol Instances
@@ -879,7 +876,8 @@ elabRnExpr rdr_expr = do
 
     logger <- getLogger
     diag_opts <- initDiagOpts <$> getDynFlags
-    liftIO $ printMessages logger diag_opts ds_msgs
+    print_config <- initDsMessageOpts <$> getDynFlags
+    liftIO $ printMessages logger print_config diag_opts ds_msgs
 
     case me of
       Nothing -> failM

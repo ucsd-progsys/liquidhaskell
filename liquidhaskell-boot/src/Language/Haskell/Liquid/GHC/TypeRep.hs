@@ -115,8 +115,8 @@ substCoercion x tx (TyConAppCo r c cs)
   = TyConAppCo (subst x tx r) c (subst x tx <$> cs)
 substCoercion x tx (AppCo c1 c2)
   = AppCo (subst x tx c1) (subst x tx c2)
-substCoercion x tx (FunCo r cN c1 c2)
-  = FunCo r cN (subst x tx c1) (subst x tx c2) -- TODO(adinapoli) Is this the correct substitution?
+substCoercion x tx (FunCo r afl afr cN c1 c2)
+  = FunCo r afl afr cN (subst x tx c1) (subst x tx c2) -- TODO(adinapoli) Is this the correct substitution?
 substCoercion x tx (ForAllCo y c1 c2)
   | symbol x == symbol y 
   = ForAllCo y c1 c2
@@ -134,8 +134,8 @@ substCoercion x tx (TransCo c1 c2)
   = TransCo (subst x tx c1) (subst x tx c2)
 substCoercion x tx (AxiomRuleCo ca cs)
   = AxiomRuleCo (subst x tx ca)  (subst x tx <$> cs)  
-substCoercion x tx (NthCo r i c)
-  = NthCo r i (subst x tx c)
+substCoercion x tx (SelCo i c)
+  = SelCo i (subst x tx c)
 substCoercion x tx (LRCo i c)
   = LRCo i (subst x tx c)
 substCoercion x tx (InstCo c1 c2)
@@ -144,6 +144,12 @@ substCoercion x tx (KindCo c)
   = KindCo (subst x tx c)
 substCoercion x tx (SubCo c)
   = SubCo (subst x tx c)
+substCoercion _x _tx (Refl t)
+  = Refl t
+substCoercion _x _tx (GRefl r t c)
+  = GRefl r t c
+substCoercion _x _tx (HoleCo c)
+  = HoleCo c
 
 instance SubstTy Role where
 instance SubstTy (CoAxiom Branched) where

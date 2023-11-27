@@ -92,7 +92,7 @@ findRelevantSpecs lhAssmPkgExcludes hscEnv mods = do
           eps2 <- liftIO $ readIORef (euc_eps $ ue_eps $ hsc_unit_env hscEnv)
           -- now look up the assumptions
           liftIO $ runMaybeT $ lookupInterfaceAnnotationsEPS eps2 assumptionsMod
-        FoundMultiple{} -> failWithTc $ TcRnUnknownMessage $ mkPlainError [] $
+        FoundMultiple{} -> failWithTc $ mkTcRnUnknownMessage $ mkPlainError [] $
                              cannotFindModule hscEnv assumptionsModName res
         _ -> return Nothing
 

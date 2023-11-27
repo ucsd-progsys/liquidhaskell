@@ -34,14 +34,14 @@ putLogMsg :: GHC.Logger
           -> PJ.Doc
           -> IO ()
 putLogMsg logger sev srcSpan _mbStyle =
-  GHC.putLogMsg logger (GHC.logFlags logger) (GHC.MCDiagnostic sev GHC.WarningWithoutFlag) srcSpan . GHC.text . PJ.render
+  GHC.putLogMsg logger (GHC.logFlags logger) (GHC.MCDiagnostic sev GHC.WarningWithoutFlag Nothing) srcSpan . GHC.text . PJ.render
 
 putWarnMsg :: GHC.Logger -> GHC.SrcSpan -> PJ.Doc -> IO ()
 putWarnMsg logger srcSpan doc =
   putLogMsg logger GHC.SevWarning srcSpan (Just GHC.defaultErrStyle) doc
 
 addTcRnUnknownMessage :: GHC.SrcSpan -> PJ.Doc -> GHC.TcRn ()
-addTcRnUnknownMessage srcSpan = GHC.addErrAt srcSpan . GHC.TcRnUnknownMessage . GHC.mkPlainError [] . fromPJDoc
+addTcRnUnknownMessage srcSpan = GHC.addErrAt srcSpan . GHC.mkTcRnUnknownMessage . GHC.mkPlainError [] . fromPJDoc
 
 addTcRnUnknownMessages :: [(GHC.SrcSpan, PJ.Doc)] -> GHC.TcRn ()
-addTcRnUnknownMessages = GHC.addErrs . map (fmap (GHC.TcRnUnknownMessage . GHC.mkPlainError [] . fromPJDoc))
+addTcRnUnknownMessages = GHC.addErrs . map (fmap (GHC.mkTcRnUnknownMessage . GHC.mkPlainError [] . fromPJDoc))
