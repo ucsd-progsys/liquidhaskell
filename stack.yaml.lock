@@ -5,26 +5,19 @@
 
 packages:
 - completed:
-    hackage: rest-rewrite-0.4.1@sha256:1254960c0a595cf4c9d5a3b986f42644407c63c74578d75b3568a6a12e5143f0,3886
+    hackage: smtlib-backends-0.3@sha256:69977f97a8db2c11e97bde92fff7e86e793c1fb23827b284bf89938ee463fbf0,1211
     pantry-tree:
-      sha256: 17b4e99420cc1929e2b7d29558a0f909d6fcabd263fbc590dbf2585f893f5a6e
-      size: 4018
-  original:
-    hackage: rest-rewrite-0.4.1
-- completed:
-    hackage: smtlib-backends-0.3@sha256:917d88540a9ede7beedbe2ed13b492acddbce394d30ccf5d0ef4f4fba9aa2c12,1157
-    pantry-tree:
-      sha256: 59b578ae7df155a6c73a513358370747e3cc6229ebb44adaba9e0935f811539c
+      sha256: d7c614eab0f3f256b22724ca2d7ac41651f22209242af1d24f052f41d7a7541f
       size: 275
   original:
-    hackage: smtlib-backends-0.3
+    hackage: smtlib-backends-0.3@rev:1
 - completed:
-    hackage: smtlib-backends-process-0.3@sha256:d4d7d02859383e0a43db2d8ce7ef01deffe1bcd356b2ff8626925c3a1c8db922,1600
+    hackage: smtlib-backends-process-0.3@sha256:3eee93e91f41c8a2fb2699e95b502a24d8053485ccf7749e2766683d1ebfe11d,1676
     pantry-tree:
-      sha256: d7d8ec52d07f4a59614000fd93d77b109d085d58f2d96e2c4b972f541c4e8287
+      sha256: 579580c8067b4c6640261187fc5d2ac0a02923db4633e0027067de72f947083c
       size: 461
   original:
-    hackage: smtlib-backends-process-0.3
+    hackage: smtlib-backends-process-0.3@rev:1
 - completed:
     commit: 45ef3498e35897712bde8e002ce18df6d55f8b15
     git: https://github.com/qnikst/ghc-timings-report
@@ -36,16 +29,9 @@ packages:
   original:
     commit: 45ef3498e35897712bde8e002ce18df6d55f8b15
     git: https://github.com/qnikst/ghc-timings-report
-- completed:
-    hackage: strip-ansi-escape-0.1.0.0@sha256:08f2ed93b16086a837ec46eab7ce8d27cf39d47783caaeb818878ea33c2ff75f,1628
-    pantry-tree:
-      sha256: cf7712453587e8ea69b96f33e2e8015c22d3b448259d4cace663cc15657309d7
-      size: 671
-  original:
-    hackage: strip-ansi-escape-0.1.0.0@sha256:08f2ed93b16086a837ec46eab7ce8d27cf39d47783caaeb818878ea33c2ff75f,1628
 snapshots:
 - completed:
-    sha256: 5921ddc75f5dd3f197fbc32e1e5676895a8e7b971d4f82ef6b556657801dd18a
-    size: 640054
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/21/20.yaml
-  original: lts-21.20
+    sha256: c067098ea221c83ce03ccae4cfd5b104fb8a689b17ebb15dbe9d0793e9db4329
+    size: 699418
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/nightly/2023/11/27.yaml
+  original: nightly-2023-11-27

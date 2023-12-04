@@ -44,7 +44,7 @@ executable plot-performance
                     , data-default-class
                     , directory
                     , lens
-                    , optparse-applicative >=0.16.1 && <0.18
+                    , optparse-applicative >=0.16.1 && <0.19
                     , vector
     ghc-options:    -Wall
     hs-source-dirs:   app

@@ -145,7 +145,7 @@ library
                     , hscolour             >= 1.22
                     , liquid-fixpoint      == 0.9.4.7
                     , mtl                  >= 2.1
-                    , optparse-applicative < 0.18
+                    , optparse-applicative < 0.19
                     , githash
                     , megaparsec           >= 8
                     , pretty               >= 1.1
