@@ -60,7 +60,7 @@ commands:
             chmod +x ./x86_64-linux-ghcup
             ./x86_64-linux-ghcup install ghc << parameters.ghc_version >>
             ./x86_64-linux-ghcup set ghc << parameters.ghc_version >>
-            ./x86_64-linux-ghcup install cabal 3.6.2.0
+            ./x86_64-linux-ghcup install cabal 3.10.1.0
             export PATH=~/.ghcup/bin:$PATH
             echo 'export PATH=~/.ghcup/bin:$PATH' >> $BASH_ENV
             << parameters.cabal_update_command >>
@@ -158,7 +158,7 @@ jobs:
       image: ubuntu-2004:202107-02
     steps:
       - cabal_build_and_test:
-          ghc_version: "9.4.7"
+          ghc_version: "9.6.3"
 
 workflows:
   version: 2
