@@ -100,7 +100,7 @@ exprType (BoolE _) = TBool
 {-@
 reflect checkBindings
 checkBindings
-  :: ctx : List Ty
+  :: ctx : Language.Stitch.LH.Data.List.List Ty
   -> { e : Exp | numFreeVarsExp e <= List.length ctx }
   -> Bool
 @-}
@@ -118,8 +118,8 @@ checkBindings _ (BoolE _) = True
 {-@
 rewriteWith aClosedExpIsValidInAnyContext [List.appendLengh]
 aClosedExpIsValidInAnyContext
-  :: ctx0 : List Ty
-  -> ctx1 : List Ty
+  :: ctx0 :Language.Stitch.LH.Data.List.List Ty
+  -> ctx1 :Language.Stitch.LH.Data.List.List Ty
   -> e : Exp
   -> { WellTyped e ctx0 <=>
        WellTyped e (List.append ctx0 ctx1) && numFreeVarsExp e <= List.length ctx0
@@ -178,8 +178,8 @@ check :: Globals -> UExp -> (Exp -> Ty -> Either TyError b) -> Either TyError b
 check globals = go Nil
   where
     {-@
-      go :: ts : List Ty
-         -> VarsSmallerThan (List.length ts)
+      go :: ts :Language.Stitch.LH.Data.List.List Ty
+         -> VarsSmallerThan (Language.Stitch.LH.Data.List.length ts)
          -> (e1 : WellTypedExp ts -> { t: Ty | exprType e1 = t } -> Either TyError b)
          -> Either TyError b
       @-}

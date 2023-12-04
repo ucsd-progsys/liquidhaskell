@@ -50,7 +50,7 @@ subst es e0 =
 -- of checkBindings, it is not needed at runtime.
 {-@
 substIndex
-  :: ctx:List Ty
+  :: ctx:Language.Stitch.LH.Data.List.List Ty
   -> i: { Nat | i = List.length ctx - 1 }
   -> es:{ WellTypedExp Nil | exprType es = List.elemAt i ctx }
   -> e0:WellTypedExp ctx

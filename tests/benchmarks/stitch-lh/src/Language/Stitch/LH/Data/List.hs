@@ -27,21 +27,21 @@ data List a = Cons { head :: a, tail :: List a } | Nil
 
 {-@
 inline empty
-empty :: { xs : List a | length xs = 0 }
+empty :: { xs : Language.Stitch.LH.Data.List.List a | length xs = 0 }
 @-}
 empty :: List a
 empty = Nil
 
 {-@
 inline cons
-cons :: a -> xs : List a -> { ys : List a | length ys = 1 + length xs }
+cons :: a -> xs : Language.Stitch.LH.Data.List.List a -> { ys : Language.Stitch.LH.Data.List.List a | length ys = 1 + length xs }
 @-}
 cons :: a -> List a -> List a
 cons a b = Cons a b
 
 {-@
 reflect elemAt
-elemAt :: n : Nat -> { xs : List a | length xs > n } -> a
+elemAt :: n : Nat -> { xs : Language.Stitch.LH.Data.List.List a | length xs > n } -> a
 @-}
 elemAt :: Nat -> List a -> a
 elemAt 0 (Cons x _) = x
@@ -51,8 +51,8 @@ elemAt i (Cons _ xs) = elemAt (i-1) xs
 reflect take
 take
   :: n : Nat
-  -> { xs : List a | length xs >= n }
-  -> { ys : List a | length ys = n}
+  -> { xs : Language.Stitch.LH.Data.List.List a | length xs >= n }
+  -> { ys : Language.Stitch.LH.Data.List.List a | length ys = n}
 @-}
 take :: Nat -> List a -> List a
 take 0 _ = Nil
@@ -60,7 +60,7 @@ take i (Cons x xs) = Cons x (take (i-1) xs)
 
 {-@
 measure length
-length :: xs : List a -> Nat
+length :: xs : Language.Stitch.LH.Data.List.List a -> Nat
 @-}
 length :: List a -> Nat
 length Nil = 0
@@ -69,9 +69,9 @@ length (Cons _ xs) = 1 + length xs
 {-@
 reflect append
 append ::
-  xs : List a ->
-  ys : List a ->
-  { zs : List a | length zs == length xs + length ys }
+  xs : Language.Stitch.LH.Data.List.List a ->
+  ys : Language.Stitch.LH.Data.List.List a ->
+  { zs : Language.Stitch.LH.Data.List.List a | length zs == length xs + length ys }
  @-}
 append :: List a -> List a -> List a
 append Nil ys = ys
@@ -79,8 +79,8 @@ append (Cons x xs) ys = Cons x (append xs ys)
 
 {-@
 appendLengh
-  :: xs : List a
-  -> ys : List a
+  :: xs : Language.Stitch.LH.Data.List.List a
+  -> ys : Language.Stitch.LH.Data.List.List a
   -> { length (append xs ys) == length xs + length ys}
 @-}
 appendLengh :: List a -> List a -> Proof
@@ -89,8 +89,8 @@ appendLengh xs ys = trivial ? append xs ys
 {-@
 elemAtThroughAppend
   :: i : Nat
-  -> xs : { xs : List a | i < length xs }
-  -> ys : List a
+  -> xs : { xs :Language.Stitch.LH.Data.List.List a | i < length xs }
+  -> ys : Language.Stitch.LH.Data.List.List a
   -> { elemAt i (append xs ys) = elemAt i xs }
 @-}
 elemAtThroughAppend :: Nat -> List a -> List a -> Proof

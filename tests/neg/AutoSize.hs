@@ -1,7 +1,7 @@
 {-@ LIQUID "--expect-any-error" @-}
 module AutoSize where
 
-import GHC.Base
+import GHC.Base hiding (List)
 
 data List a = N | Cons a (List a) 
 
