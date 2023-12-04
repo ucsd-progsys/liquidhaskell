@@ -35,6 +35,7 @@ import System.Console.Haskeline
 
 import Text.PrettyPrint.ANSI.Leijen
 
+import Control.Monad
 import Control.Monad.Trans.Maybe
 import Control.Monad.Except
 import Control.Monad.Reader
