@@ -14,7 +14,7 @@ maintainer:         Facundo Domínguez <jhala@tweag.io>
 category:           Language
 homepage:           https://github.com/ucsd-progsys/liquidhaskell
 build-type:         Simple
-tested-with:        GHC == 9.4.7
+tested-with:        GHC == 9.6.3
 
 source-repository head
   type:     git
