@@ -890,8 +890,8 @@ instance (B.Binary s)              => B.Binary (RTVInfo s)
 --   directly to any type and has semantics _independent of_ the data-type.
 
 data Ref τ t = RProp
-  { rf_args :: [(Symbol, τ)]
-  , rf_body :: t -- ^ Abstract refinement associated with `RTyCon`
+  { rf_args :: [(Symbol, τ)] -- ^ arguments. e.g. @h@ in the above example
+  , rf_body :: t -- ^ Abstract refinement associated with `RTyCon`. e.g. @v > h@ in the above example
   } deriving (Eq, Generic, Data, Typeable, Functor)
     deriving Hashable via Generically (Ref τ t)
 
