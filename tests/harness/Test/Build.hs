@@ -30,6 +30,7 @@ cabalRun opts names = do
     [ "build" ]
     <> (case projectFile of Nothing -> []; Just projectFile' -> [ "--project-file", T.pack projectFile' ])
     <> (if measureTimings opts then ["--flags=measure-timings", "-j1"] else ["--keep-going"])
+    <> extraOpts opts
     <> names
 
 -- | Runs stack on the given test groups
@@ -38,12 +39,13 @@ stackRun opts names =
   runCommand "stack" $
     [ "build", "--flag", "tests:stack" ]
     <> concat [ ["--flag=tests:measure-timings", "-j1"] | measureTimings opts ]
-    -- Enables that particular executable in the cabal file
     <> testFlags
+    <> extraOpts opts
     <> [ "--" ]
     <> testNames
   where
     testNames = fmap ("tests:" <>) names
+    -- Enables that particular executable in the cabal file
     testFlags = concatMap (("--flag" :) . pure) testNames
 
 -- | Ensure prog is on the PATH
