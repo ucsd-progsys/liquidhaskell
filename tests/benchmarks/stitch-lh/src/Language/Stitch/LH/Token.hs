@@ -20,7 +20,7 @@ module Language.Stitch.LH.Token (
 import Language.Stitch.LH.Util
 import Language.Stitch.LH.Op
 
-import Text.PrettyPrint.ANSI.Leijen  as Pretty
+import Prettyprinter
 import Text.Parsec.Pos ( SourcePos, newPos )
 
 import Data.List                      as List
@@ -83,7 +83,7 @@ instance Pretty Token where
   prettyList = printTogether . List.map printingInfo
 
 instance Show Token where
-  show = render . pretty
+  show = show . pretty
 
 instance Pretty LToken where
   pretty     = pretty . unLoc
@@ -92,38 +92,38 @@ instance Pretty LToken where
 instance Show LToken where
   show = render . pretty
 
-type PrintingInfo = (Doc, Bool, Bool)
+type PrintingInfo ann = (Doc ann, Bool, Bool)
    -- the bools say whether or not to include a space before or a space after
 
-alone :: Doc -> PrintingInfo
+alone :: Doc ann -> PrintingInfo ann
 alone = (, True, True)
 
-getDoc :: PrintingInfo -> Doc
+getDoc :: PrintingInfo ann -> Doc ann
 getDoc (doc, _, _) = doc
 
-printingInfo :: Token -> PrintingInfo
-printingInfo LParen          = (char '(', True, False)
-printingInfo RParen          = (char ')', False, True)
-printingInfo Lambda          = (char '\\', True, False)
-printingInfo Dot             = (char '.', False, True)
-printingInfo ArrowTok        = alone $ text "->"
-printingInfo Colon           = (char ':', False, False)
+printingInfo :: Token -> PrintingInfo ann
+printingInfo LParen          = (pretty '(', True, False)
+printingInfo RParen          = (pretty ')', False, True)
+printingInfo Lambda          = (pretty '\\', True, False)
+printingInfo Dot             = (pretty '.', False, True)
+printingInfo ArrowTok        = alone $ pretty "->"
+printingInfo Colon           = (pretty ':', False, False)
 printingInfo (ArithOp a)     = alone $ pretty a
-printingInfo (IntTok i)      = alone $ int i
-printingInfo (BoolTok True)  = alone $ text "true"
-printingInfo (BoolTok False) = alone $ text "false"
-printingInfo If              = alone $ text "if"
-printingInfo Then            = alone $ text "then"
-printingInfo Else            = alone $ text "else"
-printingInfo FixTok          = alone $ text "fix"
-printingInfo LetTok          = alone $ text "let"
-printingInfo InTok           = alone $ text "in"
-printingInfo Assign          = alone $ text "="
-printingInfo Semi            = (char ';', False, True)
-printingInfo (Name t)        = alone $ text t
+printingInfo (IntTok i)      = alone $ pretty i
+printingInfo (BoolTok True)  = alone $ pretty "true"
+printingInfo (BoolTok False) = alone $ pretty "false"
+printingInfo If              = alone $ pretty "if"
+printingInfo Then            = alone $ pretty "then"
+printingInfo Else            = alone $ pretty "else"
+printingInfo FixTok          = alone $ pretty "fix"
+printingInfo LetTok          = alone $ pretty "let"
+printingInfo InTok           = alone $ pretty "in"
+printingInfo Assign          = alone $ pretty "="
+printingInfo Semi            = (pretty ';', False, True)
+printingInfo (Name t)        = alone $ pretty t
 
-printTogether :: [PrintingInfo] -> Doc
-printTogether []  = Pretty.empty
+printTogether :: [PrintingInfo ann] -> Doc ann
+printTogether []  = mempty
 printTogether pis = getDoc $ List.foldl1 combine pis
   where
     combine (doc1, before_space, inner_space1) (doc2, inner_space2, after_space)

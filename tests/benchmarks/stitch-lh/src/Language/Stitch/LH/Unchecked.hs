@@ -21,7 +21,8 @@ import Language.Stitch.LH.Op
 import Language.Stitch.LH.Util
 import Language.Stitch.LH.Data.Nat as Nat
 
-import Text.PrettyPrint.ANSI.Leijen
+import Prettyprinter
+import Prettyprinter.Render.Terminal
 
 {-@
 data UExp
@@ -80,21 +81,21 @@ type ClosedUExp = { e : UExp | numFreeVars e == 0 }
 data ScopedUExp = ScopedUExp NumVarsInScope UExp
   deriving (Eq, Show)
 
-instance Pretty ScopedUExp where
-  pretty (ScopedUExp n e) = prettyExp n topPrec e
+prettyScopedUExp :: ScopedUExp -> Doc AnsiStyle
+prettyScopedUExp (ScopedUExp n e) = prettyExp n topPrec e
 
-{-@ prettyExp :: n : NumVarsInScope -> Prec -> VarsSmallerThan n -> Doc @-}
-prettyExp :: NumVarsInScope -> Prec -> UExp -> Doc
+{-@ prettyExp :: n : NumVarsInScope -> Prec -> VarsSmallerThan n -> Doc AnsiStyle @-}
+prettyExp :: NumVarsInScope -> Prec -> UExp -> Doc AnsiStyle
 prettyExp n prec = \case
-  UVar v       -> applyColor (ScopedVar n v) (char '#' <> int v)
+  UVar v       -> applyColor (ScopedVar n v) (pretty '#' <> pretty v)
 
-  UGlobal name -> text name
+  UGlobal name -> pretty name
 
   -- XXX: Putting the alternatives below in auxiliary functions would cause
   -- a mysterious failure in LH.
   ULam ty body -> maybeParens (prec >= lamPrec) $
-    fillSep [ char 'λ' <> applyColor (ScopedVar (n + 1) 0) (char '#') <>
-              text ":" <> pretty ty <> char '.'
+    fillSep [ pretty 'λ' <> applyColor (ScopedVar (n + 1) 0) (pretty '#') <>
+              pretty ":" <> pretty ty <> pretty '.'
             , prettyExp (n + 1) topPrec body ]
 
   UApp e1 e2 -> maybeParens (prec >= appPrec) $
@@ -102,8 +103,8 @@ prettyExp n prec = \case
             , prettyExp n appRightPrec e2 ]
 
   ULet e1 e2 -> maybeParens (prec >= lamPrec) $
-    fillSep [ text "let" <+> applyColor (ScopedVar (n + 1) 0) (char '#') <+>
-              char '=' <+> prettyExp n topPrec e1 <+> text "in"
+    fillSep [ pretty "let" <+> applyColor (ScopedVar (n + 1) 0) (pretty '#') <+>
+              pretty '=' <+> prettyExp n topPrec e1 <+> pretty "in"
             , prettyExp (n + 1) topPrec e2 ]
 
   UArith e1 op e2 -> maybeParens (prec >= opPrec op) $
@@ -111,15 +112,15 @@ prettyExp n prec = \case
             , prettyExp n (opRightPrec op) e2 ]
 
   UCond e1 e2 e3 -> maybeParens (prec >= ifPrec) $
-    fillSep [ text "if" <+> prettyExp n topPrec e1
-            , text "then" <+> prettyExp n topPrec e2
-            , text "else" <+> prettyExp n topPrec e3 ]
+    fillSep [ pretty "if" <+> prettyExp n topPrec e1
+            , pretty "then" <+> prettyExp n topPrec e2
+            , pretty "else" <+> prettyExp n topPrec e3 ]
 
   UFix body -> maybeParens (prec >= appPrec) $
-                 text "fix" <+> prettyExp n topPrec body
+                 pretty "fix" <+> prettyExp n topPrec body
 
-  UIntE i -> int i
+  UIntE i -> pretty i
 
-  UBoolE True -> text "true"
+  UBoolE True -> pretty "true"
 
-  UBoolE False -> text "false"
+  UBoolE False -> pretty "false"

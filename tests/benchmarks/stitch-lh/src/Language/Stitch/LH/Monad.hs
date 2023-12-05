@@ -29,11 +29,11 @@ module Language.Stitch.LH.Monad (
   ) where
 
 import Language.Stitch.LH.Check
-import Language.Stitch.LH.Util
 
 import System.Console.Haskeline
 
-import Text.PrettyPrint.ANSI.Leijen
+import Prettyprinter
+import Prettyprinter.Render.Terminal
 
 import Control.Monad
 import Control.Monad.Trans.Maybe
@@ -48,8 +48,8 @@ newtype Stitch a = Stitch { unStitch :: MaybeT (StateT Globals (InputT IO)) a }
   deriving (Monad, Functor, Applicative, MonadState Globals, MonadIO)
 
 -- | Like the 'Stitch' monad, but also supporting error messages via 'Doc's
-newtype StitchE a = StitchE { unStitchE :: ExceptT Doc Stitch a }
-  deriving (Monad, Functor, Applicative, MonadError Doc)
+newtype StitchE a = StitchE { unStitchE :: ExceptT (Doc AnsiStyle) Stitch a }
+  deriving (Monad, Functor, Applicative, MonadError (Doc AnsiStyle))
 
 instance MonadReader Globals StitchE where
   ask = StitchE get
@@ -63,14 +63,14 @@ instance MonadReader Globals StitchE where
 -- | Class for the two stitchorous monads
 class StitchM m where
   -- | Print a 'Doc' without a newline at the end
-  printDoc :: Doc -> m ()
+  printDoc :: Doc AnsiStyle -> m ()
 
   -- | Print a 'Doc' with a newline
-  printLine :: Doc -> m ()
+  printLine :: Doc AnsiStyle -> m ()
 
 instance StitchM Stitch where
-  printDoc = Stitch . liftIO . displayIO stdout . toSimpleDoc
-  printLine = Stitch . liftIO . displayIO stdout . toSimpleDoc . (<> hardline)
+  printDoc = Stitch . liftIO . hPutDoc stdout
+  printLine = Stitch . liftIO . hPutDoc stdout . (<> hardline)
 
 instance StitchM StitchE where
   printDoc = StitchE . lift . printDoc
@@ -84,16 +84,16 @@ prompt = Stitch . lift . lift . getInputLine
 -- | Abort the 'Stitch' monad
 quit :: Stitch a
 quit = do
-  printLine (text "Good-bye.")
+  printLine (pretty "Good-bye.")
   Stitch mzero
 
 -- | Abort the computation with an error
-issueError :: Doc -> StitchE a
+issueError :: Doc AnsiStyle -> StitchE a
 issueError = StitchE . throwError
 
 -- | Hoist an 'Either' into 'StitchE'
 eitherToStitchE :: Either String a -> StitchE a
-eitherToStitchE (Left err) = issueError (text err)
+eitherToStitchE (Left err) = issueError (pretty err)
 eitherToStitchE (Right x)  = return x
 
 -- | Run a 'Stitch' computation
@@ -102,6 +102,6 @@ runStitch thing_inside
   = void $ flip evalStateT emptyGlobals $ runMaybeT $ unStitch thing_inside
 
 -- | Run a 'StitchE' computation
-runStitchE :: StitchE a -> Stitch (Either Doc a)
+runStitchE :: StitchE a -> Stitch (Either (Doc AnsiStyle) a)
 runStitchE thing_inside
   = runExceptT $ unStitchE thing_inside

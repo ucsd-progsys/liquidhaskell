@@ -31,7 +31,8 @@ import Language.Stitch.LH.Check
 import Language.Stitch.LH.Op
 import Language.Stitch.LH.Type
 
-import Text.PrettyPrint.ANSI.Leijen
+import Prettyprinter
+import Prettyprinter.Render.Terminal
 
 ------------------------------------------------
 -- Evaluation
@@ -58,12 +59,12 @@ data Value
 @-}
 data Value = VInt Int | VBool Bool | VFun Exp (Value -> Value)
 
-instance Pretty Value where
-  pretty = \case
-    VInt i -> int i
-    VBool True -> text "true"
-    VBool False -> text "false"
-    VFun e _ -> pretty (ScopedExp (numFreeVarsExp e) e)
+prettyValue :: Value -> Doc AnsiStyle
+prettyValue = \case
+    VInt i -> pretty i
+    VBool True -> pretty "true"
+    VBool False -> pretty "false"
+    VFun e _ -> prettyScopedExp (ScopedExp (numFreeVarsExp e) e)
 
 {-@
 // XXX: Why can't we reflect map?
