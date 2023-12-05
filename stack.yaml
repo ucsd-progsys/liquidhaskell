@@ -30,5 +30,5 @@ extra-deps:
 resolver: nightly-2023-11-27
 
 nix:
-  packages: [cacert, git, hostname, z3]
+  packages: [cacert, git, hostname, nix, stack, z3]
   path: [nixpkgs=./nixpkgs.nix]
