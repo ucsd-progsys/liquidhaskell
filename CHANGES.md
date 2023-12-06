@@ -1,5 +1,13 @@
 # Changes
 
+## Next
+
+-
+
+## 0.9.4.7.0
+
+- Set support for GHC 9.4.7
+
 ## 0.9.2.8.0
 
 - Support for GHC 9.2.8
