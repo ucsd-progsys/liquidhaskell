@@ -54,7 +54,8 @@ executable benchmark-stitch-lh
     main-is:          Main.hs
     if !flag(benchmark-stitch-lh) && flag(stack)
       buildable:      False
-    build-depends:    ansi-wl-pprint >= 0.6.7.1 && < 1.0.0
+    build-depends:    prettyprinter >= 1.0
+                    , prettyprinter-ansi-terminal >= 1.1
                     , mtl >= 2.2.1
                     , transformers >= 0.4.0.0
                     , parsec >= 3.1

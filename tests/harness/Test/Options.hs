@@ -4,16 +4,18 @@ import qualified Data.Text as T
 import Test.Groups
 import Options.Applicative
 import Data.List (intersperse)
+import System.Environment (getArgs)
 
 data Options = Options
-  { testGroups :: [T.Text]
+  { extraOpts :: [T.Text]
+  , testGroups :: [T.Text]
   , showAll :: Bool
   , measureTimings :: Bool
   }
   deriving (Eq, Ord, Show)
 
 options :: Parser Options
-options = Options <$>
+options = Options [] <$>
   many (argument
          (T.pack <$> str)
           (metavar "TESTGROUPNAMES..."
@@ -29,3 +31,10 @@ opts :: ParserInfo Options
 opts = info (options <**> helper)
   (fullDesc
    <> progDesc "Execute groups of tests.")
+
+parseOptions :: IO Options
+parseOptions = do
+    args <- getArgs
+    let (before, after) = break ("--"==) args
+    o <- handleParseResult (execParserPure defaultPrefs opts before)
+    return o {extraOpts = map T.pack $ drop 1 after}

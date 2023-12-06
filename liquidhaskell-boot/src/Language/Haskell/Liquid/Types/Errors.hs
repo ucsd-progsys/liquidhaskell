@@ -5,6 +5,8 @@
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE DeriveFunctor       #-}
 {-# LANGUAGE DerivingVia         #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications    #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- TODO(#1918): Only needed for GHC <9.0.1.
 {-# OPTIONS_GHC -Wno-orphans #-} -- PPrint and aeson instances.
@@ -1084,6 +1086,7 @@ sourceErrors :: String -> SourceError -> [TError t]
 sourceErrors s =
   concatMap errMsgErrors . bagToList . getMessages . srcErrorMessages
   where
+    errMsgErrors :: forall e t. Diagnostic e => MsgEnvelope e -> [TError t]
     errMsgErrors e = [ ErrGhc (errMsgSpan e) msg ]
       where
-        msg = text s $+$ nest 4 (text $ showSDocQualified (pprLocMsgEnvelope e))
+        msg = text s $+$ nest 4 (text $ showSDocQualified (pprLocMsgEnvelope (defaultDiagnosticOpts @e) e))

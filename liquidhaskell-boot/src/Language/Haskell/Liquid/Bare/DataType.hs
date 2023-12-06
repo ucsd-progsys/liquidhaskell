@@ -21,6 +21,7 @@ module Language.Haskell.Liquid.Bare.DataType
   ) where
 
 import qualified Control.Exception                      as Ex
+import           Control.Monad (forM, unless)
 import           Control.Monad.Reader
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M

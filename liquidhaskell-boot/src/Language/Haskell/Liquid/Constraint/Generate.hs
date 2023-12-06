@@ -27,6 +27,7 @@ import qualified Language.Haskell.Liquid.GHC.Resugar           as Rs
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
 import qualified Language.Haskell.Liquid.GHC.Misc              as GM -- ( isInternal, collectArguments, tickSrcSpan, showPpr )
 import Text.PrettyPrint.HughesPJ ( text )
+import           Control.Monad ( foldM, forM, forM_, when, void )
 import           Control.Monad.State
 import           Data.Maybe                                    (fromMaybe, isJust, mapMaybe)
 import           Data.Either.Extra                             (eitherToMaybe)

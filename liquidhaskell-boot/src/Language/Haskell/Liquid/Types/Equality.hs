@@ -8,6 +8,7 @@ import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types
 import qualified Liquid.GHC.API as Ghc
 
+import Control.Monad (liftM2, zipWithM)
 import Control.Monad.Writer.Lazy
 -- import Control.Monad
 import qualified Data.List as L

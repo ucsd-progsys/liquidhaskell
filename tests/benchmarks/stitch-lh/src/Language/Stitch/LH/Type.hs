@@ -17,7 +17,7 @@ module Language.Stitch.LH.Type where
 
 import Language.Stitch.LH.Util (Prec, topPrec, maybeParens)
 
-import Text.PrettyPrint.ANSI.Leijen
+import Prettyprinter
 import Data.Hashable
 import GHC.Generics
 
@@ -46,10 +46,10 @@ arrowLeftPrec  = 5
 arrowRightPrec = 4.9
 arrowPrec      = 5
 
-pretty_ty :: Prec -> Ty -> Doc
+pretty_ty :: Prec -> Ty -> Doc ann
 pretty_ty p (TFun arg res) = maybeParens (p >= arrowPrec) $
                                hsep [ pretty_ty arrowLeftPrec arg
-                                    , text "->"
+                                    , pretty "->"
                                     , pretty_ty arrowRightPrec res ]
-pretty_ty _    TInt        = text "Int"
-pretty_ty _    TBool       = text "Bool"
+pretty_ty _    TInt        = pretty "Int"
+pretty_ty _    TBool       = pretty "Bool"

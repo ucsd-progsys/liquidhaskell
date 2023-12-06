@@ -31,7 +31,8 @@ import Language.Stitch.LH.Check
 import Language.Stitch.LH.Op
 import Language.Stitch.LH.Type
 
-import Text.PrettyPrint.ANSI.Leijen
+import Prettyprinter
+import Prettyprinter.Render.Terminal
 
 ------------------------------------------------
 -- Evaluation
@@ -58,20 +59,20 @@ data Value
 @-}
 data Value = VInt Int | VBool Bool | VFun Exp (Value -> Value)
 
-instance Pretty Value where
-  pretty = \case
-    VInt i -> int i
-    VBool True -> text "true"
-    VBool False -> text "false"
-    VFun e _ -> pretty (ScopedExp (numFreeVarsExp e) e)
+prettyValue :: Value -> Doc AnsiStyle
+prettyValue = \case
+    VInt i -> pretty i
+    VBool True -> pretty "true"
+    VBool False -> pretty "false"
+    VFun e _ -> prettyScopedExp (ScopedExp (numFreeVarsExp e) e)
 
 {-@
 // XXX: Why can't we reflect map?
 // XXX: If using measure, LH fails with: elaborate makeKnowledge failed on
 reflect mapValueType
 mapValueType
-  :: vs:List Value
-  -> { ts:List Ty
+  :: vs: Language.Stitch.LH.Data.List.List Value
+  -> { ts: Language.Stitch.LH.Data.List.List Ty
      | List.length ts = List.length vs
      }
 @-}
@@ -95,7 +96,7 @@ eval :: Exp -> Value
 eval = evalWithCtx Nil
 
 {-@
-evalWithCtx :: ctx:List Value -> e:WellTypedExp (mapValueType ctx) -> ValueT (exprType e)
+evalWithCtx :: ctx:Language.Stitch.LH.Data.List.List Value -> e:WellTypedExp (mapValueType ctx) -> ValueT (exprType e)
 @-}
 evalWithCtx :: List Value -> Exp -> Value
 evalWithCtx ctx e0 = case e0 of
@@ -167,7 +168,7 @@ unsafeMod = mod
 {-@
 elemAtThroughMapValueType_prop
   :: i:Nat
-  -> ctx : { List Value | i < List.length ctx }
+  -> ctx : { Language.Stitch.LH.Data.List.List Value | i < List.length ctx }
   -> { List.elemAt i (mapValueType ctx) = valueType (List.elemAt i ctx) }
 @-}
 elemAtThroughMapValueType_prop :: Nat -> List Value -> Proof

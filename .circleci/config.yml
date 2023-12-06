@@ -60,7 +60,7 @@ commands:
             chmod +x ./x86_64-linux-ghcup
             ./x86_64-linux-ghcup install ghc << parameters.ghc_version >>
             ./x86_64-linux-ghcup set ghc << parameters.ghc_version >>
-            ./x86_64-linux-ghcup install cabal 3.6.2.0
+            ./x86_64-linux-ghcup install cabal 3.10.1.0
             export PATH=~/.ghcup/bin:$PATH
             echo 'export PATH=~/.ghcup/bin:$PATH' >> $BASH_ENV
             << parameters.cabal_update_command >>
@@ -127,15 +127,18 @@ commands:
           command: |
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> clean
             mkdir -p /tmp/junit/stack
-            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> run test-driver
-            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> test tests:tasty
+            # the -package-db and -package arguments help work around https://github.com/commercialhaskell/stack/issues/6251
+            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> build liquidhaskell-boot
+            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> build liquidhaskell --ghc-options="\"-package-db $(stack path --snapshot-pkg-db)\"" --ghc-options="\"-package-db $(stack path --local-pkg-db)\"" --ghc-options="\"-package liquidhaskell-boot\""
+            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> run test-driver -- -- --ghc-options="\"-package-db $(stack path --snapshot-pkg-db)\"" --ghc-options="\"-package-db $(stack path --local-pkg-db)\"" --ghc-options="\"-package liquidhaskell\""
+            stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> test tests:tasty --ghc-options="\"-package-db $(stack path --snapshot-pkg-db)\"" --ghc-options="\"-package-db $(stack path --local-pkg-db)\"" --ghc-options="\"-package liquidhaskell\""
             stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell-boot << parameters.extra_build_flags >>
           no_output_timeout: 30m
       - run:
           name: Generate haddock
           command: |
             # stack haddock liquidhaskell --flag liquidhaskell:-devel --no-haddock-deps --haddock-arguments="--no-print-missing-docs --odir=$CIRCLE_ARTIFACTS"
-            # skip if extra_build_flags are set
+            # skip if extra_build_flags are set--ghc-options
             [ ! -z "<< parameters.extra_build_flags >>" ] || stack --no-terminal --stack-yaml << parameters.stack_yaml_file >> haddock << parameters.extra_build_flags >> liquidhaskell  --no-haddock-deps --haddock-arguments="--no-print-missing-docs"
       - run:
           name: Dist
@@ -158,7 +161,7 @@ jobs:
       image: ubuntu-2004:202107-02
     steps:
       - cabal_build_and_test:
-          ghc_version: "9.4.7"
+          ghc_version: "9.6.3"
 
 workflows:
   version: 2

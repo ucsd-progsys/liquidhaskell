@@ -19,6 +19,7 @@ import           Liquid.GHC.API  as Ghc hiding ( mkTyArg
                                                                 , DsM
                                                                 , panic)
 import qualified Liquid.GHC.API  as Ghc
+import           Control.Monad (forM)
 import           Control.Monad.State.Lazy
 import           System.Console.CmdArgs.Verbosity (whenLoud)
 import qualified Language.Fixpoint.Types    as F
@@ -366,7 +367,7 @@ freshNormalVar γ t = do
   u     <- getUniqueM
   let i  = getKey u
   let sp = Sp.srcSpan (aeSrcSpan γ)
-  return (mkUserLocal (anfOcc i) u Ghc.Many t sp)
+  return (mkUserLocal (anfOcc i) u Ghc.ManyTy t sp)
 
 anfOcc :: Int -> OccName
 anfOcc = mkVarOccFS . GM.symbolFastString . F.intSymbol F.anfPrefix

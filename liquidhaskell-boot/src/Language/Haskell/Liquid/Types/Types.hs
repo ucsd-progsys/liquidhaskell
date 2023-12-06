@@ -890,8 +890,8 @@ instance (B.Binary s)              => B.Binary (RTVInfo s)
 --   directly to any type and has semantics _independent of_ the data-type.
 
 data Ref τ t = RProp
-  { rf_args :: [(Symbol, τ)]
-  , rf_body :: t -- ^ Abstract refinement associated with `RTyCon`
+  { rf_args :: [(Symbol, τ)] -- ^ arguments. e.g. @h@ in the above example
+  , rf_body :: t -- ^ Abstract refinement associated with `RTyCon`. e.g. @v > h@ in the above example
   } deriving (Eq, Generic, Data, Typeable, Functor)
     deriving Hashable via Generically (Ref τ t)
 
@@ -996,7 +996,7 @@ type OkRT c tv r = ( TyConable c
 -------------------------------------------------------------------------------
 
 instance TyConable RTyCon where
-  isFun      = isFunTyCon . rtc_tc
+  isFun      = isArrowTyCon . rtc_tc
   isList     = (listTyCon ==) . rtc_tc
   isTuple    = Ghc.isTupleTyCon   . rtc_tc
   isClass    = isClass . rtc_tc -- isClassRTyCon
@@ -1012,7 +1012,7 @@ instance TyConable RTyCon where
 
 
 instance TyConable TyCon where
-  isFun      = isFunTyCon
+  isFun      = isArrowTyCon
   isList     = (listTyCon ==)
   isTuple    = Ghc.isTupleTyCon
   isClass c  = isClassTyCon c   || isEqual c -- c == eqPrimTyCon

@@ -24,7 +24,7 @@ import Data.Hashable
 import Language.Stitch.LH.Type
 import Language.Stitch.LH.Util (render)
 
-import Text.PrettyPrint.ANSI.Leijen
+import Prettyprinter
 
 {-@
  data ArithOp
@@ -75,16 +75,16 @@ arithType Equals   = TBool
 -- Pretty-printing
 
 instance Pretty ArithOp where
-  pretty Plus     = char '+'
-  pretty Minus    = char '-'
-  pretty Times    = char '*'
-  pretty Divide   = char '/'
-  pretty Mod      = char '%'
-  pretty Less     = char '<'
-  pretty LessE    = text "<="
-  pretty Greater  = char '>'
-  pretty GreaterE = text ">="
-  pretty Equals   = text "=="
+  pretty Plus     = pretty '+'
+  pretty Minus    = pretty '-'
+  pretty Times    = pretty '*'
+  pretty Divide   = pretty '/'
+  pretty Mod      = pretty '%'
+  pretty Less     = pretty '<'
+  pretty LessE    = pretty "<="
+  pretty Greater  = pretty '>'
+  pretty GreaterE = pretty ">="
+  pretty Equals   = pretty "=="
 
 instance Show ArithOp where
   show = render . pretty

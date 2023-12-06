@@ -183,11 +183,35 @@ makeSymMap src = Misc.group [ (sym, (m, x))
 
 makeTyThingMap :: GhcSrc -> TyThingMap
 makeTyThingMap src =
+  addListTyConName $
   Misc.group [ (x, (m, t))  | t         <- srcThings src
                             , tSym      <- Mb.maybeToList (tyThingSymbol t)
                             , let (m, x) = qualifiedSymbol tSym
                             , not (isLocal m)
              ]
+  where
+    -- We add the TyThing for the List constructor here. Otherwise, we
+    -- lookups in the TyThingMap will fail for "List" and not for "[]".
+    addListTyConName m =
+      case M.lookup "[]" m of
+        Nothing -> m
+        Just ps -> M.insertWith (++) "List" (filterListTyCon ps) m
+
+    -- The TyCon name in the TyThing for @"[]"@ must be @"[]"@ apparently.
+    --
+    -- listTyCon uses "List", and that made later checks fail for some tests,
+    -- so we cannot just return @[("GHC.Types", ATyCon listTyCon)]@
+    --
+    -- Returning the TyCon that GHC yields for @"[]"@ has later tests fail,
+    -- because that TyCon has no associated data constructors.
+    --
+    -- The solution we adopted for now is to return listTyCon, and use
+    -- the name from the TyThing that GHC returned.
+    filterListTyCon ps =
+      [ (mn, Ghc.ATyCon tc') | (mn, Ghc.ATyCon tc) <- ps
+          , "GHC.Types" == mn
+          , let tc' = Ghc.listTyCon { Ghc.tyConName = Ghc.tyConName tc }
+      ]
 
 tyThingSymbol :: Ghc.TyThing -> Maybe F.Symbol
 tyThingSymbol (Ghc.AnId     x) = Just (F.symbol x)

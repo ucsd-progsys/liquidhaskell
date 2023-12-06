@@ -27,6 +27,7 @@ module Language.Haskell.Liquid.Transforms.Rewrite
 import           Liquid.GHC.API as Ghc hiding (showPpr, substExpr)
 import           Language.Haskell.Liquid.GHC.TypeRep ()
 import           Data.Maybe     (fromMaybe)
+import           Control.Monad (msum)
 import           Control.Monad.State hiding (lift)
 import           Language.Fixpoint.Misc       ({- mapFst, -}  mapSnd)
 import qualified          Language.Fixpoint.Types as F

@@ -82,7 +82,7 @@ tyConRealArity tc = go 0 (tyConKind tc)
   where
     go :: Int -> Kind -> Int
     go !acc k =
-      case asum [fmap (\(_, _, c) -> c) (splitFunTy_maybe k), fmap snd (splitForAllTyCoVar_maybe k)] of
+      case asum [fmap (\(_, _, _, c) -> c) (splitFunTy_maybe k), fmap snd (splitForAllTyCoVar_maybe k)] of
         Nothing -> acc
         Just ks -> go (acc + 1) ks
 
@@ -192,7 +192,7 @@ data ApiComment
 apiComments :: ParsedModule -> [Ghc.Located ApiComment]
 apiComments pm = apiCommentsParsedSource (pm_parsed_source pm)
 
-apiCommentsParsedSource :: Located HsModule -> [Ghc.Located ApiComment]
+apiCommentsParsedSource :: Located (HsModule GhcPs) -> [Ghc.Located ApiComment]
 apiCommentsParsedSource ps =
     let hs = unLoc ps
         go :: forall a. Data a => a -> [LEpaComment]
@@ -281,7 +281,7 @@ showSDocQualified = Ghc.renderWithContext ctx
     style = Ghc.mkUserStyle myQualify Ghc.AllTheWay
     ctx = Ghc.defaultSDocContext { sdocStyle = style }
 
-myQualify :: Ghc.PrintUnqualified
+myQualify :: Ghc.NamePprCtx
 myQualify = Ghc.neverQualify { Ghc.queryQualifyName = Ghc.alwaysQualifyNames }
 -- { Ghc.queryQualifyName = \_ _ -> Ghc.NameNotInScope1 }
 

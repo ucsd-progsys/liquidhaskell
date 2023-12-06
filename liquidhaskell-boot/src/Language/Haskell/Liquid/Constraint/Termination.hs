@@ -19,8 +19,8 @@ import qualified Data.List                          as L
 import qualified Data.HashSet                       as S
 import qualified Data.Traversable                   as T
 import qualified Data.HashMap.Strict                as M
-import           Control.Applicative (liftA2)
-import           Control.Monad.State ( gets, forM, foldM )
+import           Control.Monad ( foldM, forM )
+import           Control.Monad.State ( gets )
 import           Text.PrettyPrint.HughesPJ ( (<+>), text )
 import qualified Language.Haskell.Liquid.GHC.Misc                    as GM
 import qualified Language.Fixpoint.Types            as F

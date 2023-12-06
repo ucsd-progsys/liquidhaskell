@@ -30,7 +30,9 @@ import Language.Stitch.LH.Type
 import Language.Stitch.LH.Op
 import Language.Stitch.LH.Pretty
 import Language.Stitch.LH.Unchecked
-import Text.PrettyPrint.ANSI.Leijen
+import Language.Stitch.LH.Util
+import Prettyprinter
+import Prettyprinter.Render.Terminal
 
 
 {-@
@@ -68,8 +70,8 @@ data Exp
 {-@ data ScopedExp = ScopedExp (n :: NumVarsInScope) {e : Exp | numFreeVarsExp e <= n } @-}
 data ScopedExp = ScopedExp NumVarsInScope Exp
 
-instance Pretty ScopedExp where
-  pretty (ScopedExp n e) = pretty (ScopedUExp n (uncheckExp e))
+prettyScopedExp :: ScopedExp -> Doc AnsiStyle
+prettyScopedExp (ScopedExp n e) = prettyScopedUExp (ScopedUExp n (uncheckExp e))
 
 {-@ uncheckExp :: e:Exp -> { uexp:UExp | numFreeVarsExp e = numFreeVars uexp } @-}
 uncheckExp :: Exp -> UExp
@@ -100,7 +102,7 @@ exprType (BoolE _) = TBool
 {-@
 reflect checkBindings
 checkBindings
-  :: ctx : List Ty
+  :: ctx : Language.Stitch.LH.Data.List.List Ty
   -> { e : Exp | numFreeVarsExp e <= List.length ctx }
   -> Bool
 @-}
@@ -118,8 +120,8 @@ checkBindings _ (BoolE _) = True
 {-@
 rewriteWith aClosedExpIsValidInAnyContext [List.appendLengh]
 aClosedExpIsValidInAnyContext
-  :: ctx0 : List Ty
-  -> ctx1 : List Ty
+  :: ctx0 :Language.Stitch.LH.Data.List.List Ty
+  -> ctx1 :Language.Stitch.LH.Data.List.List Ty
   -> e : Exp
   -> { WellTyped e ctx0 <=>
        WellTyped e (List.append ctx0 ctx1) && numFreeVarsExp e <= List.length ctx0
@@ -178,8 +180,8 @@ check :: Globals -> UExp -> (Exp -> Ty -> Either TyError b) -> Either TyError b
 check globals = go Nil
   where
     {-@
-      go :: ts : List Ty
-         -> VarsSmallerThan (List.length ts)
+      go :: ts :Language.Stitch.LH.Data.List.List Ty
+         -> VarsSmallerThan (Language.Stitch.LH.Data.List.length ts)
          -> (e1 : WellTypedExp ts -> { t: Ty | exprType e1 = t } -> Either TyError b)
          -> Either TyError b
       @-}
@@ -275,23 +277,23 @@ data TyError
   | TypeMismatch ScopedUExp Ty Ty ScopedUExp -- expression expected_type actual_type context
   deriving Show
 
-instance Pretty TyError where
-  pretty = \case
+prettyTyError :: TyError -> Doc AnsiStyle
+prettyTyError = \case
     OutOfScopeGlobal name ->
-      text "Global variable not in scope:" <+> squotes (text name)
+      pretty "Global variable not in scope:" <+> squotes (pretty name)
     NotAFunction e ty ->
-      text "Expected a function instead of" <+>
+      pretty "Expected a function instead of" <+>
       squotes (prettyTypedExp e ty)
     TypeMismatch e expected actual ctx ->
-      text "Found" <+> squotes (prettyTypedExp e expected) <$$>
-      text "but expected type" <+> squotes (pretty actual) <$$>
+      pretty "Found" <+> squotes (prettyTypedExp e expected) $$
+      pretty "but expected type" <+> squotes (pretty actual) $$
       inTheExpression ctx
 
-prettyTypedExp :: ScopedUExp -> Ty -> Doc
-prettyTypedExp e ty = pretty e <+> text ":" <+> pretty ty
+prettyTypedExp :: ScopedUExp -> Ty -> Doc AnsiStyle
+prettyTypedExp e ty = prettyScopedUExp e <+> pretty ":" <+> pretty ty
 
-inTheExpression :: ScopedUExp -> Doc
-inTheExpression e = text "in the expression" <+> squotes (pretty e)
+inTheExpression :: ScopedUExp -> Doc AnsiStyle
+inTheExpression e = pretty "in the expression" <+> squotes (prettyScopedUExp e)
 
 
 {-@

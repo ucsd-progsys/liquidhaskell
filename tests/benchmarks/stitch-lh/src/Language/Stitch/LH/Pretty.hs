@@ -18,7 +18,8 @@ import Language.Stitch.LH.Op
 import Language.Stitch.LH.Util
 import Language.Stitch.LH.Data.Nat
 
-import Text.PrettyPrint.ANSI.Leijen
+import Prettyprinter
+import Prettyprinter.Render.Terminal
 
 lamPrec, appPrec, appLeftPrec, appRightPrec, ifPrec :: Prec
 lamPrec = 1
@@ -46,12 +47,12 @@ precInfo GreaterE = (4, 4, 4)
 precInfo Equals   = (4, 4, 4)
 
 -- | A function that changes a 'Doc's color
-type ApplyColor = Doc -> Doc
+type ApplyColor = Doc AnsiStyle -> Doc AnsiStyle
 
 -- | The colors used for all rendered expressions
 {-@ coloring :: { v : [ApplyColor] | len v > 0 } @-}
 coloring :: [ApplyColor]
-coloring = [red, green, yellow, blue, magenta, cyan]
+coloring = map (annotate . color) [Red, Green, Yellow, Blue, Magenta, Cyan]
 
 {-@ ignore applyColor @-}
 -- LH would need a proof that

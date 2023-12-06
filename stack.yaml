@@ -22,14 +22,13 @@ packages:
 - benchmark-timings
 - .
 extra-deps:
-- rest-rewrite-0.4.1
-- smtlib-backends-0.3
-- smtlib-backends-process-0.3
+- smtlib-backends-0.3@rev:1
+- smtlib-backends-process-0.3@rev:1
 - git: https://github.com/qnikst/ghc-timings-report
   commit: 45ef3498e35897712bde8e002ce18df6d55f8b15
 
-resolver: lts-21.20
+resolver: nightly-2023-11-27
 
 nix:
-  packages: [cacert, git, hostname, z3]
+  packages: [cacert, git, hostname, nix, stack, z3]
   path: [nixpkgs=./nixpkgs.nix]

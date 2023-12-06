@@ -1479,10 +1479,10 @@ toType  :: (ToTypeable r) => Bool -> RRType r -> Type
 toType useRFInfo (RFun _ RFInfo{permitTC = permitTC} t@(RApp c _ _ _) t' _)
   | useRFInfo && isErasable c = toType useRFInfo t'
   | otherwise
-  = FunTy VisArg Many (toType useRFInfo t) (toType useRFInfo t')
+  = FunTy FTF_T_T ManyTy (toType useRFInfo t) (toType useRFInfo t')
   where isErasable = if permitTC == Just True then isEmbeddedDict else isClass
 toType useRFInfo (RFun _ _ t t' _)
-  = FunTy VisArg Many (toType useRFInfo t) (toType useRFInfo t')
+  = FunTy FTF_T_T ManyTy (toType useRFInfo t) (toType useRFInfo t')
 toType useRFInfo (RAllT a t _) | RTV α <- ty_var_value a
   = ForAllTy (Bndr α Required) (toType useRFInfo t)
 toType useRFInfo (RAllP _ t)

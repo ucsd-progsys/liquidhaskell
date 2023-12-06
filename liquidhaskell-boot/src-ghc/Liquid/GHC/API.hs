@@ -10,6 +10,7 @@ it easy to discover breaking changes in the GHC API.
 
 -}
 
+{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE PatternSynonyms #-}
 
 module Liquid.GHC.API (
@@ -19,8 +20,7 @@ module Liquid.GHC.API (
 import Liquid.GHC.API.Extra as Ghc
 
 import           GHC                  as Ghc
-    ( Backend(Interpreter)
-    , Class
+    ( Class
     , DataCon
     , DesugaredModule(DesugaredModule, dm_typechecked_module, dm_core_module)
     , DynFlags(backend, debugLevel, ghcLink, ghcMode)
@@ -102,7 +102,6 @@ import           GHC                  as Ghc
     , isDictonaryId
     , isExternalName
     , isFamilyTyCon
-    , isFunTyCon
     , isGoodSrcSpan
     , isLocalId
     , isNewTyCon
@@ -216,7 +215,8 @@ import GHC.Builtin.Types              as Ghc
     , typeSymbolKind
     )
 import GHC.Builtin.Types.Prim         as Ghc
-    ( eqPrimTyCon
+    ( isArrowTyCon
+    , eqPrimTyCon
     , eqReprPrimTyCon
     , primTyCons
     )
@@ -322,8 +322,8 @@ import GHC.Core.Reduction             as Ghc
     ( Reduction(Reduction) )
 import GHC.Core.Subst                 as Ghc (emptySubst, extendCvSubst)
 import GHC.Core.TyCo.Rep              as Ghc
-    ( AnonArgFlag(VisArg)
-    , ArgFlag(Required)
+    ( FunTyFlag(FTF_T_T)
+    , ForAllTyFlag(Required)
     , Coercion
         ( AppCo
         , AxiomRuleCo
@@ -331,10 +331,13 @@ import GHC.Core.TyCo.Rep              as Ghc
         , CoVarCo
         , ForAllCo
         , FunCo
+        , HoleCo
         , InstCo
         , KindCo
         , LRCo
-        , NthCo
+        , Refl
+        , GRefl
+        , SelCo
         , SubCo
         , SymCo
         , TransCo
@@ -355,12 +358,12 @@ import GHC.Core.TyCo.Rep              as Ghc
         , ft_res
         )
     , UnivCoProvenance(PhantomProv, ProofIrrelProv)
-    , binderVar
     , mkForAllTys
     , mkFunTy
     , mkTyVarTy
     , mkTyVarTys
     )
+import GHC.Core.TyCo.Compare          as Ghc (eqType, nonDetCmpType)
 import GHC.Core.TyCon                 as Ghc
     ( TyConBinder
     , TyConBndrVis(AnonTCB)
@@ -382,20 +385,18 @@ import GHC.Core.TyCon                 as Ghc
 import GHC.Core.Type                  as Ghc
     ( Specificity(SpecifiedSpec)
     , TyVarBinder
-    , pattern Many
-    , classifiesTypeWithValues
+    , isTYPEorCONSTRAINT
     , dropForAlls
     , emptyTvSubstEnv
-    , eqType
     , expandTypeSynonyms
     , irrelevantMult
     , isFunTy
     , isTyVar
     , isTyVarTy
+    , pattern ManyTy
     , mkTvSubstPrs
     , mkTyConApp
     , newTyConInstRhs
-    , nonDetCmpType
     , piResultTys
     , splitAppTys
     , splitFunTy_maybe
@@ -421,14 +422,16 @@ import GHC.Data.FastString            as Ghc
     , fsLit
     , mkFastString
     , mkFastStringByteString
-    , mkPtrString
+    , mkPtrString#
     , uniq
     , unpackFS
     )
 import GHC.Data.Pair                  as Ghc
     ( Pair(Pair) )
 import GHC.Driver.Config.Diagnostic as Ghc
-    ( initDiagOpts )
+    ( initDiagOpts
+    , initDsMessageOpts
+    )
 import GHC.Driver.Main                as Ghc
     ( hscDesugar
     , hscTcRcLookupName
@@ -460,6 +463,7 @@ import GHC.Plugins                    as Ghc ( deserializeWithData
 import GHC.Core.FVs                   as Ghc (exprFreeVarsList)
 import GHC.Core.Opt.OccurAnal         as Ghc
     ( occurAnalysePgm )
+import GHC.Driver.Backend             as Ghc (interpreterBackend)
 import GHC.Driver.Env                 as Ghc
     ( HscEnv(hsc_mod_graph, hsc_unit_env, hsc_dflags, hsc_plugins) )
 import GHC.Driver.Errors              as Ghc
@@ -477,7 +481,7 @@ import GHC.Iface.Load                 as Ghc
 import GHC.Rename.Expr                as Ghc (rnLExpr)
 import GHC.Rename.Names               as Ghc (renamePkgQual)
 import GHC.Tc.Errors.Types            as Ghc
-    ( TcRnMessage(TcRnUnknownMessage) )
+    ( mkTcRnUnknownMessage )
 import GHC.Tc.Gen.App                 as Ghc (tcInferSigma)
 import GHC.Tc.Gen.Bind                as Ghc (tcValBinds)
 import GHC.Tc.Gen.Expr                as Ghc (tcInferRho)
@@ -549,6 +553,7 @@ import GHC.Types.CostCentre           as Ghc
 import GHC.Types.Error                as Ghc
     ( Messages(getMessages)
     , MessageClass(MCDiagnostic)
+    , Diagnostic(defaultDiagnosticOpts)
     , DiagnosticReason(WarningWithoutFlag)
     , MsgEnvelope(errMsgSpan)
     , errorsOrFatalWarningsFound
@@ -653,6 +658,7 @@ import GHC.Types.Unique.Supply        as Ghc
     ( MonadUnique, getUniqueM )
 import GHC.Types.Var                  as Ghc
     ( VarBndr(Bndr)
+    , binderVar
     , mkLocalVar
     , mkTyVar
     , setVarName

@@ -30,7 +30,7 @@ import Prelude                                hiding (error)
 -- import Language.Fixpoint.Misc           (mapSnd)
 import Language.Haskell.Liquid.GHC.Misc
 import qualified Liquid.GHC.API as Ghc
-import Liquid.GHC.API (Var, Arity, TyVar, Bind(..), Boxity(..), Expr(..), ArgFlag(..))
+import Liquid.GHC.API (Var, Arity, TyVar, Bind(..), Boxity(..), Expr(..), ForAllTyFlag(Required))
 import Language.Haskell.Liquid.Types.Types
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.Variance

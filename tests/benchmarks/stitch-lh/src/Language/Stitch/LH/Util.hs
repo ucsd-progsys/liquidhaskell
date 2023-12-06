@@ -16,14 +16,15 @@
 ----------------------------------------------------------------------------
 
 module Language.Stitch.LH.Util (
-  render, toSimpleDoc, maybeParens, ($$),
+  render, maybeParens, ($$),
   Prec, topPrec,
   stripWhitespace, foldl1M,
   allPairs
   ) where
 
 import Text.Parsec
-import Text.PrettyPrint.ANSI.Leijen as Pretty
+import Prettyprinter as Pretty
+import Prettyprinter.Render.String as Pretty
 
 import Data.Char
 import Data.List
@@ -31,7 +32,7 @@ import Data.List
 import Control.Monad
 
 instance Pretty ParseError where
-  pretty = text . show
+  pretty = pretty
 
 -- | More conspicuous synonym for operator precedence
 type Prec = Rational
@@ -41,21 +42,16 @@ topPrec :: Prec
 topPrec = 0
 
 -- | Convert a 'Doc' to a 'String'
-render :: Doc -> String
-render = flip displayS "" . toSimpleDoc
-
--- | Convert a 'Doc' to a 'SimpleDoc' for further rendering
-toSimpleDoc :: Doc -> SimpleDoc
-toSimpleDoc = renderPretty 1.0 78
+render :: Doc ann -> String
+render = Pretty.renderString . layoutPretty defaultLayoutOptions
 
 -- | Enclose a 'Doc' in parens if the flag is 'True'
-maybeParens :: Bool -> Doc -> Doc
+maybeParens :: Bool -> Doc ann -> Doc ann
 maybeParens True  = parens
 maybeParens False = id
 
--- | Synonym for 'Pretty.<$>'
-($$) :: Doc -> Doc -> Doc
-($$) = (Pretty.<$>)
+($$) :: Doc ann -> Doc ann -> Doc ann
+a $$ b = Pretty.vcat [a, b]
 
 -- | (Inefficiently) strips whitespace from a string
 stripWhitespace :: String -> String

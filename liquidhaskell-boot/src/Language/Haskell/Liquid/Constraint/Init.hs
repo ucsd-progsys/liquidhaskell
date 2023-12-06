@@ -15,6 +15,7 @@ module Language.Haskell.Liquid.Constraint.Init (
     ) where
 
 import           Prelude                                       hiding (error, undefined)
+import           Control.Monad (foldM, forM)
 import           Control.Monad.State
 import           Data.Maybe                                    (isNothing, fromMaybe, catMaybes, mapMaybe)
 import qualified Data.HashMap.Strict                           as M
