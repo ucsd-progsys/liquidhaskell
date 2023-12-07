@@ -32,7 +32,6 @@ import qualified GHC.Types.Name as GHC
 import qualified GHC.Types.SrcLoc as GHC
 import qualified GHC.Unit.Module.ModGuts as GHC
 import qualified GHC.Utils.Error as GHC
-import qualified GHC.Utils.Outputable as GHC
 
 import GHC.Paths (libdir)
 
@@ -86,21 +85,11 @@ testApiComments = do
     parseMod str filepath = do
       let location = GHC.mkRealSrcLoc (GHC.mkFastString filepath) 1 1
           buffer = GHC.stringToStringBuffer str
-          popts = GHC.mkParserOpts EnumSet.empty diagOpts [] False True True True
+          popts = GHC.mkParserOpts EnumSet.empty GHC.emptyDiagOpts [] False True True True
           parseState = GHC.initParserState popts buffer location
       case GHC.unP Parser.parseModule parseState of
         GHC.POk _ result -> return result
         _ -> fail "Unexpected parser error"
-
-    diagOpts = GHC.DiagOpts
-      { GHC.diag_warning_flags = EnumSet.empty
-      , GHC.diag_fatal_warning_flags = EnumSet.empty
-      , GHC.diag_warn_is_error = True
-      , GHC.diag_reverse_errors = False
-      , GHC.diag_max_errors = Nothing
-      , GHC.diag_ppr_ctx = GHC.defaultSDocContext
-      }
-
 
 -- | Tests that case expressions desugar as Liquid Haskell expects.
 testCaseDesugaring :: IO ()

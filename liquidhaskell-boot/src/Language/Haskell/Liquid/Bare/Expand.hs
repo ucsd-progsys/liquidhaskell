@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE OverloadedStrings     #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 
 module Language.Haskell.Liquid.Bare.Expand
   ( -- * Create alias expansion environment

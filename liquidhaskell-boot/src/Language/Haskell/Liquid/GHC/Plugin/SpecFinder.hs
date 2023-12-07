@@ -93,6 +93,7 @@ findRelevantSpecs lhAssmPkgExcludes hscEnv mods = do
           -- now look up the assumptions
           liftIO $ runMaybeT $ lookupInterfaceAnnotationsEPS eps2 assumptionsMod
         FoundMultiple{} -> failWithTc $ mkTcRnUnknownMessage $ mkPlainError [] $
+                             missingInterfaceErrorDiagnostic (initIfaceMessageOpts $ hsc_dflags hscEnv) $
                              cannotFindModule hscEnv assumptionsModName res
         _ -> return Nothing
 

@@ -3,6 +3,7 @@
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE OverloadedStrings   #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 
 module Language.Haskell.Liquid.Bare.Check
   ( checkTargetSpec
