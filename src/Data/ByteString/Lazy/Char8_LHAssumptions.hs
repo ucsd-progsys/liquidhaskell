@@ -244,11 +244,11 @@ assume Data.ByteString.Lazy.Char8.unzip
        , { r : Data.ByteString.Lazy.ByteString | bllen r == len i }
        )
 
-assume Data.ByteString.Lazy.Char8.readInt
+assume Data.ByteString.Lazy.ReadInt.readInt
     :: i : Data.ByteString.Lazy.ByteString
     -> Maybe { p : (Int, { o : Data.ByteString.Lazy.ByteString | bllen o < bllen i}) | bllen i /= 0 }
 
-assume Data.ByteString.Lazy.Char8.readInteger
+assume Data.ByteString.Lazy.ReadNat.readInteger
     :: i : Data.ByteString.Lazy.ByteString
     -> Maybe { p : (Integer, { o : Data.ByteString.Lazy.ByteString | bllen o < bllen i}) | bllen i /= 0 }
 

@@ -275,11 +275,11 @@ assume Data.ByteString.Char8.unzip
        , { r : Data.ByteString.ByteString | bslen r == len i }
        )
 
-assume Data.ByteString.Char8.readInt
+assume Data.ByteString.ReadInt.readInt
     :: i : Data.ByteString.ByteString
     -> Maybe { p : (Int, { o : Data.ByteString.ByteString | bslen o < bslen i}) | bslen i /= 0 }
 
-assume Data.ByteString.Char8.readInteger
+assume Data.ByteString.ReadNat.readInteger
     :: i : Data.ByteString.ByteString
     -> Maybe { p : (Integer, { o : Data.ByteString.ByteString | bslen o < bslen i}) | bslen i /= 0 }
 @-}
