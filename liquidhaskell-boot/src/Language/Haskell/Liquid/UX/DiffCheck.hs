@@ -39,7 +39,6 @@ module Language.Haskell.Liquid.UX.DiffCheck (
 
 
 import           Prelude                                hiding (error)
-import           Data.Aeson
 import qualified Data.Text                              as T
 import           Data.Algorithm.Diff
 import           Data.Maybe                             (maybeToList, listToMaybe, mapMaybe, fromMaybe)
@@ -61,6 +60,7 @@ import qualified Data.ByteString                        as B
 import qualified Data.ByteString.Lazy                   as LB
 
 import           Language.Haskell.Liquid.Types          hiding (Def, LMap)
+import           Text.JSON
 
 --------------------------------------------------------------------------------
 -- | Data Types ----------------------------------------------------------------
@@ -477,7 +477,7 @@ saveResult :: FilePath -> Output Doc -> IO ()
 --------------------------------------------------------------------------------
 saveResult target res = do
   copyFile target saveF
-  B.writeFile errF $ LB.toStrict $ encode res
+  writeFile errF $ encode res
   where
     saveF = extFileName Saved  target
     errF  = extFileName Cache  target
@@ -488,10 +488,12 @@ loadResult   :: FilePath -> IO (Output Doc)
 loadResult f = do
   ex <- doesFileExist jsonF
   if ex
-    then convert <$> B.readFile jsonF
+    then convert <$> readFile jsonF
     else return mempty
   where
-    convert  = fromMaybe mempty . decode . LB.fromStrict
+    convert s = case decode s of
+      Ok a -> a
+      Error _ -> mempty
     jsonF    = extFileName Cache f
 
 --------------------------------------------------------------------------------
@@ -568,41 +570,28 @@ checkedItv chDefs = foldr (`IM.insert` ()) IM.empty is
 -- | Aeson instances -----------------------------------------------------------
 --------------------------------------------------------------------------------
 
-instance ToJSON SourcePos where
-  toJSON p = object [   "sourceName"   .= f
-                      , "sourceLine"   .= unPos l
-                      , "sourceColumn" .= unPos c
+instance JSON SourcePos where
+  showJSON p = makeObj [ ("sourceName", showJSON f)
+                      , ("sourceLine", showJSON $ unPos l)
+                      , ("sourceColumn", showJSON $ unPos c)
                       ]
              where
                f    = sourceName   p
                l    = sourceLine   p
                c    = sourceColumn p
 
-instance FromJSON SourcePos where
-  parseJSON (Object v) = safeSourcePos <$> v .: "sourceName"
-                                <*> v .: "sourceLine"
-                                <*> v .: "sourceColumn"
-  parseJSON _          = mempty
+  readJSON (JSObject v) = safeSourcePos <$> valFromObj "sourceName" v
+                                <*> valFromObj "sourceLine" v
+                                <*> valFromObj "sourceColumn" v
+  readJSON _          = Error "Expected Object for SourcePos value"
 
-instance FromJSON ErrorResult
+instance JSON Doc where
+  showJSON = showJSON . render
+  readJSON v = text <$> readJSON v
 
-instance ToJSON Doc where
-  toJSON = String . T.pack . render
+instance JSON a => JSON (AnnInfo a)
 
-instance FromJSON Doc where
-  parseJSON (String s) = return $ text $ T.unpack s
-  parseJSON _          = mempty
-
-instance ToJSON a => ToJSON (AnnInfo a) where
-  toJSON = genericToJSON defaultOptions
-  toEncoding = genericToEncoding defaultOptions
-instance FromJSON a => FromJSON (AnnInfo a)
-
-instance ToJSON (Output Doc) where
-  toJSON = genericToJSON defaultOptions
-  toEncoding = genericToEncoding defaultOptions
-instance FromJSON (Output Doc) where
-  parseJSON = genericParseJSON defaultOptions
+instance JSON (Output Doc) where
 
 file :: Located a -> FilePath
 file = sourceName . loc

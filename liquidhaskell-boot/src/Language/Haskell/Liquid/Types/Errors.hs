@@ -9,7 +9,7 @@
 {-# LANGUAGE TypeApplications    #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- TODO(#1918): Only needed for GHC <9.0.1.
-{-# OPTIONS_GHC -Wno-orphans #-} -- PPrint and aeson instances.
+{-# OPTIONS_GHC -Wno-orphans #-} -- PPrint and json instances.
 
 -- | This module contains the *types* related creating Errors.
 --   It depends only on Fixpoint and basic haskell libraries,
@@ -61,7 +61,6 @@ import           Data.Typeable                (Typeable)
 import           Data.Generics                (Data)
 import qualified Data.Binary                  as B
 import qualified Data.Maybe                   as Mb
-import           Data.Aeson                   hiding (Result)
 import           Data.Hashable
 import qualified Data.HashMap.Strict          as M
 import qualified Data.List                    as L
@@ -93,6 +92,7 @@ import qualified Language.Fixpoint.Misc       as Misc
 import qualified Language.Haskell.Liquid.Misc     as Misc
 import           Language.Haskell.Liquid.Misc ((<->))
 import           Language.Haskell.Liquid.Types.Generics()
+import           Text.JSON
 
 type ParseError = P.ParseError String Void
 
@@ -680,15 +680,25 @@ ppPropInContext td p c
                 ]
       ]
 
-instance ToJSON RealSrcSpan where
-  toJSON sp = object [ "filename"  .= f
-                     , "startLine" .= l1
-                     , "startCol"  .= c1
-                     , "endLine"   .= l2
-                     , "endCol"    .= c2
+instance JSON RealSrcSpan where
+  showJSON sp = makeObj [ ("filename", showJSON f)
+                     , ("startLine", showJSON l1)
+                     , ("startCol", showJSON c1)
+                     , ("endLine", showJSON l2)
+                     , ("endCol", showJSON c2)
                      ]
     where
       (f, l1, c1, l2, c2) = unpackRealSrcSpan sp
+
+  readJSON (JSObject v) =
+    packRealSrcSpan
+      <$> valFromObj "filename" v
+      <*> valFromObj "startLine" v
+      <*> valFromObj "startCol" v
+      <*> valFromObj "endLine" v
+      <*> valFromObj "endCol" v
+  readJSON _ = Error "Cannot parse JSON for RealSrcSpan"
+
 
 unpackRealSrcSpan :: RealSrcSpan -> (String, Int, Int, Int, Int)
 unpackRealSrcSpan rsp = (f, l1, c1, l2, c2)
@@ -699,16 +709,6 @@ unpackRealSrcSpan rsp = (f, l1, c1, l2, c2)
     l2                = srcSpanEndLine   rsp
     c2                = srcSpanEndCol    rsp
 
-
-instance FromJSON RealSrcSpan where
-  parseJSON (Object v) =
-    packRealSrcSpan
-      <$> v .: "filename"
-      <*> v .: "startLine"
-      <*> v .: "startCol"
-      <*> v .: "endLine"
-      <*> v .: "endCol"
-  parseJSON _          = mempty
 
 packRealSrcSpan :: FilePath -> Int -> Int -> Int -> Int -> RealSrcSpan
 packRealSrcSpan f l1 c1 l2 c2 = mkRealSrcSpan loc1 loc2
@@ -721,30 +721,25 @@ srcSpanFileMb (RealSrcSpan s _) = Just $ unpackFS $ srcSpanFile s
 srcSpanFileMb _                 = Nothing
 
 
-instance ToJSON SrcSpan where
-  toJSON (RealSrcSpan rsp _) = object [ "realSpan" .= True, "spanInfo" .= rsp ]
-  toJSON (UnhelpfulSpan _)   = object [ "realSpan" .= False ]
+instance JSON SrcSpan where
+  showJSON (RealSrcSpan rsp _) = makeObj [ ("realSpan", showJSON True), ("spanInfo", showJSON rsp) ]
+  showJSON (UnhelpfulSpan _)   = makeObj [ ("realSpan", showJSON False) ]
 
-instance FromJSON SrcSpan where
-  parseJSON (Object v) = do tag <- v .: "realSpan"
+  readJSON (JSObject v) = do
+                            tag <- valFromObj "realSpan" v
                             if tag
-                              then RealSrcSpan <$> v .: "spanInfo" <*> pure strictNothing
+                              then RealSrcSpan <$> valFromObj "spanInfo" v <*> pure strictNothing
                               else return noSrcSpan
-  parseJSON _          = mempty
+  readJSON _          = Error "Cannot parse JSON for SrcSpan"
 
--- Default definition use ToJSON and FromJSON
-instance ToJSONKey SrcSpan
-instance FromJSONKey SrcSpan
+instance (PPrint a, Show a) => JSON (TError a) where
+  showJSON e = makeObj [ ("pos", showJSON $ pos e)
+                       , ("msg", showJSON $ render (ppError' Full empty e))
+                       ]
 
-instance (PPrint a, Show a) => ToJSON (TError a) where
-  toJSON e = object [ "pos" .= pos e
-                    , "msg" .= render (ppError' Full empty e)
-                    ]
-
-instance FromJSON (TError a) where
-  parseJSON (Object v) = errSaved <$> v .: "pos"
-                                  <*> v .: "msg"
-  parseJSON _          = mempty
+  readJSON (JSObject v) = errSaved <$> valFromObj "pos" v
+                                   <*> valFromObj "msg" v
+  readJSON _          = Error "Cannot parse JSON for TError"
 
 errSaved :: SrcSpan -> String -> TError a
 errSaved sp body | n : m <- lines body = ErrSaved sp (text n) (text $ unlines m)
