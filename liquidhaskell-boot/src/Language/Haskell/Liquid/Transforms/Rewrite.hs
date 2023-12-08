@@ -56,20 +56,22 @@ simplifyCore :: Config -> Bool
 simplifyCore = not . noSimplifyCore
 
 undollar :: RewriteRule
-undollar = go 
-  where 
-    go e 
-     -- matches `$ t1 t2 t3 f a`  
+undollar = go
+  where
+    go e
+     -- matches `$ t1 t2 t3 t4 f a`
      | App e1 a  <- untick e
      , App e2 f  <- untick e1
-     , App e3 t3 <- untick e2 
-     , App e4 t2 <- untick e3 
-     , App d t1  <- untick e4 
-     , Var v     <- untick d 
+     , App e3 t4 <- untick e2
+     , App e4 t3 <- untick e3
+     , App e5 t2 <- untick e4
+     , App d t1  <- untick e5
+     , Var v     <- untick d
      , v `hasKey` dollarIdKey
      , Type _    <- untick t1
      , Type _    <- untick t2
      , Type _    <- untick t3
+     , Type _    <- untick t4
      = Just $ App f a 
     go (Tick t e)
       = Tick t <$> go e
