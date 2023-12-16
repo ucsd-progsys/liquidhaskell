@@ -27,8 +27,7 @@ module Language.Haskell.Liquid.UX.CmdLine (
    -- * Canonicalize Paths in Config
    , canonicalizePaths
 
-   -- * Exit Function
-   , exitWithResult
+   -- * Collecting errors
    , addErrors
 
    -- * Reporting the output of the checking
@@ -763,10 +762,6 @@ reportResult logResultFull cfg targets out = do
     printHeader :: Moods -> Doc -> IO ()
     printHeader mood d = colorPhaseLn mood "" (render d)
 
-------------------------------------------------------------------------
-exitWithResult :: Config -> [FilePath] -> Output Doc -> IO ()
-------------------------------------------------------------------------
-exitWithResult cfg targets out = void $ reportResult writeResultStdout cfg targets out
 
 reportResultJson :: ACSS.AnnMap -> IO ()
 reportResultJson annm = do

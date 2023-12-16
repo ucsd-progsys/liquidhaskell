@@ -1,8 +1,10 @@
 name: hlint
 
 on:
-  pull_request:
   push:
+    branches:
+      - develop
+  pull_request:
 
 jobs:
   build:
