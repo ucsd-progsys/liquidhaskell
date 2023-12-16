@@ -4,7 +4,12 @@
 # Based off
 # https://squidfunk.github.io/mkdocs-material/publishing-your-site/?h=deploy#with-github-actions
 name: Documentation CI/CD
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+
 jobs:
   build-docs-job:
     runs-on: ubuntu-latest
