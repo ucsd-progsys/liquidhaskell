@@ -11,6 +11,8 @@ installed on your system. Download and install at least one of:
 * [CVC4](https://cvc4.github.io/)
 * [MathSat](https://mathsat.fbk.eu/)
 
+When in doubt, install Z3, which is the SMT solver most tested with LiquidHaskell.
+
 Note: The SMT solver binary should be on your `PATH`; LiquidHaskell will execute it as a child process.
 
 ## Installing LiquidHaskell
