@@ -18,7 +18,7 @@ author:             The Liquid Haskell Developers
 -- A copyright notice.
 -- copyright:
 -- category:
-extra-source-files: CHANGELOG.md
+-- extra-source-files: CHANGELOG.md
 
 flag devel
   default:     False
