@@ -449,8 +449,6 @@ import GHC.Driver.Session             as Ghc
 import GHC.Driver.Monad               as Ghc (withSession)
 import GHC.HsToCore.Monad             as Ghc
     ( DsM, initDsTc, initDsWithModGuts, newUnique )
-import GHC.Iface.Load                 as Ghc
-    ( WhereFrom(ImportBySystem) )
 import GHC.Iface.Syntax               as Ghc
     ( IfaceAnnotation(ifAnnotatedValue) )
 import GHC.Plugins                    as Ghc ( deserializeWithData
@@ -481,7 +479,8 @@ import GHC.HsToCore.Expr              as Ghc
 import GHC.Iface.Errors.Ppr            as Ghc
     ( missingInterfaceErrorDiagnostic )
 import GHC.Iface.Load                 as Ghc
-    ( cannotFindModule
+    ( WhereFrom(ImportBySystem)
+    , cannotFindModule
     , loadInterface
     )
 import GHC.Rename.Expr                as Ghc (rnLExpr)
@@ -560,12 +559,11 @@ import GHC.Types.Error                as Ghc
     , Diagnostic
     , DiagnosticReason(WarningWithoutFlag)
     , MsgEnvelope(errMsgSpan)
+    , ResolvedDiagnosticReason(ResolvedDiagnosticReason)
     , defaultDiagnosticOpts
     , errorsOrFatalWarningsFound
     , mkPlainError
     )
-import GHC.Types.Error                as Ghc
-    ( ResolvedDiagnosticReason(ResolvedDiagnosticReason) )
 import GHC.Types.Fixity               as Ghc
     ( Fixity(Fixity) )
 import GHC.Types.Id                   as Ghc
