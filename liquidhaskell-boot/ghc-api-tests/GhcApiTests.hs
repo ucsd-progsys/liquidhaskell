@@ -1,3 +1,4 @@
+{-# LANGUAGE ViewPatterns #-}
 
 import           Control.Monad
 import           Data.List (find)
@@ -10,10 +11,12 @@ import           Liquid.GHC.API
     , LitNumType(..)
     , Literal(..)
     , apiCommentsParsedSource
+    , gopt_set
     , occNameString
     , pAT_ERROR_ID
     , showPprQualified
     , splitDollarApp
+    , untick
     )
 import           Test.Tasty
 import           Test.Tasty.HUnit
@@ -121,7 +124,7 @@ testCaseDesugaring = do
         --
         isExpectedDesugaring p = case find fBind p of
           Just (GHC.NonRec _ e0)
-            | Lam x (Case (Var x') _ _ [alt0, _alt1]) <- e0
+            | Lam x (untick -> Case (Var x') _ _ [alt0, _alt1]) <- e0
             , x == x'
             , Alt DEFAULT [] e1 <- alt0
             , Case e2 _ _ [] <- e1
@@ -156,7 +159,7 @@ testNumLitDesugaring = do
         --
         isExpectedDesugaring p = case find fBind p of
           Just (GHC.NonRec _ e0)
-            | Lam _a (Lam _dict (App fromIntegerApp (App (Var vIS) lit))) <- e0
+            | Lam _a (Lam _dict (untick -> App fromIntegerApp (App (Var vIS) lit))) <- e0
             , App (App (Var vFromInteger) _aty) _numDict <- fromIntegerApp
             , GHC.idName vFromInteger  == GHC.fromIntegerName
             , GHC.nameStableString (GHC.idName vIS) == GHC.nameStableString GHC.integerISDataConName
@@ -198,7 +201,10 @@ compileToCore modName inputSource = do
     now <- getCurrentTime
     GHC.runGhc (Just libdir) $ do
       df1 <- GHC.getSessionDynFlags
-      GHC.setSessionDynFlags df1
+      GHC.setSessionDynFlags $ df1
+        { GHC.backend = GHC.interpreterBackend
+        }
+         `gopt_set` GHC.Opt_InsertBreakpoints
       let target = GHC.Target {
                    GHC.targetId           = GHC.TargetFile (modName ++ ".hs") Nothing
                  , GHC.targetUnitId       = GHC.homeUnitId_ df1

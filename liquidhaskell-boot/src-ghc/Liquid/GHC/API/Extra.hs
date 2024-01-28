@@ -26,6 +26,7 @@ module Liquid.GHC.API.Extra (
   , thisPackage
   , tyConRealArity
   , typecheckModuleIO
+  , untick
   ) where
 
 import Control.Monad.IO.Class
