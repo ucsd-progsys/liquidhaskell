@@ -13,6 +13,7 @@ import           Liquid.GHC.API
     , occNameString
     , pAT_ERROR_ID
     , showPprQualified
+    , splitDollarApp
     )
 import           Test.Tasty
 import           Test.Tasty.HUnit
@@ -46,6 +47,7 @@ testTree =
       [ testCase "apiComments" testApiComments
       , testCase "caseDesugaring" testCaseDesugaring
       , testCase "numericLiteralDesugaring" testNumLitDesugaring
+      , testCase "dollarDesugaring" testDollarDesugaring
       ]
 
 -- Tests that Liquid.GHC.API.Extra.apiComments can retrieve the comments in
@@ -161,6 +163,30 @@ testNumLitDesugaring = do
           _ -> False
 
     coreProgram <- compileToCore "NumLitDesugaring" inputSource
+    unless (isExpectedDesugaring coreProgram) $
+      fail $ unlines $
+        "Unexpected desugaring:" : map showPprQualified coreProgram
+
+-- | Tests that dollar sign desugars as Liquid Haskell expects.
+testDollarDesugaring :: IO ()
+testDollarDesugaring = do
+    let inputSource = unlines
+          [ "module DollarDesugaring where"
+          , "f :: ()"
+          , "f = (\\_ -> ()) $ 'a'"
+          ]
+
+        fBind (GHC.NonRec b _e) =
+          occNameString (GHC.occName b) == "f"
+        fBind _ = False
+
+        isExpectedDesugaring p = case find fBind p of
+          Just (GHC.NonRec _ e0)
+            | Just (Lam _ _, App _ (Lit (LitChar 'a'))) <- splitDollarApp e0
+            -> True
+          _ -> False
+
+    coreProgram <- compileToCore "DollarDesugaring" inputSource
     unless (isExpectedDesugaring coreProgram) $
       fail $ unlines $
         "Unexpected desugaring:" : map showPprQualified coreProgram
