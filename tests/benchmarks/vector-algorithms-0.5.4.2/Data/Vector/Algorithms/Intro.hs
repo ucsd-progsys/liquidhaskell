@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wno-partial-type-signatures #-}
-{-# LANGUAGE PartialTypeSignatures, TypeOperators, BangPatterns, ScopedTypeVariables #-}
+{-# LANGUAGE TypeOperators, BangPatterns, ScopedTypeVariables #-}
 {-# LANGUAGE MonoLocalBinds #-}
 
 -- ---------------------------------------------------------------------------
@@ -97,11 +97,11 @@ sortByBounds cmp a l u
               -> Nat -> l:(OkIdx vec) -> u:{v:Nat | (InRng v l (vsize vec))}
               -> m ()
   @-}
-introsort :: (PrimMonad m, MVector v e)
+introsort :: forall m v e. (PrimMonad m, MVector v e)
           => Comparison e -> v (PrimState m) e -> Int -> Int -> Int -> m ()
 introsort cmp a i l u = sort i l u >> I.sortByBounds cmp a l u
  where
- sort :: Int -> Int -> Int -> _
+ sort :: Int -> Int -> Int -> m ()
  sort 0 l u = H.sortByBounds cmp a l  u
   {- LIQUID WITNESS -}
  sort (d :: Int) l u

@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wno-partial-type-signatures #-}
-{-# LANGUAGE PartialTypeSignatures, FlexibleContexts, ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleContexts, ScopedTypeVariables #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE MonoLocalBinds #-}
 
@@ -273,7 +273,7 @@ sortBy cmp stop buckets radix mp v
                        flagLoop cmp stop count pile v mp radix
 {-# INLINE sortBy #-}
 
-flagLoop :: (PrimMonad m, MVector v e)
+flagLoop :: forall m v e. (PrimMonad m, MVector v e)
          => Comparison e
          -> (e -> Int -> Bool)           -- number of passes
          -> PV.MVector (PrimState m) Int -- auxiliary count array
@@ -286,7 +286,7 @@ flagLoop cmp stop count pile v mp radix = go 0 v (mp) 1
  where
 
  {-@ go, go' :: _ -> _ -> d:_ -> d2:_ -> m () / [d,d2] @-}
- go, go' :: Int -> _ -> Int -> Int -> _
+ go, go' :: Int -> v (PrimState m) e -> Int -> Int -> m ()
 
  {- lazy go @-}
   {- LIQUID WITNESS -}
