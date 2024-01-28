@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
 {-# LANGUAGE MagicHash      #-}
 
 module Language.Haskell.Liquid.Prelude where

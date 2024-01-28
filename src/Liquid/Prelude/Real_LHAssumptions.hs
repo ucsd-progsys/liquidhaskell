@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fplugin=LiquidHaskellBoot #-}
 module Liquid.Prelude.Real_LHAssumptions where
 
 import GHC.Num()

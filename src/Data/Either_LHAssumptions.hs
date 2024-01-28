@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fplugin=LiquidHaskellBoot #-}
 module Data.Either_LHAssumptions where
 
 import GHC.Types_LHAssumptions()
