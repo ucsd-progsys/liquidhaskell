@@ -51,6 +51,7 @@ testTree =
       , testCase "caseDesugaring" testCaseDesugaring
       , testCase "numericLiteralDesugaring" testNumLitDesugaring
       , testCase "dollarDesugaring" testDollarDesugaring
+      , testCase "localBindingsDesugaring" testLocalBindingsDesugaring
       ]
 
 -- Tests that Liquid.GHC.API.Extra.apiComments can retrieve the comments in
@@ -195,6 +196,32 @@ testDollarDesugaring = do
     unless (isExpectedDesugaring coreProgram) $
       fail $ unlines $
         "Unexpected desugaring:" : map showPprQualified coreProgram
+
+-- | Test that local bindings are preserved.
+testLocalBindingsDesugaring :: IO ()
+testLocalBindingsDesugaring = do
+    let inputSource = unlines
+          [ "module LocalBindingsDesugaring where"
+          , "f :: ()"
+          , "f = z"
+          , "  where"
+          , "    z = ()"
+          ]
+
+        fBind (GHC.NonRec b _e) =
+          occNameString (GHC.occName b) == "f"
+        fBind _ = False
+
+        isExpectedDesugaring p = case find fBind p of
+          Just (GHC.NonRec _ (Let (GHC.NonRec b _) _))
+            -> occNameString (GHC.occName b) == "z"
+          _ -> False
+
+    coreProgram <- compileToCore "LocalBindingsDesugaring" inputSource
+    unless (isExpectedDesugaring coreProgram) $
+      fail $ unlines $
+        "Unexpected desugaring:" : map showPprQualified coreProgram
+
 
 compileToCore :: String -> String -> IO [GHC.CoreBind]
 compileToCore modName inputSource = do
