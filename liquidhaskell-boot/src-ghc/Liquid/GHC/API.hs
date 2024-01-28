@@ -164,7 +164,6 @@ import GHC.Builtin.Names              as Ghc
     , and_RDR
     , bindMName
     , dATA_FOLDABLE
-    , dollarIdKey
     , eqClassKey
     , eqClassName
     , ge_RDR

@@ -21,6 +21,7 @@ module Liquid.GHC.API.Extra (
   , renderWithStyle
   , showPprQualified
   , showSDocQualified
+  , splitDollarApp
   , strictNothing
   , thisPackage
   , tyConRealArity
@@ -36,6 +37,7 @@ import Data.Foldable                  (asum)
 import Data.List                      (foldl', sortOn)
 import qualified Data.Map as Map
 import qualified Data.Set as S
+import GHC.Builtin.Names ( dollarIdKey )
 import GHC.Core                       as Ghc
 import GHC.Core.Coercion              as Ghc
 import GHC.Core.DataCon               as Ghc
@@ -52,7 +54,7 @@ import GHC.Tc.Types
 import GHC.Types.Name                 (isSystemName, nameModule_maybe, occNameFS)
 import GHC.Types.SrcLoc               as Ghc
 import GHC.Types.TypeEnv
-import GHC.Types.Unique               (getUnique)
+import GHC.Types.Unique               (getUnique, hasKey)
 import GHC.Types.Unique.FM
 
 import GHC.Unit.Module.Deps           as Ghc (Dependencies(dep_direct_mods))
@@ -288,3 +290,26 @@ myQualify = Ghc.neverQualify { Ghc.queryQualifyName = Ghc.alwaysQualifyNames }
 
 strictNothing :: GHC.Data.Strict.Maybe a
 strictNothing = GHC.Data.Strict.Nothing
+
+splitDollarApp :: CoreExpr -> Maybe (CoreExpr, CoreExpr)
+splitDollarApp e
+     -- matches `$ t1 t2 t3 t4 f a`
+     | App e1 a  <- untick e
+     , App e2 f  <- untick e1
+     , App e3 t4 <- untick e2
+     , App e4 t3 <- untick e3
+     , App e5 t2 <- untick e4
+     , App d t1  <- untick e5
+     , Var v     <- untick d
+     , v `hasKey` dollarIdKey
+     , Type _    <- untick t1
+     , Type _    <- untick t2
+     , Type _    <- untick t3
+     , Type _    <- untick t4
+     = Just (f, a)
+     | otherwise
+     = Nothing
+
+untick :: CoreExpr -> CoreExpr
+untick (Tick _ e) = untick e
+untick e = e
