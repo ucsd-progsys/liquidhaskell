@@ -135,6 +135,8 @@ testCaseDesugaring = do
         "Unexpected desugaring:" : map showPprQualified coreProgram
 
 -- | Tests that numeric literal expressions desugar as Liquid Haskell expects.
+--
+-- https://github.com/ucsd-progsys/liquidhaskell/issues/2237
 testNumLitDesugaring :: IO ()
 testNumLitDesugaring = do
     let inputSource = unlines
