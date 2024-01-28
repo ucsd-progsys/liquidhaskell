@@ -161,7 +161,7 @@ jobs:
       image: ubuntu-2004:202107-02
     steps:
       - cabal_build_and_test:
-          ghc_version: "9.6.3"
+          ghc_version: "9.8.1"
 
 workflows:
   version: 2
