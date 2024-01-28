@@ -31,6 +31,7 @@ import           GHC                  as Ghc
         ( Opt_DeferTypedHoles
         , Opt_Haddock
         , Opt_ImplicitImportQualified
+        , Opt_InsertBreakpoints
         , Opt_KeepRawTokenStream
         , Opt_PIC
         )
