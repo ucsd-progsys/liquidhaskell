@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fplugin=LiquidHaskellBoot #-}
 {-# LANGUAGE MagicHash #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 module GHC.Num.Integer_LHAssumptions() where

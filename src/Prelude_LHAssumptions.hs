@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fplugin=LiquidHaskellBoot #-}
 module Prelude_LHAssumptions where
 
 import GHC.Base_LHAssumptions()

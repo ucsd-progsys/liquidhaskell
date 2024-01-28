@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fplugin=LiquidHaskellBoot #-}
 module Data.Bits_LHAssumptions where
 
 {-@

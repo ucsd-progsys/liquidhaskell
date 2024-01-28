@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 module Data.Vector_LHAssumptions where
 
