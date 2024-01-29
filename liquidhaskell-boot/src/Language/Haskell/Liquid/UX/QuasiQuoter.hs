@@ -3,6 +3,7 @@
 {-# LANGUAGE TemplateHaskellQuotes #-}
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE OverloadedStrings     #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 
 module Language.Haskell.Liquid.UX.QuasiQuoter
 -- (
@@ -91,7 +92,7 @@ mkSpecDecs (Alias rta) =
     lsym = F.atLoc rta n
     name = symbolName n
     n    = rtName (val rta)
-    tvs  = (\a -> PlainTV (symbolName a) ()) <$> rtTArgs (val rta)
+    tvs  = (\a -> PlainTV (symbolName a) BndrReq) <$> rtTArgs (val rta)
 mkSpecDecs _ =
   Right []
 

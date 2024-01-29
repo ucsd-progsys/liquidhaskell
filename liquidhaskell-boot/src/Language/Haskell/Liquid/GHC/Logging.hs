@@ -34,7 +34,11 @@ putLogMsg :: GHC.Logger
           -> PJ.Doc
           -> IO ()
 putLogMsg logger sev srcSpan _mbStyle =
-  GHC.putLogMsg logger (GHC.logFlags logger) (GHC.MCDiagnostic sev GHC.WarningWithoutFlag Nothing) srcSpan . GHC.text . PJ.render
+  GHC.putLogMsg
+    logger
+    (GHC.logFlags logger)
+    (GHC.MCDiagnostic sev (GHC.ResolvedDiagnosticReason GHC.WarningWithoutFlag) Nothing)
+    srcSpan . GHC.text . PJ.render
 
 putWarnMsg :: GHC.Logger -> GHC.SrcSpan -> PJ.Doc -> IO ()
 putWarnMsg logger srcSpan doc =

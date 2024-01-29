@@ -1,4 +1,5 @@
 {-# LANGUAGE TupleSections #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 -- | This module defines code for generating termination constraints.
 
 module Language.Haskell.Liquid.Constraint.Termination (

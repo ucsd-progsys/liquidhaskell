@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances          #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 
 ---------------------------------------------------------------------------
 -- | This module contains the code that uses the inferred types to generate

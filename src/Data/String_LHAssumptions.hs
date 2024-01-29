@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fplugin=LiquidHaskellBoot #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 module Data.String_LHAssumptions where
 

@@ -14,6 +14,7 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- TODO(#1918): Only needed for GHC <9.0.1.
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 
 -- | This module contains a wrappers and utility functions for
 -- accessing GHC module information. It should NEVER depend on
@@ -28,7 +29,7 @@ import           Debug.Trace
 import           Prelude                                    hiding (error)
 import           Liquid.GHC.API            as Ghc hiding
   (L, line, sourceName, showPpr, panic, showSDoc)
-import qualified Liquid.GHC.API            as Ghc (GenLocated (L), showSDoc, panic)
+import qualified Liquid.GHC.API            as Ghc (GenLocated (L))
 
 
 import           Data.Char                                  (isLower, isSpace, isUpper)
@@ -53,7 +54,7 @@ import           Language.Haskell.Liquid.Types.Errors
 
 
 isAnonBinder :: Ghc.TyConBinder -> Bool
-isAnonBinder (Bndr _ (AnonTCB _)) = True
+isAnonBinder (Bndr _ AnonTCB) = True
 isAnonBinder (Bndr _ _)           = False
 
 mkAlive :: Var -> Id
@@ -377,37 +378,6 @@ kindArity _
 
 uniqueHash :: Uniquable a => Int -> a -> Int
 uniqueHash i = hashWithSalt i . getKey . getUnique
-
--- slightly modified version of DynamicLoading.lookupRdrNameInModule
-lookupRdrName :: HscEnv -> ModuleName -> RdrName -> IO (Maybe Name)
-lookupRdrName hsc_env mod_name rdr_name = do
-    -- First find the package the module resides in by searching exposed packages and home modules
-    found_module <- findImportedModule hsc_env mod_name NoPkgQual
-    case found_module of
-        Found _ mod' -> do
-            -- Find the exports of the module
-            (_, mb_iface) <- getModuleInterface hsc_env mod'
-            case mb_iface of
-                Just iface -> do
-                    -- Try and find the required name in the exports
-                    let decl_spec = ImpDeclSpec { is_mod = mod_name, is_as = mod_name
-                                                , is_qual = False, is_dloc = noSrcSpan }
-                        provenance = Just $ ImpSpec decl_spec ImpAll
-                        env = case mi_globals iface of
-                                Nothing -> mkGlobalRdrEnv (gresFromAvails provenance (mi_exports iface))
-                                Just e -> e
-                    case lookupGRE_RdrName rdr_name env of
--- XXX                        [gre] -> return (Just (gre_name gre))
-                        []    -> return Nothing
-                        _     -> Ghc.panic "lookupRdrNameInModule"
-                Nothing -> throwCmdLineErrorS dflags $ Ghc.hsep [Ghc.ptext (Ghc.mkPtrString# "Could not determine the exports of the module"#), ppr mod_name]
-        err' -> throwCmdLineErrorS dflags $ cannotFindModule hsc_env mod_name err'
-  where dflags = hsc_dflags hsc_env
-        throwCmdLineErrorS dflags' = throwCmdLineError . Ghc.showSDoc dflags'
-        throwCmdLineError = throwGhcException . CmdLineError
-
--- qualImportDecl :: ModuleName -> ImportDecl name
--- qualImportDecl mn = (simpleImportDecl mn) { ideclQualified = True }
 
 ignoreInline :: ParsedModule -> ParsedModule
 ignoreInline x = x {pm_parsed_source = go <$> pm_parsed_source x}

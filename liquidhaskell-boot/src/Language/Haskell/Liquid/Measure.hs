@@ -4,6 +4,7 @@
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE ConstraintKinds        #-}
 {-# LANGUAGE TupleSections    #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 
 module Language.Haskell.Liquid.Measure (
   -- * Specifications

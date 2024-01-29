@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fplugin=LiquidHaskellBoot #-}
 module Foreign.C.Types_LHAssumptions where
 
 import GHC.Int_LHAssumptions()

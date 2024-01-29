@@ -5,6 +5,7 @@
 {-# LANGUAGE TupleSections          #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 
 module Language.Haskell.Liquid.Transforms.CoreToLogic
   ( coreToDef

@@ -5,6 +5,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE OverloadedStrings         #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 
 -- | This module defines the representation of Subtyping and WF Constraints,
 --   and the code for syntax-directed constraint generation.

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE TypeFamilies          #-}

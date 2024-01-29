@@ -1,3 +1,4 @@
+{-# LANGUAGE ViewPatterns #-}
 
 import           Control.Monad
 import           Data.List (find)
@@ -10,9 +11,12 @@ import           Liquid.GHC.API
     , LitNumType(..)
     , Literal(..)
     , apiCommentsParsedSource
+    , gopt_set
     , occNameString
     , pAT_ERROR_ID
     , showPprQualified
+    , splitDollarApp
+    , untick
     )
 import           Test.Tasty
 import           Test.Tasty.HUnit
@@ -32,7 +36,6 @@ import qualified GHC.Types.Name as GHC
 import qualified GHC.Types.SrcLoc as GHC
 import qualified GHC.Unit.Module.ModGuts as GHC
 import qualified GHC.Utils.Error as GHC
-import qualified GHC.Utils.Outputable as GHC
 
 import GHC.Paths (libdir)
 
@@ -47,6 +50,8 @@ testTree =
       [ testCase "apiComments" testApiComments
       , testCase "caseDesugaring" testCaseDesugaring
       , testCase "numericLiteralDesugaring" testNumLitDesugaring
+      , testCase "dollarDesugaring" testDollarDesugaring
+      , testCase "localBindingsDesugaring" testLocalBindingsDesugaring
       ]
 
 -- Tests that Liquid.GHC.API.Extra.apiComments can retrieve the comments in
@@ -86,21 +91,11 @@ testApiComments = do
     parseMod str filepath = do
       let location = GHC.mkRealSrcLoc (GHC.mkFastString filepath) 1 1
           buffer = GHC.stringToStringBuffer str
-          popts = GHC.mkParserOpts EnumSet.empty diagOpts [] False True True True
+          popts = GHC.mkParserOpts EnumSet.empty GHC.emptyDiagOpts [] False True True True
           parseState = GHC.initParserState popts buffer location
       case GHC.unP Parser.parseModule parseState of
         GHC.POk _ result -> return result
         _ -> fail "Unexpected parser error"
-
-    diagOpts = GHC.DiagOpts
-      { GHC.diag_warning_flags = EnumSet.empty
-      , GHC.diag_fatal_warning_flags = EnumSet.empty
-      , GHC.diag_warn_is_error = True
-      , GHC.diag_reverse_errors = False
-      , GHC.diag_max_errors = Nothing
-      , GHC.diag_ppr_ctx = GHC.defaultSDocContext
-      }
-
 
 -- | Tests that case expressions desugar as Liquid Haskell expects.
 testCaseDesugaring :: IO ()
@@ -130,7 +125,7 @@ testCaseDesugaring = do
         --
         isExpectedDesugaring p = case find fBind p of
           Just (GHC.NonRec _ e0)
-            | Lam x (Case (Var x') _ _ [alt0, _alt1]) <- e0
+            | Lam x (untick -> Case (Var x') _ _ [alt0, _alt1]) <- e0
             , x == x'
             , Alt DEFAULT [] e1 <- alt0
             , Case e2 _ _ [] <- e1
@@ -144,6 +139,8 @@ testCaseDesugaring = do
         "Unexpected desugaring:" : map showPprQualified coreProgram
 
 -- | Tests that numeric literal expressions desugar as Liquid Haskell expects.
+--
+-- https://github.com/ucsd-progsys/liquidhaskell/issues/2237
 testNumLitDesugaring :: IO ()
 testNumLitDesugaring = do
     let inputSource = unlines
@@ -163,7 +160,7 @@ testNumLitDesugaring = do
         --
         isExpectedDesugaring p = case find fBind p of
           Just (GHC.NonRec _ e0)
-            | Lam _a (Lam _dict (App fromIntegerApp (App (Var vIS) lit))) <- e0
+            | Lam _a (Lam _dict (untick -> App fromIntegerApp (App (Var vIS) lit))) <- e0
             , App (App (Var vFromInteger) _aty) _numDict <- fromIntegerApp
             , GHC.idName vFromInteger  == GHC.fromIntegerName
             , GHC.nameStableString (GHC.idName vIS) == GHC.nameStableString GHC.integerISDataConName
@@ -176,12 +173,65 @@ testNumLitDesugaring = do
       fail $ unlines $
         "Unexpected desugaring:" : map showPprQualified coreProgram
 
+-- | Tests that dollar sign desugars as Liquid Haskell expects.
+testDollarDesugaring :: IO ()
+testDollarDesugaring = do
+    let inputSource = unlines
+          [ "module DollarDesugaring where"
+          , "f :: ()"
+          , "f = (\\_ -> ()) $ 'a'"
+          ]
+
+        fBind (GHC.NonRec b _e) =
+          occNameString (GHC.occName b) == "f"
+        fBind _ = False
+
+        isExpectedDesugaring p = case find fBind p of
+          Just (GHC.NonRec _ e0)
+            | Just (Lam _ _, App _ (Lit (LitChar 'a'))) <- splitDollarApp e0
+            -> True
+          _ -> False
+
+    coreProgram <- compileToCore "DollarDesugaring" inputSource
+    unless (isExpectedDesugaring coreProgram) $
+      fail $ unlines $
+        "Unexpected desugaring:" : map showPprQualified coreProgram
+
+-- | Test that local bindings are preserved.
+testLocalBindingsDesugaring :: IO ()
+testLocalBindingsDesugaring = do
+    let inputSource = unlines
+          [ "module LocalBindingsDesugaring where"
+          , "f :: ()"
+          , "f = z"
+          , "  where"
+          , "    z = ()"
+          ]
+
+        fBind (GHC.NonRec b _e) =
+          occNameString (GHC.occName b) == "f"
+        fBind _ = False
+
+        isExpectedDesugaring p = case find fBind p of
+          Just (GHC.NonRec _ (Let (GHC.NonRec b _) _))
+            -> occNameString (GHC.occName b) == "z"
+          _ -> False
+
+    coreProgram <- compileToCore "LocalBindingsDesugaring" inputSource
+    unless (isExpectedDesugaring coreProgram) $
+      fail $ unlines $
+        "Unexpected desugaring:" : map showPprQualified coreProgram
+
+
 compileToCore :: String -> String -> IO [GHC.CoreBind]
 compileToCore modName inputSource = do
     now <- getCurrentTime
     GHC.runGhc (Just libdir) $ do
       df1 <- GHC.getSessionDynFlags
-      GHC.setSessionDynFlags df1
+      GHC.setSessionDynFlags $ df1
+        { GHC.backend = GHC.interpreterBackend
+        }
+         `gopt_set` GHC.Opt_InsertBreakpoints
       let target = GHC.Target {
                    GHC.targetId           = GHC.TargetFile (modName ++ ".hs") Nothing
                  , GHC.targetUnitId       = GHC.homeUnitId_ df1

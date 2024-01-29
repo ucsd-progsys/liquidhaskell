@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
 -- Support for Strings for SMT 
 
 {-# LANGUAGE OverloadedStrings   #-}

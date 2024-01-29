@@ -1,4 +1,4 @@
-with-compiler: ghc-9.6.3
+with-compiler: ghc-9.8.1
 
 packages: .
           ./liquid-fixpoint
@@ -18,13 +18,12 @@ source-repository-package
     location: https://github.com/qnikst/ghc-timings-report
     tag: 45ef3498e35897712bde8e002ce18df6d55f8b15
 
-source-repository-package
-    type: git
-    location: https://github.com/timbod7/haskell-chart/
-    tag: ba85444d3c81774a43b8c2b046084e92869914f4
-    subdir: chart
-
-allow-newer: ghc-timings:base, rest-rewrite:time, Chart:lens
+allow-newer:
+  ghc-timings:base
+  ,colonnade:bytestring
+  ,colonnade:text
+  ,blaze-colonnade:text
+  ,blaze-svg:base
 
 package liquid-fixpoint
   flags: +devel
