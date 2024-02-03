@@ -21,6 +21,7 @@ module Language.Haskell.Liquid.UX.Annotate
   ) where
 
 import           Data.Hashable
+import qualified Data.Text.IO as Text
 import           Data.String
 import           GHC                                          ( SrcSpan (..)
                                           , srcSpanStartCol
@@ -43,7 +44,7 @@ import           Control.Arrow                                hiding ((<+>))
 import           Control.Monad                                (when, forM_)
 
 import           System.Exit                                  (ExitCode (..))
-import           System.FilePath                              (takeFileName, dropFileName, (</>))
+import           System.FilePath                              (dropFileName, (</>))
 import           System.Directory                             (findExecutable)
 import qualified System.Directory                             as Dir
 import qualified Data.List                                    as L
@@ -52,6 +53,7 @@ import qualified Data.ByteString.Lazy                         as B
 import qualified Data.Text                                    as T
 import qualified Data.HashMap.Strict                          as M
 import qualified Language.Haskell.Liquid.Misc                 as Misc
+import qualified Language.Haskell.Liquid.CSS                  as CSS
 import qualified Language.Haskell.Liquid.UX.ACSS              as ACSS
 import           Language.Haskell.HsColour.Classify
 import           Language.Fixpoint.Utils.Files
@@ -130,6 +132,11 @@ copyFileCreateParentDirIfMissing src tgt = do
   Dir.createDirectoryIfMissing False $ tempDirectory tgt
   Dir.copyFile src tgt
 
+writeFileCreateParentDirIfMissing :: T.Text -> FilePath -> IO ()
+writeFileCreateParentDirIfMissing s tgt = do
+  Dir.createDirectoryIfMissing False $ tempDirectory tgt
+  Text.writeFile tgt s
+
 writeFilesOrStrings :: FilePath -> [Either FilePath String] -> IO ()
 writeFilesOrStrings tgtFile = mapM_ $ either (`copyFileCreateParentDirIfMissing` tgtFile) (tgtFile `appendFile`)
 
@@ -138,9 +145,9 @@ generateHtml pandocF srcF htmlF annm = do
   src     <- Misc.sayReadFile srcF
   let lhs  = isExtFile LHs srcF
   let body      = {-# SCC "hsannot" #-} ACSS.hsannot False (Just tokAnnot) lhs (src, annm)
-  cssFile <- getCssPath
-  copyFileCreateParentDirIfMissing cssFile (dropFileName htmlF </> takeFileName cssFile)
-  renderHtml (pandocF && lhs) htmlF srcF (takeFileName cssFile) body
+  let cssFile = "syntax.css"
+  writeFileCreateParentDirIfMissing CSS.syntax (dropFileName htmlF </> cssFile)
+  renderHtml (pandocF && lhs) htmlF srcF cssFile body
 
 renderHtml :: Bool -> FilePath -> String -> String -> String -> IO ()
 renderHtml True  = renderPandoc
