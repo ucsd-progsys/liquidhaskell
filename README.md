@@ -44,6 +44,18 @@ If you have further questions or you just need help, you can always reach out on
 
 For those diving into the implementation of LiquidHaskell, here are a few tips:
 
+## Running the pluging on individual files
+
+```
+stack build liquidhaskell
+stack exec ghc -- -fplugin=LiquidHaskell FILE.hs
+```
+
+```
+cabal build liquidhaskell
+cabal exec ghc -- -fplugin=LiquidHaskell FILE.hs
+```
+
 ## Fast (re)compilation
 
 When working on the `liquidhaskell-boot` library, usually all we want is to make changes and quickly recompile
