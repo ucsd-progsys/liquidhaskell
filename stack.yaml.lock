@@ -5,12 +5,12 @@
 
 packages:
 - completed:
-    hackage: rest-rewrite-0.4.2@sha256:4afd57aaad716827485240428c1deb5a60b81a3c069968f3b0f27a3cb9faf247,3929
+    hackage: rest-rewrite-0.4.3@sha256:915fb98b8c0a0f518c1a4b75bcf3ae27a3ebd5b10d60cc16a216c2fca2148ab0,3929
     pantry-tree:
-      sha256: a72c2400f09a609d891198b8df1360dd9b50d2fd9d3628a887b04b24636e6401
+      sha256: 4de44fbeb7bd655caeafe605406c0bc5fe1788d9cf37cdac2f18b018ee4cf5e6
       size: 4075
   original:
-    hackage: rest-rewrite-0.4.2
+    hackage: rest-rewrite-0.4.3
 - completed:
     hackage: smtlib-backends-0.3@sha256:a947aead99f6a314833bddca9b502d5faea8d3bd2fc76ffb53c34d5c5b7557bc,1211
     pantry-tree:
