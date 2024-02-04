@@ -41,7 +41,9 @@ import           Data.Maybe                                   (mapMaybe)
 import           Data.Aeson
 import           Control.Arrow                                hiding ((<+>))
 -- import           Control.Applicative      ((<$>))
-import           Control.Monad                                (when, forM_)
+import           Control.Exception                            (catchJust)
+import           Control.Monad                                (guard, when, forM_)
+import           GHC.IO.Exception                             (IOErrorType(ResourceBusy), ioe_type)
 
 import           System.Exit                                  (ExitCode (..))
 import           System.FilePath                              (dropFileName, (</>))
@@ -132,10 +134,16 @@ copyFileCreateParentDirIfMissing src tgt = do
   Dir.createDirectoryIfMissing False $ tempDirectory tgt
   Dir.copyFile src tgt
 
+-- | Creates the parent directory and tries to writes the file.
+-- Might not write to the file if someone else is writing to it
+-- already.
 writeFileCreateParentDirIfMissing :: T.Text -> FilePath -> IO ()
 writeFileCreateParentDirIfMissing s tgt = do
   Dir.createDirectoryIfMissing False $ tempDirectory tgt
-  Text.writeFile tgt s
+  catchJust
+    (\e -> guard (ioe_type e == ResourceBusy))
+    (Text.writeFile tgt s)
+    (const (return ()))
 
 writeFilesOrStrings :: FilePath -> [Either FilePath String] -> IO ()
 writeFilesOrStrings tgtFile = mapM_ $ either (`copyFileCreateParentDirIfMissing` tgtFile) (tgtFile `appendFile`)
