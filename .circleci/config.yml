@@ -65,7 +65,7 @@ commands:
             echo 'export PATH=~/.ghcup/bin:$PATH' >> $BASH_ENV
             << parameters.cabal_update_command >>
             cabal v2-clean
-            cabal v2-build --project-file << parameters.project_file >> --flag devel -j --enable-tests liquidhaskell-boot liquid-prelude liquid-parallel liquid-vector liquid-platform test-driver
+            cabal v2-build --project-file << parameters.project_file >> --flag devel -j --enable-tests liquidhaskell-boot liquid-prelude liquid-parallel liquid-vector test-driver
       - save_cache:
           key: cabal-cache-v3-{{ checksum "liquidhaskell-boot/liquidhaskell-boot.cabal" }}-{{ checksum "liquidhaskell.cabal" }}-{{ checksum "<< parameters.project_file >>" }}-{{ checksum "liquid-fixpoint-commit" }}
           paths:
@@ -155,7 +155,6 @@ jobs:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
             extra_build_flags: "--flag liquidhaskell-boot:devel"
-            extra_test_flags: " liquid-platform:liquidhaskell "
   cabal_900:
     machine:
       image: ubuntu-2004:202107-02
