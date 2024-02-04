@@ -177,7 +177,6 @@ import GHC.Builtin.Names              as Ghc
     , itName
     , le_RDR
     , lt_RDR
-    , minus_RDR
     , negateName
     , not_RDR
     , numericClassKeys

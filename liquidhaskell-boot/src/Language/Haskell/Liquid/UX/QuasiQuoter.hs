@@ -16,7 +16,6 @@ module Language.Haskell.Liquid.UX.QuasiQuoter
   where
 
 import Data.Data
-import Data.List
 
 import qualified Data.Text as T
 

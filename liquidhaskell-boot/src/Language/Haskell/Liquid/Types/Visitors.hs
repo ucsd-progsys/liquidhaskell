@@ -15,7 +15,7 @@ module Language.Haskell.Liquid.Types.Visitors (
 
 import           Data.Hashable
 
-import           Data.List                        (foldl', (\\), delete)
+import           Data.List                        ((\\), delete)
 import qualified Data.HashSet                     as S
 import           Prelude                          hiding (error)
 import           Language.Fixpoint.Misc

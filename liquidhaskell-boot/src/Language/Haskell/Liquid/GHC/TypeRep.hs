@@ -117,11 +117,11 @@ substCoercion x tx (AppCo c1 c2)
   = AppCo (subst x tx c1) (subst x tx c2)
 substCoercion x tx (FunCo r afl afr cN c1 c2)
   = FunCo r afl afr cN (subst x tx c1) (subst x tx c2) -- TODO(adinapoli) Is this the correct substitution?
-substCoercion x tx (ForAllCo y c1 c2)
+substCoercion x tx (ForAllCo y f1 f2 c1 c2)
   | symbol x == symbol y 
-  = ForAllCo y c1 c2
+  = ForAllCo y f1 f2 c1 c2
   | otherwise 
-  = ForAllCo y (subst x tx c1) (subst x tx c2)
+  = ForAllCo y f1 f2 (subst x tx c1) (subst x tx c2)
 substCoercion _ _ (CoVarCo y)
   = CoVarCo y 
 substCoercion x tx (AxiomInstCo co bi cs)
