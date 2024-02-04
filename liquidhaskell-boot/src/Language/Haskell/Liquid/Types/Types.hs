@@ -285,7 +285,7 @@ import qualified Data.HashSet                           as S
 import qualified Data.List                              as L
 import           Data.Maybe                             (mapMaybe)
 import           Data.Function                          (on)
-import           Data.List                              as L (foldl', nub, null)
+import           Data.List                              as L (nub, null)
 import           Data.Text                              (Text)
 import           Text.PrettyPrint.HughesPJ              hiding (first, (<>))
 import           Text.Printf

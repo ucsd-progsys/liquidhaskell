@@ -13,6 +13,7 @@ module Liquid.GHC.API.Extra (
   , fsToUnitId
   , isPatErrorAlt
   , lookupModSummary
+  , minus_RDR
   , modInfoLookupNameIO
   , moduleInfoTc
   , parseModuleIO
@@ -35,10 +36,10 @@ import GHC
 import Data.Data (Data, gmapQr)
 import Data.Generics (extQ)
 import Data.Foldable                  (asum)
-import Data.List                      (foldl', sortOn)
+import Data.List                      (sortOn)
 import qualified Data.Map as Map
 import qualified Data.Set as S
-import GHC.Builtin.Names ( dollarIdKey )
+import GHC.Builtin.Names ( dollarIdKey, minusName )
 import GHC.Core                       as Ghc
 import GHC.Core.Coercion              as Ghc
 import GHC.Core.DataCon               as Ghc
@@ -53,6 +54,7 @@ import GHC.Driver.Main
 import GHC.Driver.Session             as Ghc
 import GHC.Tc.Types
 import GHC.Types.Name                 (isSystemName, nameModule_maybe, occNameFS)
+import GHC.Types.Name.Reader          (nameRdrName)
 import GHC.Types.SrcLoc               as Ghc
 import GHC.Types.TypeEnv
 import GHC.Types.Unique               (getUnique, hasKey)
@@ -314,3 +316,6 @@ splitDollarApp e
 untick :: CoreExpr -> CoreExpr
 untick (Tick _ e) = untick e
 untick e = e
+
+minus_RDR :: RdrName
+minus_RDR = nameRdrName minusName

@@ -12,7 +12,7 @@ import Liquid.Prelude.Totality_LHAssumptions()
 
 {-@
 
-assume GHC.Err.error :: {v:_ | false} -> a
+assume GHC.Internal.Err.error :: {v:_ | false} -> a
 
 embed Integer           as int
 

@@ -67,6 +67,7 @@ import           GHC                  as Ghc
     , ModuleName
     , Name
     , NamedThing
+    , NamespaceSpecifier (NoNamespaceSpecifier)
     , ParsedModule (pm_mod_summary, pm_parsed_source)
     , PredType
     , RealSrcLoc
@@ -163,21 +164,20 @@ import GHC.Builtin.Names              as Ghc
     , Unique
     , and_RDR
     , bindMName
-    , dATA_FOLDABLE
+    , gHC_INTERNAL_DATA_FOLDABLE
     , eqClassKey
     , eqClassName
     , ge_RDR
     , gt_RDR
     , fractionalClassKey
     , fractionalClassKeys
-    , gHC_REAL
+    , gHC_INTERNAL_REAL
     , getUnique
     , hasKey
     , isStringClassName
     , itName
     , le_RDR
     , lt_RDR
-    , minus_RDR
     , negateName
     , not_RDR
     , numericClassKeys

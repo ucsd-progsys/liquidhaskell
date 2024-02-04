@@ -6,12 +6,12 @@ import GHC.IO.Handle
 import GHC.Types_LHAssumptions()
 
 {-@
-assume GHC.IO.Handle.Text.hGetBuf :: GHC.IO.Handle.Handle -> GHC.Ptr.Ptr a -> n:Nat
+assume GHC.Internal.IO.Handle.Text.hGetBuf :: GHC.Internal.IO.Handle.Handle -> GHC.Internal.Ptr.Ptr a -> n:Nat
         -> (GHC.Types.IO {v:Nat | v <= n})
 
-assume GHC.IO.Handle.Text.hGetBufNonBlocking :: GHC.IO.Handle.Handle -> GHC.Ptr.Ptr a -> n:Nat
+assume GHC.Internal.IO.Handle.Text.hGetBufNonBlocking :: GHC.Internal.IO.Handle.Handle -> GHC.Internal.Ptr.Ptr a -> n:Nat
                    -> (GHC.Types.IO {v:Nat | v <= n})
 
-assume GHC.IO.Handle.hFileSize :: GHC.IO.Handle.Handle
+assume GHC.Internal.IO.Handle.hFileSize :: GHC.Internal.IO.Handle.Handle
           -> (GHC.Types.IO {v:Integer | v >= 0})
 @-}

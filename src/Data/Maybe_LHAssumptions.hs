@@ -6,16 +6,16 @@ import GHC.Types_LHAssumptions()
 import Data.Maybe
 
 {-@
-assume Data.Maybe.maybe :: v:b -> (a -> b) -> u:(GHC.Maybe.Maybe a) -> {w:b | not (isJust u) => w == v}
-assume Data.Maybe.isNothing :: v:(GHC.Maybe.Maybe a) -> {b:Bool | not (isJust v) == b}
-assume Data.Maybe.fromMaybe :: v:a -> u:(GHC.Maybe.Maybe a) -> {x:a | not (isJust u) => x == v}
+assume GHC.Internal.Data.Maybe.maybe :: v:b -> (a -> b) -> u:(GHC.Internal.Maybe.Maybe a) -> {w:b | not (isJust u) => w == v}
+assume GHC.Internal.Data.Maybe.isNothing :: v:(GHC.Internal.Maybe.Maybe a) -> {b:Bool | not (isJust v) == b}
+assume GHC.Internal.Data.Maybe.fromMaybe :: v:a -> u:(GHC.Internal.Maybe.Maybe a) -> {x:a | not (isJust u) => x == v}
 
-assume Data.Maybe.isJust :: v:(GHC.Maybe.Maybe a) -> {b:Bool | b == isJust v}
-measure isJust :: GHC.Maybe.Maybe a -> Bool
-  isJust (GHC.Maybe.Just x)  = true
-  isJust (GHC.Maybe.Nothing) = false
+assume GHC.Internal.Data.Maybe.isJust :: v:(GHC.Internal.Maybe.Maybe a) -> {b:Bool | b == isJust v}
+measure isJust :: GHC.Internal.Maybe.Maybe a -> Bool
+  isJust (GHC.Internal.Maybe.Just x)  = true
+  isJust (GHC.Internal.Maybe.Nothing) = false
 
-assume Data.Maybe.fromJust :: {v:(GHC.Maybe.Maybe a) | isJust v} -> a
-measure fromJust :: GHC.Maybe.Maybe a -> a
-  fromJust (GHC.Maybe.Just x) = x
+assume GHC.Internal.Data.Maybe.fromJust :: {v:(GHC.Internal.Maybe.Maybe a) | isJust v} -> a
+measure fromJust :: GHC.Internal.Maybe.Maybe a -> a
+  fromJust (GHC.Internal.Maybe.Just x) = x
 @-}

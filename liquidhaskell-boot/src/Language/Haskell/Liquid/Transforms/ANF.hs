@@ -11,6 +11,7 @@
 
 module Language.Haskell.Liquid.Transforms.ANF (anormalize) where
 
+import           Data.Word (Word64)
 import           Debug.Trace (trace)
 import           Prelude                          hiding (error)
 import           Language.Haskell.Liquid.GHC.TypeRep
@@ -369,7 +370,7 @@ freshNormalVar γ t = do
   let sp = Sp.srcSpan (aeSrcSpan γ)
   return (mkUserLocal (anfOcc i) u Ghc.ManyTy t sp)
 
-anfOcc :: Int -> OccName
+anfOcc :: Word64 -> OccName
 anfOcc = mkVarOccFS . GM.symbolFastString . F.intSymbol F.anfPrefix
 
 data AnfEnv = AnfEnv

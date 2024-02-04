@@ -80,7 +80,7 @@ library
   build-depends:      base                 >= 4.11.1.0 && < 5,
                       liquidhaskell-boot   == 0.9.8.2,
                       bytestring           == 0.12.1.0,
-                      containers           == 0.6.8,
+                      containers           == 0.7,
                       ghc-bignum,
                       ghc-prim
   default-language:   Haskell98

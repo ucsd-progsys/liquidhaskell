@@ -24,6 +24,7 @@ module  Language.Haskell.Liquid.GHC.Misc where
 
 import           Data.String
 import qualified Data.List as L
+import           Data.Word (Word64)
 import           Debug.Trace
 
 import           Prelude                                    hiding (error)
@@ -104,11 +105,11 @@ maybeAuxVar s
         name = mkInternalName (mkUnique 'x' uid) occ noSrcSpan
         occ = mkVarOcc (T.unpack (symbolText sym))
 
-stringTyCon :: Char -> Int -> String -> TyCon
+stringTyCon :: Char -> Word64 -> String -> TyCon
 stringTyCon = stringTyConWithKind anyTy
 
 -- FIXME: reusing uniques like this is really dangerous
-stringTyConWithKind :: Kind -> Char -> Int -> String -> TyCon
+stringTyConWithKind :: Kind -> Char -> Word64 -> String -> TyCon
 stringTyConWithKind k c n s = Ghc.mkPrimTyCon name [] k []
   where
     name          = mkInternalName (mkUnique c n) occ noSrcSpan
@@ -507,15 +508,15 @@ takeModuleUnique = mungeNames tailName sepUnique   "takeModuleUnique: "
   where
     tailName msg = symbol . safeLast msg
 
-splitModuleUnique :: Symbol -> (Symbol, Int)
-splitModuleUnique x = (dropModuleNamesAndUnique x, base62ToI (takeModuleUnique x))
+splitModuleUnique :: Symbol -> (Symbol, Word64)
+splitModuleUnique x = (dropModuleNamesAndUnique x, base62ToW (takeModuleUnique x))
 
-base62ToI :: Symbol -> Int
-base62ToI s =  fromMaybe (errorstar "base62ToI Out Of Range") $ go (F.symbolText s)
+base62ToW :: Symbol -> Word64
+base62ToW s =  fromMaybe (errorstar "base62ToW Out Of Range") $ go (F.symbolText s)
   where
-    digitToI :: OM.Map Char Int
-    digitToI = OM.fromList $ zip (['0'..'9'] ++ ['a'..'z'] ++ ['A'..'Z']) [0..]
-    f acc (flip OM.lookup digitToI -> x) = (acc * 62 +) <$> x
+    digitToW :: OM.Map Char Word64
+    digitToW = OM.fromList $ zip (['0'..'9'] ++ ['a'..'z'] ++ ['A'..'Z']) [0..]
+    f acc (flip OM.lookup digitToW -> x) = (acc * 62 +) <$> x
     go = foldM f 0 . T.unpack
 
 
@@ -918,7 +919,8 @@ withWiredIn m = discardConstraints $ do
   -- undef <- lookupUndef
   wiredIns <- mkWiredIns
   -- snd <$> tcValBinds Ghc.NotTopLevel (binds undef wiredIns) (sigs wiredIns) m
-  snd <$> tcValBinds Ghc.NotTopLevel [] (sigs wiredIns) m
+  (_, _, a) <- tcValBinds Ghc.NotTopLevel [] (sigs wiredIns) m
+  return a
 
  where
   -- lookupUndef = do
@@ -939,7 +941,7 @@ withWiredIn m = discardConstraints $ do
   --   ) wiredIns
 
   sigs wiredIns = concatMap (\w ->
-      let inf = maybeToList $ (\(fPrec, fDir) -> Ghc.L locSpanAnn $ Ghc.FixSig Ghc.noAnn $ Ghc.FixitySig Ghc.noExtField [Ghc.L locSpanAnn (tcWiredInName w)] $ Ghc.Fixity Ghc.NoSourceText fPrec fDir) <$> tcWiredInFixity w in
+      let inf = maybeToList $ (\(fPrec, fDir) -> Ghc.L locSpanAnn $ Ghc.FixSig Ghc.noAnn $ Ghc.FixitySig Ghc.NoNamespaceSpecifier [Ghc.L locSpanAnn (tcWiredInName w)] $ Ghc.Fixity Ghc.NoSourceText fPrec fDir) <$> tcWiredInFixity w in
       let t =
             let ext' = [] in
             [Ghc.L locSpanAnn $ TypeSig Ghc.noAnn [Ghc.L locSpanAnn (tcWiredInName w)] $ HsWC ext' $ Ghc.L locSpanAnn $ HsSig Ghc.noExtField (HsOuterImplicit ext') $ tcWiredInType w]
@@ -1001,7 +1003,7 @@ withWiredIn m = discardConstraints $ do
     return $ TcWiredIn n Nothing ty
 
 prependGHCRealQual :: FastString -> RdrName
-prependGHCRealQual = varQual_RDR gHC_REAL
+prependGHCRealQual = varQual_RDR gHC_INTERNAL_REAL
 
 isFromGHCReal :: NamedThing a => a -> Bool
-isFromGHCReal x = Ghc.nameModule (Ghc.getName x) == gHC_REAL
+isFromGHCReal x = Ghc.nameModule (Ghc.getName x) == gHC_INTERNAL_REAL
