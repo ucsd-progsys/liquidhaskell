@@ -15,9 +15,6 @@ homepage:           https://github.com/ucsd-progsys/liquidhaskell
 build-type:         Simple
 tested-with:        GHC == 9.6.3
 
-data-files:         include/CoreToLogic.lg
-                    syntax/liquid.css
-
 source-repository head
   type:     git
   location: https://github.com/ucsd-progsys/liquidhaskell/
@@ -47,6 +44,7 @@ library
                       Language.Haskell.Liquid.Bare.Slice
                       Language.Haskell.Liquid.Bare.Typeclass
                       Language.Haskell.Liquid.Bare.Elaborate
+                      Language.Haskell.Liquid.CSS
                       Language.Haskell.Liquid.Constraint.Constraint
                       Language.Haskell.Liquid.Constraint.Env
                       Language.Haskell.Liquid.Constraint.Fresh
@@ -63,6 +61,7 @@ library
                       Liquid.GHC.API
                       Liquid.GHC.API.Extra
                       Liquid.GHC.API.StableModule
+                      Language.Haskell.Liquid.GHC.CoreToLogic
                       Language.Haskell.Liquid.GHC.Interface
                       Language.Haskell.Liquid.GHC.Logging
                       Language.Haskell.Liquid.GHC.Misc

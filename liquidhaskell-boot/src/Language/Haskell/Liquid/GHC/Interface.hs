@@ -76,6 +76,7 @@ import Text.Megaparsec.Error
 import Text.PrettyPrint.HughesPJ        hiding (first, (<>))
 import Language.Fixpoint.Types          hiding (err, panic, Error, Result, Expr)
 import qualified Language.Fixpoint.Misc as Misc
+import qualified Language.Haskell.Liquid.GHC.CoreToLogic as CoreToLogic
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.GHC.Types (MGIModGuts(..))
 import Language.Haskell.Liquid.GHC.Play
@@ -352,9 +353,7 @@ parseSpecFile file = do
 
 makeLogicMap :: IO LogicMap
 makeLogicMap = do
-  lg    <- Misc.getCoreToLogicPath
-  lspec <- Misc.sayReadFile lg
-  case parseSymbolToLogic lg lspec of
+  case parseSymbolToLogic "CoreToLogic.coreToLogic" CoreToLogic.coreToLogic of
     Left peb -> do
       hPutStrLn stderr (errorBundlePretty peb)
       panic Nothing "makeLogicMap failed"

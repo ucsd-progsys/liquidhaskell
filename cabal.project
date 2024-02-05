@@ -5,7 +5,6 @@ packages: .
           ./liquid-parallel
           ./liquid-prelude
           ./liquid-vector
-          ./liquid-platform
           ./liquidhaskell-boot
           ./tests
           ./tests/benchmarks/popl18/lib
@@ -33,6 +32,3 @@ package liquidhaskell
 
 package liquidhaskell-boot
   ghc-options: -j
-
-package liquid-platform
-  flags: +devel

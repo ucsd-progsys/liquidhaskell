@@ -1,19 +1,14 @@
 -- | This program calls ghc using the provided command line arguments.
 -- Use it to profile the liquidhaskell plugin.
 --
--- Build liquid-platform first with profiling enabled.
+-- Build liquidhaskell first with profiling enabled.
 --
--- > cabal build --enable-profiling liquid-platform
+-- > cabal build --enable-profiling liquidhaskell
 --
--- Then build this program.
+-- Then build and run this program.
 --
--- > cabal build --enable-profiling scripts/profiling-driver
---
--- Then run the liquidhaskell executable pointing it to this driver with
--- the LIQUID_GHC_PATH env var.
---
--- > LIQUID_GHC_PATH=path/to/profiling-driver liquidhaskell_datadir=$PWD/liquidhaskell-boot \
--- >   cabal exec -- liquidhaskell +RTS -p -RTS tests/pos/Bag.hs
+-- > cabal run --enable-profiling profiling-driver -- \
+-- >     -package liquidhaskell -fplugin LiquidHaskell +RTS -p -RTS tests/pos/Bag.hs
 --
 module Main where
 
