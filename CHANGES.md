@@ -2,6 +2,11 @@
 
 ## Next
 
+## 0.9.8.1 (2024-02-05)
+
+- Set support for GHC 9.8.1 [#2248](https://github.com/ucsd-progsys/liquidhaskell/pull/2248)
+- Embedded files `include/CoreToLogic.lg` and `syntax/liquid.css` in the source code [#2265](https://github.com/ucsd-progsys/liquidhaskell/issues/2265)
+
 ## 0.9.6.3 (2024-01-29)
 
 - Set support for GHC 9.6.3
