@@ -941,7 +941,7 @@ withWiredIn m = discardConstraints $ do
   --   ) wiredIns
 
   sigs wiredIns = concatMap (\w ->
-      let inf = maybeToList $ (\(fPrec, fDir) -> Ghc.L locSpanAnn $ Ghc.FixSig Ghc.noAnn $ Ghc.FixitySig Ghc.noExtField [Ghc.L locSpanAnn (tcWiredInName w)] $ Ghc.Fixity Ghc.NoSourceText fPrec fDir) <$> tcWiredInFixity w in
+      let inf = maybeToList $ (\(fPrec, fDir) -> Ghc.L locSpanAnn $ Ghc.FixSig Ghc.noAnn $ Ghc.FixitySig Ghc.NoNamespaceSpecifier [Ghc.L locSpanAnn (tcWiredInName w)] $ Ghc.Fixity Ghc.NoSourceText fPrec fDir) <$> tcWiredInFixity w in
       let t =
             let ext' = [] in
             [Ghc.L locSpanAnn $ TypeSig Ghc.noAnn [Ghc.L locSpanAnn (tcWiredInName w)] $ HsWC ext' $ Ghc.L locSpanAnn $ HsSig Ghc.noExtField (HsOuterImplicit ext') $ tcWiredInType w]
@@ -1003,7 +1003,7 @@ withWiredIn m = discardConstraints $ do
     return $ TcWiredIn n Nothing ty
 
 prependGHCRealQual :: FastString -> RdrName
-prependGHCRealQual = varQual_RDR gHC_REAL
+prependGHCRealQual = varQual_RDR gHC_INTERNAL_REAL
 
 isFromGHCReal :: NamedThing a => a -> Bool
-isFromGHCReal x = Ghc.nameModule (Ghc.getName x) == gHC_REAL
+isFromGHCReal x = Ghc.nameModule (Ghc.getName x) == gHC_INTERNAL_REAL

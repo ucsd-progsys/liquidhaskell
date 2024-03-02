@@ -5,8 +5,8 @@ module Data.Tuple_LHAssumptions where
 import Data.Tuple
 
 {-@
-assume Data.Tuple.fst :: {f:(x:(a,b) -> {v:a | v = (fst x)}) | f == fst }
-assume Data.Tuple.snd :: {f:(x:(a,b) -> {v:b | v = (snd x)}) | f == snd }
+assume GHC.Internal.Data.Tuple.fst :: {f:(x:(a,b) -> {v:a | v = (fst x)}) | f == fst }
+assume GHC.Internal.Data.Tuple.snd :: {f:(x:(a,b) -> {v:b | v = (snd x)}) | f == snd }
 
 measure fst :: (a, b) -> a
   fst (a, b) = a

@@ -9,7 +9,7 @@ import Data.String_LHAssumptions()
 import GHC.Int_LHAssumptions()
 
 {-@
-measure bllen :: Data.ByteString.Lazy.ByteString -> { n : GHC.Int.Int64 | 0 <= n }
+measure bllen :: Data.ByteString.Lazy.ByteString -> { n : GHC.Internal.Int.Int64 | 0 <= n }
 
 invariant { bs : Data.ByteString.Lazy.ByteString | 0 <= bllen bs }
 
@@ -80,7 +80,7 @@ assume Data.ByteString.Lazy.init :: { bs : Data.ByteString.Lazy.ByteString | 1 <
 assume Data.ByteString.Lazy.null :: bs : Data.ByteString.Lazy.ByteString -> { b : GHC.Types.Bool | b <=> bllen bs == 0 }
 
 assume Data.ByteString.Lazy.length
-    :: bs : Data.ByteString.Lazy.ByteString -> { n : GHC.Int.Int64 | bllen bs == n }
+    :: bs : Data.ByteString.Lazy.ByteString -> { n : GHC.Internal.Int.Int64 | bllen bs == n }
 
 assume Data.ByteString.Lazy.map
     :: (_ -> _)
@@ -160,26 +160,26 @@ assume Data.ByteString.Lazy.mapAccumR
     -> (acc, { o : Data.ByteString.Lazy.ByteString | bllen o == bllen i })
 
 assume Data.ByteString.Lazy.replicate
-    :: n : GHC.Int.Int64
+    :: n : GHC.Internal.Int.Int64
     -> _
     -> { bs : Data.ByteString.Lazy.ByteString | bllen bs == n }
 
 assume Data.ByteString.Lazy.take
-    :: n : GHC.Int.Int64
+    :: n : GHC.Internal.Int.Int64
     -> i : Data.ByteString.Lazy.ByteString
     -> { o : Data.ByteString.Lazy.ByteString | (n <= 0 ==> bllen o == 0) &&
                                                ((0 <= n && n <= bllen i) <=> bllen o == n) &&
                                                (bllen i <= n <=> bllen o = bllen i) }
 
 assume Data.ByteString.Lazy.drop
-    :: n : GHC.Int.Int64
+    :: n : GHC.Internal.Int.Int64
     -> i : Data.ByteString.Lazy.ByteString
     -> { o : Data.ByteString.Lazy.ByteString | (n <= 0 <=> bllen o == bllen i) &&
                                                ((0 <= n && n <= bllen i) <=> bllen o == bllen i - n) &&
                                                (bllen i <= n <=> bllen o == 0) }
 
 assume Data.ByteString.Lazy.splitAt
-    :: n : GHC.Int.Int64
+    :: n : GHC.Internal.Int.Int64
     -> i : Data.ByteString.Lazy.ByteString
     -> ( { l : Data.ByteString.Lazy.ByteString | (n <= 0 <=> bllen l == 0) &&
                                                  ((0 <= n && n <= bllen i) <=> bllen l == n) &&
@@ -279,38 +279,38 @@ assume Data.ByteString.Lazy.partition
 
 assume Data.ByteString.Lazy.index
     :: bs : Data.ByteString.Lazy.ByteString
-    -> { n : GHC.Int.Int64 | 0 <= n && n < bllen bs }
+    -> { n : GHC.Internal.Int.Int64 | 0 <= n && n < bllen bs }
     -> _
 
 assume Data.ByteString.Lazy.elemIndex
     :: _
     -> bs : Data.ByteString.Lazy.ByteString
-    -> Maybe { n : GHC.Int.Int64 | 0 <= n && n < bllen bs }
+    -> Maybe { n : GHC.Internal.Int.Int64 | 0 <= n && n < bllen bs }
 
 assume Data.ByteString.Lazy.elemIndices
     :: _
     -> bs : Data.ByteString.Lazy.ByteString
-    -> [{ n : GHC.Int.Int64 | 0 <= n && n < bllen bs }]
+    -> [{ n : GHC.Internal.Int.Int64 | 0 <= n && n < bllen bs }]
 
 assume Data.ByteString.Lazy.elemIndexEnd
     :: _
     -> bs : Data.ByteString.Lazy.ByteString
-    -> Maybe { n : GHC.Int.Int64 | 0 <= n && n < bllen bs }
+    -> Maybe { n : GHC.Internal.Int.Int64 | 0 <= n && n < bllen bs }
 
 assume Data.ByteString.Lazy.findIndex
     :: (_ -> GHC.Types.Bool)
     -> bs : Data.ByteString.Lazy.ByteString
-    -> Maybe { n : GHC.Int.Int64 | 0 <= n && n < bllen bs }
+    -> Maybe { n : GHC.Internal.Int.Int64 | 0 <= n && n < bllen bs }
 
 assume Data.ByteString.Lazy.findIndices
     :: (_ -> GHC.Types.Bool)
     -> bs : Data.ByteString.Lazy.ByteString
-    -> [{ n : GHC.Int.Int64 | 0 <= n && n < bllen bs }]
+    -> [{ n : GHC.Internal.Int.Int64 | 0 <= n && n < bllen bs }]
 
 assume Data.ByteString.Lazy.count
     :: _
     -> bs : Data.ByteString.Lazy.ByteString
-    -> { n : GHC.Int.Int64 | 0 <= n && n < bllen bs }
+    -> { n : GHC.Internal.Int.Int64 | 0 <= n && n < bllen bs }
 
 assume Data.ByteString.Lazy.zip
     :: l : Data.ByteString.Lazy.ByteString
