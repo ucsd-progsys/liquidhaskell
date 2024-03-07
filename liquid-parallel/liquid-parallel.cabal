@@ -1,6 +1,6 @@
 cabal-version:      1.24
 name:               liquid-parallel
-version:            3.2.2.0.2
+version:            3.2.2.0.3
 synopsis:           LiquidHaskell specs for the parallel package
 description:        LiquidHaskell specs for the parallel package.
 license:            BSD3
