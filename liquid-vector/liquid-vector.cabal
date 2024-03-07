@@ -1,6 +1,6 @@
 cabal-version:      1.24
 name:               liquid-vector
-version:            0.13.1.0
+version:            0.13.1.0.1
 synopsis:           LiquidHaskell specs for the vector package
 description:        LiquidHaskell specs for the vector package.
 license:            BSD3
