@@ -1,4 +1,4 @@
-with-compiler: ghc-9.9.20240204
+with-compiler: ghc-9.9.20240301
 
 packages: .
           ./liquid-fixpoint
