@@ -37,7 +37,6 @@ library
                       Data.Bits_LHAssumptions
                       Data.Either_LHAssumptions
                       Data.Foldable_LHAssumptions
-                      Data.Int_LHAssumptions
                       Data.Maybe_LHAssumptions
                       Data.String_LHAssumptions
                       Data.Tuple_LHAssumptions
@@ -55,6 +54,13 @@ library
                       GHC.ForeignPtr_LHAssumptions
                       GHC.Int_LHAssumptions
                       GHC.IO.Handle_LHAssumptions
+                      GHC.Internal.Base_LHAssumptions
+                      GHC.Internal.Data.Foldable_LHAssumptions
+                      GHC.Internal.Data.Maybe_LHAssumptions
+                      GHC.Internal.Int_LHAssumptions
+                      GHC.Internal.List_LHAssumptions
+                      GHC.Internal.Num_LHAssumptions
+                      GHC.Internal.Word_LHAssumptions
                       GHC.List_LHAssumptions
                       GHC.Num_LHAssumptions
                       GHC.Num.Integer_LHAssumptions
@@ -82,6 +88,7 @@ library
                       bytestring           == 0.12.1.0,
                       containers           == 0.7,
                       ghc-bignum,
+                      ghc-internal,
                       ghc-prim
   default-language:   Haskell98
   ghc-options:        -Wall

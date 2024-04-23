@@ -13,7 +13,7 @@ anyTypeSymbol = symbol ("GHC.Prim.Any" :: String)
 
 --  defined in include/GHC/Base.hs
 functionComposisionSymbol :: Symbol
-functionComposisionSymbol = symbol ("GHC.Base.." :: String)
+functionComposisionSymbol = symbol ("GHC.Internal.Base.." :: String)
 
 
 selfSymbol :: Symbol
