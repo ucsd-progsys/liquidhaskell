@@ -252,11 +252,11 @@ btP = do
     PcExplicit b -> parseFun c b
   <?> "btP"
   where
-    parseFun c@(PC sb t1) sym  =
+    parseFun c@(PC sb t1) sy  =
       (do
             reservedOp "->"
             PC _ t2 <- btP
-            return (PC sb (rFun sym t1 t2)))
+            return (PC sb (rFun sy t1 t2)))
         <|>
          (do
             reservedOp "=>"
@@ -408,8 +408,8 @@ refDefP :: Symbol
         -> Parser Expr
         -> Parser (Reft -> BareType)
         -> Parser BareType
-refDefP sym rp kindP' = braces $ do
-  x       <- optBindP sym
+refDefP sy rp kindP' = braces $ do
+  x       <- optBindP sy
   -- NOSUBST i       <- freshIntP
   t       <- try (kindP' <* reservedOp "|") <|> return (RHole . uTop) <?> "refDefP"
   ra      <- rp
@@ -1174,10 +1174,10 @@ fallbackSpecP kw p = do
 
 -- | Same as tyBindsP, except the single initial symbol has already been matched
 tyBindsRemP :: LocSymbol -> Parser ([LocSymbol], (Located BareType, Maybe [Located Expr]))
-tyBindsRemP sym = do
+tyBindsRemP sy = do
   reservedOp "::"
   tb <- termBareTypeP
-  return ([sym],tb)
+  return ([sy],tb)
 
 pragmaP :: Parser (Located String)
 pragmaP = locStringLiteral
