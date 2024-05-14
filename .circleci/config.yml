@@ -21,7 +21,7 @@ commands:
       - checkout
       - add_ssh_keys
       - run: git submodule sync
-      - run: git submodule update --init
+      - run: git submodule update --init --remote
 
   cabal_build_and_test:
     description: "Build the project and run the tests"
@@ -150,14 +150,14 @@ jobs:
 
   stack_900:
     machine:
-      image: ubuntu-2004:202107-02
+      image: default
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
             extra_build_flags: "--flag liquidhaskell-boot:devel"
   cabal_900:
     machine:
-      image: ubuntu-2004:202107-02
+      image: default
     steps:
       - cabal_build_and_test:
           ghc_version: "9.8.1"
