@@ -1633,20 +1633,6 @@ dataPropTyP :: Parser (Maybe BareType)
 dataPropTyP = Just <$> between (reservedOp "::") (reserved "where") bareTypeP
 
 ---------------------------------------------------------------------
--- | Parsing Qualifiers ---------------------------------------------
----------------------------------------------------------------------
-
-fTyConP :: Parser FTycon
-fTyConP
-  =   (reserved "int"     >> return intFTyCon)
-  <|> (reserved "Integer" >> return intFTyCon)
-  <|> (reserved "Int"     >> return intFTyCon)
-  <|> (reserved "real"    >> return realFTyCon)
-  <|> (reserved "bool"    >> return boolFTyCon)
-  <|> (symbolFTycon      <$> locUpperIdP)
-  <?> "fTyConP"
-
----------------------------------------------------------------------
 -- Identifiers ------------------------------------------------------
 ---------------------------------------------------------------------
 
