@@ -39,7 +39,7 @@ import           Control.Monad.Except
 import           Control.Monad.Identity
 import qualified Language.Fixpoint.Misc                as Misc
 import qualified Language.Haskell.Liquid.Misc          as Misc
-import           Language.Fixpoint.Types               hiding (panic, Error, R, simplify)
+import           Language.Fixpoint.Types               hiding (panic, Error, R, simplify, isBool)
 import qualified Language.Fixpoint.Types               as F
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 
@@ -111,9 +111,9 @@ measureSpecType allowTC v = go mkT [] [(1::Int)..] st
     hasRApps _                = False
 
 
--- | 'weakenResult foo t' drops the singleton constraint `v = foo x y` 
---   that is added, e.g. for measures in /strengthenResult'. 
---   This should only be used _when_ checking the body of 'foo' 
+-- | 'weakenResult foo t' drops the singleton constraint `v = foo x y`
+--   that is added, e.g. for measures in /strengthenResult'.
+--   This should only be used _when_ checking the body of 'foo'
 --   where the output, is, by definition, equal to the singleton.
 weakenResult :: Bool -> Var -> SpecType -> SpecType
 weakenResult allowTC v t = F.notracepp msg t'
@@ -621,7 +621,7 @@ instance Simplify C.CoreExpr where
     = C.Let (simplify allowTC xes) (simplify allowTC e)
   simplify allowTC (C.Case e x _t alts@[Alt _ _ ee,_,_]) | isBangInteger alts
   -- XXX(matt): seems to be for debugging?
-    = -- Misc.traceShow ("To simplify allowTC case") $ 
+    = -- Misc.traceShow ("To simplify allowTC case") $
        sub (M.singleton x (simplify allowTC e)) (simplify allowTC ee)
   simplify allowTC (C.Case e x t alts)
     = C.Case (simplify allowTC e) x t (filter (not . isPatErrorAlt) (simplify allowTC <$> alts))
