@@ -160,7 +160,7 @@ jobs:
       image: default
     steps:
       - cabal_build_and_test:
-          ghc_version: "9.8.1"
+          ghc_version: "9.8.2"
 
 workflows:
   version: 2
