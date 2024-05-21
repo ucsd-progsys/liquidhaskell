@@ -52,7 +52,7 @@ packages:
     git: https://github.com/qnikst/ghc-timings-report
 snapshots:
 - completed:
-    sha256: 876a5c75d90718add42e1ad36d66000bf35050ce1c66748119897a32df613186
-    size: 563963
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/nightly/2024/1/26.yaml
-  original: nightly-2024-01-26
+    sha256: fa3b5bc91ba72486026c6d9644df505eba3af4180ce072dd026064c62de92876
+    size: 634229
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/nightly/2024/5/14.yaml
+  original: nightly-2024-05-14

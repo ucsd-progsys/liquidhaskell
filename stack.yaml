@@ -35,7 +35,7 @@ allow-newer-deps:
   - blaze-svg
   - store-core
 
-resolver: nightly-2024-01-26
+resolver: nightly-2024-05-14
 
 nix:
   packages: [cacert, git, hostname, nix, stack, z3]
