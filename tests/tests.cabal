@@ -25,10 +25,12 @@ flag measure-timings
                than once, and the second run discards the timings of the first.
 
 executable test-driver
+    main-is:        driver.hs
+    hs-source-dirs: harness
     if flag(stack)
-      main-is:        Driver_stack.hs
+      hs-source-dirs: stack_driver
     else
-      main-is:        Driver_cabal.hs
+      hs-source-dirs: cabal_driver
 
     build-depends:    base < 5
                     , shelly
@@ -43,7 +45,6 @@ executable test-driver
                     , Test.Groups
                     , Test.Options
 
-    hs-source-dirs:   harness
     default-language: Haskell2010
     ghc-options:      -O2 -j -Wall -Werror
 
