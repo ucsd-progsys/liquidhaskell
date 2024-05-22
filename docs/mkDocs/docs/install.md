@@ -38,7 +38,7 @@ This causes `cabal` to automatically:
 3. Display liquid type errors during compilation
 4. Integrate LH with `ghci`, `ghcid` and all GHC compatible tooling for your favorite editor.
 
-Stack requires some further configuration to indicate which version of `liquidhaskell`
+`stack` requires some further configuration to indicate which version of `liquidhaskell`
 and dependencies to use. See [this repository](https://github.com/ucsd-progsys/lh-plugin-demo)
 for example `stack.yaml` files.
 
