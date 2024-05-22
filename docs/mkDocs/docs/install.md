@@ -31,12 +31,16 @@ Newer versions of GHC aren't supported yet.
 To use liquidhaskell from Hackage, add `liquidhaskell` to the `build-depends`
 section of your `.cabal` file, as you would any other dependency.
 
-This causes `stack` (or `cabal`) to automatically:
+This causes `cabal` to automatically:
 
 1. Install LiquidHaskell
-2. Tell GHC to use LH during compilation
+2. Tell GHC to use LH during compilation in modules that contain the pragma `{-# OPTIONS_GHC -fplugin=LiquidHaskell #-}`
 3. Display liquid type errors during compilation
 4. Integrate LH with `ghci`, `ghcid` and all GHC compatible tooling for your favorite editor.
+
+Stack requires some further configuration to indicate which version of `liquidhaskell`
+and dependencies to use. See [this repository](https://github.com/ucsd-progsys/lh-plugin-demo)
+for example `stack.yaml` files.
 
 ## Examples
 
@@ -46,7 +50,7 @@ The following concrete examples show the LiquidHaskell plugin in action:
 - [Example Project 2](https://github.com/ucsd-progsys/lh-plugin-demo-client) (uses Example Project 1 as a dependency)
 
 You can use the `.cabal`, `stack.yaml` and `cabal.project` files in the
-sample packages to see how to write the equivalent files for your own
+example packages to see how to write the equivalent files for your own
 codebase.
 
 ### Liquid Dependencies
