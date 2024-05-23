@@ -1,6 +1,6 @@
 cabal-version:      2.4
 name:               liquidhaskell
-version:            0.9.8.1
+version:            0.9.8.2
 synopsis:           Liquid Types for Haskell
 description:        Liquid Types for Haskell.
 license:            BSD-3-Clause
@@ -11,7 +11,7 @@ maintainer:         Ranjit Jhala <jhala@cs.ucsd.edu>
 category:           Language
 homepage:           https://github.com/ucsd-progsys/liquidhaskell
 build-type:         Custom
-tested-with:        GHC == 9.6.3
+tested-with:        GHC == 9.8.2
 extra-doc-files: CHANGES.md
                  README.md
 
@@ -78,8 +78,8 @@ library
   hs-source-dirs:     src
 
   build-depends:      base                 >= 4.11.1.0 && < 5,
-                      liquidhaskell-boot   == 0.9.8.1,
-                      bytestring           == 0.12.0.2,
+                      liquidhaskell-boot   == 0.9.8.2,
+                      bytestring           == 0.12.1.0,
                       containers           == 0.6.8,
                       ghc-bignum,
                       ghc-prim
