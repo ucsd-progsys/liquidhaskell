@@ -1,5 +1,4 @@
 {-@ LIQUID "--expect-any-error" @-}
-{-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--higherorder"                         @-}
 
 module AdtPeano1 where

@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-exact-data-cons" @-}
 module RecSelector where
 
 data F a = F {fx :: a, fy :: a, fzz :: a} | G {fx :: a}

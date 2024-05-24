@@ -1,4 +1,3 @@
-{-@ LIQUID "--exact-data-con"                      @-}
 
 module Induction where
 

@@ -1,4 +1,3 @@
-{-@ LIQUID "--exactdc"      @-}
 {-@ LIQUID "--higherorder"  @-}
 
 module T820 where

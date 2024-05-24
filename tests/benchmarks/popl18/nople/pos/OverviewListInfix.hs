@@ -1,5 +1,4 @@
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--eliminate" @-}
 {-@ LIQUID "--maxparams=10"  @-}
 {-@ LIQUID "--higherorderqs" @-}

@@ -1,6 +1,5 @@
 {-#LH LIQUID "--higherorder"     @-}
 {-#LH LIQUID "--totality"        @-}
-{-#LH LIQUID "--exact-data-cons" @-}
 {-#LH LIQUID "--higherorderqs" @-}
 
 module Peano where

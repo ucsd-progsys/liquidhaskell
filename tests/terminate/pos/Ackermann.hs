@@ -1,4 +1,3 @@
-{-@ LIQUID "--exactdc" @-}
 module Ackermann where
 
 data Peano = Z | S Peano

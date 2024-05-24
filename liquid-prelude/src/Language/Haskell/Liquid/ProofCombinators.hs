@@ -4,6 +4,7 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE IncoherentInstances   #-}
 
+{-@ LIQUID "--no-exact-data-cons"     @-}
 module Language.Haskell.Liquid.ProofCombinators (
 
   -- ATTENTION! `Admit` and `(==!)` are UNSAFE: they should not belong the final proof term

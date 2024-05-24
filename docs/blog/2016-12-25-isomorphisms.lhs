@@ -49,7 +49,6 @@ are provably **isomorphic**.
 \begin{code}
 {-@ LIQUID "--higherorder" @-}
 {-@ LIQUID "--totalhaskell" @-}
-{-@ LIQUID "--exactdc" @-}
 {-@ LIQUID "--diffcheck" @-}
 {-@ LIQUID "--eliminate=some" @-}
 

@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -fplugin=LiquidHaskellBoot #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
+{-@ LIQUID "--no-exact-data-cons" @-}
 module Liquid.Prelude.Totality_LHAssumptions where
 
 import Control.Exception.Base

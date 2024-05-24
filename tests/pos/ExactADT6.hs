@@ -1,4 +1,3 @@
-{-@ LIQUID "--exact-data-con" @-}
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 

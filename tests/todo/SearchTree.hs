@@ -2,7 +2,6 @@
 -- This file takes nearly a MINUTE when automatic-instances is off,
 -- and FOREVER when automatic-instances is on.
 
-{-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--totality"                            @-}
 

@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-exact-data-cons" @-}
 {-@ LIQUID "--pruneunsorted" @-}
 
 module OrdList (

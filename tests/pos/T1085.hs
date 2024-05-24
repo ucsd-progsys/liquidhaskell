@@ -1,4 +1,3 @@
-{-@ LIQUID "--exact-data-cons"   @-}
 
 module T1085 where
 

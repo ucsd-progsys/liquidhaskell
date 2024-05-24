@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-exact-data-cons" @-}
 module RecordSelectorError where
 
 data F a b = F {fx :: a, fy :: b} | G {fx :: a}

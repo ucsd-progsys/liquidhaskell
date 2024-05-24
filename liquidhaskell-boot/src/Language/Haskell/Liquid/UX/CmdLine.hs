@@ -273,9 +273,9 @@ config = cmdArgsMode $ Config {
           &= name "port"
           &= help "Port at which lhi should listen"
 
- , exactDC
-    = def &= help "Exact Type for Data Constructors"
-          &= name "exact-data-cons"
+ , noExactDC
+    = False &= help "Do not generate exact Type for Data Constructors"
+            &= name "no-exact-data-cons"
 
  , noADT
     = def &= help "Do not generate ADT representations in refinement logic"
@@ -679,7 +679,7 @@ defConfig = Config
   , notruetypes              = def
   , nototality               = False
   , pruneUnsorted            = def
-  , exactDC                  = def
+  , noExactDC                = def
   , noADT                    = def
   , expectErrorContaining    = def
   , expectAnyError           = False

@@ -1,6 +1,5 @@
 {-@ LIQUID "--higherorder"         @-}
 {-@ LIQUID "--totality"            @-}
-{-@ LIQUID "--exactdc"             @-}
 
 
 module DivideAndQunquer where 

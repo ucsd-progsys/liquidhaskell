@@ -1,6 +1,5 @@
 module PleORM where
 
-{-@ LIQUID "--exact-data-con" @-}
 {-@ LIQUID "--higherorder"    @-}
 {-@ LIQUID "--ple"            @-}
 

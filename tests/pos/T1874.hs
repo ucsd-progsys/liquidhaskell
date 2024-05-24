@@ -1,6 +1,5 @@
 module T1874 where
 
-{-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--reflection"      @-}
 {-@ LIQUID "--ple"             @-}
 

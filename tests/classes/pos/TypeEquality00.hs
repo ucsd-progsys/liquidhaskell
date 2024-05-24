@@ -18,7 +18,6 @@
 
 module TypeEquality00 where
 
-{-@ LIQUID "--exact-data-con" @-}
 
 {-@ data EntityFieldPerson typ where                                                                                     
       PersonNums :: EntityFieldPerson {v:_ | len v > 0}                                                               

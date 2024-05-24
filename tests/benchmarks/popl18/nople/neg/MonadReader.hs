@@ -1,6 +1,5 @@
 {-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--extensionality"  @-}
 
 

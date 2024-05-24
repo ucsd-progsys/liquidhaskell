@@ -1,4 +1,3 @@
-{-@ LIQUID "--exactdc" @-}
 
 module AALib where 
 

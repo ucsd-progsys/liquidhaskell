@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-exact-data-cons" @-}
 module Pair () where
 
 import Language.Haskell.Liquid.Prelude 

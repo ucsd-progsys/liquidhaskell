@@ -1,5 +1,4 @@
 {-@ LIQUID "--max-case-expand=0" @-}
-{-@ LIQUID "--exactdc" @-}
 
 module T1267 where
 

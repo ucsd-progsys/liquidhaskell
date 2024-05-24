@@ -1,6 +1,5 @@
 module ORM where
 
-{-@ LIQUID "--exactdc"  @-}
 {-@ LIQUID "--higherorder" @-}
 
 

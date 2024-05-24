@@ -1,4 +1,3 @@
-{-@ LIQUID "--exactdc" @-}
 {-@ LIQUID "--higherorder" @-}
 {-@ LIQUID "--ple-local" @-}
 {-@ infix   ++ @-}

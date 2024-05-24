@@ -1,4 +1,3 @@
-{-@ LIQUID "--exactdc" @-}
 {-@ LIQUID "--higherorder" @-}
 
 module RL1015Lib where

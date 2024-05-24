@@ -17,7 +17,6 @@ NV TODO
 
 {-@ LIQUID "--higherorder"         @-}
 {-@ LIQUID "--totality"            @-}
-{-@ LIQUID "--exactdc"             @-}
 
 module Main where
 

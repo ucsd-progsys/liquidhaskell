@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -fplugin=LiquidHaskellBoot #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
+{-@ LIQUID "--no-exact-data-cons" @-}
 module Data.Tuple_LHAssumptions where
 
 import Data.Tuple

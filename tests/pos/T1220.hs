@@ -1,4 +1,3 @@
-{-@ LIQUID "--exactdc" @-}
 
 module T1220 where
 

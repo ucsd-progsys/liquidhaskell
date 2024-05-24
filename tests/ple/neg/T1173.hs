@@ -2,7 +2,6 @@
 module T1173 where
 
 {-@ LIQUID "--no-adt" 	      @-}
-{-@ LIQUID "--exact-data-con" @-}
 {-@ LIQUID "--higherorder"    @-}
 {-@ LIQUID "--ple"            @-}
 

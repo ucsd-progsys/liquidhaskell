@@ -2,7 +2,6 @@
 --   are "holes" in the data-decl specification, presumably because the lifting
 --   happens BEFORE the holes are resolved.
 
-{-@ LIQUID "--exact-data-cons" @-}
 
 module AdtList5 where
 

@@ -105,13 +105,8 @@ check whether the `length xs` is decreasing.
 Reflecting Lists into the Logic
 -------------------------------
 
-To talk about lists in the logic, we use the annotation
-
-\begin{code}
-{-@ LIQUID "--exact-data-cons" @-}
-\end{code}
-
-which **automatically** derives measures for
+To talk about data types in the logic, LH will automatically derive
+measures for
 
 * *testing* if a value has a given data constructor, and
 * *extracting* the corresponding field's value.

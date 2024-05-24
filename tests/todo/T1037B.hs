@@ -1,5 +1,4 @@
 {-@ LIQUID "--higherorder"        @-}
-{-@ LIQUID "--exactdc"            @-}
 
 module T1037B where
 
