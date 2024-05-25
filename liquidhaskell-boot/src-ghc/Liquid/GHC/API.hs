@@ -31,6 +31,7 @@ import           GHC                  as Ghc
         ( Opt_DeferTypedHoles
         , Opt_Haddock
         , Opt_ImplicitImportQualified
+        , Opt_InsertBreakpoints
         , Opt_KeepRawTokenStream
         , Opt_PIC
         )
@@ -163,7 +164,6 @@ import GHC.Builtin.Names              as Ghc
     , and_RDR
     , bindMName
     , dATA_FOLDABLE
-    , dollarIdKey
     , eqClassKey
     , eqClassName
     , ge_RDR
@@ -431,6 +431,7 @@ import GHC.Data.Pair                  as Ghc
 import GHC.Driver.Config.Diagnostic as Ghc
     ( initDiagOpts
     , initDsMessageOpts
+    , initIfaceMessageOpts
     )
 import GHC.Driver.Main                as Ghc
     ( hscDesugar
@@ -474,19 +475,22 @@ import GHC.Driver.Ppr                 as Ghc
     )
 import GHC.HsToCore.Expr              as Ghc
     ( dsLExpr )
+import GHC.Iface.Errors.Ppr            as Ghc
+    ( missingInterfaceErrorDiagnostic )
 import GHC.Iface.Load                 as Ghc
-    ( cannotFindModule
+    ( WhereFrom(ImportBySystem)
+    , cannotFindModule
     , loadInterface
     )
 import GHC.Rename.Expr                as Ghc (rnLExpr)
-import GHC.Rename.Names               as Ghc (renamePkgQual)
+import GHC.Rename.Names               as Ghc
+    ( renamePkgQual
+    )
 import GHC.Tc.Errors.Types            as Ghc
     ( mkTcRnUnknownMessage )
 import GHC.Tc.Gen.App                 as Ghc (tcInferSigma)
 import GHC.Tc.Gen.Bind                as Ghc (tcValBinds)
 import GHC.Tc.Gen.Expr                as Ghc (tcInferRho)
-import GHC.Tc.Module                  as Ghc
-    ( getModuleInterface )
 import GHC.Tc.Solver                  as Ghc
     ( InferMode(NoRestrictions)
     , captureTopConstraints
@@ -498,7 +502,6 @@ import GHC.Tc.Types                   as Ghc
     , TcGblEnv(tcg_anns, tcg_exports, tcg_insts, tcg_mod, tcg_rdr_env, tcg_rn_imports)
     , TcM
     , TcRn
-    , WhereFrom(ImportBySystem)
     )
 import GHC.Tc.Types.Evidence          as Ghc
     ( TcEvBinds(EvBinds) )
@@ -519,7 +522,7 @@ import GHC.Tc.Utils.Monad             as Ghc
     , reportDiagnostics
     )
 import GHC.Tc.Utils.TcType            as Ghc (tcSplitDFunTy, tcSplitMethodTy)
-import GHC.Tc.Utils.Zonk              as Ghc
+import GHC.Tc.Zonk.Type               as Ghc
     ( zonkTopLExpr )
 import GHC.Types.PkgQual              as Ghc
     ( PkgQual(NoPkgQual) )
@@ -532,7 +535,6 @@ import GHC.Types.Annotations          as Ghc
 import GHC.Types.Avail                as Ghc
     ( AvailInfo(Avail, AvailTC)
     , availNames
-    , greNameMangledName
     )
 import GHC.Types.Basic                as Ghc
     ( Arity
@@ -553,9 +555,11 @@ import GHC.Types.CostCentre           as Ghc
 import GHC.Types.Error                as Ghc
     ( Messages(getMessages)
     , MessageClass(MCDiagnostic)
-    , Diagnostic(defaultDiagnosticOpts)
+    , Diagnostic
     , DiagnosticReason(WarningWithoutFlag)
     , MsgEnvelope(errMsgSpan)
+    , ResolvedDiagnosticReason(ResolvedDiagnosticReason)
+    , defaultDiagnosticOpts
     , errorsOrFatalWarningsFound
     , mkPlainError
     )
@@ -610,15 +614,10 @@ import GHC.Types.Name                 as Ghc
     , stableNameCmp
     )
 import GHC.Types.Name.Reader          as Ghc
-    ( ImpDeclSpec(ImpDeclSpec, is_as, is_dloc, is_mod, is_qual)
-    , ImportSpec(ImpSpec)
-    , ImpItemSpec(ImpAll)
+    ( ImpItemSpec(ImpAll)
     , getRdrName
     , globalRdrEnvElts
-    , gresFromAvails
-    , greMangledName
-    , lookupGRE_RdrName
-    , mkGlobalRdrEnv
+    , greName
     , mkQual
     , mkVarUnqual
     , mkUnqual

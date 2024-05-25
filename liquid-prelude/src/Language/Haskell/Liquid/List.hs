@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
 module Language.Haskell.Liquid.List (transpose) where
 
 {-@ lazy transpose @-}

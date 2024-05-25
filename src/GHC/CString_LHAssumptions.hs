@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fplugin=LiquidHaskellBoot #-}
 {-# LANGUAGE MagicHash #-}
 {-# OPTIONS_GHC -Wno-missing-signatures #-}
 module GHC.CString_LHAssumptions() where

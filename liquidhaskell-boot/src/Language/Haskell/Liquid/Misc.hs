@@ -1,5 +1,6 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE DoAndIfThenElse #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 
 module Language.Haskell.Liquid.Misc where
 
@@ -7,9 +8,7 @@ import Prelude hiding (error)
 import Control.Monad.State
 
 import Control.Arrow (first)
-import System.FilePath
 import System.Directory   (getModificationTime, doesFileExist)
-import System.Environment (getExecutablePath)
 
 import qualified Control.Exception     as Ex --(evaluate, catch, IOException)
 import qualified Data.HashSet          as S
@@ -25,7 +24,6 @@ import           Data.ByteString.Char8 (pack, unpack)
 import qualified Text.PrettyPrint.HughesPJ as PJ -- (char, Doc)
 import           Text.Printf
 import           Language.Fixpoint.Misc
-import           Paths_liquidhaskell_boot
 
 type Nat = Int
 
@@ -157,24 +155,6 @@ unzip4 :: [(t, t1, t2, t3)] -> ([t],[t1],[t2],[t3])
 unzip4 = go [] [] [] []
   where go a1 a2 a3 a4 ((x1,x2,x3,x4):xs) = go (x1:a1) (x2:a2) (x3:a3) (x4:a4) xs
         go a1 a2 a3 a4 [] = (reverse  a1, reverse a2, reverse a3, reverse a4)
-
-
-getCssPath :: IO FilePath
-getCssPath         = getDataFileName $ "syntax" </> "liquid.css"
-
-getCoreToLogicPath :: IO FilePath
-getCoreToLogicPath = do
-    let fileName = "CoreToLogic.lg"
-
-    -- Try to find it first at executable path
-    exePath <- dropFileName <$> getExecutablePath
-    let atExe = exePath </> fileName
-    exists <- doesFileExist atExe
-
-    if exists then
-      return atExe
-    else
-      getDataFileName ("include" </> fileName)
 
 {-@ type ListN a N = {v:[a] | len v = N} @-}
 {-@ type ListL a L = ListN a (len L) @-}

@@ -44,61 +44,50 @@ If you have further questions or you just need help, you can always reach out on
 
 For those diving into the implementation of LiquidHaskell, here are a few tips:
 
-## Fast (re)compilation
-
-When working on the `liquidhaskell-boot` library, usually all we want is to make changes and quickly recompile
-only the bare minimum, to try out new ideas. Using a fully-fledged GHC plugin doesn't help in this sense,
-because packages like `liquidhaskell` or `liquid-prelude` have a direct dependency on `liquidhaskell-boot`, and
-therefore every time the latter changes, an expensive rebuild of those packages is triggered, which
-might become tedious overtime. To mitigate this, we offer a faster, "dev-style" build mode which is based
-on the assumption that most changes to the `liquidhaskell` library do not alter the validity of
-already-checked libraries, and therefore things like `liquid-prelude` can be considered
-"static assets", avoiding the need for a recompilation. In other terms, we explicitly disable recompilation
-of any of the `liquid-*` ancillary library in dev mode, so that rebuilds only affect the
-`liquidhaskell-boot` library.
-
-### Usage and recommended workflow
-
-This is how you can use this:
-
-* To begin with, perform a **full** build of **all** the libraries, by doing either `cabal v2-build` or `stack build`,
-  **without** specifying any extra environment variables from the command line. This is needed to ensure that
-  things like `liquid-prelude` or `liquidhaskell` are compiled at least once, as we would need the
-  refinements they contain to correctly checks other downstream programs;
-
-* At this point, the content of the `liquid-*` packages is considered "trusted" and "frozen", until you won't
-  force another full, _non-dev_ build;
-
-* In order to quickly test changes to the `liquidhaskell-boot` library without recompiling the `liquid-*` packages,
-  we need to start a build passing the `LIQUID_DEV_MODE` env var as part of the build command. Examples:
-
-#### Stack
+## Running the pluging on individual files
 
 ```
-LIQUID_DEV_MODE=true stack build
+stack build liquidhaskell
+stack exec ghc -- -fplugin=LiquidHaskell FILE.hs
+```
+
+```
+cabal build liquidhaskell
+cabal exec ghc -- -fplugin=LiquidHaskell FILE.hs
+```
+
+## Building
+
+### Stack
+
+```
+stack build
 ```
 
 If on NixOS
 
 ```
-LIQUID_DEV_MODE=true stack --no-nix-pure build
+stack --no-nix-pure build
 ```
 
 With the above, `stack` will unregister and re-register the libraries,
 but hopefully it won't rebuild any modules.
 
-#### Cabal
+### Cabal
 
 ```
-LIQUID_DEV_MODE=true cabal v2-build
+cabal v2-build
 ```
 
-It's also possible (but not recommended) to add `LIQUID_DEV_MODE` to .bashrc or similar, but this would
-permanently disable building the `liquid-*` packages, and this might silently mask breaking changes to the
-`liquidhaskell` library that would manifest only when compiling these other packages.
+### Faster recompilation
 
-If you wish to force building all the libraries again, it's sufficient to issue the same builds commands
-without the `LIQUID_DEV_MODE`.
+When changing the `liquidhaskell-boot` library, sometimes we don't want
+to rebuild `liquidhaskell` or `liquid-vector` when testing the changes.
+In these cases we can set the environment variable `LIQUID_DEV_MODE=true`
+when running `stack` or `cabal` to skip rebuilding those packages.
+
+DANGER: Note that this can give an invalid result if the changes to
+`liquidhaskell-boot` do require rebuilding other `liquid*` packages.
 
 ## How To Run Regression Tests
 
@@ -112,23 +101,23 @@ You can run *all* the tests by
 
 You can run a bunch of particular test-groups instead by
 
-    $ LIQUID_DEV_MODE=true ./scripts/test/test_plugin.sh <test-group-name1> <test-group-name2> ...
+    $ ./scripts/test/test_plugin.sh <test-group-name1> <test-group-name2> ...
 
 and you can list all the possible test options with
 
-    $ LIQUID_DEV_MODE=true ./scripts/test/test_plugin.sh --help
+    $ ./scripts/test/test_plugin.sh --help
 
 or get a list of just the test groups, one per line, with
 
-    $ LIQUID_DEV_MODE=true ./scripts/test/test_plugin.sh --show-all
+    $ ./scripts/test/test_plugin.sh --show-all
 
 To pass in specific parameters, you can invoke cabal directly with
 
-    $ LIQUID_DEV_MODE=true cabal build tests:<test-group-name> --ghc-options=-fplugin-opt=LiquidHaskell:--no-termination
+    $ cabal build tests:<test-group-name> --ghc-options=-fplugin-opt=LiquidHaskell:--no-termination
 
 For example:
 
-    $ LIQUID_DEV_MODE=true cabal build tests:unit-neg --ghc-options=-fplugin-opt=LiquidHaskell:--no-termination
+    $ cabal build tests:unit-neg --ghc-options=-fplugin-opt=LiquidHaskell:--no-termination
 
 Or your favorite number of threads, depending on cores etc.
 

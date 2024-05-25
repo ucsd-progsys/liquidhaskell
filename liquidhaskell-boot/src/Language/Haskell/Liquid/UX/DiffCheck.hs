@@ -48,7 +48,7 @@ import qualified Data.HashSet                           as S
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.List                              as L
 import           System.Directory                       (copyFile, doesFileExist)
-import           Language.Fixpoint.Types                (atLoc, FixResult (..), SourcePos(..), safeSourcePos, unPos)
+import           Language.Fixpoint.Types                (atLoc, FixResult (..), SourcePos(..), unPos)
 -- import qualified Language.Fixpoint.Misc                 as Misc
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Solver.Stats ()
@@ -567,22 +567,6 @@ checkedItv chDefs = foldr (`IM.insert` ()) IM.empty is
 --------------------------------------------------------------------------------
 -- | Aeson instances -----------------------------------------------------------
 --------------------------------------------------------------------------------
-
-instance ToJSON SourcePos where
-  toJSON p = object [   "sourceName"   .= f
-                      , "sourceLine"   .= unPos l
-                      , "sourceColumn" .= unPos c
-                      ]
-             where
-               f    = sourceName   p
-               l    = sourceLine   p
-               c    = sourceColumn p
-
-instance FromJSON SourcePos where
-  parseJSON (Object v) = safeSourcePos <$> v .: "sourceName"
-                                <*> v .: "sourceLine"
-                                <*> v .: "sourceColumn"
-  parseJSON _          = mempty
 
 instance FromJSON ErrorResult
 

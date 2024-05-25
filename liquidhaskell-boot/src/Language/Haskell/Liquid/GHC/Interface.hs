@@ -13,6 +13,7 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_GHC -Wwarn=deprecations #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 
 module Language.Haskell.Liquid.GHC.Interface (
 
@@ -75,6 +76,7 @@ import Text.Megaparsec.Error
 import Text.PrettyPrint.HughesPJ        hiding (first, (<>))
 import Language.Fixpoint.Types          hiding (err, panic, Error, Result, Expr)
 import qualified Language.Fixpoint.Misc as Misc
+import qualified Language.Haskell.Liquid.GHC.CoreToLogic as CoreToLogic
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.GHC.Types (MGIModGuts(..))
 import Language.Haskell.Liquid.GHC.Play
@@ -195,7 +197,7 @@ lookupTyThings hscEnv tcGblEnv = forM names (lookupTyThing hscEnv tcGblEnv)
   where
     names :: [Ghc.Name]
     names  = liftM2 (++)
-             (fmap Ghc.greMangledName . Ghc.globalRdrEnvElts . tcg_rdr_env)
+             (fmap Ghc.greName . Ghc.globalRdrEnvElts . tcg_rdr_env)
              (fmap is_dfun_name . tcg_insts) tcGblEnv
 -- | Lookup a single 'Name' in the GHC environment, yielding back the 'Name' alongside the 'TyThing',
 -- if one is found.
@@ -229,8 +231,8 @@ availableVars hscEnv tcGblEnv avails =
 availableNames :: [AvailInfo] -> [Name]
 availableNames =
     concatMap $ \case
-      Avail n -> [Ghc.greNameMangledName n]
-      AvailTC n ns -> n : map Ghc.greNameMangledName ns
+      Avail n -> [n]
+      AvailTC n ns -> n : ns
 
 _dumpTypeEnv :: TypecheckedModule -> IO ()
 _dumpTypeEnv tm = do
@@ -351,9 +353,7 @@ parseSpecFile file = do
 
 makeLogicMap :: IO LogicMap
 makeLogicMap = do
-  lg    <- Misc.getCoreToLogicPath
-  lspec <- Misc.sayReadFile lg
-  case parseSymbolToLogic lg lspec of
+  case parseSymbolToLogic "CoreToLogic.coreToLogic" CoreToLogic.coreToLogic of
     Left peb -> do
       hPutStrLn stderr (errorBundlePretty peb)
       panic Nothing "makeLogicMap failed"

@@ -5,19 +5,40 @@
 
 packages:
 - completed:
-    hackage: smtlib-backends-0.3@sha256:69977f97a8db2c11e97bde92fff7e86e793c1fb23827b284bf89938ee463fbf0,1211
+    hackage: rest-rewrite-0.4.3@sha256:915fb98b8c0a0f518c1a4b75bcf3ae27a3ebd5b10d60cc16a216c2fca2148ab0,3929
     pantry-tree:
-      sha256: d7c614eab0f3f256b22724ca2d7ac41651f22209242af1d24f052f41d7a7541f
+      sha256: 4de44fbeb7bd655caeafe605406c0bc5fe1788d9cf37cdac2f18b018ee4cf5e6
+      size: 4075
+  original:
+    hackage: rest-rewrite-0.4.3
+- completed:
+    hackage: smtlib-backends-0.3@sha256:a947aead99f6a314833bddca9b502d5faea8d3bd2fc76ffb53c34d5c5b7557bc,1211
+    pantry-tree:
+      sha256: 97b88a647ac996808a93b2eab62e9e8574d9b9a451ee37a9103e209b63be012d
       size: 275
   original:
-    hackage: smtlib-backends-0.3@rev:1
+    hackage: smtlib-backends-0.3@rev:2
 - completed:
-    hackage: smtlib-backends-process-0.3@sha256:3eee93e91f41c8a2fb2699e95b502a24d8053485ccf7749e2766683d1ebfe11d,1676
+    hackage: smtlib-backends-process-0.3@sha256:caf131d3d6f6825e3a3182713130a8e14d0bd6530eeda643e8a511b546ff1a26,1676
     pantry-tree:
-      sha256: 579580c8067b4c6640261187fc5d2ac0a02923db4633e0027067de72f947083c
+      sha256: 7147fef29b4270275168a285fc0c68784329d1276ab9e44e9a45f8d79b526220
       size: 461
   original:
-    hackage: smtlib-backends-process-0.3@rev:1
+    hackage: smtlib-backends-process-0.3@rev:2
+- completed:
+    hackage: store-0.7.18@sha256:af32079e0d31413b97a1759f8ad8555507857cd4ac4015e195fb5b0a27a3ce9f,8159
+    pantry-tree:
+      sha256: 6e9fb2c1c59a9f2fb62abd0016841417b57b9a3e045088d48d65cc740cb1eeb9
+      size: 1292
+  original:
+    hackage: store-0.7.18
+- completed:
+    hackage: store-core-0.4.4.6@sha256:37d4a628785b72dd26f0d8565895d01f36b4a7b2539100d735c239cf12d76b53,1489
+    pantry-tree:
+      sha256: da7e56dce68e291ea431b552a5cbc7cb0736296f9436e339931b193d48072e68
+      size: 271
+  original:
+    hackage: store-core-0.4.4.6
 - completed:
     commit: 45ef3498e35897712bde8e002ce18df6d55f8b15
     git: https://github.com/qnikst/ghc-timings-report
@@ -31,7 +52,7 @@ packages:
     git: https://github.com/qnikst/ghc-timings-report
 snapshots:
 - completed:
-    sha256: c067098ea221c83ce03ccae4cfd5b104fb8a689b17ebb15dbe9d0793e9db4329
-    size: 699418
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/nightly/2023/11/27.yaml
-  original: nightly-2023-11-27
+    sha256: fa3b5bc91ba72486026c6d9644df505eba3af4180ce072dd026064c62de92876
+    size: 634229
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/nightly/2024/5/14.yaml
+  original: nightly-2024-05-14

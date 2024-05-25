@@ -1,8 +1,6 @@
 flags:
   liquidhaskell:
     devel: true
-  liquid-platform:
-    devel: true
   tests:
     stack: true
 extra-package-dbs: []
@@ -15,19 +13,29 @@ packages:
 - liquid-prelude
 - liquid-vector
 - liquid-parallel
-- liquid-platform
 - liquidhaskell-boot
 - tests
 - tests/benchmarks/popl18/lib
 - benchmark-timings
 - .
 extra-deps:
-- smtlib-backends-0.3@rev:1
-- smtlib-backends-process-0.3@rev:1
+- rest-rewrite-0.4.3
+- smtlib-backends-0.3@rev:2
+- smtlib-backends-process-0.3@rev:2
+- store-0.7.18
+- store-core-0.4.4.6
 - git: https://github.com/qnikst/ghc-timings-report
   commit: 45ef3498e35897712bde8e002ce18df6d55f8b15
 
-resolver: nightly-2023-11-27
+allow-newer: true
+allow-newer-deps:
+  - ghc-timings
+  - colonnade
+  - blaze-colonnade
+  - blaze-svg
+  - store-core
+
+resolver: nightly-2024-05-14
 
 nix:
   packages: [cacert, git, hostname, nix, stack, z3]

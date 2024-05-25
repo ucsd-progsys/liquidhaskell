@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
 
 --
 -- Liquidate your assets: reasoning about resource usage in Liquid Haskell.

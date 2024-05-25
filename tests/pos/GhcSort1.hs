@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 {-# Language ScopedTypeVariables   #-}
-{-# Language PartialTypeSignatures #-}
 
 -- TODO: Fix resolve so we can remove this/add termination metrics
 {-@ LIQUID "--no-termination" @-}
@@ -14,19 +13,19 @@ import Language.Haskell.Liquid.Prelude
 sort1 :: (Ord a) => [a] -> [a]
 sort1 xs = mergeAll  (sequences xs 0)
   where
-    sequences :: [_] -> Int -> [[_]]
+    sequences :: Ord a => [a] -> Int -> [[a]]
     sequences (a:b:xs) (_::Int)
       | a `compare` b == GT = descending b [a]  xs 1
       | otherwise           = ascending  b (a:) xs 1
     sequences [x] _ = [[x]]
     sequences []  _ = [[]]
 
-    descending :: _ -> _ -> [_] -> Int -> [[_]]
+    descending :: Ord a => a -> [a] -> [a] -> Int -> [[a]]
     descending a as (b:bs) (_::Int)
       | a `compare` b == GT = descending b (a:as) bs 1
     descending a as bs _    = (a:as): sequences bs 0
 
-    ascending :: _ -> _ -> [_] -> Int -> [[_]]
+    ascending :: Ord a => a -> ([a] -> [a]) -> [a] -> Int -> [[a]]
     ascending a as (b:bs) (_ :: Int)
       | a `compare` b /= GT = ascending b (\ys -> as (a:ys)) bs 1
     ascending a as bs _     = as [a]: sequences bs 0

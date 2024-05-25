@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fplugin=LiquidHaskellBoot #-}
 module GHC.Float_LHAssumptions(Floating(..)) where
 
 {-@

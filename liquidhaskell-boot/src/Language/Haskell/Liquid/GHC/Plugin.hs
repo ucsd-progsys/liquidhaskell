@@ -169,6 +169,12 @@ customDynFlags opts hscEnv = do
          `gopt_set` Opt_PIC
          `gopt_set` Opt_DeferTypedHoles
          `gopt_set` Opt_KeepRawTokenStream
+         -- Opt_InsertBreakpoints is used during desugaring to prevent the
+         -- simple optimizer from inlining local bindings to which we might want
+         -- to attach specifications.
+         --
+         -- https://gitlab.haskell.org/ghc/ghc/-/issues/24386
+         `gopt_set` Opt_InsertBreakpoints
          `xopt_set` MagicHash
          `xopt_set` DeriveGeneric
          `xopt_set` StandaloneDeriving

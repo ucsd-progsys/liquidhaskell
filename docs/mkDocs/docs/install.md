@@ -11,6 +11,8 @@ installed on your system. Download and install at least one of:
 * [CVC4](https://cvc4.github.io/)
 * [MathSat](https://mathsat.fbk.eu/)
 
+When in doubt, install Z3, which is the SMT solver most tested with LiquidHaskell.
+
 Note: The SMT solver binary should be on your `PATH`; LiquidHaskell will execute it as a child process.
 
 ## Installing LiquidHaskell
@@ -19,25 +21,26 @@ LiquidHaskell itself is installed&enabled by adding it as a dependency in your p
 
 Depending on your version of GHC, you might want to use a build of LiquidHaskell from github or from Hackage.
 
-* `ghc-9.6.3`: use LiquidHaskell from github
+* `ghc-9.8.1`: use liquidhaskell-0.9.8.1 from Hackage or use LiquidHaskell from github
+* `ghc-9.6.3`: use liquidhaskell-0.9.6.3 from Hackage
 * `ghc-9.4.7`: use liquidhaskell-0.9.4.7.0 from Hackage
 * `ghc-9.2.8`: use liquidhaskell-0.9.2.8.0 from Hackage
-* `ghc-9.2.5`: use liquidhaskell-0.9.2.5.0 from Hackage
-* `ghc-9.0.2`: use liquidhaskell-0.9.0.2.1 and liquid-base-0.4.15.1.0 from Hackage
-* `ghc-8.10.7`: use liquidhaskell-0.8.10.7 and liquid-base-0.4.15.0.0 from Hackage
 
 Newer versions of GHC aren't supported yet.
 
 To use liquidhaskell from Hackage, add `liquidhaskell` to the `build-depends`
-section of your `.cabal` file, as you would any other dependency. `liquid-base`
-needs to be added only if using a GHC version older than 9.2.5.
+section of your `.cabal` file, as you would any other dependency.
 
-This causes `stack` (or `cabal`) to automatically:
+This causes `cabal` to automatically:
 
 1. Install LiquidHaskell
-2. Tell GHC to use LH during compilation
+2. Tell GHC to use LH during compilation in modules that contain the pragma `{-# OPTIONS_GHC -fplugin=LiquidHaskell #-}`
 3. Display liquid type errors during compilation
 4. Integrate LH with `ghci`, `ghcid` and all GHC compatible tooling for your favorite editor.
+
+`stack` requires some further configuration to indicate which version of `liquidhaskell`
+and dependencies to use. See [this repository](https://github.com/ucsd-progsys/lh-plugin-demo)
+for example `stack.yaml` files.
 
 ## Examples
 
@@ -47,7 +50,7 @@ The following concrete examples show the LiquidHaskell plugin in action:
 - [Example Project 2](https://github.com/ucsd-progsys/lh-plugin-demo-client) (uses Example Project 1 as a dependency)
 
 You can use the `.cabal`, `stack.yaml` and `cabal.project` files in the
-sample packages to see how to write the equivalent files for your own
+example packages to see how to write the equivalent files for your own
 codebase.
 
 ### Liquid Dependencies

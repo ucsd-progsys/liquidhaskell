@@ -18,7 +18,7 @@ author:             The Liquid Haskell Developers
 -- A copyright notice.
 -- copyright:
 -- category:
-extra-source-files: CHANGELOG.md
+-- extra-source-files: CHANGELOG.md
 
 flag devel
   default:     False
@@ -35,16 +35,16 @@ executable plot-performance
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:    base
-                    , bytestring >=0.10.12 && <0.12
-                    , cassava ^>=0.5.2
-                    , Chart >= 1.9.4
+                    , bytestring
+                    , cassava
+                    , Chart
                     , Chart-diagrams
                     , colour
                     , containers
                     , data-default-class
                     , directory
                     , lens
-                    , optparse-applicative >=0.16.1 && <0.19
+                    , optparse-applicative
                     , vector
     ghc-options:    -Wall
     hs-source-dirs:   app
