@@ -9,8 +9,6 @@
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-{-# OPTIONS_GHC -Wno-dodgy-imports #-} -- TODO(#1913): Fix import of Data.Functor.Foldable.Fix
-
 -- | This module uses GHC API to elaborate the resolves expressions
 
 -- TODO: Genearlize to BareType and replace the existing resolution mechanisms
@@ -36,12 +34,10 @@ import qualified Data.HashSet                  as S
 import           Control.Monad.Free
 #if MIN_VERSION_recursion_schemes(5,2,0)
 import           Data.Fix                      hiding (hylo)
-import           Data.Functor.Foldable         hiding (Fix)
-#else
-import           Data.Functor.Foldable
 #endif
 
 import           Data.Char                      ( isUpper )
+import           Data.Functor.Foldable
 import           GHC.Types.Name.Occurrence
 import qualified Liquid.GHC.API as Ghc
                                                 (noExtField)
