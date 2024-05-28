@@ -10,7 +10,6 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 {-# OPTIONS_GHC -Wno-dodgy-imports #-} -- TODO(#1913): Fix import of Data.Functor.Foldable.Fix
-{-# OPTIONS_GHC -Wno-unused-top-binds #-} -- TODO(#1914): Is RTypeF even used?
 
 -- | This module uses GHC API to elaborate the resolves expressions
 
@@ -126,65 +125,65 @@ import qualified Data.Maybe                    as Mb
 -- | Base functor of RType
 data RTypeF c tv r f
   = RVarF {
-      rtf_var    :: !tv
-    , rtf_reft   :: !r
+      _rtf_var   :: !tv
+    , _rtf_reft   :: !r
     }
 
   | RFunF  {
-      rtf_bind   :: !F.Symbol
-    , rtf_rinfo  :: !RFInfo
-    , rtf_in     :: !f
-    , rtf_out    :: !f
-    , rtf_reft   :: !r
+      _rtf_bind   :: !F.Symbol
+    , _rtf_rinfo  :: !RFInfo
+    , _rtf_in     :: !f
+    , _rtf_out    :: !f
+    , _rtf_reft   :: !r
     }
   | RAllTF {
-      rtf_tvbind :: !(RTVU c tv) -- RTVar tv (RType c tv ()))
-    , rtf_ty     :: !f
-    , rtf_ref    :: !r
+      _rtf_tvbind :: !(RTVU c tv) -- RTVar tv (RType c tv ()))
+    , _rtf_ty     :: !f
+    , _rtf_ref    :: !r
     }
 
   -- | "forall x y <z :: Nat, w :: Int> . TYPE"
   --               ^^^^^^^^^^^^^^^^^^^ (rtf_pvbind)
   | RAllPF {
-      rtf_pvbind :: !(PVU c tv)  -- ar (RType c tv ()))
-    , rtf_ty     :: !f
+      _rtf_pvbind :: !(PVU c tv)  -- ar (RType c tv ()))
+    , _rtf_ty     :: !f
     }
 
   -- | For example, in [a]<{\h -> v > h}>, we apply (via `RApp`)
   --   * the `RProp`  denoted by `{\h -> v > h}` to
   --   * the `RTyCon` denoted by `[]`.
   | RAppF  {
-      rtf_tycon  :: !c
-    , rtf_args   :: ![f]
-    , rtf_pargs  :: ![RTPropF c tv f]
-    , rtf_reft   :: !r
+      _rtf_tycon  :: !c
+    , _rtf_args   :: ![f]
+    , _rtf_pargs  :: ![RTPropF c tv f]
+    , _rtf_reft   :: !r
     }
 
   | RAllEF {
-      rtf_bind   :: !F.Symbol
-    , rtf_allarg :: !f
-    , rtf_ty     :: !f
+      _rtf_bind   :: !F.Symbol
+    , _rtf_allarg :: !f
+    , _rtf_ty     :: !f
     }
 
   | RExF {
-      rtf_bind   :: !F.Symbol
-    , rtf_exarg  :: !f
-    , rtf_ty     :: !f
+      _rtf_bind   :: !F.Symbol
+    , _rtf_exarg  :: !f
+    , _rtf_ty     :: !f
     }
 
   | RExprArgF (F.Located F.Expr)
 
   | RAppTyF{
-      rtf_arg   :: !f
-    , rtf_res   :: !f
-    , rtf_reft  :: !r
+      _rtf_arg   :: !f
+    , _rtf_res   :: !f
+    , _rtf_reft  :: !r
     }
 
   | RRTyF  {
-      rtf_env   :: ![(F.Symbol, f)]
-    , rtf_ref   :: !r
-    , rtf_obl   :: !Oblig
-    , rtf_ty    :: !f
+      _rtf_env   :: ![(F.Symbol, f)]
+    , _rtf_ref   :: !r
+    , _rtf_obl   :: !Oblig
+    , _rtf_ty    :: !f
     }
 
   | RHoleF r
