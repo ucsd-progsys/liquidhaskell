@@ -351,7 +351,7 @@ cconsE' γ (Cast e co) t
   = cconsE γ (f e) t
 
 cconsE' γ e@(Cast e' c) t
-  = do t' <- castTy γ (exprType e) e' c
+  = do t' <- (`strengthen` uTop (rTypeReft t)) <$> castTy γ (exprType e) e' c
        addC (SubC γ (F.notracepp ("Casted Type for " ++ GM.showPpr e ++ "\n init type " ++ showpp t) t') t) ("cconsE Cast: " ++ GM.showPpr e)
 
 cconsE' γ e t

@@ -1101,7 +1101,7 @@ executable datacon-neg
                     , Data02
                     , Data02Lib
                     , Date
-                    , NewTypes0
+                    -- , NewTypes0
                     , NewTypes
 
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
