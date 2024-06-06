@@ -23,6 +23,8 @@ coreToLogic = unlines
   , "define Data.Set.Internal.fromList xs      = (listElts xs)"
   , ""
   , "define GHC.Real.fromIntegral x = (x)"
+  , "define GHC.Num.fromInteger x = (x)"
+  , "define GHC.Num.Integer.IS x = (x)"
   , ""
   , "define GHC.Types.True                 = (true)"
   , "define GHC.Real.div x y               = (x / y)"

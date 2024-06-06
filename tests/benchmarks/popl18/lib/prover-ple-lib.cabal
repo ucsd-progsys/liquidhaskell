@@ -20,6 +20,6 @@ library
                     , liquid-prelude
                     , liquidhaskell
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -ddump-timings -ddump-to-file -O0
+  ghc-options:      -fkeep-going -ddump-timings -ddump-to-file -O0
   default-language: Haskell2010
 
