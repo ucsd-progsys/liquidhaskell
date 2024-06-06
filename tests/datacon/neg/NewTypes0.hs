@@ -1,4 +1,4 @@
-{- LIQUID "--expect-any-error" @-}
+{-@ LIQUID "--expect-any-error" @-}
 module NewTypes0 where
 
 newtype Foo a = Bar Int
