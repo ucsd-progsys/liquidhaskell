@@ -153,8 +153,6 @@ infixl 3 ==!
 
 infixl 3 ==.
 
-{-# DEPRECATED (==.) "Use (===) instead" #-}
-
 {-# INLINE (==.) #-} 
 (==.) :: a -> a -> a 
 _ ==. x = x 
