@@ -21,6 +21,7 @@ microTestGroups =
   , "datacon-neg"
   , "names-pos"
   , "names-neg"
+  , "name-resolution"
   , "reflect-pos"
   , "reflect-neg"
   , "absref-pos"
