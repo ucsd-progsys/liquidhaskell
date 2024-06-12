@@ -118,8 +118,8 @@ makeTargetSpec :: Config
                -> Ghc.TcRn (Either Diagnostics ([Warning], TargetSpec, LiftedSpec))
 makeTargetSpec cfg lmap targetSrc bareSpec dependencies = do
   let targDiagnostics     = Bare.checkTargetSrc cfg targetSrc
-  let depsDiagnostics     = mapM (uncurry Bare.checkBareSpec) legacyDependencies
-  let bareSpecDiagnostics = Bare.checkBareSpec (giTargetMod targetSrc) legacyBareSpec
+  let depsDiagnostics     = mapM (Bare.checkBareSpec . snd) legacyDependencies
+  let bareSpecDiagnostics = Bare.checkBareSpec legacyBareSpec
   case targDiagnostics >> depsDiagnostics >> bareSpecDiagnostics of
    Left d | noErrors d -> secondPhase (allWarnings d)
    Left d              -> return $ Left d
