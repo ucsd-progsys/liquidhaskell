@@ -169,7 +169,7 @@ module Language.Haskell.Liquid.Types.Types (
 
   -- * Modules and Imports
   , ModName (..), ModType (..)
-  , isSrcImport, isSpecImport, isTarget
+  , isSrcImport, isSpecImport
   , getModName, getModString, qualifyModName
 
   -- * Refinement Type Aliases
@@ -2052,11 +2052,6 @@ instance F.Symbolic ModName where
 
 instance F.Symbolic ModuleName where
   symbol = F.symbol . moduleNameFS
-
-
-isTarget :: ModName -> Bool
-isTarget (ModName Target _) = True
-isTarget _                  = False
 
 isSrcImport :: ModName -> Bool
 isSrcImport (ModName SrcImport _) = True
