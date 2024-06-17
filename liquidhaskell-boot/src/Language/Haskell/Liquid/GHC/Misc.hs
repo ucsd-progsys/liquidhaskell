@@ -872,23 +872,23 @@ instance Outputable HashableType where
 -- | Superclass coherence
 --------------------------------------------------------------------------------
 
-canonSelectorChains :: PredType -> OM.Map HashableType [Id]
+canonSelectorChains :: PredType -> OM.Map HashableType [Name]
 canonSelectorChains t = foldr (OM.unionWith const) mempty (zs : xs)
  where
   (cls, ts) = Ghc.getClassPredTys t
   scIdTys   = classSCSelIds cls
   ys        = fmap (\d -> (d, piResultTys (idType d) (ts ++ [t]))) scIdTys
-  zs        = OM.fromList $ fmap (\(x, y) -> (HashableType y, [x])) ys
-  xs        = fmap (\(d, t') -> fmap (d :) (canonSelectorChains t')) ys
+  zs        = OM.fromList $ fmap (\(x, y) -> (HashableType y, [getName x])) ys
+  xs        = fmap (\(d, t') -> fmap (getName d :) (canonSelectorChains t')) ys
 
-buildCoherenceOblig :: Class -> [[([Id], [Id])]]
+buildCoherenceOblig :: Class -> [[([Name], [Name])]]
 buildCoherenceOblig cls = evalState (mapM f xs) OM.empty
  where
   (ts, _, selIds, _) = classBigSig cls
   tts                = mkTyVarTy <$> ts
   t                  = mkClassPred cls tts
   ys = fmap (\d -> (d, piResultTys (idType d) (tts ++ [t]))) selIds
-  xs                 = fmap (\(d, t') -> fmap (d:) (canonSelectorChains t')) ys
+  xs                 = fmap (\(d, t') -> fmap (getName d:) (canonSelectorChains t')) ys
   f tid = do
     ctid' <- get
     modify (flip (OM.unionWith const) tid)
@@ -896,10 +896,10 @@ buildCoherenceOblig cls = evalState (mapM f xs) OM.empty
 
 
 -- to be zipped onto the super class selectors
-coherenceObligToRef :: (F.Symbolic s) => s -> [Id] -> [Id] -> F.Reft
+coherenceObligToRef :: (F.Symbolic s) => s -> [Name] -> [Name] -> F.Reft
 coherenceObligToRef d = coherenceObligToRefE (F.eVar $ F.symbol d)
 
-coherenceObligToRefE :: F.Expr -> [Id] -> [Id] -> F.Reft
+coherenceObligToRefE :: F.Expr -> [Name] -> [Name] -> F.Reft
 coherenceObligToRefE e rps0 rps1 = F.Reft (F.vv_, F.PAtom F.Eq lhs rhs)
   where lhs = L.foldr EApp e ps0
         rhs = L.foldr EApp (F.eVar F.vv_) ps1

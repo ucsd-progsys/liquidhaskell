@@ -55,7 +55,7 @@ makeMethodTypes allowTC (DEnv hm) cls cbs
 
       classType Nothing _ = Nothing
       classType (Just (d, ts, _)) x =
-        case filter ((==d) . Ghc.dataConWorkId . dcpCon) cls of
+        case filter ((== Ghc.getName d) . dceConWorkId . dcpConExtra) cls of
           (di:_) -> (dcpLoc di `F.atLoc`) . subst (zip (dcpFreeTyVars di) ts) <$> L.lookup (mkSymbol x) (dcpTyArgs di)
           _      -> Nothing
 

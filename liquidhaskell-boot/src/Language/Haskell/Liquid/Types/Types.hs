@@ -89,7 +89,9 @@ module Language.Haskell.Liquid.Types.Types (
   , DataName (..), dataNameSymbol
   , DataCtor (..)
   , DataConExtra (..)
+  , ClassExtra (..)
   , mkDataConExtra
+  , mkClassExtra
   , DataConP (..)
   , HasDataDecl (..), hasDecl
   , DataDeclKind (..)
@@ -450,15 +452,25 @@ instance F.Loc TyConP where
 
 data DataConExtra = DataConExtra
     { dceName :: Name
-    , dceIsClassTyCon :: Bool
+    , dceClass :: Maybe ClassExtra
+    , dceConWorkId :: Name
+    }
+  deriving (Generic, Data, Typeable)
+
+data ClassExtra = ClassExtra
+    { ceCoherenceOblig :: [[([Name], [Name])]]
     }
   deriving (Generic, Data, Typeable)
 
 mkDataConExtra :: DataCon -> DataConExtra
 mkDataConExtra dc = DataConExtra
   { dceName = getName dc
-  , dceIsClassTyCon = Ghc.isClassTyCon $ Ghc.dataConTyCon dc
+  , dceClass = fmap mkClassExtra $ Ghc.tyConClass_maybe $ Ghc.dataConTyCon dc
+  , dceConWorkId = getName $ Ghc.dataConWorkId dc
   }
+
+mkClassExtra :: Class -> ClassExtra
+mkClassExtra = ClassExtra . buildCoherenceOblig
 
 instance F.PPrint DataConExtra where
   pprintTidy _ = text . unpackFS . qualifiedNameFS . dceName

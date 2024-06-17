@@ -366,9 +366,9 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     (_,predTys,_,_) = Ghc.instanceSig inst
     dfunApped = F.mkEApp dfunSymL [F.eVar $ F.vv (Just i) | (i,_) <- zip [0,1..] predTys]
     prefts  = L.reverse . take (length yts) $ fmap (F.notracepp "prefts" . Just . flip MkUReft mempty . mconcat) preftss ++ repeat Nothing
-    preftss = F.notracepp "preftss" $ (fmap.fmap) (uncurry (GM.coherenceObligToRefE dfunApped)) (GM.buildCoherenceOblig cls)
+    preftss = F.notracepp "preftss" $ (fmap.fmap) (uncurry (GM.coherenceObligToRefE dfunApped)) (ceCoherenceOblig cls)
     yts' = zip (fst <$> yts) (zip (snd <$> yts) prefts)
-    cls = Mb.fromJust . Ghc.tyConClass_maybe $ Ghc.dataConTyCon (dcpCon dcp)
+    cls = Mb.fromJust $ dceClass $ dcpConExtra dcp
     addCoherenceOblig  :: SpecType -> Maybe RReft -> SpecType
     addCoherenceOblig t Nothing = t
     addCoherenceOblig t (Just r) = F.notracepp "SCSel" . fromRTypeRep $ rrep {ty_res = res `strengthen` r}
