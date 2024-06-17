@@ -122,7 +122,7 @@ wiredTyDataCons = (concat tcs, dummyLoc <$> concat dcs)
     (tcs, dcs)  = unzip $ listTyDataCons : map tupleTyDataCons [2..maxArity]
 
 charDataCon :: Located DataConP
-charDataCon = dummyLoc (DataConP l0 Ghc.charDataCon  [] [] [] [("charX",lt)] lt False wiredInName l0)
+charDataCon = dummyLoc (DataConP l0 Ghc.charDataCon (mkDataConExtra Ghc.charDataCon) [] [] [] [("charX",lt)] lt False wiredInName l0)
   where
     l0 = F.dummyPos "LH.Bare.charTyDataCons"
     c  = Ghc.charTyCon
@@ -130,11 +130,13 @@ charDataCon = dummyLoc (DataConP l0 Ghc.charDataCon  [] [] [] [("charX",lt)] lt 
 
 listTyDataCons :: ([TyConP] , [DataConP])
 listTyDataCons   = ( [TyConP l0 c [RTV tyv] [p] [Covariant] [Covariant] (Just fsize)]
-                   , [DataConP l0 Ghc.nilDataCon  [RTV tyv] [p] [] []    lt False wiredInName l0
-                   ,  DataConP l0 Ghc.consDataCon [RTV tyv] [p] [] cargs lt False wiredInName l0])
+                   , [DataConP l0 Ghc.nilDataCon dceNil [RTV tyv] [p] [] []    lt False wiredInName l0
+                   ,  DataConP l0 Ghc.consDataCon dceCons [RTV tyv] [p] [] cargs lt False wiredInName l0])
     where
       l0         = F.dummyPos "LH.Bare.listTyDataCons"
       c          = Ghc.listTyCon
+      dceNil     = mkDataConExtra Ghc.nilDataCon
+      dceCons    = mkDataConExtra Ghc.consDataCon
       [tyv]      = tyConTyVarsDef c
       t          = rVar tyv :: RSort
       fld        = "fldList"
@@ -153,13 +155,14 @@ wiredInName = "WiredIn"
 
 tupleTyDataCons :: Int -> ([TyConP] , [DataConP])
 tupleTyDataCons n = ( [TyConP   l0 c  (RTV <$> tyvs) ps tyvarinfo pdvarinfo Nothing]
-                    , [DataConP l0 dc (RTV <$> tyvs) ps []  cargs  lt False wiredInName l0])
+                    , [DataConP l0 dc dce (RTV <$> tyvs) ps []  cargs  lt False wiredInName l0])
   where
     tyvarinfo     = replicate n     Covariant
     pdvarinfo     = replicate (n-1) Covariant
     l0            = F.dummyPos "LH.Bare.tupleTyDataCons"
     c             = Ghc.tupleTyCon   Boxed n
     dc            = Ghc.tupleDataCon Boxed n
+    dce           = mkDataConExtra dc
     tyvs@(tv:tvs) = tyConTyVarsDef c
     (ta:ts)       = (rVar <$> tyvs) :: [RSort]
     flds          = mks "fld_Tuple"

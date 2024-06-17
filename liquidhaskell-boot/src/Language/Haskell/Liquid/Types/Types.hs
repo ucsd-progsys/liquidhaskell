@@ -88,6 +88,8 @@ module Language.Haskell.Liquid.Types.Types (
   , DataDecl (..)
   , DataName (..), dataNameSymbol
   , DataCtor (..)
+  , DataConExtra (..)
+  , mkDataConExtra
   , DataConP (..)
   , HasDataDecl (..), hasDecl
   , DataDeclKind (..)
@@ -446,11 +448,22 @@ data TyConP = TyConP
 instance F.Loc TyConP where
   srcSpan tc = F.SS (tcpLoc tc) (tcpLoc tc)
 
+data DataConExtra = DataConExtra { dceName :: Name }
+  deriving (Generic, Data, Typeable)
+
+mkDataConExtra :: DataCon -> DataConExtra
+mkDataConExtra dc = DataConExtra
+  { dceName = getName dc
+  }
+
+instance F.PPrint DataConExtra where
+  pprintTidy _ = text . unpackFS . qualifiedNameFS . dceName
 
 -- TODO: just use Located instead of dc_loc, dc_locE
 data DataConP = DataConP
   { dcpLoc        :: !F.SourcePos
   , dcpCon        :: !DataCon                -- ^ Corresponding GHC DataCon
+  , dcpConExtra   :: !DataConExtra           -- ^ Data extracted from dcpCon
   , dcpFreeTyVars :: ![RTyVar]               -- ^ Type parameters
   , dcpFreePred   :: ![PVar RSort]           -- ^ Abstract Refinement parameters
   , dcpTyConstrs  :: ![SpecType]             -- ^ ? Class constraints (via `dataConStupidTheta`)

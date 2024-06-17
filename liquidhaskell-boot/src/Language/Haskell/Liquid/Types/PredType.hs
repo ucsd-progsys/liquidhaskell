@@ -177,7 +177,7 @@ strengthenRType wkT wrT = maybe wkT (strengthen wkT) (stripRTypeBase wrT)
 -- maybe a tc flag is unnecessary but I don't know if {-@ class ... @-}
 -- would reach here
 dcWrapSpecType :: Bool -> DataCon -> DataConP -> SpecType
-dcWrapSpecType allowTC dc (DataConP _ _ vs ps cs yts rt _ _ _)
+dcWrapSpecType allowTC dc (DataConP _ _ _ vs ps cs yts rt _ _ _)
   = {- F.tracepp ("dcWrapSpecType: " ++ show dc ++ " " ++ F.showpp rt) $ -}
     mkArrow makeVars' ps ts' rt'
   where
@@ -214,8 +214,8 @@ instance Show TyConP where
  show = showpp -- showSDoc . ppr
 
 instance PPrint DataConP where
-  pprintTidy k (DataConP _ dc vs ps cs yts t isGadt mname _)
-     =  pprintTidy k dc
+  pprintTidy k (DataConP _ _ dce vs ps cs yts t isGadt mname _)
+     =  pprintTidy k dce
     <+> parens (hsep (punctuate comma (pprintTidy k <$> vs)))
     <+> parens (hsep (punctuate comma (pprintTidy k <$> ps)))
     <+> parens (hsep (punctuate comma (pprintTidy k <$> cs)))

@@ -177,7 +177,8 @@ mkClassE env sigEnv _myName name (RClass cc ss as ms) tc = do
     meths  <- mapM (makeMethod env sigEnv name) ms'
     let vts = [ (m, v, t) | (m, kv, t) <- meths, v <- Mb.maybeToList (plugSrc kv) ]
     let sts = [(val s, unClass $ val t) | (s, _) <- ms | (_, _, t) <- meths]
-    let dcp = DataConP l dc αs [] (val <$> ss') (reverse sts) rt False (F.symbol name) l'
+    let dce = mkDataConExtra dc
+    let dcp = DataConP l dc dce αs [] (val <$> ss') (reverse sts) rt False (F.symbol name) l'
     return  $ F.notracepp msg (dcp, vts)
   where
     c      = btc_tc cc

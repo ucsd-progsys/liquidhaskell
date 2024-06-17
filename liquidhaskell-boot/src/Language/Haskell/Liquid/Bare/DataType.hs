@@ -624,6 +624,7 @@ ofBDataCtorTc env name l l' tc αs ps πs _ctor@(DataCtor _c as _ xts res) c' =
   DataConP
     { dcpLoc        = l
     , dcpCon        = c'
+    , dcpConExtra   = mkDataConExtra c'
     , dcpFreeTyVars = RT.symbolRTyVar <$> as
     , dcpFreePred   = πs
     , dcpTyConstrs  = cs
