@@ -1171,7 +1171,7 @@ makeTycEnv1 myName env (tycEnv, datacons) coreToLg simplifier = do
   where
     (classdcs, dcs) =
       L.partition
-        (Ghc.isClassTyCon . Ghc.dataConTyCon . dcpCon . F.val) datacons
+        (dceIsClassTyCon . dcpConExtra . F.val) datacons
 
 
 knownWiredDataCons :: Bare.Env -> ModName -> [Located DataConP]

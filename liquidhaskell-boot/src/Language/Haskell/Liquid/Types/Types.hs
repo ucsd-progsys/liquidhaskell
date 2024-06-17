@@ -448,12 +448,16 @@ data TyConP = TyConP
 instance F.Loc TyConP where
   srcSpan tc = F.SS (tcpLoc tc) (tcpLoc tc)
 
-data DataConExtra = DataConExtra { dceName :: Name }
+data DataConExtra = DataConExtra
+    { dceName :: Name
+    , dceIsClassTyCon :: Bool
+    }
   deriving (Generic, Data, Typeable)
 
 mkDataConExtra :: DataCon -> DataConExtra
 mkDataConExtra dc = DataConExtra
   { dceName = getName dc
+  , dceIsClassTyCon = Ghc.isClassTyCon $ Ghc.dataConTyCon dc
   }
 
 instance F.PPrint DataConExtra where
