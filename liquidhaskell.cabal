@@ -1,4 +1,4 @@
-cabal-version:      2.4
+cabal-version:      3.0
 name:               liquidhaskell
 version:            0.9.8.2
 synopsis:           Liquid Types for Haskell
@@ -78,6 +78,7 @@ library
   hs-source-dirs:     src
 
   build-depends:      base                 >= 4.11.1.0 && < 5,
+                      Cabal                == 3.10.3.0,
                       liquidhaskell-boot   == 0.9.8.2,
                       bytestring           == 0.12.1.0,
                       containers           == 0.6.8,

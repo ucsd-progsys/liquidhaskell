@@ -1,4 +1,4 @@
-cabal-version:      2.4
+cabal-version:      3.0
 name:               tests
 version:            0.1.0.0
 
@@ -33,6 +33,7 @@ executable test-driver
       hs-source-dirs: cabal_driver
 
     build-depends:    base < 5
+                    , Cabal == 3.10.3.0
                     , shelly
                     , text
                     , bytestring
@@ -139,6 +140,7 @@ executable benchmark-bytestring
                     , Data.ByteString.LazyZip
 
   build-depends:      base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , syb >= 0.7.2
                     , liquidhaskell
@@ -174,6 +176,7 @@ executable benchmark-vector-algorithms
 
 
   build-depends:      base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquid-vector
                     , bytestring
@@ -209,6 +212,7 @@ executable benchmark-cse230
                     , Verifier
 
   build-depends:      base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquidhaskell
 
@@ -238,6 +242,7 @@ executable benchmark-esop2013
                     , Toy
 
   build-depends:      base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquidhaskell
                     , deepseq >= 1.4
@@ -282,6 +287,7 @@ executable benchmark-icfp15-pos
 
 
   build-depends:      base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , containers
                     , ghc-prim
@@ -314,6 +320,7 @@ executable benchmark-icfp15-neg
                     , WhileM
 
   build-depends:      base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , containers
                     , ghc-prim
@@ -341,6 +348,7 @@ executable prover-foundations
                     , Lists
 
   build-depends:      base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquidhaskell
 
@@ -394,6 +402,7 @@ executable prover-nople-pos
                     -- , OverviewListInfix
 
   build-depends:      base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , containers
                     , liquidhaskell
@@ -432,6 +441,7 @@ executable prover-nople-neg
                     -- , ApplicativeReader
 
   build-depends:      base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , containers
                     , liquidhaskell
@@ -484,6 +494,7 @@ executable prover-ple-pos
                     -- , OverviewListInfix
 
   build-depends:      base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , containers
                     , liquidhaskell
@@ -560,6 +571,7 @@ executable benchmark-text
     , integer-gmp >= 0.2
     , syb
     , base
+    , Cabal == 3.10.3.0
     , liquid-prelude
     , bytestring
     , ghc-prim
@@ -596,6 +608,7 @@ executable parsing-errors
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
 
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , bytestring
                     , liquid-prelude
                     , liquidhaskell
@@ -725,6 +738,7 @@ executable errors
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
 
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , bytestring
                     , containers
@@ -762,6 +776,7 @@ executable parser-pos
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquidhaskell
 
@@ -812,6 +827,7 @@ executable names-pos
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquid-vector
                     , containers
@@ -847,6 +863,7 @@ executable names-neg
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquid-vector
                     , bytestring
@@ -876,6 +893,7 @@ executable reflect-pos
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquidhaskell
 
@@ -906,6 +924,7 @@ executable class-pos
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquidhaskell
 
@@ -932,6 +951,7 @@ executable class-neg
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquidhaskell
 
@@ -957,6 +977,7 @@ executable reflect-neg
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquidhaskell
 
@@ -1004,6 +1025,7 @@ executable measure-pos
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquidhaskell
 
@@ -1040,6 +1062,7 @@ executable measure-neg
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquidhaskell
                     , containers
@@ -1077,6 +1100,7 @@ executable datacon-pos
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquidhaskell
 
@@ -1108,6 +1132,7 @@ executable datacon-neg
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquidhaskell
 
@@ -1343,6 +1368,7 @@ executable unit-neg
 
     ghc-options:      -fplugin=LiquidHaskell -ddump-to-file -fkeep-going -O0
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , containers
                     , liquid-vector
@@ -1700,6 +1726,7 @@ executable unit-pos-1
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , containers
                     , liquid-vector
@@ -1957,6 +1984,7 @@ executable unit-pos-2
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , containers
                     , liquid-vector
@@ -2004,6 +2032,7 @@ executable absref-pos
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquid-vector
                     , liquidhaskell
@@ -2035,6 +2064,7 @@ executable absref-neg
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquid-vector
                     , liquidhaskell
@@ -2067,6 +2097,7 @@ executable relational-pos
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquid-vector
                     , liquidhaskell
@@ -2098,6 +2129,7 @@ executable relational-neg
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquid-vector
                     , liquidhaskell
@@ -2131,6 +2163,7 @@ executable basic-neg
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquidhaskell
                     , bytestring
@@ -2172,6 +2205,7 @@ executable basic-pos
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquidhaskell
 
@@ -2269,6 +2303,7 @@ executable import-cli
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquidhaskell
 
@@ -2347,6 +2382,7 @@ executable ple-pos
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , containers
                     , liquidhaskell
@@ -2387,6 +2423,7 @@ executable ple-neg
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , containers
                     , liquidhaskell
@@ -2414,6 +2451,7 @@ executable rankN-pos
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquidhaskell
 
@@ -2456,6 +2494,7 @@ executable terminate-pos
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , containers
                     , liquidhaskell
@@ -2494,6 +2533,7 @@ executable terminate-neg
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquidhaskell
 
@@ -2528,6 +2568,7 @@ executable pattern-pos
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquidhaskell
                     , template-haskell
@@ -2559,6 +2600,7 @@ executable typeclass-pos
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquidhaskell
 
@@ -2575,6 +2617,7 @@ test-suite tasty
     other-modules:    ErrorFilterReportTests
     hs-source-dirs:   tasty
     build-depends:    base
+                    , Cabal == 3.10.3.0
                     , tasty
                     , tasty-hunit
                     , liquidhaskell-boot

@@ -1,4 +1,4 @@
-cabal-version:      2.4
+cabal-version:      3.0
 name:               prover-ple-lib
 version:            0.1.0.0
 
@@ -17,6 +17,7 @@ library
                     , Proves
 
   build-depends:      base
+                    , Cabal == 3.10.3.0
                     , liquid-prelude
                     , liquidhaskell
 
