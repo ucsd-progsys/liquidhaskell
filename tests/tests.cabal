@@ -875,22 +875,14 @@ executable name-resolution-neg
 
     ghc-options:      -Wall
                       -fplugin=LiquidHaskell
-                      -Wno-unticked-promoted-constructors
-                      -fno-warn-name-shadowing
                       -fkeep-going
                       -O0
-                      -fforce-recomp
 
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
 
     build-depends:    base
-                    , liquid-prelude
-                    , liquid-vector
-                    , bytestring
-                    , containers
                     , liquidhaskell
-                    , vector
 
     hs-source-dirs:   app
                     , name-resolution/neg
