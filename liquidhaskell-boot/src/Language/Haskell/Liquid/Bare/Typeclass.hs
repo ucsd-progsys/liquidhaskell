@@ -185,7 +185,7 @@ elaborateClassDcp
 elaborateClassDcp coreToLg simplifier dcp = do
   t' <- flip (zipWith addCoherenceOblig) prefts
     <$> forM fts (elaborateSpecType coreToLg simplifier)
-  let ts' = elaborateMethod (F.symbol dc) (S.fromList xs) <$> t'
+  let ts' = elaborateMethod (F.symbol $ dceConWorkId dce) (S.fromList xs) <$> t'
   pure
     ( dcp { dcpTyArgs = zip xs (stripPred <$> ts') }
     , dcp { dcpTyArgs = fmap (\(x, t) -> (x, strengthenTy x t)) (zip xs t') }
@@ -205,13 +205,13 @@ elaborateClassDcp coreToLg simplifier dcp = do
       $  fmap (Just . flip MkUReft mempty . mconcat) preftss
       ++ repeat Nothing
   preftss = (fmap . fmap) (uncurry (GM.coherenceObligToRef recsel))
-                          (GM.buildCoherenceOblig cls)
+                          (ceCoherenceOblig cls)
 
   -- ugly, should have passed cls as an argument
-  cls      = Mb.fromJust $ Ghc.tyConClass_maybe (Ghc.dataConTyCon dc)
+  cls      = Mb.fromJust $ dceClass dce
+  dce = dcpConExtra dcp
   recsel   = F.symbol ("lq$recsel" :: String)
   resTy    = dcpTyRes dcp
-  dc       = dcpCon dcp
   tvars    = (\x -> (makeRTVar x, mempty)) <$> dcpFreeTyVars dcp
       -- check if the names are qualified
   (xs, ts) = unzip (dcpTyArgs dcp)
