@@ -321,10 +321,10 @@ makeClassAuxTypes elab dcps xs = Misc.concatMapM (makeClassAuxTypesOne elab) dcp
     dcpInstMethods = do
       dcp <- dcps
       (inst, methods) <- xs
-      let dc = dcpCon . F.val $ dcp
+      let dc = dcpConExtra . F.val $ dcp
               -- YL: only works for non-newtype class
           dc' = Ghc.classDataCon $ Ghc.is_cls inst
-      guard $ dc == dc'
+      guard $ dceName dc == Ghc.getName dc'
       pure (dcp, inst, methods)
 
 makeClassAuxTypesOne ::
