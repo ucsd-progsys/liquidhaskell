@@ -859,6 +859,36 @@ executable names-neg
 
     default-language: Haskell2010
 
+flag name-resolution-neg
+     default: False
+
+executable name-resolution-neg
+    main-is:          Main.hs
+    if !flag(names-neg) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      A
+                    , B
+                    , C
+
+
+    ghc-options:      -Wall
+                      -fplugin=LiquidHaskell
+                      -fkeep-going
+                      -O0
+
+    if flag(measure-timings)
+      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
+
+    build-depends:    base
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , name-resolution/neg
+
+    default-language: Haskell2010
+
 flag reflect-pos
      default: False
 
@@ -1101,7 +1131,7 @@ executable datacon-neg
                     , Data02
                     , Data02Lib
                     , Date
-                    , NewTypes0
+                    -- , NewTypes0
                     , NewTypes
 
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0

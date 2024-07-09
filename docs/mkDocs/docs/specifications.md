@@ -1,8 +1,10 @@
 # Writing Specifications
 
 This section documents how you can actually annotate new or existing code with
-refinement types, leveraging the full power of LiquidHaskell. There are a lot
-of different ways to annotate your code, and so we've included a brief summary
+refinement types, leveraging the full power of LiquidHaskell. As syntax reference you can
+also check [this index](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests-by-syntax.md).
+
+There are a lot of different ways to annotate your code, and so we've included a brief summary
 of each here.
 
 * `{-@ inline <binding-name> @-}` copies a Haskell definition to the refinement logic.

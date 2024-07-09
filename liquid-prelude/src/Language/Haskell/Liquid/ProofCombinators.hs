@@ -149,11 +149,9 @@ infixl 3 ==!
 -- | The above operators check each intermediate proof step.
 --   The operator `==.` below accepts an optional proof term
 --   argument, but does not check intermediate steps.
---   TODO: What is it USEFUL FOR?
+--   So, using `==.` the proofs are faster, but the error messages worse. 
 
 infixl 3 ==.
-
-{-# DEPRECATED (==.) "Use (===) instead" #-}
 
 {-# INLINE (==.) #-} 
 (==.) :: a -> a -> a 
