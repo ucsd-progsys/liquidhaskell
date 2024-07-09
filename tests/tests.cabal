@@ -1446,6 +1446,7 @@ executable unit-pos-1
                     , Poly3a
                     , Poly3
                     , Poly4
+                    , PolySet
                     , Polyfun
                     , Polyqual
                     , PositivityCheck
