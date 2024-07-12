@@ -2336,6 +2336,7 @@ executable ple-pos
                     , Isort_erase
                     , ListAnd
                     , Lists
+                    , ListPolySet
                     , MergeSort
                     , MJFix
                     , MossakaBug
