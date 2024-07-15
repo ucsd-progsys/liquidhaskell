@@ -836,6 +836,7 @@ type BPspec = Pspec LocBareType LocSymbol
 data Pspec ty ctor
   = Meas    (Measure ty ctor)                             -- ^ 'measure' definition
   | Assm    (LocSymbol, ty)                               -- ^ 'assume' signature (unchecked)
+  | AssmReflect (LocSymbol, LocSymbol)                    -- ^ 'assume reflects' signature (unchecked)
   | Asrt    (LocSymbol, ty)                               -- ^ 'assert' signature (checked)
   | LAsrt   (LocSymbol, ty)                               -- ^ 'local' assertion -- TODO RJ: what is this
   | Asrts   ([LocSymbol], (ty, Maybe [Located Expr]))     -- ^ TODO RJ: what is this
@@ -899,6 +900,8 @@ ppPspec k (Meas m)
   = "measure" <+> pprintTidy k m
 ppPspec k (Assm (lx, t))
   = "assume"  <+> pprintTidy k (val lx) <+> "::" <+> pprintTidy k t
+ppPspec k (AssmReflect (lx, ly))
+  = "assume"  <+> pprintTidy k (val lx) <+> "reflects" <+> pprintTidy k (val ly)
 ppPspec k (Asrt (lx, t))
   = "assert"  <+> pprintTidy k (val lx) <+> "::" <+> pprintTidy k t
 ppPspec k (LAsrt (lx, t))
@@ -1053,6 +1056,7 @@ mkSpec :: ModName -> [BPspec] -> (ModName, Measure.Spec LocBareType LocSymbol)
 mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
   { Measure.measures   = [m | Meas   m <- xs]
   , Measure.asmSigs    = [a | Assm   a <- xs]
+  , Measure.asmReflectSigs = [(l, r) | AssmReflect (l, r) <- xs]
   , Measure.sigs       = [a | Asrt   a <- xs]
                       ++ [(y, t) | Asrts (ys, (t, _)) <- xs, y <- ys]
   , Measure.localSigs  = []
@@ -1101,7 +1105,8 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
 -- | Parse a single top level liquid specification
 specP :: Parser BPspec
 specP
-  =     fallbackSpecP "assume"
+  =     fallbackSpecP "assume reflect" (fmap AssmReflect assmReflectBindP )
+    <|> fallbackSpecP "assume"
     ((reserved "relational" >>  fmap AssmRel relationalP)
         <|>                           fmap Assm   tyBindP  )
     <|> fallbackSpecP "assert"      (fmap Asrt    tyBindP  )
@@ -1246,6 +1251,11 @@ tyBindNoLocP = second val <$> tyBindP
 tyBindP :: Parser (LocSymbol, Located BareType)
 tyBindP =
   (,) <$> locBinderP <* reservedOp "::" <*> located genBareTypeP
+
+-- | Parses a loc symbol.
+assmReflectBindP :: Parser (LocSymbol, LocSymbol)
+assmReflectBindP =
+  (,) <$> locBinderP <* reservedOp "as" <*> locBinderP
 
 termBareTypeP :: Parser (Located BareType, Maybe [Located Expr])
 termBareTypeP = do

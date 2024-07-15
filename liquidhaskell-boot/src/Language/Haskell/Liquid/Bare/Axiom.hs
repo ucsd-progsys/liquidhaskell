@@ -40,7 +40,39 @@ makeHaskellAxioms :: Config -> GhcSrc -> Bare.Env -> Bare.TycEnv -> ModName -> L
 makeHaskellAxioms cfg src env tycEnv name lmap spSig spec = do
   wiDefs     <- wiredDefs cfg env name spSig
   let refDefs = getReflectDefs src spSig spec
-  return (makeAxiom env tycEnv name lmap <$> (wiDefs ++ refDefs))
+  -- Get the reflect equations of the from symbols (e.g. `myfilter`)
+  let newReflDefs = makeAxiom env tycEnv name lmap . findVarDefType cbs sigs <$> reflFromSymbols
+  let asmReflectDefs = makeAssumeReflectAxiom env tycEnv name lmap src spSig `concatMap` zip3 newReflDefs reflFromSymbols reflToSymbols
+  return $ (makeAxiom env tycEnv name lmap <$> wiDefs ++ refDefs) ++ asmReflectDefs
+  where
+    sigs                    = gsTySigs spSig
+    cbs                     = _giCbs src
+    reflFromSymbols         = fst <$> Ms.asmReflectSigs spec
+    reflToSymbols           = snd <$> Ms.asmReflectSigs spec
+
+makeAssumeReflectAxiom :: Bare.Env -> Bare.TycEnv -> ModName -> LogicMap -> GhcSrc -> GhcSpecSig
+                       -> ((Ghc.Var, LocSpecType, F.Equation), LocSymbol, LocSymbol)
+                       -> [(Ghc.Var, LocSpecType, F.Equation)]
+makeAssumeReflectAxiom env tycEnv name lmap src sig ((x, lt, e), old, new) = [
+    (x, lt, e), -- Original equation
+    (newV, newLt, newEq) -- Equation mapping from the old function definition into the newly defined one (e.g. `filter e1 e2 ... = myfilter e1 e2 ...`)
+  ]
+  where
+    cbs                     = _giCbs src
+    sigs                    = gsTySigs sig
+    newV = case Bare.lookupGhcVar env name "wiredAxioms" new of
+      Right x -> x
+      Left _ -> Ex.throw $ mkError new "Could not find this"
+    qOld = Bare.qualifyTop env name (F.loc old) (val old)
+    qNew = Bare.qualifyTop env name (F.loc new) (val new)
+    su = F.mkSubst [] -- [(qOld, F.EVar qNew)]
+    newLt = F.subst su lt
+    {- newLt = case lookup newV sigs of
+      Just x -> x
+      Nothing -> Ex.throw $ mkError new "Could not find the type of this" -}
+    osym = F.eqName e
+    args = F.eqArgs e
+    newEq = F.mkEquation qNew args (foldl F.EApp (F.EVar qOld) (F.EVar . fst <$> args)) (F.eqSort e)
 
 getReflectDefs :: GhcSrc -> GhcSpecSig -> Ms.BareSpec
                -> [(LocSymbol, Maybe SpecType, Ghc.Var, Ghc.CoreExpr)]

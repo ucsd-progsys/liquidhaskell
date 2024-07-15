@@ -684,7 +684,7 @@ isReflectVar reflSyms v = S.member vx reflSyms
 getReflects :: Bare.ModSpecs -> [Symbol]
 getReflects  = fmap val . S.toList . S.unions . fmap (names . snd) . M.toList
   where
-    names  z = S.unions [ Ms.reflects z, Ms.inlines z, Ms.hmeas z ]
+    names  z = S.unions [ Ms.reflects z, S.fromList (fst <$> Ms.asmReflectSigs z), S.fromList (snd <$> Ms.asmReflectSigs z), Ms.inlines z, Ms.hmeas z ]
 
 ------------------------------------------------------------------------------------------
 -- | @updateReflSpecSig@ uses the information about reflected functions to update the
@@ -743,6 +743,7 @@ makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = do
   return SpSig
     { gsTySigs   = tySigs
     , gsAsmSigs  = asmSigs
+    , gsAsmReflects  = []
     , gsRefSigs  = []
     , gsDicts    = dicts
     -- , gsMethods  = if noclasscheck cfg then [] else Bare.makeMethodTypes dicts (Bare.meClasses  measEnv) cbs
