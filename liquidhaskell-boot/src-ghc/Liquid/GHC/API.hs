@@ -322,7 +322,7 @@ import GHC.Core.Reduction             as Ghc
     ( Reduction(Reduction) )
 import GHC.Core.Subst                 as Ghc (emptySubst, extendCvSubst)
 import GHC.Core.TyCo.Rep              as Ghc
-    ( FunTyFlag(FTF_T_T)
+    ( FunTyFlag(FTF_T_T, FTF_C_T)
     , ForAllTyFlag(Required)
     , Coercion
         ( AppCo
@@ -354,6 +354,7 @@ import GHC.Core.TyCo.Rep              as Ghc
         , LitTy
         , TyConApp
         , TyVarTy
+        , ft_af
         , ft_arg
         , ft_res
         )

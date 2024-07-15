@@ -24,6 +24,11 @@ of each here.
   ([See more: Section 2.2 of this paper](http://goto.ucsd.edu/~nvazou/refinement-reflection/refinement-reflection.pdf))
     * All parts of the definition must already be available to the refinement logic.
     * The function may be recursive.
+* `{-@ assume reflect <actual-function-name> as <pretended-function-name> @-}` creates an assumption that the actual function
+  behaves as the pretended function. Whence the actual function becomes reflected and can be used in the logic. Its refinement type is strengthened with
+  the post-condition that the result of the actual function is the same as the result of the pretended function.
+  ([Jump to: Theorem Proving](http://ucsd-progsys.github.io/liquidhaskell/options/#theorem-proving))
+    * The pretended function must be already reflected in the logic
 * `{-@ type <type-alias-head> = <refinement-type> @-}` introduces a type alias that looks like Haskell syntax but can contain refinements and may be parameterized over both types and values.
   ([Jump to: Type Aliases](#type-aliases))
 * `{-@ predicate .. @-}` introduces something like `{-@ type .. @-}`.

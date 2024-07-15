@@ -62,6 +62,8 @@ import qualified Language.Haskell.Liquid.Transforms.CoreToLogic as CoreToLogic
 import           Control.Arrow                    (second)
 import Data.Hashable (Hashable)
 import qualified Language.Haskell.Liquid.Bare.Slice as Dg
+import Data.Bifunctor (bimap)
+import Data.Function (on)
 
 --------------------------------------------------------------------------------
 -- | De/Serializing Spec files
@@ -281,6 +283,7 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
                   -- Preserve user-defined 'dvariance'.
                 , rinstance = Ms.rinstance finalLiftedSpec ++ Ms.rinstance mySpec
                   -- Preserve rinstances.
+                , asmReflectSigs = Ms.asmReflectSigs mySpec
                 }
     })
   where
@@ -647,6 +650,8 @@ makeSpecRefl cfg src menv specs env name sig tycEnv = do
   rwrWith  <- makeRewriteWith env name mySpec
   wRefls   <- Bare.wiredReflects cfg env name sig
   xtes     <- Bare.makeHaskellAxioms cfg src env tycEnv name lmap sig mySpec
+  asmReflAxioms <- Bare.makeAssumeReflectAxioms src env tycEnv name sig mySpec
+  let otherAxioms = thd3 <$> asmReflAxioms
   let myAxioms =
         [ Bare.qualifyTop
             env
@@ -655,26 +660,36 @@ makeSpecRefl cfg src menv specs env name sig tycEnv = do
             e {eqName = s, eqRec = S.member s (exprSymbolsSet (eqBody e))}
         | (x, lt, e) <- xtes
         , let s = symbol x
-        ]
+        ] ++ otherAxioms
+  let asmReflEls = eqName <$> otherAxioms
+  let impAxioms  = concatMap (filter ((`notElem` asmReflEls) . eqName) . Ms.axeqs . snd) (M.toList specs)
   let sigVars  = F.notracepp "SIGVARS" $ (fst3 <$> xtes)            -- reflects
                                       ++ (fst  <$> gsAsmSigs sig)   -- assumes
                                       ++ (fst  <$> gsRefSigs sig)
-  return SpRefl
-    { gsLogicMap   = lmap
-    , gsAutoInst   = autoInst
-    , gsImpAxioms  = concatMap (Ms.axeqs . snd) (M.toList specs)
-    , gsMyAxioms   = F.notracepp "gsMyAxioms" myAxioms
-    , gsReflects   = F.notracepp "gsReflects" (lawMethods ++ filter (isReflectVar rflSyms) sigVars ++ wRefls)
-    , gsHAxioms    = F.notracepp "gsHAxioms" xtes
-    , gsWiredReft  = wRefls
-    , gsRewrites   = rwr
-    , gsRewritesWith = rwrWith
-    }
+  case anyNonReflFn of
+    Just (actSym , preSym) ->
+      let preSym' = show (val preSym) in
+      let errorMsg = preSym' ++ " must be reflected first using {-@ reflect " ++ preSym' ++ " @-}" in
+      let error = ErrHMeas (GM.sourcePosSrcSpan $ loc actSym) (pprint $ val actSym) (text errorMsg) :: Error
+      in Ex.throw error
+    Nothing -> return SpRefl
+      { gsLogicMap   = lmap
+      , gsAutoInst   = autoInst
+      , gsImpAxioms  = impAxioms
+      , gsMyAxioms   = myAxioms
+      , gsReflects   = lawMethods ++ filter (isReflectVar rflSyms) sigVars ++ (fst <$> gsAsmReflects sig) ++ wRefls
+      , gsHAxioms    = F.notracepp "gsHAxioms" $ xtes ++ asmReflAxioms
+      , gsWiredReft  = wRefls
+      , gsRewrites   = rwr
+      , gsRewritesWith = rwrWith
+      }
   where
     lawMethods   = F.notracepp "Law Methods" $ concatMap Ghc.classMethods (fst <$> Bare.meCLaws menv)
     mySpec       = M.lookupDefault mempty name specs
     rflSyms      = S.fromList (getReflects specs)
     lmap         = Bare.reLMap env
+    notInReflOnes (_, a) = not $ a `S.member` Ms.reflects mySpec
+    anyNonReflFn = L.find notInReflOnes (Ms.asmReflectSigs mySpec)
 
 isReflectVar :: S.HashSet F.Symbol -> Ghc.Var -> Bool
 isReflectVar reflSyms v = S.member vx reflSyms
@@ -684,7 +699,7 @@ isReflectVar reflSyms v = S.member vx reflSyms
 getReflects :: Bare.ModSpecs -> [Symbol]
 getReflects  = fmap val . S.toList . S.unions . fmap (names . snd) . M.toList
   where
-    names  z = S.unions [ Ms.reflects z, Ms.inlines z, Ms.hmeas z ]
+    names  z = S.unions [ Ms.reflects z, S.fromList (snd <$> Ms.asmReflectSigs z), S.fromList (fst <$> Ms.asmReflectSigs z), Ms.inlines z, Ms.hmeas z ]
 
 ------------------------------------------------------------------------------------------
 -- | @updateReflSpecSig@ uses the information about reflected functions to update the
@@ -694,6 +709,12 @@ addReflSigs :: Bare.Env -> ModName -> BareRTEnv -> GhcSpecRefl -> GhcSpecSig -> 
 ------------------------------------------------------------------------------------------
 addReflSigs env name rtEnv refl sig =
   sig { gsRefSigs = F.notracepp ("gsRefSigs for " ++ F.showpp name) $ map expandReflectedSignature reflSigs
+      -- We make sure that the reflected functions are excluded from `gsAsmSigs`, except for the signatures of
+      -- actual functions in assume-reflect. The latter are added here because 1. it's what makes tests work
+      -- and 2. so that we probably "shadow" the old signatures of the actual function correctly. Note that even if the
+      -- signature of the actual function was asserted and not assumed, we do not put our new signature for the actual function
+      -- in `gsTySigs` (which is for asserted signatures). Indeed, the new signature will *always* be an assumption since we
+      -- add the extra post-condition that the actual and pretended function behave in the same way.
       , gsAsmSigs = F.notracepp ("gsAsmSigs for " ++ F.showpp name) (wreflSigs ++ filter notReflected (gsAsmSigs sig))
       }
   where
@@ -709,8 +730,14 @@ addReflSigs env name rtEnv refl sig =
 
     (wreflSigs, reflSigs)   = L.partition ((`elem` gsWiredReft refl) . fst)
                                  [ (x, t) | (x, t, _) <- gsHAxioms refl ]
-    reflected       = fst <$> (wreflSigs ++ reflSigs)
-    notReflected xt = fst xt `notElem` reflected
+    -- Get the set of all the actual functions (in assume-reflects)
+    actualFnsInAssmRefl     = S.fromList $ fst <$> gsAsmReflects sig
+    isActualFn           x  = S.member x actualFnsInAssmRefl
+    -- Get all the variables from the axioms that are not actual functions (in assume-reflects)
+    notReflActualTySigs     = L.filter (not . isActualFn . fst) reflSigs
+    -- Get the list of reflected elements. We do not count actual functions in assume reflect as reflected
+    reflected               = S.fromList $ fst <$> (wreflSigs ++ notReflActualTySigs)
+    notReflected xt         = fst xt `notElem` reflected
 
 makeAutoInst :: Bare.Env -> ModName -> Ms.BareSpec ->
                 Bare.Lookup (M.HashMap Ghc.Var (Maybe Int))
@@ -743,6 +770,7 @@ makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = do
   return SpSig
     { gsTySigs   = tySigs
     , gsAsmSigs  = asmSigs
+    , gsAsmReflects = bimap getVar getVar <$> concatMap (asmReflectSigs . snd) (M.toList specs)
     , gsRefSigs  = []
     , gsDicts    = dicts
     -- , gsMethods  = if noclasscheck cfg then [] else Bare.makeMethodTypes dicts (Bare.meClasses  measEnv) cbs
@@ -758,6 +786,12 @@ makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = do
     mySpec     = M.lookupDefault mempty name specs
     allSpecs   = M.toList specs
     rtEnv      = Bare.sigRTEnv sigEnv
+    getVar sym = case Bare.lookupGhcVar env name "wiredAxioms" sym of
+      Right x -> x
+      Left _ -> Ex.throw $ mkError sym $ "Not in scope: " ++ show (val sym)
+
+    mkError :: LocSymbol -> String -> Error
+    mkError x str = ErrHMeas (GM.sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
     -- hmeas      = makeHMeas    env allSpecs
 
 strengthenSigs :: [(Ghc.Var, (Int, LocSpecType))] ->[(Ghc.Var, LocSpecType)]
@@ -837,7 +871,9 @@ myAsmSig :: Ghc.Var -> [(Bool, ModName, LocBareType)] -> (ModName, LocBareType)
 myAsmSig v sigs = Mb.fromMaybe errImp (mbHome `mplus` mbImp)
   where
     mbHome      = takeUnique mkErr                  sigsHome
-    mbImp       = takeUnique mkErr (Misc.firstGroup sigsImp) -- see [NOTE:Prioritize-Home-Spec]
+    -- In case we import multiple specifications for the same function stemming from `assume-reflect` from different modules, we want
+    -- to follow the same convention as in other places and so take the last one in alphabetical order and shadow the others
+    mbImp       = takeBiggest   fst (Misc.firstGroup sigsImp) -- see [NOTE:Prioritize-Home-Spec]
     sigsHome    = [(m, t)      | (True,  m, t) <- sigs ]
     sigsImp     = F.notracepp ("SIGS-IMP: " ++ F.showpp v)
                   [(d, (m, t)) | (False, m, t) <- sigs, let d = nameDistance vName m]
@@ -891,11 +927,14 @@ nameDistance vName tName
   | vName == F.symbol tName = 0
   | otherwise               = 1
 
-
 takeUnique :: Ex.Exception e => ([a] -> e) -> [a] -> Maybe a
 takeUnique _ []  = Nothing
 takeUnique _ [x] = Just x
 takeUnique f xs  = Ex.throw (f xs)
+
+takeBiggest :: (Ord b) => (a -> b) -> [a] -> Maybe a
+takeBiggest _ []  = Nothing
+takeBiggest f xs  = Just $ L.maximumBy (compare `on` f) xs
 
 allAsmSigs :: Bare.Env -> ModName -> Bare.ModSpecs ->
               Bare.Lookup [(Ghc.Var, [(Bool, ModName, LocBareType)])]
