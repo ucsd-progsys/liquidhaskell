@@ -6,7 +6,7 @@ module Inc00 where
 
 {-@ assume reflect myeven as even @-}
 myeven :: Int -> Bool 
-myeven x = False
+myeven n = n `mod` 2 == 0
 
 {-@ test :: { not (even 5) } @-} 
 test :: ()
