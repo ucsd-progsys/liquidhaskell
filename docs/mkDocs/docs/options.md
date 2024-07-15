@@ -109,6 +109,54 @@ To allow reasoning about function extensionality use the `--extensionality` flag
 {-@ LIQUID "--extensionality" @-}
 ```
 
+Furthermore, you may also want to assume the reflection of some functions that you haven't defined,
+but need in your own reflected functions, or in the logic. For instance, let's say that you want to
+define the following function:
+
+```Haskell
+{-@ reflect keepDigits @-}
+keepDigits :: [Char] -> [Char]
+keepDigits = filter isDigit
+```
+
+Or that you want to prove a property of filter:
+
+```Haskell
+{-@ lemma :: {v:[Char] | v == []} @-}
+lemma::  [Char]
+lemma = filter isDigit []
+```
+
+Both will fail because `GHC.List.filter` was not reflected in the first place, nor was `isDigit`. To overcome the problem,
+you can assume the reflection of both functions by defining a *pretended* function that should behave in the same way
+as the actual function. Therein lies the assumption: if both functions don't actually behave in the same way, then you
+may introduce falsity in your logic. Thus, you have to use it with caution, only when the function wasn't already reflected,
+and when you actually know how it will behave. In the following snippet, `myfilter` is the pretended function whose definition
+is given in our module, and the actual function `GHC.List.filter` and `myfilter` and tied through 
+the `{-@ assume reflect filter as myfilter @-}` annotation. This annotation must be read as: "reflect `filter`, assuming it has the 
+same reflection as `myfilter`".
+
+```Haskell
+-- Reflect filter
+{-@ reflect myfilter @-}
+{-@ myfilter :: (a -> Bool) -> xs:[a] -> {v:[a] | len xs >= len v} @-}
+myfilter :: (a -> Bool) -> [a] -> [a]
+myfilter _pred []	= []
+myfilter pred (x:xs)
+  | pred x     	= x : myfilter pred xs
+  | otherwise  	= myfilter pred xs
+
+{-@ assume reflect filter as myfilter @-}
+
+-- Reflect isDigit
+
+{-@ reflect myIsDigit @-}
+myIsDigit :: Char -> Bool
+myIsDigit x = '0' <= x && x <= '9'
+
+{-@ assume reflect isDigit as myIsDigit @-}
+```
+
 ## Fast Checking
 
 **Options:** `fast`, `nopolyinfer`

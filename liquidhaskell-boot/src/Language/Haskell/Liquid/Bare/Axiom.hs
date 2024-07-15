@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
@@ -7,7 +8,7 @@
 -- | This module contains the code that DOES reflection; i.e. converts Haskell
 --   definitions into refinements.
 
-module Language.Haskell.Liquid.Bare.Axiom ( makeHaskellAxioms, wiredReflects ) where
+module Language.Haskell.Liquid.Bare.Axiom ( makeHaskellAxioms, makeAssumeReflectAxioms, wiredReflects ) where
 
 import Prelude hiding (error)
 import Prelude hiding (mapM)
@@ -32,6 +33,27 @@ import           Language.Haskell.Liquid.Types
 
 import           Language.Haskell.Liquid.Bare.Resolve as Bare
 import           Language.Haskell.Liquid.Bare.Types   as Bare
+import qualified Data.List as L
+import Language.Haskell.Liquid.Misc (fst4)
+import Control.Applicative
+import Data.Function (on)
+import qualified Data.Map as Map
+
+findDuplicatePair :: Ord k => (a -> k) -> [a] -> Maybe (a, a)
+findDuplicatePair key xs =
+  Mb.listToMaybe
+    [ (a, b)
+    | a:b:_ <- L.groupBy ((==) `on` key) (L.sortOn key xs)
+    ]
+
+findDuplicateBetweenLists :: (Ord k) => (a -> k) -> [a] -> [a] -> Maybe (a, a)
+findDuplicateBetweenLists key l1 l2 =
+  findDuplicate key (Map.fromList [ (key x, x) | x <- l1 ]) l2
+  where
+    findDuplicate :: Ord k => (a -> k) -> Map.Map k a -> [a] -> Maybe (a, a)
+    findDuplicate key seen l2 =
+      Mb.listToMaybe
+      [ (x, y) | x <- l2, Just y <- [Map.lookup (key x) seen]]
 
 -----------------------------------------------------------------------------------------------
 makeHaskellAxioms :: Config -> GhcSrc -> Bare.Env -> Bare.TycEnv -> ModName -> LogicMap -> GhcSpecSig -> Ms.BareSpec
@@ -41,6 +63,98 @@ makeHaskellAxioms cfg src env tycEnv name lmap spSig spec = do
   wiDefs     <- wiredDefs cfg env name spSig
   let refDefs = getReflectDefs src spSig spec
   return (makeAxiom env tycEnv name lmap <$> (wiDefs ++ refDefs))
+
+-----------------------------------------------------------------------------------------------
+--          Returns a list of elements, one per assume reflect                               --
+-- Each element is made of:                                                                  --
+-- * The variable name of the actual function                                                --
+-- * The refined type of actual function, where the post-condition is strengthened with      --
+--   ``VV == pretendedFn arg1 arg2 ...`                                                      --
+-- * The assume reflect equation, linking the pretended and actual function:                 --
+--   `actualFn arg1 arg 2 ... = pretendedFn arg1 arg2 ...`                                   --
+makeAssumeReflectAxioms :: GhcSrc -> Bare.Env -> Bare.TycEnv -> ModName -> GhcSpecSig -> Ms.BareSpec
+                  -> Bare.Lookup [(Ghc.Var, LocSpecType, F.Equation)]
+-----------------------------------------------------------------------------------------------
+makeAssumeReflectAxioms src env tycEnv name spSig spec = do
+  -- Send an error message if we're redefining a reflection
+  case findDuplicatePair val reflActSymbols <|> findDuplicateBetweenLists val refSymbols reflActSymbols of
+    Just (x , y) -> Ex.throw $ mkError y $ "Duplicate reflection of " ++ show x ++ " and " ++ show y
+    Nothing -> return $ makeAssumeReflectAxiom spSig env embs name <$> Ms.asmReflectSigs spec
+  where
+    refDefs                 = getReflectDefs src spSig spec
+    embs                    = Bare.tcEmbs       tycEnv
+    refSymbols              = fst4 <$> refDefs
+    reflActSymbols          = fst <$> Ms.asmReflectSigs spec
+
+-----------------------------------------------------------------------------------------------
+-- Processes one `assume reflect` and returns its axiom element, as detailed in              --
+-- `makeAssumeReflectAxioms`                                                                 --
+makeAssumeReflectAxiom :: GhcSpecSig -> Bare.Env -> F.TCEmb Ghc.TyCon -> ModName
+                       -> (LocSymbol, LocSymbol) -- actual function and pretended function
+                       -> (Ghc.Var, LocSpecType, F.Equation)
+-----------------------------------------------------------------------------------------------
+makeAssumeReflectAxiom sig env tce name (actual, pretended) =
+  -- The actual and pretended function must have the same type
+  if pretendedTy == actualTy then
+    (actualV, actual {val = aty_at `strengthenRes` F.subst su ref} , actualEq)
+  else
+    Ex.throw $ mkError actual $
+      show qPretended ++ " and " ++ show qActual ++ " should have the same type. But " ++
+      "types " ++ F.showpp pretendedTy ++ " and " ++ F.showpp actualTy  ++ " do not match."
+  where
+    -- Get the Ghc.Var's of the actual and pretended function names
+    actualV = case Bare.lookupGhcVar env name "wiredAxioms" actual of
+      Right x -> x
+      Left _ -> Ex.throw $ mkError actual $ "Not in scope: " ++ show (val actual)
+    pretendedV = case Bare.lookupGhcVar env name "wiredAxioms" pretended of
+      Right x -> x
+      Left _ -> Ex.throw $ mkError pretended $ "Not in scope: " ++ show (val pretended)
+    -- Get the qualified name symbols for the actual and pretended functions
+    qActual = Bare.qualifyTop env name (F.loc actual) (val actual)
+    qPretended = Bare.qualifyTop env name (F.loc pretended) (val pretended)
+    -- Get the GHC type of the actual and pretended functions
+    actualTy = Ghc.varType actualV
+    pretendedTy = Ghc.varType pretendedV
+    -- Compute argument names for the actual/pretended functions
+    -- The argument names are lq1, lq2, etc.
+    -- These argument names will be used in the equation
+    args = getArgs 1 actualTy
+    -- Function types can be of multiple sorts. We are only interested in the Type -> Type (i.e., ->) ones,
+    -- which correspond to flag Ghc.FTF_T_T. For (=>) Constraint -> Type (flag FTF_C_T), we just ignore the
+    -- (constraint) argument. For the others kinds, we throw are error, as they are unsupported.
+    getArgs n Ghc.FunTy{ft_arg=ty0, ft_res=ty1, ft_af=Ghc.FTF_T_T} = (F.symbol . ("lq" ++) . show $ n, typeSort tce ty0) : getArgs (n+1) ty1
+    getArgs n Ghc.FunTy{ft_res=ty1, ft_af=Ghc.FTF_C_T} = getArgs n ty1
+    getArgs _ Ghc.FunTy{} = Ex.throw $ mkError actual "This function cannot be `assume reflect`'ed. Its signature is too complex for me."
+    getArgs n (Ghc.ForAllTy _ ty) = getArgs n ty
+    getArgs _ _ = []
+
+    -- Compute the refined type of the actual function. See `makeAssumeType` for details
+    sigs                    = gsTySigs sig ++ gsAsmSigs sig -- We also look into assumed signatures
+    -- Try to get the specification of the actual function from the signatures
+    mbT   = val <$> lookup actualV sigs
+    -- Refines that spec. If the specification is not in the scope, just use the GHC type as a dummy spec
+    -- to proceed with.
+    rt    = fromRTypeRep .
+            (\trep@RTypeRep{..} ->
+                trep{ty_info = fmap (\i -> i{permitTC = Just allowTC}) ty_info}) .
+            toRTypeRep $ Mb.fromMaybe (ofType actualTy) mbT
+    -- Decompose the function type into arguments and return types
+    at    = axiomType allowTC actual rt
+    aty_at = aty at
+    -- The return type of the function
+    out   = rTypeSort tce $ ares at
+    -- The arguments names and types, as given by `AxiomType`
+    xArgs = F.EVar . fst <$> aargs at
+    allowTC = typeclass (getConfig env)
+    -- Expression of the equation. It is just saying that the actual and pretended functions are the same
+    -- when applied to the same arguments
+    le    = foldl F.EApp (F.EVar qPretended) (F.EVar . fst <$> args)
+    ref   = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) le)
+    -- Substitute our argument names with the actual arguments given from `xArgs`
+    -- in the final, refined type
+    su         = F.mkSubst $ zip (fst <$> args) xArgs
+
+    actualEq = F.mkEquation qActual args le out
 
 getReflectDefs :: GhcSrc -> GhcSpecSig -> Ms.BareSpec
                -> [(LocSymbol, Maybe SpecType, Ghc.Var, Ghc.CoreExpr)]
@@ -58,7 +172,7 @@ findVarDefType cbs sigs x = case findVarDefMethod (val x) cbs of
   Just (v, e) -> if GM.isExternalId v || isMethod (F.symbol x) || isDictionary (F.symbol x)
                    then (x, val <$> lookup v sigs, v, e)
                    else Ex.throw $ mkError x ("Lifted functions must be exported; please export " ++ show v)
-  Nothing     -> Ex.throw $ mkError x "Cannot lift haskell function"
+  Nothing     -> Ex.throw $ mkError x $ show (val x) ++ " is not in scope"
 
 --------------------------------------------------------------------------------
 makeAxiom :: Bare.Env -> Bare.TycEnv -> ModName -> LogicMap

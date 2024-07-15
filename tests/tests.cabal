@@ -2147,7 +2147,12 @@ executable basic-neg
       buildable:      False
 
     other-modules:
-                      Inc01
+                      AssmRefl01
+                    , AssmRefl02
+                    , AssmRefl03
+                    , AssmRefl04
+                    , DuplicateSpecs
+                    , Inc01
                     , Inc01q
                     , Inc02
                     , Inc03
@@ -2185,6 +2190,13 @@ executable basic-pos
                     , Alias03
                     , Alias04
                     , Alias05
+                    , AssmRefl01
+                    , AssmRefl02A
+                    , AssmRefl02B
+                    , AssmRefl02C
+                    , AssmRefl02D
+                    , AssmRefl03
+                    , AssmReflFilter
                     , Float
                     , Inc00
                     , Inc01

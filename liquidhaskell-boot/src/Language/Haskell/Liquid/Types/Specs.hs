@@ -232,6 +232,7 @@ data GhcSpecQual = SpQual
 data GhcSpecSig = SpSig
   { gsTySigs   :: ![(Var, LocSpecType)]           -- ^ Asserted Reftypes
   , gsAsmSigs  :: ![(Var, LocSpecType)]           -- ^ Assumed Reftypes
+  , gsAsmReflects  :: ![(Var, Var)]               -- ^ Assumed Reftypes (left is the actual function name and right the pretended one)
   , gsRefSigs  :: ![(Var, LocSpecType)]           -- ^ Reflected Reftypes
   , gsInSigs   :: ![(Var, LocSpecType)]           -- ^ Auto generated Signatures
   , gsNewTypes :: ![(TyCon, LocSpecType)]         -- ^ Mapping of 'newtype' type constructors with their refined types.
@@ -247,6 +248,7 @@ instance Semigroup GhcSpecSig where
   x <> y = SpSig
     { gsTySigs   = gsTySigs x   <> gsTySigs y
     , gsAsmSigs  = gsAsmSigs x  <> gsAsmSigs y
+    , gsAsmReflects = gsAsmReflects x <> gsAsmReflects y
     , gsRefSigs  = gsRefSigs x  <> gsRefSigs y
     , gsInSigs   = gsInSigs x   <> gsInSigs y
     , gsNewTypes = gsNewTypes x <> gsNewTypes y
@@ -264,7 +266,7 @@ instance Semigroup GhcSpecSig where
 
 
 instance Monoid GhcSpecSig where
-  mempty = SpSig mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty
+  mempty = SpSig mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty
 
 data GhcSpecData = SpData
   { gsCtors      :: ![(Var, LocSpecType)]         -- ^ Data Constructor Measure Sigs
@@ -391,6 +393,7 @@ data Spec ty bndr  = Spec
   , impSigs    :: ![(F.Symbol, F.Sort)]                               -- ^ Imported variables types
   , expSigs    :: ![(F.Symbol, F.Sort)]                               -- ^ Exported variables types
   , asmSigs    :: ![(F.LocSymbol, ty)]                                -- ^ Assumed (unchecked) types; including reflected signatures
+  , asmReflectSigs :: ![(F.LocSymbol, F.LocSymbol)]                   -- ^ Assume reflects : left is the actual function and right the pretended one
   , sigs       :: ![(F.LocSymbol, ty)]                                -- ^ Imported functions and types
   , localSigs  :: ![(F.LocSymbol, ty)]                                -- ^ Local type signatures
   , reflSigs   :: ![(F.LocSymbol, ty)]                                -- ^ Reflected type signatures
@@ -451,6 +454,7 @@ instance Semigroup (Spec ty bndr) where
            , impSigs    =           impSigs    s1 ++ impSigs    s2
            , expSigs    =           expSigs    s1 ++ expSigs    s2
            , asmSigs    =           asmSigs    s1 ++ asmSigs    s2
+           , asmReflectSigs    =    asmReflectSigs s1 ++ asmReflectSigs s2
            , sigs       =           sigs       s1 ++ sigs       s2
            , localSigs  =           localSigs  s1 ++ localSigs  s2
            , reflSigs   =           reflSigs   s1 ++ reflSigs   s2
@@ -500,6 +504,7 @@ instance Monoid (Spec ty bndr) where
            , impSigs    = []
            , expSigs    = []
            , asmSigs    = []
+           , asmReflectSigs = []
            , sigs       = []
            , localSigs  = []
            , reflSigs   = []
@@ -575,6 +580,8 @@ data LiftedSpec = LiftedSpec
     -- ^ Exported variables types
   , liftedAsmSigs    :: HashSet (F.LocSymbol, LocBareType)
     -- ^ Assumed (unchecked) types; including reflected signatures
+  , liftedAsmReflectSigs    :: HashSet (F.LocSymbol, F.LocSymbol)
+    -- ^ Reflected assumed signatures
   , liftedSigs       :: HashSet (F.LocSymbol, LocBareType)
     -- ^ Imported functions and types
   , liftedInvariants :: HashSet (Maybe F.LocSymbol, LocBareType)
@@ -632,6 +639,7 @@ emptyLiftedSpec = LiftedSpec
   , liftedImpSigs  = mempty
   , liftedExpSigs  = mempty
   , liftedAsmSigs  = mempty
+  , liftedAsmReflectSigs  = mempty
   , liftedSigs     = mempty
   , liftedInvariants = mempty
   , liftedIaliases   = mempty
@@ -810,6 +818,7 @@ toLiftedSpec a = LiftedSpec
   , liftedImpSigs    = S.fromList . impSigs  $ a
   , liftedExpSigs    = S.fromList . expSigs  $ a
   , liftedAsmSigs    = S.fromList . asmSigs  $ a
+  , liftedAsmReflectSigs = S.fromList . asmReflectSigs  $ a
   , liftedSigs       = S.fromList . sigs     $ a
   , liftedInvariants = S.fromList . invariants $ a
   , liftedIaliases   = S.fromList . ialiases $ a
@@ -844,6 +853,7 @@ unsafeFromLiftedSpec a = Spec
   , impSigs    = S.toList . liftedImpSigs $ a
   , expSigs    = S.toList . liftedExpSigs $ a
   , asmSigs    = S.toList . liftedAsmSigs $ a
+  , asmReflectSigs = S.toList . liftedAsmReflectSigs $ a
   , sigs       = S.toList . liftedSigs $ a
   , localSigs  = mempty
   , reflSigs   = mempty
