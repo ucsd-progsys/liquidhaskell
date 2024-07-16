@@ -33,6 +33,24 @@ import           Language.Haskell.Liquid.Types
 
 import           Language.Haskell.Liquid.Bare.Resolve as Bare
 import           Language.Haskell.Liquid.Bare.Types   as Bare
+import qualified Data.Set as Set
+import Language.Haskell.Liquid.Misc (fst4)
+import Control.Applicative
+
+-- Generalized function to find duplicates
+findDuplicate :: (Ord a) => Set.Set a -> [a] -> Maybe (a, a)
+findDuplicate _ [] = Nothing
+findDuplicate seen (x:xs)
+  | Just y <- Set.lookupLE x seen, y == x = Just (y, x)
+  | otherwise                             = findDuplicate (Set.insert x seen) xs
+
+-- Find duplicates within a single list
+findDuplicatePair :: (Ord a) => [a] -> Maybe (a, a)
+findDuplicatePair = findDuplicate Set.empty
+
+-- Find duplicates between two lists
+findDuplicateBetweenLists :: (Ord a) => [a] -> [a] -> Maybe (a, a)
+findDuplicateBetweenLists l1 l2 = findDuplicate (Set.fromList l1) l2
 
 -----------------------------------------------------------------------------------------------
 makeHaskellAxioms :: Config -> GhcSrc -> Bare.Env -> Bare.TycEnv -> ModName -> LogicMap -> GhcSpecSig -> Ms.BareSpec
@@ -40,16 +58,20 @@ makeHaskellAxioms :: Config -> GhcSrc -> Bare.Env -> Bare.TycEnv -> ModName -> L
 -----------------------------------------------------------------------------------------------
 makeHaskellAxioms cfg src env tycEnv name lmap spSig spec = do
   wiDefs     <- wiredDefs cfg env name spSig
-  let refDefs = getReflectDefs src spSig spec
   -- Get the reflect equations of the from symbols (e.g. `myfilter`)
   let newReflDefs = makeAxiom env tycEnv name lmap . findVarDefType cbs sigs <$> reflFromSymbols
   let asmReflectDefs = makeAssumeReflectAxiom env name `concatMap` zip3 newReflDefs reflFromSymbols reflToSymbols
-  return $ (makeAxiom env tycEnv name lmap <$> wiDefs ++ refDefs) ++ asmReflectDefs
+  -- Send an error message if we're redefining a reflection
+  case findDuplicatePair reflToSymbols <|> findDuplicateBetweenLists refSymbols reflToSymbols of
+    Just (x , y) -> Ex.throw $ mkError y $ "Duplicate reflection of " ++ show x ++ " and " ++ show y
+    Nothing -> return $ (makeAxiom env tycEnv name lmap <$> wiDefs ++ refDefs) ++ asmReflectDefs
   where
+    refDefs                 = getReflectDefs src spSig spec
     sigs                    = gsTySigs spSig
     cbs                     = _giCbs src
     reflFromSymbols         = fst <$> Ms.asmReflectSigs spec
     reflToSymbols           = snd <$> Ms.asmReflectSigs spec
+    refSymbols = fst4 <$> refDefs
 
 makeAssumeReflectAxiom :: Bare.Env -> ModName
                        -> ((Ghc.Var, LocSpecType, F.Equation), LocSymbol, LocSymbol)
