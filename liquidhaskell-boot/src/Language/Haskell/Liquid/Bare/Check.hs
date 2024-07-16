@@ -9,6 +9,7 @@ module Language.Haskell.Liquid.Bare.Check
   ( checkTargetSpec
   , checkBareSpec
   , checkTargetSrc
+  , tyCompat
   ) where
 
 

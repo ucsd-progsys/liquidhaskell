@@ -4,10 +4,15 @@
 
 module Inc00 where
 
-{-@ assume reflect myeven as even @-}
-myeven :: Int -> Bool 
-myeven n = n `mod` 2 == 0
+{-@ measure GHC.Num.fromInteger :: Integer -> a @-}
 
-{-@ test :: { not (even 5) } @-} 
+foobar :: Int -> Bool 
+foobar n = n `mod` 2 == 0
+
+{-@ assume reflect myfoobar as foobar @-}
+myfoobar :: Bool -> Bool 
+myfoobar _ = 5 `mod` 2 == 0
+
+{-@ test :: { not (foobar 5) } @-} 
 test :: ()
 test = ()
