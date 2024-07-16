@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
@@ -32,7 +33,6 @@ import           Language.Haskell.Liquid.Types
 
 import           Language.Haskell.Liquid.Bare.Resolve as Bare
 import           Language.Haskell.Liquid.Bare.Types   as Bare
-import           Language.Haskell.Liquid.Bare.Check as Bare
 
 -----------------------------------------------------------------------------------------------
 makeHaskellAxioms :: Config -> GhcSrc -> Bare.Env -> Bare.TycEnv -> ModName -> LogicMap -> GhcSpecSig -> Ms.BareSpec
@@ -43,7 +43,7 @@ makeHaskellAxioms cfg src env tycEnv name lmap spSig spec = do
   let refDefs = getReflectDefs src spSig spec
   -- Get the reflect equations of the from symbols (e.g. `myfilter`)
   let newReflDefs = makeAxiom env tycEnv name lmap . findVarDefType cbs sigs <$> reflFromSymbols
-  let asmReflectDefs = makeAssumeReflectAxiom env tycEnv name lmap src spSig `concatMap` zip3 newReflDefs reflFromSymbols reflToSymbols
+  let asmReflectDefs = makeAssumeReflectAxiom env name `concatMap` zip3 newReflDefs reflFromSymbols reflToSymbols
   return $ (makeAxiom env tycEnv name lmap <$> wiDefs ++ refDefs) ++ asmReflectDefs
   where
     sigs                    = gsTySigs spSig
@@ -51,24 +51,24 @@ makeHaskellAxioms cfg src env tycEnv name lmap spSig spec = do
     reflFromSymbols         = fst <$> Ms.asmReflectSigs spec
     reflToSymbols           = snd <$> Ms.asmReflectSigs spec
 
-makeAssumeReflectAxiom :: Bare.Env -> Bare.TycEnv -> ModName -> LogicMap -> GhcSrc -> GhcSpecSig
+makeAssumeReflectAxiom :: Bare.Env -> ModName
                        -> ((Ghc.Var, LocSpecType, F.Equation), LocSymbol, LocSymbol)
                        -> [(Ghc.Var, LocSpecType, F.Equation)]
-makeAssumeReflectAxiom env tycEnv name lmap src sig ((x, lt, e), old, new) = if compat then [
+makeAssumeReflectAxiom env name ((x, lt, e), old, new) = if oldTy == newTy then [
     (x, lt, e), -- Original equation
     (newV, lt, newEq) -- Equation mapping from the old function definition into the newly defined one (e.g. `filter e1 e2 ... = myfilter e1 e2 ...`)
   ] else
-    Ex.throw $ mkError new $ show qOld ++ " and " ++ show qNew ++ " should have the same type"
+    Ex.throw $ mkError new $
+      show qOld ++ " and " ++ show qNew ++ " should have the same type. But " ++
+      "types " ++ F.showpp oldTy ++ " and " ++ F.showpp newTy  ++ " do not match."
   where
-    cbs                     = _giCbs src
-    sigs                    = gsTySigs sig
     newV = case Bare.lookupGhcVar env name "wiredAxioms" new of
       Right x -> x
       Left _ -> Ex.throw $ mkError new "Could not find this"
     qOld = Bare.qualifyTop env name (F.loc old) (val old)
     qNew = Bare.qualifyTop env name (F.loc new) (val new)
-    compat = Bare.tyCompat newV (val lt)
-    osym = F.eqName e
+    oldTy :: RSort = toRSort (val lt)
+    newTy :: RSort = ofType (Ghc.varType newV)
     args = F.eqArgs e
     newEq = F.mkEquation qNew args (foldl F.EApp (F.EVar qOld) (F.EVar . fst <$> args)) (F.eqSort e)
 
