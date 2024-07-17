@@ -86,7 +86,7 @@ makeAssumeReflectAxiom env name ((x, lt, e), old, new) = if oldTy == newTy then 
   where
     newV = case Bare.lookupGhcVar env name "wiredAxioms" new of
       Right x -> x
-      Left _ -> Ex.throw $ mkError new "Could not find this"
+      Left _ -> Ex.throw $ mkError new $ "Not in scope: " ++ show (val new)
     qOld = Bare.qualifyTop env name (F.loc old) (val old)
     qNew = Bare.qualifyTop env name (F.loc new) (val new)
     oldTy :: RSort = toRSort (val lt)
