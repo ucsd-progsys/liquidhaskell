@@ -62,6 +62,7 @@ import qualified Language.Haskell.Liquid.Transforms.CoreToLogic as CoreToLogic
 import           Control.Arrow                    (second)
 import Data.Hashable (Hashable)
 import qualified Language.Haskell.Liquid.Bare.Slice as Dg
+import Data.Bifunctor (bimap)
 
 --------------------------------------------------------------------------------
 -- | De/Serializing Spec files
@@ -281,6 +282,7 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
                   -- Preserve user-defined 'dvariance'.
                 , rinstance = Ms.rinstance finalLiftedSpec ++ Ms.rinstance mySpec
                   -- Preserve rinstances.
+                , asmReflectSigs = Ms.asmReflectSigs mySpec
                 }
     })
   where
@@ -373,7 +375,9 @@ makeTyConEmbeds env (name, spec)
 makeLiftedSpec1 :: Config -> GhcSrc -> Bare.TycEnv -> LogicMap -> Ms.BareSpec
                 -> Ms.BareSpec
 makeLiftedSpec1 config src tycEnv lmap mySpec = mempty
-  { Ms.measures  = Bare.makeHaskellMeasures (typeclass config) src tycEnv lmap mySpec }
+  { Ms.measures  = traceShow "other measures" $ Bare.makeHaskellMeasures (typeclass config) src tycEnv lmap mySpec
+    -- , Ms.asmReflectSigs = traceShow "asmReflectSigs" $ asmReflectSigs mySpec
+  }
 
 --------------------------------------------------------------------------------
 -- | [NOTE]: LIFTING-STAGES
@@ -647,6 +651,8 @@ makeSpecRefl cfg src menv specs env name sig tycEnv = do
   rwrWith  <- makeRewriteWith env name mySpec
   wRefls   <- Bare.wiredReflects cfg env name sig
   xtes     <- Bare.makeHaskellAxioms cfg src env tycEnv name lmap sig mySpec
+  asmReflAxioms <- Bare.makeAssumeReflectAxioms cfg src env tycEnv name lmap sig mySpec
+  let (types, otherAxioms) = unzip asmReflAxioms
   let myAxioms =
         [ Bare.qualifyTop
             env
@@ -655,26 +661,36 @@ makeSpecRefl cfg src menv specs env name sig tycEnv = do
             e {eqName = s, eqRec = S.member s (exprSymbolsSet (eqBody e))}
         | (x, lt, e) <- xtes
         , let s = symbol x
-        ]
+        ] ++ otherAxioms
+  let asmReflEls = eqName <$> otherAxioms
+  let impAxioms  = concatMap (filter ((`notElem` asmReflEls) . eqName) . Ms.axeqs . snd) (M.toList specs)
   let sigVars  = F.notracepp "SIGVARS" $ (fst3 <$> xtes)            -- reflects
                                       ++ (fst  <$> gsAsmSigs sig)   -- assumes
                                       ++ (fst  <$> gsRefSigs sig)
-  return SpRefl
-    { gsLogicMap   = lmap
-    , gsAutoInst   = autoInst
-    , gsImpAxioms  = concatMap (Ms.axeqs . snd) (M.toList specs)
-    , gsMyAxioms   = F.notracepp "gsMyAxioms" myAxioms
-    , gsReflects   = F.notracepp "gsReflects" (lawMethods ++ filter (isReflectVar rflSyms) sigVars ++ wRefls)
-    , gsHAxioms    = F.notracepp "gsHAxioms" xtes
-    , gsWiredReft  = wRefls
-    , gsRewrites   = rwr
-    , gsRewritesWith = rwrWith
-    }
+  case anyNonReflFn of
+    Just (oSym , nSym) ->
+      let oSym' = show (val oSym) in
+      let errorMsg = oSym' ++ " must be reflected first using {@- reflect " ++ oSym' ++ " @-}" in
+      let error = ErrHMeas (GM.sourcePosSrcSpan $ loc nSym) (pprint $ val nSym) (text errorMsg) :: Error
+      in Ex.throw error
+    Nothing -> return SpRefl
+      { gsLogicMap   = lmap
+      , gsAutoInst   = autoInst
+      , gsImpAxioms  = traceShow "importedImpAxioms" impAxioms
+      , gsMyAxioms   = traceShow "myAxioms" myAxioms
+      , gsReflects   = traceShow "gsReflects" (lawMethods ++ filter (isReflectVar rflSyms) sigVars ++ (snd <$> gsAsmReflects sig) ++ wRefls)
+      , gsHAxioms    = F.notracepp "gsHAxioms" xtes
+      , gsWiredReft  = traceShow "wiredReft" wRefls
+      , gsRewrites   = rwr
+      , gsRewritesWith = rwrWith
+      }
   where
     lawMethods   = F.notracepp "Law Methods" $ concatMap Ghc.classMethods (fst <$> Bare.meCLaws menv)
     mySpec       = M.lookupDefault mempty name specs
     rflSyms      = S.fromList (getReflects specs)
     lmap         = Bare.reLMap env
+    notInReflOnes (a, _) = not $ a `S.member` Ms.reflects mySpec
+    anyNonReflFn = L.find notInReflOnes (Ms.asmReflectSigs mySpec)
 
 isReflectVar :: S.HashSet F.Symbol -> Ghc.Var -> Bool
 isReflectVar reflSyms v = S.member vx reflSyms
@@ -743,7 +759,7 @@ makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = do
   return SpSig
     { gsTySigs   = tySigs
     , gsAsmSigs  = asmSigs
-    , gsAsmReflects  = []
+    , gsAsmReflects = bimap getVar getVar <$> concatMap (asmReflectSigs . snd) (M.toList specs)
     , gsRefSigs  = []
     , gsDicts    = dicts
     -- , gsMethods  = if noclasscheck cfg then [] else Bare.makeMethodTypes dicts (Bare.meClasses  measEnv) cbs
@@ -759,6 +775,12 @@ makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = do
     mySpec     = M.lookupDefault mempty name specs
     allSpecs   = M.toList specs
     rtEnv      = Bare.sigRTEnv sigEnv
+    getVar sym = case Bare.lookupGhcVar env name "wiredAxioms" sym of
+      Right x -> x
+      Left _ -> Ex.throw $ mkError sym $ "Not in scope: " ++ show (val sym)
+
+    mkError :: LocSymbol -> String -> Error
+    mkError x str = ErrHMeas (GM.sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
     -- hmeas      = makeHMeas    env allSpecs
 
 strengthenSigs :: [(Ghc.Var, (Int, LocSpecType))] ->[(Ghc.Var, LocSpecType)]
