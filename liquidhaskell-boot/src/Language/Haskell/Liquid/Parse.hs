@@ -901,7 +901,7 @@ ppPspec k (Meas m)
 ppPspec k (Assm (lx, t))
   = "assume"  <+> pprintTidy k (val lx) <+> "::" <+> pprintTidy k t
 ppPspec k (AssmReflect (lx, ly))
-  = "assume"  <+> pprintTidy k (val lx) <+> "reflects" <+> pprintTidy k (val ly)
+  = "assume reflect"  <+> pprintTidy k (val lx) <+> "as" <+> pprintTidy k (val ly)
 ppPspec k (Asrt (lx, t))
   = "assert"  <+> pprintTidy k (val lx) <+> "::" <+> pprintTidy k t
 ppPspec k (LAsrt (lx, t))
