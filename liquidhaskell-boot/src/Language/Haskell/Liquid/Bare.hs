@@ -376,7 +376,6 @@ makeLiftedSpec1 :: Config -> GhcSrc -> Bare.TycEnv -> LogicMap -> Ms.BareSpec
                 -> Ms.BareSpec
 makeLiftedSpec1 config src tycEnv lmap mySpec = mempty
   { Ms.measures  = traceShow "other measures" $ Bare.makeHaskellMeasures (typeclass config) src tycEnv lmap mySpec
-    -- , Ms.asmReflectSigs = traceShow "asmReflectSigs" $ asmReflectSigs mySpec
   }
 
 --------------------------------------------------------------------------------
@@ -668,7 +667,7 @@ makeSpecRefl cfg src menv specs env name sig tycEnv = do
                                       ++ (fst  <$> gsAsmSigs sig)   -- assumes
                                       ++ (fst  <$> gsRefSigs sig)
   case anyNonReflFn of
-    Just (oSym , nSym) ->
+    Just (nSym , oSym) ->
       let oSym' = show (val oSym) in
       let errorMsg = oSym' ++ " must be reflected first using {@- reflect " ++ oSym' ++ " @-}" in
       let error = ErrHMeas (GM.sourcePosSrcSpan $ loc nSym) (pprint $ val nSym) (text errorMsg) :: Error
@@ -678,7 +677,7 @@ makeSpecRefl cfg src menv specs env name sig tycEnv = do
       , gsAutoInst   = autoInst
       , gsImpAxioms  = traceShow "importedImpAxioms" impAxioms
       , gsMyAxioms   = traceShow "myAxioms" myAxioms
-      , gsReflects   = traceShow "gsReflects" (lawMethods ++ filter (isReflectVar rflSyms) sigVars ++ (snd <$> gsAsmReflects sig) ++ wRefls)
+      , gsReflects   = traceShow "gsReflects" (lawMethods ++ filter (isReflectVar rflSyms) sigVars ++ (fst <$> gsAsmReflects sig) ++ wRefls)
       , gsHAxioms    = F.notracepp "gsHAxioms" $ xtes ++ asmReflAxioms
       , gsWiredReft  = traceShow "wiredReft" wRefls
       , gsRewrites   = rwr
@@ -689,7 +688,7 @@ makeSpecRefl cfg src menv specs env name sig tycEnv = do
     mySpec       = M.lookupDefault mempty name specs
     rflSyms      = S.fromList (getReflects specs)
     lmap         = Bare.reLMap env
-    notInReflOnes (a, _) = not $ a `S.member` Ms.reflects mySpec
+    notInReflOnes (_, a) = not $ a `S.member` Ms.reflects mySpec
     anyNonReflFn = L.find notInReflOnes (Ms.asmReflectSigs mySpec)
 
 isReflectVar :: S.HashSet F.Symbol -> Ghc.Var -> Bool
@@ -700,7 +699,7 @@ isReflectVar reflSyms v = S.member vx reflSyms
 getReflects :: Bare.ModSpecs -> [Symbol]
 getReflects  = fmap val . S.toList . S.unions . fmap (names . snd) . M.toList
   where
-    names  z = S.unions [ Ms.reflects z, S.fromList (fst <$> Ms.asmReflectSigs z), S.fromList (snd <$> Ms.asmReflectSigs z), Ms.inlines z, Ms.hmeas z ]
+    names  z = S.unions [ Ms.reflects z, S.fromList (snd <$> Ms.asmReflectSigs z), S.fromList (fst <$> Ms.asmReflectSigs z), Ms.inlines z, Ms.hmeas z ]
 
 ------------------------------------------------------------------------------------------
 -- | @updateReflSpecSig@ uses the information about reflected functions to update the

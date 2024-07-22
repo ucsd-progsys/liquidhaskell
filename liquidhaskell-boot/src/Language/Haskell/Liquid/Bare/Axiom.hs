@@ -75,14 +75,14 @@ makeAssumeReflectAxioms cfg src env tycEnv name lmap spSig spec = do
     embs                    = Bare.tcEmbs       tycEnv
     refSymbols              = traceShow "refSymbols" $ fst4 <$> refDefs
     -- reflFromSymbols         = traceShow "reflFromSymbols" $ fst <$> Ms.asmReflectSigs spec
-    reflToSymbols           = traceShow "reflToSymbols" $ snd <$> traceShow "asmReflSymbols2" (Ms.asmReflectSigs spec)
+    reflToSymbols           = traceShow "reflToSymbols" $ fst <$> traceShow "asmReflSymbols2" (Ms.asmReflectSigs spec)
 
 -----------------------------------------------------------------------------------------------
 makeAssumeReflectAxiom :: GhcSrc -> GhcSpecSig -> Bare.Env -> F.TCEmb Ghc.TyCon -> ModName
                        -> (LocSymbol, LocSymbol)
                        -> (Ghc.Var, LocSpecType, F.Equation)
 -----------------------------------------------------------------------------------------------
-makeAssumeReflectAxiom src sig env tce name (old, new) =
+makeAssumeReflectAxiom src sig env tce name (new, old) =
   if oldTy == newTy then
     (newV, new {val = rt} , newEq)
   else
