@@ -63,6 +63,7 @@ import           Control.Arrow                    (second)
 import Data.Hashable (Hashable)
 import qualified Language.Haskell.Liquid.Bare.Slice as Dg
 import Data.Bifunctor (bimap)
+import Data.Function (on)
 
 --------------------------------------------------------------------------------
 -- | De/Serializing Spec files
@@ -858,8 +859,8 @@ rawAsmSigs env myName specs = do
 myAsmSig :: Ghc.Var -> [(Bool, ModName, LocBareType)] -> (ModName, LocBareType)
 myAsmSig v sigs = Mb.fromMaybe errImp (mbHome `mplus` mbImp)
   where
-    mbHome      = takeUnique mkErr                  sigsHome
-    mbImp       = takeUnique mkErr (Misc.firstGroup sigsImp) -- see [NOTE:Prioritize-Home-Spec]
+    mbHome      = takeSmallest fst                  sigsHome
+    mbImp       = takeSmallest fst (Misc.firstGroup sigsImp) -- see [NOTE:Prioritize-Home-Spec]
     sigsHome    = [(m, t)      | (True,  m, t) <- sigs ]
     sigsImp     = F.notracepp ("SIGS-IMP: " ++ F.showpp v)
                   [(d, (m, t)) | (False, m, t) <- sigs, let d = nameDistance vName m]
@@ -914,10 +915,9 @@ nameDistance vName tName
   | otherwise               = 1
 
 
-takeUnique :: Ex.Exception e => ([a] -> e) -> [a] -> Maybe a
-takeUnique _ []  = Nothing
-takeUnique _ [x] = Just x
-takeUnique f xs  = Ex.throw (f xs)
+takeSmallest :: (Ord b) => (a -> b) -> [a] -> Maybe a
+takeSmallest _ []  = Nothing
+takeSmallest f xs  = Just $ L.minimumBy (compare `on` f) xs
 
 allAsmSigs :: Bare.Env -> ModName -> Bare.ModSpecs ->
               Bare.Lookup [(Ghc.Var, [(Bool, ModName, LocBareType)])]
