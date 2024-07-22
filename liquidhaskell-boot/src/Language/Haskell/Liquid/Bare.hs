@@ -670,7 +670,7 @@ makeSpecRefl cfg src menv specs env name sig tycEnv = do
   case anyNonReflFn of
     Just (nSym , oSym) ->
       let oSym' = show (val oSym) in
-      let errorMsg = oSym' ++ " must be reflected first using {@- reflect " ++ oSym' ++ " @-}" in
+      let errorMsg = oSym' ++ " must be reflected first using {-@ reflect " ++ oSym' ++ " @-}" in
       let error = ErrHMeas (GM.sourcePosSrcSpan $ loc nSym) (pprint $ val nSym) (text errorMsg) :: Error
       in Ex.throw error
     Nothing -> return SpRefl
