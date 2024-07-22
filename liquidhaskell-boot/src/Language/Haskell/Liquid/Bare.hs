@@ -652,7 +652,7 @@ makeSpecRefl cfg src menv specs env name sig tycEnv = do
   wRefls   <- Bare.wiredReflects cfg env name sig
   xtes     <- Bare.makeHaskellAxioms cfg src env tycEnv name lmap sig mySpec
   asmReflAxioms <- Bare.makeAssumeReflectAxioms cfg src env tycEnv name lmap sig mySpec
-  let (types, otherAxioms) = unzip asmReflAxioms
+  let otherAxioms = thd3 <$> asmReflAxioms
   let myAxioms =
         [ Bare.qualifyTop
             env
@@ -679,7 +679,7 @@ makeSpecRefl cfg src menv specs env name sig tycEnv = do
       , gsImpAxioms  = traceShow "importedImpAxioms" impAxioms
       , gsMyAxioms   = traceShow "myAxioms" myAxioms
       , gsReflects   = traceShow "gsReflects" (lawMethods ++ filter (isReflectVar rflSyms) sigVars ++ (snd <$> gsAsmReflects sig) ++ wRefls)
-      , gsHAxioms    = F.notracepp "gsHAxioms" xtes
+      , gsHAxioms    = F.notracepp "gsHAxioms" $ xtes ++ asmReflAxioms
       , gsWiredReft  = traceShow "wiredReft" wRefls
       , gsRewrites   = rwr
       , gsRewritesWith = rwrWith

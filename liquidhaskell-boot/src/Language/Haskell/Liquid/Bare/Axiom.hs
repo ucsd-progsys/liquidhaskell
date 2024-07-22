@@ -63,7 +63,7 @@ makeHaskellAxioms cfg src env tycEnv name lmap spSig spec = do
 
 -----------------------------------------------------------------------------------------------
 makeAssumeReflectAxioms :: Config -> GhcSrc -> Bare.Env -> Bare.TycEnv -> ModName -> LogicMap -> GhcSpecSig -> Ms.BareSpec
-                  -> Bare.Lookup [(LocSpecType, F.Equation)]
+                  -> Bare.Lookup [(Ghc.Var, LocSpecType, F.Equation)]
 -----------------------------------------------------------------------------------------------
 makeAssumeReflectAxioms cfg src env tycEnv name lmap spSig spec = do
   -- Send an error message if we're redefining a reflection
@@ -80,11 +80,11 @@ makeAssumeReflectAxioms cfg src env tycEnv name lmap spSig spec = do
 -----------------------------------------------------------------------------------------------
 makeAssumeReflectAxiom :: GhcSrc -> GhcSpecSig -> Bare.Env -> F.TCEmb Ghc.TyCon -> ModName
                        -> (LocSymbol, LocSymbol)
-                       -> (LocSpecType, F.Equation)
+                       -> (Ghc.Var, LocSpecType, F.Equation)
 -----------------------------------------------------------------------------------------------
 makeAssumeReflectAxiom src sig env tce name (old, new) =
   if oldTy == newTy then
-    (new {val = rt} , newEq)
+    (newV, new {val = rt} , newEq)
   else
     Ex.throw $ mkError new $
       show qOld ++ " and " ++ show qNew ++ " should have the same type. But " ++
@@ -107,9 +107,8 @@ makeAssumeReflectAxiom src sig env tce name (old, new) =
     getArgs n (Ghc.ForAllTy _ ty) = getArgs n ty
     getArgs _ _ = []
 
-    mbT   = snd4 $ findVarDefType cbs sigs new
+    mbT   = val <$> lookup newV sigs
     allowTC = typeclass (getConfig env)
-    cbs                     = _giCbs src
     sigs                    = gsTySigs sig
     rt    = fromRTypeRep .
             (\trep@RTypeRep{..} ->
