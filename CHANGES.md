@@ -2,6 +2,9 @@
 
 ## Next
 
+- Support for GHC 9.8.2.
+- Fixed the polymorphism-related crash in liquid-fixpoint caused by a restrictive theory encoding [#2272](https://github.com/ucsd-progsys/liquidhaskell/issues/2272).
+
 ## 0.9.8.1 (2024-02-05)
 
 - Set support for GHC 9.8.1 [#2248](https://github.com/ucsd-progsys/liquidhaskell/pull/2248)

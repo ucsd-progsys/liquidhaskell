@@ -633,7 +633,7 @@ checkMBody senv emb _ sort (Def m c _ bs body) = checkMBody' emb sort γ' sp bod
     keep | allowTC = not . isEmbeddedClass
          | otherwise = not . isClassType
     -- YL: extract permitTC information from sort
-    allowTC = or $ fmap (fromMaybe False . permitTC) (ty_info $ toRTypeRep sort)
+    allowTC = any (fromMaybe False . permitTC) (ty_info $ toRTypeRep sort)
     trep  = toRTypeRep ct
     su    = checkMBodyUnify (ty_res trep) (last txs)
     txs   = thd5 $ bkArrowDeep sort
