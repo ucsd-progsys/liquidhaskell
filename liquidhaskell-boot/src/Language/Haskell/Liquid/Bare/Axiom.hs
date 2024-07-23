@@ -34,7 +34,7 @@ import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Resolve as Bare
 import           Language.Haskell.Liquid.Bare.Types   as Bare
 import qualified Data.Set as Set
-import Language.Haskell.Liquid.Misc (fst4, snd4)
+import Language.Haskell.Liquid.Misc (fst4)
 import Control.Applicative
 
 -- Generalized function to find duplicates
@@ -62,73 +62,57 @@ makeHaskellAxioms cfg src env tycEnv name lmap spSig spec = do
   return (makeAxiom env tycEnv name lmap <$> (wiDefs ++ refDefs))
 
 -----------------------------------------------------------------------------------------------
-makeAssumeReflectAxioms :: Config -> GhcSrc -> Bare.Env -> Bare.TycEnv -> ModName -> LogicMap -> GhcSpecSig -> Ms.BareSpec
+makeAssumeReflectAxioms :: GhcSrc -> Bare.Env -> Bare.TycEnv -> ModName -> GhcSpecSig -> Ms.BareSpec
                   -> Bare.Lookup [(Ghc.Var, LocSpecType, F.Equation)]
 -----------------------------------------------------------------------------------------------
-makeAssumeReflectAxioms cfg src env tycEnv name lmap spSig spec = do
+makeAssumeReflectAxioms src env tycEnv name spSig spec = do
   -- Send an error message if we're redefining a reflection
-  case findDuplicatePair reflToSymbols <|> findDuplicateBetweenLists refSymbols reflToSymbols of
+  case findDuplicatePair reflActSymbols <|> findDuplicateBetweenLists refSymbols reflActSymbols of
     Just (x , y) -> Ex.throw $ mkError y $ "Duplicate reflection of " ++ show x ++ " and " ++ show y
-    Nothing -> return $ makeAssumeReflectAxiom src spSig env embs name <$> Ms.asmReflectSigs spec
+    Nothing -> return $ makeAssumeReflectAxiom spSig env embs name <$> Ms.asmReflectSigs spec
   where
     refDefs                 = getReflectDefs src spSig spec
     embs                    = Bare.tcEmbs       tycEnv
-    refSymbols              = traceShow "refSymbols" $ fst4 <$> refDefs
-    -- reflFromSymbols         = traceShow "reflFromSymbols" $ fst <$> Ms.asmReflectSigs spec
-    reflToSymbols           = traceShow "reflToSymbols" $ fst <$> traceShow "asmReflSymbols2" (Ms.asmReflectSigs spec)
+    refSymbols              = fst4 <$> refDefs
+    reflActSymbols          = fst <$> Ms.asmReflectSigs spec
 
 -----------------------------------------------------------------------------------------------
-makeAssumeReflectAxiom :: GhcSrc -> GhcSpecSig -> Bare.Env -> F.TCEmb Ghc.TyCon -> ModName
-                       -> (LocSymbol, LocSymbol)
+makeAssumeReflectAxiom :: GhcSpecSig -> Bare.Env -> F.TCEmb Ghc.TyCon -> ModName
+                       -> (LocSymbol, LocSymbol) -- actual function and pretended function
                        -> (Ghc.Var, LocSpecType, F.Equation)
 -----------------------------------------------------------------------------------------------
-makeAssumeReflectAxiom src sig env tce name (new, old) =
-  if oldTy == newTy then
-    (newV, new {val = rt} , newEq)
+makeAssumeReflectAxiom sig env tce name (act, pret) =
+  if actTy == pretTy then
+    (pretV, pret {val = rt} , pretEq)
   else
-    Ex.throw $ mkError new $
+    Ex.throw $ mkError pret $
       show qOld ++ " and " ++ show qNew ++ " should have the same type. But " ++
-      "types " ++ F.showpp oldTy ++ " and " ++ F.showpp newTy  ++ " do not match."
+      "types " ++ F.showpp actTy ++ " and " ++ F.showpp pretTy  ++ " do not match."
   where
-    oldV = case Bare.lookupGhcVar env name "wiredAxioms" old of
+    actV = case Bare.lookupGhcVar env name "wiredAxioms" act of
       Right x -> x
-      Left _ -> Ex.throw $ mkError new $ "Not in scope: " ++ show (val old)
-    newV = case Bare.lookupGhcVar env name "wiredAxioms" new of
+      Left _ -> Ex.throw $ mkError pret $ "Not in scope: " ++ show (val act)
+    pretV = case Bare.lookupGhcVar env name "wiredAxioms" pret of
       Right x -> x
-      Left _ -> Ex.throw $ mkError new $ "Not in scope: " ++ show (val new)
-    qOld = Bare.qualifyTop env name (F.loc old) (val old)
-    qNew = Bare.qualifyTop env name (F.loc new) (val new)
-    oldTy = Ghc.varType oldV
-    newTy = Ghc.varType newV
-    args = getArgs 0 newTy
-    out = typeSort tce newTy
-    newEq = F.mkEquation qNew args (foldl F.EApp (F.EVar qOld) (F.EVar . fst <$> args)) out
+      Left _ -> Ex.throw $ mkError pret $ "Not in scope: " ++ show (val pret)
+    qOld = Bare.qualifyTop env name (F.loc act) (val act)
+    qNew = Bare.qualifyTop env name (F.loc pret) (val pret)
+    actTy = Ghc.varType actV
+    pretTy = Ghc.varType pretV
+    args = getArgs 0 pretTy
+    out = typeSort tce pretTy
+    pretEq = F.mkEquation qNew args (foldl F.EApp (F.EVar qOld) (F.EVar . fst <$> args)) out
     getArgs n Ghc.FunTy{ft_arg=ty0, ft_res=ty1} = (F.symbol . ("lq" ++) . show $ n, typeSort tce ty0) : getArgs (n+1) ty1
     getArgs n (Ghc.ForAllTy _ ty) = getArgs n ty
     getArgs _ _ = []
 
-    mbT   = val <$> lookup newV sigs
+    mbT   = val <$> lookup pretV sigs
     allowTC = typeclass (getConfig env)
     sigs                    = gsTySigs sig
     rt    = fromRTypeRep .
             (\trep@RTypeRep{..} ->
                 trep{ty_info = fmap (\i -> i{permitTC = Just allowTC}) ty_info}) .
-            toRTypeRep $ Mb.fromMaybe (ofType newTy) mbT
-    {-τ     = Ghc.varType newV
-    at    = axiomType allowTC new rt
-    out   = rTypeSort tce $ ares at
-    xArgs = F.EVar . fst <$> aargs at
-    _msg  = unwords [showpp qNew, showpp mbT]
-    le    = case runToLogicWithBoolBinds bbs tce lmap dm mkErr (coreToLogic allowTC def') of
-              Right e -> e
-              Left  e -> panic Nothing (show e)
-    ref        = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) le)
-    mkErr s    = ErrHMeas (sourcePosSrcSpan $ loc new) (pprint $ val new) (PJ.text s)
-    bbs        = filter isBoolBind xs
-    (xs, def') = GM.notracePpr "grabBody" $ grabBody allowTC (Ghc.expandTypeSynonyms τ) $ normalize allowTC def
-    su         = F.mkSubst  $ zip (F.symbol     <$> xs) xArgs
-                           ++ zip (simplesymbol <$> xs) xArgs
-    xts        = [(F.symbol x, rTypeSortExp tce t) | (x, t) <- aargs at] -}
+            toRTypeRep $ Mb.fromMaybe (ofType pretTy) mbT
 
 getReflectDefs :: GhcSrc -> GhcSpecSig -> Ms.BareSpec
                -> [(LocSymbol, Maybe SpecType, Ghc.Var, Ghc.CoreExpr)]

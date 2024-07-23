@@ -376,7 +376,7 @@ makeTyConEmbeds env (name, spec)
 makeLiftedSpec1 :: Config -> GhcSrc -> Bare.TycEnv -> LogicMap -> Ms.BareSpec
                 -> Ms.BareSpec
 makeLiftedSpec1 config src tycEnv lmap mySpec = mempty
-  { Ms.measures  = traceShow "other measures" $ Bare.makeHaskellMeasures (typeclass config) src tycEnv lmap mySpec
+  { Ms.measures  = Bare.makeHaskellMeasures (typeclass config) src tycEnv lmap mySpec
   }
 
 --------------------------------------------------------------------------------
@@ -651,7 +651,7 @@ makeSpecRefl cfg src menv specs env name sig tycEnv = do
   rwrWith  <- makeRewriteWith env name mySpec
   wRefls   <- Bare.wiredReflects cfg env name sig
   xtes     <- Bare.makeHaskellAxioms cfg src env tycEnv name lmap sig mySpec
-  asmReflAxioms <- Bare.makeAssumeReflectAxioms cfg src env tycEnv name lmap sig mySpec
+  asmReflAxioms <- Bare.makeAssumeReflectAxioms src env tycEnv name sig mySpec
   let otherAxioms = thd3 <$> asmReflAxioms
   let myAxioms =
         [ Bare.qualifyTop
@@ -668,19 +668,19 @@ makeSpecRefl cfg src menv specs env name sig tycEnv = do
                                       ++ (fst  <$> gsAsmSigs sig)   -- assumes
                                       ++ (fst  <$> gsRefSigs sig)
   case anyNonReflFn of
-    Just (nSym , oSym) ->
-      let oSym' = show (val oSym) in
-      let errorMsg = oSym' ++ " must be reflected first using {-@ reflect " ++ oSym' ++ " @-}" in
-      let error = ErrHMeas (GM.sourcePosSrcSpan $ loc nSym) (pprint $ val nSym) (text errorMsg) :: Error
+    Just (actSym , preSym) ->
+      let preSym' = show (val preSym) in
+      let errorMsg = preSym' ++ " must be reflected first using {-@ reflect " ++ preSym' ++ " @-}" in
+      let error = ErrHMeas (GM.sourcePosSrcSpan $ loc actSym) (pprint $ val actSym) (text errorMsg) :: Error
       in Ex.throw error
     Nothing -> return SpRefl
       { gsLogicMap   = lmap
       , gsAutoInst   = autoInst
-      , gsImpAxioms  = traceShow "importedImpAxioms" impAxioms
-      , gsMyAxioms   = traceShow "myAxioms" myAxioms
-      , gsReflects   = traceShow "gsReflects" (lawMethods ++ filter (isReflectVar rflSyms) sigVars ++ (fst <$> gsAsmReflects sig) ++ wRefls)
+      , gsImpAxioms  = impAxioms
+      , gsMyAxioms   = myAxioms
+      , gsReflects   = lawMethods ++ filter (isReflectVar rflSyms) sigVars ++ (fst <$> gsAsmReflects sig) ++ wRefls
       , gsHAxioms    = F.notracepp "gsHAxioms" $ xtes ++ asmReflAxioms
-      , gsWiredReft  = traceShow "wiredReft" wRefls
+      , gsWiredReft  = wRefls
       , gsRewrites   = rwr
       , gsRewritesWith = rwrWith
       }
