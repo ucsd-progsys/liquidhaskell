@@ -83,7 +83,7 @@ makeAssumeReflectAxiom :: GhcSpecSig -> Bare.Env -> F.TCEmb Ghc.TyCon -> ModName
 -----------------------------------------------------------------------------------------------
 makeAssumeReflectAxiom sig env tce name (act, pret) =
   if pretTy == actTy then
-    (actV, act {val = rt} , actEq)
+    (actV, act {val = aty_at `strengthenRes` ref} , actEq)
   else
     Ex.throw $ mkError act $
       show qPret ++ " and " ++ show qAct ++ " should have the same type. But " ++
@@ -99,9 +99,10 @@ makeAssumeReflectAxiom sig env tce name (act, pret) =
     qPret = Bare.qualifyTop env name (F.loc pret) (val pret)
     actTy = Ghc.varType actV
     pretTy = Ghc.varType pretV
-    args = getArgs 0 actTy
-    out = typeSort tce actTy
-    actEq = F.mkEquation qAct args (foldl F.EApp (F.EVar qPret) (F.EVar . fst <$> args)) out
+    args = getArgs 1 actTy
+    at    = axiomType allowTC act rt
+    aty_at = aty at
+    out   = rTypeSort tce $ ares at
     getArgs n Ghc.FunTy{ft_arg=ty0, ft_res=ty1} = (F.symbol . ("lq" ++) . show $ n, typeSort tce ty0) : getArgs (n+1) ty1
     getArgs n (Ghc.ForAllTy _ ty) = getArgs n ty
     getArgs _ _ = []
@@ -113,6 +114,9 @@ makeAssumeReflectAxiom sig env tce name (act, pret) =
             (\trep@RTypeRep{..} ->
                 trep{ty_info = fmap (\i -> i{permitTC = Just allowTC}) ty_info}) .
             toRTypeRep $ Mb.fromMaybe (ofType actTy) mbT
+    le    = foldl F.EApp (F.EVar qPret) (F.EVar . fst <$> args)
+    ref   = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) le)
+    actEq = F.mkEquation qAct args le out
 
 getReflectDefs :: GhcSrc -> GhcSpecSig -> Ms.BareSpec
                -> [(LocSymbol, Maybe SpecType, Ghc.Var, Ghc.CoreExpr)]
@@ -130,7 +134,7 @@ findVarDefType cbs sigs x = case findVarDefMethod (val x) cbs of
   Just (v, e) -> if GM.isExternalId v || isMethod (F.symbol x) || isDictionary (F.symbol x)
                    then (x, val <$> lookup v sigs, v, e)
                    else Ex.throw $ mkError x ("Lifted functions must be exported; please export " ++ show v)
-  Nothing     -> Ex.throw $ mkError x "Cannot lift haskell function"
+  Nothing     -> Ex.throw $ mkError x $ show (val x) ++ " is not in scope"
 
 --------------------------------------------------------------------------------
 makeAxiom :: Bare.Env -> Bare.TycEnv -> ModName -> LogicMap

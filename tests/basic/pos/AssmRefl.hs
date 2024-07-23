@@ -1,18 +1,20 @@
--- | test if basic assume reflect Lis functioning 
+-- | test if basic assume reflect is functioning 
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
+{-@ LIQUID "--save"       @-}
 
-module Inc00 where
+module AssmRefl where
 
-{-@ measure GHC.Num.fromInteger :: Integer -> a @-}
+foobar :: Int -> Int -> Int 
+foobar n m = n + m
 
-foobar :: Int -> Bool 
-foobar n = n `mod` 2 == 0
+{-@ reflect myfoobar @-}
+{-@ myfoobar :: (n: Nat) -> (m: Nat) -> Nat @-}
+myfoobar :: Int -> Int -> Int 
+myfoobar n m = n + m + 1
 
-{-@ assume reflect myfoobar as foobar @-}
-myfoobar :: Bool -> Bool 
-myfoobar _ = 5 `mod` 2 == 0
+{-@ assume reflect foobar as myfoobar @-}
 
-{-@ test :: { not (foobar 5) } @-} 
+{-@ test :: { foobar 3 4 == 8 } @-} 
 test :: ()
 test = ()
