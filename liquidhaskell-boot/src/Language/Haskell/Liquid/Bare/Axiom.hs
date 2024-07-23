@@ -82,37 +82,37 @@ makeAssumeReflectAxiom :: GhcSpecSig -> Bare.Env -> F.TCEmb Ghc.TyCon -> ModName
                        -> (Ghc.Var, LocSpecType, F.Equation)
 -----------------------------------------------------------------------------------------------
 makeAssumeReflectAxiom sig env tce name (act, pret) =
-  if actTy == pretTy then
-    (pretV, pret {val = rt} , pretEq)
+  if pretTy == actTy then
+    (actV, act {val = rt} , actEq)
   else
-    Ex.throw $ mkError pret $
-      show qOld ++ " and " ++ show qNew ++ " should have the same type. But " ++
-      "types " ++ F.showpp actTy ++ " and " ++ F.showpp pretTy  ++ " do not match."
+    Ex.throw $ mkError act $
+      show qPret ++ " and " ++ show qAct ++ " should have the same type. But " ++
+      "types " ++ F.showpp pretTy ++ " and " ++ F.showpp actTy  ++ " do not match."
   where
     actV = case Bare.lookupGhcVar env name "wiredAxioms" act of
       Right x -> x
-      Left _ -> Ex.throw $ mkError pret $ "Not in scope: " ++ show (val act)
+      Left _ -> Ex.throw $ mkError act $ "Not in scope: " ++ show (val act)
     pretV = case Bare.lookupGhcVar env name "wiredAxioms" pret of
       Right x -> x
       Left _ -> Ex.throw $ mkError pret $ "Not in scope: " ++ show (val pret)
-    qOld = Bare.qualifyTop env name (F.loc act) (val act)
-    qNew = Bare.qualifyTop env name (F.loc pret) (val pret)
+    qAct = Bare.qualifyTop env name (F.loc act) (val act)
+    qPret = Bare.qualifyTop env name (F.loc pret) (val pret)
     actTy = Ghc.varType actV
     pretTy = Ghc.varType pretV
-    args = getArgs 0 pretTy
-    out = typeSort tce pretTy
-    pretEq = F.mkEquation qNew args (foldl F.EApp (F.EVar qOld) (F.EVar . fst <$> args)) out
+    args = getArgs 0 actTy
+    out = typeSort tce actTy
+    actEq = F.mkEquation qAct args (foldl F.EApp (F.EVar qPret) (F.EVar . fst <$> args)) out
     getArgs n Ghc.FunTy{ft_arg=ty0, ft_res=ty1} = (F.symbol . ("lq" ++) . show $ n, typeSort tce ty0) : getArgs (n+1) ty1
     getArgs n (Ghc.ForAllTy _ ty) = getArgs n ty
     getArgs _ _ = []
 
-    mbT   = val <$> lookup pretV sigs
+    mbT   = val <$> lookup actV sigs
     allowTC = typeclass (getConfig env)
     sigs                    = gsTySigs sig
     rt    = fromRTypeRep .
             (\trep@RTypeRep{..} ->
                 trep{ty_info = fmap (\i -> i{permitTC = Just allowTC}) ty_info}) .
-            toRTypeRep $ Mb.fromMaybe (ofType pretTy) mbT
+            toRTypeRep $ Mb.fromMaybe (ofType actTy) mbT
 
 getReflectDefs :: GhcSrc -> GhcSpecSig -> Ms.BareSpec
                -> [(LocSymbol, Maybe SpecType, Ghc.Var, Ghc.CoreExpr)]
