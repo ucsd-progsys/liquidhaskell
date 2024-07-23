@@ -1105,8 +1105,7 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
 -- | Parse a single top level liquid specification
 specP :: Parser BPspec
 specP
-  = (reserved "assume"
-      >> ((reserved "reflect" >> fmap AssmReflect assmReflectBindP)
+  = (fallbackSpecP "assume" ((reserved "reflect" >> fmap AssmReflect assmReflectBindP)
         <|> (reserved "relational" >>  fmap AssmRel relationalP)
         <|>                            fmap Assm   tyBindP  ))
     <|> fallbackSpecP "assert"      (fmap Asrt    tyBindP  )
