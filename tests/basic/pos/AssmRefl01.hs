@@ -2,7 +2,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
-module AssmRefl where
+module AssmRefl01 where
 
 foobar :: Int -> Int -> Int 
 foobar n m = n + m
