@@ -2185,6 +2185,7 @@ executable basic-pos
                     , Alias03
                     , Alias04
                     , Alias05
+                    , AssmRefl
                     , Float
                     , Inc00
                     , Inc01
