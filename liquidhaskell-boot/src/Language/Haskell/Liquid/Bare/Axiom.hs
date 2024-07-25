@@ -63,7 +63,13 @@ makeHaskellAxioms cfg src env tycEnv name lmap spSig spec = do
   return (makeAxiom env tycEnv name lmap <$> (wiDefs ++ refDefs))
 
 -----------------------------------------------------------------------------------------------
---                        Returns the axioms of `assume reflect`s                            --
+--          Returns a list of elements, one per assume reflect                               --
+-- Each element is made of:                                                                  --
+-- * The variable name of the actual function                                                --
+-- * The refined type of actual function, where the post-condition is strengthened with      --
+--   ``VV == pretendedFn arg1 arg2 ...`                                                      --
+-- * The assume reflect equation, linking the pretended and actual function:                 --
+--   `actualFn arg1 arg 2 ... = pretendedFn arg1 arg2 ...`                                   --
 makeAssumeReflectAxioms :: GhcSrc -> Bare.Env -> Bare.TycEnv -> ModName -> GhcSpecSig -> Ms.BareSpec
                   -> Bare.Lookup [(Ghc.Var, LocSpecType, F.Equation)]
 -----------------------------------------------------------------------------------------------
@@ -79,59 +85,59 @@ makeAssumeReflectAxioms src env tycEnv name spSig spec = do
     reflActSymbols          = fst <$> Ms.asmReflectSigs spec
 
 -----------------------------------------------------------------------------------------------
--- Processes one `assume reflect` and returns its underlying equation and the refined type   --
---                      of the actual function                                               --
+-- Processes one `assume reflect` and returns its axiom element, as detailed in              --
+-- `makeAssumeReflectAxioms`                                                                 --
 makeAssumeReflectAxiom :: GhcSpecSig -> Bare.Env -> F.TCEmb Ghc.TyCon -> ModName
                        -> (LocSymbol, LocSymbol) -- actual function and pretended function
                        -> (Ghc.Var, LocSpecType, F.Equation)
 -----------------------------------------------------------------------------------------------
-makeAssumeReflectAxiom sig env tce name (act, pret) =
+makeAssumeReflectAxiom sig env tce name (actual, pretended) =
   -- The actual and pretended function must have the same type
-  if pretTy == actTy then
-    (actV, act {val = aty_at `strengthenRes` ref} , actEq)
+  if pretendedTy == actualTy then
+    (actualV, actual {val = aty_at `strengthenRes` ref} , actualEq)
   else
-    Ex.throw $ mkError act $
-      show qPret ++ " and " ++ show qAct ++ " should have the same type. But " ++
-      "types " ++ F.showpp pretTy ++ " and " ++ F.showpp actTy  ++ " do not match."
+    Ex.throw $ mkError actual $
+      show qPretended ++ " and " ++ show qActual ++ " should have the same type. But " ++
+      "types " ++ F.showpp pretendedTy ++ " and " ++ F.showpp actualTy  ++ " do not match."
   where
     -- Get the Ghc.Var's of the actual and pretended function names
-    actV = case Bare.lookupGhcVar env name "wiredAxioms" act of
+    actualV = case Bare.lookupGhcVar env name "wiredAxioms" actual of
       Right x -> x
-      Left _ -> Ex.throw $ mkError act $ "Not in scope: " ++ show (val act)
-    pretV = case Bare.lookupGhcVar env name "wiredAxioms" pret of
+      Left _ -> Ex.throw $ mkError actual $ "Not in scope: " ++ show (val actual)
+    pretendedV = case Bare.lookupGhcVar env name "wiredAxioms" pretended of
       Right x -> x
-      Left _ -> Ex.throw $ mkError pret $ "Not in scope: " ++ show (val pret)
+      Left _ -> Ex.throw $ mkError pretended $ "Not in scope: " ++ show (val pretended)
     -- Get the qualified name symbols for the actual and pretended functions
-    qAct = Bare.qualifyTop env name (F.loc act) (val act)
-    qPret = Bare.qualifyTop env name (F.loc pret) (val pret)
+    qActual = Bare.qualifyTop env name (F.loc actual) (val actual)
+    qPretended = Bare.qualifyTop env name (F.loc pretended) (val pretended)
     -- Get the GHC type of the actual and pretended functions
-    actTy = Ghc.varType actV
-    pretTy = Ghc.varType pretV
+    actualTy = Ghc.varType actualV
+    pretendedTy = Ghc.varType pretendedV
     -- Compute argument names for the actual/pretended functions
     -- The argument names are lq1, lq2, etc.
     -- These argument names will be used in the equation
-    args = getArgs 1 actTy
+    args = getArgs 1 actualTy
     getArgs n Ghc.FunTy{ft_arg=ty0, ft_res=ty1} = (F.symbol . ("lq" ++) . show $ n, typeSort tce ty0) : getArgs (n+1) ty1
     getArgs n (Ghc.ForAllTy _ ty) = getArgs n ty
     getArgs _ _ = []
 
     -- Compute the refined type of the actual function. See `makeAssumeType` for details
-    at    = axiomType allowTC act rt
+    at    = axiomType allowTC actual rt
     aty_at = aty at
     out   = rTypeSort tce $ ares at
-    mbT   = val <$> lookup actV sigs
+    mbT   = val <$> lookup actualV sigs
     allowTC = typeclass (getConfig env)
     sigs                    = gsTySigs sig
     rt    = fromRTypeRep .
             (\trep@RTypeRep{..} ->
                 trep{ty_info = fmap (\i -> i{permitTC = Just allowTC}) ty_info}) .
-            toRTypeRep $ Mb.fromMaybe (ofType actTy) mbT
+            toRTypeRep $ Mb.fromMaybe (ofType actualTy) mbT
     -- Expression of the equation. It is just saying that the actual and pretended functions are the same
     -- when applied to the same arguments
-    le    = foldl F.EApp (F.EVar qPret) (F.EVar . fst <$> args)
+    le    = foldl F.EApp (F.EVar qPretended) (F.EVar . fst <$> args)
     ref   = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) le)
 
-    actEq = F.mkEquation qAct args le out
+    actualEq = F.mkEquation qActual args le out
 
 getReflectDefs :: GhcSrc -> GhcSpecSig -> Ms.BareSpec
                -> [(LocSymbol, Maybe SpecType, Ghc.Var, Ghc.CoreExpr)]
