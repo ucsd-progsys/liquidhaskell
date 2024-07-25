@@ -1,7 +1,6 @@
 -- | test if basic assume reflect is functioning 
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
-{-@ LIQUID "--save"       @-}
 
 module AssmRefl where
 
