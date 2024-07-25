@@ -393,7 +393,7 @@ data Spec ty bndr  = Spec
   , impSigs    :: ![(F.Symbol, F.Sort)]                               -- ^ Imported variables types
   , expSigs    :: ![(F.Symbol, F.Sort)]                               -- ^ Exported variables types
   , asmSigs    :: ![(F.LocSymbol, ty)]                                -- ^ Assumed (unchecked) types; including reflected signatures
-  , asmReflectSigs :: ![(F.LocSymbol, F.LocSymbol)]                   -- ^ Assumed (unchecked) types; including reflected signatures
+  , asmReflectSigs :: ![(F.LocSymbol, F.LocSymbol)]                   -- ^ Assume reflects : left is the actual function and right the pretended one
   , sigs       :: ![(F.LocSymbol, ty)]                                -- ^ Imported functions and types
   , localSigs  :: ![(F.LocSymbol, ty)]                                -- ^ Local type signatures
   , reflSigs   :: ![(F.LocSymbol, ty)]                                -- ^ Reflected type signatures

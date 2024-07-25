@@ -34,6 +34,7 @@ import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Resolve as Bare
 import           Language.Haskell.Liquid.Bare.Types   as Bare
 import qualified Data.Set as Set
+import qualified Data.List as L
 import Language.Haskell.Liquid.Misc (fst4)
 import Control.Applicative
 
@@ -46,7 +47,7 @@ findDuplicate seen (x:xs)
 
 -- Find duplicates within a single list
 findDuplicatePair :: (Ord a) => [a] -> Maybe (a, a)
-findDuplicatePair = findDuplicate Set.empty
+findDuplicatePair xs = Mb.listToMaybe [ (a, b) | a:b:_ <- L.group (L.sort xs) ]
 
 -- Find duplicates between two lists
 findDuplicateBetweenLists :: (Ord a) => [a] -> [a] -> Maybe (a, a)
@@ -62,6 +63,7 @@ makeHaskellAxioms cfg src env tycEnv name lmap spSig spec = do
   return (makeAxiom env tycEnv name lmap <$> (wiDefs ++ refDefs))
 
 -----------------------------------------------------------------------------------------------
+--                        Returns the axioms of `assume reflect`s                            --
 makeAssumeReflectAxioms :: GhcSrc -> Bare.Env -> Bare.TycEnv -> ModName -> GhcSpecSig -> Ms.BareSpec
                   -> Bare.Lookup [(Ghc.Var, LocSpecType, F.Equation)]
 -----------------------------------------------------------------------------------------------
@@ -77,11 +79,14 @@ makeAssumeReflectAxioms src env tycEnv name spSig spec = do
     reflActSymbols          = fst <$> Ms.asmReflectSigs spec
 
 -----------------------------------------------------------------------------------------------
+-- Processes one `assume reflect` and returns its underlying equation and the refined type   --
+--                      of the actual function                                               --
 makeAssumeReflectAxiom :: GhcSpecSig -> Bare.Env -> F.TCEmb Ghc.TyCon -> ModName
                        -> (LocSymbol, LocSymbol) -- actual function and pretended function
                        -> (Ghc.Var, LocSpecType, F.Equation)
 -----------------------------------------------------------------------------------------------
 makeAssumeReflectAxiom sig env tce name (act, pret) =
+  -- The actual and pretended function must have the same type
   if pretTy == actTy then
     (actV, act {val = aty_at `strengthenRes` ref} , actEq)
   else
@@ -89,24 +94,31 @@ makeAssumeReflectAxiom sig env tce name (act, pret) =
       show qPret ++ " and " ++ show qAct ++ " should have the same type. But " ++
       "types " ++ F.showpp pretTy ++ " and " ++ F.showpp actTy  ++ " do not match."
   where
+    -- Get the Ghc.Var's of the actual and pretended function names
     actV = case Bare.lookupGhcVar env name "wiredAxioms" act of
       Right x -> x
       Left _ -> Ex.throw $ mkError act $ "Not in scope: " ++ show (val act)
     pretV = case Bare.lookupGhcVar env name "wiredAxioms" pret of
       Right x -> x
       Left _ -> Ex.throw $ mkError pret $ "Not in scope: " ++ show (val pret)
+    -- Get the qualified name symbols for the actual and pretended functions
     qAct = Bare.qualifyTop env name (F.loc act) (val act)
     qPret = Bare.qualifyTop env name (F.loc pret) (val pret)
+    -- Get the GHC type of the actual and pretended functions
     actTy = Ghc.varType actV
     pretTy = Ghc.varType pretV
+    -- Compute argument names for the actual/pretended functions
+    -- The argument names are lq1, lq2, etc.
+    -- These argument names will be used in the equation
     args = getArgs 1 actTy
-    at    = axiomType allowTC act rt
-    aty_at = aty at
-    out   = rTypeSort tce $ ares at
     getArgs n Ghc.FunTy{ft_arg=ty0, ft_res=ty1} = (F.symbol . ("lq" ++) . show $ n, typeSort tce ty0) : getArgs (n+1) ty1
     getArgs n (Ghc.ForAllTy _ ty) = getArgs n ty
     getArgs _ _ = []
 
+    -- Compute the refined type of the actual function. See `makeAssumeType` for details
+    at    = axiomType allowTC act rt
+    aty_at = aty at
+    out   = rTypeSort tce $ ares at
     mbT   = val <$> lookup actV sigs
     allowTC = typeclass (getConfig env)
     sigs                    = gsTySigs sig
@@ -114,8 +126,11 @@ makeAssumeReflectAxiom sig env tce name (act, pret) =
             (\trep@RTypeRep{..} ->
                 trep{ty_info = fmap (\i -> i{permitTC = Just allowTC}) ty_info}) .
             toRTypeRep $ Mb.fromMaybe (ofType actTy) mbT
+    -- Expression of the equation. It is just saying that the actual and pretended functions are the same
+    -- when applied to the same arguments
     le    = foldl F.EApp (F.EVar qPret) (F.EVar . fst <$> args)
     ref   = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) le)
+
     actEq = F.mkEquation qAct args le out
 
 getReflectDefs :: GhcSrc -> GhcSpecSig -> Ms.BareSpec

@@ -376,8 +376,7 @@ makeTyConEmbeds env (name, spec)
 makeLiftedSpec1 :: Config -> GhcSrc -> Bare.TycEnv -> LogicMap -> Ms.BareSpec
                 -> Ms.BareSpec
 makeLiftedSpec1 config src tycEnv lmap mySpec = mempty
-  { Ms.measures  = Bare.makeHaskellMeasures (typeclass config) src tycEnv lmap mySpec
-  }
+  { Ms.measures  = Bare.makeHaskellMeasures (typeclass config) src tycEnv lmap mySpec }
 
 --------------------------------------------------------------------------------
 -- | [NOTE]: LIFTING-STAGES
