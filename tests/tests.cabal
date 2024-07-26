@@ -1476,6 +1476,7 @@ executable unit-pos-1
                     , Poly3a
                     , Poly3
                     , Poly4
+                    , PolySet
                     , Polyfun
                     , Polyqual
                     , PositivityCheck
@@ -2335,6 +2336,7 @@ executable ple-pos
                     , Isort_erase
                     , ListAnd
                     , Lists
+                    , ListPolySet
                     , MergeSort
                     , MJFix
                     , MossakaBug

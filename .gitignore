@@ -39,7 +39,7 @@ cabal.project.local
 tests/synthesis/logs/*
 !tests/synthesis/logs/.gitkeep
 /tests/logs/
-/.stack-work/
+.stack-work
 /.vagrant/
 TAGS
 tags*
