@@ -51,9 +51,9 @@ findDuplicateBetweenLists key l1 l2 =
   findDuplicate key (Map.fromList [ (key x, x) | x <- l1 ]) l2
   where
     findDuplicate :: Ord k => (a -> k) -> Map.Map k a -> [a] -> Maybe (a, a)
-    findDuplicate key seen l2 =
+    findDuplicate key' seen l2' =
       Mb.listToMaybe
-      [ (x, y) | x <- l2, Just y <- [Map.lookup (key x) seen]]
+      [ (x, y) | x <- l2', Just y <- [Map.lookup (key' x) seen]]
 
 -----------------------------------------------------------------------------------------------
 makeHaskellAxioms :: Config -> GhcSrc -> Bare.Env -> Bare.TycEnv -> ModName -> LogicMap -> GhcSpecSig -> Ms.BareSpec
@@ -122,6 +122,7 @@ makeAssumeReflectAxiom sig env tce name (actual, pretended) =
     -- Function types can be of multiple sorts. We are only interested in the Type -> Type (i.e., ->) ones,
     -- which correspond to flag Ghc.FTF_T_T. For (=>) Constraint -> Type (flag FTF_C_T), we just ignore the
     -- (constraint) argument. For the others kinds, we throw are error, as they are unsupported.
+    getArgs :: Int -> Ghc.Type -> [(F.Symbol, F.Sort)]
     getArgs n Ghc.FunTy{ft_arg=ty0, ft_res=ty1, ft_af=Ghc.FTF_T_T} = (F.symbol . ("lq" ++) . show $ n, typeSort tce ty0) : getArgs (n+1) ty1
     getArgs n Ghc.FunTy{ft_res=ty1, ft_af=Ghc.FTF_C_T} = getArgs n ty1
     getArgs _ Ghc.FunTy{} = Ex.throw $ mkError actual "This function cannot be `assume reflect`'ed. Its signature is too complex for me."
