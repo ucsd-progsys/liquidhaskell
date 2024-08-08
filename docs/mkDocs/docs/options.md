@@ -187,6 +187,41 @@ Opaque reflections:
 - GHC.Internal.Real.even
 ```
 
+
+Note: you can also reflect functions *away* from their definition, using interface files. For instance, you may do:
+
+```Haskell
+{-@ reflect uncurry @-}
+
+{-@ reflect otherFn @-}
+otherFn :: (Int , Int) -> Int
+otherFn = uncurry myAdd
+
+{-@ reflect myAdd @-}
+myAdd :: Int -> Int -> Int
+myAdd a b = a + b + 1
+```
+
+Even though `uncurry` is an external, imported symbol.
+
+For this, LH will go and fetch the *unfoldings* of the function, which is essentially its content that is also used when the compiler does
+inlining.
+The unfoldings of these functions must be available, which is not always the case. Also note that even when they are available,
+not all functions can be reflected, for the same reasons as some of your own functions may not be reflected (presence of recursive definitions,
+ for instance).
+
+If the reflection of these happen to need the reflection of private variables inside those modules, you can also request their reflection
+with another `reflect` annotation with the _fully-qualified_ name of the private variable to reflect, i.e. something like:
+
+```
+{-@ reflect MyMod.privFn @-}
+```
+
+Note: reflection of private variables only work if these variables occur in the definition of other variables that could already be reflected.
+You cannot reflect a private variable in general otherwise.
+Note 2: if these private variables are not manually reflected by you, they are, as usual, opaque-reflected automatically, as you can see
+by dumping the opaque reflections.
+
 ## Fast Checking
 
 **Options:** `fast`, `nopolyinfer`

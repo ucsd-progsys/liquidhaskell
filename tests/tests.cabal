@@ -2159,6 +2159,10 @@ executable basic-neg
                     , Inc04Lib
                     , List00
                     , Poly00
+                    , ReflExt01A
+                    , ReflExt01B
+                    , ReflExt02A
+                    , ReflExt02B
                     , ShadowLogicSymbols
                     , T1459
 
@@ -2217,6 +2221,23 @@ executable basic-pos
                     , OpaqueRefl05
                     , OpaqueRefl06
                     , Poly00
+                    , ReflExt01
+                    , ReflExt02A
+                    , ReflExt02B
+                    , ReflExt03A
+                    , ReflExt03B
+                    , ReflExt04A
+                    , ReflExt04B
+                    , ReflExt05A
+                    , ReflExt05B
+                    , ReflExt06A
+                    , ReflExt06B
+                    , ReflExt06C
+                    , ReflExt06D
+                    , ReflExt07A
+                    , ReflExt07B
+                    , ReflExt08A
+                    , ReflExt08B
                     , ShadowLogicSymbols
                     , SkipDerived00
 
