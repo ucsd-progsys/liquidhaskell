@@ -2,10 +2,9 @@
 module GHC.Num_LHAssumptions where
 
 {-@
-embed GHC.Integer.Type.Integer as int
-embed GHC.Num.Integer as int
+embed GHC.Num.Integer.Integer as int
 
-assume GHC.Num.fromInteger :: (GHC.Num.Num a) => x:Integer -> {v:a | v = x }
+assume GHC.Num.fromInteger :: (GHC.Num.Num a) => x:GHC.Num.Integer.Integer -> {v:a | v = x }
 
 assume GHC.Num.negate :: (GHC.Num.Num a)
                => x:a

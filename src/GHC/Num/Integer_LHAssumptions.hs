@@ -9,5 +9,5 @@ import GHC.Types_LHAssumptions()
 
 
 {-@
-assume GHC.Num.Integer.IS :: x:GHC.Prim.Int# -> {v: GHC.Num.Integer | v = (x :: int) }
+assume GHC.Num.Integer.IS :: x:GHC.Prim.Int# -> {v: GHC.Num.Integer.Integer | v = (x :: int) }
 @-}

@@ -25,8 +25,7 @@ embed GHC.Types.Char    as Char
 embed GHC.Prim.Char#    as Char
 embed GHC.Prim.Addr#    as Str
 
-embed GHC.Integer.Type.Integer as int
-embed GHC.Num.Integer as int
+embed GHC.Num.Integer.Integer as int
 
 assume GHC.Types.True    :: {v:GHC.Types.Bool | v     }
 assume GHC.Types.False   :: {v:GHC.Types.Bool | (~ v) }
