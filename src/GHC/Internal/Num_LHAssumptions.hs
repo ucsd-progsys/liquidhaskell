@@ -4,7 +4,7 @@ module GHC.Internal.Num_LHAssumptions where
 import GHC.Num.Integer_LHAssumptions()
 
 {-@
-assume GHC.Internal.Num.fromInteger :: (GHC.Internal.Num.Num a) => x:GHC.Num.Integer.Integer -> {v:a | v = x }
+assume GHC.Internal.Num.fromInteger :: x:GHC.Num.Integer.Integer -> {v:a | v = x }
 
 assume GHC.Internal.Num.negate :: (GHC.Internal.Num.Num a)
                => x:a

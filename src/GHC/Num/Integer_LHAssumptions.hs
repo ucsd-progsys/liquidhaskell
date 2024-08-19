@@ -5,7 +5,6 @@ module GHC.Num.Integer_LHAssumptions() where
 
 import GHC.Types
 import GHC.Num.Integer
-import GHC.Prim
 import GHC.Types_LHAssumptions()
 
 {-@
