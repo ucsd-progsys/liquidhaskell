@@ -134,6 +134,8 @@ commands:
 
 jobs:
 
+  # Not used in workflows below at the moment, because stack doesn't
+  # support GHC 9.10 yet.
   stack_900:
     machine:
       image: default
@@ -152,5 +154,4 @@ workflows:
   version: 2
   build_stack_and_cabal:
     jobs:
-      - stack_900
       - cabal_9101
