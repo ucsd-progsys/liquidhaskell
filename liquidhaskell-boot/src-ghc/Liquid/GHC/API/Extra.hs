@@ -21,6 +21,7 @@ module Liquid.GHC.API.Extra (
   , relevantModules
   , renderWithStyle
   , showPprQualified
+  , showPprDebug
   , showSDocQualified
   , splitDollarApp
   , strictNothing
@@ -290,6 +291,17 @@ myQualify :: Ghc.NamePprCtx
 myQualify = Ghc.neverQualify { Ghc.queryQualifyName = Ghc.alwaysQualifyNames }
 -- { Ghc.queryQualifyName = \_ _ -> Ghc.NameNotInScope1 }
 
+showPprDebug :: Outputable a => a -> String
+showPprDebug = showSDocDebug . ppr
+
+showSDocDebug :: Ghc.SDoc -> String
+showSDocDebug = Ghc.renderWithContext ctx
+  where
+    style = Ghc.mkUserStyle myQualify Ghc.AllTheWay
+    ctx = Ghc.defaultSDocContext {
+        sdocStyle = style
+      , sdocPprDebug = True
+      }
 
 strictNothing :: GHC.Data.Strict.Maybe a
 strictNothing = GHC.Data.Strict.Nothing
