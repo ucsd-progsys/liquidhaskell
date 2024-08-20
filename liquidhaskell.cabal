@@ -57,6 +57,7 @@ library
                       GHC.Internal.Base_LHAssumptions
                       GHC.Internal.Data.Foldable_LHAssumptions
                       GHC.Internal.Data.Maybe_LHAssumptions
+                      GHC.Internal.Float_LHAssumptions
                       GHC.Internal.Int_LHAssumptions
                       GHC.Internal.List_LHAssumptions
                       GHC.Internal.Num_LHAssumptions

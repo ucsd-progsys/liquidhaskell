@@ -2146,7 +2146,7 @@ hGetNonBlocking = hGet
 -- As with 'hGet', the string representation in the file is assumed to
 -- be ISO-8859-1.
 
-{-@ assume Foreign.Marshal.Alloc.reallocBytes :: p:(Ptr a) -> n:Nat -> (IO (PtrN a n))  @-}
+{-@ assume GHC.Internal.Foreign.Marshal.Alloc.reallocBytes :: p:(Ptr a) -> n:Nat -> (IO (PtrN a n))  @-}
 hGetContents :: Handle -> IO ByteString
 hGetContents h = do
     let start_size = 1024

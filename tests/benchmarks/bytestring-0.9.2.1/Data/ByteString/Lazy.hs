@@ -655,7 +655,7 @@ transpose css = L.map (\ss -> Chunk (S.pack ss) Empty)
 --TODO: make this fast
 
 -- REBARE: somehow with GHC 8.4 importing Data.List actually ends up importing Data.OldList ...
-{-@ assume Data.OldList.transpose :: [[a]] -> [{v:[a] | len v > 0}] @-}
+{-@ assume GHC.Internal.Data.OldList.transpose :: [[a]] -> [{v:[a] | len v > 0}] @-}
 
 
 -- ---------------------------------------------------------------------
