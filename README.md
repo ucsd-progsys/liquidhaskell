@@ -47,36 +47,16 @@ For those diving into the implementation of LiquidHaskell, here are a few tips:
 ## Running the pluging on individual files
 
 ```
-stack build liquidhaskell
-stack exec ghc -- -fplugin=LiquidHaskell FILE.hs
-```
-
-```
 cabal build liquidhaskell
 cabal exec ghc -- -fplugin=LiquidHaskell FILE.hs
 ```
 
 ## Building
 
-### Stack
-
-```
-stack build
-```
-
-If on NixOS
-
-```
-stack --no-nix-pure build
-```
-
-With the above, `stack` will unregister and re-register the libraries,
-but hopefully it won't rebuild any modules.
-
 ### Cabal
 
 ```
-cabal v2-build
+cabal build
 ```
 
 ### Faster recompilation
@@ -84,7 +64,7 @@ cabal v2-build
 When changing the `liquidhaskell-boot` library, sometimes we don't want
 to rebuild `liquidhaskell` or `liquid-vector` when testing the changes.
 In these cases we can set the environment variable `LIQUID_DEV_MODE=true`
-when running `stack` or `cabal` to skip rebuilding those packages.
+when running `cabal` to skip rebuilding those packages.
 
 DANGER: Note that this can give an invalid result if the changes to
 `liquidhaskell-boot` do require rebuilding other `liquid*` packages.
@@ -92,8 +72,7 @@ DANGER: Note that this can give an invalid result if the changes to
 ## How To Run Regression Tests
 
 For documentation on the `test-driver` executable itself, please refer to the
-`README.md` in `tests/` or run `cabal run tests:test-driver -- --help` or `stack
-run test-driver -- --help`
+`README.md` in `tests/` or run `cabal run tests:test-driver -- --help`
 
 You can run *all* the tests by
 
@@ -315,7 +294,7 @@ any `LiftedSpec` from the interface file's annotations.
 
 ## A new version of GHC is out. How do I support it?
 
-Typically the first thing you might want to do is to run a "clean" `cabal v2-build` or `stack build` using
+Typically the first thing you might want to do is to run a "clean" `cabal build` using
 the latest compiler and "check the damage". If you are lucky, everything works out of the box, otherwise
 compilation might fail with an error, typically because some `ghc` API function has been removed/moved/renamed.
 The way to fix it is to modify the [GHC.API][] shim module and perform any required change, likely by
