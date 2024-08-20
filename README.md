@@ -170,17 +170,6 @@ If one wishes to save time or is not interested in top speedups/slowdowns, the b
 [ghc-users-guide]: https://downloads.haskell.org/ghc/latest/docs/users_guide/
 [git-documentation]: https://git-scm.com/doc
 
-## Releasing on Hackage
-
-*NOTE: The following section is relevant only for few developers, i.e. the ones which are directly involved
-in the release process. Most contributors can skip this section.*
-
-We provide a convenience script to upload all the `liquid-*` packages (**including** `liquid-fixpoint`) on
-Hackage, in a lockstep fashion. To do so, it's possible to simply run the `scripts/release_to_hackage.sh`
-Bash script. The script doesn't accept any argument and it tries to determine the packages
-to upload by scanning the `$PWD` for packages named appropriately. It will ask the user for confirmation
-before proceeding, and `stack upload` will be used under the hood.
-
 ## GHC support policy
 
 LH supports only one version of GHC at any given time. This is because LH depends heavily on the `ghc` library
