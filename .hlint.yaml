@@ -1,5 +1,5 @@
 # To be compatible with GHC naming turn off the camelCase rule.
-- ignore: {name: "Use camelCase", within: [Language.Haskell.Liquid.GHC.Misc]} # 4 hints
+- ignore: {name: "Use camelCase", within: [Language.Haskell.Liquid.GHC.Misc, Liquid.GHC.API.Extra]} # 4 hints
 # Linting LANGUAGE pragmas with complex CPP ifdefs is too hard.
 - ignore: {
     name: "Unused LANGUAGE pragma",
