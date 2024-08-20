@@ -23,6 +23,7 @@ module Language.Haskell.Liquid.WiredIn
 
        -- * Deriving classes
        , isDerivedInstance
+       , derivingClasses
        ) where
 
 import Prelude                                hiding (error)
@@ -199,12 +200,15 @@ mkps_ _     _       _          _    _ = panic Nothing "Bare : mkps_"
 isDerivedInstance :: Ghc.ClsInst -> Bool
 --------------------------------------------------------------------------------
 isDerivedInstance i = F.notracepp ("IS-DERIVED: " ++ F.showpp classSym)
-                    $ S.member classSym derivingClasses
+                    $ S.member classSym derivingClassesSet
   where
     classSym        = F.symbol . Ghc.is_cls $ i
 
-derivingClasses :: S.HashSet F.Symbol
-derivingClasses = S.fromList
+derivingClassesSet :: S.HashSet F.Symbol
+derivingClassesSet = S.fromList $ map F.symbol derivingClasses
+
+derivingClasses :: [String]
+derivingClasses =
   [ "GHC.Classes.Eq"
   , "GHC.Classes.Ord"
   , "GHC.Internal.Enum.Enum"

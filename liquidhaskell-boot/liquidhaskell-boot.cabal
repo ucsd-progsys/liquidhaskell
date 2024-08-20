@@ -170,6 +170,22 @@ library
   if flag(devel)
     ghc-options:      -Wall -Werror
 
+test-suite wiredin-tests
+  type:             exitcode-stdio-1.0
+  main-is:          WiredInTests.hs
+  hs-source-dirs:   tests
+  build-depends:    base
+                  , ghc-internal
+                  , ghc-prim
+                  , liquidhaskell-boot
+                  , tasty
+                  , tasty-ant-xml
+                  , tasty-hunit
+                  , template-haskell
+                  , unordered-containers
+  default-language: Haskell2010
+  ghc-options:      -W -Werror
+
 test-suite ghc-api-tests
   type:             exitcode-stdio-1.0
   main-is:          GhcApiTests.hs
