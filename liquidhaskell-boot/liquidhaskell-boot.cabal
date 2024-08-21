@@ -184,7 +184,8 @@ test-suite wiredin-tests
                   , template-haskell
                   , unordered-containers
   default-language: Haskell2010
-  ghc-options:      -W -Werror
+  if flag(devel)
+    ghc-options:      -W -Werror
 
 test-suite ghc-api-tests
   type:             exitcode-stdio-1.0
