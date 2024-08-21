@@ -134,6 +134,8 @@ commands:
 
 jobs:
 
+  # Not used in workflows below at the moment, because stack doesn't
+  # support GHC 9.10 yet.
   stack_900:
     machine:
       image: default
@@ -141,16 +143,15 @@ jobs:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
             extra_build_flags: "--flag liquidhaskell-boot:devel"
-  cabal_900:
+  cabal_9101:
     machine:
       image: default
     steps:
       - cabal_build_and_test:
-          ghc_version: "9.8.2"
+          ghc_version: "9.10.1"
 
 workflows:
   version: 2
   build_stack_and_cabal:
     jobs:
-      - stack_900
-      - cabal_900
+      - cabal_9101

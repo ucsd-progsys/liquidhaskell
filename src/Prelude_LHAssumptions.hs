@@ -6,15 +6,14 @@ import GHC.Float_LHAssumptions()
 import GHC.Maybe_LHAssumptions()
 import GHC.Num_LHAssumptions()
 import GHC.Num.Integer_LHAssumptions()
+import GHC.Num.Integer()
 import GHC.Real_LHAssumptions()
 import Liquid.Prelude.Real_LHAssumptions()
 import Liquid.Prelude.Totality_LHAssumptions()
 
 {-@
 
-assume GHC.Err.error :: {v:_ | false} -> a
-
-embed Integer           as int
+assume GHC.Internal.Err.error :: {v:_ | false} -> a
 
 predicate Max V X Y = if X > Y then V = X else V = Y
 predicate Min V X Y = if X < Y then V = X else V = Y

@@ -266,7 +266,7 @@ module Base (
             , filterLt
             ) where
 
-import Prelude hiding (error,lookup,map,filter,foldr,foldl,null)
+import Prelude hiding (error,lookup,map,filter,foldr,foldl,foldl',null)
 -- LIQUID import qualified Data.Set.Base as Set
 -- LIQUID import Data.StrictPair
 import Data.Monoid (Monoid(..))

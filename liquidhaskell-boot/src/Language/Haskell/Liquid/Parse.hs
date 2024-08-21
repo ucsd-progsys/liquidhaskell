@@ -32,7 +32,7 @@ import qualified Data.HashSet                           as S
 import           Data.Data
 import qualified Data.Maybe                             as Mb -- (isNothing, fromMaybe)
 import           Data.Char                              (isSpace, isAlphaNum)
-import           Data.List                              (foldl', partition)
+import           Data.List                              (partition)
 import           GHC                                    (ModuleName, mkModuleName)
 import qualified Text.PrettyPrint.HughesPJ              as PJ
 import           Text.PrettyPrint.HughesPJ.Compat       ((<+>))

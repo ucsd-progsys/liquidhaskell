@@ -427,9 +427,9 @@ toLogicApp allowTC e = do
 
 makeApp :: Expr -> LogicMap -> Located Symbol-> [Expr] -> Expr
 makeApp _ _ f [e]
-  | val f == symbol ("GHC.Num.negate" :: String)
+  | val f == symbol ("GHC.Internal.Num.negate" :: String)
   = ENeg e
-  | val f == symbol ("GHC.Num.fromInteger" :: String)
+  | val f == symbol ("GHC.Internal.Num.fromInteger" :: String)
   , ECon c <- e
   = ECon c
   | (modName, sym) <- GM.splitModuleName (val f)
@@ -443,7 +443,7 @@ makeApp _ _ f [e1, e2]
   -- Hack for typeclass support. (overriden == without Eq constraint defined at Ghci)
   | (modName, sym) <- GM.splitModuleName (val f)
   , symbol ("Ghci" :: String) `isPrefixOfSym` modName
-  , Just op <- M.lookup (mappendSym (symbol ("GHC.Num." :: String)) sym) bops
+  , Just op <- M.lookup (mappendSym (symbol ("GHC.Internal.Num." :: String)) sym) bops
   = EBin op e1 e2
 
 makeApp def lmap f es
@@ -493,9 +493,9 @@ bops = M.fromList [ (numSymbol "+", Plus)
                   ]
   where
     numSymbol :: String -> Symbol
-    numSymbol =  symbol . (++) "GHC.Num."
+    numSymbol =  symbol . (++) "GHC.Internal.Num."
     realSymbol :: String -> Symbol
-    realSymbol =  symbol . (++) "GHC.Real."
+    realSymbol =  symbol . (++) "GHC.Internal.Real."
 
 splitArgs :: Bool -> C.Expr t -> (C.Expr t, [C.Arg t])
 splitArgs allowTC exprt = (exprt', reverse args)
