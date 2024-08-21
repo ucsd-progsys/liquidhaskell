@@ -6,7 +6,7 @@ You can pass options in different ways:
 
 1. As a **pragma**, directly added to the source file: **(recommended)**
 
-        {-@ LIQUID "opt1" @-}
+        {-@ LIQUID "--opt1" @-}
 
 2. As a **plugin option**:
 
