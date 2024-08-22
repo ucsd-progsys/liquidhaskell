@@ -108,6 +108,7 @@ data Config = Config
                                            -- Sometimes improves performance and sometimes worsens it.
   , pandocHtml               :: Bool       -- ^ Use pandoc to generate html
   , excludeAutomaticAssumptionsFor :: [String]
+  , dumpOpaqueReflections    :: Bool       -- Dumps all opaque reflections to the stdout
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 allowPLE :: Config -> Bool

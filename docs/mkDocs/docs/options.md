@@ -24,7 +24,7 @@ The options are descibed below (and by the legacy executable: `liquid --help`)
 
 ## Theorem Proving
 
-**Options:** `reflection`, `ple`, `ple-local`, `extensionality`, `ple-with-undecided-guards`
+**Options:** `reflection`, `ple`, `ple-local`, `extensionality`, `ple-with-undecided-guards`, `--dump-opaque-reflections`
 
 **Directives:** `automatic-instances`
 
@@ -155,6 +155,36 @@ myIsDigit :: Char -> Bool
 myIsDigit x = '0' <= x && x <= '9'
 
 {-@ assume reflect isDigit as myIsDigit @-}
+```
+
+### Opaque reflection
+
+LH automatically introduces uninterpreted functions / measures for all symbols which appear in the expression to reflect,
+but which are not already defined in the refinement logic. However, if you want to see exactly which symbols will be *opaque-reflected*
+(that's the term for it), you use this pragma:
+
+```Haskell
+{-@ LIQUID "--dump-opaque-reflections" @-}
+```
+
+It will dump the list of opaque reflections to the output. For example, assuming that `GHC.Internal.List.filter`
+and `GHC.Internal.Real.even` are not reflected, we get the following output for the following snippet.
+
+```Haskell
+{-@ LIQUID "--reflection"      @-}
+{-@ LIQUID "--dump-opaque-reflections"      @-}
+
+module OpaqueRefl06 where
+
+{-@ reflect keepEvens @-}
+keepEvens :: [Int] -> [Int]
+keepEvens = filter even
+```
+
+```
+Opaque reflections:
+- GHC.Internal.List.filter
+- GHC.Internal.Real.even
 ```
 
 ## Fast Checking

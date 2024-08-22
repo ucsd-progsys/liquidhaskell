@@ -22,7 +22,8 @@ of each here.
   copies the implementation to a refinement type alias,
   and adds a refinement to the type of the uninterpreted function that specifies the type alias as a post-condition.
   ([See more: Section 2.2 of this paper](http://goto.ucsd.edu/~nvazou/refinement-reflection/refinement-reflection.pdf))
-    * All parts of the definition must already be available to the refinement logic.
+    * If not all parts of the definition are in the refinement logic, then uninterpreted functions will be introduced for all symbols that
+      are not in the logic. To list those symbols, you can use the `--dump-opaque-reflections` flag.
     * The function may be recursive.
 * `{-@ assume reflect <actual-function-name> as <pretended-function-name> @-}` creates an assumption that the actual function
   behaves as the pretended function. Whence the actual function becomes reflected and can be used in the logic. Its refinement type is strengthened with
