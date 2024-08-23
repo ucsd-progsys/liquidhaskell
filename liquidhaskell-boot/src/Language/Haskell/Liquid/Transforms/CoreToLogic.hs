@@ -377,28 +377,28 @@ coreToIte allowTC e (efalse, etrue)
 toPredApp :: Bool -> C.CoreExpr -> LogicM Expr
 toPredApp allowTC p = go . Misc.mapFst opSym . splitArgs allowTC $ p
   where
-    opSym = fmap GM.dropModuleNamesAndUnique . tomaybesymbol
+    opSym = tomaybesymbol
     go (Just f, [e1, e2])
       | Just rel <- M.lookup f brels
       = PAtom rel <$> coreToLg allowTC e1 <*> coreToLg allowTC e2
     go (Just f, [e])
-      | f == symbol ("not" :: String)
+      | f == symbol ("GHC.Classes.not" :: String)
       = PNot <$>  coreToLg allowTC e
-      | f == symbol ("len" :: String)
-      = EApp (EVar "len") <$> coreToLg allowTC e
     go (Just f, [e1, e2])
-      | f == symbol ("||" :: String)
+      | f == symbol ("GHC.Classes.||" :: String)
       = POr <$> mapM (coreToLg allowTC) [e1, e2]
-      | f == symbol ("&&" :: String)
+      | f == symbol ("GHC.Classes.&&" :: String)
       = PAnd <$> mapM (coreToLg allowTC) [e1, e2]
-      | f == symbol ("==>" :: String)
+      | f == symbol ("Language.Haskell.Liquid.Prelude.==>" :: String)
       = PImp <$> coreToLg allowTC e1 <*> coreToLg allowTC e2
-      | f == symbol ("<=>" :: String)
+      | f == symbol ("Language.Haskell.Liquid.Prelude.<=>" :: String)
       = PIff <$> coreToLg allowTC e1 <*> coreToLg allowTC e2
+      | f == symbol ("GHC.Base.const" :: String)
+      = coreToLg allowTC e1
     go (Just f, [es])
-      | f == symbol ("or" :: String)
+      | f == symbol ("GHC.Internal.Data.Foldable.or" :: String)
       = POr  . deList <$> coreToLg allowTC es
-      | f == symbol ("and" :: String)
+      | f == symbol ("GHC.Internal.Data.Foldable.and" :: String)
       = PAnd . deList <$> coreToLg allowTC es
     go (_, _)
       = toLogicApp allowTC p
@@ -475,12 +475,12 @@ isCst _              = True
 
 
 brels :: M.HashMap Symbol Brel
-brels = M.fromList [ (symbol ("==" :: String), Eq)
-                   , (symbol ("/=" :: String), Ne)
-                   , (symbol (">=" :: String), Ge)
-                   , (symbol (">" :: String) , Gt)
-                   , (symbol ("<=" :: String), Le)
-                   , (symbol ("<" :: String) , Lt)
+brels = M.fromList [ (symbol ("GHC.Classes.==" :: String), Eq)
+                   , (symbol ("GHC.Classes./=" :: String), Ne)
+                   , (symbol ("GHC.Classes.>=" :: String), Ge)
+                   , (symbol ("GHC.Classes.>" :: String) , Gt)
+                   , (symbol ("GHC.Classes.<=" :: String), Le)
+                   , (symbol ("GHC.Classes.<" :: String) , Lt)
                    ]
 
 bops :: M.HashMap Symbol Bop

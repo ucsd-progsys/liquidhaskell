@@ -2159,6 +2159,7 @@ executable basic-neg
                     , Inc04Lib
                     , List00
                     , Poly00
+                    , ShadowLogicSymbols
                     , T1459
 
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
@@ -2216,6 +2217,7 @@ executable basic-pos
                     , OpaqueRefl05
                     , OpaqueRefl06
                     , Poly00
+                    , ShadowLogicSymbols
                     , SkipDerived00
 
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
