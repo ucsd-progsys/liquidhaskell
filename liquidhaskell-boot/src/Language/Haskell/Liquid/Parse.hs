@@ -839,7 +839,7 @@ data Pspec ty ctor
   | AssmReflect (LocSymbol, LocSymbol)                    -- ^ 'assume reflects' signature (unchecked)
   | Asrt    (LocSymbol, ty)                               -- ^ 'assert' signature (checked)
   | LAsrt   (LocSymbol, ty)                               -- ^ 'local' assertion -- TODO RJ: what is this
-  | Asrts   ([LocSymbol], (ty, Maybe [Located Expr]))     -- ^ TODO RJ: what is this
+  | Asrts   ([LocSymbol], (ty, Maybe [Located Expr]))     -- ^ sym0, ..., symn :: ty / [m0,..., mn]
   | Impt    Symbol                                        -- ^ 'import' a specification module
   | DDecl   DataDecl                                      -- ^ refined 'data'    declaration
   | NTDecl  DataDecl                                      -- ^ refined 'newtype' declaration
