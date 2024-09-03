@@ -148,7 +148,7 @@ checkTargetSpec specs src env cbs tsp
                      <> foldMap (checkInv allowHO bsc emb tcEnv env)                 (gsInvariants (gsData tsp))
                      <> checkIAl allowHO bsc emb tcEnv env                            (gsIaliases   (gsData tsp))
                      <> checkMeasures emb env ms
-                     <> checkClassMeasures                                        (gsMeasures (gsData tsp))
+                     <> checkClassMeasures                                        ms
                      <> checkClassMethods (gsCls src) (gsCMethods (gsVars tsp)) (gsTySigs     (gsSig tsp))
                      -- <> foldMap checkMismatch sigs
                      <> foldMap checkMismatch (L.filter (\(v,_) -> not (GM.isSCSel v || GM.isMethod v)) sigs)

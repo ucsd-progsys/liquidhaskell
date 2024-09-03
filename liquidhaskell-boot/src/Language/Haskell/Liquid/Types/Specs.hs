@@ -274,6 +274,7 @@ data GhcSpecData = SpData
   , gsInvariants :: ![(Maybe Var, LocSpecType)]   -- ^ Data type invariants from measure definitions, e.g forall a. {v: [a] | len(v) >= 0}
   , gsIaliases   :: ![(LocSpecType, LocSpecType)] -- ^ Data type invariant aliases
   , gsMeasures   :: ![Measure SpecType DataCon]   -- ^ Measure definitions
+  , gsOpaqueRefls:: ![Var]                        -- ^ List of opaque reflected measures
   , gsUnsorted   :: ![UnSortedExpr]
   }
   deriving Show
@@ -413,6 +414,7 @@ data Spec ty bndr  = Spec
   , rewriteWith :: !(M.HashMap F.LocSymbol [F.LocSymbol])             -- ^ Definitions using rewrite rules
   , fails      :: !(S.HashSet F.LocSymbol)                            -- ^ These Functions should be unsafe
   , reflects   :: !(S.HashSet F.LocSymbol)                            -- ^ Binders to reflect
+  , opaqueReflects :: !(S.HashSet F.LocSymbol)                        -- ^ Binders to opaque-reflect
   , autois     :: !(M.HashMap F.LocSymbol (Maybe Int))                -- ^ Automatically instantiate axioms in these Functions with maybe specified fuel
   , hmeas      :: !(S.HashSet F.LocSymbol)                            -- ^ Binders to turn into measures using haskell definitions
   , hbounds    :: !(S.HashSet F.LocSymbol)                            -- ^ Binders to turn into bounds using haskell definitions
@@ -422,6 +424,9 @@ data Spec ty bndr  = Spec
   , pragmas    :: ![F.Located String]                                 -- ^ Command-line configurations passed in through source
   , cmeasures  :: ![Measure ty ()]                                    -- ^ Measures attached to a type-class
   , imeasures  :: ![Measure ty bndr]                                  -- ^ Mappings from (measure,type) -> measure
+  , omeasures  :: ![Measure ty bndr]                                  -- ^ Opaque reflection measures.
+  -- Separate field bc measures are checked for duplicates, and we want to allow for opaque-reflected measures to be duplicated.
+  -- See Note [Duplicate measures and opaque reflection] in "Language.Haskell.Liquid.Measure".
   , classes    :: ![RClass ty]                                        -- ^ Refined Type-Classes
   , claws      :: ![RClass ty]                                        -- ^ Refined Type-Classe Laws
   , relational :: ![(LocSymbol, LocSymbol, ty, ty, RelExpr, RelExpr)] -- ^ Relational types
@@ -470,6 +475,7 @@ instance Semigroup (Spec ty bndr) where
            , pragmas    =           pragmas    s1 ++ pragmas    s2
            , cmeasures  =           cmeasures  s1 ++ cmeasures  s2
            , imeasures  =           imeasures  s1 ++ imeasures  s2
+           , omeasures  =           omeasures  s1 ++ omeasures  s2
            , classes    =           classes    s1 ++ classes    s2
            , claws      =           claws      s1 ++ claws      s2
            , relational =           relational s1 ++ relational s2
@@ -487,6 +493,7 @@ instance Semigroup (Spec ty bndr) where
            , rewriteWith = M.union  (rewriteWith s1)  (rewriteWith s2)
            , fails      = S.union   (fails    s1)  (fails    s2)
            , reflects   = S.union   (reflects s1)  (reflects s2)
+           , opaqueReflects   = S.union   (opaqueReflects s1)  (opaqueReflects s2)
            , hmeas      = S.union   (hmeas    s1)  (hmeas    s2)
            , hbounds    = S.union   (hbounds  s1)  (hbounds  s2)
            , inlines    = S.union   (inlines  s1)  (inlines  s2)
@@ -526,6 +533,7 @@ instance Monoid (Spec ty bndr) where
            , autois     = M.empty
            , hmeas      = S.empty
            , reflects   = S.empty
+           , opaqueReflects = S.empty
            , hbounds    = S.empty
            , inlines    = S.empty
            , ignores    = S.empty
@@ -533,6 +541,7 @@ instance Monoid (Spec ty bndr) where
            , pragmas    = []
            , cmeasures  = []
            , imeasures  = []
+           , omeasures  = []
            , classes    = []
            , claws      = []
            , relational = []
@@ -611,6 +620,8 @@ data LiftedSpec = LiftedSpec
   , liftedCmeasures  :: HashSet (Measure LocBareType ())
     -- ^ Measures attached to a type-class
   , liftedImeasures  :: HashSet (Measure LocBareType F.LocSymbol)
+    -- Lifted opaque reflection measures
+  , liftedOmeasures  :: HashSet (Measure LocBareType F.LocSymbol)
     -- ^ Mappings from (measure,type) -> measure
   , liftedClasses    :: HashSet (RClass LocBareType)
     -- ^ Refined Type-Classes
@@ -655,6 +666,7 @@ emptyLiftedSpec = LiftedSpec
   , liftedAutosize   = mempty
   , liftedCmeasures  = mempty
   , liftedImeasures  = mempty
+  , liftedOmeasures  = mempty
   , liftedClasses    = mempty
   , liftedClaws      = mempty
   , liftedRinstance  = mempty
@@ -834,6 +846,7 @@ toLiftedSpec a = LiftedSpec
   , liftedAutosize   = autosize a
   , liftedCmeasures  = S.fromList . cmeasures $ a
   , liftedImeasures  = S.fromList . imeasures $ a
+  , liftedOmeasures  = S.fromList . omeasures $ a
   , liftedClasses    = S.fromList . classes $ a
   , liftedClaws      = S.fromList . claws $ a
   , liftedRinstance  = S.fromList . rinstance $ a
@@ -875,6 +888,7 @@ unsafeFromLiftedSpec a = Spec
   , rewrites   = mempty
   , rewriteWith = mempty
   , reflects   = mempty
+  , opaqueReflects   = mempty
   , autois     = liftedAutois a
   , hmeas      = mempty
   , hbounds    = mempty
@@ -884,6 +898,7 @@ unsafeFromLiftedSpec a = Spec
   , pragmas    = mempty
   , cmeasures  = S.toList . liftedCmeasures $ a
   , imeasures  = S.toList . liftedImeasures $ a
+  , omeasures  = S.toList . liftedOmeasures $ a
   , classes    = S.toList . liftedClasses $ a
   , claws      = S.toList . liftedClaws $ a
   , termexprs  = mempty

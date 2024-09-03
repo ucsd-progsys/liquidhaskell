@@ -864,6 +864,7 @@ data Pspec ty ctor
   | Insts   (LocSymbol, Maybe Int)                        -- ^ 'auto-inst' or 'ple' annotation; use ple locally on binder
   | HMeas   LocSymbol                                     -- ^ 'measure' annotation; lift Haskell binder as measure
   | Reflect LocSymbol                                     -- ^ 'reflect' annotation; reflect Haskell binder as function in logic
+  | OpaqueReflect LocSymbol                               -- ^ 'opaque-reflect' annotation
   | Inline  LocSymbol                                     -- ^ 'inline' annotation;  inline (non-recursive) binder as an alias
   | Ignore  LocSymbol                                     -- ^ 'ignore' annotation; skip all checks inside this binder
   | ASize   LocSymbol                                     -- ^ 'autosize' annotation; automatically generate size metric for this type
@@ -948,6 +949,8 @@ ppPspec k (HMeas   lx)
   = "measure" <+> pprintTidy k (val lx)
 ppPspec k (Reflect lx)
   = "reflect" <+> pprintTidy k (val lx)
+ppPspec k (OpaqueReflect lx)
+  = "opaque-reflect" <+> pprintTidy k (val lx)
 ppPspec k (Inline  lx)
   = "inline" <+> pprintTidy k (val lx)
 ppPspec k (Ignore  lx)
@@ -1078,6 +1081,7 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
   , Measure.pragmas    = [s | Pragma s <- xs]
   , Measure.cmeasures  = [m | CMeas  m <- xs]
   , Measure.imeasures  = [m | IMeas  m <- xs]
+  , Measure.omeasures  = []
   , Measure.classes    = [c | Class  c <- xs]
   , Measure.relational = [r | Relational r <- xs]
   , Measure.asmRel     = [r | AssmRel r <- xs]
@@ -1093,6 +1097,7 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
   , Measure.rewriteWith = M.fromList [s | Rewritewith s <- xs]
   , Measure.bounds     = M.fromList [(bname i, i) | PBound i <- xs]
   , Measure.reflects   = S.fromList [s | Reflect s <- xs]
+  , Measure.opaqueReflects = S.fromList [s | OpaqueReflect s <- xs]
   , Measure.hmeas      = S.fromList [s | HMeas  s <- xs]
   , Measure.inlines    = S.fromList [s | Inline s <- xs]
   , Measure.ignores    = S.fromList [s | Ignore s <- xs]
@@ -1115,6 +1120,7 @@ specP
     -- TODO: These next two are synonyms, kill one
     <|> fallbackSpecP "axiomatize"  (fmap Reflect axiomP   )
     <|> fallbackSpecP "reflect"     (fmap Reflect axiomP   )
+    <|> (reserved "opaque-reflect" >> fmap OpaqueReflect axiomP  )
 
     <|> fallbackSpecP "measure"    hmeasureP
 

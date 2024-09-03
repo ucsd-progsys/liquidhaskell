@@ -2135,7 +2135,7 @@ type UnSortedExprs = [UnSortedExpr] -- mempty = []
 type UnSortedExpr  = ([F.Symbol], F.Expr)
 
 data MeasureKind
-  = MsReflect     -- ^ due to `reflect foo`
+  = MsReflect     -- ^ due to `reflect foo`, used for opaque reflection
   | MsMeasure     -- ^ due to `measure foo` with old-style (non-haskell) equations
   | MsLifted      -- ^ due to `measure foo` with new-style haskell equations
   | MsClass       -- ^ due to `class measure` definition
@@ -2477,7 +2477,7 @@ instance Eq ctor => Semigroup (MSpec ty ctor) where
     | otherwise
     = MSpec (M.unionWith (++) c1 c2) (m1 `M.union` m2) (cm1 `M.union` cm2) (im1 ++ im2)
     where
-      dups = [(k1, k2) | k1 <- M.keys m1 , k2 <- M.keys m2, F.val k1 == F.val k2]
+      dups = [(k1, k2) | k1 <- M.keys m1 , k2 <- M.keys m2, F.val k1 == F.val k2, F.loc k1 /= F.loc k2]
       err k1 k2 = ErrDupMeas (fSrcSpan k1) (F.pprint (F.val k1)) (fSrcSpan <$> [k1, k2])
 
 

@@ -19,7 +19,7 @@ module Language.Haskell.Liquid.Bare.Resolve
   , ResolveSym (..)
   , Qualify (..)
   , Lookup
-  , qualifyTop, qualifyTopDummy
+  , qualifyTop, qualifyTopDummy, qualifyLocSymbolTop
 
   -- * Looking up names
   , maybeResolveSym
@@ -111,6 +111,7 @@ getGlobalSyms (_, spec)
        $ (mbName <$> measures  spec)
       ++ (mbName <$> cmeasures spec)
       ++ (mbName <$> imeasures spec)
+      ++ (mbName <$> omeasures spec)
   where
     mbName = F.val . msName
 
@@ -340,6 +341,10 @@ qualifySymbol env name l bs x
                   Right v -> v
   where
     isSpl     = isSplSymbol env bs x
+
+
+qualifyLocSymbolTop :: Env -> ModName -> F.LocSymbol -> F.LocSymbol
+qualifyLocSymbolTop env modName l  = l {val = qualifyTop env modName (loc l) (val l)}
 
 isSplSymbol :: Env -> [F.Symbol] -> F.Symbol -> Bool
 isSplSymbol env bs x

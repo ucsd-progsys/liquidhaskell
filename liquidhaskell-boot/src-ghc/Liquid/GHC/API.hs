@@ -462,7 +462,7 @@ import GHC.Plugins                    as Ghc ( deserializeWithData
                                              , extendIdSubst
                                              , substExpr
                                              )
-import GHC.Core.FVs                   as Ghc (exprFreeVarsList)
+import GHC.Core.FVs                   as Ghc (exprFreeVarsList, exprSomeFreeVarsList)
 import GHC.Core.Opt.OccurAnal         as Ghc
     ( occurAnalysePgm )
 import GHC.Driver.Backend             as Ghc (interpreterBackend)
