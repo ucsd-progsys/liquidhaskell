@@ -171,12 +171,6 @@ customDynFlags opts hscEnv = do
          `gopt_set` Opt_PIC
          `gopt_set` Opt_DeferTypedHoles
          `gopt_set` Opt_KeepRawTokenStream
-         -- Opt_InsertBreakpoints is used during desugaring to prevent the
-         -- simple optimizer from inlining local bindings to which we might want
-         -- to attach specifications.
-         --
-         -- https://gitlab.haskell.org/ghc/ghc/-/issues/24386
-         `gopt_set` Opt_InsertBreakpoints
          -- Ignore-interface-pragmas need to be unset to have access to
          -- the RHS unfoldings in the `Ghc.Var`s which is
          -- needed as part of the reflection of foreign functions in the logic
@@ -235,8 +229,9 @@ typecheckHook (unoptimise -> modSummary) tcGblEnv = do
   debugLog $ "We are in module: " <> show (toStableModule thisModule)
 
   env             <- env_top <$> getEnv
-  parsed          <- liftIO $ parseModuleIO env (LH.keepRawTokenStream modSummary)
+  parsed0          <- liftIO $ parseModuleIO env (LH.keepRawTokenStream modSummary)
   let comments    = LH.extractSpecComments parsed
+      parsed      = addNoInlinePragmasToLocalBinds parsed0
   -- The LH plugin itself calls the type checker (see following line). This
   -- would lead to a loop if we didn't remove the plugin when calling the type
   -- checker.
