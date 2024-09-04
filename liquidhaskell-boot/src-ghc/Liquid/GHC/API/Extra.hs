@@ -6,6 +6,7 @@
 module Liquid.GHC.API.Extra (
     module StableModule
   , ApiComment(..)
+  , addNoInlinePragmasToLocalBinds
   , apiComments
   , apiCommentsParsedSource
   , dataConSig
@@ -34,8 +35,8 @@ module Liquid.GHC.API.Extra (
 import Control.Monad.IO.Class
 import           Liquid.GHC.API.StableModule      as StableModule
 import GHC
-import Data.Data (Data, gmapQr)
-import Data.Generics (extQ)
+import Data.Data (Data, gmapQr, gmapT)
+import Data.Generics (extQ, extT)
 import Data.Foldable                  (asum)
 import Data.List                      (sortOn)
 import qualified Data.Map as Map
@@ -46,6 +47,7 @@ import GHC.Core.Coercion              as Ghc
 import GHC.Core.DataCon               as Ghc
 import GHC.Core.Make                  (pAT_ERROR_ID)
 import GHC.Core.Type                  as Ghc hiding (typeKind , isPredTy, extendCvSubst, linear)
+import GHC.Data.Bag                   (bagToList)
 import GHC.Data.FastString            as Ghc
 import qualified GHC.Data.EnumSet as EnumSet
 import GHC.Data.Maybe
@@ -54,8 +56,10 @@ import GHC.Driver.Env
 import GHC.Driver.Main
 import GHC.Driver.Session             as Ghc
 import GHC.Tc.Types
+import GHC.Types.Basic
 import GHC.Types.Name                 (isSystemName, nameModule_maybe, occNameFS)
-import GHC.Types.Name.Reader          (nameRdrName)
+import GHC.Types.Name.Reader          (nameRdrName, rdrNameOcc)
+import GHC.Types.SourceText           (SourceText(..))
 import GHC.Types.SrcLoc               as Ghc
 import GHC.Types.TypeEnv
 import GHC.Types.Unique               (getUnique, hasKey)
@@ -216,6 +220,47 @@ apiCommentsParsedSource ps =
 
     spanToLineColumn =
       fmap (\s -> (srcSpanStartLine s, srcSpanStartCol s)) . srcSpanToRealSrcSpan
+
+-- | Adds NOINLINE pragmas to all local bindings in the module.
+--
+-- This prevents the simple optimizer from inlining such bindings which might
+-- have specs that would otherwise be left dangling.
+--
+-- https://gitlab.haskell.org/ghc/ghc/-/issues/24386
+--
+addNoInlinePragmasToLocalBinds :: ParsedModule -> ParsedModule
+addNoInlinePragmasToLocalBinds ps =
+    ps { pm_parsed_source = go (pm_parsed_source ps) }
+  where
+    go :: forall a. Data a => a -> a
+    go = gmapT (go `extT` addNoInlinePragmas)
+
+    addNoInlinePragmas :: HsValBinds GhcPs -> HsValBinds GhcPs
+    addNoInlinePragmas = \case
+      ValBinds x binds sigs ->
+          ValBinds x binds (newSigs ++ dropInlinePragmas sigs)
+        where
+          dropInlinePragmas = filter (not . isInlinePragma . unLoc)
+
+          isInlinePragma InlineSig{} = True
+          isInlinePragma _ = False
+
+          newSigs = concatMap (traverse noInlinePragmaForBind) $ bagToList binds
+
+          noInlinePragmaForBind :: HsBindLR GhcPs GhcPs -> [Sig GhcPs]
+          noInlinePragmaForBind bndr =
+              [ InlineSig
+                  []
+                  (noLocA b)
+                  defaultInlinePragma
+                    { inl_inline = NoInline $ SourceText $ occNameFS $ rdrNameOcc b
+                    , inl_act = NeverActive
+                    }
+              | b <- collectHsBindBinders CollNoDictBinders bndr
+              ]
+
+      bnds -> bnds
+
 
 lookupModSummary :: HscEnv -> ModuleName -> Maybe ModSummary
 lookupModSummary hscEnv mdl = do

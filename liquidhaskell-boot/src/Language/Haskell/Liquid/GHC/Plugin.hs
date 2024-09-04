@@ -167,12 +167,6 @@ customDynFlags df =
        `gopt_set` Opt_PIC
        `gopt_set` Opt_DeferTypedHoles
        `gopt_set` Opt_KeepRawTokenStream
-       -- Opt_InsertBreakpoints is used during desugaring to prevent the
-       -- simple optimizer from inlining local bindings to which we might want
-       -- to attach specifications.
-       --
-       -- https://gitlab.haskell.org/ghc/ghc/-/issues/24386
-       `gopt_set` Opt_InsertBreakpoints
        `xopt_set` MagicHash
        `xopt_set` DeriveGeneric
        `xopt_set` StandaloneDeriving
@@ -220,8 +214,9 @@ typecheckHook cfg0 modSummary0 tcGblEnv = do
 
   env0 <- env_top <$> getEnv
   let env = env0 { hsc_dflags = ms_hspp_opts modSummary }
-  parsed           <- liftIO $ parseModuleIO env (LH.keepRawTokenStream modSummary)
-  let specComments = map mkSpecComment $ LH.extractSpecComments parsed
+  parsed0 <- liftIO $ parseModuleIO env (LH.keepRawTokenStream modSummary)
+  let specComments = map mkSpecComment $ LH.extractSpecComments parsed0
+      parsed = addNoInlinePragmasToLocalBinds parsed0
 
   case parseSpecComments (coerce specComments) of
     Left errors ->
