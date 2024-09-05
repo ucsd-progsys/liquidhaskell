@@ -1316,7 +1316,7 @@ addOpaqueReflMeas cfg tycEnv env spec measEnv specs eqs = do
     -- We skip the variables from the axiom equations that correspond to the actual functions
     -- of opaque reflections, since we never need to look at the unfoldings of those
     qualifySym l = Bare.qualifyTop env name (loc l) (val l)
-    actualFns = S.fromList $ (qualifySym . fst) <$> (Ms.asmReflectSigs spec)
+    actualFns = S.fromList $ qualifySym . fst <$> Ms.asmReflectSigs spec
     shouldBeUsedForScanning sym = not (sym `S.member` actualFns)
     varsUsedForTcScanning = L.filter (shouldBeUsedForScanning . symbol) $ fst3 <$> eqs
     tcs           = S.toList $ Ghc.dataConTyCon `S.map` Bare.getReflDCs measEnv varsUsedForTcScanning
