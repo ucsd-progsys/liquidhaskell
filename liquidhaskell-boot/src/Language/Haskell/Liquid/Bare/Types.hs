@@ -87,9 +87,10 @@ instance HasConfig Env where
 type LocalVars = M.HashMap F.Symbol [LocalVarDetails]
 
 data LocalVarDetails = LocalVarDetails
-    { lvdLine :: Int
-    , lvdVar :: Ghc.Var
-    }
+  { lvdLine :: Int
+  , lvdVar :: Ghc.Var
+  , lvdIsRec :: Bool  -- ^ Is the variable defined in a letrec?
+  } deriving Show
 
 -------------------------------------------------------------------------------
 -- | A @TyThingMap@ is used to resolve symbols into GHC @TyThing@ and, 

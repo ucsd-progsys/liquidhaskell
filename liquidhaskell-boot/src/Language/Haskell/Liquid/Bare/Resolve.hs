@@ -119,35 +119,36 @@ makeLocalVars :: GhcSrc -> LocalVars
 makeLocalVars = localVarMap . localBinds . _giCbs
 
 -- TODO: rewrite using CoreVisitor
-localBinds :: [Ghc.CoreBind] -> [Ghc.Var]
-localBinds                    = concatMap (bgo S.empty)
+localBinds :: [Ghc.CoreBind] -> [LocalVarDetails]
+localBinds                    = concatMap bgoT
   where
-    add  x g                  = maybe g (`S.insert` g) (localKey x)
-    adds b g                  = foldr add g (Ghc.bindersOf b)
-    take' x g                 = maybe [] (\k -> [x | not (S.member k g)]) (localKey x)
-    pgo g (x, e)              = take' x g ++ go (add x g) e
-    bgo g (Ghc.NonRec x e)    = pgo g (x, e)
-    bgo g (Ghc.Rec xes)       = concatMap (pgo g) xes
-    go  g (Ghc.App e a)       = concatMap (go  g) [e, a]
-    go  g (Ghc.Lam _ e)       = go g e
-    go  g (Ghc.Let b e)       = bgo g b ++ go (adds b g) e
-    go  g (Ghc.Tick _ e)      = go g e
-    go  g (Ghc.Cast e _)      = go g e
-    go  g (Ghc.Case e _ _ cs) = go g e ++ concatMap (go g . (\(Ghc.Alt _ _ e') -> e')) cs
-    go  _ (Ghc.Var _)         = []
-    go  _ _                   = []
+    bgoT (Ghc.NonRec _ e)   = go e
+    bgoT (Ghc.Rec xes)      = concatMap (go . snd) xes
+    pgo isRec (x, e)        = mkLocalVarDetails isRec x : go e
+    bgo (Ghc.NonRec x e)    = pgo False (x, e)
+    bgo (Ghc.Rec xes)       = concatMap (pgo True) xes
+    go  (Ghc.App e a)       = concatMap go [e, a]
+    go  (Ghc.Lam _ e)       = go e
+    go  (Ghc.Let b e)       = bgo b ++ go e
+    go  (Ghc.Tick _ e)      = go e
+    go  (Ghc.Cast e _)      = go e
+    go  (Ghc.Case e _ _ cs) = go e ++ concatMap (go . (\(Ghc.Alt _ _ e') -> e')) cs
+    go  (Ghc.Var _)         = []
+    go  _                   = []
 
-localVarMap :: [Ghc.Var] -> LocalVars
-localVarMap vs =
+    mkLocalVarDetails isRec v = LocalVarDetails
+      { lvdLine = F.unPos (F.srcLine v)
+      , lvdVar = v
+      , lvdIsRec = isRec
+      }
+
+localVarMap :: [LocalVarDetails] -> LocalVars
+localVarMap lvds =
     Misc.group
       [ (x, lvd)
-      | v <- vs
-      , let i = F.unPos (F.srcLine v)
-      , x <- Mb.maybeToList (localKey v)
-      , let lvd = LocalVarDetails
-              { lvdLine = i
-              , lvdVar = v
-              }
+      | lvd <- lvds
+      , let v = lvdVar lvd
+            x = F.symbol $ Ghc.occNameString $ Ghc.nameOccName $ Ghc.varName v
       ]
 
 localKey   :: Ghc.Var -> Maybe F.Symbol
@@ -489,11 +490,17 @@ lookupLocalVar :: Env -> LocSymbol -> [Ghc.Var] -> Maybe Ghc.Var
 lookupLocalVar env lx gvs = Misc.findNearest lxn kvs
   where
     _msg                  = "LOOKUP-LOCAL: " ++ F.showpp (F.val lx, lxn, kvs)
-    kvs                   = gs ++ map lvdToPair (M.lookupDefault [] x $ reLocalVars env)
+    kvs                   = prioritizeRecBinds (M.lookupDefault [] x $ reLocalVars env) ++ gs
     gs                    = [(F.unPos (F.srcLine v), v) | v <- gvs]
     lxn                   = F.unPos (F.srcLine lx)
     (_, x)                = unQualifySymbol (F.val lx)
 
+    -- Sometimes GHC produces multiple bindings that have the same source
+    -- location. To select among these, we give preference to the recursive
+    -- bindings which might need termination metrics.
+    prioritizeRecBinds lvds =
+      let (recs, nrecs) = L.partition lvdIsRec lvds
+       in map lvdToPair (recs ++ nrecs)
     lvdToPair lvd = (lvdLine lvd, lvdVar lvd)
 
 lookupGhcDataCon :: Env -> ModName -> String -> LocSymbol -> Lookup Ghc.DataCon
