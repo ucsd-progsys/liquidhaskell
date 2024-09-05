@@ -139,10 +139,16 @@ localBinds                    = concatMap (bgo S.empty)
 
 localVarMap :: [Ghc.Var] -> LocalVars
 localVarMap vs =
-  Misc.group [ (x, (i, v)) | v <- vs
-                           , let i = F.unPos (F.srcLine v)
-                           , x <- Mb.maybeToList (localKey v)
-             ]
+    Misc.group
+      [ (x, lvd)
+      | v <- vs
+      , let i = F.unPos (F.srcLine v)
+      , x <- Mb.maybeToList (localKey v)
+      , let lvd = LocalVarDetails
+              { lvdLine = i
+              , lvdVar = v
+              }
+      ]
 
 localKey   :: Ghc.Var -> Maybe F.Symbol
 localKey v
@@ -483,10 +489,12 @@ lookupLocalVar :: Env -> LocSymbol -> [Ghc.Var] -> Maybe Ghc.Var
 lookupLocalVar env lx gvs = Misc.findNearest lxn kvs
   where
     _msg                  = "LOOKUP-LOCAL: " ++ F.showpp (F.val lx, lxn, kvs)
-    kvs                   = gs ++ M.lookupDefault [] x (reLocalVars env)
+    kvs                   = gs ++ map lvdToPair (M.lookupDefault [] x $ reLocalVars env)
     gs                    = [(F.unPos (F.srcLine v), v) | v <- gvs]
     lxn                   = F.unPos (F.srcLine lx)
     (_, x)                = unQualifySymbol (F.val lx)
+
+    lvdToPair lvd = (lvdLine lvd, lvdVar lvd)
 
 lookupGhcDataCon :: Env -> ModName -> String -> LocSymbol -> Lookup Ghc.DataCon
 lookupGhcDataCon = resolveLocSym -- strictResolveSym
