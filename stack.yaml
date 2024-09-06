@@ -26,10 +26,6 @@ extra-deps:
 - store-core-0.4.4.6
 - git: https://github.com/qnikst/ghc-timings-report
   commit: 45ef3498e35897712bde8e002ce18df6d55f8b15
-- bytestring-0.12.0.2@sha256:9fc077ff5b7ed2246773c3ac4370ef8822e4834d4587522b68ae551a5968fb86,7891
-- containers-0.6.8@sha256:bb2bec1bbc6b39a7c97cd95e056a5698ec45beb5d8feb6caae12af64e4bd823c,2670
-- ghc-9.8.2@sha256:ef8d8751c9a4c0a07760b310c6c30bfc35d876b87c3bc8027a2a547cd5087716,26479
-
 
 allow-newer: true
 allow-newer-deps:
