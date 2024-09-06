@@ -8,4 +8,4 @@ incr3 = undefined
 
 {-@ uincr3 :: INCR3 @-}
 uincr3 :: (Int, Int, Int)
-uincr3 = let (x, y, z) = incr3 in (x + 1, y + 1, z +1 )
+uincr3 = case incr3 of (x, y, z) -> (x + 1, y + 1, z +1 )

@@ -47,6 +47,7 @@ fulcrums xorgs          = go 0 0 xorgs Emp
            -> FvMap xorgs i 
            -> FvMap {xorgs} {i + len ys} / [len ys] 
       @-} 
+    go :: Int -> Int -> [Int] -> IMap Int -> IMap Int
     go _ _   [] m = m 
     go i pre ys m = go (i + 1) pre' ys' m' 
       where

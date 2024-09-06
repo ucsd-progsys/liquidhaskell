@@ -77,6 +77,9 @@ mkBst = foldl (\t (k, v) -> insert k v t) Empty
 prop        = chk bst
 prop1       = chk $ mkBst $ zip [1..] [1..]
 propDelete  = chk $ delete 1 bst
-propMin     = chkMin x t
-    where pr  = getMin bst
-          P x _ t = pr
+propMin     =
+    case pr of
+      P x _ t ->
+        chkMin x t
+  where
+    pr  = getMin bst
