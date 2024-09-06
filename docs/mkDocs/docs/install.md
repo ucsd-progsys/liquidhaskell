@@ -78,4 +78,4 @@ You may also want to delete the `.liquid` directories placed alongside your sour
 
 ## Other Options
 
-**Online Demo**: For small projects without a `.cabal` file, you can paste your code into the [online demo](http://goto.ucsd.edu:8090/index.html).
+**Online Demo**: For small projects without a `.cabal` file, you can paste your code into the [online demo](https://liquidhaskell.goto.ucsd.edu/index.html).
