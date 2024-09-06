@@ -30,7 +30,7 @@ Simple Refinement Types
 =======================
 
 
-Types + Predicates 
+Types + Predicates
 ------------------
 
 
@@ -49,11 +49,11 @@ zero     =  0
 <br>
 
 <div class="fragment">
-Refinement types via special comments `{-@ ... @-}` 
+Refinement types via special comments `{-@ ... @-}`
 
 <br>
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo</a> 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo</a>
 </div>
 
 
@@ -64,7 +64,7 @@ Refinements Are Predicates
 From A Decidable Logic
 ----------------------
 
-<br> 
+<br>
 
 1. Expressions
 
@@ -76,7 +76,7 @@ From A Decidable Logic
 
 **Refinement Logic: QF-UFLIA**
 
-Quant.-Free. Uninterpreted Functions and Linear Arithmetic 
+Quant.-Free. Uninterpreted Functions and Linear Arithmetic
 
 </div>
 
@@ -86,7 +86,7 @@ Expressions
 
 <br>
 
-\begin{code} <div/> 
+\begin{code} <div/>
 e := x, y, z,...    -- variable
    | 0, 1, 2,...    -- constant
    | (e + e)        -- addition
@@ -101,9 +101,9 @@ Predicates
 <br>
 
 \begin{code} <div/>
-p := e           -- atom 
+p := e           -- atom
    | e1 == e2    -- equality
-   | e1 <  e2    -- ordering 
+   | e1 <  e2    -- ordering
    | (p && p)    -- and
    | (p || p)    -- or
    | (not p)     -- negation
@@ -119,17 +119,17 @@ Refinement Types
 <br>
 
 \begin{code}<div/>
-b := Int 
-   | Bool 
+b := Int
+   | Bool
    | ...         -- base types
    | a, b, c     -- type variables
 
-t := {x:b | p}   -- refined base 
-   | x:t -> t    -- refined function  
+t := {x:b | p}   -- refined base
+   | x:t -> t    -- refined function
 \end{code}
 
 
-Subtyping Judgment 
+Subtyping Judgment
 ------------------
 
 <br>
@@ -171,7 +171,7 @@ $$
                 & \\
 {\mathbf{Then}} & \overline{\bindx{x_i}{P_i}} \vdash \reft{v}{b}{Q} \subty \reft{v}{v}{R} \\
 \end{array}
-$$ 
+$$
 
 
 Example: Natural Numbers
@@ -179,7 +179,7 @@ Example: Natural Numbers
 
 <br>
 
-\begin{code} <div/>  
+\begin{code} <div/>
         type Nat = {v:Int | 0 <= v}
 \end{code}
 
@@ -238,7 +238,7 @@ safeDiv n d = n `div` d   -- crashes if d==0
 
 
 <div class="fragment">
-Specify pre-condition as **input type** 
+Specify pre-condition as **input type**
 
 \begin{code}
 {-@ safeDiv :: n:Int -> d:NonZero -> Int @-}
@@ -250,7 +250,7 @@ Specify pre-condition as **input type**
 Precondition: `safeDiv`
 -----------------------
 
-Specify pre-condition as **input type** 
+Specify pre-condition as **input type**
 
 \begin{code} <div/>
 {-@ safeDiv :: n:Int -> d:NonZero -> Int @-}
@@ -268,7 +268,7 @@ bad n   = 10 `safeDiv` n
 <br>
 
 <div class="fragment">
-**Rejected As** 
+**Rejected As**
 
 $$\bindx{n}{\Nat} \vdash \reftx{v}{v = n} \not \subty \reftx{v}{v \not = 0}$$
 
@@ -277,7 +277,7 @@ $$\bindx{n}{\Nat} \vdash \reftx{v}{v = n} \not \subty \reftx{v}{v \not = 0}$$
 Precondition: `safeDiv`
 -----------------------
 
-Specify pre-condition as **input type** 
+Specify pre-condition as **input type**
 
 \begin{code} <div/>
 {-@ safeDiv :: n:Int -> d:NonZero -> Int @-}
@@ -295,7 +295,7 @@ ok n    = 10 `safeDiv` (n+1)
 <br>
 
 <div class="fragment">
-**Verifies As** 
+**Verifies As**
 
 $\bindx{n}{\Nat} \vdash \reftx{v}{v = n+1} \subty \reftx{v}{v \not = 0}$
 </div>
@@ -303,7 +303,7 @@ $\bindx{n}{\Nat} \vdash \reftx{v}{v = n+1} \subty \reftx{v}{v \not = 0}$
 Precondition: `safeDiv`
 -----------------------
 
-Specify pre-condition as **input type** 
+Specify pre-condition as **input type**
 
 \begin{code} <div/>
 {-@ safeDiv :: n:Int -> d:NonZero -> Int @-}
@@ -332,7 +332,7 @@ Post-Conditions
 **Ensures** output is a `Nat` greater than input `x`.
 
 \begin{code}
-abs x | 0 <= x    = x 
+abs x | 0 <= x    = x
       | otherwise = 0 - x
 \end{code}
 
@@ -357,11 +357,11 @@ Outputs *refer to* inputs
 Postcondition: `abs`
 --------------------
 
-Specify post-condition as **output type** 
+Specify post-condition as **output type**
 
 \begin{code} <div/>
 {-@ abs :: x:Int -> {v:Nat | x <= v} @-}
-abs x | 0 <= x    = x 
+abs x | 0 <= x    = x
       | otherwise = 0 - x
 \end{code}
 
@@ -374,11 +374,11 @@ Postcondition is checked at **return-site**
 Postcondition: `abs`
 --------------------
 
-Specify post-condition as **output type** 
+Specify post-condition as **output type**
 
 \begin{code} <div/>
 {-@ abs :: x:Int -> {v:Nat | x <= v} @-}
-abs x | 0 <= x    = x 
+abs x | 0 <= x    = x
       | otherwise = 0 - x
 \end{code}
 
@@ -396,11 +396,11 @@ $$\begin{array}{rll}
 Postcondition: `abs`
 --------------------
 
-Specify post-condition as **output type** 
+Specify post-condition as **output type**
 
 \begin{code} <div/>
 {-@ abs :: x:Int -> {v:Nat | x <= v} @-}
-abs x | 0 <= x    = x 
+abs x | 0 <= x    = x
       | otherwise = 0 - x
 \end{code}
 
@@ -443,7 +443,7 @@ How to **synthesize** signatures from code
 **2-Phase Process**
 
 1. H-M to synthesize *types*
-2. A-I to synthesize *refinements*  
+2. A-I to synthesize *refinements*
 
 </div>
 
@@ -567,7 +567,7 @@ $$\begin{array}{rll}
 Step 3. Solve (`abs`)
 ---------------------
 
-Least-fixpoint over abstract domain 
+Least-fixpoint over abstract domain
 
 <br>
 
@@ -596,7 +596,7 @@ $$\begin{array}{ccll}
 Step 3. Solve (`abs`)
 ---------------------
 
-Least-fixpoint over abstract domain 
+Least-fixpoint over abstract domain
 
 <br>
 
@@ -624,7 +624,7 @@ Recipe Scales Up
 <br>
 
 <div class="fragment">
-+ Define type checker, get inference for free 
++ Define type checker, get inference for free
 
 + Scales to Data types, HO functions, Polymorphism
 
@@ -632,7 +632,7 @@ Recipe Scales Up
 <br>
 
 <div class="fragment">
-**Key Requirement** 
+**Key Requirement**
 
 Refinements belong in abstract domain, e.g. QF-UFLIA
 </div>
@@ -667,8 +667,8 @@ infixr `C`
 
 
 \begin{code}
-data L a = N          -- Empty 
-         | C a (L a)  -- Cons 
+data L a = N          -- Empty
+         | C a (L a)  -- Cons
 \end{code}
 
 
@@ -732,7 +732,7 @@ nats     =  0 `C` 1 `C` 2 `C` N
 Example: Lists
 --------------
 
-How to **verify** ? 
+How to **verify** ?
 
 \begin{code} <div/>
 {-@ nats :: L Nat @-}
@@ -748,8 +748,8 @@ nats   = l0
 
 <div class="fragment">
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
-What if `nats` contained `-2`? 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a>
+What if `nats` contained `-2`?
 
 </div>
 
@@ -771,15 +771,15 @@ Example: Even/Odd Lists
 evens     =  0 `C` 2 `C` 4 `C` N
 
 {-@ odds  :: L Odd  @-}
-odds      =  1 `C` 3 `C` 5 `C` N 
+odds      =  1 `C` 3 `C` 5 `C` N
 \end{code}
 </div>
 
 <br>
 
 <div class="fragment">
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
-What if `evens` contained `1`? 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a>
+What if `evens` contained `1`?
 </div>
 
 -->
@@ -814,7 +814,7 @@ Example: `range`
 {-@ range :: i:Int -> j:Int -> L (Btwn i j) @-}
 range i j            = go i
   where
-    go n | n < j     = n `C` go (n + 1)  
+    go n | n < j     = n `C` go (n + 1)
          | otherwise = N
 \end{code}
 
@@ -828,7 +828,7 @@ range i j            = go i
 Example: Indexing Into List
 ---------------------------
 
-\begin{code} 
+\begin{code}
 (!)          :: L a -> Int -> a
 (C x _)  ! 0 = x
 (C _ xs) ! i = xs ! (i - 1)
@@ -846,5 +846,3 @@ _        ! _ = liquidError "Oops!"
 <br>
 
 <div class="fragment">Need way to **measure** the length of a list [[continue...]](02_Measures.lhs.slides.html)</div>
-
-

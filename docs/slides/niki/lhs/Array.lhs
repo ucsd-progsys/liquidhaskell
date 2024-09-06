@@ -14,7 +14,7 @@ import Language.Haskell.Liquid.Prelude (liquidAssume)
 Indexed-Dependent Refinements
 -----------------------------
 
-We define a Vector of `a`s 
+We define a Vector of `a`s
 implemented as a function from `Int` to `a`s <br>
 <br>
 
@@ -36,7 +36,7 @@ We parameterize the definition with two abstract refinements:
 \end{code}
 
 
-- `dom`: describes the *domain* 
+- `dom`: describes the *domain*
 
 - `rng`: describes each value with respect to its index
 
@@ -56,7 +56,7 @@ A vector of `Int` *defined on* values less than `42`
 <br>
 
 \begin{code}
-{-@ type IdVec = 
+{-@ type IdVec =
       Vec <{\v -> (v < 42)}, {\j v -> (v = j)}> Int
   @-}
 \end{code}
@@ -75,7 +75,7 @@ A vector *defined on* the range `[0..n)` with its *last element* equal to `0`:
 <br>
 
 \begin{code}
-{-@ type ZeroTerm N = 
+{-@ type ZeroTerm N =
      Vec <{\v -> (0 <= v && v < N)}, {\j v -> (j = N - 1 => v = 0)}> Int
   @-}
 \end{code}
@@ -90,14 +90,14 @@ Describing Vectors
 <br>
 
 
-A vector *defined on* integers whose *value at index `j`* is either 
+A vector *defined on* integers whose *value at index `j`* is either
 `0` or the `j`th fibonacci:
 <br>
 <br>
 
 \begin{code}
-{-@ type FibV =  
-     Vec <{\v -> 0=0}, {\j v -> ((v != 0) => (v = (fib j)))}> Int 
+{-@ type FibV =
+     Vec <{\v -> 0=0}, {\j v -> ((v != 0) => (v = (fib j)))}> Int
   @-}
 \end{code}
 
@@ -105,7 +105,7 @@ A vector *defined on* integers whose *value at index `j`* is either
 Operations on Vectors
 ---------------------
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=Array.hs" target= "_blank">Demo:</a> 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=Array.hs" target= "_blank">Demo:</a>
 
 We give appropriate types to vector operations (empty, set, get...)
 
@@ -130,7 +130,7 @@ Typing Get
 ----------
 
 If `i` satisfies the domain then
-if we `get` the `i`th element of an array, 
+if we `get` the `i`th element of an array,
 the result should satisfy the range at `i`
 <br>
 <br>
@@ -150,7 +150,7 @@ Typing Set
 
 If `i` satisfies the domain then
 if we `set` the `i`th element of a Vector to a value
-that satisfies range at `i`, 
+that satisfies range at `i`,
 then Vector's domain will be extended with `i`
 <br>
 <br>
@@ -170,12 +170,12 @@ Using Vectors
 -------------
 
 \begin{code}Remember the fibonacci memoization Vector:
-type FibV = 
+type FibV =
      Vec <{\v -> 0=0}, {\j v -> ((v != 0) => (v = (fib j)))}> Int
 \end{code}
 <br>
 
-Where `fib` is an *uninterprented function* 
+Where `fib` is an *uninterprented function*
 \begin{code}
 {-@ measure fib :: Int -> Int @-}
 \end{code}
@@ -184,7 +184,7 @@ Where `fib` is an *uninterprented function*
 We used `fib` to define the `axiom_fib`
 
 \begin{code}
-{-@ predicate Fib I = 
+{-@ predicate Fib I =
   (fib i) = (if (i <= 1) then 1 else ((fib (i-1)) + (fib (i-2))))
   @-}
 
@@ -212,12 +212,12 @@ Fibonacci Memo
 {-@ fibMemo :: FibV -> i:Int -> (FibV, {v: Int | v = (fib i)}) @-}
 
 fibMemo :: Vec Int -> Int -> (Vec Int, Int)
-fibMemo t i 
-  | i <= 1    
+fibMemo t i
+  | i <= 1
   = (t, liquidAssume (axiom_fib i) (1 :: Int))
-  
-  | otherwise 
-  = case get i t of   
+
+  | otherwise
+  = case get i t of
       0 -> let (t1, n1) = fibMemo t  (i-1)
                (t2, n2) = fibMemo t1 (i-2)
                n        = liquidAssume (axiom_fib i) (n1 + n2)

@@ -11,7 +11,7 @@ import Language.Haskell.Liquid.Prelude
 
 safeDiv :: Int -> Int -> Int
 foo     :: Int -> Int
--- zero    :: Int 
+-- zero    :: Int
 -- diverge :: a -> b
 \end{code}
 </div>
@@ -86,30 +86,30 @@ An Innocent Function
 
 \begin{spec} <div/>
 {-@ foo       :: n:Nat -> {v:Nat | v < n} @-}
-foo n   
+foo n
   | n > 0     = n - 1
   | otherwise = foo n
 \end{spec}
 
-LiquidHaskell Lies! 
+LiquidHaskell Lies!
 -------------------
 
 \begin{code}
 {-@ foo       :: n:Nat -> {v:Nat | v < n} @-}
-foo n   
+foo n
   | n > 0     = n - 1
   | otherwise = foo n
 
-explode = let z = 0    
+explode = let z = 0
               a = foo z
-          in  
-              (\x -> 2013 `safeDiv` z) a 
+          in
+              (\x -> 2013 `safeDiv` z) a
 \end{code}
 
 <br>
 
 <div class="fragment">
-Why is this program **deemed safe**?! 
+Why is this program **deemed safe**?!
 </div>
 
 
@@ -118,20 +118,20 @@ Why is this program **deemed safe**?!
 
 \begin{spec} <div/>
 {-@ foo       :: n:Nat -> {v:Nat | v < n} @-}
-foo n   
+foo n
   | n > 0     = n - 1
   | otherwise = foo n
 
 explode = let z = 0     -- :: {v:Int| v = 0}
               a = foo z -- :: {v:Nat| v < z}
-          in  
-              (\x -> 2013 `safeDiv` z) a 
+          in
+              (\x -> 2013 `safeDiv` z) a
 \end{spec}
 
 <br>
 
 <div class="fragment">
-**Safe** in Java, ML: program spins away, **never hits** divide-by-zero 
+**Safe** in Java, ML: program spins away, **never hits** divide-by-zero
 </div>
 
 *Unsafe* With Lazy Eval
@@ -139,14 +139,14 @@ explode = let z = 0     -- :: {v:Int| v = 0}
 
 \begin{spec} <div/>
 {-@ foo       :: n:Nat -> {v:Nat | v < n} @-}
-foo n   
+foo n
   | n > 0     = n - 1
   | otherwise = foo n
 
 explode = let z = 0     -- :: {v:Int| v = 0}
               a = foo z -- :: {v:Nat| v < z}
-          in  
-              (\x -> 2013 `safeDiv` z) a 
+          in
+              (\x -> 2013 `safeDiv` z) a
 \end{spec}
 
 <br>
@@ -164,13 +164,13 @@ What is denoted by:
 <br>
 
 <div class="fragment">
-`e` evaluates to `Int` satisfying `P`  
+`e` evaluates to `Int` satisfying `P`
 </div>
 
 <div class="fragment">
 or
 
-**diverges**! 
+**diverges**!
 </div>
 
 <div class="fragment">
@@ -185,16 +185,16 @@ Classical Floyd-Hoare notion of [partial correctness](http://en.wikipedia.org/wi
 Problem: Divergence
 -------------------
 
-\begin{spec} **Consider** <div/> 
+\begin{spec} **Consider** <div/>
         {-@ e :: {v : Int | P} @-}
 
-        let x = e in body 
+        let x = e in body
 \end{spec}
 
 <br>
 
 <div class="fragment">
-**Eager Evaluation** 
+**Eager Evaluation**
 
 *Can* assume `P(x)` when checking `body`
 </div>
@@ -202,24 +202,24 @@ Problem: Divergence
 <br>
 
 <div class="fragment">
-**Lazy Evaluation** 
+**Lazy Evaluation**
 
 *Cannot* assume `P(x)` when checking `body`
 </div>
 
-Eager vs. Lazy Binders 
+Eager vs. Lazy Binders
 ----------------------
 
 \begin{spec} <div/>
 {-@ foo       :: n:Nat -> {v:Nat | v < n} @-}
-foo n   
+foo n
   | n > 0     = n - 1
   | otherwise = foo n
 
 explode = let z = 0     -- :: {v:Int| v = 0}
               a = foo z -- :: {v:Nat| v < z}
-          in  
-              (\x -> 2013 `safeDiv` z) a 
+          in
+              (\x -> 2013 `safeDiv` z) a
 \end{spec}
 
 
@@ -232,7 +232,7 @@ Panic! Now what?
 ---------------
 
 <div class="fragment">
-**Solution** 
+**Solution**
 
 Assign *non-trivial* refinements to *non-diverging* terms!
 </div>
@@ -250,7 +250,7 @@ Don't worry, its easy...
 <br>
 
 <div class="fragment">
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=TellingLies.hs" target="_blank">Demo:</a> &nbsp; Disable `"--no-termination"` and see what happens!
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=TellingLies.hs" target="_blank">Demo:</a> &nbsp; Disable `"--no-termination"` and see what happens!
 </div>
 
 Recap
@@ -267,5 +267,3 @@ Recap
 <br>
 
 <div class="fragment">[[continue...]](10_Termination.lhs.slides.html)</div>
-
-

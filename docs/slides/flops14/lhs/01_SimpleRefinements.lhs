@@ -30,7 +30,7 @@ Simple Refinement Types
 =======================
 
 
-Types + Predicates 
+Types + Predicates
 ------------------
 
 
@@ -49,11 +49,11 @@ zero     =  0
 <br>
 
 <div class="fragment">
-Refinement types via special comments `{-@ ... @-}` 
+Refinement types via special comments `{-@ ... @-}`
 
 <br>
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo</a> 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo</a>
 </div>
 
 
@@ -74,7 +74,7 @@ Expressions
 
 <br>
 
-\begin{code} <div/> 
+\begin{code} <div/>
 e := x, y, z,...      -- variable
    | 0, 1, 2,...      -- constant
    | (e + e)          -- addition
@@ -89,9 +89,9 @@ Predicates
 <br>
 
 \begin{code} <div/>
-p := e           -- atom 
+p := e           -- atom
    | e1 == e2    -- equality
-   | e1 <  e2    -- ordering 
+   | e1 <  e2    -- ordering
    | (p && p)    -- and
    | (p || p)    -- or
    | (not p)     -- negation
@@ -113,7 +113,7 @@ Subtyping is Implication
 <br>
 
 --------  ---  ------------------   ---------   ------------------
-  **If**   :   Refinement of `S`    *implies*   Refinement of `T` 
+  **If**   :   Refinement of `S`    *implies*   Refinement of `T`
 
 **Then**   :   `S`                  *subtype*   `T`
 --------  ---  ------------------   ---------   ------------------
@@ -129,17 +129,17 @@ Subtyping is Implication
 <br>
 <br>
 
----------   ------------   --------------------------   
-  **If:**            `P`   `=> Q` 
-            
+---------   ------------   --------------------------
+  **If:**            `P`   `=> Q`
+
 **Then:**    `{v:t | P}`   `<: {v:t | Q}`
----------   ------------   --------------------------   
+---------   ------------   --------------------------
 
 
 Example: Natural Numbers
 ------------------------
 
-\begin{code} <div/> 
+\begin{code} <div/>
         type Nat = {v:Int | 0 <= v}
 \end{code}
 
@@ -148,8 +148,8 @@ Example: Natural Numbers
 <div class="fragment">
 
 -------------    ---------  ----------------
-  **By SMT:**      `v = 0`  `=>`  `0 <= v` 
-             
+  **By SMT:**      `v = 0`  `=>`  `0 <= v`
+
       **So:**     `EqZero`  `<:`  `Nat`
 -------------    ---------  ----------------
 
@@ -208,8 +208,8 @@ nats     =  0 `C` 1 `C` 3 `C` N
 
 <div class="fragment">
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
-What if `nats` contained `-2`? 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a>
+What if `nats` contained `-2`?
 
 </div>
 
@@ -229,15 +229,15 @@ Example: Even/Odd Lists
 evens     =  0 `C` 2 `C` 4 `C` N
 
 {-@ odds  :: L Odd  @-}
-odds      =  1 `C` 3 `C` 5 `C` N 
+odds      =  1 `C` 3 `C` 5 `C` N
 \end{code}
 </div>
 
 <br>
 
 <div class="fragment">
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
-What if `evens` contained `1`? 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a>
+What if `evens` contained `1`?
 </div>
 
 
@@ -285,7 +285,7 @@ safeDiv x y = x `div` y
 
 <div class="fragment">
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a>
 What if precondition does not hold?
 
 </div>
@@ -302,8 +302,8 @@ Example: `abs`
 
 \begin{code}
 {-@ abs       :: x:Int -> Nat @-}
-abs x 
-  | 0 <= x    = x 
+abs x
+  | 0 <= x    = x
   | otherwise = 0 - x
 \end{code}
 
@@ -355,7 +355,7 @@ Example: `range`
 {-@ range :: i:Int -> j:Int -> L (Btwn i j) @-}
 range i j            = go i
   where
-    go n | n < j     = n `C` go (n + 1)  
+    go n | n < j     = n `C` go (n + 1)
          | otherwise =  N
 \end{code}
 
@@ -369,7 +369,7 @@ range i j            = go i
 Example: Indexing Into List
 ---------------------------
 
-\begin{code} 
+\begin{code}
 (!)          :: L a -> Int -> a
 (C x _)  ! 0 = x
 (C _ xs) ! i = xs ! (i - 1)
@@ -387,5 +387,3 @@ _        ! _ = liquidError "Oops!"
 <br>
 
 <div class="fragment">Need way to **measure** the length of a list [[continue...]](02_Measures.lhs.slides.html)</div>
-
-

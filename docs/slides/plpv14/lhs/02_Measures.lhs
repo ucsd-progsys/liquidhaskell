@@ -20,7 +20,7 @@ insertSort  :: Ord a => [a] -> L a
 
 </div>
 
-Measuring Data Types 
+Measuring Data Types
 ====================
 
 Recap
@@ -33,13 +33,13 @@ Recap
 
 ---   -----------------------   ---  -------------------------
  1.      **Refinement Types**    :   Types + Predicates
- 2.             **Subtyping**    :   SMT / Logical Implication 
+ 2.             **Subtyping**    :   SMT / Logical Implication
 ---   -----------------------   ---  -------------------------
 
 -->
 
 
-Example: Lists 
+Example: Lists
 --------------
 
 <div class="hidden">
@@ -53,11 +53,11 @@ infixr `C`
 <br>
 
 \begin{code}
-data L a = N 
+data L a = N
          | C a (L a)
 \end{code}
 
-Example: Length of a List 
+Example: Length of a List
 -------------------------
 
 \begin{code}
@@ -71,9 +71,9 @@ Example: Length of a List
 <div class="fragment">
 LiquidHaskell *strengthens* data constructor types
 \begin{code} <div/>
-data L a where 
+data L a where
   N :: {v: L a | (llen v) = 0}
-  C :: a -> xs:L a 
+  C :: a -> xs:L a
          -> {v:L a | (llen v) = 1 + (llen xs)}
 \end{code}
 </div>
@@ -82,9 +82,9 @@ Measures Are Uninterpreted
 --------------------------
 
 \begin{code} <br>
-data L a where 
+data L a where
   N :: {v: L a | (llen v) = 0}
-  C :: a -> xs:L a 
+  C :: a -> xs:L a
          -> {v:L a | (llen v) = 1 + (llen xs)}
 \end{code}
 
@@ -122,7 +122,7 @@ z = C x y -- z :: {v | llen v = 1 + llen y}
 
 <div class="fragment">
 \begin{code}**Unfold**<br>
-case z of 
+case z of
   N     -> e1 -- z :: {v | llen v = 0}
   C x y -> e2 -- z :: {v | llen v = 1 + llen y}
 \end{code}
@@ -191,7 +191,7 @@ _        ! _ = liquidError "never happens!"
 
 <br>
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellMeasure.hs" target= "_blank">Demo:</a> 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellMeasure.hs" target= "_blank">Demo:</a>
 What if we *remove* the precondition?
 
 Multiple Measures
@@ -200,10 +200,10 @@ Multiple Measures
 LiquidHaskell allows *many* measures for a type
 
 
-Multiple Measures 
+Multiple Measures
 -----------------
 
-**Example:** Nullity of a `List` 
+**Example:** Nullity of a `List`
 
 \begin{code}
 {-@ measure isNull :: (L a) -> Prop
@@ -216,7 +216,7 @@ Multiple Measures
 <div class="fragment">
 
 \begin{code} LiquidHaskell **strengthens** data constructors
-data L a where 
+data L a where
   N :: {v : L a | (isNull v)}
   C :: a -> L a -> {v:(L a) | not (isNull v)}
 \end{code}
@@ -229,12 +229,12 @@ Multiple Measures
 LiquidHaskell *conjoins* data constructor types:
 
 \begin{code} <br>
-data L a where 
-  N :: {v:L a |  (llen v) = 0 
+data L a where
+  N :: {v:L a |  (llen v) = 0
               && (isNull v) }
-  C :: a 
-    -> xs:L a 
-    -> {v:L a |  (llen v) = 1 + (llen xs) 
+  C :: a
+    -> xs:L a
+    -> {v:L a |  (llen v) = 1 + (llen xs)
               && not (isNull v)          }
 \end{code}
 
@@ -264,7 +264,7 @@ Can *directly pack* properties inside data constructors
 
 \begin{code}
 {-@ data L a = N
-             | C (x :: a) 
+             | C (x :: a)
                  (xs :: L {v:a | x <= v})  @-}
 \end{code}
 
@@ -274,7 +274,7 @@ Can *directly pack* properties inside data constructors
 
 <br>
 
-Specifies *increasing* Lists 
+Specifies *increasing* Lists
 </div>
 
 Refined Data Constructors
@@ -296,15 +296,15 @@ data L a where
 Refined Data Constructors
 -------------------------
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellInsertSort.hs" target= "_blank">Demo: Insertion Sort</a> (hover for inferred types) 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellInsertSort.hs" target= "_blank">Demo: Insertion Sort</a> (hover for inferred types)
 
 \begin{code}
 insertSort = foldr insert N
 
-insert y (x `C` xs) 
+insert y (x `C` xs)
   | y <= x    = y `C` (x `C` xs)
   | otherwise = x `C` insert y xs
-insert y N    = y `C` N    
+insert y N    = y `C` N
 \end{code}
 
 <br>
@@ -318,4 +318,3 @@ Recap
 2. **Subtyping:** SMT Implication
 3. <div class="fragment">**Measures:** Strengthened Constructors</div>
     - <div class="fragment">*Decouple* structure & property, enable *reuse*</div>
-

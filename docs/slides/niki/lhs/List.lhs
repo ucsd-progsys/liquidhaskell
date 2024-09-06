@@ -24,14 +24,14 @@ Lets parameterize the definition with an abstract refinement `p` <br>
 
 \begin{code}
 {-@ data L a <p :: a -> a -> Prop>
-      = N 
+      = N
       | C (h :: a) (tl :: (L <p> a<p h>))
   @-}
 \end{code}
 
 - `p` is a binary relation between two `a` values
 
-- definition relates *head* with all the *tail* elements 
+- definition relates *head* with all the *tail* elements
 
 **Recursive** : So `p` holds between **every pair** of list elements!
 
@@ -40,8 +40,8 @@ Recursive Invariants: Example
 
 Consider a list with three elements <br>
 
-\begin{code} _ 
-h1 `C` h2 `C` h3 `C` N :: L <p> a 
+\begin{code} _
+h1 `C` h2 `C` h3 `C` N :: L <p> a
 \end{code}
 
 Recursive Invariants: Example
@@ -51,7 +51,7 @@ If we unfold the list **once** we get <br>
 
 \begin{code} _
 h1              :: a
-h2 `C` h3 `C` N :: L <p> a<p h1> 
+h2 `C` h3 `C` N :: L <p> a<p h1>
 \end{code}
 
 Recursive Invariants: Example
@@ -59,10 +59,10 @@ Recursive Invariants: Example
 
 If we unfold the list a **second** time we get <br>
 
-\begin{code} _ 
+\begin{code} _
 h1       :: a
-h2       :: a<p h1>  
-h3 `C` N :: L <p> a<p h1 && p h2> 
+h2       :: a<p h1>
+h3 `C` N :: L <p> a<p h1 && p h2>
 \end{code}
 
 Recursive Invariants: Example
@@ -70,16 +70,16 @@ Recursive Invariants: Example
 
 Finally, with a **third** unfold we get <br>
 
-\begin{code} _ 
+\begin{code} _
 h1 :: a
-h2 :: a<p h1>  
-h3 :: a<p h1 && p h2>  
-N  :: L <p> a<p h1 && p h2 && p h3> 
+h2 :: a<p h1>
+h3 :: a<p h1 && p h2>
+N  :: L <p> a<p h1 && p h2 && p h3>
 \end{code}
 
 <br>
 
-Note how `p` holds between **every pair** of elements in the list. 
+Note how `p` holds between **every pair** of elements in the list.
 
 Using Recursive Invariants
 --------------------------
@@ -98,7 +98,7 @@ How would we **use** the fact that `p` holds between **every pair** ?
 
 <br>
 
-Lets *instantiate* `p` with a concrete refinement 
+Lets *instantiate* `p` with a concrete refinement
 
 <br>
 
@@ -142,14 +142,14 @@ More interestingly, we can verify that various sorting algorithms return sorted 
 
 \begin{code}
 {-@ insertSort' :: (Ord a) => [a] -> SL a @-}
-insertSort'     :: (Ord a) => [a] -> L a 
+insertSort'     :: (Ord a) => [a] -> L a
 insertSort'     = foldr insert' N
 \end{code}
 
 <br> The hard work is done by `insert` defined as <br>
 
 \begin{code}
-insert' y N                      = y `C` N                           
+insert' y N                      = y `C` N
 insert' y (x `C` xs) | y <= x    = y `C` x `C` xs
                      | otherwise = x `C` insert' y xs
 \end{code}
@@ -161,7 +161,7 @@ insert' y (x `C` xs) | y <= x    = y `C` x `C` xs
 Analyzing Plain Lists
 ---------------------
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=Order.hs" target= "_blank">Demo:</a> 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=Order.hs" target= "_blank">Demo:</a>
 
 
 We can easily modify GHC's List definition to abstract over a refinement:
@@ -170,7 +170,7 @@ We can easily modify GHC's List definition to abstract over a refinement:
 
 \begin{code} _
 data [a] <p :: a -> a -> Prop>
-  = [] 
+  = []
   | (:) (h :: a) (tl :: ([a<p h>]<p>))
 \end{code}
 
@@ -187,7 +187,7 @@ So, we can define and use **ordered** versions of GHC Lists
 Insertion Sort
 --------------
 
-Now we can verify the usual sorting algorithms: 
+Now we can verify the usual sorting algorithms:
 
 <br>
 
@@ -196,7 +196,7 @@ Now we can verify the usual sorting algorithms:
 insertSort xs  = foldr insert [] xs
 \end{code}
 
-<br> 
+<br>
 
 where the helper does the work
 
@@ -204,14 +204,14 @@ where the helper does the work
 
 \begin{code}
 insert y []                   = [y]
-insert y (x : xs) | y <= x    = y : x : xs 
+insert y (x : xs) | y <= x    = y : x : xs
                   | otherwise = x : insert y xs
 \end{code}
 
 Merge Sort
 ----------
 
-Now we can verify the usual sorting algorithms: 
+Now we can verify the usual sorting algorithms:
 
 
 \begin{code}
@@ -219,8 +219,8 @@ Now we can verify the usual sorting algorithms:
 mergeSort     :: Ord a => [a] -> [a]
 mergeSort []  = []
 mergeSort [x] = [x]
-mergeSort xs  = merge (mergeSort xs1) (mergeSort xs2) 
-  where 
+mergeSort xs  = merge (mergeSort xs1) (mergeSort xs2)
+  where
    (xs1, xs2) = split xs
 
 split :: [a]    -> ([a], [a])
@@ -244,8 +244,8 @@ Now we can verify the usual sorting algorithms: <br>
 \begin{code}
 {-@ quickSort    :: (Ord a) => [a] -> OList a @-}
 quickSort []     = []
-quickSort (x:xs) = append x lts gts 
-  where 
+quickSort (x:xs) = append x lts gts
+  where
     lts          = quickSort [y | y <- xs, y < x]
     gts          = quickSort [z | z <- xs, z >= x]
 \end{code}
@@ -279,7 +279,7 @@ decList :: [Int]
 decList = [3, 2, 1, 0]
 \end{code}
 
-Multiple Instantiations: Distinct Lists 
+Multiple Instantiations: Distinct Lists
 ---------------------------------------
 
 We may *instantiate* `p` with many different concrete relations
@@ -298,11 +298,11 @@ diffList :: [Int]
 diffList = [2, 3, 1, 0]
 \end{code}
 
-Binary Trees 
+Binary Trees
 ------------
 
 
-- Consider a `Map` from keys of type `k` to values of type `a` 
+- Consider a `Map` from keys of type `k` to values of type `a`
 
 - Implemented as a binary tree:
 
@@ -313,10 +313,10 @@ data Map k a = Tip
 type Size    = Int
 \end{code}
 
-Binary Trees 
+Binary Trees
 ------------
 
-We abstract from the structure two refinements `l` and `r` 
+We abstract from the structure two refinements `l` and `r`
 
 - `l` relates root `key` with **left**-subtree keys
 
@@ -338,7 +338,7 @@ We abstract from the structure two refinements `l` and `r`
 Ordered Trees
 -------------
 
-Thus, if we instantiate the refinements thus: 
+Thus, if we instantiate the refinements thus:
 
 <br>
 
@@ -360,7 +360,7 @@ Binary Search Ordering
 We can use the `BST` type to automatically verify that tricky functions
 ensure and preserve binary-search ordering.
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=Map.hs" target= "_blank">Demo:</a> 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=Map.hs" target= "_blank">Demo:</a>
 
 \begin{code}So, we can have
 empty :: BST k a
@@ -395,7 +395,7 @@ insertBST kx x t
               EQ -> Bin sz kx x l r
 \end{code}
 
-Binary Search Ordering: Delete 
+Binary Search Ordering: Delete
 ------------------------------
 
 \begin{code}
@@ -433,7 +433,7 @@ size t
       Bin sz _ _ _ _ -> sz
 \end{code}
 
-Helper Functions: Extractors 
+Helper Functions: Extractors
 ----------------------------
 
 \begin{code}
@@ -443,7 +443,7 @@ deleteFindMax t
       Bin _ k x l r -> let (km3, vm, rm) = deleteFindMax r in
                        (km3, vm, (balance k x l rm))
       Tip           -> (error ms, error ms, Tip)
-  where 
+  where
     ms = "Map.deleteFindMax : empty Map"
 
 deleteFindMin t
@@ -452,11 +452,11 @@ deleteFindMin t
       Bin _ k x l r -> let (km4, vm, lm) = deleteFindMin l in
                        (km4, vm, (balance k x lm r))
       Tip             -> (error ms, error ms, Tip)
-  where 
+  where
     ms = "Map.deleteFindMin : empty Map"
 \end{code}
 
-Helper Functions: Connectors 
+Helper Functions: Connectors
 ----------------------------
 
 Below are the helper functions used by `insert` and `delete`:
@@ -466,19 +466,16 @@ glue :: k -> Map k a -> Map k a -> Map k a
 glue k Tip r = r
 glue k l Tip = l
 glue k l r
-  | size l > size r = let (km1, vm, lm) = deleteFindMax l 
+  | size l > size r = let (km1, vm, lm) = deleteFindMax l
                       in balance km1 vm lm r
 
-  | otherwise       = let (km2, vm, rm) = deleteFindMin r 
+  | otherwise       = let (km2, vm, rm) = deleteFindMin r
                       in balance km2 vm l rm
 
-{-@ balance :: key:k 
-            -> a 
-            -> (BST {v:k | v < key} a) 
+{-@ balance :: key:k
+            -> a
+            -> (BST {v:k | v < key} a)
             -> (BST {v:k| key < v} a) -> (BST k a) @-}
 balance :: k -> a -> Map k a -> Map k a -> Map k a
 balance k x l r = undefined
 \end{code}
-
-
-

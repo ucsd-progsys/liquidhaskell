@@ -19,7 +19,7 @@ Consider a `loop` function: <br>
 \begin{code}
 loop :: Int -> Int -> a -> (Int -> a -> a) -> a
 loop lo hi base f        = go lo base
-  where 
+  where
     go i acc | i < hi    = go (i+1) (f i acc)
              | otherwise = acc
 \end{code}
@@ -39,18 +39,18 @@ Lets use `(!!)` to write a function that sums an `Int` list
 \begin{code}
 {-@ listSum :: [Int] -> Int @-}
 listSum     :: [Int] -> Int
-listSum xs  = loop 0 n 0 body 
-  where 
+listSum xs  = loop 0 n 0 body
+  where
     body    = \i acc -> acc + (xs !! i)
     n       = length xs
 \end{code}
 
 By **function subtyping** LiquidHaskell **infers**
 
-- `body` called with `0 <= i < llen xs` 
+- `body` called with `0 <= i < llen xs`
 - hence, indexing safe.
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=Loop.hs" target= "_blank">Demo:</a> 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=Loop.hs" target= "_blank">Demo:</a>
 Let's change the `0` to `-1` and see what happens!
 
 Higher Order Specifications
@@ -61,15 +61,15 @@ We can give this function a better type:
 \begin{code}
 {-@ listNatSum :: [Nat] -> Nat @-}
 listNatSum     :: [Int] -> Int
-listNatSum xs  = loop 0 n 0 body 
-  where 
+listNatSum xs  = loop 0 n 0 body
+  where
     body       = \i acc -> acc + (xs !! i)
     n          = length xs
 \end{code}
 
-To verify this type, note: `(+) :: Nat -> Nat -> Nat` 
+To verify this type, note: `(+) :: Nat -> Nat -> Nat`
 
-LiquidHaskell **instantiates** `a` in `loop` with `Nat` 
+LiquidHaskell **instantiates** `a` in `loop` with `Nat`
 
 - `loop :: Int -> Int -> Nat -> (Int -> Nat -> Nat) -> Nat`
 
@@ -83,7 +83,7 @@ By the same analysis, LiquidHaskell verifies that <br>
 \begin{code}
 {-@ listEvenSum :: [Even] -> Even @-}
 listEvenSum     :: [Int] -> Int
-listEvenSum xs  = loop 0 n 0 body 
+listEvenSum xs  = loop 0 n 0 body
   where body   = \i acc -> acc + (xs !! i)
         n      = length xs
 \end{code}
@@ -109,13 +109,12 @@ add     :: Int -> Int -> Int
 add n m = loop 0 m n (\_ i -> i + 1)
 \end{code}
 
-Cannot use parametric polymorphism as before! 
+Cannot use parametric polymorphism as before!
 
-- Cannot instantiate `a` with `{v:Int|v = n + m}` ... 
+- Cannot instantiate `a` with `{v:Int|v = n + m}` ...
 - ... as this only holds after **last iteration** of loop!
 
 Require Higher Order Invariants
 
 - On values computed in **intermediate** iterations...
 - ... i.e. invariants that **depend on the iteration index**.
-
