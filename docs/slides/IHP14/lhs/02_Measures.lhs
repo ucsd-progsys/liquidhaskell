@@ -23,7 +23,7 @@ infixr `C`
 </div>
 
 
-Measuring Data Types 
+Measuring Data Types
 ====================
 
 Recap
@@ -33,7 +33,7 @@ Recap
 2. <div class="fragment">**Subtyping:** SMT Implication</div>
 
 
-Example: Length of a List 
+Example: Length of a List
 -------------------------
 
 Given a type for lists:
@@ -59,7 +59,7 @@ We can define the **length** as:
 
 </div>
 
-Example: Length of a List 
+Example: Length of a List
 -------------------------
 
 \begin{code} <div/>
@@ -75,7 +75,7 @@ We **strengthen** data constructor types
 <br>
 
 \begin{code} <div/>
-data L a where 
+data L a where
   N :: {v: L a | (llen v) = 0}
   C :: a -> t:_ -> {v:_| llen v = 1 + llen t}
 \end{code}
@@ -84,7 +84,7 @@ Measures Are Uninterpreted
 --------------------------
 
 \begin{code} <br>
-data L a where 
+data L a where
   N :: {v: L a | (llen v) = 0}
   C :: a -> t:_ -> {v:_| llen v = 1 + llen t}
 \end{code}
@@ -134,7 +134,7 @@ z = C x y     -- z :: {v | llen v = 1 + llen y}
 
 <div class="fragment">
 \begin{code}**Unfold**<br>
-case z of 
+case z of
   N     -> e1 -- z :: {v | llen v = 0}
   C x y -> e2 -- z :: {v | llen v = 1 + llen y}
 \end{code}
@@ -189,7 +189,7 @@ Where `LtLen` is a type alias:
 
 <br>
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellMeasure.hs" target= "_blank">Demo:</a> 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellMeasure.hs" target= "_blank">Demo:</a>
 &nbsp; What if we *remove* the precondition?
 
 </div>
@@ -220,10 +220,10 @@ Multiple Measures
 
 We allow *many* measures for a type
 
-Ex: List Emptiness 
+Ex: List Emptiness
 ------------------
 
-Measure describing whether a `List` is empty 
+Measure describing whether a `List` is empty
 
 \begin{code}
 {-@ measure isNull :: (L a) -> Prop
@@ -236,8 +236,8 @@ Measure describing whether a `List` is empty
 <div class="fragment">
 We **strengthen** data constructors
 
-\begin{code} <div/> 
-data L a where 
+\begin{code} <div/>
+data L a where
   N :: {v : L a | (isNull v)}
   C :: a -> L a -> {v:(L a) | not (isNull v)}
 \end{code}
@@ -247,15 +247,15 @@ data L a where
 Conjoining Refinements
 ----------------------
 
-Data constructor refinements are **conjoined** 
+Data constructor refinements are **conjoined**
 
 \begin{code} <br>
-data L a where 
-  N :: {v:L a |  (llen v) = 0 
+data L a where
+  N :: {v:L a |  (llen v) = 0
               && (isNull v) }
-  C :: a 
-    -> xs:L a 
-    -> {v:L a |  (llen v) = 1 + (llen xs) 
+  C :: a
+    -> xs:L a
+    -> {v:L a |  (llen v) = 1 + (llen xs)
               && not (isNull v)          }
 \end{code}
 
@@ -275,18 +275,18 @@ Multiple Measures: Red-Black Trees
 
 [[Skip...]](#/refined-data-cons)
 
-Basic Type 
+Basic Type
 ----------
 
 \begin{code} <br>
-data Tree a = Leaf 
+data Tree a = Leaf
             | Node Color a (Tree a) (Tree a)
 
-data Color  = Red 
+data Color  = Red
             | Black
 \end{code}
 
-Color Invariant 
+Color Invariant
 ---------------
 
 `Red` nodes have `Black` children
@@ -302,18 +302,18 @@ isRB (Node c x l r) = c=Red => (isB l && isB r)
 
 <div class="fragment">
 \begin{code} where <br>
-measure isB         :: Tree a -> Prop 
+measure isB         :: Tree a -> Prop
 isB (Leaf)          = true
-isB (Node c x l r)  = c == Black 
+isB (Node c x l r)  = c == Black
 \end{code}
 </div>
 
-*Almost* Color Invariant 
+*Almost* Color Invariant
 ------------------------
 
 <br>
 
-Color Invariant **except** at root. 
+Color Invariant **except** at root.
 
 <br>
 
@@ -335,8 +335,8 @@ Number of `Black` nodes equal on **all paths**
 \begin{code} <br>
 measure isBH        :: RBTree a -> Prop
 isBH (Leaf)         =  true
-isBH (Node c x l r) =  bh l = bh r 
-                    && isBH l && isBH r 
+isBH (Node c x l r) =  bh l = bh r
+                    && isBH l && isBH r
 \end{code}
 </div>
 
@@ -344,12 +344,12 @@ isBH (Node c x l r) =  bh l = bh r
 \begin{code} where <br>
 measure bh        :: RBTree a -> Int
 bh (Leaf)         = 0
-bh (Node c x l r) = bh l 
+bh (Node c x l r) = bh l
                   + if c = Red then 0 else 1
 \end{code}
 </div>
 
-Refined Type 
+Refined Type
 ------------
 
 \begin{code} <br>
@@ -369,7 +369,7 @@ type ARBT a = {v:Tree a | isAlmost v && isBH v}
 Measures vs. Index Types
 ========================
 
-Decouple Property & Type 
+Decouple Property & Type
 ------------------------
 
 Unlike [indexed types](http://dl.acm.org/citation.cfm?id=270793) ...
@@ -380,9 +380,9 @@ Unlike [indexed types](http://dl.acm.org/citation.cfm?id=270793) ...
 
 + Measures **decouple** properties from structures
 
-+ Support **multiple** properties over structures 
++ Support **multiple** properties over structures
 
-+ Enable  **reuse** of structures in different contexts                 
++ Enable  **reuse** of structures in different contexts
 
 </div>
 
@@ -406,7 +406,7 @@ Can encode invariants **inside constructors**
 
 \begin{code}
 {-@ data L a = N
-             | C { x  :: a 
+             | C { x  :: a
                  , xs :: L {v:a| x <= v} } @-}
 \end{code}
 </div>
@@ -419,10 +419,10 @@ Head `x` is less than **every** element of tail `xs`
 <br>
 
 <div class="fragment">
-i.e. specifies **increasing** Lists 
+i.e. specifies **increasing** Lists
 </div>
 
-Increasing Lists 
+Increasing Lists
 ----------------
 
 \begin{code} <br>
@@ -436,20 +436,20 @@ data L a where
 - <div class="fragment">We **check** property when **folding** `C`</div>
 - <div class="fragment">We **assume** property when **unfolding** `C`</div>
 
-Increasing Lists 
+Increasing Lists
 ----------------
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellInsertSort.hs" target= "_blank">Demo: Insertion Sort</a> (hover for inferred types) 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellInsertSort.hs" target= "_blank">Demo: Insertion Sort</a> (hover for inferred types)
 
 <br>
 
 \begin{code}
 insertSort = foldr insert N
 
-insert y (x `C` xs) 
+insert y (x `C` xs)
   | y <= x    = y `C` (x `C` xs)
   | otherwise = x `C` insert y xs
-insert y N    = y `C` N    
+insert y N    = y `C` N
 \end{code}
 
 <br>

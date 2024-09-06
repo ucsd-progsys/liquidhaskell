@@ -49,8 +49,8 @@ Example: Higher Order Loop
 \begin{code}
 loop :: Int -> Int -> α -> (Int -> α -> α) -> α
 loop lo hi base f = go lo base
-  where 
-    go i acc 
+  where
+    go i acc
       | i < hi    = go (i+1) (f i acc)
       | otherwise = acc
 \end{code}
@@ -65,8 +65,8 @@ Example: Summing Lists
 
 \begin{code}
 listSum     :: [Int] -> Int
-listSum xs  = loop 0 n 0 body 
-  where 
+listSum xs  = loop 0 n 0 body
+  where
     body    = \i acc -> acc + (xs !! i)
     n       = length xs
 \end{code}
@@ -74,7 +74,7 @@ listSum xs  = loop 0 n 0 body
 <br>
 
 <div class="fragment">
-**Function Subtyping** 
+**Function Subtyping**
 
 + `body` called with `i :: Btwn 0 (llen xs)`
 
@@ -82,7 +82,7 @@ listSum xs  = loop 0 n 0 body
 </div>
 
 <div class="fragment">
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=Loop.hs" target= "_blank">Demo:</a> Tweak `loop` exit condition? 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=Loop.hs" target= "_blank">Demo:</a> Tweak `loop` exit condition?
 </div>
 
 Polymorphic Instantiation
@@ -96,13 +96,13 @@ Example: Summing `Nat`s
 
 \begin{code}
 {-@ sumNats :: [Nat] -> Nat @-}
-sumNats xs  = foldl (+) 0 xs 
+sumNats xs  = foldl (+) 0 xs
 \end{code}
 
 <br>
 
 <div class="fragment">
-\begin{code} Recall 
+\begin{code} Recall
 foldl :: (α -> β -> α) -> α -> [β] -> α
 \end{code}
 </div>
@@ -117,7 +117,7 @@ Function Subtyping
 ------------------
 
 \begin{code}<div/>
-(+) ::  x:Int -> y:Int -> {v:Int|v=x+y} 
+(+) ::  x:Int -> y:Int -> {v:Int|v=x+y}
     <:  Nat   -> Nat   -> Nat
 \end{code}
 
@@ -145,9 +145,9 @@ Because,
 Example: Summing `Nat`s
 -----------------------
 
-\begin{code} <div/> 
+\begin{code} <div/>
 {-@ sumNats :: [Nat] -> Nat @-}
-sumNats xs  = foldl (+) 0 xs 
+sumNats xs  = foldl (+) 0 xs
 \end{code}
 
 <br>
@@ -212,4 +212,3 @@ As property only holds after **last iteration** ...
 <div class="fragment">
 **Problem:** Need *iteration-dependent* invariants...&nbsp; &nbsp; [[Continue]](04_AbstractRefinements.lhs.slides.html)
 </div>
-

@@ -16,7 +16,7 @@ LH warns you that head is not total as it is missing the case for <code>[]</code
 <div class="example-row">
 <img src="static/img/splash-unstutter.gif">
 <p>
-The input contract propagates to uses of <code>head</code> which are verified by ensuring the arguments are <code>NonEmpty</code>. 
+The input contract propagates to uses of <code>head</code> which are verified by ensuring the arguments are <code>NonEmpty</code>.
 </p>
 </div>
 
@@ -50,7 +50,7 @@ LH checks that functions terminate and so warns about the infinite recursion due
 <div class="example-row">
 <img src="static/img/splash-merge.gif">
 <p>
-<em>Metrics</em> let you check that recursive functions over complex data types terminate. 
+<em>Metrics</em> let you check that recursive functions over complex data types terminate.
 </p>
 </div>
 
@@ -67,7 +67,7 @@ Write correctness requirements, for example a list is ordered, as refinements. L
 <div class="example-row">
 <img src="static/img/splash-insertsort.gif">
 <p>
-LH automatically points out logic bugs, and proves that functions return correct outputs <em>for all inputs</em>. 
+LH automatically points out logic bugs, and proves that functions return correct outputs <em>for all inputs</em>.
 </p>
 </div>
 
@@ -75,7 +75,7 @@ LH automatically points out logic bugs, and proves that functions return correct
 
 <div class="example-row">
 <p>
-Specify <em>laws</em>, e.g. that the append function <code>++</code> is associative, as Haskell functions. 
+Specify <em>laws</em>, e.g. that the append function <code>++</code> is associative, as Haskell functions.
 </p>
 <img src="static/img/splash-assocthm.gif">
 </div>
@@ -83,13 +83,13 @@ Specify <em>laws</em>, e.g. that the append function <code>++</code> is associat
 <div class="example-row">
 <img src="static/img/splash-assocpf.gif">
 <p>
-Verify laws via <em>equational proofs</em> that are plain Haskell functions. Induction is simply recursion, and case-splitting is just pattern-matching. 
+Verify laws via <em>equational proofs</em> that are plain Haskell functions. Induction is simply recursion, and case-splitting is just pattern-matching.
 </p>
 </div>
 
 # Get Started
 
-The easiest way to try LiquidHaskell is [online, in your browser](http://goto.ucsd.edu:8090/index.html). This environment is ideal for quick experiments or following one of the tutorials:
+The easiest way to try LiquidHaskell is [online, in your browser](https://liquidhaskell.goto.ucsd.edu/index.html). This environment is ideal for quick experiments or following one of the tutorials:
 
 * The [Official Tutorial](https://ucsd-progsys.github.io/intro-refinement-types/120/) (long but complete) (has interactive exercises)
 * [Andres Loeh's Tutorial](https://liquid.kosmikus.org) (concise but incomplete)

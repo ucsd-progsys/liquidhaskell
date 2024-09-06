@@ -72,7 +72,7 @@ An Innocent Function
 
 
 <pre><span class=hs-linenum>72: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>foo</span>       <span class='hs-keyglyph'>::</span> <span class='hs-varid'>n</span><span class='hs-conop'>:</span><span class='hs-conid'>Nat</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>{v:</span><span class='hs-conid'>Nat</span> <span class='hs-keyword'>| v &lt; n}</span> <span class='hs-keyword'>@-}</span>
-<span class=hs-linenum>73: </span><a class=annot href="#"><span class=annottext>n:{VV : (Int) | (VV &gt;= 0)} -&gt; {VV : (Int) | (VV &gt;= 0) &amp;&amp; (VV &lt; n)}</span><span class='hs-definition'>foo</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0)}</span><span class='hs-varid'>n</span></a>   
+<span class=hs-linenum>73: </span><a class=annot href="#"><span class=annottext>n:{VV : (Int) | (VV &gt;= 0)} -&gt; {VV : (Int) | (VV &gt;= 0) &amp;&amp; (VV &lt; n)}</span><span class='hs-definition'>foo</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0)}</span><span class='hs-varid'>n</span></a>
 <span class=hs-linenum>74: </span>  <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{x3 : (Int) | (x3 == n) &amp;&amp; (x3 &gt;= 0)}</span><span class='hs-varid'>n</span></a> <a class=annot href="#"><span class=annottext>x1:{x8 : (Int) | (x8 &gt;= 0) &amp;&amp; (x8 &lt;= n)}
 -&gt; x2:{x8 : (Int) | (x8 &gt;= 0) &amp;&amp; (x8 &lt;= n)}
 -&gt; {x2 : (Bool) | (((Prop x2)) &lt;=&gt; (x1 &gt; x2))}</span><span class='hs-varop'>&gt;</span></a> <a class=annot href="#"><span class=annottext>{x2 : (Int) | (x2 == (0  :  int))}</span><span class='hs-num'>0</span></a>     <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{x3 : (Int) | (x3 == n) &amp;&amp; (x3 &gt;= 0)}</span><span class='hs-varid'>n</span></a> <a class=annot href="#"><span class=annottext>x1:(Int) -&gt; x2:(Int) -&gt; {x4 : (Int) | (x4 == (x1 - x2))}</span><span class='hs-comment'>-</span></a> <a class=annot href="#"><span class=annottext>{x2 : (Int) | (x2 == (1  :  int))}</span><span class='hs-num'>1</span></a>
@@ -80,7 +80,7 @@ An Innocent Function
 -&gt; {x3 : (Int) | (x3 &gt;= 0) &amp;&amp; (x3 &lt; x1)}</span><span class='hs-varid'>foo</span></a> <a class=annot href="#"><span class=annottext>{x3 : (Int) | (x3 == n) &amp;&amp; (x3 &gt;= 0)}</span><span class='hs-varid'>n</span></a>
 </pre>
 
-LiquidHaskell Lies! 
+LiquidHaskell Lies!
 -------------------
 
 
@@ -93,7 +93,7 @@ LiquidHaskell Lies!
 <br>
 
 <div class="fragment">
-Why is this deemed *safe*? 
+Why is this deemed *safe*?
 </div>
 
 <br>
@@ -108,7 +108,7 @@ Safe With Eager Eval
 
  <div/>
 <pre><span class=hs-linenum>103: </span><span class='hs-comment'>{- foo       :: n:Nat -&gt; {v:Nat | v &lt; n} -}</span>
-<span class=hs-linenum>104: </span><span class='hs-definition'>foo</span> <span class='hs-varid'>n</span>   
+<span class=hs-linenum>104: </span><span class='hs-definition'>foo</span> <span class='hs-varid'>n</span>
 <span class=hs-linenum>105: </span>  <span class='hs-keyglyph'>|</span> <span class='hs-varid'>n</span> <span class='hs-varop'>&gt;</span> <span class='hs-num'>0</span>     <span class='hs-keyglyph'>=</span> <span class='hs-varid'>n</span> <span class='hs-comment'>-</span> <span class='hs-num'>1</span>
 <span class=hs-linenum>106: </span>  <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>foo</span> <span class='hs-varid'>n</span>
 <span class=hs-linenum>107: </span>
@@ -119,7 +119,7 @@ Safe With Eager Eval
 <br>
 
 <div class="fragment">
-In Java, ML, etc: program spins away, *never hits* divide-by-zero 
+In Java, ML, etc: program spins away, *never hits* divide-by-zero
 </div>
 
 Unsafe With Lazy Eval
@@ -127,7 +127,7 @@ Unsafe With Lazy Eval
 
 <div/>
 <pre><span class=hs-linenum>122: </span><span class='hs-comment'>{- foo       :: n:Nat -&gt; {v:Nat | v &lt; n} -}</span>
-<span class=hs-linenum>123: </span><span class='hs-definition'>foo</span> <span class='hs-varid'>n</span>   
+<span class=hs-linenum>123: </span><span class='hs-definition'>foo</span> <span class='hs-varid'>n</span>
 <span class=hs-linenum>124: </span>  <span class='hs-keyglyph'>|</span> <span class='hs-varid'>n</span> <span class='hs-varop'>&gt;</span> <span class='hs-num'>0</span>     <span class='hs-keyglyph'>=</span> <span class='hs-varid'>n</span> <span class='hs-comment'>-</span> <span class='hs-num'>1</span>
 <span class=hs-linenum>125: </span>  <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>foo</span> <span class='hs-varid'>n</span>
 <span class=hs-linenum>126: </span>
@@ -149,13 +149,13 @@ What is denoted by `e :: {v:Int | 0 <= v}` ?
 <br>
 
 <div class="fragment">
-`e` evaluates to a `Nat`  
+`e` evaluates to a `Nat`
 </div>
 
 <div class="fragment">
 or
 
-**diverges**! 
+**diverges**!
 </div>
 
 <div class="fragment">
@@ -178,7 +178,7 @@ Suppose `e :: {v:Int | 0 <= v}`
 
 `let x = e in body`
 
-With Eager Evaluation 
+With Eager Evaluation
 ---------------------
 
 Suppose `e :: {v:Int | 0 <= v}`
@@ -195,7 +195,7 @@ Suppose `e :: {v:Int | 0 <= v}`
 **Can** assume `x` is a `Nat` when checking `body`
 </div>
 
-But With Lazy Evaluation 
+But With Lazy Evaluation
 ------------------------
 
 Suppose `e :: {v:Int | 0 <= v}`
@@ -215,7 +215,7 @@ Suppose `e :: {v:Int | 0 <= v}`
 Oops. Now what?
 ---------------
 
-**Solution** 
+**Solution**
 
 Only assign *non-trivial* refinements to *non-diverging* terms!
 
@@ -229,7 +229,7 @@ Only assign *non-trivial* refinements to *non-diverging* terms!
 
 </div>
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=TellingLies.hs" target="_blank">Demo:</a>Disable `"--no-termination" and see what happens!
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=TellingLies.hs" target="_blank">Demo:</a>Disable `"--no-termination" and see what happens!
 
 
 Recap
@@ -238,7 +238,6 @@ Recap
 1. **Refinements:** Types + Predicates
 2. **Subtyping:** SMT Implication
 3. **Measures:** Strengthened Constructors
-4. **Abstract Refinements:* Decouple Invariants 
+4. **Abstract Refinements:* Decouple Invariants
 5. **Lazy Evaluation:** Requires Termination
 6. <div class="fragment">**Termination:** Via Refinements!</div>
-

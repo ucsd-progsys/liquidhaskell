@@ -55,7 +55,7 @@ max     :: Ord a => a -> a -> a
 
 <br>
 
-So, **ignoring** class constraints allows us to: 
+So, **ignoring** class constraints allows us to:
 \begin{code} instantiate `a` with `Odd`
 (+)     :: Odd -> Odd -> Odd
 
@@ -64,28 +64,28 @@ addOdd = 3 + 7
 \end{code}
 
 
-Polymorphism via Parametric Invariants 
+Polymorphism via Parametric Invariants
 --------------------------------------
 
-`max` returns *one of* its two inputs `x` and `y`. 
+`max` returns *one of* its two inputs `x` and `y`.
 
-- **If** *both inputs* satisfy a property  
+- **If** *both inputs* satisfy a property
 
 - **Then** *output* must satisfy that property
 
 This holds, **regardless of what that property was!**
- 
+
 - That  is, we can **abstract over refinements**
 
 - Or,  **parameterize** a type over its refinements.
 
 Parametric Invariants
---------------------- 
+---------------------
 
 \begin{code}
 {-@ max :: forall <p :: a -> Prop>. Ord a => a<p> -> a<p> -> a<p> @-}
 max     :: Ord a => a -> a -> a
-max x y = if x <= y then y else x 
+max x y = if x <= y then y else x
 \end{code}
 
 
@@ -97,11 +97,11 @@ Where
 
 This type states explicitly:
 
-- **For any property** `p`, that is a property of `a`, 
+- **For any property** `p`, that is a property of `a`,
 
 - `max` takes two **inputs** of which satisfy `p`,
 
-- `max` returns an **output** that satisfies `p`. 
+- `max` returns an **output** that satisfies `p`.
 
 
 
@@ -140,11 +140,11 @@ The type `F` cannot give us information about the field `x`.
 
 \begin{code}
 foo = let f = F 0 in -- :: f :: F
-      case f of 
+      case f of
       F x -> liquidAssert (x >= 0)
 \end{code}
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=AbstractRefinements.hs" target= "_blank">Demo:</a> 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=AbstractRefinements.hs" target= "_blank">Demo:</a>
 Lets solve this error using Abstract Refinements
 
 Abstract Refinements in Type Constructors
@@ -164,7 +164,7 @@ data G = G {y::Int{- <p> -}}
 
 \begin{code}
 bar = let f = G 0 in -- :: f :: G <{v = 0}>
-      case f of 
+      case f of
       G x -> liquidAssert (x >= 0)
 \end{code}
 
@@ -182,8 +182,8 @@ data L a = N | C {x :: a, xs :: L a {- v:a | p v x -}}
 
 - Move it to the left-hand side
 \begin{code}
-{-@ data L a <p :: a -> a -> Prop> = 
-      N 
+{-@ data L a <p :: a -> a -> Prop> =
+      N
     | C (x :: a) (xs :: L <p> a<p x>)  @-}
 \end{code}
 
@@ -198,7 +198,7 @@ We can get back increasing Lists:
 Multiple Instantiations
 -----------------------
 
-\begin{code} Now increasing lists 
+\begin{code} Now increasing lists
 type IncrL a = L <{\x v -> x <= v}> a
 \end{code}
 

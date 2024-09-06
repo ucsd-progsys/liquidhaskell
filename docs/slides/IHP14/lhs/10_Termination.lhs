@@ -31,7 +31,7 @@ Dependent != Refinement
 
 <div class="fragment">**Dependent Types**</div>
 
-+ <div class="fragment">*Arbitrary terms* appear inside types</div> 
++ <div class="fragment">*Arbitrary terms* appear inside types</div>
 + <div class="fragment">Termination ensures well-defined</div>
 
 <br>
@@ -39,7 +39,7 @@ Dependent != Refinement
 <div class="fragment">**Refinement Types**</div>
 
 + <div class="fragment">*Restricted refinements* appear in types</div>
-+ <div class="fragment">Termination *not* required ...</div> 
++ <div class="fragment">Termination *not* required ...</div>
 + <div class="fragment">... except, alas, with *lazy* evaluation!</div>
 
 -->
@@ -64,7 +64,7 @@ Recursive calls must be on **smaller** inputs
 + [DML](http://dl.acm.org/citation.cfm?id=609232)
 + [Size Change Principle](http://dl.acm.org/citation.cfm?id=360210)
 
-Recur On *Smaller* `Nat` 
+Recur On *Smaller* `Nat`
 ------------------------
 
 <div class="fragment">
@@ -92,7 +92,7 @@ foo x =  body
 
 
 
-Ex: Recur On *Smaller* `Nat` 
+Ex: Recur On *Smaller* `Nat`
 ----------------------------
 
 \begin{code}
@@ -111,7 +111,7 @@ Terminates, as both `n-1` and `n-2` are `< n`
 <br>
 
 <div class="fragment">
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=GCD.hs" target="_blank">Demo:</a> &nbsp; What if we drop the `fib 1` equation? 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=GCD.hs" target="_blank">Demo:</a> &nbsp; What if we drop the `fib 1` equation?
 </div>
 
 Refinements Are Essential!
@@ -133,8 +133,8 @@ Need refinements to prove `(a mod b) < b` at *recursive* call!
 
 <div class="fragment">
 \begin{code}
-{-@ mod :: a:Nat 
-        -> b:{v:Nat|(0 < v && v < a)} 
+{-@ mod :: a:Nat
+        -> b:{v:Nat|(0 < v && v < a)}
         -> {v:Nat| v < b}                 @-}
 \end{code}
 </div>
@@ -183,20 +183,20 @@ Specify a **default measure** `mS :: S -> Int`
 Ex: Recur on *smaller* `List`
 -----------------------------
 
-\begin{code} 
+\begin{code}
 map f N        = N
-map f (C x xs) = (f x) `C` (map f xs) 
+map f (C x xs) = (f x) `C` (map f xs)
 \end{code}
 
 <br>
 
-Terminates using **default** measure `llen` 
+Terminates using **default** measure `llen`
 
 <br>
 
 <div class="fragment">
 \begin{code}
-{-@ data L [llen] a = N 
+{-@ data L [llen] a = N
                     | C { x::a, xs :: L a} @-}
 
 {-@ measure llen :: L a -> Int
@@ -233,7 +233,7 @@ Neither input decreases, but their **sum** does.
 <br>
 
 \begin{code}
-{-@ merge :: Ord a => xs:_ -> ys:_ -> _ 
+{-@ merge :: Ord a => xs:_ -> ys:_ -> _
           /  [(llen xs) + (llen ys)]     @-}
 \end{code}
 
@@ -249,11 +249,11 @@ Synthesize **ghost** parameter equal to `[...]`
 
 <div class="fragment">
 
-... thereby reducing to decreasing **single parameter** case. 
+... thereby reducing to decreasing **single parameter** case.
 
 </div>
 
-Important Extensions 
+Important Extensions
 --------------------
 
 <br>
@@ -285,7 +285,7 @@ Main idea: Recursive calls on **smaller** inputs
 A Curious Circularity
 ---------------------
 
-<div class="fragment">Refinements require termination ...</div> 
+<div class="fragment">Refinements require termination ...</div>
 
 <br>
 
@@ -310,5 +310,3 @@ Recap
 <br>
 
 <div class="fragment">[[continue...]](11_Evaluation.lhs.slides.html)</div>
-
-

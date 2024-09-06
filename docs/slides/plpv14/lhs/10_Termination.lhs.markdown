@@ -39,7 +39,7 @@ Dependent != Refinement
 
 <div class="fragment">**Dependent Types**</div>
 
-+ <div class="fragment">*Arbitrary terms* appear inside types</div> 
++ <div class="fragment">*Arbitrary terms* appear inside types</div>
 + <div class="fragment">Termination ensures well-defined</div>
 
 <br>
@@ -47,7 +47,7 @@ Dependent != Refinement
 <div class="fragment">**Refinement Types**</div>
 
 + <div class="fragment">*Restricted refinements* appear in types</div>
-+ <div class="fragment">Termination *not* required ...</div> 
++ <div class="fragment">Termination *not* required ...</div>
 + <div class="fragment">... except, alas, with *lazy* evaluation!</div>
 
 Refinements & Termination
@@ -68,7 +68,7 @@ Recursive calls must be on *smaller* inputs
 + [Turing](http://classes.soe.ucsc.edu/cmps210/Winter11/Papers/turing-1936.pdf)
 + [Sized Types](http://dl.acm.org/citation.cfm?id=240882)
 
-Recur On *Smaller* `Nat` 
+Recur On *Smaller* `Nat`
 ------------------------
 
 <div class="fragment">
@@ -96,7 +96,7 @@ Recur On *Smaller* `Nat`
 
 
 
-Ex: Recur On *Smaller* `Nat` 
+Ex: Recur On *Smaller* `Nat`
 ----------------------------
 
 
@@ -115,7 +115,7 @@ Terminates, as both `n-1` and `n-2` are `< n`
 <br>
 
 <div class="fragment">
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=GCD.hs" target="_blank">Demo:</a>What if we drop the `fib 1` case?
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=GCD.hs" target="_blank">Demo:</a>What if we drop the `fib 1` case?
 </div>
 
 Refinements Are Essential!
@@ -141,8 +141,8 @@ Need refinements to prove `(a mod b) < b` at *recursive* call!
 
 <div class="fragment">
 
-<pre><span class=hs-linenum>130: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>mod</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span><span class='hs-conop'>:</span><span class='hs-conid'>Nat</span> 
-<span class=hs-linenum>131: </span>        <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>b</span><span class='hs-conop'>:</span><span class='hs-keyword'>{v:</span><span class='hs-conid'>Nat</span><span class='hs-keyword'>|(0 &lt; v &amp;&amp; v &lt; a)}</span> 
+<pre><span class=hs-linenum>130: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>mod</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span><span class='hs-conop'>:</span><span class='hs-conid'>Nat</span>
+<span class=hs-linenum>131: </span>        <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>b</span><span class='hs-conop'>:</span><span class='hs-keyword'>{v:</span><span class='hs-conid'>Nat</span><span class='hs-keyword'>|(0 &lt; v &amp;&amp; v &lt; a)}</span>
 <span class=hs-linenum>132: </span>        <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>{v:</span><span class='hs-conid'>Nat</span><span class='hs-keyword'>| v &lt; b}</span>                 <span class='hs-keyword'>@-}</span>
 </pre>
 </div>
@@ -191,9 +191,9 @@ Specify a **default measure** `mS :: S -> Int`
 Ex: Recur on *smaller* `List`
 -----------------------------
 
- 
+
 <pre><span class=hs-linenum>181: </span><a class=annot href="#"><span class=annottext>forall a b. (a -&gt; b) -&gt; (L a) -&gt; (L b)</span><span class='hs-definition'>map</span></a> <a class=annot href="#"><span class=annottext>a -&gt; b</span><span class='hs-varid'>f</span></a> <span class='hs-conid'>N</span>        <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>forall a. {x2 : (L a) | ((llen x2) == 0)}</span><span class='hs-conid'>N</span></a>
-<span class=hs-linenum>182: </span><span class='hs-definition'>map</span> <span class='hs-varid'>f</span> <span class='hs-layout'>(</span><span class='hs-conid'>C</span> <span class='hs-varid'>x</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>a -&gt; b</span><span class='hs-varid'>f</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>a -&gt; x2:(L a) -&gt; {x2 : (L a) | ((llen x2) == (1 + (llen x2)))}</span><span class='hs-varop'>`C`</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>forall a b. (a -&gt; b) -&gt; (L a) -&gt; (L b)</span><span class='hs-varid'>map</span></a> <a class=annot href="#"><span class=annottext>a -&gt; b</span><span class='hs-varid'>f</span></a> <a class=annot href="#"><span class=annottext>{x3 : (L a) | (x3 == xs) &amp;&amp; (0 &lt;= (llen x3))}</span><span class='hs-varid'>xs</span></a><span class='hs-layout'>)</span> 
+<span class=hs-linenum>182: </span><span class='hs-definition'>map</span> <span class='hs-varid'>f</span> <span class='hs-layout'>(</span><span class='hs-conid'>C</span> <span class='hs-varid'>x</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>a -&gt; b</span><span class='hs-varid'>f</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>a -&gt; x2:(L a) -&gt; {x2 : (L a) | ((llen x2) == (1 + (llen x2)))}</span><span class='hs-varop'>`C`</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>forall a b. (a -&gt; b) -&gt; (L a) -&gt; (L b)</span><span class='hs-varid'>map</span></a> <a class=annot href="#"><span class=annottext>a -&gt; b</span><span class='hs-varid'>f</span></a> <a class=annot href="#"><span class=annottext>{x3 : (L a) | (x3 == xs) &amp;&amp; (0 &lt;= (llen x3))}</span><span class='hs-varid'>xs</span></a><span class='hs-layout'>)</span>
 </pre>
 
 <br>
@@ -202,7 +202,7 @@ Terminates using **default** measure `llen`
 
 <div class="fragment">
 
-<pre><span class=hs-linenum>191: </span><span class='hs-keyword'>{-@</span> <span class='hs-keyword'>data</span> <span class='hs-conid'>L</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>llen</span><span class='hs-keyglyph'>]</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>N</span> 
+<pre><span class=hs-linenum>191: </span><span class='hs-keyword'>{-@</span> <span class='hs-keyword'>data</span> <span class='hs-conid'>L</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>llen</span><span class='hs-keyglyph'>]</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>N</span>
 <span class=hs-linenum>192: </span>                    <span class='hs-keyglyph'>|</span> <span class='hs-conid'>C</span> <span class='hs-layout'>(</span><span class='hs-varid'>x</span><span class='hs-keyglyph'>::</span><span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><span class='hs-varid'>xs</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyword'>@-}</span>
 <span class=hs-linenum>193: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>measure</span> <span class='hs-varid'>llen</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span>
 <span class=hs-linenum>194: </span>    <span class='hs-varid'>llen</span> <span class='hs-layout'>(</span><span class='hs-conid'>N</span><span class='hs-layout'>)</span>      <span class='hs-keyglyph'>=</span> <span class='hs-num'>0</span>
@@ -238,7 +238,7 @@ Neither input decreases, but their *sum* does.
 <br>
 
 
-<pre><span class=hs-linenum>227: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>merge</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Ord</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-varid'>xs</span><span class='hs-conop'>:</span><span class='hs-keyword'>_</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>ys</span><span class='hs-conop'>:</span><span class='hs-keyword'>_</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>_</span> 
+<pre><span class=hs-linenum>227: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>merge</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Ord</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-varid'>xs</span><span class='hs-conop'>:</span><span class='hs-keyword'>_</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>ys</span><span class='hs-conop'>:</span><span class='hs-keyword'>_</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>_</span>
 <span class=hs-linenum>228: </span>          <span class='hs-varop'>/</span>  <span class='hs-keyglyph'>[</span><span class='hs-layout'>(</span><span class='hs-varid'>llen</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span> <span class='hs-varop'>+</span> <span class='hs-layout'>(</span><span class='hs-varid'>llen</span> <span class='hs-varid'>ys</span><span class='hs-layout'>)</span><span class='hs-keyglyph'>]</span>     <span class='hs-keyword'>@-}</span>
 </pre>
 
@@ -254,11 +254,11 @@ Synthesize *ghost* parameter equal to `[...]`
 
 <div class="fragment">
 
-Reduces to single-parameter-decrease case. 
+Reduces to single-parameter-decrease case.
 
 </div>
 
-Important Extensions 
+Important Extensions
 --------------------
 
 - <div class="fragment">Mutual recursion</div>
@@ -280,7 +280,7 @@ Main idea: Recursive calls on *smaller inputs*
 A Curious Circularity
 ---------------------
 
-<div class="fragment">Refinements require termination ...</div> 
+<div class="fragment">Refinements require termination ...</div>
 
 <br>
 
@@ -297,9 +297,7 @@ Recap
 1. **Refinements:** Types + Predicates
 2. **Subtyping:** SMT Implication
 3. **Measures:** Strengthened Constructors
-4. **Abstract Refinements:* Decouple Invariants 
+4. **Abstract Refinements:* Decouple Invariants
 5. **Lazy Evaluation:** Requires Termination
 6. **Termination:** Via Refinements!
 7. <div class="fragment">**Evaluation** </div>
-
-
