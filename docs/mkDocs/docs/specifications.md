@@ -1,8 +1,10 @@
 # Writing Specifications
 
 This section documents how you can actually annotate new or existing code with
-refinement types, leveraging the full power of LiquidHaskell. There are a lot
-of different ways to annotate your code, and so we've included a brief summary
+refinement types, leveraging the full power of LiquidHaskell. As syntax reference you can
+also check [this index](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests-by-syntax.md).
+
+There are a lot of different ways to annotate your code, and so we've included a brief summary
 of each here.
 
 * `{-@ inline <binding-name> @-}` copies a Haskell definition to the refinement logic.
@@ -20,8 +22,14 @@ of each here.
   copies the implementation to a refinement type alias,
   and adds a refinement to the type of the uninterpreted function that specifies the type alias as a post-condition.
   ([See more: Section 2.2 of this paper](http://goto.ucsd.edu/~nvazou/refinement-reflection/refinement-reflection.pdf))
-    * All parts of the definition must already be available to the refinement logic.
+    * If not all parts of the definition are in the refinement logic, then uninterpreted functions will be introduced for all symbols that
+      are not in the logic. To list those symbols, you can use the `--dump-opaque-reflections` flag.
     * The function may be recursive.
+* `{-@ assume reflect <actual-function-name> as <pretended-function-name> @-}` creates an assumption that the actual function
+  behaves as the pretended function. Whence the actual function becomes reflected and can be used in the logic. Its refinement type is strengthened with
+  the post-condition that the result of the actual function is the same as the result of the pretended function.
+  ([Jump to: Theorem Proving](http://ucsd-progsys.github.io/liquidhaskell/options/#theorem-proving))
+    * The pretended function must be already reflected in the logic
 * `{-@ type <type-alias-head> = <refinement-type> @-}` introduces a type alias that looks like Haskell syntax but can contain refinements and may be parameterized over both types and values.
   ([Jump to: Type Aliases](#type-aliases))
 * `{-@ predicate .. @-}` introduces something like `{-@ type .. @-}`.

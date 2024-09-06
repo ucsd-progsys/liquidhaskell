@@ -133,7 +133,6 @@ import           Liquid.GHC.API        as Ghc hiding ( Expr
                                                                       , text
                                                                       )
 import           Language.Haskell.Liquid.GHC.TypeRep () -- Eq Type instance
-import Data.List (foldl')
 
 
 

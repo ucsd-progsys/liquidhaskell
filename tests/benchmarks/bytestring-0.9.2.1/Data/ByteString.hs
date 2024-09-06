@@ -214,7 +214,7 @@ module Data.ByteString (
 
 import Language.Haskell.Liquid.Prelude (unsafeError)
 import qualified Prelude as P
-import Prelude hiding           (reverse,head,tail,last,init,null
+import Prelude hiding           (foldl', reverse,head,tail,last,init,null
                                 ,length,map,lines,foldl,foldr,unlines
                                 ,concat,any,take,drop,splitAt,takeWhile
                                 ,dropWhile,span,break,elem,filter,maximum
@@ -2146,7 +2146,7 @@ hGetNonBlocking = hGet
 -- As with 'hGet', the string representation in the file is assumed to
 -- be ISO-8859-1.
 
-{-@ assume Foreign.Marshal.Alloc.reallocBytes :: p:(Ptr a) -> n:Nat -> (IO (PtrN a n))  @-}
+{-@ assume GHC.Internal.Foreign.Marshal.Alloc.reallocBytes :: p:(Ptr a) -> n:Nat -> (IO (PtrN a n))  @-}
 hGetContents :: Handle -> IO ByteString
 hGetContents h = do
     let start_size = 1024

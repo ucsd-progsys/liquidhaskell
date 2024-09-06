@@ -20,8 +20,6 @@ module Language.Stitch.LH.Check where
 
 import Data.Map (Map)
 import qualified Data.Map as Map
--- XXX: If we don't import Data.Set, LH fails with: Unbound symbol Set_mem
-import qualified Data.Set as Set
 import Language.Haskell.Liquid.ProofCombinators
 import Language.Stitch.LH.Data.List (List(..))
 import qualified Language.Stitch.LH.Data.List as List
@@ -307,8 +305,7 @@ typedExpType (TypedExp _ ty) = ty
 
 -- | The global variable environment maps variables to
 -- expressions
--- XXX: Using newtype causes LH to crash.
-data Globals = Globals (Map String TypedExp)
+newtype Globals = Globals (Map String TypedExp)
 
 -- | An empty global variable environment
 emptyGlobals :: Globals
@@ -318,8 +315,7 @@ emptyGlobals = Globals Map.empty
 {-@ extendGlobals :: String -> TypedExp -> Globals -> Globals @-}
 extendGlobals :: String -> TypedExp -> Globals -> Globals
 extendGlobals var e (Globals globals)
-  -- XXX: Using $ causes LH to fail here
-  = Globals (Map.insert var e globals)
+  = Globals $ Map.insert var e globals
 
 -- | Lookup a global variable.
 lookupGlobal

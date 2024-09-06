@@ -25,10 +25,12 @@ flag measure-timings
                than once, and the second run discards the timings of the first.
 
 executable test-driver
+    main-is:        driver.hs
+    hs-source-dirs: harness
     if flag(stack)
-      main-is:        Driver_stack.hs
+      hs-source-dirs: stack_driver
     else
-      main-is:        Driver_cabal.hs
+      hs-source-dirs: cabal_driver
 
     build-depends:    base < 5
                     , shelly
@@ -43,7 +45,6 @@ executable test-driver
                     , Test.Groups
                     , Test.Options
 
-    hs-source-dirs:   harness
     default-language: Haskell2010
     ghc-options:      -O2 -j -Wall -Werror
 
@@ -663,7 +664,6 @@ executable errors
                     -- , ExportMeasure0
                     -- , ExportReflect0
                     , Fractional
-                    , Frog
                     , HigherOrderBinder
                     , HintMismatch
                     , HoleCrash1
@@ -700,7 +700,6 @@ executable errors
                     , T1140
                     , T1498A
                     , T1498
-                    , T1708
                     , T773
                     , T774
                     , TerminationExprNum
@@ -715,7 +714,6 @@ executable errors
                     , UnboundFunInSpec
                     , UnboundVarInAssume
                     , UnboundVarInLocSig
-                    , UnboundVarInReflect
                     , UnboundVarInSpec
 
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
@@ -855,6 +853,36 @@ executable names-neg
 
     hs-source-dirs:   app
                     , names/neg
+
+    default-language: Haskell2010
+
+flag name-resolution-neg
+     default: False
+
+executable name-resolution-neg
+    main-is:          Main.hs
+    if !flag(names-neg) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      A
+                    , B
+                    , C
+
+
+    ghc-options:      -Wall
+                      -fplugin=LiquidHaskell
+                      -fkeep-going
+                      -O0
+
+    if flag(measure-timings)
+      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
+
+    build-depends:    base
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , name-resolution/neg
 
     default-language: Haskell2010
 
@@ -1100,7 +1128,7 @@ executable datacon-neg
                     , Data02
                     , Data02Lib
                     , Date
-                    , NewTypes0
+                    -- , NewTypes0
                     , NewTypes
 
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
@@ -1445,6 +1473,7 @@ executable unit-pos-1
                     , Poly3a
                     , Poly3
                     , Poly4
+                    , PolySet
                     , Polyfun
                     , Polyqual
                     , PositivityCheck
@@ -1607,6 +1636,7 @@ executable unit-pos-1
                     , T1697A
                     , T1697C
                     , T1697
+                    , T1708
                     , T1709
                     , T1749
                     , T1761
@@ -2116,7 +2146,12 @@ executable basic-neg
       buildable:      False
 
     other-modules:
-                      Inc01
+                      AssmRefl01
+                    , AssmRefl02
+                    , AssmRefl03
+                    , AssmRefl04
+                    , DuplicateSpecs
+                    , Inc01
                     , Inc01q
                     , Inc02
                     , Inc03
@@ -2154,6 +2189,13 @@ executable basic-pos
                     , Alias03
                     , Alias04
                     , Alias05
+                    , AssmRefl01
+                    , AssmRefl02A
+                    , AssmRefl02B
+                    , AssmRefl02C
+                    , AssmRefl02D
+                    , AssmRefl03
+                    , AssmReflFilter
                     , Float
                     , Inc00
                     , Inc01
@@ -2164,6 +2206,15 @@ executable basic-pos
                     , Inc04
                     , Infer00
                     , List00
+                    , OpaqueRefl01
+                    , OpaqueRefl02
+                    , OpaqueRefl03A
+                    , OpaqueRefl03B
+                    , OpaqueRefl03C
+                    , OpaqueRefl03D
+                    , OpaqueRefl04
+                    , OpaqueRefl05
+                    , OpaqueRefl06
                     , Poly00
                     , SkipDerived00
 
@@ -2304,6 +2355,7 @@ executable ple-pos
                     , Isort_erase
                     , ListAnd
                     , Lists
+                    , ListPolySet
                     , MergeSort
                     , MJFix
                     , MossakaBug

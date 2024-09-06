@@ -22,7 +22,7 @@ module Language.Haskell.Liquid.Bare (
   ) where
 
 import           Prelude                                    hiding (error)
-import           Control.Monad                              (forM, mplus)
+import           Control.Monad                              (forM, mplus, when)
 import           Control.Applicative                        ((<|>))
 import qualified Control.Exception                          as Ex
 import qualified Data.Binary                                as B
@@ -62,6 +62,8 @@ import qualified Language.Haskell.Liquid.Transforms.CoreToLogic as CoreToLogic
 import           Control.Arrow                    (second)
 import Data.Hashable (Hashable)
 import qualified Language.Haskell.Liquid.Bare.Slice as Dg
+import Data.Bifunctor (bimap)
+import Data.Function (on)
 
 --------------------------------------------------------------------------------
 -- | De/Serializing Spec files
@@ -236,25 +238,40 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
   let mySpec   = mySpec2 <> lSpec1
   let specs    = M.insert name mySpec iSpecs2
   let myRTE    = myRTEnv       src env sigEnv rtEnv
-  let (dg5, measEnv) = withDiagnostics $ makeMeasEnv      env tycEnv sigEnv       specs
-  let (dg4, sig) = withDiagnostics $ makeSpecSig cfg name specs env sigEnv   tycEnv measEnv (_giCbs src)
+  -- NB: we first compute a measure environment w/o the opaque reflections, so that we can bootstrap
+  -- the signature `sig`. Then we'll add the opaque reflections before we compute `sData` and al.
+  let (dg1, measEnv0) = withDiagnostics $ makeMeasEnv      env tycEnv sigEnv       specs
+  let (dg2, sig) = withDiagnostics $ makeSpecSig cfg name specs env sigEnv   tycEnv measEnv0 (_giCbs src)
   elaboratedSig <-
     if allowTC then Bare.makeClassAuxTypes (elaborateSpecType coreToLg simplifier) datacons instMethods
                               >>= elaborateSig sig
                else pure sig
+  let (dg3, refl)    = withDiagnostics $ makeSpecRefl cfg src measEnv0 specs env name elaboratedSig tycEnv
+  let eqs            = gsHAxioms refl
+  let measEnv = addOpaqueReflMeas env measEnv0 specs eqs
   let qual     = makeSpecQual cfg env tycEnv measEnv rtEnv specs
+  let (dg4, spcVars) = withDiagnostics $ makeSpecVars cfg src mySpec env measEnv
+  let (dg5, spcTerm) = withDiagnostics $ makeSpecTerm cfg     mySpec env       name
   let sData    = makeSpecData  src env sigEnv measEnv elaboratedSig specs
-  let (dg1, spcVars) = withDiagnostics $ makeSpecVars cfg src mySpec env measEnv
-  let (dg2, spcTerm) = withDiagnostics $ makeSpecTerm cfg     mySpec env       name
-  let (dg3, refl)    = withDiagnostics $ makeSpecRefl cfg src measEnv specs env name elaboratedSig tycEnv
   let laws     = makeSpecLaws env sigEnv (gsTySigs elaboratedSig ++ gsAsmSigs elaboratedSig) measEnv specs
   let finalLiftedSpec = makeLiftedSpec name src env refl sData elaboratedSig qual myRTE lSpec1
   let diags    = mconcat [dg0, dg1, dg2, dg3, dg4, dg5]
 
+  -- Dump reflections, if requested
+  when (dumpOpaqueReflections cfg) . Ghc.liftIO $ do
+    putStrLn ""
+    if L.null (Bare.meOpaqueRefl measEnv) then do
+      putStrLn "No opaque reflection was generated."
+    else do
+      putStrLn "Opaque reflections: "
+      let sortedRefls = L.sort $ fst <$> Bare.meOpaqueRefl measEnv
+      mapM_ (putStrLn . ("- " ++) . show) sortedRefls
+    putStrLn ""
+
   pure (diags, SP
     { _gsConfig = cfg
     , _gsImps   = makeImports mspecs
-    , _gsSig    = addReflSigs env name rtEnv refl elaboratedSig
+    , _gsSig    = addReflSigs env name rtEnv measEnv refl elaboratedSig
     , _gsRefl   = refl
     , _gsLaws   = laws
     , _gsData   = sData
@@ -275,12 +292,15 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
                 , asmSigs = Ms.asmSigs finalLiftedSpec ++ Ms.asmSigs mySpec
                   -- Export all the assumptions (not just the ones created out of reflection) in
                   -- a 'LiftedSpec'.
+                , omeasures = Ms.omeasures finalLiftedSpec ++ (snd <$> Bare.meOpaqueRefl measEnv)
+                  -- Preserve 'o-measures': they are the opaque reflections
                 , imeasures = Ms.imeasures finalLiftedSpec ++ Ms.imeasures mySpec
                   -- Preserve user-defined 'imeasures'.
                 , dvariance = Ms.dvariance finalLiftedSpec ++ Ms.dvariance mySpec
                   -- Preserve user-defined 'dvariance'.
                 , rinstance = Ms.rinstance finalLiftedSpec ++ Ms.rinstance mySpec
                   -- Preserve rinstances.
+                , asmReflectSigs = Ms.asmReflectSigs mySpec
                 }
     })
   where
@@ -647,6 +667,8 @@ makeSpecRefl cfg src menv specs env name sig tycEnv = do
   rwrWith  <- makeRewriteWith env name mySpec
   wRefls   <- Bare.wiredReflects cfg env name sig
   xtes     <- Bare.makeHaskellAxioms cfg src env tycEnv name lmap sig mySpec
+  asmReflAxioms <- Bare.makeAssumeReflectAxioms src env tycEnv name sig mySpec
+  let otherAxioms = thd3 <$> asmReflAxioms
   let myAxioms =
         [ Bare.qualifyTop
             env
@@ -655,26 +677,36 @@ makeSpecRefl cfg src menv specs env name sig tycEnv = do
             e {eqName = s, eqRec = S.member s (exprSymbolsSet (eqBody e))}
         | (x, lt, e) <- xtes
         , let s = symbol x
-        ]
+        ] ++ otherAxioms
+  let asmReflEls = eqName <$> otherAxioms
+  let impAxioms  = concatMap (filter ((`notElem` asmReflEls) . eqName) . Ms.axeqs . snd) (M.toList specs)
   let sigVars  = F.notracepp "SIGVARS" $ (fst3 <$> xtes)            -- reflects
                                       ++ (fst  <$> gsAsmSigs sig)   -- assumes
                                       ++ (fst  <$> gsRefSigs sig)
-  return SpRefl
-    { gsLogicMap   = lmap
-    , gsAutoInst   = autoInst
-    , gsImpAxioms  = concatMap (Ms.axeqs . snd) (M.toList specs)
-    , gsMyAxioms   = F.notracepp "gsMyAxioms" myAxioms
-    , gsReflects   = F.notracepp "gsReflects" (lawMethods ++ filter (isReflectVar rflSyms) sigVars ++ wRefls)
-    , gsHAxioms    = F.notracepp "gsHAxioms" xtes
-    , gsWiredReft  = wRefls
-    , gsRewrites   = rwr
-    , gsRewritesWith = rwrWith
-    }
+  case anyNonReflFn of
+    Just (actSym , preSym) ->
+      let preSym' = show (val preSym) in
+      let errorMsg = preSym' ++ " must be reflected first using {-@ reflect " ++ preSym' ++ " @-}" in
+      let error = ErrHMeas (GM.sourcePosSrcSpan $ loc actSym) (pprint $ val actSym) (text errorMsg) :: Error
+      in Ex.throw error
+    Nothing -> return SpRefl
+      { gsLogicMap   = lmap
+      , gsAutoInst   = autoInst
+      , gsImpAxioms  = impAxioms
+      , gsMyAxioms   = myAxioms
+      , gsReflects   = lawMethods ++ filter (isReflectVar rflSyms) sigVars ++ (fst <$> gsAsmReflects sig) ++ wRefls
+      , gsHAxioms    = F.notracepp "gsHAxioms" $ xtes ++ asmReflAxioms
+      , gsWiredReft  = wRefls
+      , gsRewrites   = rwr
+      , gsRewritesWith = rwrWith
+      }
   where
     lawMethods   = F.notracepp "Law Methods" $ concatMap Ghc.classMethods (fst <$> Bare.meCLaws menv)
     mySpec       = M.lookupDefault mempty name specs
     rflSyms      = S.fromList (getReflects specs)
     lmap         = Bare.reLMap env
+    notInReflOnes (_, a) = not $ a `S.member` Ms.reflects mySpec
+    anyNonReflFn = L.find notInReflOnes (Ms.asmReflectSigs mySpec)
 
 isReflectVar :: S.HashSet F.Symbol -> Ghc.Var -> Bool
 isReflectVar reflSyms v = S.member vx reflSyms
@@ -682,22 +714,36 @@ isReflectVar reflSyms v = S.member vx reflSyms
     vx                  = GM.dropModuleNames (symbol v)
 
 getReflects :: Bare.ModSpecs -> [Symbol]
-getReflects  = fmap val . S.toList . S.unions . fmap (names . snd) . M.toList
-  where
-    names  z = S.unions [ Ms.reflects z, Ms.inlines z, Ms.hmeas z ]
+getReflects  = fmap val . S.toList . Bare.getLocReflects Nothing
 
 ------------------------------------------------------------------------------------------
--- | @updateReflSpecSig@ uses the information about reflected functions to update the
+-- | @updateReflSpecSig@ uses the information about reflected functions (included the opaque ones) to update the
 --   "assumed" signatures.
 ------------------------------------------------------------------------------------------
-addReflSigs :: Bare.Env -> ModName -> BareRTEnv -> GhcSpecRefl -> GhcSpecSig -> GhcSpecSig
+addReflSigs :: Bare.Env -> ModName -> BareRTEnv -> Bare.MeasEnv -> GhcSpecRefl -> GhcSpecSig -> GhcSpecSig
 ------------------------------------------------------------------------------------------
-addReflSigs env name rtEnv refl sig =
+addReflSigs env name rtEnv measEnv refl sig =
   sig { gsRefSigs = F.notracepp ("gsRefSigs for " ++ F.showpp name) $ map expandReflectedSignature reflSigs
-      , gsAsmSigs = F.notracepp ("gsAsmSigs for " ++ F.showpp name) (wreflSigs ++ filter notReflected (gsAsmSigs sig))
+      , gsAsmSigs = F.notracepp ("gsAsmSigs for " ++ F.showpp name) combinedOpaqueAndReflectedAndWiredAsmSigs
       }
   where
-
+    -- We make sure that the reflected functions are excluded from `gsAsmSigs`, except for the signatures of
+    -- actual functions in assume-reflect. The latter are added here because 1. it's what makes tests work
+    -- and 2. so that we probably "shadow" the old signatures of the actual function correctly. Note that even if the
+    -- signature of the actual function was asserted and not assumed, we do not put our new signature for the actual function
+    -- in `gsTySigs` (which is for asserted signatures). Indeed, the new signature will *always* be an assumption since we
+    -- add the extra post-condition that the actual and pretended function behave in the same way.
+    -- Also, we add here the strengthened post-conditions relative to opaque reflections.
+    -- We may redefine assumptions because of opaque reflections, so we just take the union of maps and ignore duplicates.
+    -- Based on `M.union`'s handling of duplicates, the leftmost elements in the chain of `M.union` will precede over those
+    -- after, which is why we put the opaque reflection first in the chain. The signatures for opaque reflections are created
+    -- by strengthening the post-conditions, as in (assume-)reflection.
+    combinedOpaqueAndReflectedAndWiredAsmSigs = M.toList $
+        M.fromList (createUpdatedSpecs . fst <$> Bare.meOpaqueRefl measEnv)
+        `M.union` M.fromList (filter notReflected (gsAsmSigs sig))
+        `M.union` M.fromList wreflSigs
+    -- Strengthen the post-condition of each of the opaque reflections.
+    createUpdatedSpecs var = (var, Bare.aty <$> Bare.strengthenSpecWithMeasure sig env var (varLocSym var))
     -- See T1738. We need to expand and qualify any reflected signature /here/, after any
     -- relevant binder has been detected and \"promoted\". The problem stems from the fact that any input
     -- 'BareSpec' will have a 'reflects' list of binders to reflect under the form of an opaque 'Var', that
@@ -709,8 +755,14 @@ addReflSigs env name rtEnv refl sig =
 
     (wreflSigs, reflSigs)   = L.partition ((`elem` gsWiredReft refl) . fst)
                                  [ (x, t) | (x, t, _) <- gsHAxioms refl ]
-    reflected       = fst <$> (wreflSigs ++ reflSigs)
-    notReflected xt = fst xt `notElem` reflected
+    -- Get the set of all the actual functions (in assume-reflects)
+    actualFnsInAssmRefl     = S.fromList $ fst <$> gsAsmReflects sig
+    isActualFn           x  = S.member x actualFnsInAssmRefl
+    -- Get all the variables from the axioms that are not actual functions (in assume-reflects)
+    notReflActualTySigs     = L.filter (not . isActualFn . fst) reflSigs
+    -- Get the list of reflected elements. We do not count actual functions in assume reflect as reflected
+    reflected               = S.fromList $ fst <$> (wreflSigs ++ notReflActualTySigs)
+    notReflected xt         = fst xt `notElem` reflected
 
 makeAutoInst :: Bare.Env -> ModName -> Ms.BareSpec ->
                 Bare.Lookup (M.HashMap Ghc.Var (Maybe Int))
@@ -743,6 +795,7 @@ makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = do
   return SpSig
     { gsTySigs   = tySigs
     , gsAsmSigs  = asmSigs
+    , gsAsmReflects = bimap getVar getVar <$> concatMap (asmReflectSigs . snd) (M.toList specs)
     , gsRefSigs  = []
     , gsDicts    = dicts
     -- , gsMethods  = if noclasscheck cfg then [] else Bare.makeMethodTypes dicts (Bare.meClasses  measEnv) cbs
@@ -758,6 +811,12 @@ makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = do
     mySpec     = M.lookupDefault mempty name specs
     allSpecs   = M.toList specs
     rtEnv      = Bare.sigRTEnv sigEnv
+    getVar sym = case Bare.lookupGhcVar env name "assume-reflection specs" sym of
+      Right x -> x
+      Left _ -> Ex.throw $ mkError sym $ "Not in scope: " ++ show (val sym)
+
+    mkError :: LocSymbol -> String -> Error
+    mkError x str = ErrHMeas (GM.sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
     -- hmeas      = makeHMeas    env allSpecs
 
 strengthenSigs :: [(Ghc.Var, (Int, LocSpecType))] ->[(Ghc.Var, LocSpecType)]
@@ -837,7 +896,9 @@ myAsmSig :: Ghc.Var -> [(Bool, ModName, LocBareType)] -> (ModName, LocBareType)
 myAsmSig v sigs = Mb.fromMaybe errImp (mbHome `mplus` mbImp)
   where
     mbHome      = takeUnique mkErr                  sigsHome
-    mbImp       = takeUnique mkErr (Misc.firstGroup sigsImp) -- see [NOTE:Prioritize-Home-Spec]
+    -- In case we import multiple specifications for the same function stemming from `assume-reflect` from different modules, we want
+    -- to follow the same convention as in other places and so take the last one in alphabetical order and shadow the others
+    mbImp       = takeBiggest   fst (Misc.firstGroup sigsImp) -- see [NOTE:Prioritize-Home-Spec]
     sigsHome    = [(m, t)      | (True,  m, t) <- sigs ]
     sigsImp     = F.notracepp ("SIGS-IMP: " ++ F.showpp v)
                   [(d, (m, t)) | (False, m, t) <- sigs, let d = nameDistance vName m]
@@ -891,11 +952,14 @@ nameDistance vName tName
   | vName == F.symbol tName = 0
   | otherwise               = 1
 
-
 takeUnique :: Ex.Exception e => ([a] -> e) -> [a] -> Maybe a
 takeUnique _ []  = Nothing
 takeUnique _ [x] = Just x
 takeUnique f xs  = Ex.throw (f xs)
+
+takeBiggest :: (Ord b) => (a -> b) -> [a] -> Maybe a
+takeBiggest _ []  = Nothing
+takeBiggest f xs  = Just $ L.maximumBy (compare `on` f) xs
 
 allAsmSigs :: Bare.Env -> ModName -> Bare.ModSpecs ->
               Bare.Lookup [(Ghc.Var, [(Bool, ModName, LocBareType)])]
@@ -1001,15 +1065,14 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
                    ]
   , gsMeas       = [ (F.symbol x, uRType <$> t) | (x, t) <- measVars ]
   , gsMeasures   = Bare.qualifyTopDummy env name <$> (ms1 ++ ms2)
+  , gsOpaqueRefls = fst <$> Bare.meOpaqueRefl measEnv
   , gsInvariants = Misc.nubHashOn (F.loc . snd) invs
   , gsIaliases   = concatMap (makeIAliases env sigEnv) (M.toList specs)
   , gsUnsorted   = usI ++ concatMap msUnSorted (concatMap measures specs)
   }
   where
     allowTC      = typeclass (getConfig env)
-    measVars     = Bare.meSyms      measEnv -- ms'
-                ++ Bare.meClassSyms measEnv -- cms'
-                ++ Bare.varMeasures env
+    measVars     = Bare.getMeasVars env measEnv
     measuresSp   = Bare.meMeasureSpec measEnv
     ms1          = M.elems (Ms.measMap measuresSp)
     ms2          = Ms.imeas   measuresSp
@@ -1198,7 +1261,7 @@ makeMeasEnv env tycEnv sigEnv specs = do
   let measures = mconcat (Ms.mkMSpec' dcSelectors : measures0)
   let (cs, ms) = Bare.makeMeasureSpec'  (typeclass $ getConfig env)   measures
   let cms      = Bare.makeClassMeasureSpec measures
-  let cms'     = [ (x, Loc l l' $ cSort t)  | (Loc l l' x, t) <- cms ]
+  let cms'     = [ (val l, cSort t <$ l)  | (l, t) <- cms ]
   let ms'      = [ (F.val lx, F.atLoc lx t) | (lx, t) <- ms
                                             , Mb.isNothing (lookup (val lx) cms') ]
   let cs'      = [ (v, txRefs v t) | (v, t) <- Bare.meetDataConSpec (typeclass (getConfig env)) embs cs (datacons ++ cls)]
@@ -1210,6 +1273,7 @@ makeMeasEnv env tycEnv sigEnv specs = do
     , meClasses     = cls
     , meMethods     = mts ++ dms
     , meCLaws       = laws
+    , meOpaqueRefl  = mempty
     }
   where
     txRefs v t    = Bare.txRefSort tyi embs (t <$ GM.locNamedThing v)
@@ -1218,6 +1282,27 @@ makeMeasEnv env tycEnv sigEnv specs = do
     datacons      = Bare.tcDataCons    tycEnv
     embs          = Bare.tcEmbs        tycEnv
     name          = Bare.tcName        tycEnv
+
+-------------------------------------------------------------------------------------------
+--- Add the opaque reflections to the measure environment
+--- Returns a new environment that is the old one enhanced with the opaque reflections
+-------------------------------------------------------------------------------------------
+addOpaqueReflMeas :: Bare.Env -> Bare.MeasEnv -> Bare.ModSpecs ->
+               [(Ghc.Var, LocSpecType, F.Equation)] ->
+               Bare.MeasEnv
+-------------------------------------------------------------------------------------------
+addOpaqueReflMeas env measEnv specs eqs = do
+  let (measures0, opaqueRefl) = Bare.makeOpaqueReflMeasures env measEnv specs eqs
+  -- Rest of the code is the same idea as for makeMeasEnv, only we just care on how to get
+  -- `meSyms` (no class, data constructor or other stuff here).
+  let measures = mconcat measures0
+  let (_, ms) = Bare.makeMeasureSpec'  (typeclass $ getConfig env)   measures
+  let ms'      = [ (F.val lx, F.atLoc lx t) | (lx, t) <- ms ]
+  measEnv <> mempty
+    { Bare.meMeasureSpec = measures
+    , Bare.meSyms        = ms'
+    , Bare.meOpaqueRefl  = opaqueRefl
+    }
 
 -----------------------------------------------------------------------------------------
 -- | @makeLiftedSpec@ is used to generate the BareSpec object that should be serialized

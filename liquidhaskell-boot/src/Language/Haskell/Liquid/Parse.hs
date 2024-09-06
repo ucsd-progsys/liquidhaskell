@@ -32,7 +32,7 @@ import qualified Data.HashSet                           as S
 import           Data.Data
 import qualified Data.Maybe                             as Mb -- (isNothing, fromMaybe)
 import           Data.Char                              (isSpace, isAlphaNum)
-import           Data.List                              (foldl', partition)
+import           Data.List                              (partition)
 import           GHC                                    (ModuleName, mkModuleName)
 import qualified Text.PrettyPrint.HughesPJ              as PJ
 import           Text.PrettyPrint.HughesPJ.Compat       ((<+>))
@@ -252,11 +252,11 @@ btP = do
     PcExplicit b -> parseFun c b
   <?> "btP"
   where
-    parseFun c@(PC sb t1) sym  =
+    parseFun c@(PC sb t1) sy  =
       (do
             reservedOp "->"
             PC _ t2 <- btP
-            return (PC sb (rFun sym t1 t2)))
+            return (PC sb (rFun sy t1 t2)))
         <|>
          (do
             reservedOp "=>"
@@ -408,8 +408,8 @@ refDefP :: Symbol
         -> Parser Expr
         -> Parser (Reft -> BareType)
         -> Parser BareType
-refDefP sym rp kindP' = braces $ do
-  x       <- optBindP sym
+refDefP sy rp kindP' = braces $ do
+  x       <- optBindP sy
   -- NOSUBST i       <- freshIntP
   t       <- try (kindP' <* reservedOp "|") <|> return (RHole . uTop) <?> "refDefP"
   ra      <- rp
@@ -836,9 +836,10 @@ type BPspec = Pspec LocBareType LocSymbol
 data Pspec ty ctor
   = Meas    (Measure ty ctor)                             -- ^ 'measure' definition
   | Assm    (LocSymbol, ty)                               -- ^ 'assume' signature (unchecked)
+  | AssmReflect (LocSymbol, LocSymbol)                    -- ^ 'assume reflects' signature (unchecked)
   | Asrt    (LocSymbol, ty)                               -- ^ 'assert' signature (checked)
   | LAsrt   (LocSymbol, ty)                               -- ^ 'local' assertion -- TODO RJ: what is this
-  | Asrts   ([LocSymbol], (ty, Maybe [Located Expr]))     -- ^ TODO RJ: what is this
+  | Asrts   ([LocSymbol], (ty, Maybe [Located Expr]))     -- ^ sym0, ..., symn :: ty / [m0,..., mn]
   | Impt    Symbol                                        -- ^ 'import' a specification module
   | DDecl   DataDecl                                      -- ^ refined 'data'    declaration
   | NTDecl  DataDecl                                      -- ^ refined 'newtype' declaration
@@ -863,6 +864,7 @@ data Pspec ty ctor
   | Insts   (LocSymbol, Maybe Int)                        -- ^ 'auto-inst' or 'ple' annotation; use ple locally on binder
   | HMeas   LocSymbol                                     -- ^ 'measure' annotation; lift Haskell binder as measure
   | Reflect LocSymbol                                     -- ^ 'reflect' annotation; reflect Haskell binder as function in logic
+  | OpaqueReflect LocSymbol                               -- ^ 'opaque-reflect' annotation
   | Inline  LocSymbol                                     -- ^ 'inline' annotation;  inline (non-recursive) binder as an alias
   | Ignore  LocSymbol                                     -- ^ 'ignore' annotation; skip all checks inside this binder
   | ASize   LocSymbol                                     -- ^ 'autosize' annotation; automatically generate size metric for this type
@@ -899,6 +901,8 @@ ppPspec k (Meas m)
   = "measure" <+> pprintTidy k m
 ppPspec k (Assm (lx, t))
   = "assume"  <+> pprintTidy k (val lx) <+> "::" <+> pprintTidy k t
+ppPspec k (AssmReflect (lx, ly))
+  = "assume reflect"  <+> pprintTidy k (val lx) <+> "as" <+> pprintTidy k (val ly)
 ppPspec k (Asrt (lx, t))
   = "assert"  <+> pprintTidy k (val lx) <+> "::" <+> pprintTidy k t
 ppPspec k (LAsrt (lx, t))
@@ -945,6 +949,8 @@ ppPspec k (HMeas   lx)
   = "measure" <+> pprintTidy k (val lx)
 ppPspec k (Reflect lx)
   = "reflect" <+> pprintTidy k (val lx)
+ppPspec k (OpaqueReflect lx)
+  = "opaque-reflect" <+> pprintTidy k (val lx)
 ppPspec k (Inline  lx)
   = "inline" <+> pprintTidy k (val lx)
 ppPspec k (Ignore  lx)
@@ -1053,6 +1059,7 @@ mkSpec :: ModName -> [BPspec] -> (ModName, Measure.Spec LocBareType LocSymbol)
 mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
   { Measure.measures   = [m | Meas   m <- xs]
   , Measure.asmSigs    = [a | Assm   a <- xs]
+  , Measure.asmReflectSigs = [(l, r) | AssmReflect (l, r) <- xs]
   , Measure.sigs       = [a | Asrt   a <- xs]
                       ++ [(y, t) | Asrts (ys, (t, _)) <- xs, y <- ys]
   , Measure.localSigs  = []
@@ -1074,6 +1081,7 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
   , Measure.pragmas    = [s | Pragma s <- xs]
   , Measure.cmeasures  = [m | CMeas  m <- xs]
   , Measure.imeasures  = [m | IMeas  m <- xs]
+  , Measure.omeasures  = []
   , Measure.classes    = [c | Class  c <- xs]
   , Measure.relational = [r | Relational r <- xs]
   , Measure.asmRel     = [r | AssmRel r <- xs]
@@ -1089,6 +1097,7 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
   , Measure.rewriteWith = M.fromList [s | Rewritewith s <- xs]
   , Measure.bounds     = M.fromList [(bname i, i) | PBound i <- xs]
   , Measure.reflects   = S.fromList [s | Reflect s <- xs]
+  , Measure.opaqueReflects = S.fromList [s | OpaqueReflect s <- xs]
   , Measure.hmeas      = S.fromList [s | HMeas  s <- xs]
   , Measure.inlines    = S.fromList [s | Inline s <- xs]
   , Measure.ignores    = S.fromList [s | Ignore s <- xs]
@@ -1101,9 +1110,9 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
 -- | Parse a single top level liquid specification
 specP :: Parser BPspec
 specP
-  =     fallbackSpecP "assume"
-    ((reserved "relational" >>  fmap AssmRel relationalP)
-        <|>                           fmap Assm   tyBindP  )
+  = fallbackSpecP "assume" ((reserved "reflect" >> fmap AssmReflect assmReflectBindP)
+        <|> (reserved "relational" >>  fmap AssmRel relationalP)
+        <|>                            fmap Assm   tyBindP  )
     <|> fallbackSpecP "assert"      (fmap Asrt    tyBindP  )
     <|> fallbackSpecP "autosize"    (fmap ASize   asizeP   )
     <|> (reserved "local"         >> fmap LAsrt   tyBindP  )
@@ -1111,6 +1120,7 @@ specP
     -- TODO: These next two are synonyms, kill one
     <|> fallbackSpecP "axiomatize"  (fmap Reflect axiomP   )
     <|> fallbackSpecP "reflect"     (fmap Reflect axiomP   )
+    <|> (reserved "opaque-reflect" >> fmap OpaqueReflect axiomP  )
 
     <|> fallbackSpecP "measure"    hmeasureP
 
@@ -1174,10 +1184,10 @@ fallbackSpecP kw p = do
 
 -- | Same as tyBindsP, except the single initial symbol has already been matched
 tyBindsRemP :: LocSymbol -> Parser ([LocSymbol], (Located BareType, Maybe [Located Expr]))
-tyBindsRemP sym = do
+tyBindsRemP sy = do
   reservedOp "::"
   tb <- termBareTypeP
-  return ([sym],tb)
+  return ([sy],tb)
 
 pragmaP :: Parser (Located String)
 pragmaP = locStringLiteral
@@ -1246,6 +1256,11 @@ tyBindNoLocP = second val <$> tyBindP
 tyBindP :: Parser (LocSymbol, Located BareType)
 tyBindP =
   (,) <$> locBinderP <* reservedOp "::" <*> located genBareTypeP
+
+-- | Parses a loc symbol.
+assmReflectBindP :: Parser (LocSymbol, LocSymbol)
+assmReflectBindP =
+  (,) <$> locBinderP <* reservedOp "as" <*> locBinderP
 
 termBareTypeP :: Parser (Located BareType, Maybe [Located Expr])
 termBareTypeP = do
@@ -1631,20 +1646,6 @@ noWhere =
 
 dataPropTyP :: Parser (Maybe BareType)
 dataPropTyP = Just <$> between (reservedOp "::") (reserved "where") bareTypeP
-
----------------------------------------------------------------------
--- | Parsing Qualifiers ---------------------------------------------
----------------------------------------------------------------------
-
-fTyConP :: Parser FTycon
-fTyConP
-  =   (reserved "int"     >> return intFTyCon)
-  <|> (reserved "Integer" >> return intFTyCon)
-  <|> (reserved "Int"     >> return intFTyCon)
-  <|> (reserved "real"    >> return realFTyCon)
-  <|> (reserved "bool"    >> return boolFTyCon)
-  <|> (symbolFTycon      <$> locUpperIdP)
-  <?> "fTyConP"
 
 ---------------------------------------------------------------------
 -- Identifiers ------------------------------------------------------

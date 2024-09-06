@@ -130,12 +130,32 @@ data MeasEnv = MeasEnv
   , meClasses     :: ![DataConP]                           
   , meMethods     :: ![(ModName, Ghc.Var, LocSpecType)]  
   , meCLaws       :: ![(Ghc.Class, [(ModName, Ghc.Var, LocSpecType)])]  
+  , meOpaqueRefl  :: ![(Ghc.Var, Measure (Located BareType) LocSymbol)] -- the opaque-reflected symbols and the corresponding measures
   }
 
 instance Semigroup MeasEnv where
-  (<>) = error "FIXME:1773"
+  a <> b = MeasEnv
+    { meMeasureSpec = meMeasureSpec a <> meMeasureSpec b
+    , meClassSyms   = meClassSyms a <> meClassSyms b
+    , meSyms        = meSyms a <> meSyms b
+    , meDataCons    = meDataCons a <> meDataCons b  
+    , meClasses     = meClasses a <> meClasses b                       
+    , meMethods     = meMethods a <> meMethods b
+    , meCLaws       = meCLaws a <> meCLaws b
+    , meOpaqueRefl  = meOpaqueRefl a <> meOpaqueRefl b
+    }
 instance Monoid MeasEnv where
-  mempty = error "FIXME:1773"
+  mempty = MeasEnv
+    {
+      meMeasureSpec = mempty
+    , meClassSyms   = mempty
+    , meSyms        = mempty
+    , meDataCons    = mempty
+    , meClasses     = mempty
+    , meMethods     = mempty
+    , meCLaws       = mempty
+    , meOpaqueRefl  = mempty
+    }
 
 -------------------------------------------------------------------------------
 -- | Converting @Var@ to @Sort@

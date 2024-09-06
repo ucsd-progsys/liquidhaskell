@@ -1,4 +1,4 @@
-with-compiler: ghc-9.8.1
+with-compiler: ghc-9.10.1
 
 packages: .
           ./liquid-fixpoint
@@ -19,10 +19,13 @@ source-repository-package
 
 allow-newer:
   ghc-timings:base
-  ,colonnade:bytestring
-  ,colonnade:text
-  ,blaze-colonnade:text
   ,blaze-svg:base
+  ,blaze-svg:mtl
+  ,colonnade:text
+  ,rest-rewrite:containers
+  ,Chart:lens
+  ,Chart-diagrams:lens
+  ,SVGFonts:containers
 
 package liquid-fixpoint
   flags: +devel

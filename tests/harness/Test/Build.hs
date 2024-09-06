@@ -26,23 +26,27 @@ cabalRun :: Options
          -> IO ExitCode
 cabalRun opts names = do
   projectFile <- lookupEnv "LIQUID_CABAL_PROJECT_FILE"
-  runCommand "cabal" $
-    [ "build" ]
-    <> (case projectFile of Nothing -> []; Just projectFile' -> [ "--project-file", T.pack projectFile' ])
-    <> (if measureTimings opts then ["--flags=measure-timings", "-j1"] else ["--keep-going"])
-    <> extraOpts opts
-    <> names
+  let exe = "cabal"
+      args = [ "build" ]
+        <> (case projectFile of Nothing -> []; Just projectFile' -> [ "--project-file", T.pack projectFile' ])
+        <> (if measureTimings opts then ["--flags=measure-timings", "-j1"] else ["--keep-going"])
+        <> extraOpts opts
+        <> names
+  T.putStrLn $ T.unwords $ "running:" : exe : args
+  runCommand exe args
 
 -- | Runs stack on the given test groups
 stackRun :: Options -> [Text] -> IO ExitCode
-stackRun opts names =
-  runCommand "stack" $
-    [ "build", "--flag", "tests:stack" ]
-    <> concat [ ["--flag=tests:measure-timings", "-j1"] | measureTimings opts ]
-    <> testFlags
-    <> extraOpts opts
-    <> [ "--" ]
-    <> testNames
+stackRun opts names = do
+  let exe = "stack"
+      args = [ "build", "--flag", "tests:stack" ]
+        <> concat [ ["--flag=tests:measure-timings", "-j1"] | measureTimings opts ]
+        <> testFlags
+        <> extraOpts opts
+        <> [ "--" ]
+        <> testNames
+  T.putStrLn $ T.unwords $ "running:" : exe : args
+  runCommand exe args
   where
     testNames = fmap ("tests:" <>) names
     -- Enables that particular executable in the cabal file

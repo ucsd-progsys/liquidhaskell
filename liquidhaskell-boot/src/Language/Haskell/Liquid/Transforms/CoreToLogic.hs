@@ -39,7 +39,7 @@ import           Control.Monad.Except
 import           Control.Monad.Identity
 import qualified Language.Fixpoint.Misc                as Misc
 import qualified Language.Haskell.Liquid.Misc          as Misc
-import           Language.Fixpoint.Types               hiding (panic, Error, R, simplify)
+import           Language.Fixpoint.Types               hiding (panic, Error, R, simplify, isBool)
 import qualified Language.Fixpoint.Types               as F
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 
@@ -111,9 +111,9 @@ measureSpecType allowTC v = go mkT [] [(1::Int)..] st
     hasRApps _                = False
 
 
--- | 'weakenResult foo t' drops the singleton constraint `v = foo x y` 
---   that is added, e.g. for measures in /strengthenResult'. 
---   This should only be used _when_ checking the body of 'foo' 
+-- | 'weakenResult foo t' drops the singleton constraint `v = foo x y`
+--   that is added, e.g. for measures in /strengthenResult'.
+--   This should only be used _when_ checking the body of 'foo'
 --   where the output, is, by definition, equal to the singleton.
 weakenResult :: Bool -> Var -> SpecType -> SpecType
 weakenResult allowTC v t = F.notracepp msg t'
@@ -427,9 +427,9 @@ toLogicApp allowTC e = do
 
 makeApp :: Expr -> LogicMap -> Located Symbol-> [Expr] -> Expr
 makeApp _ _ f [e]
-  | val f == symbol ("GHC.Num.negate" :: String)
+  | val f == symbol ("GHC.Internal.Num.negate" :: String)
   = ENeg e
-  | val f == symbol ("GHC.Num.fromInteger" :: String)
+  | val f == symbol ("GHC.Internal.Num.fromInteger" :: String)
   , ECon c <- e
   = ECon c
   | (modName, sym) <- GM.splitModuleName (val f)
@@ -443,7 +443,7 @@ makeApp _ _ f [e1, e2]
   -- Hack for typeclass support. (overriden == without Eq constraint defined at Ghci)
   | (modName, sym) <- GM.splitModuleName (val f)
   , symbol ("Ghci" :: String) `isPrefixOfSym` modName
-  , Just op <- M.lookup (mappendSym (symbol ("GHC.Num." :: String)) sym) bops
+  , Just op <- M.lookup (mappendSym (symbol ("GHC.Internal.Num." :: String)) sym) bops
   = EBin op e1 e2
 
 makeApp def lmap f es
@@ -493,9 +493,9 @@ bops = M.fromList [ (numSymbol "+", Plus)
                   ]
   where
     numSymbol :: String -> Symbol
-    numSymbol =  symbol . (++) "GHC.Num."
+    numSymbol =  symbol . (++) "GHC.Internal.Num."
     realSymbol :: String -> Symbol
-    realSymbol =  symbol . (++) "GHC.Real."
+    realSymbol =  symbol . (++) "GHC.Internal.Real."
 
 splitArgs :: Bool -> C.Expr t -> (C.Expr t, [C.Arg t])
 splitArgs allowTC exprt = (exprt', reverse args)
@@ -621,7 +621,7 @@ instance Simplify C.CoreExpr where
     = C.Let (simplify allowTC xes) (simplify allowTC e)
   simplify allowTC (C.Case e x _t alts@[Alt _ _ ee,_,_]) | isBangInteger alts
   -- XXX(matt): seems to be for debugging?
-    = -- Misc.traceShow ("To simplify allowTC case") $ 
+    = -- Misc.traceShow ("To simplify allowTC case") $
        sub (M.singleton x (simplify allowTC e)) (simplify allowTC ee)
   simplify allowTC (C.Case e x t alts)
     = C.Case (simplify allowTC e) x t (filter (not . isPatErrorAlt) (simplify allowTC <$> alts))

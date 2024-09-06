@@ -9,6 +9,7 @@ module Language.Haskell.Liquid.Bare.Check
   ( checkTargetSpec
   , checkBareSpec
   , checkTargetSrc
+  , tyCompat
   ) where
 
 
@@ -147,7 +148,7 @@ checkTargetSpec specs src env cbs tsp
                      <> foldMap (checkInv allowHO bsc emb tcEnv env)                 (gsInvariants (gsData tsp))
                      <> checkIAl allowHO bsc emb tcEnv env                            (gsIaliases   (gsData tsp))
                      <> checkMeasures emb env ms
-                     <> checkClassMeasures                                        (gsMeasures (gsData tsp))
+                     <> checkClassMeasures                                        ms
                      <> checkClassMethods (gsCls src) (gsCMethods (gsVars tsp)) (gsTySigs     (gsSig tsp))
                      -- <> foldMap checkMismatch sigs
                      <> foldMap checkMismatch (L.filter (\(v,_) -> not (GM.isSCSel v || GM.isMethod v)) sigs)
@@ -633,7 +634,7 @@ checkMBody senv emb _ sort (Def m c _ bs body) = checkMBody' emb sort γ' sp bod
     keep | allowTC = not . isEmbeddedClass
          | otherwise = not . isClassType
     -- YL: extract permitTC information from sort
-    allowTC = or $ fmap (fromMaybe False . permitTC) (ty_info $ toRTypeRep sort)
+    allowTC = any (fromMaybe False . permitTC) (ty_info $ toRTypeRep sort)
     trep  = toRTypeRep ct
     su    = checkMBodyUnify (ty_res trep) (last txs)
     txs   = thd5 $ bkArrowDeep sort

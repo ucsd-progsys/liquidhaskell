@@ -1,6 +1,6 @@
 cabal-version:      2.4
 name:               liquidhaskell-boot
-version:            0.9.8.1
+version:            0.9.10.1
 synopsis:           Liquid Types for Haskell
 description:        This package provides a plugin to verify Haskell programs.
                     But most likely you should be using the [liquidhaskell package](https://hackage.haskell.org/package/liquidhaskell)
@@ -13,7 +13,7 @@ maintainer:         Ranjit Jhala <jhala@cs.ucsd.edu>
 category:           Language
 homepage:           https://github.com/ucsd-progsys/liquidhaskell
 build-type:         Simple
-tested-with:        GHC == 9.8.1
+tested-with:        GHC == 9.10.1
 
 extra-source-files: tests/specfiles/pos/*.spec
 
@@ -137,13 +137,13 @@ library
                     , filepath             >= 1.3
                     , fingertree           >= 0.1
                     , exceptions           < 0.11
-                    , ghc                  ^>= 9.8
+                    , ghc                  ^>= 9.10
                     , ghc-boot
                     , ghc-prim
                     , gitrev
-                    , hashable             >= 1.3 && < 1.5
+                    , hashable             >= 1.3 && < 1.6
                     , hscolour             >= 1.22
-                    , liquid-fixpoint      == 0.9.6.3
+                    , liquid-fixpoint      == 0.9.6.3.1
                     , mtl                  >= 2.1
                     , optparse-applicative < 0.19
                     , githash
@@ -169,6 +169,23 @@ library
 
   if flag(devel)
     ghc-options:      -Wall -Werror
+
+test-suite wiredin-tests
+  type:             exitcode-stdio-1.0
+  main-is:          WiredInTests.hs
+  hs-source-dirs:   tests
+  build-depends:    base
+                  , ghc-internal
+                  , ghc-prim
+                  , liquidhaskell-boot
+                  , tasty
+                  , tasty-ant-xml
+                  , tasty-hunit
+                  , template-haskell
+                  , unordered-containers
+  default-language: Haskell2010
+  if flag(devel)
+    ghc-options:      -W -Werror
 
 test-suite ghc-api-tests
   type:             exitcode-stdio-1.0
