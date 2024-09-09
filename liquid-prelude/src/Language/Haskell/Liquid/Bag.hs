@@ -1,17 +1,14 @@
 {-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
--- {-@ LIQUID "--save" @-}
 
 module Language.Haskell.Liquid.Bag where
 
 import qualified Data.Map      as M
 
 {-@ embed   Bag as Bag_t                                                @-}
---{-@ embed   Data.Map.Map a Int as Bag_t a                               @-}
-
 {-@ measure Bag_empty :: Int -> Bag a                                   @-}
+{-@ measure Bag_count :: Bag a -> a -> Int                              @-}
 {-@ measure Bag_sng   :: a -> Int -> Bag a                              @-}
 {-@ measure Bag_union :: Bag a -> Bag a -> Bag a                        @-}
-{-@ measure Bag_count :: Bag a -> a -> Int                              @-}
 {-@ measure bagSize   :: Bag a -> Int                                   @-}
 
 -- if I just write measure fromList the measure definition is not imported
@@ -20,7 +17,9 @@ import qualified Data.Map      as M
       fromList (x:xs) = Bag_union (fromList xs) (Bag_sng x 1)
 @-}
 
+
 -- TODO newtype doesn't work because LH still expands the definition
+-- https://github.com/ucsd-progsys/liquidhaskell/issues/2332
 data Bag a = Bag { toMap :: M.Map a Int } deriving Eq
 
 {-@ assume empty :: {v:Bag k | v = Bag_empty 0} @-}
