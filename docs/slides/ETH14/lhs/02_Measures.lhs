@@ -28,7 +28,7 @@ infixr `C`
 </div>
 
 
-Measuring Data Types 
+Measuring Data Types
 ====================
 
 Recap
@@ -38,7 +38,7 @@ Recap
 2. <div class="fragment">**Subtyping:** SMT Implication</div>
 
 
-Example: Length of a List 
+Example: Length of a List
 -------------------------
 
 Given a type for lists:
@@ -66,12 +66,12 @@ We can define the **length** as:
 
 \begin{code}
 {-@ data L [llen] a = N | C {hd :: a, tl :: L a } @-}
-{-@ invariant {v: L a | 0 <= llen v}              @-} 
+{-@ invariant {v: L a | 0 <= llen v}              @-}
 \end{code}
 
 </div>
 
-Example: Length of a List 
+Example: Length of a List
 -------------------------
 
 \begin{spec}
@@ -87,7 +87,7 @@ We **strengthen** data constructor types
 <br>
 
 \begin{spec} <div/>
-data L a where 
+data L a where
   N :: {v: L a | (llen v) = 0}
   C :: a -> t:_ -> {v:_| llen v = 1 + llen t}
 \end{spec}
@@ -96,7 +96,7 @@ Measures Are Uninterpreted
 --------------------------
 
 \begin{spec} <br>
-data L a where 
+data L a where
   N :: {v: L a | (llen v) = 0}
   C :: a -> t:_ -> {v:_| llen v = 1 + llen t}
 \end{spec}
@@ -146,7 +146,7 @@ z = C x y     -- z :: {v | llen v = 1 + llen y}
 
 <div class="fragment">
 \begin{spec}**Unfold**<br>
-case z of 
+case z of
   N     -> e1 -- z :: {v | llen v = 0}
   C x y -> e2 -- z :: {v | llen v = 1 + llen y}
 \end{spec}
@@ -201,7 +201,7 @@ Where `LtLen` is a type alias:
 
 <br>
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellMeasure.hs" target= "_blank">Demo:</a> 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellMeasure.hs" target= "_blank">Demo:</a>
 &nbsp; What if we *remove* the precondition?
 
 </div>
@@ -239,7 +239,7 @@ Can encode *other* invariants **inside constructors**
 
 \begin{code}
 {-@ data L a = N
-             | C { x  :: a 
+             | C { x  :: a
                  , xs :: L {v:a| x <= v} } @-}
 \end{code}
 </div>
@@ -252,10 +252,10 @@ Head `x` is less than **every** element of tail `xs`
 <br>
 
 <div class="fragment">
-i.e. specifies **increasing** Lists 
+i.e. specifies **increasing** Lists
 </div>
 
-Increasing Lists 
+Increasing Lists
 ----------------
 
 \begin{spec} <br>
@@ -269,20 +269,20 @@ data L a where
 - <div class="fragment">We **check** property when **folding** `C`</div>
 - <div class="fragment">We **assume** property when **unfolding** `C`</div>
 
-Increasing Lists 
+Increasing Lists
 ----------------
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellInsertSort.hs" target= "_blank">Demo: Insertion Sort</a> (hover for inferred types) 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellInsertSort.hs" target= "_blank">Demo: Insertion Sort</a> (hover for inferred types)
 
 <br>
 
 \begin{code}
 insertSort xs = foldr insert N xs
 
-insert y (x `C` xs) 
+insert y (x `C` xs)
   | y <= x    = y `C` (x `C` xs)
   | otherwise = x `C` insert y xs
-insert y N    = y `C` N    
+insert y N    = y `C` N
 \end{code}
 
 <br>

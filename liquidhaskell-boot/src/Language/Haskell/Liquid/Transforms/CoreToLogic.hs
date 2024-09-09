@@ -377,28 +377,28 @@ coreToIte allowTC e (efalse, etrue)
 toPredApp :: Bool -> C.CoreExpr -> LogicM Expr
 toPredApp allowTC p = go . Misc.mapFst opSym . splitArgs allowTC $ p
   where
-    opSym = fmap GM.dropModuleNamesAndUnique . tomaybesymbol
+    opSym = tomaybesymbol
     go (Just f, [e1, e2])
       | Just rel <- M.lookup f brels
       = PAtom rel <$> coreToLg allowTC e1 <*> coreToLg allowTC e2
     go (Just f, [e])
-      | f == symbol ("not" :: String)
+      | f == symbol ("GHC.Classes.not" :: String)
       = PNot <$>  coreToLg allowTC e
-      | f == symbol ("len" :: String)
-      = EApp (EVar "len") <$> coreToLg allowTC e
     go (Just f, [e1, e2])
-      | f == symbol ("||" :: String)
+      | f == symbol ("GHC.Classes.||" :: String)
       = POr <$> mapM (coreToLg allowTC) [e1, e2]
-      | f == symbol ("&&" :: String)
+      | f == symbol ("GHC.Classes.&&" :: String)
       = PAnd <$> mapM (coreToLg allowTC) [e1, e2]
-      | f == symbol ("==>" :: String)
+      | f == symbol ("Language.Haskell.Liquid.Prelude.==>" :: String)
       = PImp <$> coreToLg allowTC e1 <*> coreToLg allowTC e2
-      | f == symbol ("<=>" :: String)
+      | f == symbol ("Language.Haskell.Liquid.Prelude.<=>" :: String)
       = PIff <$> coreToLg allowTC e1 <*> coreToLg allowTC e2
+      | f == symbol ("GHC.Base.const" :: String)
+      = coreToLg allowTC e1
     go (Just f, [es])
-      | f == symbol ("or" :: String)
+      | f == symbol ("GHC.Internal.Data.Foldable.or" :: String)
       = POr  . deList <$> coreToLg allowTC es
-      | f == symbol ("and" :: String)
+      | f == symbol ("GHC.Internal.Data.Foldable.and" :: String)
       = PAnd . deList <$> coreToLg allowTC es
     go (_, _)
       = toLogicApp allowTC p
@@ -427,9 +427,9 @@ toLogicApp allowTC e = do
 
 makeApp :: Expr -> LogicMap -> Located Symbol-> [Expr] -> Expr
 makeApp _ _ f [e]
-  | val f == symbol ("GHC.Num.negate" :: String)
+  | val f == symbol ("GHC.Internal.Num.negate" :: String)
   = ENeg e
-  | val f == symbol ("GHC.Num.fromInteger" :: String)
+  | val f == symbol ("GHC.Internal.Num.fromInteger" :: String)
   , ECon c <- e
   = ECon c
   | (modName, sym) <- GM.splitModuleName (val f)
@@ -443,7 +443,7 @@ makeApp _ _ f [e1, e2]
   -- Hack for typeclass support. (overriden == without Eq constraint defined at Ghci)
   | (modName, sym) <- GM.splitModuleName (val f)
   , symbol ("Ghci" :: String) `isPrefixOfSym` modName
-  , Just op <- M.lookup (mappendSym (symbol ("GHC.Num." :: String)) sym) bops
+  , Just op <- M.lookup (mappendSym (symbol ("GHC.Internal.Num." :: String)) sym) bops
   = EBin op e1 e2
 
 makeApp def lmap f es
@@ -475,12 +475,12 @@ isCst _              = True
 
 
 brels :: M.HashMap Symbol Brel
-brels = M.fromList [ (symbol ("==" :: String), Eq)
-                   , (symbol ("/=" :: String), Ne)
-                   , (symbol (">=" :: String), Ge)
-                   , (symbol (">" :: String) , Gt)
-                   , (symbol ("<=" :: String), Le)
-                   , (symbol ("<" :: String) , Lt)
+brels = M.fromList [ (symbol ("GHC.Classes.==" :: String), Eq)
+                   , (symbol ("GHC.Classes./=" :: String), Ne)
+                   , (symbol ("GHC.Classes.>=" :: String), Ge)
+                   , (symbol ("GHC.Classes.>" :: String) , Gt)
+                   , (symbol ("GHC.Classes.<=" :: String), Le)
+                   , (symbol ("GHC.Classes.<" :: String) , Lt)
                    ]
 
 bops :: M.HashMap Symbol Bop
@@ -493,9 +493,9 @@ bops = M.fromList [ (numSymbol "+", Plus)
                   ]
   where
     numSymbol :: String -> Symbol
-    numSymbol =  symbol . (++) "GHC.Num."
+    numSymbol =  symbol . (++) "GHC.Internal.Num."
     realSymbol :: String -> Symbol
-    realSymbol =  symbol . (++) "GHC.Real."
+    realSymbol =  symbol . (++) "GHC.Internal.Real."
 
 splitArgs :: Bool -> C.Expr t -> (C.Expr t, [C.Arg t])
 splitArgs allowTC exprt = (exprt', reverse args)

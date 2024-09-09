@@ -13,6 +13,7 @@ import           Control.Arrow                        (second)
 import           Control.Monad.State
 import qualified Data.HashMap.Strict                  as M
 import           Data.Hashable
+import           Data.Word (Word64)
 import           Liquid.GHC.API      as Ghc hiding (panic)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.GHC.Play
@@ -109,7 +110,7 @@ scTrans id' expr = mapExpr scTrans $ foldr Let e0 bindIds
 
 type TE = State TrEnv
 
-data TrEnv = Tr { freshIndex  :: !Int
+data TrEnv = Tr { freshIndex  :: !Word64
                 , _loc        :: SrcSpan
                 }
 
@@ -235,8 +236,8 @@ isIdTRecBound = not . mayHaveCafRefs . cafInfo . idInfo
 class Freshable a where
   fresh :: a -> TE a
 
-instance Freshable Int where
-  fresh _ = freshInt
+instance Freshable Word64 where
+  fresh _ = freshWord64
 
 instance Freshable Unique where
   fresh _ = freshUnique
@@ -244,15 +245,15 @@ instance Freshable Unique where
 instance Freshable Var where
   fresh v = fmap (setVarUnique v) freshUnique
 
-freshInt :: MonadState TrEnv m => m Int
-freshInt
+freshWord64 :: MonadState TrEnv m => m Word64
+freshWord64
   = do s <- get
        let n = freshIndex s
        put s{freshIndex = n+1}
        return n
 
 freshUnique :: MonadState TrEnv m => m Unique
-freshUnique = fmap (mkUnique 'X') freshInt
+freshUnique = fmap (mkUnique 'X') freshWord64
 
 
 mapNonRec :: (b -> [Bind b] -> [Bind b]) -> [Bind b] -> [Bind b]

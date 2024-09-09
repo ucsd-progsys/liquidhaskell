@@ -2,7 +2,14 @@
 
 ## Next
 
+## 0.9.10.1 (2024-08-21)
+
+- Add support for GHC 9.10.1.
+
+## 0.9.8.2 (2024-08-21)
+
 - Support for GHC 9.8.2.
+- Implement assume-reflect, a feature to assume the reflection of functions in dependencies [2313](https://github.com/ucsd-progsys/liquidhaskell/pull/2313).
 - Fixed the polymorphism-related crash in liquid-fixpoint caused by a restrictive theory encoding [#2272](https://github.com/ucsd-progsys/liquidhaskell/issues/2272).
 
 ## 0.9.8.1 (2024-02-05)

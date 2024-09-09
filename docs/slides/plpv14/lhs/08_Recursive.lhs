@@ -1,7 +1,7 @@
-Decouple Invariants From Data {#recursive} 
+Decouple Invariants From Data {#recursive}
 ==========================================
 
-Recursive Structures 
+Recursive Structures
 --------------------
 
 <div class="fragment">
@@ -17,7 +17,7 @@ module List (insertSort) where
 {-@ LIQUID "--no-termination" @-}
 
 mergeSort     :: Ord a => [a] -> [a]
-insertSort :: (Ord a) => [a] -> L a 
+insertSort :: (Ord a) => [a] -> L a
 slist :: L Int
 slist' :: L Int
 iGoUp, iGoDn, iDiff :: [Int]
@@ -32,12 +32,12 @@ Recall: Lists
 -------------
 
 \begin{code}
-data L a = N 
+data L a = N
          | C a (L a)
 \end{code}
 
 
-Recall: Refined Constructors 
+Recall: Refined Constructors
 ----------------------------
 
 Define *increasing* Lists with strengthened constructors:
@@ -65,7 +65,7 @@ Abstract That Refinement!
 
 \begin{code}
 {-@ data L a <p :: a -> a -> Prop>
-      = N 
+      = N
       | C (hd :: a) (tl :: (L <p> a<p hd>)) @-}
 \end{code}
 
@@ -80,43 +80,43 @@ Abstract That Refinement!
 Example
 -------
 
-Consider a list with *three* or more elements 
+Consider a list with *three* or more elements
 
 \begin{code} <br>
-x1 `C` x2 `C` x3 `C` rest :: L <p> a 
+x1 `C` x2 `C` x3 `C` rest :: L <p> a
 \end{code}
 
 Example: Unfold Once
 --------------------
 
-\begin{code} <br> 
+\begin{code} <br>
 x1                 :: a
-x2 `C` x3 `C` rest :: L <p> a<p x1> 
+x2 `C` x3 `C` rest :: L <p> a<p x1>
 \end{code}
 
 Example: Unfold Twice
 ---------------------
 
-\begin{code} <br> 
+\begin{code} <br>
 x1          :: a
-x2          :: a<p x1>  
-x3 `C` rest :: L <p> a<p x1 && p x2> 
+x2          :: a<p x1>
+x3 `C` rest :: L <p> a<p x1 && p x2>
 \end{code}
 
 Example: Unfold Thrice
 ----------------------
 
-\begin{code} <br> 
+\begin{code} <br>
 x1   :: a
-x2   :: a<p x1>  
-x3   :: a<p x1 && p x2>  
-rest :: L <p> a<p x1 && p x2 && p x3> 
+x2   :: a<p x1>
+x3   :: a<p x1 && p x2>
+rest :: L <p> a<p x1 && p x2 && p x3>
 \end{code}
 
 <br>
 
 <div class="fragment">
-Note how `p` holds between **every pair** of elements in the list. 
+Note how `p` holds between **every pair** of elements in the list.
 </div>
 
 A Concrete Example
@@ -156,11 +156,11 @@ LiquidHaskell verifies that `slist` is indeed increasing...
 slist     = 1 `C` 6 `C` 12 `C` N
 \end{code}
 
-<br> 
+<br>
 
 <div class="fragment">
 
-... and protests that `slist'` is not: 
+... and protests that `slist'` is not:
 
 \begin{code}
 {-@ slist' :: IncL Int @-}
@@ -176,7 +176,7 @@ Insertion Sort
 insertSort     = foldr insert N
 
 insert y N          = y `C` N
-insert y (x `C` xs) 
+insert y (x `C` xs)
   | y < x           = y `C` (x `C` xs)
   | otherwise       = x `C` insert y xs
 \end{code}
@@ -188,12 +188,12 @@ insert y (x `C` xs)
 Checking GHC Lists
 ------------------
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=Order.hs" target= "_blank">Demo:</a> 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=Order.hs" target= "_blank">Demo:</a>
 Above applies to GHC's List definition:
 
-\begin{code} <br> 
+\begin{code} <br>
 data [a] <p :: a -> a -> Prop>
-  = [] 
+  = []
   | (:) (h :: a) (tl :: ([a<p h>]<p>))
 \end{code}
 
@@ -243,7 +243,7 @@ iDiff     = [1,3,2]
 Checking GHC Lists
 ------------------
 
-Now we can check all the usual list sorting algorithms 
+Now we can check all the usual list sorting algorithms
 
 Example: `mergeSort` [1/2]
 --------------------------
@@ -252,8 +252,8 @@ Example: `mergeSort` [1/2]
 {-@ mergeSort  :: (Ord a) => [a] -> Incs a @-}
 mergeSort []   = []
 mergeSort [x]  = [x]
-mergeSort xs   = merge xs1' xs2' 
-  where 
+mergeSort xs   = merge xs1' xs2'
+  where
    (xs1, xs2)  = split xs
    xs1'        = mergeSort xs1
    xs2'        = mergeSort xs2
@@ -263,19 +263,19 @@ Example: `mergeSort` [1/2]
 --------------------------
 
 \begin{code}
-split (x:y:zs) = (x:xs, y:ys) 
-  where 
+split (x:y:zs) = (x:xs, y:ys)
+  where
     (xs, ys)   = split zs
 split xs       = (xs, [])
 
 merge xs []    = xs
 merge [] ys    = ys
-merge (x:xs) (y:ys) 
+merge (x:xs) (y:ys)
   | x <= y     = x : merge xs (y:ys)
   | otherwise  = y : merge (x:xs) ys
 \end{code}
 
-Example: `Data.List.sort` 
+Example: `Data.List.sort`
 -------------------------
 
 GHC's "official" list sorting routine
@@ -310,9 +310,9 @@ Juggling lists of increasing & decreasing lists
 
 \begin{code}
 descending a as (b:bs)
-  | a `compare` b == GT 
+  | a `compare` b == GT
   = descending b (a:as) bs
-descending a as bs      
+descending a as bs
   = (a:as): sequences bs
 \end{code}
 
@@ -326,9 +326,9 @@ Juggling lists of increasing & decreasing lists
 
 \begin{code}
 ascending a as (b:bs)
-  | a `compare` b /= GT 
+  | a `compare` b /= GT
   = ascending b (\ys -> as (a:ys)) bs
-ascending a as bs      
+ascending a as bs
   = as [a]: sequences bs
 \end{code}
 
@@ -357,7 +357,7 @@ Lets see one last example...
 Example: Binary Trees
 ---------------------
 
-... `Map` from keys of type `k` to values of type `a` 
+... `Map` from keys of type `k` to values of type `a`
 
 <br>
 
@@ -399,13 +399,13 @@ Keys are *Binary-Search* Ordered
 <br>
 
 \begin{code}
-{-@ type BST k a = 
-      Map <{\r v -> v < r }, 
-           {\r v -> v > r }> 
+{-@ type BST k a =
+      Map <{\r v -> v < r },
+           {\r v -> v > r }>
           k a                   @-}
 \end{code}
 
-Ex: Minimum Heaps 
+Ex: Minimum Heaps
 -----------------
 
 Root contains *minimum* value
@@ -413,13 +413,13 @@ Root contains *minimum* value
 <br>
 
 \begin{code}
-{-@ type MinHeap k a = 
-      Map <{\r v -> r <= v}, 
-           {\r v -> r <= v}> 
+{-@ type MinHeap k a =
+      Map <{\r v -> r <= v},
+           {\r v -> r <= v}>
            k a               @-}
 \end{code}
 
-Ex: Maximum Heaps 
+Ex: Maximum Heaps
 -----------------
 
 Root contains *maximum* value
@@ -427,9 +427,9 @@ Root contains *maximum* value
 <br>
 
 \begin{code}
-{-@ type MaxHeap k a = 
-      Map <{\r v -> r >= v}, 
-           {\r v -> r >= v}> 
+{-@ type MaxHeap k a =
+      Map <{\r v -> r >= v},
+           {\r v -> r >= v}>
            k a               @-}
 \end{code}
 
@@ -452,7 +452,7 @@ SMT & inference crucial for [verification](https://github.com/ucsd-progsys/liqui
 <br>
 
 <div class="fragment">
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=Map.hs" target="_blank">Demo:</a>Try online!
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=Map.hs" target="_blank">Demo:</a>Try online!
 </div>
 
 Recap: Abstract Refinements
@@ -484,5 +484,5 @@ Recap
 1. **Refinements:** Types + Predicates
 2. **Subtyping:** SMT Implication
 3. **Measures:** Strengthened Constructors
-4. **Abstract Refinements:* Decouple Invariants 
+4. **Abstract Refinements:* Decouple Invariants
 5. <div class="fragment">Er, what of *lazy evaluation*?</div>

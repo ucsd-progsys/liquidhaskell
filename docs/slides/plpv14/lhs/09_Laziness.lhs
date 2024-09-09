@@ -10,7 +10,7 @@ import Language.Haskell.Liquid.Prelude
 
 divide :: Int -> Int -> Int
 foo     :: Int -> Int
--- zero    :: Int 
+-- zero    :: Int
 -- diverge :: a -> b
 \end{code}
 </div>
@@ -70,12 +70,12 @@ An Innocent Function
 
 \begin{code}
 {-@ foo       :: n:Nat -> {v:Nat | v < n} @-}
-foo n   
+foo n
   | n > 0     = n - 1
   | otherwise = foo n
 \end{code}
 
-LiquidHaskell Lies! 
+LiquidHaskell Lies!
 -------------------
 
 \begin{code}
@@ -86,7 +86,7 @@ explode = let z = 0
 <br>
 
 <div class="fragment">
-Why is this deemed *safe*? 
+Why is this deemed *safe*?
 </div>
 
 <br>
@@ -101,7 +101,7 @@ Safe With Eager Eval
 
 \begin{code} <div/>
 {- foo       :: n:Nat -> {v:Nat | v < n} -}
-foo n   
+foo n
   | n > 0     = n - 1
   | otherwise = foo n
 
@@ -112,7 +112,7 @@ explode = let z = 0
 <br>
 
 <div class="fragment">
-In Java, ML, etc: program spins away, *never hits* divide-by-zero 
+In Java, ML, etc: program spins away, *never hits* divide-by-zero
 </div>
 
 Unsafe With Lazy Eval
@@ -120,7 +120,7 @@ Unsafe With Lazy Eval
 
 \begin{code}<div/>
 {- foo       :: n:Nat -> {v:Nat | v < n} -}
-foo n   
+foo n
   | n > 0     = n - 1
   | otherwise = foo n
 
@@ -142,13 +142,13 @@ What is denoted by `e :: {v:Int | 0 <= v}` ?
 <br>
 
 <div class="fragment">
-`e` evaluates to a `Nat`  
+`e` evaluates to a `Nat`
 </div>
 
 <div class="fragment">
 or
 
-**diverges**! 
+**diverges**!
 </div>
 
 <div class="fragment">
@@ -171,7 +171,7 @@ Suppose `e :: {v:Int | 0 <= v}`
 
 `let x = e in body`
 
-With Eager Evaluation 
+With Eager Evaluation
 ---------------------
 
 Suppose `e :: {v:Int | 0 <= v}`
@@ -188,7 +188,7 @@ Suppose `e :: {v:Int | 0 <= v}`
 **Can** assume `x` is a `Nat` when checking `body`
 </div>
 
-But With Lazy Evaluation 
+But With Lazy Evaluation
 ------------------------
 
 Suppose `e :: {v:Int | 0 <= v}`
@@ -208,7 +208,7 @@ Suppose `e :: {v:Int | 0 <= v}`
 Oops. Now what?
 ---------------
 
-**Solution** 
+**Solution**
 
 Only assign *non-trivial* refinements to *non-diverging* terms!
 
@@ -222,7 +222,7 @@ Only assign *non-trivial* refinements to *non-diverging* terms!
 
 </div>
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=TellingLies.hs" target="_blank">Demo:</a>Disable `"--no-termination" and see what happens!
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=TellingLies.hs" target="_blank">Demo:</a>Disable `"--no-termination" and see what happens!
 
 
 Recap
@@ -231,7 +231,6 @@ Recap
 1. **Refinements:** Types + Predicates
 2. **Subtyping:** SMT Implication
 3. **Measures:** Strengthened Constructors
-4. **Abstract Refinements:* Decouple Invariants 
+4. **Abstract Refinements:* Decouple Invariants
 5. **Lazy Evaluation:** Requires Termination
 6. <div class="fragment">**Termination:** Via Refinements!</div>
-

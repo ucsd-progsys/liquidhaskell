@@ -52,8 +52,8 @@ lo:{VV : (Int) | (VV == 0) &amp;&amp; (VV &gt;= 0)}
 -&gt; a
 -&gt; ({VV : (Int) | (VV &gt;= 0) &amp;&amp; (VV &gt;= lo) &amp;&amp; (VV &lt; hi)} -&gt; a -&gt; a)
 -&gt; a</span><span class='hs-definition'>loop</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV == 0) &amp;&amp; (VV &gt;= 0)}</span><span class='hs-varid'>lo</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0) &amp;&amp; (VV &gt;= lo)}</span><span class='hs-varid'>hi</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>base</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0) &amp;&amp; (VV &gt;= lo) &amp;&amp; (VV &lt; hi)} -&gt; a -&gt; a</span><span class='hs-varid'>f</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{x4 : (Int) | (x4 &gt;= 0) &amp;&amp; (x4 &gt;= lo) &amp;&amp; (x4 &lt;= hi)} -&gt; a -&gt; a</span><span class='hs-varid'>go</span></a> <a class=annot href="#"><span class=annottext>{x4 : (Int) | (x4 == 0) &amp;&amp; (x4 == lo) &amp;&amp; (x4 &gt;= 0)}</span><span class='hs-varid'>lo</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == base)}</span><span class='hs-varid'>base</span></a>
-<span class=hs-linenum>50: </span>  <span class='hs-keyword'>where</span> 
-<span class=hs-linenum>51: </span>    <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0) &amp;&amp; (VV &gt;= lo) &amp;&amp; (VV &lt;= hi)} -&gt; a -&gt; a</span><span class='hs-varid'>go</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0) &amp;&amp; (VV &gt;= lo) &amp;&amp; (VV &lt;= hi)}</span><span class='hs-varid'>i</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>acc</span></a> 
+<span class=hs-linenum>50: </span>  <span class='hs-keyword'>where</span>
+<span class=hs-linenum>51: </span>    <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0) &amp;&amp; (VV &gt;= lo) &amp;&amp; (VV &lt;= hi)} -&gt; a -&gt; a</span><span class='hs-varid'>go</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0) &amp;&amp; (VV &gt;= lo) &amp;&amp; (VV &lt;= hi)}</span><span class='hs-varid'>i</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>acc</span></a>
 <span class=hs-linenum>52: </span>      <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{x5 : (Int) | (x5 == i) &amp;&amp; (x5 &gt;= 0) &amp;&amp; (x5 &gt;= lo) &amp;&amp; (x5 &lt;= hi)}</span><span class='hs-varid'>i</span></a> <a class=annot href="#"><span class=annottext>x1:{x12 : (Int) | (x12 &gt;= 0) &amp;&amp; (x12 &gt;= i) &amp;&amp; (x12 &gt;= lo) &amp;&amp; (x12 &lt;= hi)}
 -&gt; x2:{x12 : (Int) | (x12 &gt;= 0) &amp;&amp; (x12 &gt;= i) &amp;&amp; (x12 &gt;= lo) &amp;&amp; (x12 &lt;= hi)}
 -&gt; {x2 : (Bool) | (((Prop x2)) &lt;=&gt; (x1 &lt; x2))}</span><span class='hs-varop'>&lt;</span></a> <a class=annot href="#"><span class=annottext>{x4 : (Int) | (x4 == hi) &amp;&amp; (x4 &gt;= 0) &amp;&amp; (x4 &gt;= lo)}</span><span class='hs-varid'>hi</span></a>    <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0) &amp;&amp; (VV &gt;= lo) &amp;&amp; (VV &lt;= hi)} -&gt; a -&gt; a</span><span class='hs-varid'>go</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{x5 : (Int) | (x5 == i) &amp;&amp; (x5 &gt;= 0) &amp;&amp; (x5 &gt;= lo) &amp;&amp; (x5 &lt;= hi)}</span><span class='hs-varid'>i</span></a><a class=annot href="#"><span class=annottext>x1:(Int) -&gt; x2:(Int) -&gt; {x4 : (Int) | (x4 == (x1 + x2))}</span><span class='hs-varop'>+</span></a><a class=annot href="#"><span class=annottext>{x2 : (Int) | (x2 == (1  :  int))}</span><span class='hs-num'>1</span></a><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{x4 : (Int) | (x4 &gt;= 0) &amp;&amp; (x4 &gt;= lo) &amp;&amp; (x4 &lt; hi)} -&gt; a -&gt; a</span><span class='hs-varid'>f</span></a> <a class=annot href="#"><span class=annottext>{x5 : (Int) | (x5 == i) &amp;&amp; (x5 &gt;= 0) &amp;&amp; (x5 &gt;= lo) &amp;&amp; (x5 &lt;= hi)}</span><span class='hs-varid'>i</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == acc)}</span><span class='hs-varid'>acc</span></a><span class='hs-layout'>)</span>
@@ -73,8 +73,8 @@ Example: Summing Lists
 -&gt; x2:{x9 : (Int) | (x9 &gt;= 0) &amp;&amp; (x9 &gt;= x1)}
 -&gt; a
 -&gt; ({x6 : (Int) | (x6 &gt;= 0) &amp;&amp; (x6 &gt;= x1) &amp;&amp; (x6 &lt; x2)} -&gt; a -&gt; a)
--&gt; a</span><span class='hs-varid'>loop</span></a> <a class=annot href="#"><span class=annottext>{x2 : (Int) | (x2 == (0  :  int))}</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>{x3 : (Int) | (x3 == n) &amp;&amp; (x3 == (len xs))}</span><span class='hs-varid'>n</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>{x3 : (Int) | (x3 &gt;= 0) &amp;&amp; (x3 &lt; n)} -&gt; a -&gt; a</span><span class='hs-varid'>body</span></a> 
-<span class=hs-linenum>66: </span>  <span class='hs-keyword'>where</span> 
+-&gt; a</span><span class='hs-varid'>loop</span></a> <a class=annot href="#"><span class=annottext>{x2 : (Int) | (x2 == (0  :  int))}</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>{x3 : (Int) | (x3 == n) &amp;&amp; (x3 == (len xs))}</span><span class='hs-varid'>n</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>{x3 : (Int) | (x3 &gt;= 0) &amp;&amp; (x3 &lt; n)} -&gt; a -&gt; a</span><span class='hs-varid'>body</span></a>
+<span class=hs-linenum>66: </span>  <span class='hs-keyword'>where</span>
 <span class=hs-linenum>67: </span>    <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0) &amp;&amp; (VV &lt; n)} -&gt; a -&gt; a</span><span class='hs-varid'>body</span></a>    <span class='hs-keyglyph'>=</span> <span class='hs-keyglyph'>\</span><a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0) &amp;&amp; (VV &lt; n)}</span><span class='hs-varid'>i</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>acc</span></a> <span class='hs-keyglyph'>-&gt;</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == acc)}</span><span class='hs-varid'>acc</span></a> <a class=annot href="#"><span class=annottext>x1:a -&gt; x2:a -&gt; {VV : a | (VV == (x1 + x2))}</span><span class='hs-varop'>+</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{x4 : [a] | (x4 == xs) &amp;&amp; ((len x4) &gt;= 0) &amp;&amp; ((sumLens x4) &gt;= 0)}</span><span class='hs-varid'>xs</span></a> <a class=annot href="#"><span class=annottext>x1:[a] -&gt; {x3 : (Int) | (x3 &lt; (len x1)) &amp;&amp; (0 &lt;= x3)} -&gt; a</span><span class='hs-varop'>!!</span></a> <a class=annot href="#"><span class=annottext>{x4 : (Int) | (x4 == i) &amp;&amp; (x4 &gt;= 0) &amp;&amp; (x4 &lt; n)}</span><span class='hs-varid'>i</span></a><span class='hs-layout'>)</span>
 <span class=hs-linenum>68: </span>    <a class=annot href="#"><span class=annottext>{x2 : (Int) | (x2 == (len xs))}</span><span class='hs-varid'>n</span></a>       <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>x1:[a] -&gt; {x2 : (Int) | (x2 == (len x1))}</span><span class='hs-varid'>length</span></a> <a class=annot href="#"><span class=annottext>{x4 : [a] | (x4 == xs) &amp;&amp; ((len x4) &gt;= 0) &amp;&amp; ((sumLens x4) &gt;= 0)}</span><span class='hs-varid'>xs</span></a>
 </pre>
@@ -86,7 +86,7 @@ Example: Summing Lists
 
 
 <div class="fragment">
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=Loop.hs" target= "_blank">Demo:</a> Tweak `loop` exit condition? 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=Loop.hs" target= "_blank">Demo:</a> Tweak `loop` exit condition?
 </div>
 
 Example: Summing `Nat`s
@@ -103,8 +103,8 @@ Example: Summing `Nat`s
     -&gt; {x14 : (Int) | (x14 &gt;= 0)} -&gt; {x14 : (Int) | (x14 &gt;= 0)})
 -&gt; {x14 : (Int) | (x14 &gt;= 0)}</span><span class='hs-varid'>loop</span></a> <a class=annot href="#"><span class=annottext>{x2 : (Int) | (x2 == (0  :  int))}</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>{x3 : (Int) | (x3 == n) &amp;&amp; (x3 == (len xs))}</span><span class='hs-varid'>n</span></a> <a class=annot href="#"><span class=annottext>{x2 : (Int) | (x2 == (0  :  int))}</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>{x8 : (Int) | (x8 &gt;= 0) &amp;&amp; (x8 &lt; n)}
 -&gt; x2:{x5 : (Int) | (x5 &gt;= 0)}
--&gt; {x3 : (Int) | (x3 &gt;= 0) &amp;&amp; (x3 &gt;= x2)}</span><span class='hs-varid'>body</span></a> 
-<span class=hs-linenum>89: </span>  <span class='hs-keyword'>where</span> 
+-&gt; {x3 : (Int) | (x3 &gt;= 0) &amp;&amp; (x3 &gt;= x2)}</span><span class='hs-varid'>body</span></a>
+<span class=hs-linenum>89: </span>  <span class='hs-keyword'>where</span>
 <span class=hs-linenum>90: </span>    <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0) &amp;&amp; (VV &lt; n)}
 -&gt; acc:{VV : (Int) | (VV &gt;= 0)}
 -&gt; {VV : (Int) | (VV &gt;= 0) &amp;&amp; (VV &gt;= acc)}</span><span class='hs-varid'>body</span></a>       <span class='hs-keyglyph'>=</span> <span class='hs-keyglyph'>\</span><a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0) &amp;&amp; (VV &lt; n)}</span><span class='hs-varid'>i</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0)}</span><span class='hs-varid'>acc</span></a> <span class='hs-keyglyph'>-&gt;</span> <a class=annot href="#"><span class=annottext>{x3 : (Int) | (x3 == acc) &amp;&amp; (x3 &gt;= 0)}</span><span class='hs-varid'>acc</span></a> <a class=annot href="#"><span class=annottext>x1:(Int) -&gt; x2:(Int) -&gt; {x4 : (Int) | (x4 == (x1 + x2))}</span><span class='hs-varop'>+</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{x4 : [{x7 : (Int) | (x7 &gt;= 0)}] | (x4 == xs) &amp;&amp; ((len x4) &gt;= 0) &amp;&amp; ((sumLens x4) &gt;= 0)}</span><span class='hs-varid'>xs</span></a> <a class=annot href="#"><span class=annottext>x1:[{x9 : (Int) | (x9 &gt;= 0)}]
@@ -127,10 +127,10 @@ Example: Summing `Nat`s
 Example: Summing `Nat`s
 -----------------------
 
- <br> 
+ <br>
 <pre><span class=hs-linenum>109: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>listNatSum</span> <span class='hs-keyglyph'>::</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>Nat</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Nat</span> <span class='hs-keyword'>@-}</span>
-<span class=hs-linenum>110: </span><span class='hs-definition'>listNatSum</span> <span class='hs-varid'>xs</span>  <span class='hs-keyglyph'>=</span> <span class='hs-varid'>loop</span> <span class='hs-num'>0</span> <span class='hs-varid'>n</span> <span class='hs-num'>0</span> <span class='hs-varid'>body</span> 
-<span class=hs-linenum>111: </span>  <span class='hs-keyword'>where</span> 
+<span class=hs-linenum>110: </span><span class='hs-definition'>listNatSum</span> <span class='hs-varid'>xs</span>  <span class='hs-keyglyph'>=</span> <span class='hs-varid'>loop</span> <span class='hs-num'>0</span> <span class='hs-varid'>n</span> <span class='hs-num'>0</span> <span class='hs-varid'>body</span>
+<span class=hs-linenum>111: </span>  <span class='hs-keyword'>where</span>
 <span class=hs-linenum>112: </span>    <span class='hs-varid'>body</span>       <span class='hs-keyglyph'>=</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>i</span> <span class='hs-varid'>acc</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>acc</span> <span class='hs-varop'>+</span> <span class='hs-layout'>(</span><span class='hs-varid'>xs</span> <span class='hs-varop'>!!</span> <span class='hs-varid'>i</span><span class='hs-layout'>)</span>
 <span class=hs-linenum>113: </span>    <span class='hs-varid'>n</span>          <span class='hs-keyglyph'>=</span> <span class='hs-varid'>length</span> <span class='hs-varid'>xs</span>
 </pre>
@@ -144,10 +144,10 @@ Hence, verified by *instantiating* `α` of `loop` with `Nat`
 Example: Summing `Nat`s
 -----------------------
 
- <br> 
+ <br>
 <pre><span class=hs-linenum>126: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>listNatSum</span> <span class='hs-keyglyph'>::</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>Nat</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Nat</span> <span class='hs-keyword'>@-}</span>
-<span class=hs-linenum>127: </span><span class='hs-definition'>listNatSum</span> <span class='hs-varid'>xs</span>  <span class='hs-keyglyph'>=</span> <span class='hs-varid'>loop</span> <span class='hs-num'>0</span> <span class='hs-varid'>n</span> <span class='hs-num'>0</span> <span class='hs-varid'>body</span> 
-<span class=hs-linenum>128: </span>  <span class='hs-keyword'>where</span> 
+<span class=hs-linenum>127: </span><span class='hs-definition'>listNatSum</span> <span class='hs-varid'>xs</span>  <span class='hs-keyglyph'>=</span> <span class='hs-varid'>loop</span> <span class='hs-num'>0</span> <span class='hs-varid'>n</span> <span class='hs-num'>0</span> <span class='hs-varid'>body</span>
+<span class=hs-linenum>128: </span>  <span class='hs-keyword'>where</span>
 <span class=hs-linenum>129: </span>    <span class='hs-varid'>body</span>       <span class='hs-keyglyph'>=</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>i</span> <span class='hs-varid'>acc</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>acc</span> <span class='hs-varop'>+</span> <span class='hs-layout'>(</span><span class='hs-varid'>xs</span> <span class='hs-varop'>!!</span> <span class='hs-varid'>i</span><span class='hs-layout'>)</span>
 <span class=hs-linenum>130: </span>    <span class='hs-varid'>n</span>          <span class='hs-keyglyph'>=</span> <span class='hs-varid'>length</span> <span class='hs-varid'>xs</span>
 </pre>
@@ -162,7 +162,7 @@ Example: Summing `Nat`s
 Instantiation And Inference
 ---------------------------
 
-+ <div class="fragment">Polymorphic instantiation happens *everywhere*</div> 
++ <div class="fragment">Polymorphic instantiation happens *everywhere*</div>
 
 + <div class="fragment">Automatic inference is crucial</div>
 
@@ -202,4 +202,3 @@ Iteration Dependence
 - <div class="fragment">... cannot instantiate `α` with `{v:Int | v = n + m}`</div>
 
 <div class="fragment">**Problem:** Need *iteration-dependent* invariants...</div>
-

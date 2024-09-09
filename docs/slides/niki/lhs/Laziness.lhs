@@ -28,8 +28,8 @@ Under **false** anything can be proven
 prop = liquidAssert ((\x -> 0==1) (foo 0))
 \end{code}
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=TellingLies.hs" target=
-"_blank">Demo:</a> Check a real property here! 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=TellingLies.hs" target=
+"_blank">Demo:</a> Check a real property here!
 
 Our solution (Current Work)
 ---------------------------
@@ -96,4 +96,3 @@ Restore Soundness
 \begin{code}
 {-@ Lazy foo @-}
 \end{code}
-

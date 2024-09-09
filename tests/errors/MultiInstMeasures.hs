@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=Multiple instance measures `sizeOf` for type `GHC.Ptr.Ptr`" @-}
+{-@ LIQUID "--expect-error-containing=Multiple instance measures `sizeOf` for type `GHC.Internal.Ptr.Ptr`" @-}
 module MultiInstMeasures where
 
 import Data.Word
@@ -6,11 +6,11 @@ import GHC.Ptr
 
 {-@ class measure sizeOf :: forall a . Ptr a -> Int @-}
 
-{-@ instance measure sizeOf :: (Ptr GHC.Word.Word16) -> Int
+{-@ instance measure sizeOf :: (Ptr GHC.Internal.Word.Word16) -> Int
       sizeOf (Ptr x) = 2
 @-}
 
-{-@ instance measure sizeOf :: (Ptr GHC.Word.Word32) -> Int
+{-@ instance measure sizeOf :: (Ptr GHC.Internal.Word.Word32) -> Int
       sizeOf (Ptr y) = 4
 @-}
 

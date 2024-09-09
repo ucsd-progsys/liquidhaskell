@@ -580,7 +580,7 @@ lem_union :: Int -> Int -> Int -> Int -> ()
 [lh-imp-eq]:         https://github.com/ucsd-progsys/liquidhaskell/blob/develop/include/Language/Haskell/Liquid/ProofCombinators.hs#L87-L96
 [lh-exp-eq]:         https://github.com/ucsd-progsys/liquidhaskell/blob/develop/include/Language/Haskell/Liquid/ProofCombinators.hs#L98-L116
 [bird-algebra]:      http://themattchan.com/docs/algprog.pdf
-[demo]:              http://goto.ucsd.edu:8090/index.html#?demo=RangeSet.hs
+[demo]:              https://liquidhaskell.goto.ucsd.edu/index.html#?demo=RangeSet.hs
 [intersect-good]:    https://github.com/antalsz/hs-to-coq/blob/8f84d61093b7be36190142c795d6cd4496ef5aed/examples/intervals/Proofs.v#L370-L439
 [union-good]:        https://github.com/antalsz/hs-to-coq/blob/b7efc7a8dbacca384596fc0caf65e62e87ei2768/examples/intervals/Proofs_Function.v#L319-L382
 [subtract-good]:     https://github.com/antalsz/hs-to-coq/blob/8f84d61093b7be36190142c795d6cd4496ef5aed/examples/intervals/Proofs.v#L565-L648

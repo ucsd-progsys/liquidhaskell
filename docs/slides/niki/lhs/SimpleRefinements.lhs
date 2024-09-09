@@ -12,7 +12,7 @@ import Language.Haskell.Liquid.Prelude
 Simple Refinement Types
 -----------------------
 
-We use special comments to give specifications, 
+We use special comments to give specifications,
 as *refinement types*.
 
 This type describes `Int` values that equal `0`.
@@ -27,9 +27,9 @@ zero     =  0
 Refinements are *logical formulas*
 ----------------------------------
 
-If 
+If
 
-- refinement of `T1` **implies** refinement of `T2` 
+- refinement of `T1` **implies** refinement of `T2`
 
 - `p1 => p2`
 
@@ -47,7 +47,7 @@ For example, since
 - `v = 0` *implies* `v >= 0`
 
 Therefore
- 
+
 - `{v:Int | v = 0} <: {v:Int | v >= 0}`
 
 
@@ -71,7 +71,7 @@ zero'     =  0
 \end{code}
 
 
-Lists: Universal Invariants 
+Lists: Universal Invariants
 ---------------------------
 
 Constructors enable *universally quantified* invariants.
@@ -93,8 +93,8 @@ natList     :: L Int
 natList     =  0 `C` 1 `C` 3 `C` N
 \end{code}
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
-Lets see what happens if `natList` contained a negative number. 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a>
+Lets see what happens if `natList` contained a negative number.
 
 Refinement Function Types
 -------------------------
@@ -115,9 +115,9 @@ We can use refinements to specify a **precondition**: divisor is **non-zero** <b
 
 <br>
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a>
 Lets see what happens if the preconditions cannot be
-proven. 
+proven.
 
 Dependent Function Types
 ------------------------
@@ -134,5 +134,3 @@ _       !! _ = liquidError "This should not happen!"
 We desire a **precondition** that index `i` be between `0` and **list length**.
 
 We use **measures** to talk about the length of a list in **logic**.
-
-

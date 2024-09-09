@@ -232,6 +232,7 @@ data GhcSpecQual = SpQual
 data GhcSpecSig = SpSig
   { gsTySigs   :: ![(Var, LocSpecType)]           -- ^ Asserted Reftypes
   , gsAsmSigs  :: ![(Var, LocSpecType)]           -- ^ Assumed Reftypes
+  , gsAsmReflects  :: ![(Var, Var)]               -- ^ Assumed Reftypes (left is the actual function name and right the pretended one)
   , gsRefSigs  :: ![(Var, LocSpecType)]           -- ^ Reflected Reftypes
   , gsInSigs   :: ![(Var, LocSpecType)]           -- ^ Auto generated Signatures
   , gsNewTypes :: ![(TyCon, LocSpecType)]         -- ^ Mapping of 'newtype' type constructors with their refined types.
@@ -247,6 +248,7 @@ instance Semigroup GhcSpecSig where
   x <> y = SpSig
     { gsTySigs   = gsTySigs x   <> gsTySigs y
     , gsAsmSigs  = gsAsmSigs x  <> gsAsmSigs y
+    , gsAsmReflects = gsAsmReflects x <> gsAsmReflects y
     , gsRefSigs  = gsRefSigs x  <> gsRefSigs y
     , gsInSigs   = gsInSigs x   <> gsInSigs y
     , gsNewTypes = gsNewTypes x <> gsNewTypes y
@@ -264,7 +266,7 @@ instance Semigroup GhcSpecSig where
 
 
 instance Monoid GhcSpecSig where
-  mempty = SpSig mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty
+  mempty = SpSig mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty
 
 data GhcSpecData = SpData
   { gsCtors      :: ![(Var, LocSpecType)]         -- ^ Data Constructor Measure Sigs
@@ -272,6 +274,7 @@ data GhcSpecData = SpData
   , gsInvariants :: ![(Maybe Var, LocSpecType)]   -- ^ Data type invariants from measure definitions, e.g forall a. {v: [a] | len(v) >= 0}
   , gsIaliases   :: ![(LocSpecType, LocSpecType)] -- ^ Data type invariant aliases
   , gsMeasures   :: ![Measure SpecType DataCon]   -- ^ Measure definitions
+  , gsOpaqueRefls:: ![Var]                        -- ^ List of opaque reflected measures
   , gsUnsorted   :: ![UnSortedExpr]
   }
   deriving Show
@@ -391,6 +394,7 @@ data Spec ty bndr  = Spec
   , impSigs    :: ![(F.Symbol, F.Sort)]                               -- ^ Imported variables types
   , expSigs    :: ![(F.Symbol, F.Sort)]                               -- ^ Exported variables types
   , asmSigs    :: ![(F.LocSymbol, ty)]                                -- ^ Assumed (unchecked) types; including reflected signatures
+  , asmReflectSigs :: ![(F.LocSymbol, F.LocSymbol)]                   -- ^ Assume reflects : left is the actual function and right the pretended one
   , sigs       :: ![(F.LocSymbol, ty)]                                -- ^ Imported functions and types
   , localSigs  :: ![(F.LocSymbol, ty)]                                -- ^ Local type signatures
   , reflSigs   :: ![(F.LocSymbol, ty)]                                -- ^ Reflected type signatures
@@ -410,6 +414,7 @@ data Spec ty bndr  = Spec
   , rewriteWith :: !(M.HashMap F.LocSymbol [F.LocSymbol])             -- ^ Definitions using rewrite rules
   , fails      :: !(S.HashSet F.LocSymbol)                            -- ^ These Functions should be unsafe
   , reflects   :: !(S.HashSet F.LocSymbol)                            -- ^ Binders to reflect
+  , opaqueReflects :: !(S.HashSet F.LocSymbol)                        -- ^ Binders to opaque-reflect
   , autois     :: !(M.HashMap F.LocSymbol (Maybe Int))                -- ^ Automatically instantiate axioms in these Functions with maybe specified fuel
   , hmeas      :: !(S.HashSet F.LocSymbol)                            -- ^ Binders to turn into measures using haskell definitions
   , hbounds    :: !(S.HashSet F.LocSymbol)                            -- ^ Binders to turn into bounds using haskell definitions
@@ -419,6 +424,9 @@ data Spec ty bndr  = Spec
   , pragmas    :: ![F.Located String]                                 -- ^ Command-line configurations passed in through source
   , cmeasures  :: ![Measure ty ()]                                    -- ^ Measures attached to a type-class
   , imeasures  :: ![Measure ty bndr]                                  -- ^ Mappings from (measure,type) -> measure
+  , omeasures  :: ![Measure ty bndr]                                  -- ^ Opaque reflection measures.
+  -- Separate field bc measures are checked for duplicates, and we want to allow for opaque-reflected measures to be duplicated.
+  -- See Note [Duplicate measures and opaque reflection] in "Language.Haskell.Liquid.Measure".
   , classes    :: ![RClass ty]                                        -- ^ Refined Type-Classes
   , claws      :: ![RClass ty]                                        -- ^ Refined Type-Classe Laws
   , relational :: ![(LocSymbol, LocSymbol, ty, ty, RelExpr, RelExpr)] -- ^ Relational types
@@ -451,6 +459,7 @@ instance Semigroup (Spec ty bndr) where
            , impSigs    =           impSigs    s1 ++ impSigs    s2
            , expSigs    =           expSigs    s1 ++ expSigs    s2
            , asmSigs    =           asmSigs    s1 ++ asmSigs    s2
+           , asmReflectSigs    =    asmReflectSigs s1 ++ asmReflectSigs s2
            , sigs       =           sigs       s1 ++ sigs       s2
            , localSigs  =           localSigs  s1 ++ localSigs  s2
            , reflSigs   =           reflSigs   s1 ++ reflSigs   s2
@@ -466,6 +475,7 @@ instance Semigroup (Spec ty bndr) where
            , pragmas    =           pragmas    s1 ++ pragmas    s2
            , cmeasures  =           cmeasures  s1 ++ cmeasures  s2
            , imeasures  =           imeasures  s1 ++ imeasures  s2
+           , omeasures  =           omeasures  s1 ++ omeasures  s2
            , classes    =           classes    s1 ++ classes    s2
            , claws      =           claws      s1 ++ claws      s2
            , relational =           relational s1 ++ relational s2
@@ -483,6 +493,7 @@ instance Semigroup (Spec ty bndr) where
            , rewriteWith = M.union  (rewriteWith s1)  (rewriteWith s2)
            , fails      = S.union   (fails    s1)  (fails    s2)
            , reflects   = S.union   (reflects s1)  (reflects s2)
+           , opaqueReflects   = S.union   (opaqueReflects s1)  (opaqueReflects s2)
            , hmeas      = S.union   (hmeas    s1)  (hmeas    s2)
            , hbounds    = S.union   (hbounds  s1)  (hbounds  s2)
            , inlines    = S.union   (inlines  s1)  (inlines  s2)
@@ -500,6 +511,7 @@ instance Monoid (Spec ty bndr) where
            , impSigs    = []
            , expSigs    = []
            , asmSigs    = []
+           , asmReflectSigs = []
            , sigs       = []
            , localSigs  = []
            , reflSigs   = []
@@ -521,6 +533,7 @@ instance Monoid (Spec ty bndr) where
            , autois     = M.empty
            , hmeas      = S.empty
            , reflects   = S.empty
+           , opaqueReflects = S.empty
            , hbounds    = S.empty
            , inlines    = S.empty
            , ignores    = S.empty
@@ -528,6 +541,7 @@ instance Monoid (Spec ty bndr) where
            , pragmas    = []
            , cmeasures  = []
            , imeasures  = []
+           , omeasures  = []
            , classes    = []
            , claws      = []
            , relational = []
@@ -575,6 +589,8 @@ data LiftedSpec = LiftedSpec
     -- ^ Exported variables types
   , liftedAsmSigs    :: HashSet (F.LocSymbol, LocBareType)
     -- ^ Assumed (unchecked) types; including reflected signatures
+  , liftedAsmReflectSigs    :: HashSet (F.LocSymbol, F.LocSymbol)
+    -- ^ Reflected assumed signatures
   , liftedSigs       :: HashSet (F.LocSymbol, LocBareType)
     -- ^ Imported functions and types
   , liftedInvariants :: HashSet (Maybe F.LocSymbol, LocBareType)
@@ -604,6 +620,8 @@ data LiftedSpec = LiftedSpec
   , liftedCmeasures  :: HashSet (Measure LocBareType ())
     -- ^ Measures attached to a type-class
   , liftedImeasures  :: HashSet (Measure LocBareType F.LocSymbol)
+    -- Lifted opaque reflection measures
+  , liftedOmeasures  :: HashSet (Measure LocBareType F.LocSymbol)
     -- ^ Mappings from (measure,type) -> measure
   , liftedClasses    :: HashSet (RClass LocBareType)
     -- ^ Refined Type-Classes
@@ -632,6 +650,7 @@ emptyLiftedSpec = LiftedSpec
   , liftedImpSigs  = mempty
   , liftedExpSigs  = mempty
   , liftedAsmSigs  = mempty
+  , liftedAsmReflectSigs  = mempty
   , liftedSigs     = mempty
   , liftedInvariants = mempty
   , liftedIaliases   = mempty
@@ -647,6 +666,7 @@ emptyLiftedSpec = LiftedSpec
   , liftedAutosize   = mempty
   , liftedCmeasures  = mempty
   , liftedImeasures  = mempty
+  , liftedOmeasures  = mempty
   , liftedClasses    = mempty
   , liftedClaws      = mempty
   , liftedRinstance  = mempty
@@ -810,6 +830,7 @@ toLiftedSpec a = LiftedSpec
   , liftedImpSigs    = S.fromList . impSigs  $ a
   , liftedExpSigs    = S.fromList . expSigs  $ a
   , liftedAsmSigs    = S.fromList . asmSigs  $ a
+  , liftedAsmReflectSigs = S.fromList . asmReflectSigs  $ a
   , liftedSigs       = S.fromList . sigs     $ a
   , liftedInvariants = S.fromList . invariants $ a
   , liftedIaliases   = S.fromList . ialiases $ a
@@ -825,6 +846,7 @@ toLiftedSpec a = LiftedSpec
   , liftedAutosize   = autosize a
   , liftedCmeasures  = S.fromList . cmeasures $ a
   , liftedImeasures  = S.fromList . imeasures $ a
+  , liftedOmeasures  = S.fromList . omeasures $ a
   , liftedClasses    = S.fromList . classes $ a
   , liftedClaws      = S.fromList . claws $ a
   , liftedRinstance  = S.fromList . rinstance $ a
@@ -844,6 +866,7 @@ unsafeFromLiftedSpec a = Spec
   , impSigs    = S.toList . liftedImpSigs $ a
   , expSigs    = S.toList . liftedExpSigs $ a
   , asmSigs    = S.toList . liftedAsmSigs $ a
+  , asmReflectSigs = S.toList . liftedAsmReflectSigs $ a
   , sigs       = S.toList . liftedSigs $ a
   , localSigs  = mempty
   , reflSigs   = mempty
@@ -865,6 +888,7 @@ unsafeFromLiftedSpec a = Spec
   , rewrites   = mempty
   , rewriteWith = mempty
   , reflects   = mempty
+  , opaqueReflects   = mempty
   , autois     = liftedAutois a
   , hmeas      = mempty
   , hbounds    = mempty
@@ -874,6 +898,7 @@ unsafeFromLiftedSpec a = Spec
   , pragmas    = mempty
   , cmeasures  = S.toList . liftedCmeasures $ a
   , imeasures  = S.toList . liftedImeasures $ a
+  , omeasures  = S.toList . liftedOmeasures $ a
   , classes    = S.toList . liftedClasses $ a
   , claws      = S.toList . liftedClaws $ a
   , termexprs  = mempty

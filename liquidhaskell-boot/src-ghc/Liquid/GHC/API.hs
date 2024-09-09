@@ -67,6 +67,7 @@ import           GHC                  as Ghc
     , ModuleName
     , Name
     , NamedThing
+    , NamespaceSpecifier (NoNamespaceSpecifier)
     , ParsedModule (pm_mod_summary, pm_parsed_source)
     , PredType
     , RealSrcLoc
@@ -163,21 +164,20 @@ import GHC.Builtin.Names              as Ghc
     , Unique
     , and_RDR
     , bindMName
-    , dATA_FOLDABLE
+    , gHC_INTERNAL_DATA_FOLDABLE
     , eqClassKey
     , eqClassName
     , ge_RDR
     , gt_RDR
     , fractionalClassKey
     , fractionalClassKeys
-    , gHC_REAL
+    , gHC_INTERNAL_REAL
     , getUnique
     , hasKey
     , isStringClassName
     , itName
     , le_RDR
     , lt_RDR
-    , minus_RDR
     , negateName
     , not_RDR
     , numericClassKeys
@@ -322,7 +322,7 @@ import GHC.Core.Reduction             as Ghc
     ( Reduction(Reduction) )
 import GHC.Core.Subst                 as Ghc (emptySubst, extendCvSubst)
 import GHC.Core.TyCo.Rep              as Ghc
-    ( FunTyFlag(FTF_T_T)
+    ( FunTyFlag(FTF_T_T, FTF_C_T)
     , ForAllTyFlag(Required)
     , Coercion
         ( AppCo
@@ -354,6 +354,7 @@ import GHC.Core.TyCo.Rep              as Ghc
         , LitTy
         , TyConApp
         , TyVarTy
+        , ft_af
         , ft_arg
         , ft_res
         )
@@ -461,7 +462,7 @@ import GHC.Plugins                    as Ghc ( deserializeWithData
                                              , extendIdSubst
                                              , substExpr
                                              )
-import GHC.Core.FVs                   as Ghc (exprFreeVarsList)
+import GHC.Core.FVs                   as Ghc (exprFreeVarsList, exprSomeFreeVarsList)
 import GHC.Core.Opt.OccurAnal         as Ghc
     ( occurAnalysePgm )
 import GHC.Driver.Backend             as Ghc (interpreterBackend)

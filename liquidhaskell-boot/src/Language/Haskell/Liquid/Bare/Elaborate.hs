@@ -563,7 +563,7 @@ renameBinderSort f = rename
 
 
 mkHsTyConApp ::  IdP GhcPs -> [LHsType GhcPs] -> LHsType GhcPs
-mkHsTyConApp tyconId tyargs = nlHsTyConApp NotPromoted Prefix tyconId (map HsValArg tyargs)
+mkHsTyConApp tyconId tyargs = nlHsTyConApp NotPromoted Prefix tyconId (map (HsValArg noExtField) tyargs)
 
 -- | Embed fixpoint expressions into parsed haskell expressions.
 --   It allows us to bypass the GHC parser and use arbitrary symbols
@@ -601,7 +601,7 @@ fixExprToHsExpr env (F.PAnd (e : es)) = L.foldr f (fixExprToHsExpr env e) es
 --   (nlHsVar (varQual_RDR dATA_FOLDABLE (fsLit "and")))
 --   (nlList $ fixExprToHsExpr env <$> es)
 fixExprToHsExpr env (F.POr es) = mkHsApp
-  (nlHsVar (varQual_RDR dATA_FOLDABLE (fsLit "or")))
+  (nlHsVar (varQual_RDR gHC_INTERNAL_DATA_FOLDABLE (fsLit "or")))
   (nlList $ fixExprToHsExpr env <$> es)
 fixExprToHsExpr env (F.PIff e0 e1) = mkHsApp
   (mkHsApp (nlHsVar (mkVarUnqual (mkFastString "<=>"))) (fixExprToHsExpr env e0)
@@ -623,9 +623,9 @@ fixExprToHsExpr _ e =
 constantToHsExpr :: F.Constant -> LHsExpr GhcPs
 -- constantToHsExpr (F.I c) = noLoc (HsLit NoExt (HsInt NoExt (mkIntegralLit c)))
 constantToHsExpr (F.I i) =
-  noLocA (HsOverLit noAnn (mkHsIntegral (mkIntegralLit i)))
+  noLocA (HsOverLit noExtField (mkHsIntegral (mkIntegralLit i)))
 constantToHsExpr (F.R d) =
-  noLocA (HsOverLit noAnn (mkHsFractional (mkTHFractionalLit (toRational d))))
+  noLocA (HsOverLit noExtField (mkHsFractional (mkTHFractionalLit (toRational d))))
 constantToHsExpr _ =
   todo Nothing "constantToHsExpr: Not sure how to handle constructor L"
 

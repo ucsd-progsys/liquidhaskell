@@ -664,7 +664,6 @@ executable errors
                     -- , ExportMeasure0
                     -- , ExportReflect0
                     , Fractional
-                    , Frog
                     , HigherOrderBinder
                     , HintMismatch
                     , HoleCrash1
@@ -701,7 +700,6 @@ executable errors
                     , T1140
                     , T1498A
                     , T1498
-                    , T1708
                     , T773
                     , T774
                     , TerminationExprNum
@@ -716,7 +714,6 @@ executable errors
                     , UnboundFunInSpec
                     , UnboundVarInAssume
                     , UnboundVarInLocSig
-                    , UnboundVarInReflect
                     , UnboundVarInSpec
 
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
@@ -1640,6 +1637,7 @@ executable unit-pos-1
                     , T1697A
                     , T1697C
                     , T1697
+                    , T1708
                     , T1709
                     , T1749
                     , T1761
@@ -2149,7 +2147,12 @@ executable basic-neg
       buildable:      False
 
     other-modules:
-                      Inc01
+                      AssmRefl01
+                    , AssmRefl02
+                    , AssmRefl03
+                    , AssmRefl04
+                    , DuplicateSpecs
+                    , Inc01
                     , Inc01q
                     , Inc02
                     , Inc03
@@ -2157,6 +2160,7 @@ executable basic-neg
                     , Inc04Lib
                     , List00
                     , Poly00
+                    , ShadowLogicSymbols
                     , T1459
 
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
@@ -2187,6 +2191,13 @@ executable basic-pos
                     , Alias03
                     , Alias04
                     , Alias05
+                    , AssmRefl01
+                    , AssmRefl02A
+                    , AssmRefl02B
+                    , AssmRefl02C
+                    , AssmRefl02D
+                    , AssmRefl03
+                    , AssmReflFilter
                     , Float
                     , Inc00
                     , Inc01
@@ -2197,7 +2208,17 @@ executable basic-pos
                     , Inc04
                     , Infer00
                     , List00
+                    , OpaqueRefl01
+                    , OpaqueRefl02
+                    , OpaqueRefl03A
+                    , OpaqueRefl03B
+                    , OpaqueRefl03C
+                    , OpaqueRefl03D
+                    , OpaqueRefl04
+                    , OpaqueRefl05
+                    , OpaqueRefl06
                     , Poly00
+                    , ShadowLogicSymbols
                     , SkipDerived00
 
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0

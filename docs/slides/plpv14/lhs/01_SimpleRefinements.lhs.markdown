@@ -30,7 +30,7 @@ Simple Refinement Types
 =======================
 
 
-Types + Predicates 
+Types + Predicates
 ------------------
 
 
@@ -68,7 +68,7 @@ Refinement types via special comments `{-@ ... @-}`
 <br>
 
 <div class="fragment">
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo</a> 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo</a>
 Lets take a look.
 </div>
 
@@ -94,7 +94,7 @@ Subtyping is Implication
 <br>
 
 --------  ---  ---------------------------------------------
-  **If**   :   Refinement of `S` *implies* refinement of `T` 
+  **If**   :   Refinement of `S` *implies* refinement of `T`
 
 **Then**   :   `S` is a *subtype* of `T`
 --------  ---  ---------------------------------------------
@@ -110,7 +110,7 @@ Subtyping is Implication
 
 --------   ---     ----------------------------
   **If**    :      `p => q`
-                
+
 **Then**    :      `{v : t | p} <: {v : t | q}`
 --------   ---     ----------------------------
 
@@ -122,7 +122,7 @@ Subtyping is Implication
 
 --------    ---  ---------------------------------------------------
   **As**     :   `v=0` *implies* `0<=v` ... via SMT
-                 
+
   **So**     :   `{v:Int | v=0} <: {v:Int | 0<=v}`
 --------    ---  ---------------------------------------------------
 
@@ -130,7 +130,7 @@ Subtyping is Implication
 Example: Natural Numbers
 ------------------------
 
- . 
+ .
 <pre><span class=hs-linenum>134: </span><span class='hs-keyword'>type</span> <span class='hs-conid'>Nat</span> <span class='hs-keyglyph'>=</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span> <span class='hs-conop'>:</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>|</span> <span class='hs-num'>0</span> <span class='hs-varop'>&lt;=</span> <span class='hs-varid'>v</span><span class='hs-layout'>}</span>
 </pre>
 
@@ -189,8 +189,8 @@ Example: Lists
 
 <div class="fragment">
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
-What if `nats` contained `-2`? 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a>
+What if `nats` contained `-2`?
 
 </div>
 
@@ -222,13 +222,13 @@ Example: Even/Odd Lists
 -&gt; (L {x20 : (Int) | ((x20 mod 2) == 1) &amp;&amp; (x20 &gt; 0) &amp;&amp; (x20 &gt; SimpleRefinements.zero) &amp;&amp; (x20 &gt;= 0) &amp;&amp; (SimpleRefinements.zero &lt;= x20)})
 -&gt; (L {x20 : (Int) | ((x20 mod 2) == 1) &amp;&amp; (x20 &gt; 0) &amp;&amp; (x20 &gt; SimpleRefinements.zero) &amp;&amp; (x20 &gt;= 0) &amp;&amp; (SimpleRefinements.zero &lt;= x20)})</span><span class='hs-varop'>`C`</span></a> <a class=annot href="#"><span class=annottext>{x2 : (Int) | (x2 == (5  :  int))}</span><span class='hs-num'>5</span></a> <a class=annot href="#"><span class=annottext>{x20 : (Int) | ((x20 mod 2) == 1) &amp;&amp; (x20 &gt; 0) &amp;&amp; (x20 &gt; SimpleRefinements.zero) &amp;&amp; (x20 &gt;= 0) &amp;&amp; (SimpleRefinements.zero &lt;= x20)}
 -&gt; (L {x20 : (Int) | ((x20 mod 2) == 1) &amp;&amp; (x20 &gt; 0) &amp;&amp; (x20 &gt; SimpleRefinements.zero) &amp;&amp; (x20 &gt;= 0) &amp;&amp; (SimpleRefinements.zero &lt;= x20)})
--&gt; (L {x20 : (Int) | ((x20 mod 2) == 1) &amp;&amp; (x20 &gt; 0) &amp;&amp; (x20 &gt; SimpleRefinements.zero) &amp;&amp; (x20 &gt;= 0) &amp;&amp; (SimpleRefinements.zero &lt;= x20)})</span><span class='hs-varop'>`C`</span></a> <a class=annot href="#"><span class=annottext>(L {x2 : (Int) | false})</span><span class='hs-conid'>N</span></a> 
+-&gt; (L {x20 : (Int) | ((x20 mod 2) == 1) &amp;&amp; (x20 &gt; 0) &amp;&amp; (x20 &gt; SimpleRefinements.zero) &amp;&amp; (x20 &gt;= 0) &amp;&amp; (SimpleRefinements.zero &lt;= x20)})</span><span class='hs-varop'>`C`</span></a> <a class=annot href="#"><span class=annottext>(L {x2 : (Int) | false})</span><span class='hs-conid'>N</span></a>
 </pre>
 </div>
 
 <div class="fragment">
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
-What if `evens` contained `1`? 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a>
+What if `evens` contained `1`?
 </div>
 
  {#functiontypes}
@@ -279,7 +279,7 @@ Example: `safeDiv`
 
 <div class="fragment">
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a>
 What if precondition does not hold?
 
 </div>
@@ -296,9 +296,9 @@ Example: `abs`
 
 
 <pre><span class=hs-linenum>278: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>abs</span>       <span class='hs-keyglyph'>::</span> <span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Nat</span> <span class='hs-keyword'>@-}</span>
-<span class=hs-linenum>279: </span><a class=annot href="#"><span class=annottext>(Int) -&gt; {VV : (Int) | (VV &gt;= 0)}</span><span class='hs-definition'>abs</span></a> <a class=annot href="#"><span class=annottext>(Int)</span><span class='hs-varid'>x</span></a> 
+<span class=hs-linenum>279: </span><a class=annot href="#"><span class=annottext>(Int) -&gt; {VV : (Int) | (VV &gt;= 0)}</span><span class='hs-definition'>abs</span></a> <a class=annot href="#"><span class=annottext>(Int)</span><span class='hs-varid'>x</span></a>
 <span class=hs-linenum>280: </span>  <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{x2 : (Int) | (x2 == (0  :  int))}</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>x1:(Int)
--&gt; x2:(Int) -&gt; {x2 : (Bool) | (((Prop x2)) &lt;=&gt; (x1 &lt;= x2))}</span><span class='hs-varop'>&lt;=</span></a> <a class=annot href="#"><span class=annottext>{x2 : (Int) | (x2 == x)}</span><span class='hs-varid'>x</span></a>    <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{x2 : (Int) | (x2 == x)}</span><span class='hs-varid'>x</span></a> 
+-&gt; x2:(Int) -&gt; {x2 : (Bool) | (((Prop x2)) &lt;=&gt; (x1 &lt;= x2))}</span><span class='hs-varop'>&lt;=</span></a> <a class=annot href="#"><span class=annottext>{x2 : (Int) | (x2 == x)}</span><span class='hs-varid'>x</span></a>    <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{x2 : (Int) | (x2 == x)}</span><span class='hs-varid'>x</span></a>
 <span class=hs-linenum>281: </span>  <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{x2 : (Int) | (x2 == (0  :  int))}</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>x1:(Int) -&gt; x2:(Int) -&gt; {x4 : (Int) | (x4 == (x1 - x2))}</span><span class='hs-comment'>-</span></a> <a class=annot href="#"><span class=annottext>{x2 : (Int) | (x2 == x)}</span><span class='hs-varid'>x</span></a>
 </pre>
 
@@ -351,7 +351,7 @@ Example: `range`
 <span class=hs-linenum>328: </span>      <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{x4 : (Int) | (x4 == n) &amp;&amp; (x4 &gt;= i) &amp;&amp; (i &lt;= x4)}</span><span class='hs-varid'>n</span></a> <a class=annot href="#"><span class=annottext>x1:(Int) -&gt; x2:(Int) -&gt; {x2 : (Bool) | (((Prop x2)) &lt;=&gt; (x1 &lt; x2))}</span><span class='hs-varop'>&lt;</span></a> <a class=annot href="#"><span class=annottext>{x2 : (Int) | (x2 == j)}</span><span class='hs-varid'>j</span></a>     <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{x4 : (Int) | (x4 == n) &amp;&amp; (x4 &gt;= i) &amp;&amp; (i &lt;= x4)}</span><span class='hs-varid'>n</span></a> <a class=annot href="#"><span class=annottext>{x20 : (Int) | (x20 &gt;= i) &amp;&amp; (x20 &gt;= n) &amp;&amp; (x20 &lt; j) &amp;&amp; (i &lt;= x20) &amp;&amp; (n &lt;= x20)}
 -&gt; (L {x20 : (Int) | (x20 &gt;= i) &amp;&amp; (x20 &gt;= n) &amp;&amp; (x20 &lt; j) &amp;&amp; (i &lt;= x20) &amp;&amp; (n &lt;= x20)})
 -&gt; (L {x20 : (Int) | (x20 &gt;= i) &amp;&amp; (x20 &gt;= n) &amp;&amp; (x20 &lt; j) &amp;&amp; (i &lt;= x20) &amp;&amp; (n &lt;= x20)})</span><span class='hs-varop'>`C`</span></a> <a class=annot href="#"><span class=annottext>n:{VV : (Int) | (VV &gt;= i) &amp;&amp; (i &lt;= VV)}
--&gt; (L {VV : (Int) | (VV &gt;= i) &amp;&amp; (VV &gt;= n) &amp;&amp; (VV &lt; j) &amp;&amp; (i &lt;= VV) &amp;&amp; (n &lt;= VV)})</span><span class='hs-varid'>go</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{x4 : (Int) | (x4 == n) &amp;&amp; (x4 &gt;= i) &amp;&amp; (i &lt;= x4)}</span><span class='hs-varid'>n</span></a> <a class=annot href="#"><span class=annottext>x1:(Int) -&gt; x2:(Int) -&gt; {x4 : (Int) | (x4 == (x1 + x2))}</span><span class='hs-varop'>+</span></a> <a class=annot href="#"><span class=annottext>{x2 : (Int) | (x2 == (1  :  int))}</span><span class='hs-num'>1</span></a><span class='hs-layout'>)</span>  
+-&gt; (L {VV : (Int) | (VV &gt;= i) &amp;&amp; (VV &gt;= n) &amp;&amp; (VV &lt; j) &amp;&amp; (i &lt;= VV) &amp;&amp; (n &lt;= VV)})</span><span class='hs-varid'>go</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{x4 : (Int) | (x4 == n) &amp;&amp; (x4 &gt;= i) &amp;&amp; (i &lt;= x4)}</span><span class='hs-varid'>n</span></a> <a class=annot href="#"><span class=annottext>x1:(Int) -&gt; x2:(Int) -&gt; {x4 : (Int) | (x4 == (x1 + x2))}</span><span class='hs-varop'>+</span></a> <a class=annot href="#"><span class=annottext>{x2 : (Int) | (x2 == (1  :  int))}</span><span class='hs-num'>1</span></a><span class='hs-layout'>)</span>
 <span class=hs-linenum>329: </span>      <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>(L {x2 : (Int) | false})</span><span class='hs-conid'>N</span></a>
 </pre>
 
@@ -365,7 +365,7 @@ Example: `range`
 Example: Indexing Into List
 ---------------------------
 
- 
+
 <pre><span class=hs-linenum>343: </span><span class='hs-layout'>(</span><span class='hs-varop'>!</span><span class='hs-layout'>)</span>          <span class='hs-keyglyph'>::</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span>
 <span class=hs-linenum>344: </span><span class='hs-layout'>(</span><span class='hs-conid'>C</span> <span class='hs-varid'>x</span> <span class='hs-keyword'>_</span><span class='hs-layout'>)</span>  <a class=annot href="#"><span class=annottext>forall a. (L a) -&gt; (Int) -&gt; a</span><span class='hs-varop'>!</span></a> <span class='hs-num'>0</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a>
 <span class=hs-linenum>345: </span><span class='hs-layout'>(</span><span class='hs-conid'>C</span> <span class='hs-keyword'>_</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span> <span class='hs-varop'>!</span> <span class='hs-varid'>i</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>(L a)</span><span class='hs-varid'>xs</span></a> <a class=annot href="#"><span class=annottext>(L a) -&gt; (Int) -&gt; a</span><span class='hs-varop'>!</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>(Int)</span><span class='hs-varid'>i</span></a> <a class=annot href="#"><span class=annottext>x1:(Int) -&gt; x2:(Int) -&gt; {x4 : (Int) | (x4 == (x1 - x2))}</span><span class='hs-comment'>-</span></a> <a class=annot href="#"><span class=annottext>{x2 : (Int) | (x2 == (1  :  int))}</span><span class='hs-num'>1</span></a><span class='hs-layout'>)</span>
@@ -382,5 +382,3 @@ Example: Indexing Into List
 - <div class="fragment">**A:** Precondition: `i` between `0` and list **length**.
 
 <div class="fragment">Need way to [measure](#measures) *length of a list* ...</div>
-
-

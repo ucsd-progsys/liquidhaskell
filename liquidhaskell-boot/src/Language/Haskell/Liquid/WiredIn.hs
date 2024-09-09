@@ -23,6 +23,7 @@ module Language.Haskell.Liquid.WiredIn
 
        -- * Deriving classes
        , isDerivedInstance
+       , derivingClasses
        ) where
 
 import Prelude                                hiding (error)
@@ -199,23 +200,26 @@ mkps_ _     _       _          _    _ = panic Nothing "Bare : mkps_"
 isDerivedInstance :: Ghc.ClsInst -> Bool
 --------------------------------------------------------------------------------
 isDerivedInstance i = F.notracepp ("IS-DERIVED: " ++ F.showpp classSym)
-                    $ S.member classSym derivingClasses
+                    $ S.member classSym derivingClassesSet
   where
     classSym        = F.symbol . Ghc.is_cls $ i
 
-derivingClasses :: S.HashSet F.Symbol
-derivingClasses = S.fromList
+derivingClassesSet :: S.HashSet F.Symbol
+derivingClassesSet = S.fromList $ map F.symbol derivingClasses
+
+derivingClasses :: [String]
+derivingClasses =
   [ "GHC.Classes.Eq"
   , "GHC.Classes.Ord"
-  , "GHC.Enum.Enum"
-  , "GHC.Show.Show"
-  , "GHC.Read.Read"
-  , "GHC.Base.Monad"
-  , "GHC.Base.Applicative"
-  , "GHC.Base.Functor"
-  , "Data.Foldable.Foldable"
-  , "Data.Traversable.Traversable"
-  , "GHC.Real.Fractional"
+  , "GHC.Internal.Enum.Enum"
+  , "GHC.Internal.Show.Show"
+  , "GHC.Internal.Read.Read"
+  , "GHC.Internal.Base.Monad"
+  , "GHC.Internal.Base.Applicative"
+  , "GHC.Internal.Base.Functor"
+  , "GHC.Internal.Data.Foldable.Foldable"
+  , "GHC.Internal.Data.Traversable.Traversable"
+  , "GHC.Internal.Real.Fractional"
   -- , "GHC.Enum.Bounded"
   -- , "GHC.Base.Monoid"
   ]

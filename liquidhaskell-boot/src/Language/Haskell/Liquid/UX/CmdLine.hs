@@ -467,6 +467,9 @@ config = cmdArgsMode $ Config {
       &= name "exclude-automatic-assumptions-for"
       &= help "Stop loading LHAssumptions modules for imports in these packages."
       &= typ "PACKAGE"
+ , dumpOpaqueReflections
+    = def &= help "Dump all generated opaque reflections"
+          &= name "dump-opaque-reflections"
   } &= program "liquid"
     &= help    "Refinement Types for Haskell"
     &= summary copyright
@@ -730,6 +733,7 @@ defConfig = Config
   , inlineANFBindings        = False
   , pandocHtml               = False
   , excludeAutomaticAssumptionsFor = []
+  , dumpOpaqueReflections    = False
   }
 
 -- | Write the annotations (i.e. the files in the \".liquid\" hidden folder) and

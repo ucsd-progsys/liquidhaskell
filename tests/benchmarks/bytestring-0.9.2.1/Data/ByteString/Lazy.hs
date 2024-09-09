@@ -208,7 +208,7 @@ module Data.ByteString.Lazy (
 import Language.Haskell.Liquid.Prelude (unsafeError)
 import qualified Prelude
 import Prelude hiding
-    (reverse,head,tail,last,init,null,length,map,lines,foldl,foldr,unlines
+    (foldl', reverse,head,tail,last,init,null,length,map,lines,foldl,foldr,unlines
     ,concat,any,take,drop,splitAt,takeWhile,dropWhile,span,break,elem,filter,maximum
     ,minimum,all,concatMap,foldl1,foldr1,scanl, scanl1, scanr, scanr1
     ,repeat, cycle, interact, iterate,readFile,writeFile,appendFile,replicate
@@ -655,7 +655,7 @@ transpose css = L.map (\ss -> Chunk (S.pack ss) Empty)
 --TODO: make this fast
 
 -- REBARE: somehow with GHC 8.4 importing Data.List actually ends up importing Data.OldList ...
-{-@ assume Data.OldList.transpose :: [[a]] -> [{v:[a] | len v > 0}] @-}
+{-@ assume GHC.Internal.Data.OldList.transpose :: [[a]] -> [{v:[a] | len v > 0}] @-}
 
 
 -- ---------------------------------------------------------------------

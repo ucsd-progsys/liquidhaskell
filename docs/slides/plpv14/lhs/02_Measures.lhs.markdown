@@ -20,7 +20,7 @@ Measuring Data Types
 
 </div>
 
-Measuring Data Types 
+Measuring Data Types
 ====================
 
 Recap
@@ -33,13 +33,13 @@ Recap
 
 ---   -----------------------   ---  -------------------------
  1.      **Refinement Types**    :   Types + Predicates
- 2.             **Subtyping**    :   SMT / Logical Implication 
+ 2.             **Subtyping**    :   SMT / Logical Implication
 ---   -----------------------   ---  -------------------------
 
 -->
 
 
-Example: Lists 
+Example: Lists
 --------------
 
 <div class="hidden">
@@ -53,11 +53,11 @@ Example: Lists
 <br>
 
 
-<pre><span class=hs-linenum>56: </span><span class='hs-keyword'>data</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>N</span> 
+<pre><span class=hs-linenum>56: </span><span class='hs-keyword'>data</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>N</span>
 <span class=hs-linenum>57: </span>         <span class='hs-keyglyph'>|</span> <span class='hs-conid'>C</span> <span class='hs-varid'>a</span> <span class='hs-layout'>(</span><span class='hs-conid'>L</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span>
 </pre>
 
-Example: Length of a List 
+Example: Length of a List
 -------------------------
 
 
@@ -71,9 +71,9 @@ Example: Length of a List
 <div class="fragment">
 LiquidHaskell *strengthens* data constructor types
  <div/>
-<pre><span class=hs-linenum>74: </span><span class='hs-keyword'>data</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyword'>where</span> 
+<pre><span class=hs-linenum>74: </span><span class='hs-keyword'>data</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyword'>where</span>
 <span class=hs-linenum>75: </span>  <span class='hs-conid'>N</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span><span class='hs-conop'>:</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>|</span> <span class='hs-layout'>(</span><span class='hs-varid'>llen</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-num'>0</span><span class='hs-layout'>}</span>
-<span class=hs-linenum>76: </span>  <span class='hs-conid'>C</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>xs</span><span class='hs-conop'>:</span><span class='hs-conid'>L</span> <span class='hs-varid'>a</span> 
+<span class=hs-linenum>76: </span>  <span class='hs-conid'>C</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>xs</span><span class='hs-conop'>:</span><span class='hs-conid'>L</span> <span class='hs-varid'>a</span>
 <span class=hs-linenum>77: </span>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span><span class='hs-conop'>:</span><span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>|</span> <span class='hs-layout'>(</span><span class='hs-varid'>llen</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-num'>1</span> <span class='hs-varop'>+</span> <span class='hs-layout'>(</span><span class='hs-varid'>llen</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span><span class='hs-layout'>}</span>
 </pre>
 </div>
@@ -82,9 +82,9 @@ Measures Are Uninterpreted
 --------------------------
 
  <br>
-<pre><span class=hs-linenum>85: </span><span class='hs-keyword'>data</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyword'>where</span> 
+<pre><span class=hs-linenum>85: </span><span class='hs-keyword'>data</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyword'>where</span>
 <span class=hs-linenum>86: </span>  <span class='hs-conid'>N</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span><span class='hs-conop'>:</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>|</span> <span class='hs-layout'>(</span><span class='hs-varid'>llen</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-num'>0</span><span class='hs-layout'>}</span>
-<span class=hs-linenum>87: </span>  <span class='hs-conid'>C</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>xs</span><span class='hs-conop'>:</span><span class='hs-conid'>L</span> <span class='hs-varid'>a</span> 
+<span class=hs-linenum>87: </span>  <span class='hs-conid'>C</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>xs</span><span class='hs-conop'>:</span><span class='hs-conid'>L</span> <span class='hs-varid'>a</span>
 <span class=hs-linenum>88: </span>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span><span class='hs-conop'>:</span><span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>|</span> <span class='hs-layout'>(</span><span class='hs-varid'>llen</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-num'>1</span> <span class='hs-varop'>+</span> <span class='hs-layout'>(</span><span class='hs-varid'>llen</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span><span class='hs-layout'>}</span>
 </pre>
 
@@ -122,7 +122,7 @@ All other facts about `llen` asserted at *fold* and *unfold*
 
 <div class="fragment">
 **Unfold**<br>
-<pre><span class=hs-linenum>125: </span><span class='hs-keyword'>case</span> <span class='hs-varid'>z</span> <span class='hs-keyword'>of</span> 
+<pre><span class=hs-linenum>125: </span><span class='hs-keyword'>case</span> <span class='hs-varid'>z</span> <span class='hs-keyword'>of</span>
 <span class=hs-linenum>126: </span>  <span class='hs-conid'>N</span>     <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>e1</span> <span class='hs-comment'>-- z :: {v | llen v = 0}</span>
 <span class=hs-linenum>127: </span>  <span class='hs-conid'>C</span> <span class='hs-varid'>x</span> <span class='hs-varid'>y</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>e2</span> <span class='hs-comment'>-- z :: {v | llen v = 1 + llen y}</span>
 </pre>
@@ -193,7 +193,7 @@ Now we can type list indexed lookup:
 
 <br>
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellMeasure.hs" target= "_blank">Demo:</a> 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellMeasure.hs" target= "_blank">Demo:</a>
 What if we *remove* the precondition?
 
 Multiple Measures
@@ -202,10 +202,10 @@ Multiple Measures
 LiquidHaskell allows *many* measures for a type
 
 
-Multiple Measures 
+Multiple Measures
 -----------------
 
-**Example:** Nullity of a `List` 
+**Example:** Nullity of a `List`
 
 
 <pre><span class=hs-linenum>209: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>measure</span> <span class='hs-varid'>isNull</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>L</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Prop</span>
@@ -218,7 +218,7 @@ Multiple Measures
 <div class="fragment">
 
  LiquidHaskell **strengthens** data constructors
-<pre><span class=hs-linenum>219: </span><span class='hs-keyword'>data</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyword'>where</span> 
+<pre><span class=hs-linenum>219: </span><span class='hs-keyword'>data</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyword'>where</span>
 <span class=hs-linenum>220: </span>  <span class='hs-conid'>N</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span> <span class='hs-conop'>:</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>|</span> <span class='hs-layout'>(</span><span class='hs-varid'>isNull</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span><span class='hs-layout'>}</span>
 <span class=hs-linenum>221: </span>  <span class='hs-conid'>C</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span><span class='hs-conop'>:</span><span class='hs-layout'>(</span><span class='hs-conid'>L</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>|</span> <span class='hs-varid'>not</span> <span class='hs-layout'>(</span><span class='hs-varid'>isNull</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span><span class='hs-layout'>}</span>
 </pre>
@@ -231,12 +231,12 @@ Multiple Measures
 LiquidHaskell *conjoins* data constructor types:
 
  <br>
-<pre><span class=hs-linenum>232: </span><span class='hs-keyword'>data</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyword'>where</span> 
-<span class=hs-linenum>233: </span>  <span class='hs-conid'>N</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span><span class='hs-conop'>:</span><span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>|</span>  <span class='hs-layout'>(</span><span class='hs-varid'>llen</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-num'>0</span> 
+<pre><span class=hs-linenum>232: </span><span class='hs-keyword'>data</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyword'>where</span>
+<span class=hs-linenum>233: </span>  <span class='hs-conid'>N</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span><span class='hs-conop'>:</span><span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>|</span>  <span class='hs-layout'>(</span><span class='hs-varid'>llen</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-num'>0</span>
 <span class=hs-linenum>234: </span>              <span class='hs-varop'>&amp;&amp;</span> <span class='hs-layout'>(</span><span class='hs-varid'>isNull</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-layout'>}</span>
-<span class=hs-linenum>235: </span>  <span class='hs-conid'>C</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span> 
-<span class=hs-linenum>236: </span>    <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>xs</span><span class='hs-conop'>:</span><span class='hs-conid'>L</span> <span class='hs-varid'>a</span> 
-<span class=hs-linenum>237: </span>    <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span><span class='hs-conop'>:</span><span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>|</span>  <span class='hs-layout'>(</span><span class='hs-varid'>llen</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-num'>1</span> <span class='hs-varop'>+</span> <span class='hs-layout'>(</span><span class='hs-varid'>llen</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span> 
+<span class=hs-linenum>235: </span>  <span class='hs-conid'>C</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span>
+<span class=hs-linenum>236: </span>    <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>xs</span><span class='hs-conop'>:</span><span class='hs-conid'>L</span> <span class='hs-varid'>a</span>
+<span class=hs-linenum>237: </span>    <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span><span class='hs-conop'>:</span><span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>|</span>  <span class='hs-layout'>(</span><span class='hs-varid'>llen</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-num'>1</span> <span class='hs-varop'>+</span> <span class='hs-layout'>(</span><span class='hs-varid'>llen</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span>
 <span class=hs-linenum>238: </span>              <span class='hs-varop'>&amp;&amp;</span> <span class='hs-varid'>not</span> <span class='hs-layout'>(</span><span class='hs-varid'>isNull</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span>          <span class='hs-layout'>}</span>
 </pre>
 
@@ -266,7 +266,7 @@ Can *directly pack* properties inside data constructors
 
 
 <pre><span class=hs-linenum>266: </span><span class='hs-keyword'>{-@</span> <span class='hs-keyword'>data</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>N</span>
-<span class=hs-linenum>267: </span>             <span class='hs-keyglyph'>|</span> <span class='hs-conid'>C</span> <span class='hs-layout'>(</span><span class='hs-varid'>x</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> 
+<span class=hs-linenum>267: </span>             <span class='hs-keyglyph'>|</span> <span class='hs-conid'>C</span> <span class='hs-layout'>(</span><span class='hs-varid'>x</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span>
 <span class=hs-linenum>268: </span>                 <span class='hs-layout'>(</span><span class='hs-varid'>xs</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>L</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span><span class='hs-conop'>:</span><span class='hs-varid'>a</span> <span class='hs-keyglyph'>|</span> <span class='hs-varid'>x</span> <span class='hs-varop'>&lt;=</span> <span class='hs-varid'>v</span><span class='hs-layout'>}</span><span class='hs-layout'>)</span>  <span class='hs-keyword'>@-}</span>
 </pre>
 
@@ -276,7 +276,7 @@ Can *directly pack* properties inside data constructors
 
 <br>
 
-Specifies *increasing* Lists 
+Specifies *increasing* Lists
 </div>
 
 Refined Data Constructors
@@ -298,12 +298,12 @@ Refined Data Constructors
 Refined Data Constructors
 -------------------------
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellInsertSort.hs" target= "_blank">Demo: Insertion Sort</a> (hover for inferred types) 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellInsertSort.hs" target= "_blank">Demo: Insertion Sort</a> (hover for inferred types)
 
 
 <pre><span class=hs-linenum>302: </span><a class=annot href="#"><span class=annottext>forall a. (Ord a) =&gt; [a] -&gt; (L a)</span><span class='hs-definition'>insertSort</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>(a -&gt; (L a) -&gt; (L a)) -&gt; (L a) -&gt; [a] -&gt; (L a)</span><span class='hs-varid'>foldr</span></a> <a class=annot href="#"><span class=annottext>a -&gt; (L a) -&gt; (L a)</span><span class='hs-varid'>insert</span></a> <a class=annot href="#"><span class=annottext>{x3 : (L {VV : a | false}) | (((isNull x3)) &lt;=&gt; true) &amp;&amp; ((llen x3) == 0)}</span><span class='hs-conid'>N</span></a>
 <span class=hs-linenum>303: </span>
-<span class=hs-linenum>304: </span><a class=annot href="#"><span class=annottext>forall a. (Ord a) =&gt; a -&gt; (L a) -&gt; (L a)</span><span class='hs-definition'>insert</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>y</span></a> <span class='hs-layout'>(</span><span class='hs-varid'>x</span> <span class='hs-varop'>`C`</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span> 
+<span class=hs-linenum>304: </span><a class=annot href="#"><span class=annottext>forall a. (Ord a) =&gt; a -&gt; (L a) -&gt; (L a)</span><span class='hs-definition'>insert</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>y</span></a> <span class='hs-layout'>(</span><span class='hs-varid'>x</span> <span class='hs-varop'>`C`</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span>
 <span class=hs-linenum>305: </span>  <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == y)}</span><span class='hs-varid'>y</span></a> <a class=annot href="#"><span class=annottext>x1:a -&gt; x2:a -&gt; {x2 : (Bool) | (((Prop x2)) &lt;=&gt; (x1 &lt;= x2))}</span><span class='hs-varop'>&lt;=</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a>    <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == y)}</span><span class='hs-varid'>y</span></a> <a class=annot href="#"><span class=annottext>x1:{VV : a | (VV &gt;= y)}
 -&gt; x2:(L {VV : a | (VV &gt;= y) &amp;&amp; (x1 &lt;= VV)})
 -&gt; {x3 : (L {VV : a | (VV &gt;= y)}) | (((isNull x3)) &lt;=&gt; false) &amp;&amp; ((llen x3) == (1 + (llen x2)))}</span><span class='hs-varop'>`C`</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>x1:{VV : a | (VV &gt;= x) &amp;&amp; (VV &gt;= y)}
@@ -314,7 +314,7 @@ Refined Data Constructors
 -&gt; {x3 : (L {VV : a | (VV &gt;= x)}) | (((isNull x3)) &lt;=&gt; false) &amp;&amp; ((llen x3) == (1 + (llen x2)))}</span><span class='hs-varop'>`C`</span></a> <a class=annot href="#"><span class=annottext>forall a. (Ord a) =&gt; a -&gt; (L a) -&gt; (L a)</span><span class='hs-varid'>insert</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == y)}</span><span class='hs-varid'>y</span></a> <a class=annot href="#"><span class=annottext>{x2 : (L {VV : a | (x &lt;= VV)}) | (x2 == xs)}</span><span class='hs-varid'>xs</span></a>
 <span class=hs-linenum>307: </span><span class='hs-definition'>insert</span> <span class='hs-varid'>y</span> <span class='hs-conid'>N</span>    <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == y)}</span><span class='hs-varid'>y</span></a> <a class=annot href="#"><span class=annottext>x1:{VV : a | (VV == y)}
 -&gt; x2:(L {VV : a | (VV == y) &amp;&amp; (x1 &lt;= VV)})
--&gt; {x3 : (L {VV : a | (VV == y)}) | (((isNull x3)) &lt;=&gt; false) &amp;&amp; ((llen x3) == (1 + (llen x2)))}</span><span class='hs-varop'>`C`</span></a> <a class=annot href="#"><span class=annottext>{x3 : (L {VV : a | false}) | (((isNull x3)) &lt;=&gt; true) &amp;&amp; ((llen x3) == 0)}</span><span class='hs-conid'>N</span></a>    
+-&gt; {x3 : (L {VV : a | (VV == y)}) | (((isNull x3)) &lt;=&gt; false) &amp;&amp; ((llen x3) == (1 + (llen x2)))}</span><span class='hs-varop'>`C`</span></a> <a class=annot href="#"><span class=annottext>{x3 : (L {VV : a | false}) | (((isNull x3)) &lt;=&gt; true) &amp;&amp; ((llen x3) == 0)}</span><span class='hs-conid'>N</span></a>
 </pre>
 
 <br>
@@ -328,4 +328,3 @@ Recap
 2. **Subtyping:** SMT Implication
 3. <div class="fragment">**Measures:** Strengthened Constructors</div>
     - <div class="fragment">*Decouple* structure & property, enable *reuse*</div>
-

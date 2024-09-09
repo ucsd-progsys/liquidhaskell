@@ -30,7 +30,7 @@ Simple Refinement Types
 =======================
 
 
-Types + Predicates 
+Types + Predicates
 ------------------
 
 
@@ -68,7 +68,7 @@ Refinement types via special comments `{-@ ... @-}`
 <br>
 
 <div class="fragment">
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo</a> 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo</a>
 Lets take a look.
 </div>
 
@@ -94,7 +94,7 @@ Subtyping is Implication
 <br>
 
 --------  ---  ---------------------------------------------
-  **If**   :   Refinement of `S` *implies* refinement of `T` 
+  **If**   :   Refinement of `S` *implies* refinement of `T`
 
 **Then**   :   `S` is a *subtype* of `T`
 --------  ---  ---------------------------------------------
@@ -110,7 +110,7 @@ Subtyping is Implication
 
 --------   ---     ----------------------------
   **If**    :      `p => q`
-                
+
 **Then**    :      `{v : t | p} <: {v : t | q}`
 --------   ---     ----------------------------
 
@@ -122,7 +122,7 @@ Subtyping is Implication
 
 --------    ---  ---------------------------------------------------
   **As**     :   `v=0` *implies* `0<=v` ... via SMT
-                 
+
   **So**     :   `{v:Int | v=0} <: {v:Int | 0<=v}`
 --------    ---  ---------------------------------------------------
 
@@ -130,7 +130,7 @@ Subtyping is Implication
 Example: Natural Numbers
 ------------------------
 
-\begin{code} . 
+\begin{code} .
 type Nat = {v : Int | 0 <= v}
 \end{code}
 
@@ -183,8 +183,8 @@ nats     =  0 `C` 1 `C` 3 `C` N
 
 <div class="fragment">
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
-What if `nats` contained `-2`? 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a>
+What if `nats` contained `-2`?
 
 </div>
 
@@ -204,13 +204,13 @@ Example: Even/Odd Lists
 evens     =  0 `C` 2 `C` 4 `C` N
 
 {-@ odds  :: L Odd  @-}
-odds      =  1 `C` 3 `C` 5 `C` N 
+odds      =  1 `C` 3 `C` 5 `C` N
 \end{code}
 </div>
 
 <div class="fragment">
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
-What if `evens` contained `1`? 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a>
+What if `evens` contained `1`?
 </div>
 
  {#functiontypes}
@@ -259,7 +259,7 @@ safeDiv x y = x `div` y
 
 <div class="fragment">
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a>
 What if precondition does not hold?
 
 </div>
@@ -276,8 +276,8 @@ Example: `abs`
 
 \begin{code}
 {-@ abs       :: x:Int -> Nat @-}
-abs x 
-  | 0 <= x    = x 
+abs x
+  | 0 <= x    = x
   | otherwise = 0 - x
 \end{code}
 
@@ -325,7 +325,7 @@ Example: `range`
 range i j         = go i
   where
     go n
-      | n < j     = n `C` go (n + 1)  
+      | n < j     = n `C` go (n + 1)
       | otherwise = N
 \end{code}
 
@@ -339,7 +339,7 @@ range i j         = go i
 Example: Indexing Into List
 ---------------------------
 
-\begin{code} 
+\begin{code}
 (!)          :: L a -> Int -> a
 (C x _)  ! 0 = x
 (C _ xs) ! i = xs ! (i - 1)
@@ -356,5 +356,3 @@ _        ! _ = liquidError "Oops!"
 - <div class="fragment">**A:** Precondition: `i` between `0` and list **length**.
 
 <div class="fragment">Need way to [measure](#measures) *length of a list* ...</div>
-
-

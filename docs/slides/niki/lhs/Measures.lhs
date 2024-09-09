@@ -31,7 +31,7 @@ We define a **measure** for the length of a `List` <br>
 <br>
 
 \begin{code} LiquidHaskell then **automatically strengthens** the types of data constructors
-data L a where 
+data L a where
   N :: {v : L a | (llen v) = 0}
   C :: x:a -> xs:(L a) -> {v:(L a) |(llen v) = 1 + (llen xs)}
 \end{code}
@@ -68,7 +68,7 @@ _       !! _ = liquidError "This should not happen!"
 
 <br>
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellMeasure.hs" target= "_blank">Demo:</a> 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellMeasure.hs" target= "_blank">Demo:</a>
 Lets see what happens if we **change** the precondition
 
 
@@ -87,7 +87,7 @@ We define a new **measure** to check nullity of a `List` <br>
 <br>
 
 \begin{code} LiquidHaskell then **automatically strengthens** the types of data constructors
-data L a where 
+data L a where
   N :: {v : L a | isNull v}
   C :: x:a -> xs:(L a) -> {v:(L a) | not (isNull v)}
 \end{code}
@@ -101,14 +101,14 @@ The types of data constructors will be the **conjunction** of all the inferred t
 
 
 \begin{code} The types from `llen` definition
-data L a where 
+data L a where
   N :: {v : L a | (llen v) = 0}
   C :: a -> xs: L a -> {v:L a |(llen v) = 1 + (llen xs)}
 \end{code}
 
 <br>
 \begin{code} and the types from `isNull`
-data L a where 
+data L a where
   N :: {v : L a | isNull v}
   C :: a -> xs: L a -> {v:L a | not (isNull v)}
 \end{code}
@@ -116,7 +116,7 @@ data L a where
 
 <br>
 \begin{code} So, the final types will be
-data L a where 
+data L a where
   N :: {v : L a | (llen v) = 0 && (isNull v)}
   C :: a -> xs: L a -> {v:L a |(llen v) = 1 + (llen xs) && not (isNull v)}
 \end{code}
@@ -157,8 +157,8 @@ This invariant constrains all Lists to **increasing**
 \end{code}
 
 <br>
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellInsertSort.hs"
-target= "_blank">Insert sort</a> 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=HaskellInsertSort.hs"
+target= "_blank">Insert sort</a>
 \begin{code}
 {-@ insert :: Ord a => a -> L a -> L a @-}
 insert :: Ord a => a -> L a -> L a

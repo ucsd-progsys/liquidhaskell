@@ -47,8 +47,8 @@ Example: Higher Order Loop
 \begin{code}
 loop :: Int -> Int -> α -> (Int -> α -> α) -> α
 loop lo hi base f = go lo base
-  where 
-    go i acc 
+  where
+    go i acc
       | i < hi    = go (i+1) (f i acc)
       | otherwise = acc
 \end{code}
@@ -62,8 +62,8 @@ Example: Summing Lists
 ----------------------
 
 \begin{code}
-listSum xs  = loop 0 n 0 body 
-  where 
+listSum xs  = loop 0 n 0 body
+  where
     body    = \i acc -> acc + (xs !! i)
     n       = length xs
 \end{code}
@@ -75,7 +75,7 @@ listSum xs  = loop 0 n 0 body
 
 
 <div class="fragment">
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=Loop.hs" target= "_blank">Demo:</a> Tweak `loop` exit condition? 
+<a href="https://liquidhaskell.goto.ucsd.edu/index.html#?demo=Loop.hs" target= "_blank">Demo:</a> Tweak `loop` exit condition?
 </div>
 
 Example: Summing `Nat`s
@@ -85,8 +85,8 @@ Example: Summing `Nat`s
 
 \begin{code}
 {-@ listNatSum :: [Nat] -> Nat @-}
-listNatSum xs  = loop 0 n 0 body 
-  where 
+listNatSum xs  = loop 0 n 0 body
+  where
     body       = \i acc -> acc + (xs !! i)
     n          = length xs
 \end{code}
@@ -105,10 +105,10 @@ listNatSum xs  = loop 0 n 0 body
 Example: Summing `Nat`s
 -----------------------
 
-\begin{code} <br> 
+\begin{code} <br>
 {-@ listNatSum :: [Nat] -> Nat @-}
-listNatSum xs  = loop 0 n 0 body 
-  where 
+listNatSum xs  = loop 0 n 0 body
+  where
     body       = \i acc -> acc + (xs !! i)
     n          = length xs
 \end{code}
@@ -122,10 +122,10 @@ Hence, verified by *instantiating* `α` of `loop` with `Nat`
 Example: Summing `Nat`s
 -----------------------
 
-\begin{code} <br> 
+\begin{code} <br>
 {-@ listNatSum :: [Nat] -> Nat @-}
-listNatSum xs  = loop 0 n 0 body 
-  where 
+listNatSum xs  = loop 0 n 0 body
+  where
     body       = \i acc -> acc + (xs !! i)
     n          = length xs
 \end{code}
@@ -140,7 +140,7 @@ listNatSum xs  = loop 0 n 0 body
 Instantiation And Inference
 ---------------------------
 
-+ <div class="fragment">Polymorphic instantiation happens *everywhere*</div> 
++ <div class="fragment">Polymorphic instantiation happens *everywhere*</div>
 
 + <div class="fragment">Automatic inference is crucial</div>
 
@@ -170,4 +170,3 @@ add n m = loop 0 m n (\_ i -> i + 1)
 - <div class="fragment">... cannot instantiate `α` with `{v:Int | v = n + m}`</div>
 
 <div class="fragment">**Problem:** Need *iteration-dependent* invariants...</div>
-
