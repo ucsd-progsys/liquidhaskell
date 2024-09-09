@@ -34,9 +34,11 @@ coreToLogic = unlines
   , "define Language.Haskell.Liquid.Bag.put k b   = (Bag_union b (Bag_sng k 1))"
   , "define Language.Haskell.Liquid.Bag.union b n = (Bag_union b n)"
   , "define Language.Haskell.Liquid.Bag.empty     = (Bag_empty 0)"
+{-
   , ""
   , "define Data.Map.Base.insert k v m = (Map_store m k v)"
   , "define Data.Map.Base.lookup k m   = (Map_select m k)"
+-}
   , ""
   , "define Language.Haskell.Liquid.String.stringEmp = (stringEmp)"
   , "define Data.RString.RString.stringEmp = (stringEmp)"
