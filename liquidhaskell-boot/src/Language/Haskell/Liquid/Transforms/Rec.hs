@@ -4,9 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables       #-}
 
 module Language.Haskell.Liquid.Transforms.Rec (
-     transformRecExpr, transformScope
-     , outerScTr , innerScTr
-     , isIdTRecBound, setIdTRecBound
+     transformRecExpr, isIdTRecBound, setIdTRecBound
      ) where
 
 import           Control.Arrow                        (second)
@@ -80,33 +78,6 @@ inlineFailCases = (go [] <$>)
     addFailExpr x (Lam _ e) su = (x, e):su
     addFailExpr _ _         _  = impossible Nothing "internal error" -- this cannot happen
 
--- isTypeError :: SDoc -> Bool
--- isTypeError s | isInfixOf "Non term variable" (showSDoc s) = False
--- isTypeError _ = True
-
--- No need for this transformation after ghc-8!!!
-transformScope :: [Bind Id] -> [Bind Id]
-transformScope = outerScTr . innerScTr
-
-outerScTr :: [Bind Id] -> [Bind Id]
-outerScTr = mapNonRec (go [])
-  where
-   go ack x (xe : xes) | isCaseArg x xe = go (xe:ack) x xes
-   go ack _ xes        = ack ++ xes
-
-isCaseArg :: Id -> Bind t -> Bool
-isCaseArg x (NonRec _ (Case (Var z) _ _ _)) = z == x
-isCaseArg _ _                               = False
-
-innerScTr :: Functor f => f (Bind Id) -> f (Bind Id)
-innerScTr = (mapBnd scTrans <$>)
-
-scTrans :: Id -> Expr Id -> Expr Id
-scTrans id' expr = mapExpr scTrans $ foldr Let e0 bindIds
-  where (bindIds, e0)           = go [] id' expr
-        go bs x (Let b e)  | isCaseArg x b = go (b:bs) x e
-        go bs x (Tick t e) = second (Tick t) $ go bs x e
-        go bs _ e          = (bs, e)
 
 type TE = State TrEnv
 
@@ -255,38 +226,7 @@ freshWord64
 freshUnique :: MonadState TrEnv m => m Unique
 freshUnique = fmap (mkUnique 'X') freshWord64
 
-
-mapNonRec :: (b -> [Bind b] -> [Bind b]) -> [Bind b] -> [Bind b]
-mapNonRec f (NonRec x xe:xes) = NonRec x xe : f x (mapNonRec f xes)
-mapNonRec f (xe:xes)          = xe : mapNonRec f xes
-mapNonRec _ []                = []
-
-mapBnd :: (b -> Expr b -> Expr b) -> Bind b -> Bind b
-mapBnd f (NonRec b e)             = NonRec b (mapExpr f  e)
-mapBnd f (Rec bs)                 = Rec (map (second (mapExpr f)) bs)
-
-mapExpr :: (b -> Expr b -> Expr b) -> Expr b -> Expr b
-mapExpr f (Let (NonRec x ex) e)   = Let (NonRec x (f x ex) ) (f x e)
-mapExpr f (App e1 e2)             = App  (mapExpr f e1) (mapExpr f e2)
-mapExpr f (Lam b e)               = Lam b (mapExpr f e)
-mapExpr f (Let bs e)              = Let (mapBnd f bs) (mapExpr f e)
-mapExpr f (Case e b t alt)        = Case e b t (map (mapAlt f) alt)
-mapExpr f (Tick t e)              = Tick t (mapExpr f e)
-mapExpr _  e                      = e
-
-mapAlt :: (b -> Expr b -> Expr b) -> Alt b -> Alt b
-mapAlt f (Alt d bs e) = Alt d bs (mapExpr f e)
-
 -- Do not apply transformations to inner code
 
 mapBdM :: Monad m => t -> a -> m a
 mapBdM _ = return
-
--- mapBdM f (Let b e)        = liftM2 Let (f b) (mapBdM f e)
--- mapBdM f (App e1 e2)      = liftM2 App (mapBdM f e1) (mapBdM f e2)
--- mapBdM f (Lam b e)        = liftM (Lam b) (mapBdM f e)
--- mapBdM f (Case e b t alt) = liftM (Case e b t) (mapM (mapBdAltM f) alt)
--- mapBdM f (Tick t e)       = liftM (Tick t) (mapBdM f e)
--- mapBdM _  e               = return  e
---
--- mapBdAltM f (d, bs, e) = liftM ((,,) d bs) (mapBdM f e)
