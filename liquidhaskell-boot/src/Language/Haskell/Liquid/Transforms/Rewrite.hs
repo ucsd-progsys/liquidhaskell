@@ -213,7 +213,9 @@ rewriteWith tx           = go
     "crazy-pat"
  -}
 
-{- [NOTE] The following is the structure of a @PatMatchTup@
+{-
+  Note [simplifyPatTuple breaks types]
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
       let x :: (t1,...,tn) = E[(x1,...,xn)]
           yn = case x of (..., yn) -> yn
@@ -245,10 +247,13 @@ rewriteWith tx           = go
 
   is rewritten to:
 
+     case e of
               h1::t1    -> case t1 of
                             (h2::t2) ->  h1 + h2
                             DEFAULT  ->  error @ (Int, Int)
               DEFAULT   -> error @ (Int, Int)
+
+   which can also be read as
 
      case e of
        h1 :: h2 :: _ -> h1 + h2
@@ -258,52 +263,32 @@ rewriteWith tx           = go
 
 -}
 
---------------------------------------------------------------------------------
-
--- simplifyPatTuple :: RewriteRule
--- simplifyPatTuple e =
---  case simplifyPatTuple' e of
---    Just e' -> if Ghc.exprType e == Ghc.exprType e'
---                 then Just e'
---                 else Just (tracePpr ("YIKES: RWR " ++ showPpr e) e')
---    Nothing -> Nothing
-
-
-_safeSimplifyPatTuple :: RewriteRule
-_safeSimplifyPatTuple e
-  | Just e' <- simplifyPatTuple e
-  , Ghc.exprType e' == Ghc.exprType e
-  = Just e'
-  | otherwise
-  = Nothing
-
---------------------------------------------------------------------------------
+-- | Transforms
+--
+-- > let ds :: (t1,...,tn) =
+-- >       case e0 of
+-- >         pat -> (x1,...,xn)
+-- >     y1 = proj1 ds
+-- >     ...
+-- >     yn = projn ds
+-- >  in e1
+--
+--  to
+--
+-- > case e0 of
+-- >   pat -> e1[y1 := x1,..., yn := xn] ]
+--
+-- Note that the transformation changes the meaning of the expression if
+-- evaluation order matters. But it changes it in a way that LH cannot
+-- distinguish.
+--
+-- The purpose of the transformation is to unpack all of the variables in
+-- @pat@ at once in a single scope when verifying @e1@, which allows to
+-- see the dependencies between the fields of @pat@.
+--
+-- Also see Note [simplifyPatTuple breaks types].
+--
 simplifyPatTuple :: RewriteRule
---------------------------------------------------------------------------------
-
-_tidyAlt :: Int -> Maybe CoreExpr -> Maybe CoreExpr
-
-_tidyAlt n (Just (Let (NonRec cb expr) rest))
-  | Just (yes, e') <- takeBinds n rest
-  = Just $ Let (NonRec cb expr) $ foldl (\e (x, ex) -> Let (NonRec x ex) e) e' (reverse $ go $ reverse yes)
-
-  where
-    go xes@((_, e):_) = let bs = grapBinds e in mapSnd (replaceBinds bs) <$> xes
-    go [] = []
-    replaceBinds bs (Case c x t alt) = Case c x t (replaceBindsAlt bs <$> alt)
-    replaceBinds bs (Tick t e)       = Tick t (replaceBinds bs e)
-    replaceBinds _ e                 = e
-    replaceBindsAlt bs (Alt c _ e)     = Alt c bs e
-
-    grapBinds (Case _ _ _ alt) = grapBinds' alt
-    grapBinds (Tick _ e) = grapBinds e
-    grapBinds _ = []
-    grapBinds' [] = []
-    grapBinds' (Alt _ bs _ : _) = bs
-
-_tidyAlt _ e
-  = e
-
 simplifyPatTuple (Let (NonRec x e) rest)
   | Just (n, ts  ) <- varTuple x
   , 2 <= n
@@ -324,6 +309,8 @@ varTuple x
   | otherwise
   = Nothing
 
+-- | Takes n binds from an expression that starts with n non-recursive lets.
+-- If there are less than n non-recursive lets, yields @Nothing@.
 takeBinds  :: Nat -> CoreExpr -> Maybe ([(Var, CoreExpr)], CoreExpr)
 takeBinds nat ce
   | nat < 2     = Nothing
@@ -334,6 +321,8 @@ takeBinds nat ce
                                        Just ((x,e) : xes, e'')
       go _ _                      = Nothing
 
+-- | Checks that the given bindings have the given types.
+-- Also checks that the bindings are projections of some data constructor.
 matchTypes :: [(Var, CoreExpr)] -> [Type] -> Bool
 matchTypes xes ts =  xN == tN
                   && all (uncurry eqType) (safeZipWithError msg xts ts)
