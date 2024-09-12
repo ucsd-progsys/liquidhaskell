@@ -263,31 +263,38 @@ rewriteWith tx           = go
 -- Also see Note [simplifyPatTuple breaks types].
 --
 simplifyPatTuple :: RewriteRule
-simplifyPatTuple (Let (NonRec x (Case e0 v _ [Alt c@(DataAlt _) bs e])) rest)
-  | Just bs' <- isTuple e
+simplifyPatTuple (Let (NonRec x e@(Case _ _ _ [Alt (DataAlt _) _ _])) rest)
+  | Just (bs, bs') <- onlyHasATupleInNestedCases e
   , null (bs' L.\\ bs) -- All variables are from the pattern and occur only once
-  , let n = length bs
+  , let n = length bs'
   , n > 1
   =
     let (nrbinds, e') = takeBinds n rest
         fields = [ (isProjectionOf x ce, b) | b@(_, ce) <- nrbinds ]
         (projs, otherBinds) = L.partition (isJust . fst) fields
-        subst = [ (bs' !! i, v) | (Just i, (v, _)) <- projs ]
-        bs'' = [ fromMaybe b (lookup b subst) | b <- bs ]
+        ss = [ (bs' !! i, v) | (Just i, (v, _)) <- projs ]
         e'' = foldr (\(_, (v, ce)) -> Let (NonRec v ce)) e' otherBinds
      in Just $ Let (NonRec x e) $
-        Case e0 v (Ghc.exprType e') [Alt c bs'' e'']
+        replaceTupleInNestedCases (Ghc.exprType e') ss e'' e
 
 simplifyPatTuple _
   = Nothing
 
-varTuple :: Var -> Maybe (Int, [Type])
-varTuple x
-  | TyConApp c ts <- Ghc.varType x
-  , isTupleTyCon c
-  = Just (length ts, ts)
-  | otherwise
-  = Nothing
+-- | Replaces an expression at the end of a sequence of nested cases with a
+-- single alternative.
+replaceTupleInNestedCases
+  :: Type
+  -> [(Var, Var)]
+  -> CoreExpr -- ^ The expression to place at the end of the nested cases
+  -> CoreExpr -- ^ The expression with the nested cases
+  -> CoreExpr
+replaceTupleInNestedCases t ss ef = go
+  where
+    go (Case e0 v _ [Alt c bs e1]) =
+      let bs' = [ fromMaybe b (lookup b ss) | b <- bs ]
+       in Case e0 v t [Alt c bs' (go e1)]
+    go _ = ef
+
 
 -- | Takes at most n binds from an expression that starts with n non-recursive
 -- lets.
@@ -312,6 +319,21 @@ isProjectionOf _ _ = Nothing
 --------------------------------------------------------------------------------
 substTuple :: [Var] -> [Var] -> CoreExpr -> CoreExpr
 substTuple xs ys = substExpr (M.fromList $ zip ys xs)
+
+-- | Yields the tuple of variables at the end of nested cases with
+-- a single alternative each.
+--
+-- > case e0 of
+-- >   pat0 -> case e1 of
+-- >     pat1 -> (x1,...,xn)
+--
+-- Yields both the bound variables of the patterns, and the
+-- variables @x1,...,xn@
+onlyHasATupleInNestedCases :: CoreExpr -> Maybe ([Var], [Var])
+onlyHasATupleInNestedCases = go []
+  where
+    go bss (Case _ _ _ [Alt (DataAlt _) bs e]) = go (bs:bss) e
+    go bss e = (concat bss,) <$> isTuple e
 
 isTuple :: CoreExpr -> Maybe [Var]
 isTuple e
