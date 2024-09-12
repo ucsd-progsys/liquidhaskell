@@ -26,15 +26,12 @@ module Language.Haskell.Liquid.Transforms.Rewrite
 
 import           Liquid.GHC.API as Ghc hiding (showPpr, substExpr)
 import           Language.Haskell.Liquid.GHC.TypeRep ()
-import           Data.Maybe     (fromMaybe)
-import           Control.Monad (msum)
+import           Data.Maybe     (fromMaybe, isJust)
 import           Control.Monad.State hiding (lift)
 import           Language.Fixpoint.Misc       ({- mapFst, -}  mapSnd)
-import qualified          Language.Fixpoint.Types as F
-import           Language.Haskell.Liquid.Misc (safeZipWithError, Nat)
+import           Language.Haskell.Liquid.Misc (Nat)
 import           Language.Haskell.Liquid.GHC.Play (substExpr)
-import           Language.Haskell.Liquid.GHC.Resugar
-import           Language.Haskell.Liquid.GHC.Misc (unTickExpr, isTupleId, showPpr, mkAlive) -- , showPpr, tracePpr)
+import           Language.Haskell.Liquid.GHC.Misc (unTickExpr, isTupleId, mkAlive)
 import           Language.Haskell.Liquid.UX.Config  (Config, noSimplifyCore)
 import qualified Data.List as L
 import qualified Data.HashMap.Strict as M
@@ -266,14 +263,20 @@ rewriteWith tx           = go
 -- Also see Note [simplifyPatTuple breaks types].
 --
 simplifyPatTuple :: RewriteRule
-simplifyPatTuple (Let (NonRec x e) rest)
-  | Just (n, ts  ) <- varTuple x
-  , 2 <= n
-  , Just (yes, e') <- takeBinds n rest
-  , let ys          = fst <$> yes
-  , Just _         <- hasTuple ys e
-  , matchTypes yes ts
-  = replaceTuple ys e e'
+simplifyPatTuple (Let (NonRec x (Case e0 v _ [Alt c@(DataAlt _) bs e])) rest)
+  | Just bs' <- isTuple e
+  , null (bs' L.\\ bs) -- All variables are from the pattern and occur only once
+  , let n = length bs
+  , n > 1
+  =
+    let (nrbinds, e') = takeBinds n rest
+        fields = [ (isProjectionOf x ce, b) | b@(_, ce) <- nrbinds ]
+        (projs, otherBinds) = L.partition (isJust . fst) fields
+        subst = [ (bs' !! i, v) | (Just i, (v, _)) <- projs ]
+        bs'' = [ fromMaybe b (lookup b subst) | b <- bs ]
+        e'' = foldr (\(_, (v, ce)) -> Let (NonRec v ce)) e' otherBinds
+     in Just $ Let (NonRec x e) $
+        Case e0 v (Ghc.exprType e') [Alt c bs'' e'']
 
 simplifyPatTuple _
   = Nothing
@@ -286,154 +289,29 @@ varTuple x
   | otherwise
   = Nothing
 
--- | Takes n binds from an expression that starts with n non-recursive lets.
--- If there are less than n non-recursive lets, yields @Nothing@.
-takeBinds  :: Nat -> CoreExpr -> Maybe ([(Var, CoreExpr)], CoreExpr)
-takeBinds nat ce
-  | nat < 2     = Nothing
-  | otherwise = {- mapFst reverse <$> -} go nat ce
+-- | Takes at most n binds from an expression that starts with n non-recursive
+-- lets.
+takeBinds  :: Nat -> CoreExpr -> ([(Var, CoreExpr)], CoreExpr)
+takeBinds nat ce = go nat ce
     where
-      go 0 e                      = Just ([], e)
-      go n (Let (NonRec x e) e')  = do (xes, e'') <- go (n-1) e'
-                                       Just ((x,e) : xes, e'')
-      go _ _                      = Nothing
+      go 0 e = ([], e)
+      go n (Let (NonRec x e) e') =
+        let (xes, e'') = go (n-1) e'
+         in ((x,e) : xes, e'')
+      go _ e = ([], e)
 
--- | Checks that the given bindings have the given types.
--- Also checks that the bindings are projections of some data constructor.
-matchTypes :: [(Var, CoreExpr)] -> [Type] -> Bool
-matchTypes xes ts =  xN == tN
-                  && all (uncurry eqType) (safeZipWithError msg xts ts)
-                  && all isProjection es
-  where
-    xN            = length xes
-    tN            = length ts
-    xts           = Ghc.varType <$> xs
-    (xs, es)      = unzip xes
-    msg           = "RW:matchTypes"
-
-isProjection :: CoreExpr -> Bool
-isProjection e = case lift e of
-                   Just PatProject{} -> True
-                   _                 -> False
-
---------------------------------------------------------------------------------
--- | `hasTuple ys e` CHECKS if `e` contains a tuple that "looks like" (y1...yn)
---------------------------------------------------------------------------------
-hasTuple :: [Var] -> CoreExpr -> Maybe [Var]
---------------------------------------------------------------------------------
-hasTuple ys = stepE
-  where
-    stepE e
-     | Just xs <- isVarTup ys e = Just xs
-     | otherwise                = go e
-    stepA (Alt DEFAULT _ _)     = Nothing
-    stepA (Alt _ _ e)           = stepE e
-    go (Let _ e)                = stepE e
-    go (Case _ _ _ cs)          = msum (stepA <$> cs)
-    go _                        = Nothing
-
---------------------------------------------------------------------------------
--- | `replaceTuple ys e e'` REPLACES tuples that "looks like" (y1...yn) with e'
---------------------------------------------------------------------------------
-
-replaceTuple :: [Var] -> CoreExpr -> CoreExpr -> Maybe CoreExpr
-replaceTuple ys ce ce'           = stepE ce
-  where
-    t'                          = Ghc.exprType ce'
-    stepE e
-     | Just xs <- isVarTup ys e = Just $ substTuple xs ys ce'
-     | otherwise                = go e
-    stepA (Alt DEFAULT xs err)  = Just (Alt DEFAULT xs (replaceIrrefutPat t' err))
-    stepA (Alt c xs e)          = Alt c xs   <$> stepE e
-    go (Let b e)                = Let b      <$> stepE e
-    go (Case e x t cs)          = fixCase e x t <$> mapM stepA cs
-    go _                        = Nothing
-
-_showExpr :: CoreExpr -> String
-_showExpr = show'
-  where
-    show' (App e1 e2) = show' e1 ++ " " ++ show' e2
-    show' (Var x)     = _showVar x
-    show' (Let (NonRec x ex) e) = "Let " ++ _showVar x ++ " = " ++ show' ex ++ "\nIN " ++ show' e
-    show' (Tick _ e) = show' e
-    show' (Case e x _ alt) = "Case " ++ _showVar x ++ " = " ++ show' e ++ " OF " ++ unlines (showAlt' <$> alt)
-    show' e           = showPpr e
-
-    showAlt' (Alt c bs e) = showPpr c ++ unwords (_showVar <$> bs) ++ " -> " ++ show' e
-
-_showVar :: Var -> String
-_showVar = show . F.symbol
-
-_errorSkip :: String -> a -> b
-_errorSkip x _ = error x
-
--- replaceTuple :: [Var] -> CoreExpr -> CoreExpr -> Maybe CoreExpr
--- replaceTuple ys e e' = tracePpr msg (_replaceTuple ys e e')
---  where
---    msg = "replaceTuple: ys = " ++ showPpr ys ++
---                        " e = " ++ showPpr e  ++
---                        " e' =" ++ showPpr e'
-
--- | The substitution (`substTuple`) can change the type of the overall
---   case-expression, so we must update the type of each `Case` with its
---   new, possibly updated type. See:
---   https://github.com/ucsd-progsys/liquidhaskell/pull/752#issuecomment-228946210
-
-fixCase :: CoreExpr -> Var -> Type -> ListNE (Alt Var) -> CoreExpr
-fixCase e x _t cs' = Case e x t' cs'
-  where
-    t'            = Ghc.exprType body
-    Alt _ _ body  = c
-    c:_           = cs'
-
-{-@  type ListNE a = {v:[a] | len v > 0} @-}
-type ListNE a = [a]
-
-replaceIrrefutPat :: Type -> CoreExpr -> CoreExpr
-replaceIrrefutPat t (App (Lam z e) eVoid)
-  | Just e' <- replaceIrrefutPat' t e
-  = App (Lam z e') eVoid
-
-replaceIrrefutPat t e
-  | Just e' <- replaceIrrefutPat' t e
-  = e'
-
-replaceIrrefutPat _ e
-  = e
-
-replaceIrrefutPat' :: Type -> CoreExpr -> Maybe CoreExpr
-replaceIrrefutPat' t e
-  | (Var x, rep:_:args) <- collectArgs e
-  , isIrrefutErrorVar x
-  = Just (Ghc.mkCoreApps (Var x) (rep : Type t : args))
-  | otherwise
-  = Nothing
-
-isIrrefutErrorVar :: Var -> Bool
--- isIrrefutErrorVar _x = False -- Ghc.iRREFUT_PAT_ERROR_ID == x -- TODO:GHC-863
-isIrrefutErrorVar x = x == Ghc.pAT_ERROR_ID
+-- | Checks that the binding is a projections of some data constructor.
+-- | Yields the index of the field being projected
+isProjectionOf :: Var -> CoreExpr -> Maybe Int
+isProjectionOf v (Case (Var xe) _ _ [Alt (DataAlt _) ys (Var y)])
+  | v == xe      = y `L.elemIndex` ys
+isProjectionOf _ _ = Nothing
 
 --------------------------------------------------------------------------------
 -- | `substTuple xs ys e'` returns e' [y1 := x1,...,yn := xn]
 --------------------------------------------------------------------------------
 substTuple :: [Var] -> [Var] -> CoreExpr -> CoreExpr
 substTuple xs ys = substExpr (M.fromList $ zip ys xs)
-
---------------------------------------------------------------------------------
--- | `isVarTup xs e` returns `Just ys` if e == (y1, ... , yn) and xi ~ yi
---------------------------------------------------------------------------------
-
-isVarTup :: [Var] -> CoreExpr -> Maybe [Var]
-isVarTup xs e
-  | Just ys <- isTuple e
-  , eqVars xs ys        = Just ys
-isVarTup _ _             = Nothing
-
-eqVars :: [Var] -> [Var] -> Bool
-eqVars xs ys = {- F.tracepp ("eqVars: " ++ show xs' ++ show ys') -} xs' == ys'
-  where
-    xs' = {- F.symbol -} show <$> xs
-    ys' = {- F.symbol -} show <$> ys
 
 isTuple :: CoreExpr -> Maybe [Var]
 isTuple e
