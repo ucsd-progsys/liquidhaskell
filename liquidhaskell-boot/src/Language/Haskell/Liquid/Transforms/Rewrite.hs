@@ -174,74 +174,10 @@ rewriteWith tx           = go
 -- | Rewriting Pattern-Match-Tuples --------------------------------------------
 --------------------------------------------------------------------------------
 
-{-
-    let CrazyPat x1 ... xn = e in e'
-
-    let t : (t1,...,tn) = "CrazyPat e ... (y1, ..., yn)"
-        xn = Proj t n
-        ...
-        x1 = Proj t 1
-    in
-        e'
-
-    "crazy-pat"
- -}
-
-{-
-  Note [simplifyPatTuple breaks types]
-  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-      let x :: (t1,...,tn) = E[(x1,...,xn)]
-          yn = case x of (..., yn) -> yn
-          …
-          y1 = case x of (y1, ...) -> y1
-      in
-          E'
-
-  GOAL: simplify the above to:
-
-      E [ (x1,...,xn) := E' [y1 := x1,...,yn := xn] ]
-
-  TODO: several tests (e.g. tests/pos/zipper000.hs) fail because
-  the above changes the "type" the expression `E` and in "other branches"
-  the new type may be different than the old, e.g.
-
-     let (x::y::_) = e in
-     x + y
-
-     let t = case e of
-               h1::t1 -> case t1 of
-                            (h2::t2) ->  (h1, h2)
-                            DEFAULT  ->  error @ (Int, Int)
-               DEFAULT   -> error @ (Int, Int)
-         x = case t of (h1, _) -> h1
-         y = case t of (_, h2) -> h2
-     in
-         x + y
-
-  is rewritten to:
-
-     case e of
-              h1::t1    -> case t1 of
-                            (h2::t2) ->  h1 + h2
-                            DEFAULT  ->  error @ (Int, Int)
-              DEFAULT   -> error @ (Int, Int)
-
-   which can also be read as
-
-     case e of
-       h1 :: h2 :: _ -> h1 + h2
-       DEFAULT       -> error @ (Int, Int)
-
-  which, alas, is ill formed.
-
--}
-
 -- | Transforms
 --
--- > let ds :: (t1,...,tn) =
--- >       case e0 of
--- >         pat -> (x1,...,xn)
+-- > let ds = case e0 of
+-- >            pat -> (x1,...,xn)
 -- >     y1 = proj1 ds
 -- >     ...
 -- >     yn = projn ds
@@ -250,17 +186,29 @@ rewriteWith tx           = go
 --  to
 --
 -- > case e0 of
--- >   pat -> e1[y1 := x1,..., yn := xn] ]
+-- >   pat -> e1[y1 := x1,..., yn := xn]
 --
 -- Note that the transformation changes the meaning of the expression if
 -- evaluation order matters. But it changes it in a way that LH cannot
 -- distinguish.
 --
--- The purpose of the transformation is to unpack all of the variables in
--- @pat@ at once in a single scope when verifying @e1@, which allows to
--- see the dependencies between the fields of @pat@.
+-- Also transforms a variant of the above
 --
--- Also see Note [simplifyPatTuple breaks types].
+-- > let y1 = case v of
+-- >            C x1 ... xn -> xi
+-- >     y2 = proj2 v
+-- >     ...
+-- >     yn = projn v
+-- >  in e1
+--
+--  to
+--
+-- > case v of
+-- >   C x1 ... xn -> e1[y1 := x1,..., yn := xn]
+--
+-- The purpose of the transformations is to unpack all of the variables in
+-- @pat@ at once in a single scope when verifying @e1@, which allows LH to
+-- see the dependencies between the fields of @pat@.
 --
 simplifyPatTuple :: RewriteRule
 simplifyPatTuple (Let (NonRec x e@(Case _ _ _ [Alt (DataAlt _) _ _])) rest)
@@ -275,20 +223,33 @@ simplifyPatTuple (Let (NonRec x e@(Case _ _ _ [Alt (DataAlt _) _ _])) rest)
         ss = [ (bs' !! i, v) | (Just i, (v, _)) <- projs ]
         e'' = foldr (\(_, (v, ce)) -> Let (NonRec v ce)) e' otherBinds
      in Just $ Let (NonRec x e) $
-        replaceTupleInNestedCases (Ghc.exprType e') ss e'' e
+        replaceAltInNestedCases (Ghc.exprType e') ss e'' e
+
+simplifyPatTuple (Let (NonRec x e@(Case e0 _ _ [Alt (DataAlt _) bs _])) rest)
+  | Just v <- isVar e0
+  , Just i0 <- isProjectionOf v e
+  , let n = length bs
+  , n > 1
+  =
+    let (nrbinds, e') = takeBinds (n - 1) rest
+        fields = [ (isProjectionOf v0 ce, b) | b@(_, ce) <- nrbinds ]
+        (projs, otherBinds) = L.partition (isJust . fst) fields
+        ss = [ (bs !! i, v) | (Just i, (v, _)) <- (Just i0, (x, e)) : projs ]
+        e'' = foldr (\(_, (v, ce)) -> Let (NonRec v ce)) e' otherBinds
+     in Just $ replaceAltInNestedCases (Ghc.exprType e') ss e'' e
 
 simplifyPatTuple _
   = Nothing
 
 -- | Replaces an expression at the end of a sequence of nested cases with a
 -- single alternative.
-replaceTupleInNestedCases
+replaceAltInNestedCases
   :: Type
   -> [(Var, Var)]
   -> CoreExpr -- ^ The expression to place at the end of the nested cases
   -> CoreExpr -- ^ The expression with the nested cases
   -> CoreExpr
-replaceTupleInNestedCases t ss ef = go
+replaceAltInNestedCases t ss ef = go
   where
     go (Case e0 v _ [Alt c bs e1]) =
       let bs' = [ fromMaybe b (lookup b ss) | b <- bs ]
@@ -310,8 +271,9 @@ takeBinds nat ce = go nat ce
 -- | Checks that the binding is a projections of some data constructor.
 -- | Yields the index of the field being projected
 isProjectionOf :: Var -> CoreExpr -> Maybe Int
-isProjectionOf v (Case (Var xe) _ _ [Alt (DataAlt _) ys (Var y)])
-  | v == xe      = y `L.elemIndex` ys
+isProjectionOf v (Case xe _ _ [Alt (DataAlt _) ys (Var y)])
+  | Just xv <- isVar xe
+  , v == xv = y `L.elemIndex` ys
 isProjectionOf _ _ = Nothing
 
 --------------------------------------------------------------------------------
@@ -346,6 +308,7 @@ isTuple e
 
 isVar :: CoreExpr -> Maybe Var
 isVar (Var x) = Just x
+isVar (Tick _ e) = isVar e
 isVar _       = Nothing
 
 secondHalf :: [a] -> [a]
