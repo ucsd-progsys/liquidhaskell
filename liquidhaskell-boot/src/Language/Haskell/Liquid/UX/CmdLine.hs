@@ -467,9 +467,10 @@ config = cmdArgsMode $ Config {
       &= name "exclude-automatic-assumptions-for"
       &= help "Stop loading LHAssumptions modules for imports in these packages."
       &= typ "PACKAGE"
- , dumpOpaqueReflections
+  , dumpOpaqueReflections
     = def &= help "Dump all generated opaque reflections"
           &= name "dump-opaque-reflections"
+          &= explicit
   , dumpPreNormalizedCore
     = def &= help "Dump pre-normalized core (before a-normalization)"
           &= name "dump-pre-normalized-core"
