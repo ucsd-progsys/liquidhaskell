@@ -548,6 +548,7 @@ import GHC.Types.Basic                as Ghc
     , funPrec
     , InlinePragma(inl_act, inl_inline, inl_rule, inl_sat, inl_src)
     , isDeadOcc
+    , isNoInlinePragma
     , isStrongLoopBreaker
     , noOccInfo
     , topPrec
@@ -574,6 +575,7 @@ import GHC.Types.Id                   as Ghc
     , idInfo
     , idOccInfo
     , isConLikeId
+    , idInlinePragma
     , modifyIdInfo
     , mkExportedLocalId
     , mkUserLocal
