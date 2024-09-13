@@ -50,12 +50,15 @@ transformRecExpr cbs = pg
 inlineLoopBreaker :: Bind Id -> Bind Id
 inlineLoopBreaker (NonRec x e)
     | Just (lbx, lbe, lbargs) <- hasLoopBreaker be =
-       let lbe' = sub (M.singleton lbx e') lbe
-        in Rec [(x, foldr Lam lbe' (αs ++ take (length as - length lbargs) as))]
+       let lbe' = sub (M.singleton lbx ecall) lbe
+           mkLams ex = foldr Lam ex (αs ++ take (length as - length lbargs) as)
+           mkLets ex = foldr Let ex nrbinds
+        in Rec [(x, mkLams (mkLets lbe'))]
   where
-    (αs, as, be) = collectTyAndValBinders e
+    (αs, as, e') = collectTyAndValBinders e
+    (nrbinds, be) = collectNonRecLets e'
 
-    e' = L.foldl' App (L.foldl' App (Var x) (Type . TyVarTy <$> αs)) (Var <$> as)
+    ecall = L.foldl' App (L.foldl' App (Var x) (Type . TyVarTy <$> αs)) (Var <$> as)
 
     hasLoopBreaker :: CoreExpr -> Maybe (Var, CoreExpr, [CoreExpr])
     hasLoopBreaker (Let (Rec [(x1, e1)]) e2)
@@ -65,7 +68,7 @@ inlineLoopBreaker (NonRec x e)
       , all isVar args
       , L.isSuffixOf (mapMaybe getVar args) as
       = Just (x1, e1, args)
-    hasLoopBreaker _                               = Nothing
+    hasLoopBreaker _ = Nothing
 
     isLoopBreaker =  isStrongLoopBreaker . occInfo . idInfo
 
