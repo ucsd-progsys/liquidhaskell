@@ -253,14 +253,23 @@ isPatErrorAlt (Alt _ _ exprCoreBndr) = hasPatErrorCall exprCoreBndr
    hasPatErrorCall :: CoreExpr -> Bool
    -- auto generated undefined case: (\_ -> (patError @levity @type "error message")) void
    -- Type arguments are erased before calling isUndefined
-   hasPatErrorCall (App (Var x) _) = x == pAT_ERROR_ID
+   hasPatErrorCall (App e _)
+     | Var x <- unTick e = x == pAT_ERROR_ID
+     | otherwise = hasPatErrorCall e
    -- another auto generated undefined case:
    -- let lqanf_... = patError "error message") in case lqanf_... of {}
-   hasPatErrorCall (Let (NonRec x e) (Case (Var v) _ _ []))
-     | x == v = hasPatErrorCall e
+   hasPatErrorCall (Let (NonRec x e) ec)
+     | Case e0 _ _ [] <- unTick ec
+     , Var v <- unTick e0
+     , x == v = hasPatErrorCall e
+   hasPatErrorCall (Case e _ _ _) = hasPatErrorCall e
    hasPatErrorCall (Let _ e) = hasPatErrorCall e
+   hasPatErrorCall (Tick _ e) = hasPatErrorCall e
    -- otherwise
    hasPatErrorCall _ = False
+
+   unTick (Tick _ e) = unTick e
+   unTick e = e
 
 
 qualifiedNameFS :: Name -> FastString
