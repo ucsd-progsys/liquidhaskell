@@ -11,6 +11,7 @@ import           Control.Arrow                        (second)
 import           Control.Monad.State
 import qualified Data.HashMap.Strict                  as M
 import           Data.Hashable
+import           Data.Maybe (mapMaybe)
 import           Data.Word (Word64)
 import           Liquid.GHC.API      as Ghc hiding (panic)
 import           Language.Haskell.Liquid.GHC.Misc
@@ -35,20 +36,44 @@ transformRecExpr cbs = pg
     -- (_, e) = lintCoreBindings [] pg
 
 
-
-
+-- | Changes top level bindings of the form
+--
+-- > v = \x1...xn ->
+-- >   letrec v0 = \y0...ym -> e0
+-- >       in v0 xj..xn
+--
+-- to
+--
+-- > v = \x1...xj y0...ym ->
+-- >   e0 [ v0 := v x1...xj y0...ym ]
+--
 inlineLoopBreaker :: Bind Id -> Bind Id
-inlineLoopBreaker (NonRec x e) | Just (lbx, lbe) <- hasLoopBreaker be
-  = Rec [(x, foldr Lam (sub (M.singleton lbx e') lbe) (αs ++ as))]
+inlineLoopBreaker (NonRec x e)
+    | Just (lbx, lbe, lbargs) <- hasLoopBreaker be =
+       let lbe' = sub (M.singleton lbx e') lbe
+        in Rec [(x, foldr Lam lbe' (αs ++ take (length as - length lbargs) as))]
   where
     (αs, as, be) = collectTyAndValBinders e
 
     e' = L.foldl' App (L.foldl' App (Var x) (Type . TyVarTy <$> αs)) (Var <$> as)
 
-    hasLoopBreaker (Let (Rec [(x1, e1)]) (Var x2)) | isLoopBreaker x1 && x1 == x2 = Just (x1, e1)
+    hasLoopBreaker :: CoreExpr -> Maybe (Var, CoreExpr, [CoreExpr])
+    hasLoopBreaker (Let (Rec [(x1, e1)]) e2)
+      | (Var x2, args) <- collectArgs e2
+      , isLoopBreaker x1
+      , x1 == x2
+      , all isVar args
+      , L.isSuffixOf (mapMaybe getVar args) as
+      = Just (x1, e1, args)
     hasLoopBreaker _                               = Nothing
 
     isLoopBreaker =  isStrongLoopBreaker . occInfo . idInfo
+
+    getVar (Var x) = Just x
+    getVar _ = Nothing
+
+    isVar (Var x) = True
+    isVar _ = False
 
 inlineLoopBreaker bs
   = bs
