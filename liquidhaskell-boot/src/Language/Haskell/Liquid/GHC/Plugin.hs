@@ -35,6 +35,9 @@ import           Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                                                          as SpecFinder
 
 import           Language.Haskell.Liquid.GHC.Types       (MGIModGuts(..), miModGuts)
+import           Language.Haskell.Liquid.Transforms.Rec (transformRecExpr)
+import           Language.Haskell.Liquid.Transforms.InlineAux (inlineAux)
+import           Language.Haskell.Liquid.Transforms.Rewrite (rewriteBinds)
 import           GHC.LanguageExtensions
 
 import           Control.Monad
@@ -504,7 +507,8 @@ processModule LiquidHaskellContext{..} = do
     debugLog $ "mg_exports => " ++ O.showSDocUnsafe (O.ppr $ mg_exports modGuts)
     debugLog $ "mg_tcs => " ++ O.showSDocUnsafe (O.ppr $ mg_tcs modGuts)
 
-    targetSrc  <- liftIO $ makeTargetSrc moduleCfg file lhModuleTcData modGuts hscEnv
+    dynFlags <- getDynFlags
+    targetSrc  <- liftIO $ makeTargetSrc moduleCfg dynFlags file lhModuleTcData modGuts hscEnv
     logger <- getLogger
 
     -- See https://github.com/ucsd-progsys/liquidhaskell/issues/1711
@@ -548,13 +552,18 @@ processModule LiquidHaskellContext{..} = do
     thisModule = mg_module modGuts
 
 makeTargetSrc :: Config
+              -> DynFlags
               -> FilePath
               -> TcData
               -> ModGuts
               -> HscEnv
               -> IO TargetSrc
-makeTargetSrc cfg file tcData modGuts hscEnv = do
-  coreBinds      <- anormalize cfg hscEnv modGuts
+makeTargetSrc cfg dynFlags file tcData modGuts hscEnv = do
+  let preNormCoreBinds = preNormalize cfg modGuts
+  when (dumpPreNormalizedCore cfg) $ do
+    putStrLn "*************** Pre-normalized CoreBinds *****************"
+    putStrLn $ GHC.showPpr dynFlags preNormCoreBinds
+  coreBinds <- anormalize cfg hscEnv modGuts { mg_binds = preNormCoreBinds }
 
   -- The type constructors for a module are the (nubbed) union of the ones defined and
   -- the ones exported. This covers the case of \"wrapper modules\" that simply re-exports
@@ -608,6 +617,12 @@ makeTargetSrc cfg file tcData modGuts hscEnv = do
     mgiModGuts = miModGuts deriv modGuts
       where
         deriv   = Just $ instEnvElts $ mg_inst_env modGuts
+
+    preNormalize :: Config -> ModGuts -> [CoreBind]
+    preNormalize cfg modGuts = rewriteBinds cfg orig_cbs
+      where
+        orig_cbs = transformRecExpr inl_cbs
+        inl_cbs  = inlineAux cfg (mg_module modGuts) (mg_binds modGuts)
 
 getFamInstances :: ModGuts -> [FamInst]
 getFamInstances guts = famInstEnvElts (mg_fam_inst_env guts)

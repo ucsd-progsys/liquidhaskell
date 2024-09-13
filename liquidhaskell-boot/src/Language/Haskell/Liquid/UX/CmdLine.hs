@@ -470,6 +470,10 @@ config = cmdArgsMode $ Config {
  , dumpOpaqueReflections
     = def &= help "Dump all generated opaque reflections"
           &= name "dump-opaque-reflections"
+  , dumpPreNormalizedCore
+    = def &= help "Dump pre-normalized core (before a-normalization)"
+          &= name "dump-pre-normalized-core"
+          &= explicit
   } &= program "liquid"
     &= help    "Refinement Types for Haskell"
     &= summary copyright
@@ -734,6 +738,7 @@ defConfig = Config
   , pandocHtml               = False
   , excludeAutomaticAssumptionsFor = []
   , dumpOpaqueReflections    = False
+  , dumpPreNormalizedCore    = False
   }
 
 -- | Write the annotations (i.e. the files in the \".liquid\" hidden folder) and
