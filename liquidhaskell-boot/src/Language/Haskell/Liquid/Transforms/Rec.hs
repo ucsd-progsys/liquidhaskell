@@ -53,6 +53,20 @@ inlineLoopBreaker (NonRec x e) | Just (lbx, lbe) <- hasLoopBreaker be
 inlineLoopBreaker bs
   = bs
 
+-- | Inlines bindings of the form
+--
+-- > let v = \x -> e0
+-- >  in e1
+--
+-- whenever all of the following hold:
+--  * "fail" is a prefix of variable @v@,
+--  * @x@ is not free in @e0@, and
+--  * v is applied to some value in @e1@.
+--
+-- In addition to inlining, this function also beta reduces
+-- the resulting expressions @(\x -> e0) a@ by replacing them
+-- with @e0@.
+--
 inlineFailCases :: CoreProgram -> CoreProgram
 inlineFailCases = (go [] <$>)
   where
@@ -75,7 +89,8 @@ inlineFailCases = (go [] <$>)
     isFailId x  = isLocalId x && isSystemName (varName x) && L.isPrefixOf "fail" (show x)
     getFailExpr = L.lookup
 
-    addFailExpr x (Lam _ e) su = (x, e):su
+    addFailExpr x (Lam v e) su
+      | not (elemVarSet v $ exprFreeVars e)  = (x, e):su
     addFailExpr _ _         _  = impossible Nothing "internal error" -- this cannot happen
 
 
