@@ -226,8 +226,8 @@ simplifyPatTuple (Let (NonRec x e@(Case _ _ _ [Alt (DataAlt _) _ _])) rest)
         replaceAltInNestedCases (Ghc.exprType e') ss e'' e
 
 simplifyPatTuple (Let (NonRec x e@(Case e0 _ _ [Alt (DataAlt _) bs _])) rest)
-  | Just v <- isVar e0
-  , Just i0 <- isProjectionOf v e
+  | Just v0 <- isVar e0
+  , Just i0 <- isProjectionOf v0 e
   , let n = length bs
   , n > 1
   =
