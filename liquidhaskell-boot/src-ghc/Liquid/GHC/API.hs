@@ -34,6 +34,7 @@ import           GHC                  as Ghc
         , Opt_InsertBreakpoints
         , Opt_KeepRawTokenStream
         , Opt_PIC
+        , Opt_IgnoreInterfacePragmas
         )
     , Ghc
     , GhcException(CmdLineError, ProgramError)
@@ -443,6 +444,7 @@ import GHC.Driver.Pipeline            as Ghc (compileFile)
 import GHC.Driver.Session             as Ghc
     ( getDynFlags
     , gopt_set
+    , gopt_unset
     , updOptLevel
     , xopt_set
     )
@@ -585,6 +587,7 @@ import GHC.Types.Id.Info              as Ghc
     , cafInfo
     , inlinePragInfo
     , mayHaveCafRefs
+    , realUnfoldingInfo
     , setCafInfo
     , setOccInfo
     , vanillaIdInfo

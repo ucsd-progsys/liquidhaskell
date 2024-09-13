@@ -14,10 +14,12 @@ module Language.Haskell.Liquid.Bare.Measure
   , makeMeasureSpec'
   , getLocReflects
   , makeOpaqueReflMeasures
+  , getReflDCs
   , varMeasures
   , getMeasVars
   , makeClassMeasureSpec
   -- , makeHaskellBounds
+  , varLocSym
   ) where
 
 import Data.Default
@@ -401,6 +403,22 @@ getDefinedSymbolsInLogic env measEnv specs =
     localize :: F.Symbol -> F.LocSymbol
     localize sym = maybe (dummyLoc sym) varLocSym $ L.lookup sym (Bare.reSyms env)
 
+-- Get the set of `DataCon`s (DCs) needed for the reflection of a given list of variables,
+-- and which are not already present in the logic
+getReflDCs :: Bare.MeasEnv -> [Ghc.Var] -> S.HashSet Ghc.DataCon
+getReflDCs measEnv vars = dcsUndefinedInLogic
+  where
+    -- List of wired DCs that cannot be found in the measure environment as they are
+    -- eliminated in the translation from core.
+    -- Written as a list of symbols because that's easier than trying to get the corresponding DCs from GHC.
+    wired = S.fromList $ F.symbol <$> ["GHC.Types.True", "GHC.Types.False", "GHC.Types.I#"]
+    notWired dc = not $ GM.qualifiedNameSymbol (Ghc.getName dc) `S.member` wired
+    -- Undefined ones are those that are not already defined in the measure environement and are not wired
+    dcsUndefinedInLogic = S.filter notWired $ allDCInUnfoldings `S.difference` definedDCs
+    -- Get the defined DataCons from the measure environement
+    definedDCs = S.fromList $ (GM.idDataConM . fst) `Mb.mapMaybe` Bare.meDataCons measEnv
+    allDCInUnfoldings = getDCsOfUnfoldingOfVars vars
+
 ----------------------------------------------------
 -- Looks at the given list of equations and finds any undefined symbol in the logic,
 -- for which we need to introduce an opaque reflection.
@@ -439,6 +457,13 @@ makeOpaqueReflMeasures env measEnv specs eqs =
 mkError :: LocSymbol -> String -> Error
 mkError x str = ErrHMeas (GM.sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
+getUnfoldingOfVar :: Ghc.Var -> Maybe Ghc.CoreExpr
+getUnfoldingOfVar = getExpr . Ghc.realUnfoldingInfo . Ghc.idInfo
+  where
+    getExpr :: Ghc.Unfolding -> Maybe Ghc.CoreExpr
+    getExpr (Ghc.CoreUnfolding expr _ _ _ _) = Just expr
+    getExpr _ = Nothing
+
 -- Get the set of "free" symbols in the (reflection of the) unfolding of a given variable.
 -- Free symbols are those that are not already in the logic and that appear in
 -- the reflection of the unfolding.
@@ -448,14 +473,36 @@ getFreeVarsOfReflectionOfVar  :: Ghc.Var -> F.Equation -> S.HashSet Ghc.Var
 getFreeVarsOfReflectionOfVar var eq = 
     S.filter (\v -> F.symbol v `S.member` freeSymbolsInReflectedBody) freeVarsInCoreExpr
   where
-    reflExpr = getUnfolding var
+    reflExpr = getUnfoldingOfVar var
     getAllFreeVars = Ghc.exprSomeFreeVarsList (const True)
     freeVarsInCoreExpr = maybe S.empty (S.fromList . getAllFreeVars) reflExpr
     freeSymbolsInReflectedBody = F.exprSymbolsSet (F.eqBody eq)
-    getUnfolding = getExpr . Ghc.realUnfoldingInfo . Ghc.idInfo
-    getExpr :: Ghc.Unfolding -> Maybe Ghc.CoreExpr
-    getExpr (Ghc.CoreUnfolding expr _ _ _ _) = Just expr
-    getExpr _ = Nothing
+
+-- Collect all the DataCon that appear in the unfolding of a given variable.
+getDCsOfUnfoldingOfVars :: [Ghc.Var] -> S.HashSet Ghc.DataCon
+getDCsOfUnfoldingOfVars vars = S.unions $ collectDataCons <$> getUnfoldingOfVar `Mb.mapMaybe` vars
+
+-- Collect all DataCon that occur in case split alternatives of an expression
+collectDataCons :: Ghc.CoreExpr -> S.HashSet Ghc.DataCon
+collectDataCons expr = go expr S.empty
+  where
+    go (Ghc.Var _) acc = acc
+    go (Ghc.Lit _) acc = acc
+    go (Ghc.App f e) acc = go f (go e acc)
+    go (Ghc.Lam _ e) acc = go e acc
+    go (Ghc.Let bind e) acc = go e (goBind bind acc)
+    go (Ghc.Case e _ _ alts) acc = foldr goAlt (go e acc) alts
+    go (Ghc.Cast e _) acc = go e acc
+    go (Ghc.Tick _ e) acc = go e acc
+    go (Ghc.Type _) acc = acc
+    go (Ghc.Coercion _) acc = acc
+
+    -- Special auxiliary function for `Alt` which is precisely where we get the datacons
+    goAlt (Ghc.Alt (Ghc.DataAlt dc) _ e) acc = S.insert dc (go e acc)
+    goAlt (Ghc.Alt _ _ e) acc = go e acc
+
+    goBind (Ghc.NonRec _ e) acc = go e acc
+    goBind (Ghc.Rec binds) acc = foldr (go . snd) acc binds
 
 bareMSpec :: Bare.Env -> Bare.SigEnv -> ModName -> ModName -> Ms.BareSpec -> Ms.MSpec LocBareType LocSymbol
 bareMSpec env sigEnv myName name spec = Ms.mkMSpec ms cms ims oms
