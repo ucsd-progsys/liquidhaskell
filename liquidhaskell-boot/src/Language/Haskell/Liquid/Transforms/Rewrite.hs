@@ -350,7 +350,8 @@ inlineLoopBreaker (NonRec x e)
 
     hasLoopBreaker :: CoreExpr -> Maybe (Var, CoreExpr, [CoreExpr])
     hasLoopBreaker (Let (Rec [(x1, e1)]) e2)
-      | (Var x2, args) <- collectArgs e2
+      | not (isNoInlinePragma (idInlinePragma x1))
+      , (Var x2, args) <- collectArgs e2
       , isLoopBreaker x1
       , x1 == x2
       , all isVar args
