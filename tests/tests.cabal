@@ -2123,7 +2123,7 @@ executable relational-pos
                     , AsynchCase
                     , Axiom
                     , CheckedImp
-                    , Isort
+--                  , Isort  -- Disabled due to https://github.com/ucsd-progsys/liquidhaskell/issues/2335
                     , MapFusion
                     , MutRec
                     , SndOrdPredNonRel
