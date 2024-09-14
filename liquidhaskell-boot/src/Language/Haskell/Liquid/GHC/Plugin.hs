@@ -47,8 +47,7 @@ import           Control.Monad.IO.Class (MonadIO)
 import           Data.Coerce
 import           Data.Function                            ((&))
 import           Data.Kind                                ( Type )
-import           Data.List                               as L
-                                                   hiding ( intersperse )
+import qualified Data.List                               as L
 import           Data.IORef
 import qualified Data.Set                                as S
 import           Data.Set                                 ( Set )
@@ -561,8 +560,8 @@ makeTargetSrc :: Config
 makeTargetSrc cfg dynFlags file tcData modGuts hscEnv = do
   let preNormCoreBinds = preNormalize cfg modGuts
   when (dumpPreNormalizedCore cfg) $ do
-    putStrLn "*************** Pre-normalized CoreBinds *****************"
-    putStrLn $ GHC.showPpr dynFlags preNormCoreBinds
+    putStrLn "\n*************** Pre-normalized CoreBinds *****************\n"
+    putStrLn $ unlines $ L.intersperse "" $ map (GHC.showPpr dynFlags) preNormCoreBinds
   coreBinds <- anormalize cfg hscEnv modGuts { mg_binds = preNormCoreBinds }
 
   -- The type constructors for a module are the (nubbed) union of the ones defined and
