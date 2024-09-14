@@ -156,7 +156,7 @@ rewriteWith :: RewriteRule -> CoreExpr -> CoreExpr
 --------------------------------------------------------------------------------
 rewriteWith tx           = go
   where
-    go                   = txTop . step
+    go                   = step . txTop
     txTop e              = fromMaybe e (tx e)
     goB (Rec xes)        = Rec         (mapSnd go <$> xes)
     goB (NonRec x e)     = NonRec x    (go e)
