@@ -44,7 +44,7 @@ commands:
             chmod +x ./x86_64-linux-ghcup
             ./x86_64-linux-ghcup install ghc << parameters.ghc_version >>
             ./x86_64-linux-ghcup set ghc << parameters.ghc_version >>
-            ./x86_64-linux-ghcup install cabal 3.10.2.0
+            ./x86_64-linux-ghcup install cabal 3.12.1.0
             export PATH=~/.ghcup/bin:$PATH
             echo 'export PATH=~/.ghcup/bin:$PATH' >> $BASH_ENV
             cabal update
