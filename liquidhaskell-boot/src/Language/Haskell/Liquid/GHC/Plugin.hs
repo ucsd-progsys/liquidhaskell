@@ -216,7 +216,9 @@ typecheckHook cfg0 modSummary0 tcGblEnv = do
   let env = env0 { hsc_dflags = ms_hspp_opts modSummary }
   parsed0 <- liftIO $ parseModuleIO env (LH.keepRawTokenStream modSummary)
   let specComments = map mkSpecComment $ LH.extractSpecComments parsed0
-      parsed = addNoInlinePragmasToLocalBinds parsed0
+      parsed =
+        addInlinePragmasToTopLevelBinds $
+        addNoInlinePragmasToLocalBinds parsed0
 
   case parseSpecComments (coerce specComments) of
     Left errors ->

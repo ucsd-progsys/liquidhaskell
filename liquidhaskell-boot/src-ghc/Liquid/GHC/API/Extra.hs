@@ -6,6 +6,7 @@
 module Liquid.GHC.API.Extra (
     module StableModule
   , ApiComment(..)
+  , addInlinePragmasToTopLevelBinds
   , addNoInlinePragmasToLocalBinds
   , apiComments
   , apiCommentsParsedSource
@@ -260,6 +261,43 @@ addNoInlinePragmasToLocalBinds ps =
               ]
 
       bnds -> bnds
+
+
+-- | Adds INLINE pragmas to all top-level bindings in the module.
+--
+-- This discourages the desugarer from introducing some auxiliary bindings.
+--
+addInlinePragmasToTopLevelBinds :: ParsedModule -> ParsedModule
+addInlinePragmasToTopLevelBinds ps =
+    ps { pm_parsed_source = topLevelPragmas $ pm_parsed_source ps
+       }
+  where
+    topLevelPragmas :: ParsedSource -> ParsedSource
+    topLevelPragmas = fmap $ \hsMod ->
+      let decls = hsmodDecls hsMod
+          dropInlineSigs = filter (not . isInlineSig . unLoc)
+          isInlineSig (SigD _ sig) = isInlinePragma sig
+          isInlineSig _ = False
+          binds = [ b | ValD _ b <- map unLoc decls ]
+          newDecls :: [LHsDecl GhcPs]
+          newDecls = map (noLocA . SigD NoExtField) $
+            concatMap inlinePragmaForBind binds
+       in
+          hsMod { hsmodDecls = newDecls ++ dropInlineSigs decls }
+
+    isInlinePragma InlineSig{} = True
+    isInlinePragma _ = False
+
+    inlinePragmaForBind :: HsBindLR GhcPs GhcPs -> [Sig GhcPs]
+    inlinePragmaForBind bndr =
+      [ InlineSig
+          []
+          (noLocA b)
+          defaultInlinePragma
+            { inl_inline = Inline $ SourceText $ occNameFS $ rdrNameOcc b
+            }
+      | b <- collectHsBindBinders CollNoDictBinders bndr
+      ]
 
 
 lookupModSummary :: HscEnv -> ModuleName -> Maybe ModSummary
