@@ -31,6 +31,7 @@ import           GHC                  as Ghc
         ( Opt_DeferTypedHoles
         , Opt_Haddock
         , Opt_ImplicitImportQualified
+        , Opt_InsertBreakpoints
         , Opt_KeepRawTokenStream
         , Opt_PIC
         , Opt_IgnoreInterfacePragmas
@@ -522,6 +523,7 @@ import GHC.Tc.Utils.Monad             as Ghc
     , pushTcLevelM
     , reportDiagnostic
     , reportDiagnostics
+    , updEnv
     )
 import GHC.Tc.Utils.TcType            as Ghc (tcSplitDFunTy, tcSplitMethodTy)
 import GHC.Tc.Zonk.Type               as Ghc
