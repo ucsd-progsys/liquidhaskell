@@ -230,36 +230,51 @@ apiCommentsParsedSource ps =
 --
 addNoInlinePragmasToLocalBinds :: ParsedModule -> ParsedModule
 addNoInlinePragmasToLocalBinds ps =
-    ps { pm_parsed_source = go (pm_parsed_source ps) }
+    ps { pm_parsed_source =
+           topLevelPragmas $ localPragmas (pm_parsed_source ps)
+       }
   where
-    go :: forall a. Data a => a -> a
-    go = gmapT (go `extT` addNoInlinePragmas)
+    localPragmas :: forall a. Data a => a -> a
+    localPragmas = gmapT (localPragmas `extT` addNoInlinePragmasLocal)
 
-    addNoInlinePragmas :: HsValBinds GhcPs -> HsValBinds GhcPs
-    addNoInlinePragmas = \case
+    topLevelPragmas :: ParsedSource -> ParsedSource
+    topLevelPragmas = fmap $ \hsMod ->
+      let decls = hsmodDecls hsMod
+          dropInlineSigs = filter (not . isInlineSig . unLoc)
+          isInlineSig (SigD _ sig) = isInlinePragma sig
+          isInlineSig _ = False
+          binds = [ b | ValD _ b <- map unLoc decls ]
+          newDecls :: [LHsDecl GhcPs]
+          newDecls = map (noLocA . SigD NoExtField) $
+            concatMap noInlinePragmaForBind binds
+       in
+          hsMod { hsmodDecls = newDecls ++ dropInlineSigs decls }
+
+    isInlinePragma InlineSig{} = True
+    isInlinePragma _ = False
+
+    addNoInlinePragmasLocal :: HsValBinds GhcPs -> HsValBinds GhcPs
+    addNoInlinePragmasLocal = \case
       ValBinds x binds sigs ->
           ValBinds x binds (newSigs ++ dropInlinePragmas sigs)
         where
           dropInlinePragmas = filter (not . isInlinePragma . unLoc)
 
-          isInlinePragma InlineSig{} = True
-          isInlinePragma _ = False
-
           newSigs = concatMap (traverse noInlinePragmaForBind) $ bagToList binds
 
-          noInlinePragmaForBind :: HsBindLR GhcPs GhcPs -> [Sig GhcPs]
-          noInlinePragmaForBind bndr =
-              [ InlineSig
-                  []
-                  (noLocA b)
-                  defaultInlinePragma
-                    { inl_inline = NoInline $ SourceText $ occNameFS $ rdrNameOcc b
-                    , inl_act = NeverActive
-                    }
-              | b <- collectHsBindBinders CollNoDictBinders bndr
-              ]
-
       bnds -> bnds
+
+    noInlinePragmaForBind :: HsBindLR GhcPs GhcPs -> [Sig GhcPs]
+    noInlinePragmaForBind bndr =
+        [ InlineSig
+            []
+            (noLocA b)
+            defaultInlinePragma
+              { inl_inline = NoInline $ SourceText $ occNameFS $ rdrNameOcc b
+              , inl_act = NeverActive
+              }
+        | b <- collectHsBindBinders CollNoDictBinders bndr
+        ]
 
 
 lookupModSummary :: HscEnv -> ModuleName -> Maybe ModSummary
