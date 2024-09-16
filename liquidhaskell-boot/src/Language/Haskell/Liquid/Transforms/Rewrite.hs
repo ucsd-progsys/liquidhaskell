@@ -45,7 +45,7 @@ rewriteBinds cfg
   = fmap (normalizeTuples 
        . rewriteBindWith undollar
        . tidyTuples
-       . rewriteBindWith simplifyPatTuple)
+       . rewriteBindWith strictifyLazyLets)
   | otherwise
   = id
 
@@ -210,8 +210,8 @@ rewriteWith tx           = go
 -- @pat@ at once in a single scope when verifying @e1@, which allows LH to
 -- see the dependencies between the fields of @pat@.
 --
-simplifyPatTuple :: RewriteRule
-simplifyPatTuple (Let (NonRec x e@(Case _ _ _ [Alt (DataAlt _) _ _])) rest)
+strictifyLazyLets :: RewriteRule
+strictifyLazyLets (Let (NonRec x e@(Case _ _ _ [Alt (DataAlt _) _ _])) rest)
   | Just (bs, bs') <- onlyHasATupleInNestedCases e
   , null (bs' L.\\ bs) -- All variables are from the pattern and occur only once
   , let n = length bs'
@@ -225,7 +225,7 @@ simplifyPatTuple (Let (NonRec x e@(Case _ _ _ [Alt (DataAlt _) _ _])) rest)
      in Just $ Let (NonRec x e) $
         replaceAltInNestedCases (Ghc.exprType e') ss e'' e
 
-simplifyPatTuple (Let (NonRec x e@(Case e0 _ _ [Alt (DataAlt _) bs _])) rest)
+strictifyLazyLets (Let (NonRec x e@(Case e0 _ _ [Alt (DataAlt _) bs _])) rest)
   | Just v0 <- isVar e0
   , Just i0 <- isProjectionOf v0 e
   , let n = length bs
@@ -238,7 +238,7 @@ simplifyPatTuple (Let (NonRec x e@(Case e0 _ _ [Alt (DataAlt _) bs _])) rest)
         e'' = foldr (\(_, (v, ce)) -> Let (NonRec v ce)) e' otherBinds
      in Just $ replaceAltInNestedCases (Ghc.exprType e') ss e'' e
 
-simplifyPatTuple _
+strictifyLazyLets _
   = Nothing
 
 -- | Replaces an expression at the end of a sequence of nested cases with a
