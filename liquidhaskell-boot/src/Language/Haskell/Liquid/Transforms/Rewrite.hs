@@ -26,15 +26,12 @@ module Language.Haskell.Liquid.Transforms.Rewrite
 
 import           Liquid.GHC.API as Ghc hiding (showPpr, substExpr)
 import           Language.Haskell.Liquid.GHC.TypeRep ()
-import           Data.Maybe     (fromMaybe)
-import           Control.Monad (msum)
+import           Data.Maybe     (fromMaybe, isJust)
 import           Control.Monad.State hiding (lift)
 import           Language.Fixpoint.Misc       ({- mapFst, -}  mapSnd)
-import qualified          Language.Fixpoint.Types as F
-import           Language.Haskell.Liquid.Misc (safeZipWithError, Nat)
+import           Language.Haskell.Liquid.Misc (Nat)
 import           Language.Haskell.Liquid.GHC.Play (substExpr)
-import           Language.Haskell.Liquid.GHC.Resugar
-import           Language.Haskell.Liquid.GHC.Misc (unTickExpr, isTupleId, showPpr, mkAlive) -- , showPpr, tracePpr)
+import           Language.Haskell.Liquid.GHC.Misc (unTickExpr, isTupleId, mkAlive)
 import           Language.Haskell.Liquid.UX.Config  (Config, noSimplifyCore)
 import qualified Data.List as L
 import qualified Data.HashMap.Strict as M
@@ -48,7 +45,7 @@ rewriteBinds cfg
   = fmap (normalizeTuples 
        . rewriteBindWith undollar
        . tidyTuples
-       . rewriteBindWith simplifyPatTuple)
+       . rewriteBindWith strictifyLazyLets)
   | otherwise
   = id
 
@@ -157,7 +154,7 @@ rewriteWith :: RewriteRule -> CoreExpr -> CoreExpr
 --------------------------------------------------------------------------------
 rewriteWith tx           = go
   where
-    go                   = txTop . step
+    go                   = step . txTop
     txTop e              = fromMaybe e (tx e)
     goB (Rec xes)        = Rec         (mapSnd go <$> xes)
     goB (NonRec x e)     = NonRec x    (go e)
@@ -177,74 +174,10 @@ rewriteWith tx           = go
 -- | Rewriting Pattern-Match-Tuples --------------------------------------------
 --------------------------------------------------------------------------------
 
-{-
-    let CrazyPat x1 ... xn = e in e'
-
-    let t : (t1,...,tn) = "CrazyPat e ... (y1, ..., yn)"
-        xn = Proj t n
-        ...
-        x1 = Proj t 1
-    in
-        e'
-
-    "crazy-pat"
- -}
-
-{-
-  Note [simplifyPatTuple breaks types]
-  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-      let x :: (t1,...,tn) = E[(x1,...,xn)]
-          yn = case x of (..., yn) -> yn
-          …
-          y1 = case x of (y1, ...) -> y1
-      in
-          E'
-
-  GOAL: simplify the above to:
-
-      E [ (x1,...,xn) := E' [y1 := x1,...,yn := xn] ]
-
-  TODO: several tests (e.g. tests/pos/zipper000.hs) fail because
-  the above changes the "type" the expression `E` and in "other branches"
-  the new type may be different than the old, e.g.
-
-     let (x::y::_) = e in
-     x + y
-
-     let t = case e of
-               h1::t1 -> case t1 of
-                            (h2::t2) ->  (h1, h2)
-                            DEFAULT  ->  error @ (Int, Int)
-               DEFAULT   -> error @ (Int, Int)
-         x = case t of (h1, _) -> h1
-         y = case t of (_, h2) -> h2
-     in
-         x + y
-
-  is rewritten to:
-
-     case e of
-              h1::t1    -> case t1 of
-                            (h2::t2) ->  h1 + h2
-                            DEFAULT  ->  error @ (Int, Int)
-              DEFAULT   -> error @ (Int, Int)
-
-   which can also be read as
-
-     case e of
-       h1 :: h2 :: _ -> h1 + h2
-       DEFAULT       -> error @ (Int, Int)
-
-  which, alas, is ill formed.
-
--}
-
 -- | Transforms
 --
--- > let ds :: (t1,...,tn) =
--- >       case e0 of
--- >         pat -> (x1,...,xn)
+-- > let ds = case e0 of
+-- >            pat -> (x1,...,xn)
 -- >     y1 = proj1 ds
 -- >     ...
 -- >     yn = projn ds
@@ -253,165 +186,95 @@ rewriteWith tx           = go
 --  to
 --
 -- > case e0 of
--- >   pat -> e1[y1 := x1,..., yn := xn] ]
+-- >   pat -> e1[y1 := x1,..., yn := xn]
 --
 -- Note that the transformation changes the meaning of the expression if
 -- evaluation order matters. But it changes it in a way that LH cannot
 -- distinguish.
 --
--- The purpose of the transformation is to unpack all of the variables in
--- @pat@ at once in a single scope when verifying @e1@, which allows to
+-- Also transforms a variant of the above
+--
+-- > let y1 = case v of
+-- >            C x1 ... xn -> xi
+-- >     y2 = proj2 v
+-- >     ...
+-- >     yn = projn v
+-- >  in e1
+--
+--  to
+--
+-- > case v of
+-- >   C x1 ... xn -> e1[y1 := x1,..., yn := xn]
+--
+-- The purpose of the transformations is to unpack all of the variables in
+-- @pat@ at once in a single scope when verifying @e1@, which allows LH to
 -- see the dependencies between the fields of @pat@.
 --
--- Also see Note [simplifyPatTuple breaks types].
---
-simplifyPatTuple :: RewriteRule
-simplifyPatTuple (Let (NonRec x e) rest)
-  | Just (n, ts  ) <- varTuple x
-  , 2 <= n
-  , Just (yes, e') <- takeBinds n rest
-  , let ys          = fst <$> yes
-  , Just _         <- hasTuple ys e
-  , matchTypes yes ts
-  = replaceTuple ys e e'
+strictifyLazyLets :: RewriteRule
+strictifyLazyLets (Let (NonRec x e@(Case _ _ _ [Alt (DataAlt _) _ _])) rest)
+  | Just (bs, bs') <- onlyHasATupleInNestedCases e
+  , null (bs' L.\\ bs) -- All variables are from the pattern and occur only once
+  , let n = length bs'
+  , n > 1
+  =
+    let (nrbinds, e') = takeBinds n rest
+        fields = [ (isProjectionOf x ce, b) | b@(_, ce) <- nrbinds ]
+        (projs, otherBinds) = L.partition (isJust . fst) fields
+        ss = [ (bs' !! i, v) | (Just i, (v, _)) <- projs ]
+        e'' = foldr (\(_, (v, ce)) -> Let (NonRec v ce)) e' otherBinds
+     in Just $ Let (NonRec x e) $
+        replaceAltInNestedCases (Ghc.exprType e') ss e'' e
 
-simplifyPatTuple _
+strictifyLazyLets (Let (NonRec x e@(Case e0 _ _ [Alt (DataAlt _) bs _])) rest)
+  | Just v0 <- isVar e0
+  , Just i0 <- isProjectionOf v0 e
+  , let n = length bs
+  , n > 1
+  =
+    let (nrbinds, e') = takeBinds (n - 1) rest
+        fields = [ (isProjectionOf v0 ce, b) | b@(_, ce) <- nrbinds ]
+        (projs, otherBinds) = L.partition (isJust . fst) fields
+        ss = [ (bs !! i, v) | (Just i, (v, _)) <- (Just i0, (x, e)) : projs ]
+        e'' = foldr (\(_, (v, ce)) -> Let (NonRec v ce)) e' otherBinds
+     in Just $ replaceAltInNestedCases (Ghc.exprType e') ss e'' e
+
+strictifyLazyLets _
   = Nothing
 
-varTuple :: Var -> Maybe (Int, [Type])
-varTuple x
-  | TyConApp c ts <- Ghc.varType x
-  , isTupleTyCon c
-  = Just (length ts, ts)
-  | otherwise
-  = Nothing
+-- | Replaces an expression at the end of a sequence of nested cases with a
+-- single alternative.
+replaceAltInNestedCases
+  :: Type
+  -> [(Var, Var)]
+  -> CoreExpr -- ^ The expression to place at the end of the nested cases
+  -> CoreExpr -- ^ The expression with the nested cases
+  -> CoreExpr
+replaceAltInNestedCases t ss ef = go
+  where
+    go (Case e0 v _ [Alt c bs e1]) =
+      let bs' = [ fromMaybe b (lookup b ss) | b <- bs ]
+       in Case e0 v t [Alt c bs' (go e1)]
+    go _ = ef
 
--- | Takes n binds from an expression that starts with n non-recursive lets.
--- If there are less than n non-recursive lets, yields @Nothing@.
-takeBinds  :: Nat -> CoreExpr -> Maybe ([(Var, CoreExpr)], CoreExpr)
-takeBinds nat ce
-  | nat < 2     = Nothing
-  | otherwise = {- mapFst reverse <$> -} go nat ce
+
+-- | Takes at most n binds from an expression that starts with n non-recursive
+-- lets.
+takeBinds  :: Nat -> CoreExpr -> ([(Var, CoreExpr)], CoreExpr)
+takeBinds nat ce = go nat ce
     where
-      go 0 e                      = Just ([], e)
-      go n (Let (NonRec x e) e')  = do (xes, e'') <- go (n-1) e'
-                                       Just ((x,e) : xes, e'')
-      go _ _                      = Nothing
+      go 0 e = ([], e)
+      go n (Let (NonRec x e) e') =
+        let (xes, e'') = go (n-1) e'
+         in ((x,e) : xes, e'')
+      go _ e = ([], e)
 
--- | Checks that the given bindings have the given types.
--- Also checks that the bindings are projections of some data constructor.
-matchTypes :: [(Var, CoreExpr)] -> [Type] -> Bool
-matchTypes xes ts =  xN == tN
-                  && all (uncurry eqType) (safeZipWithError msg xts ts)
-                  && all isProjection es
-  where
-    xN            = length xes
-    tN            = length ts
-    xts           = Ghc.varType <$> xs
-    (xs, es)      = unzip xes
-    msg           = "RW:matchTypes"
-
-isProjection :: CoreExpr -> Bool
-isProjection e = case lift e of
-                   Just PatProject{} -> True
-                   _                 -> False
-
---------------------------------------------------------------------------------
--- | `hasTuple ys e` CHECKS if `e` contains a tuple that "looks like" (y1...yn)
---------------------------------------------------------------------------------
-hasTuple :: [Var] -> CoreExpr -> Maybe [Var]
---------------------------------------------------------------------------------
-hasTuple ys = stepE
-  where
-    stepE e
-     | Just xs <- isVarTup ys e = Just xs
-     | otherwise                = go e
-    stepA (Alt DEFAULT _ _)     = Nothing
-    stepA (Alt _ _ e)           = stepE e
-    go (Let _ e)                = stepE e
-    go (Case _ _ _ cs)          = msum (stepA <$> cs)
-    go _                        = Nothing
-
---------------------------------------------------------------------------------
--- | `replaceTuple ys e e'` REPLACES tuples that "looks like" (y1...yn) with e'
---------------------------------------------------------------------------------
-
-replaceTuple :: [Var] -> CoreExpr -> CoreExpr -> Maybe CoreExpr
-replaceTuple ys ce ce'           = stepE ce
-  where
-    t'                          = Ghc.exprType ce'
-    stepE e
-     | Just xs <- isVarTup ys e = Just $ substTuple xs ys ce'
-     | otherwise                = go e
-    stepA (Alt DEFAULT xs err)  = Just (Alt DEFAULT xs (replaceIrrefutPat t' err))
-    stepA (Alt c xs e)          = Alt c xs   <$> stepE e
-    go (Let b e)                = Let b      <$> stepE e
-    go (Case e x t cs)          = fixCase e x t <$> mapM stepA cs
-    go _                        = Nothing
-
-_showExpr :: CoreExpr -> String
-_showExpr = show'
-  where
-    show' (App e1 e2) = show' e1 ++ " " ++ show' e2
-    show' (Var x)     = _showVar x
-    show' (Let (NonRec x ex) e) = "Let " ++ _showVar x ++ " = " ++ show' ex ++ "\nIN " ++ show' e
-    show' (Tick _ e) = show' e
-    show' (Case e x _ alt) = "Case " ++ _showVar x ++ " = " ++ show' e ++ " OF " ++ unlines (showAlt' <$> alt)
-    show' e           = showPpr e
-
-    showAlt' (Alt c bs e) = showPpr c ++ unwords (_showVar <$> bs) ++ " -> " ++ show' e
-
-_showVar :: Var -> String
-_showVar = show . F.symbol
-
-_errorSkip :: String -> a -> b
-_errorSkip x _ = error x
-
--- replaceTuple :: [Var] -> CoreExpr -> CoreExpr -> Maybe CoreExpr
--- replaceTuple ys e e' = tracePpr msg (_replaceTuple ys e e')
---  where
---    msg = "replaceTuple: ys = " ++ showPpr ys ++
---                        " e = " ++ showPpr e  ++
---                        " e' =" ++ showPpr e'
-
--- | The substitution (`substTuple`) can change the type of the overall
---   case-expression, so we must update the type of each `Case` with its
---   new, possibly updated type. See:
---   https://github.com/ucsd-progsys/liquidhaskell/pull/752#issuecomment-228946210
-
-fixCase :: CoreExpr -> Var -> Type -> ListNE (Alt Var) -> CoreExpr
-fixCase e x _t cs' = Case e x t' cs'
-  where
-    t'            = Ghc.exprType body
-    Alt _ _ body  = c
-    c:_           = cs'
-
-{-@  type ListNE a = {v:[a] | len v > 0} @-}
-type ListNE a = [a]
-
-replaceIrrefutPat :: Type -> CoreExpr -> CoreExpr
-replaceIrrefutPat t (App (Lam z e) eVoid)
-  | Just e' <- replaceIrrefutPat' t e
-  = App (Lam z e') eVoid
-
-replaceIrrefutPat t e
-  | Just e' <- replaceIrrefutPat' t e
-  = e'
-
-replaceIrrefutPat _ e
-  = e
-
-replaceIrrefutPat' :: Type -> CoreExpr -> Maybe CoreExpr
-replaceIrrefutPat' t e
-  | (Var x, rep:_:args) <- collectArgs e
-  , isIrrefutErrorVar x
-  = Just (Ghc.mkCoreApps (Var x) (rep : Type t : args))
-  | otherwise
-  = Nothing
-
-isIrrefutErrorVar :: Var -> Bool
--- isIrrefutErrorVar _x = False -- Ghc.iRREFUT_PAT_ERROR_ID == x -- TODO:GHC-863
-isIrrefutErrorVar x = x == Ghc.pAT_ERROR_ID
+-- | Checks that the binding is a projections of some data constructor.
+-- | Yields the index of the field being projected
+isProjectionOf :: Var -> CoreExpr -> Maybe Int
+isProjectionOf v (Case xe _ _ [Alt (DataAlt _) ys (Var y)])
+  | Just xv <- isVar xe
+  , v == xv = y `L.elemIndex` ys
+isProjectionOf _ _ = Nothing
 
 --------------------------------------------------------------------------------
 -- | `substTuple xs ys e'` returns e' [y1 := x1,...,yn := xn]
@@ -419,21 +282,20 @@ isIrrefutErrorVar x = x == Ghc.pAT_ERROR_ID
 substTuple :: [Var] -> [Var] -> CoreExpr -> CoreExpr
 substTuple xs ys = substExpr (M.fromList $ zip ys xs)
 
---------------------------------------------------------------------------------
--- | `isVarTup xs e` returns `Just ys` if e == (y1, ... , yn) and xi ~ yi
---------------------------------------------------------------------------------
-
-isVarTup :: [Var] -> CoreExpr -> Maybe [Var]
-isVarTup xs e
-  | Just ys <- isTuple e
-  , eqVars xs ys        = Just ys
-isVarTup _ _             = Nothing
-
-eqVars :: [Var] -> [Var] -> Bool
-eqVars xs ys = {- F.tracepp ("eqVars: " ++ show xs' ++ show ys') -} xs' == ys'
+-- | Yields the tuple of variables at the end of nested cases with
+-- a single alternative each.
+--
+-- > case e0 of
+-- >   pat0 -> case e1 of
+-- >     pat1 -> (x1,...,xn)
+--
+-- Yields both the bound variables of the patterns, and the
+-- variables @x1,...,xn@
+onlyHasATupleInNestedCases :: CoreExpr -> Maybe ([Var], [Var])
+onlyHasATupleInNestedCases = go []
   where
-    xs' = {- F.symbol -} show <$> xs
-    ys' = {- F.symbol -} show <$> ys
+    go bss (Case _ _ _ [Alt (DataAlt _) bs e]) = go (bs:bss) e
+    go bss e = (concat bss,) <$> isTuple e
 
 isTuple :: CoreExpr -> Maybe [Var]
 isTuple e
@@ -446,6 +308,7 @@ isTuple e
 
 isVar :: CoreExpr -> Maybe Var
 isVar (Var x) = Just x
+isVar (Tick _ e) = isVar e
 isVar _       = Nothing
 
 secondHalf :: [a] -> [a]
