@@ -22,15 +22,11 @@ import           Liquid.GHC.API  as Ghc hiding ( mkTyArg
 import qualified Liquid.GHC.API  as Ghc
 import           Control.Monad (forM)
 import           Control.Monad.State.Lazy
-import           System.Console.CmdArgs.Verbosity (whenLoud)
 import qualified Language.Fixpoint.Types    as F
 
 import           Language.Haskell.Liquid.UX.Config  as UX
 import qualified Language.Haskell.Liquid.Misc       as Misc
 import           Language.Haskell.Liquid.GHC.Misc   as GM
-import           Language.Haskell.Liquid.Transforms.Rec
-import           Language.Haskell.Liquid.Transforms.InlineAux
-import           Language.Haskell.Liquid.Transforms.Rewrite
 import           Language.Haskell.Liquid.Types.Errors
 
 import qualified Language.Haskell.Liquid.GHC.SpanStack as Sp
@@ -48,22 +44,11 @@ import qualified Data.HashMap.Strict as HM
 anormalize :: UX.Config -> HscEnv -> ModGuts -> IO [CoreBind]
 --------------------------------------------------------------------------------
 anormalize cfg hscEnv modGuts = do
-  whenLoud $ do
-    putStrLn "***************************** GHC CoreBinds ***************************"
-    putStrLn $ GM.showCBs untidy (mg_binds modGuts)
-    putStrLn "***************************** REC CoreBinds ***************************"
-    putStrLn $ GM.showCBs untidy orig_cbs
-    putStrLn "***************************** RWR CoreBinds ***************************"
-    putStrLn $ GM.showCBs untidy rwr_cbs
   fromMaybe err . snd <$> initDsWithModGuts hscEnv modGuts act -- hscEnv m grEnv tEnv emptyFamInstEnv act
     where
       err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
-      act      = Misc.concatMapM (normalizeTopBind γ0) rwr_cbs
+      act      = Misc.concatMapM (normalizeTopBind γ0) (mg_binds modGuts)
       γ0       = emptyAnfEnv cfg
-      rwr_cbs  = rewriteBinds cfg orig_cbs
-      orig_cbs = transformRecExpr inl_cbs
-      inl_cbs  = inlineAux cfg (mg_module modGuts) $ mg_binds modGuts
-      untidy   = UX.untidyCore cfg
 
 --------------------------------------------------------------------------------
 -- | A-Normalize a @CoreBind@ --------------------------------------------------

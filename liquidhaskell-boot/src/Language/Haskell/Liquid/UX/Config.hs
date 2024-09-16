@@ -109,6 +109,7 @@ data Config = Config
   , pandocHtml               :: Bool       -- ^ Use pandoc to generate html
   , excludeAutomaticAssumptionsFor :: [String]
   , dumpOpaqueReflections    :: Bool       -- Dumps all opaque reflections to the stdout
+  , dumpPreNormalizedCore    :: Bool       -- Dumps the prenormalized core (before a-normalization)
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 allowPLE :: Config -> Bool

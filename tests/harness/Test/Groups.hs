@@ -9,6 +9,7 @@ microTestGroups =
   [ -- micros
     "unit-pos-1"
   , "unit-pos-2"
+  , "unit-pos-3"
   , "unit-neg"
   , "basic-pos"
   , "basic-neg"

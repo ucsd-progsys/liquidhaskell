@@ -46,8 +46,8 @@ rewriteBinds :: Config -> [CoreBind] -> [CoreBind]
 rewriteBinds cfg
   | simplifyCore cfg
   = fmap (normalizeTuples 
-       . rewriteBindWith undollar 
-       . rewriteBindWith tidyTuples 
+       . rewriteBindWith undollar
+       . tidyTuples
        . rewriteBindWith simplifyPatTuple)
   | otherwise
   = id
@@ -56,38 +56,15 @@ simplifyCore :: Config -> Bool
 simplifyCore = not . noSimplifyCore
 
 undollar :: RewriteRule
-undollar = go
-  where
-    go e
-     | Just (f, a) <- splitDollarApp e
-     = Just $ App f a
-    go (Tick t e)
-      = Tick t <$> go e
-    go (Let (NonRec x ex) e)
-      = do ex' <- go ex
-           e'  <- go e
-           return $ Let (NonRec x ex') e'
-    go (Let (Rec bes) e)
-      = Let <$> (Rec <$> mapM goRec bes) <*> go e
-    go (Case e x t alts)
-      = Case e x t <$> mapM goAlt alts
-    go (App e1 e2)
-      = App <$> go e1 <*> go e2
-    go (Lam x e)
-      = Lam x <$> go e
-    go (Cast e c)
-      = (`Cast` c) <$> go e
-    go e
-      = return e
+undollar e
+    | Just (f, a) <- splitDollarApp e =
+      Just $ App f a
+    | otherwise = Nothing
 
-    goRec (x, e)
-      = (x,) <$> go e
-
-    goAlt (Alt c bs e)
-      = Alt c bs <$> go e
-
-tidyTuples :: RewriteRule
-tidyTuples ce = Just $ evalState (go ce) []
+tidyTuples :: CoreBind -> CoreBind
+tidyTuples ce = case ce of
+   NonRec x e -> NonRec x (evalState (go e) [])
+   Rec xs -> Rec $ map (fmap (\e -> evalState (go e) [])) xs
   where
     go (Tick t e)
       = Tick t <$> go e
