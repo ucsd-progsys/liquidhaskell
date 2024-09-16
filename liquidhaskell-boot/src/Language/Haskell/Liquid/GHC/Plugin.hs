@@ -235,7 +235,7 @@ typecheckHook (unoptimise -> modSummary) tcGblEnv = do
   -- The LH plugin itself calls the type checker (see following line). This
   -- would lead to a loop if we didn't remove the plugin when calling the type
   -- checker.
-  typechecked     <- liftIO $ typecheckModuleIO (dropPlugins env) (LH.ignoreInline parsed)
+  typechecked     <- liftIO $ typecheckModuleIO (dropPlugins env) parsed
   resolvedNames   <- liftIO $ LH.lookupTyThings env tcGblEnv
   availTyCons     <- liftIO $ LH.availableTyCons env tcGblEnv (tcg_exports tcGblEnv)
   availVars       <- liftIO $ LH.availableVars env tcGblEnv (tcg_exports tcGblEnv)
