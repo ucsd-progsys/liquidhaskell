@@ -323,16 +323,10 @@ processInputSpec cfg pipelineData modSummary tcGblEnv inputSpec = do
 
 liquidHaskellCheckWithConfig :: Config -> PipelineData -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
 liquidHaskellCheckWithConfig globalCfg pipelineData modSummary tcGblEnv = do
-  -- The 'specQuotes' contain stuff we need from imported modules, extracted
-  -- from the annotations in their interface files.
-  let specQuotes :: [BPspec]
-      specQuotes = LH.extractSpecQuotes' tcg_mod tcg_anns tcGblEnv
-
   -- Here, we are calling Liquid Haskell's parser, acting on the unparsed
-  -- spec comments stored in the pipeline data, supported by the specQuotes
-  -- obtained from the imported modules.
+  -- spec comments stored in the pipeline data.
   inputSpec' :: Either LiquidCheckException BareSpec <-
-    getLiquidSpec thisFile thisModule (pdSpecComments pipelineData) specQuotes
+    getLiquidSpec thisFile thisModule (pdSpecComments pipelineData)
 
   case inputSpec' of
     Left e -> pure $ Left e
@@ -466,11 +460,11 @@ data ProcessModuleResult = ProcessModuleResult {
 -- spec quotes from the imported module. Also looks for
 -- "companion specs" for the current module and merges them in
 -- if it finds one.
-getLiquidSpec :: FilePath -> Module -> [SpecComment] -> [BPspec] -> TcM (Either LiquidCheckException BareSpec)
-getLiquidSpec thisFile thisModule specComments specQuotes = do
+getLiquidSpec :: FilePath -> Module -> [SpecComment] -> TcM (Either LiquidCheckException BareSpec)
+getLiquidSpec thisFile thisModule specComments = do
   globalCfg <- liftIO getConfig
   let commSpecE :: Either [Error] (ModName, Spec LocBareType LocSymbol)
-      commSpecE = hsSpecificationP (moduleName thisModule) (coerce specComments) specQuotes
+      commSpecE = hsSpecificationP (moduleName thisModule) (coerce specComments)
   case commSpecE of
     Left errors ->
       LH.filterReportErrors thisFile GHC.failM continue (getFilters globalCfg) Full errors

@@ -54,12 +54,11 @@ import Control.Monad.State
 -- | Used to parse .hs and .lhs files (via ApiAnnotations).
 hsSpecificationP :: ModuleName
                  -> [(SourcePos, String)]
-                 -> [BPspec]
                  -> Either [Error] (ModName, Measure.BareSpec)
-hsSpecificationP modName specComments specQuotes =
+hsSpecificationP modName specComments =
   case go ([], []) initPStateWithList specComments of
     ([], specs) ->
-      Right $ mkSpec (ModName SrcImport modName) (specs ++ specQuotes)
+      Right $ mkSpec (ModName SrcImport modName) specs
     (errors, _) ->
       Left errors
   where
