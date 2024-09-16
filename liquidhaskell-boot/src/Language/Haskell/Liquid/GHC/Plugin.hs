@@ -230,7 +230,7 @@ typecheckHook (unoptimise -> modSummary) tcGblEnv = do
 
   env             <- env_top <$> getEnv
   parsed0          <- liftIO $ parseModuleIO env (LH.keepRawTokenStream modSummary)
-  let comments    = LH.extractSpecComments parsed
+  let comments    = LH.extractSpecComments parsed0
       parsed      = addNoInlinePragmasToLocalBinds parsed0
   -- The LH plugin itself calls the type checker (see following line). This
   -- would lead to a loop if we didn't remove the plugin when calling the type
