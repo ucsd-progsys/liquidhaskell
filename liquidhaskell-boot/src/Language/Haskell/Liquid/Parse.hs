@@ -9,6 +9,7 @@
 
 module Language.Haskell.Liquid.Parse
   ( hsSpecificationP
+  , parseSpecComments
   , specSpecificationP
   , singleSpecP
   , BPspec
@@ -51,14 +52,16 @@ import Control.Monad.State
 
 -- * Top-level parsing API
 
--- | Used to parse .hs and .lhs files (via ApiAnnotations).
-hsSpecificationP :: ModuleName
-                 -> [(SourcePos, String)]
-                 -> Either [Error] (ModName, Measure.BareSpec)
-hsSpecificationP modName specComments =
+hsSpecificationP :: ModuleName -> [BPspec] -> (ModName, Measure.BareSpec)
+hsSpecificationP modName specs =
+    mkSpec (ModName SrcImport modName) specs
+
+-- | Parse comments in .hs and .lhs files
+parseSpecComments :: [(SourcePos, String)] -> Either [Error] [BPspec]
+parseSpecComments specComments =
   case go ([], []) initPStateWithList specComments of
     ([], specs) ->
-      Right $ mkSpec (ModName SrcImport modName) specs
+      Right specs
     (errors, _) ->
       Left errors
   where

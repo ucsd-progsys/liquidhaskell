@@ -33,6 +33,7 @@ import           GHC.Generics                      hiding ( moduleName )
 
 import qualified Data.HashSet        as HS
 
+import           Language.Haskell.Liquid.Parse (BPspec)
 import           Language.Haskell.Liquid.Types.Specs
 import           Liquid.GHC.API         as GHC
 import qualified Language.Haskell.Liquid.GHC.Interface   as LH
@@ -93,7 +94,7 @@ mkSpecComment (m, s) = SpecComment (sourcePos m, s)
 data PipelineData = PipelineData {
     pdUnoptimisedCore :: ModGuts
   , pdTcData :: TcData
-  , pdSpecComments :: [SpecComment]
+  , pdSpecComments :: [BPspec]
   }
 
 -- | Data which can be \"safely\" passed to the \"Core\" stage of the pipeline.
