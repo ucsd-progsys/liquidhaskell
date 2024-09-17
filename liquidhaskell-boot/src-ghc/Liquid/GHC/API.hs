@@ -34,6 +34,7 @@ import           GHC                  as Ghc
         , Opt_InsertBreakpoints
         , Opt_KeepRawTokenStream
         , Opt_PIC
+        , Opt_IgnoreInterfacePragmas
         )
     , Ghc
     , GhcException(CmdLineError, ProgramError)
@@ -443,6 +444,7 @@ import GHC.Driver.Pipeline            as Ghc (compileFile)
 import GHC.Driver.Session             as Ghc
     ( getDynFlags
     , gopt_set
+    , gopt_unset
     , updOptLevel
     , xopt_set
     )
@@ -462,7 +464,7 @@ import GHC.Plugins                    as Ghc ( deserializeWithData
                                              , extendIdSubst
                                              , substExpr
                                              )
-import GHC.Core.FVs                   as Ghc (exprFreeVarsList, exprSomeFreeVarsList)
+import GHC.Core.FVs                   as Ghc (exprFreeVars, exprFreeVarsList, exprSomeFreeVarsList)
 import GHC.Core.Opt.OccurAnal         as Ghc
     ( occurAnalysePgm )
 import GHC.Driver.Backend             as Ghc (interpreterBackend)
@@ -546,6 +548,7 @@ import GHC.Types.Basic                as Ghc
     , funPrec
     , InlinePragma(inl_act, inl_inline, inl_rule, inl_sat, inl_src)
     , isDeadOcc
+    , isNoInlinePragma
     , isStrongLoopBreaker
     , noOccInfo
     , topPrec
@@ -572,6 +575,7 @@ import GHC.Types.Id                   as Ghc
     , idInfo
     , idOccInfo
     , isConLikeId
+    , idInlinePragma
     , modifyIdInfo
     , mkExportedLocalId
     , mkUserLocal
@@ -585,6 +589,7 @@ import GHC.Types.Id.Info              as Ghc
     , cafInfo
     , inlinePragInfo
     , mayHaveCafRefs
+    , realUnfoldingInfo
     , setCafInfo
     , setOccInfo
     , vanillaIdInfo

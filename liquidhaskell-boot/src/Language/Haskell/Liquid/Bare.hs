@@ -248,14 +248,14 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
                else pure sig
   let (dg3, refl)    = withDiagnostics $ makeSpecRefl cfg src measEnv0 specs env name elaboratedSig tycEnv
   let eqs            = gsHAxioms refl
-  let measEnv = addOpaqueReflMeas env measEnv0 specs eqs
+  let (dg4, measEnv) = withDiagnostics $ addOpaqueReflMeas cfg tycEnv env mySpec measEnv0 specs eqs
   let qual     = makeSpecQual cfg env tycEnv measEnv rtEnv specs
-  let (dg4, spcVars) = withDiagnostics $ makeSpecVars cfg src mySpec env measEnv
-  let (dg5, spcTerm) = withDiagnostics $ makeSpecTerm cfg     mySpec env       name
+  let (dg5, spcVars) = withDiagnostics $ makeSpecVars cfg src mySpec env measEnv
+  let (dg6, spcTerm) = withDiagnostics $ makeSpecTerm cfg     mySpec env       name
   let sData    = makeSpecData  src env sigEnv measEnv elaboratedSig specs
   let laws     = makeSpecLaws env sigEnv (gsTySigs elaboratedSig ++ gsAsmSigs elaboratedSig) measEnv specs
   let finalLiftedSpec = makeLiftedSpec name src env refl sData elaboratedSig qual myRTE lSpec1
-  let diags    = mconcat [dg0, dg1, dg2, dg3, dg4, dg5]
+  let diags    = mconcat [dg0, dg1, dg2, dg3, dg4, dg5, dg6]
 
   -- Dump reflections, if requested
   when (dumpOpaqueReflections cfg) . Ghc.liftIO $ do
@@ -703,7 +703,9 @@ makeSpecRefl cfg src menv specs env name sig tycEnv = do
   where
     lawMethods   = F.notracepp "Law Methods" $ concatMap Ghc.classMethods (fst <$> Bare.meCLaws menv)
     mySpec       = M.lookupDefault mempty name specs
-    rflSyms      = S.fromList (getReflects specs)
+    -- Collect reflected symbols and fully qualify them
+    rflLocSyms   = Bare.getLocReflects (Just env) specs
+    rflSyms      = S.map val rflLocSyms
     lmap         = Bare.reLMap env
     notInReflOnes (_, a) = not $ a `S.member` Ms.reflects mySpec
     anyNonReflFn = L.find notInReflOnes (Ms.asmReflectSigs mySpec)
@@ -711,10 +713,7 @@ makeSpecRefl cfg src menv specs env name sig tycEnv = do
 isReflectVar :: S.HashSet F.Symbol -> Ghc.Var -> Bool
 isReflectVar reflSyms v = S.member vx reflSyms
   where
-    vx                  = GM.dropModuleNames (symbol v)
-
-getReflects :: Bare.ModSpecs -> [Symbol]
-getReflects  = fmap val . S.toList . Bare.getLocReflects Nothing
+    vx                  = symbol v
 
 ------------------------------------------------------------------------------------------
 -- | @updateReflSpecSig@ uses the information about reflected functions (included the opaque ones) to update the
@@ -743,7 +742,7 @@ addReflSigs env name rtEnv measEnv refl sig =
         `M.union` M.fromList (filter notReflected (gsAsmSigs sig))
         `M.union` M.fromList wreflSigs
     -- Strengthen the post-condition of each of the opaque reflections.
-    createUpdatedSpecs var = (var, Bare.aty <$> Bare.strengthenSpecWithMeasure sig env var (varLocSym var))
+    createUpdatedSpecs var = (var, Bare.aty <$> Bare.strengthenSpecWithMeasure sig env var (Bare.varLocSym var))
     -- See T1738. We need to expand and qualify any reflected signature /here/, after any
     -- relevant binder has been detected and \"promoted\". The problem stems from the fact that any input
     -- 'BareSpec' will have a 'reflects' list of binders to reflect under the form of an opaque 'Var', that
@@ -1287,22 +1286,45 @@ makeMeasEnv env tycEnv sigEnv specs = do
 --- Add the opaque reflections to the measure environment
 --- Returns a new environment that is the old one enhanced with the opaque reflections
 -------------------------------------------------------------------------------------------
-addOpaqueReflMeas :: Bare.Env -> Bare.MeasEnv -> Bare.ModSpecs ->
+addOpaqueReflMeas :: Config -> Bare.TycEnv -> Bare.Env -> Ms.BareSpec -> Bare.MeasEnv -> Bare.ModSpecs ->
                [(Ghc.Var, LocSpecType, F.Equation)] ->
-               Bare.MeasEnv
--------------------------------------------------------------------------------------------
-addOpaqueReflMeas env measEnv specs eqs = do
-  let (measures0, opaqueRefl) = Bare.makeOpaqueReflMeasures env measEnv specs eqs
+               Bare.Lookup Bare.MeasEnv
+----------------------- --------------------------------------------------------------------
+addOpaqueReflMeas cfg tycEnv env spec measEnv specs eqs = do
+  dcs   <- snd <$> Bare.makeConTypes'' env name spec dataDecls []
+  let datacons      = Bare.makePluggedDataCon (typeclass cfg) embs tyi <$> concat dcs
+  let dcSelectors   = concatMap (Bare.makeMeasureSelectors cfg dm) datacons
   -- Rest of the code is the same idea as for makeMeasEnv, only we just care on how to get
   -- `meSyms` (no class, data constructor or other stuff here).
-  let measures = mconcat measures0
-  let (_, ms) = Bare.makeMeasureSpec'  (typeclass $ getConfig env)   measures
+  let measures = mconcat (Ms.mkMSpec' dcSelectors : measures0)
+  let (cs, ms) = Bare.makeMeasureSpec'  (typeclass $ getConfig env)   measures
   let ms'      = [ (F.val lx, F.atLoc lx t) | (lx, t) <- ms ]
-  measEnv <> mempty
+  let cs'      = [ (v, txRefs v t) | (v, t) <- Bare.meetDataConSpec (typeclass (getConfig env)) embs cs (val <$> datacons)]
+  return $ measEnv <> mempty
     { Bare.meMeasureSpec = measures
     , Bare.meSyms        = ms'
+    , Bare.meDataCons    = cs'
     , Bare.meOpaqueRefl  = opaqueRefl
     }
+  where
+    -- We compute things in the same way as in makeMeasEnv
+    txRefs v t    = Bare.txRefSort tyi embs (t <$ GM.locNamedThing v)
+    (measures0, opaqueRefl) = Bare.makeOpaqueReflMeasures env measEnv specs eqs
+    -- Note: it is important to do toList after applying `dataConTyCon` because
+    -- obviously several data constructors can refer to the same `TyCon` so we
+    -- could have duplicates
+    -- We skip the variables from the axiom equations that correspond to the actual functions
+    -- of opaque reflections, since we never need to look at the unfoldings of those
+    qualifySym l = Bare.qualifyTop env name (loc l) (val l)
+    actualFns = S.fromList $ qualifySym . fst <$> Ms.asmReflectSigs spec
+    shouldBeUsedForScanning sym = not (sym `S.member` actualFns)
+    varsUsedForTcScanning = L.filter (shouldBeUsedForScanning . symbol) $ fst3 <$> eqs
+    tcs           = S.toList $ Ghc.dataConTyCon `S.map` Bare.getReflDCs measEnv varsUsedForTcScanning
+    dataDecls     = Bare.makeHaskellDataDecls cfg name spec tcs
+    tyi           = Bare.tcTyConMap    tycEnv
+    embs          = Bare.tcEmbs        tycEnv
+    dm            = Bare.tcDataConMap  tycEnv
+    name          = Bare.tcName        tycEnv
 
 -----------------------------------------------------------------------------------------
 -- | @makeLiftedSpec@ is used to generate the BareSpec object that should be serialized
@@ -1317,7 +1339,7 @@ makeLiftedSpec name src _env refl sData sig qual myRTE lSpec0 = lSpec0
   { Ms.asmSigs    = F.notracepp   ("makeLiftedSpec : ASSUMED-SIGS " ++ F.showpp name ) (xbs ++ myDCs)
   , Ms.reflSigs   = F.notracepp "REFL-SIGS"         xbs
   , Ms.sigs       = F.notracepp   ("makeLiftedSpec : LIFTED-SIGS " ++ F.showpp name )  $ mkSigs (gsTySigs sig)
-  , Ms.invariants = [ (varLocSym <$> x, Bare.specToBare <$> t)
+  , Ms.invariants = [ (Bare.varLocSym <$> x, Bare.specToBare <$> t)
                        | (x, t) <- gsInvariants sData
                        , isLocInFile srcF t
                     ]
@@ -1332,7 +1354,7 @@ makeLiftedSpec name src _env refl sData sig qual myRTE lSpec0 = lSpec0
     mkSigs xts    = [ toBare (x, t) | (x, t) <- xts
                     ,  S.member x sigVars && isExportedVar (toTargetSrc src) x
                     ]
-    toBare (x, t) = (varLocSym x, Bare.specToBare <$> t)
+    toBare (x, t) = (Bare.varLocSym x, Bare.specToBare <$> t)
     xbs           = toBare <$> reflTySigs
     sigVars       = S.difference defVars reflVars
     defVars       = S.fromList (_giDefVars src)
@@ -1358,9 +1380,6 @@ isLocInFile f lx = f == lifted || isCompanion
 
 locFile :: (F.Loc a) => a -> FilePath
 locFile = Misc.fst3 . F.sourcePosElts . F.sp_start . F.srcSpan
-
-varLocSym :: Ghc.Var -> LocSymbol
-varLocSym v = F.symbol <$> GM.locNamedThing v
 
 -- makeSpecRTAliases :: Bare.Env -> BareRTEnv -> [Located SpecRTAlias]
 -- makeSpecRTAliases _env _rtEnv = [] -- TODO-REBARE

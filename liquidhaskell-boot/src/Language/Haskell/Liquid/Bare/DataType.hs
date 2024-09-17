@@ -13,6 +13,7 @@ module Language.Haskell.Liquid.Bare.DataType
   -- * Constructors
   , makeDataDecls
   , makeConTypes
+  , makeConTypes''
   , makeRecordSelectorSigs
   , meetDataConSpec
   -- , makeTyConEmbeds
@@ -391,17 +392,25 @@ makeConTypes myName env specs =
   Misc.concatUnzip <$> mapM (makeConTypes' myName env) specs
 
 
+-- Essentially transforms the data declarations inside the specs
+--- into LH's enhanced types for type constructors and data constructors
 makeConTypes' :: ModName -> Bare.Env -> (ModName, Ms.BareSpec)
              -> Bare.Lookup ([(ModName, TyConP, Maybe DataPropDecl)], [[Located DataConP]])
-makeConTypes' _myName env (name, spec) = do
+makeConTypes' _myName env (name, spec) = makeConTypes'' env name spec dcs vdcs
+  where
+    dcs  = Ms.dataDecls spec
+    vdcs = Ms.dvariance spec
+
+-- Essentially transforms the data declarations into LH's enhanced types for type constructors and
+-- data constructors
+makeConTypes'' :: Bare.Env -> ModName -> Ms.BareSpec -> [DataDecl] -> [(F.LocSymbol, [Variance])]
+             -> Bare.Lookup ([(ModName, TyConP, Maybe DataPropDecl)], [[Located DataConP]])
+makeConTypes'' env name spec dcs vdcs = do
   dcs'   <- canonizeDecls env name dcs
   let dcs'' = dataDeclSize spec dcs'
   let gvs = groupVariances dcs'' vdcs
   zong <- catLookups . map (uncurry (ofBDataDecl env name)) $ gvs
   return (unzip zong)
-  where
-    dcs  = Ms.dataDecls spec
-    vdcs = Ms.dvariance spec
 
 
 type DSizeMap = M.HashMap F.Symbol (F.Symbol, [F.Symbol])

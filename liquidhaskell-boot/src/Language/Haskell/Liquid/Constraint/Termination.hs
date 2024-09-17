@@ -30,7 +30,6 @@ import           Language.Haskell.Liquid.Constraint.Types (CG, CGInfo (..), CGEn
 import           Language.Haskell.Liquid.Constraint.Monad (addWarning)
 import           Language.Haskell.Liquid.Constraint.Env (setTRec)
 import           Language.Haskell.Liquid.Constraint.Template ( Template(..), unTemplate, varTemplate, safeFromAsserted, extender )
-import           Language.Haskell.Liquid.Transforms.Rec (isIdTRecBound)
 import           Language.Haskell.Liquid.Types (refreshArgs, HasConfig (..), toRSort)
 import           Language.Haskell.Liquid.Types.Types
   (SpecType, TError (..), RType (..), RTypeRep (..), Oblig (..), Error, Config (..), RReft,
@@ -91,21 +90,21 @@ addObligation o t r  = mkArrow αs πs xts $ RRTy [] r o t2
 -- | TERMINATION TYPE ----------------------------------------------------------
 --------------------------------------------------------------------------------
 
-makeDecrIndex :: (GHC.Var, Template SpecType, [GHC.Var]) -> CG (Maybe Int)
-makeDecrIndex (x, Assumed t, args)
-  = do dindex <- makeDecrIndexTy x t args
+makeDecrIndex :: (GHC.Var, Template SpecType) -> CG (Maybe Int)
+makeDecrIndex (x, Assumed t)
+  = do dindex <- makeDecrIndexTy x t
        case dindex of
          Left msg -> addWarning msg >> return Nothing
          Right i -> return $ Just i
-makeDecrIndex (x, Asserted t, args)
-  = do dindex <- makeDecrIndexTy x t args
+makeDecrIndex (x, Asserted t)
+  = do dindex <- makeDecrIndexTy x t
        case dindex of
          Left msg -> addWarning msg >> return Nothing
          Right i  -> return $ Just i
 makeDecrIndex _ = return Nothing
 
-makeDecrIndexTy :: GHC.Var -> SpecType -> [GHC.Var] -> CG (Either (TError t) Int)
-makeDecrIndexTy x st args
+makeDecrIndexTy :: GHC.Var -> SpecType -> CG (Either (TError t) Int)
+makeDecrIndexTy x st
   = do autosz <- gets autoSize
        return $ case dindex autosz of
          Nothing -> Left msg
@@ -114,11 +113,10 @@ makeDecrIndexTy x st args
        msg  = ErrTermin (GHC.getSrcSpan x) [F.pprint x] (text "No decreasing parameter")
        trep = toRTypeRep $ unOCons st
        ts   = ty_args trep
-       tvs  = zip ts args
        cenv = makeNumEnv ts
 
-       p autosz (t, v)   = isDecreasing autosz cenv t && not (isIdTRecBound v)
-       dindex     autosz = L.findIndex (p autosz) tvs
+       p autosz t = isDecreasing autosz cenv t
+       dindex     autosz = L.findIndex (p autosz) ts
 
 recType :: F.Symbolic a
         => S.HashSet GHC.TyCon
@@ -186,7 +184,7 @@ consCBSizedTys consBind γ xes
        autoenv  <- gets autoSize
        ts       <- forM ts' $ T.mapM refreshArgs
        let vs    = zipWith collectArgs' ts es
-       is       <- mapM makeDecrIndex (zip3 vars ts vs) >>= checkSameLens
+       is       <- mapM makeDecrIndex (zip vars ts) >>= checkSameLens
        let xeets = zipWith (\v i -> [((v,i), x) | x <- zip3 vars is $ map unTemplate ts]) vs is
        _        <- mapM checkIndex (zip4 vars vs ts is) >>= checkEqTypes
        let rts   = (recType autoenv <$>) <$> xeets

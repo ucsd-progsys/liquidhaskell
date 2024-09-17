@@ -26,7 +26,6 @@ module Language.Haskell.Liquid.GHC.Interface (
 
   -- * Internal exports (provisional)
   , extractSpecComments
-  , extractSpecQuotes'
   , makeLogicMap
   , classCons
   , derivedVars
@@ -62,12 +61,8 @@ import Control.Exception
 import Control.Monad
 import Control.Monad.Trans.Maybe
 
-import Data.Data
 import Data.List hiding (intersperse)
 import Data.Maybe
-
-import Data.Generics.Aliases (mkT)
-import Data.Generics.Schemes (everywhere)
 
 import qualified Data.HashSet        as S
 
@@ -85,9 +80,6 @@ import qualified Language.Haskell.Liquid.Measure  as Ms
 import qualified Language.Haskell.Liquid.Misc     as Misc
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Types hiding (Spec)
--- import Language.Haskell.Liquid.Types.PrettyPrint
--- import Language.Haskell.Liquid.Types.Visitors
-import Language.Haskell.Liquid.UX.QuasiQuoter
 import Language.Haskell.Liquid.UX.Tidy
 
 import qualified Debug.Trace as Debug
@@ -303,28 +295,6 @@ extractSpecComment (Ghc.L sp (ApiBlockComment txt))
       mkRealSrcLoc (srcLocFile s) (srcLocLine s) (srcLocCol s + 3)
 
 extractSpecComment _ = Nothing
-
-extractSpecQuotes' :: (a -> Module) -> (a -> [Annotation]) -> a -> [BPspec]
-extractSpecQuotes' thisModule getAnns a = mapMaybe extractSpecQuote anns
-  where
-    anns = map ann_value $
-           filter (isOurModTarget . ann_target) $
-           getAnns a
-
-    isOurModTarget (ModuleTarget mod1) = mod1 == thisModule a
-    isOurModTarget _ = False
-
-extractSpecQuote :: AnnPayload -> Maybe BPspec
-extractSpecQuote payload =
-  case Ghc.fromSerialized Ghc.deserializeWithData payload of
-    Nothing -> Nothing
-    Just qt -> Just $ refreshSymbols $ liquidQuoteSpec qt
-
-refreshSymbols :: Data a => a -> a
-refreshSymbols = everywhere (mkT refreshSymbol)
-
-refreshSymbol :: Symbol -> Symbol
-refreshSymbol = symbol . symbolText
 
 --------------------------------------------------------------------------------
 -- | Finding & Parsing Files ---------------------------------------------------

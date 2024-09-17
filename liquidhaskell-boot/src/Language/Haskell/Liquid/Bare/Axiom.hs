@@ -33,11 +33,13 @@ import           Language.Haskell.Liquid.Types
 
 import           Language.Haskell.Liquid.Bare.Resolve as Bare
 import           Language.Haskell.Liquid.Bare.Types   as Bare
+import           Language.Haskell.Liquid.Bare.Measure as Bare
 import qualified Data.List as L
 import Language.Haskell.Liquid.Misc (fst4)
 import Control.Applicative
 import Data.Function (on)
 import qualified Data.Map as Map
+import qualified Data.HashMap.Strict as M
 
 findDuplicatePair :: Ord k => (a -> k) -> [a] -> Maybe (a, a)
 findDuplicatePair key xs =
@@ -61,7 +63,7 @@ makeHaskellAxioms :: Config -> GhcSrc -> Bare.Env -> Bare.TycEnv -> ModName -> L
 -----------------------------------------------------------------------------------------------
 makeHaskellAxioms cfg src env tycEnv name lmap spSig spec = do
   wiDefs     <- wiredDefs cfg env name spSig
-  let refDefs = getReflectDefs src spSig spec
+  let refDefs = getReflectDefs src spSig spec env name
   return (makeAxiom env tycEnv name lmap <$> (wiDefs ++ refDefs))
 
 -----------------------------------------------------------------------------------------------
@@ -82,7 +84,7 @@ makeAssumeReflectAxioms src env tycEnv name spSig spec = do
     Nothing -> return $ turnIntoAxiom <$> Ms.asmReflectSigs spec
   where
     turnIntoAxiom (actual, pretended) = makeAssumeReflectAxiom spSig env embs name (actual, pretended)
-    refDefs                 = getReflectDefs src spSig spec
+    refDefs                 = getReflectDefs src spSig spec env name
     embs                    = Bare.tcEmbs       tycEnv
     refSymbols              = fst4 <$> refDefs
     reflActSymbols          = fst <$> Ms.asmReflectSigs spec
@@ -154,23 +156,130 @@ strengthenSpecWithMeasure sig env actualV qPretended =
             toRTypeRep $ Mb.fromMaybe (ofType actualTy) mbT
     allowTC = typeclass (getConfig env)
 
-getReflectDefs :: GhcSrc -> GhcSpecSig -> Ms.BareSpec
+-- Gets the definitions of all the symbols that `BareSpec` wants to reflect.
+--
+-- Because we allow to name private variables here, not all symbols can easily
+-- be turned into `Ghc.Var`. Essentially, `findVarDefType` can initially only
+-- fetch the definitions of public variables. We use a fixpoint so that for each
+-- newly retrieved definition, we get the list of variables used inside it and
+-- record them in a HashMap so that in the next round, we might be able to get
+-- more definitions (because once you have a variable, it's easy to get its
+-- unfolding).
+--
+-- Iterates until no new definition is found. In which case, we fail
+-- if there are still symbols left which we failed to find the source for.
+getReflectDefs :: GhcSrc -> GhcSpecSig -> Ms.BareSpec -> Bare.Env -> ModName
                -> [(LocSymbol, Maybe SpecType, Ghc.Var, Ghc.CoreExpr)]
-getReflectDefs src sig spec = findVarDefType cbs sigs <$> xs
+getReflectDefs src sig spec env modName =
+  searchInTransitiveClosure symsToResolve initialDefinedMap []
   where
     sigs                    = gsTySigs sig
-    xs                      = S.toList (Ms.reflects spec)
+    symsToResolve           = S.toList (Ms.reflects spec)
     cbs                     = _giCbs src
+    initialDefinedMap          = M.empty
 
-findVarDefType :: [Ghc.CoreBind] -> [(Ghc.Var, LocSpecType)] -> LocSymbol
-               -> (LocSymbol, Maybe SpecType, Ghc.Var, Ghc.CoreExpr)
-findVarDefType cbs sigs x = case findVarDefMethod (val x) cbs of
+    -- First argument of the `searchInTransitiveClosure` function should always
+    -- decrease.
+    -- The second argument contains the Vars that appear free in the definitions
+    -- of the symbols in the third argument.
+    -- The third argument contains the symbols that have been resolved.
+    --
+    -- The set of symbols in the union of the first and third argument should
+    -- remain constant in every recursive call. Moreover, both arguments are
+    -- disjoint.
+    --
+    -- Base case: No symbols left to resolve - we're good
+    searchInTransitiveClosure [] _ acc = acc
+    -- Recursive case: there are some left.
+    searchInTransitiveClosure toResolve fvMap acc = if null found
+         then case newToResolve of
+                -- No one newly found but no one left to process - we're good
+                [] -> acc
+                -- No one newly found but at least one symbol left - we throw
+                -- an error
+                x:_ -> Ex.throw . mkError x $
+                  "Not found in scope nor in the amongst these variables: " ++
+                    foldr (\x acc -> acc ++ " , " ++ show x) "" newFvMap
+         else searchInTransitiveClosure newToResolve newFvMap newAcc
+      where
+        -- Try to get the definitions of the symbols that are left (`toResolve`)
+        resolvedSyms = findVarDefType cbs sigs env modName fvMap <$> toResolve
+        -- Collect the newly found definitions
+        found     = Mb.catMaybes resolvedSyms
+        -- Add them to the accumulator
+        newAcc    = acc ++ found
+        -- Add any variable occurrence in them to `fvMap`
+        newFvMap = foldl addFreeVarsToMap fvMap found
+        -- Collect all the symbols that still failed to be resolved in this
+        -- iteration
+        newToResolve = [x | (x, Nothing) <- zip toResolve resolvedSyms]
+
+    -- Collects the free variables in an expression and inserts them to the
+    -- provided map between symbols and variables. Especially useful to collect
+    -- private variables, since it's the only way to reach them (seeing them in
+    -- other unfoldings)
+    addFreeVarsToMap fvMap (_, _, _, expr) =
+      let freeVarsSet = getAllFreeVars expr
+          newVars =
+            M.fromList [(Bare.varLocSym var, var) | var <- freeVarsSet]
+      in M.union fvMap newVars
+
+    getAllFreeVars = Ghc.exprSomeFreeVarsList (const True)
+
+-- Finds the definition of a variable in the given Core binds, or in the
+-- unfoldings of a Var. Used for reflection. Returns the same
+-- `LocSymbol` given as argument, the SpecType of this symbol, its corresponding
+-- variable and definition (the `CoreExpr`).
+--
+-- Takes as arguments:
+-- - The list of bindings, usually taken from the GhcSrc
+-- - A map of signatures, used to retrieve the `SpecType`
+-- - The current environment, that can be used to resolve symbols
+-- - An extra map between symbols and variables for those symbols that are hard
+--   to resolve, especially if they are private symbols from foreign
+--   dependencies. This map will be used as a fallback if the default resolving
+--   mechanism fails.
+--
+-- Returns `Nothing` iff the symbol could not be resolved. No error is thrown in
+-- this case since this function is used by the fixpoint mechanism of
+-- `getReflectDefs`. Which will collect all the symbols that could (not) yet be
+-- resolved.
+--
+-- Errors can be raised whenever the symbol was found but the rest of the
+-- process failed (no unfoldings available, lifted functions not exported,
+-- etc.).
+findVarDefType :: [Ghc.CoreBind] -> [(Ghc.Var, LocSpecType)] -> Bare.Env -> ModName
+               -> M.HashMap LocSymbol Ghc.Var -> LocSymbol
+               -> Maybe (LocSymbol, Maybe SpecType, Ghc.Var, Ghc.CoreExpr)
+findVarDefType cbs sigs env modName defs x = case findVarDefMethod (val x) cbs of
   -- YL: probably ok even without checking typeclass flag since user cannot
   -- manually reflect internal names
-  Just (v, e) -> if GM.isExternalId v || isMethod (F.symbol x) || isDictionary (F.symbol x)
-                   then (x, val <$> lookup v sigs, v, e)
-                   else Ex.throw $ mkError x ("Lifted functions must be exported; please export " ++ show v)
-  Nothing     -> Ex.throw $ mkError x $ show (val x) ++ " is not in scope"
+  Just (v, e) ->
+    if GM.isExternalId v || isMethod (F.symbol x) || isDictionary (F.symbol x) then
+      Just (x, val <$> lookup v sigs, v, e)
+    else
+      Ex.throw $ mkError x $
+        "Lifted functions must be exported; please export " ++ show v
+  Nothing     -> do
+    var <- Bare.maybeResolveSym env modName "findVarDefType" qSym <|>
+           M.lookup qSym defs
+    let info = Ghc.idInfo var
+    let unfolding = getExpr . Ghc.realUnfoldingInfo $ info
+    case unfolding of
+      Just e ->
+        Just (x, val <$> lookup var sigs, var, e)
+      _ ->
+        Ex.throw $ mkError x $ unwords
+          [ "Symbol exists but is not defined in the current file,"
+          , "and no unfolding is available in the interface files"
+          ]
+  where
+    qSym = x {val = qualifySym x}
+    qualifySym l = Bare.qualifyTop env modName (loc l) (val l)
+    getExpr :: Ghc.Unfolding -> Maybe Ghc.CoreExpr
+    getExpr (Ghc.CoreUnfolding expr _ _ _ _) = Just expr
+    getExpr _ = Nothing
+
 
 --------------------------------------------------------------------------------
 makeAxiom :: Bare.Env -> Bare.TycEnv -> ModName -> LogicMap

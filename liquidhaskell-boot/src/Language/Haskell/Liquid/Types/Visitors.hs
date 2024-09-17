@@ -19,7 +19,7 @@ import           Data.List                        ((\\), delete)
 import qualified Data.HashSet                     as S
 import           Prelude                          hiding (error)
 import           Language.Fixpoint.Misc
-import           Liquid.GHC.API
+import           Liquid.GHC.API                   hiding (exprFreeVars)
 import           Language.Haskell.Liquid.GHC.Misc ()
 
 
