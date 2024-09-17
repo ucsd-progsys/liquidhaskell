@@ -57,7 +57,7 @@ interMin b1 b2 = Bag (M.intersectionWith min (toMap b1) (toMap b2))
 
 {-@ assume sub :: (Ord k) => m1:Bag k -> m2:Bag k -> {v:Bool | v = Bag_sub m1 m2} @-}
 sub :: (Ord k) => Bag k -> Bag k -> Bool
-sub b1 b2 = M.isSubmapOf (toMap b1) (toMap b2)
+sub b1 b2 = M.isSubmapOfBy (<=) (toMap b1) (toMap b2)
 
 {-@ assume bagSize :: b:Bag k -> {i:Nat | i == bagSize b} @-}
 bagSize :: Bag k -> Int
