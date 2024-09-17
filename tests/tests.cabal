@@ -2543,6 +2543,7 @@ executable terminate-pos
     other-modules:
                       Ackermann
                     , AutoTerm
+                    , Div
                     , Lexicographic
                     , List00
                     , List00_local
