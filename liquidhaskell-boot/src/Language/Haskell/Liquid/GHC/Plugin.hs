@@ -34,7 +34,6 @@ import           Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                                                          as SpecFinder
 
 import           Language.Haskell.Liquid.GHC.Types       (MGIModGuts(..), miModGuts)
-import           Language.Haskell.Liquid.Transforms.Rec (transformRecExpr)
 import           Language.Haskell.Liquid.Transforms.InlineAux (inlineAux)
 import           Language.Haskell.Liquid.Transforms.Rewrite (rewriteBinds)
 import           GHC.LanguageExtensions
@@ -605,9 +604,8 @@ makeTargetSrc cfg dynFlags file tcData modGuts hscEnv = do
         deriv   = Just $ instEnvElts $ mg_inst_env modGuts
 
     preNormalize :: Config -> ModGuts -> [CoreBind]
-    preNormalize cfg modGuts = rewriteBinds cfg orig_cbs
+    preNormalize cfg modGuts = rewriteBinds cfg inl_cbs
       where
-        orig_cbs = transformRecExpr inl_cbs
         inl_cbs  = inlineAux cfg (mg_module modGuts) (mg_binds modGuts)
 
 getFamInstances :: ModGuts -> [FamInst]
