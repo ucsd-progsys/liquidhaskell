@@ -1,4 +1,3 @@
 [submodule "liquid-fixpoint"]
 	path = liquid-fixpoint
-	url = https://github.com/clayrat/liquid-fixpoint.git
-	branch = elab-map
+	url = https://github.com/ucsd-progsys/liquid-fixpoint.git
