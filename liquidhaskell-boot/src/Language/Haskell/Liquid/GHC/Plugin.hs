@@ -7,7 +7,6 @@
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
-{-# LANGUAGE ViewPatterns               #-}
 
 module Language.Haskell.Liquid.GHC.Plugin (
 
@@ -46,9 +45,7 @@ import           Control.Monad.IO.Class (MonadIO)
 
 import           Data.Coerce
 import           Data.Function                            ((&))
-import           Data.Kind                                ( Type )
 import qualified Data.List                               as L
-import           Data.IORef
 import qualified Data.Set                                as S
 import           Data.Set                                 ( Set )
 
@@ -56,7 +53,6 @@ import           Data.Set                                 ( Set )
 import qualified Data.HashSet                            as HS
 import qualified Data.HashMap.Strict                     as HM
 
-import           System.IO.Unsafe                         ( unsafePerformIO )
 import           Language.Fixpoint.Types           hiding ( errs
                                                           , panic
                                                           , Error
@@ -82,11 +78,6 @@ newtype LiquidCheckException = ErrorsOccurred [Filter] -- Unmatched expected err
 -- | State and configuration management -----------------------------------------
 ---------------------------------------------------------------------------------
 
--- | A reference to cache the LH's 'Config' and produce it only /once/, during the dynFlags hook.
-cfgRef :: IORef Config
-cfgRef = unsafePerformIO $ newIORef defConfig
-{-# NOINLINE cfgRef #-}
-
 -- | Set to 'True' to enable debug logging.
 debugLogs :: Bool
 debugLogs = False
@@ -94,10 +85,6 @@ debugLogs = False
 ---------------------------------------------------------------------------------
 -- | Useful functions -----------------------------------------------------------
 ---------------------------------------------------------------------------------
-
--- | Reads the 'Config' out of a 'IORef'.
-getConfig :: IO Config
-getConfig = readIORef cfgRef
 
 -- | Combinator which conditionally print on the screen based on the value of 'debugLogs'.
 debugLog :: MonadIO m => String -> m ()
@@ -110,15 +97,15 @@ debugLog msg = when debugLogs $ liftIO (putStrLn msg)
 plugin :: GHC.Plugin
 plugin = GHC.defaultPlugin {
     typeCheckResultAction = liquidPlugin
-  , driverPlugin          = customDynFlags
+  , driverPlugin          = lhDynFlags
   , pluginRecompile       = purePlugin
   }
   where
     liquidPlugin :: [CommandLineOption] -> ModSummary -> TcGblEnv -> TcM TcGblEnv
-    liquidPlugin _ summary gblEnv = do
-      cfg <- liftIO getConfig
+    liquidPlugin opts summary gblEnv = do
+      cfg <- liftIO $ LH.getOpts opts
       if skipModule cfg then return gblEnv
-      else liquidPluginGo summary gblEnv
+      else liquidPluginGo cfg summary gblEnv
 
     -- Unfortunately, we can't make Haddock run the LH plugin, because the former
     -- does mangle the '.hi' files, causing annotations to not be persisted in the
@@ -126,7 +113,7 @@ plugin = GHC.defaultPlugin {
     -- the plugin altogether if the module is being compiled with Haddock.
     -- See also: https://github.com/ucsd-progsys/liquidhaskell/issues/1727
     -- for a post-mortem.
-    liquidPluginGo summary gblEnv = do
+    liquidPluginGo cfg summary gblEnv = do
       logger <- getLogger
       dynFlags <- getDynFlags
       withTiming logger (text "LiquidHaskell" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $ do
@@ -141,7 +128,7 @@ plugin = GHC.defaultPlugin {
             liftIO $ printWarning logger warning
             pure gblEnv
           else do
-            newGblEnv <- typecheckHook summary gblEnv
+            newGblEnv <- typecheckHook cfg summary gblEnv
             case newGblEnv of
               -- Exit with success if all expected errors were found
               Left (ErrorsOccurred []) -> pure gblEnv
@@ -156,34 +143,38 @@ plugin = GHC.defaultPlugin {
 -- | GHC Configuration & Setup -------------------------------------------------
 --------------------------------------------------------------------------------
 
+lhDynFlags :: [CommandLineOption] -> HscEnv -> IO HscEnv
+lhDynFlags _ hscEnv =
+    return hscEnv
+      { hsc_dflags =
+          hsc_dflags hscEnv
+           -- Ignore-interface-pragmas need to be unset to have access to
+           -- the RHS unfoldings in the `Ghc.Var`s which is
+           -- needed as part of the reflection of foreign functions in the logic
+           --
+           -- This needs to be active before the plugin runs, so pragmas are
+           -- read at the time the interface files are loaded.
+           `gopt_unset` Opt_IgnoreInterfacePragmas
+      }
+
 -- | Overrides the default 'DynFlags' options. Specifically, we need the GHC
 -- lexer not to throw away block comments, as this is where the LH spec comments
 -- would live. This is why we set the 'Opt_KeepRawTokenStream' option.
-customDynFlags :: [CommandLineOption] -> HscEnv -> IO HscEnv
-customDynFlags opts hscEnv = do
-  cfg <- liftIO $ LH.getOpts opts
-  writeIORef cfgRef cfg
-  return (hscEnv { hsc_dflags = configureDynFlags (hsc_dflags hscEnv) })
-  where
-    configureDynFlags :: DynFlags -> DynFlags
-    configureDynFlags df =
-      df `gopt_set` Opt_ImplicitImportQualified
-         `gopt_set` Opt_PIC
-         `gopt_set` Opt_DeferTypedHoles
-         `gopt_set` Opt_KeepRawTokenStream
-         -- Opt_InsertBreakpoints is used during desugaring to prevent the
-         -- simple optimizer from inlining local bindings to which we might want
-         -- to attach specifications.
-         --
-         -- https://gitlab.haskell.org/ghc/ghc/-/issues/24386
-         `gopt_set` Opt_InsertBreakpoints
-         -- Ignore-interface-pragmas need to be unset to have access to
-         -- the RHS unfoldings in the `Ghc.Var`s which is
-         -- needed as part of the reflection of foreign functions in the logic
-         `gopt_unset` Opt_IgnoreInterfacePragmas
-         `xopt_set` MagicHash
-         `xopt_set` DeriveGeneric
-         `xopt_set` StandaloneDeriving
+customDynFlags :: DynFlags -> DynFlags
+customDynFlags df =
+    df `gopt_set` Opt_ImplicitImportQualified
+       `gopt_set` Opt_PIC
+       `gopt_set` Opt_DeferTypedHoles
+       `gopt_set` Opt_KeepRawTokenStream
+       -- Opt_InsertBreakpoints is used during desugaring to prevent the
+       -- simple optimizer from inlining local bindings to which we might want
+       -- to attach specifications.
+       --
+       -- https://gitlab.haskell.org/ghc/ghc/-/issues/24386
+       `gopt_set` Opt_InsertBreakpoints
+       `xopt_set` MagicHash
+       `xopt_set` DeriveGeneric
+       `xopt_set` StandaloneDeriving
 
 --------------------------------------------------------------------------------
 -- | \"Unoptimising\" things ----------------------------------------------------
@@ -193,26 +184,13 @@ customDynFlags opts hscEnv = do
 -- user can invoke GHC with /any/ optimisation flag turned out. This is why we grab the core binds by
 -- desugaring the module during /parsing/ (before that's already too late) and we cache the core binds for
 -- the rest of the program execution.
-class Unoptimise a where
-  type UnoptimisedTarget a :: Type
-  unoptimise :: a -> UnoptimisedTarget a
-
-instance Unoptimise DynFlags where
-  type UnoptimisedTarget DynFlags = DynFlags
-  unoptimise df = updOptLevel 0 df
+unoptimiseDynFlags :: DynFlags -> DynFlags
+unoptimiseDynFlags df = updOptLevel 0 df
     { debugLevel   = 1
     , ghcLink      = LinkInMemory
     , backend      = interpreterBackend
     , ghcMode      = CompManager
     }
-
-instance Unoptimise ModSummary where
-  type UnoptimisedTarget ModSummary = ModSummary
-  unoptimise modSummary = modSummary { ms_hspp_opts = unoptimise (ms_hspp_opts modSummary) }
-
-instance Unoptimise (DynFlags, HscEnv) where
-  type UnoptimisedTarget (DynFlags, HscEnv) = HscEnv
-  unoptimise (unoptimise -> df, env) = env { hsc_dflags = df }
 
 --------------------------------------------------------------------------------
 -- | Typechecking phase --------------------------------------------------------
@@ -230,33 +208,49 @@ instance Unoptimise (DynFlags, HscEnv) where
 --    grab from parsing (again) the module by using the GHC API, so we are really
 --    independent from the \"normal\" compilation pipeline.
 --
-typecheckHook :: ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
-typecheckHook (unoptimise -> modSummary) tcGblEnv = do
+typecheckHook :: Config -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
+typecheckHook cfg0 modSummary0 tcGblEnv = do
   debugLog $ "We are in module: " <> show (toStableModule thisModule)
+  let modSummary = modSummary0
+        { ms_hspp_opts =
+            customDynFlags $ unoptimiseDynFlags (ms_hspp_opts modSummary0)
+        }
+      thisFile = LH.modSummaryHsFile modSummary
 
-  env             <- env_top <$> getEnv
-  parsed          <- liftIO $ parseModuleIO env (LH.keepRawTokenStream modSummary)
-  let comments    = LH.extractSpecComments parsed
-  -- The LH plugin itself calls the type checker (see following line). This
-  -- would lead to a loop if we didn't remove the plugin when calling the type
-  -- checker.
-  typechecked     <- liftIO $ typecheckModuleIO (dropPlugins env) (LH.ignoreInline parsed)
-  resolvedNames   <- liftIO $ LH.lookupTyThings env tcGblEnv
-  availTyCons     <- liftIO $ LH.availableTyCons env tcGblEnv (tcg_exports tcGblEnv)
-  availVars       <- liftIO $ LH.availableVars env tcGblEnv (tcg_exports tcGblEnv)
+  env0 <- env_top <$> getEnv
+  let env = env0 { hsc_dflags = ms_hspp_opts modSummary }
+  parsed           <- liftIO $ parseModuleIO env (LH.keepRawTokenStream modSummary)
+  let specComments = map mkSpecComment $ LH.extractSpecComments parsed
 
-  unoptimisedGuts <- liftIO $ desugarModuleIO env modSummary typechecked
+  case parseSpecComments (coerce specComments) of
+    Left errors ->
+      LH.filterReportErrors thisFile GHC.failM continue (getFilters cfg0) Full errors
+    Right specs ->
 
-  let tcData = mkTcData (tcg_rn_imports tcGblEnv) resolvedNames availTyCons availVars
-  let pipelineData = PipelineData unoptimisedGuts tcData (map mkSpecComment comments)
+      withPragmas cfg0 thisFile [s | Pragma s <- specs] $ \cfg -> do
 
-  liquidHaskellCheck pipelineData modSummary tcGblEnv
+        -- The LH plugin itself calls the type checker (see following line). This
+        -- would lead to a loop if we didn't remove the plugin when calling the type
+        -- checker.
+        typechecked     <- liftIO $ typecheckModuleIO (dropPlugins env) (LH.ignoreInline parsed)
+        resolvedNames   <- liftIO $ LH.lookupTyThings env tcGblEnv
+        availTyCons     <- liftIO $ LH.availableTyCons env tcGblEnv (tcg_exports tcGblEnv)
+        availVars       <- liftIO $ LH.availableVars env tcGblEnv (tcg_exports tcGblEnv)
+
+        unoptimisedGuts <- liftIO $ desugarModuleIO env modSummary typechecked
+
+        let tcData = mkTcData (tcg_rn_imports tcGblEnv) resolvedNames availTyCons availVars
+        let pipelineData = PipelineData unoptimisedGuts tcData specs
+
+        liquidHaskellCheckWithConfig cfg pipelineData modSummary tcGblEnv
 
   where
     thisModule :: Module
     thisModule = tcg_mod tcGblEnv
 
     dropPlugins hsc_env = hsc_env { hsc_plugins = emptyPlugins }
+
+    continue = pure $ Left (ErrorsOccurred [])
 
 serialiseSpec :: Module -> TcGblEnv -> LiquidLib -> TcM TcGblEnv
 serialiseSpec thisModule tcGblEnv liquidLib = do
@@ -321,27 +315,18 @@ processInputSpec cfg pipelineData modSummary tcGblEnv inputSpec = do
     modGuts :: ModGuts
     modGuts = pdUnoptimisedCore pipelineData
 
-liquidHaskellCheckWithConfig :: Config -> PipelineData -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
-liquidHaskellCheckWithConfig globalCfg pipelineData modSummary tcGblEnv = do
-  -- The 'specQuotes' contain stuff we need from imported modules, extracted
-  -- from the annotations in their interface files.
-  let specQuotes :: [BPspec]
-      specQuotes = LH.extractSpecQuotes' tcg_mod tcg_anns tcGblEnv
-
+liquidHaskellCheckWithConfig
+  :: Config -> PipelineData -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
+liquidHaskellCheckWithConfig cfg pipelineData modSummary tcGblEnv = do
   -- Here, we are calling Liquid Haskell's parser, acting on the unparsed
-  -- spec comments stored in the pipeline data, supported by the specQuotes
-  -- obtained from the imported modules.
-  inputSpec' :: Either LiquidCheckException BareSpec <-
-    getLiquidSpec thisFile thisModule (pdSpecComments pipelineData) specQuotes
+  -- spec comments stored in the pipeline data.
+  inputSpec <-
+    getLiquidSpec thisModule (pdSpecComments pipelineData)
 
-  case inputSpec' of
-    Left e -> pure $ Left e
-    Right inputSpec ->
-      withPragmas globalCfg thisFile (Ms.pragmas $ fromBareSpec inputSpec) $ \moduleCfg -> do
-        processInputSpec moduleCfg pipelineData modSummary tcGblEnv inputSpec
-          `Ex.catch` (\(e :: UserError) -> reportErrs moduleCfg [e])
-          `Ex.catch` (\(e :: Error) -> reportErrs moduleCfg [e])
-          `Ex.catch` (\(es :: [Error]) -> reportErrs moduleCfg es)
+  processInputSpec cfg pipelineData modSummary tcGblEnv inputSpec
+    `Ex.catch` (\(e :: UserError) -> reportErrs cfg [e])
+    `Ex.catch` (\(e :: Error) -> reportErrs cfg [e])
+    `Ex.catch` (\(es :: [Error]) -> reportErrs cfg es)
 
   where
     thisFile :: FilePath
@@ -355,12 +340,6 @@ liquidHaskellCheckWithConfig globalCfg pipelineData modSummary tcGblEnv = do
 
     thisModule :: Module
     thisModule = tcg_mod tcGblEnv
-
--- | Partially calls into LiquidHaskell's GHC API.
-liquidHaskellCheck :: PipelineData -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
-liquidHaskellCheck pipelineData modSummary tcGblEnv = do
-  cfg <- liftIO getConfig
-  liquidHaskellCheckWithConfig cfg pipelineData modSummary tcGblEnv
 
 checkLiquidHaskellContext :: LiquidHaskellContext -> TcM (Either LiquidCheckException LiquidLib)
 checkLiquidHaskellContext lhContext = do
@@ -462,28 +441,20 @@ data ProcessModuleResult = ProcessModuleResult {
   -- ^ The 'GhcInfo' for the current 'Module' that LiquidHaskell will process.
   }
 
--- | Parse the spec comments from one module, supported by the
--- spec quotes from the imported module. Also looks for
+-- | Process the spec comments from one module. Also looks for
 -- "companion specs" for the current module and merges them in
 -- if it finds one.
-getLiquidSpec :: FilePath -> Module -> [SpecComment] -> [BPspec] -> TcM (Either LiquidCheckException BareSpec)
-getLiquidSpec thisFile thisModule specComments specQuotes = do
-  globalCfg <- liftIO getConfig
-  let commSpecE :: Either [Error] (ModName, Spec LocBareType LocSymbol)
-      commSpecE = hsSpecificationP (moduleName thisModule) (coerce specComments) specQuotes
-  case commSpecE of
-    Left errors ->
-      LH.filterReportErrors thisFile GHC.failM continue (getFilters globalCfg) Full errors
-    Right (toBareSpec . snd -> commSpec) -> do
-      env    <- env_top <$> getEnv
-      res <- liftIO $ SpecFinder.findCompanionSpec env thisModule
-      case res of
-        SpecFound _ _ companionSpec -> do
-          debugLog $ "Companion spec found for " ++ renderModule thisModule
-          pure $ Right $ commSpec <> companionSpec
-        _ -> pure $ Right commSpec
-  where
-    continue = pure $ Left (ErrorsOccurred [])
+getLiquidSpec :: Module -> [BPspec] -> TcM BareSpec
+getLiquidSpec thisModule specComments = do
+  let commSpec = toBareSpec . snd $
+        hsSpecificationP (moduleName thisModule) specComments
+  env    <- env_top <$> getEnv
+  res <- liftIO $ SpecFinder.findCompanionSpec env thisModule
+  case res of
+    SpecFound _ _ companionSpec -> do
+      debugLog $ "Companion spec found for " ++ renderModule thisModule
+      pure $ commSpec <> companionSpec
+    _ -> pure commSpec
 
 processModule :: LiquidHaskellContext -> TcM (Either LiquidCheckException ProcessModuleResult)
 processModule LiquidHaskellContext{..} = do

@@ -8,6 +8,7 @@ module Language.Haskell.Liquid.Bare.Types
   , TyThingMap 
   , ModSpecs
   , LocalVars 
+  , LocalVarDetails (..)
 
     -- * Tycon and Datacon processing environment
   , TycEnv (..) 
@@ -83,7 +84,13 @@ instance HasConfig Env where
 
 -- | @LocalVars@ is a map from names to lists of pairs of @Ghc.Var@ and 
 --   the lines at which they were defined. 
-type LocalVars = M.HashMap F.Symbol [(Int, Ghc.Var)]
+type LocalVars = M.HashMap F.Symbol [LocalVarDetails]
+
+data LocalVarDetails = LocalVarDetails
+  { lvdSourcePos :: F.SourcePos
+  , lvdVar :: Ghc.Var
+  , lvdIsRec :: Bool  -- ^ Is the variable defined in a letrec?
+  } deriving Show
 
 -------------------------------------------------------------------------------
 -- | A @TyThingMap@ is used to resolve symbols into GHC @TyThing@ and, 
