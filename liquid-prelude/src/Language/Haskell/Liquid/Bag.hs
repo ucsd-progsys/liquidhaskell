@@ -4,12 +4,15 @@ module Language.Haskell.Liquid.Bag where
 
 import qualified Data.Map      as M
 
-{-@ embed   Bag as Bag_t                                                @-}
-{-@ measure Bag_empty :: Int -> Bag a                                   @-}
-{-@ measure Bag_count :: Bag a -> a -> Int                              @-}
-{-@ measure Bag_sng   :: a -> Int -> Bag a                              @-}
-{-@ measure Bag_union :: Bag a -> Bag a -> Bag a                        @-}
-{-@ measure bagSize   :: Bag a -> Int                                   @-}
+{-@ embed   Bag as Bag_t                             @-}
+{-@ measure Bag_empty     :: Int -> Bag a            @-}
+{-@ measure Bag_sng       :: a -> Int -> Bag a       @-}
+{-@ measure Bag_count     :: Bag a -> a -> Int       @-}
+{-@ measure Bag_union     :: Bag a -> Bag a -> Bag a @-}
+{-@ measure Bag_union_max :: Bag a -> Bag a -> Bag a @-}
+{-@ measure Bag_inter_min :: Bag a -> Bag a -> Bag a @-}
+{-@ measure Bag_sub       :: Bag a -> Bag a -> Bool  @-}
+{-@ measure bagSize       :: Bag a -> Int            @-}
 
 -- if I just write measure fromList the measure definition is not imported
 {-@ measure fromList :: [k] -> Bag k
@@ -35,23 +38,35 @@ get k b = M.findWithDefault 0 k (toMap b)
 put :: (Ord k) => k -> Bag k -> Bag k
 put k b = Bag (M.insert k (1 + get k b) (toMap b))
 
-{-@ assume union :: (Ord k) => m1:Bag k -> m2:Bag k -> {v:Bag k | v = Bag_union m1 m2} @-}
-union :: (Ord k) => Bag k -> Bag k -> Bag k
-union b1 b2 = Bag (M.union (toMap b1) (toMap b2))
-
-{-@ assume bagSize :: b:Bag k -> {i:Nat | i == bagSize b} @-}
-bagSize :: Bag k -> Int
-bagSize b = sum (M.elems (toMap b))
-
 {-@ fromList :: (Ord k) => xs:[k] -> {v:Bag k | v == fromList xs } @-}
 fromList :: (Ord k) => [k] -> Bag k
 fromList []     = empty
 fromList (x:xs) = put x (fromList xs)
 
-{-@ thm_emp :: x:k -> xs:Bag k ->  { Language.Haskell.Liquid.Bag.empty /= put x xs }  @-}
+{-@ assume union :: (Ord k) => m1:Bag k -> m2:Bag k -> {v:Bag k | v = Bag_union m1 m2} @-}
+union :: (Ord k) => Bag k -> Bag k -> Bag k
+union b1 b2 = Bag (M.unionWith (+) (toMap b1) (toMap b2))
+
+{-@ assume unionMax :: (Ord k) => m1:Bag k -> m2:Bag k -> {v:Bag k | v = Bag_union_max m1 m2} @-}
+unionMax :: (Ord k) => Bag k -> Bag k -> Bag k
+unionMax b1 b2 = Bag (M.unionWith max (toMap b1) (toMap b2))
+
+{-@ assume interMin :: (Ord k) => m1:Bag k -> m2:Bag k -> {v:Bag k | v = Bag_inter_min m1 m2} @-}
+interMin :: (Ord k) => Bag k -> Bag k -> Bag k
+interMin b1 b2 = Bag (M.intersectionWith min (toMap b1) (toMap b2))
+
+{-@ assume sub :: (Ord k) => m1:Bag k -> m2:Bag k -> {v:Bool | v = Bag_sub m1 m2} @-}
+sub :: (Ord k) => Bag k -> Bag k -> Bool
+sub b1 b2 = M.isSubmapOf (toMap b1) (toMap b2)
+
+{-@ assume bagSize :: b:Bag k -> {i:Nat | i == bagSize b} @-}
+bagSize :: Bag k -> Int
+bagSize b = sum (M.elems (toMap b))
+
+{-@ thm_emp :: x:k -> xs:Bag k -> { Language.Haskell.Liquid.Bag.empty /= put x xs } @-}
 thm_emp :: (Ord k) => k -> Bag k -> ()
 thm_emp x xs = const () (get x xs)
 
-{-@ assume thm_size :: xs:[k] ->  { bagSize (fromList xs) == len xs }  @-}
+{-@ assume thm_size :: xs:[k] -> { bagSize (fromList xs) == len xs } @-}
 thm_size :: (Ord k) => [k] -> ()
 thm_size _ = ()
