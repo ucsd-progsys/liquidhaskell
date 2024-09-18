@@ -34,7 +34,6 @@ import           Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                                                          as SpecFinder
 
 import           Language.Haskell.Liquid.GHC.Types       (MGIModGuts(..), miModGuts)
-import           Language.Haskell.Liquid.Transforms.Rec (transformRecExpr)
 import           Language.Haskell.Liquid.Transforms.InlineAux (inlineAux)
 import           Language.Haskell.Liquid.Transforms.Rewrite (rewriteBinds)
 import           GHC.LanguageExtensions
@@ -166,15 +165,21 @@ customDynFlags df =
        `gopt_set` Opt_PIC
        `gopt_set` Opt_DeferTypedHoles
        `gopt_set` Opt_KeepRawTokenStream
-       -- Opt_InsertBreakpoints is used during desugaring to prevent the
-       -- simple optimizer from inlining local bindings to which we might want
-       -- to attach specifications.
-       --
-       -- https://gitlab.haskell.org/ghc/ghc/-/issues/24386
-       `gopt_set` Opt_InsertBreakpoints
        `xopt_set` MagicHash
        `xopt_set` DeriveGeneric
        `xopt_set` StandaloneDeriving
+
+maybeInsertBreakPoints :: Config -> DynFlags -> DynFlags
+maybeInsertBreakPoints cfg dflags =
+    if insertCoreBreakPoints cfg then
+      -- Opt_InsertBreakpoints is used during desugaring to prevent the
+      -- simple optimizer from inlining local bindings to which we might want
+      -- to attach specifications.
+      --
+      -- https://gitlab.haskell.org/ghc/ghc/-/issues/24386
+      dflags `gopt_set` Opt_InsertBreakpoints
+    else
+      dflags
 
 --------------------------------------------------------------------------------
 -- | \"Unoptimising\" things ----------------------------------------------------
@@ -211,16 +216,15 @@ unoptimiseDynFlags df = updOptLevel 0 df
 typecheckHook :: Config -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
 typecheckHook cfg0 modSummary0 tcGblEnv = do
   debugLog $ "We are in module: " <> show (toStableModule thisModule)
-  let modSummary = modSummary0
-        { ms_hspp_opts =
-            customDynFlags $ unoptimiseDynFlags (ms_hspp_opts modSummary0)
-        }
+  let modSummary =
+        updateModSummaryDynFlags (customDynFlags . unoptimiseDynFlags) modSummary0
       thisFile = LH.modSummaryHsFile modSummary
 
   env0 <- env_top <$> getEnv
   let env = env0 { hsc_dflags = ms_hspp_opts modSummary }
-  parsed           <- liftIO $ parseModuleIO env (LH.keepRawTokenStream modSummary)
-  let specComments = map mkSpecComment $ LH.extractSpecComments parsed
+  parsed0 <- liftIO $ parseModuleIO env (LH.keepRawTokenStream modSummary)
+  let specComments = map mkSpecComment $ LH.extractSpecComments parsed0
+      parsed = addNoInlinePragmasToLocalBinds parsed0
 
   case parseSpecComments (coerce specComments) of
     Left errors ->
@@ -229,20 +233,25 @@ typecheckHook cfg0 modSummary0 tcGblEnv = do
 
       withPragmas cfg0 thisFile [s | Pragma s <- specs] $ \cfg -> do
 
+        let modSummary2 = updateModSummaryDynFlags (maybeInsertBreakPoints cfg) modSummary
+            parsed2 = parsed { pm_mod_summary = modSummary2 }
+            env2 = env { hsc_dflags = ms_hspp_opts modSummary2 }
+
         -- The LH plugin itself calls the type checker (see following line). This
         -- would lead to a loop if we didn't remove the plugin when calling the type
         -- checker.
-        typechecked     <- liftIO $ typecheckModuleIO (dropPlugins env) (LH.ignoreInline parsed)
-        resolvedNames   <- liftIO $ LH.lookupTyThings env tcGblEnv
-        availTyCons     <- liftIO $ LH.availableTyCons env tcGblEnv (tcg_exports tcGblEnv)
-        availVars       <- liftIO $ LH.availableVars env tcGblEnv (tcg_exports tcGblEnv)
+        typechecked     <- liftIO $ typecheckModuleIO (dropPlugins env2) (LH.ignoreInline parsed2)
+        resolvedNames   <- liftIO $ LH.lookupTyThings env2 tcGblEnv
+        availTyCons     <- liftIO $ LH.availableTyCons env2 tcGblEnv (tcg_exports tcGblEnv)
+        availVars       <- liftIO $ LH.availableVars env2 tcGblEnv (tcg_exports tcGblEnv)
 
-        unoptimisedGuts <- liftIO $ desugarModuleIO env modSummary typechecked
+        unoptimisedGuts <- liftIO $ desugarModuleIO env2 modSummary2 typechecked
 
         let tcData = mkTcData (tcg_rn_imports tcGblEnv) resolvedNames availTyCons availVars
         let pipelineData = PipelineData unoptimisedGuts tcData specs
 
-        liquidHaskellCheckWithConfig cfg pipelineData modSummary tcGblEnv
+        updEnv (\e -> e {env_top = env2}) $
+          liquidHaskellCheckWithConfig cfg pipelineData modSummary2 tcGblEnv
 
   where
     thisModule :: Module
@@ -251,6 +260,8 @@ typecheckHook cfg0 modSummary0 tcGblEnv = do
     dropPlugins hsc_env = hsc_env { hsc_plugins = emptyPlugins }
 
     continue = pure $ Left (ErrorsOccurred [])
+
+    updateModSummaryDynFlags f ms = ms { ms_hspp_opts = f (ms_hspp_opts ms) }
 
 serialiseSpec :: Module -> TcGblEnv -> LiquidLib -> TcM TcGblEnv
 serialiseSpec thisModule tcGblEnv liquidLib = do
@@ -593,9 +604,8 @@ makeTargetSrc cfg dynFlags file tcData modGuts hscEnv = do
         deriv   = Just $ instEnvElts $ mg_inst_env modGuts
 
     preNormalize :: Config -> ModGuts -> [CoreBind]
-    preNormalize cfg modGuts = rewriteBinds cfg orig_cbs
+    preNormalize cfg modGuts = rewriteBinds cfg inl_cbs
       where
-        orig_cbs = transformRecExpr inl_cbs
         inl_cbs  = inlineAux cfg (mg_module modGuts) (mg_binds modGuts)
 
 getFamInstances :: ModGuts -> [FamInst]

@@ -110,6 +110,7 @@ data Config = Config
   , excludeAutomaticAssumptionsFor :: [String]
   , dumpOpaqueReflections    :: Bool       -- Dumps all opaque reflections to the stdout
   , dumpPreNormalizedCore    :: Bool       -- Dumps the prenormalized core (before a-normalization)
+  , insertCoreBreakPoints    :: Bool       -- Insert break points in core
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 allowPLE :: Config -> Bool

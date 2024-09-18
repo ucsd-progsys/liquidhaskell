@@ -523,6 +523,7 @@ import GHC.Tc.Utils.Monad             as Ghc
     , pushTcLevelM
     , reportDiagnostic
     , reportDiagnostics
+    , updEnv
     )
 import GHC.Tc.Utils.TcType            as Ghc (tcSplitDFunTy, tcSplitMethodTy)
 import GHC.Tc.Zonk.Type               as Ghc
