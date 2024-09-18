@@ -10,10 +10,10 @@ author:             Ranjit Jhala, Niki Vazou, Eric Seidel
 maintainer:         Ranjit Jhala <jhala@cs.ucsd.edu>
 category:           Language
 homepage:           https://github.com/ucsd-progsys/liquidhaskell
-build-type:         Custom
+build-type:         Simple
 
-custom-setup
-  setup-depends: Cabal<4, base<5, liquidhaskell-boot
+--custom-setup
+--  setup-depends: Cabal<4, base<5, liquidhaskell-boot
 
 library
   exposed-modules:    Data.Vector_LHAssumptions

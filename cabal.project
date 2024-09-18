@@ -1,4 +1,4 @@
-with-compiler: ghc-9.10.1
+-- with-compiler: ghc-9.10.1
 
 packages: .
           ./liquid-fixpoint
@@ -8,27 +8,27 @@ packages: .
           ./liquidhaskell-boot
           ./tests
           ./tests/benchmarks/popl18/lib
-          ./benchmark-timings
-          ./scripts/plot-performance
-          ./scripts/profiling-driver
+--          ./benchmark-timings
+--          ./scripts/plot-performance
+--          ./scripts/profiling-driver
 
-source-repository-package
-    type: git
-    location: https://github.com/qnikst/ghc-timings-report
-    tag: 45ef3498e35897712bde8e002ce18df6d55f8b15
+--source-repository-package
+--    type: git
+--    location: https://github.com/qnikst/ghc-timings-report
+--    tag: 45ef3498e35897712bde8e002ce18df6d55f8b15
 
-allow-newer:
-  ghc-timings:base
-  ,blaze-svg:base
-  ,blaze-svg:mtl
-  ,colonnade:text
-  ,rest-rewrite:containers
-  ,Chart:lens
-  ,Chart-diagrams:lens
-  ,SVGFonts:containers
+--allow-newer:
+--  ghc-timings:base
+--  ,blaze-svg:base
+--  ,blaze-svg:mtl
+--  ,colonnade:text
+--  ,rest-rewrite:containers
+--  ,Chart:lens
+--  ,Chart-diagrams:lens
+--  ,SVGFonts:containers
 
-package liquid-fixpoint
-  flags: +devel
+--package liquid-fixpoint
+--  flags: +devel
 
 package liquidhaskell
   ghc-options: -j

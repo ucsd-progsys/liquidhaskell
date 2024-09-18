@@ -10,7 +10,7 @@ author:             Ranjit Jhala, Niki Vazou, Eric Seidel
 maintainer:         Ranjit Jhala <jhala@cs.ucsd.edu>
 category:           Language
 homepage:           https://github.com/ucsd-progsys/liquidhaskell
-build-type:         Custom
+build-type:         Simple
 tested-with:        GHC == 9.10.1
 extra-doc-files: CHANGES.md
                  README.md
@@ -25,8 +25,8 @@ flag devel
   description: Enable more warnings and fail compilation when warnings occur.
                Turn this flag on in CI.
 
-custom-setup
-  setup-depends: Cabal<4, base<5, liquidhaskell-boot
+--custom-setup
+--  setup-depends: Cabal<4, base<5, liquidhaskell-boot
 
 library
   exposed-modules:    LiquidHaskell
