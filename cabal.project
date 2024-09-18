@@ -1,4 +1,4 @@
-with-compiler: ghc-9.14.1
+-- with-compiler: ghc-9.14.1
 
 packages: .
           ./liquid-finfield
@@ -9,28 +9,16 @@ packages: .
           ./liquidhaskell-boot
           ./tests
           ./tests/benchmarks/popl18/lib
-          ./benchmark-timings
-          ./scripts/plot-performance
-          ./scripts/profiling-driver
+--          ./benchmark-timings
+--          ./scripts/plot-performance
+--          ./scripts/profiling-driver
 
-source-repository-package
-    type: git
-    location: https://github.com/qnikst/ghc-timings-report
-    tag: 45ef3498e35897712bde8e002ce18df6d55f8b15
+-- source-repository-package
+--
+--    type: git
+--    location: https://github.com/qnikst/ghc-timings-report
+--    tag: 45ef3498e35897712bde8e002ce18df6d55f8b15
 
-allow-newer:
-   ghc-timings:base
-
-   -- Chart-diagrams dependencies
-  ,blaze-svg:base
-  ,diagrams-lib:base
-  ,diagrams-lib:containers
-  ,diagrams-postscript:base
-  ,diagrams-svg:base
-  ,diagrams-svg:containers
-  ,statestack:base
-  ,svg-builder:base
-  ,SVGFonts:containers
 
 -- We could be using program-options here, but it would turn on parallelism
 -- when building tests, and this interferes with benchmarking.
@@ -39,6 +27,7 @@ allow-newer:
 --   ghc-options: -j
 package liquid-fixpoint
   ghc-options: -j
+
 package liquidhaskell
   ghc-options: -j
 package liquidhaskell-boot
