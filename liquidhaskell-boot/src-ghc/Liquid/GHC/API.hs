@@ -55,7 +55,7 @@ import           GHC                  as Ghc
     , LexicalFixity(Prefix)
     , Located
     , LocatedN
-    , ModIface_(mi_anns, mi_exports, mi_globals, mi_module)
+    , ModIface_(mi_anns, mi_exports, mi_module)
     , ModLocation(ml_hs_file)
     , ModSummary(ms_hspp_file, ms_hspp_opts, ms_location, ms_mod)
     , Module
@@ -118,7 +118,6 @@ import           GHC                  as Ghc
     , mkModuleName
     , mkSrcLoc
     , mkSrcSpan
-    , modInfoTopLevelScope
     , moduleName
     , moduleNameString
     , moduleUnit

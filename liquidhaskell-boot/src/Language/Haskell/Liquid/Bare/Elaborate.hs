@@ -271,7 +271,7 @@ buildHsExpr result = go
     go = \case
       RFun bind _ tin tout _
         | isClassType tin -> go tout
-        | otherwise       -> mkHsLam [nlVarPat (varSymbolToRdrName bind)] (go tout)
+        | otherwise       -> mkHsLam (noLocA [nlVarPat (varSymbolToRdrName bind)]) (go tout)
       RAllE _ _ t -> go t
       RAllT _ t _ -> go t
       REx _ _ t -> go t

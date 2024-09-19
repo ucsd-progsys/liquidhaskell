@@ -45,9 +45,6 @@ eqType' (TyConApp c1 ts1) (TyConApp c2 ts2)
 eqType' _ _ 
   = False 
 
-
-deriving instance (Eq tyvar, Eq argf) => Eq (VarBndr tyvar argf)
-
 showTy :: Type -> String 
 showTy (TyConApp c ts) = "(RApp   " ++ showPpr c ++ " " ++ sep' ", " (showTy <$> ts) ++ ")"
 showTy (AppTy t1 t2)   = "(TAppTy " ++ (showTy t1 ++ " " ++ showTy t2) ++ ")" 
