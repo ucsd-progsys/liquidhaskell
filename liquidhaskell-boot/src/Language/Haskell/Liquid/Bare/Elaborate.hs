@@ -5,7 +5,6 @@
 {-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE LambdaCase                #-}
 {-# LANGUAGE OverloadedStrings         #-}
-{-# LANGUAGE CPP                       #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -32,12 +31,20 @@ import qualified Data.List                     as L
 import qualified Data.HashMap.Strict           as M
 import qualified Data.HashSet                  as S
 import           Control.Monad.Free
-#if MIN_VERSION_recursion_schemes(5,2,0)
-import           Data.Fix                      hiding (hylo)
-#endif
+import           Data.Fix (Fix (Fix))
 
 import           Data.Char                      ( isUpper )
 import           Data.Functor.Foldable
+                   ( Base
+                   , Corecursive (embed)
+                   , Recursive (project)
+                   , distAna
+                   , distPara
+                   , ghylo
+                   , hylo
+                   , para
+                   , refix
+                   )
 import           GHC.Types.Name.Occurrence
 import qualified Liquid.GHC.API as Ghc
                                                 (noExtField)
