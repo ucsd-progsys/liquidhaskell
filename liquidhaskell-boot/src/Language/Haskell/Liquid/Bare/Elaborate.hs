@@ -38,9 +38,6 @@ import           Data.Functor.Foldable
                    ( Base
                    , Corecursive (embed)
                    , Recursive (project)
-                   , distAna
-                   , distPara
-                   , ghylo
                    , hylo
                    , para
                    , refix
@@ -687,34 +684,31 @@ symbolToRdrName env x
 
 specTypeToLHsType :: SpecType -> LHsType GhcPs
 -- surprised that the type application is necessary
-specTypeToLHsType =
-  flip (ghylo (distPara @SpecType) distAna) (fmap pure . project) $ \case
-    RVarF (RTV tv) _ -> nlHsTyVar
+specTypeToLHsType = \case
+    RVar (RTV tv) _ -> nlHsTyVar
       NotPromoted
       -- (GM.notracePpr ("varRdr" ++ F.showpp (F.symbol tv)) $ getRdrName tv)
       (symbolToRdrNameNs tvName (F.symbol tv))
-    RFunF _ _ (tin, tin') (_, tout) _
-      | isClassType tin -> noLocA $ HsQualTy Ghc.noExtField (noLocA [tin']) tout
-      | otherwise       -> nlHsFunTy tin' tout
-    RAllTF (ty_var_value -> (RTV tv)) (_, t) _ -> noLocA $ HsForAllTy
+    RFun _ _ tin tout _
+      | isClassType tin -> noLocA $ HsQualTy Ghc.noExtField (noLocA [specTypeToLHsType tin]) (specTypeToLHsType tout)
+      | otherwise       -> nlHsFunTy (specTypeToLHsType tin) (specTypeToLHsType tout)
+    RAllT (ty_var_value -> (RTV tv)) t _ -> noLocA $ HsForAllTy
       Ghc.noExtField
       (mkHsForAllInvisTele noAnn [noLocA $ UserTyVar noAnn SpecifiedSpec (noLocA $ symbolToRdrNameNs tvName (F.symbol tv))])
-      t
-    RAllPF _ (_, ty)                    -> ty
-    RAppF RTyCon { rtc_tc = tc } ts _ _ -> mkHsTyConApp
+      (specTypeToLHsType t)
+    RAllP _ ty -> specTypeToLHsType ty
+    RApp RTyCon { rtc_tc = tc } ts _ _ -> mkHsTyConApp
       (getRdrName tc)
-      [ hst | (t, hst) <- ts, notExprArg t ]
+      [ specTypeToLHsType t | t <- ts, notExprArg t ]
      where
       notExprArg (RExprArg _) = False
       notExprArg _            = True
-    RAllEF _ (_, tin) (_, tout) -> nlHsFunTy tin tout
-    RExF   _ (_, tin) (_, tout) -> nlHsFunTy tin tout
-    -- impossible
-    RAppTyF _ (RExprArg _, _) _ ->
+    RAllE _ tin tout -> nlHsFunTy (specTypeToLHsType tin) (specTypeToLHsType tout)
+    REx _ tin tout -> nlHsFunTy (specTypeToLHsType tin) (specTypeToLHsType tout)
+    RAppTy _ (RExprArg _) _ ->
       impossible Nothing "RExprArg should not appear here"
-    RAppTyF (_, t) (_, t') _ -> nlHsAppTy t t'
-    -- YL: todo..
-    RRTyF _ _ _ (_, t)       -> t
-    RHoleF _                 -> noLocA $ HsWildCardTy Ghc.noExtField
-    RExprArgF _ ->
+    RAppTy t t' _ -> nlHsFunTy (specTypeToLHsType t) (specTypeToLHsType t')
+    RRTy _ _ _ t -> specTypeToLHsType t
+    RHole _ -> noLocA $ HsWildCardTy Ghc.noExtField
+    RExprArg _ ->
       todo Nothing "Oops, specTypeToLHsType doesn't know how to handle RExprArg"
