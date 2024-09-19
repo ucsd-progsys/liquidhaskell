@@ -39,7 +39,6 @@ import           Data.Functor.Foldable
                    , Corecursive (embed)
                    , Recursive (project)
                    , hylo
-                   , para
                    , refix
                    )
 import           GHC.Types.Name.Occurrence
@@ -254,31 +253,40 @@ plugType t = refix . f
 
 -- | returns (lambda binders, forall binders)
 collectSpecTypeBinders :: SpecType -> ([F.Symbol], [F.Symbol])
-collectSpecTypeBinders = para $ \case
-  RFunF bind _ (tin, _) (_, (bs, abs')) _ | isClassType tin -> (bs, abs')
-                                       | otherwise       -> (bind : bs, abs')
-  RAllEF b _ (_, (bs, abs'))  -> (b : bs, abs')
-  RAllTF (RTVar (RTV ab) _) (_, (bs, abs')) _ -> (bs, F.symbol ab : abs')
-  RExF b _ (_, (bs, abs'))    -> (b : bs, abs')
-  RAppTyF _ (_, (bs, abs')) _ -> (bs, abs')
-  RRTyF _ _ _ (_, (bs, abs')) -> (bs, abs')
-  _                          -> ([], [])
+collectSpecTypeBinders = \case
+  RFun bind _ tin tout _
+    | isClassType tin -> collectSpecTypeBinders tout
+    | otherwise       -> let (bs, abs') = collectSpecTypeBinders tout
+                          in (bind : bs, abs')
+  RAllE b _ t ->
+    let (bs, abs') = collectSpecTypeBinders t
+     in (b : bs, abs')
+  RAllT (RTVar (RTV ab) _) t _ ->
+    let (bs, abs') = collectSpecTypeBinders t
+     in (bs, F.symbol ab : abs')
+  REx b _ t ->
+    let (bs, abs') = collectSpecTypeBinders t
+     in (b : bs, abs')
+  RAppTy _ t _ -> collectSpecTypeBinders t
+  RRTy _ _ _ t -> collectSpecTypeBinders t
+  _ -> ([], [])
 
 -- really should be fused with collectBinders. However, we need the binders
 -- to correctly convert fixpoint expressions to ghc expressions because of
 -- namespace related issues (whether the symbol denotes a varName or a datacon)
 buildHsExpr :: LHsExpr GhcPs -> SpecType -> LHsExpr GhcPs
-buildHsExpr result = para $ \case
-  RFunF bind _ (tin, _) (_, res) _
-    | isClassType tin -> res
-    | otherwise       -> mkHsLam [nlVarPat (varSymbolToRdrName bind)] res
-  RAllEF  _ _        (_, res) -> res
-  RAllTF  _ (_, res) _        -> res
-  RExF    _ _        (_, res) -> res
-  RAppTyF _ (_, res) _        -> res
-  RRTyF _ _ _ (_, res)        -> res
-  _                           -> result
-
+buildHsExpr result = go
+  where
+    go = \case
+      RFun bind _ tin tout _
+        | isClassType tin -> go tout
+        | otherwise       -> mkHsLam [nlVarPat (varSymbolToRdrName bind)] (go tout)
+      RAllE _ _ t -> go t
+      RAllT _ t _ -> go t
+      REx _ _ t -> go t
+      RAppTy _ t _ -> go t
+      RRTy _ _ _ t -> go t
+      _ -> result
 
 
 canonicalizeDictBinder
