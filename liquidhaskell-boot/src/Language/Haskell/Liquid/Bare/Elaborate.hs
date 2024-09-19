@@ -31,15 +31,14 @@ import qualified Data.List                     as L
 import qualified Data.HashMap.Strict           as M
 import qualified Data.HashSet                  as S
 import           Control.Monad.Free
-import           Data.Fix (Fix (Fix))
 
 import           Data.Char                      ( isUpper )
 import           Data.Functor.Foldable
                    ( Base
                    , Corecursive (embed)
                    , Recursive (project)
-                   , hylo
-                   , refix
+                   , ana
+                   , cata
                    )
 import           GHC.Types.Name.Occurrence
 import qualified Liquid.GHC.API as Ghc
@@ -237,13 +236,12 @@ instance Corecursive (RType c tv r) where
 
 -- A one-way function. Kind of like injecting something into Maybe
 specTypeToPartial :: forall a . SpecType -> SpecTypeF (Free SpecTypeF a)
-specTypeToPartial = hylo (fmap wrap) project
+specTypeToPartial = cata (fmap wrap)
 
--- probably should return spectype instead..
 plugType :: SpecType -> PartialSpecType -> SpecType
-plugType t = refix . f
+plugType t = f
  where
-  f = hylo Fix $ \case
+  f = ana $ \case
     Pure _   -> specTypeToPartial t
     Free res -> res
 
