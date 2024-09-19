@@ -29,13 +29,10 @@ jobs:
       with:
         ref: ci/ghc-head
         submodules: true
-    - name: Install ghcup
-      run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
-          ghcup install cabal latest
-          ghcup set cabal latest
-          ghcup --url-source https://ghc.gitlab.haskell.org/ghcup-metadata/ghcup-nightlies-0.0.7.yaml install ghc latest-nightly
-          ghcup --url-source https://ghc.gitlab.haskell.org/ghcup-metadata/ghcup-nightlies-0.0.7.yaml set ghc latest-nightly
+    - uses: haskell-actions/setup@v2
+      with:
+        ghc-version: latest-nightly
+        ghcup-release-channel: "https://ghc.gitlab.haskell.org/ghcup-metadata/ghcup-nightlies-0.0.7.yaml"
     - name: Install z3
       run: |
           curl -OL https://github.com/Z3Prover/z3/releases/download/z3-4.8.7/z3-4.8.7-x64-ubuntu-16.04.zip
