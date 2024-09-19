@@ -234,21 +234,6 @@ availableNames =
       Avail n -> [n]
       AvailTC n ns -> n : ns
 
-_dumpTypeEnv :: TypecheckedModule -> IO ()
-_dumpTypeEnv tm = do
-  print ("DUMP-TYPE-ENV" :: String)
-  print (showpp <$> tcmTyThings tm)
-
-tcmTyThings :: TypecheckedModule -> Maybe [Name]
-tcmTyThings
-  =
-  -- typeEnvElts
-  -- . tcg_type_env . fst
-  -- . md_types . snd
-  -- . tm_internals_
-  modInfoTopLevelScope
-  . tm_checked_module_info
-
 modSummaryHsFile :: ModSummary -> FilePath
 modSummaryHsFile modSummary =
   fromMaybe

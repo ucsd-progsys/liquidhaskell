@@ -941,12 +941,18 @@ withWiredIn m = discardConstraints $ do
   --   ) wiredIns
 
   sigs wiredIns = concatMap (\w ->
-      let inf = maybeToList $ (\(fPrec, fDir) -> Ghc.L locSpanAnn $ Ghc.FixSig Ghc.noAnn $ Ghc.FixitySig Ghc.NoNamespaceSpecifier [Ghc.L locSpanAnn (tcWiredInName w)] $ Ghc.Fixity Ghc.NoSourceText fPrec fDir) <$> tcWiredInFixity w in
-      let t =
+      let inf = maybeToList $ do
+            (fPrec, fDir) <- tcWiredInFixity w
+            return $
+              Ghc.L locSpanAnn $
+              Ghc.FixSig Ghc.noAnn $
+              Ghc.FixitySig Ghc.NoNamespaceSpecifier [Ghc.L locSpanAnn (tcWiredInName w)] $
+              Ghc.Fixity fPrec fDir
+          t =
             let ext' = [] in
             [Ghc.L locSpanAnn $ TypeSig Ghc.noAnn [Ghc.L locSpanAnn (tcWiredInName w)] $ HsWC ext' $ Ghc.L locSpanAnn $ HsSig Ghc.noExtField (HsOuterImplicit ext') $ tcWiredInType w]
       in
-      inf <> t
+         inf <> t
     ) wiredIns
 
   locSpan = UnhelpfulSpan (UnhelpfulOther "Liquid.GHC.Misc: WiredIn")

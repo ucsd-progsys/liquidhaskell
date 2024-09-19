@@ -267,7 +267,7 @@ buildHsExpr :: LHsExpr GhcPs -> SpecType -> LHsExpr GhcPs
 buildHsExpr result = para $ \case
   RFunF bind _ (tin, _) (_, res) _
     | isClassType tin -> res
-    | otherwise       -> mkHsLam [nlVarPat (varSymbolToRdrName bind)] res
+    | otherwise       -> mkHsLam (noLocA [nlVarPat (varSymbolToRdrName bind)]) res
   RAllEF  _ _        (_, res) -> res
   RAllTF  _ (_, res) _        -> res
   RExF    _ _        (_, res) -> res

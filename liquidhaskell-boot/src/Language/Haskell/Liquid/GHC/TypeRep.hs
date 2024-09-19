@@ -48,8 +48,6 @@ eqType' _ _
   = False 
 
 
-deriving instance (Eq tyvar, Eq argf) => Eq (VarBndr tyvar argf)
-
 instance Eq Coercion where
   _ == _ = True 
 

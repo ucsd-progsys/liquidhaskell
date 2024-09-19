@@ -29,8 +29,10 @@ flag devel
 
 library
   autogen-modules:    Paths_liquidhaskell_boot
-  exposed-modules:    Language.Haskell.Liquid.Cabal
-                      Language.Haskell.Liquid.Bare
+  -- For the sake of head.hackage we remove the dependency on Cabal
+  -- to simplify builds.
+  -- exposed-modules:    Language.Haskell.Liquid.Cabal
+  exposed-modules:    Language.Haskell.Liquid.Bare
                       Language.Haskell.Liquid.Bare.Axiom
                       Language.Haskell.Liquid.Bare.Check
                       Language.Haskell.Liquid.Bare.Class
@@ -127,7 +129,9 @@ library
                     , aeson
                     , binary
                     , bytestring           >= 0.10
-                    , Cabal
+                    -- For the sake of head.hackage we remove the dependency on Cabal
+                    -- to simplify builds.
+                    -- , Cabal
                     , cereal
                     , cmdargs              >= 0.10
                     , containers           >= 0.5
