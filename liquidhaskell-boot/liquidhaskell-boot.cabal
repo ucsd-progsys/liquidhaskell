@@ -159,7 +159,6 @@ library
                     , unordered-containers >= 0.2.11
                     , vector               >= 0.10
                     , free
-                    , recursion-schemes    >= 5.2 && < 5.3
                     , data-fix
                     , extra
   default-language:   Haskell98

@@ -33,13 +33,6 @@ import qualified Data.HashSet                  as S
 import           Control.Monad.Free
 
 import           Data.Char                      ( isUpper )
-import           Data.Functor.Foldable
-                   ( Base
-                   , Corecursive (embed)
-                   , Recursive (project)
-                   , ana
-                   , cata
-                   )
 import           GHC.Types.Name.Occurrence
 import qualified Liquid.GHC.API as Ghc
                                                 (noExtField)
@@ -199,33 +192,31 @@ type RTPropF c tv f = Ref (RType c tv ()) f
 type SpecTypeF = RTypeF RTyCon RTyVar RReft
 type PartialSpecType = Free SpecTypeF ()
 
-type instance Base (RType c tv r) = RTypeF c tv r
+project :: SpecType -> SpecTypeF SpecType
+project (RVar var reft            ) = RVarF var reft
+project (RFun bind i tin tout reft) = RFunF  bind i tin tout reft
+project (RAllT tvbind ty ref      ) = RAllTF tvbind ty ref
+project (RAllP pvbind ty          ) = RAllPF pvbind ty
+project (RApp c args pargs reft   ) = RAppF c args pargs reft
+project (RAllE bind allarg ty     ) = RAllEF bind allarg ty
+project (REx   bind exarg  ty     ) = RExF bind exarg ty
+project (RExprArg e               ) = RExprArgF e
+project (RAppTy arg res reft      ) = RAppTyF arg res reft
+project (RRTy env ref obl ty      ) = RRTyF env ref obl ty
+project (RHole r                  ) = RHoleF r
 
-instance Recursive (RType c tv r) where
-  project (RVar var reft            ) = RVarF var reft
-  project (RFun bind i tin tout reft) = RFunF  bind i tin tout reft
-  project (RAllT tvbind ty ref      ) = RAllTF tvbind ty ref
-  project (RAllP pvbind ty          ) = RAllPF pvbind ty
-  project (RApp c args pargs reft   ) = RAppF c args pargs reft
-  project (RAllE bind allarg ty     ) = RAllEF bind allarg ty
-  project (REx   bind exarg  ty     ) = RExF bind exarg ty
-  project (RExprArg e               ) = RExprArgF e
-  project (RAppTy arg res reft      ) = RAppTyF arg res reft
-  project (RRTy env ref obl ty      ) = RRTyF env ref obl ty
-  project (RHole r                  ) = RHoleF r
-
-instance Corecursive (RType c tv r) where
-  embed (RVarF var reft            ) = RVar var reft
-  embed (RFunF bind i tin tout reft) = RFun bind  i tin tout reft
-  embed (RAllTF tvbind ty ref      ) = RAllT tvbind ty ref
-  embed (RAllPF pvbind ty          ) = RAllP pvbind ty
-  embed (RAppF c args pargs reft   ) = RApp c args pargs reft
-  embed (RAllEF bind allarg ty     ) = RAllE bind allarg ty
-  embed (RExF   bind exarg  ty     ) = REx bind exarg ty
-  embed (RExprArgF e               ) = RExprArg e
-  embed (RAppTyF arg res reft      ) = RAppTy arg res reft
-  embed (RRTyF env ref obl ty      ) = RRTy env ref obl ty
-  embed (RHoleF r                  ) = RHole r
+embed :: SpecTypeF SpecType -> SpecType
+embed (RVarF var reft            ) = RVar var reft
+embed (RFunF bind i tin tout reft) = RFun bind  i tin tout reft
+embed (RAllTF tvbind ty ref      ) = RAllT tvbind ty ref
+embed (RAllPF pvbind ty          ) = RAllP pvbind ty
+embed (RAppF c args pargs reft   ) = RApp c args pargs reft
+embed (RAllEF bind allarg ty     ) = RAllE bind allarg ty
+embed (RExF   bind exarg  ty     ) = REx bind exarg ty
+embed (RExprArgF e               ) = RExprArg e
+embed (RAppTyF arg res reft      ) = RAppTy arg res reft
+embed (RRTyF env ref obl ty      ) = RRTy env ref obl ty
+embed (RHoleF r                  ) = RHole r
 
 
 -- specTypeToLHsType :: SpecType -> LHsType GhcPs
@@ -237,13 +228,15 @@ instance Corecursive (RType c tv r) where
 -- A one-way function. Kind of like injecting something into Maybe
 specTypeToPartial :: forall a . SpecType -> SpecTypeF (Free SpecTypeF a)
 specTypeToPartial = cata (fmap wrap)
+  where
+    cata g = g . fmap (cata g) . project
 
 plugType :: SpecType -> PartialSpecType -> SpecType
-plugType t = f
- where
-  f = ana $ \case
+plugType t = ana $ \case
     Pure _   -> specTypeToPartial t
     Free res -> res
+  where
+    ana g = embed . fmap (ana g) . g
 
 -- build the expression we send to ghc for elaboration
 -- YL: tweak this function to see if ghc accepts explicit dictionary binders
