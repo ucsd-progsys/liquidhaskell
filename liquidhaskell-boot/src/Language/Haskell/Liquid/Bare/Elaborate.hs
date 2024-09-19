@@ -2,7 +2,6 @@
 {-# LANGUAGE ExplicitForAll            #-}
 {-# LANGUAGE TypeFamilies              #-}
 {-# LANGUAGE DeriveFunctor             #-}
-{-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE LambdaCase                #-}
 {-# LANGUAGE OverloadedStrings         #-}
 
