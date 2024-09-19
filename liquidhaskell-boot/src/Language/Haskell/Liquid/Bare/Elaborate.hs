@@ -35,7 +35,6 @@ import           Data.Char                      ( isUpper )
 import           GHC.Types.Name.Occurrence
 import qualified Liquid.GHC.API as Ghc
                                                 (noExtField)
-import           Data.Default                   ( def )
 import qualified Data.Maybe                    as Mb
 
 -- TODO: make elaboration monadic so typeclass names are unified to something
@@ -449,7 +448,7 @@ elaborateSpecType' partialTp coreToLogic simplify t =
     RHole    _ -> impossible Nothing "RHole should not appear here"
     RRTy{}     -> todo Nothing ("Not sure how to elaborate RRTy" ++ F.showpp t)
  where
-  boolType = RApp (RTyCon boolTyCon [] def) [] [] mempty :: SpecType
+  boolType = RApp (RTyCon boolTyCon [] defaultTyConInfo) [] [] mempty :: SpecType
   elaborateReft
     :: (F.PPrint a)
     => (F.Reft, SpecType)

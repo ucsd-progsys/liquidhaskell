@@ -22,7 +22,6 @@ module Language.Haskell.Liquid.Bare.Measure
   , varLocSym
   ) where
 
-import Data.Default
 import qualified Control.Exception as Ex
 import Prelude hiding (mapM, error)
 import Data.Bifunctor
@@ -316,7 +315,7 @@ bkDataCon permitTC dcn nFlds  = (as, ts, (F.dummySymbol, classRFInfo permitTC, t
 data DataConSel = Check | Proj Int
 
 bareBool :: SpecType
-bareBool = RApp (RTyCon Ghc.boolTyCon [] def) [] [] mempty
+bareBool = RApp (RTyCon Ghc.boolTyCon [] defaultTyConInfo) [] [] mempty
 
 
 {- | NOTE:Use DataconWorkId
