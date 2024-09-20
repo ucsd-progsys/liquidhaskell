@@ -58,7 +58,6 @@ import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.RefType hiding (generalize)
 import           Language.Haskell.Liquid.Types.Types
-import           Data.Default
 
 makeTyConInfo :: F.TCEmb Ghc.TyCon -> [Ghc.TyCon] -> [TyConP] -> TyConMap
 makeTyConInfo tce fiTcs tcps = TyConMap
@@ -291,7 +290,7 @@ wpredRTyCon   :: RTyCon
 wpredRTyCon   = symbolRTyCon wpredName
 
 symbolRTyCon   :: F.Symbol -> RTyCon
-symbolRTyCon n = RTyCon (stringTyCon 'x' 42 $ F.symbolString n) [] def
+symbolRTyCon n = RTyCon (stringTyCon 'x' 42 $ F.symbolString n) [] defaultTyConInfo
 
 -------------------------------------------------------------------------------------
 -- | Instantiate `PVar` with `RTProp` -----------------------------------------------

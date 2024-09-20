@@ -299,7 +299,6 @@ import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.UX.Config
-import           Data.Default
 
 
 -----------------------------------------------------------------------------
@@ -711,9 +710,6 @@ isProp _          = False
 
 defaultTyConInfo :: TyConInfo
 defaultTyConInfo = TyConInfo [] [] Nothing
-
-instance Default TyConInfo where
-  def = defaultTyConInfo
 
 
 -----------------------------------------------------------------------

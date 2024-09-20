@@ -2,10 +2,8 @@
 {-# LANGUAGE ExplicitForAll            #-}
 {-# LANGUAGE TypeFamilies              #-}
 {-# LANGUAGE DeriveFunctor             #-}
-{-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE LambdaCase                #-}
 {-# LANGUAGE OverloadedStrings         #-}
-{-# LANGUAGE CPP                       #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -32,16 +30,11 @@ import qualified Data.List                     as L
 import qualified Data.HashMap.Strict           as M
 import qualified Data.HashSet                  as S
 import           Control.Monad.Free
-#if MIN_VERSION_recursion_schemes(5,2,0)
-import           Data.Fix                      hiding (hylo)
-#endif
 
 import           Data.Char                      ( isUpper )
-import           Data.Functor.Foldable
 import           GHC.Types.Name.Occurrence
 import qualified Liquid.GHC.API as Ghc
                                                 (noExtField)
-import           Data.Default                   ( def )
 import qualified Data.Maybe                    as Mb
 
 -- TODO: make elaboration monadic so typeclass names are unified to something
@@ -197,33 +190,31 @@ type RTPropF c tv f = Ref (RType c tv ()) f
 type SpecTypeF = RTypeF RTyCon RTyVar RReft
 type PartialSpecType = Free SpecTypeF ()
 
-type instance Base (RType c tv r) = RTypeF c tv r
+project :: SpecType -> SpecTypeF SpecType
+project (RVar var reft            ) = RVarF var reft
+project (RFun bind i tin tout reft) = RFunF  bind i tin tout reft
+project (RAllT tvbind ty ref      ) = RAllTF tvbind ty ref
+project (RAllP pvbind ty          ) = RAllPF pvbind ty
+project (RApp c args pargs reft   ) = RAppF c args pargs reft
+project (RAllE bind allarg ty     ) = RAllEF bind allarg ty
+project (REx   bind exarg  ty     ) = RExF bind exarg ty
+project (RExprArg e               ) = RExprArgF e
+project (RAppTy arg res reft      ) = RAppTyF arg res reft
+project (RRTy env ref obl ty      ) = RRTyF env ref obl ty
+project (RHole r                  ) = RHoleF r
 
-instance Recursive (RType c tv r) where
-  project (RVar var reft            ) = RVarF var reft
-  project (RFun bind i tin tout reft) = RFunF  bind i tin tout reft
-  project (RAllT tvbind ty ref      ) = RAllTF tvbind ty ref
-  project (RAllP pvbind ty          ) = RAllPF pvbind ty
-  project (RApp c args pargs reft   ) = RAppF c args pargs reft
-  project (RAllE bind allarg ty     ) = RAllEF bind allarg ty
-  project (REx   bind exarg  ty     ) = RExF bind exarg ty
-  project (RExprArg e               ) = RExprArgF e
-  project (RAppTy arg res reft      ) = RAppTyF arg res reft
-  project (RRTy env ref obl ty      ) = RRTyF env ref obl ty
-  project (RHole r                  ) = RHoleF r
-
-instance Corecursive (RType c tv r) where
-  embed (RVarF var reft            ) = RVar var reft
-  embed (RFunF bind i tin tout reft) = RFun bind  i tin tout reft
-  embed (RAllTF tvbind ty ref      ) = RAllT tvbind ty ref
-  embed (RAllPF pvbind ty          ) = RAllP pvbind ty
-  embed (RAppF c args pargs reft   ) = RApp c args pargs reft
-  embed (RAllEF bind allarg ty     ) = RAllE bind allarg ty
-  embed (RExF   bind exarg  ty     ) = REx bind exarg ty
-  embed (RExprArgF e               ) = RExprArg e
-  embed (RAppTyF arg res reft      ) = RAppTy arg res reft
-  embed (RRTyF env ref obl ty      ) = RRTy env ref obl ty
-  embed (RHoleF r                  ) = RHole r
+embed :: SpecTypeF SpecType -> SpecType
+embed (RVarF var reft            ) = RVar var reft
+embed (RFunF bind i tin tout reft) = RFun bind  i tin tout reft
+embed (RAllTF tvbind ty ref      ) = RAllT tvbind ty ref
+embed (RAllPF pvbind ty          ) = RAllP pvbind ty
+embed (RAppF c args pargs reft   ) = RApp c args pargs reft
+embed (RAllEF bind allarg ty     ) = RAllE bind allarg ty
+embed (RExF   bind exarg  ty     ) = REx bind exarg ty
+embed (RExprArgF e               ) = RExprArg e
+embed (RAppTyF arg res reft      ) = RAppTy arg res reft
+embed (RRTyF env ref obl ty      ) = RRTy env ref obl ty
+embed (RHoleF r                  ) = RHole r
 
 
 -- specTypeToLHsType :: SpecType -> LHsType GhcPs
@@ -234,15 +225,16 @@ instance Corecursive (RType c tv r) where
 
 -- A one-way function. Kind of like injecting something into Maybe
 specTypeToPartial :: forall a . SpecType -> SpecTypeF (Free SpecTypeF a)
-specTypeToPartial = hylo (fmap wrap) project
+specTypeToPartial = cata (fmap wrap)
+  where
+    cata g = g . fmap (cata g) . project
 
--- probably should return spectype instead..
 plugType :: SpecType -> PartialSpecType -> SpecType
-plugType t = refix . f
- where
-  f = hylo Fix $ \case
+plugType t = ana $ \case
     Pure _   -> specTypeToPartial t
     Free res -> res
+  where
+    ana g = embed . fmap (ana g) . g
 
 -- build the expression we send to ghc for elaboration
 -- YL: tweak this function to see if ghc accepts explicit dictionary binders
@@ -250,31 +242,40 @@ plugType t = refix . f
 
 -- | returns (lambda binders, forall binders)
 collectSpecTypeBinders :: SpecType -> ([F.Symbol], [F.Symbol])
-collectSpecTypeBinders = para $ \case
-  RFunF bind _ (tin, _) (_, (bs, abs')) _ | isClassType tin -> (bs, abs')
-                                       | otherwise       -> (bind : bs, abs')
-  RAllEF b _ (_, (bs, abs'))  -> (b : bs, abs')
-  RAllTF (RTVar (RTV ab) _) (_, (bs, abs')) _ -> (bs, F.symbol ab : abs')
-  RExF b _ (_, (bs, abs'))    -> (b : bs, abs')
-  RAppTyF _ (_, (bs, abs')) _ -> (bs, abs')
-  RRTyF _ _ _ (_, (bs, abs')) -> (bs, abs')
-  _                          -> ([], [])
+collectSpecTypeBinders = \case
+  RFun bind _ tin tout _
+    | isClassType tin -> collectSpecTypeBinders tout
+    | otherwise       -> let (bs, abs') = collectSpecTypeBinders tout
+                          in (bind : bs, abs')
+  RAllE b _ t ->
+    let (bs, abs') = collectSpecTypeBinders t
+     in (b : bs, abs')
+  RAllT (RTVar (RTV ab) _) t _ ->
+    let (bs, abs') = collectSpecTypeBinders t
+     in (bs, F.symbol ab : abs')
+  REx b _ t ->
+    let (bs, abs') = collectSpecTypeBinders t
+     in (b : bs, abs')
+  RAppTy _ t _ -> collectSpecTypeBinders t
+  RRTy _ _ _ t -> collectSpecTypeBinders t
+  _ -> ([], [])
 
 -- really should be fused with collectBinders. However, we need the binders
 -- to correctly convert fixpoint expressions to ghc expressions because of
 -- namespace related issues (whether the symbol denotes a varName or a datacon)
 buildHsExpr :: LHsExpr GhcPs -> SpecType -> LHsExpr GhcPs
-buildHsExpr result = para $ \case
-  RFunF bind _ (tin, _) (_, res) _
-    | isClassType tin -> res
-    | otherwise       -> mkHsLam [nlVarPat (varSymbolToRdrName bind)] res
-  RAllEF  _ _        (_, res) -> res
-  RAllTF  _ (_, res) _        -> res
-  RExF    _ _        (_, res) -> res
-  RAppTyF _ (_, res) _        -> res
-  RRTyF _ _ _ (_, res)        -> res
-  _                           -> result
-
+buildHsExpr result = go
+  where
+    go = \case
+      RFun bind _ tin tout _
+        | isClassType tin -> go tout
+        | otherwise       -> mkHsLam [nlVarPat (varSymbolToRdrName bind)] (go tout)
+      RAllE _ _ t -> go t
+      RAllT _ t _ -> go t
+      REx _ _ t -> go t
+      RAppTy _ t _ -> go t
+      RRTy _ _ _ t -> go t
+      _ -> result
 
 
 canonicalizeDictBinder
@@ -447,7 +448,7 @@ elaborateSpecType' partialTp coreToLogic simplify t =
     RHole    _ -> impossible Nothing "RHole should not appear here"
     RRTy{}     -> todo Nothing ("Not sure how to elaborate RRTy" ++ F.showpp t)
  where
-  boolType = RApp (RTyCon boolTyCon [] def) [] [] mempty :: SpecType
+  boolType = RApp (RTyCon boolTyCon [] defaultTyConInfo) [] [] mempty :: SpecType
   elaborateReft
     :: (F.PPrint a)
     => (F.Reft, SpecType)
@@ -680,34 +681,31 @@ symbolToRdrName env x
 
 specTypeToLHsType :: SpecType -> LHsType GhcPs
 -- surprised that the type application is necessary
-specTypeToLHsType =
-  flip (ghylo (distPara @SpecType) distAna) (fmap pure . project) $ \case
-    RVarF (RTV tv) _ -> nlHsTyVar
+specTypeToLHsType = \case
+    RVar (RTV tv) _ -> nlHsTyVar
       NotPromoted
       -- (GM.notracePpr ("varRdr" ++ F.showpp (F.symbol tv)) $ getRdrName tv)
       (symbolToRdrNameNs tvName (F.symbol tv))
-    RFunF _ _ (tin, tin') (_, tout) _
-      | isClassType tin -> noLocA $ HsQualTy Ghc.noExtField (noLocA [tin']) tout
-      | otherwise       -> nlHsFunTy tin' tout
-    RAllTF (ty_var_value -> (RTV tv)) (_, t) _ -> noLocA $ HsForAllTy
+    RFun _ _ tin tout _
+      | isClassType tin -> noLocA $ HsQualTy Ghc.noExtField (noLocA [specTypeToLHsType tin]) (specTypeToLHsType tout)
+      | otherwise       -> nlHsFunTy (specTypeToLHsType tin) (specTypeToLHsType tout)
+    RAllT (ty_var_value -> (RTV tv)) t _ -> noLocA $ HsForAllTy
       Ghc.noExtField
       (mkHsForAllInvisTele noAnn [noLocA $ UserTyVar noAnn SpecifiedSpec (noLocA $ symbolToRdrNameNs tvName (F.symbol tv))])
-      t
-    RAllPF _ (_, ty)                    -> ty
-    RAppF RTyCon { rtc_tc = tc } ts _ _ -> mkHsTyConApp
+      (specTypeToLHsType t)
+    RAllP _ ty -> specTypeToLHsType ty
+    RApp RTyCon { rtc_tc = tc } ts _ _ -> mkHsTyConApp
       (getRdrName tc)
-      [ hst | (t, hst) <- ts, notExprArg t ]
+      [ specTypeToLHsType t | t <- ts, notExprArg t ]
      where
       notExprArg (RExprArg _) = False
       notExprArg _            = True
-    RAllEF _ (_, tin) (_, tout) -> nlHsFunTy tin tout
-    RExF   _ (_, tin) (_, tout) -> nlHsFunTy tin tout
-    -- impossible
-    RAppTyF _ (RExprArg _, _) _ ->
+    RAllE _ tin tout -> nlHsFunTy (specTypeToLHsType tin) (specTypeToLHsType tout)
+    REx _ tin tout -> nlHsFunTy (specTypeToLHsType tin) (specTypeToLHsType tout)
+    RAppTy _ (RExprArg _) _ ->
       impossible Nothing "RExprArg should not appear here"
-    RAppTyF (_, t) (_, t') _ -> nlHsAppTy t t'
-    -- YL: todo..
-    RRTyF _ _ _ (_, t)       -> t
-    RHoleF _                 -> noLocA $ HsWildCardTy Ghc.noExtField
-    RExprArgF _ ->
+    RAppTy t t' _ -> nlHsFunTy (specTypeToLHsType t) (specTypeToLHsType t')
+    RRTy _ _ _ t -> specTypeToLHsType t
+    RHole _ -> noLocA $ HsWildCardTy Ghc.noExtField
+    RExprArg _ ->
       todo Nothing "Oops, specTypeToLHsType doesn't know how to handle RExprArg"
