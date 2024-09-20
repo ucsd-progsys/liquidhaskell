@@ -1,0 +1,71 @@
+name: GHC HEAD
+on:
+  workflow_dispatch:
+  # pull_request: # comment out to have this run on PR's
+  # runs at 8:00 on Mondays
+  schedule:
+           # ┌───────────── minute (0 - 59)
+           # │ ┌───────────── hour (0 - 23)
+           # │ │ ┌───────────── day of the month (1 - 31)
+           # │ │ │ ┌───────────── month (1 - 12 or JAN-DEC)
+           # │ │ │ │ ┌───────────── day of the week (0 - 6 or SUN-SAT)
+           # │ │ │ │ │
+           # │ │ │ │ │
+           # │ │ │ │ │
+           # * * * * *
+    - cron: '0 8 * * 1' # run weekly at 8 hour, https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule
+jobs:
+  build:
+
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        ref: ci/ghc-head
+        submodules: true
+    - name: Install ghcup
+      run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
+          ghcup install cabal latest
+          ghcup set cabal latest
+          ghcup --url-source https://ghc.gitlab.haskell.org/ghcup-metadata/ghcup-nightlies-0.0.7.yaml install ghc latest-nightly
+          ghcup --url-source https://ghc.gitlab.haskell.org/ghcup-metadata/ghcup-nightlies-0.0.7.yaml set ghc latest-nightly
+    - name: Install z3
+      run: |
+          curl -OL https://github.com/Z3Prover/z3/releases/download/z3-4.8.7/z3-4.8.7-x64-ubuntu-16.04.zip
+          unzip z3-4.8.7-x64-ubuntu-16.04.zip
+          rm -f z3-4.8.7-x64-ubuntu-16.04.zip
+          sudo cp z3-4.8.7-x64-ubuntu-16.04/bin/libz3.a /usr/local/lib
+          sudo cp z3-4.8.7-x64-ubuntu-16.04/bin/z3 /usr/local/bin
+          sudo cp z3-4.8.7-x64-ubuntu-16.04/include/* /usr/local/include
+          rm -rf z3-4.8.7-x64-ubuntu-16.04
+          z3 --version
+    - name: cabal update
+      run: |
+          curl https://ghc.gitlab.haskell.org/head.hackage/cabal.project | grep -v liquidhaskell-boot > cabal.project.local
+          cabal update
+    - name: cabal build and test
+      run: |
+          cabal test liquidhaskell-boot
+          scripts/test/test_plugin.sh
+
+  notify:
+    name: Notify failed build
+    needs: build
+    if: failure() && github.event.pull_request == null
+    runs-on: ubuntu-latest
+    steps:
+      - uses: jayqi/failed-build-issue-action@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          title-template: Weekly build for GHC HEAD failed
+          body-template: |
+                The weekly build for GHC HEAD failed.
+                Check the actions for details.
+                ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

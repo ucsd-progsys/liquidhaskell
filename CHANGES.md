@@ -2,6 +2,21 @@
 
 ## Next
 
+- Implement opaque reflection, a feature to allow reflecting functions which
+  call to non-reflected functions [#2323](https://github.com/ucsd-progsys/liquidhaskell/pull/2323).
+- Implement reflection from interface files, which can reflect functions from
+  their unfoldings [#2326](https://github.com/ucsd-progsys/liquidhaskell/pull/2326).
+  The feature is limited at the moment by the constraints that affect reflecting
+  functions in general. But we hope it becomes more interesting as reflection is
+  made more flexible.
+- Operators in the logic cannot be shadowed locally anymore since
+  [#2327](https://github.com/ucsd-progsys/liquidhaskell/pull/2327).
+- Added a flag `--dump-pre-normalized-core` to show core before A normalization
+  and constraint generation [#2336](https://github.com/ucsd-progsys/liquidhaskell/pull/2336).
+- Added a flag `--insert-core-break-points` to enable the insertion of
+  break points when desugaring [#2340](https://github.com/ucsd-progsys/liquidhaskell/pull/2340)
+  [#2345](https://github.com/ucsd-progsys/liquidhaskell/pull/2340).
+
 ## 0.9.10.1 (2024-08-21)
 
 - Add support for GHC 9.10.1.
