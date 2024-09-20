@@ -476,7 +476,8 @@ config = cmdArgsMode $ Config {
           &= name "dump-pre-normalized-core"
           &= explicit
   , insertCoreBreakPoints
-    = def &= help "Insert break point when desugaring Haskell (enabled by default)"
+    = False
+          &= help "Insert break point when desugaring Haskell"
           &= name "insert-core-break-points"
           &= explicit
   } &= program "liquid"
@@ -744,7 +745,7 @@ defConfig = Config
   , excludeAutomaticAssumptionsFor = []
   , dumpOpaqueReflections    = False
   , dumpPreNormalizedCore    = False
-  , insertCoreBreakPoints    = True
+  , insertCoreBreakPoints    = False
   }
 
 -- | Write the annotations (i.e. the files in the \".liquid\" hidden folder) and
