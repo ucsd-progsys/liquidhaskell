@@ -233,7 +233,7 @@ addNoInlinePragmasToLocalBinds ps =
     ps { pm_parsed_source = go (pm_parsed_source ps) }
   where
     go :: forall a. Data a => a -> a
-    go = gmapT (go `extT` addNoInlinePragmas)
+    go = gmapT ((id `extT` addNoInlinePragmas) . go)
 
     addNoInlinePragmas :: HsValBinds GhcPs -> HsValBinds GhcPs
     addNoInlinePragmas = \case
