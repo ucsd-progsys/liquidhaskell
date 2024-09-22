@@ -26,7 +26,7 @@ class (GHC.Internal.Real.Real a, GHC.Internal.Enum.Enum a) => GHC.Internal.Real.
                                                     ((x >= 0 && y >= 1) => v <= x) &&
                                                     ((1 < y && x >= 0)  => v < x) &&
                                                     ((1 < y && x < 0)   => v > x) &&
-                                                    ((y >= 1 && x > 0)  => v <= x) &&
+                                                    ((y >= 1 && x >= 0)  => v <= x) &&
                                                     ((x < 0 && y > 0)   => v <= 0) &&
                                                     ((x > 0 && y < 0)   => v <= 0) &&
                                                     ((x < 0 && y < 0)   => v >= 0)
