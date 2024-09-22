@@ -2543,6 +2543,7 @@ executable terminate-pos
     other-modules:
                       Ackermann
                     , AutoTerm
+                    , Div
                     , Lexicographic
                     , List00
                     , List00_local
@@ -2585,6 +2586,7 @@ executable terminate-neg
 
     other-modules:
                       AutoTerm
+                    , Div
                     , Even
                     , Qsloop
                     , Rename
