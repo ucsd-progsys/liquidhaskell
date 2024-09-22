@@ -1,3 +1,5 @@
+-- Tests that termination is detected when using div in the argument
+-- of the recursive call.
 module Div where
 
 {-@ iterateTo0 :: n:Int -> {v:Int | v == 0} @-}
