@@ -2586,6 +2586,7 @@ executable terminate-neg
 
     other-modules:
                       AutoTerm
+                    , Div
                     , Even
                     , Qsloop
                     , Rename
