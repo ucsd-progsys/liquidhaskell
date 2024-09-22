@@ -1,4 +1,6 @@
 {-@ LIQUID "--expect-error-containing=Liquid Type Mismatch" @-}
+-- Tests that non-termination is detected when div is used in the
+-- argument of a recursive call.
 module Div where
 
 iterateTo0 :: Int -> Int
