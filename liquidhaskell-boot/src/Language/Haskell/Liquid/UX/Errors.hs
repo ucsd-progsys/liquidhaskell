@@ -137,6 +137,7 @@ stripRType st = (t', ro)
     ro        = stripRTypeBase  t
     t         = simplifyBounds st
 
+-- | @sliceREnv xs m@ collects the bindings of all symbols reachable from @xs@.
 sliceREnv :: [F.Symbol] -> Ctx -> [(F.Symbol, SpecType)]
 sliceREnv xs m = [(x, t) | x <- xs', t <- maybeToList (M.lookup x m), ok t]
   where
