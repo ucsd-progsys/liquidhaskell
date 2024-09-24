@@ -121,8 +121,9 @@ isInline' :: SpecType -> Either F.Expr SpecType
 isInline' t = case ro of
                 Nothing -> Right t'
                 Just rr -> case F.isSingletonReft (ur_reft rr) of
-                             Just e  -> Left e
-                             Nothing -> Right (strengthen t' rr)
+                  Just e -- Treat as singleton only if there aren't other conjucts
+                    | [_] <- F.conjuncts (F.reftPred (ur_reft rr)) -> Left e
+                  _ -> Right (strengthen t' rr)
               where
                   (t', ro) = stripRType t
 
