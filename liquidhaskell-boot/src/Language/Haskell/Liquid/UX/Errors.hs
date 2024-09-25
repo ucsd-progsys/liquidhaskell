@@ -15,6 +15,7 @@ import qualified Data.List                           as L
 import           Data.Hashable
 import           Data.Maybe                          (maybeToList)
 import qualified Language.Fixpoint.Types             as F
+import qualified Language.Fixpoint.Solver.EnvironmentReduction as F
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Transforms.Simplify
 import           Language.Haskell.Liquid.UX.Tidy
@@ -114,14 +115,20 @@ expandVarDefs      = go mempty
     isDef xs e     = not (any (`S.member` xs) (F.syms e))
 
 isInline :: (a, SpecType) -> Either (a, F.Expr) (a, SpecType)
-isInline (x, t) = either (Left . (x,)) (Right . (x,)) (isInline' t)
+isInline (x, t) =
+    either (Left . (x,)) (Right . (x,)) (isInline' t')
+  where
+    -- tidyInternalRefas could drop some conjuncts which affects whether
+    -- bindings are eliminated in isInline'
+    t' = tidyInternalRefas t
 
 isInline' :: SpecType -> Either F.Expr SpecType
 isInline' t = case ro of
                 Nothing -> Right t'
                 Just rr -> case F.isSingletonReft (ur_reft rr) of
-                             Just e  -> Left e
-                             Nothing -> Right (strengthen t' rr)
+                  Just e -- Treat as singleton only if there aren't other conjucts
+                    | [_] <- F.conjuncts (F.reftPred (ur_reft rr)) -> Left e
+                  _ -> Right (strengthen t' rr)
               where
                   (t', ro) = stripRType t
 
@@ -137,12 +144,16 @@ stripRType st = (t', ro)
     ro        = stripRTypeBase  t
     t         = simplifyBounds st
 
--- | @sliceREnv xs m@ collects the bindings of all symbols reachable from @xs@.
+-- | @sliceREnv xs m@ collects all bindings needed by @xs@.
+-- A symbol needs a binding, if the binding binds the symbol, or it contains the
+-- symbol, or it contains symbols used by bindings that are needed by the
+-- symbol.
 sliceREnv :: [F.Symbol] -> Ctx -> [(F.Symbol, SpecType)]
-sliceREnv xs m = [(x, t) | x <- xs', t <- maybeToList (M.lookup x m), ok t]
+sliceREnv xs m =
+    [(x, t) | x <- relatedSyms, Just t <- [M.lookup x m], ok t]
   where
-    xs'       = expandFix deps xs
-    deps y    = maybe [] (F.syms . rTypeReft) (M.lookup y m)
+    directlyUses = M.map (F.exprSymbolsSet . F.reftPred . rTypeReft) m
+    relatedSyms = L.sort $ S.toList $ F.relatedSymbols (S.fromList xs) directlyUses
     ok        = not . isFunTy
 
 tidyREnvM      :: [F.Symbol] -> CtxM -> [(F.Symbol, WithModel SpecType)]

@@ -14,6 +14,7 @@ module Language.Haskell.Liquid.UX.Tidy (
 
     -- * Tidying functions
     tidySpecType
+  , tidyInternalRefas
   , tidySymbol
 
     -- * Panic and Exit
@@ -124,6 +125,8 @@ tidyEqual = mapReft txReft
     txReft u                      = u { ur_reft = mapPredReft dropInternals $ ur_reft u }
     dropInternals                 = pAnd . L.nub . conjuncts
 
+-- | Drop conjuncts that contain data constructor testing or
+-- selector functions.
 tidyInternalRefas   :: SpecType -> SpecType
 tidyInternalRefas = mapReft txReft
   where
