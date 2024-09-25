@@ -14,6 +14,7 @@ module Language.Haskell.Liquid.UX.Tidy (
 
     -- * Tidying functions
     tidySpecType
+  , tidyInternalRefas
   , tidySymbol
 
     -- * Panic and Exit
