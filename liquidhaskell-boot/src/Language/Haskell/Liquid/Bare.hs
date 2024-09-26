@@ -233,7 +233,7 @@ makeGhcSpec0 cfg src lmap targetSpec dependencySpecs = do
   tycEnv <- makeTycEnv1 name env (tycEnv0, datacons) coreToLg simplifier
   let tyi      = Bare.tcTyConMap   tycEnv
   let sigEnv   = makeSigEnv  embs tyi (_gsExports src) rtEnv
-  let lSpec1   = lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1
+  let lSpec1   = makeLiftedSpec1 cfg src tycEnv lmap mySpec1
   let mySpec   = mySpec2 <> lSpec1
   let specs    = M.insert name mySpec iSpecs2
   let myRTE    = myRTEnv       src env sigEnv rtEnv
@@ -253,7 +253,7 @@ makeGhcSpec0 cfg src lmap targetSpec dependencySpecs = do
   let (dg6, spcTerm) = withDiagnostics $ makeSpecTerm cfg     mySpec env       name
   let sData    = makeSpecData  src env sigEnv measEnv elaboratedSig specs
   let laws     = makeSpecLaws env sigEnv (gsTySigs elaboratedSig ++ gsAsmSigs elaboratedSig) measEnv specs
-  let finalLiftedSpec = makeLiftedSpec name src env refl sData elaboratedSig qual myRTE lSpec1
+  let finalLiftedSpec = makeLiftedSpec name src env refl sData elaboratedSig qual myRTE (lSpec0 <> lSpec1)
   let diags    = mconcat [dg0, dg1, dg2, dg3, dg4, dg5, dg6]
 
   -- Dump reflections, if requested
