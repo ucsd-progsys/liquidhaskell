@@ -334,20 +334,19 @@ makeGhcSpec0 cfg src lmap targetSpec dependencySpecs = do
     simplifier = pure -- no simplification
     allowTC  = typeclass cfg
     mySpec2  = Bare.qualifyExpand env name rtEnv l [] mySpec1    where l = F.dummyPos "expand-mySpec2"
+    iSpecs0 = M.fromList dependencySpecs
     iSpecs2  = Bare.qualifyExpand env name rtEnv l [] iSpecs0    where l = F.dummyPos "expand-iSpecs2"
-    rtEnv    = Bare.makeRTEnv env name mySpec1 iSpecs0 lmap
-    mspecs   = if allowTC then M.toList $ M.insert name mySpec0 iSpecs0 else (name, targetSpec) : dependencySpecs
+    rtEnv    = Bare.makeRTEnv env name mySpec1 dependencySpecs lmap
+    mspecs   = (name, mySpec0) : dependencySpecs
     (mySpec0, instMethods)  = if allowTC
-                              then Bare.compileClasses src env (name, targetSpec) (M.toList iSpecs0)
+                              then Bare.compileClasses src env (name, targetSpec) dependencySpecs
                               else (targetSpec, [])
     mySpec1  = mySpec0 <> lSpec0
     lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec0
-    embs     = makeEmbeds          src env ((name, mySpec0) : M.toList iSpecs0)
+    embs     = makeEmbeds          src env ((name, mySpec0) : dependencySpecs)
     dm       = Bare.tcDataConMap tycEnv0
     (dg0, datacons, tycEnv0) = makeTycEnv0   cfg name env embs mySpec2 iSpecs2
-    -- extract name and specs
     env      = Bare.makeEnv cfg src lmap ((name, targetSpec) : dependencySpecs)
-    iSpecs0 = M.fromList dependencySpecs
     -- check barespecs
     name     = F.notracepp ("ALL-SPECS" ++ zzz) $ _giTargetMod  src
     zzz      = F.showpp (fst <$> mspecs)
