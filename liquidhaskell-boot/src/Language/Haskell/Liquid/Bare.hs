@@ -334,8 +334,13 @@ makeGhcSpec0 cfg src lmap targetSpec dependencySpecs = do
     simplifier = pure -- no simplification
     allowTC  = typeclass cfg
     mySpec2  = Bare.qualifyExpand env name rtEnv l [] mySpec1    where l = F.dummyPos "expand-mySpec2"
-    iSpecs0 = M.fromList dependencySpecs
-    iSpecs2  = Bare.qualifyExpand env name rtEnv l [] iSpecs0    where l = F.dummyPos "expand-iSpecs2"
+    iSpecs2  = Bare.qualifyExpand
+                 env
+                 name
+                 rtEnv
+                 (F.dummyPos "expand-iSpecs2")
+                 []
+                 (M.fromList dependencySpecs)
     rtEnv    = Bare.makeRTEnv env name mySpec1 dependencySpecs lmap
     mspecs   = (name, mySpec0) : dependencySpecs
     (mySpec0, instMethods)  = if allowTC
