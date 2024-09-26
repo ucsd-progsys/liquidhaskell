@@ -61,7 +61,6 @@ import qualified Language.Haskell.Liquid.Bare.Typeclass     as Bare
 import qualified Language.Haskell.Liquid.Transforms.CoreToLogic as CoreToLogic
 import           Control.Arrow                    (second)
 import Data.Hashable (Hashable)
-import qualified Language.Haskell.Liquid.Bare.Slice as Dg
 import Data.Bifunctor (bimap)
 import Data.Function (on)
 
@@ -157,7 +156,7 @@ makeTargetSpec cfg lmap targetSrc bareSpec dependencies = do
       --     "let {len :: [a] -> Int; len _ = undefined}"
       --     Ghc.execOptions
 
-      diagOrSpec <- makeGhcSpec cfg (fromTargetSrc targetSrc) lmap (allSpecs legacyBareSpec)
+      diagOrSpec <- makeGhcSpec cfg (fromTargetSrc targetSrc) lmap legacyBareSpec legacyDependencies
       return $ do
         (warns, ghcSpec) <- diagOrSpec
         let (targetSpec, liftedSpec) = toTargetSpec ghcSpec
@@ -166,16 +165,10 @@ makeTargetSpec cfg lmap targetSrc bareSpec dependencies = do
     toLegacyDep :: (Ghc.StableModule, LiftedSpec) -> (ModName, Ms.BareSpec)
     toLegacyDep (sm, ls) = (ModName SrcImport (Ghc.moduleName . Ghc.unStableModule $ sm), unsafeFromLiftedSpec ls)
 
-    toLegacyTarget :: Ms.BareSpec -> (ModName, Ms.BareSpec)
-    toLegacyTarget validatedSpec = (giTargetMod targetSrc, validatedSpec)
-
     legacyDependencies :: [(ModName, Ms.BareSpec)]
     legacyDependencies = map toLegacyDep . M.toList . getDependencies $ dependencies
 
-    allSpecs :: Ms.BareSpec -> [(ModName, Ms.BareSpec)]
-    allSpecs validSpec = toLegacyTarget validSpec : legacyDependencies
-
-    legacyBareSpec :: Spec LocBareType F.LocSymbol
+    legacyBareSpec :: Ms.BareSpec
     legacyBareSpec = fromBareSpec bareSpec
 
 -------------------------------------------------------------------------------------
@@ -185,12 +178,13 @@ makeTargetSpec cfg lmap targetSrc bareSpec dependencies = do
 makeGhcSpec :: Config
             -> GhcSrc
             -> LogicMap
+            -> Ms.BareSpec
             -> [(ModName, Ms.BareSpec)]
             -> Ghc.TcRn (Either Diagnostics ([Warning], GhcSpec))
 -------------------------------------------------------------------------------------
-makeGhcSpec cfg src lmap validatedSpecs = do
-  (dg0, sp) <- makeGhcSpec0 cfg src lmap validatedSpecs
-  let diagnostics = Bare.checkTargetSpec (map snd validatedSpecs)
+makeGhcSpec cfg src lmap targetSpec dependencySpecs = do
+  (dg0, sp) <- makeGhcSpec0 cfg src lmap targetSpec dependencySpecs
+  let diagnostics = Bare.checkTargetSpec (targetSpec : map snd dependencySpecs)
                                          (toTargetSrc src)
                                          (ghcSpecEnv sp)
                                          (_giCbs src)
@@ -227,9 +221,14 @@ ghcSpecEnv sp = F.notracepp "RENV" $ fromListSEnv binds
 --   essentially, to get to the `BareRTEnv` as soon as possible, as thats what
 --   lets us use aliases inside data-constructor definitions.
 -------------------------------------------------------------------------------------
-makeGhcSpec0 :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] ->
-                Ghc.TcRn (Diagnostics, GhcSpec)
-makeGhcSpec0 cfg src lmap mspecsNoCls = do
+makeGhcSpec0
+  :: Config
+  -> GhcSrc
+  -> LogicMap
+  -> Ms.BareSpec
+  -> [(ModName, Ms.BareSpec)]
+  -> Ghc.TcRn (Diagnostics, GhcSpec)
+makeGhcSpec0 cfg src lmap targetSpec dependencySpecs = do
   -- build up environments
   tycEnv <- makeTycEnv1 name env (tycEnv0, datacons) coreToLg simplifier
   let tyi      = Bare.tcTyConMap   tycEnv
@@ -337,30 +336,21 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
     mySpec2  = Bare.qualifyExpand env name rtEnv l [] mySpec1    where l = F.dummyPos "expand-mySpec2"
     iSpecs2  = Bare.qualifyExpand env name rtEnv l [] iSpecs0    where l = F.dummyPos "expand-iSpecs2"
     rtEnv    = Bare.makeRTEnv env name mySpec1 iSpecs0 lmap
-    mspecs   = if allowTC then M.toList $ M.insert name mySpec0 iSpecs0 else mspecsNoCls
+    mspecs   = if allowTC then M.toList $ M.insert name mySpec0 iSpecs0 else (name, targetSpec) : dependencySpecs
     (mySpec0, instMethods)  = if allowTC
-                              then Bare.compileClasses src env (name, mySpec0NoCls) (M.toList iSpecs0)
-                              else (mySpec0NoCls, [])
+                              then Bare.compileClasses src env (name, targetSpec) (M.toList iSpecs0)
+                              else (targetSpec, [])
     mySpec1  = mySpec0 <> lSpec0
     lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec0
     embs     = makeEmbeds          src env ((name, mySpec0) : M.toList iSpecs0)
     dm       = Bare.tcDataConMap tycEnv0
     (dg0, datacons, tycEnv0) = makeTycEnv0   cfg name env embs mySpec2 iSpecs2
     -- extract name and specs
-    env      = Bare.makeEnv cfg src lmap mspecsNoCls
-    (mySpec0NoCls, iSpecs0) = splitSpecs name src mspecsNoCls
+    env      = Bare.makeEnv cfg src lmap ((name, targetSpec) : dependencySpecs)
+    iSpecs0 = M.fromList dependencySpecs
     -- check barespecs
     name     = F.notracepp ("ALL-SPECS" ++ zzz) $ _giTargetMod  src
     zzz      = F.showpp (fst <$> mspecs)
-
-splitSpecs :: ModName -> GhcSrc -> [(ModName, Ms.BareSpec)] -> (Ms.BareSpec, Bare.ModSpecs)
-splitSpecs name src specs = (mySpec, iSpecm)
-  where
-    iSpecm             = fmap mconcat . Misc.group $ iSpecs
-    iSpecs             = Dg.sliceSpecs src mySpec iSpecs'
-    mySpec             = mconcat (snd <$> mySpecs)
-    (mySpecs, iSpecs') = L.partition ((name ==) . fst) specs
-
 
 makeImports :: [(ModName, Ms.BareSpec)] -> [(F.Symbol, F.Sort)]
 makeImports specs = concatMap (expSigs . snd) specs'
