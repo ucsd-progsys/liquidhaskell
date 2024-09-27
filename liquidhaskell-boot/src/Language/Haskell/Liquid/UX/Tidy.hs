@@ -43,7 +43,7 @@ import           Language.Fixpoint.Types                   hiding (Result, SrcSp
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.RefType     (rVar, subsTyVarsMeet, FreeVar)
 import           Language.Haskell.Liquid.Types.PrettyPrint
-import           Data.Generics                             (everywhere, mkT)
+import           Data.Generics                             (everywhere, ext1T)
 import           Text.PrettyPrint.HughesPJ
 
 
@@ -238,8 +238,9 @@ ppSpecTypeErr = ppSpecType Lossy
 ppSpecType :: Tidy -> SpecType -> Doc
 ppSpecType k = rtypeDoc     k
              . tidySpecType k
-             . fmap (everywhere (mkT noCasts))
+             . fmap (everywhere (ext1T id noCasts))
   where
+    noCasts :: ExprV v -> ExprV v
     noCasts (ECst x _) = x
     noCasts e          = e
 
