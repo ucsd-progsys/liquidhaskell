@@ -75,7 +75,8 @@ module Language.Haskell.Liquid.Types.Types (
   -- * Predicate Variables
   , PVarV (PV, pname, parg, ptype, pargs), PVar, isPropPV, pvType
   , PVKind (..)
-  , Predicate (..)
+  , Predicate
+  , PredicateV (..)
 
   -- * Refinements
   , UReft(..)
@@ -525,12 +526,14 @@ instance NFData a   => NFData   (PVKind a)
 --------------------------------------------------------------------------------
 
 type UsedPVar      = PVar ()
+type UsedPVarV v   = PVarV v ()
 
-newtype Predicate  = Pr [UsedPVar]
+type Predicate  = PredicateV Symbol
+newtype PredicateV v = Pr [UsedPVarV v]
   deriving (Generic, Data, Typeable)
-  deriving Hashable via Generically Predicate
+  deriving Hashable via Generically (PredicateV v)
 
-instance Eq Predicate where
+instance Eq (PredicateV v) where
   Pr vs == Pr ws = L.sort vs == L.sort ws
 
 instance B.Binary Predicate
