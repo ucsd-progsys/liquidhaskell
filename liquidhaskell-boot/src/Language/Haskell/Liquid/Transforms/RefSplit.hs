@@ -101,6 +101,7 @@ splitPred :: Symbol -> Predicate -> (Predicate, Predicate)
 splitPred f (Pr ps) = (Pr ps1, Pr ps2)
   where
     (ps1, ps2) = partition g ps
+    g :: PVar a -> Bool
     g p = any (isFree f) (thd3 <$> pargs p)
 
 

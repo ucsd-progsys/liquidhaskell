@@ -73,7 +73,7 @@ module Language.Haskell.Liquid.Types.Types (
   , setRtvPol
 
   -- * Predicate Variables
-  , PVar (PV, pname, parg, ptype, pargs), isPropPV, pvType
+  , PVarV (PV, pname, parg, ptype, pargs), PVar, isPropPV, pvType
   , PVKind (..)
   , Predicate (..)
 
@@ -486,26 +486,27 @@ data TargetVars = AllVars | Only ![Var]
 -- | Abstract Predicate Variables ----------------------------------
 --------------------------------------------------------------------
 
-data PVar t = PV
+type PVar t = PVarV Symbol t
+data PVarV v t = PV
   { pname :: !Symbol
   , ptype :: !(PVKind t)
   , parg  :: !Symbol
-  , pargs :: ![(t, Symbol, Expr)]
+  , pargs :: ![(t, Symbol, F.ExprV v)]
   } deriving (Generic, Data, Typeable, Show, Functor)
 
-instance Eq (PVar t) where
+instance Eq (PVarV v t) where
   pv == pv' = pname pv == pname pv' {- UNIFY: What about: && eqArgs pv pv' -}
 
-instance Ord (PVar t) where
+instance Ord (PVarV v t) where
   compare (PV n _ _ _)  (PV n' _ _ _) = compare n n'
 
-instance B.Binary t => B.Binary (PVar t)
-instance NFData t   => NFData   (PVar t)
+instance (B.Binary v, B.Binary t) => B.Binary (PVarV v t)
+instance (NFData v, NFData t) => NFData (PVarV v t)
 
-instance Hashable (PVar a) where
+instance Hashable (PVarV v a) where
   hashWithSalt i (PV n _ _ _) = hashWithSalt i n
 
-pvType :: PVar t -> t
+pvType :: PVarV v t -> t
 pvType p = case ptype p of
              PVProp t -> t
              PVHProp  -> panic Nothing "pvType on HProp-PVar"
