@@ -531,13 +531,7 @@ newtype Predicate  = Pr [UsedPVar]
   deriving Hashable via Generically Predicate
 
 instance Eq Predicate where
-  (Pr vs) == (Pr ws)
-      = and $ (length vs' == length ws') : [v == w | (v, w) <- zip vs' ws']
-        where
-          vs' = L.sort vs
-          ws' = L.sort ws
-
-
+  Pr vs == Pr ws = L.sort vs == L.sort ws
 
 instance B.Binary Predicate
 
