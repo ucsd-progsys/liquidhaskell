@@ -79,7 +79,8 @@ module Language.Haskell.Liquid.Types.Types (
   , PredicateV (..)
 
   -- * Refinements
-  , UReft(..)
+  , UReft
+  , UReftV (..)
 
   -- * Relational predicates
   , RelExpr (..)
@@ -912,12 +913,13 @@ data    HSeg  t = HBind {hs_addr :: !Symbol, hs_val :: t}
                 | HVar UsedPVar
                 deriving (Generic, Data, Typeable)
 
-data UReft r = MkUReft
+type UReft r = UReftV Symbol r
+data UReftV v r = MkUReft
   { ur_reft   :: !r
-  , ur_pred   :: !Predicate
+  , ur_pred   :: !(PredicateV v)
   }
   deriving (Eq, Generic, Data, Typeable, Functor, Foldable, Traversable)
-  deriving Hashable via Generically (UReft r)
+  deriving Hashable via Generically (UReftV v r)
 
 instance B.Binary r => B.Binary (UReft r)
 
