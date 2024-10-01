@@ -383,6 +383,11 @@ config = cmdArgsMode $ Config {
         &= help "Enable Proof-by-Logical-Evaluation locally, per function"
         &= name "ple-local"
 
+  , etabeta
+    = def
+        &= help "Eta expand and beta reduce terms to aid PLE"
+        &= name "etabeta"
+
   , extensionality
     = def
         &= help "Enable extensional interpretation of function equality"
@@ -727,6 +732,7 @@ defConfig = Config
   , oldPLE                   = False
   , interpreter              = False
   , proofLogicEvalLocal      = False
+  , etabeta                  = False
   , reflection               = False
   , extensionality           = False
   , nopolyinfer              = False
