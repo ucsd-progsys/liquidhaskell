@@ -270,11 +270,7 @@ import GHC.Core.Coercion              as Ghc
     , mkRepReflCo
     )
 import GHC.Core.Coercion.Axiom        as Ghc
-    ( Branched
-    , CoAxiom
-    , CoAxiomRule(CoAxiomRule)
-    , coAxiomTyCon
-    )
+    ( coAxiomTyCon )
 import GHC.Core.ConLike               as Ghc
     ( ConLike(RealDataCon) )
 import GHC.Core.DataCon               as Ghc
@@ -325,26 +321,7 @@ import GHC.Core.Subst                 as Ghc (emptySubst, extendCvSubst)
 import GHC.Core.TyCo.Rep              as Ghc
     ( FunTyFlag(FTF_T_T, FTF_C_T)
     , ForAllTyFlag(Required)
-    , Coercion
-        ( AppCo
-        , AxiomRuleCo
-        , AxiomInstCo
-        , CoVarCo
-        , ForAllCo
-        , FunCo
-        , HoleCo
-        , InstCo
-        , KindCo
-        , LRCo
-        , Refl
-        , GRefl
-        , SelCo
-        , SubCo
-        , SymCo
-        , TransCo
-        , TyConAppCo
-        , UnivCo
-        )
+    , Coercion (AxiomInstCo, SymCo)
     , TyLit(CharTyLit, NumTyLit, StrTyLit)
     , Type
         ( AppTy
@@ -366,6 +343,7 @@ import GHC.Core.TyCo.Rep              as Ghc
     , mkTyVarTys
     )
 import GHC.Core.TyCo.Compare          as Ghc (eqType, nonDetCmpType)
+import GHC.Core.TyCo.Subst            as Ghc (extendSubstInScopeSet, substCo, zipTvSubst)
 import GHC.Core.TyCon                 as Ghc
     ( TyConBinder
     , TyConBndrVis(AnonTCB)
@@ -467,6 +445,7 @@ import GHC.Plugins                    as Ghc ( deserializeWithData
 import GHC.Core.FVs                   as Ghc (exprFreeVars, exprFreeVarsList, exprSomeFreeVarsList)
 import GHC.Core.Opt.OccurAnal         as Ghc
     ( occurAnalysePgm )
+import GHC.Core.TyCo.FVs              as Ghc (tyCoVarsOfCo, tyCoVarsOfType)
 import GHC.Driver.Backend             as Ghc (interpreterBackend)
 import GHC.Driver.Env                 as Ghc
     ( HscEnv(hsc_mod_graph, hsc_unit_env, hsc_dflags, hsc_plugins) )

@@ -174,14 +174,10 @@ instance Subable CoreExpr where
   subTy s (Lam b e)      = Lam (subTy s b) (subTy s e)
   subTy s (Let b e)      = Let (subTy s b) (subTy s e)
   subTy s (Case e b t a) = Case (subTy s e) (subTy s b) (subTy s t) (map (subTy s) a)
-  subTy s (Cast e c)     = Cast (subTy s e) (subTy s c)
+  subTy s (Cast e _c)    = Cast (subTy s e) $ panic Nothing "subTy Coercion"
   subTy s (Tick t e)     = Tick t (subTy s e)
   subTy s (Type t)       = Type (subTy s t)
-  subTy s (Coercion c)   = Coercion (subTy s c)
-
-instance Subable Coercion where
-  sub _ c                = c
-  subTy _ _              = panic Nothing "subTy Coercion"
+  subTy _s (Coercion _c) = Coercion $ panic Nothing "subTy Coercion"
 
 instance Subable (Alt Var) where
  sub s (Alt a b e)   = Alt a (map (sub s) b)   (sub s e)
