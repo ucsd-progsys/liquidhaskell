@@ -32,7 +32,7 @@ import           Language.Haskell.Liquid.Constraint.Env (setTRec)
 import           Language.Haskell.Liquid.Constraint.Template ( Template(..), unTemplate, varTemplate, safeFromAsserted, extender )
 import           Language.Haskell.Liquid.Types (refreshArgs, HasConfig (..), toRSort)
 import           Language.Haskell.Liquid.Types.Types
-  (SpecType, TError (..), RType (..), RTypeRep (..), Oblig (..), Error, Config (..), RReft,
+  (SpecType, TError (..), RType, RTypeV (..), RTypeRep (..), Oblig (..), Error, Config (..), RReft,
    toRTypeRep, structuralTerm, bkArrowDeep, mkArrow, bkUniv, bkArrow, fromRTypeRep)
 import           Language.Haskell.Liquid.Types.RefType (isDecreasing, makeDecrType, makeLexRefa, makeNumEnv)
 import           Language.Haskell.Liquid.Misc (safeFromLeft, replaceN, (<->), zip4, safeFromJust, fst5)

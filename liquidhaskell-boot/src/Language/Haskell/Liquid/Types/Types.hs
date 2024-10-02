@@ -52,7 +52,7 @@ module Language.Haskell.Liquid.Types.Types (
   , isClassType, isEqType, isRVar, isBool, isEmbeddedClass
 
   -- * Refinement Types
-  , RType (..), Ref(..), RTProp, rPropP
+  , RType, RTypeV(..), Ref(..), RTProp, rPropP
   , RTyVar (..)
   , RTAlias (..)
   , OkRT
@@ -742,13 +742,16 @@ instance Show TyConInfo where
 -- | Unified Representation of Refinement Types --------------------------------
 --------------------------------------------------------------------------------
 
-type RTVU c tv = RTVar tv (RType c tv ())
-type PVU  c tv = PVar     (RType c tv ())
+type RTVU c tv = RTVUV c tv Symbol
+type RTVUV c tv v = RTVar tv (RTypeV c tv v ())
+type PVU  c tv = PVUV c tv Symbol
+type PVUV c tv v = PVar     (RTypeV c tv v ())
 
 instance Show tv => Show (RTVU c tv) where
   show (RTVar t _) = show t
 
-data RType c tv r
+type RType c tv = RTypeV c tv Symbol
+data RTypeV c tv v r
   = RVar {
       rt_var    :: !tv
     , rt_reft   :: !r
@@ -757,22 +760,22 @@ data RType c tv r
   | RFun  {
       rt_bind   :: !Symbol
     , rt_rinfo  :: !RFInfo
-    , rt_in     :: !(RType c tv r)
-    , rt_out    :: !(RType c tv r)
+    , rt_in     :: !(RTypeV c tv v r)
+    , rt_out    :: !(RTypeV c tv v r)
     , rt_reft   :: !r
     }
 
   | RAllT {
-      rt_tvbind :: !(RTVU c tv) -- RTVar tv (RType c tv ()))
-    , rt_ty     :: !(RType c tv r)
+      rt_tvbind :: !(RTVUV c tv v) -- RTVar tv (RType c tv ()))
+    , rt_ty     :: !(RTypeV c tv v r)
     , rt_ref    :: !r
     }
 
   -- | "forall x y <z :: Nat, w :: Int> . TYPE"
   --               ^^^^^^^^^^^^^^^^^^^ (rt_pvbind)
   | RAllP {
-      rt_pvbind :: !(PVU c tv)
-    , rt_ty     :: !(RType c tv r)
+      rt_pvbind :: !(PVUV c tv v)
+    , rt_ty     :: !(RTypeV c tv v r)
     }
 
   -- | For example, in [a]<{\h -> v > h}>, we apply (via `RApp`)
@@ -780,42 +783,42 @@ data RType c tv r
   --   * the `RTyCon` denoted by `[]`.
   | RApp  {
       rt_tycon  :: !c
-    , rt_args   :: ![RType  c tv r]
-    , rt_pargs  :: ![RTProp c tv r]
+    , rt_args   :: ![RTypeV  c tv v r]
+    , rt_pargs  :: ![RTPropV c tv v r]
     , rt_reft   :: !r
     }
 
   | RAllE {
       rt_bind   :: !Symbol
-    , rt_allarg :: !(RType c tv r)
-    , rt_ty     :: !(RType c tv r)
+    , rt_allarg :: !(RTypeV c tv v r)
+    , rt_ty     :: !(RTypeV c tv v r)
     }
 
   | REx {
       rt_bind   :: !Symbol
-    , rt_exarg  :: !(RType c tv r)
-    , rt_ty     :: !(RType c tv r)
+    , rt_exarg  :: !(RTypeV c tv v r)
+    , rt_ty     :: !(RTypeV c tv v r)
     }
 
-  | RExprArg (F.Located Expr)                   -- ^ For expression arguments to type aliases
+  | RExprArg (F.Located (F.ExprV v))            -- ^ For expression arguments to type aliases
                                                 --   see tests/pos/vector2.hs
   | RAppTy{
-      rt_arg   :: !(RType c tv r)
-    , rt_res   :: !(RType c tv r)
+      rt_arg   :: !(RTypeV c tv v r)
+    , rt_res   :: !(RTypeV c tv v r)
     , rt_reft  :: !r
     }
 
   | RRTy  {
-      rt_env   :: ![(Symbol, RType c tv r)]
+      rt_env   :: ![(Symbol, RTypeV c tv v r)]
     , rt_ref   :: !r
     , rt_obl   :: !Oblig
-    , rt_ty    :: !(RType c tv r)
+    , rt_ty    :: !(RTypeV c tv v r)
     }
 
   | RHole r -- ^ let LH match against the Haskell type and add k-vars, e.g. `x:_`
             --   see tests/pos/Holes.hs
   deriving (Eq, Generic, Data, Typeable, Functor)
-  deriving Hashable via Generically (RType c tv r)
+  deriving Hashable via Generically (RTypeV c tv v r)
 
 instance (B.Binary c, B.Binary tv, B.Binary r) => B.Binary (RType c tv r)
 instance (NFData c, NFData tv, NFData r)       => NFData (RType c tv r)
@@ -898,7 +901,8 @@ rPropP τ r = RProp τ (RHole r)
 
 -- | @RTProp@ is a convenient alias for @Ref@ that will save a bunch of typing.
 --   In general, perhaps we need not expose @Ref@ directly at all.
-type RTProp c tv r = Ref (RType c tv ()) (RType c tv r)
+type RTProp c tv r = RTPropV c tv Symbol r
+type RTPropV c tv v r = Ref (RTypeV c tv v ()) (RTypeV c tv v r)
 
 
 -- | A @World@ is a Separation Logic predicate that is essentially a sequence of binders
