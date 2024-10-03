@@ -55,7 +55,7 @@ module Language.Haskell.Liquid.Types.Types (
   -- * Refinement Types
   , RType, RTypeV(..), Ref(..), RTProp, rPropP
   , RTyVar (..)
-  , RTAlias (..)
+  , RTAlias, RTAliasV (..)
   , OkRT
   , lmapEAlias
 
@@ -1314,17 +1314,18 @@ dataNameSymbol (DnCon  z) = z
 --------------------------------------------------------------------------------
 -- | Refinement Type Aliases
 --------------------------------------------------------------------------------
-data RTAlias x a = RTA
-  { rtName  :: Symbol             -- ^ name of the alias
+type RTAlias x a = RTAliasV x Symbol a
+data RTAliasV x v a = RTA
+  { rtName  :: v                  -- ^ name of the alias
   , rtTArgs :: [x]                -- ^ type parameters
   , rtVArgs :: [Symbol]           -- ^ value parameters
   , rtBody  :: a                  -- ^ what the alias expands to
   -- , rtMod   :: !ModName           -- ^ module where alias was defined
   } deriving (Eq, Data, Typeable, Generic, Functor)
-    deriving Hashable via Generically (RTAlias x a)
+    deriving Hashable via Generically (RTAliasV x v a)
 -- TODO support ghosts in aliases?
 
-instance (B.Binary x, B.Binary a) => B.Binary (RTAlias x a)
+instance (B.Binary x, B.Binary v, B.Binary a) => B.Binary (RTAliasV x v a)
 
 mapRTAVars :: (a -> b) -> RTAlias a ty -> RTAlias b ty
 mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt }
