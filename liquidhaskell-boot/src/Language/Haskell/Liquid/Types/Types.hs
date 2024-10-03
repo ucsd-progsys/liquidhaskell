@@ -88,9 +88,9 @@ module Language.Haskell.Liquid.Types.Types (
 
   -- * Parse-time entities describing refined data types
   , SizeFun  (..), szFun
-  , DataDecl (..)
+  , DataDecl, DataDeclV (..)
   , DataName (..), dataNameSymbol
-  , DataCtor (..)
+  , DataCtor, DataCtorV (..)
   , DataConP (..)
   , HasDataDecl (..), hasDecl
   , DataDeclKind (..)
@@ -593,22 +593,16 @@ instance F.PPrint RelExpr where
   pprintTidy k (ERUnChecked e r) = F.pprintTidy k e <+> ":=>" <+> F.pprintTidy k r
 
 type BTyVar = BTyVarV Symbol
-newtype BTyVarV v = BTV v deriving (Show, Generic, Data, Typeable)
+newtype BTyVarV v = BTV v deriving (Show, Generic, Data, Typeable, Eq, Ord)
 
 newtype RTyVar = RTV TyVar deriving (Generic, Data, Typeable)
-
-instance Eq BTyVar where
-  (BTV x) == (BTV y) = x == y
-
-instance Ord BTyVar where
-  compare (BTV x) (BTV y) = compare x y
 
 instance IsString BTyVar where
   fromString = BTV . fromString
 
-instance B.Binary BTyVar
-instance Hashable BTyVar
-instance NFData   BTyVar
+instance B.Binary v => B.Binary (BTyVarV v)
+instance Hashable v => Hashable (BTyVarV v)
+instance NFData v => NFData (BTyVarV v)
 instance NFData   RTyVar
 
 instance F.Symbolic BTyVar where
@@ -1184,17 +1178,18 @@ instance Show (Axiom Var Type CoreExpr) where
 --------------------------------------------------------------------------------
 -- | Data type refinements
 --------------------------------------------------------------------------------
-data DataDecl   = DataDecl
+type DataDecl = DataDeclV Symbol
+data DataDeclV v = DataDecl
   { tycName   :: DataName              -- ^ Type  Constructor Name
   , tycTyVars :: [Symbol]              -- ^ Tyvar Parameters
   , tycPVars  :: [PVar BSort]          -- ^ PVar  Parameters
-  , tycDCons  :: Maybe [DataCtor]      -- ^ Data Constructors (Nothing is reserved for non-GADT style empty data declarations)
+  , tycDCons  :: Maybe [DataCtorV v]      -- ^ Data Constructors (Nothing is reserved for non-GADT style empty data declarations)
   , tycSrcPos :: !F.SourcePos          -- ^ Source Position
   , tycSFun   :: Maybe SizeFun         -- ^ Default termination measure
-  , tycPropTy :: Maybe BareType        -- ^ Type of Ind-Prop
+  , tycPropTy :: Maybe (BareTypeV v)   -- ^ Type of Ind-Prop
   , tycKind   :: !DataDeclKind         -- ^ User-defined or Auto-lifted
   } deriving (Data, Typeable, Generic)
-    deriving Hashable via Generically DataDecl
+    deriving Hashable via Generically (DataDeclV v)
 
 -- | The name of the `TyCon` corresponding to a `DataDecl`
 data DataName
@@ -1203,14 +1198,15 @@ data DataName
   deriving (Eq, Ord, Data, Typeable, Generic)
 
 -- | Data Constructor
-data DataCtor = DataCtor
-  { dcName   :: F.LocSymbol            -- ^ DataCon name
+type DataCtor = DataCtorV Symbol
+data DataCtorV v = DataCtor
+  { dcName   :: F.Located v            -- ^ DataCon name
   , dcTyVars :: [F.Symbol]             -- ^ Type parameters
   , dcTheta  :: [BareType]             -- ^ The GHC ThetaType corresponding to DataCon.dataConSig
-  , dcFields :: [(Symbol, BareType)]   -- ^ field-name and field-Type pairs
-  , dcResult :: Maybe BareType         -- ^ Possible output (if in GADT form)
+  , dcFields :: [(v, BareTypeV v)]     -- ^ field-name and field-Type pairs
+  , dcResult :: Maybe (BareTypeV v)    -- ^ Possible output (if in GADT form)
   } deriving (Data, Typeable, Generic, Eq)
-    deriving Hashable via Generically DataCtor
+    deriving Hashable via Generically (DataCtorV v)
 
 -- | Termination expressions
 data SizeFun
@@ -1264,7 +1260,7 @@ instance B.Binary DataName
 instance B.Binary DataCtor
 instance B.Binary DataDecl
 
-instance Eq DataDecl where
+instance Eq v => Eq (DataDeclV v) where
   d1 == d2 = tycName d1 == tycName d2
 
 instance Ord DataDecl where
