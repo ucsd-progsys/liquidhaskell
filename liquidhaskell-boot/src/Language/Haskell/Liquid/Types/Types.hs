@@ -227,7 +227,8 @@ module Language.Haskell.Liquid.Types.Types (
   , LogicMap(..), toLogicMap, eAppWithMap, LMap(..)
 
   -- * Refined Instances
-  , RDEnv, DEnv(..), RInstance(..), RISig(..), RILaws(..)
+  , RDEnv, DEnv(..), RInstance, RInstanceV(..), RISig(..)
+  , RILaws, RILawsV(..)
   , MethodType(..), getMethodType
 
   -- * Ureftable Instances
@@ -1103,21 +1104,23 @@ instance F.Loc BTyCon where
 -- | Refined Instances ---------------------------------------------------------
 --------------------------------------------------------------------------------
 
-data RInstance t = RI
-  { riclass :: BTyCon
+type RInstance = RInstanceV Symbol
+data RInstanceV v t = RI
+  { riclass :: BTyConV v
   , ritype  :: [t]
-  , risigs  :: [(F.LocSymbol, RISig t)]
+  , risigs  :: [(F.Located v, RISig t)]
   } deriving (Eq, Generic, Functor, Data, Typeable, Show)
-    deriving Hashable via Generically (RInstance t)
+    deriving Hashable via Generically (RInstanceV v t)
 
-data RILaws ty = RIL
-  { rilName    :: BTyCon
+type RILaws = RILawsV Symbol
+data RILawsV v ty = RIL
+  { rilName    :: BTyConV v
   , rilSupers  :: [ty]
   , rilTyArgs  :: [ty]
   , rilEqus    :: [(F.LocSymbol, F.LocSymbol)]
   , rilPos     :: F.Located ()
   } deriving (Eq, Show, Functor, Data, Typeable, Generic)
-    deriving Hashable via Generically (RILaws ty)
+    deriving Hashable via Generically (RILawsV v ty)
 
 data RISig t = RIAssumed t | RISig t
   deriving (Eq, Generic, Functor, Data, Typeable, Show)
@@ -1130,13 +1133,13 @@ ppRISig :: (F.PPrint k, F.PPrint t) => F.Tidy -> k -> RISig t -> Doc
 ppRISig k x (RIAssumed t) = "assume" <+> F.pprintTidy k x <+> "::" <+> F.pprintTidy k t
 ppRISig k x (RISig t)     =              F.pprintTidy k x <+> "::" <+> F.pprintTidy k t
 
-instance F.PPrint t => F.PPrint (RInstance t) where
+instance (F.PPrint t, F.PPrint v) => F.PPrint (RInstanceV v t) where
   pprintTidy k (RI n ts mts) = ppMethods k "instance" n ts mts
 
 
-instance (B.Binary t) => B.Binary (RInstance t)
+instance (B.Binary t, B.Binary v) => B.Binary (RInstanceV v t)
 instance (B.Binary t) => B.Binary (RISig t)
-instance (B.Binary t) => B.Binary (RILaws t)
+instance (B.Binary t, B.Binary v) => B.Binary (RILawsV v t)
 
 newtype DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol (RISig ty)))
                     deriving (Semigroup, Monoid, Show, Functor)
