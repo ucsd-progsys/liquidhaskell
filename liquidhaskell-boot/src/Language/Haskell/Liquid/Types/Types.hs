@@ -210,7 +210,8 @@ module Language.Haskell.Liquid.Types.Types (
   , BScope
 
   -- * Type Classes
-  , RClass (..)
+  , RClass
+  , RClassV (..)
 
   -- * KV Profiling
   , KVKind (..)   -- types of kvars
@@ -926,7 +927,7 @@ data UReftV v r = MkUReft
 instance B.Binary r => B.Binary (UReft r)
 
 type BRType      = BRTypeV Symbol            -- ^ "Bare" parsed version
-type BRTypeV v   = RTypeV (BTyConV v) (BTyVarV v) v
+type BRTypeV v   = RTypeV (BTyConV v) BTyVar v
 type RRType      = RType RTyCon RTyVar       -- ^ "Resolved" version
 type RRep        = RTypeRep RTyCon RTyVar
 type BSort       = BRType    ()
@@ -1083,8 +1084,8 @@ instance F.PPrint RTyCon where
       tc            = F.symbol (rtc_tc c)
       pvs           = rtc_pvars c
 
-instance F.PPrint BTyCon where
-  pprintTidy _ = text . F.symbolString . F.val . btc_tc
+instance F.PPrint v => F.PPrint (BTyConV v) where
+  pprintTidy t = F.pprintTidy t . F.val . btc_tc
 
 instance F.PPrint v => F.PPrint (RTVar v s) where
   pprintTidy k (RTVar x _) = F.pprintTidy k x
@@ -1092,7 +1093,7 @@ instance F.PPrint v => F.PPrint (RTVar v s) where
 instance Show RTyCon where
   show = F.showpp
 
-instance Show BTyCon where
+instance F.PPrint v => Show (BTyConV v) where
   show = F.showpp
 
 instance F.Loc BTyCon where
@@ -2244,13 +2245,14 @@ instance F.Subable t => F.Subable (WithModel t) where
   substf f             = fmap (F.substf f)
   subst su             = fmap (F.subst su)
 
-data RClass ty = RClass
-  { rcName    :: BTyCon
+type RClass ty = RClassV Symbol ty
+data RClassV v ty = RClass
+  { rcName    :: BTyConV v
   , rcSupers  :: [ty]
   , rcTyVars  :: [BTyVar]
-  , rcMethods :: [(F.LocSymbol, ty)]
+  , rcMethods :: [(F.Located v, ty)]
   } deriving (Eq, Show, Functor, Data, Typeable, Generic)
-    deriving Hashable via Generically (RClass ty)
+    deriving Hashable via Generically (RClassV v ty)
 
 
 instance F.PPrint t => F.PPrint (RClass t) where
