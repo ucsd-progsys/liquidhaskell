@@ -37,11 +37,12 @@ module Language.Haskell.Liquid.Types.Types (
   , F.isDummy
 
   -- * Bare Type Constructors and Variables
-  , BTyCon(..)
+  , BTyConV(..), BTyCon
   , mkBTyCon
   -- , mkClassBTyCon, mkPromotedBTyCon
   , isClassBTyCon
-  , BTyVar(..)
+  , BTyVar
+  , BTyVarV(..)
 
   -- * Refined Type Constructors
   , RTyCon (RTyCon, rtc_tc, rtc_info)
@@ -102,12 +103,12 @@ module Language.Haskell.Liquid.Types.Types (
   , RTVU, PVU
 
   -- * Instantiated RType
-  , BareType, PrType
+  , BareType, BareTypeV, PrType
   , SpecType, SpecProp, SpecRTVar
   , SpecRep
-  , LocBareType, LocSpecType
+  , LocBareType, LocBareTypeV, LocSpecType
   , RSort
-  , UsedPVar, RPVar, RReft
+  , UsedPVar, RPVar, RReft, RReftV
   , REnv
   , AREnv (..)
 
@@ -591,7 +592,8 @@ instance F.PPrint RelExpr where
   pprintTidy k (ERChecked e r)   = F.pprintTidy k e <+> "!=>" <+> F.pprintTidy k r
   pprintTidy k (ERUnChecked e r) = F.pprintTidy k e <+> ":=>" <+> F.pprintTidy k r
 
-newtype BTyVar = BTV Symbol deriving (Show, Generic, Data, Typeable)
+type BTyVar = BTyVarV Symbol
+newtype BTyVarV v = BTV v deriving (Show, Generic, Data, Typeable)
 
 newtype RTyVar = RTV TyVar deriving (Generic, Data, Typeable)
 
@@ -622,15 +624,16 @@ instance F.Symbolic RTyVar where
 -- tyVarUniqueSymbol :: TyVar -> Symbol
 -- tyVarUniqueSymbol tv = F.symbol $ show (getName tv) ++ "_" ++ show (varUnique tv)
 
-data BTyCon = BTyCon
-  { btc_tc    :: !F.LocSymbol    -- ^ TyCon name with location information
+type BTyCon = BTyConV Symbol
+data BTyConV v = BTyCon
+  { btc_tc    :: !(F.Located v)  -- ^ TyCon name with location information
   , btc_class :: !Bool           -- ^ Is this a class type constructor?
   , btc_prom  :: !Bool           -- ^ Is Promoted Data Con?
   }
   deriving (Generic, Data, Typeable)
-  deriving Hashable via Generically BTyCon
+  deriving Hashable via Generically (BTyConV v)
 
-instance B.Binary BTyCon
+instance B.Binary v => B.Binary (BTyConV v)
 
 data RTyCon = RTyCon
   { rtc_tc    :: TyCon         -- ^ GHC Type Constructor
@@ -645,7 +648,7 @@ instance F.Symbolic RTyCon where
 instance F.Symbolic BTyCon where
   symbol = F.val . btc_tc
 
-instance NFData BTyCon
+instance NFData v => NFData (BTyConV v)
 
 instance NFData RTyCon
 
@@ -820,8 +823,8 @@ data RTypeV c tv v r
   deriving (Eq, Generic, Data, Typeable, Functor)
   deriving Hashable via Generically (RTypeV c tv v r)
 
-instance (B.Binary c, B.Binary tv, B.Binary r) => B.Binary (RType c tv r)
-instance (NFData c, NFData tv, NFData r)       => NFData (RType c tv r)
+instance (B.Binary c, B.Binary tv, B.Binary v, B.Binary r) => B.Binary (RTypeV c tv v r)
+instance (NFData c, NFData tv, NFData v, NFData r) => NFData (RTypeV c tv v r)
 
 ignoreOblig :: RType t t1 t2 -> RType t t1 t2
 ignoreOblig (RRTy _ _ _ t) = t
@@ -927,16 +930,19 @@ data UReftV v r = MkUReft
 
 instance B.Binary r => B.Binary (UReft r)
 
-type BRType      = RType BTyCon BTyVar       -- ^ "Bare" parsed version
+type BRType      = BRTypeV Symbol            -- ^ "Bare" parsed version
+type BRTypeV v   = RTypeV (BTyConV v) (BTyVarV v) v
 type RRType      = RType RTyCon RTyVar       -- ^ "Resolved" version
 type RRep        = RTypeRep RTyCon RTyVar
 type BSort       = BRType    ()
 type RSort       = RRType    ()
 type BPVar       = PVar      BSort
 type RPVar       = PVar      RSort
-type RReft       = UReft     F.Reft
+type RReft       = RReftV Symbol
+type RReftV v    = UReftV v  (F.ReftV v)
 type PrType      = RRType    Predicate
-type BareType    = BRType    RReft
+type BareType    = BareTypeV Symbol
+type BareTypeV v = BRTypeV v (RReftV v)
 type SpecType    = RRType    RReft
 type SpecRep     = RRep      RReft
 type SpecProp    = RRProp    RReft
@@ -945,8 +951,8 @@ type BRProp r    = Ref       BSort (BRType r)
 type SpecRTVar   = RTVar     RTyVar RSort
 
 
-
-type LocBareType = F.Located BareType
+type LocBareType = LocBareTypeV F.Symbol
+type LocBareTypeV v = F.Located (BareTypeV v)
 type LocSpecType = F.Located SpecType
 
 type SpecRTEnv   = RTEnv RTyVar SpecType
@@ -1056,7 +1062,7 @@ instance TyConable BTyCon where
 instance Eq RTyCon where
   x == y = rtc_tc x == rtc_tc y
 
-instance Eq BTyCon where
+instance Eq v => Eq (BTyConV v) where
   x == y = btc_tc x == btc_tc y
 
 instance Ord BTyCon where
