@@ -10,9 +10,9 @@ module Language.Haskell.Liquid.Types.Bounds (
 
     Bound(..),
 
-    RBound, RRBound,
+    RBound, RRBound, RRBoundV,
 
-    RBEnv, RRBEnv,
+    RBEnv, RRBEnv, RRBEnvV,
 
     makeBound,
 
@@ -46,9 +46,11 @@ data Bound t e = Bound
 instance (B.Binary t, B.Binary e) => B.Binary (Bound t e)
 
 type RBound        = RRBound RSort
-type RRBound tv    = Bound tv F.Expr
+type RRBound tv    = RRBoundV tv F.Symbol
+type RRBoundV tv v = Bound tv (F.ExprV v)
 type RBEnv         = M.HashMap LocSymbol RBound
-type RRBEnv tv     = M.HashMap LocSymbol (RRBound tv)
+type RRBEnv tv     = RRBEnvV tv F.Symbol
+type RRBEnvV tv v  = M.HashMap (F.Located v) (RRBoundV tv v)
 
 
 instance Hashable (Bound t e) where
