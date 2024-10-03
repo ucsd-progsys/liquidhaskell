@@ -197,7 +197,8 @@ module Language.Haskell.Liquid.Types.Types (
   , Cinfo (..)
 
   -- * Measures
-  , Measure (..)
+  , Measure
+  , MeasureV (..)
   , UnSortedExprs, UnSortedExpr
   , MeasureKind (..)
   , CMeasure (..)
@@ -2125,14 +2126,15 @@ data Def ty ctor = Def
   } deriving (Show, Data, Typeable, Generic, Eq, Functor)
     deriving Hashable via Generically (Def ty ctor)
 
-data Measure ty ctor = M
-  { msName :: F.LocSymbol
+type Measure = MeasureV Symbol
+data MeasureV v ty ctor = M
+  { msName :: F.Located v
   , msSort :: ty
   , msEqns :: [Def ty ctor]
   , msKind :: !MeasureKind
   , msUnSorted :: !UnSortedExprs -- potential unsorted expressions used at measure denifinitions
   } deriving (Eq, Data, Typeable, Generic, Functor)
-    deriving Hashable via Generically (Measure ty ctor)
+    deriving Hashable via Generically (MeasureV v ty ctor)
 
 type UnSortedExprs = [UnSortedExpr] -- mempty = []
 type UnSortedExpr  = ([F.Symbol], F.Expr)
