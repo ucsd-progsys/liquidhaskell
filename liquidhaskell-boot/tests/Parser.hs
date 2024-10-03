@@ -114,10 +114,6 @@ testSpecP =
        parseSingleSpec "measure fv :: Expr -> (Set Bndr)" @?==
           "measure fv :: lq_tmp$db##0:Expr -> (Set Bndr)"
 
-    , testCase "define" $
-       parseSingleSpec "define $ceq = eqN" @?==
-          "define $ceq = eqN"
-
     , testCase "infixl" $
        parseSingleSpec "infixl 9 +++" @?==
             "fixity"
@@ -252,10 +248,6 @@ testReservedAliases =
     , testCase "define 1" $
        parseSingleSpec "define :: Int -> Bool " @?==
             "define :: lq_tmp$db##0:Int -> Bool"
-
-    , testCase "define 2" $
-       parseSingleSpec "define GHC.Types.True = (true)" @?==
-            "define GHC.Types.True = (true)"
 
     , testCase "defined" $
        parseSingleSpec "defined :: Int -> Bool " @?==

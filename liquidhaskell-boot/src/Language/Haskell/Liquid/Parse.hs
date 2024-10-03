@@ -44,7 +44,7 @@ import           Language.Haskell.Liquid.Types
 import qualified Language.Fixpoint.Misc                 as Misc
 import qualified Language.Haskell.Liquid.Misc           as Misc
 import qualified Language.Haskell.Liquid.Measure        as Measure
-import           Language.Fixpoint.Parse                hiding (defineP, dataDeclP, refBindP, refP, refDefP, parseTest')
+import           Language.Fixpoint.Parse                hiding (dataDeclP, refBindP, refP, refDefP, parseTest')
 
 import Control.Monad.State
 
@@ -203,10 +203,6 @@ toLogicOneP
        e      <- exprP <|> predP
        return (x, val <$> xs, e)
 
-
-defineP :: Parser (LocSymbol, Symbol)
-defineP =
-  (,) <$> locBinderP <* reservedOp "=" <*> binderP
 
 --------------------------------------------------------------------------------
 -- | BareTypes -----------------------------------------------------------------
@@ -1105,7 +1101,6 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
   , Measure.ignores    = S.fromList [s | Ignore s <- xs]
   , Measure.autosize   = S.fromList [s | ASize  s <- xs]
   , Measure.hbounds    = S.fromList [s | HBound s <- xs]
-  , Measure.defs       = M.fromList [d | Define d <- xs]
   , Measure.axeqs      = []
   }
 
@@ -1126,7 +1121,6 @@ specP
 
     <|> fallbackSpecP "measure"    hmeasureP
 
-    <|> fallbackSpecP "define"      (fmap Define  defineP  )
     <|> (reserved "infixl"        >> fmap BFix    infixlP  )
     <|> (reserved "infixr"        >> fmap BFix    infixrP  )
     <|> (reserved "infix"         >> fmap BFix    infixP   )
