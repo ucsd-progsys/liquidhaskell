@@ -355,6 +355,7 @@ import GHC.Core.TyCon                 as Ghc
     , isTupleTyCon
     , isVanillaAlgTyCon
     , mkPrimTyCon
+    , newTyConEtadArity
     , newTyConRhs
     , tyConBinders
     , tyConDataCons_maybe
@@ -702,3 +703,4 @@ import GHC.Utils.Error                as Ghc (pprLocMsgEnvelope, withTiming)
 import GHC.Utils.Logger               as Ghc (Logger(logFlags), putLogMsg)
 import GHC.Utils.Outputable           as Ghc hiding ((<>))
 import GHC.Utils.Panic                as Ghc (panic, throwGhcException, throwGhcExceptionIO)
+import GHC.Utils.Misc                 as Ghc (lengthAtLeast)
