@@ -271,6 +271,9 @@ import GHC.Core.Coercion              as Ghc
     )
 import GHC.Core.Coercion.Axiom        as Ghc
     ( coAxiomTyCon )
+import GHC.Core.TyCon                 as Ghc
+    ( newTyConEtadArity
+    )
 import GHC.Core.ConLike               as Ghc
     ( ConLike(RealDataCon) )
 import GHC.Core.DataCon               as Ghc
@@ -702,3 +705,4 @@ import GHC.Utils.Error                as Ghc (pprLocMsgEnvelope, withTiming)
 import GHC.Utils.Logger               as Ghc (Logger(logFlags), putLogMsg)
 import GHC.Utils.Outputable           as Ghc hiding ((<>))
 import GHC.Utils.Panic                as Ghc (panic, throwGhcException, throwGhcExceptionIO)
+import GHC.Utils.Misc                 as Ghc (lengthAtLeast)
