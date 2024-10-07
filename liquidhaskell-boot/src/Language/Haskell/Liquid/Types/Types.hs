@@ -100,7 +100,7 @@ module Language.Haskell.Liquid.Types.Types (
   , RTVU, PVU
 
   -- * Instantiated RType
-  , BareType, PrType
+  , BareType
   , SpecType, SpecProp, SpecRTVar
   , SpecRep
   , LocBareType, LocSpecType
@@ -931,7 +931,6 @@ type RSort       = RRType    ()
 type BPVar       = PVar      BSort
 type RPVar       = PVar      RSort
 type RReft       = UReft     F.Reft
-type PrType      = RRType    Predicate
 type BareType    = BRType    RReft
 type SpecType    = RRType    RReft
 type SpecRep     = RRep      RReft
