@@ -559,7 +559,7 @@ import GHC.Types.Id                   as Ghc
     , idInlinePragma
     , modifyIdInfo
     , mkExportedLocalId
-    , mkUserLocal
+    , mkUserLocalOrCoVar
     , realIdUnfolding
     , setIdInfo
     )
