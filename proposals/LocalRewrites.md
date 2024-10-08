@@ -117,6 +117,8 @@ This proposal suggests the following steps:
 
 - We need a uniform way to distinguish whether a variable is "local" (i.e., a
   variable without a definition, like a function parameter). An earlier attempt
-  at this was part of PR #705, but it was removed because the solution was too
-  dependent on the variable naming scheme used by Liquid Haskell. This is LH is
-  a non issue as GHC Variables are annotated with extra information.
+  at this was part of PR 
+  [#705](https://github.com/ucsd-progsys/liquid-fixpoint/pull/705), but it was 
+  removed because the solution was too dependent on the variable naming scheme
+  used by Liquid Haskell. This in LH is a non issue as GHC Variables are 
+  annotated with extra information.
