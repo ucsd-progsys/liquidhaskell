@@ -6,6 +6,7 @@
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
+{-# LANGUAGE LambdaCase                 #-}
 
 module Language.Haskell.Liquid.GHC.Plugin (
 
@@ -40,17 +41,22 @@ import           GHC.LanguageExtensions
 import           Control.Monad
 import qualified Control.Monad.Catch as Ex
 import           Control.Monad.IO.Class (MonadIO)
+import           Control.Monad.Catch                        (bracket)
 
 import           Data.Coerce
 import           Data.Function                            ((&))
 import qualified Data.List                               as L
+import           Data.IORef
 import qualified Data.Set                                as S
 import           Data.Set                                 ( Set )
+import qualified Data.Map                                as M
+import           Data.Map                                 ( Map )
 
 
 import qualified Data.HashSet                            as HS
 import qualified Data.HashMap.Strict                     as HM
 
+import           System.IO.Unsafe                         ( unsafePerformIO )
 import           Language.Fixpoint.Types           hiding ( errs
                                                           , panic
                                                           , Error
@@ -138,6 +144,26 @@ plugin = GHC.defaultPlugin {
                 pure newGblEnv'
 
 --------------------------------------------------------------------------------
+-- | Inter-phase communication -------------------------------------------------
+--------------------------------------------------------------------------------
+--
+-- Since we have no good way of passing extra data between different
+-- phases of our plugin, we resort to horrible global mutable state.
+
+data Breadcrumb
+  = Typechecking
+
+breadcrumbs :: IORef (Map Module Breadcrumb)
+breadcrumbs = unsafePerformIO $ newIORef mempty
+{-# NOINLINE breadcrumbs #-}
+
+{- HLINT ignore "Use tuple-section" -}
+swapBreadcrumb :: (MonadIO m) => Module -> Maybe Breadcrumb -> m (Maybe Breadcrumb)
+swapBreadcrumb mod new = liftIO $ atomicModifyIORef' breadcrumbs $ \breadcrumbs ->
+  let (old, breadcrumbs') = M.alterF (\old -> (old, new)) mod breadcrumbs
+  in (breadcrumbs', old)
+
+--------------------------------------------------------------------------------
 -- | GHC Configuration & Setup -------------------------------------------------
 --------------------------------------------------------------------------------
 
@@ -212,8 +238,25 @@ unoptimiseDynFlags df = updOptLevel 0 df
 --    grab from parsing (again) the module by using the GHC API, so we are really
 --    independent from the \"normal\" compilation pipeline.
 --
-typecheckHook :: Config -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
-typecheckHook cfg0 modSummary0 tcGblEnv = do
+typecheckHook  :: Config -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
+typecheckHook cfg0 modSummary0 tcGblEnv = bracket startTypechecking endTypechecking $ \case
+  Just Typechecking -> do
+    -- We're being called from the `typecheckModuleIO` call in `typecheckHook`, so we avoid looping
+    pure $ Right tcGblEnv
+  Nothing -> do
+    typecheckHook' cfg0 modSummary0 tcGblEnv
+  where
+    thisModule = tcg_mod tcGblEnv
+
+    -- The LH plugin itself calls the type checker (see call to
+    -- `typecheckModuleIO` in `typecheckHook`).  This would lead to a
+    -- loop if we didn't disable the typechecker plugin.
+    startTypechecking = swapBreadcrumb thisModule $ Just Typechecking
+    endTypechecking = \case
+        _ -> pure ()
+
+typecheckHook' :: Config -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
+typecheckHook' cfg0 modSummary0 tcGblEnv = do
   debugLog $ "We are in module: " <> show (toStableModule thisModule)
   let modSummary =
         updateModSummaryDynFlags (customDynFlags . unoptimiseDynFlags) modSummary0
@@ -236,10 +279,7 @@ typecheckHook cfg0 modSummary0 tcGblEnv = do
             parsed2 = parsed { pm_mod_summary = modSummary2 }
             env2 = env { hsc_dflags = ms_hspp_opts modSummary2 }
 
-        -- The LH plugin itself calls the type checker (see following line). This
-        -- would lead to a loop if we didn't remove the plugin when calling the type
-        -- checker.
-        typechecked     <- liftIO $ typecheckModuleIO (dropPlugins env2) (LH.ignoreInline parsed2)
+        typechecked     <- liftIO $ typecheckModuleIO env2 (LH.ignoreInline parsed2)
         resolvedNames   <- liftIO $ LH.lookupTyThings env2 tcGblEnv
         availTyCons     <- liftIO $ LH.availableTyCons env2 tcGblEnv (tcg_exports tcGblEnv)
         availVars       <- liftIO $ LH.availableVars env2 tcGblEnv (tcg_exports tcGblEnv)
@@ -255,8 +295,6 @@ typecheckHook cfg0 modSummary0 tcGblEnv = do
   where
     thisModule :: Module
     thisModule = tcg_mod tcGblEnv
-
-    dropPlugins hsc_env = hsc_env { hsc_plugins = emptyPlugins }
 
     continue = pure $ Left (ErrorsOccurred [])
 
