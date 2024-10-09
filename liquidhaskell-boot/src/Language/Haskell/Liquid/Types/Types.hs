@@ -1484,7 +1484,6 @@ instance (F.PPrint r, F.Reftable r) => F.Reftable (UReft r) where
   isTauto               = isTautoUreft
   ppTy                  = ppTyUreft
   toReft (MkUReft r ps) = F.toReft r `F.meet` F.toReft ps
-  params (MkUReft r _)  = F.params r
   bot (MkUReft r _)     = MkUReft (F.bot r) (Pr [])
   top (MkUReft r p)     = MkUReft (F.top r) (F.top p)
   ofReft r              = MkUReft (F.ofReft r) mempty
@@ -1546,7 +1545,6 @@ instance F.Reftable Predicate where
 
   toReft (Pr ps@(p:_))        = F.Reft (parg p, F.pAnd $ pToRef <$> ps)
   toReft _                    = mempty
-  params                      = todo Nothing "TODO: instance of params for Predicate"
 
   ofReft = todo Nothing "TODO: Predicate.ofReft"
 

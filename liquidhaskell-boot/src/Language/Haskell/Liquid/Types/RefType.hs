@@ -285,7 +285,6 @@ instance Reftable (RTProp RTyCon RTyVar (UReft Reft)) where
   ppTy (RProp _ (RHole r)) d  = ppTy r d
   ppTy (RProp _ _) _          = panic Nothing "RefType: Reftable ppTy in RProp"
   toReft                      = panic Nothing "RefType: Reftable toReft"
-  params                      = panic Nothing "RefType: Reftable params for Ref"
   bot                         = panic Nothing "RefType: Reftable bot    for Ref"
   ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
 
@@ -297,7 +296,6 @@ instance Reftable (RTProp RTyCon RTyVar ()) where
   ppTy (RProp _ (RHole r)) d  = ppTy r d
   ppTy (RProp _ _) _          = panic Nothing "RefType: Reftable ppTy in RProp"
   toReft                      = panic Nothing "RefType: Reftable toReft"
-  params                      = panic Nothing "RefType: Reftable params for Ref"
   bot                         = panic Nothing "RefType: Reftable bot    for Ref"
   ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
 
@@ -309,7 +307,6 @@ instance Reftable (RTProp BTyCon BTyVar (UReft Reft)) where
   ppTy (RProp _ (RHole r)) d  = ppTy r d
   ppTy (RProp _ _) _          = panic Nothing "RefType: Reftable ppTy in RProp"
   toReft                      = panic Nothing "RefType: Reftable toReft"
-  params                      = panic Nothing "RefType: Reftable params for Ref"
   bot                         = panic Nothing "RefType: Reftable bot    for Ref"
   ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
 
@@ -321,7 +318,6 @@ instance Reftable (RTProp BTyCon BTyVar ())  where
   ppTy (RProp _ (RHole r)) d  = ppTy r d
   ppTy (RProp _ _) _          = panic Nothing "RefType: Reftable ppTy in RProp"
   toReft                      = panic Nothing "RefType: Reftable toReft"
-  params                      = panic Nothing "RefType: Reftable params for Ref"
   bot                         = panic Nothing "RefType: Reftable bot    for Ref"
   ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
 
@@ -333,7 +329,6 @@ instance Reftable (RTProp RTyCon RTyVar Reft) where
   ppTy (RProp _ (RHole r)) d  = ppTy r d
   ppTy (RProp _ _) _          = panic Nothing "RefType: Reftable ppTy in RProp"
   toReft                      = panic Nothing "RefType: Reftable toReft"
-  params                      = panic Nothing "RefType: Reftable params for Ref"
   bot                         = panic Nothing "RefType: Reftable bot    for Ref"
   ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
 
@@ -366,7 +361,6 @@ instance (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftab
   isTauto     = isTrivial
   ppTy        = panic Nothing "ppTy RProp Reftable"
   toReft      = panic Nothing "toReft on RType"
-  params      = panic Nothing "params on RType"
   bot         = panic Nothing "bot on RType"
   ofReft      = panic Nothing "ofReft on RType"
 
@@ -376,7 +370,6 @@ instance Reftable (RType BTyCon BTyVar (UReft Reft)) where
   top t       = mapReft top t
   ppTy        = panic Nothing "ppTy RProp Reftable"
   toReft      = panic Nothing "toReft on RType"
-  params      = panic Nothing "params on RType"
   bot         = panic Nothing "bot on RType"
   ofReft      = panic Nothing "ofReft on RType"
 
