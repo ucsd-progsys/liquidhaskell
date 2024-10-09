@@ -701,7 +701,6 @@ executable errors
                     , T1498A
                     , T1498
                     , T2346
-                    , T2369
                     , T773
                     , T774
                     , TerminationExprNum
@@ -1945,6 +1944,7 @@ executable unit-pos-3
                     , T2096
                     , T2235
                     , T2237
+                    , T2369
                     , T385
                     , T531
                     , T595a
