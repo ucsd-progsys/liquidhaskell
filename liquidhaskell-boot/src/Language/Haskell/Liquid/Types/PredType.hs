@@ -192,8 +192,9 @@ dcWrapSpecType allowTC dc (DataConP _ _ vs ps cs yts rt _ _ _)
     ts'      = map ("" , classRFInfo allowTC , , mempty) cs ++ yts'
     subst    = F.mkSubst [(x, F.EVar y) | (x, y) <- zip as bs]
     rt'      = F.subst subst rt
-    makeVars = zipWith (\v a -> RTVar v (rTVarInfo a :: RTVInfo RSort)) vs (fst $ splitForAllTyCoVars $ dataConRepType dc)
-    makeVars' = map (, mempty) makeVars
+    makeVars = filter (`elem` fvs) $ zipWith (\v a -> RTVar v (rTVarInfo a :: RTVInfo RSort)) vs (fst $ splitForAllTyCoVars $ dataConRepType dc)
+    makeVars' = map (, mempty) makeVars 
+    fvs = freeTyVars $ mkArrow [] ps ts' rt'  
 
 instance PPrint TyConP where
   pprintTidy k tc = "data" <+> pprintTidy k (tcpCon tc)
