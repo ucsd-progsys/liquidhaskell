@@ -2450,6 +2450,7 @@ executable ple-pos
                     , Tmp
                     , ReaderEta
                     , SKIEta
+                    , FuseMap
 
     -- XXX(matt.walker): dies on lists on first compile in ghc 8107
     --                   ... and on GHC 9+ now too
