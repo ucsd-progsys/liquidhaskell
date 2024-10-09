@@ -373,7 +373,7 @@ lambdaSingleton _ _ _ _
 
 addForAllConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
 addForAllConstraint γ _ _ (RAllT rtv rt rr)
-  | F.isTauto rr
+  | isTauto rr
   = return ()
   | otherwise
   = do t'       <- true (typeclass (getConfig γ)) rt
@@ -700,7 +700,7 @@ castTy' γ τ (Var x)
                   else eCoerc (typeSort (emb γ) $ Ghc.expandTypeSynonyms $ varType x)
                          (typeSort (emb γ) τ)
                          $ F.expr x
-       return (t `strengthen` uTop (F.uexprReft ce) {- `F.meet` tx -})
+       return (t `strengthen` uTop (F.uexprReft ce) {- `meet` tx -})
   where eCoerc s t e
          | s == t    = e
          | otherwise = F.ECoerc s t e
@@ -856,7 +856,7 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
   let ys''         = F.symbol <$> filter (not . if allowTC then GM.isEmbeddedDictVar else GM.isEvVar) ys
   let r1           = dataConReft   c   ys''
   let r2           = dataConMsReft rtd ys''
-  let xt           = (xt0 `F.meet` rtd) `strengthen` uTop (r1 `F.meet` r2)
+  let xt           = (xt0 `meet` rtd) `strengthen` uTop (r1 `meet` r2)
   let cbs          = safeZip "cconsCase" (x':ys')
                          (map (`F.subst1` (selfSymbol, F.EVar x'))
                          (xt0 : yts))
@@ -1089,25 +1089,25 @@ singletonReft = uTop . F.symbolReft . F.symbol
 -- | RJ: `nomeet` replaces `strengthenS` for `strengthen` in the definition
 --   of `varRefType`. Why does `tests/neg/strata.hs` fail EVEN if I just replace
 --   the `otherwise` case? The fq file holds no answers, both are sat.
-strengthenTop :: (PPrint r, F.Reftable r) => RType c tv r -> r -> RType c tv r
-strengthenTop (RApp c ts rs r) r'   = RApp c ts rs   $ F.meet r r'
-strengthenTop (RVar a r) r'         = RVar a         $ F.meet r r'
-strengthenTop (RFun b i t1 t2 r) r' = RFun b i t1 t2 $ F.meet r r'
-strengthenTop (RAppTy t1 t2 r) r'   = RAppTy t1 t2   $ F.meet r r'
-strengthenTop (RAllT a t r)    r'   = RAllT a t      $ F.meet r r'
+strengthenTop :: (PPrint r, Reftable r) => RType c tv r -> r -> RType c tv r
+strengthenTop (RApp c ts rs r) r'   = RApp c ts rs   $ meet r r'
+strengthenTop (RVar a r) r'         = RVar a         $ meet r r'
+strengthenTop (RFun b i t1 t2 r) r' = RFun b i t1 t2 $ meet r r'
+strengthenTop (RAppTy t1 t2 r) r'   = RAppTy t1 t2   $ meet r r'
+strengthenTop (RAllT a t r)    r'   = RAllT a t      $ meet r r'
 strengthenTop t _                   = t
 
 -- TODO: this is almost identical to RT.strengthen! merge them!
-strengthenMeet :: (PPrint r, F.Reftable r) => RType c tv r -> r -> RType c tv r
-strengthenMeet (RApp c ts rs r) r'  = RApp c ts rs (r `F.meet` r')
-strengthenMeet (RVar a r) r'        = RVar a       (r `F.meet` r')
-strengthenMeet (RFun b i t1 t2 r) r'= RFun b i t1 t2 (r `F.meet` r')
-strengthenMeet (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `F.meet` r')
-strengthenMeet (RAllT a t r) r'     = RAllT a (strengthenMeet t r') (r `F.meet` r')
+strengthenMeet :: (PPrint r, Reftable r) => RType c tv r -> r -> RType c tv r
+strengthenMeet (RApp c ts rs r) r'  = RApp c ts rs (r `meet` r')
+strengthenMeet (RVar a r) r'        = RVar a       (r `meet` r')
+strengthenMeet (RFun b i t1 t2 r) r'= RFun b i t1 t2 (r `meet` r')
+strengthenMeet (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `meet` r')
+strengthenMeet (RAllT a t r) r'     = RAllT a (strengthenMeet t r') (r `meet` r')
 strengthenMeet t _                  = t
 
--- topMeet :: (PPrint r, F.Reftable r) => r -> r -> r
--- topMeet r r' = r `F.meet` r'
+-- topMeet :: (PPrint r, Reftable r) => r -> r -> r
+-- topMeet r r' = r `meet` r'
 
 --------------------------------------------------------------------------------
 -- | Cleaner Signatures For Rec-bindings ---------------------------------------

@@ -161,7 +161,7 @@ refinementEQs :: LocSpecType -> [(F.Expr, F.Expr)]
 refinementEQs t =
   case stripRTypeBase tres of
     Just r ->
-      [ (lhs, rhs) | (F.EEq lhs rhs) <- F.splitPAnd $ F.reftPred (F.toReft r) ]
+      [ (lhs, rhs) | (F.EEq lhs rhs) <- F.splitPAnd $ F.reftPred (toReft r) ]
     Nothing ->
       []
   where
@@ -182,7 +182,7 @@ makeRewriteOne tce (_, t)
 
     xs = do
       (sym, arg) <- zip (ty_binds tRep) (ty_args tRep)
-      let e = maybe F.PTrue (F.reftPred . F.toReft) (stripRTypeBase arg)
+      let e = maybe F.PTrue (F.reftPred . toReft) (stripRTypeBase arg)
       return $ F.RR (rTypeSort tce arg) (F.Reft (sym, e))
 
     tRep = toRTypeRep $ val t
@@ -289,17 +289,17 @@ specTypeToLogic allowTC es expr st
   where
     res       = specTypeToResultRef expr st
     args      = zipWith mkExpr (mkReft <$> ts) es
-    mkReft t  =  F.toReft $ Mb.fromMaybe mempty (stripRTypeBase t)
+    mkReft t  =  toReft $ Mb.fromMaybe mempty (stripRTypeBase t)
     mkExpr (F.Reft (v, ev)) e = F.subst1 ev (v, e)
 
 
     ok      = okLen && okClass && okArgs
     okLen   = length xs == length xs
-    okClass = all (F.isTauto . snd) cls
+    okClass = all (isTauto . snd) cls
     okArgs  = all okArg ts
 
     okArg (RVar _ _) = True
-    okArg t@RApp{}   = F.isTauto (t{rt_reft = mempty})
+    okArg t@RApp{}   = isTauto (t{rt_reft = mempty})
     okArg _          = False
 
 
@@ -313,7 +313,7 @@ specTypeToLogic allowTC es expr st
 
 specTypeToResultRef :: F.Expr -> SpecType -> F.Expr
 specTypeToResultRef e t
-  = mkExpr $ F.toReft $ Mb.fromMaybe mempty (stripRTypeBase $ ty_res trep)
+  = mkExpr $ toReft $ Mb.fromMaybe mempty (stripRTypeBase $ ty_res trep)
   where
     mkExpr (F.Reft (v, ev)) = F.subst1 ev (v, e)
     trep                   = toRTypeRep t

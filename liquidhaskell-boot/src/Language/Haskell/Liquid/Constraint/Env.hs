@@ -168,7 +168,7 @@ addCGEnv tx γ (eMsg, sym, RAllE yy tyy tyx)
   = addCGEnv tx γ (eMsg, sym, t)
   where
     xs            = localBindsOfType tyy (renv γ)
-    t             = L.foldl' F.meet ttrue [ tyx' `F.subst1` (yy, F.EVar x) | x <- xs]
+    t             = L.foldl' meet ttrue [ tyx' `F.subst1` (yy, F.EVar x) | x <- xs]
     (tyx', ttrue) = splitXRelatedRefs yy tyx
 
 addCGEnv tx γ (_, x, t') = do
@@ -181,7 +181,7 @@ addCGEnv tx γ (_, x, t') = do
   is    <- (:) <$> addBind l x (rTypeSortedReft' γ' tem t) <*> addClassBind γ' l t
   return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
-rTypeSortedReft' :: (PPrint r, F.Reftable r, SubsTy RTyVar RSort r, F.Reftable (RTProp RTyCon RTyVar r))
+rTypeSortedReft' :: (PPrint r, Reftable r, SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
     => CGEnv -> F.Templates -> RRType r -> F.SortedReft
 rTypeSortedReft' γ t
   = pruneUnsortedReft (feEnv $ fenv γ) t . f

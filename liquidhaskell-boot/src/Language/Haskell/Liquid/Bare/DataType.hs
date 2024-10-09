@@ -372,7 +372,7 @@ meetDataConSpec allowTC emb xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 xts
     upd dcm (x, t)           = M.insert x (Ghc.getSrcSpan x, tx') dcm
                                 where
                                   tx' = maybe t (meetX x t) (M.lookup x dcm)
-    meetM (l,t) (_,t')       = (l, t `F.meet` t')
+    meetM (l,t) (_,t')       = (l, t `meet` t')
     meetX x t (sp', t')      = F.notracepp (_msg x t t') $ meetVarTypes emb (pprint x) (Ghc.getSrcSpan x, t) (sp', t')
     _msg x t t'              = "MEET-VAR-TYPES: " ++ showpp (x, t, t')
 
@@ -438,7 +438,7 @@ makeSizeCtor :: (F.Symbol, [F.Symbol]) -> DataCtor -> DataCtor
 makeSizeCtor (s,xs) d = d {dcFields = Misc.mapSnd (mapBot go) <$> dcFields d}
   where
     go (RApp c ts rs r) | F.symbol c `elem` xs
-                        = RApp c ts rs (r `F.meet` rsz)
+                        = RApp c ts rs (r `meet` rsz)
     go t                = t
     rsz  = MkUReft (F.Reft (F.vv_, F.PAtom F.Lt
                                       (F.EApp (F.EVar s) (F.EVar F.vv_))
@@ -777,7 +777,7 @@ strengthenClassSel v lt = lt { val = st }
   go (RFun x i tx t r) = do
     x' <- unDummy x <$> reader fst
     r' <- singletonApp s <$> (L.reverse <$> reader snd)
-    RFun x' i tx <$> local (extend x') (go t) <*> pure (F.meet r r')
+    RFun x' i tx <$> local (extend x') (go t) <*> pure (meet r r')
   go t = RT.strengthen t . singletonApp s . L.reverse <$> reader snd
 
 singletonApp :: F.Symbolic a => F.LocSymbol -> [a] -> UReft F.Reft

@@ -217,24 +217,24 @@ type Prec = PprPrec
 pprRtype :: (OkRT c tv r) => PPEnv -> Prec -> RType c tv r -> Doc
 --------------------------------------------------------------------------------
 pprRtype bb p t@(RAllT _ _ r)
-  = F.ppTy r $ pprForall bb p t
+  = ppTy r $ pprForall bb p t
 pprRtype bb p t@(RAllP _ _)
   = pprForall bb p t
 pprRtype _ _ (RVar a r)
-  = F.ppTy r $ pprint a
+  = ppTy r $ pprint a
 pprRtype bb p t@RFun{}
   = maybeParen p funPrec (pprRtyFun bb empty t)
 pprRtype bb p (RApp c [t] rs r)
   | isList c
-  = F.ppTy r $ brackets (pprRtype bb p t) <-> ppReftPs bb p rs
+  = ppTy r $ brackets (pprRtype bb p t) <-> ppReftPs bb p rs
 pprRtype bb p (RApp c ts rs r)
   | isTuple c
-  = F.ppTy r $ parens (intersperse comma (pprRtype bb p <$> ts)) <-> ppReftPs bb p rs
+  = ppTy r $ parens (intersperse comma (pprRtype bb p <$> ts)) <-> ppReftPs bb p rs
 pprRtype bb p (RApp c ts rs r)
   | isEmpty rsDoc && isEmpty tsDoc
-  = F.ppTy r $ ppT c
+  = ppTy r $ ppT c
   | otherwise
-  = F.ppTy r $ parens $ ppT c <+> rsDoc <+> tsDoc
+  = ppTy r $ parens $ ppT c <+> rsDoc <+> tsDoc
   where
     rsDoc            = ppReftPs bb p rs
     tsDoc            = hsep (pprRtype bb p <$> ts)
@@ -247,7 +247,7 @@ pprRtype bb p t@RAllE{}
 pprRtype _ _ (RExprArg e)
   = braces $ pprint e
 pprRtype bb p (RAppTy t t' r)
-  = F.ppTy r $ pprRtype bb p t <+> pprRtype bb p t'
+  = ppTy r $ pprRtype bb p t <+> pprRtype bb p t'
 pprRtype bb p (RRTy e _ OCons t)
   = sep [braces (pprRsubtype bb p e) <+> "=>", pprRtype bb p t]
 pprRtype bb p (RRTy e r o rt)
@@ -257,7 +257,7 @@ pprRtype bb p (RRTy e r o rt)
     ppp  doc    = text "<<" <+> doc <+> text ">>"
     ppxt (x, t) = pprint x <+> ":" <+> pprRtype bb p t
 pprRtype _ _ (RHole r)
-  = F.ppTy r $ text "_"
+  = ppTy r $ text "_"
 
 ppTyConB :: TyConable c => PPEnv -> c -> Doc
 ppTyConB bb
@@ -288,8 +288,8 @@ maybeParen ctxt_prec inner_prec pretty
 
 ppExists
   :: (OkRT c tv r, PPrint c, PPrint tv, PPrint (RType c tv r),
-      PPrint (RType c tv ()), F.Reftable (RTProp c tv r),
-      F.Reftable (RTProp c tv ()))
+      PPrint (RType c tv ()), Reftable (RTProp c tv r),
+      Reftable (RTProp c tv ()))
   => PPEnv -> Prec -> RType c tv r -> Doc
 ppExists bb p rt
   = text "exists" <+> brackets (intersperse comma [pprDbind bb topPrec x t | (x, t) <- ws]) <-> dot <-> pprRtype bb p rt'
@@ -309,10 +309,10 @@ ppAllExpr bb p rt
 
 ppReftPs
   :: (OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()),
-      F.Reftable (Ref (RType c tv ()) (RType c tv r)))
+      Reftable (Ref (RType c tv ()) (RType c tv r)))
   => t -> t1 -> [Ref (RType c tv ()) (RType c tv r)] -> Doc
 ppReftPs _ _ rs
-  | all F.isTauto rs   = empty
+  | all isTauto rs   = empty
   | not (ppPs ppEnv) = empty
   | otherwise        = angleBrackets $ hsep $ punctuate comma $ pprRef <$> rs
 
@@ -432,10 +432,10 @@ ppRefSym s  = pprint s
 dot :: Doc
 dot                = char '.'
 
-instance (PPrint r, F.Reftable r) => PPrint (UReft r) where
+instance (PPrint r, Reftable r) => PPrint (UReft r) where
   pprintTidy k (MkUReft r p)
-    | F.isTauto r  = pprintTidy k p
-    | F.isTauto p  = pprintTidy k r
+    | isTauto r  = pprintTidy k p
+    | isTauto p  = pprintTidy k r
     | otherwise  = pprintTidy k p <-> text " & " <-> pprintTidy k r
 
 --------------------------------------------------------------------------------

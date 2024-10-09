@@ -528,7 +528,7 @@ checkTcArity RTyCon{ rtc_tc = tc } givenArity
 
 
 checkAbstractRefs
-  :: (PPrint t, F.Reftable t, SubsTy RTyVar RSort t, F.Reftable (RTProp RTyCon RTyVar (UReft t))) =>
+  :: (PPrint t, Reftable t, SubsTy RTyVar RSort t, Reftable (RTProp RTyCon RTyVar (UReft t))) =>
      RType RTyCon RTyVar (UReft t) -> Maybe Doc
 checkAbstractRefs rt = go rt
   where
@@ -586,7 +586,7 @@ checkAbstractRefs rt = go rt
     pvType' p          = Misc.safeHead (showpp p ++ " not in env of " ++ showpp rt) [pvType q | q <- penv, pname p == pname q]
 
 
-checkReft                    :: (PPrint r, F.Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, F.Reftable (RTProp RTyCon RTyVar (UReft r)))
+checkReft                    :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar (UReft r)))
                              => F.SrcSpan -> F.SEnv F.SortedReft -> F.TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> Maybe Doc
 checkReft _ _   _   Nothing _   = Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.
 checkReft sp env emb (Just t) _ = (\z -> dr $+$ z) <$> checkSortedReftFull sp env r
@@ -618,7 +618,7 @@ checkMeasure emb γ (M name@(Loc src _ n) sort body _ _)
   where
     txerror = ErrMeas (GM.sourcePosSrcSpan src) (pprint n)
 
-checkMBody :: (PPrint r, F.Reftable r,SubsTy RTyVar RSort r, F.Reftable (RTProp RTyCon RTyVar r))
+checkMBody :: (PPrint r, Reftable r,SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
            => F.SEnv F.SortedReft
            -> F.TCEmb TyCon
            -> t
@@ -648,7 +648,7 @@ checkMBodyUnify = go
     go t@RApp{} t'@RApp{} = concat $ zipWith go (rt_args t) (rt_args t')
     go _ _                = []
 
-checkMBody' :: (PPrint r, F.Reftable r,SubsTy RTyVar RSort r, F.Reftable (RTProp RTyCon RTyVar r))
+checkMBody' :: (PPrint r, Reftable r,SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
             => F.TCEmb TyCon
             -> RType RTyCon RTyVar r
             -> F.SEnv F.SortedReft
@@ -706,12 +706,12 @@ getRewriteErrors (rw, t)
           ++ " contains an inner refinement."
 
 
-isRefined :: F.Reftable r => RType c tv r -> Bool
+isRefined :: Reftable r => RType c tv r -> Bool
 isRefined ty
-  | Just r <- stripRTypeBase ty = not $ F.isTauto r
+  | Just r <- stripRTypeBase ty = not $ isTauto r
   | otherwise = False
 
-hasInnerRefinement :: F.Reftable r => RType c tv r -> Bool
+hasInnerRefinement :: Reftable r => RType c tv r -> Bool
 hasInnerRefinement (RFun _ _ rIn rOut _) =
   isRefined rIn || isRefined rOut
 hasInnerRefinement (RAllT _ ty  _) =

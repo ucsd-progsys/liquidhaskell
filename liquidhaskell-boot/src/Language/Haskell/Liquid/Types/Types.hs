@@ -225,7 +225,8 @@ module Language.Haskell.Liquid.Types.Types (
   , RDEnv, DEnv(..), RInstance(..), RISig(..), RILaws(..)
   , MethodType(..), getMethodType
 
-  -- * Ureftable Instances
+  -- * Reftable/UReftable Instances
+  , Reftable(..)
   , UReftable(..)
 
   -- * String Literals
@@ -981,7 +982,7 @@ class (Eq c) => TyConable c where
 
 type OkRT c tv r = ( TyConable c
                    , F.PPrint tv, F.PPrint c, F.PPrint r
-                   , F.Reftable r, F.Reftable (RTProp c tv ()), F.Reftable (RTProp c tv r)
+                   , Reftable r, Reftable (RTProp c tv ()), Reftable (RTProp c tv r)
                    , Eq c, Eq tv
                    , Hashable tv
                    )
@@ -1454,7 +1455,7 @@ rRCls rc ts = RApp rc ts [] mempty
 
 addInvCond :: SpecType -> RReft -> SpecType
 addInvCond t r'
-  | F.isTauto $ ur_reft r' -- null rv
+  | isTauto $ ur_reft r' -- null rv
   = t
   | otherwise
   = fromRTypeRep $ trep {ty_res = RRTy [(x', tbd)] r OInv tbd}
@@ -1469,9 +1470,9 @@ addInvCond t r'
 
 -------------------------------------------
 
-class F.Reftable r => UReftable r where
+class Reftable r => UReftable r where
   ofUReft :: UReft F.Reft -> r
-  ofUReft (MkUReft r _) = F.ofReft r
+  ofUReft (MkUReft r _) = ofReft r
 
 
 instance UReftable (UReft F.Reft) where
@@ -1480,30 +1481,58 @@ instance UReftable (UReft F.Reft) where
 instance UReftable () where
    ofUReft _ = mempty
 
-instance (F.PPrint r, F.Reftable r) => F.Reftable (UReft r) where
+class (Monoid r, F.Subable r) => Reftable r where
+  isTauto :: r -> Bool
+  ppTy    :: r -> Doc -> Doc
+
+  top     :: r -> r
+  top _   =  mempty
+
+  meet    :: r -> r -> r
+  meet    = mappend
+
+  toReft  :: r -> F.Reft
+  ofReft  :: F.Reft -> r
+
+instance Reftable () where
+  isTauto _ = True
+  ppTy _  d = d
+  top  _    = ()
+  meet _ _  = ()
+  toReft _  = mempty
+  ofReft _  = mempty
+
+instance Reftable F.Reft where
+  isTauto  = all F.isTautoPred . F.conjuncts . F.reftPred
+  ppTy     = pprReft
+  toReft   = id
+  ofReft   = id
+  top (F.Reft (v,_)) = F.Reft (v, mempty)
+
+instance (F.PPrint r, Reftable r) => Reftable (UReft r) where
   isTauto               = isTautoUreft
   ppTy                  = ppTyUreft
-  toReft (MkUReft r ps) = F.toReft r `F.meet` F.toReft ps
-  top (MkUReft r p)     = MkUReft (F.top r) (F.top p)
-  ofReft r              = MkUReft (F.ofReft r) mempty
+  toReft (MkUReft r ps) = toReft r `meet` toReft ps
+  top (MkUReft r p)     = MkUReft (top r) (top p)
+  ofReft r              = MkUReft (ofReft r) mempty
 
 instance F.Expression (UReft ()) where
-  expr = F.expr . F.toReft
+  expr = F.expr . toReft
 
 
 
-isTautoUreft :: F.Reftable r => UReft r -> Bool
-isTautoUreft u = F.isTauto (ur_reft u) && F.isTauto (ur_pred u)
+isTautoUreft :: Reftable r => UReft r -> Bool
+isTautoUreft u = isTauto (ur_reft u) && isTauto (ur_pred u)
 
-ppTyUreft :: F.Reftable r => UReft r -> Doc -> Doc
+ppTyUreft :: Reftable r => UReft r -> Doc -> Doc
 ppTyUreft u@(MkUReft r p) d
   | isTautoUreft u = d
-  | otherwise      = pprReft r (F.ppTy p d)
+  | otherwise      = pprReft r (ppTy p d)
 
-pprReft :: (F.Reftable r) => r -> Doc -> Doc
+pprReft :: (Reftable r) => r -> Doc -> Doc
 pprReft r d = braces (F.pprint v <+> colon <+> d <+> text "|" <+> F.pprint r')
   where
-    r'@(F.Reft (v, _)) = F.toReft r
+    r'@(F.Reft (v, _)) = toReft r
 
 instance F.Subable r => F.Subable (UReft r) where
   syms (MkUReft r p)     = F.syms r ++ F.syms p
@@ -1511,7 +1540,7 @@ instance F.Subable r => F.Subable (UReft r) where
   substf f (MkUReft r z) = MkUReft (F.substf f r) (F.substf f z)
   substa f (MkUReft r z) = MkUReft (F.substa f r) (F.substa f z)
 
-instance (F.Reftable r, TyConable c) => F.Subable (RTProp c tv r) where
+instance (Reftable r, TyConable c) => F.Subable (RTProp c tv r) where
   syms (RProp  ss r)     = (fst <$> ss) ++ F.syms r
 
   subst su (RProp ss (RHole r)) = RProp ss (RHole (F.subst su r))
@@ -1524,7 +1553,7 @@ instance (F.Reftable r, TyConable c) => F.Subable (RTProp c tv r) where
   substa f (RProp  ss t) = RProp ss (F.substa f <$> t)
 
 
-instance (F.Subable r, F.Reftable r, TyConable c) => F.Subable (RType c tv r) where
+instance (F.Subable r, Reftable r, TyConable c) => F.Subable (RType c tv r) where
   syms        = foldReft False (\_ r acc -> F.syms r ++ acc) []
   -- 'substa' will substitute bound vars
   substa f    = emapExprArg (\_ -> F.substa f) []      . mapReft  (F.substa f)
@@ -1534,10 +1563,10 @@ instance (F.Subable r, F.Reftable r, TyConable c) => F.Subable (RType c tv r) wh
   subst1 t su = emapExprArg (\_ e -> F.subst1 e su) [] $ emapReft (\xs r -> F.subst1Except xs r su) [] t
 
 
-instance F.Reftable Predicate where
+instance Reftable Predicate where
   isTauto (Pr ps)      = null ps
 
-  ppTy r d | F.isTauto r      = d
+  ppTy r d | isTauto r      = d
            | not (ppPs ppEnv) = d
            | otherwise        = d <-> angleBrackets (F.pprint r)
 
@@ -1568,8 +1597,8 @@ mapExprReft f = mapReft g
 
 -- const False (not dropping dict) is probably fine since there will not be refinement on
 -- dictionaries
-isTrivial :: (F.Reftable r, TyConable c) => RType c tv r -> Bool
-isTrivial = foldReft False (\_ r b -> F.isTauto r && b) True
+isTrivial :: (Reftable r, TyConable c) => RType c tv r -> Bool
+isTrivial = foldReft False (\_ r b -> isTauto r && b) True
 
 mapReft ::  (r1 -> r2) -> RType c tv r1 -> RType c tv r2
 mapReft f = emapReft (const f) []
@@ -1699,17 +1728,17 @@ mapPropM f (RRTy xts r o t)  = liftM4 RRTy (mapM (mapSndM (mapPropM f)) xts) (re
 
 
 --------------------------------------------------------------------------------
--- foldReft :: (F.Reftable r, TyConable c) => (r -> a -> a) -> a -> RType c tv r -> a
+-- foldReft :: (Reftable r, TyConable c) => (r -> a -> a) -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
 -- foldReft f = efoldReft (\_ _ -> []) (\_ -> ()) (\_ _ -> f) (\_ γ -> γ) emptyF.SEnv
 
 --------------------------------------------------------------------------------
-foldReft :: (F.Reftable r, TyConable c) => BScope -> (F.SEnv (RType c tv r) -> r -> a -> a) -> a -> RType c tv r -> a
+foldReft :: (Reftable r, TyConable c) => BScope -> (F.SEnv (RType c tv r) -> r -> a -> a) -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
 foldReft bsc f = foldReft'  (\_ _ -> False) bsc id (\γ _ -> f γ)
 
 --------------------------------------------------------------------------------
-foldReft' :: (F.Reftable r, TyConable c)
+foldReft' :: (Reftable r, TyConable c)
           => (Symbol -> RType c tv r -> Bool)
           -> BScope
           -> (RType c tv r -> b)
@@ -1727,8 +1756,8 @@ foldReft' logicBind bsc g f
 
 
 
--- efoldReft :: F.Reftable r =>(p -> [RType c tv r] -> [(Symbol, a)])-> (RType c tv r -> a)-> (SEnv a -> Maybe (RType c tv r) -> r -> c1 -> c1)-> SEnv a-> c1-> RType c tv r-> c1
-efoldReft :: (F.Reftable r, TyConable c)
+-- efoldReft :: Reftable r =>(p -> [RType c tv r] -> [(Symbol, a)])-> (RType c tv r -> a)-> (SEnv a -> Maybe (RType c tv r) -> r -> c1 -> c1)-> SEnv a-> c1-> RType c tv r-> c1
+efoldReft :: (Reftable r, TyConable c)
           => (Symbol -> RType c tv r -> Bool)
           -> BScope
           -> (c  -> [RType c tv r] -> [(Symbol, a)])
@@ -1831,7 +1860,7 @@ mapBindRef f (RProp s t)         = RProp (mapFst f <$> s) $ mapBind f t
 
 
 --------------------------------------------------
-ofRSort ::  F.Reftable r => RType c tv () -> RType c tv r
+ofRSort ::  Reftable r => RType c tv () -> RType c tv r
 ofRSort = fmap mempty
 
 toRSort :: RType c tv r -> RType c tv ()
@@ -1858,11 +1887,11 @@ insertSEnv = F.insertSEnv
 insertsSEnv :: F.SEnv a -> [(Symbol, a)] -> F.SEnv a
 insertsSEnv  = foldr (\(x, t) γ -> insertSEnv x t γ)
 
-rTypeValueVar :: (F.Reftable r) => RType c tv r -> Symbol
+rTypeValueVar :: (Reftable r) => RType c tv r -> Symbol
 rTypeValueVar t = vv where F.Reft (vv,_) =  rTypeReft t
 
-rTypeReft :: (F.Reftable r) => RType c tv r -> F.Reft
-rTypeReft = maybe F.trueReft F.toReft . stripRTypeBase
+rTypeReft :: (Reftable r) => RType c tv r -> F.Reft
+rTypeReft = maybe F.trueReft toReft . stripRTypeBase
 
 -- stripRTypeBase ::  RType a -> Maybe a
 stripRTypeBase :: RType c tv r -> Maybe r
@@ -1873,8 +1902,8 @@ stripRTypeBase (RAppTy _ _ x)   = Just x
 stripRTypeBase (RAllT _ _ x)    = Just x
 stripRTypeBase _                = Nothing
 
-topRTypeBase :: (F.Reftable r) => RType c tv r -> RType c tv r
-topRTypeBase = mapRBase F.top
+topRTypeBase :: (Reftable r) => RType c tv r -> RType c tv r
+topRTypeBase = mapRBase top
 
 mapRBase :: (r -> r) -> RType c tv r -> RType c tv r
 mapRBase f (RApp c ts rs r)   = RApp c ts rs $ f r
@@ -2404,8 +2433,8 @@ isHole :: Expr -> Bool
 isHole (F.PKVar "HOLE" _) = True
 isHole _                  = False
 
-hasHole :: F.Reftable r => r -> Bool
-hasHole = any isHole . F.conjuncts . F.reftPred . F.toReft
+hasHole :: Reftable r => r -> Bool
+hasHole = any isHole . F.conjuncts . F.reftPred . toReft
 
 instance F.Symbolic DataCon where
   symbol = F.symbol . dataConWorkId
@@ -2493,7 +2522,7 @@ instance F.PPrint RTyVar where
      ppr_tyvar_short :: TyVar -> Doc
      ppr_tyvar_short = text . showPpr
 
-instance (F.PPrint r, F.Reftable r, F.PPrint t, F.PPrint (RType c tv r)) => F.PPrint (Ref t (RType c tv r)) where
+instance (F.PPrint r, Reftable r, F.PPrint t, F.PPrint (RType c tv r)) => F.PPrint (Ref t (RType c tv r)) where
   pprintTidy k (RProp ss s) = ppRefArgs k (fst <$> ss) <+> F.pprintTidy k s
 
 ppRefArgs :: F.Tidy -> [Symbol] -> Doc
