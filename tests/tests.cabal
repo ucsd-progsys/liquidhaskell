@@ -2203,6 +2203,7 @@ executable basic-neg
                     , ReflExt02B
                     , ShadowLogicSymbols
                     , T1459
+                    , T2349
 
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
@@ -2278,6 +2279,7 @@ executable basic-pos
                     , ReflExt08B
                     , ShadowLogicSymbols
                     , SkipDerived00
+                    , T2349
 
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
