@@ -1484,7 +1484,6 @@ instance (F.PPrint r, F.Reftable r) => F.Reftable (UReft r) where
   isTauto               = isTautoUreft
   ppTy                  = ppTyUreft
   toReft (MkUReft r ps) = F.toReft r `F.meet` F.toReft ps
-  bot (MkUReft r _)     = MkUReft (F.bot r) (Pr [])
   top (MkUReft r p)     = MkUReft (F.top r) (F.top p)
   ofReft r              = MkUReft (F.ofReft r) mempty
 
@@ -1538,7 +1537,6 @@ instance (F.Subable r, F.Reftable r, TyConable c) => F.Subable (RType c tv r) wh
 instance F.Reftable Predicate where
   isTauto (Pr ps)      = null ps
 
-  bot (Pr _)           = panic Nothing "No BOT instance for Predicate"
   ppTy r d | F.isTauto r      = d
            | not (ppPs ppEnv) = d
            | otherwise        = d <-> angleBrackets (F.pprint r)
