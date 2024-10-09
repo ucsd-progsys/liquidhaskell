@@ -17,6 +17,7 @@
   break points when desugaring [#2340](https://github.com/ucsd-progsys/liquidhaskell/pull/2340)
   [#2345](https://github.com/ucsd-progsys/liquidhaskell/pull/2340).
 - Augmented the context of error messages [#2350](https://github.com/ucsd-progsys/liquidhaskell/pull/2350).
+- Add a new flag `--etabeta` to reason with lambdas in PLE [#2356](https://github.com/ucsd-progsys/liquidhaskell/pull/2356)
 
 ## 0.9.10.1 (2024-08-21)
 
