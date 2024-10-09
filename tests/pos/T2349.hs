@@ -19,8 +19,8 @@ data Expr t where
 @-}
 
 
-{-@ 
-good :: Expr {v:[Int] | len v = 1} 
+{-@
+good :: Expr {v:[Int] | len v = 1}
 @-}
 good :: Expr [Int]
 good = CONS 0 (I 2) NIL
