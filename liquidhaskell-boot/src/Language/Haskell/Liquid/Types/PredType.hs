@@ -8,8 +8,7 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Language.Haskell.Liquid.Types.PredType (
-    PrType
-  , TyConP (..), DataConP (..)
+    TyConP (..), DataConP (..)
   , dataConTy
   , dataConPSpecType
   , makeTyConInfo
