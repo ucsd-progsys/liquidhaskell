@@ -1615,6 +1615,7 @@ typeSort tce = go
     go (TyConApp c τs)
       | isNewTyCon c
       , not (isRecursivenewTyCon c)
+      , τs `lengthAtLeast` newTyConEtadArity c
       = go (Ghc.newTyConInstRhs c τs)
       | otherwise
       = tyConFTyCon tce c (go <$> τs)

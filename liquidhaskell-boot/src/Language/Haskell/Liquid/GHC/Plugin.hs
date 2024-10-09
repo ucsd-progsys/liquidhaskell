@@ -4,7 +4,6 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
-{-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
 
@@ -329,10 +328,9 @@ processInputSpec cfg pipelineData modSummary tcGblEnv inputSpec = do
 liquidHaskellCheckWithConfig
   :: Config -> PipelineData -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
 liquidHaskellCheckWithConfig cfg pipelineData modSummary tcGblEnv = do
-  -- Here, we are calling Liquid Haskell's parser, acting on the unparsed
-  -- spec comments stored in the pipeline data.
-  inputSpec <-
-    getLiquidSpec thisModule (pdSpecComments pipelineData)
+  -- Parse the spec comments stored in the pipeline data.
+  let inputSpec = toBareSpec . snd $
+        hsSpecificationP (moduleName thisModule) (pdSpecComments pipelineData)
 
   processInputSpec cfg pipelineData modSummary tcGblEnv inputSpec
     `Ex.catch` (\(e :: UserError) -> reportErrs cfg [e])
@@ -398,38 +396,28 @@ isIgnore (MkBareSpec sp) = any ((== "--skip-module") . F.val) (pragmas sp)
 -- | Working with bare & lifted specs ------------------------------------------
 --------------------------------------------------------------------------------
 
-loadDependencies :: Config
-                 -- ^ The 'Config' associated to the /current/ module being compiled.
-                 -> Module
-                 -> [Module]
-                 -> TcM TargetDependencies
-loadDependencies currentModuleConfig thisModule mods = do
+loadDependencies :: Config -> [Module] -> TcM TargetDependencies
+loadDependencies currentModuleConfig mods = do
   hscEnv    <- env_top <$> getEnv
   results   <- SpecFinder.findRelevantSpecs
                  (excludeAutomaticAssumptionsFor currentModuleConfig) hscEnv mods
-  deps      <- foldM processResult mempty (reverse results)
+  let deps = TargetDependencies $ foldl' processResult mempty (reverse results)
   redundant <- liftIO $ configToRedundantDependencies hscEnv currentModuleConfig
 
   debugLog $ "Redundant dependencies ==> " ++ show redundant
 
   pure $ foldl' (flip dropDependency) deps redundant
   where
-    processResult :: TargetDependencies -> SpecFinderResult -> TcM TargetDependencies
-    processResult !acc (SpecNotFound mdl) = do
-      debugLog $ "[T:" ++ renderModule thisModule
-              ++ "] Spec not found for " ++ renderModule mdl
-      pure acc
-    processResult _ (SpecFound originalModule location _) = do
-      dynFlags <- getDynFlags
-      debugLog $ "[T:" ++ show (moduleName thisModule)
-              ++ "] Spec found for " ++ renderModule originalModule ++ ", at location " ++ show location
-      Util.pluginAbort (O.showSDoc dynFlags $ O.text "A BareSpec was returned as a dependency, this is not allowed, in " O.<+> O.ppr thisModule)
-    processResult !acc (LibFound originalModule location lib) = do
-      debugLog $ "[T:" ++ show (moduleName thisModule)
-              ++ "] Lib found for " ++ renderModule originalModule ++ ", at location " ++ show location
-      pure $ TargetDependencies {
-          getDependencies = HM.insert (toStableModule originalModule) (libTarget lib) (getDependencies $ acc <> libDeps lib)
-        }
+    processResult
+      :: HM.HashMap StableModule LiftedSpec
+      -> SpecFinderResult
+      -> HM.HashMap StableModule LiftedSpec
+    processResult acc (SpecNotFound _mdl) = acc
+    processResult acc (LibFound originalModule _location lib) =
+      HM.insert
+        (toStableModule originalModule)
+        (libTarget lib)
+        (acc <> getDependencies (libDeps lib))
 
 data LiquidHaskellContext = LiquidHaskellContext {
     lhGlobalCfg        :: Config
@@ -452,21 +440,6 @@ data ProcessModuleResult = ProcessModuleResult {
   -- ^ The 'GhcInfo' for the current 'Module' that LiquidHaskell will process.
   }
 
--- | Process the spec comments from one module. Also looks for
--- "companion specs" for the current module and merges them in
--- if it finds one.
-getLiquidSpec :: Module -> [BPspec] -> TcM BareSpec
-getLiquidSpec thisModule specComments = do
-  let commSpec = toBareSpec . snd $
-        hsSpecificationP (moduleName thisModule) specComments
-  env    <- env_top <$> getEnv
-  res <- liftIO $ SpecFinder.findCompanionSpec env thisModule
-  case res of
-    SpecFound _ _ companionSpec -> do
-      debugLog $ "Companion spec found for " ++ renderModule thisModule
-      pure $ commSpec <> companionSpec
-    _ -> pure commSpec
-
 processModule :: LiquidHaskellContext -> TcM (Either LiquidCheckException ProcessModuleResult)
 processModule LiquidHaskellContext{..} = do
   debugLog ("Module ==> " ++ renderModule thisModule)
@@ -481,9 +454,7 @@ processModule LiquidHaskellContext{..} = do
   _                   <- liftIO $ LH.checkFilePragmas $ Ms.pragmas (fromBareSpec bareSpec)
 
   withPragmas lhGlobalCfg file (Ms.pragmas $ fromBareSpec bareSpec) $ \moduleCfg -> do
-    dependencies       <- loadDependencies moduleCfg
-                                           thisModule
-                                           (S.toList lhRelevantModules)
+    dependencies <- loadDependencies moduleCfg (S.toList lhRelevantModules)
 
     debugLog $ "Found " <> show (HM.size $ getDependencies dependencies) <> " dependencies:"
     when debugLogs $

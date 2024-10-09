@@ -437,8 +437,6 @@ data Spec ty bndr  = Spec
   , dvariance  :: ![(F.LocSymbol, [Variance])]                        -- ^ TODO ? Where do these come from ?!
   , dsize      :: ![([ty], F.LocSymbol)]                              -- ^ Size measure to enforce fancy termination
   , bounds     :: !(RRBEnv ty)
-  , defs       :: !(M.HashMap F.LocSymbol F.Symbol)                   -- ^ Temporary (?) hack to deal with dictionaries in specifications
-                                                                      --   see tests/pos/NatClass.hs
   , axeqs      :: ![F.Equation]                                       -- ^ Equalities used for Proof-By-Evaluation
   } deriving (Generic, Show)
 
@@ -500,7 +498,6 @@ instance Semigroup (Spec ty bndr) where
            , ignores    = S.union   (ignores  s1)  (ignores  s2)
            , autosize   = S.union   (autosize s1)  (autosize s2)
            , bounds     = M.union   (bounds   s1)  (bounds   s2)
-           , defs       = M.union   (defs     s1)  (defs     s2)
            , autois     = M.union   (autois s1)      (autois s2)
            }
 
@@ -553,7 +550,6 @@ instance Monoid (Spec ty bndr) where
            , dsize      = []
            , axeqs      = []
            , bounds     = M.empty
-           , defs       = M.empty
            }
 
 -- $liftedSpec
@@ -633,9 +629,6 @@ data LiftedSpec = LiftedSpec
   , liftedDvariance  :: HashSet (F.LocSymbol, [Variance])
     -- ^ ? Where do these come from ?!
   , liftedBounds     :: RRBEnv LocBareType
-  , liftedDefs       :: M.HashMap F.LocSymbol F.Symbol
-    -- ^ Temporary (?) hack to deal with dictionaries in specifications
-    --   see tests/pos/NatClass.hs
   , liftedAxeqs      :: HashSet F.Equation
     -- ^ Equalities used for Proof-By-Evaluation
   } deriving (Eq, Generic, Show)
@@ -674,7 +667,6 @@ emptyLiftedSpec = LiftedSpec
   , liftedDvariance  = mempty
   , liftedDsize      = mempty
   , liftedBounds     = mempty
-  , liftedDefs       = mempty
   , liftedAxeqs      = mempty
   }
 
@@ -854,7 +846,6 @@ toLiftedSpec a = LiftedSpec
   , liftedDvariance  = S.fromList . dvariance $ a
   , liftedDsize      = dsize a
   , liftedBounds     = bounds a
-  , liftedDefs       = defs a
   , liftedAxeqs      = S.fromList . axeqs $ a
   }
 
@@ -907,6 +898,5 @@ unsafeFromLiftedSpec a = Spec
   , dvariance  = S.toList . liftedDvariance $ a
   , dsize      = liftedDsize  a
   , bounds     = liftedBounds a
-  , defs       = liftedDefs a
   , axeqs      = S.toList . liftedAxeqs $ a
   }
