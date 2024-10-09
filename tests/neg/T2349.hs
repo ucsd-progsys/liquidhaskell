@@ -20,7 +20,8 @@ data Expr t where
 
 
 {-@ 
-good :: Expr {v:[Int] | len v = 1} 
+bad :: Expr {v:[Int] | len v = 0} 
 @-}
-good :: Expr [Int]
-good = CONS 0 (I 2) NIL
+bad :: Expr [Int]
+bad = CONS 0 (I 2) NIL
+
