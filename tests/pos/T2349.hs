@@ -1,6 +1,8 @@
 {-# LANGUAGE GADTs #-}
 {-@ LIQUID "--reflection" @-}
-module TestModule where
+-- | Test that the refinement types produced for GADTs are
+-- compatible with the Haskell types.
+module T2349 where
 
 data Expr t where
   I :: Int -> Expr Int
