@@ -233,6 +233,54 @@ makeBracketingInside σ τ γ f env x = f (With σ γ x env)
 makeBracketing :: Ty -> Ty -> Ctx -> (Env -> Value) -> Env -> Value
 makeBracketing σ τ γ f env = VFun σ τ (makeBracketingInside σ τ γ f env)
 
+{-@ bracketHere :: σ:Ty -> γ:Ctx
+                 -> {makeBracketing σ σ γ (lookupRef σ (Cons σ γ) (Here σ γ)) 
+                     == makeId σ γ} @-}
+bracketHere :: Ty -> Ctx -> Proof
+bracketHere σ γ = trivial
+
+{-@ bracketThere :: σ:Ty -> τ:Ty -> γ:Ctx -> t:Prop (Ref τ γ)
+                 -> {makeBracketing σ τ γ (lookupRef τ (Cons σ γ) 
+                                                       (There σ τ γ t))
+                     == makeApp τ (Arrow σ τ) γ (makeConst τ σ γ) 
+                                                (lookupRef τ γ t)} @-}
+bracketThere :: Ty -> Ty -> Ctx -> Ref -> Proof
+bracketThere σ τ γ t = trivial
+ 
+
+{-@ bracketId :: σ:Ty -> τ:Ty -> γ:Ctx
+               -> {makeBracketing σ (Arrow τ τ) γ (makeId τ (Cons σ γ))
+                  = makeApp (Arrow τ τ) (Arrow σ (Arrow τ τ)) γ (makeConst (Arrow τ τ) σ γ) (makeId τ γ)} @-}
+bracketId :: Ty -> Ty -> Ctx -> Proof
+bracketId σ τ γ = trivial
+
+{-@ bracketConst :: σ:Ty -> τ:Ty -> υ:Ty -> γ:Ctx
+                -> {makeBracketing σ (kType τ υ) γ (makeConst τ υ (Cons σ γ))
+                    = makeApp (kType τ υ) (Arrow σ (kType τ υ)) γ 
+                              (makeConst (kType τ υ) σ γ) (makeConst τ υ γ)} @-}
+bracketConst :: Ty -> Ty -> Ty -> Ctx -> Proof
+bracketConst σ τ υ γ = trivial
+
+{-@ bracketS :: σ:Ty -> τ:Ty -> υ:Ty -> ψ:Ty -> γ:Ctx
+                -> {makeBracketing σ (sType τ υ ψ) γ (makeS τ υ ψ (Cons σ γ))
+                    = makeApp (sType τ υ ψ) (Arrow σ (sType τ υ ψ)) γ 
+                              (makeConst (sType τ υ ψ) σ γ) (makeS τ υ ψ γ)} @-}
+bracketS :: Ty -> Ty -> Ty -> Ty -> Ctx -> Proof
+bracketS σ τ υ ψ γ = trivial
+
+{-@ bracketApp :: σ:Ty -> α:Ty -> τ:Ty -> γ:Ctx 
+               -> ft1:(Prop (Env (Cons σ γ)) -> Prop (Value (Arrow α τ)))
+               -> ft2:(Prop (Env (Cons σ γ)) -> Prop (Value α))
+               -> {makeApp (Arrow σ α) (Arrow σ τ) γ 
+                           (makeApp (Arrow σ (Arrow α τ)) 
+                                    (Arrow (Arrow σ α) (Arrow σ τ)) γ 
+                                    (makeS σ α τ γ) 
+                                    (makeBracketing σ (Arrow α τ) γ ft1))
+                           (makeBracketing σ α γ ft2)
+                   == makeBracketing σ τ γ (makeApp α τ (Cons σ γ) ft1 ft2)} @-}
+bracketApp :: Ty -> Ty -> Ty -> Ctx -> (Env -> Value) -> (Env -> Value) -> Proof
+bracketApp σ α τ γ ft1 ft2 = trivial
+
 {-@ bracket :: σ:Ty -> τ:Ty -> γ:Ctx -> f:(Prop (Env (Cons σ γ)) -> Prop (Value τ)) 
             -> Prop (Comb (Cons σ γ) τ f) 
             -> Prop (Comb γ (Arrow σ τ) (makeBracketing σ τ γ f)) @-}
@@ -242,6 +290,7 @@ bracket σ τ γ f (CApp α _ _ ft₁ ft₂ t₁ t₂)             =
        (makeApp (Arrow σ (Arrow α τ)) (Arrow (Arrow σ α) (Arrow σ τ)) 
                 γ (makeS σ α τ γ) (makeBracketing σ (Arrow α τ) γ ft₁))
        (makeBracketing σ α γ ft₂) st t₂ᵣ
+       ? bracketApp σ α τ γ ft₁ ft₂
   where t₁ᵣ = bracket σ (Arrow α τ) γ ft₁ t₁
         t₂ᵣ = bracket σ α           γ ft₂ t₂
         st  = CApp (Arrow σ (Arrow α τ))
@@ -253,14 +302,18 @@ bracket σ τ γ f (CApp α _ _ ft₁ ft₂ t₁ t₂)             =
 bracket σ τ γ f (S τ₁ τ₂ τ₃ _)                 =
   CApp τ (Arrow σ τ) γ (makeConst τ σ γ) (makeS τ₁ τ₂ τ₃ γ) 
        (K τ σ γ) (S τ₁ τ₂ τ₃ γ) 
+       ? bracketS σ τ₁ τ₂ τ₃ γ
 bracket σ τ γ f (K τ₁ τ₂ _)                    = 
   CApp τ (Arrow σ τ) γ (makeConst τ σ γ) (makeConst τ₁ τ₂ γ)
        (K τ σ γ) (K τ₁ τ₂ γ) 
+       ? bracketConst σ τ₁ τ₂ γ
 bracket σ τ γ f (I τ₁ _)                       =
   CApp τ (Arrow σ τ) γ (makeConst τ σ γ) (makeId τ₁ γ) 
        (K τ σ γ) (I τ₁ γ) 
+       ? bracketId σ τ₁ γ
 bracket σ τ γ f (CVar _ _ (Here _ _))          =
-  I σ γ
+  I σ γ ? bracketHere σ γ
 bracket σ τ γ f (CVar _ _ (There _ _ _ there)) = 
   CApp τ (Arrow σ τ) γ (makeConst τ σ γ) (lookupRef τ γ there) 
        (K τ σ γ) (CVar τ γ there) 
+       ? bracketThere σ τ γ there
