@@ -5,6 +5,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE NamedFieldPuns            #-}
 {-# LANGUAGE ViewPatterns              #-}
+{-# LANGUAGE LambdaCase                #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_GHC -Wwarn=deprecations #-}
@@ -540,7 +541,9 @@ withSmtSolver cfg =
     missingSmtError smt = "Could not find SMT solver '" ++ show smt ++ "'. Is it on your PATH?"
 
 findSmtSolver :: FC.SMTSolver -> IO (Maybe FC.SMTSolver)
-findSmtSolver smt = maybe Nothing (const $ Just smt) <$> findExecutable (show smt)
+findSmtSolver = \case
+    FC.Z3mem -> return $ Just FC.Z3mem
+    smt      -> maybe Nothing (const $ Just smt) <$> findExecutable (show smt)
 
 fixConfig :: Config -> IO Config
 fixConfig config' = do
