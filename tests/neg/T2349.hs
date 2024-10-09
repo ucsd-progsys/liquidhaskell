@@ -1,4 +1,6 @@
 {-# LANGUAGE GADTs #-}
+{-@ LIQUID "--expect-error-containing=is not a subtype of the required type
+      VV : {VV##1249 : [GHC.Types.Int] | len VV##1249 == ?b + 1}" @-}
 {-@ LIQUID "--reflection" @-}
 -- | Test that the refinement types produced for GADTs are
 -- compatible with the Haskell types.
