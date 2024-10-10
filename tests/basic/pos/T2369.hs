@@ -13,7 +13,7 @@ tupleToDict :: p (Proxy cs) -> ()
 tupleToDict _ = ()
 
 getMaster :: forall p cs. p cs -> ()
-getMaster _ = tupleToDict (\x -> x :: Proxy cs)
+getMaster _ = tupleToDict ((\x -> x) :: Proxy cs -> Proxy cs)
 
 class ClsOne f where
     metha :: f a a
