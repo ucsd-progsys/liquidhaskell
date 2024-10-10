@@ -100,6 +100,7 @@ library
                       Language.Haskell.Liquid.Types.PrettyPrint
                       Language.Haskell.Liquid.Types.RefType
                       Language.Haskell.Liquid.Types.RType
+                      Language.Haskell.Liquid.Types.RTypeOp
                       Language.Haskell.Liquid.Types.Specs
                       Language.Haskell.Liquid.Types.Types
                       Language.Haskell.Liquid.Types.Variance
