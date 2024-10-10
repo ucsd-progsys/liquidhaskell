@@ -12,7 +12,6 @@ module Language.Haskell.Liquid.Transforms.RefSplit (
 import Prelude hiding (error)
 
 import Data.List (partition)
-import Text.PrettyPrint.HughesPJ
 
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.PrettyPrint ()
@@ -109,6 +108,3 @@ class IsFree a where
 
 instance (Subable x) => (IsFree x) where
         isFree x p = x `elem` syms p
-
-instance Show (UReft Reft) where
-         show = render . pprint

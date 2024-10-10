@@ -376,10 +376,6 @@ pprintCBs = pprDoc . tidyCBs
 instance Show TargetInfo where
   show = showpp
 
-instance PPrint TargetVars where
-  pprintTidy _ AllVars   = text "All Variables"
-  pprintTidy k (Only vs) = text "Only Variables: " <+> pprintTidy k vs
-
 ------------------------------------------------------------------------
 -- Dealing with Errors ---------------------------------------------------
 ------------------------------------------------------------------------
