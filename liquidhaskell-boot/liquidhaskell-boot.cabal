@@ -59,6 +59,7 @@ library
                       Language.Haskell.Liquid.Constraint.Termination
                       Language.Haskell.Liquid.Constraint.Types
                       Language.Haskell.Liquid.Constraint.Relational
+                      Language.Haskell.Liquid.Constraint.RewriteCase
                       Liquid.GHC.API
                       Liquid.GHC.API.Extra
                       Liquid.GHC.API.StableModule
