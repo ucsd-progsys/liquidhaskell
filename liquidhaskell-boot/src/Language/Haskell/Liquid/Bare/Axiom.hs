@@ -199,7 +199,7 @@ getReflectDefs src sig spec env modName =
                 -- an error
                 x:_ -> Ex.throw . mkError x $
                   "Not found in scope nor in the amongst these variables: " ++
-                    foldr (\x acc -> acc ++ " , " ++ show x) "" newFvMap
+                    foldr (\x1 acc1 -> acc1 ++ " , " ++ show x1) "" newFvMap
          else searchInTransitiveClosure newToResolve newFvMap newAcc
       where
         -- Try to get the definitions of the symbols that are left (`toResolve`)

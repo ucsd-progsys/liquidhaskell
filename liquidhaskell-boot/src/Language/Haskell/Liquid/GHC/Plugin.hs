@@ -156,14 +156,14 @@ data Breadcrumb
   = Parsed ParsedModule
   | Typechecking
 
-breadcrumbs :: IORef (Map Module Breadcrumb)
-breadcrumbs = unsafePerformIO $ newIORef mempty
-{-# NOINLINE breadcrumbs #-}
+breadcrumbsRef :: IORef (Map Module Breadcrumb)
+breadcrumbsRef = unsafePerformIO $ newIORef mempty
+{-# NOINLINE breadcrumbsRef #-}
 
 {- HLINT ignore "Use tuple-section" -}
 swapBreadcrumb :: (MonadIO m) => Module -> Maybe Breadcrumb -> m (Maybe Breadcrumb)
-swapBreadcrumb mod new = liftIO $ atomicModifyIORef' breadcrumbs $ \breadcrumbs ->
-  let (old, breadcrumbs') = M.alterF (\old -> (old, new)) mod breadcrumbs
+swapBreadcrumb mod0 new = liftIO $ atomicModifyIORef' breadcrumbsRef $ \breadcrumbs ->
+  let (old, breadcrumbs') = M.alterF (\old1 -> (old1, new)) mod0 breadcrumbs
   in (breadcrumbs', old)
 
 --------------------------------------------------------------------------------
@@ -409,9 +409,9 @@ liquidHaskellCheckWithConfig cfg pipelineData modSummary tcGblEnv = do
         hsSpecificationP (moduleName thisModule) (pdSpecComments pipelineData)
 
   processInputSpec cfg pipelineData modSummary tcGblEnv inputSpec
-    `Ex.catch` (\(e :: UserError) -> reportErrs cfg [e])
-    `Ex.catch` (\(e :: Error) -> reportErrs cfg [e])
-    `Ex.catch` (\(es :: [Error]) -> reportErrs cfg es)
+    `Ex.catch` (\(e :: UserError) -> reportErrs [e])
+    `Ex.catch` (\(e :: Error) -> reportErrs [e])
+    `Ex.catch` (\(es :: [Error]) -> reportErrs es)
 
   where
     thisFile :: FilePath
@@ -420,8 +420,8 @@ liquidHaskellCheckWithConfig cfg pipelineData modSummary tcGblEnv = do
     continue :: TcM (Either LiquidCheckException TcGblEnv)
     continue = pure $ Left (ErrorsOccurred [])
 
-    reportErrs :: (Show e, F.PPrint e) => Config -> [TError e] -> TcM (Either LiquidCheckException TcGblEnv)
-    reportErrs cfg = LH.filterReportErrors thisFile GHC.failM continue (getFilters cfg) Full
+    reportErrs :: (Show e, F.PPrint e) => [TError e] -> TcM (Either LiquidCheckException TcGblEnv)
+    reportErrs  = LH.filterReportErrors thisFile GHC.failM continue (getFilters cfg) Full
 
     thisModule :: Module
     thisModule = tcg_mod tcGblEnv
@@ -591,7 +591,7 @@ makeTargetSrc :: Config
               -> HscEnv
               -> IO TargetSrc
 makeTargetSrc cfg dynFlags file tcData modGuts hscEnv = do
-  let preNormCoreBinds = preNormalize cfg modGuts
+  let preNormCoreBinds = preNormalizeCore cfg modGuts
   when (dumpPreNormalizedCore cfg) $ do
     putStrLn "\n*************** Pre-normalized CoreBinds *****************\n"
     putStrLn $ unlines $ L.intersperse "" $ map (GHC.showPpr dynFlags) preNormCoreBinds
@@ -650,10 +650,10 @@ makeTargetSrc cfg dynFlags file tcData modGuts hscEnv = do
       where
         deriv   = Just $ instEnvElts $ mg_inst_env modGuts
 
-    preNormalize :: Config -> ModGuts -> [CoreBind]
-    preNormalize cfg modGuts = rewriteBinds cfg inl_cbs
-      where
-        inl_cbs  = inlineAux cfg (mg_module modGuts) (mg_binds modGuts)
+preNormalizeCore :: Config -> ModGuts -> [CoreBind]
+preNormalizeCore cfg modGuts = rewriteBinds cfg inl_cbs
+  where
+    inl_cbs  = inlineAux cfg (mg_module modGuts) (mg_binds modGuts)
 
 getFamInstances :: ModGuts -> [FamInst]
 getFamInstances guts = famInstEnvElts (mg_fam_inst_env guts)

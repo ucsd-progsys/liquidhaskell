@@ -506,7 +506,7 @@ lookupLocalVar env lx gvs = findNearest lxn kvs
     lvdToPair lvd = (lvdSourcePos lvd, lvdVar lvd)
 
     findNearest :: F.SourcePos -> [(F.SourcePos, Ghc.Var)] -> Maybe Ghc.Var
-    findNearest key kvs = argMin [ (posDistance key k, v) | (k, v) <- kvs ]
+    findNearest key kvs1 = argMin [ (posDistance key k, v) | (k, v) <- kvs1 ]
 
     -- We prefer the var with the smaller distance, or equal distance
     -- but left of the spec, or not left of the spec but below it.
