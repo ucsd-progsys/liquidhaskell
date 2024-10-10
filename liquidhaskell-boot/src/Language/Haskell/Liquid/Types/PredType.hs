@@ -154,7 +154,7 @@ meetWorkWrapRep :: DataCon -> SpecRep -> SpecRep -> SpecRep
 meetWorkWrapRep c workR wrapR
   | 0 <= pad'
   = workR { ty_binds = xs ++ ty_binds wrapR
-          , ty_args  = ts ++ zipWith F.meet ts' (ty_args wrapR)
+          , ty_args  = ts ++ zipWith meet ts' (ty_args wrapR)
           , ty_res   = strengthenRType (ty_res workR)    (ty_res  wrapR)
           , ty_preds = ty_preds wrapR
           }
@@ -268,7 +268,7 @@ pVartoRConc p (v, args)
 --   then @pvarRType π@ returns an @RType@ with an @RTycon@ called
 --   @predRTyCon@ `RApp predRTyCon [T1, T2, T3]`
 -----------------------------------------------------------------------
-pvarRType :: (PPrint r, F.Reftable r) => PVar RSort -> RRType r
+pvarRType :: (PPrint r, Reftable r) => PVar RSort -> RRType r
 -----------------------------------------------------------------------
 pvarRType (PV _ k {- (PVProp τ) -} _ args) = rpredType k (fst3 <$> args) -- (ty:tys)
   -- where
@@ -277,7 +277,7 @@ pvarRType (PV _ k {- (PVProp τ) -} _ args) = rpredType k (fst3 <$> args) -- (ty
 
 
 -- rpredType    :: (PPrint r, Reftable r) => PVKind (RRType r) -> [RRType r] -> RRType r
-rpredType :: F.Reftable r
+rpredType :: Reftable r
           => PVKind (RType RTyCon tv a)
           -> [RType RTyCon tv a] -> RType RTyCon tv r
 rpredType (PVProp t) ts = RApp predRTyCon  (uRTypeGen <$> t : ts) [] mempty
@@ -379,7 +379,7 @@ substPred msg su@(rp,prop) (RFun x i rt rt' r)
   | null πs                     = RFun x i (substPred msg su rt) (substPred msg su rt') r
   | otherwise                   =
       let sus = (\π -> F.mkSubst (zip (fst <$> rf_args prop) (thd3 <$> pargs π))) <$> πs in
-      foldl (\t subst -> t `F.meet` F.subst subst (rf_body prop)) (RFun x i (substPred msg su rt) (substPred msg su rt') r') sus
+      foldl (\t subst -> t `meet` F.subst subst (rf_body prop)) (RFun x i (substPred msg su rt) (substPred msg su rt') r') sus
   where (r', πs)                = splitRPvar rp r
 -- ps has   , pargs :: ![(t, Symbol, Expr)]
 
@@ -392,16 +392,16 @@ substPred _   _  t              = t
 -- substRCon :: String -> (RPVar, SpecType) -> SpecType -> SpecType
 
 substRCon
-  :: (PPrint t, PPrint t2, Eq tv, F.Reftable r, Hashable tv, PPrint tv, PPrint r,
+  :: (PPrint t, PPrint t2, Eq tv, Reftable r, Hashable tv, PPrint tv, PPrint r,
       SubsTy tv (RType RTyCon tv ()) r,
       SubsTy tv (RType RTyCon tv ()) (RType RTyCon tv ()),
       SubsTy tv (RType RTyCon tv ()) RTyCon,
       SubsTy tv (RType RTyCon tv ()) tv,
-      F.Reftable (RType RTyCon tv r),
+      Reftable (RType RTyCon tv r),
       SubsTy tv (RType RTyCon tv ()) (RTVar tv (RType RTyCon tv ())),
       FreeVar RTyCon tv,
-      F.Reftable (RTProp RTyCon tv r),
-      F.Reftable (RTProp RTyCon tv ()))
+      Reftable (RTProp RTyCon tv r),
+      Reftable (RTProp RTyCon tv ()))
   => [Char]
   -> (t, Ref RSort (RType RTyCon tv r))
   -> RType RTyCon tv r
@@ -413,14 +413,14 @@ substRCon msg (_, RProp ss t1@(RApp c1 ts1 rs1 r1)) t2@(RApp c2 ts2 rs2 _) πs r
   where
     ts                     = F.subst su $ safeZipWith (msg ++ ": substRCon")  strSub  ts1  ts2
     rs                     = F.subst su $ safeZipWith (msg ++ ": substRCon2") strSubR rs1' rs2'
-    (rs1', rs2')           = pad "substRCon" F.top rs1 rs2
+    (rs1', rs2')           = pad "substRCon" top rs1 rs2
     strSub x r2           = meetListWithPSubs πs ss x r2
     strSubR x r2          = meetListWithPSubsRef πs ss x r2
 
     su = F.mkSubst $ zipWith (\s1 s2 -> (s1, F.EVar s2)) (rvs t1) (rvs t2)
 
     rvs      = foldReft False (\_ r acc -> rvReft r : acc) []
-    rvReft r = let F.Reft(s,_) = F.toReft r in s
+    rvReft r = let F.Reft(s,_) = toReft r in s
 
 substRCon msg su t _ _        = {- panic Nothing -} errorP "substRCon: " $ msg ++ " " ++ showpp (su, t)
 
@@ -485,11 +485,11 @@ freeArgsPsRef p (MkUReft _ (Pr ps)) = [x | (_, x, w) <- concatMap pargs ps', F.E
    ps' = f <$> filter (uPVar p ==) ps
    f q = q {pargs = pargs q ++ drop (length (pargs q)) (pargs $ uPVar p)}
 
-meetListWithPSubs :: (Foldable t, PPrint t1, F.Reftable b)
+meetListWithPSubs :: (Foldable t, PPrint t1, Reftable b)
                   => t (PVar t1) -> [(F.Symbol, RSort)] -> b -> b -> b
 meetListWithPSubs πs ss r1 r2    = L.foldl' (meetListWithPSub ss r1) r2 πs
 
-meetListWithPSubsRef :: (Foldable t, F.Reftable (RType t1 t2 t3))
+meetListWithPSubsRef :: (Foldable t, Reftable (RType t1 t2 t3))
                      => t (PVar t4)
                      -> [(F.Symbol, b)]
                      -> Ref τ (RType t1 t2 t3)
@@ -497,18 +497,18 @@ meetListWithPSubsRef :: (Foldable t, F.Reftable (RType t1 t2 t3))
                      -> Ref τ (RType t1 t2 t3)
 meetListWithPSubsRef πs ss r1 r2 = L.foldl' (meetListWithPSubRef ss r1) r2 πs
 
-meetListWithPSub ::  (F.Reftable r, PPrint t) => [(F.Symbol, RSort)]-> r -> r -> PVar t -> r
+meetListWithPSub ::  (Reftable r, PPrint t) => [(F.Symbol, RSort)]-> r -> r -> PVar t -> r
 meetListWithPSub ss r1 r2 π
   | all (\(_, x, F.EVar y) -> x == y) (pargs π)
-  = r2 `F.meet` r1
+  = r2 `meet` r1
   | all (\(_, x, F.EVar y) -> x /= y) (pargs π)
-  = r2 `F.meet` F.subst su r1
+  = r2 `meet` F.subst su r1
   | otherwise
   = panic Nothing $ "PredType.meetListWithPSub partial application to " ++ showpp π
   where
     su  = F.mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> ss) (pargs π)]
 
-meetListWithPSubRef :: (F.Reftable (RType t t1 t2))
+meetListWithPSubRef :: (Reftable (RType t t1 t2))
                     => [(F.Symbol, b)]
                     -> Ref τ (RType t t1 t2)
                     -> Ref τ (RType t t1 t2)
@@ -520,9 +520,9 @@ meetListWithPSubRef _ _ (RProp _ (RHole _)) _
   = panic Nothing "PredType.meetListWithPSubRef called with invalid input"
 meetListWithPSubRef ss (RProp s1 r1) (RProp s2 r2) π
   | all (\(_, x, F.EVar y) -> x == y) (pargs π)
-  = RProp s1 $ F.subst su' r2 `F.meet` r1
+  = RProp s1 $ F.subst su' r2 `meet` r1
   | all (\(_, x, F.EVar y) -> x /= y) (pargs π)
-  = RProp s2 $ r2 `F.meet` F.subst su r1
+  = RProp s2 $ r2 `meet` F.subst su r1
   | otherwise
   = panic Nothing $ "PredType.meetListWithPSubRef partial application to " ++ showpp π
   where

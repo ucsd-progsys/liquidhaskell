@@ -162,4 +162,4 @@ makeRef penv v rr
   where
     r                    = Pr [toUsedPVar penv rr]
 
-makeRef _    v p         = F.ofReft (F.Reft (val v, p))
+makeRef _    v p         = ofReft (F.Reft (val v, p))

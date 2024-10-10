@@ -366,7 +366,7 @@ strengthenRes st rf = go st
     go (RAllT a t r)   = RAllT a (go t) r
     go (RAllP p t)     = RAllP p $ go t
     go (RFun x i tx t r) = RFun x i tx (go t) r
-    go t               =  t `strengthen` F.ofReft rf
+    go t               =  t `strengthen` ofReft rf
 
 class Subable a where
   subst :: (Ghc.Var, Ghc.CoreExpr) -> a -> a

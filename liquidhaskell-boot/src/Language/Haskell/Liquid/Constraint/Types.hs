@@ -351,13 +351,13 @@ conjoinInvariantShift t1 t2
 conjoinInvariant :: SpecType -> SpecType -> SpecType
 conjoinInvariant (RApp c ts rs r) (RApp ic its _ ir)
   | c == ic && length ts == length its
-  = RApp c (zipWith conjoinInvariantShift ts its) rs (r `F.meet` ir)
+  = RApp c (zipWith conjoinInvariantShift ts its) rs (r `meet` ir)
 
 conjoinInvariant t@(RApp _ _ _ r) (RVar _ ir)
-  = t { rt_reft = r `F.meet` ir }
+  = t { rt_reft = r `meet` ir }
 
 conjoinInvariant t@(RVar _ r) (RVar _ ir)
-  = t { rt_reft = r `F.meet` ir }
+  = t { rt_reft = r `meet` ir }
 
 conjoinInvariant t _
   = t
@@ -386,7 +386,7 @@ makeRecInvariants γ [x] = γ {invs = M.unionWith (++) (invs γ) is}
 
     guard' (RApp c ts rs r)
       | Just f <- szFun <$> sizeFunction (rtc_info c)
-      = RApp c ts rs (MkUReft (ref f $ F.toReft r) mempty)
+      = RApp c ts rs (MkUReft (ref f $ toReft r) mempty)
       | otherwise
       = RApp c ts rs mempty
     guard' t

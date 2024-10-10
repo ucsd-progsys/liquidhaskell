@@ -53,7 +53,7 @@ makeSymbols f vs xs
 
 {-
 HEAD
-freeSymbols :: (F.Reftable r, F.Reftable r1, F.Reftable r2, TyConable c, TyConable c1, TyConable c2)
+freeSymbols :: (Reftable r, Reftable r1, F.Reftable r2, TyConable c, TyConable c1, TyConable c2)
             => [F.Symbol]
             -> [(a1, Located (RType c2 tv2 r2))]
             -> [(a, Located (RType c1 tv1 r1))]
@@ -69,18 +69,18 @@ freeSymbols xs' xts yts ivs =  [ lx | lx <- Misc.sortNub $ zs ++ zs' ++ zs'' , n
 
 
 -------------------------------------------------------------------------------
-freeSyms :: (F.Reftable r, TyConable c) => Located (RType c tv r) -> [LocSymbol]
+freeSyms :: (Reftable r, TyConable c) => Located (RType c tv r) -> [LocSymbol]
 -------------------------------------------------------------------------------
 freeSyms ty    = [ F.atLoc ty x | x <- tySyms ]
   where
     tySyms     = Misc.sortNub $ concat $ efoldReft (\_ _ -> True) False (\_ _ -> []) (const []) (const ()) f (const id) F.emptySEnv [] (val ty)
-    f γ _ r xs = let F.Reft (v, _) = F.toReft r in
+    f γ _ r xs = let F.Reft (v, _) = toReft r in
                  [ x | x <- F.syms r, x /= v, not (x `F.memberSEnv` γ)] : xs
 
 --- ABOVE IS THE T1773 STUFF
 --- BELOW IS THE develop-classes STUFF
 
--- freeSymbols :: (F.Reftable r, F.Reftable r1, F.Reftable r2, TyConable c, TyConable c1, TyConable c2)
+-- freeSymbols :: (Reftable r, Reftable r1, F.Reftable r2, TyConable c, TyConable c1, TyConable c2)
 --             => [F.Symbol]
 --             -> [(a1, Located (RType c2 tv2 r2))]
 --             -> [(a, Located (RType c1 tv1 r1))]
@@ -95,11 +95,11 @@ freeSyms ty    = [ F.atLoc ty x | x <- tySyms ]
 
 
 
--- freeSyms :: (F.Reftable r, TyConable c) => Located (RType c tv r) -> [LocSymbol]
+-- freeSyms :: (Reftable r, TyConable c) => Located (RType c tv r) -> [LocSymbol]
 -- freeSyms ty    = [ F.atLoc ty x | x <- tySyms ]
 --   where
 --     tySyms     = Misc.sortNub $ concat $ efoldReft (\_ _ -> True) False (\_ _ -> []) (\_ -> []) (const ()) f (const id) F.emptySEnv [] (val ty)
---     f γ _ r xs = let F.Reft (v, _) = F.toReft r in
+--     f γ _ r xs = let F.Reft (v, _) = toReft r in
 --                  [ x | x <- F.syms r, x /= v, not (x `F.memberSEnv` γ)] : xs
 
 -}
