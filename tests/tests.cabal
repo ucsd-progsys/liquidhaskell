@@ -2203,6 +2203,7 @@ executable basic-neg
                     , ReflExt02B
                     , ShadowLogicSymbols
                     , T1459
+                    , T2349
 
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
@@ -2278,6 +2279,7 @@ executable basic-pos
                     , ReflExt08B
                     , ShadowLogicSymbols
                     , SkipDerived00
+                    , T2349
                     , T2369
 
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
@@ -2449,6 +2451,9 @@ executable ple-pos
                     , T1424
                     , Tmp1
                     , Tmp
+                    , ReaderEta
+                    , SKIEta
+                    , FuseMap
 
     -- XXX(matt.walker): dies on lists on first compile in ghc 8107
     --                   ... and on GHC 9+ now too

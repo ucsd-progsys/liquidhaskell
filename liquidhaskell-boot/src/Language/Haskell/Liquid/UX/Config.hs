@@ -91,6 +91,7 @@ data Config = Config
   , oldPLE                   :: Bool       -- ^ Enable proof-by-logical-evaluation
   , interpreter              :: Bool       -- ^ Use an interpreter to assist PLE
   , proofLogicEvalLocal      :: Bool       -- ^ Enable proof-by-logical-evaluation locally, per function
+  , etabeta                  :: Bool       -- ^ Eta expand and beta reduce terms to aid PLE
   , extensionality           :: Bool       -- ^ Enable extensional interpretation of function equality
   , nopolyinfer              :: Bool       -- ^ No inference of polymorphic type application.
   , reflection               :: Bool       -- ^ Allow "reflection"; switches on "--higherorder" and "--exactdc"

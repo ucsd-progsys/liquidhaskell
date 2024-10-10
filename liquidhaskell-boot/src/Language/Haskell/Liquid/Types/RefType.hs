@@ -1312,10 +1312,6 @@ instance SubsTy RTyVar RSort RTyCon where
        ps'  = subt z <$> rTyConPVs c
        i    = rtc_info c
 
--- NOTE: This DOES NOT substitute at the binders
-instance SubsTy RTyVar RSort PrType where
-  subt (α, τ) = subsTyVarMeet (α, τ, ofRSort τ)
-
 instance SubsTy RTyVar RSort SpecType where
   subt (α, τ) = subsTyVarMeet (α, τ, ofRSort τ)
 
@@ -1615,6 +1611,7 @@ typeSort tce = go
     go (TyConApp c τs)
       | isNewTyCon c
       , not (isRecursivenewTyCon c)
+      , τs `lengthAtLeast` newTyConEtadArity c
       = go (Ghc.newTyConInstRhs c τs)
       | otherwise
       = tyConFTyCon tce c (go <$> τs)

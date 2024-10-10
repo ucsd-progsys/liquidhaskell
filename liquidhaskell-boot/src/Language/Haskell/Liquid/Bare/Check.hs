@@ -69,8 +69,8 @@ mkNonPosError tcs = [ ErrPosTyCon (getSrcSpan tc) (pprint tc) (pprint dc <+> ":"
 ----------------------------------------------------------------------------------------------
 -- | Checking BareSpec ------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------
-checkBareSpec :: ModName -> Ms.BareSpec -> Either Diagnostics ()
-checkBareSpec _ sp
+checkBareSpec :: Ms.BareSpec -> Either Diagnostics ()
+checkBareSpec sp
   | allChecks == emptyDiagnostics = Right ()
   | otherwise = Left allChecks
   where

@@ -57,6 +57,7 @@ fixConfig tgt cfg = def
   , FC.noslice                  = noslice           cfg
   , FC.rewriteAxioms            = Config.allowPLE   cfg
   , FC.pleWithUndecidedGuards   = Config.pleWithUndecidedGuards cfg
+  , FC.etabeta                  = Config.etabeta    cfg
   , FC.etaElim                  = not (exactDC cfg) && extensionality cfg -- SEE: https://github.com/ucsd-progsys/liquidhaskell/issues/1601
   , FC.extensionality           = extensionality    cfg
   , FC.interpreter              = interpreter    cfg

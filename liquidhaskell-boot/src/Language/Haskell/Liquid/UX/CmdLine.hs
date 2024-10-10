@@ -5,6 +5,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE NamedFieldPuns            #-}
 {-# LANGUAGE ViewPatterns              #-}
+{-# LANGUAGE LambdaCase                #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_GHC -Wwarn=deprecations #-}
@@ -383,6 +384,11 @@ config = cmdArgsMode $ Config {
         &= help "Enable Proof-by-Logical-Evaluation locally, per function"
         &= name "ple-local"
 
+  , etabeta
+    = def
+        &= help "Eta expand and beta reduce terms to aid PLE"
+        &= name "etabeta"
+
   , extensionality
     = def
         &= help "Enable extensional interpretation of function equality"
@@ -540,7 +546,9 @@ withSmtSolver cfg =
     missingSmtError smt = "Could not find SMT solver '" ++ show smt ++ "'. Is it on your PATH?"
 
 findSmtSolver :: FC.SMTSolver -> IO (Maybe FC.SMTSolver)
-findSmtSolver smt = maybe Nothing (const $ Just smt) <$> findExecutable (show smt)
+findSmtSolver = \case
+    FC.Z3mem -> return $ Just FC.Z3mem
+    smt      -> maybe Nothing (const $ Just smt) <$> findExecutable (show smt)
 
 fixConfig :: Config -> IO Config
 fixConfig config' = do
@@ -727,6 +735,7 @@ defConfig = Config
   , oldPLE                   = False
   , interpreter              = False
   , proofLogicEvalLocal      = False
+  , etabeta                  = False
   , reflection               = False
   , extensionality           = False
   , nopolyinfer              = False

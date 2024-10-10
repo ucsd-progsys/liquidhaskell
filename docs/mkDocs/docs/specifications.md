@@ -511,7 +511,7 @@ However, as they are *expanded* at compile time, `inline` functions
 If you want to talk about arbitrary (recursive) functions inside your types, 
 then you need to use `reflect` described [in the blog](tags.html#reflection).
 
-# Self-Invariants
+## Self-Invariants
 
 Sometimes, we require specifications that allow *inner* components of a
 type to refer to the *outer* components, typically, to measure-based
@@ -543,7 +543,7 @@ levels (or rather, to *reify* the connections between the two levels.) See
 [Data.Map.Base](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/benchmarks/esop2013-submission/Base.hs) for a complex one.
 
 
-# Abstract and Bounded Refinements
+## Abstract and Bounded Refinements
 
 This is probably the best example of the abstract refinement syntax:
 
@@ -560,7 +560,7 @@ The bounds correspond to Horn implications between abstract refinements,
 which, as in the classical setting, correspond to subtyping constraints
 that must be satisfied by the concrete refinements used at any call-site.
 
-# Dependent Pairs
+## Dependent Pairs
 
 Dependent Pairs are expressed by binding the initial tuples of the pair. For example
 `incrPair` defines an increasing pair.
@@ -571,8 +571,7 @@ Dependent Pairs are expressed by binding the initial tuples of the pair. For exa
 Internally dependent pairs are implemented using abstract refinement types.
 That is `(x::a, {v:b | p x})` desugars to `(a,b)<\x -> {v:b | p x}>`.
 
-Invariants
-==========
+## Invariants
 
 LH lets you locally associate invariants with specific data types.
 
@@ -608,7 +607,7 @@ constructors (ie., `:` and `[]`) satisfy it.(TODO!) Then, LiquidHaskell
 assumes that each list element that is created satisfies
 this invariant.
 
-# Rewriting
+## Rewriting
 
 **Status:** `experimental`
 
@@ -658,17 +657,17 @@ to ensure that rewriting rules that will always diverge do not get instantiated.
 However, it's possible that applying a combination of rewrite rules could cause
 divergence.
 
-# Formal Grammar of Refinement Predicates
+## Formal Grammar of Refinement Predicates
 
-## (C)onstants
+### (C)onstants
 
     c := 0, 1, 2, ...
 
-## (V)ariables
+### (V)ariables
 
     v := x, y, z, ...
 
-## (E)xpressions
+### (E)xpressions
 
     e := v                      -- variable
        | c                      -- constant
@@ -678,7 +677,7 @@ divergence.
        | (v e1 e2 ... en)       -- uninterpreted function application
        | (if p then e else e)   -- if-then-else
 
-## (R)elations
+### (R)elations
 
     r := ==               -- equality
        | /=               -- disequality
@@ -687,7 +686,7 @@ divergence.
        | >                -- greater than
        | <                -- less than
 
-## (P)redicates
+### (P)redicates
 
     p := (e r e)          -- binary relation
        | (v e1 e2 ... en) -- predicate (or alias) application
@@ -698,11 +697,11 @@ divergence.
        | true
        | false
 
-# Specifying Qualifiers
+## Specifying Qualifiers
 
 There are several ways to specify qualifiers.
 
-## By Separate `.hquals` Files
+### By Separate `.hquals` Files
 
 You can write qualifier files e.g. [Prelude.hquals](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/include/Prelude.hquals)..
 
@@ -714,7 +713,7 @@ Then the system automatically searches for
 
     include/Foo/Bar/Baz.hquals
 
-## By Including `.hquals` Files
+### By Including `.hquals` Files
 
 Additional qualifiers may be used by adding lines of the form:
 
@@ -723,7 +722,7 @@ Additional qualifiers may be used by adding lines of the form:
 to the Haskell source. See, [this](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Meas5.hs) for example.
 
 
-## In Haskell Source or Spec Files
+### In Haskell Source or Spec Files
 
 Finally, you can specifiers directly inside source (.hs or .lhs) or spec (.spec)
 files by writing as shown [here](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/QualTest.hs)
@@ -739,13 +738,13 @@ the specifications you write i.e.
 3. data constructor definitions.
 
 
-# Termination Metrics
+## Termination Metrics
 
 In recursive functions the *first* algebraic or integer argument should be decreasing.
 
 The default decreasing measure for lists is length and Integers its value.
 
-## Default Termination Metrics
+### Default Termination Metrics
 
 The user can specify the *size* of a data-type in the data definition
 
@@ -772,7 +771,7 @@ A default termination metric is a Haskell function that is proved terminating
 using structural induction. To deactivate structional induction check on the 
 termination metric, use the `--trust-sizes` flag. 
 
-## Explicit Termination Metrics
+### Explicit Termination Metrics
 
 However, consider the function `reverse`:
 
@@ -802,7 +801,7 @@ Decreasing expressions can be arbitrary refinement expressions, e.g.,
 states that at each recursive call of `merge` the _sum of the lengths_
 of its arguments will decrease.
 
-## Lexicographic Termination Metrics
+### Lexicographic Termination Metrics
 
 Some functions do not decrease on a single argument, but rather a
 combination of arguments, e.g. the Ackermann function.
@@ -828,7 +827,7 @@ As an example, you can give `ack` a type
 
 stating that the *numeric* expressions `[m, n]` are lexicographically decreasing.
 
-## Mutually Recursive Functions
+### Mutually Recursive Functions
 
 When dealing with mutually recursive functions you may run into a
 situation where the decreasing parameter must be measured *across* a
@@ -862,7 +861,7 @@ termination annotation as shown above.
 See [tests/pos/mutrec.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Mutrec.hs)
 for the full example.
 
-## Automatic Termination Metrics
+### Automatic Termination Metrics
 
 Apart from specifying a specific decreasing measure for
 an Algebraic Data Type, the user can specify that the ADT
@@ -894,7 +893,7 @@ invariant  {v:L a| autosize v >= 0 }
 This information is all LiquidHaskell needs to prove termination
 on functions that recurse on `L a` (on ADTs in general.)
 
-## Disabling Termination Checking
+### Disabling Termination Checking
 
 To *disable* termination checking for `foo` that is,
 to *assume* that it is terminating (possibly for some
@@ -905,7 +904,7 @@ you can write
 {-@ lazy foo @-}
 ```
 
-# Relational Types
+## Relational Types
 
 **Status:** `experimental`
 

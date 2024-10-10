@@ -55,10 +55,15 @@ import qualified Language.Haskell.Liquid.Bare.Plugged  as Bare
 -- | `makeRTEnv` initializes the env needed to `expand` refinements and types,
 --   that is, the below needs to be called *before* we use `Expand.expand`
 --------------------------------------------------------------------------------
-makeRTEnv :: Bare.Env -> ModName -> Ms.BareSpec -> Bare.ModSpecs -> LogicMap
-          -> BareRTEnv
+makeRTEnv
+  :: Bare.Env
+  -> ModName
+  -> Ms.BareSpec
+  -> [(ModName, Ms.BareSpec)]
+  -> LogicMap
+  -> BareRTEnv
 --------------------------------------------------------------------------------
-makeRTEnv env modName mySpec iSpecs lmap
+makeRTEnv env modName mySpec dependencySpecs lmap
           = renameRTArgs $ makeRTAliases tAs $ makeREAliases eAs
   where
     tAs   = [ t                   | (_, s)  <- specs, t <- Ms.aliases  s ]
@@ -70,7 +75,7 @@ makeRTEnv env modName mySpec iSpecs lmap
                                               -- elaborated
               else [ specREAlias env modName e | (_, xl) <- M.toList (lmSymDefs lmap)
                                   , let e    = lmapEAlias xl             ]
-    specs = (modName, mySpec) : M.toList iSpecs
+    specs = (modName, mySpec) : dependencySpecs
 
 -- | We apply @renameRTArgs@ *after* expanding each alias-definition, to
 --   ensure that the substitutions work properly (i.e. don't miss expressions

@@ -82,8 +82,6 @@ import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Types hiding (Spec)
 import Language.Haskell.Liquid.UX.Tidy
 
-import qualified Debug.Trace as Debug
-
 
 --------------------------------------------------------------------------------
 -- | Extract Ids ---------------------------------------------------------------
@@ -158,19 +156,16 @@ _impThings vars  = filter ok
     ok _        = True
 
 allImports :: [LImportDecl GhcRn] -> S.HashSet Symbol
-allImports = \case
-  []-> Debug.trace "WARNING: Missing RenamedSource" mempty
-  imps -> S.fromList (symbol . unLoc . ideclName . unLoc <$> imps)
+allImports imps = S.fromList (symbol . unLoc . ideclName . unLoc <$> imps)
 
 qualifiedImports :: [LImportDecl GhcRn] -> QImports
-qualifiedImports = \case
-  []   -> Debug.trace "WARNING: Missing RenamedSource" (qImports mempty)
-  imps -> qImports [ (qn, n) | i         <- imps
-                                          , let decl   = unLoc i
-                                          , let m      = unLoc (ideclName decl)
-                                          , qm        <- maybeToList (unLoc <$> ideclAs decl)
-                                          , let [n,qn] = symbol <$> [m, qm]
-                                          ]
+qualifiedImports imps =
+  qImports [ (qn, n) | i         <- imps
+                                  , let decl   = unLoc i
+                                  , let m      = unLoc (ideclName decl)
+                                  , qm        <- maybeToList (unLoc <$> ideclAs decl)
+                                  , let [n,qn] = symbol <$> [m, qm]
+                                  ]
 
 qImports :: [(Symbol, Symbol)] -> QImports
 qImports qns  = QImports
