@@ -2280,6 +2280,7 @@ executable basic-pos
                     , ShadowLogicSymbols
                     , SkipDerived00
                     , T2349
+                    , T2369
 
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
