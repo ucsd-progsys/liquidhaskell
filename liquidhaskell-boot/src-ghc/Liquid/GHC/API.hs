@@ -248,6 +248,7 @@ import GHC.Core                       as Ghc
     , maybeUnfoldingTemplate
     , mkApps
     , mkLams
+    , mkLets
     , mkTyApps
     , mkTyArg
     )
