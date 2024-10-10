@@ -85,7 +85,6 @@ library
                       Language.Haskell.Liquid.Transforms.Rewrite
                       Language.Haskell.Liquid.Transforms.Simplify
                       Language.Haskell.Liquid.Transforms.InlineAux
-                      Language.Haskell.Liquid.Types
                       Language.Haskell.Liquid.Types.Bounds
                       Language.Haskell.Liquid.Types.DataDecl
                       Language.Haskell.Liquid.Types.Dictionaries
