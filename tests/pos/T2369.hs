@@ -1,4 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE RankNTypes        #-}
 {- OPTIONS -fplugin=LiquidHaskellBoot #-}
 module T2369 where
 

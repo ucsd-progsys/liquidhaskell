@@ -1130,8 +1130,6 @@ mkRApp :: (Eq tv, Hashable tv, Reftable r, TyConable c,
 mkRApp m s c ts rs r r'
   | isFun c, [_m, _rep1, _rep2, t1, t2] <- ts
   = RFun dummySymbol defRFInfo t1 t2 (refAppTyToFun r')
-  | isFun c, [_rep1, _rep2, t1, t2] <- ts
-  = RFun dummySymbol defRFInfo t1 t2 (refAppTyToFun r')
   | otherwise
   = subsFrees m s zs (RApp c ts rs (r `meet` r'))
   where
