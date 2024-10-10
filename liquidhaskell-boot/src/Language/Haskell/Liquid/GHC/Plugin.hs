@@ -242,6 +242,8 @@ unoptimiseDynFlags df = updOptLevel 0 df
 --   only a 'TcGblEnv', so we have to redo typechecking there. And
 --   the input to that needs to be a 'ParsedModule'.
 --
+-- LH used to reparse the module in the typechecker hook, but that doesn't work when
+-- the source code is not fed from a file (See #2357).
 parsedHook :: [CommandLineOption] -> ModSummary -> ParsedResult -> Hsc ParsedResult
 parsedHook _ ms parsedResult = parsedResult <$ do
   breadcrumb <- swapBreadcrumb thisModule $ Just (Parsed parsed)
