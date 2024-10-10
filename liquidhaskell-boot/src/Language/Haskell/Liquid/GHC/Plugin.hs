@@ -6,6 +6,7 @@
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
+{-# LANGUAGE LambdaCase                 #-}
 
 module Language.Haskell.Liquid.GHC.Plugin (
 
@@ -40,17 +41,23 @@ import           GHC.LanguageExtensions
 import           Control.Monad
 import qualified Control.Monad.Catch as Ex
 import           Control.Monad.IO.Class (MonadIO)
+import           Control.Monad.Catch                        (bracket)
 
 import           Data.Coerce
 import           Data.Function                            ((&))
 import qualified Data.List                               as L
+import           Data.Maybe
+import           Data.IORef
 import qualified Data.Set                                as S
 import           Data.Set                                 ( Set )
+import qualified Data.Map                                as M
+import           Data.Map                                 ( Map )
 
 
 import qualified Data.HashSet                            as HS
 import qualified Data.HashMap.Strict                     as HM
 
+import           System.IO.Unsafe                         ( unsafePerformIO )
 import           Language.Fixpoint.Types           hiding ( errs
                                                           , panic
                                                           , Error
@@ -94,8 +101,9 @@ debugLog msg = when debugLogs $ liftIO (putStrLn msg)
 
 plugin :: GHC.Plugin
 plugin = GHC.defaultPlugin {
-    typeCheckResultAction = liquidPlugin
-  , driverPlugin          = lhDynFlags
+    driverPlugin          = lhDynFlags
+  , parsedResultAction    = parsedHook
+  , typeCheckResultAction = liquidPlugin
   , pluginRecompile       = purePlugin
   }
   where
@@ -138,6 +146,27 @@ plugin = GHC.defaultPlugin {
                 pure newGblEnv'
 
 --------------------------------------------------------------------------------
+-- | Inter-phase communication -------------------------------------------------
+--------------------------------------------------------------------------------
+--
+-- Since we have no good way of passing extra data between different
+-- phases of our plugin, we resort to horrible global mutable state.
+
+data Breadcrumb
+  = Parsed ParsedModule
+  | Typechecking
+
+breadcrumbs :: IORef (Map Module Breadcrumb)
+breadcrumbs = unsafePerformIO $ newIORef mempty
+{-# NOINLINE breadcrumbs #-}
+
+{- HLINT ignore "Use tuple-section" -}
+swapBreadcrumb :: (MonadIO m) => Module -> Maybe Breadcrumb -> m (Maybe Breadcrumb)
+swapBreadcrumb mod new = liftIO $ atomicModifyIORef' breadcrumbs $ \breadcrumbs ->
+  let (old, breadcrumbs') = M.alterF (\old -> (old, new)) mod breadcrumbs
+  in (breadcrumbs', old)
+
+--------------------------------------------------------------------------------
 -- | GHC Configuration & Setup -------------------------------------------------
 --------------------------------------------------------------------------------
 
@@ -153,17 +182,18 @@ lhDynFlags _ hscEnv =
            -- This needs to be active before the plugin runs, so pragmas are
            -- read at the time the interface files are loaded.
            `gopt_unset` Opt_IgnoreInterfacePragmas
+           -- We need the GHC lexer not to throw away block comments,
+           -- as this is where the LH spec comments would live. This
+           -- is why we set the 'Opt_KeepRawTokenStream' option.
+           `gopt_set` Opt_KeepRawTokenStream
       }
 
--- | Overrides the default 'DynFlags' options. Specifically, we need the GHC
--- lexer not to throw away block comments, as this is where the LH spec comments
--- would live. This is why we set the 'Opt_KeepRawTokenStream' option.
+-- | Overrides the default 'DynFlags' options.
 customDynFlags :: DynFlags -> DynFlags
 customDynFlags df =
     df `gopt_set` Opt_ImplicitImportQualified
        `gopt_set` Opt_PIC
        `gopt_set` Opt_DeferTypedHoles
-       `gopt_set` Opt_KeepRawTokenStream
        `xopt_set` MagicHash
        `xopt_set` DeriveGeneric
        `xopt_set` StandaloneDeriving
@@ -197,6 +227,38 @@ unoptimiseDynFlags df = updOptLevel 0 df
     }
 
 --------------------------------------------------------------------------------
+-- | Parsing phase -------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+-- | We hook at this stage of the pipeline to store the parsed module
+-- for later processing during typechecking:
+--
+-- * Comments are preserved during parsing because we turn on
+--   'Opt_KeepRawTokenStream'. So we can get the /LH/ specs from there.
+--
+-- * The typechecker hook needs to do desugaring itself (see the
+--   comment on 'typecheckHook') which requires access to a full
+--   'TypecheckedModule'. Annoyingly, the typechecker hook is given
+--   only a 'TcGblEnv', so we have to redo typechecking there. And
+--   the input to that needs to be a 'ParsedModule'.
+--
+-- LH used to reparse the module in the typechecker hook, but that doesn't work when
+-- the source code is not fed from a file (See #2357).
+parsedHook :: [CommandLineOption] -> ModSummary -> ParsedResult -> Hsc ParsedResult
+parsedHook _ ms parsedResult = parsedResult <$ do
+  breadcrumb <- swapBreadcrumb thisModule $ Just (Parsed parsed)
+  unless (isNothing breadcrumb) $ error "parsedHook: reentry?"
+  where
+    thisModule = ms_mod ms
+
+    parsed = ParsedModule
+      { pm_mod_summary = ms
+      , pm_parsed_source = hpm_module . parsedResultModule $ parsedResult
+      , pm_extra_src_files = hpm_src_files . parsedResultModule $ parsedResult
+      }
+
+
+--------------------------------------------------------------------------------
 -- | Typechecking phase --------------------------------------------------------
 --------------------------------------------------------------------------------
 
@@ -212,8 +274,28 @@ unoptimiseDynFlags df = updOptLevel 0 df
 --    grab from parsing (again) the module by using the GHC API, so we are really
 --    independent from the \"normal\" compilation pipeline.
 --
-typecheckHook :: Config -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
-typecheckHook cfg0 modSummary0 tcGblEnv = do
+typecheckHook  :: Config -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
+typecheckHook cfg0 modSummary0 tcGblEnv = bracket startTypechecking endTypechecking $ \case
+  Just Typechecking -> do
+    -- We're being called from the `typecheckModuleIO` call in `typecheckHook`, so we avoid looping
+    pure $ Right tcGblEnv
+  Just (Parsed parsed0) -> do
+    typecheckHook' cfg0 modSummary0 parsed0 tcGblEnv
+  Nothing -> do
+    error "typecheckHook: how did we get here without a breadcrumb?!"
+  where
+    thisModule = tcg_mod tcGblEnv
+
+    -- The LH plugin itself calls the type checker (see call to
+    -- `typecheckModuleIO` in `typecheckHook`).  This would lead to a
+    -- loop if we didn't disable the typechecker plugin.
+    startTypechecking = swapBreadcrumb thisModule $ Just Typechecking
+    endTypechecking = \case
+        Just Parsed{} -> void $ swapBreadcrumb thisModule Nothing
+        _ -> pure ()
+
+typecheckHook' :: Config -> ModSummary -> ParsedModule -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
+typecheckHook' cfg0 modSummary0 parsed0 tcGblEnv = do
   debugLog $ "We are in module: " <> show (toStableModule thisModule)
   let modSummary =
         updateModSummaryDynFlags (customDynFlags . unoptimiseDynFlags) modSummary0
@@ -221,7 +303,6 @@ typecheckHook cfg0 modSummary0 tcGblEnv = do
 
   env0 <- env_top <$> getEnv
   let env = env0 { hsc_dflags = ms_hspp_opts modSummary }
-  parsed0 <- liftIO $ parseModuleIO env (LH.keepRawTokenStream modSummary)
   let specComments = map mkSpecComment $ LH.extractSpecComments parsed0
       parsed = addNoInlinePragmasToLocalBinds parsed0
 
@@ -236,10 +317,7 @@ typecheckHook cfg0 modSummary0 tcGblEnv = do
             parsed2 = parsed { pm_mod_summary = modSummary2 }
             env2 = env { hsc_dflags = ms_hspp_opts modSummary2 }
 
-        -- The LH plugin itself calls the type checker (see following line). This
-        -- would lead to a loop if we didn't remove the plugin when calling the type
-        -- checker.
-        typechecked     <- liftIO $ typecheckModuleIO (dropPlugins env2) (LH.ignoreInline parsed2)
+        typechecked     <- liftIO $ typecheckModuleIO env2 (LH.ignoreInline parsed2)
         resolvedNames   <- liftIO $ LH.lookupTyThings env2 tcGblEnv
         availTyCons     <- liftIO $ LH.availableTyCons env2 tcGblEnv (tcg_exports tcGblEnv)
         availVars       <- liftIO $ LH.availableVars env2 tcGblEnv (tcg_exports tcGblEnv)
@@ -255,8 +333,6 @@ typecheckHook cfg0 modSummary0 tcGblEnv = do
   where
     thisModule :: Module
     thisModule = tcg_mod tcGblEnv
-
-    dropPlugins hsc_env = hsc_env { hsc_plugins = emptyPlugins }
 
     continue = pure $ Left (ErrorsOccurred [])
 
