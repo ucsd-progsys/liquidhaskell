@@ -20,9 +20,12 @@ import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types.PrettyPrint ()
 import qualified Language.Haskell.Liquid.GHC.Misc       as GM
 import qualified Liquid.GHC.API        as Ghc
-import           Language.Haskell.Liquid.Types.Types
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
 -- import           Language.Haskell.Liquid.Types.Visitors (freeVars)
 import           Language.Haskell.Liquid.Types.RefType ()
+import           Language.Haskell.Liquid.Types.Types
 import           Language.Fixpoint.Misc                (mapFst)
 import qualified Data.HashMap.Strict                       as M
 

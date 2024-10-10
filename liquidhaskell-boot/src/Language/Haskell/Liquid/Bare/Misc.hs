@@ -27,6 +27,7 @@ import qualified Data.List                             as L
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.Types
 
 -- import           Language.Haskell.Liquid.Bare.Env

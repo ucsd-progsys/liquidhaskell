@@ -13,15 +13,12 @@
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
--- | This module should contain all the global type definitions and basic instances.
+-- | Core types
 
 module Language.Haskell.Liquid.Types.Types (
 
-  -- * Options
-    module Language.Haskell.Liquid.UX.Config
-
   -- * Ghc Information
-  , TyConMap     (..)
+    TyConMap     (..)
 
   -- * F.Located Things
   , F.Located (..)
@@ -37,7 +34,6 @@ module Language.Haskell.Liquid.Types.Types (
 
   -- * Refinement Types
   , RTAlias (..)
-  , OkRT
   , lmapEAlias
 
   -- * Classes describing operations on `RTypes`
@@ -83,7 +79,6 @@ module Language.Haskell.Liquid.Types.Types (
   -- , mapRT, mapRE
 
   -- * Diagnostics, Warnings, Errors and Error Messages
-  , module Language.Haskell.Liquid.Types.Errors
   , Error
   , ErrorResult
   , Warning
@@ -132,13 +127,7 @@ module Language.Haskell.Liquid.Types.Types (
 
   , Axiom(..), HAxiom
 
-  -- * Refined Function Info
-  , classRFInfoType
-
   , ordSrcSpan
-  , module Language.Haskell.Liquid.Types.DataDecl
-  , module Language.Haskell.Liquid.Types.RType
-  , module Language.Haskell.Liquid.Types.RTypeOp
   )
   where
 
@@ -188,12 +177,9 @@ import           Language.Fixpoint.Types (Expr, Symbol)
 
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.GHC.Logging as GHC
-import           Language.Haskell.Liquid.Types.DataDecl
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.RType
-import           Language.Haskell.Liquid.Types.RTypeOp
 import           Language.Haskell.Liquid.Misc
-import           Language.Haskell.Liquid.UX.Config
 
 
 -----------------------------------------------------------------------------
@@ -204,11 +190,6 @@ data TyConMap = TyConMap
   , tcmFIRTy    :: M.HashMap (TyCon, [F.Sort]) RTyCon  -- ^ Map from GHC Family-Instances to RTyCon
   , tcmFtcArity :: M.HashMap TyCon             Int     -- ^ Arity of each Family-Tycon
   }
-
-classRFInfoType :: Bool -> RType c tv r -> RType c tv r
-classRFInfoType b = fromRTypeRep .
-                    (\trep@RTypeRep{..} -> trep{ty_info = map (\i -> i{permitTC = pure b}) ty_info}) .
-                    toRTypeRep
 
 -----------------------------------------------------------------------------
 -- | Relational predicates --------------------------------------------------
@@ -238,16 +219,6 @@ type SpecRTAlias = RTAlias RTyVar SpecType
 
 class SubsTy tv ty a where
   subt :: (tv, ty) -> a -> a
-
--- Should just make this a @Pretty@ instance but its too damn tedious
--- to figure out all the constraints.
-
-type OkRT c tv r = ( TyConable c
-                   , F.PPrint tv, F.PPrint c, F.PPrint r
-                   , Reftable r, Reftable (RTProp c tv ()), Reftable (RTProp c tv r)
-                   , Eq c, Eq tv
-                   , Hashable tv
-                   )
 
 -- [NOTE:LIFTED-VAR-SYMBOLS]: Following NOTE:REFLECT-IMPORTS, by default
 -- each (lifted) `Var` is mapped to its `Symbol` via the `Symbolic Var`
@@ -922,9 +893,6 @@ hasHole = any isHole . F.conjuncts . F.reftPred . toReft
 instance F.Symbolic DataCon where
   symbol = F.symbol . dataConWorkId
 
-instance F.PPrint DataCon where
-  pprintTidy _ = text . showPpr
-
 instance Ord TyCon where
   compare = compare `on` F.symbol
 
@@ -933,9 +901,6 @@ instance Ord DataCon where
 
 instance F.PPrint TyThing where
   pprintTidy _ = text . showPpr
-
-instance Show DataCon where
-  show = F.showpp
 
 -- instance F.Symbolic TyThing where
 --  symbol = tyThingSymbol

@@ -39,8 +39,17 @@ import qualified Text.PrettyPrint.HughesPJ              as PJ
 import           Text.PrettyPrint.HughesPJ.Compat       ((<+>))
 import           Language.Fixpoint.Types                hiding (panic, SVar, DDecl, DataDecl, DataCtor (..), Error, R, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc       hiding (getSourcePos)
-import           Language.Haskell.Liquid.Types
--- import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.Bounds
+import           Language.Haskell.Liquid.Types.DataDecl
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.Names
+import           Language.Haskell.Liquid.Types.PredType
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types.RTypeOp
+import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.Types.Types
+import           Language.Haskell.Liquid.Types.Variance
 import qualified Language.Fixpoint.Misc                 as Misc
 import qualified Language.Haskell.Liquid.Misc           as Misc
 import qualified Language.Haskell.Liquid.Measure        as Measure

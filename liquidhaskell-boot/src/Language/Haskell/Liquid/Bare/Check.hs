@@ -37,13 +37,23 @@ import qualified Language.Fixpoint.Types                   as F
 import qualified Language.Haskell.Liquid.GHC.Misc          as GM
 import           Language.Haskell.Liquid.GHC.Play          (getNonPositivesTyCon)
 import           Language.Haskell.Liquid.Misc              (condNull, thd5)
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.DataDecl
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.PredType
+import           Language.Haskell.Liquid.Types.PrettyPrint
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types.RTypeOp
+import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.Types.Types
+import           Language.Haskell.Liquid.Types.Visitors
 import           Language.Haskell.Liquid.WiredIn
 import           Language.Haskell.Liquid.LawInstances      (checkLawInstances)
 
 import qualified Language.Haskell.Liquid.Measure           as Ms
 import qualified Language.Haskell.Liquid.Bare.Types        as Bare
 import qualified Language.Haskell.Liquid.Bare.Resolve      as Bare
+import           Language.Haskell.Liquid.UX.Config
 
 
 ----------------------------------------------------------------------------------------------

@@ -20,9 +20,14 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Solver
 import qualified Language.Fixpoint.Types as F
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.Types.Types
+import           Language.Haskell.Liquid.Types.Visitors
 import           Language.Haskell.Liquid.UX.Errors
 import           Language.Haskell.Liquid.UX.CmdLine
+import           Language.Haskell.Liquid.UX.Config
 import           Language.Haskell.Liquid.UX.Tidy
 import           Language.Haskell.Liquid.GHC.Misc (showCBs, ignoreCoreBinds) -- howPpr)
 import           Language.Haskell.Liquid.Constraint.Generate

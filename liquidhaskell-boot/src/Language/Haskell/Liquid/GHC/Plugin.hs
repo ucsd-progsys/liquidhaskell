@@ -68,9 +68,14 @@ import           Language.Fixpoint.Types           hiding ( errs
 import qualified Language.Haskell.Liquid.Measure         as Ms
 import           Language.Haskell.Liquid.Parse
 import           Language.Haskell.Liquid.Transforms.ANF
-import           Language.Haskell.Liquid.Types     hiding ( getConfig )
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.PrettyPrint
+import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.Types.Types
+import           Language.Haskell.Liquid.Types.Visitors
 import           Language.Haskell.Liquid.Bare
 import           Language.Haskell.Liquid.UX.CmdLine
+import           Language.Haskell.Liquid.UX.Config
 
 -- | Represents an abnormal but non-fatal state of the plugin. Because it is not
 -- meant to escape the plugin, it is not thrown in IO but instead carried around

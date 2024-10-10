@@ -71,6 +71,10 @@ import qualified Language.Fixpoint.Misc                as Misc
 import qualified Liquid.GHC.API       as Ghc
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 import qualified Language.Haskell.Liquid.Misc          as Misc
+import           Language.Haskell.Liquid.Types.DataDecl
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Measure       (BareSpec)
@@ -78,6 +82,7 @@ import           Language.Haskell.Liquid.Types.Specs   hiding (BareSpec)
 import           Language.Haskell.Liquid.Types.Visitors
 import           Language.Haskell.Liquid.Bare.Types
 import           Language.Haskell.Liquid.Bare.Misc
+import           Language.Haskell.Liquid.UX.Config
 import           Language.Haskell.Liquid.WiredIn
 
 myTracepp :: (F.PPrint a) => String -> a -> a

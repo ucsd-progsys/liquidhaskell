@@ -13,7 +13,7 @@ import Prelude hiding (error)
 
 import Data.List (partition)
 
-import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Types.RType
 import Language.Haskell.Liquid.Types.PrettyPrint ()
 
 import Language.Fixpoint.Types hiding (Predicate)

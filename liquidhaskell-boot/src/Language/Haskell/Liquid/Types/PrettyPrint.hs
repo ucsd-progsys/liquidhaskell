@@ -55,7 +55,6 @@ import           Liquid.GHC.API  as Ghc ( Class
                                                          , Var
                                                          , Name
                                                          , SourceError
-                                                         , TyCon
                                                          , topPrec
                                                          , funPrec
                                                          , srcSpanStartLine
@@ -64,7 +63,11 @@ import           Liquid.GHC.API  as Ghc ( Class
 import           Language.Haskell.Liquid.GHC.Logging
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
 import           Language.Haskell.Liquid.Types.Types
+import           Language.Haskell.Liquid.UX.Config
 import           Prelude                          hiding (error)
 import           Text.PrettyPrint.HughesPJ        hiding ((<>))
 
@@ -112,10 +115,6 @@ instance PPrint (Ghc.Bind Var) where
 
 instance PPrint Name where
   pprintTidy _ = pprDoc
-
-instance PPrint TyCon where
-  pprintTidy F.Lossy = shortModules . pprDoc
-  pprintTidy F.Full  =                pprDoc
 
 instance PPrint Type where
   pprintTidy _ = pprDoc -- . tidyType emptyTidyEnv -- WHY WOULD YOU DO THIS???

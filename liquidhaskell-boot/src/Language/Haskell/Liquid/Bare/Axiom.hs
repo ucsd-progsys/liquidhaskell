@@ -29,11 +29,17 @@ import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Transforms.CoreToLogic
 import           Language.Haskell.Liquid.GHC.Misc
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.Names
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
+import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.Types.Types
 
 import           Language.Haskell.Liquid.Bare.Resolve as Bare
 import           Language.Haskell.Liquid.Bare.Types   as Bare
 import           Language.Haskell.Liquid.Bare.Measure as Bare
+import           Language.Haskell.Liquid.UX.Config
 import qualified Data.List as L
 import Language.Haskell.Liquid.Misc (fst4)
 import Control.Applicative

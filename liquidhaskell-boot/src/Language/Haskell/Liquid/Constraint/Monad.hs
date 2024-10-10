@@ -11,7 +11,10 @@ import qualified Data.Text           as T
 
 import           Control.Monad
 import           Control.Monad.State (gets, modify)
-import           Language.Haskell.Liquid.Types hiding (loc)
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Fixpoint.Misc hiding (errorstar)

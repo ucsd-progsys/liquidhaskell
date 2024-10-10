@@ -32,7 +32,6 @@ module Language.Haskell.Liquid.Types.PredType (
   ) where
 
 import           Prelude                         hiding (error)
-import           Text.PrettyPrint.HughesPJ
 import           Liquid.GHC.API hiding ( panic
                                                         , (<+>)
                                                         , hsep
@@ -55,7 +54,11 @@ import qualified Language.Fixpoint.Types                    as F
 import qualified Liquid.GHC.API            as Ghc
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
+import           Language.Haskell.Liquid.Types.DataDecl
+import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.RefType hiding (generalize)
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
 import           Language.Haskell.Liquid.Types.Types
 
 makeTyConInfo :: F.TCEmb Ghc.TyCon -> [Ghc.TyCon] -> [TyConP] -> TyConMap
@@ -193,38 +196,7 @@ dcWrapSpecType allowTC dc (DataConP _ _ vs ps cs yts rt _ _ _)
     rt'      = F.subst subst rt
     makeVars = filter (`elem` fvs) $ zipWith (\v a -> RTVar v (rTVarInfo a :: RTVInfo RSort)) vs (fst $ splitForAllTyCoVars $ dataConRepType dc)
     makeVars' = map (, mempty) makeVars 
-    fvs = freeTyVars $ mkArrow [] ps ts' rt'  
-
-instance PPrint TyConP where
-  pprintTidy k tc = "data" <+> pprintTidy k (tcpCon tc)
-                           <+> ppComm     k (tcpFreeTyVarsTy tc)
-                           <+> ppComm     k (tcpFreePredTy   tc)
-      --  (parens $ hsep (punctuate comma (pprintTidy k <$> vs))) <+>
-      -- (parens $ hsep (punctuate comma (pprintTidy k <$> ps))) <+>
-      -- (parens $ hsep (punctuate comma (pprintTidy k <$> ls)))
-
-ppComm :: PPrint a => F.Tidy -> [a] -> Doc
-ppComm k = parens . hsep . punctuate comma . fmap (pprintTidy k)
-
-
-
-
-instance Show TyConP where
- show = showpp -- showSDoc . ppr
-
-instance PPrint DataConP where
-  pprintTidy k (DataConP _ dc vs ps cs yts t isGadt mname _)
-     =  pprintTidy k dc
-    <+> parens (hsep (punctuate comma (pprintTidy k <$> vs)))
-    <+> parens (hsep (punctuate comma (pprintTidy k <$> ps)))
-    <+> parens (hsep (punctuate comma (pprintTidy k <$> cs)))
-    <+> parens (hsep (punctuate comma (pprintTidy k <$> yts)))
-    <+> pprintTidy k isGadt
-    <+> pprintTidy k mname
-    <+>  pprintTidy k t
-
-instance Show DataConP where
-  show = showpp
+    fvs = freeTyVars $ mkArrow [] ps ts' rt'
 
 dataConTy :: Monoid r
           => M.HashMap RTyVar (RType RTyCon RTyVar r)

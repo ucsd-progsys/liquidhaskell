@@ -16,9 +16,10 @@ import           Language.Fixpoint.Misc (mapSnd)
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.GHC.Misc
 import           Liquid.GHC.API
-import           Language.Haskell.Liquid.Types
--- import           Language.Haskell.Liquid.Measure
--- import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.Types.Types
 
 --------------------------------------------------------------------------------
 specToBare :: SpecType -> BareType

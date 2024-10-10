@@ -217,3 +217,23 @@ ppVars k as = "forall" <+> hcat (punctuate " " (F.pprintTidy k <$> as)) <+> "."
 
 ppFields :: (F.PPrint k, F.PPrint v) => F.Tidy -> Doc -> [(k, v)] -> Doc
 ppFields k sep' kvs = hcat $ punctuate sep' (F.pprintTidy k <$> kvs)
+
+instance F.PPrint SpecType => F.PPrint DataConP where
+  pprintTidy k (DataConP _ dc vs ps cs yts t isGadt mname _)
+     =  F.pprintTidy k dc
+    <+> parens (hsep (punctuate comma (F.pprintTidy k <$> vs)))
+    <+> parens (hsep (punctuate comma (F.pprintTidy k <$> ps)))
+    <+> parens (hsep (punctuate comma (F.pprintTidy k <$> cs)))
+    <+> parens (hsep (punctuate comma (F.pprintTidy k <$> yts)))
+    <+> F.pprintTidy k isGadt
+    <+> F.pprintTidy k mname
+    <+> F.pprintTidy k t
+
+instance F.PPrint SpecType => Show DataConP where
+  show = F.showpp
+
+instance F.PPrint Ghc.DataCon where
+  pprintTidy _ = text . showPpr
+
+instance Show Ghc.DataCon where
+  show = F.showpp

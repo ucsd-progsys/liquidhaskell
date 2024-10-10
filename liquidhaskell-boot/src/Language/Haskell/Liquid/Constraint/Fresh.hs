@@ -33,11 +33,14 @@ import           Prelude                        hiding (error)
 import           Language.Fixpoint.Misc  ((=>>))
 import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Types.Visitor (kvarsExpr)
-import           Language.Haskell.Liquid.Types
--- import           Language.Haskell.Liquid.Types.RefType
--- import           Language.Haskell.Liquid.Types.Fresh
+import           Language.Haskell.Liquid.Types.Fresh
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
+import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Constraint.Types
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
+import           Language.Haskell.Liquid.UX.Config
 import           Liquid.GHC.API as Ghc
 
 --------------------------------------------------------------------------------

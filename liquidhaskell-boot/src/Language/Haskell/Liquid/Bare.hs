@@ -42,7 +42,14 @@ import qualified Language.Haskell.Liquid.Misc               as Misc -- (nubHashO
 import qualified Language.Haskell.Liquid.GHC.Misc           as GM
 import qualified Liquid.GHC.API            as Ghc
 import           Language.Haskell.Liquid.GHC.Types          (StableName)
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.DataDecl
+import           Language.Haskell.Liquid.Types.PredType
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
+import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.WiredIn
 import qualified Language.Haskell.Liquid.Measure            as Ms
 import qualified Language.Haskell.Liquid.Bare.Types         as Bare
@@ -59,6 +66,7 @@ import qualified Language.Haskell.Liquid.Bare.Check         as Bare
 import qualified Language.Haskell.Liquid.Bare.Laws          as Bare
 import qualified Language.Haskell.Liquid.Bare.Typeclass     as Bare
 import qualified Language.Haskell.Liquid.Transforms.CoreToLogic as CoreToLogic
+import           Language.Haskell.Liquid.UX.Config
 import           Control.Arrow                    (second)
 import Data.Hashable (Hashable)
 import Data.Bifunctor (bimap)

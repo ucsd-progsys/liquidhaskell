@@ -4,8 +4,10 @@
 
 module Language.Haskell.Liquid.Termination.Structural (terminationVars) where
 
-import Language.Haskell.Liquid.Types hiding (isDecreasing)
+import Language.Haskell.Liquid.Types.Errors
+import Language.Haskell.Liquid.Types.Specs
 import Language.Haskell.Liquid.GHC.Misc (showPpr)
+import Language.Haskell.Liquid.UX.Config
 import Liquid.GHC.API  as GHC hiding ( showPpr
                                                       , Env
                                                       , text

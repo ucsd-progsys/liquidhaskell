@@ -24,8 +24,12 @@ import qualified Language.Fixpoint.Types.Visitor   as F
 import qualified Language.Haskell.Liquid.GHC.Misc  as GM
 import qualified Liquid.GHC.API   as Ghc
 import           Language.Haskell.Liquid.GHC.Types (StableName, mkStableName)
-import           Language.Haskell.Liquid.Types.RefType ()
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.DataDecl
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
+import           Language.Haskell.Liquid.Types.Types
 import qualified Language.Haskell.Liquid.Misc       as Misc
 import qualified Language.Haskell.Liquid.Bare.Types as Bare
 import qualified Language.Haskell.Liquid.Bare.Misc  as Bare

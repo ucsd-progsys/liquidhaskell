@@ -35,6 +35,7 @@ module Language.Haskell.Liquid.Types.RType (
   -- * Refinement Types
   , RType (..), Ref(..), RTProp, rPropP
   , RTyVar (..)
+  , OkRT
 
   -- * Classes describing operations on `RTypes`
   , TyConable (..)
@@ -51,7 +52,7 @@ module Language.Haskell.Liquid.Types.RType (
   , Predicate (..)
 
   -- * Manipulating `Predicates`
-  , pvars
+  , pvars, pappSym, pApp
 
   -- * Refinements
   , UReft(..)
@@ -84,6 +85,9 @@ module Language.Haskell.Liquid.Types.RType (
   -- * Refined Function Info
   , RFInfo(..), defRFInfo, mkRFInfo, classRFInfo
 
+  -- * Reftable/UReftable Instances
+  , Reftable(..)
+  , UReftable(..)
   )
   where
 
@@ -194,6 +198,23 @@ data TyConP = TyConP
 
 instance F.Loc TyConP where
   srcSpan tc = F.SS (tcpLoc tc) (tcpLoc tc)
+
+instance Show TyConP where
+ show = F.showpp
+
+instance F.PPrint TyConP where
+  pprintTidy k tc = "data" <+> F.pprintTidy k (tcpCon tc)
+                           <+> ppComm     k (tcpFreeTyVarsTy tc)
+                           <+> ppComm     k (tcpFreePredTy   tc)
+
+ppComm :: F.PPrint a => F.Tidy -> [a] -> Doc
+ppComm k = parens . hsep . punctuate comma . fmap (F.pprintTidy k)
+
+instance F.PPrint TyCon where
+  pprintTidy F.Lossy = shortModules . pprDoc
+    where
+      shortModules = text . F.symbolString . dropModuleNames . F.symbol . render
+  pprintTidy F.Full  =                pprDoc
 
 -- | Termination expressions
 data SizeFun
@@ -819,3 +840,107 @@ ppRefArgs k ss = text "\\" <-> hsep (ppRefSym k <$> ss ++ [F.vv Nothing]) <+> "-
 ppRefSym :: (Eq a, IsString a, F.PPrint a) => F.Tidy -> a -> Doc
 ppRefSym _ "" = text "_"
 ppRefSym k s  = F.pprintTidy k s
+
+-------------------------------------------
+
+-- Should just make this a @Pretty@ instance but its too damn tedious
+-- to figure out all the constraints.
+
+type OkRT c tv r = ( TyConable c
+                   , F.PPrint tv, F.PPrint c, F.PPrint r
+                   , Reftable r, Reftable (RTProp c tv ()), Reftable (RTProp c tv r)
+                   , Eq c, Eq tv
+                   , Hashable tv
+                   )
+
+class Reftable r => UReftable r where
+  ofUReft :: UReft F.Reft -> r
+  ofUReft (MkUReft r _) = ofReft r
+
+
+instance UReftable (UReft F.Reft) where
+   ofUReft r = r
+
+instance UReftable () where
+   ofUReft _ = mempty
+
+class (Monoid r, F.Subable r) => Reftable r where
+  isTauto :: r -> Bool
+  ppTy    :: r -> Doc -> Doc
+
+  top     :: r -> r
+  top _   =  mempty
+
+  meet    :: r -> r -> r
+  meet    = mappend
+
+  toReft  :: r -> F.Reft
+  ofReft  :: F.Reft -> r
+
+instance Reftable () where
+  isTauto _ = True
+  ppTy _  d = d
+  top  _    = ()
+  meet _ _  = ()
+  toReft _  = mempty
+  ofReft _  = mempty
+
+instance Reftable F.Reft where
+  isTauto  = all F.isTautoPred . F.conjuncts . F.reftPred
+  ppTy     = pprReft
+  toReft   = id
+  ofReft   = id
+  top (F.Reft (v,_)) = F.Reft (v, mempty)
+
+instance F.Subable r => F.Subable (UReft r) where
+  syms (MkUReft r p)     = F.syms r ++ F.syms p
+  subst s (MkUReft r z)  = MkUReft (F.subst s r)  (F.subst s z)
+  substf f (MkUReft r z) = MkUReft (F.substf f r) (F.substf f z)
+  substa f (MkUReft r z) = MkUReft (F.substa f r) (F.substa f z)
+
+instance (F.PPrint r, Reftable r) => Reftable (UReft r) where
+  isTauto               = isTautoUreft
+  ppTy                  = ppTyUreft
+  toReft (MkUReft r ps) = toReft r `meet` toReft ps
+  top (MkUReft r p)     = MkUReft (top r) (top p)
+  ofReft r              = MkUReft (ofReft r) mempty
+
+instance F.Expression (UReft ()) where
+  expr = F.expr . toReft
+
+ppTyUreft :: Reftable r => UReft r -> Doc -> Doc
+ppTyUreft u@(MkUReft r p) d
+  | isTautoUreft u = d
+  | otherwise      = pprReft r (ppTy p d)
+
+pprReft :: (Reftable r) => r -> Doc -> Doc
+pprReft r d = braces (F.pprint v <+> colon <+> d <+> text "|" <+> F.pprint r')
+  where
+    r'@(F.Reft (v, _)) = toReft r
+
+isTautoUreft :: Reftable r => UReft r -> Bool
+isTautoUreft u = isTauto (ur_reft u) && isTauto (ur_pred u)
+
+instance Reftable Predicate where
+  isTauto (Pr ps)      = null ps
+
+  ppTy r d | isTauto r      = d
+           | not (ppPs ppEnv) = d
+           | otherwise        = d <-> angleBrackets (F.pprint r)
+
+  toReft (Pr ps@(p:_))        = F.Reft (parg p, F.pAnd $ pToRef <$> ps)
+  toReft _                    = mempty
+
+  ofReft = todo Nothing "TODO: Predicate.ofReft"
+
+pToRef :: PVar a -> F.Expr
+pToRef p = pApp (pname p) $ F.EVar (parg p) : (thd3 <$> pargs p)
+
+pApp      :: Symbol -> [Expr] -> Expr
+pApp p es = F.mkEApp fn (F.EVar p:es)
+  where
+    fn    = F.dummyLoc (pappSym n)
+    n     = length es
+
+pappSym :: Show a => a -> Symbol
+pappSym n  = F.symbol $ "papp" ++ show n

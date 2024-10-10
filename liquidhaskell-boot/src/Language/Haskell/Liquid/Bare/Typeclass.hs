@@ -27,16 +27,21 @@ import qualified Language.Haskell.Liquid.GHC.Misc
 import qualified Liquid.GHC.API
                                                as Ghc
 import qualified Language.Haskell.Liquid.Misc  as Misc
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.DataDecl
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
 import qualified Language.Haskell.Liquid.Types.RefType
                                                as RT
+import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.Types.Types
+import           Language.Haskell.Liquid.Types.Visitors
 import qualified Language.Haskell.Liquid.Bare.Types
                                                as Bare
 import qualified Language.Haskell.Liquid.Bare.Resolve
                                                as Bare
 import qualified Language.Haskell.Liquid.Measure
                                                as Ms
--- import           Language.Haskell.Liquid.Types.Types
 import qualified Data.HashMap.Strict           as M
 
 
@@ -352,13 +357,13 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     elaboratedSig  <- flip addCoherenceOblig preft <$> elab fullSig
 
     let retSig =  mapExprReft (\_ -> substAuxMethod dfunSym methodsSet) (F.notracepp ("elaborated" ++ GM.showPpr method) elaboratedSig)
-    let tysub  = F.notracepp "tysub" $ M.fromList $ zip (F.notracepp "newtype-vars" $ allTyVars' (F.notracepp "new-type" retSig)) (F.notracepp "ghc-type-vars" (allTyVars' ((F.notracepp "ghc-type" $ ofType (Ghc.varType method)) :: SpecType)))
+    let tysub  = F.notracepp "tysub" $ M.fromList $ zip (F.notracepp "newtype-vars" $ RT.allTyVars' (F.notracepp "new-type" retSig)) (F.notracepp "ghc-type-vars" (RT.allTyVars' ((F.notracepp "ghc-type" $ RT.ofType (Ghc.varType method)) :: SpecType)))
         cosub  = M.fromList [ (F.symbol a, F.fObj (GM.namedLocSymbol b)) |  (a,RTV b) <- M.toList tysub]
         tysubf x = F.notracepp ("cosub:" ++ F.showpp cosub) $ M.lookupDefault x x tysub
         subbedTy = mapReft (Bare.coSubRReft cosub) (renameTvs tysubf retSig)
 
     -- need to make the variable names consistent
-    pure (method, F.dummyLoc (F.notracepp ("vars:" ++ F.showpp (F.symbol <$> allTyVars' subbedTy)) subbedTy))
+    pure (method, F.dummyLoc (F.notracepp ("vars:" ++ F.showpp (F.symbol <$> RT.allTyVars' subbedTy)) subbedTy))
 
   -- "is" is used as a shorthand for instance, following the convention of the Ghc api
   where
@@ -371,7 +376,7 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     cls = Mb.fromJust . Ghc.tyConClass_maybe $ Ghc.dataConTyCon (dcpCon dcp)
     addCoherenceOblig  :: SpecType -> Maybe RReft -> SpecType
     addCoherenceOblig t Nothing = t
-    addCoherenceOblig t (Just r) = F.notracepp "SCSel" . fromRTypeRep $ rrep {ty_res = res `strengthen` r}
+    addCoherenceOblig t (Just r) = F.notracepp "SCSel" . fromRTypeRep $ rrep {ty_res = res `RT.strengthen` r}
       where rrep = toRTypeRep t
             res  = ty_res rrep    -- (Monoid.mappend -> $cmappend##Int, ...)
     -- core rewriting mark2: do the same thing except they don't have to be symbols
@@ -382,9 +387,9 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     dfunSymL = GM.namedLocSymbol $ Ghc.instanceDFunId inst
     dfunSym = F.val dfunSymL
     (isTvs, isPredTys, _, isTys) = Ghc.instanceSig inst
-    isSpecTys = ofType <$> isTys
-    isPredSpecTys = ofType <$> isPredTys
-    isRTvs = makeRTVar . rTyVar <$> isTvs
+    isSpecTys = RT.ofType <$> isTys
+    isPredSpecTys = RT.ofType <$> isPredTys
+    isRTvs = makeRTVar . RT.rTyVar <$> isTvs
     dcp = F.val ldcp
     -- Monoid.mappend, ...
     clsMethods = filter (\x -> GM.dropModuleNames (F.symbol x) `elem` fmap mkSymbol methods) $
@@ -398,7 +403,7 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     clsTvs = dcpFreeTyVars dcp
         -- copy/pasted from Bare/Class.hs
     subst [] t = t
-    subst ((a, ta):su) t = subsTyVarMeet' (a, ta) (subst su t)
+    subst ((a, ta):su) t = RT.subsTyVarMeet' (a, ta) (subst su t)
 
 substAuxMethod :: F.Symbol -> M.HashMap F.Symbol F.Symbol -> F.Expr -> F.Expr
 substAuxMethod dfun methods = F.notracepp "substAuxMethod" . go

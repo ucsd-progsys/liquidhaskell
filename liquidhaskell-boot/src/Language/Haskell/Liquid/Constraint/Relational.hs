@@ -40,9 +40,14 @@ import           Language.Haskell.Liquid.GHC.Play               (Subable(sub, su
 import qualified Language.Haskell.Liquid.GHC.SpanStack          as Sp
 import           Language.Haskell.Liquid.GHC.TypeRep            ()
 import           Language.Haskell.Liquid.Misc
-import           Language.Haskell.Liquid.Types                  hiding (Def,
-                                                                 Loc, binds,
-                                                                 loc)
+import           Language.Haskell.Liquid.Types.Fresh
+import           Language.Haskell.Liquid.Types.Literals
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.Types.Types hiding (binds)
+import           Language.Haskell.Liquid.UX.Config
 import           System.Console.CmdArgs.Verbosity               (whenLoud)
 import           System.IO.Unsafe                               (unsafePerformIO)
 

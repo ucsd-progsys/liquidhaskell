@@ -48,8 +48,11 @@ import           Language.Haskell.Liquid.Bare.Types
 import           Language.Haskell.Liquid.Bare.DataType
 import           Language.Haskell.Liquid.Bare.Misc     (simpleSymbolVar)
 import           Language.Haskell.Liquid.GHC.Play
-import           Language.Haskell.Liquid.Types.Types   --     hiding (GhcInfo(..), GhcSpec (..), LM)
+import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
+import           Language.Haskell.Liquid.Types.Types
 
 import qualified Data.HashMap.Strict                   as M
 

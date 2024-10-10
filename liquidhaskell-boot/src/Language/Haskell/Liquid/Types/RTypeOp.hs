@@ -23,6 +23,7 @@ module Language.Haskell.Liquid.Types.RTypeOp (
   , mkArrow, bkArrowDeep, bkArrow, safeBkArrow
   , mkUnivs, bkUniv, bkClass, bkUnivClass, bkUnivClass'
   , rFun, rFun', rCls, rRCls, rFunDebug
+  , classRFInfoType
 
   -- * Traversing `RType`
   , efoldReft, foldReft, foldReft'
@@ -44,15 +45,8 @@ module Language.Haskell.Liquid.Types.RTypeOp (
   , isTrivial
   , hasHoleTy
 
-  -- * Reftable/UReftable Instances
-  , Reftable(..)
-  , UReftable(..)
-
   -- * Scoping Info
   , BScope
-
-  -- * Manipulating `Predicates`
-  , pappSym, pApp
 
   -- * Misc
   , addInvCond
@@ -65,7 +59,6 @@ import           Prelude                          hiding  (error)
 import qualified Prelude
 
 import           Control.Monad                          (liftM2, liftM3, liftM4, void)
-import           Text.PrettyPrint.HughesPJ              hiding (first, (<>))
 import           Language.Fixpoint.Misc
 
 import qualified Language.Fixpoint.Types as F
@@ -107,6 +100,11 @@ fromRTypeRep RTypeRep{..}
   = mkArrow ty_vars ty_preds arrs ty_res
   where
     arrs = safeZip4WithError ("fromRTypeRep: " ++ show (length ty_binds, length ty_info, length ty_args, length ty_refts)) ty_binds ty_info ty_args ty_refts
+
+classRFInfoType :: Bool -> RType c tv r -> RType c tv r
+classRFInfoType b = fromRTypeRep .
+                    (\trep@RTypeRep{..} -> trep{ty_info = map (\i -> i{permitTC = pure b}) ty_info}) .
+                    toRTypeRep
 
 --------------------------------------------------------------------------------
 toRTypeRep           :: RType c tv r -> RTypeRep c tv r
@@ -230,77 +228,6 @@ addInvCond t r'
     rx   = F.PIff (F.EVar v) $ F.subst1 rv su
     F.Reft(v, rv) = ur_reft r'
 
--------------------------------------------
-
-class Reftable r => UReftable r where
-  ofUReft :: UReft F.Reft -> r
-  ofUReft (MkUReft r _) = ofReft r
-
-
-instance UReftable (UReft F.Reft) where
-   ofUReft r = r
-
-instance UReftable () where
-   ofUReft _ = mempty
-
-class (Monoid r, F.Subable r) => Reftable r where
-  isTauto :: r -> Bool
-  ppTy    :: r -> Doc -> Doc
-
-  top     :: r -> r
-  top _   =  mempty
-
-  meet    :: r -> r -> r
-  meet    = mappend
-
-  toReft  :: r -> F.Reft
-  ofReft  :: F.Reft -> r
-
-instance Reftable () where
-  isTauto _ = True
-  ppTy _  d = d
-  top  _    = ()
-  meet _ _  = ()
-  toReft _  = mempty
-  ofReft _  = mempty
-
-instance Reftable F.Reft where
-  isTauto  = all F.isTautoPred . F.conjuncts . F.reftPred
-  ppTy     = pprReft
-  toReft   = id
-  ofReft   = id
-  top (F.Reft (v,_)) = F.Reft (v, mempty)
-
-instance (F.PPrint r, Reftable r) => Reftable (UReft r) where
-  isTauto               = isTautoUreft
-  ppTy                  = ppTyUreft
-  toReft (MkUReft r ps) = toReft r `meet` toReft ps
-  top (MkUReft r p)     = MkUReft (top r) (top p)
-  ofReft r              = MkUReft (ofReft r) mempty
-
-instance F.Expression (UReft ()) where
-  expr = F.expr . toReft
-
-
-
-isTautoUreft :: Reftable r => UReft r -> Bool
-isTautoUreft u = isTauto (ur_reft u) && isTauto (ur_pred u)
-
-ppTyUreft :: Reftable r => UReft r -> Doc -> Doc
-ppTyUreft u@(MkUReft r p) d
-  | isTautoUreft u = d
-  | otherwise      = pprReft r (ppTy p d)
-
-pprReft :: (Reftable r) => r -> Doc -> Doc
-pprReft r d = braces (F.pprint v <+> colon <+> d <+> text "|" <+> F.pprint r')
-  where
-    r'@(F.Reft (v, _)) = toReft r
-
-instance F.Subable r => F.Subable (UReft r) where
-  syms (MkUReft r p)     = F.syms r ++ F.syms p
-  subst s (MkUReft r z)  = MkUReft (F.subst s r)  (F.subst s z)
-  substf f (MkUReft r z) = MkUReft (F.substf f r) (F.substf f z)
-  substa f (MkUReft r z) = MkUReft (F.substa f r) (F.substa f z)
 
 instance (Reftable r, TyConable c) => F.Subable (RTProp c tv r) where
   syms (RProp  ss r)     = (fst <$> ss) ++ F.syms r
@@ -324,30 +251,6 @@ instance (F.Subable r, Reftable r, TyConable c) => F.Subable (RType c tv r) wher
   subst su    = emapExprArg (\_ -> F.subst su) []      . emapReft (F.subst  . F.substExcept su) []
   subst1 t su = emapExprArg (\_ e -> F.subst1 e su) [] $ emapReft (\xs r -> F.subst1Except xs r su) [] t
 
-
-instance Reftable Predicate where
-  isTauto (Pr ps)      = null ps
-
-  ppTy r d | isTauto r      = d
-           | not (ppPs ppEnv) = d
-           | otherwise        = d <-> angleBrackets (F.pprint r)
-
-  toReft (Pr ps@(p:_))        = F.Reft (parg p, F.pAnd $ pToRef <$> ps)
-  toReft _                    = mempty
-
-  ofReft = todo Nothing "TODO: Predicate.ofReft"
-
-pToRef :: PVar a -> F.Expr
-pToRef p = pApp (pname p) $ F.EVar (parg p) : (thd3 <$> pargs p)
-
-pApp      :: Symbol -> [Expr] -> Expr
-pApp p es = F.mkEApp fn (F.EVar p:es)
-  where
-    fn    = F.dummyLoc (pappSym n)
-    n     = length es
-
-pappSym :: Show a => a -> Symbol
-pappSym n  = F.symbol $ "papp" ++ show n
 
 --------------------------------------------------------------------------------
 -- | Visitors ------------------------------------------------------------------
