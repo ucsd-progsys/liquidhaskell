@@ -11,7 +11,7 @@ import           Language.Haskell.Liquid.Types.RefType ()
 import           Liquid.GHC.API as Ghc
 
 meetVarTypes :: F.TCEmb TyCon -> Doc -> (SrcSpan, SpecType) -> (SrcSpan, SpecType) -> SpecType
-meetVarTypes _emb _v hs lq = {- meetError emb err -} F.meet hsT lqT
+meetVarTypes _emb _v hs lq = {- meetError emb err -} meet hsT lqT
   where
     (_hsSp, hsT)      = hs
     (_lqSp, lqT)      = lq
@@ -23,7 +23,7 @@ meetVarTypes _emb _v hs lq = {- meetError emb err -} F.meet hsT lqT
 _meetError :: F.TCEmb TyCon -> Error -> SpecType -> SpecType -> SpecType
 _meetError _emb _e t t'
   -- // | meetable emb t t'
-  | True              = t `F.meet` t'
+  | True              = t `meet` t'
   -- // | otherwise         = panicError e
 
 _meetable :: F.TCEmb TyCon -> SpecType -> SpecType -> Bool

@@ -69,7 +69,7 @@ import           GHC                  as Ghc
     , Name
     , NamedThing
     , NamespaceSpecifier (NoNamespaceSpecifier)
-    , ParsedModule (pm_mod_summary, pm_parsed_source)
+    , ParsedModule(..)
     , PredType
     , RealSrcLoc
     , RealSrcSpan
@@ -418,6 +418,9 @@ import GHC.Driver.Main                as Ghc
     ( hscDesugar
     , hscTcRcLookupName
     )
+import GHC.Driver.Plugins             as Ghc
+    ( ParsedResult(..)
+    )
 import GHC.Driver.Phases              as Ghc (Phase(StopLn))
 import GHC.Driver.Pipeline            as Ghc (compileFile)
 import GHC.Driver.Session             as Ghc
@@ -449,12 +452,17 @@ import GHC.Core.Opt.OccurAnal         as Ghc
 import GHC.Core.TyCo.FVs              as Ghc (tyCoVarsOfCo, tyCoVarsOfType)
 import GHC.Driver.Backend             as Ghc (interpreterBackend)
 import GHC.Driver.Env                 as Ghc
-    ( HscEnv(hsc_mod_graph, hsc_unit_env, hsc_dflags, hsc_plugins) )
+    ( HscEnv(hsc_mod_graph, hsc_unit_env, hsc_dflags, hsc_plugins)
+    , Hsc
+    )
 import GHC.Driver.Errors              as Ghc
     ( printMessages )
 import GHC.Driver.Ppr                 as Ghc
     ( showPpr
     , showSDoc
+    )
+import GHC.Hs                         as Ghc
+    ( HsParsedModule(..)
     )
 import GHC.HsToCore.Expr              as Ghc
     ( dsLExpr )

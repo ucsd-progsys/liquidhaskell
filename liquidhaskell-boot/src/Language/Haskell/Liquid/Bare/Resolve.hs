@@ -879,9 +879,9 @@ rtypePredBinds = map RT.uPVar . ty_preds . toRTypeRep
 
 --------------------------------------------------------------------------------
 type Expandable r = ( PPrint r
-                    , F.Reftable r
+                    , Reftable r
                     , SubsTy RTyVar (RType RTyCon RTyVar ()) r
-                    , F.Reftable (RTProp RTyCon RTyVar r))
+                    , Reftable (RTProp RTyCon RTyVar r))
 
 ofBRType :: (Expandable r) => Env -> ModName -> ([F.Symbol] -> r -> r) -> F.SourcePos -> BRType r
          -> Lookup (RRType r)
@@ -972,9 +972,9 @@ bareTCApp r (Loc _ _ c) rs ts
   = RT.rApp c ts rs r
 
 
-tyApp :: F.Reftable r => RType c tv r -> [RType c tv r] -> [RTProp c tv r] -> r
+tyApp :: Reftable r => RType c tv r -> [RType c tv r] -> [RTProp c tv r] -> r
       -> RType c tv r
-tyApp (RApp c ts rs r) ts' rs' r' = RApp c (ts ++ ts') (rs ++ rs') (r `F.meet` r')
+tyApp (RApp c ts rs r) ts' rs' r' = RApp c (ts ++ ts') (rs ++ rs') (r `meet` r')
 tyApp t                []  []  r  = t `RT.strengthen` r
 tyApp _                 _  _   _  = panic Nothing "Bare.Type.tyApp on invalid inputs"
 
@@ -1012,8 +1012,8 @@ addSymSort sp tce tyi (RApp rc@RTyCon{} ts rs rr)
     -- pvs             = rTyConPVs rc'
     (rargs, rrest)     = splitAt (length pvs) rs
     r2                 = L.foldl' go rr rrest
-    go r (RProp _ (RHole r')) = r' `F.meet` r
-    go r (RProp  _ t' )       = let r' = Mb.fromMaybe mempty (stripRTypeBase t') in r `F.meet` r'
+    go r (RProp _ (RHole r')) = r' `meet` r
+    go r (RProp  _ t' )       = let r' = Mb.fromMaybe mempty (stripRTypeBase t') in r `meet` r'
 
 addSymSort _ _ _ t
   = t

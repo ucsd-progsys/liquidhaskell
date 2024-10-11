@@ -285,8 +285,6 @@ instance Reftable (RTProp RTyCon RTyVar (UReft Reft)) where
   ppTy (RProp _ (RHole r)) d  = ppTy r d
   ppTy (RProp _ _) _          = panic Nothing "RefType: Reftable ppTy in RProp"
   toReft                      = panic Nothing "RefType: Reftable toReft"
-  params                      = panic Nothing "RefType: Reftable params for Ref"
-  bot                         = panic Nothing "RefType: Reftable bot    for Ref"
   ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
 
 instance Reftable (RTProp RTyCon RTyVar ()) where
@@ -297,8 +295,6 @@ instance Reftable (RTProp RTyCon RTyVar ()) where
   ppTy (RProp _ (RHole r)) d  = ppTy r d
   ppTy (RProp _ _) _          = panic Nothing "RefType: Reftable ppTy in RProp"
   toReft                      = panic Nothing "RefType: Reftable toReft"
-  params                      = panic Nothing "RefType: Reftable params for Ref"
-  bot                         = panic Nothing "RefType: Reftable bot    for Ref"
   ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
 
 instance Reftable (RTProp BTyCon BTyVar (UReft Reft)) where
@@ -309,8 +305,6 @@ instance Reftable (RTProp BTyCon BTyVar (UReft Reft)) where
   ppTy (RProp _ (RHole r)) d  = ppTy r d
   ppTy (RProp _ _) _          = panic Nothing "RefType: Reftable ppTy in RProp"
   toReft                      = panic Nothing "RefType: Reftable toReft"
-  params                      = panic Nothing "RefType: Reftable params for Ref"
-  bot                         = panic Nothing "RefType: Reftable bot    for Ref"
   ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
 
 instance Reftable (RTProp BTyCon BTyVar ())  where
@@ -321,8 +315,6 @@ instance Reftable (RTProp BTyCon BTyVar ())  where
   ppTy (RProp _ (RHole r)) d  = ppTy r d
   ppTy (RProp _ _) _          = panic Nothing "RefType: Reftable ppTy in RProp"
   toReft                      = panic Nothing "RefType: Reftable toReft"
-  params                      = panic Nothing "RefType: Reftable params for Ref"
-  bot                         = panic Nothing "RefType: Reftable bot    for Ref"
   ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
 
 instance Reftable (RTProp RTyCon RTyVar Reft) where
@@ -333,8 +325,6 @@ instance Reftable (RTProp RTyCon RTyVar Reft) where
   ppTy (RProp _ (RHole r)) d  = ppTy r d
   ppTy (RProp _ _) _          = panic Nothing "RefType: Reftable ppTy in RProp"
   toReft                      = panic Nothing "RefType: Reftable toReft"
-  params                      = panic Nothing "RefType: Reftable params for Ref"
-  bot                         = panic Nothing "RefType: Reftable bot    for Ref"
   ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
 
 ----------------------------------------------------------------------------
@@ -366,8 +356,6 @@ instance (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftab
   isTauto     = isTrivial
   ppTy        = panic Nothing "ppTy RProp Reftable"
   toReft      = panic Nothing "toReft on RType"
-  params      = panic Nothing "params on RType"
-  bot         = panic Nothing "bot on RType"
   ofReft      = panic Nothing "ofReft on RType"
 
 
@@ -376,8 +364,6 @@ instance Reftable (RType BTyCon BTyVar (UReft Reft)) where
   top t       = mapReft top t
   ppTy        = panic Nothing "ppTy RProp Reftable"
   toReft      = panic Nothing "toReft on RType"
-  params      = panic Nothing "params on RType"
-  bot         = panic Nothing "bot on RType"
   ofReft      = panic Nothing "ofReft on RType"
 
 
@@ -709,7 +695,7 @@ strengthenRefType_ _ (RVar v1 r1)  (RVar v2 r2) | v1 == v2
 strengthenRefType_ f t1 t2
   = f t1 t2
 
-meets :: (F.Reftable r) => [r] -> [r] -> [r]
+meets :: (Reftable r) => [r] -> [r] -> [r]
 meets [] rs                 = rs
 meets rs []                 = rs
 meets rs rs'
@@ -717,11 +703,11 @@ meets rs rs'
   | otherwise               = panic Nothing "meets: unbalanced rs"
 
 strengthen :: Reftable r => RType c tv r -> r -> RType c tv r
-strengthen (RApp c ts rs r)   r' = RApp c ts rs   (r `F.meet` r')
-strengthen (RVar a r)         r' = RVar a         (r `F.meet` r')
-strengthen (RFun b i t1 t2 r) r' = RFun b i t1 t2 (r `F.meet` r')
-strengthen (RAppTy t1 t2 r)   r' = RAppTy t1 t2   (r `F.meet` r')
-strengthen (RAllT a t r)      r' = RAllT a t      (r `F.meet` r')
+strengthen (RApp c ts rs r)   r' = RApp c ts rs   (r `meet` r')
+strengthen (RVar a r)         r' = RVar a         (r `meet` r')
+strengthen (RFun b i t1 t2 r) r' = RFun b i t1 t2 (r `meet` r')
+strengthen (RAppTy t1 t2 r)   r' = RAppTy t1 t2   (r `meet` r')
+strengthen (RAllT a t r)      r' = RAllT a t      (r `meet` r')
 strengthen t                  _  = t
 
 quantifyRTy :: (Monoid r, Eq tv) => [RTVar tv (RType c tv ())] -> RType c tv r -> RType c tv r
@@ -1128,7 +1114,7 @@ mkRApp :: (Eq tv, Hashable tv, Reftable r, TyConable c,
   -> r
   -> RType c tv r
 mkRApp m s c ts rs r r'
-  | isFun c, [_rep1, _rep2, t1, t2] <- ts
+  | isFun c, [_m, _rep1, _rep2, t1, t2] <- ts
   = RFun dummySymbol defRFInfo t1 t2 (refAppTyToFun r')
   | otherwise
   = subsFrees m s zs (RApp c ts rs (r `meet` r'))
@@ -1565,7 +1551,7 @@ appSolRefa s p = mapKVars f p
 
 --------------------------------------------------------------------------------
 -- shiftVV :: Int -- SpecType -> Symbol -> SpecType
-shiftVV :: (TyConable c, F.Reftable (f Reft), Functor f)
+shiftVV :: (TyConable c, Reftable (f Reft), Functor f)
         => RType c tv (f Reft) -> Symbol -> RType c tv (f Reft)
 --------------------------------------------------------------------------------
 shiftVV t@(RApp _ ts rs r) vv'

@@ -818,7 +818,7 @@ strengthenSigs sigs = go <$> Misc.groupList sigs
     go (v, ixs)     = (v,) $ L.foldl1' (flip meetLoc) (F.notracepp ("STRENGTHEN-SIGS: " ++ F.showpp v) (prio ixs))
     prio            = fmap snd . Misc.sortOn fst
     meetLoc         :: LocSpecType -> LocSpecType -> LocSpecType
-    meetLoc t1 t2   = t1 {val = val t1 `F.meet` val t2}
+    meetLoc t1 t2   = t1 {val = val t1 `meet` val t2}
 
 makeMthSigs :: Bare.MeasEnv -> [(Ghc.Var, LocSpecType)]
 makeMthSigs measEnv = [ (v, t) | (_, v, t) <- Bare.meMethods measEnv ]

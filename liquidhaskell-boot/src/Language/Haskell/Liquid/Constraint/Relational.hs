@@ -321,7 +321,7 @@ unapply γ y yt (z : zs) (RFun x _ s t _) e suffix = do
     e' = subVarAndTy z z' e
 unapply _ _ _ (_ : _) t _ _ = F.panic $ "can't unapply type " ++ F.showpp t
 unapply γ y yt [] t e _ = do
-  let yt' = t `F.meet` yt
+  let yt' = t `meet` yt
   γ' <- γ += ("unapply res", y, yt')
   return $ traceWhenLoud ("SCRUTINEE " ++ F.showpp (y, yt')) (γ', e)
 
