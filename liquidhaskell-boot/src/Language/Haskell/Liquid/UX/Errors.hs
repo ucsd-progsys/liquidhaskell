@@ -18,8 +18,12 @@ import qualified Language.Fixpoint.Types             as F
 import qualified Language.Fixpoint.Solver.EnvironmentReduction as F
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Transforms.Simplify
+import           Language.Haskell.Liquid.UX.Config
 import           Language.Haskell.Liquid.UX.Tidy
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
+import           Language.Haskell.Liquid.Types.Types
 import qualified Language.Haskell.Liquid.GHC.Misc    as GM
 import qualified Language.Haskell.Liquid.Misc        as Misc
 import qualified Language.Fixpoint.Misc              as Misc

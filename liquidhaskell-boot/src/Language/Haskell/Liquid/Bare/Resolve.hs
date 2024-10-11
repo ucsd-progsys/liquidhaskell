@@ -71,6 +71,10 @@ import qualified Language.Fixpoint.Misc                as Misc
 import qualified Liquid.GHC.API       as Ghc
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 import qualified Language.Haskell.Liquid.Misc          as Misc
+import           Language.Haskell.Liquid.Types.DataDecl
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Measure       (BareSpec)
@@ -78,6 +82,7 @@ import           Language.Haskell.Liquid.Types.Specs   hiding (BareSpec)
 import           Language.Haskell.Liquid.Types.Visitors
 import           Language.Haskell.Liquid.Bare.Types
 import           Language.Haskell.Liquid.Bare.Misc
+import           Language.Haskell.Liquid.UX.Config
 import           Language.Haskell.Liquid.WiredIn
 
 myTracepp :: (F.PPrint a) => String -> a -> a
@@ -506,7 +511,7 @@ lookupLocalVar env lx gvs = findNearest lxn kvs
     lvdToPair lvd = (lvdSourcePos lvd, lvdVar lvd)
 
     findNearest :: F.SourcePos -> [(F.SourcePos, Ghc.Var)] -> Maybe Ghc.Var
-    findNearest key kvs = argMin [ (posDistance key k, v) | (k, v) <- kvs ]
+    findNearest key kvs1 = argMin [ (posDistance key k, v) | (k, v) <- kvs1 ]
 
     -- We prefer the var with the smaller distance, or equal distance
     -- but left of the spec, or not left of the spec but below it.

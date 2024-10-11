@@ -43,13 +43,19 @@ import qualified Language.Fixpoint.Misc                as Misc
 import           Language.Fixpoint.Types (Expr(..)) -- , Symbol, symbol)
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 import qualified Liquid.GHC.API       as Ghc
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.DataDecl
 import qualified Language.Haskell.Liquid.Types.RefType as RT
-import           Language.Haskell.Liquid.Types         hiding (fresh)
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
+import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.Types.Types
 import qualified Language.Haskell.Liquid.Misc          as Misc
 import qualified Language.Haskell.Liquid.Measure       as Ms
 import qualified Language.Haskell.Liquid.Bare.Resolve  as Bare
 import qualified Language.Haskell.Liquid.Bare.Types    as Bare
 import qualified Language.Haskell.Liquid.Bare.Plugged  as Bare
+import           Language.Haskell.Liquid.UX.Config
 
 --------------------------------------------------------------------------------
 -- | `makeRTEnv` initializes the env needed to `expand` refinements and types,
@@ -500,7 +506,7 @@ cookSpecTypeE env sigEnv name@(ModName _ _) x bt
   = fmap f . bareSpecType env name $ bareExpandType rtEnv bt
   where
     f = (if doplug || not allowTC then plugHoles allowTC sigEnv name x else id)
-        . fmap (addTyConInfo embs tyi)
+        . fmap (RT.addTyConInfo embs tyi)
         . Bare.txRefSort tyi embs
         . fmap txExpToBind -- What does this function DO
         . (specExpandType rtEnv . fmap (generalizeWith x))
@@ -536,7 +542,7 @@ generalizeWith _             t = RT.generalize t
 generalizeVar :: Ghc.Var -> SpecType -> SpecType
 generalizeVar v t = mkUnivs (zip as (repeat mempty)) [] t
   where
-    as            = filter isGen (freeTyVars t)
+    as            = filter isGen (RT.freeTyVars t)
     (vas,_)       = Ghc.splitForAllTyCoVars (GM.expandVarType v)
     isGen (RTVar (RTV a) _) = a `elem` vas
 
@@ -752,7 +758,7 @@ addExists t = fmap (M.foldlWithKey' addExist t) getBinds
 addExist :: SpecType -> F.Symbol -> (RSort, F.Expr) -> SpecType
 addExist t x (tx, e) = REx x t' t
   where
-    t'               = ofRSort tx `strengthen` uTop r
+    t'               = ofRSort tx `RT.strengthen` RT.uTop r
     r                = F.exprReft e
 
 expToBindRef :: UReft r -> State ExSt (UReft r)

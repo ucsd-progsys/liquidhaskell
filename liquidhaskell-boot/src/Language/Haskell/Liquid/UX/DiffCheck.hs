@@ -60,7 +60,11 @@ import           Text.PrettyPrint.HughesPJ              (text, render, Doc)
 import qualified Data.ByteString                        as B
 import qualified Data.ByteString.Lazy                   as LB
 
-import           Language.Haskell.Liquid.Types          hiding (Def, LMap)
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.Types.Types hiding (Def, LMap)
+import           Language.Haskell.Liquid.Types.Visitors
 
 --------------------------------------------------------------------------------
 -- | Data Types ----------------------------------------------------------------

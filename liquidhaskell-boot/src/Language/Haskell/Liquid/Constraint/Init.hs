@@ -36,7 +36,19 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.Constraint.Types
 
-import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, freeTyVars, Def)
+import           Language.Haskell.Liquid.Types.Dictionaries
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.Fresh
+import           Language.Haskell.Liquid.Types.Literals
+import           Language.Haskell.Liquid.Types.Meet
+import           Language.Haskell.Liquid.Types.Names
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
+import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.Types.Types hiding (binds)
+import           Language.Haskell.Liquid.Types.Visitors
+import           Language.Haskell.Liquid.UX.Config
 
 --------------------------------------------------------------------------------
 initEnv :: TargetInfo -> CG CGEnv

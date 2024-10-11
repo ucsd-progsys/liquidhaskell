@@ -23,7 +23,12 @@ import           Language.Haskell.Liquid.Misc             (condNull)
 import           Language.Haskell.Liquid.Types.PredType
 import           Liquid.GHC.API hiding (Expr, mkQual, panic)
 
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
+import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.Types.Types
+import           Language.Haskell.Liquid.UX.Config
 
 
 --------------------------------------------------------------------------------

@@ -36,8 +36,10 @@ import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types                hiding (panic, R, DataDecl, SrcSpan, LocSymbol)
 import           Liquid.GHC.API        as Ghc hiding (Expr, showPpr, panic, (<+>))
 import           Language.Haskell.Liquid.GHC.Misc
--- import qualified Language.Haskell.Liquid.Misc as Misc
-import           Language.Haskell.Liquid.Types.Types    -- hiding (GhcInfo(..), GhcSpec (..))
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
+import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.RefType
 -- import           Language.Haskell.Liquid.Types.Variance
 -- import           Language.Haskell.Liquid.Types.Bounds

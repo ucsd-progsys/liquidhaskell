@@ -78,8 +78,9 @@ import Language.Haskell.Liquid.UX.Annotate
 import Language.Haskell.Liquid.UX.Config
 import Language.Haskell.Liquid.UX.SimpleVersion (simpleVersion)
 import Language.Haskell.Liquid.GHC.Misc
+import Language.Haskell.Liquid.Types.Errors hiding (typ)
 import Language.Haskell.Liquid.Types.PrettyPrint ()
-import Language.Haskell.Liquid.Types       hiding (typ)
+import Language.Haskell.Liquid.Types.Types
 import qualified Language.Haskell.Liquid.UX.ACSS as ACSS
 
 import qualified Liquid.GHC.API as GHC

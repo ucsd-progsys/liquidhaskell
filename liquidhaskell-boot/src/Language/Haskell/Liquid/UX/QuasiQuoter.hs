@@ -29,7 +29,10 @@ import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.GHC.Misc (fSrcSpan)
 import Liquid.GHC.API  (SrcSpan)
 import Language.Haskell.Liquid.Parse
-import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Types.Errors
+import Language.Haskell.Liquid.Types.RType
+import Language.Haskell.Liquid.Types.RefType
+import Language.Haskell.Liquid.Types.Types
 
 import System.IO
 import Text.Megaparsec.Error

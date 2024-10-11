@@ -40,8 +40,13 @@ import qualified Language.Haskell.Liquid.Misc          as Misc
 import           Language.Haskell.Liquid.Misc             ((.||.))
 import qualified Liquid.GHC.API       as Ghc
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM
+import           Language.Haskell.Liquid.Types.DataDecl
+import           Language.Haskell.Liquid.Types.Errors
 import qualified Language.Haskell.Liquid.Types.RefType as RT
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
+import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.Types.Types
 -- import           Language.Haskell.Liquid.Types.Bounds
 import qualified Language.Haskell.Liquid.Measure       as Ms
 
@@ -50,6 +55,7 @@ import qualified Language.Haskell.Liquid.Bare.Resolve  as Bare
 import qualified Language.Haskell.Liquid.Bare.Expand   as Bare
 import qualified Language.Haskell.Liquid.Bare.DataType as Bare
 import qualified Language.Haskell.Liquid.Bare.ToBare   as Bare
+import           Language.Haskell.Liquid.UX.Config
 import Control.Monad (mapM)
 import qualified GHC.List as L
 

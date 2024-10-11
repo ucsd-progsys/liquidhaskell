@@ -75,8 +75,14 @@ import qualified Language.Fixpoint.Types            as F
 import           Language.Fixpoint.Misc
 
 import qualified Language.Haskell.Liquid.UX.CTags      as Tg
+import           Language.Haskell.Liquid.UX.Config
 
-import           Language.Haskell.Liquid.Types hiding   (binds)
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
+import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.Types.Types hiding (binds)
 
 type CG = State CGInfo
 

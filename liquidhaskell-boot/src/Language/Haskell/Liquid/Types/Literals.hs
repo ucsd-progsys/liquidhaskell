@@ -11,7 +11,8 @@ import Prelude hiding (error)
 import Language.Haskell.Liquid.GHC.TypeRep ()
 import Liquid.GHC.API hiding (panic)
 
-import Language.Haskell.Liquid.Types.Types
+import Language.Haskell.Liquid.Types.Errors
+import Language.Haskell.Liquid.Types.RType
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Transforms.CoreToLogic (mkLit, mkI, mkS)
 

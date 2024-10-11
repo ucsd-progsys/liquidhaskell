@@ -6,7 +6,7 @@ module Language.Haskell.Liquid.Types.Meet ( meetVarTypes ) where
 
 import           Text.PrettyPrint.HughesPJ (Doc)
 import qualified Language.Fixpoint.Types as F
-import           Language.Haskell.Liquid.Types.Types
+import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.RefType ()
 import           Liquid.GHC.API as Ghc
 

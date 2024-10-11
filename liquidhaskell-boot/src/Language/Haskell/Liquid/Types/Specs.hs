@@ -76,9 +76,12 @@ import qualified Data.HashSet            as S
 import           Data.HashSet            (HashSet)
 import qualified Data.HashMap.Strict     as M
 import           Data.HashMap.Strict     (HashMap)
+import           Language.Haskell.Liquid.Types.DataDecl
+import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds
+import           Language.Haskell.Liquid.UX.Config
 import           Liquid.GHC.API hiding (text, (<+>))
 import           Language.Haskell.Liquid.GHC.Types
 import           Text.PrettyPrint.HughesPJ              (text, (<+>))
@@ -289,7 +292,6 @@ data GhcSpecNames = SpNames
   }
   deriving Show
 
-deriving instance Show TyConP
 deriving instance Show TyConMap
 
 data GhcSpecTerm = SpTerm

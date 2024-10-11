@@ -67,8 +67,12 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.PrettyPrint
 import           Language.Haskell.Liquid.Types.RefType
 
+import           Language.Haskell.Liquid.UX.Config
 import           Language.Haskell.Liquid.UX.Tidy
-import           Language.Haskell.Liquid.Types                hiding (Located(..), Def(..))
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
+import           Language.Haskell.Liquid.Types.Types
 -- import           Language.Haskell.Liquid.Types.Specifications
 
 

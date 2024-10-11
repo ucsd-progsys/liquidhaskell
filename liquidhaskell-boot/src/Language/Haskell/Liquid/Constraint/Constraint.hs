@@ -11,7 +11,9 @@ module Language.Haskell.Liquid.Constraint.Constraint (
 
 import Prelude hiding (error)
 import Data.Maybe
-import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Types.RType
+import Language.Haskell.Liquid.Types.RTypeOp
+import Language.Haskell.Liquid.Types.Types
 import Language.Haskell.Liquid.Constraint.Types
 import Language.Haskell.Liquid.Constraint.Env
 import Language.Fixpoint.Types

@@ -35,3 +35,4 @@ package liquidhaskell
 
 package liquidhaskell-boot
   ghc-options: -j
+  flags: +devel

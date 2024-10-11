@@ -5,7 +5,12 @@ import qualified Data.List                                  as L
 import qualified Data.Maybe                                 as Mb
 import           Text.PrettyPrint.HughesPJ                  hiding ((<>))
 
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Equality
 import           Liquid.GHC.API            hiding ((<+>), text)
 import qualified Language.Fixpoint.Types                    as F
