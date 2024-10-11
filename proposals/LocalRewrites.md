@@ -30,7 +30,7 @@ We would like to prove statements that depend on these parameters.
 
 ```haskell
 {-@ doSomething :: f:_ -> Prop (Term f) -> {f = id} @-}
-doSomething :: (a -> a) -> Term -> Proof
+doSomething :: (Int -> Int) -> Term -> Proof
 doSomething _ MkId = trivial
 ```
 
@@ -43,7 +43,7 @@ verification. Consider the following example:
 
 ```haskell
 {-@ doSomething' :: f:_ -> Prop (Term f) -> {f 42 = 42} @-}
-doSomething' :: (a -> a) -> Term -> Proof
+doSomething' :: (Int -> Int) -> Term -> Proof
 doSomething' _ MkId = trivial
 ```
 
