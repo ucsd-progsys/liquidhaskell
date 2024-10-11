@@ -11,7 +11,10 @@ import qualified Language.Haskell.Liquid.GHC.Misc           as GM
 import           Language.Haskell.Liquid.Bare.Types         as Bare
 import           Language.Haskell.Liquid.Bare.Resolve       as Bare
 import           Language.Haskell.Liquid.Bare.Expand        as Bare
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.Types.Types
 import           Liquid.GHC.API
 
 

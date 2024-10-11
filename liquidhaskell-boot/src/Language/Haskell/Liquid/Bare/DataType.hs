@@ -32,8 +32,12 @@ import qualified Data.Maybe                             as Mb
 import qualified Language.Fixpoint.Types                as F
 import qualified Language.Haskell.Liquid.GHC.Misc       as GM
 import qualified Liquid.GHC.API        as Ghc
+import           Language.Haskell.Liquid.Types.DataDecl
+import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
 import qualified Language.Haskell.Liquid.Types.RefType  as RT
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Meet
 import qualified Language.Fixpoint.Misc                 as Misc
@@ -46,6 +50,7 @@ import qualified Language.Haskell.Liquid.Measure        as Ms
 
 import qualified Language.Haskell.Liquid.Bare.Types     as Bare
 import qualified Language.Haskell.Liquid.Bare.Resolve   as Bare
+import           Language.Haskell.Liquid.UX.Config
 import           Text.Printf                     (printf)
 import Text.PrettyPrint ((<+>))
 

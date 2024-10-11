@@ -31,8 +31,11 @@ import qualified Data.HashMap.Strict as M
 
 import qualified Language.Fixpoint.Types as F
 import qualified Language.Fixpoint.Misc  as Misc -- (mapFst, mapSnd)
-import Language.Haskell.Liquid.Types.Types
+import Language.Haskell.Liquid.Types.Errors
 import Language.Haskell.Liquid.Types.RefType
+import Language.Haskell.Liquid.Types.RType
+import Language.Haskell.Liquid.Types.RTypeOp
+import Language.Haskell.Liquid.Types.Types
 
 
 data Bound t e = Bound

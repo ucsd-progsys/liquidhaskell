@@ -23,7 +23,9 @@ import qualified Language.Fixpoint.Types       as F
 import           Liquid.GHC.API hiding (panic, varName)
 import qualified Language.Haskell.Liquid.GHC.Misc
                                                as GM
-import           Language.Haskell.Liquid.Types.Types
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
 import           Language.Haskell.Liquid.Types.RefType
                                                 ( ofType )
 import qualified Data.List                     as L

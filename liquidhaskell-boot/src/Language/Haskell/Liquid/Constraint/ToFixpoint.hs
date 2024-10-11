@@ -24,7 +24,7 @@ import qualified Data.Maybe as Mb
 
 -- AT: Move to own module?
 -- imports for AxiomEnv
-import qualified Language.Haskell.Liquid.UX.Config as Config
+import           Language.Haskell.Liquid.UX.Config
 import           Language.Haskell.Liquid.UX.DiffCheck (coreDefs, coreDeps, dependsOn, Def(..))
 import qualified Language.Haskell.Liquid.GHC.Misc  as GM -- (simplesymbol)
 import qualified Data.List                         as L
@@ -33,7 +33,11 @@ import qualified Data.HashSet                      as S
 -- import           Language.Fixpoint.Misc
 import qualified Language.Haskell.Liquid.Misc      as Misc
 
-import           Language.Haskell.Liquid.Types hiding     ( binds )
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
+import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.Types.Types hiding     ( binds )
 
 fixConfig :: FilePath -> Config -> FC.Config
 fixConfig tgt cfg = def
@@ -55,9 +59,9 @@ fixConfig tgt cfg = def
   , FC.gradual                  = gradual           cfg
   , FC.ginteractive             = ginteractive       cfg
   , FC.noslice                  = noslice           cfg
-  , FC.rewriteAxioms            = Config.allowPLE   cfg
-  , FC.pleWithUndecidedGuards   = Config.pleWithUndecidedGuards cfg
-  , FC.etabeta                  = Config.etabeta    cfg
+  , FC.rewriteAxioms            = allowPLE   cfg
+  , FC.pleWithUndecidedGuards   = pleWithUndecidedGuards cfg
+  , FC.etabeta                  = etabeta    cfg
   , FC.etaElim                  = not (exactDC cfg) && extensionality cfg -- SEE: https://github.com/ucsd-progsys/liquidhaskell/issues/1601
   , FC.extensionality           = extensionality    cfg
   , FC.interpreter              = interpreter    cfg
@@ -183,7 +187,7 @@ makeRewriteOne tce (_, t)
     xs = do
       (sym, arg) <- zip (ty_binds tRep) (ty_args tRep)
       let e = maybe F.PTrue (F.reftPred . toReft) (stripRTypeBase arg)
-      return $ F.RR (rTypeSort tce arg) (F.Reft (sym, e))
+      return $ F.RR (RT.rTypeSort tce arg) (F.Reft (sym, e))
 
     tRep = toRTypeRep $ val t
 
@@ -199,8 +203,8 @@ hasClassArg x = F.tracepp msg (GM.isDataConId x && any Ghc.isClassPred (t:ts'))
 
 
 doExpand :: TargetSpec -> Config -> F.SubC Cinfo -> Bool
-doExpand sp cfg sub = Config.allowGlobalPLE cfg
-                   || (Config.allowLocalPLE cfg && maybe False (isPLEVar sp) (subVar sub))
+doExpand sp cfg sub = allowGlobalPLE cfg
+                   || (allowLocalPLE cfg && maybe False (isPLEVar sp) (subVar sub))
 
 -- [TODO:missing-sorts] data-constructors often have unelaboratable 'define' so either
 -- 1. Make `elaborate` robust so it doesn't crash and returns maybe or

@@ -341,9 +341,7 @@ inlineLoopBreaker (NonRec x e)
     | Just (lbx, lbe, lbargs) <- hasLoopBreaker be =
        let asPrefix = take (length as - length lbargs) as
            lbe' = sub (M.singleton lbx (ecall asPrefix)) lbe
-           mkLams ex = foldr Lam ex (αs ++ asPrefix)
-           mkLets ex = foldr Let ex nrbinds
-        in Rec [(x, mkLams (mkLets lbe'))]
+        in Rec [(x, mkLams (αs ++ asPrefix) (mkLets nrbinds lbe'))]
   where
     (αs, as, e') = collectTyAndValBinders e
     (nrbinds, be) = collectNonRecLets e'
@@ -356,18 +354,15 @@ inlineLoopBreaker (NonRec x e)
       , (Var x2, args) <- collectArgs e2
       , isLoopBreaker x1
       , x1 == x2
-      , all isVar args
+      , all (isJust . isVar) args
       , L.isSuffixOf (mapMaybe getVar args) as
       = Just (x1, e1, args)
     hasLoopBreaker _ = Nothing
 
     isLoopBreaker =  isStrongLoopBreaker . occInfo . idInfo
 
-    getVar (Var x) = Just x
+    getVar (Var v) = Just v
     getVar _ = Nothing
-
-    isVar (Var _) = True
-    isVar _ = False
 
 inlineLoopBreaker bs
   = bs

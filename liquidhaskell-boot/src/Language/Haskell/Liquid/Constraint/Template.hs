@@ -24,11 +24,16 @@ import           GHC.Types.Var (Var)
 import           GHC.Core (CoreExpr)
 import           GHC.Core.Utils ( exprType )
 import qualified Language.Fixpoint.Types                       as F
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
+import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Env ( lookupREnv, (+=) )
 import           Language.Haskell.Liquid.Constraint.Monad (addPost, addW)
 import           Language.Haskell.Liquid.Constraint.Fresh (refreshArgsTop, freshTyExpr)
+import           Language.Haskell.Liquid.UX.Config
 
 -- Template
 

@@ -240,10 +240,10 @@ addNoInlinePragmasToLocalBinds ps =
       ValBinds x binds sigs ->
           ValBinds x binds (newSigs ++ dropInlinePragmas sigs)
         where
-          dropInlinePragmas = filter (not . isInlinePragma . unLoc)
+          dropInlinePragmas = filter (not . isInlineSig . unLoc)
 
-          isInlinePragma InlineSig{} = True
-          isInlinePragma _ = False
+          isInlineSig InlineSig{} = True
+          isInlineSig _ = False
 
           newSigs = concatMap (traverse noInlinePragmaForBind) $ bagToList binds
 

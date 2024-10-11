@@ -12,7 +12,7 @@ module Language.Haskell.Liquid.GHC.Plugin.SpecFinder
 
 import qualified Language.Haskell.Liquid.GHC.Plugin.Util as Util
 import           Language.Haskell.Liquid.GHC.Plugin.Types
-import           Language.Haskell.Liquid.Types.Types
+import           Language.Haskell.Liquid.UX.Config
 
 import           Liquid.GHC.API         as GHC
 

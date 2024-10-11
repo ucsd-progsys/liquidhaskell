@@ -47,13 +47,24 @@ import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Haskell.Liquid.Constraint.Monad
 import Language.Haskell.Liquid.Constraint.Split ( splitC, splitW )
 import           Language.Haskell.Liquid.Constraint.Relational (consAssmRel, consRelTop)
-import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, Def)
+import           Language.Haskell.Liquid.Types.Dictionaries
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.Fresh
+import           Language.Haskell.Liquid.Types.Literals
+import           Language.Haskell.Liquid.Types.Names
+import           Language.Haskell.Liquid.Types.PredType
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.Types.Types hiding (binds)
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint ( addConstraints )
 import           Language.Haskell.Liquid.Constraint.Template
 import           Language.Haskell.Liquid.Constraint.Termination
 import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult, runToLogic, coreToLogic)
 import           Language.Haskell.Liquid.Bare.DataType (dataConMap, makeDataConChecker)
+import           Language.Haskell.Liquid.UX.Config
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------

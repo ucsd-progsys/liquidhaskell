@@ -34,11 +34,14 @@ import qualified Data.HashSet                          as S
 import qualified Data.HashMap.Strict                   as M
 import qualified Language.Fixpoint.Types               as F 
 import qualified Language.Haskell.Liquid.Measure       as Ms
+import           Language.Haskell.Liquid.Types.DataDecl
 import qualified Language.Haskell.Liquid.Types.RefType as RT 
+import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Specs   hiding (BareSpec)
 import           Liquid.GHC.API       as Ghc hiding (Located, Env)
 import           Language.Haskell.Liquid.GHC.Types     (StableName)
+import           Language.Haskell.Liquid.UX.Config
 
 
 type ModSpecs = M.HashMap ModName Ms.BareSpec

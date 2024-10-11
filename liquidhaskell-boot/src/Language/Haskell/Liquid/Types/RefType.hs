@@ -111,7 +111,9 @@ import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.PrettyPrint
 
-import           Language.Haskell.Liquid.Types.Types hiding (R, DataConP (..))
+import           Language.Haskell.Liquid.Types.RType
+import           Language.Haskell.Liquid.Types.RTypeOp
+import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Names
@@ -1822,60 +1824,6 @@ mkTyConInfo c userTv userPv f = TyConInfo tcTv userPv f
   where
     tcTv                      = if null userTv then defTv else userTv
     defTv                     = makeTyConVariance c
-
-
---------------------------------------------------------------------------------
--- | Printing Refinement Types -------------------------------------------------
---------------------------------------------------------------------------------
-
-instance Show RTyVar where
-  show = showpp
-
-instance PPrint (UReft r) => Show (UReft r) where
-  show = showpp
-
-instance PPrint DataDecl where
-  pprintTidy k dd =
-    let
-      prefix = "data" <+> pprint (tycName dd) <+> ppMbSizeFun (tycSFun dd) <+> pprint (tycTyVars dd)
-    in
-      case tycDCons dd of
-        Nothing   -> prefix
-        Just cons -> prefix <+> "=" $+$ nest 4 (vcat $ [ "|" <+> pprintTidy k c | c <- cons ])
-
-instance PPrint DataCtor where
-  -- pprintTidy k (DataCtor c as _   xts Nothing)  = pprintTidy k c <+> dcolon ppVars as <+> braces (ppFields k ", " xts)
-  -- pprintTidy k (DataCtor c as ths xts (Just t)) = pprintTidy k c <+> dcolon <+> ppVars as <+> ppThetas ths <+> (ppFields k " ->" xts) <+> "->" <+> pprintTidy k t
-  pprintTidy k (DataCtor c as ths xts t) = pprintTidy k c <+> dcolon <+> ppVars k as <+> ppThetas ths <+> ppFields k " ->" xts <+> "->" <+> res
-    where
-      res         = maybe "*" (pprintTidy k) t
-      ppThetas [] = empty
-      ppThetas ts = parens (hcat $ punctuate ", " (pprintTidy k <$> ts)) <+> "=>"
-
-
-ppVars :: (PPrint a) => Tidy -> [a] -> Doc
-ppVars k as = "forall" <+> hcat (punctuate " " (F.pprintTidy k <$> as)) <+> "."
-
-ppFields :: (PPrint k, PPrint v) => Tidy -> Doc -> [(k, v)] -> Doc
-ppFields k sep' kvs = hcat $ punctuate sep' (F.pprintTidy k <$> kvs)
-
-ppMbSizeFun :: Maybe SizeFun -> Doc
-ppMbSizeFun Nothing  = ""
-ppMbSizeFun (Just z) = F.pprint z
-
--- instance PPrint DataCtor where
-  -- pprintTidy k (DataCtor c xts t) =
-    -- pprintTidy k c <+> text "::" <+> (hsep $ punctuate (text "->")
-                                          -- ((pprintTidy k <$> xts) ++ [pprintTidy k t]))
-
--- ppHack :: (?callStack :: CallStack) => a -> b
--- ppHack _ = errorstar "OOPS"
-
-instance PPrint (RType c tv r) => Show (RType c tv r) where
-  show = showpp
-
-instance PPrint (RTProp c tv r) => Show (RTProp c tv r) where
-  show = showpp
 
 
 -------------------------------------------------------------------------------
