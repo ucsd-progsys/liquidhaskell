@@ -46,7 +46,6 @@ import           Control.Monad.Catch                        (bracket)
 import           Data.Coerce
 import           Data.Function                            ((&))
 import qualified Data.List                               as L
-import           Data.Maybe
 import           Data.IORef
 import qualified Data.Set                                as S
 import           Data.Set                                 ( Set )
@@ -156,7 +155,18 @@ plugin = GHC.defaultPlugin {
 --
 -- Since we have no good way of passing extra data between different
 -- phases of our plugin, we resort to horrible global mutable state.
-
+--
+-- Each module gets a mutable breadcrumb during compilation.
+--
+-- The @parseResultAction@ sets the breadcumb to @Parsed mod@.
+--
+-- The @typeCheckResultAction@ sets the breadcrumb to @Typechecking@ on entry,
+-- and clears the breadcrumb on exit.
+--
+-- If the @typeCheckResultAction@ does not find the breadcrumb, it skips the
+-- module, assuming that it has been verified already. This could happen if
+-- the plugin is activated more than once on the same module (by passing
+-- multiple times @-fplugin=LiquidHaskell@ to GHC).
 data Breadcrumb
   = Parsed ParsedModule
   | Typechecking
@@ -250,9 +260,10 @@ unoptimiseDynFlags df = updOptLevel 0 df
 -- LH used to reparse the module in the typechecker hook, but that doesn't work when
 -- the source code is not fed from a file (See #2357).
 parsedHook :: [CommandLineOption] -> ModSummary -> ParsedResult -> Hsc ParsedResult
-parsedHook _ ms parsedResult = parsedResult <$ do
-  breadcrumb <- swapBreadcrumb thisModule $ Just (Parsed parsed)
-  unless (isNothing breadcrumb) $ error "parsedHook: reentry?"
+parsedHook _ ms parsedResult = do
+    -- See 'Breadcrumb' for more information.
+    _oldBreadcrumb <- swapBreadcrumb thisModule $ Just (Parsed parsed)
+    return parsedResult
   where
     thisModule = ms_mod ms
 
@@ -281,13 +292,17 @@ parsedHook _ ms parsedResult = parsedResult <$ do
 --
 typecheckHook  :: Config -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
 typecheckHook cfg0 modSummary0 tcGblEnv = bracket startTypechecking endTypechecking $ \case
-  Just Typechecking -> do
+  Just Typechecking ->
     -- We're being called from the `typecheckModuleIO` call in `typecheckHook`, so we avoid looping
+    -- See 'Breadcrumb' for more information.
     pure $ Right tcGblEnv
-  Just (Parsed parsed0) -> do
+  Just (Parsed parsed0) ->
     typecheckHook' cfg0 modSummary0 parsed0 tcGblEnv
-  Nothing -> do
-    error "typecheckHook: how did we get here without a breadcrumb?!"
+  Nothing ->
+    -- The module has been verified by an earlier call to the plugin.
+    -- This could happen if multiple @-fplugin=LiquidHaskell@ flags are passed to GHC.
+    -- See 'Breadcrumb' for more information.
+    pure $ Right tcGblEnv
   where
     thisModule = tcg_mod tcGblEnv
 
