@@ -73,7 +73,7 @@ cgInfoFInfo :: TargetInfo -> CGInfo -> IO (F.FInfo Cinfo)
 cgInfoFInfo info cgi = return (targetFInfo info cgi)
 
 targetFInfo :: TargetInfo -> CGInfo -> F.FInfo Cinfo
-targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
+targetFInfo info cgi = mappend (mempty { F.ae = ax, F.lrws = localRewrites cgi }) fi
   where
     fi               = F.fi cs ws bs ls consts ks qs bi aHO aHOqs es mempty adts ebs
     cs               = fixCs    cgi

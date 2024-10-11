@@ -16,33 +16,32 @@ import qualified Data.HashSet        as S
 getCaseRewrites :: CGEnv -> SpecType -> [(Symbol, Expr)]
 getCaseRewrites γ spec =
     let Reft (_, refinement) = ur_reft $ rt_reft spec
-        ctors   = S.fromList $ M.keys $ seBinds  $ constEnv γ
-        globals = S.fromList $ M.keys $ reGlobal $ renv     γ
+        -- Names of constustors both type constructors and data constructors
+        ctors   = toSet $ seBinds  $ constEnv γ
+        -- All the global names (top level functions, types, etc...)
+        globals = toSet $ reGlobal $ renv     γ
     in unloop
        $ concat
        $ mapMaybe (uncurry $ unify ctors globals)
        $ groupUnifiableEqualities 
        $ getEqualities refinement
+    where toSet = S.fromList . M.keys
 
 unify :: S.HashSet Symbol -> S.HashSet Symbol -> Expr -> Expr -> Maybe [(Symbol, Expr)]
 unify ctors globals = go
     where
         go e1 e2 | e1 == e2 = Just []
-        -- NOTE: We don't need to check for ECst because
-        --       the expressions arent elaborated
+        -- NOTE: We don't need to check for ECst because the expressions arent
+        -- elaborated
         go (EVar s1) e2 | isLocal s1 = Just [(s1, e2)]
         go e1 (EVar s2) | isLocal s2 = Just [(s2, e1)]
-        -- TODO: Tecnically we could also unify under lambdas
-        --       but you have to be carefull about alpha 
-        --       equivalence idk if the effort is worth it.
+        -- TODO: Tecnically we could also unify under lambdas but you have to be
+        -- carefull about alpha equivalence idk if the effort is worth it.
         go e1 e2 = do
-            -- Performing the unification under constructor is safe because
-            -- Let C be a constructor of arity n
+            -- Performing the unification under constructor is safe because 
             -- C a₁ ... aₙ = C b₁ ... bₙ ⟺ ∀ n . a₁ = bₙ
-            let app1:args1 = flatten e1
-            let EVar name1 = dropECst app1
-            let app2:args2 = flatten e2
-            let EVar name2 = dropECst app2
+            let EVar name1 : args1 = flatten e1
+            let EVar name2 : args2 = flatten e2
             guard $ name1 == name2
             guard $ isCtor name1
             guard $ length args1 == length args2
@@ -78,17 +77,16 @@ getEqualities _                = []
 -- | A collection of rewrites that cannot cause an infinite loop
 newtype AcyclicRewrites = AR (M.HashMap Symbol Expr)
 
--- We can think of the map a directed graph where every symbol is a vertex
--- and there is an edge v₁ → v₂ if in the expression that v₁ is rewritten to
--- v₂ is a free variable.
--- To guarantee that there arent any infinite loops in the rewrite procedure
--- that will be executed by PLE, we need to esnure that there aren't any cyclic
--- rewrites, this is ensured by adding the invariant to our graph of beeing a
--- DAG.
+-- We can think of the map a directed graph where every symbol is a vertex and
+-- there is an edge v₁ → v₂ if in the expression that v₁ is rewritten to v₂ is a
+-- free variable.  To guarantee that there arent any infinite loops in the
+-- rewrite procedure that will be executed by PLE, we need to esnure that there
+-- aren't any cyclic rewrites, this is ensured by adding the invariant to our
+-- graph of beeing a DAG.
 
--- | Takes a list of rewrites and returns a list of rewrites and filters out
--- any rewrites that would cause an infinite loop, the procedure is order biased
--- as rewrites earlier in the list take precedence.
+-- | Takes a list of rewrites and returns a list of rewrites and filters out any
+-- rewrites that would cause an infinite loop, the procedure is order biased as
+-- rewrites earlier in the list take precedence.
 unloop :: [(Symbol, Expr)] -> [(Symbol, Expr)]
 unloop = toRewrites . foldl' doInsert empty 
     where doInsert ar (s, e) = ar `fromMaybe` insert ar s e 
@@ -97,13 +95,13 @@ unloop = toRewrites . foldl' doInsert empty
 toRewrites :: AcyclicRewrites -> [(Symbol, Expr)]
 toRewrites (AR m) = M.toList m
 
--- | Checks if there is a path from s1 to s2
--- O(Σ(e ∈ m) |exprSymbolSet e|) [O(m) where m is the number of edges]
+-- | Checks if there is a path from s1 to s2 O(Σ(e ∈ m) |exprSymbolSet e|) [O(m)
+-- where m is the number of edges]
 existsPath :: AcyclicRewrites -> Symbol -> Symbol -> Bool
 existsPath (AR m) s1 s2 = go s1
   where
-    -- Since m is a DAG, we can use DFS to check if there is a path from s1 to s2
-    -- without worrying about infinite loops
+    -- Since m is a DAG, we can use DFS to check if there is a path from s1 to
+    -- s2 without worrying about infinite loops
     go s1 | s1 == s2 = True
     go s1 | Just e <- M.lookup s1 m
           = any go $ S.toList $ exprSymbolsSet e

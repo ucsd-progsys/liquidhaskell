@@ -20,6 +20,7 @@ module Language.Haskell.Liquid.Constraint.Env (
   , addBinders
   , addSEnv
   , addEEnv
+  , addRewrites
   , (-=)
   , globalize
 
@@ -153,6 +154,10 @@ addBind l x r = do
   let (i, bs') = F.insertBindEnv x r (Ci l Nothing Nothing) (binds st)
   put          $ st { binds = bs' } { bindSpans = M.insert i l (bindSpans st) }
   return ((x, F.sr_sort r), {- traceShow ("addBind: " ++ showpp x) -} i)
+
+addRewrites :: F.BindId -> [(F.Symbol, F.Expr)] -> CG ()
+addRewrites i rws = modify $ \st -> st { localRewrites = M.insert i (M.fromList rws) 
+                                                       $ localRewrites st }
 
 addClassBind :: CGEnv -> SrcSpan -> SpecType -> CG [((F.Symbol, F.Sort), F.BindId)]
 addClassBind γ l = mapM (uncurry (addBind l)) . classBinds (emb γ)

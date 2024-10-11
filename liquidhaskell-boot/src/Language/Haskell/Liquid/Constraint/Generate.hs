@@ -52,6 +52,7 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint ( addConstraints )
 import           Language.Haskell.Liquid.Constraint.Template
 import           Language.Haskell.Liquid.Constraint.Termination
+import           Language.Haskell.Liquid.Constraint.RewriteCase
 import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult, runToLogic, coreToLogic)
 import           Language.Haskell.Liquid.Bare.DataType (dataConMap, makeDataConChecker)
 
@@ -860,8 +861,15 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
   let cbs          = safeZip "cconsCase" (x':ys')
                          (map (`F.subst1` (selfSymbol, F.EVar x'))
                          (xt0 : yts))
-  cγ'             <- addBinders γ x' cbs
-  addBinders cγ' x' [(x', substSelf <$> xt)]
+  cγ'  <- addBinders γ   x' cbs
+  cγ'' <- addBinders cγ' x' [(x', substSelf <$> xt)]
+
+  -- This is quite ugly, but literally there isnt any way to get the currente
+  -- bindId, calling maximum is safe as there is always at least one binder
+  bindId <- gets (maximum . F.elemsBindEnv . binds)
+  addRewrites bindId $ getCaseRewrites γ $ xt0 `F.meet` rtd
+
+  pure cγ''
   where allowTC    = typeclass (getConfig γ)
 
 caseEnv γ x acs a _ _ = do
