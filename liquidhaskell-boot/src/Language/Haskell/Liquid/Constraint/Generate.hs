@@ -867,7 +867,7 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
   -- This is quite ugly, but literally there isnt any way to get the currente
   -- bindId, calling maximum is safe as there is always at least one binder
   bindId <- gets (maximum . F.elemsBindEnv . binds)
-  addRewrites bindId $ getCaseRewrites γ $ xt0 `F.meet` rtd
+  addRewrites bindId $ getCaseRewrites γ $ xt0 `meet` rtd
 
   pure cγ''
   where allowTC    = typeclass (getConfig γ)
