@@ -18,6 +18,7 @@ module Liquid.GHC.API (
   ) where
 
 import Liquid.GHC.API.Extra as Ghc
+import Liquid.GHC.API.Compat as Ghc
 
 import           GHC                  as Ghc
     ( Class
