@@ -2,7 +2,7 @@ module ErrorFilterReportTests(errorFilterReportTests) where
 
 import Test.Tasty ( TestTree, testGroup )
 import Test.Tasty.HUnit ( testCase, assertBool )
-import Language.Haskell.Liquid.Types (FilterReportErrorsArgs(..))
+import Language.Haskell.Liquid.Types.PrettyPrint (FilterReportErrorsArgs(..))
 import Language.Haskell.Liquid.Types.PrettyPrint (Filter(..), filterReportErrorsWith, reduceFilters)
 import Data.Functor.Identity (Identity(..))
 
