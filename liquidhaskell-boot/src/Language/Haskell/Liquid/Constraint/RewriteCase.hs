@@ -6,6 +6,7 @@ import           Language.Fixpoint.Types
 import qualified Language.Fixpoint.Misc as M
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Types.Types
+import           Language.Haskell.Liquid.Types.RType
 
 import           Data.Maybe
 import           Control.Monad
@@ -40,8 +41,8 @@ unify ctors globals = go
         go e1 e2 = do
             -- Performing the unification under constructor is safe because 
             -- C a₁ ... aₙ = C b₁ ... bₙ ⟺ ∀ n . a₁ = bₙ
-            let EVar name1 : args1 = flatten e1
-            let EVar name2 : args2 = flatten e2
+            EVar name1 : args1 <- pure $ flatten e1
+            EVar name2 : args2 <- pure $ flatten e2
             guard $ name1 == name2
             guard $ isCtor name1
             guard $ length args1 == length args2
@@ -98,7 +99,7 @@ toRewrites (AR m) = M.toList m
 -- | Checks if there is a path from s1 to s2 O(Σ(e ∈ m) |exprSymbolSet e|) [O(m)
 -- where m is the number of edges]
 existsPath :: AcyclicRewrites -> Symbol -> Symbol -> Bool
-existsPath (AR m) s1 s2 = go s1
+existsPath (AR m) s1' s2 = go s1'
   where
     -- Since m is a DAG, we can use DFS to check if there is a path from s1 to
     -- s2 without worrying about infinite loops
@@ -121,4 +122,4 @@ insert ar s e | not $ any (existsPath ar s) $ S.toList $ exprSymbolsSet e
               = Just $ insertUnsafe ar s e
               | otherwise 
               = Nothing
-    where insertUnsafe (AR m) s e = AR $ M.insert s e m
+    where insertUnsafe (AR m) s' e' = AR $ M.insert s' e' m
