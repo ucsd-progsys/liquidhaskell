@@ -28,12 +28,9 @@ import           GHC                  as Ghc
     , FixitySig(FixitySig)
     , GenLocated(L)
     , GeneralFlag
-        ( Opt_DeferTypedHoles
-        , Opt_Haddock
-        , Opt_ImplicitImportQualified
+        ( Opt_Haddock
         , Opt_InsertBreakpoints
         , Opt_KeepRawTokenStream
-        , Opt_PIC
         , Opt_IgnoreInterfacePragmas
         )
     , Ghc
