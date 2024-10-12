@@ -36,7 +36,6 @@ import           Language.Haskell.Liquid.GHC.Plugin.SpecFinder
 import           Language.Haskell.Liquid.GHC.Types       (MGIModGuts(..), miModGuts)
 import           Language.Haskell.Liquid.Transforms.InlineAux (inlineAux)
 import           Language.Haskell.Liquid.Transforms.Rewrite (rewriteBinds)
-import           GHC.LanguageExtensions
 
 import           Control.Monad
 import qualified Control.Monad.Catch as Ex
@@ -203,16 +202,6 @@ lhDynFlags _ hscEnv =
            `gopt_set` Opt_KeepRawTokenStream
       }
 
--- | Overrides the default 'DynFlags' options.
-customDynFlags :: DynFlags -> DynFlags
-customDynFlags df =
-    df `gopt_set` Opt_ImplicitImportQualified
-       `gopt_set` Opt_PIC
-       `gopt_set` Opt_DeferTypedHoles
-       `xopt_set` MagicHash
-       `xopt_set` DeriveGeneric
-       `xopt_set` StandaloneDeriving
-
 maybeInsertBreakPoints :: Config -> DynFlags -> DynFlags
 maybeInsertBreakPoints cfg dflags =
     if insertCoreBreakPoints cfg then
@@ -317,8 +306,7 @@ typecheckHook cfg0 modSummary0 tcGblEnv = bracket startTypechecking endTypecheck
 typecheckHook' :: Config -> ModSummary -> ParsedModule -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
 typecheckHook' cfg0 modSummary0 parsed0 tcGblEnv = do
   debugLog $ "We are in module: " <> show (toStableModule thisModule)
-  let modSummary =
-        updateModSummaryDynFlags (customDynFlags . unoptimiseDynFlags) modSummary0
+  let modSummary = updateModSummaryDynFlags unoptimiseDynFlags modSummary0
       thisFile = LH.modSummaryHsFile modSummary
 
   env0 <- env_top <$> getEnv
