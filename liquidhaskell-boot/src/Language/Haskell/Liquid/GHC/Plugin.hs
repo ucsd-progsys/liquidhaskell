@@ -309,8 +309,6 @@ typecheckHook' cfg0 modSummary0 parsed0 tcGblEnv = do
   let modSummary = updateModSummaryDynFlags unoptimiseDynFlags modSummary0
       thisFile = LH.modSummaryHsFile modSummary
 
-  env0 <- env_top <$> getEnv
-  let env = env0 { hsc_dflags = ms_hspp_opts modSummary }
   let specComments = map mkSpecComment $ LH.extractSpecComments parsed0
       parsed = addNoInlinePragmasToLocalBinds parsed0
 
@@ -323,19 +321,23 @@ typecheckHook' cfg0 modSummary0 parsed0 tcGblEnv = do
 
         let modSummary2 = updateModSummaryDynFlags (maybeInsertBreakPoints cfg) modSummary
             parsed2 = parsed { pm_mod_summary = modSummary2 }
-            env2 = env { hsc_dflags = ms_hspp_opts modSummary2 }
 
-        typechecked     <- liftIO $ typecheckModuleIO env2 (LH.ignoreInline parsed2)
-        resolvedNames   <- liftIO $ LH.lookupTyThings env2 tcGblEnv
-        availTyCons     <- liftIO $ LH.availableTyCons env2 tcGblEnv (tcg_exports tcGblEnv)
-        availVars       <- liftIO $ LH.availableVars env2 tcGblEnv (tcg_exports tcGblEnv)
+        updTopEnv (hscUpdateFlags noWarnings . hscSetFlags (ms_hspp_opts modSummary2)) $ do
+          env2 <- getTopEnv
 
-        unoptimisedGuts <- liftIO $ desugarModuleIO env2 modSummary2 typechecked
+          pipelineData <- liftIO $ do
+              session <- Session <$> newIORef env2
+              flip reflectGhc session $ do
+                  typechecked     <- typecheckModule (LH.ignoreInline parsed2)
+                  unoptimisedGuts <- desugarModule typechecked
 
-        let tcData = mkTcData (tcg_rn_imports tcGblEnv) resolvedNames availTyCons availVars
-        let pipelineData = PipelineData unoptimisedGuts tcData specs
+                  resolvedNames   <- liftIO $ LH.lookupTyThings env2 tcGblEnv
+                  availTyCons     <- liftIO $ LH.availableTyCons env2 tcGblEnv (tcg_exports tcGblEnv)
+                  availVars       <- liftIO $ LH.availableVars env2 tcGblEnv (tcg_exports tcGblEnv)
 
-        updEnv (\e -> e {env_top = env2}) $
+                  let tcData = mkTcData (tcg_rn_imports tcGblEnv) resolvedNames availTyCons availVars
+                  return $ PipelineData (coreModule unoptimisedGuts) tcData specs
+
           liquidHaskellCheckWithConfig cfg pipelineData modSummary2 tcGblEnv
 
   where
@@ -345,6 +347,8 @@ typecheckHook' cfg0 modSummary0 parsed0 tcGblEnv = do
     continue = pure $ Left (ErrorsOccurred [])
 
     updateModSummaryDynFlags f ms = ms { ms_hspp_opts = f (ms_hspp_opts ms) }
+
+    noWarnings dflags = dflags { warningFlags = mempty }
 
 serialiseSpec :: Module -> TcGblEnv -> LiquidLib -> TcM TcGblEnv
 serialiseSpec thisModule tcGblEnv liquidLib = do
