@@ -62,6 +62,7 @@ fixConfig tgt cfg = def
   , FC.rewriteAxioms            = allowPLE   cfg
   , FC.pleWithUndecidedGuards   = pleWithUndecidedGuards cfg
   , FC.etabeta                  = etabeta    cfg
+  , FC.localRewrites            = dependantCase cfg
   , FC.etaElim                  = not (exactDC cfg) && extensionality cfg -- SEE: https://github.com/ucsd-progsys/liquidhaskell/issues/1601
   , FC.extensionality           = extensionality    cfg
   , FC.interpreter              = interpreter    cfg
