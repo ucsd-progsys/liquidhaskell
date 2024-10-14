@@ -14,7 +14,7 @@ module Liquid.GHC.API.Extra (
   , isPatErrorAlt
   , lookupModSummary
   , minus_RDR
-  , modInfoLookupNameIO
+  , modInfoLookupName
   , moduleInfoTc
   , qualifiedNameFS
   , relevantModules
@@ -31,7 +31,7 @@ module Liquid.GHC.API.Extra (
 
 import Control.Monad.IO.Class
 import           Liquid.GHC.API.StableModule      as StableModule
-import GHC
+import GHC hiding (modInfoLookupName)
 import Data.Data (Data, gmapQr, gmapT)
 import Data.Generics (extQ, extT)
 import Data.Foldable                  (asum)
@@ -59,7 +59,6 @@ import GHC.Types.SourceText           (SourceText(..))
 import GHC.Types.SrcLoc               as Ghc
 import GHC.Types.TypeEnv
 import GHC.Types.Unique               (getUnique, hasKey)
-import GHC.Types.Unique.FM
 
 import GHC.Unit.Module.Deps           as Ghc (Dependencies(dep_direct_mods))
 import GHC.Unit.Module.Graph          as Ghc
@@ -225,16 +224,13 @@ lookupModSummary hscEnv mdl = do
 -- | Our own simplified version of 'ModuleInfo' to overcome the fact we cannot construct the \"original\"
 -- one as the constructor is not exported, and 'getHomeModuleInfo' and 'getPackageModuleInfo' are not
 -- exported either, so we had to backport them as well.
-newtype ModuleInfoLH = ModuleInfoLH { minflh_type_env :: UniqFM Name TyThing }
+newtype ModuleInfoLH = ModuleInfoLH { minflh_type_env :: TypeEnv }
 
-modInfoLookupNameIO :: HscEnv
-                  -> ModuleInfoLH
-                  -> Name
-                  -> IO (Maybe TyThing)
-modInfoLookupNameIO hscEnv minf name =
+modInfoLookupName :: (GhcMonad m) => ModuleInfoLH -> Name -> m (Maybe TyThing)
+modInfoLookupName minf name = do
   case lookupTypeEnv (minflh_type_env minf) name of
     Just tyThing -> return (Just tyThing)
-    Nothing      -> lookupType hscEnv name
+    Nothing      -> lookupGlobalName name
 
 moduleInfoTc :: HscEnv -> TcGblEnv -> IO ModuleInfoLH
 moduleInfoTc hscEnv tcGblEnv = do

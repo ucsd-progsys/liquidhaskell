@@ -331,9 +331,10 @@ typecheckHook' cfg0 modSummary0 parsed0 tcGblEnv = do
                   typechecked     <- typecheckModule (LH.ignoreInline parsed2)
                   unoptimisedGuts <- desugarModule typechecked
 
-                  resolvedNames   <- liftIO $ LH.lookupTyThings env2 tcGblEnv
-                  availTyCons     <- liftIO $ LH.availableTyCons env2 tcGblEnv (tcg_exports tcGblEnv)
-                  availVars       <- liftIO $ LH.availableVars env2 tcGblEnv (tcg_exports tcGblEnv)
+                  resolvedNames   <- LH.lookupTyThings tcGblEnv
+                  avails          <- LH.availableTyThings tcGblEnv (tcg_exports tcGblEnv)
+                  let availTyCons = [ tc | ATyCon tc <- avails ]
+                      availVars   = [ var | AnId var <- avails ]
 
                   let tcData = mkTcData (tcg_rn_imports tcGblEnv) resolvedNames availTyCons availVars
                   return $ PipelineData (coreModule unoptimisedGuts) tcData specs

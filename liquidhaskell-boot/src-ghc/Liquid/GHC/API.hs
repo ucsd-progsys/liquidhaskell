@@ -37,6 +37,7 @@ import           GHC                  as Ghc
     , GhcException(CmdLineError, ProgramError)
     , GhcLink(LinkInMemory)
     , GhcMode(CompManager)
+    , GhcMonad
     , GhcPs
     , GhcRn
     , HsDecl(SigD)
@@ -111,6 +112,7 @@ import           GHC                  as Ghc
     , isRecordSelector
     , isTypeSynonymTyCon
     , isVanillaDataCon
+    , lookupName
     , mkHsApp
     , mkHsDictLet
     , mkHsForAllInvisTele
@@ -414,9 +416,6 @@ import GHC.Driver.Config.Diagnostic as Ghc
     ( initDiagOpts
     , initDsMessageOpts
     , initIfaceMessageOpts
-    )
-import GHC.Driver.Main                as Ghc
-    ( hscTcRcLookupName
     )
 import GHC.Driver.Plugins             as Ghc
     ( ParsedResult(..)
