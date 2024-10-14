@@ -137,7 +137,7 @@ plugin = GHC.defaultPlugin {
             liftIO $ printWarning logger warning
             pure gblEnv
           else do
-            newGblEnv <- typecheckHook cfg summary gblEnv
+            newGblEnv <- typecheckHook cfg gblEnv
             case newGblEnv of
               -- Exit with success if all expected errors were found
               Left (ErrorsOccurred []) -> pure gblEnv
@@ -279,14 +279,14 @@ parsedHook _ ms parsedResult = do
 --    grab from parsing (again) the module by using the GHC API, so we are really
 --    independent from the \"normal\" compilation pipeline.
 --
-typecheckHook  :: Config -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
-typecheckHook cfg0 modSummary0 tcGblEnv = bracket startTypechecking endTypechecking $ \case
+typecheckHook  :: Config -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
+typecheckHook cfg0 tcGblEnv = bracket startTypechecking endTypechecking $ \case
   Just Typechecking ->
     -- We're being called from the `typecheckModuleIO` call in `typecheckHook`, so we avoid looping
     -- See 'Breadcrumb' for more information.
     pure $ Right tcGblEnv
   Just (Parsed parsed0) ->
-    typecheckHook' cfg0 modSummary0 parsed0 tcGblEnv
+    typecheckHook' cfg0 parsed0 tcGblEnv
   Nothing ->
     -- The module has been verified by an earlier call to the plugin.
     -- This could happen if multiple @-fplugin=LiquidHaskell@ flags are passed to GHC.
@@ -303,8 +303,8 @@ typecheckHook cfg0 modSummary0 tcGblEnv = bracket startTypechecking endTypecheck
         Just Parsed{} -> void $ swapBreadcrumb thisModule Nothing
         _ -> pure ()
 
-typecheckHook' :: Config -> ModSummary -> ParsedModule -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
-typecheckHook' cfg0 modSummary0 parsed0 tcGblEnv = do
+typecheckHook' :: Config -> ParsedModule -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
+typecheckHook' cfg0 parsed0 tcGblEnv = do
   debugLog $ "We are in module: " <> show (toStableModule thisModule)
   let modSummary = updateModSummaryDynFlags unoptimiseDynFlags modSummary0
       thisFile = LH.modSummaryHsFile modSummary
@@ -344,6 +344,8 @@ typecheckHook' cfg0 modSummary0 parsed0 tcGblEnv = do
   where
     thisModule :: Module
     thisModule = tcg_mod tcGblEnv
+
+    modSummary0 = pm_mod_summary parsed0
 
     continue = pure $ Left (ErrorsOccurred [])
 
