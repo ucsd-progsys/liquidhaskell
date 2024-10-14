@@ -213,7 +213,7 @@ data CGInfo = CGInfo
   , fixWfs        :: ![FixWfC]                           -- ^ wellformedness constraints over Sort (post-splitting)
   , freshIndex    :: !Integer                            -- ^ counter for generating fresh KVars
   , binds         :: !FixBindEnv                         -- ^ set of environment binders
-  , localRewrites :: !F.LRWMap                           -- ^ set of local rewrites
+  , localRewrites :: !F.LocalRewritesEnv                 -- ^ set of local rewrites
   , ebinds        :: ![F.BindId]                         -- ^ existentials
   , annotMap      :: !(AnnInfo (Annot SpecType))         -- ^ source-position annotation map
   , tyConInfo     :: !TyConMap                           -- ^ information about type-constructors

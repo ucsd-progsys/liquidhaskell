@@ -14,7 +14,7 @@ import           Control.Monad
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-getCaseRewrites :: CGEnv -> SpecType -> [(Symbol, Expr)]
+getCaseRewrites :: CGEnv -> SpecType -> LocalRewrites
 getCaseRewrites γ spec =
     let Reft (_, refinement) = ur_reft $ rt_reft spec
         -- Names of constustors both type constructors and data constructors
@@ -88,13 +88,13 @@ newtype AcyclicRewrites = AR (M.HashMap Symbol Expr)
 -- | Takes a list of rewrites and returns a list of rewrites and filters out any
 -- rewrites that would cause an infinite loop, the procedure is order biased as
 -- rewrites earlier in the list take precedence.
-unloop :: [(Symbol, Expr)] -> [(Symbol, Expr)]
-unloop = toRewrites . foldl' doInsert empty 
+unloop :: [(Symbol, Expr)] -> LocalRewrites
+unloop = LocalRewrites . toRewrites . foldl' doInsert empty 
     where doInsert ar (s, e) = ar `fromMaybe` insert ar s e 
 
 -- | Get the "raw" list of rewrites
-toRewrites :: AcyclicRewrites -> [(Symbol, Expr)]
-toRewrites (AR m) = M.toList m
+toRewrites :: AcyclicRewrites -> M.HashMap Symbol Expr
+toRewrites (AR m) = m
 
 -- | Checks if there is a path from s1 to s2 O(Σ(e ∈ m) |exprSymbolSet e|) [O(m)
 -- where m is the number of edges]
