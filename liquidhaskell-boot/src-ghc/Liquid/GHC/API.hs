@@ -23,7 +23,7 @@ import           GHC                  as Ghc
     ( Class
     , DataCon
     , DesugaredModule(DesugaredModule, dm_typechecked_module, dm_core_module)
-    , DynFlags(backend, debugLevel, ghcLink, ghcMode)
+    , DynFlags(backend, debugLevel, ghcLink, ghcMode, warningFlags)
     , FixityDirection(InfixN, InfixR)
     , FixitySig(FixitySig)
     , GenLocated(L)
@@ -37,6 +37,7 @@ import           GHC                  as Ghc
     , GhcException(CmdLineError, ProgramError)
     , GhcLink(LinkInMemory)
     , GhcMode(CompManager)
+    , GhcMonad
     , GhcPs
     , GhcRn
     , HsDecl(SigD)
@@ -81,9 +82,11 @@ import           GHC                  as Ghc
     , TypecheckedModule(tm_checked_module_info, tm_internals_, tm_parsed_module)
     , classMethods
     , classSCTheta
+    , coreModule
     , dataConTyCon
     , dataConFieldLabels
     , dataConWrapperType
+    , desugarModule
     , getLocA
     , getLogger
     , getName
@@ -109,6 +112,7 @@ import           GHC                  as Ghc
     , isRecordSelector
     , isTypeSynonymTyCon
     , isVanillaDataCon
+    , lookupName
     , mkHsApp
     , mkHsDictLet
     , mkHsForAllInvisTele
@@ -154,6 +158,7 @@ import           GHC                  as Ghc
     , tyConDataCons
     , tyConKind
     , tyConTyVars
+    , typecheckModule
     , unLoc
     )
 
@@ -412,10 +417,6 @@ import GHC.Driver.Config.Diagnostic as Ghc
     , initDsMessageOpts
     , initIfaceMessageOpts
     )
-import GHC.Driver.Main                as Ghc
-    ( hscDesugar
-    , hscTcRcLookupName
-    )
 import GHC.Driver.Plugins             as Ghc
     ( ParsedResult(..)
     )
@@ -428,7 +429,7 @@ import GHC.Driver.Session             as Ghc
     , updOptLevel
     , xopt_set
     )
-import GHC.Driver.Monad               as Ghc (withSession)
+import GHC.Driver.Monad               as Ghc (withSession, reflectGhc, Session(..))
 import GHC.HsToCore.Monad             as Ghc
     ( DsM, initDsTc, initDsWithModGuts, newUnique )
 import GHC.Iface.Syntax               as Ghc
@@ -452,6 +453,7 @@ import GHC.Driver.Backend             as Ghc (interpreterBackend)
 import GHC.Driver.Env                 as Ghc
     ( HscEnv(hsc_mod_graph, hsc_unit_env, hsc_dflags, hsc_plugins)
     , Hsc
+    , hscSetFlags, hscUpdateFlags
     )
 import GHC.Driver.Errors              as Ghc
     ( printMessages )
@@ -499,6 +501,7 @@ import GHC.Tc.Utils.Monad             as Ghc
     ( captureConstraints
     , discardConstraints
     , getEnv
+    , getTopEnv
     , failIfErrsM
     , failM
     , failWithTc
@@ -510,6 +513,7 @@ import GHC.Tc.Utils.Monad             as Ghc
     , reportDiagnostic
     , reportDiagnostics
     , updEnv
+    , updTopEnv
     )
 import GHC.Tc.Utils.TcType            as Ghc (tcSplitDFunTy, tcSplitMethodTy)
 import GHC.Tc.Zonk.Type               as Ghc

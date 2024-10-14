@@ -137,7 +137,7 @@ plugin = GHC.defaultPlugin {
             liftIO $ printWarning logger warning
             pure gblEnv
           else do
-            newGblEnv <- typecheckHook cfg summary gblEnv
+            newGblEnv <- typecheckHook cfg gblEnv
             case newGblEnv of
               -- Exit with success if all expected errors were found
               Left (ErrorsOccurred []) -> pure gblEnv
@@ -279,14 +279,14 @@ parsedHook _ ms parsedResult = do
 --    grab from parsing (again) the module by using the GHC API, so we are really
 --    independent from the \"normal\" compilation pipeline.
 --
-typecheckHook  :: Config -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
-typecheckHook cfg0 modSummary0 tcGblEnv = bracket startTypechecking endTypechecking $ \case
+typecheckHook  :: Config -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
+typecheckHook cfg0 tcGblEnv = bracket startTypechecking endTypechecking $ \case
   Just Typechecking ->
     -- We're being called from the `typecheckModuleIO` call in `typecheckHook`, so we avoid looping
     -- See 'Breadcrumb' for more information.
     pure $ Right tcGblEnv
   Just (Parsed parsed0) ->
-    typecheckHook' cfg0 modSummary0 parsed0 tcGblEnv
+    typecheckHook' cfg0 parsed0 tcGblEnv
   Nothing ->
     -- The module has been verified by an earlier call to the plugin.
     -- This could happen if multiple @-fplugin=LiquidHaskell@ flags are passed to GHC.
@@ -303,14 +303,12 @@ typecheckHook cfg0 modSummary0 tcGblEnv = bracket startTypechecking endTypecheck
         Just Parsed{} -> void $ swapBreadcrumb thisModule Nothing
         _ -> pure ()
 
-typecheckHook' :: Config -> ModSummary -> ParsedModule -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
-typecheckHook' cfg0 modSummary0 parsed0 tcGblEnv = do
+typecheckHook' :: Config -> ParsedModule -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
+typecheckHook' cfg0 parsed0 tcGblEnv = do
   debugLog $ "We are in module: " <> show (toStableModule thisModule)
   let modSummary = updateModSummaryDynFlags unoptimiseDynFlags modSummary0
       thisFile = LH.modSummaryHsFile modSummary
 
-  env0 <- env_top <$> getEnv
-  let env = env0 { hsc_dflags = ms_hspp_opts modSummary }
   let specComments = map mkSpecComment $ LH.extractSpecComments parsed0
       parsed = addNoInlinePragmasToLocalBinds parsed0
 
@@ -323,28 +321,37 @@ typecheckHook' cfg0 modSummary0 parsed0 tcGblEnv = do
 
         let modSummary2 = updateModSummaryDynFlags (maybeInsertBreakPoints cfg) modSummary
             parsed2 = parsed { pm_mod_summary = modSummary2 }
-            env2 = env { hsc_dflags = ms_hspp_opts modSummary2 }
 
-        typechecked     <- liftIO $ typecheckModuleIO env2 (LH.ignoreInline parsed2)
-        resolvedNames   <- liftIO $ LH.lookupTyThings env2 tcGblEnv
-        availTyCons     <- liftIO $ LH.availableTyCons env2 tcGblEnv (tcg_exports tcGblEnv)
-        availVars       <- liftIO $ LH.availableVars env2 tcGblEnv (tcg_exports tcGblEnv)
+        updTopEnv (hscUpdateFlags noWarnings . hscSetFlags (ms_hspp_opts modSummary2)) $ do
+          env2 <- getTopEnv
 
-        unoptimisedGuts <- liftIO $ desugarModuleIO env2 modSummary2 typechecked
+          pipelineData <- liftIO $ do
+              session <- Session <$> newIORef env2
+              flip reflectGhc session $ do
+                  typechecked     <- typecheckModule (LH.ignoreInline parsed2)
+                  unoptimisedGuts <- desugarModule typechecked
 
-        let tcData = mkTcData (tcg_rn_imports tcGblEnv) resolvedNames availTyCons availVars
-        let pipelineData = PipelineData unoptimisedGuts tcData specs
+                  resolvedNames   <- LH.lookupTyThings tcGblEnv
+                  avails          <- LH.availableTyThings tcGblEnv (tcg_exports tcGblEnv)
+                  let availTyCons = [ tc | ATyCon tc <- avails ]
+                      availVars   = [ var | AnId var <- avails ]
 
-        updEnv (\e -> e {env_top = env2}) $
+                  let tcData = mkTcData (tcg_rn_imports tcGblEnv) resolvedNames availTyCons availVars
+                  return $ PipelineData (coreModule unoptimisedGuts) tcData specs
+
           liquidHaskellCheckWithConfig cfg pipelineData modSummary2 tcGblEnv
 
   where
     thisModule :: Module
     thisModule = tcg_mod tcGblEnv
 
+    modSummary0 = pm_mod_summary parsed0
+
     continue = pure $ Left (ErrorsOccurred [])
 
     updateModSummaryDynFlags f ms = ms { ms_hspp_opts = f (ms_hspp_opts ms) }
+
+    noWarnings dflags = dflags { warningFlags = mempty }
 
 serialiseSpec :: Module -> TcGblEnv -> LiquidLib -> TcM TcGblEnv
 serialiseSpec thisModule tcGblEnv liquidLib = do
