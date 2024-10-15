@@ -159,8 +159,13 @@ addBind l x r = do
   put          $ st { binds = bs' } { bindSpans = M.insert i l (bindSpans st) }
   return ((x, F.sr_sort r), {- traceShow ("addBind: " ++ showpp x) -} i)
 
-addRewrites :: F.BindId -> F.LocalRewrites -> CG ()
-addRewrites i rws = modify $ \st -> st { localRewrites = F.insertRewrites i rws $ localRewrites st }
+addRewrites :: F.LocalRewrites -> CG ()
+addRewrites rws = do 
+  st <- get
+  let bid = F.currentBindEnvId $ binds st
+  put $ st { localRewrites = F.insertRewrites bid rws $ localRewrites st }
+  pure ()
+
 
 addClassBind :: CGEnv -> SrcSpan -> SpecType -> CG [((F.Symbol, F.Sort), F.BindId)]
 addClassBind γ l = mapM (uncurry (addBind l)) . classBinds (emb γ)

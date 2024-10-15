@@ -873,15 +873,9 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
                          (map (`F.subst1` (selfSymbol, F.EVar x'))
                          (xt0 : yts))
   cγ'  <- addBinders γ   x' cbs
-  cγ'' <- addBinders cγ' x' [(x', substSelf <$> xt)]
-
-  -- This is quite ugly, but literally there isnt any way to get the currente
-  -- bindId, calling maximum is safe as there is always at least one binder
-  when allowDC $ do
-    bindId <- gets (maximum . F.elemsBindEnv . binds)
-    addRewrites bindId $ getCaseRewrites γ $ xt0 `meet` rtd
-
-  pure cγ''
+  when allowDC $ do 
+    addRewrites $ getCaseRewrites γ $ xt0 `meet` rtd
+  addBinders cγ' x' [(x', substSelf <$> xt)]
   where allowTC    = typeclass (getConfig γ)
         allowDC    = dependantCase (getConfig γ)
 
