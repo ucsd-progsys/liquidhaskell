@@ -10,14 +10,12 @@ module Liquid.GHC.API.Extra (
   , apiComments
   , apiCommentsParsedSource
   , dataConSig
-  , desugarModuleIO
   , fsToUnitId
   , isPatErrorAlt
   , lookupModSummary
   , minus_RDR
-  , modInfoLookupNameIO
+  , modInfoLookupName
   , moduleInfoTc
-  , parseModuleIO
   , qualifiedNameFS
   , relevantModules
   , renderWithStyle
@@ -28,13 +26,12 @@ module Liquid.GHC.API.Extra (
   , strictNothing
   , thisPackage
   , tyConRealArity
-  , typecheckModuleIO
   , untick
   ) where
 
 import Control.Monad.IO.Class
 import           Liquid.GHC.API.StableModule      as StableModule
-import GHC
+import GHC hiding (modInfoLookupName)
 import Data.Data (Data, gmapQr, gmapT)
 import Data.Generics (extQ, extT)
 import Data.Foldable                  (asum)
@@ -49,7 +46,6 @@ import GHC.Core.Make                  (pAT_ERROR_ID)
 import GHC.Core.Type                  as Ghc hiding (typeKind , isPredTy, extendCvSubst, linear)
 import GHC.Data.Bag                   (bagToList)
 import GHC.Data.FastString            as Ghc
-import qualified GHC.Data.EnumSet as EnumSet
 import GHC.Data.Maybe
 import qualified GHC.Data.Strict
 import GHC.Driver.Env
@@ -63,7 +59,6 @@ import GHC.Types.SourceText           (SourceText(..))
 import GHC.Types.SrcLoc               as Ghc
 import GHC.Types.TypeEnv
 import GHC.Types.Unique               (getUnique, hasKey)
-import GHC.Types.Unique.FM
 
 import GHC.Unit.Module.Deps           as Ghc (Dependencies(dep_direct_mods))
 import GHC.Unit.Module.Graph          as Ghc
@@ -145,52 +140,6 @@ relevantModules mg modGuts = used `S.union` dependencies
           UsageHomeModule        { usg_mod_name = modName } -> toModule modName : acc
           UsageMergedRequirement { usg_mod      = modl    } -> modl : acc
           _ -> acc
-
---
--- Parsing, typechecking and desugaring a module
---
-parseModuleIO :: HscEnv -> ModSummary -> IO ParsedModule
-parseModuleIO hscEnv ms = do
-  let hsc_env_tmp = hscEnv { hsc_dflags = ms_hspp_opts ms }
-  hpm <- hscParse hsc_env_tmp ms
-  return (ParsedModule ms (hpm_module hpm) (hpm_src_files hpm))
-
--- | Our own simplified version of 'TypecheckedModule'.
-data TypecheckedModuleLH = TypecheckedModuleLH {
-    tmlh_parsed_module  :: ParsedModule
-  , tmlh_renamed_source :: Maybe RenamedSource
-  , tmlh_mod_summary    :: ModSummary
-  , tmlh_gbl_env        :: TcGblEnv
-  }
-
-typecheckModuleIO :: HscEnv -> ParsedModule -> IO TypecheckedModuleLH
-typecheckModuleIO hscEnv pmod = do
-  -- Suppress all the warnings, so that they won't be printed (which would result in them being
-  -- printed twice, one by GHC and once here).
-  let ms = pm_mod_summary pmod
-  let dynFlags' = ms_hspp_opts ms
-  let hsc_env_tmp = hscEnv { hsc_dflags = dynFlags' { warningFlags = EnumSet.empty } }
-  (tc_gbl_env, rn_info)
-        <- hscTypecheckRename hsc_env_tmp ms $
-                       HsParsedModule { hpm_module = parsedSource pmod,
-                                        hpm_src_files = pm_extra_src_files pmod }
-  return TypecheckedModuleLH {
-      tmlh_parsed_module  = pmod
-    , tmlh_renamed_source = rn_info
-    , tmlh_mod_summary    = ms
-    , tmlh_gbl_env        = tc_gbl_env
-    }
-
--- | Desugar a typechecked module.
-desugarModuleIO :: HscEnv -> ModSummary -> TypecheckedModuleLH -> IO ModGuts
-desugarModuleIO hscEnv originalModSum typechecked = do
-  -- See [NOTE:ghc810] on why we override the dynFlags here before calling 'desugarModule'.
-  let modSum         = originalModSum { ms_hspp_opts = hsc_dflags hscEnv }
-  let parsedMod'     = (tmlh_parsed_module typechecked) { pm_mod_summary = modSum }
-  let typechecked'   = typechecked { tmlh_parsed_module = parsedMod' }
-
-  let hsc_env_tmp = hscEnv { hsc_dflags = ms_hspp_opts (tmlh_mod_summary typechecked') }
-  hscDesugar hsc_env_tmp (tmlh_mod_summary typechecked') (tmlh_gbl_env typechecked')
 
 -- | Abstraction of 'EpaComment'.
 data ApiComment
@@ -275,16 +224,13 @@ lookupModSummary hscEnv mdl = do
 -- | Our own simplified version of 'ModuleInfo' to overcome the fact we cannot construct the \"original\"
 -- one as the constructor is not exported, and 'getHomeModuleInfo' and 'getPackageModuleInfo' are not
 -- exported either, so we had to backport them as well.
-newtype ModuleInfoLH = ModuleInfoLH { minflh_type_env :: UniqFM Name TyThing }
+newtype ModuleInfoLH = ModuleInfoLH { minflh_type_env :: TypeEnv }
 
-modInfoLookupNameIO :: HscEnv
-                  -> ModuleInfoLH
-                  -> Name
-                  -> IO (Maybe TyThing)
-modInfoLookupNameIO hscEnv minf name =
+modInfoLookupName :: (GhcMonad m) => ModuleInfoLH -> Name -> m (Maybe TyThing)
+modInfoLookupName minf name = do
   case lookupTypeEnv (minflh_type_env minf) name of
     Just tyThing -> return (Just tyThing)
-    Nothing      -> lookupType hscEnv name
+    Nothing      -> lookupGlobalName name
 
 moduleInfoTc :: HscEnv -> TcGblEnv -> IO ModuleInfoLH
 moduleInfoTc hscEnv tcGblEnv = do
