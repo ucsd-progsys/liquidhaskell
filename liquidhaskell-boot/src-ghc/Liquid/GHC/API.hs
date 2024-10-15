@@ -403,6 +403,7 @@ import GHC.Data.FastString            as Ghc
     , bytesFS
     , concatFS
     , fsLit
+    , lexicalCompareFS
     , mkFastString
     , mkFastStringByteString
     , mkPtrString#
@@ -607,6 +608,7 @@ import GHC.Types.Name                 as Ghc
     , nameOccName
     , nameSrcLoc
     , nameStableString
+    , nameUnique
     , occNameFS
     , occNameString
     , stableNameCmp
@@ -692,6 +694,7 @@ import GHC.Unit.Module                as Ghc
     , IsBootInterface(NotBoot, IsBoot)
     , ModuleNameWithIsBoot
     , UnitId
+    , stableModuleCmp
     , fsToUnit
     , mkModuleNameFS
     , moduleNameFS
