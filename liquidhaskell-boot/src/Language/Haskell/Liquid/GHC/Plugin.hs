@@ -279,14 +279,14 @@ parsedHook _ ms parsedResult = do
 --    grab from parsing (again) the module by using the GHC API, so we are really
 --    independent from the \"normal\" compilation pipeline.
 --
-typecheckHook  :: Config -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
-typecheckHook cfg0 modSummary0 tcGblEnv = bracket startTypechecking endTypechecking $ \case
+typecheckHook  :: Config -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
+typecheckHook cfg0 tcGblEnv = bracket startTypechecking endTypechecking $ \case
   Just Typechecking ->
     -- We're being called from the `typecheckModuleIO` call in `typecheckHook`, so we avoid looping
     -- See 'Breadcrumb' for more information.
     pure $ Right tcGblEnv
   Just (Parsed parsed0) ->
-    typecheckHook' cfg0 modSummary0 parsed0 tcGblEnv
+    typecheckHook' cfg0 parsed0 tcGblEnv
   Nothing ->
     -- The module has been verified by an earlier call to the plugin.
     -- This could happen if multiple @-fplugin=LiquidHaskell@ flags are passed to GHC.
