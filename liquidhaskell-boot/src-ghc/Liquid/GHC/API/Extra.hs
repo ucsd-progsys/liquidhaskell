@@ -31,6 +31,7 @@ module Liquid.GHC.API.Extra (
 
 import Control.Monad.IO.Class
 import           Liquid.GHC.API.StableModule      as StableModule
+import Liquid.GHC.API.Compat (foldl')
 import GHC hiding (modInfoLookupName)
 import Data.Data (Data, gmapQr, gmapT)
 import Data.Generics (extQ, extT)
@@ -199,7 +200,7 @@ addNoInlinePragmasToLocalBinds ps =
           noInlinePragmaForBind :: HsBindLR GhcPs GhcPs -> [Sig GhcPs]
           noInlinePragmaForBind bndr =
               [ InlineSig
-                  []
+                  EpAnnNotUsed
                   (noLocA b)
                   defaultInlinePragma
                     { inl_inline = NoInline $ SourceText $ occNameFS $ rdrNameOcc b

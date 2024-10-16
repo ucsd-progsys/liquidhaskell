@@ -4,20 +4,23 @@ module Liquid.GHC.API.Compat (
 
   , foldableModule
   , realModule
+
+  , foldl'
   ) where
 
 import Data.Word (Word64)
 import qualified GHC.Builtin.Names as Ghc
 import GHC (Module)
+import Data.List (foldl')
 
 ----------------------
 -- Uniques
 ----------------------
 
-type UniqueId = Word64
+type UniqueId = Int
 
 toUniqueId :: Word64 -> UniqueId
-toUniqueId = id
+toUniqueId = fromIntegral
 
 ----------------------
 -- Built-in modules
@@ -25,5 +28,5 @@ toUniqueId = id
 
 foldableModule, realModule :: Module
 
-foldableModule = Ghc.gHC_INTERNAL_DATA_FOLDABLE
-realModule = Ghc.gHC_INTERNAL_REAL
+foldableModule = Ghc.dATA_FOLDABLE
+realModule = Ghc.gHC_REAL
