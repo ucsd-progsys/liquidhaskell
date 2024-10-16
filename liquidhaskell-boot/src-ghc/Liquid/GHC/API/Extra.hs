@@ -6,7 +6,7 @@
 module Liquid.GHC.API.Extra (
     module StableModule
   , ApiComment(..)
-  , addNoInlinePragmasToLocalBinds
+  , addNoInlinePragmasToBinds
   , apiComments
   , apiCommentsParsedSource
   , dataConSig
@@ -44,7 +44,6 @@ import GHC.Core.Coercion              as Ghc
 import GHC.Core.DataCon               as Ghc
 import GHC.Core.Make                  (pAT_ERROR_ID)
 import GHC.Core.Type                  as Ghc hiding (typeKind , isPredTy, extendCvSubst, linear)
-import GHC.Data.Bag                   (bagToList)
 import GHC.Data.FastString            as Ghc
 import GHC.Data.Maybe
 import qualified GHC.Data.Strict
@@ -52,10 +51,10 @@ import GHC.Driver.Env
 import GHC.Driver.Main
 import GHC.Driver.Session             as Ghc
 import GHC.Tc.Types
+import GHC.Types.Id
 import GHC.Types.Basic
 import GHC.Types.Name                 (isSystemName, nameModule_maybe, occNameFS)
-import GHC.Types.Name.Reader          (nameRdrName, rdrNameOcc)
-import GHC.Types.SourceText           (SourceText(..))
+import GHC.Types.Name.Reader          (nameRdrName)
 import GHC.Types.SrcLoc               as Ghc
 import GHC.Types.TypeEnv
 import GHC.Types.Unique               (getUnique, hasKey)
@@ -170,46 +169,54 @@ apiCommentsParsedSource ps =
     spanToLineColumn =
       fmap (\s -> (srcSpanStartLine s, srcSpanStartCol s)) . srcSpanToRealSrcSpan
 
--- | Adds NOINLINE pragmas to all local bindings in the module.
+-- | Adds NOINLINE pragmas to all bindings in the module.
 --
 -- This prevents the simple optimizer from inlining such bindings which might
 -- have specs that would otherwise be left dangling.
 --
 -- https://gitlab.haskell.org/ghc/ghc/-/issues/24386
 --
-addNoInlinePragmasToLocalBinds :: ParsedModule -> ParsedModule
-addNoInlinePragmasToLocalBinds ps =
-    ps { pm_parsed_source = go (pm_parsed_source ps) }
+addNoInlinePragmasToBinds :: TcGblEnv -> TcGblEnv
+addNoInlinePragmasToBinds tcg = tcg{ tcg_binds = go False (tcg_binds tcg) }
   where
-    go :: forall a. Data a => a -> a
-    go = gmapT ((id `extT` addNoInlinePragmas) . go)
+    go :: forall a. Data a => Bool -> a -> a
+    go isAbs = gmapT $ go isAbs `extT` markHsBind isAbs
 
-    addNoInlinePragmas :: HsValBinds GhcPs -> HsValBinds GhcPs
-    addNoInlinePragmas = \case
-      ValBinds x binds sigs ->
-          ValBinds x binds (newSigs ++ dropInlinePragmas sigs)
-        where
-          dropInlinePragmas = filter (not . isInlineSig . unLoc)
+    -- Mark all user-originating `Id` binders as `NOINLINE`.
+    markHsBind :: Bool -> HsBind GhcTc -> HsBind GhcTc
+    markHsBind isAbs = \case
+        bind@VarBind{ var_id = var, var_rhs = rhs } -> bind{ var_id = markId isAbs var, var_rhs = go False rhs }
+        bind@FunBind{ fun_id = var, fun_matches = matches } -> bind{ fun_id = markId isAbs <$> var, fun_matches = go False matches }
+        bind@PatBind{ pat_lhs = lhs, pat_rhs = rhs } -> bind{ pat_lhs = markPat isAbs <$> lhs, pat_rhs = go False rhs }
+        PatSynBind{} -> error "markNoInline: unexpected PatSynBind, should have been eliminated by the typechecker"
 
-          isInlineSig InlineSig{} = True
-          isInlineSig _ = False
+        -- The AbsBinds come from the GHC typechecker to handle
+        -- polymorphism, overloading, and recursion, so those don't
+        -- correspond directly to user-written `Id`s. In fact, marking
+        -- them as `NOINLINE` results in Core that LH can't process.
+        XHsBindsLR absBind@AbsBinds{ abs_binds = binds
+                                   , abs_exports = abes } -> XHsBindsLR $ absBind
+          { abs_binds = go True binds
+          , abs_exports = map markABE abes }
 
-          newSigs = concatMap (traverse noInlinePragmaForBind) $ bagToList binds
+    markABE :: ABExport -> ABExport
+    markABE abe@ABE{ abe_poly = poly
+                   , abe_mono = mono } = abe
+      { abe_poly = markId False poly
+      , abe_mono = markId False mono }
 
-          noInlinePragmaForBind :: HsBindLR GhcPs GhcPs -> [Sig GhcPs]
-          noInlinePragmaForBind bndr =
-              [ InlineSig
-                  []
-                  (noLocA b)
-                  defaultInlinePragma
-                    { inl_inline = NoInline $ SourceText $ occNameFS $ rdrNameOcc b
-                    , inl_act = NeverActive
-                    }
-              | b <- collectHsBindBinders CollNoDictBinders bndr
-              ]
+    markPat :: Bool -> Pat GhcTc -> Pat GhcTc
+    markPat isAbs = \case
+        VarPat ext var -> VarPat ext (markId isAbs <$> var)
+        pat -> gmapT (id `extT` markPat isAbs) pat
 
-      bnds -> bnds
+    markId :: Bool -> Id -> Id
+    markId isAbs var
+      | isAbs
+      = var
 
+      | otherwise
+      = var `setInlinePragma` neverInlinePragma
 
 lookupModSummary :: HscEnv -> ModuleName -> Maybe ModSummary
 lookupModSummary hscEnv mdl = do

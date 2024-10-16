@@ -455,6 +455,8 @@ import GHC.Driver.Env                 as Ghc
     , Hsc
     , hscSetFlags, hscUpdateFlags
     )
+import GHC.Driver.Main                as Ghc
+    ( hscDesugar )
 import GHC.Driver.Errors              as Ghc
     ( printMessages )
 import GHC.Driver.Ppr                 as Ghc

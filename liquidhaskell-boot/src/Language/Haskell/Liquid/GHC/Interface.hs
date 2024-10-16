@@ -38,7 +38,6 @@ module Language.Haskell.Liquid.GHC.Interface (
   , clearSpec
   , checkFilePragmas
   , keepRawTokenStream
-  , ignoreInline
   , lookupTyThings
   , availableTyThings
   , updLiftedSpec

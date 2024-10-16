@@ -276,8 +276,8 @@ parsedHook _ ms parsedResult = do
 --    if we call /LH/ any later than here;
 --
 -- 2. Although /LH/ works on \"Core\", it requires the _unoptimised_ \"Core\" that we
---    grab from parsing (again) the module by using the GHC API, so we are really
---    independent from the \"normal\" compilation pipeline.
+--    grab from desugaring a postprocessed version of the typechecked module, so we are
+--    really independent from the \"normal\" compilation pipeline.
 --
 typecheckHook  :: Config -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
 typecheckHook cfg0 tcGblEnv = bracket startTypechecking endTypechecking $ \case
@@ -304,49 +304,38 @@ typecheckHook cfg0 tcGblEnv = bracket startTypechecking endTypechecking $ \case
         _ -> pure ()
 
 typecheckHook' :: Config -> ParsedModule -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
-typecheckHook' cfg0 parsed0 tcGblEnv = do
+typecheckHook' cfg parsed tcGblEnv = do
   debugLog $ "We are in module: " <> show (toStableModule thisModule)
 
   case parseSpecComments (coerce specComments) of
     Left errors ->
-      LH.filterReportErrors thisFile GHC.failM continue (getFilters cfg0) Full errors
+      LH.filterReportErrors thisFile GHC.failM continue (getFilters cfg) Full errors
     Right specs ->
-      updTopEnv (hscUpdateFlags noWarnings) $ do
-        env <- getTopEnv
-
-        typechecked <- liftIO $ do
-            session <- Session <$> newIORef env
-            let parsed = addNoInlinePragmasToLocalBinds parsed0
-            flip reflectGhc session $ typecheckModule (LH.ignoreInline parsed)
-        liquidCheckModule cfg0 typechecked specs tcGblEnv
+      liquidCheckModule cfg ms tcGblEnv specs
 
   where
-    ms = pm_mod_summary parsed0
+    ms = pm_mod_summary parsed
 
     thisModule = ms_mod ms
     thisFile = LH.modSummaryHsFile ms
 
-    specComments = map mkSpecComment $ LH.extractSpecComments parsed0
+    specComments = map mkSpecComment $ LH.extractSpecComments parsed
 
     continue = pure $ Left (ErrorsOccurred [])
 
-    noWarnings dflags = dflags { warningFlags = mempty }
-
-liquidCheckModule :: Config -> TypecheckedModule -> [BPspec] -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
-liquidCheckModule cfg0 typechecked specs tcg0 = do
+liquidCheckModule :: Config -> ModSummary -> TcGblEnv -> [BPspec] -> TcM (Either LiquidCheckException TcGblEnv)
+liquidCheckModule cfg0 ms tcg specs = do
   updTopEnv (hscUpdateFlags noWarnings) $ do
     withPragmas cfg0 thisFile [s | Pragma s <- specs] $ \cfg -> do
         env <- getTopEnv
 
         pipelineData <- liftIO $ do
             session <- Session <$> newIORef env
-            flip reflectGhc session $ mkPipelineData cfg typechecked specs
+            flip reflectGhc session $ mkPipelineData cfg ms tcg specs
 
         liquidLib <- liquidHaskellCheckWithConfig cfg pipelineData ms
-        traverse (serialiseSpec thisModule tcg0) liquidLib
+        traverse (serialiseSpec thisModule tcg) liquidLib
   where
-    ms = pm_mod_summary . tm_parsed_module $ typechecked
-
     thisModule = ms_mod ms
     thisFile = LH.modSummaryHsFile ms
 
@@ -355,16 +344,13 @@ liquidCheckModule cfg0 typechecked specs tcg0 = do
 updateModSummaryDynFlags :: (DynFlags -> DynFlags) -> ModSummary -> ModSummary
 updateModSummaryDynFlags f ms = ms { ms_hspp_opts = f (ms_hspp_opts ms) }
 
-updateTypecheckedModuleModSummary :: (ModSummary -> ModSummary) -> TypecheckedModule -> TypecheckedModule
-updateTypecheckedModuleModSummary f typechecked = typechecked
-    { tm_parsed_module = let pm = tm_parsed_module typechecked in pm
-        { pm_mod_summary = let ms = pm_mod_summary pm in f ms
-        }
-    }
+mkPipelineData :: (GhcMonad m) => Config -> ModSummary -> TcGblEnv -> [BPspec] -> m PipelineData
+mkPipelineData cfg ms0 tcg0 specs = do
+    let tcg = addNoInlinePragmasToBinds tcg0
 
-mkPipelineData :: (GhcMonad m) => Config -> TypecheckedModule -> [BPspec] -> m PipelineData
-mkPipelineData cfg typechecked specs = do
-    unoptimisedGuts <- desugarModule typechecked'
+    unoptimisedGuts <- withSession $ \hsc_env ->
+        let lcl_hsc_env = hscSetFlags (ms_hspp_opts ms) hsc_env in
+        liftIO $ hscDesugar lcl_hsc_env ms tcg
 
     resolvedNames   <- LH.lookupTyThings tcg
     avails          <- LH.availableTyThings tcg (tcg_exports tcg)
@@ -372,12 +358,9 @@ mkPipelineData cfg typechecked specs = do
         availVars   = [ var | AnId var <- avails ]
 
     let tcData = mkTcData (tcg_rn_imports tcg) resolvedNames availTyCons availVars
-    return $ PipelineData (coreModule unoptimisedGuts) tcData specs
+    return $ PipelineData unoptimisedGuts tcData specs
   where
-    typechecked' =
-      updateTypecheckedModuleModSummary (updateModSummaryDynFlags (maybeInsertBreakPoints cfg . unoptimiseDynFlags)) typechecked
-
-    (tcg, _) = tm_internals_ typechecked
+    ms = updateModSummaryDynFlags (maybeInsertBreakPoints cfg . unoptimiseDynFlags) ms0
 
 serialiseSpec :: Module -> TcGblEnv -> LiquidLib -> TcM TcGblEnv
 serialiseSpec thisModule tcGblEnv liquidLib = do
