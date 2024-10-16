@@ -226,19 +226,18 @@ maybeInsertBreakPoints cfg dflags =
       dflags
 
 --------------------------------------------------------------------------------
--- | \"Unoptimising\" things ----------------------------------------------------
+-- | Desugarer setting tweaks --------------------------------------------------
 --------------------------------------------------------------------------------
 
--- | LiquidHaskell requires the unoptimised core binds in order to work correctly, but at the same time the
--- user can invoke GHC with /any/ optimisation flag turned out. This is why we grab the core binds by
--- desugaring the module during /parsing/ (before that's already too late) and we cache the core binds for
--- the rest of the program execution.
-unoptimiseDynFlags :: DynFlags -> DynFlags
-unoptimiseDynFlags df = updOptLevel 0 df
-    { debugLevel   = 1
-    , ghcLink      = LinkInMemory
-    , backend      = interpreterBackend
-    , ghcMode      = CompManager
+-- | LiquidHaskell requires the desugarer to keep source note ticks
+-- and to export everything.
+--
+-- TODO: We shouldn't rely on exports to find out what's in a ModGuts
+-- https://github.com/ucsd-progsys/liquidhaskell/pull/2388#issuecomment-2411418479
+desugarerDynFlags :: DynFlags -> DynFlags
+desugarerDynFlags df = df
+    { debugLevel   = 1                  -- To keep source note ticks
+    , backend      = interpreterBackend -- To export everything
     }
 
 --------------------------------------------------------------------------------
@@ -329,7 +328,7 @@ mkPipelineData cfg ms tcg0 specs = do
     let tcg = addNoInlinePragmasToBinds tcg0
 
     unoptimisedGuts <- withSession $ \hsc_env ->
-        let lcl_hsc_env = hscUpdateFlags (maybeInsertBreakPoints cfg . unoptimiseDynFlags) hsc_env in
+        let lcl_hsc_env = hscUpdateFlags (maybeInsertBreakPoints cfg . desugarerDynFlags) hsc_env in
         liftIO $ hscDesugar lcl_hsc_env ms tcg
 
     resolvedNames   <- LH.lookupTyThings tcg
