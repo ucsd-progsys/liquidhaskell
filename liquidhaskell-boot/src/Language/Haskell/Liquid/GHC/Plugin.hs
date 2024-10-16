@@ -310,30 +310,26 @@ typecheckHook' cfg ms tcGblEnv specComments = do
 liquidCheckModule :: Config -> ModSummary -> TcGblEnv -> [BPspec] -> TcM (Either LiquidCheckException TcGblEnv)
 liquidCheckModule cfg0 ms tcg specs = do
   updTopEnv (hscUpdateFlags noWarnings) $ do
-    withPragmas cfg0 thisFile [s | Pragma s <- specs] $ \cfg -> do
+    withPragmas cfg0 thisFile pragmas $ \cfg -> do
+      pipelineData <- do
         env <- getTopEnv
-
-        pipelineData <- liftIO $ do
-            session <- Session <$> newIORef env
-            flip reflectGhc session $ mkPipelineData cfg ms tcg specs
-
-        liquidLib <- liquidHaskellCheckWithConfig cfg pipelineData ms
-        traverse (serialiseSpec thisModule tcg) liquidLib
+        session <- Session <$> liftIO (newIORef env)
+        liftIO $ flip reflectGhc session $ mkPipelineData ms tcg specs
+      liquidLib <- liquidHaskellCheckWithConfig cfg pipelineData ms
+      traverse (serialiseSpec thisModule tcg) liquidLib
   where
     thisModule = ms_mod ms
     thisFile = LH.modSummaryHsFile ms
+    pragmas = [ s | Pragma s <- specs ]
 
     noWarnings dflags = dflags { warningFlags = mempty }
 
-updateModSummaryDynFlags :: (DynFlags -> DynFlags) -> ModSummary -> ModSummary
-updateModSummaryDynFlags f ms = ms { ms_hspp_opts = f (ms_hspp_opts ms) }
-
 mkPipelineData :: (GhcMonad m) => Config -> ModSummary -> TcGblEnv -> [BPspec] -> m PipelineData
-mkPipelineData cfg ms0 tcg0 specs = do
+mkPipelineData cfg ms tcg0 specs = do
     let tcg = addNoInlinePragmasToBinds tcg0
 
     unoptimisedGuts <- withSession $ \hsc_env ->
-        let lcl_hsc_env = hscSetFlags (ms_hspp_opts ms) hsc_env in
+        let lcl_hsc_env = hscUpdateFlags (maybeInsertBreakPoints cfg . unoptimiseDynFlags) hsc_env in
         liftIO $ hscDesugar lcl_hsc_env ms tcg
 
     resolvedNames   <- LH.lookupTyThings tcg
@@ -343,8 +339,6 @@ mkPipelineData cfg ms0 tcg0 specs = do
 
     let tcData = mkTcData (tcg_rn_imports tcg) resolvedNames availTyCons availVars
     return $ PipelineData unoptimisedGuts tcData specs
-  where
-    ms = updateModSummaryDynFlags (maybeInsertBreakPoints cfg . unoptimiseDynFlags) ms0
 
 serialiseSpec :: Module -> TcGblEnv -> LiquidLib -> TcM TcGblEnv
 serialiseSpec thisModule tcGblEnv liquidLib = do
