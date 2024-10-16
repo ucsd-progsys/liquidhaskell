@@ -213,18 +213,6 @@ lhDynFlags _ hscEnv =
            `gopt_set` Opt_KeepRawTokenStream
       }
 
-maybeInsertBreakPoints :: Config -> DynFlags -> DynFlags
-maybeInsertBreakPoints cfg dflags =
-    if insertCoreBreakPoints cfg then
-      -- Opt_InsertBreakpoints is used during desugaring to prevent the
-      -- simple optimizer from inlining local bindings to which we might want
-      -- to attach specifications.
-      --
-      -- https://gitlab.haskell.org/ghc/ghc/-/issues/24386
-      dflags `gopt_set` Opt_InsertBreakpoints
-    else
-      dflags
-
 --------------------------------------------------------------------------------
 -- | Desugarer setting tweaks --------------------------------------------------
 --------------------------------------------------------------------------------
@@ -312,19 +300,19 @@ liquidCheckModule cfg0 ms tcg specs = do
     pipelineData <- do
       env <- getTopEnv
       session <- Session <$> liftIO (newIORef env)
-      liftIO $ flip reflectGhc session $ mkPipelineData cfg ms tcg specs
+      liftIO $ flip reflectGhc session $ mkPipelineData ms tcg specs
     liquidLib <- liquidHaskellCheckWithConfig cfg pipelineData ms
     traverse (serialiseSpec tcg) liquidLib
   where
     thisFile = LH.modSummaryHsFile ms
     pragmas = [ s | Pragma s <- specs ]
 
-mkPipelineData :: (GhcMonad m) => Config -> ModSummary -> TcGblEnv -> [BPspec] -> m PipelineData
-mkPipelineData cfg ms tcg0 specs = do
+mkPipelineData :: (GhcMonad m) => ModSummary -> TcGblEnv -> [BPspec] -> m PipelineData
+mkPipelineData ms tcg0 specs = do
     let tcg = addNoInlinePragmasToBinds tcg0
 
     unoptimisedGuts <- withSession $ \hsc_env ->
-        let lcl_hsc_env = hscUpdateFlags (maybeInsertBreakPoints cfg . noWarnings . desugarerDynFlags) hsc_env in
+        let lcl_hsc_env = hscUpdateFlags (noWarnings . desugarerDynFlags) hsc_env in
         liftIO $ hscDesugar lcl_hsc_env ms tcg
 
     resolvedNames   <- LH.lookupTyThings tcg
