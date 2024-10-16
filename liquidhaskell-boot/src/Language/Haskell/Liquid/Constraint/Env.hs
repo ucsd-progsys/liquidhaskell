@@ -162,7 +162,7 @@ addBind l x r = do
 addRewrites :: F.LocalRewrites -> CG ()
 addRewrites rws = do 
   st <- get
-  let bid = F.currentBindEnvId $ binds st
+  let bid = F.bindEnvSize $ binds st
   put $ st { localRewrites = F.insertRewrites bid rws $ localRewrites st }
   pure ()
 
