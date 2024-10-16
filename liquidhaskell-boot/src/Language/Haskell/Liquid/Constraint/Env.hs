@@ -159,7 +159,7 @@ addBind l x r = do
   put          $ st { binds = bs' } { bindSpans = M.insert i l (bindSpans st) }
   return ((x, F.sr_sort r), {- traceShow ("addBind: " ++ showpp x) -} i)
 
--- | Add local rewrites associated to the last inserted bindings.
+-- | Add local rewrites associated to the next binding that will be inserted.
 addRewrites :: F.LocalRewrites -> CG ()
 addRewrites rws = do 
   st <- get
