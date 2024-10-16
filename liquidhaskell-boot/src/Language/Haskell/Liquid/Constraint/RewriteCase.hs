@@ -57,6 +57,8 @@ flatten :: Expr -> [Expr]
 flatten (EApp f e) = flatten f ++ [e]
 flatten e = [e]
 
+-- | Given equalities `[e11=e12, e21=e22, ..., en1=en2]` this function produces
+-- equalities `ei2=ej2` whenever `ei1==ej1` and for no other index `k` `ei1==ek1`.
 groupUnifiableEqualities :: [(Expr, Expr)] -> [(Expr, Expr)]
 groupUnifiableEqualities = mapMaybe (keep2 . snd) . M.groupList 
     where -- We perform only 2-way unification
@@ -78,16 +80,13 @@ getEqualities _                = []
 -- | A collection of rewrites that cannot cause an infinite loop
 newtype AcyclicRewrites = AR (M.HashMap Symbol Expr)
 
--- We can think of the map a directed graph where every symbol is a vertex and
--- there is an edge v₁ → v₂ if in the expression that v₁ is rewritten to v₂ is a
--- free variable.  To guarantee that there arent any infinite loops in the
--- rewrite procedure that will be executed by PLE, we need to esnure that there
--- aren't any cyclic rewrites, this is ensured by adding the invariant to our
--- graph of beeing a DAG.
+-- We can think of the map as a directed graph where every symbol is a vertex and
+-- there is an edge v₁ → v₂ if v₂ is free in the expression that v₁ is rewritten to.
+-- To guarantee that the set of rewrite rules is terminating, we ensure that there
+-- aren't any cycles in the graph.
 
--- | Takes a list of rewrites and returns a list of rewrites and filters out any
--- rewrites that would cause an infinite loop, the procedure is order biased as
--- rewrites earlier in the list take precedence.
+-- | Drops rewrites that would cause an infinite loop. The procedure is order
+-- biased as rewrites earlier in the list take precedence.
 unloop :: [(Symbol, Expr)] -> LocalRewrites
 unloop = LocalRewrites . toRewrites . foldl' doInsert empty 
     where doInsert ar (s, e) = ar `fromMaybe` insert ar s e 
@@ -96,8 +95,9 @@ unloop = LocalRewrites . toRewrites . foldl' doInsert empty
 toRewrites :: AcyclicRewrites -> M.HashMap Symbol Expr
 toRewrites (AR m) = m
 
--- | Checks if there is a path from s1 to s2 O(Σ(e ∈ m) |exprSymbolSet e|) [O(m)
--- where m is the number of edges]
+-- | @existsPth g s1 s2@ yields @True@ checks if there is a path from @s1@ to @s2@
+-- in @g@. Time is @O(Σ(e ∈ m) |exprSymbolSet e|)@, or said otherwise, it is @O(m)@
+-- where @m@ is the number of edges.
 existsPath :: AcyclicRewrites -> Symbol -> Symbol -> Bool
 existsPath (AR m) s1' s2 = go s1'
   where
@@ -114,8 +114,8 @@ empty = AR M.empty
 
 -- | Inserts the rewrite if it wont't cause an infinite loop
 insert :: AcyclicRewrites -> Symbol -> Expr -> Maybe AcyclicRewrites
-insert ar s e | not $ any (existsPath ar s) $ S.toList $ exprSymbolsSet e
-              , not $ s `S.member` exprSymbolsSet e
+insert ar s e | not $ s `S.member` exprSymbolsSet e
+              , not $ any (\s2 -> existsPath ar s2 s) $ S.toList $ exprSymbolsSet e
               -- There are two ways to break the DAG invariant
               -- 1. If the rewrite is closing a loop
               -- 2. If the rewrite by itself is a cycle

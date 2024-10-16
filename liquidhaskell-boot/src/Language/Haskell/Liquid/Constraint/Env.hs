@@ -159,12 +159,12 @@ addBind l x r = do
   put          $ st { binds = bs' } { bindSpans = M.insert i l (bindSpans st) }
   return ((x, F.sr_sort r), {- traceShow ("addBind: " ++ showpp x) -} i)
 
+-- | Add local rewrites associated to the last inserted bindings.
 addRewrites :: F.LocalRewrites -> CG ()
 addRewrites rws = do 
   st <- get
   let bid = F.bindEnvSize $ binds st
   put $ st { localRewrites = F.insertRewrites bid rws $ localRewrites st }
-  pure ()
 
 
 addClassBind :: CGEnv -> SrcSpan -> SpecType -> CG [((F.Symbol, F.Sort), F.BindId)]
