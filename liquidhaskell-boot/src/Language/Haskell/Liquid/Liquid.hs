@@ -12,7 +12,7 @@ import           Data.Bifunctor
 import qualified Data.HashSet as S 
 import           Text.PrettyPrint.HughesPJ
 import           System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
-import           Control.Monad (when, unless)
+import           Control.Monad (when)
 import qualified Data.Maybe as Mb
 import qualified Data.List  as L 
 import qualified Language.Haskell.Liquid.UX.DiffCheck as DC
@@ -43,7 +43,7 @@ checkTargetInfo :: TargetInfo -> IO (Output Doc)
 --------------------------------------------------------------------------------
 checkTargetInfo info = do
   out <- check
-  unless (compileSpec cfg) $ DC.saveResult tgt out
+  when (diffcheck cfg && not (compileSpec cfg)) $ DC.saveResult tgt out
   pure out
   where
     check :: IO (Output Doc)
