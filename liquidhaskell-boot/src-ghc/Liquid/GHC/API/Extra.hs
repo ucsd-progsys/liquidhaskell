@@ -147,8 +147,8 @@ data ApiComment
   deriving (Eq, Show)
 
 -- | Extract top-level comments from a module.
-apiComments :: ParsedModule -> [Ghc.Located ApiComment]
-apiComments pm = apiCommentsParsedSource (pm_parsed_source pm)
+apiComments :: HsParsedModule -> [Ghc.Located ApiComment]
+apiComments = apiCommentsParsedSource . hpm_module
 
 apiCommentsParsedSource :: Located (HsModule GhcPs) -> [Ghc.Located ApiComment]
 apiCommentsParsedSource ps =
