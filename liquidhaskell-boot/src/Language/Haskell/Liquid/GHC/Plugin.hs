@@ -40,7 +40,6 @@ import           Language.Haskell.Liquid.Transforms.Rewrite (rewriteBinds)
 import           Control.Monad
 import qualified Control.Monad.Catch as Ex
 import           Control.Monad.IO.Class (MonadIO)
-import           Control.Monad.Catch                        (bracket)
 
 import           Data.Coerce
 import           Data.Function                            ((&))
@@ -153,28 +152,33 @@ plugin = GHC.defaultPlugin {
 --------------------------------------------------------------------------------
 --
 -- Since we have no good way of passing extra data between different
--- phases of our plugin, we resort to horrible global mutable state.
+-- phases of our plugin, we resort to leaving breadcrumbs in horrible
+-- global mutable state.
 --
 -- Each module gets a mutable breadcrumb during compilation.
 --
 -- The @parseResultAction@ sets the breadcumb to @Parsed mod@.
 --
--- The @typeCheckResultAction@ sets the breadcrumb to @Typechecking@ on entry,
--- and clears the breadcrumb on exit.
+-- The @typeCheckResultAction@ clears the breadcrumb on entry.
 --
 -- If the @typeCheckResultAction@ does not find the breadcrumb, it skips the
 -- module, assuming that it has been verified already. This could happen if
 -- the plugin is activated more than once on the same module (by passing
 -- multiple times @-fplugin=LiquidHaskell@ to GHC).
+
+{- HLINT ignore Breadcrumb "Use newtype instead of data" -}
+  -- It's basically an accidental detail that we only have one type of
+  -- breadcrumb at the moment. We don't want to use a `newtype` to
+  -- avoid communicating the false intention that a breadcrumb "is" a
+  -- ParsedModule
 data Breadcrumb
   = Parsed ParsedModule
-  | Typechecking
 
 breadcrumbsRef :: IORef (Map Module Breadcrumb)
 breadcrumbsRef = unsafePerformIO $ newIORef mempty
 {-# NOINLINE breadcrumbsRef #-}
 
-{- HLINT ignore "Use tuple-section" -}
+{- HLINT ignore swapBreadcrumb "Use tuple-section" -}
 swapBreadcrumb :: (MonadIO m) => Module -> Maybe Breadcrumb -> m (Maybe Breadcrumb)
 swapBreadcrumb mod0 new = liftIO $ atomicModifyIORef' breadcrumbsRef $ \breadcrumbs ->
   let (old, breadcrumbs') = M.alterF (\old1 -> (old1, new)) mod0 breadcrumbs
@@ -280,11 +284,7 @@ parsedHook _ ms parsedResult = do
 --    really independent from the \"normal\" compilation pipeline.
 --
 typecheckHook  :: Config -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
-typecheckHook cfg0 tcGblEnv = bracket startTypechecking endTypechecking $ \case
-  Just Typechecking ->
-    -- We're being called from the `typecheckModuleIO` call in `typecheckHook`, so we avoid looping
-    -- See 'Breadcrumb' for more information.
-    pure $ Right tcGblEnv
+typecheckHook cfg0 tcGblEnv = swapBreadcrumb thisModule Nothing >>= \case
   Just (Parsed parsed0) ->
     typecheckHook' cfg0 parsed0 tcGblEnv
   Nothing ->
@@ -295,13 +295,6 @@ typecheckHook cfg0 tcGblEnv = bracket startTypechecking endTypechecking $ \case
   where
     thisModule = tcg_mod tcGblEnv
 
-    -- The LH plugin itself calls the type checker (see call to
-    -- `typecheckModuleIO` in `typecheckHook`).  This would lead to a
-    -- loop if we didn't disable the typechecker plugin.
-    startTypechecking = swapBreadcrumb thisModule $ Just Typechecking
-    endTypechecking = \case
-        Just Parsed{} -> void $ swapBreadcrumb thisModule Nothing
-        _ -> pure ()
 
 typecheckHook' :: Config -> ParsedModule -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
 typecheckHook' cfg parsed tcGblEnv = do
