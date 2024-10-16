@@ -168,14 +168,12 @@ import GHC.Builtin.Names              as Ghc
     , Unique
     , and_RDR
     , bindMName
-    , gHC_INTERNAL_DATA_FOLDABLE
     , eqClassKey
     , eqClassName
     , ge_RDR
     , gt_RDR
     , fractionalClassKey
     , fractionalClassKeys
-    , gHC_INTERNAL_REAL
     , getUnique
     , hasKey
     , isStringClassName

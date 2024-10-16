@@ -993,7 +993,7 @@ withWiredIn m = discardConstraints $ do
     return $ TcWiredIn n Nothing ty
 
 prependGHCRealQual :: FastString -> RdrName
-prependGHCRealQual = varQual_RDR gHC_INTERNAL_REAL
+prependGHCRealQual = varQual_RDR realModule
 
 isFromGHCReal :: NamedThing a => a -> Bool
-isFromGHCReal x = Ghc.nameModule (Ghc.getName x) == gHC_INTERNAL_REAL
+isFromGHCReal x = Ghc.nameModule (Ghc.getName x) == realModule
