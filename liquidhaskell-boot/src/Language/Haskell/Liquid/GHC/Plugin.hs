@@ -315,9 +315,8 @@ liquidCheckModule cfg0 ms tcg specs = do
         session <- Session <$> liftIO (newIORef env)
         liftIO $ flip reflectGhc session $ mkPipelineData ms tcg specs
       liquidLib <- liquidHaskellCheckWithConfig cfg pipelineData ms
-      traverse (serialiseSpec thisModule tcg) liquidLib
+      traverse (serialiseSpec tcg) liquidLib
   where
-    thisModule = ms_mod ms
     thisFile = LH.modSummaryHsFile ms
     pragmas = [ s | Pragma s <- specs ]
 
@@ -339,8 +338,8 @@ mkPipelineData cfg ms tcg0 specs = do
     let tcData = mkTcData (tcg_rn_imports tcg) resolvedNames availTyCons availVars
     return $ PipelineData unoptimisedGuts tcData specs
 
-serialiseSpec :: Module -> TcGblEnv -> LiquidLib -> TcM TcGblEnv
-serialiseSpec thisModule tcGblEnv liquidLib = do
+serialiseSpec :: TcGblEnv -> LiquidLib -> TcM TcGblEnv
+serialiseSpec tcGblEnv liquidLib = do
   -- ---
   -- -- CAN WE 'IGNORE' THE BELOW? TODO:IGNORE -- issue use `emptyLiquidLib` instead of pmrClientLib
   -- ProcessModuleResult{..} <- processModule lhContext
@@ -367,6 +366,8 @@ serialiseSpec thisModule tcGblEnv liquidLib = do
   -- liftIO $ putStrLn "liquidHaskellCheck 10"
 
   pure $ tcGblEnv { tcg_anns = serialisedSpec : tcg_anns tcGblEnv }
+  where
+    thisModule = tcg_mod tcGblEnv
 
 processInputSpec :: Config -> PipelineData -> ModSummary -> BareSpec -> TcM (Either LiquidCheckException LiquidLib)
 processInputSpec cfg pipelineData modSummary inputSpec = do
