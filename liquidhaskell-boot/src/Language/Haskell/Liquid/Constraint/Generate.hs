@@ -873,8 +873,8 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
                          (map (`F.subst1` (selfSymbol, F.EVar x'))
                          (xt0 : yts))
   cγ'  <- addBinders γ   x' cbs
-  when allowDC $ do 
-    addRewrites $ getCaseRewrites γ $ xt0 `meet` rtd
+  when allowDC $
+    addRewritesForNextBinding $ getCaseRewrites γ $ xt0 `meet` rtd
   addBinders cγ' x' [(x', substSelf <$> xt)]
   where allowTC    = typeclass (getConfig γ)
         allowDC    = dependantCase (getConfig γ)

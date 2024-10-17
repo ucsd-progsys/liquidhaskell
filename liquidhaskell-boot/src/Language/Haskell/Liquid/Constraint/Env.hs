@@ -20,7 +20,7 @@ module Language.Haskell.Liquid.Constraint.Env (
   , addBinders
   , addSEnv
   , addEEnv
-  , addRewrites
+  , addRewritesForNextBinding
   , (-=)
   , globalize
 
@@ -160,8 +160,8 @@ addBind l x r = do
   return ((x, F.sr_sort r), {- traceShow ("addBind: " ++ showpp x) -} i)
 
 -- | Add local rewrites associated to the next binding that will be inserted.
-addRewrites :: F.LocalRewrites -> CG ()
-addRewrites rws = do 
+addRewritesForNextBinding :: F.LocalRewrites -> CG ()
+addRewritesForNextBinding rws = do
   st <- get
   let bid = F.bindEnvSize $ binds st
   put $ st { localRewrites = F.insertRewrites bid rws $ localRewrites st }
