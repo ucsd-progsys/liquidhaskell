@@ -67,7 +67,6 @@ import           GHC                  as Ghc
     , ModuleName
     , Name
     , NamedThing
-    , NamespaceSpecifier (NoNamespaceSpecifier)
     , ParsedModule(..)
     , PredType
     , RealSrcLoc
@@ -462,6 +461,7 @@ import GHC.Driver.Ppr                 as Ghc
     )
 import GHC.Hs                         as Ghc
     ( HsParsedModule(..)
+    , noComments
     )
 import GHC.HsToCore.Expr              as Ghc
     ( dsLExpr )
