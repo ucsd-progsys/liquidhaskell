@@ -9,7 +9,7 @@ import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.RType
 
 import           Data.Maybe
-import           Control.Monad
+import           Data.Tuple
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
@@ -22,48 +22,50 @@ getCaseRewrites γ spec =
         -- All the global names (top level functions, types, etc...)
         globals = toSet $ reGlobal $ renv     γ
     in unloop
-       $ concat
-       $ mapMaybe (uncurry $ unify ctors globals)
+       $ concatMap (uncurry $ unify ctors globals)
        $ groupUnifiableEqualities 
        $ getEqualities refinement
     where toSet = S.fromList . M.keys
 
-unify :: S.HashSet Symbol -> S.HashSet Symbol -> Expr -> Expr -> Maybe [(Symbol, Expr)]
+-- We don't need the a total unification as constructors are inejctive
+unify :: S.HashSet Symbol -> S.HashSet Symbol -> Expr -> Expr -> [(Symbol, Expr)]
 unify ctors globals = go
     where
-        go e1 e2 | e1 == e2 = Just []
+        go e1 e2 | e1 == e2 = []
         -- NOTE: We don't need to check for ECst because the expressions arent
         -- elaborated
-        go (EVar s1) e2 | isLocal s1 = Just [(s1, e2)]
-        go e1 (EVar s2) | isLocal s2 = Just [(s2, e1)]
+        go (EVar s1) e2 | isLocal s1 = [(s1, e2)]
+        go e1 (EVar s2) | isLocal s2 = [(s2, e1)]
         -- TODO: Tecnically we could also unify under lambdas but you have to be
         -- carefull about alpha equivalence idk if the effort is worth it.
-        go e1 e2 = do
+        go e1 e2 
             -- Performing the unification under constructor is safe because 
             -- C a₁ ... aₙ = C b₁ ... bₙ ⟺ ∀ n . a₁ = bₙ
-            EVar name1 : args1 <- pure $ flatten e1
-            EVar name2 : args2 <- pure $ flatten e2
-            guard $ name1 == name2
-            guard $ isCtor name1
-            guard $ length args1 == length args2
-            concat <$> zipWithM go args1 args2
+            | (EVar name1 , args1) <- splitEApp e2
+            , (EVar name2 , args2) <- splitEApp e1
+            , name1 == name2
+            , isCtor name1
+            , length args1 == length args2
+            = concat $ zipWith go args1 args2
+        go _ _ = []
 
         isCtor  name = name `S.member` ctors
         isLocal name = not (name `S.member` globals 
                            || name `S.member` ctors
                            || isPrefixOfSym anfPrefix name)
 
-flatten :: Expr -> [Expr]
-flatten (EApp f e) = flatten f ++ [e]
-flatten e = [e]
 
 -- | Given equalities `[e11=e12, e21=e22, ..., en1=en2]` this function produces
--- equalities `ei2=ej2` whenever `ei1==ej1` and for no other index `k` `ei1==ek1`.
+-- equalities `ei2=ej2` whenever `ei1==ej1` or and for no other index `k` `ei1==ek1`
+-- or in in the other direction
 groupUnifiableEqualities :: [(Expr, Expr)] -> [(Expr, Expr)]
-groupUnifiableEqualities = mapMaybe (keep2 . snd) . M.groupList 
+groupUnifiableEqualities = mapMaybe keep2 . grouping
     where -- We perform only 2-way unification
           keep2 [e1, e2] = Just (e1, e2)
           keep2 _        = Nothing
+         
+          grouping eqs = fmap snd $ M.groupList eqs 
+                                 ++ M.groupList (fmap swap eqs)
 
 getEqualities :: Expr -> [(Expr, Expr)]
 getEqualities (PAtom Eq e1 e2) = [(e1, e2)]
