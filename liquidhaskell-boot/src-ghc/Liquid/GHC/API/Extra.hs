@@ -177,46 +177,50 @@ apiCommentsParsedSource ps =
 -- https://gitlab.haskell.org/ghc/ghc/-/issues/24386
 --
 addNoInlinePragmasToBinds :: TcGblEnv -> TcGblEnv
-addNoInlinePragmasToBinds tcg = tcg{ tcg_binds = go False (tcg_binds tcg) }
+addNoInlinePragmasToBinds tcg = tcg{ tcg_binds = go (tcg_binds tcg) }
   where
-    go :: forall a. Data a => Bool -> a -> a
-    go isAbs = gmapT $ go isAbs `extT` markHsBind isAbs
+    go :: forall a. Data a => a -> a
+    go = gmapT $ go `extT` markHsBind
 
     -- Mark all user-originating `Id` binders as `NOINLINE`.
-    markHsBind :: Bool -> HsBind GhcTc -> HsBind GhcTc
-    markHsBind isAbs = \case
-        bind@VarBind{ var_id = var, var_rhs = rhs } -> bind{ var_id = markId isAbs var, var_rhs = go False rhs }
-        bind@FunBind{ fun_id = var, fun_matches = matches } -> bind{ fun_id = markId isAbs <$> var, fun_matches = go False matches }
-        bind@PatBind{ pat_lhs = lhs, pat_rhs = rhs } -> bind{ pat_lhs = markPat isAbs <$> lhs, pat_rhs = go False rhs }
+    markHsBind :: HsBind GhcTc -> HsBind GhcTc
+    markHsBind = \case
+        bind@VarBind{ var_id = var, var_rhs = rhs } -> bind{ var_id = markId var, var_rhs = go rhs }
+        bind@FunBind{ fun_id = var, fun_matches = matches } -> bind{ fun_id = markId <$> var, fun_matches = go matches }
+        bind@PatBind{ pat_lhs = lhs, pat_rhs = rhs } -> bind{ pat_lhs = markPat <$> lhs, pat_rhs = go rhs }
         PatSynBind{} -> error "markNoInline: unexpected PatSynBind, should have been eliminated by the typechecker"
+        XHsBindsLR absBinds -> XHsBindsLR (markAbsBinds absBinds)
 
-        -- The AbsBinds come from the GHC typechecker to handle
-        -- polymorphism, overloading, and recursion, so those don't
-        -- correspond directly to user-written `Id`s. In fact, marking
-        -- them as `NOINLINE` results in Core that LH can't process.
-        XHsBindsLR absBind@AbsBinds{ abs_binds = binds
-                                   , abs_exports = abes } -> XHsBindsLR $ absBind
-          { abs_binds = go True binds
-          , abs_exports = map markABE abes }
+    markPat :: Pat GhcTc -> Pat GhcTc
+    markPat = \case
+        VarPat ext var -> VarPat ext (markId <$> var)
+        pat -> gmapT (id `extT` markPat) pat
 
-    markABE :: ABExport -> ABExport
-    markABE abe@ABE{ abe_poly = poly
-                   , abe_mono = mono } = abe
-      { abe_poly = markId False poly
-      , abe_mono = markId False mono }
+    markId :: Id -> Id
+    markId var = var `setInlinePragma` neverInlinePragma
 
-    markPat :: Bool -> Pat GhcTc -> Pat GhcTc
-    markPat isAbs = \case
-        VarPat ext var -> VarPat ext (markId isAbs <$> var)
-        pat -> gmapT (id `extT` markPat isAbs) pat
+    -- The AbsBinds come from the GHC typechecker to handle polymorphism,
+    -- overloading, and recursion, so those don't correspond directly to
+    -- user-written `Id`s. In fact, marking them as `NOINLINE` results in Core
+    -- that LH can't process.
+    markAbsBinds :: AbsBinds -> AbsBinds
+    markAbsBinds absBinds0 =
+        absBinds0
+          { abs_binds = fmap (fmap skipFirstHsBind) $ abs_binds absBinds0
+          , abs_exports = map markABE (abs_exports absBinds0)
+          }
+      where
+        skipFirstHsBind :: HsBind GhcTc -> HsBind GhcTc
+        skipFirstHsBind = \case
+          XHsBindsLR absBinds -> XHsBindsLR (markAbsBinds absBinds)
+          b -> gmapT go b
 
-    markId :: Bool -> Id -> Id
-    markId isAbs var
-      | isAbs
-      = var
+        markABE :: ABExport -> ABExport
+        markABE abe@ABE{ abe_poly = poly
+                       , abe_mono = mono } = abe
+          { abe_poly = markId poly
+          , abe_mono = markId mono }
 
-      | otherwise
-      = var `setInlinePragma` neverInlinePragma
 
 lookupModSummary :: HscEnv -> ModuleName -> Maybe ModSummary
 lookupModSummary hscEnv mdl = do
