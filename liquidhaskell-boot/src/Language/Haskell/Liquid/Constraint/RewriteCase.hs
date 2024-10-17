@@ -67,9 +67,15 @@ unify ctors globals = go
                            || isPrefixOfSym anfPrefix name)
 
 
--- | Given equalities `[e11=e12, e21=e22, ..., en1=en2]` this function produces
--- equalities `ei2=ej2` whenever `ei1==ej1` or and for no other index `k` `ei1==ek1`
--- or in in the other direction
+-- | Given a list of equalities this function produces the equalities that
+-- result from applying transitivity exactly once through terms that are not
+-- unifiable. For instance, if we have @[e1=e2, e2=e3, e1=e4]@ this function
+-- will produce @[e1=e3, e2=e4]@.
+--
+-- Some equalities are not produced if more than two equalities refer to the
+-- same expression. For instance, @[e1=e2, e1=e3, e1=e4]@, becase @e1@ appears
+-- three times, the equality @e3=e4@ won't be produced. This is an heuristic
+-- to avoid producing equalities that can later produce redundant rewrites.
 groupUnifiableEqualities :: [(Expr, Expr)] -> [(Expr, Expr)]
 groupUnifiableEqualities = concatMap mkEqs . grouping
     where 
