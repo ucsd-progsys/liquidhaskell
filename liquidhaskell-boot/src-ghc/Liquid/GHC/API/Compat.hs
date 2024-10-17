@@ -1,3 +1,6 @@
+-- | This module contains definitions that change between different versions
+-- of the GHC API. It helps encapsulating differences between branches of LH
+-- that could support different versions of GHC.
 module Liquid.GHC.API.Compat (
     UniqueId
   , toUniqueId
