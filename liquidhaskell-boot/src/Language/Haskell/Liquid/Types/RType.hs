@@ -357,9 +357,6 @@ instance Eq BTyVar where
 instance Ord BTyVar where
   compare (BTV x) (BTV y) = compare x y
 
-instance IsString BTyVar where
-  fromString = BTV . fromString
-
 instance B.Binary BTyVar
 instance Hashable BTyVar
 instance NFData   BTyVar
