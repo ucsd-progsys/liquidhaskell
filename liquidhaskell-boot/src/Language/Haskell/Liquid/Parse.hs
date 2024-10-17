@@ -651,8 +651,8 @@ dummyP ::  Monad m => m (Reft -> b) -> m b
 dummyP fm
   = fm `ap` return dummyReft
 
-symsP :: (IsString tv, Monoid r)
-      => Parser [(Symbol, RType c tv r)]
+symsP :: Monoid r
+      => Parser [(Symbol, RType c BTyVar r)]
 symsP
   = do reservedOp "\\"
        ss <- many symbolP
@@ -661,19 +661,19 @@ symsP
  <|> return []
  <?> "symsP"
 
-dummyRSort :: (IsString tv, Monoid r) => RType c tv r
+dummyRSort :: Monoid r => RType c BTyVar r
 dummyRSort
-  = RVar "dummy" mempty
+  = RVar (BTV "dummy") mempty
 
-predicatesP :: (IsString tv, Monoid r)
-            => Parser [Ref (RType c tv r) BareType]
+predicatesP :: Monoid r
+            => Parser [Ref (RType c BTyVar r) BareType]
 predicatesP
    =  angles (sepBy1 predicate1P comma)
   <|> return []
   <?> "predicatesP"
 
-predicate1P :: (IsString tv, Monoid r)
-            => Parser (Ref (RType c tv r) BareType)
+predicate1P :: Monoid r
+            => Parser (Ref (RType c BTyVar r) BareType)
 predicate1P
    =  try (RProp <$> symsP <*> refP bbaseP)
   <|> (rPropP [] . predUReft <$> monoPredicate1P)
@@ -830,8 +830,8 @@ predUReft p    = MkUReft dummyReft p
 dummyReft :: Monoid a => a
 dummyReft      = mempty
 
-dummyTyId :: IsString a => a
-dummyTyId      = ""
+dummyTyId :: String
+dummyTyId = ""
 
 ------------------------------------------------------------------
 --------------------------- Measures -----------------------------
@@ -1494,12 +1494,10 @@ tupPatP  = mkTupPat  <$> sepBy1 locLowerIdP comma
 conPatP :: Parser (Located Symbol, [Located Symbol])
 conPatP  = (,)       <$> dataConNameP <*> many locLowerIdP
 
-consPatP :: IsString a
-         => Parser (Located a, [Located Symbol])
+consPatP :: Parser (Located Symbol, [Located Symbol])
 consPatP = mkConsPat <$> locLowerIdP  <*> reservedOp ":" <*> locLowerIdP
 
-nilPatP :: IsString a
-        => Parser (Located a, [t])
+nilPatP :: Parser (Located Symbol, [t])
 nilPatP  = mkNilPat  <$> brackets (pure ())
 
 nullaryConPatP :: Parser (Located Symbol, [t])
@@ -1509,10 +1507,10 @@ nullaryConPatP = nilPatP <|> ((,[]) <$> dataConNameP)
 mkTupPat :: Foldable t => t a -> (Located Symbol, t a)
 mkTupPat zs     = (tupDataCon (length zs), zs)
 
-mkNilPat :: IsString a => t -> (Located a, [t1])
+mkNilPat :: t -> (Located Symbol, [t1])
 mkNilPat _      = (dummyLoc "[]", []    )
 
-mkConsPat :: IsString a => t1 -> t -> t1 -> (Located a, [t1])
+mkConsPat :: t1 -> t -> t1 -> (Located Symbol, [t1])
 mkConsPat x _ y = (dummyLoc ":" , [x, y])
 
 tupDataCon :: Int -> Located Symbol

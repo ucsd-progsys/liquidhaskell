@@ -11,13 +11,12 @@ import           Prelude hiding (error)
 import           Data.Bifunctor
 import qualified Data.HashSet as S 
 import           Text.PrettyPrint.HughesPJ
-import           System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
 import           Control.Monad (when)
 import qualified Data.Maybe as Mb
 import qualified Data.List  as L 
 import qualified Language.Haskell.Liquid.UX.DiffCheck as DC
 import           Language.Haskell.Liquid.Misc
-import           Language.Fixpoint.Misc
+import qualified Language.Fixpoint.Misc as F
 import           Language.Fixpoint.Solver
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types.Errors
@@ -52,16 +51,13 @@ checkTargetInfo info = do
         -- donePhase Loud "Only compiling specifications [skipping verification]"
         pure mempty { o_result = F.Safe mempty }
       | otherwise = do
-        whenNormal $ donePhase Loud "Extracted Core using GHC"
-        -- whenLoud  $ do putStrLn $ showpp info
-                     -- putStrLn "*************** Original CoreBinds ***************************"
-                     -- putStrLn $ render $ pprintCBs (cbs info)
-        whenNormal $ donePhase Loud "Transformed Core"
-        whenLoud  $ do donePhase Loud "transformRecExpr-1773-hoho"
-                       putStrLn "*************** Transform Rec Expr CoreBinds *****************"
-                       putStrLn $ showCBs (untidyCore cfg) cbs'
-                       -- putStrLn $ render $ pprintCBs cbs'
-                       -- putStrLn $ showPpr cbs'
+        when (loggingVerbosity cfg == Normal) $ do
+          F.donePhase F.Loud "Extracted Core using GHC"
+          F.donePhase F.Loud "Transformed Core"
+        when (loggingVerbosity cfg == Loud) $ do
+          F.donePhase F.Loud "transformRecExpr-1773-hoho"
+          putStrLn "*************** Transform Rec Expr CoreBinds *****************"
+          putStrLn $ showCBs (untidyCore cfg) cbs'
         edcs <- newPrune cfg cbs' tgt info
         liquidQueries cfg tgt info edcs
 
