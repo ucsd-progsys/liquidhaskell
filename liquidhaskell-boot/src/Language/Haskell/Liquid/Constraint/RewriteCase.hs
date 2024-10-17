@@ -68,9 +68,8 @@ unify ctors globals = go
 
 
 -- | Given a list of equalities this function produces the equalities that
--- result from applying transitivity exactly once through terms that are not
--- unifiable. For instance, if we have @[e1=e2, e2=e3, e1=e4]@ this function
--- will produce @[e1=e3, e2=e4]@.
+-- result from applying transitivity exactly once. For instance, if we have
+-- @[e1=e2, e2=e3, e1=e4]@ this function will produce @[e1=e3, e2=e4]@.
 --
 -- Some equalities are not produced if more than two equalities refer to the
 -- same expression. For instance, @[e1=e2, e1=e3, e1=e4]@, becase @e1@ appears
