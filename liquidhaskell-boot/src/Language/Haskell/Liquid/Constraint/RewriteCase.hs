@@ -27,7 +27,7 @@ getCaseRewrites γ spec =
        $ getEqualities refinement
     where toSet = S.fromList . M.keys
 
--- We don't need the a total unification as constructors are inejctive
+-- We don't need a total unification as constructors are injective
 unify :: S.HashSet Symbol -> S.HashSet Symbol -> Expr -> Expr -> [(Symbol, Expr)]
 unify ctors globals = go
     where
@@ -59,13 +59,12 @@ unify ctors globals = go
 -- equalities `ei2=ej2` whenever `ei1==ej1` or and for no other index `k` `ei1==ek1`
 -- or in in the other direction
 groupUnifiableEqualities :: [(Expr, Expr)] -> [(Expr, Expr)]
-groupUnifiableEqualities = mapMaybe keep2 . grouping
-    where -- We perform only 2-way unification
-          keep2 [e1, e2] = Just (e1, e2)
-          keep2 _        = Nothing
+groupUnifiableEqualities = concatMap mkEqs . grouping
+    where 
+          mkEqs (e1: es) = [ (e1, e) | e <- es ]
+          mkEqs _        = []
          
-          grouping eqs = fmap snd $ M.groupList eqs 
-                                 ++ M.groupList (fmap swap eqs)
+          grouping eqs = fmap snd $ M.groupList $ eqs ++ fmap swap eqs
 
 getEqualities :: Expr -> [(Expr, Expr)]
 getEqualities (PAtom Eq e1 e2) = [(e1, e2)]
