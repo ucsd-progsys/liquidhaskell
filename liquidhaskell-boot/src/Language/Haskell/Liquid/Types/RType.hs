@@ -78,9 +78,6 @@ module Language.Haskell.Liquid.Types.RType (
   , ppEnv
   , ppEnvShort
 
-  -- , rtyVarUniqueSymbol, tyVarUniqueSymbol
-  , rtyVarType, tyVarVar
-
   -- * Refined Function Info
   , RFInfo(..), defRFInfo, mkRFInfo, classRFInfo
 
@@ -407,13 +404,6 @@ instance F.Symbolic BTyCon where
 instance NFData BTyCon
 
 instance NFData RTyCon
-
-rtyVarType :: RTyVar -> Type
-rtyVarType (RTV v) = TyVarTy v
-
-tyVarVar :: RTVar RTyVar c -> Var
-tyVarVar (RTVar (RTV v) _) = v
-
 
 
 mkBTyCon :: F.LocSymbol -> BTyCon
