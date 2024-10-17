@@ -201,8 +201,12 @@ addNoInlinePragmasToBinds tcg = tcg{ tcg_binds = go (tcg_binds tcg) }
 
     -- The AbsBinds come from the GHC typechecker to handle polymorphism,
     -- overloading, and recursion, so those don't correspond directly to
-    -- user-written `Id`s. In fact, marking them as `NOINLINE` results in Core
-    -- that LH can't process.
+    -- user-written `Id`s except for those in @abs_exports@. For instance,
+    -- @tests/pos/Map0.hs@ would fail if Ids in @abs_exports@ are not marked.
+    --
+    -- See
+    -- https://github.com/ucsd-progsys/liquidhaskell/issues/2257 for more
+    -- context.
     markAbsBinds :: AbsBinds -> AbsBinds
     markAbsBinds absBinds0 =
         absBinds0
