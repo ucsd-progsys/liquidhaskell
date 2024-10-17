@@ -765,7 +765,7 @@ reportResult logResultFull cfg targets out = do
          let outputResult = resDocs tidy cr
          -- For now, always print the \"header\" with colours, irrespective to the logger
          -- passed as input.
-         when (loggingVerbosity cfg >= Normal) $
+         when (loggingVerbosity cfg >= Minimal) $
              liftIO $ printHeader (colorResult r) (orHeader outputResult)
          logResultFull outputResult
   where
