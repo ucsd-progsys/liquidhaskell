@@ -380,15 +380,6 @@ kindArity _
 uniqueHash :: Uniquable a => Int -> a -> Int
 uniqueHash i = hashWithSalt i . getKey . getUnique
 
-ignoreInline :: ParsedModule -> ParsedModule
-ignoreInline x = x {pm_parsed_source = go <$> pm_parsed_source x}
-  where
-    go  y      = y {hsmodDecls = filter go' (hsmodDecls y) }
-    go' :: LHsDecl GhcPs -> Bool
-    go' z
-      | SigD _ (InlineSig {}) <-  unLoc z = False
-      | otherwise                         = True
-
 --------------------------------------------------------------------------------
 -- | Symbol Conversions --------------------------------------------------------
 --------------------------------------------------------------------------------
