@@ -206,39 +206,40 @@ instance PPrint WfC where
 -- | Generation: Types ---------------------------------------------------------
 --------------------------------------------------------------------------------
 data CGInfo = CGInfo
-  { fEnv       :: !(F.SEnv F.Sort)                    -- ^ top-level fixpoint env
-  , hsCs       :: ![SubC]                             -- ^ subtyping constraints over RType
-  , hsWfs      :: ![WfC]                              -- ^ wellformedness constraints over RType
-  , fixCs      :: ![FixSubC]                          -- ^ subtyping over Sort (post-splitting)
-  , fixWfs     :: ![FixWfC]                           -- ^ wellformedness constraints over Sort (post-splitting)
-  , freshIndex :: !Integer                            -- ^ counter for generating fresh KVars
-  , binds      :: !FixBindEnv                         -- ^ set of environment binders
-  , ebinds     :: ![F.BindId]                         -- ^ existentials
-  , annotMap   :: !(AnnInfo (Annot SpecType))         -- ^ source-position annotation map
-  , tyConInfo  :: !TyConMap                           -- ^ information about type-constructors
-  , newTyEnv   :: !(M.HashMap Ghc.TyCon SpecType)     -- ^ Mapping of new type type constructors with their refined types.
-  , termExprs  :: !(M.HashMap Var [F.Located F.Expr]) -- ^ Terminating Metrics for Recursive functions
-  , specLVars  :: !(S.HashSet Var)                    -- ^ Set of variables to ignore for termination checking
-  , specLazy   :: !(S.HashSet Var)                    -- ^ "Lazy binders", skip termination checking
-  , specTmVars :: !(S.HashSet Var)                    -- ^ Binders that FAILED struct termination check that MUST be checked
-  , autoSize   :: !(S.HashSet Ghc.TyCon)              -- ^ ? FIX THIS
-  , tyConEmbed :: !(F.TCEmb Ghc.TyCon)                -- ^ primitive Sorts into which TyCons should be embedded
-  , kuts       :: !F.Kuts                             -- ^ Fixpoint Kut variables (denoting "back-edges"/recursive KVars)
-  , kvPacks    :: ![S.HashSet F.KVar]                 -- ^ Fixpoint "packs" of correlated kvars
-  , cgLits     :: !(F.SEnv F.Sort)                    -- ^ Global symbols in the refinement logic
-  , cgConsts   :: !(F.SEnv F.Sort)                    -- ^ Distinct constant symbols in the refinement logic
-  , cgADTs     :: ![F.DataDecl]                       -- ^ ADTs extracted from Haskell 'data' definitions
-  , tcheck     :: !Bool                               -- ^ Check Termination (?)
-  , cgiTypeclass :: !Bool                             -- ^ Enable typeclass support
-  , pruneRefs  :: !Bool                               -- ^ prune unsorted refinements
-  , logErrors  :: ![Error]                            -- ^ Errors during constraint generation
-  , kvProf     :: !KVProf                             -- ^ Profiling distribution of KVars
-  , recCount   :: !Int                                -- ^ number of recursive functions seen (for benchmarks)
-  , bindSpans  :: M.HashMap F.BindId SrcSpan          -- ^ Source Span associated with Fixpoint Binder
-  , allowHO    :: !Bool
-  , ghcI       :: !TargetInfo
-  , dataConTys :: ![(Var, SpecType)]                  -- ^ Refined Types of Data Constructors
-  , unsorted   :: !F.Templates                        -- ^ Potentially unsorted expressions
+  { fEnv          :: !(F.SEnv F.Sort)                    -- ^ top-level fixpoint env
+  , hsCs          :: ![SubC]                             -- ^ subtyping constraints over RType
+  , hsWfs         :: ![WfC]                              -- ^ wellformedness constraints over RType
+  , fixCs         :: ![FixSubC]                          -- ^ subtyping over Sort (post-splitting)
+  , fixWfs        :: ![FixWfC]                           -- ^ wellformedness constraints over Sort (post-splitting)
+  , freshIndex    :: !Integer                            -- ^ counter for generating fresh KVars
+  , binds         :: !FixBindEnv                         -- ^ set of environment binders
+  , localRewrites :: !F.LocalRewritesEnv                 -- ^ set of local rewrites
+  , ebinds        :: ![F.BindId]                         -- ^ existentials
+  , annotMap      :: !(AnnInfo (Annot SpecType))         -- ^ source-position annotation map
+  , tyConInfo     :: !TyConMap                           -- ^ information about type-constructors
+  , newTyEnv      :: !(M.HashMap Ghc.TyCon SpecType)     -- ^ Mapping of new type type constructors with their refined types.
+  , termExprs     :: !(M.HashMap Var [F.Located F.Expr]) -- ^ Terminating Metrics for Recursive functions
+  , specLVars     :: !(S.HashSet Var)                    -- ^ Set of variables to ignore for termination checking
+  , specLazy      :: !(S.HashSet Var)                    -- ^ "Lazy binders", skip termination checking
+  , specTmVars    :: !(S.HashSet Var)                    -- ^ Binders that FAILED struct termination check that MUST be checked
+  , autoSize      :: !(S.HashSet Ghc.TyCon)              -- ^ ? FIX THIS
+  , tyConEmbed    :: !(F.TCEmb Ghc.TyCon)                -- ^ primitive Sorts into which TyCons should be embedded
+  , kuts          :: !F.Kuts                             -- ^ Fixpoint Kut variables (denoting "back-edges"/recursive KVars)
+  , kvPacks       :: ![S.HashSet F.KVar]                 -- ^ Fixpoint "packs" of correlated kvars
+  , cgLits        :: !(F.SEnv F.Sort)                    -- ^ Global symbols in the refinement logic
+  , cgConsts      :: !(F.SEnv F.Sort)                    -- ^ Distinct constant symbols in the refinement logic
+  , cgADTs        :: ![F.DataDecl]                       -- ^ ADTs extracted from Haskell 'data' definitions
+  , tcheck        :: !Bool                               -- ^ Check Termination (?)
+  , cgiTypeclass  :: !Bool                               -- ^ Enable typeclass support
+  , pruneRefs     :: !Bool                               -- ^ prune unsorted refinements
+  , logErrors     :: ![Error]                            -- ^ Errors during constraint generation
+  , kvProf        :: !KVProf                             -- ^ Profiling distribution of KVars
+  , recCount      :: !Int                                -- ^ number of recursive functions seen (for benchmarks)
+  , bindSpans     :: M.HashMap F.BindId SrcSpan          -- ^ Source Span associated with Fixpoint Binder
+  , allowHO       :: !Bool
+  , ghcI          :: !TargetInfo
+  , dataConTys    :: ![(Var, SpecType)]                  -- ^ Refined Types of Data Constructors
+  , unsorted      :: !F.Templates                        -- ^ Potentially unsorted expressions
   }
 
 

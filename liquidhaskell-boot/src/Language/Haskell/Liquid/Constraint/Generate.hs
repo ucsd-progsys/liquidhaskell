@@ -62,6 +62,7 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint ( addConstraints )
 import           Language.Haskell.Liquid.Constraint.Template
 import           Language.Haskell.Liquid.Constraint.Termination
+import           Language.Haskell.Liquid.Constraint.RewriteCase
 import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult, runToLogic, coreToLogic)
 import           Language.Haskell.Liquid.Bare.DataType (dataConMap, makeDataConChecker)
 import           Language.Haskell.Liquid.UX.Config
@@ -871,9 +872,12 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
   let cbs          = safeZip "cconsCase" (x':ys')
                          (map (`F.subst1` (selfSymbol, F.EVar x'))
                          (xt0 : yts))
-  cγ'             <- addBinders γ x' cbs
+  cγ'  <- addBinders γ   x' cbs
+  when allowDC $
+    addRewritesForNextBinding $ getCaseRewrites γ $ xt0 `meet` rtd
   addBinders cγ' x' [(x', substSelf <$> xt)]
   where allowTC    = typeclass (getConfig γ)
+        allowDC    = dependantCase (getConfig γ)
 
 caseEnv γ x acs a _ _ = do
   let x'  = F.symbol x
