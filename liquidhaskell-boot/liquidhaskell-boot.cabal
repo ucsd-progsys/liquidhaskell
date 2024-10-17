@@ -60,6 +60,7 @@ library
                       Language.Haskell.Liquid.Constraint.Types
                       Language.Haskell.Liquid.Constraint.Relational
                       Liquid.GHC.API
+                      Liquid.GHC.API.Compat
                       Liquid.GHC.API.Extra
                       Liquid.GHC.API.StableModule
                       Language.Haskell.Liquid.GHC.CoreToLogic

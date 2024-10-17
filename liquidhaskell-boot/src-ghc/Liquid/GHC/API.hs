@@ -18,6 +18,7 @@ module Liquid.GHC.API (
   ) where
 
 import Liquid.GHC.API.Extra as Ghc
+import Liquid.GHC.API.Compat as Ghc
 
 import           GHC                  as Ghc
     ( Class
@@ -167,14 +168,12 @@ import GHC.Builtin.Names              as Ghc
     , Unique
     , and_RDR
     , bindMName
-    , gHC_INTERNAL_DATA_FOLDABLE
     , eqClassKey
     , eqClassName
     , ge_RDR
     , gt_RDR
     , fractionalClassKey
     , fractionalClassKeys
-    , gHC_INTERNAL_REAL
     , getUnique
     , hasKey
     , isStringClassName

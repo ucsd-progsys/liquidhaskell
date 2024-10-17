@@ -105,11 +105,11 @@ maybeAuxVar s
         name = mkInternalName (mkUnique 'x' uid) occ noSrcSpan
         occ = mkVarOcc (T.unpack (symbolText sym))
 
-stringTyCon :: Char -> Word64 -> String -> TyCon
+stringTyCon :: Char -> UniqueId -> String -> TyCon
 stringTyCon = stringTyConWithKind anyTy
 
 -- FIXME: reusing uniques like this is really dangerous
-stringTyConWithKind :: Kind -> Char -> Word64 -> String -> TyCon
+stringTyConWithKind :: Kind -> Char -> UniqueId -> String -> TyCon
 stringTyConWithKind k c n s = Ghc.mkPrimTyCon name [] k []
   where
     name          = mkInternalName (mkUnique c n) occ noSrcSpan
@@ -508,8 +508,8 @@ takeModuleUnique = mungeNames tailName sepUnique   "takeModuleUnique: "
   where
     tailName msg = symbol . safeLast msg
 
-splitModuleUnique :: Symbol -> (Symbol, Word64)
-splitModuleUnique x = (dropModuleNamesAndUnique x, base62ToW (takeModuleUnique x))
+splitModuleUnique :: Symbol -> (Symbol, UniqueId)
+splitModuleUnique x = (dropModuleNamesAndUnique x, toUniqueId $ base62ToW (takeModuleUnique x))
 
 base62ToW :: Symbol -> Word64
 base62ToW s =  fromMaybe (errorstar "base62ToW Out Of Range") $ go (F.symbolText s)
@@ -993,7 +993,7 @@ withWiredIn m = discardConstraints $ do
     return $ TcWiredIn n Nothing ty
 
 prependGHCRealQual :: FastString -> RdrName
-prependGHCRealQual = varQual_RDR gHC_INTERNAL_REAL
+prependGHCRealQual = varQual_RDR realModule
 
 isFromGHCReal :: NamedThing a => a -> Bool
-isFromGHCReal x = Ghc.nameModule (Ghc.getName x) == gHC_INTERNAL_REAL
+isFromGHCReal x = Ghc.nameModule (Ghc.getName x) == realModule

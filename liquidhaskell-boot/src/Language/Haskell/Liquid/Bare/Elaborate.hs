@@ -604,7 +604,7 @@ fixExprToHsExpr env (F.PAnd (e : es)) = L.foldr f (fixExprToHsExpr env e) es
 --   (nlHsVar (varQual_RDR dATA_FOLDABLE (fsLit "and")))
 --   (nlList $ fixExprToHsExpr env <$> es)
 fixExprToHsExpr env (F.POr es) = mkHsApp
-  (nlHsVar (varQual_RDR gHC_INTERNAL_DATA_FOLDABLE (fsLit "or")))
+  (nlHsVar (varQual_RDR foldableModule (fsLit "or")))
   (nlList $ fixExprToHsExpr env <$> es)
 fixExprToHsExpr env (F.PIff e0 e1) = mkHsApp
   (mkHsApp (nlHsVar (mkVarUnqual (mkFastString "<=>"))) (fixExprToHsExpr env e0)
