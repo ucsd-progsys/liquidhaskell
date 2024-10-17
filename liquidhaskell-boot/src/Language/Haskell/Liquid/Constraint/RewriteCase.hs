@@ -27,7 +27,19 @@ getCaseRewrites γ spec =
        $ getEqualities refinement
     where toSet = S.fromList . M.keys
 
--- We don't need a total unification as constructors are injective
+-- | Generates substitutions for non-global variables that make @e1@ and @e2@
+-- equal.
+--
+-- If @v@ is not global, and @C@ is a data constructor
+--
+--  * @v@ and @e2@ produces @(v, e2)@
+--  * @e1@ and @v@ produces @(e1, v)@
+--  * @C a₁ ... aₙ@ and @C b₁ ... bₙ@ produces the substitutions from unifying
+--    @(a₁, b₁), ..., (aₙ, bₙ)@
+--
+-- If any unification fails, the substitutions from the unifications that
+-- succeed are still produced.
+--
 unify :: S.HashSet Symbol -> S.HashSet Symbol -> Expr -> Expr -> [(Symbol, Expr)]
 unify ctors globals = go
     where
