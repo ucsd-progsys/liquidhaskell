@@ -208,10 +208,10 @@ addNoInlinePragmasToBinds tcg = tcg{ tcg_binds = go (tcg_binds tcg) }
     -- https://github.com/ucsd-progsys/liquidhaskell/issues/2257 for more
     -- context.
     markAbsBinds :: AbsBinds -> AbsBinds
-    markAbsBinds absBinds0 =
+    markAbsBinds absBinds0@AbsBinds{ abs_binds = binds, abs_exports = exports }  =
         absBinds0
-          { abs_binds = fmap skipFirstHsBind <$> abs_binds absBinds0
-          , abs_exports = map markABE (abs_exports absBinds0)
+          { abs_binds = fmap skipFirstHsBind <$> binds
+          , abs_exports = map markABE exports
           }
       where
         skipFirstHsBind :: HsBind GhcTc -> HsBind GhcTc
