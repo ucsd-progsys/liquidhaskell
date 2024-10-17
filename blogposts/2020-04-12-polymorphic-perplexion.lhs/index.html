@@ -1,0 +1,1827 @@
+
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+        <meta name="author" content="Ranjit Jhala">
+      
+      
+        <link rel="canonical" href="https://ucsd-progsys.github.io/liquidhaskell/blogposts/2020-04-12-polymorphic-perplexion.lhs/">
+      
+      
+        <link rel="prev" href="../2020-08-20-lh-as-a-ghc-plugin.lhs/">
+      
+      
+        <link rel="next" href="../2019-10-20-why-types.lhs/">
+      
+      
+      <link rel="icon" href="../../static/img/favicon.ico">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.41">
+    
+    
+      
+        <title>Polymorphic Perplexion - LiquidHaskell Docs</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.0253249f.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@5.9.55/css/materialdesignicons.min.css">
+    
+      <link rel="stylesheet" href="../../static/liquid-light.css">
+    
+      <link rel="stylesheet" href="../../static/misc.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="cyan" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#a-type-for-ordered-lists" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="LiquidHaskell Docs" class="md-header__button md-logo" aria-label="LiquidHaskell Docs" data-md-component="logo">
+      
+  <img src="../../static/img/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            LiquidHaskell Docs
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Polymorphic Perplexion
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/ucsd-progsys/liquidhaskell" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="https://liquidhaskell.goto.ucsd.edu/index.html" class="md-tabs__link">
+        
+  
+    
+  
+  <div id='demo'><i aria-hidden=true class='mdi mdi-cloud-braces'></i> Try Online</div>
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="http://ucsd-progsys.github.io/liquidhaskell-tutorial/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-human-greeting'></i> Tutorial
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../install/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-download'></i> Installation
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../specifications/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-script'></i> Spec Reference
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../options/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-flag'></i> Flag Reference
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../papers/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-school'></i> Papers
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../2020-08-20-lh-as-a-ghc-plugin.lhs/" class="md-tabs__link">
+          
+  
+  <i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="LiquidHaskell Docs" class="md-nav__button md-logo" aria-label="LiquidHaskell Docs" data-md-component="logo">
+      
+  <img src="../../static/img/logo.png" alt="logo">
+
+    </a>
+    LiquidHaskell Docs
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/ucsd-progsys/liquidhaskell" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://liquidhaskell.goto.ucsd.edu/index.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <div id='demo'><i aria-hidden=true class='mdi mdi-cloud-braces'></i> Try Online</div>
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="http://ucsd-progsys.github.io/liquidhaskell-tutorial/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-human-greeting'></i> Tutorial
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-download'></i> Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specifications/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-script'></i> Spec Reference
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../options/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-flag'></i> Flag Reference
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../papers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-school'></i> Papers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            <i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_1" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_9_1" id="__nav_9_1_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Blogposts
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9_1">
+            <span class="md-nav__icon md-icon"></span>
+            Blogposts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2020-08-20-lh-as-a-ghc-plugin.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    LiquidHaskell is a GHC Plugin
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Polymorphic Perplexion
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Polymorphic Perplexion
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#a-type-for-ordered-lists" class="md-nav__link">
+    <span class="md-ellipsis">
+      A Type for Ordered Lists
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-polymorphic-insertion-sort" class="md-nav__link">
+    <span class="md-ellipsis">
+      A Polymorphic Insertion Sort
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-monomorphic-insertion-sort" class="md-nav__link">
+    <span class="md-ellipsis">
+      A Monomorphic Insertion Sort
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#perplexity" class="md-nav__link">
+    <span class="md-ellipsis">
+      Perplexity
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#moral" class="md-nav__link">
+    <span class="md-ellipsis">
+      Moral
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2019-10-20-why-types.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Liquid Types vs. Floyd-Hoare Logic
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2018-05-17-hillel-verifier-rodeo-I-leftpad.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    The Hillelogram Verifier Rodeo I (LeftPad)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2018-02-23-measures-and-case-splitting.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Measures and Case Splitting
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2017-12-24-splitting-and-splicing-intervals-II.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Splitting and Splicing Intervals (Part 2)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2017-12-15-splitting-and-splicing-intervals-I.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Splitting and Splicing Intervals (Part 1)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2017-03-20-arithmetic-overflows.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Arithmetic Overflows
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2016-10-06-structural-induction.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Refinement Reflection on ADTs
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2016-09-18-refinement-reflection.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Haskell as a Theorem Prover
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2016-09-01-normal-forms.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Normal Forms
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2015-01-30-okasakis-lazy-queue.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Okasaki's Lazy Queues
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2014-08-15-a-finer-filter.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    A Finer Filter
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2014-05-28-pointers-gone-wild.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Pointers Gone Wild
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2014-02-11-the-advantage-of-measures.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    The Advantage of Measures
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-12-14-gcd.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Termination Requires Refinements
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-12-09-checking-termination.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checking Termination
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-12-02-getting-to-the-bottom.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Getting To the Bottom
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-11-23-telling_lies.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    LiquidHaskell Caught Telling Lies!
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-10-10-csv-tables.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CSV Tables
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-07-29-putting-things-in-order.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Putting Things In Order
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-06-03-abstracting-over-refinements.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Abstracting Over Refinements
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-05-24-unique-zipper.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Unique Zippers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-03-26-talking-about-sets.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Talking About Sets
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-03-04-bounding-vectors.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Bounding Vectors
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-02-17-kmeans-clustering-II.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    KMeans Clustering II
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-02-16-kmeans-clustering-I.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    KMeans Clustering I
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-01-31-safely-catching-a-list-by-its-tail.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Safely Catching A List By Its Tail
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-01-28-bounding-vectors.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Bounding Vectors
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-01-27-refinements101-reax.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Refinements 101 (contd.)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-01-01-refinement-types-101.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Refinement Types 101
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tags.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tags
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#a-type-for-ordered-lists" class="md-nav__link">
+    <span class="md-ellipsis">
+      A Type for Ordered Lists
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-polymorphic-insertion-sort" class="md-nav__link">
+    <span class="md-ellipsis">
+      A Polymorphic Insertion Sort
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-monomorphic-insertion-sort" class="md-nav__link">
+    <span class="md-ellipsis">
+      A Monomorphic Insertion Sort
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#perplexity" class="md-nav__link">
+    <span class="md-ellipsis">
+      Perplexity
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#moral" class="md-nav__link">
+    <span class="md-ellipsis">
+      Moral
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+
+
+                  
+  
+<nav class="md-tags" >
+  
+    
+    
+    
+      <span class="md-tag">basic</span>
+    
+  
+</nav>
+
+
+  
+  
+
+
+  <h1>Polymorphic Perplexion</h1>
+
+<p>Polymorphism plays a vital role in automating verification in LH.
+However, thanks to its ubiquity, we often take it for granted, and 
+it can be quite baffling to figure out why verification fails with 
+monomorphic signatures. Let me explain why, using a simple example 
+that has puzzled me and other users several times.</p>
+<!-- more -->
+
+<div class="hidden">
+
+<pre><span class=hs-linenum>22: </span>
+<span class=hs-linenum>23: </span><span class='hs-keyword'>module</span> <span class='hs-conid'>PolymorphicPerplexion</span> <span class='hs-keyword'>where</span>
+</pre>
+</div>
+
+<h2 id="a-type-for-ordered-lists">A Type for Ordered Lists<a class="headerlink" href="#a-type-for-ordered-lists" title="Permanent link">&para;</a></h2>
+<p><a href="../2013-07-29-putting-things-in-order.lhs/">Previously</a>
+we have seen how you can use LH to define a type of lists whose values are in increasing
+(ok, non-decreasing!) order.</p>
+<p>First, we define an <code>IncList a</code> type, with <code>Emp</code> ("empty") 
+and <code>:&lt;</code> ("cons") constructors.</p>
+<pre><span class=hs-linenum>38: </span><span class='hs-keyword'>data</span> <span class='hs-conid'>IncList</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>Emp</span>
+<span class=hs-linenum>39: </span>               <span class='hs-keyglyph'>|</span> <span class='hs-layout'>(</span><span class='hs-conop'>:&lt;</span><span class='hs-layout'>)</span> <span class='hs-layout'>{</span> <span class='hs-varid'>hd</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span><span class='hs-layout'>,</span> <span class='hs-varid'>tl</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>IncList</span> <span class='hs-varid'>a</span> <span class='hs-layout'>}</span>
+<span class=hs-linenum>40: </span>
+<span class=hs-linenum>41: </span><span class='hs-keyword'>infixr</span> <span class='hs-num'>9</span> <span class='hs-conop'>:&lt;</span>
+</pre>
+
+<p>Next, we refine the type to specify that each "cons" <code>:&lt;</code>
+constructor takes as input a <code>hd</code> and a <code>tl</code> which must 
+be an <code>IncList a</code> of values <code>v</code> each of which is greater 
+than <code>hd</code>. </p>
+<pre><span class=hs-linenum>50: </span><span class='hs-keyword'>{-@</span> <span class='hs-keyword'>data</span> <span class='hs-conid'>IncList</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>Emp</span> 
+<span class=hs-linenum>51: </span>                   <span class='hs-keyglyph'>|</span> <span class='hs-layout'>(</span><span class='hs-conop'>:&lt;</span><span class='hs-layout'>)</span> <span class='hs-layout'>{</span> <span class='hs-varid'>hd</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span><span class='hs-layout'>,</span> <span class='hs-varid'>tl</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>IncList</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span><span class='hs-conop'>:</span><span class='hs-varid'>a</span> <span class='hs-keyglyph'>|</span> <span class='hs-varid'>hd</span> <span class='hs-varop'>&lt;=</span> <span class='hs-varid'>v</span><span class='hs-layout'>}</span><span class='hs-layout'>}</span>  
+<span class=hs-linenum>52: </span>  <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p>We can confirm that the above definition ensures that the only 
+<em>legal</em> values are increasingly ordered lists, as LH accepts
+the first list below, but rejects the second where the elements
+are out of order.</p>
+<pre><span class=hs-linenum>61: </span><span class='hs-definition'>legalList</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>IncList</span> <span class='hs-conid'>Int</span>
+<span class=hs-linenum>62: </span><a class=annot href="#"><span class=annottext>(PolymorphicPerplexion.IncList GHC.Types.Int)</span><span class='hs-definition'>legalList</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>GHC.Types.Int</span><span class='hs-num'>0</span></a> <span class='hs-conop'>:&lt;</span> <a class=annot href="#"><span class=annottext>GHC.Types.Int</span><span class='hs-num'>1</span></a> <span class='hs-conop'>:&lt;</span> <a class=annot href="#"><span class=annottext>GHC.Types.Int</span><span class='hs-num'>2</span></a> <span class='hs-conop'>:&lt;</span> <a class=annot href="#"><span class=annottext>GHC.Types.Int</span><span class='hs-num'>3</span></a> <span class='hs-conop'>:&lt;</span> <a class=annot href="#"><span class=annottext>{VV : forall a . (PolymorphicPerplexion.IncList a) | VV == Emp}</span><span class='hs-conid'>Emp</span></a>
+<span class=hs-linenum>63: </span>
+<span class=hs-linenum>64: </span><span class='hs-definition'>illegalList</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>IncList</span> <span class='hs-conid'>Int</span> 
+<span class=hs-linenum>65: </span><a class=annot href="#"><span class=annottext>(PolymorphicPerplexion.IncList GHC.Types.Int)</span><span class='hs-definition'>illegalList</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>GHC.Types.Int</span><span class='hs-num'>0</span></a> <span class='hs-conop'>:&lt;</span> <a class=annot href="#"><span class=annottext>GHC.Types.Int</span><span class='hs-num'>1</span></a> <span class='hs-conop'>:&lt;</span> <a class=annot href="#"><span class=annottext>GHC.Types.Int</span><span class='hs-num'>3</span></a> <span class='hs-conop'>:&lt;</span> <span class=hs-error><a class=annot href="#"><span class=annottext>GHC.Types.Int</span><span class='hs-num'>2</span></a></span><span class=hs-error> </span><span class=hs-error><span class='hs-conop'>:&lt;</span></span><span class=hs-error> </span><span class=hs-error><a class=annot href="#"><span class=annottext>{VV : forall a . (PolymorphicPerplexion.IncList a) | VV == Emp}</span><span class='hs-conid'>Emp</span></a></span>
+</pre>
+
+<h2 id="a-polymorphic-insertion-sort">A Polymorphic Insertion Sort<a class="headerlink" href="#a-polymorphic-insertion-sort" title="Permanent link">&para;</a></h2>
+<p>Next, lets write a simple <em>insertion-sort</em> function that 
+takes a plain unordered list of <code>[a]</code> and returns the elements 
+in increasing order:</p>
+<pre><span class=hs-linenum>76: </span><span class='hs-definition'>insertSortP</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>Ord</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncList</span> <span class='hs-varid'>a</span>
+<span class=hs-linenum>77: </span><a class=annot href="#"><span class=annottext>forall a .
+(GHC.Classes.Ord&lt;[]&gt; a) =&gt;
+[a] -&gt; (PolymorphicPerplexion.IncList a)</span><span class='hs-definition'>insertSortP</span></a> <a class=annot href="#"><span class=annottext>[a]</span><span class='hs-varid'>xs</span></a> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>foldr</span> <a class=annot href="#"><span class=annottext>a -&gt; (PolymorphicPerplexion.IncList a) -&gt; (PolymorphicPerplexion.IncList a)</span><span class='hs-varid'>insertP</span></a> <a class=annot href="#"><span class=annottext>{VV : forall a . (PolymorphicPerplexion.IncList a) | VV == Emp}</span><span class='hs-conid'>Emp</span></a> <a class=annot href="#"><span class=annottext>{v : [a] | len v &gt;= 0
+           &amp;&amp; v == xs}</span><span class='hs-varid'>xs</span></a>
+<span class=hs-linenum>78: </span>
+<span class=hs-linenum>79: </span><span class='hs-definition'>insertP</span>             <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>Ord</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncList</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncList</span> <span class='hs-varid'>a</span>
+<span class=hs-linenum>80: </span><a class=annot href="#"><span class=annottext>forall a .
+(GHC.Classes.Ord&lt;[]&gt; a) =&gt;
+a -&gt; (PolymorphicPerplexion.IncList a) -&gt; (PolymorphicPerplexion.IncList a)</span><span class='hs-definition'>insertP</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>y</span></a> <span class='hs-conid'>Emp</span>       <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == y}</span><span class='hs-varid'>y</span></a> <span class='hs-conop'>:&lt;</span> <a class=annot href="#"><span class=annottext>{VV : forall a . (PolymorphicPerplexion.IncList a) | VV == Emp}</span><span class='hs-conid'>Emp</span></a>
+<span class=hs-linenum>81: </span><span class='hs-definition'>insertP</span> <span class='hs-varid'>y</span> <span class='hs-layout'>(</span><span class='hs-varid'>x</span> <span class='hs-conop'>:&lt;</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>82: </span>  <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == y}</span><span class='hs-varid'>y</span></a> <span class='hs-varop'>&lt;=</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == x}</span><span class='hs-varid'>x</span></a>         <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == y}</span><span class='hs-varid'>y</span></a> <span class='hs-conop'>:&lt;</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == x}</span><span class='hs-varid'>x</span></a> <span class='hs-conop'>:&lt;</span> <a class=annot href="#"><span class=annottext>{v : (PolymorphicPerplexion.IncList {VV : a | x &lt;= VV}) | v == xs}</span><span class='hs-varid'>xs</span></a>
+<span class=hs-linenum>83: </span>  <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span>      <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == x}</span><span class='hs-varid'>x</span></a> <span class='hs-conop'>:&lt;</span> <a class=annot href="#"><span class=annottext>(PolymorphicPerplexion.IncList a)</span><span class='hs-varid'>insertP</span></a> <a class=annot href="#"><span class=annottext>{VV : a | VV == y}</span><span class='hs-varid'>y</span></a> <a class=annot href="#"><span class=annottext>{v : (PolymorphicPerplexion.IncList {VV : a | x &lt;= VV}) | v == xs}</span><span class='hs-varid'>xs</span></a>
+</pre>
+
+<p>Happily, LH is able to verify the above code without any trouble!
+(If that seemed too easy, don't worry: if you mess up the comparison, 
+e.g. change the guard to <code>x &lt;= y</code> LH will complain about it.)</p>
+<h2 id="a-monomorphic-insertion-sort">A Monomorphic Insertion Sort<a class="headerlink" href="#a-monomorphic-insertion-sort" title="Permanent link">&para;</a></h2>
+<p>However, lets take the <em>exact</em> same code as above <em>but</em> change 
+the type signatures to make the functions <em>monomorphic</em>, here, 
+specialized to <code>Int</code> lists.</p>
+<pre><span class=hs-linenum>99: </span><span class='hs-definition'>insertSortM</span> <span class='hs-keyglyph'>::</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>Int</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncList</span> <span class='hs-conid'>Int</span> 
+<span class=hs-linenum>100: </span><a class=annot href="#"><span class=annottext>[GHC.Types.Int] -&gt; (PolymorphicPerplexion.IncList GHC.Types.Int)</span><span class='hs-definition'>insertSortM</span></a> <a class=annot href="#"><span class=annottext>[GHC.Types.Int]</span><span class='hs-varid'>xs</span></a> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>foldr</span> <a class=annot href="#"><span class=annottext>GHC.Types.Int -&gt; (PolymorphicPerplexion.IncList GHC.Types.Int) -&gt; (PolymorphicPerplexion.IncList GHC.Types.Int)</span><span class='hs-varid'>insertM</span></a> <a class=annot href="#"><span class=annottext>{VV : forall a . (PolymorphicPerplexion.IncList a) | VV == Emp}</span><span class='hs-conid'>Emp</span></a> <a class=annot href="#"><span class=annottext>{v : [GHC.Types.Int] | len v &gt;= 0
+                       &amp;&amp; v == xs}</span><span class='hs-varid'>xs</span></a>
+<span class=hs-linenum>101: </span>
+<span class=hs-linenum>102: </span><span class='hs-definition'>insertM</span>            <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncList</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncList</span> <span class='hs-conid'>Int</span> 
+<span class=hs-linenum>103: </span><a class=annot href="#"><span class=annottext>GHC.Types.Int -&gt; (PolymorphicPerplexion.IncList GHC.Types.Int) -&gt; (PolymorphicPerplexion.IncList GHC.Types.Int)</span><span class='hs-definition'>insertM</span></a> <a class=annot href="#"><span class=annottext>GHC.Types.Int</span><span class='hs-varid'>y</span></a> <span class='hs-conid'>Emp</span>      <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{v : GHC.Types.Int | v == y}</span><span class='hs-varid'>y</span></a> <span class='hs-conop'>:&lt;</span> <a class=annot href="#"><span class=annottext>{VV : forall a . (PolymorphicPerplexion.IncList a) | VV == Emp}</span><span class='hs-conid'>Emp</span></a>
+<span class=hs-linenum>104: </span><span class='hs-definition'>insertM</span> <span class='hs-varid'>y</span> <span class='hs-layout'>(</span><span class='hs-varid'>x</span> <span class='hs-conop'>:&lt;</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>105: </span>  <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{v : GHC.Types.Int | v == y}</span><span class='hs-varid'>y</span></a> <span class='hs-varop'>&lt;=</span> <a class=annot href="#"><span class=annottext>{v : GHC.Types.Int | v == x}</span><span class='hs-varid'>x</span></a>         <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{v : GHC.Types.Int | v == y}</span><span class='hs-varid'>y</span></a> <span class='hs-conop'>:&lt;</span> <a class=annot href="#"><span class=annottext>{v : GHC.Types.Int | v == x}</span><span class='hs-varid'>x</span></a> <span class='hs-conop'>:&lt;</span> <a class=annot href="#"><span class=annottext>{v : (PolymorphicPerplexion.IncList {v : GHC.Types.Int | x &lt;= v}) | v == xs}</span><span class='hs-varid'>xs</span></a>
+<span class=hs-linenum>106: </span>  <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span>      <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{v : GHC.Types.Int | v == x}</span><span class='hs-varid'>x</span></a> <span class='hs-conop'>:&lt;</span> <span class=hs-error><a class=annot href="#"><span class=annottext>(PolymorphicPerplexion.IncList GHC.Types.Int)</span><span class='hs-varid'>insertM</span></a></span><span class=hs-error> </span><span class=hs-error><a class=annot href="#"><span class=annottext>{v : GHC.Types.Int | v == y}</span><span class='hs-varid'>y</span></a></span><span class=hs-error> </span><span class=hs-error><a class=annot href="#"><span class=annottext>{v : (PolymorphicPerplexion.IncList {v : GHC.Types.Int | x &lt;= v}) | v == xs}</span><span class='hs-varid'>xs</span></a></span>
+</pre>
+
+<p>Huh? Now LH appears to be unhappy with the code! How is this possible?</p>
+<p>Lets look at the type error:</p>
+<pre><span class=hs-linenum>114: </span> <span class='hs-varop'>/</span><span class='hs-conid'>Users</span><span class='hs-varop'>/</span><span class='hs-varid'>rjhala</span><span class='hs-varop'>/</span><span class='hs-conid'>PerplexingPolymorphicProperties.lhs</span><span class='hs-conop'>:</span><span class='hs-num'>80</span><span class='hs-conop'>:</span><span class='hs-num'>27</span><span class='hs-comment'>-</span><span class='hs-num'>38</span><span class='hs-conop'>:</span> <span class='hs-conid'>Error</span><span class='hs-conop'>:</span> <span class='hs-conid'>Liquid</span> <span class='hs-conid'>Type</span> <span class='hs-conid'>Mismatch</span>
+<span class=hs-linenum>115: </span>  
+<span class=hs-linenum>116: </span> <span class='hs-num'>80</span> <span class='hs-keyglyph'>|</span>   <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span>      <span class='hs-keyglyph'>=</span> <span class='hs-varid'>x</span> <span class='hs-conop'>:&lt;</span> <span class='hs-varid'>insertM</span> <span class='hs-varid'>y</span> <span class='hs-varid'>xs</span>
+<span class=hs-linenum>117: </span>                                <span class='hs-varop'>^^^^^^^^^^^^</span>
+<span class=hs-linenum>118: </span>   <span class='hs-conid'>Inferred</span> <span class='hs-keyword'>type</span>
+<span class=hs-linenum>119: </span>     <span class='hs-conid'>VV</span> <span class='hs-conop'>:</span> <span class='hs-conid'>Int</span>
+<span class=hs-linenum>120: </span>  
+<span class=hs-linenum>121: </span>   <span class='hs-varid'>not</span> <span class='hs-varid'>a</span> <span class='hs-varid'>subtype</span> <span class='hs-keyword'>of</span> <span class='hs-conid'>Required</span> <span class='hs-keyword'>type</span>
+<span class=hs-linenum>122: </span>     <span class='hs-conid'>VV</span> <span class='hs-conop'>:</span> <span class='hs-layout'>{</span><span class='hs-conid'>VV</span> <span class='hs-conop'>:</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>|</span> <span class='hs-varid'>x</span> <span class='hs-varop'>&lt;=</span> <span class='hs-conid'>VV</span><span class='hs-layout'>}</span>
+<span class=hs-linenum>123: </span>  
+<span class=hs-linenum>124: </span>   <span class='hs-conid'>In</span> <span class='hs-conid'>Context</span>
+<span class=hs-linenum>125: </span>     <span class='hs-varid'>x</span> <span class='hs-conop'>:</span> <span class='hs-conid'>Int</span>
+</pre>
+
+<p>LH <em>expects</em> that since we're using the "cons" operator <code>:&lt;</code> the "tail"
+value <code>insertM y xs</code> must contain values <code>VV</code> that are greater than the 
+"head" <code>x</code>. The error says that, LH cannot prove this requirement of 
+<em>actual</em> list <code>insertM y xs</code>.</p>
+<p>Hmm, well thats a puzzler. Two questions that should come to mind.</p>
+<ol>
+<li>
+<p><em>Why</em> does the above fact hold in the first place? </p>
+</li>
+<li>
+<p><em>How</em> is LH able to deduce this fact with the <em>polymorphic</em> signature but not the monomorphic one?</p>
+</li>
+</ol>
+<p>Lets ponder the first question: why <em>is</em> every element 
+of <code>insert y xs</code> in fact larger than <code>x</code>? For three reasons:</p>
+<p>(a) every element in <code>xs</code> is larger than <code>x</code>, as the 
+    list <code>x :&lt; xs</code> was ordered, </p>
+<p>(b) <code>y</code> is larger than <code>x</code> as established by the <code>otherwise</code> and crucially</p>
+<p>(c) the elements returned by <code>insert y xs</code> are either <code>y</code> or from <code>xs</code>!</p>
+<p>Now onto the second question: how <em>does</em> LH verify the polymorphic code,
+but not the monomorphic one? The reason is the fact (c)! LH is a <em>modular</em>
+verifier, meaning that the <em>only</em> information that it has about the behavior
+of <code>insert</code> at a call-site is the information captured in the (refinement) 
+<em>type specification</em> for <code>insert</code>. The <em>polymorphic</em> signature:</p>
+<pre><span class=hs-linenum>156: </span><span class='hs-definition'>insertP</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>Ord</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncList</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncList</span> <span class='hs-varid'>a</span>
+</pre>
+
+<p>via <em>parametricity</em>, implicitly states fact (c). That is, if at a call-site 
+<code>insertP y xs</code> we pass in a value that is greater an <code>x</code> and a list of values 
+greater than <code>x</code> then via <em>polymorphic instantiation</em> at the call-site, LH 
+infers that the returned value must also be a list of elements greater than <code>x</code>!</p>
+<p>However, the <em>monomorphic</em> signature </p>
+<pre><span class=hs-linenum>167: </span><span class='hs-definition'>insertM</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncList</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncList</span> <span class='hs-conid'>Int</span> 
+</pre>
+
+<p>offers no such insight. It simply says the function takes in an <code>Int</code> and another 
+ordered list of <code>Int</code> and returns another ordered list, whose actual elements could 
+be arbitrary <code>Int</code>. Specifically, at the call-site <code>insertP y xs</code> LH has no way to 
+conclude the the returned elements are indeed greater than <code>x</code> and hence rejects 
+the monomorphic code.</p>
+<h2 id="perplexity">Perplexity<a class="headerlink" href="#perplexity" title="Permanent link">&para;</a></h2>
+<p>While parametricity is all very nice, and LH's polymorphic instanatiation is very 
+clever and useful, it can also be quite mysterious. For example, q curious user 
+Oisín <a href="https://github.com/ucsd-progsys/liquidhaskell-tutorial/issues/91">pointed out</a> 
+that while the code below is <em>rejected</em> that if you <em>uncomment</em> the type signature 
+for <code>go</code> then it is <em>accepted</em> by LH!</p>
+<pre><span class=hs-linenum>187: </span><span class='hs-definition'>insertSortP'</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>Ord</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncList</span> <span class='hs-varid'>a</span> 
+<span class=hs-linenum>188: </span><a class=annot href="#"><span class=annottext>forall a .
+(GHC.Classes.Ord&lt;[]&gt; a) =&gt;
+[a] -&gt; (PolymorphicPerplexion.IncList a)</span><span class='hs-definition'>insertSortP'</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>(PolymorphicPerplexion.IncList a)</span><span class='hs-varid'>foldr</span></a> <a class=annot href="#"><span class=annottext>a -&gt; (PolymorphicPerplexion.IncList a) -&gt; (PolymorphicPerplexion.IncList a)</span><span class='hs-varid'>go</span></a> <a class=annot href="#"><span class=annottext>{VV : forall a . (PolymorphicPerplexion.IncList a) | VV == Emp}</span><span class='hs-conid'>Emp</span></a> 
+<span class=hs-linenum>189: </span>  <span class='hs-keyword'>where</span>
+<span class=hs-linenum>190: </span>    <span class='hs-comment'>-- go :: (Ord a) =&gt; a -&gt; IncList a -&gt; IncList a</span>
+<span class=hs-linenum>191: </span>    <a class=annot href="#"><span class=annottext>a -&gt; (PolymorphicPerplexion.IncList a) -&gt; (PolymorphicPerplexion.IncList a)</span><span class='hs-varid'>go</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>y</span></a> <span class='hs-conid'>Emp</span>       <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == y}</span><span class='hs-varid'>y</span></a> <span class='hs-conop'>:&lt;</span> <a class=annot href="#"><span class=annottext>{VV : forall a . (PolymorphicPerplexion.IncList a) | VV == Emp}</span><span class='hs-conid'>Emp</span></a>
+<span class=hs-linenum>192: </span>    <span class='hs-varid'>go</span> <span class='hs-varid'>y</span> <span class='hs-layout'>(</span><span class='hs-varid'>x</span> <span class='hs-conop'>:&lt;</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>193: </span>      <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == y}</span><span class='hs-varid'>y</span></a> <span class='hs-varop'>&lt;=</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == x}</span><span class='hs-varid'>x</span></a>     <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == y}</span><span class='hs-varid'>y</span></a> <span class='hs-conop'>:&lt;</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == x}</span><span class='hs-varid'>x</span></a> <span class='hs-conop'>:&lt;</span> <a class=annot href="#"><span class=annottext>{v : (PolymorphicPerplexion.IncList {VV : a | x &lt;= VV}) | v == xs}</span><span class='hs-varid'>xs</span></a>
+<span class=hs-linenum>194: </span>      <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span>  <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | VV == x}</span><span class='hs-varid'>x</span></a> <span class='hs-conop'>:&lt;</span> <span class=hs-error><a class=annot href="#"><span class=annottext>(PolymorphicPerplexion.IncList a)</span><span class='hs-varid'>go</span></a></span><span class=hs-error> </span><span class=hs-error><a class=annot href="#"><span class=annottext>{VV : a | VV == y}</span><span class='hs-varid'>y</span></a></span><span class=hs-error> </span><span class=hs-error><a class=annot href="#"><span class=annottext>{v : (PolymorphicPerplexion.IncList {VV : a | x &lt;= VV}) | v == xs}</span><span class='hs-varid'>xs</span></a></span>
+</pre>
+
+<p>This is thoroughly perplexing, but again, is explained by the absence of 
+parametricity. When we <em>remove</em> the type signature, GHC defaults to giving 
+<code>go</code> a <em>monomorphic</em> signature where the <code>a</code> is not universally quantified, 
+and which roughly captures the same specification as the monomorphic <code>insertM</code> 
+above causing verification to fail! </p>
+<p>Restoring the signature provides LH with the polymorphic specification, 
+which can be instantiated at the call-site to recover the fact <code>(c)</code> 
+that is crucial for verification.</p>
+<h2 id="moral">Moral<a class="headerlink" href="#moral" title="Permanent link">&para;</a></h2>
+<p>I hope that example illustrates two points.</p>
+<p>First, <em>parametric polymorphism</em> lets type specifications 
+say a lot more than they immediately let on: so do write 
+polymorphic signatures whenever possible.</p>
+<p>Second, on a less happy note, <em>explaining</em> why fancy type 
+checkers fail remains a vexing problem, whose difficulty 
+is compounded by increasing the cleverness of the type 
+system. </p>
+<p>We'd love to hear any ideas you might have to solve the 
+explanation problem!</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+
+
+<div class="blogpost-meta">
+  
+  <div class="blogpost-meta-whowhen">
+    
+        <div class="blogpost-meta-author">
+            Ranjit Jhala
+        </div>
+    
+    
+        <div class="blogpost-meta-date">
+            2020-04-12
+        </div>
+    
+  </div>
+  
+  
+  <div class="blogpost-meta-tags">
+              
+      <a href="../../tags.html#basic" class="tag-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.5 7A1.5 1.5 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4 1.5 1.5 0 0 1 7 5.5 1.5 1.5 0 0 1 5.5 7m15.91 4.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.11 0-2 .89-2 2v7c0 .55.22 1.05.59 1.41l8.99 9c.37.36.87.59 1.42.59s1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.56-.23-1.06-.59-1.42"/></svg>basic</a>
+    
+  </div>
+  
+</div>
+
+
+
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://join.slack.com/t/liquidhaskell/shared_invite/enQtMjY4MTk3NDkwODE3LTFmZGFkNGEzYWRkNDJmZDQ0ZGU1MzBiZWZiZDhhNmY3YTJiMjUzYTRlNjMyZDk1NDU3ZGIxYzhlOTIzN2UxNWE" target="_blank" rel="noopener" title="Join the LiquidHaskell slack channel" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 15a2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1 2-2h2zm1 0a2 2 0 0 1 2-2 2 2 0 0 1 2 2v5a2 2 0 0 1-2 2 2 2 0 0 1-2-2zm2-8a2 2 0 0 1-2-2 2 2 0 0 1 2-2 2 2 0 0 1 2 2v2zm0 1a2 2 0 0 1 2 2 2 2 0 0 1-2 2H4a2 2 0 0 1-2-2 2 2 0 0 1 2-2zm8 2a2 2 0 0 1 2-2 2 2 0 0 1 2 2 2 2 0 0 1-2 2h-2zm-1 0a2 2 0 0 1-2 2 2 2 0 0 1-2-2V5a2 2 0 0 1 2-2 2 2 0 0 1 2 2zm-2 8a2 2 0 0 1 2 2 2 2 0 0 1-2 2 2 2 0 0 1-2-2v-2zm0-1a2 2 0 0 1-2-2 2 2 0 0 1 2-2h5a2 2 0 0 1 2 2 2 2 0 0 1-2 2z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://groups.google.com/forum/#!forum/liquidhaskell" target="_blank" rel="noopener" title="Mail the LiquidHaskell users mailing list" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10 5.35 0 9.25-3.67 9.25-9.09 0-1.15-.15-1.81-.15-1.81"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/ranjitjhala" target="_blank" rel="noopener" title="Drop Ranjit Jhala an email" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-68.5 74.1c-8.9 9.7-22.9 12.9-35.2 8.1S160 493.2 160 480v-83.6c0-4 1.5-7.8 4.2-10.8l167.6-182.8c5.8-6.3 5.6-16-.4-22s-15.7-6.4-22-.7L106 360.8l-88.3-44.2C7.1 311.3.3 300.7 0 288.9s5.9-22.8 16.1-28.7l448-256c10.7-6.1 23.9-5.5 34 1.4"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/nikivazou" target="_blank" rel="noopener" title="Drop Niki Vazou an email" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M16.1 260.2c-22.6 12.9-20.5 47.3 3.6 57.3L160 376v103.3c0 18.1 14.6 32.7 32.7 32.7 9.7 0 18.9-4.3 25.1-11.8l62-74.3 123.9 51.6c18.9 7.9 40.8-4.5 43.9-24.7l64-416c1.9-12.1-3.4-24.3-13.5-31.2s-23.3-7.5-34-1.4zm52.1 25.5L409.7 90.6 190.1 336l1.2 1zm335.1 139.7-166.6-69.5 214.1-239.3z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/ucsd-progsys/liquidhaskell/issues" target="_blank" rel="noopener" title="Open a GitHub issue" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.top"], "search": "../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.83f73b43.min.js"></script>
+      
+    
+  </body>
+</html>

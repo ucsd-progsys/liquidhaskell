@@ -1,0 +1,2286 @@
+
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+        <meta name="author" content="Ranjit Jhala">
+      
+      
+        <link rel="canonical" href="https://ucsd-progsys.github.io/liquidhaskell/blogposts/2013-01-28-bounding-vectors.lhs/">
+      
+      
+        <link rel="prev" href="../2013-01-31-safely-catching-a-list-by-its-tail.lhs/">
+      
+      
+        <link rel="next" href="../2013-01-27-refinements101-reax.lhs/">
+      
+      
+      <link rel="icon" href="../../static/img/favicon.ico">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.41">
+    
+    
+      
+        <title>Bounding Vectors - LiquidHaskell Docs</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.0253249f.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@5.9.55/css/materialdesignicons.min.css">
+    
+      <link rel="stylesheet" href="../../static/liquid-light.css">
+    
+      <link rel="stylesheet" href="../../static/misc.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="cyan" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#specifying-bounds-for-vectors" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="LiquidHaskell Docs" class="md-header__button md-logo" aria-label="LiquidHaskell Docs" data-md-component="logo">
+      
+  <img src="../../static/img/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            LiquidHaskell Docs
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Bounding Vectors
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/ucsd-progsys/liquidhaskell" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="https://liquidhaskell.goto.ucsd.edu/index.html" class="md-tabs__link">
+        
+  
+    
+  
+  <div id='demo'><i aria-hidden=true class='mdi mdi-cloud-braces'></i> Try Online</div>
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="http://ucsd-progsys.github.io/liquidhaskell-tutorial/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-human-greeting'></i> Tutorial
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../install/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-download'></i> Installation
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../specifications/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-script'></i> Spec Reference
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../options/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-flag'></i> Flag Reference
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../papers/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-school'></i> Papers
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../2020-08-20-lh-as-a-ghc-plugin.lhs/" class="md-tabs__link">
+          
+  
+  <i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="LiquidHaskell Docs" class="md-nav__button md-logo" aria-label="LiquidHaskell Docs" data-md-component="logo">
+      
+  <img src="../../static/img/logo.png" alt="logo">
+
+    </a>
+    LiquidHaskell Docs
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/ucsd-progsys/liquidhaskell" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://liquidhaskell.goto.ucsd.edu/index.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <div id='demo'><i aria-hidden=true class='mdi mdi-cloud-braces'></i> Try Online</div>
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="http://ucsd-progsys.github.io/liquidhaskell-tutorial/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-human-greeting'></i> Tutorial
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-download'></i> Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specifications/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-script'></i> Spec Reference
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../options/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-flag'></i> Flag Reference
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../papers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-school'></i> Papers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            <i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_1" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_9_1" id="__nav_9_1_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Blogposts
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9_1">
+            <span class="md-nav__icon md-icon"></span>
+            Blogposts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2020-08-20-lh-as-a-ghc-plugin.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    LiquidHaskell is a GHC Plugin
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2020-04-12-polymorphic-perplexion.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Polymorphic Perplexion
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2019-10-20-why-types.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Liquid Types vs. Floyd-Hoare Logic
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2018-05-17-hillel-verifier-rodeo-I-leftpad.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    The Hillelogram Verifier Rodeo I (LeftPad)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2018-02-23-measures-and-case-splitting.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Measures and Case Splitting
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2017-12-24-splitting-and-splicing-intervals-II.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Splitting and Splicing Intervals (Part 2)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2017-12-15-splitting-and-splicing-intervals-I.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Splitting and Splicing Intervals (Part 1)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2017-03-20-arithmetic-overflows.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Arithmetic Overflows
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2016-10-06-structural-induction.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Refinement Reflection on ADTs
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2016-09-18-refinement-reflection.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Haskell as a Theorem Prover
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2016-09-01-normal-forms.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Normal Forms
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2015-01-30-okasakis-lazy-queue.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Okasaki's Lazy Queues
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2014-08-15-a-finer-filter.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    A Finer Filter
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2014-05-28-pointers-gone-wild.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Pointers Gone Wild
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2014-02-11-the-advantage-of-measures.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    The Advantage of Measures
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-12-14-gcd.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Termination Requires Refinements
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-12-09-checking-termination.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checking Termination
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-12-02-getting-to-the-bottom.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Getting To the Bottom
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-11-23-telling_lies.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    LiquidHaskell Caught Telling Lies!
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-10-10-csv-tables.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CSV Tables
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-07-29-putting-things-in-order.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Putting Things In Order
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-06-03-abstracting-over-refinements.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Abstracting Over Refinements
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-05-24-unique-zipper.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Unique Zippers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-03-26-talking-about-sets.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Talking About Sets
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-03-04-bounding-vectors.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Bounding Vectors
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-02-17-kmeans-clustering-II.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    KMeans Clustering II
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-02-16-kmeans-clustering-I.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    KMeans Clustering I
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-01-31-safely-catching-a-list-by-its-tail.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Safely Catching A List By Its Tail
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Bounding Vectors
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Bounding Vectors
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#specifying-bounds-for-vectors" class="md-nav__link">
+    <span class="md-ellipsis">
+      Specifying Bounds for Vectors
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#our-first-recursive-function" class="md-nav__link">
+    <span class="md-ellipsis">
+      Our First Recursive Function
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#digression-introducing-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      Digression: Introducing Errors
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#refinement-type-inference" class="md-nav__link">
+    <span class="md-ellipsis">
+      Refinement Type Inference
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bottling-recursion-with-a-higher-order-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bottling Recursion With a Higher-Order loop
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#refining-data-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      Refining Data Types
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#refinements-and-polymorphism" class="md-nav__link">
+    <span class="md-ellipsis">
+      Refinements and Polymorphism
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conclusion" class="md-nav__link">
+    <span class="md-ellipsis">
+      Conclusion
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-01-27-refinements101-reax.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Refinements 101 (contd.)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-01-01-refinement-types-101.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Refinement Types 101
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tags.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tags
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#specifying-bounds-for-vectors" class="md-nav__link">
+    <span class="md-ellipsis">
+      Specifying Bounds for Vectors
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#our-first-recursive-function" class="md-nav__link">
+    <span class="md-ellipsis">
+      Our First Recursive Function
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#digression-introducing-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      Digression: Introducing Errors
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#refinement-type-inference" class="md-nav__link">
+    <span class="md-ellipsis">
+      Refinement Type Inference
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bottling-recursion-with-a-higher-order-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bottling Recursion With a Higher-Order loop
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#refining-data-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      Refining Data Types
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#refinements-and-polymorphism" class="md-nav__link">
+    <span class="md-ellipsis">
+      Refinements and Polymorphism
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conclusion" class="md-nav__link">
+    <span class="md-ellipsis">
+      Conclusion
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+
+
+                  
+  
+<nav class="md-tags" >
+  
+    
+    
+    
+      <span class="md-tag">basic</span>
+    
+  
+</nav>
+
+
+  
+  
+
+
+  <h1>Bounding Vectors</h1>
+
+<p>Hopefully, <a href="/blog/2013/01/01/refinement-types-101.lhs/">these</a> [articles<a href="/blog/2013/01/27/refinements-101-reax.lhs/">ref102</a> gave you a basic idea about 
+what basic refinement types look like. Today, lets move on to some 
+fancier properties, namely, the static verification of 
+<strong>vector access bounds</strong>. Along the way, we'll see some examples that
+illustrate how LiquidHaskell reasons about <em>recursion</em>, 
+<em>higher-order functions</em>, <em>data types</em>, and <em>polymorphism</em>.</p>
+<!-- more -->
+
+<pre><span class=hs-linenum>23: </span><span class='hs-keyword'>module</span> <span class='hs-conid'>VectorBounds</span> <span class='hs-layout'>(</span>
+<span class=hs-linenum>24: </span>    <span class='hs-varid'>safeLookup</span> 
+<span class=hs-linenum>25: </span>  <span class='hs-layout'>,</span> <span class='hs-varid'>unsafeLookup</span><span class='hs-layout'>,</span> <span class='hs-varid'>unsafeLookup'</span>
+<span class=hs-linenum>26: </span>  <span class='hs-layout'>,</span> <span class='hs-varid'>absoluteSum</span><span class='hs-layout'>,</span> <span class='hs-varid'>absoluteSum'</span>
+<span class=hs-linenum>27: </span>  <span class='hs-layout'>,</span> <span class='hs-varid'>dotProduct</span>
+<span class=hs-linenum>28: </span>  <span class='hs-layout'>,</span> <span class='hs-varid'>sparseProduct</span><span class='hs-layout'>,</span> <span class='hs-varid'>sparseProduct'</span>
+<span class=hs-linenum>29: </span>  <span class='hs-layout'>)</span> <span class='hs-keyword'>where</span>
+<span class=hs-linenum>30: </span>
+<span class=hs-linenum>31: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Prelude</span>      <span class='hs-varid'>hiding</span> <span class='hs-layout'>(</span><span class='hs-varid'>length</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>32: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Data</span><span class='hs-varop'>.</span><span class='hs-conid'>List</span>    <span class='hs-layout'>(</span><span class='hs-varid'>foldl'</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>33: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Data</span><span class='hs-varop'>.</span><span class='hs-conid'>Vector</span>  <span class='hs-varid'>hiding</span> <span class='hs-layout'>(</span><span class='hs-varid'>foldl'</span><span class='hs-layout'>)</span> 
+</pre>
+
+<h2 id="specifying-bounds-for-vectors">Specifying Bounds for Vectors<a class="headerlink" href="#specifying-bounds-for-vectors" title="Permanent link">&para;</a></h2>
+<p>One <a href="http://www.cs.bu.edu/~hwxi/academic/papers/pldi98.pdf">classical</a> use-case for refinement types is to verify
+the safety of accesses of arrays and vectors and such, by proving that the 
+indices used in such accesses are <em>within</em> the vector bounds. 
+In this article, we will illustrate this use case by writing a few short
+functions that manipulate vectors, in particular, those from the popular
+<a href="http://hackage.haskell.org/package/vector">vector</a> library. </p>
+<p>To start off, lets <strong>specify</strong> bounds safety by <em>refining</em> the types for
+the <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Vector.spec">key functions</a> exported by the module <code>Data.Vector</code>. </p>
+<p>Specifications for <code>Data.Vector</code></p>
+<pre><span class=hs-linenum>50: </span><span class='hs-keyword'>module</span> <span class='hs-varid'>spec</span> <span class='hs-conid'>Data</span><span class='hs-varop'>.</span><span class='hs-conid'>Vector</span> <span class='hs-keyword'>where</span>
+<span class=hs-linenum>51: </span>
+<span class=hs-linenum>52: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>GHC</span><span class='hs-varop'>.</span><span class='hs-conid'>Base</span>
+<span class=hs-linenum>53: </span>
+<span class=hs-linenum>54: </span><span class='hs-definition'>measure</span> <span class='hs-varid'>vlen</span>    <span class='hs-keyglyph'>::</span>   <span class='hs-layout'>(</span><span class='hs-conid'>Vector</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> 
+<span class=hs-linenum>55: </span><span class='hs-definition'>assume</span> <span class='hs-varid'>length</span>   <span class='hs-keyglyph'>::</span> <span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-layout'>(</span><span class='hs-conid'>Vector</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span> <span class='hs-conop'>:</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>|</span> <span class='hs-varid'>v</span> <span class='hs-keyglyph'>=</span> <span class='hs-layout'>(</span><span class='hs-varid'>vlen</span> <span class='hs-varid'>x</span><span class='hs-layout'>)</span><span class='hs-layout'>}</span>
+<span class=hs-linenum>56: </span><span class='hs-definition'>assume</span> <span class='hs-varop'>!</span>        <span class='hs-keyglyph'>::</span> <span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-layout'>(</span><span class='hs-conid'>Vector</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span> <span class='hs-conop'>:</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>|</span> <span class='hs-layout'>(</span><span class='hs-layout'>(</span><span class='hs-num'>0</span> <span class='hs-varop'>&lt;=</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-varop'>&amp;&amp;</span> <span class='hs-layout'>(</span><span class='hs-varid'>v</span> <span class='hs-varop'>&lt;</span> <span class='hs-layout'>(</span><span class='hs-varid'>vlen</span> <span class='hs-varid'>x</span><span class='hs-layout'>)</span><span class='hs-layout'>)</span><span class='hs-layout'>)</span> <span class='hs-layout'>}</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span> 
+</pre>
+
+<p>In particular, we </p>
+<ul>
+<li><strong>define</strong> a <em>property</em> called <code>vlen</code> which denotes the size of the vector,</li>
+<li><strong>assume</strong> that the <code>length</code> function <em>returns</em> an integer equal to the vector's size, and</li>
+<li><strong>assume</strong> that the lookup function <code>!</code> <em>requires</em> an index between <code>0</code> and the vector's size.</li>
+</ul>
+<p>There are several things worth paying close attention to in the above snippet.</p>
+<p><strong>Measures</strong></p>
+<p>Measures define auxiliary (or so-called <strong>ghost</strong>) properties of data
+values that are useful for specification and verification, but which 
+<em>don't actually exist at run-time</em>. Thus, they will <em>only appear in specifications</em>,
+i.e. inside type refinements, but <em>never</em> inside code. Often we will use
+helper functions like <code>length</code> in this case, which <em>pull</em> or <em>materialize</em>
+the ghost values from the refinement world into the actual code world.</p>
+<p><strong>Assumes</strong></p>
+<p>We write <code>assume</code> because in this scenario we are not <em>verifying</em> the
+implementation of <code>Data.Vector</code>, we are simply <em>using</em> the properties of
+the library to verify client code.  If we wanted to verify the library
+itself, we would ascribe the above types to the relevant functions in the
+Haskell source for <code>Data.Vector</code>. </p>
+<p><strong>Dependent Refinements</strong></p>
+<p>Notice that in the function type (e.g. for <code>length</code>) we have <em>named</em> the <em>input</em>
+parameter <code>x</code> so that we can refer to it in the <em>output</em> refinement. </p>
+<p>In this case, the type </p>
+<pre><span class=hs-linenum>90: </span><span class='hs-definition'>assume</span> <span class='hs-varid'>length</span>   <span class='hs-keyglyph'>::</span> <span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-layout'>(</span><span class='hs-conid'>Vector</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span> <span class='hs-conop'>:</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>|</span> <span class='hs-varid'>v</span> <span class='hs-keyglyph'>=</span> <span class='hs-layout'>(</span><span class='hs-varid'>vlen</span> <span class='hs-varid'>x</span><span class='hs-layout'>)</span><span class='hs-layout'>}</span>
+</pre>
+
+<p>states that the <code>Int</code> output is exactly equal to the size of the input <code>Vector</code> named <code>x</code>.</p>
+<p>In other words, the output refinement <strong>depends on</strong> the input value, which
+crucially allows us to write properties that <em>relate</em> different program values.</p>
+<p><strong>Verifying a Simple Wrapper</strong></p>
+<p>Lets try write some simple functions to sanity check the above specifications. 
+First, consider an <em>unsafe</em> vector lookup function:</p>
+<pre><span class=hs-linenum>104: </span><a class=annot href="#"><span class=annottext>forall a.
+vec:(Vector a) -&gt; {VV : (Int) | (VV &lt; vlen([vec])),(0 &lt;= VV)} -&gt; a</span><span class='hs-definition'>unsafeLookup</span></a> <a class=annot href="#"><span class=annottext>(Vector a)</span><span class='hs-varid'>vec</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0),(VV &lt; vlen([vec])),(0 &lt;= VV)}</span><span class='hs-varid'>index</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : (Vector a) | (VV = vec),(vlen([VV]) &gt;= 0)}</span><span class='hs-varid'>vec</span></a> <a class=annot href="#"><span class=annottext>x:(Vector a) -&gt; {VV : (Int) | (VV &lt; vlen([x])),(0 &lt;= VV)} -&gt; a</span><span class='hs-varop'>!</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = index),(VV &gt;= 0),(VV &lt; vlen([vec])),(0 &lt;= VV)}</span><span class='hs-varid'>index</span></a>
+</pre>
+
+<p>If we run this through LiquidHaskell, it will spit back a type error for
+the expression <code>x ! i</code> because (happily!) it cannot prove that <code>index</code> is
+between <code>0</code> and the <code>vlen vec</code>. Of course, we can specify the bounds 
+requirement in the input type</p>
+<pre><span class=hs-linenum>113: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>unsafeLookup</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>vec</span><span class='hs-conop'>:</span><span class='hs-conid'>Vector</span> <span class='hs-varid'>a</span> 
+<span class=hs-linenum>114: </span>                 <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>{v:</span> <span class='hs-conid'>Int</span> <span class='hs-keyword'>| (0 &lt;= v &amp;&amp; v &lt; (vlen vec))}</span> 
+<span class=hs-linenum>115: </span>                 <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span> 
+<span class=hs-linenum>116: </span>  <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p>then LiquidHaskell is happy to verify the lookup. Of course, now the burden
+of ensuring the index is valid is pushed to clients of <code>unsafeLookup</code>.</p>
+<p>Instead, we might write a <em>safe</em> lookup function that performs the <em>bounds check</em>
+before looking up the vector:</p>
+<pre><span class=hs-linenum>126: </span><a class=annot href="#"><span class=annottext>forall a.
+{VV : (Vector {VV : a | false}) | false}
+-&gt; {VV : (Int) | false} -&gt; {VV : (Maybe {VV : a | false}) | false}</span><span class='hs-definition'>safeLookup</span></a> <a class=annot href="#"><span class=annottext>{VV : (Vector {VV : a | false}) | false}</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | false}</span><span class='hs-varid'>i</span></a> 
+<span class=hs-linenum>127: </span>  <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = (0  :  int))}</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>x:{VV : (Int) | false}
+-&gt; y:{VV : (Int) | false}
+-&gt; {VV : (Bool) | ((? Prop([VV])) &lt;=&gt; (x &lt;= y))}</span><span class='hs-varop'>&lt;=</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | false}</span><span class='hs-varid'>i</span></a> <a class=annot href="#"><span class=annottext>x:(Bool)
+-&gt; y:(Bool)
+-&gt; {VV : (Bool) | ((? Prop([VV])) &lt;=&gt; &amp;&amp; [(? Prop([x]));
+                                          (? Prop([y]))])}</span><span class='hs-varop'>&amp;&amp;</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | false}</span><span class='hs-varid'>i</span></a> <a class=annot href="#"><span class=annottext>x:{VV : (Int) | false}
+-&gt; y:{VV : (Int) | false}
+-&gt; {VV : (Bool) | ((? Prop([VV])) &lt;=&gt; (x &lt; y))}</span><span class='hs-varop'>&lt;</span></a> <a class=annot href="#"><span class=annottext>x:(Vector {VV : a | false})
+-&gt; {VV : (Int) | (VV = vlen([x])),(VV &gt;= 0)}</span><span class='hs-varid'>length</span></a> <a class=annot href="#"><span class=annottext>{VV : (Vector {VV : a | false}) | false}</span><span class='hs-varid'>x</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>x:{VV : a | false}
+-&gt; {VV : (Maybe {VV : a | false}) | ((? isJust([VV])) &lt;=&gt; true),
+                                    (fromJust([VV]) = x)}</span><span class='hs-conid'>Just</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : (Vector {VV : a | false}) | false}</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>x:(Vector {VV : a | false})
+-&gt; {VV : (Int) | (VV &lt; vlen([x])),(0 &lt;= VV)} -&gt; {VV : a | false}</span><span class='hs-varop'>!</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | false}</span><span class='hs-varid'>i</span></a><span class='hs-layout'>)</span>
+<span class=hs-linenum>128: </span>  <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span>              <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : (Maybe {VV : a | false}) | ((? isJust([VV])) &lt;=&gt; false)}</span><span class='hs-conid'>Nothing</span></a> 
+</pre>
+
+<p><strong>Predicate Aliases</strong></p>
+<p>The type for <code>unsafeLookup</code> above is rather verbose as we have to spell out
+the upper and lower bounds and conjoin them. Just as we enjoy abstractions
+when programming, we will find it handy to have abstractions in the
+specification mechanism. To this end, LiquidHaskell supports 
+<em>predicate aliases</em>, which are best illustrated by example</p>
+<pre><span class=hs-linenum>140: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>predicate</span> <span class='hs-conid'>Btwn</span> <span class='hs-conid'>Lo</span> <span class='hs-conid'>I</span> <span class='hs-conid'>Hi</span> <span class='hs-keyglyph'>=</span> <span class='hs-layout'>(</span><span class='hs-conid'>Lo</span> <span class='hs-varop'>&lt;=</span> <span class='hs-conid'>I</span> <span class='hs-varop'>&amp;&amp;</span> <span class='hs-conid'>I</span> <span class='hs-varop'>&lt;</span> <span class='hs-conid'>Hi</span><span class='hs-layout'>)</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>141: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>predicate</span> <span class='hs-conid'>InBounds</span> <span class='hs-conid'>I</span> <span class='hs-conid'>A</span> <span class='hs-keyglyph'>=</span> <span class='hs-layout'>(</span><span class='hs-conid'>Btwn</span> <span class='hs-num'>0</span> <span class='hs-conid'>I</span> <span class='hs-layout'>(</span><span class='hs-varid'>vlen</span> <span class='hs-conid'>A</span><span class='hs-layout'>)</span><span class='hs-layout'>)</span> <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p>Now, we can simplify the type for the unsafe lookup function to</p>
+<pre><span class=hs-linenum>147: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>unsafeLookup'</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-conid'>Vector</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>{v:</span><span class='hs-conid'>Int</span> <span class='hs-keyword'>| (InBounds v x)}</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>148: </span><span class='hs-definition'>unsafeLookup'</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Vector</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span>
+<span class=hs-linenum>149: </span><a class=annot href="#"><span class=annottext>forall a.
+x:(Vector a) -&gt; {VV : (Int) | (VV &lt; vlen([x])),(0 &lt;= VV)} -&gt; a</span><span class='hs-definition'>unsafeLookup'</span></a> <a class=annot href="#"><span class=annottext>(Vector a)</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0),(VV &lt; vlen([x])),(0 &lt;= VV)}</span><span class='hs-varid'>i</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : (Vector a) | (VV = x),(vlen([VV]) &gt;= 0)}</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>x:(Vector a) -&gt; {VV : (Int) | (VV &lt; vlen([x])),(0 &lt;= VV)} -&gt; a</span><span class='hs-varop'>!</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = i),(VV &gt;= 0),(VV &lt; vlen([x])),(0 &lt;= VV)}</span><span class='hs-varid'>i</span></a>
+</pre>
+
+<h2 id="our-first-recursive-function">Our First Recursive Function<a class="headerlink" href="#our-first-recursive-function" title="Permanent link">&para;</a></h2>
+<p>OK, with the tedious preliminaries out of the way, lets write some code!</p>
+<p>To start: a vanilla recursive function that adds up the absolute values of
+the elements of an integer vector.</p>
+<pre><span class=hs-linenum>162: </span><span class='hs-definition'>absoluteSum</span>       <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Vector</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> 
+<span class=hs-linenum>163: </span><a class=annot href="#"><span class=annottext>(Vector (Int)) -&gt; {VV : (Int) | (0 &lt;= VV)}</span><span class='hs-definition'>absoluteSum</span></a> <a class=annot href="#"><span class=annottext>(Vector (Int))</span><span class='hs-varid'>vec</span></a>   <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>x:(Int#) -&gt; {VV : (Int) | (VV = (x  :  int))}</span><span class='hs-keyword'>if</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = (0  :  int))}</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>x:{VV : (Int) | (VV &gt;= 0),(0 &lt;= VV),(VV &lt;= n),(VV &lt;= vlen([vec]))}
+-&gt; y:{VV : (Int) | (VV &gt;= 0),
+                   (0 &lt;= VV),
+                   (VV &lt;= n),
+                   (VV &lt;= vlen([vec]))}
+-&gt; {VV : (Bool) | ((? Prop([VV])) &lt;=&gt; (x &lt; y))}</span><span class='hs-varop'>&lt;</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = n),(VV = vlen([vec])),(VV &gt;= 0)}</span><span class='hs-varid'>n</span></a> <span class='hs-keyword'>then</span> <a class=annot href="#"><span class=annottext>x6:{VV : (Int) | (VV = 0),(VV &lt; n),(VV &lt; vlen([vec])),(0 &lt;= VV)}
+-&gt; x4:{VV : (Int) | (VV = 0),
+                    (VV = x6),
+                    (VV &lt; n),
+                    (VV &lt; vlen([vec])),
+                    (0 &lt;= VV),
+                    (x6 &lt;= VV)}
+-&gt; {VV : (Int) | (VV &gt;= 0),
+                 (VV &gt;= x6),
+                 (VV &gt;= x4),
+                 (0 &lt;= VV),
+                 (x6 &lt;= VV),
+                 (x4 &lt;= VV)}</span><span class='hs-varid'>go</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = (0  :  int))}</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = (0  :  int))}</span><span class='hs-num'>0</span></a> <span class='hs-keyword'>else</span> <a class=annot href="#"><span class=annottext>x:(Int#) -&gt; {VV : (Int) | (VV = (x  :  int))}</span><span class='hs-num'>0</span></a>
+<span class=hs-linenum>164: </span>  <span class='hs-keyword'>where</span>
+<span class=hs-linenum>165: </span>    <a class=annot href="#"><span class=annottext>x6:{VV : (Int) | (VV = 0),(VV &lt; n),(VV &lt; vlen([vec])),(0 &lt;= VV)}
+-&gt; x4:{VV : (Int) | (VV = 0),
+                    (VV = x6),
+                    (VV &lt; n),
+                    (VV &lt; vlen([vec])),
+                    (0 &lt;= VV),
+                    (x6 &lt;= VV)}
+-&gt; {VV : (Int) | (VV &gt;= 0),
+                 (VV &gt;= x6),
+                 (VV &gt;= x4),
+                 (0 &lt;= VV),
+                 (x6 &lt;= VV),
+                 (x4 &lt;= VV)}</span><span class='hs-varid'>go</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0),(0 &lt;= VV)}</span><span class='hs-varid'>acc</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0),
+              (0 &lt;= VV),
+              (VV &lt;= n),
+              (VV &lt;= vlen([vec])),
+              (VV &lt;= vlen([vec]))}</span><span class='hs-varid'>i</span></a> 
+<span class=hs-linenum>166: </span>      <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = i),
+              (VV &gt;= 0),
+              (0 &lt;= VV),
+              (VV &lt;= n),
+              (VV &lt;= vlen([vec])),
+              (VV &lt;= vlen([vec]))}</span><span class='hs-varid'>i</span></a> <a class=annot href="#"><span class=annottext>x:{VV : (Int) | (VV &gt;= 0),
+                (VV &gt;= i),
+                (0 &lt;= VV),
+                (VV &lt;= n),
+                (VV &lt;= vlen([vec])),
+                (VV &lt;= vlen([vec])),
+                (i &lt;= VV)}
+-&gt; y:{VV : (Int) | (VV &gt;= 0),
+                   (VV &gt;= i),
+                   (0 &lt;= VV),
+                   (VV &lt;= n),
+                   (VV &lt;= vlen([vec])),
+                   (VV &lt;= vlen([vec])),
+                   (i &lt;= VV)}
+-&gt; {VV : (Bool) | ((? Prop([VV])) &lt;=&gt; (x != y))}</span><span class='hs-varop'>/=</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = n),(VV = vlen([vec])),(VV &gt;= 0)}</span><span class='hs-varid'>n</span></a>    <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>x6:{VV : (Int) | (VV = 0),(VV &lt; n),(VV &lt; vlen([vec])),(0 &lt;= VV)}
+-&gt; x4:{VV : (Int) | (VV = 0),
+                    (VV = x6),
+                    (VV &lt; n),
+                    (VV &lt; vlen([vec])),
+                    (0 &lt;= VV),
+                    (x6 &lt;= VV)}
+-&gt; {VV : (Int) | (VV &gt;= 0),
+                 (VV &gt;= x6),
+                 (VV &gt;= x4),
+                 (0 &lt;= VV),
+                 (x6 &lt;= VV),
+                 (x4 &lt;= VV)}</span><span class='hs-varid'>go</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = acc),(VV &gt;= 0),(0 &lt;= VV)}</span><span class='hs-varid'>acc</span></a> <a class=annot href="#"><span class=annottext>x:(Int) -&gt; y:(Int) -&gt; {VV : (Int) | (VV = (x + y))}</span><span class='hs-varop'>+</span></a> <a class=annot href="#"><span class=annottext>n:(Int) -&gt; {VV : (Int) | (VV &gt;= 0),(VV &gt;= n)}</span><span class='hs-varid'>abz</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : (Vector (Int)) | (VV = vec),
+                       (VV = vec),
+                       (vlen([VV]) = vlen([vec])),
+                       (vlen([VV]) &gt;= 0)}</span><span class='hs-varid'>vec</span></a> <a class=annot href="#"><span class=annottext>x:(Vector (Int))
+-&gt; {VV : (Int) | (VV &lt; vlen([x])),(0 &lt;= VV)} -&gt; (Int)</span><span class='hs-varop'>!</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = i),
+              (VV &gt;= 0),
+              (0 &lt;= VV),
+              (VV &lt;= n),
+              (VV &lt;= vlen([vec])),
+              (VV &lt;= vlen([vec]))}</span><span class='hs-varid'>i</span></a><span class='hs-layout'>)</span><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = i),
+              (VV &gt;= 0),
+              (0 &lt;= VV),
+              (VV &lt;= n),
+              (VV &lt;= vlen([vec])),
+              (VV &lt;= vlen([vec]))}</span><span class='hs-varid'>i</span></a> <a class=annot href="#"><span class=annottext>x:(Int) -&gt; y:(Int) -&gt; {VV : (Int) | (VV = (x + y))}</span><span class='hs-varop'>+</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = (1  :  int))}</span><span class='hs-num'>1</span></a><span class='hs-layout'>)</span>
+<span class=hs-linenum>167: </span>      <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = acc),(VV &gt;= 0),(0 &lt;= VV)}</span><span class='hs-varid'>acc</span></a> 
+<span class=hs-linenum>168: </span>    <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = vlen([vec])),(VV &gt;= 0)}</span><span class='hs-varid'>n</span></a>             <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>x:(Vector (Int)) -&gt; {VV : (Int) | (VV = vlen([x])),(VV &gt;= 0)}</span><span class='hs-varid'>length</span></a> <a class=annot href="#"><span class=annottext>{VV : (Vector (Int)) | (VV = vec),
+                       (VV = vec),
+                       (vlen([VV]) = vlen([vec])),
+                       (vlen([VV]) &gt;= 0)}</span><span class='hs-varid'>vec</span></a>
+</pre>
+
+<p>where the function <code>abz</code> is the absolute value function from <a href="/blog/2013/01/01/refinement-types-101.lhs/">before</a>.</p>
+<pre><span class=hs-linenum>174: </span><a class=annot href="#"><span class=annottext>forall a.
+(Num a) -&gt; (Ord a) -&gt; n:a -&gt; {VV : a | (VV &gt;= 0),(VV &gt;= n)}</span><span class='hs-definition'>abz</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>n</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : (Integer) | (VV = 0)}</span><span class='hs-keyword'>if</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>x:a -&gt; y:a -&gt; {VV : (Bool) | ((? Prop([VV])) &lt;=&gt; (x &lt;= y))}</span><span class='hs-varop'>&lt;=</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV = n)}</span><span class='hs-varid'>n</span></a> <span class='hs-keyword'>then</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV = n)}</span><span class='hs-varid'>n</span></a> <span class='hs-keyword'>else</span> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>a</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>x:a -&gt; y:a -&gt; {VV : a | (VV = (x - y))}</span><span class='hs-comment'>-</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV = n)}</span><span class='hs-varid'>n</span></a><span class='hs-layout'>)</span> 
+</pre>
+
+<h2 id="digression-introducing-errors">Digression: Introducing Errors<a class="headerlink" href="#digression-introducing-errors" title="Permanent link">&para;</a></h2>
+<p>If you are following along in the demo page -- I heartily 
+recommend that you try the following modifications, 
+one at a time, and see what happens.</p>
+<p><strong>What happens if:</strong> </p>
+<ul>
+<li>
+<p>You <em>remove</em> the check <code>0 &lt; n</code> </p>
+</li>
+<li>
+<p>You <em>replace</em> the guard with <code>i &lt;= n</code></p>
+</li>
+</ul>
+<p>In each case, LiquidHaskell will grumble that your program is <em>unsafe</em>. 
+Do you understand why?</p>
+<h2 id="refinement-type-inference">Refinement Type Inference<a class="headerlink" href="#refinement-type-inference" title="Permanent link">&para;</a></h2>
+<p>LiquidHaskell happily verifies <code>absoluteSum</code> -- or, to be precise, 
+the safety of the vector accesses <code>vec ! i</code>. The verification works 
+out because LiquidHaskell is able <strong>automatically</strong> infer a suitable 
+type for <code>go</code>. Shuffle your mouse over the identifier above to see 
+the inferred type. Observe that the type states that
+The first parameter <code>acc</code> (and the output) is <code>0 &lt;= V</code>. 
+That is, the returned value is non-negative.</p>
+<p>More importantly, the type states that the second parameter <code>i</code> is 
+<code>0 &lt;= V</code> and <code>V &lt;= n</code> and <code>V &lt;= (vlen vec)</code>. That is, the parameter <code>i</code> 
+is between <code>0</code> and the vector length (inclusive). LiquidHaskell uses these 
+and the test that <code>i /= n</code> to establish that <code>i</code> is in fact between <code>0</code> 
+and <code>(vlen vec)</code> thereby verifing safety. </p>
+<p>In fact, if we want to use the function externally (i.e. in another module) 
+we can go ahead and strengthen its type to specify that the output is 
+non-negative.</p>
+<pre><span class=hs-linenum>215: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>absoluteSum</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Vector</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>{v:</span> <span class='hs-conid'>Int</span> <span class='hs-keyword'>| 0 &lt;= v}</span>  <span class='hs-keyword'>@-}</span> 
+</pre>
+
+<p><strong>What happens if:</strong> You <em>replace</em> the output type for <code>absoluteSum</code> with <code>{v: Int | 0 &lt; v }</code> ?</p>
+<h2 id="bottling-recursion-with-a-higher-order-loop">Bottling Recursion With a Higher-Order <code>loop</code><a class="headerlink" href="#bottling-recursion-with-a-higher-order-loop" title="Permanent link">&para;</a></h2>
+<p>Next, lets refactor the above low-level recursive function 
+into a generic higher-order <code>loop</code>.</p>
+<pre><span class=hs-linenum>227: </span><span class='hs-definition'>loop</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span> 
+<span class=hs-linenum>228: </span><a class=annot href="#"><span class=annottext>forall a.
+lo:{VV : (Int) | (0 &lt;= VV)}
+-&gt; hi:{VV : (Int) | (0 &lt;= VV),(lo &lt;= VV)}
+-&gt; a
+-&gt; ({VV : (Int) | (VV &lt; hi),(lo &lt;= VV)} -&gt; a -&gt; a)
+-&gt; a</span><span class='hs-definition'>loop</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0),(0 &lt;= VV)}</span><span class='hs-varid'>lo</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0),(VV &gt;= lo),(0 &lt;= VV),(lo &lt;= VV)}</span><span class='hs-varid'>hi</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>base</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0),(VV &gt;= lo),(VV &lt; hi),(0 &lt;= VV),(lo &lt;= VV)}
+-&gt; a -&gt; a</span><span class='hs-varid'>f</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV = base)}
+-&gt; {VV : (Int) | (VV = lo),
+                 (VV &gt;= 0),
+                 (0 &lt;= VV),
+                 (VV &lt;= hi),
+                 (lo &lt;= VV)}
+-&gt; a</span><span class='hs-varid'>go</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV = base)}</span><span class='hs-varid'>base</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = lo),(VV &gt;= 0),(0 &lt;= VV)}</span><span class='hs-varid'>lo</span></a>
+<span class=hs-linenum>229: </span>  <span class='hs-keyword'>where</span>
+<span class=hs-linenum>230: </span>    <a class=annot href="#"><span class=annottext>{VV : a | (VV = base)}
+-&gt; {VV : (Int) | (VV = lo),
+                 (VV &gt;= 0),
+                 (0 &lt;= VV),
+                 (VV &lt;= hi),
+                 (lo &lt;= VV)}
+-&gt; a</span><span class='hs-varid'>go</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>acc</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0),
+              (VV &gt;= lo),
+              (VV &gt;= lo),
+              (0 &lt;= VV),
+              (VV &lt;= hi),
+              (VV &lt;= hi),
+              (lo &lt;= VV),
+              (lo &lt;= VV)}</span><span class='hs-varid'>i</span></a>     
+<span class=hs-linenum>231: </span>      <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = i),
+              (VV &gt;= 0),
+              (VV &gt;= lo),
+              (VV &gt;= lo),
+              (0 &lt;= VV),
+              (VV &lt;= hi),
+              (VV &lt;= hi),
+              (lo &lt;= VV),
+              (lo &lt;= VV)}</span><span class='hs-varid'>i</span></a> <a class=annot href="#"><span class=annottext>x:{VV : (Int) | (VV &gt;= 0),
+                (VV &gt;= i),
+                (VV &gt;= lo),
+                (VV &gt;= lo),
+                (0 &lt;= VV),
+                (VV &lt;= hi),
+                (VV &lt;= hi),
+                (i &lt;= VV),
+                (lo &lt;= VV),
+                (lo &lt;= VV)}
+-&gt; y:{VV : (Int) | (VV &gt;= 0),
+                   (VV &gt;= i),
+                   (VV &gt;= lo),
+                   (VV &gt;= lo),
+                   (0 &lt;= VV),
+                   (VV &lt;= hi),
+                   (VV &lt;= hi),
+                   (i &lt;= VV),
+                   (lo &lt;= VV),
+                   (lo &lt;= VV)}
+-&gt; {VV : (Bool) | ((? Prop([VV])) &lt;=&gt; (x != y))}</span><span class='hs-varop'>/=</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = hi),
+              (VV = hi),
+              (VV &gt;= 0),
+              (VV &gt;= lo),
+              (VV &gt;= lo),
+              (0 &lt;= VV),
+              (hi &lt;= VV),
+              (lo &lt;= VV),
+              (lo &lt;= VV)}</span><span class='hs-varid'>hi</span></a>   <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV = base)}
+-&gt; {VV : (Int) | (VV = lo),
+                 (VV &gt;= 0),
+                 (0 &lt;= VV),
+                 (VV &lt;= hi),
+                 (lo &lt;= VV)}
+-&gt; a</span><span class='hs-varid'>go</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0),
+              (VV &gt;= lo),
+              (VV &gt;= lo),
+              (VV &lt; hi),
+              (VV &lt; hi),
+              (0 &lt;= VV),
+              (lo &lt;= VV),
+              (lo &lt;= VV)}
+-&gt; a -&gt; a</span><span class='hs-varid'>f</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = i),
+              (VV &gt;= 0),
+              (VV &gt;= lo),
+              (VV &gt;= lo),
+              (0 &lt;= VV),
+              (VV &lt;= hi),
+              (VV &lt;= hi),
+              (lo &lt;= VV),
+              (lo &lt;= VV)}</span><span class='hs-varid'>i</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV = acc)}</span><span class='hs-varid'>acc</span></a><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = i),
+              (VV &gt;= 0),
+              (VV &gt;= lo),
+              (VV &gt;= lo),
+              (0 &lt;= VV),
+              (VV &lt;= hi),
+              (VV &lt;= hi),
+              (lo &lt;= VV),
+              (lo &lt;= VV)}</span><span class='hs-varid'>i</span></a> <a class=annot href="#"><span class=annottext>x:(Int) -&gt; y:(Int) -&gt; {VV : (Int) | (VV = (x + y))}</span><span class='hs-varop'>+</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = (1  :  int))}</span><span class='hs-num'>1</span></a><span class='hs-layout'>)</span>
+<span class=hs-linenum>232: </span>      <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV = acc)}</span><span class='hs-varid'>acc</span></a>
+</pre>
+
+<p><strong>Using <code>loop</code> to compute <code>absoluteSum</code></strong></p>
+<p>We can now use <code>loop</code> to implement <code>absoluteSum</code> like so:</p>
+<pre><span class=hs-linenum>240: </span><a class=annot href="#"><span class=annottext>forall a.
+(Num a)
+-&gt; {VV : (Vector {VV : a | false}) | false} -&gt; {VV : a | false}</span><span class='hs-definition'>absoluteSum'</span></a> <a class=annot href="#"><span class=annottext>{VV : (Vector {VV : a | false}) | false}</span><span class='hs-varid'>vec</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : (Integer) | (VV = 0)}</span><span class='hs-keyword'>if</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = (0  :  int))}</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>x:{VV : (Int) | false}
+-&gt; y:{VV : (Int) | false}
+-&gt; {VV : (Bool) | ((? Prop([VV])) &lt;=&gt; (x &lt; y))}</span><span class='hs-varop'>&lt;</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = n),(VV = vlen([vec])),(VV &gt;= 0)}</span><span class='hs-varid'>n</span></a> <span class='hs-keyword'>then</span> <a class=annot href="#"><span class=annottext>lo:{VV : (Int) | (0 &lt;= VV)}
+-&gt; hi:{VV : (Int) | (0 &lt;= VV),(lo &lt;= VV)}
+-&gt; {VV : a | false}
+-&gt; ({VV : (Int) | (VV &lt; hi),(lo &lt;= VV)}
+    -&gt; {VV : a | false} -&gt; {VV : a | false})
+-&gt; {VV : a | false}</span><span class='hs-varid'>loop</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = (0  :  int))}</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = n),(VV = vlen([vec])),(VV &gt;= 0)}</span><span class='hs-varid'>n</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | false} -&gt; {VV : a | false} -&gt; {VV : a | false}</span><span class='hs-varid'>body</span></a> <span class='hs-keyword'>else</span> <a class=annot href="#"><span class=annottext>{VV : (Integer) | (VV = 0)}</span><span class='hs-num'>0</span></a>
+<span class=hs-linenum>241: </span>  <span class='hs-keyword'>where</span> <a class=annot href="#"><span class=annottext>{VV : (Int) | false} -&gt; {VV : a | false} -&gt; {VV : a | false}</span><span class='hs-varid'>body</span></a>     <span class='hs-keyglyph'>=</span> <span class='hs-keyglyph'>\</span><a class=annot href="#"><span class=annottext>{VV : (Int) | false}</span><span class='hs-varid'>i</span></a> <a class=annot href="#"><span class=annottext>{VV : a | false}</span><span class='hs-varid'>acc</span></a> <span class='hs-keyglyph'>-&gt;</span> <a class=annot href="#"><span class=annottext>{VV : a | false}</span><span class='hs-varid'>acc</span></a> <a class=annot href="#"><span class=annottext>x:a -&gt; y:a -&gt; {VV : a | (VV = (x + y))}</span><span class='hs-varop'>+</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : (Vector {VV : a | false}) | false}</span><span class='hs-varid'>vec</span></a> <a class=annot href="#"><span class=annottext>x:(Vector {VV : a | false})
+-&gt; {VV : (Int) | (VV &lt; vlen([x])),(0 &lt;= VV)} -&gt; {VV : a | false}</span><span class='hs-varop'>!</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | false}</span><span class='hs-varid'>i</span></a><span class='hs-layout'>)</span>
+<span class=hs-linenum>242: </span>        <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = vlen([vec])),(VV &gt;= 0)}</span><span class='hs-varid'>n</span></a>        <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>x:(Vector {VV : a | false})
+-&gt; {VV : (Int) | (VV = vlen([x])),(VV &gt;= 0)}</span><span class='hs-varid'>length</span></a> <a class=annot href="#"><span class=annottext>{VV : (Vector {VV : a | false}) | false}</span><span class='hs-varid'>vec</span></a>
+</pre>
+
+<p>LiquidHaskell verifies <code>absoluteSum'</code> without any trouble.</p>
+<p>It is very instructive to see the type that LiquidHaskell <em>infers</em> 
+for <code>loop</code> -- it looks something like</p>
+<pre><span class=hs-linenum>251: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>loop</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>lo</span><span class='hs-conop'>:</span> <span class='hs-keyword'>{v:</span> <span class='hs-conid'>Int</span> <span class='hs-keyword'>| (0 &lt;= v) }</span>  
+<span class=hs-linenum>252: </span>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>hi</span><span class='hs-conop'>:</span> <span class='hs-keyword'>{v:</span> <span class='hs-conid'>Int</span> <span class='hs-keyword'>| ((0 &lt;= v) &amp;&amp; (lo &lt;= v))}</span> 
+<span class=hs-linenum>253: </span>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span> 
+<span class=hs-linenum>254: </span>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-varid'>i</span><span class='hs-conop'>:</span> <span class='hs-keyword'>{v:</span> <span class='hs-conid'>Int</span> <span class='hs-keyword'>| (Btwn lo v hi)}</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>255: </span>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span> 
+<span class=hs-linenum>256: </span>  <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p>In english, the above type states that </p>
+<ul>
+<li><code>lo</code> the loop <em>lower</em> bound is a non-negative integer</li>
+<li><code>hi</code> the loop <em>upper</em> bound is a greater than <code>lo</code>,</li>
+<li><code>f</code>  the loop <em>body</em> is only called with integers between <code>lo</code> and <code>hi</code>.</li>
+</ul>
+<p>Inference is a rather convenient option -- it can be tedious to have to keep 
+typing things like the above! Of course, if we wanted to make <code>loop</code> a
+public or exported function, we could use the inferred type to generate 
+an explicit signature too.</p>
+<p>At the call </p>
+<pre><span class=hs-linenum>271: </span><span class='hs-definition'>loop</span> <span class='hs-num'>0</span> <span class='hs-varid'>n</span> <span class='hs-num'>0</span> <span class='hs-varid'>body</span> 
+</pre>
+
+<p>the parameters <code>lo</code> and <code>hi</code> are instantiated with <code>0</code> and <code>n</code> respectively
+(which, by the way is where the inference engine deduces non-negativity
+from) and thus LiquidHaskell concludes that <code>body</code> is only called with
+values of <code>i</code> that are <em>between</em> <code>0</code> and <code>(vlen vec)</code>, which shows the 
+safety of the call <code>vec ! i</code>.</p>
+<p><strong>Using <code>loop</code> to compute <code>dotProduct</code></strong></p>
+<p>Here's another use of <code>loop</code> -- this time to compute the <code>dotProduct</code> 
+of two vectors. </p>
+<pre><span class=hs-linenum>286: </span><span class='hs-definition'>dotProduct</span>     <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Vector</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Vector</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span>
+<span class=hs-linenum>287: </span><a class=annot href="#"><span class=annottext>x:(Vector (Int))
+-&gt; {VV : (Vector (Int)) | (vlen([VV]) = vlen([x]))} -&gt; (Int)</span><span class='hs-definition'>dotProduct</span></a> <a class=annot href="#"><span class=annottext>(Vector (Int))</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>{VV : (Vector (Int)) | (vlen([VV]) = vlen([x])),(vlen([VV]) &gt;= 0)}</span><span class='hs-varid'>y</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>lo:{VV : (Int) | (0 &lt;= VV)}
+-&gt; hi:{VV : (Int) | (0 &lt;= VV),(lo &lt;= VV)}
+-&gt; (Int)
+-&gt; ({VV : (Int) | (VV &lt; hi),(lo &lt;= VV)} -&gt; (Int) -&gt; (Int))
+-&gt; (Int)</span><span class='hs-varid'>loop</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = (0  :  int))}</span><span class='hs-num'>0</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>x:(Vector (Int)) -&gt; {VV : (Int) | (VV = vlen([x])),(VV &gt;= 0)}</span><span class='hs-varid'>length</span></a> <a class=annot href="#"><span class=annottext>{VV : (Vector (Int)) | (VV = x),(vlen([VV]) &gt;= 0)}</span><span class='hs-varid'>x</span></a><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = (0  :  int))}</span><span class='hs-num'>0</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0),
+              (VV &lt; vlen([x])),
+              (VV &lt; vlen([y])),
+              (0 &lt;= VV)}
+-&gt; (Int) -&gt; (Int)</span><span class='hs-keyglyph'>\</span></a><a class=annot href="#"><span class=annottext>{VV : (Int) | (VV &gt;= 0),
+              (VV &lt; vlen([x])),
+              (VV &lt; vlen([y])),
+              (0 &lt;= VV)}</span><span class='hs-varid'>i</span></a> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>x:(Int) -&gt; y:(Int) -&gt; {VV : (Int) | (VV = (x + y))}</span><span class='hs-varop'>+</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : (Vector (Int)) | (VV = x),(vlen([VV]) &gt;= 0)}</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>x:(Vector (Int))
+-&gt; {VV : (Int) | (VV &lt; vlen([x])),(0 &lt;= VV)} -&gt; (Int)</span><span class='hs-varop'>!</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = i),
+              (VV &gt;= 0),
+              (VV &lt; vlen([x])),
+              (VV &lt; vlen([y])),
+              (0 &lt;= VV)}</span><span class='hs-varid'>i</span></a><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>x:(Int)
+-&gt; y:(Int) -&gt; {VV : (Int) | (&amp;&amp; [(x &gt;= 0); (y &gt;= 0)] =&gt; (VV &gt;= 0))}</span><span class='hs-varop'>*</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : (Vector (Int)) | (VV = y),
+                       (vlen([VV]) = vlen([x])),
+                       (vlen([VV]) &gt;= 0)}</span><span class='hs-varid'>y</span></a> <a class=annot href="#"><span class=annottext>x:(Vector (Int))
+-&gt; {VV : (Int) | (VV &lt; vlen([x])),(0 &lt;= VV)} -&gt; (Int)</span><span class='hs-varop'>!</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = i),
+              (VV &gt;= 0),
+              (VV &lt; vlen([x])),
+              (VV &lt; vlen([y])),
+              (0 &lt;= VV)}</span><span class='hs-varid'>i</span></a><span class='hs-layout'>)</span><span class='hs-layout'>)</span><span class='hs-layout'>)</span> 
+</pre>
+
+<p>The gimlet-eyed reader will realize that the above is quite unsafe -- what
+if <code>x</code> is a 10-dimensional vector while <code>y</code> has only 3-dimensions? </p>
+<p>A nasty</p>
+<pre><span class=hs-linenum>294: </span><span class='hs-varop'>***</span> <span class='hs-conid'>Exception</span><span class='hs-conop'>:</span> <span class='hs-varop'>./</span><span class='hs-conid'>Data</span><span class='hs-varop'>/</span><span class='hs-conid'>Vector</span><span class='hs-varop'>/</span><span class='hs-conid'>Generic</span><span class='hs-varop'>.</span><span class='hs-varid'>hs</span><span class='hs-conop'>:</span><span class='hs-num'>244</span> <span class='hs-layout'>(</span><span class='hs-layout'>(</span><span class='hs-varop'>!</span><span class='hs-layout'>)</span><span class='hs-layout'>)</span><span class='hs-conop'>:</span> <span class='hs-varid'>index</span> <span class='hs-varid'>out</span> <span class='hs-keyword'>of</span> <span class='hs-varid'>bounds</span> <span class='hs-varop'>...</span>
+</pre>
+
+<p><em>Yech</em>. </p>
+<p>This is precisely the sort of unwelcome surprise we want to do away with at 
+compile-time. Refinements to the rescue! We can specify that the vectors 
+have the same dimensions quite easily</p>
+<pre><span class=hs-linenum>304: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>dotProduct</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-layout'>(</span><span class='hs-conid'>Vector</span> <span class='hs-conid'>Int</span><span class='hs-layout'>)</span> 
+<span class=hs-linenum>305: </span>               <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>y</span><span class='hs-conop'>:</span><span class='hs-keyword'>{v:</span> <span class='hs-layout'>(</span><span class='hs-conid'>Vector</span> <span class='hs-conid'>Int</span><span class='hs-layout'>)</span> <span class='hs-keyword'>| (vlen v) = (vlen x)}</span> 
+<span class=hs-linenum>306: </span>               <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> 
+<span class=hs-linenum>307: </span>  <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p>after which LiquidHaskell will gladly verify that the implementation of
+<code>dotProduct</code> is indeed safe!</p>
+<h2 id="refining-data-types">Refining Data Types<a class="headerlink" href="#refining-data-types" title="Permanent link">&para;</a></h2>
+<p>Next, suppose we want to write a <em>sparse dot product</em>, that is, 
+the dot product of a vector and a <strong>sparse vector</strong> represented
+by a list of index-value tuples.</p>
+<p><strong>Representing Sparse Vectors</strong></p>
+<p>We can represent the sparse vector with a <strong>refinement type alias</strong> </p>
+<pre><span class=hs-linenum>325: </span><span class='hs-keyword'>{-@</span> <span class='hs-keyword'>type</span> <span class='hs-conid'>SparseVector</span> <span class='hs-varid'>a</span> <span class='hs-conid'>N</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyglyph'>[</span><span class='hs-layout'>(</span><span class='hs-layout'>{</span><span class='hs-varid'>v</span><span class='hs-conop'>:</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>|</span> <span class='hs-layout'>(</span><span class='hs-conid'>Btwn</span> <span class='hs-num'>0</span> <span class='hs-varid'>v</span> <span class='hs-conid'>N</span><span class='hs-layout'>)</span><span class='hs-layout'>}</span><span class='hs-layout'>,</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span><span class='hs-keyglyph'>]</span> <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p>As with usual types, the alias <code>SparseVector</code> on the left is just a 
+shorthand for the (longer) type on the right, it does not actually 
+define a new type. Thus, the above alias is simply a refinement of
+Haskell's <code>[(Int, a)]</code> type, with a size parameter <code>N</code> that facilitates 
+easy specification reuse. In this way, refinements let us express 
+invariants of containers like lists in a straightforward manner. </p>
+<p><strong>Aside:</strong> If you are familiar with the <em>index-style</em> length 
+encoding e.g. as found in <a href="http://www.cs.bu.edu/~hwxi/DML/DML.html">DML</a> or <a href="http://code.haskell.org/Agda/examples/Vec.agda">Agda</a>, then note
+that despite appearances, our <code>SparseVector</code> definition is <em>not</em> 
+indexed. Instead, we deliberately choose to encode properties 
+with logical refinement predicates, to facilitate SMT based 
+checking and inference.</p>
+<p><strong>Verifying Uses of Sparse Vectors</strong></p>
+<p>Next, we can write a recursive procedure that computes the sparse product</p>
+<pre><span class=hs-linenum>347: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>sparseProduct</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>Num</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-layout'>(</span><span class='hs-conid'>Vector</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> 
+<span class=hs-linenum>348: </span>                             <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>SparseVector</span> <span class='hs-varid'>a</span> <span class='hs-layout'>(</span><span class='hs-varid'>vlen</span> <span class='hs-varid'>x</span><span class='hs-layout'>)</span> 
+<span class=hs-linenum>349: </span>                             <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span> 
+<span class=hs-linenum>350: </span>  <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>351: </span><a class=annot href="#"><span class=annottext>forall a.
+(Num a)
+-&gt; x:(Vector a)
+-&gt; [({VV : (Int) | (VV &lt; vlen([x])),(0 &lt;= VV)} , a)]
+-&gt; a</span><span class='hs-definition'>sparseProduct</span></a> <a class=annot href="#"><span class=annottext>(Vector a)</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>[({VV : (Int) | (VV &gt;= 0),(VV &lt; vlen([x])),(0 &lt;= VV)} , a)]</span><span class='hs-varid'>y</span></a>  <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV = 0)}
+-&gt; {VV : [({VV : (Int) | (VV &gt;= 0),
+                         (VV &lt; vlen([x])),
+                         (0 &lt;= VV)} , a)] | (VV = y),
+                                            (len([VV]) = len([y])),
+                                            (len([VV]) &gt;= 0)}
+-&gt; a</span><span class='hs-varid'>go</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>{VV : [({VV : (Int) | (VV &gt;= 0),
+                      (VV &lt; vlen([x])),
+                      (0 &lt;= VV)} , a)] | (VV = y),(len([VV]) &gt;= 0)}</span><span class='hs-varid'>y</span></a>
+<span class=hs-linenum>352: </span>  <span class='hs-keyword'>where</span> 
+<span class=hs-linenum>353: </span>    <a class=annot href="#"><span class=annottext>{VV : a | (VV = 0)}
+-&gt; {VV : [({VV : (Int) | (VV &gt;= 0),
+                         (VV &lt; vlen([x])),
+                         (0 &lt;= VV)} , a)] | (VV = y),
+                                            (len([VV]) = len([y])),
+                                            (len([VV]) &gt;= 0)}
+-&gt; a</span><span class='hs-varid'>go</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>sum</span></a> <span class='hs-layout'>(</span><span class='hs-layout'>(</span><span class='hs-varid'>i</span><span class='hs-layout'>,</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-conop'>:</span> <span class='hs-varid'>y'</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV = 0)}
+-&gt; {VV : [({VV : (Int) | (VV &gt;= 0),
+                         (VV &lt; vlen([x])),
+                         (0 &lt;= VV)} , a)] | (VV = y),
+                                            (len([VV]) = len([y])),
+                                            (len([VV]) &gt;= 0)}
+-&gt; a</span><span class='hs-varid'>go</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : a | (VV = sum)}</span><span class='hs-varid'>sum</span></a> <a class=annot href="#"><span class=annottext>x:a -&gt; y:a -&gt; {VV : a | (VV = (x + y))}</span><span class='hs-varop'>+</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : (Vector a) | (VV = x),
+                   (VV = x),
+                   (vlen([VV]) = vlen([x])),
+                   (vlen([VV]) &gt;= 0)}</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>x:(Vector a) -&gt; {VV : (Int) | (VV &lt; vlen([x])),(0 &lt;= VV)} -&gt; a</span><span class='hs-varop'>!</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = i),
+              (VV &gt;= 0),
+              (VV &lt; vlen([x])),
+              (VV &lt; vlen([x])),
+              (0 &lt;= VV)}</span><span class='hs-varid'>i</span></a><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>x:a -&gt; y:a -&gt; {VV : a | (&amp;&amp; [(x &gt;= 0); (y &gt;= 0)] =&gt; (VV &gt;= 0))}</span><span class='hs-varop'>*</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV = v)}</span><span class='hs-varid'>v</span></a><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>{VV : [({VV : (Int) | (VV &gt;= 0),
+                      (VV &lt; vlen([x])),
+                      (VV &lt; vlen([x])),
+                      (0 &lt;= VV)} , a)] | (VV = y'),(len([VV]) &gt;= 0)}</span><span class='hs-varid'>y'</span></a> 
+<span class=hs-linenum>354: </span>    <span class='hs-varid'>go</span> <span class='hs-varid'>sum</span> <span class='hs-conid'>[]</span>            <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV = sum)}</span><span class='hs-varid'>sum</span></a>
+</pre>
+
+<p>LiquidHaskell verifies the above by using the specification for <code>y</code> to
+conclude that for each tuple <code>(i, v)</code> in the list, the value of <code>i</code> is 
+within the bounds of the vector <code>x</code>, thereby proving the safety of the 
+access <code>x ! i</code>.</p>
+<h2 id="refinements-and-polymorphism">Refinements and Polymorphism<a class="headerlink" href="#refinements-and-polymorphism" title="Permanent link">&para;</a></h2>
+<p>The sharp reader will have undoubtedly noticed that the sparse product 
+can be more cleanly expressed as a <a href="http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html">fold</a>. </p>
+<p>Indeed! Let us recall the type of the <code>foldl</code> operation</p>
+<pre><span class=hs-linenum>369: </span><span class='hs-definition'>foldl'</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>b</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>b</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span>
+</pre>
+
+<p>Thus, we can simply fold over the sparse vector, accumulating the <code>sum</code>
+as we go along</p>
+<pre><span class=hs-linenum>376: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>sparseProduct'</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>Num</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-layout'>(</span><span class='hs-conid'>Vector</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> 
+<span class=hs-linenum>377: </span>                             <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>SparseVector</span> <span class='hs-varid'>a</span> <span class='hs-layout'>(</span><span class='hs-varid'>vlen</span> <span class='hs-varid'>x</span><span class='hs-layout'>)</span> 
+<span class=hs-linenum>378: </span>                             <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span> 
+<span class=hs-linenum>379: </span>  <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>380: </span><a class=annot href="#"><span class=annottext>forall a.
+(Num a)
+-&gt; x:(Vector a)
+-&gt; [({VV : (Int) | (VV &lt; vlen([x])),(0 &lt;= VV)} , a)]
+-&gt; a</span><span class='hs-definition'>sparseProduct'</span></a> <a class=annot href="#"><span class=annottext>(Vector a)</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>[({VV : (Int) | (VV &gt;= 0),(VV &lt; vlen([x])),(0 &lt;= VV)} , a)]</span><span class='hs-varid'>y</span></a>   <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>(a
+ -&gt; ({VV : (Int) | (VV &gt;= 0),(VV &lt; vlen([x])),(0 &lt;= VV)} , a) -&gt; a)
+-&gt; a
+-&gt; [({VV : (Int) | (VV &gt;= 0),(VV &lt; vlen([x])),(0 &lt;= VV)} , a)]
+-&gt; a</span><span class='hs-varid'>foldl'</span></a> <a class=annot href="#"><span class=annottext>a -&gt; ({VV : (Int) | (VV &gt;= 0),(VV &lt; vlen([x])),(0 &lt;= VV)} , a) -&gt; a</span><span class='hs-varid'>body</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>{VV : [({VV : (Int) | (VV &gt;= 0),
+                      (VV &lt; vlen([x])),
+                      (0 &lt;= VV)} , a)] | (VV = y),(len([VV]) &gt;= 0)}</span><span class='hs-varid'>y</span></a>   
+<span class=hs-linenum>381: </span>  <span class='hs-keyword'>where</span> <a class=annot href="#"><span class=annottext>a -&gt; ({VV : (Int) | (VV &gt;= 0),(VV &lt; vlen([x])),(0 &lt;= VV)} , a) -&gt; a</span><span class='hs-varid'>body</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>sum</span></a> <span class='hs-layout'>(</span><span class='hs-varid'>i</span><span class='hs-layout'>,</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV = sum)}</span><span class='hs-varid'>sum</span></a> <a class=annot href="#"><span class=annottext>x:a -&gt; y:a -&gt; {VV : a | (VV = (x + y))}</span><span class='hs-varop'>+</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : (Vector a) | (VV = x),(vlen([VV]) &gt;= 0)}</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>x:(Vector a) -&gt; {VV : (Int) | (VV &lt; vlen([x])),(0 &lt;= VV)} -&gt; a</span><span class='hs-varop'>!</span></a> <a class=annot href="#"><span class=annottext>{VV : (Int) | (VV = i),(VV &gt;= 0),(VV &lt; vlen([x])),(0 &lt;= VV)}</span><span class='hs-varid'>i</span></a><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>x:a -&gt; y:a -&gt; {VV : a | (&amp;&amp; [(x &gt;= 0); (y &gt;= 0)] =&gt; (VV &gt;= 0))}</span><span class='hs-varop'>*</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV = v)}</span><span class='hs-varid'>v</span></a>
+</pre>
+
+<p>LiquidHaskell digests this too, without much difficulty. </p>
+<p>The main trick is in how the polymorphism of <code>foldl'</code> is instantiated. </p>
+<ol>
+<li>
+<p>The GHC type inference engine deduces that at this site, the type variable
+   <code>b</code> from the signature of <code>foldl'</code> is instantiated to the Haskell type <code>(Int, a)</code>. </p>
+</li>
+<li>
+<p>Correspondingly, LiquidHaskell infers that in fact <code>b</code> can be instantiated
+   to the <em>refined</em> type <code>({v: Int | (Btwn 0 v (vlen x))}, a)</code>. </p>
+</li>
+</ol>
+<p>Walk the mouse over to <code>i</code> to see this inferred type. (You can also hover over
+<code>foldl'</code>above to see the rather more verbose fully instantiated type.)</p>
+<p>Thus, the inference mechanism saves us a fair bit of typing and allows us to
+reuse existing polymorphic functions over containers and such without ceremony.</p>
+<h2 id="conclusion">Conclusion<a class="headerlink" href="#conclusion" title="Permanent link">&para;</a></h2>
+<p>Thats all for now folks! Hopefully the above gives you a reasonable idea of
+how one can use refinements to verify size related properties, and more
+generally, to specify and verify properties of recursive, and polymorphic
+functions operating over datatypes. Next time, we'll look at how we can
+teach LiquidHaskell to think about properties of recursive structures
+like lists and trees.</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+
+
+<div class="blogpost-meta">
+  
+  <div class="blogpost-meta-whowhen">
+    
+        <div class="blogpost-meta-author">
+            Ranjit Jhala
+        </div>
+    
+    
+        <div class="blogpost-meta-date">
+            2013-01-30 16:12
+        </div>
+    
+  </div>
+  
+  
+  <div class="blogpost-meta-tags">
+              
+      <a href="../../tags.html#basic" class="tag-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.5 7A1.5 1.5 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4 1.5 1.5 0 0 1 7 5.5 1.5 1.5 0 0 1 5.5 7m15.91 4.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.11 0-2 .89-2 2v7c0 .55.22 1.05.59 1.41l8.99 9c.37.36.87.59 1.42.59s1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.56-.23-1.06-.59-1.42"/></svg>basic</a>
+    
+  </div>
+  
+</div>
+
+
+
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://join.slack.com/t/liquidhaskell/shared_invite/enQtMjY4MTk3NDkwODE3LTFmZGFkNGEzYWRkNDJmZDQ0ZGU1MzBiZWZiZDhhNmY3YTJiMjUzYTRlNjMyZDk1NDU3ZGIxYzhlOTIzN2UxNWE" target="_blank" rel="noopener" title="Join the LiquidHaskell slack channel" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 15a2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1 2-2h2zm1 0a2 2 0 0 1 2-2 2 2 0 0 1 2 2v5a2 2 0 0 1-2 2 2 2 0 0 1-2-2zm2-8a2 2 0 0 1-2-2 2 2 0 0 1 2-2 2 2 0 0 1 2 2v2zm0 1a2 2 0 0 1 2 2 2 2 0 0 1-2 2H4a2 2 0 0 1-2-2 2 2 0 0 1 2-2zm8 2a2 2 0 0 1 2-2 2 2 0 0 1 2 2 2 2 0 0 1-2 2h-2zm-1 0a2 2 0 0 1-2 2 2 2 0 0 1-2-2V5a2 2 0 0 1 2-2 2 2 0 0 1 2 2zm-2 8a2 2 0 0 1 2 2 2 2 0 0 1-2 2 2 2 0 0 1-2-2v-2zm0-1a2 2 0 0 1-2-2 2 2 0 0 1 2-2h5a2 2 0 0 1 2 2 2 2 0 0 1-2 2z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://groups.google.com/forum/#!forum/liquidhaskell" target="_blank" rel="noopener" title="Mail the LiquidHaskell users mailing list" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10 5.35 0 9.25-3.67 9.25-9.09 0-1.15-.15-1.81-.15-1.81"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/ranjitjhala" target="_blank" rel="noopener" title="Drop Ranjit Jhala an email" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-68.5 74.1c-8.9 9.7-22.9 12.9-35.2 8.1S160 493.2 160 480v-83.6c0-4 1.5-7.8 4.2-10.8l167.6-182.8c5.8-6.3 5.6-16-.4-22s-15.7-6.4-22-.7L106 360.8l-88.3-44.2C7.1 311.3.3 300.7 0 288.9s5.9-22.8 16.1-28.7l448-256c10.7-6.1 23.9-5.5 34 1.4"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/nikivazou" target="_blank" rel="noopener" title="Drop Niki Vazou an email" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M16.1 260.2c-22.6 12.9-20.5 47.3 3.6 57.3L160 376v103.3c0 18.1 14.6 32.7 32.7 32.7 9.7 0 18.9-4.3 25.1-11.8l62-74.3 123.9 51.6c18.9 7.9 40.8-4.5 43.9-24.7l64-416c1.9-12.1-3.4-24.3-13.5-31.2s-23.3-7.5-34-1.4zm52.1 25.5L409.7 90.6 190.1 336l1.2 1zm335.1 139.7-166.6-69.5 214.1-239.3z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/ucsd-progsys/liquidhaskell/issues" target="_blank" rel="noopener" title="Open a GitHub issue" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.top"], "search": "../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.83f73b43.min.js"></script>
+      
+    
+  </body>
+</html>

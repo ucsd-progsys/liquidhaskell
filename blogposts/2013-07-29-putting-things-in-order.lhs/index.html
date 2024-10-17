@@ -1,0 +1,2393 @@
+
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+        <meta name="author" content="Niki Vazou and Ranjit Jhala">
+      
+      
+        <link rel="canonical" href="https://ucsd-progsys.github.io/liquidhaskell/blogposts/2013-07-29-putting-things-in-order.lhs/">
+      
+      
+        <link rel="prev" href="../2013-10-10-csv-tables.lhs/">
+      
+      
+        <link rel="next" href="../2013-06-03-abstracting-over-refinements.lhs/">
+      
+      
+      <link rel="icon" href="../../static/img/favicon.ico">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.41">
+    
+    
+      
+        <title>Putting Things In Order - LiquidHaskell Docs</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.0253249f.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@5.9.55/css/materialdesignicons.min.css">
+    
+      <link rel="stylesheet" href="../../static/liquid-light.css">
+    
+      <link rel="stylesheet" href="../../static/misc.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="cyan" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#abstract-refinements" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="LiquidHaskell Docs" class="md-header__button md-logo" aria-label="LiquidHaskell Docs" data-md-component="logo">
+      
+  <img src="../../static/img/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            LiquidHaskell Docs
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Putting Things In Order
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/ucsd-progsys/liquidhaskell" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="https://liquidhaskell.goto.ucsd.edu/index.html" class="md-tabs__link">
+        
+  
+    
+  
+  <div id='demo'><i aria-hidden=true class='mdi mdi-cloud-braces'></i> Try Online</div>
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="http://ucsd-progsys.github.io/liquidhaskell-tutorial/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-human-greeting'></i> Tutorial
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../install/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-download'></i> Installation
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../specifications/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-script'></i> Spec Reference
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../options/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-flag'></i> Flag Reference
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../papers/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-school'></i> Papers
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../2020-08-20-lh-as-a-ghc-plugin.lhs/" class="md-tabs__link">
+          
+  
+  <i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="LiquidHaskell Docs" class="md-nav__button md-logo" aria-label="LiquidHaskell Docs" data-md-component="logo">
+      
+  <img src="../../static/img/logo.png" alt="logo">
+
+    </a>
+    LiquidHaskell Docs
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/ucsd-progsys/liquidhaskell" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://liquidhaskell.goto.ucsd.edu/index.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <div id='demo'><i aria-hidden=true class='mdi mdi-cloud-braces'></i> Try Online</div>
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="http://ucsd-progsys.github.io/liquidhaskell-tutorial/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-human-greeting'></i> Tutorial
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-download'></i> Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specifications/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-script'></i> Spec Reference
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../options/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-flag'></i> Flag Reference
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../papers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-school'></i> Papers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            <i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_1" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_9_1" id="__nav_9_1_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Blogposts
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9_1">
+            <span class="md-nav__icon md-icon"></span>
+            Blogposts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2020-08-20-lh-as-a-ghc-plugin.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    LiquidHaskell is a GHC Plugin
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2020-04-12-polymorphic-perplexion.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Polymorphic Perplexion
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2019-10-20-why-types.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Liquid Types vs. Floyd-Hoare Logic
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2018-05-17-hillel-verifier-rodeo-I-leftpad.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    The Hillelogram Verifier Rodeo I (LeftPad)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2018-02-23-measures-and-case-splitting.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Measures and Case Splitting
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2017-12-24-splitting-and-splicing-intervals-II.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Splitting and Splicing Intervals (Part 2)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2017-12-15-splitting-and-splicing-intervals-I.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Splitting and Splicing Intervals (Part 1)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2017-03-20-arithmetic-overflows.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Arithmetic Overflows
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2016-10-06-structural-induction.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Refinement Reflection on ADTs
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2016-09-18-refinement-reflection.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Haskell as a Theorem Prover
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2016-09-01-normal-forms.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Normal Forms
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2015-01-30-okasakis-lazy-queue.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Okasaki's Lazy Queues
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2014-08-15-a-finer-filter.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    A Finer Filter
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2014-05-28-pointers-gone-wild.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Pointers Gone Wild
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2014-02-11-the-advantage-of-measures.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    The Advantage of Measures
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-12-14-gcd.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Termination Requires Refinements
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-12-09-checking-termination.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checking Termination
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-12-02-getting-to-the-bottom.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Getting To the Bottom
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-11-23-telling_lies.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    LiquidHaskell Caught Telling Lies!
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-10-10-csv-tables.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CSV Tables
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Putting Things In Order
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Putting Things In Order
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#abstract-refinements" class="md-nav__link">
+    <span class="md-ellipsis">
+      Abstract Refinements
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#polymorphic-association-lists" class="md-nav__link">
+    <span class="md-ellipsis">
+      Polymorphic Association Lists
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#monomorphic-association-lists" class="md-nav__link">
+    <span class="md-ellipsis">
+      Monomorphic Association Lists
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#abstractly-refined-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Abstractly Refined Data
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dependent-tuples" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dependent Tuples
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#abstractly-refined-lists" class="md-nav__link">
+    <span class="md-ellipsis">
+      Abstractly Refined Lists
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pairwise-related" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pairwise Related
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-abstractly-refined-lists" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using Abstractly Refined Lists
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sorting-lists" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sorting Lists
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#really-sorting-lists" class="md-nav__link">
+    <span class="md-ellipsis">
+      Really Sorting Lists
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-06-03-abstracting-over-refinements.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Abstracting Over Refinements
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-05-24-unique-zipper.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Unique Zippers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-03-26-talking-about-sets.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Talking About Sets
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-03-04-bounding-vectors.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Bounding Vectors
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-02-17-kmeans-clustering-II.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    KMeans Clustering II
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-02-16-kmeans-clustering-I.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    KMeans Clustering I
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-01-31-safely-catching-a-list-by-its-tail.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Safely Catching A List By Its Tail
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-01-28-bounding-vectors.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Bounding Vectors
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-01-27-refinements101-reax.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Refinements 101 (contd.)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-01-01-refinement-types-101.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Refinement Types 101
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tags.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tags
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#abstract-refinements" class="md-nav__link">
+    <span class="md-ellipsis">
+      Abstract Refinements
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#polymorphic-association-lists" class="md-nav__link">
+    <span class="md-ellipsis">
+      Polymorphic Association Lists
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#monomorphic-association-lists" class="md-nav__link">
+    <span class="md-ellipsis">
+      Monomorphic Association Lists
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#abstractly-refined-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Abstractly Refined Data
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dependent-tuples" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dependent Tuples
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#abstractly-refined-lists" class="md-nav__link">
+    <span class="md-ellipsis">
+      Abstractly Refined Lists
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pairwise-related" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pairwise Related
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-abstractly-refined-lists" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using Abstractly Refined Lists
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sorting-lists" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sorting Lists
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#really-sorting-lists" class="md-nav__link">
+    <span class="md-ellipsis">
+      Really Sorting Lists
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+
+
+                  
+  
+<nav class="md-tags" >
+  
+    
+    
+    
+      <span class="md-tag">abstract-refinements</span>
+    
+  
+</nav>
+
+
+  
+  
+
+
+  <h1>Putting Things In Order</h1>
+
+<p>Hello again! Since we last met, much has happened that
+we're rather excited about, and which we promise to get
+to in the fullness of time.</p>
+<p>Today, however, lets continue with our exploration of
+abstract refinements. We'll see that this rather innocent 
+looking mechanism packs quite a punch, by showing how 
+it can encode various <strong>ordering</strong> properties of 
+recursive data structures.</p>
+<!-- more -->
+
+<pre><span class=hs-linenum>26: </span><span class='hs-keyword'>module</span> <span class='hs-conid'>PuttingThingsInOrder</span> <span class='hs-keyword'>where</span>
+<span class=hs-linenum>27: </span>
+<span class=hs-linenum>28: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Prelude</span> <span class='hs-varid'>hiding</span> <span class='hs-layout'>(</span><span class='hs-varid'>break</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>29: </span>
+<span class=hs-linenum>30: </span><span class='hs-comment'>-- Haskell Type Definitions</span>
+<span class=hs-linenum>31: </span><span class='hs-definition'>plusOnes</span>                         <span class='hs-keyglyph'>::</span> <span class='hs-keyglyph'>[</span><span class='hs-layout'>(</span><span class='hs-conid'>Int</span><span class='hs-layout'>,</span> <span class='hs-conid'>Int</span><span class='hs-layout'>)</span><span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>32: </span><span class='hs-definition'>insertSort</span><span class='hs-layout'>,</span> <span class='hs-varid'>mergeSort</span><span class='hs-layout'>,</span> <span class='hs-varid'>quickSort</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>Ord</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span>
+</pre>
+
+<h2 id="abstract-refinements">Abstract Refinements<a class="headerlink" href="#abstract-refinements" title="Permanent link">&para;</a></h2>
+<p>Recall that <em>abstract refinements</em> are a mechanism that let us write and check types of the form</p>
+<pre><span class=hs-linenum>36: </span><span class='hs-definition'>maxInt</span> <span class='hs-keyglyph'>::</span> <span class='hs-keyword'>forall</span> <span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Prop</span><span class='hs-varop'>&gt;.</span> <span class='hs-conid'>Int</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span><span class='hs-varop'>&gt;</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span><span class='hs-varop'>&gt;</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span><span class='hs-varop'>&gt;</span>
+</pre>
+
+<p>which states that the output of <code>maxInt</code> preserves 
+<em>whatever</em> invariants held for its two inputs as 
+long as both those inputs <em>also</em> satisfied those 
+invariants. </p>
+<p>First, lets see how we can (and why we may want to) 
+abstractly refine data types. </p>
+<h2 id="polymorphic-association-lists">Polymorphic Association Lists<a class="headerlink" href="#polymorphic-association-lists" title="Permanent link">&para;</a></h2>
+<p>Suppose, we require a type for association lists. 
+Lets define one that is polymorphic over keys <code>k</code> 
+and values <code>v</code> </p>
+<pre><span class=hs-linenum>55: </span><span class='hs-keyword'>data</span> <span class='hs-conid'>AssocP</span> <span class='hs-varid'>k</span> <span class='hs-varid'>v</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>KVP</span> <span class='hs-keyglyph'>[</span><span class='hs-layout'>(</span><span class='hs-varid'>k</span><span class='hs-layout'>,</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span><span class='hs-keyglyph'>]</span>
+</pre>
+
+<p>Now, in a program, you might have multiple association
+lists, whose keys satisfy different properties. 
+For example, we might have a table for mapping digits 
+to the corresponding English string</p>
+<pre><span class=hs-linenum>64: </span><span class='hs-definition'>digitsP</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>AssocP</span> <span class='hs-conid'>Int</span> <span class='hs-conid'>String</span>
+<span class=hs-linenum>65: </span><a class=annot href="#"><span class=annottext>(PuttingThingsInOrder.AssocP {VV : (GHC.Types.Int) | (0 &lt;= VV) &amp;&amp; (VV &lt;= 9)} [(GHC.Types.Char)])</span><span class='hs-definition'>digitsP</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>[({VV : (GHC.Types.Int) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 9)}, {VV : [(GHC.Types.Char)] | ((len VV) &gt;= 0)})]
+-&gt; (PuttingThingsInOrder.AssocP {VV : (GHC.Types.Int) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 9)} {VV : [(GHC.Types.Char)] | ((len VV) &gt;= 0)})</span><span class='hs-conid'>KVP</span></a> <span class='hs-keyglyph'>[</span> <a class=annot href="#"><span class=annottext>({VV : (GHC.Types.Int) | (VV == 1) &amp;&amp; (VV &gt; 0)}, {VV : [(GHC.Types.Char)] | ((len VV) &gt;= 0)})&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt;</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (1  :  int))}</span><span class='hs-num'>1</span></a><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>{VV : [(GHC.Types.Char)] | ((len VV) &gt;= 0)}</span><span class='hs-str'>"one"</span></a><span class='hs-layout'>)</span>
+<span class=hs-linenum>66: </span>              <span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>({VV : (GHC.Types.Int) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 9)}, {VV : [(GHC.Types.Char)] | ((len VV) &gt;= 0)})&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt;</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (2  :  int))}</span><span class='hs-num'>2</span></a><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>{VV : [(GHC.Types.Char)] | ((len VV) &gt;= 0)}</span><span class='hs-str'>"two"</span></a><span class='hs-layout'>)</span>
+<span class=hs-linenum>67: </span>              <span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>({VV : (GHC.Types.Int) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 9)}, {VV : [(GHC.Types.Char)] | ((len VV) &gt;= 0)})&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt;</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (3  :  int))}</span><span class='hs-num'>3</span></a><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>{VV : [(GHC.Types.Char)] | ((len VV) &gt;= 0)}</span><span class='hs-str'>"three"</span></a><span class='hs-layout'>)</span> <span class='hs-keyglyph'>]</span>
+</pre>
+
+<p>We could have a separate table for <em>sparsely</em> storing 
+the contents of an array of size <code>1000</code>.</p>
+<pre><span class=hs-linenum>74: </span><span class='hs-definition'>sparseVecP</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>AssocP</span> <span class='hs-conid'>Int</span> <span class='hs-conid'>Double</span>
+<span class=hs-linenum>75: </span><a class=annot href="#"><span class=annottext>(PuttingThingsInOrder.AssocP {VV : (GHC.Types.Int) | (0 &lt;= VV) &amp;&amp; (VV &lt;= 1000)} (GHC.Types.Double))</span><span class='hs-definition'>sparseVecP</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>[({VV : (GHC.Types.Int) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 1000)}, (GHC.Types.Double))]
+-&gt; (PuttingThingsInOrder.AssocP {VV : (GHC.Types.Int) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 1000)} (GHC.Types.Double))</span><span class='hs-conid'>KVP</span></a> <span class='hs-keyglyph'>[</span> <a class=annot href="#"><span class=annottext>({VV : (GHC.Types.Int) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 1000)}, (GHC.Types.Double))</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (12  :  int))}</span><span class='hs-num'>12</span></a> <span class='hs-layout'>,</span>  <a class=annot href="#"><span class=annottext>(GHC.Types.Double)</span><span class='hs-num'>34.1</span></a> <span class='hs-layout'>)</span>
+<span class=hs-linenum>76: </span>                 <span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>({VV : (GHC.Types.Int) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 1000)}, (GHC.Types.Double))</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (92  :  int))}</span><span class='hs-num'>92</span></a> <span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>(GHC.Types.Double)</span><span class='hs-num'>902.83</span></a><span class='hs-layout'>)</span>
+<span class=hs-linenum>77: </span>                 <span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>({VV : (GHC.Types.Int) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 1000)}, (GHC.Types.Double))</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (451  :  int))}</span><span class='hs-num'>451</span></a><span class='hs-layout'>,</span>   <a class=annot href="#"><span class=annottext>(GHC.Types.Double)</span><span class='hs-num'>2.95</span></a><span class='hs-layout'>)</span>
+<span class=hs-linenum>78: </span>                 <span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>({VV : (GHC.Types.Int) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 1000)}, (GHC.Types.Double))</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (877  :  int))}</span><span class='hs-num'>877</span></a><span class='hs-layout'>,</span>   <a class=annot href="#"><span class=annottext>(GHC.Types.Double)</span><span class='hs-num'>3.1</span></a> <span class='hs-layout'>)</span><span class='hs-keyglyph'>]</span>
+</pre>
+
+<p>The <strong>keys</strong> used in the two tables have rather 
+different properties, which we may want to track 
+at compile time.</p>
+<ul>
+<li>In <code>digitsP</code> the keys are between <code>0</code> and <code>9</code> </li>
+<li>In <code>sparseVecP</code> the keys are between <code>0</code> and <code>999</code>. </li>
+</ul>
+<p>Well, since we had the foresight to parameterize 
+the key type in <code>AssocP</code>, we can express the above 
+properties by appropriately <strong>instantiating</strong> the type
+of <code>k</code> with refined versions</p>
+<pre><span class=hs-linenum>94: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>digitsP</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>AssocP</span> <span class='hs-keyword'>{v:</span><span class='hs-conid'>Int</span> <span class='hs-keyword'>| (Btwn 0 v 9)}</span> <span class='hs-conid'>String</span> <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p>and </p>
+<pre><span class=hs-linenum>100: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>sparseVecP</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>AssocP</span> <span class='hs-keyword'>{v:</span><span class='hs-conid'>Int</span> <span class='hs-keyword'>| (Btwn 0 v 1000)}</span> <span class='hs-conid'>Double</span> <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p>where <code>Btwn</code> is just an alias </p>
+<pre><span class=hs-linenum>106: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>predicate</span> <span class='hs-conid'>Btwn</span> <span class='hs-conid'>Lo</span> <span class='hs-conid'>V</span> <span class='hs-conid'>Hi</span> <span class='hs-keyglyph'>=</span> <span class='hs-layout'>(</span><span class='hs-conid'>Lo</span> <span class='hs-varop'>&lt;=</span> <span class='hs-conid'>V</span> <span class='hs-varop'>&amp;&amp;</span> <span class='hs-conid'>V</span> <span class='hs-varop'>&lt;=</span> <span class='hs-conid'>Hi</span><span class='hs-layout'>)</span> <span class='hs-keyword'>@-}</span>
+</pre>
+
+<h2 id="monomorphic-association-lists">Monomorphic Association Lists<a class="headerlink" href="#monomorphic-association-lists" title="Permanent link">&para;</a></h2>
+<p>Now, suppose that for one reason or another, we want to 
+specialize our association list so that the keys are of 
+type <code>Int</code>. </p>
+<pre><span class=hs-linenum>117: </span><span class='hs-keyword'>data</span> <span class='hs-conid'>Assoc</span> <span class='hs-varid'>v</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>KV</span> <span class='hs-keyglyph'>[</span><span class='hs-layout'>(</span><span class='hs-conid'>Int</span><span class='hs-layout'>,</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span><span class='hs-keyglyph'>]</span>
+</pre>
+
+<p>(We'd probably also want to exploit the <code>Int</code>-ness 
+in the implementation but thats a tale for another day.)</p>
+<p>Now, we have our two tables</p>
+<pre><span class=hs-linenum>126: </span><span class='hs-definition'>digits</span>    <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Assoc</span> <span class='hs-conid'>String</span>
+<span class=hs-linenum>127: </span><a class=annot href="#"><span class=annottext>(PuttingThingsInOrder.Assoc [(GHC.Types.Char)])</span><span class='hs-definition'>digits</span></a>    <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>forall &lt;p :: (GHC.Types.Int)-&gt; Bool&gt;.
+[({VV : (GHC.Types.Int)&lt;p&gt; | true}, {VV : [(GHC.Types.Char)] | ((len VV) &gt;= 0)})]
+-&gt; (PuttingThingsInOrder.Assoc &lt;p&gt; {VV : [(GHC.Types.Char)] | ((len VV) &gt;= 0)})</span><span class='hs-conid'>KV</span></a> <span class='hs-keyglyph'>[</span> <a class=annot href="#"><span class=annottext>({VV : (GHC.Types.Int) | (VV == 1) &amp;&amp; (VV &gt; 0)}, {VV : [(GHC.Types.Char)] | ((len VV) &gt;= 0)})&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt;</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (1  :  int))}</span><span class='hs-num'>1</span></a><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>{VV : [(GHC.Types.Char)] | ((len VV) &gt;= 0)}</span><span class='hs-str'>"one"</span></a><span class='hs-layout'>)</span>
+<span class=hs-linenum>128: </span>               <span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>({VV : (GHC.Types.Int) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 9)}, {VV : [(GHC.Types.Char)] | ((len VV) &gt;= 0)})&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt;</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (2  :  int))}</span><span class='hs-num'>2</span></a><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>{VV : [(GHC.Types.Char)] | ((len VV) &gt;= 0)}</span><span class='hs-str'>"two"</span></a><span class='hs-layout'>)</span>
+<span class=hs-linenum>129: </span>               <span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>({VV : (GHC.Types.Int) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 9)}, {VV : [(GHC.Types.Char)] | ((len VV) &gt;= 0)})&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt;</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (3  :  int))}</span><span class='hs-num'>3</span></a><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>{VV : [(GHC.Types.Char)] | ((len VV) &gt;= 0)}</span><span class='hs-str'>"three"</span></a><span class='hs-layout'>)</span> <span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>130: </span>
+<span class=hs-linenum>131: </span><span class='hs-definition'>sparseVec</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Assoc</span> <span class='hs-conid'>Double</span>
+<span class=hs-linenum>132: </span><a class=annot href="#"><span class=annottext>(PuttingThingsInOrder.Assoc (GHC.Types.Double))</span><span class='hs-definition'>sparseVec</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>forall &lt;p :: (GHC.Types.Int)-&gt; Bool&gt;.
+[({VV : (GHC.Types.Int)&lt;p&gt; | true}, (GHC.Types.Double))]
+-&gt; (PuttingThingsInOrder.Assoc &lt;p&gt; (GHC.Types.Double))</span><span class='hs-conid'>KV</span></a> <span class='hs-keyglyph'>[</span> <a class=annot href="#"><span class=annottext>({VV : (GHC.Types.Int) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 1000)}, (GHC.Types.Double))</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (12  :  int))}</span><span class='hs-num'>12</span></a> <span class='hs-layout'>,</span>  <a class=annot href="#"><span class=annottext>(GHC.Types.Double)</span><span class='hs-num'>34.1</span></a> <span class='hs-layout'>)</span>
+<span class=hs-linenum>133: </span>               <span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>({VV : (GHC.Types.Int) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 1000)}, (GHC.Types.Double))</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (92  :  int))}</span><span class='hs-num'>92</span></a> <span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>(GHC.Types.Double)</span><span class='hs-num'>902.83</span></a><span class='hs-layout'>)</span>
+<span class=hs-linenum>134: </span>               <span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>({VV : (GHC.Types.Int) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 1000)}, (GHC.Types.Double))</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (451  :  int))}</span><span class='hs-num'>451</span></a><span class='hs-layout'>,</span>   <a class=annot href="#"><span class=annottext>(GHC.Types.Double)</span><span class='hs-num'>2.95</span></a><span class='hs-layout'>)</span>
+<span class=hs-linenum>135: </span>               <span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>({VV : (GHC.Types.Int) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 1000)}, (GHC.Types.Double))</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (877  :  int))}</span><span class='hs-num'>877</span></a><span class='hs-layout'>,</span>   <a class=annot href="#"><span class=annottext>(GHC.Types.Double)</span><span class='hs-num'>3.1</span></a> <span class='hs-layout'>)</span><span class='hs-keyglyph'>]</span>
+</pre>
+
+<p>but since we didn't make the key type generic, it seems 
+we have no way to distinguish between the invariants of 
+the two sets of keys. Bummer!</p>
+<h2 id="abstractly-refined-data">Abstractly Refined Data<a class="headerlink" href="#abstractly-refined-data" title="Permanent link">&para;</a></h2>
+<p>We <em>could</em> define <em>two separate</em> types of association 
+lists that capture different invariants, but frankly, 
+thats rather unfortunate, as we'd then have to 
+duplicate the code the manipulates the structures. 
+Of course, we'd like to have (type) systems help 
+keep an eye on different invariants, but we'd 
+<em>really</em> rather not have to duplicate code to 
+achieve that end. Thats the sort of thing that
+drives a person to JavaScript ;-).</p>
+<p>Fortunately, all is not lost. </p>
+<p>If you were paying attention <a href="/blog/2013/06/3/abstracting-over-refinements.lhs/">last time</a> 
+then you'd realize that this is the perfect job for 
+an abstract refinement, this time applied to a <code>data</code> 
+definition:</p>
+<pre><span class=hs-linenum>163: </span><span class='hs-keyword'>{-@</span> <span class='hs-keyword'>data</span> <span class='hs-conid'>Assoc</span> <span class='hs-varid'>v</span> <span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Prop</span><span class='hs-varop'>&gt;</span> 
+<span class=hs-linenum>164: </span>      <span class='hs-keyglyph'>=</span> <span class='hs-conid'>KV</span> <span class='hs-layout'>(</span><span class='hs-varid'>z</span> <span class='hs-keyglyph'>::</span> <span class='hs-keyglyph'>[</span><span class='hs-layout'>(</span><span class='hs-conid'>Int</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span><span class='hs-varop'>&gt;</span><span class='hs-layout'>,</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span><span class='hs-keyglyph'>]</span><span class='hs-layout'>)</span> <span class='hs-keyword'>@-}</span> 
+</pre>
+
+<p>The definition refines the type for <code>Assoc</code> to introduce
+an abstract refinement <code>p</code> which is, informally speaking,
+a property of <code>Int</code>. The definition states that each <code>Int</code>
+in the association list in fact satisfies <code>p</code> as, <code>Int&lt;p&gt;</code>
+is an abbreviation for <code>{v:Int| (p v)}</code>.</p>
+<p>Now, we can <em>have</em> our <code>Int</code> keys and <em>refine</em> them too!
+For example, we can write:</p>
+<pre><span class=hs-linenum>177: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>digits</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Assoc</span> <span class='hs-layout'>(</span><span class='hs-conid'>String</span><span class='hs-layout'>)</span> <span class='hs-keyword'>&lt;{\v -&gt; (Btwn 0 v 9)}&gt;</span> <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p>to track the invariant for the <code>digits</code> map, and write</p>
+<pre><span class=hs-linenum>183: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>sparseVec</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Assoc</span> <span class='hs-conid'>Double</span> <span class='hs-keyword'>&lt;{\v -&gt; (Btwn 0 v 1000)}&gt;</span> <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p>Thus, we can recover (some of) the benefits of abstracting 
+over the type of the key by instead parameterizing the type
+directly over the possible invariants. We will have much 
+<a href="http://goto.ucsd.edu/~rjhala/liquid/abstract_refinement_types.pdf">more to say</a> on association lists 
+(or more generally, finite maps) and abstract refinements, 
+but lets move on for the moment.</p>
+<h2 id="dependent-tuples">Dependent Tuples<a class="headerlink" href="#dependent-tuples" title="Permanent link">&para;</a></h2>
+<p>It is no accident that we have reused Haskell's function 
+type syntax to define abstract refinements (<code>p :: Int -&gt; Prop</code>);
+interesting things start to happen if we use multiple parameters.</p>
+<p>Consider the function <code>break</code> from the Prelude. </p>
+<pre><span class=hs-linenum>203: </span><span class='hs-definition'>break</span>                   <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Bool</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span><span class='hs-layout'>,</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>204: </span><a class=annot href="#"><span class=annottext>forall a.
+(a -&gt; (GHC.Types.Bool))
+-&gt; x:[a] -&gt; ([a], [a])&lt;\y VV -&gt; ((len x) == ((len y) + (len VV)))&gt;</span><span class='hs-definition'>break</span></a> <span class='hs-keyword'>_</span> <a class=annot href="#"><span class=annottext>[a]</span><span class='hs-varid'>xs</span></a><span class='hs-keyglyph'>@</span><span class='hs-conid'>[]</span>           <span class='hs-keyglyph'>=</span>  <a class=annot href="#"><span class=annottext>forall a b &lt;p2 :: a-&gt; b-&gt; Bool&gt;.
+a:a
+-&gt; b:{VV : b&lt;p2 a&gt; | true}
+-&gt; {VV : (a, b)&lt;p2&gt; | ((fst VV) == a) &amp;&amp; ((snd VV) == b)}</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : [a] | (((null VV)) &lt;=&gt; true) &amp;&amp; (VV == xs) &amp;&amp; (VV == (GHC.Types.[])) &amp;&amp; ((len VV) == 0) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>xs</span></a><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>{VV : [a] | (((null VV)) &lt;=&gt; true) &amp;&amp; (VV == xs) &amp;&amp; (VV == (GHC.Types.[])) &amp;&amp; ((len VV) == 0) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>xs</span></a><span class='hs-layout'>)</span>
+<span class=hs-linenum>205: </span><span class='hs-definition'>break</span> <span class='hs-varid'>p</span> <span class='hs-varid'>xs</span><span class='hs-keyglyph'>@</span><span class='hs-layout'>(</span><span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-varid'>xs'</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>206: </span>           <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>a -&gt; (GHC.Types.Bool)</span><span class='hs-varid'>p</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a>        <span class='hs-keyglyph'>=</span>  <a class=annot href="#"><span class=annottext>forall a b &lt;p2 :: a-&gt; b-&gt; Bool&gt;.
+a:a
+-&gt; b:{VV : b&lt;p2 a&gt; | true}
+-&gt; {VV : (a, b)&lt;p2&gt; | ((fst VV) == a) &amp;&amp; ((snd VV) == b)}</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : [{VV : a | false}]&lt;\_ VV -&gt; false&gt; | (((null VV)) &lt;=&gt; true) &amp;&amp; ((len VV) == 0) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-conid'>[]</span></a><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV == xs) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>xs</span></a><span class='hs-layout'>)</span>
+<span class=hs-linenum>207: </span>           <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span>  <span class='hs-keyglyph'>=</span>  <span class='hs-keyword'>let</span> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : [a] | (VV == ys) &amp;&amp; ((len VV) == (len ys)) &amp;&amp; ((len xs') == ((len zs) + (len VV))) &amp;&amp; (VV /= xs) &amp;&amp; ((len VV) &gt;= 0) &amp;&amp; ((len VV) &lt; (len xs)) &amp;&amp; ((len VV) &lt;= (len xs'))}</span><span class='hs-varid'>ys</span></a><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV == zs) &amp;&amp; ((len VV) == (len zs)) &amp;&amp; ((len xs') == ((len ys) + (len VV))) &amp;&amp; ((len xs') == ((len ys) + (len VV))) &amp;&amp; (VV /= xs) &amp;&amp; ((len VV) &gt;= 0) &amp;&amp; ((len VV) &lt; (len xs)) &amp;&amp; ((len VV) &lt;= (len xs'))}</span><span class='hs-varid'>zs</span></a><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>(a -&gt; (GHC.Types.Bool))
+-&gt; x:[a] -&gt; ([a], [a])&lt;\y VV -&gt; ((len x) == ((len y) + (len VV)))&gt;</span><span class='hs-varid'>break</span></a> <a class=annot href="#"><span class=annottext>a -&gt; (GHC.Types.Bool)</span><span class='hs-varid'>p</span></a> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV == xs') &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>xs'</span></a> 
+<span class=hs-linenum>208: </span>                           <span class='hs-keyword'>in</span> <a class=annot href="#"><span class=annottext>forall a b &lt;p2 :: a-&gt; b-&gt; Bool&gt;.
+a:a
+-&gt; b:{VV : b&lt;p2 a&gt; | true}
+-&gt; {VV : (a, b)&lt;p2&gt; | ((fst VV) == a) &amp;&amp; ((snd VV) == b)}</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a><a class=annot href="#"><span class=annottext>forall &lt;p :: a-&gt; a-&gt; Bool&gt;.
+x:a
+-&gt; xs:[{VV : a&lt;p x&gt; | true}]&lt;p&gt;
+-&gt; {VV : [a]&lt;p&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) == (1 + (len xs)))}</span><span class='hs-conop'>:</span></a><a class=annot href="#"><span class=annottext>{VV : [a] | (VV == ys) &amp;&amp; (VV == ys) &amp;&amp; ((len VV) == (len ys)) &amp;&amp; ((len xs') == ((len zs) + (len VV))) &amp;&amp; (VV /= xs) &amp;&amp; ((len VV) &gt;= 0) &amp;&amp; ((len VV) &lt; (len xs)) &amp;&amp; ((len VV) &lt;= (len xs'))}</span><span class='hs-varid'>ys</span></a><span class='hs-layout'>,</span><a class=annot href="#"><span class=annottext>{VV : [a] | (VV == zs) &amp;&amp; (VV == zs) &amp;&amp; ((len VV) == (len zs)) &amp;&amp; ((len xs') == ((len ys) + (len VV))) &amp;&amp; ((len xs') == ((len ys) + (len VV))) &amp;&amp; (VV /= xs) &amp;&amp; ((len VV) &gt;= 0) &amp;&amp; ((len VV) &lt; (len xs)) &amp;&amp; ((len VV) &lt;= (len xs'))}</span><span class='hs-varid'>zs</span></a><span class='hs-layout'>)</span>
+</pre>
+
+<p>From the comments in <a href="http://www.haskell.org/ghc/docs/latest/html/libraries/base/src/Data-List.html#sort">Data.List</a>, <code>break p xs</code>: 
+"returns a tuple where the first element is longest prefix (possibly empty)
+<code>xs</code> of elements that do not satisfy <code>p</code> and second element is the 
+remainder of the list."</p>
+<p>We could formalize the notion of the <em>second-element-being-the-remainder</em> 
+using sizes. That is, we'd like to specify that the length of the second 
+element equals the length of <code>xs</code> minus the length of the first element.<br />
+That is, we need a way to allow the refinement of the second element to 
+<em>depend on</em> the value in the first refinement.
+Again, we could define a special kind of tuple-of-lists-type that 
+has the above property <em>baked in</em>, but thats just not how we roll.</p>
+<p>Instead, lets use abstract refinements to give us <strong>dependent tuples</strong></p>
+<pre><span class=hs-linenum>225: </span><span class='hs-keyword'>data</span> <span class='hs-layout'>(</span><span class='hs-varid'>a</span><span class='hs-layout'>,</span><span class='hs-varid'>b</span><span class='hs-layout'>)</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>b</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Prop</span><span class='hs-varop'>&gt;</span> <span class='hs-keyglyph'>=</span> <span class='hs-layout'>(</span><span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-varid'>a</span><span class='hs-layout'>,</span> <span class='hs-varid'>b</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span> <span class='hs-varid'>x</span><span class='hs-varop'>&gt;</span><span class='hs-layout'>)</span> 
+</pre>
+
+<p>Here, the abstract refinement takes two parameters, 
+an <code>a</code> and a <code>b</code>. In the body of the tuple, the 
+first element is named <code>x</code> and we specify that 
+the second element satisfies the refinement <code>p x</code>, 
+i.e. a partial application of <code>p</code> with the first element. 
+In other words, the second element is a value of type
+<code>{v:b | (p x v)}</code>.</p>
+<p>As before, we can instantiate the <code>p</code> in <em>different</em> ways. 
+For example the whimsical</p>
+<pre><span class=hs-linenum>240: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>plusOnes</span> <span class='hs-keyglyph'>::</span> <span class='hs-keyglyph'>[</span><span class='hs-layout'>(</span><span class='hs-conid'>Int</span><span class='hs-layout'>,</span> <span class='hs-conid'>Int</span><span class='hs-layout'>)</span><span class='hs-keyword'>&lt;{\x1 x2 -&gt; x2 = x1 + 1}&gt;</span><span class='hs-keyglyph'>]</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>241: </span><a class=annot href="#"><span class=annottext>[((GHC.Types.Int), (GHC.Types.Int))&lt;\x1 VV -&gt; (VV == (x1 + 1))&gt;]</span><span class='hs-definition'>plusOnes</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : [({VV : (GHC.Types.Int) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 1000)}, {VV : (GHC.Types.Int) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 1000)})&lt;\x3 VV -&gt; (VV == (x3 + 1)) &amp;&amp; (VV &gt; 0) &amp;&amp; (VV &gt; x3) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 1000)&gt;]&lt;\x1 VV -&gt; (VV /= x1)&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-keyglyph'>[</span></a><a class=annot href="#"><span class=annottext>({VV : (GHC.Types.Int) | (VV == 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 9)}, {VV : (GHC.Types.Int) | (VV == 1) &amp;&amp; (VV &gt; 0)})&lt;\x2 VV -&gt; (VV == 1) &amp;&amp; (VV == (x2 + 1)) &amp;&amp; (VV &gt; 0) &amp;&amp; (VV &gt; x2)&gt;</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (0  :  int))}</span><span class='hs-num'>0</span></a><span class='hs-layout'>,</span><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (1  :  int))}</span><span class='hs-num'>1</span></a><span class='hs-layout'>)</span><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>({VV : (GHC.Types.Int) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 9)}, {VV : (GHC.Types.Int) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 9)})&lt;\x2 VV -&gt; (VV == (x2 + 1)) &amp;&amp; (VV &gt; 0) &amp;&amp; (VV &gt; x2) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 9)&gt;</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (5  :  int))}</span><span class='hs-num'>5</span></a><span class='hs-layout'>,</span><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (6  :  int))}</span><span class='hs-num'>6</span></a><span class='hs-layout'>)</span><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>({VV : (GHC.Types.Int) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 1000)}, {VV : (GHC.Types.Int) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 1000)})&lt;\x2 VV -&gt; (VV == (x2 + 1)) &amp;&amp; (VV &gt; 0) &amp;&amp; (VV &gt; x2) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 1000)&gt;</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (999  :  int))}</span><span class='hs-num'>999</span></a><span class='hs-layout'>,</span><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (1000  :  int))}</span><span class='hs-num'>1000</span></a><span class='hs-layout'>)</span><span class='hs-keyglyph'>]</span>
+</pre>
+
+<p>and returning to the <em>remainder</em> property for  <code>break</code> </p>
+<pre><span class=hs-linenum>247: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>break</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Bool</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> 
+<span class=hs-linenum>248: </span>          <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span><span class='hs-layout'>,</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span><span class='hs-layout'>)</span><span class='hs-keyword'>&lt;{\y z -&gt; (Break x y z)}&gt;</span> <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p>using the predicate alias</p>
+<pre><span class=hs-linenum>254: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>predicate</span> <span class='hs-conid'>Break</span> <span class='hs-conid'>X</span> <span class='hs-conid'>Y</span> <span class='hs-conid'>Z</span>   <span class='hs-keyglyph'>=</span> <span class='hs-layout'>(</span><span class='hs-varid'>len</span> <span class='hs-conid'>X</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-layout'>(</span><span class='hs-varid'>len</span> <span class='hs-conid'>Y</span><span class='hs-layout'>)</span> <span class='hs-varop'>+</span> <span class='hs-layout'>(</span><span class='hs-varid'>len</span> <span class='hs-conid'>Z</span><span class='hs-layout'>)</span> <span class='hs-keyword'>@-}</span>
+</pre>
+
+<h2 id="abstractly-refined-lists">Abstractly Refined Lists<a class="headerlink" href="#abstractly-refined-lists" title="Permanent link">&para;</a></h2>
+<p>Right, we've been going on for a bit. Time to put things <em>in order</em>.</p>
+<p>To recap: we've already seen one way to abstractly refine lists: 
+to recover a <em>generic</em> means of refining a <em>monomorphic</em> list 
+(e.g. the list of <code>Int</code> keys.) However, in that case we were 
+talking about <em>individual</em> keys.
+Next, we build upon the dependent-tuples technique we just 
+saw to use abstract refinements to relate <em>different</em> 
+elements inside containers.</p>
+<p>In particular, we can use them to specify that <em>every pair</em> 
+of elements inside the list is related according to some 
+abstract relation <code>p</code>. By <em>instantiating</em> <code>p</code> appropriately,
+we will be able to recover various forms of (dis) order. </p>
+<p>Consider the refined definition of good old Haskell lists:</p>
+<pre><span class=hs-linenum>277: </span><span class='hs-keyword'>data</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Prop</span><span class='hs-varop'>&gt;</span> <span class='hs-keyword'>where</span>
+<span class=hs-linenum>278: </span>  <span class='hs-keyglyph'>|</span> <span class='hs-conid'>[]</span>  <span class='hs-keyglyph'>::</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span><span class='hs-varop'>&gt;</span>
+<span class=hs-linenum>279: </span>  <span class='hs-keyglyph'>|</span> <span class='hs-layout'>(</span><span class='hs-conop'>:</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>h</span><span class='hs-conop'>:</span><span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span> <span class='hs-varid'>h</span><span class='hs-varop'>&gt;</span><span class='hs-keyglyph'>]</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span><span class='hs-varop'>&gt;</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span><span class='hs-varop'>&gt;</span>
+</pre>
+
+<p>Whoa! Thats a bit of a mouthful. Lets break it down.</p>
+<ul>
+<li>
+<p>The type is parameterized with a refinement <code>p :: a -&gt; a -&gt; Prop</code> 
+  Think of <code>p</code> as a <em>binary relation</em> over the <code>a</code> values comprising
+  the list.</p>
+</li>
+<li>
+<p>The empty list <code>[]</code> is a <code>[]&lt;p&gt;</code>. Clearly, the empty list has no
+  elements whatsoever and so every pair is trivially, or rather, 
+  vacuously related by <code>p</code>.</p>
+</li>
+<li>
+<p>The cons constructor <code>(:)</code> takes a head <code>h</code> of type <code>a</code> and a tail
+  of <code>a&lt;p h&gt;</code> values, each of which is <em>related to</em> <code>h</code> <strong>and</strong> which 
+  (recursively) are pairwise related <code>[...]&lt;p&gt;</code> and returns a list where 
+  <em>all</em> elements are pairwise related <code>[a]&lt;p&gt;</code>.</p>
+</li>
+</ul>
+<h2 id="pairwise-related">Pairwise Related<a class="headerlink" href="#pairwise-related" title="Permanent link">&para;</a></h2>
+<p>Note that we're being a bit sloppy when we say <em>pairwise</em> related.</p>
+<p>What we really mean is that if a list</p>
+<pre><span class=hs-linenum>303: </span><span class='hs-keyglyph'>[</span><span class='hs-varid'>x1</span><span class='hs-layout'>,</span><span class='hs-varop'>...</span><span class='hs-layout'>,</span><span class='hs-varid'>xn</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>::</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span><span class='hs-varop'>&gt;</span>
+</pre>
+
+<p>then for each <code>1 &lt;= i &lt; j &lt;= n</code> we have <code>(p xi xj)</code>.</p>
+<p>To see why, consider the list</p>
+<pre><span class=hs-linenum>309: </span><span class='hs-keyglyph'>[</span><span class='hs-varid'>x1</span><span class='hs-layout'>,</span> <span class='hs-varid'>x2</span><span class='hs-layout'>,</span> <span class='hs-varid'>x3</span><span class='hs-layout'>,</span> <span class='hs-varop'>...</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>::</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span><span class='hs-varop'>&gt;</span>
+</pre>
+
+<p>This list unfolds into a head and tail </p>
+<pre><span class=hs-linenum>313: </span><span class='hs-definition'>x1</span>                <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span>
+<span class=hs-linenum>314: </span><span class='hs-keyglyph'>[</span><span class='hs-varid'>x2</span><span class='hs-layout'>,</span> <span class='hs-varid'>x3</span><span class='hs-layout'>,</span><span class='hs-varop'>...</span><span class='hs-keyglyph'>]</span>      <span class='hs-keyglyph'>::</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span> <span class='hs-varid'>x1</span><span class='hs-varop'>&gt;</span><span class='hs-keyglyph'>]</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span><span class='hs-varop'>&gt;</span>
+</pre>
+
+<p>The above tail unfolds into</p>
+<pre><span class=hs-linenum>318: </span><span class='hs-definition'>x2</span>                <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span> <span class='hs-varid'>x1</span><span class='hs-varop'>&gt;</span>
+<span class=hs-linenum>319: </span><span class='hs-keyglyph'>[</span><span class='hs-varid'>x3</span><span class='hs-layout'>,</span> <span class='hs-varop'>...</span><span class='hs-keyglyph'>]</span>         <span class='hs-keyglyph'>::</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span> <span class='hs-varid'>x1</span> <span class='hs-varop'>&amp;&amp;</span> <span class='hs-varid'>p</span> <span class='hs-varid'>x2</span><span class='hs-varop'>&gt;</span><span class='hs-keyglyph'>]</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span><span class='hs-varop'>&gt;</span>
+</pre>
+
+<p>And finally into </p>
+<pre><span class=hs-linenum>323: </span><span class='hs-definition'>x3</span>                <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span> <span class='hs-varid'>x1</span> <span class='hs-varop'>&amp;&amp;</span> <span class='hs-varid'>p</span> <span class='hs-varid'>x2</span><span class='hs-varop'>&gt;</span>
+<span class=hs-linenum>324: </span><span class='hs-keyglyph'>[</span><span class='hs-varop'>...</span><span class='hs-keyglyph'>]</span>             <span class='hs-keyglyph'>::</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span> <span class='hs-varid'>x1</span> <span class='hs-varop'>&amp;&amp;</span> <span class='hs-varid'>p</span> <span class='hs-varid'>x2</span> <span class='hs-varop'>&amp;&amp;</span> <span class='hs-varid'>p</span> <span class='hs-varid'>x3</span><span class='hs-varop'>&gt;</span><span class='hs-keyglyph'>]</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span><span class='hs-varop'>&gt;</span>
+</pre>
+
+<p>That is, each element <code>xj</code> satisfies the refinement 
+<code>(p xi xj)</code> for each <code>i &lt; j</code>.</p>
+<h2 id="using-abstractly-refined-lists">Using Abstractly Refined Lists<a class="headerlink" href="#using-abstractly-refined-lists" title="Permanent link">&para;</a></h2>
+<p>Urgh. <em>Math is hard!</em>  </p>
+<p>Lets see how we can <em>program</em> with these funnily refined lists.</p>
+<p>For starters, we can define a few helpful type aliases.</p>
+<pre><span class=hs-linenum>340: </span><span class='hs-keyword'>{-@</span> <span class='hs-keyword'>type</span> <span class='hs-conid'>IncrList</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span><span class='hs-varop'>&lt;</span><span class='hs-layout'>{</span><span class='hs-keyglyph'>\</span><span class='hs-varid'>xi</span> <span class='hs-varid'>xj</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>xi</span> <span class='hs-varop'>&lt;=</span> <span class='hs-varid'>xj</span><span class='hs-layout'>}</span><span class='hs-varop'>&gt;</span> <span class='hs-keyword'>@-}</span>      
+<span class=hs-linenum>341: </span><span class='hs-keyword'>{-@</span> <span class='hs-keyword'>type</span> <span class='hs-conid'>DecrList</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span><span class='hs-varop'>&lt;</span><span class='hs-layout'>{</span><span class='hs-keyglyph'>\</span><span class='hs-varid'>xi</span> <span class='hs-varid'>xj</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>xi</span> <span class='hs-varop'>&gt;=</span> <span class='hs-varid'>xj</span><span class='hs-layout'>}</span><span class='hs-varop'>&gt;</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>342: </span><span class='hs-keyword'>{-@</span> <span class='hs-keyword'>type</span> <span class='hs-conid'>UniqList</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span><span class='hs-varop'>&lt;</span><span class='hs-layout'>{</span><span class='hs-keyglyph'>\</span><span class='hs-varid'>xi</span> <span class='hs-varid'>xj</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>xi</span> <span class='hs-varop'>/=</span> <span class='hs-varid'>xj</span><span class='hs-layout'>}</span><span class='hs-varop'>&gt;</span> <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p>As you might expect, an <code>IncrList</code> is a list of values in <em>increasing</em> order:</p>
+<pre><span class=hs-linenum>348: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>whatGosUp</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>IncrList</span> <span class='hs-conid'>Integer</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>349: </span><a class=annot href="#"><span class=annottext>[(GHC.Integer.Type.Integer)]&lt;\xi VV -&gt; (xi &lt;= VV)&gt;</span><span class='hs-definition'>whatGosUp</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : [{VV : (GHC.Integer.Type.Integer) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 9)}]&lt;\x2 VV -&gt; (VV == (x2 + 1)) &amp;&amp; (VV &gt; 0) &amp;&amp; (VV &gt; x2) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 9)&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-keyglyph'>[</span></a><span class='hs-num'>1</span><span class='hs-layout'>,</span><span class='hs-num'>2</span><span class='hs-layout'>,</span><span class='hs-num'>3</span><span class='hs-keyglyph'>]</span>
+</pre>
+
+<p>Similarly, a <code>DecrList</code> contains its values in <em>decreasing</em> order:</p>
+<pre><span class=hs-linenum>355: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>mustGoDown</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>DecrList</span> <span class='hs-conid'>Integer</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>356: </span><a class=annot href="#"><span class=annottext>[(GHC.Integer.Type.Integer)]&lt;\xi VV -&gt; (xi &gt;= VV)&gt;</span><span class='hs-definition'>mustGoDown</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : [{VV : (GHC.Integer.Type.Integer) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 9)}]&lt;\x3 VV -&gt; (VV == 1) &amp;&amp; (x3 /= VV) &amp;&amp; (VV &gt; 0) &amp;&amp; (x3 &gt;= VV) &amp;&amp; (VV &lt; x3)&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-keyglyph'>[</span></a><span class='hs-num'>3</span><span class='hs-layout'>,</span><span class='hs-num'>2</span><span class='hs-layout'>,</span><span class='hs-num'>1</span><span class='hs-keyglyph'>]</span>
+</pre>
+
+<p>My personal favorite though, is a <code>UniqList</code> which has <em>no duplicates</em>:</p>
+<pre><span class=hs-linenum>362: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>noDuplicates</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>UniqList</span> <span class='hs-conid'>Integer</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>363: </span><a class=annot href="#"><span class=annottext>[(GHC.Integer.Type.Integer)]&lt;\xi VV -&gt; (xi /= VV)&gt;</span><span class='hs-definition'>noDuplicates</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : [{VV : (GHC.Integer.Type.Integer) | (VV &gt; 0) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 9)}]&lt;\x3 VV -&gt; (x3 /= VV) &amp;&amp; (VV &gt; 0) &amp;&amp; (x3 &gt;= VV) &amp;&amp; (VV &lt; x3) &amp;&amp; (0 &lt;= VV) &amp;&amp; (VV &lt;= 9)&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-keyglyph'>[</span></a><span class='hs-num'>1</span><span class='hs-layout'>,</span><span class='hs-num'>3</span><span class='hs-layout'>,</span><span class='hs-num'>2</span><span class='hs-keyglyph'>]</span>
+</pre>
+
+<h2 id="sorting-lists">Sorting Lists<a class="headerlink" href="#sorting-lists" title="Permanent link">&para;</a></h2>
+<p>Its all very well to <em>specify</em> lists with various kinds of invariants. 
+The question is, how easy is it to <em>establish</em> these invariants?</p>
+<p>Lets find out, by turning inevitably to that staple of all forms of
+formal verification: your usual textbook sorting procedures.</p>
+<p><strong>Insertion Sort</strong></p>
+<p>First up: insertion sort. Well, no surprises here:</p>
+<pre><span class=hs-linenum>380: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>insertSort</span>    <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>Ord</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-varid'>xs</span><span class='hs-conop'>:</span><span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-conid'>IncrList</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>381: </span><a class=annot href="#"><span class=annottext>forall a. (GHC.Classes.Ord a) =&gt; [a] -&gt; [a]&lt;\xi VV -&gt; (xi &lt;= VV)&gt;</span><span class='hs-definition'>insertSort</span></a> <span class='hs-conid'>[]</span>     <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>forall &lt;p :: a-&gt; a-&gt; Bool&gt;.
+{VV : [{VV : a | false}]&lt;p&gt; | (((null VV)) &lt;=&gt; true) &amp;&amp; ((len VV) == 0)}</span><span class='hs-conid'>[]</span></a>
+<span class=hs-linenum>382: </span><span class='hs-definition'>insertSort</span> <span class='hs-layout'>(</span><span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-varid'>xs</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>a -&gt; [a]&lt;\xi VV -&gt; (xi &lt;= VV)&gt; -&gt; [a]&lt;\xi VV -&gt; (xi &lt;= VV)&gt;</span><span class='hs-varid'>insert</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>[a] -&gt; [a]&lt;\xi VV -&gt; (xi &lt;= VV)&gt;</span><span class='hs-varid'>insertSort</span></a> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV == xs) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>xs</span></a><span class='hs-layout'>)</span> 
+</pre>
+
+<p>The hard work is done by <code>insert</code> which places an 
+element into the correct position of a sorted list</p>
+<pre><span class=hs-linenum>389: </span><a class=annot href="#"><span class=annottext>forall a.
+(GHC.Classes.Ord a) =&gt;
+a
+-&gt; x1:[a]&lt;\x2 VV -&gt; (VV &gt;= x2)&gt;
+-&gt; {VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | (VV /= x1) &amp;&amp; ((len VV) &gt; 0) &amp;&amp; ((len VV) &gt; (len x1))}</span><span class='hs-definition'>insert</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>y</span></a> <span class='hs-conid'>[]</span>     <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : [{VV : a | false}]&lt;\_ VV -&gt; false&gt; | (((null VV)) &lt;=&gt; true) &amp;&amp; ((len VV) == 0) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-keyglyph'>[</span></a><a class=annot href="#"><span class=annottext>{VV : a | (VV == y)}</span><span class='hs-varid'>y</span></a><span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>390: </span><span class='hs-definition'>insert</span> <span class='hs-varid'>y</span> <span class='hs-layout'>(</span><span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-varid'>xs</span><span class='hs-layout'>)</span> 
+<span class=hs-linenum>391: </span>  <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == y)}</span><span class='hs-varid'>y</span></a> <a class=annot href="#"><span class=annottext>x:a -&gt; y:a -&gt; {VV : (GHC.Types.Bool) | (((Prop VV)) &lt;=&gt; (x &lt;= y))}</span><span class='hs-varop'>&lt;=</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a>      <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == y)}</span><span class='hs-varid'>y</span></a> <a class=annot href="#"><span class=annottext>forall &lt;p :: a-&gt; a-&gt; Bool&gt;.
+x:{VV : a | (VV &gt;= y)}
+-&gt; xs:[{VV : a&lt;p x&gt; | (VV &gt;= y)}]&lt;p&gt;
+-&gt; {VV : [{VV : a | (VV &gt;= y)}]&lt;p&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) == (1 + (len xs)))}</span><span class='hs-conop'>:</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>forall &lt;p :: a-&gt; a-&gt; Bool&gt;.
+x:{VV : a | (VV &gt;= x) &amp;&amp; (VV &gt;= y)}
+-&gt; xs:[{VV : a&lt;p x&gt; | (VV &gt;= x) &amp;&amp; (VV &gt;= y)}]&lt;p&gt;
+-&gt; {VV : [{VV : a | (VV &gt;= x) &amp;&amp; (VV &gt;= y)}]&lt;p&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) == (1 + (len xs)))}</span><span class='hs-conop'>:</span></a> <a class=annot href="#"><span class=annottext>{VV : [{VV : a | (VV &gt;= x)}]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | (VV == xs) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>xs</span></a> 
+<span class=hs-linenum>392: </span>  <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span>   <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>forall &lt;p :: a-&gt; a-&gt; Bool&gt;.
+x:{VV : a | (VV &gt;= x)}
+-&gt; xs:[{VV : a&lt;p x&gt; | (VV &gt;= x)}]&lt;p&gt;
+-&gt; {VV : [{VV : a | (VV &gt;= x)}]&lt;p&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) == (1 + (len xs)))}</span><span class='hs-conop'>:</span></a> <a class=annot href="#"><span class=annottext>forall a.
+(GHC.Classes.Ord a) =&gt;
+a
+-&gt; x1:[a]&lt;\x2 VV -&gt; (VV &gt;= x2)&gt;
+-&gt; {VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | (VV /= x1) &amp;&amp; ((len VV) &gt; 0) &amp;&amp; ((len VV) &gt; (len x1))}</span><span class='hs-varid'>insert</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == y)}</span><span class='hs-varid'>y</span></a> <a class=annot href="#"><span class=annottext>{VV : [{VV : a | (VV &gt;= x)}]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | (VV == xs) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>xs</span></a>
+</pre>
+
+<p>LiquidHaskell infers that if you give <code>insert</code> an element 
+and a sorted list, it returns a sorted list.</p>
+<pre><span class=hs-linenum>399: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>insert</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>Ord</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncrList</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncrList</span> <span class='hs-varid'>a</span> <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p>If you prefer the more Haskelly way of writing insertion sort, 
+i.e. with a <code>foldr</code>, that works too. Can you figure out why?</p>
+<pre><span class=hs-linenum>406: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>insertSort'</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>Ord</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncrList</span> <span class='hs-varid'>a</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>407: </span><a class=annot href="#"><span class=annottext>forall a. (GHC.Classes.Ord a) =&gt; [a] -&gt; [a]&lt;\xi VV -&gt; (xi &lt;= VV)&gt;</span><span class='hs-definition'>insertSort'</span></a> <a class=annot href="#"><span class=annottext>[a]</span><span class='hs-varid'>xs</span></a>  <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>(a -&gt; [a]&lt;\x4 VV -&gt; (VV &gt;= x4)&gt; -&gt; [a]&lt;\x4 VV -&gt; (VV &gt;= x4)&gt;)
+-&gt; [a]&lt;\x4 VV -&gt; (VV &gt;= x4)&gt; -&gt; [a] -&gt; [a]&lt;\x4 VV -&gt; (VV &gt;= x4)&gt;</span><span class='hs-varid'>foldr</span></a> <a class=annot href="#"><span class=annottext>a -&gt; [a]&lt;\xi VV -&gt; (xi &lt;= VV)&gt; -&gt; [a]&lt;\xi VV -&gt; (xi &lt;= VV)&gt;</span><span class='hs-varid'>insert</span></a> <a class=annot href="#"><span class=annottext>{VV : [{VV : a | false}]&lt;\_ VV -&gt; false&gt; | (((null VV)) &lt;=&gt; true) &amp;&amp; ((len VV) == 0) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-conid'>[]</span></a> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV == xs) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>xs</span></a>
+</pre>
+
+<p><strong>Merge Sort</strong></p>
+<p>Well, you know the song goes. First, we write a function 
+that <strong>splits</strong> the input into two parts:</p>
+<pre><span class=hs-linenum>416: </span><span class='hs-definition'>split</span>          <span class='hs-keyglyph'>::</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span><span class='hs-layout'>,</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>417: </span><a class=annot href="#"><span class=annottext>forall a.
+x1:{VV : [a] | ((len VV) &gt;= 0)}
+-&gt; ({VV : [a] | ((len VV) &gt;= 0) &amp;&amp; ((len VV) &lt;= (len x1))}, {VV : [a] | ((len VV) &gt;= 0) &amp;&amp; ((len VV) &lt;= (len x1))})&lt;\x2 VV -&gt; ((len x1) == ((len x2) + (len VV))) &amp;&amp; ((len VV) &gt;= 0) &amp;&amp; ((len VV) &lt;= (len x1)) &amp;&amp; ((len VV) &lt;= (len x2))&gt;</span><span class='hs-definition'>split</span></a> <span class='hs-layout'>(</span><span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-varid'>y</span><span class='hs-conop'>:</span><span class='hs-varid'>zs</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>forall a b &lt;p2 :: a-&gt; b-&gt; Bool&gt;.
+a:a
+-&gt; b:{VV : b&lt;p2 a&gt; | true}
+-&gt; {VV : (a, b)&lt;p2&gt; | ((fst VV) == a) &amp;&amp; ((snd VV) == b)}</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a><a class=annot href="#"><span class=annottext>forall &lt;p :: a-&gt; a-&gt; Bool&gt;.
+x:a
+-&gt; xs:[{VV : a&lt;p x&gt; | true}]&lt;p&gt;
+-&gt; {VV : [a]&lt;p&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) == (1 + (len xs)))}</span><span class='hs-conop'>:</span></a><a class=annot href="#"><span class=annottext>{VV : [a] | (VV == xs) &amp;&amp; (VV == xs) &amp;&amp; ((len VV) == (len xs)) &amp;&amp; ((len zs) == ((len ys) + (len VV))) &amp;&amp; ((len VV) &gt;= 0) &amp;&amp; ((len VV) &gt;= (len ys)) &amp;&amp; ((len VV) &lt;= (len zs))}</span><span class='hs-varid'>xs</span></a><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == y)}</span><span class='hs-varid'>y</span></a><a class=annot href="#"><span class=annottext>forall &lt;p :: a-&gt; a-&gt; Bool&gt;.
+x:a
+-&gt; xs:[{VV : a&lt;p x&gt; | true}]&lt;p&gt;
+-&gt; {VV : [a]&lt;p&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) == (1 + (len xs)))}</span><span class='hs-conop'>:</span></a><a class=annot href="#"><span class=annottext>{VV : [a] | (VV == ys) &amp;&amp; (VV == ys) &amp;&amp; ((len VV) == (len ys)) &amp;&amp; ((len zs) == ((len xs) + (len VV))) &amp;&amp; ((len zs) == ((len xs) + (len VV))) &amp;&amp; ((len VV) &gt;= 0) &amp;&amp; ((len VV) &lt;= (len xs)) &amp;&amp; ((len VV) &lt;= (len xs)) &amp;&amp; ((len VV) &lt;= (len zs))}</span><span class='hs-varid'>ys</span></a><span class='hs-layout'>)</span> 
+<span class=hs-linenum>418: </span>  <span class='hs-keyword'>where</span> 
+<span class=hs-linenum>419: </span>    <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : [a] | (VV == xs) &amp;&amp; ((len VV) == (len xs)) &amp;&amp; ((len zs) == ((len ys) + (len VV))) &amp;&amp; ((len VV) &gt;= 0) &amp;&amp; ((len VV) &gt;= (len ys)) &amp;&amp; ((len VV) &lt;= (len zs))}</span><span class='hs-varid'>xs</span></a><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV == ys) &amp;&amp; ((len VV) == (len ys)) &amp;&amp; ((len zs) == ((len xs) + (len VV))) &amp;&amp; ((len zs) == ((len xs) + (len VV))) &amp;&amp; ((len VV) &gt;= 0) &amp;&amp; ((len VV) &lt;= (len xs)) &amp;&amp; ((len VV) &lt;= (len xs)) &amp;&amp; ((len VV) &lt;= (len zs))}</span><span class='hs-varid'>ys</span></a><span class='hs-layout'>)</span>   <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>forall a.
+x1:{VV : [a] | ((len VV) &gt;= 0)}
+-&gt; ({VV : [a] | ((len VV) &gt;= 0) &amp;&amp; ((len VV) &lt;= (len x1))}, {VV : [a] | ((len VV) &gt;= 0) &amp;&amp; ((len VV) &lt;= (len x1))})&lt;\x2 VV -&gt; ((len x1) == ((len x2) + (len VV))) &amp;&amp; ((len VV) &gt;= 0) &amp;&amp; ((len VV) &lt;= (len x1)) &amp;&amp; ((len VV) &lt;= (len x2))&gt;</span><span class='hs-varid'>split</span></a> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV == zs) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>zs</span></a>
+<span class=hs-linenum>420: </span><span class='hs-definition'>split</span> <span class='hs-varid'>xs</span>       <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>forall a b &lt;p2 :: a-&gt; b-&gt; Bool&gt;.
+a:a
+-&gt; b:{VV : b&lt;p2 a&gt; | true}
+-&gt; {VV : (a, b)&lt;p2&gt; | ((fst VV) == a) &amp;&amp; ((snd VV) == b)}</span><span class='hs-layout'>(</span></a><a class=annot href="#"><span class=annottext>{VV : [a] | ((len VV) &gt;= 0)}</span><span class='hs-varid'>xs</span></a><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>{VV : [{VV : a | false}]&lt;\_ VV -&gt; false&gt; | (((null VV)) &lt;=&gt; true) &amp;&amp; ((len VV) == 0) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-conid'>[]</span></a><span class='hs-layout'>)</span>
+</pre>
+
+<p>Then we need a function that <strong>merges</strong> two (sorted) lists</p>
+<pre><span class=hs-linenum>426: </span><a class=annot href="#"><span class=annottext>forall a.
+(GHC.Classes.Ord a) =&gt;
+xs:[a]&lt;\x3 VV -&gt; (x3 &lt;= VV)&gt;
+-&gt; x1:[a]&lt;\x2 VV -&gt; (x2 &lt;= VV)&gt;
+-&gt; {VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | ((len VV) &gt;= 0) &amp;&amp; ((len VV) &gt;= (len x1)) &amp;&amp; ((len VV) &gt;= (len xs))}</span><span class='hs-definition'>merge</span></a> <a class=annot href="#"><span class=annottext>[a]&lt;\x1 VV -&gt; (x1 &lt;= VV)&gt;</span><span class='hs-varid'>xs</span></a> <span class='hs-conid'>[]</span>         <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : [a]&lt;\x1 VV -&gt; (x1 &lt;= VV)&gt; | (VV == xs) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>xs</span></a>
+<span class=hs-linenum>427: </span><span class='hs-definition'>merge</span> <span class='hs-conid'>[]</span> <span class='hs-varid'>ys</span>         <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : [a]&lt;\x1 VV -&gt; (x1 &lt;= VV)&gt; | ((len VV) &gt;= 0)}</span><span class='hs-varid'>ys</span></a>
+<span class=hs-linenum>428: </span><span class='hs-definition'>merge</span> <span class='hs-layout'>(</span><span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-varid'>xs</span><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><span class='hs-varid'>y</span><span class='hs-conop'>:</span><span class='hs-varid'>ys</span><span class='hs-layout'>)</span> 
+<span class=hs-linenum>429: </span>  <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>x:a -&gt; y:a -&gt; {VV : (GHC.Types.Bool) | (((Prop VV)) &lt;=&gt; (x &lt;= y))}</span><span class='hs-varop'>&lt;=</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == y)}</span><span class='hs-varid'>y</span></a>          <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>forall &lt;p :: a-&gt; a-&gt; Bool&gt;.
+x:{VV : a | (VV &gt;= x)}
+-&gt; xs:[{VV : a&lt;p x&gt; | (VV &gt;= x)}]&lt;p&gt;
+-&gt; {VV : [{VV : a | (VV &gt;= x)}]&lt;p&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) == (1 + (len xs)))}</span><span class='hs-conop'>:</span></a> <a class=annot href="#"><span class=annottext>forall a.
+(GHC.Classes.Ord a) =&gt;
+xs:[a]&lt;\x3 VV -&gt; (x3 &lt;= VV)&gt;
+-&gt; x1:[a]&lt;\x2 VV -&gt; (x2 &lt;= VV)&gt;
+-&gt; {VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | ((len VV) &gt;= 0) &amp;&amp; ((len VV) &gt;= (len x1)) &amp;&amp; ((len VV) &gt;= (len xs))}</span><span class='hs-varid'>merge</span></a> <a class=annot href="#"><span class=annottext>{VV : [{VV : a | (x &lt;= VV)}]&lt;\x1 VV -&gt; (x1 &lt;= VV)&gt; | (VV == xs) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>xs</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : a | (VV == y)}</span><span class='hs-varid'>y</span></a><a class=annot href="#"><span class=annottext>forall &lt;p :: a-&gt; a-&gt; Bool&gt;.
+x:{VV : a | (VV &gt;= x) &amp;&amp; (VV &gt;= y)}
+-&gt; xs:[{VV : a&lt;p x&gt; | (VV &gt;= x) &amp;&amp; (VV &gt;= y)}]&lt;p&gt;
+-&gt; {VV : [{VV : a | (VV &gt;= x) &amp;&amp; (VV &gt;= y)}]&lt;p&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) == (1 + (len xs)))}</span><span class='hs-conop'>:</span></a><a class=annot href="#"><span class=annottext>{VV : [{VV : a | (y &lt;= VV)}]&lt;\x1 VV -&gt; (x1 &lt;= VV)&gt; | (VV == ys) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>ys</span></a><span class='hs-layout'>)</span>
+<span class=hs-linenum>430: </span>  <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span>       <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == y)}</span><span class='hs-varid'>y</span></a> <a class=annot href="#"><span class=annottext>forall &lt;p :: a-&gt; a-&gt; Bool&gt;.
+x:{VV : a | (VV &gt;= y)}
+-&gt; xs:[{VV : a&lt;p x&gt; | (VV &gt;= y)}]&lt;p&gt;
+-&gt; {VV : [{VV : a | (VV &gt;= y)}]&lt;p&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) == (1 + (len xs)))}</span><span class='hs-conop'>:</span></a> <a class=annot href="#"><span class=annottext>forall a.
+(GHC.Classes.Ord a) =&gt;
+xs:[a]&lt;\x3 VV -&gt; (x3 &lt;= VV)&gt;
+-&gt; x1:[a]&lt;\x2 VV -&gt; (x2 &lt;= VV)&gt;
+-&gt; {VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | ((len VV) &gt;= 0) &amp;&amp; ((len VV) &gt;= (len x1)) &amp;&amp; ((len VV) &gt;= (len xs))}</span><span class='hs-varid'>merge</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a><a class=annot href="#"><span class=annottext>forall &lt;p :: a-&gt; a-&gt; Bool&gt;.
+x:{VV : a | (VV &gt; y) &amp;&amp; (VV &gt;= x)}
+-&gt; xs:[{VV : a&lt;p x&gt; | (VV &gt; y) &amp;&amp; (VV &gt;= x)}]&lt;p&gt;
+-&gt; {VV : [{VV : a | (VV &gt; y) &amp;&amp; (VV &gt;= x)}]&lt;p&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) == (1 + (len xs)))}</span><span class='hs-conop'>:</span></a><a class=annot href="#"><span class=annottext>{VV : [{VV : a | (x &lt;= VV)}]&lt;\x1 VV -&gt; (x1 &lt;= VV)&gt; | (VV == xs) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>xs</span></a><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>{VV : [{VV : a | (y &lt;= VV)}]&lt;\x1 VV -&gt; (x1 &lt;= VV)&gt; | (VV == ys) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>ys</span></a>
+</pre>
+
+<p>LiquidHaskell deduces that if both inputs are 
+ordered, then so is the output.</p>
+<pre><span class=hs-linenum>437: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>merge</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>Ord</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-conid'>IncrList</span> <span class='hs-varid'>a</span> 
+<span class=hs-linenum>438: </span>                     <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncrList</span> <span class='hs-varid'>a</span> 
+<span class=hs-linenum>439: </span>                     <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncrList</span> <span class='hs-varid'>a</span> 
+<span class=hs-linenum>440: </span>  <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p>Finally, using the above functions we write <code>mergeSort</code>:</p>
+<pre><span class=hs-linenum>446: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>mergeSort</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>Ord</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncrList</span> <span class='hs-varid'>a</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>447: </span><a class=annot href="#"><span class=annottext>forall a. (GHC.Classes.Ord a) =&gt; [a] -&gt; [a]&lt;\xi VV -&gt; (xi &lt;= VV)&gt;</span><span class='hs-definition'>mergeSort</span></a> <span class='hs-conid'>[]</span>  <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>forall &lt;p :: a-&gt; a-&gt; Bool&gt;.
+{VV : [{VV : a | false}]&lt;p&gt; | (((null VV)) &lt;=&gt; true) &amp;&amp; ((len VV) == 0)}</span><span class='hs-conid'>[]</span></a>
+<span class=hs-linenum>448: </span><span class='hs-definition'>mergeSort</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>x</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : [{VV : a | false}]&lt;\_ VV -&gt; false&gt; | (((null VV)) &lt;=&gt; true) &amp;&amp; ((len VV) == 0) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-keyglyph'>[</span></a><a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a><span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>449: </span><span class='hs-definition'>mergeSort</span> <span class='hs-varid'>xs</span>  <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>[a]&lt;\xi VV -&gt; (xi &lt;= VV)&gt;
+-&gt; [a]&lt;\xi VV -&gt; (xi &lt;= VV)&gt; -&gt; [a]&lt;\xi VV -&gt; (xi &lt;= VV)&gt;</span><span class='hs-varid'>merge</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>[a] -&gt; [a]&lt;\xi VV -&gt; (xi &lt;= VV)&gt;</span><span class='hs-varid'>mergeSort</span></a> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV == ys) &amp;&amp; (VV == ys) &amp;&amp; ((len VV) == (len ys)) &amp;&amp; ((len VV) &gt; 0) &amp;&amp; ((len VV) &gt;= 0) &amp;&amp; ((len VV) &gt;= (len zs))}</span><span class='hs-varid'>ys</span></a><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>[a] -&gt; [a]&lt;\xi VV -&gt; (xi &lt;= VV)&gt;</span><span class='hs-varid'>mergeSort</span></a> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV == zs) &amp;&amp; (VV == zs) &amp;&amp; ((len VV) == (len zs)) &amp;&amp; ((len VV) &gt;= 0) &amp;&amp; ((len VV) &lt;= (len ys)) &amp;&amp; ((len VV) &lt;= (len ys))}</span><span class='hs-varid'>zs</span></a><span class='hs-layout'>)</span> 
+<span class=hs-linenum>450: </span>  <span class='hs-keyword'>where</span> 
+<span class=hs-linenum>451: </span>    <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : [a] | (VV == ys) &amp;&amp; ((len VV) == (len ys)) &amp;&amp; ((len VV) &gt; 0) &amp;&amp; ((len VV) &gt;= (len zs))}</span><span class='hs-varid'>ys</span></a><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV == zs) &amp;&amp; ((len VV) == (len zs)) &amp;&amp; ((len VV) &gt;= 0) &amp;&amp; ((len VV) &lt;= (len ys)) &amp;&amp; ((len VV) &lt;= (len ys))}</span><span class='hs-varid'>zs</span></a><span class='hs-layout'>)</span>  <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>forall a.
+x1:{VV : [a] | ((len VV) &gt;= 0)}
+-&gt; ({VV : [a] | ((len VV) &gt;= 0) &amp;&amp; ((len VV) &lt;= (len x1))}, {VV : [a] | ((len VV) &gt;= 0) &amp;&amp; ((len VV) &lt;= (len x1))})&lt;\x2 VV -&gt; ((len x1) == ((len x2) + (len VV))) &amp;&amp; ((len VV) &gt;= 0) &amp;&amp; ((len VV) &lt;= (len x1)) &amp;&amp; ((len VV) &lt;= (len x2))&gt;</span><span class='hs-varid'>split</span></a> <a class=annot href="#"><span class=annottext>{VV : [a] | ((len VV) &gt;= 0)}</span><span class='hs-varid'>xs</span></a>
+</pre>
+
+<p>Lets see how LiquidHaskell proves the output type. </p>
+<ul>
+<li>
+<p>The first two cases are trivial: for an empty 
+  or singleton list, we can vacuously instantiate 
+  the abstract refinement with <em>any</em> concrete 
+  refinement.</p>
+</li>
+<li>
+<p>For the last case, we can inductively assume 
+ <code>mergeSort ys</code> and <code>mergeSort zs</code> are sorted 
+  lists, after which the type inferred for 
+  <code>merge</code> kicks in, allowing LiquidHaskell to conclude
+  that the output is also sorted.</p>
+</li>
+</ul>
+<p><strong>Quick Sort</strong></p>
+<p>The previous two were remarkable because they were, well, quite <em>unremarkable</em>. 
+Pretty much the standard textbook implementations work <em>as is</em>. 
+Unlike the <a href="http://web.cecs.pdx.edu/~sheard/Code/InsertMergeSort.html">classical</a> <a href="https://personal.cis.strath.ac.uk/conor.mcbride/pub/hasochism.pdf">developments</a> 
+using indexed types we don't have to define any auxiliary 
+types for increasing lists, or lists whose value is in a 
+particular range, or any specialized <code>cons</code> operators and 
+so on.</p>
+<p>With <em>quick sort</em> we need to do a tiny bit of work.</p>
+<p>We would like to define <code>quickSort</code> as</p>
+<pre><span class=hs-linenum>481: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>quickSort'</span>    <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>Ord</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncrList</span> <span class='hs-varid'>a</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>482: </span><span class='hs-definition'>quickSort'</span> <span class='hs-conid'>[]</span>     <span class='hs-keyglyph'>=</span> <span class='hs-conid'>[]</span>
+<span class=hs-linenum>483: </span><span class='hs-definition'>quickSort'</span> <span class='hs-layout'>(</span><span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-varid'>xs</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>lts</span> <span class='hs-varop'>++</span> <span class='hs-layout'>(</span><span class='hs-varid'>x</span> <span class='hs-conop'>:</span> <span class='hs-varid'>gts</span><span class='hs-layout'>)</span> 
+<span class=hs-linenum>484: </span>  <span class='hs-keyword'>where</span> 
+<span class=hs-linenum>485: </span>    <span class='hs-varid'>lts</span>           <span class='hs-keyglyph'>=</span> <span class='hs-varid'>quickSort'</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>y</span> <span class='hs-keyglyph'>|</span> <span class='hs-varid'>y</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>xs</span><span class='hs-layout'>,</span> <span class='hs-varid'>y</span> <span class='hs-varop'>&lt;</span> <span class='hs-varid'>x</span><span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>486: </span>    <span class='hs-varid'>gts</span>           <span class='hs-keyglyph'>=</span> <span class='hs-varid'>quickSort'</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>z</span> <span class='hs-keyglyph'>|</span> <span class='hs-varid'>z</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>xs</span><span class='hs-layout'>,</span> <span class='hs-varid'>z</span> <span class='hs-varop'>&gt;=</span> <span class='hs-varid'>x</span><span class='hs-keyglyph'>]</span>
+</pre>
+
+<p>But, if you try it out, you'll see that LiquidHaskell 
+<em>does not approve</em>. What could possibly be the trouble?</p>
+<p>The problem lies with <em>append</em>. What type do we give <code>++</code>? </p>
+<p>We might try something like</p>
+<pre><span class=hs-linenum>495: </span><span class='hs-layout'>(</span><span class='hs-varop'>++</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>IncrList</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncrList</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncrList</span> <span class='hs-varid'>a</span>
+</pre>
+
+<p>but of course, this is bogus, as </p>
+<pre><span class=hs-linenum>499: </span><span class='hs-keyglyph'>[</span><span class='hs-num'>1</span><span class='hs-layout'>,</span><span class='hs-num'>2</span><span class='hs-layout'>,</span><span class='hs-num'>4</span><span class='hs-keyglyph'>]</span> <span class='hs-varop'>++</span> <span class='hs-keyglyph'>[</span><span class='hs-num'>3</span><span class='hs-layout'>,</span><span class='hs-num'>5</span><span class='hs-layout'>,</span><span class='hs-num'>6</span><span class='hs-keyglyph'>]</span>
+</pre>
+
+<p>is decidedly not an <code>IncrList</code>!</p>
+<p>Instead, at this particular use of <code>++</code>, there is
+an extra nugget of information: there is a <em>pivot</em>
+element <code>x</code> such that every element in the first 
+argument is less than <code>x</code> and every element in 
+the second argument is greater than <code>x</code>. </p>
+<p>There is no way we can give the usual append <code>++</code> 
+a type that reflects the above as there is no pivot 
+<code>x</code> to refer to. Thus, with a heavy heart, we must
+write a specialized pivot-append that uses this fact:</p>
+<pre><span class=hs-linenum>516: </span><a class=annot href="#"><span class=annottext>forall a.
+piv:a
+-&gt; x1:[{VV : a | (VV &lt; piv)}]&lt;\x3 VV -&gt; (VV &gt;= x3)&gt;
+-&gt; ys:[{VV : a | (piv &lt;= VV)}]&lt;\x2 VV -&gt; (x2 &lt;= VV)&gt;
+-&gt; {VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | (VV /= x1) &amp;&amp; (VV /= ys) &amp;&amp; ((len VV) &gt; 0) &amp;&amp; ((len VV) &gt; (len x1)) &amp;&amp; ((len VV) &gt; (len ys))}</span><span class='hs-definition'>pivApp</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>piv</span></a> <span class='hs-conid'>[]</span>     <a class=annot href="#"><span class=annottext>[{VV : a | (piv &lt;= VV)}]&lt;\x1 VV -&gt; (x1 &lt;= VV)&gt;</span><span class='hs-varid'>ys</span></a>  <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == piv)}</span><span class='hs-varid'>piv</span></a> <a class=annot href="#"><span class=annottext>forall &lt;p :: a-&gt; a-&gt; Bool&gt;.
+x:{VV : a | (VV &gt;= piv)}
+-&gt; xs:[{VV : a&lt;p x&gt; | (VV &gt;= piv)}]&lt;p&gt;
+-&gt; {VV : [{VV : a | (VV &gt;= piv)}]&lt;p&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) == (1 + (len xs)))}</span><span class='hs-conop'>:</span></a> <a class=annot href="#"><span class=annottext>{VV : [{VV : a | (piv &lt;= VV)}]&lt;\x1 VV -&gt; (x1 &lt;= VV)&gt; | (VV == ys) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>ys</span></a>
+<span class=hs-linenum>517: </span><span class='hs-definition'>pivApp</span> <span class='hs-varid'>piv</span> <span class='hs-layout'>(</span><span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-varid'>xs</span><span class='hs-layout'>)</span> <span class='hs-varid'>ys</span>  <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == x) &amp;&amp; (VV &lt; piv)}</span><span class='hs-varid'>x</span></a>   <a class=annot href="#"><span class=annottext>forall &lt;p :: a-&gt; a-&gt; Bool&gt;.
+x:{VV : a | (VV &gt;= x)}
+-&gt; xs:[{VV : a&lt;p x&gt; | (VV &gt;= x)}]&lt;p&gt;
+-&gt; {VV : [{VV : a | (VV &gt;= x)}]&lt;p&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) == (1 + (len xs)))}</span><span class='hs-conop'>:</span></a> <a class=annot href="#"><span class=annottext>forall a.
+piv:a
+-&gt; x1:[{VV : a | (VV &lt; piv)}]&lt;\x3 VV -&gt; (VV &gt;= x3)&gt;
+-&gt; ys:[{VV : a | (piv &lt;= VV)}]&lt;\x2 VV -&gt; (x2 &lt;= VV)&gt;
+-&gt; {VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | (VV /= x1) &amp;&amp; (VV /= ys) &amp;&amp; ((len VV) &gt; 0) &amp;&amp; ((len VV) &gt; (len x1)) &amp;&amp; ((len VV) &gt; (len ys))}</span><span class='hs-varid'>pivApp</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == piv)}</span><span class='hs-varid'>piv</span></a> <a class=annot href="#"><span class=annottext>{VV : [{VV : a | (VV &gt;= x) &amp;&amp; (VV &lt; piv)}]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | (VV == xs) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>xs</span></a> <a class=annot href="#"><span class=annottext>{VV : [{VV : a | (piv &lt;= VV)}]&lt;\x1 VV -&gt; (x1 &lt;= VV)&gt; | (VV == ys) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>ys</span></a>
+</pre>
+
+<p>Now, LiquidHaskell infers that </p>
+<pre><span class=hs-linenum>523: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>pivApp</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>piv</span><span class='hs-conop'>:</span><span class='hs-varid'>a</span> 
+<span class=hs-linenum>524: </span>           <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncrList</span> <span class='hs-keyword'>{v:</span><span class='hs-definition'>a</span> <span class='hs-keyword'>| v &lt;  piv}</span> 
+<span class=hs-linenum>525: </span>           <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncrList</span> <span class='hs-keyword'>{v:</span><span class='hs-definition'>a</span> <span class='hs-keyword'>| v &gt;= piv}</span> 
+<span class=hs-linenum>526: </span>           <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncrList</span> <span class='hs-varid'>a</span> 
+<span class=hs-linenum>527: </span>  <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p>And we can use <code>pivApp</code> to define `quickSort' simply as:</p>
+<pre><span class=hs-linenum>533: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>quickSort</span>    <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>Ord</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncrList</span> <span class='hs-varid'>a</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>534: </span><a class=annot href="#"><span class=annottext>forall a. (GHC.Classes.Ord a) =&gt; [a] -&gt; [a]&lt;\xi VV -&gt; (xi &lt;= VV)&gt;</span><span class='hs-definition'>quickSort</span></a> <span class='hs-conid'>[]</span>     <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>forall &lt;p :: a-&gt; a-&gt; Bool&gt;.
+{VV : [{VV : a | false}]&lt;p&gt; | (((null VV)) &lt;=&gt; true) &amp;&amp; ((len VV) == 0)}</span><span class='hs-conid'>[]</span></a>
+<span class=hs-linenum>535: </span><span class='hs-definition'>quickSort</span> <span class='hs-layout'>(</span><span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-varid'>xs</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>piv:a
+-&gt; [{VV : a | (VV &lt; piv)}]&lt;\xi VV -&gt; (xi &lt;= VV)&gt;
+-&gt; [{VV : a | (VV &gt;= piv)}]&lt;\xi VV -&gt; (xi &lt;= VV)&gt;
+-&gt; [a]&lt;\xi VV -&gt; (xi &lt;= VV)&gt;</span><span class='hs-varid'>pivApp</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>{VV : [{VV : a | (VV &lt; x)}]&lt;\xi VV -&gt; (xi &lt;= VV)&gt; | (VV == lts) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>lts</span></a> <a class=annot href="#"><span class=annottext>{VV : [{VV : a | (VV &gt;= x)}]&lt;\xi VV -&gt; (xi &lt;= VV)&gt; | (VV == gts) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>gts</span></a> 
+<span class=hs-linenum>536: </span>  <span class='hs-keyword'>where</span> 
+<span class=hs-linenum>537: </span>    <a class=annot href="#"><span class=annottext>[{VV : a | (VV &lt; x)}]&lt;\xi VV -&gt; (xi &lt;= VV)&gt;</span><span class='hs-varid'>lts</span></a>          <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>[{VV : a | (VV &lt; x)}]
+-&gt; [{VV : a | (VV &lt; x)}]&lt;\xi VV -&gt; (xi &lt;= VV)&gt;</span><span class='hs-varid'>quickSort</span></a> <a class=annot href="#"><span class=annottext>{VV : [{VV : a | (VV &lt; x)}]&lt;\_ VV -&gt; (VV &lt; x)&gt; | ((len VV) &gt;= 0) &amp;&amp; ((len VV) &lt;= (len xs))}</span><span class='hs-keyglyph'>[</span></a><a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>y</span></a> <span class='hs-keyglyph'>|</span> <span class='hs-varid'>y</span> <span class='hs-keyglyph'>&lt;-</span> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV == xs) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>xs</span></a><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>y</span></a> <a class=annot href="#"><span class=annottext>x:a -&gt; y:a -&gt; {VV : (GHC.Types.Bool) | (((Prop VV)) &lt;=&gt; (x &lt; y))}</span><span class='hs-varop'>&lt;</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a> <span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>538: </span>    <a class=annot href="#"><span class=annottext>[{VV : a | (VV &gt;= x)}]&lt;\xi VV -&gt; (xi &lt;= VV)&gt;</span><span class='hs-varid'>gts</span></a>          <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>[{VV : a | (VV &gt;= x)}]
+-&gt; [{VV : a | (VV &gt;= x)}]&lt;\xi VV -&gt; (xi &lt;= VV)&gt;</span><span class='hs-varid'>quickSort</span></a> <a class=annot href="#"><span class=annottext>{VV : [{VV : a | (VV &gt;= x)}]&lt;\_ VV -&gt; (VV &gt;= x)&gt; | ((len VV) &gt;= 0) &amp;&amp; ((len VV) &lt;= (len xs))}</span><span class='hs-keyglyph'>[</span></a><a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>z</span></a> <span class='hs-keyglyph'>|</span> <span class='hs-varid'>z</span> <span class='hs-keyglyph'>&lt;-</span> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV == xs) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>xs</span></a><span class='hs-layout'>,</span> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>z</span></a> <a class=annot href="#"><span class=annottext>x:a -&gt; y:a -&gt; {VV : (GHC.Types.Bool) | (((Prop VV)) &lt;=&gt; (x &gt;= y))}</span><span class='hs-varop'>&gt;=</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a><span class='hs-keyglyph'>]</span>
+</pre>
+
+<h2 id="really-sorting-lists">Really Sorting Lists<a class="headerlink" href="#really-sorting-lists" title="Permanent link">&para;</a></h2>
+<p>The convenient thing about our encoding is that the 
+underlying datatype is plain Haskell lists. 
+This yields two very concrete benefits. 
+First, as mentioned before, we can manipulate 
+sorted lists with the same functions we'd use 
+for regular lists.
+Second, by decoupling (or rather, parameterizing)
+the relation or property or invariant from the actual 
+data structure we can plug in different invariants, 
+sometimes in the <em>same</em> program.</p>
+<p>To see why this is useful, lets look at a <em>real-world</em> 
+sorting algorithm: the one used inside GHC's 
+<code>Data.List</code> <a href="http://www.haskell.org/ghc/docs/latest/html/libraries/base/src/Data-List.html#sort">module</a>.</p>
+<pre><span class=hs-linenum>560: </span><span class='hs-definition'>sort</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>Ord</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>561: </span><a class=annot href="#"><span class=annottext>forall a. (GHC.Classes.Ord a) =&gt; [a] -&gt; [a]&lt;\xi VV -&gt; (xi &lt;= VV)&gt;</span><span class='hs-definition'>sort</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : [{VV : [a]&lt;\x2 VV -&gt; (VV &gt;= x2)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt; | ((len VV) &gt; 0)}
+-&gt; {VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | ((len VV) &gt;= 0)}</span><span class='hs-varid'>mergeAll</span></a> <a class=annot href="#"><span class=annottext>forall &lt;q :: [a]-&gt; [[a]]-&gt; Bool, p :: [[a]]-&gt; [a]-&gt; Bool&gt;.
+(x:{VV : [{VV : [a]&lt;\x5 VV -&gt; (VV &gt;= x5)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt; | ((len VV) &gt; 0)}
+ -&gt; {VV : [a]&lt;\x4 VV -&gt; (VV &gt;= x4)&gt;&lt;p x&gt; | ((len VV) &gt;= 0)})
+-&gt; (y:[a]
+    -&gt; {VV : [{VV : [a]&lt;\x5 VV -&gt; (VV &gt;= x5)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt;&lt;q y&gt; | ((len VV) &gt; 0)})
+-&gt; x:[a]
+-&gt; exists [z:{VV : [{VV : [a]&lt;\x5 VV -&gt; (VV &gt;= x5)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt;&lt;q x&gt; | ((len VV) &gt; 0)}].{VV : [a]&lt;\x4 VV -&gt; (VV &gt;= x4)&gt;&lt;p z&gt; | ((len VV) &gt;= 0)}</span><span class='hs-varop'>.</span></a> <a class=annot href="#"><span class=annottext>[a]
+-&gt; {VV : [{VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt; | ((len VV) &gt; 0)}</span><span class='hs-varid'>sequences</span></a>
+<span class=hs-linenum>562: </span>  <span class='hs-keyword'>where</span>
+<span class=hs-linenum>563: </span>    <a class=annot href="#"><span class=annottext>[a]
+-&gt; {VV : [{VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt; | ((len VV) &gt; 0)}</span><span class='hs-varid'>sequences</span></a> <span class='hs-layout'>(</span><span class='hs-varid'>a</span><span class='hs-conop'>:</span><span class='hs-varid'>b</span><span class='hs-conop'>:</span><span class='hs-varid'>xs</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>564: </span>      <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == a)}</span><span class='hs-varid'>a</span></a> <a class=annot href="#"><span class=annottext>x:a
+-&gt; y:a
+-&gt; {VV : (GHC.Types.Ordering) | ((VV == GHC.Types.EQ) &lt;=&gt; (x == y)) &amp;&amp; ((VV == GHC.Types.GT) &lt;=&gt; (x &gt; y)) &amp;&amp; ((VV == GHC.Types.LT) &lt;=&gt; (x &lt; y))}</span><span class='hs-varop'>`compare`</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == b)}</span><span class='hs-varid'>b</span></a> <a class=annot href="#"><span class=annottext>x:(GHC.Types.Ordering)
+-&gt; y:(GHC.Types.Ordering)
+-&gt; {VV : (GHC.Types.Bool) | (((Prop VV)) &lt;=&gt; (x == y))}</span><span class='hs-varop'>==</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Ordering) | (VV == GHC.Types.GT) &amp;&amp; ((cmp VV) == GHC.Types.GT)}</span><span class='hs-conid'>GT</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>a:a
+-&gt; {VV : [{VV : a | (VV &gt; a)}]&lt;\x2 VV -&gt; (VV &gt; a) &amp;&amp; (VV &gt; x2)&gt; | ((len VV) &gt; 0)}
+-&gt; {VV : [a] | ((len VV) &gt;= 0)}
+-&gt; {VV : [{VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt; | ((len VV) &gt; 0)}</span><span class='hs-varid'>descending</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == b)}</span><span class='hs-varid'>b</span></a> <a class=annot href="#"><span class=annottext>{VV : [{VV : a | (VV == a) &amp;&amp; (VV &gt; b)}]&lt;\_ VV -&gt; false&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-keyglyph'>[</span></a><a class=annot href="#"><span class=annottext>{VV : a | (VV == a)}</span><span class='hs-varid'>a</span></a><span class='hs-keyglyph'>]</span>  <a class=annot href="#"><span class=annottext>{VV : [a] | (VV == xs) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>xs</span></a>
+<span class=hs-linenum>565: </span>      <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span>           <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>a:a
+-&gt; (x1:{VV : [{VV : a | (VV &gt;= a)}]&lt;\x3 VV -&gt; (VV &gt;= a) &amp;&amp; (VV &gt;= x3)&gt; | ((len VV) &gt; 0)}
+    -&gt; {VV : [a]&lt;\x2 VV -&gt; (VV &gt;= x2)&gt; | (VV /= x1) &amp;&amp; ((len VV) &gt; 0) &amp;&amp; ((len VV) &gt; (len x1))})
+-&gt; {VV : [a] | ((len VV) &gt;= 0)}
+-&gt; {VV : [{VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt; | ((len VV) &gt; 0)}</span><span class='hs-varid'>ascending</span></a>  <a class=annot href="#"><span class=annottext>{VV : a | (VV == b)}</span><span class='hs-varid'>b</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : a | (VV == a)}</span><span class='hs-varid'>a</span></a><a class=annot href="#"><span class=annottext>forall &lt;p :: a-&gt; a-&gt; Bool&gt;.
+x:{VV : a | (VV &gt;= a)}
+-&gt; xs:[{VV : a&lt;p x&gt; | (VV &gt;= a)}]&lt;p&gt;
+-&gt; {VV : [{VV : a | (VV &gt;= a)}]&lt;p&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) == (1 + (len xs)))}</span><span class='hs-conop'>:</span></a><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV == xs) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>xs</span></a>
+<span class=hs-linenum>566: </span>    <span class='hs-varid'>sequences</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>x</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : [{VV : [{VV : a | false}]&lt;\_ VV -&gt; false&gt; | false}]&lt;\_ VV -&gt; false&gt; | (((null VV)) &lt;=&gt; true) &amp;&amp; ((len VV) == 0) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-keyglyph'>[</span></a><a class=annot href="#"><span class=annottext>{VV : [{VV : a | (VV == a)}]&lt;\_ VV -&gt; false&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-keyglyph'>[</span></a><a class=annot href="#"><span class=annottext>{VV : a | (VV == a)}</span><span class='hs-varid'>x</span></a><span class='hs-keyglyph'>]</span><span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>567: </span>    <span class='hs-varid'>sequences</span> <span class='hs-conid'>[]</span>  <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : [{VV : [{VV : a | false}]&lt;\_ VV -&gt; false&gt; | false}]&lt;\_ VV -&gt; false&gt; | (((null VV)) &lt;=&gt; true) &amp;&amp; ((len VV) == 0) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-keyglyph'>[</span></a><a class=annot href="#"><span class=annottext>{VV : [{VV : a | false}]&lt;\_ VV -&gt; false&gt; | (((null VV)) &lt;=&gt; true) &amp;&amp; ((len VV) == 0) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-conid'>[]</span></a><span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>568: </span>
+<span class=hs-linenum>569: </span>    <a class=annot href="#"><span class=annottext>a:a
+-&gt; {VV : [{VV : a | (VV &gt; a)}]&lt;\x2 VV -&gt; (VV &gt; a) &amp;&amp; (VV &gt; x2)&gt; | ((len VV) &gt; 0)}
+-&gt; {VV : [a] | ((len VV) &gt;= 0)}
+-&gt; {VV : [{VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt; | ((len VV) &gt; 0)}</span><span class='hs-varid'>descending</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>a</span></a> <a class=annot href="#"><span class=annottext>{VV : [{VV : a | (VV &gt; a)}]&lt;\x1 VV -&gt; (VV &gt; a) &amp;&amp; (VV &gt; x1)&gt; | ((len VV) &gt; 0)}</span><span class='hs-keyword'>as</span></a> <span class='hs-layout'>(</span><span class='hs-varid'>b</span><span class='hs-conop'>:</span><span class='hs-varid'>bs</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>570: </span>      <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == a)}</span><span class='hs-varid'>a</span></a> <a class=annot href="#"><span class=annottext>x:a
+-&gt; y:a
+-&gt; {VV : (GHC.Types.Ordering) | ((VV == GHC.Types.EQ) &lt;=&gt; (x == y)) &amp;&amp; ((VV == GHC.Types.GT) &lt;=&gt; (x &gt; y)) &amp;&amp; ((VV == GHC.Types.LT) &lt;=&gt; (x &lt; y))}</span><span class='hs-varop'>`compare`</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == b)}</span><span class='hs-varid'>b</span></a> <a class=annot href="#"><span class=annottext>x:(GHC.Types.Ordering)
+-&gt; y:(GHC.Types.Ordering)
+-&gt; {VV : (GHC.Types.Bool) | (((Prop VV)) &lt;=&gt; (x == y))}</span><span class='hs-varop'>==</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Ordering) | (VV == GHC.Types.GT) &amp;&amp; ((cmp VV) == GHC.Types.GT)}</span><span class='hs-conid'>GT</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>a:a
+-&gt; {VV : [{VV : a | (VV &gt; a)}]&lt;\x2 VV -&gt; (VV &gt; a) &amp;&amp; (VV &gt; x2)&gt; | ((len VV) &gt; 0)}
+-&gt; {VV : [a] | ((len VV) &gt;= 0)}
+-&gt; {VV : [{VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt; | ((len VV) &gt; 0)}</span><span class='hs-varid'>descending</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == b)}</span><span class='hs-varid'>b</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : a | (VV == a)}</span><span class='hs-varid'>a</span></a><a class=annot href="#"><span class=annottext>forall &lt;p :: a-&gt; a-&gt; Bool&gt;.
+x:{VV : a | (VV &gt; b) &amp;&amp; (VV &gt;= a)}
+-&gt; xs:[{VV : a&lt;p x&gt; | (VV &gt; b) &amp;&amp; (VV &gt;= a)}]&lt;p&gt;
+-&gt; {VV : [{VV : a | (VV &gt; b) &amp;&amp; (VV &gt;= a)}]&lt;p&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) == (1 + (len xs)))}</span><span class='hs-conop'>:</span></a><a class=annot href="#"><span class=annottext>{VV : [{VV : a | (VV &gt; a)}]&lt;\x1 VV -&gt; (VV &gt; a) &amp;&amp; (VV &gt; x1)&gt; | (VV == as) &amp;&amp; ((len VV) &gt; 0) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-keyword'>as</span></a><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV == bs) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>bs</span></a>
+<span class=hs-linenum>571: </span>    <span class='hs-varid'>descending</span> <span class='hs-varid'>a</span> <span class='hs-keyword'>as</span> <span class='hs-varid'>bs</span>      <span class='hs-keyglyph'>=</span> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : a | (VV == a)}</span><span class='hs-varid'>a</span></a><a class=annot href="#"><span class=annottext>forall &lt;p :: a-&gt; a-&gt; Bool&gt;.
+x:{VV : a | (VV &gt;= a)}
+-&gt; xs:[{VV : a&lt;p x&gt; | (VV &gt;= a)}]&lt;p&gt;
+-&gt; {VV : [{VV : a | (VV &gt;= a)}]&lt;p&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) == (1 + (len xs)))}</span><span class='hs-conop'>:</span></a><a class=annot href="#"><span class=annottext>{VV : [{VV : a | (VV &gt; a)}]&lt;\x1 VV -&gt; (VV &gt; a) &amp;&amp; (VV &gt; x1)&gt; | (VV == as) &amp;&amp; ((len VV) &gt; 0) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-keyword'>as</span></a><span class='hs-layout'>)</span><a class=annot href="#"><span class=annottext>forall &lt;p :: [a]-&gt; [a]-&gt; Bool&gt;.
+x:{VV : [a]&lt;\x3 VV -&gt; (VV &gt;= x3)&gt; | ((len VV) &gt;= 0)}
+-&gt; xs:[{VV : [a]&lt;\x3 VV -&gt; (VV &gt;= x3)&gt;&lt;p x&gt; | ((len VV) &gt;= 0)}]&lt;p&gt;
+-&gt; {VV : [{VV : [a]&lt;\x3 VV -&gt; (VV &gt;= x3)&gt; | ((len VV) &gt;= 0)}]&lt;p&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) == (1 + (len xs)))}</span><span class='hs-conop'>:</span></a> <a class=annot href="#"><span class=annottext>[a]
+-&gt; {VV : [{VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt; | ((len VV) &gt; 0)}</span><span class='hs-varid'>sequences</span></a> <a class=annot href="#"><span class=annottext>{VV : [a] | ((len VV) &gt;= 0)}</span><span class='hs-varid'>bs</span></a>
+<span class=hs-linenum>572: </span>
+<span class=hs-linenum>573: </span>    <a class=annot href="#"><span class=annottext>a:a
+-&gt; (x1:{VV : [{VV : a | (VV &gt;= a)}]&lt;\x3 VV -&gt; (VV &gt;= a) &amp;&amp; (VV &gt;= x3)&gt; | ((len VV) &gt; 0)}
+    -&gt; {VV : [a]&lt;\x2 VV -&gt; (VV &gt;= x2)&gt; | (VV /= x1) &amp;&amp; ((len VV) &gt; 0) &amp;&amp; ((len VV) &gt; (len x1))})
+-&gt; {VV : [a] | ((len VV) &gt;= 0)}
+-&gt; {VV : [{VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt; | ((len VV) &gt; 0)}</span><span class='hs-varid'>ascending</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>a</span></a> <a class=annot href="#"><span class=annottext>x1:{VV : [{VV : a | (VV &gt;= a)}]&lt;\x2 VV -&gt; (VV &gt;= a) &amp;&amp; (VV &gt;= x2)&gt; | ((len VV) &gt; 0)}
+-&gt; {VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | (VV /= x1) &amp;&amp; ((len VV) &gt; 0) &amp;&amp; ((len VV) &gt; (len x1))}</span><span class='hs-keyword'>as</span></a> <span class='hs-layout'>(</span><span class='hs-varid'>b</span><span class='hs-conop'>:</span><span class='hs-varid'>bs</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>574: </span>      <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == a)}</span><span class='hs-varid'>a</span></a> <a class=annot href="#"><span class=annottext>x:a
+-&gt; y:a
+-&gt; {VV : (GHC.Types.Ordering) | ((VV == GHC.Types.EQ) &lt;=&gt; (x == y)) &amp;&amp; ((VV == GHC.Types.GT) &lt;=&gt; (x &gt; y)) &amp;&amp; ((VV == GHC.Types.LT) &lt;=&gt; (x &lt; y))}</span><span class='hs-varop'>`compare`</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == b)}</span><span class='hs-varid'>b</span></a> <a class=annot href="#"><span class=annottext>x:(GHC.Types.Ordering)
+-&gt; y:(GHC.Types.Ordering)
+-&gt; {VV : (GHC.Types.Bool) | (((Prop VV)) &lt;=&gt; (x /= y))}</span><span class='hs-varop'>/=</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Ordering) | (VV == GHC.Types.GT) &amp;&amp; ((cmp VV) == GHC.Types.GT)}</span><span class='hs-conid'>GT</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>a:a
+-&gt; (x1:{VV : [{VV : a | (VV &gt;= a)}]&lt;\x3 VV -&gt; (VV &gt;= a) &amp;&amp; (VV &gt;= x3)&gt; | ((len VV) &gt; 0)}
+    -&gt; {VV : [a]&lt;\x2 VV -&gt; (VV &gt;= x2)&gt; | (VV /= x1) &amp;&amp; ((len VV) &gt; 0) &amp;&amp; ((len VV) &gt; (len x1))})
+-&gt; {VV : [a] | ((len VV) &gt;= 0)}
+-&gt; {VV : [{VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt; | ((len VV) &gt; 0)}</span><span class='hs-varid'>ascending</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == b)}</span><span class='hs-varid'>b</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>ys:{VV : [{VV : a | (VV &gt;= a) &amp;&amp; (VV &gt;= b)}]&lt;\x2 VV -&gt; (VV &gt;= a) &amp;&amp; (VV &gt;= b) &amp;&amp; (VV &gt;= x2)&gt; | ((len VV) &gt; 0)}
+-&gt; {VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | (VV /= ys) &amp;&amp; ((len VV) &gt; 0) &amp;&amp; ((len VV) &gt; (len ys))}</span><span class='hs-keyglyph'>\</span></a><a class=annot href="#"><span class=annottext>{VV : [{VV : a | (VV &gt;= a) &amp;&amp; (VV &gt;= b)}]&lt;\x1 VV -&gt; (VV &gt;= a) &amp;&amp; (VV &gt;= b) &amp;&amp; (VV &gt;= x1)&gt; | ((len VV) &gt; 0)}</span><span class='hs-varid'>ys</span></a> <span class='hs-keyglyph'>-&gt;</span> <a class=annot href="#"><span class=annottext>x1:{VV : [{VV : a | (VV &gt;= a)}]&lt;\x2 VV -&gt; (VV &gt;= a) &amp;&amp; (VV &gt;= x2)&gt; | ((len VV) &gt; 0)}
+-&gt; {VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | (VV /= x1) &amp;&amp; ((len VV) &gt; 0) &amp;&amp; ((len VV) &gt; (len x1))}</span><span class='hs-keyword'>as</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : a | (VV == a)}</span><span class='hs-varid'>a</span></a><a class=annot href="#"><span class=annottext>forall &lt;p :: a-&gt; a-&gt; Bool&gt;.
+x:{VV : a | (VV &gt;= a)}
+-&gt; xs:[{VV : a&lt;p x&gt; | (VV &gt;= a)}]&lt;p&gt;
+-&gt; {VV : [{VV : a | (VV &gt;= a)}]&lt;p&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) == (1 + (len xs)))}</span><span class='hs-conop'>:</span></a><a class=annot href="#"><span class=annottext>{VV : [{VV : a | (VV &gt;= a) &amp;&amp; (VV &gt;= b)}]&lt;\x1 VV -&gt; (VV &gt;= a) &amp;&amp; (VV &gt;= b) &amp;&amp; (VV &gt;= x1)&gt; | (VV == ys) &amp;&amp; ((len VV) &gt; 0) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>ys</span></a><span class='hs-layout'>)</span><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV == bs) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>bs</span></a>
+<span class=hs-linenum>575: </span>    <span class='hs-varid'>ascending</span> <span class='hs-varid'>a</span> <span class='hs-keyword'>as</span> <span class='hs-varid'>bs</span>       <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>x1:{VV : [{VV : a | (VV &gt;= a)}]&lt;\x2 VV -&gt; (VV &gt;= a) &amp;&amp; (VV &gt;= x2)&gt; | ((len VV) &gt; 0)}
+-&gt; {VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | (VV /= x1) &amp;&amp; ((len VV) &gt; 0) &amp;&amp; ((len VV) &gt; (len x1))}</span><span class='hs-keyword'>as</span></a> <a class=annot href="#"><span class=annottext>{VV : [{VV : a | (VV == a)}]&lt;\_ VV -&gt; false&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-keyglyph'>[</span></a><a class=annot href="#"><span class=annottext>{VV : a | (VV == a)}</span><span class='hs-varid'>a</span></a><span class='hs-keyglyph'>]</span><a class=annot href="#"><span class=annottext>forall &lt;p :: [a]-&gt; [a]-&gt; Bool&gt;.
+x:{VV : [a]&lt;\x3 VV -&gt; (VV &gt;= x3)&gt; | ((len VV) &gt;= 0)}
+-&gt; xs:[{VV : [a]&lt;\x3 VV -&gt; (VV &gt;= x3)&gt;&lt;p x&gt; | ((len VV) &gt;= 0)}]&lt;p&gt;
+-&gt; {VV : [{VV : [a]&lt;\x3 VV -&gt; (VV &gt;= x3)&gt; | ((len VV) &gt;= 0)}]&lt;p&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) == (1 + (len xs)))}</span><span class='hs-conop'>:</span></a> <a class=annot href="#"><span class=annottext>[a]
+-&gt; {VV : [{VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt; | ((len VV) &gt; 0)}</span><span class='hs-varid'>sequences</span></a> <a class=annot href="#"><span class=annottext>{VV : [a] | ((len VV) &gt;= 0)}</span><span class='hs-varid'>bs</span></a>
+<span class=hs-linenum>576: </span>
+<span class=hs-linenum>577: </span>    <a class=annot href="#"><span class=annottext>{VV : [{VV : [a]&lt;\x2 VV -&gt; (VV &gt;= x2)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt; | ((len VV) &gt;= 0)}
+-&gt; {VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | ((len VV) &gt;= 0)}</span><span class='hs-varid'>mergeAll</span></a> <span class='hs-keyglyph'>[</span><span class='hs-varid'>x</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | (VV == x) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>x</span></a>
+<span class=hs-linenum>578: </span>    <span class='hs-varid'>mergeAll</span> <span class='hs-varid'>xs</span>  <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : [{VV : [a]&lt;\x2 VV -&gt; (VV &gt;= x2)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt; | ((len VV) &gt;= 0)}
+-&gt; {VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | ((len VV) &gt;= 0)}</span><span class='hs-varid'>mergeAll</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>x1:{VV : [{VV : [a]&lt;\x2 VV -&gt; (VV &gt;= x2)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt; | ((len VV) &gt;= 0)}
+-&gt; {VV : [{VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt; | ((len VV) &gt;= 0) &amp;&amp; ((len VV) &lt;= (len x1))}</span><span class='hs-varid'>mergePairs</span></a> <a class=annot href="#"><span class=annottext>{VV : [{VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt; | ((len VV) &gt;= 0)}</span><span class='hs-varid'>xs</span></a><span class='hs-layout'>)</span>
+<span class=hs-linenum>579: </span>
+<span class=hs-linenum>580: </span>    <a class=annot href="#"><span class=annottext>x1:{VV : [{VV : [a]&lt;\x2 VV -&gt; (VV &gt;= x2)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt; | ((len VV) &gt;= 0)}
+-&gt; {VV : [{VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt; | ((len VV) &gt;= 0) &amp;&amp; ((len VV) &lt;= (len x1))}</span><span class='hs-varid'>mergePairs</span></a> <span class='hs-layout'>(</span><span class='hs-varid'>a</span><span class='hs-conop'>:</span><span class='hs-varid'>b</span><span class='hs-conop'>:</span><span class='hs-varid'>xs</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>[a]&lt;\xi VV -&gt; (xi &lt;= VV)&gt;
+-&gt; [a]&lt;\xi VV -&gt; (xi &lt;= VV)&gt; -&gt; [a]&lt;\xi VV -&gt; (xi &lt;= VV)&gt;</span><span class='hs-varid'>merge</span></a> <a class=annot href="#"><span class=annottext>{VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | (VV == a) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>a</span></a> <a class=annot href="#"><span class=annottext>{VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | (VV == b) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>b</span></a><a class=annot href="#"><span class=annottext>forall &lt;p :: [a]-&gt; [a]-&gt; Bool&gt;.
+x:{VV : [a]&lt;\x3 VV -&gt; (x3 &lt;= VV)&gt; | ((len VV) &gt;= 0)}
+-&gt; xs:[{VV : [a]&lt;\x3 VV -&gt; (x3 &lt;= VV)&gt;&lt;p x&gt; | ((len VV) &gt;= 0)}]&lt;p&gt;
+-&gt; {VV : [{VV : [a]&lt;\x3 VV -&gt; (x3 &lt;= VV)&gt; | ((len VV) &gt;= 0)}]&lt;p&gt; | (((null VV)) &lt;=&gt; false) &amp;&amp; ((len VV) == (1 + (len xs)))}</span><span class='hs-conop'>:</span></a> <a class=annot href="#"><span class=annottext>x1:{VV : [{VV : [a]&lt;\x2 VV -&gt; (VV &gt;= x2)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt; | ((len VV) &gt;= 0)}
+-&gt; {VV : [{VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt; | ((len VV) &gt;= 0) &amp;&amp; ((len VV) &lt;= (len x1))}</span><span class='hs-varid'>mergePairs</span></a> <a class=annot href="#"><span class=annottext>{VV : [{VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | ((len VV) &gt;= 0)}]&lt;\_ VV -&gt; ((len VV) &gt;= 0)&gt; | (VV == xs) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>xs</span></a>
+<span class=hs-linenum>581: </span>    <span class='hs-varid'>mergePairs</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>x</span><span class='hs-keyglyph'>]</span>      <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : [{VV : [{VV : a | false}]&lt;\_ VV -&gt; false&gt; | false}]&lt;\_ VV -&gt; false&gt; | (((null VV)) &lt;=&gt; true) &amp;&amp; ((len VV) == 0) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-keyglyph'>[</span></a><a class=annot href="#"><span class=annottext>{VV : [a]&lt;\x1 VV -&gt; (VV &gt;= x1)&gt; | (VV == a) &amp;&amp; ((len VV) &gt;= 0)}</span><span class='hs-varid'>x</span></a><span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>582: </span>    <span class='hs-varid'>mergePairs</span> <span class='hs-conid'>[]</span>       <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>forall &lt;p :: [a]-&gt; [a]-&gt; Bool&gt;.
+{VV : [{VV : [{VV : a | false}]&lt;\_ VV -&gt; false&gt; | false}]&lt;p&gt; | (((null VV)) &lt;=&gt; true) &amp;&amp; ((len VV) == 0)}</span><span class='hs-conid'>[]</span></a>
+</pre>
+
+<p>The interesting thing about the procedure is that it 
+generates some intermediate lists that are increasing 
+<em>and</em> others that are decreasing, and then somehow
+miraculously whips this whirlygig into a single 
+increasing list.</p>
+<p>Yet, to check this rather tricky algorithm with 
+LiquidHaskell we need merely write:</p>
+<pre><span class=hs-linenum>595: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>sort</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>Ord</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IncrList</span> <span class='hs-varid'>a</span>  <span class='hs-keyword'>@-}</span>
+</pre>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+
+
+<div class="blogpost-meta">
+  
+  <div class="blogpost-meta-whowhen">
+    
+        <div class="blogpost-meta-author">
+            Niki Vazou and Ranjit Jhala
+        </div>
+    
+    
+        <div class="blogpost-meta-date">
+            2013-07-29 16:12
+        </div>
+    
+  </div>
+  
+  
+  <div class="blogpost-meta-tags">
+              
+      <a href="../../tags.html#abstract-refinements" class="tag-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.5 7A1.5 1.5 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4 1.5 1.5 0 0 1 7 5.5 1.5 1.5 0 0 1 5.5 7m15.91 4.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.11 0-2 .89-2 2v7c0 .55.22 1.05.59 1.41l8.99 9c.37.36.87.59 1.42.59s1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.56-.23-1.06-.59-1.42"/></svg>abstract-refinements</a>
+    
+  </div>
+  
+</div>
+
+
+
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://join.slack.com/t/liquidhaskell/shared_invite/enQtMjY4MTk3NDkwODE3LTFmZGFkNGEzYWRkNDJmZDQ0ZGU1MzBiZWZiZDhhNmY3YTJiMjUzYTRlNjMyZDk1NDU3ZGIxYzhlOTIzN2UxNWE" target="_blank" rel="noopener" title="Join the LiquidHaskell slack channel" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 15a2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1 2-2h2zm1 0a2 2 0 0 1 2-2 2 2 0 0 1 2 2v5a2 2 0 0 1-2 2 2 2 0 0 1-2-2zm2-8a2 2 0 0 1-2-2 2 2 0 0 1 2-2 2 2 0 0 1 2 2v2zm0 1a2 2 0 0 1 2 2 2 2 0 0 1-2 2H4a2 2 0 0 1-2-2 2 2 0 0 1 2-2zm8 2a2 2 0 0 1 2-2 2 2 0 0 1 2 2 2 2 0 0 1-2 2h-2zm-1 0a2 2 0 0 1-2 2 2 2 0 0 1-2-2V5a2 2 0 0 1 2-2 2 2 0 0 1 2 2zm-2 8a2 2 0 0 1 2 2 2 2 0 0 1-2 2 2 2 0 0 1-2-2v-2zm0-1a2 2 0 0 1-2-2 2 2 0 0 1 2-2h5a2 2 0 0 1 2 2 2 2 0 0 1-2 2z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://groups.google.com/forum/#!forum/liquidhaskell" target="_blank" rel="noopener" title="Mail the LiquidHaskell users mailing list" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10 5.35 0 9.25-3.67 9.25-9.09 0-1.15-.15-1.81-.15-1.81"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/ranjitjhala" target="_blank" rel="noopener" title="Drop Ranjit Jhala an email" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-68.5 74.1c-8.9 9.7-22.9 12.9-35.2 8.1S160 493.2 160 480v-83.6c0-4 1.5-7.8 4.2-10.8l167.6-182.8c5.8-6.3 5.6-16-.4-22s-15.7-6.4-22-.7L106 360.8l-88.3-44.2C7.1 311.3.3 300.7 0 288.9s5.9-22.8 16.1-28.7l448-256c10.7-6.1 23.9-5.5 34 1.4"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/nikivazou" target="_blank" rel="noopener" title="Drop Niki Vazou an email" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M16.1 260.2c-22.6 12.9-20.5 47.3 3.6 57.3L160 376v103.3c0 18.1 14.6 32.7 32.7 32.7 9.7 0 18.9-4.3 25.1-11.8l62-74.3 123.9 51.6c18.9 7.9 40.8-4.5 43.9-24.7l64-416c1.9-12.1-3.4-24.3-13.5-31.2s-23.3-7.5-34-1.4zm52.1 25.5L409.7 90.6 190.1 336l1.2 1zm335.1 139.7-166.6-69.5 214.1-239.3z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/ucsd-progsys/liquidhaskell/issues" target="_blank" rel="noopener" title="Open a GitHub issue" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.top"], "search": "../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.83f73b43.min.js"></script>
+      
+    
+  </body>
+</html>
