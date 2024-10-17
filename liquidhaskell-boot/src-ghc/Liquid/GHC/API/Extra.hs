@@ -210,7 +210,7 @@ addNoInlinePragmasToBinds tcg = tcg{ tcg_binds = go (tcg_binds tcg) }
     markAbsBinds :: AbsBinds -> AbsBinds
     markAbsBinds absBinds0 =
         absBinds0
-          { abs_binds = fmap (fmap skipFirstHsBind) $ abs_binds absBinds0
+          { abs_binds = fmap skipFirstHsBind <$> abs_binds absBinds0
           , abs_exports = map markABE (abs_exports absBinds0)
           }
       where
