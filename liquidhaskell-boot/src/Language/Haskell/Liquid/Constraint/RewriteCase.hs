@@ -78,11 +78,11 @@ unify ctors globals = go
 -- to avoid producing equalities that can later produce redundant rewrites.
 groupUnifiableEqualities :: [(Expr, Expr)] -> [(Expr, Expr)]
 groupUnifiableEqualities = concatMap mkEqs . grouping
-    where 
-          mkEqs (e1: es) = [ (e1, e) | e <- es ]
-          mkEqs _        = []
-         
-          grouping eqs = fmap snd $ M.groupList $ eqs ++ fmap swap eqs
+  where
+    mkEqs (e1: es) = [ (e1, e) | e <- es ]
+    mkEqs _        = []
+
+    grouping eqs = fmap snd $ M.groupList $ eqs ++ fmap swap eqs
 
 getEqualities :: Expr -> [(Expr, Expr)]
 getEqualities (PAtom Eq e1 e2) = [(e1, e2)]
