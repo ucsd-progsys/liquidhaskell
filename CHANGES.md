@@ -15,6 +15,8 @@
   and constraint generation [#2336](https://github.com/ucsd-progsys/liquidhaskell/pull/2336).
 - Augmented the context of error messages [#2350](https://github.com/ucsd-progsys/liquidhaskell/pull/2350).
 - Add a new flag `--etabeta` to reason with lambdas in PLE [#2356](https://github.com/ucsd-progsys/liquidhaskell/pull/2356)
+- Enabling the LiquidHaskell plugin now enables `-fno-ignore-interface-pragmas` ([#2326](https://github.com/ucsd-progsys/liquidhaskell/pull/2326))
+  and `-dkeep-comments` ([#2367](https://github.com/ucsd-progsys/liquidhaskell/pull/2367)).
 
 ## 0.9.10.1 (2024-08-21)
 
