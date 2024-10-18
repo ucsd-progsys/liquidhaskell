@@ -623,9 +623,9 @@ fixExprToHsExpr _ e =
 constantToHsExpr :: F.Constant -> LHsExpr GhcPs
 -- constantToHsExpr (F.I c) = noLoc (HsLit NoExt (HsInt NoExt (mkIntegralLit c)))
 constantToHsExpr (F.I i) =
-  noLocA (HsOverLit noExtField (mkHsIntegral (mkIntegralLit i)))
+  noLocA $ mkHsOverLit (mkHsIntegral (mkIntegralLit i))
 constantToHsExpr (F.R d) =
-  noLocA (HsOverLit noExtField (mkHsFractional (mkTHFractionalLit (toRational d))))
+  noLocA $ mkHsOverLit (mkHsFractional (mkTHFractionalLit (toRational d)))
 constantToHsExpr _ =
   todo Nothing "constantToHsExpr: Not sure how to handle constructor L"
 

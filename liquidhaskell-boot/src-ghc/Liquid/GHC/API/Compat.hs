@@ -9,6 +9,7 @@ module Liquid.GHC.API.Compat (
   , realModule
 
   , mkHsTyConApp
+  , mkHsOverLit
   ) where
 
 import Data.Word (Word64)
@@ -42,3 +43,6 @@ realModule = Ghc.gHC_INTERNAL_REAL
 
 mkHsTyConApp ::  IdP GhcPs -> [LHsType GhcPs] -> LHsType GhcPs
 mkHsTyConApp tyconId tyargs = nlHsTyConApp NotPromoted Prefix tyconId (map (HsValArg noExtField) tyargs)
+
+mkHsOverLit :: HsOverLit GhcPs -> HsExpr GhcPs
+mkHsOverLit = HsOverLit noExtField
