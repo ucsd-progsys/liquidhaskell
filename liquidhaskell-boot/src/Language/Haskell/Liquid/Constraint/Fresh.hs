@@ -30,7 +30,6 @@ import           Control.Monad.State            (gets, get, put, modify)
 import           Control.Monad                  (when, (>=>))
 import           Prelude                        hiding (error)
 
-import           Language.Fixpoint.Misc  ((=>>))
 import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Types.Visitor (kvarsExpr)
 import           Language.Haskell.Liquid.Types.Fresh
@@ -77,9 +76,10 @@ freshTyExpr        :: Bool -> KVKind -> CoreExpr -> Type -> CG SpecType
 freshTyExpr allowTC k e _  = freshTyReftype allowTC k $ exprRefType e
 
 freshTyReftype     :: Bool -> KVKind -> SpecType -> CG SpecType
-freshTyReftype allowTC k _t = (fixTy t >>= refresh allowTC) =>> addKVars k
-  where
-    t                = {- F.tracepp ("freshTyReftype:" ++ show k) -} _t
+freshTyReftype allowTC k t = do
+    st <- fixTy t >>= refresh allowTC
+    addKVars k st
+    return st
 
 -- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive
 --   definitions, and also to update the KVar profile.

@@ -37,7 +37,7 @@ import qualified Data.HashSet                                  as S
 import qualified Data.List                                     as L
 import qualified Data.Foldable                                 as F
 import qualified Data.Functor.Identity
-import Language.Fixpoint.Misc ( (<<=), errorP, safeZip )
+import Language.Fixpoint.Misc (errorP, safeZip )
 import           Language.Fixpoint.Types.Visitor
 import qualified Language.Fixpoint.Types                       as F
 import qualified Language.Fixpoint.Types.Visitor               as F
@@ -659,7 +659,8 @@ consPattern γ (Rs.PatReturn e m _ _ _) t = do
 
 consPattern γ (Rs.PatProject xe _ τ c ys i) _ = do
   let yi = ys !! i
-  t    <- (addW . WfC γ) <<= freshTyType (typeclass (getConfig γ)) ProjectE (Var yi) τ
+  t    <- freshTyType (typeclass (getConfig γ)) ProjectE (Var yi) τ
+  _    <- (addW . WfC γ) t
   γ'   <- caseEnv γ xe [] (DataAlt c) ys (Just [i])
   ti   <- {- γ' ??= yi -} varRefType γ' yi
   addC (SubC γ' ti t) "consPattern:project"
