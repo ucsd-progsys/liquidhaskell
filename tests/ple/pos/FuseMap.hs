@@ -5,10 +5,7 @@
 module FuseMap where
 
 import Prelude hiding (map, foldr)
-
-type Proof = ()
-trivial = ()
-a ? b = a
+import Language.Haskell.Liquid.ProofCombinators
 
 -- When we allow the parser to accept lambdas in reflected
 -- functions this wont be needed
