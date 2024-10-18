@@ -30,6 +30,7 @@ import Language.Haskell.Liquid.GHC.Misc (fSrcSpan)
 import Liquid.GHC.API  (SrcSpan)
 import qualified Liquid.GHC.API as GHC
 import qualified GHC.Types.Name.Occurrence
+import Liquid.GHC.API.Compat
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Types.Errors
 import Language.Haskell.Liquid.Types.Names

@@ -2,6 +2,7 @@ module Language.Haskell.Liquid.Constraint.RewriteCase
     (getCaseRewrites) 
     where
 
+import           Liquid.GHC.API.Compat
 import           Language.Fixpoint.Types
 import qualified Language.Fixpoint.Misc as M
 import           Language.Haskell.Liquid.Constraint.Types

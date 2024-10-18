@@ -56,6 +56,7 @@ module Language.Haskell.Liquid.LHNameResolution
   ) where
 
 import qualified Liquid.GHC.API         as GHC hiding (Expr, panic)
+import           Liquid.GHC.API.Compat
 import qualified Language.Haskell.Liquid.GHC.Misc        as LH
 import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RType
