@@ -1,8 +1,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleContexts     #-}
 module Language.Haskell.Liquid.Types.Dictionaries (
-    makeDictionaries
-  , makeDictionary
+    makeDictionary
   , dfromList
   , dmapty
   , dmap
@@ -21,6 +20,7 @@ import           Language.Haskell.Liquid.Types.PrettyPrint ()
 import qualified Language.Haskell.Liquid.GHC.Misc       as GM
 import qualified Liquid.GHC.API        as Ghc
 import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.RTypeOp
 -- import           Language.Haskell.Liquid.Types.Visitors (freeVars)
@@ -29,15 +29,8 @@ import           Language.Haskell.Liquid.Types.Types
 import qualified Data.HashMap.Strict                       as M
 
 
-
-
-
-makeDictionaries :: [RInstance LocSpecType] -> DEnv F.Symbol LocSpecType
-makeDictionaries = DEnv . M.fromList . map makeDictionary
-
-
 makeDictionary :: RInstance LocSpecType -> (F.Symbol, M.HashMap F.Symbol (RISig LocSpecType))
-makeDictionary (RI c ts xts) = (makeDictionaryName (btc_tc c) ts, M.fromList (first val <$> xts))
+makeDictionary (RI c ts xts) = (makeDictionaryName (getLHNameSymbol <$> btc_tc c) ts, M.fromList (first val <$> xts))
 
 makeDictionaryName :: LocSymbol -> [LocSpecType] -> F.Symbol
 makeDictionaryName t ts

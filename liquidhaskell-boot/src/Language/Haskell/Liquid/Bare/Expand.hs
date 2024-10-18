@@ -45,6 +45,7 @@ import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 import qualified Liquid.GHC.API       as Ghc
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.DataDecl
+import           Language.Haskell.Liquid.Types.Names
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.RTypeOp
@@ -478,7 +479,7 @@ exprArg l msg = F.notracepp ("exprArg: " ++ msg) . go
     go (RExprArg e)     = val e
     go (RVar x _)       = EVar (F.symbol x)
     go (RApp x [] [] _) = EVar (F.symbol x)
-    go (RApp f ts [] _) = F.mkEApp (F.symbol <$> btc_tc f) (go <$> ts)
+    go (RApp f ts [] _) = F.mkEApp (getLHNameSymbol <$> btc_tc f) (go <$> ts)
     go (RAppTy t1 t2 _) = F.EApp (go t1) (go t2)
     go z                = panic sp $ Printf.printf "Unexpected expression parameter: %s in %s" (show z) msg
     sp                  = Just (GM.sourcePosSrcSpan l)

@@ -34,6 +34,7 @@ import qualified Language.Haskell.Liquid.GHC.Misc       as GM
 import qualified Liquid.GHC.API        as Ghc
 import           Language.Haskell.Liquid.Types.DataDecl
 import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
 import qualified Language.Haskell.Liquid.Types.RefType  as RT
 import           Language.Haskell.Liquid.Types.RType
@@ -44,7 +45,6 @@ import qualified Language.Fixpoint.Misc                 as Misc
 import qualified Language.Haskell.Liquid.Misc           as Misc
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.WiredIn
-import           Language.Haskell.Liquid.Types.Names (selfSymbol)
 
 import qualified Language.Haskell.Liquid.Measure        as Ms
 
@@ -418,11 +418,11 @@ makeConTypes'' env name spec dcs vdcs = do
   return (unzip zong)
 
 
-type DSizeMap = M.HashMap F.Symbol (F.Symbol, [F.Symbol])
+type DSizeMap = M.HashMap F.Symbol (F.Symbol, [LHName])
 normalizeDSize :: [([LocBareType], F.LocSymbol)] -> DSizeMap
 normalizeDSize ds = M.fromList (concatMap go ds)
   where go (ts,x) = let xs = Mb.mapMaybe (getTc . val) ts
-                    in [(tc, (val x, xs)) | tc <- xs]
+                    in [(getLHNameSymbol tc, (val x, xs)) | tc <- xs]
         getTc (RAllT _ t _)  = getTc t
         getTc (RApp c _ _ _) = Just (val $ btc_tc c)
         getTc _ = Nothing
@@ -439,10 +439,10 @@ makeSize smap d
   | otherwise
    = d
 
-makeSizeCtor :: (F.Symbol, [F.Symbol]) -> DataCtor -> DataCtor
+makeSizeCtor :: (F.Symbol, [LHName]) -> DataCtor -> DataCtor
 makeSizeCtor (s,xs) d = d {dcFields = fmap (mapBot go) <$> dcFields d}
   where
-    go (RApp c ts rs r) | F.symbol c `elem` xs
+    go (RApp c ts rs r) | val (btc_tc c) `elem` xs
                         = RApp c ts rs (r `meet` rsz)
     go t                = t
     rsz  = MkUReft (F.Reft (F.vv_, F.PAtom F.Lt
