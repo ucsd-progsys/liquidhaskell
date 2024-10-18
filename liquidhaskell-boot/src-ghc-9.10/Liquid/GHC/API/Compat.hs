@@ -7,11 +7,15 @@ module Liquid.GHC.API.Compat (
 
   , foldableModule
   , realModule
+
+  , mkHsTyConApp
+  , mkHsOverLit
   ) where
 
 import Data.Word (Word64)
 import qualified GHC.Builtin.Names as Ghc
-import GHC (Module)
+import GHC (Module, LexicalFixity(..))
+import GHC.Hs
 
 ----------------------
 -- Uniques
@@ -22,6 +26,7 @@ type UniqueId = Word64
 toUniqueId :: Word64 -> UniqueId
 toUniqueId = id
 
+
 ----------------------
 -- Built-in modules
 ----------------------
@@ -30,3 +35,14 @@ foldableModule, realModule :: Module
 
 foldableModule = Ghc.gHC_INTERNAL_DATA_FOLDABLE
 realModule = Ghc.gHC_INTERNAL_REAL
+
+
+----------------------
+-- AST differences
+----------------------
+
+mkHsTyConApp ::  IdP GhcPs -> [LHsType GhcPs] -> LHsType GhcPs
+mkHsTyConApp tyconId tyargs = nlHsTyConApp NotPromoted Prefix tyconId (map (HsValArg noExtField) tyargs)
+
+mkHsOverLit :: HsOverLit GhcPs -> HsExpr GhcPs
+mkHsOverLit = HsOverLit noExtField

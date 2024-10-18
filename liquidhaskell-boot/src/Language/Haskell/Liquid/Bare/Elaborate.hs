@@ -565,9 +565,6 @@ renameBinderSort f = rename
   rename (   F.FApp t0 t1 ) = F.FApp (rename t0) (rename t1)
 
 
-mkHsTyConApp ::  IdP GhcPs -> [LHsType GhcPs] -> LHsType GhcPs
-mkHsTyConApp tyconId tyargs = nlHsTyConApp NotPromoted Prefix tyconId (map (HsValArg noExtField) tyargs)
-
 -- | Embed fixpoint expressions into parsed haskell expressions.
 --   It allows us to bypass the GHC parser and use arbitrary symbols
 --   for identifiers (compared to using the string API)
@@ -626,9 +623,9 @@ fixExprToHsExpr _ e =
 constantToHsExpr :: F.Constant -> LHsExpr GhcPs
 -- constantToHsExpr (F.I c) = noLoc (HsLit NoExt (HsInt NoExt (mkIntegralLit c)))
 constantToHsExpr (F.I i) =
-  noLocA (HsOverLit noExtField (mkHsIntegral (mkIntegralLit i)))
+  noLocA $ mkHsOverLit (mkHsIntegral (mkIntegralLit i))
 constantToHsExpr (F.R d) =
-  noLocA (HsOverLit noExtField (mkHsFractional (mkTHFractionalLit (toRational d))))
+  noLocA $ mkHsOverLit (mkHsFractional (mkTHFractionalLit (toRational d)))
 constantToHsExpr _ =
   todo Nothing "constantToHsExpr: Not sure how to handle constructor L"
 

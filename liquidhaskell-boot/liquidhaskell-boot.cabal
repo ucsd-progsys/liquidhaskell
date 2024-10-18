@@ -121,7 +121,7 @@ library
   other-modules:      Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                       Language.Haskell.Liquid.GHC.Plugin.Types
                       Language.Haskell.Liquid.GHC.Plugin.Util
-  hs-source-dirs:     src src-ghc
+  hs-source-dirs:     src src-ghc src-ghc-9.10
 
   build-depends:      base                 >= 4.11.1.0 && < 5
                     , Diff                 >= 0.3 && < 0.6
