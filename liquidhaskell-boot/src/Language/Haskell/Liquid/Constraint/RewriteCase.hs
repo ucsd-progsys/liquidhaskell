@@ -70,16 +70,11 @@ unify ctors globals = go
 -- | Given a list of equalities this function produces the equalities that
 -- result from applying transitivity exactly once. For instance, if we have
 -- @[e1=e2, e2=e3, e1=e4]@ this function will produce @[e1=e3, e2=e4]@.
---
--- Some equalities are not produced if more than two equalities refer to the
--- same expression. For instance, @[e1=e2, e1=e3, e1=e4]@, becase @e1@ appears
--- three times, the equality @e3=e4@ won't be produced. This is an heuristic
--- to avoid producing equalities that can later produce redundant rewrites.
 groupUnifiableEqualities :: [(Expr, Expr)] -> [(Expr, Expr)]
-groupUnifiableEqualities = concatMap mkEqs . grouping
+groupUnifiableEqualities = concat . concatMap mkEqs . grouping
   where
-    mkEqs (e1: es) = [ (e1, e) | e <- es ]
-    mkEqs _        = []
+    mkEqs (e1 : es) = [ (e1, e) | e <- es ] : mkEqs es
+    mkEqs _         = []
 
     grouping eqs = fmap snd $ M.groupList $ eqs ++ fmap swap eqs
 

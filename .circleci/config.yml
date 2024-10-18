@@ -9,13 +9,19 @@ commands:
       - run:
           name: Install z3
           command: |
-            wget https://github.com/Z3Prover/z3/releases/download/z3-4.8.17/z3-4.8.17-x64-glibc-2.31.zip
-            unzip   z3-4.8.17-x64-glibc-2.31.zip
-            rm -f   z3-4.8.17-x64-glibc-2.31.zip
-            sudo cp z3-4.8.17-x64-glibc-2.31/bin/libz3.a /usr/local/lib
-            sudo cp z3-4.8.17-x64-glibc-2.31/bin/z3 /usr/local/bin
-            sudo cp z3-4.8.17-x64-glibc-2.31/include/* /usr/local/include
-            rm -rf  z3-4.8.17-x64-glibc-2.31
+            # Config version
+            z3version="z3-4.8.17"
+            z3distributiontype="x64-glibc-2.31"
+            z3full="${z3version}-${z3distributiontype}"
+
+            # Download and install
+            wget    "https://github.com/Z3Prover/z3/releases/download/${z3version}/${z3full}.zip"
+            unzip   "${z3full}.zip"
+            rm -f   "${z3full}.zip"
+            sudo cp "${z3full}/bin/libz3.a" /usr/local/lib
+            sudo cp "${z3full}/bin/z3"      /usr/local/bin
+            sudo cp "${z3full}/include/*"   /usr/local/include
+            rm -rf  "${z3full}"
             z3 --version
 
       - checkout
