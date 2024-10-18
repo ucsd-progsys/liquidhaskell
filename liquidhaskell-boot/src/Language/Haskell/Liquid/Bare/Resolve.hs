@@ -74,6 +74,7 @@ import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 import qualified Language.Haskell.Liquid.Misc          as Misc
 import           Language.Haskell.Liquid.Types.DataDecl
 import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.RTypeOp
 import qualified Language.Haskell.Liquid.Types.RefType as RT
@@ -938,12 +939,13 @@ ofBRType env name f l = go []
 
 -}
 
-matchTyCon :: Env -> ModName -> LocSymbol -> Int -> Lookup Ghc.TyCon
-matchTyCon env name lc@(Loc _ _ c) arity
+matchTyCon :: Env -> ModName -> Located LHName -> Int -> Lookup Ghc.TyCon
+matchTyCon env name lc@(Loc _ _ c0) arity
   | isList c && arity == 1  = Right Ghc.listTyCon
   | isTuple c               = Right tuplTc
-  | otherwise               = resolveLocSym env name msg lc
+  | otherwise               = resolveLocSym env name msg (fmap getLHNameSymbol lc)
   where
+    c = getLHNameSymbol c0
     msg                     = "matchTyCon: " ++ F.showpp c
     tuplTc                  = Ghc.tupleTyCon Ghc.Boxed arity
 

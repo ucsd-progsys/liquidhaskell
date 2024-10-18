@@ -45,6 +45,7 @@ import qualified Liquid.GHC.API       as Ghc
 import           Language.Haskell.Liquid.LHNameResolution (exprArg)
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.DataDecl
+import           Language.Haskell.Liquid.Types.Names
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.RTypeOp
