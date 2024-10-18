@@ -273,7 +273,7 @@ btP = do
           (do
              b <- locInfixSymbolP
              PC _ t2 <- btP
-             return $ PC sb $ RApp (mkBTyCon b) [t1,t2] [] mempty)
+             return $ PC sb $ RApp (mkBTyCon $ fmap makeUnresolvedLHName b) [t1,t2] [] mempty)
          <|> return c
 
 
@@ -483,18 +483,20 @@ lowerIdTail l =
 
 bTyConP :: Parser BTyCon
 bTyConP
-  =  (reservedOp "'" >> (mkPromotedBTyCon <$> locUpperIdP))
- <|> mkBTyCon <$> locUpperIdP
- <|> (reserved "*" >> return (mkBTyCon (dummyLoc $ symbol ("*" :: String))))
+  =  (reservedOp "'" >> (mkPromotedBTyCon . fmap makeUnresolvedLHName <$> locUpperIdP))
+ <|> mkBTyCon . fmap makeUnresolvedLHName <$> locUpperIdP
+ <|> (reserved "*" >>
+        return (mkBTyCon (dummyLoc $ makeUnresolvedLHName $ symbol ("*" :: String)))
+     )
  <?> "bTyConP"
 
-mkPromotedBTyCon :: LocSymbol -> BTyCon
+mkPromotedBTyCon :: Located LHName -> BTyCon
 mkPromotedBTyCon x = BTyCon x False True -- (consSym '\'' <$> x) False True
 
 classBTyConP :: Parser BTyCon
-classBTyConP = mkClassBTyCon <$> locUpperIdP
+classBTyConP = mkClassBTyCon . fmap makeUnresolvedLHName <$> locUpperIdP
 
-mkClassBTyCon :: LocSymbol -> BTyCon
+mkClassBTyCon :: Located LHName -> BTyCon
 mkClassBTyCon x = BTyCon x True False
 
 bbaseNoAppP :: Parser (Reft -> BareType)
@@ -634,7 +636,7 @@ isPropBareType :: RType BTyCon t t1 -> Bool
 isPropBareType  = isPrimBareType boolConName
 
 isPrimBareType :: Symbol -> RType BTyCon t t1 -> Bool
-isPrimBareType n (RApp tc [] _ _) = val (btc_tc tc) == n
+isPrimBareType n (RApp tc [] _ _) = getLHNameSymbol (val (btc_tc tc)) == n
 isPrimBareType _ _                = False
 
 getClasses :: RType BTyCon t t1 -> [RType BTyCon t t1]
@@ -780,8 +782,8 @@ bLst :: Maybe (RType BTyCon tv (UReft r))
      -> [RTProp BTyCon tv (UReft r)]
      -> r
      -> RType BTyCon tv (UReft r)
-bLst (Just t) rs r = RApp (mkBTyCon $ dummyLoc listConName) [t] rs (reftUReft r)
-bLst Nothing  rs r = RApp (mkBTyCon $ dummyLoc listConName) []  rs (reftUReft r)
+bLst (Just t) rs r = RApp (mkBTyCon $ dummyLoc $ makeUnresolvedLHName listConName) [t] rs (reftUReft r)
+bLst Nothing  rs r = RApp (mkBTyCon $ dummyLoc $ makeUnresolvedLHName listConName) []  rs (reftUReft r)
 
 bTup :: (PPrint r, Reftable r, Reftable (RType BTyCon BTyVar (UReft r)), Reftable (RTProp BTyCon BTyVar (UReft r)))
      => [(Maybe Symbol, RType BTyCon BTyVar (UReft r))]
@@ -793,9 +795,13 @@ bTup [(_,t)] _ r
   | otherwise  = t `strengthen` reftUReft r
 bTup ts rs r
   | all Mb.isNothing (fst <$> ts) || length ts < 2
-  = RApp (mkBTyCon $ dummyLoc tupConName) (snd <$> ts) rs (reftUReft r)
+  = RApp (mkBTyCon $ dummyLoc $ makeUnresolvedLHName tupConName) (snd <$> ts) rs (reftUReft r)
   | otherwise
-  = RApp (mkBTyCon $ dummyLoc tupConName) (top . snd <$> ts) rs' (reftUReft r)
+  = RApp
+      (mkBTyCon $ dummyLoc $ makeUnresolvedLHName tupConName)
+      (top . snd <$> ts)
+      rs'
+      (reftUReft r)
   where
     args       = [(Mb.fromMaybe dummySymbol x, mapReft mempty t) | (x,t) <- ts]
     makeProp i = RProp (take i args) ((snd <$> ts)!!i)

@@ -131,6 +131,7 @@ import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Types (Expr, Symbol)
 
 import           Language.Haskell.Liquid.GHC.Misc
+import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Misc
@@ -376,7 +377,7 @@ instance F.Symbolic RTyVar where
 -- tyVarUniqueSymbol tv = F.symbol $ show (getName tv) ++ "_" ++ show (varUnique tv)
 
 data BTyCon = BTyCon
-  { btc_tc    :: !F.LocSymbol    -- ^ TyCon name with location information
+  { btc_tc    :: !(F.Located LHName)  -- ^ TyCon name with location information
   , btc_class :: !Bool           -- ^ Is this a class type constructor?
   , btc_prom  :: !Bool           -- ^ Is Promoted Data Con?
   }
@@ -396,14 +397,14 @@ instance F.Symbolic RTyCon where
   symbol = F.symbol . rtc_tc
 
 instance F.Symbolic BTyCon where
-  symbol = F.val . btc_tc
+  symbol = F.val . fmap getLHNameSymbol . btc_tc
 
 instance NFData BTyCon
 
 instance NFData RTyCon
 
 
-mkBTyCon :: F.LocSymbol -> BTyCon
+mkBTyCon :: F.Located LHName -> BTyCon
 mkBTyCon x = BTyCon x False False
 
 
@@ -524,11 +525,11 @@ instance TyConable F.LocSymbol where
   ppTycon = ppTycon . F.val
 
 instance TyConable BTyCon where
-  isFun   = isFun . btc_tc
-  isList  = isList . btc_tc
-  isTuple = isTuple . btc_tc
+  isFun   = isFun . fmap getLHNameSymbol . btc_tc
+  isList  = isList . fmap getLHNameSymbol . btc_tc
+  isTuple = isTuple . fmap getLHNameSymbol . btc_tc
   isClass = isClassBTyCon
-  ppTycon = ppTycon . btc_tc
+  ppTycon = ppTycon . fmap getLHNameSymbol . btc_tc
 
 
 instance Eq RTyCon where
@@ -544,7 +545,7 @@ instance F.Fixpoint RTyCon where
   toFix (RTyCon c _ _) = text $ showPpr c
 
 instance F.Fixpoint BTyCon where
-  toFix = text . F.symbolString . F.val . btc_tc
+  toFix = text . F.symbolString . F.val . fmap getLHNameSymbol . btc_tc
 
 instance F.PPrint RTyCon where
   pprintTidy k c
@@ -555,7 +556,7 @@ instance F.PPrint RTyCon where
       pvs           = rtc_pvars c
 
 instance F.PPrint BTyCon where
-  pprintTidy _ = text . F.symbolString . F.val . btc_tc
+  pprintTidy _ = text . F.symbolString . F.val . fmap getLHNameSymbol . btc_tc
 
 instance F.PPrint v => F.PPrint (RTVar v s) where
   pprintTidy k (RTVar x _) = F.pprintTidy k x

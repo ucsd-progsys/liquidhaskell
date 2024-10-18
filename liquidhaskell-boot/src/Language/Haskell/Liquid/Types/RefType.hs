@@ -548,8 +548,10 @@ bApp :: TyCon -> [BRType r] -> [BRProp r] -> r -> BRType r
 bApp c = RApp (tyConBTyCon c)
 
 tyConBTyCon :: TyCon -> BTyCon
-tyConBTyCon = mkBTyCon . fmap tyConName . GM.locNamedThing
--- tyConBTyCon = mkBTyCon . fmap symbol . locNamedThing
+tyConBTyCon tc =
+    mkBTyCon $
+      (makeResolvedLHName (LHRGHC (getName tc)) . tyConName) <$> GM.locNamedThing tc
+
 
 --- NV TODO : remove this code!!!
 

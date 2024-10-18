@@ -30,6 +30,7 @@ import Language.Haskell.Liquid.GHC.Misc (fSrcSpan)
 import Liquid.GHC.API  (SrcSpan)
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Types.Errors
+import Language.Haskell.Liquid.Types.Names
 import Language.Haskell.Liquid.Types.RType
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.Types
@@ -129,7 +130,7 @@ simplifyBareType'' ([], []) (RFun _ _ i o _) =
   (\x y -> ArrowT `AppT` x `AppT` y)
     <$> simplifyBareType' i <*> simplifyBareType' o
 simplifyBareType'' ([], []) (RApp cc as _ _) =
-  let c  = btc_tc cc
+  let c  = getLHNameSymbol <$> btc_tc cc
       c' | isFun   c = ArrowT
          | isTuple c = TupleT (length as)
          | isList  c = ListT
