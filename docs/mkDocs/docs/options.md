@@ -178,8 +178,9 @@ beta = trivial
 
 This also allows PLE to unfold partially applied reflected functions.
 
-Note: The eta-expansion rule subsumes the `--extensionality` flag. To save time
-during typechecking, you can disable `--extensionality` when using `--etabeta`.
+Note: The eta-expansion rule should be able to prove the same goals as
+the `--extensionality` flag, so enabling both flags together shouldn't
+be necessary.
 
 Additionally, you can make PLE aware of rewrites obtained from dependent pattern
 matching on indexed inductive dependent types using the `--dependantcase` flag:
