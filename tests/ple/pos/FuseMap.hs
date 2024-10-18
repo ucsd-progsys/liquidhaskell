@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 {-@ LIQUID "--etabeta"    @-}
@@ -9,7 +10,7 @@ import Language.Haskell.Liquid.ProofCombinators
 
 -- When we allow the parser to accept lambdas in reflected
 -- functions this wont be needed
-{-@reflect append @-}
+{-@ reflect append @-}
 append = (:)
 
 {-@ reflect map @-}
@@ -21,6 +22,10 @@ map f (x:xs) = f x : map f xs
 foldr :: (a -> b -> b) -> b -> [a] -> b
 foldr _ e []     = e
 foldr f e (x:xs) = f x (foldr f e xs)
+
+{-@ reflect build @-}
+build   :: forall a. (forall b. (a -> b -> b) -> b -> b) -> [a]
+build g = g append []
 
 {-@ reflect mapFB @-}
 mapFB ::  (elt -> lst -> lst) -> (a -> elt) -> a -> lst -> lst
@@ -38,3 +43,10 @@ rewriteMapFB c f g = trivial
 {-@ rewriteMapFBid :: c:(a -> b -> b) -> { mapFB c (\x:a -> x) = c } @-}
 rewriteMapFBid :: (a -> b -> b) -> ()
 rewriteMapFBid c = trivial
+
+{-@ rewriteMap :: f:(a1 -> a2) -> xs:[a1] 
+               -> { build (\c:func(1, [a2, @(1), @(1)]) -> \n:@(1) -> foldr (mapFB c f) n xs) 
+                  = map f xs } @-}
+rewriteMap :: (a1 -> a2) -> [a1] -> ()
+rewriteMap f []     = trivial
+rewriteMap f (x:xs) = trivial ? rewriteMap f xs
