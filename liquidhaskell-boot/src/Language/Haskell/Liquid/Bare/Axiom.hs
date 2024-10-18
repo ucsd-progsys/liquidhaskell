@@ -21,7 +21,6 @@ import qualified Data.HashSet              as S
 import qualified Data.Maybe                as Mb
 import Control.Monad.Trans.State.Lazy (runState, get, put)
 
-import           Language.Fixpoint.Misc
 import qualified Language.Haskell.Liquid.Measure as Ms
 import qualified Language.Fixpoint.Types as F
 import qualified Liquid.GHC.API as Ghc
@@ -393,7 +392,7 @@ instance Subable Ghc.CoreExpr where
   subst su (Ghc.Case e x t alts)
     = Ghc.Case (subst su e) x t (subst su <$> alts)
   subst su (Ghc.Let (Ghc.Rec xes) e)
-    = Ghc.Let (Ghc.Rec (mapSnd (subst su) <$> xes)) (subst su e)
+    = Ghc.Let (Ghc.Rec (fmap (subst su) <$> xes)) (subst su e)
   subst su (Ghc.Let (Ghc.NonRec x ex) e)
     = Ghc.Let (Ghc.NonRec x (subst su ex)) (subst su e)
   subst su (Ghc.Cast e t)

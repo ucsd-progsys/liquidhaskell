@@ -302,7 +302,7 @@ mkRTyConInv    :: [(Maybe Var, F.Located SpecType)] -> RTyConInv
 --------------------------------------------------------------------------------
 mkRTyConInv tss = group [ (c, RInv (go ts) t v) | (v, t@(RApp c ts _ _)) <- strip <$> tss]
   where
-    strip = mapSnd (thrd3 . bkUniv . val)
+    strip = fmap (thrd3 . bkUniv . val)
     go ts | generic (toRSort <$> ts) = []
           | otherwise                = toRSort <$> ts
 

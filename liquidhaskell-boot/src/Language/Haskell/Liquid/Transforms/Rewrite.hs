@@ -28,7 +28,6 @@ import           Liquid.GHC.API as Ghc hiding (showPpr, substExpr)
 import           Language.Haskell.Liquid.GHC.TypeRep ()
 import           Data.Maybe     (fromMaybe, isJust, mapMaybe)
 import           Control.Monad.State hiding (lift)
-import           Language.Fixpoint.Misc       ({- mapFst, -}  mapSnd)
 import           Language.Haskell.Liquid.Misc (Nat)
 import           Language.Haskell.Liquid.GHC.Play (sub, substExpr)
 import           Language.Haskell.Liquid.GHC.Misc (unTickExpr, isTupleId, mkAlive)
@@ -120,7 +119,7 @@ normalizeTuples cb
     go (Let (NonRec x ex) e)
       = Let (NonRec x (go ex)) (go e)
     go (Let (Rec xes) e)
-      = Let (Rec (mapSnd go <$> xes)) (go e)
+      = Let (Rec (fmap go <$> xes)) (go e)
     go (App e1 e2)
       = App (go e1) (go e2)
     go (Lam x e)
@@ -151,7 +150,7 @@ type RewriteRule = CoreExpr -> Maybe CoreExpr
 rewriteBindWith :: RewriteRule -> CoreBind -> CoreBind
 --------------------------------------------------------------------------------
 rewriteBindWith r (NonRec x e) = NonRec x (rewriteWith r e)
-rewriteBindWith r (Rec xes)    = Rec    (mapSnd (rewriteWith r) <$> xes)
+rewriteBindWith r (Rec xes)    = Rec    (fmap (rewriteWith r) <$> xes)
 
 --------------------------------------------------------------------------------
 rewriteWith :: RewriteRule -> CoreExpr -> CoreExpr
@@ -160,7 +159,7 @@ rewriteWith tx           = go
   where
     go                   = step . txTop
     txTop e              = fromMaybe e (tx e)
-    goB (Rec xes)        = Rec         (mapSnd go <$> xes)
+    goB (Rec xes)        = Rec         (fmap go <$> xes)
     goB (NonRec x e)     = NonRec x    (go e)
     step (Let b e)       = Let (goB b) (go e)
     step (App e e')      = App (go e)  (go e')
@@ -389,7 +388,7 @@ collectNonRecLets = go []
 inlineFailCases :: CoreBind -> CoreBind
 inlineFailCases = go []
   where
-    go su (Rec xes)    = Rec (mapSnd (go' su) <$> xes)
+    go su (Rec xes)    = Rec (fmap (go' su) <$> xes)
     go su (NonRec x e) = NonRec x (go' su e)
 
     go' su (App (Var x) _)       | isFailId x, Just e <- getFailExpr x su = e

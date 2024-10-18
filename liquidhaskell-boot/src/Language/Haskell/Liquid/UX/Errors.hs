@@ -9,6 +9,7 @@
 module Language.Haskell.Liquid.UX.Errors ( tidyError ) where
 
 import           Control.Arrow                       (second)
+import           Data.Either                         (partitionEithers)
 import qualified Data.HashMap.Strict                 as M
 import qualified Data.HashSet                        as S
 import qualified Data.List                           as L
@@ -26,7 +27,6 @@ import           Language.Haskell.Liquid.Types.RTypeOp
 import           Language.Haskell.Liquid.Types.Types
 import qualified Language.Haskell.Liquid.GHC.Misc    as GM
 import qualified Language.Haskell.Liquid.Misc        as Misc
-import qualified Language.Fixpoint.Misc              as Misc
 
 -- import Debug.Trace
 
@@ -97,7 +97,7 @@ tidyREnv :: [(F.Symbol, SpecType)] -> (F.Subst, [(F.Symbol, SpecType)])
 tidyREnv xts    = (θ, second (F.subst θ) <$> zts)
   where
     θ           = expandVarDefs yes
-    (yes, zts)  = Misc.mapEither isInline xts
+    (yes, zts)  = partitionEithers $ map isInline xts
 
 -- | 'expandVarDefs [(x1, e1), ... ,(xn, en)] returns a `Subst` that  
 --   contains the fully substituted definitions for each `xi`. For example, 

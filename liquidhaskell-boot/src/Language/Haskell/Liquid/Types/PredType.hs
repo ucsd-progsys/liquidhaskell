@@ -355,7 +355,7 @@ substPred msg su@(rp,prop) (RFun x i rt rt' r)
   where (r', πs)                = splitRPvar rp r
 -- ps has   , pargs :: ![(t, Symbol, Expr)]
 
-substPred msg su (RRTy e r o t) = RRTy (mapSnd (substPred msg su) <$> e) r o (substPred msg su t)
+substPred msg su (RRTy e r o t) = RRTy (fmap (substPred msg su) <$> e) r o (substPred msg su t)
 substPred msg su (RAllE x t t') = RAllE x (substPred msg su t) (substPred msg su t')
 substPred msg su (REx x t t')   = REx   x (substPred msg su t) (substPred msg su t')
 substPred _   _  t              = t

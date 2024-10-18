@@ -355,7 +355,7 @@ makeMeasureSpec' :: Bool -> MSpec SpecType Ghc.DataCon -> ([(Ghc.Var, SpecType)]
 ----------------------------------------------------------------------------------------------
 makeMeasureSpec' allowTC mspec0 = (ctorTys, measTys)
   where
-    ctorTys             = Misc.mapSnd RT.uRType <$> ctorTys0
+    ctorTys             = fmap RT.uRType <$> ctorTys0
     (ctorTys0, measTys) = Ms.dataConTypes allowTC mspec
     mspec               = first (mapReft ur_reft) mspec0
 

@@ -50,7 +50,6 @@ import           Language.Haskell.Liquid.Types.RTypeOp
 import           Language.Haskell.Liquid.Types.Specs
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Variance
-import qualified Language.Fixpoint.Misc                 as Misc
 import qualified Language.Haskell.Liquid.Misc           as Misc
 import qualified Language.Haskell.Liquid.Measure        as Measure
 import           Language.Fixpoint.Parse                hiding (dataDeclP, refBindP, refP, refDefP, parseTest')
@@ -610,7 +609,7 @@ bPVar p _ xts  = PV p (PVProp τ) dummySymbol τxs
     safeLast msg _      = panic Nothing $ "safeLast with empty list " ++ msg
 
 propositionSortP :: Parser [(Symbol, BSort)]
-propositionSortP = map (Misc.mapSnd toRSort) <$> propositionTypeP
+propositionSortP = map (fmap toRSort) <$> propositionTypeP
 
 propositionTypeP :: Parser [(Symbol, BareType)]
 propositionTypeP = either fail return . mkPropositionType =<< bareTypeP

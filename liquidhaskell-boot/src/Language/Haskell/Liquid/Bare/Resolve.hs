@@ -56,6 +56,7 @@ module Language.Haskell.Liquid.Bare.Resolve
 
 import qualified Control.Exception                 as Ex
 import           Control.Monad (mplus)
+import           Data.Bifunctor (first)
 import           Data.Function (on)
 import qualified Data.List                         as L
 import qualified Data.HashSet                      as S
@@ -791,7 +792,7 @@ matchImp env defName i
 --   `mod` is the name of the module, derived from `sym` if qualified.
 unQualifySymbol :: F.Symbol -> (Maybe F.Symbol, F.Symbol)
 unQualifySymbol sym
-  | GM.isQualifiedSym sym = Misc.mapFst Just (splitModuleNameExact sym)
+  | GM.isQualifiedSym sym = first Just (splitModuleNameExact sym)
   | otherwise             = (Nothing, sym)
 
 splitModuleNameExact :: F.Symbol -> (F.Symbol, F.Symbol)
@@ -906,7 +907,7 @@ ofBRType env name f l = go []
     go bs (RAllE x t1 t2)   = RAllE x  <$> go bs t1    <*> go bs t2
     go bs (REx x t1 t2)     = REx   x  <$> go bs t1    <*> go (x:bs) t2
     go bs (RRTy xts r o t)  = RRTy  <$> xts' <*> goReft bs r <*> pure o <*> go bs t
-      where xts'            = mapM (Misc.mapSndM (go bs)) xts
+      where xts'            = mapM (traverse (go bs)) xts
     go bs (RHole r)         = RHole    <$> goReft bs r
     go bs (RExprArg le)     = return    $ RExprArg (qualify env name l bs le)
     goRef bs (RProp ss (RHole r)) = rPropP <$> mapM goSyms ss <*> goReft bs r

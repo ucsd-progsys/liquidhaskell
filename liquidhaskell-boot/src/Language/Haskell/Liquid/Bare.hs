@@ -69,7 +69,7 @@ import qualified Language.Haskell.Liquid.Transforms.CoreToLogic as CoreToLogic
 import           Language.Haskell.Liquid.UX.Config
 import           Control.Arrow                    (second)
 import Data.Hashable (Hashable)
-import Data.Bifunctor (bimap)
+import Data.Bifunctor (bimap, first)
 import Data.Function (on)
 
 --------------------------------------------------------------------------------
@@ -1114,7 +1114,7 @@ makeSizeInv s lst = lst{val = go (val lst)}
 makeMeasureInvariants :: Bare.Env -> ModName -> GhcSpecSig -> Ms.BareSpec
                       -> ([(Maybe Ghc.Var, LocSpecType)], [UnSortedExpr])
 makeMeasureInvariants env name sig mySpec
-  = mapSnd Mb.catMaybes $
+  = Mb.catMaybes <$>
     unzip (measureTypeToInv env name <$> [(x, (y, ty)) | x <- xs, (y, ty) <- sigs
                                          , isSymbolOfVar (val x) y ])
   where
@@ -1137,7 +1137,7 @@ measureTypeToInv env name (x, (v, t))
     res  = ty_res   trep
     z    = last args
     tz   = last rts
-    usorted = if isSimpleADT tz then Nothing else mapFst (:[]) <$> mkReft (dummyLoc $ F.symbol v) z tz res
+    usorted = if isSimpleADT tz then Nothing else first (:[]) <$> mkReft (dummyLoc $ F.symbol v) z tz res
     mtype
       | null rts
       = uError $ ErrHMeas (GM.sourcePosSrcSpan $ loc t) (pprint x) "Measure has no arguments!"
