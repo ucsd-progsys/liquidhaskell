@@ -121,7 +121,7 @@ library
   other-modules:      Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                       Language.Haskell.Liquid.GHC.Plugin.Types
                       Language.Haskell.Liquid.GHC.Plugin.Util
-  hs-source-dirs:     src src-ghc src-ghc-9.10
+  hs-source-dirs:     src src-ghc src-ghc-9.8
 
   build-depends:      base                 >= 4.11.1.0 && < 5
                     , Diff                 >= 0.3 && < 0.6
@@ -137,7 +137,7 @@ library
                     , filepath             >= 1.3
                     , fingertree           >= 0.1
                     , exceptions           < 0.11
-                    , ghc                  ^>= 9.10
+                    , ghc                  ^>= 9.8
                     , ghc-boot
                     , ghc-prim
                     , gitrev
@@ -173,7 +173,6 @@ test-suite wiredin-tests
   main-is:          WiredInTests.hs
   hs-source-dirs:   tests
   build-depends:    base
-                  , ghc-internal
                   , ghc-prim
                   , liquidhaskell-boot
                   , tasty
