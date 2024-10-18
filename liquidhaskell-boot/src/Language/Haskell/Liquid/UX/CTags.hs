@@ -31,7 +31,6 @@ import Language.Fixpoint.Types          (Tag)
 import Liquid.GHC.API
 import Language.Haskell.Liquid.Types.Visitors (freeVars)
 import Language.Haskell.Liquid.Types.PrettyPrint ()
-import Language.Fixpoint.Misc     (mapSnd)
 
 -- | The @TagKey@ is the top-level binder, and @Tag@ is a singleton Int list
 
@@ -66,7 +65,7 @@ callGraphRanks  = M.fromList . concat . index . mkScc
         index    = zipWith (\i -> map (, i) . G.flattenSCC) [1..]
 
 makeCallGraph :: [CoreBind] -> CallGraph
-makeCallGraph cbs = mapSnd calls `fmap` xes
+makeCallGraph cbs = fmap calls `fmap` xes
   where xes       = concatMap bindEqns cbs
         xs        = S.fromList $ map fst xes
         calls     = filter (`S.member` xs) . freeVars S.empty

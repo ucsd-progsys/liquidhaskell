@@ -24,13 +24,12 @@ import GHC.Generics
 import Data.List (partition)
 import Data.Maybe
 import Data.Hashable
-import Data.Bifunctor
+import Data.Bifunctor as Bifunctor
 import Data.Data
 import qualified Data.Binary         as B
 import qualified Data.HashMap.Strict as M
 
 import qualified Language.Fixpoint.Types as F
-import qualified Language.Fixpoint.Misc  as Misc -- (mapFst, mapSnd)
 import Language.Haskell.Liquid.Types.Errors
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.RType
@@ -77,7 +76,7 @@ instance Functor (Bound a) where
   fmap f (Bound s vs ps xs e) = Bound s vs ps xs (f e)
 
 instance Bifunctor Bound where
-  first  f (Bound s vs ps xs e) = Bound s (f <$> vs) (Misc.mapSnd f <$> ps) (Misc.mapSnd f <$> xs) e
+  first  f (Bound s vs ps xs e) = Bound s (f <$> vs) (fmap f <$> ps) (fmap f <$> xs) e
   second = fmap
 
 makeBound :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)
@@ -124,7 +123,7 @@ makeBoundType _ _ _           = panic Nothing "Bound with empty predicates"
 
 
 partitionPs :: [(F.Symbol, F.Symbol)] -> [F.Expr] -> (M.HashMap F.Symbol [UsedPVar], [F.Expr])
-partitionPs penv qs = Misc.mapFst makeAR $ partition (isPApp penv) qs
+partitionPs penv qs = Bifunctor.first makeAR $ partition (isPApp penv) qs
   where
     makeAR ps       = M.fromListWith (++) $ map (toUsedPVars penv) ps
 

@@ -498,7 +498,7 @@ checkRType allowHO bsc emb senv lt
     cb c ts            = classBinds emb (rRCls c ts)
     farg _ t           = allowHO || isBase t  -- NOTE: this check should be the same as the one in addCGEnv
     f env me r err     = err <|> checkReft (F.srcSpan lt) env emb me r
-    insertPEnv p γ     = insertsSEnv γ (Misc.mapSnd (rTypeSortedReft emb) <$> pbinds p)
+    insertPEnv p γ     = insertsSEnv γ (fmap (rTypeSortedReft emb) <$> pbinds p)
     pbinds p           = (pname p, pvarRType p :: RSort) : [(x, tx) | (tx, x, _) <- pargs p]
 
 tyToBind :: F.TCEmb TyCon -> RTVar RTyVar RSort  -> [(F.Symbol, F.SortedReft)]

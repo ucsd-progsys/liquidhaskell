@@ -21,6 +21,7 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic
   , normalize
   ) where
 
+import           Data.Bifunctor (first)
 import           Data.ByteString                       (ByteString)
 import           Prelude                               hiding (error)
 import           Language.Haskell.Liquid.GHC.TypeRep   () -- needed for Eq 'Type'
@@ -37,7 +38,6 @@ import           Data.Text.Encoding.Error
 import           Control.Monad.State
 import           Control.Monad.Except
 import           Control.Monad.Identity
-import qualified Language.Fixpoint.Misc                as Misc
 import qualified Language.Haskell.Liquid.Misc          as Misc
 import           Language.Fixpoint.Types               hiding (panic, Error, R, simplify, isBool)
 import qualified Language.Fixpoint.Types               as F
@@ -378,7 +378,7 @@ coreToIte allowTC e (efalse, etrue)
        return $ EIte p e2 e1
 
 toPredApp :: Bool -> C.CoreExpr -> LogicM Expr
-toPredApp allowTC p = go . Misc.mapFst opSym . splitArgs allowTC $ p
+toPredApp allowTC p = go . first opSym . splitArgs allowTC $ p
   where
     opSym = tomaybesymbol
     go (Just f, [e1, e2])
@@ -668,10 +668,10 @@ instance Simplify C.CoreExpr where
 
 instance Simplify C.CoreBind where
   simplify allowTC (C.NonRec x e) = C.NonRec x (simplify allowTC e)
-  simplify allowTC (C.Rec xes)    = C.Rec (Misc.mapSnd (simplify allowTC) <$> xes )
+  simplify allowTC (C.Rec xes)    = C.Rec (fmap (simplify allowTC) <$> xes )
 
   inline p (C.NonRec x e) = C.NonRec x (inline p e)
-  inline p (C.Rec xes)    = C.Rec (Misc.mapSnd (inline p) <$> xes)
+  inline p (C.Rec xes)    = C.Rec (fmap (inline p) <$> xes)
 
 instance Simplify C.CoreAlt where
   simplify allowTC (Alt c xs e) = Alt c xs (simplify allowTC e)

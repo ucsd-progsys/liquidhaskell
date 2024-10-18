@@ -37,7 +37,7 @@ import qualified Data.HashSet                                  as S
 import qualified Data.List                                     as L
 import qualified Data.Foldable                                 as F
 import qualified Data.Functor.Identity
-import Language.Fixpoint.Misc ( (<<=), errorP, mapSnd, safeZip )
+import Language.Fixpoint.Misc ( (<<=), errorP, safeZip )
 import           Language.Fixpoint.Types.Visitor
 import qualified Language.Fixpoint.Types                       as F
 import qualified Language.Fixpoint.Types.Visitor               as F
@@ -930,7 +930,7 @@ unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
         yts''                = zipWith F.subst sus (yts'++[rt])
         (t3,yts)             = (last yts'', init yts'')
         sus                  = F.mkSubst <$> L.inits [(x, F.EVar y) | (x, y) <- zip ys0 ys']
-        (αs, ys')            = mapSnd (F.symbol <$>) $ L.partition isTyVar ys
+        (αs, ys')            = fmap (F.symbol <$>) $ L.partition isTyVar ys
         tvs' :: [SpecType]
         tvs'                 = rVar <$> αs
         tvys                 = ofType . varType <$> αs

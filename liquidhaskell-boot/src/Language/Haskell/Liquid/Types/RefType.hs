@@ -338,15 +338,15 @@ instance Subable (RRProp Reft) where
   syms (RProp ss t)      = (fst <$> ss) ++ syms t
 
 
-  subst su (RProp ss (RHole r)) = RProp (mapSnd (subst su) <$> ss) $ RHole $ subst su r
-  subst su (RProp ss r)  = RProp  (mapSnd (subst su) <$> ss) $ subst su r
+  subst su (RProp ss (RHole r)) = RProp (fmap (subst su) <$> ss) $ RHole $ subst su r
+  subst su (RProp ss r)  = RProp  (fmap (subst su) <$> ss) $ subst su r
 
 
-  substf f (RProp ss (RHole r)) = RProp (mapSnd (substf f) <$> ss) $ RHole $ substf f r
-  substf f (RProp ss r) = RProp  (mapSnd (substf f) <$> ss) $ substf f r
+  substf f (RProp ss (RHole r)) = RProp (fmap (substf f) <$> ss) $ RHole $ substf f r
+  substf f (RProp ss r) = RProp  (fmap (substf f) <$> ss) $ substf f r
 
-  substa f (RProp ss (RHole r)) = RProp (mapSnd (substa f) <$> ss) $ RHole $ substa f r
-  substa f (RProp ss r) = RProp  (mapSnd (substa f) <$> ss) $ substa f r
+  substa f (RProp ss (RHole r)) = RProp (fmap (substa f) <$> ss) $ RHole $ substa f r
+  substa f (RProp ss r) = RProp  (fmap (substa f) <$> ss) $ substa f r
 
 
 -------------------------------------------------------------------------------
@@ -1059,7 +1059,7 @@ subsFree m s z@(α, τ, _) (RAppTy t t' r)
 subsFree _ _ _ t@(RExprArg _)
   = t
 subsFree m s z@(α, τ, _) (RRTy e r o t)
-  = RRTy (mapSnd (subsFree m s z) <$> e) (subt (α, τ) r) o (subsFree m s z t)
+  = RRTy (fmap (subsFree m s z) <$> e) (subt (α, τ) r) o (subsFree m s z t)
 subsFree _ _ (α, τ, _) (RHole r)
   = RHole (subt (α, τ) r)
 
@@ -1182,9 +1182,9 @@ subsFreeRef
   -> RTProp c tv r
   -> RTProp c tv r
 subsFreeRef _ _ (α', τ', _) (RProp ss (RHole r))
-  = RProp (mapSnd (subt (α', τ')) <$> ss) (RHole r)
+  = RProp (fmap (subt (α', τ')) <$> ss) (RHole r)
 subsFreeRef m s (α', τ', t')  (RProp ss t)
-  = RProp (mapSnd (subt (α', τ')) <$> ss) $ subsFree m s (α', τ', fmap top t') t
+  = RProp (fmap (subt (α', τ')) <$> ss) $ subsFree m s (α', τ', fmap top t') t
 
 
 --------------------------------------------------------------------------------
@@ -1327,8 +1327,8 @@ instance SubsTy BTyVar BSort BSort where
   subt (α, τ) = subsTyVarMeet (α, τ, ofRSort τ)
 
 instance (SubsTy tv ty (UReft r), SubsTy tv ty (RType c tv ())) => SubsTy tv ty (RTProp c tv (UReft r))  where
-  subt m (RProp ss (RHole p)) = RProp (mapSnd (subt m) <$> ss) $ RHole $ subt m p
-  subt m (RProp ss t) = RProp (mapSnd (subt m) <$> ss) $ fmap (subt m) t
+  subt m (RProp ss (RHole p)) = RProp (fmap (subt m) <$> ss) $ RHole $ subt m p
+  subt m (RProp ss t) = RProp (fmap (subt m) <$> ss) $ fmap (subt m) t
 
 subvUReft     :: (UsedPVar -> UsedPVar) -> UReft Reft -> UReft Reft
 subvUReft f (MkUReft r p) = MkUReft r (subvPredicate f p)

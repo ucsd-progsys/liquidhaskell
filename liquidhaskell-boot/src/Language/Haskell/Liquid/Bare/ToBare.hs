@@ -12,7 +12,6 @@ module Language.Haskell.Liquid.Bare.ToBare
 
 import           Data.Bifunctor
 
-import           Language.Fixpoint.Misc (mapSnd)
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.GHC.Misc
 import           Liquid.GHC.API
@@ -62,7 +61,7 @@ txRType cF vF = go
     go (REx x t t')        = REx   x         (go t) (go t')
     go (RAppTy t t' r)     = RAppTy          (go t) (go t') r
     go (RApp c ts rs r)    = RApp  (cF c)    (go <$> ts) (goRTP <$> rs) r
-    go (RRTy xts r o t)    = RRTy  (mapSnd go <$> xts) r o (go t)
+    go (RRTy xts r o t)    = RRTy  (fmap go <$> xts) r o (go t)
     go (RExprArg e)        = RExprArg e
     go (RHole r)           = RHole r
 
@@ -70,8 +69,8 @@ txRType cF vF = go
     go' = txRType cF vF
 
     -- goRTP :: RTProp c1 tv1 r -> RTProp c2 tv2 r
-    goRTP (RProp s (RHole r)) = RProp (mapSnd go' <$> s) (RHole r)
-    goRTP (RProp s t)         = RProp (mapSnd go' <$> s) (go t)
+    goRTP (RProp s (RHole r)) = RProp (fmap go' <$> s) (RHole r)
+    goRTP (RProp s t)         = RProp (fmap go' <$> s) (go t)
 
     -- goRTV :: RTVU c1 tv1 -> RTVU c2 tv2
     goRTV = txRTV cF vF

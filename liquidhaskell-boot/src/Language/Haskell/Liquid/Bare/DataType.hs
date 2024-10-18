@@ -440,7 +440,7 @@ makeSize smap d
    = d
 
 makeSizeCtor :: (F.Symbol, [F.Symbol]) -> DataCtor -> DataCtor
-makeSizeCtor (s,xs) d = d {dcFields = Misc.mapSnd (mapBot go) <$> dcFields d}
+makeSizeCtor (s,xs) d = d {dcFields = fmap (mapBot go) <$> dcFields d}
   where
     go (RApp c ts rs r) | F.symbol c `elem` xs
                         = RApp c ts rs (r `meet` rsz)

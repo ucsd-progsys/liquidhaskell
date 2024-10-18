@@ -32,7 +32,6 @@ import           Language.Haskell.Liquid.WiredIn               (dictionaryVar)
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
 import           Language.Haskell.Liquid.GHC.Misc             ( idDataConM, hasBaseTypeVar, isDataConId) -- dropModuleNames, simplesymbol)
 import           Liquid.GHC.API               as Ghc
-import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.Constraint.Types
 
@@ -72,18 +71,18 @@ initEnv info
        f40      <- makeExactDc <$> refreshArgs' (vals gsCtors (gsData sp)) -- constructor refinements  (for measures)
        f5       <- refreshArgs' $ vals gsInSigs (gsSig sp)                   -- internal refinements     (from Haskell measures)
        fi       <- refreshArgs' $ catMaybes $ [(x,) . val <$> getMethodType mt | (x, mt) <- gsMethods $ gsSig $ giSpec info ]
-       (invs1, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty  (gsAutosize (gsTerm sp)) dcs
-       (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (gsAutosize (gsTerm sp)) dcs'
+       (invs1, f41) <- traverse refreshArgs' $ makeAutoDecrDataCons dcsty  (gsAutosize (gsTerm sp)) dcs
+       (invs2, f42) <- traverse refreshArgs' $ makeAutoDecrDataCons dcsty' (gsAutosize (gsTerm sp)) dcs'
        let f4    = mergeDataConTypes tce (mergeDataConTypes tce f40 (f41 ++ f42)) (filter (isDataConId . fst) f2)
-       let tx    = mapFst F.symbol . addRInv ialias . predsUnify sp
+       let tx    = first F.symbol . addRInv ialias . predsUnify sp
        f6       <- map tx . addPolyInfo' <$> refreshArgs' (vals gsRefSigs (gsSig sp))
        let bs    = (tx <$> ) <$> [f0 ++ f0' ++ fi, f1 ++ f1', f2, f3 ++ f3', f4, f5]
        modify $ \s -> s { dataConTys = f4 }
        lt1s     <- gets (F.toListSEnv . cgLits)
        let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]
-       let tcb   = mapSnd (rTypeSort tce) <$> concat bs
+       let tcb   = fmap (rTypeSort tce) <$> concat bs
        let cbs   = giCbs . giSrc $ info
-       rTrue   <- mapM (mapSndM (true allowTC)) f6
+       rTrue   <- mapM (traverse (true allowTC)) f6
        let γ0    = measEnv sp (head bs) cbs tcb lt1s lt2s (f6 ++ bs!!3) (bs!!5) hs info
        γ  <- globalize <$> foldM (+=) γ0 ( [("initEnv", x, y) | (x, y) <- concat (rTrue:tail bs)])
        return γ {invs = is (invs1 ++ invs2)}
@@ -91,9 +90,9 @@ initEnv info
     allowTC      = typeclass (getConfig info)
     sp           = giSpec info
     ialias       = mkRTyConIAl (gsIaliases (gsData sp))
-    vals f       = map (mapSnd val) . f
+    vals f       = map (fmap val) . f
     is autoinv   = mkRTyConInv    (gsInvariants (gsData sp) ++ ((Nothing,) <$> autoinv))
-    addPolyInfo' = if reflection (getConfig info) then map (mapSnd addPolyInfo) else id
+    addPolyInfo' = if reflection (getConfig info) then map (fmap addPolyInfo) else id
 
     makeExactDc dcs = if exactDCFlag info then map strengthenDataConType dcs else dcs
 
@@ -154,7 +153,7 @@ mergeDataConTypes tce xts yts = merge (L.sortBy f xts) (L.sortBy f yts)
     mXY x tx y ty = meetVarTypes tce (F.pprint x) (getSrcSpan x, tx) (getSrcSpan y, ty)
 
 refreshArgs' :: [(a, SpecType)] -> CG [(a, SpecType)]
-refreshArgs' = mapM (mapSndM refreshArgs)
+refreshArgs' = mapM (traverse refreshArgs)
 
 
 -- | TODO: All this *should* happen inside @Bare@ but appears
@@ -256,7 +255,7 @@ infoLits litF selF info = F.fromListSEnv $ cbLits ++ measLits
     measLits  = filter (selF . snd) $ mkSort <$> litF spc
     spc       = giSpec info
     tce       = gsTcEmbeds (gsName spc)
-    mkSort    = mapSnd (F.sr_sort . rTypeSortedReft tce . val)
+    mkSort    = fmap (F.sr_sort . rTypeSortedReft tce . val)
 
 initCGI :: Config -> TargetInfo -> CGInfo
 initCGI cfg info = CGInfo {
@@ -271,7 +270,7 @@ initCGI cfg info = CGInfo {
   , localRewrites = mempty
   , ebinds        = []
   , annotMap      = AI M.empty
-  , newTyEnv      = M.fromList (mapSnd val <$> gsNewTypes (gsSig spc))
+  , newTyEnv      = M.fromList (fmap val <$> gsNewTypes (gsSig spc))
   , tyConInfo     = tyi
   , tyConEmbed    = tce
   , kuts          = mempty

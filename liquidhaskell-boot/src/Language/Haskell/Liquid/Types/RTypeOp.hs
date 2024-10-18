@@ -55,7 +55,7 @@ import           Prelude                          hiding  (error)
 import qualified Prelude
 
 import           Control.Monad                          (liftM2, liftM3, liftM4, void)
-import           Language.Fixpoint.Misc
+import           Data.Bifunctor (first)
 
 import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Types (Expr, Symbol)
@@ -274,7 +274,7 @@ emapReft f γ (RAllE z t t')    = RAllE z (emapReft f γ t) (emapReft f γ t')
 emapReft f γ (REx z t t')      = REx   z (emapReft f γ t) (emapReft f γ t')
 emapReft _ _ (RExprArg e)      = RExprArg e
 emapReft f γ (RAppTy t t' r)   = RAppTy (emapReft f γ t) (emapReft f γ t') (f γ r)
-emapReft f γ (RRTy e r o t)    = RRTy  (mapSnd (emapReft f γ) <$> e) (f γ r) o (emapReft f γ t)
+emapReft f γ (RRTy e r o t)    = RRTy  (fmap (emapReft f γ) <$> e) (f γ r) o (emapReft f γ t)
 emapReft f γ (RHole r)         = RHole (f γ r)
 
 emapRef :: ([Symbol] -> t -> s) ->  [Symbol] -> RTProp c tv t -> RTProp c tv s
@@ -294,7 +294,7 @@ emapExprArg f = go
     go γ (REx z t t')      = REx   z (go γ t) (go γ t')
     go γ (RExprArg e)      = RExprArg (f γ <$> F.notracepp "RExprArg" e) -- <---- actual substitution
     go γ (RAppTy t t' r)   = RAppTy (go γ t) (go γ t') r
-    go γ (RRTy e r o t)    = RRTy  (mapSnd (go γ) <$> e) r o (go γ t)
+    go γ (RRTy e r o t)    = RRTy  (fmap (go γ) <$> e) r o (go γ t)
 
     mo _ t@(RProp _ RHole{}) = t
     mo γ (RProp s t)         = RProp s (go γ t)
@@ -369,7 +369,7 @@ mapReftM f (REx z t t')      = liftM2 (REx z)    (mapReftM f t)         (mapReft
 mapReftM _ (RExprArg e)      = return $ RExprArg e
 mapReftM f (RAppTy t t' r)   = liftM3 RAppTy (mapReftM f t) (mapReftM f t') (f r)
 mapReftM f (RHole r)         = fmap   RHole      (f r)
-mapReftM f (RRTy xts r o t)  = liftM4 RRTy (mapM (mapSndM (mapReftM f)) xts) (f r) (return o) (mapReftM f t)
+mapReftM f (RRTy xts r o t)  = liftM4 RRTy (mapM (traverse (mapReftM f)) xts) (f r) (return o) (mapReftM f t)
 
 mapRefM  :: (Monad m) => (t -> m s) -> RTProp c tv t -> m (RTProp c tv s)
 mapRefM  f (RProp s t)        = fmap    (RProp s)      (mapReftM f t)
@@ -385,7 +385,7 @@ mapPropM f (REx z t t')      = liftM2 (REx z)     (mapPropM f t)          (mapPr
 mapPropM _ (RExprArg e)      = return $ RExprArg e
 mapPropM f (RAppTy t t' r)   = liftM3 RAppTy (mapPropM f t) (mapPropM f t') (return r)
 mapPropM _ (RHole r)         = return $ RHole r
-mapPropM f (RRTy xts r o t)  = liftM4 RRTy (mapM (mapSndM (mapPropM f)) xts) (return r) (return o) (mapPropM f t)
+mapPropM f (RRTy xts r o t)  = liftM4 RRTy (mapM (traverse (mapPropM f)) xts) (return r) (return o) (mapPropM f t)
 
 
 --------------------------------------------------------------------------------
@@ -463,8 +463,8 @@ efoldReft logicBind bsc cb dty g f fp = go
     go γ z me@(RHole r)                 = f γ (Just me) r z
 
     -- folding over Ref
-    ho  γ z (RProp ss (RHole r))       = f (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) Nothing r z
-    ho  γ z (RProp ss t)               = go (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) z t
+    ho  γ z (RProp ss (RHole r))       = f (insertsSEnv γ (fmap (g . ofRSort) <$> ss)) Nothing r z
+    ho  γ z (RProp ss t)               = go (insertsSEnv γ (fmap (g . ofRSort) <$> ss)) z t
 
     -- folding over [RType]
     go' γ z ts                 = foldr (flip $ go γ) z ts
@@ -482,7 +482,7 @@ mapRFInfo f (RAppTy t t' r)   = RAppTy (mapRFInfo f t) (mapRFInfo f t') r
 mapRFInfo f (RApp c ts rs r)  = RApp c (mapRFInfo f <$> ts) (mapRFInfoRef f <$> rs) r
 mapRFInfo f (REx b t1 t2)     = REx b  (mapRFInfo f t1) (mapRFInfo f t2)
 mapRFInfo f (RAllE b t1 t2)   = RAllE b (mapRFInfo f t1) (mapRFInfo f t2)
-mapRFInfo f (RRTy e r o t)    = RRTy (mapSnd (mapRFInfo f) <$> e) r o (mapRFInfo f t)
+mapRFInfo f (RRTy e r o t)    = RRTy (fmap (mapRFInfo f) <$> e) r o (mapRFInfo f t)
 mapRFInfo _ t'                = t'
 
 mapRFInfoRef :: (RFInfo -> RFInfo)
@@ -498,7 +498,7 @@ mapBot f (RAppTy t t' r)   = RAppTy (mapBot f t) (mapBot f t') r
 mapBot f (RApp c ts rs r)  = f $ RApp c (mapBot f <$> ts) (mapBotRef f <$> rs) r
 mapBot f (REx b t1 t2)     = REx b  (mapBot f t1) (mapBot f t2)
 mapBot f (RAllE b t1 t2)   = RAllE b  (mapBot f t1) (mapBot f t2)
-mapBot f (RRTy e r o t)    = RRTy (mapSnd (mapBot f) <$> e) r o (mapBot f t)
+mapBot f (RRTy e r o t)    = RRTy (fmap (mapBot f) <$> e) r o (mapBot f t)
 mapBot f t'                = f t'
 
 mapBotRef :: (RType c tv r -> RType c tv r)
@@ -521,8 +521,8 @@ mapBind f (RAppTy t t' r)    = RAppTy (mapBind f t) (mapBind f t') r
 
 mapBindRef :: (Symbol -> Symbol)
            -> Ref τ (RType c tv r) -> Ref τ (RType c tv r)
-mapBindRef f (RProp s (RHole r)) = RProp (mapFst f <$> s) (RHole r)
-mapBindRef f (RProp s t)         = RProp (mapFst f <$> s) $ mapBind f t
+mapBindRef f (RProp s (RHole r)) = RProp (first f <$> s) (RHole r)
+mapBindRef f (RProp s t)         = RProp (first f <$> s) $ mapBind f t
 
 
 --------------------------------------------------

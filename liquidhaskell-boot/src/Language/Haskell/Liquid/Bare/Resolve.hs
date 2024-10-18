@@ -56,6 +56,7 @@ module Language.Haskell.Liquid.Bare.Resolve
 
 import qualified Control.Exception                 as Ex
 import           Control.Monad (mplus)
+import           Data.Bifunctor (first)
 import           Data.Function (on)
 import qualified Data.List                         as L
 import qualified Data.HashSet                      as S
@@ -791,7 +792,7 @@ matchImp env defName i
 --   `mod` is the name of the module, derived from `sym` if qualified.
 unQualifySymbol :: F.Symbol -> (Maybe F.Symbol, F.Symbol)
 unQualifySymbol sym
-  | GM.isQualifiedSym sym = Misc.mapFst Just (splitModuleNameExact sym)
+  | GM.isQualifiedSym sym = first Just (splitModuleNameExact sym)
   | otherwise             = (Nothing, sym)
 
 splitModuleNameExact :: F.Symbol -> (F.Symbol, F.Symbol)
