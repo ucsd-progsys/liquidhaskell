@@ -1,0 +1,3136 @@
+
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://ucsd-progsys.github.io/liquidhaskell/specifications/">
+      
+      
+        <link rel="prev" href="../install/">
+      
+      
+        <link rel="next" href="../options/">
+      
+      
+      <link rel="icon" href="../static/img/favicon.ico">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.41">
+    
+    
+      
+        <title>Spec Reference - LiquidHaskell Docs</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.0253249f.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@5.9.55/css/materialdesignicons.min.css">
+    
+      <link rel="stylesheet" href="../static/liquid-light.css">
+    
+      <link rel="stylesheet" href="../static/misc.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="cyan" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#writing-specifications" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="LiquidHaskell Docs" class="md-header__button md-logo" aria-label="LiquidHaskell Docs" data-md-component="logo">
+      
+  <img src="../static/img/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            LiquidHaskell Docs
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              <i aria-hidden=true class='mdi mdi-script'></i> Spec Reference
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/ucsd-progsys/liquidhaskell" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="https://liquidhaskell.goto.ucsd.edu/index.html" class="md-tabs__link">
+        
+  
+    
+  
+  <div id='demo'><i aria-hidden=true class='mdi mdi-cloud-braces'></i> Try Online</div>
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="http://ucsd-progsys.github.io/liquidhaskell-tutorial/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-human-greeting'></i> Tutorial
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+    
+  
+  
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../install/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-download'></i> Installation
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-script'></i> Spec Reference
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../options/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-flag'></i> Flag Reference
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+    
+  
+  
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../papers/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-school'></i> Papers
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../blogposts/2020-08-20-lh-as-a-ghc-plugin.lhs/" class="md-tabs__link">
+          
+  
+  <i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="LiquidHaskell Docs" class="md-nav__button md-logo" aria-label="LiquidHaskell Docs" data-md-component="logo">
+      
+  <img src="../static/img/logo.png" alt="logo">
+
+    </a>
+    LiquidHaskell Docs
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/ucsd-progsys/liquidhaskell" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://liquidhaskell.goto.ucsd.edu/index.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <div id='demo'><i aria-hidden=true class='mdi mdi-cloud-braces'></i> Try Online</div>
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="http://ucsd-progsys.github.io/liquidhaskell-tutorial/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-human-greeting'></i> Tutorial
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-download'></i> Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-script'></i> Spec Reference
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-script'></i> Spec Reference
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#modules-without-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modules WITHOUT code
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modules-with-code-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modules WITH code: Data
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modules-with-code-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modules WITH code: Functions
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modules-with-code-type-classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modules WITH code: Type Classes
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modules-with-code-type-classes-legacy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modules WITH code: Type Classes (Legacy)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modules-with-code-quasiquotation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modules WITH code: QuasiQuotation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#standalone-specifications-for-internal-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      Standalone Specifications for Internal Modules
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inductive-predicates" class="md-nav__link">
+    <span class="md-ellipsis">
+      Inductive Predicates
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#refinement-type-aliases" class="md-nav__link">
+    <span class="md-ellipsis">
+      Refinement Type Aliases
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Refinement Type Aliases">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#predicate-aliases" class="md-nav__link">
+    <span class="md-ellipsis">
+      Predicate Aliases
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#failing-specifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      Failing Specifications
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#type-aliases" class="md-nav__link">
+    <span class="md-ellipsis">
+      Type Aliases
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#infix-operators" class="md-nav__link">
+    <span class="md-ellipsis">
+      Infix Operators
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#specifying-measures" class="md-nav__link">
+    <span class="md-ellipsis">
+      Specifying Measures
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inlines" class="md-nav__link">
+    <span class="md-ellipsis">
+      Inlines
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#self-invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      Self-Invariants
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#abstract-and-bounded-refinements" class="md-nav__link">
+    <span class="md-ellipsis">
+      Abstract and Bounded Refinements
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dependent-pairs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dependent Pairs
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      Invariants
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rewriting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rewriting
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Limitations
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#formal-grammar-of-refinement-predicates" class="md-nav__link">
+    <span class="md-ellipsis">
+      Formal Grammar of Refinement Predicates
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Formal Grammar of Refinement Predicates">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#constants" class="md-nav__link">
+    <span class="md-ellipsis">
+      (C)onstants
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      (V)ariables
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#expressions" class="md-nav__link">
+    <span class="md-ellipsis">
+      (E)xpressions
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#relations" class="md-nav__link">
+    <span class="md-ellipsis">
+      (R)elations
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#predicates" class="md-nav__link">
+    <span class="md-ellipsis">
+      (P)redicates
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#specifying-qualifiers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Specifying Qualifiers
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Specifying Qualifiers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#by-separate-hquals-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      By Separate .hquals Files
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#by-including-hquals-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      By Including .hquals Files
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#in-haskell-source-or-spec-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      In Haskell Source or Spec Files
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#termination-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      Termination Metrics
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Termination Metrics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#default-termination-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      Default Termination Metrics
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#explicit-termination-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      Explicit Termination Metrics
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lexicographic-termination-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lexicographic Termination Metrics
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mutually-recursive-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Mutually Recursive Functions
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#automatic-termination-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      Automatic Termination Metrics
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#disabling-termination-checking" class="md-nav__link">
+    <span class="md-ellipsis">
+      Disabling Termination Checking
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#relational-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      Relational Types
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Relational Types">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-proving-monotonicity-of-increment" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example: Proving Monotonicity of Increment
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#relational-predicate-syntax" class="md-nav__link">
+    <span class="md-ellipsis">
+      Relational Predicate Syntax
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#provided-guarantees" class="md-nav__link">
+    <span class="md-ellipsis">
+      Provided Guarantees
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-relational-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Running Relational Checks
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#current-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Current limitations
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../options/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-flag'></i> Flag Reference
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../papers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-school'></i> Papers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            <i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_9_1" id="__nav_9_1_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Blogposts
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9_1">
+            <span class="md-nav__icon md-icon"></span>
+            Blogposts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2020-08-20-lh-as-a-ghc-plugin.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    LiquidHaskell is a GHC Plugin
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2020-04-12-polymorphic-perplexion.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Polymorphic Perplexion
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2019-10-20-why-types.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Liquid Types vs. Floyd-Hoare Logic
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2018-05-17-hillel-verifier-rodeo-I-leftpad.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    The Hillelogram Verifier Rodeo I (LeftPad)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2018-02-23-measures-and-case-splitting.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Measures and Case Splitting
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2017-12-24-splitting-and-splicing-intervals-II.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Splitting and Splicing Intervals (Part 2)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2017-12-15-splitting-and-splicing-intervals-I.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Splitting and Splicing Intervals (Part 1)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2017-03-20-arithmetic-overflows.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Arithmetic Overflows
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2016-10-06-structural-induction.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Refinement Reflection on ADTs
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2016-09-18-refinement-reflection.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Haskell as a Theorem Prover
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2016-09-01-normal-forms.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Normal Forms
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2015-01-30-okasakis-lazy-queue.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Okasaki's Lazy Queues
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2014-08-15-a-finer-filter.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    A Finer Filter
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2014-05-28-pointers-gone-wild.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Pointers Gone Wild
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2014-02-11-the-advantage-of-measures.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    The Advantage of Measures
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2013-12-14-gcd.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Termination Requires Refinements
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2013-12-09-checking-termination.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checking Termination
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2013-12-02-getting-to-the-bottom.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Getting To the Bottom
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2013-11-23-telling_lies.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    LiquidHaskell Caught Telling Lies!
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2013-10-10-csv-tables.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CSV Tables
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2013-07-29-putting-things-in-order.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Putting Things In Order
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2013-06-03-abstracting-over-refinements.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Abstracting Over Refinements
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2013-05-24-unique-zipper.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Unique Zippers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2013-03-26-talking-about-sets.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Talking About Sets
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2013-03-04-bounding-vectors.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Bounding Vectors
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2013-02-17-kmeans-clustering-II.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    KMeans Clustering II
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2013-02-16-kmeans-clustering-I.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    KMeans Clustering I
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2013-01-31-safely-catching-a-list-by-its-tail.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Safely Catching A List By Its Tail
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2013-01-28-bounding-vectors.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Bounding Vectors
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2013-01-27-refinements101-reax.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Refinements 101 (contd.)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blogposts/2013-01-01-refinement-types-101.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Refinement Types 101
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tags.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tags
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#modules-without-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modules WITHOUT code
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modules-with-code-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modules WITH code: Data
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modules-with-code-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modules WITH code: Functions
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modules-with-code-type-classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modules WITH code: Type Classes
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modules-with-code-type-classes-legacy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modules WITH code: Type Classes (Legacy)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modules-with-code-quasiquotation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modules WITH code: QuasiQuotation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#standalone-specifications-for-internal-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      Standalone Specifications for Internal Modules
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inductive-predicates" class="md-nav__link">
+    <span class="md-ellipsis">
+      Inductive Predicates
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#refinement-type-aliases" class="md-nav__link">
+    <span class="md-ellipsis">
+      Refinement Type Aliases
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Refinement Type Aliases">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#predicate-aliases" class="md-nav__link">
+    <span class="md-ellipsis">
+      Predicate Aliases
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#failing-specifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      Failing Specifications
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#type-aliases" class="md-nav__link">
+    <span class="md-ellipsis">
+      Type Aliases
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#infix-operators" class="md-nav__link">
+    <span class="md-ellipsis">
+      Infix Operators
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#specifying-measures" class="md-nav__link">
+    <span class="md-ellipsis">
+      Specifying Measures
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inlines" class="md-nav__link">
+    <span class="md-ellipsis">
+      Inlines
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#self-invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      Self-Invariants
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#abstract-and-bounded-refinements" class="md-nav__link">
+    <span class="md-ellipsis">
+      Abstract and Bounded Refinements
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dependent-pairs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dependent Pairs
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      Invariants
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rewriting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rewriting
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Limitations
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#formal-grammar-of-refinement-predicates" class="md-nav__link">
+    <span class="md-ellipsis">
+      Formal Grammar of Refinement Predicates
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Formal Grammar of Refinement Predicates">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#constants" class="md-nav__link">
+    <span class="md-ellipsis">
+      (C)onstants
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      (V)ariables
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#expressions" class="md-nav__link">
+    <span class="md-ellipsis">
+      (E)xpressions
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#relations" class="md-nav__link">
+    <span class="md-ellipsis">
+      (R)elations
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#predicates" class="md-nav__link">
+    <span class="md-ellipsis">
+      (P)redicates
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#specifying-qualifiers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Specifying Qualifiers
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Specifying Qualifiers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#by-separate-hquals-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      By Separate .hquals Files
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#by-including-hquals-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      By Including .hquals Files
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#in-haskell-source-or-spec-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      In Haskell Source or Spec Files
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#termination-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      Termination Metrics
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Termination Metrics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#default-termination-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      Default Termination Metrics
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#explicit-termination-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      Explicit Termination Metrics
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lexicographic-termination-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lexicographic Termination Metrics
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mutually-recursive-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Mutually Recursive Functions
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#automatic-termination-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      Automatic Termination Metrics
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#disabling-termination-checking" class="md-nav__link">
+    <span class="md-ellipsis">
+      Disabling Termination Checking
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#relational-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      Relational Types
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Relational Types">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-proving-monotonicity-of-increment" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example: Proving Monotonicity of Increment
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#relational-predicate-syntax" class="md-nav__link">
+    <span class="md-ellipsis">
+      Relational Predicate Syntax
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#provided-guarantees" class="md-nav__link">
+    <span class="md-ellipsis">
+      Provided Guarantees
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-relational-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Running Relational Checks
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#current-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Current limitations
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+
+
+                  
+
+  
+  
+
+
+<h1 id="writing-specifications">Writing Specifications<a class="headerlink" href="#writing-specifications" title="Permanent link">&para;</a></h1>
+<p>This section documents how you can actually annotate new or existing code with
+refinement types, leveraging the full power of LiquidHaskell. As syntax reference you can
+also check <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests-by-syntax.md">this index</a>.</p>
+<p>There are a lot of different ways to annotate your code, and so we've included a brief summary
+of each here.</p>
+<ul>
+<li><code>{-@ inline &lt;binding-name&gt; @-}</code> copies a Haskell definition to the refinement logic.
+  (<a href="#inlines">Jump to: Inlines</a>)<ul>
+<li>All parts of the definition must already be available to the refinement logic.</li>
+<li>The definition cannot be recursive.</li>
+</ul>
+</li>
+<li><code>{-@ measure &lt;function-name&gt;[ &lt;refinement-type&gt;] @-}</code> copies a Haskell function to the refinement logic,
+  adds an inferred refinement type to the constructor of the function's first argument,
+  and emits an inferred global invariant related to the refinement.
+  (<a href="#specifying-measures">Jump to: Measures</a>)<ul>
+<li>All parts of the definition must already be available to the refinement logic.</li>
+<li>The function must have only one argument and it must pattern match on the constructors of the type.</li>
+<li>The function may structurally recurse on the single argument.</li>
+</ul>
+</li>
+<li><code>{-@ reflect &lt;function-name&gt; @-}</code> creates an uninterpreted function of the same name in the refinement logic,
+  copies the implementation to a refinement type alias,
+  and adds a refinement to the type of the uninterpreted function that specifies the type alias as a post-condition.
+  (<a href="http://goto.ucsd.edu/~nvazou/refinement-reflection/refinement-reflection.pdf">See more: Section 2.2 of this paper</a>)<ul>
+<li>If not all parts of the definition are in the refinement logic, then uninterpreted functions will be introduced for all symbols that
+  are not in the logic. To list those symbols, you can use the <code>--dump-opaque-reflections</code> flag.</li>
+<li>The function may be recursive.</li>
+</ul>
+</li>
+<li><code>{-@ assume reflect &lt;actual-function-name&gt; as &lt;pretended-function-name&gt; @-}</code> creates an assumption that the actual function
+  behaves as the pretended function. Whence the actual function becomes reflected and can be used in the logic. Its refinement type is strengthened with
+  the post-condition that the result of the actual function is the same as the result of the pretended function.
+  (<a href="http://ucsd-progsys.github.io/liquidhaskell/options/#theorem-proving">Jump to: Theorem Proving</a>)<ul>
+<li>The pretended function must be already reflected in the logic</li>
+</ul>
+</li>
+<li><code>{-@ type &lt;type-alias-head&gt; = &lt;refinement-type&gt; @-}</code> introduces a type alias that looks like Haskell syntax but can contain refinements and may be parameterized over both types and values.
+  (<a href="#type-aliases">Jump to: Type Aliases</a>)</li>
+<li><code>{-@ predicate .. @-}</code> introduces something like <code>{-@ type .. @-}</code>.
+  (<em>Deprecated, use <code>inline</code> instead</em>, <a href="#predicate-aliases">Jump to: Predicate Aliases</a>)</li>
+<li><code>{-@ invariant &lt;refinement-type&gt; @-}</code> introduces a globally available refinement which may be used by Liquid Haskel, but is not checked.
+  (<em>Unchecked</em>, <em>Deprecated</em>, <a href="#invariants">Jump to: Invariants</a>)</li>
+<li><code>{-@ data &lt;data-type-head&gt;&lt;termination-measure&gt;[ &lt;data-type-body] @-}</code> introduces a refined datatype,
+  and introduces measures for each field of a record datatype.
+  (<a href="http://ucsd-progsys.github.io/liquidhaskell/specifications/#modules-with-code-data">Jump to: Data Refinements</a>)<ul>
+<li>Optionally you may also add refinements to datatype fields.</li>
+<li>Optionally you may also add a termination measure to the datatype.</li>
+</ul>
+</li>
+<li><code>{-@ assume &lt;binding-signature-with-refinement-type&gt; @-}</code> introduces a refinement type for the named Haskell definition.
+  (<em>Unchecked</em>)<ul>
+<li>For a function, the refinements become pre and post conditions for the functions use.</li>
+</ul>
+</li>
+<li><code>{-@ &lt;binding-signature-with-refinement-type&gt; @-}</code> introduces a refinement type for the named Haskell definition.<ul>
+<li>For a function, the refinements become pre and post conditions for the functions use.</li>
+<li>This is probably the most used Liquid Haskell annotation!</li>
+</ul>
+</li>
+</ul>
+<p>The following sections detail more variety for the uses of the above annotations.</p>
+<h2 id="modules-without-code">Modules WITHOUT code<a class="headerlink" href="#modules-without-code" title="Permanent link">&para;</a></h2>
+<p>See the <a href="../install/">installation</a> section, which cointains a link to a walkthrough document that describes how to add
+refinements for external packages (cfr. <strong>"Providing Specifications for Existing Packages"</strong>)</p>
+<h2 id="modules-with-code-data">Modules WITH code: Data<a class="headerlink" href="#modules-with-code-data" title="Permanent link">&para;</a></h2>
+<p>Write the specification directly into the .hs or .lhs file,
+above the data definition. See, for example, <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Map.hs">tests/pos/Map.hs</a>:</p>
+<pre><code class="language-haskell">{-@
+data Map k a &lt;l :: k -&gt; k -&gt; Prop, r :: k -&gt; k -&gt; Prop&gt;
+  = Tip
+  | Bin (sz    :: Size)
+        (key   :: k)
+        (value :: a)
+        (left  :: Map &lt;l, r&gt; (k &lt;l key&gt;) a)
+        (right :: Map &lt;l, r&gt; (k &lt;r key&gt;) a)
+@-}
+data Map k a = Tip
+             | Bin Size k a (Map k a) (Map k a)
+</code></pre>
+<p>You can also write invariants for data type definitions
+together with the types. For example, see <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Record0.hs">tests/pos/record0.hs</a>:</p>
+<pre><code class="language-haskell">{-@ 
+data LL a = BXYZ { size  :: {v: Int | v &gt; 0 }
+                 , elems :: {v: [a] | (len v) = size }
+                 }
+@-}
+</code></pre>
+<p>You can also specify a decreasing size for each data. 
+For example, see <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/8e74281a9e1c6809f07d3ba7be08d93395247a13/tests/pos/FancyMutualTerm.hs">tests/pos/FancyMutualTerm.hs</a>:</p>
+<pre><code class="language-haskell">{-@ measure tsize :: Tree a -&gt; Nat @-}
+{-@ data size (Tree a) tsize @-}
+
+{-@ data Tree a where 
+      Leaf :: a -&gt; {t:Tree a  | tsize t == 0 } 
+      Node :: f:(Int -&gt; Tree a) -&gt; Tree a  @-}
+</code></pre>
+<p>The annotation <code>data size (Tree a) tsize</code>
+ensures that each <code>Tree a</code> in the fields of <code>Tree</code>
+has <code>tsize</code> less than the result <code>Tree</code>. 
+The <code>data size</code> annotation can be used for mutually defined types 
+as  <code>data size (M1 a, M2 a) msize</code>.</p>
+<p>Finally you can specify the variance of type variables for data types.
+For example, see <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Variance.hs">tests/pos/Variance.hs</a>, where data type <code>Foo</code> has four
+type variables <code>a</code>, <code>b</code>, <code>c</code>, <code>d</code>, specified as invariant, bivariant,
+covariant and contravariant, respectively.</p>
+<pre><code>{-@ data variance Foo invariant bivariant covariant contravariant @-}
+data Foo a b c d
+</code></pre>
+<h2 id="modules-with-code-functions">Modules WITH code: Functions<a class="headerlink" href="#modules-with-code-functions" title="Permanent link">&para;</a></h2>
+<p>Write the specification directly into the .hs or .lhs file,
+above the function definition. <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Spec0.hs">For example</a>:</p>
+<pre><code class="language-haskell">{-@ incr :: x:{v: Int | v &gt; 0} -&gt; {v: Int | v &gt; x} @-}
+incr   :: Int -&gt; Int
+incr x = x + 1
+</code></pre>
+<h2 id="modules-with-code-type-classes">Modules WITH code: Type Classes<a class="headerlink" href="#modules-with-code-type-classes" title="Permanent link">&para;</a></h2>
+<p>Write the specification directly into the .hs or .lhs file. The constrained variable must match the one from the class definition. A class must have at least one refinement signature (even if it's a trivial one) to be lifted to the refinement logic. <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Class.hs">For example</a>:</p>
+<pre><code class="language-haskell">class Semigroup a where
+    {-@ mappend :: a -&gt; a -&gt; a @-}
+    mappend :: a -&gt; a -&gt; a
+    sconcat :: NonEmpty a -&gt; a
+
+class Semigroup a =&gt; VSemigroup a where
+    {-@ lawAssociative :: v:a -&gt; v':a -&gt; v'':a -&gt;
+          {mappend (mappend v v') v'' == mappend v (mappend v' v'')} @-}
+    lawAssociative :: a -&gt; a -&gt; a -&gt; ()
+</code></pre>
+<p>Without the extra signature for <code>mappend</code>, the above example would not work.</p>
+<p>Instances can be defined without any special annotations:</p>
+<pre><code class="language-haskell">data PNat = Z | S PNat
+
+instance Semigroup PNat where
+  mappend Z     n = n
+  mappend (S m) n = S (mappend m n)
+  sconcat (NonEmpty h t) = foldlList mappend h t
+
+instance VSemigroup PNat where
+  lawAssociative Z     _ _ = ()
+  lawAssociative (S p) m n = lawAssociative p m n
+</code></pre>
+<p>The example above inlines the proofs directly into the instance definition. This requires the <code>--aux-inline</code> flag.</p>
+<h2 id="modules-with-code-type-classes-legacy">Modules WITH code: Type Classes (Legacy)<a class="headerlink" href="#modules-with-code-type-classes-legacy" title="Permanent link">&para;</a></h2>
+<p>Write the specification directly into the .hs or .lhs file,
+above the type class definition. <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Class.hs">For example</a>:</p>
+<pre><code class="language-haskell">{-@ class Sized s where
+      size :: forall a. x:s a -&gt; {v:Int | v = (size x)}
+@-}
+class Sized s where
+  size :: s a -&gt; Int
+</code></pre>
+<p>Any measures used in the refined class definition will need to be
+<em>generic</em> (see <a href="#specifying-measures">Specifying Measures</a>).</p>
+<p>As an alternative, you can refine class instances.
+<a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/classes/pos/Inst00.hs">For example</a>:</p>
+<pre><code class="language-haskell">instance Compare Int where
+
+{-@ instance Compare Int where
+    cmax :: Odd -&gt; Odd -&gt; Odd
+  @-}
+
+cmax y x = if x &gt;= y then x else y
+</code></pre>
+<p>When <code>cmax</code> method is used on <code>Int</code>, <code>liquidHaskell</code> will give it the refined type <code>Odd -&gt; Odd -&gt; Odd</code>.</p>
+<p><em>Note that currently <code>liquidHaskell</code> does not allow refining instances of refined classes</em>.</p>
+<h2 id="modules-with-code-quasiquotation">Modules WITH code: QuasiQuotation<a class="headerlink" href="#modules-with-code-quasiquotation" title="Permanent link">&para;</a></h2>
+<p>Instead of writing both a Haskell type signature <em>and</em> a
+LiquidHaskell specification for a function, the <code>lq</code>
+quasiquoter in the <code>LiquidHaskell</code> module can be used
+to generate both from just the LiquidHaskell specification.</p>
+<pre><code class="language-haskell">module Nats (nats) where
+
+{-@ nats :: [{v:Int | 0 &lt;= v}] @-}
+nats :: [Int]
+nats = [1,2,3]
+</code></pre>
+<p>can be written as</p>
+<pre><code class="language-haskell">{-# LANGUAGE QuasiQuotes #-}
+module Nats (nats) where
+
+import LiquidHaskell
+
+[lq| nats :: [{v:Int | 0 &lt;= v}] |]
+nats = [1,2,3]
+</code></pre>
+<p>and the <code>lq</code> quasiquoter will generate the plain <code>nats :: [Int]</code> when GHC
+compiles the module.</p>
+<p>Refined type aliases (see the next section) can also be written inside <code>lq</code>; for
+example:</p>
+<pre><code class="language-haskell">{-# LANGUAGE QuasiQuoters #-}
+module Nats (Nat, nats) where
+
+[lq| type Nat = {v:Int | 0 &lt;= v} |]
+
+[lq| nats :: [Nat] |]
+nats = [1,2,3]
+</code></pre>
+<p>Here, the <code>lq</code> quasiquoter will generate a plain Haskell
+type synonym for <code>Nat</code> as well as the refined one.</p>
+<p>Note that this is still an experimental feature, and
+currently requires that one depend on LiquidHaskell
+as a build dependency for your project; the quasiquoter
+will be split out eventually into an independent,
+dependency-light package. Also, at this time, writing
+a type inside <code>lq</code> which refers to a refined type alias
+for which there is not a plain Haskell type synonym of the
+same name will result in a "not in scope" error from GHC.</p>
+<h2 id="standalone-specifications-for-internal-modules">Standalone Specifications for Internal Modules<a class="headerlink" href="#standalone-specifications-for-internal-modules" title="Permanent link">&para;</a></h2>
+<p>Recall that the <code>.spec</code> mechanism is only for modules whose
+code is absent; if code is present then there can be multiple,
+possibly conflicting specifications. Nevertheless, you may want,
+for one reason or another, to write (assumed) specifications
+outside the file implementing the module.</p>
+<p>You can do this as follows.</p>
+<p><code>Lib.hs</code></p>
+<pre><code class="language-haskell">module Lib (foo) where
+
+foo a = a
+</code></pre>
+<p>now, instead of a <code>.spec</code> file, just use a haskell module, e.g. <code>LibSpec.hs</code></p>
+<pre><code class="language-haskell">module LibSpec ( module Lib ) where
+
+import Lib
+
+-- Don't forget to qualify the name!
+
+{-@ Lib.foo :: {v:a | false} -&gt; a @-}
+</code></pre>
+<p>and then here's <code>Client.hs</code></p>
+<pre><code class="language-haskell">module Client where
+
+import Lib      -- use this if you DON'T want the spec
+import LibSpec  -- use this if you DO want the spec, in addition to OR instead of the previous import.
+
+bar = foo 1     -- if you `import LibSpec` then this call is rejected by LH
+</code></pre>
+<h2 id="inductive-predicates">Inductive Predicates<a class="headerlink" href="#inductive-predicates" title="Permanent link">&para;</a></h2>
+<p><strong>Status:</strong> <code>very_experimental</code></p>
+<p>LH recently added support for <em>Inductive Predicates</em>
+in the style of Isabelle, Coq etc. These are encoded
+simply as plain Haskell GADTs but suitably refined.</p>
+<p>Apologies for the minimal documentation; see the
+following examples for details:</p>
+<ul>
+<li><a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/IndPalindrome.hs">Palindrome</a></li>
+<li><a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/IndPerm.hs">Permutations</a></li>
+<li><a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/IndStar.hs">Transitive Closure</a></li>
+<li><a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/RegexpDerivative.hs">RegExp Derivatives</a></li>
+<li><a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/STLC2.hs">Type Safety of STLC</a></li>
+</ul>
+<h2 id="refinement-type-aliases">Refinement Type Aliases<a class="headerlink" href="#refinement-type-aliases" title="Permanent link">&para;</a></h2>
+<h3 id="predicate-aliases">Predicate Aliases<a class="headerlink" href="#predicate-aliases" title="Permanent link">&para;</a></h3>
+<p>Often, the propositions in the refinements can get rather long and
+verbose. You can write predicate aliases like so:</p>
+<pre><code class="language-haskell">{-@ predicate Lt X Y = X &lt; Y        @-}
+{-@ predicate Ge X Y = not (Lt X Y) @-}
+</code></pre>
+<p>and then use the aliases inside refinements, <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Pred.hs">for example</a></p>
+<pre><code class="language-haskell">{-@ incr :: x:{v:Int | (Pos v)} -&gt; { v:Int | ((Pos v) &amp;&amp; (Ge v x))} @-}
+incr :: Int -&gt; Int
+incr x = x + 1
+</code></pre>
+<p>See <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/benchmarks/esop2013-submission/Base.hs">Data.Map</a> for a more substantial
+and compelling example.</p>
+<p><strong>Syntax:</strong> The key requirements for type aliases are:</p>
+<ul>
+<li>Value parameters are specified in <strong>upper</strong>case: <code>X</code>, <code>Y</code>, <code>Z</code> etc.</li>
+</ul>
+<h3 id="failing-specifications">Failing Specifications<a class="headerlink" href="#failing-specifications" title="Permanent link">&para;</a></h3>
+<p>The <code>fail b</code> declaration checks that the definition of <code>b</code> is unsafe. E.g., the following is SAFE.</p>
+<pre><code class="language-haskell">{-@ fail unsafe @-}
+{-@ unsafe :: () -&gt; { 0 == 1 } @-}
+unsafe :: () -&gt; () 
+unsafe _ = ()
+</code></pre>
+<p>An error is created if <code>fail</code> definitions are safe or binders defined as <code>fail</code> are used by (failing or not) definitions. </p>
+<h3 id="type-aliases">Type Aliases<a class="headerlink" href="#type-aliases" title="Permanent link">&para;</a></h3>
+<p>Similarly, it is often quite tedious to keep writing</p>
+<pre><code>{v: Int | v &gt; 0}
+</code></pre>
+<p>Thus, LiquidHaskell supports refinement-type aliases of the form:</p>
+<pre><code>{-@ type Gt      N = {v: Int | N &lt;  v} @-}
+{-@ type GeNum a N = {v: a   | N &lt;= v} @-}
+</code></pre>
+<p>or</p>
+<pre><code>{-@ type SortedList a = [a]&lt;{\fld v -&gt; (v &gt;= fld)}&gt; @-}
+</code></pre>
+<p>or</p>
+<pre><code>{-@ type OMap k a = Map &lt;{\root v -&gt; v &lt; root}, {\root v -&gt; v &gt; root}&gt; k a @-}
+</code></pre>
+<p>or</p>
+<pre><code>{-@ type MinSPair a = (a, OSplay a) &lt;\fld -&gt; {v : Splay {v:a|v&gt;fld} | 0=0}&gt; @-}
+</code></pre>
+<p>and then use the above in signatures like:</p>
+<pre><code>{-@ incr: x: Int -&gt; GeNum Int x @-}
+</code></pre>
+<p>or</p>
+<pre><code>{-@ incr: x: Int -&gt; Gt x @-}
+</code></pre>
+<p>and:</p>
+<pre><code>{-@ assert insert :: (Ord a) =&gt; a -&gt; SortedList a -&gt; SortedList a @-}
+</code></pre>
+<p>see <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/ListSort.hs">tests/pos/ListSort.hs</a></p>
+<p>and:</p>
+<pre><code>{-@ assert insert :: (Ord k) =&gt; k -&gt; a -&gt; OMap k a -&gt; OMap k a @-}
+</code></pre>
+<p>see <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Map.hs">tests/pos/Map.hs</a></p>
+<p><strong>Syntax:</strong> The key requirements for type aliases are:</p>
+<ol>
+<li>Type parameters are specified in <strong>lower</strong>case: <code>a</code>, <code>b</code>, <code>c</code> etc.</li>
+<li>Value parameters are specified in <strong>upper</strong>case: <code>X</code>, <code>Y</code>, <code>Z</code> etc.</li>
+</ol>
+<h2 id="infix-operators">Infix  Operators<a class="headerlink" href="#infix-operators" title="Permanent link">&para;</a></h2>
+<p>You can define infix types and logical operators in logic <a href="https://www.haskell.org/onlinereport/decls.html#fixity">Haskell's infix notation</a>.
+For example, if <code>(+++)</code> is defined as a measure or reflected function, you can use it infix by declaring</p>
+<pre><code>{-@ infixl 9 +++ @-}
+</code></pre>
+<p>Note: infix operators cannot contain the dot character <code>.</code>.</p>
+<p>If <code>(==&gt;)</code> is a Haskell infix type (<a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/T1567.hs">see</a>)</p>
+<pre><code>infixr 1 ==&gt;
+</code></pre>
+<p>then to use it as infix in the refinements types you need to add the refinement infix notation. </p>
+<pre><code>{-@ infixr 1 ==&gt; @-}
+{-@ test :: g:(f ==&gt; g) -&gt; f x -&gt; f y -&gt; ()  @-}
+</code></pre>
+<h2 id="specifying-measures">Specifying Measures<a class="headerlink" href="#specifying-measures" title="Permanent link">&para;</a></h2>
+<p>They can be placed in a <code>.spec</code> file or in a .hs/.lhs file wrapped around <code>{-@ @-}</code>.</p>
+<p>Value measures: <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/src/GHC/Base_LHAssumptions.hs">GHC/Base_LHAssumptions.hs</a></p>
+<pre><code>measure len :: forall a. [a] -&gt; GHC.Types.Int
+len ([])     = 0
+len (y:ys)   = 1 + len(ys)
+</code></pre>
+<p>Propositional measures: <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/LambdaEval.hs">tests/pos/LambdaEval.hs</a></p>
+<pre><code class="language-haskell">{-@
+measure isValue      :: Expr -&gt; Bool
+isValue (Const i)    = true
+isValue (Lam x e)    = true
+isValue (Var x)      = false
+isValue (App e1 e2)  = false
+isValue (Plus e1 e2) = false
+isValue (Fst e)      = false
+isValue (Snd e)      = false
+isValue (Pair e1 e2) = ((? (isValue(e1))) &amp;&amp; (? (isValue(e2))))
+@-}
+</code></pre>
+<p>Raw measures: <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Meas8.hs">tests/pos/meas8.hs</a></p>
+<pre><code class="language-haskell">{-@ measure rlen :: [a] -&gt; Int
+rlen ([])   = {v | v = 0}
+rlen (y:ys) = {v | v = (1 + rlen(ys))}
+@-}
+</code></pre>
+<p>Generic measures: <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Class.hs">tests/pos/Class.hs</a></p>
+<pre><code class="language-haskell">{-@ class measure size :: a -&gt; Int @-}
+{-@ instance measure size :: [a] -&gt; Int
+    size ([])   = 0
+    size (x:xs) = 1 + (size xs)
+@-}
+{-@ instance measure size :: Tree a -&gt; Int
+    size (Leaf)       = 0
+    size (Node x l r) = 1 + (size l) + (size r)
+@-}
+</code></pre>
+<p><strong>Note:</strong> Measure names <strong>do not</strong> have to be the same as
+field name, e.g. we could call the measure <code>sz</code> in the above
+as shown in <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Class2.hs">tests/pos/Class2.hs</a>.</p>
+<p>Haskell Functions as Measures (beta): <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/HaskellMeasure.hs">tests/pos/HaskellMeasure.hs</a></p>
+<p>Inductive Haskell Functions from Data Types to some type can be lifted to logic</p>
+<pre><code class="language-haskell">{-@ measure llen @-}
+llen        :: [a] -&gt; Int
+llen []     = 0
+llen (x:xs) = 1 + llen xs
+</code></pre>
+<p>The above definition:</p>
+<ul>
+<li>refines list's data constructors types with the llen information, and</li>
+<li>specifies a singleton type for the haskell function <code>llen :: xs:[a] -&gt; {v:Int | v == llen xs}</code>.
+  If the user specifies another type for <code>llen</code>, say <code>llen :: xs:[a] -&gt; {v:Int | llen xs &gt;= 0}</code>,
+  then the auto generated singleton type is overwritten.</li>
+</ul>
+<h2 id="inlines">Inlines<a class="headerlink" href="#inlines" title="Permanent link">&para;</a></h2>
+<p>The <code>inline</code> lets you use a Haskell function in a type specification. </p>
+<pre><code class="language-haskell">{-@ inline max @-}
+{-@ max :: Int -&gt; Int -&gt; Int @-}
+max :: Int -&gt; Int -&gt; Int
+max x y = if x &gt; y then x else y
+</code></pre>
+<p>For example, if you write the above you can then write a function:</p>
+<pre><code class="language-haskell">{-@ floor :: x:Int -&gt; {v:Int | max 0 x} @-}
+floor :: Int -&gt; Int
+floor x 
+  | x &lt;= 0    = 0
+  | otherwise = x
+</code></pre>
+<p>That is, you can use the haskell <code>max</code> in the refinement type and 
+it will automatically get “expanded” out to the full definition. 
+This makes it useful e.g. to reuse plain Haskell code to compose 
+specifications, and to share definitions common to refinements and code.</p>
+<p>However, as they are <em>expanded</em> at compile time, <code>inline</code> functions 
+<strong>cannot be recursive</strong>. The can call <em>other</em> (non-recursive) inline functions.</p>
+<p>If you want to talk about arbitrary (recursive) functions inside your types, 
+then you need to use <code>reflect</code> described <a href="../tags.html#reflection">in the blog</a>.</p>
+<h2 id="self-invariants">Self-Invariants<a class="headerlink" href="#self-invariants" title="Permanent link">&para;</a></h2>
+<p>Sometimes, we require specifications that allow <em>inner</em> components of a
+type to refer to the <em>outer</em> components, typically, to measure-based
+properties of outer components. For example, the following invariant
+about <code>Maybe</code> values</p>
+<pre><code>{-@ type IMaybe a = {v0 : Maybe {v : a | ((isJust v0) &amp;&amp; v = (fromJust v0))} | 0 = 0 } @-}
+</code></pre>
+<p>states that the <em>inner</em> <code>a</code> enjoys the property that the <em>outer</em> container
+is definitely a <code>Just</code> and furthermore, the inner value is exactly the same
+as the <code>fromJust</code> property of the outer container.</p>
+<p>As another example, suppose we have a <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/src/Data/Set_LHAssumptions.hs">measure</a>:</p>
+<pre><code>measure listElts :: [a] -&gt; (Set a)
+listElts([])   = {v | (? Set_emp(v))}
+listElts(x:xs) = {v | v = Set_cup(Set_sng(x), listElts(xs)) }
+</code></pre>
+<p>Now, all lists enjoy the property</p>
+<pre><code>{-@ type IList a = {v0 : List  {v : a | (Set_mem v (listElts v0)) } | true } @-}
+</code></pre>
+<p>which simply states that each <em>inner</em> element is indeed, a member of the
+set of the elements belonging to the entire list.</p>
+<p>One often needs these <em>circular</em> or <em>self</em> invariants to connect different
+levels (or rather, to <em>reify</em> the connections between the two levels.) See
+<a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Maybe4.hs">this test</a> for a simple example and <code>hedgeUnion</code> and
+<a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/benchmarks/esop2013-submission/Base.hs">Data.Map.Base</a> for a complex one.</p>
+<h2 id="abstract-and-bounded-refinements">Abstract and Bounded Refinements<a class="headerlink" href="#abstract-and-bounded-refinements" title="Permanent link">&para;</a></h2>
+<p>This is probably the best example of the abstract refinement syntax:</p>
+<ul>
+<li><a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Map.hs">Abstract Refinements</a></li>
+<li><a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/benchmarks/icfp15/pos/Overview.lhs">Bounded Refinements</a></li>
+</ul>
+<p>Unfortunately, the best documentation for these two advanced features
+is the relevant papers at:</p>
+<ul>
+<li><a href="https://ranjitjhala.github.io/static/abstract_refinement_types.pdf">ESOP 2013</a></li>
+<li><a href="https://arxiv.org/abs/1507.00385">ICFP 2015</a></li>
+</ul>
+<p>The bounds correspond to Horn implications between abstract refinements,
+which, as in the classical setting, correspond to subtyping constraints
+that must be satisfied by the concrete refinements used at any call-site.</p>
+<h2 id="dependent-pairs">Dependent Pairs<a class="headerlink" href="#dependent-pairs" title="Permanent link">&para;</a></h2>
+<p>Dependent Pairs are expressed by binding the initial tuples of the pair. For example
+<code>incrPair</code> defines an increasing pair.</p>
+<pre><code>{-@ incrPair :: Int -&gt; (x::Int, {v:Int | x &lt;= v}) @-}
+incrPair i = (i, i+1)
+</code></pre>
+<p>Internally dependent pairs are implemented using abstract refinement types.
+That is <code>(x::a, {v:b | p x})</code> desugars to <code>(a,b)&lt;\x -&gt; {v:b | p x}&gt;</code>.</p>
+<h2 id="invariants">Invariants<a class="headerlink" href="#invariants" title="Permanent link">&para;</a></h2>
+<p>LH lets you locally associate invariants with specific data types.</p>
+<p>For example, in <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/measure/pos/Using00.hs">tests/measure/pos/Using00.hs</a> every
+list is treated as a <code>Stream</code>. To establish this local invariant one can use the
+<code>using</code> declaration</p>
+<pre><code>{-@ using ([a]) as  {v:[a] | (len v &gt; 0)} @-}
+</code></pre>
+<p>denoting that each list is not empty.</p>
+<p>Then, LiquidHaskell will prove that this invariant holds, by proving that <em>all
+calls</em> to List's constructors (ie., <code>:</code> and <code>[]</code>) satisfy it, and
+will assume that each list element that is created satisfies
+this invariant.</p>
+<p>With this, at the <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/measure/neg/Using00.hs">above</a> test LiquidHaskell
+proves that taking the <code>head</code> of a list is safe.
+But, at <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/measure/neg/Using00.hs">tests/measure/neg/Using00.hs</a> the usage of
+<code>[]</code> falsifies this local invariant resulting in an "Invariant Check" error.</p>
+<p><strong>WARNING:</strong> There is an older <em>global</em> invariant mechanism that
+attaches a refinement to a datatype globally.
+Do not use this mechanism -- it is <em>unsound</em> and about to
+deprecated in favor of something that is <a href="https://github.com/ucsd-progsys/liquidhaskell/issues/126">actually sound</a></p>
+<p>For example,  the length of a list cannot be negative</p>
+<pre><code>{-@ invariant {v:[a] | (len v &gt;= 0)} @-}
+</code></pre>
+<p>LiquidHaskell can prove that this invariant holds, by proving that all List's
+constructors (ie., <code>:</code> and <code>[]</code>) satisfy it.(TODO!) Then, LiquidHaskell
+assumes that each list element that is created satisfies
+this invariant.</p>
+<h2 id="rewriting">Rewriting<a class="headerlink" href="#rewriting" title="Permanent link">&para;</a></h2>
+<p><strong>Status:</strong> <code>experimental</code></p>
+<p>You use the <code>rewriteWith</code> annotation to indicate equalities that PLE will apply automatically. For example, suppose that you have proven associativity
+of <code>++</code> for lists.</p>
+<pre><code class="language-haskell">{-@ assoc :: xs:[a] -&gt; ys:[a] -&gt; zs:[a] 
+          -&gt; { xs ++ (ys ++ zs) == (xs ++ ys) ++ zs } @-}
+</code></pre>
+<p>Using the <code>rewriteWith</code> annotation, PLE will automatically apply the equality for associativity whenever it encounters an expression of the form <code>xs ++ (ys ++ zs)</code> or <code>(xs ++ ys) ++ zs</code>. For example, you can prove <code>assoc2</code> for free.</p>
+<pre><code class="language-haskell">{-@ rewriteWith assoc2 [assoc] @-} 
+{-@ assoc2 :: xs:[a] -&gt; ys:[a] -&gt; zs:[a] -&gt; ws:[a]
+          -&gt; { xs ++ (ys ++ (zs ++ ws)) == ((xs ++ ys) ++ zs) ++ ws } @-}
+assoc2 :: [a] -&gt; [a] -&gt; [a] -&gt; [a] -&gt; ()
+assoc2 xs ys zs ws = () 
+</code></pre>
+<p>You can also annotate a function as being a global rewrite rule by using the
+<code>rewrite</code> annotation, in which case PLE will apply it across the entire module.</p>
+<pre><code class="language-haskell">{-@ rewrite assoc @-}
+{-@ assoc :: xs:[a] -&gt; ys:[a] -&gt; zs:[a] 
+          -&gt; { xs ++ (ys ++ zs) == (xs ++ ys) ++ zs } @-}
+</code></pre>
+<h2 id="limitations">Limitations<a class="headerlink" href="#limitations" title="Permanent link">&para;</a></h2>
+<p>Currently, rewriting does not work if the equality that uses the rewrite rule
+includes parameters that contain inner refinements (<a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/errors/ReWrite5.hs">test</a>).</p>
+<p>Rewriting works by pattern-matching expressions to determine if there is a
+variable substitution that would allow it to match against either side of a
+rewrite rule. If so, that substitution is applied to the opposite side and the
+corresponding equality is generated. If one side of the equality contains any
+parameters that are not bound on the other side, it will not be possible to
+generate a rewrite in that direction, because those variables cannot be
+instantiated. Likewise, if there are free variables on both sides of an
+equality, no rewrite can be generated at all (<a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/errors/ReWrite7.hs">test</a>).</p>
+<p>It's possible in theory for rewriting rules to diverge. We have a simple check 
+to ensure that rewriting rules that will always diverge do not get instantiated. 
+However, it's possible that applying a combination of rewrite rules could cause
+divergence.</p>
+<h2 id="formal-grammar-of-refinement-predicates">Formal Grammar of Refinement Predicates<a class="headerlink" href="#formal-grammar-of-refinement-predicates" title="Permanent link">&para;</a></h2>
+<h3 id="constants">(C)onstants<a class="headerlink" href="#constants" title="Permanent link">&para;</a></h3>
+<pre><code>c := 0, 1, 2, ...
+</code></pre>
+<h3 id="variables">(V)ariables<a class="headerlink" href="#variables" title="Permanent link">&para;</a></h3>
+<pre><code>v := x, y, z, ...
+</code></pre>
+<h3 id="expressions">(E)xpressions<a class="headerlink" href="#expressions" title="Permanent link">&para;</a></h3>
+<pre><code>e := v                      -- variable
+   | c                      -- constant
+   | (e + e)                -- addition
+   | (e - e)                -- subtraction
+   | (c * e)                -- multiplication by constant
+   | (v e1 e2 ... en)       -- uninterpreted function application
+   | (if p then e else e)   -- if-then-else
+</code></pre>
+<h3 id="relations">(R)elations<a class="headerlink" href="#relations" title="Permanent link">&para;</a></h3>
+<pre><code>r := ==               -- equality
+   | /=               -- disequality
+   | &gt;=               -- greater than or equal
+   | &lt;=               -- less than or equal
+   | &gt;                -- greater than
+   | &lt;                -- less than
+</code></pre>
+<h3 id="predicates">(P)redicates<a class="headerlink" href="#predicates" title="Permanent link">&para;</a></h3>
+<pre><code>p := (e r e)          -- binary relation
+   | (v e1 e2 ... en) -- predicate (or alias) application
+   | (p &amp;&amp; p)         -- and
+   | (p || p)         -- or
+   | (p =&gt; p)         -- implies
+   | (not p)          -- negation
+   | true
+   | false
+</code></pre>
+<h2 id="specifying-qualifiers">Specifying Qualifiers<a class="headerlink" href="#specifying-qualifiers" title="Permanent link">&para;</a></h2>
+<p>There are several ways to specify qualifiers.</p>
+<h3 id="by-separate-hquals-files">By Separate <code>.hquals</code> Files<a class="headerlink" href="#by-separate-hquals-files" title="Permanent link">&para;</a></h3>
+<p>You can write qualifier files e.g. <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/include/Prelude.hquals">Prelude.hquals</a>..</p>
+<p>If a module is called or imports</p>
+<pre><code>Foo.Bar.Baz
+</code></pre>
+<p>Then the system automatically searches for</p>
+<pre><code>include/Foo/Bar/Baz.hquals
+</code></pre>
+<h3 id="by-including-hquals-files">By Including <code>.hquals</code> Files<a class="headerlink" href="#by-including-hquals-files" title="Permanent link">&para;</a></h3>
+<p>Additional qualifiers may be used by adding lines of the form:</p>
+<pre><code>{-@ include &lt;path/to/file.hquals&gt; @-}
+</code></pre>
+<p>to the Haskell source. See, <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Meas5.hs">this</a> for example.</p>
+<h3 id="in-haskell-source-or-spec-files">In Haskell Source or Spec Files<a class="headerlink" href="#in-haskell-source-or-spec-files" title="Permanent link">&para;</a></h3>
+<p>Finally, you can specifiers directly inside source (.hs or .lhs) or spec (.spec)
+files by writing as shown <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/QualTest.hs">here</a></p>
+<pre><code>{-@ qualif Foo(v:Int, a: Int) : (v = a + 100)   @-}
+</code></pre>
+<p><strong>Note</strong> In addition to these, LiquidHaskell scrapes qualifiers from all
+the specifications you write i.e.</p>
+<ol>
+<li>all imported type signatures,</li>
+<li>measure bodies and,</li>
+<li>data constructor definitions.</li>
+</ol>
+<h2 id="termination-metrics">Termination Metrics<a class="headerlink" href="#termination-metrics" title="Permanent link">&para;</a></h2>
+<p>In recursive functions the <em>first</em> algebraic or integer argument should be decreasing.</p>
+<p>The default decreasing measure for lists is length and Integers its value.</p>
+<h3 id="default-termination-metrics">Default Termination Metrics<a class="headerlink" href="#default-termination-metrics" title="Permanent link">&para;</a></h3>
+<p>The user can specify the <em>size</em> of a data-type in the data definition</p>
+<pre><code class="language-haskell">{-@ data L [llen] a = Nil | Cons { x::a, xs:: L a} @-}
+</code></pre>
+<p>In the above, the measure <code>llen</code>, which needs to be defined by the user
+(see below), is defined as the <em>default metric</em> for the type <code>L a</code>. LH
+will use this default metric to <em>automatically</em> prove that the following
+terminates:</p>
+<pre><code class="language-haskell">append :: L a -&gt; L a -&gt; L a  
+append N           ys = ys
+append (Cons x xs) ys = Cons x (append xs ys)
+</code></pre>
+<p>as, by default the <em>first</em> (non-function) argument with an
+associated size metric is checked to be strictly terminating
+and non-negative at each recursive call.</p>
+<p>A default termination metric is a Haskell function that is proved terminating 
+using structural induction. To deactivate structional induction check on the 
+termination metric, use the <code>--trust-sizes</code> flag. </p>
+<h3 id="explicit-termination-metrics">Explicit Termination Metrics<a class="headerlink" href="#explicit-termination-metrics" title="Permanent link">&para;</a></h3>
+<p>However, consider the function <code>reverse</code>:</p>
+<pre><code class="language-haskell">reverseAcc :: L a -&gt; L a -&gt; L a  
+reverseAcc acc N           = acc
+reverseAcc acc (Cons x xs) = reverseAcc (Cons x acc) xs
+</code></pre>
+<p>Here, the first argument does not decrease, instead
+the second does. We can tell LH to use the second
+argument using the <em>explicit termination metric</em></p>
+<pre><code class="language-haskell">reverseAcc :: L a -&gt; xs:L a -&gt; L a / [llen xs]  
+</code></pre>
+<p>which tells LH that the <code>llen</code> of the second argument <code>xs</code>
+is what decreases at each recursive call.</p>
+<p>Decreasing expressions can be arbitrary refinement expressions, e.g.,</p>
+<pre><code class="language-haskell">{-@ merge :: Ord a =&gt; xs:L a -&gt; ys:L a -&gt; L a / [llen xs + llen ys] @-}
+</code></pre>
+<p>states that at each recursive call of <code>merge</code> the <em>sum of the lengths</em>
+of its arguments will decrease.</p>
+<h3 id="lexicographic-termination-metrics">Lexicographic Termination Metrics<a class="headerlink" href="#lexicographic-termination-metrics" title="Permanent link">&para;</a></h3>
+<p>Some functions do not decrease on a single argument, but rather a
+combination of arguments, e.g. the Ackermann function.</p>
+<pre><code class="language-haskell">{-@ ack :: m:Int -&gt; n:Int -&gt; Nat / [m, n] @-}
+ack m n
+  | m == 0          = n + 1
+  | m &gt; 0 &amp;&amp; n == 0 = ack (m-1) 1
+  | m &gt; 0 &amp;&amp; n &gt;  0 = ack (m-1) (ack m (n-1))
+</code></pre>
+<p>In all but one recursive call <code>m</code> decreases, in the final call <code>m</code>
+does not decrease but <code>n</code> does. We can capture this notion of <code>m</code>
+normally decreases, but if it does not, <code>n</code> will decrease with a
+<em>lexicographic</em> termination metric <code>[m, n]</code>.</p>
+<p>An alternative way to express this specification is by annotating
+the function's type with the appropriate <em>numeric</em> decreasing expressions.
+As an example, you can give <code>ack</code> a type</p>
+<pre><code>{-@ ack :: m:Nat -&gt; n:Nat -&gt; Nat / [m,n] @-}
+</code></pre>
+<p>stating that the <em>numeric</em> expressions <code>[m, n]</code> are lexicographically decreasing.</p>
+<h3 id="mutually-recursive-functions">Mutually Recursive Functions<a class="headerlink" href="#mutually-recursive-functions" title="Permanent link">&para;</a></h3>
+<p>When dealing with mutually recursive functions you may run into a
+situation where the decreasing parameter must be measured <em>across</em> a
+series of invocations, e.g.</p>
+<pre><code class="language-haskell">even :: Int -&gt; Bool
+even 0 = True
+even n = odd (n-1)
+
+odd :: Int -&gt; Bool
+odd  n = not (even n)
+</code></pre>
+<p>In this case, you can introduce a ghost parameter that <em>orders the functions</em></p>
+<pre><code class="language-haskell">{-@ isEven :: n:Nat -&gt; Bool / [n, 0] @-}
+isEven :: Int -&gt; Bool
+isEven 0 = True
+isEven n = isOdd (n-1)
+
+{-@ isOdd :: n:Nat -&gt; Bool / [n, 1] @-}
+isOdd :: Int -&gt; Bool
+isOdd  n = not $ isEven n
+</code></pre>
+<p>thus recovering a decreasing measure for the pair of functions, the
+pair of arguments. This can be encoded with the lexicographic
+termination annotation as shown above.
+See <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Mutrec.hs">tests/pos/mutrec.hs</a>
+for the full example.</p>
+<h3 id="automatic-termination-metrics">Automatic Termination Metrics<a class="headerlink" href="#automatic-termination-metrics" title="Permanent link">&para;</a></h3>
+<p>Apart from specifying a specific decreasing measure for
+an Algebraic Data Type, the user can specify that the ADT
+follows the expected decreasing measure by</p>
+<pre><code class="language-haskell">{-@ autosize L @-}
+</code></pre>
+<p>Then, LH will define an instance of the function <code>autosize</code>
+for <code>L</code> that decreases by 1 at each recursive call and use
+<code>autosize</code> at functions that recurse on <code>L</code>.</p>
+<p>For example, <code>autosize L</code> will refine the data constructors
+of <code>L a</code> with the <code>autosize :: a -&gt; Int</code> information, such
+that</p>
+<pre><code class="language-haskell">Nil  :: {v:L a | autosize v = 0}
+Cons :: x:a -&gt; xs:L a -&gt; {v:L a | autosize v = 1 + autosize xs}
+</code></pre>
+<p>Also, an invariant that <code>autosize</code> is non negative will be generated</p>
+<pre><code class="language-haskell">invariant  {v:L a| autosize v &gt;= 0 }
+</code></pre>
+<p>This information is all LiquidHaskell needs to prove termination
+on functions that recurse on <code>L a</code> (on ADTs in general.)</p>
+<h3 id="disabling-termination-checking">Disabling Termination Checking<a class="headerlink" href="#disabling-termination-checking" title="Permanent link">&para;</a></h3>
+<p>To <em>disable</em> termination checking for <code>foo</code> that is,
+to <em>assume</em> that it is terminating (possibly for some
+complicated reason currently beyond the scope of LH)
+you can write</p>
+<pre><code class="language-haskell">{-@ lazy foo @-}
+</code></pre>
+<h2 id="relational-types">Relational Types<a class="headerlink" href="#relational-types" title="Permanent link">&para;</a></h2>
+<p><strong>Status:</strong> <code>experimental</code></p>
+<p>LH supports relational specifications that automatically compare two expressions. The implementation is based on an algorithmic subsystem of <a href="https://dl.acm.org/doi/10.1145/3110265">Relational Higher-Order Logic</a>.</p>
+<h3 id="example-proving-monotonicity-of-increment">Example: Proving Monotonicity of Increment<a class="headerlink" href="#example-proving-monotonicity-of-increment" title="Permanent link">&para;</a></h3>
+<p>In this example, we are going to prove monotonicity of an increment function. First, we define a function:</p>
+<pre><code class="language-haskell">incr :: Int -&gt; Int 
+incr = (+ 1)
+</code></pre>
+<p>Monotonicity states that for any <code>x1, x2 :: Int</code> such that <code>x1 &lt; x2</code>, inequality <code>incr x1 &lt; incr x2</code> holds. This can be expressed as a comparison property on <code>incr</code>.</p>
+<pre><code class="language-haskell">{-@ relational incr ~ incr :: { x1:Int -&gt; Int 
+                              ~ x2:Int -&gt; Int 
+                              | x1 &lt; x2 :=&gt; r1 x1 &lt; r2 x2 } @-}
+</code></pre>
+<p>Relational signature starts with the keyword <code>relational</code>. Next, it contains two functions being compared <code>incr ~ incr</code>. To prove monotonicity, we compare <code>incr</code> to itself. In the general case, it is possible to compare two different functions.</p>
+<p>Related expressions are followed by their type signatures <code>x1:Int -&gt; Int</code> and <code>x2:Int -&gt; Int</code> separated with a tilde. The last component of the signature is a predicate <code>x1 &lt; x2 :=&gt; r1 x1 &lt; r2 x2</code>. </p>
+<p>Binders <code>x1</code> and <code>x2</code> refer to the functions' arguments. Keywords <code>r1</code> and <code>r2</code> are aliases for lhs <code>incr</code> and rhs <code>incr</code> respectively. The predicate is logically equivalent to <code>x1 &lt; x2 =&gt; r1 x1 &lt; r2 x2</code>. Implication symbol <code>:=&gt;</code> separates the precondition on the arguments from the postcondition on the return values.</p>
+<h3 id="relational-predicate-syntax">Relational Predicate Syntax<a class="headerlink" href="#relational-predicate-syntax" title="Permanent link">&para;</a></h3>
+<p>A relational predicate is a sequence of clauses separated by top-level implication connectives <code>:=&gt;</code> (logically equivalent to <code>=&gt;</code>):</p>
+<pre><code>x1 &lt; x2 :=&gt; y1 &lt; y2 :=&gt; r1 x1 y1 &lt; r2 x2 y2
+^^^^^^^     ^^^^^^^     ^^^^^^^^^^^^^^^^^^^
+  1st         2nd            3rd clause               
+</code></pre>
+<ul>
+<li>
+<p>Number of Clauses</p>
+<p>The number of clauses must match the number of arguments of each of the compared expressions. Hence, a relational signature can only be assigned to two expressions with the same number of arguments. </p>
+<p>```haskell
+plus :: Int -&gt; Int -&gt; Int 
+plus = (+)</p>
+<p>-- clauses == arguments + 1</p>
+<p>{-@ relational plus ~ plus :: { x1:Int   -&gt; y1:Int   -&gt; Int 
+                              ~ x2:Int   -&gt; y2:Int   -&gt; Int
+                              | x1 &lt; x2 :=&gt; y1 &lt; y2 :=&gt; r1 x1 y1 &lt; r2 x2 y2 } @-}
+                                ^^^^^^^     ^^^^^^^     ^^^^^^^^^^^^^^^^^^^  <br />
+```</p>
+<p>For example, function <code>incr</code> has 1 argument. Its relational predicate has 1 implication that separates the precondition from the postcondition: <code>x1 &lt; x2 :=&gt; r1 x1 &lt; r2 x2</code>. </p>
+<p>Nested, non-top-level implications are allowed, e.g. <code>(true =&gt; x1 &lt; x2) :=&gt; (r1 x1 &lt; r2 x2)</code>.</p>
+</li>
+<li>
+<p>Argument Scopes</p>
+<p>Similar to the number of clauses, the order of the argument introduction must match that of the compared functions. A binder that appears in <em>ith</em> clause of the predicate must appear on <em>ith</em> position in the function argument list or earlier.</p>
+<p>These relational signatures are syntactically invalid:
+```haskell
+-- ERROR: clauses &lt; arguments + 1 </p>
+<p>{-@ relational plus ~ plus :: { x1:Int -&gt; y1:Int -&gt; Int 
+                              ~ x2:Int -&gt; y2:Int -&gt; Int
+                              | x1 &lt; x2 &amp;&amp; y1 &lt; y2 :=&gt; r1 x1 y1 &lt; r2 x2 y2 } @-}</p>
+<p>-- ERROR: y1 and y2 used before their introduction</p>
+<p>{-@ relational plus ~ plus :: { x1:Int -&gt; y1:Int -&gt; Int 
+                              ~ x2:Int -&gt; y2:Int -&gt; Int
+                              | y1 &lt; y2 :=&gt; x1 &lt; x2 :=&gt; r1 x1 y1 &lt; r2 x2 y2 } @-}</p>
+<p>```</p>
+<p>Correct versions could look like this:
+```haskell
+{-@ relational plus ~ plus :: { x1:Int   -&gt; y1:Int   -&gt; Int 
+                              ~ x2:Int   -&gt; y2:Int   -&gt; Int
+                              | x1 &lt; x2 :=&gt; y1 &lt; y2 :=&gt; r1 x1 y1 &lt; r2 x2 y2 } @-}</p>
+<p>{-@ relational plus ~ plus :: { x1:Int -&gt; y1:Int -&gt; Int 
+                              ~ x2:Int -&gt; y2:Int -&gt; Int
+                              | true :=&gt; x1 &lt; x2 &amp;&amp; y1 &lt; y2 :=&gt; r1 x1 y1 &lt; r2 x2 y2 } @-}</p>
+<p>{-@ relational plus ~ plus :: { x1:Int -&gt; y1:Int -&gt; Int 
+                              ~ x2:Int -&gt; y2:Int -&gt; Int
+                              | true :=&gt; true :=&gt; x1 &lt; x2 =&gt; y1 &lt; y2 =&gt; r1 x1 y1 &lt; r2 x2 y2 } @-} 
+```</p>
+</li>
+</ul>
+<h3 id="provided-guarantees">Provided Guarantees<a class="headerlink" href="#provided-guarantees" title="Permanent link">&para;</a></h3>
+<p>For all possible inputs of the two compared functions, it is guaranteed that the relational predicate holds. </p>
+<h3 id="running-relational-checks">Running Relational Checks<a class="headerlink" href="#running-relational-checks" title="Permanent link">&para;</a></h3>
+<p>Enable reflection. </p>
+<p>In the command line:</p>
+<pre><code>liquid --reflection path/to/File.hs
+</code></pre>
+<p>Or in a Haskell source file: </p>
+<pre><code>{-@ LIQUID --reflection @-}
+</code></pre>
+<h3 id="current-limitations">Current limitations<a class="headerlink" href="#current-limitations" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p>No support for abstract refinements. All abstract refinements are erased before relational typechecking. Notably, this happens for the standard list <code>[a]</code> and tuple <code>(a, b)</code> types!</p>
+</li>
+<li>
+<p>Limited support for higher-order relational signatures. Use <code>!=&gt;</code> instead of <code>:=&gt;</code> after the function arguments to enable higher-order checking.</p>
+</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+
+
+
+
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://join.slack.com/t/liquidhaskell/shared_invite/enQtMjY4MTk3NDkwODE3LTFmZGFkNGEzYWRkNDJmZDQ0ZGU1MzBiZWZiZDhhNmY3YTJiMjUzYTRlNjMyZDk1NDU3ZGIxYzhlOTIzN2UxNWE" target="_blank" rel="noopener" title="Join the LiquidHaskell slack channel" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 15a2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1 2-2h2zm1 0a2 2 0 0 1 2-2 2 2 0 0 1 2 2v5a2 2 0 0 1-2 2 2 2 0 0 1-2-2zm2-8a2 2 0 0 1-2-2 2 2 0 0 1 2-2 2 2 0 0 1 2 2v2zm0 1a2 2 0 0 1 2 2 2 2 0 0 1-2 2H4a2 2 0 0 1-2-2 2 2 0 0 1 2-2zm8 2a2 2 0 0 1 2-2 2 2 0 0 1 2 2 2 2 0 0 1-2 2h-2zm-1 0a2 2 0 0 1-2 2 2 2 0 0 1-2-2V5a2 2 0 0 1 2-2 2 2 0 0 1 2 2zm-2 8a2 2 0 0 1 2 2 2 2 0 0 1-2 2 2 2 0 0 1-2-2v-2zm0-1a2 2 0 0 1-2-2 2 2 0 0 1 2-2h5a2 2 0 0 1 2 2 2 2 0 0 1-2 2z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://groups.google.com/forum/#!forum/liquidhaskell" target="_blank" rel="noopener" title="Mail the LiquidHaskell users mailing list" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10 5.35 0 9.25-3.67 9.25-9.09 0-1.15-.15-1.81-.15-1.81"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/ranjitjhala" target="_blank" rel="noopener" title="Drop Ranjit Jhala an email" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-68.5 74.1c-8.9 9.7-22.9 12.9-35.2 8.1S160 493.2 160 480v-83.6c0-4 1.5-7.8 4.2-10.8l167.6-182.8c5.8-6.3 5.6-16-.4-22s-15.7-6.4-22-.7L106 360.8l-88.3-44.2C7.1 311.3.3 300.7 0 288.9s5.9-22.8 16.1-28.7l448-256c10.7-6.1 23.9-5.5 34 1.4"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/nikivazou" target="_blank" rel="noopener" title="Drop Niki Vazou an email" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M16.1 260.2c-22.6 12.9-20.5 47.3 3.6 57.3L160 376v103.3c0 18.1 14.6 32.7 32.7 32.7 9.7 0 18.9-4.3 25.1-11.8l62-74.3 123.9 51.6c18.9 7.9 40.8-4.5 43.9-24.7l64-416c1.9-12.1-3.4-24.3-13.5-31.2s-23.3-7.5-34-1.4zm52.1 25.5L409.7 90.6 190.1 336l1.2 1zm335.1 139.7-166.6-69.5 214.1-239.3z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/ucsd-progsys/liquidhaskell/issues" target="_blank" rel="noopener" title="Open a GitHub issue" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "..", "features": ["navigation.tabs", "navigation.top"], "search": "../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.83f73b43.min.js"></script>
+      
+    
+  </body>
+</html>

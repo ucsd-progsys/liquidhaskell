@@ -1,0 +1,2166 @@
+
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+        <meta name="author" content="Ranjit Jhala">
+      
+      
+        <link rel="canonical" href="https://ucsd-progsys.github.io/liquidhaskell/blogposts/2019-10-20-why-types.lhs/">
+      
+      
+        <link rel="prev" href="../2020-04-12-polymorphic-perplexion.lhs/">
+      
+      
+        <link rel="next" href="../2018-05-17-hillel-verifier-rodeo-I-leftpad.lhs/">
+      
+      
+      <link rel="icon" href="../../static/img/favicon.ico">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.41">
+    
+    
+      
+        <title>Liquid Types vs. Floyd-Hoare Logic - LiquidHaskell Docs</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.0253249f.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@5.9.55/css/materialdesignicons.min.css">
+    
+      <link rel="stylesheet" href="../../static/liquid-light.css">
+    
+      <link rel="stylesheet" href="../../static/misc.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="cyan" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#the-problem-quantifiers" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="LiquidHaskell Docs" class="md-header__button md-logo" aria-label="LiquidHaskell Docs" data-md-component="logo">
+      
+  <img src="../../static/img/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            LiquidHaskell Docs
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Liquid Types vs. Floyd-Hoare Logic
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/ucsd-progsys/liquidhaskell" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="https://liquidhaskell.goto.ucsd.edu/index.html" class="md-tabs__link">
+        
+  
+    
+  
+  <div id='demo'><i aria-hidden=true class='mdi mdi-cloud-braces'></i> Try Online</div>
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="http://ucsd-progsys.github.io/liquidhaskell-tutorial/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-human-greeting'></i> Tutorial
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../install/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-download'></i> Installation
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../specifications/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-script'></i> Spec Reference
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../options/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-flag'></i> Flag Reference
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../papers/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-school'></i> Papers
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../2020-08-20-lh-as-a-ghc-plugin.lhs/" class="md-tabs__link">
+          
+  
+  <i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="LiquidHaskell Docs" class="md-nav__button md-logo" aria-label="LiquidHaskell Docs" data-md-component="logo">
+      
+  <img src="../../static/img/logo.png" alt="logo">
+
+    </a>
+    LiquidHaskell Docs
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/ucsd-progsys/liquidhaskell" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://liquidhaskell.goto.ucsd.edu/index.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <div id='demo'><i aria-hidden=true class='mdi mdi-cloud-braces'></i> Try Online</div>
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="http://ucsd-progsys.github.io/liquidhaskell-tutorial/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-human-greeting'></i> Tutorial
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-download'></i> Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specifications/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-script'></i> Spec Reference
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../options/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-flag'></i> Flag Reference
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../papers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-school'></i> Papers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            <i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_1" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_9_1" id="__nav_9_1_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Blogposts
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9_1">
+            <span class="md-nav__icon md-icon"></span>
+            Blogposts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2020-08-20-lh-as-a-ghc-plugin.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    LiquidHaskell is a GHC Plugin
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2020-04-12-polymorphic-perplexion.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Polymorphic Perplexion
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Liquid Types vs. Floyd-Hoare Logic
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Liquid Types vs. Floyd-Hoare Logic
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-problem-quantifiers" class="md-nav__link">
+    <span class="md-ellipsis">
+      The Problem: Quantifiers
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-solution-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      The Solution: Types
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-1-properties-of-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example 1: Properties of Data
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example 1: Properties of Data">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#accessing-a-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      Accessing a list
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#building-a-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      Building a list
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lesson-decomposition-enables-inference" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lesson: Decomposition Enables Inference
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-2-properties-of-structures" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example 2: Properties of Structures
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example 2: Properties of Structures">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#specifying-a-size-function" class="md-nav__link">
+    <span class="md-ellipsis">
+      Specifying a size Function
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verifying-the-size-of-a-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      Verifying the size of a List
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lesson-decomposition-enables-type-directed-instantiation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lesson: Decomposition Enables Type-Directed Instantiation
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Summary
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Summary">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#acknowledgments" class="md-nav__link">
+    <span class="md-ellipsis">
+      Acknowledgments
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2018-05-17-hillel-verifier-rodeo-I-leftpad.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    The Hillelogram Verifier Rodeo I (LeftPad)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2018-02-23-measures-and-case-splitting.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Measures and Case Splitting
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2017-12-24-splitting-and-splicing-intervals-II.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Splitting and Splicing Intervals (Part 2)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2017-12-15-splitting-and-splicing-intervals-I.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Splitting and Splicing Intervals (Part 1)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2017-03-20-arithmetic-overflows.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Arithmetic Overflows
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2016-10-06-structural-induction.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Refinement Reflection on ADTs
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2016-09-18-refinement-reflection.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Haskell as a Theorem Prover
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2016-09-01-normal-forms.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Normal Forms
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2015-01-30-okasakis-lazy-queue.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Okasaki's Lazy Queues
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2014-08-15-a-finer-filter.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    A Finer Filter
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2014-05-28-pointers-gone-wild.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Pointers Gone Wild
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2014-02-11-the-advantage-of-measures.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    The Advantage of Measures
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-12-14-gcd.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Termination Requires Refinements
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-12-09-checking-termination.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checking Termination
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-12-02-getting-to-the-bottom.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Getting To the Bottom
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-11-23-telling_lies.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    LiquidHaskell Caught Telling Lies!
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-10-10-csv-tables.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CSV Tables
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-07-29-putting-things-in-order.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Putting Things In Order
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-06-03-abstracting-over-refinements.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Abstracting Over Refinements
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-05-24-unique-zipper.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Unique Zippers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-03-26-talking-about-sets.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Talking About Sets
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-03-04-bounding-vectors.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Bounding Vectors
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-02-17-kmeans-clustering-II.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    KMeans Clustering II
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-02-16-kmeans-clustering-I.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    KMeans Clustering I
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-01-31-safely-catching-a-list-by-its-tail.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Safely Catching A List By Its Tail
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-01-28-bounding-vectors.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Bounding Vectors
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-01-27-refinements101-reax.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Refinements 101 (contd.)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-01-01-refinement-types-101.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Refinement Types 101
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tags.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tags
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-problem-quantifiers" class="md-nav__link">
+    <span class="md-ellipsis">
+      The Problem: Quantifiers
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-solution-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      The Solution: Types
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-1-properties-of-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example 1: Properties of Data
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example 1: Properties of Data">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#accessing-a-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      Accessing a list
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#building-a-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      Building a list
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lesson-decomposition-enables-inference" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lesson: Decomposition Enables Inference
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-2-properties-of-structures" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example 2: Properties of Structures
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example 2: Properties of Structures">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#specifying-a-size-function" class="md-nav__link">
+    <span class="md-ellipsis">
+      Specifying a size Function
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verifying-the-size-of-a-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      Verifying the size of a List
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lesson-decomposition-enables-type-directed-instantiation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lesson: Decomposition Enables Type-Directed Instantiation
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Summary
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Summary">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#acknowledgments" class="md-nav__link">
+    <span class="md-ellipsis">
+      Acknowledgments
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+
+
+                  
+  
+<nav class="md-tags" >
+  
+    
+    
+    
+      <span class="md-tag">basic</span>
+    
+  
+</nav>
+
+
+  
+  
+
+
+  <h1>Liquid Types vs. Floyd-Hoare Logic</h1>
+
+<p>Several folks who are experts in the program verification 
+literature have asked me some variant of the following question: </p>
+<blockquote>
+<p>How are <em>Liquid/Refinement</em> types different from <em>Floyd-Hoare logics</em>?</p>
+</blockquote>
+<p>This question always reminds me of <a href="https://yanniss.github.io/">Yannis Smaragdakis'</a> clever limerick:</p>
+<blockquote>
+<p>No idea is too obvious or dreary, </p>
+<p>If appropriately expressed in type theory, </p>
+<p>It's a research advance, </p>
+<p>That no one understands, </p>
+<p>But they are all too impressed to be leery.</p>
+</blockquote>
+<p>That is, the above question can be rephrased as: why bother with 
+the hassle of encoding properties in <em>types</em> when good old-fashioned 
+<em>assertions</em>, <em>pre</em>- and <em>post</em>-conditions would do? Is it just a 
+marketing gimmick to make readers too impressed to be leery?</p>
+<h2 id="the-problem-quantifiers">The Problem: Quantifiers<a class="headerlink" href="#the-problem-quantifiers" title="Permanent link">&para;</a></h2>
+<p>The main <em>algorithmic</em> problem with classical Floyd-Hoare logic 
+is that to do useful things, you need to use <strong>universally quantified</strong> 
+logical formulas inside invariants, pre- and post-conditions. </p>
+<p>Verification then proceeds by asking SMT solvers to check 
+<em>verification conditions</em> (VCs) over these quantified formulas. 
+While SMT solvers are marvelous technological artifacts, and I bow 
+to no one in my admiration of them, in reality, they work best on 
+formulas from a narrowly defined set of <em>decidable theories</em>. </p>
+<p>In particular, they are notoriously (and justifiably!) fickle 
+when quizzed on VCs with quantifiers. Briefly, this is because 
+even if the solver "knows" the universally quantified fact: </p>
+<pre><code>forall x. P(x)
+</code></pre>
+<p>the solver doesn't know which particular terms <code>e1</code>, <code>e2</code> or <code>e3</code> 
+to <strong>instantiate</strong> the fact at. That is, the solver doesn't know
+which <code>P(e1)</code> or <code>P(e2)</code> or <code>P(e3)</code> it should work with to prove 
+some given goal. At best, it can make some educated guesses, or 
+use hints from the user, but these heuristics can turn out to be 
+<a href="https://www.semanticscholar.org/paper/Trigger-Selection-Strategies-to-Stabilize-Program-Leino-Pit-Claudel/ca873df7c3172ab96dfc0d808e1654077c92064d">quite brittle</a> as the underlying logics 
+are undecidable in general. To make verification predictable, 
+we really want to ensure that the VCs remain decidable, and 
+to do so, we must steer clear of the precipice of quantification. </p>
+<h2 id="the-solution-types">The Solution: Types<a class="headerlink" href="#the-solution-types" title="Permanent link">&para;</a></h2>
+<p>The great thing about types, as any devotee will tell you,
+is that the <em>compose</em>. Regrettably, that statement is only 
+comprehensible to believers. I prefer to think of it 
+differently: types <em>decompose</em>. To be precise:</p>
+<blockquote>
+<p><strong>Types <em>decompose</em> quantified assertions into quantifier-free refinements.</strong></p>
+</blockquote>
+<p>Let me make my point with some examples that show what verification 
+looks like when using Refinement Types (as implemented in <a href="https://github.com/ucsd-progsys/liquidhaskell">LiquidHaskell</a>) vs 
+Floyd-Hoare style contracts (as implemented in <a href="https://github.com/dafny-lang/dafny">Dafny</a>). </p>
+<p>The goal of this exercise is to illustrate how types help 
+with verification, not to compare the tools LH and Dafny. 
+In particular, Dafny could profit from refinement types, 
+and LH could benefit from the many clever ideas embodied 
+within Dafny.</p>
+<h2 id="example-1-properties-of-data">Example 1: Properties of Data<a class="headerlink" href="#example-1-properties-of-data" title="Permanent link">&para;</a></h2>
+<p>Consider the following standard definition of a <code>List</code> datatype 
+in Dafny (left) and LH (right). </p>
+<div class="row-fluid">
+  <div class="span12 pagination-centered">
+  <figure>
+    <img src="../../static/img/why_types_1_1.png"
+         height="200">
+    <figcaption>
+    A list data type in Dafny (L) and LiquidHaskell (R) 
+    </figcaption>
+  </figure>
+  </div>
+</div>
+
+<p>(You can see the full definitions for <a href="https://rise4fun.com/Dafny/tkfQ">Dafny</a> and <a href="FIXME">LiquidHaskell</a>.)</p>
+<h3 id="accessing-a-list">Accessing a list<a class="headerlink" href="#accessing-a-list" title="Permanent link">&para;</a></h3>
+<p>The two descriptions are more or less the same except for some 
+minor issues of concrete syntax. However, next consider the 
+respective implementations of a function to access the <code>ith</code> 
+element of a <code>List</code>. We also pass in a <code>def</code>ault value returned
+when the index <code>i</code> is <em>invalid</em>. </p>
+<div class="row-fluid">
+  <div class="span12 pagination-centered">
+  <figure>
+  <img src="../../static/img/why_types_1_2.png"
+       height="200">
+  <figcaption>
+  Accessing the i-th element of a list in Dafny(L) and LiquidHaskell(R)
+  </figcaption>
+  </figure>
+  </div>
+</div>
+
+<p>It is (usually) silly to access lists in this fashion. 
+I use this example merely to illustrate the common case
+of defining a <em>container</em> structure (here, <code>List</code>) and 
+then <em>accessing</em> its contents (here, <code>ith</code>). 
+As such, we'd like to <em>specify</em> that the value returned 
+by the <code>ith</code> element is indeed in the container <em>or</em> is 
+the <code>def</code>ault.</p>
+<p><strong>Floyd-Hoare Logic</strong></p>
+<p>With classical Floyd-Hoare logic, as shown in the Dafny listing 
+on the left, we must spell out the specification quite explicitly. 
+The programmer must write an <code>elements</code> function that describes 
+the <em>set</em> of values in the container, and then the <em>post-condition</em>
+of <code>ith</code> states that the <code>res</code> is either in that set or the default.</p>
+<p>While this specification seems simple enough, we are already on 
+dicey terrain: how are we to encode the semantics of the 
+user-defined function <code>elements</code> to the SMT solver? 
+In the classical Floyd-Hoare approach, we must use a 
+<em>quantified invariant</em> of the form:</p>
+<pre><code>   elements(Nil) = empty 
+&amp;&amp; forall h t :: elements(Cons(h, t)) = {h} + elements(t)
+</code></pre>
+<p>Thanks to the ingenuity of <a href="https://en.wikipedia.org/wiki/Greg_Nelson_(computer_scientist)">Greg Nelson</a> who invented the notion 
+of <em>triggers</em> and of <a href="http://leino.science/">Rustan Leino</a> and many others, who devised 
+ingenious heuristics for using them, Dafny handles the quantifier
+calmly to verify the above specification for <code>ith</code>. 
+However, we are not always so fortunate: it frightfully easy 
+to run into quantifier-related problems with user-defined 
+functions, as we will see in due course.</p>
+<p><strong>Liquid/Refinement Types</strong></p>
+<p>In contrast, the liquid/refinement version is quite spare: 
+there <em>is</em> no extra specification beyond the code. Surely 
+there must be some mistake? Look again: the <em>type signature</em>
+says everything we need:</p>
+<blockquote>
+<p>If you call <code>ith</code> with a list of <code>a</code> values and a default <code>a</code> value
+then you get an <code>a</code> value".</p>
+</blockquote>
+<p>That is <em>parametricity</em> removes the overhead of using an 
+explicit <code>elements</code> function.</p>
+<h3 id="building-a-list">Building a list<a class="headerlink" href="#building-a-list" title="Permanent link">&para;</a></h3>
+<p>Next, lets extend our example to illustrate the common 
+situation where we want some <em>invariant</em> to be true for 
+<em>all</em> the values in a container. To this end, let us 
+write a function <code>mkList</code> that <em>builds</em> a container 
+with values <code>k+1</code>,...,<code>k+n</code> and then <em>test</em> that when 
+<code>k</code> is non-negative, any arbitrarily chosen value from 
+the container is indeed strictly positive. </p>
+<div class="row-fluid">
+  <div class="span12 pagination-centered">
+  <figure>
+  <img src="../../static/img/why_types_1_3.png"
+       height="200">
+  <figcaption>
+    Building and accessing a list in Dafny (L) and LiquidHaskell(R)
+  </figcaption>
+  </figure>
+  </div>
+</div>
+
+<p>The code in Dafny and LH is more or less the same, except 
+for one crucial difference.</p>
+<p><strong>Floyd-Hoare Logic</strong></p>
+<p>Recall that the specification for <code>ith(pos, i, 1)</code> states 
+that the returned value is <em>some</em> element of the container 
+(or <code>1</code>). Thus, to verify the <code>assert</code> in <code>testPosN</code> using 
+classical Floyd-Hoare logic, we need a way to specify that 
+<em>every</em> element in <code>pos</code> is indeed strictly positive. 
+With classical program logics, the only way to do so is to 
+use a <em>universally quantified</em> post-condition, highlighted 
+in blue: </p>
+<p>"<strong>for all</strong> <code>v</code> <em>if</em> <code>v</code> is in the elements of the <code>res</code>ult, <em>then</em> <code>v</code> is greater than <code>k</code>" </p>
+<p><strong>Liquid/Refinement Types</strong></p>
+<p>Regardless of my personal feelings about quantifiers, 
+we can agree that the version on the right is simpler 
+as types make it unnecessary to mention <code>elements</code> or 
+<code>forall</code>. Instead, LH <em>infers</em> </p>
+<pre><code class="language-haskell">mkList :: Int -&gt; k:Int -&gt; List {v:Int | k &lt; v}
+</code></pre>
+<p>That is, that the output type of <code>mkList</code> is a 
+list of values <code>v</code> that are all greater than <code>k</code>. 
+The scary <em>forall</em> has been replaced by the friendly 
+<em>type constructor</em> <code>List</code>. In other words, types 
+allow us to <em>decompose</em> the monolithic universally 
+quantified invariant into: </p>
+<ol>
+<li>a <em>quantifier-free</em> refinement <code>k &lt; v</code>, and </li>
+<li>a type <em>constructor</em> that implicitly "quantifies" over the container's elements.</li>
+</ol>
+<h3 id="lesson-decomposition-enables-inference">Lesson: Decomposition Enables Inference<a class="headerlink" href="#lesson-decomposition-enables-inference" title="Permanent link">&para;</a></h3>
+<p>Am I cheating? After all, what prevents Dafny from 
+<em>inferring</em> the same post-condition as LH? </p>
+<p>Once again, quantifiers are the villain.</p>
+<p>There have been many decades worth of papers on the 
+topic of inferring quantified invariants, but save 
+some nicely circumscribed use-cases these methods 
+turn out to be rather difficult to get working 
+efficiently and predictably enough to be practical. 
+In contrast, once the quantifiers are decomposed 
+away, even an extremely basic approach called 
+<a href="http://www-verimag.imag.fr/~graf/PAPERS/GrafSaidi97.pdf">Monomial Predicate Abstraction</a>, 
+or more snappily, <a href="https://dl.acm.org/citation.cfm?id=730008">Houdini</a>, suffices 
+to infer the above liquid type.</p>
+<h2 id="example-2-properties-of-structures">Example 2: Properties of Structures<a class="headerlink" href="#example-2-properties-of-structures" title="Permanent link">&para;</a></h2>
+<p>Recall that when discussing the user-defined <code>elements</code> function above,
+I had issued some dark warnings about quantifier-related problems that 
+arise from user-defined functions. Allow me to explain with another 
+simple example, that continues with the <code>List</code> datatype defined above.</p>
+<p>(You can see the full definitions for <a href="https://rise4fun.com/Dafny/nphIv">Dafny</a> and <a href="FIXME">LiquidHaskell</a>.)</p>
+<h3 id="specifying-a-size-function">Specifying a <code>size</code> Function<a class="headerlink" href="#specifying-a-size-function" title="Permanent link">&para;</a></h3>
+<p>Lets write the usual <em>recursive</em> function that computes the <code>size</code> 
+of a list. The definitions are mostly identical, except for the green 
+<code>measure</code> highlight that we will discuss below.</p>
+<div class="row-fluid">
+  <div class="span12 pagination-centered">
+  <figure>
+  <img src="../../static/img/why_types_2_1.png"
+       height="200">
+  <figcaption>
+    A function defining the size of a list in Dafny (L) and LiquidHaskell (R)
+  </figcaption>
+  </figure>
+  </div>
+</div>
+
+<p><strong>Floyd-Hoare Logic</strong></p>
+<p>SMT solvers are restricted to a set of <em>ground</em> theories and hence,
+do not "natively" understand user-defined functions. Instead, the 
+verifer must <em>teach</em> the SMT solver how to reason about formulas (VCs) 
+containing uses of user-defined functions like <code>size</code>. 
+In the classical Floyd-Hoare approach, this is done by converting 
+the definition of <code>size</code> into a universally quantified <em>axiom</em> like:</p>
+<pre><code>size Nil == 0  &amp;&amp; forall h, t :: size (Cons h t) = 1 + size t
+</code></pre>
+<p>A quantifier! By the pricking of my thumbs, something wicked this way comes...</p>
+<p><strong>Liquid/Refinement Types</strong></p>
+<p>With a more <em>type-centric</em> view, we can think of the recursive 
+function <code>size</code> as a way to <em>decorate</em> or <em>refine</em> the types of 
+the <em>data constructors</em>. So, when you write the definition in 
+the green box above, specifically when you add the <code>measure</code> 
+annotation, the function is converted to <em>strengthened</em> 
+versions for the types of the constructors <code>Nil</code> and <code>Cons</code>, 
+so its as if we had defined the list type as two constructor 
+functions</p>
+<pre><code class="language-haskell">data List a where
+  Cons :: h:a -&gt; t:List a -&gt; {v:List a | size v == 1 + size t}
+  Nil  :: {v:List a | size v == 0} 
+</code></pre>
+<p>That is, the bodies of the measures get translated to refinements
+on the output types of the corresponding constructors. After this,
+the SMT solver "knows nothing" about the semantics of <code>size</code>, except 
+that it is a function. In logic-speak, <code>size</code> is <strong>uninterpreted</strong> 
+in the refinement, and there are no quantified axioms. That is, we 
+choose to keep SMT solver blissfully ignorant about the semantics 
+of <code>size</code>. How could this possibly be a good thing?</p>
+<h3 id="verifying-the-size-of-a-list">Verifying the <code>size</code> of a List<a class="headerlink" href="#verifying-the-size-of-a-list" title="Permanent link">&para;</a></h3>
+<p>Next, lets see what happens when we write a simple test that builds 
+a small list with two elements and <code>assert</code>s that the lists <code>size</code> 
+is indeed <code>2</code>:</p>
+<div class="row-fluid">
+  <div class="span12 pagination-centered">
+  <figure>
+  <img src="../../static/img/why_types_2_2.png"
+       height="200">
+  <figcaption>
+  Verifying the size of a list in Dafny (L) and LiquidHaskell (R)
+  </figcaption>
+  </figure>
+  </div>
+</div>
+
+<p><strong>Floyd-Hoare Logic</strong></p>
+<p>To get Dafny to verifier to sign off on the <code>assert (size(pos) == 2)</code> 
+we have to add a mysterious <em>extra assertion</em> that checks the size of 
+the intermediate value <code>Cons (1, Nil)</code>. (Without it, verification fails.)</p>
+<p>Huh? Pesky quantifiers. </p>
+<p>The SMT solver doesn't know <em>where</em> to instantiate the <code>size</code> axom. 
+In this carefully chosen, but nevertheless simple situation, Dafny's 
+instantiation heuristics come up short. I had to help them along by 
+guessing this intermediate assertion, which effectively "adds" the 
+fact that the size of the intermediate list is 1, thereby letting 
+the SMT solver prove the second assertion.</p>
+<p><strong>Liquid/Refinement Types</strong></p>
+<p>In contrast, with types, the solver is able to verify the code without 
+batting an eyelid. But how could it possibly do so even though we kept 
+it ignorant of the semantics of <code>size</code>?</p>
+<p>Because types decompose reasoning. In particular, here, the measure 
+and constructor trick lets us <em>factor reasoning about <code>size</code> into the type system</em>.</p>
+<p>In particular, LH internally views the code for <code>test</code> in A-Normal Form 
+which is a fancy way of saying, by introducing temporary variables 
+for all sub-expressions: </p>
+<pre><code class="language-haskell">test x1 = 
+   let tmp0 = Nil                
+       tmp1 = Cons x1 tmp0 
+       pos  = Cons  0 tmp1
+   in 
+      assert (size pos == 2)
+</code></pre>
+<p>And now, just by the rules of type checking, and applying the types 
+of the constructors, it deduces that:</p>
+<pre><code class="language-haskell">   tmp0 :: {size tmp0 == 0}
+   tmp1 :: {size tmp1 == 1 + size tmp0}
+   pos  :: {size pos  == 1 + size tmp1}
+</code></pre>
+<p>which lets the SMT solver prove that <code>size pos == 2</code> without 
+requiring any axiomatic description of <code>size</code>. This simple 
+<code>measure</code> method goes a very long way in specifying and 
+verifying <a href="http://goto.ucsd.edu/~rjhala/papers/real_world_liquid.pdf">lots of properties</a>.</p>
+<h3 id="lesson-decomposition-enables-type-directed-instantiation">Lesson: Decomposition Enables Type-Directed Instantiation<a class="headerlink" href="#lesson-decomposition-enables-type-directed-instantiation" title="Permanent link">&para;</a></h3>
+<p>I'd like to emphasize again that this trick was enabled 
+by the type-centric view: encode the function semantics 
+in <em>data constructors</em>, and let the type checking (or VC 
+generation) do the <em>instantiation</em>. </p>
+<p>It could easily by incorporated inside and work together 
+with axioms in Floyd-Hoare based systems like Dafny. 
+Of course, this approach is limited to a restricted class 
+of functions -- roughly, case-splits over a single data type's 
+constructors --  but we can generalize the method quite 
+a bit using the idea of <a href="https://arxiv.org/abs/1711.03842">logical evaluation</a>.</p>
+<h2 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h2>
+<p>To sum up, we saw two examples where taking a type-centric view 
+made verification more <em>ergonomic</em>, essentially by <em>factoring</em> 
+reasoning about quantifiers into the type system.</p>
+<ul>
+<li>
+<p>In the first case, when reasoning about <em>data</em> in containers, 
+  the polymorphic type constructor <code>List</code> provided an natural 
+  way to reason about the fact that <em>all</em> elements in a container 
+  satisfied some property.</p>
+</li>
+<li>
+<p>In the second case, when reasoning about the <em>structure</em> 
+  of the container via a recursive function, the types of 
+  the data constructors allowed us to factor the instantiation 
+  of properties of <code>size</code> at places where the list was constructed 
+  (and dually, not shown, destructed) without burdening the SMT 
+  solver with any axioms and the pressure of figuring out where 
+  to instantiate them. </p>
+</li>
+</ul>
+<p>To conclude I'd like to reiterate that the point is <em>not</em> 
+that types and program logics are at odds with each other. 
+Instead, the lesson is that while classical 
+Floyd-Hoare logic associates invariants with <em>program</em> 
+positions, Liquid/Refinement types are a <em>generalization</em> 
+that additionally let you associate invariants with 
+<em>type</em> positions, which lets us exploit</p>
+<ul>
+<li>types as a program logic, and</li>
+<li>syntax-directed typing rules as a decision procedure,</li>
+</ul>
+<p>that, in many common situations, simplify verification by 
+decomposing proof obligations (VCs) into simple, quantifier-free, 
+SMT-friendly formulas. As you might imagine, the benefits 
+are magnified when working with higher-order functions, 
+e.g. <code>map</code>-ing or <code>fold</code>-ing over containers...</p>
+<h3 id="acknowledgments">Acknowledgments<a class="headerlink" href="#acknowledgments" title="Permanent link">&para;</a></h3>
+<p>Huge thanks to
+<a href="http://leino.science/">Rustan Leino</a>,
+<a href="https://cseweb.ucsd.edu/~npolikarpova/">Nadia Polikarpova</a>,
+<a href="http://cseweb.ucsd.edu/~daricket/">Daniel Ricketts</a>,
+<a href="https://twitter.com/hillelogram">Hillel Wayne</a>, and
+<a href="https://twitter.com/zizzivon">Zizz Vonnegut</a> 
+for patiently answering my many questions about Dafny! </p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+
+
+<div class="blogpost-meta">
+  
+  <div class="blogpost-meta-whowhen">
+    
+        <div class="blogpost-meta-author">
+            Ranjit Jhala
+        </div>
+    
+    
+        <div class="blogpost-meta-date">
+            2019-10-21
+        </div>
+    
+  </div>
+  
+  
+  <div class="blogpost-meta-tags">
+              
+      <a href="../../tags.html#basic" class="tag-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.5 7A1.5 1.5 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4 1.5 1.5 0 0 1 7 5.5 1.5 1.5 0 0 1 5.5 7m15.91 4.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.11 0-2 .89-2 2v7c0 .55.22 1.05.59 1.41l8.99 9c.37.36.87.59 1.42.59s1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.56-.23-1.06-.59-1.42"/></svg>basic</a>
+    
+  </div>
+  
+</div>
+
+
+
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://join.slack.com/t/liquidhaskell/shared_invite/enQtMjY4MTk3NDkwODE3LTFmZGFkNGEzYWRkNDJmZDQ0ZGU1MzBiZWZiZDhhNmY3YTJiMjUzYTRlNjMyZDk1NDU3ZGIxYzhlOTIzN2UxNWE" target="_blank" rel="noopener" title="Join the LiquidHaskell slack channel" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 15a2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1 2-2h2zm1 0a2 2 0 0 1 2-2 2 2 0 0 1 2 2v5a2 2 0 0 1-2 2 2 2 0 0 1-2-2zm2-8a2 2 0 0 1-2-2 2 2 0 0 1 2-2 2 2 0 0 1 2 2v2zm0 1a2 2 0 0 1 2 2 2 2 0 0 1-2 2H4a2 2 0 0 1-2-2 2 2 0 0 1 2-2zm8 2a2 2 0 0 1 2-2 2 2 0 0 1 2 2 2 2 0 0 1-2 2h-2zm-1 0a2 2 0 0 1-2 2 2 2 0 0 1-2-2V5a2 2 0 0 1 2-2 2 2 0 0 1 2 2zm-2 8a2 2 0 0 1 2 2 2 2 0 0 1-2 2 2 2 0 0 1-2-2v-2zm0-1a2 2 0 0 1-2-2 2 2 0 0 1 2-2h5a2 2 0 0 1 2 2 2 2 0 0 1-2 2z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://groups.google.com/forum/#!forum/liquidhaskell" target="_blank" rel="noopener" title="Mail the LiquidHaskell users mailing list" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10 5.35 0 9.25-3.67 9.25-9.09 0-1.15-.15-1.81-.15-1.81"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/ranjitjhala" target="_blank" rel="noopener" title="Drop Ranjit Jhala an email" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-68.5 74.1c-8.9 9.7-22.9 12.9-35.2 8.1S160 493.2 160 480v-83.6c0-4 1.5-7.8 4.2-10.8l167.6-182.8c5.8-6.3 5.6-16-.4-22s-15.7-6.4-22-.7L106 360.8l-88.3-44.2C7.1 311.3.3 300.7 0 288.9s5.9-22.8 16.1-28.7l448-256c10.7-6.1 23.9-5.5 34 1.4"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/nikivazou" target="_blank" rel="noopener" title="Drop Niki Vazou an email" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M16.1 260.2c-22.6 12.9-20.5 47.3 3.6 57.3L160 376v103.3c0 18.1 14.6 32.7 32.7 32.7 9.7 0 18.9-4.3 25.1-11.8l62-74.3 123.9 51.6c18.9 7.9 40.8-4.5 43.9-24.7l64-416c1.9-12.1-3.4-24.3-13.5-31.2s-23.3-7.5-34-1.4zm52.1 25.5L409.7 90.6 190.1 336l1.2 1zm335.1 139.7-166.6-69.5 214.1-239.3z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/ucsd-progsys/liquidhaskell/issues" target="_blank" rel="noopener" title="Open a GitHub issue" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.top"], "search": "../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.83f73b43.min.js"></script>
+      
+    
+  </body>
+</html>

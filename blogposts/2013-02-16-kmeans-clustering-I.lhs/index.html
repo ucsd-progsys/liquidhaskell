@@ -1,0 +1,2022 @@
+
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+        <meta name="author" content="Ranjit Jhala">
+      
+      
+        <link rel="canonical" href="https://ucsd-progsys.github.io/liquidhaskell/blogposts/2013-02-16-kmeans-clustering-I.lhs/">
+      
+      
+        <link rel="prev" href="../2013-02-17-kmeans-clustering-II.lhs/">
+      
+      
+        <link rel="next" href="../2013-01-31-safely-catching-a-list-by-its-tail.lhs/">
+      
+      
+      <link rel="icon" href="../../static/img/favicon.ico">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.41">
+    
+    
+      
+        <title>KMeans Clustering I - LiquidHaskell Docs</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.0253249f.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@5.9.55/css/materialdesignicons.min.css">
+    
+      <link rel="stylesheet" href="../../static/liquid-light.css">
+    
+      <link rel="stylesheet" href="../../static/misc.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="cyan" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#the-game-clustering-points" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="LiquidHaskell Docs" class="md-header__button md-logo" aria-label="LiquidHaskell Docs" data-md-component="logo">
+      
+  <img src="../../static/img/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            LiquidHaskell Docs
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              KMeans Clustering I
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/ucsd-progsys/liquidhaskell" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="https://liquidhaskell.goto.ucsd.edu/index.html" class="md-tabs__link">
+        
+  
+    
+  
+  <div id='demo'><i aria-hidden=true class='mdi mdi-cloud-braces'></i> Try Online</div>
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="http://ucsd-progsys.github.io/liquidhaskell-tutorial/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-human-greeting'></i> Tutorial
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../install/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-download'></i> Installation
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../specifications/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-script'></i> Spec Reference
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../options/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-flag'></i> Flag Reference
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../papers/" class="md-tabs__link">
+        
+  
+    
+  
+  <i aria-hidden=true class='mdi mdi-school'></i> Papers
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../2020-08-20-lh-as-a-ghc-plugin.lhs/" class="md-tabs__link">
+          
+  
+  <i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="LiquidHaskell Docs" class="md-nav__button md-logo" aria-label="LiquidHaskell Docs" data-md-component="logo">
+      
+  <img src="../../static/img/logo.png" alt="logo">
+
+    </a>
+    LiquidHaskell Docs
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/ucsd-progsys/liquidhaskell" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://liquidhaskell.goto.ucsd.edu/index.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <div id='demo'><i aria-hidden=true class='mdi mdi-cloud-braces'></i> Try Online</div>
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="http://ucsd-progsys.github.io/liquidhaskell-tutorial/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-human-greeting'></i> Tutorial
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-download'></i> Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specifications/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-script'></i> Spec Reference
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../options/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-flag'></i> Flag Reference
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../papers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-school'></i> Papers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    <i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            <i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_1" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_9_1" id="__nav_9_1_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Blogposts
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9_1">
+            <span class="md-nav__icon md-icon"></span>
+            Blogposts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2020-08-20-lh-as-a-ghc-plugin.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    LiquidHaskell is a GHC Plugin
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2020-04-12-polymorphic-perplexion.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Polymorphic Perplexion
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2019-10-20-why-types.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Liquid Types vs. Floyd-Hoare Logic
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2018-05-17-hillel-verifier-rodeo-I-leftpad.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    The Hillelogram Verifier Rodeo I (LeftPad)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2018-02-23-measures-and-case-splitting.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Measures and Case Splitting
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2017-12-24-splitting-and-splicing-intervals-II.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Splitting and Splicing Intervals (Part 2)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2017-12-15-splitting-and-splicing-intervals-I.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Splitting and Splicing Intervals (Part 1)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2017-03-20-arithmetic-overflows.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Arithmetic Overflows
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2016-10-06-structural-induction.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Refinement Reflection on ADTs
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2016-09-18-refinement-reflection.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Haskell as a Theorem Prover
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2016-09-01-normal-forms.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Normal Forms
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2015-01-30-okasakis-lazy-queue.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Okasaki's Lazy Queues
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2014-08-15-a-finer-filter.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    A Finer Filter
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2014-05-28-pointers-gone-wild.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Pointers Gone Wild
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2014-02-11-the-advantage-of-measures.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    The Advantage of Measures
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-12-14-gcd.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Termination Requires Refinements
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-12-09-checking-termination.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checking Termination
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-12-02-getting-to-the-bottom.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Getting To the Bottom
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-11-23-telling_lies.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    LiquidHaskell Caught Telling Lies!
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-10-10-csv-tables.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CSV Tables
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-07-29-putting-things-in-order.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Putting Things In Order
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-06-03-abstracting-over-refinements.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Abstracting Over Refinements
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-05-24-unique-zipper.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Unique Zippers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-03-26-talking-about-sets.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Talking About Sets
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-03-04-bounding-vectors.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Bounding Vectors
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-02-17-kmeans-clustering-II.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    KMeans Clustering II
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    KMeans Clustering I
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    KMeans Clustering I
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-game-clustering-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      The Game: Clustering Points
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-players-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      The Players: Types
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#basic-operations-on-points-and-clusters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Basic Operations on Points and Clusters
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Basic Operations on Points and Clusters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#grouping" class="md-nav__link">
+    <span class="md-ellipsis">
+      Grouping
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#partitioning" class="md-nav__link">
+    <span class="md-ellipsis">
+      Partitioning
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zipping" class="md-nav__link">
+    <span class="md-ellipsis">
+      Zipping
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#transposing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Transposing
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#intermission" class="md-nav__link">
+    <span class="md-ellipsis">
+      Intermission
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-01-31-safely-catching-a-list-by-its-tail.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Safely Catching A List By Its Tail
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-01-28-bounding-vectors.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Bounding Vectors
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-01-27-refinements101-reax.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Refinements 101 (contd.)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2013-01-01-refinement-types-101.lhs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Refinement Types 101
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tags.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tags
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-game-clustering-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      The Game: Clustering Points
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-players-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      The Players: Types
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#basic-operations-on-points-and-clusters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Basic Operations on Points and Clusters
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Basic Operations on Points and Clusters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#grouping" class="md-nav__link">
+    <span class="md-ellipsis">
+      Grouping
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#partitioning" class="md-nav__link">
+    <span class="md-ellipsis">
+      Partitioning
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zipping" class="md-nav__link">
+    <span class="md-ellipsis">
+      Zipping
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#transposing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Transposing
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#intermission" class="md-nav__link">
+    <span class="md-ellipsis">
+      Intermission
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+
+
+                  
+  
+<nav class="md-tags" >
+  
+    
+    
+    
+      <span class="md-tag">basic</span>
+    
+  
+    
+    
+    
+      <span class="md-tag">measures</span>
+    
+  
+</nav>
+
+
+  
+  
+
+
+<p><a href="/blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/">Last time</a> we introduced a new specification mechanism called a
+<em>measure</em> and demonstrated how to use it to encode the <em>length</em> of a list.
+We saw how measures could be used to verify that functions like <code>head</code> and
+<code>tail</code> were only called with non-empty lists (whose length was strictly
+positive). As several folks pointed out, once LiquidHaskell can reason about
+lengths, it can do a lot more than just analyze non-emptiness.</p>
+<p>Indeed!</p>
+<p>Over the next <em>two</em> posts, lets see how one might implement a Kmeans
+algorithm that clusters <code>n</code>-dimensional points groups, and how LiquidHaskell
+can help us write and enforce various dimensionality invariants along the way.</p>
+<!-- more -->
+
+<!-- For example, XXX pointed out that we can use the type system to give an *upper* bound on the size of a list, e.g. using lists
+     upper bounded by a gigantic `MAX_INT` value as a proxy for finite lists. -->
+
+<pre><span class=hs-linenum>33: </span><span class='hs-keyword'>module</span> <span class='hs-conid'>KMeansHelper</span> <span class='hs-keyword'>where</span>
+<span class=hs-linenum>34: </span>
+<span class=hs-linenum>35: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Prelude</span>                          <span class='hs-varid'>hiding</span>  <span class='hs-layout'>(</span><span class='hs-varid'>zipWith</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>36: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Data</span><span class='hs-varop'>.</span><span class='hs-conid'>List</span>                                <span class='hs-layout'>(</span><span class='hs-varid'>span</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>37: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Language</span><span class='hs-varop'>.</span><span class='hs-conid'>Haskell</span><span class='hs-varop'>.</span><span class='hs-conid'>Liquid</span><span class='hs-varop'>.</span><span class='hs-conid'>Prelude</span>          <span class='hs-layout'>(</span><span class='hs-varid'>liquidError</span><span class='hs-layout'>)</span>
+</pre>
+
+<p>Rather than reinvent the wheel, we will modify an existing implementation
+of K-Means, <a href="http://hackage.haskell.org/package/kmeans">available on hackage</a>. This may not be the
+most efficient implementation, but its a nice introduction to the algorithm,
+and the general invariants will hold for more sophisticated implementations.</p>
+<p>We have broken this entry into two convenient, bite-sized chunks:</p>
+<ul>
+<li>
+<p><strong>Part I</strong>  Introduces the basic types and list operations needed by KMeans,</p>
+</li>
+<li>
+<p><strong>Part II</strong> Describes how the operations are used in the KMeans implementation.</p>
+</li>
+</ul>
+<h2 id="the-game-clustering-points">The Game: Clustering Points<a class="headerlink" href="#the-game-clustering-points" title="Permanent link">&para;</a></h2>
+<p>The goal of <a href="http://en.wikipedia.org/wiki/K-means_clustering">K-Means clustering</a>
+is the following. Given</p>
+<ul>
+<li>
+<p><strong>Input</strong> : A set of <em>points</em> represented by <em>n-dimensional points</em>
+  in <em>Euclidian</em> space, return</p>
+</li>
+<li>
+<p><strong>Output</strong> : A partitioning of the points, into K clusters, in a manner that
+  minimizes sum of distances between each point and its cluster center.</p>
+</li>
+</ul>
+<h2 id="the-players-types">The Players: Types<a class="headerlink" href="#the-players-types" title="Permanent link">&para;</a></h2>
+<p>Lets make matters concrete by creating types for the different elements of the algorithm.</p>
+<p><strong>1. Fixed-Length Lists</strong>  We will represent n-dimensional points using
+good old Haskell lists, refined with a predicate that describes the
+dimensionality (i.e. length.) To simplify matters, lets package this
+into a <em>type alias</em> that denotes lists of a given length <code>N</code>.</p>
+<pre><span class=hs-linenum>75: </span><span class='hs-keyword'>{-@</span> <span class='hs-keyword'>type</span> <span class='hs-conid'>List</span> <span class='hs-varid'>a</span> <span class='hs-conid'>N</span> <span class='hs-keyglyph'>=</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span> <span class='hs-conop'>:</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>|</span> <span class='hs-layout'>(</span><span class='hs-varid'>len</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>N</span><span class='hs-layout'>}</span> <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p><strong>2. Points</strong> Next, we can represent an <code>N</code>-dimensional point as list of <code>Double</code> of length <code>N</code>,</p>
+<pre><span class=hs-linenum>81: </span><span class='hs-keyword'>{-@</span> <span class='hs-keyword'>type</span> <span class='hs-conid'>Point</span> <span class='hs-conid'>N</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>List</span> <span class='hs-conid'>Double</span> <span class='hs-conid'>N</span> <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p><strong>3. Clusters</strong> A cluster is a <strong>non-empty</strong> list of points,</p>
+<pre><span class=hs-linenum>87: </span><span class='hs-keyword'>{-@</span> <span class='hs-keyword'>type</span> <span class='hs-conid'>NonEmptyList</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>=</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span> <span class='hs-conop'>:</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>|</span> <span class='hs-layout'>(</span><span class='hs-varid'>len</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-varop'>&gt;</span> <span class='hs-num'>0</span><span class='hs-layout'>}</span> <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p><strong>4. Clustering</strong> And finally, a clustering is a list of (non-empty) clusters.</p>
+<pre><span class=hs-linenum>93: </span><span class='hs-keyword'>{-@</span> <span class='hs-keyword'>type</span> <span class='hs-conid'>Clustering</span> <span class='hs-varid'>a</span>  <span class='hs-keyglyph'>=</span> <span class='hs-keyglyph'>[</span><span class='hs-layout'>(</span><span class='hs-conid'>NonEmptyList</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span><span class='hs-keyglyph'>]</span> <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p><strong>Notation:</strong> When defining refinement type aliases, we use uppercase variables like <code>N</code>
+to distinguish value- parameters from the lowercase type parameters like <code>a</code>.</p>
+<p><strong>Aside:</strong> By the way, if you are familiar with the <em>index-style</em> length
+encoding e.g. as found in <a href="http://www.cs.bu.edu/~hwxi/DML/DML.html">DML</a> or <a href="http://code.haskell.org/Agda/examples/Vec.agda">Agda</a>, then its worth
+noting that despite appearances, our <code>List</code> and <code>Point</code> definitions are
+<em>not</em> indexed. We're just using the indices to define abbreviations for the
+refinement predicates, and we have deliberately chosen the predicates to
+facilitate SMT based checking and inference.</p>
+<h1 id="basic-operations-on-points-and-clusters">Basic Operations on Points and Clusters<a class="headerlink" href="#basic-operations-on-points-and-clusters" title="Permanent link">&para;</a></h1>
+<p>Ok, with the types firmly in hand, let us go forth and develop the KMeans
+clustering implementation. We will use a variety of small helper functions
+(of the kind found in <code>Data.List</code>.) Lets get started by looking at them
+through our newly <em>refined</em> eyes.</p>
+<h2 id="grouping">Grouping<a class="headerlink" href="#grouping" title="Permanent link">&para;</a></h2>
+<p>The first such function is <a href="http://hackage.haskell.org/packages/archive/base/latest/doc/html/Data-List.html#v:groupBy">groupBy</a>. We can
+refine its type so that instead of just producing a <code>[[a]]</code>
+we know that it produces a <code>Clustering a</code> which is a list
+of <em>non-empty</em> lists.</p>
+<pre><span class=hs-linenum>124: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>groupBy</span>       <span class='hs-keyglyph'>::</span><span class='hs-layout'>(</span><span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Bool</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-conid'>Clustering</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>125: </span><a class=annot href="#"><span class=annottext>(a -&gt; a -&gt; (GHC.Types.Bool))
+-&gt; [a] -&gt; {VV : [{VV : [a] | (len([VV]) &gt; 0)}] | (len([VV]) &gt;= 0)}</span><span class='hs-definition'>groupBy</span></a> <span class='hs-keyword'>_</span>  <span class='hs-conid'>[]</span>     <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : [{VV : [{VV : a | false}] | false}] | (len([VV]) = 0)}</span><span class='hs-conid'>[]</span></a>
+<span class=hs-linenum>126: </span><span class='hs-definition'>groupBy</span> <span class='hs-varid'>eq</span> <span class='hs-layout'>(</span><span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-varid'>xs</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : a | (VV = x)}</span><span class='hs-varid'>x</span></a><a class=annot href="#"><span class=annottext>y:a -&gt; ys:[a] -&gt; {VV : [a] | (len([VV]) = (1 + len([ys])))}</span><span class='hs-conop'>:</span></a><a class=annot href="#"><span class=annottext>{VV : [a] | (VV = ys),
+            (VV = ys),
+            (len([VV]) = len([ys])),
+            (len([VV]) &gt;= 0)}</span><span class='hs-varid'>ys</span></a><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>y:{VV : [a] | (len([VV]) &gt; 0)}
+-&gt; ys:[{VV : [a] | (len([VV]) &gt; 0)}]
+-&gt; {VV : [{VV : [a] | (len([VV]) &gt; 0)}] | (len([VV]) = (1 + len([ys])))}</span><span class='hs-conop'>:</span></a> <a class=annot href="#"><span class=annottext>(a -&gt; a -&gt; (GHC.Types.Bool))
+-&gt; [a] -&gt; {VV : [{VV : [a] | (len([VV]) &gt; 0)}] | (len([VV]) &gt;= 0)}</span><span class='hs-varid'>groupBy</span></a> <a class=annot href="#"><span class=annottext>a -&gt; a -&gt; (GHC.Types.Bool)</span><span class='hs-varid'>eq</span></a> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV = zs),
+            (VV = zs),
+            (len([VV]) = len([zs])),
+            (len([VV]) &gt;= 0)}</span><span class='hs-varid'>zs</span></a>
+<span class=hs-linenum>127: </span>  <span class='hs-keyword'>where</span> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : [a] | (VV = ys),(len([VV]) = len([ys])),(len([VV]) &gt;= 0)}</span><span class='hs-varid'>ys</span></a><span class='hs-layout'>,</span><a class=annot href="#"><span class=annottext>{VV : [a] | (VV = zs),(len([VV]) = len([zs])),(len([VV]) &gt;= 0)}</span><span class='hs-varid'>zs</span></a><span class='hs-layout'>)</span>   <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>(a -&gt; (GHC.Types.Bool)) -&gt; [a] -&gt; ([a] , [a])</span><span class='hs-varid'>span</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>a -&gt; a -&gt; (GHC.Types.Bool)</span><span class='hs-varid'>eq</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV = x)}</span><span class='hs-varid'>x</span></a><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV = xs),(len([VV]) &gt;= 0)}</span><span class='hs-varid'>xs</span></a>
+</pre>
+
+<p>Intuitively, its pretty easy to see how LiquidHaskell verifies the refined
+specification:</p>
+<ul>
+<li>Each element of the output list is of the form <code>x:ys</code></li>
+<li>For any list <code>ys</code> the length is non-negative, i.e. <code>(len ys) &gt;= 0</code></li>
+<li>The <code>len</code> of <code>x:ys</code> is <code>1 + (len ys)</code>, that is, strictly positive.</li>
+</ul>
+<h2 id="partitioning">Partitioning<a class="headerlink" href="#partitioning" title="Permanent link">&para;</a></h2>
+<p>Next, lets look the function</p>
+<pre><span class=hs-linenum>143: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>partition</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>size</span><span class='hs-conop'>:</span><span class='hs-conid'>PosInt</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-conid'>Clustering</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>144: </span><span class='hs-keyword'>{-@</span> <span class='hs-keyword'>type</span> <span class='hs-conid'>PosInt</span> <span class='hs-keyglyph'>=</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span><span class='hs-conop'>:</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>|</span> <span class='hs-varid'>v</span> <span class='hs-varop'>&gt;</span> <span class='hs-num'>0</span> <span class='hs-layout'>}</span> <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p>which is given a <em>strictly positive</em> integer argument,
+a list of <code>a</code> values, and returns a <code>Clustering a</code>,
+that is, a list of non-empty lists. (Each inner list has a length
+that is less than <code>size</code>, but we shall elide this for simplicity.)</p>
+<p>The function is implemented in a straightforward manner, using the
+library functions <code>take</code> and <code>drop</code></p>
+<pre><span class=hs-linenum>156: </span><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV &gt; 0)}
+-&gt; [a] -&gt; {VV : [{VV : [a] | (len([VV]) &gt; 0)}] | (len([VV]) &gt;= 0)}</span><span class='hs-definition'>partition</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV &gt; 0)}</span><span class='hs-varid'>size</span></a> <span class='hs-conid'>[]</span>       <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : [{VV : [{VV : a | false}] | false}] | (len([VV]) = 0)}</span><span class='hs-conid'>[]</span></a>
+<span class=hs-linenum>157: </span><span class='hs-definition'>partition</span> <span class='hs-varid'>size</span> <span class='hs-varid'>ys</span><span class='hs-keyglyph'>@</span><span class='hs-layout'>(</span><span class='hs-keyword'>_</span><span class='hs-conop'>:</span><span class='hs-keyword'>_</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV = zs),(len([VV]) &gt;= 0)}</span><span class='hs-varid'>zs</span></a> <a class=annot href="#"><span class=annottext>y:{VV : [a] | (len([VV]) &gt; 0)}
+-&gt; ys:[{VV : [a] | (len([VV]) &gt; 0)}]
+-&gt; {VV : [{VV : [a] | (len([VV]) &gt; 0)}] | (len([VV]) = (1 + len([ys])))}</span><span class='hs-conop'>:</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV &gt; 0)}
+-&gt; [a] -&gt; {VV : [{VV : [a] | (len([VV]) &gt; 0)}] | (len([VV]) &gt;= 0)}</span><span class='hs-varid'>partition</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV = size),(VV &gt; 0)}</span><span class='hs-varid'>size</span></a> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV = zs'),(len([VV]) &gt;= 0)}</span><span class='hs-varid'>zs'</span></a>
+<span class=hs-linenum>158: </span>  <span class='hs-keyword'>where</span>
+<span class=hs-linenum>159: </span>    <a class=annot href="#"><span class=annottext>[a]</span><span class='hs-varid'>zs</span></a>                  <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>n:{VV : (GHC.Types.Int) | (VV &gt;= 0)}
+-&gt; xs:[a]
+-&gt; {VV : [a] | (len([VV]) = ((len([xs]) &lt; n) ? len([xs]) : n))}</span><span class='hs-varid'>take</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV = size),(VV &gt; 0)}</span><span class='hs-varid'>size</span></a> <a class=annot href="#"><span class=annottext>{VV : [a] | (len([VV]) &gt;= 0)}</span><span class='hs-varid'>ys</span></a>
+<span class=hs-linenum>160: </span>    <a class=annot href="#"><span class=annottext>[a]</span><span class='hs-varid'>zs'</span></a>                 <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>n:{VV : (GHC.Types.Int) | (VV &gt;= 0)}
+-&gt; xs:[a]
+-&gt; {VV : [a] | (len([VV]) = ((len([xs]) &lt; n) ? 0 : (len([xs]) - n)))}</span><span class='hs-varid'>drop</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV = size),(VV &gt; 0)}</span><span class='hs-varid'>size</span></a> <a class=annot href="#"><span class=annottext>{VV : [a] | (len([VV]) &gt;= 0)}</span><span class='hs-varid'>ys</span></a>
+</pre>
+
+<p>To verify that a valid <code>Clustering</code> is produced, LiquidHaskell needs only
+verify that the list <code>zs</code> above is non-empty, by suitably connecting the
+properties of the inputs <code>size</code> and <code>ys</code> with the output.</p>
+<p>We have <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/List.lhs#L334">verified elsewhere</a> that</p>
+<pre><span class=hs-linenum>168: </span><span class='hs-definition'>take</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>n</span><span class='hs-conop'>:</span><span class='hs-layout'>{</span><span class='hs-varid'>v</span><span class='hs-conop'>:</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>|</span> <span class='hs-varid'>v</span> <span class='hs-varop'>&gt;=</span> <span class='hs-num'>0</span> <span class='hs-layout'>}</span>
+<span class=hs-linenum>169: </span>     <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>xs</span><span class='hs-conop'>:</span><span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>170: </span>     <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span><span class='hs-conop'>:</span><span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>|</span> <span class='hs-layout'>(</span><span class='hs-varid'>len</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-layout'>(</span><span class='hs-keyword'>if</span> <span class='hs-layout'>(</span><span class='hs-layout'>(</span><span class='hs-varid'>len</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span> <span class='hs-varop'>&lt;</span> <span class='hs-varid'>n</span><span class='hs-layout'>)</span> <span class='hs-keyword'>then</span> <span class='hs-layout'>(</span><span class='hs-varid'>len</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span> <span class='hs-keyword'>else</span> <span class='hs-varid'>n</span><span class='hs-layout'>)</span> <span class='hs-layout'>}</span>
+</pre>
+
+<p>In other words, the output list's length is the <em>smaller of</em> the input
+list's length and <code>n</code>.  Thus, since both <code>size</code> and the <code>(len ys)</code> are
+greater than <code>1</code>, LiquidHaskell deduces that the list returned by <code>take
+size ys</code> has a length greater than <code>1</code>, i.e., is non-empty.</p>
+<h2 id="zipping">Zipping<a class="headerlink" href="#zipping" title="Permanent link">&para;</a></h2>
+<p>To compute the <em>Euclidean distance</em> between two points, we will use
+the <code>zipWith</code> function. We must make sure that it is invoked on points
+with the same number of dimensions, so we write</p>
+<pre><span class=hs-linenum>186: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>zipWith</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>b</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>c</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>187: </span>            <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>xs</span><span class='hs-conop'>:</span><span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-conid'>List</span> <span class='hs-varid'>b</span> <span class='hs-layout'>(</span><span class='hs-varid'>len</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-conid'>List</span> <span class='hs-varid'>c</span> <span class='hs-layout'>(</span><span class='hs-varid'>len</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span><span class='hs-layout'>)</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>188: </span><a class=annot href="#"><span class=annottext>(a -&gt; b -&gt; c)
+-&gt; x4:[a]
+-&gt; x2:{VV : [b] | (len([VV]) = len([x4])),(len([VV]) &gt;= 0)}
+-&gt; {VV : [c] | (len([VV]) = len([x4])),
+               (len([VV]) = len([x2])),
+               (len([VV]) &gt;= 0)}</span><span class='hs-definition'>zipWith</span></a> <a class=annot href="#"><span class=annottext>a -&gt; b -&gt; c</span><span class='hs-varid'>f</span></a> <span class='hs-layout'>(</span><span class='hs-varid'>a</span><span class='hs-conop'>:</span><span class='hs-keyword'>as</span><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><span class='hs-varid'>b</span><span class='hs-conop'>:</span><span class='hs-varid'>bs</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>a -&gt; b -&gt; c</span><span class='hs-varid'>f</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV = a)}</span><span class='hs-varid'>a</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV = b)}</span><span class='hs-varid'>b</span></a> <a class=annot href="#"><span class=annottext>y:a -&gt; ys:[a] -&gt; {VV : [a] | (len([VV]) = (1 + len([ys])))}</span><span class='hs-conop'>:</span></a> <a class=annot href="#"><span class=annottext>(a -&gt; b -&gt; c)
+-&gt; x4:[a]
+-&gt; x2:{VV : [b] | (len([VV]) = len([x4])),(len([VV]) &gt;= 0)}
+-&gt; {VV : [c] | (len([VV]) = len([x4])),
+               (len([VV]) = len([x2])),
+               (len([VV]) &gt;= 0)}</span><span class='hs-varid'>zipWith</span></a> <a class=annot href="#"><span class=annottext>a -&gt; b -&gt; c</span><span class='hs-varid'>f</span></a> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV = as),(len([VV]) &gt;= 0)}</span><span class='hs-keyword'>as</span></a> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV = bs),(len([VV]) &gt;= 0)}</span><span class='hs-varid'>bs</span></a>
+<span class=hs-linenum>189: </span><span class='hs-definition'>zipWith</span> <span class='hs-keyword'>_</span> <span class='hs-conid'>[]</span> <span class='hs-conid'>[]</span>         <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : [{VV : a | false}] | (len([VV]) = 0)}</span><span class='hs-conid'>[]</span></a>
+</pre>
+
+<p>The type stipulates that the second input list and the output have
+the same length as the first input. Furthermore, it rules out the
+case where one list is empty and the other is not, as in that case
+the former's length is zero while the latter's is not.</p>
+<h2 id="transposing">Transposing<a class="headerlink" href="#transposing" title="Permanent link">&para;</a></h2>
+<p>The last basic operation that we will require is a means to
+<em>transpose</em> a <code>Matrix</code>, which itself is just a list of lists:</p>
+<pre><span class=hs-linenum>204: </span><span class='hs-keyword'>{-@</span> <span class='hs-keyword'>type</span> <span class='hs-conid'>Matrix</span> <span class='hs-varid'>a</span> <span class='hs-conid'>Rows</span> <span class='hs-conid'>Cols</span> <span class='hs-keyglyph'>=</span> <span class='hs-layout'>(</span><span class='hs-conid'>List</span> <span class='hs-layout'>(</span><span class='hs-conid'>List</span> <span class='hs-varid'>a</span> <span class='hs-conid'>Cols</span><span class='hs-layout'>)</span> <span class='hs-conid'>Rows</span><span class='hs-layout'>)</span> <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p>The <code>transpose</code> operation flips the rows and columns. I confess that I
+can never really understand matrices without concrete examples,
+and even then, barely.</p>
+<p>So, lets say we have a <em>matrix</em></p>
+<pre><span class=hs-linenum>212: </span><span class='hs-definition'>m1</span>  <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Matrix</span> <span class='hs-conid'>Int</span> <span class='hs-num'>4</span> <span class='hs-num'>2</span>
+<span class=hs-linenum>213: </span><span class='hs-definition'>m1</span>  <span class='hs-keyglyph'>=</span>  <span class='hs-keyglyph'>[</span> <span class='hs-keyglyph'>[</span><span class='hs-num'>1</span><span class='hs-layout'>,</span> <span class='hs-num'>2</span><span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>214: </span>       <span class='hs-layout'>,</span> <span class='hs-keyglyph'>[</span><span class='hs-num'>3</span><span class='hs-layout'>,</span> <span class='hs-num'>4</span><span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>215: </span>       <span class='hs-layout'>,</span> <span class='hs-keyglyph'>[</span><span class='hs-num'>5</span><span class='hs-layout'>,</span> <span class='hs-num'>6</span><span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>216: </span>       <span class='hs-layout'>,</span> <span class='hs-keyglyph'>[</span><span class='hs-num'>7</span><span class='hs-layout'>,</span> <span class='hs-num'>8</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>]</span>
+</pre>
+
+<p>then the matrix <code>m2 = transpose 2 3 m1</code> should be</p>
+<pre><span class=hs-linenum>220: </span><span class='hs-definition'>m2</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Matrix</span> <span class='hs-conid'>Int</span> <span class='hs-num'>2</span> <span class='hs-num'>4</span>
+<span class=hs-linenum>221: </span><span class='hs-definition'>m2</span>  <span class='hs-keyglyph'>=</span>  <span class='hs-keyglyph'>[</span> <span class='hs-keyglyph'>[</span><span class='hs-num'>1</span><span class='hs-layout'>,</span> <span class='hs-num'>3</span><span class='hs-layout'>,</span> <span class='hs-num'>5</span><span class='hs-layout'>,</span> <span class='hs-num'>7</span><span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>222: </span>       <span class='hs-layout'>,</span> <span class='hs-keyglyph'>[</span><span class='hs-num'>2</span><span class='hs-layout'>,</span> <span class='hs-num'>4</span><span class='hs-layout'>,</span> <span class='hs-num'>6</span><span class='hs-layout'>,</span> <span class='hs-num'>8</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>]</span>
+</pre>
+
+<p>We will use a <code>Matrix a m n</code> to represent a <em>single cluster</em> of <code>m</code> points
+each of which has <code>n</code> dimensions. We will transpose the matrix to make it
+easy to <em>sum</em> and <em>average</em> the points along <em>each</em> dimension, in order to
+compute the <em>center</em> of the cluster.</p>
+<p>As you can work out from the above, the code for <code>transpose</code> is quite
+straightforward: each <em>output row</em> is simply the list of <code>head</code>s of
+the <em>input rows</em>:</p>
+<pre><span class=hs-linenum>235: </span><span class='hs-definition'>transpose</span>       <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span><span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>236: </span>
+<span class=hs-linenum>237: </span><a class=annot href="#"><span class=annottext>c:(GHC.Types.Int)
+-&gt; r:{VV : (GHC.Types.Int) | (VV &gt; 0)}
+-&gt; {v : [{VV : [a] | (len([VV]) = c)}] | (len([v]) = r)}
+-&gt; {v : [{VV : [a] | (len([VV]) = r)}] | (len([v]) = c)}</span><span class='hs-definition'>transpose</span></a> <span class='hs-num'>0</span> <span class='hs-keyword'>_</span> <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : [{VV : [{VV : a | false}] | false}] | (len([VV]) = 0)}</span><span class='hs-conid'>[]</span></a>
+<span class=hs-linenum>238: </span>
+<span class=hs-linenum>239: </span><span class='hs-definition'>transpose</span> <span class='hs-varid'>c</span> <span class='hs-varid'>r</span> <span class='hs-layout'>(</span><span class='hs-layout'>(</span><span class='hs-varid'>col00</span> <span class='hs-conop'>:</span> <span class='hs-varid'>col01s</span><span class='hs-layout'>)</span> <span class='hs-conop'>:</span> <span class='hs-varid'>row1s</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>240: </span>  <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV = row0'),(len([VV]) &gt;= 0)}</span><span class='hs-varid'>row0'</span></a> <a class=annot href="#"><span class=annottext>y:{VV : [a] | (len([VV]) = len([row0'])),
+              (len([VV]) = len([rest])),
+              (len([VV]) &gt; 0)}
+-&gt; ys:[{VV : [a] | (len([VV]) = len([row0'])),
+                   (len([VV]) = len([rest])),
+                   (len([VV]) &gt; 0)}]
+-&gt; {VV : [{VV : [a] | (len([VV]) = len([row0'])),
+                      (len([VV]) = len([rest])),
+                      (len([VV]) &gt; 0)}] | (len([VV]) = (1 + len([ys])))}</span><span class='hs-conop'>:</span></a> <a class=annot href="#"><span class=annottext>{v : [[a]] | (v = row1s'),(len([v]) &gt;= 0)}</span><span class='hs-varid'>row1s'</span></a>
+<span class=hs-linenum>241: </span>    <span class='hs-keyword'>where</span>
+<span class=hs-linenum>242: </span>      <a class=annot href="#"><span class=annottext>[a]</span><span class='hs-varid'>row0'</span></a>  <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV = col00)}</span><span class='hs-varid'>col00</span></a>  <a class=annot href="#"><span class=annottext>y:a -&gt; ys:[a] -&gt; {VV : [a] | (len([VV]) = (1 + len([ys])))}</span><span class='hs-conop'>:</span></a> <a class=annot href="#"><span class=annottext>{VV : [a] | (len([VV]) = len([row1s])),(len([VV]) &gt;= 0)}</span><span class='hs-keyglyph'>[</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV = col0)}</span><span class='hs-varid'>col0</span></a>  <span class='hs-keyglyph'>|</span> <span class='hs-layout'>(</span><span class='hs-varid'>col0</span> <span class='hs-conop'>:</span> <span class='hs-keyword'>_</span><span class='hs-layout'>)</span>  <span class='hs-keyglyph'>&lt;-</span> <a class=annot href="#"><span class=annottext>{VV : [[a]] | (VV = row1s),(len([VV]) &gt;= 0)}</span><span class='hs-varid'>row1s</span></a> <span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>243: </span>      <a class=annot href="#"><span class=annottext>[{VV : [a] | (len([VV]) = len([col01s])),(len([VV]) &gt;= 0)}]</span><span class='hs-varid'>rest</span></a>   <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV = col01s),(len([VV]) &gt;= 0)}</span><span class='hs-varid'>col01s</span></a> <a class=annot href="#"><span class=annottext>y:{VV : [a] | (len([VV]) = len([col01s])),(len([VV]) &gt;= 0)}
+-&gt; ys:[{VV : [a] | (len([VV]) = len([col01s])),(len([VV]) &gt;= 0)}]
+-&gt; {VV : [{VV : [a] | (len([VV]) = len([col01s])),
+                      (len([VV]) &gt;= 0)}] | (len([VV]) = (1 + len([ys])))}</span><span class='hs-conop'>:</span></a> <a class=annot href="#"><span class=annottext>{VV : [{VV : [a] | (len([VV]) = len([col01s])),
+                   (len([VV]) &gt;= 0)}] | (len([VV]) = len([row1s])),(len([VV]) &gt;= 0)}</span><span class='hs-keyglyph'>[</span></a> <a class=annot href="#"><span class=annottext>{VV : [a] | (VV = col1s),(len([VV]) &gt;= 0)}</span><span class='hs-varid'>col1s</span></a> <span class='hs-keyglyph'>|</span> <span class='hs-layout'>(</span><span class='hs-keyword'>_</span> <span class='hs-conop'>:</span> <span class='hs-varid'>col1s</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>&lt;-</span> <a class=annot href="#"><span class=annottext>{VV : [[a]] | (VV = row1s),(len([VV]) &gt;= 0)}</span><span class='hs-varid'>row1s</span></a> <span class='hs-keyglyph'>]</span>
+<span class=hs-linenum>244: </span>      <a class=annot href="#"><span class=annottext>[[a]]</span><span class='hs-varid'>row1s'</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>c:(GHC.Types.Int)
+-&gt; r:{VV : (GHC.Types.Int) | (VV &gt; 0)}
+-&gt; {v : [{VV : [a] | (len([VV]) = c)}] | (len([v]) = r)}
+-&gt; {v : [{VV : [a] | (len([VV]) = r)}] | (len([v]) = c)}</span><span class='hs-varid'>transpose</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>(GHC.Types.Int)</span><span class='hs-varid'>c</span></a><a class=annot href="#"><span class=annottext>x:(GHC.Types.Int)
+-&gt; y:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int) | (VV = (x - y))}</span><span class='hs-comment'>-</span></a><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV = (1  :  int))}</span><span class='hs-num'>1</span></a><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV &gt; 0)}</span><span class='hs-varid'>r</span></a> <a class=annot href="#"><span class=annottext>{VV : [{VV : [a] | (len([VV]) = len([col01s])),
+                   (len([VV]) &gt;= 0)}] | (VV = rest),(len([VV]) &gt;= 0)}</span><span class='hs-varid'>rest</span></a>
+</pre>
+
+<p>LiquidHaskell verifies that</p>
+<pre><span class=hs-linenum>250: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>transpose</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>c</span><span class='hs-conop'>:</span><span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>r</span><span class='hs-conop'>:</span><span class='hs-conid'>PosInt</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Matrix</span> <span class='hs-varid'>a</span> <span class='hs-varid'>r</span> <span class='hs-varid'>c</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Matrix</span> <span class='hs-varid'>a</span> <span class='hs-varid'>c</span> <span class='hs-varid'>r</span> <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p>Try to work it out for yourself on pencil and paper.</p>
+<p>If you like you can get a hint by seeing how LiquidHaskell figures it out.
+Lets work <em>backwards</em>.</p>
+<p>LiquidHaskell verifies the output type by inferring that</p>
+<pre><span class=hs-linenum>259: </span><span class='hs-definition'>row0'</span>        <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>List</span> <span class='hs-varid'>a</span> <span class='hs-varid'>r</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>260: </span><span class='hs-definition'>row1s'</span>       <span class='hs-keyglyph'>::</span> <span class='hs-conid'>List</span> <span class='hs-layout'>(</span><span class='hs-conid'>List</span> <span class='hs-varid'>a</span> <span class='hs-varid'>r</span><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><span class='hs-varid'>c</span> <span class='hs-comment'>-</span> <span class='hs-num'>1</span><span class='hs-layout'>)</span> <span class='hs-comment'>-- i.e. Matrix a (c - 1) r</span>
+</pre>
+
+<p>and so, by simply using the <em>measure-refined</em> type for <code>:</code></p>
+<pre><span class=hs-linenum>264: </span><span class='hs-layout'>(</span><span class='hs-conop'>:</span><span class='hs-layout'>)</span>          <span class='hs-keyglyph'>::</span> <span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>xs</span><span class='hs-conop'>:</span><span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>{</span> <span class='hs-varid'>v</span> <span class='hs-conop'>:</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>|</span> <span class='hs-layout'>(</span><span class='hs-varid'>len</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-num'>1</span> <span class='hs-varop'>+</span> <span class='hs-layout'>(</span><span class='hs-varid'>len</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span> <span class='hs-layout'>}</span>
+</pre>
+
+<p>LiquidHaskell deduces that</p>
+<pre><span class=hs-linenum>268: </span><span class='hs-definition'>row0</span> <span class='hs-conop'>:</span> <span class='hs-varid'>rows'</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>List</span> <span class='hs-layout'>(</span><span class='hs-conid'>List</span> <span class='hs-varid'>a</span> <span class='hs-varid'>r</span><span class='hs-layout'>)</span> <span class='hs-varid'>c</span>
+</pre>
+
+<p>That is,</p>
+<pre><span class=hs-linenum>272: </span><span class='hs-definition'>row0</span> <span class='hs-conop'>:</span> <span class='hs-varid'>rows'</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Matrix</span> <span class='hs-varid'>a</span> <span class='hs-varid'>c</span> <span class='hs-varid'>r</span>
+</pre>
+
+<p>Excellent! Now, lets work backwards. How does it infer the types of <code>row0'</code> and <code>row1s'</code>?</p>
+<p>The first case is easy: <code>row0'</code> is just the list of <em>heads</em> of each row, hence a <code>List a r</code>.</p>
+<p>Now, lets look at <code>row1s'</code>. Notice that <code>row1s</code> is the matrix of all <em>except</em> the first row of the input Matrix, and so</p>
+<pre><span class=hs-linenum>280: </span><span class='hs-definition'>row1s</span>        <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Matrix</span> <span class='hs-varid'>a</span> <span class='hs-layout'>(</span><span class='hs-varid'>r</span><span class='hs-comment'>-</span><span class='hs-num'>1</span><span class='hs-layout'>)</span> <span class='hs-varid'>c</span>
+</pre>
+
+<p>and so, as</p>
+<pre><span class=hs-linenum>284: </span><span class='hs-definition'>col01s</span>       <span class='hs-keyglyph'>::</span> <span class='hs-conid'>List</span> <span class='hs-varid'>a</span> <span class='hs-layout'>(</span><span class='hs-varid'>c</span><span class='hs-comment'>-</span><span class='hs-num'>1</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>285: </span><span class='hs-definition'>col1s</span>        <span class='hs-keyglyph'>::</span> <span class='hs-conid'>List</span> <span class='hs-varid'>a</span> <span class='hs-layout'>(</span><span class='hs-varid'>c</span><span class='hs-comment'>-</span><span class='hs-num'>1</span><span class='hs-layout'>)</span>
+</pre>
+
+<p>LiquidHaskell deduces that since <code>rest</code> is the concatenation of <code>r-1</code> tails from <code>row1s</code></p>
+<pre><span class=hs-linenum>289: </span><span class='hs-definition'>rest</span>         <span class='hs-keyglyph'>=</span> <span class='hs-varid'>col01s</span> <span class='hs-conop'>:</span> <span class='hs-keyglyph'>[</span> <span class='hs-varid'>col1s</span> <span class='hs-keyglyph'>|</span> <span class='hs-layout'>(</span><span class='hs-keyword'>_</span> <span class='hs-conop'>:</span> <span class='hs-varid'>col1s</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>row1s</span> <span class='hs-keyglyph'>]</span>
+</pre>
+
+<p>the type of <code>rest</code> is</p>
+<pre><span class=hs-linenum>293: </span><span class='hs-definition'>rest</span>         <span class='hs-keyglyph'>::</span> <span class='hs-conid'>List</span> <span class='hs-layout'>(</span><span class='hs-conid'>List</span> <span class='hs-varid'>a</span> <span class='hs-layout'>(</span><span class='hs-varid'>c</span> <span class='hs-comment'>-</span> <span class='hs-num'>1</span><span class='hs-layout'>)</span><span class='hs-layout'>)</span> <span class='hs-varid'>r</span>
+</pre>
+
+<p>which is just</p>
+<pre><span class=hs-linenum>297: </span><span class='hs-definition'>rest</span>         <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Matrix</span> <span class='hs-varid'>a</span> <span class='hs-varid'>r</span> <span class='hs-layout'>(</span><span class='hs-varid'>c</span><span class='hs-comment'>-</span><span class='hs-num'>1</span><span class='hs-layout'>)</span>
+</pre>
+
+<p>Now, LiquidHaskell deduces <code>row1s' :: Matrix a (c-1) r</code> by inductively
+plugging in the output type of the recursive call, thereby checking the
+function's signature.</p>
+<p><em>Whew!</em> That was a fair bit of work, wasn't it!</p>
+<p>Happily, we didn't have to do <em>any</em> of it. Instead, using the SMT solver,
+LiquidHaskell ploughs through calculations like that and guarantees to us
+that <code>transpose</code> indeed flips the dimensions of the inner and outer lists.</p>
+<p><strong>Aside: Comprehensions vs. Map</strong> Incidentally, the code above is essentially
+that of <code>transpose</code> <a href="http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html#transpose">from the Prelude</a> with some extra
+local variables for exposition. You could instead use a <code>map head</code> and <code>map tail</code>
+and I encourage you to go ahead and <a href="http://goto.ucsd.edu/~rjhala/liquid/haskell/demo/#?demo=KMeansHelper.hs">see for yourself.</a></p>
+<h2 id="intermission">Intermission<a class="headerlink" href="#intermission" title="Permanent link">&para;</a></h2>
+<p>Time for a break -- <a href="http://www.youtube.com/watch?v=8uDuls5TyNE">go see a cat video!</a> -- or skip it, stretch your
+legs, and return post-haste for the <a href="/blog/2013/02/17/kmeans-clustering-II.lhs/">next installment</a>, in which
+we will use the types and functions described above, to develop the clustering
+algorithm.</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+
+
+<div class="blogpost-meta">
+  
+  <div class="blogpost-meta-whowhen">
+    
+        <div class="blogpost-meta-author">
+            Ranjit Jhala
+        </div>
+    
+    
+        <div class="blogpost-meta-date">
+            2013-02-16 16:12
+        </div>
+    
+  </div>
+  
+  
+  <div class="blogpost-meta-tags">
+              
+      <a href="../../tags.html#basic" class="tag-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.5 7A1.5 1.5 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4 1.5 1.5 0 0 1 7 5.5 1.5 1.5 0 0 1 5.5 7m15.91 4.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.11 0-2 .89-2 2v7c0 .55.22 1.05.59 1.41l8.99 9c.37.36.87.59 1.42.59s1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.56-.23-1.06-.59-1.42"/></svg>basic</a>
+              
+      <a href="../../tags.html#measures" class="tag-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.5 7A1.5 1.5 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4 1.5 1.5 0 0 1 7 5.5 1.5 1.5 0 0 1 5.5 7m15.91 4.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.11 0-2 .89-2 2v7c0 .55.22 1.05.59 1.41l8.99 9c.37.36.87.59 1.42.59s1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.56-.23-1.06-.59-1.42"/></svg>measures</a>
+    
+  </div>
+  
+</div>
+
+
+
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://join.slack.com/t/liquidhaskell/shared_invite/enQtMjY4MTk3NDkwODE3LTFmZGFkNGEzYWRkNDJmZDQ0ZGU1MzBiZWZiZDhhNmY3YTJiMjUzYTRlNjMyZDk1NDU3ZGIxYzhlOTIzN2UxNWE" target="_blank" rel="noopener" title="Join the LiquidHaskell slack channel" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 15a2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1 2-2h2zm1 0a2 2 0 0 1 2-2 2 2 0 0 1 2 2v5a2 2 0 0 1-2 2 2 2 0 0 1-2-2zm2-8a2 2 0 0 1-2-2 2 2 0 0 1 2-2 2 2 0 0 1 2 2v2zm0 1a2 2 0 0 1 2 2 2 2 0 0 1-2 2H4a2 2 0 0 1-2-2 2 2 0 0 1 2-2zm8 2a2 2 0 0 1 2-2 2 2 0 0 1 2 2 2 2 0 0 1-2 2h-2zm-1 0a2 2 0 0 1-2 2 2 2 0 0 1-2-2V5a2 2 0 0 1 2-2 2 2 0 0 1 2 2zm-2 8a2 2 0 0 1 2 2 2 2 0 0 1-2 2 2 2 0 0 1-2-2v-2zm0-1a2 2 0 0 1-2-2 2 2 0 0 1 2-2h5a2 2 0 0 1 2 2 2 2 0 0 1-2 2z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://groups.google.com/forum/#!forum/liquidhaskell" target="_blank" rel="noopener" title="Mail the LiquidHaskell users mailing list" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10 5.35 0 9.25-3.67 9.25-9.09 0-1.15-.15-1.81-.15-1.81"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/ranjitjhala" target="_blank" rel="noopener" title="Drop Ranjit Jhala an email" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-68.5 74.1c-8.9 9.7-22.9 12.9-35.2 8.1S160 493.2 160 480v-83.6c0-4 1.5-7.8 4.2-10.8l167.6-182.8c5.8-6.3 5.6-16-.4-22s-15.7-6.4-22-.7L106 360.8l-88.3-44.2C7.1 311.3.3 300.7 0 288.9s5.9-22.8 16.1-28.7l448-256c10.7-6.1 23.9-5.5 34 1.4"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/nikivazou" target="_blank" rel="noopener" title="Drop Niki Vazou an email" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M16.1 260.2c-22.6 12.9-20.5 47.3 3.6 57.3L160 376v103.3c0 18.1 14.6 32.7 32.7 32.7 9.7 0 18.9-4.3 25.1-11.8l62-74.3 123.9 51.6c18.9 7.9 40.8-4.5 43.9-24.7l64-416c1.9-12.1-3.4-24.3-13.5-31.2s-23.3-7.5-34-1.4zm52.1 25.5L409.7 90.6 190.1 336l1.2 1zm335.1 139.7-166.6-69.5 214.1-239.3z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/ucsd-progsys/liquidhaskell/issues" target="_blank" rel="noopener" title="Open a GitHub issue" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.top"], "search": "../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.83f73b43.min.js"></script>
+      
+    
+  </body>
+</html>
