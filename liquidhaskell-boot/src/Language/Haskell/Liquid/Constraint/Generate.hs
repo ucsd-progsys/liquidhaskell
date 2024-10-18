@@ -931,7 +931,7 @@ unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
         yts''                = zipWith F.subst sus (yts'++[rt])
         (t3,yts)             = (last yts'', init yts'')
         sus                  = F.mkSubst <$> L.inits [(x, F.EVar y) | (x, y) <- zip ys0 ys']
-        (αs, ys')            = fmap (F.symbol <$>) $ L.partition isTyVar ys
+        (αs, ys')            = fmap F.symbol <$> L.partition isTyVar ys
         tvs' :: [SpecType]
         tvs'                 = rVar <$> αs
         tvys                 = ofType . varType <$> αs

@@ -25,7 +25,6 @@ import           Prelude                                    hiding (error)
 import           Control.Monad                              (forM, mplus, when)
 import           Control.Applicative                        ((<|>))
 import qualified Control.Exception                          as Ex
-import Data.Bifunctor                                       (first)
 import qualified Data.Binary                                as B
 import qualified Data.Maybe                                 as Mb
 import qualified Data.List                                  as L
@@ -70,7 +69,7 @@ import qualified Language.Haskell.Liquid.Transforms.CoreToLogic as CoreToLogic
 import           Language.Haskell.Liquid.UX.Config
 import           Control.Arrow                    (second)
 import Data.Hashable (Hashable)
-import Data.Bifunctor (bimap)
+import Data.Bifunctor (bimap, first)
 import Data.Function (on)
 
 --------------------------------------------------------------------------------
@@ -1115,7 +1114,7 @@ makeSizeInv s lst = lst{val = go (val lst)}
 makeMeasureInvariants :: Bare.Env -> ModName -> GhcSpecSig -> Ms.BareSpec
                       -> ([(Maybe Ghc.Var, LocSpecType)], [UnSortedExpr])
 makeMeasureInvariants env name sig mySpec
-  = fmap Mb.catMaybes $
+  = Mb.catMaybes <$>
     unzip (measureTypeToInv env name <$> [(x, (y, ty)) | x <- xs, (y, ty) <- sigs
                                          , isSymbolOfVar (val x) y ])
   where
