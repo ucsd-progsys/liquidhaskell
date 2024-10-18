@@ -20,7 +20,7 @@ commands:
             rm -f   "${z3full}.zip"
             sudo cp "${z3full}/bin/libz3.a" /usr/local/lib
             sudo cp "${z3full}/bin/z3"      /usr/local/bin
-            sudo cp "${z3full}/include/*"   /usr/local/include
+            sudo cp "${z3full}/include/"/*  /usr/local/include
             rm -rf  "${z3full}"
             z3 --version
 
