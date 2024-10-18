@@ -24,7 +24,7 @@ The options are descibed below (and by the legacy executable: `liquid --help`)
 
 ## Theorem Proving
 
-**Options:** `reflection`, `ple`, `ple-local`, `extensionality`, `ple-with-undecided-guards`, `--dump-opaque-reflections`
+**Options:** `reflection`, `ple`, `ple-local`, `extensionality`, `ple-with-undecided-guards`, `--dump-opaque-reflections`, `--etabeta`, `--dependantcase`
 
 **Directives:** `automatic-instances`
 
@@ -156,6 +156,54 @@ myIsDigit x = '0' <= x && x <= '9'
 
 {-@ assume reflect isDigit as myIsDigit @-}
 ```
+
+### Higher order reasoning
+
+To make PLE aware of eta-expansion and beta-reduction rules, you can use the
+`--etabeta` flag:
+
+```
+{-@ LIQUID "--etabeta" @-}
+```
+
+```Haskell
+{-@ eta :: f:_ -> { f = \x:Int -> f x } @-}
+eta :: (Int -> Int) -> Proof
+eta _ = trivial
+
+{-@ beta :: { (\x:Int -> x) (12) = 12 } @-}
+beta :: Proof
+beta = trivial
+```
+
+This also allows PLE to unfold partially applied reflected functions.
+
+Note: The eta-expansion rule subsumes the `--extensionality` flag. To save time
+during typechecking, you can disable `--extensionality` when using `--etabeta`.
+
+Additionally, you can make PLE aware of rewrites obtained from dependent pattern
+matching on indexed inductive dependent types using the `--dependantcase` flag:
+
+
+```
+{-@ LIQUID "--dependantcase"  @-}
+```
+
+```Haskell
+data Term where
+    {-@ MkId :: Prop (Term id) @-}
+    MkId :: Term
+data TERM = Term (Int -> Int)
+
+
+{-@ patternMatch :: x:_ -> f:_ -> Prop (Term f) -> { f x = x } @-}
+patternMatch :: Int -> (Int -> Int) -> Term -> Proof
+patternMatch _ _ MkId = trivial
+```
+
+While both flags work independently, if you enable `--dependantcase`, it is
+usually recommended to enable `--etabeta` as well for consistency in
+higher-order reasoning.
 
 ### Opaque reflection
 
