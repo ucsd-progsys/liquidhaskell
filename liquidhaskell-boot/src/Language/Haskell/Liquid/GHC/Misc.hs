@@ -44,7 +44,7 @@ import qualified Data.Text.Encoding.Error                   as TE
 import qualified Data.Text.Encoding                         as T
 import qualified Data.Text                                  as T
 import           Control.Arrow                              (second)
-import           Control.Monad                              ((>=>), foldM, when)
+import           Control.Monad                              ((>=>), foldM, when, forM)
 import qualified Text.PrettyPrint.HughesPJ                  as PJ
 import           Language.Fixpoint.Types                    hiding (L, panic, Loc (..), SrcSpan, Constant, SESearch (..))
 import qualified Language.Fixpoint.Types                    as F
@@ -899,36 +899,18 @@ withWiredIn :: TcM a -> TcM a
 withWiredIn m = discardConstraints $ do
   -- undef <- lookupUndef
   wiredIns <- mkWiredIns
-  -- snd <$> tcValBinds Ghc.NotTopLevel (binds undef wiredIns) (sigs wiredIns) m
   (_, _, a) <- tcValBinds Ghc.NotTopLevel [] (sigs wiredIns) m
   return a
 
  where
-  -- lookupUndef = do
-  --   lookupOrig gHC_ERR (Ghc.mkVarOcc "undefined")
-  --   -- tcLookupGlobal undefName
+  sig w = typeSig : maybeToList fixSig
+    where
+      fixSig = forM (tcWiredInFixity w) $ \(fPrec, fDir) ->
+        toLoc $ Ghc.FixSig Ghc.noAnn $ Ghc.FixitySig Ghc.NoNamespaceSpecifier [Ghc.L locSpanAnn (tcWiredInName w)] $ Ghc.Fixity Ghc.NoSourceText fPrec fDir
 
-  -- binds :: Name -> [TcWiredIn] -> [(Ghc.RecFlag, LHsBinds GhcRn)]
-  -- binds undef wiredIns = map (\w -> 
-  --     let ext = Ghc.unitNameSet undef in -- $ varName $ tyThingId undef in
-  --     let co_fn = idHsWrapper in
-  --     let matches = 
-  --           let ctxt = LambdaExpr in
-  --           let grhss = GRHSs Ghc.noExtField [Ghc.L locSpan (GRHS Ghc.noExtField [] (Ghc.L locSpan (HsVar Ghc.noExtField (Ghc.L locSpan undef))))] (Ghc.L locSpan emptyLocalBinds) in
-  --           MG Ghc.noExtField (Ghc.L locSpan [Ghc.L locSpan (Match Ghc.noExtField ctxt [] grhss)]) Ghc.Generated 
-  --     in
-  --     let b = FunBind ext (Ghc.L locSpan $ tcWiredInName w) matches co_fn [] in
-  --     (Ghc.NonRecursive, unitBag (Ghc.L locSpan b))
-  --   ) wiredIns
+      typeSig = toLoc $ TypeSig Ghc.noAnn [toLoc $ tcWiredInName w] $ HsWC [] $ toLoc $ HsSig Ghc.noExtField (HsOuterImplicit []) $ tcWiredInType w
 
-  sigs wiredIns = concatMap (\w ->
-      let inf = maybeToList $ (\(fPrec, fDir) -> Ghc.L locSpanAnn $ Ghc.FixSig Ghc.noAnn $ Ghc.FixitySig Ghc.NoNamespaceSpecifier [Ghc.L locSpanAnn (tcWiredInName w)] $ Ghc.Fixity Ghc.NoSourceText fPrec fDir) <$> tcWiredInFixity w in
-      let t =
-            let ext' = [] in
-            [Ghc.L locSpanAnn $ TypeSig Ghc.noAnn [Ghc.L locSpanAnn (tcWiredInName w)] $ HsWC ext' $ Ghc.L locSpanAnn $ HsSig Ghc.noExtField (HsOuterImplicit ext') $ tcWiredInType w]
-      in
-      inf <> t
-    ) wiredIns
+  sigs wiredIns = concatMap sig wiredIns
 
   locSpan = UnhelpfulSpan (UnhelpfulOther "Liquid.GHC.Misc: WiredIn")
   locSpanAnn = noAnnSrcSpan locSpan
@@ -945,10 +927,7 @@ withWiredIn m = discardConstraints $ do
   toLoc = Ghc.L locSpanAnn
   nameToTy = Ghc.L locSpanAnn . HsTyVar Ghc.noAnn Ghc.NotPromoted
 
-  boolTy' :: LHsType GhcRn
   boolTy' = nameToTy $ toLoc boolTyConName
-    -- boolName <- lookupOrig (Module (stringToUnitId "Data.Bool") (mkModuleName "Data.Bool")) (Ghc.mkVarOcc "Bool")
-    -- return $ Ghc.L locSpan $ HsTyVar Ghc.noExtField Ghc.NotPromoted $ Ghc.L locSpan boolName
   intTy' = nameToTy $ toLoc intTyConName
   listTy lt = toLoc $ HsAppTy Ghc.noExtField (nameToTy $ toLoc listTyConName) lt
 
