@@ -78,9 +78,6 @@ module Language.Haskell.Liquid.Types.RType (
   , ppEnv
   , ppEnvShort
 
-  -- , rtyVarUniqueSymbol, tyVarUniqueSymbol
-  , rtyVarType, tyVarVar
-
   -- * Refined Function Info
   , RFInfo(..), defRFInfo, mkRFInfo, classRFInfo
 
@@ -360,9 +357,6 @@ instance Eq BTyVar where
 instance Ord BTyVar where
   compare (BTV x) (BTV y) = compare x y
 
-instance IsString BTyVar where
-  fromString = BTV . fromString
-
 instance B.Binary BTyVar
 instance Hashable BTyVar
 instance NFData   BTyVar
@@ -407,13 +401,6 @@ instance F.Symbolic BTyCon where
 instance NFData BTyCon
 
 instance NFData RTyCon
-
-rtyVarType :: RTyVar -> Type
-rtyVarType (RTV v) = TyVarTy v
-
-tyVarVar :: RTVar RTyVar c -> Var
-tyVarVar (RTVar (RTV v) _) = v
-
 
 
 mkBTyCon :: F.LocSymbol -> BTyCon

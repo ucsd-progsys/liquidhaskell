@@ -38,9 +38,6 @@ module Language.Haskell.Liquid.UX.CmdLine (
    -- * Diff check mode
    , diffcheck
 
-   -- * Show info about this version of LiquidHaskell
-   , printLiquidHaskellBanner
-
 ) where
 
 import Prelude hiding (error)
@@ -58,8 +55,7 @@ import System.Directory
 import System.Exit
 import System.Environment
 import System.Console.CmdArgs.Explicit
-import System.Console.CmdArgs.Implicit     hiding (Loud)
-import qualified System.Console.CmdArgs.Verbosity as CmdArgs
+import System.Console.CmdArgs.Implicit     hiding (Verbosity(..))
 import System.Console.CmdArgs.Text
 import GitHash
 
@@ -69,7 +65,7 @@ import Data.List                           (nub)
 import System.FilePath                     (isAbsolute, takeDirectory, (</>))
 
 import qualified Language.Fixpoint.Types.Config as FC
-import Language.Fixpoint.Misc
+import qualified Language.Fixpoint.Misc as F
 import Language.Fixpoint.Types.Names
 import Language.Fixpoint.Types             hiding (panic, Error, Result, saveQuery)
 import qualified Language.Fixpoint.Types as F
@@ -103,9 +99,10 @@ defaultMaxParams = 2
 config :: Mode (CmdArgs Config)
 config = cmdArgsMode $ Config {
   loggingVerbosity
-    = enum [ Quiet        &= name "quiet"   &= help "Minimal logging verbosity"
+    = enum [ Minimal      &= name "minimal" &= help "Minimal logging verbosity"
+           , Quiet        &= name "quiet"   &= help "Silent logging verbosity"
            , Normal       &= name "normal"  &= help "Normal logging verbosity"
-           , CmdArgs.Loud &= name "verbose" &= help "Verbose logging"
+           , Loud         &= name "verbose" &= help "Verbose logging"
            ]
 
  , files
@@ -503,15 +500,10 @@ getOpts as = do
                                                 }
                                 }
                          as
-  cfg    <- fixConfig cfg1
-  setVerbosity (loggingVerbosity cfg)
-  when (json cfg) $ setVerbosity Quiet
-  withSmtSolver cfg
-
--- | Shows the LiquidHaskell banner, that includes things like the copyright, the
--- git commit and the version.
-printLiquidHaskellBanner :: IO ()
-printLiquidHaskellBanner = whenNormal $ putStrLn copyright
+  cfg2   <- fixConfig cfg1
+  let cfg3 = if json cfg2 then cfg2 {loggingVerbosity = Quiet} else cfg2
+  setVerbosity (cmdargsVerbosity $ loggingVerbosity cfg3)
+  withSmtSolver cfg3
 
 cmdArgsRun' :: Mode (CmdArgs a) -> [String] -> IO a
 cmdArgsRun' md as
@@ -624,7 +616,7 @@ gitMsg gi = concat
 
 mkOpts :: Config -> IO Config
 mkOpts cfg = do
-  let files' = sortNub $ files cfg
+  let files' = F.sortNub $ files cfg
   return     $ cfg { files       = files'
                                    -- See NOTE [searchpath]
                    }
@@ -644,9 +636,9 @@ withPragmas :: MonadIO m => Config -> FilePath -> [Located String] -> (Config ->
 withPragmas cfg fp ps action
   = do cfg' <- liftIO $ (processPragmas cfg ps >>= canonicalizePaths fp) <&> canonConfig
        -- As the verbosity is set /globally/ via the cmdargs lib, re-set it.
-       liftIO $ setVerbosity (loggingVerbosity cfg')
+       liftIO $ setVerbosity (cmdargsVerbosity $ loggingVerbosity cfg')
        res <- action cfg'
-       liftIO $ setVerbosity (loggingVerbosity cfg) -- restore the original verbosity.
+       liftIO $ setVerbosity (cmdargsVerbosity $ loggingVerbosity cfg) -- restore the original verbosity.
        pure res
 
 processPragmas :: Config -> [Located String] -> IO Config
@@ -666,7 +658,7 @@ parsePragma = processPragmas defConfig . (:[])
 
 defConfig :: Config
 defConfig = Config
-  { loggingVerbosity         = Quiet
+  { loggingVerbosity         = Minimal
   , files                    = def
   , idirs                    = def
   , fullcheck                = def
@@ -763,7 +755,7 @@ reportResult :: MonadIO m
              -> m ()
 reportResult logResultFull cfg targets out = do
   annm <- {-# SCC "annotate" #-} liftIO $ annotate cfg targets out
-  liftIO $ whenNormal $ donePhase Loud "annotate"
+  liftIO $ when (loggingVerbosity cfg >= Normal) $ F.donePhase F.Loud "annotate"
   if json cfg then
     liftIO $ reportResultJson annm
    else do
@@ -773,15 +765,15 @@ reportResult logResultFull cfg targets out = do
          let outputResult = resDocs tidy cr
          -- For now, always print the \"header\" with colours, irrespective to the logger
          -- passed as input.
-         when (loggingVerbosity cfg >= Normal) $
+         when (loggingVerbosity cfg >= Minimal) $
              liftIO $ printHeader (colorResult r) (orHeader outputResult)
          logResultFull outputResult
   where
     tidy :: F.Tidy
     tidy = if shortErrors cfg then F.Lossy else F.Full
 
-    printHeader :: Moods -> Doc -> IO ()
-    printHeader mood d = colorPhaseLn mood "" (render d)
+    printHeader :: F.Moods -> Doc -> IO ()
+    printHeader mood d = F.colorPhaseLn mood "" (render d)
 
 
 reportResultJson :: ACSS.AnnMap -> IO ()
@@ -805,8 +797,8 @@ instance Show (CtxError Doc) where
 
 writeCheckVars :: Symbolic a => Maybe [a] -> IO ()
 writeCheckVars Nothing    = return ()
-writeCheckVars (Just [])   = colorPhaseLn Loud "Checked Binders: None" ""
-writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" ""
+writeCheckVars (Just [])   = F.colorPhaseLn F.Loud "Checked Binders: None" ""
+writeCheckVars (Just ns)   = F.colorPhaseLn F.Loud "Checked Binders:" ""
                           >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
 
 type CError = CtxError Doc

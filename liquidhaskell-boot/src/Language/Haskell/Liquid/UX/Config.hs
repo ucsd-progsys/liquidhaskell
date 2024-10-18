@@ -6,7 +6,9 @@
 module Language.Haskell.Liquid.UX.Config (
      Config (..)
    , HasConfig (..)
+   , Verbosity (..)
    , allowPLE, allowLocalPLE, allowGlobalPLE
+   , cmdargsVerbosity
    , patternFlag
    , higherOrderFlag
    , pruneFlag
@@ -21,11 +23,23 @@ module Language.Haskell.Liquid.UX.Config (
 import Prelude hiding (error)
 import Language.Fixpoint.Types.Config hiding (Config)
 import GHC.Generics
-import System.Console.CmdArgs
+import System.Console.CmdArgs hiding (Verbosity(..))
+import qualified System.Console.CmdArgs as CmdArgs
+
+data Verbosity = Quiet | Minimal | Normal | Loud
+  deriving (Data, Generic, Show, Eq, Ord)
+
+-- | liquid-fixpoint uses CmdArg.Verbosity at least to show the progress bar.
+cmdargsVerbosity :: Verbosity -> CmdArgs.Verbosity
+cmdargsVerbosity Quiet   = CmdArgs.Quiet
+cmdargsVerbosity Minimal = CmdArgs.Quiet
+cmdargsVerbosity Normal  = CmdArgs.Normal
+cmdargsVerbosity Loud    = CmdArgs.Loud
+
 
 -- NOTE: adding strictness annotations breaks the help message
 data Config = Config
-  { loggingVerbosity         :: Verbosity  -- ^ the logging verbosity to use (defaults to 'Quiet')
+  { loggingVerbosity         :: Verbosity  -- ^ the logging verbosity to use (defaults to 'Minimal')
   , files                    :: [FilePath] -- ^ source files to check
   , idirs                    :: [FilePath] -- ^ path to directory for including specs
   , diffcheck                :: Bool       -- ^ check subset of binders modified (+ dependencies) since last check
