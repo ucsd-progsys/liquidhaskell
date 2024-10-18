@@ -386,6 +386,11 @@ config = cmdArgsMode $ Config {
     = def
         &= help "Eta expand and beta reduce terms to aid PLE"
         &= name "etabeta"
+  
+  , dependantCase
+    = def
+        &= help "Allow PLE to reason about dependent cases"
+        &= name "dependant-case"
 
   , extensionality
     = def
@@ -724,6 +729,7 @@ defConfig = Config
   , interpreter              = False
   , proofLogicEvalLocal      = False
   , etabeta                  = False
+  , dependantCase            = False
   , reflection               = False
   , extensionality           = False
   , nopolyinfer              = False
