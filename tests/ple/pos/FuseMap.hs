@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 {-@ LIQUID "--etabeta"    @-}
