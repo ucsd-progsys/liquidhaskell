@@ -482,11 +482,6 @@ config = cmdArgsMode $ Config {
     = def &= help "Dump pre-normalized core (before a-normalization)"
           &= name "dump-pre-normalized-core"
           &= explicit
-  , insertCoreBreakPoints
-    = False
-          &= help "Insert break point when desugaring Haskell"
-          &= name "insert-core-break-points"
-          &= explicit
   } &= program "liquid"
     &= help    "Refinement Types for Haskell"
     &= summary copyright
@@ -755,7 +750,6 @@ defConfig = Config
   , excludeAutomaticAssumptionsFor = []
   , dumpOpaqueReflections    = False
   , dumpPreNormalizedCore    = False
-  , insertCoreBreakPoints    = False
   }
 
 -- | Write the annotations (i.e. the files in the \".liquid\" hidden folder) and
@@ -779,7 +773,8 @@ reportResult logResultFull cfg targets out = do
          let outputResult = resDocs tidy cr
          -- For now, always print the \"header\" with colours, irrespective to the logger
          -- passed as input.
-         liftIO $ printHeader (colorResult r) (orHeader outputResult)
+         when (loggingVerbosity cfg >= Normal) $
+             liftIO $ printHeader (colorResult r) (orHeader outputResult)
          logResultFull outputResult
   where
     tidy :: F.Tidy

@@ -380,15 +380,6 @@ kindArity _
 uniqueHash :: Uniquable a => Int -> a -> Int
 uniqueHash i = hashWithSalt i . getKey . getUnique
 
-ignoreInline :: ParsedModule -> ParsedModule
-ignoreInline x = x {pm_parsed_source = go <$> pm_parsed_source x}
-  where
-    go  y      = y {hsmodDecls = filter go' (hsmodDecls y) }
-    go' :: LHsDecl GhcPs -> Bool
-    go' z
-      | SigD _ (InlineSig {}) <-  unLoc z = False
-      | otherwise                         = True
-
 --------------------------------------------------------------------------------
 -- | Symbol Conversions --------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -909,7 +900,7 @@ withWiredIn m = discardConstraints $ do
   -- undef <- lookupUndef
   wiredIns <- mkWiredIns
   -- snd <$> tcValBinds Ghc.NotTopLevel (binds undef wiredIns) (sigs wiredIns) m
-  (_, _, a) <- tcValBinds Ghc.NotTopLevel [] (sigs wiredIns) m
+  (_, a) <- tcValBinds Ghc.NotTopLevel [] (sigs wiredIns) m
   return a
 
  where
@@ -931,7 +922,7 @@ withWiredIn m = discardConstraints $ do
   --   ) wiredIns
 
   sigs wiredIns = concatMap (\w ->
-      let inf = maybeToList $ (\(fPrec, fDir) -> Ghc.L locSpanAnn $ Ghc.FixSig Ghc.noAnn $ Ghc.FixitySig Ghc.NoNamespaceSpecifier [Ghc.L locSpanAnn (tcWiredInName w)] $ Ghc.Fixity Ghc.NoSourceText fPrec fDir) <$> tcWiredInFixity w in
+      let inf = maybeToList $ (\(fPrec, fDir) -> Ghc.L locSpanAnn $ Ghc.FixSig Ghc.noAnn $ Ghc.FixitySig noExtField [Ghc.L locSpanAnn (tcWiredInName w)] $ Ghc.Fixity Ghc.NoSourceText fPrec fDir) <$> tcWiredInFixity w in
       let t =
             let ext' = [] in
             [Ghc.L locSpanAnn $ TypeSig Ghc.noAnn [Ghc.L locSpanAnn (tcWiredInName w)] $ HsWC ext' $ Ghc.L locSpanAnn $ HsSig Ghc.noExtField (HsOuterImplicit ext') $ tcWiredInType w]

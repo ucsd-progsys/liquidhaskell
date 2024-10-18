@@ -38,7 +38,6 @@ module Language.Haskell.Liquid.GHC.Interface (
   , clearSpec
   , checkFilePragmas
   , keepRawTokenStream
-  , ignoreInline
   , lookupTyThings
   , availableTyThings
   , updLiftedSpec
@@ -255,7 +254,7 @@ makeFamInstEnv famInsts =
 --------------------------------------------------------------------------------
 -- | Extract Specifications from GHC -------------------------------------------
 --------------------------------------------------------------------------------
-extractSpecComments :: ParsedModule -> [(Maybe RealSrcLoc, String)]
+extractSpecComments :: HsParsedModule -> [(Maybe RealSrcLoc, String)]
 extractSpecComments = mapMaybe extractSpecComment . apiComments
 
 -- | 'extractSpecComment' pulls out the specification part from a full comment
