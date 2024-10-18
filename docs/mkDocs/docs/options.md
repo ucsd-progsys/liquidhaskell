@@ -201,9 +201,16 @@ patternMatch :: Int -> (Int -> Int) -> Term -> Proof
 patternMatch _ _ MkId = trivial
 ```
 
-While both flags work independently, if you enable `--dependantcase`, it is
-usually recommended to enable `--etabeta` as well for consistency in
-higher-order reasoning.
+From the pattern maching of `MkId`, Liquid Haskell can infer the equality
+`Term f = Term id`. But this is not enough to allow PLE to unfold `f` in the
+goal `f x = x`. The `--dependantcase` flag unifies the arguments of data
+constructors in equalities like `Term f = Term id`, which produces the
+equality `f = id`. This equality induces a rewrite rule that PLE uses to
+derive `id x = x` from `f x = x`, where `id` can then be unfolded.
+
+While both flags work independently, enabling `--dependantcase` might need
+to be complemented with the flag `--etabeta` to complete the verification
+of function equalities.
 
 ### Opaque reflection
 
