@@ -1,5 +1,7 @@
 # Local Rewrites Proposal
 
+See [#2371](https://github.com/ucsd-progsys/liquidhaskell/pull/2371) for additional discussion.
+
 ## The Issue
 
 Suppose we are working with the following Liquid Haskell code:
