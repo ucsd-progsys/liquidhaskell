@@ -10,7 +10,7 @@ module Language.Haskell.Liquid.GHC.Plugin.SpecFinder
     , configToRedundantDependencies
     ) where
 
-import qualified Language.Haskell.Liquid.GHC.Plugin.Util as Util
+import qualified Language.Haskell.Liquid.GHC.Plugin.Serialisation as Serialisation
 import           Language.Haskell.Liquid.GHC.Plugin.Types
 import           Language.Haskell.Liquid.UX.Config
 
@@ -97,12 +97,12 @@ findRelevantSpecs lhAssmPkgExcludes hscEnv mods = do
 -- | Load a spec by trying to parse the relevant \".spec\" file from the filesystem.
 lookupInterfaceAnnotations :: ExternalPackageState -> HomePackageTable -> SpecFinder m
 lookupInterfaceAnnotations eps hpt thisModule = do
-  lib <- MaybeT $ pure $ Util.deserialiseLiquidLib thisModule eps hpt
+  lib <- MaybeT $ pure $ Serialisation.deserialiseLiquidLib thisModule eps hpt
   pure $ LibFound thisModule InterfaceLocation lib
 
 lookupInterfaceAnnotationsEPS :: ExternalPackageState -> SpecFinder m
 lookupInterfaceAnnotationsEPS eps thisModule = do
-  lib <- MaybeT $ pure $ Util.deserialiseLiquidLibFromEPS thisModule eps
+  lib <- MaybeT $ pure $ Serialisation.deserialiseLiquidLibFromEPS thisModule eps
   pure $ LibFound thisModule InterfaceLocation lib
 
 -- | Returns a list of 'StableModule's which can be filtered out of the dependency list, because they are

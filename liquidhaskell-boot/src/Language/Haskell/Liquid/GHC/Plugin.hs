@@ -29,7 +29,7 @@ import qualified Language.Haskell.Liquid.Types.PrettyPrint as LH ( filterReportE
 import qualified Language.Haskell.Liquid.GHC.Logging     as LH   (addTcRnUnknownMessages)
 
 import           Language.Haskell.Liquid.GHC.Plugin.Types
-import           Language.Haskell.Liquid.GHC.Plugin.Util as Util
+import qualified Language.Haskell.Liquid.GHC.Plugin.Serialisation as Serialisation
 import           Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                                                          as SpecFinder
 
@@ -347,7 +347,7 @@ serialiseSpec tcGblEnv liquidLib = do
   -- liftIO $ putStrLn "liquidHaskellCheck 9"
   -- ---
 
-  let serialisedSpec = Util.serialiseLiquidLib liquidLib thisModule
+  let serialisedSpec = Serialisation.serialiseLiquidLib liquidLib thisModule
   debugLog $ "Serialised annotation ==> " ++ (O.showSDocUnsafe . O.ppr $ serialisedSpec)
 
   -- liftIO $ putStrLn "liquidHaskellCheck 10"
