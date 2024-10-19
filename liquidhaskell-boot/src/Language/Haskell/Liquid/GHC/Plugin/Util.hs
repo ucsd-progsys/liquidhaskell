@@ -6,13 +6,10 @@ module Language.Haskell.Liquid.GHC.Plugin.Util (
       , deserialiseLiquidLib
       , deserialiseLiquidLibFromEPS
 
-      -- * Aborting the plugin execution
-      , pluginAbort
       ) where
 
 import           Data.Foldable                            ( asum )
 
-import           Control.Monad.IO.Class
 import           Control.Monad
 
 import qualified Data.Binary                             as B
@@ -24,9 +21,6 @@ import           Data.Maybe                               ( listToMaybe )
 import           Liquid.GHC.API
 import           Language.Haskell.Liquid.GHC.Plugin.Types (LiquidLib)
 
-
-pluginAbort :: MonadIO m => String -> m a
-pluginAbort = liftIO . throwGhcExceptionIO . ProgramError
 
 --
 -- Serialising and deserialising Specs
