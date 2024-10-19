@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 
 module Language.Haskell.Liquid.GHC.Plugin.Types
@@ -29,6 +30,7 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     ) where
 
 import           Data.Binary                             as B
+import           Data.Data                               ( Data )
 import           GHC.Generics                      hiding ( moduleName )
 
 import qualified Data.HashSet        as HS
@@ -47,7 +49,7 @@ data LiquidLib = LiquidLib
   -- ^ The target /LiftedSpec/.
   ,  llDeps   :: TargetDependencies
   -- ^ The specs which were necessary to produce the target 'BareSpec'.
-  } deriving (Show, Generic)
+  } deriving (Show, Data, Generic)
 
 instance B.Binary LiquidLib
 

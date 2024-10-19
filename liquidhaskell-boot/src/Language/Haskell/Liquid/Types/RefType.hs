@@ -119,7 +119,7 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Names
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg, isRecursivenewTyCon)
-import           Liquid.GHC.API        as Ghc hiding ( Expr
+import           Liquid.GHC.API        as Ghc hiding ( Expr, get
                                                                       , Located
                                                                       , tyConName
                                                                       , punctuate

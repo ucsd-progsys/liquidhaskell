@@ -34,7 +34,6 @@ import qualified Control.Exception         as Ex
 import qualified Data.HashMap.Strict       as M
 import qualified Data.Char                 as Char
 import qualified Data.List                 as L
-import qualified Text.Printf               as Printf
 import qualified Text.PrettyPrint.HughesPJ as PJ
 
 import qualified Language.Fixpoint.Types               as F
@@ -43,6 +42,7 @@ import qualified Language.Fixpoint.Misc                as Misc
 import           Language.Fixpoint.Types (Expr(..)) -- , Symbol, symbol)
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 import qualified Liquid.GHC.API       as Ghc
+import           Language.Haskell.Liquid.LHNameResolution (exprArg)
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.DataDecl
 import qualified Language.Haskell.Liquid.Types.RefType as RT
@@ -457,31 +457,6 @@ errRTAliasApp l la rta = Just . ErrAliasApp  sp name sp'
     name            = pprint              (rtName rta)
     sp              = GM.sourcePosSrcSpan l
     sp'             = GM.sourcePosSrcSpan la
-
-
-
---------------------------------------------------------------------------------
--- | exprArg converts a tyVar to an exprVar because parser cannot tell
---   this function allows us to treating (parsed) "types" as "value"
---   arguments, e.g. type Matrix a Row Col = List (List a Row) Col
---   Note that during parsing, we don't necessarily know whether a
---   string is a type or a value expression. E.g. in tests/pos/T1189.hs,
---   the string `Prop (Ev (plus n n))` where `Prop` is the alias:
---     {-@ type Prop E = {v:_ | prop v = E} @-}
---   the parser will chomp in `Ev (plus n n)` as a `BareType` and so
---   `exprArg` converts that `BareType` into an `Expr`.
---------------------------------------------------------------------------------
-exprArg :: F.SourcePos -> String -> BareType -> Expr
-exprArg l msg = F.notracepp ("exprArg: " ++ msg) . go
-  where
-    go :: BareType -> Expr
-    go (RExprArg e)     = val e
-    go (RVar x _)       = EVar (F.symbol x)
-    go (RApp x [] [] _) = EVar (F.symbol x)
-    go (RApp f ts [] _) = F.mkEApp (F.symbol <$> btc_tc f) (go <$> ts)
-    go (RAppTy t1 t2 _) = F.EApp (go t1) (go t2)
-    go z                = panic sp $ Printf.printf "Unexpected expression parameter: %s in %s" (show z) msg
-    sp                  = Just (GM.sourcePosSrcSpan l)
 
 
 ----------------------------------------------------------------------------------------

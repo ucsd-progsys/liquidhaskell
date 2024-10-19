@@ -74,6 +74,7 @@ library
                       Language.Haskell.Liquid.GHC.Plugin
                       Language.Haskell.Liquid.GHC.Plugin.Tutorial
                       Language.Haskell.Liquid.LawInstances
+                      Language.Haskell.Liquid.LHNameResolution
                       Language.Haskell.Liquid.Liquid
                       Language.Haskell.Liquid.Measure
                       Language.Haskell.Liquid.Misc
@@ -124,6 +125,7 @@ library
 
   build-depends:      base                 >= 4.11.1.0 && < 5
                     , Diff                 >= 0.3 && < 0.6
+                    , array
                     , aeson
                     , binary
                     , bytestring           >= 0.10

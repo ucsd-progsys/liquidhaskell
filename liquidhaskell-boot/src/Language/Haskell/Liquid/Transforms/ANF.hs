@@ -14,7 +14,7 @@ module Language.Haskell.Liquid.Transforms.ANF (anormalize) where
 import           Debug.Trace (trace)
 import           Prelude                          hiding (error)
 import           Language.Haskell.Liquid.GHC.TypeRep
-import           Liquid.GHC.API  as Ghc hiding ( mkTyArg
+import           Liquid.GHC.API  as Ghc hiding ( get, mkTyArg
                                                                 , showPpr
                                                                 , DsM
                                                                 , panic)

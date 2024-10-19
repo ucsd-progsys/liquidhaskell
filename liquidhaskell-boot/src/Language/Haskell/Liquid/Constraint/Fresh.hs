@@ -40,7 +40,7 @@ import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Constraint.Types
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import           Language.Haskell.Liquid.UX.Config
-import           Liquid.GHC.API as Ghc
+import           Liquid.GHC.API as Ghc hiding (get)
 
 --------------------------------------------------------------------------------
 -- | This is all hardwiring stuff to CG ----------------------------------------
