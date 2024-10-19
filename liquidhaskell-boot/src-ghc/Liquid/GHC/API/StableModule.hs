@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -16,6 +17,7 @@ module Liquid.GHC.API.StableModule (
 import qualified GHC
 import qualified GHC.Unit.Types as GHC
 import qualified GHC.Unit.Module as GHC
+import           Data.Data (Data)
 import           Data.Hashable
 import           GHC.Generics            hiding (to, moduleName)
 import           Data.Binary
@@ -27,7 +29,7 @@ import           Data.Binary
 --
 newtype StableModule =
   StableModule { unStableModule :: GHC.Module }
-  deriving Generic
+  deriving (Data, Generic)
 
 -- | Converts a 'Module' into a 'StableModule'.
 toStableModule :: GHC.Module -> StableModule

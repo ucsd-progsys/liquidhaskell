@@ -29,7 +29,7 @@ import           Debug.Trace
 
 import           Prelude                                    hiding (error)
 import           Liquid.GHC.API            as Ghc hiding
-  (L, line, sourceName, showPpr, panic, showSDoc)
+  (L, get, line, sourceName, showPpr, panic, showSDoc)
 import qualified Liquid.GHC.API            as Ghc (GenLocated (L))
 
 

@@ -25,7 +25,7 @@ import           Data.Bifunctor (first)
 import           Data.ByteString                       (ByteString)
 import           Prelude                               hiding (error)
 import           Language.Haskell.Liquid.GHC.TypeRep   () -- needed for Eq 'Type'
-import           Liquid.GHC.API       hiding (Expr, Located, panic)
+import           Liquid.GHC.API       hiding (Expr, Located, get, panic)
 import qualified Liquid.GHC.API       as Ghc
 import qualified Liquid.GHC.API       as C
 import qualified Data.List                             as L

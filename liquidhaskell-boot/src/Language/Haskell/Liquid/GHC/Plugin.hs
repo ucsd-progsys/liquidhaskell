@@ -22,6 +22,7 @@ import qualified  Language.Haskell.Liquid.GHC.Misc        as LH
 import qualified Language.Haskell.Liquid.UX.CmdLine      as LH
 import qualified Language.Haskell.Liquid.GHC.Interface   as LH
 import qualified Language.Haskell.Liquid.Liquid          as LH
+import           Language.Haskell.Liquid.Types.Names
 import qualified Language.Haskell.Liquid.Types.PrettyPrint as LH ( filterReportErrors
                                                                  , filterReportErrorsWith
                                                                  , defaultFilterReporter
@@ -321,7 +322,7 @@ mkPipelineData ms tcg0 specs = do
         availVars   = [ var | AnId var <- avails ]
 
     let tcData = mkTcData (tcg_rn_imports tcg) resolvedNames availTyCons availVars
-    return $ PipelineData unoptimisedGuts tcData specs
+    return $ PipelineData unoptimisedGuts (tcg_rdr_env tcg) tcData specs
   where
     noWarnings dflags = dflags { warningFlags = mempty }
 
@@ -347,7 +348,7 @@ serialiseSpec tcGblEnv liquidLib = do
   -- liftIO $ putStrLn "liquidHaskellCheck 9"
   -- ---
 
-  let serialisedSpec = Serialisation.serialiseLiquidLib liquidLib thisModule
+  serialisedSpec <- liftIO $ Serialisation.serialiseLiquidLib liquidLib thisModule
   debugLog $ "Serialised annotation ==> " ++ (O.showSDocUnsafe . O.ppr $ serialisedSpec)
 
   -- liftIO $ putStrLn "liquidHaskellCheck 10"
@@ -356,9 +357,14 @@ serialiseSpec tcGblEnv liquidLib = do
   where
     thisModule = tcg_mod tcGblEnv
 
-processInputSpec :: Config -> PipelineData -> ModSummary -> BareSpec -> TcM (Either LiquidCheckException LiquidLib)
+processInputSpec
+  :: Config
+  -> PipelineData
+  -> ModSummary
+  -> BareSpec
+  -> TcM (Either LiquidCheckException LiquidLib)
 processInputSpec cfg pipelineData modSummary inputSpec = do
-  hscEnv <- env_top <$> getEnv
+  hscEnv <- getTopEnv
   debugLog $ " Input spec: \n" ++ show inputSpec
   debugLog $ "Relevant ===> \n" ++ unlines (renderModule <$> S.toList (relevantModules (hsc_mod_graph hscEnv) modGuts))
 
@@ -368,6 +374,7 @@ processInputSpec cfg pipelineData modSummary inputSpec = do
 
   let lhContext = LiquidHaskellContext {
         lhGlobalCfg       = cfg
+      , lhGlobalRdrEnv    = pdGlobalRdrEnv pipelineData
       , lhInputSpec       = inputSpec
       , lhModuleLogicMap  = logicMap
       , lhModuleSummary   = modSummary
@@ -478,6 +485,7 @@ loadDependencies currentModuleConfig mods = do
 
 data LiquidHaskellContext = LiquidHaskellContext {
     lhGlobalCfg        :: Config
+  , lhGlobalRdrEnv     :: GlobalRdrEnv
   , lhInputSpec        :: BareSpec
   , lhModuleLogicMap   :: LogicMap
   , lhModuleSummary    :: ModSummary
@@ -502,15 +510,15 @@ processModule LiquidHaskellContext{..} = do
   debugLog ("Module ==> " ++ renderModule thisModule)
   hscEnv              <- env_top <$> getEnv
 
-  let bareSpec        = lhInputSpec
+  let bareSpec0       = lhInputSpec
   -- /NOTE/: For the Plugin to work correctly, we shouldn't call 'canonicalizePath', because otherwise
   -- this won't trigger the \"external name resolution\" as part of 'Language.Haskell.Liquid.Bare.Resolve'
   -- (cfr. 'allowExtResolution').
   let file            = LH.modSummaryHsFile lhModuleSummary
 
-  _                   <- liftIO $ LH.checkFilePragmas $ Ms.pragmas (fromBareSpec bareSpec)
+  _                   <- liftIO $ LH.checkFilePragmas $ Ms.pragmas (fromBareSpec bareSpec0)
 
-  withPragmas lhGlobalCfg file (Ms.pragmas $ fromBareSpec bareSpec) $ \moduleCfg -> do
+  withPragmas lhGlobalCfg file (Ms.pragmas $ fromBareSpec bareSpec0) $ \moduleCfg -> do
     dependencies <- loadDependencies moduleCfg (S.toList lhRelevantModules)
 
     debugLog $ "Found " <> show (HM.size $ getDependencies dependencies) <> " dependencies:"
@@ -528,7 +536,7 @@ processModule LiquidHaskellContext{..} = do
     -- Due to the fact the internals can throw exceptions from pure code at any point, we need to
     -- call 'evaluate' to force any exception and catch it, if we can.
 
-
+    let bareSpec = resolveLHNames lhGlobalRdrEnv bareSpec0
     result <-
       makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies
 
@@ -563,6 +571,31 @@ processModule LiquidHaskellContext{..} = do
   where
     modGuts    = lhModuleGuts
     thisModule = mg_module modGuts
+
+-- | Converts occurrences of LHNUnresolved to LHNResolved using the provided GlobalRdrEnv.
+resolveLHNames :: GlobalRdrEnv -> BareSpec -> BareSpec
+resolveLHNames globalRdrEnv = mapLHNames $ \case
+    LHNUnresolved ns s ->
+      case GHC.lookupGRE globalRdrEnv (mkLookupGRE ns s) of
+        [e] -> LHNResolved (LHRGHC $ GHC.greName e) s
+        es@(_:_) -> error $ "resolveLHNames: Ambiguous name: " ++ showPprUnsafe es
+        _ -> error $ "resolveLHNames: Cannot resolve name: " ++ show s
+    n -> error $ "resolveLHNames: Unexpected resolved name: " ++ show n
+
+  where
+    mkLookupGRE ns s =
+      let m = LH.takeModuleNames s
+          n = LH.dropModuleNames s
+          oname = GHC.mkOccName (mkGHCNameSpace ns) $ symbolString n
+          rdrn =
+            if m == "" then
+              GHC.mkRdrUnqual oname
+            else
+              GHC.mkRdrQual (GHC.mkModuleName $ symbolString m) oname
+       in GHC.LookupRdrName rdrn GHC.SameNameSpace
+
+    mkGHCNameSpace = \case
+      LHTcName -> GHC.tcName
 
 makeTargetSrc :: Config
               -> DynFlags

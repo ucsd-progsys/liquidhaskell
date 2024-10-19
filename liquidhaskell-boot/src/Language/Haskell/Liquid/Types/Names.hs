@@ -9,7 +9,7 @@ module Language.Haskell.Liquid.Types.Names
   , selfSymbol
   , LogicName (..)
   , LHResolvedName (..)
-  , LHName
+  , LHName (..)
   , LHNameSpace (..)
   , makeResolvedLHName
   , getLHNameResolved
@@ -23,6 +23,7 @@ import qualified Data.Binary as B
 import Data.Data (Data, gmapT)
 import Data.Generics (extT)
 import Data.Hashable
+import Data.String (fromString)
 import GHC.Generics
 import GHC.Stack
 import Language.Fixpoint.Types
@@ -114,6 +115,21 @@ instance B.Binary LHResolvedName where
   put (LHRLogic _n) = error "cannot serialize LHRLogic"
   put (LHRGHC _n) = error "cannot serialize LHRGHC"
   put (LHRIndex n) = B.put n
+
+instance GHC.Binary LHResolvedName where
+  get bh = do
+    tag <- GHC.getByte bh
+    case tag of
+      0 -> LHRLogic <$> GHC.get bh
+      1 -> LHRGHC <$> GHC.get bh
+      _ -> error "GHC.Binary: invalid tag for LHResolvedName"
+  put_ bh (LHRLogic n) = GHC.putByte bh 0 >> GHC.put_ bh n
+  put_ bh (LHRGHC n) = GHC.putByte bh 1 >> GHC.put_ bh n
+  put_ _bh (LHRIndex _n) = error "GHC.Binary: cannot serialize LHRIndex"
+
+instance GHC.Binary LogicName where
+  get bh = LogicName . fromString <$> GHC.get bh <*> GHC.get bh
+  put_ bh (LogicName s m) = GHC.put_ bh (symbolString s) >> GHC.put_ bh m
 
 makeResolvedLHName :: LHResolvedName -> Symbol -> LHName
 makeResolvedLHName = LHNResolved
