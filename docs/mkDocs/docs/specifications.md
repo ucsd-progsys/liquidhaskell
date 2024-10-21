@@ -332,19 +332,6 @@ and compelling example.
 
 - Value parameters are specified in **upper**case: `X`, `Y`, `Z` etc.
 
-### Failing Specifications 
-
-The `fail b` declaration checks that the definition of `b` is unsafe. E.g., the following is SAFE.
-
-```haskell
-{-@ fail unsafe @-}
-{-@ unsafe :: () -> { 0 == 1 } @-}
-unsafe :: () -> () 
-unsafe _ = ()
-```
-
-An error is created if `fail` definitions are safe or binders defined as `fail` are used by (failing or not) definitions. 
-
 ### Type Aliases
 
 Similarly, it is often quite tedious to keep writing
@@ -410,6 +397,19 @@ then to use it as infix in the refinements types you need to add the refinement 
 
     {-@ infixr 1 ==> @-}
     {-@ test :: g:(f ==> g) -> f x -> f y -> ()  @-} 
+
+## Failing Specifications
+
+The `fail b` declaration checks that the definition of `b` is unsafe. E.g., the following is SAFE.
+
+```haskell
+{-@ fail unsafe @-}
+{-@ unsafe :: () -> { 0 == 1 } @-}
+unsafe :: () -> ()
+unsafe _ = ()
+```
+
+An error is created if `fail` definitions are safe or binders defined as `fail` are used by (failing or not) definitions.
 
 ## Specifying Measures
 
