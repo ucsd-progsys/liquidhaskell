@@ -119,9 +119,9 @@ library
                       Language.Haskell.Liquid.WiredIn
                       LiquidHaskellBoot
                       Paths_liquidhaskell_boot
-  other-modules:      Language.Haskell.Liquid.GHC.Plugin.SpecFinder
+  other-modules:      Language.Haskell.Liquid.GHC.Plugin.Serialisation
+                      Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                       Language.Haskell.Liquid.GHC.Plugin.Types
-                      Language.Haskell.Liquid.GHC.Plugin.Util
   hs-source-dirs:     src src-ghc src-ghc-9.10
 
   build-depends:      base                 >= 4.11.1.0 && < 5
