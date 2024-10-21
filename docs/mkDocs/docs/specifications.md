@@ -268,7 +268,7 @@ import Lib
 ```
 
 Whenever LiquidHaskell sees an import of `M`, it will look for a module `M_LHAssumptions`
-in the same package. If it finds it, it will use the specifications from that module. In
+in the dependency packages. If it finds it, it will use the specifications from that module. In
 this way, you can add specifications to dependencies without modifying their source code.
 
 Here's an example usage
