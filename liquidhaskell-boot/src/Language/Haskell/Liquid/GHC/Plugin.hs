@@ -470,7 +470,7 @@ loadDependencies currentModuleConfig mods = do
       -> SpecFinderResult
       -> HM.HashMap StableModule LiftedSpec
     processResult acc (SpecNotFound _mdl) = acc
-    processResult acc (LibFound originalModule _location lib) =
+    processResult acc (LibFound originalModule lib) =
       HM.insert
         (toStableModule originalModule)
         (libTarget lib)
