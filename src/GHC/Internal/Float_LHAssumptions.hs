@@ -1,5 +1,9 @@
 {-# OPTIONS_GHC -fplugin=LiquidHaskellBoot #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 module GHC.Internal.Float_LHAssumptions(Floating(..)) where
+
+import GHC.Internal.Float
+import GHC.Internal.Real
 
 {-@
 class (GHC.Internal.Real.Fractional a) => GHC.Internal.Float.Floating a where

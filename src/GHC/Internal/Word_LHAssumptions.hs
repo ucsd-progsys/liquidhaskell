@@ -1,5 +1,8 @@
 {-# OPTIONS_GHC -fplugin=LiquidHaskellBoot #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 module GHC.Internal.Word_LHAssumptions where
+
+import GHC.Internal.Word
 
 {-@
 embed GHC.Internal.Word.Word   as int

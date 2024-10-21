@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 module GHC.Int_LHAssumptions where
 
-import GHC.Int
+import GHC.Internal.Int
 
 {-@
 embed GHC.Internal.Int.Int8  as int

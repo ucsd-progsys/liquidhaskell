@@ -3,6 +3,7 @@
 {-# OPTIONS_GHC -Wno-missing-signatures #-}
 module GHC.Types_LHAssumptions() where
 
+import GHC.Prim
 import GHC.Types
 
 -- This definition is needed to make the listed data constructors

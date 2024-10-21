@@ -1,5 +1,8 @@
 {-# OPTIONS_GHC -fplugin=LiquidHaskellBoot #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 module GHC.Internal.Int_LHAssumptions where
+
+import GHC.Internal.Int
 
 {-@
 embed GHC.Internal.Int.Int8  as int

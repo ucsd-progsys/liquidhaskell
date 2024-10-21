@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 module GHC.ForeignPtr_LHAssumptions where
 
-import GHC.ForeignPtr
+import GHC.Internal.ForeignPtr
 import GHC.Ptr_LHAssumptions()
 
 {-@

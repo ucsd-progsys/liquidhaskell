@@ -3,6 +3,7 @@
 module Data.Tuple_LHAssumptions where
 
 import Data.Tuple
+import GHC.Internal.Data.Tuple
 
 {-@
 assume GHC.Internal.Data.Tuple.fst :: {f:(x:(a,b) -> {v:a | v = (fst x)}) | f == fst }

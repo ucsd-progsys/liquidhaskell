@@ -3,6 +3,7 @@
 module Liquid.Prelude.Totality_LHAssumptions where
 
 import Control.Exception.Base
+import GHC.Prim
 
 {-@
 measure totalityError :: a -> Bool
