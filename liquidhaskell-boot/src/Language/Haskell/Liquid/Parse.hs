@@ -10,7 +10,6 @@
 module Language.Haskell.Liquid.Parse
   ( hsSpecificationP
   , parseSpecComments
-  , specSpecificationP
   , singleSpecP
   , BPspec
   , Pspec(..)
@@ -34,7 +33,6 @@ import           Data.Data
 import qualified Data.Maybe                             as Mb -- (isNothing, fromMaybe)
 import           Data.Char                              (isSpace, isAlphaNum)
 import           Data.List                              (partition)
-import           GHC                                    (ModuleName, mkModuleName)
 import qualified Text.PrettyPrint.HughesPJ              as PJ
 import           Text.PrettyPrint.HughesPJ.Compat       ((<+>))
 import           Language.Fixpoint.Types                hiding (panic, SVar, DDecl, DataDecl, DataCtor (..), Error, R, Predicate)
@@ -53,6 +51,7 @@ import           Language.Haskell.Liquid.Types.Variance
 import qualified Language.Haskell.Liquid.Misc           as Misc
 import qualified Language.Haskell.Liquid.Measure        as Measure
 import           Language.Fixpoint.Parse                hiding (dataDeclP, refBindP, refP, refDefP, parseTest')
+import           Liquid.GHC.API                         (ModuleName)
 
 import Control.Monad.State
 
@@ -93,27 +92,6 @@ initPStateWithList
                , singList   = Just (\e -> EApp (EApp (EVar ("GHC.Types.:"  :: Symbol)) e) (EVar ("GHC.Types.[]" :: Symbol)))
                }
   where composeFun = Just $ EVar functionComposisionSymbol
-
--- | Used to parse .spec files.
-specSpecificationP  :: SourceName -> String -> Either (ParseErrorBundle String Void) (ModName, Measure.BareSpec)
---------------------------------------------------------------------------
-specSpecificationP f s = mapRight snd $  parseWithError initPStateWithList (specificationP <* eof) (initialPos f) s
-
--- | Parses a module spec.
---
--- A module spec is a module only containing spec constructs for Liquid Haskell,
--- and no "normal" Haskell code.
---
-specificationP :: Parser (ModName, Measure.BareSpec)
-specificationP = do
-  reserved "module"
-  reserved "spec"
-  name   <- symbolP
-  reserved "where"
-  xs     <- block specP
-  return $ mkSpec (ModName SpecImport $ mkModuleName $ symbolString name) xs
-
--- debugP = grabs (specP <* whiteSpace)
 
 -------------------------------------------------------------------------------
 singleSpecP :: SourcePos -> String -> Either (ParseErrorBundle String Void) BPspec

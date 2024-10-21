@@ -34,7 +34,6 @@ module Language.Haskell.Liquid.GHC.Interface (
   , qualifiedImports
   , modSummaryHsFile
   , makeFamInstEnv
-  , parseSpecFile
   , clearSpec
   , checkFilePragmas
   , keepRawTokenStream
@@ -75,7 +74,6 @@ import Language.Haskell.Liquid.GHC.Types (MGIModGuts(..))
 import Language.Haskell.Liquid.GHC.Play
 import Language.Haskell.Liquid.WiredIn (isDerivedInstance)
 import qualified Language.Haskell.Liquid.Measure  as Ms
-import qualified Language.Haskell.Liquid.Misc     as Misc
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Types.Errors
 import Language.Haskell.Liquid.Types.PrettyPrint
@@ -276,26 +274,6 @@ extractSpecComment (Ghc.L sp (ApiBlockComment txt))
 
 extractSpecComment _ = Nothing
 
---------------------------------------------------------------------------------
--- | Finding & Parsing Files ---------------------------------------------------
---------------------------------------------------------------------------------
-
--- | Parse a spec file by path.
---
--- On a parse error, we fail.
---
--- TODO, Andres: It would be better to fail more systematically, but currently we
--- seem to have an option between throwing an error which will be reported badly,
--- or printing the error ourselves.
---
-parseSpecFile :: FilePath -> IO (ModName, Ms.BareSpec)
-parseSpecFile file = do
-  contents <- Misc.sayReadFile file
-  case specSpecificationP file contents of
-    Left peb -> do
-      hPutStrLn stderr (errorBundlePretty peb)
-      panic Nothing "parsing spec file failed"
-    Right x  -> pure x
 
 --------------------------------------------------------------------------------
 -- Assemble Information for Spec Extraction ------------------------------------

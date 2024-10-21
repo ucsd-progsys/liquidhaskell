@@ -6,7 +6,6 @@
 module Language.Haskell.Liquid.GHC.Plugin.SpecFinder
     ( findRelevantSpecs
     , SpecFinderResult(..)
-    , SearchLocation(..)
     , configToRedundantDependencies
     ) where
 
@@ -30,14 +29,7 @@ type SpecFinder m = Module -> MaybeT IO SpecFinderResult
 -- | The result of searching for a spec.
 data SpecFinderResult =
     SpecNotFound Module
-  | LibFound  Module SearchLocation LiquidLib
-
-data SearchLocation =
-    InterfaceLocation
-  -- ^ The spec was loaded from the annotations of an interface.
-  | DiskLocation
-  -- ^ The spec was loaded from disk (e.g. 'Prelude.spec' or similar)
-  deriving Show
+  | LibFound Module LiquidLib
 
 -- | Load any relevant spec for the input list of 'Module's, by querying both the 'ExternalPackageState'
 -- and the 'HomePackageTable'.
@@ -94,16 +86,16 @@ findRelevantSpecs lhAssmPkgExcludes hscEnv mods = do
     assumptionsModuleName m =
       mkModuleNameFS $ moduleNameFS (moduleName m) <> "_LHAssumptions"
 
--- | Load a spec by trying to parse the relevant \".spec\" file from the filesystem.
+-- | Load specs from an interface file.
 lookupInterfaceAnnotations :: ExternalPackageState -> HomePackageTable -> SpecFinder m
 lookupInterfaceAnnotations eps hpt thisModule = do
   lib <- MaybeT $ pure $ Serialisation.deserialiseLiquidLib thisModule eps hpt
-  pure $ LibFound thisModule InterfaceLocation lib
+  pure $ LibFound thisModule lib
 
 lookupInterfaceAnnotationsEPS :: ExternalPackageState -> SpecFinder m
 lookupInterfaceAnnotationsEPS eps thisModule = do
   lib <- MaybeT $ pure $ Serialisation.deserialiseLiquidLibFromEPS thisModule eps
-  pure $ LibFound thisModule InterfaceLocation lib
+  pure $ LibFound thisModule lib
 
 -- | Returns a list of 'StableModule's which can be filtered out of the dependency list, because they are
 -- selectively \"toggled\" on and off by the LiquidHaskell's configuration, which granularity can be

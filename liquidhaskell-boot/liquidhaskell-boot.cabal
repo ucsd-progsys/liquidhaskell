@@ -15,8 +15,6 @@ homepage:           https://github.com/ucsd-progsys/liquidhaskell
 build-type:         Simple
 tested-with:        GHC == 9.10.1
 
-extra-source-files: tests/specfiles/pos/*.spec
-
 source-repository head
   type:     git
   location: https://github.com/ucsd-progsys/liquidhaskell/
