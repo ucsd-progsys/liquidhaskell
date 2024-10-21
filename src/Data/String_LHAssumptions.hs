@@ -6,10 +6,10 @@ import Data.String
 import GHC.Types_LHAssumptions()
 
 {-@
-measure stringlen :: a -> GHC.Types.Int
+measure stringlen :: a -> Int
 
 assume GHC.Internal.Data.String.fromString
-    ::  forall a. GHC.Internal.Data.String.IsString a
-    =>  i : [GHC.Types.Char]
+    ::  forall a. IsString a
+    =>  i : [Char]
     ->  { o : a | i ~~ o && len i == stringlen o }
 @-}

@@ -1,8 +1,10 @@
 {-# OPTIONS_GHC -fplugin=LiquidHaskellBoot #-}
 {-# LANGUAGE MagicHash #-}
 {-# OPTIONS_GHC -Wno-missing-signatures #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 module GHC.Types_LHAssumptions() where
 
+import GHC.Prim
 import GHC.Types
 
 -- This definition is needed to make the listed data constructors
@@ -11,43 +13,43 @@ _f = (D#, F#, W#)
 
 {-@
 //  Boxed types
-embed GHC.Types.Double  as real
-embed GHC.Prim.Double#  as real
-embed GHC.Types.Float   as real
-embed GHC.Prim.Float#   as real
-embed GHC.Types.Word    as int
-embed GHC.Prim.Word#    as int
-embed GHC.Prim.Word64#  as int
-embed GHC.Types.Int     as int
-embed GHC.Prim.Int#     as int
-embed GHC.Types.Bool    as bool
-embed GHC.Types.Char    as Char
-embed GHC.Prim.Char#    as Char
-embed GHC.Prim.Addr#    as Str
+embed Double  as real
+embed Double#  as real
+embed Float   as real
+embed Float#   as real
+embed Word    as int
+embed Word#    as int
+embed Word64#  as int
+embed Int     as int
+embed Int#     as int
+embed Bool    as bool
+embed Char    as Char
+embed Char#    as Char
+embed Addr#    as Str
 
-embed GHC.Num.Integer.Integer as int
+embed Integer as int
 
-assume GHC.Types.True    :: {v:GHC.Types.Bool | v     }
-assume GHC.Types.False   :: {v:GHC.Types.Bool | (~ v) }
-assume GHC.Types.isTrue# :: n:_ -> {v:GHC.Types.Bool | (n = 1 <=> v)}
+assume GHC.Types.True    :: {v:Bool | v     }
+assume GHC.Types.False   :: {v:Bool | (~ v) }
+assume GHC.Types.isTrue# :: n:_ -> {v:Bool | (n = 1 <=> v)}
 
-assume GHC.Types.D# :: x:GHC.Prim.Double# -> {v: GHC.Types.Double | v = (x :: real) }
-assume GHC.Types.F# :: x:GHC.Prim.Float# -> {v: GHC.Types.Float | v = (x :: real) }
-assume GHC.Types.I# :: x:GHC.Prim.Int# -> {v: GHC.Types.Int | v = (x :: int) }
-assume GHC.Types.C# :: x:GHC.Prim.Char# -> {v: GHC.Types.Char | v = (x :: Char) }
-assume GHC.Types.W# :: w:GHC.Prim.Word# -> {v:GHC.Types.Word | v == w }
+assume GHC.Types.D# :: x:Double# -> {v: Double | v = (x :: real) }
+assume GHC.Types.F# :: x:Float# -> {v: Float | v = (x :: real) }
+assume GHC.Types.I# :: x:Int# -> {v: Int | v = (x :: int) }
+assume GHC.Types.C# :: x:Char# -> {v: Char | v = (x :: Char) }
+assume GHC.Types.W# :: w:Word# -> {v:Word | v == w }
 
-measure addrLen :: GHC.Prim.Addr# -> GHC.Types.Int
+measure addrLen :: GHC.Prim.Addr# -> Int
 
-type GeInt N = {v: GHC.Types.Int | v >= N }
-type LeInt N = {v: GHC.Types.Int | v <= N }
-type Nat     = {v: GHC.Types.Int | v >= 0 }
-type Even    = {v: GHC.Types.Int | (v mod 2) = 0 }
-type Odd     = {v: GHC.Types.Int | (v mod 2) = 1 }
+type GeInt N = {v: Int | v >= N }
+type LeInt N = {v: Int | v <= N }
+type Nat     = {v: Int | v >= 0 }
+type Even    = {v: Int | (v mod 2) = 0 }
+type Odd     = {v: Int | (v mod 2) = 1 }
 type BNat N  = {v: Nat           | v <= N }
-type TT      = {v: GHC.Types.Bool | v}
-type FF      = {v: GHC.Types.Bool | not v}
-type String  = [GHC.Types.Char]
+type TT      = {v: Bool | v}
+type FF      = {v: Bool | not v}
+type String  = [Char]
 
-class measure len :: forall f a. f a -> GHC.Types.Int
+class measure len :: forall f a. f a -> Int
 @-}

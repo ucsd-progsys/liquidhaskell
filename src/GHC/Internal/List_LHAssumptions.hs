@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 module GHC.Internal.List_LHAssumptions where
 
-import GHC.List
+import GHC.Internal.List
 import GHC.Types_LHAssumptions()
 
 {-@
@@ -12,9 +12,9 @@ assume GHC.Internal.List.tail         :: xs:{v: [a] | len v > 0} -> {v: [a] | le
 
 assume GHC.Internal.List.last         :: xs:{v: [a] | len v > 0} -> a
 assume GHC.Internal.List.init         :: xs:{v: [a] | len v > 0} -> {v: [a] | len(v) = len(xs) - 1}
-assume GHC.Internal.List.null         :: xs:[a] -> {v: GHC.Types.Bool | ((v) <=> len(xs) = 0) }
-assume GHC.Internal.List.length       :: xs:[a] -> {v: GHC.Types.Int | v = len(xs)}
-assume GHC.Internal.List.filter       :: (a -> GHC.Types.Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)}
+assume GHC.Internal.List.null         :: xs:[a] -> {v: Bool | ((v) <=> len(xs) = 0) }
+assume GHC.Internal.List.length       :: xs:[a] -> {v: Int | v = len(xs)}
+assume GHC.Internal.List.filter       :: (a -> Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)}
 assume GHC.Internal.List.scanl        :: (a -> b -> a) -> a -> xs:[b] -> {v: [a] | len(v) = 1 + len(xs) }
 assume GHC.Internal.List.scanl1       :: (a -> a -> a) -> xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = len(xs) }
 assume GHC.Internal.List.foldr1       :: (a -> a -> a) -> xs:{v: [a] | len(v) > 0} -> a
@@ -32,22 +32,22 @@ assume GHC.Internal.List.replicate    :: n:Nat -> x:a -> {v: [{v:a | v = x}] | l
 assume GHC.Internal.List.cycle        :: {v: [a] | len(v) > 0 } -> [a]
 lazy GHC.Internal.List.cycle
 
-assume GHC.Internal.List.takeWhile    :: (a -> GHC.Types.Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)}
-assume GHC.Internal.List.dropWhile    :: (a -> GHC.Types.Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)}
+assume GHC.Internal.List.takeWhile    :: (a -> Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)}
+assume GHC.Internal.List.dropWhile    :: (a -> Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)}
 
-assume GHC.Internal.List.take :: n:GHC.Types.Int
+assume GHC.Internal.List.take :: n:Int
      -> xs:[a]
      -> {v:[a] | if n >= 0 then (len v = (if (len xs) < n then (len xs) else n)) else (len v = 0)}
-assume GHC.Internal.List.drop :: n:GHC.Types.Int
+assume GHC.Internal.List.drop :: n:Int
      -> xs:[a]
      -> {v:[a] | (if (n >= 0) then (len(v) = (if (len(xs) < n) then 0 else len(xs) - n)) else ((len v) = (len xs)))}
 
 assume GHC.Internal.List.splitAt :: n:_ -> x:[a] -> ({v:[a] | (if (n >= 0) then (if (len x) < n then (len v) = (len x) else (len v) = n) else ((len v) = 0))},[a])<{\x1 x2 -> (len x2) = (len x) - (len x1)}>
-assume GHC.Internal.List.span    :: (a -> GHC.Types.Bool)
+assume GHC.Internal.List.span    :: (a -> Bool)
         -> xs:[a]
         -> ({v:[a]|((len v)<=(len xs))}, {v:[a]|((len v)<=(len xs))})
 
-assume GHC.Internal.List.break :: (a -> GHC.Types.Bool) -> xs:[a] -> ([a],[a])<{\x y -> (len xs) = (len x) + (len y)}>
+assume GHC.Internal.List.break :: (a -> Bool) -> xs:[a] -> ([a],[a])<{\x y -> (len xs) = (len x) + (len y)}>
 
 assume GHC.Internal.List.reverse      :: xs:[a] -> {v: [a] | len(v) = len(xs)}
 

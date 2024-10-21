@@ -3,15 +3,16 @@
 module GHC.IO.Handle_LHAssumptions where
 
 import GHC.IO.Handle
+import GHC.Ptr
 import GHC.Types_LHAssumptions()
 
 {-@
-assume GHC.Internal.IO.Handle.Text.hGetBuf :: GHC.Internal.IO.Handle.Handle -> GHC.Internal.Ptr.Ptr a -> n:Nat
-        -> (GHC.Types.IO {v:Nat | v <= n})
+assume GHC.Internal.IO.Handle.Text.hGetBuf :: Handle -> Ptr a -> n:Nat
+        -> (IO {v:Nat | v <= n})
 
-assume GHC.Internal.IO.Handle.Text.hGetBufNonBlocking :: GHC.Internal.IO.Handle.Handle -> GHC.Internal.Ptr.Ptr a -> n:Nat
-                   -> (GHC.Types.IO {v:Nat | v <= n})
+assume GHC.Internal.IO.Handle.Text.hGetBufNonBlocking :: Handle -> Ptr a -> n:Nat
+                   -> (IO {v:Nat | v <= n})
 
-assume GHC.Internal.IO.Handle.hFileSize :: GHC.Internal.IO.Handle.Handle
-          -> (GHC.Types.IO {v:Integer | v >= 0})
+assume GHC.Internal.IO.Handle.hFileSize :: Handle
+          -> (IO {v:Integer | v >= 0})
 @-}
