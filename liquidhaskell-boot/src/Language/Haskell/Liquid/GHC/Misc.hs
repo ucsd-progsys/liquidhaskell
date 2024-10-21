@@ -22,6 +22,7 @@
 
 module  Language.Haskell.Liquid.GHC.Misc where
 
+import           Data.Char (isDigit)
 import           Data.String
 import qualified Data.List as L
 import           Data.Word (Word64)
@@ -568,8 +569,15 @@ sepUnique = "#"
 mungeNames :: (String -> [T.Text] -> Symbol) -> T.Text -> String -> Symbol -> Symbol
 mungeNames _ _ _ ""  = ""
 mungeNames f d msg s'@(symbolText -> s)
-  | s' == tupConName = tupConName
+  | isTupleSymbol s' = s'
   | otherwise        = f (msg ++ T.unpack s) $ T.splitOn d $ stripParens s
+
+isTupleSymbol :: Symbol -> Bool
+isTupleSymbol s =
+    let t = F.symbolText s
+     in T.isPrefixOf "Tuple" t &&
+        T.all isDigit (T.drop 5 t) &&
+        T.length t > 5
 
 qualifySymbol :: Symbol -> Symbol -> Symbol
 qualifySymbol (symbolText -> m) x'@(symbolText -> x)

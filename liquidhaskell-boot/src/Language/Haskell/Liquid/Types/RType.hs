@@ -514,7 +514,7 @@ isClassOrSubClass p cls
 instance TyConable Symbol where
   isFun   s = F.funConName == s
   isList  s = F.listConName == s
-  isTuple s = F.tupConName == s
+  isTuple = isTupleSymbol
   ppTycon   = text . F.symbolString
 
 instance TyConable F.LocSymbol where

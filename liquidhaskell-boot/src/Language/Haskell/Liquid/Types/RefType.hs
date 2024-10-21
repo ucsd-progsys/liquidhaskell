@@ -1639,7 +1639,7 @@ typeSortForAll tce τ  = F.notracepp ("typeSortForall " ++ showpp τ) $ genSort 
 tyConName :: TyCon -> Symbol
 tyConName c
   | listTyCon == c    = listConName
-  | Ghc.isTupleTyCon c = tupConName
+  | Ghc.isTupleTyCon c = symbol $ "Tuple" ++ show (tyConArity c)
   | otherwise         = symbol c
 
 typeSortFun :: TCEmb TyCon -> Type -> Sort
