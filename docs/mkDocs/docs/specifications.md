@@ -244,17 +244,9 @@ a type inside `lq` which refers to a refined type alias
 for which there is not a plain Haskell type synonym of the
 same name will result in a "not in scope" error from GHC.
 
-## Standalone Specifications for Internal Modules
+## Specifications for dependencies
 
-Recall that the `.spec` mechanism is only for modules whose
-code is absent; if code is present then there can be multiple,
-possibly conflicting specifications. Nevertheless, you may want,
-for one reason or another, to write (assumed) specifications
-outside the file implementing the module.
-
-You can do this as follows.
-
-`Lib.hs`
+Suppose you have a dependency without specifications like
 
 ```haskell
 module Lib (foo) where
@@ -262,10 +254,11 @@ module Lib (foo) where
 foo a = a
 ```
 
-now, instead of a `.spec` file, just use a haskell module, e.g. `LibSpec.hs`
+Instead of adding specifications to this file, we could add them to a
+module with a name suffixed with `_LHAssumptions`. For instance,
 
 ```haskell
-module LibSpec ( module Lib ) where
+module Lib_LHAssumptions where
 
 import Lib
 
@@ -274,16 +267,26 @@ import Lib
 {-@ Lib.foo :: {v:a | false} -> a @-}
 ```
 
-and then here's `Client.hs`
+Whenever LiquidHaskell sees an import of `M`, it will look for a module `M_LHAssumptions`
+in the same package. If it finds it, it will use the specifications from that module. In
+this way, you can add specifications to dependencies without modifying their source code.
+
+Here's an example usage
 
 ```haskell
 module Client where
 
-import Lib      -- use this if you DON'T want the spec
-import LibSpec  -- use this if you DO want the spec, in addition to OR instead of the previous import.
+import Lib  -- When LH finds this import it will look for specifications in Lib_LHAssumptions
 
-bar = foo 1     -- if you `import LibSpec` then this call is rejected by LH
+bar = foo 1  -- The specification should cause this call to be rejected by LH
 ```
+
+If `Lib_LHAssumptions` cannot be found, then no extra specifications are loaded, and verification
+of `Client.hs` should succeed. At the moment `Lib_LHAssumptions` is only looked for in external
+packages, that is, not in the package being currently compiled.
+See [this blog post](https://www.tweag.io/blog/2023-06-22-lh-assumption-imports/)
+for additional context on this feature.
+
 
 ## Inductive Predicates
 
@@ -410,7 +413,7 @@ then to use it as infix in the refinements types you need to add the refinement 
 
 ## Specifying Measures
 
-They can be placed in a `.spec` file or in a .hs/.lhs file wrapped around `{-@ @-}`.
+They can be placed in a .hs/.lhs file wrapped around `{-@ @-}`.
 
 Value measures: [GHC/Base_LHAssumptions.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/src/GHC/Base_LHAssumptions.hs)
 
@@ -466,6 +469,8 @@ Haskell Functions as Measures (beta): [tests/pos/HaskellMeasure.hs](https://gith
 Inductive Haskell Functions from Data Types to some type can be lifted to logic
 
 ```haskell
+-- Note that in this case the type signature must be omitted in the measure
+-- directive
 {-@ measure llen @-}
 llen        :: [a] -> Int
 llen []     = 0
@@ -724,8 +729,8 @@ to the Haskell source. See, [this](https://github.com/ucsd-progsys/liquidhaskell
 
 ### In Haskell Source or Spec Files
 
-Finally, you can specifiers directly inside source (.hs or .lhs) or spec (.spec)
-files by writing as shown [here](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/QualTest.hs)
+Finally, you can specify qualifiers directly inside source (.hs or .lhs)
+files by writing them as shown [here](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/QualTest.hs)
 
     {-@ qualif Foo(v:Int, a: Int) : (v = a + 100)   @-}
 
