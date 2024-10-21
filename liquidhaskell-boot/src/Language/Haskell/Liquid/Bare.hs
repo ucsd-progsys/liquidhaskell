@@ -940,8 +940,8 @@ makeVarTExprs env name spec =
 -- For example, see tests/names/neg/T1078.hs for example,
 -- which assumes a spec for `head` defined in both
 --
---   (1) Data/ByteString.spec
---   (2) Data/ByteString/Char8.spec
+--   (1) Data/ByteString_LHAssumptions.hs
+--   (2) Data/ByteString/Char8_LHAssumptions.hs
 --
 -- We end up resolving the `head` in (1) to the @Var@ `Data.ByteString.Char8.head`
 -- even though there is no exact match, just to account for re-exports of "internal"

@@ -13,9 +13,6 @@ module Language.Haskell.Liquid.GHC.Plugin.Tutorial (
   -- * Passing options
   -- $passingOptions
 
-  -- * Understanding LiquidHaskell Spec resolution strategies
-  -- $specResolutionStrategies
-
   -- * Providing specifications for existing packages
   -- $specForExisting
 
@@ -162,33 +159,6 @@ For example let's image we want to skip verification of our 'Toy.A' module. At t
 {- $usingGHCi
 
 Using GHCi is supported out of the box, and it will work as expected.
-
--}
-
-{- $specResolutionStrategies
-
-Let's revisit our 'Toy.A' module. There are two different ways to annotate an existing Haskell module,
-and they are the following:
-
-1. __(Recommended)__ Add the /LH/ annotations directly inside the Haskell file (like in the example above).
-   This has the advantage that any changes to the annotations trigger recompilation, and ensure the specs
-   will never get stale and go out-of-sync. The disadvantage of this approach is that it can clutter quite a
-   bit the target 'Module'.
-
-2. Add the specifications as a separate __companion__ @.spec@ file to be placed alongside the Haskell one.
-   To rehash the example above, we could have also added a new @Toy/A.spec@ file living in the same folder
-   of our @A.hs@ file, with a content like this:
-
-   @
-   module spec Toy.A where
-
-   one :: {v:Int | v = 1 }
-   assume notThree :: {v : Nat | v != 3 }
-   two :: Nat
-   @
-
-   This has the advantage of being more compartmentalised, but it's also a weakness as it might not be
-   immediately obvious that a Haskell module has associated refinements.
 
 -}
 

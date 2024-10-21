@@ -53,7 +53,7 @@ giQuals info lEnv
 maxQualParams :: (HasConfig t) => t -> Int
 maxQualParams = maxParams . getConfig
 
--- | Use explicitly given qualifiers .spec or source (.hs, .lhs) files
+-- | Use explicitly given qualifiers
 useSpcQuals :: (HasConfig t) => t -> Bool
 useSpcQuals i = useQuals i && not (useAlsQuals i)
 
