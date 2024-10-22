@@ -1,6 +1,6 @@
 module Assume01 where
 
-import qualified Data.Set as S
+import Data.Set
 
 {-@ type UList a = {v:[a] | ListUnique v} @-}
 
@@ -12,7 +12,7 @@ import qualified Data.Set as S
 
 {-@ predicate EqElts X Y    = ((listElts X) = (listElts Y)) @-}
 
-{-@ measure listDup :: [a] -> (Data.Set.Set a)
+{-@ measure listDup :: [a] -> Set a
       listDup []     = {v | Set_emp v }
       listDup (x:xs) = {v | v = if (Set_mem x (listElts xs)) then (Set_cup (Set_sng x) (listDup xs)) else (listDup xs) }
   @-}

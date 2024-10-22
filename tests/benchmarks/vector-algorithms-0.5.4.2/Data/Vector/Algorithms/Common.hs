@@ -56,20 +56,20 @@ import qualified Data.Vector.Primitive.Mutable
 -- | Assumed Types for Vector
 
 {-@ assume Data.Vector.Generic.Mutable.length      
-      :: (Data.Vector.Generic.Mutable.Base.MVector v a) 
+      :: (MVector v a) 
       => x:(v s a) 
       -> {v:Nat | v = (vsize x)} 
   @-}
 
 {-@ assume Data.Vector.Generic.Mutable.unsafeRead  
-      :: (PrimMonad m, Data.Vector.Generic.Mutable.Base.MVector v a) 
+      :: (PrimMonad m, MVector v a) 
       => x:(v (PrimState m) a) 
       -> (OkIdx x) 
       -> m a       
   @-}
 
 {-@ assume Data.Vector.Generic.Mutable.unsafeWrite 
-      :: (PrimMonad m, Data.Vector.Generic.Mutable.Base.MVector v a) 
+      :: (PrimMonad m, MVector v a) 
       => x:(v (PrimState m) a) 
       -> (OkIdx x) 
       -> a 
@@ -77,7 +77,7 @@ import qualified Data.Vector.Primitive.Mutable
   @-}
 
 {-@ assume Data.Vector.Generic.Mutable.unsafeSwap
-      :: (PrimMonad m, Data.Vector.Generic.Mutable.Base.MVector v a) 
+      :: (PrimMonad m, MVector v a) 
       => x:(v (PrimState m) a) 
       -> (OkIdx x) 
       -> (OkIdx x) 
@@ -85,7 +85,7 @@ import qualified Data.Vector.Primitive.Mutable
   @-}
 
 {-@ assume Data.Vector.Generic.Mutable.unsafeSlice 
-      :: (Data.Vector.Generic.Mutable.Base.MVector v a) 
+      :: (MVector v a) 
       => i:Nat 
       -> n:Nat 
       -> {v:(v s a) | (OkOff v i n)} 
@@ -93,14 +93,14 @@ import qualified Data.Vector.Primitive.Mutable
   @-}
 
 {-@ assume Data.Vector.Generic.Mutable.unsafeCopy  
-      :: (PrimMonad m, Data.Vector.Generic.Mutable.Base.MVector v a) 
+      :: (PrimMonad m, MVector v a) 
       => src:(v (PrimState m) a) 
       -> {dst:(v (PrimState m) a) | (EqSiz src dst)} 
       -> m () 
   @-}
 
 {-@ assume Data.Vector.Generic.Mutable.new 
-      :: (PrimMonad m, Data.Vector.Generic.Mutable.Base.MVector v a) 
+      :: (PrimMonad m, MVector v a) 
       => nINTENDO:Nat 
       -> m {v: (v (PrimState m) a) | (vsize v) = nINTENDO}
   @-}

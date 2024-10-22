@@ -589,7 +589,7 @@ init :: ByteString -> ByteString
 -- init Empty          = errorEmptyList "init"
 init (Chunk c0 cs0) = goInit c0 cs0
 
-{-@ goInit :: c:{Data.ByteString.Internal.ByteString | bLength c > 0} -> cs:ByteString -> {v:ByteString | lbLength v = bLength c + lbLength cs - 1} / [lbLength cs] @-}
+{-@ goInit :: c:{S.ByteString | bLength c > 0} -> cs:ByteString -> {v:ByteString | lbLength v = bLength c + lbLength cs - 1} / [lbLength cs] @-}
 goInit :: S.ByteString -> ByteString -> ByteString
 goInit c Empty | S.length c == 1 = Empty
             | otherwise       = Chunk (S.init c) Empty

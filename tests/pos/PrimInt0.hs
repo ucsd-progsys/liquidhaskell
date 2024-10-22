@@ -17,7 +17,7 @@ itake :: Int -> Int
 itake 0 = 0
 itake n = 1 + itake (n - 1)
 
-{-@ ptake  :: n: {v: GHC.Prim.Int# | 0 <= v} -> {v:[a] | ((len v) >= n)} -> {v:[a] | (len(v) = n)} @-}
+{-@ ptake  :: n: {v: Int# | 0 <= v} -> {v:[a] | ((len v) >= n)} -> {v:[a] | (len(v) = n)} @-}
 ptake :: Int# -> [a] -> [a]
 ptake 0# _      = []
 ptake n# (x:xs) = x : ptake (n# -# 1#) xs
