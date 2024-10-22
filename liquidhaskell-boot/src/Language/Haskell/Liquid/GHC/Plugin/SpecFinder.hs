@@ -20,7 +20,6 @@ import qualified Data.Char
 import           Data.IORef
 import           Data.Maybe
 
-import           Control.Monad                            ( foldM )
 import           Control.Monad.Trans.Maybe
 
 
@@ -47,19 +46,19 @@ findRelevantSpecs :: [String] -- ^ Package to exclude for loading LHAssumptions
                   -> TcM [SpecFinderResult]
 findRelevantSpecs lhAssmPkgExcludes hscEnv mods = do
     eps <- liftIO $ readIORef (euc_eps $ ue_eps $ hsc_unit_env hscEnv)
-    foldM (loadRelevantSpec eps) mempty mods
+    mapM (loadRelevantSpec eps) mods
   where
 
-    loadRelevantSpec :: ExternalPackageState -> [SpecFinderResult] -> Module -> TcM [SpecFinderResult]
-    loadRelevantSpec eps !acc currentModule = do
+    loadRelevantSpec :: ExternalPackageState -> Module -> TcM SpecFinderResult
+    loadRelevantSpec eps currentModule = do
       res <- liftIO $ runMaybeT $
         lookupInterfaceAnnotations eps (ue_hpt $ hsc_unit_env hscEnv) currentModule
       case res of
         Nothing         -> do
           mAssm <- loadModuleLHAssumptionsIfAny currentModule
-          return $ fromMaybe (SpecNotFound currentModule) mAssm : acc
+          return $ fromMaybe (SpecNotFound currentModule) mAssm
         Just specResult ->
-          return (specResult : acc)
+          return specResult
 
     loadModuleLHAssumptionsIfAny m | isImportExcluded m = return Nothing
                                    | otherwise = do
