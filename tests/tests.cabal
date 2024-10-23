@@ -857,10 +857,10 @@ executable names-neg
 
     default-language: Haskell2010
 
-flag name-resolution-neg
+flag name-resolution-pos
      default: False
 
-executable name-resolution-neg
+executable name-resolution-pos
     main-is:          Main.hs
     if !flag(names-neg) && flag(stack)
       buildable:      False
@@ -883,7 +883,7 @@ executable name-resolution-neg
                     , liquidhaskell
 
     hs-source-dirs:   app
-                    , name-resolution/neg
+                    , name-resolution/pos
 
     default-language: Haskell2010
 
