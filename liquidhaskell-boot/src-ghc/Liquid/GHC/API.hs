@@ -296,6 +296,7 @@ import GHC.Core.DataCon               as Ghc
     , dataConWrapId
     , dataConWrapId_maybe
     , isTupleDataCon
+    , promoteDataCon
     )
 import GHC.Core.FamInstEnv            as Ghc
     ( FamFlavor(DataFamilyInst)

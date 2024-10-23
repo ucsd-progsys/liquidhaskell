@@ -70,16 +70,18 @@ plugSrc _        = Nothing
 -- | Name resolution environment 
 -------------------------------------------------------------------------------
 data Env = RE 
-  { reLMap      :: !LogicMap
-  , reSyms      :: ![(F.Symbol, Ghc.Var)]    -- ^ see "syms" in old makeGhcSpec'
-  , _reSubst    :: !F.Subst                  -- ^ see "su"   in old makeGhcSpec'
-  , _reTyThings :: !TyThingMap 
-  , reCfg       :: !Config
-  , reQualImps  :: !QImports                 -- ^ qualified imports
-  , reAllImps   :: !(S.HashSet F.Symbol)     -- ^ all imported modules
-  , reLocalVars :: !LocalVars                -- ^ lines at which local variables are defined.
-  , reGlobSyms  :: !(S.HashSet F.Symbol)     -- ^ global symbols, typically unlifted measures like 'len', 'fromJust'
-  , reSrc       :: !GhcSrc                   -- ^ all source info
+  { reSession   :: Ghc.Session
+  , reTcGblEnv  :: Ghc.TcGblEnv
+  , reLMap      :: LogicMap
+  , reSyms      :: [(F.Symbol, Ghc.Var)]    -- ^ see "syms" in old makeGhcSpec'
+  , _reSubst    :: F.Subst                  -- ^ see "su"   in old makeGhcSpec'
+  , _reTyThings :: TyThingMap
+  , reCfg       :: Config
+  , reQualImps  :: QImports                 -- ^ qualified imports
+  , reAllImps   :: (S.HashSet F.Symbol)     -- ^ all imported modules
+  , reLocalVars :: LocalVars                -- ^ lines at which local variables are defined.
+  , reGlobSyms  :: (S.HashSet F.Symbol)     -- ^ global symbols, typically unlifted measures like 'len', 'fromJust'
+  , reSrc       :: GhcSrc                   -- ^ all source info
   }
 
 instance HasConfig Env where 

@@ -70,6 +70,7 @@ import qualified Language.Fixpoint.Types               as F
 import qualified Language.Fixpoint.Types.Visitor       as F
 import qualified Language.Fixpoint.Misc                as Misc
 import qualified Liquid.GHC.API       as Ghc
+import qualified Language.Haskell.Liquid.GHC.Interface as Interface
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 import qualified Language.Haskell.Liquid.Misc          as Misc
 import           Language.Haskell.Liquid.Types.DataDecl
@@ -86,6 +87,7 @@ import           Language.Haskell.Liquid.Bare.Types
 import           Language.Haskell.Liquid.Bare.Misc
 import           Language.Haskell.Liquid.UX.Config
 import           Language.Haskell.Liquid.WiredIn
+import           System.IO.Unsafe (unsafePerformIO)
 
 myTracepp :: (F.PPrint a) => String -> a -> a
 myTracepp = F.notracepp
@@ -96,9 +98,11 @@ type Lookup a = Either [Error] a
 -------------------------------------------------------------------------------
 -- | Creating an environment
 -------------------------------------------------------------------------------
-makeEnv :: Config -> GhcSrc -> LogicMap -> [(ModName, BareSpec)] -> Env
-makeEnv cfg src lmap specs = RE
-  { reLMap      = lmap
+makeEnv :: Config -> Ghc.Session -> Ghc.TcGblEnv -> GhcSrc -> LogicMap -> [(ModName, BareSpec)] -> Env
+makeEnv cfg session tcg src lmap specs = RE
+  { reSession   = session
+  , reTcGblEnv  = tcg
+  , reLMap      = lmap
   , reSyms      = syms
   , _reSubst    = makeVarSubst   src
   , _reTyThings = makeTyThingMap src
@@ -916,39 +920,37 @@ ofBRType env name f l = go []
     goSyms (x, t)                 = (x,) <$> ofBSortE env name l t
     goRApp bs tc ts rs r          = bareTCApp <$> goReft bs r <*> lc' <*> mapM (goRef bs) rs <*> mapM (go bs) ts
       where
-        lc'                    = F.atLoc lc <$> matchTyCon env name lc (length ts)
+        lc'                    = F.atLoc lc <$> matchTyCon env lc
         lc                     = btc_tc tc
-    -- goRApp _ _ _ _             = impossible Nothing "goRApp failed through to final case"
 
-{-
-    -- TODO-REBARE: goRImpF bounds _ (RApp c ps' _ _) t _
-    -- TODO-REBARE:  | Just bnd <- M.lookup (btc_tc c) bounds
-    -- TODO-REBARE:   = do let (ts', ps) = splitAt (length $ tyvars bnd) ps'
-    -- TODO-REBARE:        ts <- mapM go ts'
-    -- TODO-REBARE:        makeBound bnd ts [x | RVar (BTV x) _ <- ps] <$> go t
-    -- TODO-REBARE: goRFun bounds _ (RApp c ps' _ _) t _
-    -- TODO-REBARE: | Just bnd <- M.lookup (btc_tc c) bounds
-    -- TODO-REBARE: = do let (ts', ps) = splitAt (length $ tyvars bnd) ps'
-    -- TODO-REBARE: ts <- mapM go ts'
-    -- TODO-REBARE: makeBound bnd ts [x | RVar (BTV x) _ <- ps] <$> go t
-
-  -- TODO-REBARE: ofBareRApp env name t@(F.Loc _ _ !(RApp tc ts _ r))
-  -- TODO-REBARE: | Loc l _ c <- btc_tc tc
-  -- TODO-REBARE: , Just rta <- M.lookup c aliases
-  -- TODO-REBARE: = appRTAlias l rta ts =<< resolveReft r
-
--}
-
-matchTyCon :: Env -> ModName -> Located LHName -> Int -> Lookup Ghc.TyCon
-matchTyCon env name lc@(Loc _ _ c0) arity
-  | isList c && arity == 1  = Right Ghc.listTyCon
-  | isTuple c               = Right tuplTc
-  | otherwise               = resolveLocSym env name msg (fmap getLHNameSymbol lc)
-  where
-    c = getLHNameSymbol c0
-    msg                     = "matchTyCon: " ++ F.showpp c
-    tuplTc                  = Ghc.tupleTyCon Ghc.Boxed arity
-
+matchTyCon :: Env -> Located LHName -> Lookup Ghc.TyCon
+matchTyCon env lc@(Loc _ _ c0) = unsafePerformIO $ do
+    case c0 of
+      LHNUnresolved _ _ -> panic (Just $ GM.fSrcSpan lc) $ "matchTyCon: unresolved name: " ++ show c0
+      LHNResolved rn _ -> case rn of
+        LHRLocal _ -> panic (Just $ GM.fSrcSpan lc) $ "matchTyCon: cannot resolve a local name: " ++ show c0
+        LHRIndex i -> panic (Just $ GM.fSrcSpan lc) $ "matchTyCon: cannot resolve a LHRIndex " ++ show i
+        LHRLogic (LogicName s _) -> panic (Just $ GM.fSrcSpan lc) $ "matchTyCon: cannot resolve a LHRLogic name " ++ show s
+        LHRGHC n -> do
+          (_, m) <- Ghc.reflectGhc (Interface.lookupTyThing (reTcGblEnv env) n) (reSession env)
+          case  m of
+            Just (Ghc.ATyCon tc) -> return (Right tc)
+            Just (Ghc.AConLike (Ghc.RealDataCon dc)) ->
+              return $ Right $ Ghc.promoteDataCon dc
+            Just _ -> return $ Left
+              [ ErrResolve
+                  (GM.fSrcSpan lc)
+                  "type constructor"
+                  (PJ.text $ show c0)
+                  "not a type constructor"
+              ]
+            Nothing -> return $ Left
+              [ ErrResolve
+                  (GM.fSrcSpan lc)
+                  "type constructor"
+                  (PJ.text $ show c0)
+                  "not found"
+              ]
 
 bareTCApp :: (Expandable r)
           => r

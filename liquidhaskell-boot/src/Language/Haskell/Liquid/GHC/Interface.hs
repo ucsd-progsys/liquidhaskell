@@ -36,6 +36,7 @@ module Language.Haskell.Liquid.GHC.Interface (
   , makeFamInstEnv
   , clearSpec
   , checkFilePragmas
+  , lookupTyThing
   , lookupTyThings
   , availableTyThings
   , updLiftedSpec
