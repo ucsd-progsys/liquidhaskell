@@ -580,7 +580,13 @@ instance F.PPrint RTyCon where
       pvs           = rtc_pvars c
 
 instance F.PPrint BTyCon where
-  pprintTidy _ = text . F.symbolString . F.val . fmap getLHNameSymbol . btc_tc
+  pprintTidy _ b = case F.val (btc_tc b) of
+    LHNUnresolved _ s -> text $ F.symbolString s
+    LHNResolved rn _ -> case rn of
+      LHRGHC n -> text $ F.symbolString $ F.symbol n
+      LHRLocal s -> text $ F.symbolString s
+      LHRIndex i -> text $ "(Unknown LHRIndex " ++ show i ++ ")"
+      LHRLogic (LogicName s _) -> text $ F.symbolString s
 
 instance F.PPrint v => F.PPrint (RTVar v s) where
   pprintTidy k (RTVar x _) = F.pprintTidy k x
