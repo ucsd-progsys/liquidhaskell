@@ -220,11 +220,11 @@ genExpandOrder table graph
 ordNub :: Ord a => [a] -> [a]
 ordNub = map head . L.group . L.sort
 
-buildTypeEdges :: (F.Symbolic c) => AliasTable x t -> RType c tv r -> [F.Symbol]
+buildTypeEdges :: AliasTable x t -> BareType -> [F.Symbol]
 buildTypeEdges table = ordNub . go
   where
     -- go :: t -> [Symbol]
-    go (RApp c ts rs _) = go_alias (F.symbol c) ++ concatMap go ts ++ concatMap go (mapMaybe go_ref rs)
+    go (RApp c ts rs _) = go_alias (getLHNameSymbol $ val $ btc_tc c) ++ concatMap go ts ++ concatMap go (mapMaybe go_ref rs)
     go (RFun _ _ t1 t2 _) = go t1 ++ go t2
     go (RAppTy t1 t2 _) = go t1 ++ go t2
     go (RAllE _ t1 t2)  = go t1 ++ go t2
@@ -414,7 +414,7 @@ expandBareType rtEnv _ = go
     goRef (RProp ss t)   = RProp ss (go t)
 
 lookupRTEnv :: BTyCon -> BareRTEnv -> Maybe (Located BareRTAlias)
-lookupRTEnv c rtEnv = M.lookup (F.symbol c) (typeAliases rtEnv)
+lookupRTEnv c rtEnv = M.lookup (getLHNameSymbol $ val $ btc_tc c) (typeAliases rtEnv)
 
 expandRTAliasApp :: F.SourcePos -> Located BareRTAlias -> [BareType] -> RReft -> BareType
 expandRTAliasApp l (Loc la _ rta) args r = case isOK of

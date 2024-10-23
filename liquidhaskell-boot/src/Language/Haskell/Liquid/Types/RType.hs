@@ -396,9 +396,6 @@ data RTyCon = RTyCon
 instance F.Symbolic RTyCon where
   symbol = F.symbol . rtc_tc
 
-instance F.Symbolic BTyCon where
-  symbol = F.val . fmap getLHNameSymbol . btc_tc
-
 instance NFData BTyCon
 
 instance NFData RTyCon

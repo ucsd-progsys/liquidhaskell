@@ -221,7 +221,7 @@ exprArg l msg = notracepp ("exprArg: " ++ msg) . go
     go :: BareType -> Expr
     go (RExprArg e)     = val e
     go (RVar x _)       = EVar (symbol x)
-    go (RApp x [] [] _) = EVar (symbol x)
+    go (RApp x [] [] _) = EVar (getLHNameSymbol $ val $ btc_tc x)
     go (RApp f ts [] _) = mkEApp (getLHNameSymbol <$> btc_tc f) (go <$> ts)
     go (RAppTy t1 t2 _) = EApp (go t1) (go t2)
     go z                = panic sp $ Printf.printf "Unexpected expression parameter: %s in %s" (show z) msg
