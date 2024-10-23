@@ -11,7 +11,6 @@ import qualified Language.Haskell.Liquid.GHC.Misc           as GM
 import           Language.Haskell.Liquid.Bare.Types         as Bare
 import           Language.Haskell.Liquid.Bare.Resolve       as Bare
 import           Language.Haskell.Liquid.Bare.Expand        as Bare
-import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.Specs
@@ -42,7 +41,8 @@ makeInstanceLaw env sigEnv sigs name rilaw = LawInstance
     tc     = classTc (rilName rilaw)
     errmsg = error ("Not a type class: " ++ F.showpp tc)
 
-    classTc = tyConClass_maybe <=< (Bare.maybeResolveSym env name "makeClass" . fmap getLHNameSymbol . btc_tc)
+    classTc = tyConClass_maybe <=<
+              either (const Nothing) Just . Bare.matchTyCon env . btc_tc
 
     mkTy :: LocBareType -> LocSpecType
     mkTy = Bare.cookSpecType env sigEnv name Bare.GenTV

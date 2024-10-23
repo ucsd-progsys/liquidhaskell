@@ -29,7 +29,6 @@ import qualified Liquid.GHC.API            as Ghc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.DataDecl
 import           Language.Haskell.Liquid.Types.Errors
-import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.RTypeOp
@@ -150,7 +149,7 @@ makeCLaws env sigEnv myName specs = do
   return (Mb.catMaybes zMbs)
   where
     err tc   = error ("Not a type class: " ++ F.showpp tc)
-    classTc  = Bare.maybeResolveSym env myName "makeClass" . fmap getLHNameSymbol . btc_tc . rcName
+    classTc  = either (const Nothing) Just . Bare.matchTyCon env . btc_tc . rcName
     classTcs = [ (name, cls, tc) | (name, spec) <- M.toList specs
                                  , cls          <- Ms.claws spec
                                  , tc           <- Mb.maybeToList (classTc cls)
@@ -168,7 +167,7 @@ makeClasses env sigEnv myName specs = do
     classTcs = [ (name, cls, tc) | (name, spec) <- M.toList specs
                                  , cls          <- Ms.classes spec
                                  , tc           <- Mb.maybeToList (classTc cls) ]
-    classTc = Bare.maybeResolveSym env myName "makeClass" . fmap getLHNameSymbol . btc_tc . rcName
+    classTc = either (const Nothing) Just . Bare.matchTyCon env . btc_tc . rcName
 
 mkClass :: Bare.Env -> Bare.SigEnv -> ModName -> ModName -> RClass LocBareType -> Ghc.TyCon
         -> Bare.Lookup (Maybe (DataConP, [(ModName, Ghc.Var, LocSpecType)]))
