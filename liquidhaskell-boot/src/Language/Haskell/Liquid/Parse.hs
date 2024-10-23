@@ -616,11 +616,11 @@ dummyBindP :: Parser Symbol
 dummyBindP = tempSymbol "db" <$> freshIntP
 
 isPropBareType :: RType BTyCon t t1 -> Bool
-isPropBareType  = isPrimBareType boolConName
-
-isPrimBareType :: Symbol -> RType BTyCon t t1 -> Bool
-isPrimBareType n (RApp tc [] _ _) = getLHNameSymbol (val (btc_tc tc)) == n
-isPrimBareType _ _                = False
+isPropBareType (RApp tc [] _ _) =
+    case val (btc_tc tc) of
+      LHNUnresolved _ s -> s == boolConName
+      _ -> False
+isPropBareType _ = False
 
 getClasses :: RType BTyCon t t1 -> [RType BTyCon t t1]
 getClasses (RApp tc ts ps r)
