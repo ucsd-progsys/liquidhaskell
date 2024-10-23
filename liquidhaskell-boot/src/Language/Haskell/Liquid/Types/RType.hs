@@ -563,7 +563,13 @@ instance F.Fixpoint RTyCon where
   toFix (RTyCon c _ _) = text $ showPpr c
 
 instance F.Fixpoint BTyCon where
-  toFix = text . F.symbolString . F.val . fmap getLHNameSymbol . btc_tc
+  toFix b = case F.val (btc_tc b) of
+    LHNUnresolved _ s -> text $ F.symbolString s
+    LHNResolved rn _ -> case rn of
+      LHRGHC n -> text $ F.symbolString $ F.symbol n
+      LHRLocal s -> text $ F.symbolString s
+      LHRIndex i -> panic (Just $ fSrcSpan b) $ "toFix BTyCon: Unknown LHRIndex " ++ show i
+      LHRLogic (LogicName s _) -> text $ F.symbolString s
 
 instance F.PPrint RTyCon where
   pprintTidy k c
