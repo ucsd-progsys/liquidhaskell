@@ -362,7 +362,7 @@ makeGhcSpec0 cfg session tcg src lmap targetSpec dependencySpecs = do
                               else (targetSpec, [])
     mySpec1  = mySpec0 <> lSpec0
     lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec0
-    embs     = makeEmbeds          src env ((name, mySpec0) : dependencySpecs)
+    embs     = makeEmbeds          src env (mySpec0 : map snd dependencySpecs)
     dm       = Bare.tcDataConMap tycEnv0
     (dg0, datacons, tycEnv0) = makeTycEnv0   cfg name env embs mySpec2 iSpecs2
     env      = Bare.makeEnv cfg session tcg src lmap ((name, targetSpec) : dependencySpecs)
@@ -375,17 +375,17 @@ makeImports specs = concatMap (expSigs . snd) specs'
   where specs' = filter (isSrcImport . fst) specs
 
 
-makeEmbeds :: GhcSrc -> Bare.Env -> [(ModName, Ms.BareSpec)] -> F.TCEmb Ghc.TyCon
+makeEmbeds :: GhcSrc -> Bare.Env -> [Ms.BareSpec] -> F.TCEmb Ghc.TyCon
 makeEmbeds src env
   = Bare.addClassEmbeds (_gsCls src) (_gsFiTcs src)
   . mconcat
   . map (makeTyConEmbeds env)
 
-makeTyConEmbeds :: Bare.Env -> (ModName, Ms.BareSpec) -> F.TCEmb Ghc.TyCon
-makeTyConEmbeds env (name, spec)
+makeTyConEmbeds :: Bare.Env -> Ms.BareSpec -> F.TCEmb Ghc.TyCon
+makeTyConEmbeds env spec
   = F.tceFromList [ (tc, t) | (c,t) <- F.tceToList (Ms.embeds spec), tc <- symTc c ]
     where
-      symTc = Mb.maybeToList . Bare.maybeResolveSym env name "embed-tycon"
+      symTc = Mb.maybeToList . either (const Nothing) Just . Bare.matchTyCon env
 
 --------------------------------------------------------------------------------
 -- | [NOTE]: REFLECT-IMPORTS

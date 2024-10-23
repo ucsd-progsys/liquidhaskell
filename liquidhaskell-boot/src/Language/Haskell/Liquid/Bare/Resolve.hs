@@ -28,6 +28,7 @@ module Language.Haskell.Liquid.Bare.Resolve
   , lookupGhcTyCon
   , lookupGhcVar
   , lookupGhcNamedVar
+  , matchTyCon
 
   -- * Checking if names exist
   , knownGhcVar

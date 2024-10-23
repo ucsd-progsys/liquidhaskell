@@ -851,7 +851,7 @@ data Pspec ty ctor
   | Using  (ty, ty)                                       -- ^ 'using' declaration (for local invariants on a type)
   | Alias   (Located (RTAlias Symbol BareType))           -- ^ 'type' alias declaration
   | EAlias  (Located (RTAlias Symbol Expr))               -- ^ 'predicate' alias declaration
-  | Embed   (LocSymbol, FTycon, TCArgs)                   -- ^ 'embed' declaration
+  | Embed   (Located LHName, FTycon, TCArgs)              -- ^ 'embed' declaration
   | Qualif  Qualifier                                     -- ^ 'qualif' definition
   | LVars   LocSymbol                                     -- ^ 'lazyvar' annotation, defer checks to *use* sites
   | Lazy    LocSymbol                                     -- ^ 'lazy' annotation, skip termination check on binder
@@ -1284,9 +1284,9 @@ invaliasP
 genBareTypeP :: Parser BareType
 genBareTypeP = bareTypeP
 
-embedP :: Parser (Located Symbol, FTycon, TCArgs)
+embedP :: Parser (Located LHName, FTycon, TCArgs)
 embedP = do
-  x <- locUpperIdP
+  x <- fmap (makeUnresolvedLHName LHTcName) <$> locUpperIdP
   a <- try (reserved "*" >> return WithArgs) <|> return NoArgs -- TODO: reserved "*" looks suspicious
   _ <- reserved "as"
   t <- fTyConP

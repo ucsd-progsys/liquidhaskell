@@ -79,6 +79,7 @@ import           Data.HashSet            (HashSet)
 import qualified Data.HashMap.Strict     as M
 import           Data.HashMap.Strict     (HashMap)
 import           Language.Haskell.Liquid.Types.DataDecl
+import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Variance
@@ -410,7 +411,7 @@ data Spec ty bndr  = Spec
   , includes   :: ![FilePath]                                         -- ^ Included qualifier files
   , aliases    :: ![F.Located (RTAlias F.Symbol BareType)]            -- ^ RefType aliases
   , ealiases   :: ![F.Located (RTAlias F.Symbol F.Expr)]              -- ^ Expression aliases
-  , embeds     :: !(F.TCEmb F.LocSymbol)                              -- ^ GHC-Tycon-to-fixpoint Tycon map
+  , embeds     :: !(F.TCEmb (F.Located LHName))                       -- ^ GHC-Tycon-to-fixpoint Tycon map
   , qualifiers :: ![F.Qualifier]                                      -- ^ Qualifiers in source files
   , lvars      :: !(S.HashSet F.LocSymbol)                            -- ^ Variables that should be checked in the environment they are used
   , lazy       :: !(S.HashSet F.LocSymbol)                            -- ^ Ignore Termination Check in these Functions
@@ -607,7 +608,7 @@ data LiftedSpec = LiftedSpec
     -- ^ RefType aliases
   , liftedEaliases   :: HashSet (F.Located (RTAlias F.Symbol F.Expr))
     -- ^ Expression aliases
-  , liftedEmbeds     :: F.TCEmb F.LocSymbol
+  , liftedEmbeds     :: F.TCEmb (F.Located LHName)
     -- ^ GHC-Tycon-to-fixpoint Tycon map
   , liftedQualifiers :: HashSet F.Qualifier
     -- ^ Qualifiers in source/spec files
