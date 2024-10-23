@@ -217,6 +217,7 @@ import GHC.Builtin.Types              as Ghc
     , tupleTyCon
     , tupleTyConName
     , typeSymbolKind
+    , unrestrictedFunTyConName
     )
 import GHC.Builtin.Types.Prim         as Ghc
     ( isArrowTyCon
@@ -606,6 +607,7 @@ import GHC.Types.Name                 as Ghc
     , getSrcSpan
     , isInternalName
     , isSystemName
+    , isTupleTyConName
     , mkInternalName
     , mkSystemName
     , mkTcOcc

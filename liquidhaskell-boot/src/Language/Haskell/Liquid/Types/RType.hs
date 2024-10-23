@@ -525,12 +525,30 @@ instance TyConable F.LocSymbol where
   ppTycon = ppTycon . F.val
 
 instance TyConable BTyCon where
-  isFun   = isFun . fmap getLHNameSymbol . btc_tc
-  isList  = isList . fmap getLHNameSymbol . btc_tc
-  isTuple = isTuple . fmap getLHNameSymbol . btc_tc
-  isClass = isClassBTyCon
-  ppTycon = ppTycon . fmap getLHNameSymbol . btc_tc
+  isFun b = case F.val (btc_tc b) of
+    LHNUnresolved _ s -> isFun s
+    LHNResolved (LHRGHC n) _ -> n == unrestrictedFunTyConName
+    _ -> False
 
+  isList b = case F.val (btc_tc b) of
+    LHNUnresolved _ s -> isList s
+    LHNResolved (LHRGHC n) _ -> n == listTyConName
+    _ -> False
+
+  isTuple b = case F.val (btc_tc b) of
+    LHNUnresolved _ s -> isTuple s
+    LHNResolved (LHRGHC n) _ -> Ghc.isTupleTyConName n
+    _ -> False
+
+  isClass = isClassBTyCon
+
+  ppTycon b = case F.val (btc_tc b) of
+    LHNUnresolved _ s -> ppTycon s
+    LHNResolved rn _ -> case rn of
+      LHRGHC n -> text $ showPpr n
+      LHRLocal s -> ppTycon s
+      LHRIndex i -> text $ "(Unknown LHRIndex " ++ show i ++ ")"
+      LHRLogic (LogicName s _) -> ppTycon s
 
 instance Eq RTyCon where
   x == y = rtc_tc x == rtc_tc y
