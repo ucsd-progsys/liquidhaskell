@@ -615,6 +615,7 @@ import GHC.Types.Name                 as Ghc
     , mkVarOcc
     , mkVarOccFS
     , nameModule_maybe
+    , nameNameSpace
     , nameOccName
     , nameSrcLoc
     , nameStableString
@@ -624,7 +625,13 @@ import GHC.Types.Name                 as Ghc
     , stableNameCmp
     )
 import GHC.Types.Name.Cache           as Ghc (NameCache)
-import GHC.Types.Name.Occurrence      as Ghc (mkOccName, dataName, tcName)
+import GHC.Types.Name.Occurrence      as Ghc
+    ( NameSpace
+    , isFieldNameSpace
+    , mkOccName
+    , dataName
+    , tcName
+    )
 import GHC.Types.Name.Reader          as Ghc
     ( GlobalRdrEnv
     , ImpItemSpec(ImpAll)
