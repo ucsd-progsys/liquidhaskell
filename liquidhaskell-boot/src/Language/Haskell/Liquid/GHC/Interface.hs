@@ -36,7 +36,6 @@ module Language.Haskell.Liquid.GHC.Interface (
   , makeFamInstEnv
   , clearSpec
   , checkFilePragmas
-  , keepRawTokenStream
   , lookupTyThings
   , availableTyThings
   , updLiftedSpec
@@ -144,17 +143,6 @@ updLiftedSpec s1 (Just s2) = clearSpec s1 `mappend` s2
 
 clearSpec :: Ms.BareSpec -> Ms.BareSpec
 clearSpec s = s { sigs = [], asmSigs = [], aliases = [], ealiases = [], qualifiers = [], dataDecls = [] }
-
-keepRawTokenStream :: ModSummary -> ModSummary
-keepRawTokenStream modSummary = modSummary
-  { ms_hspp_opts = ms_hspp_opts modSummary `gopt_set` Opt_KeepRawTokenStream }
-
-_impThings :: [Var] -> [TyThing] -> [TyThing]
-_impThings vars  = filter ok
-  where
-    vs          = S.fromList vars
-    ok (AnId x) = S.member x vs
-    ok _        = True
 
 allImports :: [LImportDecl GhcRn] -> S.HashSet Symbol
 allImports imps = S.fromList (symbol . unLoc . ideclName . unLoc <$> imps)

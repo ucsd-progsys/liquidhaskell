@@ -771,9 +771,13 @@ bTup [(_,t)] _ r
   | otherwise  = t `strengthen` reftUReft r
 bTup ts rs r
   | all Mb.isNothing (fst <$> ts) || length ts < 2
-  = RApp (mkBTyCon $ dummyLoc tupConName) (snd <$> ts) rs (reftUReft r)
+  = RApp
+      (mkBTyCon $ dummyLoc $ fromString $ "Tuple" ++ show (length ts))
+      (snd <$> ts) rs (reftUReft r)
   | otherwise
-  = RApp (mkBTyCon $ dummyLoc tupConName) (top . snd <$> ts) rs' (reftUReft r)
+  = RApp
+      (mkBTyCon $ dummyLoc $ fromString $ "Tuple" ++ show (length ts))
+      (top . snd <$> ts) rs' (reftUReft r)
   where
     args       = [(Mb.fromMaybe dummySymbol x, mapReft mempty t) | (x,t) <- ts]
     makeProp i = RProp (take i args) ((snd <$> ts)!!i)
