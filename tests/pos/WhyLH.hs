@@ -10,7 +10,6 @@ import Language.Haskell.Liquid.ProofCombinators (pleUnfold)
 import Prelude hiding (length, max)
 
 {-@
-type Nat = {i:Int | 0 <= i}
 
 data UExp
   = UVar Nat
