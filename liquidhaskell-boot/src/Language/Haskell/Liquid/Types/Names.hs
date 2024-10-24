@@ -94,8 +94,8 @@ instance Ord LogicName where
       x -> x
 
 instance Show LHName where
-  show (LHNResolved _ s) = show s
-  show (LHNUnresolved _ s) = show s
+  show (LHNResolved _ s) = symbolString s
+  show (LHNUnresolved _ s) = symbolString s
 
 instance NFData LHName
 instance NFData LHResolvedName
