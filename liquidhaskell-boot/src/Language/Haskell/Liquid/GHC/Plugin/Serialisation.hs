@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Language.Haskell.Liquid.GHC.Plugin.Serialisation (
       -- * Serialising and deserialising things from/to specs.

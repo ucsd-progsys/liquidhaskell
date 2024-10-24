@@ -78,9 +78,9 @@ data Env = RE
   , _reTyThings :: TyThingMap
   , reCfg       :: Config
   , reQualImps  :: QImports                 -- ^ qualified imports
-  , reAllImps   :: (S.HashSet F.Symbol)     -- ^ all imported modules
+  , reAllImps   :: S.HashSet F.Symbol       -- ^ all imported modules
   , reLocalVars :: LocalVars                -- ^ lines at which local variables are defined.
-  , reGlobSyms  :: (S.HashSet F.Symbol)     -- ^ global symbols, typically unlifted measures like 'len', 'fromJust'
+  , reGlobSyms  :: S.HashSet F.Symbol       -- ^ global symbols, typically unlifted measures like 'len', 'fromJust'
   , reSrc       :: GhcSrc                   -- ^ all source info
   }
 

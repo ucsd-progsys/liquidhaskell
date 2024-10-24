@@ -125,12 +125,12 @@ lhNameToName lname = case val lname of
 
   where
     toTHNameSpace :: GHC.NameSpace -> NameSpace
-    toTHNameSpace ns =
-      if ns == GHC.dataName then DataName
-      else if ns == GHC.tcName then TcClsName
-      else if ns == GHC.Types.Name.Occurrence.varName then VarName
-      else if GHC.isFieldNameSpace ns then panic (Just $ fSrcSpan lname) "lhNameToName: Unimplemented case for FieldName NameSpace"
-      else panic (Just $ fSrcSpan lname) "lhNameToName: Unknown GHC.NameSpace"
+    toTHNameSpace ns
+      | ns == GHC.dataName = DataName
+      | ns == GHC.tcName = TcClsName
+      | ns == GHC.Types.Name.Occurrence.varName = VarName
+      | GHC.isFieldNameSpace ns = panic (Just $ fSrcSpan lname) "lhNameToName: Unimplemented case for FieldName NameSpace"
+      | otherwise = panic (Just $ fSrcSpan lname) "lhNameToName: Unknown GHC.NameSpace"
 
 
 -- BareType to TH Type ---------------------------------------------------------

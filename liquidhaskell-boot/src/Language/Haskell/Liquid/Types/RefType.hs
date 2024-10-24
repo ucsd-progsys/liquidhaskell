@@ -550,7 +550,7 @@ bApp c = RApp (tyConBTyCon c)
 tyConBTyCon :: TyCon -> BTyCon
 tyConBTyCon tc =
     mkBTyCon $
-      (makeResolvedLHName (LHRGHC (getName tc)) . tyConName) <$> GM.locNamedThing tc
+      makeResolvedLHName (LHRGHC (getName tc)) . tyConName <$> GM.locNamedThing tc
 
 
 --- NV TODO : remove this code!!!
