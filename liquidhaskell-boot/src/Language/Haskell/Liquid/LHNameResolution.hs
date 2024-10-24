@@ -35,6 +35,10 @@ import qualified Text.PrettyPrint.HughesPJ as PJ
 import qualified Text.Printf               as Printf
 
 -- | Collects type aliases from the current module and its dependencies.
+--
+-- It doesn't matter at the moment in which module a type alias is defined.
+-- Type alias names cannot be qualified at the moment, and therefore their
+-- names identify them uniquely.
 collectTypeAliases
   :: Module
   -> BareSpec
