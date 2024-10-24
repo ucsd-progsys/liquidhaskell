@@ -459,8 +459,10 @@ checkDuplicateRTAlias s tas = mkDiagnostics mempty (map mkError dups)
                                           (pprint . rtName . val $ x)
                                           (GM.fSrcSpan <$> xs)
     mkError []                = panic Nothing "mkError: called on empty list"
-    dups                    = [z | z@(_:_:_) <- L.groupBy ((==) `on` (rtName . val)) tas]
+    dups                    = [z | z@(_:_:_) <- groupDuplicatesOn (rtName . val) tas]
 
+groupDuplicatesOn :: Ord b => (a -> b) -> [a] -> [[a]]
+groupDuplicatesOn f = L.groupBy ((==) `on` f) . L.sortBy (compare `on` f)
 
 checkMismatch        :: (Var, LocSpecType) -> Diagnostics
 checkMismatch (x, t) = if ok then emptyDiagnostics else mkDiagnostics mempty [err]
@@ -754,9 +756,9 @@ checkRewrites targetSpec = mkDiagnostics mempty (concatMap getRewriteErrors rwSi
 checkClassMeasures :: [Measure SpecType DataCon] -> Diagnostics
 checkClassMeasures measures = mkDiagnostics mempty (mapMaybe checkOne byTyCon)
   where
-  byName = L.groupBy ((==) `on` (val . msName)) measures
+  byName = groupDuplicatesOn (val . msName) measures
 
-  byTyCon = concatMap (L.groupBy ((==) `on` (dataConTyCon . ctor . head . msEqns)))
+  byTyCon = concatMap (groupDuplicatesOn (dataConTyCon . ctor . head . msEqns))
                       byName
 
   checkOne []     = impossible Nothing "checkClassMeasures.checkOne on empty measure group"
