@@ -870,6 +870,10 @@ executable name-resolution-pos
                       A
                     , B
                     , C
+                    , AData
+                    , BData
+                    , CData
+                    , MainData
 
 
     ghc-options:      -Wall
