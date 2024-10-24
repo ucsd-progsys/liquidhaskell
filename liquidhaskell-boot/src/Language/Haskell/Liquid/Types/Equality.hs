@@ -12,7 +12,7 @@ import qualified Liquid.GHC.API as Ghc
 
 import Control.Monad (liftM2, zipWithM)
 import Control.Monad.Writer.Lazy
--- import Control.Monad
+import           Data.Function (on)
 import qualified Data.List as L
 
 instance REq SpecType where
@@ -21,10 +21,10 @@ instance REq SpecType where
 compareRType :: SpecType -> SpecType -> Bool
 compareRType i1 i2 = res && unify ys
   where
-    unify vs = and (sndEq <$> L.groupBy (\(x1,_) (x2,_) -> x1 == x2) vs)
-    sndEq [] = True
-    sndEq [_] = True
-    sndEq ((_,y):xs) = all (==y) (snd <$> xs)
+    unify =
+      all (null . drop 1 . L.nub . map snd) .
+      L.groupBy ((==) `on` fst) .
+      L.sortOn fst
 
     (res, ys) = runWriter (go i1 i2)
     go :: SpecType -> SpecType -> Writer [(RTyVar, RTyVar)] Bool

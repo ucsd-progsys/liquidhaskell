@@ -462,7 +462,7 @@ checkDuplicateRTAlias s tas = mkDiagnostics mempty (map mkError dups)
     dups                    = [z | z@(_:_:_) <- groupDuplicatesOn (rtName . val) tas]
 
 groupDuplicatesOn :: Ord b => (a -> b) -> [a] -> [[a]]
-groupDuplicatesOn f = L.groupBy ((==) `on` f) . L.sortBy (compare `on` f)
+groupDuplicatesOn f = L.groupBy ((==) `on` f) . L.sortOn f
 
 checkMismatch        :: (Var, LocSpecType) -> Diagnostics
 checkMismatch (x, t) = if ok then emptyDiagnostics else mkDiagnostics mempty [err]
