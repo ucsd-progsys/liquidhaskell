@@ -42,6 +42,7 @@ import qualified Liquid.GHC.API       as Ghc
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 import           Language.Haskell.Liquid.Types.DataDecl
 import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.Names
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.RTypeOp
@@ -181,7 +182,7 @@ isReflectableTyCon  = Ghc.isFamInstTyCon .||. Ghc.isVanillaAlgTyCon
 liftableTyCons :: [Ghc.TyCon] -> [(Ghc.TyCon, DataName)]
 liftableTyCons
   = F.notracepp "LiftableTCs 3"
-  . zipMapMaybe (tyConDataName True)
+  . zipMapMaybe tyConDataName
   . F.notracepp "LiftableTCs 2"
   . filter   (not . Ghc.isBoxedTupleTyCon)
   . F.notracepp "LiftableTCs 1"
@@ -200,15 +201,19 @@ hasDataDecl modName spec
   where
     msg tc       = "hasDataDecl " ++ show (tcName tc)
     defn         = NoDecl Nothing
-    tcName       = fmap (qualifiedDataName modName) . tyConDataName True
+    tcName       = fmap (qualifiedDataName modName) . tyConDataName
     dcName       =       qualifiedDataName modName  . tycName
     decls        = M.fromList [ (Just dn, hasDecl d)
                                 | d     <- Ms.dataDecls spec
                                 , let dn = dcName d]
 
 qualifiedDataName :: ModName -> DataName -> DataName
-qualifiedDataName modName (DnName lx) = DnName (qualifyModName modName <$> lx)
-qualifiedDataName modName (DnCon  lx) = DnCon  (qualifyModName modName <$> lx)
+qualifiedDataName modName (DnName lx) = DnName (updateLHNameSymbol (qualifyModName modName) <$> lx)
+qualifiedDataName modName (DnCon  lx) = DnCon  (updateLHNameSymbol (qualifyModName modName) <$> lx)
+
+updateLHNameSymbol :: (F.Symbol -> F.Symbol) -> LHName -> LHName
+updateLHNameSymbol f (LHNResolved n s) = LHNResolved n (f s)
+updateLHNameSymbol f (LHNUnresolved n s) = LHNUnresolved n (f s)
 
 {-tyConDataDecl :: {tc:TyCon | isAlgTyCon tc} -> Maybe DataDecl @-}
 tyConDataDecl :: ((Ghc.TyCon, DataName), HasDataDecl) -> Maybe DataDecl
@@ -227,13 +232,12 @@ tyConDataDecl ((tc, dn), NoDecl szF)
       }
       where decls = map dataConDecl . Ghc.tyConDataCons
 
-tyConDataName :: Bool -> Ghc.TyCon -> Maybe DataName
-tyConDataName full tc
-  | vanillaTc  = Just (DnName (post . F.symbol <$> GM.locNamedThing tc))
-  | d:_ <- dcs = Just (DnCon  (post . F.symbol <$> GM.locNamedThing d ))
+tyConDataName :: Ghc.TyCon -> Maybe DataName
+tyConDataName tc
+  | vanillaTc  = Just (DnName ((\x -> lhNameFromGHCName (Ghc.getName x) (F.symbol x)) <$> GM.locNamedThing tc))
+  | d:_ <- dcs = Just (DnCon  ((\x -> lhNameFromGHCName (Ghc.getName x) (F.symbol x)) <$> GM.locNamedThing d ))
   | otherwise  = Nothing
   where
-    post       = if full then id else GM.dropModuleNamesAndUnique
     vanillaTc  = Ghc.isVanillaAlgTyCon tc
     dcs        = Misc.sortOn F.symbol (Ghc.tyConDataCons tc)
 
@@ -243,7 +247,7 @@ dataConDecl d     = {- F.notracepp msg $ -} DataCtor dx (F.symbol <$> as) [] xts
     isGadt        = not (Ghc.isVanillaDataCon d)
     -- msg           = printf "dataConDecl (gadt = %s)" (show isGadt)
     xts           = [(Bare.makeDataConSelector Nothing d i, RT.bareOfType t) | (i, t) <- its ]
-    dx            = F.symbol <$> GM.locNamedThing d
+    dx            = (\x -> lhNameFromGHCName (Ghc.getName x) (F.symbol x)) <$> GM.locNamedThing d
     its           = zip [1..] ts
     (as,_ps,ts,ty)  = Ghc.dataConSig d
     outT          = Just (RT.bareOfType ty :: BareType)
@@ -403,7 +407,7 @@ getDefinedSymbolsInLogic env measEnv specs =
         concat (tycDCons `Mb.mapMaybe` (dataDecls spec ++ newtyDecls spec))
     getFromDataCtor modName decl = S.fromList $
       Bare.qualifyLocSymbolTop env modName <$>
-        (dcName decl : (localize . fst <$> dcFields decl))
+        (fmap getLHNameSymbol (dcName decl) : (localize . fst <$> dcFields decl))
     getAliases spec = S.fromList $ fmap rtName <$> Ms.ealiases spec
     localize :: F.Symbol -> F.LocSymbol
     localize sym = maybe (dummyLoc sym) varLocSym $ L.lookup sym (Bare.reSyms env)

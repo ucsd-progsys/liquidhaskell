@@ -29,6 +29,7 @@ import qualified Liquid.GHC.API
 import qualified Language.Haskell.Liquid.Misc  as Misc
 import           Language.Haskell.Liquid.Types.DataDecl
 import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.RTypeOp
 import qualified Language.Haskell.Liquid.Types.RefType
@@ -120,10 +121,7 @@ compileClasses src env (name, spec) rest =
       ++ concatMap (Mb.mapMaybe resolveClassMaybe . dataDecls . snd) rest
   resolveClassMaybe :: DataDecl -> Maybe Ghc.Class
   resolveClassMaybe d =
-    Bare.maybeResolveSym env
-                         name
-                         "resolveClassMaybe"
-                         (dataNameSymbol . tycName $ d)
+    either (const Nothing) Just (Bare.matchTyCon env $ dataNameSymbol $ tycName d)
       >>= Ghc.tyConClass_maybe
 
 
@@ -136,7 +134,7 @@ makeClassDataDecl = fmap (uncurry classDeclToDataDecl)
 -- maybe this should be fixed right after the GHC API refactoring?
 classDeclToDataDecl :: Ghc.Class -> [(Ghc.Id, LocBareType)] -> DataDecl
 classDeclToDataDecl cls refinedIds = DataDecl
-  { tycName   = DnName (F.symbol <$> GM.locNamedThing cls)
+  { tycName   = DnName ((\x -> lhNameFromGHCName (Ghc.getName x) (F.symbol x)) <$> GM.locNamedThing cls)
   , tycTyVars = tyVars
   , tycPVars  = []
   , tycDCons  = Just [dctor]
@@ -146,7 +144,8 @@ classDeclToDataDecl cls refinedIds = DataDecl
   , tycKind   = DataUser
   }
  where
-  dctor = F.notracepp "classDeclToDataDecl" DataCtor { dcName   = F.dummyLoc $ F.symbol classDc
+  dctor = F.notracepp "classDeclToDataDecl"
+    DataCtor { dcName   = F.dummyLoc $ lhNameFromGHCName (Ghc.getName classDc) (F.symbol classDc)
     -- YL: same as class tyvars??
     -- Ans: it's been working so far so probably yes
                    , dcTyVars = tyVars

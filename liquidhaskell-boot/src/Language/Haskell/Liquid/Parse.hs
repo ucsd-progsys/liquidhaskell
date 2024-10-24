@@ -870,7 +870,7 @@ data Pspec ty ctor
   | Pragma  (Located String)                              -- ^ 'LIQUID' pragma, used to save configuration options in source files
   | CMeas   (Measure ty ())                               -- ^ 'class measure' definition
   | IMeas   (Measure ty ctor)                             -- ^ 'instance measure' definition
-  | Varia   (LocSymbol, [Variance])                       -- ^ 'variance' annotations, marking type constructor params as co-, contra-, or in-variant
+  | Varia   (Located LHName, [Variance])                  -- ^ 'variance' annotations, marking type constructor params as co-, contra-, or in-variant
   | DSize   ([ty], LocSymbol)                             -- ^ 'data size' annotations, generating fancy termination metric
   | BFix    ()                                            -- ^ fixity annotation
   | Define  (LocSymbol, Symbol)                           -- ^ 'define' annotation for specifying aliases c.f. `include-CoreToLogic.lg`
@@ -1226,8 +1226,8 @@ filePathP     = angles $ some pathCharP
     pathChars :: [Char]
     pathChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ ['.', '/']
 
-datavarianceP :: Parser (Located Symbol, [Variance])
-datavarianceP = liftM2 (,) locUpperIdP (many varianceP)
+datavarianceP :: Parser (Located LHName, [Variance])
+datavarianceP = liftM2 (,) (fmap (makeUnresolvedLHName LHTcName) <$> locUpperIdP) (many varianceP)
 
 dsizeP :: Parser ([Located BareType], Located Symbol)
 dsizeP = liftM2 (,) (parens $ sepBy (located genBareTypeP) comma) locBinderP
@@ -1536,14 +1536,14 @@ dataConP :: [Symbol] -> Parser DataCtor
 dataConP as = do
   x   <- dataConNameP
   xts <- dataConFieldsP
-  return $ DataCtor x as [] xts Nothing
+  return $ DataCtor (makeUnresolvedLHName LHDataConName <$> x) as [] xts Nothing
 
 adtDataConP :: [Symbol] -> Parser DataCtor
 adtDataConP as = do
   x     <- dataConNameP
   reservedOp "::"
   tr    <- toRTypeRep <$> bareTypeP
-  return $ DataCtor x (tRepVars as tr) [] (tRepFields tr) (Just $ ty_res tr)
+  return $ DataCtor (makeUnresolvedLHName LHDataConName <$> x) (tRepVars as tr) [] (tRepFields tr) (Just $ ty_res tr)
 
 tRepVars :: Symbolic a => [Symbol] -> RTypeRep c a r -> [Symbol]
 tRepVars as tr = case fst <$> ty_vars tr of
@@ -1595,7 +1595,7 @@ dataDeclP = do
 
 emptyDecl :: LocSymbol -> SourcePos -> Maybe SizeFun -> DataDecl
 emptyDecl x pos fsize@(Just _)
-  = DataDecl (DnName x) [] [] Nothing pos fsize Nothing DataUser
+  = DataDecl (DnName $ makeUnresolvedLHName LHTcName <$> x) [] [] Nothing pos fsize Nothing DataUser
 emptyDecl x pos _
   = uError (ErrBadData (sourcePosSrcSpan pos) (pprint (val x)) msg)
   where
@@ -1611,8 +1611,8 @@ dataDeclBodyP pos x fsize = do
   return      $ DataDecl dn as ps (Just dcs) pos fsize pTy DataUser
 
 dataDeclName :: SourcePos -> LocSymbol -> Bool -> [DataCtor] -> DataName
-dataDeclName _ x True  _     = DnName x               -- vanilla data    declaration
-dataDeclName _ _ False (d:_) = DnCon  (dcName d)      -- family instance declaration
+dataDeclName _ x True  _     = DnName $ makeUnresolvedLHName LHTcName <$> x  -- vanilla data    declaration
+dataDeclName _ _ False (d:_) = DnCon  $ dcName d                             -- family instance declaration
 dataDeclName p x _  _        = uError (ErrBadData (sourcePosSrcSpan p) (pprint (val x)) msg)
   where
     msg                  = "You should specify at least one data constructor for a family instance"

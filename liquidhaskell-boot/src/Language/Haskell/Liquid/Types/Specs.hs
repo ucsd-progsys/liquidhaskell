@@ -439,7 +439,7 @@ data Spec ty bndr  = Spec
   , termexprs  :: ![(F.LocSymbol, [F.Located F.Expr])]                -- ^ Terminating Conditions for functions
   , rinstance  :: ![RInstance ty]
   , ilaws      :: ![RILaws ty]
-  , dvariance  :: ![(F.LocSymbol, [Variance])]                        -- ^ TODO ? Where do these come from ?!
+  , dvariance  :: ![(F.Located LHName, [Variance])]                   -- ^ TODO ? Where do these come from ?!
   , dsize      :: ![([ty], F.LocSymbol)]                              -- ^ Size measure to enforce fancy termination
   , bounds     :: !(RRBEnv ty)
   , axeqs      :: ![F.Equation]                                       -- ^ Equalities used for Proof-By-Evaluation
@@ -631,7 +631,7 @@ data LiftedSpec = LiftedSpec
   , liftedRinstance  :: HashSet (RInstance LocBareType)
   , liftedIlaws      :: HashSet (RILaws LocBareType)
   , liftedDsize      :: [([LocBareType], F.LocSymbol)]
-  , liftedDvariance  :: HashSet (F.LocSymbol, [Variance])
+  , liftedDvariance  :: HashSet (F.Located LHName, [Variance])
     -- ^ ? Where do these come from ?!
   , liftedBounds     :: RRBEnv LocBareType
   , liftedAxeqs      :: HashSet F.Equation

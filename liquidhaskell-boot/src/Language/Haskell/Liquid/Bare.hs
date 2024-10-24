@@ -1047,7 +1047,7 @@ makeNewTypes env sigEnv specs = do
 makeNewType :: Bare.Env -> Bare.SigEnv -> ModName -> DataDecl ->
                Bare.Lookup [(Ghc.TyCon, LocSpecType)]
 makeNewType env sigEnv name d = do
-  tcMb <- Bare.lookupGhcDnTyCon env name "makeNewType" tcName
+  tcMb <- Bare.lookupGhcDnTyCon env name tcName
   case tcMb of
     Just tc -> return [(tc, lst)]
     _       -> return []
