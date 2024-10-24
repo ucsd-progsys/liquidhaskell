@@ -51,6 +51,7 @@ module Language.Haskell.Liquid.Types.RTypeOp (
   where
 
 import qualified Liquid.GHC.API as Ghc
+import           Liquid.GHC.API.Compat
 import           Prelude                          hiding  (error)
 import qualified Prelude
 
