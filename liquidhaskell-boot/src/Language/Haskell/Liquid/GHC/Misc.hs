@@ -22,7 +22,6 @@
 
 module  Language.Haskell.Liquid.GHC.Misc where
 
-import           Data.Char (isDigit)
 import           Data.String
 import qualified Data.List as L
 import           Data.Word (Word64)
@@ -34,7 +33,7 @@ import           Liquid.GHC.API            as Ghc hiding
 import qualified Liquid.GHC.API            as Ghc (GenLocated (L))
 
 
-import           Data.Char                                  (isLower, isSpace, isUpper)
+import           Data.Char                                  (isDigit, isLower, isSpace, isUpper)
 import           Data.Maybe                                 (isJust, fromMaybe, fromJust, maybeToList)
 import           Data.Hashable
 import qualified Data.HashSet                               as S

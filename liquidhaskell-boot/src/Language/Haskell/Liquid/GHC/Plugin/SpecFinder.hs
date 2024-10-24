@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE RankNTypes   #-}
 
 module Language.Haskell.Liquid.GHC.Plugin.SpecFinder
