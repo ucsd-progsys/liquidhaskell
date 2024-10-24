@@ -833,6 +833,7 @@ executable names-neg
     other-modules:
                       Assume00
                     , Capture01
+                    , DuplicatedAliases
                     , Local00
                     , Set00
                     , Set01
