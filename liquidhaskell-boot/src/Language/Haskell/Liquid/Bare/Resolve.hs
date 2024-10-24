@@ -924,6 +924,12 @@ ofBRType env name f l = go []
         lc'                    = F.atLoc lc <$> matchTyCon env lc
         lc                     = btc_tc tc
 
+-- | Get the TyCon from an LHName.
+--
+-- This function uses 'unsafePerformIO' to lookup the 'Ghc.TyThing' of a 'Ghc.Name'.
+-- This should be benign because the result doesn't depend of when exactly this is
+-- called. Since this code is intended to be used inside a GHC plugin, there is no
+-- danger that GHC is finalized before the result is evaluated.
 matchTyCon :: Env -> Located LHName -> Lookup Ghc.TyCon
 matchTyCon env lc@(Loc _ _ c0) = unsafePerformIO $ do
     case c0 of
