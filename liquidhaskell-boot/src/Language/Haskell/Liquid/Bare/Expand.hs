@@ -34,7 +34,6 @@ import qualified Control.Exception         as Ex
 import qualified Data.HashMap.Strict       as M
 import qualified Data.Char                 as Char
 import qualified Data.List                 as L
-import qualified Text.Printf               as Printf
 import qualified Text.PrettyPrint.HughesPJ as PJ
 
 import qualified Language.Fixpoint.Types               as F
@@ -43,8 +42,10 @@ import qualified Language.Fixpoint.Misc                as Misc
 import           Language.Fixpoint.Types (Expr(..)) -- , Symbol, symbol)
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 import qualified Liquid.GHC.API       as Ghc
+import           Language.Haskell.Liquid.LHNameResolution (exprArg)
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.DataDecl
+import           Language.Haskell.Liquid.Types.Names
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.RTypeOp
@@ -219,11 +220,11 @@ genExpandOrder table graph
 ordNub :: Ord a => [a] -> [a]
 ordNub = map head . L.group . L.sort
 
-buildTypeEdges :: (F.Symbolic c) => AliasTable x t -> RType c tv r -> [F.Symbol]
+buildTypeEdges :: AliasTable x t -> BareType -> [F.Symbol]
 buildTypeEdges table = ordNub . go
   where
     -- go :: t -> [Symbol]
-    go (RApp c ts rs _) = go_alias (F.symbol c) ++ concatMap go ts ++ concatMap go (mapMaybe go_ref rs)
+    go (RApp c ts rs _) = go_alias (getLHNameSymbol $ val $ btc_tc c) ++ concatMap go ts ++ concatMap go (mapMaybe go_ref rs)
     go (RFun _ _ t1 t2 _) = go t1 ++ go t2
     go (RAppTy t1 t2 _) = go t1 ++ go t2
     go (RAllE _ t1 t2)  = go t1 ++ go t2
@@ -413,7 +414,7 @@ expandBareType rtEnv _ = go
     goRef (RProp ss t)   = RProp ss (go t)
 
 lookupRTEnv :: BTyCon -> BareRTEnv -> Maybe (Located BareRTAlias)
-lookupRTEnv c rtEnv = M.lookup (F.symbol c) (typeAliases rtEnv)
+lookupRTEnv c rtEnv = M.lookup (getLHNameSymbol $ val $ btc_tc c) (typeAliases rtEnv)
 
 expandRTAliasApp :: F.SourcePos -> Located BareRTAlias -> [BareType] -> RReft -> BareType
 expandRTAliasApp l (Loc la _ rta) args r = case isOK of
@@ -457,31 +458,6 @@ errRTAliasApp l la rta = Just . ErrAliasApp  sp name sp'
     name            = pprint              (rtName rta)
     sp              = GM.sourcePosSrcSpan l
     sp'             = GM.sourcePosSrcSpan la
-
-
-
---------------------------------------------------------------------------------
--- | exprArg converts a tyVar to an exprVar because parser cannot tell
---   this function allows us to treating (parsed) "types" as "value"
---   arguments, e.g. type Matrix a Row Col = List (List a Row) Col
---   Note that during parsing, we don't necessarily know whether a
---   string is a type or a value expression. E.g. in tests/pos/T1189.hs,
---   the string `Prop (Ev (plus n n))` where `Prop` is the alias:
---     {-@ type Prop E = {v:_ | prop v = E} @-}
---   the parser will chomp in `Ev (plus n n)` as a `BareType` and so
---   `exprArg` converts that `BareType` into an `Expr`.
---------------------------------------------------------------------------------
-exprArg :: F.SourcePos -> String -> BareType -> Expr
-exprArg l msg = F.notracepp ("exprArg: " ++ msg) . go
-  where
-    go :: BareType -> Expr
-    go (RExprArg e)     = val e
-    go (RVar x _)       = EVar (F.symbol x)
-    go (RApp x [] [] _) = EVar (F.symbol x)
-    go (RApp f ts [] _) = F.mkEApp (F.symbol <$> btc_tc f) (go <$> ts)
-    go (RAppTy t1 t2 _) = F.EApp (go t1) (go t2)
-    go z                = panic sp $ Printf.printf "Unexpected expression parameter: %s in %s" (show z) msg
-    sp                  = Just (GM.sourcePosSrcSpan l)
 
 
 ----------------------------------------------------------------------------------------

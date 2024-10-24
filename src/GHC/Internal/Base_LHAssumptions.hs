@@ -16,12 +16,12 @@ assume GHC.Internal.Base.. :: forall <p :: b -> c -> Bool, q :: a -> b -> Bool, 
                 -> (zcmp:a -> b<q zcmp>)
                 ->  xcmp:a -> c<r xcmp>
 
-measure autolen :: forall a. a -> GHC.Types.Int
+measure autolen :: forall a. a -> Int
 
 //  Useless as compiled into GHC primitive, which is ignored
 assume GHC.Internal.Base.assert :: {v:Bool | v } -> a -> a
 
-instance measure len :: forall a. [a] -> GHC.Types.Int
+instance measure len :: forall a. [a] -> Int
   len []     = 0
   len (y:ys) = 1 + len ys
 
@@ -32,8 +32,8 @@ assume GHC.Internal.Base.++        :: xs:[a] -> ys:[a] -> {v:[a] | len v == len 
 assume (GHC.Internal.Base.$)       :: (a -> b) -> a -> b
 assume GHC.Internal.Base.id        :: x:a -> {v:a | v = x}
 
-qualif IsEmp(v:GHC.Types.Bool, xs: [a]) : (v <=> (len xs > 0))
-qualif IsEmp(v:GHC.Types.Bool, xs: [a]) : (v <=> (len xs = 0))
+qualif IsEmp(v:Bool, xs: [a]) : (v <=> (len xs > 0))
+qualif IsEmp(v:Bool, xs: [a]) : (v <=> (len xs = 0))
 
 qualif ListZ(v: [a])          : (len v =  0)
 qualif ListZ(v: [a])          : (len v >= 0)

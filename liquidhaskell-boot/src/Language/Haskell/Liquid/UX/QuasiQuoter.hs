@@ -23,13 +23,16 @@ import Language.Haskell.TH.Lib
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Quote
 
-import Language.Fixpoint.Types hiding (Error, Loc, SrcSpan)
+import Language.Fixpoint.Types hiding (Error, Loc, SrcSpan, panic)
 import qualified Language.Fixpoint.Types as F
 
 import Language.Haskell.Liquid.GHC.Misc (fSrcSpan)
 import Liquid.GHC.API  (SrcSpan)
+import qualified Liquid.GHC.API as GHC
+import qualified GHC.Types.Name.Occurrence
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Types.Errors
+import Language.Haskell.Liquid.Types.Names
 import Language.Haskell.Liquid.Types.RType
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.Types
@@ -103,6 +106,33 @@ mkSpecDecs _ =
 symbolName :: Symbolic s => s -> Name
 symbolName = mkName . symbolString . symbol
 
+lhNameToName :: Located LHName -> Name
+lhNameToName lname = case val lname of
+    LHNUnresolved _ s -> symbolName s
+    LHNResolved rn _ -> case rn of
+      LHRGHC n -> case GHC.nameModule_maybe n of
+        Nothing -> mkName (GHC.getOccString n)
+        Just m ->
+          mkNameG
+            (toTHNameSpace $ GHC.nameNameSpace n)
+            (GHC.unitString $ GHC.moduleUnit m)
+            (GHC.moduleNameString $ GHC.moduleName m)
+            (GHC.getOccString n)
+      LHRLocal s -> symbolName s
+      LHRIndex i -> panic (Just $ fSrcSpan lname) $ "Cannot produce a TH Name for a LHRIndex " ++ show i
+      LHRLogic (LogicName s _m) ->
+        panic (Just $ fSrcSpan lname) $ "Cannot produce a TH Name for a LogicName: " ++ show s
+
+  where
+    toTHNameSpace :: GHC.NameSpace -> NameSpace
+    toTHNameSpace ns
+      | ns == GHC.dataName = DataName
+      | ns == GHC.tcName = TcClsName
+      | ns == GHC.Types.Name.Occurrence.varName = VarName
+      | GHC.isFieldNameSpace ns = panic (Just $ fSrcSpan lname) "lhNameToName: Unimplemented case for FieldName NameSpace"
+      | otherwise = panic (Just $ fSrcSpan lname) "lhNameToName: Unknown GHC.NameSpace"
+
+
 -- BareType to TH Type ---------------------------------------------------------
 
 simplifyBareType :: LocSymbol -> BareType -> Either UserError Type
@@ -129,11 +159,10 @@ simplifyBareType'' ([], []) (RFun _ _ i o _) =
   (\x y -> ArrowT `AppT` x `AppT` y)
     <$> simplifyBareType' i <*> simplifyBareType' o
 simplifyBareType'' ([], []) (RApp cc as _ _) =
-  let c  = btc_tc cc
-      c' | isFun   c = ArrowT
-         | isTuple c = TupleT (length as)
-         | isList  c = ListT
-         | otherwise = ConT $ symbolName c
+  let c' | isFun   cc = ArrowT
+         | isTuple cc = TupleT (length as)
+         | isList  cc = ListT
+         | otherwise = ConT $ lhNameToName (btc_tc cc)
   in  foldl' AppT c' <$> sequenceA (filterExprArgs $ simplifyBareType' <$> as)
 
 simplifyBareType'' _ (RExprArg e) =

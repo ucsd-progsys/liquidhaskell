@@ -1,17 +1,19 @@
 {-# OPTIONS_GHC -fplugin=LiquidHaskellBoot #-}
 {-# LANGUAGE MagicHash #-}
 {-# OPTIONS_GHC -Wno-missing-signatures #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 module GHC.CString_LHAssumptions() where
 
 import GHC.CString
+import GHC.Prim
 import GHC.Types_LHAssumptions()
 
 _f = unpackCString#
 
 {-@
-measure strLen :: Addr# -> GHC.Types.Int
+measure strLen :: Addr# -> Int
 
 assume GHC.CString.unpackCString#
-  :: x:GHC.Prim.Addr#
-  -> {v:[GHC.Types.Char] | v ~~ x && len v == strLen x}
+  :: x:Addr#
+  -> {v:[Char] | v ~~ x && len v == strLen x}
 @-}

@@ -251,7 +251,12 @@ btP = do
           (do
              b <- locInfixSymbolP
              PC _ t2 <- btP
-             return $ PC sb $ RApp (mkBTyCon b) [t1,t2] [] mempty)
+             return $ PC sb $ RApp
+               (mkBTyCon $ fmap (makeUnresolvedLHName LHTcName) b)
+               [t1,t2]
+               []
+               mempty
+          )
          <|> return c
 
 
@@ -461,18 +466,20 @@ lowerIdTail l =
 
 bTyConP :: Parser BTyCon
 bTyConP
-  =  (reservedOp "'" >> (mkPromotedBTyCon <$> locUpperIdP))
- <|> mkBTyCon <$> locUpperIdP
- <|> (reserved "*" >> return (mkBTyCon (dummyLoc $ symbol ("*" :: String))))
+  =  (reservedOp "'" >> (mkPromotedBTyCon . fmap (makeUnresolvedLHName LHDataConName) <$> locUpperIdP))
+ <|> mkBTyCon . fmap (makeUnresolvedLHName LHTcName) <$> locUpperIdP
+ <|> (reserved "*" >>
+        return (mkBTyCon (dummyLoc $ makeUnresolvedLHName LHTcName $ symbol ("*" :: String)))
+     )
  <?> "bTyConP"
 
-mkPromotedBTyCon :: LocSymbol -> BTyCon
+mkPromotedBTyCon :: Located LHName -> BTyCon
 mkPromotedBTyCon x = BTyCon x False True -- (consSym '\'' <$> x) False True
 
 classBTyConP :: Parser BTyCon
-classBTyConP = mkClassBTyCon <$> locUpperIdP
+classBTyConP = mkClassBTyCon . fmap (makeUnresolvedLHName LHTcName) <$> locUpperIdP
 
-mkClassBTyCon :: LocSymbol -> BTyCon
+mkClassBTyCon :: Located LHName -> BTyCon
 mkClassBTyCon x = BTyCon x True False
 
 bbaseNoAppP :: Parser (Reft -> BareType)
@@ -609,11 +616,11 @@ dummyBindP :: Parser Symbol
 dummyBindP = tempSymbol "db" <$> freshIntP
 
 isPropBareType :: RType BTyCon t t1 -> Bool
-isPropBareType  = isPrimBareType boolConName
-
-isPrimBareType :: Symbol -> RType BTyCon t t1 -> Bool
-isPrimBareType n (RApp tc [] _ _) = val (btc_tc tc) == n
-isPrimBareType _ _                = False
+isPropBareType (RApp tc [] _ _) =
+    case val (btc_tc tc) of
+      LHNUnresolved _ s -> s == boolConName
+      _ -> False
+isPropBareType _ = False
 
 getClasses :: RType BTyCon t t1 -> [RType BTyCon t t1]
 getClasses (RApp tc ts ps r)
@@ -758,8 +765,8 @@ bLst :: Maybe (RType BTyCon tv (UReft r))
      -> [RTProp BTyCon tv (UReft r)]
      -> r
      -> RType BTyCon tv (UReft r)
-bLst (Just t) rs r = RApp (mkBTyCon $ dummyLoc listConName) [t] rs (reftUReft r)
-bLst Nothing  rs r = RApp (mkBTyCon $ dummyLoc listConName) []  rs (reftUReft r)
+bLst (Just t) rs r = RApp (mkBTyCon $ dummyLoc $ makeUnresolvedLHName LHTcName listConName) [t] rs (reftUReft r)
+bLst Nothing  rs r = RApp (mkBTyCon $ dummyLoc $ makeUnresolvedLHName LHTcName listConName) []  rs (reftUReft r)
 
 bTup :: (PPrint r, Reftable r, Reftable (RType BTyCon BTyVar (UReft r)), Reftable (RTProp BTyCon BTyVar (UReft r)))
      => [(Maybe Symbol, RType BTyCon BTyVar (UReft r))]
@@ -772,12 +779,14 @@ bTup [(_,t)] _ r
 bTup ts rs r
   | all Mb.isNothing (fst <$> ts) || length ts < 2
   = RApp
-      (mkBTyCon $ dummyLoc $ fromString $ "Tuple" ++ show (length ts))
+      (mkBTyCon $ dummyLoc $ makeUnresolvedLHName LHTcName $ fromString $ "Tuple" ++ show (length ts))
       (snd <$> ts) rs (reftUReft r)
   | otherwise
   = RApp
-      (mkBTyCon $ dummyLoc $ fromString $ "Tuple" ++ show (length ts))
-      (top . snd <$> ts) rs' (reftUReft r)
+      (mkBTyCon $ dummyLoc $ makeUnresolvedLHName LHTcName $ fromString $ "Tuple" ++ show (length ts))
+      (top . snd <$> ts)
+      rs'
+      (reftUReft r)
   where
     args       = [(Mb.fromMaybe dummySymbol x, mapReft mempty t) | (x,t) <- ts]
     makeProp i = RProp (take i args) ((snd <$> ts)!!i)
@@ -842,7 +851,7 @@ data Pspec ty ctor
   | Using  (ty, ty)                                       -- ^ 'using' declaration (for local invariants on a type)
   | Alias   (Located (RTAlias Symbol BareType))           -- ^ 'type' alias declaration
   | EAlias  (Located (RTAlias Symbol Expr))               -- ^ 'predicate' alias declaration
-  | Embed   (LocSymbol, FTycon, TCArgs)                   -- ^ 'embed' declaration
+  | Embed   (Located LHName, FTycon, TCArgs)              -- ^ 'embed' declaration
   | Qualif  Qualifier                                     -- ^ 'qualif' definition
   | LVars   LocSymbol                                     -- ^ 'lazyvar' annotation, defer checks to *use* sites
   | Lazy    LocSymbol                                     -- ^ 'lazy' annotation, skip termination check on binder
@@ -1275,9 +1284,9 @@ invaliasP
 genBareTypeP :: Parser BareType
 genBareTypeP = bareTypeP
 
-embedP :: Parser (Located Symbol, FTycon, TCArgs)
+embedP :: Parser (Located LHName, FTycon, TCArgs)
 embedP = do
-  x <- locUpperIdP
+  x <- fmap (makeUnresolvedLHName LHTcName) <$> locUpperIdP
   a <- try (reserved "*" >> return WithArgs) <|> return NoArgs -- TODO: reserved "*" looks suspicious
   _ <- reserved "as"
   t <- fTyConP

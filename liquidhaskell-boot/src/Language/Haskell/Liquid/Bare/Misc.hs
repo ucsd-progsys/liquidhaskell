@@ -15,7 +15,7 @@ module Language.Haskell.Liquid.Bare.Misc
 
 import           Prelude                               hiding (error)
 
-import           Liquid.GHC.API       as Ghc  hiding (Located, showPpr)
+import           Liquid.GHC.API       as Ghc  hiding (Located, get, showPpr)
 
 import           Control.Monad                         (zipWithM_)
 import           Control.Monad.Except                  (MonadError, throwError)

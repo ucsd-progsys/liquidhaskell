@@ -51,7 +51,7 @@ findRelevantSpecs lhAssmPkgExcludes hscEnv mods = do
     loadRelevantSpec :: ExternalPackageState -> Module -> TcM SpecFinderResult
     loadRelevantSpec eps currentModule = do
       res <- liftIO $ runMaybeT $
-        lookupInterfaceAnnotations eps (ue_hpt $ hsc_unit_env hscEnv) currentModule
+        lookupInterfaceAnnotations eps (ue_hpt $ hsc_unit_env hscEnv) (hsc_NC hscEnv) currentModule
       case res of
         Nothing         -> do
           mAssm <- loadModuleLHAssumptionsIfAny currentModule
@@ -71,7 +71,7 @@ findRelevantSpecs lhAssmPkgExcludes hscEnv mods = do
           -- read the EPS again
           eps2 <- liftIO $ readIORef (euc_eps $ ue_eps $ hsc_unit_env hscEnv)
           -- now look up the assumptions
-          liftIO $ runMaybeT $ lookupInterfaceAnnotationsEPS eps2 assumptionsMod
+          liftIO $ runMaybeT $ lookupInterfaceAnnotationsEPS eps2 (hsc_NC hscEnv) assumptionsMod
         FoundMultiple{} -> failWithTc $ mkTcRnUnknownMessage $ mkPlainError [] $
                              missingInterfaceErrorDiagnostic (initIfaceMessageOpts $ hsc_dflags hscEnv) $
                              cannotFindModule hscEnv assumptionsModName res
@@ -85,14 +85,14 @@ findRelevantSpecs lhAssmPkgExcludes hscEnv mods = do
       mkModuleNameFS $ moduleNameFS (moduleName m) <> "_LHAssumptions"
 
 -- | Load specs from an interface file.
-lookupInterfaceAnnotations :: ExternalPackageState -> HomePackageTable -> SpecFinder m
-lookupInterfaceAnnotations eps hpt thisModule = do
-  lib <- MaybeT $ pure $ Serialisation.deserialiseLiquidLib thisModule eps hpt
+lookupInterfaceAnnotations :: ExternalPackageState -> HomePackageTable -> NameCache -> SpecFinder m
+lookupInterfaceAnnotations eps hpt nameCache thisModule = do
+  lib <- MaybeT $ Serialisation.deserialiseLiquidLib thisModule eps hpt nameCache
   pure $ LibFound thisModule lib
 
-lookupInterfaceAnnotationsEPS :: ExternalPackageState -> SpecFinder m
-lookupInterfaceAnnotationsEPS eps thisModule = do
-  lib <- MaybeT $ pure $ Serialisation.deserialiseLiquidLibFromEPS thisModule eps
+lookupInterfaceAnnotationsEPS :: ExternalPackageState -> NameCache -> SpecFinder m
+lookupInterfaceAnnotationsEPS eps nameCache thisModule = do
+  lib <- MaybeT $ Serialisation.deserialiseLiquidLibFromEPS thisModule eps nameCache
   pure $ LibFound thisModule lib
 
 -- | Returns a list of 'StableModule's which can be filtered out of the dependency list, because they are

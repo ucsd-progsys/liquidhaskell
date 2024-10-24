@@ -4,10 +4,10 @@
 
 module OpaqueRefl02 where
 
-{-@ measure GHC.Internal.List.filter :: (a -> Bool) -> [a] -> [a] @-}
-{-@ assume GHC.Internal.List.filter :: p:(a -> Bool) -> xs:[a] -> {v : [a] | v == GHC.Internal.List.filter p xs && len v <= len xs} @-}
-{-@ measure GHC.Internal.Real.even :: a -> GHC.Types.Bool @-}
-{-@ assume GHC.Internal.Real.even :: x:a -> {VV : GHC.Types.Bool | VV == GHC.Internal.Real.even x} @-}
+{-@ measure filter :: (a -> Bool) -> [a] -> [a] @-}
+{-@ assume filter :: p:(a -> Bool) -> xs:[a] -> {v : [a] | v == filter p xs && len v <= len xs} @-}
+{-@ measure even :: a -> Bool @-}
+{-@ assume even :: x:a -> {VV : Bool | VV == even x} @-}
 
 {-@ reflect keepEvens @-}
 keepEvens :: [Int] -> [Int]

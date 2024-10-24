@@ -4,6 +4,7 @@
 
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DerivingVia                #-}
 {-# LANGUAGE StandaloneDeriving         #-}
@@ -71,18 +72,20 @@ import           GHC.Generics            hiding (to, moduleName)
 import           Data.Binary
 import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Misc (sortNub)
+import           Data.Data (Data)
 import           Data.Hashable
 import qualified Data.HashSet            as S
 import           Data.HashSet            (HashSet)
 import qualified Data.HashMap.Strict     as M
 import           Data.HashMap.Strict     (HashMap)
 import           Language.Haskell.Liquid.Types.DataDecl
+import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds
 import           Language.Haskell.Liquid.UX.Config
-import           Liquid.GHC.API hiding (text, (<+>))
+import           Liquid.GHC.API hiding (Binary, text, (<+>))
 import           Language.Haskell.Liquid.GHC.Types
 import           Text.PrettyPrint.HughesPJ              (text, (<+>))
 import           Text.PrettyPrint.HughesPJ as HughesPJ (($$))
@@ -379,7 +382,7 @@ type SpecMeasure   = Measure LocSpecType DataCon
 -- to undefined or out-of-scope entities.
 newtype BareSpec =
   MkBareSpec { getBareSpec :: Spec LocBareType F.LocSymbol }
-  deriving (Generic, Show, Binary)
+  deriving (Data, Generic, Show, Binary)
 
 instance Semigroup BareSpec where
   x <> y = MkBareSpec { getBareSpec = getBareSpec x <> getBareSpec y }
@@ -408,7 +411,7 @@ data Spec ty bndr  = Spec
   , includes   :: ![FilePath]                                         -- ^ Included qualifier files
   , aliases    :: ![F.Located (RTAlias F.Symbol BareType)]            -- ^ RefType aliases
   , ealiases   :: ![F.Located (RTAlias F.Symbol F.Expr)]              -- ^ Expression aliases
-  , embeds     :: !(F.TCEmb F.LocSymbol)                              -- ^ GHC-Tycon-to-fixpoint Tycon map
+  , embeds     :: !(F.TCEmb (F.Located LHName))                       -- ^ GHC-Tycon-to-fixpoint Tycon map
   , qualifiers :: ![F.Qualifier]                                      -- ^ Qualifiers in source files
   , lvars      :: !(S.HashSet F.LocSymbol)                            -- ^ Variables that should be checked in the environment they are used
   , lazy       :: !(S.HashSet F.LocSymbol)                            -- ^ Ignore Termination Check in these Functions
@@ -440,7 +443,7 @@ data Spec ty bndr  = Spec
   , dsize      :: ![([ty], F.LocSymbol)]                              -- ^ Size measure to enforce fancy termination
   , bounds     :: !(RRBEnv ty)
   , axeqs      :: ![F.Equation]                                       -- ^ Equalities used for Proof-By-Evaluation
-  } deriving (Generic, Show)
+  } deriving (Data, Generic, Show)
 
 instance Binary (Spec LocBareType F.LocSymbol)
 
@@ -605,7 +608,7 @@ data LiftedSpec = LiftedSpec
     -- ^ RefType aliases
   , liftedEaliases   :: HashSet (F.Located (RTAlias F.Symbol F.Expr))
     -- ^ Expression aliases
-  , liftedEmbeds     :: F.TCEmb F.LocSymbol
+  , liftedEmbeds     :: F.TCEmb (F.Located LHName)
     -- ^ GHC-Tycon-to-fixpoint Tycon map
   , liftedQualifiers :: HashSet F.Qualifier
     -- ^ Qualifiers in source/spec files
@@ -633,7 +636,7 @@ data LiftedSpec = LiftedSpec
   , liftedBounds     :: RRBEnv LocBareType
   , liftedAxeqs      :: HashSet F.Equation
     -- ^ Equalities used for Proof-By-Evaluation
-  } deriving (Eq, Generic, Show)
+  } deriving (Eq, Data, Generic, Show)
     deriving Hashable via Generically LiftedSpec
     deriving Binary   via Generically LiftedSpec
 
@@ -677,7 +680,7 @@ emptyLiftedSpec = LiftedSpec
 -- | The /target/ dependencies that concur to the creation of a 'TargetSpec' and a 'LiftedSpec'.
 newtype TargetDependencies =
   TargetDependencies { getDependencies :: HashMap StableModule LiftedSpec }
-  deriving (Eq, Show, Generic)
+  deriving (Data, Eq, Show, Generic)
   deriving Binary via Generically TargetDependencies
 
 -- instance S.Store TargetDependencies

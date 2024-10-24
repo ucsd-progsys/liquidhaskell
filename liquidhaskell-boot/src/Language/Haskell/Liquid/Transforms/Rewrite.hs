@@ -24,7 +24,7 @@ module Language.Haskell.Liquid.Transforms.Rewrite
 
   ) where
 
-import           Liquid.GHC.API as Ghc hiding (showPpr, substExpr)
+import           Liquid.GHC.API as Ghc hiding (get, showPpr, substExpr)
 import           Language.Haskell.Liquid.GHC.TypeRep ()
 import           Data.Maybe     (fromMaybe, isJust, mapMaybe)
 import           Control.Monad.State hiding (lift)

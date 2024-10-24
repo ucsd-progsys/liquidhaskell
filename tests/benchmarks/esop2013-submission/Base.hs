@@ -1129,7 +1129,7 @@ alter_go f k (Bin sx kx x l r) = case compare k kx of
 
 -- See Note: Type of local 'go' function
 
-{-@ findIndex :: (Ord k) => k -> OMap k a -> GHC.Types.Int @-}
+{-@ findIndex :: (Ord k) => k -> OMap k a -> Int @-}
 findIndex :: Ord k => k -> Map k a -> Int
 findIndex = findIndex_go 0
 --LIQUID findIndex = go 0
@@ -1143,7 +1143,7 @@ findIndex = findIndex_go 0
 --LIQUID       GT -> go (idx + size l + 1) k r
 --LIQUID       EQ -> idx + size l
 
-{-@ findIndex_go :: (Ord k) => Int -> k -> OMap k a -> GHC.Types.Int @-}
+{-@ findIndex_go :: (Ord k) => Int -> k -> OMap k a -> Int @-}
 findIndex_go :: Ord k => Int -> k -> Map k a -> Int
 STRICT_1_OF_3(findIndex_go)
 STRICT_2_OF_3(findIndex_go)
@@ -1165,7 +1165,7 @@ findIndex_go idx k (Bin _ kx _ l r) = case compare k kx of
 -- > isJust (lookupIndex 6 (fromList [(5,"a"), (3,"b")]))   == False
 
 -- See Note: Type of local 'go' function
-{-@ lookupIndex :: (Ord k) => k -> OMap k a -> Maybe GHC.Types.Int @-}
+{-@ lookupIndex :: (Ord k) => k -> OMap k a -> Maybe Int @-}
 lookupIndex :: Ord k => k -> Map k a -> Maybe Int
 lookupIndex = lookupIndex_go 0
 --LIQUID lookupIndex = go 0
@@ -1179,7 +1179,7 @@ lookupIndex = lookupIndex_go 0
 --LIQUID       GT -> go (idx + size l + 1) k r
 --LIQUID       EQ -> Just $! idx + size l
 
-{-@ lookupIndex_go :: (Ord k) => Int -> k -> OMap k a -> Maybe GHC.Types.Int @-}
+{-@ lookupIndex_go :: (Ord k) => Int -> k -> OMap k a -> Maybe Int @-}
 lookupIndex_go :: Ord k => Int -> k -> Map k a -> Maybe Int
 STRICT_1_OF_3(lookupIndex_go)
 STRICT_2_OF_3(lookupIndex_go)
@@ -1200,7 +1200,7 @@ lookupIndex_go idx k (Bin _ kx _ l r) = case compare k kx of
 -- > elemAt 2 (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
 
-{-@ elemAt :: GHC.Types.Int -> OMap k a -> (k, a) @-}
+{-@ elemAt :: Int -> OMap k a -> (k, a) @-}
 elemAt :: Int -> Map k a -> (k,a)
 STRICT_1_OF_2(elemAt)
 elemAt _ Tip = error "Map.elemAt: index out of range"
@@ -1224,7 +1224,7 @@ elemAt i (Bin _ kx x l r)
 -- > updateAt (\_ _  -> Nothing)  2    (fromList [(5,"a"), (3,"b")])    Error: index out of range
 -- > updateAt (\_ _  -> Nothing)  (-1) (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
-{-@ updateAt :: (k -> a -> Maybe a) -> GHC.Types.Int -> OMap k a -> OMap k a @-}
+{-@ updateAt :: (k -> a -> Maybe a) -> Int -> OMap k a -> OMap k a @-}
 updateAt :: (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
 updateAt f i t = i `seq`
   case t of
@@ -1246,7 +1246,7 @@ updateAt f i t = i `seq`
 -- > deleteAt 2 (fromList [(5,"a"), (3,"b")])     Error: index out of range
 -- > deleteAt (-1) (fromList [(5,"a"), (3,"b")])  Error: index out of range
 
-{-@ deleteAt :: GHC.Types.Int -> OMap k a -> OMap k a @-}
+{-@ deleteAt :: Int -> OMap k a -> OMap k a @-}
 deleteAt :: Int -> Map k a -> Map k a
 deleteAt i t = i `seq`
   case t of

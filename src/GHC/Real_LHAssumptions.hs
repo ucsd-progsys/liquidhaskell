@@ -1,7 +1,11 @@
 {-# OPTIONS_GHC -fplugin=LiquidHaskellBoot #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 -- Reexports are necessary for LH to expose specs of type classes
 module GHC.Real_LHAssumptions(Integral(..), Fractional(..)) where
 
+import GHC.Internal.Enum
+import GHC.Internal.Num
+import GHC.Internal.Real
 import GHC.Types_LHAssumptions()
 
 {-@

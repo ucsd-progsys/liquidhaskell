@@ -7,6 +7,7 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE TupleSections              #-}
 
 module Language.Haskell.Liquid.GHC.Plugin (
 
@@ -21,6 +22,7 @@ import qualified Language.Fixpoint.Types                 as F
 import qualified  Language.Haskell.Liquid.GHC.Misc        as LH
 import qualified Language.Haskell.Liquid.UX.CmdLine      as LH
 import qualified Language.Haskell.Liquid.GHC.Interface   as LH
+import           Language.Haskell.Liquid.LHNameResolution (collectTypeAliases, resolveLHNames)
 import qualified Language.Haskell.Liquid.Liquid          as LH
 import qualified Language.Haskell.Liquid.Types.PrettyPrint as LH ( filterReportErrors
                                                                  , filterReportErrorsWith
@@ -301,7 +303,7 @@ liquidCheckModule cfg0 ms tcg specs = do
       env <- getTopEnv
       session <- Session <$> liftIO (newIORef env)
       liftIO $ flip reflectGhc session $ mkPipelineData ms tcg specs
-    liquidLib <- liquidHaskellCheckWithConfig cfg pipelineData ms
+    liquidLib <- setGblEnv tcg $ liquidHaskellCheckWithConfig cfg pipelineData ms
     traverse (serialiseSpec tcg) liquidLib
   where
     thisFile = LH.modSummaryHsFile ms
@@ -347,7 +349,7 @@ serialiseSpec tcGblEnv liquidLib = do
   -- liftIO $ putStrLn "liquidHaskellCheck 9"
   -- ---
 
-  let serialisedSpec = Serialisation.serialiseLiquidLib liquidLib thisModule
+  serialisedSpec <- liftIO $ Serialisation.serialiseLiquidLib liquidLib thisModule
   debugLog $ "Serialised annotation ==> " ++ (O.showSDocUnsafe . O.ppr $ serialisedSpec)
 
   -- liftIO $ putStrLn "liquidHaskellCheck 10"
@@ -356,9 +358,14 @@ serialiseSpec tcGblEnv liquidLib = do
   where
     thisModule = tcg_mod tcGblEnv
 
-processInputSpec :: Config -> PipelineData -> ModSummary -> BareSpec -> TcM (Either LiquidCheckException LiquidLib)
+processInputSpec
+  :: Config
+  -> PipelineData
+  -> ModSummary
+  -> BareSpec
+  -> TcM (Either LiquidCheckException LiquidLib)
 processInputSpec cfg pipelineData modSummary inputSpec = do
-  hscEnv <- env_top <$> getEnv
+  hscEnv <- getTopEnv
   debugLog $ " Input spec: \n" ++ show inputSpec
   debugLog $ "Relevant ===> \n" ++ unlines (renderModule <$> S.toList (relevantModules (hsc_mod_graph hscEnv) modGuts))
 
@@ -502,15 +509,15 @@ processModule LiquidHaskellContext{..} = do
   debugLog ("Module ==> " ++ renderModule thisModule)
   hscEnv              <- env_top <$> getEnv
 
-  let bareSpec        = lhInputSpec
+  let bareSpec0       = lhInputSpec
   -- /NOTE/: For the Plugin to work correctly, we shouldn't call 'canonicalizePath', because otherwise
   -- this won't trigger the \"external name resolution\" as part of 'Language.Haskell.Liquid.Bare.Resolve'
   -- (cfr. 'allowExtResolution').
   let file            = LH.modSummaryHsFile lhModuleSummary
 
-  _                   <- liftIO $ LH.checkFilePragmas $ Ms.pragmas (fromBareSpec bareSpec)
+  _                   <- liftIO $ LH.checkFilePragmas $ Ms.pragmas (fromBareSpec bareSpec0)
 
-  withPragmas lhGlobalCfg file (Ms.pragmas $ fromBareSpec bareSpec) $ \moduleCfg -> do
+  withPragmas lhGlobalCfg file (Ms.pragmas $ fromBareSpec bareSpec0) $ \moduleCfg -> do
     dependencies <- loadDependencies moduleCfg (S.toList lhRelevantModules)
 
     debugLog $ "Found " <> show (HM.size $ getDependencies dependencies) <> " dependencies:"
@@ -528,9 +535,15 @@ processModule LiquidHaskellContext{..} = do
     -- Due to the fact the internals can throw exceptions from pure code at any point, we need to
     -- call 'evaluate' to force any exception and catch it, if we can.
 
-
+    tcg <- getGblEnv
+    let rtAliases = collectTypeAliases thisModule bareSpec0 (HM.toList $ getDependencies dependencies)
+        eBareSpec = resolveLHNames rtAliases (tcg_rdr_env tcg) bareSpec0
     result <-
-      makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies
+      case eBareSpec of
+        Left errors -> pure $ Left $ mkDiagnostics [] errors
+        Right bareSpec ->
+          fmap (,bareSpec) <$>
+            makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies
 
     let continue = pure $ Left (ErrorsOccurred [])
         reportErrs :: (Show e, F.PPrint e) => [TError e] -> TcRn (Either LiquidCheckException ProcessModuleResult)
@@ -541,7 +554,7 @@ processModule LiquidHaskellContext{..} = do
       Left diagnostics -> do
         liftIO $ mapM_ (printWarning logger)    (allWarnings diagnostics)
         reportErrs $ allErrors diagnostics
-      Right (warnings, targetSpec, liftedSpec) -> do
+      Right ((warnings, targetSpec, liftedSpec), bareSpec) -> do
         liftIO $ mapM_ (printWarning logger) warnings
         let targetInfo = TargetInfo targetSrc targetSpec
 
