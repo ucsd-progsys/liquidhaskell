@@ -67,6 +67,7 @@ import           Data.Hashable
 import qualified Data.HashMap.Strict          as M
 import qualified Data.List                    as L
 import           Data.Void
+import           GHC.Stack
 import           System.Directory
 import           System.FilePath
 import           Text.PrettyPrint.HughesPJ
@@ -576,8 +577,8 @@ panicDoc :: {- (?callStack :: CallStack) => -} SrcSpan -> Doc -> a
 panicDoc sp d = Ex.throw (ErrOther sp d :: UserError)
 
 -- | Construct and show an Error, then crash
-panic :: {- (?callStack :: CallStack) => -} Maybe SrcSpan -> String -> a
-panic sp d = panicDoc (sspan sp) (text d)
+panic :: HasCallStack => Maybe SrcSpan -> String -> a
+panic sp d = panicDoc (sspan sp) (text (prettyCallStack callStack) $+$ text d)
   where
     sspan  = Mb.fromMaybe noSrcSpan
 

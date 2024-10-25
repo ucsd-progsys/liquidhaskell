@@ -24,6 +24,7 @@ module Language.Haskell.Liquid.Bare.Resolve
   -- * Looking up names
   , maybeResolveSym
   , lookupGhcDataCon
+  , lookupGhcDataConLHName
   , lookupGhcDnTyCon
   , lookupGhcTyCon
   , lookupGhcVar
@@ -64,6 +65,7 @@ import qualified Data.HashSet                      as S
 import qualified Data.Maybe                        as Mb
 import qualified Data.HashMap.Strict               as M
 import qualified Data.Text                         as T
+import           GHC.Stack
 import           Text.Megaparsec.Pos (sourceColumn, sourceLine)
 import qualified Text.PrettyPrint.HughesPJ         as PJ
 
@@ -539,23 +541,26 @@ lookupGhcTyCon :: Env -> ModName -> String -> LocSymbol -> Lookup Ghc.TyCon
 lookupGhcTyCon env name k lx = myTracepp ("LOOKUP-TYCON: " ++ F.showpp (val lx))
                                $ {- strictResolveSym -} resolveLocSym env name k lx
 
-lookupGhcDnTyCon :: Env -> ModName -> String -> DataName -> Lookup (Maybe Ghc.TyCon)
--- lookupGhcDnTyCon = lookupGhcDnTyConE
-lookupGhcDnTyCon env name msg = failMaybe env name . lookupGhcDnTyConE env name msg
+lookupGhcDnTyCon :: Env -> ModName -> DataName -> Lookup (Maybe Ghc.TyCon)
+lookupGhcDnTyCon env name = failMaybe env name . lookupGhcDnTyConE env
 
-lookupGhcDnTyConE :: Env -> ModName -> String -> DataName -> Lookup Ghc.TyCon
-lookupGhcDnTyConE env name msg (DnCon  s)
-  = lookupGhcDnCon env name msg s
-lookupGhcDnTyConE env name msg (DnName s)
-  = case resolveLocSym env name msg s of
-      Right r -> Right r
-      Left  e -> case lookupGhcDnCon  env name msg s of
-                   Right r -> Right r
-                   Left  _ -> Left  e
+lookupGhcDnTyConE :: Env -> DataName -> Lookup Ghc.TyCon
+lookupGhcDnTyConE env (DnCon  lname)
+  = Ghc.dataConTyCon <$> lookupGhcDataConLHName env lname
+lookupGhcDnTyConE env (DnName lname)
+  = do
+   case lookupTyThing env lname of
+     Ghc.ATyCon tc -> Right tc
+     Ghc.AConLike (Ghc.RealDataCon d) -> Right $ Ghc.dataConTyCon d
+     _ -> panic
+           (Just $ GM.fSrcSpan lname) $ "not a type or data constructor: " ++ show (val lname)
 
-
-lookupGhcDnCon :: Env -> ModName -> String -> LocSymbol -> Lookup Ghc.TyCon
-lookupGhcDnCon env name msg = fmap Ghc.dataConTyCon . resolveLocSym env name msg
+lookupGhcDataConLHName :: HasCallStack => Env -> Located LHName -> Lookup Ghc.DataCon
+lookupGhcDataConLHName env lname = do
+   case lookupTyThing env lname of
+     Ghc.AConLike (Ghc.RealDataCon d) -> Right d
+     _ -> panic
+           (Just $ GM.fSrcSpan lname) $ "not a data constructor: " ++ show (val lname)
 
 -------------------------------------------------------------------------------
 -- | Checking existence of names
@@ -691,7 +696,7 @@ resolveWith kind f env name str lx =
   where
     _xSym   = F.val lx
     sp      = GM.fSrcSpanSrcSpan (F.srcSpan lx)
-    things  = myTracepp msg $ lookupTyThing env name lx
+    things  = myTracepp msg $ lookupTyThingLH env name lx
     msg     = "resolveWith: " ++ str ++ " " ++ F.showpp (val lx)
 
 
@@ -703,22 +708,22 @@ rankedThings f ias = case Misc.sortOn fst (Misc.groupList ibs) of
     ibs            = Mb.mapMaybe (\(k, x) -> (k,) <$> f x) ias
 
 -------------------------------------------------------------------------------
--- | @lookupTyThing@ is the central place where we lookup the @Env@ to find
+-- | @lookupTyThingLH@ is the central place where we lookup the @Env@ to find
 --   any @Ghc.TyThing@ that match that name. The code is a bit hairy as we
 --   have various heuristics to approximiate how GHC resolves names. e.g.
 --   see tests-names-pos-*.hs, esp. vector04.hs where we need the name `Vector`
 --   to resolve to `Data.Vector.Vector` and not `Data.Vector.Generic.Base.Vector`...
 -------------------------------------------------------------------------------
-lookupTyThing :: Env -> ModName -> LocSymbol -> [((Int, F.Symbol), Ghc.TyThing)]
+lookupTyThingLH :: Env -> ModName -> LocSymbol -> [((Int, F.Symbol), Ghc.TyThing)]
 -------------------------------------------------------------------------------
-lookupTyThing env mdname lsym = [ (k, t) | (k, ts) <- ordMatches, t <- ts]
+lookupTyThingLH env mdname lsym = [ (k, t) | (k, ts) <- ordMatches, t <- ts]
 
   where
     ordMatches             = Misc.sortOn fst (Misc.groupList matches)
     matches                = myTracepp ("matches-" ++ msg)
                              [ ((k, m), t) | (m, t) <- lookupThings env x
                                            , k      <- myTracepp msg $ mm nameSym m mds ]
-    msg                    = "lookupTyThing: " ++ F.showpp (lsym, x, mds)
+    msg                    = "lookupTyThingLH: " ++ F.showpp (lsym, x, mds)
     (x, mds)               = symbolModules env (F.val lsym)
     nameSym                = F.symbol mdname
     mm name m mods         = myTracepp ("matchMod: " ++ F.showpp (lsym, name, m, mods)) $
@@ -924,40 +929,33 @@ ofBRType env name f l = go []
         lc'                    = F.atLoc lc <$> matchTyCon env lc
         lc                     = btc_tc tc
 
--- | Get the TyCon from an LHName.
+matchTyCon :: Env -> Located LHName -> Lookup Ghc.TyCon
+matchTyCon env lc = do
+    case lookupTyThing env lc of
+      Ghc.ATyCon tc -> Right tc
+      Ghc.AConLike (Ghc.RealDataCon dc) -> Right $ Ghc.promoteDataCon dc
+      _ -> panic
+            (Just $ GM.fSrcSpan lc) $ "not a type constructor: " ++ show (val lc)
+
+-- | Get the TyThing from an LHName.
 --
 -- This function uses 'unsafePerformIO' to lookup the 'Ghc.TyThing' of a 'Ghc.Name'.
 -- This should be benign because the result doesn't depend of when exactly this is
 -- called. Since this code is intended to be used inside a GHC plugin, there is no
 -- danger that GHC is finalized before the result is evaluated.
-matchTyCon :: Env -> Located LHName -> Lookup Ghc.TyCon
-matchTyCon env lc@(Loc _ _ c0) = unsafePerformIO $ do
+lookupTyThing :: Env -> Located LHName -> Ghc.TyThing
+lookupTyThing env lc@(Loc _ _ c0) = unsafePerformIO $ do
     case c0 of
-      LHNUnresolved _ _ -> panic (Just $ GM.fSrcSpan lc) $ "matchTyCon: unresolved name: " ++ show c0
+      LHNUnresolved _ _ -> panic (Just $ GM.fSrcSpan lc) $ "unresolved name: " ++ show c0
       LHNResolved rn _ -> case rn of
-        LHRLocal _ -> panic (Just $ GM.fSrcSpan lc) $ "matchTyCon: cannot resolve a local name: " ++ show c0
-        LHRIndex i -> panic (Just $ GM.fSrcSpan lc) $ "matchTyCon: cannot resolve a LHRIndex " ++ show i
-        LHRLogic (LogicName s _) -> panic (Just $ GM.fSrcSpan lc) $ "matchTyCon: cannot resolve a LHRLogic name " ++ show s
+        LHRLocal _ -> panic (Just $ GM.fSrcSpan lc) $ "cannot resolve a local name: " ++ show c0
+        LHRIndex i -> panic (Just $ GM.fSrcSpan lc) $ "cannot resolve a LHRIndex " ++ show i
+        LHRLogic (LogicName s _) -> panic (Just $ GM.fSrcSpan lc) $ "lookupTyThing: cannot resolve a LHRLogic name " ++ show s
         LHRGHC n -> do
           (_, m) <- Ghc.reflectGhc (Interface.lookupTyThing (reTcGblEnv env) n) (reSession env)
-          case  m of
-            Just (Ghc.ATyCon tc) -> return (Right tc)
-            Just (Ghc.AConLike (Ghc.RealDataCon dc)) ->
-              return $ Right $ Ghc.promoteDataCon dc
-            Just _ -> return $ Left
-              [ ErrResolve
-                  (GM.fSrcSpan lc)
-                  "type constructor"
-                  (PJ.text $ show c0)
-                  "not a type constructor"
-              ]
-            Nothing -> return $ Left
-              [ ErrResolve
-                  (GM.fSrcSpan lc)
-                  "type constructor"
-                  (PJ.text $ show c0)
-                  "not found"
-              ]
+          case m of
+            Just tt -> return tt
+            Nothing -> panic (Just $ GM.fSrcSpan lc) $ "not found: " ++ show c0
 
 bareTCApp :: (Expandable r)
           => r

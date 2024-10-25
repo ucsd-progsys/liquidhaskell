@@ -41,6 +41,7 @@ import           Text.Printf
 import qualified Language.Fixpoint.Types as F
 
 import           Language.Haskell.Liquid.GHC.Misc
+import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RType
 
 
@@ -61,13 +62,15 @@ data DataDecl   = DataDecl
 
 -- | The name of the `TyCon` corresponding to a `DataDecl`
 data DataName
-  = DnName !F.LocSymbol                -- ^ for 'isVanillyAlgTyCon' we can directly use the `TyCon` name
-  | DnCon  !F.LocSymbol                -- ^ for 'FamInst' TyCon we save some `DataCon` name
+  = DnName !(F.Located LHName)         -- ^ for 'isVanillyAlgTyCon' we can directly use the `TyCon` name
+  | DnCon  !(F.Located LHName)         -- ^ for 'FamInst' TyCon we save some `DataCon` name
   deriving (Eq, Ord, Data, Typeable, Generic)
+
+instance Hashable DataName
 
 -- | Data Constructor
 data DataCtor = DataCtor
-  { dcName   :: F.LocSymbol            -- ^ DataCon name
+  { dcName   :: F.Located LHName       -- ^ DataCon name
   , dcTyVars :: [F.Symbol]             -- ^ Type parameters
   , dcTheta  :: [BareType]             -- ^ The GHC ThetaType corresponding to DataCon.dataConSig
   , dcFields :: [(F.Symbol, BareType)] -- ^ field-name and field-Type pairs
@@ -99,10 +102,6 @@ hasDecl d
   -- // = NoDecl (Just s)
   | otherwise
   = HasDecl
-
-instance Hashable DataName where
-  hashWithSalt i = hashWithSalt i . F.symbol
-
 
 instance NFData   DataDeclKind
 instance B.Binary DataDeclKind
@@ -140,12 +139,6 @@ instance Show DataName where
   show (DnName n) =               show (F.val n)
   show (DnCon  c) = "datacon:" ++ show (F.val c)
 
-instance F.Symbolic DataName where
-  symbol = F.val . dataNameSymbol
-
-instance F.Symbolic DataDecl where
-  symbol = F.symbol . tycName
-
 instance F.PPrint DataName where
   pprintTidy k (DnName n) = F.pprintTidy k (F.val n)
   pprintTidy k (DnCon  n) = F.pprintTidy k (F.val n)
@@ -153,7 +146,7 @@ instance F.PPrint DataName where
   -- symbol (DnName z) = F.suffixSymbol "DnName" (F.val z)
   -- symbol (DnCon  z) = F.suffixSymbol "DnCon"  (F.val z)
 
-dataNameSymbol :: DataName -> F.LocSymbol
+dataNameSymbol :: DataName -> F.Located LHName
 dataNameSymbol (DnName z) = z
 dataNameSymbol (DnCon  z) = z
 

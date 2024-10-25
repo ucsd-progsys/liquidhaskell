@@ -13,6 +13,7 @@ module Language.Haskell.Liquid.Types.Names
   , makeResolvedLHName
   , getLHNameResolved
   , getLHNameSymbol
+  , lhNameFromGHCName
   , makeUnresolvedLHName
   , mapLHNames
   , mapMLocLHNames
@@ -27,6 +28,7 @@ import Data.String (fromString)
 import GHC.Generics
 import GHC.Stack
 import Language.Fixpoint.Types
+import Language.Haskell.Liquid.GHC.Misc () -- Symbolic GHC.Name
 import qualified Liquid.GHC.API as GHC
 import Text.PrettyPrint.HughesPJ.Compat
 
@@ -149,6 +151,9 @@ instance PPrint LHName where
 
 makeResolvedLHName :: LHResolvedName -> Symbol -> LHName
 makeResolvedLHName = LHNResolved
+
+lhNameFromGHCName :: GHC.Name -> Symbol -> LHName
+lhNameFromGHCName n s = makeResolvedLHName (LHRGHC n) s
 
 makeUnresolvedLHName :: LHNameSpace -> Symbol -> LHName
 makeUnresolvedLHName = LHNUnresolved
