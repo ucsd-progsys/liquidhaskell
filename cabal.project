@@ -35,3 +35,7 @@ package liquidhaskell
 
 package liquidhaskell-boot
   ghc-options: -j
+
+constraints:
+  -- vector-0.13.2.0 breaks store-0.7.18
+  vector <= 0.13.1.0
