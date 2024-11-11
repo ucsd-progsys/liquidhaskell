@@ -1755,7 +1755,7 @@ classBinds _ t
   = notracepp ("CLASSBINDS-1: " ++ showpp (toType False t, isEqualityConstr t)) []
 
 isEqualityConstr :: SpecType -> Bool
-isEqualityConstr (toType False -> ty) = Ghc.isEqPred ty || Ghc.isEqPrimPred ty
+isEqualityConstr (toType False -> ty) = Ghc.isEqPred ty || Ghc.isEqClassPred ty
 
 --------------------------------------------------------------------------------
 -- | Termination Predicates ----------------------------------------------------

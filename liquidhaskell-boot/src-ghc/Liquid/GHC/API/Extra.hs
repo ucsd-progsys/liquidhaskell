@@ -212,7 +212,7 @@ apiCommentsParsedSource ps =
 
     -- TODO: take into account anchor_op, which only matters if the source was
     -- pre-processed by an exact-print-aware tool.
-    toRealSrc (L a e) = L (RealSrcSpan (anchor a) strictNothing) e
+    toRealSrc (L a e) = L (RealSrcSpan (epaLocationRealSrcSpan a) strictNothing) e
 
     spanToLineColumn =
       fmap (\s -> (srcSpanStartLine s, srcSpanStartCol s)) . srcSpanToRealSrcSpan
