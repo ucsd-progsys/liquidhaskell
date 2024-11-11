@@ -41,7 +41,6 @@ library
                       Language.Haskell.Liquid.Bare.ToBare
                       Language.Haskell.Liquid.Bare.Types
                       Language.Haskell.Liquid.Bare.Typeclass
-                      Language.Haskell.Liquid.Bare.Elaborate
                       Language.Haskell.Liquid.CSS
                       Language.Haskell.Liquid.Constraint.Constraint
                       Language.Haskell.Liquid.Constraint.Env

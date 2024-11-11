@@ -56,7 +56,6 @@ import qualified Language.Haskell.Liquid.Measure            as Ms
 import qualified Language.Haskell.Liquid.Bare.Types         as Bare
 import qualified Language.Haskell.Liquid.Bare.Resolve       as Bare
 import qualified Language.Haskell.Liquid.Bare.DataType      as Bare
-import           Language.Haskell.Liquid.Bare.Elaborate
 import qualified Language.Haskell.Liquid.Bare.Expand        as Bare
 import qualified Language.Haskell.Liquid.Bare.Measure       as Bare
 import qualified Language.Haskell.Liquid.Bare.Plugged       as Bare
@@ -262,7 +261,7 @@ makeGhcSpec0
   -> Ghc.TcRn (Diagnostics, GhcSpec)
 makeGhcSpec0 cfg session tcg instEnvs localVars src lmap targetSpec dependencySpecs = do
   -- build up environments
-  tycEnv <- makeTycEnv1 name env (tycEnv0, datacons) coreToLg simplifier
+  tycEnv <- makeTycEnv1 name env (tycEnv0, datacons)
   let tyi      = Bare.tcTyConMap   tycEnv
   let sigEnv   = makeSigEnv  embs tyi (_gsExports src) rtEnv
   let lSpec1   = makeLiftedSpec1 cfg src tycEnv lmap mySpec1
@@ -274,7 +273,7 @@ makeGhcSpec0 cfg session tcg instEnvs localVars src lmap targetSpec dependencySp
   let (dg1, measEnv0) = withDiagnostics $ makeMeasEnv      env tycEnv sigEnv       specs
   let (dg2, (specInstances, sig)) = withDiagnostics $ makeSpecSig cfg name mySpec iSpecs2 env sigEnv tycEnv measEnv0 (_giCbs src)
   elaboratedSig <-
-    if allowTC then Bare.makeClassAuxTypes (elaborateSpecType coreToLg simplifier) datacons instMethods
+    if allowTC then Bare.makeClassAuxTypes datacons instMethods
                               >>= elaborateSig sig
                else pure sig
   let (dg3, refl)    = withDiagnostics $ makeSpecRefl cfg src specs env name elaboratedSig tycEnv
@@ -333,23 +332,8 @@ makeGhcSpec0 cfg session tcg instEnvs localVars src lmap targetSpec dependencySp
     })
   where
     -- typeclass elaboration
-
-    coreToLg ce =
-      case CoreToLogic.runToLogic
-             embs
-             lmap
-             dm
-             (\x -> todo Nothing ("coreToLogic not working " ++ x))
-             (CoreToLogic.coreToLogic allowTC ce) of
-        Left msg -> panic Nothing (F.showpp msg)
-        Right e -> e
     elaborateSig si auxsig = do
-      tySigs <-
-        forM (gsTySigs si) $ \(x, t) ->
-          if GM.isFromGHCReal x then
-            pure (x, t)
-          else do t' <- traverse (elaborateSpecType coreToLg simplifier) t
-                  pure (x, t')
+      let tySigs = gsTySigs si
       -- things like len breaks the code
       -- asmsigs should be elaborated only if they are from the current module
       -- asmSigs <- forM (gsAsmSigs si) $ \(x, t) -> do
@@ -359,8 +343,6 @@ makeGhcSpec0 cfg session tcg instEnvs localVars src lmap targetSpec dependencySp
         si
           { gsTySigs = F.notracepp ("asmSigs" ++ F.showpp (gsAsmSigs si)) tySigs ++ auxsig  }
 
-    simplifier :: Ghc.CoreExpr -> Ghc.TcRn Ghc.CoreExpr
-    simplifier = pure -- no simplification
     allowTC  = typeclass cfg
     mySpec2  = Bare.qualifyExpand env name rtEnv l [] mySpec1    where l = F.dummyPos "expand-mySpec2"
     iSpecs2  = Bare.qualifyExpand
@@ -378,7 +360,6 @@ makeGhcSpec0 cfg session tcg instEnvs localVars src lmap targetSpec dependencySp
     mySpec1  = mySpec0 <> lSpec0
     lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec0
     embs     = makeEmbeds          src env (mySpec0 : map snd dependencySpecs)
-    dm       = Bare.tcDataConMap tycEnv0
     (dg0, datacons, tycEnv0) = makeTycEnv0   cfg name env embs mySpec2 iSpecs2
     env      = Bare.makeEnv cfg session tcg instEnvs localVars src lmap ((name, targetSpec) : dependencySpecs)
     -- check barespecs
@@ -1228,12 +1209,10 @@ makeTycEnv1 ::
      ModName
   -> Bare.Env
   -> (Bare.TycEnv, [Located DataConP])
-  -> (Ghc.CoreExpr -> F.Expr)
-  -> (Ghc.CoreExpr -> Ghc.TcRn Ghc.CoreExpr)
   -> Ghc.TcRn Bare.TycEnv
-makeTycEnv1 myName env (tycEnv, datacons) coreToLg simplifier = do
+makeTycEnv1 myName env (tycEnv, datacons) = do
   -- fst for selector generation, snd for dataconsig generation
-  lclassdcs <- forM classdcs $ traverse (Bare.elaborateClassDcp coreToLg simplifier)
+  lclassdcs <- forM classdcs $ traverse Bare.elaborateClassDcp
   let recSelectors = Bare.makeRecordSelectorSigs env myName (dcs ++ (fmap . fmap) snd lclassdcs)
   pure $
     tycEnv {Bare.tcSelVars = recSelectors, Bare.tcDataCons = F.val <$> ((fmap . fmap) fst lclassdcs ++ dcs )}

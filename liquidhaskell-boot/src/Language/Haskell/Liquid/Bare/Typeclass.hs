@@ -21,7 +21,6 @@ import           Data.Hashable                  ()
 import qualified Data.Maybe                    as Mb
 import qualified Language.Fixpoint.Types       as F
 import qualified Language.Fixpoint.Misc        as Misc
-import           Language.Haskell.Liquid.Bare.Elaborate
 import qualified Language.Haskell.Liquid.GHC.Misc
                                                as GM
 import qualified Liquid.GHC.API
@@ -182,14 +181,11 @@ classDeclToDataDecl cls refinedIds = DataDecl
 --    functions. Each method type contains the full forall quantifiers
 --    instead of having them chopped off
 elaborateClassDcp
-  :: (Ghc.CoreExpr -> F.Expr)
-  -> (Ghc.CoreExpr -> Ghc.TcRn Ghc.CoreExpr)
-  -> DataConP
+  :: DataConP
   -> Ghc.TcRn (DataConP, DataConP)
-elaborateClassDcp coreToLg simplifier dcp = do
-  t' <- flip (zipWith addCoherenceOblig) prefts
-    <$> forM fts (elaborateSpecType coreToLg simplifier)
-  let ts' = elaborateMethod (F.symbol dc) (S.fromList xs) <$> t'
+elaborateClassDcp dcp = do
+  let t' = zipWith addCoherenceOblig fts prefts
+      ts' = elaborateMethod (F.symbol dc) (S.fromList xs) <$> t'
   pure
     ( dcp { dcpTyArgs = zip xs (stripPred <$> ts') }
     , dcp { dcpTyArgs = fmap (\(x, t) -> (x, strengthenTy x t)) (zip xs t') }
@@ -316,11 +312,10 @@ renameTvs rename t
 
 
 makeClassAuxTypes ::
-     (SpecType -> Ghc.TcRn SpecType)
-  -> [F.Located DataConP]
+     [F.Located DataConP]
   -> [(Ghc.ClsInst, [Ghc.Var])]
   -> Ghc.TcRn [(Ghc.Var, LocSpecType)]
-makeClassAuxTypes elab dcps xs = Misc.concatMapM (makeClassAuxTypesOne elab) dcpInstMethods
+makeClassAuxTypes dcps xs = Misc.concatMapM makeClassAuxTypesOne dcpInstMethods
   where
     dcpInstMethods = do
       dcp <- dcps
@@ -332,10 +327,9 @@ makeClassAuxTypes elab dcps xs = Misc.concatMapM (makeClassAuxTypesOne elab) dcp
       pure (dcp, inst, methods)
 
 makeClassAuxTypesOne ::
-     (SpecType -> Ghc.TcRn SpecType)
-  -> (F.Located DataConP, Ghc.ClsInst, [Ghc.Var])
+     (F.Located DataConP, Ghc.ClsInst, [Ghc.Var])
   -> Ghc.TcRn [(Ghc.Var, LocSpecType)]
-makeClassAuxTypesOne elab (ldcp, inst, methods) =
+makeClassAuxTypesOne (ldcp, inst, methods) =
   forM methods $ \method -> do
     let (headlessSig, preft) =
           case L.lookup (mkSymbol method) yts' of
@@ -353,7 +347,7 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
             ptys .
           subst (zip clsTvs isSpecTys) $
           headlessSig
-    elaboratedSig  <- flip addCoherenceOblig preft <$> elab fullSig
+        elaboratedSig = addCoherenceOblig fullSig preft
 
     let retSig =  mapExprReft (\_ -> substAuxMethod dfunSym methodsSet) (F.notracepp ("elaborated" ++ GM.showPpr method) elaboratedSig)
     let tysub  = F.notracepp "tysub" $ M.fromList $ zip (F.notracepp "newtype-vars" $ RT.allTyVars' (F.notracepp "new-type" retSig)) (F.notracepp "ghc-type-vars" (RT.allTyVars' ((F.notracepp "ghc-type" $ RT.ofType (Ghc.varType method)) :: SpecType)))
