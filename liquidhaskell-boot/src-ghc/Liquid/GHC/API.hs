@@ -331,10 +331,10 @@ import GHC.Core.Predicate             as Ghc
     ( getClassPredTys_maybe
     , getClassPredTys
     , isEvVarType
+    , isEqClassPred
     , isEqPred
     , isClassPred
     , isDictId
-    , isNomEqPred
     , mkClassPred
     )
 import GHC.Core.Reduction             as Ghc
