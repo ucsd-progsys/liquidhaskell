@@ -975,7 +975,16 @@ withWiredIn m = discardConstraints $ do
     aName <- toLoc <$> toName "a"
     let aTy = nameToTy aName
     let ty = toLoc $ HsForAllTy Ghc.noExtField
-             (mkHsForAllInvisTele Ghc.noAnn [toLoc $ UserTyVar Ghc.noAnn SpecifiedSpec aName]) $ mkHsFunTy aTy (mkHsFunTy aTy boolTy')
+             (mkHsForAllInvisTele Ghc.noAnn
+               [ toLoc $
+                   Ghc.HsTvb
+                   Ghc.noAnn
+                   Ghc.SpecifiedSpec
+                   (Ghc.HsBndrVar Ghc.noExtField aName)
+                   (Ghc.HsBndrNoKind Ghc.noExtField)
+               ]
+             )
+             $ mkHsFunTy aTy (mkHsFunTy aTy boolTy')
     return $ TcWiredIn n (Just (4, Ghc.InfixN)) ty
 
   -- TODO: This is defined as a measure in liquidhaskell GHC.Base_LHAssumptions. We probably want to insert all measures to the environment.
@@ -985,7 +994,15 @@ withWiredIn m = discardConstraints $ do
     aName <- toLoc <$> toName "a"
     let aTy = nameToTy aName
     let ty = toLoc $ HsForAllTy Ghc.noExtField
-               (mkHsForAllInvisTele Ghc.noAnn [toLoc $ UserTyVar Ghc.noAnn SpecifiedSpec aName]) $ mkHsFunTy (listTy aTy) intTy'
+               (mkHsForAllInvisTele Ghc.noAnn
+                 [ toLoc $
+                     Ghc.HsTvb
+                     Ghc.noAnn
+                     Ghc.SpecifiedSpec
+                     (Ghc.HsBndrVar Ghc.noExtField aName)
+                     (Ghc.HsBndrNoKind Ghc.noExtField)
+                 ]
+               ) $ mkHsFunTy (listTy aTy) intTy'
     return $ TcWiredIn n Nothing ty
 
 prependGHCRealQual :: FastString -> RdrName

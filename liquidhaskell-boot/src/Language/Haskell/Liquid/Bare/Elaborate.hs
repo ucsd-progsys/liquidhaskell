@@ -36,7 +36,6 @@ import           Control.Monad.Free
 import           Data.Char                      ( isUpper )
 import           GHC.Types.Name.Occurrence
 import qualified Liquid.GHC.API as Ghc
-                                                (noExtField)
 import qualified Data.Maybe                    as Mb
 
 -- TODO: make elaboration monadic so typeclass names are unified to something
@@ -690,7 +689,15 @@ specTypeToLHsType = \case
       | otherwise       -> nlHsFunTy (specTypeToLHsType tin) (specTypeToLHsType tout)
     RAllT (ty_var_value -> (RTV tv)) t _ -> noLocA $ HsForAllTy
       Ghc.noExtField
-      (mkHsForAllInvisTele noAnn [noLocA $ UserTyVar noAnn SpecifiedSpec (noLocA $ symbolToRdrNameNs tvName (F.symbol tv))])
+      (mkHsForAllInvisTele noAnn
+        [ noLocA $
+            Ghc.HsTvb
+              noAnn
+              Ghc.SpecifiedSpec
+              (Ghc.HsBndrVar Ghc.noExtField (noLocA $ symbolToRdrNameNs tvName (F.symbol tv)))
+              (Ghc.HsBndrNoKind Ghc.noExtField)
+        ]
+      )
       (specTypeToLHsType t)
     RAllP _ ty -> specTypeToLHsType ty
     RApp RTyCon { rtc_tc = tc } ts _ _ -> mkHsTyConApp
