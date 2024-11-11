@@ -324,7 +324,16 @@ import GHC.Core.Make                  as Ghc
     , mkCoreLets
     , pAT_ERROR_ID
     )
-import GHC.Core.Predicate             as Ghc (getClassPredTys_maybe, getClassPredTys, isEvVarType, isEqPrimPred, isEqPred, isClassPred, isDictId, mkClassPred)
+import GHC.Core.Predicate             as Ghc
+    ( getClassPredTys_maybe
+    , getClassPredTys
+    , isEvVarType
+    , isEqClassPred
+    , isEqPred
+    , isClassPred
+    , isDictId
+    , mkClassPred
+    )
 import GHC.Core.Reduction             as Ghc
     ( Reduction(Reduction) )
 import GHC.Core.Subst                 as Ghc (emptySubst, extendCvSubst)

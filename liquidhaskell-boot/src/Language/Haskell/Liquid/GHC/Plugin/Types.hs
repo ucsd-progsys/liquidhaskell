@@ -23,7 +23,6 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
 
 import           Data.Binary                             as B
 import           Data.Data                               ( Data )
-import           Data.Foldable
 import           GHC.Generics                      hiding ( moduleName )
 
 import           Language.Haskell.Liquid.Parse (BPspec)

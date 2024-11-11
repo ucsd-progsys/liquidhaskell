@@ -710,7 +710,7 @@ isEmbeddedDictVar v = F.notracepp msg . isEmbeddedDictType . varType $ v
     msg     =  "isGoodCaseBind v = " ++ show v
 
 isEmbeddedDictType :: Type -> Bool
-isEmbeddedDictType = anyF [isOrdPred, isNumericPred, isEqPred, isPrelEqPred]
+isEmbeddedDictType = anyF [isOrdPred, isNumericPred, isEqClassPred, isPrelEqPred]
 
 -- unlike isNumCls, isFracCls, these two don't check if the argument's
 -- superclass is Ord or Num. I believe this is the more predictable behavior
@@ -751,7 +751,7 @@ isPredVar v = F.notracepp msg . isPredType . varType $ v
     msg     =  "isGoodCaseBind v = " ++ show v
 
 isPredType :: Type -> Bool
-isPredType = anyF [ isClassPred, isEqPred, isEqPrimPred ]
+isPredType = anyF [ isClassPred, isEqPred, isEqClassPred ]
 
 anyF :: [a -> Bool] -> a -> Bool
 anyF ps x = or [ p x | p <- ps ]
@@ -815,7 +815,7 @@ elabRnExpr rdr_expr = do
     let { fresh_it = itName uniq (getLocA rdr_expr) }
     ((_qtvs, _dicts, evbs, _), residual)
          <- captureConstraints $
-            simplifyInfer tclvl NoRestrictions
+            simplifyInfer NotTopLevel tclvl NoRestrictions
                           []    {- No sig vars -}
                           [(fresh_it, res_ty)]
                           lie
@@ -899,7 +899,7 @@ withWiredIn m = discardConstraints $ do
   -- undef <- lookupUndef
   wiredIns <- mkWiredIns
   -- snd <$> tcValBinds Ghc.NotTopLevel (binds undef wiredIns) (sigs wiredIns) m
-  (_, _, a) <- tcValBinds Ghc.NotTopLevel [] (sigs wiredIns) m
+  (_, a) <- tcValBinds Ghc.NotTopLevel [] (sigs wiredIns) m
   return a
 
  where
