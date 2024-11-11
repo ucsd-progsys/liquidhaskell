@@ -46,12 +46,6 @@ eqType' _ _
   = False 
 
 
-deriving instance (Eq tyvar, Eq argf) => Eq (VarBndr tyvar argf)
-
-instance Eq Coercion where
-  _ == _ = True 
-
-
 showTy :: Type -> String 
 showTy (TyConApp c ts) = "(RApp   " ++ showPpr c ++ " " ++ sep' ", " (showTy <$> ts) ++ ")"
 showTy (AppTy t1 t2)   = "(TAppTy " ++ (showTy t1 ++ " " ++ showTy t2) ++ ")" 
@@ -92,7 +86,7 @@ substType x tx f@(ForAllTy b@(Bndr y _) t)
   = ForAllTy b (substType x tx t)
 substType x tx (CastTy t c)    
   = let ss = extendSubstInScopeSet (zipTvSubst [x] [tx]) (tyCoVarsOfCo c)
-     in CastTy (substType x tx t) (substCo ss c) substTy
+     in CastTy (substType x tx t) (substCo ss c)
 substType x tx (CoercionTy c)  
   = let ss = extendSubstInScopeSet (zipTvSubst [x] [tx]) (tyCoVarsOfCo c)
      in CoercionTy $ substCo ss c

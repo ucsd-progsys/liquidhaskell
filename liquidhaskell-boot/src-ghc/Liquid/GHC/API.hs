@@ -41,12 +41,14 @@ import           GHC                  as Ghc
     , GhcMode(CompManager)
     , GhcPs
     , GhcRn
+    , HsBndrKind(HsBndrNoKind)
+    , HsBndrVar(HsBndrVar)
     , HsDecl(SigD)
     , HsExpr(ExprWithTySig, HsOverLit, HsVar)
     , HsModule(hsmodDecls)
     , HsOuterTyVarBndrs(HsOuterImplicit)
     , HsSigType(HsSig)
-    , HsTyVarBndr(UserTyVar)
+    , HsTyVarBndr(HsTvb)
     , HsType(HsAppTy, HsForAllTy, HsQualTy, HsTyVar, HsWildCardTy)
     , HsArg(HsValArg)
     , HsWildCardBndrs(HsWC)
@@ -268,7 +270,9 @@ import GHC.Core.Coercion              as Ghc
     , mkRepReflCo
     )
 import GHC.Core.Coercion.Axiom        as Ghc
-    ( coAxiomTyCon )
+    ( coAxiomTyCon
+    , isNewtypeAxiomRule_maybe
+    )
 import GHC.Core.ConLike               as Ghc
     ( ConLike(RealDataCon) )
 import GHC.Core.DataCon               as Ghc
@@ -317,9 +321,10 @@ import GHC.Core.Reduction             as Ghc
     ( Reduction(Reduction) )
 import GHC.Core.Subst                 as Ghc (emptySubst, extendCvSubst)
 import GHC.Core.TyCo.Rep              as Ghc
-    ( FunTyFlag(FTF_T_T, FTF_C_T)
+    ( Coercion
+    , FunTyFlag(FTF_T_T, FTF_C_T)
     , ForAllTyFlag(Required)
-    , Coercion (AxiomInstCo, SymCo)
+    , Coercion (AxiomCo, SymCo)
     , TyLit(CharTyLit, NumTyLit, StrTyLit)
     , Type
         ( AppTy

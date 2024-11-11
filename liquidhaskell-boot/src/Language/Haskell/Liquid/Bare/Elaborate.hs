@@ -40,7 +40,6 @@ import           Data.Char                      ( isUpper )
 import           Data.Functor.Foldable
 import           GHC.Types.Name.Occurrence
 import qualified Liquid.GHC.API as Ghc
-                                                (noExtField)
 import           Data.Default                   ( def )
 import qualified Data.Maybe                    as Mb
 
@@ -691,7 +690,15 @@ specTypeToLHsType =
       | otherwise       -> nlHsFunTy tin' tout
     RAllTF (ty_var_value -> (RTV tv)) (_, t) _ -> noLocA $ HsForAllTy
       Ghc.noExtField
-      (mkHsForAllInvisTele noAnn [noLocA $ UserTyVar noAnn SpecifiedSpec (noLocA $ symbolToRdrNameNs tvName (F.symbol tv))])
+      (mkHsForAllInvisTele noAnn
+        [ noLocA $
+            Ghc.HsTvb
+              noAnn
+              Ghc.SpecifiedSpec
+              (Ghc.HsBndrVar Ghc.noExtField (noLocA $ symbolToRdrNameNs tvName (F.symbol tv)))
+              (Ghc.HsBndrNoKind Ghc.noExtField)
+        ]
+      )
       t
     RAllPF _ (_, ty)                    -> ty
     RAppF RTyCon { rtc_tc = tc } ts _ _ -> mkHsTyConApp
