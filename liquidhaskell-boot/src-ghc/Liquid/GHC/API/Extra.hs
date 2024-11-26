@@ -38,7 +38,6 @@ import Data.Data (Data, gmapQr)
 import Data.Generics (extQ)
 import Data.Foldable                  (asum)
 import Data.List                      (sortOn)
-import qualified Data.Map as Map
 import qualified Data.Set as S
 import GHC.Builtin.Names ( dollarIdKey, minusName )
 import GHC.Core                       as Ghc
@@ -65,7 +64,8 @@ import GHC.Unit.Module.Deps           as Ghc (Dependencies(dep_direct_mods))
 import GHC.Unit.Module.Graph          as Ghc
   ( NodeKey(NodeKey_Module)
   , ModNodeKeyWithUid(ModNodeKeyWithUid)
-  , mgTransDeps
+  , mkNodeKey
+  , mgReachable
   )
 import GHC.Unit.Module.ModDetails     (md_types)
 import GHC.Unit.Module.ModSummary     (isBootSummary)
@@ -94,13 +94,14 @@ tyConRealArity tc = go 0 (tyConKind tc)
 
 getDependenciesModuleNames :: ModuleGraph -> UnitId -> Dependencies -> [ModuleNameWithIsBoot]
 getDependenciesModuleNames mg unitId deps =
-    mapMaybe nodeKeyToModuleName $ S.toList $ S.unions $ catMaybes
-      [ Map.lookup k tdeps
+    mapMaybe nodeKeyToModuleName
+      [ mkNodeKey x
       | (_, m) <- S.toList $ dep_direct_mods deps
       , let k = NodeKey_Module $ ModNodeKeyWithUid m unitId
+      , Just xs <- [mgReachable mg k]
+      , x <- xs
       ]
   where
-    tdeps = mgTransDeps mg
     nodeKeyToModuleName (NodeKey_Module (ModNodeKeyWithUid m _)) = Just m
     nodeKeyToModuleName _ = Nothing
 
