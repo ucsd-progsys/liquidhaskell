@@ -715,6 +715,6 @@ specTypeToLHsType =
     RAppTyF (_, t) (_, t') _ -> nlHsAppTy t t'
     -- YL: todo..
     RRTyF _ _ _ (_, t)       -> t
-    RHoleF _                 -> noLocA $ HsWildCardTy Ghc.noExtField
+    RHoleF _                 -> noLocA $ HsWildCardTy Ghc.noAnn
     RExprArgF _ ->
       todo Nothing "Oops, specTypeToLHsType doesn't know how to handle RExprArg"
