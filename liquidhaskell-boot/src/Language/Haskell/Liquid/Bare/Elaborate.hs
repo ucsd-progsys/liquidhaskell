@@ -712,6 +712,6 @@ specTypeToLHsType = \case
       impossible Nothing "RExprArg should not appear here"
     RAppTy t t' _ -> nlHsFunTy (specTypeToLHsType t) (specTypeToLHsType t')
     RRTy _ _ _ t -> specTypeToLHsType t
-    RHole _ -> noLocA $ HsWildCardTy Ghc.noExtField
+    RHole _ -> noLocA $ HsWildCardTy Ghc.noAnn
     RExprArg _ ->
       todo Nothing "Oops, specTypeToLHsType doesn't know how to handle RExprArg"
