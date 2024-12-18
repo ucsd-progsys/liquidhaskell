@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=Illegal type specification for `bar`" @-}
+{-@ LIQUID "--expect-error-containing=Unknown logic name `barg0`" @-}
 module UnboundVarInLocSig where
 
 {-@ foo :: x:_ -> y:_ -> {v:Int | v = x + y} @-} 

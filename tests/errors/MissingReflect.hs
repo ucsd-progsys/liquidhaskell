@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=Illegal type specification for `MissingReflect.empty_foo`" @-}
+{-@ LIQUID "--expect-error-containing=Unknown logic name `foo`" @-}
 {-@ LIQUID "--reflection"                     @-}
 {-@ LIQUID "--ple"                                @-}
 

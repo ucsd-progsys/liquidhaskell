@@ -21,10 +21,11 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic
   , normalize
   ) where
 
+import           Data.Bifunctor (first)
 import           Data.ByteString                       (ByteString)
 import           Prelude                               hiding (error)
 import           Language.Haskell.Liquid.GHC.TypeRep   () -- needed for Eq 'Type'
-import           Liquid.GHC.API       hiding (Expr, Located, panic)
+import           Liquid.GHC.API       hiding (Expr, Located, get, panic)
 import qualified Liquid.GHC.API       as Ghc
 import qualified Liquid.GHC.API       as C
 import qualified Data.List                             as L
@@ -37,7 +38,6 @@ import           Data.Text.Encoding.Error
 import           Control.Monad.State
 import           Control.Monad.Except
 import           Control.Monad.Identity
-import qualified Language.Fixpoint.Misc                as Misc
 import qualified Language.Haskell.Liquid.Misc          as Misc
 import           Language.Fixpoint.Types               hiding (panic, Error, R, simplify, isBool)
 import qualified Language.Fixpoint.Types               as F
@@ -49,6 +49,7 @@ import           Language.Haskell.Liquid.Bare.DataType
 import           Language.Haskell.Liquid.Bare.Misc     (simpleSymbolVar)
 import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.RTypeOp
@@ -165,7 +166,7 @@ runToLogicWithBoolBinds xs tce lmap dm ferror m
       , lsDCMap  = dm
       }
 
-coreAltToDef :: (Reftable r) => Bool -> LocSymbol -> Var -> [Var] -> Var -> Type -> [C.CoreAlt]
+coreAltToDef :: (Reftable r) => Bool -> Located LHName -> Var -> [Var] -> Var -> Type -> [C.CoreAlt]
              -> LogicM [Def (Located (RRType r)) DataCon]
 coreAltToDef allowTC locSym z zs y t alts
   | not (null litAlts) = measureFail locSym "Cannot lift definition with literal alternatives"
@@ -203,13 +204,13 @@ coreAltToDef allowTC locSym z zs y t alts
 toArgs :: Reftable r => (Located (RRType r) -> b) -> [Var] -> [(Symbol, b)]
 toArgs f args = [(symbol x, f $ varRType x) | x <- args]
 
-defArgs :: Monoid r => LocSymbol -> [Type] -> [(Symbol, Maybe (Located (RRType r)))]
+defArgs :: Monoid r => Located LHName -> [Type] -> [(Symbol, Maybe (Located (RRType r)))]
 defArgs x     = zipWith (\i t -> (defArg i, defRTyp t)) [0..]
   where
-    defArg    = tempSymbol (val x)
+    defArg    = tempSymbol (lhNameToResolvedSymbol $ val x)
     defRTyp   = Just . F.atLoc x . ofType
 
-coreToDef :: Reftable r => Bool -> LocSymbol -> Var -> C.CoreExpr
+coreToDef :: Reftable r => Bool -> Located LHName -> Var -> C.CoreExpr
           -> LogicM [Def (Located (RRType r)) DataCon]
 coreToDef allowTC locSym _                   = go [] . inlinePreds . simplify allowTC
   where
@@ -222,7 +223,7 @@ coreToDef allowTC locSym _                   = go [] . inlinePreds . simplify al
 
     inlinePreds   = inline (eqType boolTy . GM.expandVarType)
 
-measureFail       :: LocSymbol -> String -> a
+measureFail       :: Located LHName -> String -> a
 measureFail x msg = panic sp e
   where
     sp            = Just (GM.fSrcSpan x)
@@ -272,7 +273,7 @@ coreToLg allowTC (C.App (C.Var v) e)
 coreToLg _allowTC (C.Var x)
   | x == falseDataConId        = return PFalse
   | x == trueDataConId         = return PTrue
-  | otherwise                  = getState >>= eVarWithMap x . lsSymMap
+  | otherwise                  = eVarWithMap x . lsSymMap <$> getState
 coreToLg allowTC e@(C.App _ _)         = toPredApp allowTC e
 coreToLg allowTC (C.Case e b _ alts)
   | eqType (GM.expandVarType b) boolTy  = checkBoolAlts alts >>= coreToIte allowTC e
@@ -289,11 +290,9 @@ coreToLg allowTC (C.Cast e c)          = do (s, t) <- coerceToLg c
                                             return (ECoerc s t e')
 -- elaboration reuses coretologic
 -- TODO: fix this
-coreToLg True (C.Lam x e) = do p     <- coreToLg True e
-                               tce   <- lsEmb <$> getState
-                               return $ ELam (symbol x, typeSort tce (GM.expandVarType x)) p
-coreToLg _ e@(C.Lam _ _)        = throw ("Cannot transform lambda abstraction to Logic:\t" ++ GM.showPpr e ++
-                                            "\n\n Try using a helper function to remove the lambda.")
+coreToLg allowTC    (C.Lam x e) = do p     <- coreToLg allowTC e
+                                     tce   <- lsEmb <$> getState
+                                     return $ ELam (symbol x, typeSort tce (GM.expandVarType x)) p
 coreToLg _ e                     = throw ("Cannot transform to Logic:\t" ++ GM.showPpr e)
 
 
@@ -378,7 +377,7 @@ coreToIte allowTC e (efalse, etrue)
        return $ EIte p e2 e1
 
 toPredApp :: Bool -> C.CoreExpr -> LogicM Expr
-toPredApp allowTC p = go . Misc.mapFst opSym . splitArgs allowTC $ p
+toPredApp allowTC p = go . first opSym . splitArgs allowTC $ p
   where
     opSym = tomaybesymbol
     go (Just f, [e1, e2])
@@ -449,33 +448,13 @@ makeApp _ _ f [e1, e2]
   , Just op <- M.lookup (mappendSym (symbol ("GHC.Internal.Num." :: String)) sym) bops
   = EBin op e1 e2
 
-makeApp def lmap f es
-  = eAppWithMap lmap f es def
+makeApp def lmap f es =
+    eAppWithMap lmap (val f) es def
   -- where msg = "makeApp f = " ++ show f ++ " es = " ++ show es ++ " def = " ++ show def
 
-eVarWithMap :: Id -> LogicMap -> LogicM Expr
+eVarWithMap :: Id -> LogicMap -> Expr
 eVarWithMap x lmap = do
-  f'     <- tosymbol' (C.Var x :: C.CoreExpr)
-  -- let msg = "eVarWithMap x = " ++ show x ++ " f' = " ++ show f'
-  return $ eAppWithMap lmap f' [] (varExpr x)
-
-varExpr :: Var -> Expr
-varExpr x
-  | isPolyCst t = mkEApp (dummyLoc s) []
-  | otherwise   = EVar s
-  where
-    t           = GM.expandVarType x
-    s           = symbol x
-
-isPolyCst :: Type -> Bool
-isPolyCst (ForAllTy _ t) = isCst t
-isPolyCst _              = False
-
-isCst :: Type -> Bool
-isCst (ForAllTy _ t) = isCst t
-isCst FunTy{}        = False
-isCst _              = True
-
+    eAppWithMap lmap (symbol x) [] (EVar $ symbol x)
 
 brels :: M.HashMap Symbol Brel
 brels = M.fromList [ (symbol ("GHC.Classes.==" :: String), Eq)
@@ -668,10 +647,10 @@ instance Simplify C.CoreExpr where
 
 instance Simplify C.CoreBind where
   simplify allowTC (C.NonRec x e) = C.NonRec x (simplify allowTC e)
-  simplify allowTC (C.Rec xes)    = C.Rec (Misc.mapSnd (simplify allowTC) <$> xes )
+  simplify allowTC (C.Rec xes)    = C.Rec (fmap (simplify allowTC) <$> xes )
 
   inline p (C.NonRec x e) = C.NonRec x (inline p e)
-  inline p (C.Rec xes)    = C.Rec (Misc.mapSnd (inline p) <$> xes)
+  inline p (C.Rec xes)    = C.Rec (fmap (inline p) <$> xes)
 
 instance Simplify C.CoreAlt where
   simplify allowTC (Alt c xs e) = Alt c xs (simplify allowTC e)

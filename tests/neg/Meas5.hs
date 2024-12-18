@@ -3,8 +3,6 @@ module Meas5 () where
 
 import Language.Haskell.Liquid.Prelude
 
-{-@ include <len.hquals> @-}
-
 mylen          :: [a] -> Int
 mylen []       = 0
 mylen (_:xs)   = 1 + mylen xs

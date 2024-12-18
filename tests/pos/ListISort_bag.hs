@@ -16,7 +16,7 @@ insert y (x:xs)
   | otherwise = x : insert y xs
 
 {-@ measure bag @-}
-{-@ bag :: Ord a => [a] -> Bag a @-}
+{-@ bag :: Ord a => [a] -> B.Bag a @-}
 bag :: (Ord a) => [a] -> B.Bag a
 bag []     = B.empty
 bag (x:xs) = B.put x (bag xs)

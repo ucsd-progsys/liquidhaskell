@@ -2,7 +2,10 @@
 {-# LANGUAGE TupleSections      #-}
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveTraversable  #-}
 {-# LANGUAGE DeriveGeneric      #-}
+{-# LANGUAGE DerivingVia        #-}
+{-# LANGUAGE NamedFieldPuns     #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
@@ -10,11 +13,13 @@ module Language.Haskell.Liquid.Types.Bounds (
 
     Bound(..),
 
-    RBound, RRBound,
+    RBound, RRBound, RRBoundV,
 
-    RBEnv, RRBEnv,
+    RBEnv, RRBEnv, RRBEnvV,
 
     makeBound,
+    emapBoundM,
+    mapBoundTy
 
     ) where
 
@@ -24,13 +29,13 @@ import GHC.Generics
 import Data.List (partition)
 import Data.Maybe
 import Data.Hashable
-import Data.Bifunctor
+import Data.Bifunctor as Bifunctor
 import Data.Data
 import qualified Data.Binary         as B
+import Data.Traversable
 import qualified Data.HashMap.Strict as M
 
 import qualified Language.Fixpoint.Types as F
-import qualified Language.Fixpoint.Misc  as Misc -- (mapFst, mapSnd)
 import Language.Haskell.Liquid.Types.Errors
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.RType
@@ -44,15 +49,37 @@ data Bound t e = Bound
   , bparams :: [(LocSymbol, t)]  -- ^ These are abstract refinements, for now
   , bargs   :: [(LocSymbol, t)]  -- ^ These are value variables
   , bbody   :: e                 -- ^ The body of the bound
-  } deriving (Data, Typeable, Generic)
-
-instance (B.Binary t, B.Binary e) => B.Binary (Bound t e)
+  } deriving (Data, Typeable, Generic, Functor, Foldable, Traversable)
+  deriving B.Binary via Generically (Bound t e)
 
 type RBound        = RRBound RSort
-type RRBound tv    = Bound tv F.Expr
+type RRBound tv    = RRBoundV F.Symbol tv
+type RRBoundV v tv = Bound tv (F.ExprV v)
 type RBEnv         = M.HashMap LocSymbol RBound
 type RRBEnv tv     = M.HashMap LocSymbol (RRBound tv)
+type RRBEnvV v tv     = M.HashMap LocSymbol (RRBoundV v tv)
 
+emapBoundM
+  :: Monad m
+  => ([F.Symbol] -> t0 -> m t1)
+  -> ([F.Symbol] -> e0 -> m e1)
+  -> Bound t0 e0
+  -> m (Bound t1 e1)
+emapBoundM f g b = do
+    tyvars <- mapM (f []) $ tyvars b
+    (e1, bparams) <- mapAccumM (\e -> fmap (e,) . traverse (f e)) [] (bparams b)
+    (e2, bargs) <- mapAccumM (\e -> fmap (e,) . traverse (f e)) e1 (bargs b)
+    bbody <- g e2 (bbody b)
+    return b{tyvars, bparams, bargs, bbody}
+
+mapBoundTy :: (t0 -> t1) -> Bound t0 e -> Bound t1 e
+mapBoundTy f Bound{..} = do
+    Bound
+      { tyvars = map f tyvars
+      , bparams = map (fmap f) bparams
+      , bargs = map (fmap f) bargs
+      , ..
+      }
 
 instance Hashable (Bound t e) where
   hashWithSalt i = hashWithSalt i . bname
@@ -73,11 +100,8 @@ instance (PPrint e, PPrint t) => (PPrint (Bound t e)) where
       ppBsyms _ [] = ""
       ppBsyms k' xs = "\\" <+> pprintTidy k' xs <+> "->"
 
-instance Functor (Bound a) where
-  fmap f (Bound s vs ps xs e) = Bound s vs ps xs (f e)
-
 instance Bifunctor Bound where
-  first  f (Bound s vs ps xs e) = Bound s (f <$> vs) (Misc.mapSnd f <$> ps) (Misc.mapSnd f <$> xs) e
+  first  f (Bound s vs ps xs e) = Bound s (f <$> vs) (fmap f <$> ps) (fmap f <$> xs) e
   second = fmap
 
 makeBound :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)
@@ -110,7 +134,7 @@ makeBoundType penv (q:qs) xts = go xts
     go [(x, t)]      = [(F.dummySymbol, tp t x), (F.dummySymbol, tq t x)]
     go ((x, t):xtss) = (val x, mkt t x) : go xtss
 
-    mkt t x = ofRSort t `strengthen` ofUReft (MkUReft (F.Reft (val x, mempty))
+    mkt t x = ofRSort t `strengthen` ofUReft (MkUReft (F.Reft (val x, F.PTrue))
                                                 (Pr $ M.lookupDefault [] (val x) ps))
     tp t x  = ofRSort t `strengthen` ofUReft (MkUReft (F.Reft (val x, F.pAnd rs))
                                                 (Pr $ M.lookupDefault [] (val x) ps))
@@ -124,7 +148,7 @@ makeBoundType _ _ _           = panic Nothing "Bound with empty predicates"
 
 
 partitionPs :: [(F.Symbol, F.Symbol)] -> [F.Expr] -> (M.HashMap F.Symbol [UsedPVar], [F.Expr])
-partitionPs penv qs = Misc.mapFst makeAR $ partition (isPApp penv) qs
+partitionPs penv qs = Bifunctor.first makeAR $ partition (isPApp penv) qs
   where
     makeAR ps       = M.fromListWith (++) $ map (toUsedPVars penv) ps
 
@@ -142,7 +166,7 @@ toUsedPVars _ _ = impossible Nothing "This cannot happen"
 
 toUsedPVar :: [(F.Symbol, F.Symbol)] -> F.Expr -> PVar ()
 toUsedPVar penv ee@(F.EApp _ _)
-  = PV q (PVProp ()) e (((), F.dummySymbol,) <$> es')
+  = PV q () e (((), F.dummySymbol,) <$> es')
    where
      F.EVar e = {- unProp $ -} last es
      es'    = init es
@@ -161,7 +185,7 @@ makeRef penv v (F.PAnd rs) = ofUReft (MkUReft (F.Reft (val v, F.pAnd rrs)) r)
     (pps, rrs)           = partition (isPApp penv) rs
 
 makeRef penv v rr
-  | isPApp penv rr       = ofUReft (MkUReft (F.Reft(val v, mempty)) r)
+  | isPApp penv rr       = ofUReft (MkUReft (F.Reft(val v, F.PTrue)) r)
   where
     r                    = Pr [toUsedPVar penv rr]
 

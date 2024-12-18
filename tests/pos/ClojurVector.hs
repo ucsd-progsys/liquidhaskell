@@ -38,7 +38,7 @@ height (Node h ls) = 1 + h
 
 -- | ListN is a list of a given size N
 
-{-@ type VectorN a N     = {v:V.Vector a | vlen v = N }  @-}
+{-@ type VectorN a N     = {v:V.Vector a | V.vlen v = N }  @-}
 
 -- | TreeH is a tree of given height H
 

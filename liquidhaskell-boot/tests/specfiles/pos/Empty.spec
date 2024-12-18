@@ -1,1 +1,0 @@
-module spec Empty where

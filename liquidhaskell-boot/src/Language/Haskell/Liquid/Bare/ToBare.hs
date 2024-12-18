@@ -12,14 +12,13 @@ module Language.Haskell.Liquid.Bare.ToBare
 
 import           Data.Bifunctor
 
-import           Language.Fixpoint.Misc (mapSnd)
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.GHC.Misc
 import           Liquid.GHC.API
+import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.Specs
-import           Language.Haskell.Liquid.Types.Types
 
 --------------------------------------------------------------------------------
 specToBare :: SpecType -> BareType
@@ -37,18 +36,14 @@ measureToBare :: SpecMeasure -> BareMeasure
 --------------------------------------------------------------------------------
 measureToBare = bimap (fmap specToBare) dataConToBare
 
-dataConToBare :: DataCon -> LocSymbol
-dataConToBare d = dropModuleNames . F.symbol <$> locNamedThing d
-  where
-    _msg  = "dataConToBare dc = " ++ show d ++ " v = " ++ show v ++ " vx = " ++ show vx
-    v     = dataConWorkId d
-    vx    = F.symbol v
+dataConToBare :: DataCon -> F.Located LHName
+dataConToBare d = makeGHCLHNameFromId . dataConWorkId <$> locNamedThing d
 
 specToBareTC :: RTyCon -> BTyCon
 specToBareTC = tyConBTyCon . rtc_tc
 
 specToBareTV :: RTyVar -> BTyVar
-specToBareTV (RTV α) = BTV (F.symbol α)
+specToBareTV (RTV α) = BTV (F.symbol <$> locNamedThing α)
 
 txRType :: (c1 -> c2) -> (tv1 -> tv2) -> RType c1 tv1 r -> RType c2 tv2 r
 txRType cF vF = go
@@ -62,7 +57,7 @@ txRType cF vF = go
     go (REx x t t')        = REx   x         (go t) (go t')
     go (RAppTy t t' r)     = RAppTy          (go t) (go t') r
     go (RApp c ts rs r)    = RApp  (cF c)    (go <$> ts) (goRTP <$> rs) r
-    go (RRTy xts r o t)    = RRTy  (mapSnd go <$> xts) r o (go t)
+    go (RRTy xts r o t)    = RRTy  (fmap go <$> xts) r o (go t)
     go (RExprArg e)        = RExprArg e
     go (RHole r)           = RHole r
 
@@ -70,8 +65,8 @@ txRType cF vF = go
     go' = txRType cF vF
 
     -- goRTP :: RTProp c1 tv1 r -> RTProp c2 tv2 r
-    goRTP (RProp s (RHole r)) = RProp (mapSnd go' <$> s) (RHole r)
-    goRTP (RProp s t)         = RProp (mapSnd go' <$> s) (go t)
+    goRTP (RProp s (RHole r)) = RProp (fmap go' <$> s) (RHole r)
+    goRTP (RProp s t)         = RProp (fmap go' <$> s) (go t)
 
     -- goRTV :: RTVU c1 tv1 -> RTVU c2 tv2
     goRTV = txRTV cF vF
@@ -86,5 +81,5 @@ txPV :: (c1 -> c2) -> (tv1 -> tv2) -> PVU c1 tv1 -> PVU c2 tv2
 txPV cF vF (PV sym k y txes) = PV sym k' y txes'
   where
     txes'                  = [ (tx t, x, e) | (t, x, e) <- txes]
-    k'                     = tx <$> k
+    k'                     = tx k
     tx                     = txRType cF vF

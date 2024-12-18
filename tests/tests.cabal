@@ -679,7 +679,6 @@ executable errors
                     , LocalHole
                     , MissingAssume
                     -- , MissingField1
-                    , MissingField2
                     , MissingReflect
                     , MissingSizeFun
                     , MultiInstMeasures
@@ -785,6 +784,8 @@ executable names-pos
                     , Capture01
                     , Capture02
                     , ClojurVector
+                    , DataFields
+                    , ExpandsDependentPairs
                     , HideName00
                     , HidePrelude
                     , List00
@@ -792,6 +793,7 @@ executable names-pos
                     , Local01
                     , Local02
                     , Local03
+                    , LocalAssume
                     , LocalSpec
                     , Ord
                     , Set00
@@ -833,6 +835,7 @@ executable names-neg
     other-modules:
                       Assume00
                     , Capture01
+                    , DuplicatedAliases
                     , Local00
                     , Set00
                     , Set01
@@ -857,10 +860,10 @@ executable names-neg
 
     default-language: Haskell2010
 
-flag name-resolution-neg
+flag name-resolution-pos
      default: False
 
-executable name-resolution-neg
+executable name-resolution-pos
     main-is:          Main.hs
     if !flag(names-neg) && flag(stack)
       buildable:      False
@@ -869,6 +872,10 @@ executable name-resolution-neg
                       A
                     , B
                     , C
+                    , AData
+                    , BData
+                    , CData
+                    , MainData
 
 
     ghc-options:      -Wall
@@ -883,7 +890,7 @@ executable name-resolution-neg
                     , liquidhaskell
 
     hs-source-dirs:   app
-                    , name-resolution/neg
+                    , name-resolution/pos
 
     default-language: Haskell2010
 
@@ -899,6 +906,7 @@ executable reflect-pos
                       DoubleLit
                     , ReflString0
                     , ReflString1
+                    , T2405
 
     ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
@@ -1287,6 +1295,7 @@ executable unit-neg
                     , Record0
                     , RecQSort
                     , RecSelector
+                    , RefinedProp
                     , Revshape
                     , ReWrite2
                     , ReWrite3
@@ -1853,7 +1862,8 @@ executable unit-pos-3
       buildable:      False
 
     other-modules:
-                      Streams
+                      NumRefl
+                    , Streams
                     , StrictPair0
                     , StrictPair1
                     , String00
@@ -1944,6 +1954,7 @@ executable unit-pos-3
                     , T2096
                     , T2235
                     , T2237
+                    , T2404
                     , T385
                     , T531
                     , T595a
@@ -2250,6 +2261,11 @@ executable basic-pos
                     , Inc04
                     , Infer00
                     , List00
+                    , MeasureOverlapA
+                    , MeasureOverlapB
+                    , MeasureOverlapC
+                    , MeasureOverlapD
+                    , MeasureOverlapE
                     , OpaqueRefl01
                     , OpaqueRefl02
                     , OpaqueRefl03A
@@ -2426,10 +2442,12 @@ executable ple-pos
                     , NegNormalForm
                     , NNFPiotr
                     , PadLeft
+                    , Permutations
                     , Ple0
                     , PleORM
                     , Ple_sum
-                    , Permutations
+                    , PolySetFoo
+                    , PolySetBar
                     , ReflectDefault
                     , RegexpDerivative
                     , RosePLEDiv
@@ -2453,7 +2471,11 @@ executable ple-pos
                     , Tmp
                     , ReaderEta
                     , SKIEta
+                    , SKIDC
+                    , SKILam
                     , FuseMap
+                    , FuseMapLam
+                    , ProposalLocalRewrites
 
     -- XXX(matt.walker): dies on lists on first compile in ghc 8107
     --                   ... and on GHC 9+ now too

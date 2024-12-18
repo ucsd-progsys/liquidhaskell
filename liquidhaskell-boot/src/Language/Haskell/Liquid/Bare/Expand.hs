@@ -11,8 +11,8 @@ module Language.Haskell.Liquid.Bare.Expand
   ( -- * Create alias expansion environment
     makeRTEnv
 
-    -- * Expand and Qualify
-  , qualifyExpand
+    -- * Expand
+  , Expand(expand)
 
     -- * Converting BareType to SpecType
   , cookSpecType
@@ -29,22 +29,23 @@ import Data.Maybe
 
 import           Control.Monad
 import           Control.Monad.State
+import           Data.Bifunctor (second)
 import           Data.Functor ((<&>))
 import qualified Control.Exception         as Ex
 import qualified Data.HashMap.Strict       as M
 import qualified Data.Char                 as Char
 import qualified Data.List                 as L
-import qualified Text.Printf               as Printf
 import qualified Text.PrettyPrint.HughesPJ as PJ
 
 import qualified Language.Fixpoint.Types               as F
 -- import qualified Language.Fixpoint.Types.Visitor       as F
 import qualified Language.Fixpoint.Misc                as Misc
-import           Language.Fixpoint.Types (Expr(..)) -- , Symbol, symbol)
+import           Language.Fixpoint.Types (Expr, ExprV(..), SourcePos) -- , Symbol, symbol)
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 import qualified Liquid.GHC.API       as Ghc
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.DataDecl
+import           Language.Haskell.Liquid.Types.Names
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.RTypeOp
@@ -56,6 +57,7 @@ import qualified Language.Haskell.Liquid.Bare.Resolve  as Bare
 import qualified Language.Haskell.Liquid.Bare.Types    as Bare
 import qualified Language.Haskell.Liquid.Bare.Plugged  as Bare
 import           Language.Haskell.Liquid.UX.Config
+import qualified Text.Printf                           as Printf
 
 --------------------------------------------------------------------------------
 -- | `makeRTEnv` initializes the env needed to `expand` refinements and types,
@@ -72,14 +74,14 @@ makeRTEnv
 makeRTEnv env modName mySpec dependencySpecs lmap
           = renameRTArgs $ makeRTAliases tAs $ makeREAliases eAs
   where
-    tAs   = [ t                   | (_, s)  <- specs, t <- Ms.aliases  s ]
-    eAs   = [ specREAlias env m e | (m, s)  <- specs, e <- Ms.ealiases s ]
+    tAs   = [ t | (_, s)  <- specs, t <- Ms.aliases  s ]
+    eAs   = [ e | (_m, s)  <- specs, e <- Ms.ealiases s ]
          ++ if typeclass (getConfig env) then []
                                               -- lmap expansion happens during elaboration
                                               -- this clearly breaks things if a signature
                                               -- contains lmap functions but never gets
                                               -- elaborated
-              else [ specREAlias env modName e | (_, xl) <- M.toList (lmSymDefs lmap)
+              else [ e | (_, xl) <- M.toList (lmSymDefs lmap)
                                   , let e    = lmapEAlias xl             ]
     specs = (modName, mySpec) : dependencySpecs
 
@@ -128,11 +130,6 @@ makeRTAliases :: [Located (RTAlias F.Symbol BareType)] -> BareRTEnv -> BareRTEnv
 makeRTAliases lxts rte = graphExpand buildTypeEdges f rte lxts
   where
     f rtEnv xt         = setRTAlias rtEnv (expandLoc rtEnv xt)
-
-specREAlias :: Bare.Env -> ModName -> Located (RTAlias F.Symbol F.Expr) -> Located (RTAlias F.Symbol F.Expr)
-specREAlias env m la = F.atLoc la $ a { rtBody = Bare.qualify env m (loc la) (rtVArgs a) (rtBody a) }
-  where
-    a     = val la
 
 --------------------------------------------------------------------------------------------------------------
 
@@ -219,11 +216,11 @@ genExpandOrder table graph
 ordNub :: Ord a => [a] -> [a]
 ordNub = map head . L.group . L.sort
 
-buildTypeEdges :: (F.Symbolic c) => AliasTable x t -> RType c tv r -> [F.Symbol]
+buildTypeEdges :: AliasTable x t -> BareType -> [F.Symbol]
 buildTypeEdges table = ordNub . go
   where
     -- go :: t -> [Symbol]
-    go (RApp c ts rs _) = go_alias (F.symbol c) ++ concatMap go ts ++ concatMap go (mapMaybe go_ref rs)
+    go (RApp c ts rs _) = go_alias (getLHNameSymbol $ val $ btc_tc c) ++ concatMap go ts ++ concatMap go (mapMaybe go_ref rs)
     go (RFun _ _ t1 t2 _) = go t1 ++ go t2
     go (RAppTy t1 t2 _) = go t1 ++ go t2
     go (RAllE _ t1 t2)  = go t1 ++ go t2
@@ -274,25 +271,6 @@ class Expand a where
   expand :: BareRTEnv -> F.SourcePos -> a -> a
 
 ----------------------------------------------------------------------------------
--- | @qualifyExpand@ first qualifies names so that we can successfully resolve them during expansion.
---
--- When expanding, it's important we pass around a 'BareRTEnv' where the type aliases have been qualified as well.
--- This is subtle, see for example T1761. In that test, we had a type alias \"OneTyAlias a = {v:a | oneFunPred v}\" where
--- \"oneFunPred\" was marked inline. However, inlining couldn't happen because the 'BareRTEnv' had an
--- entry for \"T1761.oneFunPred\", so the relevant expansion of \"oneFunPred\" couldn't happen. This was
--- because the type alias entry inside 'BareRTEnv' mentioned the tuple (\"OneTyAlias\", \"{v:a | oneFunPred v}\") but
--- the 'snd' element needed to be qualified as well, before trying to expand anything.
-----------------------------------------------------------------------------------
-qualifyExpand :: (PPrint a, Expand a, Bare.Qualify a)
-              => Bare.Env -> ModName -> BareRTEnv -> F.SourcePos -> [F.Symbol] -> a -> a
-----------------------------------------------------------------------------------
-qualifyExpand env name rtEnv l bs
-  = expand qualifiedRTEnv l . Bare.qualify env name l bs
-  where
-    qualifiedRTEnv :: BareRTEnv
-    qualifiedRTEnv = rtEnv { typeAliases = M.map (Bare.qualify env name l bs) (typeAliases rtEnv) }
-
-----------------------------------------------------------------------------------
 expandLoc :: (Expand a) => BareRTEnv -> Located a -> Located a
 expandLoc rtEnv lx = expand rtEnv (F.loc lx) <$> lx
 
@@ -324,6 +302,16 @@ instance Expand BareType where
   expand rtEnv l
     = expandReft     rtEnv l -- apply expression aliases
     . expandBareType rtEnv l -- apply type       aliases
+
+instance Expand () where
+  expand _ _ = id
+
+instance Expand (BRType ()) where
+  expand rtEnv l
+    = expandReft     rtEnv l -- apply expression aliases
+    . void
+    . expandBareType rtEnv l -- apply type       aliases
+    . fmap (const mempty)
 
 instance Expand (RTAlias F.Symbol Expr) where
   expand rtEnv l x = x { rtBody = expand rtEnv l (rtBody x) }
@@ -384,10 +372,8 @@ instance Expand a => Expand (M.HashMap k a) where
 expandBareSpec :: BareRTEnv -> F.SourcePos -> Ms.BareSpec -> Ms.BareSpec
 expandBareSpec rtEnv l sp = sp
   { measures   = expand rtEnv l (measures   sp)
-  , asmSigs    = expand rtEnv l (asmSigs    sp)
-  , sigs       = expand rtEnv l (sigs       sp)
-  , localSigs  = expand rtEnv l (localSigs  sp)
-  , reflSigs   = expand rtEnv l (reflSigs   sp)
+  , asmSigs    = map (second (expand rtEnv l)) (asmSigs sp)
+  , sigs       = map (second (expand rtEnv l)) (sigs sp)
   , ialiases   = [ (f x, f y) | (x, y) <- ialiases sp ]
   , dataDecls  = expand rtEnv l (dataDecls  sp)
   , newtyDecls = expand rtEnv l (newtyDecls sp)
@@ -395,7 +381,7 @@ expandBareSpec rtEnv l sp = sp
   where f      = expand rtEnv l
 
 expandBareType :: BareRTEnv -> F.SourcePos -> BareType -> BareType
-expandBareType rtEnv _ = go
+expandBareType rtEnv l = go
   where
     go (RApp c ts rs r)  = case lookupRTEnv c rtEnv of
                              Just rta -> expandRTAliasApp (GM.fSourcePos c) rta (go <$> ts) r
@@ -410,10 +396,10 @@ expandBareType rtEnv _ = go
     go t@RHole{}         = t
     go t@RVar{}          = t
     go t@RExprArg{}      = t
-    goRef (RProp ss t)   = RProp ss (go t)
+    goRef (RProp ss t)   = RProp (map (expand rtEnv l <$>) ss) (go t)
 
 lookupRTEnv :: BTyCon -> BareRTEnv -> Maybe (Located BareRTAlias)
-lookupRTEnv c rtEnv = M.lookup (F.symbol c) (typeAliases rtEnv)
+lookupRTEnv c rtEnv = M.lookup (getLHNameSymbol $ val $ btc_tc c) (typeAliases rtEnv)
 
 expandRTAliasApp :: F.SourcePos -> Located BareRTAlias -> [BareType] -> RReft -> BareType
 expandRTAliasApp l (Loc la _ rta) args r = case isOK of
@@ -422,9 +408,9 @@ expandRTAliasApp l (Loc la _ rta) args r = case isOK of
   where
     tsu       = zipWith (\α t -> (α, toRSort t, t)) αs ts
     esu       = F.mkSubst $ zip (F.symbol <$> εs) es
-    es        = exprArg l msg <$> es0
+    es        = exprArgFromBareType l msg <$> es0
     (ts, es0) = splitAt nαs args
-    (αs, εs)  = (BTV <$> rtTArgs rta, rtVArgs rta)
+    (αs, εs)  = (BTV . dummyLoc <$> rtTArgs rta, rtVArgs rta)
     targs     = takeWhile (not . isRExprArg) args
     eargs     = dropWhile (not . isRExprArg) args
 
@@ -447,6 +433,20 @@ expandRTAliasApp l (Loc la _ rta) args r = case isOK of
       | otherwise
       = Nothing
 
+-- | A copy of 'LHNameResolution.exprArg' tailored to the types needed in this
+-- module.
+exprArgFromBareType :: SourcePos -> String -> BareType -> Expr
+exprArgFromBareType l msg = go
+  where
+    go :: BareType -> Expr
+    go (RExprArg e)     = val e
+    go (RVar x _)       = EVar $ F.symbol x
+    go (RApp x [] [] _) = EVar (getLHNameSymbol $ val $ btc_tc x)
+    go (RApp f ts [] _) = F.eApps (EVar (getLHNameSymbol $ val $ btc_tc f)) (go <$> ts)
+    go (RAppTy t1 t2 _) = EApp (go t1) (go t2)
+    go z                = panic sp $ Printf.printf "Unexpected expression parameter: %s in %s" (show z) msg
+    sp                  = Just (GM.sourcePosSrcSpan l)
+
 isRExprArg :: RType c tv r -> Bool
 isRExprArg (RExprArg _) = True
 isRExprArg _            = False
@@ -457,31 +457,6 @@ errRTAliasApp l la rta = Just . ErrAliasApp  sp name sp'
     name            = pprint              (rtName rta)
     sp              = GM.sourcePosSrcSpan l
     sp'             = GM.sourcePosSrcSpan la
-
-
-
---------------------------------------------------------------------------------
--- | exprArg converts a tyVar to an exprVar because parser cannot tell
---   this function allows us to treating (parsed) "types" as "value"
---   arguments, e.g. type Matrix a Row Col = List (List a Row) Col
---   Note that during parsing, we don't necessarily know whether a
---   string is a type or a value expression. E.g. in tests/pos/T1189.hs,
---   the string `Prop (Ev (plus n n))` where `Prop` is the alias:
---     {-@ type Prop E = {v:_ | prop v = E} @-}
---   the parser will chomp in `Ev (plus n n)` as a `BareType` and so
---   `exprArg` converts that `BareType` into an `Expr`.
---------------------------------------------------------------------------------
-exprArg :: F.SourcePos -> String -> BareType -> Expr
-exprArg l msg = F.notracepp ("exprArg: " ++ msg) . go
-  where
-    go :: BareType -> Expr
-    go (RExprArg e)     = val e
-    go (RVar x _)       = EVar (F.symbol x)
-    go (RApp x [] [] _) = EVar (F.symbol x)
-    go (RApp f ts [] _) = F.mkEApp (F.symbol <$> btc_tc f) (go <$> ts)
-    go (RAppTy t1 t2 _) = F.EApp (go t1) (go t2)
-    go z                = panic sp $ Printf.printf "Unexpected expression parameter: %s in %s" (show z) msg
-    sp                  = Just (GM.sourcePosSrcSpan l)
 
 
 ----------------------------------------------------------------------------------------
@@ -511,10 +486,6 @@ cookSpecTypeE env sigEnv name@(ModName _ _) x bt
         . fmap txExpToBind -- What does this function DO
         . (specExpandType rtEnv . fmap (generalizeWith x))
         . (if doplug || not allowTC then maybePlug allowTC sigEnv name x else id)
-        -- we do not qualify/resolve Expr/Pred when typeclass is enabled
-        -- since ghci will not be able to recognize fully qualified names
-        -- instead, we leave qualification to ghc elaboration
-        . Bare.qualifyTop env name l
 
     allowTC = typeclass (getConfig env)
     -- modT   = mname `S.member` wiredInMods
@@ -529,7 +500,6 @@ cookSpecTypeE env sigEnv name@(ModName _ _) x bt
     rtEnv  = Bare.sigRTEnv    sigEnv
     embs   = Bare.sigEmbs     sigEnv
     tyi    = Bare.sigTyRTyMap sigEnv
-    l      = F.loc bt
 
 -- | We don't want to generalize type variables that maybe bound in the
 --   outer scope, e.g. see tests/basic/pos/LocalPlug00.hs

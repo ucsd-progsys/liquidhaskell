@@ -1,16 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE RankNTypes   #-}
 
 module Language.Haskell.Liquid.GHC.Plugin.SpecFinder
     ( findRelevantSpecs
     , SpecFinderResult(..)
-    , SearchLocation(..)
     , configToRedundantDependencies
     ) where
 
-import qualified Language.Haskell.Liquid.GHC.Plugin.Util as Util
+import qualified Language.Haskell.Liquid.GHC.Plugin.Serialisation as Serialisation
 import           Language.Haskell.Liquid.GHC.Plugin.Types
 import           Language.Haskell.Liquid.UX.Config
 
@@ -21,7 +19,6 @@ import qualified Data.Char
 import           Data.IORef
 import           Data.Maybe
 
-import           Control.Monad                            ( foldM )
 import           Control.Monad.Trans.Maybe
 
 
@@ -30,14 +27,7 @@ type SpecFinder m = Module -> MaybeT IO SpecFinderResult
 -- | The result of searching for a spec.
 data SpecFinderResult =
     SpecNotFound Module
-  | LibFound  Module SearchLocation LiquidLib
-
-data SearchLocation =
-    InterfaceLocation
-  -- ^ The spec was loaded from the annotations of an interface.
-  | DiskLocation
-  -- ^ The spec was loaded from disk (e.g. 'Prelude.spec' or similar)
-  deriving Show
+  | LibFound Module LiquidLib
 
 -- | Load any relevant spec for the input list of 'Module's, by querying both the 'ExternalPackageState'
 -- and the 'HomePackageTable'.
@@ -55,19 +45,19 @@ findRelevantSpecs :: [String] -- ^ Package to exclude for loading LHAssumptions
                   -> TcM [SpecFinderResult]
 findRelevantSpecs lhAssmPkgExcludes hscEnv mods = do
     eps <- liftIO $ readIORef (euc_eps $ ue_eps $ hsc_unit_env hscEnv)
-    foldM (loadRelevantSpec eps) mempty mods
+    mapM (loadRelevantSpec eps) mods
   where
 
-    loadRelevantSpec :: ExternalPackageState -> [SpecFinderResult] -> Module -> TcM [SpecFinderResult]
-    loadRelevantSpec eps !acc currentModule = do
+    loadRelevantSpec :: ExternalPackageState -> Module -> TcM SpecFinderResult
+    loadRelevantSpec eps currentModule = do
       res <- liftIO $ runMaybeT $
-        lookupInterfaceAnnotations eps (ue_hpt $ hsc_unit_env hscEnv) currentModule
+        lookupInterfaceAnnotations eps (ue_hpt $ hsc_unit_env hscEnv) (hsc_NC hscEnv) currentModule
       case res of
         Nothing         -> do
           mAssm <- loadModuleLHAssumptionsIfAny currentModule
-          return $ fromMaybe (SpecNotFound currentModule) mAssm : acc
+          return $ fromMaybe (SpecNotFound currentModule) mAssm
         Just specResult ->
-          return (specResult : acc)
+          return specResult
 
     loadModuleLHAssumptionsIfAny m | isImportExcluded m = return Nothing
                                    | otherwise = do
@@ -81,7 +71,7 @@ findRelevantSpecs lhAssmPkgExcludes hscEnv mods = do
           -- read the EPS again
           eps2 <- liftIO $ readIORef (euc_eps $ ue_eps $ hsc_unit_env hscEnv)
           -- now look up the assumptions
-          liftIO $ runMaybeT $ lookupInterfaceAnnotationsEPS eps2 assumptionsMod
+          liftIO $ runMaybeT $ lookupInterfaceAnnotationsEPS eps2 (hsc_NC hscEnv) assumptionsMod
         FoundMultiple{} -> failWithTc $ mkTcRnUnknownMessage $ mkPlainError [] $
                              missingInterfaceErrorDiagnostic (initIfaceMessageOpts $ hsc_dflags hscEnv) $
                              cannotFindModule hscEnv assumptionsModName res
@@ -94,16 +84,16 @@ findRelevantSpecs lhAssmPkgExcludes hscEnv mods = do
     assumptionsModuleName m =
       mkModuleNameFS $ moduleNameFS (moduleName m) <> "_LHAssumptions"
 
--- | Load a spec by trying to parse the relevant \".spec\" file from the filesystem.
-lookupInterfaceAnnotations :: ExternalPackageState -> HomePackageTable -> SpecFinder m
-lookupInterfaceAnnotations eps hpt thisModule = do
-  lib <- MaybeT $ pure $ Util.deserialiseLiquidLib thisModule eps hpt
-  pure $ LibFound thisModule InterfaceLocation lib
+-- | Load specs from an interface file.
+lookupInterfaceAnnotations :: ExternalPackageState -> HomePackageTable -> NameCache -> SpecFinder m
+lookupInterfaceAnnotations eps hpt nameCache thisModule = do
+  lib <- MaybeT $ Serialisation.deserialiseLiquidLib thisModule eps hpt nameCache
+  pure $ LibFound thisModule lib
 
-lookupInterfaceAnnotationsEPS :: ExternalPackageState -> SpecFinder m
-lookupInterfaceAnnotationsEPS eps thisModule = do
-  lib <- MaybeT $ pure $ Util.deserialiseLiquidLibFromEPS thisModule eps
-  pure $ LibFound thisModule InterfaceLocation lib
+lookupInterfaceAnnotationsEPS :: ExternalPackageState -> NameCache -> SpecFinder m
+lookupInterfaceAnnotationsEPS eps nameCache thisModule = do
+  lib <- MaybeT $ Serialisation.deserialiseLiquidLibFromEPS thisModule eps nameCache
+  pure $ LibFound thisModule lib
 
 -- | Returns a list of 'StableModule's which can be filtered out of the dependency list, because they are
 -- selectively \"toggled\" on and off by the LiquidHaskell's configuration, which granularity can be

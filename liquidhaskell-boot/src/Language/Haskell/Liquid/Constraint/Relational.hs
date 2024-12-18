@@ -531,7 +531,7 @@ consRelSub γ f1@(RFun g1 _ s1@RFun{} t1 _) f2@(RFun g2 _ s2@RFun{} t2 _)
     consRelSub γ s1 s2 qr2 qr1
     γ' <- γ += ("consRelSub HOF", F.symbol g1, s1)
     γ'' <- γ' += ("consRelSub HOF", F.symbol g2, s2)
-    let psubst = unapplyArg resL g1 <> unapplyArg resR g2
+    let psubst x = unapplyArg resL g1 x F.&.& unapplyArg resR g2 x
     consRelSub γ'' t1 t2 (psubst p1) (psubst p2)
 consRelSub γ f1@(RFun g1 _ s1@RFun{} t1 _) f2@(RFun g2 _ s2@RFun{} t2 _)
              pr1@(F.PAnd [F.PImp qr1@F.PImp{} p1])            pr2@(F.PImp qr2@F.PImp{} p2)
@@ -539,7 +539,7 @@ consRelSub γ f1@(RFun g1 _ s1@RFun{} t1 _) f2@(RFun g2 _ s2@RFun{} t2 _)
     consRelSub γ s1 s2 qr2 qr1
     γ' <- γ += ("consRelSub HOF", F.symbol g1, s1)
     γ'' <- γ' += ("consRelSub HOF", F.symbol g2, s2)
-    let psubst = unapplyArg resL g1 <> unapplyArg resR g2
+    let psubst x = unapplyArg resL g1 x F.&.& unapplyArg resR g2 x
     consRelSub γ'' t1 t2 (psubst p1) (psubst p2)
 consRelSub γ f1@(RFun x1 _ s1 e1 _) f2 p1 p2 =
   traceSub "fun" f1 f2 p1 p2 $ do
@@ -776,7 +776,9 @@ traceUSyn
 traceUSyn expr e cg = do
   t <- cg
   trace (expr ++ " To SYNTH UNARY") e dummy t dummy dummy cg
-  where dummy = F.PTrue
+  where
+    dummy :: F.Expr
+    dummy = F.PTrue
 
 trace
   :: (PPrint e, PPrint d, PPrint t, PPrint s, PPrint p)

@@ -4,7 +4,6 @@ module LNot where
 import Prelude  hiding (any, all, filter, nub, foldr, flip)
 
 
-
 {-@  lemma_all_ex_not :: f:(a->Bool) -> ls:[a] -> { (bnot (any f ls)) == all (bnot . f) ls} @-}
 lemma_all_ex_not :: (a->Bool) -> [a] -> ()
 lemma_all_ex_not f [] = ()

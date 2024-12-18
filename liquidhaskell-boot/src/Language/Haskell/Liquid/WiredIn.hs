@@ -33,16 +33,19 @@ import Language.Haskell.Liquid.GHC.Misc
 import qualified Liquid.GHC.API as Ghc
 import Liquid.GHC.API (Var, Arity, TyVar, Bind(..), Boxity(..), Expr(..), ForAllTyFlag(Required))
 import Language.Haskell.Liquid.Types.Errors
+import Language.Haskell.Liquid.Types.Names
 import Language.Haskell.Liquid.Types.RType
 import Language.Haskell.Liquid.Types.Types
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.Types.PredType
-import Language.Haskell.Liquid.Types.Names (selfSymbol)
 
 -- import Language.Fixpoint.Types hiding (panic)
+import qualified Language.Fixpoint.Smt.Theories as F
 import qualified Language.Fixpoint.Types as F
+import           Data.Bifunctor (first)
 import qualified Data.HashSet as S
+import           Data.Maybe
 
 import Language.Haskell.Liquid.GHC.TypeRep ()
 
@@ -77,8 +80,46 @@ dcPrefix :: F.Symbol
 dcPrefix = "lqdc"
 
 wiredSortedSyms :: [(F.Symbol, F.Sort)]
-wiredSortedSyms = (selfSymbol,selfSort):[(pappSym n, pappSort n) | n <- [1..pappArity]]
-  where selfSort = F.FAbs 1 (F.FVar 0)
+wiredSortedSyms =
+    (selfSymbol,selfSort) :
+    [(pappSym n, pappSort n) | n <- [1..pappArity]] ++
+    wiredTheorySortedSyms
+  where
+    selfSort = F.FAbs 1 (F.FVar 0)
+
+wiredTheorySortedSyms :: [(F.Symbol, F.Sort)]
+wiredTheorySortedSyms =
+    [ (s, srt)
+    | s <- wiredTheorySyms
+    , let srt = F.tsSort $
+                  fromMaybe (panic Nothing ("unknown symbol: " ++ show s)) $
+                    F.lookupSEnv s (F.theorySymbols [])
+    ]
+  where
+    wiredTheorySyms =
+      [ "Bag_count"
+      , "Bag_empty"
+      , "Bag_inter_min"
+      , "Bag_sng"
+      , "Bag_sub"
+      , "Bag_union"
+      , "Bag_union_max"
+
+      , "Map_select"
+      , "Map_store"
+
+      , "Set_cup"
+      , "Set_cap"
+      , "Set_dif"
+      , "Set_sng"
+      , "Set_emp"
+      , "Set_empty"
+      , "Set_mem"
+      , "Set_sub"
+
+      , "strLen"
+      ]
+
 --------------------------------------------------------------------------------
 -- | LH Primitive TyCons -------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -125,7 +166,7 @@ wiredTyDataCons = (concat tcs, dummyLoc <$> concat dcs)
     (tcs, dcs)  = unzip $ listTyDataCons : map tupleTyDataCons [2..maxArity]
 
 charDataCon :: Located DataConP
-charDataCon = dummyLoc (DataConP l0 Ghc.charDataCon  [] [] [] [("charX",lt)] lt False wiredInName l0)
+charDataCon = dummyLoc (DataConP l0 Ghc.charDataCon  [] [] [] [(makeGeneratedLogicLHName "charX",lt)] lt False wiredInName l0)
   where
     l0 = F.dummyPos "LH.Bare.charTyDataCons"
     c  = Ghc.charTyCon
@@ -143,13 +184,13 @@ listTyDataCons   = ( [TyConP l0 c [RTV tyv] [p] [Covariant] [Covariant] (Just fs
       fld        = "fldList"
       xHead      = "head"
       xTail      = "tail"
-      p          = PV "p" (PVProp t) (F.vv Nothing) [(t, fld, F.EVar fld)]
-      px         = pdVarReft $ PV "p" (PVProp t) (F.vv Nothing) [(t, fld, F.EVar xHead)]
+      p          = PV "p" t (F.vv Nothing) [(t, fld, F.EVar fld)]
+      px         = pdVarReft $ PV "p" t (F.vv Nothing) [(t, fld, F.EVar xHead)]
       lt         = rApp c [xt] [rPropP [] $ pdVarReft p] mempty
       xt         = rVar tyv
       xst        = rApp c [RVar (RTV tyv) px] [rPropP [] $ pdVarReft p] mempty
-      cargs      = [(xTail, xst), (xHead, xt)]
-      fsize      = SymSizeFun (dummyLoc "len")
+      cargs      = map (first makeGeneratedLogicLHName) [(xTail, xst), (xHead, xt)]
+      fsize      = SymSizeFun (dummyLoc "GHC.Types_LHAssumptions.len")
 
 wiredInName :: F.Symbol
 wiredInName = "WiredIn"
@@ -173,7 +214,7 @@ tupleTyDataCons n = ( [TyConP   l0 c  (RTV <$> tyvs) ps tyvarinfo pdvarinfo Noth
     pxs           = mkps pnames (ta:ts) ((fld, F.EVar x1) : zip flds (F.EVar <$> xs))
     lt            = rApp c (rVar <$> tyvs) (rPropP [] . pdVarReft <$> ups) mempty
     xts           = zipWith (\v p -> RVar (RTV v) (pdVarReft p)) tvs pxs
-    cargs         = reverse $ (x1, rVar tv) : zip xs xts
+    cargs         = map (first makeGeneratedLogicLHName) $ reverse $ (x1, rVar tv) : zip xs xts
     pnames        = mks_ "p"
     mks  x        = (\i -> F.symbol (x++ show i)) <$> [1..n]
     mks_ x        = (\i -> F.symbol (x++ show i)) <$> [2..n]
@@ -193,7 +234,7 @@ mkps_ :: [F.Symbol]
 mkps_ []     _       _          _    ps = ps
 mkps_ (n:ns) (t:ts) ((f, x):xs) args ps = mkps_ ns ts xs (a:args) (p:ps)
   where
-    p                                   = PV n (PVProp t) (F.vv Nothing) args
+    p                                   = PV n t (F.vv Nothing) args
     a                                   = (t, f, x)
 mkps_ _     _       _          _    _ = panic Nothing "Bare : mkps_"
 

@@ -11,7 +11,7 @@ import Language.Haskell.Liquid.Prelude
 repeat :: Int -> (a -> a) -> a -> a
 goal   :: Int -> Int
      
-{-@ bound step @-}
+{- bound step @-}
 step :: (a -> a -> Bool) -> (Int -> a -> Bool) -> Int -> a -> a -> Bool
 step pf pr = \ i x x' -> pr (i - 1) x ==> pf x x' ==> pr i x'
 

@@ -56,7 +56,6 @@ arithType Equals   = TBool
 {-@ invariant { op:ArithOp | arithType op = TBool || arithType op = TInt } @-}
 
 
-{-@ type Nat = { v : Int | v >= 0 } @-}
 type Nat = Int
 
 {-@ inline max @-}

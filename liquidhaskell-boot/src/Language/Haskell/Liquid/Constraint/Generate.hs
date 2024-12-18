@@ -37,7 +37,7 @@ import qualified Data.HashSet                                  as S
 import qualified Data.List                                     as L
 import qualified Data.Foldable                                 as F
 import qualified Data.Functor.Identity
-import Language.Fixpoint.Misc ( (<<=), errorP, mapSnd, safeZip )
+import Language.Fixpoint.Misc (errorP, safeZip )
 import           Language.Fixpoint.Types.Visitor
 import qualified Language.Fixpoint.Types                       as F
 import qualified Language.Fixpoint.Types.Visitor               as F
@@ -62,6 +62,7 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint ( addConstraints )
 import           Language.Haskell.Liquid.Constraint.Template
 import           Language.Haskell.Liquid.Constraint.Termination
+import           Language.Haskell.Liquid.Constraint.RewriteCase
 import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult, runToLogic, coreToLogic)
 import           Language.Haskell.Liquid.Bare.DataType (dataConMap, makeDataConChecker)
 import           Language.Haskell.Liquid.UX.Config
@@ -658,7 +659,8 @@ consPattern γ (Rs.PatReturn e m _ _ _) t = do
 
 consPattern γ (Rs.PatProject xe _ τ c ys i) _ = do
   let yi = ys !! i
-  t    <- (addW . WfC γ) <<= freshTyType (typeclass (getConfig γ)) ProjectE (Var yi) τ
+  t    <- freshTyType (typeclass (getConfig γ)) ProjectE (Var yi) τ
+  _    <- (addW . WfC γ) t
   γ'   <- caseEnv γ xe [] (DataAlt c) ys (Just [i])
   ti   <- {- γ' ??= yi -} varRefType γ' yi
   addC (SubC γ' ti t) "consPattern:project"
@@ -871,9 +873,12 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
   let cbs          = safeZip "cconsCase" (x':ys')
                          (map (`F.subst1` (selfSymbol, F.EVar x'))
                          (xt0 : yts))
-  cγ'             <- addBinders γ x' cbs
+  cγ'  <- addBinders γ   x' cbs
+  when allowDC $
+    addRewritesForNextBinding $ getCaseRewrites γ $ xt0 `meet` rtd
   addBinders cγ' x' [(x', substSelf <$> xt)]
   where allowTC    = typeclass (getConfig γ)
+        allowDC    = dependantCase (getConfig γ)
 
 caseEnv γ x acs a _ _ = do
   let x'  = F.symbol x
@@ -926,7 +931,7 @@ unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
         yts''                = zipWith F.subst sus (yts'++[rt])
         (t3,yts)             = (last yts'', init yts'')
         sus                  = F.mkSubst <$> L.inits [(x, F.EVar y) | (x, y) <- zip ys0 ys']
-        (αs, ys')            = mapSnd (F.symbol <$>) $ L.partition isTyVar ys
+        (αs, ys')            = fmap F.symbol <$> L.partition isTyVar ys
         tvs' :: [SpecType]
         tvs'                 = rVar <$> αs
         tvys                 = ofType . varType <$> αs
@@ -971,17 +976,13 @@ varAnn γ x t
 -- | Helpers: Creating Fresh Refinement -------------------------------
 -----------------------------------------------------------------------
 freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG SpecProp
-freshPredRef γ e (PV _ (PVProp rsort) _ as)
+freshPredRef γ e (PV _ rsort _ as)
   = do t    <- freshTyType (typeclass (getConfig γ))  PredInstE e (toType False rsort)
        args <- mapM (const fresh) as
        let targs = [(x, s) | (x, (s, y, z)) <- zip args as, F.EVar y == z ]
        γ' <- foldM (+=) γ [("freshPredRef", x, ofRSort τ) | (x, τ) <- targs]
        addW $ WfC γ' t
        return $ RProp targs t
-
-freshPredRef _ _ (PV _ PVHProp _ _)
-  = todo Nothing "EFFECTS:freshPredRef"
-
 
 --------------------------------------------------------------------------------
 -- | Helpers: Creating Refinement Types For Various Things ---------------------

@@ -20,7 +20,7 @@ uniques xs = go xs []
           | otherwise    = go xs (x:acc)
     go [] acc        = acc 
 
-{-@ isIn:: (Eq a) => x:a -> ys:[a] -> {v:Bool | v = S.member x (listElts ys)} @-}
+{-@ isIn:: (Eq a) => x:a -> ys:[a] -> {v:Bool | v = S.member x (S.listElts ys)} @-}
 isIn:: (Eq a) => a -> [a] -> Bool
 isIn _ []     = False 
 isIn x (y:ys) = x == y || isIn x ys
@@ -33,5 +33,5 @@ noDups :: (Ord a) => [a] -> Bool
 noDups []     = True 
 noDups (x:xs) = noDups xs && not (S.member x (S.fromList xs)) 
 
-{-@ type ListE a X   = {v:[a] | listElts v = listElts X} @-}
-{-@ type ListU a X Y = {v:[a] | listElts v = S.union (listElts X) (listElts Y)} @-}
+{-@ type ListE a X   = {v:[a] | S.listElts v = S.listElts X} @-}
+{-@ type ListU a X Y = {v:[a] | S.listElts v = S.union (S.listElts X) (S.listElts Y)} @-}

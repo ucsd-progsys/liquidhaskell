@@ -67,6 +67,7 @@ module Language.Haskell.Liquid.Types.RefType (
 
   -- * Manipulating Refinements in RTypes
   , strengthen
+  , strengthenWith
   , generalize
   , normalizePds
   , dataConMsReft
@@ -119,7 +120,7 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Names
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg, isRecursivenewTyCon)
-import           Liquid.GHC.API        as Ghc hiding ( Expr
+import           Liquid.GHC.API        as Ghc hiding ( Expr, get
                                                                       , Located
                                                                       , tyConName
                                                                       , punctuate
@@ -163,8 +164,8 @@ dataConArgs trep = unzip [ (x, t) | (x, t) <- zip xs ts, isValTy t]
     isValTy      = not . Ghc.isEvVarType . toType False
 
 
-pdVar :: PVar t -> Predicate
-pdVar v        = Pr [uPVar v]
+pdVar :: PVarV v t -> PredicateV v
+pdVar v  = Pr [uPVar v]
 
 findPVar :: [PVar (RType c tv ())] -> UsedPVar -> PVar (RType c tv ())
 findPVar ps upv = PV name ty v (zipWith (\(_, _, e) (t, s, _) -> (t, s, e)) (pargs upv) args)
@@ -183,14 +184,14 @@ uRType'         = fmap ur_reft
 uRTypeGen       :: Reftable b => RType c tv a -> RType c tv b
 uRTypeGen       = fmap $ const mempty
 
-uPVar           :: PVar t -> UsedPVar
+uPVar           :: PVarV v t -> UsedPVarV v
 uPVar           = void
 
 uReft           :: (Symbol, Expr) -> UReft Reft
 uReft           = uTop . Reft
 
-uTop            ::  r -> UReft r
-uTop r          = MkUReft r mempty
+uTop            ::  r -> UReftV v r
+uTop r          = MkUReft r (Pr [])
 
 --------------------------------------------------------------------
 -------------- (Class) Predicates for Valid Refinement Types -------
@@ -338,15 +339,15 @@ instance Subable (RRProp Reft) where
   syms (RProp ss t)      = (fst <$> ss) ++ syms t
 
 
-  subst su (RProp ss (RHole r)) = RProp (mapSnd (subst su) <$> ss) $ RHole $ subst su r
-  subst su (RProp ss r)  = RProp  (mapSnd (subst su) <$> ss) $ subst su r
+  subst su (RProp ss (RHole r)) = RProp (fmap (subst su) <$> ss) $ RHole $ subst su r
+  subst su (RProp ss r)  = RProp  (fmap (subst su) <$> ss) $ subst su r
 
 
-  substf f (RProp ss (RHole r)) = RProp (mapSnd (substf f) <$> ss) $ RHole $ substf f r
-  substf f (RProp ss r) = RProp  (mapSnd (substf f) <$> ss) $ substf f r
+  substf f (RProp ss (RHole r)) = RProp (fmap (substf f) <$> ss) $ RHole $ substf f r
+  substf f (RProp ss r) = RProp  (fmap (substf f) <$> ss) $ substf f r
 
-  substa f (RProp ss (RHole r)) = RProp (mapSnd (substa f) <$> ss) $ RHole $ substa f r
-  substa f (RProp ss r) = RProp  (mapSnd (substa f) <$> ss) $ substa f r
+  substa f (RProp ss (RHole r)) = RProp (fmap (substa f) <$> ss) $ RHole $ substa f r
+  substa f (RProp ss r) = RProp  (fmap (substa f) <$> ss) $ substa f r
 
 
 -------------------------------------------------------------------------------
@@ -468,7 +469,7 @@ rTVar :: Monoid r => TyVar -> RTVar RTyVar (RRType r)
 rTVar a = RTVar (RTV a) (rTVarInfo a)
 
 bTVar :: Monoid r => TyVar -> RTVar BTyVar (BRType r)
-bTVar a = RTVar (BTV (symbol a)) (bTVarInfo a)
+bTVar a = RTVar (BTV (symbol <$> GM.locNamedThing a)) (bTVarInfo a)
 
 bTVarInfo :: Monoid r => TyVar -> RTVInfo (BRType r)
 bTVarInfo = mkTVarInfo kindToBRType
@@ -503,14 +504,14 @@ isValKind x0 =
     let x = expandTypeSynonyms x0
      in x == naturalTy || x == typeSymbolKind
 
-bTyVar :: Symbol -> BTyVar
+bTyVar :: LocSymbol -> BTyVar
 bTyVar      = BTV
 
 symbolRTyVar :: Symbol -> RTyVar
 symbolRTyVar = rTyVar . GM.symbolTyVar
 
 bareRTyVar :: BTyVar -> RTyVar
-bareRTyVar (BTV tv) = symbolRTyVar tv
+bareRTyVar (BTV tv) = symbolRTyVar $ val tv
 
 normalizePds :: (OkRT c tv r) => RType c tv r -> RType c tv r
 normalizePds t = addPds ps t'
@@ -548,8 +549,10 @@ bApp :: TyCon -> [BRType r] -> [BRProp r] -> r -> BRType r
 bApp c = RApp (tyConBTyCon c)
 
 tyConBTyCon :: TyCon -> BTyCon
-tyConBTyCon = mkBTyCon . fmap tyConName . GM.locNamedThing
--- tyConBTyCon = mkBTyCon . fmap symbol . locNamedThing
+tyConBTyCon tc =
+    mkBTyCon $
+      makeResolvedLHName (LHRGHC (getName tc)) . tyConName <$> GM.locNamedThing tc
+
 
 --- NV TODO : remove this code!!!
 
@@ -704,19 +707,26 @@ meets rs rs'
   | length rs == length rs' = zipWith meet rs rs'
   | otherwise               = panic Nothing "meets: unbalanced rs"
 
-strengthen :: Reftable r => RType c tv r -> r -> RType c tv r
-strengthen (RApp c ts rs r)   r' = RApp c ts rs   (r `meet` r')
-strengthen (RVar a r)         r' = RVar a         (r `meet` r')
-strengthen (RFun b i t1 t2 r) r' = RFun b i t1 t2 (r `meet` r')
-strengthen (RAppTy t1 t2 r)   r' = RAppTy t1 t2   (r `meet` r')
-strengthen (RAllT a t r)      r' = RAllT a t      (r `meet` r')
-strengthen t                  _  = t
+strengthen :: Reftable r => RTypeV v c tv r -> r -> RTypeV v c tv r
+strengthen = strengthenWith meet
 
-quantifyRTy :: (Monoid r, Eq tv) => [RTVar tv (RType c tv ())] -> RType c tv r -> RType c tv r
+strengthenWith :: (r -> r -> r) -> RTypeV v c tv r -> r -> RTypeV v c tv r
+strengthenWith mt = go
+  where
+    go (RApp c ts rs r)   r' = RApp c ts rs   (r `mt` r')
+    go (RVar a r)         r' = RVar a         (r `mt` r')
+    go (RFun b i t1 t2 r) r' = RFun b i t1 t2 (r `mt` r')
+    go (RAppTy t1 t2 r)   r' = RAppTy t1 t2   (r `mt` r')
+    go (RAllT a t r)      r' = RAllT a t      (r `mt` r')
+    go (RHole r)          r' = RHole          (r `mt` r')
+    go t                  _  = t
+
+
+quantifyRTy :: (Monoid r, Eq tv) => [RTVar tv (RTypeV v c tv ())] -> RTypeV v c tv r -> RTypeV v c tv r
 quantifyRTy tvs ty = foldr rAllT ty tvs
   where rAllT a t = RAllT a t mempty
 
-quantifyFreeRTy :: (Monoid r, Eq tv) => RType c tv r -> RType c tv r
+quantifyFreeRTy :: (Monoid r, Eq tv) => RTypeV v c tv r -> RTypeV v c tv r
 quantifyFreeRTy ty = quantifyRTy (freeTyVars ty) ty
 
 
@@ -759,11 +769,7 @@ rtPropTop
       SubsTy tv (RType c tv ()) tv,
       SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ())))
    => PVar (RType c tv ()) -> Ref (RType c tv ()) (RType c tv r)
-rtPropTop pv = case ptype pv of
-                 PVProp t -> RProp xts $ ofRSort t
-                 PVHProp  -> RProp xts mempty
-               where
-                 xts      =  pvArgs pv
+rtPropTop pv = RProp (pvArgs pv) $ ofRSort $ ptype pv
 
 rtPropPV :: (Fixpoint a, Reftable r)
          => a
@@ -918,7 +924,7 @@ allTyVars' t = fmap ty_var_value $ vs ++ vs'
     vs'     = freeTyVars t
 
 
-freeTyVars :: Eq tv => RType c tv r -> [RTVar tv (RType c tv ())]
+freeTyVars :: Eq tv => RTypeV v c tv r -> [RTVar tv (RTypeV v c tv ())]
 freeTyVars (RAllP _ t)       = freeTyVars t
 freeTyVars (RAllT α t _)     = freeTyVars t L.\\ [α]
 freeTyVars (RFun _ _ t t' _) = freeTyVars t `L.union` freeTyVars t'
@@ -1059,7 +1065,7 @@ subsFree m s z@(α, τ, _) (RAppTy t t' r)
 subsFree _ _ _ t@(RExprArg _)
   = t
 subsFree m s z@(α, τ, _) (RRTy e r o t)
-  = RRTy (mapSnd (subsFree m s z) <$> e) (subt (α, τ) r) o (subsFree m s z t)
+  = RRTy (fmap (subsFree m s z) <$> e) (subt (α, τ) r) o (subsFree m s z t)
 subsFree _ _ (α, τ, _) (RHole r)
   = RHole (subt (α, τ) r)
 
@@ -1182,9 +1188,9 @@ subsFreeRef
   -> RTProp c tv r
   -> RTProp c tv r
 subsFreeRef _ _ (α', τ', _) (RProp ss (RHole r))
-  = RProp (mapSnd (subt (α', τ')) <$> ss) (RHole r)
+  = RProp (fmap (subt (α', τ')) <$> ss) (RHole r)
 subsFreeRef m s (α', τ', t')  (RProp ss t)
-  = RProp (mapSnd (subt (α', τ')) <$> ss) $ subsFree m s (α', τ', fmap top t') t
+  = RProp (fmap (subt (α', τ')) <$> ss) $ subsFree m s (α', τ', fmap top t') t
 
 
 --------------------------------------------------------------------------------
@@ -1223,12 +1229,12 @@ instance (SubsTy tv ty Expr) => SubsTy tv ty Reft where
   subt su (Reft (x, e)) = Reft (x, subt su e)
 
 instance SubsTy Symbol Symbol (BRType r) where
-  subt (x,y) (RVar v r)
-    | BTV x == v = RVar (BTV y) r
-    | otherwise  = RVar v r
-  subt (x, y) (RAllT (RTVar v i) t r)
-    | BTV x == v = RAllT (RTVar v i) t r
-    | otherwise  = RAllT (RTVar v i) (subt (x,y) t) r
+  subt (x,y) (RVar (BTV v) r)
+    | x == val v = RVar (BTV (y <$ v)) r
+    | otherwise  = RVar (BTV v) r
+  subt (x, y) (RAllT (RTVar (BTV v) i) t r)
+    | x == val v = RAllT (RTVar (BTV v) i) t r
+    | otherwise  = RAllT (RTVar (BTV v) i) (subt (x,y) t) r
   subt su (RFun x i t1 t2 r)  = RFun x i (subt su t1) (subt su t2) r
   subt su (RAllP p t)       = RAllP p (subt su t)
   subt su (RApp c ts ps r)  = RApp c (subt su <$> ts) (subt su <$> ps) r
@@ -1286,10 +1292,6 @@ instance SubsTy RTyVar RSort Sort where
     | otherwise     = FObj s
   subt _ s          = s
 
-instance (SubsTy tv ty ty) => SubsTy tv ty (PVKind ty) where
-  subt su (PVProp t) = PVProp (subt su t)
-  subt _   PVHProp   = PVHProp
-
 instance (SubsTy tv ty ty) => SubsTy tv ty (PVar ty) where
   subt su (PV n pvk v xts) = PV n (subt su pvk) v [(subt su t, x, y) | (t,x,y) <- xts]
 
@@ -1327,8 +1329,8 @@ instance SubsTy BTyVar BSort BSort where
   subt (α, τ) = subsTyVarMeet (α, τ, ofRSort τ)
 
 instance (SubsTy tv ty (UReft r), SubsTy tv ty (RType c tv ())) => SubsTy tv ty (RTProp c tv (UReft r))  where
-  subt m (RProp ss (RHole p)) = RProp (mapSnd (subt m) <$> ss) $ RHole $ subt m p
-  subt m (RProp ss t) = RProp (mapSnd (subt m) <$> ss) $ fmap (subt m) t
+  subt m (RProp ss (RHole p)) = RProp (fmap (subt m) <$> ss) $ RHole $ subt m p
+  subt m (RProp ss t) = RProp (fmap (subt m) <$> ss) $ fmap (subt m) t
 
 subvUReft     :: (UsedPVar -> UsedPVar) -> UReft Reft -> UReft Reft
 subvUReft f (MkUReft r p) = MkUReft r (subvPredicate f p)
@@ -1350,7 +1352,7 @@ ofType      = ofType_ $ TyConv
 bareOfType :: Monoid r => Type -> BRType r
 --------------------------------------------------------------------------------
 bareOfType  = ofType_ $ TyConv
-  { tcFVar  = (`RVar` mempty) . BTV . symbol
+  { tcFVar  = (`RVar` mempty) . BTV . fmap symbol . GM.locNamedThing
   , tcFTVar = bTVar
   , tcFApp  = \c ts -> bApp c ts [] mempty
   , tcFLit  = ofLitType bApp
@@ -1639,7 +1641,7 @@ typeSortForAll tce τ  = F.notracepp ("typeSortForall " ++ showpp τ) $ genSort 
 tyConName :: TyCon -> Symbol
 tyConName c
   | listTyCon == c    = listConName
-  | Ghc.isTupleTyCon c = tupConName
+  | Ghc.isTupleTyCon c = symbol $ "Tuple" ++ show (tyConArity c)
   | otherwise         = symbol c
 
 typeSortFun :: TCEmb TyCon -> Type -> Sort

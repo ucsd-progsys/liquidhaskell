@@ -17,7 +17,7 @@ foo = F
 {-@ class measure eltss  :: forall f a. [f a] -> Data.Set.Set a @-}
 
 {-@ instance measure elts :: Stack a -> (Data.Set.Set a)
-      elts (S xs) = (listElts xs)
+      elts (S xs) = (Data.Set.listElts xs)
   @-}
 
 {-@ instance measure elts :: Foo a -> (Data.Set.Set a)

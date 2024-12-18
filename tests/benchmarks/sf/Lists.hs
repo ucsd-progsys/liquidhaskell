@@ -4,7 +4,7 @@
 
 module Lists where
 
-import Prelude hiding (reverse, length, filter)
+import Prelude hiding (reverse, length, filter, pred, sum)
 -- import           Prelude (Char, Int, Bool (..))
 import           Language.Haskell.Liquid.ProofCombinators
 

@@ -179,7 +179,7 @@ check globals = go Nil
   where
     {-@
       go :: ts :Language.Stitch.LH.Data.List.List Ty
-         -> VarsSmallerThan (Language.Stitch.LH.Data.List.length ts)
+         -> VarsSmallerThan (List.length ts)
          -> (e1 : WellTypedExp ts -> { t: Ty | exprType e1 = t } -> Either TyError b)
          -> Either TyError b
       @-}

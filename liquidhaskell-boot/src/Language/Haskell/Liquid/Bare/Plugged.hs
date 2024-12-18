@@ -10,6 +10,7 @@ module Language.Haskell.Liquid.Bare.Plugged
   ) where
 
 import Prelude hiding (error)
+import qualified Data.Bifunctor as Bifunctor
 import Data.Generics.Aliases (mkT)
 import Data.Generics.Schemes (everywhere)
 
@@ -26,6 +27,7 @@ import qualified Liquid.GHC.API   as Ghc
 import           Language.Haskell.Liquid.GHC.Types (StableName, mkStableName)
 import           Language.Haskell.Liquid.Types.DataDecl
 import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.RTypeOp
@@ -137,17 +139,19 @@ makePluggedDataCon allowTC embs tyi ldcp
 plugMany :: Bool -> F.TCEmb Ghc.TyCon -> Bare.TyConMap
          -> Located DataConP
          -> ([Ghc.Var], [Ghc.Type],             Ghc.Type)   -- ^ hs type
-         -> ([RTyVar] , [(F.Symbol, SpecType)], SpecType)   -- ^ lq type
-         -> ([(F.Symbol, SpecType)], SpecType)              -- ^ plugged lq type
+         -> ([RTyVar] , [(LHName, SpecType)], SpecType)   -- ^ lq type
+         -> ([(LHName, SpecType)], SpecType)              -- ^ plugged lq type
 plugMany allowTC embs tyi ldcp (hsAs, hsArgs, hsRes) (lqAs, lqArgs, lqRes)
-                     = F.notracepp msg (drop nTyVars (zip xs ts), t)
+                     = F.notracepp msg (drop nTyVars (zip (map lookupLHName xs) ts), t)
   where
+    lookupLHName s   = Mb.fromMaybe (panic (Just (GM.fSrcSpan ldcp)) $ "unexpected symbol: " ++ show s) $ lookup s lhNameMap
+    lhNameMap        = [ (lhNameToUnqualifiedSymbol n, n) | n <- map fst lqArgs ]
     ((xs,_,ts,_), t) = bkArrow (val pT)
     pT               = plugHoles allowTC (Bare.LqTV dcName) embs tyi (const killHoles) hsT (F.atLoc ldcp lqT)
     hsT              = foldr (Ghc.mkFunTy Ghc.FTF_T_T Ghc.ManyTy) hsRes hsArgs'
     lqT              = foldr (uncurry (rFun' (classRFInfo allowTC))) lqRes lqArgs'
     hsArgs'          = [ Ghc.mkTyVarTy a               | a <- hsAs] ++ hsArgs
-    lqArgs'          = [(F.dummySymbol, RVar a mempty) | a <- lqAs] ++ lqArgs
+    lqArgs'          = [(F.dummySymbol, RVar a mempty) | a <- lqAs] ++ map (Bifunctor.first lhNameToUnqualifiedSymbol) lqArgs
     nTyVars          = length hsAs -- == length lqAs
     dcName           = Ghc.dataConName . dcpCon . val $ ldcp
     msg              = "plugMany: " ++ F.showpp (dcName, hsT, lqT)

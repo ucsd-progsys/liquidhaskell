@@ -6,11 +6,11 @@ import GHC.Ptr
 
 {-@ class measure sizeOf :: forall a . Ptr a -> Int @-}
 
-{-@ instance measure sizeOf :: (Ptr GHC.Internal.Word.Word16) -> Int
+{-@ instance measure sizeOf :: (Ptr Word16) -> Int
       sizeOf (Ptr x) = 2
 @-}
 
-{-@ instance measure sizeOf :: (Ptr GHC.Internal.Word.Word32) -> Int
+{-@ instance measure sizeOf :: (Ptr Word32) -> Int
       sizeOf (Ptr y) = 4
 @-}
 

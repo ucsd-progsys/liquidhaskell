@@ -1,7 +1,7 @@
 {-@ LIQUID "--noclasscheck"    @-}
 module T385 where
 
-import Prelude hiding (Functor, Monad)
+import Prelude hiding (Functor, Monad, (>>))
 
 data ST s a = ST {runState :: s -> (a,s)}
 

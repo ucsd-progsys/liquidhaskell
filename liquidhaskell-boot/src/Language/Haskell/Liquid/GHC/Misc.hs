@@ -29,11 +29,11 @@ import           Debug.Trace
 
 import           Prelude                                    hiding (error)
 import           Liquid.GHC.API            as Ghc hiding
-  (L, line, sourceName, showPpr, panic, showSDoc)
+  (L, get, line, sourceName, showPpr, panic, showSDoc)
 import qualified Liquid.GHC.API            as Ghc (GenLocated (L))
 
 
-import           Data.Char                                  (isLower, isSpace, isUpper)
+import           Data.Char                                  (isDigit, isLower, isSpace, isUpper)
 import           Data.Maybe                                 (isJust, fromMaybe, fromJust, maybeToList)
 import           Data.Hashable
 import qualified Data.HashSet                               as S
@@ -315,6 +315,9 @@ locNamedThing x = F.Loc l lE x
 instance F.Loc Var where
   srcSpan v = SS (getSourcePos v) (getSourcePosE v)
 
+instance F.Loc Name where
+  srcSpan v = SS (getSourcePos v) (getSourcePosE v)
+
 namedLocSymbol :: (F.Symbolic a, NamedThing a) => a -> F.Located F.Symbol
 namedLocSymbol d = F.symbol <$> locNamedThing d
 
@@ -568,8 +571,15 @@ sepUnique = "#"
 mungeNames :: (String -> [T.Text] -> Symbol) -> T.Text -> String -> Symbol -> Symbol
 mungeNames _ _ _ ""  = ""
 mungeNames f d msg s'@(symbolText -> s)
-  | s' == tupConName = tupConName
+  | isTupleSymbol s' = s'
   | otherwise        = f (msg ++ T.unpack s) $ T.splitOn d $ stripParens s
+
+isTupleSymbol :: Symbol -> Bool
+isTupleSymbol s =
+    let t = F.symbolText s
+     in T.isPrefixOf "Tuple" t &&
+        T.all isDigit (T.drop 5 t) &&
+        T.length t > 5
 
 qualifySymbol :: Symbol -> Symbol -> Symbol
 qualifySymbol (symbolText -> m) x'@(symbolText -> x)
@@ -645,17 +655,6 @@ ignoreCoreBinds vs cbs
       | S.member x vs = []
       | otherwise     = [b]
     go (Rec xes)      = [Rec (filter ((`notElem` vs) . fst) xes)]
-
-
-findVarDef :: Symbol -> [CoreBind] -> Maybe (Var, CoreExpr)
-findVarDef sym cbs = case xCbs of
-                     (NonRec v def   : _ ) -> Just (v, def)
-                     (Rec [(v, def)] : _ ) -> Just (v, def)
-                     _                     -> Nothing
-  where
-    xCbs            = [ cb | cb <- concatMap unRec cbs, sym `elem` coreBindSymbols cb ]
-    unRec (Rec xes) = [NonRec x es | (x,es) <- xes]
-    unRec nonRec    = [nonRec]
 
 
 findVarDefMethod :: Symbol -> [CoreBind] -> Maybe (Var, CoreExpr)

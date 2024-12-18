@@ -9,6 +9,8 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE DerivingVia                #-}
+{-# LANGUAGE NamedFieldPuns             #-}
+{-# LANGUAGE TupleSections              #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -40,7 +42,8 @@ module Language.Haskell.Liquid.Types.Types (
   , SubsTy (..)
 
   -- * Relational predicates
-  , RelExpr (..)
+  , RelExpr
+  , RelExprV (..)
 
   -- * Pre-instantiated RType
   , REnv
@@ -94,13 +97,23 @@ module Language.Haskell.Liquid.Types.Types (
   , Cinfo (..)
 
   -- * Measures
-  , Measure (..)
+  , Measure
+  , MeasureV (..)
   , UnSortedExprs, UnSortedExpr
   , MeasureKind (..)
   , CMeasure (..)
-  , Def (..)
-  , Body (..)
+  , Def
+  , DefV (..)
+  , Body
+  , BodyV (..)
   , MSpec (..)
+  , mapDefTy
+  , mapMeasureTy
+  , emapDefM
+  , mapDefV
+  , mapMeasureV
+  , emapMeasureM
+  , emapRelExprV
 
   -- * Type Classes
   , RClass (..)
@@ -118,7 +131,7 @@ module Language.Haskell.Liquid.Types.Types (
   , LogicMap(..), toLogicMap, eAppWithMap, LMap(..)
 
   -- * Refined Instances
-  , RDEnv, DEnv(..), RInstance(..), RISig(..), RILaws(..)
+  , RDEnv, DEnv(..), RInstance(..), RISig(..)
   , MethodType(..), getMethodType
 
   -- * String Literals
@@ -177,6 +190,7 @@ import           Language.Fixpoint.Types (Expr, Symbol)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.GHC.Logging as GHC
 import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Misc
 
@@ -194,10 +208,17 @@ data TyConMap = TyConMap
 -- | Relational predicates --------------------------------------------------
 -----------------------------------------------------------------------------
 
-data RelExpr = ERBasic F.Expr | ERChecked Expr RelExpr | ERUnChecked Expr RelExpr
-  deriving (Eq, Show, Data, Generic)
+type RelExpr = RelExprV F.Symbol
+data RelExprV v = ERBasic (F.ExprV v) | ERChecked (F.ExprV v) (RelExprV v) | ERUnChecked (F.ExprV v) (RelExprV v)
+  deriving (Eq, Show, Data, Generic, Functor, Foldable, Traversable)
+  deriving B.Binary via Generically (RelExprV v)
 
-instance B.Binary RelExpr
+emapRelExprV :: Monad m => ([Symbol] -> v0 -> m v1) -> RelExprV v0 -> m (RelExprV v1)
+emapRelExprV f = go
+  where
+    go (ERBasic e) = ERBasic <$> emapExprVM f e
+    go (ERChecked e re) = ERChecked <$> emapExprVM f e <*> go re
+    go (ERUnChecked e re) = ERUnChecked <$> emapExprVM f e <*> go re
 
 instance F.PPrint RelExpr where
   pprintTidy k (ERBasic e)       = F.pprintTidy k e
@@ -254,27 +275,13 @@ toLogicMap ls = mempty {lmSymDefs = M.fromList $ map toLMap ls}
   where
     toLMap (x, ys, e) = (F.val x, LMap {lmVar = x, lmArgs = ys, lmExpr = e})
 
-eAppWithMap :: LogicMap -> F.Located Symbol -> [Expr] -> Expr -> Expr
+eAppWithMap :: LogicMap -> Symbol -> [Expr] -> Expr -> Expr
 eAppWithMap lmap f es expr
-  | Just (LMap _ xs e) <- M.lookup (F.val f) (lmSymDefs lmap)
+  | Just (LMap _ xs e) <- M.lookup f (lmSymDefs lmap)
   , length xs == length es
   = F.subst (F.mkSubst $ zip xs es) e
-  | Just (LMap _ xs e) <- M.lookup (F.val f) (lmSymDefs lmap)
-  , isApp e
-  = F.subst (F.mkSubst $ zip xs es) $ dropApp e (length xs - length es)
   | otherwise
   = expr
-
-dropApp :: Expr -> Int -> Expr
-dropApp e i | i <= 0 = e
-dropApp (F.EApp e _) i = dropApp e (i-1)
-dropApp _ _          = errorstar "impossible"
-
-isApp :: Expr -> Bool
-isApp (F.EApp (F.EVar _) (F.EVar _)) = True
-isApp (F.EApp e (F.EVar _))          = isApp e
-isApp _                              = False
-
 
 --------------------------------------------------------------------------------
 -- | Refined Instances ---------------------------------------------------------
@@ -282,23 +289,19 @@ isApp _                              = False
 
 data RInstance t = RI
   { riclass :: BTyCon
+    -- | The name of the dictionary
+    -- Provided when resolving names
+  , riDictName :: Maybe (F.Located LHName)
   , ritype  :: [t]
-  , risigs  :: [(F.LocSymbol, RISig t)]
-  } deriving (Eq, Generic, Functor, Data, Typeable, Show)
+  , risigs  :: [(F.Located LHName, RISig t)]
+  } deriving (Eq, Generic, Functor, Data, Typeable, Foldable, Traversable, Show)
     deriving Hashable via Generically (RInstance t)
-
-data RILaws ty = RIL
-  { rilName    :: BTyCon
-  , rilSupers  :: [ty]
-  , rilTyArgs  :: [ty]
-  , rilEqus    :: [(F.LocSymbol, F.LocSymbol)]
-  , rilPos     :: F.Located ()
-  } deriving (Eq, Show, Functor, Data, Typeable, Generic)
-    deriving Hashable via Generically (RILaws ty)
+    deriving B.Binary via Generically (RInstance t)
 
 data RISig t = RIAssumed t | RISig t
-  deriving (Eq, Generic, Functor, Data, Typeable, Show)
+  deriving (Eq, Generic, Functor, Data, Typeable, Show, Foldable, Traversable)
   deriving Hashable via Generically (RISig t)
+  deriving B.Binary via Generically (RISig t)
 
 instance F.PPrint t => F.PPrint (RISig t) where
   pprintTidy k = ppRISig k (empty :: Doc)
@@ -308,12 +311,7 @@ ppRISig k x (RIAssumed t) = "assume" <+> F.pprintTidy k x <+> "::" <+> F.pprintT
 ppRISig k x (RISig t)     =              F.pprintTidy k x <+> "::" <+> F.pprintTidy k t
 
 instance F.PPrint t => F.PPrint (RInstance t) where
-  pprintTidy k (RI n ts mts) = ppMethods k "instance" n ts mts
-
-
-instance (B.Binary t) => B.Binary (RInstance t)
-instance (B.Binary t) => B.Binary (RISig t)
-instance (B.Binary t) => B.Binary (RILaws t)
+  pprintTidy k (RI n _ ts mts) = ppMethods k "instance" n ts mts
 
 newtype DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol (RISig ty)))
                     deriving (Semigroup, Monoid, Show, Functor)
@@ -363,11 +361,10 @@ data RTAlias x a = RTA
   , rtVArgs :: [Symbol]           -- ^ value parameters
   , rtBody  :: a                  -- ^ what the alias expands to
   -- , rtMod   :: !ModName           -- ^ module where alias was defined
-  } deriving (Eq, Data, Typeable, Generic, Functor)
+  } deriving (Eq, Data, Typeable, Generic, Functor, Foldable, Traversable)
     deriving Hashable via Generically (RTAlias x a)
+    deriving B.Binary via Generically (RTAlias x a)
 -- TODO support ghosts in aliases?
-
-instance (B.Binary x, B.Binary a) => B.Binary (RTAlias x a)
 
 mapRTAVars :: (a -> b) -> RTAlias a ty -> RTAlias b ty
 mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt }
@@ -579,30 +576,98 @@ instance Semigroup (RTEnv tv t) where
 --------------------------------------------------------------------------------
 -- | Measures
 --------------------------------------------------------------------------------
-data Body
-  = E Expr          -- ^ Measure Refinement: {v | v = e }
-  | P Expr          -- ^ Measure Refinement: {v | (? v) <=> p }
-  | R Symbol Expr   -- ^ Measure Refinement: {v | p}
-  deriving (Show, Data, Typeable, Generic, Eq)
-  deriving Hashable via Generically Body
+type Body = BodyV F.Symbol
+data BodyV v
+  = E (F.ExprV v)          -- ^ Measure Refinement: {v | v = e }
+  | P (F.ExprV v)          -- ^ Measure Refinement: {v | (? v) <=> p }
+  | R Symbol (F.ExprV v)   -- ^ Measure Refinement: {v | p}
+  deriving (Show, Data, Typeable, Generic, Eq, Functor, Foldable, Traversable)
+  deriving B.Binary via Generically (BodyV v)
+  deriving Hashable via Generically (BodyV v)
 
-data Def ty ctor = Def
-  { measure :: F.LocSymbol
+emapBody
+  :: Monad m
+  => ([Symbol] -> v0 -> m v1)
+  -> BodyV v0
+  -> m (BodyV v1)
+emapBody f b = case b of
+    E e -> E <$> emapExprVM f e
+    P e -> P <$> emapExprVM f e
+    R s e -> R s <$> emapExprVM (f . (s:)) e
+
+type Def ty ctor = DefV Symbol ty ctor
+data DefV v ty ctor = Def
+  { measure :: F.Located LHName
   , ctor    :: ctor
   , dsort   :: Maybe ty
   , binds   :: [(Symbol, Maybe ty)]    -- measure binders: the ADT argument fields
-  , body    :: Body
+  , body    :: BodyV v
   } deriving (Show, Data, Typeable, Generic, Eq, Functor)
-    deriving Hashable via Generically (Def ty ctor)
+  deriving B.Binary via Generically (DefV v ty ctor)
+  deriving Hashable via Generically (DefV v ty ctor)
 
-data Measure ty ctor = M
-  { msName :: F.LocSymbol
+emapDefM
+  :: Monad m
+  => ([Symbol] -> v0 -> m v1)
+  -> ([Symbol] -> ty0 -> m ty1)
+  -> DefV v0 ty0 ctor -> m (DefV v1 ty1 ctor)
+emapDefM vf f d = do
+    dsort <- traverse (f []) (dsort d)
+    binds <- snd <$> mapAccumM (\e (s, t) -> (s:e,) . (s,) <$> traverse (f e) t) [] (binds d)
+    body <- emapBody (vf . (++ map fst binds)) $ body d
+    return d {dsort, binds, body}
+
+mapDefTy :: (ty0 -> ty1) -> DefV v ty0 ctor -> DefV v ty1 ctor
+mapDefTy f Def{..} =
+    Def
+      { dsort = fmap f dsort
+      , binds = map (fmap (fmap f)) binds
+      , ..
+      }
+
+mapDefV :: (v -> v') -> DefV v ty ctor -> DefV v' ty ctor
+mapDefV f Def{..} =
+    Def
+      { body = fmap f body
+      , ..
+      }
+
+type Measure ty ctor = MeasureV Symbol ty ctor
+data MeasureV v ty ctor = M
+  { msName :: F.Located LHName
   , msSort :: ty
-  , msEqns :: [Def ty ctor]
+  , msEqns :: [DefV v ty ctor]
   , msKind :: !MeasureKind
   , msUnSorted :: !UnSortedExprs -- potential unsorted expressions used at measure denifinitions
   } deriving (Eq, Data, Typeable, Generic, Functor)
-    deriving Hashable via Generically (Measure ty ctor)
+  deriving B.Binary via Generically (MeasureV v ty ctor)
+  deriving Hashable via Generically (MeasureV v ty ctor)
+
+emapMeasureM
+  :: Monad m
+  => ([Symbol] -> v0 -> m v1)
+  -> ([Symbol] -> ty0 -> m ty1)
+  -> MeasureV v0 ty0 ctor
+  -> m (MeasureV v1 ty1 ctor)
+emapMeasureM vf f m = do
+    msSort <- f [] (msSort m)
+    msEqns <- mapM (emapDefM vf f) (msEqns m)
+    return m{msSort, msEqns}
+
+mapMeasureTy :: (ty0 -> ty1) -> MeasureV v ty0 ctor -> MeasureV v ty1 ctor
+mapMeasureTy f M{..} =
+    M
+      { msSort = f msSort
+      , msEqns = map (mapDefTy f) msEqns
+      , ..
+      }
+
+mapMeasureV :: (v -> v') -> MeasureV v ty ctor -> MeasureV v' ty ctor
+mapMeasureV f M{..} =
+    M
+      { msEqns = map (mapDefV f) msEqns
+      , ..
+      }
 
 type UnSortedExprs = [UnSortedExpr] -- mempty = []
 type UnSortedExpr  = ([F.Symbol], F.Expr)
@@ -616,26 +681,22 @@ data MeasureKind
   | MsSelector    -- ^ due to selector-fields e.g. `data Foo = Foo { fld :: Int }`
   | MsChecker     -- ^ due to checkers  e.g. `is-F` for `data Foo = F ... | G ...`
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
+  deriving B.Binary via Generically MeasureKind
   deriving Hashable via Generically MeasureKind
 
 instance F.Loc (Measure a b) where
   srcSpan = F.srcSpan . msName
 
-instance Bifunctor Def where
+instance Bifunctor (DefV v) where
   -- first f  (Def m ps c s bs b) = Def m (second f <$> ps) c (f <$> s) ((second (fmap f)) <$> bs) b
   -- second f (Def m ps c s bs b) = Def m ps (f c) s bs b
   first f  (Def m c s bs b) = Def m c (f <$> s) (second (fmap f) <$> bs) b
   second f (Def m c s bs b) = Def m (f c) s bs b
 
 
-instance Bifunctor Measure where
+instance Bifunctor (MeasureV v) where
   first  f (M n s es k u) = M n (f s) (first f <$> es) k u
   second f (M n s es k u) = M n s (second f <$> es)    k u
-
-instance                             B.Binary MeasureKind
-instance                             B.Binary Body
-instance (B.Binary t, B.Binary c) => B.Binary (Def     t c)
-instance (B.Binary t, B.Binary c) => B.Binary (Measure t c)
 
 -- NOTE: don't use the TH versions since they seem to cause issues
 -- building on windows :(
@@ -643,27 +704,27 @@ instance (B.Binary t, B.Binary c) => B.Binary (Measure t c)
 -- deriveBifunctor ''Measure
 
 data CMeasure ty = CM
-  { cName :: F.LocSymbol
+  { cName :: F.Located LHName
   , cSort :: ty
   } deriving (Data, Typeable, Generic, Functor)
 
-instance F.PPrint Body where
+instance (F.PPrint v, Ord v, F.Fixpoint v) => F.PPrint (BodyV v) where
   pprintTidy k (E e)   = F.pprintTidy k e
   pprintTidy k (P p)   = F.pprintTidy k p
   pprintTidy k (R v p) = braces (F.pprintTidy k v <+> "|" <+> F.pprintTidy k p)
 
-instance F.PPrint a => F.PPrint (Def t a) where
+instance (F.PPrint a, F.PPrint v, Ord v, F.Fixpoint v) => F.PPrint (DefV v t a) where
   pprintTidy k (Def m c _ bs body)
            = F.pprintTidy k m <+> cbsd <+> "=" <+> F.pprintTidy k body
     where
       cbsd = parens (F.pprintTidy k c <-> hsep (F.pprintTidy k `fmap` (fst <$> bs)))
 
-instance (F.PPrint t, F.PPrint a) => F.PPrint (Measure t a) where
+instance (F.PPrint v, Ord v, F.Fixpoint v, F.PPrint t, F.PPrint a) => F.PPrint (MeasureV v t a) where
   pprintTidy k (M n s eqs _ _) =  F.pprintTidy k n <+> {- parens (pprintTidy k (loc n)) <+> -} "::" <+> F.pprintTidy k s
                                   $$ vcat (F.pprintTidy k `fmap` eqs)
 
 
-instance F.PPrint (Measure t a) => Show (Measure t a) where
+instance F.PPrint (MeasureV v t a) => Show (MeasureV v t a) where
   show = F.showpp
 
 instance F.PPrint t => F.PPrint (CMeasure t) where
@@ -716,8 +777,9 @@ data RClass ty = RClass
   { rcName    :: BTyCon
   , rcSupers  :: [ty]
   , rcTyVars  :: [BTyVar]
-  , rcMethods :: [(F.LocSymbol, ty)]
-  } deriving (Eq, Show, Functor, Data, Typeable, Generic)
+  , rcMethods :: [(F.Located LHName, ty)]
+  } deriving (Eq, Show, Functor, Data, Typeable, Generic, Foldable, Traversable)
+    deriving B.Binary via Generically (RClass ty)
     deriving Hashable via Generically (RClass ty)
 
 
@@ -730,25 +792,6 @@ instance F.PPrint t => F.PPrint (RClass t) where
       tuplify   = parens . hcat . punctuate ", "
 
 
-instance F.PPrint t => F.PPrint (RILaws t) where
-  pprintTidy k (RIL n ss ts mts _) = ppEqs k ("instance laws" <+> supers ss) n ts mts
-   where
-    supers [] = ""
-    supers xs = tuplify (F.pprintTidy k   <$> xs) <+> "=>"
-    tuplify   = parens . hcat . punctuate ", "
-
-
-ppEqs :: (F.PPrint x, F.PPrint t, F.PPrint a, F.PPrint n)
-          => F.Tidy -> Doc -> n -> [a] -> [(x, t)] -> Doc
-ppEqs k hdr name args mts
-  = vcat $ hdr <+> dName <+> "where"
-         : [ nest 4 (bind m t) | (m, t) <- mts ]
-    where
-      dName    = parens  (F.pprintTidy k name <+> dArgs)
-      dArgs    = gaps    (F.pprintTidy k      <$> args)
-      gaps     = hcat . punctuate " "
-      bind m t = F.pprintTidy k m <+> "=" <+> F.pprintTidy k t
-
 ppMethods :: (F.PPrint x, F.PPrint t, F.PPrint a, F.PPrint n)
           => F.Tidy -> Doc -> n -> [a] -> [(x, RISig t)] -> Doc
 ppMethods k hdr name args mts
@@ -759,9 +802,6 @@ ppMethods k hdr name args mts
       dArgs    = gaps    (F.pprintTidy k      <$> args)
       gaps     = hcat . punctuate " "
       bind m t = ppRISig k m t -- F.pprintTidy k m <+> "::" <+> F.pprintTidy k t
-
-instance B.Binary ty => B.Binary (RClass ty)
-
 
 ------------------------------------------------------------------------
 -- | Var Hole Info -----------------------------------------------------
@@ -879,8 +919,8 @@ instance F.PPrint KVProf where
 
 instance NFData KVProf
 
-hole :: Expr
-hole = F.PKVar "HOLE" mempty
+hole :: F.ExprV v
+hole = F.PKVar "HOLE" (F.Su mempty)
 
 isHole :: Expr -> Bool
 isHole (F.PKVar "HOLE" _) = True
@@ -911,9 +951,9 @@ liquidEnd :: String
 liquidEnd = ['@', '-', '}']
 
 data MSpec ty ctor = MSpec
-  { ctorMap  :: M.HashMap Symbol [Def ty ctor]
-  , measMap  :: M.HashMap F.LocSymbol (Measure ty ctor)
-  , cmeasMap :: M.HashMap F.LocSymbol (Measure ty ())
+  { ctorMap  :: M.HashMap LHName [Def ty ctor]
+  , measMap  :: M.HashMap (F.Located LHName) (Measure ty ctor)
+  , cmeasMap :: M.HashMap (F.Located LHName) (Measure ty ())
   , imeas    :: ![Measure ty ctor]
   } deriving (Data, Typeable, Generic, Functor)
 

@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=Illegal type specification for `BadSig0.foo`" @-}
+{-@ LIQUID "--expect-error-containing=Unknown logic name `pro`" @-}
 module BadSig0 where
 
 {-@ measure prop :: a -> b @-}

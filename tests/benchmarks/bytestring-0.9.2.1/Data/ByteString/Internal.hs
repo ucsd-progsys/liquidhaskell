@@ -562,7 +562,7 @@ memchr p w s = c_memchr p (fromIntegral w) s
 
 foreign import ccall unsafe "string.h memcmp" memcmp
     :: Ptr Word8 -> Ptr Word8 -> CSize -> IO CInt
-{-@ assume memcmp :: p:(Ptr Word8) -> q:(Ptr Word8) -> {v:CSize | (v <= (plen p) && v <= (plen q)) } -> IO GHC.Internal.Foreign.C.Types.CInt @-}
+{-@ assume memcmp :: p:(Ptr Word8) -> q:(Ptr Word8) -> {v:CSize | (v <= (plen p) && v <= (plen q)) } -> IO CInt @-}
 
 foreign import ccall unsafe "string.h memcpy" c_memcpy
     :: Ptr Word8 -> Ptr Word8 -> CSize -> IO (Ptr Word8)

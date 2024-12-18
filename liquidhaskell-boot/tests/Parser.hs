@@ -13,7 +13,7 @@
 
 module Main where
 
-import           Control.Monad (filterM, unless)
+import           Control.Monad (unless)
 import           Data.Data
 import           Data.Char (isSpace)
 import           Data.Generics.Aliases
@@ -22,9 +22,6 @@ import           Data.Generics.Schemes
 import           Language.Fixpoint.Types.Spans
 import qualified Language.Haskell.Liquid.Parse as LH
 import qualified Language.Fixpoint.Types       as F
-
-import           System.Directory
-import           System.FilePath
 
 import           Text.Megaparsec.Error
 import           Text.Megaparsec.Pos
@@ -37,46 +34,18 @@ import           Test.Tasty.Runners.AntXML
 
 -- | Test suite entry point, returns exit failure if any test fails.
 main :: IO ()
--- main = do
---   print $ parseSingleSpec "type IncrListD a D = [a]<{\\x y -> (x+D) <= y}>"
---   return ()
 main = do
-  testSpecFiles' <- testSpecFiles
-  defaultMainWithIngredients (antXMLRunner:defaultIngredients) (tests testSpecFiles')
+  defaultMainWithIngredients (antXMLRunner:defaultIngredients) tests
 
-tests :: TestTree -> TestTree
-tests extra =
+tests :: TestTree
+tests =
   testGroup "ParserTests"
-    ([ testSucceeds
+    [ testSucceeds
     , testSpecP
     , testReservedAliases
     , testFails
     , testErrorReporting
-    ] ++ [ extra ])
-
--- ---------------------------------------------------------------------
-
--- | Test parsing of entire spec files.
---
--- These are included in the normal parser tests, because they call the
--- parser directly, rather than via an external invocation of the executable
--- or the plugin.
---
-testSpecFiles :: IO TestTree
-testSpecFiles =
-  testGroup "spec files" <$> do
-    rawFiles <- listDirectory dir
-    files <- filterM (doesFileExist . (dir </>)) (filter ((== ".spec") . takeExtension) rawFiles)
-    pure ((\ f -> testCase f (go f)) <$> files)
-  where
-    dir = "tests/specfiles/pos"
-    go :: FilePath -> Assertion
-    go f = do
-      txt <- readFile (dir </> f)
-      let r = LH.specSpecificationP f txt
-      case r of
-        Left peb -> assertFailure (errorBundlePretty peb)
-        Right _ -> pure ()
+    ]
 
 -- Test that the top level production works, each of the sub-elements will be tested separately
 testSpecP :: TestTree
@@ -93,10 +62,6 @@ testSpecP =
     , testCase "autosize" $
        parseSingleSpec "autosize List" @?==
             "autosize List"
-
-    , testCase "local" $
-       parseSingleSpec "local foo :: Nat -> Nat" @?==
-            "local assert foo :: lq_tmp$db##0:Nat -> Nat"
 
     , testCase "axiomatize" $
        parseSingleSpec "axiomatize fibA" @?==
@@ -134,10 +99,6 @@ testSpecP =
        parseSingleSpec "bound Foo = true" @?==
           "bound Foo forall [] . [] =  true"
 
-    , testCase "bound HBound" $
-       parseSingleSpec "bound step" @?==
-            "bound step"
-
     , testCase "class measure" $
        parseSingleSpec "class measure sz :: forall a. a -> Int" @?==
             "class measure sz :: forall a . lq_tmp$db##0:a -> Int"
@@ -154,10 +115,6 @@ testSpecP =
        parseSingleSpec "class Sized s where\n  size :: forall a. x:s a -> {v:Nat | v = sz x}" @?==
             "class  (Sized s) where\n    size :: forall a . x:s a -> {v : Nat | v == sz x}"
 
-    , testCase "import" $
-       parseSingleSpec "import Foo" @?==
-          "import Foo"
-
     , testCase "data variance" $
        parseSingleSpec "data variance IO bivariant" @?==
           "data variance IO Bivariant"
@@ -169,10 +126,6 @@ testSpecP =
     , testCase "newtype" $
        parseSingleSpec "newtype Foo = Bar {x :: Nat}" @?==
           "newtype data Foo  [] =\n            | Bar :: forall . x : Nat -> *"
-
-    , testCase "include" $
-       parseSingleSpec "include <listSet.hquals>" @?==
-            "include <listSet.hquals>"
 
     , testCase "invariant" $
        parseSingleSpec "invariant {v:Tree a | 0 <= ht v}" @?==
@@ -515,7 +468,7 @@ testSucceeds =
          , "  fst (a,b) = a"
          ])
         @?==
-            "measure fst :: lq_tmp$db##0:(a, b) -> a\n        fst ((,)a b) = a"
+            "measure fst :: lq_tmp$db##0:(a, b) -> a\n        fst (GHC.Tuple.(,)a b) = a"
     ]
 
 -- ---------------------------------------------------------------------

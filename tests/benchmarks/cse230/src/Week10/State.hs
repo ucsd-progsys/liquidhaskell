@@ -3,7 +3,7 @@
 
 module State where
 
-import Prelude hiding ((++), const, max)
+import Prelude hiding ((++), const, max, init)
 import ProofCombinators
 
 data GState k v = Init v | Bind k v (GState k v)

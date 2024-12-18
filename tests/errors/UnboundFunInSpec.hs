@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=Illegal type specification for `UnboundFunInSpec.three`" @-}
+{-@ LIQUID "--expect-error-containing=Unknown logic name `cnt`" @-}
 module UnboundFunInSpec () where
 
 cnt   :: Int -> Int

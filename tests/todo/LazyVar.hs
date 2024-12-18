@@ -7,9 +7,9 @@ foo = undefined
 {-@ bar :: [a] -> Nat -> a @-}
 bar :: [a] -> Int -> a
 bar xs i
-  | i < l && foo x = x
+  | i < l = x
   | otherwise      = undefined
   where
     l = length xs
-    {-@ LAZYVAR x @-}
+    {-@ lazyvar x @-}
     x = xs !! i

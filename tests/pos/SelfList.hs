@@ -4,8 +4,6 @@ module SelfList () where
 
 import Data.Set (Set(..)) 
 
-{-@ include <selfList.hquals> @-}
-
 {-@ invariant {v0:[{v: a | (Set_mem v (listElts v0))}] | true } @-}
 
 {-@ type IList a  = {v0: [{v:a | (Set_mem v (listElts v0))}] | true } @-}

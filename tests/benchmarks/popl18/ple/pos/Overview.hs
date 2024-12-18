@@ -43,8 +43,7 @@ safe () = trivial
 -- | type Proof = ()
 
 
--- increase fuel to instantiate 3 times!
-{-@ automatic-instances safe' with 3 @-}
+{-@ automatic-instances safe' @-}
 
 {-@ safe' :: () ->  { fib 3 == 2 } @-}
 safe' () = trivial 

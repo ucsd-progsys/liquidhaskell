@@ -5,9 +5,10 @@
 module Language.Haskell.Liquid.Bare.Types 
   ( -- * Name resolution environment 
     Env (..)
+  , GHCTyLookupEnv (..)
   , TyThingMap 
   , ModSpecs
-  , LocalVars 
+  , LocalVars(..)
   , LocalVarDetails (..)
 
     -- * Tycon and Datacon processing environment
@@ -35,6 +36,7 @@ import qualified Data.HashMap.Strict                   as M
 import qualified Language.Fixpoint.Types               as F 
 import qualified Language.Haskell.Liquid.Measure       as Ms
 import           Language.Haskell.Liquid.Types.DataDecl
+import           Language.Haskell.Liquid.Types.Names
 import qualified Language.Haskell.Liquid.Types.RefType as RT 
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.Types
@@ -70,28 +72,41 @@ plugSrc _        = Nothing
 -- | Name resolution environment 
 -------------------------------------------------------------------------------
 data Env = RE 
-  { reLMap      :: !LogicMap
-  , reSyms      :: ![(F.Symbol, Ghc.Var)]    -- ^ see "syms" in old makeGhcSpec'
-  , _reSubst    :: !F.Subst                  -- ^ see "su"   in old makeGhcSpec'
-  , _reTyThings :: !TyThingMap 
-  , reCfg       :: !Config
-  , reQualImps  :: !QImports                 -- ^ qualified imports
-  , reAllImps   :: !(S.HashSet F.Symbol)     -- ^ all imported modules
-  , reLocalVars :: !LocalVars                -- ^ lines at which local variables are defined.
-  , reGlobSyms  :: !(S.HashSet F.Symbol)     -- ^ global symbols, typically unlifted measures like 'len', 'fromJust'
-  , reSrc       :: !GhcSrc                   -- ^ all source info
+  { reTyLookupEnv :: GHCTyLookupEnv
+  , reTcGblEnv  :: Ghc.TcGblEnv
+  , reInstEnvs  :: Ghc.InstEnvs
+  , reUsedExternals :: Ghc.NameSet
+  , reLMap      :: LogicMap
+  , reSyms      :: [(F.Symbol, Ghc.Var)]    -- ^ see "syms" in old makeGhcSpec'
+  , _reTyThings :: TyThingMap
+  , reCfg       :: Config
+  , reQualImps  :: QImports                 -- ^ qualified imports
+  , reAllImps   :: S.HashSet F.Symbol       -- ^ all imported modules
+  , reLocalVars :: LocalVars                -- ^ lines at which local variables are defined.
+  , reGlobSyms  :: S.HashSet F.Symbol       -- ^ global symbols, typically unlifted measures like 'len', 'fromJust'
+  , reSrc       :: GhcSrc                   -- ^ all source info
   }
+
+data GHCTyLookupEnv = GHCTyLookupEnv
+       { gtleSession :: Ghc.Session
+       , gtleTypeEnv :: Ghc.TypeEnv
+       }
 
 instance HasConfig Env where 
   getConfig = reCfg 
 
--- | @LocalVars@ is a map from names to lists of pairs of @Ghc.Var@ and 
---   the lines at which they were defined. 
-type LocalVars = M.HashMap F.Symbol [LocalVarDetails]
+data LocalVars = LocalVars
+  { -- | A map from names to lists of pairs of @Ghc.Var@ and
+    --   the lines at which they were defined.
+    lvSymbols :: M.HashMap F.Symbol [LocalVarDetails]
+    -- | A map from names to its details
+  , lvNames :: NameEnv LocalVarDetails
+  }
 
 data LocalVarDetails = LocalVarDetails
   { lvdSourcePos :: F.SourcePos
   , lvdVar :: Ghc.Var
+  , lvdLclEnv :: [Ghc.Var]
   , lvdIsRec :: Bool  -- ^ Is the variable defined in a letrec?
   } deriving Show
 
@@ -139,8 +154,7 @@ data MeasEnv = MeasEnv
   , meDataCons    :: ![(Ghc.Var,  LocSpecType)]           
   , meClasses     :: ![DataConP]                           
   , meMethods     :: ![(ModName, Ghc.Var, LocSpecType)]  
-  , meCLaws       :: ![(Ghc.Class, [(ModName, Ghc.Var, LocSpecType)])]  
-  , meOpaqueRefl  :: ![(Ghc.Var, Measure (Located BareType) LocSymbol)] -- the opaque-reflected symbols and the corresponding measures
+  , meOpaqueRefl  :: ![(Ghc.Var, Measure (Located BareType) (F.Located LHName))] -- the opaque-reflected symbols and the corresponding measures
   }
 
 instance Semigroup MeasEnv where
@@ -151,7 +165,6 @@ instance Semigroup MeasEnv where
     , meDataCons    = meDataCons a <> meDataCons b  
     , meClasses     = meClasses a <> meClasses b                       
     , meMethods     = meMethods a <> meMethods b
-    , meCLaws       = meCLaws a <> meCLaws b
     , meOpaqueRefl  = meOpaqueRefl a <> meOpaqueRefl b
     }
 instance Monoid MeasEnv where
@@ -163,7 +176,6 @@ instance Monoid MeasEnv where
     , meDataCons    = mempty
     , meClasses     = mempty
     , meMethods     = mempty
-    , meCLaws       = mempty
     , meOpaqueRefl  = mempty
     }
 

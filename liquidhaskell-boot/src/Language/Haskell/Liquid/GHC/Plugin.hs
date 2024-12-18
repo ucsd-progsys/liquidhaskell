@@ -7,6 +7,7 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE TupleSections              #-}
 
 module Language.Haskell.Liquid.GHC.Plugin (
 
@@ -21,6 +22,7 @@ import qualified Language.Fixpoint.Types                 as F
 import qualified  Language.Haskell.Liquid.GHC.Misc        as LH
 import qualified Language.Haskell.Liquid.UX.CmdLine      as LH
 import qualified Language.Haskell.Liquid.GHC.Interface   as LH
+import           Language.Haskell.Liquid.LHNameResolution (resolveLHNames)
 import qualified Language.Haskell.Liquid.Liquid          as LH
 import qualified Language.Haskell.Liquid.Types.PrettyPrint as LH ( filterReportErrors
                                                                  , filterReportErrorsWith
@@ -29,7 +31,7 @@ import qualified Language.Haskell.Liquid.Types.PrettyPrint as LH ( filterReportE
 import qualified Language.Haskell.Liquid.GHC.Logging     as LH   (addTcRnUnknownMessages)
 
 import           Language.Haskell.Liquid.GHC.Plugin.Types
-import           Language.Haskell.Liquid.GHC.Plugin.Util as Util
+import qualified Language.Haskell.Liquid.GHC.Plugin.Serialisation as Serialisation
 import           Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                                                          as SpecFinder
 
@@ -45,8 +47,6 @@ import           Data.Coerce
 import           Data.Function                            ((&))
 import qualified Data.List                               as L
 import           Data.IORef
-import qualified Data.Set                                as S
-import           Data.Set                                 ( Set )
 import qualified Data.Map                                as M
 import           Data.Map                                 ( Map )
 
@@ -71,6 +71,7 @@ import           Language.Haskell.Liquid.Types.Specs
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Visitors
 import           Language.Haskell.Liquid.Bare
+import qualified Language.Haskell.Liquid.Bare.Resolve as Resolve
 import           Language.Haskell.Liquid.UX.CmdLine
 import           Language.Haskell.Liquid.UX.Config
 
@@ -223,10 +224,17 @@ lhDynFlags _ hscEnv =
 -- TODO: We shouldn't rely on exports to find out what's in a ModGuts
 -- https://github.com/ucsd-progsys/liquidhaskell/pull/2388#issuecomment-2411418479
 desugarerDynFlags :: DynFlags -> DynFlags
-desugarerDynFlags df = df
+desugarerDynFlags df = (foldl gopt_unset df disabledOpts)
     { debugLevel   = 1                  -- To keep source note ticks
     , backend      = interpreterBackend -- To export everything
     }
+  where
+    disabledOpts =
+      [ Opt_EnableRewriteRules -- Prevent the simple optimizer from firing rewrite rules
+                               -- during desugaring. See tests/reflect/pos/T2405.hs for
+                               -- a discussion of an example where this is unwanted.
+      ]
+
 
 --------------------------------------------------------------------------------
 -- | Parsing phase -------------------------------------------------------------
@@ -301,7 +309,7 @@ liquidCheckModule cfg0 ms tcg specs = do
       env <- getTopEnv
       session <- Session <$> liftIO (newIORef env)
       liftIO $ flip reflectGhc session $ mkPipelineData ms tcg specs
-    liquidLib <- liquidHaskellCheckWithConfig cfg pipelineData ms
+    liquidLib <- setGblEnv tcg $ liquidHaskellCheckWithConfig cfg pipelineData ms
     traverse (serialiseSpec tcg) liquidLib
   where
     thisFile = LH.modSummaryHsFile ms
@@ -347,7 +355,7 @@ serialiseSpec tcGblEnv liquidLib = do
   -- liftIO $ putStrLn "liquidHaskellCheck 9"
   -- ---
 
-  let serialisedSpec = Util.serialiseLiquidLib liquidLib thisModule
+  serialisedSpec <- liftIO $ Serialisation.serialiseLiquidLib liquidLib thisModule
   debugLog $ "Serialised annotation ==> " ++ (O.showSDocUnsafe . O.ppr $ serialisedSpec)
 
   -- liftIO $ putStrLn "liquidHaskellCheck 10"
@@ -356,11 +364,16 @@ serialiseSpec tcGblEnv liquidLib = do
   where
     thisModule = tcg_mod tcGblEnv
 
-processInputSpec :: Config -> PipelineData -> ModSummary -> BareSpec -> TcM (Either LiquidCheckException LiquidLib)
+processInputSpec
+  :: Config
+  -> PipelineData
+  -> ModSummary
+  -> BareSpecParsed
+  -> TcM (Either LiquidCheckException LiquidLib)
 processInputSpec cfg pipelineData modSummary inputSpec = do
-  hscEnv <- env_top <$> getEnv
-  debugLog $ " Input spec: \n" ++ show inputSpec
-  debugLog $ "Relevant ===> \n" ++ unlines (renderModule <$> S.toList (relevantModules (hsc_mod_graph hscEnv) modGuts))
+  tcg <- getGblEnv
+  debugLog $ " Input spec: \n" ++ show (fromBareSpecParsed inputSpec)
+  debugLog $ "Direct ===> \n" ++ unlines (renderModule <$> directImports tcg)
 
   logicMap :: LogicMap <- liftIO LH.makeLogicMap
 
@@ -373,7 +386,7 @@ processInputSpec cfg pipelineData modSummary inputSpec = do
       , lhModuleSummary   = modSummary
       , lhModuleTcData    = pdTcData pipelineData
       , lhModuleGuts      = pdUnoptimisedCore pipelineData
-      , lhRelevantModules = relevantModules (hsc_mod_graph hscEnv) modGuts
+      , lhRelevantModules = directImports tcg
       }
 
   -- liftIO $ putStrLn ("liquidHaskellCheck 6: " ++ show isIg)
@@ -381,15 +394,11 @@ processInputSpec cfg pipelineData modSummary inputSpec = do
     then pure $ Left (ErrorsOccurred [])
     else checkLiquidHaskellContext lhContext
 
-  where
-    modGuts :: ModGuts
-    modGuts = pdUnoptimisedCore pipelineData
-
 liquidHaskellCheckWithConfig
   :: Config -> PipelineData -> ModSummary -> TcM (Either LiquidCheckException LiquidLib)
 liquidHaskellCheckWithConfig cfg pipelineData modSummary = do
   -- Parse the spec comments stored in the pipeline data.
-  let inputSpec = toBareSpec . snd $
+  let inputSpec = snd $
         hsSpecificationP (moduleName thisModule) (pdSpecComments pipelineData)
 
   processInputSpec cfg pipelineData modSummary inputSpec
@@ -419,7 +428,7 @@ checkLiquidHaskellContext lhContext = do
       let bareSpec = lhInputSpec lhContext
           file = LH.modSummaryHsFile $ lhModuleSummary lhContext
 
-      withPragmas (lhGlobalCfg lhContext) file (Ms.pragmas $ fromBareSpec bareSpec) $ \moduleCfg ->  do
+      withPragmas (lhGlobalCfg lhContext) file (Ms.pragmas bareSpec) $ \moduleCfg ->  do
         let filters = getFilters moduleCfg
         -- Report the outcome of the checking
         LH.reportResult (errorLogger file filters) moduleCfg [giTarget (giSrc pmrTargetInfo)] out
@@ -446,8 +455,8 @@ errorLogger file filters outputResult = do
                            }
     (LH.orMessages outputResult)
 
-isIgnore :: BareSpec -> Bool
-isIgnore (MkBareSpec sp) = any ((== "--skip-module") . F.val) (pragmas sp)
+isIgnore :: Spec lname ty -> Bool
+isIgnore sp = any ((== "--skip-module") . F.val) (pragmas sp)
 
 --------------------------------------------------------------------------------
 -- | Working with bare & lifted specs ------------------------------------------
@@ -470,7 +479,7 @@ loadDependencies currentModuleConfig mods = do
       -> SpecFinderResult
       -> HM.HashMap StableModule LiftedSpec
     processResult acc (SpecNotFound _mdl) = acc
-    processResult acc (LibFound originalModule _location lib) =
+    processResult acc (LibFound originalModule lib) =
       HM.insert
         (toStableModule originalModule)
         (libTarget lib)
@@ -478,12 +487,12 @@ loadDependencies currentModuleConfig mods = do
 
 data LiquidHaskellContext = LiquidHaskellContext {
     lhGlobalCfg        :: Config
-  , lhInputSpec        :: BareSpec
+  , lhInputSpec        :: BareSpecParsed
   , lhModuleLogicMap   :: LogicMap
   , lhModuleSummary    :: ModSummary
   , lhModuleTcData     :: TcData
   , lhModuleGuts       :: ModGuts
-  , lhRelevantModules  :: Set Module
+  , lhRelevantModules  :: [Module]
   }
 
 --------------------------------------------------------------------------------
@@ -499,38 +508,63 @@ data ProcessModuleResult = ProcessModuleResult {
 
 processModule :: LiquidHaskellContext -> TcM (Either LiquidCheckException ProcessModuleResult)
 processModule LiquidHaskellContext{..} = do
-  debugLog ("Module ==> " ++ renderModule thisModule)
-  hscEnv              <- env_top <$> getEnv
+  let modGuts0   = lhModuleGuts
+      thisModule = mg_module modGuts0
 
-  let bareSpec        = lhInputSpec
+  debugLog ("Module ==> " ++ renderModule thisModule)
+
+  let bareSpec0       = lhInputSpec
   -- /NOTE/: For the Plugin to work correctly, we shouldn't call 'canonicalizePath', because otherwise
   -- this won't trigger the \"external name resolution\" as part of 'Language.Haskell.Liquid.Bare.Resolve'
   -- (cfr. 'allowExtResolution').
   let file            = LH.modSummaryHsFile lhModuleSummary
 
-  _                   <- liftIO $ LH.checkFilePragmas $ Ms.pragmas (fromBareSpec bareSpec)
+  _                   <- liftIO $ LH.checkFilePragmas $ Ms.pragmas bareSpec0
 
-  withPragmas lhGlobalCfg file (Ms.pragmas $ fromBareSpec bareSpec) $ \moduleCfg -> do
-    dependencies <- loadDependencies moduleCfg (S.toList lhRelevantModules)
+  withPragmas lhGlobalCfg file (Ms.pragmas bareSpec0) $ \moduleCfg -> do
+    dependencies <- loadDependencies moduleCfg lhRelevantModules
 
     debugLog $ "Found " <> show (HM.size $ getDependencies dependencies) <> " dependencies:"
     when debugLogs $
       forM_ (HM.keys . getDependencies $ dependencies) $ debugLog . moduleStableString . unStableModule
 
-    debugLog $ "mg_exports => " ++ O.showSDocUnsafe (O.ppr $ mg_exports modGuts)
-    debugLog $ "mg_tcs => " ++ O.showSDocUnsafe (O.ppr $ mg_tcs modGuts)
+    debugLog $ "mg_exports => " ++ O.showSDocUnsafe (O.ppr $ mg_exports modGuts0)
+    debugLog $ "mg_tcs => " ++ O.showSDocUnsafe (O.ppr $ mg_tcs modGuts0)
 
-    dynFlags <- getDynFlags
-    targetSrc  <- liftIO $ makeTargetSrc moduleCfg dynFlags file lhModuleTcData modGuts hscEnv
+    hscEnv <- getTopEnv
+    let preNormalizedCore = preNormalizeCore moduleCfg modGuts0
+        modGuts = modGuts0 { mg_binds = preNormalizedCore }
+    targetSrc  <- liftIO $ makeTargetSrc moduleCfg file lhModuleTcData modGuts hscEnv
     logger <- getLogger
 
     -- See https://github.com/ucsd-progsys/liquidhaskell/issues/1711
     -- Due to the fact the internals can throw exceptions from pure code at any point, we need to
     -- call 'evaluate' to force any exception and catch it, if we can.
 
-
+    tcg <- getGblEnv
+    let localVars = Resolve.makeLocalVars preNormalizedCore
+        eBareSpec = resolveLHNames
+          moduleCfg
+          thisModule
+          localVars
+          (imp_mods $ tcg_imports tcg)
+          (tcg_rdr_env tcg)
+          lhModuleLogicMap
+          bareSpec0
+          dependencies
     result <-
-      makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies
+      case eBareSpec of
+        Left errors -> pure $ Left $ mkDiagnostics [] errors
+        Right (bareSpec, lnameEnv) ->
+          fmap (,bareSpec) <$>
+            makeTargetSpec
+              moduleCfg
+              localVars
+              lnameEnv
+              lhModuleLogicMap
+              targetSrc
+              bareSpec
+              dependencies
 
     let continue = pure $ Left (ErrorsOccurred [])
         reportErrs :: (Show e, F.PPrint e) => [TError e] -> TcRn (Either LiquidCheckException ProcessModuleResult)
@@ -541,7 +575,7 @@ processModule LiquidHaskellContext{..} = do
       Left diagnostics -> do
         liftIO $ mapM_ (printWarning logger)    (allWarnings diagnostics)
         reportErrs $ allErrors diagnostics
-      Right (warnings, targetSpec, liftedSpec) -> do
+      Right ((warnings, targetSpec, liftedSpec), bareSpec) -> do
         liftIO $ mapM_ (printWarning logger) warnings
         let targetInfo = TargetInfo targetSrc targetSpec
 
@@ -560,23 +594,17 @@ processModule LiquidHaskellContext{..} = do
       `Ex.catch` (\(e :: Error) -> reportErrs [e])
       `Ex.catch` (\(es :: [Error]) -> reportErrs es)
 
-  where
-    modGuts    = lhModuleGuts
-    thisModule = mg_module modGuts
-
 makeTargetSrc :: Config
-              -> DynFlags
               -> FilePath
               -> TcData
               -> ModGuts
               -> HscEnv
               -> IO TargetSrc
-makeTargetSrc cfg dynFlags file tcData modGuts hscEnv = do
-  let preNormCoreBinds = preNormalizeCore cfg modGuts
+makeTargetSrc cfg file tcData modGuts hscEnv = do
   when (dumpPreNormalizedCore cfg) $ do
     putStrLn "\n*************** Pre-normalized CoreBinds *****************\n"
-    putStrLn $ unlines $ L.intersperse "" $ map (GHC.showPpr dynFlags) preNormCoreBinds
-  coreBinds <- anormalize cfg hscEnv modGuts { mg_binds = preNormCoreBinds }
+    putStrLn $ unlines $ L.intersperse "" $ map (GHC.showPpr (GHC.hsc_dflags hscEnv)) (mg_binds modGuts)
+  coreBinds <- anormalize cfg hscEnv modGuts
 
   -- The type constructors for a module are the (nubbed) union of the ones defined and
   -- the ones exported. This covers the case of \"wrapper modules\" that simply re-exports

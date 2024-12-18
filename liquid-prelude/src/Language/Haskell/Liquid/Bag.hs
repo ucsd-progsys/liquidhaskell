@@ -5,13 +5,6 @@ module Language.Haskell.Liquid.Bag where
 import qualified Data.Map      as M
 
 {-@ embed   Bag as Bag_t                             @-}
-{-@ measure Bag_empty     :: Int -> Bag a            @-}
-{-@ measure Bag_sng       :: a -> Int -> Bag a       @-}
-{-@ measure Bag_count     :: Bag a -> a -> Int       @-}
-{-@ measure Bag_union     :: Bag a -> Bag a -> Bag a @-}
-{-@ measure Bag_union_max :: Bag a -> Bag a -> Bag a @-}
-{-@ measure Bag_inter_min :: Bag a -> Bag a -> Bag a @-}
-{-@ measure Bag_sub       :: Bag a -> Bag a -> Bool  @-}
 {-@ measure bagSize       :: Bag a -> Int            @-}
 
 -- if I just write measure fromList the measure definition is not imported

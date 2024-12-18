@@ -31,35 +31,35 @@ import           Text.PrettyPrint.HughesPJ              hiding ((<>))
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.List                              as L
 import qualified Data.Maybe                             as Mb -- (fromMaybe, isNothing)
+import GHC.Stack
 
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Types                hiding (panic, R, DataDecl, SrcSpan, LocSymbol)
+import           Language.Fixpoint.Types                as F hiding (panic, R, DataDecl, SrcSpan, LocSymbol)
 import           Liquid.GHC.API        as Ghc hiding (Expr, showPpr, panic, (<+>))
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.RTypeOp
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.RefType
 -- import           Language.Haskell.Liquid.Types.Variance
 -- import           Language.Haskell.Liquid.Types.Bounds
-import           Language.Haskell.Liquid.Types.Specs hiding (BareSpec)
+import           Language.Haskell.Liquid.Types.Specs
 import           Language.Haskell.Liquid.UX.Tidy
 
--- /FIXME/: This needs to be removed once the port to the new API is complete.
-type BareSpec = Spec LocBareType LocSymbol
 
-mkM ::  LocSymbol -> ty -> [Def ty bndr] -> MeasureKind -> UnSortedExprs -> Measure ty bndr
+mkM :: HasCallStack => F.Located LHName -> ty -> [DefV v ty bndr] -> MeasureKind -> UnSortedExprs -> MeasureV v ty bndr
 mkM name typ eqns kind u
   | all ((name ==) . measure) eqns
   = M name typ eqns kind u
   | otherwise
   = panic Nothing $ "invalid measure definition for " ++ show name
 
-mkMSpec' :: Symbolic ctor => [Measure ty ctor] -> MSpec ty ctor
+mkMSpec' :: [Measure ty DataCon] -> MSpec ty DataCon
 mkMSpec' ms = MSpec cm mm M.empty []
   where
-    cm     = groupMap (symbol . ctor) $ concatMap msEqns ms
+    cm     = groupMap (makeGHCLHNameFromId . dataConWorkId . ctor) $ concatMap msEqns ms
     mm     = M.fromList [(msName m, m) | m <- ms ]
 
 -- Note [Duplicate measures and opaque reflection]
@@ -68,7 +68,7 @@ mkMSpec' ms = MSpec cm mm M.empty []
 -- Note that only ms are checked for duplicates! `oms` are the opaque reflections, they are automatically generated
 -- so we don't care about duplicates (any two opaque-reflection measures with the same name will refer to the same thing,
 -- since their names are fully qualified). Whence the need for a separate field for opaque reflections vs usual measures.
-mkMSpec :: [Measure t LocSymbol] -> [Measure t ()] -> [Measure t LocSymbol] -> [Measure t LocSymbol] -> MSpec t LocSymbol
+mkMSpec :: [Measure t (F.Located LHName)] -> [Measure t ()] -> [Measure t (F.Located LHName)] -> [Measure t (F.Located LHName)] -> MSpec t (F.Located LHName)
 mkMSpec ms cms ims oms = MSpec cm mm cmm ims
   where
     cm     = groupMap (val . ctor) $ concatMap msEqns (ms'++ims)
@@ -88,7 +88,7 @@ checkDuplicateMeasure measures
       mkError m ms = ErrDupMeas (fSrcSpan m) (pprint (val m)) (fSrcSpan <$> ms)
 
 
-dataConTypes :: Bool -> MSpec (RRType Reft) DataCon -> ([(Var, RRType Reft)], [(LocSymbol, RRType Reft)])
+dataConTypes :: Bool -> MSpec (RRType Reft) DataCon -> ([(Var, RRType Reft)], [(F.Located LHName, RRType Reft)])
 dataConTypes allowTC  s = (ctorTys, measTys)
   where
     measTys     = [(msName m, msSort m) | m <- M.elems (measMap s) ++ imeas s]
@@ -240,14 +240,15 @@ panicDataCon sp dc d
 
 refineWithCtorBody :: Outputable a
                    => a
-                   -> LocSymbol
+                   -> F.Located LHName
                    -> Body
                    -> RType c tv Reft
                    -> RType c tv Reft
 refineWithCtorBody dc f body t =
   case stripRTypeBase t of
     Just (Reft (v, _)) ->
-      strengthen t $ Reft (v, bodyPred (mkEApp f [eVar v]) body)
+      strengthen t $
+        Reft (v, bodyPred (eApps (EVar $ lhNameToResolvedSymbol $ val f) [eVar v]) body)
     Nothing ->
       panic Nothing $ "measure mismatch " ++ showpp f ++ " on con " ++ showPpr dc
 

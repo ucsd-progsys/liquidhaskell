@@ -2,8 +2,6 @@ module Meas8 () where
 
 import Language.Haskell.Liquid.Prelude
 
-{-@ include <len.hquals> @-}
-
 {-@ measure rlen :: [a] -> Int 
       rlen []   = {v | v = 0}
       rlen (y:ys) = {v | v = (1 + rlen(ys))}

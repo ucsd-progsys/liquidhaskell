@@ -17,6 +17,9 @@
 - Add a new flag `--etabeta` to reason with lambdas in PLE [#2356](https://github.com/ucsd-progsys/liquidhaskell/pull/2356)
 - Enabling the LiquidHaskell plugin now enables `-fno-ignore-interface-pragmas` ([#2326](https://github.com/ucsd-progsys/liquidhaskell/pull/2326))
   and `-dkeep-comments` ([#2367](https://github.com/ucsd-progsys/liquidhaskell/pull/2367)).
+- LiquidHaskell earned a new `--minimal` verbosity level as default that prints the banner with the
+  amount of constraints checked ([#2395](https://github.com/ucsd-progsys/liquidhaskell/pull/2395)).
+  This banner is now suppressed when the verbosity is set to `--quiet` ([#2391](https://github.com/ucsd-progsys/liquidhaskell/pull/2391)).
 
 ## 0.9.10.1 (2024-08-21)
 

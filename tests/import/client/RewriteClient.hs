@@ -4,6 +4,8 @@ module RewriteClient where
 {-@ LIQUID "--ple" @-}
 {-@ LIQUID "--rw-termination-check" @-}
 
+import Prelude hiding ((++))
+
 {-@ infix ++ @-}
 
 import RewriteLib

@@ -60,7 +60,7 @@ testBAD = fooBAD (bar 10) 7
 --   with indices of type `Int<p>` when run on a `q`-refined vector only when:
 --   `p` and `q` satisfy a particular relationship, namely:
 --    
---      forall v, vec. (q vec) => 0 <= n < vlen v => (p n)
+--      forall v, vec. (q vec) => 0 <= n < V.vlen v => (p n)
 --    
 --   That is, any `Int` satisfying `p` is indeed a valid index for a `vec` satisfyin `q`.
 -- 
@@ -70,11 +70,11 @@ testBAD = fooBAD (bar 10) 7
 -------------------------------------------------------------------------------
 
 {-@ assume V.iscanl' :: forall <p :: Int -> Bool, q :: V.Vector b -> Bool>.
-      { vec :: V.Vector b <<q>> |- {n:Int | 0 <= n && n < vlen vec} <: Int<p> }
+      { vec :: V.Vector b <<q>> |- {n:Int | 0 <= n && n < V.vlen vec} <: Int<p> }
       (Int<p> -> a -> b -> a)
       -> a 
       -> xs:(V.Vector b <<q>>) 
-      -> {ys:V.Vector a | 1 + vlen xs == vlen ys}
+      -> {ys:V.Vector a | 1 + V.vlen xs == V.vlen ys}
   @-}
 
 scannedVector :: (Num a) => V.Vector a -> V.Vector a

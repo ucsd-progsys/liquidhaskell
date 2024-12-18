@@ -15,8 +15,6 @@ homepage:           https://github.com/ucsd-progsys/liquidhaskell
 build-type:         Simple
 tested-with:        GHC == 9.10.1
 
-extra-source-files: tests/specfiles/pos/*.spec
-
 source-repository head
   type:     git
   location: https://github.com/ucsd-progsys/liquidhaskell/
@@ -36,7 +34,6 @@ library
                       Language.Haskell.Liquid.Bare.Class
                       Language.Haskell.Liquid.Bare.DataType
                       Language.Haskell.Liquid.Bare.Expand
-                      Language.Haskell.Liquid.Bare.Laws
                       Language.Haskell.Liquid.Bare.Measure
                       Language.Haskell.Liquid.Bare.Misc
                       Language.Haskell.Liquid.Bare.Plugged
@@ -59,6 +56,7 @@ library
                       Language.Haskell.Liquid.Constraint.Termination
                       Language.Haskell.Liquid.Constraint.Types
                       Language.Haskell.Liquid.Constraint.Relational
+                      Language.Haskell.Liquid.Constraint.RewriteCase
                       Liquid.GHC.API
                       Liquid.GHC.API.Compat
                       Liquid.GHC.API.Extra
@@ -74,10 +72,11 @@ library
                       Language.Haskell.Liquid.GHC.TypeRep
                       Language.Haskell.Liquid.GHC.Plugin
                       Language.Haskell.Liquid.GHC.Plugin.Tutorial
-                      Language.Haskell.Liquid.LawInstances
+                      Language.Haskell.Liquid.LHNameResolution
                       Language.Haskell.Liquid.Liquid
                       Language.Haskell.Liquid.Measure
                       Language.Haskell.Liquid.Misc
+                      Language.Haskell.Liquid.Name.LogicNameEnv
                       Language.Haskell.Liquid.Parse
                       Language.Haskell.Liquid.Termination.Structural
                       Language.Haskell.Liquid.Transforms.ANF
@@ -118,13 +117,14 @@ library
                       Language.Haskell.Liquid.WiredIn
                       LiquidHaskellBoot
                       Paths_liquidhaskell_boot
-  other-modules:      Language.Haskell.Liquid.GHC.Plugin.SpecFinder
+  other-modules:      Language.Haskell.Liquid.GHC.Plugin.Serialisation
+                      Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                       Language.Haskell.Liquid.GHC.Plugin.Types
-                      Language.Haskell.Liquid.GHC.Plugin.Util
   hs-source-dirs:     src src-ghc src-ghc-9.8
 
   build-depends:      base                 >= 4.11.1.0 && < 5
                     , Diff                 >= 0.3 && < 0.6
+                    , array
                     , aeson
                     , binary
                     , bytestring           >= 0.10

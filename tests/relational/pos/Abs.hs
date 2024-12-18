@@ -1,5 +1,7 @@
 module Abs where
 
+import Prelude hiding (abs)
+
 abs :: Int -> Int
 abs x = if x < 0 then -x else x
 

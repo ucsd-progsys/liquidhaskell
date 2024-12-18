@@ -34,10 +34,9 @@ module Language.Haskell.Liquid.GHC.Interface (
   , qualifiedImports
   , modSummaryHsFile
   , makeFamInstEnv
-  , parseSpecFile
   , clearSpec
   , checkFilePragmas
-  , keepRawTokenStream
+  , lookupTyThing
   , lookupTyThings
   , availableTyThings
   , updLiftedSpec
@@ -75,7 +74,6 @@ import Language.Haskell.Liquid.GHC.Types (MGIModGuts(..))
 import Language.Haskell.Liquid.GHC.Play
 import Language.Haskell.Liquid.WiredIn (isDerivedInstance)
 import qualified Language.Haskell.Liquid.Measure  as Ms
-import qualified Language.Haskell.Liquid.Misc     as Misc
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Types.Errors
 import Language.Haskell.Liquid.Types.PrettyPrint
@@ -147,17 +145,6 @@ updLiftedSpec s1 (Just s2) = clearSpec s1 `mappend` s2
 clearSpec :: Ms.BareSpec -> Ms.BareSpec
 clearSpec s = s { sigs = [], asmSigs = [], aliases = [], ealiases = [], qualifiers = [], dataDecls = [] }
 
-keepRawTokenStream :: ModSummary -> ModSummary
-keepRawTokenStream modSummary = modSummary
-  { ms_hspp_opts = ms_hspp_opts modSummary `gopt_set` Opt_KeepRawTokenStream }
-
-_impThings :: [Var] -> [TyThing] -> [TyThing]
-_impThings vars  = filter ok
-  where
-    vs          = S.fromList vars
-    ok (AnId x) = S.member x vs
-    ok _        = True
-
 allImports :: [LImportDecl GhcRn] -> S.HashSet Symbol
 allImports imps = S.fromList (symbol . unLoc . ideclName . unLoc <$> imps)
 
@@ -183,27 +170,24 @@ qImports qns  = QImports
 --   (see `Bare.Resolve`)
 ---------------------------------------------------------------------------------------
 lookupTyThings :: (GhcMonad m) => TcGblEnv -> m [(Name, Maybe TyThing)]
-lookupTyThings tcGblEnv = mapM (lookupTyThing tcGblEnv) names
+lookupTyThings tcGblEnv = zip names <$> mapM (lookupTyThing (Ghc.tcg_type_env tcGblEnv)) names
   where
     names = liftA2 (++)
         (fmap Ghc.greName . Ghc.globalRdrEnvElts . tcg_rdr_env)
         (fmap is_dfun_name . tcg_insts)
         tcGblEnv
 
-lookupTyThing :: (GhcMonad m) => TcGblEnv -> Name -> m (Name, Maybe TyThing)
-lookupTyThing tcGblEnv name = do
-    hscEnv <- getSession
-    mbTy <- runMaybeT . msum . map MaybeT $
-        [ lookupName name
-        , do minf <- liftIO $ moduleInfoTc hscEnv tcGblEnv
-             modInfoLookupName minf name
+lookupTyThing :: (GhcMonad m) => Ghc.TypeEnv -> Name -> m (Maybe TyThing)
+lookupTyThing tyEnv name = do
+    runMaybeT . msum . map MaybeT $
+        [ pure (lookupTypeEnv tyEnv name)
+        , lookupName name
         ]
-    return (name, mbTy)
 
 availableTyThings :: (GhcMonad m) => TcGblEnv -> [AvailInfo] -> m [TyThing]
 availableTyThings tcGblEnv avails =
     fmap catMaybes $
-      mapM (fmap snd . lookupTyThing tcGblEnv) $
+      mapM (lookupTyThing (Ghc.tcg_type_env tcGblEnv)) $
       concatMap availNames avails
 
 _dumpTypeEnv :: TypecheckedModule -> IO ()
@@ -276,26 +260,6 @@ extractSpecComment (Ghc.L sp (ApiBlockComment txt))
 
 extractSpecComment _ = Nothing
 
---------------------------------------------------------------------------------
--- | Finding & Parsing Files ---------------------------------------------------
---------------------------------------------------------------------------------
-
--- | Parse a spec file by path.
---
--- On a parse error, we fail.
---
--- TODO, Andres: It would be better to fail more systematically, but currently we
--- seem to have an option between throwing an error which will be reported badly,
--- or printing the error ourselves.
---
-parseSpecFile :: FilePath -> IO (ModName, Ms.BareSpec)
-parseSpecFile file = do
-  contents <- Misc.sayReadFile file
-  case specSpecificationP file contents of
-    Left peb -> do
-      hPutStrLn stderr (errorBundlePretty peb)
-      panic Nothing "parsing spec file failed"
-    Right x  -> pure x
 
 --------------------------------------------------------------------------------
 -- Assemble Information for Spec Extraction ------------------------------------

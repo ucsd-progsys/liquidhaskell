@@ -11,7 +11,7 @@ import ReflExt02B
 
 {-@ reflect ReflExt02B.myAdd @-}
 
-{-@ reflect myAdd @-}
+{-@ reflect ReflExt02A.myAdd @-}
 myAdd :: Int
 myAdd = 12
 

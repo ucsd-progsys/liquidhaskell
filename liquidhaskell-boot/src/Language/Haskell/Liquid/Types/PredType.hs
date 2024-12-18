@@ -56,6 +56,7 @@ import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.DataDecl
 import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RefType hiding (generalize)
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.RTypeOp
@@ -183,16 +184,18 @@ dcWrapSpecType allowTC dc (DataConP _ _ vs ps cs yts rt _ _ _)
     mkArrow makeVars' ps ts' rt'
   where
     isCls    = Ghc.isClassTyCon $ Ghc.dataConTyCon dc
-    (as, sts) = unzip (reverse yts)
+    (as0, sts) = unzip (reverse yts)
+    as = map lhNameToResolvedSymbol as0
+    as1 = map lhNameToUnqualifiedSymbol as0
     mkDSym z = F.symbol z `F.suffixSymbol` F.symbol dc
     bs       = mkDSym <$> as
     tx _  []     []     []     = []
     tx su (x:xs) (y:ys) (t:ts) = (y, classRFInfo allowTC , if allowTC && isCls then t else F.subst (F.mkSubst su) t, mempty)
                                : tx ((x, F.EVar y):su) xs ys ts
     tx _ _ _ _ = panic Nothing "PredType.dataConPSpecType.tx called on invalid inputs"
-    yts'     = tx [] as bs sts
+    yts'     = tx [] as1 bs sts
     ts'      = map ("" , classRFInfo allowTC , , mempty) cs ++ yts'
-    subst    = F.mkSubst [(x, F.EVar y) | (x, y) <- zip as bs]
+    subst    = F.mkSubst [(x, F.EVar y) | (x, y) <- zip as1 bs]
     rt'      = F.subst subst rt
     makeVars = filter (`elem` fvs) $ zipWith (\v a -> RTVar v (rTVarInfo a :: RTVInfo RSort)) vs (fst $ splitForAllTyCoVars $ dataConRepType dc)
     makeVars' = map (, mempty) makeVars 
@@ -220,7 +223,7 @@ replacePredsWithRefs :: (UsedPVar, (F.Symbol, [((), F.Symbol, F.Expr)]) -> F.Exp
 replacePredsWithRefs (p, r) (MkUReft (F.Reft(v, rs)) (Pr ps))
   = MkUReft (F.Reft (v, rs'')) (Pr ps2)
   where
-    rs''             = mconcat $ rs : rs'
+    rs''             = foldr (F.&.&) F.PTrue $ rs : rs'
     rs'              = r . (v,) . pargs <$> ps1
     (ps1, ps2)       = L.partition (== p) ps
 
@@ -247,19 +250,13 @@ pvarRType (PV _ k {- (PVProp τ) -} _ args) = rpredType k (fst3 <$> args) -- (ty
   --   ty  = uRTypeGen τ
   --   tys = uRTypeGen . fst3 <$> args
 
-
--- rpredType    :: (PPrint r, Reftable r) => PVKind (RRType r) -> [RRType r] -> RRType r
 rpredType :: Reftable r
-          => PVKind (RType RTyCon tv a)
+          => RType RTyCon tv a
           -> [RType RTyCon tv a] -> RType RTyCon tv r
-rpredType (PVProp t) ts = RApp predRTyCon  (uRTypeGen <$> t : ts) [] mempty
-rpredType PVHProp    ts = RApp wpredRTyCon (uRTypeGen <$>     ts) [] mempty
+rpredType t ts = RApp predRTyCon  (uRTypeGen <$> t : ts) [] mempty
 
 predRTyCon   :: RTyCon
 predRTyCon   = symbolRTyCon predName
-
-wpredRTyCon   :: RTyCon
-wpredRTyCon   = symbolRTyCon wpredName
 
 symbolRTyCon   :: F.Symbol -> RTyCon
 symbolRTyCon n = RTyCon (stringTyCon 'x' 42 $ F.symbolString n) [] defaultTyConInfo
@@ -292,11 +289,11 @@ replacePreds msg                 = L.foldl' go
 --         go z (π, RPropP r) = replacePVarReft (π, r) <$> z
 
 -------------------------------------------------------------------------------------
-substPVar :: PVar BSort -> PVar BSort -> BareType -> BareType
+substPVar :: PVarV v (BSortV v) -> PVarV v (BSortV v) -> BareTypeParsed -> BareTypeParsed
 -------------------------------------------------------------------------------------
 substPVar src dst = go
   where
-    go :: BareType -> BareType
+    go :: BareTypeParsed -> BareTypeParsed
     go (RVar a r)         = RVar a (goRR r)
     go (RApp c ts rs r)   = RApp c (go <$> ts) (goR <$> rs) (goRR r)
     go (RAllP q t)
@@ -310,13 +307,13 @@ substPVar src dst = go
     go (RAppTy t1 t2 r)   = RAppTy    (go t1) (go t2) (goRR r)
     go (RHole r)          = RHole     (goRR r)
     go t@(RExprArg  _)    = t
-    goR :: BRProp RReft -> BRProp RReft
+    goR :: BRPropV LocSymbol (RReftV LocSymbol) -> BRPropV LocSymbol (RReftV LocSymbol)
     goR rp = rp {rf_body = go (rf_body rp) }
-    goRR :: RReft -> RReft
+    goRR :: RReftV LocSymbol -> RReftV LocSymbol
     goRR rr = rr { ur_pred = goP (ur_pred rr) }
-    goP :: Predicate -> Predicate
+    goP :: PredicateV LocSymbol -> PredicateV LocSymbol
     goP (Pr ps) = Pr (goPV <$> ps)
-    goPV :: UsedPVar -> UsedPVar
+    goPV :: UsedPVarV LocSymbol -> UsedPVarV LocSymbol
     goPV pv
       | pname pv == pname src = pv { pname = pname dst }
       | otherwise             = pv
@@ -355,7 +352,7 @@ substPred msg su@(rp,prop) (RFun x i rt rt' r)
   where (r', πs)                = splitRPvar rp r
 -- ps has   , pargs :: ![(t, Symbol, Expr)]
 
-substPred msg su (RRTy e r o t) = RRTy (mapSnd (substPred msg su) <$> e) r o (substPred msg su t)
+substPred msg su (RRTy e r o t) = RRTy (fmap (substPred msg su) <$> e) r o (substPred msg su t)
 substPred msg su (RAllE x t t') = RAllE x (substPred msg su t) (substPred msg su t')
 substPred msg su (REx x t t')   = REx   x (substPred msg su t) (substPred msg su t')
 substPred _   _  t              = t
@@ -508,9 +505,8 @@ meetListWithPSubRef ss (RProp s1 r1) (RProp s2 r2) π
 predType   :: Type
 predType   = symbolType predName
 
-wpredName, predName :: F.Symbol
+predName :: F.Symbol
 predName   = "Pred"
-wpredName  = "WPred"
 
 symbolType :: F.Symbol -> Type
 symbolType = TyVarTy . symbolTyVar

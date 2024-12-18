@@ -26,8 +26,6 @@ prop2 x y = (z == 20)
 data Map k v = M
 
 {-@ embed Map as Map_t @-}
-{-@ measure Map_select :: Map k v -> k -> v @-}
-{-@ measure Map_store  :: Map k v -> k -> v -> Map k v @-}
 
 emp :: Map Int Int
 emp = undefined   

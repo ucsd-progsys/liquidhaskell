@@ -1,5 +1,5 @@
 -- | Testing when the pretended function is not reflected into the logic
-{-@ LIQUID "--expect-error-containing=\"myfoobar\" must be reflected first using {-@ reflect \"myfoobar\" @-}" @-}
+{-@ LIQUID "--expect-error-containing=myfoobar must be reflected first using {-@ reflect myfoobar @-}" @-}
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 

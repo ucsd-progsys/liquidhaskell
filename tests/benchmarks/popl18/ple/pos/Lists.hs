@@ -14,13 +14,13 @@ propConst1 :: () -> Proof
 propConst1 _ = trivial 
 
 
-{-@ automatic-instances propConst2 with 3 @-}
+{-@ automatic-instances propConst2 @-}
 {-@ propConst2 :: () -> { (((C 1 (C 2 Emp)) ++ Emp) ++ Emp) == (C 1 (C 2 Emp)) } @-}
 propConst2 :: () -> Proof
 propConst2 _ = trivial 
 
 
-{-@ automatic-instances propConst3 with 4 @-}
+{-@ automatic-instances propConst3 @-}
 {-@ propConst3 :: () -> { (((C 1 (C 2 (C 3 Emp))) ++ Emp) ++ Emp) == (C 1 (C 2 (C 3 Emp))) } @-}
 propConst3 :: () -> Proof
 propConst3 _ = trivial 

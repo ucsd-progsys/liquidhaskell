@@ -2,7 +2,7 @@ module ImportBoundLib where
 
 data Proof
 
-{-@ bound chain @-}
+{- bound chain @-}
 chain :: (Proof -> Bool) -> (Proof -> Bool) -> (Proof -> Bool)
       -> Proof -> Bool
 chain p q r = \v -> p v

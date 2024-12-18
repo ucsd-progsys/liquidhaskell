@@ -7,5 +7,5 @@ import GHC.Ptr_LHAssumptions()
 import Foreign.Marshal.Alloc
 
 {-@
-assume GHC.Internal.Foreign.Marshal.Alloc.allocaBytes :: n:Nat -> (PtrN a n -> IO b) -> IO b
+assume allocaBytes :: n:Nat -> (PtrN a n -> IO b) -> IO b
 @-}

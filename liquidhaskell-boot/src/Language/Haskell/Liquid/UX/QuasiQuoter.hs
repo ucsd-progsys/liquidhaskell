@@ -12,7 +12,7 @@ module Language.Haskell.Liquid.UX.QuasiQuoter
 
 --     -- * QuasiQuoter Annotations
 --   , LiquidQuote(..)
---   ) 
+--   )
   where
 
 import Data.Data
@@ -23,15 +23,19 @@ import Language.Haskell.TH.Lib
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Quote
 
-import Language.Fixpoint.Types hiding (Error, Loc, SrcSpan)
+import Language.Fixpoint.Types hiding (Error, Loc, SrcSpan, panic)
 import qualified Language.Fixpoint.Types as F
 
 import Language.Haskell.Liquid.GHC.Misc (fSrcSpan)
 import Liquid.GHC.API  (SrcSpan)
+import qualified Liquid.GHC.API as GHC
+import qualified GHC.Types.Name.Occurrence
 import Liquid.GHC.API.Compat
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Types.Errors
+import Language.Haskell.Liquid.Types.Names
 import Language.Haskell.Liquid.Types.RType
+import Language.Haskell.Liquid.Types.RTypeOp
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.Types
 
@@ -81,16 +85,13 @@ throwErrorInQ uerr =
 
 mkSpecDecs :: BPspec -> Either UserError [Dec]
 mkSpecDecs (Asrt (name, ty)) =
-  return . SigD (symbolName name)
-    <$> simplifyBareType name (quantifyFreeRTy $ val ty)
-mkSpecDecs (LAsrt (name, ty)) =
-  return . SigD (symbolName name)
-    <$> simplifyBareType name (quantifyFreeRTy $ val ty)
+  return . SigD (lhNameToName name)
+    <$> simplifyBareType id name (quantifyFreeRTy $ parsedToBareType $ val ty)
 mkSpecDecs (Asrts (names, (ty, _))) =
-  (\t -> (`SigD` t) . symbolName <$> names)
-    <$> simplifyBareType (head names) (quantifyFreeRTy $ val ty)
+  (\t -> (`SigD` t) . lhNameToName <$> names)
+    <$> simplifyBareType id (head names) (quantifyFreeRTy $ parsedToBareType $ val ty)
 mkSpecDecs (Alias rta) =
-  return . TySynD name tvs <$> simplifyBareType lsym (rtBody (val rta))
+  return . TySynD name tvs <$> simplifyBareType parsedToBareType lsym (rtBody (val rta))
   where
     lsym = F.atLoc rta n
     name = symbolName n
@@ -104,23 +105,51 @@ mkSpecDecs _ =
 symbolName :: Symbolic s => s -> Name
 symbolName = mkName . symbolString . symbol
 
+lhNameToName :: Located LHName -> Name
+lhNameToName lname = case val lname of
+    LHNUnresolved _ s -> symbolName s
+    LHNResolved rn _ -> case rn of
+      LHRGHC n -> case GHC.nameModule_maybe n of
+        Nothing -> mkName (GHC.getOccString n)
+        Just m ->
+          mkNameG
+            (toTHNameSpace $ GHC.nameNameSpace n)
+            (GHC.unitString $ GHC.moduleUnit m)
+            (GHC.moduleNameString $ GHC.moduleName m)
+            (GHC.getOccString n)
+      LHRLocal s -> symbolName s
+      LHRIndex i -> panic (Just $ fSrcSpan lname) $ "Cannot produce a TH Name for a LHRIndex " ++ show i
+      LHRLogic _ ->
+        panic (Just $ fSrcSpan lname) $ "Cannot produce a TH Name for a LogicName: " ++ show (lhNameToResolvedSymbol $ val lname)
+
+  where
+    toTHNameSpace :: GHC.NameSpace -> NameSpace
+    toTHNameSpace ns
+      | ns == GHC.dataName = DataName
+      | ns == GHC.tcName = TcClsName
+      | ns == GHC.Types.Name.Occurrence.varName = VarName
+      | GHC.isFieldNameSpace ns = panic (Just $ fSrcSpan lname) "lhNameToName: Unimplemented case for FieldName NameSpace"
+      | otherwise = panic (Just $ fSrcSpan lname) "lhNameToName: Unknown GHC.NameSpace"
+
+
 -- BareType to TH Type ---------------------------------------------------------
 
-simplifyBareType :: LocSymbol -> BareType -> Either UserError Type
-simplifyBareType s t = case simplifyBareType' t of
+simplifyBareType
+  :: PPrint a => (BareTypeV v -> BareType) -> Located a -> BareTypeV v -> Either UserError Type
+simplifyBareType toBareType s t = case simplifyBareType' t of
   Simplified t' ->
     Right t'
   FoundExprArg l ->
-    Left $ ErrTySpec l Nothing (pprint $ val s) (pprint t)
+    Left $ ErrTySpec l Nothing (pprint $ val s) (pprint $ toBareType t)
       "Found expression argument in bad location in type"
   FoundHole ->
-    Left $ ErrTySpec (fSrcSpan s) Nothing (pprint $ val s) (pprint t)
+    Left $ ErrTySpec (fSrcSpan s) Nothing (pprint $ val s) (pprint $ toBareType t)
       "Can't write LiquidHaskell type with hole in a quasiquoter"
 
-simplifyBareType' :: BareType -> Simpl Type
+simplifyBareType' :: BareTypeV v -> Simpl Type
 simplifyBareType' = simplifyBareType'' ([], [])
 
-simplifyBareType'' :: ([BTyVar], [BareType]) -> BareType -> Simpl Type
+simplifyBareType'' :: ([BTyVar], [BareTypeV v]) -> BareTypeV v -> Simpl Type
 
 simplifyBareType'' ([], []) (RVar v _) =
   return $ VarT $ symbolName v
@@ -130,11 +159,10 @@ simplifyBareType'' ([], []) (RFun _ _ i o _) =
   (\x y -> ArrowT `AppT` x `AppT` y)
     <$> simplifyBareType' i <*> simplifyBareType' o
 simplifyBareType'' ([], []) (RApp cc as _ _) =
-  let c  = btc_tc cc
-      c' | isFun   c = ArrowT
-         | isTuple c = TupleT (length as)
-         | isList  c = ListT
-         | otherwise = ConT $ symbolName c
+  let c' | isFun   cc = ArrowT
+         | isTuple cc = TupleT (length as)
+         | isList  cc = ListT
+         | otherwise = ConT $ lhNameToName (btc_tc cc)
   in  foldl' AppT c' <$> sequenceA (filterExprArgs $ simplifyBareType' <$> as)
 
 simplifyBareType'' _ (RExprArg e) =

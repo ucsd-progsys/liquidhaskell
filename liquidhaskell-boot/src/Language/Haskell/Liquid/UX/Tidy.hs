@@ -243,6 +243,7 @@ ppSpecType k = rtypeDoc     k
              . tidySpecType k
              . fmap (everywhere (mkT noCasts))
   where
+    noCasts :: Expr -> Expr
     noCasts (ECst x _) = x
     noCasts e          = e
 

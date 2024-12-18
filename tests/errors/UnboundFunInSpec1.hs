@@ -1,4 +1,5 @@
-{-@ LIQUID "--expect-error-containing=Illegal type specification for `UnboundFunInSpec1.foo`" @-}
+{-@ LIQUID "--expect-error-containing=Unknown logic name `rubbish`" @-}
+{-@ LIQUID "--expect-error-containing=Unknown logic name `this`" @-}
 module UnboundFunInSpec1 where
 
 {-@ foo :: xs:_ -> {v:_ | this = rubbish } @-}

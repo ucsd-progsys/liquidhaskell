@@ -119,10 +119,6 @@ fourth4 (_,_,_,x) = x
 third4 :: (t, t1, t2, t3) -> t2
 third4  (_,_,x,_) = x
 
-mapSndM :: (Applicative m) => (b -> m c) -> (a, b) -> m (a, c)
--- mapSndM f (x, y) = return . (x,) =<< f y
-mapSndM f (x, y) = (x, ) <$> f y
-
 firstM :: Functor f => (t -> f a) -> (t, t1) -> f (a, t1)
 firstM  f (a,b) = (,b) <$> f a
 
@@ -211,9 +207,6 @@ single x = [x]
 
 mapFst3 :: (t -> t1) -> (t, t2, t3) -> (t1, t2, t3)
 mapFst3 f (x, y, z) = (f x, y, z)
-
-mapSnd3 :: (t -> t2) -> (t1, t, t3) -> (t1, t2, t3)
-mapSnd3 f (x, y, z) = (x, f y, z)
 
 mapThd3 :: (t -> t3) -> (t1, t2, t) -> (t1, t2, t3)
 mapThd3 f (x, y, z) = (x, y, f z)

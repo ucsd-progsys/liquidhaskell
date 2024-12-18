@@ -5,8 +5,7 @@
 -- interface files, even with `-O0`
 {-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
 
--- Note that we don't export Tree here
-module ReflExt07B (leftMostEl) where
+module ReflExt07B (leftMostEl, Tree(..)) where
 
 data Tree a where 
     Leaf :: a -> Tree a 

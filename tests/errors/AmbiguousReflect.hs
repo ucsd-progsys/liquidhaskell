@@ -1,12 +1,7 @@
+{-@ LIQUID "--expect-error-containing=Ambiguous specification symbol `mappend`"  @-}
 {-@ LIQUID "--reflection"  @-}
 
 module AmbiguousReflect where
-
--- ISSUE: Uncomment the below to make this test pass
---
---    import Prelude hiding (mappend)
--- 
--- LH should give an error message indicating the above.
 
 data D = D Int Int 
 

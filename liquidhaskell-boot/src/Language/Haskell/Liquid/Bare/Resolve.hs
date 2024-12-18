@@ -14,20 +14,25 @@
 module Language.Haskell.Liquid.Bare.Resolve
   ( -- * Creating the Environment
     makeEnv
+  , makeLocalVars
+  , makeGHCTyLookupEnv
+  , GHCTyLookupEnv(..)
 
     -- * Resolving symbols
   , ResolveSym (..)
-  , Qualify (..)
   , Lookup
-  , qualifyTop, qualifyTopDummy, qualifyLocSymbolTop
 
   -- * Looking up names
   , maybeResolveSym
   , lookupGhcDataCon
+  , lookupGhcDataConLHName
   , lookupGhcDnTyCon
   , lookupGhcTyCon
   , lookupGhcVar
+  , lookupGhcIdLHName
   , lookupGhcNamedVar
+  , lookupLocalVar
+  , lookupGhcTyConLHName
 
   -- * Checking if names exist
   , knownGhcVar
@@ -56,12 +61,15 @@ module Language.Haskell.Liquid.Bare.Resolve
 
 import qualified Control.Exception                 as Ex
 import           Control.Monad (mplus)
+import           Data.Bifunctor (first)
 import           Data.Function (on)
+import           Data.IORef (newIORef)
 import qualified Data.List                         as L
 import qualified Data.HashSet                      as S
 import qualified Data.Maybe                        as Mb
 import qualified Data.HashMap.Strict               as M
 import qualified Data.Text                         as T
+import           GHC.Stack
 import           Text.Megaparsec.Pos (sourceColumn, sourceLine)
 import qualified Text.PrettyPrint.HughesPJ         as PJ
 
@@ -69,21 +77,21 @@ import qualified Language.Fixpoint.Types               as F
 import qualified Language.Fixpoint.Types.Visitor       as F
 import qualified Language.Fixpoint.Misc                as Misc
 import qualified Liquid.GHC.API       as Ghc
+import qualified Language.Haskell.Liquid.GHC.Interface as Interface
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 import qualified Language.Haskell.Liquid.Misc          as Misc
 import           Language.Haskell.Liquid.Types.DataDecl
 import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.RTypeOp
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Types.Types
-import           Language.Haskell.Liquid.Measure       (BareSpec)
-import           Language.Haskell.Liquid.Types.Specs   hiding (BareSpec)
+import           Language.Haskell.Liquid.Types.Specs
 import           Language.Haskell.Liquid.Types.Visitors
 import           Language.Haskell.Liquid.Bare.Types
-import           Language.Haskell.Liquid.Bare.Misc
 import           Language.Haskell.Liquid.UX.Config
-import           Language.Haskell.Liquid.WiredIn
+import           System.IO.Unsafe (unsafePerformIO)
 
 myTracepp :: (F.PPrint a) => String -> a -> a
 myTracepp = F.notracepp
@@ -94,15 +102,18 @@ type Lookup a = Either [Error] a
 -------------------------------------------------------------------------------
 -- | Creating an environment
 -------------------------------------------------------------------------------
-makeEnv :: Config -> GhcSrc -> LogicMap -> [(ModName, BareSpec)] -> Env
-makeEnv cfg src lmap specs = RE
-  { reLMap      = lmap
+makeEnv :: Config -> GHCTyLookupEnv -> Ghc.TcGblEnv -> Ghc.InstEnvs -> LocalVars -> GhcSrc -> LogicMap -> [(ModName, BareSpec)] -> Env
+makeEnv cfg ghcTyLookupEnv tcg instEnv localVars src lmap specs = RE
+  { reTyLookupEnv = ghcTyLookupEnv
+  , reTcGblEnv  = tcg
+  , reInstEnvs = instEnv
+  , reUsedExternals = usedExternals
+  , reLMap      = lmap
   , reSyms      = syms
-  , _reSubst    = makeVarSubst   src
   , _reTyThings = makeTyThingMap src
   , reQualImps  = _gsQualImps     src
   , reAllImps   = _gsAllImps      src
-  , reLocalVars = makeLocalVars  src
+  , reLocalVars = localVars
   , reSrc       = src
   , reGlobSyms  = S.fromList     globalSyms
   , reCfg       = cfg
@@ -111,6 +122,8 @@ makeEnv cfg src lmap specs = RE
     globalSyms  = concatMap getGlobalSyms specs
     syms        = [ (F.symbol v, v) | v <- vars ]
     vars        = srcVars src
+    usedExternals = Ghc.exprsOrphNames $ map snd $ Ghc.flattenBinds $ _giCbs src
+
 
 getGlobalSyms :: (ModName, BareSpec) -> [F.Symbol]
 getGlobalSyms (_, spec)
@@ -120,43 +133,62 @@ getGlobalSyms (_, spec)
       ++ (mbName <$> imeasures spec)
       ++ (mbName <$> omeasures spec)
   where
-    mbName = F.val . msName
+    mbName = lhNameToResolvedSymbol . F.val . msName
 
-makeLocalVars :: GhcSrc -> LocalVars
-makeLocalVars = localVarMap . localBinds . _giCbs
+makeLocalVars :: [Ghc.CoreBind] -> LocalVars
+makeLocalVars = localVarMap . localBinds
 
 -- TODO: rewrite using CoreVisitor
 localBinds :: [Ghc.CoreBind] -> [LocalVarDetails]
-localBinds                    = concatMap bgoT
+localBinds                    = concatMap (bgoT [])
   where
-    bgoT (Ghc.NonRec _ e)   = go e
-    bgoT (Ghc.Rec xes)      = concatMap (go . snd) xes
-    pgo isRec (x, e)        = mkLocalVarDetails isRec x : go e
-    bgo (Ghc.NonRec x e)    = pgo False (x, e)
-    bgo (Ghc.Rec xes)       = concatMap (pgo True) xes
-    go  (Ghc.App e a)       = concatMap go [e, a]
-    go  (Ghc.Lam _ e)       = go e
-    go  (Ghc.Let b e)       = bgo b ++ go e
-    go  (Ghc.Tick _ e)      = go e
-    go  (Ghc.Cast e _)      = go e
-    go  (Ghc.Case e _ _ cs) = go e ++ concatMap (go . (\(Ghc.Alt _ _ e') -> e')) cs
-    go  (Ghc.Var _)         = []
-    go  _                   = []
+    bgoT g (Ghc.NonRec _ e) = go g e
+    bgoT g (Ghc.Rec xes)    = concatMap (go g . snd) xes
+    pgo g isRec (x, e)      = mkLocalVarDetails g isRec x : go g e
+    bgo g (Ghc.NonRec x e)  = pgo g False (x, e)
+    bgo g (Ghc.Rec xes)     = concatMap (pgo g True) xes
+    go g (Ghc.App e a)       = concatMap (go g) [e, a]
+    go g (Ghc.Lam x e)       = go (x:g) e
+    go g (Ghc.Let b e)       = bgo g b ++ go (Ghc.bindersOf b ++ g) e
+    go g (Ghc.Tick _ e)      = go g e
+    go g (Ghc.Cast e _)      = go g e
+    go g (Ghc.Case e _ _ cs) = go g e ++ concatMap (\(Ghc.Alt _ bs e') -> go (bs ++ g) e') cs
+    go _ (Ghc.Var _)         = []
+    go _ _                   = []
 
-    mkLocalVarDetails isRec v = LocalVarDetails
+    mkLocalVarDetails g isRec v = LocalVarDetails
       { lvdSourcePos = F.sp_start $ F.srcSpan v
       , lvdVar = v
+      , lvdLclEnv = g
       , lvdIsRec = isRec
       }
 
 localVarMap :: [LocalVarDetails] -> LocalVars
 localVarMap lvds =
-    Misc.group
-      [ (x, lvd)
-      | lvd <- lvds
-      , let v = lvdVar lvd
-            x = F.symbol $ Ghc.occNameString $ Ghc.nameOccName $ Ghc.varName v
-      ]
+    LocalVars
+      { lvSymbols = Misc.group
+          [ (x, lvd)
+          | lvd <- lvds
+          , let v = lvdVar lvd
+                x = F.symbol $ Ghc.occNameString $ Ghc.nameOccName $ Ghc.varName v
+          ]
+      , lvNames = Ghc.mkNameEnvWith (Ghc.getName . lvdVar) lvds
+      }
+
+makeGHCTyLookupEnv :: Ghc.CoreProgram -> Ghc.TcRn GHCTyLookupEnv
+makeGHCTyLookupEnv cbs = do
+    hscEnv <- Ghc.getTopEnv
+    session <- Ghc.Session <$> Ghc.liftIO (newIORef hscEnv)
+    tcg <- Ghc.getGblEnv
+      -- Types differ in tcg_type_env vs the core bindings though they seem to
+      -- be alpha-equivalent. We prefer the type in the core bindings and we
+      -- also include the types of local variables.
+    let varsEnv = Ghc.mkTypeEnv $ map Ghc.AnId $ letVars cbs
+        typeEnv = Ghc.tcg_type_env tcg `Ghc.plusTypeEnv` varsEnv
+    return GHCTyLookupEnv
+      { gtleSession = session
+      , gtleTypeEnv = typeEnv
+      }
 
 localKey   :: Ghc.Var -> Maybe F.Symbol
 localKey v
@@ -164,37 +196,6 @@ localKey v
   | otherwise = Nothing
   where
     (m, x)    = splitModuleNameExact . GM.dropModuleUnique . F.symbol $ v
-
-makeVarSubst :: GhcSrc -> F.Subst
-makeVarSubst src = F.mkSubst unqualSyms
-  where
-    unqualSyms   = [ (x, mkVarExpr v)
-                       | (x, mxs) <- M.toList (makeSymMap src)
-                       , not (isWiredInName x)
-                       , v <- Mb.maybeToList (okUnqualified me mxs)
-                   ]
-    me           = F.symbol (_giTargetMod src)
-
--- | @okUnqualified mod mxs@ takes @mxs@ which is a list of modulenames-var
---   pairs all of which have the same unqualified symbol representation.
---   The function returns @Just v@ if
---   1. that list is a singleton i.e. there is a UNIQUE unqualified version, OR
---   2. there is a version whose module equals @me@.
-
-okUnqualified :: F.Symbol -> [(F.Symbol, a)] -> Maybe a
-okUnqualified _ [(_, x)] = Just x
-okUnqualified me mxs     = go mxs
-  where
-    go []                = Nothing
-    go ((m,x) : rest)
-      | me == m          = Just x
-      | otherwise        = go rest
-
-
-makeSymMap :: GhcSrc -> M.HashMap F.Symbol [(F.Symbol, Ghc.Var)]
-makeSymMap src = Misc.group [ (sym, (m, x))
-                                | x           <- srcVars src
-                                , let (m, sym) = qualifiedSymbol x ]
 
 makeTyThingMap :: GhcSrc -> TyThingMap
 makeTyThingMap src =
@@ -309,171 +310,6 @@ dataConVars :: [Ghc.DataCon] -> [Ghc.Var]
 dataConVars dcs = (Ghc.dataConWorkId <$> dcs) ++ (Ghc.dataConWrapId <$> dcs)
 
 -------------------------------------------------------------------------------
--- | Qualify various names
--------------------------------------------------------------------------------
-qualifyTop :: (Qualify a) => Env -> ModName -> F.SourcePos -> a -> a
-qualifyTop env name l = qualify env name l []
-
-qualifyTopDummy :: (Qualify a) => Env -> ModName -> a -> a
-qualifyTopDummy env name = qualifyTop env name dummySourcePos
-
-dummySourcePos :: F.SourcePos
-dummySourcePos = F.loc (F.dummyLoc ())
-
-class Qualify a where
-  qualify :: Env -> ModName -> F.SourcePos -> [F.Symbol] -> a -> a
-
-instance Qualify TyConMap where
-  qualify env name l bs tyi = tyi
-    { tcmTyRTy = tx <$> tcmTyRTy tyi
-    , tcmFIRTy = tx <$> tcmFIRTy tyi
-    }
-    where
-      tx :: (Qualify a) => a -> a
-      tx = qualify env name l bs
-
-instance Qualify TyConP where
-  qualify env name _ bs tcp = tcp { tcpSizeFun = qualify env name (tcpLoc tcp) bs <$> tcpSizeFun tcp }
-
-instance Qualify SizeFun where
-  qualify env name _ bs (SymSizeFun lx) = SymSizeFun (qualify env name (F.loc lx) bs lx)
-  qualify _   _    _ _  sf              = sf
-
-instance Qualify F.Equation where
-  qualify _env _name _l _bs x = x -- TODO-REBARE
--- REBARE: qualifyAxiomEq :: Bare.Env -> Var -> Subst -> AxiomEq -> AxiomEq
--- REBARE: qualifyAxiomEq v su eq = subst su eq { eqName = symbol v}
-
-instance Qualify F.Symbol where
-  qualify env name l bs x = qualifySymbol env name l bs x
-
-qualifySymbol :: Env -> ModName -> F.SourcePos -> [F.Symbol] -> F.Symbol -> F.Symbol
-qualifySymbol env name l bs x
-  | isSpl     = x
-  | otherwise = case resolveLocSym env name "Symbol" (F.Loc l l x) of
-                  Left _ -> x
-                  Right v -> v
-  where
-    isSpl     = isSplSymbol env bs x
-
-
-qualifyLocSymbolTop :: Env -> ModName -> F.LocSymbol -> F.LocSymbol
-qualifyLocSymbolTop env modName l  = l {val = qualifyTop env modName (loc l) (val l)}
-
-isSplSymbol :: Env -> [F.Symbol] -> F.Symbol -> Bool
-isSplSymbol env bs x
-  =  isWiredInName x
-  || elem x bs
-  || S.member x (reGlobSyms env)
-
-instance (Qualify a) => Qualify (Located a) where
-  qualify env name l bs = fmap (qualify env name l bs)
-
-instance (Qualify a) => Qualify [a] where
-  qualify env name l bs = fmap (qualify env name l bs)
-
-instance (Qualify a) => Qualify (Maybe a) where
-  qualify env name l bs = fmap (qualify env name l bs)
-
-instance Qualify Body where
-  qualify env name l bs (P   p) = P   (qualify env name l bs p)
-  qualify env name l bs (E   e) = E   (qualify env name l bs e)
-  qualify env name l bs (R x p) = R x (qualify env name l bs p)
-
-instance Qualify TyConInfo where
-  qualify env name l bs tci = tci { sizeFunction = qualify env name l bs <$> sizeFunction tci }
-
-instance Qualify RTyCon where
-  qualify env name l bs rtc = rtc { rtc_info = qualify env name l bs (rtc_info rtc) }
-
-instance Qualify (Measure SpecType Ghc.DataCon) where
-  qualify env name _ bs m = m -- FIXME substEnv env name bs $
-    { msName = qualify env name l bs     lname
-    , msEqns = qualify env name l bs <$> msEqns m
-    }
-    where
-      l      = F.loc  lname
-      lname  = msName m
-
-
-instance Qualify (Def ty ctor) where
-  qualify env name l bs d = d
-    { body  = qualify env name l (bs ++ bs') (body d) }
-    where
-      bs'   = fst <$> binds d
-
-instance Qualify BareMeasure where
-  qualify env name l bs m = m
-    { msEqns = qualify env name l bs (msEqns m)
-    }
-
-instance Qualify DataCtor where
-  qualify env name l bs c = c
-    { dcTheta  = qualify env name l bs (dcTheta  c)
-    , dcFields = qualify env name l bs (dcFields c)
-    , dcResult = qualify env name l bs (dcResult c)
-    }
-
-instance Qualify DataDecl where
-  qualify env name l bs d = d
-    { tycDCons  = qualify env name l bs (tycDCons  d)
-    , tycPropTy = qualify env name l bs (tycPropTy d)
-    }
-
-instance Qualify ModSpecs where
-  qualify env name l bs = Misc.hashMapMapWithKey (\_ -> qualify env name l bs)
-
-instance Qualify b => Qualify (a, b) where
-  qualify env name l bs (x, y) = (x, qualify env name l bs y)
-
-instance Qualify BareSpec where
-  qualify = qualifyBareSpec
-
-qualifyBareSpec :: Env -> ModName -> F.SourcePos -> [F.Symbol] -> BareSpec -> BareSpec
-qualifyBareSpec env name l bs sp = sp
-  { measures   = qualify env name l bs (measures   sp)
-  , asmSigs    = qualify env name l bs (asmSigs    sp)
-  , sigs       = qualify env name l bs (sigs       sp)
-  , localSigs  = qualify env name l bs (localSigs  sp)
-  , reflSigs   = qualify env name l bs (reflSigs   sp)
-  , dataDecls  = qualify env name l bs (dataDecls  sp)
-  , newtyDecls = qualify env name l bs (newtyDecls sp)
-  , ialiases   = [ (f x, f y) | (x, y) <- ialiases sp ]
-  }
-  where f      = qualify env name l bs
-
-instance Qualify a => Qualify (RTAlias F.Symbol a) where
-  qualify env name l bs rtAlias
-   = rtAlias { rtName  = qualify env name l bs (rtName rtAlias)
-             , rtTArgs = qualify env name l bs (rtTArgs rtAlias)
-             , rtVArgs = qualify env name l bs (rtVArgs rtAlias)
-             , rtBody  = qualify env name l bs (rtBody rtAlias)
-             }
-
-instance Qualify F.Expr where
-  qualify = substEnv
-
-instance Qualify RReft where
-  qualify = substEnv
-
-instance Qualify F.Qualifier where
-  qualify env name _ bs q = q { F.qBody = qualify env name (F.qPos q) bs' (F.qBody q) }
-    where
-      bs'                 = bs ++ (F.qpSym <$> F.qParams q)
-
-substEnv :: (F.Subable a) => Env -> ModName -> F.SourcePos -> [F.Symbol] -> a -> a
-substEnv env name l bs = F.substa (qualifySymbol env name l bs)
-
-instance Qualify SpecType where
-  qualify x1 x2 x3 x4 x5 = emapReft (substFreeEnv x1 x2 x3) x4 x5
-
-instance Qualify BareType where
-  qualify x1 x2 x3 x4 x5 = emapReft (substFreeEnv x1 x2 x3) x4 x5
-
-substFreeEnv :: (F.Subable a) => Env -> ModName -> F.SourcePos -> [F.Symbol] -> a -> a
-substFreeEnv env name l bs = F.substf (F.EVar . qualifySymbol env name l bs)
-
--------------------------------------------------------------------------------
 lookupGhcNamedVar :: (Ghc.NamedThing a, F.Symbolic a) => Env -> ModName -> a -> Maybe Ghc.Var
 -------------------------------------------------------------------------------
 lookupGhcNamedVar env name z = maybeResolveSym  env name "Var" lx
@@ -482,8 +318,8 @@ lookupGhcNamedVar env name z = maybeResolveSym  env name "Var" lx
 
 lookupGhcVar :: Env -> ModName -> String -> LocSymbol -> Lookup Ghc.Var
 lookupGhcVar env name kind lx = case resolveLocSym env name kind lx of
-    Right v -> Mb.maybe (Right v) Right (lookupLocalVar env lx [v])
-    Left  e -> Mb.maybe (Left  e) Right (lookupLocalVar env lx [])
+    Right v -> Mb.maybe (Right v) (either Right Right) (lookupLocalVar (reLocalVars env) lx [v])
+    Left  e -> Mb.maybe (Left  e) (either Right Right) (lookupLocalVar (reLocalVars env) lx [])
 
   -- where
     -- err e   = Misc.errorP "error-lookupGhcVar" (F.showpp (e, F.loc lx, lx))
@@ -493,12 +329,11 @@ lookupGhcVar env name kind lx = case resolveLocSym env name kind lx of
 --   that also match the name @lx@; we then pick the "closest" definition.
 --   See tests/names/LocalSpec.hs for a motivating example.
 
-lookupLocalVar :: Env -> LocSymbol -> [Ghc.Var] -> Maybe Ghc.Var
-lookupLocalVar env lx gvs = findNearest lxn kvs
+lookupLocalVar :: F.Loc a => LocalVars -> LocSymbol -> [a] -> Maybe (Either a Ghc.Var)
+lookupLocalVar localVars lx gvs = findNearest lxn kvs
   where
-    _msg                  = "LOOKUP-LOCAL: " ++ F.showpp (F.val lx, lxn, kvs)
-    kvs                   = prioritizeRecBinds (M.lookupDefault [] x $ reLocalVars env) ++ gs
-    gs                    = [(F.sp_start $ F.srcSpan v, v) | v <- gvs]
+    kvs                   = prioritizeRecBinds (M.lookupDefault [] x (lvSymbols localVars)) ++ gs
+    gs                    = [(F.sp_start $ F.srcSpan v, Left v) | v <- gvs]
     lxn                   = F.sp_start $ F.srcSpan lx
     (_, x)                = unQualifySymbol (F.val lx)
 
@@ -508,9 +343,9 @@ lookupLocalVar env lx gvs = findNearest lxn kvs
     prioritizeRecBinds lvds =
       let (recs, nrecs) = L.partition lvdIsRec lvds
        in map lvdToPair (recs ++ nrecs)
-    lvdToPair lvd = (lvdSourcePos lvd, lvdVar lvd)
+    lvdToPair lvd = (lvdSourcePos lvd, Right (lvdVar lvd))
 
-    findNearest :: F.SourcePos -> [(F.SourcePos, Ghc.Var)] -> Maybe Ghc.Var
+    findNearest :: F.SourcePos -> [(F.SourcePos, b)] -> Maybe b
     findNearest key kvs1 = argMin [ (posDistance key k, v) | (k, v) <- kvs1 ]
 
     -- We prefer the var with the smaller distance, or equal distance
@@ -532,23 +367,34 @@ lookupGhcTyCon :: Env -> ModName -> String -> LocSymbol -> Lookup Ghc.TyCon
 lookupGhcTyCon env name k lx = myTracepp ("LOOKUP-TYCON: " ++ F.showpp (val lx))
                                $ {- strictResolveSym -} resolveLocSym env name k lx
 
-lookupGhcDnTyCon :: Env -> ModName -> String -> DataName -> Lookup (Maybe Ghc.TyCon)
--- lookupGhcDnTyCon = lookupGhcDnTyConE
-lookupGhcDnTyCon env name msg = failMaybe env name . lookupGhcDnTyConE env name msg
+lookupGhcDnTyCon :: Env -> ModName -> DataName -> Lookup (Maybe Ghc.TyCon)
+lookupGhcDnTyCon env name = failMaybe env name . lookupGhcDnTyConE env
 
-lookupGhcDnTyConE :: Env -> ModName -> String -> DataName -> Lookup Ghc.TyCon
-lookupGhcDnTyConE env name msg (DnCon  s)
-  = lookupGhcDnCon env name msg s
-lookupGhcDnTyConE env name msg (DnName s)
-  = case resolveLocSym env name msg s of
-      Right r -> Right r
-      Left  e -> case lookupGhcDnCon  env name msg s of
-                   Right r -> Right r
-                   Left  _ -> Left  e
+lookupGhcDnTyConE :: Env -> DataName -> Lookup Ghc.TyCon
+lookupGhcDnTyConE env (DnCon  lname)
+  = Ghc.dataConTyCon <$> lookupGhcDataConLHName env lname
+lookupGhcDnTyConE env (DnName lname)
+  = do
+   case lookupTyThing (reTyLookupEnv env) lname of
+     Ghc.ATyCon tc -> Right tc
+     Ghc.AConLike (Ghc.RealDataCon d) -> Right $ Ghc.dataConTyCon d
+     _ -> panic
+           (Just $ GM.fSrcSpan lname) $ "not a type or data constructor: " ++ show (val lname)
 
+lookupGhcDataConLHName :: HasCallStack => Env -> Located LHName -> Lookup Ghc.DataCon
+lookupGhcDataConLHName env lname = do
+   case lookupTyThing (reTyLookupEnv env) lname of
+     Ghc.AConLike (Ghc.RealDataCon d) -> Right d
+     _ -> panic
+           (Just $ GM.fSrcSpan lname) $ "not a data constructor: " ++ show (val lname)
 
-lookupGhcDnCon :: Env -> ModName -> String -> LocSymbol -> Lookup Ghc.TyCon
-lookupGhcDnCon env name msg = fmap Ghc.dataConTyCon . resolveLocSym env name msg
+lookupGhcIdLHName :: HasCallStack => Env -> Located LHName -> Lookup Ghc.Id
+lookupGhcIdLHName env lname =
+   case lookupTyThing (reTyLookupEnv env) lname of
+     Ghc.AConLike (Ghc.RealDataCon d) -> Right (Ghc.dataConWorkId d)
+     Ghc.AnId x -> Right x
+     _ -> panic
+           (Just $ GM.fSrcSpan lname) $ "not a variable or data constructor: " ++ show (val lname)
 
 -------------------------------------------------------------------------------
 -- | Checking existence of names
@@ -684,7 +530,7 @@ resolveWith kind f env name str lx =
   where
     _xSym   = F.val lx
     sp      = GM.fSrcSpanSrcSpan (F.srcSpan lx)
-    things  = myTracepp msg $ lookupTyThing env name lx
+    things  = myTracepp msg $ lookupTyThingLH env name lx
     msg     = "resolveWith: " ++ str ++ " " ++ F.showpp (val lx)
 
 
@@ -696,22 +542,22 @@ rankedThings f ias = case Misc.sortOn fst (Misc.groupList ibs) of
     ibs            = Mb.mapMaybe (\(k, x) -> (k,) <$> f x) ias
 
 -------------------------------------------------------------------------------
--- | @lookupTyThing@ is the central place where we lookup the @Env@ to find
+-- | @lookupTyThingLH@ is the central place where we lookup the @Env@ to find
 --   any @Ghc.TyThing@ that match that name. The code is a bit hairy as we
 --   have various heuristics to approximiate how GHC resolves names. e.g.
 --   see tests-names-pos-*.hs, esp. vector04.hs where we need the name `Vector`
 --   to resolve to `Data.Vector.Vector` and not `Data.Vector.Generic.Base.Vector`...
 -------------------------------------------------------------------------------
-lookupTyThing :: Env -> ModName -> LocSymbol -> [((Int, F.Symbol), Ghc.TyThing)]
+lookupTyThingLH :: Env -> ModName -> LocSymbol -> [((Int, F.Symbol), Ghc.TyThing)]
 -------------------------------------------------------------------------------
-lookupTyThing env mdname lsym = [ (k, t) | (k, ts) <- ordMatches, t <- ts]
+lookupTyThingLH env mdname lsym = [ (k, t) | (k, ts) <- ordMatches, t <- ts]
 
   where
     ordMatches             = Misc.sortOn fst (Misc.groupList matches)
     matches                = myTracepp ("matches-" ++ msg)
                              [ ((k, m), t) | (m, t) <- lookupThings env x
                                            , k      <- myTracepp msg $ mm nameSym m mds ]
-    msg                    = "lookupTyThing: " ++ F.showpp (lsym, x, mds)
+    msg                    = "lookupTyThingLH: " ++ F.showpp (lsym, x, mds)
     (x, mds)               = symbolModules env (F.val lsym)
     nameSym                = F.symbol mdname
     mm name m mods         = myTracepp ("matchMod: " ++ F.showpp (lsym, name, m, mods)) $
@@ -791,7 +637,7 @@ matchImp env defName i
 --   `mod` is the name of the module, derived from `sym` if qualified.
 unQualifySymbol :: F.Symbol -> (Maybe F.Symbol, F.Symbol)
 unQualifySymbol sym
-  | GM.isQualifiedSym sym = Misc.mapFst Just (splitModuleNameExact sym)
+  | GM.isQualifiedSym sym = first Just (splitModuleNameExact sym)
   | otherwise             = (Nothing, sym)
 
 splitModuleNameExact :: F.Symbol -> (F.Symbol, F.Symbol)
@@ -820,19 +666,18 @@ maybeResolveSym env name kind x = case resolveLocSym env name kind x of
 -------------------------------------------------------------------------------
 -- | @ofBareType@ and @ofBareTypeE@ should be the _only_ @SpecType@ constructors
 -------------------------------------------------------------------------------
-ofBareType :: Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> SpecType
+ofBareType :: HasCallStack => Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> SpecType
 ofBareType env name l ps t = either fail' id (ofBareTypeE env name l ps t)
   where
     fail'                  = Ex.throw
     -- fail                   = Misc.errorP "error-ofBareType" . F.showpp
 
-ofBareTypeE :: Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> Lookup SpecType
-ofBareTypeE env name l ps t = ofBRType env name (resolveReft env name l ps t) l t
+ofBareTypeE :: HasCallStack => Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> Lookup SpecType
+ofBareTypeE env name l ps t = ofBRType env name (const (resolveReft l ps t)) l t
 
-resolveReft :: Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> [F.Symbol] -> RReft -> RReft
-resolveReft env name l ps t bs
-        = qualify env name l bs
-        . txParam l RT.subvUReft (RT.uPVar <$> πs) t
+resolveReft :: F.SourcePos -> Maybe [PVar BSort] -> BareType -> RReft -> RReft
+resolveReft l ps t
+        = txParam l RT.subvUReft (RT.uPVar <$> πs) t
         . fixReftTyVars t       -- same as fixCoercions
   where
     πs  = Mb.fromMaybe tπs ps
@@ -852,10 +697,10 @@ coSubReft :: F.CoSub -> F.Reft -> F.Reft
 coSubReft su (F.Reft (x, e)) = F.Reft (x, F.applyCoSub su e)
 
 
-ofBSort :: Env -> ModName -> F.SourcePos -> BSort -> RSort
+ofBSort :: HasCallStack => Env -> ModName -> F.SourcePos -> BSort -> RSort
 ofBSort env name l t = either (Misc.errorP "error-ofBSort" . F.showpp) id (ofBSortE env name l t)
 
-ofBSortE :: Env -> ModName -> F.SourcePos -> BSort -> Lookup RSort
+ofBSortE :: HasCallStack => Env -> ModName -> F.SourcePos -> BSort -> Lookup RSort
 ofBSortE env name l t = ofBRType env name (const id) l t
 
 ofBPVar :: Env -> ModName -> F.SourcePos -> BPVar -> RPVar
@@ -886,7 +731,8 @@ rtypePredBinds = map RT.uPVar . ty_preds . toRTypeRep
 type Expandable r = ( PPrint r
                     , Reftable r
                     , SubsTy RTyVar (RType RTyCon RTyVar ()) r
-                    , Reftable (RTProp RTyCon RTyVar r))
+                    , Reftable (RTProp RTyCon RTyVar r)
+                    , HasCallStack)
 
 ofBRType :: (Expandable r) => Env -> ModName -> ([F.Symbol] -> r -> r) -> F.SourcePos -> BRType r
          -> Lookup (RRType r)
@@ -906,46 +752,46 @@ ofBRType env name f l = go []
     go bs (RAllE x t1 t2)   = RAllE x  <$> go bs t1    <*> go bs t2
     go bs (REx x t1 t2)     = REx   x  <$> go bs t1    <*> go (x:bs) t2
     go bs (RRTy xts r o t)  = RRTy  <$> xts' <*> goReft bs r <*> pure o <*> go bs t
-      where xts'            = mapM (Misc.mapSndM (go bs)) xts
+      where xts'            = mapM (traverse (go bs)) xts
     go bs (RHole r)         = RHole    <$> goReft bs r
-    go bs (RExprArg le)     = return    $ RExprArg (qualify env name l bs le)
+    go _ (RExprArg le)      = return    $ RExprArg le
     goRef bs (RProp ss (RHole r)) = rPropP <$> mapM goSyms ss <*> goReft bs r
     goRef bs (RProp ss t)         = RProp  <$> mapM goSyms ss <*> go bs t
     goSyms (x, t)                 = (x,) <$> ofBSortE env name l t
     goRApp bs tc ts rs r          = bareTCApp <$> goReft bs r <*> lc' <*> mapM (goRef bs) rs <*> mapM (go bs) ts
       where
-        lc'                    = F.atLoc lc <$> matchTyCon env name lc (length ts)
+        lc'                    = F.atLoc lc <$> lookupGhcTyConLHName (reTyLookupEnv env) lc
         lc                     = btc_tc tc
-    -- goRApp _ _ _ _             = impossible Nothing "goRApp failed through to final case"
 
-{-
-    -- TODO-REBARE: goRImpF bounds _ (RApp c ps' _ _) t _
-    -- TODO-REBARE:  | Just bnd <- M.lookup (btc_tc c) bounds
-    -- TODO-REBARE:   = do let (ts', ps) = splitAt (length $ tyvars bnd) ps'
-    -- TODO-REBARE:        ts <- mapM go ts'
-    -- TODO-REBARE:        makeBound bnd ts [x | RVar (BTV x) _ <- ps] <$> go t
-    -- TODO-REBARE: goRFun bounds _ (RApp c ps' _ _) t _
-    -- TODO-REBARE: | Just bnd <- M.lookup (btc_tc c) bounds
-    -- TODO-REBARE: = do let (ts', ps) = splitAt (length $ tyvars bnd) ps'
-    -- TODO-REBARE: ts <- mapM go ts'
-    -- TODO-REBARE: makeBound bnd ts [x | RVar (BTV x) _ <- ps] <$> go t
+lookupGhcTyConLHName :: HasCallStack => GHCTyLookupEnv -> Located LHName -> Lookup Ghc.TyCon
+lookupGhcTyConLHName env lc = do
+    case lookupTyThing env lc of
+      Ghc.ATyCon tc -> Right tc
+      Ghc.AConLike (Ghc.RealDataCon dc) -> Right $ Ghc.promoteDataCon dc
+      _ -> panic
+            (Just $ GM.fSrcSpan lc) $ "not a type constructor: " ++ show (val lc)
 
-  -- TODO-REBARE: ofBareRApp env name t@(F.Loc _ _ !(RApp tc ts _ r))
-  -- TODO-REBARE: | Loc l _ c <- btc_tc tc
-  -- TODO-REBARE: , Just rta <- M.lookup c aliases
-  -- TODO-REBARE: = appRTAlias l rta ts =<< resolveReft r
+-- | Get the TyThing from an LHName.
+--
+-- This function uses 'unsafePerformIO' to lookup the 'Ghc.TyThing' of a 'Ghc.Name'.
+-- This should be benign because the result doesn't depend of when exactly this is
+-- called. Since this code is intended to be used inside a GHC plugin, there is no
+-- danger that GHC is finalized before the result is evaluated.
+lookupTyThingMaybe :: HasCallStack => GHCTyLookupEnv -> Located LHName -> Maybe Ghc.TyThing
+lookupTyThingMaybe env lc@(Loc _ _ c0) = unsafePerformIO $ do
+    case c0 of
+      LHNUnresolved _ _ -> panic (Just $ GM.fSrcSpan lc) $ "unresolved name: " ++ show c0
+      LHNResolved rn _ -> case rn of
+        LHRLocal _ -> panic (Just $ GM.fSrcSpan lc) $ "cannot resolve a local name: " ++ show c0
+        LHRIndex i -> panic (Just $ GM.fSrcSpan lc) $ "cannot resolve a LHRIndex " ++ show i
+        LHRLogic _ -> panic (Just $ GM.fSrcSpan lc) $ "lookupTyThing: cannot resolve a LHRLogic name " ++ show (lhNameToResolvedSymbol c0)
+        LHRGHC n ->
+          Ghc.reflectGhc (Interface.lookupTyThing (gtleTypeEnv env) n) (gtleSession env)
 
--}
-
-matchTyCon :: Env -> ModName -> LocSymbol -> Int -> Lookup Ghc.TyCon
-matchTyCon env name lc@(Loc _ _ c) arity
-  | isList c && arity == 1  = Right Ghc.listTyCon
-  | isTuple c               = Right tuplTc
-  | otherwise               = resolveLocSym env name msg lc
-  where
-    msg                     = "matchTyCon: " ++ F.showpp c
-    tuplTc                  = Ghc.tupleTyCon Ghc.Boxed arity
-
+lookupTyThing :: HasCallStack => GHCTyLookupEnv -> Located LHName -> Ghc.TyThing
+lookupTyThing env lc =
+    Mb.fromMaybe (panic (Just $ GM.fSrcSpan lc) $ "not found: " ++ show (val lc)) $
+      lookupTyThingMaybe env lc
 
 bareTCApp :: (Expandable r)
           => r
@@ -1024,11 +870,7 @@ addSymSort _ _ _ t
   = t
 
 addSymSortRef :: (PPrint s) => Ghc.SrcSpan -> s -> RPVar -> SpecProp -> Int -> SpecProp
-addSymSortRef sp rc p r i
-  | isPropPV p
-  = addSymSortRef' sp rc i p r
-  | otherwise
-  = panic Nothing "addSymSortRef: malformed ref application"
+addSymSortRef sp rc p r i = addSymSortRef' sp rc i p r
 
 addSymSortRef' :: (PPrint s) => Ghc.SrcSpan -> s -> Int -> RPVar -> SpecProp -> SpecProp
 addSymSortRef' _ _ _ p (RProp s (RVar v r)) | isDummy v

@@ -4,27 +4,28 @@ module Foreign.Storable_LHAssumptions where
 
 import GHC.Ptr_LHAssumptions()
 import Foreign.Storable
+import GHC.Ptr
 
 {-@
 predicate PValid P N         = ((0 <= N) && (N < (plen P)))
 
-assume GHC.Internal.Foreign.Storable.poke        :: (GHC.Internal.Foreign.Storable.Storable a)
-                             => {v: (GHC.Internal.Ptr.Ptr a) | 0 < (plen v)}
+assume poke        :: (Storable a)
+                             => {v: (Ptr a) | 0 < (plen v)}
                              -> a
-                             -> (GHC.Types.IO ())
+                             -> (IO ())
 
-assume GHC.Internal.Foreign.Storable.peek        :: (GHC.Internal.Foreign.Storable.Storable a)
-                             => p:{v: (GHC.Internal.Ptr.Ptr a) | 0 < (plen v)}
-                             -> (GHC.Types.IO {v:a | v = (deref p)})
+assume peek        :: (Storable a)
+                             => p:{v: (Ptr a) | 0 < (plen v)}
+                             -> (IO {v:a | v = (deref p)})
 
-assume GHC.Internal.Foreign.Storable.peekByteOff :: (GHC.Internal.Foreign.Storable.Storable a)
-                             => forall b. p:(GHC.Internal.Ptr.Ptr b)
-                             -> {v:GHC.Types.Int | (PValid p v)}
-                             -> (GHC.Types.IO a)
+assume peekByteOff :: (Storable a)
+                             => forall b. p:(Ptr b)
+                             -> {v:Int | (PValid p v)}
+                             -> (IO a)
 
-assume GHC.Internal.Foreign.Storable.pokeByteOff :: (GHC.Internal.Foreign.Storable.Storable a)
-                             => forall b. p:(GHC.Internal.Ptr.Ptr b)
-                             -> {v:GHC.Types.Int | (PValid p v)}
+assume pokeByteOff :: (Storable a)
+                             => forall b. p:(Ptr b)
+                             -> {v:Int | (PValid p v)}
                              -> a
-                             -> GHC.Types.IO ()
+                             -> IO ()
 @-}

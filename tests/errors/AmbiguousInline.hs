@@ -19,8 +19,7 @@ import Debug.Trace
 import GHC.TypeLits
 
 import Language.Haskell.Liquid.Prelude (liquidAssert)
--- FIX import Prelude hiding (min, max)
-import Prelude hiding (max)
+import Prelude hiding (min, max)
 
 junk = BS.head
 

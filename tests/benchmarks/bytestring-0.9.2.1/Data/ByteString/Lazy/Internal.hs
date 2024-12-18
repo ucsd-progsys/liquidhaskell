@@ -74,7 +74,7 @@ data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
 
 {-@ measure lbLength :: ByteString -> Int
       lbLength Empty      = 0 
-      lbLength (Chunk b bs) = (bLength b) + (lbLength bs)
+      lbLength (Chunk b bs) = (S.bLength b) + (lbLength bs)
     @-}
 
 {-@ measure lbLengths  :: [ByteString] -> Int
@@ -131,7 +131,7 @@ checkInvariant (Chunk c@(S.PS _ _ len) cs)
 
 -- | Smart constructor for 'Chunk'. Guarantees the data type invariant.
 {-@ chunk :: b:_ -> bs:ByteString
-          -> {v:ByteString | (lbLength v) = ((bLength b) + (lbLength bs))}
+          -> {v:ByteString | (lbLength v) = ((S.bLength b) + (lbLength bs))}
   @-}
 chunk :: S.ByteString -> ByteString -> ByteString
 chunk c@(S.PS _ _ len) cs | len == 0  = cs

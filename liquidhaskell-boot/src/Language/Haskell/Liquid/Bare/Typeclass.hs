@@ -29,6 +29,7 @@ import qualified Liquid.GHC.API
 import qualified Language.Haskell.Liquid.Misc  as Misc
 import           Language.Haskell.Liquid.Types.DataDecl
 import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.RTypeOp
 import qualified Language.Haskell.Liquid.Types.RefType
@@ -59,8 +60,8 @@ compileClasses src env (name, spec) rest =
     { dataDecls = clsDecls
     , reflects  = F.notracepp "reflects " $ S.fromList
                     (  fmap
-                        ( fmap GM.dropModuleNames
-                        . GM.namedLocSymbol
+                        ( fmap (updateLHNameSymbol GM.dropModuleNames)
+                        . makeGHCLHNameLocatedFromId
                         . Ghc.instanceDFunId
                         . fst
                         )
@@ -72,21 +73,21 @@ compileClasses src env (name, spec) rest =
       -- class methods
   (refinedMethods, sigsNew) = foldr grabClassSig (mempty, mempty) (sigs spec)
   grabClassSig
-    :: (F.LocSymbol, ty)
-    -> (M.HashMap Ghc.Class [(Ghc.Id, ty)], [(F.LocSymbol, ty)])
-    -> (M.HashMap Ghc.Class [(Ghc.Id, ty)], [(F.LocSymbol, ty)])
+    :: (F.Located LHName, ty)
+    -> (M.HashMap Ghc.Class [(Ghc.Id, ty)], [(F.Located LHName, ty)])
+    -> (M.HashMap Ghc.Class [(Ghc.Id, ty)], [(F.Located LHName, ty)])
   grabClassSig sigPair@(lsym, ref) (refs, sigs') = case clsOp of
     Nothing         -> (refs, sigPair : sigs')
     Just (cls, sig) -> (M.alter (merge sig) cls refs, sigs')
    where
     clsOp = do
-      var <- Bare.maybeResolveSym env name "grabClassSig" lsym
+      var <- either (const Nothing) Just $ Bare.lookupGhcIdLHName env lsym
       cls <- Ghc.isClassOpId_maybe var
       pure (cls, (var, ref))
     merge sig v = case v of
       Nothing -> Just [sig]
       Just vs -> Just (sig : vs)
-  methods = [ GM.namedLocSymbol x | (_, xs) <- instmethods, x <- xs ]
+  methods = [ makeGHCLHNameLocatedFromId x | (_, xs) <- instmethods, x <- xs ]
       -- instance methods
 
   mkSymbol x
@@ -120,10 +121,7 @@ compileClasses src env (name, spec) rest =
       ++ concatMap (Mb.mapMaybe resolveClassMaybe . dataDecls . snd) rest
   resolveClassMaybe :: DataDecl -> Maybe Ghc.Class
   resolveClassMaybe d =
-    Bare.maybeResolveSym env
-                         name
-                         "resolveClassMaybe"
-                         (dataNameSymbol . tycName $ d)
+    either (const Nothing) Just (Bare.lookupGhcTyConLHName (Bare.reTyLookupEnv env) $ dataNameSymbol $ tycName d)
       >>= Ghc.tyConClass_maybe
 
 
@@ -136,7 +134,7 @@ makeClassDataDecl = fmap (uncurry classDeclToDataDecl)
 -- maybe this should be fixed right after the GHC API refactoring?
 classDeclToDataDecl :: Ghc.Class -> [(Ghc.Id, LocBareType)] -> DataDecl
 classDeclToDataDecl cls refinedIds = DataDecl
-  { tycName   = DnName (F.symbol <$> GM.locNamedThing cls)
+  { tycName   = DnName $ makeGHCLHNameLocated cls
   , tycTyVars = tyVars
   , tycPVars  = []
   , tycDCons  = Just [dctor]
@@ -146,7 +144,8 @@ classDeclToDataDecl cls refinedIds = DataDecl
   , tycKind   = DataUser
   }
  where
-  dctor = F.notracepp "classDeclToDataDecl" DataCtor { dcName   = F.dummyLoc $ F.symbol classDc
+  dctor = F.notracepp "classDeclToDataDecl"
+    DataCtor { dcName   = F.dummyLoc $ makeGHCLHName (Ghc.getName classDc) (F.symbol classDc)
     -- YL: same as class tyvars??
     -- Ans: it's been working so far so probably yes
                    , dcTyVars = tyVars
@@ -163,9 +162,9 @@ classDeclToDataDecl cls refinedIds = DataDecl
   fields = fmap attachRef classIds
   attachRef sid
     | Just ref <- L.lookup sid refinedIds
-    = (F.symbol sid, RT.subts tyVarSubst (F.val ref))
+    = (makeGHCLHNameFromId sid, RT.subts tyVarSubst (F.val ref))
     | otherwise
-    = (F.symbol sid, RT.bareOfType . dropTheta . Ghc.varType $ sid)
+    = (makeGHCLHNameFromId sid, RT.bareOfType . dropTheta . Ghc.varType $ sid)
 
   tyVarSubst = [ (GM.dropModuleUnique v, v) | v <- tyVars ]
 
@@ -190,10 +189,10 @@ elaborateClassDcp
 elaborateClassDcp coreToLg simplifier dcp = do
   t' <- flip (zipWith addCoherenceOblig) prefts
     <$> forM fts (elaborateSpecType coreToLg simplifier)
-  let ts' = elaborateMethod (F.symbol dc) (S.fromList xs) <$> t'
+  let ts' = elaborateMethod (F.symbol dc) (S.fromList $ map lhNameToResolvedSymbol xs) <$> t'
   pure
     ( dcp { dcpTyArgs = zip xs (stripPred <$> ts') }
-    , dcp { dcpTyArgs = fmap (\(x, t) -> (x, strengthenTy x t)) (zip xs t') }
+    , dcp { dcpTyArgs = fmap (\(x, t) -> (x, strengthenTy (lhNameToResolvedSymbol x) t)) (zip xs t') }
     )
  where
   addCoherenceOblig :: SpecType -> Maybe RReft -> SpecType
@@ -394,7 +393,7 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     -- Monoid.mappend, ...
     clsMethods = filter (\x -> GM.dropModuleNames (F.symbol x) `elem` fmap mkSymbol methods) $
       Ghc.classAllSelIds (Ghc.is_cls inst)
-    yts = [(GM.dropModuleNames y, t) | (y, t) <- dcpTyArgs dcp]
+    yts = [(lhNameToResolvedSymbol y, t) | (y, t) <- dcpTyArgs dcp]
     mkSymbol x
       | -- F.notracepp ("isDictonaryId:" ++ GM.showPpr x) $
         Ghc.isDictonaryId x = F.mappendSym "$" (F.dropSym 2 $ GM.simplesymbol x)

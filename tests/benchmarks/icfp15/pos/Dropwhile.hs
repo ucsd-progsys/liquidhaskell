@@ -46,7 +46,7 @@ dropWhile f Emp  = Emp
 
 -- | This `witness` bound relates the predicate used in dropWhile
 
-{-@ bound witness @-}
+{- bound witness @-}
 witness :: Eq a => (a -> Bool) -> (a -> Bool -> Bool) -> a -> Bool -> a -> Bool
 witness p w = \ y b v -> (not b) ==> w y b ==> (v == y) ==> p v
 

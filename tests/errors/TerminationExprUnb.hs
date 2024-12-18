@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=Illegal termination specification for `go`" @-}
+{-@ LIQUID "--expect-error-containing=Unknown logic name `nn`" @-}
 module TerminationExprUnb where
 
 {- assume (!!) :: xs:[a] -> {v:Nat | v < len xs} -> a @-}

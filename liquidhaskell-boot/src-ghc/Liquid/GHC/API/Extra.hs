@@ -10,14 +10,11 @@ module Liquid.GHC.API.Extra (
   , apiComments
   , apiCommentsParsedSource
   , dataConSig
+  , directImports
   , fsToUnitId
   , isPatErrorAlt
-  , lookupModSummary
   , minus_RDR
-  , modInfoLookupName
-  , moduleInfoTc
   , qualifiedNameFS
-  , relevantModules
   , renderWithStyle
   , showPprQualified
   , showPprDebug
@@ -29,16 +26,12 @@ module Liquid.GHC.API.Extra (
   , untick
   ) where
 
-import Control.Monad.IO.Class
 import           Liquid.GHC.API.StableModule      as StableModule
-import Liquid.GHC.API.Compat
 import GHC hiding (modInfoLookupName)
 import Data.Data (Data, gmapQr, gmapT)
 import Data.Generics (extQ, extT)
 import Data.Foldable                  (asum)
 import Data.List                      (sortOn)
-import qualified Data.Map as Map
-import qualified Data.Set as S
 import GHC.Builtin.Names ( dollarIdKey, minusName )
 import GHC.Core                       as Ghc
 import GHC.Core.Coercion              as Ghc
@@ -48,8 +41,6 @@ import GHC.Core.Type                  as Ghc hiding (typeKind , isPredTy, extend
 import GHC.Data.FastString            as Ghc
 import GHC.Data.Maybe
 import qualified GHC.Data.Strict
-import GHC.Driver.Env
-import GHC.Driver.Main
 import GHC.Driver.Session             as Ghc
 import GHC.Tc.Types
 import GHC.Types.Id
@@ -57,22 +48,11 @@ import GHC.Types.Basic
 import GHC.Types.Name                 (isSystemName, nameModule_maybe, occNameFS)
 import GHC.Types.Name.Reader          (nameRdrName)
 import GHC.Types.SrcLoc               as Ghc
-import GHC.Types.TypeEnv
 import GHC.Types.Unique               (getUnique, hasKey)
 
-import GHC.Unit.Module.Deps           as Ghc (Dependencies(dep_direct_mods))
-import GHC.Unit.Module.Graph          as Ghc
-  ( NodeKey(NodeKey_Module)
-  , ModNodeKeyWithUid(ModNodeKeyWithUid)
-  , mgTransDeps
-  )
-import GHC.Unit.Module.ModDetails     (md_types)
-import GHC.Unit.Module.ModSummary     (isBootSummary)
 import GHC.Utils.Outputable           as Ghc hiding ((<>))
 
 import GHC.Unit.Module
-import GHC.Unit.Module.ModGuts
-import GHC.Unit.Module.Deps (Usage(..))
 
 -- 'fsToUnitId' is gone in GHC 9, but we can bring code it in terms of 'fsToUnit' and 'toUnitId'.
 fsToUnitId :: FastString -> UnitId
@@ -91,18 +71,6 @@ tyConRealArity tc = go 0 (tyConKind tc)
         Nothing -> acc
         Just ks -> go (acc + 1) ks
 
-getDependenciesModuleNames :: ModuleGraph -> UnitId -> Dependencies -> [ModuleNameWithIsBoot]
-getDependenciesModuleNames mg unitId deps =
-    mapMaybe nodeKeyToModuleName $ S.toList $ S.unions $ catMaybes
-      [ Map.lookup k tdeps
-      | (_, m) <- S.toList $ dep_direct_mods deps
-      , let k = NodeKey_Module $ ModNodeKeyWithUid m unitId
-      ]
-  where
-    tdeps = mgTransDeps mg
-    nodeKeyToModuleName (NodeKey_Module (ModNodeKeyWithUid m _)) = Just m
-    nodeKeyToModuleName _ = Nothing
-
 renderWithStyle :: DynFlags -> SDoc -> PprStyle -> String
 renderWithStyle dynflags sdoc style = Ghc.renderWithContext (Ghc.initSDocContext dynflags style) sdoc
 
@@ -111,35 +79,9 @@ dataConSig :: DataCon -> ([TyCoVar], ThetaType, [Type], Type)
 dataConSig dc
   = (dataConUnivAndExTyCoVars dc, dataConTheta dc, map irrelevantMult $ dataConOrigArgTys dc, dataConOrigResTy dc)
 
--- | The collection of dependencies and usages modules which are relevant for liquidHaskell
-relevantModules :: ModuleGraph -> ModGuts -> S.Set Module
-relevantModules mg modGuts = used `S.union` dependencies
-  where
-    dependencies :: S.Set Module
-    dependencies = S.fromList $ map (toModule . gwib_mod)
-                              . filter ((NotBoot ==) . gwib_isBoot)
-                              . getDependenciesModuleNames mg thisUnitId $ deps
-
-    deps :: Dependencies
-    deps = mg_deps modGuts
-
-    thisModule :: Module
-    thisModule = mg_module modGuts
-
-    thisUnitId = moduleUnitId thisModule
-
-    toModule :: ModuleName -> Module
-    toModule = unStableModule . mkStableModule thisUnitId
-
-    used :: S.Set Module
-    used = S.fromList $ foldl' collectUsage mempty . mg_usages $ modGuts
-      where
-        collectUsage :: [Module] -> Usage -> [Module]
-        collectUsage acc = \case
-          UsagePackageModule     { usg_mod      = modl    } -> modl : acc
-          UsageHomeModule        { usg_mod_name = modName } -> toModule modName : acc
-          UsageMergedRequirement { usg_mod      = modl    } -> modl : acc
-          _ -> acc
+-- | Extracts the direct imports of a module.
+directImports :: TcGblEnv -> [Module]
+directImports = moduleEnvKeys . imp_mods . tcg_imports
 
 -- | Abstraction of 'EpaComment'.
 data ApiComment
@@ -225,33 +167,6 @@ addNoInlinePragmasToBinds tcg = tcg{ tcg_binds = go (tcg_binds tcg) }
                        , abe_mono = mono } = abe
           { abe_poly = markId poly
           , abe_mono = markId mono }
-
-
-lookupModSummary :: HscEnv -> ModuleName -> Maybe ModSummary
-lookupModSummary hscEnv mdl = do
-   let mg = hsc_mod_graph hscEnv
-       mods_by_name = [ ms | ms <- mgModSummaries mg
-                      , ms_mod_name ms == mdl
-                      , NotBoot == isBootSummary ms ]
-   case mods_by_name of
-     [ms] -> Just ms
-     _    -> Nothing
-
--- | Our own simplified version of 'ModuleInfo' to overcome the fact we cannot construct the \"original\"
--- one as the constructor is not exported, and 'getHomeModuleInfo' and 'getPackageModuleInfo' are not
--- exported either, so we had to backport them as well.
-newtype ModuleInfoLH = ModuleInfoLH { minflh_type_env :: TypeEnv }
-
-modInfoLookupName :: (GhcMonad m) => ModuleInfoLH -> Name -> m (Maybe TyThing)
-modInfoLookupName minf name = do
-  case lookupTypeEnv (minflh_type_env minf) name of
-    Just tyThing -> return (Just tyThing)
-    Nothing      -> lookupGlobalName name
-
-moduleInfoTc :: HscEnv -> TcGblEnv -> IO ModuleInfoLH
-moduleInfoTc hscEnv tcGblEnv = do
-  details <- md_types <$> liftIO (makeSimpleDetails (hsc_logger hscEnv) tcGblEnv)
-  pure ModuleInfoLH { minflh_type_env = details }
 
 -- | Tells if a case alternative calls to patError
 isPatErrorAlt :: CoreAlt -> Bool

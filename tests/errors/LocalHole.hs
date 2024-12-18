@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=Illegal type specification for `go`" @-}
+{-@ LIQUID "--expect-error-containing=Unknown logic name `nowhere`" @-}
 {-@ LIQUID "--no-termination" @-}
 
 module LocalHole where

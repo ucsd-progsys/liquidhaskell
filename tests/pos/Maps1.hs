@@ -29,8 +29,6 @@ prop2 m x y = (z == 20)
 -----------------------------------------------------------------------
 
 {-@ embed Map as Map_t @-}
-{-@ measure Map_select :: Map k v -> k -> v @-}
-{-@ measure Map_store  :: Map k v -> k -> v -> Map k v @-}
 {-@ assume (!)         :: (Ord k) => m:Map k v -> k:k -> {v:v | v = Map_select m k} @-}
 {-@ assume insert      :: (Ord k) => key:k -> value:v -> m:Map k v -> {n:Map k v | n = Map_store m key value} @-}
 

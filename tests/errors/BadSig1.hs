@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=Illegal type specification for `BadSig1.EZ`" @-}
+{-@ LIQUID "--expect-error-containing=Unknown logic name `pro`" @-}
 {-# LANGUAGE GADTs #-}
 
 {-@ LIQUID "--exact-data-con" @-}

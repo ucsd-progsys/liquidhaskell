@@ -25,7 +25,7 @@ import qualified Data.HashSet            as S
 import qualified Language.Fixpoint.Types as F
 
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
-import           Liquid.GHC.API        as Ghc hiding (text)
+import           Liquid.GHC.API        as Ghc hiding (Binary, text)
 
 type VarianceInfo = [Variance]
 

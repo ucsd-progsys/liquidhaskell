@@ -287,8 +287,7 @@ maybeParen ctxt_prec inner_prec pretty
 
 ppExists
   :: (OkRT c tv r, PPrint c, PPrint tv, PPrint (RType c tv r),
-      PPrint (RType c tv ()), Reftable (RTProp c tv r),
-      Reftable (RTProp c tv ()))
+      PPrint (RType c tv ()))
   => PPEnv -> Prec -> RType c tv r -> Doc
 ppExists bb p rt
   = text "exists" <+> brackets (intersperse comma [pprDbind bb topPrec x t | (x, t) <- ws]) <-> dot <-> pprRtype bb p rt'
@@ -406,9 +405,8 @@ pprPvarDef bb p (PV s t _ xts)
     dargs = [pprPvarSort bb p xt | (xt,_,_) <- xts]
 
 
-pprPvarKind :: (OkRT c tv ()) => PPEnv -> Prec -> PVKind (RType c tv ()) -> Doc
-pprPvarKind bb p (PVProp t) = pprPvarSort bb p t <+> arrow <+> pprName F.boolConName -- propConName
-pprPvarKind _ _ PVHProp     = panic Nothing "TODO: pprPvarKind:hprop" -- pprName hpropConName
+pprPvarKind :: (OkRT c tv ()) => PPEnv -> Prec -> RType c tv () -> Doc
+pprPvarKind bb p t = pprPvarSort bb p t <+> arrow <+> pprName F.boolConName
 
 pprName :: F.Symbol -> Doc
 pprName                      = text . F.symbolString
@@ -431,7 +429,7 @@ ppRefSym s  = pprint s
 dot :: Doc
 dot                = char '.'
 
-instance (PPrint r, Reftable r) => PPrint (UReft r) where
+instance (PPrint (PredicateV v), Reftable (PredicateV v), PPrint r, Reftable r) => PPrint (UReftV v r) where
   pprintTidy k (MkUReft r p)
     | isTauto r  = pprintTidy k p
     | isTauto p  = pprintTidy k r

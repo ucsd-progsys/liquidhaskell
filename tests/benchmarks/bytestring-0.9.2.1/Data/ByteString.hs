@@ -307,8 +307,6 @@ import GHC.IO.Buffer
 import Language.Haskell.Liquid.Prelude hiding (eq)
 import Language.Haskell.Liquid.Foreign
 
-{-@ include <Data/ByteString.hs.hquals> @-}
-
 {-@ memcpy_ptr_baoff :: p:(Ptr a)
                      -> RawBuffer b
                      -> Int
@@ -2146,7 +2144,7 @@ hGetNonBlocking = hGet
 -- As with 'hGet', the string representation in the file is assumed to
 -- be ISO-8859-1.
 
-{-@ assume GHC.Internal.Foreign.Marshal.Alloc.reallocBytes :: p:(Ptr a) -> n:Nat -> (IO (PtrN a n))  @-}
+{-@ assume reallocBytes :: p:(Ptr a) -> n:Nat -> (IO (PtrN a n))  @-}
 hGetContents :: Handle -> IO ByteString
 hGetContents h = do
     let start_size = 1024

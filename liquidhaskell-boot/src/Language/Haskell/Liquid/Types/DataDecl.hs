@@ -7,6 +7,7 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE DerivingVia                #-}
+{-# LANGUAGE DeriveTraversable          #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -15,9 +16,14 @@
 module Language.Haskell.Liquid.Types.DataDecl (
 
   -- * Parse-time entities describing refined data types
-    DataDecl (..)
+    DataDecl
+  , DataDeclLHName
+  , DataDeclParsed
+  , DataDeclP (..)
   , DataName (..), dataNameSymbol
-  , DataCtor (..)
+  , DataCtor
+  , DataCtorParsed
+  , DataCtorP (..)
   , DataConP (..)
   , HasDataDecl (..), hasDecl
   , DataDeclKind (..)
@@ -41,39 +47,48 @@ import           Text.Printf
 import qualified Language.Fixpoint.Types as F
 
 import           Language.Haskell.Liquid.GHC.Misc
+import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RType
 
 
 --------------------------------------------------------------------------------
 -- | Data type refinements
 --------------------------------------------------------------------------------
-data DataDecl   = DataDecl
+type DataDecl = DataDeclP F.Symbol BareType
+type DataDeclParsed = DataDeclP F.LocSymbol BareTypeParsed
+type DataDeclLHName = DataDeclP LHName BareTypeLHName
+data DataDeclP v ty  = DataDecl
   { tycName   :: DataName              -- ^ Type  Constructor Name
   , tycTyVars :: [F.Symbol]            -- ^ Tyvar Parameters
-  , tycPVars  :: [PVar BSort]          -- ^ PVar  Parameters
-  , tycDCons  :: Maybe [DataCtor]      -- ^ Data Constructors (Nothing is reserved for non-GADT style empty data declarations)
+  , tycPVars  :: [PVarV v (BSortV v)]  -- ^ PVar  Parameters
+  , tycDCons  :: Maybe [DataCtorP ty]  -- ^ Data Constructors (Nothing is reserved for non-GADT style empty data declarations)
   , tycSrcPos :: !F.SourcePos          -- ^ Source Position
-  , tycSFun   :: Maybe SizeFun         -- ^ Default termination measure
-  , tycPropTy :: Maybe BareType        -- ^ Type of Ind-Prop
+  , tycSFun   :: Maybe (SizeFunV v)    -- ^ Default termination measure
+  , tycPropTy :: Maybe ty              -- ^ Type of Ind-Prop
   , tycKind   :: !DataDeclKind         -- ^ User-defined or Auto-lifted
-  } deriving (Data, Typeable, Generic)
-    deriving Hashable via Generically DataDecl
+  } deriving (Data, Typeable, Generic, Functor, Foldable, Traversable)
+  deriving (B.Binary, Hashable) via Generically (DataDeclP v ty)
 
 -- | The name of the `TyCon` corresponding to a `DataDecl`
 data DataName
-  = DnName !F.LocSymbol                -- ^ for 'isVanillyAlgTyCon' we can directly use the `TyCon` name
-  | DnCon  !F.LocSymbol                -- ^ for 'FamInst' TyCon we save some `DataCon` name
+  = DnName !(F.Located LHName)         -- ^ for 'isVanillyAlgTyCon' we can directly use the `TyCon` name
+  | DnCon  !(F.Located LHName)         -- ^ for 'FamInst' TyCon we save some `DataCon` name
   deriving (Eq, Ord, Data, Typeable, Generic)
 
+instance Hashable DataName
+
 -- | Data Constructor
-data DataCtor = DataCtor
-  { dcName   :: F.LocSymbol            -- ^ DataCon name
+type DataCtor = DataCtorP BareType
+type DataCtorParsed = DataCtorP BareTypeParsed
+data DataCtorP ty = DataCtor
+  { dcName   :: F.Located LHName       -- ^ DataCon name
   , dcTyVars :: [F.Symbol]             -- ^ Type parameters
-  , dcTheta  :: [BareType]             -- ^ The GHC ThetaType corresponding to DataCon.dataConSig
-  , dcFields :: [(F.Symbol, BareType)] -- ^ field-name and field-Type pairs
-  , dcResult :: Maybe BareType         -- ^ Possible output (if in GADT form)
-  } deriving (Data, Typeable, Generic, Eq)
-    deriving Hashable via Generically DataCtor
+  , dcTheta  :: [ty]                   -- ^ The GHC ThetaType corresponding to DataCon.dataConSig
+  , dcFields :: [(LHName, ty)]       -- ^ field-name and field-Type pairs
+  , dcResult :: Maybe ty               -- ^ Possible output (if in GADT form)
+  } deriving (Data, Typeable, Generic, Eq, Functor, Foldable, Traversable)
+
+instance Hashable ty => Hashable (DataCtorP ty)
 
 -- | What kind of `DataDecl` is it?
 data DataDeclKind
@@ -100,26 +115,21 @@ hasDecl d
   | otherwise
   = HasDecl
 
-instance Hashable DataName where
-  hashWithSalt i = hashWithSalt i . F.symbol
-
-
 instance NFData   DataDeclKind
 instance B.Binary DataDeclKind
 instance B.Binary DataName
-instance B.Binary DataCtor
-instance B.Binary DataDecl
+instance B.Binary ty => B.Binary (DataCtorP ty)
 
-instance Eq DataDecl where
+instance Eq (DataDeclP v ty) where
   d1 == d2 = tycName d1 == tycName d2
 
 instance Ord DataDecl where
   compare d1 d2 = compare (tycName d1) (tycName d2)
 
-instance F.Loc DataCtor where
+instance F.Loc (DataCtorP ty) where
   srcSpan = F.srcSpan . dcName
 
-instance F.Loc DataDecl where
+instance F.Loc (DataDeclP v ty) where
   srcSpan = srcSpanFSrcSpan . sourcePosSrcSpan . tycSrcPos
 
 instance F.Loc DataName where
@@ -128,7 +138,7 @@ instance F.Loc DataName where
 
 
 -- | For debugging.
-instance Show DataDecl where
+instance (Show v, Show ty) => Show (DataDeclP v ty) where
   show dd = printf "DataDecl: data = %s, tyvars = %s, sizeFun = %s, kind = %s" -- [at: %s]"
               (show $ tycName   dd)
               (show $ tycTyVars dd)
@@ -140,12 +150,6 @@ instance Show DataName where
   show (DnName n) =               show (F.val n)
   show (DnCon  c) = "datacon:" ++ show (F.val c)
 
-instance F.Symbolic DataName where
-  symbol = F.val . dataNameSymbol
-
-instance F.Symbolic DataDecl where
-  symbol = F.symbol . tycName
-
 instance F.PPrint DataName where
   pprintTidy k (DnName n) = F.pprintTidy k (F.val n)
   pprintTidy k (DnCon  n) = F.pprintTidy k (F.val n)
@@ -153,7 +157,7 @@ instance F.PPrint DataName where
   -- symbol (DnName z) = F.suffixSymbol "DnName" (F.val z)
   -- symbol (DnCon  z) = F.suffixSymbol "DnCon"  (F.val z)
 
-dataNameSymbol :: DataName -> F.LocSymbol
+dataNameSymbol :: DataName -> F.Located LHName
 dataNameSymbol (DnName z) = z
 dataNameSymbol (DnCon  z) = z
 
@@ -164,7 +168,7 @@ data DataConP = DataConP
   , dcpFreeTyVars :: ![RTyVar]               -- ^ Type parameters
   , dcpFreePred   :: ![PVar RSort]           -- ^ Abstract Refinement parameters
   , dcpTyConstrs  :: ![SpecType]             -- ^ ? Class constraints (via `dataConStupidTheta`)
-  , dcpTyArgs     :: ![(F.Symbol, SpecType)] -- ^ Value parameters
+  , dcpTyArgs     :: ![(LHName, SpecType)] -- ^ Value parameters
   , dcpTyRes      :: !SpecType               -- ^ Result type
   , dcpIsGadt     :: !Bool                   -- ^ Was this specified in GADT style (if so, DONT use function names as fields)
   , dcpModule     :: !F.Symbol               -- ^ Which module was this defined in
@@ -189,7 +193,7 @@ data DataConP = DataConP
 instance F.Loc DataConP where
   srcSpan d = F.SS (dcpLoc d) (dcpLocE d)
 
-instance F.PPrint BareType => F.PPrint DataDecl where
+instance (F.PPrint lname, F.PPrint ty) => F.PPrint (DataDeclP lname ty) where
   pprintTidy k dd =
     let
       prefix = "data" <+> F.pprint (tycName dd) <+> ppMbSizeFun (tycSFun dd) <+> F.pprint (tycTyVars dd)
@@ -198,14 +202,14 @@ instance F.PPrint BareType => F.PPrint DataDecl where
         Nothing   -> prefix
         Just cons -> prefix <+> "=" $+$ nest 4 (vcat $ [ "|" <+> F.pprintTidy k c | c <- cons ])
 
-instance F.PPrint BareType => F.PPrint DataCtor where
+instance F.PPrint ty => F.PPrint (DataCtorP ty) where
   pprintTidy k (DataCtor c as ths xts t) = F.pprintTidy k c <+> text "::" <+> ppVars k as <+> ppThetas ths <+> ppFields k " ->" xts <+> "->" <+> res
     where
       res         = maybe "*" (F.pprintTidy k) t
       ppThetas [] = empty
       ppThetas ts = parens (hcat $ punctuate ", " (F.pprintTidy k <$> ts)) <+> "=>"
 
-ppMbSizeFun :: Maybe SizeFun -> Doc
+ppMbSizeFun :: F.PPrint v => Maybe (SizeFunV v) -> Doc
 ppMbSizeFun Nothing  = ""
 ppMbSizeFun (Just z) = F.pprint z
 

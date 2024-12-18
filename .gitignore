@@ -22,7 +22,6 @@ cabal-dev
 *.log
 *.html
 *.pyc
-build.sh
 config.make
 *.scalarlog
 *.tags

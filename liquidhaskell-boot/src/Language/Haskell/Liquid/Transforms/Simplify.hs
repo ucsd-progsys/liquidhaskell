@@ -17,7 +17,7 @@ simplifyBounds = fmap go
 dropBoundLike :: Expr -> Expr
 dropBoundLike p
   | isKvar p          = p
-  | isBoundLikePred p = mempty
+  | isBoundLikePred p = PTrue
   | otherwise         = p
   where
     isKvar            = not . null . kvarsExpr

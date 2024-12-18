@@ -23,7 +23,6 @@ import           Liquid.GHC.API                   as Ghc hiding ( Located
                                                                                  , empty
                                                                                  )
 import           Control.Applicative                       ((<|>))
-import           Control.Arrow                             ((&&&))
 import           Data.Maybe
 import           Data.Function                             (on)
 import           Text.PrettyPrint.HughesPJ                 hiding ((<>))
@@ -39,8 +38,8 @@ import           Language.Haskell.Liquid.GHC.Play          (getNonPositivesTyCon
 import           Language.Haskell.Liquid.Misc              (condNull, thd5)
 import           Language.Haskell.Liquid.Types.DataDecl
 import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.PredType
-import           Language.Haskell.Liquid.Types.PrettyPrint
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.RTypeOp
@@ -48,7 +47,6 @@ import           Language.Haskell.Liquid.Types.Specs
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Visitors
 import           Language.Haskell.Liquid.WiredIn
-import           Language.Haskell.Liquid.LawInstances      (checkLawInstances)
 
 import qualified Language.Haskell.Liquid.Measure           as Ms
 import qualified Language.Haskell.Liquid.Bare.Types        as Bare
@@ -93,20 +91,20 @@ checkBareSpec sp
                                                      , S.fromList fields
                                                      ]
                         ]
-    inlines   = Ms.inlines    sp
-    hmeasures = Ms.hmeas      sp
-    reflects  = Ms.reflects   sp
-    measures  = msName    <$> Ms.measures sp
-    fields    = concatMap dataDeclFields (Ms.dataDecls sp)
+    inlines   = S.map (fmap getLHNameSymbol) (Ms.inlines sp)
+    hmeasures = S.map (fmap getLHNameSymbol) (Ms.hmeas sp)
+    reflects  = S.map (fmap getLHNameSymbol) (Ms.reflects sp)
+    measures  = fmap getLHNameSymbol . msName <$> Ms.measures sp
+    fields    = map (fmap getLHNameSymbol) $ concatMap dataDeclFields (Ms.dataDecls sp)
 
-dataDeclFields :: DataDecl -> [F.LocSymbol]
-dataDeclFields = filter (not . GM.isTmpSymbol . F.val)
+dataDeclFields :: DataDecl -> [F.Located LHName]
+dataDeclFields = filter (not . GM.isTmpSymbol . getLHNameSymbol . F.val)
                . Misc.hashNubWith val
                . concatMap dataCtorFields
                . fromMaybe []
                . tycDCons
 
-dataCtorFields :: DataCtor -> [F.LocSymbol]
+dataCtorFields :: DataCtor -> [F.Located LHName]
 dataCtorFields c
   | isGadt c  = []
   | otherwise = F.atLoc c <$> [ f | (f,_) <- dcFields c ]
@@ -174,7 +172,6 @@ checkTargetSpec specs src env cbs tsp
                      -- ++ checkRefinedClasses                        rClasses rInsts
                      <> checkSizeFun emb env                                      (gsTconsP (gsName tsp))
                      <> checkPlugged (catMaybes [ fmap (F.dropSym 2 $ GM.simplesymbol x,) (getMethodType t) | (x, t) <- gsMethods (gsSig tsp) ])
-                     <> checkLawInstances (gsLaws tsp)
                      <> checkRewrites tsp
 
     _rClasses         = concatMap Ms.classes specs
@@ -250,15 +247,6 @@ checkSigTExpr allowHO bsc emb tcEnv env (x, (t, es))
     mbErr2 = maybe emptyDiagnostics (checkTerminationExpr emb env . (x, t,)) es
     -- mbErr2 = checkTerminationExpr emb env . (x, t,) =<< es
 
-_checkQualifiers :: F.SEnv F.SortedReft -> [F.Qualifier] -> [Error]
-_checkQualifiers = mapMaybe . checkQualifier
-
-checkQualifier       :: F.SEnv F.SortedReft -> F.Qualifier -> Maybe Error
-checkQualifier env q =  mkE <$> checkSortFull (F.srcSpan q) γ F.boolSort  (F.qBody q)
-  where
-    γ                = L.foldl' (\e (x, s) -> F.insertSEnv x (F.RR s mempty) e) env (F.qualBinds q ++ wiredSortedSyms)
-    mkE              = ErrBadQual (GM.fSrcSpan q) (pprint $ F.qName q)
-
 -- | Used for termination checking. If we have no \"len\" defined /yet/ (for example we are checking
 -- 'GHC.Prim') then we want to skip this check.
 checkSizeFun :: F.TCEmb TyCon -> F.SEnv F.SortedReft -> [TyConP] -> Diagnostics
@@ -283,41 +271,6 @@ checkSizeFun emb env tys = mkDiagnostics mempty (map mkError (mapMaybe go tys))
     isWiredInLenFn :: SizeFun -> Bool
     isWiredInLenFn IdSizeFun           = False
     isWiredInLenFn (SymSizeFun locSym) = isWiredIn locSym
-
-_checkRefinedClasses :: [RClass LocBareType] -> [RInstance LocBareType] -> [Error]
-_checkRefinedClasses definitions instances
-  = mkError <$> duplicates
-  where
-    duplicates
-      = mapMaybe (checkCls . rcName) definitions
-    checkCls cls
-      = case findConflicts cls of
-          []        -> Nothing
-          conflicts -> Just (cls, conflicts)
-    findConflicts cls
-      = filter ((== cls) . riclass) instances
-    mkError (cls, conflicts)
-      = ErrRClass (GM.sourcePosSrcSpan $ loc $ btc_tc cls)
-                  (pprint cls) (ofConflict <$> conflicts)
-    ofConflict
-      = GM.sourcePosSrcSpan . loc . btc_tc . riclass &&& pprint . ritype
-
-_checkDuplicateFieldNames :: [(DataCon, DataConP)]  -> [Error]
-_checkDuplicateFieldNames = mapMaybe go
-  where
-    go (d, dts)          = checkNoDups (dcpLoc dts) d (fst <$> dcpTyArgs dts)
-    checkNoDups l d xs   = mkError l d <$> _firstDuplicate xs
-
-    mkError l d x = ErrBadData (GM.sourcePosSrcSpan l)
-                             (pprint d)
-                             (text "Multiple declarations of record selector" <+> pprintSymbol x)
-
-_firstDuplicate :: Ord a => [a] -> Maybe a
-_firstDuplicate = go . L.sort
-  where
-    go (y:x:xs) | x == y    = Just x
-                | otherwise = go (x:xs)
-    go _                    = Nothing
 
 checkInv :: Bool
          -> BScope
@@ -459,8 +412,10 @@ checkDuplicateRTAlias s tas = mkDiagnostics mempty (map mkError dups)
                                           (pprint . rtName . val $ x)
                                           (GM.fSrcSpan <$> xs)
     mkError []                = panic Nothing "mkError: called on empty list"
-    dups                    = [z | z@(_:_:_) <- L.groupBy ((==) `on` (rtName . val)) tas]
+    dups                    = [z | z@(_:_:_) <- groupDuplicatesOn (rtName . val) tas]
 
+groupDuplicatesOn :: Ord b => (a -> b) -> [a] -> [[a]]
+groupDuplicatesOn f = L.groupBy ((==) `on` f) . L.sortOn f
 
 checkMismatch        :: (Var, LocSpecType) -> Diagnostics
 checkMismatch (x, t) = if ok then emptyDiagnostics else mkDiagnostics mempty [err]
@@ -498,7 +453,7 @@ checkRType allowHO bsc emb senv lt
     cb c ts            = classBinds emb (rRCls c ts)
     farg _ t           = allowHO || isBase t  -- NOTE: this check should be the same as the one in addCGEnv
     f env me r err     = err <|> checkReft (F.srcSpan lt) env emb me r
-    insertPEnv p γ     = insertsSEnv γ (Misc.mapSnd (rTypeSortedReft emb) <$> pbinds p)
+    insertPEnv p γ     = insertsSEnv γ (fmap (rTypeSortedReft emb) <$> pbinds p)
     pbinds p           = (pname p, pvarRType p :: RSort) : [(x, tx) | (tx, x, _) <- pargs p]
 
 tyToBind :: F.TCEmb TyCon -> RTVar RTyVar RSort  -> [(F.Symbol, F.SortedReft)]
@@ -754,9 +709,9 @@ checkRewrites targetSpec = mkDiagnostics mempty (concatMap getRewriteErrors rwSi
 checkClassMeasures :: [Measure SpecType DataCon] -> Diagnostics
 checkClassMeasures measures = mkDiagnostics mempty (mapMaybe checkOne byTyCon)
   where
-  byName = L.groupBy ((==) `on` (val . msName)) measures
+  byName = groupDuplicatesOn (val . msName) measures
 
-  byTyCon = concatMap (L.groupBy ((==) `on` (dataConTyCon . ctor . head . msEqns)))
+  byTyCon = concatMap (groupDuplicatesOn (dataConTyCon . ctor . head . msEqns))
                       byName
 
   checkOne []     = impossible Nothing "checkClassMeasures.checkOne on empty measure group"

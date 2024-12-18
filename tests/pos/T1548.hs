@@ -1,5 +1,5 @@
 {-@ LIQUID "--reflection" @-}
-
+{-@ LIQUID "--ple" @-}
 
 module T1548 where
 

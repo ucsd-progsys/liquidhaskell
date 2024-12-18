@@ -62,7 +62,7 @@ instance (Freshable m Integer, Monad m, Applicative m) => Freshable m [F.Expr] w
 
 instance (Freshable m Integer, Monad m, Applicative m) => Freshable m F.Reft where
   fresh                  = panic Nothing "fresh Reft"
-  true    _ (F.Reft (v,_)) = return $ F.Reft (v, mempty)
+  true    _ (F.Reft (v,_)) = return $ F.Reft (v, F.PTrue)
   refresh _ (F.Reft (_,_)) = (F.Reft .) . (,) <$> freshVV <*> fresh
     where
       freshVV            = F.vv . Just <$> fresh

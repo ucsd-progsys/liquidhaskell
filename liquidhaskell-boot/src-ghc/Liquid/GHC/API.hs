@@ -28,12 +28,7 @@ import           GHC                  as Ghc
     , FixityDirection(InfixN, InfixR)
     , FixitySig(FixitySig)
     , GenLocated(L)
-    , GeneralFlag
-        ( Opt_Haddock
-        , Opt_InsertBreakpoints
-        , Opt_KeepRawTokenStream
-        , Opt_IgnoreInterfacePragmas
-        )
+    , GeneralFlag(..)
     , Ghc
     , GhcException(CmdLineError, ProgramError)
     , GhcLink(LinkInMemory)
@@ -203,6 +198,7 @@ import GHC.Builtin.Types              as Ghc
     , intTyCon
     , intTyConName
     , liftedTypeKind
+    , liftedTypeKindTyConName
     , listTyCon
     , listTyConName
     , naturalTy
@@ -213,7 +209,9 @@ import GHC.Builtin.Types              as Ghc
     , trueDataConId
     , tupleDataCon
     , tupleTyCon
+    , tupleTyConName
     , typeSymbolKind
+    , unrestrictedFunTyConName
     )
 import GHC.Builtin.Types.Prim         as Ghc
     ( isArrowTyCon
@@ -237,6 +235,7 @@ import GHC.Core                       as Ghc
     , Expr(App, Case, Cast, Coercion, Lam, Let, Lit, Tick, Type, Var)
     , Unfolding(CoreUnfolding, DFunUnfolding, uf_tmpl)
     , bindersOf
+    , bindersOfBinds
     , cmpAlt
     , collectArgs
     , collectBinders
@@ -255,6 +254,7 @@ import GHC.Core                       as Ghc
 import GHC.Core.Class                 as Ghc
     ( classAllSelIds
     , classBigSig
+    , classOpItems
     , classSCSelIds
     , Class
        ( classKey
@@ -292,6 +292,7 @@ import GHC.Core.DataCon               as Ghc
     , dataConWrapId
     , dataConWrapId_maybe
     , isTupleDataCon
+    , promoteDataCon
     )
 import GHC.Core.FamInstEnv            as Ghc
     ( FamFlavor(DataFamilyInst)
@@ -305,8 +306,10 @@ import GHC.Core.FamInstEnv            as Ghc
 import GHC.Core.InstEnv               as Ghc
     ( ClsInst(is_cls, is_dfun, is_dfun_name, is_tys)
     , DFunId
+    , InstEnvs
     , instEnvElts
     , instanceSig
+    , lookupInstEnv
     )
 import GHC.Core.Make                  as Ghc
     ( mkCoreApps
@@ -402,6 +405,7 @@ import GHC.Data.FastString            as Ghc
     , bytesFS
     , concatFS
     , fsLit
+    , lexicalCompareFS
     , mkFastString
     , mkFastStringByteString
     , mkPtrString#
@@ -432,7 +436,8 @@ import GHC.HsToCore.Monad             as Ghc
     ( DsM, initDsTc, initDsWithModGuts, newUnique )
 import GHC.Iface.Syntax               as Ghc
     ( IfaceAnnotation(ifAnnotatedValue) )
-import GHC.Plugins                    as Ghc ( deserializeWithData
+import GHC.Plugins                    as Ghc ( Serialized(Serialized)
+                                             , deserializeWithData
                                              , fromSerialized
                                              , toSerialized
                                              , defaultPlugin
@@ -443,13 +448,18 @@ import GHC.Plugins                    as Ghc ( deserializeWithData
                                              , extendIdSubst
                                              , substExpr
                                              )
-import GHC.Core.FVs                   as Ghc (exprFreeVars, exprFreeVarsList, exprSomeFreeVarsList)
+import GHC.Core.FVs                   as Ghc
+    ( exprFreeVars
+    , exprFreeVarsList
+    , exprsOrphNames
+    , exprSomeFreeVarsList
+    )
 import GHC.Core.Opt.OccurAnal         as Ghc
     ( occurAnalysePgm )
 import GHC.Core.TyCo.FVs              as Ghc (tyCoVarsOfCo, tyCoVarsOfType)
 import GHC.Driver.Backend             as Ghc (interpreterBackend)
 import GHC.Driver.Env                 as Ghc
-    ( HscEnv(hsc_mod_graph, hsc_unit_env, hsc_dflags, hsc_plugins)
+    ( HscEnv(hsc_NC, hsc_unit_env, hsc_dflags, hsc_plugins)
     , Hsc
     , hscSetFlags, hscUpdateFlags
     )
@@ -467,6 +477,8 @@ import GHC.Hs                         as Ghc
     )
 import GHC.HsToCore.Expr              as Ghc
     ( dsLExpr )
+import GHC.Iface.Binary               as Ghc
+    ( TraceBinIFace(QuietBinIFace), getWithUserData, putWithUserData )
 import GHC.Iface.Errors.Ppr            as Ghc
     ( missingInterfaceErrorDiagnostic )
 import GHC.Iface.Load                 as Ghc
@@ -491,16 +503,29 @@ import GHC.Tc.Solver                  as Ghc
     )
 import GHC.Tc.Types                   as Ghc
     ( Env(env_top)
-    , TcGblEnv(tcg_anns, tcg_exports, tcg_insts, tcg_mod, tcg_rdr_env, tcg_rn_imports)
+    , TcGblEnv
+        ( tcg_anns
+        , tcg_exports
+        , tcg_imports
+        , tcg_insts
+        , tcg_mod
+        , tcg_rdr_env
+        , tcg_rn_imports
+        , tcg_type_env
+        )
     , TcM
     , TcRn
     )
 import GHC.Tc.Types.Evidence          as Ghc
     ( TcEvBinds(EvBinds) )
 import GHC.Tc.Types.Origin            as Ghc (lexprCtOrigin)
+import GHC.Tc.Utils.Env               as Ghc
+    ( tcGetInstEnvs )
 import GHC.Tc.Utils.Monad             as Ghc
     ( captureConstraints
     , discardConstraints
+    , getGblEnv
+    , setGblEnv
     , getEnv
     , getTopEnv
     , failIfErrsM
@@ -530,13 +555,16 @@ import GHC.Types.Annotations          as Ghc
 import GHC.Types.Avail                as Ghc
     ( AvailInfo(Avail, AvailTC)
     , availNames
+    , availsToNameSet
     )
 import GHC.Types.Basic                as Ghc
     ( Arity
     , Boxity(Boxed)
+    , DefMethSpec(VanillaDM)
     , PprPrec
     , PromotionFlag(NotPromoted)
     , TopLevelFlag(NotTopLevel)
+    , TupleSort(BoxedTuple)
     , funPrec
     , InlinePragma(inl_act, inl_inline, inl_rule, inl_sat, inl_src)
     , isDeadOcc
@@ -576,7 +604,7 @@ import GHC.Types.Id                   as Ghc
     )
 import GHC.Types.Id.Info              as Ghc
     ( CafInfo(NoCafRefs)
-    , IdDetails(DataConWorkId, DataConWrapId, RecSelId, VanillaId)
+    , IdDetails(ClassOpId, DataConWorkId, DataConWrapId, RecSelId, VanillaId)
     , IdInfo(occInfo, realUnfoldingInfo)
     , cafInfo
     , inlinePragInfo
@@ -597,6 +625,7 @@ import GHC.Types.Name                 as Ghc
     , getSrcSpan
     , isInternalName
     , isSystemName
+    , isTupleTyConName
     , mkInternalName
     , mkSystemName
     , mkTcOcc
@@ -604,19 +633,56 @@ import GHC.Types.Name                 as Ghc
     , mkVarOcc
     , mkVarOccFS
     , nameModule_maybe
+    , nameNameSpace
     , nameOccName
     , nameSrcLoc
     , nameStableString
+    , nameUnique
     , occNameFS
     , occNameString
     , stableNameCmp
     )
+import GHC.Types.Name.Env             as Ghc
+    ( NameEnv
+    , lookupNameEnv
+    , mkNameEnv
+    , mkNameEnvWith
+    )
+import GHC.Types.Name.Set             as Ghc
+    ( NameSet
+    , elemNameSet
+    , nameSetElemsStable
+    )
+import GHC.Types.Name.Cache           as Ghc (NameCache)
+import GHC.Types.Name.Occurrence      as Ghc
+    ( NameSpace
+    , isFieldNameSpace
+    , mkOccName
+    , dataName
+    , tcName
+    )
 import GHC.Types.Name.Reader          as Ghc
-    ( ImpItemSpec(ImpAll)
+    ( FieldsOrSelectors(WantNormal)
+    , GlobalRdrEnv
+    , GREInfo
+    , ImpItemSpec(ImpAll)
+    , LookupGRE(LookupRdrName)
+    , WhichGREs
+        ( SameNameSpace
+        , RelevantGREs
+        , includeFieldSelectors
+        , lookupTyConsAsWell
+        , lookupVariablesForFields
+        )
     , getRdrName
     , globalRdrEnvElts
     , greName
+    , isLocalGRE
+    , lookupGRE
+    , lookupGRE_Name
     , mkQual
+    , mkRdrQual
+    , mkRdrUnqual
     , mkVarUnqual
     , mkUnqual
     , nameRdrName
@@ -648,6 +714,12 @@ import GHC.Types.SrcLoc               as Ghc
     , srcSpanToRealSrcSpan
     )
 import GHC.Types.Tickish              as Ghc (CoreTickish, GenTickish(..))
+import GHC.Types.TypeEnv              as Ghc
+    ( TypeEnv
+    , lookupTypeEnv
+    , mkTypeEnv
+    , plusTypeEnv
+    )
 import GHC.Types.Unique               as Ghc
     ( getKey, mkUnique )
 import GHC.Types.Unique.Set           as Ghc (mkUniqSet)
@@ -692,12 +764,22 @@ import GHC.Unit.Module                as Ghc
     , IsBootInterface(NotBoot, IsBoot)
     , ModuleNameWithIsBoot
     , UnitId
+    , lookupModuleEnv
+    , stableModuleCmp
     , fsToUnit
     , mkModuleNameFS
+    , moduleEnvKeys
     , moduleNameFS
     , moduleStableString
     , toUnitId
     , unitString
+    )
+import GHC.Unit.Module.Deps       as Ghc
+    ( ImportAvails(imp_mods) )
+import GHC.Unit.Module.Imported       as Ghc
+    ( ImportedMods
+    , ImportedModsVal(imv_name, imv_qualified)
+    , importedByUser
     )
 import GHC.Unit.Module.ModGuts        as Ghc
     ( ModGuts
@@ -709,6 +791,18 @@ import GHC.Unit.Module.ModGuts        as Ghc
       , mg_tcs
       , mg_usages
       )
+    )
+import GHC.Unit.Types                 as Ghc
+    ( moduleUnitId
+    , unitIdString
+    )
+import GHC.Utils.Binary               as Ghc
+    ( Binary(get, put_)
+    , getByte
+    , openBinMem
+    , putByte
+    , unsafeUnpackBinBuffer
+    , withBinBuffer
     )
 import GHC.Utils.Error                as Ghc (pprLocMsgEnvelope, withTiming)
 import GHC.Utils.Logger               as Ghc (Logger(logFlags), putLogMsg)
