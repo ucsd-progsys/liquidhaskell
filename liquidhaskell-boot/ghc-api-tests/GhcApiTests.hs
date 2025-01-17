@@ -91,7 +91,7 @@ testApiComments = do
     parseMod str filepath = do
       let location = GHC.mkRealSrcLoc (GHC.mkFastString filepath) 1 1
           buffer = GHC.stringToStringBuffer str
-          popts = GHC.mkParserOpts EnumSet.empty GHC.emptyDiagOpts False True True True
+          popts = GHC.mkParserOpts EnumSet.empty GHC.emptyDiagOpts [] False True True True
           parseState = GHC.initParserState popts buffer location
       case GHC.unP Parser.parseModule parseState of
         GHC.POk _ result -> return result
