@@ -493,7 +493,11 @@ import GHC.Hs                         as Ghc
 import GHC.HsToCore.Expr              as Ghc
     ( dsLExpr )
 import GHC.Iface.Binary               as Ghc
-    ( TraceBinIFace(QuietBinIFace), getWithUserData, putWithUserData )
+    ( CompressionIFace(SafeExtraCompression)
+    , TraceBinIFace(QuietBinIFace)
+    , getWithUserData
+    , putWithUserData
+    )
 import GHC.Iface.Errors.Ppr            as Ghc
     ( missingInterfaceErrorDiagnostic )
 import GHC.Iface.Load                 as Ghc
