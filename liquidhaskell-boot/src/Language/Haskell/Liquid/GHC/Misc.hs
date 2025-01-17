@@ -815,7 +815,7 @@ elabRnExpr rdr_expr = do
     let { fresh_it = itName uniq (getLocA rdr_expr) }
     ((_qtvs, _dicts, evbs, _), residual)
          <- captureConstraints $
-            simplifyInfer NotTopLevel tclvl NoRestrictions
+            simplifyInfer tclvl NoRestrictions
                           []    {- No sig vars -}
                           [(fresh_it, res_ty)]
                           lie
@@ -899,7 +899,7 @@ withWiredIn m = discardConstraints $ do
   -- undef <- lookupUndef
   wiredIns <- mkWiredIns
   -- snd <$> tcValBinds Ghc.NotTopLevel (binds undef wiredIns) (sigs wiredIns) m
-  (_, a) <- tcValBinds Ghc.NotTopLevel [] (sigs wiredIns) m
+  (_, _, a) <- tcValBinds Ghc.NotTopLevel [] (sigs wiredIns) m
   return a
 
  where
