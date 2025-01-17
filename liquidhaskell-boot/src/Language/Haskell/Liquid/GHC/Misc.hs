@@ -710,7 +710,7 @@ isEmbeddedDictVar v = F.notracepp msg . isEmbeddedDictType . varType $ v
     msg     =  "isGoodCaseBind v = " ++ show v
 
 isEmbeddedDictType :: Type -> Bool
-isEmbeddedDictType = anyF [isOrdPred, isNumericPred, isEqClassPred, isPrelEqPred]
+isEmbeddedDictType = anyF [isOrdPred, isNumericPred, isEqPred, isPrelEqPred]
 
 -- unlike isNumCls, isFracCls, these two don't check if the argument's
 -- superclass is Ord or Num. I believe this is the more predictable behavior
@@ -751,7 +751,7 @@ isPredVar v = F.notracepp msg . isPredType . varType $ v
     msg     =  "isGoodCaseBind v = " ++ show v
 
 isPredType :: Type -> Bool
-isPredType = anyF [ isClassPred, isEqPred, isEqClassPred ]
+isPredType = anyF [ isClassPred, isNomEqPred, isEqPred ]
 
 anyF :: [a -> Bool] -> a -> Bool
 anyF ps x = or [ p x | p <- ps ]
