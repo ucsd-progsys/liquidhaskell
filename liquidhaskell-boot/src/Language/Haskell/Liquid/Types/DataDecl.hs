@@ -37,7 +37,6 @@ import           GHC.Generics
 import           Prelude                          hiding  (error)
 
 import           Control.DeepSeq
-import           Data.Typeable                          (Typeable)
 import           Data.Generics                          (Data)
 import qualified Data.Binary                            as B
 import           Data.Hashable
@@ -66,14 +65,14 @@ data DataDeclP v ty  = DataDecl
   , tycSFun   :: Maybe (SizeFunV v)    -- ^ Default termination measure
   , tycPropTy :: Maybe ty              -- ^ Type of Ind-Prop
   , tycKind   :: !DataDeclKind         -- ^ User-defined or Auto-lifted
-  } deriving (Data, Typeable, Generic, Functor, Foldable, Traversable)
+  } deriving (Data, Generic, Functor, Foldable, Traversable)
   deriving (B.Binary, Hashable) via Generically (DataDeclP v ty)
 
 -- | The name of the `TyCon` corresponding to a `DataDecl`
 data DataName
   = DnName !(F.Located LHName)         -- ^ for 'isVanillyAlgTyCon' we can directly use the `TyCon` name
   | DnCon  !(F.Located LHName)         -- ^ for 'FamInst' TyCon we save some `DataCon` name
-  deriving (Eq, Ord, Data, Typeable, Generic)
+  deriving (Eq, Ord, Data, Generic)
 
 instance Hashable DataName
 
@@ -86,7 +85,7 @@ data DataCtorP ty = DataCtor
   , dcTheta  :: [ty]                   -- ^ The GHC ThetaType corresponding to DataCon.dataConSig
   , dcFields :: [(LHName, ty)]       -- ^ field-name and field-Type pairs
   , dcResult :: Maybe ty               -- ^ Possible output (if in GADT form)
-  } deriving (Data, Typeable, Generic, Eq, Functor, Foldable, Traversable)
+  } deriving (Data, Generic, Eq, Functor, Foldable, Traversable)
 
 instance Hashable ty => Hashable (DataCtorP ty)
 
@@ -94,7 +93,7 @@ instance Hashable ty => Hashable (DataCtorP ty)
 data DataDeclKind
   = DataUser           -- ^ User defined data-definitions         (should have refined fields)
   | DataReflected      -- ^ Automatically lifted data-definitions (do not have refined fields)
-  deriving (Eq, Data, Typeable, Generic, Show)
+  deriving (Eq, Data, Generic, Show)
   deriving Hashable via Generically DataDeclKind
 
 data HasDataDecl
@@ -173,7 +172,7 @@ data DataConP = DataConP
   , dcpIsGadt     :: !Bool                   -- ^ Was this specified in GADT style (if so, DONT use function names as fields)
   , dcpModule     :: !F.Symbol               -- ^ Which module was this defined in
   , dcpLocE       :: !F.SourcePos
-  } deriving (Generic, Data, Typeable)
+  } deriving (Generic, Data)
 
 -- | [NOTE:DataCon-Data] for each 'DataConP' we also
 --   store the type of the constructed data. This is

@@ -911,7 +911,7 @@ data BPspec
   | DSize   ([LocBareTypeParsed], LocSymbol)              -- ^ 'data size' annotations, generating fancy termination metric
   | BFix    ()                                            -- ^ fixity annotation
   | Define  (Located LHName, ([Symbol], ExprV LocSymbol)) -- ^ 'define' annotation for specifying logic aliases
-  deriving (Data, Typeable)
+  deriving (Data)
 
 instance PPrint BPspec where
   pprintTidy = ppPspec

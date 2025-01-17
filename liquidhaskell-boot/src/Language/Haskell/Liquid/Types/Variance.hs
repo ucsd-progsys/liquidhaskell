@@ -11,7 +11,6 @@ module Language.Haskell.Liquid.Types.Variance (
 
 import Prelude hiding (error)
 import Control.DeepSeq
-import Data.Typeable hiding (TyCon)
 import Data.Data     hiding (TyCon)
 import GHC.Generics
 import Data.Binary
@@ -30,7 +29,7 @@ import           Liquid.GHC.API        as Ghc hiding (Binary, text)
 type VarianceInfo = [Variance]
 
 data Variance = Invariant | Bivariant | Contravariant | Covariant
-              deriving (Eq, Data, Typeable, Show, Generic)
+              deriving (Eq, Data, Show, Generic)
               deriving Hashable via Generically Variance
 
 flipVariance :: Variance -> Variance

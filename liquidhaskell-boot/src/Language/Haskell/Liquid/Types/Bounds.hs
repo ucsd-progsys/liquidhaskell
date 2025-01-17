@@ -49,7 +49,7 @@ data Bound t e = Bound
   , bparams :: [(LocSymbol, t)]  -- ^ These are abstract refinements, for now
   , bargs   :: [(LocSymbol, t)]  -- ^ These are value variables
   , bbody   :: e                 -- ^ The body of the bound
-  } deriving (Data, Typeable, Generic, Functor, Foldable, Traversable)
+  } deriving (Data, Generic, Functor, Foldable, Traversable)
   deriving B.Binary via Generically (Bound t e)
 
 type RBound        = RRBound RSort

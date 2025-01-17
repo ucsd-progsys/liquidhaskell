@@ -58,7 +58,6 @@ import           Prelude                      hiding (error, span)
 import           GHC.Generics
 import           Control.DeepSeq
 import qualified Control.Exception            as Ex
-import           Data.Typeable                (Typeable)
 import           Data.Generics                (Data)
 import qualified Data.Binary                  as B
 import qualified Data.Maybe                   as Mb
@@ -195,7 +194,7 @@ data Oblig
   = OTerm -- ^ Obligation that proves termination
   | OInv  -- ^ Obligation that proves invariants
   | OCons -- ^ Obligation that proves subtyping constraints
-  deriving (Eq, Generic, Data, Typeable)
+  deriving (Eq, Generic, Data)
   deriving Hashable via Generically Oblig
 
 instance B.Binary Oblig
@@ -493,7 +492,7 @@ data TError t =
                 , msg   :: !Doc
                 } -- ^ Sigh. Other.
 
-  deriving (Typeable, Generic , Functor )
+  deriving (Generic , Functor )
 
 errDupSpecs :: Doc -> Misc.ListNE SrcSpan -> TError t
 errDupSpecs d spans@(sp:_) = ErrDupSpecs sp d spans
