@@ -292,6 +292,7 @@ coreToLg (C.Case e b _ alts)
 -- coreToLg (C.Lam x e)           = do p     <- coreToLg e
 --                                     tce   <- lsEmb <$> getState
 --                                     return $ ELam (symbol x, typeSort tce (GM.expandVarType x)) p
+coreToLg (C.Case e _ _ [])     = coreToLg e
 coreToLg (C.Case e b _ alts)   = do p <- coreToLg e
                                     casesToLg b p alts
 coreToLg (C.Lit l)             = case mkLit l of
