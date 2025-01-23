@@ -19,13 +19,6 @@ source-repository-package
 
 allow-newer:
   ghc-timings:base
-  ,blaze-svg:base
-  ,blaze-svg:mtl
-  ,colonnade:text
-  ,rest-rewrite:containers
-  ,Chart:lens
-  ,Chart-diagrams:lens
-  ,SVGFonts:containers
 
   ,active:base
   ,Chart-diagrams:time
@@ -36,10 +29,7 @@ allow-newer:
   ,dual-tree:base
   ,fsnotify:text
   ,monoid-extras:base
-  ,rest-rewrite:time
   ,statestack:base
-  ,smtlib-backends:base
-  ,smtlib-backends-process:base
   ,svg-builder:base
 
 package liquid-fixpoint
