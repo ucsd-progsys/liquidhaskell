@@ -276,7 +276,7 @@ checkTySigs allowHO bsc cbs emb tcEnv senv sig =
     vSort            = Bare.varSortedReft emb
     errs :: F.SEnv F.SortedReft -> Var -> ElabM Diagnostics
     errs env v       = case M.lookup v locTm of
-                         Nothing -> pure $ emptyDiagnostics
+                         Nothing -> pure emptyDiagnostics
                          Just t  -> check env (v, t)
 
 checkSigTExpr :: Bool -> BScope -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft
@@ -305,7 +305,7 @@ checkSizeFun emb env tys =
                                                        $+$   msg)
                                  (pprint (tcpCon tcp))
 
-    go :: ElabFlags -> TyConP -> (Maybe ((F.Symbol -> F.Expr, TyConP), Doc))
+    go :: ElabFlags -> TyConP -> Maybe ((F.Symbol -> F.Expr, TyConP), Doc)
     go ef tcp = case tcpSizeFun tcp of
                Nothing                   -> Nothing
                Just f | isWiredInLenFn f -> Nothing -- Skip the check.
