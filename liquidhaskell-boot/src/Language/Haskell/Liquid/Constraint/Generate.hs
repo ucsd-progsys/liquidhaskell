@@ -280,11 +280,10 @@ killSubst :: RReft -> RReft
 killSubst = fmap killSubstReft
 
 killSubstReft :: F.Reft -> F.Reft
-killSubstReft = trans kv () ()
+killSubstReft = trans ks
   where
-    kv    = defaultVisitor { txExpr = ks }
-    ks _ (F.PKVar k _) = F.PKVar k mempty
-    ks _ p             = p
+    ks (F.PKVar k _) = F.PKVar k mempty
+    ks p             = p
 
 defAnn :: Bool -> t -> Annot t
 defAnn True  = AnnRDf
