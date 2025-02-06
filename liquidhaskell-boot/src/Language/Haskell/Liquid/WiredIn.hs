@@ -98,14 +98,7 @@ wiredTheorySortedSyms =
     ]
   where
     wiredTheorySyms =
-      [ "Bag_count"
-      , "Bag_empty"
-      , "Bag_inter_min"
-      , "Bag_sng"
-      , "Bag_sub"
-      , "Bag_union"
-      , "Bag_union_max"
-
+      [ "Map_default"
       , "Map_select"
       , "Map_store"
 
@@ -117,6 +110,16 @@ wiredTheorySortedSyms =
       , "Set_empty"
       , "Set_mem"
       , "Set_sub"
+      , "Set_add"
+      , "Set_com"
+
+      , "Bag_count"
+      , "Bag_empty"
+      , "Bag_inter_min"
+      , "Bag_sng"
+      , "Bag_sub"
+      , "Bag_union"
+      , "Bag_union_max"
 
       , "strLen"
       ]
