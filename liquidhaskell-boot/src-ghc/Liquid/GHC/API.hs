@@ -681,7 +681,9 @@ import GHC.Unit.Finder                as Ghc
     , findImportedModule
     )
 import GHC.Unit.Home.ModInfo          as Ghc
-    ( HomePackageTable, HomeModInfo(hm_iface), lookupHpt )
+    ( HomeModInfo(hm_iface))
+import GHC.Unit.Home.PackageTable     as Ghc
+    ( HomePackageTable, lookupHpt )
 import GHC.Unit.Module                as Ghc
     ( GenWithIsBoot(gwib_isBoot, gwib_mod)
     , IsBootInterface(NotBoot, IsBoot)

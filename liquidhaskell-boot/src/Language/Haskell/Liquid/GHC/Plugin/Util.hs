@@ -14,6 +14,7 @@ import           Data.Foldable                            ( asum )
 
 import           Control.Monad.IO.Class
 import           Control.Monad
+import           Control.Monad.Trans.Maybe
 
 import qualified Data.Binary                             as B
 import           Data.Binary                              ( Binary )
@@ -46,16 +47,16 @@ deserialiseBinaryObject :: forall a. (Typeable a, Binary a)
                         => Module
                         -> ExternalPackageState
                         -> HomePackageTable
-                        -> Maybe a
+                        -> MaybeT IO a
 deserialiseBinaryObject thisModule eps hpt =
-    asum [extractFromHpt, deserialiseBinaryObjectFromEPS thisModule eps]
+    asum [extractFromHpt, hoistMaybe (deserialiseBinaryObjectFromEPS thisModule eps)]
   where
-    extractFromHpt :: Maybe a
+    extractFromHpt :: MaybeT IO a
     extractFromHpt = do
-      modInfo <- lookupHpt hpt (moduleName thisModule)
+      modInfo <- MaybeT $ lookupHpt hpt (moduleName thisModule)
       guard (thisModule == (mi_module . hm_iface $ modInfo))
-      xs <- mapM (fromSerialized deserialise . ifAnnotatedValue) (mi_anns . hm_iface $ modInfo)
-      listToMaybe xs
+      xs <- hoistMaybe $ mapM (fromSerialized deserialise . ifAnnotatedValue) (mi_anns . hm_iface $ modInfo)
+      hoistMaybe $ listToMaybe xs
 
     deserialise :: [B.Word8] -> a
     deserialise payload = B.decode (B.pack payload)
@@ -70,7 +71,7 @@ serialiseBinaryObject obj thisModule = serialised
 serialiseLiquidLib :: LiquidLib -> Module -> Annotation
 serialiseLiquidLib lib = serialiseBinaryObject @LiquidLib lib
 
-deserialiseLiquidLib :: Module -> ExternalPackageState -> HomePackageTable -> Maybe LiquidLib
+deserialiseLiquidLib :: Module -> ExternalPackageState -> HomePackageTable -> MaybeT IO LiquidLib
 deserialiseLiquidLib thisModule = deserialiseBinaryObject @LiquidLib thisModule
 
 deserialiseLiquidLibFromEPS :: Module -> ExternalPackageState -> Maybe LiquidLib

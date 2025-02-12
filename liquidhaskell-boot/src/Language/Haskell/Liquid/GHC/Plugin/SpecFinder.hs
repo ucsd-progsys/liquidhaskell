@@ -116,7 +116,7 @@ findCompanionSpec hscEnv m = do
 -- | Load a spec by trying to parse the relevant \".spec\" file from the filesystem.
 lookupInterfaceAnnotations :: ExternalPackageState -> HomePackageTable -> SpecFinder m
 lookupInterfaceAnnotations eps hpt thisModule = do
-  lib <- MaybeT $ pure $ Util.deserialiseLiquidLib thisModule eps hpt
+  lib <- Util.deserialiseLiquidLib thisModule eps hpt
   pure $ LibFound thisModule InterfaceLocation lib
 
 lookupInterfaceAnnotationsEPS :: ExternalPackageState -> SpecFinder m
