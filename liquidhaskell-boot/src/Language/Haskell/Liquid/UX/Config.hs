@@ -116,6 +116,7 @@ data Config = Config
   , ddumpTimings             :: Bool       -- ^ Dump time measures of the Liquid Haskell plugin
                                            -- Only needed to work around https://github.com/haskell/cabal/issues/11116
   , modern                   :: Bool       -- ^ Enable modern features; enables reflection, ple, etabeta, dependantcase, adt
+  , allowTypedHoles          :: Bool       -- ^ Allow typed holes in the source code
   } deriving (Generic, Data, Show, Eq)
 
 allowPLE :: Config -> Bool

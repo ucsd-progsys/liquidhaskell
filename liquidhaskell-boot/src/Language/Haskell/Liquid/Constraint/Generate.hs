@@ -70,9 +70,11 @@ import           Language.Haskell.Liquid.Bare.DataType (dataConMap, makeDataConC
 import Language.Haskell.Liquid.UX.Config
     ( HasConfig(getConfig),
       Config(typeclass, checkDerived, extensionality,
-             nopolyinfer, dependantCase, rankNTypes),
+             nopolyinfer, dependantCase, rankNTypes, allowTypedHoles),
       patternFlag,
-      higherOrderFlag )
+      higherOrderFlag, allowTypedHoles )
+import qualified GHC.Data.Strict as Strict
+
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
@@ -392,14 +394,23 @@ addPToEnv γ π
   = do γπ <- γ += ("addSpec1", pname π, pvarRType π)
        foldM (+=) γπ [("addSpec2", x, ofRSort t) | (t, x, _) <- pargs π]
 
+
+detectTypedHole ::  CGEnv -> CoreExpr -> CG (Maybe (RealSrcSpan, Var))
+detectTypedHole _ (App (Tick genTick (Var x)) _) | isVarHole x
+  = return (Just (getSrcSpanFromTick, x))
+    where
+      getSrcSpanFromTick = case genTick of
+        SourceNote src _ -> src
+        _ -> panic Nothing "Not a Source Note"
+      isVarHole =  L.isInfixOf "hole" . F.symbolString . F.symbol
+detectTypedHole  _ _ = return Nothing -- NOT A TYPED HOLE
 --------------------------------------------------------------------------------
 -- | Bidirectional Constraint Generation: CHECKING -----------------------------
 --------------------------------------------------------------------------------
 cconsE :: CGEnv -> CoreExpr -> SpecType -> CG ()
 --------------------------------------------------------------------------------
 cconsE g e t = do
-  -- NOTE: tracing goes here
-  -- traceM $ printf "cconsE:\n  expr = %s\n  exprType = %s\n  lqType = %s\n" (showPpr e) (showPpr (exprType e)) (showpp t)
+  _ <- if (allowTypedHoles (getConfig g))  then (detectTypedHole g e) else return Nothing
   cconsE' g e t
 
 --------------------------------------------------------------------------------
@@ -416,9 +427,9 @@ cconsE' γ e t
 cconsE' γ e@(Let b@(NonRec x _) ee) t
   = do sp <- gets specLVars
        if x `S.member` sp
-         then cconsLazyLet γ e t
-         else do γ' <- consCBLet γ b
-                 cconsE γ' ee t
+        then cconsLazyLet γ e t
+        else do γ' <- consCBLet γ b
+                cconsE γ' ee t
 
 cconsE' γ e (RAllP p t)
   = cconsE γ' e t''
@@ -553,12 +564,26 @@ cconsLazyLet γ (Let (NonRec x ex) e) t
 cconsLazyLet _ _ _
   = panic Nothing "Constraint.Generate.cconsLazyLet called on invalid inputs"
 
+
+consE :: CGEnv -> CoreExpr -> CG SpecType
+--------------------------------------------------------------------------------
+consE g e = do
+  t <- if (allowTypedHoles (getConfig g)) then synthesizeWithHole else consE' g e
+  return t
+  where 
+    synthesizeWithHole = do
+      isItHole <- detectTypedHole g e
+      t <- consE' g e 
+      _ <- case isItHole of
+        Just (srcSpan, x) -> addHole (RealSrcSpan srcSpan Strict.Nothing) x t g
+        _ -> return ()
+      return t
 --------------------------------------------------------------------------------
 -- | Bidirectional Constraint Generation: SYNTHESIS ----------------------------
 --------------------------------------------------------------------------------
-consE :: CGEnv -> CoreExpr -> CG SpecType
+consE' :: CGEnv -> CoreExpr -> CG SpecType
 --------------------------------------------------------------------------------
-consE γ e
+consE' γ e
   | patternFlag γ
   , Just p <- Rs.lift e
   = consPattern γ (F.notracepp "CONSE-PATTERN: " p) (exprType e)
@@ -573,7 +598,7 @@ consE γ e
 
 -- If datacon definitions have references to self for fancy termination,
 -- ignore them at the construction.
-consE γ (Var x) | GM.isDataConId x
+consE' γ (Var x) | GM.isDataConId x
   = do t0 <- varRefType γ x
        -- NV: The check is expected to fail most times, so
        --     it is cheaper than direclty fmap ignoreSelf.
@@ -584,15 +609,15 @@ consE γ (Var x) | GM.isDataConId x
        addLocA (Just x) (getLocation γ) (varAnn γ x t)
        return t
 
-consE γ (Var x)
+consE' γ (Var x)
   = do t <- varRefType γ x
        addLocA (Just x) (getLocation γ) (varAnn γ x t)
        return t
 
-consE _ (Lit c)
+consE' _ (Lit c)
   = refreshVV $ uRType $ literalFRefType c
 
-consE γ e'@(App e a@(Type τ))
+consE' γ e'@(App e a@(Type τ))
   = do RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
        t            <- if not (nopolyinfer (getConfig γ)) && isPos α && isGenericVar (ty_var_value α) te
                          then freshTyType (typeclass (getConfig γ)) TypeInstE e τ
@@ -607,7 +632,7 @@ consE γ e'@(App e a@(Type τ))
   where
     isPos α = not (extensionality (getConfig γ)) || rtv_is_pol (ty_var_info α)
 
-consE γ e'@(App e a) | Just aDict <- getExprDict γ a
+consE' γ e'@(App e a) | Just aDict <- getExprDict γ a
   = case dhasinfo (dlookup (denv γ) aDict) (getExprFun γ e) of
       Just riSig -> return $ fromRISig riSig
       _          -> do
@@ -620,7 +645,7 @@ consE γ e'@(App e a) | Just aDict <- getExprDict γ a
         cconsE γ' a tx
         addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
 
-consE γ e'@(App e a)
+consE' γ e'@(App e a)
   = do ([], πs, te) <- bkUniv <$> consE γ {- GM.tracePpr ("APP-EXPR: " ++ GM.showPpr (exprType e)) -} e
        te1        <- instantiatePreds γ e' $ foldr RAllP te πs
        (γ', te2)  <- dropExists γ te1
@@ -630,12 +655,12 @@ consE γ e'@(App e a)
        cconsE γ' a tx
        makeSingleton γ' (simplify e') <$> addPost γ' (maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ $ simplify a))
 
-consE γ (Lam α e) | isTyVar α
+consE' γ (Lam α e) | isTyVar α
   = do γ' <- updateEnvironment γ α
        t' <- consE γ' e
        return $ RAllT (makeRTVar $ rTyVar α) t' mempty
 
-consE γ  e@(Lam x e1)
+consE' γ  e@(Lam x e1)
   = do tx      <- freshTyType (typeclass (getConfig γ)) LamE (Var x) τx
        γ'      <- γ += ("consE", F.symbol x, tx)
        t1      <- consE γ' e1
@@ -647,33 +672,33 @@ consE γ  e@(Lam x e1)
     where
       FunTy { ft_arg = τx } = exprType e
 
-consE γ e@(Let _ _)
+consE' γ e@(Let _ _)
   = cconsFreshE LetE γ e
 
-consE γ e@(Case _ _ _ [_])
+consE' γ e@(Case _ _ _ [_])
   | Just p@Rs.PatProject{} <- Rs.lift e
   = consPattern γ p (exprType e)
 
-consE γ e@(Case _ _ _ cs)
+consE' γ e@(Case _ _ _ cs)
   = cconsFreshE (caseKVKind cs) γ e
 
-consE γ (Tick tt e)
+consE' γ (Tick tt e)
   = do t <- consE (setLocation γ (Sp.Tick tt)) e
        addLocA Nothing (GM.tickSrcSpan tt) (AnnUse t)
        return t
 
 -- See Note [Type classes with a single method]
-consE γ (Cast e co)
+consE' γ (Cast e co)
   | Just f <- isClassConCo co
   = consE γ (f e)
 
-consE γ e@(Cast e' c)
+consE' γ e@(Cast e' c)
   = castTy γ (exprType e) e' c
 
-consE γ e@(Coercion _)
+consE' γ e@(Coercion _)
    = trueTy (typeclass (getConfig γ)) $ exprType e
 
-consE _ e@(Type t)
+consE' _ e@(Type t)
   = panic Nothing $ "consE cannot handle type " ++ GM.showPpr (e, t)
 
 caseKVKind ::[Alt Var] -> KVKind

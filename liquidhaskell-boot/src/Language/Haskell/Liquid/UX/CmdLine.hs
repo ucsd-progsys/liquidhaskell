@@ -427,6 +427,10 @@ defConfig = Config {
   , modern
     = False &= help "Enable modern features; enables --reflection, --ple, --etabeta, --dependantcase"
             &= name "modern"
+  , allowTypedHoles
+    = False &= help "Allow typed holes in implementation"
+          &= name "allow-typed-holes"
+          &= explicit
   } &= program "liquidhaskell"
     &= help    "Refinement Types for Haskell"
     &= summary copyright

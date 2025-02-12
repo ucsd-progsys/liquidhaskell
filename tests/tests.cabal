@@ -2653,6 +2653,24 @@ executable typeclass-pos
     hs-source-dirs:   app
                     , typeclasses/pos
 
+    default-language: Haskell2010
+
+flag typed-holes
+     default: False
+
+executable typed-holes
+    main-is:          Main.hs
+
+    ghc-options:      -fplugin=LiquidHaskell
+    other-modules:    Example1
+    build-depends:    base
+                    , liquid-prelude
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , typed-holes
+
+    default-language: Haskell2010
 -- This test suite is for internal function unit tests, not for checking LH on
 -- source files.
 test-suite tasty
