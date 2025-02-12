@@ -488,6 +488,10 @@ config = cmdArgsMode $ Config {
     = def &= help "Allow refining constructors with unsafe refinements"
           &= name "allow-unsafe-constructors"
           &= explicit
+  , allowTypedHoles
+    = def &= help "Allow typed holes in implementation"
+          &= name "allow-typed-holes"
+          &= explicit
   } &= program "liquid"
     &= help    "Refinement Types for Haskell"
     &= summary copyright
@@ -753,6 +757,7 @@ defConfig = Config
   , dumpOpaqueReflections    = False
   , dumpPreNormalizedCore    = False
   , allowUnsafeConstructors  = False
+  , allowTypedHoles          = False
   }
 
 -- | Write the annotations (i.e. the files in the \".liquid\" hidden folder) and

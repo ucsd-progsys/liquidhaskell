@@ -125,7 +125,6 @@ dumpCs cgi = do
   putStrLn $ render $ pprintMany (fixCs cgi)
   putStrLn "***************************** WfCs ********************************"
   putStrLn $ render $ pprintMany (hsWfs cgi)
-
 pprintMany :: (PPrint a) => [a] -> Doc
 pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
 
