@@ -87,7 +87,7 @@ findRelevantSpecs lhAssmPkgExcludes hscEnv mods = do
 -- | Load specs from an interface file.
 lookupInterfaceAnnotations :: ExternalPackageState -> HomePackageTable -> NameCache -> SpecFinder m
 lookupInterfaceAnnotations eps hpt nameCache thisModule = do
-  lib <- MaybeT $ Serialisation.deserialiseLiquidLib thisModule eps hpt nameCache
+  lib <- Serialisation.deserialiseLiquidLib thisModule eps hpt nameCache
   pure $ LibFound thisModule lib
 
 lookupInterfaceAnnotationsEPS :: ExternalPackageState -> NameCache -> SpecFinder m
