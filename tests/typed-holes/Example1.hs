@@ -1,6 +1,6 @@
 {-@ LIQUID "--expect-error-containing=Hole Found" @-}
 {-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--allow-typed-holes" @-}
+{-@ LIQUID "--warn-on-term-holes" @-}
 -- Based on https://ucsd-progsys.github.io/liquidhaskell-blog/2016/10/06/structural-induction.lhs/
 
 module Example1 where
