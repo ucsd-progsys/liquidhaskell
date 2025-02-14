@@ -734,3 +734,52 @@ an import of a module coming from package `PACKAGE`. e.g.
 `--exclude-automatic-assumptions-for=vector` would stop loading
 `_LHAssumptions` modules for any imports coming from package
 `vector`.
+
+## Warn on Term Holes
+
+**Options:** `warn-on-term-holes`
+
+LiquidHaskell can be configured to emit warnings whenever it encounters incomplete terms, known as *holes*.
+
+This flag is particularly useful during development, ensuring that any placeholders in your specifications are reviewed and completed before final evaluation.
+
+To activate this behavior, use the `--warn-on-term-holes` flag either:
+
+1. As a pragma in your source file:
+    ```haskell
+    {-@ LIQUID "--warn-on-term-holes" @-}
+    ```
+2. As a plugin option:
+    ```
+    ghc-options: -fplugin-opt=LiquidHaskell:--warn-on-term-holes
+    ```
+
+When enabled, LiquidHaskell issues a warning for each term hole it discovers, for example:
+
+```haskell
+typed-holes/Example1.hs:25:13: error:
+    Hole Found
+Example1.hole :: {v : [a] | false}
+in the context
+  Example1.<> : forall a .
+                x1:[a] -> x2:[a] -> {VV : [a] | VV == Example1.<> x1 x2}
+
+  lq_anf$##7205759403792797257##dWZ : {v : [a] | v == Example1.<> lq_anf$##7205759403792797256##dWY x##aFc
+                                                 && GHC.Types_LHAssumptions.len v >= 0}
+
+  Example1.hole : forall a . a
+
+  Example1.empty : forall a .
+                   {VV : [a] | VV == Example1.empty
+                               && VV == GHC.Types.[]}
+
+  lq_anf$##7205759403792797256##dWY : {v : [a] | v == Example1.empty
+                                                 && v == GHC.Types.[]
+                                                 && GHC.Types_LHAssumptions.len v >= 0}
+
+  x##aFc : {VV##1043 : [a] | GHC.Types_LHAssumptions.len VV##1043 >= 0}
+hole found
+   |
+25 |         === hole
+   |             ^^^^
+```
