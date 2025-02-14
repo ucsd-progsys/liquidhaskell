@@ -816,9 +816,11 @@ ppError' _td _dCtx (ErrHoleCycle _ holes)
   = "Cycle of holes found"
         $+$ pprint holes
 
-ppError' _td _dCtx (ErrHole _ msg _ x t)
+ppError' td dCtx (ErrHole _ msg c x t)
   = "Hole Found"
         $+$ pprint x <+> "::" <+> pprint t
+        $+$ dCtx
+        $+$ ppContext td c
         $+$ msg
 
 ppError' td dCtx (ErrSubType _ _ cid c tA tE)

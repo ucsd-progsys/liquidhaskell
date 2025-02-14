@@ -121,7 +121,7 @@ addA _ _ _ !a
 addHole :: SrcSpan -> Var -> SpecType -> CGEnv -> CG ()
 addHole loc x t γ = do
   modify $ \s -> s { hsHoles = M.insert x (holeInfo (s, γ)) $ hsHoles s } 
-  addWarning $ ErrHole loc ("hole found") (reGlobal env <> reLocal env) x' t
+  addWarning $ ErrHole loc ("hole found") (reLocal $ renv γ) x' t
   where
     holeInfo = HoleInfo t loc env
     env      = mconcat [renv γ, grtys γ, assms γ, intys γ]
