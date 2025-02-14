@@ -127,7 +127,7 @@ data Config = Config
   , dumpOpaqueReflections    :: Bool       -- Dumps all opaque reflections to the stdout
   , dumpPreNormalizedCore    :: Bool       -- Dumps the prenormalized core (before a-normalization)
   , allowUnsafeConstructors  :: Bool       -- ^ Allow refining constructors with unsafe refinements
-  , allowTypedHoles          :: Bool       -- ^ Allow typed holes in the source code
+  , warnOnTermHoles          :: Bool       -- ^ Warn about holes in the terms
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 allowPLE :: Config -> Bool
