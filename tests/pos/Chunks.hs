@@ -1,8 +1,5 @@
 module Chunks where
 
-{-@ LIQUID "--scrape-imports" @-}
-
-
 {-@ type SafeChunkSize = {v:Int | 1 < v } @-}
 
 {-@ type Pos = {v:Int | 0 < v} @-}

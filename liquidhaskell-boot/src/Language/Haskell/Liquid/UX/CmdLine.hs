@@ -288,19 +288,9 @@ config = cmdArgsMode $ Config {
     = def &= help "Expect an error, no matter which kind or what it contains"
           &= name "expect-any-error"
 
- , scrapeImports
-    = False &= help "Scrape qualifiers from imported specifications"
-            &= name "scrape-imports"
-            &= explicit
-
  , scrapeInternals
     = False &= help "Scrape qualifiers from auto generated specifications"
             &= name "scrape-internals"
-            &= explicit
-
- , scrapeUsedImports
-    = False &= help "Scrape qualifiers from used, imported specifications"
-            &= name "scrape-used-imports"
             &= explicit
 
  , elimStats
@@ -713,8 +703,6 @@ defConfig = Config
   , cFiles                   = def
   , port                     = defaultPort
   , scrapeInternals          = False
-  , scrapeImports            = False
-  , scrapeUsedImports        = False
   , elimStats                = False
   , elimBound                = Nothing
   , json                     = False

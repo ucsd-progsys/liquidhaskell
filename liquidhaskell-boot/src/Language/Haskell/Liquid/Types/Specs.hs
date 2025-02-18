@@ -185,9 +185,6 @@ data TargetSrc = TargetSrc
   , gsFiTcs     :: ![TyCon]               -- ^ Family instance TyCons
   , gsFiDcs     :: ![(F.Symbol, DataCon)] -- ^ Family instance DataCons
   , gsPrimTcs   :: ![TyCon]               -- ^ Primitive GHC TyCons (from TysPrim.primTyCons)
-  , gsQualImps  :: !QImports              -- ^ Map of qualified imports
-  , gsAllImps   :: !(HashSet F.Symbol)    -- ^ Set of _all_ imported modules
-  , gsTyThings  :: ![TyThing]             -- ^ All the @TyThing@s known to GHC
   }
 
 -- | 'QImports' is a map of qualified imports.
@@ -294,12 +291,12 @@ data GhcSpecData = SpData
   deriving Show
 
 data GhcSpecNames = SpNames
-  { gsFreeSyms   :: ![(F.Symbol, Var)]            -- ^ List of `Symbol` free in spec and corresponding GHC var, eg. (Cons, Cons#7uz) from tests/pos/ex1.hs
-  , gsDconsP     :: ![F.Located DataCon]          -- ^ Predicated Data-Constructors, e.g. see tests/pos/Map.hs
+  { gsDconsP     :: ![F.Located DataCon]          -- ^ Predicated Data-Constructors, e.g. see tests/pos/Map.hs
   , gsTconsP     :: ![TyConP]                     -- ^ Predicated Type-Constructors, e.g. see tests/pos/Map.hs
   , gsTcEmbeds   :: !(F.TCEmb TyCon)              -- ^ Embedding GHC Tycons into fixpoint sorts e.g. "embed Set as Set_set"
   , gsADTs       :: ![F.DataDecl]                 -- ^ ADTs extracted from Haskell 'data' definitions
   , gsTyconEnv   :: !TyConMap
+  , gsDataConIds :: [Var]
   }
   deriving Show
 
@@ -423,6 +420,7 @@ data Spec lname ty = Spec
   , bounds     :: !(RRBEnvV lname (F.Located ty))
   , axeqs      :: ![F.EquationV lname]                                -- ^ Equalities used for Proof-By-Evaluation
   , defines    :: ![(F.Located LHName, LMapV lname)]                  -- ^ Logic aliases
+  , usedDataCons :: S.HashSet LHName                                  -- ^ Data constructors used in specs
   } deriving (Data, Generic)
 
 instance (Show lname, F.PPrint lname, Show ty, F.PPrint ty, F.PPrint (RTypeV lname BTyCon BTyVar (RReftV lname))) => F.PPrint (Spec lname ty) where
@@ -634,6 +632,7 @@ instance Semigroup (Spec lname ty) where
            , bounds     = M.union   (bounds   s1)  (bounds   s2)
            , autois     = S.union   (autois s1)      (autois s2)
            , defines    =            defines  s1 ++ defines  s2
+           , usedDataCons = S.union (usedDataCons s1) (usedDataCons s2)
            }
 
 instance Monoid (Spec lname ty) where
@@ -679,6 +678,7 @@ instance Monoid (Spec lname ty) where
            , axeqs      = []
            , bounds     = M.empty
            , defines    = []
+           , usedDataCons = mempty
            }
 
 -- $liftedSpec
@@ -762,6 +762,8 @@ data LiftedSpec = LiftedSpec
     -- ^ Equalities used for Proof-By-Evaluation
   , liftedDefines    :: HashMap F.Symbol (LMapV LHName)
     -- ^ Logic aliases
+  , liftedUsedDataCons :: HashSet LHName
+    -- ^ Data constructors used in specs
   } deriving (Eq, Data, Generic)
     deriving Hashable via Generically LiftedSpec
     deriving Binary   via Generically LiftedSpec
@@ -814,6 +816,7 @@ emptyLiftedSpec = LiftedSpec
   , liftedBounds     = mempty
   , liftedAxeqs      = mempty
   , liftedDefines    = mempty
+  , liftedUsedDataCons = mempty
   }
 
 -- $trackingDeps
@@ -876,9 +879,6 @@ data GhcSrc = Src
   , _gsFiTcs     :: ![TyCon]               -- ^ Family instance TyCons
   , _gsFiDcs     :: ![(F.Symbol, DataCon)] -- ^ Family instance DataCons
   , _gsPrimTcs   :: ![TyCon]               -- ^ Primitive GHC TyCons (from TysPrim.primTyCons)
-  , _gsQualImps  :: !QImports              -- ^ Map of qualified imports
-  , _gsAllImps   :: !(S.HashSet F.Symbol)  -- ^ Set of _all_ imported modules
-  , _gsTyThings  :: ![TyThing]             -- ^ All the @TyThing@s known to GHC
   }
 
 data GhcSpec = SP
@@ -913,9 +913,6 @@ toTargetSrc a = TargetSrc
   , gsFiTcs     = _gsFiTcs a
   , gsFiDcs     = _gsFiDcs a
   , gsPrimTcs   = _gsPrimTcs a
-  , gsQualImps  = _gsQualImps a
-  , gsAllImps   = _gsAllImps a
-  , gsTyThings  = _gsTyThings a
   }
 
 fromTargetSrc :: TargetSrc -> GhcSrc
@@ -933,9 +930,6 @@ fromTargetSrc a = Src
   , _gsFiTcs     = gsFiTcs a
   , _gsFiDcs     = gsFiDcs a
   , _gsPrimTcs   = gsPrimTcs a
-  , _gsQualImps  = gsQualImps a
-  , _gsAllImps   = gsAllImps a
-  , _gsTyThings  = gsTyThings a
   }
 
 toTargetSpec ::  GhcSpec -> TargetSpec
@@ -989,6 +983,7 @@ toLiftedSpec a = LiftedSpec
   , liftedBounds     = bounds a
   , liftedAxeqs      = S.fromList . axeqs $ a
   , liftedDefines    = M.fromList . map (first (lhNameToResolvedSymbol . F.val)) . defines $ a
+  , liftedUsedDataCons = usedDataCons a
   }
 
 -- This is a temporary internal function that we use to convert the input dependencies into a format
@@ -1035,4 +1030,5 @@ unsafeFromLiftedSpec a = Spec
   , bounds     = liftedBounds a
   , axeqs      = S.toList . liftedAxeqs $ a
   , defines    = map (first (dummyLoc . makeLocalLHName)) . M.toList . liftedDefines $ a
+  , usedDataCons = liftedUsedDataCons a
   }

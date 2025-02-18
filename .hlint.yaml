@@ -13,3 +13,4 @@
 - ignore: {name: "Avoid lambda"} # 4 hints
 - ignore: {name: "Eta reduce"} # 51 hints
 - ignore: {name: "Use infix"} # 3 hints
+- ignore: {name: "Fuse foldr/map"}

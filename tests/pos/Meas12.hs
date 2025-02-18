@@ -1,5 +1,4 @@
-{-@ LIQUID "--expect-any-error" @-}
-module Meas5 () where
+module Meas12 () where
 
 import Language.Haskell.Liquid.Prelude
 

@@ -30,15 +30,11 @@ module Language.Haskell.Liquid.GHC.Interface (
   , classCons
   , derivedVars
   , importVars
-  , allImports
-  , qualifiedImports
   , modSummaryHsFile
   , makeFamInstEnv
   , clearSpec
   , checkFilePragmas
   , lookupTyThing
-  , lookupTyThings
-  , availableTyThings
   , updLiftedSpec
   ) where
 
@@ -141,50 +137,12 @@ updLiftedSpec s1 (Just s2) = clearSpec s1 `mappend` s2
 clearSpec :: Ms.BareSpec -> Ms.BareSpec
 clearSpec s = s { sigs = [], asmSigs = [], aliases = [], ealiases = [], qualifiers = [], dataDecls = [] }
 
-allImports :: [LImportDecl GhcRn] -> S.HashSet Symbol
-allImports imps = S.fromList (symbol . unLoc . ideclName . unLoc <$> imps)
-
-qualifiedImports :: [LImportDecl GhcRn] -> QImports
-qualifiedImports imps =
-  qImports [ (qn, n) | i         <- imps
-                                  , let decl   = unLoc i
-                                  , let m      = unLoc (ideclName decl)
-                                  , qm        <- maybeToList (unLoc <$> ideclAs decl)
-                                  , let [n,qn] = symbol <$> [m, qm]
-                                  ]
-
-qImports :: [(Symbol, Symbol)] -> QImports
-qImports qns  = QImports
-  { qiNames   = Misc.group qns
-  , qiModules = S.fromList (snd <$> qns)
-  }
-
-
----------------------------------------------------------------------------------------
--- | @lookupTyThings@ grabs all the @Name@s and associated @TyThing@ known to GHC
---   for this module; we will use this to create our name-resolution environment
---   (see `Bare.Resolve`)
----------------------------------------------------------------------------------------
-lookupTyThings :: (GhcMonad m) => TcGblEnv -> m [(Name, Maybe TyThing)]
-lookupTyThings tcGblEnv = zip names <$> mapM (lookupTyThing (Ghc.tcg_type_env tcGblEnv)) names
-  where
-    names = liftA2 (++)
-        (fmap Ghc.greName . Ghc.globalRdrEnvElts . tcg_rdr_env)
-        (fmap is_dfun_name . tcg_insts)
-        tcGblEnv
-
 lookupTyThing :: (GhcMonad m) => Ghc.TypeEnv -> Name -> m (Maybe TyThing)
 lookupTyThing tyEnv name = do
     runMaybeT . msum . map MaybeT $
         [ pure (lookupTypeEnv tyEnv name)
         , lookupName name
         ]
-
-availableTyThings :: (GhcMonad m) => TcGblEnv -> [AvailInfo] -> m [TyThing]
-availableTyThings tcGblEnv avails =
-    fmap catMaybes $
-      mapM (lookupTyThing (Ghc.tcg_type_env tcGblEnv)) $
-      concatMap availNames avails
 
 _dumpTypeEnv :: TypecheckedModule -> IO ()
 _dumpTypeEnv tm = do

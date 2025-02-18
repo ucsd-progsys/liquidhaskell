@@ -77,11 +77,8 @@ data Env = RE
   , reInstEnvs  :: Ghc.InstEnvs
   , reUsedExternals :: Ghc.NameSet
   , reLMap      :: LogicMap
-  , reSyms      :: [(F.Symbol, Ghc.Var)]    -- ^ see "syms" in old makeGhcSpec'
-  , _reTyThings :: TyThingMap
+  , reDataConIds :: [Ghc.Id]                -- ^ Data constructors used in the current module
   , reCfg       :: Config
-  , reQualImps  :: QImports                 -- ^ qualified imports
-  , reAllImps   :: S.HashSet F.Symbol       -- ^ all imported modules
   , reLocalVars :: LocalVars                -- ^ lines at which local variables are defined.
   , reGlobSyms  :: S.HashSet F.Symbol       -- ^ global symbols, typically unlifted measures like 'len', 'fromJust'
   , reSrc       :: GhcSrc                   -- ^ all source info

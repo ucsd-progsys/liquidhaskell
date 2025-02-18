@@ -367,22 +367,21 @@ makeMeasureSpec env sigEnv myName (name, spec)
 
 --- Returns all the reflected symbols.
 --- If Env is provided, the symbols are qualified using the environment.
-getLocReflects :: Bare.ModSpecs -> S.HashSet F.LocSymbol
+getLocReflects :: Bare.ModSpecs -> S.HashSet F.Symbol
 getLocReflects = S.unions . map names . M.elems
   where
     names modSpec = unqualified modSpec
     unqualified modSpec = S.unions
-      [ S.map (fmap lhNameToResolvedSymbol) (Ms.reflects modSpec)
-      , Ms.privateReflects modSpec
-      , S.fromList (fmap lhNameToResolvedSymbol . snd <$> Ms.asmReflectSigs modSpec)
-      , S.fromList (fmap lhNameToResolvedSymbol . fst <$> Ms.asmReflectSigs modSpec)
-      , S.map (fmap lhNameToResolvedSymbol) (Ms.inlines modSpec)
-      , S.map (fmap lhNameToResolvedSymbol) (Ms.hmeas modSpec)
+      [ S.map (lhNameToResolvedSymbol . val) (Ms.reflects modSpec)
+      , S.map val $ Ms.privateReflects modSpec
+      , S.fromList (lhNameToResolvedSymbol . val . snd <$> Ms.asmReflectSigs modSpec)
+      , S.fromList (lhNameToResolvedSymbol . val . fst <$> Ms.asmReflectSigs modSpec)
+      , S.map (lhNameToResolvedSymbol . val) (Ms.inlines modSpec)
+      , S.map (lhNameToResolvedSymbol . val) (Ms.hmeas modSpec)
       ]
 
 -- Get all the symbols that are defined in the logic, based on the environment and the specs.
--- Also, fully qualify the defined symbols by the way (for those for which it's possible and not already done).
-getDefinedSymbolsInLogic :: Bare.Env -> Bare.MeasEnv -> Bare.ModSpecs -> S.HashSet F.LocSymbol
+getDefinedSymbolsInLogic :: Bare.Env -> Bare.MeasEnv -> Bare.ModSpecs -> S.HashSet F.Symbol
 getDefinedSymbolsInLogic env measEnv specs =
   S.unions (uncurry getFromAxioms <$> specsList) -- reflections that ended up in equations
     `S.union` getLocReflects specs -- reflected symbols
@@ -392,16 +391,14 @@ getDefinedSymbolsInLogic env measEnv specs =
   where
     specsList = M.toList specs
     getFromAxioms _modName spec = S.fromList $
-      localize . F.eqName <$> Ms.axeqs spec
-    measVars     = S.fromList $ localize . fst <$> getMeasVars env measEnv
+      F.eqName <$> Ms.axeqs spec
+    measVars     = S.fromList $ fst <$> getMeasVars env measEnv
     getDataDecls spec = S.unions $
       getFromDataCtor <$>
         concat (tycDCons `Mb.mapMaybe` (dataDecls spec ++ newtyDecls spec))
     getFromDataCtor decl = S.fromList $
-      map (dummyLoc . lhNameToResolvedSymbol) $ val (dcName decl) : (fst <$> dcFields decl)
-    getAliases spec = S.fromList $ fmap rtName <$> Ms.ealiases spec
-    localize :: F.Symbol -> F.LocSymbol
-    localize sym = maybe (dummyLoc sym) varLocSym $ L.lookup sym (Bare.reSyms env)
+      map lhNameToResolvedSymbol $ val (dcName decl) : (fst <$> dcFields decl)
+    getAliases spec = S.fromList $ rtName . val <$> Ms.ealiases spec
 
 -- Get the set of `DataCon`s (DCs) needed for the reflection of a given list of variables,
 -- and which are not already present in the logic
@@ -439,7 +436,7 @@ makeOpaqueReflMeasures env measEnv specs eqs =
       Right x -> x
       Left _ -> panic (Just $ GM.fSrcSpan sym) "function to reflect not in scope"
     definedSymbols = getDefinedSymbolsInLogic env measEnv specs
-    undefinedInLogic v = not (S.member (varLocSym v) definedSymbols)
+    undefinedInLogic v = not (S.member (F.symbol v) definedSymbols)
     -- Variables to consider
     varsUndefinedInLogic = S.unions $
       S.filter undefinedInLogic .
@@ -573,7 +570,7 @@ varMeasures :: (Monoid r) => Bare.Env -> [(F.Symbol, Located (RRType r))]
 ------------------------------------------------------------------------------
 varMeasures env =
   [ (F.symbol v, varSpecType v)
-      | v <- knownVars env
+      | v <- Bare.reDataConIds env
       , GM.isDataConId v
       , isSimpleType (Ghc.varType v) ]
 
@@ -581,11 +578,6 @@ getMeasVars :: Bare.Env -> Bare.MeasEnv -> [(F.Symbol, Located (RRType F.Reft))]
 getMeasVars env measEnv = Bare.meSyms measEnv -- ms'
                             ++ Bare.meClassSyms measEnv -- cms'
                             ++ varMeasures env
-
-knownVars :: Bare.Env -> [Ghc.Var]
-knownVars env = [ v | (_, xThings)   <- M.toList (Bare._reTyThings env)
-                    , (_,Ghc.AnId v) <- xThings
-                ]
 
 varSpecType :: (Monoid r) => Ghc.Var -> Located (RRType r)
 varSpecType = fmap (RT.ofType . Ghc.varType) . GM.locNamedThing

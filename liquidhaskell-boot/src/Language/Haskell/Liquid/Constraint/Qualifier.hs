@@ -100,7 +100,7 @@ sigQualifiers :: TargetInfo -> SEnv Sort -> [Qualifier]
 --------------------------------------------------------------------------------
 sigQualifiers info lEnv
   = [ q | (x, t) <- specBinders info
-        , x `S.member` qbs
+        , not (x `S.member` S.fromList (specAxiomVars info))
         , q <- refTypeQuals lEnv ef (getSourcePos x) tce (val t)
         -- NOTE: large qualifiers are VERY expensive, so we only mine
         -- qualifiers up to a given size, controlled with --max-params
@@ -110,24 +110,6 @@ sigQualifiers info lEnv
       ef  = maybe (FC.ElabFlags False) FC.solverFlags . smtsolver . getConfig $ info
       k   = maxQualParams info
       tce = gsTcEmbeds . gsName . giSpec $ info
-      qbs = qualifyingBinders info
-
-qualifyingBinders :: TargetInfo -> S.HashSet Var
-qualifyingBinders info = S.difference sTake sDrop
-  where
-    sTake              = S.fromList $ giDefVars src ++ giUseVars src ++ scrapeVars cfg src
-    sDrop              = S.fromList $ specAxiomVars info
-    cfg                = getConfig info
-    src                = giSrc     info
-
--- NOTE: this mines extra, useful qualifiers but causes
--- a significant increase in running time, so we hide it
--- behind `--scrape-imports` and `--scrape-used-imports`
-scrapeVars :: Config -> TargetSrc -> [Var]
-scrapeVars cfg src
-  | cfg `hasOpt` scrapeUsedImports = giUseVars src
-  | cfg `hasOpt` scrapeImports     = giImpVars src
-  | otherwise                      = []
 
 specBinders :: TargetInfo -> [(Var, LocSpecType)]
 specBinders info = mconcat

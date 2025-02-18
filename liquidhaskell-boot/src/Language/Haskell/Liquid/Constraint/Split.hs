@@ -441,10 +441,10 @@ forallExprReft_ _ _
 forallExprReftLookup :: CGEnv
                      -> F.Symbol
                      -> Maybe ([F.Symbol], [RFInfo], [SpecType], [RReft], SpecType)
-forallExprReftLookup γ sym = snap <$> F.lookupSEnv sym (syenv γ)
+forallExprReftLookup γ sym = snap <$> lookup' sym
   where
-    snap     = mapFifth5 ignoreOblig . (\((x,a,b,c),t)->(x,a,b,c,t)) . bkArrow . thd3 . bkUniv . lookup'
-    lookup' z = fromMaybe (panicUnbound γ z) (γ ?= F.symbol z)
+    snap     = mapFifth5 ignoreOblig . (\((x,a,b,c),t)->(x,a,b,c,t)) . bkArrow . thd3 . bkUniv
+    lookup' z = γ ?= F.symbol z
 
 
 --------------------------------------------------------------------------------

@@ -55,7 +55,7 @@ initEnv :: TargetInfo -> CG CGEnv
 initEnv info
   = do let tce   = gsTcEmbeds (gsName sp)
        let fVars = giImpVars (giSrc info)
-       let dcs   = filter isConLikeId (snd <$> gsFreeSyms (gsName sp))
+       let dcs   = gsDataConIds (gsName sp)
        let dcs'  = filter isConLikeId fVars
        defaults <- forM fVars $ \x -> fmap (x,) (trueTy allowTC $ varType x)
        dcsty    <- forM dcs   (makeDataConTypes allowTC)
@@ -185,7 +185,6 @@ measEnv :: TargetSpec
 measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
   { cgLoc    = Sp.empty
   , renv     = fromListREnv (second val <$> gsMeas (gsData sp)) []
-  , syenv    = F.fromListSEnv (gsFreeSyms (gsName sp))
   , litEnv   = F.fromListSEnv lts
   , constEnv = F.fromListSEnv lt2s
   , fenv     =
@@ -318,9 +317,7 @@ coreBindLits tce info
   where
     src         = giSrc info
     lconsts      = literalConst tce <$> literals (giCbs src)
-    dcons        = filter isDCon freeVs
-    freeVs       = giImpVars src ++ freeSyms
-    freeSyms     = fmap snd . gsFreeSyms . gsName . giSpec $ info
+    dcons        = filter isDCon $ gsDataConIds $ gsName $ giSpec info
     dconToSort   = typeSort tce . expandTypeSynonyms . varType
     dconToSym    = F.symbol . idDataCon
     isDCon x     = isDataConId x && not (hasBaseTypeVar x)

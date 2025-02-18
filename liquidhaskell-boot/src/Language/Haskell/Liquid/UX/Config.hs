@@ -86,9 +86,7 @@ data Config = Config
   , noADT                    :: Bool       -- ^ Disable ADTs (only used with exactDC)
   , expectErrorContaining    :: [String]   -- ^ expect failure from Liquid with at least one of the following messages
   , expectAnyError           :: Bool       -- ^ expect failure from Liquid with any message
-  , scrapeImports            :: Bool       -- ^ scrape qualifiers from imported specifications
   , scrapeInternals          :: Bool       -- ^ scrape qualifiers from auto specifications
-  , scrapeUsedImports        :: Bool       -- ^ scrape qualifiers from used, imported specifications
   , elimStats                :: Bool       -- ^ print eliminate stats
   , elimBound                :: Maybe Int  -- ^ eliminate upto given depth of KVar chains
   , json                     :: Bool       -- ^ print results (safe/errors) as JSON

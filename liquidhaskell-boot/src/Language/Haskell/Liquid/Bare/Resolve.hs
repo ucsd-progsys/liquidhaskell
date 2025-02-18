@@ -26,13 +26,13 @@ module Language.Haskell.Liquid.Bare.Resolve
   , lookupGhcIdLHName
   , lookupLocalVar
   , lookupGhcTyConLHName
+  , lookupGhcTyThingFromName
   , lookupGhcId
 
   -- * Checking if names exist
   , knownGhcType
 
   -- * Misc
-  , srcVars
   , coSubRReft
   , unQualifySymbol
 
@@ -91,17 +91,14 @@ type Lookup a = Either [Error] a
 -------------------------------------------------------------------------------
 -- | Creating an environment
 -------------------------------------------------------------------------------
-makeEnv :: Config -> GHCTyLookupEnv -> Ghc.TcGblEnv -> Ghc.InstEnvs -> LocalVars -> GhcSrc -> LogicMap -> [(ModName, BareSpec)] -> Env
-makeEnv cfg ghcTyLookupEnv tcg instEnv localVars src lmap specs = RE
+makeEnv :: Config -> GHCTyLookupEnv -> [Ghc.Id] -> Ghc.TcGblEnv -> Ghc.InstEnvs -> LocalVars -> GhcSrc -> LogicMap -> [(ModName, BareSpec)] -> Env
+makeEnv cfg ghcTyLookupEnv dataConIds tcg instEnv localVars src lmap specs = RE
   { reTyLookupEnv = ghcTyLookupEnv
   , reTcGblEnv  = tcg
   , reInstEnvs = instEnv
   , reUsedExternals = usedExternals
   , reLMap      = lmap
-  , reSyms      = syms
-  , _reTyThings = makeTyThingMap src
-  , reQualImps  = _gsQualImps     src
-  , reAllImps   = _gsAllImps      src
+  , reDataConIds = dataConIds
   , reLocalVars = localVars
   , reSrc       = src
   , reGlobSyms  = S.fromList     globalSyms
@@ -109,10 +106,7 @@ makeEnv cfg ghcTyLookupEnv tcg instEnv localVars src lmap specs = RE
   }
   where
     globalSyms  = concatMap getGlobalSyms specs
-    syms        = [ (F.symbol v, v) | v <- vars ]
-    vars        = srcVars src
     usedExternals = Ghc.exprsOrphNames $ map snd $ Ghc.flattenBinds $ _giCbs src
-
 
 getGlobalSyms :: (ModName, BareSpec) -> [F.Symbol]
 getGlobalSyms (_, spec)
@@ -186,117 +180,11 @@ localKey v
   where
     (m, x)    = splitModuleNameExact . GM.dropModuleUnique . F.symbol $ v
 
-makeTyThingMap :: GhcSrc -> TyThingMap
-makeTyThingMap src =
-  addListTyConName $
-  Misc.group [ (x, (m, t))  | t         <- srcThings src
-                            , tSym      <- Mb.maybeToList (tyThingSymbol t)
-                            , let (m, x) = qualifiedSymbol tSym
-                            , not (isLocal m)
-             ]
-  where
-    -- We add the TyThing for the List constructor here. Otherwise, we
-    -- lookups in the TyThingMap will fail for "List" and not for "[]".
-    addListTyConName m =
-      case M.lookup "[]" m of
-        Nothing -> m
-        Just ps -> M.insertWith (++) "List" (filterListTyCon ps) m
-
-    -- The TyCon name in the TyThing for @"[]"@ must be @"[]"@ apparently.
-    --
-    -- listTyCon uses "List", and that made later checks fail for some tests,
-    -- so we cannot just return @[("GHC.Types", ATyCon listTyCon)]@
-    --
-    -- Returning the TyCon that GHC yields for @"[]"@ has later tests fail,
-    -- because that TyCon has no associated data constructors.
-    --
-    -- The solution we adopted for now is to return listTyCon, and use
-    -- the name from the TyThing that GHC returned.
-    filterListTyCon ps =
-      [ (mn, Ghc.ATyCon tc') | (mn, Ghc.ATyCon tc) <- ps
-          , "GHC.Types" == mn
-          , let tc' = Ghc.listTyCon { Ghc.tyConName = Ghc.tyConName tc }
-      ]
-
-tyThingSymbol :: Ghc.TyThing -> Maybe F.Symbol
-tyThingSymbol (Ghc.AnId     x) = Just (F.symbol x)
-tyThingSymbol (Ghc.ATyCon   c) = Just (F.symbol c)
-tyThingSymbol (Ghc.AConLike d) = conLikeSymbol d
-tyThingSymbol _tt              = Nothing -- panic Nothing ("TODO: tyThingSymbol" ++ showPpr tt)
-
-
-conLikeSymbol :: Ghc.ConLike -> Maybe F.Symbol
-conLikeSymbol (Ghc.RealDataCon d) = Just (F.symbol d)
-conLikeSymbol _z                   = Nothing -- panic Nothing ("TODO: conLikeSymbol -- " ++ showPpr z)
-
-
-
-
 isLocal :: F.Symbol -> Bool
 isLocal = isEmptySymbol
 
-qualifiedSymbol :: (F.Symbolic a) => a -> (F.Symbol, F.Symbol)
-qualifiedSymbol = splitModuleNameExact . F.symbol
-
 isEmptySymbol :: F.Symbol -> Bool
 isEmptySymbol x = F.lengthSym x == 0
-
-srcThings :: GhcSrc -> [Ghc.TyThing]
-srcThings src = myTracepp "SRCTHINGS"
-              $ Misc.hashNubWith F.showpp (_gsTyThings src ++ mySrcThings src)
-
-mySrcThings :: GhcSrc -> [Ghc.TyThing]
-mySrcThings src = [ Ghc.AnId   x | x <- vars ]
-               ++ [ Ghc.ATyCon c | c <- tcs  ]
-               ++ [ aDataCon   d | d <- dcs  ]
-  where
-    vars        = Misc.sortNub $ dataConVars dcs ++ srcVars  src
-    dcs         = Misc.sortNub $ concatMap Ghc.tyConDataCons tcs
-    tcs         = Misc.sortNub $ srcTyCons src
-    aDataCon    = Ghc.AConLike . Ghc.RealDataCon
-
-srcTyCons :: GhcSrc -> [Ghc.TyCon]
-srcTyCons src = concat
-  [ _gsTcs     src
-  , _gsFiTcs   src
-  , _gsPrimTcs src
-  , srcVarTcs src
-  ]
-
-srcVarTcs :: GhcSrc -> [Ghc.TyCon]
-srcVarTcs = varTyCons . srcVars
-
-varTyCons :: [Ghc.Var] -> [Ghc.TyCon]
-varTyCons = concatMap (typeTyCons . Ghc.dropForAlls . Ghc.varType)
-
-typeTyCons :: Ghc.Type -> [Ghc.TyCon]
-typeTyCons t = tops t ++ inners t
-  where
-    tops     = Mb.maybeToList . Ghc.tyConAppTyCon_maybe
-    inners   = concatMap typeTyCons . snd . Ghc.splitAppTys
-
--- | We prioritize the @Ghc.Var@ in @srcVars@ because @_giDefVars@ and @gsTyThings@
---   have _different_ values for the same binder, with different types where the
---   type params are alpha-renamed. However, for absref, we need _the same_
---   type parameters as used by GHC as those are used inside the lambdas and
---   other bindings in the code. See also [NOTE: Plug-Holes-TyVars] and
---      tests-absref-pos-Papp00.hs
-
-srcVars :: GhcSrc -> [Ghc.Var]
-srcVars src = filter Ghc.isId .  fmap Misc.thd3 . Misc.fstByRank $ concat
-  [ key "SRC-VAR-DEF" 0 <$> _giDefVars src
-  , key "SRC-VAR-DER" 1 <$> S.toList (_giDerVars src)
-  , key "SRC-VAR-IMP" 2 <$> _giImpVars src
-  , key "SRC-VAR-USE" 3 <$> _giUseVars src
-  , key "SRC-VAR-THN" 4 <$> [ x | Ghc.AnId x <- _gsTyThings src ]
-  ]
-  where
-    key :: String -> Int -> Ghc.Var -> (Int, F.Symbol, Ghc.Var)
-    key _ i x  = (i, F.symbol x, {- dump s -} x)
-    _dump msg x = fst . myTracepp msg $ (x, RT.ofType (Ghc.expandTypeSynonyms (Ghc.varType x)) :: SpecType)
-
-dataConVars :: [Ghc.DataCon] -> [Ghc.Var]
-dataConVars dcs = (Ghc.dataConWorkId <$> dcs) ++ (Ghc.dataConWrapId <$> dcs)
 
 -- | @lookupLocalVar@ takes as input the list of "global" (top-level) vars
 --   that also match the name @lx@; we then pick the "closest" definition.
@@ -362,10 +250,14 @@ lookupGhcIdLHName env lname =
      _ -> panic
            (Just $ GM.fSrcSpan lname) $ "not a variable or data constructor: " ++ show (val lname)
 
-lookupGhcId :: Env -> Ghc.Name -> Maybe Ghc.Id
+lookupGhcTyThingFromName :: GHCTyLookupEnv -> Ghc.Name -> Maybe Ghc.TyThing
 -- see note about unsafePerformIO in lookupTyThingMaybe
+lookupGhcTyThingFromName env n =
+   unsafePerformIO $ Ghc.reflectGhc (Interface.lookupTyThing (gtleTypeEnv env) n) (gtleSession env)
+
+lookupGhcId :: Env -> Ghc.Name -> Maybe Ghc.Id
 lookupGhcId env n =
-    case unsafePerformIO $ Ghc.reflectGhc (Interface.lookupTyThing (gtleTypeEnv env') n) (gtleSession env') of
+    case lookupGhcTyThingFromName env' n of
       Just (Ghc.AConLike (Ghc.RealDataCon d)) -> Just (Ghc.dataConWorkId d)
       Just (Ghc.AnId x) -> Just x
       _ -> Nothing

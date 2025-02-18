@@ -40,7 +40,6 @@ comments/explanation.
 
 
 {- LIQUID "--diff" @-}
-{-@ LIQUID "--scrape-used-imports" @-}
 {-@ LIQUID "--short-names" @-}
 
 {-# LANGUAGE DataKinds #-}

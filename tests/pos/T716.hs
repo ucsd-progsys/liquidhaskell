@@ -4,8 +4,6 @@
 --   output type of `narrow16Word` (apparently we don't scrape assumes?) 
 --   ELIMINATE does not cut it, as the relevant kvar happens to be non-linear...
 
-{-@ LIQUID "--scrape-used-imports" @-}
-
 module T716 where
 
 import GHC.Exts

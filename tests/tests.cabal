@@ -48,10 +48,17 @@ executable test-driver
     default-language: Haskell2010
     ghc-options:      -O2 -j -Wall -Werror
 
+common common-ghc-options
+    ghc-options:      -fplugin=LiquidHaskell
+                      -fkeep-going
+                      -O0
+                      -no-link
+
 flag benchmark-stitch-lh
      default: False
 
 executable benchmark-stitch-lh
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(benchmark-stitch-lh) && flag(stack)
       buildable:      False
@@ -105,11 +112,8 @@ executable benchmark-stitch-lh
 
 
     ghc-options:      -Wall
-                      -fplugin=LiquidHaskell
                       -Wno-unticked-promoted-constructors
                       -fno-warn-name-shadowing
-                      -fkeep-going
-                      -O0
 
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
@@ -119,6 +123,7 @@ flag benchmark-bytestring
      default: False
 
 executable benchmark-bytestring
+  import:             common-ghc-options
   main-is:            Main.hs
 
   if !flag(benchmark-bytestring) && flag(stack)
@@ -144,7 +149,7 @@ executable benchmark-bytestring
                     , liquidhaskell
                     , array >= 0.5.4
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0 -Wno-inline-rule-shadowing
+  ghc-options:      -Wno-inline-rule-shadowing
   if flag(measure-timings)
     ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
@@ -153,6 +158,7 @@ flag benchmark-vector-algorithms
      default: False
 
 executable benchmark-vector-algorithms
+  import:             common-ghc-options
   main-is:            Main.hs
 
   if !flag(benchmark-vector-algorithms) && flag(stack)
@@ -181,7 +187,6 @@ executable benchmark-vector-algorithms
                     , liquidhaskell
                     , vector
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
   if flag(measure-timings)
     ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
@@ -190,6 +195,7 @@ flag benchmark-cse230
      default: False
 
 executable benchmark-cse230
+  import:             common-ghc-options
   main-is:            Main.hs
 
   if !flag(benchmark-cse230) && flag(stack)
@@ -212,7 +218,6 @@ executable benchmark-cse230
                     , liquid-prelude
                     , liquidhaskell
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
   if flag(measure-timings)
     ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
@@ -221,6 +226,7 @@ flag benchmark-esop2013
      default: False
 
 executable benchmark-esop2013
+  import:             common-ghc-options
   main-is:            Main.hs
   if !flag(benchmark-esop2013) && flag(stack)
     buildable:        False
@@ -242,7 +248,7 @@ executable benchmark-esop2013
                     , liquidhaskell
                     , deepseq >= 1.4
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0 -Wno-inline-rule-shadowing
+  ghc-options:      -Wno-inline-rule-shadowing
   if flag(measure-timings)
     ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
@@ -251,6 +257,7 @@ flag benchmark-icfp15-pos
      default: False
 
 executable benchmark-icfp15-pos
+  import:             common-ghc-options
   main-is:            Main.hs
   if !flag(benchmark-icfp15-pos) && flag(stack)
     buildable:        False
@@ -287,7 +294,6 @@ executable benchmark-icfp15-pos
                     , ghc-prim
                     , liquidhaskell
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
   if flag(measure-timings)
     ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
@@ -296,6 +302,7 @@ flag benchmark-icfp15-neg
      default: False
 
 executable benchmark-icfp15-neg
+  import:             common-ghc-options
   main-is:            Main.hs
   if !flag(benchmark-icfp15-neg) && flag(stack)
     buildable:        False
@@ -319,7 +326,6 @@ executable benchmark-icfp15-neg
                     , ghc-prim
                     , liquidhaskell
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
   if flag(measure-timings)
     ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
@@ -328,6 +334,7 @@ flag prover-foundations
      default: False
 
 executable prover-foundations
+  import:             common-ghc-options
   main-is:            Main.hs
   if !flag(prover-foundations) && flag(stack)
     buildable:        False
@@ -344,7 +351,6 @@ executable prover-foundations
                     , liquid-prelude
                     , liquidhaskell
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
   if flag(measure-timings)
     ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
@@ -353,6 +359,7 @@ flag prover-nople-pos
      default: False
 
 executable prover-nople-pos
+  import:             common-ghc-options
   main-is:            Main.hs
   if !flag(prover-nople-pos) && flag(stack)
     buildable:        False
@@ -399,7 +406,6 @@ executable prover-nople-pos
                     , liquidhaskell
                     , prover-ple-lib
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
   if flag(measure-timings)
     ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
@@ -408,6 +414,7 @@ flag prover-nople-neg
      default: False
 
 executable prover-nople-neg
+  import:             common-ghc-options
   main-is:            Main.hs
   if !flag(prover-nople-neg) && flag(stack)
     buildable:        False
@@ -437,7 +444,6 @@ executable prover-nople-neg
                     , liquidhaskell
                     , prover-ple-lib
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
   if flag(measure-timings)
     ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
@@ -446,6 +452,7 @@ flag prover-ple-pos
      default: False
 
 executable prover-ple-pos
+  import:             common-ghc-options
   main-is:            Main.hs
   if !flag(prover-ple-pos) && flag(stack)
     buildable:        False
@@ -489,7 +496,6 @@ executable prover-ple-pos
                     , liquidhaskell
                     , prover-ple-lib
 
-  ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
   if flag(measure-timings)
     ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
@@ -498,6 +504,7 @@ flag benchmark-text
      default: False
 
 executable benchmark-text
+  import: common-ghc-options
   main-is: Main.hs
   -- XXX(matt.walker): Get this working!
 
@@ -571,9 +578,7 @@ executable benchmark-text
 
   default-language: Haskell2010
 
-  ghc-options: -fplugin=LiquidHaskell
-               -fkeep-going
-               -fplugin-opt=LiquidHaskell=--no-check-imports
+  ghc-options: -fplugin-opt=LiquidHaskell=--no-check-imports
   if flag(measure-timings)
     ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
 
@@ -581,6 +586,7 @@ flag parsing-errors
      default: False
 
 executable parsing-errors
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(parsing-errors) && flag(stack)
       buildable:      False
@@ -590,7 +596,7 @@ executable parsing-errors
                     , ParseBind
                     , ParseClass
 
-    ghc-options:      -fplugin=LiquidHaskell -fplugin-opt=LiquidHaskell:--expect-error-containing=parse -fkeep-going -O0
+    ghc-options:      -fplugin-opt=LiquidHaskell:--expect-error-containing=parse
 
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
@@ -609,6 +615,7 @@ flag errors
      default: False
 
 executable errors
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(errors) && flag(stack)
       buildable:      False
@@ -716,8 +723,6 @@ executable errors
                     , UnboundVarInLocSig
                     , UnboundVarInSpec
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
-
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
 
@@ -736,6 +741,7 @@ flag parser-pos
      default: False
 
 executable parser-pos
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(parser-pos) && flag(stack)
       buildable:      False
@@ -755,7 +761,6 @@ executable parser-pos
                     , TokensAsPrefixes
                     , Tuples
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -771,6 +776,7 @@ flag names-pos
      default: False
 
 executable names-pos
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(names-pos) && flag(stack)
       buildable:      False
@@ -808,7 +814,6 @@ executable names-pos
                     , Vector0
                     , Vector1
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -828,6 +833,7 @@ flag names-neg
      default: False
 
 executable names-neg
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(names-neg) && flag(stack)
       buildable:      False
@@ -844,7 +850,6 @@ executable names-neg
                     , Vector0
                     , Vector1
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -864,6 +869,7 @@ flag name-resolution-pos
      default: False
 
 executable name-resolution-pos
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(names-neg) && flag(stack)
       buildable:      False
@@ -879,9 +885,6 @@ executable name-resolution-pos
 
 
     ghc-options:      -Wall
-                      -fplugin=LiquidHaskell
-                      -fkeep-going
-                      -O0
 
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
@@ -898,6 +901,7 @@ flag reflect-pos
      default: False
 
 executable reflect-pos
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(reflect-pos) && flag(stack)
       buildable:      False
@@ -908,7 +912,6 @@ executable reflect-pos
                     , ReflString1
                     , T2405
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -924,6 +927,7 @@ flag class-pos
       default: False
 
 executable class-pos
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(class-pos) && flag(stack)
       buildable:      False
@@ -938,7 +942,6 @@ executable class-pos
                     , RealProps1
                     , TypeEquality01
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -954,6 +957,7 @@ flag class-neg
       default: False
 
 executable class-neg
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(class-neg) && flag(stack)
       buildable:      False
@@ -964,7 +968,6 @@ executable class-neg
                     , Inst00
                     , RealProps0
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -980,6 +983,7 @@ flag reflect-neg
      default: False
 
 executable reflect-neg
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(reflect-neg) && flag(stack)
       buildable:      False
@@ -989,7 +993,6 @@ executable reflect-neg
                     , ReflString0
                     , ReflString1
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -1005,6 +1008,7 @@ flag measure-pos
      default: False
 
 executable measure-pos
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(measure-pos) && flag(stack)
       buildable:      False
@@ -1036,7 +1040,6 @@ executable measure-pos
                     , RecordAccessors
                     , Using00
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -1052,6 +1055,7 @@ flag measure-neg
      default: False
 
 executable measure-neg
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(measure-neg) && flag(stack)
       buildable:      False
@@ -1072,7 +1076,6 @@ executable measure-neg
                     , Ple1Lib
                     , Using00
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -1089,6 +1092,7 @@ flag datacon-pos
      default: False
 
 executable datacon-pos
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(datacon-pos) && flag(stack)
       buildable:      False
@@ -1109,7 +1113,6 @@ executable datacon-pos
                     , T1477
                     , T1777
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -1125,6 +1128,7 @@ flag datacon-neg
      default: False
 
 executable datacon-neg
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(datacon-neg) && flag(stack)
       buildable:      False
@@ -1140,7 +1144,6 @@ executable datacon-neg
                     -- , NewTypes0
                     , NewTypes
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -1156,6 +1159,7 @@ flag unit-neg
      default: False
 
 executable unit-neg
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(unit-neg) && flag(stack)
       buildable:      False
@@ -1254,7 +1258,6 @@ executable unit-neg
                     , Meas0
                     , Meas2
                     , Meas3
-                    , Meas5
                     , Meas7
                     , Meas9
                     , MeasureContains
@@ -1381,7 +1384,7 @@ executable unit-neg
                     -- , QQTySyn2
                     -- , Variance1
 
-    ghc-options:      -fplugin=LiquidHaskell -ddump-to-file -fkeep-going -O0
+    ghc-options:      -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , containers
@@ -1400,6 +1403,7 @@ flag unit-pos-1
      default: False
 
 executable unit-pos-1
+    import:           common-ghc-options
     main-is:          Main.hs
     -- Modules included in this executable, other than Main.
     if !flag(unit-pos-1) && flag(stack)
@@ -1439,6 +1443,7 @@ executable unit-pos-1
                     , Meas7
                     , Meas8
                     , Meas9
+                    , Meas12
                     , MeasureContains
                     , MeasureDups
                     , Measures1
@@ -1485,96 +1490,9 @@ executable unit-pos-1
                     , Poly2
                     , Poly3a
                     , Poly3
-                    , Poly4
-                    , PolySet
-                    , PolyBag
-                    , Polyfun
-                    , Polyqual
-                    , PositivityCheck
-                    , Poslist_dc
-                    , Poslist
-                    , Pragma0
-                    , Pred
-                    , PrimInt0
-                    , Product
-                    , Profcrasher
-                    , PromotedDataCons
-                    , Propability
-                    , Propmeasure1
-                    , Propmeasure
-                    , QQTySig
-                    , QQTySigTyVars
-                    , QQTySyn
-                    , QualTest
-                    , Range1
-                    , RangeAdt
-                    , Range
-                    , RBTree_col_height
-                    , RBTree_color
-                    , RBTree_height
-                    , RBTree
-                    , RBTree_ord
-                    , RealProps
-                    , Rebind
-                    , Rec_annot_go
-                    , Record0
-                    , Record1
-                    , RecordSelectorError
-                    , RecQSort0
-                    , RecQSort
-                    , RecSelector
-                    , Recursion0
-                    , Reduction
-                    , RefinedADTs
-                    , Reflect0
-                    , ReflectAlias
-                    , ReflectBooleanFunctions
-                    , ReflectMutual
-                    , RelativeComplete
-                    , RepeatHigherOrder
-                    , Repeat
-                    , ResolveA
-                    , ResolveB
-                    , Resolve
-                    , ResolvePred
-                    , Rest
-                    , ReWrite10
-                    , ReWrite2
-                    , ReWrite3
-                    , ReWrite4
-                    , ReWrite5
-                    , ReWrite6
-                    , ReWrite7
-                    , ReWrite8
-                    , ReWrite9
-                    , ReWrite
-                    , Risers
-                    , Rta
-                    , SafePartialFunctions
-                    , Scanr
-                    , SelfList
-                    , SimplerNotation
-                    , SimplifyTup00
-                    , SingletonLists
-                    , SinPosTest
-                    , Solver
-                    , SqrtPosTest
-                    , Spec0
-                    , StackClass
-                    , StackMachine
-                    , Stacks0
-                    , State00
-                    , StateConstraints00
-                    , StateConstraints0
-                    , StateConstraints
-                    , StateF00
-                    , State
-                    , StateInvarint
-                    , StateLib
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -1601,121 +1519,14 @@ flag unit-pos-2
      default: False
 
 executable unit-pos-2
+    import:           common-ghc-options
     main-is:          Main.hs
     -- Modules included in this executable, other than Main.
     if !flag(unit-pos-2) && flag(stack)
       buildable:      False
 
     other-modules:
-                      Abs
-                    , AbsPosTest
-                    , Absref_crash0
-                    , Absref_crash
-                    , Ackermann
-                    , Adt0
-                    , AdtList0
-                    , AdtList1
-                    , AdtList2
-                    , AdtList3
-                    , AdtList4
-                    , AdtList5
-                    , AdtPeano0
-                    , AdtPeano1
-                    , Alias00
-                    , Alias01
-                    , Alphaconvert_List
-                    , Alphaconvert_Set
-                    , AmortizedQueue
-                    , Anfbug
-                    , Anftest
-                    , Anish1
-                    , AssumedRecursive
-                    , Assume
-                    , Automate
-                    , AutoSize
-                    , AutoTerm1
-                    , AutoTerm
-                    , Avg
-                    , AVL
-                    , AVLRJ
-                    , Bag1
-                    , BangPatterns
-                    , BinarySearch
-                    , BinarySearchOverflow
-                    , Books
-                    , Bool0
-                    , Bool1
-                    , Bool2
-                    , Bounds1
-                    , BST000
-                    , BST
-                    , Case_lambda_join
-                    , CasesToLogic
-                    , Cat
-                    , CharLiterals
-                    , CheckedNum
-                    , Chunks
-                    , Class2
-                    , Class
-                    , ClassReg
-                    , Client521
-                    , ClojurVector
-                    , Cmptag0
-                    , Coercion
-                    , Comma
-                    , CommentedOut
-                    , Compare1
-                    , Compare2
-                    , CompareConstraints
-                    , Compare
-                    , Comprehension
-                    , ComprehensionTerm
-                    , ConstraintsAppend
-                    , Constraints
-                    , Coretologic
-                    , CosPosTest
-                    , CountMonad
-                    , Csgordon_issue_296
-                    , Cut00
-                    , Data2
-                    , DataBase
-                    , Datacon0
-                    , Datacon1
-                    , Datacon_inv
-                    , DataConQuals
-                    , DB00
-                    , Deepmeas0
-                    , DepData
-                    , DependentPairsFun
-                    , DependentPairs
-                    , DepTriples
-                    , Deptup1
-                    , Deptup3
-                    , Deptup
-                    , DeptupW
-                    , Div000
-                    , Dropwhile
-                    , Duplicate_bind
-                    , Elements
-                    , Elems
-                    , Elim00
-                    , Elim01
-                    , Elim_ex_compose
-                    , Elim_ex_let
-                    , Elim_ex_list
-                    , Elim_ex_map_1
-                    , Elim_ex_map_2
-                    , Elim_ex_map_3
-                    , Eqelems
-                    , Eq_poly_measure
-                    , Eval
-                    , EvalQuery
-                    , Even0
-                    , Even
-                    , Ex01
-                    , Ex0
-                    , Ex1
-                    , ExactADT6
+                      ExactADT6
                     , ExactGADT0
                     , ExactGADT1
                     , ExactGADT2
@@ -1798,7 +1609,6 @@ executable unit-pos-2
                     , LazyWhere
                     , Lets
                     , Lex
-                    , Lib521
                     , ListAnf
                     , ListConcat
                     , ListElem
@@ -1831,7 +1641,6 @@ executable unit-pos-2
                     , LooLibLib
                     , LNot
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -1859,6 +1668,7 @@ flag unit-pos-3
      default: False
 
 executable unit-pos-3
+    import:           common-ghc-options
     main-is:          Main.hs
     -- Modules included in this executable, other than Main.
     if !flag(unit-pos-3) && flag(stack)
@@ -2038,7 +1848,267 @@ executable unit-pos-3
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
+    if flag(measure-timings)
+      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
+    build-depends:    base
+                    , liquid-prelude
+                    , containers
+                    , liquid-vector
+                    , bytestring
+                    , ghc-prim
+                    , liquidhaskell
+                    , transformers
+                    , primitive
+                    , template-haskell
+                    , deepseq
+                    , vector
+
+    hs-source-dirs:   app
+                    , pos
+
+    c-sources:        ffi-include/foo.c
+    include-dirs:     ffi-include
+    default-language: Haskell2010
+
+
+flag unit-pos-4
+     default: False
+
+executable unit-pos-4
+    import:           common-ghc-options
+    main-is:          Main.hs
+    -- Modules included in this executable, other than Main.
+    if !flag(unit-pos-4) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      Abs
+                    , AbsPosTest
+                    , Absref_crash0
+                    , Absref_crash
+                    , Ackermann
+                    , Adt0
+                    , AdtList0
+                    , AdtList1
+                    , AdtList2
+                    , AdtList3
+                    , AdtList4
+                    , AdtList5
+                    , AdtPeano0
+                    , AdtPeano1
+                    , Alias00
+                    , Alias01
+                    , Alphaconvert_List
+                    , Alphaconvert_Set
+                    , AmortizedQueue
+                    , Anfbug
+                    , Anftest
+                    , Anish1
+                    , AssumedRecursive
+                    , Assume
+                    , Automate
+                    , AutoSize
+                    , AutoTerm1
+                    , AutoTerm
+                    , Avg
+                    , AVL
+                    , AVLRJ
+                    , Bag1
+                    , BangPatterns
+                    , BinarySearch
+                    , BinarySearchOverflow
+                    , Books
+                    , Bool0
+                    , Bool1
+                    , Bool2
+                    , Bounds1
+                    , BST000
+                    , BST
+                    , Case_lambda_join
+                    , CasesToLogic
+                    , Cat
+                    , CharLiterals
+                    , CheckedNum
+                    , Chunks
+                    , Class2
+                    , Class
+                    , ClassReg
+                    , Client521
+                    , ClojurVector
+                    , Cmptag0
+                    , Coercion
+                    , Comma
+                    , CommentedOut
+                    , Compare1
+                    , Compare2
+                    , CompareConstraints
+                    , Compare
+                    , Comprehension
+                    , ComprehensionTerm
+                    , ConstraintsAppend
+                    , Constraints
+                    , Coretologic
+                    , CosPosTest
+                    , CountMonad
+                    , Csgordon_issue_296
+                    , Cut00
+                    , Data2
+                    , DataBase
+                    , Datacon0
+                    , Datacon1
+                    , Datacon_inv
+                    , DataConQuals
+                    , DB00
+                    , Deepmeas0
+                    , DepData
+                    , DependentPairsFun
+                    , DependentPairs
+                    , DepTriples
+                    , Deptup1
+                    , Deptup3
+                    , Deptup
+                    , DeptupW
+                    , Div000
+                    , Dropwhile
+                    , Duplicate_bind
+                    , Elements
+                    , Elems
+                    , Elim00
+                    , Elim01
+                    , Elim_ex_compose
+                    , Elim_ex_let
+                    , Elim_ex_list
+                    , Elim_ex_map_1
+                    , Elim_ex_map_2
+                    , Elim_ex_map_3
+                    , Eqelems
+                    , Eq_poly_measure
+                    , Eval
+                    , EvalQuery
+                    , Even0
+                    , Even
+                    , Ex01
+                    , Ex0
+                    , Ex1
+                    , Lib521
+
+    if flag(measure-timings)
+      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
+    build-depends:    base
+                    , liquid-prelude
+                    , containers
+                    , liquid-vector
+                    , bytestring
+                    , ghc-prim
+                    , liquidhaskell
+                    , transformers
+                    , primitive
+                    , template-haskell
+                    , deepseq
+                    , vector
+
+    hs-source-dirs:   app
+                    , pos
+
+    c-sources:        ffi-include/foo.c
+    include-dirs:     ffi-include
+    default-language: Haskell2010
+
+
+flag unit-pos-5
+     default: False
+
+executable unit-pos-5
+    import:           common-ghc-options
+    main-is:          Main.hs
+    -- Modules included in this executable, other than Main.
+    if !flag(unit-pos-5) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      Malformed0
+                    , Map0
+                    , Map2
+                    , MapFusion
+                    , Map
+                    , Mapreduce_bare
+                    , MapReduceVerified
+                    , Maps1
+                    , Maps
+                    , MapTvCrash
+                    , MaskError
+                    , Maybe000
+                    , Maybe0
+                    , Maybe1
+                    , Maybe2
+                    , Maybe3
+                    , Maybe4
+                    , Maybe5
+                    , Maybe
+                    , Meas00a
+                    , Meas00
+                    , Meas0a
+                    , Meas0
+                    , Meas10
+                    , Meas11
+                    , Meas1
+                    , Meas2
+                    , Meas4
+                    , Meas5
+                    , Meas6
+                    , Meas7
+                    , Meas8
+                    , Meas9
+                    , MeasureContains
+                    , MeasureDups
+                    , Measures1
+                    , MeasureSets
+                    , Measures
+                    , Merge1
+                    , MergeSort_bag
+                    , MergeSort
+                    , Mod
+                    , ModLib
+                    , ModTest
+                    , Monad2
+                    , Monad5
+                    , Monad6
+                    , Multi_pred_app_00
+                    , Mutrec
+                    , MutuallyDependentADT
+                    , MutualRec
+                    , Nats
+                    , Niki1
+                    , Niki
+                    , NoCaseExpand
+                    , NoExhaustiveGuardsError
+                    , NoPositivityCheck
+                    , Null
+                    , OrdList
+                    , ORM
+                    , Pair00
+                    , Pair0
+                    , Pair
+                    , PairMeasure0
+                    , PairMeasure
+                    , Pargs1
+                    , Pargs
+                    , Partialmeasure
+                    , Partial_tycon
+                    , Permutation
+                    , PersistentVector
+                    , Ple1
+                    , PointDist
+                    , Poly0
+                    , Poly1
+                    , Poly2_degenerate
+                    , Poly2
+                    , Poly3a
+                    , Poly3
+                    , Poly4
+
+    -- LANGUAGE extensions used by modules in this package.
+    -- other-extensions:
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -2066,6 +2136,7 @@ flag absref-pos
      default: False
 
 executable absref-pos
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(absref-pos) && flag(stack)
       buildable:      False
@@ -2084,7 +2155,6 @@ executable absref-pos
                     , State00
                     , VectorLoop
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -2102,6 +2172,7 @@ flag absref-neg
      default: False
 
 executable absref-neg
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(absref-neg) && flag(stack)
       buildable:      False
@@ -2115,7 +2186,6 @@ executable absref-neg
                     , ListISort_LType
                     , ListQSort
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -2133,6 +2203,7 @@ flag relational-pos
      default: False
 
 executable relational-pos
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(relational-pos) && flag(stack)
       buildable:      False
@@ -2147,7 +2218,6 @@ executable relational-pos
                     , MutRec
                     , SndOrdPredNonRel
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -2165,6 +2235,7 @@ flag relational-neg
      default: False
 
 executable relational-neg
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(relational-neg) && flag(stack)
       buildable:      False
@@ -2178,7 +2249,6 @@ executable relational-neg
                     , CheckedImp
                     , SndOrdPred
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -2196,6 +2266,7 @@ flag basic-neg
      default: False
 
 executable basic-neg
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(basic-neg) && flag(stack)
       buildable:      False
@@ -2222,7 +2293,6 @@ executable basic-neg
                     , T1459
                     , T2349
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -2239,6 +2309,7 @@ flag basic-pos
      default: False
 
 executable basic-pos
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(basic-pos) && flag(stack)
       buildable:      False
@@ -2304,7 +2375,6 @@ executable basic-pos
                     , T2349
                     , T2369
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -2320,6 +2390,7 @@ flag import-cli
      default: False
 
 executable import-cli
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(import-cli) && flag(stack)
       buildable:      False
@@ -2397,11 +2468,6 @@ executable import-cli
                     , B
                     , C
 
-    ghc-options:      -fplugin=LiquidHaskell
-                      -fkeep-going
-                      -O0
-                      -- XXX(matt.walker) it's odd, but I have to include the lib dir.
-                      -iimport-cli/lib
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -2418,6 +2484,7 @@ flag ple-pos
      default: False
 
 executable ple-pos
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(ple-pos) && flag(stack)
       buildable:      False
@@ -2489,7 +2556,6 @@ executable ple-pos
     --   other-modules:  T1302b
 
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -2506,6 +2572,7 @@ flag ple-neg
      default: False
 
 executable ple-neg
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(ple-neg) && flag(stack)
       buildable:      False
@@ -2528,8 +2595,6 @@ executable ple-neg
                     , T1409
                     , T1424
 
-                    -- XXX(matt.walker): SEGFAUTS WITH  (!?)
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -2546,6 +2611,7 @@ flag rankN-pos
      default: False
 
 executable rankN-pos
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(rankN-pos) && flag(stack)
       buildable:      False
@@ -2556,7 +2622,6 @@ executable rankN-pos
                     , Test1
 
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -2572,6 +2637,7 @@ flag terminate-pos
      default: False
 
 executable terminate-pos
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(terminate-pos) && flag(stack)
       buildable:      False
@@ -2599,7 +2665,6 @@ executable terminate-pos
                     , T1403
                     , Term00
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -2616,6 +2681,7 @@ flag terminate-neg
      default: False
 
 executable terminate-neg
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(terminate-neg) && flag(stack)
       buildable:      False
@@ -2638,7 +2704,6 @@ executable terminate-neg
                     , Total01
                     , Total02
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -2654,6 +2719,7 @@ flag pattern-pos
      default: False
 
 executable pattern-pos
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(pattern-pos) && flag(stack)
       buildable:      False
@@ -2672,7 +2738,6 @@ executable pattern-pos
                     , TemplateHaskell
                     , TemplateHaskellLib
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
@@ -2690,6 +2755,7 @@ flag typeclass-pos
      default: False
 
 executable typeclass-pos
+    import:           common-ghc-options
     main-is:          Main.hs
     if !flag(typeclass-pos) && flag(stack)
       buildable:      False
@@ -2703,7 +2769,6 @@ executable typeclass-pos
                     , PNat
                     , SemigroupLib
 
-    ghc-options:      -fplugin=LiquidHaskell -fkeep-going -O0
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base

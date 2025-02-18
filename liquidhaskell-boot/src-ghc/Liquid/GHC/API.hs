@@ -251,6 +251,8 @@ import GHC.Core                       as Ghc
     , mkLets
     , mkTyApps
     , mkTyArg
+    , rhssOfAlts
+    , rhssOfBind
     )
 import GHC.Core.Class                 as Ghc
     ( classAllSelIds
@@ -510,7 +512,6 @@ import GHC.Tc.Types                   as Ghc
         , tcg_insts
         , tcg_mod
         , tcg_rdr_env
-        , tcg_rn_imports
         , tcg_type_env
         )
     , TcM

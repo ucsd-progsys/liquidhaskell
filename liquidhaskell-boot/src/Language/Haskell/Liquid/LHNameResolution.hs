@@ -140,8 +140,8 @@ resolveLHNames
   -> TargetDependencies
   -> Either [Error] (BareSpec, LogicNameEnv, LogicMap)
 resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependencies = do
-    let ((bs, logicNameEnv, lmap2), (es, ns)) =
-          flip runState mempty $ do
+    let ((bs, logicNameEnv, lmap2), ro) =
+          flip runState RenameOutput {roErrors = [], roUsedNames = [], roUsedDataCons = mempty} $ do
             -- A generic traversal that resolves names of Haskell entities
             sp1 <- mapMLocLHNames (\l -> (<$ l) <$> resolveLHName l) $
                      fixExpressionArgsOfTypeAliases taliases bareSpec0
@@ -151,7 +151,7 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
             dataDecls <- mapM (mapDataDeclFieldNamesM resolveFieldLogicName) (dataDecls sp1)
             let sp2 = sp1 {dataDecls}
 
-            (es0,_) <- get
+            es0 <- gets roErrors
             if null es0 then do
 
               -- Now we do a second traversal to resolve logic names
@@ -176,16 +176,17 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
                          privateReflectNames
                          allEaliases
                          sp2
-              return (sp3, logicNameEnv0, lmap1)
+              dcs <- gets roUsedDataCons
+              return (sp3 {usedDataCons = dcs} , logicNameEnv0, lmap1)
             else
               return ( error "resolveLHNames: invalid spec"
                      , error "resolveLHNames: invalid logic environment"
                      , error "resolveLHNames: invalid logic map")
-        logicNameEnv' = extendLogicNameEnv logicNameEnv ns
-    if null es then
+        logicNameEnv' = extendLogicNameEnv logicNameEnv (roUsedNames ro)
+    if null (roErrors ro) then
       Right (bs, logicNameEnv', lmap2)
     else
-      Left es
+      Left (roErrors ro)
   where
     taliases = collectTypeAliases thisModule bareSpec0 dependencies
     allEaliases = collectExprAliases bareSpec0 dependencies
@@ -317,13 +318,23 @@ resolveSymbolToTcName globalRdrEnv lx
 -- | Resolving logic names can produce errors and new names to add to the
 -- environment. New names might be produced when encountering data constructors
 -- or functions from the logic map.
-type RenameOutput = ([Error], [LHName])
+data RenameOutput = RenameOutput
+    { roErrors :: [Error]
+      -- | Names of used data constructors, and names of used reflected
+      -- functions and used logic map names
+    , roUsedNames :: [LHName]
+      -- | Names of used data constructors
+    , roUsedDataCons :: HS.HashSet LHName
+    }
 
 addError :: Error -> State RenameOutput ()
-addError e = modify (first (e :))
+addError e = modify (\ro -> ro { roErrors = e : roErrors ro })
 
 addName :: LHName -> State RenameOutput ()
-addName n = modify (fmap (n:))
+addName n = modify (\ro -> ro { roUsedNames = n : roUsedNames ro })
+
+addDataConsName :: LHName -> State RenameOutput ()
+addDataConsName n = modify (\ro -> ro { roUsedDataCons = HS.insert n (roUsedDataCons ro) })
 
 mkLookupGRE :: LHNameSpace -> Symbol -> GHC.LookupGRE GHC.GREInfo
 mkLookupGRE ns s =
@@ -718,6 +729,7 @@ resolveLogicNames cfg env globalRdrEnv unhandledNames lmap0 localVars lnameEnv p
           Just $ do
             let lhName = makeLogicLHName (symbol $ GHC.getOccString n) (GHC.nameModule n) (Just n)
             addName lhName
+            addDataConsName lhName
             return lhName
         [] ->
           Nothing

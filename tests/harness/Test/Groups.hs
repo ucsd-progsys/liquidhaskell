@@ -10,6 +10,8 @@ microTestGroups =
     "unit-pos-1"
   , "unit-pos-2"
   , "unit-pos-3"
+  , "unit-pos-4"
+  , "unit-pos-5"
   , "unit-neg"
   , "basic-pos"
   , "basic-neg"
