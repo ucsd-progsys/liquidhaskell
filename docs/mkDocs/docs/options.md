@@ -359,16 +359,15 @@ to run a given file with full-checking, add the pragma:
 
 **Options:** `smtsolver`
 
-By default, LiquidHaskell uses the SMTLIB2 interface for Z3.
+By default, LiquidHaskell uses the SMTLIB2 interface for [Z3](https://github.com/Z3Prover/z3).
 
 To run a different solver (supporting SMTLIB2) do:
 
     $ liquid --smtsolver=NAME foo.hs
 
-Currently, LiquidHaskell supports
+Currently, LiquidHaskell additionally supports
 
-+ [CVC4](http://cvc4.cs.stanford.edu/web/)
-+ [MathSat](http://mathsat.fbk.eu/download.html )
++ [CVC5](https://cvc5.github.io/)
 
 To use these solvers, you must install the corresponding binaries
 from the above web-pages into your `PATH`.
