@@ -98,7 +98,11 @@ For example:
 
     $ cabal build tests:unit-neg --ghc-options=-fplugin-opt=LiquidHaskell:--no-termination
 
-Or your favorite number of threads, depending on cores etc.
+Another useful option is to change the underlying solver:
+
+    $ cabal build tests:unit-pos --ghc-options=-fplugin-opt=LiquidHaskell:--smtsolver=cvc5
+
+You can also modify the number of used threads, depending on cores etc.
 
 You can directly extend and run the tests by modifying the files in
 
