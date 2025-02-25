@@ -740,6 +740,21 @@ an import of a module coming from package `PACKAGE`. e.g.
 
 LiquidHaskell can be configured to emit warnings whenever it encounters incomplete terms, known as *holes*.
 
+To create a hole you need to have a binding with the name `hole` in the scope by adding:
+
+      hole = undefined
+
+To use a hole you simply insert the `hole` in any place
+where you want to get more type information. For example:
+```haskell
+hole = undefined
+
+{-@ listLength :: xs:[a] -> {v : Nat | v == len xs} @-}
+listLength :: [a] -> Int
+listLength [] = hole -- Hole inserted here
+listLength (_:xs) = 1 + listLength xs
+```
+
 This flag is particularly useful during development, ensuring that any placeholders in your specifications are reviewed and completed before final evaluation.
 
 To activate this behavior, use the `--warn-on-term-holes` flag either:
