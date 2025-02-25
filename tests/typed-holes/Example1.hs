@@ -1,28 +1,17 @@
 {-@ LIQUID "--expect-error-containing=Hole Found" @-}
-{-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--warn-on-term-holes" @-}
--- Based on https://ucsd-progsys.github.io/liquidhaskell-blog/2016/10/06/structural-induction.lhs/
 
 module Example1 where
-    import Prelude hiding ((<>))
-    import Language.Haskell.Liquid.ProofCombinators ((===), (***), QED(QED), Proof)
-    
+    import Language.Haskell.Liquid.ProofCombinators (Proof)
+
     hole = undefined
 
-    {-@ reflect empty @-}
-    empty  :: [a]
-    empty  = []
+    {-@ listLength :: xs:[a] -> {v : Nat | v == len xs} @-}
+    listLength :: [a] -> Int
+    listLength [] = 0
+    listLength (_:xs) = 1 + listLength xs
+    {-@ measure listLength @-}
 
-    {-@ infix <> @-}
-    {-@ reflect <> @-}
-    (<>) :: [a] -> [a] -> [a]
-    [] <> xs = xs
-    (x:xs) <> ys = x : (xs <> ys)
-
-    {-@ leftId  :: x:[a] -> { (empty <> x) == x } @-}
-    leftId :: [a] -> Proof
-    leftId x
-        =   empty <> x
-        === hole
-        === x
-        *** QED
+    {-@ listLengthProof :: xs:[a] -> {listLength xs == len xs} @-}
+    listLengthProof :: [a] -> Proof
+    listLengthProof = hole
