@@ -27,7 +27,7 @@ commands:
       - checkout
       - add_ssh_keys
       - run: git submodule sync
-      - run: git submodule update --init --remote
+      - run: git submodule update --init
 
   cabal_build_and_test:
     description: "Build the project and run the tests"
