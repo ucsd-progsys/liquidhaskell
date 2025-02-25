@@ -302,10 +302,15 @@ detectTypedHole ::  CGEnv -> CoreExpr -> CG (Maybe (RealSrcSpan, Var))
 detectTypedHole _ (App (Tick genTick (Var x)) _) | isVarHole x
   = return (Just (getSrcSpanFromTick, x))
     where
-      getSrcSpanFromTick = case genTick of
-        SourceNote src _ -> src
-        _ -> panic Nothing "Not a Source Note"
-      isVarHole =  L.isInfixOf "hole" . F.symbolString . F.symbol
+      getSrcSpanFromTick = 
+        case genTick of
+          SourceNote src _ -> src
+          _ -> panic Nothing "Not a Source Note"
+      isStrHole s = 
+        case break (=='.') s of
+          (_, '.':rest) -> rest == "hole"
+          _             -> False
+      isVarHole = isStrHole . F.symbolString . F.symbol
 detectTypedHole  _ _ = return Nothing -- NOT A TYPED HOLE
 --------------------------------------------------------------------------------
 -- | Bidirectional Constraint Generation: CHECKING -----------------------------
