@@ -2029,87 +2029,92 @@ executable unit-pos-5
       buildable:      False
 
     other-modules:
-                      Malformed0
-                    , Map0
-                    , Map2
-                    , MapFusion
-                    , Map
-                    , Mapreduce_bare
-                    , MapReduceVerified
-                    , Maps1
-                    -- TODO reenable after fixing apply generation
-                    -- , Maps
-                    , MapTvCrash
-                    , MaskError
-                    , Maybe000
-                    , Maybe0
-                    , Maybe1
-                    , Maybe2
-                    , Maybe3
-                    , Maybe4
-                    , Maybe5
-                    , Maybe
-                    , Meas00a
-                    , Meas00
-                    , Meas0a
-                    , Meas0
-                    , Meas10
-                    , Meas11
-                    , Meas1
-                    , Meas2
-                    , Meas4
-                    , Meas5
-                    , Meas6
-                    , Meas7
-                    , Meas8
-                    , Meas9
-                    , MeasureContains
-                    , MeasureDups
-                    , Measures1
-                    , MeasureSets
-                    , Measures
-                    , Merge1
-                    , MergeSort_bag
-                    , MergeSort
-                    , Mod
-                    , ModLib
-                    , ModTest
-                    , Monad2
-                    , Monad5
-                    , Monad6
-                    , Multi_pred_app_00
-                    , Mutrec
-                    , MutuallyDependentADT
-                    , MutualRec
-                    , Nats
-                    , Niki1
-                    , Niki
-                    , NoCaseExpand
-                    , NoExhaustiveGuardsError
-                    , NoPositivityCheck
-                    , Null
-                    , OrdList
-                    , ORM
-                    , Pair00
-                    , Pair0
-                    , Pair
-                    , PairMeasure0
-                    , PairMeasure
-                    , Pargs1
-                    , Pargs
-                    , Partialmeasure
-                    , Partial_tycon
-                    , Permutation
-                    , PersistentVector
-                    , Ple1
-                    , PointDist
-                    , Poly0
-                    , Poly1
-                    , Poly2_degenerate
-                    , Poly2
-                    , Poly3a
-                    , Poly3
-                    , Poly4
+                      Poly4
+                    , PolySet
+                    , PolyBag
+                    , Polyfun
+                    , Polyqual
+                    , PositivityCheck
+                    , Poslist_dc
+                    , Poslist
+                    , Pragma0
+                    , Pred
+                    , PrimInt0
+                    , Product
+                    , Profcrasher
+                    , PromotedDataCons
+                    , Propability
+                    , Propmeasure1
+                    , Propmeasure
+                    , QQTySig
+                    , QQTySigTyVars
+                    , QQTySyn
+                    , QualTest
+                    , Range1
+                    , RangeAdt
+                    , Range
+                    , RBTree_col_height
+                    , RBTree_color
+                    , RBTree_height
+                    , RBTree
+                    , RBTree_ord
+                    , RealProps
+                    , Rebind
+                    , Rec_annot_go
+                    , Record0
+                    , Record1
+                    , RecordSelectorError
+                    , RecQSort0
+                    , RecQSort
+                    , RecSelector
+                    , Recursion0
+                    , Reduction
+                    , RefinedADTs
+                    , Reflect0
+                    , ReflectAlias
+                    , ReflectBooleanFunctions
+                    , ReflectMutual
+                    , RelativeComplete
+                    , RepeatHigherOrder
+                    , Repeat
+                    , ResolveA
+                    , ResolveB
+                    , Resolve
+                    , ResolvePred
+                    , Rest
+                    , ReWrite10
+                    , ReWrite2
+                    , ReWrite3
+                    , ReWrite4
+                    , ReWrite5
+                    , ReWrite6
+                    , ReWrite7
+                    , ReWrite8
+                    , ReWrite9
+                    , ReWrite
+                    , Risers
+                    , Rta
+                    , SafePartialFunctions
+                    , Scanr
+                    , SelfList
+                    , SimplerNotation
+                    , SimplifyTup00
+                    , SingletonLists
+                    , SinPosTest
+                    , Solver
+                    , SqrtPosTest
+                    , Spec0
+                    , StackClass
+                    , StackMachine
+                    , Stacks0
+                    , State00
+                    , StateConstraints00
+                    , StateConstraints0
+                    , StateConstraints
+                    , StateF00
+                    , State
+                    , StateInvarint
+                    , StateLib
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -2378,6 +2383,7 @@ executable basic-pos
                     , SkipDerived00
                     , T2349
                     , T2369
+                    , TestAdmit
 
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
