@@ -15,11 +15,19 @@
   and constraint generation [#2336](https://github.com/ucsd-progsys/liquidhaskell/pull/2336).
 - Augmented the context of error messages [#2350](https://github.com/ucsd-progsys/liquidhaskell/pull/2350).
 - Add a new flag `--etabeta` to reason with lambdas in PLE [#2356](https://github.com/ucsd-progsys/liquidhaskell/pull/2356)
+- Add a new flag `--dependentcase` to expand support for higher-order reasoning [#2384](https://github.com/ucsd-progsys/liquidhaskell/pull/2384)
+- Add support for reflecting lambda expressions [#2465](https://github.com/ucsd-progsys/liquidhaskell/pull/2465).
 - Enabling the LiquidHaskell plugin now enables `-fno-ignore-interface-pragmas` ([#2326](https://github.com/ucsd-progsys/liquidhaskell/pull/2326))
   and `-dkeep-comments` ([#2367](https://github.com/ucsd-progsys/liquidhaskell/pull/2367)).
 - LiquidHaskell earned a new `--minimal` verbosity level as default that prints the banner with the
   amount of constraints checked ([#2395](https://github.com/ucsd-progsys/liquidhaskell/pull/2395)).
   This banner is now suppressed when the verbosity is set to `--quiet` ([#2391](https://github.com/ucsd-progsys/liquidhaskell/pull/2391)).
+- Avoid reparsing and retypechecking when verifying modules [#2389](https://github.com/ucsd-progsys/liquidhaskell/pull/2389).
+- Name resolution is done only when verifying a module. It is no longer done when
+  importing it [#2169](https://github.com/ucsd-progsys/liquidhaskell/issues/2169). One
+  side effect of this change is that LH can now pick up names in scope using import aliases
+  in most places (but see [#2481](https://github.com/ucsd-progsys/liquidhaskell/issues/2481)).
+- Allow to link Haskell definitions with logical primitives via `define` declarations [#2463](https://github.com/ucsd-progsys/liquidhaskell/pull/2463).
 
 ## 0.9.10.1 (2024-08-21)
 
