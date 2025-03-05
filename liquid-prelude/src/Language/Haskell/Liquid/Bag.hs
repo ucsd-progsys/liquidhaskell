@@ -23,8 +23,8 @@ data Bag a = Bag { toMap :: M.Map a Int } deriving Eq
 empty :: Bag k
 empty = Bag M.empty
 
-{-@ assume get :: (Ord k) => k:k -> b:Bag k -> {v:Nat | v = Bag_count b k}  @-}
-{-@ define get               k      b                    = (Bag_count b k) @-}
+{-@ assume get :: (Ord k) => k:k -> b:Bag k -> {v:Nat | v = Bag_count k b}  @-}
+{-@ define get               k      b                    = (Bag_count k b) @-}
 get :: (Ord k) => k -> Bag k -> Int
 get k b = M.findWithDefault 0 k (toMap b)
 

@@ -14,6 +14,8 @@ import           Data.Maybe               (isJust, catMaybes, fromMaybe, isNothi
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 import           Debug.Trace (trace)
+import           Control.Monad.Reader
+
 import           Language.Fixpoint.Types                  hiding (panic, mkQual)
 import qualified Language.Fixpoint.Types.Config as FC
 import           Language.Fixpoint.SortCheck
@@ -29,6 +31,7 @@ import           Language.Haskell.Liquid.Types.RTypeOp
 import           Language.Haskell.Liquid.Types.Specs
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.UX.Config
+import Language.Fixpoint.Types.Config (ElabFlags)
 
 
 --------------------------------------------------------------------------------
@@ -76,11 +79,12 @@ alsQualifiers :: TargetInfo -> SEnv Sort -> [Qualifier]
 --------------------------------------------------------------------------------
 alsQualifiers info lEnv
   = [ q | a <- gsRTAliases . gsQual . giSpec $ info
-        , q <- refTypeQuals lEnv (loc a) tce (rtBody (val a))
+        , q <- refTypeQuals lEnv ef (loc a) tce (rtBody (val a))
         , length (qParams q) <= k + 1
         , validQual lEnv q
     ]
     where
+      ef  = maybe (FC.ElabFlags False) FC.solverFlags . smtsolver . getConfig $ info
       k   = maxQualParams info
       tce = gsTcEmbeds . gsName . giSpec $ info
 
@@ -97,12 +101,13 @@ sigQualifiers :: TargetInfo -> SEnv Sort -> [Qualifier]
 sigQualifiers info lEnv
   = [ q | (x, t) <- specBinders info
         , not (x `S.member` S.fromList (specAxiomVars info))
-        , q <- refTypeQuals lEnv (getSourcePos x) tce (val t)
+        , q <- refTypeQuals lEnv ef (getSourcePos x) tce (val t)
         -- NOTE: large qualifiers are VERY expensive, so we only mine
         -- qualifiers up to a given size, controlled with --max-params
         , length (qParams q) <= k + 1
     ]
     where
+      ef  = maybe (FC.ElabFlags False) FC.solverFlags . smtsolver . getConfig $ info
       k   = maxQualParams info
       tce = gsTcEmbeds . gsName . giSpec $ info
 
@@ -139,11 +144,11 @@ specAxiomVars =  gsReflects . gsRefl . giSpec
 
 -- TODO: rewrite using foldReft'
 --------------------------------------------------------------------------------
-refTypeQuals :: SEnv Sort -> SourcePos -> TCEmb TyCon -> SpecType -> [Qualifier]
+refTypeQuals :: SEnv Sort -> ElabFlags -> SourcePos -> TCEmb TyCon -> SpecType -> [Qualifier]
 --------------------------------------------------------------------------------
-refTypeQuals lEnv l tce t0    = go emptySEnv t0
+refTypeQuals lEnv ef l tce t0    = go emptySEnv t0
   where
-    scrape                    = refTopQuals lEnv l tce t0
+    scrape                    = refTopQuals lEnv ef l tce t0
     add x t γ                 = insertSEnv x (rTypeSort tce t) γ
     goBind x t γ t'           = go (add x t γ) t'
     go γ t@(RVar _ _)         = scrape γ t
@@ -164,19 +169,20 @@ refTypeQuals lEnv l tce t0    = go emptySEnv t0
 
 refTopQuals :: (PPrint t, Reftable t, SubsTy RTyVar RSort t, Reftable (RTProp RTyCon RTyVar (UReft t)))
             => SEnv Sort
+            -> ElabFlags
             -> SourcePos
             -> TCEmb TyCon
             -> RType RTyCon RTyVar r
             -> SEnv Sort
             -> RRType (UReft t)
             -> [Qualifier]
-refTopQuals lEnv l tce t0 γ rrt
+refTopQuals lEnv ef l tce t0 γ rrt
   = [ mkQ' v so pa  | let (RR so (Reft (v, ra))) = rTypeSortedReft tce rrt
                    , pa                        <- conjuncts ra
                    , not $ isHole    pa
                    , not $ isGradual pa
                    , notracepp ("refTopQuals: " ++ showpp pa)
-                     $ isNothing $ checkSorted (srcSpan l) (insertSEnv v so γ') pa
+                     $ isNothing $ runReader (checkSorted (srcSpan l) (insertSEnv v so γ') pa) ef
     ]
     ++
     [ mkP s e | let (MkUReft _ (Pr ps)) = fromMaybe (msg rrt) $ stripRTypeBase rrt

@@ -23,6 +23,7 @@ import           Liquid.GHC.API                   as Ghc hiding ( Located
                                                                                  , empty
                                                                                  )
 import           Control.Applicative                       ((<|>))
+import           Control.Monad.Reader
 import           Data.Maybe
 import           Data.Function                             (on)
 import           Text.PrettyPrint.HughesPJ                 hiding ((<>))
@@ -31,11 +32,11 @@ import qualified Data.HashMap.Strict                       as M
 import qualified Data.HashSet                              as S
 import           Data.Hashable
 import qualified Language.Fixpoint.Misc                    as Misc
-import           Language.Fixpoint.SortCheck               (checkSorted, checkSortedReftFull, checkSortFull)
+import           Language.Fixpoint.SortCheck               (ElabM, checkSorted, checkSortedReftFull, checkSortFull)
 import qualified Language.Fixpoint.Types                   as F
 import qualified Language.Haskell.Liquid.GHC.Misc          as GM
 import           Language.Haskell.Liquid.GHC.Play          (getNonPositivesTyCon)
-import           Language.Haskell.Liquid.Misc              (condNull, thd5)
+import           Language.Haskell.Liquid.Misc              (condNull, thd5, foldMapM)
 import           Language.Haskell.Liquid.Types.DataDecl
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.Names
@@ -52,6 +53,7 @@ import qualified Language.Haskell.Liquid.Measure           as Ms
 import qualified Language.Haskell.Liquid.Bare.Types        as Bare
 import qualified Language.Haskell.Liquid.Bare.Resolve      as Bare
 import           Language.Haskell.Liquid.UX.Config
+import Language.Fixpoint.Types.Config (ElabFlags (ElabFlags), solverFlags)
 
 
 ----------------------------------------------------------------------------------------------
@@ -145,17 +147,17 @@ checkTargetSpec specs src env cbs tsp
   | otherwise                       = Left diagnostics
   where
     diagnostics      :: Diagnostics
-    diagnostics      =  foldMap (checkBind allowHO bsc "measure"      emb tcEnv env) (gsMeas       (gsData tsp))
+    diagnostics      =  runReader (foldMapM (checkBind allowHO bsc "measure"      emb tcEnv env) (gsMeas       (gsData tsp))) ef
                      <> condNull noPrune
-                        (foldMap (checkBind allowHO bsc "constructor"  emb tcEnv env) (txCtors $ gsCtors      (gsData tsp)))
-                     <> foldMap (checkBind allowHO bsc "assume"       emb tcEnv env) (gsAsmSigs    (gsSig tsp))
-                     <> foldMap (checkBind allowHO bsc "reflect"      emb tcEnv env . (\sig@(_,s) -> F.notracepp (show (ty_info (toRTypeRep (F.val s)))) sig)) (gsRefSigs (gsSig tsp))
-                     <> checkTySigs allowHO bsc cbs            emb tcEnv env                (gsSig tsp)
+                        (runReader (foldMapM (checkBind allowHO bsc "constructor"  emb tcEnv env) (txCtors $ gsCtors      (gsData tsp))) ef)
+                     <> runReader (foldMapM (checkBind allowHO bsc "assume"       emb tcEnv env) (gsAsmSigs    (gsSig tsp))) ef
+                     <> runReader (foldMapM (checkBind allowHO bsc "reflect"      emb tcEnv env . (\sig@(_,s) -> F.notracepp (show (ty_info (toRTypeRep (F.val s)))) sig)) (gsRefSigs (gsSig tsp))) ef
+                     <> runReader (checkTySigs allowHO bsc cbs            emb tcEnv env                (gsSig tsp)) ef
                      -- ++ mapMaybe (checkTerminationExpr             emb       env) (gsTexprs     (gsSig  sp))
-                     <> foldMap (checkBind allowHO bsc "class method" emb tcEnv env) (clsSigs      (gsSig tsp))
-                     <> foldMap (checkInv allowHO bsc emb tcEnv env)                 (gsInvariants (gsData tsp))
-                     <> checkIAl allowHO bsc emb tcEnv env                            (gsIaliases   (gsData tsp))
-                     <> checkMeasures emb env ms
+                     <> runReader (foldMapM (checkBind allowHO bsc "class method" emb tcEnv env) (clsSigs      (gsSig tsp))) ef
+                     <> runReader (foldMapM (checkInv allowHO bsc emb tcEnv env)                 (gsInvariants (gsData tsp))) ef
+                     <> runReader (checkIAl allowHO bsc emb tcEnv env                            (gsIaliases   (gsData tsp))) ef
+                     <> runReader (checkMeasures emb env ms) ef
                      <> checkClassMeasures                                        ms
                      <> checkClassMethods (gsCls src) (gsCMethods (gsVars tsp)) (gsTySigs     (gsSig tsp))
                      -- <> foldMap checkMismatch sigs
@@ -170,12 +172,12 @@ checkTargetSpec specs src env cbs tsp
                      -- NV TODO: allow instances of refined classes to be refined
                      -- but make sure that all the specs are checked.
                      -- ++ checkRefinedClasses                        rClasses rInsts
-                     <> checkSizeFun emb env                                      (gsTconsP (gsName tsp))
+                     <> runReader (checkSizeFun emb env                                      (gsTconsP (gsName tsp))) ef
                      <> checkPlugged (catMaybes [ fmap (F.dropSym 2 $ GM.simplesymbol x,) (getMethodType t) | (x, t) <- gsMethods (gsSig tsp) ])
                      <> checkRewrites tsp
-                     <> if allowUnsafeConstructors $ getConfig tsp 
-                          then mempty 
-                          else checkConstructorRefinement (gsTySigs $ gsSig tsp) 
+                     <> if allowUnsafeConstructors $ getConfig tsp
+                          then mempty
+                          else checkConstructorRefinement (gsTySigs $ gsSig tsp)
 
     _rClasses         = concatMap Ms.classes specs
     _rInsts           = concatMap Ms.rinstance specs
@@ -192,6 +194,7 @@ checkTargetSpec specs src env cbs tsp
     noPrune          = not (pruneFlag tsp)
     txCtors ts       = [(v, fmap (fmap (fmap (F.filterUnMatched temps))) t) | (v, t) <- ts]
     temps            = F.makeTemplates $ gsUnsorted $ gsData tsp
+    ef               = maybe (ElabFlags False) solverFlags $ smtsolver $ getConfig tsp
     -- env'             = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
 
@@ -219,9 +222,9 @@ checkConstructorRefinement = mconcat . map checkOne
     validRef (F.Reft (_, F.PTrue))
                       = True
     -- Prop foo from ProofCombinators
-    validRef (F.Reft (v, F.PAtom F.Eq (F.EApp (F.EVar n) (F.EVar v')) _)) 
+    validRef (F.Reft (v, F.PAtom F.Eq (F.EApp (F.EVar n) (F.EVar v')) _))
       | n == "Language.Haskell.Liquid.ProofCombinators.prop"
-      , v == v' 
+      , v == v'
       = True
     validRef _ = False
 
@@ -246,47 +249,53 @@ checkTySigs :: Bool
             -> Bare.TyConMap
             -> F.SEnv F.SortedReft
             -> GhcSpecSig
-            -> Diagnostics
+            -> ElabM Diagnostics
 --------------------------------------------------------------------------------
-checkTySigs allowHO bsc cbs emb tcEnv senv sig
-                   = mconcat (map (check senv) topTs)
+checkTySigs allowHO bsc cbs emb tcEnv senv sig =
+  do ef <- ask
+     pure $ mconcat (runReader (traverse (check senv) topTs) ef)
                    -- = concatMap (check env) topTs
                    -- (mapMaybe   (checkT env) [ (x, t)     | (x, (t, _)) <- topTs])
                    -- ++ (mapMaybe   (checkE env) [ (x, t, es) | (x, (t, Just es)) <- topTs])
-                  <> coreVisitor checkVisitor senv emptyDiagnostics cbs
+                     <> coreVisitor (checkVisitor ef) senv emptyDiagnostics cbs
                    -- ++ coreVisitor checkVisitor env [] cbs
   where
-    check env      = checkSigTExpr allowHO bsc emb tcEnv env
+    check :: F.SEnv F.SortedReft -> (Var, (LocSpecType, Maybe [Located F.Expr])) -> ElabM Diagnostics
+    check          = checkSigTExpr allowHO bsc emb tcEnv
     locTm          = M.fromList locTs
     (locTs, topTs) = Bare.partitionLocalBinds vtes
     vtes           = [ (x, (t, es)) | (x, t) <- gsTySigs sig, let es = M.lookup x vExprs]
     vExprs         = M.fromList  [ (x, es) | (x, _, es) <- gsTexprs sig ]
 
-    checkVisitor  :: CoreVisitor (F.SEnv F.SortedReft) Diagnostics
-    checkVisitor   = CoreVisitor
+    checkVisitor  :: ElabFlags -> CoreVisitor (F.SEnv F.SortedReft) Diagnostics
+    checkVisitor ef = CoreVisitor
                        { envF  = \env v     -> F.insertSEnv (F.symbol v) (vSort v) env
-                       , bindF = \env acc v -> errs env v <> acc
+                       , bindF = \env acc v -> runReader (errs env v) ef <> acc
                        , exprF = \_   acc _ -> acc
                        }
     vSort            = Bare.varSortedReft emb
+    errs :: F.SEnv F.SortedReft -> Var -> ElabM Diagnostics
     errs env v       = case M.lookup v locTm of
-                         Nothing -> emptyDiagnostics
+                         Nothing -> pure emptyDiagnostics
                          Just t  -> check env (v, t)
 
 checkSigTExpr :: Bool -> BScope -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft
               -> (Var, (LocSpecType, Maybe [Located F.Expr]))
-              -> Diagnostics
-checkSigTExpr allowHO bsc emb tcEnv env (x, (t, es))
-           = mbErr1 <> mbErr2
+              -> ElabM Diagnostics
+checkSigTExpr allowHO bsc emb tcEnv env (x, (t, es)) =
+  do ef <- ask
+     pure $ runReader mbErr1 ef <> runReader mbErr2 ef
    where
     mbErr1 = checkBind allowHO bsc empty emb tcEnv env (x, t)
-    mbErr2 = maybe emptyDiagnostics (checkTerminationExpr emb env . (x, t,)) es
+    mbErr2 = maybe (pure emptyDiagnostics) (checkTerminationExpr emb env . (x, t,)) es
     -- mbErr2 = checkTerminationExpr emb env . (x, t,) =<< es
 
 -- | Used for termination checking. If we have no \"len\" defined /yet/ (for example we are checking
 -- 'GHC.Prim') then we want to skip this check.
-checkSizeFun :: F.TCEmb TyCon -> F.SEnv F.SortedReft -> [TyConP] -> Diagnostics
-checkSizeFun emb env tys = mkDiagnostics mempty (map mkError (mapMaybe go tys))
+checkSizeFun :: F.TCEmb TyCon -> F.SEnv F.SortedReft -> [TyConP] -> ElabM Diagnostics
+checkSizeFun emb env tys =
+  do ef <- ask
+     pure $ mkDiagnostics mempty (map mkError (mapMaybe (go ef) tys))
   where
     mkError ((f, tcp), msg)  = ErrTyCon (GM.sourcePosSrcSpan $ tcpLoc tcp)
                                  (text "Size function" <+> pprint (f x)
@@ -295,12 +304,14 @@ checkSizeFun emb env tys = mkDiagnostics mempty (map mkError (mapMaybe go tys))
                                                        <+> text "."
                                                        $+$   msg)
                                  (pprint (tcpCon tcp))
-    go tcp = case tcpSizeFun tcp of
+
+    go :: ElabFlags -> TyConP -> Maybe ((F.Symbol -> F.Expr, TyConP), Doc)
+    go ef tcp = case tcpSizeFun tcp of
                Nothing                   -> Nothing
                Just f | isWiredInLenFn f -> Nothing -- Skip the check.
-               Just f                    -> checkWFSize (szFun f) tcp
+               Just f                    -> checkWFSize ef (szFun f) tcp
 
-    checkWFSize f tcp = ((f, tcp),) <$> checkSortFull (F.srcSpan tcp) (F.insertSEnv x (mkTySort (tcpCon tcp)) env) F.intSort (f x)
+    checkWFSize ef f tcp = ((f, tcp),) <$> runReader (checkSortFull (F.srcSpan tcp) (F.insertSEnv x (mkTySort (tcpCon tcp)) env) F.intSort (f x)) ef
     x                 = "x" :: F.Symbol
     mkTySort tc       = rTypeSortedReft emb (ofType $ TyConApp tc (TyVarTy <$> tyConTyVars tc) :: RRType ())
 
@@ -314,7 +325,7 @@ checkInv :: Bool
          -> Bare.TyConMap
          -> F.SEnv F.SortedReft
          -> (Maybe Var, LocSpecType)
-         -> Diagnostics
+         -> ElabM Diagnostics
 checkInv allowHO bsc emb tcEnv env (_, t) = checkTy allowHO bsc err emb tcEnv env t
   where
     err              = ErrInvt (GM.sourcePosSrcSpan $ loc t) (val t)
@@ -325,8 +336,10 @@ checkIAl :: Bool
          -> Bare.TyConMap
          -> F.SEnv F.SortedReft
          -> [(LocSpecType, LocSpecType)]
-         -> Diagnostics
-checkIAl allowHO bsc emb tcEnv env = mconcat . map (checkIAlOne allowHO bsc emb tcEnv env)
+         -> ElabM Diagnostics
+checkIAl allowHO bsc emb tcEnv env ss =
+  do ds <- traverse (checkIAlOne allowHO bsc emb tcEnv env) ss
+     pure $ mconcat ds
 
 checkIAlOne :: Bool
             -> BScope
@@ -334,10 +347,11 @@ checkIAlOne :: Bool
             -> Bare.TyConMap
             -> F.SEnv F.SortedReft
             -> (LocSpecType, LocSpecType)
-            -> Diagnostics
-checkIAlOne allowHO bsc emb tcEnv env (t1, t2) = mconcat $ checkEq : (tcheck <$> [t1, t2])
+            -> ElabM Diagnostics
+checkIAlOne allowHO bsc emb tcEnv env (t1, t2) =
+  do cs <- traverse (\t -> checkTy allowHO bsc (err t) emb tcEnv env t) [t1, t2]
+     pure $ mconcat $ checkEq : cs
   where
-    tcheck t = checkTy allowHO bsc (err t) emb tcEnv env t
     err    t = ErrIAl (GM.sourcePosSrcSpan $ loc t) (val t)
     t1'      :: RSort
     t1'      = toRSort $ val t1
@@ -362,7 +376,7 @@ checkBind :: (PPrint v)
           -> Bare.TyConMap
           -> F.SEnv F.SortedReft
           -> (v, LocSpecType)
-          -> Diagnostics
+          -> ElabM Diagnostics
 checkBind allowHO bsc s emb tcEnv env (v, t) = checkTy allowHO bsc msg emb tcEnv env t
   where
     msg                      = ErrTySpec (GM.fSrcSpan t) (Just s) (pprint v) (val t)
@@ -372,9 +386,10 @@ checkTerminationExpr :: (Eq v, PPrint v)
                      => F.TCEmb TyCon
                      -> F.SEnv F.SortedReft
                      -> (v, LocSpecType, [F.Located F.Expr])
-                     -> Diagnostics
-checkTerminationExpr emb env (v, Loc l _ st, les)
-            = mkError "ill-sorted" (go les) <> mkError "non-numeric" (go' les)
+                     -> ElabM Diagnostics
+checkTerminationExpr emb env (v, Loc l _ st, les) =
+  do ef <- ask
+     pure $ mkError "ill-sorted" (go ef les) <> mkError "non-numeric" (go' ef les)
   where
     -- es      = val <$> les
     mkError :: Doc -> Maybe (F.Expr, Doc) -> Diagnostics
@@ -384,11 +399,11 @@ checkTerminationExpr emb env (v, Loc l _ st, les)
     -- mkErr   = uncurry (\ e d -> ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) (text "ill-sorted" ) e t d)
     -- mkErr'  = uncurry (\ e d -> ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) (text "non-numeric") e t d)
 
-    go :: [F.Located F.Expr] -> Maybe (F.Expr, Doc)
-    go      = L.foldl' (\err e -> err <|> (val e,) <$> checkSorted (F.srcSpan e) env' (val e))     Nothing
+    go :: ElabFlags -> [F.Located F.Expr] -> Maybe (F.Expr, Doc)
+    go ef     = L.foldl' (\err e -> err <|> (val e,) <$> runReader (checkSorted (F.srcSpan e) env' (val e)) ef)     Nothing
 
-    go' :: [F.Located F.Expr] -> Maybe (F.Expr, Doc)
-    go'     = L.foldl' (\err e -> err <|> (val e,) <$> checkSorted (F.srcSpan e) env' (cmpZero e)) Nothing
+    go' :: ElabFlags -> [F.Located F.Expr] -> Maybe (F.Expr, Doc)
+    go' ef    = L.foldl' (\err e -> err <|> (val e,) <$> runReader (checkSorted (F.srcSpan e) env' (cmpZero e)) ef) Nothing
 
     env'    = F.sr_sort <$> L.foldl' (\e (x,s) -> F.insertSEnv x s e) env xts
     xts     = concatMap mkClss $ zip (ty_binds trep) (ty_args trep)
@@ -407,11 +422,12 @@ checkTy :: Bool
         -> Bare.TyConMap
         -> F.SEnv F.SortedReft
         -> LocSpecType
-        -> Diagnostics
+        -> ElabM Diagnostics
 checkTy allowHO bsc mkE emb tcEnv env t =
-  case checkRType allowHO bsc emb env (Bare.txRefSort tcEnv emb t) of
-    Nothing -> emptyDiagnostics
-    Just d  -> mkDiagnostics mempty [mkE d]
+  do me <- checkRType allowHO bsc emb env (Bare.txRefSort tcEnv emb t)
+     pure $ case me of
+              Nothing -> emptyDiagnostics
+              Just d  -> mkDiagnostics mempty [mkE d]
   where
     _msg =  "CHECKTY: " ++ showpp (val t)
 
@@ -477,18 +493,20 @@ errTypeMismatch x t = ErrMismatch lqSp (pprint x) (text "Checked")  d1 d2 Nothin
 ------------------------------------------------------------------------------------------------
 -- | @checkRType@ determines if a type is malformed in a given environment ---------------------
 ------------------------------------------------------------------------------------------------
-checkRType :: Bool -> BScope -> F.TCEmb TyCon -> F.SEnv F.SortedReft -> LocSpecType -> Maybe Doc
+checkRType :: Bool -> BScope -> F.TCEmb TyCon -> F.SEnv F.SortedReft -> LocSpecType -> ElabM (Maybe Doc)
 ------------------------------------------------------------------------------------------------
-checkRType allowHO bsc emb senv lt
-  =   checkAppTys st
-  <|> checkAbstractRefs st
-  <|> efoldReft farg bsc cb (tyToBind emb) (rTypeSortedReft emb) f insertPEnv senv Nothing st
+checkRType allowHO bsc emb senv lt =
+  do ef <- ask
+     let f env me r err = err <|> runReader (checkReft (F.srcSpan lt) env emb me r) ef
+     pure $     checkAppTys st
+            <|> checkAbstractRefs st
+            <|> efoldReft farg bsc cb (tyToBind emb) (rTypeSortedReft emb) f insertPEnv senv Nothing st
   where
     -- isErasable         = if allowTC then isEmbeddedDict else isClass
     st                 = val lt
     cb c ts            = classBinds emb (rRCls c ts)
     farg _ t           = allowHO || isBase t  -- NOTE: this check should be the same as the one in addCGEnv
-    f env me r err     = err <|> checkReft (F.srcSpan lt) env emb me r
+
     insertPEnv p γ     = insertsSEnv γ (fmap (rTypeSortedReft emb) <$> pbinds p)
     pbinds p           = (pname p, pvarRType p :: RSort) : [(x, tx) | (tx, x, _) <- pargs p]
 
@@ -588,9 +606,10 @@ checkAbstractRefs rt = go rt
 
 
 checkReft                    :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar (UReft r)))
-                             => F.SrcSpan -> F.SEnv F.SortedReft -> F.TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> Maybe Doc
-checkReft _  _   _   Nothing  _ = Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.
-checkReft sp env emb (Just t) _ = (\z -> dr $+$ z) <$> checkSortedReftFull sp env r
+                             => F.SrcSpan -> F.SEnv F.SortedReft -> F.TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> ElabM (Maybe Doc)
+checkReft _  _   _   Nothing  _ = pure Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.
+checkReft sp env emb (Just t) _ = do me <- checkSortedReftFull sp env r
+                                     pure $ (\z -> dr $+$ z) <$> me
   where
     r                           = rTypeSortedReft emb t
     dr                          = text "Sort Error in Refinement:" <+> pprint r
@@ -609,13 +628,14 @@ checkReft sp env emb (Just t) _ = (\z -> dr $+$ z) <$> checkSortedReftFull sp en
 ---------------------------------------------------------------------------------------------------
 -- | @checkMeasures@ determines if a measure definition is wellformed -----------------------------
 ---------------------------------------------------------------------------------------------------
-checkMeasures :: F.TCEmb TyCon -> F.SEnv F.SortedReft -> [Measure SpecType DataCon] -> Diagnostics
+checkMeasures :: F.TCEmb TyCon -> F.SEnv F.SortedReft -> [Measure SpecType DataCon] -> ElabM Diagnostics
 ---------------------------------------------------------------------------------------------------
-checkMeasures emb env = foldMap (checkMeasure emb env)
+checkMeasures emb env = foldMapM (checkMeasure emb env)
 
-checkMeasure :: F.TCEmb TyCon -> F.SEnv F.SortedReft -> Measure SpecType DataCon -> Diagnostics
+checkMeasure :: F.TCEmb TyCon -> F.SEnv F.SortedReft -> Measure SpecType DataCon -> ElabM Diagnostics
 checkMeasure emb γ (M name@(Loc src _ n) sort body _ _)
-  = mkDiagnostics mempty [ txerror e | Just e <- checkMBody γ emb name sort <$> body ]
+  = do me <- traverse (checkMBody γ emb name sort) body
+       pure $ mkDiagnostics mempty [ txerror e | Just e <- me ]
   where
     txerror = ErrMeas (GM.sourcePosSrcSpan src) (pprint n)
 
@@ -625,7 +645,7 @@ checkMBody :: (PPrint r, Reftable r,SubsTy RTyVar RSort r, Reftable (RTProp RTyC
            -> t
            -> SpecType
            -> Def (RRType r) DataCon
-           -> Maybe Doc
+           -> ElabM (Maybe Doc)
 checkMBody senv emb _ sort (Def m c _ bs body) = checkMBody' emb sort γ' sp body
   where
     sp    = F.srcSpan m
@@ -649,14 +669,15 @@ checkMBodyUnify = go
     go t@RApp{} t'@RApp{} = concat $ zipWith go (rt_args t) (rt_args t')
     go _ _                = []
 
-checkMBody' :: (PPrint r, Reftable r,SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
+checkMBody' :: (PPrint r, Reftable r, SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
             => F.TCEmb TyCon
             -> RType RTyCon RTyVar r
             -> F.SEnv F.SortedReft
             -> F.SrcSpan
             -> Body
-            -> Maybe Doc
-checkMBody' emb sort γ sp body = case body of
+            -> ElabM (Maybe Doc)
+checkMBody' emb sort γ sp body =
+  case body of
     E e   -> checkSortFull sp γ (rTypeSort emb sort') e
     P p   -> checkSortFull sp γ F.boolSort  p
     R s p -> checkSortFull sp (F.insertSEnv s sty γ) F.boolSort p

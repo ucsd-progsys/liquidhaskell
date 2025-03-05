@@ -28,6 +28,7 @@
   side effect of this change is that LH can now pick up names in scope using import aliases
   in most places (but see [#2481](https://github.com/ucsd-progsys/liquidhaskell/issues/2481)).
 - Allow to link Haskell definitions with logical primitives via `define` declarations [#2463](https://github.com/ucsd-progsys/liquidhaskell/pull/2463).
+- CVC5 solver is now supported for all logical theories, including Sets/Bags [#2483](https://github.com/ucsd-progsys/liquidhaskell/pull/2483)
 
 ## 0.9.10.1 (2024-08-21)
 

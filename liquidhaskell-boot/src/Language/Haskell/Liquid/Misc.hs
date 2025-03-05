@@ -198,6 +198,11 @@ zipWithDef _ []     ys     = ys
 zipWithDef f (x:xs) (y:ys) = f x y : zipWithDef f xs ys
 
 
+foldMapM :: (Monoid b, Monad m, Foldable f) => (a -> m b) -> f a -> m b
+foldMapM f xs = foldr step return xs mempty
+  where
+    step x r z = f x >>= \y -> r $! z `mappend` y
+
 --------------------------------------------------------------------------------
 -- Originally part of Fixpoint's Misc:
 --------------------------------------------------------------------------------
