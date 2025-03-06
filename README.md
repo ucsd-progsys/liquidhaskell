@@ -1,7 +1,7 @@
 ![LiquidHaskell](/resources/logo.png)
 
 
-[![Hackage](https://img.shields.io/hackage/v/liquidhaskell.svg)](https://hackage.haskell.org/package/liquidhaskell) [![Hackage-Deps](https://img.shields.io/hackage-deps/v/liquidhaskell.svg)](http://packdeps.haskellers.com/feed?needle=liquidhaskell) [![Build Status](https://img.shields.io/circleci/project/ucsd-progsys/liquidhaskell/master.svg)](https://circleci.com/gh/ucsd-progsys/liquidhaskell)
+[![Hackage](https://img.shields.io/hackage/v/liquidhaskell.svg)](https://hackage.haskell.org/package/liquidhaskell) [![Build Status](https://img.shields.io/circleci/project/ucsd-progsys/liquidhaskell/develop.svg)]([https://circleci.com/gh/ucsd-progsys/liquidhaskell](https://app.circleci.com/pipelines/github/ucsd-progsys/liquidhaskell?branch=develop))
 
 This is the **development** site of the LiquidHaskell formal verification tool.
 
