@@ -2,6 +2,8 @@
 
 ## Next
 
+## 0.9.10.1.2 (2025-03-06)
+
 - Implement opaque reflection, a feature to allow reflecting functions which
   call to non-reflected functions [#2323](https://github.com/ucsd-progsys/liquidhaskell/pull/2323).
 - Implement reflection from interface files, which can reflect functions from
