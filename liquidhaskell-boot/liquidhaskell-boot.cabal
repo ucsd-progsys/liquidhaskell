@@ -202,7 +202,6 @@ test-suite ghc-api-tests
 test-suite liquidhaskell-parser
   type:             exitcode-stdio-1.0
   main-is:          Parser.hs
-  other-modules:    Paths_liquidhaskell_boot
   hs-source-dirs:   tests
   build-depends:    base            >= 4.8.1.0 && < 5
                   , directory       >= 1.2.5 && < 1.4
