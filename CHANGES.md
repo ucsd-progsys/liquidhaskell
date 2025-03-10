@@ -2,6 +2,8 @@
 
 ## Next
 
+- Simplify kvar solutions in fqout files [liquid-fixpoint#741](https://github.com/ucsd-progsys/liquid-fixpoint/pull/741).
+
 ## 0.9.10.1.2 (2025-03-06)
 
 - Implement opaque reflection, a feature to allow reflecting functions which
