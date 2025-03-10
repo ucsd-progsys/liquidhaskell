@@ -219,14 +219,11 @@ lhDynFlags _ hscEnv =
 --------------------------------------------------------------------------------
 
 -- | LiquidHaskell requires the desugarer to keep source note ticks
--- and to export everything.
---
--- TODO: We shouldn't rely on exports to find out what's in a ModGuts
--- https://github.com/ucsd-progsys/liquidhaskell/pull/2388#issuecomment-2411418479
+-- and to keep unused functions.
 desugarerDynFlags :: DynFlags -> DynFlags
 desugarerDynFlags df = (foldl gopt_unset df disabledOpts)
     { debugLevel   = 1                  -- To keep source note ticks
-    , backend      = interpreterBackend -- To export everything
+    , backend      = interpreterBackend -- To keep unused functions during desugaring
     }
   where
     disabledOpts =
