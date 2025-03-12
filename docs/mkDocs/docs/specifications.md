@@ -1026,3 +1026,22 @@ Or in a Haskell source file:
 - No support for abstract refinements. All abstract refinements are erased before relational typechecking. Notably, this happens for the standard list `[a]` and tuple `(a, b)` types!
 
 - Limited support for higher-order relational signatures. Use `!=>` instead of `:=>` after the function arguments to enable higher-order checking.
+
+## Lazy Variables
+
+A variable can be specified as `lazyvar` to defer its checking until it is used. This is useful in cases where a variable is defined in a `where` clause and should only be checked in the context where it is used.
+
+For example, consider the following code:
+
+```haskell
+{-@ safeDiv :: Int -> {v:Int | v /= 0} -> Int @-}
+safeDiv :: Int -> Int -> Int
+safeDiv x y
+  | y == 0 = help
+  | otherwise = x `div` y
+  where
+    {-@ lazyvar help @-}
+    help = error "lol"
+```
+
+In this example, the `lazyvar` annotation on `help` ensures that the check for `help` is deferred until it is used. Without this annotation, LiquidHaskell would incorrectly report an error like `Error: Liquid Type Mismatch`.
