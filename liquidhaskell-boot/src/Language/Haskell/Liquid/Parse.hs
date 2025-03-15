@@ -177,7 +177,12 @@ parseErrorError     :: (ParseError, SourcePos) -> Error
 parseErrorError (e, pos) = ErrParse sp msg e
   where
     sp              = sourcePosSrcSpan pos
-    msg             = "Error Parsing Specification from:" <+> PJ.text (sourceName pos)
+    msg             = "Error Parsing Specification from:" <+> PJ.text (sourceName pos) <+> infixSuggestion e
+
+infixSuggestion :: ParseError -> PJ.Doc
+infixSuggestion e
+  | "unknown operator" `isInfixOf` show e = " - Perhaps an infix declaration is missing?"
+  | otherwise                             = ""
 
 --------------------------------------------------------------------------------
 -- | BareTypes -----------------------------------------------------------------
