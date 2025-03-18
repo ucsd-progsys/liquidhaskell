@@ -909,6 +909,66 @@ you can write
 {-@ lazy foo @-}
 ```
 
+### Common Termination Issues
+
+Sometimes, you may encounter errors with the termination checker even for functions that seem obviously terminating. Consider this example with nested data structures:
+
+```haskell
+-- | Measure for a list
+{-@ measure myLen @-}
+myLen :: [a] -> Int
+myLen ([]) = 0
+myLen ((_x:xs)) = 1 + myLen xs
+
+-- | Data structure hiding a list internally
+data Foo a = Foo [a] deriving Show
+
+-- | Measure for Foo which delegates to the measure for a list
+{-@ measure fooLen @-}
+fooLen :: Foo a -> Int
+fooLen (Foo xs) = myLen xs
+
+-- | Size annotation for Foo
+{-@ data Foo [fooLen] a @-}
+
+-- | This function will cause a termination error
+fooLen2 :: Foo a -> Int
+fooLen2 (Foo []) = 0
+fooLen2 (Foo (_x:xs)) = 1 + fooLen2 (Foo xs)
+```
+
+LiquidHaskell will reject `fooLen2` with an error like:
+
+```
+Liquid Type Mismatch
+
+The inferred type
+  VV : {v : Foo a | fooLen v == myLen xs && v == Foo xs}
+
+is not a subtype of the required type
+  VV : {VV : Foo a | fooLen VV < fooLen ?a && fooLen VV >= 0}
+```
+
+The error occurs because the termination checker adds two constraints:
+
+1. `fooLen VV < fooLen ?a` - The size of the recursive argument must decrease
+2. `fooLen VV >= 0` - The measure must have a lower bound
+
+While the first constraint is satisfied (we're processing a smaller list), LiquidHaskell cannot automatically determine that `fooLen` always returns a non-negative value.
+
+The solution is to specify that `myLen` returns a natural number:
+
+```haskell
+{-@ myLen :: [a] -> Nat @-}
+myLen :: [a] -> Int
+myLen ([]) = 0
+myLen ((_x:xs)) = 1 + myLen xs
+```
+
+Where `Nat` is a predefined alias for `{v:Int | v >= 0}`. With this addition, LiquidHaskell knows that `myLen` (and by extension `fooLen`) never returns a negative value, and the termination check passes.
+
+This example illustrates an important point: when defining measures for use in termination checking, you often need to explicitly specify that they return non-negative values.
+
 ## Relational Types
 
 **Status:** `experimental`
