@@ -32,6 +32,7 @@ import Data.Data (Data, gmapQr, gmapT)
 import Data.Generics (extQ, extT)
 import Data.Foldable                  (asum)
 import Data.List                      (sortOn)
+import qualified Data.Map as Map
 import GHC.Builtin.Names ( dollarIdKey, minusName )
 import GHC.Core                       as Ghc
 import GHC.Core.Coercion              as Ghc
@@ -81,7 +82,7 @@ dataConSig dc
 
 -- | Extracts the direct imports of a module.
 directImports :: TcGblEnv -> [Module]
-directImports = moduleEnvKeys . imp_mods . tcg_imports
+directImports = Map.keys . imp_mods . tcg_imports
 
 -- | Abstraction of 'EpaComment'.
 data ApiComment
@@ -107,7 +108,7 @@ apiCommentsParsedSource ps =
 
     -- TODO: take into account anchor_op, which only matters if the source was
     -- pre-processed by an exact-print-aware tool.
-    toRealSrc (L a e) = L (RealSrcSpan (anchor a) strictNothing) e
+    toRealSrc (L a e) = L (RealSrcSpan (epaLocationRealSrcSpan a) strictNothing) e
 
     spanToLineColumn =
       fmap (\s -> (srcSpanStartLine s, srcSpanStartCol s)) . srcSpanToRealSrcSpan

@@ -79,8 +79,8 @@ library
 
   build-depends:      base                 >= 4.11.1.0 && < 5,
                       liquidhaskell-boot   == 0.9.10.1.2,
-                      bytestring           == 0.12.1.0,
-                      containers           == 0.7,
+                      bytestring,
+                      containers,
                       ghc-prim
   default-language:   Haskell98
   ghc-options:        -Wall

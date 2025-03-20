@@ -219,7 +219,7 @@ filterExprArgs = filter check
 --------------------------------------------------------------------------------
 
 newtype LiquidQuote = LiquidQuote { liquidQuoteSpec :: BPspec }
-                      deriving (Data, Typeable)
+                      deriving (Data)
 
 --------------------------------------------------------------------------------
 -- Template Haskell Utility Functions ------------------------------------------

@@ -751,7 +751,7 @@ isPredVar v = F.notracepp msg . isPredType . varType $ v
     msg     =  "isGoodCaseBind v = " ++ show v
 
 isPredType :: Type -> Bool
-isPredType = anyF [ isClassPred, isEqPred, isEqPrimPred ]
+isPredType = anyF [ isClassPred, isNomEqPred, isEqPred ]
 
 anyF :: [a -> Bool] -> a -> Bool
 anyF ps x = or [ p x | p <- ps ]
@@ -921,12 +921,18 @@ withWiredIn m = discardConstraints $ do
   --   ) wiredIns
 
   sigs wiredIns = concatMap (\w ->
-      let inf = maybeToList $ (\(fPrec, fDir) -> Ghc.L locSpanAnn $ Ghc.FixSig Ghc.noAnn $ Ghc.FixitySig Ghc.NoNamespaceSpecifier [Ghc.L locSpanAnn (tcWiredInName w)] $ Ghc.Fixity Ghc.NoSourceText fPrec fDir) <$> tcWiredInFixity w in
-      let t =
+      let inf = maybeToList $ do
+            (fPrec, fDir) <- tcWiredInFixity w
+            return $
+              Ghc.L locSpanAnn $
+              Ghc.FixSig Ghc.noAnn $
+              Ghc.FixitySig Ghc.NoNamespaceSpecifier [Ghc.L locSpanAnn (tcWiredInName w)] $
+              Ghc.Fixity fPrec fDir
+          t =
             let ext' = [] in
             [Ghc.L locSpanAnn $ TypeSig Ghc.noAnn [Ghc.L locSpanAnn (tcWiredInName w)] $ HsWC ext' $ Ghc.L locSpanAnn $ HsSig Ghc.noExtField (HsOuterImplicit ext') $ tcWiredInType w]
       in
-      inf <> t
+         inf <> t
     ) wiredIns
 
   locSpan = UnhelpfulSpan (UnhelpfulOther "Liquid.GHC.Misc: WiredIn")
@@ -969,7 +975,16 @@ withWiredIn m = discardConstraints $ do
     aName <- toLoc <$> toName "a"
     let aTy = nameToTy aName
     let ty = toLoc $ HsForAllTy Ghc.noExtField
-             (mkHsForAllInvisTele Ghc.noAnn [toLoc $ UserTyVar Ghc.noAnn SpecifiedSpec aName]) $ mkHsFunTy aTy (mkHsFunTy aTy boolTy')
+             (mkHsForAllInvisTele Ghc.noAnn
+               [ toLoc $
+                   Ghc.HsTvb
+                   Ghc.noAnn
+                   Ghc.SpecifiedSpec
+                   (Ghc.HsBndrVar Ghc.noExtField aName)
+                   (Ghc.HsBndrNoKind Ghc.noExtField)
+               ]
+             )
+             $ mkHsFunTy aTy (mkHsFunTy aTy boolTy')
     return $ TcWiredIn n (Just (4, Ghc.InfixN)) ty
 
   -- TODO: This is defined as a measure in liquidhaskell GHC.Base_LHAssumptions. We probably want to insert all measures to the environment.
@@ -979,7 +994,15 @@ withWiredIn m = discardConstraints $ do
     aName <- toLoc <$> toName "a"
     let aTy = nameToTy aName
     let ty = toLoc $ HsForAllTy Ghc.noExtField
-               (mkHsForAllInvisTele Ghc.noAnn [toLoc $ UserTyVar Ghc.noAnn SpecifiedSpec aName]) $ mkHsFunTy (listTy aTy) intTy'
+               (mkHsForAllInvisTele Ghc.noAnn
+                 [ toLoc $
+                     Ghc.HsTvb
+                     Ghc.noAnn
+                     Ghc.SpecifiedSpec
+                     (Ghc.HsBndrVar Ghc.noExtField aName)
+                     (Ghc.HsBndrNoKind Ghc.noExtField)
+                 ]
+               ) $ mkHsFunTy (listTy aTy) intTy'
     return $ TcWiredIn n Nothing ty
 
 prependGHCRealQual :: FastString -> RdrName

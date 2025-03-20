@@ -4,7 +4,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes                #-}
 {-# LANGUAGE UndecidableInstances      #-}
-{-# LANGUAGE StandaloneDeriving        #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-} -- TODO(#1918): Only needed for GHC <9.0.1.
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -44,9 +43,6 @@ eqType' (TyConApp c1 ts1) (TyConApp c2 ts2)
   = c1 == c2 && and (zipWith eqType' ts1 ts2) 
 eqType' _ _ 
   = False 
-
-
-deriving instance (Eq tyvar, Eq argf) => Eq (VarBndr tyvar argf)
 
 showTy :: Type -> String 
 showTy (TyConApp c ts) = "(RApp   " ++ showPpr c ++ " " ++ sep' ", " (showTy <$> ts) ++ ")"

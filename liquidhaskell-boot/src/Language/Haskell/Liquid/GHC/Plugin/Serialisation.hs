@@ -95,7 +95,7 @@ encodeLiquidLib :: LiquidLib -> IO B.ByteString
 encodeLiquidLib lib0 = do
     let (lib1, ns) = collectLHNames lib0
     bh <- GHC.openBinMem (1024*1024)
-    GHC.putWithUserData GHC.QuietBinIFace bh ns
+    GHC.putWithUserData GHC.QuietBinIFace GHC.SafeExtraCompression bh ns
     GHC.withBinBuffer bh $ \bs ->
       return $ Builder.toLazyByteString $ B.execPut (B.put lib1) <> Builder.fromByteString bs
 

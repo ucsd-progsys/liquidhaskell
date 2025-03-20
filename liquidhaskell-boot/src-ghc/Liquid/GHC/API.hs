@@ -36,12 +36,14 @@ import           GHC                  as Ghc
     , GhcMonad
     , GhcPs
     , GhcRn
+    , HsBndrKind(HsBndrNoKind)
+    , HsBndrVar(HsBndrVar)
     , HsDecl(SigD)
     , HsExpr(ExprWithTySig, HsOverLit, HsVar)
     , HsModule(hsmodDecls)
     , HsOuterTyVarBndrs(HsOuterImplicit)
     , HsSigType(HsSig)
-    , HsTyVarBndr(UserTyVar)
+    , HsTyVarBndr(HsTvb)
     , HsType(HsAppTy, HsForAllTy, HsQualTy, HsTyVar, HsWildCardTy)
     , HsArg(HsValArg)
     , HsWildCardBndrs(HsWC)
@@ -55,7 +57,7 @@ import           GHC                  as Ghc
     , LexicalFixity(Prefix)
     , Located
     , LocatedN
-    , ModIface_(mi_anns, mi_exports, mi_globals, mi_module)
+    , ModIface_(mi_anns, mi_exports, mi_module)
     , ModLocation(ml_hs_file)
     , ModSummary(ms_hspp_file, ms_hspp_opts, ms_location, ms_mod)
     , Module
@@ -118,7 +120,6 @@ import           GHC                  as Ghc
     , mkModuleName
     , mkSrcLoc
     , mkSrcSpan
-    , modInfoTopLevelScope
     , moduleName
     , moduleNameString
     , moduleUnit
@@ -274,7 +275,9 @@ import GHC.Core.Coercion              as Ghc
     , mkRepReflCo
     )
 import GHC.Core.Coercion.Axiom        as Ghc
-    ( coAxiomTyCon )
+    ( coAxiomTyCon
+    , isNewtypeAxiomRule_maybe
+    )
 import GHC.Core.ConLike               as Ghc
     ( ConLike(RealDataCon) )
 import GHC.Core.DataCon               as Ghc
@@ -321,14 +324,24 @@ import GHC.Core.Make                  as Ghc
     , mkCoreLets
     , pAT_ERROR_ID
     )
-import GHC.Core.Predicate             as Ghc (getClassPredTys_maybe, getClassPredTys, isEvVarType, isEqPrimPred, isEqPred, isClassPred, isDictId, mkClassPred)
+import GHC.Core.Predicate             as Ghc
+    ( getClassPredTys_maybe
+    , getClassPredTys
+    , isEvVarType
+    , isEqPred
+    , isClassPred
+    , isDictId
+    , isNomEqPred
+    , mkClassPred
+    )
 import GHC.Core.Reduction             as Ghc
     ( Reduction(Reduction) )
 import GHC.Core.Subst                 as Ghc (emptySubst, extendCvSubst)
 import GHC.Core.TyCo.Rep              as Ghc
-    ( FunTyFlag(FTF_T_T, FTF_C_T)
+    ( Coercion
+    , FunTyFlag(FTF_T_T, FTF_C_T)
     , ForAllTyFlag(Required)
-    , Coercion (AxiomInstCo, SymCo)
+    , Coercion (AxiomCo, SymCo)
     , TyLit(CharTyLit, NumTyLit, StrTyLit)
     , Type
         ( AppTy
@@ -454,7 +467,7 @@ import GHC.Plugins                    as Ghc ( Serialized(Serialized)
 import GHC.Core.FVs                   as Ghc
     ( exprFreeVars
     , exprFreeVarsList
-    , exprsOrphNames
+    , orphNamesOfExprs
     , exprSomeFreeVarsList
     )
 import GHC.Core.Opt.OccurAnal         as Ghc
@@ -480,7 +493,11 @@ import GHC.Hs                         as Ghc
 import GHC.HsToCore.Expr              as Ghc
     ( dsLExpr )
 import GHC.Iface.Binary               as Ghc
-    ( TraceBinIFace(QuietBinIFace), getWithUserData, putWithUserData )
+    ( CompressionIFace(SafeExtraCompression)
+    , TraceBinIFace(QuietBinIFace)
+    , getWithUserData
+    , putWithUserData
+    )
 import GHC.Iface.Errors.Ppr            as Ghc
     ( missingInterfaceErrorDiagnostic )
 import GHC.Iface.Load                 as Ghc

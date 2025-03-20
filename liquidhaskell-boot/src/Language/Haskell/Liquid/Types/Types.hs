@@ -175,7 +175,6 @@ import           Prelude                          hiding  (error)
 
 import           Control.DeepSeq
 import           Data.Bifunctor
-import           Data.Typeable                          (Typeable)
 import           Data.Generics                          (Data)
 import qualified Data.Binary                            as B
 import           Data.Hashable
@@ -310,12 +309,12 @@ data RInstance t = RI
   , riDictName :: Maybe (F.Located LHName)
   , ritype  :: [t]
   , risigs  :: [(F.Located LHName, RISig t)]
-  } deriving (Eq, Generic, Functor, Data, Typeable, Foldable, Traversable, Show)
+  } deriving (Eq, Generic, Functor, Data, Foldable, Traversable, Show)
     deriving Hashable via Generically (RInstance t)
     deriving B.Binary via Generically (RInstance t)
 
 data RISig t = RIAssumed t | RISig t
-  deriving (Eq, Generic, Functor, Data, Typeable, Show, Foldable, Traversable)
+  deriving (Eq, Generic, Functor, Data, Show, Foldable, Traversable)
   deriving Hashable via Generically (RISig t)
   deriving B.Binary via Generically (RISig t)
 
@@ -377,7 +376,7 @@ data RTAlias x a = RTA
   , rtVArgs :: [Symbol]           -- ^ value parameters
   , rtBody  :: a                  -- ^ what the alias expands to
   -- , rtMod   :: !ModName           -- ^ module where alias was defined
-  } deriving (Eq, Data, Typeable, Generic, Functor, Foldable, Traversable)
+  } deriving (Eq, Data, Generic, Functor, Foldable, Traversable)
     deriving Hashable via Generically (RTAlias x a)
     deriving B.Binary via Generically (RTAlias x a)
 -- TODO support ghosts in aliases?
@@ -517,10 +516,10 @@ instance Show Cinfo where
 --------------------------------------------------------------------------------
 
 data ModName = ModName !ModType !ModuleName
-  deriving (Eq, Ord, Show, Generic, Data, Typeable)
+  deriving (Eq, Ord, Show, Generic, Data)
 
 data ModType = Target | SrcImport | SpecImport
-  deriving (Eq, Ord, Show, Generic, Data, Typeable)
+  deriving (Eq, Ord, Show, Generic, Data)
 
 -- instance B.Binary ModType
 -- instance B.Binary ModName
@@ -592,7 +591,7 @@ data BodyV v
   = E (F.ExprV v)          -- ^ Measure Refinement: {v | v = e }
   | P (F.ExprV v)          -- ^ Measure Refinement: {v | (? v) <=> p }
   | R Symbol (F.ExprV v)   -- ^ Measure Refinement: {v | p}
-  deriving (Show, Data, Typeable, Generic, Eq, Functor, Foldable, Traversable)
+  deriving (Show, Data, Generic, Eq, Functor, Foldable, Traversable)
   deriving B.Binary via Generically (BodyV v)
   deriving Hashable via Generically (BodyV v)
 
@@ -613,7 +612,7 @@ data DefV v ty ctor = Def
   , dsort   :: Maybe ty
   , binds   :: [(Symbol, Maybe ty)]    -- measure binders: the ADT argument fields
   , body    :: BodyV v
-  } deriving (Show, Data, Typeable, Generic, Eq, Functor)
+  } deriving (Show, Data, Generic, Eq, Functor)
   deriving B.Binary via Generically (DefV v ty ctor)
   deriving Hashable via Generically (DefV v ty ctor)
 
@@ -650,7 +649,7 @@ data MeasureV v ty ctor = M
   , msEqns :: [DefV v ty ctor]
   , msKind :: !MeasureKind
   , msUnSorted :: !UnSortedExprs -- potential unsorted expressions used at measure denifinitions
-  } deriving (Eq, Data, Typeable, Generic, Functor)
+  } deriving (Eq, Data, Generic, Functor)
   deriving B.Binary via Generically (MeasureV v ty ctor)
   deriving Hashable via Generically (MeasureV v ty ctor)
 
@@ -691,7 +690,7 @@ data MeasureKind
   | MsAbsMeasure  -- ^ due to `measure foo` without equations c.f. tests/pos/T1223.hs
   | MsSelector    -- ^ due to selector-fields e.g. `data Foo = Foo { fld :: Int }`
   | MsChecker     -- ^ due to checkers  e.g. `is-F` for `data Foo = F ... | G ...`
-  deriving (Eq, Ord, Show, Data, Typeable, Generic)
+  deriving (Eq, Ord, Show, Data, Generic)
   deriving B.Binary via Generically MeasureKind
   deriving Hashable via Generically MeasureKind
 
@@ -717,7 +716,7 @@ instance Bifunctor (MeasureV v) where
 data CMeasure ty = CM
   { cName :: F.Located LHName
   , cSort :: ty
-  } deriving (Data, Typeable, Generic, Functor)
+  } deriving (Data, Generic, Functor)
 
 instance (F.PPrint v, Ord v, F.Fixpoint v) => F.PPrint (BodyV v) where
   pprintTidy k (E e)   = F.pprintTidy k e
@@ -789,7 +788,7 @@ data RClass ty = RClass
   , rcSupers  :: [ty]
   , rcTyVars  :: [BTyVar]
   , rcMethods :: [(F.Located LHName, ty)]
-  } deriving (Eq, Show, Functor, Data, Typeable, Generic, Foldable, Traversable)
+  } deriving (Eq, Show, Functor, Data, Generic, Foldable, Traversable)
     deriving B.Binary via Generically (RClass ty)
     deriving Hashable via Generically (RClass ty)
 
@@ -834,14 +833,14 @@ instance (F.PPrint t) => F.PPrint (HoleInfo  i t) where
 ------------------------------------------------------------------------
 
 newtype AnnInfo a = AI (M.HashMap SrcSpan [(Maybe Text, a)])
-                    deriving (Data, Typeable, Generic, Functor)
+                    deriving (Data, Generic, Functor)
 
 data Annot t
   = AnnUse t
   | AnnDef t
   | AnnRDf t
   | AnnLoc SrcSpan
-  deriving (Data, Typeable, Generic, Functor)
+  deriving (Data, Generic, Functor)
 
 instance Monoid (AnnInfo a) where
   mempty  = AI M.empty
@@ -864,7 +863,7 @@ data Output a = O
   , o_templs :: !(AnnInfo a)
   , o_bots   :: ![SrcSpan]
   , o_result :: ErrorResult
-  } deriving (Typeable, Generic, Functor)
+  } deriving (Generic, Functor)
 
 instance (F.PPrint a) => F.PPrint (Output a) where
   pprintTidy _ out = F.resultDoc (F.pprint <$> o_result out)
@@ -905,7 +904,7 @@ data KVKind
   | CaseE       Int -- ^ Int is the number of cases
   | LetE
   | ProjectE        -- ^ Projecting out field of
-  deriving (Generic, Eq, Ord, Show, Data, Typeable)
+  deriving (Generic, Eq, Ord, Show, Data)
 
 instance Hashable KVKind
 
@@ -966,7 +965,7 @@ data MSpec ty ctor = MSpec
   , measMap  :: M.HashMap (F.Located LHName) (Measure ty ctor)
   , cmeasMap :: M.HashMap (F.Located LHName) (Measure ty ())
   , imeas    :: ![Measure ty ctor]
-  } deriving (Data, Typeable, Generic, Functor)
+  } deriving (Data, Generic, Functor)
 
 instance Bifunctor MSpec   where
   first f (MSpec c m cm im) = MSpec (fmap (fmap (first f)) c)

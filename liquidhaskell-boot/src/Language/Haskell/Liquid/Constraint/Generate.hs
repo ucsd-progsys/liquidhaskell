@@ -697,11 +697,18 @@ unRRTy t              = t
 castTy  :: CGEnv -> Type -> CoreExpr -> Coercion -> CG SpecType
 castTy' :: CGEnv -> Type -> CoreExpr -> CG SpecType
 --------------------------------------------------------------------------------
-castTy γ t e (AxiomInstCo ca _ _)
-  = fromMaybe <$> castTy' γ t e <*> lookupNewType (coAxiomTyCon ca)
+castTy γ t e (AxiomCo ca _)
+  = do
+    msp <- case isNewtypeAxiomRule_maybe ca of
+      Just (tc, _) -> lookupNewType tc
+      _ -> return Nothing
+    sp <- castTy' γ t e
+    return (fromMaybe sp msp)
 
-castTy γ t e (SymCo (AxiomInstCo ca _ _))
-  = do mtc <- lookupNewType (coAxiomTyCon ca)
+castTy γ t e (SymCo (AxiomCo ca _))
+  = do mtc <- case isNewtypeAxiomRule_maybe ca of
+         Just (tc, _) -> lookupNewType tc
+         _ -> return Nothing
        F.forM_ mtc (cconsE γ e)
        castTy' γ t e
 
