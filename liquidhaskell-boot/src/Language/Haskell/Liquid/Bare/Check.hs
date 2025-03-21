@@ -4,6 +4,8 @@
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# OPTIONS_GHC -Wno-x-partial #-}
+-- TODO: revise the need for this flag
+{-# OPTIONS_GHC -Wno-incomplete-record-selectors #-}
 
 module Language.Haskell.Liquid.Bare.Check
   ( checkTargetSpec

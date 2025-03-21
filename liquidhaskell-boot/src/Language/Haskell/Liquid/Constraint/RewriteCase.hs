@@ -1,3 +1,5 @@
+-- TODO: revise the need for this flag
+{-# OPTIONS_GHC -Wno-incomplete-record-selectors #-}
 module Language.Haskell.Liquid.Constraint.RewriteCase 
     (getCaseRewrites) 
     where
