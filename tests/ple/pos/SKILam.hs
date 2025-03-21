@@ -10,10 +10,14 @@
 module SKILam where
 
 import Prelude
+-- breakpoint is needed to reflect id, whose unfolding is defined as
+-- @id = breakpoint@ in the interface file
+import GHC.Base (breakpoint)
 
 import Language.Haskell.Liquid.ProofCombinators
 
 {-@ reflect id @-}
+{-@ reflect breakpoint @-}
 {-@ reflect $  @-}
 
 data List a = Nil | Cons a (List a)
