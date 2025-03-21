@@ -428,8 +428,8 @@ testSucceeds =
          "set :: a:(Vector a) -> i:(Idx a) -> lq_tmp$db##0:a -> {v : (Vector a) | vlen v == vlen a}"
 
     , testCase "type spec 24" $
-       parseSingleSpec "assume GHC.Prim.+#  :: x:GHC.Prim.Int# -> y:GHC.Prim.Int# -> {v: GHC.Prim.Int# | v = x + y}" @?==
-         "assume GHC.Prim.+# :: x:GHC.Prim.Int# -> y:GHC.Prim.Int# -> {v : GHC.Prim.Int# | v == x + y}"
+       parseSingleSpec "assume GHC.Internal.Prim.+#  :: x:GHC.Internal.Prim.Int# -> y:GHC.Internal.Prim.Int# -> {v: GHC.Internal.Prim.Int# | v = x + y}" @?==
+         "assume GHC.Internal.Prim.+# :: x:GHC.Internal.Prim.Int# -> y:GHC.Internal.Prim.Int# -> {v : GHC.Internal.Prim.Int# | v == x + y}"
 
     , testCase "type spec 25" $
        parseSingleSpec " measure isEVar " @?==
@@ -468,7 +468,7 @@ testSucceeds =
          , "  fst (a,b) = a"
          ])
         @?==
-            "measure fst :: lq_tmp$db##0:(a, b) -> a\n        fst (GHC.Tuple.(,)a b) = a"
+            "measure fst :: lq_tmp$db##0:(a, b) -> a\n        fst (GHC.Internal.Tuple.(,)a b) = a"
     ]
 
 -- ---------------------------------------------------------------------

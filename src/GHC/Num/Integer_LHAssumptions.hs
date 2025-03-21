@@ -8,7 +8,7 @@ import GHC.Num.Integer
 import GHC.Types_LHAssumptions()
 
 {-@
-assume GHC.Num.Integer.IS :: x:Int# -> {v: Integer | v = (x :: int) }
+assume IS :: x:Int# -> {v: Integer | v = (x :: int) }
 
 embed Integer as int
 @-}
