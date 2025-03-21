@@ -1,8 +1,10 @@
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FlexibleContexts       #-}
-{-# LANGUAGE UndecidableInstances   #-}
+{-# LANGUAGE MagicHash              #-}
 {-# LANGUAGE OverloadedStrings      #-}
+{-# LANGUAGE TemplateHaskellQuotes  #-}
 {-# LANGUAGE TupleSections          #-}
+{-# LANGUAGE UndecidableInstances   #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_GHC -Wno-x-partial #-}
@@ -57,6 +59,10 @@ import           Language.Haskell.Liquid.Types.Types
 import qualified Data.HashMap.Strict                   as M
 import Control.Monad.Reader
 import Language.Haskell.Liquid.UX.Config
+
+import Data.Ratio
+import GHC.Base ((+#), (-#), (*#))
+import GHC.Num
 
 logicType :: (Reftable r) => Bool -> Type -> RRType r
 logicType allowTC τ      = fromRTypeRep $ t { ty_binds = bs, ty_info = is, ty_args = as, ty_refts = rs}
@@ -404,33 +410,33 @@ toPredApp p = do
       | Just rel <- M.lookup f brels
       = PAtom rel <$> coreToLg e1 <*> coreToLg e2
     go (Just f, [e])
-      | f == symbol ("GHC.Classes.not" :: String)
+      | f == symbol (show 'not)
       = PNot <$>  coreToLg e
     go (Just f, [e1, e2])
-      | f == symbol ("GHC.Classes.||" :: String)
+      | f == symbol (show '(||))
       = POr <$> mapM coreToLg [e1, e2]
-      | f == symbol ("GHC.Classes.&&" :: String)
+      | f == symbol (show '(&&))
       = PAnd <$> mapM coreToLg [e1, e2]
       | f == symbol ("Language.Haskell.Liquid.Prelude.==>" :: String)
       = PImp <$> coreToLg e1 <*> coreToLg e2
       | f == symbol ("Language.Haskell.Liquid.Prelude.<=>" :: String)
       = PIff <$> coreToLg e1 <*> coreToLg e2
-      | f == symbol ("GHC.Base.const" :: String)
+      | f == symbol (show 'const)
       = coreToLg e1
     go (Just f, [es])
-      | f == symbol ("GHC.Internal.Data.Foldable.or" :: String)
+      | f == symbol (show 'or)
       = POr  . deList <$> coreToLg es
-      | f == symbol ("GHC.Internal.Data.Foldable.and" :: String)
+      | f == symbol (show 'and)
       = PAnd . deList <$> coreToLg es
     go (_, _)
       = toLogicApp p
 
     deList :: Expr -> [Expr]
     deList (EApp (EApp (EVar cons) e) es)
-      | cons == symbol ("GHC.Types.:" :: String)
+      | cons == symbol (show '(:))
       = e:deList es
     deList (EVar nil)
-      | nil == symbol ("GHC.Types.[]" :: String)
+      | nil == symbol (show '[])
       = []
     deList e
       = [e]
@@ -450,9 +456,9 @@ toLogicApp e = do
 
 makeApp :: Expr -> LogicMap -> Located Symbol-> [Expr] -> Expr
 makeApp _ _ f [e]
-  | val f == symbol ("GHC.Internal.Num.negate" :: String)
+  | val f == symbol (show 'negate)
   = ENeg e
-  | val f == symbol ("GHC.Internal.Num.fromInteger" :: String)
+  | val f == symbol (show 'fromInteger)
   , ECon c <- e
   = ECon c
   | (modName, sym) <- GM.splitModuleName (val f)
@@ -478,12 +484,12 @@ eVarWithMap x lmap = do
     eAppWithMap lmap (symbol x) [] (EVar $ symbol x)
 
 brels :: M.HashMap Symbol Brel
-brels = M.fromList [ (symbol ("GHC.Classes.==" :: String), Eq)
-                   , (symbol ("GHC.Classes./=" :: String), Ne)
-                   , (symbol ("GHC.Classes.>=" :: String), Ge)
-                   , (symbol ("GHC.Classes.>" :: String) , Gt)
-                   , (symbol ("GHC.Classes.<=" :: String), Le)
-                   , (symbol ("GHC.Classes.<" :: String) , Lt)
+brels = M.fromList [ (symbol (show '(==)), Eq)
+                   , (symbol (show '(/=)), Ne)
+                   , (symbol (show '(>=)), Ge)
+                   , (symbol (show '(>)) , Gt)
+                   , (symbol (show '(<=)), Le)
+                   , (symbol (show '(<)) , Lt)
                    ]
 
 -- bops is a map between GHC function names/symbols and binary operators
@@ -492,28 +498,21 @@ brels = M.fromList [ (symbol ("GHC.Classes.==" :: String), Eq)
 -- they can come from GHC.Prim, GHC.Internal.Num, GHC.Internal.Real or
 -- be an instance of Num for Int.
 bops :: M.HashMap Symbol Bop
-bops = M.fromList [ (numSymbol "+", Plus)
+bops = M.fromList [ (symbol (show '(+)), Plus)
                   , (numIntSymbol "+", Plus)
-                  , (primSymbol "+#", Plus)
-                  , (numSymbol "-", Minus)
+                  , (symbol (show '(+#)), Plus)
+                  , (symbol (show '(-)), Minus)
                   , (numIntSymbol "-", Minus)
-                  , (primSymbol "-#", Minus)
-                  , (numSymbol "*", Times)
+                  , (symbol (show '(-#)), Minus)
+                  , (symbol (show '(*)), Times)
                   , (numIntSymbol "*", Times)
-                  , (primSymbol "*#", Times)
-                  , (numSymbol "/", Div)
-                  , (realSymbol "/", Div)
-                  , (numSymbol "%", Mod)
+                  , (symbol (show '(*#)), Times)
+                  , (symbol (show '(/)), Div)
+                  , (symbol (show '(%)), Mod)
                   ]
   where
-    primSymbol :: String -> Symbol
-    primSymbol =  symbol . (++) "GHC.Prim."
-    numSymbol :: String -> Symbol
-    numSymbol =  symbol . (++) "GHC.Internal.Num."
     numIntSymbol :: String -> Symbol
-    numIntSymbol = numSymbol . (++) "$fNumInt_$c"
-    realSymbol :: String -> Symbol
-    realSymbol =  symbol . (++) "GHC.Internal.Real."
+    numIntSymbol = symbol . (++) "GHC.Internal.Num.$fNumInt_$c"
 
 splitArgs :: Bool -> C.Expr t -> (C.Expr t, [C.Arg t])
 splitArgs allowTC exprt = (exprt', reverse args)
@@ -573,13 +572,11 @@ ignoreVar :: Id -> Bool
 ignoreVar i = simpleSymbolVar i `elem` ["I#", "D#"]
 
 -- | Tries to determine if a 'CoreAlt' maps to one of the 'Integer' type constructors.
--- We need the disjuction for GHC >= 9, where the Integer now comes from the \"ghc-bignum\" package,
--- and it has different names for the constructors.
 isBangInteger :: [C.CoreAlt] -> Bool
 isBangInteger [Alt (C.DataAlt s) _ _, Alt (C.DataAlt jp) _ _, Alt (C.DataAlt jn) _ _]
-  =  (symbol s  == "GHC.Integer.Type.S#"  || symbol s  == "GHC.Num.Integer.IS")
-  && (symbol jp == "GHC.Integer.Type.Jp#" || symbol jp == "GHC.Num.Integer.IP")
-  && (symbol jn == "GHC.Integer.Type.Jn#" || symbol jn == "GHC.Num.Integer.IN")
+  =  symbol s  == symbol (show 'IS)
+  && symbol jp == symbol (show 'IP)
+  && symbol jn == symbol (show 'IN)
 isBangInteger _ = False
 
 isErasable :: Id -> Bool

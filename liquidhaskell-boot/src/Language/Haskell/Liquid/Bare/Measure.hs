@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE RecordWildCards  #-}
+{-# LANGUAGE TemplateHaskellQuotes #-}
 {-# LANGUAGE TupleSections    #-}
 
 -- | This module contains (most of) the code needed to lift Haskell entitites,
@@ -58,6 +60,8 @@ import qualified Language.Haskell.Liquid.Bare.ToBare   as Bare
 import           Language.Haskell.Liquid.UX.Config
 import Control.Monad (mapM)
 import qualified Data.List as L
+
+import GHC.Base (Int(I#))
 
 --------------------------------------------------------------------------------
 makeHaskellMeasures :: Config -> GhcSrc -> Bare.TycEnv -> LogicMap -> Ms.BareSpec
@@ -408,7 +412,7 @@ getReflDCs measEnv vars = dcsUndefinedInLogic
     -- List of wired DCs that cannot be found in the measure environment as they are
     -- eliminated in the translation from core.
     -- Written as a list of symbols because that's easier than trying to get the corresponding DCs from GHC.
-    wired = S.fromList $ F.symbol <$> ["GHC.Types.True", "GHC.Types.False", "GHC.Types.I#"]
+    wired = S.fromList $ F.symbol <$> [show 'True, show 'False, show 'I#]
     notWired dc = not $ GM.qualifiedNameSymbol (Ghc.getName dc) `S.member` wired
     -- Undefined ones are those that are not already defined in the measure environement and are not wired
     dcsUndefinedInLogic = S.filter notWired $ allDCInUnfoldings `S.difference` definedDCs

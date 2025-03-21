@@ -4,6 +4,7 @@
 {-# LANGUAGE DeriveFunctor             #-}
 {-# LANGUAGE LambdaCase                #-}
 {-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE TemplateHaskellQuotes     #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -570,8 +571,8 @@ renameBinderSort f = rename
 fixExprToHsExpr :: S.HashSet F.Symbol -> F.Expr -> LHsExpr GhcPs
 fixExprToHsExpr _ (F.ECon c) = constantToHsExpr c
 fixExprToHsExpr env (F.EVar x)
-  | x == "GHC.Types.[]" =  GM.notracePpr "Empty" $ nlHsVar (mkVarUnqual (mkFastString "[]"))
-  | x == "GHC.Types.:" = GM.notracePpr "Cons" $ nlHsVar (mkVarUnqual (mkFastString ":"))
+  | x == F.symbol (show '[]) =  GM.notracePpr "Empty" $ nlHsVar (mkVarUnqual (mkFastString "[]"))
+  | x == F.symbol (show '(:)) = GM.notracePpr "Cons" $ nlHsVar (mkVarUnqual (mkFastString ":"))
   | otherwise = GM.notracePpr "Var" $ nlHsVar (symbolToRdrName env x)
 fixExprToHsExpr env (F.EApp e0 e1) =
   mkHsApp (fixExprToHsExpr env e0) (fixExprToHsExpr env e1)
