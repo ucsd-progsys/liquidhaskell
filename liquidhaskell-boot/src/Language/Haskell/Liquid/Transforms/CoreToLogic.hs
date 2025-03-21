@@ -62,7 +62,6 @@ import Language.Haskell.Liquid.UX.Config
 
 import Data.Ratio
 import GHC.Base ((+#), (-#), (*#))
-import GHC.Num
 
 logicType :: (Reftable r) => Bool -> Type -> RRType r
 logicType allowTC τ      = fromRTypeRep $ t { ty_binds = bs, ty_info = is, ty_args = as, ty_refts = rs}
@@ -574,9 +573,9 @@ ignoreVar i = simpleSymbolVar i `elem` ["I#", "D#"]
 -- | Tries to determine if a 'CoreAlt' maps to one of the 'Integer' type constructors.
 isBangInteger :: [C.CoreAlt] -> Bool
 isBangInteger [Alt (C.DataAlt s) _ _, Alt (C.DataAlt jp) _ _, Alt (C.DataAlt jn) _ _]
-  =  symbol s  == symbol (show 'IS)
-  && symbol jp == symbol (show 'IP)
-  && symbol jn == symbol (show 'IN)
+  =  s  == Ghc.integerISDataCon
+  && jp == Ghc.integerIPDataCon
+  && jn == Ghc.integerINDataCon
 isBangInteger _ = False
 
 isErasable :: Id -> Bool
