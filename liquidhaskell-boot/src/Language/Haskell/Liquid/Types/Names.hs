@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskellQuotes #-}
 module Language.Haskell.Liquid.Types.Names
   ( lenLocSymbol
   , anyTypeSymbol
@@ -47,12 +48,14 @@ import Language.Fixpoint.Types
 import Language.Haskell.Liquid.GHC.Misc ( locNamedThing ) -- Symbolic GHC.Name
 import qualified Liquid.GHC.API as GHC
 
+import GHC.Types (Any)
+
 -- RJ: Please add docs
 lenLocSymbol :: Located Symbol
 lenLocSymbol = dummyLoc $ symbol ("autolen" :: String)
 
 anyTypeSymbol :: Symbol
-anyTypeSymbol = symbol ("GHC.Prim.Any" :: String)
+anyTypeSymbol = symbol (show ''Any)
 
 selfSymbol :: Symbol
 selfSymbol = symbol ("liquid_internal_this" :: String)

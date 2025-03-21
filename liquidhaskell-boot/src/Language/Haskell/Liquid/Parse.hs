@@ -6,6 +6,7 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE TemplateHaskellQuotes     #-}
 {-# OPTIONS_GHC -Wno-orphans           #-}
 
 module Language.Haskell.Liquid.Parse
@@ -97,8 +98,8 @@ instance ParseableV LocSymbol where
 initPStateWithList :: LHPState
 initPStateWithList
   = (initPState composeFun)
-               { empList    = Just $ \lx -> EVar ("GHC.Types.[]" <$ lx)
-               , singList   = Just (\lx e -> EApp (EApp (EVar ("GHC.Types.:" <$ lx)) e) (EVar ("GHC.Types.[]" <$ lx)))
+               { empList    = Just $ \lx -> EVar (symbol (show '[]) <$ lx)
+               , singList   = Just (\lx e -> EApp (EApp (EVar (symbol (show '(:)) <$ lx)) e) (EVar (symbol (show '[]) <$ lx)))
                }
   where composeFun = Nothing
 

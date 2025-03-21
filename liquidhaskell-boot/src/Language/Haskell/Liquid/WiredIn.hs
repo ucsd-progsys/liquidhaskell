@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskellQuotes #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
@@ -256,17 +257,17 @@ derivingClassesSet = S.fromList $ map F.symbol derivingClasses
 
 derivingClasses :: [String]
 derivingClasses =
-  [ "GHC.Classes.Eq"
-  , "GHC.Classes.Ord"
-  , "GHC.Internal.Enum.Enum"
-  , "GHC.Internal.Show.Show"
-  , "GHC.Internal.Read.Read"
-  , "GHC.Internal.Base.Monad"
-  , "GHC.Internal.Base.Applicative"
-  , "GHC.Internal.Base.Functor"
-  , "GHC.Internal.Data.Foldable.Foldable"
-  , "GHC.Internal.Data.Traversable.Traversable"
-  , "GHC.Internal.Real.Fractional"
+  [ show ''Eq
+  , show ''Ord
+  , show ''Enum
+  , show ''Show
+  , show ''Read
+  , show ''Monad
+  , show ''Applicative
+  , show ''Functor
+  , show ''Foldable
+  , show ''Traversable
+  , show ''Fractional
   -- , "GHC.Enum.Bounded"
   -- , "GHC.Base.Monoid"
   ]

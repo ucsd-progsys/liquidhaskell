@@ -199,6 +199,9 @@ import GHC.Builtin.Types              as Ghc
     , intTy
     , intTyCon
     , intTyConName
+    , integerISDataCon
+    , integerIPDataCon
+    , integerINDataCon
     , liftedTypeKind
     , liftedTypeKindTyConName
     , listTyCon
