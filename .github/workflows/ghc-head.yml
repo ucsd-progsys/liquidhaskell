@@ -1,5 +1,11 @@
 name: GHC HEAD
 on:
+  push:
+    branches:
+      - ci/ghc-head
+  pull_request:
+    branches:
+      - ci/ghc-head
   workflow_dispatch:
   # pull_request: # comment out to have this run on PR's
   # runs at 8:00 on Mondays
