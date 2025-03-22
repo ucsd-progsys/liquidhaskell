@@ -53,6 +53,8 @@ common common-ghc-options
                       -fkeep-going
                       -O0
                       -no-link
+    if flag(measure-timings)
+      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
 
 flag benchmark-stitch-lh
      default: False
@@ -115,8 +117,6 @@ executable benchmark-stitch-lh
                       -Wno-unticked-promoted-constructors
                       -fno-warn-name-shadowing
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     default-language: Haskell2010
 
 flag benchmark-bytestring
@@ -151,8 +151,6 @@ executable benchmark-bytestring
                     , array >= 0.5.4
 
   ghc-options:      -Wno-inline-rule-shadowing
-  if flag(measure-timings)
-    ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
 
 flag benchmark-vector-algorithms
@@ -188,8 +186,6 @@ executable benchmark-vector-algorithms
                     , liquidhaskell
                     , vector
 
-  if flag(measure-timings)
-    ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
 
 flag benchmark-cse230
@@ -219,8 +215,6 @@ executable benchmark-cse230
                     , liquid-prelude
                     , liquidhaskell
 
-  if flag(measure-timings)
-    ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
 
 flag benchmark-esop2013
@@ -250,8 +244,6 @@ executable benchmark-esop2013
                     , deepseq >= 1.4
 
   ghc-options:      -Wno-inline-rule-shadowing
-  if flag(measure-timings)
-    ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
 
 flag benchmark-icfp15-pos
@@ -295,8 +287,6 @@ executable benchmark-icfp15-pos
                     , ghc-prim
                     , liquidhaskell
 
-  if flag(measure-timings)
-    ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
 
 flag benchmark-icfp15-neg
@@ -327,8 +317,6 @@ executable benchmark-icfp15-neg
                     , ghc-prim
                     , liquidhaskell
 
-  if flag(measure-timings)
-    ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
 
 flag prover-foundations
@@ -352,8 +340,6 @@ executable prover-foundations
                     , liquid-prelude
                     , liquidhaskell
 
-  if flag(measure-timings)
-    ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
 
 flag prover-nople-pos
@@ -407,8 +393,6 @@ executable prover-nople-pos
                     , liquidhaskell
                     , prover-ple-lib
 
-  if flag(measure-timings)
-    ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
 
 flag prover-nople-neg
@@ -445,8 +429,6 @@ executable prover-nople-neg
                     , liquidhaskell
                     , prover-ple-lib
 
-  if flag(measure-timings)
-    ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
 
 flag prover-ple-pos
@@ -497,8 +479,6 @@ executable prover-ple-pos
                     , liquidhaskell
                     , prover-ple-lib
 
-  if flag(measure-timings)
-    ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
   default-language: Haskell2010
 
 flag benchmark-text
@@ -580,8 +560,6 @@ executable benchmark-text
   default-language: Haskell2010
 
   ghc-options: -fplugin-opt=LiquidHaskell=--no-check-imports
-  if flag(measure-timings)
-    ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
 
 flag parsing-errors
      default: False
@@ -598,9 +576,6 @@ executable parsing-errors
                     , ParseClass
 
     ghc-options:      -fplugin-opt=LiquidHaskell:--expect-error-containing=parse
-
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
 
     build-depends:    base
                     , bytestring
@@ -724,9 +699,6 @@ executable errors
                     , UnboundVarInLocSig
                     , UnboundVarInSpec
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-
     build-depends:    base
                     , liquid-prelude
                     , bytestring
@@ -762,8 +734,6 @@ executable parser-pos
                     , TokensAsPrefixes
                     , Tuples
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
@@ -815,8 +785,6 @@ executable names-pos
                     , Vector0
                     , Vector1
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , liquid-vector
@@ -851,8 +819,6 @@ executable names-neg
                     , Vector0
                     , Vector1
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , liquid-vector
@@ -886,9 +852,6 @@ executable name-resolution-pos
 
 
     ghc-options:      -Wall
-
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
 
     build-depends:    base
                     , liquidhaskell
@@ -943,8 +906,6 @@ executable class-pos
                     , RealProps1
                     , TypeEquality01
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
@@ -969,8 +930,6 @@ executable class-neg
                     , Inst00
                     , RealProps0
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
@@ -994,8 +953,6 @@ executable reflect-neg
                     , ReflString0
                     , ReflString1
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
@@ -1041,8 +998,6 @@ executable measure-pos
                     , RecordAccessors
                     , Using00
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
@@ -1077,8 +1032,6 @@ executable measure-neg
                     , Ple1Lib
                     , Using00
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
@@ -1114,8 +1067,6 @@ executable datacon-pos
                     , T1477
                     , T1777
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
@@ -1145,8 +1096,6 @@ executable datacon-neg
                     -- , NewTypes0
                     , NewTypes
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
@@ -1496,8 +1445,6 @@ executable unit-pos-1
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , containers
@@ -1644,8 +1591,6 @@ executable unit-pos-2
                     , LooLibLib
                     , LNot
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , containers
@@ -1851,8 +1796,6 @@ executable unit-pos-3
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , containers
@@ -1995,8 +1938,6 @@ executable unit-pos-4
                     , Ex1
                     , Lib521
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , containers
@@ -2118,8 +2059,6 @@ executable unit-pos-5
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , containers
@@ -2164,8 +2103,6 @@ executable absref-pos
                     , State00
                     , VectorLoop
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , liquid-vector
@@ -2195,8 +2132,6 @@ executable absref-neg
                     , ListISort_LType
                     , ListQSort
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , liquid-vector
@@ -2227,8 +2162,6 @@ executable relational-pos
                     , MutRec
                     , SndOrdPredNonRel
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , liquid-vector
@@ -2258,8 +2191,6 @@ executable relational-neg
                     , CheckedImp
                     , SndOrdPred
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , liquid-vector
@@ -2302,8 +2233,6 @@ executable basic-neg
                     , T1459
                     , T2349
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
@@ -2385,8 +2314,6 @@ executable basic-pos
                     , T2369
                     , TestAdmit
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
@@ -2478,8 +2405,6 @@ executable import-cli
                     , B
                     , C
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
@@ -2568,8 +2493,6 @@ executable ple-pos
     --   other-modules:  T1302b
 
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , containers
@@ -2607,8 +2530,6 @@ executable ple-neg
                     , T1409
                     , T1424
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , containers
@@ -2634,8 +2555,6 @@ executable rankN-pos
                     , Test1
 
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
@@ -2677,8 +2596,6 @@ executable terminate-pos
                     , T1403
                     , Term00
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , containers
@@ -2716,8 +2633,6 @@ executable terminate-neg
                     , Total01
                     , Total02
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
@@ -2750,8 +2665,6 @@ executable pattern-pos
                     , TemplateHaskell
                     , TemplateHaskellLib
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
@@ -2781,8 +2694,6 @@ executable typeclass-pos
                     , PNat
                     , SemigroupLib
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
