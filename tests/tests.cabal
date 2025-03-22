@@ -45,7 +45,6 @@ executable test-driver
                     , Test.Groups
                     , Test.Options
 
-    default-language: Haskell2010
     ghc-options:      -O2 -j -Wall -Werror
 
 common common-ghc-options
@@ -55,6 +54,7 @@ common common-ghc-options
                       -no-link
     if flag(measure-timings)
       ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
+    default-language: Haskell2010
 
 flag benchmark-stitch-lh
      default: False
@@ -117,8 +117,6 @@ executable benchmark-stitch-lh
                       -Wno-unticked-promoted-constructors
                       -fno-warn-name-shadowing
 
-    default-language: Haskell2010
-
 flag benchmark-bytestring
      default: False
 
@@ -151,7 +149,6 @@ executable benchmark-bytestring
                     , array >= 0.5.4
 
   ghc-options:      -Wno-inline-rule-shadowing
-  default-language: Haskell2010
 
 flag benchmark-vector-algorithms
      default: False
@@ -186,8 +183,6 @@ executable benchmark-vector-algorithms
                     , liquidhaskell
                     , vector
 
-  default-language: Haskell2010
-
 flag benchmark-cse230
      default: False
 
@@ -214,8 +209,6 @@ executable benchmark-cse230
   build-depends:      base
                     , liquid-prelude
                     , liquidhaskell
-
-  default-language: Haskell2010
 
 flag benchmark-esop2013
      default: False
@@ -244,7 +237,6 @@ executable benchmark-esop2013
                     , deepseq >= 1.4
 
   ghc-options:      -Wno-inline-rule-shadowing
-  default-language: Haskell2010
 
 flag benchmark-icfp15-pos
      default: False
@@ -287,8 +279,6 @@ executable benchmark-icfp15-pos
                     , ghc-prim
                     , liquidhaskell
 
-  default-language: Haskell2010
-
 flag benchmark-icfp15-neg
      default: False
 
@@ -317,8 +307,6 @@ executable benchmark-icfp15-neg
                     , ghc-prim
                     , liquidhaskell
 
-  default-language: Haskell2010
-
 flag prover-foundations
      default: False
 
@@ -339,8 +327,6 @@ executable prover-foundations
   build-depends:      base
                     , liquid-prelude
                     , liquidhaskell
-
-  default-language: Haskell2010
 
 flag prover-nople-pos
      default: False
@@ -393,8 +379,6 @@ executable prover-nople-pos
                     , liquidhaskell
                     , prover-ple-lib
 
-  default-language: Haskell2010
-
 flag prover-nople-neg
      default: False
 
@@ -428,8 +412,6 @@ executable prover-nople-neg
                     , containers
                     , liquidhaskell
                     , prover-ple-lib
-
-  default-language: Haskell2010
 
 flag prover-ple-pos
      default: False
@@ -478,8 +460,6 @@ executable prover-ple-pos
                     , containers
                     , liquidhaskell
                     , prover-ple-lib
-
-  default-language: Haskell2010
 
 flag benchmark-text
      default: False
@@ -556,9 +536,6 @@ executable benchmark-text
   cpp-options: -DINTEGER_GMP
 
   ghc-options: -Wall -fwarn-tabs
-
-  default-language: Haskell2010
-
   ghc-options: -fplugin-opt=LiquidHaskell=--no-check-imports
 
 flag parsing-errors
@@ -584,8 +561,6 @@ executable parsing-errors
 
     hs-source-dirs:   parsing-errors/app
                     , parsing-errors
-
-    default-language: Haskell2010
 
 flag errors
      default: False
@@ -708,8 +683,6 @@ executable errors
     hs-source-dirs:   app
                     , errors
 
-    default-language: Haskell2010
-
 flag parser-pos
      default: False
 
@@ -740,8 +713,6 @@ executable parser-pos
 
     hs-source-dirs:   app
                     , parser/pos
-
-    default-language: Haskell2010
 
 flag names-pos
      default: False
@@ -796,8 +767,6 @@ executable names-pos
     hs-source-dirs:   app
                     , names/pos
 
-    default-language: Haskell2010
-
 flag names-neg
      default: False
 
@@ -830,8 +799,6 @@ executable names-neg
     hs-source-dirs:   app
                     , names/neg
 
-    default-language: Haskell2010
-
 flag name-resolution-pos
      default: False
 
@@ -859,8 +826,6 @@ executable name-resolution-pos
     hs-source-dirs:   app
                     , name-resolution/pos
 
-    default-language: Haskell2010
-
 flag reflect-pos
      default: False
 
@@ -884,8 +849,6 @@ executable reflect-pos
 
     hs-source-dirs:   app
                     , reflect/pos
-
-    default-language: Haskell2010
 
 flag class-pos
       default: False
@@ -913,8 +876,6 @@ executable class-pos
     hs-source-dirs:   app
                     , classes/pos
 
-    default-language: Haskell2010
-
 flag class-neg
       default: False
 
@@ -937,8 +898,6 @@ executable class-neg
     hs-source-dirs:   app
                     , classes/neg
 
-    default-language: Haskell2010
-
 flag reflect-neg
      default: False
 
@@ -959,8 +918,6 @@ executable reflect-neg
 
     hs-source-dirs:   app
                     , reflect/neg
-
-    default-language: Haskell2010
 
 flag measure-pos
      default: False
@@ -1005,8 +962,6 @@ executable measure-pos
     hs-source-dirs:   app
                     , measure/pos
 
-    default-language: Haskell2010
-
 flag measure-neg
      default: False
 
@@ -1040,8 +995,6 @@ executable measure-neg
     hs-source-dirs:   app
                     , measure/neg
 
-    default-language: Haskell2010
-
 flag datacon-pos
      default: False
 
@@ -1074,8 +1027,6 @@ executable datacon-pos
     hs-source-dirs:   app
                     , datacon/pos
 
-    default-language: Haskell2010
-
 flag datacon-neg
      default: False
 
@@ -1102,8 +1053,6 @@ executable datacon-neg
 
     hs-source-dirs:   app
                     , datacon/neg
-
-    default-language: Haskell2010
 
 flag unit-neg
      default: False
@@ -1347,8 +1296,6 @@ executable unit-neg
                     , primitive
                     , vector
 
-    default-language: Haskell2010
-
 
 flag unit-pos-1
      default: False
@@ -1463,7 +1410,6 @@ executable unit-pos-1
 
     c-sources:        ffi-include/foo.c
     include-dirs:     ffi-include
-    default-language: Haskell2010
 
 flag unit-pos-2
      default: False
@@ -1609,8 +1555,6 @@ executable unit-pos-2
 
     c-sources:        ffi-include/foo.c
     include-dirs:     ffi-include
-    default-language: Haskell2010
-
 
 flag unit-pos-3
      default: False
@@ -1814,8 +1758,6 @@ executable unit-pos-3
 
     c-sources:        ffi-include/foo.c
     include-dirs:     ffi-include
-    default-language: Haskell2010
-
 
 flag unit-pos-4
      default: False
@@ -1956,8 +1898,6 @@ executable unit-pos-4
 
     c-sources:        ffi-include/foo.c
     include-dirs:     ffi-include
-    default-language: Haskell2010
-
 
 flag unit-pos-5
      default: False
@@ -2077,8 +2017,6 @@ executable unit-pos-5
 
     c-sources:        ffi-include/foo.c
     include-dirs:     ffi-include
-    default-language: Haskell2010
-
 
 flag absref-pos
      default: False
@@ -2112,8 +2050,6 @@ executable absref-pos
     hs-source-dirs:   app
                     , absref/pos
 
-    default-language: Haskell2010
-
 flag absref-neg
      default: False
 
@@ -2140,8 +2076,6 @@ executable absref-neg
 
     hs-source-dirs:   app
                     , absref/neg
-
-    default-language: Haskell2010
 
 flag relational-pos
      default: False
@@ -2171,8 +2105,6 @@ executable relational-pos
     hs-source-dirs:   app
                     , relational/pos
 
-    default-language: Haskell2010
-
 flag relational-neg
      default: False
 
@@ -2199,8 +2131,6 @@ executable relational-neg
 
     hs-source-dirs:   app
                     , relational/neg
-
-    default-language: Haskell2010
 
 flag basic-neg
      default: False
@@ -2240,8 +2170,6 @@ executable basic-neg
 
     hs-source-dirs:   app
                     , basic/neg
-
-    default-language: Haskell2010
 
 flag basic-pos
      default: False
@@ -2320,8 +2248,6 @@ executable basic-pos
 
     hs-source-dirs:   app
                     , basic/pos
-
-    default-language: Haskell2010
 
 flag import-cli
      default: False
@@ -2413,8 +2339,6 @@ executable import-cli
                     , import/client
                     , import/lib
 
-    default-language: Haskell2010
-
 flag ple-pos
      default: False
 
@@ -2501,8 +2425,6 @@ executable ple-pos
     hs-source-dirs:   app
                     , ple/pos
 
-    default-language: Haskell2010
-
 flag ple-neg
      default: False
 
@@ -2538,8 +2460,6 @@ executable ple-neg
     hs-source-dirs:   app
                     , ple/neg
 
-    default-language: Haskell2010
-
 flag rankN-pos
      default: False
 
@@ -2561,8 +2481,6 @@ executable rankN-pos
 
     hs-source-dirs:   app
                     , RankNTypes/pos
-
-    default-language: Haskell2010
 
 flag terminate-pos
      default: False
@@ -2604,8 +2522,6 @@ executable terminate-pos
     hs-source-dirs:   app
                     , terminate/pos
 
-    default-language: Haskell2010
-
 flag terminate-neg
      default: False
 
@@ -2640,8 +2556,6 @@ executable terminate-neg
     hs-source-dirs:   app
                     , terminate/neg
 
-    default-language: Haskell2010
-
 flag pattern-pos
      default: False
 
@@ -2674,8 +2588,6 @@ executable pattern-pos
     hs-source-dirs:   app
                     , pattern/pos
 
-    default-language: Haskell2010
-
 flag typeclass-pos
      default: False
 
@@ -2701,8 +2613,6 @@ executable typeclass-pos
     hs-source-dirs:   app
                     , typeclasses/pos
 
-    default-language: Haskell2010
-
 -- This test suite is for internal function unit tests, not for checking LH on
 -- source files.
 test-suite tasty
@@ -2714,5 +2624,4 @@ test-suite tasty
                     , tasty
                     , tasty-hunit
                     , liquidhaskell-boot
-    default-language: Haskell2010
     ghc-options:      -threaded -Werror
