@@ -2,7 +2,10 @@
 
 ## Next
 
+## 0.9.12.2 (2025-03-22)
+
 - Simplify kvar solutions in fqout files [liquid-fixpoint#741](https://github.com/ucsd-progsys/liquid-fixpoint/pull/741).
+- Upgrade ghc to 9.12.2 [#2474](https://github.com/ucsd-progsys/liquidhaskell/pull/2474).
 
 ## 0.9.10.1.2 (2025-03-06)
 
