@@ -23,10 +23,7 @@
 -- * Next the names of Haskell entities are resolved by 'resolveLHNames'.
 --   For now, this pass doesn't change the type of the names.
 -- * Next the names of logic entities are resolved. This pass produces
---   a 'BareSpecLHName', where 'Symbol's are replaced with 'LHName'. At
---   the moment most LHNames are just wrappers over the symbols. As name
---   resolution is implemented for logic names, the wrappers will be
---   replaced with the actual result of name resolution.
+--   a 'BareSpecLHName', where 'Symbol's are replaced with 'LHName'.
 --
 -- 'BareSpecLHName' has a bijection to 'BareSpec' via a 'LogicNameEnv'
 -- which allows to convert 'LHName' to an unambiguous form of 'Symbol'
