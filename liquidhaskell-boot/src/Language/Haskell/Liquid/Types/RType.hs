@@ -339,6 +339,7 @@ emapExprVM f = go []
       PGrad k su gi e ->
         PGrad k <$> emapSubstVM (f . (acc ++)) su <*> pure gi <*> go (domain su ++ acc) e
       ECoerc srt0 srt1 e -> ECoerc srt0 srt1 <$> go acc e
+      ELet x e1 e2 -> ELet x <$> go acc e1 <*> go (x:acc) e2
 
     domain (Su m) = M.keys m
 
