@@ -72,6 +72,9 @@ import Language.Haskell.Liquid.UX.Config
       patternFlag,
       higherOrderFlag, warnOnTermHoles )
 import qualified GHC.Data.Strict as Strict
+import Debug.Trace (traceM)
+import Data.Generics (gshow)
+import qualified Text.Printf as Text
 
 
 --------------------------------------------------------------------------------
@@ -297,28 +300,49 @@ addPToEnv γ π
   = do γπ <- γ += ("addSpec1", pname π, pvarRType π)
        foldM (+=) γπ [("addSpec2", x, ofRSort t) | (t, x, _) <- pargs π]
 
+detectTypedHole :: CoreExpr -> Maybe (RealSrcSpan, Var)
+detectTypedHole e =
+  case stripTicks e of
+    Var x | isVarHole x ->
+      case lastTick e of
+        Just (SourceNote src _) -> Just (src, x)
+        _                       -> Nothing
+    _ -> Nothing
 
-detectTypedHole ::  CGEnv -> CoreExpr -> CG (Maybe (RealSrcSpan, Var))
-detectTypedHole _ (App (Tick genTick (Var x)) _) | isVarHole x
-  = return (Just (getSrcSpanFromTick, x))
-    where
-      getSrcSpanFromTick = 
-        case genTick of
-          SourceNote src _ -> src
-          _ -> panic Nothing "Not a Source Note"
-      isStrHole s = 
-        case break (=='.') s of
-          (_, '.':rest) -> rest == "hole"
-          _             -> False
-      isVarHole = isStrHole . F.symbolString . F.symbol
-detectTypedHole  _ _ = return Nothing -- NOT A TYPED HOLE
---------------------------------------------------------------------------------
+-- Remove Initial App and sequent Tick nodes from an expression.
+stripTicks :: CoreExpr -> CoreExpr
+stripTicks (App (Tick _ e) _) = stripTicks e
+stripTicks (Tick _ e)         = stripTicks e
+stripTicks e          = e
+
+-- Traverse the expression to get the last Tick information.
+lastTick :: Expr b -> Maybe CoreTickish
+lastTick (Tick t e) =
+  case lastTick e of
+    Just t' -> Just t'
+    Nothing -> Just t
+lastTick (App e a) =
+  case lastTick a of
+    Just ta -> Just ta
+    Nothing -> lastTick e
+lastTick _ = Nothing
+
+-- A helper to check if the variable name indicates a typed hole.
+isVarHole :: Var -> Bool
+isVarHole x = isHoleStr (F.symbolString (F.symbol x))
+  where
+    isHoleStr s =
+      case break (== '.') s of
+        (_, '.':rest) -> rest == "hole"
+        _             -> False
+
 -- | Bidirectional Constraint Generation: CHECKING -----------------------------
 --------------------------------------------------------------------------------
 cconsE :: CGEnv -> CoreExpr -> SpecType -> CG ()
 --------------------------------------------------------------------------------
 cconsE g e t = do
   -- _ <- traceM $ Text.printf "cconsE:\n expr = %s\n GSHOW = %s \nexprType = %s\n lqType = %s\n" (showpp e) (gshow e) (showpp (exprType e)) (showpp t)
+  _ <- traceM $ Text.printf "cconsE:\n expr = %s\n GSHOW = %s \nexprType = %s\n lqType = %s\n" (showpp e) (gshow e) (showpp (exprType e)) (showpp t)
   cconsE' g e t
 
 --------------------------------------------------------------------------------
@@ -332,8 +356,15 @@ cconsE' γ e t
   = let γ' = γ { grtys = insertREnv (F.symbol x) t (grtys γ)}
     in void $ consCBLet γ' (Rec [(x, e')])
 
-cconsE' γ e@(Let b@(NonRec x _) ee) t
-  = do sp <- gets specLVars
+cconsE' γ e@(Let b@(NonRec x e') ee) t
+  = do
+       traceM $ "[cconsE' NON REC Let: " ++ GM.showPpr b
+       let isItHole = detectTypedHole e'
+       traceM $ "[cconsE' NON REC Let: isItHole = " ++ show isItHole ++ " " ++ GM.showPpr e'
+       _ <- case isItHole of
+        Nothing -> pure () 
+        Just (_, var) -> addHoleDep x var
+       sp <- gets specLVars
        if x `S.member` sp
          then cconsLazyLet γ e t
          else do γ' <- consCBLet γ b
@@ -348,7 +379,9 @@ cconsE' γ e (RAllP p t)
     γ'         = L.foldl' addConstraints γ css
 
 cconsE' γ (Let b e) t
-  = do γ' <- consCBLet γ b
+  = do 
+       traceM $ "[cconsE' Let: " ++ GM.showPpr b
+       γ' <- consCBLet γ b
        cconsE γ' e t
 
 cconsE' γ (Case e x _ cases) t
@@ -391,12 +424,16 @@ cconsE' γ e t
        _ <- when (warnOnTermHoles (getConfig γ))  maybeAddHole
        te  <- consE γ e
        te' <- instantiatePreds γ e te >>= addPost γ
+       traceM $ "[cconsE] " ++ GM.showPpr e ++ " : " ++ showpp te'
+       traceM $ "[cconsE SubC]" ++ showpp te' ++ " <: " ++ showpp t
        addC (SubC γ te' t) ("cconsE: " ++ "\n t = " ++ showpp t ++ "\n te = " ++ showpp te ++ GM.showPpr e)
   where 
     maybeAddHole = do
-      isItHole <- detectTypedHole γ e
+      let isItHole = detectTypedHole e
       case isItHole of
-        Just (srcSpan, x) -> addHole (RealSrcSpan srcSpan Strict.Nothing) x t γ
+        Just (srcSpan, x) -> do
+          traceM $ "CGVAR: " ++ (show $ cgVar γ)
+          addHole (RealSrcSpan srcSpan Strict.Nothing) x t γ
         _ -> return ()
 
 lambdaSingleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> CG (UReft F.Reft)
@@ -520,43 +557,23 @@ consE γ (Var x)
 consE _ (Lit c)
   = refreshVV $ uRType $ literalFRefType c
 
-consE γ e'@(App e a@(Type τ))
-  = do RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
-       t            <- if not (nopolyinfer (getConfig γ)) && isPos α && isGenericVar (ty_var_value α) te
-                         then freshTyType (typeclass (getConfig γ)) TypeInstE e τ
-                         else trueTy (typeclass (getConfig γ)) τ
-       addW          $ WfC γ t
-       t'           <- refreshVV t
-       tt0          <- instantiatePreds γ e' (subsTyVarMeet' (ty_var_value α, t') te)
-       let tt        = makeSingleton γ (simplify e') $ subsTyReft γ (ty_var_value α) τ tt0
-       return $ case rTVarToBind α of
-         Just (x, _) -> maybe (checkUnbound γ e' x tt a) (F.subst1 tt . (x,)) (argType τ)
-         Nothing     -> tt
-  where
-    isPos α = not (extensionality (getConfig γ)) || rtv_is_pol (ty_var_info α)
-
-consE γ e'@(App e a) | Just aDict <- getExprDict γ a
-  = case dhasinfo (dlookup (denv γ) aDict) (getExprFun γ e) of
-      Just riSig -> return $ fromRISig riSig
-      _          -> do
-        ([], πs, te) <- bkUniv <$> consE γ e
-        te'          <- instantiatePreds γ e' $ foldr RAllP te πs
-        (γ', te''')  <- dropExists γ te'
-        te''         <- dropConstraints γ te'''
-        updateLocA {- πs -} (exprLoc e) te''
-        let RFun x _ tx t _ = checkFun ("Non-fun App with caller ", e') γ te''
-        cconsE γ' a tx
-        addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
-
-consE γ e'@(App e a)
-  = do ([], πs, te) <- bkUniv <$> consE γ {- GM.tracePpr ("APP-EXPR: " ++ GM.showPpr (exprType e)) -} e
-       te1        <- instantiatePreds γ e' $ foldr RAllP te πs
-       (γ', te2)  <- dropExists γ te1
-       te3        <- dropConstraints γ te2
-       updateLocA (exprLoc e) te3
-       let RFun x _ tx t _ = checkFun ("Non-fun App with caller ", e') γ te3
-       cconsE γ' a tx
-       makeSingleton γ' (simplify e') <$> addPost γ' (maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ $ simplify a))
+consE γ e'@(App _ _) =
+  do
+    traceM $ "[consE App: " ++ GM.showPpr e'
+    t <- if (warnOnTermHoles (getConfig γ)) then synthesizeWithHole else consEApp γ e'
+    traceM $ "[consE App: " ++ GM.showPpr e' ++ " : " ++ showpp t
+    return t
+  where 
+    synthesizeWithHole = do
+      let isItHole = detectTypedHole e'
+      t <- consEApp γ e'
+      _ <- case isItHole of
+        Just (srcSpan, x) -> 
+          do
+            traceM $ "CGVAR: " ++ (show $ cgVar γ)
+            addHole (RealSrcSpan srcSpan Strict.Nothing) x t γ 
+        _ -> return ()
+      return t
 
 consE γ (Lam α e) | isTyVar α
   = do γ' <- updateEnvironment γ α
@@ -603,6 +620,7 @@ consE γ e@(Coercion _)
 
 consE _ e@(Type t)
   = panic Nothing $ "consE cannot handle type " ++ GM.showPpr (e, t)
+
 
 consEApp :: CGEnv -> CoreExpr -> CG SpecType
 consEApp γ e'@(App e a@(Type τ))

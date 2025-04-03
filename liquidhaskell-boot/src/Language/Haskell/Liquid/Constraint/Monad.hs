@@ -8,6 +8,7 @@ module Language.Haskell.Liquid.Constraint.Monad  where
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.Text           as T
+import qualified Data.HashSet       as S
 
 import           Control.Monad
 import           Control.Monad.State (gets, modify)
@@ -21,6 +22,7 @@ import           Language.Fixpoint.Misc hiding (errorstar)
 import           Language.Haskell.Liquid.GHC.Misc -- (concatMapM)
 import           Liquid.GHC.API as Ghc hiding (panic, showPpr)
 import qualified       Language.Fixpoint.Types     as  FT
+import Debug.Trace (traceM)
 
 
 --------------------------------------------------------------------------------
@@ -121,11 +123,17 @@ addA _ _ _ !a
 addHole :: SrcSpan -> Var -> SpecType -> CGEnv -> CG ()
 addHole loc x t γ = do
   modify $ \s -> s { hsHoles = M.insert x (holeInfo (s, γ)) $ hsHoles s } 
+  traceM $ "addHole: " ++ show x ++ " : " ++ show t
   addWarning $ ErrHole loc ("hole found") (reLocal $ renv γ) x' t
   where
     holeInfo = HoleInfo t loc env
     env      = mconcat [renv γ, grtys γ, assms γ, intys γ]
     x'       = FT.symbol x
+
+-- | Add a dependency from one hole variable to another
+addHoleDep :: Var -> Var -> CG ()
+addHoleDep holeVar depVar = modify $ \s -> 
+  s { hsHolesDeps = M.insertWith S.union holeVar (S.singleton depVar) (hsHolesDeps s) }
 
 isVarInHole :: Var -> CG Bool
 isVarInHole x = gets (M.member x . hsHoles)
