@@ -14,3 +14,11 @@
 - ignore: {name: "Eta reduce"} # 51 hints
 - ignore: {name: "Use infix"} # 3 hints
 - ignore: {name: "Fuse foldr/map"}
+- ignore: {name: "Move filter"}
+- ignore: {name: "Use rights"}
+- ignore: {name: "Use lefts"}
+- ignore: {name: "Fuse foldr/<$>"}
+- ignore: {name: "Functor law"}
+- ignore: {name: "Use maybe"}
+- ignore: {name: "Redundant <$>"}
+- ignore: {name: "Fuse concatMap/<$>"}

@@ -1431,12 +1431,12 @@ dataConReft c xs
       = mkEApp (dummyLoc $ symbol c) (eVar <$> xs)
 
 isBaseDataCon :: DataCon -> Bool
-isBaseDataCon c = and $ isBaseTy <$> map irrelevantMult (dataConOrigArgTys c ++ dataConRepArgTys c)
+isBaseDataCon c = all (isBaseTy . irrelevantMult) (dataConOrigArgTys c ++ dataConRepArgTys c)
 
 isBaseTy :: Type -> Bool
 isBaseTy (TyVarTy _)      = True
 isBaseTy (AppTy _ _)      = False
-isBaseTy (TyConApp _ ts)  = and $ isBaseTy <$> ts
+isBaseTy (TyConApp _ ts)  = all isBaseTy ts
 isBaseTy FunTy{}          = False
 isBaseTy (ForAllTy _ _)   = False
 isBaseTy (LitTy _)        = True

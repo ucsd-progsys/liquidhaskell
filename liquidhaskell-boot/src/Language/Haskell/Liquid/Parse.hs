@@ -781,7 +781,7 @@ bTup [(_,t)] _ r
   | isTauto (fmap val r)  = t
   | otherwise  = t `strengthenUReft` reftUReft r
 bTup ts rs r
-  | all Mb.isNothing (fst <$> ts) || length ts < 2
+  | all (Mb.isNothing . fst) ts || length ts < 2
   = RApp
       (mkBTyCon $ dummyLoc $ makeUnresolvedLHName LHTcName $ fromString $ "Tuple" ++ show (length ts))
       (snd <$> ts) rs (reftUReft r)
