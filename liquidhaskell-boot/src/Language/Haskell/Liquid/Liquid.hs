@@ -178,7 +178,7 @@ makeFailUseErrors fbs cbs = [ mkError x bs | x <- fbs
 
     go :: CoreBind -> [(Var,[Var])]
     go (NonRec x e) = [(x, readVars e)] 
-    go (Rec xes)    = [(x,cls) | x <- map fst xes] where cls = concatMap readVars (snd <$> xes)
+    go (Rec xes)    = [(x,cls) | x <- map fst xes] where cls = concatMap (readVars . snd) xes
 
 makeFailErrors :: [F.Located Var] -> [Cinfo] -> [UserError]
 makeFailErrors bs cis = [ mkError x | x <- bs, notElem (val x) vs ]  

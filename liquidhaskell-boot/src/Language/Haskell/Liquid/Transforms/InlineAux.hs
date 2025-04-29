@@ -61,7 +61,7 @@ isClassOpAuxOf aux method = case occNameString $ getOccName aux of
   _                -> False
 
 dfunIdSubst :: DFunId -> CoreExpr -> M.HashMap Id (Id, M.HashMap Id Id)
-dfunIdSubst dfunId e = M.fromList $ zip auxIds (repeat (dfunId, methodToAux))
+dfunIdSubst dfunId e = M.fromList [(auxId, (dfunId, methodToAux)) | auxId <- auxIds]
  where
   methodToAux = M.fromList
     [ (m, aux) | m <- methods, aux <- auxIds, aux `isClassOpAuxOf` m ]

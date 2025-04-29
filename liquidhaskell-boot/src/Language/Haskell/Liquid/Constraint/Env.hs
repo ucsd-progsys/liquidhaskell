@@ -113,7 +113,7 @@ lookupREnv :: F.Symbol -> REnv -> Maybe SpecType
 lookupREnv x rE = msum $ M.lookup x <$> renvMaps rE
 
 memberREnv :: F.Symbol -> REnv -> Bool
-memberREnv x rE = or   $ M.member x <$> renvMaps rE
+memberREnv x rE = any (M.member x) (renvMaps rE)
 
 globalREnv :: REnv -> REnv
 globalREnv (REnv gM lM) = REnv gM' M.empty

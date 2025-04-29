@@ -446,7 +446,7 @@ freeArgsPs _ (RExprArg _)
 freeArgsPs p (RHole r)
   = freeArgsPsRef p r
 freeArgsPs p (RRTy env r _ t)
-  = L.nub $ concatMap (freeArgsPs p) (snd <$> env) ++ freeArgsPsRef p r ++ freeArgsPs p t
+  = L.nub $ concatMap (freeArgsPs p . snd) env ++ freeArgsPsRef p r ++ freeArgsPs p t
 
 freeArgsPsRef :: PVar t1 -> UReft t -> [F.Symbol]
 freeArgsPsRef p (MkUReft _ (Pr ps)) = [x | (_, x, w) <- concatMap pargs ps', F.EVar x == w]
