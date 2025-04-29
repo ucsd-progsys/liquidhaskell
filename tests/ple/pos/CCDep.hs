@@ -158,8 +158,12 @@ data STACK = Stack [Ty]
 {-@ exec :: s:[Ty] -> s':[Ty] -> Prop (Code s s') -> Prop (Stack s) -> Prop (Stack s') @-}
 exec :: [Ty] -> [Ty] -> Code -> Stack -> Stack
 exec s s' (CPush _ _ n c)  i = exec (TNat : s) s' c (SCons TNat s (VNat n) i)
-exec (TNat : TNat : s)  s' (CAdd _ _ c) (SCons _ _ (VNat n) (SCons _ _ (VNat m) i)) =
-    exec (TNat : s) s' c (SCons TNat s (VNat (n + m)) i)
+-- Some pattern matching is deferred to the right-hand side to speed up totality checks,
+-- as they become simpler. The difference can be an order of magnitude in verification
+-- time. See https://github.com/ucsd-progsys/liquidhaskell/pull/2518#discussion_r2066478964
+exec s s' (CAdd _ _ c) i = case (s, i) of
+     ((TNat : TNat : s), SCons _ _ (VNat n) (SCons _ _ (VNat m) i)) ->
+       exec (TNat : s) s' c (SCons TNat s (VNat (n + m)) i)
 exec s s' (CThrow a b c) i = failE a b c i
 exec s s' (CMark _ _ c1 c2) i = exec (THan s s' : s) s' c2 (SCons (THan s s') s (VHan s s' c1) i)
 exec _ s' (CUnmark _ _ _ c) i = case i of
