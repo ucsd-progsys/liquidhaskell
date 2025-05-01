@@ -27,6 +27,8 @@ different users.
 
 ## Trying it from GitHub
 
+The github repo only builds with GHC 9.12.2, which must be in your `PATH`.
+
 ```
 git clone https://github.com/ucsd-progsys/liquidhaskell.git
 cd liquidhaskell
