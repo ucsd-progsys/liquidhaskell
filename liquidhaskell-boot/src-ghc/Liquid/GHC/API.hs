@@ -707,6 +707,7 @@ import GHC.Types.Name.Reader          as Ghc
     , mkVarUnqual
     , mkUnqual
     , nameRdrName
+    , noUserRdr
     )
 import GHC.Types.SourceError          as Ghc
     ( SourceError

@@ -948,7 +948,10 @@ withWiredIn m = discardConstraints $ do
     return $ Ghc.mkInternalName u (Ghc.mkVarOcc s) locSpan
 
   toLoc = Ghc.L locSpanAnn
-  nameToTy = Ghc.L locSpanAnn . HsTyVar Ghc.noAnn Ghc.NotPromoted
+  nameToTy =
+    Ghc.L locSpanAnn .
+    HsTyVar Ghc.noAnn Ghc.NotPromoted .
+    fmap noUserRdr
 
   boolTy' :: LHsType GhcRn
   boolTy' = nameToTy $ toLoc boolTyConName
