@@ -2390,7 +2390,8 @@ executable ple-pos
                     , ReflectDefault
                     , RegexpDerivative
                     , RosePLEDiv
-                    , StackCompiler
+                    -- Fails with GHC HEAD
+                    -- , StackCompiler
                     , STLC0
                     , STLC1
                     , STLC2
