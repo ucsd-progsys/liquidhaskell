@@ -8,13 +8,21 @@
 
 module StackCompiler where
 
+import Prelude hiding ((.), id)
 import Language.Haskell.Liquid.ProofCombinators
 
-{-@ reflect id @-}
 {-@ reflect $  @-}
 {-@ infix $    @-}
 
+{-@ reflect id @-}
+id :: a -> a
+id x = x
+
 {-@ reflect .  @-}
+{-@ infix .    @-}
+infixr 9 .
+(.) :: (b -> c) -> (a -> b) -> a -> c
+(.) f g x = f (g x)
 
 data Expr where
   EConst :: Int -> Expr
