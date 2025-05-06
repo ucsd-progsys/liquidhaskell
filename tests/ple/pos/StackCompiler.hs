@@ -11,9 +11,13 @@ module StackCompiler where
 import Prelude hiding ((.))
 import Language.Haskell.Liquid.ProofCombinators
 
-{-@ reflect id @-}
+{-@ assume reflect id as myid @-}
 {-@ reflect $  @-}
 {-@ infix $    @-}
+
+{-@ reflect myid @-}
+myid :: a -> a
+myid x = x
 
 {-@ reflect .  @-}
 {-@ infix .    @-}
