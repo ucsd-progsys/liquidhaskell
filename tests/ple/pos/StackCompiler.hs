@@ -8,7 +8,6 @@
 
 module StackCompiler where
 
-import Prelude hiding ((.))
 import Language.Haskell.Liquid.ProofCombinators
 
 {-@ reflect id @-}
@@ -16,10 +15,6 @@ import Language.Haskell.Liquid.ProofCombinators
 {-@ infix $    @-}
 
 {-@ reflect .  @-}
-{-@ infix .    @-}
-infixr 9 .
-(.) :: (b -> c) -> (a -> b) -> a -> c
-(.) f g x = f (g x)
 
 data Expr where
   EConst :: Int -> Expr
