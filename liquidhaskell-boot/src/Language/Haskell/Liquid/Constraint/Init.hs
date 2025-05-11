@@ -301,6 +301,8 @@ initCGI cfg info = CGInfo {
   , ghcI          = info
   , unsorted      = F.notracepp "UNSORTED" $ F.makeTemplates $ gsUnsorted $ gsData spc
   , hsHoles      = M.empty
+  , hsANFHoles   = M.empty
+  , hsHolesExprs = M.empty
   }
   where
     tce        = gsTcEmbeds nspc

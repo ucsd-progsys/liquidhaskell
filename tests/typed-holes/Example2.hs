@@ -24,5 +24,13 @@ module Example2 where
     leftId x
         =   empty <> x
         === hole
-        === x
+        === x          
         *** QED
+
+    {-@ rightId  :: x:[a] -> { (x <> empty) == x } @-}
+    rightId :: [a] -> Proof
+    rightId x = hole
+
+    {-@ assoc  :: x:[a] -> y:[a] -> z:[a] -> { (x <> (y <> z)) == ((x <> y) <> z) } @-}
+    assoc :: [a] -> [a] -> [a] -> Proof
+    assoc x y z = hole

@@ -7,4 +7,4 @@ module Example0 where
     {-@ listLength :: xs:[a] -> {v : Nat | v == len xs} @-}
     listLength :: [a] -> Int
     listLength [] = hole
-    listLength (_:xs) = 1 + listLength xs
+    listLength (_:xs) = 1 + hole

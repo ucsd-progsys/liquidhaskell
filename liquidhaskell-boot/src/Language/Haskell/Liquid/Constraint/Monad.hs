@@ -20,7 +20,6 @@ import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Fixpoint.Misc hiding (errorstar)
 import           Language.Haskell.Liquid.GHC.Misc -- (concatMapM)
 import           Liquid.GHC.API as Ghc hiding (panic, showPpr)
-import qualified       Language.Fixpoint.Types     as  FT
 
 
 --------------------------------------------------------------------------------
@@ -120,15 +119,22 @@ addA _ _ _ !a
 
 addHole :: SrcSpan -> Var -> SpecType -> CGEnv -> CG ()
 addHole loc x t γ = do
-  modify $ \s -> s { hsHoles = M.insert x (holeInfo (s, γ)) $ hsHoles s } 
-  addWarning $ ErrHole loc ("hole found") (reLocal $ renv γ) x' t
+  exists <- gets (M.member (x, loc) . hsHoles)
+  unless exists $
+    modify $ \s -> s { hsHoles = M.insert (x, loc) (holeInfo (s, γ)) $ hsHoles s }   
   where
     holeInfo = HoleInfo t loc env
     env      = mconcat [renv γ, grtys γ, assms γ, intys γ]
-    x'       = FT.symbol x
 
-isVarInHole :: Var -> CG Bool
-isVarInHole x = gets (M.member x . hsHoles)
+addHoleANF :: (Var, SrcSpan) -> Var -> CoreExpr -> SpecType -> CG ()
+addHoleANF uniqueVar anfVar e t = 
+  modify $ \s -> s { hsHolesExprs = M.insertWith (++) uniqueVar [(anfVar, e, t)] (hsHolesExprs s) }
+
+linkANFToHole :: Var -> (Var, SrcSpan) -> CG ()
+linkANFToHole anf h = modify $ \s -> s { hsANFHoles = M.insert anf h $ hsANFHoles s }
+
+isANFInHole :: Var -> CG (Maybe (Var, SrcSpan))
+isANFInHole anf = gets (M.lookup anf . hsANFHoles)
 
 lookupNewType :: Ghc.TyCon -> CG (Maybe SpecType)
 lookupNewType tc
