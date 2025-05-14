@@ -781,6 +781,9 @@ executable names-neg
                     , Capture01
                     , DuplicatedAliases
                     , Local00
+                    , Nat1
+                    , Nat2
+                    , QualifiedAliases
                     , Set00
                     , Set01
                     , Set02
@@ -825,31 +828,6 @@ executable name-resolution-pos
 
     hs-source-dirs:   app
                     , name-resolution/pos
-
-flag name-resolution-neg
-     default: False
-
-executable name-resolution-neg
-    import:           common-ghc-options
-    main-is:          Main.hs
-    if !flag(names-neg) && flag(stack)
-      buildable:      False
-
-    other-modules:
-                      Length
-                    , Nat1
-                    , Nat2
-
-    ghc-options:      -Wall
-
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
-
-    build-depends:    base
-                    , liquidhaskell
-
-    hs-source-dirs:   app
-                    , name-resolution/neg
 
 flag reflect-pos
      default: False
