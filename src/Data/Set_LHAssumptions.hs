@@ -46,6 +46,6 @@ define empty            = (Set_empty 0)
 define null x           = (Set_emp x)
 define member x xs      = (Set_mem x xs)
 define isSubsetOf x y   = (Set_sub x y)
-define fromList xs      = (listElts xs)
+define fromList xs      = (Data.Set_LHAssumptions.listElts xs)
 
 @-}
