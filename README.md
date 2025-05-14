@@ -331,3 +331,36 @@ that can be tested with `./scripts/test/test_plugin.sh`.
 [processTargetModule]: liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Interface.hs#L483
 [processModule]:       liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin.hs#L509
 
+# Liquid Haskell Architecture
+
+The following graph summarizes Liquid Haskell architecture.
+See the [Specs](./liquidhaskell–boot/src/Language/Haskell/Liquid/Types/Specs.hs) module for documentation.
+
+```mermaid
+flowchart LR
+  subgraph Liquid Haskell
+    subgraph Inputs
+      direction TB
+      H[HashSet LifttedSpec]
+      C[CoreBinds]
+      B[BarseSpec]
+    end
+
+    subgraph Outputs
+      direction TB
+      T[TargetSpec]
+      L[LiftedSpec]
+    end
+
+    Inputs --> Outputs
+  end
+
+  Deps>DepsOfModule] --> H
+  Mod>Module.hs] --> C & B
+  A>Module_LHAssumptions] -.-> B
+  T -->|checked by| Liquid([liquid/liquidOne])
+  L --> |serialized| File>Module.hi]
+```
+
+Reference:
+[Implementing a GHC Plugin for Liquid Haskell](https://well-typed.com/blog/2020/08/implementing-a-ghc-plugin-for-liquid-haskell/).
