@@ -334,7 +334,7 @@ that can be tested with `./scripts/test/test_plugin.sh`.
 # Liquid Haskell Architecture
 
 The following graph summarizes Liquid Haskell architecture.
-See the [Specs](./liquidhaskell–boot/src/Language/Haskell/Liquid/Types/Specs.hs) module for documentation.
+See the [Specs](./liquidhaskell-boot/src/Language/Haskell/Liquid/Types/Specs.hs) module for documentation.
 
 ```mermaid
 flowchart LR
