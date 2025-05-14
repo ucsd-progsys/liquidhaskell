@@ -147,7 +147,7 @@ More specifically, we distinguish:
 
 In order to produce these spec types we have to gather information about the module being compiled by using
 the GHC API and retain enough context of the compiled 'Module' in order to be able to construct the types
-introduced aboves. The rest of this module introduced also these intermediate structures.
+introduced above. The rest of this module introduces also these intermediate structures.
 -}
 
 -- $targetInfo
@@ -166,9 +166,9 @@ instance HasConfig TargetInfo where
   getConfig = getConfig . giSpec
 
 -- | The 'TargetSrc' type is a collection of all the things we know about a module being currently
--- checked. It include things like the name of the module, the list of 'CoreBind's,
+-- checked. It includes things like the name of the module, the list of 'CoreBind's,
 -- the 'TyCon's declared in this module (that includes 'TyCon's for classes), typeclass instances
--- and so and so forth. It might be consider a sort of 'ModGuts' embellished with LH-specific
+-- and so on and so forth. It might be considered a sort of 'ModGuts' embellished with LH-specific
 -- information (for example, 'giDefVars' are populated with datacons from the module plus the
 -- let vars derived from the A-normalisation).
 data TargetSrc = TargetSrc
@@ -197,7 +197,7 @@ data QImports = QImports
 
 -- | A 'TargetSpec' is what we /actually check via LiquidHaskell/. It is created as part of 'mkTargetSpec'
 -- alongside the 'LiftedSpec'. It shares a similar structure with a 'BareSpec', but manipulates and
--- transforms the data in preparation to the checking process.
+-- transforms the data in preparation for the checking process.
 data TargetSpec = TargetSpec
   { gsSig    :: !GhcSpecSig
   , gsQual   :: !GhcSpecQual
@@ -359,7 +359,7 @@ type SpecMeasure   = Measure LocSpecType DataCon
 -- $bareSpec
 
 -- | A 'BareSpec' is the spec we derive by parsing the Liquid Haskell annotations of a single file. As
--- such, it contains things which are relevant for validation and lifting; it contains things like
+-- such, it contains things which are relevant for validation and lifting:
 -- the pragmas the user defined, the termination condition (if termination-checking is enabled) and so
 -- on and so forth. /Crucially/, as a 'BareSpec' is still subject to \"preflight checks\", it may contain
 -- duplicates (e.g. duplicate measures, duplicate type declarations etc.) and therefore most of the fields
@@ -403,7 +403,7 @@ data Spec lname ty = Spec
   , hmeas      :: !(S.HashSet (F.Located LHName))                     -- ^ Binders to turn into measures using haskell definitions
   , inlines    :: !(S.HashSet (F.Located LHName))                     -- ^ Binders to turn into logic inline using haskell definitions
   , ignores    :: !(S.HashSet (F.Located LHName))                     -- ^ Binders to ignore during checking; that is DON't check the corebind.
-  , autosize   :: !(S.HashSet (F.Located LHName))                     -- ^ Type Constructors that get automatically sizing info
+  , autosize   :: !(S.HashSet (F.Located LHName))                     -- ^ Type Constructors that get sizing info automatically
   , pragmas    :: ![F.Located String]                                 -- ^ Command-line configurations passed in through source
   , cmeasures  :: ![MeasureV lname (F.Located ty) ()]                 -- ^ Measures attached to a type-class
   , imeasures  :: ![MeasureV lname (F.Located ty) (F.Located LHName)] -- ^ Mappings from (measure,type) -> measure
@@ -588,8 +588,8 @@ mapSpecLName f Spec {..} =
     mapRelationalV f1 (n0, n1, a, b, e0, e1) =
       (n0, n1, fmap (mapRTypeV f1 . mapReft (mapUReftV f1 (fmap f1))) a, fmap (mapRTypeV f1 . mapReft (mapUReftV f1 (fmap f1))) b, fmap f1 e0, fmap f1 e1)
 
--- /NOTA BENE/: These instances below are considered legacy, because merging two 'Spec's together doesn't
--- really make sense, and we provide this only for legacy purposes.
+-- /NOTA BENE/: The instances below are provided for legacy purposes only, because merging two 'Spec's together doesn't
+-- really make sense.
 instance Semigroup (Spec lname ty) where
   s1 <> s2
     = Spec { measures   =           measures   s1 ++ measures   s2
@@ -687,7 +687,7 @@ instance Monoid (Spec lname ty) where
 -- The general motivations for lifting a spec are (a) name resolution, (b) the fact that some info is
 -- only relevant for checking the body of functions but does not need to be exported, e.g.
 -- termination measures, or the fact that a type signature was assumed.
--- A 'LiftedSpec' is /what we serialise on disk and what the clients should will be using/.
+-- A 'LiftedSpec' is /what we serialise on disk and what the clients will be using/.
 --
 -- What we /do not/ have compared to a 'BareSpec':
 --
