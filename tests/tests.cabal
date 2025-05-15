@@ -781,6 +781,9 @@ executable names-neg
                     , Capture01
                     , DuplicatedAliases
                     , Local00
+                    , Nat1
+                    , Nat2
+                    , QualifiedAliases
                     , Set00
                     , Set01
                     , Set02
