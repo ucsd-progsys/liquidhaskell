@@ -333,15 +333,21 @@ that can be tested with `./scripts/test/test_plugin.sh`.
 
 # Liquid Haskell Architecture
 
-The following graph summarizes Liquid Haskell architecture.
-See the [Specs](./liquidhaskell-boot/src/Language/Haskell/Liquid/Types/Specs.hs) module for documentation.
+The following graph summarizes Liquid Haskell architecture from the perspective of
+a module's specification life cycle.
+See the [Specs module](./liquidhaskell-boot/src/Language/Haskell/Liquid/Types/Specs.hs)
+for detailed documentation.
 
 ```mermaid
 flowchart LR
   subgraph Liquid Haskell
+
     subgraph Inputs
       direction TB
-      H[HashSet LifttedSpec]
+      H[
+        Dependencies of A
+        LifttedSpecs
+        ]
       C[CoreBinds]
       B[BarseSpec]
     end
@@ -353,14 +359,16 @@ flowchart LR
     end
 
     Inputs --> Outputs
+
   end
 
-  Deps>DepsOfModule] --> H
-  Mod>Module.hs] --> C & B
-  A>Module_LHAssumptions] -.-> B
-  T -->|checked by| Liquid([liquid/liquidOne])
-  L --> |serialized| File>Module.hi]
-```
+  A>DepsOfA_LHAssumptions] --> H 
+  Deps>DepsOfA.hi] --> H
+  Mod(A.hs) --> C & B
+  T -->|checked by| fixpoint([liquid-fixpoint])
+  L --- fixpoint
+  L --> |serialized| File>A.hi]
+  ```
 
 Reference:
 [Implementing a GHC Plugin for Liquid Haskell](https://well-typed.com/blog/2020/08/implementing-a-ghc-plugin-for-liquid-haskell/).
