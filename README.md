@@ -331,12 +331,12 @@ that can be tested with `./scripts/test/test_plugin.sh`.
 [processTargetModule]: liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Interface.hs#L483
 [processModule]:       liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin.hs#L509
 
-# Liquid Haskell Architecture
+# Module Verification Process
 
-The following graph summarizes Liquid Haskell architecture from the perspective of
-a module's specification life cycle.
+The following graph summarizes the verification process of a module by showing
+its specification life cycle.
 See the [Specs module](./liquidhaskell-boot/src/Language/Haskell/Liquid/Types/Specs.hs)
-for detailed documentation.
+for detailed documentation on the specification stages.
 
 ```mermaid
 flowchart LR
