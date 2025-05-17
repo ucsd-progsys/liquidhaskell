@@ -344,17 +344,18 @@ flowchart LR
 
     subgraph Inputs
       direction TB
-      H[
+      LiftedDeps[
         Dependencies of A
         LifttedSpecs
         ]
-      C[CoreBinds]
-      B[BarseSpec]
+      CoreBinds[CoreBinds]
+      Bare[BarseSpec]
     end
 
     subgraph Outputs
       direction TB
-      T[TargetSpec]
+      T[TargetSpec] --> Constraints[Verification
+                                    Constraints]
       L[LiftedSpec]
     end
 
@@ -362,13 +363,13 @@ flowchart LR
 
   end
 
-  A>DepsOfA_LHAssumptions] --> H 
-  Deps>DepsOfA.hi] --> H
-  Mod(A.hs) --> C & B
-  T -->|checked by| fixpoint([liquid-fixpoint])
-  L --> |if verified:
+  A>DepsOfA_LHAssumptions] --> LiftedDeps
+  Deps>DepsOfA.hi] --> LiftedDeps
+  Mod(A.hs) --> CoreBinds & Bare
+  Constraints -->|checked by| fixpoint([liquid-fixpoint])
+  L ---> |if verified:
            serialize| File>A.hi]
-  ```
+```
 
 Reference:
 [Implementing a GHC Plugin for Liquid Haskell](https://well-typed.com/blog/2020/08/implementing-a-ghc-plugin-for-liquid-haskell/).
