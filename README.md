@@ -366,8 +366,8 @@ flowchart LR
   Deps>DepsOfA.hi] --> H
   Mod(A.hs) --> C & B
   T -->|checked by| fixpoint([liquid-fixpoint])
-  L --- fixpoint
-  L --> |serialized| File>A.hi]
+  L --> |if verified:
+           serialize| File>A.hi]
   ```
 
 Reference:
