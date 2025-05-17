@@ -335,8 +335,14 @@ that can be tested with `./scripts/test/test_plugin.sh`.
 
 The following graph summarizes the verification process of a module by showing
 its specification life cycle.
-See the [Specs module](./liquidhaskell-boot/src/Language/Haskell/Liquid/Types/Specs.hs)
+See [Specs.hs](./liquidhaskell-boot/src/Language/Haskell/Liquid/Types/Specs.hs)
 for detailed documentation on the specification stages.
+There are many moving parts hidden within each graph link,
+but some places worth noticing here are
+[Liquid.hs](./liquidhaskell-boot/src/Language/Haskell/Liquid/Liquid.hs),
+—which implements constraint generation— and
+[SpecFinder.hs](./liquidhaskell-boot/src/Language/Haskell/Liquid/Liquid.hs).
+—that deals with the gathering of dependencies and `LHAssumptions`—.
 
 ```mermaid
 flowchart LR
