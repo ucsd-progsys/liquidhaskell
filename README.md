@@ -331,3 +331,51 @@ that can be tested with `./scripts/test/test_plugin.sh`.
 [processTargetModule]: liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Interface.hs#L483
 [processModule]:       liquidhaskell-boot/src/Language/Haskell/Liquid/GHC/Plugin.hs#L509
 
+# Module Verification Process
+
+The following graph summarizes the verification process of a module by showing
+its specification life cycle.
+See [Specs.hs](./liquidhaskell-boot/src/Language/Haskell/Liquid/Types/Specs.hs)
+for detailed documentation on the specification stages.
+There are many moving parts hidden within each graph link,
+but some places worth noticing here are
+[Liquid.hs](./liquidhaskell-boot/src/Language/Haskell/Liquid/Liquid.hs)
+—which implements constraint generation— and
+[SpecFinder.hs](./liquidhaskell-boot/src/Language/Haskell/Liquid/Liquid.hs)
+—that deals with the gathering of dependencies and `LHAssumptions`—.
+
+```mermaid
+flowchart LR
+  subgraph Liquid Haskell
+
+    subgraph Inputs
+      direction TB
+      LiftedDeps[
+        Dependencies of A
+        LifttedSpecs
+        ]
+      CoreBinds[CoreBinds]
+      Bare[BarseSpec]
+    end
+
+    subgraph Outputs
+      direction TB
+      T[TargetSpec] --> Constraints[Verification
+                                    Constraints]
+      L[LiftedSpec]
+    end
+
+    Inputs --> Outputs
+
+  end
+
+  A>DepsOfA_LHAssumptions] --> LiftedDeps
+  Deps>DepsOfA.hi] --> LiftedDeps
+  Mod(A.hs) --> CoreBinds & Bare
+  Constraints -->|checked by| fixpoint([liquid-fixpoint])
+  L ---> |if verified:
+           serialize| File>A.hi]
+```
+
+Reference:
+[Implementing a GHC Plugin for Liquid Haskell](https://well-typed.com/blog/2020/08/implementing-a-ghc-plugin-for-liquid-haskell/).
