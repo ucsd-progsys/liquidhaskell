@@ -153,9 +153,13 @@ mapTyVars _ hsT lqT
   = do err <- gets errmsg
        throwError (err (F.pprint hsT) (F.pprint lqT))
 
+-- Niki believes there is a bug on the isTYPEorCONSTRAINT function in GHC-9.12.2
+-- Hardcoding "GHC.Types.Type" for now because typeKind in in the Prim module... 
 isKind :: Kind -> Bool
-isKind = isTYPEorCONSTRAINT -- TODO:GHC-863 isStarKind k --  typeKind k
-
+isKind k = isTYPEorCONSTRAINT k -- TODO:GHC-863 isStarKind k --  typeKind k
+          || case k of 
+                TyVarTy kk -> (showPpr (varType kk)) == "GHC.Types.Type"
+                _ -> False 
 
 mapTyRVar :: MonadError Error m
           => Var -> RTyVar -> MapTyVarST -> m MapTyVarST

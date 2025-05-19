@@ -282,7 +282,8 @@ goPlug tce tyi err f = go
     -- zipWithDefM: if ts and ts' have different length then the liquid and haskell types are different.
     -- keep different types for now, as a pretty error message will be created at Bare.Check
     go (RApp _ ts _ _)  (RApp c ts' p r)
-      | length ts == length ts'            = RApp c     (Misc.zipWithDef go ts $ Bare.matchKindArgs ts ts') p r
+      -- | length ts == length ts'            
+      = RApp c     (Misc.zipWithDef go ts $ Bare.matchKindArgs ts ts') p r
     go hsT lqT                             = Ex.throw (err (F.pprint hsT) (F.pprint lqT))
 
     -- otherwise                          = Ex.throw err
