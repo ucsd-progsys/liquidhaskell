@@ -158,7 +158,7 @@ mapTyVars _ hsT lqT
 isKind :: Kind -> Bool
 isKind k = isTYPEorCONSTRAINT k -- TODO:GHC-863 isStarKind k --  typeKind k
           || case k of 
-                TyVarTy kk -> (showPpr (varType kk)) == "GHC.Types.Type"
+                TyVarTy kk -> showPpr (varType kk) == "GHC.Types.Type"
                 _ -> False 
 
 mapTyRVar :: MonadError Error m
