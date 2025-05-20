@@ -92,7 +92,7 @@ dataConTypes :: Bool -> MSpec (RRType Reft) DataCon -> ([(Var, RRType Reft)], [(
 dataConTypes allowTC  s = (ctorTys, measTys)
   where
     measTys     = [(msName m, msSort m) | m <- M.elems (measMap s) ++ imeas s]
-    ctorTys     = concatMap (makeDataConType allowTC) (notracepp "HOHOH" . snd <$> M.toList (ctorMap s))
+    ctorTys     = concatMap (makeDataConType allowTC . notracepp "HOHOH" . snd) (M.toList (ctorMap s))
 
 makeDataConType :: Bool -> [Def (RRType Reft) DataCon] -> [(Var, RRType Reft)]
 makeDataConType _ []
@@ -126,7 +126,7 @@ makeDataConType allowTC ds
     isWorkerDef def
       -- types are missing for arguments, so definition came from a logical measure
       -- and it is for the worker datacon
-      | any Mb.isNothing (snd <$> binds def)
+      | any (Mb.isNothing . snd) (binds def)
       = True
       | otherwise
       = length (binds def) == length (fst $ splitFunTys $ snd $ splitForAllTyCoVars wot)

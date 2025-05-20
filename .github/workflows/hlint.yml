@@ -9,19 +9,19 @@ on:
 jobs:
   build:
     name: hlint
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:    
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
 
-    - uses: haskell/actions/hlint-setup@v2
+    - uses: haskell-actions/hlint-setup@v2
       name: Set up HLint
       with:
-        version: "3.4"
+        version: "3.8"
 
-    - uses: haskell/actions/hlint-run@v2
+    - uses: haskell-actions/hlint-run@v2
       name: hlint
       with:
         path: '["liquidhaskell-boot/src/", "liquidhaskell-boot/src-ghc/"]'

@@ -3,7 +3,6 @@
 module Data.Set_LHAssumptions where
 
 import Data.Set
-import Data.Set.Internal as I
 import GHC.Types_LHAssumptions()
 import Prelude hiding (null)
 
@@ -48,15 +47,5 @@ define null x           = (Set_emp x)
 define member x xs      = (Set_mem x xs)
 define isSubsetOf x y   = (Set_sub x y)
 define fromList xs      = (Data.Set_LHAssumptions.listElts xs)
-
-define I.singleton x      = (Set_sng x)
-define I.union x y        = (Set_cup x y)
-define I.intersection x y = (Set_cap x y)
-define I.difference x y   = (Set_dif x y)
-define I.empty            = (Set_empty 0)
-define I.null x           = (Set_emp x)
-define I.member x xs      = (Set_mem x xs)
-define I.isSubsetOf x y   = (Set_sub x y)
-define I.fromList xs      = (Data.Set_LHAssumptions.listElts xs)
 
 @-}

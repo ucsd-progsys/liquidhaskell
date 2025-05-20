@@ -348,7 +348,7 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
         ptys    = [(F.vv (Just i), classRFInfo True, pty, mempty) | (i,pty) <- zip [0,1..] isPredSpecTys]
         fullSig =
           mkArrow
-            (zip isRTvs (repeat mempty))
+            [(bRTV, mempty) | bRTV <- isRTvs]
             []
             ptys .
           subst (zip clsTvs isSpecTys) $
