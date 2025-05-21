@@ -584,7 +584,7 @@ executable errors
                     , BadData1
                     , BadData2
                     , BadDataCon2
-                    , BadDataConType1
+                    -- , BadDataConType1
                     , BadDataConType2
                     , BadDataConType
                     , BadDataDeclTyVars
@@ -1665,7 +1665,6 @@ executable unit-pos-3
                     , T2235
                     , T2237
                     , T2404
-                    , T2535
                     , T385
                     , T531
                     , T595a

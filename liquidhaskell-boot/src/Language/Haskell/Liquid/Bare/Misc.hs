@@ -158,9 +158,9 @@ mapTyVars _ hsT lqT
 -- Hardcoding "GHC.Types.Type" for now because typeKind in in the Prim module... 
 isKind :: Kind -> Bool
 isKind k = isTYPEorCONSTRAINT k -- TODO:GHC-863 isStarKind k --  typeKind k
-          || case k of 
-                TyVarTy kk -> showPpr (varType kk) == ghcTypeStr
-                _ -> False 
+--           || case k of 
+--                 TyVarTy kk -> showPpr (varType kk) == ghcTypeStr
+--                 _ -> False 
 
 mapTyRVar :: MonadError Error m
           => Var -> RTyVar -> MapTyVarST -> m MapTyVarST
