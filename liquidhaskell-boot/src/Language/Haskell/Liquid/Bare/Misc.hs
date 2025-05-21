@@ -29,6 +29,7 @@ import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.Types
+import           Language.Haskell.Liquid.Types.Names (ghcTypeStr)
 
 -- import           Language.Haskell.Liquid.Bare.Env
 
@@ -158,7 +159,7 @@ mapTyVars _ hsT lqT
 isKind :: Kind -> Bool
 isKind k = isTYPEorCONSTRAINT k -- TODO:GHC-863 isStarKind k --  typeKind k
           || case k of 
-                TyVarTy kk -> showPpr (varType kk) == "GHC.Types.Type"
+                TyVarTy kk -> showPpr (varType kk) == ghcTypeStr
                 _ -> False 
 
 mapTyRVar :: MonadError Error m

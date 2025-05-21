@@ -21,6 +21,6 @@ check (B _) = False
 
 {-@ reflect g @-}
 {-@ g :: {v:AB a | check v} -> {v:AB  a | check v} @-}
-g :: forall a. AB a -> AB a
+g ::  AB a -> AB a
 g (A x) = A x 
 g (B x) = B x  
