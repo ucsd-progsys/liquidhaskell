@@ -29,7 +29,6 @@ import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.Types
-import           Language.Haskell.Liquid.Types.Names (ghcTypeStr)
 
 -- import           Language.Haskell.Liquid.Bare.Env
 
