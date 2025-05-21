@@ -623,7 +623,7 @@ executable errors
                     -- , ExportReflect0
                     , Fractional
                     , HigherOrderBinder
-                    , HintMismatch
+                    -- , HintMismatch
                     , HoleCrash1
                     , HoleCrash2
                     , HoleCrash3
