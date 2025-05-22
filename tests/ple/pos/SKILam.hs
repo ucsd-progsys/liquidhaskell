@@ -6,12 +6,15 @@
 {-@ LIQUID "--max-case-expand=4" @-}
 {-@ LIQUID "--etabeta"           @-}
 {-@ LIQUID "--dependantcase"     @-}
+{-@ LIQUID "--allow-unsafe-constructors" @-}
 
 module SKILam where
 
 import Prelude
 
-import Language.Haskell.Liquid.ProofCombinators
+{-@ measure prop :: a -> b           @-}
+{-@ type Prop E = {v:_ | prop v = E} @-}
+
 
 {-@ reflect id @-}
 {-@ reflect $  @-}
