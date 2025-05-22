@@ -49,6 +49,16 @@ class (Real a, Enum a) => Integral a where
 
 define div x y        = (x / y)
 define mod x y        = (x mod y)
+define quot x y = if (x >=0 && y > 0) || (x<=0 && y < 0)
+                  then (x / y)
+                  else if (abs x < abs y)
+                       then 0
+                       else -(abs x / abs y)
+define rem x y = if (x >=0 && y > 0) || (x<=0 && y < 0)
+                 then (x mod y)
+                 else if (abs x < abs y)
+                      then x
+                      else x + y * (abs x / abs y)
 define fromIntegral x = (x)
 
 @-}
