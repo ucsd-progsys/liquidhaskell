@@ -7,12 +7,10 @@
 module QuotRemInt where
 
 {-@ reflect intId @-}
--- | This does not work
 intId :: Int -> Int
 intId x = (x `quot` 2) * 2 + (x `rem` 2)
 
 {-@ reflect intId' @-}
--- | This works
 intId' :: Int -> Int
 intId' x = (x `div` 2) * 2 + (x `mod` 2)
 
@@ -20,6 +18,6 @@ intId' x = (x `div` 2) * 2 + (x `mod` 2)
 sumId :: Int -> Int -> Int
 sumId x y =  intId x + intId y
 
-{-@ sumId :: x : Int -> y : Int -> {z : Int | z = x + y}@-}
+{-@ sumId' :: x : Int -> y : Int -> {z : Int | z = x + y}@-}
 sumId' :: Int -> Int -> Int
 sumId' x y =  intId' x + intId' y
