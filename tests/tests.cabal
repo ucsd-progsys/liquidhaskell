@@ -840,6 +840,7 @@ executable reflect-pos
 
     other-modules:
                       DoubleLit
+                    , QuotRemInt
                     , ReflString0
                     , ReflString1
                     , T2405
@@ -912,7 +913,6 @@ executable reflect-neg
 
     other-modules:
                       DoubleLit
-                    , QuotRemInt
                     , ReflString0
                     , ReflString1
 
