@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-any-error" @-}
+{-@ LIQUID "--expect-error-containing=Liquid Type Mismatch" @-}
 -- | Reflection of a function using `quot` and `rem` does not work,
 -- while a variant using `div` and `mod` does.
 -- Both 'quot' and 'rem' are opaque-reflected.
