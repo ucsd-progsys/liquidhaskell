@@ -53,13 +53,17 @@ unify ctors globals = go
         go e1 e2 
             -- Performing the unification under constructor is safe because 
             -- C a₁ ... aₙ = C b₁ ... bₙ ⟺ ∀ n . a₁ = bₙ
-            | (EVar name1 , args1) <- splitEApp e2
-            , (EVar name2 , args2) <- splitEApp e1
+            | (EVar name1 , args1) <- splitEApp' e2
+            , (EVar name2 , args2) <- splitEApp' e1
             , name1 == name2
             , isCtor name1
             , length args1 == length args2
             = concat $ zipWith go args1 args2
         go _ _ = []
+
+        splitEApp' e' = case splitEApp e' of
+            (ECst e _, es) -> (e,es)
+            (e,es)         -> (e,es)
 
         isCtor  name = name `S.member` ctors
         isLocal name = not (name `S.member` globals 
