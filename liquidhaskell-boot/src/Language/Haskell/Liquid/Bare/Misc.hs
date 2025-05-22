@@ -29,7 +29,6 @@ import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.Types
-import           Language.Haskell.Liquid.Types.Names (ghcTypeStr)
 
 -- import           Language.Haskell.Liquid.Bare.Env
 
@@ -154,12 +153,10 @@ mapTyVars _ hsT lqT
   = do err <- gets errmsg
        throwError (err (F.pprint hsT) (F.pprint lqT))
 
--- Niki believes there is a bug on the isTYPEorCONSTRAINT function in GHC-9.12.2
--- Hardcoding "GHC.Types.Type" for now because typeKind in in the Prim module... 
 isKind :: Kind -> Bool
 isKind k = isTYPEorCONSTRAINT k -- TODO:GHC-863 isStarKind k --  typeKind k
           || case k of 
-                TyVarTy kk -> showPpr (varType kk) == ghcTypeStr
+                TyVarTy kk -> varType kk == Ghc.liftedTypeKind
                 _ -> False 
 
 mapTyRVar :: MonadError Error m
