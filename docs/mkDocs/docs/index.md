@@ -91,7 +91,7 @@ Verify laws via <em>equational proofs</em> that are plain Haskell functions. Ind
 
 The easiest way to try LiquidHaskell is [online, in your browser](https://liquidhaskell.goto.ucsd.edu/index.html). This environment is ideal for quick experiments or following one of the tutorials:
 
-* The [Official Tutorial](https://ucsd-progsys.github.io/intro-refinement-types/120/) (long but complete) (has interactive exercises)
+* The [Official Tutorial](http://ucsd-progsys.github.io/liquidhaskell-tutorial/) (long but complete) (has interactive exercises)
 * [Andres Loeh's Tutorial](https://liquid.kosmikus.org) (concise but incomplete)
 
 For links to more documentation, see the nav-bar at the top of this page.
