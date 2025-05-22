@@ -5,6 +5,7 @@ module GHC.Real_LHAssumptions(Integral(..), Fractional(..)) where
 
 import GHC.Real
 import GHC.Types_LHAssumptions()
+import GHC.Num_LHAssumptions()
 
 {-@
 assume (^) :: x:a -> y:{n:b | n >= 0} -> {z:a | (y == 0 => z == 1) && ((x == 0 && y /= 0) <=> z == 0)}

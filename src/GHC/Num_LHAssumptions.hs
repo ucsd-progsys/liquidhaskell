@@ -14,6 +14,8 @@ assume negate :: (Num a)
 
 assume abs :: (Num a) => x:a -> {y:a | (x >= 0 ==> y = x) && (x < 0 ==> y = -x) }
 
+define abs x = if x >=0 then x else -x
+
 assume + :: x:a -> y:a -> {v:a | v = x + y }
 assume - :: (Num a) => x:a -> y:a -> {v:a | v = x - y }
 @-}
