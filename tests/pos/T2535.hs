@@ -10,6 +10,7 @@ module T2535 where
 f ::  AB (T a) -> AB (T a) 
 f x = g x 
 
+
 data T a = T a  
 data AB a  = A Int | B Int
 {- data AB a = A Int | B Int @-}
