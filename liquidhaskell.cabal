@@ -95,9 +95,10 @@ test-suite liquidhaskell-test
   main-is:          Main.hs
   other-modules:    QuotRem
   build-depends:    base < 5,
-                    liquidhaskell
+                    liquidhaskell,
+                    QuickCheck
 
-  ghc-options:      -fplugin=LiquidHaskell
-                      -fkeep-going
-                      -O0
-                      -no-link
+--  ghc-options:      -fplugin=LiquidHaskell
+--                      -fkeep-going
+--                      -O0
+--                      -no-link
