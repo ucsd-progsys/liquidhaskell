@@ -1,4 +1,4 @@
--- | Reflection of a function using `quot` and `rem` was not working,
+-- | Reflection of a function using `quot` and `rem` was not working
 -- because they were not defined in the refinement logic until
 -- https://github.com/ucsd-progsys/liquidhaskell/pull/2540
 -- to fix
@@ -14,10 +14,49 @@ intId x = (x `quot` 2) * 2 + (x `rem` 2)
 intId' :: Int -> Int
 intId' x = (x `div` 2) * 2 + (x `mod` 2)
 
-{-@ sumId :: x : Int -> y : Int -> {z : Int | z = x + y}@-}
-sumId :: Int -> Int -> Int
-sumId x y =  intId x + intId y
+{-
+{-@ lemmaQuotRem :: x:Int -> {intId x == x } @-}
+lemmaQuotRem :: Int -> ()
+lemmaQuotRem _ = ()
+-}
 
-{-@ sumId' :: x : Int -> y : Int -> {z : Int | z = x + y}@-}
-sumId' :: Int -> Int -> Int
-sumId' x y =  intId' x + intId' y
+
+{-@ lemmaDivMod :: x:Int -> { intId' x = x } @-}
+lemmaDivMod :: Int -> ()
+lemmaDivMod  _ = ()
+
+{-
+
+{-@
+examplesQuot
+   :: { -2 = quot (-5) 2 &&
+        -2 = quot 5 (-2) &&
+        2 = quot (-5) (-2) &&
+        2 = quot 5 2 &&
+        0 = quot 0 2 &&
+        0 = quot 1 2 &&
+        0 = quot (-1) 2 &&
+        0 = quot 1 (-2) &&
+        0 = quot (-1) (-2)
+      }
+@-}
+examplesQuot :: ()
+examplesQuot = ()
+
+{-@
+examplesRem
+   :: { -1 = rem (-5) 2 &&
+        1 = rem 5 (-2) &&
+        -1 = rem (-5) (-2) &&
+        2 = rem 5 2 &&
+        0 = rem 0 2 &&
+        1 = rem 1 2 &&
+        -1 = rem (-1) 2 &&
+        1 = rem 1 (-2) &&
+        -1 = rem (-1) (-2)
+      }
+@-}
+examplesRem :: ()
+examplesRem = ()
+
+-}
