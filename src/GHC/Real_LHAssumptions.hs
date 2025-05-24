@@ -52,14 +52,14 @@ define div x y        = (x / y)
 define mod x y        = (x mod y)
 define quot x y = if (x >=0 && y > 0) || (x<=0 && y < 0)
                   then (x / y)
-                  else if (abs x < abs y)
-                       then 0
-                       else -(abs x / abs y)
+                  else if (x < 0 && y > 0)
+                       then -((-x) / y)
+                       else -(x / (-y))
 define rem x y = if (x >=0 && y > 0) || (x<=0 && y < 0)
                  then (x mod y)
-                 else if (abs x < abs y)
-                      then x
-                      else x + y * (abs x / abs y)
+                 else if (x < 0 && y > 0)
+                      then -((-x) mod y)
+                      else x mod (-y)
 define fromIntegral x = (x)
 
 @-}
