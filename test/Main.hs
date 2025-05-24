@@ -3,21 +3,21 @@
 module Main where
 
 import Control.Monad (unless)
-import QuotRem (prop_quotRem, prop_quotRemDivision)
+import QuotRem (prop_quotRemAltEuclideanDomain, prop_quotRemAlt)
 import System.Exit (exitFailure)
 import Test.QuickCheck (quickCheck, verboseCheck, quickCheckResult, isSuccess)
 
 main :: IO ()
 main = do
-        verboseCheck prop_quotRemDivision
-        verboseCheck prop_quotRem
+        quickCheck prop_quotRemAltEuclideanDomain
+        quickCheck prop_quotRemAlt
 
 -- | Throws error if a test fails.
 main' :: IO ()
 main' = do
   let tests =
-        [ quickCheckResult prop_quotRemDivision
-        , quickCheckResult prop_quotRem
+        [ quickCheckResult prop_quotRemAltEuclideanDomain
+        , quickCheckResult prop_quotRemAlt
         ]
   success <- fmap (all isSuccess) . sequence $ tests
   unless success exitFailure

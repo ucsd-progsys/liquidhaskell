@@ -1,20 +1,50 @@
 -- |
 
-module QuotRem (prop_quotRem, prop_quotRemDivision) where
-import Test.QuickCheck
+module QuotRem (prop_quotRemAltEuclideanDomain, prop_quotRemAlt) where
+import Test.QuickCheck ( (==>), Property )
 
-prop_quotRem :: Integral a => a -> a -> Property
-prop_quotRem x y = y /= 0 ==> quotRem' x y == quotRem x y
+prop_quotRemAltEuclideanDomain :: Integer -> Integer -> Property
+prop_quotRemAltEuclideanDomain x y = y/= 0 ==> x == q * y + r && (0 == r || abs r < abs y)
+  where (q,r) = quotRem' x y
+
+prop_quotRemAlt :: Integer -> Integer -> Property
+prop_quotRemAlt x y = y /= 0 ==> quotRem' x y == quotRem x y
 
 {-@quotRem':: x:a -> {y:a | y /= 0} -> {z:(a,a) | fst z = quot x y && snd z = rem x y }@-}
--- | This is a definition of `quotRem` in terms of `div` and `mod`
--- used at @liquidhaskell/src/GHC/Real_LHAssumptions.hs@
--- to implement both 'quot' and 'rem' in the refinement logic.
-quotRem' :: Integral a => a -> a -> (a,a)
-quotRem' x y | signum x == signum y || abs x == abs y = (div x y, mod x y)
-             | abs x > abs y = (- (div x y), x + y * div x y)
-             | otherwise = (0, x)
 
-prop_quotRemDivision :: Integral a => a -> a -> Property
-prop_quotRemDivision x y = y/= 0 ==> x == q * y + r
-  where (q,r) = quotRem' x y
+-- | An implementation of 'quotRem', which is a primitive in the standard library.
+-- This should be equivalent to the definitions of `quot` and `rem`
+-- used at @liquidhaskell/src/GHC/Real_LHAssumptions.hs@
+-- to have both available in the refinement logic.
+quotRem' :: (Integral a) => a -> a -> (a, a)
+quotRem' x y = case (signum x, signum y) of
+  (-1, -1) -> second negate $ quotRemIter (-x) (-y) 0
+  (1, -1) -> first negate $ quotRemIter x (-y) 0
+  (-1, 1) -> both negate $ quotRemIter (-x) y 0
+  (1, 1) -> quotRemIter x y 0
+  (_, 0) -> error "quotRem': no division by zero"
+  (0, _) -> (0, 0)
+
+first :: (a -> a') -> (a,b) -> (a',b)
+first f (x, y) = (f x, y)
+
+second :: (b -> b') -> (a,b) -> (a,b')
+second f (x, y) = (x, f y)
+
+both :: (a -> b) -> (a,a) -> (b,b)
+both f (x, y) = (f x, f y)
+
+{-@ quotRemIter :: (Integral a) => {x:a | a >= 0}
+                                -> {y:a | y > 0}
+                                -> {q:a | q >= 0}
+                                -> {z:(a,a) | fst z = div x y && snd = mod x y} 0}@-}
+-- | A non-total and straight-forward implementation of the division algorithm on
+-- positive values. This function behaves as 'divMod' and 'quotRem' if the first
+-- and third arguments are natural and the second positive.
+quotRemIter :: Integral a => a -> a -> a -> (a,a)
+quotRemIter a b q =
+  if a - b * q < b
+    then (q, a - b * q)
+    else quotRemIter a b (q + 1)
+
+
