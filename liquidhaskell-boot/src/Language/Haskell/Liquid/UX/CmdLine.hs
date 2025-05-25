@@ -842,9 +842,9 @@ resDocs k (F.Crash xs s)  =
     orHeader = text "LIQUID: ERROR:" <+> text s
   , orMessages = map (cErrToSpanned k . errToFCrash) xs
   }
-resDocs k (F.Unsafe _ xs)   =
+resDocs k (F.Unsafe stats xs)   =
   OutputResult {
-    orHeader   = text "LIQUID: UNSAFE"
+    orHeader   = text $ "LIQUID: UNSAFE (" <> show (Solver.numChck stats) <> " constraints checked)"
   , orMessages = map (cErrToSpanned k) (nub xs)
   }
 
