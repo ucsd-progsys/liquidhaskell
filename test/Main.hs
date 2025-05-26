@@ -12,7 +12,8 @@ main = do
         quickCheck prop_quotRemAltEuclideanDomain
         quickCheck prop_quotRemAlt
 
--- | Throws error if a test fails.
+-- | Throws error if a test fails. Use this alternative to abort build
+-- in case of failure when test condition is enabled.
 main' :: IO ()
 main' = do
   let tests =
