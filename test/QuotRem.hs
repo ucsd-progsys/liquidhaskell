@@ -44,14 +44,9 @@ divModSMT = divModIter 0
                                -> x:a
                                -> {y:a | y /= 0}
                                -> {z:(a,a) | fst z = x / y && snd z = x mod y}@-}
+divModIter q a 0 = error "divide by zero"
+divModIter q 0 b = (0, 0)
 divModIter q a b =
-  case signum (a * b) of
-    1 ->
-      if abs (a - b * q) < abs b && (b * q <= a)
-        then (q, a - b * q)
-        else divModIter (q + 1) a b
-    -1 ->
-      if abs (a - b * q) < abs b && (b * q <= a)
-        then (q, a - b * q)
-        else divModIter (q - 1) a b
-    0 -> if b == 0 then error "divide by zero" else (0, 0)
+  if abs (a - b * q) < abs b && (b * q <= a)
+    then (q, a - b * q)
+    else divModIter (q + signum (a * b)) a b
