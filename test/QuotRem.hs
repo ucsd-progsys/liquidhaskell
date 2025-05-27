@@ -11,30 +11,47 @@ prop_quotRemAltEuclideanDomain x y = y/= 0 ==> x == q * y + r && (0 == r || abs 
 prop_quotRemAlt :: Integer -> Integer -> Property
 prop_quotRemAlt x y = y /= 0 ==> quotRem' x y == quotRem x y
 
-{-@quotRem':: x:a -> {y:a | y /= 0} -> {z:(a,a) | fst z = quot x y && snd z = rem x y }@-}
--- | A variant of 'quotRem' implemented in terms of 'divMod' to check that the
--- equivalent definitions of `quot` and `rem` for the refinement logic
+-- | A variant of 'quotRem' implemented in terms of functions equivalent
+-- to @/@ and @mod@ of the refinement logic.
+-- This is an /inverse reflection/ test to show the definitions of logic `quot` and `rem`
 -- found at @liquidhaskell/src/GHC/Real_LHAssumptions.hs@ are correct.
--- This assumes that the functions @/@ and @mod@ from liquid-fixpoint
--- behave as Haskell's 'div' and 'mod' respectively.
 quotRem' :: (Integral a) => a -> a -> (a, a)
-quotRem' x y = case (signum x, signum y) of
-  (1, -1) -> first negate $ divMod x (-y)
-  (-1, 1) -> both negate $ divMod (-x) y
-  (_,_) -> divMod x y
+quotRem' x y = (quot' x y, rem' x y)
+
+quot' :: (Integral a) => a -> a -> a
+quot' x y
+  | x >= 0 = if y >= 0 then div' x y else - div' x (abs y)
+  | otherwise = - div' (abs x) y
+  where div' x y = fst $ divModSMT x y
+
+rem' :: (Integral a) => a -> a -> a
+rem' x y
+  | x >= 0 = if y >= 0 then mod' x y else  mod' x (abs y)
+  | otherwise = - mod' (abs x) y
+  where mod' x y = snd $ divModSMT x y
 
 {-@ define signum x = if x>0 then 1 else (if x<0 then -1 else 0)@-}
 
-{-@ inline first@-}
-first :: (a -> a') -> (a,b) -> (a',b)
-first f (x, y) = (f x, y)
+{-@ divModSMT :: (Integral a) => x:a
+                              -> {y:a | y /= 0}
+                              -> {z:(a,a) | fst z = x / y && snd z = x mod y}@-}
+-- | A Haskell implementation of logic @/@ and @mod@.
+-- Most notably, `mod` is always positive.
+divModSMT :: (Integral a) => a -> a -> (a, a)
+divModSMT = divModIter 0
 
-{-
-{-@ inline second@-}
-second :: (b -> b') -> (a,b) -> (a,b')
-second f (x, y) = (x, f y)
--}
-
-{-@ inline both@-}
-both :: (a -> b) -> (a,a) -> (b,b)
-both f (x, y) = (f x, f y)
+{-@ divModIter :: (Integral a) => q:a
+                               -> x:a
+                               -> {y:a | y /= 0}
+                               -> {z:(a,a) | fst z = x / y && snd z = x mod y}@-}
+divModIter q a b =
+  case signum (a * b) of
+    1 ->
+      if abs (a - b * q) < abs b && (b * q <= a)
+        then (q, a - b * q)
+        else divModIter (q + 1) a b
+    -1 ->
+      if abs (a - b * q) < abs b && (b * q <= a)
+        then (q, a - b * q)
+        else divModIter (q - 1) a b
+    0 -> if b == 0 then error "divide by zero" else (0, 0)
