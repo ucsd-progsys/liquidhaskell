@@ -52,7 +52,7 @@ define div x y        = (x / y)
 define mod x y        = (x mod y)
 define quot x y =  if x >= 0
                    then (if y >= 0 then x / y else -(x / abs y))
-                   else - div (abs x) y
+                   else -(abs x / y)
 define rem x y = if x >= 0
                  then (if y >= 0 then x mod y else x mod (abs y))
                  else - ((abs x) mod y)
