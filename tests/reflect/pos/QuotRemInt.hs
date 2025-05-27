@@ -41,14 +41,6 @@ examplesQuot
 examplesQuot :: ()
 examplesQuot = ()
 
-{- This cases resulted in a Liquid Type Mismatch...
-they fail as well for div, so it
-seems that logic @/@ is not like Haskell 'div'.
-
-        2 = quot (-5) (-2) &&
-        0 = quot (-1) (-2)
--}
-
 {-@
 examplesRem
    :: { -1 = rem (-5) 2 &&
@@ -65,11 +57,3 @@ examplesRem
 @-}
 examplesRem :: ()
 examplesRem = ()
-
-{- This cases resulted in a Liquid Type Mismatch...
-they fail as well for mod, so it
-seems that logic @mod@ is not like Haskell 'mod'.
-
-        -1 = rem (-5) (-2) &&
-        -1 = rem (-1) (-2)
--}
