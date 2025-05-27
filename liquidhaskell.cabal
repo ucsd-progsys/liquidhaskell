@@ -98,7 +98,3 @@ test-suite liquidhaskell-test
                     liquidhaskell,
                     QuickCheck
 
---  ghc-options:      -fplugin=LiquidHaskell
---                      -fkeep-going
---                      -O0
---                      -no-link
