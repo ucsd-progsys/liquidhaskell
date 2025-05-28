@@ -74,7 +74,7 @@ data Config = Config
   , minPartSize              :: Int        -- ^ Minimum size of a partition
   , maxPartSize              :: Int        -- ^ Maximum size of a partition. Overrides minPartSize
   , maxParams                :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
-  , smtsolver                :: Maybe SMTSolver  -- ^ name of smtsolver to use [default: try z3, cvc5, cvc4, mathsat in order]
+  , smtsolver                :: Maybe SMTSolver  -- ^ SMT solver to use [if `Nothing`, try looking one up using the order defined in L.H.L.UX.CmdLine.withSmtSolver]
   , shortNames               :: Bool       -- ^ drop module qualifers from pretty-printed names.
   , shortErrors              :: Bool       -- ^ don't show subtyping errors and contexts.
   , cabalDir                 :: Bool       -- ^ find and use .cabal file to include paths to sources for imported modules
