@@ -913,6 +913,7 @@ executable reflect-neg
 
     other-modules:
                       DoubleLit
+                    , QuotRemInt
                     , ReflString0
                     , ReflString1
 
