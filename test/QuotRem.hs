@@ -1,56 +1,88 @@
 {-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
--- |
 
-module QuotRem (prop_quotRemAltEuclideanDomain, prop_quotRemAlt) where
+-- | Properties for testing the definitions of @quot@ and @rem@ found at
+-- @liquidhaskell/src/GHC/Real_LHAssumptions.hs@.
+module QuotRem (prop_quotRemAltEuclideanDivision, prop_quotRemAlt) where
 import Test.QuickCheck ( (==>), Property )
 
-{-@ prop_quotRemAltEuclideanDomain :: x:Int -> {y:Int | y /= 0} -> Property @-}
-prop_quotRemAltEuclideanDomain :: Int -> Int -> Property
-prop_quotRemAltEuclideanDomain x y = y/= 0 ==> x == q * y + r && (0 == r || abs r < abs y)
-  where (q,r) = quotRem' x y
+{-@ ignore prop_quotRemAltEuclideanDivision @-}
+prop_quotRemAltEuclideanDivision :: Int -> Int -> Property
+prop_quotRemAltEuclideanDivision x y = y/= 0 ==> x == q * y + r && (0 == r || abs r < abs y)
+  where (q,r) = quotRemSMT x y
 
-{-@ prop_quotRemAlt :: x:Int -> {y:Int | y /= 0} -> Property @-}
+{-@ ignore prop_quotRemAlt @-}
 prop_quotRemAlt :: Int -> Int -> Property
-prop_quotRemAlt x y = y /= 0 ==> quotRem' x y == quotRem x y
+prop_quotRemAlt x y = y /= 0 ==> quotRemSMT x y == quotRem x y
 
-{-@ quotRem' :: x:Int -> {y:Int | y /= 0}
-                      -> {z:(Int,Int) | fst z = quot x y && snd z = rem x y} @-}
--- | A variant of 'quotRem' implemented in terms of functions equivalent
--- to @/@ and @mod@ of the refinement logic.
--- This is an /inverse reflection/ test to show the definitions of logic `quot` and `rem`
--- found at @liquidhaskell/src/GHC/Real_LHAssumptions.hs@ are correct.
-quotRem' ::  Int -> Int -> (Int, Int)
-quotRem' x y = (quot' x y, rem' x y)
+{-@ ignore quotRemSMT @-}
+-- | A variant of 'quotRem' that depends on functions equivalent
+-- to @/@ and @mod@ from the refinement logic.
+-- Used in 'prop_quotRemAltEuclideanDivision' and 'prop_quotRemAlt'
+-- to test the definitions of logic `quot` and `rem`
+-- found at @liquidhaskell/src/GHC/Real_LHAssumptions.hs@.
+-- This is somewhat of an /inverse reflection/ test to prove their correctness.
+quotRemSMT ::  Int -> Int -> (Int, Int)
+quotRemSMT a b = (quotSMT a b, remSMT a b)
 
-{-@ quot' :: x:Int -> {y:Int | y /= 0} -> {z:Int | z = quot x y} @-}
-quot' :: Int -> Int -> Int
-quot' x y
-  | x >= 0 = if y >= 0 then div' x y else - div' x (abs y)
-  | otherwise = - div' (abs x) y
-  where div' x y = fst $ divModSMT x y
+{-@
+quotSMT :: a:Int
+      -> {b:Int | b != 0}
+      -> {v:Int | v = quot a b} @-}
+-- | A variant of 'quot' implemented in terms of 'divSMT'.
+quotSMT :: Int -> Int -> Int
+quotSMT a b
+  | a >= 0 = if b >= 0 then divSMT a b else - divSMT a (abs b)
+  | otherwise = - divSMT (abs a) b
 
-{-@ rem' :: x:Int -> {y:Int | y /= 0} -> {z:Int | z = rem x y} @-}
-rem' :: Int -> Int -> Int
-rem' x y
-  | x >= 0 = if y >= 0 then mod' x y else  mod' x (abs y)
-  | otherwise = - mod' (abs x) y
-  where mod' x y = snd $ divModSMT x y
+{-@
+remSMT :: a:Int
+     -> {b:Int | b != 0}
+     -> {v:Int | v = rem a b}
+@-}
+-- | A variant of 'rem' implemented in terms 'modSMT'.
+remSMT :: Int -> Int -> Int
+remSMT a b
+  | a >= 0 = if b >= 0 then modSMT a b else  modSMT a (abs b)
+  | otherwise = - modSMT (abs a) b
 
-{-@ define signum x = if x>0 then 1 else (if x<0 then -1 else 0) @-}
-
-{-@ divModSMT :: x:Int -> {y:Int | y /= 0}
-                       -> {z:(Int,Int) | fst z = x / y && snd z = x mod y} @-}
+{-@
+modSMT
+  :: a:Int
+  -> {b:Int | b != 0}
+  -> {v:Int | v = a mod b}
+@-}
 -- | A Haskell implementation of logic @/@ and @mod@.
--- Most notably, `mod` is always positive.
-divModSMT :: Int -> Int -> (Int, Int)
-divModSMT = divModIter 0
+modSMT :: Int -> Int -> Int
+modSMT x y = x - y * divSMT x y
 
-{-@ divModIter :: Int -> x:Int -> {y:Int | y /= 0}
-                      -> {z:(Int,Int) | fst z = x / y && snd z = x mod y} @-}
-divModIter :: Int -> Int -> Int -> (Int,Int)
-divModIter q a 0 = error "divide by zero"
-divModIter q 0 b = (0, 0)
-divModIter q a b =
-  if abs (a - b * q) < abs b && (b * q <= a)
-    then (q, a - b * q)
-    else divModIter (q + signum (a * b)) a b
+{-@
+divSMT
+  :: a:Int
+  -> {b:Int| b != 0}
+  -> {v:Int | v = a / b} / [ divSMTTermination a b ]
+@-}
+-- | The defining property of divSMT is
+--
+-- > 0 <= a - divSMT a b * b && a - divSMT a b * b < abs b
+--
+-- or in terms of mod
+--
+-- > 0 <= modSMT a b && modSMT a b < abs b
+--
+divSMT :: Int -> Int -> Int
+divSMT a 0 = error "divide by zero"
+divSMT a b
+      -- a satisfies the defining property
+    | a < abs b && 0 <= a = 0
+      -- equal signs
+    | a > 0 && b > 0 || a < 0 && b < 0 =
+        1 + divSMT (a - b) b
+      -- distinct signs
+    | otherwise =
+        divSMT (a + b) b - 1
+
+{-@ inline divSMTTermination @-}
+divSMTTermination :: Int -> Int -> Int
+divSMTTermination a b
+  | a >= 0    = a
+  | otherwise = abs b - a
