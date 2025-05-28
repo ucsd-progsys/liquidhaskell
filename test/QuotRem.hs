@@ -2,8 +2,13 @@
 
 -- | Properties for testing the definitions of @quot@ and @rem@ found at
 -- @liquidhaskell/src/GHC/Real_LHAssumptions.hs@.
-module QuotRem (prop_quotRemAltEuclideanDivision, prop_quotRemAlt) where
+module QuotRem (prop_divModSMTEuclideanDivision, prop_quotRemAltEuclideanDivision, prop_quotRemAlt) where
 import Test.QuickCheck ( (==>), Property )
+
+{-@ ignore prop_divModSMTEuclideanDivision @-}
+prop_divModSMTEuclideanDivision :: Int -> Int -> Property
+prop_divModSMTEuclideanDivision a b = b/= 0 ==> a == d * b + m && abs m < abs b
+  where (d,m) = (div a b, mod a b)
 
 {-@ ignore prop_quotRemAltEuclideanDivision @-}
 prop_quotRemAltEuclideanDivision :: Int -> Int -> Property
