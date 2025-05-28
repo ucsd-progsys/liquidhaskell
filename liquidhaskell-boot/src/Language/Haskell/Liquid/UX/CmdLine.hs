@@ -59,7 +59,7 @@ import System.Console.CmdArgs.Implicit     hiding (Verbosity(..))
 import System.Console.CmdArgs.Text
 import GitHash
 
-import Data.List                           (nub)
+import Data.List                           (nub, intersperse)
 
 
 import System.FilePath                     (isAbsolute, takeDirectory, (</>))
@@ -524,12 +524,13 @@ withSmtSolver cfg =
                    case found of
                      Just _ -> return cfg
                      Nothing -> panic Nothing (missingSmtError smt)
-    Nothing  -> do smts <- mapM findSmtSolver [FC.Z3, FC.Cvc5, FC.Cvc4, FC.Mathsat]
+    Nothing  -> do smts <- mapM findSmtSolver smtLookupOrder
                    case catMaybes smts of
                      (s:_) -> return (cfg {smtsolver = Just s})
                      _     -> panic Nothing noSmtError
   where
-    noSmtError = "LiquidHaskell requires an SMT Solver, i.e. z3, cvc5, cvc4, or mathsat to be installed."
+    smtLookupOrder = [FC.Z3, FC.Cvc5, FC.Cvc4, FC.Mathsat]
+    noSmtError = "LiquidHaskell requires one of the following SMT solvers to be installed: " ++ concat (intersperse ", " (show <$> smtLookupOrder)) ++ "."
     missingSmtError smt = "Could not find SMT solver '" ++ show smt ++ "'. Is it on your PATH?"
 
 findSmtSolver :: FC.SMTSolver -> IO (Maybe FC.SMTSolver)
