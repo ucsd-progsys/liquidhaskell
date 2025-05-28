@@ -7,7 +7,7 @@ import Test.QuickCheck ( (==>), Property )
 
 {-@ ignore prop_quotRemAltEuclideanDivision @-}
 prop_quotRemAltEuclideanDivision :: Int -> Int -> Property
-prop_quotRemAltEuclideanDivision x y = y/= 0 ==> x == q * y + r && (0 == r || abs r < abs y)
+prop_quotRemAltEuclideanDivision x y = y/= 0 ==> x == q * y + r && abs r < abs y
   where (q,r) = quotRemSMT x y
 
 {-@ ignore prop_quotRemAlt @-}
