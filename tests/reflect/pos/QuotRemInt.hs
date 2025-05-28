@@ -15,11 +15,9 @@ intId x = (x `quot` 2) * 2 + (x `rem` 2)
 intId' :: Int -> Int
 intId' x = (x `div` 2) * 2 + (x `mod` 2)
 
-{- Now this is failing verification
 {-@ lemmaQuotRem :: x:Int -> { intId x = x } @-}
 lemmaQuotRem :: Int -> ()
 lemmaQuotRem _ = ()
--}
 
 {-@ lemmaDivMod :: x:Int -> { intId' x = x } @-}
 lemmaDivMod :: Int -> ()
