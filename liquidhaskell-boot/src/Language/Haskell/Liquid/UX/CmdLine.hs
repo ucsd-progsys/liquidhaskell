@@ -59,7 +59,7 @@ import System.Console.CmdArgs.Implicit     hiding (Verbosity(..))
 import System.Console.CmdArgs.Text
 import GitHash
 
-import Data.List                           (nub, intersperse)
+import Data.List                           (nub, intercalate)
 
 
 import System.FilePath                     (isAbsolute, takeDirectory, (</>))
@@ -530,7 +530,7 @@ withSmtSolver cfg =
                      _     -> panic Nothing noSmtError
   where
     smtLookupOrder = [FC.Z3, FC.Cvc5, FC.Cvc4, FC.Mathsat]
-    noSmtError = "LiquidHaskell requires one of the following SMT solvers to be installed: " ++ concat (intersperse ", " (show <$> smtLookupOrder)) ++ "."
+    noSmtError = "LiquidHaskell requires one of the following SMT solvers to be installed: " ++ intercalate ", " (show <$> smtLookupOrder) ++ "."
     missingSmtError smt = "Could not find SMT solver '" ++ show smt ++ "'. Is it on your PATH?"
 
 findSmtSolver :: FC.SMTSolver -> IO (Maybe FC.SMTSolver)
