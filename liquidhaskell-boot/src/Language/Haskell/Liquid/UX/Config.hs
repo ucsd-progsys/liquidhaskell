@@ -74,7 +74,7 @@ data Config = Config
   , minPartSize              :: Int        -- ^ Minimum size of a partition
   , maxPartSize              :: Int        -- ^ Maximum size of a partition. Overrides minPartSize
   , maxParams                :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
-  , smtsolver                :: Maybe SMTSolver  -- ^ name of smtsolver to use [default: try z3, cvc4, mathsat in order]
+  , smtsolver                :: Maybe SMTSolver  -- ^ SMT solver to use [if `Nothing`, try looking one up using the order defined in L.H.L.UX.CmdLine.withSmtSolver]
   , shortNames               :: Bool       -- ^ drop module qualifers from pretty-printed names.
   , shortErrors              :: Bool       -- ^ don't show subtyping errors and contexts.
   , cabalDir                 :: Bool       -- ^ find and use .cabal file to include paths to sources for imported modules
@@ -111,11 +111,11 @@ data Config = Config
   , compileSpec              :: Bool       -- ^ Only "compile" the spec -- into .bspec file -- don't do any checking.
   , noCheckImports           :: Bool       -- ^ Do not check the transitive imports
   , typeclass                :: Bool        -- ^ enable typeclass support.
-  , auxInline                :: Bool        -- ^ 
+  , auxInline                :: Bool        -- ^
   , rwTerminationCheck       :: Bool       -- ^ Enable termination checking for rewriting
   , skipModule               :: Bool       -- ^ Skip this module entirely (don't even compile any specs in it)
   , noLazyPLE                :: Bool
-  , fuel                     :: Maybe Int  -- ^ Maximum PLE "fuel" (unfold depth) (default=infinite) 
+  , fuel                     :: Maybe Int  -- ^ Maximum PLE "fuel" (unfold depth) (default=infinite)
   , environmentReduction     :: Bool       -- ^ Perform environment reduction
   , noEnvironmentReduction   :: Bool       -- ^ Don't perform environment reduction
   , inlineANFBindings        :: Bool       -- ^ Inline ANF bindings.
