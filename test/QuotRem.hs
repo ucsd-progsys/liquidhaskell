@@ -8,26 +8,16 @@ import Test.QuickCheck ( (==>), Property )
 {-@ ignore prop_divModSMTEuclideanDivision @-}
 prop_divModSMTEuclideanDivision :: Int -> Int -> Property
 prop_divModSMTEuclideanDivision a b = b/= 0 ==> a == d * b + m && abs m < abs b
-  where (d,m) = (div a b, mod a b)
+  where (d,m) = (divSMT a b, modSMT a b)
 
 {-@ ignore prop_quotRemAltEuclideanDivision @-}
 prop_quotRemAltEuclideanDivision :: Int -> Int -> Property
-prop_quotRemAltEuclideanDivision x y = y/= 0 ==> x == q * y + r && abs r < abs y
-  where (q,r) = quotRemSMT x y
+prop_quotRemAltEuclideanDivision a b = b/= 0 ==> a == q * b + r && abs r < abs b
+  where (q,r) = (quotSMT a b, remSMT a b)
 
 {-@ ignore prop_quotRemAlt @-}
 prop_quotRemAlt :: Int -> Int -> Property
-prop_quotRemAlt x y = y /= 0 ==> quotRemSMT x y == quotRem x y
-
-{-@ ignore quotRemSMT @-}
--- | A variant of 'quotRem' that depends on functions equivalent
--- to @/@ and @mod@ from the refinement logic.
--- Used in 'prop_quotRemAltEuclideanDivision' and 'prop_quotRemAlt'
--- to test the definitions of logic `quot` and `rem`
--- found at @liquidhaskell/src/GHC/Real_LHAssumptions.hs@.
--- This is somewhat of an /inverse reflection/ test to prove their correctness.
-quotRemSMT ::  Int -> Int -> (Int, Int)
-quotRemSMT a b = (quotSMT a b, remSMT a b)
+prop_quotRemAlt a b = b /= 0 ==> (quotSMT a b, remSMT a b) == quotRem a b
 
 {-@
 quotSMT :: a:Int
@@ -56,9 +46,9 @@ modSMT
   -> {b:Int | b != 0}
   -> {v:Int | v = a mod b}
 @-}
--- | A Haskell implementation of logic @/@ and @mod@.
+-- | Refinement logic @mod@.
 modSMT :: Int -> Int -> Int
-modSMT x y = x - y * divSMT x y
+modSMT a b = a - b * divSMT a b
 
 {-@
 divSMT
