@@ -15,8 +15,7 @@ intId x = (x `quot` 2) * 2 + (x `rem` 2)
 intId' :: Int -> Int
 intId' x = (x `div` 2) * 2 + (x `mod` 2)
 
-{-@ lemmaQuotRem :: x:Int -> { quot x 2 * 2 + rem x 2  = x } @-}
--- | BUG: 'intId' is not unfolded. See @../neg/QuotRemInt.hs@
+{-@ lemmaQuotRem :: x:Int -> { intId x = x } @-}
 lemmaQuotRem :: Int -> ()
 lemmaQuotRem _ = ()
 
