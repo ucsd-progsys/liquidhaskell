@@ -87,3 +87,4 @@ library
 
   if flag(devel)
     ghc-options:      -Werror
+

@@ -5,6 +5,7 @@ module GHC.Real_LHAssumptions(Integral(..), Fractional(..)) where
 
 import GHC.Real
 import GHC.Types_LHAssumptions()
+import GHC.Num_LHAssumptions()
 
 {-@
 assume (^) :: x:a -> y:{n:b | n >= 0} -> {z:a | (y == 0 => z == 1) && ((x == 0 && y /= 0) <=> z == 0)}
@@ -49,6 +50,12 @@ class (Real a, Enum a) => Integral a where
 
 define div x y        = (x / y)
 define mod x y        = (x mod y)
+define quot x y =  if x >= 0
+                   then (if y >= 0 then x / y else -(x / -y))
+                   else -(-x / y)
+define rem x y = if x >= 0
+                 then (if y >= 0 then x mod y else x mod -y)
+                 else - (-x mod y)
 define fromIntegral x = (x)
 
 @-}
