@@ -2636,3 +2636,15 @@ test-suite tasty
                     , tasty-hunit
                     , liquidhaskell-boot
     ghc-options:      -threaded -Werror
+
+test-suite liquidhaskell-test
+  default-language: Haskell2010
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   liquidhaskell-test
+  main-is:          Main.hs
+  other-modules:    QuotRem
+  build-depends:    base
+                  , liquidhaskell
+                  , QuickCheck
+                  , tasty
+                  , tasty-quickcheck

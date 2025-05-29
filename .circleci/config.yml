@@ -74,6 +74,7 @@ commands:
             mkdir -p /tmp/junit/cabal
             LIQUID_CABAL_PROJECT_FILE=cabal.project scripts/test/test_plugin.sh
             cabal test tests:tasty
+            cabal test tests:liquidhaskell-test
             (cabal test -j1 liquidhaskell-boot --flag devel --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml")
           no_output_timeout: 30m
 

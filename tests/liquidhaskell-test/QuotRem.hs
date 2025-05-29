@@ -2,8 +2,18 @@
 
 -- | Properties for testing the definitions of @quot@ and @rem@ found at
 -- @liquidhaskell/src/GHC/Real_LHAssumptions.hs@.
-module QuotRem (prop_divModSMTEuclideanDivision, prop_quotRemAltEuclideanDivision, prop_quotRemAlt) where
+module QuotRem (tests) where
+
 import Test.QuickCheck ( (==>), Property )
+import Test.Tasty (testGroup, TestTree)
+import Test.Tasty.QuickCheck (testProperty)
+
+tests :: TestTree
+tests = testGroup "QuotRem"
+    [ testProperty "divSMT and modSMT are consistent" prop_divModSMTEuclideanDivision
+    , testProperty "quotSMT and remSMT are consistent" prop_quotRemAltEuclideanDivision
+    , testProperty "quotRem behaves as quotSMT and remSMT" prop_quotRemAlt
+    ]
 
 {-@ ignore prop_divModSMTEuclideanDivision @-}
 prop_divModSMTEuclideanDivision :: Int -> Int -> Property

@@ -88,13 +88,3 @@ library
   if flag(devel)
     ghc-options:      -Werror
 
-test-suite liquidhaskell-test
-  default-language: Haskell2010
-  type:             exitcode-stdio-1.0
-  hs-source-dirs:   test
-  main-is:          Main.hs
-  other-modules:    QuotRem
-  build-depends:    base < 5,
-                    liquidhaskell,
-                    QuickCheck
-
