@@ -36,8 +36,8 @@ quotSMT :: a:Int
 -- | A variant of 'quot' implemented in terms of 'divSMT'.
 quotSMT :: Int -> Int -> Int
 quotSMT a b
-  | a >= 0 = if b >= 0 then divSMT a b else - divSMT a (abs b)
-  | otherwise = - divSMT (abs a) b
+  | a >= 0 = if b >= 0 then divSMT a b else - divSMT a (- b)
+  | otherwise = - divSMT (- a) b
 
 {-@
 remSMT :: a:Int
@@ -47,8 +47,8 @@ remSMT :: a:Int
 -- | A variant of 'rem' implemented in terms 'modSMT'.
 remSMT :: Int -> Int -> Int
 remSMT a b
-  | a >= 0 = if b >= 0 then modSMT a b else  modSMT a (abs b)
-  | otherwise = - modSMT (abs a) b
+  | a >= 0 = if b >= 0 then modSMT a b else  modSMT a (- b)
+  | otherwise = - modSMT (- a) b
 
 {-@
 modSMT
