@@ -206,6 +206,7 @@ import GHC.Builtin.Types              as Ghc
     , liftedTypeKindTyConName
     , listTyCon
     , listTyConName
+    , zonkAnyTyCon
     , naturalTy
     , nilDataCon
     , stringTy
