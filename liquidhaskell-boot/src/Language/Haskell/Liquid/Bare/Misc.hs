@@ -154,8 +154,10 @@ mapTyVars _ hsT lqT
        throwError (err (F.pprint hsT) (F.pprint lqT))
 
 isKind :: Kind -> Bool
-isKind = isTYPEorCONSTRAINT -- TODO:GHC-863 isStarKind k --  typeKind k
-
+isKind k = isTYPEorCONSTRAINT k -- TODO:GHC-863 isStarKind k --  typeKind k
+          || case k of 
+                TyVarTy kk -> varType kk == Ghc.liftedTypeKind
+                _ -> False 
 
 mapTyRVar :: MonadError Error m
           => Var -> RTyVar -> MapTyVarST -> m MapTyVarST

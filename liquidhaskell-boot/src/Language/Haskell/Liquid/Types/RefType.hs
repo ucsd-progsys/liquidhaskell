@@ -1611,6 +1611,8 @@ typeSort tce = go
     go τ                = FObj (typeUniqueSymbol τ)
 
 tyConFTyCon :: TCEmb TyCon -> TyCon -> [Sort] -> Sort
+-- ignore the nat arguments of the Any types, see test/pos/T2535A.hs
+-- tyConFTyCon _ c _ | Ghc.zonkAnyTyCon  == c = FObj (symbol c)
 tyConFTyCon tce c ts = case tceLookup c tce of
                          Just (t, WithArgs) -> t
                          Just (t, NoArgs)   -> fApp t ts

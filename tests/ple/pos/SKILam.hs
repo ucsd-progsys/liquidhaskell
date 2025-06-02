@@ -11,7 +11,7 @@ module SKILam where
 
 import Prelude
 
-import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.ProofCombinators 
 
 {-@ reflect id @-}
 {-@ reflect $  @-}

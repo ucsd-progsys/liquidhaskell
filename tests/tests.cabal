@@ -623,7 +623,6 @@ executable errors
                     -- , ExportReflect0
                     , Fractional
                     , HigherOrderBinder
-                    , HintMismatch
                     , HoleCrash1
                     , HoleCrash2
                     , HoleCrash3
@@ -1667,6 +1666,7 @@ executable unit-pos-3
                     , T2235
                     , T2237
                     , T2404
+                    , T2535
                     , T385
                     , T531
                     , T595a
