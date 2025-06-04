@@ -502,6 +502,7 @@ makeLogicEnvs
      , HS.HashSet Symbol
      )
 makeLogicEnvs impAvails thisModule spec dependencies =
+    -- TEMP-NOTE: Qualified names for the logic environment are handled here
     let unqualify s =
           if s == LH.qualifySymbol (symbol $ GHC.moduleName thisModule) (LH.dropModuleNames s) then
             LH.dropModuleNames s
@@ -513,6 +514,7 @@ makeLogicEnvs impAvails thisModule spec dependencies =
         unhandledNames = HS.fromList $
           map unqualify unhandledNamesList ++ map (LH.qualifySymbol (symbol $ GHC.moduleName thisModule)) unhandledNamesList
         unhandledNamesList =
+          -- TEMP-NOTE: aliases are added to the environment here
           map (rtName . val) (ealiases spec)
           ++ concatMap (map getLHNameSymbol . snd) unhandledLogicNames
         unhandledLogicNames =
