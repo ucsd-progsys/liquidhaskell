@@ -1303,8 +1303,8 @@ ealiasP = try (rtAliasP symbol predP)
       <?> "ealiasP"
 
 -- | Parser for a LH type synonym.
-rtAliasP :: GHC.Module -> (Symbol -> tv) -> Parser ty -> Parser (Located (RTAlias tv ty))
-rtAliasP m f bodyP
+rtAliasP :: (Symbol -> tv) -> Parser ty -> Parser (Located (RTAlias tv ty))
+rtAliasP f bodyP
   = do pos  <- getSourcePos
        name <- upperIdP
        args <- many aliasIdP
@@ -1312,7 +1312,7 @@ rtAliasP m f bodyP
        body <- bodyP
        posE <- getSourcePos
        let (tArgs, vArgs) = partition (isSmall . headSym) args
-       return $ Loc pos posE (RTA (makeLogicLHName name m Nothing) (f <$> tArgs) vArgs body)
+       return $ Loc pos posE (RTA (makeUnresolvedLHName LHLogicName name) (f <$> tArgs) vArgs body)
 
 logDefineP :: Parser BPspec
 logDefineP =

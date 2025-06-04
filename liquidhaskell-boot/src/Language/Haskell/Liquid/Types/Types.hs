@@ -385,8 +385,8 @@ data RTAlias x a = RTA
 mapRTAVars :: (a -> b) -> RTAlias a ty -> RTAlias b ty
 mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt }
 
-lmapEAlias :: LMap -> Ghc.Module -> F.Located (RTAlias Symbol Expr)
-lmapEAlias (LMap v ys e) m = F.atLoc v (RTA (makeLogicLHName (F.val v) m Nothing) [] ys e) -- (F.loc v) (F.loc v)
+lmapEAlias :: LMap -> F.Located (RTAlias Symbol Expr)
+lmapEAlias (LMap v ys e) = F.atLoc v (RTA (makeUnresolvedLHName LHLogicName (F.val v)) [] ys e) -- (F.loc v) (F.loc v)
 
 
 -- | The type used during constraint generation, used
@@ -561,6 +561,7 @@ getModString = moduleNameString . getModName
 --------------------------------------------------------------------------------
 -- | Refinement Type Aliases ---------------------------------------------------
 --------------------------------------------------------------------------------
+-- TEMP-NOTE: should I change this Symbol to LHName?
 data RTEnv tv t = RTE
   { typeAliases :: M.HashMap Symbol (F.Located (RTAlias tv t))
   , exprAliases :: M.HashMap Symbol (F.Located (RTAlias Symbol Expr))

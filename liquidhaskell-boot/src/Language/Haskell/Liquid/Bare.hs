@@ -1437,7 +1437,7 @@ mkRTE tAs eAs   = RTE
   { typeAliases = M.fromList [ (aName a, a) | a <- tAs ]
   , exprAliases = M.fromList [ (aName a, a) | a <- eAs ]
   }
-  where aName   = rtName . F.val
+  where aName   = getLHNameSymbol . rtName . F.val
 
 normalizeBareAlias :: Bare.Env -> Bare.SigEnv -> ModName -> Located BareRTAlias
                    -> Located BareRTAlias

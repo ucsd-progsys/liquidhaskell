@@ -729,6 +729,7 @@ data LiftedSpec = LiftedSpec
     -- ^ Predicated data definitions
   , liftedNewtyDecls :: HashSet DataDeclLHName
     -- ^ Predicated new type definitions
+    -- TEMP-NOTE: The lifted aliases values
   , liftedAliases    :: HashSet (F.Located (RTAlias F.Symbol BareTypeLHName))
     -- ^ RefType aliases
   , liftedEaliases   :: HashSet (F.Located (RTAlias F.Symbol (F.ExprV LHName)))
