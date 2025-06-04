@@ -370,8 +370,9 @@ instance Show (Axiom Var Type CoreExpr) where
 --------------------------------------------------------------------------------
 -- | Refinement Type Aliases
 --------------------------------------------------------------------------------
+-- TEMP-NOTE: Data type for type aliases
 data RTAlias x a = RTA
-  { rtName  :: Symbol             -- ^ name of the alias
+  { rtName  :: LHName             -- ^ name of the alias
   , rtTArgs :: [x]                -- ^ type parameters
   , rtVArgs :: [Symbol]           -- ^ value parameters
   , rtBody  :: a                  -- ^ what the alias expands to
@@ -384,8 +385,8 @@ data RTAlias x a = RTA
 mapRTAVars :: (a -> b) -> RTAlias a ty -> RTAlias b ty
 mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt }
 
-lmapEAlias :: LMap -> F.Located (RTAlias Symbol Expr)
-lmapEAlias (LMap v ys e) = F.atLoc v (RTA (F.val v) [] ys e) -- (F.loc v) (F.loc v)
+lmapEAlias :: LMap -> Ghc.Module -> F.Located (RTAlias Symbol Expr)
+lmapEAlias (LMap v ys e) m = F.atLoc v (RTA (makeLogicLHName (F.val v) m Nothing) [] ys e) -- (F.loc v) (F.loc v)
 
 
 -- | The type used during constraint generation, used

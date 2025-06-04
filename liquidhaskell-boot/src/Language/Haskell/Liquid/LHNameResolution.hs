@@ -9,7 +9,7 @@
 -- entities remains work in progress.
 --
 -- Haskell entities include all functions that LH might reflect, or types that
--- might be referred in refinment types, type aliases or other annotations.
+-- might be referred in refinement types, type aliases or other annotations.
 --
 -- Logic entities include the names of reflected functions, inlined functions,
 -- uninterpreted functions, predefined functions, local bindings, reflected data
@@ -186,6 +186,7 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
     else
       Left (roErrors ro)
   where
+    -- TEMP-NOTE: (3) At this point aliases are collected for name resolution.
     taliases = collectTypeAliases thisModule bareSpec0 dependencies
     allEaliases = collectExprAliases bareSpec0 dependencies
 
@@ -399,6 +400,7 @@ resolveBoundVarsInTypeAliases = updateAliases resolveBoundVars
 --
 -- the parser builds a type for @Ev (plus n n)@.
 --
+-- TEMP-NOTE: what's going on here?
 fixExpressionArgsOfTypeAliases
   :: HM.HashMap Symbol (GHC.Module, RTAlias Symbol ())
   -> BareSpecParsed

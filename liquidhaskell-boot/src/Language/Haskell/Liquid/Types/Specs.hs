@@ -387,6 +387,7 @@ data Spec lname ty = Spec
   , ialiases   :: ![(F.Located ty, F.Located ty)]                     -- ^ Data type invariants to be checked
   , dataDecls  :: ![DataDeclP lname ty]                               -- ^ Predicated data definitions
   , newtyDecls :: ![DataDeclP lname ty]                               -- ^ Predicated new type definitions
+  -- TEMP-NOTE: fields for the relevant aliases
   , aliases    :: ![F.Located (RTAlias F.Symbol (BareTypeV lname))]   -- ^ RefType aliases
   , ealiases   :: ![F.Located (RTAlias F.Symbol (F.ExprV lname))]     -- ^ Expression aliases
   , embeds     :: !(F.TCEmb (F.Located LHName))                       -- ^ GHC-Tycon-to-fixpoint Tycon map
