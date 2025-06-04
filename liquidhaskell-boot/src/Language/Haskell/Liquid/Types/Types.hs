@@ -370,8 +370,9 @@ instance Show (Axiom Var Type CoreExpr) where
 --------------------------------------------------------------------------------
 -- | Refinement Type Aliases
 --------------------------------------------------------------------------------
+-- TEMP-NOTE: Data type for type aliases
 data RTAlias x a = RTA
-  { rtName  :: Symbol             -- ^ name of the alias
+  { rtName  :: F.Located LHName   -- ^ name of the alias
   , rtTArgs :: [x]                -- ^ type parameters
   , rtVArgs :: [Symbol]           -- ^ value parameters
   , rtBody  :: a                  -- ^ what the alias expands to
@@ -384,8 +385,11 @@ data RTAlias x a = RTA
 mapRTAVars :: (a -> b) -> RTAlias a ty -> RTAlias b ty
 mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt }
 
+-- TEMP-NOTE: This function is only (implicitly) used during the making of the
+-- 'TargetSpec' (actually, the 'GhcSpec' it is derived from), so it needs to
+-- /generate/ resolved names.
 lmapEAlias :: LMap -> F.Located (RTAlias Symbol Expr)
-lmapEAlias (LMap v ys e) = F.atLoc v (RTA (F.val v) [] ys e) -- (F.loc v) (F.loc v)
+lmapEAlias (LMap v ys e) = F.atLoc v (RTA (F.dummyLoc $ makeGeneratedLogicLHName (F.val v)) [] ys e) -- (F.loc v) (F.loc v)
 
 
 -- | The type used during constraint generation, used
@@ -560,6 +564,7 @@ getModString = moduleNameString . getModName
 --------------------------------------------------------------------------------
 -- | Refinement Type Aliases ---------------------------------------------------
 --------------------------------------------------------------------------------
+-- TEMP-NOTE: should I change this Symbol to LHName?
 data RTEnv tv t = RTE
   { typeAliases :: M.HashMap Symbol (F.Located (RTAlias tv t))
   , exprAliases :: M.HashMap Symbol (F.Located (RTAlias Symbol Expr))

@@ -9,7 +9,7 @@
 -- entities remains work in progress.
 --
 -- Haskell entities include all functions that LH might reflect, or types that
--- might be referred in refinment types, type aliases or other annotations.
+-- might be referred in refinement types, type aliases or other annotations.
 --
 -- Logic entities include the names of reflected functions, inlined functions,
 -- uninterpreted functions, predefined functions, local bindings, reflected data
@@ -104,9 +104,9 @@ collectTypeAliases
   -> TargetDependencies
   -> HM.HashMap Symbol (GHC.Module, RTAlias Symbol ())
 collectTypeAliases m spec deps =
-    let bsAliases = [ (rtName a, (m, void a)) | a <- map val (aliases spec) ]
+    let bsAliases = [ (getLHNameSymbol . val $ rtName a, (m, void a)) | a <- map val (aliases spec) ]
         depAliases =
-          [ (rtName a, (GHC.unStableModule sm, void a))
+          [ (getLHNameSymbol . val $ rtName a, (GHC.unStableModule sm, void a))
           | (sm, lspec) <- HM.toList (getDependencies deps)
           , a <- map val (HS.toList $ liftedAliases lspec)
           ]
@@ -118,9 +118,9 @@ collectExprAliases
   -> TargetDependencies
   -> HS.HashSet Symbol
 collectExprAliases spec deps =
-    let bsAliases = HS.fromList $ map (rtName . val) (ealiases spec)
+    let bsAliases = HS.fromList $ map (getLHNameSymbol . val . rtName . val) (ealiases spec)
         depAliases =
-          [ HS.map (rtName . val) $ liftedEaliases lspec
+          [ HS.map (getLHNameSymbol . val . rtName . val) $ liftedEaliases lspec
           | (_, lspec) <- HM.toList (getDependencies deps)
           ]
      in
@@ -186,6 +186,7 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
     else
       Left (roErrors ro)
   where
+    -- TEMP-NOTE: (3) At this point aliases are collected for name resolution.
     taliases = collectTypeAliases thisModule bareSpec0 dependencies
     allEaliases = collectExprAliases bareSpec0 dependencies
 
@@ -399,6 +400,7 @@ resolveBoundVarsInTypeAliases = updateAliases resolveBoundVars
 --
 -- the parser builds a type for @Ev (plus n n)@.
 --
+-- TEMP-NOTE: what's going on here?
 fixExpressionArgsOfTypeAliases
   :: HM.HashMap Symbol (GHC.Module, RTAlias Symbol ())
   -> BareSpecParsed
@@ -482,7 +484,7 @@ lookupInScopeNonReflectedEnv env s = do
     maybeQualifySymbol n m =
       if m == "" then n else LH.qualifySymbol m n
 
--- | Builds an environment of non-reflected names in scope from the module
+-- | Builds an environment of non-reflected names in scope from the
 -- aliases for the current module, the spec of the current module, and the specs
 -- of the dependencies.
 --
@@ -500,6 +502,7 @@ makeLogicEnvs
      , HS.HashSet Symbol
      )
 makeLogicEnvs impAvails thisModule spec dependencies =
+    -- TEMP-NOTE: Qualified names for the logic environment are handled here
     let unqualify s =
           if s == LH.qualifySymbol (symbol $ GHC.moduleName thisModule) (LH.dropModuleNames s) then
             LH.dropModuleNames s
@@ -511,7 +514,10 @@ makeLogicEnvs impAvails thisModule spec dependencies =
         unhandledNames = HS.fromList $
           map unqualify unhandledNamesList ++ map (LH.qualifySymbol (symbol $ GHC.moduleName thisModule)) unhandledNamesList
         unhandledNamesList =
-          map (rtName . val) (ealiases spec)
+          -- TEMP-NOTE: predicate aliases are added to the environment here
+          -- For now I keep the symbol to minimise propagation, but could later
+          -- try to use the full LHName.
+          map (getLHNameSymbol . val . rtName . val) (ealiases spec)
           ++ concatMap (map getLHNameSymbol . snd) unhandledLogicNames
         unhandledLogicNames =
           map (fmap collectUnhandledLiftedSpecLogicNames) dependencyPairs
@@ -604,7 +610,7 @@ makeLogicEnvs impAvails thisModule spec dependencies =
 {- HLINT ignore collectUnhandledLiftedSpecLogicNames "Use ++" -}
 collectUnhandledLiftedSpecLogicNames :: LiftedSpec -> [LHName]
 collectUnhandledLiftedSpecLogicNames sp =
-    map (makeLocalLHName . LH.dropModuleNames . rtName . val) $ HS.toList $ liftedEaliases sp
+    map (makeLocalLHName . LH.dropModuleNames . getLHNameSymbol . val . rtName . val) $ HS.toList $ liftedEaliases sp
 
 collectLiftedSpecLogicNames :: LiftedSpec -> [LHName]
 collectLiftedSpecLogicNames sp = concat
@@ -761,6 +767,7 @@ resolveLogicNames cfg env globalRdrEnv unhandledNames lmap0 localVars lnameEnv p
           -> case gres of
           [e] -> do
             let n = GHC.greName e
+            -- TEMP-NOTE: Will this check be redundant afterwards?
             -- TODO: The check for allEaliases should be redundant when
             -- ealiases are put in the logic environments
             if HM.member (symbol n) (lmSymDefs lmap) || HS.member (symbol n) allEaliases then

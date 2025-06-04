@@ -464,7 +464,8 @@ checkDuplicateRTAlias s tas = mkDiagnostics mempty (map mkError dups)
                                           (pprint . rtName . val $ x)
                                           (GM.fSrcSpan <$> xs)
     mkError []                = panic Nothing "mkError: called on empty list"
-    dups                    = [z | z@(_:_:_) <- groupDuplicatesOn (rtName . val) tas]
+    -- TEMP-NOTE: This check is used on both type and predicate aliases
+    dups                    = [z | z@(_:_:_) <- groupDuplicatesOn ( lhNameToUnqualifiedSymbol . val . rtName . val) tas]
 
 groupDuplicatesOn :: Ord b => (a -> b) -> [a] -> [[a]]
 groupDuplicatesOn f = L.groupBy ((==) `on` f) . L.sortOn f

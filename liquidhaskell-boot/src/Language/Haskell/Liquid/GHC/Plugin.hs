@@ -448,6 +448,7 @@ isIgnore sp = any ((== "--skip-module") . F.val) (pragmas sp)
 -- | Working with bare & lifted specs ------------------------------------------
 --------------------------------------------------------------------------------
 
+-- | Loads the specs of direct dependencies and /their/ dependencies as well.
 loadDependencies :: Config -> [Module] -> TcM TargetDependencies
 loadDependencies currentModuleConfig mods = do
   hscEnv    <- env_top <$> getEnv

@@ -93,7 +93,7 @@ mkSpecDecs (Alias rta) =
   return . TySynD name tvs <$> simplifyBareType parsedToBareType lsym (rtBody (val rta))
   where
     lsym = F.atLoc rta n
-    name = symbolName n
+    name = symbolName $ getLHNameSymbol $ val n
     n    = rtName (val rta)
     tvs  = (\a -> PlainTV (symbolName a) BndrReq) <$> rtTArgs (val rta)
 mkSpecDecs _ =
