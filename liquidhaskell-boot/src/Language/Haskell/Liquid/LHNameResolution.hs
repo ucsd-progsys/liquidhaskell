@@ -102,11 +102,11 @@ collectTypeAliases
   :: GHC.Module
   -> BareSpecParsed
   -> TargetDependencies
-  -> HM.HashMap LHName (GHC.Module, RTAlias Symbol ())
+  -> HM.HashMap Symbol (GHC.Module, RTAlias Symbol ())
 collectTypeAliases m spec deps =
-    let bsAliases = [ (rtName a, (m, void a)) | a <- map val (aliases spec) ]
+    let bsAliases = [ (getLHNameSymbol $ rtName a, (m, void a)) | a <- map val (aliases spec) ]
         depAliases =
-          [ (rtName a, (GHC.unStableModule sm, void a))
+          [ (getLHNameSymbol $ rtName a, (GHC.unStableModule sm, void a))
           | (sm, lspec) <- HM.toList (getDependencies deps)
           , a <- map val (HS.toList $ liftedAliases lspec)
           ]
@@ -116,11 +116,11 @@ collectTypeAliases m spec deps =
 collectExprAliases
   :: BareSpecParsed
   -> TargetDependencies
-  -> HS.HashSet LHName
+  -> HS.HashSet Symbol
 collectExprAliases spec deps =
-    let bsAliases = HS.fromList $ map (rtName . val) (ealiases spec)
+    let bsAliases = HS.fromList $ map (getLHNameSymbol . rtName . val) (ealiases spec)
         depAliases =
-          [ HS.map (rtName . val) $ liftedEaliases lspec
+          [ HS.map (getLHNameSymbol . rtName . val) $ liftedEaliases lspec
           | (_, lspec) <- HM.toList (getDependencies deps)
           ]
      in
@@ -213,7 +213,7 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
           | s == "*" ->
             pure $ LHNResolved (LHRGHC GHC.liftedTypeKindTyConName) s
           | otherwise ->
-            case HM.lookup (val lname) taliases of
+            case HM.lookup s taliases of
               Just (m, _) -> pure $ LHNResolved (LHRLogic $ LogicName s m Nothing) s
               Nothing -> lookupGRELHName LHTcName lname s listToMaybe
         LHNUnresolved ns@(LHVarName lcl) s
@@ -402,7 +402,7 @@ resolveBoundVarsInTypeAliases = updateAliases resolveBoundVars
 --
 -- TEMP-NOTE: what's going on here?
 fixExpressionArgsOfTypeAliases
-  :: HM.HashMap LHName (GHC.Module, RTAlias Symbol ())
+  :: HM.HashMap Symbol (GHC.Module, RTAlias Symbol ())
   -> BareSpecParsed
   -> BareSpecParsed
 fixExpressionArgsOfTypeAliases taliases =
@@ -410,7 +410,7 @@ fixExpressionArgsOfTypeAliases taliases =
   where
     go :: BareTypeParsed -> BareTypeParsed
     go (RApp c@(BTyCon { btc_tc = Loc _ _ (LHNUnresolved LHTcName s) }) ts rs r)
-      | Just (_, rta) <- HM.lookup (makeUnresolvedLHName LHLogicName s) taliases =
+      | Just (_, rta) <- HM.lookup  s taliases =
         RApp c (fixExprArgs (btc_tc c) rta (map go ts)) (map goRef rs) r
     go (RApp c ts rs r) =
         RApp c (map go ts) (map goRef rs) r
@@ -636,7 +636,7 @@ resolveLogicNames
   -> LocalVars
   -> LogicNameEnv
   -> HS.HashSet LocSymbol
-  -> HS.HashSet LHName
+  -> HS.HashSet Symbol
   -> BareSpecParsed
   -> State RenameOutput BareSpecLHName
 resolveLogicNames cfg env globalRdrEnv unhandledNames lmap0 localVars lnameEnv privateReflectNames allEaliases sp = do
@@ -769,7 +769,7 @@ resolveLogicNames cfg env globalRdrEnv unhandledNames lmap0 localVars lnameEnv p
             -- TEMP-NOTE: Will this check be redundant afterwards?
             -- TODO: The check for allEaliases should be redundant when
             -- ealiases are put in the logic environments
-            if HM.member (symbol n) (lmSymDefs lmap) || HS.member (makeUnresolvedLHName LHLogicName $ symbol n) allEaliases then
+            if HM.member (symbol n) (lmSymDefs lmap) || HS.member  (symbol n) allEaliases then
               Just $ do
                 let lhName = makeLogicLHName (symbol $ GHC.getOccString n) (GHC.nameModule n) Nothing
                 addName lhName
