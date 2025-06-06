@@ -385,8 +385,11 @@ data RTAlias x a = RTA
 mapRTAVars :: (a -> b) -> RTAlias a ty -> RTAlias b ty
 mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt }
 
+-- TEMP-NOTE: This function is only (implicitly) used during the making of the
+-- 'TargetSpec' (actually, the 'GhcSpec' it is derived from), so it needs to
+-- /generate/ resolved names.
 lmapEAlias :: LMap -> F.Located (RTAlias Symbol Expr)
-lmapEAlias (LMap v ys e) = F.atLoc v (RTA (makeUnresolvedLHName LHLogicName (F.val v)) [] ys e) -- (F.loc v) (F.loc v)
+lmapEAlias (LMap v ys e) = F.atLoc v (RTA (makeGeneratedLogicLHName (F.val v)) [] ys e) -- (F.loc v) (F.loc v)
 
 
 -- | The type used during constraint generation, used

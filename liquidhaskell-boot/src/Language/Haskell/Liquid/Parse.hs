@@ -1312,7 +1312,8 @@ rtAliasP f bodyP
        body <- bodyP
        posE <- getSourcePos
        let (tArgs, vArgs) = partition (isSmall . headSym) args
-       return $ Loc pos posE (RTA (makeUnresolvedLHName LHLogicName name) (f <$> tArgs) vArgs body)
+       -- TEMP-NOTE: Parsing produces un-resolved names.
+       return $ Loc pos posE (RTA (makeUnresolvedLHName LHLogicNameBinder name) (f <$> tArgs) vArgs body)
 
 logDefineP :: Parser BPspec
 logDefineP =
