@@ -410,7 +410,7 @@ fixExpressionArgsOfTypeAliases taliases =
   where
     go :: BareTypeParsed -> BareTypeParsed
     go (RApp c@(BTyCon { btc_tc = Loc _ _ (LHNUnresolved LHTcName s) }) ts rs r)
-      | Just (_, rta) <- HM.lookup  s taliases =
+      | Just (_, rta) <- HM.lookup s taliases =
         RApp c (fixExprArgs (btc_tc c) rta (map go ts)) (map goRef rs) r
     go (RApp c ts rs r) =
         RApp c (map go ts) (map goRef rs) r
@@ -769,7 +769,7 @@ resolveLogicNames cfg env globalRdrEnv unhandledNames lmap0 localVars lnameEnv p
             -- TEMP-NOTE: Will this check be redundant afterwards?
             -- TODO: The check for allEaliases should be redundant when
             -- ealiases are put in the logic environments
-            if HM.member (symbol n) (lmSymDefs lmap) || HS.member  (symbol n) allEaliases then
+            if HM.member (symbol n) (lmSymDefs lmap) || HS.member (symbol n) allEaliases then
               Just $ do
                 let lhName = makeLogicLHName (symbol $ GHC.getOccString n) (GHC.nameModule n) Nothing
                 addName lhName
