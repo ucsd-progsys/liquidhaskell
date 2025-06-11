@@ -1319,8 +1319,7 @@ executable unit-pos-1
                     , Mapreduce_bare
                     , MapReduceVerified
                     , Maps1
-                    -- TODO reenable after fixing apply generation
-                    -- , Maps
+                    , Maps
                     , MapTvCrash
                     , MaskError
                     , Maybe000
@@ -2389,8 +2388,7 @@ executable ple-pos
                     , PleORM
                     , Ple_sum
                     , PolySetFoo
-                    -- TODO reenable after fixing apply generation
-                    -- , PolySetBar
+                    , PolySetBar
                     , ReflectDefault
                     , RegexpDerivative
                     , RosePLEDiv
