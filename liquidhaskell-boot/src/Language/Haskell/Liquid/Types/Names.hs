@@ -117,11 +117,11 @@ instance Hashable LHName where
   hashWithSalt s (LHNUnresolved ns sym) = s `hashWithSalt` ns `hashWithSalt` sym
 
 data LHNameSpace
-    = LHTcName
-    | LHDataConName LHThisModuleNameFlag
-    | LHVarName LHThisModuleNameFlag
-    | LHLogicNameBinder
-    | LHLogicName
+    = LHTcName                            -- ^ Type constructors
+    | LHDataConName LHThisModuleNameFlag  -- ^ Data constructors with procedence
+    | LHVarName LHThisModuleNameFlag      -- ^ Variables with procedence
+    | LHLogicNameBinder                   -- ^ Logic names (LHS)
+    | LHLogicName                         -- ^ Logic names (RHS)
   deriving (Data, Eq, Generic, Ord, Show)
 
 instance B.Binary LHNameSpace
