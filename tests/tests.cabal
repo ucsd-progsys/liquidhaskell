@@ -735,6 +735,7 @@ executable names-pos
                     , ExpandsDependentPairs
                     , HideName00
                     , HidePrelude
+                    , ImportedTypeAlias
                     , List00
                     , Local00
                     , Local01
@@ -742,6 +743,10 @@ executable names-pos
                     , Local03
                     , LocalAssume
                     , LocalSpec
+                    , Nat1
+                    , Nat2
+                    , NatFoo
+                    , QualifiedTypeAliases
                     , Ord
                     , Set00
                     , Set01
@@ -750,6 +755,7 @@ executable names-pos
                     , Shadow01
                     , T1521
                     , T675
+                    , TypeAliasShadowing
                     , Uniques
                     , Vector04
                     , Vector0
@@ -780,9 +786,6 @@ executable names-neg
                     , Capture01
                     , DuplicatedAliases
                     , Local00
-                    , Nat1
-                    , Nat2
-                    , QualifiedAliases
                     , Set00
                     , Set01
                     , Set02
