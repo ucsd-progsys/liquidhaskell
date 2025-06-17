@@ -106,7 +106,7 @@ renameTys :: RTAlias F.Symbol BareType -> RTAlias F.Symbol BareType
 renameTys rt = rt { rtTArgs = ys, rtBody = sbts (rtBody rt) (zip xs ys) }
   where
     xs    = rtTArgs rt
-    ys    = (`F.suffixSymbol` (getLHNameSymbol . rtName $ rt)) <$> xs
+    ys    = (`F.suffixSymbol` (getLHNameSymbol . val . rtName $ rt)) <$> xs
     sbts  = foldl (flip subt)
 
 
@@ -150,12 +150,12 @@ graphExpand buildEdges expBody env lxts
 setRTAlias :: RTEnv x t -> Located (RTAlias x t) -> RTEnv x t
 setRTAlias env a = env { typeAliases =  M.insert n a (typeAliases env) }
   where
-    n            = getLHNameSymbol . rtName $ val a
+    n            = getLHNameSymbol . val . rtName $ val a
 
 setREAlias :: RTEnv x t -> Located (RTAlias F.Symbol F.Expr) -> RTEnv x t
 setREAlias env a = env { exprAliases = M.insert n a (exprAliases env) }
   where
-    n            = getLHNameSymbol . rtName $ val a
+    n            = getLHNameSymbol . val . rtName $ val a
 
 
 
@@ -163,7 +163,7 @@ setREAlias env a = env { exprAliases = M.insert n a (exprAliases env) }
 type AliasTable x t = M.HashMap F.Symbol (Located (RTAlias x t))
 
 buildAliasTable :: [Located (RTAlias x t)] -> AliasTable x t
-buildAliasTable = M.fromList . map (\rta -> (getLHNameSymbol . rtName $ val rta, rta))
+buildAliasTable = M.fromList . map (\rta -> (getLHNameSymbol . val . rtName $ val rta, rta))
 
 fromAliasSymbol :: AliasTable x t -> F.Symbol -> Located (RTAlias x t)
 fromAliasSymbol table sym
@@ -180,7 +180,7 @@ buildAliasGraph buildEdges = map (buildAliasNode buildEdges)
 
 buildAliasNode :: (PPrint t) => (t -> [F.Symbol]) -> Located (RTAlias x t)
                -> Node F.Symbol
-buildAliasNode f la = (getLHNameSymbol $ rtName a, getLHNameSymbol $ rtName a, f (rtBody a))
+buildAliasNode f la = (getLHNameSymbol . val $ rtName a, getLHNameSymbol . val $ rtName a, f (rtBody a))
   where
     a               = val la
 

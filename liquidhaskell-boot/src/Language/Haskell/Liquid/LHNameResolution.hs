@@ -104,9 +104,9 @@ collectTypeAliases
   -> TargetDependencies
   -> HM.HashMap Symbol (GHC.Module, RTAlias Symbol ())
 collectTypeAliases m spec deps =
-    let bsAliases = [ (getLHNameSymbol $ rtName a, (m, void a)) | a <- map val (aliases spec) ]
+    let bsAliases = [ (getLHNameSymbol . val $ rtName a, (m, void a)) | a <- map val (aliases spec) ]
         depAliases =
-          [ (getLHNameSymbol $ rtName a, (GHC.unStableModule sm, void a))
+          [ (getLHNameSymbol . val $ rtName a, (GHC.unStableModule sm, void a))
           | (sm, lspec) <- HM.toList (getDependencies deps)
           , a <- map val (HS.toList $ liftedAliases lspec)
           ]
@@ -118,9 +118,9 @@ collectExprAliases
   -> TargetDependencies
   -> HS.HashSet Symbol
 collectExprAliases spec deps =
-    let bsAliases = HS.fromList $ map (getLHNameSymbol . rtName . val) (ealiases spec)
+    let bsAliases = HS.fromList $ map (getLHNameSymbol . val . rtName . val) (ealiases spec)
         depAliases =
-          [ HS.map (getLHNameSymbol . rtName . val) $ liftedEaliases lspec
+          [ HS.map (getLHNameSymbol . val . rtName . val) $ liftedEaliases lspec
           | (_, lspec) <- HM.toList (getDependencies deps)
           ]
      in
@@ -517,7 +517,7 @@ makeLogicEnvs impAvails thisModule spec dependencies =
           -- TEMP-NOTE: predicate aliases are added to the environment here
           -- For now I keep the symbol to minimise propagation, but could later
           -- try to use the full LHName.
-          map (getLHNameSymbol . rtName . val) (ealiases spec)
+          map (getLHNameSymbol . val . rtName . val) (ealiases spec)
           ++ concatMap (map getLHNameSymbol . snd) unhandledLogicNames
         unhandledLogicNames =
           map (fmap collectUnhandledLiftedSpecLogicNames) dependencyPairs
@@ -610,7 +610,7 @@ makeLogicEnvs impAvails thisModule spec dependencies =
 {- HLINT ignore collectUnhandledLiftedSpecLogicNames "Use ++" -}
 collectUnhandledLiftedSpecLogicNames :: LiftedSpec -> [LHName]
 collectUnhandledLiftedSpecLogicNames sp =
-    map (makeLocalLHName . LH.dropModuleNames . lhNameToResolvedSymbol. rtName . val) $ HS.toList $ liftedEaliases sp
+    map (makeLocalLHName . LH.dropModuleNames . lhNameToResolvedSymbol. val . rtName . val) $ HS.toList $ liftedEaliases sp
 
 collectLiftedSpecLogicNames :: LiftedSpec -> [LHName]
 collectLiftedSpecLogicNames sp = concat

@@ -1307,13 +1307,14 @@ rtAliasP :: (Symbol -> tv) -> Parser ty -> Parser (Located (RTAlias tv ty))
 rtAliasP f bodyP
   = do pos  <- getSourcePos
        name <- upperIdP
+       posNE <- getSourcePos
        args <- many aliasIdP
        reservedOp "="
        body <- bodyP
        posE <- getSourcePos
        let (tArgs, vArgs) = partition (isSmall . headSym) args
        -- TEMP-NOTE: Parsing produces un-resolved names.
-       return $ Loc pos posE (RTA (makeUnresolvedLHName LHLogicNameBinder name) (f <$> tArgs) vArgs body)
+       return $ Loc pos posE (RTA (Loc pos posNE $ makeUnresolvedLHName LHLogicNameBinder name) (f <$> tArgs) vArgs body)
 
 logDefineP :: Parser BPspec
 logDefineP =
