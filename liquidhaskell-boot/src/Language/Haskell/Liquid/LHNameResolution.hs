@@ -500,7 +500,7 @@ makeLogicEnvs
      , HS.HashSet LocSymbol
      , HS.HashSet Symbol
      )
-makeLogicEnvs impAvails thisModule spec dependencies =
+makeLogicEnvs impMods thisModule spec dependencies =
     -- TEMP-NOTE: Qualified names for the logic environment are handled here
     let unqualify s =
           if s == LH.qualifySymbol (symbol $ GHC.moduleName thisModule) (LH.dropModuleNames s) then
@@ -545,29 +545,13 @@ makeLogicEnvs impAvails thisModule spec dependencies =
           mconcat $
             privateReflects spec : map (liftedPrivateReflects . snd) dependencyPairs
      in
-        ( unionAliasEnvs $ map mkAliasEnv logicNames
+        ( unionAliasEnvs $ map (mkAliasEnv thisModule impMods) logicNames
         , mkLogicNameEnv (concatMap snd logicNames)
         , privateReflectNames
         , unhandledNames
         )
   where
     dependencyPairs = map (first GHC.unStableModule) $ HM.toList $ getDependencies dependencies
-
-    mkAliasEnv (m, lhnames) =
-      let aliases = moduleAliases thisModule impAvails m
-       in fromListSEnv
-            [ (s, map (,(m, lhname)) aliases)
-              -- Note that only non-reflected names go to the InScope environment.
-              -- See the local function resolveVarName for more details.
-            | lhname@(LHNResolved (LHRLogic (LogicName s _ Nothing)) _) <- lhnames
-            ]
-
-    unionAliasEnvs :: [InScopeNonReflectedEnv] -> InScopeNonReflectedEnv
-    unionAliasEnvs =
-      coerce .
-      HM.map (nubBy (\(alias1, (_, n1)) (alias2, (_, n2)) -> alias1 == alias2 && n1 == n2)) .
-      foldl' (HM.unionWith (++)) HM.empty .
-      coerce @_ @[HM.HashMap Symbol [(GHC.ModuleName, (GHC.Module, LHName))]]
 
     mkLogicNameEnv names =
       LogicNameEnv
@@ -577,21 +561,39 @@ makeLogicEnvs impAvails thisModule spec dependencies =
         , lneReflected = GHC.mkNameEnv [(rn, n) | n <- names, Just rn <- [maybeReflectedLHName n]]
         }
 
+unionAliasEnvs :: [InScopeNonReflectedEnv] -> InScopeNonReflectedEnv
+unionAliasEnvs =
+    coerce .
+    HM.map (nubBy (\(alias1, (_, n1)) (alias2, (_, n2)) -> alias1 == alias2 && n1 == n2)) .
+    foldl' (HM.unionWith (++)) HM.empty .
+    coerce @_ @[HM.HashMap Symbol [(GHC.ModuleName, (GHC.Module, LHName))]]
+
+mkAliasEnv :: GHC.Module -> GHC.ImportedMods -> (GHC.Module, [LHName]) -> InScopeNonReflectedEnv
+mkAliasEnv thisModule impAvails (m, lhnames) =
+    let aliases = moduleAliases thisModule impAvails m
+     in fromListSEnv
+          [ (s, map (,(m, lhname)) aliases)
+            -- Note that only non-reflected names go to the InScope environment.
+            -- See the local function resolveVarName for more details.
+          | lhname@(LHNResolved (LHRLogic (LogicName s _ Nothing)) _) <- lhnames
+          ]
+
+
 moduleAliases :: GHC.Module -> GHC.ImportedMods -> GHC.Module -> [GHC.ModuleName]
 moduleAliases thisModule impAvails m =
-  case Map.lookup m impAvails of
-    Just impBys -> concatMap imvAliases $ GHC.importedByUser impBys
-    Nothing
-      | thisModule == m ->
-        -- Aliases for the current module
-        [GHC.moduleName m, GHC.mkModuleName ""]
-      | otherwise ->
-        -- Use the aliases of the unsuffixed module
-        concatMap imvAliases $ GHC.importedByUser $
-          concat $ maybeToList $ do
-            pString <- dropLHAssumptionsSuffix
-            pMod <- findDependency pString
-            Map.lookup pMod impAvails
+    case Map.lookup m impAvails of
+      Just impBys -> concatMap imvAliases $ GHC.importedByUser impBys
+      Nothing
+        | thisModule == m ->
+          -- Aliases for the current module
+          [GHC.moduleName m, GHC.mkModuleName ""]
+        | otherwise ->
+          -- Use the aliases of the unsuffixed module
+          concatMap imvAliases $ GHC.importedByUser $
+            concat $ maybeToList $ do
+              pString <- dropLHAssumptionsSuffix
+              pMod <- findDependency pString
+              Map.lookup pMod impAvails
   where
     dropLHAssumptionsSuffix =
       let mString = GHC.moduleNameString (GHC.moduleName m)
