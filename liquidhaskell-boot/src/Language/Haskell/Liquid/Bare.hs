@@ -1428,6 +1428,7 @@ myRTEnv src env sigEnv rtEnv = mkRTE tAs' eAs
     tAs'                     = normalizeBareAlias env sigEnv name <$> tAs
     tAs                      = myAliases typeAliases
     eAs                      = myAliases exprAliases
+    -- | TEMP-NOTE: Here the aliases env. is filtered to just locally defined aliases
     myAliases fld            = filter (isLocInFile srcF) . M.elems . fld $ rtEnv
     srcF                     = _giTarget    src
     name                     = _giTargetMod src

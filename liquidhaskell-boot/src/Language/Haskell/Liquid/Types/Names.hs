@@ -32,6 +32,7 @@ module Language.Haskell.Liquid.Types.Names
   , reflectGHCName
   , reflectLHName
   , updateLHNameSymbol
+  , isNonReflectedLogicName
   ) where
 
 import Control.DeepSeq
@@ -39,6 +40,7 @@ import qualified Data.Binary as B
 import Data.Data (Data, gmapM, gmapT)
 import Data.Generics (extM, extT)
 import Data.Hashable
+import Data.Maybe (isNothing)
 import Data.String (fromString)
 import qualified Data.Text                               as Text
 import GHC.Generics
@@ -374,6 +376,13 @@ reflectGHCName thisModule n =
       )
       (symbol n)
 
+isNonReflectedLogicName :: LHName -> Bool
+isNonReflectedLogicName lhname = isResolvedLogicName lhname && (isNothing . maybeReflectedLHName) lhname
+
 maybeReflectedLHName :: LHName -> Maybe GHC.Name
 maybeReflectedLHName (LHNResolved (LHRLogic (LogicName _ _ m)) _) = m
 maybeReflectedLHName _ = Nothing
+
+isResolvedLogicName :: LHName -> Bool
+isResolvedLogicName (LHNResolved (LHRLogic (LogicName {})) _) = True
+isResolvedLogicName _ = False
