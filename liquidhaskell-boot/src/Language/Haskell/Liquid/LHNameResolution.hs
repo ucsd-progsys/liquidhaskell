@@ -186,7 +186,6 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
     else
       Left (roErrors ro)
   where
-    -- TEMP-NOTE: (3) At this point aliases are collected for name resolution.
     taliases = collectTypeAliases thisModule bareSpec0 dependencies
     allEaliases = collectExprAliases bareSpec0 dependencies
 
@@ -555,7 +554,7 @@ makeLogicEnvs impAvails thisModule spec dependencies =
     dependencyPairs = map (first GHC.unStableModule) $ HM.toList $ getDependencies dependencies
 
     mkAliasEnv (m, lhnames) =
-      let aliases = moduleAliases m
+      let aliases = moduleAliases thisModule impAvails m
        in fromListSEnv
             [ (s, map (,(m, lhname)) aliases)
               -- Note that only non-reflected names go to the InScope environment.
@@ -570,22 +569,31 @@ makeLogicEnvs impAvails thisModule spec dependencies =
       foldl' (HM.unionWith (++)) HM.empty .
       coerce @_ @[HM.HashMap Symbol [(GHC.ModuleName, (GHC.Module, LHName))]]
 
-    moduleAliases m =
-      case Map.lookup m impAvails of
-        Just impBys -> concatMap imvAliases $ GHC.importedByUser impBys
-        Nothing
-          | thisModule == m ->
-            -- Aliases for the current module
-            [GHC.moduleName m, GHC.mkModuleName ""]
-          | otherwise ->
-            -- Use the aliases of the unsuffixed module
-            concatMap imvAliases $ GHC.importedByUser $
-              concat $ maybeToList $ do
-                pString <- dropLHAssumptionsSuffix m
-                pMod <- findDependency pString
-                Map.lookup pMod impAvails
+    mkLogicNameEnv names =
+      LogicNameEnv
+        -- TEMP-NOTE: A symbol-map of all resolved logic names. Note only local and generated names are not qualified.
+        { lneLHName = fromListSEnv [ (lhNameToResolvedSymbol n, n) | n <- names ]
+        -- TEMP-NOTE: A name-map of all logic names comming from reflected Haskell functions.
+        , lneReflected = GHC.mkNameEnv [(rn, n) | n <- names, Just rn <- [maybeReflectedLHName n]]
+        }
 
-    dropLHAssumptionsSuffix m =
+moduleAliases :: GHC.Module -> GHC.ImportedMods -> GHC.Module -> [GHC.ModuleName]
+moduleAliases thisModule impAvails m =
+  case Map.lookup m impAvails of
+    Just impBys -> concatMap imvAliases $ GHC.importedByUser impBys
+    Nothing
+      | thisModule == m ->
+        -- Aliases for the current module
+        [GHC.moduleName m, GHC.mkModuleName ""]
+      | otherwise ->
+        -- Use the aliases of the unsuffixed module
+        concatMap imvAliases $ GHC.importedByUser $
+          concat $ maybeToList $ do
+            pString <- dropLHAssumptionsSuffix
+            pMod <- findDependency pString
+            Map.lookup pMod impAvails
+  where
+    dropLHAssumptionsSuffix =
       let mString = GHC.moduleNameString (GHC.moduleName m)
           sfx = "_LHAssumptions"
        in if isSuffixOf sfx mString then
@@ -600,12 +608,6 @@ makeLogicEnvs impAvails thisModule spec dependencies =
     imvAliases imv
       | GHC.imv_qualified imv = [GHC.imv_name imv]
       | otherwise = [GHC.imv_name imv, GHC.mkModuleName ""]
-
-    mkLogicNameEnv names =
-      LogicNameEnv
-        { lneLHName = fromListSEnv [ (lhNameToResolvedSymbol n, n) | n <- names ]
-        , lneReflected = GHC.mkNameEnv [(rn, n) | n <- names, Just rn <- [maybeReflectedLHName n]]
-        }
 
 {- HLINT ignore collectUnhandledLiftedSpecLogicNames "Use ++" -}
 collectUnhandledLiftedSpecLogicNames :: LiftedSpec -> [LHName]
