@@ -106,9 +106,9 @@ collectTypeAliases
   -> TargetDependencies
   -> InScopeEnv (RTAlias Symbol ())
 collectTypeAliases impMods thisModule spec deps =
-    let bsAliases = mkAliasEnvUnfiltered thisModule impMods (thisModule, bsNames)
+    let bsAliases = mkAliasEnv thisModule impMods (thisModule, bsNames)
         bsNames = [ (val . rtName $ rta, void rta) | rta <- map val (aliases spec)]
-        depAliases = map (mkAliasEnvUnfiltered thisModule impMods) $
+        depAliases = map (mkAliasEnv thisModule impMods) $
           [ (m, depNames)
           | (sm, lspec) <- HM.toList (getDependencies deps)
           , let m = GHC.unStableModule sm
@@ -474,8 +474,9 @@ type InScopeEnv a = SEnv [(GHC.ModuleName, (GHC.Module, LHName, a))]
 
 type InScopeNonReflectedEnv = InScopeEnv ()
 
--- | Looks the names in scope with the given symbol.
--- Returns a list of close but different symbols or a non empty list
+-- | Looks the names in scope with the given symbol, taking possible qualification
+-- prefixes into account.
+-- Returns a list of close but different symbols or a non-empty list
 -- with the matched names.
 lookupInScopeNonReflectedEnv
   :: InScopeEnv a -> Symbol -> Either [Symbol] [(GHC.Module, LHName, a)]
@@ -529,11 +530,12 @@ makeLogicEnvs impMods thisModule spec dependencies =
           ++ concatMap (map getLHNameSymbol . snd) unhandledLogicNames
         unhandledLogicNames =
           map (fmap collectUnhandledLiftedSpecLogicNames) dependencyPairs
+        -- TEMP-NOTE: possible optimization: avoid duplicate names here instead
+        -- of doing it at 'unionAliasEnvs'.
         logicNames =
           (thisModule, thisModuleNames) :
           map (fmap collectLiftedSpecLogicNames) dependencyPairs
           ++ unhandledLogicNames
-        logicNamesWithUnit = map (\(m,lhnames) -> (m, map (,()) lhnames)) logicNames
         thisModuleNames = concat
           [ [ reflectLHName thisModule (val n)
             | n <- concat
@@ -555,7 +557,13 @@ makeLogicEnvs impMods thisModule spec dependencies =
           mconcat $
             privateReflects spec : map (liftedPrivateReflects . snd) dependencyPairs
      in
-        ( unionAliasEnvs $ map (mkAliasEnv thisModule impMods) $ logicNamesWithUnit
+        ( unionAliasEnvs $ map (mkAliasEnv thisModule impMods) $
+          [ (m, lhnamesWithUnit)
+          | (m, lhnames) <- logicNames
+          -- We take only the non-reflected names
+          , LHNResolved (LHRLogic (LogicName _ _ Nothing)) _ <- lhnames
+          , let lhnamesWithUnit = map ( ,()) lhnames
+          ]
         , mkLogicNameEnv (concatMap snd logicNames)
         , privateReflectNames
         , unhandledNames
@@ -578,31 +586,20 @@ unionAliasEnvs =
     foldl' (HM.unionWith (++)) HM.empty .
     coerce @_ @[HM.HashMap Symbol [(GHC.ModuleName, (GHC.Module, LHName, a))]]
 
--- TEMP-NOTE: Creates an environment packing the resolved logic names of a module
--- with the aliases it is imported.
-mkAliasEnv :: GHC.Module -> GHC.ImportedMods -> (GHC.Module, [(LHName, a)]) -> InScopeEnv a
-mkAliasEnv thisModule impAvails (m, lhnames) =
-    let aliases = moduleAliases thisModule impAvails m
-     in fromListSEnv
-          [ (s, map (,(m, lhname, x)) aliases)
-            -- Note that only non-reflected names go to the InScope environment.
-            -- See the local function resolveVarName for more details.
-          | (lhname@(LHNResolved (LHRLogic (LogicName s _ Nothing)) _), x) <- lhnames
-          ]
-
--- TEMP-NOTE: Creates an environment packing the names of a module
--- with the aliases it is imported.
-mkAliasEnvUnfiltered :: GHC.Module -> GHC.ImportedMods -> (GHC.Module, [(LHName, a)]) -> InScopeEnv a
-mkAliasEnvUnfiltered thisModule impMods (m, lhnames) =
+-- | Creates an environment with the names of a module.
+mkAliasEnv:: GHC.Module -> GHC.ImportedMods -> (GHC.Module, [(LHName, a)]) -> InScopeEnv a
+mkAliasEnv thisModule impMods (m, lhnames) =
     let aliases = moduleAliases thisModule impMods m
      in fromListSEnv
           [ (getLHNameSymbol lhname, map (,(m, lhname, x)) aliases)
           | (lhname, x) <- lhnames
           ]
 
+-- | Produceds the aliases of a module. The first parameters holds the reference
+-- to the current module.
 moduleAliases :: GHC.Module -> GHC.ImportedMods -> GHC.Module -> [GHC.ModuleName]
-moduleAliases thisModule impAvails m =
-    case Map.lookup m impAvails of
+moduleAliases thisModule impMods m =
+    case Map.lookup m impMods of
       Just impBys -> concatMap imvAliases $ GHC.importedByUser impBys
       Nothing
         | thisModule == m ->
@@ -614,7 +611,7 @@ moduleAliases thisModule impAvails m =
             concat $ maybeToList $ do
               pString <- dropLHAssumptionsSuffix
               pMod <- findDependency pString
-              Map.lookup pMod impAvails
+              Map.lookup pMod impMods
   where
     dropLHAssumptionsSuffix =
       let mString = GHC.moduleNameString (GHC.moduleName m)
@@ -626,7 +623,7 @@ moduleAliases thisModule impAvails m =
 
     findDependency ms =
       find ((ms ==) . GHC.moduleNameString . GHC.moduleName) $
-      Map.keys impAvails
+      Map.keys impMods
 
     imvAliases imv
       | GHC.imv_qualified imv = [GHC.imv_name imv]
