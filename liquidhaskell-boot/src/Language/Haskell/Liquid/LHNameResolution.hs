@@ -536,6 +536,13 @@ makeLogicEnvs impMods thisModule spec dependencies =
           (thisModule, thisModuleNames) :
           map (fmap collectLiftedSpecLogicNames) dependencyPairs
           ++ unhandledLogicNames
+        nonReflectedNamesWithUnit =
+          [ (m, lhnamesWithUnit)
+          | (m, lhnames) <- logicNames
+          -- We take only the non-reflected names
+          , LHNResolved (LHRLogic (LogicName _ _ Nothing)) _ <- lhnames
+          , let lhnamesWithUnit = map ( ,()) lhnames
+          ]
         thisModuleNames = concat
           [ [ reflectLHName thisModule (val n)
             | n <- concat
@@ -557,13 +564,7 @@ makeLogicEnvs impMods thisModule spec dependencies =
           mconcat $
             privateReflects spec : map (liftedPrivateReflects . snd) dependencyPairs
      in
-        ( unionAliasEnvs $ map (mkAliasEnv thisModule impMods) $
-          [ (m, lhnamesWithUnit)
-          | (m, lhnames) <- logicNames
-          -- We take only the non-reflected names
-          , LHNResolved (LHRLogic (LogicName _ _ Nothing)) _ <- lhnames
-          , let lhnamesWithUnit = map ( ,()) lhnames
-          ]
+        ( unionAliasEnvs $ map (mkAliasEnv thisModule impMods) nonReflectedNamesWithUnit
         , mkLogicNameEnv (concatMap snd logicNames)
         , privateReflectNames
         , unhandledNames
