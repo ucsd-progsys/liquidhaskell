@@ -106,9 +106,9 @@ collectTypeAliases
   -> TargetDependencies
   -> InScopeEnv (RTAlias Symbol ())
 collectTypeAliases impMods thisModule spec deps =
-    let bsAliases = mkAliasEnv thisModule impMods (thisModule, bsNames)
+    let bsAliases = mkAliasEnv thisModule deps impMods (thisModule, bsNames)
         bsNames = [ (val . rtName $ rta, void rta) | rta <- map val (aliases spec)]
-        depAliases = map (mkAliasEnv thisModule impMods) $
+        depAliases = map (mkAliasEnv thisModule deps impMods) $
           [ (m, depNames)
           | (sm, lspec) <- HM.toList (getDependencies deps)
           , let m = GHC.unStableModule sm
@@ -469,7 +469,7 @@ exprArg l msg = notracepp ("exprArg: " ++ msg) . go
 --
 -- For each symbol we have the aliases with which it is imported and the
 -- name corresponding to each alias.
--- TEMP-NOTE: update doc
+-- TEMP-NOTE: update doc. Posibly rename to AliasEnv or similar.
 type InScopeEnv a = SEnv [(GHC.ModuleName, (GHC.Module, LHName, a))]
 
 type InScopeNonReflectedEnv = InScopeEnv ()
@@ -481,6 +481,8 @@ type InScopeNonReflectedEnv = InScopeEnv ()
 lookupInScopeNonReflectedEnv
   :: InScopeEnv a -> Symbol -> Either [Symbol] [(GHC.Module, LHName, a)]
 lookupInScopeNonReflectedEnv env s = do
+    -- The symbol might be qualified or not,
+    -- but we use the unqualified symbol for the lookup.
     let n = LH.dropModuleNames s
     case lookupSEnvWithDistance n env of
       Alts closeSyms -> Left closeSyms
@@ -539,7 +541,7 @@ makeLogicEnvs impMods thisModule spec dependencies =
         nonReflectedNamesWithUnit =
           [ (m, lhnamesWithUnit)
           | (m, lhnames) <- logicNames
-          -- We take only the non-reflected names
+          -- Take non-reflected names only.
           , LHNResolved (LHRLogic (LogicName _ _ Nothing)) _ <- lhnames
           , let lhnamesWithUnit = map ( ,()) lhnames
           ]
@@ -564,7 +566,7 @@ makeLogicEnvs impMods thisModule spec dependencies =
           mconcat $
             privateReflects spec : map (liftedPrivateReflects . snd) dependencyPairs
      in
-        ( unionAliasEnvs $ map (mkAliasEnv thisModule impMods) nonReflectedNamesWithUnit
+        ( unionAliasEnvs $ map (mkAliasEnv thisModule dependencies impMods) nonReflectedNamesWithUnit
         , mkLogicNameEnv (concatMap snd logicNames)
         , privateReflectNames
         , unhandledNames
@@ -583,31 +585,45 @@ makeLogicEnvs impMods thisModule spec dependencies =
 unionAliasEnvs :: forall a. [InScopeEnv a] -> InScopeEnv a
 unionAliasEnvs =
     coerce .
+    -- TEMP-NOTE: Previously, only resolved names went through this environment.
+    -- Now we get unresolved names when collecting (type) aliases before the first pass,
+    -- so its nees to be verified that name and module alias equality
+    -- remove the expected ambiguities in this case.
     HM.map (nubBy (\(alias1, (_, n1, _)) (alias2, (_, n2, _)) -> alias1 == alias2 && n1 == n2)) .
     foldl' (HM.unionWith (++)) HM.empty .
     coerce @_ @[HM.HashMap Symbol [(GHC.ModuleName, (GHC.Module, LHName, a))]]
 
--- | Creates an environment with the names of a module.
-mkAliasEnv:: GHC.Module -> GHC.ImportedMods -> (GHC.Module, [(LHName, a)]) -> InScopeEnv a
-mkAliasEnv thisModule impMods (m, lhnames) =
-    let aliases = moduleAliases thisModule impMods m
+-- | Creates an environment of names contained in a module (the tuple argument)
+-- with the aliases given to it at the current module (first argument).
+-- We expect this module is a direct import, or otherwise a transitive dependency
+-- from the 'TargetDependencies'.
+-- TEMP-NOTE: The 'TargetDependencies' argument was introduced to account for names needed
+-- when collecting type aliases comming from modules not in scope. It must be verified that
+-- no spurius names are introduced when building the original 'InScopeNonReflectedEnv' build
+-- by 'makeLogicEnvs'.
+mkAliasEnv:: GHC.Module -> TargetDependencies -> GHC.ImportedMods -> (GHC.Module, [(LHName, a)]) -> InScopeEnv a
+mkAliasEnv thisModule deps impMods (m, lhnames) =
+    let aliases = moduleAliases thisModule deps impMods m
      in fromListSEnv
           [ (getLHNameSymbol lhname, map (,(m, lhname, x)) aliases)
           | (lhname, x) <- lhnames
           ]
 
--- | Produceds the aliases of a module. The first parameters holds the reference
+-- | Produces the list of aliases a module is imported with. The first parameters holds the reference
 -- to the current module.
-moduleAliases :: GHC.Module -> GHC.ImportedMods -> GHC.Module -> [GHC.ModuleName]
-moduleAliases thisModule impMods m =
+moduleAliases :: GHC.Module -> TargetDependencies -> GHC.ImportedMods -> GHC.Module -> [GHC.ModuleName]
+moduleAliases thisModule deps impMods m =
     case Map.lookup m impMods of
+      -- Aliases for imported modules
       Just impBys -> concatMap imvAliases $ GHC.importedByUser impBys
       Nothing
         | thisModule == m ->
           -- Aliases for the current module
           [GHC.moduleName m, GHC.mkModuleName ""]
+          -- Dependencies not in scope get an empty alias
+        | HM.member (GHC.toStableModule m) (getDependencies deps) -> [GHC.mkModuleName ""]
         | otherwise ->
-          -- Use the aliases of the unsuffixed module
+          -- For LHAssumptions modules, use the aliases of the unsuffixed module
           concatMap imvAliases $ GHC.importedByUser $
             concat $ maybeToList $ do
               pString <- dropLHAssumptionsSuffix
