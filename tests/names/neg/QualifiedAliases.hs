@@ -11,10 +11,10 @@ module QualifiedAliases where
 import qualified Nat1 as N
 import Nat2
 
-{-@ llength :: [a] -> Nat @-}
+{-@ llength :: [a] -> INat @-}
 llength [] = 0
 llength (x : xs) = 1 + length xs
 
-{-@ llength' :: [a] -> N.Nat @-}
+{-@ llength' :: [a] -> N.INat @-}
 llength' [] = 0
 llength' (x : xs) = 1 + length xs
