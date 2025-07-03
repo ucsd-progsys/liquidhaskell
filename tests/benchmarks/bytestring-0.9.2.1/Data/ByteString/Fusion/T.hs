@@ -297,7 +297,7 @@ loopU f start (PS z s i) = unsafePerformIO $ withForeignPtr z $ \a -> do
 
 -- Functional list/array fusion for lazy ByteStrings.
 --
-{-@ loopL :: (AccEFLJ acc) -> acc -> b:L.ByteString -> (PairS acc (LByteStringSZ b)) @-}
+{-@ loopL :: (AccEFLJ acc) -> acc -> b:L.ByteString -> (PairS acc (L.LByteStringSZ b)) @-}
 loopL :: AccEFL acc          -- ^ mapping & folding, once per elem
       -> acc                 -- ^ initial acc value
       -> L.ByteString        -- ^ input ByteString
