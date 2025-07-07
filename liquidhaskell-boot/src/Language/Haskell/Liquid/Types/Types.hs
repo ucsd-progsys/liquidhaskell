@@ -368,9 +368,8 @@ instance Show (Axiom Var Type CoreExpr) where
                                          "\nRHS      :" ++ showPpr rhs
 
 --------------------------------------------------------------------------------
--- | Refinement Type Aliases
+-- | Refinement Type and Expression Aliases
 --------------------------------------------------------------------------------
--- TEMP-NOTE: Data type for type aliases
 data RTAlias x a = RTA
   { rtName  :: F.Located LHName   -- ^ name of the alias
   , rtTArgs :: [x]                -- ^ type parameters
@@ -386,11 +385,14 @@ data RTAlias x a = RTA
 mapRTAVars :: (a -> b) -> RTAlias a ty -> RTAlias b ty
 mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt }
 
--- TEMP-NOTE: This function is only (implicitly) used during the making of the
--- 'TargetSpec' (actually, the 'GhcSpec' it is derived from), so it needs to
--- /generate/ resolved names.
+-- | Transform a logic equation to an expression alias.
+--
+-- Used when making the 'Language.Haskell.Liquid.Types.Specs.GhcSpec'
+-- where we need definitions from the logic map (e.g. Haskell inlines)
+-- for alias expansion.
 lmapEAlias :: LMap -> F.Located (RTAlias Symbol Expr)
-lmapEAlias (LMap v ys e) = F.atLoc v (RTA (F.dummyLoc $ makeGeneratedLogicLHName (F.val v)) [] ys e) -- (F.loc v) (F.loc v)
+lmapEAlias (LMap v ys e) =
+  F.atLoc v (RTA (F.dummyLoc $ makeGeneratedLogicLHName (F.val v)) [] ys e)
 
 
 -- | The type used during constraint generation, used
@@ -563,9 +565,8 @@ getModString :: ModName -> String
 getModString = moduleNameString . getModName
 
 --------------------------------------------------------------------------------
--- | Refinement Type Aliases ---------------------------------------------------
+-- | Refinement Type and Expression Aliases Environment
 --------------------------------------------------------------------------------
--- TEMP-NOTE: should I change this Symbol to LHName?
 data RTEnv tv t = RTE
   { typeAliases :: M.HashMap LHName (F.Located (RTAlias tv t))
   , exprAliases :: M.HashMap Symbol (F.Located (RTAlias Symbol Expr))

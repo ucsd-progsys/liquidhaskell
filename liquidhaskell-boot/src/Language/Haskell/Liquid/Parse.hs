@@ -887,8 +887,6 @@ data BPspec
   | RInst   (RInstance LocBareTypeParsed)                 -- ^ refined 'instance' definition
   | Invt    LocBareTypeParsed                             -- ^ 'invariant' specification
   | Using  (LocBareTypeParsed, LocBareTypeParsed)         -- ^ 'using' declaration (for local invariants on a type)
-  -- TEMP-NOTE: (1) This are the representation of aliases on
-  -- the first transformation (parsing) of the spec comments.
   | Alias   (Located (RTAlias Symbol BareTypeParsed))     -- ^ 'type' alias declaration
   | EAlias  (Located (RTAlias Symbol (ExprV LocSymbol)))  -- ^ 'predicate' alias declaration
   | Embed   (Located LHName, FTycon, TCArgs)              -- ^ 'embed' declaration
@@ -1085,8 +1083,6 @@ mkSpec xs = Measure.Spec
   , Measure.ialiases   = [t | Using t <- xs]
   , Measure.dataDecls  = [d | DDecl  d <- xs] ++ [d | NTDecl d <- xs]
   , Measure.newtyDecls = [d | NTDecl d <- xs]
-  -- TEMP-NOTE: (2) This is the second parsing of the spec, which just groups
-  -- the specs directives to form the BarseSpecParsed.
   , Measure.aliases    = [a | Alias  a <- xs]
   , Measure.ealiases   = [e | EAlias e <- xs]
   , Measure.embeds     = tceFromList [(c, (fTyconSort tc, a)) | Embed (c, tc, a) <- xs]
@@ -1313,7 +1309,6 @@ rtAliasP f bodyP
        body <- bodyP
        posE <- getSourcePos
        let (tArgs, vArgs) = partition (isSmall . headSym) args
-       -- TEMP-NOTE: Parsing produces un-resolved names.
        return $ Loc pos posE (RTA (Loc pos posNE $ makeUnresolvedLHName LHLogicNameBinder name) (f <$> tArgs) vArgs body)
 
 logDefineP :: Parser BPspec

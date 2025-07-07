@@ -236,7 +236,6 @@ instance Monoid GhcSpecVars where
 
 data GhcSpecQual = SpQual
   { gsQualifiers :: ![F.Qualifier]                -- ^ Qualifiers in Source/Spec files e.g tests/pos/qualTest.hs
-  -- TEMP-NOTE: Look into this...
   , gsRTAliases  :: ![F.Located SpecRTAlias]      -- ^ Refinement type aliases (only used for qualifiers)
   }
   deriving Show
@@ -388,7 +387,6 @@ data Spec lname ty = Spec
   , ialiases   :: ![(F.Located ty, F.Located ty)]                     -- ^ Data type invariants to be checked
   , dataDecls  :: ![DataDeclP lname ty]                               -- ^ Predicated data definitions
   , newtyDecls :: ![DataDeclP lname ty]                               -- ^ Predicated new type definitions
-  -- TEMP-NOTE: fields for the relevant aliases
   , aliases    :: ![F.Located (RTAlias F.Symbol (BareTypeV lname))]   -- ^ RefType aliases
   , ealiases   :: ![F.Located (RTAlias F.Symbol (F.ExprV lname))]     -- ^ Expression aliases
   , embeds     :: !(F.TCEmb (F.Located LHName))                       -- ^ GHC-Tycon-to-fixpoint Tycon map
@@ -730,7 +728,6 @@ data LiftedSpec = LiftedSpec
     -- ^ Predicated data definitions
   , liftedNewtyDecls :: HashSet DataDeclLHName
     -- ^ Predicated new type definitions
-    -- TEMP-NOTE: The lifted aliases values
   , liftedAliases    :: HashSet (F.Located (RTAlias F.Symbol BareTypeLHName))
     -- ^ RefType aliases
   , liftedEaliases   :: HashSet (F.Located (RTAlias F.Symbol (F.ExprV LHName)))

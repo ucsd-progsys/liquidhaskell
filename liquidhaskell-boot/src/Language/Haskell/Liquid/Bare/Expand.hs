@@ -126,9 +126,11 @@ renameRTVArgs rt = rt { rtVArgs = newArgs
     oldArgs      = rtVArgs rt
     rtArg x i    = F.suffixSymbol x (F.intSymbol "rta" i)
 
--- | Uses the complete list of available type aliases to expand their uses within
--- other aliases.
--- Note that from 'makeRTEnv' the input environement contains the expanded
+-- | Expands type aliases (recursively), by unfolding the definition of all inner
+-- aliases, and adds them to environment.
+-- We make sure that innermost aliases are unfolded and added first, or trow an
+-- error in case of cyclic dependencies.
+-- Note that, from 'makeRTEnv', the input environement contains the expanded
 -- expression aliases only.
 makeRTAliases :: [Located (RTAlias F.Symbol BareType)] -> BareRTEnv -> BareRTEnv
 makeRTAliases lxts rte = graphExpand' buildTypeEdges f rte lxts
