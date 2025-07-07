@@ -131,7 +131,7 @@ renameRTVArgs rt = rt { rtVArgs = newArgs
 -- Note that from 'makeRTEnv' the input environement contains the expanded
 -- expression aliases only.
 makeRTAliases :: [Located (RTAlias F.Symbol BareType)] -> BareRTEnv -> BareRTEnv
-makeRTAliases lxts rte = graphExpand buildTypeEdges f rte lxts
+makeRTAliases lxts rte = graphExpand' buildTypeEdges f rte lxts
   where
     f rtEnv xt         = setRTAlias rtEnv (expandLoc rtEnv xt)
 
@@ -154,12 +154,28 @@ graphExpand buildEdges expBody env lxts
     graph  = buildAliasGraph (buildEdges table) lxts
     table' = checkCyclicAliases table graph
 
--- | Inserts a type alias in the environment. It can overwrite an alias with the
--- same symbol.
+-- | Alternative implementation for type aliases using 'LHName' for table
+-- lookup and graph.
+graphExpand' :: (PPrint t)
+            => (AliasTable' x t -> t -> [LHName])         -- ^ dependencies
+            -> (thing -> Located (RTAlias x t) -> thing) -- ^ update
+            -> thing                                     -- ^ initial
+            -> [Located (RTAlias x t)]                   -- ^ vertices
+            -> thing                                     -- ^ final
+graphExpand' buildEdges expBody env lxts
+           = L.foldl' expBody env (genExpandOrder' table' graph)
+  where
+    -- xts    = val <$> lxts
+    table  = buildAliasTable' lxts
+    graph  = buildAliasGraph' (buildEdges table) lxts
+    table' = checkCyclicAliases' table graph
+
+
+-- | Inserts a type alias in the environment.
 setRTAlias :: RTEnv x t -> Located (RTAlias x t) -> RTEnv x t
 setRTAlias env a = env { typeAliases =  M.insert n a (typeAliases env) }
   where
-    n            = getLHNameSymbol . val . rtName $ val a
+    n            = val . rtName $ val a
 
 -- | Inserts an expression alias in the environment. It can overwrite an alias
 -- with the same symbol.
@@ -182,6 +198,17 @@ fromAliasSymbol table sym
   where
     err = panic Nothing ("fromAliasSymbol: Dangling alias symbol: " ++ show sym)
 
+type AliasTable' x t = M.HashMap LHName (Located (RTAlias x t))
+
+buildAliasTable' :: [Located (RTAlias x t)] -> AliasTable' x t
+buildAliasTable' = M.fromList . map (\rta -> (val . rtName $ val rta, rta))
+
+fromAliasLHName :: AliasTable' x t -> LHName -> Located (RTAlias x t)
+fromAliasLHName table lhname
+  = fromMaybe err (M.lookup lhname table)
+  where
+    err = panic Nothing ("fromAliasSymbol: Dangling alias name: " ++ show lhname)
+
 -- | An adjacency list of nodes representing a directed graph. Used to detect
 -- cyclic alias dependencies and ordering the expansion of aliases.
 type Graph t = [Node t]
@@ -198,6 +225,17 @@ buildAliasNode :: (PPrint t) => (t -> [F.Symbol]) -> Located (RTAlias x t)
 buildAliasNode f la = (getLHNameSymbol . val $ rtName a, getLHNameSymbol . val $ rtName a, f (rtBody a))
   where
     a               = val la
+
+-- | Build graph using LHName alternative
+buildAliasGraph' :: (PPrint t) => (t -> [LHName]) -> [Located (RTAlias x t)]
+                -> Graph LHName
+buildAliasGraph' buildEdges = map (buildNode buildEdges)
+  where
+    buildNode :: (PPrint t) => (t -> [LHName]) -> Located (RTAlias x t)
+               -> Node LHName
+    buildNode f la = (val . rtName $ a, val . rtName $ a, f (rtBody a))
+      where
+        a               = val la
 
 checkCyclicAliases :: AliasTable x t -> Graph F.Symbol -> AliasTable x t
 checkCyclicAliases table graph
@@ -217,6 +255,23 @@ cycleAliasErr t symList@(rta:_) = ErrAliasCycle { pos    = fst (locate rta)
                  , pprint sym )
 
 
+checkCyclicAliases' :: AliasTable' x t -> Graph LHName -> AliasTable' x t
+checkCyclicAliases' table graph
+  = case mapMaybe go (stronglyConnComp graph) of
+      []   -> table
+      sccs -> Ex.throw (cycleAliasErr' table <$> sccs)
+    where
+      go (CyclicSCC vs) = Just vs
+      go (AcyclicSCC _) = Nothing
+
+cycleAliasErr' :: AliasTable' x t -> [LHName] -> Error
+cycleAliasErr' _ []          = panic Nothing "checkCyclicAliases: No type aliases in reported cycle"
+cycleAliasErr' t nameList@(name:_) = ErrAliasCycle { pos    = fst (locate name)
+                                                , acycle = map locate nameList }
+  where
+    locate n = ( GM.fSrcSpan $ fromAliasLHName t n
+                 , pprint n )
+
 -- | Orders the aliases so that nested aliases come first.
 genExpandOrder :: AliasTable x t -> Graph F.Symbol -> [Located (RTAlias x t)]
 genExpandOrder table graph
@@ -227,6 +282,17 @@ genExpandOrder table graph
     symOrder
       = map (Misc.fst3 . lookupVertex) $ reverse $ topSort digraph
 
+-- | Orders the aliases so that nested aliases come first. Alternative
+-- version for type aliases using LHNames.
+genExpandOrder' :: AliasTable' x t -> Graph LHName -> [Located (RTAlias x t)]
+genExpandOrder' table graph
+  = map (fromAliasLHName table) nameOrder
+  where
+    (digraph, lookupVertex, _)
+      = graphFromEdges graph
+    nameOrder
+      = map (Misc.fst3 . lookupVertex) $ reverse $ topSort digraph
+
 --------------------------------------------------------------------------------
 
 ordNub :: Ord a => [a] -> [a]
@@ -234,11 +300,11 @@ ordNub = map head . L.group . L.sort
 
 -- | Gathers all constructors in a 'BareType' whose symbol matches a key
 -- from the table.
-buildTypeEdges :: AliasTable x t -> BareType -> [F.Symbol]
+buildTypeEdges :: AliasTable' x t -> BareType -> [LHName]
 buildTypeEdges table = ordNub . go
   where
     -- go :: t -> [Symbol]
-    go (RApp c ts rs _) = go_alias (getLHNameSymbol $ val $ btc_tc c) ++ concatMap go ts ++ concatMap go (mapMaybe go_ref rs)
+    go (RApp c ts rs _) = go_alias (val $ btc_tc c) ++ concatMap go ts ++ concatMap go (mapMaybe go_ref rs)
     go (RFun _ _ t1 t2 _) = go t1 ++ go t2
     go (RAppTy t1 t2 _) = go t1 ++ go t2
     go (RAllE _ t1 t2)  = go t1 ++ go t2
@@ -419,7 +485,7 @@ expandBareType rtEnv l = go
     goRef (RProp ss t)   = RProp (map (expand rtEnv l <$>) ss) (go t)
 
 lookupRTEnv :: BTyCon -> BareRTEnv -> Maybe (Located BareRTAlias)
-lookupRTEnv c rtEnv = M.lookup (getLHNameSymbol $ val $ btc_tc c) (typeAliases rtEnv)
+lookupRTEnv c rtEnv = M.lookup (val $ btc_tc c) (typeAliases rtEnv)
 
 expandRTAliasApp :: F.SourcePos -> Located BareRTAlias -> [BareType] -> RReft -> BareType
 expandRTAliasApp l (Loc la _ rta) args r = case isOK of

@@ -567,7 +567,7 @@ getModString = moduleNameString . getModName
 --------------------------------------------------------------------------------
 -- TEMP-NOTE: should I change this Symbol to LHName?
 data RTEnv tv t = RTE
-  { typeAliases :: M.HashMap Symbol (F.Located (RTAlias tv t))
+  { typeAliases :: M.HashMap LHName (F.Located (RTAlias tv t))
   , exprAliases :: M.HashMap Symbol (F.Located (RTAlias Symbol Expr))
   }
 

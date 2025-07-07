@@ -1435,17 +1435,17 @@ myRTEnv src env sigEnv rtEnv = mkRTE tAs' eAs
     tAs'                     = normalizeBareAlias env sigEnv name <$> tAs
     tAs                      = myAliases typeAliases
     eAs                      = myAliases exprAliases
-    -- | TEMP-NOTE: Here the aliases env. is filtered to just locally defined aliases
-    myAliases fld            = filter (isLocInFile srcF) . M.elems . fld $ rtEnv
+    eAs                      = filter (isLocInFile srcF) $ myAliases exprAliases
+    myAliases fld            =  M.elems . fld $ rtEnv
     srcF                     = _giTarget    src
     name                     = _giTargetMod src
 
 mkRTE :: [Located (RTAlias x a)] -> [Located (RTAlias F.Symbol F.Expr)] -> RTEnv x a
 mkRTE tAs eAs   = RTE
   { typeAliases = M.fromList [ (aName a, a) | a <- tAs ]
-  , exprAliases = M.fromList [ (aName a, a) | a <- eAs ]
+  , exprAliases = M.fromList [ (getLHNameSymbol $ aName a, a) | a <- eAs ]
   }
-  where aName   = getLHNameSymbol . F.val . rtName . F.val
+  where aName   = F.val . rtName . F.val
 
 -- | Prepare an alias for constraint checking by expanding its body and fixing its type argument names.
 normalizeBareAlias :: Bare.Env -> Bare.SigEnv -> ModName -> Located BareRTAlias
