@@ -224,7 +224,20 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
               Right [(_, lh@(LHNResolved _ _), _)] -> pure lh
               -- Type aliases defined in the current module.
               Right [(m, _, _)] -> pure $ LHNResolved (LHRLogic $ LogicName (LH.dropModuleNames s) m Nothing) s
-              -- TEMP-NOTE: might have to handle multiple matches here
+              Right ns -> do
+                addError (ErrDupNames
+                           (LH.fSrcSpan lname)
+                           (pprint s)
+                           (map (\case
+                                  (m, LHNUnresolved _ sym, _) ->
+                                    pprint (LH.qualifySymbol (symbol . GHC.moduleNameString . GHC.moduleName $ m) sym) PJ.<+>
+                                    PJ.text "defined in current module"
+                                  (m, n@(LHNResolved _ _), _) ->
+                                    pprint (lhNameToResolvedSymbol n) PJ.<+>
+                                    PJ.text ("imported from " ++ GHC.moduleNameString (GHC.moduleName m))
+                                ) ns)
+                         )
+                return $ makeLocalLHName s
               _ -> lookupGRELHName LHTcName lname s listToMaybe
         LHNUnresolved ns@(LHVarName lcl) s
           | isDataCon s ->
