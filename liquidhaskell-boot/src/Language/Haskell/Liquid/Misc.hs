@@ -346,6 +346,9 @@ fstByRank rkvs = [ (r, k, v) | (k, rvs) <- krvss, let (r, v) = getFst rvs ]
     getFst     = head . sortOn fst
     krvss      = groupList [ (k, (r, v)) | (r, k, v) <- rkvs ]
 
+ordNub :: Ord a => [a] -> [a]
+ordNub = map head . L.group . L.sort
+
 sortOn :: (Ord b) => (a -> b) -> [a] -> [a]
 sortOn f = L.sortBy (compare `on` f)
 

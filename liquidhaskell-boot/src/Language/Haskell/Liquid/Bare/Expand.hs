@@ -297,13 +297,10 @@ genExpandOrder' table graph
 
 --------------------------------------------------------------------------------
 
-ordNub :: Ord a => [a] -> [a]
-ordNub = map head . L.group . L.sort
-
 -- | Gathers all constructors in a 'BareType' whose symbol matches a key
 -- from the table.
 buildTypeEdges :: AliasTable' x t -> BareType -> [LHName]
-buildTypeEdges table = ordNub . go
+buildTypeEdges table = Misc.ordNub . go
   where
     -- go :: t -> [Symbol]
     go (RApp c ts rs _) = go_alias (val $ btc_tc c) ++ concatMap go ts ++ concatMap go (mapMaybe go_ref rs)
@@ -323,7 +320,7 @@ buildTypeEdges table = ordNub . go
 
 -- | Gathers all variables that match a expression alias within an expression.
 buildExprEdges :: M.HashMap F.Symbol a -> F.Expr -> [F.Symbol]
-buildExprEdges table  = ordNub . go
+buildExprEdges table  = Misc.ordNub . go
   where
     go :: F.Expr -> [F.Symbol]
     go (EApp e1 e2)   = go e1 ++ go e2
