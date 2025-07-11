@@ -33,6 +33,8 @@ module Language.Haskell.Liquid.Types.Names
   , reflectLHName
   , updateLHNameSymbol
   , isNonReflectedLogicName
+  , logicNameModuleOrigin
+  , isResolvedLogicName
   ) where
 
 import Control.DeepSeq
@@ -387,3 +389,7 @@ maybeReflectedLHName _ = Nothing
 isResolvedLogicName :: LHName -> Bool
 isResolvedLogicName (LHNResolved (LHRLogic (LogicName {})) _) = True
 isResolvedLogicName _ = False
+
+logicNameModuleOrigin :: LHName -> GHC.Module
+logicNameModuleOrigin (LHNResolved (LHRLogic (LogicName _ m _)) _) = m
+logicNameModuleOrigin n = error $ "logicNameModule: Not a logic name " ++ show n

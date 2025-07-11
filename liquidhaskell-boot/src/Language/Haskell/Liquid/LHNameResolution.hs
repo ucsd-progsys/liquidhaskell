@@ -72,7 +72,7 @@ import           Data.Generics (extT)
 
 import qualified Data.HashSet                            as HS
 import qualified Data.HashMap.Strict                     as HM
-import           Data.List (find, isSuffixOf, nubBy)
+import           Data.List (find, isSuffixOf, nubBy, partition)
 import           Data.List.Extra (dropEnd)
 import qualified Data.Map as Map
 import           Data.Maybe (fromMaybe, listToMaybe, mapMaybe, maybeToList)
@@ -223,25 +223,28 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
             pure $ LHNResolved (LHRGHC GHC.liftedTypeKindTyConName) s
           | otherwise ->
             case lookupInScopeNonReflectedEnv taliases s of
-              -- Type aliases from dependencies.
-              Right [(_, lh@(LHNResolved _ _), _)] -> pure lh
-              -- Type aliases defined in the current module.
-              Right [(m, _, _)] -> pure $ LHNResolved (LHRLogic $ LogicName (LH.dropModuleNames s) m Nothing) s
-              -- We get multiple results when we have the same alias name and prefix.
-              Right ns -> do
-                addError (ErrDupNames
-                           (LH.fSrcSpan lname)
-                           (pprint s)
-                           (map (\case
-                                  (m, LHNUnresolved _ sym, _) ->
-                                    pprint (LH.qualifySymbol (symbol . GHC.moduleNameString . GHC.moduleName $ m) sym) PJ.<+>
-                                    PJ.text "defined in current module"
-                                  (m, n@(LHNResolved _ _), _) ->
-                                    pprint (lhNameToResolvedSymbol n) PJ.<+>
-                                    PJ.text ("imported from " ++ GHC.moduleNameString (GHC.moduleName m))
-                                ) ns)
-                         )
-                return $ makeLocalLHName s
+              Right ns ->
+                case partition (\(_,lhname,_) -> isResolvedLogicName lhname) ns of
+                  -- Type aliases defined in the current module have priority.
+                  (_ ,[(m, _, _)]) ->
+                    pure $ LHNResolved (LHRLogic $ LogicName (LH.dropModuleNames s) m Nothing) s
+                  -- Type aliases from dependencies.
+                  ([(_, lh@(LHNResolved {}), _)] , []) -> pure lh
+                  -- Ambiguous names
+                  _ -> do
+                     addError (ErrDupNames
+                                (LH.fSrcSpan lname)
+                                (pprint s)
+                                (map (\case
+                                       (m, LHNUnresolved _ sym, _) ->
+                                         pprint (LH.qualifySymbol (symbol . GHC.moduleNameString . GHC.moduleName $ m) sym) PJ.<+>
+                                         PJ.text "defined in current module"
+                                       (m, n@(LHNResolved _ _), _) ->
+                                         pprint (lhNameToResolvedSymbol n) PJ.<+>
+                                         PJ.text ("imported from " ++ GHC.moduleNameString (GHC.moduleName m))
+                                     ) ns)
+                              )
+                     return $ makeLocalLHName s
               _ -> lookupGRELHName LHTcName lname s listToMaybe
         LHNUnresolved ns@(LHVarName lcl) s
           | isDataCon s ->
