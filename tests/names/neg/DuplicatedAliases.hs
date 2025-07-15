@@ -1,8 +1,6 @@
-{-@ LIQUID "--expect-error-containing=Ambiguous specification symbol" @-}
-module DuplicatedAliases where
+{-@ LIQUID "--expect-error-containing=Multiple definitions of Type Alias" @-}
+module DuplicatedAliases () where
 
-{-@ type Nat = {v:Int | v >= 0} @-}
+{-@ type Foo = {v:Bool | v == True} @-}
 
-{-@ test :: Nat @-}
-test :: Int
-test = 0
+{-@ type Foo = {v:Bool | v == False} @-}

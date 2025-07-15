@@ -782,14 +782,18 @@ executable names-neg
       buildable:      False
 
     other-modules:
-                      Assume00
+                      AmbiguousTypeAlias
+                    , Assume00
                     , Capture01
                     , DuplicatedAliases
                     , Local00
+                    , Nat1
+                    , Nat2
                     , Set00
                     , Set01
                     , Set02
                     , T1078
+                    , UnqualifiedTypeAlias
                     , Vector0
                     , Vector1
 
