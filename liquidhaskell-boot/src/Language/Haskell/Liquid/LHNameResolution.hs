@@ -225,10 +225,13 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
             case lookupInScopeNonReflectedEnv taliases s of
               Right ns ->
                 case partition (\(_,lhname,_) -> isResolvedLogicName lhname) ns of
-                  -- Type aliases defined in the current module have priority.
-                  (_ ,[(m, _, _)]) ->
+                  -- Unresolved names correspond to type aliases defined in
+                  -- the current module. We give them priority so that the user
+                  -- can shadow those imported with the same name.
+                  (_resolved ,[(m, _, _)]) ->
                     pure $ LHNResolved (LHRLogic $ LogicName (LH.dropModuleNames s) m Nothing) s
-                  -- Type aliases from dependencies.
+                  -- Resolved type alias names come from imports.
+                  -- If we match just one we return it.
                   ([(_, lh@(LHNResolved {}), _)] , []) -> pure lh
                   -- Ambiguous names
                   _ -> do

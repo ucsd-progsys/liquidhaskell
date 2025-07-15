@@ -212,7 +212,7 @@ makeGhcSpec0 cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap targetSpec 
   tycEnv <- makeTycEnv1 env (tycEnv0, datacons) coreToLg simplifier
   let tyi      = Bare.tcTyConMap   tycEnv
   let sigEnv   = makeSigEnv  embs tyi (_gsExports src) rtEnv
-  -- This spec just has the measure field.
+  -- This spec is used to add lifted measures.
   let lSpec1   = makeLiftedSpec1 cfg src tycEnv lmap mySpec1
   -- 'mySpec' and 'specs' contain the result of the first lifting stanges, see [NOTE]: REFLECT-IMPORTS
   -- and the expanded aliases obtained using 'rtEnv'. 'myRTE' is a filtered 'rtEnv' used at the final
@@ -342,15 +342,19 @@ makeGhcSpec0 cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap targetSpec 
     simplifier :: Ghc.CoreExpr -> Ghc.TcRn Ghc.CoreExpr
     simplifier = pure -- no simplification
     allowTC  = typeclass cfg
+    -- Specs with type and expression aliases expanded.
     mySpec2  = Bare.expand rtEnv (F.dummyPos "expand-mySpec2") mySpec1
     iSpecs2  = Bare.expand rtEnv (F.dummyPos "expand-iSpecs2") (M.fromList dependencySpecs)
+    -- Environment for alias lookup and expansion.
     rtEnv    = Bare.makeRTEnv env name mySpec1 dependencySpecs lmap
     mspecs   = (name, mySpec0) : dependencySpecs
+    -- mySpec0 adds typeclass methods to the target spec.
     (mySpec0, instMethods)  = if allowTC
                               then Bare.compileClasses src env (name, targetSpec) dependencySpecs
                               else (targetSpec, [])
+    -- Ready for type alias expantion.
     mySpec1  = mySpec0 <> lSpec0
-    -- This spec just has the 'ealiases' and 'dataDecls' fields.
+    -- This spec just has the 'ealiases' (with Haskell inlines) and 'dataDecls' fields.
     lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec0
     embs     = makeEmbeds          src ghcTyLookupEnv (mySpec0 : map snd dependencySpecs)
     dm       = Bare.tcDataConMap tycEnv0
