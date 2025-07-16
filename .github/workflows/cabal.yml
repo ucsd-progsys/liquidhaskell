@@ -1,0 +1,67 @@
+name: Build & test
+
+# z3-version-architecture-distribution. From z3-4.8.10 to z3-4.8.11, the z3
+# releases distribution name for use on ubuntu changed from ubuntu to
+# glibc-2.31.  SEE: https://github.com/Z3Prover/z3/releases
+jobs:
+  build:
+    name: cabal ghc-${{ matrix.ghc }} z3-${{ matrix.z3 }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        cabal: ["3.12.1.0"]
+        ghc:
+          - "9.12.2"
+        z3:
+          - "4.10.2"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup z3-${{ matrix.z3 }}
+        uses: pavpanchekha/setup-z3@6b2d476d7a9227e0d8d2b94f73cd9fcba91b5e98
+        with:
+          version: ${{ matrix.z3 }}
+
+      - name: Workaround runner image issue
+        # https://github.com/actions/runner-images/issues/7061
+        run: sudo chown -R $USER /usr/local/.ghcup
+
+      - name: Install cvc5
+        run: |
+          wget https://github.com/cvc5/cvc5/releases/download/cvc5-1.2.0/cvc5-Linux-x86_64-static.zip
+          unzip cvc5-Linux-x86_64-static.zip
+          rm -f cvc5-Linux-x86_64-static.zip
+          sudo cp cvc5-Linux-x86_64-static/bin/cvc5 /usr/local/bin
+          rm -rf cvc5-Linux-x86_64-static
+          cvc5 --version
+
+      - name: Setup GHC and cabal-install
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: ${{ matrix.ghc }}
+          cabal-version: ${{ matrix.cabal }}
+
+      - name: Cache ~/.cabal/packages, ~/.cabal/store and dist-newstyle
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cabal/packages
+            ~/.cabal/store
+            dist-newstyle
+          key: ${{ runner.os }}-${{ matrix.ghc }}-cabal-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.freeze') }}
+
+      - name: Update package list
+        run: cabal update
+
+      - name: Build
+        run: cabal build -j --enable-tests
+
+      - name: Test
+        run: |
+          scripts/test/test_plugin.sh
+          cabal test tests:tasty --test-show-details=streaming
+          cabal test tests:liquidhaskell-test --test-show-details=streaming
+          cabal test -j1 liquidhaskell-boot --test-show-details=streaming
