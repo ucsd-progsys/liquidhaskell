@@ -34,14 +34,12 @@ jobs:
         # https://github.com/actions/runner-images/issues/7061
         run: sudo chown -R $USER /usr/local/.ghcup
 
-      - name: Install cvc5
+      - name: Configure cabal
         run: |
-          wget https://github.com/cvc5/cvc5/releases/download/cvc5-1.2.0/cvc5-Linux-x86_64-static.zip
-          unzip cvc5-Linux-x86_64-static.zip
-          rm -f cvc5-Linux-x86_64-static.zip
-          sudo cp cvc5-Linux-x86_64-static/bin/cvc5 /usr/local/bin
-          rm -rf cvc5-Linux-x86_64-static
-          cvc5 --version
+          cabal update
+          cabal configure --enable-tests
+          # should produce a plan.json file
+          cabal build all --dry-run
 
       - name: Setup GHC and cabal-install
         uses: haskell-actions/setup@v2
@@ -56,10 +54,7 @@ jobs:
             ~/.cabal/packages
             ~/.cabal/store
             dist-newstyle
-          key: ${{ runner.os }}-${{ matrix.ghc }}-cabal-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.freeze') }}
-
-      - name: Update package list
-        run: cabal update
+          key: ${{ runner.os }}-${{ matrix.ghc }}-cabal-${{ hashFiles('dist-newstyle/cache/plan.json') }}
 
       - name: Build
         run: cabal build -j --enable-tests
