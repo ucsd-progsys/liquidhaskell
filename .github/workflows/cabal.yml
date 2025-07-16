@@ -1,4 +1,9 @@
 name: Build & test
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
 
 # z3-version-architecture-distribution. From z3-4.8.10 to z3-4.8.11, the z3
 # releases distribution name for use on ubuntu changed from ubuntu to
