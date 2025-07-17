@@ -233,7 +233,7 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
                   -- Resolved type alias names come from imports.
                   -- If we match just one we return it.
                   ([(_, lh@(LHNResolved {}), _)] , []) -> pure lh
-                  -- Ambiguous names
+                  -- Report ambiguous name and return the unresolved name.
                   _ -> do
                      addError (ErrDupNames
                                 (LH.fSrcSpan lname)
@@ -247,23 +247,23 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
                                          PJ.text ("imported from " ++ GHC.moduleNameString (GHC.moduleName m))
                                      ) ns)
                               )
-                     return $ makeLocalLHName s
-              _ -> lookupGRELHName LHTcName lname s listToMaybe
+                     pure $ val lname
+              Left alts -> lookupGRELHName alts LHTcName lname s listToMaybe
         LHNUnresolved ns@(LHVarName lcl) s
           | isDataCon s ->
-              lookupGRELHName (LHDataConName lcl) lname s listToMaybe
+              lookupGRELHName [] (LHDataConName lcl) lname s listToMaybe
           | otherwise ->
-              lookupGRELHName ns lname s
+              lookupGRELHName [] ns lname s
                 (fmap (either id GHC.getName) . Resolve.lookupLocalVar localVars (atLoc lname s))
         LHNUnresolved LHLogicNameBinder s ->
           pure $ makeLogicLHName s thisModule Nothing
         n@(LHNUnresolved LHLogicName _) ->
           -- This one will be resolved by resolveLogicNames
           pure n
-        LHNUnresolved ns s -> lookupGRELHName ns lname s listToMaybe
+        LHNUnresolved ns s -> lookupGRELHName [] ns lname s listToMaybe
         n -> pure n
 
-    lookupGRELHName ns lname s localNameLookup =
+    lookupGRELHName alts ns lname s localNameLookup =
       case maybeDropImported ns $ GHC.lookupGRE globalRdrEnv (mkLookupGRE ns s) of
         [e] -> do
           let n = GHC.greName e
@@ -288,7 +288,7 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
               pure $ LHNResolved (LHRGHC n') s
             Nothing -> do
               addError
-                (errResolve (nameSpaceKind ns) "Cannot resolve name" (s <$ lname))
+                (errResolve alts (nameSpaceKind ns) "Cannot resolve name" (s <$ lname))
               pure $ val lname
 
     maybeDropImported ns es
@@ -324,8 +324,19 @@ tupleArity s =
           else
             a
 
-errResolve :: PJ.Doc -> String -> LocSymbol -> Error
-errResolve k msg lx = ErrResolve (LH.fSrcSpan lx) k (pprint (val lx)) (PJ.text msg)
+errResolve :: [Symbol] -> PJ.Doc -> String -> LocSymbol -> Error
+errResolve alts k msg ls =
+  ErrResolve
+    (LH.fSrcSpan ls)
+    k
+    (pprint $ val ls)
+    (if null alts then
+        PJ.text msg
+      else
+        PJ.text msg PJ.$$
+        PJ.sep (PJ.text "Maybe you meant one of:" : map pprint alts)
+    )
+
 
 -- | Produces an LHName from a symbol by looking it in the rdr environment.
 resolveSymbolToTcName :: GHC.GlobalRdrEnv -> LocSymbol -> Either Error (Located LHName)
@@ -339,7 +350,7 @@ resolveSymbolToTcName globalRdrEnv lx
     | otherwise =
       case GHC.lookupGRE globalRdrEnv (mkLookupGRE LHTcName s) of
         [e] -> Right $ LHNResolved (LHRGHC $ GHC.greName e) s <$ lx
-        [] -> Left $ errResolve "type constructor" "Cannot resolve name" lx
+        [] -> Left $ errResolve [] "type constructor" "Cannot resolve name" lx
         es -> Left $ ErrDupNames
                 (LH.fSrcSpan lx)
                 (pprint s)
