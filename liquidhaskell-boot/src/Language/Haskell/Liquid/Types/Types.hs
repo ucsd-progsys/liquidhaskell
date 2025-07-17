@@ -371,7 +371,7 @@ instance Show (Axiom Var Type CoreExpr) where
 -- | Refinement Type and Expression Aliases
 --------------------------------------------------------------------------------
 data RTAlias x a = RTA
-  { rtName  :: F.Located LHName   -- ^ name of the alias
+  { rtName  :: F.Located LHName   -- ^ name of the alias with its definition's location
   , rtTArgs :: [x]                -- ^ type parameters
   , rtVArgs :: [Symbol]           -- ^ value parameters
   , rtBody  :: a                  -- ^ what the alias expands to
@@ -390,9 +390,9 @@ mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt }
 -- Used when making the 'Language.Haskell.Liquid.Types.Specs.GhcSpec'
 -- where we need definitions from the logic map (e.g. Haskell inlines)
 -- for alias expansion.
-lmapEAlias :: LMap -> F.Located (RTAlias Symbol Expr)
+lmapEAlias :: LMap -> RTAlias Symbol Expr
 lmapEAlias (LMap v ys e) =
-  F.atLoc v (RTA (F.dummyLoc $ makeGeneratedLogicLHName (F.val v)) [] ys e)
+  RTA (F.atLoc v $ makeGeneratedLogicLHName (F.val v)) [] ys e
 
 
 -- | The type used during constraint generation, used
@@ -568,8 +568,8 @@ getModString = moduleNameString . getModName
 -- | Refinement Type and Expression Aliases Environment
 --------------------------------------------------------------------------------
 data RTEnv tv t = RTE
-  { typeAliases :: M.HashMap LHName (F.Located (RTAlias tv t))
-  , exprAliases :: M.HashMap Symbol (F.Located (RTAlias Symbol Expr))
+  { typeAliases :: M.HashMap LHName (RTAlias tv t)
+  , exprAliases :: M.HashMap Symbol (RTAlias Symbol Expr)
   }
 
 

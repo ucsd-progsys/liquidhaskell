@@ -90,12 +90,13 @@ mkSpecDecs (Asrts (names, (ty, _))) =
   (\t -> (`SigD` t) . lhNameToName <$> names)
     <$> simplifyBareType id (head names) (quantifyFreeRTy $ parsedToBareType $ val ty)
 mkSpecDecs (Alias rta) =
-  return . TySynD name tvs <$> simplifyBareType parsedToBareType lsym (rtBody (val rta))
+  return . TySynD name tvs <$> simplifyBareType parsedToBareType lsym (rtBody rta)
   where
-    lsym = F.atLoc rta n
-    name = symbolName $ getLHNameSymbol $ val n
-    n    = rtName (val rta)
-    tvs  = (\a -> PlainTV (symbolName a) BndrReq) <$> rtTArgs (val rta)
+    lsym = F.atLoc (rtName rta) sym
+    name = symbolName sym
+    -- We use the symbol returned by the parser
+    sym  = getLHNameSymbol . val $ rtName rta
+    tvs  = (\a -> PlainTV (symbolName a) BndrReq) <$> rtTArgs rta
 mkSpecDecs _ =
   Right []
 

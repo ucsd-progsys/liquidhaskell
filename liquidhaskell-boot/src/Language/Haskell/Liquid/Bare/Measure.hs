@@ -402,7 +402,7 @@ getDefinedSymbolsInLogic env measEnv specs =
         concat (tycDCons `Mb.mapMaybe` (dataDecls spec ++ newtyDecls spec))
     getFromDataCtor decl = S.fromList $
       map lhNameToResolvedSymbol $ val (dcName decl) : (fst <$> dcFields decl)
-    getAliases spec = S.fromList $ getLHNameSymbol . val . rtName . val <$> Ms.ealiases spec
+    getAliases spec = S.fromList $ getLHNameSymbol . val . rtName <$> Ms.ealiases spec
 
 -- Get the set of `DataCon`s (DCs) needed for the reflection of a given list of variables,
 -- and which are not already present in the logic

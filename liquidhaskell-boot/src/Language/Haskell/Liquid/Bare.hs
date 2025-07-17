@@ -297,7 +297,7 @@ makeGhcSpec0 cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap targetSpec 
                   -- ordered lexcographically) is picked.
                   -- See @tests/name/pos/ImportedTypeAlias.hs@
                 , aliases = M.elems $ M.fromList $
-                    [ (lhNameToUnqualifiedSymbol (val (rtName (val rt))) , rt)
+                    [ (lhNameToUnqualifiedSymbol (val . rtName $ rt) , rt)
                     | rt <- concat $
                         map (aliases . snd) dependencySpecs ++
                         [expandedTypeAliasesOf myRTE targetSpec]
@@ -308,7 +308,7 @@ makeGhcSpec0 cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap targetSpec 
     thisModule = Ghc.tcg_mod tcg
     expandedTypeAliasesOf myRTE sp =
       Mb.mapMaybe
-      ((`M.lookup` typeAliases myRTE) . val . rtName . val)
+      ((`M.lookup` typeAliases myRTE) . val . rtName)
       (aliases sp)
 
     -- typeclass elaboration
@@ -1453,22 +1453,22 @@ myRTEnv src env sigEnv rtEnv = mkRTE tAs' eAs
   where
     tAs'          = normalizeBareAlias env sigEnv name <$> tAs
     tAs           = myAliases typeAliases
-    eAs           = filter (isLocInFile srcF) $ myAliases exprAliases
+    eAs           = filter (isLocInFile srcF . rtName) $ myAliases exprAliases
     myAliases fld = M.elems . fld $ rtEnv
     srcF          = _giTarget    src
     name          = _giTargetMod src
 
-mkRTE :: [Located (RTAlias x a)] -> [Located (RTAlias F.Symbol F.Expr)] -> RTEnv x a
+mkRTE :: [RTAlias x a] -> [RTAlias F.Symbol F.Expr] -> RTEnv x a
 mkRTE tAs eAs   = RTE
   { typeAliases = M.fromList [ (aName a, a) | a <- tAs ]
   , exprAliases = M.fromList [ (getLHNameSymbol $ aName a, a) | a <- eAs ]
   }
-  where aName   = F.val . rtName . F.val
+  where aName   = F.val . rtName
 
 -- | Prepare an alias for constraint checking by /fixing/ its body and type argument names.
-normalizeBareAlias :: Bare.Env -> Bare.SigEnv -> ModName -> Located BareRTAlias
-                   -> Located BareRTAlias
-normalizeBareAlias env sigEnv name lx = fixRTA <$> lx
+normalizeBareAlias :: Bare.Env -> Bare.SigEnv -> ModName -> BareRTAlias
+                   -> BareRTAlias
+normalizeBareAlias env sigEnv name a = fixRTA a
   where
     fixRTA  :: BareRTAlias -> BareRTAlias
     fixRTA  = mapRTAVars fixArg . fmap fixBody
@@ -1483,7 +1483,7 @@ normalizeBareAlias env sigEnv name lx = fixRTA <$> lx
     fixBody = Bare.specToBare
             . F.val
             . Bare.cookSpecType env sigEnv name Bare.RawTV
-            . F.atLoc lx
+            . F.atLoc (rtName a)
 
 
 withDiagnostics :: (Monoid a) => Bare.Lookup a -> (Diagnostics, a)

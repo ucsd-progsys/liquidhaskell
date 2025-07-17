@@ -387,8 +387,8 @@ data Spec lname ty = Spec
   , ialiases   :: ![(F.Located ty, F.Located ty)]                     -- ^ Data type invariants to be checked
   , dataDecls  :: ![DataDeclP lname ty]                               -- ^ Predicated data definitions
   , newtyDecls :: ![DataDeclP lname ty]                               -- ^ Predicated new type definitions
-  , aliases    :: ![F.Located (RTAlias F.Symbol (BareTypeV lname))]   -- ^ RefType aliases
-  , ealiases   :: ![F.Located (RTAlias F.Symbol (F.ExprV lname))]     -- ^ Expression aliases
+  , aliases    :: ![RTAlias F.Symbol (BareTypeV lname)]   -- ^ RefType aliases
+  , ealiases   :: ![RTAlias F.Symbol (F.ExprV lname)]     -- ^ Expression aliases
   , embeds     :: !(F.TCEmb (F.Located LHName))                       -- ^ GHC-Tycon-to-fixpoint Tycon map
   , qualifiers :: ![F.QualifierV lname]                               -- ^ Qualifiers in source files
   , lvars      :: !(S.HashSet (F.Located LHName))                     -- ^ Variables that should be checked in the environment they are used
@@ -460,8 +460,8 @@ emapSpecM bscp lenv vf f sp = do
     ialiases <- mapM (bimapM (traverse fnull) (traverse fnull)) (ialiases sp)
     dataDecls <- mapM (emapDataDeclM bscp vf f) (dataDecls sp)
     newtyDecls <- mapM (emapDataDeclM bscp vf f) (newtyDecls sp)
-    aliases <- mapM (traverse (emapRTAlias (emapBareTypeVM bscp vf))) (aliases sp)
-    ealiases <- mapM (traverse (emapRTAlias (\e -> emapExprVM (vf . (++ e))))) $ ealiases sp
+    aliases <- mapM (emapRTAlias (emapBareTypeVM bscp vf)) (aliases sp)
+    ealiases <- mapM (emapRTAlias (\e -> emapExprVM (vf . (++ e)))) (ealiases sp)
     qualifiers <- mapM (emapQualifierM vf) $ qualifiers sp
     cmeasures <- mapM (emapMeasureM vf (traverse . f)) (cmeasures sp)
     imeasures <- mapM (emapMeasureM vf (traverse . f)) (imeasures sp)
@@ -569,8 +569,8 @@ mapSpecLName f Spec {..} =
       , sigs = map (fmap (fmap (mapRTypeV f . mapReft (mapUReftV f (fmap f))))) sigs
       , dataDecls = map (mapDataDeclV f) dataDecls
       , newtyDecls = map (mapDataDeclV f) newtyDecls
-      , aliases = map (fmap (fmap (mapRTypeV f . fmap (mapUReftV f (fmap f))))) aliases
-      , ealiases = map (fmap (fmap (fmap f))) ealiases
+      , aliases = map (fmap (mapRTypeV f . fmap (mapUReftV f (fmap f)))) aliases
+      , ealiases = map (fmap (fmap f)) ealiases
       , qualifiers = map (fmap f) qualifiers
       , cmeasures = map (mapMeasureV f) cmeasures
       , imeasures = map (mapMeasureV f) imeasures
@@ -728,9 +728,9 @@ data LiftedSpec = LiftedSpec
     -- ^ Predicated data definitions
   , liftedNewtyDecls :: HashSet DataDeclLHName
     -- ^ Predicated new type definitions
-  , liftedAliases    :: HashSet (F.Located (RTAlias F.Symbol BareTypeLHName))
+  , liftedAliases    :: HashSet (RTAlias F.Symbol BareTypeLHName)
     -- ^ RefType aliases
-  , liftedEaliases   :: HashSet (F.Located (RTAlias F.Symbol (F.ExprV LHName)))
+  , liftedEaliases   :: HashSet (RTAlias F.Symbol (F.ExprV LHName))
     -- ^ Expression aliases
   , liftedEmbeds     :: F.TCEmb (F.Located LHName)
     -- ^ GHC-Tycon-to-fixpoint Tycon map

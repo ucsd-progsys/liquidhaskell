@@ -90,14 +90,14 @@ makeRTEnv env modName mySpec dependencySpecs lmap
 --   hidden inside @RExprArg@ or as strange type parameters.
 renameRTArgs :: BareRTEnv -> BareRTEnv
 renameRTArgs rte = RTE
-  { typeAliases = M.map (fmap (renameTys . renameVV . renameRTVArgs)) (typeAliases rte)
-  , exprAliases = M.map (fmap                         renameRTVArgs) (exprAliases rte)
+  { typeAliases = M.map (renameTys . renameVV . renameRTVArgs) (typeAliases rte)
+  , exprAliases = M.map renameRTVArgs (exprAliases rte)
   }
 
-makeREAliases :: [Located (RTAlias F.Symbol F.Expr)] -> BareRTEnv
+makeREAliases :: [RTAlias F.Symbol F.Expr] -> BareRTEnv
 makeREAliases = graphExpand buildExprEdges f mempty
   where
-    f rtEnv xt = setREAlias rtEnv (expandLoc rtEnv xt)
+    f rtEnv xt = setREAlias rtEnv (expand rtEnv (F.loc . rtName $ xt) xt)
 
 
 -- | @renameTys@ ensures that @RTAlias@ type parameters have distinct names
@@ -132,10 +132,10 @@ renameRTVArgs rt = rt { rtVArgs = newArgs
 -- error in case of cyclic dependencies.
 -- Note that, from 'makeRTEnv', the input environement contains the expanded
 -- expression aliases only.
-makeRTAliases :: [Located (RTAlias F.Symbol BareType)] -> BareRTEnv -> BareRTEnv
+makeRTAliases :: [RTAlias F.Symbol BareType] -> BareRTEnv -> BareRTEnv
 makeRTAliases lxts rte = graphExpand' buildTypeEdges f rte lxts
   where
-    f rtEnv xt         = setRTAlias rtEnv (expandLoc rtEnv xt)
+    f rtEnv xt = setRTAlias rtEnv (expand rtEnv (F.loc . rtName $ xt) xt)
 
 --------------------------------------------------------------------------------------------------------------
 
@@ -144,9 +144,9 @@ makeRTAliases lxts rte = graphExpand' buildTypeEdges f rte lxts
 -- and folds over it to add each expanded node to the environment.
 graphExpand :: (PPrint t)
             => (AliasTable x t -> t -> [F.Symbol])         -- ^ dependencies
-            -> (thing -> Located (RTAlias x t) -> thing) -- ^ update
+            -> (thing -> RTAlias x t -> thing) -- ^ update
             -> thing                                     -- ^ initial
-            -> [Located (RTAlias x t)]                   -- ^ vertices
+            -> [RTAlias x t]                   -- ^ vertices
             -> thing                                     -- ^ final
 graphExpand buildEdges expBody env lxts
            = L.foldl' expBody env (genExpandOrder table' graph)
@@ -160,9 +160,9 @@ graphExpand buildEdges expBody env lxts
 -- lookup and graph.
 graphExpand' :: (PPrint t)
             => (AliasTable' x t -> t -> [LHName])         -- ^ dependencies
-            -> (thing -> Located (RTAlias x t) -> thing) -- ^ update
+            -> (thing -> RTAlias x t -> thing) -- ^ update
             -> thing                                     -- ^ initial
-            -> [Located (RTAlias x t)]                   -- ^ vertices
+            -> [RTAlias x t]                   -- ^ vertices
             -> thing                                     -- ^ final
 graphExpand' buildEdges expBody env lxts
            = L.foldl' expBody env (genExpandOrder' table' graph)
@@ -174,38 +174,38 @@ graphExpand' buildEdges expBody env lxts
 
 
 -- | Inserts a type alias in the environment.
-setRTAlias :: RTEnv x t -> Located (RTAlias x t) -> RTEnv x t
+setRTAlias :: RTEnv x t -> RTAlias x t -> RTEnv x t
 setRTAlias env a = env { typeAliases =  M.insert n a (typeAliases env) }
   where
-    n            = val . rtName $ val a
+    n            = val . rtName $ a
 
 -- | Inserts an expression alias in the environment. It can overwrite an alias
 -- with the same symbol.
-setREAlias :: RTEnv x t -> Located (RTAlias F.Symbol F.Expr) -> RTEnv x t
+setREAlias :: RTEnv x t -> RTAlias F.Symbol F.Expr -> RTEnv x t
 setREAlias env a = env { exprAliases = M.insert n a (exprAliases env) }
   where
-    n            = getLHNameSymbol . val . rtName $ val a
+    n            = getLHNameSymbol . val . rtName $ a
 
 
 
 --------------------------------------------------------------------------------
-type AliasTable x t = M.HashMap F.Symbol (Located (RTAlias x t))
+type AliasTable x t = M.HashMap F.Symbol (RTAlias x t)
 
-buildAliasTable :: [Located (RTAlias x t)] -> AliasTable x t
-buildAliasTable = M.fromList . map (\rta -> (getLHNameSymbol . val . rtName $ val rta, rta))
+buildAliasTable :: [RTAlias x t] -> AliasTable x t
+buildAliasTable = M.fromList . map (\rta -> (getLHNameSymbol . val . rtName $ rta, rta))
 
-fromAliasSymbol :: AliasTable x t -> F.Symbol -> Located (RTAlias x t)
+fromAliasSymbol :: AliasTable x t -> F.Symbol -> RTAlias x t
 fromAliasSymbol table sym
   = fromMaybe err (M.lookup sym table)
   where
     err = panic Nothing ("fromAliasSymbol: Dangling alias symbol: " ++ show sym)
 
-type AliasTable' x t = M.HashMap LHName (Located (RTAlias x t))
+type AliasTable' x t = M.HashMap LHName (RTAlias x t)
 
-buildAliasTable' :: [Located (RTAlias x t)] -> AliasTable' x t
-buildAliasTable' = M.fromList . map (\rta -> (val . rtName $ val rta, rta))
+buildAliasTable' :: [RTAlias x t] -> AliasTable' x t
+buildAliasTable' = M.fromList . map (\rta -> (val . rtName $ rta, rta))
 
-fromAliasLHName :: AliasTable' x t -> LHName -> Located (RTAlias x t)
+fromAliasLHName :: AliasTable' x t -> LHName -> RTAlias x t
 fromAliasLHName table lhname
   = fromMaybe err (M.lookup lhname table)
   where
@@ -218,26 +218,22 @@ type Graph t = [Node t]
 -- described by the same type parameter. We use this type to represent aliases within aliases.
 type Node  t = (t, t, [t])
 
-buildAliasGraph :: (PPrint t) => (t -> [F.Symbol]) -> [Located (RTAlias x t)]
+buildAliasGraph :: (PPrint t) => (t -> [F.Symbol]) -> [RTAlias x t]
                 -> Graph F.Symbol
 buildAliasGraph buildEdges = map (buildAliasNode buildEdges)
 
-buildAliasNode :: (PPrint t) => (t -> [F.Symbol]) -> Located (RTAlias x t)
+buildAliasNode :: (PPrint t) => (t -> [F.Symbol]) -> RTAlias x t
                -> Node F.Symbol
-buildAliasNode f la = (getLHNameSymbol . val $ rtName a, getLHNameSymbol . val $ rtName a, f (rtBody a))
-  where
-    a               = val la
+buildAliasNode f a = (getLHNameSymbol . val $ rtName a, getLHNameSymbol . val $ rtName a, f (rtBody a))
 
 -- | Build graph using LHName alternative
-buildAliasGraph' :: (PPrint t) => (t -> [LHName]) -> [Located (RTAlias x t)]
+buildAliasGraph' :: (PPrint t) => (t -> [LHName]) -> [RTAlias x t]
                 -> Graph LHName
 buildAliasGraph' buildEdges = map (buildNode buildEdges)
   where
-    buildNode :: (PPrint t) => (t -> [LHName]) -> Located (RTAlias x t)
+    buildNode :: (PPrint t) => (t -> [LHName]) -> RTAlias x t
                -> Node LHName
-    buildNode f la = (val . rtName $ a, val . rtName $ a, f (rtBody a))
-      where
-        a               = val la
+    buildNode f a = (val . rtName $ a, val . rtName $ a, f (rtBody a))
 
 checkCyclicAliases :: AliasTable x t -> Graph F.Symbol -> AliasTable x t
 checkCyclicAliases table graph
@@ -253,7 +249,7 @@ cycleAliasErr _ []          = panic Nothing "checkCyclicAliases: No type aliases
 cycleAliasErr t symList@(rta:_) = ErrAliasCycle { pos    = fst (locate rta)
                                                 , acycle = map locate symList }
   where
-    locate sym = ( GM.fSrcSpan $ fromAliasSymbol t sym
+    locate sym = ( GM.fSrcSpan . rtName $ fromAliasSymbol t sym
                  , pprint sym )
 
 
@@ -271,11 +267,11 @@ cycleAliasErr' _ []          = panic Nothing "checkCyclicAliases: No type aliase
 cycleAliasErr' t nameList@(name:_) = ErrAliasCycle { pos    = fst (locate name)
                                                 , acycle = map locate nameList }
   where
-    locate n = ( GM.fSrcSpan $ fromAliasLHName t n
+    locate n = ( GM.fSrcSpan . rtName $ fromAliasLHName t n
                  , pprint n )
 
 -- | Orders the aliases so that nested aliases come first.
-genExpandOrder :: AliasTable x t -> Graph F.Symbol -> [Located (RTAlias x t)]
+genExpandOrder :: AliasTable x t -> Graph F.Symbol -> [RTAlias x t]
 genExpandOrder table graph
   = map (fromAliasSymbol table) symOrder
   where
@@ -286,7 +282,7 @@ genExpandOrder table graph
 
 -- | Orders the aliases so that nested aliases come first. Alternative
 -- version for type aliases using LHNames.
-genExpandOrder' :: AliasTable' x t -> Graph LHName -> [Located (RTAlias x t)]
+genExpandOrder' :: AliasTable' x t -> Graph LHName -> [RTAlias x t]
 genExpandOrder' table graph
   = map (fromAliasLHName table) nameOrder
   where
@@ -483,11 +479,11 @@ expandBareType rtEnv l = go
     go t@RExprArg{}      = t
     goRef (RProp ss t)   = RProp (map (expand rtEnv l <$>) ss) (go t)
 
-lookupRTEnv :: BTyCon -> BareRTEnv -> Maybe (Located BareRTAlias)
+lookupRTEnv :: BTyCon -> BareRTEnv -> Maybe BareRTAlias
 lookupRTEnv c rtEnv = M.lookup (val $ btc_tc c) (typeAliases rtEnv)
 
-expandRTAliasApp :: F.SourcePos -> Located BareRTAlias -> [BareType] -> RReft -> BareType
-expandRTAliasApp l (Loc la _ rta) args r = case isOK of
+expandRTAliasApp :: F.SourcePos -> BareRTAlias -> [BareType] -> RReft -> BareType
+expandRTAliasApp l rta@(RTA {rtName = Loc la _ _}) args r = case isOK of
   Just e     -> Ex.throw e
   Nothing    -> F.subst esu . (`RT.strengthen` r) . RT.subsTyVarsMeet tsu $ rtBody rta
   where
@@ -733,18 +729,17 @@ expandEApp _ _ (f, es) = F.eApps f es
 --------------------------------------------------------------------------------
 -- | Expand Alias Application --------------------------------------------------
 --------------------------------------------------------------------------------
-expandApp :: F.Subable ty => F.SourcePos -> Located (RTAlias F.Symbol ty) -> [Expr] -> ty
-expandApp l lre es
+expandApp :: F.Subable ty => F.SourcePos -> RTAlias F.Symbol ty -> [Expr] -> ty
+expandApp l re es
   | Just su <- args = F.subst su (rtBody re)
   | otherwise       = Ex.throw err
   where
-    re              = F.val lre
     args            = F.mkSubst <$> Misc.zipMaybe (rtVArgs re) es
     err             :: UserError
     err             = ErrAliasApp sp alias sp' msg
     sp              = GM.sourcePosSrcSpan l
     alias           = pprint           (rtName re)
-    sp'             = GM.fSrcSpan lre -- sourcePosSrcSpan (rtPos re)
+    sp'             = GM.fSrcSpan . rtName $ re
     msg             =  "expects" PJ.<+> pprint (length $ rtVArgs re)
                    PJ.<+> "arguments but it is given"
                    PJ.<+> pprint (length es)

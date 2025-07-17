@@ -109,13 +109,13 @@ collectTypeAliases
   -> InScopeEnv (RTAlias Symbol ())
 collectTypeAliases impMods thisModule spec deps =
     let bsAliases = mkAliasEnv thisModule impMods (thisModule, bsNames)
-        bsNames = [ (val . rtName $ rta, void rta) | rta <- map val (aliases spec)]
+        bsNames = [ (val . rtName $ rta, void rta) | rta <- aliases spec]
         depAliases = map (mkAliasEnv thisModule impMods) $
           [ (m, depNames)
           | (sm, lspec) <- HM.toList (getDependencies deps)
           , let m = GHC.unStableModule sm
           , let depNames = [ (val . rtName $ rta , void rta)
-                           | rta <- map val $ HS.toList $ liftedAliases lspec
+                           | rta <- HS.toList $ liftedAliases lspec
                            ]
           ]
      in
@@ -126,9 +126,9 @@ collectExprAliases
   -> TargetDependencies
   -> HS.HashSet Symbol
 collectExprAliases spec deps =
-    let bsAliases = HS.fromList $ map (getLHNameSymbol . val . rtName . val) (ealiases spec)
+    let bsAliases = HS.fromList $ map (getLHNameSymbol . val . rtName) (ealiases spec)
         depAliases =
-          [ HS.map (getLHNameSymbol . val . rtName . val) $ liftedEaliases lspec
+          [ HS.map (getLHNameSymbol . val . rtName) $ liftedEaliases lspec
           | (_, lspec) <- HM.toList (getDependencies deps)
           ]
      in
@@ -429,8 +429,8 @@ resolveBoundVarsInTypeAliases = updateAliases resolveBoundVars
     -- arguments of the alias.
     updateAliases f spec =
        spec
-            { aliases = [ Loc sp0 sp1 (a { rtBody = mapLHNames (f args) (rtBody a) })
-                        | Loc sp0 sp1 a <- aliases spec
+            { aliases = [ a { rtBody = mapLHNames (f args) (rtBody a) }
+                        | a <- aliases spec
                         , let args = rtTArgs a ++ rtVArgs a
                         ]
             }
@@ -587,7 +587,7 @@ makeLogicEnvs impMods thisModule spec dependencies =
         unhandledNames = HS.fromList $
           map unqualify unhandledNamesList ++ map (LH.qualifySymbol (symbol $ GHC.moduleName thisModule)) unhandledNamesList
         unhandledNamesList =
-          map (getLHNameSymbol . val . rtName . val) (ealiases spec)
+          map (getLHNameSymbol . val . rtName) (ealiases spec)
           ++ concatMap (map getLHNameSymbol . snd) unhandledLogicNames
         unhandledLogicNames =
           map (fmap collectUnhandledLiftedSpecLogicNames) dependencyPairs
@@ -696,7 +696,7 @@ moduleAliases thisModule impMods m =
 {- HLINT ignore collectUnhandledLiftedSpecLogicNames "Use ++" -}
 collectUnhandledLiftedSpecLogicNames :: LiftedSpec -> [LHName]
 collectUnhandledLiftedSpecLogicNames sp =
-    map (makeLocalLHName . LH.dropModuleNames . getLHNameSymbol . val . rtName . val) $ HS.toList $ liftedEaliases sp
+    map (makeLocalLHName . LH.dropModuleNames . getLHNameSymbol . val . rtName) $ HS.toList $ liftedEaliases sp
 
 collectLiftedSpecLogicNames :: LiftedSpec -> [LHName]
 collectLiftedSpecLogicNames sp = concat
