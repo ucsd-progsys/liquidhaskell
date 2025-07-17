@@ -66,8 +66,8 @@ import           Control.Monad.State.Strict
 import           Data.Bifunctor (first, second)
 import qualified Data.Char                               as Char
 import           Data.Coerce (coerce)
-import           Data.Data (Data, gmapT)
-import           Data.Generics (extT)
+import           Data.Data (Data, gmapM)
+import           Data.Generics (extM)
 
 
 import qualified Data.HashSet                            as HS
@@ -148,10 +148,10 @@ resolveLHNames
 resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependencies = do
     let ((bs, logicNameEnv, lmap2), ro) =
           flip runState RenameOutput {roErrors = [], roUsedNames = [], roUsedDataCons = mempty} $ do
+            sp0 <- fixExpressionArgsOfTypeAliases taliases $ resolveBoundVarsInTypeAliases bareSpec0
             -- First pass: A generic traversal that resolves names
             -- of Haskell entities and type aliases.
-            sp1 <- mapMLocLHNames (\l -> (<$ l) <$> resolveLHName l) $
-                     fixExpressionArgsOfTypeAliases taliases bareSpec0
+            sp1 <- mapMLocLHNames (\l -> (<$ l) <$> resolveLHName l) sp0
             -- Data decls contain fieldnames that introduce measures with the
             -- same names. We resolve them before constructing the logic
             -- environment.
@@ -436,51 +436,63 @@ resolveBoundVarsInTypeAliases = updateAliases resolveBoundVars
 fixExpressionArgsOfTypeAliases
   :: InScopeEnv (RTAlias Symbol ())
   -> BareSpecParsed
-  -> BareSpecParsed
-fixExpressionArgsOfTypeAliases taliases =
-    mapBareTypes go . resolveBoundVarsInTypeAliases
+  -> StateT RenameOutput Identity BareSpecParsed
+fixExpressionArgsOfTypeAliases taliases = mapMBareTypes go
   where
-    go :: BareTypeParsed -> BareTypeParsed
-    go (RApp c@(BTyCon { btc_tc = Loc _ _ (LHNUnresolved LHTcName s) }) ts rs r)
+    go :: BareTypeParsed -> StateT RenameOutput Identity BareTypeParsed
+    go (RApp c@(BTyCon { btc_tc = lname@(Loc _ _ (LHNUnresolved LHTcName s)) }) ts rs r)
       | Right ns <- lookupInScopeNonReflectedEnv taliases s =
           case partition (\(_,lhname,_) -> isResolvedLogicName lhname) ns of
                -- If we find one unresolved name among other resolved name
-               -- matches we use it because it corresponds to a local definition,
-               -- allowing the user to shadow imported aliases.
+               -- matches we use it because it corresponds to a local definition.
+               -- This allows the user to shadow imported aliases.
                (_resolved ,[(_, _, rta)]) ->
-                 RApp c (fixExprArgs (btc_tc c) rta (map go ts)) (map goRef rs) r
+                 RApp <$> pure c <*> fixExprArgs (btc_tc c) rta (mapM go ts) <*> mapM goRef rs <*> pure r
                -- Resolved type alias names come from imports.
                -- If we match just one we used it.
                ([(_, LHNResolved {}, rta)] , []) ->
-                 RApp c (fixExprArgs (btc_tc c) rta (map go ts)) (map goRef rs) r
-               -- Otherwise the name is ambiguous: just go.
-               _ -> error "fixExpressionArgsOfTypeAliases: ambiguous type alias name"
-    go (RApp c ts rs r) =
-        RApp c (map go ts) (map goRef rs) r
-    go (RAppTy t1 t2 r)  = RAppTy (go t1) (go t2) r
-    go (RFun  x i t1 t2 r) = RFun  x i (go t1) (go t2) r
-    go (RAllT a t r)     = RAllT a (go t) r
-    go (RAllP a t)       = RAllP a (go t)
-    go (RAllE x t1 t2)   = RAllE x (go t1) (go t2)
-    go (REx x t1 t2)     = REx   x (go t1) (go t2)
-    go (RRTy e r o t)    = RRTy  e r o     (go t)
-    go t@RHole{}         = t
-    go t@RVar{}          = t
-    go t@RExprArg{}      = t
-    goRef (RProp ss t)   = RProp ss (go t)
+                 RApp <$> pure c <*> fixExprArgs (btc_tc c) rta (mapM go ts) <*> mapM goRef rs <*> pure r
+               -- Report ambiguos names and go.
+               _ -> do
+                 addError (ErrDupNames
+                           (LH.fSrcSpan lname)
+                           (pprint s)
+                           (map (\case
+                                   (m, LHNUnresolved _ sym, _) ->
+                                     pprint (LH.qualifySymbol (symbol . GHC.moduleNameString . GHC.moduleName $ m) sym) PJ.<+>
+                                     PJ.text "defined in current module"
+                                   (m, n@(LHNResolved _ _), _) ->
+                                     pprint (lhNameToResolvedSymbol n) PJ.<+>
+                                     PJ.text ("imported from " ++ GHC.moduleNameString (GHC.moduleName m))
+                                 ) ns)
+                         )
+                 RApp <$> pure c <*> mapM go ts <*> mapM goRef rs <*> pure r
+    go (RApp c ts rs r)    = RApp <$> pure c <*> mapM go ts <*> mapM goRef rs <*> pure r
+    go (RAppTy t1 t2 r)    = RAppTy <$> go t1 <*> go t2 <*> pure r
+    go (RFun  x i t1 t2 r) = RFun <$> pure x <*> pure i <*> go t1 <*> go t2 <*> pure r
+    go (RAllT a t r)       = RAllT <$> pure a <*> go t <*> pure r
+    go (RAllP a t)         = RAllP a <$> go t
+    go (RAllE x t1 t2)     = RAllE x <$> go t1 <*> go t2
+    go (REx x t1 t2)       = REx  x <$> go t1 <*> go t2
+    go (RRTy e r o t)      = RRTy  e r o  <$> go t
+    go t@RHole{}           = pure t
+    go t@RVar{}            = pure t
+    go t@RExprArg{}        = pure t
+    goRef (RProp ss t)     = RProp ss <$> go t
 
-    fixExprArgs lname rta ts =
+    fixExprArgs lname rta mts = do
+      ts <- mts
       let n = length (rtTArgs rta)
           (targs, eargs) = splitAt n ts
           msg = "FIX-EXPRESSION-ARG: " ++ showpp (rtName rta)
           toExprArg = exprArg (LH.fSourcePos lname) msg
-       in targs ++ [ RExprArg $ toExprArg e <$ lname | e <- eargs ]
+      pure $ targs ++ [ RExprArg $ toExprArg e <$ lname | e <- eargs ]
 
-mapBareTypes :: (BareTypeParsed -> BareTypeParsed) -> BareSpecParsed -> BareSpecParsed
-mapBareTypes f  = go
+mapMBareTypes :: forall m a.(Data a, Monad m) => (BareTypeParsed -> m BareTypeParsed) -> a -> m a
+mapMBareTypes f  = go
   where
-    go :: Data a => a -> a
-    go = gmapT (go `extT` f)
+    go :: forall b. Data b => b -> m b
+    go = gmapM (go `extM` f)
 
 -- | exprArg converts a tyVar to an exprVar because parser cannot tell
 --   this function allows us to treating (parsed) "types" as "value"

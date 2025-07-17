@@ -307,9 +307,9 @@ makeGhcSpec0 cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap targetSpec 
   where
     thisModule = Ghc.tcg_mod tcg
     expandedTypeAliasesOf myRTE sp =
-      Mb.catMaybes $
-      map ((`M.lookup` (typeAliases myRTE)) . val . rtName . val) $
-      aliases sp
+      Mb.mapMaybe
+      ((`M.lookup` typeAliases myRTE) . val . rtName . val)
+      (aliases sp)
 
     -- typeclass elaboration
 
