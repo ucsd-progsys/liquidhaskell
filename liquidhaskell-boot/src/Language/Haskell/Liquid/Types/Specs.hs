@@ -236,6 +236,7 @@ instance Monoid GhcSpecVars where
 
 data GhcSpecQual = SpQual
   { gsQualifiers :: ![F.Qualifier]                -- ^ Qualifiers in Source/Spec files e.g tests/pos/qualTest.hs
+  -- TEMP-NOTE: Look into this...
   , gsRTAliases  :: ![F.Located SpecRTAlias]      -- ^ Refinement type aliases (only used for qualifiers)
   }
   deriving Show

@@ -91,7 +91,8 @@ data LHResolvedName
       LHRIndex Word
   deriving (Data, Eq, Generic, Ord)
 
--- | A name that is potentially unresolved.
+-- | A name that is potentially unresolved, carrying along the 'Symbol'
+-- found by the parser.
 data LHName
     = -- | In order to integrate the resolved names gradually, we keep the
       -- unresolved names.

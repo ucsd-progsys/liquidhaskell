@@ -126,6 +126,10 @@ renameRTVArgs rt = rt { rtVArgs = newArgs
     oldArgs      = rtVArgs rt
     rtArg x i    = F.suffixSymbol x (F.intSymbol "rta" i)
 
+-- | Uses the complete list of available type aliases to expand their uses within
+-- other aliases.
+-- Note that from 'makeRTEnv' the input environement contains the expanded
+-- expression aliases only.
 makeRTAliases :: [Located (RTAlias F.Symbol BareType)] -> BareRTEnv -> BareRTEnv
 makeRTAliases lxts rte = graphExpand buildTypeEdges f rte lxts
   where
@@ -133,6 +137,9 @@ makeRTAliases lxts rte = graphExpand buildTypeEdges f rte lxts
 
 --------------------------------------------------------------------------------------------------------------
 
+-- | Builds a directed graph of aliases, checks for cyclic
+-- dependencies and orders them so that inner aliases come first,
+-- and folds over it to add each expanded node to the environment.
 graphExpand :: (PPrint t)
             => (AliasTable x t -> t -> [F.Symbol])         -- ^ dependencies
             -> (thing -> Located (RTAlias x t) -> thing) -- ^ update
@@ -147,11 +154,15 @@ graphExpand buildEdges expBody env lxts
     graph  = buildAliasGraph (buildEdges table) lxts
     table' = checkCyclicAliases table graph
 
+-- | Inserts a type alias in the environment. It can overwrite an alias with the
+-- same symbol.
 setRTAlias :: RTEnv x t -> Located (RTAlias x t) -> RTEnv x t
 setRTAlias env a = env { typeAliases =  M.insert n a (typeAliases env) }
   where
     n            = getLHNameSymbol . val . rtName $ val a
 
+-- | Inserts an expression alias in the environment. It can overwrite an alias
+-- with the same symbol.
 setREAlias :: RTEnv x t -> Located (RTAlias F.Symbol F.Expr) -> RTEnv x t
 setREAlias env a = env { exprAliases = M.insert n a (exprAliases env) }
   where
@@ -171,7 +182,11 @@ fromAliasSymbol table sym
   where
     err = panic Nothing ("fromAliasSymbol: Dangling alias symbol: " ++ show sym)
 
+-- | An adjacency list of nodes representing a directed graph. Used to detect
+-- cyclic alias dependencies and ordering the expansion of aliases.
 type Graph t = [Node t]
+-- | A node described by a label, a key, and a list of other nodes connected all
+-- described by the same type parameter. We use this type to represent aliases within aliases.
 type Node  t = (t, t, [t])
 
 buildAliasGraph :: (PPrint t) => (t -> [F.Symbol]) -> [Located (RTAlias x t)]
@@ -202,6 +217,7 @@ cycleAliasErr t symList@(rta:_) = ErrAliasCycle { pos    = fst (locate rta)
                  , pprint sym )
 
 
+-- | Orders the aliases so that nested aliases come first.
 genExpandOrder :: AliasTable x t -> Graph F.Symbol -> [Located (RTAlias x t)]
 genExpandOrder table graph
   = map (fromAliasSymbol table) symOrder
@@ -216,6 +232,8 @@ genExpandOrder table graph
 ordNub :: Ord a => [a] -> [a]
 ordNub = map head . L.group . L.sort
 
+-- | Gathers all constructors in a 'BareType' whose symbol matches a key
+-- from the table.
 buildTypeEdges :: AliasTable x t -> BareType -> [F.Symbol]
 buildTypeEdges table = ordNub . go
   where
@@ -235,6 +253,7 @@ buildTypeEdges table = ordNub . go
     go_ref (RProp _ (RHole _)) = Nothing
     go_ref (RProp  _ t) = Just t
 
+-- | Gathers all variables that match a expression alias within an expression.
 buildExprEdges :: M.HashMap F.Symbol a -> F.Expr -> [F.Symbol]
 buildExprEdges table  = ordNub . go
   where

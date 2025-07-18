@@ -212,7 +212,11 @@ makeGhcSpec0 cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap targetSpec 
   tycEnv <- makeTycEnv1 env (tycEnv0, datacons) coreToLg simplifier
   let tyi      = Bare.tcTyConMap   tycEnv
   let sigEnv   = makeSigEnv  embs tyi (_gsExports src) rtEnv
+  -- This spec just has the measure field.
   let lSpec1   = makeLiftedSpec1 cfg src tycEnv lmap mySpec1
+  -- 'mySpec' and 'specs' contain the result of the first lifting stanges, see [NOTE]: REFLECT-IMPORTS
+  -- and the expanded aliases obtained using 'rtEnv'. 'myRTE' is a filtered 'rtEnv' used at the final
+  -- lifting.
   let mySpec   = mySpec2 <> lSpec1
   let specs    = M.insert name mySpec iSpecs2
   let myRTE    = myRTEnv       src env sigEnv rtEnv
@@ -330,6 +334,7 @@ makeGhcSpec0 cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap targetSpec 
                               then Bare.compileClasses src env (name, targetSpec) dependencySpecs
                               else (targetSpec, [])
     mySpec1  = mySpec0 <> lSpec0
+    -- This spec just has the 'ealiases' and 'dataDecls' fields.
     lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec0
     embs     = makeEmbeds          src ghcTyLookupEnv (mySpec0 : map snd dependencySpecs)
     dm       = Bare.tcDataConMap tycEnv0
@@ -554,6 +559,7 @@ makeSpecQual
 ------------------------------------------------------------------------------------------
 makeSpecQual _cfg env globalRdrEnv tycEnv measEnv _rtEnv mySpec depSpecs = SpQual
   { gsQualifiers = filter okQual quals
+  -- TEMP-NOTE: this seems relevant... but also rather unused.
   , gsRTAliases  = [] -- makeSpecRTAliases env rtEnv -- TODO-REBARE
   }
   where
@@ -1386,6 +1392,7 @@ makeLiftedSpec name src env refl sData sig qual myRTE lSpec0 = lSpec0
     xbs           = toBare <$> reflTySigs
     reflTySigs    = [(x, t) | (x,t,_) <- gsHAxioms refl]
     reflVars      = S.fromList (fst <$> reflTySigs)
+    -- TEMP-NOTE: This code is already inlined, so it might be removed:
     -- myAliases fld = M.elems . fld $ myRTE
     srcF          = _giTarget src
 
@@ -1440,6 +1447,7 @@ mkRTE tAs eAs   = RTE
   }
   where aName   = getLHNameSymbol . F.val . rtName . F.val
 
+-- | Prepare an alias for constraint checking by expanding its body and fixing its type argument names.
 normalizeBareAlias :: Bare.Env -> Bare.SigEnv -> ModName -> Located BareRTAlias
                    -> Located BareRTAlias
 normalizeBareAlias env sigEnv name lx = fixRTA <$> lx
@@ -1447,9 +1455,11 @@ normalizeBareAlias env sigEnv name lx = fixRTA <$> lx
     fixRTA  :: BareRTAlias -> BareRTAlias
     fixRTA  = mapRTAVars fixArg . fmap fixBody
 
+    -- | Uses GHC to assign arguments a unique symbol by lifting them as local 'Type' variables and back.
     fixArg  :: Symbol -> Symbol
     fixArg  = F.symbol . GM.symbolTyVar
 
+    -- | Completely expands (or /cooks/) the body of a type alias.
     fixBody :: BareType -> BareType
     fixBody = Bare.specToBare
             . F.val
