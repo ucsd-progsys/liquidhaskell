@@ -10,6 +10,9 @@ import ReflectLib0
 incr :: Int -> Int
 incr x = x + 1
 
+{-@ testOpaquelyReflectedInScope :: { opaquelyReflected 5 == opaquelyReflected 5 } @-}
+testOpaquelyReflectedInScope :: ()
+testOpaquelyReflectedInScope = ()
 
 -- {-@ reflect floog @-}
 -- floog :: Int -> Int -> Bool
