@@ -611,6 +611,7 @@ collectLiftedSpecLogicNames sp = concat
     [ map fst (HS.toList $ liftedExpSigs sp)
     , map (val . msName) (HM.elems $ liftedMeasures sp)
     , map (val . msName) (HM.elems $ liftedCmeasures sp)
+    , map (val . msName) (HS.toList $ liftedOmeasures sp)
     , map fst $ concatMap DataDecl.dcFields $ concat $
         mapMaybe DataDecl.tycDCons $
         HS.toList $ liftedDataDecls sp
