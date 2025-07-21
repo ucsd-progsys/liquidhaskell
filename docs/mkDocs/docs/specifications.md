@@ -395,7 +395,7 @@ see [tests/pos/Map.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develo
 5. When the same alias name is imported from multiple modules (with no local definition),
    only the lexicographically last instance is exported (i.e., included in the resulting specification).
 
-see [tests/names/pos/ImportedTypeAlias.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/names/pos/ImportedTypeAlias.hs)
+See [tests/names/pos/ImportedTypeAlias.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/names/pos/ImportedTypeAlias.hs) for examples.
 
 ## Infix Operators
 

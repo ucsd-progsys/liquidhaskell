@@ -1,5 +1,5 @@
 -- | In general, a module exports all type aliases it defines and those
--- from its trasitive dependencies. This test documents what is stored in the spec in
+-- from its transitive dependencies. This test documents what is stored in the spec in
 -- the case of conflicting names, by showing what is imported in such cases.
 --
 -- We have the following dependency graph:
@@ -20,7 +20,7 @@
 --                  \          /
 --                ImportedTypeAlias
 --
--- The sole export of 'NatFoo' is a type alias of the same same.
+-- The sole export of 'NatFoo' is a type alias of the same name.
 -- As there is no conflicting name anywhere, no ambiguity arises even though
 -- its brought into scope from distinct imports. So the transitive accumulation
 -- of aliases is consistent. In this case, both qualified or unqualified ocurrances
@@ -29,7 +29,7 @@
 -- Both @Nat*@ modules define the same type alias @INat@.
 -- The implementation is such that in this case, only the definition from the
 -- last module (lexicographically) is exported by 'QualifiedTypeAliases'.
--- So here, the only the definition of @INat@ from @Nat2@ refining 'Int32' is
+-- So here, only the definition of @INat@ from @Nat2@ refining 'Int32' is
 -- in scope (while the @INat@ from @Nat1@, refining 'Int', is not).
 --
 -- On the other hand, the definition of the type alias @Nat@ implicitly imported

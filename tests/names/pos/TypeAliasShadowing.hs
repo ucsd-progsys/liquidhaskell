@@ -1,5 +1,5 @@
 -- | This test shows that type aliases from dependencies (in this case, @Nat@
--- from 'Prelude') can be shadowed by a local definition refinig 'Integer'
+-- from 'Prelude') can be shadowed by a local definition refining 'Integer'
 -- instead of 'Int'.
 -- The ambiguous ocurrence in 'foo' spec is resolved to the local definition
 -- by default. Also, this definition is the one stored in the resulting

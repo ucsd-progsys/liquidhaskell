@@ -130,7 +130,7 @@ renameRTVArgs rt = rt { rtVArgs = newArgs
 -- aliases, and adds them to environment.
 -- We make sure that innermost aliases are unfolded and added first, or trow an
 -- error in case of cyclic dependencies.
--- Note that, from 'makeRTEnv', the input environement contains the expanded
+-- Note that, from 'makeRTEnv', the input environment contains the expanded
 -- expression aliases only.
 makeRTAliases :: [RTAlias F.Symbol BareType] -> BareRTEnv -> BareRTEnv
 makeRTAliases lxts rte = graphExpand' buildTypeEdges f rte lxts

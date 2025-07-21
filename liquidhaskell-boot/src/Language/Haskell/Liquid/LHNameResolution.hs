@@ -99,7 +99,7 @@ import qualified Text.Printf               as Printf
 -- We do so because all type aliases in scope are added to the 'LiftedSpec' later.
 -- Aliases with the same unqualified name coexist during name resolution,
 -- as long as we have a means to disambiguate (namely, by qualifing the import).
--- In this case, when buillding the 'LiftedSpec' we carry only the first such alias according
+-- In this case, when building the 'LiftedSpec' we carry only the first such alias according
 -- to lexicographic order.
 collectTypeAliases
   :: GHC.ImportedMods
@@ -231,7 +231,7 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
                   (_resolved ,[(m, _, _)]) ->
                     pure $ LHNResolved (LHRLogic $ LogicName (LH.dropModuleNames s) m Nothing) s
                   -- Resolved type alias names come from imports.
-                  -- If we match just one we return it.
+                  -- If we match just one, we return it.
                   ([(_, lh@(LHNResolved {}), _)] , []) -> pure lh
                   -- Report ambiguous name and return the unresolved name.
                   _ -> do

@@ -214,7 +214,7 @@ makeGhcSpec0 cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap targetSpec 
   let sigEnv   = makeSigEnv  embs tyi (_gsExports src) rtEnv
   -- This spec is used to add lifted measures.
   let lSpec1   = makeLiftedSpec1 cfg src tycEnv lmap mySpec1
-  -- 'mySpec' and 'specs' contain the result of the first lifting stanges, see [NOTE]: REFLECT-IMPORTS
+  -- 'mySpec' and 'specs' contain the result of the first lifting stages, see [NOTE]: REFLECT-IMPORTS
   -- and the expanded aliases obtained using 'rtEnv'. 'myRTE' is a filtered 'rtEnv' used at the final
   -- lifting.
   let mySpec   = mySpec2 <> lSpec1
