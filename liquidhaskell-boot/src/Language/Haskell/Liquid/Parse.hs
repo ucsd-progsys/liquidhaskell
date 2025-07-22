@@ -1303,14 +1303,11 @@ rtAliasP :: (Symbol -> tv) -> Parser ty -> Parser (RTAlias tv ty)
 rtAliasP f bodyP
   = do pos  <- getSourcePos
        name <- upperIdP
+       posE <- getSourcePos
        args <- many aliasIdP
        reservedOp "="
        body <- bodyP
-       posE <- getSourcePos
        let (tArgs, vArgs) = partition (isSmall . headSym) args
-       -- The source position of the complete alias definition gets stored as its name position.
-       -- For e.g. this is reported to the user upon failure of `Bare.Expand.expandApp`.
-       -- See also `Bare.Expand.expandRTAliasApp`.
        return $ RTA (Loc pos posE $ makeUnresolvedLHName LHLogicNameBinder name) (f <$> tArgs) vArgs body
 
 logDefineP :: Parser BPspec
