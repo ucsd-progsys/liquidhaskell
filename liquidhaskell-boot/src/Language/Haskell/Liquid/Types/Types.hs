@@ -387,9 +387,9 @@ mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt }
 
 -- | Transform a logic equation to an expression alias.
 --
--- Used when making the 'Language.Haskell.Liquid.Types.Specs.GhcSpec'
--- where we need definitions from the logic map (e.g. Haskell inlines)
--- for alias expansion.
+-- Used when constructing 'Language.Haskell.Liquid.Types.Specs.GhcSpec'
+-- to include Haskell inlines and 'LogicMap' definitions in the alias
+-- environment for expansion.
 lmapEAlias :: LMap -> RTAlias Symbol Expr
 lmapEAlias (LMap v ys e) =
   RTA (F.atLoc v $ makeGeneratedLogicLHName (F.val v)) [] ys e

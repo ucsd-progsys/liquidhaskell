@@ -558,8 +558,8 @@ lookupInScopeNonReflectedEnv env s = do
     maybeQualifySymbol n m =
       if m == "" then n else LH.qualifySymbol m n
 
--- | Builds an environment of non-reflected names in scope from the
--- aliases for the current module, the spec of the current module, and the specs
+-- | Builds an environment of non-reflected names in scope from the module
+-- imports for the current module, the spec of the current module, and the specs
 -- of the dependencies.
 --
 -- Also returns a LogicNameEnv constructed from the same names.
@@ -583,7 +583,7 @@ makeLogicEnvs impMods thisModule spec dependencies =
             s
 
         -- Names should be removed from this list as they are supported
-        -- by renaming.
+        -- by renaming. Currently, only expression aliases remain /unhadled/.
         unhandledNames = HS.fromList $
           map unqualify unhandledNamesList ++ map (LH.qualifySymbol (symbol $ GHC.moduleName thisModule)) unhandledNamesList
         unhandledNamesList =
@@ -630,10 +630,7 @@ makeLogicEnvs impMods thisModule spec dependencies =
 
     mkLogicNameEnv names =
       LogicNameEnv
-        -- A qualified-symbol map to resolve logic names. This is called after the first
-        -- name resolution pass and before the resolution of logic names.
         { lneLHName = fromListSEnv [ (lhNameToResolvedSymbol n, n) | n <- names ]
-        -- A 'GHC.Name' map of all logic names comming from reflected Haskell functions.
         , lneReflected = GHC.mkNameEnv [(rn, n) | n <- names, Just rn <- [maybeReflectedLHName n]]
         }
 
@@ -647,8 +644,9 @@ unionAliasEnvs =
     foldl' (HM.unionWith (++)) HM.empty .
     coerce @_ @[HM.HashMap Symbol [(GHC.ModuleName, (GHC.Module, LHName, a))]]
 
--- | Builds a symbol-lookup environment from a list of names with the module we imported
--- them from, adding the aliases this module has within the current module.
+-- | Builds a symbol lookup environment from a list of names associated with the
+-- module they were extracted from, adding any import aliases that module may
+-- have within the current module (if it was imported directly).
 mkAliasEnv:: GHC.Module -> GHC.ImportedMods -> (GHC.Module, [(LHName, a)]) -> InScopeEnv a
 mkAliasEnv thisModule impMods (m, lhnames) =
     let aliases = moduleAliases thisModule impMods m
