@@ -222,33 +222,20 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
           | s == "*" ->
             pure $ LHNResolved (LHRGHC GHC.liftedTypeKindTyConName) s
           | otherwise ->
-            case lookupInScopeNonReflectedEnv taliases s of
-              Right ns ->
-                case partition (\(_,lhname,_) -> isResolvedLogicName lhname) ns of
-                  -- Unresolved names correspond to type aliases defined in
-                  -- the current module. We give them priority so that the user
-                  -- can shadow those imported with the same name.
-                  (_resolved ,[(m, _, _)]) ->
-                    pure $ LHNResolved (LHRLogic $ LogicName (LH.dropModuleNames s) m Nothing) s
-                  -- Resolved type alias names come from imports.
-                  -- If we match just one, we return it.
-                  ([(_, lh@(LHNResolved {}), _)] , []) -> pure lh
-                  -- Report ambiguous name and return the unresolved name.
-                  _ -> do
-                     addError (ErrDupNames
-                                (LH.fSrcSpan lname)
-                                (pprint s)
-                                (map (\case
-                                       (m, LHNUnresolved _ sym, _) ->
-                                         pprint (LH.qualifySymbol (symbol . GHC.moduleNameString . GHC.moduleName $ m) sym) PJ.<+>
-                                         PJ.text "defined in current module"
-                                       (m, n@(LHNResolved _ _), _) ->
-                                         pprint (lhNameToResolvedSymbol n) PJ.<+>
-                                         PJ.text ("imported from " ++ GHC.moduleNameString (GHC.moduleName m))
-                                     ) ns)
-                              )
-                     pure $ val lname
-              Left alts -> lookupGRELHName alts LHTcName lname s listToMaybe
+            case resolveTypeAlias taliases s of
+              -- Priority is given to aliases defined in the current module,
+              -- so name occurrences are resolved using them, disregarding
+              -- any imported aliases with the same name.
+              -- This allows the user to shadow imported aliases.
+              FoundTypeAliases { tfrLocallyDefined = [(m, _, _)] } ->
+                pure $ LHNResolved (LHRLogic $ LogicName (LH.dropModuleNames s) m Nothing) s
+              FoundTypeAliases { tfrImported = [(_, lh, _)]
+                               , tfrLocallyDefined = []} ->
+                pure lh
+              -- Report ambiguous name and return the unresolved name.
+              tfr@(FoundTypeAliases _ _) -> do addError $ errResolveTypeAlias lname s tfr
+                                               pure $ val lname
+              NoSuchTypeAlias alts -> lookupGRELHName alts LHTcName lname s listToMaybe
         LHNUnresolved ns@(LHVarName lcl) s
           | isDataCon s ->
               lookupGRELHName [] (LHDataConName lcl) lname s listToMaybe
@@ -452,31 +439,17 @@ fixExpressionArgsOfTypeAliases taliases = mapMBareTypes go
   where
     go :: BareTypeParsed -> StateT RenameOutput Identity BareTypeParsed
     go (RApp c@(BTyCon { btc_tc = lname@(Loc _ _ (LHNUnresolved LHTcName s)) }) ts rs r)
-      | Right ns <- lookupInScopeNonReflectedEnv taliases s =
-          case partition (\(_,lhname,_) -> isResolvedLogicName lhname) ns of
-               -- If we find one unresolved name among other resolved name
-               -- matches we use it because it corresponds to a local definition.
+      | tfr@(FoundTypeAliases imported local) <- resolveTypeAlias taliases s =
+          case (imported, local) of
+               -- Local alias definitions get priority over imported ones.
                -- This allows the user to shadow imported aliases.
-               (_resolved ,[(_, _, rta)]) ->
+               (_ ,[(_, _, rta)]) ->
                  RApp <$> pure c <*> fixExprArgs (btc_tc c) rta (mapM go ts) <*> mapM goRef rs <*> pure r
-               -- Resolved type alias names come from imports.
-               -- If we match just one we used it.
-               ([(_, LHNResolved {}, rta)] , []) ->
+               ([(_, _, rta)] , []) ->
                  RApp <$> pure c <*> fixExprArgs (btc_tc c) rta (mapM go ts) <*> mapM goRef rs <*> pure r
-               -- Report ambiguos names and go.
+               -- Report ambiguos name and continue traversing.
                _ -> do
-                 addError (ErrDupNames
-                           (LH.fSrcSpan lname)
-                           (pprint s)
-                           (map (\case
-                                   (m, LHNUnresolved _ sym, _) ->
-                                     pprint (LH.qualifySymbol (symbol . GHC.moduleNameString . GHC.moduleName $ m) sym) PJ.<+>
-                                     PJ.text "defined in current module"
-                                   (m, n@(LHNResolved _ _), _) ->
-                                     pprint (lhNameToResolvedSymbol n) PJ.<+>
-                                     PJ.text ("imported from " ++ GHC.moduleNameString (GHC.moduleName m))
-                                 ) ns)
-                         )
+                 addError $ errResolveTypeAlias lname s tfr
                  RApp <$> pure c <*> mapM go ts <*> mapM goRef rs <*> pure r
     go (RApp c ts rs r)    = RApp <$> pure c <*> mapM go ts <*> mapM goRef rs <*> pure r
     go (RAppTy t1 t2 r)    = RAppTy <$> go t1 <*> go t2 <*> pure r
@@ -526,6 +499,48 @@ exprArg l msg = notracepp ("exprArg: " ++ msg) . go
     go z                = panic sp $ Printf.printf "Unexpected expression parameter: %s in %s" (show $ parsedToBareType z) msg
     sp                  = Just (LH.sourcePosSrcSpan l)
 
+-- | A type alias 'lookupInScopeEnv' that distinguishes locally defined names
+-- from imported ones based on their resolution status:
+-- unresolved names correspond to type aliases defined in the current module,
+-- whereas all imported names are expected to be resolved.
+resolveTypeAlias
+   :: InScopeEnv (RTAlias Symbol a)
+   -> Symbol
+   -> TypeAliasResolution (RTAlias Symbol a)
+resolveTypeAlias taliases s = case lookupInScopeEnv taliases  s of
+  Right ns -> let (imported, local) =
+                    partition (\(_,lhname,_) -> isResolvedLogicName lhname ) ns
+              in FoundTypeAliases imported local
+  Left alts -> NoSuchTypeAlias alts
+
+-- | When resolving type aliases we either find matching 'LHName's
+-- or similar, but distinct, 'Symbol's.
+data TypeAliasResolution a
+  = NoSuchTypeAlias [Symbol]
+  | FoundTypeAliases
+      { tfrImported :: [(GHC.Module, LHName, a)]
+      , tfrLocallyDefined :: [(GHC.Module, LHName, a)]
+      }
+
+errResolveTypeAlias :: Located LHName -> Symbol -> TypeAliasResolution b -> Error
+errResolveTypeAlias lname s (FoundTypeAliases imported local) =
+  ErrDupNames (LH.fSrcSpan lname) (pprint s)
+    (
+      map (\(m, lhn, _) -> pprint (LH.qualifySymbol (symbol . GHC.moduleNameString . GHC.moduleName $ m)
+                                   $ getLHNameSymbol lhn)
+                           PJ.<+>
+                           PJ.text "defined in current module")
+      local
+     ++
+     map (\(m, lhn, _) -> pprint (lhNameToResolvedSymbol lhn)
+                          PJ.<+>
+                          PJ.text ("imported from " ++ GHC.moduleNameString (GHC.moduleName m)))
+      imported
+    )
+errResolveTypeAlias lname s (NoSuchTypeAlias alts) =
+  errResolve alts "type alias" "Cannot resolve name" (s <$ lname)
+
+
 -- | An environment of names in scope
 --
 -- We construct it using 'mkAliasEnv' and 'unionAliasEnvs' in such a way that each
@@ -541,9 +556,9 @@ type InScopeNonReflectedEnv = InScopeEnv ()
 -- taking possible qualification prefixes into account.
 -- Returns a list of close but different symbols or a non-empty list
 -- with the matched names.
-lookupInScopeNonReflectedEnv
+lookupInScopeEnv
   :: InScopeEnv a -> Symbol -> Either [Symbol] [(GHC.Module, LHName, a)]
-lookupInScopeNonReflectedEnv env s = do
+lookupInScopeEnv env s = do
     -- The symbol might be qualified or not,
     -- but we use the unqualified symbol for the lookup.
     let n = LH.dropModuleNames s
@@ -747,7 +762,7 @@ resolveLogicNames cfg env globalRdrEnv unhandledNames lmap0 localVars lnameEnv p
         -- The name is local
       | elem s ss = return $ makeLocalLHName s
       | otherwise =
-        case lookupInScopeNonReflectedEnv env s of
+        case lookupInScopeEnv env s of
           Left alts ->
             -- If names are not in the environment, they must be data constructors,
             -- or they must be reflected functions, or they must be in the logicmap.
