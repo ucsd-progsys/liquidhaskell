@@ -184,7 +184,7 @@ setRTAlias env a = env { typeAliases =  M.insert n a (typeAliases env) }
 setREAlias :: RTEnv x t -> RTAlias F.Symbol F.Expr -> RTEnv x t
 setREAlias env a = env { exprAliases = M.insert n a (exprAliases env) }
   where
-    n            = getLHNameSymbol . val . rtName $ a
+    n            = lhNameToUnqualifiedSymbol . val . rtName $ a
 
 
 
@@ -192,7 +192,7 @@ setREAlias env a = env { exprAliases = M.insert n a (exprAliases env) }
 type AliasTable x t = M.HashMap F.Symbol (RTAlias x t)
 
 buildAliasTable :: [RTAlias x t] -> AliasTable x t
-buildAliasTable = M.fromList . map (\rta -> (getLHNameSymbol . val . rtName $ rta, rta))
+buildAliasTable = M.fromList . map (\rta -> (lhNameToUnqualifiedSymbol . val . rtName $ rta, rta))
 
 fromAliasSymbol :: AliasTable x t -> F.Symbol -> RTAlias x t
 fromAliasSymbol table sym

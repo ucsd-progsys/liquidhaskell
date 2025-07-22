@@ -128,7 +128,7 @@ collectExprAliases
 collectExprAliases spec deps =
     let bsAliases = HS.fromList $ map (getLHNameSymbol . val . rtName) (ealiases spec)
         depAliases =
-          [ HS.map (getLHNameSymbol . val . rtName) $ liftedEaliases lspec
+          [ HS.map (lhNameToUnqualifiedSymbol . val . rtName) $ liftedEaliases lspec
           | (_, lspec) <- HM.toList (getDependencies deps)
           ]
      in
@@ -588,7 +588,7 @@ makeLogicEnvs impMods thisModule spec dependencies =
           map unqualify unhandledNamesList ++ map (LH.qualifySymbol (symbol $ GHC.moduleName thisModule)) unhandledNamesList
         unhandledNamesList =
           map (getLHNameSymbol . val . rtName) (ealiases spec)
-          ++ concatMap (map getLHNameSymbol . snd) unhandledLogicNames
+          ++ concatMap (map lhNameToUnqualifiedSymbol . snd) unhandledLogicNames
         unhandledLogicNames =
           map (fmap collectUnhandledLiftedSpecLogicNames) dependencyPairs
         logicNames =
@@ -694,7 +694,7 @@ moduleAliases thisModule impMods m =
 {- HLINT ignore collectUnhandledLiftedSpecLogicNames "Use ++" -}
 collectUnhandledLiftedSpecLogicNames :: LiftedSpec -> [LHName]
 collectUnhandledLiftedSpecLogicNames sp =
-    map (makeLocalLHName . LH.dropModuleNames . getLHNameSymbol . val . rtName) $ HS.toList $ liftedEaliases sp
+    map (makeLocalLHName . lhNameToUnqualifiedSymbol . val . rtName) $ HS.toList $ liftedEaliases sp
 
 collectLiftedSpecLogicNames :: LiftedSpec -> [LHName]
 collectLiftedSpecLogicNames sp = concat

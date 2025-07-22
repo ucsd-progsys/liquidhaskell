@@ -1459,7 +1459,7 @@ myRTEnv src env sigEnv rtEnv = mkRTE tAs' eAs
 mkRTE :: [RTAlias x a] -> [RTAlias F.Symbol F.Expr] -> RTEnv x a
 mkRTE tAs eAs   = RTE
   { typeAliases = M.fromList [ (aName a, a) | a <- tAs ]
-  , exprAliases = M.fromList [ (getLHNameSymbol $ aName a, a) | a <- eAs ]
+  , exprAliases = M.fromList [ (lhNameToUnqualifiedSymbol $ aName a, a) | a <- eAs ]
   }
   where aName   = F.val . rtName
 
