@@ -126,12 +126,12 @@ renameRTVArgs rt = rt { rtVArgs = newArgs
     oldArgs      = rtVArgs rt
     rtArg x i    = F.suffixSymbol x (F.intSymbol "rta" i)
 
--- | Expands type aliases (recursively), by unfolding the definition of all inner
--- aliases, and adds them to environment.
--- We make sure that innermost aliases are unfolded and added first, or trow an
--- error in case of cyclic dependencies.
--- Note that, from 'makeRTEnv', the input environment contains the expanded
--- expression aliases only.
+-- | Recursively expands type aliases by unfolding the definitions of all inner
+--   aliases and adding them to the environment.
+--   Innermost aliases are unfolded and added first, and an error is thrown if
+--   cyclic dependencies are detected.
+--   Note that when called from 'makeRTEnv', the input environment contains only
+--   expanded expression aliases.
 makeRTAliases :: [RTAlias F.Symbol BareType] -> BareRTEnv -> BareRTEnv
 makeRTAliases lxts rte = graphExpand' buildTypeEdges f rte lxts
   where
@@ -139,9 +139,9 @@ makeRTAliases lxts rte = graphExpand' buildTypeEdges f rte lxts
 
 --------------------------------------------------------------------------------------------------------------
 
--- | Builds a directed graph of aliases, checks for cyclic
--- dependencies and orders them so that inner aliases come first,
--- and folds over it to add each expanded node to the environment.
+-- | Builds a directed graph of aliases, checks for cyclic dependencies,
+--   orders them so that inner aliases are processed first, and folds over
+--   the graph to add each expanded node to the environment.
 graphExpand :: (PPrint t)
             => (AliasTable x t -> t -> [F.Symbol])         -- ^ dependencies
             -> (thing -> RTAlias x t -> thing) -- ^ update
@@ -156,8 +156,12 @@ graphExpand buildEdges expBody env lxts
     graph  = buildAliasGraph (buildEdges table) lxts
     table' = checkCyclicAliases table graph
 
--- | Alternative implementation for type aliases using 'LHName' for table
--- lookup and graph.
+-- | Alternative implementation of 'graphExpand' for type aliases, using 'LHName'
+--   for table lookup. Functions with a prime (@'@) indicate where the behavior
+--   diverges from the corresponding non-prime versions in this approach.
+--   TODO: As it stands, applying this to expression aliases is not
+--   straightforward. The common logic will be refactored or re-merged once the
+--   predicate alias case—either deprecating or allowing qualified uses—is resolved.
 graphExpand' :: (PPrint t)
             => (AliasTable' x t -> t -> [LHName])         -- ^ dependencies
             -> (thing -> RTAlias x t -> thing) -- ^ update
@@ -167,20 +171,18 @@ graphExpand' :: (PPrint t)
 graphExpand' buildEdges expBody env lxts
            = L.foldl' expBody env (genExpandOrder' table' graph)
   where
-    -- xts    = val <$> lxts
     table  = buildAliasTable' lxts
     graph  = buildAliasGraph' (buildEdges table) lxts
     table' = checkCyclicAliases' table graph
 
 
--- | Inserts a type alias in the environment.
+-- | Inserts a type alias into the environment.
 setRTAlias :: RTEnv x t -> RTAlias x t -> RTEnv x t
 setRTAlias env a = env { typeAliases =  M.insert n a (typeAliases env) }
   where
     n            = val . rtName $ a
 
--- | Inserts an expression alias in the environment. It can overwrite an alias
--- with the same symbol.
+-- | Inserts an expression alias into the environment.
 setREAlias :: RTEnv x t -> RTAlias F.Symbol F.Expr -> RTEnv x t
 setREAlias env a = env { exprAliases = M.insert n a (exprAliases env) }
   where
@@ -209,13 +211,15 @@ fromAliasLHName :: AliasTable' x t -> LHName -> RTAlias x t
 fromAliasLHName table lhname
   = fromMaybe err (M.lookup lhname table)
   where
-    err = panic Nothing ("fromAliasSymbol: Dangling alias name: " ++ show lhname)
+    err = panic Nothing ("fromAliasLHName: Dangling alias name: " ++ show lhname)
 
--- | An adjacency list of nodes representing a directed graph. Used to detect
--- cyclic alias dependencies and ordering the expansion of aliases.
+-- | An adjacency list of nodes representing a directed graph.
+--   Used to detect cyclic alias dependencies and to order the expansion
+--   of aliases.
 type Graph t = [Node t]
--- | A node described by a label, a key, and a list of other nodes connected all
--- described by the same type parameter. We use this type to represent aliases within aliases.
+-- | A node described by a label, a key, and a list of connected nodes,
+--   all parameterized by the same type. This type is used to represent
+--   aliases nested within other aliases.
 type Node  t = (t, t, [t])
 
 buildAliasGraph :: (PPrint t) => (t -> [F.Symbol]) -> [RTAlias x t]
@@ -226,7 +230,6 @@ buildAliasNode :: (PPrint t) => (t -> [F.Symbol]) -> RTAlias x t
                -> Node F.Symbol
 buildAliasNode f a = (getLHNameSymbol . val $ rtName a, getLHNameSymbol . val $ rtName a, f (rtBody a))
 
--- | Build graph using LHName alternative
 buildAliasGraph' :: (PPrint t) => (t -> [LHName]) -> [RTAlias x t]
                 -> Graph LHName
 buildAliasGraph' buildEdges = map (buildNode buildEdges)
@@ -270,7 +273,7 @@ cycleAliasErr' t nameList@(name:_) = ErrAliasCycle { pos    = fst (locate name)
     locate n = ( GM.fSrcSpan . rtName $ fromAliasLHName t n
                  , pprint n )
 
--- | Orders the aliases so that nested aliases come first.
+-- | Orders aliases so that nested ones are processed first.
 genExpandOrder :: AliasTable x t -> Graph F.Symbol -> [RTAlias x t]
 genExpandOrder table graph
   = map (fromAliasSymbol table) symOrder
@@ -280,8 +283,8 @@ genExpandOrder table graph
     symOrder
       = map (Misc.fst3 . lookupVertex) $ reverse $ topSort digraph
 
--- | Orders the aliases so that nested aliases come first. Alternative
--- version for type aliases using LHNames.
+-- | Orders aliases so that nested ones are processed first.
+--   Alternative implementation for type aliases using 'LHName'.
 genExpandOrder' :: AliasTable' x t -> Graph LHName -> [RTAlias x t]
 genExpandOrder' table graph
   = map (fromAliasLHName table) nameOrder
@@ -293,8 +296,8 @@ genExpandOrder' table graph
 
 --------------------------------------------------------------------------------
 
--- | Gathers all constructors in a 'BareType' whose symbol matches a key
--- from the table.
+-- | Gathers all constructors within a 'BareType' (the body of a type alias)
+--   whose symbols match a key in the 'AliasTable'.
 buildTypeEdges :: AliasTable' x t -> BareType -> [LHName]
 buildTypeEdges table = Misc.ordNub . go
   where
@@ -314,7 +317,8 @@ buildTypeEdges table = Misc.ordNub . go
     go_ref (RProp _ (RHole _)) = Nothing
     go_ref (RProp  _ t) = Just t
 
--- | Gathers all variables that match a expression alias within an expression.
+-- | Gathers all variables within an 'Expr' (the body of an expression alias)
+--   that match an expression alias from the 'AliasTable'.
 buildExprEdges :: M.HashMap F.Symbol a -> F.Expr -> [F.Symbol]
 buildExprEdges table  = Misc.ordNub . go
   where
