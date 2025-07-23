@@ -1301,14 +1301,12 @@ ealiasP = try (rtAliasP symbol predP)
 -- | Parser for a LH type synonym.
 rtAliasP :: (Symbol -> tv) -> Parser ty -> Parser (RTAlias tv ty)
 rtAliasP f bodyP
-  = do pos  <- getSourcePos
-       name <- upperIdP
-       posE <- getSourcePos
+  = do lname <- locBinderLogicNameP
        args <- many aliasIdP
        reservedOp "="
        body <- bodyP
        let (tArgs, vArgs) = partition (isSmall . headSym) args
-       return $ RTA (Loc pos posE $ makeUnresolvedLHName LHLogicNameBinder name) (f <$> tArgs) vArgs body
+       return $ RTA lname (f <$> tArgs) vArgs body
 
 logDefineP :: Parser BPspec
 logDefineP =
