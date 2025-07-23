@@ -227,13 +227,13 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
               -- so name occurrences are resolved using them, disregarding
               -- any imported aliases with the same name.
               -- This allows the user to shadow imported aliases.
-              FoundTypeAliases { tfrLocallyDefined = [(m, _, _)] } ->
+              FoundTypeAliases { tarLocallyDefined = [(m, _, _)] } ->
                 pure $ LHNResolved (LHRLogic $ LogicName (LH.dropModuleNames s) m Nothing) s
-              FoundTypeAliases { tfrImported = [(_, lh, _)]
-                               , tfrLocallyDefined = []} ->
+              FoundTypeAliases { tarImported = [(_, lh, _)]
+                               , tarLocallyDefined = []} ->
                 pure lh
-              -- Report ambiguous name and return the unresolved name.
-              tfr@(FoundTypeAliases _ _) -> do addError $ errResolveTypeAlias lname s tfr
+              -- If multiple matches are found, report the ambiguous name and return it.
+              tar@(FoundTypeAliases { }) -> do addError $ errResolveTypeAlias lname s tar
                                                pure $ val lname
               NoSuchTypeAlias alts -> lookupGRELHName alts LHTcName lname s listToMaybe
         LHNUnresolved ns@(LHVarName lcl) s
@@ -439,7 +439,7 @@ fixExpressionArgsOfTypeAliases taliases = mapMBareTypes go
   where
     go :: BareTypeParsed -> StateT RenameOutput Identity BareTypeParsed
     go (RApp c@(BTyCon { btc_tc = lname@(Loc _ _ (LHNUnresolved LHTcName s)) }) ts rs r)
-      | tfr@(FoundTypeAliases imported local) <- resolveTypeAlias taliases s =
+      | tar@(FoundTypeAliases imported local) <- resolveTypeAlias taliases s =
           case (imported, local) of
                -- Local alias definitions get priority over imported ones.
                -- This allows the user to shadow imported aliases.
@@ -449,7 +449,7 @@ fixExpressionArgsOfTypeAliases taliases = mapMBareTypes go
                  RApp <$> pure c <*> fixExprArgs (btc_tc c) rta (mapM go ts) <*> mapM goRef rs <*> pure r
                -- Report ambiguos name and continue traversing.
                _ -> do
-                 addError $ errResolveTypeAlias lname s tfr
+                 addError $ errResolveTypeAlias lname s tar
                  RApp <$> pure c <*> mapM go ts <*> mapM goRef rs <*> pure r
     go (RApp c ts rs r)    = RApp <$> pure c <*> mapM go ts <*> mapM goRef rs <*> pure r
     go (RAppTy t1 t2 r)    = RAppTy <$> go t1 <*> go t2 <*> pure r
@@ -518,8 +518,8 @@ resolveTypeAlias taliases s = case lookupInScopeEnv taliases  s of
 data TypeAliasResolution a
   = NoSuchTypeAlias [Symbol]
   | FoundTypeAliases
-      { tfrImported :: [(GHC.Module, LHName, a)]
-      , tfrLocallyDefined :: [(GHC.Module, LHName, a)]
+      { tarImported :: [(GHC.Module, LHName, a)]
+      , tarLocallyDefined :: [(GHC.Module, LHName, a)]
       }
 
 errResolveTypeAlias :: Located LHName -> Symbol -> TypeAliasResolution b -> Error
