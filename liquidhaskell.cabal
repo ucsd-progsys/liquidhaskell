@@ -37,6 +37,7 @@ library
                       Data.Bits_LHAssumptions
                       Data.Either_LHAssumptions
                       Data.Foldable_LHAssumptions
+                      Data.Int_LHAssumptions
                       Data.List_LHAssumptions
                       Data.Maybe_LHAssumptions
                       Data.String_LHAssumptions

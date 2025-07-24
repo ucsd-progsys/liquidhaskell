@@ -69,7 +69,7 @@ data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
 
 {-@ data ByteString [lbLength]
          = Empty
-         | Chunk {lbiHead :: ByteStringNE, lbiRest :: ByteString }
+         | Chunk {lbiHead :: S.ByteStringNE, lbiRest :: ByteString }
   @-}
 
 {-@ measure lbLength :: ByteString -> Int
@@ -141,7 +141,7 @@ chunk c@(S.PS _ _ len) cs | len == 0  = cs
 -- | Consume the chunks of a lazy ByteString with a natural right fold.
 {-@ foldrChunks :: forall <p :: ByteString -> a -> Bool>.
                    (bs:ByteString
-                    -> b:ByteStringNE
+                    -> b:S.ByteStringNE
                     -> a<p bs>
                     -> a<p (Chunk b bs)>)
                 -> a<p Empty>
@@ -157,7 +157,7 @@ foldrChunks f z = go
 
 -- | Consume the chunks of a lazy ByteString with a strict, tail-recursive,
 -- accumulating left fold.
-{-@ foldlChunks :: (a -> ByteStringNE -> a)
+{-@ foldlChunks :: (a -> S.ByteStringNE -> a)
                 -> a
                 -> ByteString
                 -> a

@@ -32,6 +32,9 @@ module Language.Haskell.Liquid.Types.Names
   , reflectGHCName
   , reflectLHName
   , updateLHNameSymbol
+  , isNonReflectedLogicName
+  , logicNameOriginModule
+  , isResolvedLogicName
   ) where
 
 import Control.DeepSeq
@@ -39,6 +42,7 @@ import qualified Data.Binary as B
 import Data.Data (Data, gmapM, gmapT)
 import Data.Generics (extM, extT)
 import Data.Hashable
+import Data.Maybe (isNothing)
 import Data.String (fromString)
 import qualified Data.Text                               as Text
 import GHC.Generics
@@ -89,7 +93,8 @@ data LHResolvedName
       LHRIndex Word
   deriving (Data, Eq, Generic, Ord)
 
--- | A name that is potentially unresolved.
+-- | A name that is potentially unresolved, carrying along the 'Symbol'
+-- found by the parser.
 data LHName
     = -- | In order to integrate the resolved names gradually, we keep the
       -- unresolved names.
@@ -117,11 +122,11 @@ instance Hashable LHName where
   hashWithSalt s (LHNUnresolved ns sym) = s `hashWithSalt` ns `hashWithSalt` sym
 
 data LHNameSpace
-    = LHTcName
-    | LHDataConName LHThisModuleNameFlag
-    | LHVarName LHThisModuleNameFlag
-    | LHLogicNameBinder
-    | LHLogicName
+    = LHTcName                            -- ^ Type constructors
+    | LHDataConName LHThisModuleNameFlag  -- ^ Data constructors with procedence
+    | LHVarName LHThisModuleNameFlag      -- ^ Variables with procedence
+    | LHLogicNameBinder                   -- ^ Logic names (LHS)
+    | LHLogicName                         -- ^ Logic names (RHS)
   deriving (Data, Eq, Generic, Ord, Show)
 
 instance B.Binary LHNameSpace
@@ -374,6 +379,17 @@ reflectGHCName thisModule n =
       )
       (symbol n)
 
+isNonReflectedLogicName :: LHName -> Bool
+isNonReflectedLogicName lhname = isResolvedLogicName lhname && (isNothing . maybeReflectedLHName) lhname
+
 maybeReflectedLHName :: LHName -> Maybe GHC.Name
 maybeReflectedLHName (LHNResolved (LHRLogic (LogicName _ _ m)) _) = m
 maybeReflectedLHName _ = Nothing
+
+isResolvedLogicName :: LHName -> Bool
+isResolvedLogicName (LHNResolved (LHRLogic (LogicName {})) _) = True
+isResolvedLogicName _ = False
+
+logicNameOriginModule :: LHName -> GHC.Module
+logicNameOriginModule (LHNResolved (LHRLogic (LogicName _ m _)) _) = m
+logicNameOriginModule n = error $ "logicNameModule: Not a logic name " ++ show n

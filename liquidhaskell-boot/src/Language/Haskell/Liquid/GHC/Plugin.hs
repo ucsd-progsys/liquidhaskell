@@ -448,11 +448,13 @@ isIgnore sp = any ((== "--skip-module") . F.val) (pragmas sp)
 -- | Working with bare & lifted specs ------------------------------------------
 --------------------------------------------------------------------------------
 
+-- | Loads the specs of direct dependencies and /their/ dependencies as well.
 loadDependencies :: Config -> [Module] -> TcM TargetDependencies
 loadDependencies currentModuleConfig mods = do
   hscEnv    <- env_top <$> getEnv
   results   <- SpecFinder.findRelevantSpecs
                  (excludeAutomaticAssumptionsFor currentModuleConfig) hscEnv mods
+  -- REVIEW: What does reversing the list accomplishes here?
   let deps = TargetDependencies $ foldl' processResult mempty (reverse results)
   redundant <- liftIO $ configToRedundantDependencies hscEnv currentModuleConfig
 

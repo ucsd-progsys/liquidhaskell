@@ -887,8 +887,8 @@ data BPspec
   | RInst   (RInstance LocBareTypeParsed)                 -- ^ refined 'instance' definition
   | Invt    LocBareTypeParsed                             -- ^ 'invariant' specification
   | Using  (LocBareTypeParsed, LocBareTypeParsed)         -- ^ 'using' declaration (for local invariants on a type)
-  | Alias   (Located (RTAlias Symbol BareTypeParsed))     -- ^ 'type' alias declaration
-  | EAlias  (Located (RTAlias Symbol (ExprV LocSymbol)))  -- ^ 'predicate' alias declaration
+  | Alias   (RTAlias Symbol BareTypeParsed)                 -- ^ 'type' alias declaration
+  | EAlias  (RTAlias Symbol (ExprV LocSymbol))  -- ^ 'predicate' alias declaration
   | Embed   (Located LHName, FTycon, TCArgs)              -- ^ 'embed' declaration
   | Qualif  (QualifierV LocSymbol)                        -- ^ 'qualif' definition
   | LVars   (Located LHName)                              -- ^ 'lazyvar' annotation, defer checks to *use* sites
@@ -956,9 +956,9 @@ ppPspec k (Invt t)
   = "invariant" <+> pprintTidy k (parsedToBareType <$> t)
 ppPspec k (Using (t1, t2))
   = "using" <+> pprintTidy k (parsedToBareType <$> t1) <+> "as" <+> pprintTidy k (parsedToBareType <$> t2)
-ppPspec k (Alias   (Loc _ _ rta))
+ppPspec k (Alias rta)
   = "type" <+> pprintTidy k (fmap parsedToBareType rta)
-ppPspec k (EAlias  (Loc _ _ rte))
+ppPspec k (EAlias rte)
   = "predicate" <+> pprintTidy k rte
 ppPspec k (Embed   (lx, tc, NoArgs))
   = "embed" <+> pprintTidy k (val lx)         <+> "as" <+> pprintTidy k tc
@@ -1290,25 +1290,23 @@ embedP = do
   --  = xyP locUpperIdP symbolTCArgs (reserved "as") fTyConP
 
 
-aliasP :: Parser (Located (RTAlias Symbol BareTypeParsed))
+aliasP :: Parser (RTAlias Symbol BareTypeParsed)
 aliasP  = rtAliasP id     bareTypeP <?> "aliasP"
 
-ealiasP :: Parser (Located (RTAlias Symbol (ExprV LocSymbol)))
+ealiasP :: Parser (RTAlias Symbol (ExprV LocSymbol))
 ealiasP = try (rtAliasP symbol predP)
       <|> rtAliasP symbol exprP
       <?> "ealiasP"
 
 -- | Parser for a LH type synonym.
-rtAliasP :: (Symbol -> tv) -> Parser ty -> Parser (Located (RTAlias tv ty))
+rtAliasP :: (Symbol -> tv) -> Parser ty -> Parser (RTAlias tv ty)
 rtAliasP f bodyP
-  = do pos  <- getSourcePos
-       name <- upperIdP
+  = do lname <- locBinderLogicNameP
        args <- many aliasIdP
        reservedOp "="
        body <- bodyP
-       posE <- getSourcePos
        let (tArgs, vArgs) = partition (isSmall . headSym) args
-       return $ Loc pos posE (RTA name (f <$> tArgs) vArgs body)
+       return $ RTA lname (f <$> tArgs) vArgs body
 
 logDefineP :: Parser BPspec
 logDefineP =

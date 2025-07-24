@@ -166,7 +166,7 @@ checkTargetSpec specs src env cbs tsp
                      -- TODO-REBARE ++ checkQualifiers env                                       (gsQualifiers (gsQual sp))
                      <> checkDuplicate                                            (gsAsmSigs    (gsSig tsp))
                      <> checkDupIntersect                                         (gsTySigs (gsSig tsp)) (gsAsmSigs (gsSig tsp))
-                     <> checkRTAliases "Type Alias" env            tAliases
+                     <> checkRTAliases "Type Alias" env            myTAliases
                      <> checkRTAliases "Pred Alias" env            eAliases
                      -- ++ _checkDuplicateFieldNames                   (gsDconsP sp)
                      -- NV TODO: allow instances of refined classes to be refined
@@ -181,7 +181,7 @@ checkTargetSpec specs src env cbs tsp
 
     _rClasses         = concatMap Ms.classes specs
     _rInsts           = concatMap Ms.rinstance specs
-    tAliases          = concat [Ms.aliases sp  | sp <- specs]
+    myTAliases        = Ms.aliases (head specs) -- We check for duplicate aliases within the target spec only.
     eAliases          = concat [Ms.ealiases sp | sp <- specs]
     emb              = gsTcEmbeds (gsName tsp)
     tcEnv            = gsTyconEnv (gsName tsp)
@@ -363,7 +363,7 @@ checkIAlOne allowHO bsc emb tcEnv env (t1, t2) =
 
 
 -- FIXME: Should _ be removed if it isn't used?
-checkRTAliases :: String -> t -> [Located (RTAlias s a)] -> Diagnostics
+checkRTAliases :: String -> t -> [RTAlias s a] -> Diagnostics
 checkRTAliases msg _ as = err1s
   where
     err1s               = checkDuplicateRTAlias msg as
@@ -456,15 +456,15 @@ checkClassMethods (Just clsis) cms xts =
     xts' = F.notracepp "XTS" $ filter (not . (`elem` cls) . fst) xts
     cls  = F.notracepp "CLS" cms
 
-checkDuplicateRTAlias :: String -> [Located (RTAlias s a)] -> Diagnostics
+checkDuplicateRTAlias :: String -> [RTAlias s a] -> Diagnostics
 checkDuplicateRTAlias s tas = mkDiagnostics mempty (map mkError dups)
   where
-    mkError xs@(x:_)          = ErrDupAlias (GM.fSrcSpan x)
-                                          (text s)
-                                          (pprint . rtName . val $ x)
-                                          (GM.fSrcSpan <$> xs)
-    mkError []                = panic Nothing "mkError: called on empty list"
-    dups                    = [z | z@(_:_:_) <- groupDuplicatesOn (rtName . val) tas]
+    mkError xs@(x:_) = ErrDupAlias (GM.fSrcSpan $ rtName x)
+                                   (text s)
+                                   (pprint $ rtName x)
+                                   (GM.fSrcSpan . rtName <$> xs)
+    mkError []       = panic Nothing "mkError: called on empty list"
+    dups             = [z | z@(_:_:_) <- groupDuplicatesOn (lhNameToUnqualifiedSymbol . val . rtName) tas]
 
 groupDuplicatesOn :: Ord b => (a -> b) -> [a] -> [[a]]
 groupDuplicatesOn f = L.groupBy ((==) `on` f) . L.sortOn f
@@ -777,6 +777,3 @@ checkClassMeasures measures = mkDiagnostics mempty (mapMaybe checkOne byTyCon)
                                       (pprint (val (msName m)))
                                       (pprint ((dataConTyCon . ctor . head . msEqns) m))
                                       (GM.fSrcSpan <$> (m:ms)))
-
-
-

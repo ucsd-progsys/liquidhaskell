@@ -1,4 +1,6 @@
 {-@ LIQUID "--expect-error-containing=Multiple definitions of Type Alias" @-}
-module DuplicatedAliases where
+module DuplicatedAliases () where
 
-{-@ type Nat = {v:Int | v >= 0} @-}
+{-@ type Foo = {v:Bool | v == True} @-}
+
+{-@ type Foo = {v:Bool | v == False} @-}
