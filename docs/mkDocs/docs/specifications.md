@@ -389,9 +389,9 @@ see [tests/pos/Map.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develo
    This makes possible to effectively _update_ an alias definition.
 4. When imports contain aliases with identical symbols, name resolution triggers
    an error upon ambiguous usage. Resolve this by qualifying either:
-   - The usage
-   - The import
-   - Or both
+    * The usage
+    * The import
+    * Or both
 5. When the same alias name is imported from multiple modules (with no local definition),
    only the lexicographically last instance is exported (i.e., included in the resulting specification).
 
