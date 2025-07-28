@@ -221,19 +221,6 @@ config = cmdArgsMode $ Config {
     = def &= help "Disable totality check"
           &= name "no-totality"
 
- , cores
-    = def &= help "Use m cores to solve logical constraints"
-
- , minPartSize
-    = FC.defaultMinPartSize
-    &= help "If solving on multiple cores, ensure that partitions are of at least m size"
-
- , maxPartSize
-    = FC.defaultMaxPartSize
-    &= help ("If solving on multiple cores, once there are as many partitions " ++
-             "as there are cores, don't merge partitions if they will exceed this " ++
-             "size. Overrides the minpartsize option.")
-
  , smtsolver
     = def &= help "Name of SMT-Solver"
 
@@ -692,9 +679,6 @@ defConfig = Config
   , noADT                    = def
   , expectErrorContaining    = def
   , expectAnyError           = False
-  , cores                    = Just 1
-  , minPartSize              = FC.defaultMinPartSize
-  , maxPartSize              = FC.defaultMaxPartSize
   , maxParams                = defaultMaxParams
   , smtsolver                = def
   , shortNames               = def

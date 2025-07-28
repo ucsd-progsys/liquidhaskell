@@ -47,9 +47,6 @@ fixConfig tgt cfg = def
   , FC.nonLinCuts               = not (higherOrderFlag cfg) -- eliminate cfg /= FC.All
   , FC.save                     = saveQuery         cfg
   , FC.srcFile                  = tgt
-  , FC.cores                    = cores             cfg
-  , FC.minPartSize              = minPartSize       cfg
-  , FC.maxPartSize              = maxPartSize       cfg
   , FC.elimStats                = elimStats         cfg
   , FC.elimBound                = elimBound         cfg
   , FC.allowHO                  = higherOrderFlag   cfg

@@ -70,9 +70,6 @@ data Config = Config
   , notruetypes              :: Bool       -- ^ disable truing top level types
   , nototality               :: Bool       -- ^ disable totality check in definitions
   , pruneUnsorted            :: Bool       -- ^ enable prunning unsorted Refinements
-  , cores                    :: Maybe Int  -- ^ number of cores used to solve constraints
-  , minPartSize              :: Int        -- ^ Minimum size of a partition
-  , maxPartSize              :: Int        -- ^ Maximum size of a partition. Overrides minPartSize
   , maxParams                :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
   , smtsolver                :: Maybe SMTSolver  -- ^ SMT solver to use [if `Nothing`, try looking one up using the order defined in L.H.L.UX.CmdLine.withSmtSolver]
   , shortNames               :: Bool       -- ^ drop module qualifers from pretty-printed names.
