@@ -17,7 +17,7 @@ import Data.Traversable (for)
 import Data.Maybe (catMaybes)
 
 import Data.ByteString.Lazy.Char8 (writeFile)
-import Data.List (foldl', intersperse, isSuffixOf)
+import Data.List (intersperse, isSuffixOf)
 import qualified Text.ParserCombinators.ReadP as ReadP
 
 data Phase = Phase
