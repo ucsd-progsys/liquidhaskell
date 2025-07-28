@@ -132,7 +132,10 @@ plugin = GHC.defaultPlugin {
     typecheckPluginGo cfg summary gblEnv = do
       logger <- getLogger
       dynFlags <- getDynFlags
-      withTiming logger (text "LiquidHaskell" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $ do
+      GHC.withTiming
+          logger (text "LiquidHaskellCPU" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $
+        GHC.withTimingWallClock
+          logger (text "LiquidHaskell" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $ do
         if gopt Opt_Haddock dynFlags
           then do
             -- Warn the user
