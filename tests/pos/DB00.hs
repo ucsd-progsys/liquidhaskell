@@ -1,6 +1,5 @@
 
 {-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "totality" @-}
 
 module DB00 (values) where
 
@@ -9,7 +8,7 @@ module DB00 (values) where
 values :: key -> [Dict key val]  -> [val]
 values k = map (go k)
   where
-    {-@ go :: forall <rr1 :: k -> v -> Bool>. 
+    {-@ go :: forall <rr1 :: k -> v -> Bool>.
               i:k -> Dict <rr1> k v -> v<rr1 i>  @-}
     go k (D _ f) = f k
 
