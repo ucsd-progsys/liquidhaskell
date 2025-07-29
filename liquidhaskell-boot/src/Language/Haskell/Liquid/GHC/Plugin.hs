@@ -502,7 +502,6 @@ processModule LiquidHaskellContext{..} = do
   debugLog ("Module ==> " ++ renderModule thisModule)
 
   let bareSpec0       = lhInputSpec
-  _                   <- liftIO $ LH.checkFilePragmas $ Ms.pragmas bareSpec0
 
   withPragmas lhGlobalCfg (Ms.pragmas bareSpec0) $ \moduleCfg -> do
     dependencies <- loadDependencies moduleCfg lhRelevantModules
