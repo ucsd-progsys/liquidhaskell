@@ -222,7 +222,7 @@ config = cmdArgsMode $ Config {
           &= name "no-totality"
 
  , cores
-    = def &= help "Use m cores to solve logical constraints"
+    = Just 1 &= help "Use the given number of cores to solve logical constraints (default: 1). Warning: unpredictable performance. See https://github.com/ucsd-progsys/liquidhaskell/issues/2562"
 
  , minPartSize
     = FC.defaultMinPartSize
