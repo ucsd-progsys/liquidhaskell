@@ -391,8 +391,7 @@ mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt }
 -- to include Haskell inlines and 'LogicMap' definitions in the alias
 -- environment for expansion.
 lmapEAlias :: LMap -> RTAlias Symbol Expr
-lmapEAlias (LMap v ys e) =
-  RTA (F.atLoc v $ makeGeneratedLogicLHName (F.val v)) [] ys e
+lmapEAlias (LMap v ys e) = RTA (makeGeneratedLogicLHName <$> v) [] ys e
 
 
 -- | The type used during constraint generation, used
