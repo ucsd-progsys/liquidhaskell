@@ -132,7 +132,10 @@ plugin = GHC.defaultPlugin {
     typecheckPluginGo cfg summary gblEnv = do
       logger <- getLogger
       dynFlags <- getDynFlags
-      withTiming logger (text "LiquidHaskell" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $ do
+      GHC.withTiming
+          logger (text "LiquidHaskellCPU" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $
+        GHC.withTimingWallClock
+          logger (text "LiquidHaskell" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $ do
         if gopt Opt_Haddock dynFlags
           then do
             -- Warn the user
@@ -300,7 +303,7 @@ typecheckHook' cfg ms tcGblEnv specComments = do
 
 liquidCheckModule :: Config -> ModSummary -> TcGblEnv -> [BPspec] -> TcM (Either LiquidCheckException TcGblEnv)
 liquidCheckModule cfg0 ms tcg specs = do
-  withPragmas cfg0 thisFile pragmas $ \cfg -> do
+  withPragmas cfg0 pragmas $ \cfg -> do
     pipelineData <- do
       env <- getTopEnv
       session <- Session <$> liftIO (newIORef env)
@@ -308,7 +311,6 @@ liquidCheckModule cfg0 ms tcg specs = do
     liquidLib <- setGblEnv tcg $ liquidHaskellCheckWithConfig cfg pipelineData ms
     traverse (serialiseSpec tcg) liquidLib
   where
-    thisFile = LH.modSummaryHsFile ms
     pragmas = [ s | Pragma s <- specs ]
 
 mkPipelineData :: (GhcMonad m) => ModSummary -> TcGblEnv -> [BPspec] -> m PipelineData
@@ -412,10 +414,10 @@ checkLiquidHaskellContext lhContext = do
       out <- liftIO $ LH.checkTargetInfo pmrTargetInfo
 
       let bareSpec = lhInputSpec lhContext
-          file = LH.modSummaryHsFile $ lhModuleSummary lhContext
 
-      withPragmas (lhGlobalCfg lhContext) file (Ms.pragmas bareSpec) $ \moduleCfg ->  do
+      withPragmas (lhGlobalCfg lhContext) (Ms.pragmas bareSpec) $ \moduleCfg ->  do
         let filters = getFilters moduleCfg
+            file = LH.modSummaryHsFile $ lhModuleSummary lhContext
         -- Report the outcome of the checking
         LH.reportResult (errorLogger file filters) moduleCfg [giTarget (giSrc pmrTargetInfo)] out
         -- If there are unmatched filters or errors, and we are not reporting with
@@ -500,14 +502,8 @@ processModule LiquidHaskellContext{..} = do
   debugLog ("Module ==> " ++ renderModule thisModule)
 
   let bareSpec0       = lhInputSpec
-  -- /NOTE/: For the Plugin to work correctly, we shouldn't call 'canonicalizePath', because otherwise
-  -- this won't trigger the \"external name resolution\" as part of 'Language.Haskell.Liquid.Bare.Resolve'
-  -- (cfr. 'allowExtResolution').
-  let file            = LH.modSummaryHsFile lhModuleSummary
 
-  _                   <- liftIO $ LH.checkFilePragmas $ Ms.pragmas bareSpec0
-
-  withPragmas lhGlobalCfg file (Ms.pragmas bareSpec0) $ \moduleCfg -> do
+  withPragmas lhGlobalCfg (Ms.pragmas bareSpec0) $ \moduleCfg -> do
     dependencies <- loadDependencies moduleCfg lhRelevantModules
 
     debugLog $ "Found " <> show (HM.size $ getDependencies dependencies) <> " dependencies:"
@@ -520,6 +516,7 @@ processModule LiquidHaskellContext{..} = do
     hscEnv <- getTopEnv
     let preNormalizedCore = preNormalizeCore moduleCfg modGuts0
         modGuts = modGuts0 { mg_binds = preNormalizedCore }
+        file = LH.modSummaryHsFile lhModuleSummary
     targetSrc  <- liftIO $ makeTargetSrc moduleCfg file modGuts hscEnv
     logger <- getLogger
 

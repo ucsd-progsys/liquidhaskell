@@ -24,8 +24,14 @@ module Liquid.GHC.API.Extra (
   , thisPackage
   , tyConRealArity
   , untick
+  , withTimingWallClock
   ) where
 
+import Control.Monad
+import Control.Monad.IO.Class
+import GHC.Conc (getAllocationCounter)
+import Debug.Trace
+import GHC.Clock (getMonotonicTimeNSec)
 import           Liquid.GHC.API.StableModule      as StableModule
 import GHC hiding (modInfoLookupName)
 import Data.Data (Data, gmapQr, gmapT)
@@ -51,7 +57,10 @@ import GHC.Types.Name.Reader          (nameRdrName)
 import GHC.Types.SrcLoc               as Ghc
 import GHC.Types.Unique               (getUnique, hasKey)
 
+import GHC.Utils.Error                as Ghc
+import GHC.Utils.Logger               as Ghc
 import GHC.Utils.Outputable           as Ghc hiding ((<>))
+import qualified GHC.Utils.Outputable as Ghc
 
 import GHC.Unit.Module
 
@@ -263,3 +272,72 @@ untick e = e
 
 minus_RDR :: RdrName
 minus_RDR = nameRdrName minusName
+
+-- | A version of 'withTiming' that uses wall clock time instead of CPU time.
+--
+-- This version is copied and modified from GHC's 'GHC.Utils.Error.withTiming'
+withTimingWallClock :: MonadIO m
+           => Logger
+           -> SDoc         -- ^ The name of the phase
+           -> (a -> ())    -- ^ A function to force the result
+                           -- (often either @const ()@ or 'rnf')
+           -> m a          -- ^ The body of the phase to be timed
+           -> m a
+withTimingWallClock logger what force_result action =
+    if logVerbAtLeast logger 2 || logHasDumpFlag logger Opt_D_dump_timings
+    then do when printTimingsNotDumpToFile $ liftIO $
+              logInfo logger $ withPprStyle defaultUserStyle $
+                text "***" <+> what Ghc.<> colon
+            let ctx = log_default_user_context (logFlags logger)
+            alloc0 <- liftIO getAllocationCounter
+            !start <- liftIO getMonotonicTimeNSec
+            eventBegins ctx what
+            recordAllocs alloc0
+            !r <- action
+            () <- pure $ force_result r
+            eventEnds ctx what
+            !end <- liftIO getMonotonicTimeNSec
+            alloc1 <- liftIO getAllocationCounter
+            recordAllocs alloc1
+            -- recall that allocation counter counts down
+            let alloc = alloc0 - alloc1
+                time = (end - start) `div` 1000000
+
+            when (logVerbAtLeast logger 2 && printTimingsNotDumpToFile)
+                $ liftIO $ logInfo logger $ withPprStyle defaultUserStyle
+                    (text "!!!" <+> what Ghc.<> colon <+> text "finished in"
+                     <+> word64 time
+                     <+> text "milliseconds"
+                     Ghc.<> comma
+                     <+> text "allocated"
+                     <+> doublePrec 3 (realToFrac alloc / 1024 / 1024)
+                     <+> text "megabytes")
+
+            liftIO $ putDumpFileMaybe logger Opt_D_dump_timings "" FormatText
+                    $ text $ showSDocOneLine ctx
+                    $ hsep [ what Ghc.<> colon
+                           , text "alloc=" Ghc.<> ppr alloc
+                           , text "time=" Ghc.<> word64 time
+                           ]
+            pure r
+     else action
+
+    where -- Avoid both printing to console and dumping to a file (#20316).
+          printTimingsNotDumpToFile =
+            not (log_dump_to_file (logFlags logger))
+
+          recordAllocs alloc =
+            liftIO $ traceMarkerIO $ "GHC:allocs:" ++ show alloc
+
+          eventBegins ctx w = do
+            let doc = eventBeginsDoc ctx w
+            liftIO $ traceMarkerIO doc
+            liftIO $ traceEventIO doc
+
+          eventEnds ctx w = do
+            let doc = eventEndsDoc ctx w
+            liftIO $ traceMarkerIO doc
+            liftIO $ traceEventIO doc
+
+          eventBeginsDoc ctx w = showSDocOneLine ctx $ text "GHC:started:" <+> w
+          eventEndsDoc   ctx w = showSDocOneLine ctx $ text "GHC:finished:" <+> w

@@ -1,5 +1,4 @@
 {-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "totality"         @-}
 
 module DataBase (
 
