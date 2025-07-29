@@ -547,7 +547,7 @@ canonConfig cfg = cfg
 withPragmas :: MonadIO m => Config -> [Located String] -> (Config -> m a) -> m a
 --------------------------------------------------------------------------------
 withPragmas cfg ps action
-  = do cfg' <- liftIO $ (processPragmas cfg ps) <&> canonConfig
+  = do cfg' <- liftIO $ processPragmas cfg ps <&> canonConfig
        -- As the verbosity is set /globally/ via the cmdargs lib, re-set it.
        liftIO $ setVerbosity (cmdargsVerbosity $ loggingVerbosity cfg')
        res <- action cfg'
