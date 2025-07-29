@@ -97,7 +97,10 @@ defaultMaxParams = 2
 -- Parsing Command Line----------------------------------------------------------
 ---------------------------------------------------------------------------------
 config :: Mode (CmdArgs Config)
-config = cmdArgsMode $ Config {
+config = cmdArgsMode defConfig
+
+defConfig :: Config
+defConfig = Config {
   loggingVerbosity
     = enum [ Minimal      &= name "minimal" &= help "Minimal logging verbosity"
            , Quiet        &= name "quiet"   &= help "Silent logging verbosity"
@@ -150,25 +153,25 @@ config = cmdArgsMode $ Config {
           &= name "check-var"
 
  , pruneUnsorted
-    = def &= help "Disable prunning unsorted Predicates"
+    = False &= help "Disable prunning unsorted Predicates"
           &= name "prune-unsorted"
 
  , notermination
-    = def
+    = False
           &= help "Disable Termination Check"
           &= name "no-termination-check"
 
  , nopositivity
-    = def
+    = False
           &= help "Disable Data Type Positivity Check"
           &= name "no-positivity-check"
 
  , rankNTypes
-    = def &= help "Adds precise reasoning on presence of rankNTypes"
+    = False &= help "Adds precise reasoning on presence of rankNTypes"
           &= name "rankNTypes"
 
  , noclasscheck
-    = def
+    = False
           &= help "Disable Class Instance Check"
           &= name "no-class-check"
 
@@ -177,11 +180,11 @@ config = cmdArgsMode $ Config {
           &= help "Disable structural termination check"
 
  , gradual
-    = def &= help "Enable gradual refinement type checking"
+    = False &= help "Enable gradual refinement type checking"
           &= name "gradual"
 
  , bscope
-    = def &= help "scope of the outer binders on the inner refinements"
+    = False &= help "scope of the outer binders on the inner refinements"
           &= name "bscope"
 
  , gdepth
@@ -190,23 +193,23 @@ config = cmdArgsMode $ Config {
     &= name "gradual-depth"
 
  , ginteractive
-    = def &= help "Interactive Gradual Solving"
+    = False &= help "Interactive Gradual Solving"
           &= name "ginteractive"
 
  , totalHaskell
-    = def &= help "Check for termination and totality; overrides no-termination flags"
+    = False &= help "Check for termination and totality; overrides no-termination flags"
           &= name "total-Haskell"
 
  , nowarnings
-    = def &= help "Don't display warnings, only show errors"
+    = False &= help "Don't display warnings, only show errors"
           &= name "no-warnings"
 
  , noannotations
-    = def &= help "Don't create intermediate annotation files"
+    = False &= help "Don't create intermediate annotation files"
           &= name "no-annotations"
 
  , checkDerived
-    = def &= help "Check GHC generated binders (e.g. Read, Show instances)"
+    = False &= help "Check GHC generated binders (e.g. Read, Show instances)"
           &= name "check-derived"
 
  , caseExpandDepth
@@ -214,11 +217,11 @@ config = cmdArgsMode $ Config {
           &= name "max-case-expand"
 
  , notruetypes
-    = def &= help "Disable Trueing Top Level Types"
+    = False &= help "Disable Trueing Top Level Types"
           &= name "no-true-types"
 
  , nototality
-    = def &= help "Disable totality check"
+    = False &= help "Disable totality check"
           &= name "no-totality"
 
  , cores
@@ -235,7 +238,7 @@ config = cmdArgsMode $ Config {
              "size. Overrides the minpartsize option.")
 
  , smtsolver
-    = def &= help "Name of SMT-Solver"
+    = Nothing &= help "Name of SMT-Solver"
 
  , noCheckUnknown
     = def &= explicit
@@ -246,46 +249,27 @@ config = cmdArgsMode $ Config {
     = defaultMaxParams &= help "Restrict qualifier mining to those taking at most `m' parameters (2 by default)"
 
  , shortNames
-    = def &= name "short-names"
+    = False &= name "short-names"
           &= help "Print shortened names, i.e. drop all module qualifiers."
 
  , shortErrors
-    = def &= name "short-errors"
+    = False &= name "short-errors"
           &= help "Don't show long error messages, just line numbers."
 
- , cabalDir
-    = def &= name "cabal-dir"
-          &= help "Find and use .cabal to add paths to sources for imported files"
-
- , ghcOptions
-    = def &= name "ghc-option"
-          &= typ "OPTION"
-          &= help "Pass this option to GHC"
-
- , cFiles
-    = def &= name "c-files"
-          &= typ "OPTION"
-          &= help "Tell GHC to compile and link against these files"
-
- , port
-     = defaultPort
-          &= name "port"
-          &= help "Port at which lhi should listen"
-
  , exactDC
-    = def &= help "Exact Type for Data Constructors"
+    = False &= help "Exact Type for Data Constructors"
           &= name "exact-data-cons"
 
  , noADT
-    = def &= help "Do not generate ADT representations in refinement logic"
+    = False &= help "Do not generate ADT representations in refinement logic"
           &= name "no-adt"
 
  , expectErrorContaining
-    = def &= help "Expect an error which containing the provided string from verification (can be provided more than once)"
+    = [] &= help "Expect an error which containing the provided string from verification (can be provided more than once)"
           &= name "expect-error-containing"
 
  , expectAnyError
-    = def &= help "Expect an error, no matter which kind or what it contains"
+    = False &= help "Expect an error, no matter which kind or what it contains"
           &= name "expect-any-error"
 
  , scrapeInternals
@@ -347,89 +331,84 @@ config = cmdArgsMode $ Config {
           -- PLE-OPT &= name "automatic-instances"
 
   , proofLogicEval
-    = def
+    = False
         &= help "Enable Proof-by-Logical-Evaluation"
         &= name "ple"
 
   , pleWithUndecidedGuards
-    = def
+    = False
         &= help "Unfold invocations with undecided guards in PLE"
         &= name "ple-with-undecided-guards"
         &= explicit
 
   , oldPLE
-    = def
+    = False
         &= help "Enable Proof-by-Logical-Evaluation"
         &= name "oldple"
 
   , interpreter
-    = def
+    = False
         &= help "Use an interpreter to assist PLE in solving constraints"
         &= name "interpreter"
 
   , proofLogicEvalLocal
-    = def
+    = False
         &= help "Enable Proof-by-Logical-Evaluation locally, per function"
         &= name "ple-local"
 
   , etabeta
-    = def
+    = False
         &= help "Eta expand and beta reduce terms to aid PLE"
         &= name "etabeta"
 
   , dependantCase
-    = def
+    = False
         &= help "Allow PLE to reason about dependent cases"
         &= name "dependant-case"
 
   , extensionality
-    = def
+    = False
         &= help "Enable extensional interpretation of function equality"
         &= name "extensionality"
 
   , nopolyinfer
-    = def
+    = False
         &= help "No inference of polymorphic type application. Gives imprecision, but speedup."
         &= name "fast"
 
   , reflection
-    = def
+    = False
         &= help "Enable reflection of Haskell functions and theorem proving"
         &= name "reflection"
 
   , compileSpec
-    = def
+    = False
         &= name "compile-spec"
         &= help "Only compile specifications (into .bspec file); skip verification"
 
-  , noCheckImports
-    = def
-        &= name "no-check-imports"
-        &= help "Do not check the transitive imports; only check the target files."
-
   , typeclass
-    = def
+    = False
         &= help "Enable Typeclass"
         &= name "typeclass"
   , auxInline
-    = def
+    = False
         &= help "Enable inlining of class methods"
         &= name "aux-inline"
   ,
     rwTerminationCheck
-    = def
+    = False
         &= name "rw-termination-check"
         &= help (   "Enable the rewrite divergence checker. "
                  ++ "Can speed up verification if rewriting terminates, but can also cause divergence."
                 )
   ,
     skipModule
-    = def
+    = False
         &= name "skip-module"
         &= help "Completely skip this module, don't even compile any specifications in it."
   ,
     noLazyPLE
-    = def
+    = False
         &= name "no-lazy-ple"
         &= help "Don't use Lazy PLE"
 
@@ -438,12 +417,12 @@ config = cmdArgsMode $ Config {
         &= help "Maximum fuel (per-function unfoldings) for PLE"
 
   , environmentReduction
-    = def
+    = False
         &= explicit
         &= name "environment-reduction"
         &= help "perform environment reduction (disabled by default)"
   , noEnvironmentReduction
-    = def
+    = False
         &= explicit
         &= name "no-environment-reduction"
         &= help "Don't perform environment reduction"
@@ -467,28 +446,21 @@ config = cmdArgsMode $ Config {
       &= help "Stop loading LHAssumptions modules for imports in these packages."
       &= typ "PACKAGE"
   , dumpOpaqueReflections
-    = def &= help "Dump all generated opaque reflections"
+    = False &= help "Dump all generated opaque reflections"
           &= name "dump-opaque-reflections"
           &= explicit
   , dumpPreNormalizedCore
-    = def &= help "Dump pre-normalized core (before a-normalization)"
+    = False &= help "Dump pre-normalized core (before a-normalization)"
           &= name "dump-pre-normalized-core"
           &= explicit
   , allowUnsafeConstructors
-    = def &= help "Allow refining constructors with unsafe refinements"
+    = False &= help "Allow refining constructors with unsafe refinements"
           &= name "allow-unsafe-constructors"
           &= explicit
-  } &= program "liquid"
+  } &= program "liquidhaskell"
     &= help    "Refinement Types for Haskell"
     &= summary copyright
-    &= details [ "LiquidHaskell is a Refinement Type based verifier for Haskell"
-               , ""
-               , "To check a Haskell file foo.hs, type:"
-               , "  liquid foo.hs "
-               ]
-
-defaultPort :: Int
-defaultPort = 3000
+    &= details [ "LiquidHaskell is a Refinement Type based verifier for Haskell" ]
 
 getOpts :: [String] -> IO Config
 getOpts as = do
@@ -551,8 +523,7 @@ canonicalizePaths pwd cfg = do
   tgt   <- canonicalizePath pwd
   isdir <- doesDirectoryExist tgt
   is    <- mapM (canonicalize tgt isdir) $ idirs cfg
-  cs    <- mapM (canonicalize tgt isdir) $ cFiles cfg
-  return $ cfg { idirs = is, cFiles = cs }
+  return $ cfg { idirs = is }
 
 canonicalize :: FilePath -> Bool -> FilePath -> IO FilePath
 canonicalize tgt isdir f
@@ -650,99 +621,11 @@ processPragmas c pragmas =
       cmdArgsApply
 
 -- | Note that this function doesn't process list arguments properly, like
--- 'cFiles' or 'expectErrorContaining'
+-- 'expectErrorContaining'
 -- TODO: This is only used to parse the contents of the env var LIQUIDHASKELL_OPTS
 -- so it should be able to parse multiple arguments instead. See issue #1990.
 parsePragma :: Located String -> IO Config
 parsePragma = processPragmas defConfig . (:[])
-
-defConfig :: Config
-defConfig = Config
-  { loggingVerbosity         = Minimal
-  , files                    = def
-  , idirs                    = def
-  , fullcheck                = def
-  , linear                   = def
-  , stringTheory             = def
-  , higherorder              = def
-  , smtTimeout               = def
-  , higherorderqs            = def
-  , diffcheck                = def
-  , saveQuery                = def
-  , checks                   = def
-  , nostructuralterm         = def
-  , noCheckUnknown           = def
-  , notermination            = False
-  , nopositivity             = False
-  , rankNTypes               = False
-  , noclasscheck             = False
-  , gradual                  = False
-  , bscope                   = False
-  , gdepth                   = 1
-  , ginteractive             = False
-  , totalHaskell             = def -- True
-  , nowarnings               = def
-  , noannotations            = def
-  , checkDerived             = False
-  , caseExpandDepth          = 2
-  , notruetypes              = def
-  , nototality               = False
-  , pruneUnsorted            = def
-  , exactDC                  = def
-  , noADT                    = def
-  , expectErrorContaining    = def
-  , expectAnyError           = False
-  , cores                    = Just 1
-  , minPartSize              = FC.defaultMinPartSize
-  , maxPartSize              = FC.defaultMaxPartSize
-  , maxParams                = defaultMaxParams
-  , smtsolver                = def
-  , shortNames               = def
-  , shortErrors              = def
-  , cabalDir                 = def
-  , ghcOptions               = def
-  , cFiles                   = def
-  , port                     = defaultPort
-  , scrapeInternals          = False
-  , elimStats                = False
-  , elimBound                = Nothing
-  , json                     = False
-  , counterExamples          = False
-  , timeBinds                = False
-  , untidyCore               = False
-  , eliminate                = FC.Some
-  , noPatternInline          = False
-  , noSimplifyCore           = False
-  -- PLE-OPT , autoInstantiate   = def
-  , noslice                  = False
-  , noLiftedImport           = False
-  , proofLogicEval           = False
-  , pleWithUndecidedGuards   = False
-  , oldPLE                   = False
-  , interpreter              = False
-  , proofLogicEvalLocal      = False
-  , etabeta                  = False
-  , dependantCase            = False
-  , reflection               = False
-  , extensionality           = False
-  , nopolyinfer              = False
-  , compileSpec              = False
-  , noCheckImports           = False
-  , typeclass                = False
-  , auxInline                = False
-  , rwTerminationCheck       = False
-  , skipModule               = False
-  , noLazyPLE                = False
-  , fuel                     = Nothing
-  , environmentReduction     = False
-  , noEnvironmentReduction   = False
-  , inlineANFBindings        = False
-  , pandocHtml               = False
-  , excludeAutomaticAssumptionsFor = []
-  , dumpOpaqueReflections    = False
-  , dumpPreNormalizedCore    = False
-  , allowUnsafeConstructors  = False
-  }
 
 -- | Write the annotations (i.e. the files in the \".liquid\" hidden folder) and
 -- report the result of the checking using a supplied function, or using an

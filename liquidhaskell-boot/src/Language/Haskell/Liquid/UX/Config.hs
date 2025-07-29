@@ -77,11 +77,7 @@ data Config = Config
   , smtsolver                :: Maybe SMTSolver  -- ^ SMT solver to use [if `Nothing`, try looking one up using the order defined in L.H.L.UX.CmdLine.withSmtSolver]
   , shortNames               :: Bool       -- ^ drop module qualifers from pretty-printed names.
   , shortErrors              :: Bool       -- ^ don't show subtyping errors and contexts.
-  , cabalDir                 :: Bool       -- ^ find and use .cabal file to include paths to sources for imported modules
-  , ghcOptions               :: [String]   -- ^ command-line options to pass to GHC
-  , cFiles                   :: [String]   -- ^ .c files to compile and link against (for GHC)
   , eliminate                :: Eliminate  -- ^ eliminate (i.e. don't use qualifs for) for "none", "cuts" or "all" kvars
-  , port                     :: Int        -- ^ port at which lhi should listen
   , exactDC                  :: Bool       -- ^ Automatically generate singleton types for data constructors
   , noADT                    :: Bool       -- ^ Disable ADTs (only used with exactDC)
   , expectErrorContaining    :: [String]   -- ^ expect failure from Liquid with at least one of the following messages
@@ -109,7 +105,6 @@ data Config = Config
   , nopolyinfer              :: Bool       -- ^ No inference of polymorphic type application.
   , reflection               :: Bool       -- ^ Allow "reflection"; switches on "--higherorder" and "--exactdc"
   , compileSpec              :: Bool       -- ^ Only "compile" the spec -- into .bspec file -- don't do any checking.
-  , noCheckImports           :: Bool       -- ^ Do not check the transitive imports
   , typeclass                :: Bool        -- ^ enable typeclass support.
   , auxInline                :: Bool        -- ^
   , rwTerminationCheck       :: Bool       -- ^ Enable termination checking for rewriting
