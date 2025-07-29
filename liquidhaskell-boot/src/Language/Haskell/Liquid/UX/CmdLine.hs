@@ -20,7 +20,7 @@
 
 module Language.Haskell.Liquid.UX.CmdLine (
    -- * Get Command Line Configuration
-     getOpts, mkOpts, defConfig
+     getOpts, defConfig
 
    -- * Update Configuration With Pragma
    , withPragmas
@@ -58,8 +58,6 @@ import GitHash
 
 import Data.List                           (nub, intercalate)
 
-
-import System.FilePath                     (isAbsolute, takeDirectory, (</>))
 
 import qualified Language.Fixpoint.Types.Config as FC
 import qualified Language.Fixpoint.Misc as F
@@ -104,11 +102,6 @@ defConfig = Config {
            , Normal       &= name "normal"  &= help "Normal logging verbosity"
            , Loud         &= name "verbose" &= help "Verbose logging"
            ]
-
- , files
-    = def &= typ "TARGET"
-          &= args
-          &= typFile
 
  , fullcheck
      = def
@@ -458,12 +451,11 @@ defConfig = Config {
 getOpts :: [String] -> IO Config
 getOpts as = do
   cfg0   <- envCfg
-  cfg1   <- mkOpts =<< cmdArgsRun'
-                         config { modeValue = (modeValue config)
-                                                { cmdArgsValue   = cfg0
-                                                }
-                                }
-                         as
+  cfg1   <- cmdArgsRun'
+              config { modeValue = (modeValue config)
+                                      { cmdArgsValue   = cfg0 }
+                     }
+                     as
   let cfg2 = if json cfg1 then cfg1 {loggingVerbosity = Quiet} else cfg1
   setVerbosity (cmdargsVerbosity $ loggingVerbosity cfg2)
   withSmtSolver cfg2
@@ -542,27 +534,6 @@ gitMsg gi = concat
   ]
 
 
--- [NOTE:searchpath]
--- 1. we used to add the directory containing the file to the searchpath,
---    but this is bad because GHC does NOT do this, and it causes spurious
---    "duplicate module" errors in the following scenario
---      > tree
---      .
---      ├── Bar.hs
---      └── Foo
---          ├── Bar.hs
---          └── Goo.hs
---    If we run `liquid Foo/Goo.hs` and that imports Bar, GHC will not know
---    whether we mean to import Bar.hs or Foo/Bar.hs
--- 2. tests fail if you flip order of idirs'
-
-mkOpts :: Config -> IO Config
-mkOpts cfg = do
-  let files' = F.sortNub $ files cfg
-  return     $ cfg { files       = files'
-                                   -- See NOTE [searchpath]
-                   }
-
 --------------------------------------------------------------------------------
 -- | Updating options
 --------------------------------------------------------------------------------
@@ -573,9 +544,9 @@ canonConfig cfg = cfg
   }
 
 --------------------------------------------------------------------------------
-withPragmas :: MonadIO m => Config -> FilePath -> [Located String] -> (Config -> m a) -> m a
+withPragmas :: MonadIO m => Config -> [Located String] -> (Config -> m a) -> m a
 --------------------------------------------------------------------------------
-withPragmas cfg fp ps action
+withPragmas cfg ps action
   = do cfg' <- liftIO $ (processPragmas cfg ps) <&> canonConfig
        -- As the verbosity is set /globally/ via the cmdargs lib, re-set it.
        liftIO $ setVerbosity (cmdargsVerbosity $ loggingVerbosity cfg')

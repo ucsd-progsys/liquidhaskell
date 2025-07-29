@@ -40,7 +40,6 @@ cmdargsVerbosity Loud    = CmdArgs.Loud
 -- NOTE: adding strictness annotations breaks the help message
 data Config = Config
   { loggingVerbosity         :: Verbosity  -- ^ the logging verbosity to use (defaults to 'Minimal')
-  , files                    :: [FilePath] -- ^ source files to check
   , diffcheck                :: Bool       -- ^ check subset of binders modified (+ dependencies) since last check
   , linear                   :: Bool       -- ^ uninterpreted integer multiplication and division
   , stringTheory             :: Bool       -- ^ interpretation of string theory in the logic
