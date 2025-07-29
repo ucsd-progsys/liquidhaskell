@@ -41,7 +41,6 @@ cmdargsVerbosity Loud    = CmdArgs.Loud
 data Config = Config
   { loggingVerbosity         :: Verbosity  -- ^ the logging verbosity to use (defaults to 'Minimal')
   , files                    :: [FilePath] -- ^ source files to check
-  , idirs                    :: [FilePath] -- ^ path to directory for including specs
   , diffcheck                :: Bool       -- ^ check subset of binders modified (+ dependencies) since last check
   , linear                   :: Bool       -- ^ uninterpreted integer multiplication and division
   , stringTheory             :: Bool       -- ^ interpretation of string theory in the logic

@@ -25,9 +25,6 @@ module Language.Haskell.Liquid.UX.CmdLine (
    -- * Update Configuration With Pragma
    , withPragmas
 
-   -- * Canonicalize Paths in Config
-   , canonicalizePaths
-
    -- * Collecting errors
    , addErrors
 
@@ -112,10 +109,6 @@ defConfig = Config {
     = def &= typ "TARGET"
           &= args
           &= typFile
-
- , idirs
-    = def &= typDir
-          &= help "Paths to Spec Include Directory "
 
  , fullcheck
      = def
@@ -471,10 +464,9 @@ getOpts as = do
                                                 }
                                 }
                          as
-  cfg2   <- fixConfig cfg1
-  let cfg3 = if json cfg2 then cfg2 {loggingVerbosity = Quiet} else cfg2
-  setVerbosity (cmdargsVerbosity $ loggingVerbosity cfg3)
-  withSmtSolver cfg3
+  let cfg2 = if json cfg1 then cfg1 {loggingVerbosity = Quiet} else cfg1
+  setVerbosity (cmdargsVerbosity $ loggingVerbosity cfg2)
+  withSmtSolver cfg2
 
 cmdArgsRun' :: Mode (CmdArgs a) -> [String] -> IO a
 cmdArgsRun' md as
@@ -509,27 +501,6 @@ findSmtSolver :: FC.SMTSolver -> IO (Maybe FC.SMTSolver)
 findSmtSolver = \case
     FC.Z3mem -> return $ Just FC.Z3mem
     smt      -> maybe Nothing (const $ Just smt) <$> findExecutable (show smt)
-
-fixConfig :: Config -> IO Config
-fixConfig config' = do
-  pwd <- getCurrentDirectory
-  cfg <- canonicalizePaths pwd config'
-  return $ canonConfig cfg
-
--- | Attempt to canonicalize all `FilePath's in the `Config' so we don't have
---   to worry about relative paths.
-canonicalizePaths :: FilePath -> Config -> IO Config
-canonicalizePaths pwd cfg = do
-  tgt   <- canonicalizePath pwd
-  isdir <- doesDirectoryExist tgt
-  is    <- mapM (canonicalize tgt isdir) $ idirs cfg
-  return $ cfg { idirs = is }
-
-canonicalize :: FilePath -> Bool -> FilePath -> IO FilePath
-canonicalize tgt isdir f
-  | isAbsolute f = return f
-  | isdir        = canonicalizePath (tgt </> f)
-  | otherwise    = canonicalizePath (takeDirectory tgt </> f)
 
 envCfg :: IO Config
 envCfg = do
@@ -605,7 +576,7 @@ canonConfig cfg = cfg
 withPragmas :: MonadIO m => Config -> FilePath -> [Located String] -> (Config -> m a) -> m a
 --------------------------------------------------------------------------------
 withPragmas cfg fp ps action
-  = do cfg' <- liftIO $ (processPragmas cfg ps >>= canonicalizePaths fp) <&> canonConfig
+  = do cfg' <- liftIO $ (processPragmas cfg ps) <&> canonConfig
        -- As the verbosity is set /globally/ via the cmdargs lib, re-set it.
        liftIO $ setVerbosity (cmdargsVerbosity $ loggingVerbosity cfg')
        res <- action cfg'
