@@ -478,6 +478,10 @@ import GHC.Core.Opt.OccurAnal         as Ghc
     ( occurAnalysePgm )
 import GHC.Core.TyCo.FVs              as Ghc (tyCoVarsOfCo, tyCoVarsOfType)
 import GHC.Driver.Backend             as Ghc (interpreterBackend)
+import GHC.Driver.DynFlags            as Ghc
+    ( DumpFlag(Opt_D_dump_timings)
+    , dopt_set
+    )
 import GHC.Driver.Env                 as Ghc
     ( HscEnv(hsc_NC, hsc_unit_env, hsc_dflags, hsc_plugins)
     , Hsc
@@ -827,7 +831,13 @@ import GHC.Utils.Binary               as Ghc
     , withBinBuffer
     )
 import GHC.Utils.Error                as Ghc (pprLocMsgEnvelope, withTiming)
-import GHC.Utils.Logger               as Ghc (Logger(logFlags), putLogMsg)
+import GHC.Utils.Logger               as Ghc
+    ( LogFlags
+    , Logger(logFlags)
+    , putLogMsg
+    , log_set_dopt
+    , updateLogFlags
+    )
 import GHC.Utils.Outputable           as Ghc hiding ((<>))
 import GHC.Utils.Panic                as Ghc (panic, throwGhcException, throwGhcExceptionIO)
 import GHC.Utils.Misc                 as Ghc (lengthAtLeast)

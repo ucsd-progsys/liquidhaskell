@@ -443,6 +443,10 @@ defConfig = Config {
     = False &= help "Allow refining constructors with unsafe refinements"
           &= name "allow-unsafe-constructors"
           &= explicit
+  , ddumpTimings
+    = False &= help "Dump time measures of the Liquid Haskell plugin"
+          &= name "ddump-timings"
+          &= explicit
   } &= program "liquidhaskell"
     &= help    "Refinement Types for Haskell"
     &= summary copyright
