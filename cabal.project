@@ -32,7 +32,9 @@ allow-newer:
   ,statestack:base
   ,svg-builder:base
 
-ghc-options: -j
+program-options
+  ghc-options: -j
+
 flags: +devel
 
 constraints:
