@@ -392,4 +392,4 @@ isResolvedLogicName _ = False
 
 logicNameOriginModule :: LHName -> GHC.Module
 logicNameOriginModule (LHNResolved (LHRLogic (LogicName _ m _)) _) = m
-logicNameOriginModule n = error $ "logicNameModule: Not a logic name " ++ show n
+logicNameOriginModule n = error $ "logicNameOriginModule: Not a logic name " ++ show n

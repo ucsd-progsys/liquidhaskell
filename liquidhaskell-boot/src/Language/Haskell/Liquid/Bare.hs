@@ -352,7 +352,7 @@ makeGhcSpec0 cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap targetSpec 
     (mySpec0, instMethods)  = if allowTC
                               then Bare.compileClasses src env (name, targetSpec) dependencySpecs
                               else (targetSpec, [])
-    -- Ready for type alias expantion.
+    -- Ready for type alias expansion.
     mySpec1  = mySpec0 <> lSpec0
     -- This spec just has the 'ealiases' (with Haskell inlines) and 'dataDecls' fields.
     lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec0
