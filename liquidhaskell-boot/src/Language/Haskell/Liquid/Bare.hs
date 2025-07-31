@@ -1398,7 +1398,6 @@ makeLiftedSpec name src env refl sData sig qual myRTE lSpec0 = lSpec0
                        , isLocInFile srcF t
                     ]
   , Ms.axeqs      = gsMyAxioms refl
-  , Ms.aliases    = F.notracepp "MY-ALIASES" $ M.elems . typeAliases $ myRTE
   , Ms.ealiases   = M.elems . exprAliases $ myRTE
   , Ms.qualifiers = filter (isLocInFile srcF) (gsQualifiers qual)
   }
