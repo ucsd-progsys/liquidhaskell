@@ -110,7 +110,7 @@ plugin = GHC.defaultPlugin {
   , pluginRecompile       = purePlugin
   }
   where
-    liquidPlugin :: (MonadIO m) => [CommandLineOption] -> a -> (Config -> m a) -> m a
+    liquidPlugin :: MonadIO m => [CommandLineOption] -> a -> (Config -> m a) -> m a
     liquidPlugin opts def go = do
         cfg <- liftIO $ LH.getOpts opts
         if skipModule cfg then return def else go cfg
@@ -130,12 +130,13 @@ plugin = GHC.defaultPlugin {
     -- See also: https://github.com/ucsd-progsys/liquidhaskell/issues/1727
     -- for a post-mortem.
     typecheckPluginGo cfg summary gblEnv = do
-      logger <- getLogger
-      dynFlags <- getDynFlags
+      logger0 <- getLogger
+      let logger = updateLogFlags logger0 (maybeDDumpTimings cfg)
       GHC.withTiming
-          logger (text "LiquidHaskellCPU" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $
+        logger (text "LiquidHaskellCPU" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $
         GHC.withTimingWallClock
           logger (text "LiquidHaskell" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $ do
+        dynFlags <- getDynFlags
         if gopt Opt_Haddock dynFlags
           then do
             -- Warn the user
@@ -157,6 +158,13 @@ plugin = GHC.defaultPlugin {
                 failM
               Right newGblEnv' ->
                 pure newGblEnv'
+
+    -- We instruct LH to collect timings instead of doing it directly to GHC
+    -- This helps work around https://github.com/haskell/cabal/issues/11116
+    maybeDDumpTimings :: Config -> LogFlags -> LogFlags
+    maybeDDumpTimings cfg =
+      if ddumpTimings cfg then log_set_dopt Opt_D_dump_timings
+      else id
 
 --------------------------------------------------------------------------------
 -- | Inter-phase communication -------------------------------------------------
