@@ -163,7 +163,7 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
 
               -- Second pass: a traversal to resolve logic names using the following
               -- lookup environments.
-              let (inScopeEnv, logicNameEnv0, privateReflectNames, unhandledNames) =
+              let (inScopeEnv, logicNameEnv0, privateReflectNames) =
                     makeLogicEnvs impMods thisModule sp2 dependencies
               -- Add resolved local defines to the logic map.
                   lmap1 =
@@ -177,7 +177,6 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
                          cfg
                          inScopeEnv
                          globalRdrEnv
-                         unhandledNames
                          lmap1
                          localVars
                          logicNameEnv0
@@ -589,28 +588,12 @@ makeLogicEnvs
   -> ( InScopeNonReflectedEnv
      , LogicNameEnv
      , HS.HashSet LocSymbol
-     , HS.HashSet Symbol
      )
 makeLogicEnvs impMods thisModule spec dependencies =
-    let unqualify s =
-          if s == LH.qualifySymbol (symbol $ GHC.moduleName thisModule) (LH.dropModuleNames s) then
-            LH.dropModuleNames s
-          else
-            s
-
-        -- Names should be removed from this list as they are supported
-        -- by renaming. Currently, only expression aliases remain /unhadled/.
-        unhandledNames = HS.fromList $
-          map unqualify unhandledNamesList ++ map (LH.qualifySymbol (symbol $ GHC.moduleName thisModule)) unhandledNamesList
-        unhandledNamesList =
-          map (getLHNameSymbol . val . rtName) (ealiases spec)
-          ++ concatMap (map lhNameToUnqualifiedSymbol . snd) unhandledLogicNames
-        unhandledLogicNames =
-          map (fmap collectUnhandledLiftedSpecLogicNames) dependencyPairs
-        logicNames =
-          (thisModule, thisModuleNames) :
+    let depsLogicNames =
           map (fmap collectLiftedSpecLogicNames) dependencyPairs
-          ++ unhandledLogicNames
+        logicNames =
+          (thisModule, thisModuleNames) : depsLogicNames
         nonReflectedNamesWithUnit =
           map
             (second $ map (, ()) . filter isNonReflectedLogicName)
@@ -639,7 +622,6 @@ makeLogicEnvs impMods thisModule spec dependencies =
         ( unionAliasEnvs $ map (mkAliasEnv thisModule impMods) nonReflectedNamesWithUnit
         , mkLogicNameEnv (concatMap snd logicNames)
         , privateReflectNames
-        , unhandledNames
         )
   where
     dependencyPairs = map (first GHC.unStableModule) $ HM.toList $ getDependencies dependencies
@@ -707,11 +689,6 @@ moduleAliases thisModule impMods m =
       | GHC.imv_qualified imv = [GHC.imv_name imv]
       | otherwise = [GHC.imv_name imv, GHC.mkModuleName ""]
 
-{- HLINT ignore collectUnhandledLiftedSpecLogicNames "Use ++" -}
-collectUnhandledLiftedSpecLogicNames :: LiftedSpec -> [LHName]
-collectUnhandledLiftedSpecLogicNames sp =
-    map (makeLocalLHName . lhNameToUnqualifiedSymbol . val . rtName) $ HS.toList $ liftedEaliases sp
-
 collectLiftedSpecLogicNames :: LiftedSpec -> [LHName]
 collectLiftedSpecLogicNames sp = concat
     [ map fst (HS.toList $ liftedExpSigs sp)
@@ -721,6 +698,8 @@ collectLiftedSpecLogicNames sp = concat
     , map fst $ concatMap DataDecl.dcFields $ concat $
         mapMaybe DataDecl.tycDCons $
         HS.toList $ liftedDataDecls sp
+    , map (makeLocalLHName . lhNameToUnqualifiedSymbol . val . rtName) $
+        HS.toList $ liftedEaliases sp
     ]
 
 -- | Resolves names in the logic namespace
@@ -732,7 +711,6 @@ resolveLogicNames
   :: Config
   -> InScopeNonReflectedEnv
   -> GHC.GlobalRdrEnv
-  -> HS.HashSet Symbol
   -> LogicMap
   -> LocalVars
   -> LogicNameEnv
@@ -740,7 +718,7 @@ resolveLogicNames
   -> HS.HashSet Symbol
   -> BareSpecParsed
   -> State RenameOutput BareSpecLHName
-resolveLogicNames cfg env globalRdrEnv unhandledNames lmap0 localVars lnameEnv privateReflectNames allEaliases sp = do
+resolveLogicNames cfg env globalRdrEnv lmap0 localVars lnameEnv privateReflectNames allEaliases sp = do
     -- Instance measures must be defined for names of class measures.
     -- The names of class measures should be in @env@
     imeasures <- mapM (mapMeasureNamesM resolveIMeasLogicName) (imeasures sp)
@@ -773,7 +751,7 @@ resolveLogicNames cfg env globalRdrEnv unhandledNames lmap0 localVars lnameEnv p
                 | elem s wiredInNames ->
                   return $ makeLocalLHName s
                 | otherwise -> do
-                  unless (HS.member s unhandledNames) $
+                  unless (HS.member s allEaliases) $
                     addError $ errResolve alts "logic name" "Cannot resolve name" ls
                   return $ makeLocalLHName s
           Right [(_, lhname, _)] ->
