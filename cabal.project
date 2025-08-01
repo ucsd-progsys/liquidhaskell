@@ -32,7 +32,22 @@ allow-newer:
   ,statestack:base
   ,svg-builder:base
 
-program-options
+-- We could be using program-options here, but it would turn on parallelism
+-- when building tests, and this interferes with benchmarking.
+--
+-- program-options
+--   ghc-options: -j
+package liquid-fixpoint
+  ghc-options: -j
+package liquidhaskell
+  ghc-options: -j
+package liquidhaskell-boot
+  ghc-options: -j
+package liquid-prelude
+  ghc-options: -j
+package liquid-vector
+  ghc-options: -j
+package liquid-parallel
   ghc-options: -j
 
 flags: +devel
