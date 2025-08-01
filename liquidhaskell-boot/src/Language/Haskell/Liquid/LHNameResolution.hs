@@ -774,7 +774,7 @@ resolveLogicNames cfg env globalRdrEnv unhandledNames lmap0 localVars lnameEnv p
                   return $ makeLocalLHName s
                 | otherwise -> do
                   unless (HS.member s unhandledNames) $
-                    addError (errResolveLogicName ls alts)
+                    addError $ errResolve alts "logic name" "Cannot resolve name" ls
                   return $ makeLocalLHName s
           Right [(_, lhname, _)] ->
             return lhname
@@ -794,18 +794,6 @@ resolveLogicNames cfg env globalRdrEnv unhandledNames lmap0 localVars lnameEnv p
         wiredInNames =
            map fst wiredSortedSyms ++
            map (lhNameToResolvedSymbol . fst) (concatMap (DataDecl.dcpTyArgs . val) wiredDataCons)
-
-    errResolveLogicName s alts =
-      ErrResolve
-        (LH.fSrcSpan s)
-        (PJ.text "logic name")
-        (pprint $ val s)
-        (if null alts then
-           PJ.text "Cannot resolve name"
-         else
-           PJ.text "Cannot resolve name" PJ.$$
-           PJ.sep (PJ.text "Maybe you meant one of:" : map pprint alts)
-        )
 
     resolveDataConName ls
       | unqualifiedS == ":" = Just $
