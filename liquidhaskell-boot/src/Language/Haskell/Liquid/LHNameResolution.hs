@@ -247,7 +247,8 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
         n@(LHNUnresolved LHLogicName _) ->
           -- This one will be resolved by resolveLogicNames
           pure n
-        LHNUnresolved ns s -> lookupGRELHName [] ns lname s listToMaybe
+        LHNUnresolved ns@(LHDataConName _) s -> lookupGRELHName [] ns lname s listToMaybe
+        -- Resolved names.
         n -> pure n
 
     lookupGRELHName alts ns lname s localNameLookup =
