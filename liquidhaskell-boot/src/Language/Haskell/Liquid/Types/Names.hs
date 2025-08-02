@@ -35,6 +35,7 @@ module Language.Haskell.Liquid.Types.Names
   , isNonReflectedLogicName
   , logicNameOriginModule
   , isResolvedLogicName
+  , isGeneratedLogicName
   ) where
 
 import Control.DeepSeq
@@ -389,6 +390,10 @@ maybeReflectedLHName _ = Nothing
 isResolvedLogicName :: LHName -> Bool
 isResolvedLogicName (LHNResolved (LHRLogic (LogicName {})) _) = True
 isResolvedLogicName _ = False
+
+isGeneratedLogicName :: LHName -> Bool
+isGeneratedLogicName (LHNResolved (LHRLogic (GeneratedLogicName _)) _) = True
+isGeneratedLogicName _ = False
 
 logicNameOriginModule :: LHName -> GHC.Module
 logicNameOriginModule (LHNResolved (LHRLogic (LogicName _ m _)) _) = m
