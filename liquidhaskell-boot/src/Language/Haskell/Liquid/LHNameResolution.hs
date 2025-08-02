@@ -228,7 +228,7 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
               -- any imported aliases with the same name.
               -- This allows the user to shadow imported aliases.
               FoundTypeAliases { tarLocallyDefined = [(m, _, _)] } ->
-                pure $ LHNResolved (LHRLogic $ LogicName (LH.dropModuleNames s) m Nothing) s
+                pure $ makeLogicLHName (LH.dropModuleNames s) m Nothing
               FoundTypeAliases { tarImported = [(_, lh, _)]
                                , tarLocallyDefined = []} ->
                 pure lh
