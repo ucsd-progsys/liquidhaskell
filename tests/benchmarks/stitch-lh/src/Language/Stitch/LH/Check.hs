@@ -192,8 +192,8 @@ check globals = go Nil
         Just (TypedExp e t) -> f (e ? aClosedExpIsValidInAnyContext Nil ctx e) t
         Nothing -> Left (OutOfScopeGlobal name)
 
-      -- XXX: Using $ here causes liquid haskell to crash
-      ULam ty body -> go (Cons ty ctx) body (\r rty -> f (Lam ty r) (TFun ty rty))
+      ULam ty body ->
+        go (Cons ty ctx) body $ \r rty -> f (Lam ty r) (TFun ty rty)
 
       UApp e1 e2 ->
           go ctx e1 (\te1 ty1 -> go ctx e2 (\te2 ty2 -> case ty1 of
@@ -234,7 +234,7 @@ check globals = go Nil
         ))
 
       UCond e1 e2 e3 ->
-        go ctx e1 (\te1 ty1 -> go ctx e2 (\te2 ty2 -> go ctx e3 (\te3 ty3 ->
+        go ctx e1 $ \te1 ty1 -> go ctx e2 $ \te2 ty2 -> go ctx e3 $ \te3 ty3 ->
           if ty1 == TBool then
             if ty2 == ty3 then
               f (Cond te1 te2 te3) ty2
@@ -250,9 +250,8 @@ check globals = go Nil
               TBool
               ty1
               (ScopedUExp (List.length ctx) (UCond e1 e2 e3))
-        )))
 
-      UFix e -> go ctx e (\te1 ty1 -> case ty1 of
+      UFix e -> go ctx e $ \te1 ty1 -> case ty1 of
           TFun arg_ty res_ty ->
             if arg_ty == res_ty then
               f (Fix te1) res_ty
@@ -263,7 +262,6 @@ check globals = go Nil
                 (TFun arg_ty res_ty)
                 (ScopedUExp (List.length ctx) (UFix e))
           ty -> Left (NotAFunction (ScopedUExp (List.length ctx) e) ty)
-        )
 
       UIntE i -> f (IntE i) TInt
 
