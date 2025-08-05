@@ -233,7 +233,7 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
                                , tarLocallyDefined = []} ->
                 pure lh
               -- If multiple matches are found, report the ambiguous name and return it.
-              tar@(FoundTypeAliases { }) -> do addError $ errResolveTypeAlias lname s tar
+              tar@(FoundTypeAliases { }) -> do addError $ errResolveTypeAlias (s <$ lname) tar
                                                pure $ val lname
               NoSuchTypeAlias alts -> lookupGRELHName alts LHTcName lname s listToMaybe
         LHNUnresolved ns@(LHVarName lcl) s
@@ -450,7 +450,7 @@ fixExpressionArgsOfTypeAliases taliases = mapMBareTypes go
                  RApp <$> pure c <*> fixExprArgs (btc_tc c) rta (mapM go ts) <*> mapM goRef rs <*> pure r
                -- Report ambiguos name and continue traversing.
                _ -> do
-                 addError $ errResolveTypeAlias lname s tar
+                 addError $ errResolveTypeAlias (s <$ lname) tar
                  RApp <$> pure c <*> mapM go ts <*> mapM goRef rs <*> pure r
     go (RApp c ts rs r)    = RApp <$> pure c <*> mapM go ts <*> mapM goRef rs <*> pure r
     go (RAppTy t1 t2 r)    = RAppTy <$> go t1 <*> go t2 <*> pure r
@@ -523,9 +523,9 @@ data TypeAliasResolution a
       , tarLocallyDefined :: [(GHC.Module, LHName, a)]
       }
 
-errResolveTypeAlias :: Located LHName -> Symbol -> TypeAliasResolution b -> Error
-errResolveTypeAlias lname s (FoundTypeAliases imported local) =
-  ErrDupNames (LH.fSrcSpan lname) (pprint s)
+errResolveTypeAlias :: LocSymbol -> TypeAliasResolution b -> Error
+errResolveTypeAlias ls (FoundTypeAliases imported local) =
+  ErrDupNames (LH.fSrcSpan ls) (pprint $ val ls)
     (
       map (\(m, lhn, _) -> pprint (LH.qualifySymbol (symbol . GHC.moduleNameString . GHC.moduleName $ m)
                                    $ getLHNameSymbol lhn)
@@ -538,8 +538,8 @@ errResolveTypeAlias lname s (FoundTypeAliases imported local) =
                           PJ.text ("imported from " ++ GHC.moduleNameString (GHC.moduleName m)))
       imported
     )
-errResolveTypeAlias lname s (NoSuchTypeAlias alts) =
-  errResolve alts "type alias" "Cannot resolve name" (s <$ lname)
+errResolveTypeAlias ls (NoSuchTypeAlias alts) =
+  errResolve alts "type alias" "Cannot resolve name" ls
 
 
 -- | An environment of names in scope
