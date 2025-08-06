@@ -71,27 +71,17 @@ makeRTEnv
   -> ModName
   -> Ms.BareSpec
   -> [(ModName, Ms.BareSpec)]
-  -> LogicMap
   -> BareRTEnv
 --------------------------------------------------------------------------------
-makeRTEnv env lenv modName mySpec dependencySpecs lmap
+makeRTEnv env lenv modName mySpec dependencySpecs
           = renameRTArgs $ makeRTAliases tAs $ makeREAliases eAs
   where
     tAs     = [ t | (_, s)  <- specs, t <- Ms.aliases  s ]
     eAs     = [ e | s  <- specs', e <- Ms.ealiases s ]
-    mySpec' = mySpec {
-      Ms.ealiases = Ms.ealiases mySpec ++
-        if typeclass (getConfig env) then []
-        -- lmap expansion happens during elaboration
-        -- this clearly breaks things if a signature
-        -- contains lmap functions but never gets
-        -- elaborated
-        else [ e | (_, xl) <- M.toList (lmSymDefs lmap), let e = lmapEAlias xl ]
-      }
     specs = (modName, mySpec) : dependencySpecs
     -- Here, 'Symbol's are converted to 'LHName's in expressions in an unambiguous way,
     -- allowing to use the type alias lookup and expansion procedure for predicate aliases.
-    specs' = map (toBareSpecLHName cfg lenv . snd) $ (modName, mySpec') : dependencySpecs
+    specs' = map (toBareSpecLHName cfg lenv . snd) $ (modName, mySpec) : dependencySpecs
     cfg = Bare.reCfg env
 
 -- | We apply @renameRTArgs@ *after* expanding each alias-definition, to
@@ -153,7 +143,7 @@ makeRTAliases lxts rte = graphExpand buildTypeEdges f rte lxts
 --------------------------------------------------------------------------------------------------------------
 
 -- | Builds a directed graph of aliases, checks for cyclic dependencies,
---   orders them so that inner aliases are processed first, and folds over
+--   reorders them so that inner aliases are processed first, and folds over
 --   the graph to add each expanded node to the environment.
 graphExpand :: {- (PPrint t)
             => -} (AliasTable x t -> t -> [LHName])         -- ^ dependencies
