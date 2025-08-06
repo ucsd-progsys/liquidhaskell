@@ -82,6 +82,7 @@ import qualified GHC.Types.Name.Occurrence
 import           Language.Fixpoint.Types as F hiding (Error, panic)
 import qualified Language.Haskell.Liquid.Bare.Resolve as Resolve
 import           Language.Haskell.Liquid.Bare.Types (LocalVars(lvNames), LocalVarDetails(lvdLclEnv))
+import           Language.Fixpoint.Misc as Misc
 import           Language.Haskell.Liquid.Name.LogicNameEnv
 import qualified Language.Haskell.Liquid.Types.DataDecl as DataDecl
 import           Language.Haskell.Liquid.Types.Errors (TError(ErrDupNames, ErrResolve), panic)
@@ -170,6 +171,7 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
               sp3 <- fromBareSpecLHName <$>
                        resolveLogicNames
                          cfg
+                         thisModule
                          inScopeEnv
                          globalRdrEnv
                          lmap1
@@ -706,6 +708,7 @@ collectLiftedSpecLogicNames sp = concat
 -- the names of data constructors that are found during renaming.
 resolveLogicNames
   :: Config
+  -> GHC.Module
   -> InScopeNonReflectedEnv
   -> GHC.GlobalRdrEnv
   -> LogicMap
@@ -715,7 +718,7 @@ resolveLogicNames
   -> HS.HashSet Symbol
   -> BareSpecParsed
   -> State RenameOutput BareSpecLHName
-resolveLogicNames cfg env globalRdrEnv lmap0 localVars lnameEnv privateReflectNames depsInlinesAndDefines sp = do
+resolveLogicNames cfg thisModule env globalRdrEnv lmap0 localVars lnameEnv privateReflectNames depsInlinesAndDefines sp = do
     -- Instance measures must be defined for names of class measures.
     -- The names of class measures should be in @env@
     imeasures <- mapM (mapMeasureNamesM resolveIMeasLogicName) (imeasures sp)
@@ -750,10 +753,16 @@ resolveLogicNames cfg env globalRdrEnv lmap0 localVars lnameEnv privateReflectNa
                 | otherwise -> do
                     addError $ errResolve alts "logic name" "Cannot resolve name" ls
                     return $ makeLocalLHName s
-          Right [(_, lhname, _)] ->
-            return lhname
-          Right names -> do addError $ errDupInScopeNames ls names
-                            return $ makeLocalLHName s
+          Right [(_, lhname, _)] -> pure lhname
+          -- In case of multiple matches, we give precedence to locally defined
+          -- logic entities for the user to be able to overwrite them.
+          -- TODO: When a mechanism allowing to specify explicitly which logic names
+          -- are imported is in place, we should cosider notifying the ambiguity directly.
+          Right names ->
+            case filter ((== thisModule) . logicNameOriginModule . Misc.snd3) names of
+              [(_, lhname, _)] -> pure lhname
+              _ -> do addError $ errDupInScopeNames ls names
+                      return $ makeLocalLHName s
       where
         s = val ls
         wiredInNames =
