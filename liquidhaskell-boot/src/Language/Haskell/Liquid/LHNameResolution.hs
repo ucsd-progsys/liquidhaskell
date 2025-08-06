@@ -122,6 +122,9 @@ collectTypeAliases impMods thisModule spec deps =
      in
         unionAliasEnvs $ bsAliases : depAliases
 
+-- | @inlines@ and @defines@ are added as expression aliases when lifting the spec
+-- to implement the expansion of logical expressions. We gather them in order to
+-- resolve logic variable names until they are handled appropriately.
 collectInlinesAndDefines:: TargetDependencies -> HS.HashSet Symbol
 collectInlinesAndDefines deps = HS.unions
   [ HS.map lhNameToResolvedSymbol depInlinesAndDefines

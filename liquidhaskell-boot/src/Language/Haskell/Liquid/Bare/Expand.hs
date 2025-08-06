@@ -79,8 +79,9 @@ makeRTEnv env lenv modName mySpec dependencySpecs
     tAs     = [ t | (_, s)  <- specs, t <- Ms.aliases  s ]
     eAs     = [ e | s  <- specs', e <- Ms.ealiases s ]
     specs = (modName, mySpec) : dependencySpecs
-    -- Here, 'Symbol's are converted to 'LHName's in expressions in an unambiguous way,
-    -- allowing to use the type alias lookup and expansion procedure for predicate aliases.
+    -- Here, 'Symbol's are temporaly converted to 'LHName's in expressions in an
+    -- unambiguous way, allowing to use the same lookup and expansion procedure
+    -- for both kinds of aliases.
     specs' = map (toBareSpecLHName cfg lenv . snd) $ (modName, mySpec) : dependencySpecs
     cfg = Bare.reCfg env
 
@@ -93,12 +94,16 @@ renameRTArgs rte = RTE
   , exprAliases = M.map renameRTVArgs (exprAliases rte)
   }
 
+-- | Recursively expands expression aliases by unfolding the definitions of all
+--   inner aliases and adds them to the environment.
+--   Innermost aliases are unfolded and added first, and an error is thrown if
+--   cyclic dependencies are detected.
 makeREAliases :: [RTAlias F.Symbol (F.ExprV LHName)] -> BareRTEnv
 makeREAliases = graphExpand buildExprEdges f mempty
   where
     f rtEnv xt = setREAlias rtEnv (expand rtEnv (F.loc . rtName $ xt) (toExpr xt))
     -- Expression aliases 'LHName's are transformed back to 'Symbol's for the
-    -- actual expansion.
+    -- actual expansion to take place and to be stored in the environment.
     toExpr :: RTAlias F.Symbol (F.ExprV LHName) -> RTAlias F.Symbol Expr
     toExpr xt = (fmap $ fmap lhNameToResolvedSymbol) xt
 
@@ -130,7 +135,7 @@ renameRTVArgs rt = rt { rtVArgs = newArgs
     rtArg x i    = F.suffixSymbol x (F.intSymbol "rta" i)
 
 -- | Recursively expands type aliases by unfolding the definitions of all inner
---   aliases and adding them to the environment.
+--   aliases and adds them to the environment.
 --   Innermost aliases are unfolded and added first, and an error is thrown if
 --   cyclic dependencies are detected.
 --   Note that when called from 'makeRTEnv', the input environment contains only
@@ -229,8 +234,8 @@ genExpandOrder table graph
 
 --------------------------------------------------------------------------------
 
--- | Gathers all constructors within a 'BareType' (the body of a type alias)
---   whose symbols match a key in the 'AliasTable'.
+-- | Gathers all constructor names within a the body of a type alias
+--   that match a key from the type 'AliasTable'.
 buildTypeEdges :: AliasTable x t -> BareType -> [LHName]
 buildTypeEdges table = Misc.ordNub . go
   where
@@ -249,8 +254,8 @@ buildTypeEdges table = Misc.ordNub . go
     go_ref (RProp _ (RHole _)) = Nothing
     go_ref (RProp  _ t) = Just t
 
--- | Gathers all variables within an 'Expr' (the body of an expression alias)
---   that match an expression alias from the 'AliasTable'.
+-- | Gathers all variable names within the body of an expression alias
+--   that match a key from the expression 'AliasTable'.
 buildExprEdges :: AliasTable x t -> F.ExprV LHName -> [LHName]
 buildExprEdges table  = Misc.ordNub . go
   where
