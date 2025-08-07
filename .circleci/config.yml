@@ -72,7 +72,7 @@ commands:
           name: Test
           command: |
             mkdir -p /tmp/junit/cabal
-            LIQUID_CABAL_PROJECT_FILE=cabal.project scripts/test/test_plugin.sh
+            scripts/test/test_plugin.sh -- --ghc-options=-j1 -j2
             cabal test tests:tasty
             cabal test tests:liquidhaskell-test
             (cabal test -j1 liquidhaskell-boot --flag devel --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml")
