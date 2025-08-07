@@ -29,7 +29,11 @@ cabalRun opts names = do
   let exe = "cabal"
       args = [ "build" ]
         <> (case projectFile of Nothing -> []; Just projectFile' -> [ "--project-file", T.pack projectFile' ])
-        <> (if measureTimings opts then ["--flags=measure-timings"] else ["--keep-going"])
+           -- -j1 causes cabal to build cabal components in sequence when
+           -- benchmarking.
+           -- measure-timings, in turn, causes ghc to build modules in sequence
+           -- as well.
+        <> (if measureTimings opts then ["--flags=measure-timings", "-j1"] else ["--keep-going"])
         <> extraOpts opts
         <> names
   T.putStrLn $ T.unwords $ "running:" : exe : args
