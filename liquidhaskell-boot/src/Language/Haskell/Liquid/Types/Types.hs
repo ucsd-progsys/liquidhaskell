@@ -568,7 +568,7 @@ getModString = moduleNameString . getModName
 --------------------------------------------------------------------------------
 data RTEnv tv t = RTE
   { typeAliases :: M.HashMap LHName (RTAlias tv t)
-  , exprAliases :: M.HashMap Symbol (RTAlias Symbol Expr)
+  , exprAliases :: M.HashMap LHName (RTAlias Symbol Expr)
   }
 
 

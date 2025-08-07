@@ -121,25 +121,13 @@ collectTypeAliases impMods thisModule spec deps =
      in
         unionAliasEnvs $ bsAliases : depAliases
 
-collectExprAliases
-  :: BareSpecParsed
-  -> TargetDependencies
-  -> (HS.HashSet Symbol, HS.HashSet Symbol)
-collectExprAliases spec deps =
-    let predAliases = HS.unions $
-          (HS.fromList $ map (getLHNameSymbol . val . rtName) (ealiases spec)) :
-          [ HS.map lhNameToUnqualifiedSymbol depPredAliases
-          | (_, lspec) <- HM.toList (getDependencies deps)
-          , let exprAliases = HS.map (val . rtName) $ liftedEaliases lspec
-          , let depPredAliases = HS.filter isResolvedLogicName exprAliases
-          ]
-        inlinesAndDefines = HS.unions
-          [ HS.map lhNameToResolvedSymbol depInlinesAndDefines
-          | (_, lspec) <- HM.toList (getDependencies deps)
-          , let exprAliases = HS.map (val . rtName) $ liftedEaliases lspec
-          , let depInlinesAndDefines = HS.filter isGeneratedLogicName exprAliases
-          ]
-     in (predAliases, inlinesAndDefines)
+collectInlinesAndDefines:: TargetDependencies -> HS.HashSet Symbol
+collectInlinesAndDefines deps = HS.unions
+  [ HS.map lhNameToResolvedSymbol depInlinesAndDefines
+  | (_, lspec) <- HM.toList (getDependencies deps)
+  , let exprAliases = HS.map (val . rtName) $ liftedEaliases lspec
+        depInlinesAndDefines = HS.filter isGeneratedLogicName exprAliases
+   ]
 
 -- | Converts occurrences of LHNUnresolved to LHNResolved using the provided
 -- type aliases and GlobalRdrEnv.
@@ -188,7 +176,7 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
                          localVars
                          logicNameEnv0
                          privateReflectNames
-                         allEaliases
+                         depsInlinesAndDefines
                          sp2
               dcs <- gets roUsedDataCons
               return (sp3 {usedDataCons = dcs} , logicNameEnv0, lmap1)
@@ -202,8 +190,10 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
     else
       Left (roErrors ro)
   where
+    -- We collect type aliases before resolving names so we have a means to disambiguate
+    -- imported and local ones (according to their resolution status).
     taliases = collectTypeAliases impMods thisModule bareSpec0 dependencies
-    allEaliases = collectExprAliases bareSpec0 dependencies
+    depsInlinesAndDefines = collectInlinesAndDefines dependencies
 
     -- Add defines from dependencies to the logical map.
     lmap =
@@ -621,6 +611,7 @@ makeLogicEnvs impMods thisModule spec dependencies =
              concatMap DataDecl.dcFields $ concat $
              mapMaybe DataDecl.tycDCons $
              dataDecls spec
+          , [ val (rtName ea) | ea <- ealiases spec ]
           ]
         privateReflectNames =
           mconcat $
@@ -705,8 +696,7 @@ collectLiftedSpecLogicNames sp = concat
     , map fst $ concatMap DataDecl.dcFields $ concat $
         mapMaybe DataDecl.tycDCons $
         HS.toList $ liftedDataDecls sp
-    , map (makeLocalLHName . lhNameToUnqualifiedSymbol . val . rtName) $
-        HS.toList $ liftedEaliases sp
+    , map  (val . rtName) $ HS.toList $ liftedEaliases sp
     ]
 
 -- | Resolves names in the logic namespace
@@ -722,10 +712,10 @@ resolveLogicNames
   -> LocalVars
   -> LogicNameEnv
   -> HS.HashSet LocSymbol
-  -> (HS.HashSet Symbol, HS.HashSet Symbol)
+  -> HS.HashSet Symbol
   -> BareSpecParsed
   -> State RenameOutput BareSpecLHName
-resolveLogicNames cfg env globalRdrEnv lmap0 localVars lnameEnv privateReflectNames allEaliases sp = do
+resolveLogicNames cfg env globalRdrEnv lmap0 localVars lnameEnv privateReflectNames depsInlinesAndDefines sp = do
     -- Instance measures must be defined for names of class measures.
     -- The names of class measures should be in @env@
     imeasures <- mapM (mapMeasureNamesM resolveIMeasLogicName) (imeasures sp)
@@ -758,28 +748,26 @@ resolveLogicNames cfg env globalRdrEnv lmap0 localVars lnameEnv privateReflectNa
                 | elem s wiredInNames ->
                   return $ makeLocalLHName s
                 | otherwise -> do
-                  unless (HS.member s predicateAliases) $
                     addError $ errResolve alts "logic name" "Cannot resolve name" ls
-                  return $ makeLocalLHName s
+                    return $ makeLocalLHName s
           Right [(_, lhname, _)] ->
             return lhname
-          Right names -> do
-            addError $
-              ErrDupNames
-                (LH.fSrcSpan ls)
-                (pprint s)
-                [ pprint (lhNameToResolvedSymbol n) PJ.<+>
-                  PJ.text
-                    ("imported from " ++ GHC.moduleNameString (GHC.moduleName m))
-                | (m, n, _) <- names
-                ]
-            return $ makeLocalLHName s
+          Right names -> do addError $ errDupInScopeNames ls names
+                            return $ makeLocalLHName s
       where
         s = val ls
         wiredInNames =
            map fst wiredSortedSyms ++
            map (lhNameToResolvedSymbol . fst) (concatMap (DataDecl.dcpTyArgs . val) wiredDataCons)
-        predicateAliases = fst allEaliases
+        errDupInScopeNames locSym inScopeNames =
+          ErrDupNames
+            (LH.fSrcSpan locSym)
+            (pprint (val locSym))
+            [ pprint (lhNameToResolvedSymbol n) PJ.<+>
+              PJ.text
+                ("imported from " ++ GHC.moduleNameString (GHC.moduleName m))
+            | (m, n, _) <- inScopeNames
+            ]
 
     resolveDataConName ls
       | unqualifiedS == ":" = Just $
@@ -841,10 +829,9 @@ resolveLogicNames cfg env globalRdrEnv lmap0 localVars lnameEnv privateReflectNa
           -> case gres of
           [e] -> do
             let n = GHC.greName e
-                inlinesAndDefines = snd allEaliases
-            -- TODO: The check for allEaliases should be redundant when
-            -- ealiases are put in the logic environments
-            if HM.member (symbol n) (lmSymDefs lmap) || HS.member (symbol n) inlinesAndDefines then
+            -- TODO: The check for inlines and defines should be redundant when
+            -- they are put in the logic environments.
+            if HM.member (symbol n) (lmSymDefs lmap) || HS.member (symbol n) depsInlinesAndDefines then
               Just $ do
                 let lhName = makeLogicLHName (symbol $ GHC.getOccString n) (GHC.nameModule n) Nothing
                 addName lhName

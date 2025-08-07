@@ -346,7 +346,7 @@ makeGhcSpec0 cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap bareSpec de
     mySpec2  = Bare.expand rtEnv (F.dummyPos "expand-mySpec2") mySpec1
     iSpecs2  = Bare.expand rtEnv (F.dummyPos "expand-iSpecs2") (M.fromList dependencySpecs)
     -- Environment for alias lookup and expansion.
-    rtEnv    = Bare.makeRTEnv env name mySpec1 dependencySpecs lmap
+    rtEnv    = Bare.makeRTEnv env lenv name mySpec1 dependencySpecs lmap
     mspecs   = (name, mySpec0) : dependencySpecs
     -- mySpec0 adds typeclass methods to the bare spec.
     (mySpec0, instMethods)  = if allowTC
@@ -1450,15 +1450,14 @@ myRTEnv src env sigEnv rtEnv = mkRTE tAs' eAs
   where
     tAs'          = normalizeBareAlias env sigEnv name <$> tAs
     tAs           = myAliases typeAliases
-    eAs           = filter (isLocInFile srcF . rtName) $ myAliases exprAliases
+    eAs           = myAliases exprAliases
     myAliases fld = M.elems . fld $ rtEnv
-    srcF          = _giTarget    src
     name          = _giTargetMod src
 
 mkRTE :: [RTAlias x a] -> [RTAlias F.Symbol F.Expr] -> RTEnv x a
 mkRTE tAs eAs   = RTE
   { typeAliases = M.fromList [ (aName a, a) | a <- tAs ]
-  , exprAliases = M.fromList [ (lhNameToUnqualifiedSymbol $ aName a, a) | a <- eAs ]
+  , exprAliases = M.fromList [ (aName a, a) | a <- eAs ]
   }
   where aName   = F.val . rtName
 
