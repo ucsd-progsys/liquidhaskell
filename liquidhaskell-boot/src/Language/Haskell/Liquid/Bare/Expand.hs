@@ -150,8 +150,8 @@ makeRTAliases lxts rte = graphExpand buildTypeEdges f rte lxts
 -- | Builds a directed graph of aliases, checks for cyclic dependencies,
 --   reorders them so that inner aliases are processed first, and folds over
 --   the graph to add each expanded node to the environment.
-graphExpand :: {- (PPrint t)
-            => -} (AliasTable x t -> t -> [LHName])         -- ^ dependencies
+graphExpand :: (PPrint t)
+            => (AliasTable x t -> t -> [LHName])         -- ^ dependencies
             -> (thing -> RTAlias x t -> thing) -- ^ update
             -> thing                                     -- ^ initial
             -> [RTAlias x t]                   -- ^ vertices
@@ -197,11 +197,11 @@ type Graph t = [Node t]
 --   aliases nested within other aliases.
 type Node  t = (t, t, [t])
 
-buildAliasGraph :: {-(PPrint t) => -}(t -> [LHName]) -> [RTAlias x t]
+buildAliasGraph :: (PPrint t) => (t -> [LHName]) -> [RTAlias x t]
                 -> Graph LHName
 buildAliasGraph buildEdges = map (buildNode buildEdges)
   where
-    buildNode :: {- (PPrint t) => -}(t -> [LHName]) -> RTAlias x t
+    buildNode :: (PPrint t) => (t -> [LHName]) -> RTAlias x t
                -> Node LHName
     buildNode f a = (val . rtName $ a, val . rtName $ a, f (rtBody a))
 
