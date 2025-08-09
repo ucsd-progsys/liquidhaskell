@@ -28,11 +28,13 @@ import Data.Graph hiding (Graph)
 import Data.Maybe
 
 import           Control.Monad
+import           Control.Monad.Identity
 import           Control.Monad.State
 import           Data.Bifunctor (second)
 import           Data.Functor ((<&>))
 import qualified Control.Exception         as Ex
 import qualified Data.HashMap.Strict       as M
+import qualified Data.HashSet              as HS
 import qualified Data.Char                 as Char
 import qualified Data.List                 as L
 import qualified Text.PrettyPrint.HughesPJ as PJ
@@ -51,10 +53,10 @@ import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.RTypeOp
 import           Language.Haskell.Liquid.Types.Specs
 import           Language.Haskell.Liquid.Types.Types
-import           Language.Haskell.Liquid.LHNameResolution (toBareSpecLHName)
+import           Language.Haskell.Liquid.LHNameResolution (symbolToLHName)
 import qualified Language.Haskell.Liquid.Misc          as Misc
 import qualified Language.Haskell.Liquid.Measure       as Ms
-import           Language.Haskell.Liquid.Name.LogicNameEnv (LogicNameEnv)
+import           Language.Haskell.Liquid.Name.LogicNameEnv (LogicNameEnv(..))
 import qualified Language.Haskell.Liquid.Bare.Resolve  as Bare
 import qualified Language.Haskell.Liquid.Bare.Types    as Bare
 import qualified Language.Haskell.Liquid.Bare.Plugged  as Bare
@@ -66,24 +68,31 @@ import qualified Text.Printf                           as Printf
 --   that is, the below needs to be called *before* we use `Expand.expand`
 --------------------------------------------------------------------------------
 makeRTEnv
-  :: Bare.Env
-  -> LogicNameEnv
+  :: LogicNameEnv
   -> ModName
   -> Ms.BareSpec
   -> [(ModName, Ms.BareSpec)]
   -> BareRTEnv
 --------------------------------------------------------------------------------
-makeRTEnv env lenv modName mySpec dependencySpecs
+makeRTEnv lenv modName mySpec dependencySpecs
           = renameRTArgs $ makeRTAliases tAs $ makeREAliases eAs
   where
-    tAs     = [ t | (_, s)  <- specs, t <- Ms.aliases  s ]
-    eAs     = [ e | s  <- specs', e <- Ms.ealiases s ]
+    tAs     = concatMap (Ms.aliases . snd) specs
+    eAs     = concatMap (getLHNameExprAliases . snd) specs
     specs = (modName, mySpec) : dependencySpecs
-    -- Here, 'Symbol's are temporaly converted to 'LHName's in expressions in an
-    -- unambiguous way, allowing to use the same lookup and expansion procedure
-    -- for both kinds of aliases.
-    specs' = map (toBareSpecLHName cfg lenv . snd) $ (modName, mySpec) : dependencySpecs
-    cfg = Bare.reCfg env
+
+    -- | 'Symbol's are temporarily converted to 'LHName's in expression alias
+    -- bodies to use the same lookup and expansion procedure for both
+    -- kinds of aliases. Implemented as an specialization of
+    -- 'toBareSpecLHName' for the expression aliases field.
+    getLHNameExprAliases:: Ms.BareSpec -> [RTAlias F.Symbol (ExprV LHName)]
+    getLHNameExprAliases = runIdentity . go
+
+    go :: Ms.BareSpec -> Identity [RTAlias F.Symbol (ExprV LHName)]
+    go = mapM (emapRTAlias (\e -> emapExprVM (symToLHName . (++ e)))) . ealiases
+
+    symToLHName = symbolToLHName "makeRTEnv" lenv unhandledNames
+    unhandledNames = HS.fromList $ map fst $ expSigs mySpec
 
 -- | We apply @renameRTArgs@ *after* expanding each alias-definition, to
 --   ensure that the substitutions work properly (i.e. don't miss expressions
@@ -101,11 +110,11 @@ renameRTArgs rte = RTE
 makeREAliases :: [RTAlias F.Symbol (F.ExprV LHName)] -> BareRTEnv
 makeREAliases = graphExpand buildExprEdges f mempty
   where
-    f rtEnv xt = setREAlias rtEnv (expand rtEnv (F.loc . rtName $ xt) (toExpr xt))
+    f rtEnv xt = setREAlias rtEnv (expand rtEnv (F.loc . rtName $ xt) (lhNametoSymbol xt))
     -- Expression aliases 'LHName's are transformed back to 'Symbol's for the
     -- actual expansion to take place and to be stored in the environment.
-    toExpr :: RTAlias F.Symbol (F.ExprV LHName) -> RTAlias F.Symbol Expr
-    toExpr xt = (fmap $ fmap lhNameToResolvedSymbol) xt
+    lhNametoSymbol :: RTAlias F.Symbol (F.ExprV LHName) -> RTAlias F.Symbol Expr
+    lhNametoSymbol xt = (fmap $ fmap lhNameToResolvedSymbol) xt
 
 
 -- | @renameTys@ ensures that @RTAlias@ type parameters have distinct names

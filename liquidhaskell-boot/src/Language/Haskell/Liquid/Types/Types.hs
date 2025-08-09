@@ -380,7 +380,7 @@ data RTAlias x a = RTA
     deriving B.Binary via Generically (RTAlias x a)
 -- TODO support ghosts in aliases?
 
--- | A map over the first parameter of a 'RTAlias' that represent its type arguments.
+-- | A map over a 'RTAlias' type parameters.
 mapRTAVars :: (a -> b) -> RTAlias a ty -> RTAlias b ty
 mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt }
 

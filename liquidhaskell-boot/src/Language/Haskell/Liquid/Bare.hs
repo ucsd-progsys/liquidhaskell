@@ -349,7 +349,7 @@ makeGhcSpec0 cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap bareSpec de
     mySpec2  = Bare.expand rtEnv (F.dummyPos "expand-mySpec2") mySpec1
     iSpecs2  = Bare.expand rtEnv (F.dummyPos "expand-iSpecs2") (M.fromList dependencySpecs)
     -- Environment for alias lookup and expansion.
-    rtEnv    = Bare.makeRTEnv env lenv name mySpec1' dependencySpecs
+    rtEnv    = Bare.makeRTEnv lenv name mySpec1' dependencySpecs
     mspecs   = (name, mySpec0) : dependencySpecs
     -- mySpec0 adds typeclass methods to the bare spec.
     (mySpec0, instMethods)  = if allowTC

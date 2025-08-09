@@ -55,6 +55,7 @@ module Language.Haskell.Liquid.Types.Specs (
   , SpecMeasure
   , VarOrLocSymbol
   , emapSpecM
+  , emapRTAlias
   , fromBareSpecLHName
   , fromBareSpecParsed
   , mapSpecLName

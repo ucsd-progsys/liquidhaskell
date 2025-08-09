@@ -50,6 +50,7 @@ module Language.Haskell.Liquid.LHNameResolution
   , exprArg
   , fromBareSpecLHName
   , toBareSpecLHName
+  , symbolToLHName
   , LogicNameEnv(..)
   ) where
 
@@ -900,7 +901,7 @@ mapDataDeclFieldNamesM f d = do
       return c{DataDecl.dcFields}
 
 toBareSpecLHName :: Config -> LogicNameEnv -> BareSpec -> BareSpecLHName
-toBareSpecLHName cfg env sp0 = runIdentity $ go sp0
+toBareSpecLHName cfg lenv sp0 = runIdentity $ go sp0
   where
     -- This is implemented with a monadic traversal to reuse the logic
     -- that collects the local symbols in scope.
@@ -909,19 +910,24 @@ toBareSpecLHName cfg env sp0 = runIdentity $ go sp0
       emapSpecM
         (bscope cfg)
         (const [])
-        symbolToLHName
-        (emapBareTypeVM (bscope cfg) symbolToLHName)
+        symToLHName
+        (emapBareTypeVM (bscope cfg) symToLHName)
         sp
+
+    symToLHName = symbolToLHName "toBareSpecLHName" lenv unhandledNames
 
     unhandledNames = HS.fromList $ map fst $ expSigs sp0
 
-    symbolToLHName :: [Symbol] -> Symbol -> Identity LHName
-    symbolToLHName ss s
-      | elem s ss = return $ makeLocalLHName s
-      | otherwise =
-        case lookupSEnv s (lneLHName env) of
-          Nothing -> do
-            unless (HS.member s unhandledNames) $
-              panic Nothing $ "toBareSpecLHName: cannot find " ++ show s
-            return $ makeLocalLHName s
-          Just lhname -> return lhname
+-- | Uses the logic name environment to convert a resolved 'Symbol' to 'LHName'.
+-- Symbols not present in the environment correspond to local symbols (e.g.
+-- bounded variables) or are explicitly left unhandled.
+symbolToLHName :: String -> LogicNameEnv -> HS.HashSet Symbol -> [Symbol] -> Symbol -> Identity LHName
+symbolToLHName caller lenv unhandledNames ss s
+  | elem s ss = return $ makeLocalLHName s
+  | otherwise =
+    case lookupSEnv s (lneLHName lenv) of
+      Nothing -> do
+        unless (HS.member s unhandledNames) $
+          panic Nothing $ caller ++ ": cannot find " ++ show s
+        return $ makeLocalLHName s
+      Just lhname -> return lhname
