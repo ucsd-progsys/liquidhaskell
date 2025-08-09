@@ -439,7 +439,7 @@ emapSpecM
   :: Monad m
   =>
      -- | The bscope setting, which affects which names
-     -- are considered to be in scope in refinment types.
+     -- are considered to be in scope in refinement types.
      Bool
      -- | For names that have a local environment return the names in scope.
   -> (LHName -> [F.Symbol])
