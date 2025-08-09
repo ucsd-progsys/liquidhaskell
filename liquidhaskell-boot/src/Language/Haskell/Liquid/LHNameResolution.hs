@@ -249,8 +249,7 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
           -- This one will be resolved by resolveLogicNames
           pure n
         LHNUnresolved ns@(LHDataConName _) s -> lookupGRELHName [] ns lname s listToMaybe
-        -- Resolved names.
-        n -> pure n
+        n@LHNResolved { } -> pure n
 
     lookupGRELHName alts ns lname s localNameLookup =
       case maybeDropImported ns $ GHC.lookupGRE globalRdrEnv (mkLookupGRE ns s) of
