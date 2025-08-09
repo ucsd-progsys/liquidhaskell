@@ -389,7 +389,7 @@ mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt }
 --
 -- Used when constructing 'Language.Haskell.Liquid.Types.Specs.GhcSpec'
 -- to include Haskell inlines and 'LogicMap' definitions in the alias
--- environment for expansion.
+-- environment for expansion. See [NOTE:EXPRESSION-ALIASES]
 lmapEAlias :: LMap -> RTAlias Symbol Expr
 lmapEAlias (LMap v ys e) = RTA (makeGeneratedLogicLHName <$> v) [] ys e
 

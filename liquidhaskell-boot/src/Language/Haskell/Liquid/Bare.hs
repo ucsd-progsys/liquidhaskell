@@ -355,9 +355,6 @@ makeGhcSpec0 cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap bareSpec de
     (mySpec0, instMethods)  = if allowTC
                               then Bare.compileClasses src env (name, bareSpec) dependencySpecs
                               else (bareSpec, [])
-    -- This spec has the defines from the logic map merged into the expression
-    -- aliases to build the refinement type environment for alias expansion
-    -- and store them as expression aliases in the final lifted spec.
     mySpec1' = addDefinesToExprAliases env lmap mySpec1
     -- Ready for alias expansion.
     mySpec1  = mySpec0 <> lSpec0
@@ -460,6 +457,7 @@ makeTyConEmbeds env spec
     where
       symTc = Mb.maybeToList . either (const Nothing) Just . Bare.lookupGhcTyConLHName env
 
+-- | See [NOTE:EXPRESSION-ALIASES]
 addDefinesToExprAliases :: Bare.Env -> LogicMap -> Ms.BareSpec -> Ms.BareSpec
 addDefinesToExprAliases env lmap mySpec =
   mySpec {
@@ -498,7 +496,8 @@ makeLiftedSpec1 config src tycEnv lmap mySpec = mempty
 -- This is because we need the inlines to build the @BareRTEnv@ which then
 -- does the alias @expand@ business, that in turn, lets us build the DataConP,
 -- i.e. the refined datatypes and their associate selectors, projectors etc,
--- that are needed for subsequent stages of the lifting.
+-- that are needed for subsequent stages of the lifting. Here is relevant to
+-- [NOTE:EXPRESSION-ALIASES].
 --------------------------------------------------------------------------------
 makeLiftedSpec0 :: Config -> GhcSrc -> F.TCEmb Ghc.TyCon -> LogicMap -> Ms.BareSpec
                 -> Ms.BareSpec

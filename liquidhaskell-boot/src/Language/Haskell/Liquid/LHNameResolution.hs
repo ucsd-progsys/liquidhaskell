@@ -122,15 +122,31 @@ collectTypeAliases impMods thisModule spec deps =
      in
         unionAliasEnvs $ bsAliases : depAliases
 
--- | @inlines@ and @defines@ are added as expression aliases when lifting the spec
--- to implement the expansion of logical expressions. We gather them in order to
--- resolve logic variable names until they are handled appropriately.
+--------------------------------------------------------------------------------
+-- | [NOTE:EXPRESSION-ALIASES]:
+--
+-- In a lifted spec, expression aliases include fully unfolded predicate,
+-- inline, and define annotations. By contrast, a bare spec’s expression
+-- aliases include only predicate aliases. This is because symbols from these
+-- three kinds of annotations are unfolded uniformly in logical expressions
+-- during spec lifting.
+--
+-- Inlines and defines are converted to expression aliases via 'lmapEalias',
+-- which assigns them a 'GeneratedLogicName'. This allows us to distinguish
+-- them from predicate aliases, which should be the only 'LogicName's among
+-- expression aliases.
+--
+-- Here, we collect the symbols of inlines and defines from expression aliases
+-- to identify their uses when resolving logic variable names.
+-- This should be redundant when these aliases are resolved via the
+-- logic environments and a dedicated lifted field for inlines is added.
+--------------------------------------------------------------------------------
 collectInlinesAndDefines:: TargetDependencies -> HS.HashSet Symbol
 collectInlinesAndDefines deps = HS.unions
   [ HS.map lhNameToResolvedSymbol depInlinesAndDefines
   | (_, lspec) <- HM.toList (getDependencies deps)
   , let exprAliases = HS.map (val . rtName) $ liftedEaliases lspec
-        depInlinesAndDefines = HS.filter isGeneratedLogicName exprAliases
+        depInlinesAndDefines = HS.filter (not . isResolvedLogicName) exprAliases
    ]
 
 -- | Converts occurrences of LHNUnresolved to LHNResolved using the provided
@@ -840,8 +856,7 @@ resolveLogicNames cfg thisModule env globalRdrEnv lmap0 localVars lnameEnv priva
           -> case gres of
           [e] -> do
             let n = GHC.greName e
-            -- TODO: The check for inlines and defines should be redundant when
-            -- they are put in the logic environments.
+            -- See [NOTE:EXPRESSION-ALIASES]
             if HM.member (symbol n) (lmSymDefs lmap) || HS.member (symbol n) depsInlinesAndDefines then
               Just $ do
                 let lhName = makeLogicLHName (symbol $ GHC.getOccString n) (GHC.nameModule n) Nothing
