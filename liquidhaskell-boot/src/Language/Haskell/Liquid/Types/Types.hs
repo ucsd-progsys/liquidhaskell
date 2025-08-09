@@ -375,7 +375,6 @@ data RTAlias x a = RTA
   , rtTArgs :: [x]                -- ^ type parameters
   , rtVArgs :: [Symbol]           -- ^ value parameters
   , rtBody  :: a                  -- ^ what the alias expands to
-  -- , rtMod   :: !ModName           -- ^ module where alias was defined
   } deriving (Eq, Data, Generic, Functor, Foldable, Traversable)
     deriving Hashable via Generically (RTAlias x a)
     deriving B.Binary via Generically (RTAlias x a)
