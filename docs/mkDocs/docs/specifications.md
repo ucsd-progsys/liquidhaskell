@@ -380,22 +380,23 @@ see [tests/pos/Map.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develo
 1. Type parameters go first and are specified in **lower**case: `a`, `b`, `c` etc.
 2. Value parameters are specified in **upper**case: `X`, `Y`, `Z` etc.
 
-**Import/Export:** Type aliases are exported and imported according to the following:
+### Import/Export of aliases
 
-1. When importing a module, all type aliases from its transitive dependencies are brought into scope.
+Type and predicate aliases are exported and imported according to the following:
+
+1. When importing a module, all aliases from its transitive dependencies are brought into scope.
 2. If a module is imported qualified, its type aliases must also be referenced with a qualifier.
 3. Locally defined aliases can shadow those from dependencies that share the same unqualified name.
    In this case, only the local alias is stored in the resulting specification.
    This makes possible to effectively _update_ an alias definition.
-4. When imports contain aliases with identical symbols, name resolution triggers
-   an error upon ambiguous usage. Resolve this by qualifying either:
-    * The usage
-    * The import
-    * Or both
-5. When the same alias name is imported from multiple modules (with no local definition),
-   only the lexicographically last instance is exported (i.e., included in the resulting specification).
+4. When imports contain aliases with identical names, resolution triggers an error upon ambiguous usage.
+   Resolve this by qualifying either the usage, the import, or both.
+5. When aliases with the same name are imported from multiple modules _and_ there is no local definition,
+   the one from the lexicographically last module is exported (i.e. included in the resulting specification).
 
-See [tests/names/pos/ImportedTypeAlias.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/names/pos/ImportedTypeAlias.hs) for examples.
+See [tests/names/pos/ImportedTypeAlias.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/names/pos/ImportedTypeAlias.hs)
+and [tests/names/pos/QualifiedPredAlias.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/names/pos/QualifiedPredAlias.hs)
+for examples.
 
 ## Infix Operators
 

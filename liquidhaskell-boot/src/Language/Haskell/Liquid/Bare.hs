@@ -153,12 +153,12 @@ makeGhcSpec :: Config
             -> [(ModName, Ms.BareSpec)]
             -> Ghc.TcRn (Either Diagnostics ([Warning], GhcSpec))
 -------------------------------------------------------------------------------------
-makeGhcSpec cfg lenv localVars src lmap targetSpec dependencySpecs = do
+makeGhcSpec cfg lenv localVars src lmap bareSpec dependencySpecs = do
   ghcTyLookupEnv <- Bare.makeGHCTyLookupEnv (_giCbs src)
   tcg <- Ghc.getGblEnv
   instEnvs <- Ghc.tcGetInstEnvs
-  (dg0, sp) <- makeGhcSpec0 cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap targetSpec dependencySpecs
-  let diagnostics = Bare.checkTargetSpec (targetSpec : map snd dependencySpecs)
+  (dg0, sp) <- makeGhcSpec0 cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap bareSpec dependencySpecs
+  let diagnostics = Bare.checkTargetSpec (bareSpec : map snd dependencySpecs)
                                          (toTargetSrc src)
                                          (ghcSpecEnv sp)
                                          (_giCbs src)
@@ -206,7 +206,7 @@ makeGhcSpec0
   -> Ms.BareSpec
   -> [(ModName, Ms.BareSpec)]
   -> Ghc.TcRn (Diagnostics, GhcSpec)
-makeGhcSpec0 cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap targetSpec dependencySpecs = do
+makeGhcSpec0 cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap bareSpec dependencySpecs = do
   globalRdrEnv <- Ghc.tcg_rdr_env <$> Ghc.getGblEnv
   -- build up environments
   tycEnv <- makeTycEnv1 env (tycEnv0, datacons) coreToLg simplifier
@@ -219,7 +219,7 @@ makeGhcSpec0 cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap targetSpec 
   -- lifting.
   let mySpec   = mySpec2 <> lSpec1
   let specs    = M.insert name mySpec iSpecs2
-  let myRTE    = myRTEnv       src env sigEnv rtEnv
+  let myRTE    = myRTEnv src env sigEnv rtEnv
   -- NB: we first compute a measure environment w/o the opaque reflections, so that we can bootstrap
   -- the signature `sig`. Then we'll add the opaque reflections before we compute `sData` and al.
   let (dg1, measEnv0) = withDiagnostics $ makeMeasEnv      env tycEnv sigEnv       specs
@@ -286,30 +286,33 @@ makeGhcSpec0 cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap targetSpec 
                   -- Preserve rinstances.
                 , asmReflectSigs = Ms.asmReflectSigs mySpec
                 , reflects = Ms.reflects mySpec0
-                , cmeasures  = mconcat $ map Ms.cmeasures $ map snd dependencySpecs ++ [targetSpec]
-                , embeds = Ms.embeds targetSpec
+                , cmeasures  = mconcat $ map Ms.cmeasures $ map snd dependencySpecs ++ [bareSpec]
+                , embeds = Ms.embeds bareSpec
                 , privateReflects = mconcat $ map (privateReflects . snd) mspecs
-                , defines = Ms.defines targetSpec
+                , defines = Ms.defines bareSpec
                 , usedDataCons = usedDcs
-                  -- Placing the targetSpec at the end causes local type aliases
+                  -- Placing the @bareSpec@ at the end causes local aliases
                   -- to take precedence over imported ones when their names clash.
-                  -- Alternatively, the last among dependencySpecs (which is
+                  -- Alternatively, the last among @dependencySpecs@ (which is
                   -- ordered lexcographically) is picked.
                   -- See @tests/name/pos/ImportedTypeAlias.hs@
                 , aliases = M.elems $ M.fromList $
                     [ (lhNameToUnqualifiedSymbol (val . rtName $ rt) , rt)
                     | rt <- concat $
                         map (aliases . snd) dependencySpecs ++
-                        [expandedTypeAliasesOf myRTE targetSpec]
+                        [expandedAliasesOf myRTE typeAliases $ aliases bareSpec]
+                    ]
+                , ealiases = M.elems $ M.fromList $
+                    [ (lhNameToUnqualifiedSymbol (val . rtName $ rt) , rt)
+                    | rt <- concat $
+                        map (ealiases . snd) dependencySpecs ++
+                        [expandedAliasesOf myRTE exprAliases $ ealiases mySpec1']
                     ]
                 }
     })
   where
     thisModule = Ghc.tcg_mod tcg
-    expandedTypeAliasesOf myRTE sp =
-      Mb.mapMaybe
-      ((`M.lookup` typeAliases myRTE) . val . rtName)
-      (aliases sp)
+    expandedAliasesOf myRTE fld = Mb.mapMaybe ((`M.lookup` fld myRTE) . val . rtName)
 
     -- typeclass elaboration
 
@@ -346,25 +349,26 @@ makeGhcSpec0 cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap targetSpec 
     mySpec2  = Bare.expand rtEnv (F.dummyPos "expand-mySpec2") mySpec1
     iSpecs2  = Bare.expand rtEnv (F.dummyPos "expand-iSpecs2") (M.fromList dependencySpecs)
     -- Environment for alias lookup and expansion.
-    rtEnv    = Bare.makeRTEnv env name mySpec1 dependencySpecs lmap
+    rtEnv    = Bare.makeRTEnv lenv name mySpec1' dependencySpecs
     mspecs   = (name, mySpec0) : dependencySpecs
-    -- mySpec0 adds typeclass methods to the target spec.
+    -- mySpec0 adds typeclass methods to the bare spec.
     (mySpec0, instMethods)  = if allowTC
-                              then Bare.compileClasses src env (name, targetSpec) dependencySpecs
-                              else (targetSpec, [])
-    -- Ready for type alias expantion.
+                              then Bare.compileClasses src env (name, bareSpec) dependencySpecs
+                              else (bareSpec, [])
+    mySpec1' = addDefinesToExprAliases env lmap mySpec1
+    -- Ready for alias expansion.
     mySpec1  = mySpec0 <> lSpec0
     -- This spec just has the 'ealiases' (with Haskell inlines) and 'dataDecls' fields.
     lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec0
     embs     = makeEmbeds          src ghcTyLookupEnv (mySpec0 : map snd dependencySpecs)
     dm       = Bare.tcDataConMap tycEnv0
     (dg0, datacons, tycEnv0) = makeTycEnv0   cfg name env embs mySpec2 iSpecs2
-    env      = Bare.makeEnv cfg ghcTyLookupEnv dataConIds tcg instEnvs localVars src lmap ((name, targetSpec) : dependencySpecs)
+    env      = Bare.makeEnv cfg ghcTyLookupEnv dataConIds tcg instEnvs localVars src lmap ((name, bareSpec) : dependencySpecs)
     -- check barespecs
     name     = F.notracepp ("ALL-SPECS" ++ zzz) $ _giTargetMod  src
     zzz      = F.showpp (fst <$> mspecs)
 
-    usedDcs  = collectAllDataCons (_giCbs src) $ targetSpec : map snd dependencySpecs
+    usedDcs  = collectAllDataCons (_giCbs src) $ bareSpec : map snd dependencySpecs
     dataConIds =
       [ Ghc.dataConWorkId dc
       | lhn <- S.toList usedDcs
@@ -453,6 +457,19 @@ makeTyConEmbeds env spec
     where
       symTc = Mb.maybeToList . either (const Nothing) Just . Bare.lookupGhcTyConLHName env
 
+-- | See [NOTE:EXPRESSION-ALIASES]
+addDefinesToExprAliases :: Bare.Env -> LogicMap -> Ms.BareSpec -> Ms.BareSpec
+addDefinesToExprAliases env lmap mySpec =
+  mySpec {
+    Ms.ealiases = Ms.ealiases mySpec ++
+      if typeclass (getConfig env) then []
+      -- lmap expansion happens during elaboration
+      -- this clearly breaks things if a signature
+      -- contains lmap functions but never gets
+      -- elaborated
+      else [ e | (_, xl) <- M.toList (lmSymDefs lmap), let e = lmapEAlias xl ]
+    }
+
 --------------------------------------------------------------------------------
 -- | [NOTE]: REFLECT-IMPORTS
 --
@@ -479,7 +496,8 @@ makeLiftedSpec1 config src tycEnv lmap mySpec = mempty
 -- This is because we need the inlines to build the @BareRTEnv@ which then
 -- does the alias @expand@ business, that in turn, lets us build the DataConP,
 -- i.e. the refined datatypes and their associate selectors, projectors etc,
--- that are needed for subsequent stages of the lifting.
+-- that are needed for subsequent stages of the lifting. Here is relevant to
+-- [NOTE:EXPRESSION-ALIASES].
 --------------------------------------------------------------------------------
 makeLiftedSpec0 :: Config -> GhcSrc -> F.TCEmb Ghc.TyCon -> LogicMap -> Ms.BareSpec
                 -> Ms.BareSpec
@@ -1398,7 +1416,6 @@ makeLiftedSpec name src env refl sData sig qual myRTE lSpec0 = lSpec0
                        , isLocInFile srcF t
                     ]
   , Ms.axeqs      = gsMyAxioms refl
-  , Ms.aliases    = F.notracepp "MY-ALIASES" $ M.elems . typeAliases $ myRTE
   , Ms.ealiases   = M.elems . exprAliases $ myRTE
   , Ms.qualifiers = filter (isLocInFile srcF) (gsQualifiers qual)
   }
@@ -1442,26 +1459,16 @@ locFile = Misc.fst3 . F.sourcePosElts . F.sp_start . F.srcSpan
 
 
 --------------------------------------------------------------------------------
--- | @myRTEnv@ extracts the portion of the RTEnv generated by expression
---   aliases defined in the _target_ file, and "cooks" the type aliases
---   by converting them to SpecType and then back to BareType.
+-- | @myRTEnv@ "cooks" the type aliases by converting them to SpecType and then
+--   back to BareType.
 --------------------------------------------------------------------------------
 myRTEnv :: GhcSrc -> Bare.Env -> Bare.SigEnv -> BareRTEnv -> BareRTEnv
-myRTEnv src env sigEnv rtEnv = mkRTE tAs' eAs
+myRTEnv src env sigEnv rtEnv = rtEnv { typeAliases = M.fromList [ (aName a, a) | a <- tAs' ] }
   where
-    tAs'          = normalizeBareAlias env sigEnv name <$> tAs
-    tAs           = myAliases typeAliases
-    eAs           = filter (isLocInFile srcF . rtName) $ myAliases exprAliases
-    myAliases fld = M.elems . fld $ rtEnv
-    srcF          = _giTarget    src
-    name          = _giTargetMod src
-
-mkRTE :: [RTAlias x a] -> [RTAlias F.Symbol F.Expr] -> RTEnv x a
-mkRTE tAs eAs   = RTE
-  { typeAliases = M.fromList [ (aName a, a) | a <- tAs ]
-  , exprAliases = M.fromList [ (lhNameToUnqualifiedSymbol $ aName a, a) | a <- eAs ]
-  }
-  where aName   = F.val . rtName
+    tAs'  = normalizeBareAlias env sigEnv modName <$> tAs
+    tAs   = M.elems . typeAliases $ rtEnv
+    modName  = _giTargetMod src
+    aName = F.val . rtName
 
 -- | Prepare an alias for constraint checking by /fixing/ its body and type argument names.
 normalizeBareAlias :: Bare.Env -> Bare.SigEnv -> ModName -> BareRTAlias

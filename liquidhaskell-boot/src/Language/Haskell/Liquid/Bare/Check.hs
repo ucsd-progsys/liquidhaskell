@@ -166,8 +166,8 @@ checkTargetSpec specs src env cbs tsp
                      -- TODO-REBARE ++ checkQualifiers env                                       (gsQualifiers (gsQual sp))
                      <> checkDuplicate                                            (gsAsmSigs    (gsSig tsp))
                      <> checkDupIntersect                                         (gsTySigs (gsSig tsp)) (gsAsmSigs (gsSig tsp))
-                     <> checkRTAliases "Type Alias" env            myTAliases
-                     <> checkRTAliases "Pred Alias" env            eAliases
+                     <> checkRTAliases "Type Alias" env myTAliases
+                     <> checkRTAliases "Pred Alias" env myPAliases
                      -- ++ _checkDuplicateFieldNames                   (gsDconsP sp)
                      -- NV TODO: allow instances of refined classes to be refined
                      -- but make sure that all the specs are checked.
@@ -179,10 +179,11 @@ checkTargetSpec specs src env cbs tsp
                           then mempty
                           else checkConstructorRefinement (gsTySigs $ gsSig tsp)
 
-    _rClasses         = concatMap Ms.classes specs
-    _rInsts           = concatMap Ms.rinstance specs
-    myTAliases        = Ms.aliases (head specs) -- We check for duplicate aliases within the target spec only.
-    eAliases          = concat [Ms.ealiases sp | sp <- specs]
+    _rClasses        = concatMap Ms.classes specs
+    _rInsts          = concatMap Ms.rinstance specs
+    -- Duplicate alias (definition) is checked within the bare spec only.
+    myTAliases       = Ms.aliases (head specs)
+    myPAliases       = Ms.ealiases (head specs)
     emb              = gsTcEmbeds (gsName tsp)
     tcEnv            = gsTyconEnv (gsName tsp)
     ms               = gsMeasures (gsData tsp)

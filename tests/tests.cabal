@@ -734,6 +734,8 @@ executable names-pos
                     , ClojurVector
                     , DataFields
                     , ExpandsDependentPairs
+                    , ExprAliases
+                    , ExprAliasesCopycat
                     , HideName00
                     , HidePrelude
                     , ImportedTypeAlias
@@ -747,6 +749,7 @@ executable names-pos
                     , Nat1
                     , Nat2
                     , NatFoo
+                    , QualifiedPredAliases
                     , QualifiedTypeAliases
                     , Ord
                     , Set00
@@ -756,6 +759,7 @@ executable names-pos
                     , Shadow01
                     , T1521
                     , T675
+                    , TransitivePredAliases
                     , TypeAliasShadowing
                     , Uniques
                     , Vector04

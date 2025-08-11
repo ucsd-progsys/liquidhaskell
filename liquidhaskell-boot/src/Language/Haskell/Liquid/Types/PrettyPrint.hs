@@ -64,6 +64,7 @@ import           Language.Haskell.Liquid.GHC.Logging
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.Names (LHName (..), getLHNameSymbol, lhNameToResolvedSymbol)
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.RTypeOp
 import           Language.Haskell.Liquid.Types.Types
@@ -169,6 +170,11 @@ instance PPrint LogicMap where
                                  , nest 2 $ text "axiom-map"
                                  , nest 4 $ pprint am
                                  ]
+
+instance F.Fixpoint LHName where
+  toFix lhname = case lhname of
+    LHNUnresolved { }  -> pprintSymbol . getLHNameSymbol $ lhname
+    LHNResolved { } -> pprint . lhNameToResolvedSymbol $ lhname
 
 --------------------------------------------------------------------------------
 -- | Pretty Printing RefType ---------------------------------------------------

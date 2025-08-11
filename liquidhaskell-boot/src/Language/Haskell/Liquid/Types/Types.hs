@@ -375,13 +375,12 @@ data RTAlias x a = RTA
   , rtTArgs :: [x]                -- ^ type parameters
   , rtVArgs :: [Symbol]           -- ^ value parameters
   , rtBody  :: a                  -- ^ what the alias expands to
-  -- , rtMod   :: !ModName           -- ^ module where alias was defined
   } deriving (Eq, Data, Generic, Functor, Foldable, Traversable)
     deriving Hashable via Generically (RTAlias x a)
     deriving B.Binary via Generically (RTAlias x a)
 -- TODO support ghosts in aliases?
 
--- | A map over the first parameter of a 'RTAlias' that represent its type arguments.
+-- | A map over a 'RTAlias' type parameters.
 mapRTAVars :: (a -> b) -> RTAlias a ty -> RTAlias b ty
 mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt }
 
@@ -389,10 +388,9 @@ mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt }
 --
 -- Used when constructing 'Language.Haskell.Liquid.Types.Specs.GhcSpec'
 -- to include Haskell inlines and 'LogicMap' definitions in the alias
--- environment for expansion.
+-- environment for expansion. See [NOTE:EXPRESSION-ALIASES]
 lmapEAlias :: LMap -> RTAlias Symbol Expr
-lmapEAlias (LMap v ys e) =
-  RTA (F.atLoc v $ makeGeneratedLogicLHName (F.val v)) [] ys e
+lmapEAlias (LMap v ys e) = RTA (makeGeneratedLogicLHName <$> v) [] ys e
 
 
 -- | The type used during constraint generation, used
@@ -569,7 +567,7 @@ getModString = moduleNameString . getModName
 --------------------------------------------------------------------------------
 data RTEnv tv t = RTE
   { typeAliases :: M.HashMap LHName (RTAlias tv t)
-  , exprAliases :: M.HashMap Symbol (RTAlias Symbol Expr)
+  , exprAliases :: M.HashMap LHName (RTAlias Symbol Expr)
   }
 
 

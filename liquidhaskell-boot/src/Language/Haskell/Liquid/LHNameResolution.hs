@@ -50,6 +50,7 @@ module Language.Haskell.Liquid.LHNameResolution
   , exprArg
   , fromBareSpecLHName
   , toBareSpecLHName
+  , symbolToLHName
   , LogicNameEnv(..)
   ) where
 
@@ -82,6 +83,7 @@ import qualified GHC.Types.Name.Occurrence
 import           Language.Fixpoint.Types as F hiding (Error, panic)
 import qualified Language.Haskell.Liquid.Bare.Resolve as Resolve
 import           Language.Haskell.Liquid.Bare.Types (LocalVars(lvNames), LocalVarDetails(lvdLclEnv))
+import           Language.Fixpoint.Misc as Misc
 import           Language.Haskell.Liquid.Name.LogicNameEnv
 import qualified Language.Haskell.Liquid.Types.DataDecl as DataDecl
 import           Language.Haskell.Liquid.Types.Errors (TError(ErrDupNames, ErrResolve), panic)
@@ -121,18 +123,32 @@ collectTypeAliases impMods thisModule spec deps =
      in
         unionAliasEnvs $ bsAliases : depAliases
 
-collectExprAliases
-  :: BareSpecParsed
-  -> TargetDependencies
-  -> HS.HashSet Symbol
-collectExprAliases spec deps =
-    let bsAliases = HS.fromList $ map (getLHNameSymbol . val . rtName) (ealiases spec)
-        depAliases =
-          [ HS.map (lhNameToUnqualifiedSymbol . val . rtName) $ liftedEaliases lspec
-          | (_, lspec) <- HM.toList (getDependencies deps)
-          ]
-     in
-        HS.unions $ bsAliases : depAliases
+--------------------------------------------------------------------------------
+-- | [NOTE:EXPRESSION-ALIASES]:
+--
+-- In a lifted spec, expression aliases include fully unfolded predicate,
+-- inline, and define annotations. By contrast, a bare spec’s expression
+-- aliases include only predicate aliases. This is because symbols from these
+-- three kinds of annotations are unfolded uniformly in logical expressions
+-- during spec lifting.
+--
+-- Inlines and defines are converted to expression aliases via 'lmapEalias',
+-- which assigns them a 'GeneratedLogicName'. This allows us to distinguish
+-- them from predicate aliases, which should be the only 'LogicName's among
+-- expression aliases.
+--
+-- Here, we collect the symbols of inlines and defines from expression aliases
+-- to identify their uses when resolving logic variable names.
+-- This should be redundant when these aliases are resolved via the
+-- logic environments and a dedicated lifted field for inlines is added.
+--------------------------------------------------------------------------------
+collectInlinesAndDefines:: TargetDependencies -> HS.HashSet Symbol
+collectInlinesAndDefines deps = HS.unions
+  [ HS.map lhNameToResolvedSymbol depInlinesAndDefines
+  | (_, lspec) <- HM.toList (getDependencies deps)
+  , let exprAliases = HS.map (val . rtName) $ liftedEaliases lspec
+        depInlinesAndDefines = HS.filter (not . isResolvedLogicName) exprAliases
+   ]
 
 -- | Converts occurrences of LHNUnresolved to LHNResolved using the provided
 -- type aliases and GlobalRdrEnv.
@@ -163,7 +179,7 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
 
               -- Second pass: a traversal to resolve logic names using the following
               -- lookup environments.
-              let (inScopeEnv, logicNameEnv0, privateReflectNames, unhandledNames) =
+              let (inScopeEnv, logicNameEnv0, privateReflectNames) =
                     makeLogicEnvs impMods thisModule sp2 dependencies
               -- Add resolved local defines to the logic map.
                   lmap1 =
@@ -175,14 +191,14 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
               sp3 <- fromBareSpecLHName <$>
                        resolveLogicNames
                          cfg
+                         thisModule
                          inScopeEnv
                          globalRdrEnv
-                         unhandledNames
                          lmap1
                          localVars
                          logicNameEnv0
                          privateReflectNames
-                         allEaliases
+                         depsInlinesAndDefines
                          sp2
               dcs <- gets roUsedDataCons
               return (sp3 {usedDataCons = dcs} , logicNameEnv0, lmap1)
@@ -196,8 +212,10 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
     else
       Left (roErrors ro)
   where
+    -- We collect type aliases before resolving names so we have a means to disambiguate
+    -- imported and local ones (according to their resolution status).
     taliases = collectTypeAliases impMods thisModule bareSpec0 dependencies
-    allEaliases = collectExprAliases bareSpec0 dependencies
+    depsInlinesAndDefines = collectInlinesAndDefines dependencies
 
     -- Add defines from dependencies to the logical map.
     lmap =
@@ -228,12 +246,12 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
               -- any imported aliases with the same name.
               -- This allows the user to shadow imported aliases.
               FoundTypeAliases { tarLocallyDefined = [(m, _, _)] } ->
-                pure $ LHNResolved (LHRLogic $ LogicName (LH.dropModuleNames s) m Nothing) s
+                pure $ makeLogicLHName (LH.dropModuleNames s) m Nothing
               FoundTypeAliases { tarImported = [(_, lh, _)]
                                , tarLocallyDefined = []} ->
                 pure lh
               -- If multiple matches are found, report the ambiguous name and return it.
-              tar@(FoundTypeAliases { }) -> do addError $ errResolveTypeAlias lname s tar
+              tar@(FoundTypeAliases { }) -> do addError $ errResolveTypeAlias (s <$ lname) tar
                                                pure $ val lname
               NoSuchTypeAlias alts -> lookupGRELHName alts LHTcName lname s listToMaybe
         LHNUnresolved ns@(LHVarName lcl) s
@@ -247,8 +265,8 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
         n@(LHNUnresolved LHLogicName _) ->
           -- This one will be resolved by resolveLogicNames
           pure n
-        LHNUnresolved ns s -> lookupGRELHName [] ns lname s listToMaybe
-        n -> pure n
+        LHNUnresolved ns@(LHDataConName _) s -> lookupGRELHName [] ns lname s listToMaybe
+        n@LHNResolved { } -> pure n
 
     lookupGRELHName alts ns lname s localNameLookup =
       case maybeDropImported ns $ GHC.lookupGRE globalRdrEnv (mkLookupGRE ns s) of
@@ -449,7 +467,7 @@ fixExpressionArgsOfTypeAliases taliases = mapMBareTypes go
                  RApp <$> pure c <*> fixExprArgs (btc_tc c) rta (mapM go ts) <*> mapM goRef rs <*> pure r
                -- Report ambiguos name and continue traversing.
                _ -> do
-                 addError $ errResolveTypeAlias lname s tar
+                 addError $ errResolveTypeAlias (s <$ lname) tar
                  RApp <$> pure c <*> mapM go ts <*> mapM goRef rs <*> pure r
     go (RApp c ts rs r)    = RApp <$> pure c <*> mapM go ts <*> mapM goRef rs <*> pure r
     go (RAppTy t1 t2 r)    = RAppTy <$> go t1 <*> go t2 <*> pure r
@@ -522,9 +540,9 @@ data TypeAliasResolution a
       , tarLocallyDefined :: [(GHC.Module, LHName, a)]
       }
 
-errResolveTypeAlias :: Located LHName -> Symbol -> TypeAliasResolution b -> Error
-errResolveTypeAlias lname s (FoundTypeAliases imported local) =
-  ErrDupNames (LH.fSrcSpan lname) (pprint s)
+errResolveTypeAlias :: LocSymbol -> TypeAliasResolution b -> Error
+errResolveTypeAlias ls (FoundTypeAliases imported local) =
+  ErrDupNames (LH.fSrcSpan ls) (pprint $ val ls)
     (
       map (\(m, lhn, _) -> pprint (LH.qualifySymbol (symbol . GHC.moduleNameString . GHC.moduleName $ m)
                                    $ getLHNameSymbol lhn)
@@ -537,8 +555,8 @@ errResolveTypeAlias lname s (FoundTypeAliases imported local) =
                           PJ.text ("imported from " ++ GHC.moduleNameString (GHC.moduleName m)))
       imported
     )
-errResolveTypeAlias lname s (NoSuchTypeAlias alts) =
-  errResolve alts "type alias" "Cannot resolve name" (s <$ lname)
+errResolveTypeAlias ls (NoSuchTypeAlias alts) =
+  errResolve alts "type alias" "Cannot resolve name" ls
 
 
 -- | An environment of names in scope
@@ -588,28 +606,12 @@ makeLogicEnvs
   -> ( InScopeNonReflectedEnv
      , LogicNameEnv
      , HS.HashSet LocSymbol
-     , HS.HashSet Symbol
      )
 makeLogicEnvs impMods thisModule spec dependencies =
-    let unqualify s =
-          if s == LH.qualifySymbol (symbol $ GHC.moduleName thisModule) (LH.dropModuleNames s) then
-            LH.dropModuleNames s
-          else
-            s
-
-        -- Names should be removed from this list as they are supported
-        -- by renaming. Currently, only expression aliases remain /unhadled/.
-        unhandledNames = HS.fromList $
-          map unqualify unhandledNamesList ++ map (LH.qualifySymbol (symbol $ GHC.moduleName thisModule)) unhandledNamesList
-        unhandledNamesList =
-          map (getLHNameSymbol . val . rtName) (ealiases spec)
-          ++ concatMap (map lhNameToUnqualifiedSymbol . snd) unhandledLogicNames
-        unhandledLogicNames =
-          map (fmap collectUnhandledLiftedSpecLogicNames) dependencyPairs
-        logicNames =
-          (thisModule, thisModuleNames) :
+    let depsLogicNames =
           map (fmap collectLiftedSpecLogicNames) dependencyPairs
-          ++ unhandledLogicNames
+        logicNames =
+          (thisModule, thisModuleNames) : depsLogicNames
         nonReflectedNamesWithUnit =
           map
             (second $ map (, ()) . filter isNonReflectedLogicName)
@@ -630,6 +632,7 @@ makeLogicEnvs impMods thisModule spec dependencies =
              concatMap DataDecl.dcFields $ concat $
              mapMaybe DataDecl.tycDCons $
              dataDecls spec
+          , [ val (rtName ea) | ea <- ealiases spec ]
           ]
         privateReflectNames =
           mconcat $
@@ -638,7 +641,6 @@ makeLogicEnvs impMods thisModule spec dependencies =
         ( unionAliasEnvs $ map (mkAliasEnv thisModule impMods) nonReflectedNamesWithUnit
         , mkLogicNameEnv (concatMap snd logicNames)
         , privateReflectNames
-        , unhandledNames
         )
   where
     dependencyPairs = map (first GHC.unStableModule) $ HM.toList $ getDependencies dependencies
@@ -706,11 +708,6 @@ moduleAliases thisModule impMods m =
       | GHC.imv_qualified imv = [GHC.imv_name imv]
       | otherwise = [GHC.imv_name imv, GHC.mkModuleName ""]
 
-{- HLINT ignore collectUnhandledLiftedSpecLogicNames "Use ++" -}
-collectUnhandledLiftedSpecLogicNames :: LiftedSpec -> [LHName]
-collectUnhandledLiftedSpecLogicNames sp =
-    map (makeLocalLHName . lhNameToUnqualifiedSymbol . val . rtName) $ HS.toList $ liftedEaliases sp
-
 collectLiftedSpecLogicNames :: LiftedSpec -> [LHName]
 collectLiftedSpecLogicNames sp = concat
     [ map fst (HS.toList $ liftedExpSigs sp)
@@ -720,6 +717,7 @@ collectLiftedSpecLogicNames sp = concat
     , map fst $ concatMap DataDecl.dcFields $ concat $
         mapMaybe DataDecl.tycDCons $
         HS.toList $ liftedDataDecls sp
+    , map  (val . rtName) $ HS.toList $ liftedEaliases sp
     ]
 
 -- | Resolves names in the logic namespace
@@ -729,9 +727,9 @@ collectLiftedSpecLogicNames sp = concat
 -- the names of data constructors that are found during renaming.
 resolveLogicNames
   :: Config
+  -> GHC.Module
   -> InScopeNonReflectedEnv
   -> GHC.GlobalRdrEnv
-  -> HS.HashSet Symbol
   -> LogicMap
   -> LocalVars
   -> LogicNameEnv
@@ -739,7 +737,7 @@ resolveLogicNames
   -> HS.HashSet Symbol
   -> BareSpecParsed
   -> State RenameOutput BareSpecLHName
-resolveLogicNames cfg env globalRdrEnv unhandledNames lmap0 localVars lnameEnv privateReflectNames allEaliases sp = do
+resolveLogicNames cfg thisModule env globalRdrEnv lmap0 localVars lnameEnv privateReflectNames depsInlinesAndDefines sp = do
     -- Instance measures must be defined for names of class measures.
     -- The names of class measures should be in @env@
     imeasures <- mapM (mapMeasureNamesM resolveIMeasLogicName) (imeasures sp)
@@ -772,39 +770,32 @@ resolveLogicNames cfg env globalRdrEnv unhandledNames lmap0 localVars lnameEnv p
                 | elem s wiredInNames ->
                   return $ makeLocalLHName s
                 | otherwise -> do
-                  unless (HS.member s unhandledNames) $
-                    addError (errResolveLogicName ls alts)
-                  return $ makeLocalLHName s
-          Right [(_, lhname, _)] ->
-            return lhname
-          Right names -> do
-            addError $
-              ErrDupNames
-                (LH.fSrcSpan ls)
-                (pprint s)
-                [ pprint (lhNameToResolvedSymbol n) PJ.<+>
-                  PJ.text
-                    ("imported from " ++ GHC.moduleNameString (GHC.moduleName m))
-                | (m, n, _) <- names
-                ]
-            return $ makeLocalLHName s
+                    addError $ errResolve alts "logic name" "Cannot resolve name" ls
+                    return $ makeLocalLHName s
+          Right [(_, lhname, _)] -> pure lhname
+          -- In case of multiple matches, we give precedence to locally defined
+          -- logic entities for the user to be able to overwrite them.
+          -- TODO: When a mechanism allowing to specify explicitly which logic names
+          -- are imported is in place, we should cosider notifying the ambiguity directly.
+          Right names ->
+            case filter ((== thisModule) . logicNameOriginModule . Misc.snd3) names of
+              [(_, lhname, _)] -> pure lhname
+              _ -> do addError $ errDupInScopeNames ls names
+                      return $ makeLocalLHName s
       where
         s = val ls
         wiredInNames =
            map fst wiredSortedSyms ++
            map (lhNameToResolvedSymbol . fst) (concatMap (DataDecl.dcpTyArgs . val) wiredDataCons)
-
-    errResolveLogicName s alts =
-      ErrResolve
-        (LH.fSrcSpan s)
-        (PJ.text "logic name")
-        (pprint $ val s)
-        (if null alts then
-           PJ.text "Cannot resolve name"
-         else
-           PJ.text "Cannot resolve name" PJ.$$
-           PJ.sep (PJ.text "Maybe you meant one of:" : map pprint alts)
-        )
+        errDupInScopeNames locSym inScopeNames =
+          ErrDupNames
+            (LH.fSrcSpan locSym)
+            (pprint (val locSym))
+            [ pprint (lhNameToResolvedSymbol n) PJ.<+>
+              PJ.text
+                ("imported from " ++ GHC.moduleNameString (GHC.moduleName m))
+            | (m, n, _) <- inScopeNames
+            ]
 
     resolveDataConName ls
       | unqualifiedS == ":" = Just $
@@ -866,9 +857,8 @@ resolveLogicNames cfg env globalRdrEnv unhandledNames lmap0 localVars lnameEnv p
           -> case gres of
           [e] -> do
             let n = GHC.greName e
-            -- TODO: The check for allEaliases should be redundant when
-            -- ealiases are put in the logic environments
-            if HM.member (symbol n) (lmSymDefs lmap) || HS.member (symbol n) allEaliases then
+            -- See [NOTE:EXPRESSION-ALIASES]
+            if HM.member (symbol n) (lmSymDefs lmap) || HS.member (symbol n) depsInlinesAndDefines then
               Just $ do
                 let lhName = makeLogicLHName (symbol $ GHC.getOccString n) (GHC.nameModule n) Nothing
                 addName lhName
@@ -911,7 +901,7 @@ mapDataDeclFieldNamesM f d = do
       return c{DataDecl.dcFields}
 
 toBareSpecLHName :: Config -> LogicNameEnv -> BareSpec -> BareSpecLHName
-toBareSpecLHName cfg env sp0 = runIdentity $ go sp0
+toBareSpecLHName cfg lenv sp0 = runIdentity $ go sp0
   where
     -- This is implemented with a monadic traversal to reuse the logic
     -- that collects the local symbols in scope.
@@ -920,19 +910,24 @@ toBareSpecLHName cfg env sp0 = runIdentity $ go sp0
       emapSpecM
         (bscope cfg)
         (const [])
-        symbolToLHName
-        (emapBareTypeVM (bscope cfg) symbolToLHName)
+        symToLHName
+        (emapBareTypeVM (bscope cfg) symToLHName)
         sp
+
+    symToLHName = symbolToLHName "toBareSpecLHName" lenv unhandledNames
 
     unhandledNames = HS.fromList $ map fst $ expSigs sp0
 
-    symbolToLHName :: [Symbol] -> Symbol -> Identity LHName
-    symbolToLHName ss s
-      | elem s ss = return $ makeLocalLHName s
-      | otherwise =
-        case lookupSEnv s (lneLHName env) of
-          Nothing -> do
-            unless (HS.member s unhandledNames) $
-              panic Nothing $ "toBareSpecLHName: cannot find " ++ show s
-            return $ makeLocalLHName s
-          Just lhname -> return lhname
+-- | Uses the logic name environment to convert a resolved 'Symbol' to 'LHName'.
+-- Symbols not present in the environment correspond to local symbols (e.g.
+-- bounded variables) or are explicitly left unhandled.
+symbolToLHName :: String -> LogicNameEnv -> HS.HashSet Symbol -> [Symbol] -> Symbol -> Identity LHName
+symbolToLHName caller lenv unhandledNames ss s
+  | elem s ss = return $ makeLocalLHName s
+  | otherwise =
+    case lookupSEnv s (lneLHName lenv) of
+      Nothing -> do
+        unless (HS.member s unhandledNames) $
+          panic Nothing $ caller ++ ": cannot find " ++ show s
+        return $ makeLocalLHName s
+      Just lhname -> return lhname

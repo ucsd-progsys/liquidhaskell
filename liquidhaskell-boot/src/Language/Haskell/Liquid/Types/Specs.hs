@@ -55,6 +55,7 @@ module Language.Haskell.Liquid.Types.Specs (
   , SpecMeasure
   , VarOrLocSymbol
   , emapSpecM
+  , emapRTAlias
   , fromBareSpecLHName
   , fromBareSpecParsed
   , mapSpecLName
@@ -387,8 +388,8 @@ data Spec lname ty = Spec
   , ialiases   :: ![(F.Located ty, F.Located ty)]                     -- ^ Data type invariants to be checked
   , dataDecls  :: ![DataDeclP lname ty]                               -- ^ Predicated data definitions
   , newtyDecls :: ![DataDeclP lname ty]                               -- ^ Predicated new type definitions
-  , aliases    :: ![RTAlias F.Symbol (BareTypeV lname)]   -- ^ RefType aliases
-  , ealiases   :: ![RTAlias F.Symbol (F.ExprV lname)]     -- ^ Expression aliases
+  , aliases    :: ![RTAlias F.Symbol (BareTypeV lname)]               -- ^ RefType aliases
+  , ealiases   :: ![RTAlias F.Symbol (F.ExprV lname)]                 -- ^ Expression aliases. See [NOTE:EXPRESSION-ALIASES]
   , embeds     :: !(F.TCEmb (F.Located LHName))                       -- ^ GHC-Tycon-to-fixpoint Tycon map
   , qualifiers :: ![F.QualifierV lname]                               -- ^ Qualifiers in source files
   , lvars      :: !(S.HashSet (F.Located LHName))                     -- ^ Variables that should be checked in the environment they are used
@@ -439,7 +440,7 @@ emapSpecM
   :: Monad m
   =>
      -- | The bscope setting, which affects which names
-     -- are considered to be in scope in refinment types.
+     -- are considered to be in scope in refinement types.
      Bool
      -- | For names that have a local environment return the names in scope.
   -> (LHName -> [F.Symbol])
@@ -731,7 +732,7 @@ data LiftedSpec = LiftedSpec
   , liftedAliases    :: HashSet (RTAlias F.Symbol BareTypeLHName)
     -- ^ RefType aliases
   , liftedEaliases   :: HashSet (RTAlias F.Symbol (F.ExprV LHName))
-    -- ^ Expression aliases
+    -- ^ Expression aliases. See [NOTE:EXPR-ALIASES]
   , liftedEmbeds     :: F.TCEmb (F.Located LHName)
     -- ^ GHC-Tycon-to-fixpoint Tycon map
   , liftedQualifiers :: HashSet (F.QualifierV LHName)
