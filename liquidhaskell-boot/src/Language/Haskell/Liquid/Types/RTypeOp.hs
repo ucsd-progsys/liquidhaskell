@@ -240,27 +240,27 @@ addInvCond t r'
     F.Reft(v, rv) = ur_reft r'
 
 
-instance (Reftable r, TyConable c) => F.Subable (RTProp c tv r) where
-  syms (RProp  ss r)     = (fst <$> ss) ++ F.syms r
+instance (Reftable r, TyConable c) => F.SubableV Symbol (RTProp c tv r) where
+  symsV (RProp  ss r)     = (fst <$> ss) ++ F.symsV r
 
-  subst su (RProp ss (RHole r)) = RProp ss (RHole (F.subst su r))
-  subst su (RProp  ss t) = RProp ss (F.subst su <$> t)
+  substV su (RProp ss (RHole r)) = RProp ss (RHole (F.substV su r))
+  substV su (RProp  ss t) = RProp ss (F.substV su <$> t)
 
-  substf f (RProp ss (RHole r)) = RProp ss (RHole (F.substf f r))
-  substf f (RProp  ss t) = RProp ss (F.substf f <$> t)
+  substfV f (RProp ss (RHole r)) = RProp ss (RHole (F.substfV f r))
+  substfV f (RProp  ss t) = RProp ss (F.substfV f <$> t)
 
-  substa f (RProp ss (RHole r)) = RProp ss (RHole (F.substa f r))
-  substa f (RProp  ss t) = RProp ss (F.substa f <$> t)
+  substaV f (RProp ss (RHole r)) = RProp ss (RHole (F.substaV f r))
+  substaV f (RProp  ss t) = RProp ss (F.substaV f <$> t)
 
 
-instance (F.Subable r, Reftable r, TyConable c) => F.Subable (RType c tv r) where
-  syms        = foldReft False (\_ r acc -> F.syms r ++ acc) []
+instance (F.Subable r, Reftable r, TyConable c) => F.SubableV Symbol (RType c tv r) where
+  symsV        = foldReft False (\_ r acc -> F.symsV r ++ acc) []
   -- 'substa' will substitute bound vars
-  substa f    = emapExprArg (\_ -> F.substa f) []      . mapReft  (F.substa f)
+  substaV f    = emapExprArg (\_ -> F.substaV f) []      . mapReft  (F.substaV f)
   -- 'substf' will NOT substitute bound vars
-  substf f    = emapExprArg (\_ -> F.substf f) []      . emapReft (F.substf . F.substfExcept f) []
-  subst su    = emapExprArg (\_ -> F.subst su) []      . emapReft (F.subst  . F.substExcept su) []
-  subst1 t su = emapExprArg (\_ e -> F.subst1 e su) [] $ emapReft (\xs r -> F.subst1Except xs r su) [] t
+  substfV f    = emapExprArg (\_ -> F.substfV f) []      . emapReft (F.substfV . F.substfExcept f) []
+  substV su    = emapExprArg (\_ -> F.substV su) []      . emapReft (F.substV  . F.substExcept su) []
+  subst1V t su = emapExprArg (\_ e -> F.subst1V e su) [] $ emapReft (\xs r -> F.subst1Except xs r su) [] t
 
 
 --------------------------------------------------------------------------------

@@ -5,6 +5,7 @@
 {-# LANGUAGE LambdaCase                #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE TemplateHaskellQuotes     #-}
+{-# LANGUAGE FlexibleContexts          #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 

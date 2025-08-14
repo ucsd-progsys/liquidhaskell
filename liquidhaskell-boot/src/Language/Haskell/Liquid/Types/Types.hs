@@ -749,44 +749,44 @@ instance F.PPrint (CMeasure t) => Show (CMeasure t) where
   show = F.showpp
 
 
-instance F.Subable (Measure ty ctor) where
-  syms  m     = concatMap F.syms (msEqns m)
-  substa f m  = m { msEqns = F.substa f  <$> msEqns m }
-  substf f m  = m { msEqns = F.substf f  <$> msEqns m }
-  subst  su m = m { msEqns = F.subst  su <$> msEqns m }
-  -- substa f  (M n s es _) = M n s (F.substa f  <$> es) k
-  -- substf f  (M n s es _) = M n s $ F.substf f  <$> es
-  -- subst  su (M n s es _) = M n s $ F.subst  su <$> es
+instance F.SubableV Symbol (Measure ty ctor) where
+  symsV  m     = concatMap F.symsV (msEqns m)
+  substaV f m  = m { msEqns = F.substaV f  <$> msEqns m }
+  substfV f m  = m { msEqns = F.substfV f  <$> msEqns m }
+  substV  su m = m { msEqns = F.substV  su <$> msEqns m }
+  -- substaV f  (M n s es _) = M n s (F.substaV f  <$> es) k
+  -- substfV f  (M n s es _) = M n s $ F.substfV f  <$> es
+  -- substV  su (M n s es _) = M n s $ F.substV  su <$> es
 
-instance F.Subable (Def ty ctor) where
-  syms (Def _ _ _ sb bd)  = (fst <$> sb) ++ F.syms bd
-  substa f  (Def m c t b bd) = Def m c t b $ F.substa f  bd
-  substf f  (Def m c t b bd) = Def m c t b $ F.substf f  bd
-  subst  su (Def m c t b bd) = Def m c t b $ F.subst  su bd
+instance F.SubableV Symbol (Def ty ctor) where
+  symsV (Def _ _ _ sb bd)  = (fst <$> sb) ++ F.symsV bd
+  substaV f  (Def m c t b bd) = Def m c t b $ F.substaV f  bd
+  substfV f  (Def m c t b bd) = Def m c t b $ F.substfV f  bd
+  substV  su (Def m c t b bd) = Def m c t b $ F.substV  su bd
 
-instance F.Subable Body where
-  syms (E e)       = F.syms e
-  syms (P e)       = F.syms e
-  syms (R s e)     = s : F.syms e
+instance F.SubableV Symbol Body where
+  symsV (E e)       = F.symsV e
+  symsV (P e)       = F.symsV e
+  symsV (R s e)     = s : F.symsV e
 
-  substa f (E e)   = E   (F.substa f e)
-  substa f (P e)   = P   (F.substa f e)
-  substa f (R s e) = R s (F.substa f e)
+  substaV f (E e)   = E   (F.substaV f e)
+  substaV f (P e)   = P   (F.substaV f e)
+  substaV f (R s e) = R s (F.substaV f e)
 
-  substf f (E e)   = E   (F.substf f e)
-  substf f (P e)   = P   (F.substf f e)
-  substf f (R s e) = R s (F.substf f e)
+  substfV f (E e)   = E   (F.substfV f e)
+  substfV f (P e)   = P   (F.substfV f e)
+  substfV f (R s e) = R s (F.substfV f e)
 
-  subst su (E e)   = E   (F.subst su e)
-  subst su (P e)   = P   (F.subst su e)
-  subst su (R s e) = R s (F.subst su e)
+  substV su (E e)   = E   (F.substV su e)
+  substV su (P e)   = P   (F.substV su e)
+  substV su (R s e) = R s (F.substV su e)
 
-instance F.Subable t => F.Subable (WithModel t) where
-  syms (NoModel t)     = F.syms t
-  syms (WithModel _ t) = F.syms t
-  substa f             = fmap (F.substa f)
-  substf f             = fmap (F.substf f)
-  subst su             = fmap (F.subst su)
+instance F.SubableV v t => F.SubableV v (WithModel t) where
+  symsV (NoModel t)     = F.symsV t
+  symsV (WithModel _ t) = F.symsV t
+  substaV f             = fmap (F.substaV f)
+  substfV f             = fmap (F.substfV f)
+  substV su             = fmap (F.substV su)
 
 data RClass ty = RClass
   { rcName    :: BTyCon

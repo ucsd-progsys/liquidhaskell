@@ -404,18 +404,18 @@ pdAnd ps       = Pr (nub $ concatMap pvars ps)
 pvars :: Predicate -> [UsedPVar]
 pvars (Pr pvs) = pvs
 
-instance F.Subable UsedPVar where
-  syms pv         = [ y | (_, x, F.EVar y) <- pargs pv, x /= y ]
-  subst s pv      = pv { pargs = mapThd3 (F.subst s)  <$> pargs pv }
-  substf f pv     = pv { pargs = mapThd3 (F.substf f) <$> pargs pv }
-  substa f pv     = pv { pargs = mapThd3 (F.substa f) <$> pargs pv }
+instance F.SubableV F.Symbol UsedPVar where
+  symsV pv         = [ y | (_, x, F.EVar y) <- pargs pv, x /= y ]
+  substV s pv      = pv { pargs = mapThd3 (F.substV s)  <$> pargs pv }
+  substfV f pv     = pv { pargs = mapThd3 (F.substfV f) <$> pargs pv }
+  substaV f pv     = pv { pargs = mapThd3 (F.substaV f) <$> pargs pv }
 
 
-instance F.Subable Predicate where
-  syms     (Pr pvs) = concatMap F.syms   pvs
-  subst  s (Pr pvs) = Pr (F.subst s  <$> pvs)
-  substf f (Pr pvs) = Pr (F.substf f <$> pvs)
-  substa f (Pr pvs) = Pr (F.substa f <$> pvs)
+instance F.SubableV F.Symbol Predicate where
+  symsV     (Pr pvs) = concatMap F.symsV   pvs
+  substV  s (Pr pvs) = Pr (F.substV s  <$> pvs)
+  substfV f (Pr pvs) = Pr (F.substfV f <$> pvs)
+  substaV f (Pr pvs) = Pr (F.substaV f <$> pvs)
 
 instance NFData r => NFData (UReft r)
 
@@ -1003,11 +1003,11 @@ instance Reftable F.Reft where
   ofReft   = id
   top (F.Reft (v,_)) = F.Reft (v, F.PTrue)
 
-instance F.Subable r => F.Subable (UReft r) where
-  syms (MkUReft r p)     = F.syms r ++ F.syms p
-  subst s (MkUReft r z)  = MkUReft (F.subst s r)  (F.subst s z)
-  substf f (MkUReft r z) = MkUReft (F.substf f r) (F.substf f z)
-  substa f (MkUReft r z) = MkUReft (F.substa f r) (F.substa f z)
+instance F.SubableV Symbol r => F.SubableV Symbol (UReft r) where
+  symsV (MkUReft r p)     = F.symsV r ++ F.symsV p
+  substV s (MkUReft r z)  = MkUReft (F.substV s r)  (F.substV s z)
+  substfV f (MkUReft r z) = MkUReft (F.substfV f r) (F.substfV f z)
+  substaV f (MkUReft r z) = MkUReft (F.substaV f r) (F.substaV f z)
 
 instance (F.PPrint r, Reftable r) => Reftable (UReft r) where
   isTauto               = isTautoUreft

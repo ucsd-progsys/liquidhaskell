@@ -334,20 +334,20 @@ instance Reftable (RTProp RTyCon RTyVar Reft) where
 -- | Subable Instances -----------------------------------------------------
 ----------------------------------------------------------------------------
 
-instance Subable (RRProp Reft) where
-  syms (RProp ss (RHole r)) = (fst <$> ss) ++ syms r
-  syms (RProp ss t)      = (fst <$> ss) ++ syms t
+instance SubableV Symbol (RRProp Reft) where
+  symsV (RProp ss (RHole r)) = (fst <$> ss) ++ symsV r
+  symsV (RProp ss t)      = (fst <$> ss) ++ symsV t
 
 
-  subst su (RProp ss (RHole r)) = RProp (fmap (subst su) <$> ss) $ RHole $ subst su r
-  subst su (RProp ss r)  = RProp  (fmap (subst su) <$> ss) $ subst su r
+  substV su (RProp ss (RHole r)) = RProp (fmap (substV su) <$> ss) $ RHole $ substV su r
+  substV su (RProp ss r)  = RProp  (fmap (substV su) <$> ss) $ substV su r
 
 
-  substf f (RProp ss (RHole r)) = RProp (fmap (substf f) <$> ss) $ RHole $ substf f r
-  substf f (RProp ss r) = RProp  (fmap (substf f) <$> ss) $ substf f r
+  substfV f (RProp ss (RHole r)) = RProp (fmap (substfV f) <$> ss) $ RHole $ substfV f r
+  substfV f (RProp ss r) = RProp  (fmap (substfV f) <$> ss) $ substfV f r
 
-  substa f (RProp ss (RHole r)) = RProp (fmap (substa f) <$> ss) $ RHole $ substa f r
-  substa f (RProp ss r) = RProp  (fmap (substa f) <$> ss) $ substa f r
+  substaV f (RProp ss (RHole r)) = RProp (fmap (substaV f) <$> ss) $ RHole $ substaV f r
+  substaV f (RProp ss r) = RProp  (fmap (substaV f) <$> ss) $ substaV f r
 
 
 -------------------------------------------------------------------------------
