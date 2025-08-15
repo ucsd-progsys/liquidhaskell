@@ -122,7 +122,7 @@ library
   hs-source-dirs:     src src-ghc src-ghc-9.10
 
   build-depends:      base                 >= 4.11.1.0 && < 5
-                    , Diff                 >= 0.3 && < 0.6
+                    , Diff                 >= 0.3 && < 1.1
                     , array
                     , aeson
                     , binary
@@ -144,7 +144,7 @@ library
                     , hscolour             >= 1.22
                     , liquid-fixpoint      == 0.9.6.3.3
                     , mtl                  >= 2.1
-                    , optparse-applicative < 0.19
+                    , optparse-applicative < 0.20
                     , githash
                     , megaparsec           >= 8
                     , pretty               >= 1.1
