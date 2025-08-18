@@ -35,7 +35,7 @@ module Language.Haskell.Liquid.Types.RType (
   , isClassType, isEqType, isRVar, isBool, isEmbeddedClass
 
   -- * Refinement Types
-  , RType, RTypeV (..), Ref(..), RTProp, RTPropV, rPropP
+  , RType, RTypeV, RTypeBV (..), Ref(..), RTProp, RTPropV, rPropP
   , RTyVar (..)
   , OkRT
 
@@ -704,23 +704,24 @@ instance Show tv => Show (RTVU c tv) where
   show (RTVar t _) = show t
 
 type RType c tv r = RTypeV Symbol c tv r
-data RTypeV v c tv r
+type RTypeV v c tv r = RTypeBV Symbol v c tv r
+data RTypeBV b v c tv r
   = RVar {
       rt_var    :: !tv
     , rt_reft   :: !r
     }
 
   | RFun  {
-      rt_bind   :: !Symbol
+      rt_bind   :: !b
     , rt_rinfo  :: !RFInfo
-    , rt_in     :: !(RTypeV v c tv r)
-    , rt_out    :: !(RTypeV v c tv r)
+    , rt_in     :: !(RTypeBV b v c tv r)
+    , rt_out    :: !(RTypeBV b v c tv r)
     , rt_reft   :: !r
     }
 
   | RAllT {
       rt_tvbind :: !(RTVUV v c tv) -- RTVar tv (RType c tv ()))
-    , rt_ty     :: !(RTypeV v c tv r)
+    , rt_ty     :: !(RTypeBV b v c tv r)
     , rt_ref    :: !r
     }
 
@@ -728,7 +729,7 @@ data RTypeV v c tv r
   --               ^^^^^^^^^^^^^^^^^^^ (rt_pvbind)
   | RAllP {
       rt_pvbind :: !(PVUV v c tv)
-    , rt_ty     :: !(RTypeV v c tv r)
+    , rt_ty     :: !(RTypeBV b v c tv r)
     }
 
   -- | For example, in [a]<{\h -> v > h}>, we apply (via `RApp`)
@@ -736,42 +737,42 @@ data RTypeV v c tv r
   --   * the `RTyCon` denoted by `[]`.
   | RApp  {
       rt_tycon  :: !c
-    , rt_args   :: ![RTypeV v c tv r]
+    , rt_args   :: ![RTypeBV b v c tv r]
     , rt_pargs  :: ![RTPropV v c tv r]
     , rt_reft   :: !r
     }
 
   | RAllE {
-      rt_bind   :: !Symbol
-    , rt_allarg :: !(RTypeV v c tv r)
-    , rt_ty     :: !(RTypeV v c tv r)
+      rt_bind   :: !b
+    , rt_allarg :: !(RTypeBV b v c tv r)
+    , rt_ty     :: !(RTypeBV b v c tv r)
     }
 
   | REx {
-      rt_bind   :: !Symbol
-    , rt_exarg  :: !(RTypeV v c tv r)
-    , rt_ty     :: !(RTypeV v c tv r)
+      rt_bind   :: !b
+    , rt_exarg  :: !(RTypeBV b v c tv r)
+    , rt_ty     :: !(RTypeBV b v c tv r)
     }
 
   | RExprArg (F.Located (ExprV v))              -- ^ For expression arguments to type aliases
                                                 --   see tests/pos/vector2.hs
   | RAppTy{
-      rt_arg   :: !(RTypeV v c tv r)
-    , rt_res   :: !(RTypeV v c tv r)
+      rt_arg   :: !(RTypeBV b v c tv r)
+    , rt_res   :: !(RTypeBV b v c tv r)
     , rt_reft  :: !r
     }
 
   | RRTy  {
-      rt_env   :: ![(Symbol, RTypeV v c tv r)]
+      rt_env   :: ![(b, RTypeBV b v c tv r)]
     , rt_ref   :: !r
     , rt_obl   :: !Oblig
-    , rt_ty    :: !(RTypeV v c tv r)
+    , rt_ty    :: !(RTypeBV b v c tv r)
     }
 
   | RHole r -- ^ let LH match against the Haskell type and add k-vars, e.g. `x:_`
             --   see tests/pos/Holes.hs
   deriving (Eq, Generic, Data, Functor, Foldable, Traversable)
-  deriving (B.Binary, Hashable) via Generically (RTypeV v c tv r)
+  deriving (B.Binary, Hashable) via Generically (RTypeBV b v c tv r)
 
 instance (NFData c, NFData tv, NFData r)       => NFData (RType c tv r)
 
