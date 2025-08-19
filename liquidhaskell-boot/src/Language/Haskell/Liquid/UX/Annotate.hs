@@ -126,7 +126,7 @@ doGenerate cfg tplAnnMap typAnnMap annTyp srcF
        jsonF      = extFileName Json  srcF
        vimF       = extFileName Vim   srcF
 
-mkBots :: Reftable r => AnnInfo (RType c tv r) -> [GHC.SrcSpan]
+mkBots :: ToReftV r => AnnInfo (RType c tv r) -> [GHC.SrcSpan]
 mkBots (AI m) = [ src | (src, (Just _, t) : _) <- sortBy (ordSrcSpan `on` fst) $ M.toList m
                       , isFalse (rTypeReft t) ]
 

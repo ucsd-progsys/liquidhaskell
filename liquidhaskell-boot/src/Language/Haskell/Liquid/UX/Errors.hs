@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE TypeOperators     #-}
 {-# LANGUAGE BangPatterns      #-}
 
 -- | This module contains the functions related to @Error@ type,
@@ -176,7 +177,7 @@ expandFix f               = S.toList . go S.empty
       | x `S.member` seen = go seen xs
       | otherwise         = go (S.insert x seen) (f x ++ xs)
 
-tidyTemps     :: (F.Subable t) => [(F.Symbol, t)] -> (F.Subst, [(F.Symbol, t)])
+tidyTemps     :: (F.Subable t, F.Variable t ~ F.Symbol) => [(F.Symbol, t)] -> (F.Subst, [(F.Symbol, t)])
 tidyTemps xts = (θ, [(txB x, txTy t) | (x, t) <- xts])
   where
     txB  x    = M.lookupDefault x x m

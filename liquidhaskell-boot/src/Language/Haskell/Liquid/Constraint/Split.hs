@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE TypeOperators         #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
@@ -127,7 +128,7 @@ bsplitW γ t =
      isHO  <- gets allowHO
      return $ bsplitW' γ t temp isHO
 
-bsplitW' :: (PPrint r, Reftable r, SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
+bsplitW' :: (PPrint r, IsReftV r, ReftBind r ~ F.Symbol, ReftVar r ~ F.Symbol, SubsTy RTyVar RSort r)
          => CGEnv -> RRType r -> F.Templates -> Bool -> [F.WfC Cinfo]
 bsplitW' γ t temp isHO
   | isHO || F.isNonTrivial r'

@@ -6,6 +6,7 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE TypeOperators         #-}
 
 module Language.Haskell.Liquid.Bare.Expand
   ( -- * Create alias expansion environment
@@ -42,7 +43,7 @@ import qualified Text.PrettyPrint.HughesPJ as PJ
 import qualified Language.Fixpoint.Types               as F
 -- import qualified Language.Fixpoint.Types.Visitor       as F
 import qualified Language.Fixpoint.Misc                as Misc
-import           Language.Fixpoint.Types (Expr, ExprV(..), SourcePos) -- , Symbol, symbol)
+import           Language.Fixpoint.Types (Expr, ExprV, ExprBV(..), SourcePos) -- , Symbol, symbol)
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 import qualified Liquid.GHC.API       as Ghc
 import           Language.Haskell.Liquid.Types.Errors
@@ -132,7 +133,7 @@ renameVV rt = rt { rtBody = RT.shiftVV (rtBody rt) (F.vv (Just 0)) }
 
 -- | @renameRTVArgs@ ensures that @RTAlias@ value parameters have distinct names
 --   to avoid variable capture e.g. as in tests-names-pos-Capture01.hs
-renameRTVArgs :: (F.PPrint a, F.Subable a) => RTAlias x a -> RTAlias x a
+renameRTVArgs :: (F.PPrint a, F.Subable a, F.Variable a ~ F.Symbol) => RTAlias x a -> RTAlias x a
 renameRTVArgs rt = rt { rtVArgs = newArgs
                       , rtBody  = F.notracepp msg $ F.subst su (rtBody rt)
                       }
@@ -332,13 +333,13 @@ instance Expand BareType where
     = expandReft     rtEnv l -- apply expression aliases
     . expandBareType rtEnv l -- apply type       aliases
 
-instance Expand () where
+instance Expand (NoReftB b) where
   expand _ _ = id
 
-instance Expand (BRType ()) where
+instance Expand (BRType NoReft) where
   expand rtEnv l
     = expandReft     rtEnv l -- apply expression aliases
-    . void
+    . (NoReft <$)
     . expandBareType rtEnv l -- apply type       aliases
     . fmap (const mempty)
 
@@ -681,7 +682,7 @@ expandEApp _ _ (f, es) = F.eApps f es
 --------------------------------------------------------------------------------
 -- | Expand Alias Application --------------------------------------------------
 --------------------------------------------------------------------------------
-expandApp :: F.Subable ty => F.SourcePos -> RTAlias F.Symbol ty -> [Expr] -> ty
+expandApp :: (F.Subable ty, F.Variable ty ~ F.Symbol) => F.SourcePos -> RTAlias F.Symbol ty -> [Expr] -> ty
 expandApp l re es
   | Just su <- args = F.subst su (rtBody re)
   | otherwise       = Ex.throw err

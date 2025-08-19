@@ -48,6 +48,7 @@ import qualified Language.Fixpoint.Types as F
 import           Data.Bifunctor (first)
 import qualified Data.HashSet as S
 import           Data.Maybe
+import           Data.Proxy
 
 import Language.Haskell.Liquid.GHC.TypeRep ()
 
@@ -84,7 +85,7 @@ dcPrefix = "lqdc"
 wiredSortedSyms :: [(F.Symbol, F.Sort)]
 wiredSortedSyms =
     (selfSymbol,selfSort) :
-    [(pappSym n, pappSort n) | n <- [1..pappArity]] ++
+    [(pappV (Proxy :: Proxy F.Symbol) n, pappSort n) | n <- [1..pappArity]] ++
     wiredTheorySortedSyms
   where
     selfSort = F.FAbs 1 (F.FVar 0)

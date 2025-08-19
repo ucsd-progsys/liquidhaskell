@@ -45,6 +45,7 @@
 {-# LANGUAGE NamedFieldPuns             #-}
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE TypeApplications           #-}
+{-# LANGUAGE TypeOperators              #-}
 
 module Language.Haskell.Liquid.LHNameResolution
   ( resolveLHNames

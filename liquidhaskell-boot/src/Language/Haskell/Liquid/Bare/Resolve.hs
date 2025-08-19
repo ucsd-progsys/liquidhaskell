@@ -9,6 +9,7 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE ConstraintKinds       #-}
 {-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE TypeOperators         #-}
 
 module Language.Haskell.Liquid.Bare.Resolve
   ( -- * Creating the Environment
@@ -364,9 +365,12 @@ rtypePredBinds = map RT.uPVar . ty_preds . toRTypeRep
 
 --------------------------------------------------------------------------------
 type Expandable r = ( PPrint r
-                    , Reftable r
-                    , SubsTy RTyVar (RType RTyCon RTyVar ()) r
-                    , Reftable (RTProp RTyCon RTyVar r)
+                    , IsReftV r
+                    , ReftBind r ~ F.Symbol
+                    , ReftVar r ~ F.Symbol
+                    , F.Subable r
+                    , F.Variable r ~ F.Symbol
+                    , SubsTy RTyVar (RType RTyCon RTyVar NoReft) r
                     , HasCallStack)
 
 ofBRType :: (Expandable r) => Env -> ([F.Symbol] -> r -> r) -> F.SourcePos -> BRType r
@@ -452,13 +456,13 @@ bareTCApp r (Loc l _ c) rs ts | Just rhs <- Ghc.synTyConRhs_maybe c
 -- TODO expandTypeSynonyms here to
 bareTCApp r (Loc _ _ c) rs ts | Ghc.isFamilyTyCon c && isTrivial t
   = expandRTypeSynonyms (t `RT.strengthen` r)
-  where t = RT.rApp c ts rs mempty
+  where t = RT.rApp c ts rs trueReftV
 
 bareTCApp r (Loc _ _ c) rs ts
   = RT.rApp c ts rs r
 
 
-tyApp :: Reftable r => RType c tv r -> [RType c tv r] -> [RTProp c tv r] -> r
+tyApp :: Meet r => RType c tv r -> [RType c tv r] -> [RTProp c tv r] -> r
       -> RType c tv r
 tyApp (RApp c ts rs r) ts' rs' r' = RApp c (ts ++ ts') (rs ++ rs') (r `meet` r')
 tyApp t                []  []  r  = t `RT.strengthen` r

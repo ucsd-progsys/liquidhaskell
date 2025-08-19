@@ -6,6 +6,7 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE ImplicitParams            #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
+{-# LANGUAGE TypeOperators             #-}
 
 -- | This module defines the representation for Environments needed
 --   during constraint generation.
@@ -194,7 +195,7 @@ addCGEnv tx γ (_, x, t') = do
   is    <- (:) <$> addBind l x (rTypeSortedReft' γ' tem t) <*> addClassBind γ' l t
   return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
-rTypeSortedReft' :: (PPrint r, Reftable r, SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
+rTypeSortedReft' :: (PPrint r, IsReftV r, ReftBind r ~ F.Symbol, ReftVar r ~ F.Symbol, SubsTy RTyVar RSort r)
     => CGEnv -> F.Templates -> RRType r -> F.SortedReft
 rTypeSortedReft' γ t
   = pruneUnsortedReft (feEnv $ fenv γ) t . f

@@ -104,7 +104,7 @@ instance Bifunctor Bound where
   first  f (Bound s vs ps xs e) = Bound s (f <$> vs) (fmap f <$> ps) (fmap f <$> xs) e
   second = fmap
 
-makeBound :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)
+makeBound :: (PPrint r, UReftable r, IsReftV r, SubsTy RTyVar (RType RTyCon RTyVar NoReft) r)
           => RRBound RSort -> [RRType r] -> [F.Symbol] -> RRType r -> RRType r
 makeBound (Bound _  vs ps xs expr) ts qs
          = RRTy cts mempty OCons
@@ -121,7 +121,7 @@ makeBound (Bound _  vs ps xs expr) ts qs
 
     su  = [(α, toRSort t, t) | (RVar α _, t) <-  zip vs ts ]
 
-makeBoundType :: (PPrint r, UReftable r)
+makeBoundType :: (PPrint r, UReftable r, IsReftV r)
               => [(F.Symbol, F.Symbol)]
               -> [F.Expr]
               -> [(LocSymbol, RSort)]

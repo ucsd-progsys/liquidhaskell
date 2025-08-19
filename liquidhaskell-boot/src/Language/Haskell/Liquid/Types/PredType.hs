@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE TupleSections        #-}
+{-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -201,7 +202,7 @@ dcWrapSpecType allowTC dc (DataConP _ _ vs ps cs yts rt _ _ _)
     makeVars' = map (, mempty) makeVars
     fvs = freeTyVars $ mkArrow [] ps ts' rt'
 
-dataConTy :: Monoid r
+dataConTy :: IsReftV r
           => M.HashMap RTyVar (RType RTyCon RTyVar r)
           -> Type -> RType RTyCon RTyVar r
 dataConTy m (TyVarTy v)
@@ -209,9 +210,9 @@ dataConTy m (TyVarTy v)
 dataConTy m (FunTy _ _ t1 t2)
   = rFun F.dummySymbol (dataConTy m t1) (dataConTy m t2)
 dataConTy m (ForAllTy (Bndr α _) t) -- α :: TyVar
-  = RAllT (makeRTVar (RTV α)) (dataConTy m t) mempty
+  = RAllT (makeRTVar (RTV α)) (dataConTy m t) trueReftV
 dataConTy m (TyConApp c ts)
-  = rApp c (dataConTy m <$> ts) [] mempty
+  = rApp c (dataConTy m <$> ts) [] trueReftV
 dataConTy _ _
   = panic Nothing "ofTypePAppTy"
 
@@ -361,16 +362,17 @@ substPred _   _  t              = t
 -- substRCon :: String -> (RPVar, SpecType) -> SpecType -> SpecType
 
 substRCon
-  :: (PPrint t, PPrint t2, Eq tv, Reftable r, Hashable tv, PPrint tv, PPrint r,
-      SubsTy tv (RType RTyCon tv ()) r,
-      SubsTy tv (RType RTyCon tv ()) (RType RTyCon tv ()),
-      SubsTy tv (RType RTyCon tv ()) RTyCon,
-      SubsTy tv (RType RTyCon tv ()) tv,
+  :: (PPrint t, PPrint t2, Eq tv, IsReftV r, Hashable tv, PPrint tv, PPrint r,
+      F.Subable r, F.Variable r ~ F.Symbol, ReftBind r ~ F.Symbol, ReftVar r ~ F.Symbol,
+      SubsTy tv (RType RTyCon tv NoReft) r,
+      SubsTy tv (RType RTyCon tv NoReft) (RType RTyCon tv NoReft),
+      SubsTy tv (RType RTyCon tv NoReft) RTyCon,
+      SubsTy tv (RType RTyCon tv NoReft) tv,
       Reftable (RType RTyCon tv r),
-      SubsTy tv (RType RTyCon tv ()) (RTVar tv (RType RTyCon tv ())),
+      SubsTy tv (RType RTyCon tv NoReft) (RTVar tv (RType RTyCon tv NoReft)),
       FreeVar RTyCon tv,
       Reftable (RTProp RTyCon tv r),
-      Reftable (RTProp RTyCon tv ()))
+      Reftable (RTProp RTyCon tv NoReft))
   => [Char]
   -> (t, Ref RSort (RType RTyCon tv r))
   -> RType RTyCon tv r
@@ -389,7 +391,7 @@ substRCon msg (_, RProp ss t1@(RApp c1 ts1 rs1 r1)) t2@(RApp c2 ts2 rs2 _) πs r
     su = F.mkSubst $ zipWith (\s1 s2 -> (s1, F.EVar s2)) (rvs t1) (rvs t2)
 
     rvs      = foldReft False (\_ r acc -> rvReft r : acc) []
-    rvReft r = let F.Reft(s,_) = toReft r in s
+    rvReft r = let F.Reft(s,_) = toReftV r in s
 
 substRCon msg su t _ _        = {- panic Nothing -} errorP "substRCon: " $ msg ++ " " ++ showpp (su, t)
 
@@ -423,7 +425,7 @@ splitRPvar pv (MkUReft x (Pr pvs)) = (MkUReft x (Pr pvs'), epvs)
     (epvs, pvs')               = L.partition (uPVar pv ==) pvs
 
 -- TODO: rewrite using foldReft
-freeArgsPs :: PVar (RType t t1 ()) -> RType t t1 (UReft t2) -> [F.Symbol]
+freeArgsPs :: PVar (RType t t1 NoReft) -> RType t t1 (UReft t2) -> [F.Symbol]
 freeArgsPs p (RVar _ r)
   = freeArgsPsRef p r
 freeArgsPs p (RFun _ _ t1 t2 r)
@@ -454,7 +456,7 @@ freeArgsPsRef p (MkUReft _ (Pr ps)) = [x | (_, x, w) <- concatMap pargs ps', F.E
    ps' = f <$> filter (uPVar p ==) ps
    f q = q {pargs = pargs q ++ drop (length (pargs q)) (pargs $ uPVar p)}
 
-meetListWithPSubs :: (Foldable t, PPrint t1, Reftable b)
+meetListWithPSubs :: (Foldable t, PPrint t1, F.Subable b, F.Variable b ~ F.Symbol, Meet b)
                   => t (PVar t1) -> [(F.Symbol, RSort)] -> b -> b -> b
 meetListWithPSubs πs ss r1 r2    = L.foldl' (meetListWithPSub ss r1) r2 πs
 
@@ -466,7 +468,7 @@ meetListWithPSubsRef :: (Foldable t, Reftable (RType t1 t2 t3))
                      -> Ref τ (RType t1 t2 t3)
 meetListWithPSubsRef πs ss r1 r2 = L.foldl' (meetListWithPSubRef ss r1) r2 πs
 
-meetListWithPSub ::  (Reftable r, PPrint t) => [(F.Symbol, RSort)]-> r -> r -> PVar t -> r
+meetListWithPSub ::  (PPrint t, F.Subable r, F.Variable r ~ F.Symbol, Meet r) => [(F.Symbol, RSort)]-> r -> r -> PVar t -> r
 meetListWithPSub ss r1 r2 π
   | all (\(_, x, F.EVar y) -> x == y) (pargs π)
   = r2 `meet` r1

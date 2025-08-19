@@ -5,6 +5,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
 {-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE TypeOperators             #-}
 
 -- | This module contains the functions that convert /from/ descriptions of
 --   symbols, names and types (over freshly parsed /bare/ Strings),

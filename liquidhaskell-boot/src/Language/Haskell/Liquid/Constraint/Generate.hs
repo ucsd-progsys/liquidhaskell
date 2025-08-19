@@ -8,6 +8,7 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE ImplicitParams            #-}
 {-# LANGUAGE NamedFieldPuns            #-}
+{-# LANGUAGE TypeOperators             #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
@@ -915,7 +916,7 @@ cconsFreshE kvkind γ e = do
   return t
 --------------------------------------------------------------------------------
 
-checkUnbound :: (Show a, Show a2, F.Subable a)
+checkUnbound :: (Show a, Show a2, F.Subable a, F.Variable a ~ F.Symbol)
              => CGEnv -> CoreExpr -> F.Symbol -> a -> a2 -> a
 checkUnbound γ e x t a
   | x `notElem` F.syms t = t

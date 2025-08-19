@@ -8,6 +8,9 @@
 {-# LANGUAGE DerivingVia                #-}
 {-# LANGUAGE NamedFieldPuns             #-}
 {-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE TypeOperators              #-}
+{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -17,7 +20,7 @@ module Language.Haskell.Liquid.Types.RTypeOp (
 
   -- * Constructing & Destructing RTypes
     SpecRep
-  , RTypeRep, RTypeRepV(..), fromRTypeRep, toRTypeRep
+  , RTypeRep, RTypeRepV, RTypeRepBV(..), fromRTypeRep, toRTypeRep
   , mkArrow, bkArrowDeep, bkArrow, safeBkArrow
   , mkUnivs, bkUniv, bkClass, bkUnivClass, bkUnivClass'
   , rFun, rFun', rCls, rRCls, rFunDebug
@@ -66,11 +69,12 @@ import qualified Liquid.GHC.API as Ghc
 import           Prelude                          hiding  (error)
 import qualified Prelude
 
-import           Control.Monad                          (liftM2, liftM3, liftM4, void)
-import           Data.Bifunctor (first)
+import           Control.Monad                          (liftM2, liftM3, liftM4)
+import           Data.Bifunctor (bimap)
+import           Data.Hashable (Hashable)
 
 import qualified Language.Fixpoint.Types as F
-import           Language.Fixpoint.Types (Expr, Symbol)
+import           Language.Fixpoint.Types (ExprBV, Symbol)
 
 import           Language.Haskell.Liquid.Types.DataDecl
 import           Language.Haskell.Liquid.Types.Errors
@@ -96,17 +100,18 @@ type RRep        = RTypeRep RTyCon RTyVar
 type SpecRep     = RRep      RReft
 
 type RTypeRep = RTypeRepV Symbol
-data RTypeRepV v c tv r = RTypeRep
-  { ty_vars   :: [(RTVar tv (RTypeV v c tv ()), r)]
-  , ty_preds  :: [PVarV v (RTypeV v c tv ())]
-  , ty_binds  :: [Symbol]
+type RTypeRepV = RTypeRepBV Symbol
+data RTypeRepBV b v c tv r = RTypeRep
+  { ty_vars   :: [(RTVar tv (RTypeBV b v c tv (NoReftB b)), r)]
+  , ty_preds  :: [PVarBV b v (RTypeBV b v c tv (NoReftB b))]
+  , ty_binds  :: [b]
   , ty_info   :: [RFInfo]
   , ty_refts  :: [r]
-  , ty_args   :: [RTypeV v c tv r]
-  , ty_res    :: RTypeV v c tv r
+  , ty_args   :: [RTypeBV b v c tv r]
+  , ty_res    :: RTypeBV b v c tv r
   }
 
-fromRTypeRep :: RTypeRepV v c tv r -> RTypeV v c tv r
+fromRTypeRep :: RTypeRepBV b v c tv r -> RTypeBV b v c tv r
 fromRTypeRep RTypeRep{..}
   = mkArrow ty_vars ty_preds arrs ty_res
   where
@@ -118,18 +123,18 @@ classRFInfoType b = fromRTypeRep .
                     toRTypeRep
 
 --------------------------------------------------------------------------------
-toRTypeRep           :: RTypeV v c tv r -> RTypeRepV v c tv r
+toRTypeRep           :: RTypeBV b v c tv r -> RTypeRepBV b v c tv r
 --------------------------------------------------------------------------------
 toRTypeRep t         = RTypeRep αs πs xs is rs ts t''
   where
     (αs, πs, t') = bkUniv t
     ((xs, is, ts, rs), t'') = bkArrow t'
 
-mkArrow :: [(RTVar tv (RTypeV v c tv ()), r)]
-        -> [PVarV v (RTypeV v c tv ())]
-        -> [(Symbol, RFInfo, RTypeV v c tv r, r)]
-        -> RTypeV v c tv r
-        -> RTypeV v c tv r
+mkArrow :: [(RTVar tv (RTypeBV b v c tv (NoReftB b)), r)]
+        -> [PVarBV b v (RTypeBV b v c tv (NoReftB b))]
+        -> [(b, RFInfo, RTypeBV b v c tv r, r)]
+        -> RTypeBV b v c tv r
+        -> RTypeBV b v c tv r
 mkArrow αs πs zts = mkUnivs αs πs . mkRFuns zts
   where
     mkRFuns xts t = foldr (\(b,i,t1,r) t2 -> RFun b i t1 t2 r) t xts
@@ -142,13 +147,13 @@ bkArrowDeep (RFun x i t t' r) = let (xs, is, ts, rs, t'') = bkArrowDeep t' in
                                 (x:xs, i:is, t:ts, r:rs, t'')
 bkArrowDeep t               = ([], [], [], [], t)
 
-bkArrow :: RTypeV v t t1 a -> ( ([Symbol], [RFInfo], [RTypeV v t t1 a], [a])
-                           , RTypeV v t t1 a )
+bkArrow :: RTypeBV b v t t1 a -> ( ([b], [RFInfo], [RTypeBV b v t t1 a], [a])
+                                 , RTypeBV b v t t1 a )
 bkArrow t                = ((xs,is,ts,rs),t')
   where
     (xs, is, ts, rs, t') = bkFun t
 
-bkFun :: RTypeV v t t1 a -> ([Symbol], [RFInfo], [RTypeV v t t1 a], [a], RTypeV v t t1 a)
+bkFun :: RTypeBV b v t t1 a -> ([b], [RFInfo], [RTypeBV b v t t1 a], [a], RTypeBV b v t t1 a)
 bkFun (RFun x i t t' r) = let (xs, is, ts, rs, t'') = bkFun t' in
                           (x:xs, i:is, t:ts, r:rs, t'')
 bkFun t                 = ([], [], [], [], t)
@@ -161,10 +166,10 @@ safeBkArrow (RAllP _ _)     = Prelude.error {- panic Nothing -} "safeBkArrow on 
 safeBkArrow t               = bkArrow t
 
 mkUnivs :: (Foldable t, Foldable t1)
-        => t  (RTVar tv (RTypeV v c tv ()), r)
-        -> t1 (PVarV v (RTypeV v c tv ()))
-        -> RTypeV v c tv r
-        -> RTypeV v c tv r
+        => t  (RTVar tv (RTypeBV b v c tv (NoReftB b)), r)
+        -> t1 (PVarBV b v (RTypeBV b v c tv (NoReftB b)))
+        -> RTypeBV b v c tv r
+        -> RTypeBV b v c tv r
 mkUnivs αs πs rt = foldr (\(a,r) t -> RAllT a t r) (foldr RAllP rt πs) αs
 
 bkUnivClass :: SpecType -> ([(SpecRTVar, RReft)],[PVar RSort], [(RTyCon, [SpecType])], SpecType )
@@ -174,7 +179,7 @@ bkUnivClass t        = (as, ps, cs, t2)
     (cs, t2)     = bkClass t1
 
 
-bkUniv :: RTypeV v tv c r -> ([(RTVar c (RTypeV v tv c ()), r)], [PVarV v (RTypeV v tv c ())], RTypeV v tv c r)
+bkUniv :: RTypeBV b v tv c r -> ([(RTVar c (RTypeBV b v tv c (NoReftB b)), r)], [PVarBV b v (RTypeBV b v tv c (NoReftB b))], RTypeBV b v tv c r)
 bkUniv (RAllT α t r) = let (αs, πs, t') = bkUniv t in ((α, r):αs, πs, t')
 bkUniv (RAllP π t)   = let (αs, πs, t') = bkUniv t in (αs, π:πs, t')
 bkUniv t             = ([], [], t)
@@ -200,7 +205,7 @@ bkClass' (RRTy e r o t)
 bkClass' t
   = ([], [],[],t)
 
-bkClass :: (F.PPrint c, TyConable c) => RType c tv r -> ([(c, [RType c tv r])], RType c tv r)
+bkClass :: (F.PPrint c, TyConable c) => RTypeBV b v c tv r -> ([(c, [RTypeBV b v c tv r])], RTypeBV b v c tv r)
 bkClass (RFun _ _ (RApp c t _ _) t' _)
   | F.notracepp ("IS-CLASS: " ++ F.showpp c) $ isClass c
   = let (cs, t'') = bkClass t' in ((c, t):cs, t'')
@@ -209,20 +214,20 @@ bkClass (RRTy e r o t)
 bkClass t
   = ([], t)
 
-rFun :: Monoid r => Symbol -> RTypeV v c tv r -> RTypeV v c tv r -> RTypeV v c tv r
-rFun b t t' = RFun b defRFInfo t t' mempty
+rFun :: IsReftV r => b -> RTypeBV b v c tv r -> RTypeBV b v c tv r -> RTypeBV b v c tv r
+rFun b t t' = RFun b defRFInfo t t' trueReftV
 
-rFun' :: Monoid r => RFInfo -> Symbol -> RType c tv r -> RType c tv r -> RType c tv r
-rFun' i b t t' = RFun b i t t' mempty
+rFun' :: IsReftV r => RFInfo -> Symbol -> RType c tv r -> RType c tv r -> RType c tv r
+rFun' i b t t' = RFun b i t t' trueReftV
 
-rFunDebug :: Monoid r => Symbol -> RType c tv r -> RType c tv r -> RType c tv r
-rFunDebug b t t' = RFun b (classRFInfo True) t t' mempty
+rFunDebug :: IsReftV r => Symbol -> RType c tv r -> RType c tv r -> RType c tv r
+rFunDebug b t t' = RFun b (classRFInfo True) t t' trueReftV
 
-rCls :: Monoid r => Ghc.TyCon -> [RType RTyCon tv r] -> RType RTyCon tv r
-rCls c ts   = RApp (RTyCon c [] defaultTyConInfo) ts [] mempty
+rCls :: IsReftV r => Ghc.TyCon -> [RType RTyCon tv r] -> RType RTyCon tv r
+rCls c ts   = RApp (RTyCon c [] defaultTyConInfo) ts [] trueReftV
 
-rRCls :: Monoid r => c -> [RType c tv r] -> RType c tv r
-rRCls rc ts = RApp rc ts [] mempty
+rRCls :: IsReftV r => c -> [RType c tv r] -> RType c tv r
+rRCls rc ts = RApp rc ts [] trueReftV
 
 addInvCond :: SpecType -> RReft -> SpecType
 addInvCond t r'
@@ -240,46 +245,64 @@ addInvCond t r'
     F.Reft(v, rv) = ur_reft r'
 
 
-instance (Reftable r, TyConable c) => F.SubableV Symbol (RTProp c tv r) where
-  symsV (RProp  ss r)     = (fst <$> ss) ++ F.symsV r
+instance (IsReftV r, F.Subable r, TyConable c, F.Binder v, F.Variable r ~ v, ReftBind r ~ v) => F.Subable (RTPropBV v v c tv r) where
+  type Variable (RTPropBV v v c tv r) = v
+  syms (RProp  ss r)     = (fst <$> ss) ++ F.syms r
 
-  substV su (RProp ss (RHole r)) = RProp ss (RHole (F.substV su r))
-  substV su (RProp  ss t) = RProp ss (F.substV su <$> t)
+  subst su (RProp ss (RHole r)) = RProp ss (RHole (F.subst su r))
+  subst su (RProp  ss t) = RProp ss (F.subst su <$> t)
 
-  substfV f (RProp ss (RHole r)) = RProp ss (RHole (F.substfV f r))
-  substfV f (RProp  ss t) = RProp ss (F.substfV f <$> t)
+  substf f (RProp ss (RHole r)) = RProp ss (RHole (F.substf f r))
+  substf f (RProp  ss t) = RProp ss (F.substf f <$> t)
 
-  substaV f (RProp ss (RHole r)) = RProp ss (RHole (F.substaV f r))
-  substaV f (RProp  ss t) = RProp ss (F.substaV f <$> t)
+  substa f (RProp ss (RHole r)) = RProp ss (RHole (F.substa f r))
+  substa f (RProp  ss t) = RProp ss (F.substa f <$> t)
 
 
-instance (F.Subable r, Reftable r, TyConable c) => F.SubableV Symbol (RType c tv r) where
-  symsV        = foldReft False (\_ r acc -> F.symsV r ++ acc) []
+instance (F.Subable r, IsReftV r, TyConable c, F.Binder v, F.Variable r ~ v, ReftBind r ~ v) => F.Subable (RTypeBV v v c tv r) where
+  type Variable (RTypeBV v v c tv r) = v
+  syms        = foldReft False (\_ r acc -> F.syms r ++ acc) []
   -- 'substa' will substitute bound vars
-  substaV f    = emapExprArg (\_ -> F.substaV f) []      . mapReft  (F.substaV f)
+  substa f    = emapExprArg (\_ -> F.substa f) []      . mapReft  (F.substa f)
   -- 'substf' will NOT substitute bound vars
-  substfV f    = emapExprArg (\_ -> F.substfV f) []      . emapReft (F.substfV . F.substfExcept f) []
-  substV su    = emapExprArg (\_ -> F.substV su) []      . emapReft (F.substV  . F.substExcept su) []
-  subst1V t su = emapExprArg (\_ e -> F.subst1V e su) [] $ emapReft (\xs r -> F.subst1Except xs r su) [] t
+  substf f    = emapExprArg (\_ -> F.substf f) []      . emapReft (F.substf . F.substfExcept f) []
+  subst su    = emapExprArg (\_ -> F.subst su) []      . emapReft (F.subst  . F.substExcept su) []
+  subst1 t su = emapExprArg (\_ e -> F.subst1 e su) [] $ emapReft (\xs r -> F.subst1Except xs r su) [] t
 
 
 --------------------------------------------------------------------------------
 -- | Visitors ------------------------------------------------------------------
 --------------------------------------------------------------------------------
-mapExprReft :: (Symbol -> Expr -> Expr) -> RType c tv RReft -> RType c tv RReft
+mapExprReft :: (b -> ExprBV b v -> ExprBV b v) -> RTypeBV b v c tv (RReftBV b v) -> RTypeBV b v c tv (RReftBV b v)
 mapExprReft f = mapReft g
   where
     g (MkUReft (F.Reft (x, e)) p) = MkUReft (F.Reft (x, f x e)) p
 
--- const False (not dropping dict) is probably fine since there will not be refinement on
--- dictionaries
-isTrivial :: (Reftable r, TyConable c) => RType c tv r -> Bool
-isTrivial = foldReft False (\_ r b -> isTauto r && b) True
+data OrReftBV r = LeftReftBV (F.ReftBV (ReftBind r) (ReftVar r)) | RightR r
 
-mapReft ::  (r1 -> r2) -> RTypeV v c tv r1 -> RTypeV v c tv r2
+instance ToReftV r => ToReftV (OrReftBV r) where
+  type ReftBind (OrReftBV r) = ReftBind r
+  type ReftVar (OrReftBV r) = ReftVar r
+  toReftV (LeftReftBV r) = r
+  toReftV (RightR r) = toReftV r
+  topV (LeftReftBV r) = LeftReftBV (topV r)
+  topV (RightR r) = RightR (topV r)
+
+instance ToReftV r => Semigroup (OrReftBV r) where
+  _ <> _ = Prelude.error "Meet OrReftBV"
+
+instance ToReftV r => Meet (OrReftBV r) where
+
+instance ToReftV r => IsReftV (OrReftBV r) where
+  ofReftV r = LeftReftBV r
+
+isTrivial :: (ToReftV r, TyConable c, F.Binder b, ReftBind r ~ b) => RTypeBV b v c tv r -> Bool
+isTrivial = foldReft False (\_ r b -> isTautoV r && b) True . fmap RightR
+
+mapReft ::  (r1 -> r2) -> RTypeBV b v c tv r1 -> RTypeBV b v c tv r2
 mapReft f = emapReft (const f) []
 
-emapReft ::  ([Symbol] -> r1 -> r2) -> [Symbol] -> RTypeV v c tv r1 -> RTypeV v c tv r2
+emapReft ::  ([b] -> r1 -> r2) -> [b] -> RTypeBV b v c tv r1 -> RTypeBV b v c tv r2
 emapReft f γ (RVar α r)        = RVar  α (f γ r)
 emapReft f γ (RAllT α t r)     = RAllT α (emapReft f γ t) (f γ r)
 emapReft f γ (RAllP π t)       = RAllP π (emapReft f γ t)
@@ -292,11 +315,11 @@ emapReft f γ (RAppTy t t' r)   = RAppTy (emapReft f γ t) (emapReft f γ t') (f
 emapReft f γ (RRTy e r o t)    = RRTy  (fmap (emapReft f γ) <$> e) (f γ r) o (emapReft f γ t)
 emapReft f γ (RHole r)         = RHole (f γ r)
 
-emapRef :: ([Symbol] -> t -> s) ->  [Symbol] -> RTPropV v c tv t -> RTPropV v c tv s
+emapRef :: ([b] -> t -> s) ->  [b] -> RTPropBV b v c tv t -> RTPropBV b v c tv s
 emapRef  f γ (RProp s (RHole r))  = RProp s $ RHole (f γ r)
 emapRef  f γ (RProp s t)         = RProp s $ emapReft f γ t
 
-mapRTypeV ::  (v -> v') -> RTypeV v c tv r -> RTypeV v' c tv r
+mapRTypeV ::  (v -> v') -> RTypeBV b v c tv r -> RTypeBV b v' c tv r
 mapRTypeV _ (RVar α r)        = RVar α r
 mapRTypeV f (RAllT α t r)     = RAllT (fmap (mapRTypeV f) α) (mapRTypeV f t) r
 mapRTypeV f (RAllP π t)       = RAllP (mapPVarV f (mapRTypeV f) π) (mapRTypeV f t)
@@ -311,7 +334,7 @@ mapRTypeV f (RAppTy t t' r)   = RAppTy (mapRTypeV f t) (mapRTypeV f t') r
 mapRTypeV f (RRTy e r o t)    = RRTy (fmap (mapRTypeV f) <$> e) r o (mapRTypeV f t)
 mapRTypeV _ (RHole r)         = RHole r
 
-mapRTypeVM :: Monad m => (v -> m v') -> RTypeV v c tv r -> m (RTypeV v' c tv r)
+mapRTypeVM :: (Hashable b, Monad m) => (v -> m v') -> RTypeBV b v c tv r -> m (RTypeBV b v' c tv r)
 mapRTypeVM _ (RVar α r)        = return $ RVar α r
 mapRTypeVM f (RAllT α t r)     = RAllT <$> traverse (mapRTypeVM f) α <*> mapRTypeVM f t <*> pure r
 mapRTypeVM f (RAllP π t)       = RAllP <$> emapPVarVM (const f) (const (mapRTypeVM f)) π <*> mapRTypeVM f t
@@ -331,17 +354,17 @@ emapFReftM f (F.Reft (v, e)) = F.reft v <$> emapExprVM (f . (v:)) e
 
 -- The first parameter corresponds to the bscope config setting
 emapReftM
-  :: (Monad m, ToReftV r1, F.Symbolic tv)
+  :: (Monad m, ToReftV r1, F.Binder b, CompatibleBinder b tv, ReftBind r1 ~ b)
   => Bool
-  -> ([Symbol] -> v1 -> m v2)
-  -> ([Symbol] -> r1 -> m r2)
-  -> [Symbol]
-  -> RTypeV v1 c tv r1
-  -> m (RTypeV v2 c tv r2)
+  -> ([b] -> v1 -> m v2)
+  -> ([b] -> r1 -> m r2)
+  -> [b]
+  -> RTypeBV b v1 c tv r1
+  -> m (RTypeBV b v2 c tv r2)
 emapReftM bscp vf f = go
   where
     go γ (RVar α r)        = RVar  α <$> f γ r
-    go γ (RAllT α t r)     = RAllT <$> traverse (emapReftM bscp vf (const pure) γ) α <*> go (F.symbol (ty_var_value α) : γ) t <*> f γ r
+    go γ (RAllT α t r)     = RAllT <$> traverse (emapReftM bscp vf (const pure) γ) α <*> go (coerceBinder (ty_var_value α) : γ) t <*> f γ r
     go γ (RAllP π t)       = RAllP <$> emapPVarVM vf (emapReftM bscp vf (const pure)) π <*> go γ t
     go γ (RFun x i t t' r) = RFun  x i <$> go (x:γ) t <*> go (x:γ) t' <*> f (x:γ) r
     go γ (RApp c ts rs r)  =
@@ -356,13 +379,13 @@ emapReftM bscp vf f = go
     go γ (RHole r)         = RHole <$> f γ r
 
 emapRefM
-  :: (Monad m, ToReftV t, F.Symbolic tv)
+  :: (Monad m, ToReftV t, F.Binder b, CompatibleBinder b tv, ReftBind t ~ b)
   => Bool
-  -> ([Symbol] -> v -> m v')
-  -> ([Symbol] -> t -> m s)
-  -> [Symbol]
-  -> RTPropV v c tv t
-  -> m (RTPropV v' c tv s)
+  -> ([b] -> v -> m v')
+  -> ([b] -> t -> m s)
+  -> [b]
+  -> RTPropBV b v c tv t
+  -> m (RTPropBV b v' c tv s)
 emapRefM bscp vf f γ0 (RProp ss t0) =
     RProp . snd <$>
       mapAccumM
@@ -372,7 +395,7 @@ emapRefM bscp vf f γ0 (RProp ss t0) =
       <*> emapReftM bscp vf f (map fst ss ++ γ0) t0
 
 emapBareTypeVM
-  :: Monad m
+  :: (Monad m, Ord v1)
   => Bool
   -> ([Symbol] -> v1 -> m v2)
   -> [Symbol]
@@ -420,7 +443,7 @@ emapDataCtorTyM f d = do
     dcFields <- snd <$> mapAccumM (\γ  (s, t) -> (lhNameToUnqualifiedSymbol s:γ,) . (s,) <$> f γ t) [] (dcFields d)
     return d{dcTheta, dcFields, dcResult}
 
-emapExprArg :: ([Symbol] -> Expr -> Expr) -> [Symbol] -> RType c tv r -> RType c tv r
+emapExprArg :: ([b] -> ExprBV b v -> ExprBV b v) -> [b] -> RTypeBV b v c tv r -> RTypeBV b v c tv r
 emapExprArg f = go
   where
     go _ t@RVar{}          = t
@@ -431,7 +454,7 @@ emapExprArg f = go
     go γ (RApp c ts rs r)  = RApp  c (go γ <$> ts) (mo γ <$> rs) r
     go γ (RAllE z t t')    = RAllE z (go γ t) (go γ t')
     go γ (REx z t t')      = REx   z (go γ t) (go γ t')
-    go γ (RExprArg e)      = RExprArg (f γ <$> F.notracepp "RExprArg" e) -- <---- actual substitution
+    go γ (RExprArg e)      = RExprArg (f γ <$> e) -- <---- actual substitution
     go γ (RAppTy t t' r)   = RAppTy (go γ t) (go γ t') r
     go γ (RRTy e r o t)    = RRTy  (fmap (go γ) <$> e) r o (go γ t)
 
@@ -536,16 +559,16 @@ mapPropM f (RRTy xts r o t)  = liftM4 RRTy (mapM (traverse (mapPropM f)) xts) (r
 -- foldReft f = efoldReft (\_ _ -> []) (\_ -> ()) (\_ _ -> f) (\_ γ -> γ) emptyF.SEnv
 
 --------------------------------------------------------------------------------
-foldReft :: (Reftable r, TyConable c) => BScope -> (F.SEnv (RType c tv r) -> r -> a -> a) -> a -> RType c tv r -> a
+foldReft :: (IsReftV r, TyConable c, F.Binder b, ReftBind r ~ b) => BScope -> (F.SEnvB b (RTypeBV b v c tv r) -> r -> z -> z) -> z -> RTypeBV b v c tv r -> z
 --------------------------------------------------------------------------------
 foldReft bsc f = foldReft' bsc id (\γ _ -> f γ)
 
 --------------------------------------------------------------------------------
-foldReft' :: (Reftable r, TyConable c)
+foldReft' :: (IsReftV r, TyConable c, F.Binder b, ReftBind r ~ b)
           => BScope
-          -> (RType c tv r -> b)
-          -> (F.SEnv b -> Maybe (RType c tv r) -> r -> a -> a)
-          -> a -> RType c tv r -> a
+          -> (RTypeBV b v c tv r -> a)
+          -> (F.SEnvB b a -> Maybe (RTypeBV b v c tv r) -> r -> z -> z)
+          -> z -> RTypeBV b v c tv r -> z
 --------------------------------------------------------------------------------
 foldReft' bsc g f
   = efoldReft bsc
@@ -564,17 +587,17 @@ rtvinfoIsVal RTVNoInfo{} = False
 rtvinfoIsVal RTVInfo{..} = rtv_is_val
 
 -- efoldReft :: Reftable r =>(p -> [RType c tv r] -> [(Symbol, a)])-> (RType c tv r -> a)-> (SEnv a -> Maybe (RType c tv r) -> r -> c1 -> c1)-> SEnv a-> c1-> RType c tv r-> c1
-efoldReft :: (Reftable r, TyConable c)
+efoldReft :: (IsReftV r, TyConable c, F.Binder b, ReftBind r ~ b)
           => BScope
-          -> (c  -> [RType c tv r] -> [(Symbol, a)])
-          -> (RTVar tv (RType c tv ()) -> [(Symbol, a)])
-          -> (RType c tv r -> a)
-          -> (F.SEnv a -> Maybe (RType c tv r) -> r -> b -> b)
-          -> (PVar (RType c tv ()) -> F.SEnv a -> F.SEnv a)
-          -> F.SEnv a
-          -> b
-          -> RType c tv r
-          -> b
+          -> (c  -> [RTypeBV b v c tv r] -> [(b, a)])
+          -> (RTVar tv (RTypeBV b v c tv (NoReftB b)) -> [(b, a)])
+          -> (RTypeBV b v c tv r -> a)
+          -> (F.SEnvB b a -> Maybe (RTypeBV b v c tv r) -> r -> z -> z)
+          -> (PVarBV b v (RTypeBV b v c tv (NoReftB b)) -> F.SEnvB b a -> F.SEnvB b a)
+          -> F.SEnvB b a
+          -> z
+          -> RTypeBV b v c tv r
+          -> z
 efoldReft bsc cb dty g f fp = go
   where
     -- folding over RType
@@ -644,33 +667,37 @@ mapBotRef :: (RType c tv r -> RType c tv r)
 mapBotRef _ (RProp s (RHole r)) = RProp s $ RHole r
 mapBotRef f (RProp s t)         = RProp s $ mapBot f t
 
-mapBind :: (Symbol -> Symbol) -> RTypeV v c tv r -> RTypeV v c tv r
-mapBind f (RAllT α t r)      = RAllT α (mapBind f t) r
-mapBind f (RAllP π t)        = RAllP π (mapBind f t)
-mapBind f (RFun b i t1 t2 r) = RFun (f b) i (mapBind f t1) (mapBind f t2) r
-mapBind f (RApp c ts rs r)   = RApp c (mapBind f <$> ts) (mapBindRef f <$> rs) r
-mapBind f (RAllE b t1 t2)    = RAllE  (f b) (mapBind f t1) (mapBind f t2)
-mapBind f (REx b t1 t2)      = REx    (f b) (mapBind f t1) (mapBind f t2)
-mapBind _ (RVar α r)         = RVar α r
-mapBind _ (RHole r)          = RHole r
-mapBind f (RRTy e r o t)     = RRTy e r o (mapBind f t)
-mapBind _ (RExprArg e)       = RExprArg e
-mapBind f (RAppTy t t' r)    = RAppTy (mapBind f t) (mapBind f t') r
-
-mapBindRef :: (Symbol -> Symbol)
-           -> Ref τ (RTypeV v c tv r) -> Ref τ (RTypeV v c tv r)
-mapBindRef f (RProp s (RHole r)) = RProp (first f <$> s) (RHole r)
-mapBindRef f (RProp s t)         = RProp (first f <$> s) $ mapBind f t
-
+mapBind :: (Hashable b, Hashable b') => (b -> b') -> RTypeBV b v c tv r -> RTypeBV b' v c tv r
+mapBind f = go
+  where
+    go (RAllT α t r)      = RAllT (mapT α) (go t) r
+    go (RAllP π t)        = RAllP (mapP π) (go t)
+    go (RFun b i t1 t2 r) = RFun (f b) i (go t1) (go t2) r
+    go (RApp c ts rs r)   = RApp c (go <$> ts) (mapR <$> rs) r
+    go (RAllE b t1 t2)    = RAllE  (f b) (go t1) (go t2)
+    go (REx b t1 t2)      = REx    (f b) (go t1) (go t2)
+    go (RVar α r)         = RVar α r
+    go (RHole r)          = RHole r
+    go (RRTy e r o t)     = RRTy (bimap f go <$> e) r o (go t)
+    go (RExprArg e)       = RExprArg (F.mapBindExpr f <$> e)
+    go (RAppTy t t' r)    = RAppTy (go t) (go t') r
+    mapT (RTVar tv i) = RTVar tv (mapI i)
+    mapS = mapReft (\NoReft -> NoReft) . mapBind f
+    mapI RTVNoInfo{..} = RTVNoInfo{..}
+    mapI RTVInfo{..}   = RTVInfo { rtv_kind = mapS rtv_kind, .. }
+    mapP (PV n τ a as) = PV (f n) (mapS τ) (f a) (mapA <$> as)
+    mapA (τ, b, e) = (mapS τ, f b, F.mapBindExpr f e)
+    mapR (RProp as t) = RProp (mapRA <$> as) (go t)
+    mapRA (b, τ) = (f b, mapS τ)
 
 --------------------------------------------------
-ofRSort ::  Reftable r => RType c tv () -> RType c tv r
-ofRSort = fmap mempty
+ofRSort ::  IsReftV r => RTypeBV b v c tv (NoReftB b) -> RTypeBV b v c tv r
+ofRSort = fmap (const trueReftV)
 
-toRSort :: RTypeV v c tv r -> RTypeV v c tv ()
-toRSort = stripAnnotations . mapBind (const F.dummySymbol) . void
+toRSort :: F.Binder b => RTypeBV b v c tv r -> RTypeBV b v c tv (NoReftB b)
+toRSort = stripAnnotations . mapBind (const F.wildcard) . (NoReft <$)
 
-stripAnnotations :: RTypeV v c tv r -> RTypeV v c tv r
+stripAnnotations :: RTypeBV b v c tv r -> RTypeBV b v c tv r
 stripAnnotations (RAllT α t r)     = RAllT α (stripAnnotations t) r
 stripAnnotations (RAllP _ t)       = stripAnnotations t
 stripAnnotations (RAllE _ _ t)     = stripAnnotations t
@@ -681,24 +708,24 @@ stripAnnotations (RApp c ts rs r)  = RApp c (stripAnnotations <$> ts) (stripAnno
 stripAnnotations (RRTy _ _ _ t)    = stripAnnotations t
 stripAnnotations t                 = t
 
-stripAnnotationsRef :: Ref τ (RTypeV v c tv r) -> Ref τ (RTypeV v c tv r)
+stripAnnotationsRef :: RefB b τ (RTypeBV b v c tv r) -> RefB b τ (RTypeBV b v c tv r)
 stripAnnotationsRef (RProp s (RHole r)) = RProp s (RHole r)
 stripAnnotationsRef (RProp s t)         = RProp s $ stripAnnotations t
 
-insertSEnv :: F.Symbol -> a -> F.SEnv a -> F.SEnv a
+insertSEnv :: (Eq b, Hashable b) => b -> a -> F.SEnvB b a -> F.SEnvB b a
 insertSEnv = F.insertSEnv
 
-insertsSEnv :: F.SEnv a -> [(Symbol, a)] -> F.SEnv a
+insertsSEnv :: (Eq b, Hashable b) => F.SEnvB b a -> [(b, a)] -> F.SEnvB b a
 insertsSEnv  = foldr (\(x, t) γ -> insertSEnv x t γ)
 
-rTypeValueVar :: (Reftable r) => RType c tv r -> Symbol
+rTypeValueVar :: (ToReftV r, F.Binder (ReftBind r)) => RTypeBV b v c tv r -> ReftBind r
 rTypeValueVar t = vv where F.Reft (vv,_) =  rTypeReft t
 
-rTypeReft :: (Reftable r) => RType c tv r -> F.Reft
-rTypeReft = maybe F.trueReft toReft . stripRTypeBase
+rTypeReft :: (ToReftV r, F.Binder (ReftBind r)) => RTypeBV b v c tv r -> F.ReftBV (ReftBind r) (ReftVar r)
+rTypeReft = maybe F.trueReft toReftV . stripRTypeBase
 
 -- stripRTypeBase ::  RType a -> Maybe a
-stripRTypeBase :: RType c tv r -> Maybe r
+stripRTypeBase :: RTypeBV b v c tv r -> Maybe r
 stripRTypeBase (RApp _ _ _ x)   = Just x
 stripRTypeBase (RVar _ x)       = Just x
 stripRTypeBase (RFun _ _ _ _ x) = Just x

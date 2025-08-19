@@ -1,10 +1,15 @@
+{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskellQuotes #-}
+{-# LANGUAGE TypeOperators #-}
 module Language.Haskell.Liquid.Types.Names
-  ( lenLocSymbol
+  ( CompatibleBinder(..)
+  , lenLocSymbol
   , anyTypeSymbol
   , propSymbol
   , getPropIndex
@@ -70,6 +75,18 @@ getPropIndex (Reft (v, PAtom Eq (EApp (EVar n) (EVar v')) idx))
   , v == v'
   = Just idx
 getPropIndex _ = Nothing
+
+-- | Highly temporary class as a compatability layer to express that a binder,
+-- especially type variables @tv@, are in the same namespace as another binder.
+class CompatibleBinder b b' where
+  coerceBinder :: b' -> b
+  default coerceBinder :: b ~ b' => b' -> b
+  coerceBinder = id
+
+instance CompatibleBinder Symbol Symbol
+instance CompatibleBinder (Located Symbol) (Located Symbol)
+instance CompatibleBinder Symbol (Located Symbol) where
+  coerceBinder (Loc _ _ s) = s
 
 -- RJ: Please add docs
 lenLocSymbol :: Located Symbol
