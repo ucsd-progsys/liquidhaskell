@@ -284,8 +284,8 @@ data TError t =
                 } -- ^ sort error in specification
 
   | ErrDupAlias { pos  :: !SrcSpan
-                , var  :: !Doc
                 , kind :: !Doc
+                , var  :: !Doc
                 , locs :: ![SrcSpan]
                 } -- ^ multiple alias with same name error
 
@@ -311,9 +311,10 @@ data TError t =
                 } -- ^ duplicate fields in same datacon
 
   | ErrDupNames { pos   :: !SrcSpan
+                , kind  :: !Doc
                 , var   :: !Doc
                 , names :: ![Doc]
-                } -- ^ name resolves to multiple possible GHC vars
+                } -- ^ name resolves to multiple matches
 
   | ErrBadData  { pos :: !SrcSpan
                 , var :: !Doc
@@ -901,8 +902,8 @@ ppError' _ dCtx (ErrDupField _ dc x)
         $+$ dCtx
         $+$ nest 4 (text "Duplicated definitions for field" <+> ppTicks x)
 
-ppError' _ dCtx (ErrDupNames _ x ns)
-  = text "Ambiguous specification symbol" <+> ppTicks x
+ppError' _ dCtx (ErrDupNames _ k v ns)
+  = text "Ambiguous specification symbol"  <+> ppTicks v <+> "for" <+> pprint k
         $+$ dCtx
         $+$ ppNames ns
 

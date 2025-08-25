@@ -283,6 +283,7 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
               addError
                 (ErrDupNames
                    (LH.fSrcSpan lname)
+                   "variable"
                    (pprint s)
                    (map (PJ.text . GHC.showPprUnsafe) es)
                 )
@@ -358,6 +359,7 @@ resolveSymbolToTcName globalRdrEnv lx
         [] -> Left $ errResolve [] "type constructor" "Cannot resolve name" lx
         es -> Left $ ErrDupNames
                 (LH.fSrcSpan lx)
+                "type constructor"
                 (pprint s)
                 (map (PJ.text . GHC.showPprUnsafe) es)
   where
@@ -542,7 +544,7 @@ data TypeAliasResolution a
 
 errResolveTypeAlias :: LocSymbol -> TypeAliasResolution b -> Error
 errResolveTypeAlias ls (FoundTypeAliases imported local) =
-  ErrDupNames (LH.fSrcSpan ls) (pprint $ val ls)
+  ErrDupNames (LH.fSrcSpan ls) "type alias" (pprint $ val ls)
     (
       map (\(m, lhn, _) -> pprint (LH.qualifySymbol (symbol . GHC.moduleNameString . GHC.moduleName $ m)
                                    $ getLHNameSymbol lhn)
@@ -790,6 +792,7 @@ resolveLogicNames cfg thisModule env globalRdrEnv lmap0 localVars lnameEnv priva
         errDupInScopeNames locSym inScopeNames =
           ErrDupNames
             (LH.fSrcSpan locSym)
+            "non-reflected logic entity"
             (pprint (val locSym))
             [ pprint (lhNameToResolvedSymbol n) PJ.<+>
               PJ.text
@@ -833,6 +836,7 @@ resolveLogicNames cfg thisModule env globalRdrEnv lmap0 localVars lnameEnv priva
             addError
               (ErrDupNames
                  (LH.fSrcSpan s)
+                 "data constructor"
                  (pprint $ val s)
                  (map (PJ.text . GHC.showPprUnsafe) es)
               )
@@ -872,6 +876,7 @@ resolveLogicNames cfg thisModule env globalRdrEnv lmap0 localVars lnameEnv priva
               addError
                  (ErrDupNames
                    (LH.fSrcSpan s)
+                   "variable"
                    (pprint $ val s)
                    (map (PJ.text . GHC.showPprUnsafe) es)
                  )
