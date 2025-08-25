@@ -542,20 +542,23 @@ data TypeAliasResolution a
       , tarLocallyDefined :: [(GHC.Module, LHName, a)]
       }
 
-errResolveTypeAlias :: LocSymbol -> TypeAliasResolution b -> Error
+errResolveTypeAlias :: LocSymbol -> TypeAliasResolution (RTAlias x a) -> Error
 errResolveTypeAlias ls (FoundTypeAliases imported local) =
   ErrDupNames (LH.fSrcSpan ls) "type alias" (pprint $ val ls)
     (
-      map (\(m, lhn, _) -> pprint (LH.qualifySymbol (symbol . GHC.moduleNameString . GHC.moduleName $ m)
-                                   $ getLHNameSymbol lhn)
+      map (\(_, lhn, rta) -> pprint (getLHNameSymbol lhn)
                            PJ.<+>
-                           PJ.text "defined in current module")
-      local
+                           PJ.text "defined in current module at"
+                           PJ.<+>
+                           pprint  (LH.fSrcSpan . rtName $ rta))
+          local
      ++
-     map (\(m, lhn, _) -> pprint (lhNameToResolvedSymbol lhn)
+     map (\(_, lhn, rta) -> pprint (lhNameToResolvedSymbol lhn)
                           PJ.<+>
-                          PJ.text ("imported from " ++ GHC.moduleNameString (GHC.moduleName m)))
-      imported
+                          PJ.text "defined at"
+                          PJ.<+>
+                          pprint  (LH.fSrcSpan . rtName $ rta))
+         imported
     )
 errResolveTypeAlias ls (NoSuchTypeAlias alts) =
   errResolve alts "type alias" "Cannot resolve name" ls
