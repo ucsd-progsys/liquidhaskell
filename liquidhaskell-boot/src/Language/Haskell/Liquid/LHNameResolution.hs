@@ -25,11 +25,13 @@
 -- * Next the names of logic entities are resolved. This pass produces
 --   a 'BareSpecLHName', where 'Symbol's are replaced with 'LHName'.
 --
--- 'BareSpecLHName' has a bijection to 'BareSpec' via a 'LogicNameEnv'
+-- 'BareSpecLHName' has an approximate bijection to 'BareSpec' via a 'LogicNameEnv'
 -- which allows to convert 'LHName' to an unambiguous form of 'Symbol'
 -- and back. The bijection is implemented with the functions 'toBareSpecLHName'
 -- and 'fromBareSpecLHName'. This allows to use liquid-fixpoint functions
 -- unmodified as they will continue to operate on (now unambiguous) Symbols.
+-- The bijection is approximate because in the roundtrip the representation of
+-- LHName's might change.
 --
 -- At the same time, the 'BareSpecLHName' form is kept to serialize and to
 -- resolve names of modules that import the specs.
