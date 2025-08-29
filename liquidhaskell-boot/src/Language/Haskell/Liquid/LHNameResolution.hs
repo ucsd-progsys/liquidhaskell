@@ -61,6 +61,7 @@ import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.RTypeOp
 
+import           Control.Monad.Except (ExceptT, runExceptT, throwError)
 import           Control.Monad ((<=<), mplus, unless, void)
 import           Control.Monad.Identity
 import           Control.Monad.State.Strict
@@ -161,57 +162,60 @@ resolveLHNames
   -> BareSpecParsed
   -> TargetDependencies
   -> Either [Error] (BareSpec, LogicNameEnv, LogicMap)
-resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependencies = do
-    let ((bs, logicNameEnv, lmap2), ro) =
-          flip runState RenameOutput {roErrors = [], roUsedNames = [], roUsedDataCons = mempty} $ do
-            sp0 <- fixExpressionArgsOfTypeAliases taliases $ resolveBoundVarsInTypeAliases bareSpec0
-            -- First pass: A generic traversal that resolves names
-            -- of Haskell entities and type aliases.
-            sp1 <- mapMLocLHNames (\l -> (<$ l) <$> resolveLHName l) sp0
-            -- Data decls contain fieldnames that introduce measures with the
-            -- same names. We resolve them before constructing the logic
-            -- environment.
-            dataDecls <- mapM (mapDataDeclFieldNamesM resolveFieldLogicName) (dataDecls sp1)
-            let sp2 = sp1 {dataDecls}
+resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependencies =
+  flip evalState RenameOutput { roErrors = [], roUsedNames = [], roUsedDataCons = mempty } $
+    runExceptT $ do
+      -- Prepare type aliases for resolution.
+      sp0 <- lift $ fixExpressionArgsOfTypeAliases taliases $ resolveBoundVarsInTypeAliases bareSpec0
 
-            es0 <- gets roErrors
-            if null es0 then do
+      checkErrors
 
-              -- Second pass: a traversal to resolve logic names using the following
-              -- lookup environments.
-              let (inScopeEnv, logicNameEnv0, privateReflectNames) =
-                    makeLogicEnvs impMods thisModule sp2 dependencies
-              -- Add resolved local defines to the logic map.
-                  lmap1 =
-                    lmap <> mkLogicMap (HM.fromList $
-                                         (\(k , v) ->
-                                             let k' = lhNameToResolvedSymbol <$> k in
-                                             (F.val k', (val <$> v) { lmVar = k' }))
-                                         <$> defines sp2)
-              sp3 <- fromBareSpecLHName <$>
-                       resolveLogicNames
-                         cfg
-                         thisModule
-                         inScopeEnv
-                         globalRdrEnv
-                         lmap1
-                         localVars
-                         logicNameEnv0
-                         privateReflectNames
-                         depsInlinesAndDefines
-                         sp2
-              dcs <- gets roUsedDataCons
-              return (sp3 {usedDataCons = dcs} , logicNameEnv0, lmap1)
-            else
-              return ( error "resolveLHNames: invalid spec"
-                     , error "resolveLHNames: invalid logic environment"
-                     , error "resolveLHNames: invalid logic map")
-        logicNameEnv' = extendLogicNameEnv logicNameEnv (roUsedNames ro)
-    if null (roErrors ro) then
-      Right (bs, logicNameEnv', lmap2)
-    else
-      Left (roErrors ro)
+      -- First resolution pass: A generic traversal that resolves names
+      -- of Haskell entities and type alias binders.
+      sp1 <- lift $ mapMLocLHNames (\l -> (<$ l) <$> resolveLHName l) sp0
+
+      -- Data decls contain fieldnames that introduce measures with the
+      -- same names. We resolve them before constructing the logic
+      -- environments.
+      dataDecls <- lift $ mapM (mapDataDeclFieldNamesM resolveFieldLogicName) (dataDecls sp1)
+      let sp2 = sp1 {dataDecls}
+
+      checkErrors
+
+      -- Second resolution pass: a traversal to resolve logic names using the following
+      -- lookup environments.
+      let (inScopeEnv, logicNameEnv0, privateReflectNames) =
+            makeLogicEnvs impMods thisModule sp2 dependencies
+
+          -- Add resolved local defines to the logic map.
+          lmap1 = lmap <> mkLogicMap (HM.fromList $
+                   [ (F.val $ lhNameToResolvedSymbol <$> k,
+                      (val <$> v) { lmVar = lhNameToResolvedSymbol <$> k })
+                   | (k,v) <- defines sp2 ])
+      sp3 <- lift $ fromBareSpecLHName <$>
+                  resolveLogicNames
+                    cfg
+                    thisModule
+                    inScopeEnv
+                    globalRdrEnv
+                    lmap1
+                    localVars
+                    logicNameEnv0
+                    privateReflectNames
+                    depsInlinesAndDefines
+                    sp2
+
+      checkErrors
+
+      dcs <- gets roUsedDataCons
+      return (sp3 { usedDataCons = dcs }, logicNameEnv0, lmap1)
   where
+    -- Early exit name resolution if errors are found and pass them to the output.
+    checkErrors :: ExceptT [Error] (StateT RenameOutput Identity) ()
+    checkErrors = do
+      es <- gets roErrors
+      unless (null es) (throwError es)
+
     -- We collect type aliases before resolving names so we have a means to disambiguate
     -- imported and local ones (according to their resolution status).
     taliases = collectTypeAliases impMods thisModule bareSpec0 dependencies
