@@ -546,8 +546,15 @@ errResolveTypeAlias :: LocSymbol -> TypeAliasResolution (RTAlias x a) -> Error
 errResolveTypeAlias ls (FoundTypeAliases imported local) =
   ErrDupNames (LH.fSrcSpan ls) "type alias" (pprint $ val ls)
     (
-      -- Collected local type alias names are unresolved,
-      -- so we need to extract their symbol with a function that tolerates them.
+      -- Currently, multiple local definitions prevent this error from being raised,
+      -- because duplicate names are discarded when constructing the alias environment
+      -- for each individual module,
+      -- and a local alias always shadows any imported one. Such duplicates are detected
+      -- later during validation of the final target spec.
+      --
+      -- Also, note that collected local type alias names remain unresolved at this stage,
+      -- so we must extract their symbol using a function that can safely handle unresolved
+      -- names.
       map (\(_, lhn, rta) -> pprint (getLHNameSymbol lhn)
                              PJ.<+>
                              PJ.text "defined in current module at"
