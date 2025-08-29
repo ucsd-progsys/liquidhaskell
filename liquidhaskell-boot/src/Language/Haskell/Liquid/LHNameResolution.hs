@@ -546,18 +546,26 @@ errResolveTypeAlias :: LocSymbol -> TypeAliasResolution (RTAlias x a) -> Error
 errResolveTypeAlias ls (FoundTypeAliases imported local) =
   ErrDupNames (LH.fSrcSpan ls) "type alias" (pprint $ val ls)
     (
+      -- Collected local type alias names are unresolved,
+      -- so we need to extract their symbol with a function that tolerates them.
       map (\(_, lhn, rta) -> pprint (getLHNameSymbol lhn)
-                           PJ.<+>
-                           PJ.text "defined in current module at"
-                           PJ.<+>
-                           pprint  (LH.fSrcSpan . rtName $ rta))
+                             PJ.<+>
+                             PJ.text "defined in current module at"
+                             PJ.<+>
+                             pprint  (LH.fSrcSpan . rtName $ rta)
+          )
           local
      ++
-     map (\(_, lhn, rta) -> pprint (lhNameToResolvedSymbol lhn)
-                          PJ.<+>
-                          PJ.text "defined at"
-                          PJ.<+>
-                          pprint  (LH.fSrcSpan . rtName $ rta))
+     map (\(m, lhn, rta) -> pprint (lhNameToUnqualifiedSymbol lhn)
+                            PJ.<+>
+                            PJ.text "imported from module"
+                            PJ.<+>
+                            PJ.text (GHC.moduleNameString (GHC.moduleName m))
+                            PJ.<+>
+                            PJ.text "defined at"
+                            PJ.<+>
+                            pprint (LH.fSrcSpan . rtName $ rta)
+         )
          imported
     )
 errResolveTypeAlias ls (NoSuchTypeAlias alts) =
