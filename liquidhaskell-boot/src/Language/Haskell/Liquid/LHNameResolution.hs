@@ -681,7 +681,10 @@ mkAliasEnv:: GHC.Module -> GHC.ImportedMods -> (GHC.Module, [(LHName, a)]) -> In
 mkAliasEnv thisModule impMods (m, lhnames) =
     let aliases = moduleAliases thisModule impMods m
      in fromListSEnv
-          [ (LH.dropModuleNames $ getLHNameSymbol lhname, map (,(m, lhname, x)) aliases)
+          -- Note that when building a name environment for the current module
+          -- we might process unresolved names here.
+          [ (LH.dropModuleNames $ getLHNameSymbol lhname
+            , map (,(m, lhname, x)) aliases)
           | (lhname, x) <- lhnames
           ]
 
