@@ -556,6 +556,7 @@ renameBinderSort f = rename
   rename F.FInt             = F.FInt
   rename F.FReal            = F.FReal
   rename F.FNum             = F.FNum
+  rename (F.FNatNum n)      = F.FNatNum n
   rename F.FFrac            = F.FFrac
   rename (   F.FObj s     ) = F.FObj (f s)
   rename t'@(F.FVar _     ) = t'
