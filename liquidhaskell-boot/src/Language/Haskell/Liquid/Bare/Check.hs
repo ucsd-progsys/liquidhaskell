@@ -55,19 +55,25 @@ import qualified Language.Haskell.Liquid.Bare.Resolve      as Bare
 import           Language.Haskell.Liquid.UX.Config
 import Language.Fixpoint.Types.Config (ElabFlags (ElabFlags), solverFlags)
 
+-- import Debug.Trace
 
 ----------------------------------------------------------------------------------------------
 -- | Checking TargetSrc ------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------
-checkTargetSrc :: Config -> TargetSrc -> Either Diagnostics ()
-checkTargetSrc cfg spec
+checkTargetSrc :: Config -> BareSpec -> TargetSrc -> Either Diagnostics ()
+checkTargetSrc cfg bare spec
   |  nopositivity cfg
   || nopositives == emptyDiagnostics
   = Right ()
   | otherwise
   = Left nopositives
-  where nopositives = checkPositives (gsTcs spec)
+  where nopositives = checkPositives $ filter (not . isStratifiedTyCon bare) $ gsTcs spec
 
+isStratifiedTyCon :: BareSpec -> TyCon -> Bool
+isStratifiedTyCon bs tc = (Ghc.tyConName tc) `elem` sn
+  where sn = mapMaybe ctorName $ S.toList $ stratified bs
+        ctorName (F.Loc _ _ (LHNResolved (LHRGHC c) _)) = Just c
+        ctorName _                                      = Nothing
 
 checkPositives :: [TyCon] -> Diagnostics
 checkPositives tys = mkDiagnostics [] $ mkNonPosError (getNonPositivesTyCon tys)

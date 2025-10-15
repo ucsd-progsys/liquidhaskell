@@ -93,7 +93,7 @@ makeTargetSpec :: Config
                -> TargetDependencies
                -> Ghc.TcRn (Either Diagnostics ([Warning], TargetSpec, LiftedSpec))
 makeTargetSpec cfg localVars lnameEnv lmap targetSrc bareSpec dependencies = do
-  let targDiagnostics     = Bare.checkTargetSrc cfg targetSrc
+  let targDiagnostics     = Bare.checkTargetSrc cfg bareSpec targetSrc
   let depsDiagnostics     = mapM (Bare.checkBareSpec . snd) legacyDependencies
   let bareSpecDiagnostics = Bare.checkBareSpec bareSpec
   case targDiagnostics >> depsDiagnostics >> bareSpecDiagnostics of

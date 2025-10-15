@@ -899,6 +899,7 @@ data BPspec
   | Insts   (Located LHName)                              -- ^ 'auto-inst' or 'ple' annotation; use ple locally on binder
   | HMeas   (Located LHName)                              -- ^ 'measure' annotation; lift Haskell binder as measure
   | Reflect (Located LHName)                              -- ^ 'reflect' annotation; reflect Haskell binder as function in logic
+  | Stratified (Located LHName)                           -- ^ 'stratified' annotation; stratification check for type declarations
   | PrivateReflect LocSymbol                              -- ^ 'private-reflect' annotation
   | OpaqueReflect (Located LHName)                        -- ^ 'opaque-reflect' annotation
   | Inline  (Located LHName)                              -- ^ 'inline' annotation;  inline (non-recursive) binder as an alias
@@ -984,6 +985,8 @@ ppPspec k (HMeas   lx)
   = "measure" <+> pprintTidy k (val lx)
 ppPspec k (Reflect lx)
   = "reflect" <+> pprintTidy k (val lx)
+ppPspec k (Stratified lx)
+  = "stratified" <+> pprintTidy k (val lx)
 ppPspec k (PrivateReflect lx)
   = "private-reflect" <+> pprintTidy k (val lx)
 ppPspec k (OpaqueReflect lx)
@@ -1106,6 +1109,7 @@ mkSpec xs = Measure.Spec
   , Measure.rewriteWith = M.fromList [s | Rewritewith s <- xs]
   , Measure.bounds     = M.fromList [(bname i, i) | PBound i <- xs]
   , Measure.reflects   = S.fromList [s | Reflect s <- xs]
+  , Measure.stratified = S.fromList [s | Stratified s <- xs]
   , Measure.privateReflects = S.fromList [s | PrivateReflect s <- xs]
   , Measure.opaqueReflects = S.fromList [s | OpaqueReflect s <- xs]
   , Measure.hmeas      = S.fromList [s | HMeas  s <- xs]
@@ -1129,6 +1133,7 @@ specP
     -- TODO: These next two are synonyms, kill one
     <|> fallbackSpecP "axiomatize"  (fmap Reflect locBinderLHNameP)
     <|> fallbackSpecP "reflect"     (fmap Reflect locBinderLHNameP)
+    <|> fallbackSpecP "stratified"  (fmap Stratified tyConBindLHNameP)
     <|> (reserved "private-reflect" >> fmap PrivateReflect axiomP  )
     <|> (reserved "opaque-reflect" >> fmap OpaqueReflect locBinderLHNameP  )
 
