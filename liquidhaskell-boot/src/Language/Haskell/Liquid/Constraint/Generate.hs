@@ -7,6 +7,7 @@
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE ImplicitParams            #-}
+{-# LANGUAGE NamedFieldPuns            #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
@@ -28,8 +29,9 @@ import qualified Language.Haskell.Liquid.GHC.Resugar           as Rs
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
 import qualified Language.Haskell.Liquid.GHC.Misc              as GM -- ( isInternal, collectArguments, tickSrcSpan, showPpr )
 import Text.PrettyPrint.HughesPJ ( text )
-import           Control.Monad ( foldM, forM, forM_, when, void )
+import           Control.Monad ( foldM, forM, forM_, when, void, unless)
 import           Control.Monad.State
+import           Data.Bifunctor                                (first)
 import           Data.Maybe                                    (fromMaybe, isJust, mapMaybe)
 import           Data.Either.Extra                             (eitherToMaybe)
 import qualified Data.HashMap.Strict                           as M
@@ -97,11 +99,109 @@ consAct γ cfg info = do
   hws <- gets hsWfs
   fcs <- concat <$> mapM (splitC (typeclass (getConfig info))) hcs
   fws <- concat <$> mapM splitW hws
+  checkStratCtors γ sSpc
   modify $ \st -> st { fEnv     = fEnv    st `mappend` feEnv (fenv γ)
                      , cgLits   = litEnv   γ
                      , cgConsts = cgConsts st `mappend` constEnv γ
                      , fixCs    = fcs
                      , fixWfs   = fws }
+
+
+---------------------------------
+-- | Checking stratified ctors --
+---------------------------------
+type FExpr = F.ExprV F.Symbol
+type FRef  = F.ReftV F.Symbol
+type Ctors = S.HashSet F.Symbol
+
+checkStratCtors :: CGEnv -> GhcSpecSig -> CG ()
+checkStratCtors env sSpc = do
+  let ctors = S.fromList $ M.keys $ F.seBinds $ constEnv env
+  let ctorRefinements = filter (isStrat . fst) $ gsTySigs sSpc
+  forM_ ctorRefinements $ uncurry $ checkCtor ctors
+  where
+    -- (Alecs): For some reason it can't see that they are the same
+    -- GHC name, probably is due to some worker wrapper shenannigans
+    hack = occNameString . nameOccName
+    isStrat nm = hack (varName nm) `elem` map hack (gsStratCtos sSpc)
+
+uncurryPi :: SpecType -> ([SpecType], SpecType)
+uncurryPi (RFun _ _ dom cod _) = first (dom :) $ uncurryPi cod
+uncurryPi rest                 = ([], rest)
+
+getIndex :: FRef -> Maybe FExpr
+getIndex (F.Reft (v, F.PAtom F.Eq (F.EApp (F.EVar n) (F.EVar v')) to))
+  | n == "Language.Haskell.Liquid.ProofCombinators.prop"
+  , v == v'
+  = Just to
+getIndex _ = Nothing
+
+getTyConName :: SpecType -> Name
+getTyConName a = Ghc.tyConName $ rtc_tc $ rt_tycon a
+
+checkCtor :: Ctors -> Var -> LocSpecType -> CG ()
+checkCtor ctors name typ = do
+  let loc = GM.fSrcSpan $ F.loc typ
+  let (args, ret) = uncurryPi $ val typ
+  -- The constuctor that we want not to appear negatrive
+  let tyName = getTyConName ret
+  -- Its index information
+  retIdx <- case getIndex $ ur_reft $ rt_reft ret of
+    Just idx -> pure idx
+    Nothing  -> uError $ ErrStratNotPropRet loc (pprint tyName) (pprint name) (F.pprint ret)
+  -- For every argument of the constructor we check that in negative
+  -- position all the self-refernce are refined by a "smaller" `prop`
+  -- annotation
+  forM_ args $ checkNg ctors loc name tyName retIdx
+
+checkNg :: Ctors -> SrcSpan -> Var -> Name -> FExpr -> SpecType -> CG ()
+checkNg ctors loc ctorName tyName retIdx = go
+  where
+    go :: SpecType -> CG ()
+    go RVar {} = pure ()
+    go RAllT { rt_ty } = go rt_ty
+    go RAllP { rt_ty } = go rt_ty
+    go RFun { rt_in, rt_out } = do
+      go rt_in
+      go rt_out
+    go r@RApp { rt_tycon = RTyCon { rtc_tc }, rt_args, rt_reft } = do
+      if Ghc.tyConName rtc_tc == tyName then do
+          case getIndex $ ur_reft rt_reft of
+            (Just arg) -> do
+              -- We compare index information
+              -- The engativer occurrence is safe iff the index of the
+              -- return type is strictly bigger than the one in negative
+              -- position
+              unless (isStructurallySmaller ctors arg retIdx) $ do
+                uError $ ErrStratIdxNotSmall loc
+                  (pprint tyName) (pprint ctorName) (F.pprint retIdx) (F.pprint arg)
+            -- We don't have index information for both so we bail
+            _ -> uError $ ErrStratOccProp loc (pprint tyName) (pprint ctorName) (F.pprint r)
+      else do
+        forM_ rt_args go
+    go _ = lift $ impossible (Just loc) "checkNg unexpected type"
+
+
+isStructurallySmaller :: Ctors -> FExpr -> FExpr -> Bool
+isStructurallySmaller ctors l r
+  -- Congruence rule
+  | (F.EVar nl, argsl) <- F.splitEAppThroughECst l
+  , (F.EVar nr, argsr) <- F.splitEAppThroughECst r
+  , nl == nr
+  , length argsl == length argsr
+  , nl `elem` ctors
+  = any (uncurry $ isStructurallySmaller ctors) $ zip argsl argsr
+  | otherwise = isSubterm ctors l r && l /= r
+
+isSubterm :: Ctors -> FExpr -> FExpr -> Bool
+isSubterm ctors l r | l == r
+                   = True
+                  -- Congruence rule
+                  | (F.EVar nm, args) <- F.splitEAppThroughECst r
+                  , nm `elem` ctors
+                  = any (isSubterm ctors l) args
+                  | otherwise
+                  = False
 
 --------------------------------------------------------------------------------
 -- | Ensure that the instance type is a subtype of the class type --------------

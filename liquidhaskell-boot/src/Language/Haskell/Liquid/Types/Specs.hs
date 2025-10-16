@@ -243,6 +243,7 @@ data GhcSpecQual = SpQual
 
 data GhcSpecSig = SpSig
   { gsTySigs   :: ![(Var, LocSpecType)]           -- ^ Asserted Reftypes
+  , gsStratCtos :: ![Name]                        -- ^ Stratified Ctors
   , gsAsmSigs  :: ![(Var, LocSpecType)]           -- ^ Assumed Reftypes
   , gsAsmReflects  :: ![(Var, Var)]               -- ^ Assumed Reftypes (left is the actual function name and right the pretended one)
   , gsRefSigs  :: ![(Var, LocSpecType)]           -- ^ Reflected Reftypes
@@ -259,6 +260,7 @@ data GhcSpecSig = SpSig
 instance Semigroup GhcSpecSig where
   x <> y = SpSig
     { gsTySigs   = gsTySigs x   <> gsTySigs y
+    , gsStratCtos = gsStratCtos x <> gsStratCtos y
     , gsAsmSigs  = gsAsmSigs x  <> gsAsmSigs y
     , gsAsmReflects = gsAsmReflects x <> gsAsmReflects y
     , gsRefSigs  = gsRefSigs x  <> gsRefSigs y
@@ -278,7 +280,7 @@ instance Semigroup GhcSpecSig where
 
 
 instance Monoid GhcSpecSig where
-  mempty = SpSig mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty
+  mempty = SpSig mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty
 
 data GhcSpecData = SpData
   { gsCtors      :: ![(Var, LocSpecType)]         -- ^ Data Constructor Measure Sigs

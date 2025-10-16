@@ -3,15 +3,17 @@
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE DeriveTraversable   #-}
+
 {-# OPTIONS_GHC -Wno-x-partial #-}
 
 module Language.Haskell.Liquid.Bare.Check
   ( checkTargetSpec
   , checkBareSpec
   , checkTargetSrc
+  , checkStratTys
   , tyCompat
   ) where
-
 
 import           Language.Haskell.Liquid.Constraint.ToFixpoint
 
@@ -55,8 +57,6 @@ import qualified Language.Haskell.Liquid.Bare.Resolve      as Bare
 import           Language.Haskell.Liquid.UX.Config
 import Language.Fixpoint.Types.Config (ElabFlags (ElabFlags), solverFlags)
 
--- import Debug.Trace
-
 ----------------------------------------------------------------------------------------------
 -- | Checking TargetSrc ------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------
@@ -67,20 +67,79 @@ checkTargetSrc cfg bare spec
   = Right ()
   | otherwise
   = Left nopositives
-  where nopositives = checkPositives $ filter (not . isStratifiedTyCon bare) $ gsTcs spec
+  where nopositives = checkPositives bare $ gsTcs spec
 
 isStratifiedTyCon :: BareSpec -> TyCon -> Bool
-isStratifiedTyCon bs tc = (Ghc.tyConName tc) `elem` sn
-  where sn = mapMaybe ctorName $ S.toList $ stratified bs
-        ctorName (F.Loc _ _ (LHNResolved (LHRGHC c) _)) = Just c
-        ctorName _                                      = Nothing
+isStratifiedTyCon bs tc = Ghc.tyConName tc `elem` sn
+  where
+    -- (Alecs): For some reason it can't see that they are the same
+    -- GHC name, probably is due to some worker wrapper shenannigans
+    sn = mapMaybe ctorName $ S.toList $ stratified bs
+    ctorName (F.Loc _ _ (LHNResolved (LHRGHC c) _)) = Just c
+    ctorName _                                      = Nothing
 
-checkPositives :: [TyCon] -> Diagnostics
-checkPositives tys = mkDiagnostics [] $ mkNonPosError (getNonPositivesTyCon tys)
+checkPositives :: BareSpec -> [TyCon] -> Diagnostics
+checkPositives bare tys = mkDiagnostics []
+                        $ mkNonPosError
+                        $ filter (not . isStratifiedTyCon bare . fst)
+                        $ getNonPositivesTyCon tys
 
 mkNonPosError :: [(TyCon, [DataCon])]  -> [Error]
 mkNonPosError tcs = [ ErrPosTyCon (getSrcSpan tc) (pprint tc) (pprint dc <+> ":" <+> pprint (dataConRepType dc))
                     | (tc, dc:_) <- tcs]
+
+--------------------------------------------------
+-- | Checking that stratified ctors are present --
+--------------------------------------------------
+
+data Validation e a
+  = Failure e
+  | Success a
+  deriving (Show, Eq, Functor, Foldable, Traversable)
+
+instance (Semigroup e, Semigroup a) => Semigroup (Validation e a) where
+  Failure e1 <> Failure e2 = Failure (e1 <> e2)
+  Failure e  <> _          = Failure e
+  _          <> Failure e  = Failure e
+  Success x  <> Success y  = Success (x <> y)
+
+instance (Semigroup e, Monoid a) => Monoid (Validation e a) where
+  mempty = Success mempty
+  mappend = (<>)
+
+valToEither :: Validation e a -> Either e a
+valToEither (Failure e) = Left e
+valToEither (Success x) = Right x
+
+checkStratTys :: BareSpec -> TargetSrc -> Either Diagnostics [Name]
+checkStratTys bare spec = valToEither
+                        $ foldMap (uncurry $ checkStratTy bare)
+                        $ mapMaybe (locateStratTcs bare) (gsTcs spec)
+
+locateStratTcs :: BareSpec -> TyCon -> Maybe (SrcSpan, TyCon)
+locateStratTcs bs tc = listToMaybe $ mapMaybe ctorName $ S.toList $ stratified bs
+  where
+    ctorName (F.Loc s e (LHNResolved (LHRGHC c) _))
+      | c == Ghc.tyConName tc = Just (GM.sourcePos2SrcSpan s e, tc)
+    ctorName _               = Nothing
+
+checkStratTy :: BareSpec -> SrcSpan -> TyCon -> Validation Diagnostics [Name]
+checkStratTy spec pos tycon =
+  case tyConDataCons_maybe tycon of
+    Just ctors -> foldMap (checkStratCtor tycon spec pos) ctors
+    Nothing    -> Failure $ mkDiagnostics mempty [ err ]
+  where err = ErrStratNotAdt pos (pprint (Ghc.tyConName tycon))
+
+checkStratCtor :: TyCon -> BareSpec -> SrcSpan -> DataCon -> Validation Diagnostics [Name]
+checkStratCtor tcon spec pos datacon
+  | Just nm <- listToMaybe $ mapMaybe (isThisDataCon . val . fst) $ sigs spec
+  = Success [ nm ]
+  | otherwise = Failure $ mkDiagnostics mempty [ err ]
+  where err = ErrStratNotRefCtor pos (pprint $ dataConName datacon) (pprint $ Ghc.tyConName tcon)
+        isThisDataCon (LHNResolved (LHRGHC c) _)
+          | c == dataConName datacon = Just c
+        isThisDataCon _              = Nothing
+
 
 ----------------------------------------------------------------------------------------------
 -- | Checking BareSpec ------------------------------------------------------------------------
