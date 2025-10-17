@@ -1095,6 +1095,8 @@ ppError' _ dCtx (ErrPosTyCon _ tc dc)
              , "To deactivate or understand the need of positivity check, see:"
              , " "
              , nest 2 "https://ucsd-progsys.github.io/liquidhaskell/options/#positivity-check"
+             , "or consider making the type stratified"
+             , nest 2 "http://ucsd-progsys.github.io/liquidhaskell/specifications/#stratified-types"
             ]
 
 ppError' _ dCtx (ErrCtorRefinement _ ctorName)
