@@ -1589,6 +1589,7 @@ executable unit-pos-3
                     , MyBagDefine
                     , NumRefl
                     , NumRefl1
+                    , StratVal
                     , Streams
                     , StrictPair0
                     , StrictPair1
@@ -1753,7 +1754,6 @@ executable unit-pos-3
                     , ZipW1
                     , ZipW2
                     , ZipW
-                    , StratVal
                     --- IGNORED
                     -- , Variance
 
