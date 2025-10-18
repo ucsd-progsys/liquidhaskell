@@ -241,7 +241,7 @@ btP = do
              b <- locInfixSymbolP
              PC _ t2 <- btP
              return $ PC sb $ RApp
-               (mkBTyCon $ fmap (makeUnresolvedLHName LHTcName) b)
+               (mkBTyCon $ fmap (makeUnresolvedLHName (LHTcName LHAnyModuleNameF)) b)
                [t1,t2]
                []
                trueURef
@@ -458,9 +458,9 @@ lowerIdTail l =
 bTyConP :: Parser BTyCon
 bTyConP
   =  (reservedOp "'" >> mkPromotedBTyCon <$> locUpperIdLHNameP (LHDataConName LHAnyModuleNameF))
- <|> mkBTyCon <$> locUpperIdLHNameP LHTcName
+ <|> mkBTyCon <$> locUpperIdLHNameP (LHTcName LHAnyModuleNameF)
  <|> (reserved "*" >>
-        return (mkBTyCon (dummyLoc $ makeUnresolvedLHName LHTcName $ symbol ("*" :: String)))
+        return (mkBTyCon (dummyLoc $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) $ symbol ("*" :: String)))
      )
  <?> "bTyConP"
 
@@ -471,7 +471,7 @@ mkPromotedBTyCon :: Located LHName -> BTyCon
 mkPromotedBTyCon x = BTyCon x False True -- (consSym '\'' <$> x) False True
 
 classBTyConP :: Parser BTyCon
-classBTyConP = mkClassBTyCon <$> locUpperIdLHNameP LHTcName
+classBTyConP = mkClassBTyCon <$> locUpperIdLHNameP (LHTcName LHAnyModuleNameF)
 
 mkClassBTyCon :: Located LHName -> BTyCon
 mkClassBTyCon x = BTyCon x True False
@@ -770,8 +770,8 @@ bLst :: Maybe (RTypeV v BTyCon tv (UReftV v r))
      -> [RTPropV v BTyCon tv (UReftV v r)]
      -> r
      -> RTypeV v BTyCon tv (UReftV v r)
-bLst (Just t) rs r = RApp (mkBTyCon $ dummyLoc $ makeUnresolvedLHName LHTcName listConName) [t] rs (reftUReft r)
-bLst Nothing  rs r = RApp (mkBTyCon $ dummyLoc $ makeUnresolvedLHName LHTcName listConName) []  rs (reftUReft r)
+bLst (Just t) rs r = RApp (mkBTyCon $ dummyLoc $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) listConName) [t] rs (reftUReft r)
+bLst Nothing  rs r = RApp (mkBTyCon $ dummyLoc $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) listConName) []  rs (reftUReft r)
 
 bTup :: [(Maybe Symbol, BareTypeParsed)]
      -> [RTPropV LocSymbol BTyCon BTyVar (UReftV LocSymbol (ReftV LocSymbol))]
@@ -783,11 +783,11 @@ bTup [(_,t)] _ r
 bTup ts rs r
   | all (Mb.isNothing . fst) ts || length ts < 2
   = RApp
-      (mkBTyCon $ dummyLoc $ makeUnresolvedLHName LHTcName $ fromString $ "Tuple" ++ show (length ts))
+      (mkBTyCon $ dummyLoc $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) $ fromString $ "Tuple" ++ show (length ts))
       (snd <$> ts) rs (reftUReft r)
   | otherwise
   = RApp
-      (mkBTyCon $ dummyLoc $ makeUnresolvedLHName LHTcName $ fromString $ "Tuple" ++ show (length ts))
+      (mkBTyCon $ dummyLoc $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) $ fromString $ "Tuple" ++ show (length ts))
       (mapReft (const trueURef) . snd <$> ts)
       rs'
       (reftUReft r)
@@ -1133,7 +1133,7 @@ specP
     -- TODO: These next two are synonyms, kill one
     <|> fallbackSpecP "axiomatize"  (fmap Reflect locBinderLHNameP)
     <|> fallbackSpecP "reflect"     (fmap Reflect locBinderLHNameP)
-    <|> fallbackSpecP "stratified"  (fmap Stratified tyConBindLHNameP)
+    <|> fallbackSpecP "stratified"  (fmap Stratified tyConThisModuleBindLHNameP)
     <|> (reserved "private-reflect" >> fmap PrivateReflect axiomP  )
     <|> (reserved "opaque-reflect" >> fmap OpaqueReflect locBinderLHNameP  )
 
@@ -1210,7 +1210,7 @@ axiomP :: Parser LocSymbol
 axiomP = locBinderP
 
 datavarianceP :: Parser (Located LHName, [Variance])
-datavarianceP = liftM2 (,) (locUpperIdLHNameP LHTcName) (many varianceP)
+datavarianceP = liftM2 (,) (locUpperIdLHNameP (LHTcName LHAnyModuleNameF)) (many varianceP)
 
 dsizeP :: Parser ([Located BareTypeParsed], Located Symbol)
 dsizeP = liftM2 (,) (parens $ sepBy (located genBareTypeP) comma) locBinderP
@@ -1287,7 +1287,7 @@ genBareTypeP = bareTypeP
 
 embedP :: Parser (Located LHName, FTycon, TCArgs)
 embedP = do
-  x <- locUpperIdLHNameP LHTcName
+  x <- locUpperIdLHNameP (LHTcName LHAnyModuleNameF)
   a <- try (reserved "*" >> return WithArgs) <|> return NoArgs -- TODO: reserved "*" looks suspicious
   _ <- reserved "as"
   t <- fTyConP
@@ -1528,7 +1528,10 @@ bbindP   :: Parser Symbol
 bbindP   = lowerIdP <* reservedOp "::"
 
 tyConBindLHNameP :: Parser (Located LHName)
-tyConBindLHNameP = locUpperIdLHNameP LHTcName
+tyConBindLHNameP = locUpperIdLHNameP (LHTcName LHAnyModuleNameF)
+
+tyConThisModuleBindLHNameP :: Parser (Located LHName)
+tyConThisModuleBindLHNameP = locUpperIdLHNameP (LHTcName LHThisModuleNameF)
 
 dataConP :: [Symbol] -> Parser DataCtorParsed
 dataConP as = do
@@ -1596,7 +1599,7 @@ dataDeclP = do
 
 emptyDecl :: LocSymbol -> SourcePos -> Maybe (SizeFunV LocSymbol) -> DataDeclParsed
 emptyDecl x pos fsize@(Just _)
-  = DataDecl (DnName $ makeUnresolvedLHName LHTcName <$> x) [] [] Nothing pos fsize Nothing DataUser
+  = DataDecl (DnName $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) <$> x) [] [] Nothing pos fsize Nothing DataUser
 emptyDecl x pos _
   = uError (ErrBadData (sourcePosSrcSpan pos) (pprint (val x)) msg)
   where
@@ -1612,7 +1615,7 @@ dataDeclBodyP pos x fsize = do
   return      $ DataDecl dn as ps (Just dcs) pos fsize pTy DataUser
 
 dataDeclName :: SourcePos -> LocSymbol -> Bool -> [DataCtorParsed] -> DataName
-dataDeclName _ x True  _     = DnName $ makeUnresolvedLHName LHTcName <$> x  -- vanilla data    declaration
+dataDeclName _ x True  _     = DnName $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) <$> x  -- vanilla data    declaration
 dataDeclName _ _ False (d:_) = DnCon  $ dcName d                             -- family instance declaration
 dataDeclName p x _  _        = uError (ErrBadData (sourcePosSrcSpan p) (pprint (val x)) msg)
   where

@@ -238,7 +238,7 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
 
     resolveLHName lname =
       case val lname of
-        LHNUnresolved LHTcName s
+        LHNUnresolved (LHTcName lcl) s
           | isTuple s ->
             pure $ LHNResolved (LHRGHC $ GHC.tupleTyConName GHC.BoxedTuple (tupleArity s)) s
           | isList s ->
@@ -254,12 +254,12 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
               FoundTypeAliases { tarLocallyDefined = [(m, _, _)] } ->
                 pure $ makeLogicLHName (LH.dropModuleNames s) m Nothing
               FoundTypeAliases { tarImported = [(_, lh, _)]
-                               , tarLocallyDefined = []} ->
+                               , tarLocallyDefined = []} | lcl == LHAnyModuleNameF ->
                 pure lh
               -- If multiple matches are found, report the ambiguous name and return it.
               tar@(FoundTypeAliases { }) -> do addError $ errResolveTypeAlias (s <$ lname) tar
                                                pure $ val lname
-              NoSuchTypeAlias alts -> lookupGRELHName alts LHTcName lname s listToMaybe
+              NoSuchTypeAlias alts -> lookupGRELHName alts (LHTcName lcl) lname s listToMaybe
         LHNUnresolved ns@(LHVarName lcl) s
           | isDataCon s ->
               lookupGRELHName [] (LHDataConName lcl) lname s listToMaybe
@@ -310,13 +310,14 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
     localNameSpace = \case
       LHDataConName lcl -> lcl == LHThisModuleNameF
       LHVarName lcl -> lcl == LHThisModuleNameF
-      LHTcName -> False
+      LHTcName lcl -> lcl == LHThisModuleNameF
       LHLogicNameBinder -> False
       LHLogicName -> False
 
     nameSpaceKind :: LHNameSpace -> PJ.Doc
     nameSpaceKind = \case
-      LHTcName -> "type constructor"
+      LHTcName LHAnyModuleNameF -> "type constructor"
+      LHTcName LHThisModuleNameF -> "locally-defined type constructor"
       LHDataConName LHAnyModuleNameF -> "data constructor"
       LHDataConName LHThisModuleNameF -> "locally-defined data constructor"
       LHVarName LHAnyModuleNameF -> "variable"
@@ -360,7 +361,7 @@ resolveSymbolToTcName globalRdrEnv lx
     | s == "*" =
       pure $ LHNResolved (LHRGHC GHC.liftedTypeKindTyConName) s <$ lx
     | otherwise =
-      case GHC.lookupGRE globalRdrEnv (mkLookupGRE LHTcName s) of
+      case GHC.lookupGRE globalRdrEnv (mkLookupGRE (LHTcName LHAnyModuleNameF) s) of
         [e] -> Right $ LHNResolved (LHRGHC $ GHC.greName e) s <$ lx
         [] -> Left $ errResolve [] "type constructor" "Cannot resolve name" lx
         es -> Left $ ErrDupNames
@@ -407,7 +408,7 @@ mkLookupGRE ns s =
   where
     mkWhichGREs :: LHNameSpace -> GHC.WhichGREs GHC.GREInfo
     mkWhichGREs = \case
-      LHTcName -> GHC.SameNameSpace
+      LHTcName _ -> GHC.SameNameSpace
       LHDataConName _ -> GHC.SameNameSpace
       LHVarName _ -> GHC.RelevantGREs
         { GHC.includeFieldSelectors = GHC.WantNormal
@@ -418,7 +419,7 @@ mkLookupGRE ns s =
       LHLogicName -> panic Nothing "mkWhichGREs: unexpected namespace LHLogicName"
 
     mkGHCNameSpace = \case
-      LHTcName -> GHC.tcName
+      LHTcName _ -> GHC.tcName
       LHDataConName _ -> GHC.dataName
       LHVarName _ -> GHC.Types.Name.Occurrence.varName
       LHLogicNameBinder -> panic Nothing "mkGHCNameSpace: unexpected namespace LHLogicNameBinder"
@@ -430,11 +431,11 @@ resolveBoundVarsInTypeAliases :: BareSpecParsed -> BareSpecParsed
 resolveBoundVarsInTypeAliases = updateAliases resolveBoundVars
   where
     resolveBoundVars boundVars = \case
-      LHNUnresolved LHTcName s ->
+      LHNUnresolved (LHTcName lcl) s ->
         if elem s boundVars then
           LHNResolved (LHRLocal s) s
         else
-          LHNUnresolved LHTcName s
+          LHNUnresolved (LHTcName lcl) s
       n ->
         error $ "resolveLHNames: Unexpected resolved name: " ++ show n
 
@@ -464,7 +465,7 @@ fixExpressionArgsOfTypeAliases
 fixExpressionArgsOfTypeAliases taliases = mapMBareTypes go
   where
     go :: BareTypeParsed -> StateT RenameOutput Identity BareTypeParsed
-    go (RApp c@(BTyCon { btc_tc = lname@(Loc _ _ (LHNUnresolved LHTcName s)) }) ts rs r)
+    go (RApp c@(BTyCon { btc_tc = lname@(Loc _ _ (LHNUnresolved (LHTcName _) s)) }) ts rs r)
       | tar@(FoundTypeAliases imported local) <- resolveTypeAlias taliases s =
           case (imported, local) of
                -- Local alias definitions get priority over imported ones.
