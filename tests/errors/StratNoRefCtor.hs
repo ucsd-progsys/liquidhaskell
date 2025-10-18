@@ -1,4 +1,5 @@
-{-@ LIQUID "--expect-error-containing=The constructor Test.VInt of the type Test.Val was declared stratified but it is not a refinement constructor (i.e. it has no refinement)" @-}
+{-# LANGUAGE GADTs #-}
+{-@ LIQUID "--expect-error-containing=The constructor StratNoRefCtor.VInt of the type StratNoRefCtor.Val was declared stratified but it is not a refinement constructor (i.e. it has no refinement)" @-}
 module StratNoRefCtor where
 
 import Language.Haskell.Liquid.ProofCombinators

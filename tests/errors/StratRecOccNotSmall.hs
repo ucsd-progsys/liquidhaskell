@@ -1,4 +1,5 @@
-{-@ LIQUID "--expect-error-containing=The constructor Test.VArr of the type Test.Val was declared stratified but it has a recursive occurence whose index type Test.Val (Test.TArr t1 t2) is not smaller than the return index type Test.Val (Test.TArr t1 t2)" @-}
+{-# LANGUAGE GADTs #-}
+{-@ LIQUID "--expect-error-containing=The constructor StratRecOccNotSmall.VArr of the type StratRecOccNotSmall.Val was declared stratified but it has a recursive occurence whose index type StratRecOccNotSmall.Val (StratRecOccNotSmall.TArr t1 t2) is not smaller than the return index type StratRecOccNotSmall.Val (StratRecOccNotSmall.TArr t1 t2)" @-}
 module StratRecOccNotSmall where
 
 import Language.Haskell.Liquid.ProofCombinators

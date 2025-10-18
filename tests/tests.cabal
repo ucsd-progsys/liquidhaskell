@@ -673,6 +673,11 @@ executable errors
                     , UnboundVarInAssume
                     , UnboundVarInLocSig
                     , UnboundVarInSpec
+                    , StratNoPropRec
+                    , StratNoPropRet
+                    , StratNoRefCtor
+                    , StratNotAdt
+                    , StratRecOccNotSmall
 
     build-depends:    base
                     , liquid-prelude
@@ -1747,6 +1752,7 @@ executable unit-pos-3
                     , ZipW1
                     , ZipW2
                     , ZipW
+                    , StratVal
                     --- IGNORED
                     -- , Variance
 

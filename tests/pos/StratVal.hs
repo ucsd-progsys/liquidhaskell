@@ -1,3 +1,5 @@
+{-# LANGUAGE GADTs #-}
+
 module StratVal where
 
 import Language.Haskell.Liquid.ProofCombinators

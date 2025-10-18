@@ -1,4 +1,5 @@
-{-@ LIQUID "--expect-error-containing=The constructor Test.VArr of the type Test.Val was declared stratified but it has a recursive occurence of type Test.Val which is not a Prop type" @-}
+{-# LANGUAGE GADTs #-}
+{-@ LIQUID "--expect-error-containing=The constructor StratNoPropRec.VArr of the type StratNoPropRec.Val was declared stratified but it has a recursive occurence of type StratNoPropRec.Val which is not a Prop type" @-}
 module StratNoPropRec where
 
 import Language.Haskell.Liquid.ProofCombinators
