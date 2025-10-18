@@ -25,6 +25,7 @@ import           Liquid.GHC.API                   as Ghc hiding ( Located
                                                                                  , empty
                                                                                  )
 import           Control.Applicative                       ((<|>))
+import           Control.Monad                             (guard)
 import           Control.Monad.Reader
 import           Data.Maybe
 import           Data.Function                             (on)
@@ -71,12 +72,7 @@ checkTargetSrc cfg bare spec
 
 isStratifiedTyCon :: BareSpec -> TyCon -> Bool
 isStratifiedTyCon bs tc = Ghc.tyConName tc `elem` sn
-  where
-    -- (Alecs): For some reason it can't see that they are the same
-    -- GHC name, probably is due to some worker wrapper shenannigans
-    sn = mapMaybe ctorName $ S.toList $ stratified bs
-    ctorName (F.Loc _ _ (LHNResolved (LHRGHC c) _)) = Just c
-    ctorName _                                      = Nothing
+  where sn = mapMaybe (getLHGHCName . F.val) $ S.toList $ stratified bs
 
 checkPositives :: BareSpec -> [TyCon] -> Diagnostics
 checkPositives bare tys = mkDiagnostics []
@@ -92,6 +88,8 @@ mkNonPosError tcs = [ ErrPosTyCon (getSrcSpan tc) (pprint tc) (pprint dc <+> ":"
 -- | Checking that stratified ctors are present --
 --------------------------------------------------
 
+--- | Like 'Either' but the 'Semigroup' instance combines the failure
+--- | values.
 data Validation e a
   = Failure e
   | Success a
@@ -118,10 +116,9 @@ checkStratTys bare spec = valToEither
 
 locateStratTcs :: BareSpec -> TyCon -> Maybe (SrcSpan, TyCon)
 locateStratTcs bs tc = listToMaybe $ mapMaybe ctorName $ S.toList $ stratified bs
-  where
-    ctorName (F.Loc s e (LHNResolved (LHRGHC c) _))
-      | c == Ghc.tyConName tc = Just (GM.sourcePos2SrcSpan s e, tc)
-    ctorName _               = Nothing
+  where ctorName nm = do c <- getLHGHCName $ F.val nm
+                         guard $ c == Ghc.tyConName tc
+                         pure (GM.sourcePos2SrcSpan (loc nm) (locE nm), tc)
 
 checkStratTy :: BareSpec -> SrcSpan -> TyCon -> Validation Diagnostics [Name]
 checkStratTy spec pos tycon =
@@ -136,10 +133,9 @@ checkStratCtor tcon spec pos datacon
   = Success [ nm ]
   | otherwise = Failure $ mkDiagnostics mempty [ err ]
   where err = ErrStratNotRefCtor pos (pprint $ dataConName datacon) (pprint $ Ghc.tyConName tcon)
-        isThisDataCon (LHNResolved (LHRGHC c) _)
-          | c == dataConName datacon = Just c
-        isThisDataCon _              = Nothing
-
+        isThisDataCon c = do c' <- getLHGHCName c
+                             guard $ c' == dataConName datacon
+                             pure $ dataConName datacon
 
 ----------------------------------------------------------------------------------------------
 -- | Checking BareSpec ------------------------------------------------------------------------
