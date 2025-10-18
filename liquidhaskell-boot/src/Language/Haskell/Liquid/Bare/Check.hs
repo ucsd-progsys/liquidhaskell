@@ -25,7 +25,6 @@ import           Liquid.GHC.API                   as Ghc hiding ( Located
                                                                                  , empty
                                                                                  )
 import           Control.Applicative                       ((<|>))
-import           Control.Monad                             (guard)
 import           Control.Monad.Reader
 import           Data.Maybe
 import           Data.Function                             (on)
@@ -109,6 +108,10 @@ valToEither :: Validation e a -> Either e a
 valToEither (Failure e) = Left e
 valToEither (Success x) = Right x
 
+-- | Check that all stratified types have their constructors
+-- defined with refinement type signatures in the BareSpec.
+--
+-- Yields the names of the data constructors of the stratified types.
 checkStratTys :: BareSpec -> TargetSrc -> Either Diagnostics [Name]
 checkStratTys bare spec =
   valToEither
@@ -133,19 +136,21 @@ checkStratTy spec ltycon =
     pos = GM.sourcePos2SrcSpan (loc ltycon) (locE ltycon)
     err = ErrStratNotAdt pos (pprint (Ghc.tyConName $ val ltycon))
 
--- | Check that the given DataCon has a refinement type signature in the BareSpec
+-- | Check that the given DataCon has a refinement type signature in the BareSpec.
+--
+-- Yields the names of the data constructors that are stratified.
 checkStratCtor :: Located TyCon -> BareSpec -> DataCon -> Validation Diagnostics [Name]
 checkStratCtor ltycon spec datacon
-  | Just nm <- listToMaybe $ mapMaybe (isThisDataCon . val . fst) $ sigs spec
-  = Success [ nm ]
+  | hasRefinementTypeSignature datacon (map (val . fst) $ sigs spec)
+  = Success [ dataConName datacon ]
   | otherwise = Failure $ mkDiagnostics mempty [ err ]
   where
     pos = GM.sourcePos2SrcSpan (loc ltycon) (locE ltycon)
     err = ErrStratNotRefCtor pos (pprint $ dataConName datacon) (pprint $ Ghc.tyConName $ val ltycon)
-    isThisDataCon c = do
-      c' <- getLHGHCName c
-      guard $ c' == dataConName datacon
-      pure $ dataConName datacon
+    hasRefinementTypeSignature :: DataCon -> [LHName] -> Bool
+    hasRefinementTypeSignature dc lns =
+      dataConName dc `elem` mapMaybe getLHGHCName lns
+
 
 ----------------------------------------------------------------------------------------------
 -- | Checking BareSpec ------------------------------------------------------------------------
