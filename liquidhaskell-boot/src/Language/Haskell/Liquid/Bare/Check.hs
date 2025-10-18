@@ -110,32 +110,42 @@ valToEither (Failure e) = Left e
 valToEither (Success x) = Right x
 
 checkStratTys :: BareSpec -> TargetSrc -> Either Diagnostics [Name]
-checkStratTys bare spec = valToEither
-                        $ foldMap (uncurry $ checkStratTy bare)
-                        $ mapMaybe (locateStratTcs bare) (gsTcs spec)
+checkStratTys bare spec =
+  valToEither
+  $ foldMap (checkStratTy bare)
+  $ mapMaybe (traverse (findTyCon (gsTcs spec)))
+  $ S.toList $ stratified bare
 
-locateStratTcs :: BareSpec -> TyCon -> Maybe (SrcSpan, TyCon)
-locateStratTcs bs tc = listToMaybe $ mapMaybe ctorName $ S.toList $ stratified bs
-  where ctorName nm = do c <- getLHGHCName $ F.val nm
-                         guard $ c == Ghc.tyConName tc
-                         pure (GM.sourcePos2SrcSpan (loc nm) (locE nm), tc)
+-- | Find the TyCon corresponding to the given LHName in the given list of TyCons
+findTyCon :: [TyCon] -> LHName -> Maybe TyCon
+findTyCon tcs nm = do
+  c <- getLHGHCName nm
+  L.find ((== c) . Ghc.tyConName) tcs
 
-checkStratTy :: BareSpec -> SrcSpan -> TyCon -> Validation Diagnostics [Name]
-checkStratTy spec pos tycon =
-  case tyConDataCons_maybe tycon of
-    Just ctors -> foldMap (checkStratCtor tycon spec pos) ctors
+-- | Check that the given TyCon is an ADT and that all its constructors
+-- have refinements in the BareSpec.
+checkStratTy :: BareSpec -> Located TyCon -> Validation Diagnostics [Name]
+checkStratTy spec ltycon =
+  case tyConDataCons_maybe (val ltycon) of
+    Just ctors -> foldMap (checkStratCtor ltycon spec) ctors
     Nothing    -> Failure $ mkDiagnostics mempty [ err ]
-  where err = ErrStratNotAdt pos (pprint (Ghc.tyConName tycon))
+  where
+    pos = GM.sourcePos2SrcSpan (loc ltycon) (locE ltycon)
+    err = ErrStratNotAdt pos (pprint (Ghc.tyConName $ val ltycon))
 
-checkStratCtor :: TyCon -> BareSpec -> SrcSpan -> DataCon -> Validation Diagnostics [Name]
-checkStratCtor tcon spec pos datacon
+-- | Check that the given DataCon has a refinement type signature in the BareSpec
+checkStratCtor :: Located TyCon -> BareSpec -> DataCon -> Validation Diagnostics [Name]
+checkStratCtor ltycon spec datacon
   | Just nm <- listToMaybe $ mapMaybe (isThisDataCon . val . fst) $ sigs spec
   = Success [ nm ]
   | otherwise = Failure $ mkDiagnostics mempty [ err ]
-  where err = ErrStratNotRefCtor pos (pprint $ dataConName datacon) (pprint $ Ghc.tyConName tcon)
-        isThisDataCon c = do c' <- getLHGHCName c
-                             guard $ c' == dataConName datacon
-                             pure $ dataConName datacon
+  where
+    pos = GM.sourcePos2SrcSpan (loc ltycon) (locE ltycon)
+    err = ErrStratNotRefCtor pos (pprint $ dataConName datacon) (pprint $ Ghc.tyConName $ val ltycon)
+    isThisDataCon c = do
+      c' <- getLHGHCName c
+      guard $ c' == dataConName datacon
+      pure $ dataConName datacon
 
 ----------------------------------------------------------------------------------------------
 -- | Checking BareSpec ------------------------------------------------------------------------
