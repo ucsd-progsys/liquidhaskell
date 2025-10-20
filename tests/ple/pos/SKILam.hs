@@ -54,8 +54,7 @@ tlen (Lam _ _ _ t)     = 1 + tlen t
 tlen (Var _ _ _)       = 0
 
 
--- VFun function is non positive idk how to fix
-{-@ LIQUID "--no-positivity-check" @-}
+{-@ stratified Value @-}
 data Value where
   {-@ VIota :: Int -> Prop (Value Iota) @-}
   VIota :: Int -> Value

@@ -243,6 +243,7 @@ data GhcSpecQual = SpQual
 
 data GhcSpecSig = SpSig
   { gsTySigs   :: ![(Var, LocSpecType)]           -- ^ Asserted Reftypes
+  , gsStratCtos :: ![Name]                        -- ^ Stratified Ctors
   , gsAsmSigs  :: ![(Var, LocSpecType)]           -- ^ Assumed Reftypes
   , gsAsmReflects  :: ![(Var, Var)]               -- ^ Assumed Reftypes (left is the actual function name and right the pretended one)
   , gsRefSigs  :: ![(Var, LocSpecType)]           -- ^ Reflected Reftypes
@@ -259,6 +260,7 @@ data GhcSpecSig = SpSig
 instance Semigroup GhcSpecSig where
   x <> y = SpSig
     { gsTySigs   = gsTySigs x   <> gsTySigs y
+    , gsStratCtos = gsStratCtos x <> gsStratCtos y
     , gsAsmSigs  = gsAsmSigs x  <> gsAsmSigs y
     , gsAsmReflects = gsAsmReflects x <> gsAsmReflects y
     , gsRefSigs  = gsRefSigs x  <> gsRefSigs y
@@ -278,7 +280,7 @@ instance Semigroup GhcSpecSig where
 
 
 instance Monoid GhcSpecSig where
-  mempty = SpSig mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty
+  mempty = SpSig mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty
 
 data GhcSpecData = SpData
   { gsCtors      :: ![(Var, LocSpecType)]         -- ^ Data Constructor Measure Sigs
@@ -398,6 +400,7 @@ data Spec lname ty = Spec
   , rewriteWith :: !(M.HashMap (F.Located LHName) [F.Located LHName]) -- ^ Definitions using rewrite rules
   , fails      :: !(S.HashSet (F.Located LHName))                     -- ^ These Functions should be unsafe
   , reflects   :: !(S.HashSet (F.Located LHName))                     -- ^ Binders to reflect
+  , stratified :: !(S.HashSet (F.Located LHName))                     -- ^ Type declaration to check for stratification
   , privateReflects :: !(S.HashSet F.LocSymbol)                       -- ^ Private binders to reflect
   , opaqueReflects :: !(S.HashSet (F.Located LHName))                 -- ^ Binders to opaque-reflect
   , autois     :: !(S.HashSet (F.Located LHName))                     -- ^ Automatically instantiate axioms in these Functions
@@ -624,6 +627,7 @@ instance Semigroup (Spec lname ty) where
            , rewriteWith = M.union  (rewriteWith s1)  (rewriteWith s2)
            , fails      = S.union   (fails    s1)  (fails    s2)
            , reflects   = S.union   (reflects s1)  (reflects s2)
+           , stratified = S.union (stratified s1) (stratified s2)
            , privateReflects = S.union (privateReflects s1) (privateReflects s2)
            , opaqueReflects   = S.union   (opaqueReflects s1)  (opaqueReflects s2)
            , hmeas      = S.union   (hmeas    s1)  (hmeas    s2)
@@ -660,6 +664,7 @@ instance Monoid (Spec lname ty) where
            , autois     = S.empty
            , hmeas      = S.empty
            , reflects   = S.empty
+           , stratified = S.empty
            , privateReflects = S.empty
            , opaqueReflects = S.empty
            , inlines    = S.empty
@@ -1012,6 +1017,7 @@ unsafeFromLiftedSpec a = Spec
   , rewrites   = mempty
   , rewriteWith = mempty
   , reflects   = mempty
+  , stratified = mempty
   , privateReflects = liftedPrivateReflects a
   , opaqueReflects   = mempty
   , autois     = liftedAutois a

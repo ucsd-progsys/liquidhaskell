@@ -93,17 +93,18 @@ makeTargetSpec :: Config
                -> TargetDependencies
                -> Ghc.TcRn (Either Diagnostics ([Warning], TargetSpec, LiftedSpec))
 makeTargetSpec cfg localVars lnameEnv lmap targetSrc bareSpec dependencies = do
-  let targDiagnostics     = Bare.checkTargetSrc cfg targetSrc
+  let targDiagnostics     = Bare.checkTargetSrc cfg bareSpec targetSrc
   let depsDiagnostics     = mapM (Bare.checkBareSpec . snd) legacyDependencies
   let bareSpecDiagnostics = Bare.checkBareSpec bareSpec
-  case targDiagnostics >> depsDiagnostics >> bareSpecDiagnostics of
-   Left d | noErrors d -> secondPhase (allWarnings d)
+  let stratDiagnostics   = Bare.checkStratTys bareSpec targetSrc
+  case targDiagnostics >> depsDiagnostics >> bareSpecDiagnostics >> stratDiagnostics of
+   Left d | noErrors d -> secondPhase [] (allWarnings d)
    Left d              -> return $ Left d
-   Right ()            -> secondPhase mempty
+   Right stratNames   -> secondPhase stratNames mempty
   where
-    secondPhase :: [Warning] -> Ghc.TcRn (Either Diagnostics ([Warning], TargetSpec, LiftedSpec))
-    secondPhase phaseOneWarns = do
-      diagOrSpec <- makeGhcSpec cfg lnameEnv localVars (fromTargetSrc targetSrc) lmap bareSpec legacyDependencies
+    secondPhase :: [Ghc.Name] -> [Warning] -> Ghc.TcRn (Either Diagnostics ([Warning], TargetSpec, LiftedSpec))
+    secondPhase stratNames phaseOneWarns = do
+      diagOrSpec <- makeGhcSpec stratNames cfg lnameEnv localVars (fromTargetSrc targetSrc) lmap bareSpec legacyDependencies
       case diagOrSpec of
         Left d -> return $ Left d
         Right (warns, ghcSpec) -> do
@@ -144,7 +145,8 @@ makeTargetSpec cfg localVars lnameEnv lmap targetSrc bareSpec dependencies = do
 -- | @makeGhcSpec@ invokes @makeGhcSpec0@ to construct the @GhcSpec@ and then
 --   validates it using @checkGhcSpec@.
 -------------------------------------------------------------------------------------
-makeGhcSpec :: Config
+makeGhcSpec :: [Ghc.Name]
+            -> Config
             -> LogicNameEnv
             -> Bare.LocalVars
             -> GhcSrc
@@ -153,11 +155,11 @@ makeGhcSpec :: Config
             -> [(ModName, Ms.BareSpec)]
             -> Ghc.TcRn (Either Diagnostics ([Warning], GhcSpec))
 -------------------------------------------------------------------------------------
-makeGhcSpec cfg lenv localVars src lmap bareSpec dependencySpecs = do
+makeGhcSpec stratNames cfg lenv localVars src lmap bareSpec dependencySpecs = do
   ghcTyLookupEnv <- Bare.makeGHCTyLookupEnv (_giCbs src)
   tcg <- Ghc.getGblEnv
   instEnvs <- Ghc.tcGetInstEnvs
-  (dg0, sp) <- makeGhcSpec0 cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap bareSpec dependencySpecs
+  (dg0, sp) <- makeGhcSpec0 stratNames cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap bareSpec dependencySpecs
   let diagnostics = Bare.checkTargetSpec (bareSpec : map snd dependencySpecs)
                                          (toTargetSrc src)
                                          (ghcSpecEnv sp)
@@ -195,7 +197,8 @@ ghcSpecEnv sp = F.notracepp "RENV" $ fromListSEnv binds
 --   lets us use aliases inside data-constructor definitions.
 -------------------------------------------------------------------------------------
 makeGhcSpec0
-  :: Config
+  :: [Ghc.Name]
+  -> Config
   -> Bare.GHCTyLookupEnv
   -> Ghc.TcGblEnv
   -> Ghc.InstEnvs
@@ -206,7 +209,7 @@ makeGhcSpec0
   -> Ms.BareSpec
   -> [(ModName, Ms.BareSpec)]
   -> Ghc.TcRn (Diagnostics, GhcSpec)
-makeGhcSpec0 cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap bareSpec dependencySpecs = do
+makeGhcSpec0 stratNames cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap bareSpec dependencySpecs = do
   globalRdrEnv <- Ghc.tcg_rdr_env <$> Ghc.getGblEnv
   -- build up environments
   tycEnv <- makeTycEnv1 env (tycEnv0, datacons) coreToLg simplifier
@@ -223,7 +226,7 @@ makeGhcSpec0 cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap bareSpec de
   -- NB: we first compute a measure environment w/o the opaque reflections, so that we can bootstrap
   -- the signature `sig`. Then we'll add the opaque reflections before we compute `sData` and al.
   let (dg1, measEnv0) = withDiagnostics $ makeMeasEnv      env tycEnv sigEnv       specs
-  let (dg2, (specInstances, sig)) = withDiagnostics $ makeSpecSig cfg name mySpec iSpecs2 env sigEnv tycEnv measEnv0 (_giCbs src)
+  let (dg2, (specInstances, sig)) = withDiagnostics $ makeSpecSig stratNames cfg name mySpec iSpecs2 env sigEnv tycEnv measEnv0 (_giCbs src)
   elaboratedSig <-
     if allowTC then Bare.makeClassAuxTypes (elaborateSpecType coreToLg simplifier) datacons instMethods
                               >>= elaborateSig sig
@@ -862,10 +865,10 @@ makeAutoInst env spec = S.fromList <$> kvs
 
 
 ----------------------------------------------------------------------------------------
-makeSpecSig :: Config -> ModName -> Ms.BareSpec -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> Bare.TycEnv -> Bare.MeasEnv -> [Ghc.CoreBind]
+makeSpecSig :: [Ghc.Name] -> Config -> ModName -> Ms.BareSpec -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> Bare.TycEnv -> Bare.MeasEnv -> [Ghc.CoreBind]
             -> Bare.Lookup ([RInstance LocBareType], GhcSpecSig)
 ----------------------------------------------------------------------------------------
-makeSpecSig cfg name mySpec specs env sigEnv tycEnv measEnv cbs = do
+makeSpecSig stratNames cfg name mySpec specs env sigEnv tycEnv measEnv cbs = do
   mySigs     <- makeTySigs  env sigEnv name mySpec
   aSigs      <- F.notracepp ("makeSpecSig aSigs " ++ F.showpp name) $ makeAsmSigs env sigEnv name allSpecs
   let asmSigs =  Bare.tcSelVars tycEnv ++ aSigs
@@ -880,6 +883,7 @@ makeSpecSig cfg name mySpec specs env sigEnv tycEnv measEnv cbs = do
   asmRel     <-  makeRelation env name sigEnv (Ms.asmRel mySpec)
   return (instances, SpSig
     { gsTySigs   = tySigs
+    , gsStratCtos = stratNames
     , gsAsmSigs  = asmSigs
     , gsAsmReflects = bimap getVar getVar <$> concatMap (asmReflectSigs . snd) allSpecs
     , gsRefSigs  = []

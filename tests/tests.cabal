@@ -673,6 +673,12 @@ executable errors
                     , UnboundVarInAssume
                     , UnboundVarInLocSig
                     , UnboundVarInSpec
+                    , StratNonLocal
+                    , StratNoPropRec
+                    , StratNoPropRet
+                    , StratNoRefCtor
+                    , StratNotAdt
+                    , StratRecOccNotSmall
 
     build-depends:    base
                     , liquid-prelude
@@ -1583,6 +1589,7 @@ executable unit-pos-3
                     , MyBagDefine
                     , NumRefl
                     , NumRefl1
+                    , StratVal
                     , Streams
                     , StrictPair0
                     , StrictPair1

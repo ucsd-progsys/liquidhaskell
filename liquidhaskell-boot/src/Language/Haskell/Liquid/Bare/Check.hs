@@ -3,15 +3,17 @@
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE DeriveTraversable   #-}
+
 {-# OPTIONS_GHC -Wno-x-partial #-}
 
 module Language.Haskell.Liquid.Bare.Check
   ( checkTargetSpec
   , checkBareSpec
   , checkTargetSrc
+  , checkStratTys
   , tyCompat
   ) where
-
 
 import           Language.Haskell.Liquid.Constraint.ToFixpoint
 
@@ -55,26 +57,100 @@ import qualified Language.Haskell.Liquid.Bare.Resolve      as Bare
 import           Language.Haskell.Liquid.UX.Config
 import Language.Fixpoint.Types.Config (ElabFlags (ElabFlags), solverFlags)
 
-
 ----------------------------------------------------------------------------------------------
 -- | Checking TargetSrc ------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------
-checkTargetSrc :: Config -> TargetSrc -> Either Diagnostics ()
-checkTargetSrc cfg spec
+checkTargetSrc :: Config -> BareSpec -> TargetSrc -> Either Diagnostics ()
+checkTargetSrc cfg bare spec
   |  nopositivity cfg
   || nopositives == emptyDiagnostics
   = Right ()
   | otherwise
   = Left nopositives
-  where nopositives = checkPositives (gsTcs spec)
+  where nopositives = checkPositives bare $ gsTcs spec
 
+isStratifiedTyCon :: BareSpec -> TyCon -> Bool
+isStratifiedTyCon bs tc = Ghc.tyConName tc `elem` sn
+  where sn = mapMaybe (getLHGHCName . F.val) $ S.toList $ stratified bs
 
-checkPositives :: [TyCon] -> Diagnostics
-checkPositives tys = mkDiagnostics [] $ mkNonPosError (getNonPositivesTyCon tys)
+checkPositives :: BareSpec -> [TyCon] -> Diagnostics
+checkPositives bare tys = mkDiagnostics []
+                        $ mkNonPosError
+                        $ filter (not . isStratifiedTyCon bare . fst)
+                        $ getNonPositivesTyCon tys
 
 mkNonPosError :: [(TyCon, [DataCon])]  -> [Error]
 mkNonPosError tcs = [ ErrPosTyCon (getSrcSpan tc) (pprint tc) (pprint dc <+> ":" <+> pprint (dataConRepType dc))
                     | (tc, dc:_) <- tcs]
+
+--------------------------------------------------
+-- | Checking that stratified ctors are present --
+--------------------------------------------------
+
+--- | Like 'Either' but the 'Semigroup' instance combines the failure
+--- | values.
+data Validation e a
+  = Failure e
+  | Success a
+  deriving (Show, Eq, Functor, Foldable, Traversable)
+
+instance (Semigroup e, Semigroup a) => Semigroup (Validation e a) where
+  Failure e1 <> Failure e2 = Failure (e1 <> e2)
+  Failure e  <> _          = Failure e
+  _          <> Failure e  = Failure e
+  Success x  <> Success y  = Success (x <> y)
+
+instance (Semigroup e, Monoid a) => Monoid (Validation e a) where
+  mempty = Success mempty
+  mappend = (<>)
+
+valToEither :: Validation e a -> Either e a
+valToEither (Failure e) = Left e
+valToEither (Success x) = Right x
+
+-- | Check that all stratified types have their constructors
+-- defined with refinement type signatures in the BareSpec.
+--
+-- Yields the names of the data constructors of the stratified types.
+checkStratTys :: BareSpec -> TargetSrc -> Either Diagnostics [Name]
+checkStratTys bare spec =
+  valToEither
+  $ foldMap (checkStratTy bare)
+  $ mapMaybe (traverse (findTyCon (gsTcs spec)))
+  $ S.toList $ stratified bare
+
+-- | Find the TyCon corresponding to the given LHName in the given list of TyCons
+findTyCon :: [TyCon] -> LHName -> Maybe TyCon
+findTyCon tcs nm = do
+  c <- getLHGHCName nm
+  L.find ((== c) . Ghc.tyConName) tcs
+
+-- | Check that the given TyCon is an ADT and that all its constructors
+-- have refinements in the BareSpec.
+checkStratTy :: BareSpec -> Located TyCon -> Validation Diagnostics [Name]
+checkStratTy spec ltycon =
+  case tyConDataCons_maybe (val ltycon) of
+    Just ctors -> foldMap (checkStratCtor ltycon spec) ctors
+    Nothing    -> Failure $ mkDiagnostics mempty [ err ]
+  where
+    pos = GM.sourcePos2SrcSpan (loc ltycon) (locE ltycon)
+    err = ErrStratNotAdt pos (pprint (Ghc.tyConName $ val ltycon))
+
+-- | Check that the given DataCon has a refinement type signature in the BareSpec.
+--
+-- Yields the names of the data constructors that are stratified.
+checkStratCtor :: Located TyCon -> BareSpec -> DataCon -> Validation Diagnostics [Name]
+checkStratCtor ltycon spec datacon
+  | hasRefinementTypeSignature datacon (map (val . fst) $ sigs spec)
+  = Success [ dataConName datacon ]
+  | otherwise = Failure $ mkDiagnostics mempty [ err ]
+  where
+    pos = GM.sourcePos2SrcSpan (loc ltycon) (locE ltycon)
+    err = ErrStratNotRefCtor pos (pprint $ dataConName datacon) (pprint $ Ghc.tyConName $ val ltycon)
+    hasRefinementTypeSignature :: DataCon -> [LHName] -> Bool
+    hasRefinementTypeSignature dc lns =
+      dataConName dc `elem` mapMaybe getLHGHCName lns
+
 
 ----------------------------------------------------------------------------------------------
 -- | Checking BareSpec ------------------------------------------------------------------------
@@ -223,11 +299,7 @@ checkConstructorRefinement = mconcat . map checkOne
     validRef (F.Reft (_, F.PTrue))
                       = True
     -- Prop foo from ProofCombinators
-    validRef (F.Reft (v, F.PAtom F.Eq (F.EApp (F.EVar n) (F.EVar v')) _))
-      | n == "Language.Haskell.Liquid.ProofCombinators.prop"
-      , v == v'
-      = True
-    validRef _ = False
+    validRef n = isJust $ getPropIndex n
 
     isCtorName x = case idDetails x of
       DataConWorkId _ -> True

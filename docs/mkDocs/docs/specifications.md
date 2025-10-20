@@ -47,6 +47,9 @@ of each here.
 * `{-@ <binding-signature-with-refinement-type> @-}` introduces a refinement type for the named Haskell definition.
     * For a function, the refinements become pre and post conditions for the functions use.
     * This is probably the most used Liquid Haskell annotation!
+* `{-@ stratified <data-type-declaration> @-}` the datatype is treated as a stratified type by the well-definedness checker.
+  ([Jump to: Stratified Types](http://ucsd-progsys.github.io/liquidhaskell/specifications/#stratified-types))
+
 
 The following sections detail more variety for the uses of the above annotations.
 
@@ -1123,3 +1126,63 @@ safeDiv x y
 ```
 
 In this example, the `lazyvar` annotation on `help` ensures that the check for `help` is deferred until it is used. Without this annotation, LiquidHaskell would incorrectly report an error like `Error: Liquid Type Mismatch`.
+
+## Stratified Types
+
+Liquid Haskell disallows arbitrary user-defined data types, since some
+can be used to derive inconsistencies in the refinement logic.
+
+```haskell
+data Evil a = Very (Evil a -> a)
+
+{-@ type Bot = {v:() | false} @-}
+
+{-@ bad :: Evil Bot -> Bot @-}
+bad :: Evil () -> ()
+bad (Very f) = f (Very f)
+
+{-@ worse :: Bot @-}
+worse :: ()
+worse = bad (Very bad)
+```
+
+This definition is rejected by Liquid Haskell’s [positivity
+checker](https://ucsd-progsys.github.io/liquidhaskell/options/#positivity-check),
+which enforces that recursive occurrences of a data type only appear
+in **positive** positions (to the right of function arrows).
+Positivity is a *sufficient* condition for logical consistency but not
+a *necessary* one. Some definitions that fail the positivity check are
+still well-founded and consistent. A class of those are **stratified
+types**.
+
+### Definition
+
+A **stratified type** is a data type refined with `Prop` from
+`Language.Haskell.Liquid.ProofCombinators`, where all recursive
+occurrences of the type:
+- appear under `Prop`, and
+- are indexed by **strictly smaller** values than the index of the
+  constructor itself.
+
+This controlled form of non positive types preserves consistency while
+allowing more expressive data definitions.
+
+### Example
+
+The following defines values of the simply typed lambda calculus as a
+stratified type:
+
+```haskell
+data Ty = TInt | TFun Ty Ty
+
+{-@ stratified Val @-}
+data Val where
+  {-@ VInt :: Int -> Prop (Val TInt) @-}
+  VInt :: Int -> Val
+
+  {-@ VFun :: t1:Ty -> t2:Ty
+           -> (Prop (Val t1) -> Prop (Val t2))
+           -> Prop (Val (TFun t1 t2)) @-}
+  VFun :: Ty -> Ty -> (Val -> Val) -> Val
+data VAL = Val Ty
+```

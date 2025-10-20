@@ -6,6 +6,8 @@
 module Language.Haskell.Liquid.Types.Names
   ( lenLocSymbol
   , anyTypeSymbol
+  , propSymbol
+  , getPropIndex
   , selfSymbol
   , LogicName (..)
   , LHResolvedName (..)
@@ -54,6 +56,16 @@ import Language.Haskell.Liquid.GHC.Misc ( locNamedThing ) -- Symbolic GHC.Name
 import qualified Liquid.GHC.API as GHC
 
 import GHC.Types (Any)
+
+propSymbol :: Symbol
+propSymbol = "Language.Haskell.Liquid.ProofCombinators.prop"
+
+getPropIndex :: ReftV Symbol -> Maybe (ExprV Symbol)
+getPropIndex (Reft (v, PAtom Eq (EApp (EVar n) (EVar v')) idx))
+  | n == propSymbol
+  , v == v'
+  = Just idx
+getPropIndex _ = Nothing
 
 -- RJ: Please add docs
 lenLocSymbol :: Located Symbol
@@ -123,7 +135,7 @@ instance Hashable LHName where
   hashWithSalt s (LHNUnresolved ns sym) = s `hashWithSalt` ns `hashWithSalt` sym
 
 data LHNameSpace
-    = LHTcName                            -- ^ Type constructors
+    = LHTcName LHThisModuleNameFlag       -- ^ Type constructors
     | LHDataConName LHThisModuleNameFlag  -- ^ Data constructors with procedence
     | LHVarName LHThisModuleNameFlag      -- ^ Variables with procedence
     | LHLogicNameBinder                   -- ^ Logic names (LHS)
