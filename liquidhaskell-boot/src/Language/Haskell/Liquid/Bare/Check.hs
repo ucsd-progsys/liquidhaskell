@@ -299,11 +299,7 @@ checkConstructorRefinement = mconcat . map checkOne
     validRef (F.Reft (_, F.PTrue))
                       = True
     -- Prop foo from ProofCombinators
-    validRef (F.Reft (v, F.PAtom F.Eq (F.EApp (F.EVar n) (F.EVar v')) _))
-      | n == "Language.Haskell.Liquid.ProofCombinators.prop"
-      , v == v'
-      = True
-    validRef _ = False
+    validRef n = isJust $ getPropIndex n
 
     isCtorName x = case idDetails x of
       DataConWorkId _ -> True

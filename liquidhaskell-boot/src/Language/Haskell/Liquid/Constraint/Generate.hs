@@ -111,7 +111,6 @@ consAct γ cfg info = do
 -- | Checking stratified ctors --
 ---------------------------------
 type FExpr = F.ExprV F.Symbol
-type FRef  = F.ReftV F.Symbol
 type Ctors = S.HashSet F.Symbol
 
 checkStratCtors :: CGEnv -> GhcSpecSig -> CG ()
@@ -129,13 +128,6 @@ uncurryPi :: SpecType -> ([SpecType], SpecType)
 uncurryPi (RFun _ _ dom cod _) = first (dom :) $ uncurryPi cod
 uncurryPi rest                 = ([], rest)
 
-getIndex :: FRef -> Maybe FExpr
-getIndex (F.Reft (v, F.PAtom F.Eq (F.EApp (F.EVar n) (F.EVar v')) to))
-  | n == "Language.Haskell.Liquid.ProofCombinators.prop"
-  , v == v'
-  = Just to
-getIndex _ = Nothing
-
 getTyConName :: SpecType -> Name
 getTyConName a = Ghc.tyConName $ rtc_tc $ rt_tycon a
 
@@ -143,15 +135,14 @@ checkCtor :: Ctors -> Var -> LocSpecType -> CG ()
 checkCtor ctors name typ = do
   let loc = GM.fSrcSpan $ F.loc typ
   let (args, ret) = uncurryPi $ val typ
-  -- The constuctor that we want not to appear negatrive
+  -- The constuctor that we want not to appear negatively
   let tyName = getTyConName ret
   -- Its index information
-  retIdx <- case getIndex $ ur_reft $ rt_reft ret of
+  retIdx <- case getPropIndex $ ur_reft $ rt_reft ret of
     Just idx -> pure idx
     Nothing  -> uError $ ErrStratNotPropRet loc (pprint tyName) (pprint name) (F.pprint ret)
-  -- For every argument of the constructor we check that in negative
-  -- position all the self-refernce are refined by a "smaller" `prop`
-  -- annotation
+  -- For every argument of the constructor we check that all the
+  -- self-refernce are refined by a "smaller" `prop` annotation
   forM_ args $ checkNg ctors loc name tyName retIdx
 
 checkNg :: Ctors -> SrcSpan -> Var -> Name -> FExpr -> SpecType -> CG ()
@@ -166,12 +157,11 @@ checkNg ctors loc ctorName tyName retIdx = go
       go rt_out
     go r@RApp { rt_tycon = RTyCon { rtc_tc }, rt_args, rt_reft } = do
       if Ghc.tyConName rtc_tc == tyName then do
-          case getIndex $ ur_reft rt_reft of
+          case getPropIndex $ ur_reft rt_reft of
             (Just arg) -> do
-              -- We compare index information
-              -- The engativer occurrence is safe iff the index of the
-              -- return type is strictly bigger than the one in negative
-              -- position
+              -- We compare index information The occurrence is safe
+              -- iff the index of the return type is strictly bigger
+              -- than the one in negative position
               unless (isStructurallySmaller ctors arg retIdx) $ do
                 uError $ ErrStratIdxNotSmall loc
                   (pprint tyName) (pprint ctorName) (F.pprint retIdx) (F.pprint arg)
