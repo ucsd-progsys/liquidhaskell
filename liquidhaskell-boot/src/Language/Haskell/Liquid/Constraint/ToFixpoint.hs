@@ -41,37 +41,37 @@ import           Language.Haskell.Liquid.Types.Types hiding     ( binds )
 
 fixConfig :: FilePath -> Config -> FC.Config
 fixConfig tgt cfg = def
-  { FC.solver                   = Mb.fromJust (smtsolver cfg)
-  , FC.linear                   = linear            cfg
-  , FC.eliminate                = eliminate         cfg
-  , FC.nonLinCuts               = not (higherOrderFlag cfg) -- eliminate cfg /= FC.All
-  , FC.save                     = saveQuery         cfg
-  , FC.srcFile                  = tgt
-  , FC.cores                    = cores             cfg
-  , FC.minPartSize              = minPartSize       cfg
-  , FC.maxPartSize              = maxPartSize       cfg
-  , FC.elimStats                = elimStats         cfg
-  , FC.elimBound                = elimBound         cfg
-  , FC.allowHO                  = higherOrderFlag   cfg
-  , FC.allowHOqs                = higherorderqs     cfg
-  , FC.smtTimeout               = smtTimeout        cfg
-  , FC.stringTheory             = stringTheory      cfg
-  , FC.gradual                  = gradual           cfg
-  , FC.ginteractive             = ginteractive       cfg
-  , FC.noslice                  = noslice           cfg
-  , FC.rewriteAxioms            = allowPLE   cfg
-  , FC.pleWithUndecidedGuards   = pleWithUndecidedGuards cfg
-  , FC.etabeta                  = etabeta    cfg
-  , FC.localRewrites            = dependantCase cfg
-  , FC.etaElim                  = not (exactDC cfg) && extensionality cfg -- SEE: https://github.com/ucsd-progsys/liquidhaskell/issues/1601
-  , FC.extensionality           = extensionality    cfg
-  , FC.interpreter              = interpreter    cfg
-  , FC.oldPLE                   = oldPLE cfg
-  , FC.rwTerminationCheck       = rwTerminationCheck cfg
-  , FC.noLazyPLE                = noLazyPLE cfg
-  , FC.fuel                     = fuel      cfg
-  , FC.noEnvironmentReduction   = not (environmentReduction cfg)
-  , FC.inlineANFBindings        = inlineANFBindings cfg
+  { FC.solver         = Mb.fromJust (smtsolver cfg)
+  , FC.linear         = linear            cfg
+  , FC.eliminate      = eliminate         cfg
+  , FC.nonLinCuts     = not (higherOrderFlag cfg) -- eliminate cfg /= FC.All
+  , FC.save           = saveQuery         cfg
+  , FC.srcFile        = tgt
+  , FC.cores          = cores             cfg
+  , FC.minPartSize    = minPartSize       cfg
+  , FC.maxPartSize    = maxPartSize       cfg
+  , FC.elimStats      = elimStats         cfg
+  , FC.elimBound      = elimBound         cfg
+  , FC.allowHO        = higherOrderFlag   cfg
+  , FC.allowHOqs      = higherorderqs     cfg
+  , FC.smtTimeout     = smtTimeout        cfg
+  , FC.stringTheory   = stringTheory      cfg
+  , FC.gradual        = gradual           cfg
+  , FC.ginteractive   = ginteractive       cfg
+  , FC.noslice        = noslice           cfg
+  , FC.rewriteAxioms  = allowPLE   cfg
+  , FC.pleUndecGuards = pleWithUndecidedGuards cfg
+  , FC.etabeta        = etabeta    cfg
+  , FC.localRewrites  = dependantCase cfg
+  , FC.etaElim        = not (exactDC cfg) && extensionality cfg -- SEE: https://github.com/ucsd-progsys/liquidhaskell/issues/1601
+  , FC.extensionality = extensionality    cfg
+  , FC.interpreter    = interpreter    cfg
+  , FC.oldPLE         = oldPLE cfg
+  , FC.rwTermination  = rwTerminationCheck cfg
+  , FC.noLazyPLE      = noLazyPLE cfg
+  , FC.fuel           = fuel      cfg
+  , FC.noEnvReduction = not (environmentReduction cfg)
+  , FC.inlineANFBinds = inlineANFBindings cfg
   }
 
 cgInfoFInfo :: TargetInfo -> CGInfo -> IO (F.FInfo Cinfo)
