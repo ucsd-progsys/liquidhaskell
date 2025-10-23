@@ -144,6 +144,15 @@ cabal v2-exec ghc-timings dist-newstyle
 
 which will produce `tmp/*.json` files.
 
+Be mindful to remove previous compilation artifacts of tests before measuring, or GHC will
+skip running Liquid Haskell on modules that don't need recompilation. Unfortunately,
+using `-fforce-recomp` is not ideal, see [#2565](https://github.com/ucsd-progsys/liquidhaskell/pull/2565)
+for more details. At the time of writing, previous compilation artifacts of tests can be removed with
+
+```bash
+find dist-newstyle -name "tests-*" -o -name "prover-ple-lib-*" | xargs rm -r
+```
+
 Then a csv report can be generated from this json files with
 ```
 cabal v2-run benchmark-timings -- tmp/*.json --phase LiquidHaskell -o summary.csv
