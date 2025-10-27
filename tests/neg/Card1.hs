@@ -1,6 +1,6 @@
 {- LIQUID "--smtsolver=CVC5" @-}
 -- Z3 does not support cardinality of sets
-module Card where
+module Card1 where
 
 import Data.Set 
 import qualified Data.Set as Set
