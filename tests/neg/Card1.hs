@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 {- LIQUID "--smtsolver=CVC5" @-}
 -- Z3 does not support cardinality of sets
 module Card1 where

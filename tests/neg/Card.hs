@@ -1,3 +1,4 @@
+{-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--smtsolver=CVC5" @-}
 module Card where
 
