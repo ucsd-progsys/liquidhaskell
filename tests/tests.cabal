@@ -674,6 +674,7 @@ executable errors
                     , UnboundVarInLocSig
                     , UnboundVarInSpec
                     , StratNonLocal
+                    , StratNoLex
                     , StratNoPropRec
                     , StratNoPropRet
                     , StratNoRefCtor
