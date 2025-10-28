@@ -1102,6 +1102,7 @@ executable unit-neg
                     , BigNum
                     , BinarySearchOverflow
                     , Books
+                    -- , Card
                     , CastedTotality
                     , CharLiterals
                     , CheckedNum
@@ -1440,6 +1441,7 @@ executable unit-pos-2
       buildable:      False
 
     other-modules:
+                     --  Card
                       ExactADT6
                     , ExactGADT0
                     , ExactGADT1
