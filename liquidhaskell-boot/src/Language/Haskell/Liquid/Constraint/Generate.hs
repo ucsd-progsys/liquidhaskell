@@ -180,8 +180,16 @@ isStructurallySmaller ctors l r
   , nl == nr
   , length argsl == length argsr
   , nl `elem` ctors
-  = any (uncurry $ isStructurallySmaller ctors) $ zip argsl argsr
+  = lexOrder ctors argsl argsr
   | otherwise = isSubterm ctors l r && l /= r
+
+lexOrder :: Ctors -> [F.ExprV F.Symbol] -> [F.ExprV F.Symbol] -> Bool
+lexOrder _     []     []            = False
+lexOrder ctors (l:ls) (r:rs)
+  | isStructurallySmaller ctors l r = True
+  | l == r                          = lexOrder ctors ls rs
+  | otherwise                       = False
+lexOrder _ _ _ = errorP "" "lexOrder: different length lists"
 
 isSubterm :: Ctors -> FExpr -> FExpr -> Bool
 isSubterm ctors l r | l == r
