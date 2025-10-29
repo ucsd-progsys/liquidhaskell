@@ -9,7 +9,7 @@ module Language.Haskell.Liquid.Constraint.Qualifier
   where
 
 import           Prelude hiding (error)
-import           Data.List                (delete, nub)
+import           Data.List                (delete, nub, partition)
 import           Data.Maybe               (isJust, catMaybes, fromMaybe, isNothing)
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
@@ -18,6 +18,7 @@ import           Control.Monad.Reader
 
 import           Language.Fixpoint.Types                  hiding (panic, mkQual)
 import qualified Language.Fixpoint.Types.Config as FC
+import           Language.Fixpoint.Misc                  (fst3)
 import           Language.Fixpoint.SortCheck
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.GHC.Misc         (getSourcePos)
@@ -39,9 +40,15 @@ giQuals :: TargetInfo -> SEnv Sort -> [Qualifier]
 --------------------------------------------------------------------------------
 giQuals info lEnv
   =  notracepp ("GI-QUALS: " ++ showpp lEnv)
-  $  condNull (useSpcQuals info) (gsQualifiers . gsQual . giSpec $ info)
+  $  currentSpec
+  ++ condNull (useSpcQuals info) otherSpecs
   ++ condNull (useSigQuals info) (sigQualifiers  info lEnv)
   ++ condNull (useAlsQuals info) (alsQualifiers  info lEnv)
+  where 
+    (currentSpec, otherSpecs) = partition isQualifierFromCurrentModule (gsQualifiers . gsQual . giSpec $ info)
+    isQualifierFromCurrentModule qual = 
+      fst3 (sourcePosElts (qPos qual)) == giTarget (giSrc info)
+
 
 -- --------------------------------------------------------------------------------
 -- qualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
