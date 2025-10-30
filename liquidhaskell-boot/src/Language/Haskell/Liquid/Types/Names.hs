@@ -56,6 +56,7 @@ import GHC.Show
 import GHC.Stack
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.GHC.Misc ( locNamedThing ) -- Symbolic GHC.Name
+import Text.Read (readMaybe)
 import qualified Liquid.GHC.API as GHC
 
 import GHC.Types (Any)
@@ -81,19 +82,17 @@ selfSymbol :: Symbol
 selfSymbol = symbol ("liquid_internal_this" :: String)
 
 tyTupleSizedSymbol :: Int -> Symbol
-tyTupleSizedSymbol n = symbol $ "Tuple" ++ show n
+tyTupleSizedSymbol n | n < 0     = error "tyTupleSizedSymbol: negative arity"
+                     | otherwise = symbol $ "Tuple" ++ show n
 
 isTyTupleSizedSymbol :: Symbol -> Maybe Int
-isTyTupleSizedSymbol s =
-  case Text.stripPrefix "Tuple" (symbolText s) of
-    Just rest
-      | all (`elem` ['0'..'9']) $ Text.unpack rest
-      , not $ Text.null rest
-      -> Just $ read $ Text.unpack rest
-    _ -> Nothing
+isTyTupleSizedSymbol s = Text.stripPrefix "Tuple" (symbolText s)
+                     >>= readMaybe . Text.unpack
 
 tmTupleSizedSymbol :: Int -> Symbol
-tmTupleSizedSymbol n | n == 1    = "MkSolo"
+tmTupleSizedSymbol n | n < 0     = error "tmTupleSizedSymbol: negative arity"
+                     | n == 0    = "()"
+                     | n == 1    = "MkSolo"
                      | otherwise = symbol $ "(" <> replicate (n - 1) ',' <> ")"
 
 -- | A name for an entity that does not exist in Haskell
