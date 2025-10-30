@@ -9,6 +9,9 @@ module Language.Haskell.Liquid.Types.Names
   , propSymbol
   , getPropIndex
   , selfSymbol
+  , tyTupleSizedSymbol
+  , isTyTupleSizedSymbol
+  , tmTupleSizedSymbol
   , LogicName (..)
   , LHResolvedName (..)
   , LHName (..)
@@ -76,6 +79,22 @@ anyTypeSymbol = symbol (show ''Any)
 
 selfSymbol :: Symbol
 selfSymbol = symbol ("liquid_internal_this" :: String)
+
+tyTupleSizedSymbol :: Int -> Symbol
+tyTupleSizedSymbol n = symbol $ "Tuple" ++ show n
+
+isTyTupleSizedSymbol :: Symbol -> Maybe Int
+isTyTupleSizedSymbol s =
+  case Text.stripPrefix "Tuple" (symbolText s) of
+    Just rest
+      | all (`elem` ['0'..'9']) $ Text.unpack rest
+      , not $ Text.null rest
+      -> Just $ read $ Text.unpack rest
+    _ -> Nothing
+
+tmTupleSizedSymbol :: Int -> Symbol
+tmTupleSizedSymbol n | n == 1    = "MkSolo"
+                     | otherwise = symbol $ "(" <> replicate (n - 1) ',' <> ")"
 
 -- | A name for an entity that does not exist in Haskell
 --

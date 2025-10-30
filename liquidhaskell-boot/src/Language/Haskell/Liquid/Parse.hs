@@ -783,11 +783,11 @@ bTup [(_,t)] _ r
 bTup ts rs r
   | all (Mb.isNothing . fst) ts || length ts < 2
   = RApp
-      (mkBTyCon $ dummyLoc $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) $ fromString $ "Tuple" ++ show (length ts))
+      (mkBTyCon $ dummyLoc $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) $ tyTupleSizedSymbol (length ts))
       (snd <$> ts) rs (reftUReft r)
   | otherwise
   = RApp
-      (mkBTyCon $ dummyLoc $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) $ fromString $ "Tuple" ++ show (length ts))
+      (mkBTyCon $ dummyLoc $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) $ tyTupleSizedSymbol (length ts))
       (mapReft (const trueURef) . snd <$> ts)
       rs'
       (reftUReft r)

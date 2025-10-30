@@ -519,12 +519,17 @@ exprArg l msg = notracepp ("exprArg: " ++ msg) . go
   where
     go :: BareTypeParsed -> ExprV LocSymbol
     go (RExprArg e)     = val e
-    go (RVar (BTV x) _)       = EVar x
+    go (RVar (BTV x) _) = EVar x
     go (RApp x [] [] _) = EVar (getLHNameSymbol <$> btc_tc x)
-    go (RApp f ts [] _) = eApps (EVar (getLHNameSymbol <$> btc_tc f)) (go <$> ts)
+    go (RApp f ts [] _) = eApps (EVar (renameAmbiguousCtor . getLHNameSymbol <$> btc_tc f)) (go <$> ts)
     go (RAppTy t1 t2 _) = EApp (go t1) (go t2)
     go z                = panic sp $ Printf.printf "Unexpected expression parameter: %s in %s" (show $ parsedToBareType z) msg
     sp                  = Just (LH.sourcePosSrcSpan l)
+
+renameAmbiguousCtor :: Symbol -> Symbol
+renameAmbiguousCtor x
+  | Just n <- isTyTupleSizedSymbol x = tmTupleSizedSymbol n
+  | otherwise = x
 
 -- | A type alias 'lookupInScopeEnv' that distinguishes locally defined names
 -- from imported ones based on their resolution status:
