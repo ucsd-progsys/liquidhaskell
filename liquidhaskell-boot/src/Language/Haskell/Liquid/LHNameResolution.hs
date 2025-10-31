@@ -513,7 +513,13 @@ mapMBareTypes f  = go
 --   the string `Prop (Ev (plus n n))` where `Prop` is the alias:
 --     {-@ type Prop E = {v:_ | prop v = E} @-}
 --   the parser will chomp in `Ev (plus n n)` as a `BareType` and so
---   `exprArg` converts that `BareType` into an `Expr`.
+-- | @exprArg@ converts a type to a value.
+--   
+--   At parse time the arguments of type aliases are all treated as types.
+--   This needs fixing before verification because some arguments are
+--   meant to be values. Hence, this function to correct the
+--   arguments in question. See the documentation of
+--   @fixExpressionArgsOfTypeAliases@ for some more context.
 exprArg :: SourcePos -> String -> BareTypeParsed -> ExprV LocSymbol
 exprArg l msg = notracepp ("exprArg: " ++ msg) . go
   where
