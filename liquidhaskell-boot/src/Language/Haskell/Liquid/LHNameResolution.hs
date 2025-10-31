@@ -457,7 +457,21 @@ resolveBoundVarsInTypeAliases = updateAliases resolveBoundVars
 -- > {-@ type Prop E = {v:_ | prop v = E} @-}
 --
 -- the parser builds a type for @Ev (plus n n)@.
+-- | @fixExpressionArgsOfTypeAliases taliases spec@ converts types to
+-- values when they appear in value positions of type aliases according
+-- to @taliases@.
 --
+-- The expression arguments of type aliases are initially parsed as
+-- types. This function converts them to expressions.
+--
+-- For instance, in @Prop (Ev (plus n n))@ where `Prop` is the alias
+--
+-- > {-@ type Prop E = {v:_ | prop v = E} @-}
+--
+-- the parser builds a type for @Ev (plus n n)@, making a type
+-- constructor of @Ev@ and type variables of @plus@ and @n@. But
+-- @Ev@ is really a data constructor, @plus@ is a function, and @n@
+-- is a value. 
 fixExpressionArgsOfTypeAliases
   :: InScopeEnv (RTAlias Symbol ())
   -> BareSpecParsed
