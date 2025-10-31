@@ -457,7 +457,21 @@ resolveBoundVarsInTypeAliases = updateAliases resolveBoundVars
 -- > {-@ type Prop E = {v:_ | prop v = E} @-}
 --
 -- the parser builds a type for @Ev (plus n n)@.
+-- | @fixExpressionArgsOfTypeAliases taliases spec@ converts types to
+-- values when they appear in value positions of type aliases according
+-- to @taliases@.
 --
+-- The expression arguments of type aliases are initially parsed as
+-- types. This function converts them to expressions.
+--
+-- For instance, in @Prop (Ev (plus n n))@ where `Prop` is the alias
+--
+-- > {-@ type Prop E = {v:_ | prop v = E} @-}
+--
+-- the parser builds a type for @Ev (plus n n)@, making a type
+-- constructor of @Ev@ and type variables of @plus@ and @n@. But
+-- @Ev@ is really a data constructor, @plus@ is a function, and @n@
+-- is a value. 
 fixExpressionArgsOfTypeAliases
   :: InScopeEnv (RTAlias Symbol ())
   -> BareSpecParsed
@@ -513,18 +527,29 @@ mapMBareTypes f  = go
 --   the string `Prop (Ev (plus n n))` where `Prop` is the alias:
 --     {-@ type Prop E = {v:_ | prop v = E} @-}
 --   the parser will chomp in `Ev (plus n n)` as a `BareType` and so
---   `exprArg` converts that `BareType` into an `Expr`.
+-- | @exprArg@ converts a type to a value.
+--   
+--   At parse time the arguments of type aliases are all treated as types.
+--   This needs fixing before verification because some arguments are
+--   meant to be values. Hence, this function to correct the
+--   arguments in question. See the documentation of
+--   @fixExpressionArgsOfTypeAliases@ for some more context.
 exprArg :: SourcePos -> String -> BareTypeParsed -> ExprV LocSymbol
 exprArg l msg = notracepp ("exprArg: " ++ msg) . go
   where
     go :: BareTypeParsed -> ExprV LocSymbol
     go (RExprArg e)     = val e
-    go (RVar (BTV x) _)       = EVar x
+    go (RVar (BTV x) _) = EVar x
     go (RApp x [] [] _) = EVar (getLHNameSymbol <$> btc_tc x)
-    go (RApp f ts [] _) = eApps (EVar (getLHNameSymbol <$> btc_tc f)) (go <$> ts)
+    go (RApp f ts [] _) = eApps (EVar (renameAmbiguousCtor . getLHNameSymbol <$> btc_tc f)) (go <$> ts)
     go (RAppTy t1 t2 _) = EApp (go t1) (go t2)
     go z                = panic sp $ Printf.printf "Unexpected expression parameter: %s in %s" (show $ parsedToBareType z) msg
     sp                  = Just (LH.sourcePosSrcSpan l)
+
+renameAmbiguousCtor :: Symbol -> Symbol
+renameAmbiguousCtor x
+  | Just n <- isTyTupleSizedSymbol x = tmTupleSizedSymbol n
+  | otherwise = x
 
 -- | A type alias 'lookupInScopeEnv' that distinguishes locally defined names
 -- from imported ones based on their resolution status:

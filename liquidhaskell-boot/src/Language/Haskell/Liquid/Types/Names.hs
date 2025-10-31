@@ -9,6 +9,9 @@ module Language.Haskell.Liquid.Types.Names
   , propSymbol
   , getPropIndex
   , selfSymbol
+  , tyTupleSizedSymbol
+  , isTyTupleSizedSymbol
+  , tmTupleSizedSymbol
   , LogicName (..)
   , LHResolvedName (..)
   , LHName (..)
@@ -53,6 +56,7 @@ import GHC.Show
 import GHC.Stack
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.GHC.Misc ( locNamedThing ) -- Symbolic GHC.Name
+import Text.Read (readMaybe)
 import qualified Liquid.GHC.API as GHC
 
 import GHC.Types (Any)
@@ -76,6 +80,20 @@ anyTypeSymbol = symbol (show ''Any)
 
 selfSymbol :: Symbol
 selfSymbol = symbol ("liquid_internal_this" :: String)
+
+tyTupleSizedSymbol :: Int -> Symbol
+tyTupleSizedSymbol n | n < 0     = error "tyTupleSizedSymbol: negative arity"
+                     | otherwise = symbol $ "Tuple" ++ show n
+
+isTyTupleSizedSymbol :: Symbol -> Maybe Int
+isTyTupleSizedSymbol s = Text.stripPrefix "Tuple" (symbolText s)
+                     >>= readMaybe . Text.unpack
+
+tmTupleSizedSymbol :: Int -> Symbol
+tmTupleSizedSymbol n | n < 0     = error "tmTupleSizedSymbol: negative arity"
+                     | n == 0    = "()"
+                     | n == 1    = "MkSolo"
+                     | otherwise = symbol $ "(" <> replicate (n - 1) ',' <> ")"
 
 -- | A name for an entity that does not exist in Haskell
 --

@@ -767,6 +767,7 @@ executable names-pos
                     , T1521
                     , T675
                     , TransitivePredAliases
+                    , TupleParse
                     , TypeAliasShadowing
                     , Uniques
                     , Vector04
