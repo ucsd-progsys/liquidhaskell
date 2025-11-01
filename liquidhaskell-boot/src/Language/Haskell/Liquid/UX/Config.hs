@@ -94,7 +94,6 @@ data Config = Config
   , noLiftedImport           :: Bool       -- ^ Disable loading lifted specifications (for "legacy" libs)
   , proofLogicEval           :: Bool       -- ^ Enable proof-by-logical-evaluation
   , pleWithUndecidedGuards   :: Bool       -- ^ Unfold invocations with undecided guards in PLE
-  , oldPLE                   :: Bool       -- ^ Enable proof-by-logical-evaluation
   , interpreter              :: Bool       -- ^ Use an interpreter to assist PLE
   , proofLogicEvalLocal      :: Bool       -- ^ Enable proof-by-logical-evaluation locally, per function
   , etabeta                  :: Bool       -- ^ Eta expand and beta reduce terms to aid PLE
