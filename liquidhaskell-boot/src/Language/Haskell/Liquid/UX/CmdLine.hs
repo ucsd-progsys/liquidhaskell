@@ -327,11 +327,6 @@ defConfig = Config {
         &= name "ple-with-undecided-guards"
         &= explicit
 
-  , oldPLE
-    = False
-        &= help "Enable Proof-by-Logical-Evaluation"
-        &= name "oldple"
-
   , interpreter
     = False
         &= help "Use an interpreter to assist PLE in solving constraints"

@@ -153,7 +153,7 @@ testSpecP =
 
     , testCase "qualif" $
        parseSingleSpec "qualif Foo(v:Int): v < 0" @?==
-          "qualif Foo defined at <test>:1:8"
+          "qualif Foo(v: int): v < 0 // defined at <test>:1:8"
 
     , testCase "lazyvar" $
        parseSingleSpec "lazyvar z" @?==
