@@ -1,5 +1,5 @@
 {-# LANGUAGE GADTs #-}
-{-@ LIQUID "--expect-error-containing=The constructor StratNoLex.MkFoo of the type StratNoLex.Foo was declared stratified but it has a recursive occurence whose index type StratNoLex.Foo" @-}
+{-@ LIQUID "--expect-error-containing=The constructor StratNoLex.MkFoo of the type StratNoLex.Foo was declared stratified but it has a recursive occurence whose index StratNoLex.Foo" @-}
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 module StratNoLex where

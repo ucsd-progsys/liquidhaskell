@@ -1,5 +1,5 @@
 {-# LANGUAGE GADTs #-}
-{-@ LIQUID "--expect-error-containing=The constructor StratNoPropRet.VArr of the type StratNoPropRet.Val was declared stratified but it does not return a Prop type, instead it returns StratNoPropRet.Val" @-}
+{-@ LIQUID "--expect-error-containing=The constructor StratNoPropRet.VArr of the type StratNoPropRet.Val was declared stratified but it does not return an indexed type, instead it returns StratNoPropRet.Val" @-}
 module StratNoPropRet where
 
 import Language.Haskell.Liquid.ProofCombinators

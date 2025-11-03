@@ -5,7 +5,7 @@
 {-@ LIQUID "--etabeta"           @-}
 {-@ LIQUID "--dependantcase"     @-}
 
-module SKILam where
+module SKIIdx where
 
 import Prelude
 
