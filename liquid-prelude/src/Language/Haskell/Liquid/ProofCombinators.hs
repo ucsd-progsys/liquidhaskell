@@ -183,6 +183,10 @@ impossible _ = undefined
 {-@ measure prop :: a -> b           @-}
 {-@ type Prop E = {v:_ | prop v = E} @-}
 
+-- New syntax for "inductive propositions", aka indexed types, it
+-- should be used in place of `Prop` that is kept for backward
+-- compatibility.
+{-@ type Ix typ E = {v:typ | prop v = E} @-}
 
 -------------------------------------------------------------------------------
 -- PLE-specific

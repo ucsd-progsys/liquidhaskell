@@ -192,22 +192,20 @@ matching on indexed inductive dependent types using the `--dependantcase` flag:
 
 ```Haskell
 data Term where
-    {-@ MkId :: Prop (Term id) @-}
+    {-@ MkId :: Ix Term id @-}
     MkId :: Term
-data TERM = Term (Int -> Int)
 
-
-{-@ patternMatch :: x:_ -> f:_ -> Prop (Term f) -> { f x = x } @-}
+{-@ patternMatch :: x:_ -> f:_ -> Ix Term f -> { f x = x } @-}
 patternMatch :: Int -> (Int -> Int) -> Term -> Proof
 patternMatch _ _ MkId = trivial
 ```
 
-From the pattern maching of `MkId`, Liquid Haskell can infer the equality
-`Term f = Term id`. But this is not enough to allow PLE to unfold `f` in the
-goal `f x = x`. The `--dependantcase` flag unifies the arguments of data
-constructors in equalities like `Term f = Term id`, which produces the
-equality `f = id`. This equality induces a rewrite rule that PLE uses to
-derive `id x = x` from `f x = x`, where `id` can then be unfolded.
+From the pattern maching of `MkId`, Liquid Haskell can infer the
+equality `f = id`. But this is not enough to allow PLE to unfold `f`
+in the goal `f x = x`. The `--dependantcase` flag unifies the
+arguments of indexed types like `f = id`. This equality induces a
+rewrite rule that PLE uses to derive `id x = x` from `f x = x`, where
+`id` can then be unfolded.
 
 While both flags work independently, enabling `--dependantcase` might need
 to be complemented with the flag `--etabeta` to complete the verification

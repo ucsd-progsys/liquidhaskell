@@ -2437,6 +2437,7 @@ executable ple-pos
                     , SKIEta
                     , SKIDC
                     , SKILam
+                    , SKIIdx
                     , FuseMap
                     , FuseMapLam
                     , ProposalLocalRewrites
