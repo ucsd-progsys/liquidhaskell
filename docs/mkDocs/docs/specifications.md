@@ -65,7 +65,7 @@ above the data definition. See, for example, [tests/pos/Map.hs](https://github.c
 
 ```haskell
 {-@
-data Map k a <l :: k -> k -> Prop, r :: k -> k -> Prop>
+data Map k a <l :: k -> k -> Bool, r :: k -> k -> Bool>
   = Tip
   | Bin (sz    :: Size)
         (key   :: k)
