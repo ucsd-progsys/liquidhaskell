@@ -65,7 +65,7 @@ above the data definition. See, for example, [tests/pos/Map.hs](https://github.c
 
 ```haskell
 {-@
-data Map k a <l :: k -> k -> Prop, r :: k -> k -> Prop>
+data Map k a <l :: k -> k -> Bool, r :: k -> k -> Bool>
   = Tip
   | Bin (sz    :: Size)
         (key   :: k)
@@ -1157,10 +1157,10 @@ types**.
 
 ### Definition
 
-A **stratified type** is a data type refined with `Prop` from
+A **stratified type** is a data type indexed with `Ix` from
 `Language.Haskell.Liquid.ProofCombinators`, where all recursive
 occurrences of the type:
-- appear under `Prop`, and
+- appear under `Ix`, and
 - are indexed by **strictly smaller** values than the index of the
   constructor itself.
 
@@ -1177,12 +1177,11 @@ data Ty = TInt | TFun Ty Ty
 
 {-@ stratified Val @-}
 data Val where
-  {-@ VInt :: Int -> Prop (Val TInt) @-}
+  {-@ VInt :: Int -> Ix Val TInt @-}
   VInt :: Int -> Val
 
   {-@ VFun :: t1:Ty -> t2:Ty
-           -> (Prop (Val t1) -> Prop (Val t2))
-           -> Prop (Val (TFun t1 t2)) @-}
+           -> (Ix Val t1 -> Ix Val t2)
+           -> Ix Val (TFun t1 t2) @-}
   VFun :: Ty -> Ty -> (Val -> Val) -> Val
-data VAL = Val Ty
 ```

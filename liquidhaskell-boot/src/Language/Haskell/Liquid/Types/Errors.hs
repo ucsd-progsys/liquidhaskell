@@ -1102,7 +1102,7 @@ ppError' _ dCtx (ErrPosTyCon _ tc dc)
 ppError' _ dCtx (ErrCtorRefinement _ ctorName)
   = text "Refinement of the data constructor" <+> ctorName <+> "doesn't admit an arbitrary refinements on the return type"
         $+$ dCtx
-        $+$ nest 4 (text "Were you trying to use `Prop` from `Language.Haskell.Liquid.ProofCombinators`?")
+        $+$ nest 4 (text "Were you trying to use `Ix` from `Language.Haskell.Liquid.ProofCombinators`?")
         $+$ nest 4 (text "You can disable this error by enabling the flag `--allow-unsafe-constructors`")
 
 ppError' _ dCtx (ErrStratNotAdt _ tyName)
@@ -1119,7 +1119,7 @@ ppError' _ dCtx (ErrStratNotRefCtor _ ctorName tyName)
 ppError' _ dCtx (ErrStratNotPropRet _ tyName ctorName retTy)
   = text "The constructor" <+> ctorName
       <+> "of the type" <+> tyName
-      <+> "was declared stratified but it does not return a Prop type, instead it returns"
+      <+> "was declared stratified but it does not return an indexed type, instead it returns"
       <+> retTy
       $+$ dCtx
 
@@ -1128,15 +1128,15 @@ ppError' _ dCtx (ErrStratOccProp _ tyName ctorName tyNR)
       <+> "of the type" <+> tyName
       <+> "was declared stratified but it has a recursive occurence of type"
       <+> tyNR
-      <+> "which is not a Prop type"
+      <+> "which is not an indexed type"
       $+$ dCtx
 
 ppError' _ dCtx (ErrStratIdxNotSmall _ tyName ctorName retIdx occIdx)
   = text "The constructor" <+> ctorName
       <+> "of the type" <+> tyName
-      <+> "was declared stratified but it has a recursive occurence whose index type"
+      <+> "was declared stratified but it has a recursive occurence whose index"
       <+> occIdx
-      <+> "is not smaller than the return index type"
+      <+> "is not smaller than the return index"
       <+> retIdx
       $+$ dCtx
 
