@@ -656,7 +656,7 @@ tests/neg/ListElem.hs:12:1-8: Error: Liquid Type Mismatch
      VV = True
 
    not a subtype of Required type
-     VV : {VV : Bool | Prop VV <=> Set_mem ?b (listElts ?a)}
+     VV : {VV : Bool | VV <=> Set_mem ?b (listElts ?a)}
 
    In Context
      ?a : {?a : [a] | len ?a >= 0}
