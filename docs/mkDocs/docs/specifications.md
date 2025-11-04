@@ -1160,7 +1160,7 @@ types**.
 A **stratified type** is a data type indexed with `Ix` from
 `Language.Haskell.Liquid.ProofCombinators`, where all recursive
 occurrences of the type:
-- appear under `Prop`, and
+- appear under `Ix`, and
 - are indexed by **strictly smaller** values than the index of the
   constructor itself.
 
