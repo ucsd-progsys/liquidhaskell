@@ -845,7 +845,6 @@ substExprV toSym su0 = go
     go (PIff p1 p2) = PIff (go p1) (go p2)
     go (PAtom r e1 e2) = PAtom r (go e1) (go e2)
     go (PKVar k su') = PKVar k $ su' `appendSubst` su0
-    go (PGrad k su' i e) = PGrad k (su' `appendSubst` su0) i (go e)
     go (PAll _ _) = panic Nothing "substExprV: PAll"
     go (PExist _ _) = panic Nothing "substExprV: PExist"
     go p = p
