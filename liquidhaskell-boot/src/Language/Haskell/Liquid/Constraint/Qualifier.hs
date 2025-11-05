@@ -187,7 +187,6 @@ refTopQuals lEnv ef l tce t0 γ rrt
   = [ mkQ' v so pa  | let (RR so (Reft (v, ra))) = rTypeSortedReft tce rrt
                    , pa                        <- conjuncts ra
                    , not $ isHole    pa
-                   , not $ isGradual pa
                    , notracepp ("refTopQuals: " ++ showpp pa)
                      $ isNothing $ runReader (checkSorted (srcSpan l) (insertSEnv v so γ') pa) ef
     ]
