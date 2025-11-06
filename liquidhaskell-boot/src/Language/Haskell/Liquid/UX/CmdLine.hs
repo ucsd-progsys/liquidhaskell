@@ -165,22 +165,9 @@ defConfig = Config {
     = def &= name "no-structural-termination"
           &= help "Disable structural termination check"
 
- , gradual
-    = False &= help "Enable gradual refinement type checking"
-          &= name "gradual"
-
  , bscope
     = False &= help "scope of the outer binders on the inner refinements"
           &= name "bscope"
-
- , gdepth
-    = 1
-    &= help "Size of gradual conretizations, 1 by default"
-    &= name "gradual-depth"
-
- , ginteractive
-    = False &= help "Interactive Gradual Solving"
-          &= name "ginteractive"
 
  , totalHaskell
     = False &= help "Check for termination and totality; overrides no-termination flags"

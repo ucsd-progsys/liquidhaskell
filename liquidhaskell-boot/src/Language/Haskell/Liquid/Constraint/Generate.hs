@@ -69,7 +69,7 @@ import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult, r
 import           Language.Haskell.Liquid.Bare.DataType (dataConMap, makeDataConChecker)
 import Language.Haskell.Liquid.UX.Config
     ( HasConfig(getConfig),
-      Config(typeclass, gradual, checkDerived, extensionality,
+      Config(typeclass, checkDerived, extensionality,
              nopolyinfer, noADT, dependantCase, exactDC, rankNTypes),
       patternFlag,
       higherOrderFlag )
@@ -88,7 +88,6 @@ consAct :: CGEnv -> Config -> TargetInfo -> CG ()
 consAct γ cfg info = do
   let sSpc = gsSig . giSpec $ info
   let gSrc = giSrc info
-  when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs sSpc ++ gsAsmSigs sSpc))
   γ' <- foldM (consCBTop cfg info) γ (giCbs gSrc)
   -- Relational Checking: the following only runs when the list of relational specs is not empty
   (ψ, γ'') <- foldM (consAssmRel cfg info) ([], γ') (gsAsmRel sSpc ++ gsRelation sSpc)
