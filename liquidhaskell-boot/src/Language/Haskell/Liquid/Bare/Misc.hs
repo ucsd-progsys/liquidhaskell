@@ -136,8 +136,6 @@ mapTyVars allowTC τ (RAllE _ _ t)
   = mapTyVars allowTC τ t
 mapTyVars allowTC τ (RRTy _ _ _ t)
   = mapTyVars allowTC τ t
-mapTyVars allowTC τ (REx _ _ t)
-  = mapTyVars allowTC τ t
 mapTyVars _ _ (RExprArg _)
   = return ()
 mapTyVars allowTC (AppTy τ τ') (RAppTy t t' _)

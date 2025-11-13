@@ -52,10 +52,6 @@ splitRType f (RAllE x tx t) = (RAllE x tx1 t1, RAllE x tx2 t2)
   where
         (tx1, tx2) = splitRType f tx
         (t1, t2)   = splitRType f t
-splitRType f (REx x tx t) = (REx x tx1 t1, REx x tx2 t2)
-  where
-        (tx1, tx2) = splitRType f tx
-        (t1, t2)   = splitRType f t
 splitRType _ (RExprArg e) = (RExprArg e, RExprArg e)
 splitRType f (RAppTy tx t r) = (RAppTy tx1 t1 r1, RAppTy tx2 t2 r2)
   where

@@ -111,9 +111,6 @@ trueRefType allowTC (RAllE y ty tx)
 trueRefType allowTC (RRTy e o r t)
   = RRTy e o r <$> trueRefType allowTC t
 
-trueRefType allowTC (REx _ t t')
-  = REx <$> fresh <*> true allowTC t <*> true allowTC t'
-
 trueRefType _ t@(RExprArg _)
   = return t
 
@@ -189,11 +186,6 @@ refreshVV (RAllT a t r) =
 
 refreshVV (RAllP p t) =
   RAllP p <$> refreshVV t
-
-refreshVV (REx x t1 t2) = do
-  t1' <- refreshVV t1
-  t2' <- refreshVV t2
-  shiftVV (REx x t1' t2') <$> fresh
 
 refreshVV (RFun x i t1 t2 r) = do
   t1' <- refreshVV t1

@@ -156,12 +156,6 @@ data RTypeF c tv r f
     , _rtf_ty     :: !f
     }
 
-  | RExF {
-      _rtf_bind   :: !F.Symbol
-    , _rtf_exarg  :: !f
-    , _rtf_ty     :: !f
-    }
-
   | RExprArgF (F.Located F.Expr)
 
   | RAppTyF{
@@ -199,7 +193,6 @@ project (RAllT tvbind ty ref      ) = RAllTF tvbind ty ref
 project (RAllP pvbind ty          ) = RAllPF pvbind ty
 project (RApp c args pargs reft   ) = RAppF c args pargs reft
 project (RAllE bind allarg ty     ) = RAllEF bind allarg ty
-project (REx   bind exarg  ty     ) = RExF bind exarg ty
 project (RExprArg e               ) = RExprArgF e
 project (RAppTy arg res reft      ) = RAppTyF arg res reft
 project (RRTy env ref obl ty      ) = RRTyF env ref obl ty
@@ -212,7 +205,6 @@ embed (RAllTF tvbind ty ref      ) = RAllT tvbind ty ref
 embed (RAllPF pvbind ty          ) = RAllP pvbind ty
 embed (RAppF c args pargs reft   ) = RApp c args pargs reft
 embed (RAllEF bind allarg ty     ) = RAllE bind allarg ty
-embed (RExF   bind exarg  ty     ) = REx bind exarg ty
 embed (RExprArgF e               ) = RExprArg e
 embed (RAppTyF arg res reft      ) = RAppTy arg res reft
 embed (RRTyF env ref obl ty      ) = RRTy env ref obl ty
@@ -255,9 +247,6 @@ collectSpecTypeBinders = \case
   RAllT (RTVar (RTV ab) _) t _ ->
     let (bs, abs') = collectSpecTypeBinders t
      in (bs, F.symbol ab : abs')
-  REx b _ t ->
-    let (bs, abs') = collectSpecTypeBinders t
-     in (b : bs, abs')
   RAppTy _ t _ -> collectSpecTypeBinders t
   RRTy _ _ _ t -> collectSpecTypeBinders t
   _ -> ([], [])
@@ -274,7 +263,6 @@ buildHsExpr result = go
         | otherwise       -> mkHsLam (noLocA [nlVarPat (varSymbolToRdrName bind)]) (go tout)
       RAllE _ _ t -> go t
       RAllT _ t _ -> go t
-      REx _ _ t -> go t
       RAppTy _ t _ -> go t
       RRTy _ _ _ t -> go t
       _ -> result
@@ -439,11 +427,6 @@ elaborateSpecType' partialTp coreToLogic simplify t =
       (eTy    , bs') <- elaborateSpecType' partialTp coreToLogic simplify ty
       let (eTyRenamed, canonicalBinders) = canonicalizeDictBinder bs (eTy, bs')
       pure (RAllE bind eAllarg eTyRenamed, canonicalBinders)
-    REx bind allarg ty -> do
-      (eAllarg, bs ) <- elaborateSpecType' partialTp coreToLogic simplify allarg
-      (eTy    , bs') <- elaborateSpecType' partialTp coreToLogic simplify ty
-      let (eTyRenamed, canonicalBinders) = canonicalizeDictBinder bs (eTy, bs')
-      pure (REx bind eAllarg eTyRenamed, canonicalBinders)
     -- YL: might need to filter RExprArg out and replace RHole with ghc wildcard
     -- in the future
     RExprArg _ -> impossible Nothing "RExprArg should not appear here"
@@ -708,7 +691,6 @@ specTypeToLHsType = \case
       notExprArg (RExprArg _) = False
       notExprArg _            = True
     RAllE _ tin tout -> nlHsFunTy (specTypeToLHsType tin) (specTypeToLHsType tout)
-    REx _ tin tout -> nlHsFunTy (specTypeToLHsType tin) (specTypeToLHsType tout)
     RAppTy _ (RExprArg _) _ ->
       impossible Nothing "RExprArg should not appear here"
     RAppTy t t' _ -> nlHsFunTy (specTypeToLHsType t) (specTypeToLHsType t')

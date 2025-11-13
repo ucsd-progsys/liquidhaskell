@@ -600,7 +600,6 @@ checkAppTys = go
     go (RFun _ _ t1 t2 _) = go t1 <|> go t2
     go (RVar _ _)       = Nothing
     go (RAllE _ t1 t2)  = go t1 <|> go t2
-    go (REx _ t1 t2)    = go t1 <|> go t2
     go (RAppTy t1 t2 _) = go t1 <|> go t2
     go (RRTy _ _ _ t)   = go t
     go (RExprArg _)     = Just $ text "Logical expressions cannot appear inside a Haskell type"
@@ -632,7 +631,6 @@ checkAbstractRefs rt = go rt
     go t@(RFun _ _ t1 t2 r) = check (toRSort t :: RSort) r <|> go t1 <|> go t2
     go t@(RVar _ r)       = check (toRSort t :: RSort) r
     go (RAllE _ t1 t2)    = go t1 <|> go t2
-    go (REx _ t1 t2)      = go t1 <|> go t2
     go t@(RAppTy t1 t2 r) = check (toRSort t :: RSort) r <|> go t1 <|> go t2
     go (RRTy xts _ _ t)   = efold go (snd <$> xts) <|> go t
     go (RExprArg _)       = Nothing
@@ -816,8 +814,6 @@ hasInnerRefinement (RAllP _ ty) =
 hasInnerRefinement (RApp _ args _ _) =
   any isRefined args
 hasInnerRefinement (RAllE _ allarg ty) =
-  isRefined allarg || isRefined ty
-hasInnerRefinement (REx _ allarg ty) =
   isRefined allarg || isRefined ty
 hasInnerRefinement (RAppTy arg res _) =
   isRefined arg || isRefined res

@@ -744,12 +744,6 @@ data RTypeV v c tv r
     , rt_ty     :: !(RTypeV v c tv r)
     }
 
-  | REx {
-      rt_bind   :: !Symbol
-    , rt_exarg  :: !(RTypeV v c tv r)
-    , rt_ty     :: !(RTypeV v c tv r)
-    }
-
   | RExprArg (F.Located (ExprV v))              -- ^ For expression arguments to type aliases
                                                 --   see tests/pos/vector2.hs
   | RAppTy{

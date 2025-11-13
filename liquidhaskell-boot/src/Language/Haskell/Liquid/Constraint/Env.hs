@@ -19,7 +19,6 @@ module Language.Haskell.Liquid.Constraint.Env (
   , extendEnvWithVV
   , addBinders
   , addSEnv
-  , addEEnv
   , addRewritesForNextBinding
   , (-=)
   , globalize
@@ -172,11 +171,6 @@ addClassBind γ l = mapM (uncurry (addBind l)) . classBinds (emb γ)
 
 {- see tests/pos/polyfun for why you need everything in fixenv -}
 addCGEnv :: (SpecType -> SpecType) -> CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-addCGEnv tx γ (eMsg, x, REx y tyy tyx) = do
-  y' <- fresh
-  γ' <- addCGEnv tx γ (eMsg, y', tyy)
-  addCGEnv tx γ' (eMsg, x, tyx `F.subst1` (y, F.EVar y'))
-
 addCGEnv tx γ (eMsg, sym, RAllE yy tyy tyx)
   = addCGEnv tx γ (eMsg, sym, t)
   where
@@ -246,19 +240,6 @@ globalize γ = γ {renv = globalREnv (renv γ)}
 addSEnv :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
 --------------------------------------------------------------------------------
 addSEnv γ = addCGEnv (addRTyConInv (invs γ)) γ
-
-addEEnv :: CGEnv -> (F.Symbol, SpecType) -> CG CGEnv
-addEEnv γ (x,t')= do
-  idx   <- fresh
-  -- allowHOBinders <- allowHO <$> get
-  let t  = addRTyConInv (invs γ) $ normalize idx t'
-  let l  = getLocation γ
-  let γ' = γ { renv = insertREnv x t (renv γ) }
-  tem   <- getTemplates
-  is    <- (:) <$> addBind l x (rTypeSortedReft' γ' tem t) <*> addClassBind γ' l t
-  modify (\s -> s { ebinds = ebinds s ++ (snd <$> is)})
-  return $ γ' { fenv = insertsFEnv (fenv γ) is }
-
 
 (+++=) :: (CGEnv, String) -> (F.Symbol, CoreExpr, SpecType) -> CG CGEnv
 (γ, _) +++= (x, e, t) = (γ {lcb = M.insert x e (lcb γ) }) += ("+++=", x, t)

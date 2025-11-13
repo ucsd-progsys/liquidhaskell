@@ -498,7 +498,6 @@ fixExpressionArgsOfTypeAliases taliases = mapMBareTypes go
     go (RAllT a t r)       = RAllT <$> pure a <*> go t <*> pure r
     go (RAllP a t)         = RAllP a <$> go t
     go (RAllE x t1 t2)     = RAllE x <$> go t1 <*> go t2
-    go (REx x t1 t2)       = REx  x <$> go t1 <*> go t2
     go (RRTy e r o t)      = RRTy  e r o  <$> go t
     go t@RHole{}           = pure t
     go t@RVar{}            = pure t

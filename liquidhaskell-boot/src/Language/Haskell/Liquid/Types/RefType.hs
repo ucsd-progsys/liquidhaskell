@@ -46,7 +46,7 @@ module Language.Haskell.Liquid.Types.RefType (
 
   -- * RType constructors
   , ofType, toType, bareOfType
-  , bTyVar, rTyVar, rVar, rApp, gApp, rEx
+  , bTyVar, rTyVar, rVar, rApp, gApp
   , symbolRTyVar, bareRTyVar
   , tyConBTyCon
   , pdVarReft
@@ -521,10 +521,6 @@ normalizePds t = addPds ps t'
 rPred :: PVar (RType c tv ()) -> RType c tv r -> RType c tv r
 rPred     = RAllP
 
-rEx :: Foldable t
-    => t (Symbol, RType c tv r) -> RType c tv r -> RType c tv r
-rEx xts rt = foldr (\(x, tx) t -> REx x tx t) rt xts
-
 rApp :: TyCon
      -> [RType RTyCon tv r]
      -> [RTProp RTyCon tv r]
@@ -580,8 +576,6 @@ nlzP ps t@RApp{}
 nlzP ps (RAllP p t)
  = (t', [p] ++ ps ++ ps')
   where (t', ps') = nlzP [] t
-nlzP ps t@REx{}
- = (t, ps)
 nlzP ps t@(RRTy _ _ _ t')
  = (t, ps ++ ps')
  where ps' = snd $ nlzP [] t'
@@ -931,7 +925,6 @@ freeTyVars (RFun _ _ t t' _) = freeTyVars t `L.union` freeTyVars t'
 freeTyVars (RApp _ ts _ _)   = L.nub $ concatMap freeTyVars ts
 freeTyVars (RVar α _)        = [makeRTVar α]
 freeTyVars (RAllE _ tx t)    = freeTyVars tx `L.union` freeTyVars t
-freeTyVars (REx _ tx t)      = freeTyVars tx `L.union` freeTyVars t
 freeTyVars (RExprArg _)      = []
 freeTyVars (RAppTy t t' _)   = freeTyVars t `L.union` freeTyVars t'
 freeTyVars (RHole _)         = []
@@ -942,7 +935,6 @@ tyClasses :: (OkRT RTyCon tv r) => RType RTyCon tv r -> [(Class, [RType RTyCon t
 tyClasses (RAllP _ t)     = tyClasses t
 tyClasses (RAllT _ t _)   = tyClasses t
 tyClasses (RAllE _ _ t)   = tyClasses t
-tyClasses (REx _ _ t)     = tyClasses t
 tyClasses (RFun _ _ t t' _) = tyClasses t ++ tyClasses t'
 tyClasses (RAppTy t t' _) = tyClasses t ++ tyClasses t'
 tyClasses (RApp c ts _ _)
@@ -1058,8 +1050,6 @@ subsFree meet' s (α', τ, t') (RVar α r)
   = RVar (subt (α', τ) α) r
 subsFree m s z (RAllE x t t')
   = RAllE x (subsFree m s z t) (subsFree m s z t')
-subsFree m s z (REx x t t')
-  = REx x (subsFree m s z t) (subsFree m s z t')
 subsFree m s z@(α, τ, _) (RAppTy t t' r)
   = subsFreeRAppTy m s (subsFree m s z t) (subsFree m s z t') (subt (α, τ) r)
 subsFree _ _ _ t@(RExprArg _)
@@ -1239,7 +1229,6 @@ instance SubsTy Symbol Symbol (BRType r) where
   subt su (RAllP p t)       = RAllP p (subt su t)
   subt su (RApp c ts ps r)  = RApp c (subt su <$> ts) (subt su <$> ps) r
   subt su (RAllE x t1 t2)   = RAllE x (subt su t1) (subt su t2)
-  subt su (REx x t1 t2)     = REx x (subt su t1) (subt su t2)
   subt _  (RExprArg e)      = RExprArg e
   subt su (RAppTy t1 t2 r)  = RAppTy (subt su t1) (subt su t2) r
   subt su (RRTy e r o t)    = RRTy [(x, subt su p) | (x,p) <- e] r o (subt su t)
@@ -1480,8 +1469,6 @@ toType useRFInfo (RApp RTyCon{rtc_tc = c} ts _ _)
     notExprArg (RExprArg _) = False
     notExprArg _            = True
 toType useRFInfo (RAllE _ _ t)
-  = toType useRFInfo t
-toType useRFInfo (REx _ _ t)
   = toType useRFInfo t
 toType useRFInfo (RAppTy t (RExprArg _) _)
   = toType useRFInfo t
@@ -1844,7 +1831,6 @@ tyVarsPosition = go (Just True)
     go p (RAllP _ t)        = go p t
     go p (RApp c ts _ _)    = mconcat (zipWith go (getPosition p <$> varianceTyArgs (rtc_info c)) ts)
     go p (RAllE _ t1 t2)    = go p t1 <> go p t2
-    go p (REx _ t1 t2)      = go p t1 <> go p t2
     go _ (RExprArg _)       = mempty
     go p (RAppTy t1 t2 _)   = go p t1 <> go p t2
     go p (RRTy _ _ _ t)     = go p t

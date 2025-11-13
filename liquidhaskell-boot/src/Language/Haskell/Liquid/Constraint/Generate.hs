@@ -613,22 +613,20 @@ consE γ e'@(App e a) | Just aDict <- getExprDict γ a
       _          -> do
         ([], πs, te) <- bkUniv <$> consE γ e
         te'          <- instantiatePreds γ e' $ foldr RAllP te πs
-        (γ', te''')  <- dropExists γ te'
-        te''         <- dropConstraints γ te'''
+        te''         <- dropConstraints γ te'
         updateLocA {- πs -} (exprLoc e) te''
         let RFun x _ tx t _ = checkFun ("Non-fun App with caller ", e') γ te''
-        cconsE γ' a tx
-        addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
+        cconsE γ a tx
+        addPost γ        $ maybe (checkUnbound γ e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
 
 consE γ e'@(App e a)
   = do ([], πs, te) <- bkUniv <$> consE γ {- GM.tracePpr ("APP-EXPR: " ++ GM.showPpr (exprType e)) -} e
        te1        <- instantiatePreds γ e' $ foldr RAllP te πs
-       (γ', te2)  <- dropExists γ te1
-       te3        <- dropConstraints γ te2
+       te3        <- dropConstraints γ te1
        updateLocA (exprLoc e) te3
        let RFun x _ tx t _ = checkFun ("Non-fun App with caller ", e') γ te3
-       cconsE γ' a tx
-       makeSingleton γ' (simplify e') <$> addPost γ' (maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ $ simplify a))
+       cconsE γ a tx
+       makeSingleton γ (simplify e') <$> addPost γ (maybe (checkUnbound γ e' x t a) (F.subst1 t . (x,)) (argExpr γ $ simplify a))
 
 consE γ (Lam α e) | isTyVar α
   = do γ' <- updateEnvironment γ α
@@ -927,10 +925,6 @@ checkUnbound γ e x t a
                   , "Arg = "
                   , show a
                   ]
-
-dropExists :: CGEnv -> SpecType -> CG (CGEnv, SpecType)
-dropExists γ (REx x tx t) =         (, t) <$> γ += ("dropExists", x, tx)
-dropExists γ t            = return (γ, t)
 
 dropConstraints :: CGEnv -> SpecType -> CG SpecType
 dropConstraints cgenv (RFun x i tx@(RApp c _ _ _) t r) | isErasable c

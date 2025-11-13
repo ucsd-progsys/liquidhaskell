@@ -29,13 +29,10 @@ import Data.Maybe
 
 import           Control.Monad
 import           Control.Monad.Identity
-import           Control.Monad.State
 import           Data.Bifunctor (second)
-import           Data.Functor ((<&>))
 import qualified Control.Exception         as Ex
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as HS
-import qualified Data.Char                 as Char
 import qualified Data.List                 as L
 import qualified Text.PrettyPrint.HughesPJ as PJ
 
@@ -252,7 +249,6 @@ buildTypeEdges table = Misc.ordNub . go
     go (RFun _ _ t1 t2 _) = go t1 ++ go t2
     go (RAppTy t1 t2 _) = go t1 ++ go t2
     go (RAllE _ t1 t2)  = go t1 ++ go t2
-    go (REx _ t1 t2)    = go t1 ++ go t2
     go (RAllT _ t _)    = go t
     go (RAllP _ t)      = go t
     go (RVar _ _)       = []
@@ -420,7 +416,6 @@ expandBareType rtEnv l = go
     go (RAllT a t r)     = RAllT a (go t) r
     go (RAllP a t)       = RAllP a (go t)
     go (RAllE x t1 t2)   = RAllE x (go t1) (go t2)
-    go (REx x t1 t2)     = REx   x (go t1) (go t2)
     go (RRTy e r o t)    = RRTy  e r o     (go t)
     go t@RHole{}         = t
     go t@RVar{}          = t
@@ -512,7 +507,6 @@ cookSpecTypeE env sigEnv name@(ModName _ _) x bt
     f = (if doplug || not allowTC then plugHoles allowTC sigEnv name x else id)
         . fmap (RT.addTyConInfo embs tyi)
         . Bare.txRefSort tyi embs
-        . fmap txExpToBind -- What does this function DO
         . (specExpandType rtEnv . fmap (generalizeWith x))
         . (if doplug || not allowTC then maybePlug allowTC sigEnv name x else id)
 
@@ -691,162 +685,3 @@ expandApp l re es
                    PJ.<+> "arguments but it is given"
                    PJ.<+> pprint (length es)
 
-
--------------------------------------------------------------------------------
--- | Replace Predicate Arguments With Existentials ----------------------------
--------------------------------------------------------------------------------
-txExpToBind   :: SpecType -> SpecType
--------------------------------------------------------------------------------
-txExpToBind t = evalState (expToBindT t) (ExSt 0 M.empty πs)
-  where
-    πs        = M.fromList [(pname p, p) | p <- ty_preds $ toRTypeRep t ]
-
-data ExSt = ExSt { fresh :: Int
-                 , emap  :: M.HashMap F.Symbol (RSort, F.Expr)
-                 , pmap  :: M.HashMap F.Symbol RPVar
-                 }
-
--- | TODO: Niki please write more documentation for this, maybe an example?
---   I can't really tell whats going on... (RJ)
-
-expToBindT :: SpecType -> State ExSt SpecType
-expToBindT (RVar v r)
-  = expToBindRef r >>= addExists . RVar v
-expToBindT (RFun x i t1 t2 r)
-  = do t1' <- expToBindT t1
-       t2' <- expToBindT t2
-       expToBindRef r >>= addExists . RFun x i t1' t2'
-expToBindT (RAllT a t r)
-  = do t' <- expToBindT t
-       expToBindRef r >>= addExists . RAllT a t'
-expToBindT (RAllP p t)
-  = fmap (RAllP p) (expToBindT t)
-expToBindT (RApp c ts rs r)
-  = do ts' <- mapM expToBindT ts
-       rs' <- mapM expToBindReft rs
-       expToBindRef r >>= addExists . RApp c ts' rs'
-expToBindT (RAppTy t1 t2 r)
-  = do t1' <- expToBindT t1
-       t2' <- expToBindT t2
-       expToBindRef r >>= addExists . RAppTy t1' t2'
-expToBindT (RRTy xts r o t)
-  = do xts' <- zip xs <$> mapM expToBindT ts
-       r'   <- expToBindRef r
-       t'   <- expToBindT t
-       return $ RRTy xts' r' o t'
-  where
-     (xs, ts) = unzip xts
-expToBindT t
-  = return t
-
-expToBindReft              :: SpecProp -> State ExSt SpecProp
-expToBindReft (RProp s (RHole r)) = rPropP s <$> expToBindRef r
-expToBindReft (RProp s t)  = RProp s  <$> expToBindT t
-
-
-getBinds :: State ExSt (M.HashMap F.Symbol (RSort, F.Expr))
-getBinds
-  = do bds <- gets emap
-       modify $ \st -> st{emap = M.empty}
-       return bds
-
-addExists :: SpecType -> State ExSt SpecType
-addExists t = fmap (M.foldlWithKey' addExist t) getBinds
-
-addExist :: SpecType -> F.Symbol -> (RSort, F.Expr) -> SpecType
-addExist t x (tx, e) = REx x t' t
-  where
-    t'               = ofRSort tx `RT.strengthen` RT.uTop r
-    r                = F.exprReft e
-
-expToBindRef :: UReft r -> State ExSt (UReft r)
-expToBindRef (MkUReft r (Pr p))
-  = mapM expToBind p <&> (MkUReft r . Pr)
-
-expToBind :: UsedPVar -> State ExSt UsedPVar
-expToBind p = do
-  res <- gets (M.lookup (pname p) . pmap)
-  case res of
-    Nothing ->
-      panic Nothing ("expToBind: " ++ show p)
-    Just π  -> do
-      let pargs0 = zip (pargs p) (Misc.fst3 <$> pargs π)
-      pargs' <- mapM expToBindParg pargs0
-      return $ p { pargs = pargs' }
-
-expToBindParg :: (((), F.Symbol, F.Expr), RSort) -> State ExSt ((), F.Symbol, F.Expr)
-expToBindParg ((t, s, e), s') = fmap ((,,) t s) (expToBindExpr e s')
-
-expToBindExpr :: F.Expr ->  RSort -> State ExSt F.Expr
-expToBindExpr e@(EVar s) _
-  | Char.isLower $ F.headSym $ F.symbol s
-  = return e
-expToBindExpr e t
-  = do s <- freshSymbol
-       modify $ \st -> st{emap = M.insert s (t, e) (emap st)}
-       return $ EVar s
-
-freshSymbol :: State ExSt F.Symbol
-freshSymbol
-  = do n <- gets fresh
-       modify $ \s -> s {fresh = n+1}
-       return $ F.symbol $ "ex#" ++ show n
-
-
--- wiredInMods :: S.HashSet Ghc.ModuleName
--- wiredInMods = S.fromList $ Ghc.mkModuleName <$>
---   ["Language.Haskell.Liquid.String",
---   "Language.Haskell.Liquid.Prelude",
---   "Language.Haskell.Liquid.Foreign",
---   "Language.Haskell.Liquid.Bag",
---   "Prelude",
---   "System.IO",
---   "Data.Word",
---   "Data.Time.Calendar",
---   "Data.Set",
---   "Data.Either",
---   "Data.ByteString.Unsafe",
---   "Data.ByteString.Lazy",
---   "Data.ByteString.Short",
---   "Data.Foldable",
---   "Data.OldList",
---   "Data.Text",
---   "Data.Tuple",
---   "Data.Bits",
---   "Data.Chare",
---   "Data.String",
---   "Data.Vector",
---   "Data.Time",
---   "Data.Int",
---   "Data.Text.Fusion",
---   "Data.Map",
---   "Data.Text.Fusion.Common",
---   "KMeansHelper",
---   "Data.Text.Lazy.Fusion",
---   "Control.Exception",
---   "Control.Parallel.Strategies",
---   "Data.Traversable",
---   "GHC.Read",
---   "Data.ByteString",
---   "GHC.Classes",
---   "GHC.Ptr",
---   "GHC.Word",
---   "Language.Haskell.Liquid.Equational",
---   "GHC.Types",
---   "GHC.Num",
---   "GHC.CString",
---   "GHC.IO.Handle",
---   "GHC.Prim",
---   "GHC.Int",
---   "GHC.Base",
---   "Foreign.Ptr",
---   "GHC.ForeignPtr",
---   "GHC.List",
---   "Foreign.C.String",
---   "GHC.Exts",
---   "Foreign.Marshal.Alloc",
---   "Foreign.Marshal.Array",
---   "Foreign.C.Types",
---   "GHC.Real",
---   "Foreign.Storable",
---   "Foreign.ForeignPtr"]

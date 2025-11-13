@@ -245,8 +245,6 @@ pprRtype bb p (RApp c ts rs r)
     tsDoc            = hsep (pprRtype bb p <$> ts)
     ppT              = ppTyConB bb
 
-pprRtype bb p t@REx{}
-  = ppExists bb p t
 pprRtype bb p t@RAllE{}
   = ppAllExpr bb p t
 pprRtype _ _ (RExprArg e)
@@ -290,16 +288,6 @@ maybeParen :: Prec -> Prec -> Doc -> Doc
 maybeParen ctxt_prec inner_prec pretty
   | ctxt_prec < inner_prec = pretty
   | otherwise                  = parens pretty
-
-ppExists
-  :: (OkRT c tv r, PPrint c, PPrint tv, PPrint (RType c tv r),
-      PPrint (RType c tv ()))
-  => PPEnv -> Prec -> RType c tv r -> Doc
-ppExists bb p rt
-  = text "exists" <+> brackets (intersperse comma [pprDbind bb topPrec x t | (x, t) <- ws]) <-> dot <-> pprRtype bb p rt'
-    where (ws,  rt')               = split [] rt
-          split zs (REx x t t')   = split ((x,t):zs) t'
-          split zs t                = (reverse zs, t)
 
 ppAllExpr
   :: (OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))

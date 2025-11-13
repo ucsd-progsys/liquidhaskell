@@ -98,12 +98,6 @@ splitW (WfC γ (RAllE x tx t))
         ws' <- splitW (WfC γ' t)
         return $ ws ++ ws'
 
-splitW (WfC γ (REx x tx t))
-  = do  ws  <- splitW (WfC γ tx)
-        γ'  <- γ += ("splitW2", x, tx)
-        ws' <- splitW (WfC γ' t)
-        return $ ws ++ ws'
-
 splitW (WfC γ (RRTy _ _ _ t))
   = splitW (WfC γ t)
 
@@ -155,22 +149,6 @@ updateEnv γ a
 ------------------------------------------------------------
 splitC :: Bool -> SubC -> CG [FixSubC]
 ------------------------------------------------------------
-
-splitC allowTC (SubC γ (REx x tx t1) (REx x2 _ t2)) | x == x2
-  = do γ' <- γ += ("addExBind 0", x, forallExprRefType γ tx)
-       splitC allowTC (SubC γ' t1 t2)
-
-splitC allowTC (SubC γ t1 (REx x tx t2))
-  = do y <- fresh
-       γ' <- γ += ("addExBind 1", y, forallExprRefType γ tx)
-       splitC allowTC (SubC γ' t1 (F.subst1 t2 (x, F.EVar y)))
-
--- existential at the left hand side is treated like forall
-splitC allowTC (SubC γ (REx x tx t1) t2)
-  = do -- let tx' = traceShow ("splitC allowTC: " ++ showpp z) tx
-       y <- fresh
-       γ' <- γ += ("addExBind 2", y, forallExprRefType γ tx)
-       splitC allowTC (SubC γ' (F.subst1 t1 (x, F.EVar y)) t2)
 
 splitC allowTC (SubC γ (RAllE x tx t1) (RAllE x2 _ t2)) | x == x2
   = do γ' <- γ += ("addAllBind 3", x, forallExprRefType γ tx)
@@ -288,7 +266,6 @@ traceTy (RAllP _ t)     = parens ("RAllP " ++ traceTy t)
 traceTy (RAllT _ t _)   = parens ("RAllT " ++ traceTy t)
 traceTy (RFun _ _ t t' _) = parens ("RFun " ++ parens (traceTy t) ++ parens (traceTy t'))
 traceTy (RAllE _ tx t)  = parens ("RAllE " ++ parens (traceTy tx) ++ parens (traceTy t))
-traceTy (REx _ tx t)    = parens ("REx " ++ parens (traceTy tx) ++ parens (traceTy t))
 traceTy (RExprArg _)    = "RExprArg"
 traceTy (RAppTy t t' _) = parens ("RAppTy " ++ parens (traceTy t) ++ parens (traceTy t'))
 traceTy (RHole _)       = "rHole"
