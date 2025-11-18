@@ -11,6 +11,7 @@ data Options = Options
   , testGroups :: [T.Text]
   , showAll :: Bool
   , measureTimings :: Bool
+  , measureTimingsJ1 :: Bool
   }
   deriving (Eq, Ord, Show)
 
@@ -26,6 +27,9 @@ options = Options [] <$>
   <*> switch
         (long "measure-timings"
          <> help "Measure timings when verifying.")
+  <*> switch
+        (long "measure-timings-j1"
+         <> help "Measure timings when verifying and verify modules one at a time.")
 
 opts :: ParserInfo Options
 opts = info (options <**> helper)
