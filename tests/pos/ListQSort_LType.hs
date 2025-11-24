@@ -15,9 +15,9 @@ llen Nil         = 0
 llen (Cons x xs) = 1 + (llen xs)
 
 
-{-@ qualif ZLLen(v:List a) : (llen(v) >= 0)@-}
+{-@ qualif ZLLen(v:List a)  { (llen(v) >= 0) } @-}
 
-{-@ qualif CmpLLen(v:List a, a:List b) : (llen v <= llen a) @-}
+{-@ qualif CmpLLen(v:List a, a:List b)  { (llen v <= llen a)  } @-}
 
 data List a = Nil | Cons a (List a)
 

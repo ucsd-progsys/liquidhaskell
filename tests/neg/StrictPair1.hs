@@ -15,7 +15,7 @@ infixl 2 :*:
 --   this program is marked as SAFE...
 data PairS a b = !a :*: !b deriving (Eq,Ord,Show)
 
-{-@ qualif PSnd(v: a, x:b): v = (psnd x)                            @-}
+{-@ qualif PSnd(v: a, x:b) { v = (psnd x)                             } @-}
 
 {-@ data PairS a b <p :: x0:a -> b -> Bool> = (:*:) { spX ::a, spY ::b<p spX> }  @-}
 

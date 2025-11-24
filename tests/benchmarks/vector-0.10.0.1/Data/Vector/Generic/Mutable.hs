@@ -92,16 +92,16 @@ import Prelude hiding ( length, null, replicate, reverse, map, read,
 --
 
 
-{-@ qualif Enlarge(v:Int, x:a): 0  = (mvLen x)                @-}
-{-@ qualif Enlarge(v:Int, x:a): v <= (mvLen x)                @-}
-{-@ qualif Enlarge(v:Int, x:a): v < (mvLen x)                 @-}
-{-@ qualif Enlarge(v:a, x:b): (mvLen x) = (mvLen v)           @-}
-{-@ qualif Enlarge(v:a, x:a): (mvLen x) < (mvLen v)           @-}
-{-@ qualif GrowBy(v:a, x:a, n:Int): (mvLen v) = (mvLen x) + n @-}
-{-@ qualif Size(v:a, n:Int): (mvLen v) = n                    @-}
-{-@ qualif Size(v:a, n:Int, m:Int): (mvLen v) = n + m         @-}
-{-@ qualif PVec(v:a): 0 <= (mvLen v)                          @-}
-{-@ qualif UnsafeAppend1(v:a, i:Int): i < (mvLen v)           @-}
+{-@ qualif Enlarge(v:Int, x:a) { 0  = (mvLen x)                 } @-}
+{-@ qualif Enlarge(v:Int, x:a) { v <= (mvLen x)                 } @-}
+{-@ qualif Enlarge(v:Int, x:a) { v < (mvLen x)                  } @-}
+{-@ qualif Enlarge(v:a, x:b) { (mvLen x) = (mvLen v)            } @-}
+{-@ qualif Enlarge(v:a, x:a) { (mvLen x) < (mvLen v)            } @-}
+{-@ qualif GrowBy(v:a, x:a, n:Int) { (mvLen v) = (mvLen x) + n  } @-}
+{-@ qualif Size(v:a, n:Int) { (mvLen v) = n                     } @-}
+{-@ qualif Size(v:a, n:Int, m:Int) { (mvLen v) = n + m          } @-}
+{-@ qualif PVec(v:a) { 0 <= (mvLen v)                           } @-}
+{-@ qualif UnsafeAppend1(v:a, i:Int) { i < (mvLen v)            } @-}
 
 
 {-@ type PVec v m a        = {x: (v (PrimState m) a) | 0 <= (mvLen x)}    @-}

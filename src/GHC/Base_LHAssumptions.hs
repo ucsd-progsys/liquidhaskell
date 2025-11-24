@@ -41,24 +41,24 @@ define $             f          x = (f x)
 
 assume id        :: x:a -> {v:a | v = x}
 
-qualif IsEmp(v:Bool, xs: [a]) : (v <=> (len xs > 0))
-qualif IsEmp(v:Bool, xs: [a]) : (v <=> (len xs = 0))
+qualif IsEmp(v:Bool, xs: [a])  { v <=> (len xs > 0) }
+qualif IsEmp(v:Bool, xs: [a])  { v <=> (len xs = 0) }
 
-qualif ListZ(v: [a])          : (len v =  0)
-qualif ListZ(v: [a])          : (len v >= 0)
-qualif ListZ(v: [a])          : (len v >  0)
+qualif ListZ(v: [a])           { len v =  0 }
+qualif ListZ(v: [a])           { len v >= 0 }
+qualif ListZ(v: [a])           { len v >  0 }
 
-qualif CmpLen(v:[a], xs:[b])  : (len v  =  len xs )
-qualif CmpLen(v:[a], xs:[b])  : (len v  >= len xs )
-qualif CmpLen(v:[a], xs:[b])  : (len v  >  len xs )
-qualif CmpLen(v:[a], xs:[b])  : (len v  <= len xs )
-qualif CmpLen(v:[a], xs:[b])  : (len v  <  len xs )
+qualif CmpLen(v:[a], xs:[b])   { len v  =  len xs  }
+qualif CmpLen(v:[a], xs:[b])   { len v  >= len xs  }
+qualif CmpLen(v:[a], xs:[b])   { len v  >  len xs  }
+qualif CmpLen(v:[a], xs:[b])   { len v  <= len xs  }
+qualif CmpLen(v:[a], xs:[b])   { len v  <  len xs  }
 
-qualif EqLen(v:int, xs: [a])  : (v = len xs )
-qualif LenEq(v:[a], x: int)   : (x = len v )
+qualif EqLen(v:int, xs: [a])   { v = len xs  }
+qualif LenEq(v:[a], x: int)    { x = len v  }
 
-qualif LenDiff(v:[a], x:int)  : (len v  = x + 1)
-qualif LenDiff(v:[a], x:int)  : (len v  = x - 1)
-qualif LenAcc(v:int, xs:[a], n: int): (v = len xs  + n)
+qualif LenDiff(v:[a], x:int)   { len v  = x + 1 }
+qualif LenDiff(v:[a], x:int)   { len v  = x - 1 }
+qualif LenAcc(v:int, xs:[a], n: int) { v = len xs  + n }
 
 @-}

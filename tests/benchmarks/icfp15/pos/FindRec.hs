@@ -33,8 +33,8 @@ data FHandle = FH Int deriving Eq
 {- MpEq0(v:World,w:World,x:FHandle,z:FHandle): (Map_select (caps v) x) = (Map_select (caps w) z) @-}
 
 -- NEEDED
-{-@ qualif Sto(v:World,w1:World,x:FHandle,h:FHandle): (caps v) = (Map_store (caps w1) x (Map_select (caps w1) h)) @-}
-{-@ qualif MpEq0(v:World,b:FHandle,x:FHandle): (Map_select (caps v) x) = (Map_select (caps v) b) @-}
+{-@ qualif Sto(v:World,w1:World,x:FHandle,h:FHandle) { (caps v) = (Map_store (caps w1) x (Map_select (caps w1) h))  } @-}
+{-@ qualif MpEq0(v:World,b:FHandle,x:FHandle) { (Map_select (caps v) x) = (Map_select (caps v) b)  } @-}
 
 
 {-@ predicate Active W F = Set_mem F (active W) @-}

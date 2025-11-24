@@ -144,7 +144,7 @@ getBasis (n::Int) s = worker s []
     worker Null bs = bs
     worker (Real pv _) bs = worker (orthSpace_ pv) (vec pv : bs)
 
-{-@ qualif EqMu(v:PVector, x:PVector): (len (muCoeff v)) = (len (muCoeff x)) @-}
+{-@ qualif EqMu(v:PVector, x:PVector) { (len (muCoeff v)) = (len (muCoeff x))  } @-}
 
 sizeReduce1 :: PVector -> PVector
 sizeReduce1 pv@(PVector v (m:_) sn@(Real _ r)) = 

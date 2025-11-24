@@ -152,8 +152,8 @@ testSpecP =
           "embed Set as Set_Set"
 
     , testCase "qualif" $
-       parseSingleSpec "qualif Foo(v:Int): v < 0" @?==
-          "qualif Foo(v: int): v < 0 // defined at <test>:1:8"
+       parseSingleSpec "qualif Foo(v:Int) { v < 0 }" @?==
+          "qualif Foo(v: int) { v < 0 } // defined at <test>:1:8"
 
     , testCase "lazyvar" $
        parseSingleSpec "lazyvar z" @?==

@@ -23,7 +23,7 @@ sumUp n  = go n 0 0
       | i < n     = go (d - 1) (acc + i) (i + 1) 
       | otherwise = acc
 
-{-@ qualif Diff(v:Int, x:Int, y:Int): v = x - y @-} 
+{-@ qualif Diff(v:Int, x:Int, y:Int) { v = x - y  } @-}
 
 {-@ nonTerm :: Nat -> Nat @-}
 nonTerm :: Int -> Int

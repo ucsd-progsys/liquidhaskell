@@ -46,7 +46,7 @@ moo ts (t:ts') = t : moo ts ts'
 
 
 
-{-@ qualif SZ(v:a, x:b): size v < size x @-}
+{-@ qualif SZ(v:a, x:b) { size v < size x  } @-}
 
 foo tt = case tt of
            Leaf x  -> () 

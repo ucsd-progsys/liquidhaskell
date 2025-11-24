@@ -60,8 +60,8 @@ isUnknown (Data.Text.Fusion.Size.Exact n) = False
 isUnknown (Data.Text.Fusion.Size.Max   n) = False
 isUnknown (Data.Text.Fusion.Size.Unknown) = True
 
-{-@ qualif IsUnknown(v:Data.Text.Fusion.Size.Size) : (isUnknown v) @-}
-{-@ qualif IsKnown(v:Data.Text.Fusion.Size.Size) : not (isUnknown v) @-}
+{-@ qualif IsUnknown(v:Data.Text.Fusion.Size.Size)  { (isUnknown v)  } @-}
+{-@ qualif IsKnown(v:Data.Text.Fusion.Size.Size)  { not (isUnknown v)  } @-}
 
 {-@ invariant {v:Data.Text.Fusion.Size.Size | (getSize v) >= 0} @-}
 

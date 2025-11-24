@@ -82,8 +82,8 @@ import Language.Haskell.Liquid.Prelude
 {-@ type TValidIN T N = {v:Nat | v <= ((tlen T) - N)} @-}
 {-@ type TValidIC T   = {v:Nat | v <  (tlength T)} @-}
 
-{-@ qualif TextNE(v:Text): tlen(v) > 0 @-}
-{-@ qualif TextNE(v:Text): tlength(v) > 0 @-}
+{-@ qualif TextNE(v:Text) { tlen(v) > 0  } @-}
+{-@ qualif TextNE(v:Text) { tlength(v) > 0  } @-}
 
 {-@ measure sum_tlens :: [Text] -> Int
       sum_tlens []   = 0

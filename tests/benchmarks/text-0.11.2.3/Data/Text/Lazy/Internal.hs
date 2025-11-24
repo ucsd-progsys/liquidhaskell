@@ -92,7 +92,7 @@ data Text = Empty
 {-@ type LTextLE T = {v:Text | (ltlen v) <= (ltlen T)} @-}
 {-@ type LTextLT T = {v:Text | (ltlen v) <  (ltlen T)} @-}
 
-{-@ qualif LTLenLe(v:Text, t:Text): (ltlen v) <= (ltlen t) @-}
+{-@ qualif LTLenLe(v:Text, t:Text) { (ltlen v) <= (ltlen t)  } @-}
 
 {-@ invariant {v:Text | (ltlen v) >= 0} @-}
 {-@ invariant {v:Text | (ltlength v) >= 0} @-}

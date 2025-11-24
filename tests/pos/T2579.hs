@@ -2,7 +2,7 @@
 
 module T2579 where 
 
-{-@ qualif MyEqLen( v : [@(0)], x : int): ((x = (len v))) @-}
+{-@ qualif MyEqLen( v : [@(0)], x : int) { ((x = (len v)))  } @-}
 
 {-@ type ListN a N = {v:[a] | len v = N} @-}
 

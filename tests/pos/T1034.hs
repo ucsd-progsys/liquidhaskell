@@ -23,4 +23,4 @@ ex2 f =
   let (P y p) = f in check y f
   -- THIS IS OK: case f of (P y p) -> check y f
 
-{-@ qualif Zonk(v:(P a b), x: a): (p1 v = x) @-}
+{-@ qualif Zonk(v:(P a b), x: a) { (p1 v = x)  } @-}

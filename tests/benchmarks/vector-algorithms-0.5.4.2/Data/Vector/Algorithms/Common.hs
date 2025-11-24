@@ -113,15 +113,15 @@ import qualified Data.Vector.Primitive.Mutable
 
 
 
-{-@ qualif Termination(v:Int, l:Int, twit:Int): v = l + twit @-} 
-{-@ qualif NonEmpty(v:a): 0 < (vsize v)           @-}
-{-@ qualif Cmp(v:int, x:int): v < x                   @-}
-{-@ qualif OkIdx(v:int, x:a): v <= (vsize x)        @-}
-{-@ qualif OkIdx(v:int, x:b): v <  (vsize x)        @-}
-{-@ qualif EqSiz(x:a, y:int): (vsize x) = y         @-}
-{-@ qualif EqSiz(x:int, y:b): x = (vsize y)         @-}
-{-@ qualif EqSiz(x:a, y:b): (vsize x) = (vsize y) @-}
-{-@ qualif Plus(v:Int, x:Int, y:Int): v + x = y   @-}
+{-@ qualif Termination(v:Int, l:Int, twit:Int) { v = l + twit  } @-}
+{-@ qualif NonEmpty(v:a) { 0 < (vsize v)            } @-}
+{-@ qualif Cmp(v:int, x:int) { v < x                    } @-}
+{-@ qualif OkIdx(v:int, x:a) { v <= (vsize x)         } @-}
+{-@ qualif OkIdx(v:int, x:b) { v <  (vsize x)         } @-}
+{-@ qualif EqSiz(x:a, y:int) { (vsize x) = y          } @-}
+{-@ qualif EqSiz(x:int, y:b) { x = (vsize y)          } @-}
+{-@ qualif EqSiz(x:a, y:b) { (vsize x) = (vsize y)  } @-}
+{-@ qualif Plus(v:Int, x:Int, y:Int) { v + x = y    } @-}
 
 -- TODO: push this type into the signature for `shiftR`. Issue: math on non-num types.
 -- TODO: support unchecked `assume`. Currently writing `undefined` to suppress warning
