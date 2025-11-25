@@ -85,11 +85,11 @@ data I16 = I16 Int
       getI16 (I16 n) = n
   @-}
 
-{-@ qualif PtrFree(v:Int, p:Ptr a, l:Int): ((l+l)-(v+v)) <= (plen p) @-}
+{-@ qualif PtrFree(v:Int, p:Ptr a, l:Int) { ((l+l)-(v+v)) <= (plen p)  } @-}
 
 --LIQUID specializing the type for Word16
 {-@ Foreign.ForeignPtr.mallocForeignPtrArray :: (Storable a) => n:Nat -> IO {v:(ForeignPtr a) | (fplen v) = (n + n)} @-}
-{-@ qualif FPLenNN(v:ForeignPtr a, n:int): (fplen v) = (n + n) @-}
+{-@ qualif FPLenNN(v:ForeignPtr a, n:int) { (fplen v) = (n + n)  } @-}
 
 
 -- | /O(n)/ Create a new 'Text' from a 'Ptr' 'Word16' by copying the

@@ -1,6 +1,6 @@
 module Listqual (boo) where
 
-{-@ qualif BadAppend(v:[a], xs:[a], ys:[a]): len v = len xs + len ys @-}
+{-@ qualif BadAppend(v:[a], xs:[a], ys:[a]) { len v = len xs + len ys  } @-}
 
 append [] ys     = ys
 append (x:xs) ys = x : append xs ys

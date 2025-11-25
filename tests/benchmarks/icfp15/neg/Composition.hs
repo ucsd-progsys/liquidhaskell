@@ -59,6 +59,6 @@ plus42 = cmp plus2 plus1
 
 
 
-{-@ qualif PLUSMINUS(v:int, x:int, y:int, z:int): (v = (x - y) + z) @-}
-{-@ qualif PLUS     (v:int, x:int, y:int)       : (v = x + y)       @-}
-{-@ qualif MINUS    (v:int, x:int, y:int)       : (v = x - y)       @-}
+{-@ qualif PLUSMINUS(v:int, x:int, y:int, z:int) { (v = (x - y) + z)  } @-}
+{-@ qualif PLUS     (v:int, x:int, y:int)        { (v = x + y)        } @-}
+{-@ qualif MINUS    (v:int, x:int, y:int)        { (v = x - y)        } @-}

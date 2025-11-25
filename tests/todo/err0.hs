@@ -4,7 +4,7 @@ module Err0 where
 
 import Language.Haskell.Liquid.Prelude
 
-{-@ qualif Zog(v:FooBar, x:FooBar): v = x + @-}
+{-@ qualif Zog(v:FooBar, x:FooBar) { v = x +  } @-}
 
 data FooBar = Foo Int
 

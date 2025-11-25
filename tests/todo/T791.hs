@@ -19,5 +19,5 @@ minimal v = create (M.new n >>= (\x -> go n x))
     go :: (PrimMonad m) => Int -> MVector (PrimState m) a -> m (MVector (PrimState m) a)
     go _ mv = pure mv
 
-{-@ qualif EqLen(v:MVector s a, x:Vector b): (mvlen v == vlen x) @-}
-{-@ qualif MVLen(v:MVector s a, n:Int): (mvlen v == n) @-}
+{-@ qualif EqLen(v:MVector s a, x:Vector b) { (mvlen v == vlen x)  } @-}
+{-@ qualif MVLen(v:MVector s a, n:Int) { (mvlen v == n)  } @-}

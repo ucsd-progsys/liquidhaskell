@@ -1,6 +1,6 @@
 module Ensure where
 
-{-@ qualif Diff(v:int,l:int,d:int): v = l-d @-}
+{-@ qualif Diff(v:int,l:int,d:int) { v = l-d  } @-}
 
 {-@ encodeUtf8 :: Nat -> Nat @-}
 encodeUtf8 :: Int -> Int

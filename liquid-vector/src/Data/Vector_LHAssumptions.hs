@@ -30,18 +30,18 @@ assume Data.Vector.map :: (a -> b) -> x:(Data.Vector.Vector a) -> {y:Data.Vector
 
 assume Data.Vector.head :: forall a. {xs: Data.Vector.Vector a | vlen xs > 0} -> a
 
-qualif VecEmpty(v: Data.Vector.Vector a)    : (vlen v)  =  0
-qualif VecEmpty(v: Data.Vector.Vector a)    : (vlen v)  >  0
-qualif VecEmpty(v: Data.Vector.Vector a)    : (vlen v)  >= 0
+qualif VecEmpty(v: Data.Vector.Vector a)    { vlen v  =  0 }
+qualif VecEmpty(v: Data.Vector.Vector a)    { vlen v  >  0 }
+qualif VecEmpty(v: Data.Vector.Vector a)    { vlen v  >= 0 }
 
-qualif Vlen(v:int, x: Data.Vector.Vector a) : (v  =  vlen x)
-qualif Vlen(v:int, x: Data.Vector.Vector a) : (v <=  vlen x)
-qualif Vlen(v:int, x: Data.Vector.Vector a) : (v  <  vlen x)
+qualif Vlen(v:int, x: Data.Vector.Vector a) { v  =  vlen x }
+qualif Vlen(v:int, x: Data.Vector.Vector a) { v <=  vlen x }
+qualif Vlen(v:int, x: Data.Vector.Vector a) { v  <  vlen x }
 
-qualif CmpVlen(v:Data.Vector.Vector a, x:Data.Vector.Vector b) : (vlen v <  vlen x)
-qualif CmpVlen(v:Data.Vector.Vector a, x:Data.Vector.Vector b) : (vlen v <= vlen x)
-qualif CmpVlen(v:Data.Vector.Vector a, x:Data.Vector.Vector b) : (vlen v >  vlen x)
-qualif CmpVlen(v:Data.Vector.Vector a, x:Data.Vector.Vector b) : (vlen v >= vlen x)
-qualif CmpVlen(v:Data.Vector.Vector a, x:Data.Vector.Vector b) : (vlen v =  vlen x)
+qualif CmpVlen(v:Data.Vector.Vector a, x:Data.Vector.Vector b) { vlen v <  vlen x }
+qualif CmpVlen(v:Data.Vector.Vector a, x:Data.Vector.Vector b) { vlen v <= vlen x }
+qualif CmpVlen(v:Data.Vector.Vector a, x:Data.Vector.Vector b) { vlen v >  vlen x }
+qualif CmpVlen(v:Data.Vector.Vector a, x:Data.Vector.Vector b) { vlen v >= vlen x }
+qualif CmpVlen(v:Data.Vector.Vector a, x:Data.Vector.Vector b) { vlen v =  vlen x }
 
 @-}

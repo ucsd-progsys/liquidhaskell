@@ -7,7 +7,7 @@ import Language.Haskell.Liquid.Prelude
 import Prelude hiding (sum, length, (!!), Functor(..))
 import qualified Prelude as P
 
-{-@ qualif Sz(v:int, xs:a): v = (sz xs) @-}
+{-@ qualif Sz(v:int, xs:a) { v = (sz xs)  } @-}
 
 {-@ data List a = Nil | Cons (hd::a) (tl::(List a)) @-}
 data List a = Nil | Cons a (List a)

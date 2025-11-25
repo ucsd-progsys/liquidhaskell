@@ -753,7 +753,7 @@ to the Haskell source. See, [this](https://github.com/ucsd-progsys/liquidhaskell
 Finally, you can specify qualifiers directly inside source (.hs or .lhs)
 files by writing them as shown [here](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/QualTest.hs)
 
-    {-@ qualif Foo(v:Int, a: Int) : (v = a + 100)   @-}
+    {-@ qualif Foo(v:Int, a: Int) { v = a + 100 }  @-}
 
 
 **Note** In addition to these, LiquidHaskell scrapes qualifiers from all

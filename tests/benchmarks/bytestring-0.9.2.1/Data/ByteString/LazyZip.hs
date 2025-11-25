@@ -199,7 +199,7 @@ zipWith f (Chunk a as) (Chunk b bs) = go a as b bs (sz a as b bs) 0
 sz x xs y ys = fromIntegral (S.length x) + length xs
              + fromIntegral (S.length y) + length ys
           
-{-@ qualif ByteStringNE(v:S.ByteString): (bLength v) > 0 @-}
+{-@ qualif ByteStringNE(v:S.ByteString) { (bLength v) > 0  } @-}
 
 {- qualif LBZip(v:List a,
                  x:S.ByteString,

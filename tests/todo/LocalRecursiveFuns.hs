@@ -33,5 +33,5 @@ split = undefined
   
 {-@ invariant {v:(Tree a) | (sz v) >= 0} @-}
 
-{-@ qualif TreeLt(v:Tree a, t:Tree b): (sz v) < (sz t) @-}
+{-@ qualif TreeLt(v:Tree a, t:Tree b) { (sz v) < (sz t)  } @-}
 

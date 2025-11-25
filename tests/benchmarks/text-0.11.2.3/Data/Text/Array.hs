@@ -98,8 +98,8 @@ import Language.Haskell.Liquid.Prelude
 {-@ predicate BtwnI V X Y  = ((X <= V) && (V <= Y)) @-}
 {-@ predicate BtwnEI V X Y = ((X < V)  && (V <= Y)) @-}
 
-{-@ qualif LenDiff(v:List a, i:int, l:int): (len v) = (l - i) @-}
-{-@ qualif Diff(v:int, d:int, l:int): v = l - d @-}
+{-@ qualif LenDiff(v:List a, i:int, l:int) { (len v) = (l - i)  } @-}
+{-@ qualif Diff(v:int, d:int, l:int) { v = l - d  } @-}
 
 {-@ lazy error @-}
 error :: String -> a
@@ -126,8 +126,8 @@ data Array = Array {
 {-@ type AValidO A   = {v:Nat | v     <= (aLen A)} @-}
 {-@ type AValidL O A = {v:Nat | (v+O) <= (aLen A)} @-}
 
-{-@ qualif ALen(v:Int, a:Array): v = aLen(a) @-}
-{-@ qualif ALen(v:Array, i:Int): i = aLen(v) @-}
+{-@ qualif ALen(v:Int, a:Array) { v = aLen(a)  } @-}
+{-@ qualif ALen(v:Array, i:Int) { i = aLen(v)  } @-}
 
 {-@ invariant {v:Array | (aLen v) >= 0} @-}
 
@@ -153,8 +153,8 @@ data MArray s = MArray {
 {-@ type MAValidO A   = {v:Nat | v     <= (maLen A)} @-}
 {-@ type MAValidL O A = {v:Nat | (v+O) <= (maLen A)} @-}
 
-{-@ qualif MALen(v:Int, a:MArray s): v = maLen(a) @-}
-{-@ qualif MALen(v:MArray s, i:Int): i = maLen(v) @-}
+{-@ qualif MALen(v:Int, a:MArray s) { v = maLen(a)  } @-}
+{-@ qualif MALen(v:MArray s, i:Int) { i = maLen(v)  } @-}
 
 {-@ invariant {v:MArray s | (maLen v) >= 0} @-}
 

@@ -12,7 +12,7 @@ test10     = x + y == 10
     (x, y) = foo 10
 
 -- THESE are also in GHC.Base.Spec
-{-@ qualif Fst(v:a, y:b): v = fst y @-}
-{-@ qualif Snd(v:a, y:b): v = snd y @-}
+{-@ qualif Fst(v:a, y:b) { v = fst y  } @-}
+{-@ qualif Snd(v:a, y:b) { v = snd y  } @-}
 
 

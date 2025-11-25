@@ -63,7 +63,7 @@ instance Monad RIO where
   (RIO g) >>  f = RIO $ \x -> case g x of {(y, s) -> (runState f    ) s}
   return w      = RIO $ \x -> (w, x)
 
-{-@ qualif Papp4(v:a, x:b, y:c, z:d, p:Pred a b c d) : papp4(p, v, x, y, z)     @-}
+{-@ qualif Papp4(v:a, x:b, y:c, z:d, p:Pred a b c d)  { papp4(p, v, x, y, z)      } @-}
 
 -- Test Cases:
 -- * TestM (Basic)

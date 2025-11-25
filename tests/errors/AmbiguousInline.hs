@@ -160,7 +160,7 @@ mmempty t = Small t BS.empty
 {-@ mmconcat :: (Foldable t) => Alg -> tg:ByteStringNE -> t (MatchIdxsT tg) -> (MatchIdxsT tg) @-}
 mmconcat alg t = foldr (mmappend alg t) (mmempty t)
 
-{-@ qualif BB(v:Int, n:Int, d:Int, b:BS.ByteString): v <= (n + d) - bLength b @-}
+{-@ qualif BB(v:Int, n:Int, d:Int, b:BS.ByteString) { v <= (n + d) - bLength b  } @-}
 
 {-@ mmappend :: Alg -> t:ByteStringNE -> MatchIdxsT t -> MatchIdxsT t -> MatchIdxsT t @-}
 mmappend alg t mx my =

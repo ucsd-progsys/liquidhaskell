@@ -32,8 +32,8 @@ gt10 x = x >= 10
 {-@ add1 :: x:{Int | Btwn 0 x 255} -> {v:Int | Uint8 v && v = x + 1} @-}
 add1 x = addUint8 x 1
 
-{-@ qualif TimesTwo(v:int, x:int): v = x * 2 @-}
-{-@ qualif PlusTwo(v:int, x:int): v = x + 2 @-}
+{-@ qualif TimesTwo(v:int, x:int) { v = x * 2  } @-}
+{-@ qualif PlusTwo(v:int, x:int) { v = x + 2  } @-}
 
 timesM :: Int -> (Int -> IO ()) -> IO ()
 timesM n f = go 0

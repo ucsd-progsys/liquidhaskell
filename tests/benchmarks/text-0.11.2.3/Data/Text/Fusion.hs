@@ -99,8 +99,8 @@ qualOrd2 _ _ _ = ()
 qualOrd3 :: Char -> Int -> ()
 qualOrd3 _ _ = ()
 
-{-@ qualif MALenLE(v:int, a:A.MArray s): v <= (malen a) @-}
-{-@ qualif ALenLE(v:int, a:A.Array): v <= (alen a) @-}
+{-@ qualif MALenLE(v:int, a:A.MArray s) { v <= (malen a)  } @-}
+{-@ qualif ALenLE(v:int, a:A.Array) { v <= (alen a)  } @-}
 
 
 {-@ qualif_Foo1 :: Num b => a:A.MArray a -> {v:(Int, b) | snd v <= maLen a} @-}
@@ -112,8 +112,8 @@ qualif_Foo2 :: Num b => A.Array -> (Int, b)
 qualif_Foo2 = undefined
 
 
-{-@ qualif Foo(v:int): v >= -1 @-}
-{-@ qualif Foo(v:int): v >=  4 @-}
+{-@ qualif Foo(v:int) { v >= -1  } @-}
+{-@ qualif Foo(v:int) { v >=  4  } @-}
 
 -- | /O(n)/ Convert a 'Text' into a 'Stream Char'.
 {-@ assume stream  :: t:Data.Text.Internal.Text

@@ -228,19 +228,19 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 
 
 -- These qualifs were unsorted
-{-@ qualif EqFPLen(v: int, x: ForeignPtr b): v = (fplen x)           @-}
-{-@ qualif EqPLen(v: int, x: Ptr b): v = (plen x)                    @-}
+{-@ qualif EqFPLen(v: int, x: ForeignPtr b) { v = (fplen x)            } @-}
+{-@ qualif EqPLen(v: int, x: Ptr b) { v = (plen x)                     } @-}
 
 
 
-{-@ qualif EqPLen(v:Ptr a, l:int): (plen v) = l                    @-}
-{-@ qualif EqPLen(v: ForeignPtr a, x: Ptr b): (fplen v) = (plen x) @-}
-{-@ qualif EqPLen(v: Ptr a, x: ForeignPtr b): (plen v) = (fplen x) @-}
-{-@ qualif PValid(v: int, p: Ptr a): v <= (plen p)                 @-}
-{-@ qualif PLLen(v:a, p:b) : (len v) <= (plen p)                   @-}
-{-@ qualif FPLenPos(v: ForeignPtr a): 0 <= (fplen v)               @-}
-{-@ qualif PLenPos(v: Ptr a): 0 <= (plen v)                        @-}
-{-@ qualif LTPLen(v: int, p:Ptr a): v < (plen p)                   @-}
+{-@ qualif EqPLen(v:Ptr a, l:int) { (plen v) = l                     } @-}
+{-@ qualif EqPLen(v: ForeignPtr a, x: Ptr b) { (fplen v) = (plen x)  } @-}
+{-@ qualif EqPLen(v: Ptr a, x: ForeignPtr b) { (plen v) = (fplen x)  } @-}
+{-@ qualif PValid(v: int, p: Ptr a) { v <= (plen p)                  } @-}
+{-@ qualif PLLen(v:a, p:b)  { (len v) <= (plen p)                    } @-}
+{-@ qualif FPLenPos(v: ForeignPtr a) { 0 <= (fplen v)                } @-}
+{-@ qualif PLenPos(v: Ptr a) { 0 <= (plen v)                         } @-}
+{-@ qualif LTPLen(v: int, p:Ptr a) { v < (plen p)                    } @-}
 
 {-@ ptrLen :: p:(PtrV a) -> {v:Nat | v = (plen p)} @-}
 ptrLen :: Ptr a -> Int
