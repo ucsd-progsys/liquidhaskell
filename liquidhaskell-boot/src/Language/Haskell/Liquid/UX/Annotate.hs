@@ -78,9 +78,9 @@ import           Language.Haskell.Liquid.Types.Types
 
 -- | @output@ creates the pretty printed output
 --------------------------------------------------------------------------------------------
-mkOutput :: Config -> ErrorResult -> FixSolution -> AnnInfo (Annot SpecType) -> Output Doc
+mkOutput :: Config -> ErrorResult -> FInfo a -> FixSolution -> AnnInfo (Annot SpecType) -> Output Doc
 --------------------------------------------------------------------------------------------
-mkOutput cfg res sol anna
+mkOutput cfg res si sol anna
   = O { o_vars   = Nothing
       -- , o_errors = []
       , o_types  = toDoc <$> annTy
@@ -90,7 +90,7 @@ mkOutput cfg res sol anna
       }
   where
     annTmpl      = closeAnnots anna
-    annTy        = tidySpecType Lossy <$> applySolution sol annTmpl
+    annTy        = tidySpecType Lossy <$> applySolution si sol annTmpl
     toDoc        = rtypeDoc tidy
     tidy         = if shortNames cfg then Lossy else Full
 

@@ -12,6 +12,7 @@ import           Data.Bifunctor
 import qualified Data.HashSet as S 
 import           Text.PrettyPrint.HughesPJ
 import           Control.Monad (when)
+import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Maybe as Mb
 import qualified Data.List  as L 
 import qualified Language.Haskell.Liquid.UX.DiffCheck as DC
@@ -133,18 +134,19 @@ solveCs :: Config -> FilePath -> CGInfo -> TargetInfo -> Maybe [String] -> IO (O
 solveCs cfg tgt cgi info names = do
   finfo            <- cgInfoFInfo info cgi
   let fcfg          = fixConfig tgt cfg
-  F.Result {resStatus=r0, resSolution=sol} <- solve fcfg finfo
+  F.Result {resStatus=r0, resSolution=solCuts, resNonCutsSolution=solNonCuts} <- solve fcfg finfo
+  let sol           = HashMap.union solCuts solNonCuts
   let failBs        = gsFail $ gsTerm $ giSpec info
   let (r,rf)        = splitFails (S.map val failBs) r0 
-  let resErr        = second (applySolution sol . cinfoError) <$> r
+  let resErr        = second (applySolution finfo sol . cinfoError) <$> r
   -- resModel_        <- fmap (e2u cfg sol) <$> getModels info cfg resErr
   let resModel_     = cidE2u cfg sol <$> resErr
   let resModel'     = resModel_  `addErrors` (e2u cfg sol <$> logErrors cgi)
                                  `addErrors` makeFailErrors (S.toList failBs) rf 
                                  `addErrors` makeFailUseErrors (S.toList failBs) (giCbs $ giSrc info)
-  let lErrors       = applySolution sol <$> logErrors cgi
+  let lErrors       = applySolution finfo sol <$> logErrors cgi
   let resModel      = resModel' `addErrors` (e2u cfg sol <$> lErrors)
-  let out0          = mkOutput cfg resModel sol (annotMap cgi)
+  let out0          = mkOutput cfg resModel finfo sol (annotMap cgi)
   return            $ out0 { o_vars    = names    }
                            { o_result  = resModel }
 
