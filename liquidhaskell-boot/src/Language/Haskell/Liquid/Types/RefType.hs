@@ -1541,17 +1541,19 @@ rTypeSort     ::  (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) 
 rTypeSort tce = typeSort tce . toType True
 
 --------------------------------------------------------------------------------
-applySolution :: (Functor f) => FInfo a -> FixSolution -> f SpecType -> f SpecType
+applySolution
+  :: (Functor f)
+  => FInfo a -> M.HashMap KVar (Delayed Expr) -> f SpecType -> f SpecType
 --------------------------------------------------------------------------------
 applySolution si = fmap . fmap . mapReft' . appSolRefa si
   where
     mapReft' f (MkUReft (Reft (x, z)) p) = MkUReft (Reft (x, f z)) p
 
 appSolRefa :: Visitable t
-           => GInfo c a -> M.HashMap KVar Expr -> t -> t
+           => GInfo c a -> M.HashMap KVar (Delayed Expr) -> t -> t
 appSolRefa si s = mapKVars f0
   where
-    f0 k        = Just $ M.lookupDefault PTop k s
+    f0 k        = Just $ forceDelayed $ M.lookupDefault (Delayed PTop) k s
 
     mapKVars :: Visitable t => (KVar -> Maybe Expr) -> t -> t
     mapKVars f = trans txK

@@ -135,29 +135,29 @@ solveCs cfg tgt cgi info names = do
   finfo            <- cgInfoFInfo info cgi
   let fcfg          = fixConfig tgt cfg
   F.Result {resStatus=r0, resSolution=solCuts, resNonCutsSolution=solNonCuts} <- solve fcfg finfo
-  let sol           = HashMap.union solCuts solNonCuts
+  let sol           = HashMap.union (HashMap.map F.Delayed solCuts) solNonCuts
   let failBs        = gsFail $ gsTerm $ giSpec info
   let (r,rf)        = splitFails (S.map val failBs) r0 
   let resErr        = second (applySolution finfo sol . cinfoError) <$> r
   -- resModel_        <- fmap (e2u cfg sol) <$> getModels info cfg resErr
-  let resModel_     = cidE2u cfg sol <$> resErr
-  let resModel'     = resModel_  `addErrors` (e2u cfg sol <$> logErrors cgi)
+  let resModel_     = cidE2u cfg <$> resErr
+  let resModel'     = resModel_  `addErrors` (e2u cfg <$> logErrors cgi)
                                  `addErrors` makeFailErrors (S.toList failBs) rf 
                                  `addErrors` makeFailUseErrors (S.toList failBs) (giCbs $ giSrc info)
   let lErrors       = applySolution finfo sol <$> logErrors cgi
-  let resModel      = resModel' `addErrors` (e2u cfg sol <$> lErrors)
+  let resModel      = resModel' `addErrors` (e2u cfg <$> lErrors)
   let out0          = mkOutput cfg resModel finfo sol (annotMap cgi)
   return            $ out0 { o_vars    = names    }
                            { o_result  = resModel }
 
 
-e2u :: Config -> F.FixSolution -> Error -> UserError
-e2u cfg s = fmap F.pprint . tidyError cfg s
+e2u :: Config -> Error -> UserError
+e2u cfg = fmap F.pprint . tidyError cfg
 
-cidE2u :: Config -> F.FixSolution -> (Integer, Error) -> UserError
-cidE2u cfg s (subcId, e) =
+cidE2u :: Config -> (Integer, Error) -> UserError
+cidE2u cfg (subcId, e) =
   let e' = attachSubcId e
-   in fmap F.pprint (tidyError cfg s e')
+   in fmap F.pprint (tidyError cfg e')
   where
     attachSubcId es@ErrSubType{}      = es { cid = Just subcId }
     attachSubcId es@ErrSubTypeModel{} = es { cid = Just subcId }

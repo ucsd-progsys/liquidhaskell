@@ -78,7 +78,7 @@ import           Language.Haskell.Liquid.Types.Types
 
 -- | @output@ creates the pretty printed output
 --------------------------------------------------------------------------------------------
-mkOutput :: Config -> ErrorResult -> FInfo a -> FixSolution -> AnnInfo (Annot SpecType) -> Output Doc
+mkOutput :: Config -> ErrorResult -> FInfo a -> FixDelayedSolution -> AnnInfo (Annot SpecType) -> Output Doc
 --------------------------------------------------------------------------------------------
 mkOutput cfg res si sol anna
   = O { o_vars   = Nothing
