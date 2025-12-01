@@ -641,6 +641,7 @@ executable errors
                     , InlineSubExp0
                     , InlineSubExp1
                     , IrregularData
+                    , KVars
                     , LiftMeasureCase
                     , LocalHole
                     , MissingAssume

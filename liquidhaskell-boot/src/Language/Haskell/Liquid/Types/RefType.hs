@@ -107,7 +107,7 @@ import           Text.Printf
 import           Text.PrettyPrint.HughesPJ hiding ((<>), first)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types hiding (DataDecl (..), DataCtor (..), panic, shiftVV, Predicate, isNumeric)
-import           Language.Fixpoint.Types.Visitor (mapKVars, Visitable)
+import           Language.Fixpoint.Types.Visitor (trans, Visitable)
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.PrettyPrint
@@ -1541,17 +1541,36 @@ rTypeSort     ::  (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) 
 rTypeSort tce = typeSort tce . toType True
 
 --------------------------------------------------------------------------------
-applySolution :: (Functor f) => FixSolution -> f SpecType -> f SpecType
+applySolution
+  :: (Functor f)
+  => FInfo a -> M.HashMap KVar (Delayed Expr) -> f SpecType -> f SpecType
 --------------------------------------------------------------------------------
-applySolution = fmap . fmap . mapReft' . appSolRefa
+applySolution si = fmap . fmap . mapReft' . appSolRefa si
   where
     mapReft' f (MkUReft (Reft (x, z)) p) = MkUReft (Reft (x, f z)) p
 
 appSolRefa :: Visitable t
-           => M.HashMap KVar Expr -> t -> t
-appSolRefa s p = mapKVars f p
+           => GInfo c a -> M.HashMap KVar (Delayed Expr) -> t -> t
+appSolRefa si s = mapKVars f0
   where
-    f k        = Just $ M.lookupDefault PTop k s
+    f0 k        = Just $ forceDelayed $ M.lookupDefault (Delayed PTop) k s
+
+    mapKVars :: Visitable t => (KVar -> Maybe Expr) -> t -> t
+    mapKVars f = trans txK
+      where
+        txK (PKVar k su)
+          | Just p' <- f k =
+              rapierSubstExpr (substSymbolsSet su) (renameDomain k su) p'
+        txK p = p
+
+        -- The parameters of kvars all seem to have prefix $ and suffix ##k_
+        -- at the point where mapKVars is used. We compensate for that here.
+        renameDomain k (Su m) =
+          Su $ M.fromList
+            [ (consSym '$' (suffixSymbol v "k_"), e)
+            | v <- kvarDomain si k
+            , let e = M.lookupDefault (EVar v) v m
+            ]
 
 --------------------------------------------------------------------------------
 -- shiftVV :: Int -- SpecType -> Symbol -> SpecType
