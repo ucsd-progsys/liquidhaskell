@@ -374,11 +374,6 @@ defConfig = Config {
     = False
         &= name "skip-module"
         &= help "Completely skip this module, don't even compile any specifications in it."
-  ,
-    noLazyPLE
-    = False
-        &= name "no-lazy-ple"
-        &= help "Don't use Lazy PLE"
 
   , fuel
     = Nothing

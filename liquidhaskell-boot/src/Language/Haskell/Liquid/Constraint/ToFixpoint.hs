@@ -63,7 +63,6 @@ fixConfig tgt cfg = def
   , FC.extensionality = extensionality    cfg
   , FC.interpreter    = interpreter    cfg
   , FC.rwTermination  = rwTerminationCheck cfg
-  , FC.noLazyPLE      = noLazyPLE cfg
   , FC.fuel           = fuel      cfg
   , FC.noEnvReduction = not (environmentReduction cfg)
   , FC.inlineANFBinds = inlineANFBindings cfg
