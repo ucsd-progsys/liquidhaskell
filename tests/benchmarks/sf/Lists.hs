@@ -1,6 +1,5 @@
 {-@ LIQUID "--reflection"  @-}
 {-@ LIQUID "--ple"         @-}
-{-@ LIQUID "--no-lazy-ple" @-}
 
 module Lists where
 

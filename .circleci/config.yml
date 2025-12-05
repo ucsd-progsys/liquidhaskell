@@ -10,8 +10,8 @@ commands:
           name: Install z3
           command: |
             # Config version
-            z3version="z3-4.8.17"
-            z3distributiontype="x64-glibc-2.31"
+            z3version="z3-4.15.1"
+            z3distributiontype="x64-glibc-2.39"
             z3full="${z3version}-${z3distributiontype}"
 
             # Download and install
@@ -145,14 +145,14 @@ jobs:
   # support GHC 9.12 yet.
   stack_900:
     machine:
-      image: default
+      image: ubuntu-2404:2025.09.1
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
             extra_build_flags: "--flag liquidhaskell-boot:devel"
   cabal_9122:
     machine:
-      image: default
+      image: ubuntu-2404:2025.09.1
     steps:
       - cabal_build_and_test:
           ghc_version: "9.12.2"
