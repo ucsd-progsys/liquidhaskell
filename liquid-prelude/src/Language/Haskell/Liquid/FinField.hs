@@ -31,14 +31,14 @@ mul x y = FF17 (FFld (ffToInteger (toFFld x) * ffToInteger (toFFld y) `mod` 17))
 
 -- TODO move to tests
 
-{-@ thm1 :: { add (val 6) (val 7) == val 13 } @-}
-thm1 :: ()
-thm1 = ()
+{-@ thm1 :: { v : FF17 | v = val 6} -> { add v (val 7) == val 13 } @-}
+thm1 :: FF17 -> ()
+thm1 _ = ()
 
-{-@ thm2 :: { add (val 9) (val 9) == val 1 } @-}
-thm2 :: ()
-thm2 = ()
+{-@ thm2 :: { v : FF17 | v = val 9} -> { add v (val 9) == val 1 } @-}
+thm2 :: FF17 -> ()
+thm2 _ = ()
 
-{-@ thm3 :: { add (val 3) (val 7) == val 4 } @-}
-thm3 :: ()
-thm3 = ()
+{-@ thm3 :: { v : FF17 | v = val 3} -> { mul v (val 7) == val 4 } @-}
+thm3 :: FF17 -> ()
+thm3 _ = ()
