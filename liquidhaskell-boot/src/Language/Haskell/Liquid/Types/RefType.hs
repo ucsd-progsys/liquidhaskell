@@ -550,8 +550,8 @@ bApp c = RApp (tyConBTyCon c)
 
 tyConBTyCon :: TyCon -> BTyCon
 tyConBTyCon tc =
-    mkBTyCon $
-      makeResolvedLHName (LHRGHC (getName tc)) . tyConName <$> GM.locNamedThing tc
+  mkBTyCon $
+    makeResolvedLHName (LHRGHC (getName tc)) . tyConName <$> GM.locNamedThing tc
 
 
 --- NV TODO : remove this code!!!
@@ -1476,9 +1476,6 @@ toType _ (RVar (RTV α) _)
   = TyVarTy α
 toType useRFInfo (RApp RTyCon{rtc_tc = c} ts _ _)
   = TyConApp c (toType useRFInfo <$> filter notExprArg ts)
-  where
-    notExprArg (RExprArg _) = False
-    notExprArg _            = True
 toType useRFInfo (RAllE _ _ t)
   = toType useRFInfo t
 toType useRFInfo (REx _ _ t)
@@ -1613,10 +1610,11 @@ typeSort tce = go
 tyConFTyCon :: TCEmb TyCon -> TyCon -> [Sort] -> Sort
 -- ignore the nat arguments of the Any types, see test/pos/T2535A.hs
 -- tyConFTyCon _ c _ | Ghc.zonkAnyTyCon  == c = FObj (symbol c)
-tyConFTyCon tce c ts = case tceLookup c tce of
-                         Just (t, WithArgs) -> t
-                         Just (t, NoArgs)   -> fApp t ts
-                         Nothing            -> fApp (fTyconSort niTc) ts
+tyConFTyCon tce c ts =
+  case tceLookup c tce of
+    Just (t, WithArgs) -> t
+    Just (t, NoArgs)   -> fApp t ts
+    Nothing            -> fApp (fTyconSort niTc) ts
   where
     niTc             = symbolNumInfoFTyCon (dummyLoc $ tyConName c) (isNumCls c) (isFracCls c)
     -- oldRes           = F.notracepp _msg $ M.lookupDefault def c tce

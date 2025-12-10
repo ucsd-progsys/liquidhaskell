@@ -9,24 +9,36 @@ import GHC.TypeLits
 import Language.Haskell.Liquid.Prelude
 
 data FFld (o :: Nat) = FFld { ffToInteger :: Integer } deriving Eq
-{-@ embed FFld as FFld_t @-}
 
-{-@ assume val :: forall o. KnownNat o => o : Nat -> n : Integer -> {v:FFld o | v = FF_val n} @-}
-{-@ define val                            o          n                           = (FF_val n) @-}
-val :: Int -> Integer -> FFld o
-val _ n = FFld n
+-- instantiate FFld for a specific prime value of 17
+data FF17 = FF17 { toFFld :: FFld 17 }
+{-@ embed FF17 as (FFld_t '17) @-}
 
-{-@ assume add :: forall o. KnownNat o => x : FFld o -> y : FFld o -> {v:FFld o | v = FF_add x y} @-}
-{-@ define add                            x             y                          = (FF_add x y) @-}
-add :: forall o. KnownNat o => FFld o -> FFld o -> FFld o
-add x y =
-  FFld (ffToInteger x + ffToInteger y `mod` liquidAssume (n /= 0) n)
-  where
-  n = natVal (Proxy :: Proxy o)
+{-@ assume val :: n : Integer -> {v:FF17 | v = FF_val n} @-}
+{-@ define val    n                          = (FF_val n) @-}
+val :: Integer -> FF17
+val n = FF17 (FFld (n `mod` 17))
 
-{-@ assume mul :: forall o. KnownNat o => x : FFld o -> y : FFld o -> {v:FFld o | v = FF_mul x y} @-}
-{-@ define mul                            x             y                          = (FF_mul x y) @-}
-mul :: forall o. KnownNat o => FFld o -> FFld o -> FFld o
-mul x y = FFld (ffToInteger x * ffToInteger y `mod` liquidAssume (n /= 0) n)
-  where
-  n = natVal (Proxy :: Proxy o)
+{-@ assume add :: x : FF17 -> y : FF17 -> {v:FF17 | v = FF_add x y} @-}
+{-@ define add    x           y                      = (FF_add x y) @-}
+add :: FF17 -> FF17 -> FF17
+add x y = FF17 (FFld (ffToInteger (toFFld x) + ffToInteger (toFFld y) `mod` 17))
+
+{-@ assume mul :: x : FF17 -> y : FF17 -> {v:FF17 | v = FF_mul x y} @-}
+{-@ define mul    x           y                      = (FF_mul x y) @-}
+mul :: FF17 -> FF17 -> FF17
+mul x y = FF17 (FFld (ffToInteger (toFFld x) * ffToInteger (toFFld y) `mod` 17))
+
+-- TODO move to tests
+
+{-@ thm1 :: { add (val 6) (val 7) == val 13 } @-}
+thm1 :: ()
+thm1 = ()
+
+{-@ thm2 :: { add (val 9) (val 9) == val 1 } @-}
+thm2 :: ()
+thm2 = ()
+
+{-@ thm3 :: { add (val 3) (val 7) == val 4 } @-}
+thm3 :: ()
+thm3 = ()

@@ -705,9 +705,6 @@ specTypeToLHsType = \case
     RApp RTyCon { rtc_tc = tc } ts _ _ -> mkHsTyConApp
       (getRdrName tc)
       [ specTypeToLHsType t | t <- ts, notExprArg t ]
-     where
-      notExprArg (RExprArg _) = False
-      notExprArg _            = True
     RAllE _ tin tout -> nlHsFunTy (specTypeToLHsType tin) (specTypeToLHsType tout)
     REx _ tin tout -> nlHsFunTy (specTypeToLHsType tin) (specTypeToLHsType tout)
     RAppTy _ (RExprArg _) _ ->

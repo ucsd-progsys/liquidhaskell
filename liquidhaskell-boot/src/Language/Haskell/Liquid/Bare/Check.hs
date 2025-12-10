@@ -326,7 +326,8 @@ checkInv :: Bool
          -> F.SEnv F.SortedReft
          -> (Maybe Var, LocSpecType)
          -> ElabM Diagnostics
-checkInv allowHO bsc emb tcEnv env (_, t) = checkTy allowHO bsc err emb tcEnv env t
+checkInv allowHO bsc emb tcEnv env (_, t) =
+  checkTy allowHO bsc err emb tcEnv env t
   where
     err              = ErrInvt (GM.sourcePosSrcSpan $ loc t) (val t)
 
@@ -377,7 +378,8 @@ checkBind :: (PPrint v)
           -> F.SEnv F.SortedReft
           -> (v, LocSpecType)
           -> ElabM Diagnostics
-checkBind allowHO bsc s emb tcEnv env (v, t) = checkTy allowHO bsc msg emb tcEnv env t
+checkBind allowHO bsc s emb tcEnv env (v, t) =
+  checkTy allowHO bsc msg emb tcEnv env t
   where
     msg                      = ErrTySpec (GM.fSrcSpan t) (Just s) (pprint v) (val t)
 
@@ -476,11 +478,28 @@ checkMismatch (x, t) = if ok then emptyDiagnostics else mkDiagnostics mempty [er
     err              = errTypeMismatch x t
 
 tyCompat :: Var -> RType RTyCon RTyVar r -> Bool
-tyCompat x t         = lqT == hsT
+tyCompat x t         =
+  lqT === hsT
   where
     lqT :: RSort     = toRSort t
     hsT :: RSort     = ofType (varType x)
     _msg             = "TY-COMPAT: " ++ GM.showPpr x ++ ": hs = " ++ F.showpp hsT ++ " :lq = " ++ F.showpp lqT
+    -- TODO when using (==) directly, comparing two equal ExprArgs yields False
+    (===) :: RSort -> RSort -> Bool
+    (===) (RApp tc1 a1 pa1 r1) (RApp tc2 a2 pa2 r2) =
+          if tc1 == tc2
+            then
+              if length a1 == length a2 then
+                if and (zipWith (===) a1 a2)
+                   then if pa1 == pa2 then
+                     (r1 == r2) || F.tracepp "r1/=r2" False
+                    else F.tracepp "pa1/=pa2" False
+                  else F.tracepp ("a1/=a2: " ++ showpp a1 ++ " , " ++ showpp a2) False
+              else F.tracepp ("arg lengths differ: " ++ showpp (length a1) ++ " , " ++ showpp (length a2)) False
+          else F.tracepp "tc1/=tc2" False
+    (===) (RExprArg e1) (RExprArg e2) =
+      F.tracepp (showpp e1 ++ " , " ++ showpp e2) (e1 == e2)
+    (===) r1 r2 = r1 == r2
 
 errTypeMismatch     :: Var -> Located SpecType -> Error
 errTypeMismatch x t = ErrMismatch lqSp (pprint x) (text "Checked")  d1 d2 Nothing hsSp
@@ -604,7 +623,7 @@ checkAbstractRefs rt = go rt
     mkPEnv _             = []
     pvType' p          = Misc.safeHead (showpp p ++ " not in env of " ++ showpp rt) [pvType q | q <- penv, pname p == pname q]
 
-
+-- TODO remove the unused UReft arg
 checkReft                    :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar (UReft r)))
                              => F.SrcSpan -> F.SEnv F.SortedReft -> F.TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> ElabM (Maybe Doc)
 checkReft _  _   _   Nothing  _ = pure Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.

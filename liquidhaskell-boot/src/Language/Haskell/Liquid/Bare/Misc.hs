@@ -108,7 +108,8 @@ freeSyms ty    = [ F.atLoc ty x | x <- tySyms ]
 -- Renaming Type Variables in Haskell Signatures ------------------------------
 -------------------------------------------------------------------------------
 runMapTyVars :: Bool -> Type -> SpecType -> (PJ.Doc -> PJ.Doc -> Error) -> Either Error MapTyVarST
-runMapTyVars allowTC τ t err = execStateT (mapTyVars allowTC τ t) (MTVST [] err)
+runMapTyVars allowTC τ t err =
+  execStateT (mapTyVars allowTC τ t) (MTVST [] err)
 
 data MapTyVarST = MTVST
   { vmap   :: [(Var, RTyVar)]
@@ -141,8 +142,8 @@ mapTyVars allowTC τ (REx _ _ t)
 mapTyVars _ _ (RExprArg _)
   = return ()
 mapTyVars allowTC (AppTy τ τ') (RAppTy t t' _)
-  = do  mapTyVars allowTC τ t
-        mapTyVars allowTC τ' t'
+  = do mapTyVars allowTC τ t
+       mapTyVars allowTC τ' t'
 mapTyVars _ _ (RHole _)
   = return ()
 mapTyVars _ k _ | isKind k
@@ -155,9 +156,9 @@ mapTyVars _ hsT lqT
 
 isKind :: Kind -> Bool
 isKind k = isTYPEorCONSTRAINT k -- TODO:GHC-863 isStarKind k --  typeKind k
-          || case k of 
+          || case k of
                 TyVarTy kk -> varType kk == Ghc.liftedTypeKind
-                _ -> False 
+                _ -> False
 
 mapTyRVar :: MonadError Error m
           => Var -> RTyVar -> MapTyVarST -> m MapTyVarST
