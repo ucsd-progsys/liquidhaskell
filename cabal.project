@@ -53,7 +53,5 @@ package liquid-parallel
 flags: +devel
 
 constraints:
-  -- vector-0.13.2.0 breaks store-0.7.18
-  vector <= 0.13.1.0
   -- since 1.4.7 there's a clash between data-default-class and data-default-0.8 when building SVGFonts
   , diagrams-lib < 1.4.7
