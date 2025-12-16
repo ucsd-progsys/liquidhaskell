@@ -467,7 +467,7 @@ testSucceeds =
          , "  fst (a,b) = a"
          ])
         @?==
-            "measure fst :: lq_tmp$db##0:(a, b) -> a\n        fst (GHC.Tuple.(,)a b) = a"
+            "measure fst :: lq_tmp$db##0:(a, b) -> a\n        fst (GHC.Internal.Tuple.(,)a b) = a"
     ]
 
 -- ---------------------------------------------------------------------
