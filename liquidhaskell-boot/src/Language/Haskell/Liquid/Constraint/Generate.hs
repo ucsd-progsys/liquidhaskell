@@ -10,6 +10,7 @@
 {-# LANGUAGE NamedFieldPuns            #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-incomplete-record-selectors #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-x-partial #-}
 

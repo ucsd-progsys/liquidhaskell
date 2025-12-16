@@ -751,7 +751,7 @@ isPredVar v = F.notracepp msg . isPredType . varType $ v
     msg     =  "isGoodCaseBind v = " ++ show v
 
 isPredType :: Type -> Bool
-isPredType = anyF [ isClassPred, isNomEqPred, isEqPred ]
+isPredType = anyF [ isClassPred, isEqClassPred, isEqPred ]
 
 anyF :: [a -> Bool] -> a -> Bool
 anyF ps x = or [ p x | p <- ps ]
@@ -815,7 +815,7 @@ elabRnExpr rdr_expr = do
     let { fresh_it = itName uniq (getLocA rdr_expr) }
     ((_qtvs, _dicts, evbs, _), residual)
          <- captureConstraints $
-            simplifyInfer tclvl NoRestrictions
+            simplifyInfer NotTopLevel tclvl NoRestrictions
                           []    {- No sig vars -}
                           [(fresh_it, res_ty)]
                           lie
@@ -896,30 +896,9 @@ data TcWiredIn = TcWiredIn {
 -- | Run a computation in GHC's typechecking monad with wired in values locally bound in the typechecking environment.
 withWiredIn :: TcM a -> TcM a
 withWiredIn m = discardConstraints $ do
-  -- undef <- lookupUndef
-  wiredIns <- mkWiredIns
-  -- snd <$> tcValBinds Ghc.NotTopLevel (binds undef wiredIns) (sigs wiredIns) m
-  (_, _, a) <- tcValBinds Ghc.NotTopLevel [] (sigs wiredIns) m
-  return a
-
+    wiredIns <- mkWiredIns
+    snd <$> tcValBinds Ghc.NotTopLevel [] (sigs wiredIns) m
  where
-  -- lookupUndef = do
-  --   lookupOrig gHC_ERR (Ghc.mkVarOcc "undefined")
-  --   -- tcLookupGlobal undefName
-
-  -- binds :: Name -> [TcWiredIn] -> [(Ghc.RecFlag, LHsBinds GhcRn)]
-  -- binds undef wiredIns = map (\w -> 
-  --     let ext = Ghc.unitNameSet undef in -- $ varName $ tyThingId undef in
-  --     let co_fn = idHsWrapper in
-  --     let matches = 
-  --           let ctxt = LambdaExpr in
-  --           let grhss = GRHSs Ghc.noExtField [Ghc.L locSpan (GRHS Ghc.noExtField [] (Ghc.L locSpan (HsVar Ghc.noExtField (Ghc.L locSpan undef))))] (Ghc.L locSpan emptyLocalBinds) in
-  --           MG Ghc.noExtField (Ghc.L locSpan [Ghc.L locSpan (Match Ghc.noExtField ctxt [] grhss)]) Ghc.Generated 
-  --     in
-  --     let b = FunBind ext (Ghc.L locSpan $ tcWiredInName w) matches co_fn [] in
-  --     (Ghc.NonRecursive, unitBag (Ghc.L locSpan b))
-  --   ) wiredIns
-
   sigs wiredIns = concatMap (\w ->
       let inf = maybeToList $ do
             (fPrec, fDir) <- tcWiredInFixity w
@@ -948,7 +927,8 @@ withWiredIn m = discardConstraints $ do
     return $ Ghc.mkInternalName u (Ghc.mkVarOcc s) locSpan
 
   toLoc = Ghc.L locSpanAnn
-  nameToTy = Ghc.L locSpanAnn . HsTyVar Ghc.noAnn Ghc.NotPromoted
+  nameToTy =
+    Ghc.L locSpanAnn . HsTyVar Ghc.noAnn Ghc.NotPromoted . fmap noUserRdr
 
   boolTy' :: LHsType GhcRn
   boolTy' = nameToTy $ toLoc boolTyConName

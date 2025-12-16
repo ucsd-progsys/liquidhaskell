@@ -11,6 +11,7 @@ import qualified Data.Array                               as Array
 import           Data.Foldable                            ( asum )
 
 import           Control.Monad
+import           Control.Monad.Trans.Maybe
 
 import qualified Data.Binary                             as B
 import qualified Data.Binary.Builder                     as Builder
@@ -43,16 +44,20 @@ getLiquidLibBytesFromEPS thisModule eps = extractFromEps
 getLiquidLibBytes :: GHC.Module
                         -> GHC.ExternalPackageState
                         -> GHC.HomePackageTable
-                        -> Maybe LiquidLibBytes
+                        -> MaybeT IO LiquidLibBytes
 getLiquidLibBytes thisModule eps hpt =
-    asum [extractFromHpt, getLiquidLibBytesFromEPS thisModule eps]
+    asum [extractFromHpt, hoistMaybe (getLiquidLibBytesFromEPS thisModule eps)]
   where
-    extractFromHpt :: Maybe LiquidLibBytes
+    extractFromHpt :: MaybeT IO LiquidLibBytes
     extractFromHpt = do
-      modInfo <- GHC.lookupHpt hpt (GHC.moduleName thisModule)
+      modInfo <- MaybeT $ GHC.lookupHpt hpt (GHC.moduleName thisModule)
       guard (thisModule == (GHC.mi_module . GHC.hm_iface $ modInfo))
-      xs <- mapM (GHC.fromSerialized LiquidLibBytes . GHC.ifAnnotatedValue) (GHC.mi_anns . GHC.hm_iface $ modInfo)
-      listToMaybe xs
+      hoistMaybe $
+          mapM
+            (GHC.fromSerialized LiquidLibBytes . GHC.ifAnnotatedValue)
+            (GHC.mi_anns . GHC.hm_iface $ modInfo)
+        >>=
+          listToMaybe
 
 newtype LiquidLibBytes = LiquidLibBytes { unLiquidLibBytes :: [Word8] }
 
@@ -69,14 +74,11 @@ deserialiseLiquidLib
   -> GHC.ExternalPackageState
   -> GHC.HomePackageTable
   -> GHC.NameCache
-  -> IO (Maybe LiquidLib)
+  -> MaybeT IO LiquidLib
 deserialiseLiquidLib thisModule eps hpt nameCache = do
-    let mlibbs = getLiquidLibBytes thisModule eps hpt
-    case mlibbs of
-      Just (LiquidLibBytes ws) -> do
-        let bs = B.pack ws
-        Just <$> decodeLiquidLib nameCache bs
-      _ -> return Nothing
+    LiquidLibBytes ws <- getLiquidLibBytes thisModule eps hpt
+    let bs = B.pack ws
+    MaybeT $ Just <$> decodeLiquidLib nameCache bs
 
 deserialiseLiquidLibFromEPS
   :: GHC.Module

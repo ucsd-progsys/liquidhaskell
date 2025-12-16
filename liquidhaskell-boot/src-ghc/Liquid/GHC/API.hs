@@ -331,11 +331,11 @@ import GHC.Core.Make                  as Ghc
 import GHC.Core.Predicate             as Ghc
     ( getClassPredTys_maybe
     , getClassPredTys
-    , isEvVarType
+    , isEqClassPred
     , isEqPred
     , isClassPred
     , isDictId
-    , isNomEqPred
+    , isSimplePredTy
     , mkClassPred
     )
 import GHC.Core.Reduction             as Ghc
@@ -519,9 +519,8 @@ import GHC.Rename.Names               as Ghc
     )
 import GHC.Tc.Errors.Types            as Ghc
     ( mkTcRnUnknownMessage )
-import GHC.Tc.Gen.App                 as Ghc (tcInferSigma)
 import GHC.Tc.Gen.Bind                as Ghc (tcValBinds)
-import GHC.Tc.Gen.Expr                as Ghc (tcInferRho)
+import GHC.Tc.Gen.Expr                as Ghc (tcInferRho, tcInferSigma)
 import GHC.Tc.Solver                  as Ghc
     ( InferMode(NoRestrictions)
     , captureTopConstraints
@@ -712,6 +711,7 @@ import GHC.Types.Name.Reader          as Ghc
     , mkVarUnqual
     , mkUnqual
     , nameRdrName
+    , noUserRdr
     )
 import GHC.Types.SourceError          as Ghc
     ( SourceError
@@ -784,7 +784,8 @@ import GHC.Unit.Finder                as Ghc
     , findImportedModule
     )
 import GHC.Unit.Home.ModInfo          as Ghc
-    ( HomePackageTable, HomeModInfo(hm_iface), lookupHpt )
+    ( HomeModInfo(hm_iface) )
+import GHC.Unit.Home.PackageTable     as Ghc ( HomePackageTable, lookupHpt )
 import GHC.Unit.Module                as Ghc
     ( GenWithIsBoot(gwib_isBoot, gwib_mod)
     , IsBootInterface(NotBoot, IsBoot)
