@@ -1,3 +1,10 @@
+-- We avoid z3 in this test, which takes takes very long to respond
+-- in theorems thmRevLength and thmRevInvolutive.
+-- See
+--   https://github.com/ucsd-progsys/liquid-fixpoint/pull/815
+--   https://github.com/ucsd-progsys/liquidhaskell/issues/2599
+{-@ LIQUID "--smtsolver=cvc5"  @-}
+
 {-@ LIQUID "--reflection"  @-}
 {-@ LIQUID "--ple"         @-}
 

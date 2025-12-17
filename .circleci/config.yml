@@ -24,6 +24,16 @@ commands:
             rm -rf  "${z3full}"
             z3 --version
 
+      - run:
+          name: Install cvc5
+          command: |
+            wget https://github.com/cvc5/cvc5/releases/download/cvc5-1.2.1/cvc5-Linux-x86_64-static.zip
+            unzip cvc5-Linux-x86_64-static.zip
+            rm -f cvc5-Linux-x86_64-static.zip
+            sudo cp cvc5-Linux-x86_64-static/bin/cvc5 /usr/local/bin
+            rm -rf cvc5-Linux-x86_64-static
+            cvc5 --version
+
       - checkout
       - add_ssh_keys
       - run: git submodule sync
@@ -58,15 +68,16 @@ commands:
             cabal build all --dry-run
       - restore_cache:
           keys:
-            - cabal-cache-v9-{{ checksum "dist-newstyle/cache/plan.json" }}
+            - cabal-cache-v10-{{ checksum "dist-newstyle/cache/plan.json" }}
       - run:
           name: Dependencies
           command: |
             cabal build -j --only-dependencies liquidhaskell-boot
       - save_cache:
-          key: cabal-cache-v9-{{ checksum "dist-newstyle/cache/plan.json" }}
+          key: cabal-cache-v10-{{ checksum "dist-newstyle/cache/plan.json" }}
           paths:
-            - ~/.local/state/cabal/store
+            - ~/.cabal/packages
+            - ~/.cabal/store
             - dist-newstyle
       - run:
           name: Test
