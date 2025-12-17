@@ -68,16 +68,16 @@ commands:
             cabal build all --dry-run
       - restore_cache:
           keys:
-            - cabal-cache-v10-{{ checksum "dist-newstyle/cache/plan.json" }}
+            - cabal-cache-v11-{{ checksum "dist-newstyle/cache/plan.json" }}
       - run:
           name: Dependencies
           command: |
             cabal build -j --only-dependencies liquidhaskell-boot
       - save_cache:
-          key: cabal-cache-v10-{{ checksum "dist-newstyle/cache/plan.json" }}
+          key: cabal-cache-v11-{{ checksum "dist-newstyle/cache/plan.json" }}
           paths:
-            - ~/.cabal/packages
-            - ~/.cabal/store
+            - ~/.cache/cabal/packages
+            - ~/.local/state/cabal/store
             - dist-newstyle
       - run:
           name: Test
