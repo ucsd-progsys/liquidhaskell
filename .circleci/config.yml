@@ -24,6 +24,16 @@ commands:
             rm -rf  "${z3full}"
             z3 --version
 
+      - run:
+          name: Install cvc5
+          command: |
+            wget https://github.com/cvc5/cvc5/releases/download/cvc5-1.2.1/cvc5-Linux-x86_64-static.zip
+            unzip cvc5-Linux-x86_64-static.zip
+            rm -f cvc5-Linux-x86_64-static.zip
+            sudo cp cvc5-Linux-x86_64-static/bin/cvc5 /usr/local/bin
+            rm -rf cvc5-Linux-x86_64-static
+            cvc5 --version
+
       - checkout
       - add_ssh_keys
       - run: git submodule sync
