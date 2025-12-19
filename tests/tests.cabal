@@ -1466,8 +1466,10 @@ executable unit-pos-2
                     , Extype
                     , Fail
                     , FailName
-                    , FF17
-                    , FF2131
+                  -- TODO the following tests are disabled because they currently can only be run with CVC5
+                  -- and we use Z3 by default (specifically in CI)
+                  --  , FF17
+                  --  , FF2131
                     , FFI
                     , Fib0
                     , FibEq
