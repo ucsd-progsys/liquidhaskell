@@ -95,7 +95,7 @@ wiredTheorySortedSyms =
     | s <- wiredTheorySyms
     , let srt = F.tsSort $
                   fromMaybe (panic Nothing ("unknown symbol: " ++ show s)) $
-                    F.lookupSEnv s (F.theorySymbols F.Z3)
+                    F.lookupSEnv s (F.theorySymbols F.Z3 <> F.theorySymbols F.Cvc5)
     ]
   where
     wiredTheorySyms =
@@ -122,6 +122,10 @@ wiredTheorySortedSyms =
       , "Bag_sub"
       , "Bag_union"
       , "Bag_union_max"
+
+      , "FF_val"
+      , "FF_add"
+      , "FF_mul"
 
       , "strLen"
       ]

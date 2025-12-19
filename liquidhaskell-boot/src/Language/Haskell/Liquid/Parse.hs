@@ -886,9 +886,9 @@ data BPspec
   | RInst   (RInstance LocBareTypeParsed)                 -- ^ refined 'instance' definition
   | Invt    LocBareTypeParsed                             -- ^ 'invariant' specification
   | Using  (LocBareTypeParsed, LocBareTypeParsed)         -- ^ 'using' declaration (for local invariants on a type)
-  | Alias   (RTAlias Symbol BareTypeParsed)                 -- ^ 'type' alias declaration
-  | EAlias  (RTAlias Symbol (ExprV LocSymbol))  -- ^ 'predicate' alias declaration
-  | Embed   (Located LHName, FTycon, TCArgs)              -- ^ 'embed' declaration
+  | Alias   (RTAlias Symbol BareTypeParsed)               -- ^ 'type' alias declaration
+  | EAlias  (RTAlias Symbol (ExprV LocSymbol))            -- ^ 'predicate' alias declaration
+  | Embed   (Located LHName, Sort, TCArgs)                -- ^ 'embed' declaration
   | Qualif  (QualifierV LocSymbol)                        -- ^ 'qualif' definition
   | LVars   (Located LHName)                              -- ^ 'lazyvar' annotation, defer checks to *use* sites
   | Lazy    (Located LHName)                              -- ^ 'lazy' annotation, skip termination check on binder
@@ -1087,7 +1087,7 @@ mkSpec xs = Measure.Spec
   , Measure.newtyDecls = [d | NTDecl d <- xs]
   , Measure.aliases    = [a | Alias  a <- xs]
   , Measure.ealiases   = [e | EAlias e <- xs]
-  , Measure.embeds     = tceFromList [(c, (fTyconSort tc, a)) | Embed (c, tc, a) <- xs]
+  , Measure.embeds     = tceFromList [(c, (s, a)) | Embed (c, s, a) <- xs]
   , Measure.qualifiers = [q | Qualif q <- xs]
   , Measure.lvars      = S.fromList [d | LVars d  <- xs]
   , Measure.autois     = S.fromList [s | Insts s <- xs]
@@ -1284,13 +1284,13 @@ invaliasP
 genBareTypeP :: Parser BareTypeParsed
 genBareTypeP = bareTypeP
 
-embedP :: Parser (Located LHName, FTycon, TCArgs)
+embedP :: Parser (Located LHName, Sort, TCArgs)
 embedP = do
   x <- locUpperIdLHNameP (LHTcName LHAnyModuleNameF)
   a <- try (reserved "*" >> return WithArgs) <|> return NoArgs -- TODO: reserved "*" looks suspicious
   _ <- reserved "as"
-  t <- fTyConP
-  return (x, t, a)
+  s <- sortP
+  return (x, s, a)
   --  = xyP locUpperIdP symbolTCArgs (reserved "as") fTyConP
 
 

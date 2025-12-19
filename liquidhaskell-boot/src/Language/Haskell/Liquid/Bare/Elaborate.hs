@@ -556,6 +556,7 @@ renameBinderSort f = rename
   rename F.FInt             = F.FInt
   rename F.FReal            = F.FReal
   rename F.FNum             = F.FNum
+  rename (F.FNatNum n)      = F.FNatNum n
   rename F.FFrac            = F.FFrac
   rename (   F.FObj s     ) = F.FObj (f s)
   rename t'@(F.FVar _     ) = t'
@@ -704,9 +705,6 @@ specTypeToLHsType = \case
     RApp RTyCon { rtc_tc = tc } ts _ _ -> mkHsTyConApp
       (getRdrName tc)
       [ specTypeToLHsType t | t <- ts, notExprArg t ]
-     where
-      notExprArg (RExprArg _) = False
-      notExprArg _            = True
     RAllE _ tin tout -> nlHsFunTy (specTypeToLHsType tin) (specTypeToLHsType tout)
     REx _ tin tout -> nlHsFunTy (specTypeToLHsType tin) (specTypeToLHsType tout)
     RAppTy _ (RExprArg _) _ ->

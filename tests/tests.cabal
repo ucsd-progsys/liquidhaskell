@@ -1466,6 +1466,8 @@ executable unit-pos-2
                     , Extype
                     , Fail
                     , FailName
+                    , FF17
+                    , FF2131
                     , FFI
                     , Fib0
                     , FibEq

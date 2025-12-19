@@ -495,8 +495,9 @@ errRTAliasApp l la rta = Just . ErrAliasApp  sp name sp'
 ----------------------------------------------------------------------------------------
 cookSpecType :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocBareType
              -> LocSpecType
-cookSpecType env sigEnv name x bt
-         = either Ex.throw id (cookSpecTypeE env sigEnv name x bt)
+cookSpecType env sigEnv name x bt =
+  either Ex.throw id $
+  cookSpecTypeE env sigEnv name x bt
   where
     _msg = "cookSpecType: " ++ GM.showPpr (z, Ghc.varType <$> z)
     z    = Bare.plugSrc x
@@ -509,7 +510,8 @@ cookSpecTypeE :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> Lo
 cookSpecTypeE env sigEnv name@(ModName _ _) x bt
   = fmap f . bareSpecType env $ bareExpandType rtEnv bt
   where
-    f = (if doplug || not allowTC then plugHoles allowTC sigEnv name x else id)
+    f :: LocSpecType -> LocSpecType
+    f =   (if doplug || not allowTC then plugHoles allowTC sigEnv name x else id)
         . fmap (RT.addTyConInfo embs tyi)
         . Bare.txRefSort tyi embs
         . fmap txExpToBind -- What does this function DO
@@ -558,21 +560,24 @@ specExpandType :: BareRTEnv -> LocSpecType -> LocSpecType
 specExpandType = expandLoc
 
 bareSpecType :: Bare.Env -> LocBareType -> Bare.Lookup LocSpecType
-bareSpecType env bt = case Bare.ofBareTypeE env (F.loc bt) Nothing (val bt) of
-  Left e  -> Left e
-  Right t -> Right (F.atLoc bt t)
+bareSpecType env bt =
+  case Bare.ofBareTypeE env (F.loc bt) Nothing (val bt) of
+    Left e  -> Left e
+    Right t -> Right (F.atLoc bt t)
 
 maybePlug :: Bool -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocSpecType -> LocSpecType
-maybePlug allowTC sigEnv name kx = case Bare.plugSrc kx of
-                             Nothing -> id
-                             Just _  -> plugHoles allowTC sigEnv name kx
+maybePlug allowTC sigEnv name kx =
+  case Bare.plugSrc kx of
+    Nothing -> id
+    Just _  -> plugHoles allowTC sigEnv name kx
 
 plugHoles :: Bool -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocSpecType -> LocSpecType
-plugHoles allowTC sigEnv name = Bare.makePluggedSig allowTC name embs tyi exports
+plugHoles allowTC sigEnv name =
+  Bare.makePluggedSig allowTC name embs tyi exports
   where
-    embs              = Bare.sigEmbs     sigEnv
-    tyi               = Bare.sigTyRTyMap sigEnv
-    exports           = Bare.sigExports  sigEnv
+    embs    = Bare.sigEmbs     sigEnv
+    tyi     = Bare.sigTyRTyMap sigEnv
+    exports = Bare.sigExports  sigEnv
 
 {- [NOTE:Cooking-SpecType]
     A @SpecType@ is _raw_ when it is obtained directly from a @BareType@, i.e.
@@ -697,7 +702,8 @@ expandApp l re es
 -------------------------------------------------------------------------------
 txExpToBind   :: SpecType -> SpecType
 -------------------------------------------------------------------------------
-txExpToBind t = evalState (expToBindT t) (ExSt 0 M.empty πs)
+txExpToBind t =
+  evalState (expToBindT t) (ExSt 0 M.empty πs)
   where
     πs        = M.fromList [(pname p, p) | p <- ty_preds $ toRTypeRep t ]
 

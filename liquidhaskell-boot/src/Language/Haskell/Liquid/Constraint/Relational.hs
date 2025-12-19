@@ -559,13 +559,13 @@ consRelSub γ t1 t2 p1 p2 | isBase t1 && isBase t2 =
     γ'' <- γ' += ("consRelSub Base R", rr, t2)
     let cstr = F.subst (F.mkSubst [(resL, F.EVar rl), (resR, F.EVar rr)]) $ F.PImp p1 p2
     entl γ'' (traceWhenLoud ("consRelSub Base cstr " ++ F.showpp cstr) cstr) "consRelSub Base"
-consRelSub _ t1@(RHole _) t2@(RHole _) _ _ = F.panic $ "consRelSub is undefined for RHole " ++ show (t1, t2)
+consRelSub _ t1@(RHole _)    t2@(RHole _)    _ _ = F.panic $ "consRelSub is undefined for RHole "    ++ show (t1, t2)
 consRelSub _ t1@(RExprArg _) t2@(RExprArg _) _ _ = F.panic $ "consRelSub is undefined for RExprArg " ++ show (t1, t2)
-consRelSub _ t1@REx {} t2@REx {} _ _ = F.panic $ "consRelSub is undefined for REx " ++ show (t1, t2)
-consRelSub _ t1@RAllE {} t2@RAllE {} _ _ = F.panic $ "consRelSub is undefined for RAllE " ++ show (t1, t2)
-consRelSub _ t1@RRTy {} t2@RRTy {} _ _ = F.panic $ "consRelSub is undefined for RRTy " ++ show (t1, t2)
-consRelSub _ t1@RAllP {} t2@RAllP {} _ _ = F.panic $ "consRelSub is undefined for RAllP " ++ show (t1, t2)
-consRelSub _ t1@RAllT {} t2@RAllT {} _ _ = F.panic $ "consRelSub is undefined for RAllT " ++ show (t1, t2)
+consRelSub _ t1@REx {}       t2@REx {}       _ _ = F.panic $ "consRelSub is undefined for REx "      ++ show (t1, t2)
+consRelSub _ t1@RAllE {}     t2@RAllE {}     _ _ = F.panic $ "consRelSub is undefined for RAllE "    ++ show (t1, t2)
+consRelSub _ t1@RRTy {}      t2@RRTy {}      _ _ = F.panic $ "consRelSub is undefined for RRTy "     ++ show (t1, t2)
+consRelSub _ t1@RAllP {}     t2@RAllP {}     _ _ = F.panic $ "consRelSub is undefined for RAllP "    ++ show (t1, t2)
+consRelSub _ t1@RAllT {}     t2@RAllT {}     _ _ = F.panic $ "consRelSub is undefined for RAllT "    ++ show (t1, t2)
 consRelSub _ t1 t2 _ _ =  F.panic $ "consRelSub is undefined for different types " ++ show (t1, t2)
 
 --------------------------------------------------------------

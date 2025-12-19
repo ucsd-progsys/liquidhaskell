@@ -54,6 +54,9 @@ module Language.Haskell.Liquid.Types.RType (
   , Predicate
   , PredicateV (..)
 
+  -- * Expression Arguments
+  , notExprArg
+
   -- * Manipulating `Predicates`
   , emapExprVM
   , mapPredicateV
@@ -775,6 +778,10 @@ instance (NFData c, NFData tv, NFData r)       => NFData (RType c tv r)
 makeRTVar :: tv -> RTVar tv s
 makeRTVar a = RTVar a (RTVNoInfo True)
 
+notExprArg :: RTypeV v c tv r -> Bool
+notExprArg (RExprArg _) = False
+notExprArg _            = True
+
 instance (Eq tv) => Eq (RTVar tv s) where
   t1 == t2 = ty_var_value t1 == ty_var_value t2
 
@@ -856,7 +863,7 @@ emapUReftVM
 emapUReftVM f g (MkUReft r p) = MkUReft <$> g r <*> emapPredicateVM f p
 
 type BRType      = RTypeV Symbol BTyCon BTyVar    -- ^ "Bare" parsed version
-type BRTypeV v   = RTypeV v BTyCon BTyVar         -- ^ "Bare" parsed version
+type BRTypeV v   = RTypeV v      BTyCon BTyVar    -- ^ "Bare" parsed version
 type RRType      = RTypeV Symbol RTyCon RTyVar    -- ^ "Resolved" version
 type BSort       = BRType    ()
 type BSortV v    = BRTypeV v ()

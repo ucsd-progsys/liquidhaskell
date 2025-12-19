@@ -399,7 +399,8 @@ checkInv :: Bool
          -> F.SEnv F.SortedReft
          -> (Maybe Var, LocSpecType)
          -> ElabM Diagnostics
-checkInv allowHO bsc emb tcEnv env (_, t) = checkTy allowHO bsc err emb tcEnv env t
+checkInv allowHO bsc emb tcEnv env (_, t) =
+  checkTy allowHO bsc err emb tcEnv env t
   where
     err              = ErrInvt (GM.sourcePosSrcSpan $ loc t) (val t)
 
@@ -450,7 +451,8 @@ checkBind :: (PPrint v)
           -> F.SEnv F.SortedReft
           -> (v, LocSpecType)
           -> ElabM Diagnostics
-checkBind allowHO bsc s emb tcEnv env (v, t) = checkTy allowHO bsc msg emb tcEnv env t
+checkBind allowHO bsc s emb tcEnv env (v, t) =
+  checkTy allowHO bsc msg emb tcEnv env t
   where
     msg                      = ErrTySpec (GM.fSrcSpan t) (Just s) (pprint v) (val t)
 
@@ -677,7 +679,7 @@ checkAbstractRefs rt = go rt
     mkPEnv _             = []
     pvType' p          = Misc.safeHead (showpp p ++ " not in env of " ++ showpp rt) [pvType q | q <- penv, pname p == pname q]
 
-
+-- TODO remove the unused UReft arg
 checkReft                    :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar (UReft r)))
                              => F.SrcSpan -> F.SEnv F.SortedReft -> F.TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> ElabM (Maybe Doc)
 checkReft _  _   _   Nothing  _ = pure Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.
