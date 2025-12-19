@@ -1,8 +1,7 @@
 {-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
-{-# LANGUAGE KindSignatures, DataKinds #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DataKinds #-}
 
-module Language.Haskell.Liquid.FinField where
+module Language.Haskell.Liquid.FinField.FF17 where
 
 import Data.Proxy
 import GHC.TypeLits
@@ -11,7 +10,7 @@ import Language.Haskell.Liquid.FinField
 
 -- instantiate FFld for a specific prime value of 17
 data FF17 = FF17 { toFFld :: FFld 17 }
-{-@ embed FF17 as (FFld_t '17) @-}
+{-@ embed FF17 as (FFld_t 17) @-}
 
 {-@ assume val :: n : Integer -> {v:FF17 | v = FF_val n} @-}
 {-@ define val    n                          = (FF_val n) @-}

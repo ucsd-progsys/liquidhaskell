@@ -26,6 +26,7 @@ library
                     Language.Haskell.Liquid.Bag
                     Language.Haskell.Liquid.ProofCombinators
                     Language.Haskell.Liquid.FinField
+                    Language.Haskell.Liquid.FinField.FF17
   hs-source-dirs:     src
   build-depends:      base          < 5
                     , ghc-prim
