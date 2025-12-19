@@ -1570,8 +1570,8 @@ notElem c ps = not (elem c ps)
 -- | /O(n)/ 'filter', applied to a predicate and a ByteString,
 -- returns a ByteString containing those characters that satisfy the
 -- predicate. This function is subject to array fusion.
-{-@ qualif FilterLoop(v:Ptr a, f:Ptr a, t:Ptr a):
-        (plen t) >= (plen f) - (plen v) @-}
+{-@ qualif FilterLoop(v:Ptr a, f:Ptr a, t:Ptr a)
+        { (plen t) >= (plen f) - (plen v) } @-}
 {-@ filter :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
 filter :: (Word8 -> Bool) -> ByteString -> ByteString
 filter k ps@(PS x s l)
@@ -1715,8 +1715,8 @@ findSubstring pat str = listToMaybe $ findSubstrings pat str
 
 {-@ qualif FindIndices(v:Data.ByteString.Internal.ByteString,
                        p:Data.ByteString.Internal.ByteString,
-                       n:int):
-        (bLength v) = (bLength p) - n  @-}
+                       n:int)
+       { (bLength v) = (bLength p) - n } @-}
 
 {-@ findSubstrings :: pat:ByteString -> str:ByteString -> [{v:Nat | v <= (bLength str)}] @-}
 
@@ -2300,36 +2300,36 @@ findFromEndUntil f ps@(PS x s l) =
 
 
 -- // for unfoldrN
-{-@ qualif PLenNat(v:GHC.Ptr.Ptr a): (0 <= plen v)
+{-@ qualif PLenNat(v:GHC.Ptr.Ptr a) { 0 <= plen v }
   @-}
 
 -- // for UnpackFoldrINLINED
-{-@ qualif UnpackFoldrINLINED(v:List a, n:int, acc:List a): (len v = n + 1 + (len acc))
+{-@ qualif UnpackFoldrINLINED(v:List a, n:int, acc:List a) { len v = n + 1 + (len acc) }
   @-}
 
 -- // for ByteString.inits
-{-@ qualif BLenGt(v:[ByteString], n:int): ((bLength v) > n)
+{-@ qualif BLenGt(v:[ByteString], n:int) { (bLength v) > n }
   @-}
 
 -- // for ByteString.concat
-{-@ qualif BLens(v:[ByteString]) : (0 <= bLengths v)
+{-@ qualif BLens(v:[ByteString]) { 0 <= bLengths v }
   @-}
 
-{-@ qualif BLenLE(v:GHC.Ptr.Ptr a, bs:[ByteString]): (bLengths bs <= plen v)
+{-@ qualif BLenLE(v:GHC.Ptr.Ptr a, bs:[ByteString]) { bLengths bs <= plen v }
   @-}
 
 -- // for ByteString.splitWith
-{-@ qualif SplitWith(v:[ByteString], l:int): ((bLengths v) + (len v) - 1 = l)
+{-@ qualif SplitWith(v:[ByteString], l:int) { (bLengths v) + (len v) - 1 = l }
   @-}
 
 -- // for ByteString.unfoldrN
-{-@ qualif PtrDiff(v:int, i:int, p:GHC.Ptr.Ptr a): (i - v <= plen p)
+{-@ qualif PtrDiff(v:int, i:int, p:GHC.Ptr.Ptr a) { i - v <= plen p }
   @-}
 
 -- // for ByteString.split
-{-@ qualif BSValidOff(v:int,l:int,p:ForeignPtr a): (v + l <= fplen p)
+{-@ qualif BSValidOff(v:int,l:int,p:ForeignPtr a) { v + l <= fplen p }
   @-}
 
 
-{-@ qualif SplitLoop(v:[ByteString], l:int, n:int): ((bLengths v) + (len v) - 1 = l - n)
+{-@ qualif SplitLoop(v:[ByteString], l:int, n:int) {(bLengths v) + (len v) - 1 = l - n }
   @-}

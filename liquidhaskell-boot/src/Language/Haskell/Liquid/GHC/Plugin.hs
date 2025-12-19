@@ -110,7 +110,7 @@ plugin = GHC.defaultPlugin {
   , pluginRecompile       = purePlugin
   }
   where
-    liquidPlugin :: (MonadIO m) => [CommandLineOption] -> a -> (Config -> m a) -> m a
+    liquidPlugin :: MonadIO m => [CommandLineOption] -> a -> (Config -> m a) -> m a
     liquidPlugin opts def go = do
         cfg <- liftIO $ LH.getOpts opts
         if skipModule cfg then return def else go cfg
@@ -130,9 +130,13 @@ plugin = GHC.defaultPlugin {
     -- See also: https://github.com/ucsd-progsys/liquidhaskell/issues/1727
     -- for a post-mortem.
     typecheckPluginGo cfg summary gblEnv = do
-      logger <- getLogger
-      dynFlags <- getDynFlags
-      withTiming logger (text "LiquidHaskell" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $ do
+      logger0 <- getLogger
+      let logger = updateLogFlags logger0 (maybeDDumpTimings cfg)
+      GHC.withTiming
+        logger (text "LiquidHaskellCPU" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $
+        GHC.withTimingWallClock
+          logger (text "LiquidHaskell" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $ do
+        dynFlags <- getDynFlags
         if gopt Opt_Haddock dynFlags
           then do
             -- Warn the user
@@ -154,6 +158,13 @@ plugin = GHC.defaultPlugin {
                 failM
               Right newGblEnv' ->
                 pure newGblEnv'
+
+    -- We instruct LH to collect timings instead of doing it directly to GHC
+    -- This helps work around https://github.com/haskell/cabal/issues/11116
+    maybeDDumpTimings :: Config -> LogFlags -> LogFlags
+    maybeDDumpTimings cfg =
+      if ddumpTimings cfg then log_set_dopt Opt_D_dump_timings
+      else id
 
 --------------------------------------------------------------------------------
 -- | Inter-phase communication -------------------------------------------------
@@ -300,7 +311,7 @@ typecheckHook' cfg ms tcGblEnv specComments = do
 
 liquidCheckModule :: Config -> ModSummary -> TcGblEnv -> [BPspec] -> TcM (Either LiquidCheckException TcGblEnv)
 liquidCheckModule cfg0 ms tcg specs = do
-  withPragmas cfg0 thisFile pragmas $ \cfg -> do
+  withPragmas cfg0 pragmas $ \cfg -> do
     pipelineData <- do
       env <- getTopEnv
       session <- Session <$> liftIO (newIORef env)
@@ -308,7 +319,6 @@ liquidCheckModule cfg0 ms tcg specs = do
     liquidLib <- setGblEnv tcg $ liquidHaskellCheckWithConfig cfg pipelineData ms
     traverse (serialiseSpec tcg) liquidLib
   where
-    thisFile = LH.modSummaryHsFile ms
     pragmas = [ s | Pragma s <- specs ]
 
 mkPipelineData :: (GhcMonad m) => ModSummary -> TcGblEnv -> [BPspec] -> m PipelineData
@@ -412,10 +422,10 @@ checkLiquidHaskellContext lhContext = do
       out <- liftIO $ LH.checkTargetInfo pmrTargetInfo
 
       let bareSpec = lhInputSpec lhContext
-          file = LH.modSummaryHsFile $ lhModuleSummary lhContext
 
-      withPragmas (lhGlobalCfg lhContext) file (Ms.pragmas bareSpec) $ \moduleCfg ->  do
+      withPragmas (lhGlobalCfg lhContext) (Ms.pragmas bareSpec) $ \moduleCfg ->  do
         let filters = getFilters moduleCfg
+            file = LH.modSummaryHsFile $ lhModuleSummary lhContext
         -- Report the outcome of the checking
         LH.reportResult (errorLogger file filters) moduleCfg [giTarget (giSrc pmrTargetInfo)] out
         -- If there are unmatched filters or errors, and we are not reporting with
@@ -448,11 +458,13 @@ isIgnore sp = any ((== "--skip-module") . F.val) (pragmas sp)
 -- | Working with bare & lifted specs ------------------------------------------
 --------------------------------------------------------------------------------
 
+-- | Loads the specs of direct dependencies and /their/ dependencies as well.
 loadDependencies :: Config -> [Module] -> TcM TargetDependencies
 loadDependencies currentModuleConfig mods = do
   hscEnv    <- env_top <$> getEnv
   results   <- SpecFinder.findRelevantSpecs
                  (excludeAutomaticAssumptionsFor currentModuleConfig) hscEnv mods
+  -- REVIEW: What does reversing the list accomplishes here?
   let deps = TargetDependencies $ foldl' processResult mempty (reverse results)
   redundant <- liftIO $ configToRedundantDependencies hscEnv currentModuleConfig
 
@@ -498,14 +510,8 @@ processModule LiquidHaskellContext{..} = do
   debugLog ("Module ==> " ++ renderModule thisModule)
 
   let bareSpec0       = lhInputSpec
-  -- /NOTE/: For the Plugin to work correctly, we shouldn't call 'canonicalizePath', because otherwise
-  -- this won't trigger the \"external name resolution\" as part of 'Language.Haskell.Liquid.Bare.Resolve'
-  -- (cfr. 'allowExtResolution').
-  let file            = LH.modSummaryHsFile lhModuleSummary
 
-  _                   <- liftIO $ LH.checkFilePragmas $ Ms.pragmas bareSpec0
-
-  withPragmas lhGlobalCfg file (Ms.pragmas bareSpec0) $ \moduleCfg -> do
+  withPragmas lhGlobalCfg (Ms.pragmas bareSpec0) $ \moduleCfg -> do
     dependencies <- loadDependencies moduleCfg lhRelevantModules
 
     debugLog $ "Found " <> show (HM.size $ getDependencies dependencies) <> " dependencies:"
@@ -518,6 +524,7 @@ processModule LiquidHaskellContext{..} = do
     hscEnv <- getTopEnv
     let preNormalizedCore = preNormalizeCore moduleCfg modGuts0
         modGuts = modGuts0 { mg_binds = preNormalizedCore }
+        file = LH.modSummaryHsFile lhModuleSummary
     targetSrc  <- liftIO $ makeTargetSrc moduleCfg file modGuts hscEnv
     logger <- getLogger
 

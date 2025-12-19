@@ -113,6 +113,7 @@ wiredTheorySortedSyms =
       , "Set_sub"
       , "Set_add"
       , "Set_com"
+      , "Set_card"
 
       , "Bag_count"
       , "Bag_empty"

@@ -248,117 +248,117 @@ import Foreign.ForeignPtr       (ForeignPtr, withForeignPtr)
       sumLens (x:xs) = len x + (sumLens xs)
   @-}
 {-@ invariant {v:[[a]] | sumLens v >= 0} @-}
-{-@ qualif SumLensEq(v:List (List a), x:List (List a)): (sumLens v) = (sumLens x) @-}
-{-@ qualif SumLensEq(v:List (List a), x:List a): (sumLens v) = (len x) @-}
-{-@ qualif SumLensLe(v:List (List a), x:List (List a)): (sumLens v) <= (sumLens x) @-}
+{-@ qualif SumLensEq(v:List (List a), x:List (List a)) { (sumLens v) = (sumLens x)  } @-}
+{-@ qualif SumLensEq(v:List (List a), x:List a) { (sumLens v) = (len x)  } @-}
+{-@ qualif SumLensLe(v:List (List a), x:List (List a)) { (sumLens v) <= (sumLens x)  } @-}
 
 -- ByteString qualifiers
 {-@ qualif LBLensAcc(v:ByteString,
                      bs:List ByteString,
-                     b:ByteString):
-        lbLength(v) = lbLengths(bs) + lbLength(b)
+                     b:ByteString)
+        { lbLength v = lbLengths bs + lbLength b }
   @-}
 
-{-@ qualif ByteStringNE(v:S.ByteString): (bLength v) > 0 @-}
+{-@ qualif ByteStringNE(v:S.ByteString) { (bLength v) > 0  } @-}
 {-@ qualif BLengthsAcc(v:List S.ByteString,
                        c:S.ByteString,
-                       cs:List S.ByteString):
-        (bLengths v) = (bLength c) + (bLengths cs)
+                       cs:List S.ByteString)
+        { bLengths v = bLength c + bLengths cs }
   @-}
 
-{-@ qualif BLengthsSum(v:List (List a), bs:List S.ByteString):
-       (sumLens v) = (bLengths bs)
+{-@ qualif BLengthsSum(v:List (List a), bs:List S.ByteString)
+       { sumLens v = bLengths bs }
   @-}
 
-{-@ qualif BLenLE(v:S.ByteString, n:int): (bLength v) <= n @-}
+{-@ qualif BLenLE(v:S.ByteString, n:int) { (bLength v) <= n  } @-}
 {-@ qualif BLenEq(v:S.ByteString,
-                  b:S.ByteString):
-       (bLength v) = (bLength b)
+                  b:S.ByteString)
+       { bLength v = bLength b }
   @-}
 
 {-@ qualif BLenAcc(v:int,
                    b1:S.ByteString,
-                   b2:S.ByteString):
-       v = (bLength b1) + (bLength b2)
+                   b2:S.ByteString)
+       { v = bLength b1 + bLength b2 }
   @-}
 {-@ qualif BLenAcc(v:int,
                    b:S.ByteString,
-                   n:int):
-       v = (bLength b) + n
+                   n:int)
+       { v = bLength b + n }
   @-}
 
 -- lazy ByteString qualifiers
-{-@ qualif LByteStringN(v:ByteString, n:int): (lbLength v) = n @-}
-{-@ qualif LByteStringNE(v:ByteString): (lbLength v) > 0 @-}
+{-@ qualif LByteStringN(v:ByteString, n:int) { (lbLength v) = n  } @-}
+{-@ qualif LByteStringNE(v:ByteString) { (lbLength v) > 0  } @-}
 {-@ qualif LByteStringSZ(v:ByteString,
-                         b:ByteString):
-        (lbLength v) = (lbLength b)
+                         b:ByteString)
+        { lbLength v = lbLength b }
   @-}
 
 {-@ qualif LBLenAcc(v:int,
                     b1:ByteString,
-                    b2:ByteString):
-       v = (lbLength b1) + (lbLength b2)
+                    b2:ByteString)
+       { v = lbLength b1 + lbLength b2 }
   @-}
 
 {-@ qualif LBLenAcc(v:int,
                     b:ByteString,
-                    n:int):
-       v = (lbLength b) + n
+                    n:int)
+       { v = lbLength b + n }
   @-}
 
 {-@ qualif Chunk(v:ByteString,
                  sb:S.ByteString,
-                 lb:ByteString):
-       (lbLength v) = (bLength sb) + (lbLength lb)
+                 lb:ByteString)
+       { lbLength v = bLength sb + lbLength lb }
   @-}
 
 --LIQUID for the myriad `comb` inner functions
 {-@ qualif LBComb(v:List ByteString,
                   acc:List S.ByteString,
                   ss:List S.ByteString,
-                  cs:ByteString):
-        ((lbLengths v) + (len v) - 1) = ((bLengths acc) + ((bLengths ss) + (len ss) - 1) + (lbLength cs))
+                  cs:ByteString)
+        { lbLengths v + len v - 1 = bLengths acc + bLengths ss + len ss - 1 + lbLength cs }
   @-}
 
 {-@ qualif LBGroup(v:List ByteString,
                    acc:List S.ByteString,
                    ss:List S.ByteString,
-                   cs:ByteString):
-        (lbLengths v) = ((bLengths acc) + (bLengths ss) + (lbLength cs))
+                   cs:ByteString)
+        { lbLengths v = bLengths acc + bLengths ss + lbLength cs }
   @-}
 
 {-@ qualif LBLenIntersperse(v:ByteString,
                             sb:S.ByteString,
-                            lb:ByteString):
-        (lbLength v) = ((bLength sb) * 2) + (lbLength lb)
+                            lb:ByteString)
+        { lbLength v = bLength sb * 2 + lbLength lb }
  @-}
 
 {-@ qualif BLenDouble(v:S.ByteString,
-                      b:S.ByteString):
-        (bLength v) = (bLength b) * 2
+                      b:S.ByteString)
+        { bLength v = bLength b * 2 }
  @-}
 
 {-@ qualif LBLenDouble(v:ByteString,
-                       b:ByteString):
-        (lbLength v) = (lbLength b) * 2
+                       b:ByteString)
+       { lbLength v = lbLength b * 2 }
  @-}
 
 {-@ qualif RevChunksAcc(v:ByteString,
                         acc:ByteString,
-                        cs:List S.ByteString):
-        (lbLength v) = (lbLength acc) + (bLengths cs)
+                        cs:List S.ByteString)
+       { lbLength v = lbLength acc + bLengths cs }
   @-}
 
 {-@ qualif LBSumLens(v:ByteString,
                      z:ByteString,
-                     cs:List (List a)):
-        (lbLength v) = (lbLength z) + (sumLens cs)
+                     cs:List (List a))
+       { lbLength v = lbLength z + sumLens cs }
   @-}
 {-@ qualif LBCountAcc(v:int,
                      c:S.ByteString,
-                     cs:ByteString):
-       v <= (bLength c) + (lbLength cs)
+                     cs:ByteString)
+       { v <= (bLength c) + (lbLength cs) }
   @-}
 
 
@@ -579,8 +579,8 @@ last (Chunk c0 cs0) = go c0 cs0
 
 {-@ qualif LBLenAcc(v:ByteString,
                     sb:S.ByteString,
-                    lb:ByteString):
-        (lbLength v) = ((bLength sb) + (lbLength lb) - 1)
+                    lb:ByteString)
+        { lbLength v = bLength sb + lbLength lb - 1 }
   @-}
 
 -- | /O(n\/c)/ Return all the elements of a 'ByteString' except the last one.
@@ -1664,7 +1664,7 @@ revChunks cs = go Empty cs
     where go acc []     = acc
           go acc (c:cs) = go (chunk c acc) cs
 
-{-@ qualif Blah(v:int, l:int, p:Ptr a): (v + (plen p)) >= l @-}
+{-@ qualif Blah(v:int, l:int, p:Ptr a) { (v + (plen p)) >= l  } @-}
 
 -- | 'findIndexOrEnd' is a variant of findIndex, that returns the length
 -- of the string if no element is found, rather than Nothing.

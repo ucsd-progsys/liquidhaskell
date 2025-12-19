@@ -368,24 +368,29 @@ instance Show (Axiom Var Type CoreExpr) where
                                          "\nRHS      :" ++ showPpr rhs
 
 --------------------------------------------------------------------------------
--- | Refinement Type Aliases
+-- | Refinement Type and Expression Aliases
 --------------------------------------------------------------------------------
 data RTAlias x a = RTA
-  { rtName  :: Symbol             -- ^ name of the alias
+  { rtName  :: F.Located LHName   -- ^ name of the alias with its definition's location
   , rtTArgs :: [x]                -- ^ type parameters
   , rtVArgs :: [Symbol]           -- ^ value parameters
   , rtBody  :: a                  -- ^ what the alias expands to
-  -- , rtMod   :: !ModName           -- ^ module where alias was defined
   } deriving (Eq, Data, Generic, Functor, Foldable, Traversable)
     deriving Hashable via Generically (RTAlias x a)
     deriving B.Binary via Generically (RTAlias x a)
 -- TODO support ghosts in aliases?
 
+-- | A map over a 'RTAlias' type parameters.
 mapRTAVars :: (a -> b) -> RTAlias a ty -> RTAlias b ty
 mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt }
 
-lmapEAlias :: LMap -> F.Located (RTAlias Symbol Expr)
-lmapEAlias (LMap v ys e) = F.atLoc v (RTA (F.val v) [] ys e) -- (F.loc v) (F.loc v)
+-- | Transform a logic equation to an expression alias.
+--
+-- Used when constructing 'Language.Haskell.Liquid.Types.Specs.GhcSpec'
+-- to include Haskell inlines and 'LogicMap' definitions in the alias
+-- environment for expansion. See [NOTE:EXPRESSION-ALIASES]
+lmapEAlias :: LMap -> RTAlias Symbol Expr
+lmapEAlias (LMap v ys e) = RTA (makeGeneratedLogicLHName <$> v) [] ys e
 
 
 -- | The type used during constraint generation, used
@@ -558,11 +563,11 @@ getModString :: ModName -> String
 getModString = moduleNameString . getModName
 
 --------------------------------------------------------------------------------
--- | Refinement Type Aliases ---------------------------------------------------
+-- | Refinement Type and Expression Aliases Environment
 --------------------------------------------------------------------------------
 data RTEnv tv t = RTE
-  { typeAliases :: M.HashMap Symbol (F.Located (RTAlias tv t))
-  , exprAliases :: M.HashMap Symbol (F.Located (RTAlias Symbol Expr))
+  { typeAliases :: M.HashMap LHName (RTAlias tv t)
+  , exprAliases :: M.HashMap LHName (RTAlias Symbol Expr)
   }
 
 

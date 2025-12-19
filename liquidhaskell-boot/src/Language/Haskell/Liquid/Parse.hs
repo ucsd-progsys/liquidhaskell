@@ -241,7 +241,7 @@ btP = do
              b <- locInfixSymbolP
              PC _ t2 <- btP
              return $ PC sb $ RApp
-               (mkBTyCon $ fmap (makeUnresolvedLHName LHTcName) b)
+               (mkBTyCon $ fmap (makeUnresolvedLHName (LHTcName LHAnyModuleNameF)) b)
                [t1,t2]
                []
                trueURef
@@ -458,9 +458,9 @@ lowerIdTail l =
 bTyConP :: Parser BTyCon
 bTyConP
   =  (reservedOp "'" >> mkPromotedBTyCon <$> locUpperIdLHNameP (LHDataConName LHAnyModuleNameF))
- <|> mkBTyCon <$> locUpperIdLHNameP LHTcName
+ <|> mkBTyCon <$> locUpperIdLHNameP (LHTcName LHAnyModuleNameF)
  <|> (reserved "*" >>
-        return (mkBTyCon (dummyLoc $ makeUnresolvedLHName LHTcName $ symbol ("*" :: String)))
+        return (mkBTyCon (dummyLoc $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) $ symbol ("*" :: String)))
      )
  <?> "bTyConP"
 
@@ -471,7 +471,7 @@ mkPromotedBTyCon :: Located LHName -> BTyCon
 mkPromotedBTyCon x = BTyCon x False True -- (consSym '\'' <$> x) False True
 
 classBTyConP :: Parser BTyCon
-classBTyConP = mkClassBTyCon <$> locUpperIdLHNameP LHTcName
+classBTyConP = mkClassBTyCon <$> locUpperIdLHNameP (LHTcName LHAnyModuleNameF)
 
 mkClassBTyCon :: Located LHName -> BTyCon
 mkClassBTyCon x = BTyCon x True False
@@ -770,8 +770,8 @@ bLst :: Maybe (RTypeV v BTyCon tv (UReftV v r))
      -> [RTPropV v BTyCon tv (UReftV v r)]
      -> r
      -> RTypeV v BTyCon tv (UReftV v r)
-bLst (Just t) rs r = RApp (mkBTyCon $ dummyLoc $ makeUnresolvedLHName LHTcName listConName) [t] rs (reftUReft r)
-bLst Nothing  rs r = RApp (mkBTyCon $ dummyLoc $ makeUnresolvedLHName LHTcName listConName) []  rs (reftUReft r)
+bLst (Just t) rs r = RApp (mkBTyCon $ dummyLoc $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) listConName) [t] rs (reftUReft r)
+bLst Nothing  rs r = RApp (mkBTyCon $ dummyLoc $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) listConName) []  rs (reftUReft r)
 
 bTup :: [(Maybe Symbol, BareTypeParsed)]
      -> [RTPropV LocSymbol BTyCon BTyVar (UReftV LocSymbol (ReftV LocSymbol))]
@@ -783,11 +783,11 @@ bTup [(_,t)] _ r
 bTup ts rs r
   | all (Mb.isNothing . fst) ts || length ts < 2
   = RApp
-      (mkBTyCon $ dummyLoc $ makeUnresolvedLHName LHTcName $ fromString $ "Tuple" ++ show (length ts))
+      (mkBTyCon $ dummyLoc $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) $ tyTupleSizedSymbol (length ts))
       (snd <$> ts) rs (reftUReft r)
   | otherwise
   = RApp
-      (mkBTyCon $ dummyLoc $ makeUnresolvedLHName LHTcName $ fromString $ "Tuple" ++ show (length ts))
+      (mkBTyCon $ dummyLoc $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) $ tyTupleSizedSymbol (length ts))
       (mapReft (const trueURef) . snd <$> ts)
       rs'
       (reftUReft r)
@@ -845,7 +845,6 @@ substExprV toSym su0 = go
     go (PIff p1 p2) = PIff (go p1) (go p2)
     go (PAtom r e1 e2) = PAtom r (go e1) (go e2)
     go (PKVar k su') = PKVar k $ su' `appendSubst` su0
-    go (PGrad k su' i e) = PGrad k (su' `appendSubst` su0) i (go e)
     go (PAll _ _) = panic Nothing "substExprV: PAll"
     go (PExist _ _) = panic Nothing "substExprV: PExist"
     go p = p
@@ -887,9 +886,9 @@ data BPspec
   | RInst   (RInstance LocBareTypeParsed)                 -- ^ refined 'instance' definition
   | Invt    LocBareTypeParsed                             -- ^ 'invariant' specification
   | Using  (LocBareTypeParsed, LocBareTypeParsed)         -- ^ 'using' declaration (for local invariants on a type)
-  | Alias   (Located (RTAlias Symbol BareTypeParsed))     -- ^ 'type' alias declaration
-  | EAlias  (Located (RTAlias Symbol (ExprV LocSymbol)))  -- ^ 'predicate' alias declaration
-  | Embed   (Located LHName, Sort, TCArgs)              -- ^ 'embed' declaration
+  | Alias   (RTAlias Symbol BareTypeParsed)               -- ^ 'type' alias declaration
+  | EAlias  (RTAlias Symbol (ExprV LocSymbol))            -- ^ 'predicate' alias declaration
+  | Embed   (Located LHName, Sort, TCArgs)                -- ^ 'embed' declaration
   | Qualif  (QualifierV LocSymbol)                        -- ^ 'qualif' definition
   | LVars   (Located LHName)                              -- ^ 'lazyvar' annotation, defer checks to *use* sites
   | Lazy    (Located LHName)                              -- ^ 'lazy' annotation, skip termination check on binder
@@ -899,6 +898,7 @@ data BPspec
   | Insts   (Located LHName)                              -- ^ 'auto-inst' or 'ple' annotation; use ple locally on binder
   | HMeas   (Located LHName)                              -- ^ 'measure' annotation; lift Haskell binder as measure
   | Reflect (Located LHName)                              -- ^ 'reflect' annotation; reflect Haskell binder as function in logic
+  | Stratified (Located LHName)                           -- ^ 'stratified' annotation; stratification check for type declarations
   | PrivateReflect LocSymbol                              -- ^ 'private-reflect' annotation
   | OpaqueReflect (Located LHName)                        -- ^ 'opaque-reflect' annotation
   | Inline  (Located LHName)                              -- ^ 'inline' annotation;  inline (non-recursive) binder as an alias
@@ -956,9 +956,9 @@ ppPspec k (Invt t)
   = "invariant" <+> pprintTidy k (parsedToBareType <$> t)
 ppPspec k (Using (t1, t2))
   = "using" <+> pprintTidy k (parsedToBareType <$> t1) <+> "as" <+> pprintTidy k (parsedToBareType <$> t2)
-ppPspec k (Alias   (Loc _ _ rta))
+ppPspec k (Alias rta)
   = "type" <+> pprintTidy k (fmap parsedToBareType rta)
-ppPspec k (EAlias  (Loc _ _ rte))
+ppPspec k (EAlias rte)
   = "predicate" <+> pprintTidy k rte
 ppPspec k (Embed   (lx, tc, NoArgs))
   = "embed" <+> pprintTidy k (val lx)         <+> "as" <+> pprintTidy k tc
@@ -984,6 +984,8 @@ ppPspec k (HMeas   lx)
   = "measure" <+> pprintTidy k (val lx)
 ppPspec k (Reflect lx)
   = "reflect" <+> pprintTidy k (val lx)
+ppPspec k (Stratified lx)
+  = "stratified" <+> pprintTidy k (val lx)
 ppPspec k (PrivateReflect lx)
   = "private-reflect" <+> pprintTidy k (val lx)
 ppPspec k (OpaqueReflect lx)
@@ -1106,6 +1108,7 @@ mkSpec xs = Measure.Spec
   , Measure.rewriteWith = M.fromList [s | Rewritewith s <- xs]
   , Measure.bounds     = M.fromList [(bname i, i) | PBound i <- xs]
   , Measure.reflects   = S.fromList [s | Reflect s <- xs]
+  , Measure.stratified = S.fromList [s | Stratified s <- xs]
   , Measure.privateReflects = S.fromList [s | PrivateReflect s <- xs]
   , Measure.opaqueReflects = S.fromList [s | OpaqueReflect s <- xs]
   , Measure.hmeas      = S.fromList [s | HMeas  s <- xs]
@@ -1129,6 +1132,7 @@ specP
     -- TODO: These next two are synonyms, kill one
     <|> fallbackSpecP "axiomatize"  (fmap Reflect locBinderLHNameP)
     <|> fallbackSpecP "reflect"     (fmap Reflect locBinderLHNameP)
+    <|> fallbackSpecP "stratified"  (fmap Stratified tyConThisModuleBindLHNameP)
     <|> (reserved "private-reflect" >> fmap PrivateReflect axiomP  )
     <|> (reserved "opaque-reflect" >> fmap OpaqueReflect locBinderLHNameP  )
 
@@ -1205,7 +1209,7 @@ axiomP :: Parser LocSymbol
 axiomP = locBinderP
 
 datavarianceP :: Parser (Located LHName, [Variance])
-datavarianceP = liftM2 (,) (locUpperIdLHNameP LHTcName) (many varianceP)
+datavarianceP = liftM2 (,) (locUpperIdLHNameP (LHTcName LHAnyModuleNameF)) (many varianceP)
 
 dsizeP :: Parser ([Located BareTypeParsed], Located Symbol)
 dsizeP = liftM2 (,) (parens $ sepBy (located genBareTypeP) comma) locBinderP
@@ -1282,7 +1286,7 @@ genBareTypeP = bareTypeP
 
 embedP :: Parser (Located LHName, Sort, TCArgs)
 embedP = do
-  x <- locUpperIdLHNameP LHTcName
+  x <- locUpperIdLHNameP (LHTcName LHAnyModuleNameF)
   a <- try (reserved "*" >> return WithArgs) <|> return NoArgs -- TODO: reserved "*" looks suspicious
   _ <- reserved "as"
   s <- sortP
@@ -1290,25 +1294,23 @@ embedP = do
   --  = xyP locUpperIdP symbolTCArgs (reserved "as") fTyConP
 
 
-aliasP :: Parser (Located (RTAlias Symbol BareTypeParsed))
+aliasP :: Parser (RTAlias Symbol BareTypeParsed)
 aliasP  = rtAliasP id     bareTypeP <?> "aliasP"
 
-ealiasP :: Parser (Located (RTAlias Symbol (ExprV LocSymbol)))
+ealiasP :: Parser (RTAlias Symbol (ExprV LocSymbol))
 ealiasP = try (rtAliasP symbol predP)
       <|> rtAliasP symbol exprP
       <?> "ealiasP"
 
 -- | Parser for a LH type synonym.
-rtAliasP :: (Symbol -> tv) -> Parser ty -> Parser (Located (RTAlias tv ty))
+rtAliasP :: (Symbol -> tv) -> Parser ty -> Parser (RTAlias tv ty)
 rtAliasP f bodyP
-  = do pos  <- getSourcePos
-       name <- upperIdP
+  = do lname <- locBinderLogicNameP
        args <- many aliasIdP
        reservedOp "="
        body <- bodyP
-       posE <- getSourcePos
        let (tArgs, vArgs) = partition (isSmall . headSym) args
-       return $ Loc pos posE (RTA name (f <$> tArgs) vArgs body)
+       return $ RTA lname (f <$> tArgs) vArgs body
 
 logDefineP :: Parser BPspec
 logDefineP =
@@ -1525,7 +1527,10 @@ bbindP   :: Parser Symbol
 bbindP   = lowerIdP <* reservedOp "::"
 
 tyConBindLHNameP :: Parser (Located LHName)
-tyConBindLHNameP = locUpperIdLHNameP LHTcName
+tyConBindLHNameP = locUpperIdLHNameP (LHTcName LHAnyModuleNameF)
+
+tyConThisModuleBindLHNameP :: Parser (Located LHName)
+tyConThisModuleBindLHNameP = locUpperIdLHNameP (LHTcName LHThisModuleNameF)
 
 dataConP :: [Symbol] -> Parser DataCtorParsed
 dataConP as = do
@@ -1593,7 +1598,7 @@ dataDeclP = do
 
 emptyDecl :: LocSymbol -> SourcePos -> Maybe (SizeFunV LocSymbol) -> DataDeclParsed
 emptyDecl x pos fsize@(Just _)
-  = DataDecl (DnName $ makeUnresolvedLHName LHTcName <$> x) [] [] Nothing pos fsize Nothing DataUser
+  = DataDecl (DnName $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) <$> x) [] [] Nothing pos fsize Nothing DataUser
 emptyDecl x pos _
   = uError (ErrBadData (sourcePosSrcSpan pos) (pprint (val x)) msg)
   where
@@ -1609,7 +1614,7 @@ dataDeclBodyP pos x fsize = do
   return      $ DataDecl dn as ps (Just dcs) pos fsize pTy DataUser
 
 dataDeclName :: SourcePos -> LocSymbol -> Bool -> [DataCtorParsed] -> DataName
-dataDeclName _ x True  _     = DnName $ makeUnresolvedLHName LHTcName <$> x  -- vanilla data    declaration
+dataDeclName _ x True  _     = DnName $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) <$> x  -- vanilla data    declaration
 dataDeclName _ _ False (d:_) = DnCon  $ dcName d                             -- family instance declaration
 dataDeclName p x _  _        = uError (ErrBadData (sourcePosSrcSpan p) (pprint (val x)) msg)
   where

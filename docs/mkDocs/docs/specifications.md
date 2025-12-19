@@ -47,6 +47,9 @@ of each here.
 * `{-@ <binding-signature-with-refinement-type> @-}` introduces a refinement type for the named Haskell definition.
     * For a function, the refinements become pre and post conditions for the functions use.
     * This is probably the most used Liquid Haskell annotation!
+* `{-@ stratified <data-type-declaration> @-}` the datatype is treated as a stratified type by the well-definedness checker.
+  ([Jump to: Stratified Types](http://ucsd-progsys.github.io/liquidhaskell/specifications/#stratified-types))
+
 
 The following sections detail more variety for the uses of the above annotations.
 
@@ -62,7 +65,7 @@ above the data definition. See, for example, [tests/pos/Map.hs](https://github.c
 
 ```haskell
 {-@
-data Map k a <l :: k -> k -> Prop, r :: k -> k -> Prop>
+data Map k a <l :: k -> k -> Bool, r :: k -> k -> Bool>
   = Tip
   | Bin (sz    :: Size)
         (key   :: k)
@@ -377,10 +380,28 @@ see [tests/pos/Map.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develo
 
 **Syntax:** The key requirements for type aliases are:
 
-1. Type parameters are specified in **lower**case: `a`, `b`, `c` etc.
+1. Type parameters go first and are specified in **lower**case: `a`, `b`, `c` etc.
 2. Value parameters are specified in **upper**case: `X`, `Y`, `Z` etc.
 
-## Infix  Operators
+### Import/Export of aliases
+
+Type and predicate aliases are exported and imported according to the following:
+
+1. When importing a module, all aliases from its transitive dependencies are brought into scope.
+2. If a module is imported qualified, its type aliases must also be referenced with a qualifier.
+3. Locally defined aliases can shadow those from dependencies that share the same unqualified name.
+   In this case, only the local alias is stored in the resulting specification.
+   This makes possible to effectively _update_ an alias definition.
+4. When imports contain aliases with identical names, resolution triggers an error upon ambiguous usage.
+   Resolve this by qualifying either the usage, the import, or both.
+5. When aliases with the same name are imported from multiple modules _and_ there is no local definition,
+   the one from the lexicographically last module is exported (i.e. included in the resulting specification).
+
+See [tests/names/pos/ImportedTypeAlias.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/names/pos/ImportedTypeAlias.hs)
+and [tests/names/pos/QualifiedPredAlias.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/names/pos/QualifiedPredAlias.hs)
+for examples.
+
+## Infix Operators
 
 You can define infix types and logical operators in logic [Haskell's infix notation](https://www.haskell.org/onlinereport/decls.html#fixity).
 For example, if `(+++)` is defined as a measure or reflected function, you can use it infix by declaring
@@ -732,7 +753,7 @@ to the Haskell source. See, [this](https://github.com/ucsd-progsys/liquidhaskell
 Finally, you can specify qualifiers directly inside source (.hs or .lhs)
 files by writing them as shown [here](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/QualTest.hs)
 
-    {-@ qualif Foo(v:Int, a: Int) : (v = a + 100)   @-}
+    {-@ qualif Foo(v:Int, a: Int) { v = a + 100 }  @-}
 
 
 **Note** In addition to these, LiquidHaskell scrapes qualifiers from all
@@ -1105,3 +1126,62 @@ safeDiv x y
 ```
 
 In this example, the `lazyvar` annotation on `help` ensures that the check for `help` is deferred until it is used. Without this annotation, LiquidHaskell would incorrectly report an error like `Error: Liquid Type Mismatch`.
+
+## Stratified Types
+
+Liquid Haskell disallows arbitrary user-defined data types, since some
+can be used to derive inconsistencies in the refinement logic.
+
+```haskell
+data Evil a = Very (Evil a -> a)
+
+{-@ type Bot = {v:() | false} @-}
+
+{-@ bad :: Evil Bot -> Bot @-}
+bad :: Evil () -> ()
+bad (Very f) = f (Very f)
+
+{-@ worse :: Bot @-}
+worse :: ()
+worse = bad (Very bad)
+```
+
+This definition is rejected by Liquid Haskell’s [positivity
+checker](https://ucsd-progsys.github.io/liquidhaskell/options/#positivity-check),
+which enforces that recursive occurrences of a data type only appear
+in **positive** positions (to the right of function arrows).
+Positivity is a *sufficient* condition for logical consistency but not
+a *necessary* one. Some definitions that fail the positivity check are
+still well-founded and consistent. A class of those are **stratified
+types**.
+
+### Definition
+
+A **stratified type** is a data type indexed with `Ix` from
+`Language.Haskell.Liquid.ProofCombinators`, where all recursive
+occurrences of the type:
+- appear under `Ix`, and
+- are indexed by **strictly smaller** values than the index of the
+  constructor itself.
+
+This controlled form of non positive types preserves consistency while
+allowing more expressive data definitions.
+
+### Example
+
+The following defines values of the simply typed lambda calculus as a
+stratified type:
+
+```haskell
+data Ty = TInt | TFun Ty Ty
+
+{-@ stratified Val @-}
+data Val where
+  {-@ VInt :: Int -> Ix Val TInt @-}
+  VInt :: Int -> Val
+
+  {-@ VFun :: t1:Ty -> t2:Ty
+           -> (Ix Val t1 -> Ix Val t2)
+           -> Ix Val (TFun t1 t2) @-}
+  VFun :: Ty -> Ty -> (Val -> Val) -> Val
+```

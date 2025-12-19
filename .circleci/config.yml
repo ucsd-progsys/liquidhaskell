@@ -10,8 +10,8 @@ commands:
           name: Install z3
           command: |
             # Config version
-            z3version="z3-4.8.17"
-            z3distributiontype="x64-glibc-2.31"
+            z3version="z3-4.15.1"
+            z3distributiontype="x64-glibc-2.39"
             z3full="${z3version}-${z3distributiontype}"
 
             # Download and install
@@ -23,6 +23,16 @@ commands:
             sudo cp "${z3full}/include/"/*  /usr/local/include
             rm -rf  "${z3full}"
             z3 --version
+
+      - run:
+          name: Install cvc5
+          command: |
+            wget https://github.com/cvc5/cvc5/releases/download/cvc5-1.2.1/cvc5-Linux-x86_64-static.zip
+            unzip cvc5-Linux-x86_64-static.zip
+            rm -f cvc5-Linux-x86_64-static.zip
+            sudo cp cvc5-Linux-x86_64-static/bin/cvc5 /usr/local/bin
+            rm -rf cvc5-Linux-x86_64-static
+            cvc5 --version
 
       - checkout
       - add_ssh_keys
@@ -58,21 +68,22 @@ commands:
             cabal build all --dry-run
       - restore_cache:
           keys:
-            - cabal-cache-v9-{{ checksum "dist-newstyle/cache/plan.json" }}
+            - cabal-cache-v11-{{ checksum "dist-newstyle/cache/plan.json" }}
       - run:
           name: Dependencies
           command: |
             cabal build -j --only-dependencies liquidhaskell-boot
       - save_cache:
-          key: cabal-cache-v9-{{ checksum "dist-newstyle/cache/plan.json" }}
+          key: cabal-cache-v11-{{ checksum "dist-newstyle/cache/plan.json" }}
           paths:
+            - ~/.cache/cabal/packages
             - ~/.local/state/cabal/store
             - dist-newstyle
       - run:
           name: Test
           command: |
             mkdir -p /tmp/junit/cabal
-            LIQUID_CABAL_PROJECT_FILE=cabal.project scripts/test/test_plugin.sh
+            scripts/test/test_plugin.sh -- --ghc-options=-j1 -j1
             cabal test tests:tasty
             cabal test tests:liquidhaskell-test
             (cabal test -j1 liquidhaskell-boot --flag devel --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml")
@@ -145,14 +156,14 @@ jobs:
   # support GHC 9.12 yet.
   stack_900:
     machine:
-      image: default
+      image: ubuntu-2404:2025.09.1
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
             extra_build_flags: "--flag liquidhaskell-boot:devel"
   cabal_9122:
     machine:
-      image: default
+      image: ubuntu-2404:2025.09.1
     steps:
       - cabal_build_and_test:
           ghc_version: "9.12.2"

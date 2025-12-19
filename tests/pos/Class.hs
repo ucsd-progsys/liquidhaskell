@@ -6,9 +6,9 @@ import Language.Haskell.Liquid.Prelude
 import Prelude hiding (sum, length, (!!), Functor(..))
 -- import qualified Prelude as P
 
-{-@ qualif Size(v:Int, xs:a): v = size xs @-}
+{-@ qualif Size(v:Int, xs:a) { v = size xs  } @-}
 
-{-@ qualif Size(v:Int, xs:MList a): v = size xs @-}
+{-@ qualif Size(v:Int, xs:MList a) { v = size xs  } @-}
 
 {-@ data MList a = Nil | Cons (hd::a) (tl::(MList a)) @-}
 data MList a = Nil | Cons a (MList a)

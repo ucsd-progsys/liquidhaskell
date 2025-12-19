@@ -75,7 +75,7 @@ data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
       iter_d (Iter c d) = d
   @-}
 
-{-@ qualif IterD(v:Int, i:Iter) : v = (iter_d i) @-}
+{-@ qualif IterD(v:Int, i:Iter)  { v = (iter_d i)  } @-}
 {-@ qualif ReverseIter(v:Int, i:Int, t:Text)
         : ((((i+1)+v) >= 0) && (((i+1)+v) < (i+1))
            && ((numchars (tarr t) (toff t) ((i+1)+v))

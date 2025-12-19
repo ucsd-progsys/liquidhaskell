@@ -13,8 +13,9 @@ import           Language.Haskell.Liquid.Types.Names
 -- Symbols are expected to have been created by 'lhNameToResolvedSymbol'.
 --
 data LogicNameEnv = LogicNameEnv
-       { lneLHName :: SEnv LHName
-         -- | Haskell names that have a reflected counterpart
+       { -- | A (qualified) symbol map to resolve logic names.
+         lneLHName :: SEnv LHName
+         -- | Haskell names that have a reflected counterpart.
        , lneReflected :: GHC.NameEnv LHName
        }
 

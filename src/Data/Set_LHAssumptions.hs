@@ -17,6 +17,7 @@ embed Set as Set_Set
 assume isSubsetOf    :: (Ord a) => x:(Set a) -> y:(Set a) -> {v:Bool | v <=> Set_sub x y}
 assume member        :: Ord a => x:a -> xs:(Set a) -> {v:Bool | v <=> Set_mem x xs}
 assume null          :: Ord a => xs:(Set a) -> {v:Bool | v <=> Set_emp xs}
+assume size          :: xs:(Set a) -> {v:Nat | v = Set_card xs}
 
 assume empty         :: {v:(Set a) | Set_emp v}
 assume singleton     :: x:a -> {v:(Set a) | v = (Set_sng x)}
@@ -44,6 +45,7 @@ define intersection x y = (Set_cap x y)
 define difference x y   = (Set_dif x y)
 define empty            = (Set_empty 0)
 define null x           = (Set_emp x)
+define size x           = (Set_card x)
 define member x xs      = (Set_mem x xs)
 define isSubsetOf x y   = (Set_sub x y)
 define fromList xs      = (Data.Set_LHAssumptions.listElts xs)

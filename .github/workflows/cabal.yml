@@ -18,7 +18,7 @@ jobs:
         ghc:
           - "9.12.2"
         z3:
-          - "4.10.2"
+          - "4.15.1"
 
     steps:
       - uses: actions/checkout@v4
@@ -29,10 +29,20 @@ jobs:
         uses: pavpanchekha/setup-z3@6b2d476d7a9227e0d8d2b94f73cd9fcba91b5e98
         with:
           version: ${{ matrix.z3 }}
+          distribution: glibc-2.39
 
       - name: Workaround runner image issue
         # https://github.com/actions/runner-images/issues/7061
         run: sudo chown -R $USER /usr/local/.ghcup
+
+      - name: Install cvc5
+        run: |
+          wget https://github.com/cvc5/cvc5/releases/download/cvc5-1.2.1/cvc5-Linux-x86_64-static.zip
+          unzip cvc5-Linux-x86_64-static.zip
+          rm -f cvc5-Linux-x86_64-static.zip
+          sudo cp cvc5-Linux-x86_64-static/bin/cvc5 /usr/local/bin
+          rm -rf cvc5-Linux-x86_64-static
+          cvc5 --version
 
       - name: Configure cabal
         run: |

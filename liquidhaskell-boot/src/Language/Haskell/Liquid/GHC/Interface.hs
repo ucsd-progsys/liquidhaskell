@@ -33,7 +33,6 @@ module Language.Haskell.Liquid.GHC.Interface (
   , modSummaryHsFile
   , makeFamInstEnv
   , clearSpec
-  , checkFilePragmas
   , lookupTyThing
   , updLiftedSpec
   ) where
@@ -50,7 +49,6 @@ import           Liquid.GHC.API as Ghc hiding ( text
                                                                )
 import qualified Liquid.GHC.API as Ghc
 
-import Control.Exception
 import Control.Monad
 import Control.Monad.Trans.Maybe
 
@@ -61,7 +59,6 @@ import qualified Data.HashSet        as S
 
 import Text.PrettyPrint.HughesPJ        hiding (first, (<>))
 import Language.Fixpoint.Types          hiding (err, panic, Error, Result, Expr)
-import qualified Language.Fixpoint.Misc as Misc
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.GHC.Types (MGIModGuts(..))
 import Language.Haskell.Liquid.GHC.Play
@@ -151,19 +148,6 @@ modSummaryHsFile modSummary =
       "modSummaryHsFile: missing .hs file for " ++
       showPpr (ms_mod modSummary))
     (ml_hs_file $ ms_location modSummary)
-
-checkFilePragmas :: [Located String] -> IO ()
-checkFilePragmas = Misc.applyNonNull (return ()) throw . mapMaybe err
-  where
-    err pragma
-      | check (val pragma) = Just (ErrFilePragma $ fSrcSpan pragma :: Error)
-      | otherwise          = Nothing
-    check pragma           = any (`isPrefixOf` pragma) bad
-    bad =
-      [ "-i", "--idirs"
-      , "-g", "--ghc-option"
-      , "--c-files", "--cfiles"
-      ]
 
 --------------------------------------------------------------------------------
 -- | Family instance information

@@ -57,12 +57,12 @@ import System.IO.Unsafe         (unsafePerformIO)
 import Prelude hiding (undefined)
 -- import Language.Haskell.Liquid.Prelude  (liquidAssume, liquidAssert)
 
-{-@ qualif PlusOnePos(v: int): 0 <= (v + 1)              @-}
-{-@ qualif LePlusOne(v: int, x: int): v <= (x + 1)       @-}
-{-@ qualif LeDiff(v: int, x: int, y:int): v <= (x - y)   @-}
-{-@ qualif PlenEq(v: Ptr a, x: int): x <= (plen v)       @-}
-{-@ qualif BlenEq(v: int, x:ByteString): v = (bLength x) @-}
-{-@ qualif PSnd(v: a, x:b): v = (psnd x)                 @-}
+{-@ qualif PlusOnePos(v: int) { 0 <= (v + 1)               } @-}
+{-@ qualif LePlusOne(v: int, x: int) { v <= (x + 1)        } @-}
+{-@ qualif LeDiff(v: int, x: int, y:int) { v <= (x - y)    } @-}
+{-@ qualif PlenEq(v: Ptr a, x: int) { x <= (plen v)        } @-}
+{-@ qualif BlenEq(v: int, x:ByteString) { v = (bLength x)  } @-}
+{-@ qualif PSnd(v: a, x:b) { v = (psnd x)                  } @-}
 
 {-@ data PairS a b <p :: x0:a -> b -> Bool> = (:*:) (x::a) (y::b<p x>)  @-}
 
@@ -79,7 +79,7 @@ import Prelude hiding (undefined)
       isJustS NothingS = false
   @-}
 
-{-@ qualif PlusOne(v:int, x:int): v = x + 1 @-}
+{-@ qualif PlusOne(v:int, x:int) { v = x + 1  } @-}
 
 {-@ type MaybeSJ a   = {v: MaybeS a | (isJustS v)}                 @-}
 
@@ -286,7 +286,7 @@ loopU f start (PS z s i) = unsafePerformIO $ withForeignPtr z $ \a -> do
                     trans (d-1) (a_off+1) ma_off' acc'
 
 -- a_off = i - d
-{-@ qualif Decr(v:Int, x: Int, y:Int): v = x - y @-}
+{-@ qualif Decr(v:Int, x: Int, y:Int) { v = x - y  } @-}
 
 #if defined(__GLASGOW_HASKELL__)
 {-# INLINE [1] loopU #-}
@@ -302,7 +302,7 @@ loopU f start (PS z s i) = unsafePerformIO $ withForeignPtr z $ \a -> do
 
 -- Functional list/array fusion for lazy ByteStrings.
 --
-{-@ loopL :: (AccEFLJ acc) -> acc -> b:L.ByteString -> (PairS acc (LByteStringSZ b)) @-}
+{-@ loopL :: (AccEFLJ acc) -> acc -> b:L.ByteString -> (PairS acc (L.LByteStringSZ b)) @-}
 loopL :: AccEFL acc          -- ^ mapping & folding, once per elem
       -> acc                 -- ^ initial acc value
       -> L.ByteString        -- ^ input ByteString

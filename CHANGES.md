@@ -2,6 +2,8 @@
 
 ## Next
 
+- Change `--cores` default to 1 [#2564](https://github.com/ucsd-progsys/liquidhaskell/pull/2564)
+
 ## 0.9.12.2 (2025-03-22)
 
 - Simplify kvar solutions in fqout files [liquid-fixpoint#741](https://github.com/ucsd-progsys/liquid-fixpoint/pull/741).

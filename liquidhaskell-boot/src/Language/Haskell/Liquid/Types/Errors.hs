@@ -284,8 +284,8 @@ data TError t =
                 } -- ^ sort error in specification
 
   | ErrDupAlias { pos  :: !SrcSpan
-                , var  :: !Doc
                 , kind :: !Doc
+                , var  :: !Doc
                 , locs :: ![SrcSpan]
                 } -- ^ multiple alias with same name error
 
@@ -311,9 +311,10 @@ data TError t =
                 } -- ^ duplicate fields in same datacon
 
   | ErrDupNames { pos   :: !SrcSpan
+                , kind  :: !Doc
                 , var   :: !Doc
                 , names :: ![Doc]
-                } -- ^ name resolves to multiple possible GHC vars
+                } -- ^ name resolves to multiple matches
 
   | ErrBadData  { pos :: !SrcSpan
                 , var :: !Doc
@@ -484,10 +485,41 @@ data TError t =
 
   | ErrCtorRefinement { pos :: !SrcSpan
                       , ctorName :: !Doc
-                      } -- ^ The refinement of a data constructor doesn't admit
-                        -- a refinement on the return type that
-                        -- isn't deemd safe
-
+                      }
+    -- ^ The refinement of a data constructor doesn't admit a
+    -- refinement on the return type that isn't deemd safe
+  | ErrStratNotAdt { pos :: !SrcSpan
+                   , tyName :: !Doc
+                   }
+    -- ^ Type was declared stratified but it is not an ADT
+  | ErrStratNotRefCtor { pos :: !SrcSpan
+                       , ctorName :: !Doc
+                       , tyName :: !Doc
+                       }
+    -- ^ Type was declared stratified but one of its constructors is not a
+    -- refinement constructor (i.e. it has no refinement)
+  | ErrStratNotPropRet { pos :: !SrcSpan
+                       , tyName :: !Doc
+                       , ctorName :: !Doc
+                       , retTy  :: !Doc
+                       }
+    -- ^ Type was declared stratified but one of its constructors does not
+    -- return a Prop type
+  | ErrStratOccProp { pos :: !SrcSpan
+                      , tyName :: !Doc
+                      , ctorName :: !Doc
+                      , tyNR :: !Doc
+                      }
+    -- ^ Type was declared stratified but one of its constructors has a recursive
+    -- occurence that is not a Prop type
+  | ErrStratIdxNotSmall { pos :: !SrcSpan
+                        , tyName :: !Doc
+                        , ctorName :: !Doc
+                        , retIdx :: !Doc
+                        , occIdx :: !Doc
+                        }
+  -- ^ Type was declared stratified but one of its constructors has a recursive
+  -- occurence whose index type is not a smaller
   | ErrOther    { pos   :: SrcSpan
                 , msg   :: !Doc
                 } -- ^ Sigh. Other.
@@ -901,8 +933,8 @@ ppError' _ dCtx (ErrDupField _ dc x)
         $+$ dCtx
         $+$ nest 4 (text "Duplicated definitions for field" <+> ppTicks x)
 
-ppError' _ dCtx (ErrDupNames _ x ns)
-  = text "Ambiguous specification symbol" <+> ppTicks x
+ppError' _ dCtx (ErrDupNames _ k v ns)
+  = text "Ambiguous specification symbol"  <+> ppTicks v <+> "for" <+> pprint k
         $+$ dCtx
         $+$ ppNames ns
 
@@ -1063,13 +1095,50 @@ ppError' _ dCtx (ErrPosTyCon _ tc dc)
              , "To deactivate or understand the need of positivity check, see:"
              , " "
              , nest 2 "https://ucsd-progsys.github.io/liquidhaskell/options/#positivity-check"
+             , "or consider making the type stratified"
+             , nest 2 "http://ucsd-progsys.github.io/liquidhaskell/specifications/#stratified-types"
             ]
 
 ppError' _ dCtx (ErrCtorRefinement _ ctorName)
   = text "Refinement of the data constructor" <+> ctorName <+> "doesn't admit an arbitrary refinements on the return type"
         $+$ dCtx
-        $+$ nest 4 (text "Were you trying to use `Prop` from `Language.Haskell.Liquid.ProofCombinators`?")
+        $+$ nest 4 (text "Were you trying to use `Ix` from `Language.Haskell.Liquid.ProofCombinators`?")
         $+$ nest 4 (text "You can disable this error by enabling the flag `--allow-unsafe-constructors`")
+
+ppError' _ dCtx (ErrStratNotAdt _ tyName)
+  = text "The type" <+> tyName
+      <+> "was declared stratified but it is not an algebraic data type"
+      $+$ dCtx
+
+ppError' _ dCtx (ErrStratNotRefCtor _ ctorName tyName)
+  = text "The constructor" <+> ctorName
+      <+> "of the type" <+> tyName
+      <+> "was declared stratified but it is not a refinement constructor (i.e. it has no refinement)"
+      $+$ dCtx
+
+ppError' _ dCtx (ErrStratNotPropRet _ tyName ctorName retTy)
+  = text "The constructor" <+> ctorName
+      <+> "of the type" <+> tyName
+      <+> "was declared stratified but it does not return an indexed type, instead it returns"
+      <+> retTy
+      $+$ dCtx
+
+ppError' _ dCtx (ErrStratOccProp _ tyName ctorName tyNR)
+  = text "The constructor" <+> ctorName
+      <+> "of the type" <+> tyName
+      <+> "was declared stratified but it has a recursive occurence of type"
+      <+> tyNR
+      <+> "which is not an indexed type"
+      $+$ dCtx
+
+ppError' _ dCtx (ErrStratIdxNotSmall _ tyName ctorName retIdx occIdx)
+  = text "The constructor" <+> ctorName
+      <+> "of the type" <+> tyName
+      <+> "was declared stratified but it has a recursive occurence whose index"
+      <+> occIdx
+      <+> "is not smaller than the return index"
+      <+> retIdx
+      $+$ dCtx
 
 ppError' _ dCtx (ErrParseAnn _ msg)
   = text "Malformed annotation"

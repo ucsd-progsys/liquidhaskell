@@ -3,15 +3,17 @@
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE DeriveTraversable   #-}
+
 {-# OPTIONS_GHC -Wno-x-partial #-}
 
 module Language.Haskell.Liquid.Bare.Check
   ( checkTargetSpec
   , checkBareSpec
   , checkTargetSrc
+  , checkStratTys
   , tyCompat
   ) where
-
 
 import           Language.Haskell.Liquid.Constraint.ToFixpoint
 
@@ -55,26 +57,100 @@ import qualified Language.Haskell.Liquid.Bare.Resolve      as Bare
 import           Language.Haskell.Liquid.UX.Config
 import Language.Fixpoint.Types.Config (ElabFlags (ElabFlags), solverFlags)
 
-
 ----------------------------------------------------------------------------------------------
 -- | Checking TargetSrc ------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------
-checkTargetSrc :: Config -> TargetSrc -> Either Diagnostics ()
-checkTargetSrc cfg spec
+checkTargetSrc :: Config -> BareSpec -> TargetSrc -> Either Diagnostics ()
+checkTargetSrc cfg bare spec
   |  nopositivity cfg
   || nopositives == emptyDiagnostics
   = Right ()
   | otherwise
   = Left nopositives
-  where nopositives = checkPositives (gsTcs spec)
+  where nopositives = checkPositives bare $ gsTcs spec
 
+isStratifiedTyCon :: BareSpec -> TyCon -> Bool
+isStratifiedTyCon bs tc = Ghc.tyConName tc `elem` sn
+  where sn = mapMaybe (getLHGHCName . F.val) $ S.toList $ stratified bs
 
-checkPositives :: [TyCon] -> Diagnostics
-checkPositives tys = mkDiagnostics [] $ mkNonPosError (getNonPositivesTyCon tys)
+checkPositives :: BareSpec -> [TyCon] -> Diagnostics
+checkPositives bare tys = mkDiagnostics []
+                        $ mkNonPosError
+                        $ filter (not . isStratifiedTyCon bare . fst)
+                        $ getNonPositivesTyCon tys
 
 mkNonPosError :: [(TyCon, [DataCon])]  -> [Error]
 mkNonPosError tcs = [ ErrPosTyCon (getSrcSpan tc) (pprint tc) (pprint dc <+> ":" <+> pprint (dataConRepType dc))
                     | (tc, dc:_) <- tcs]
+
+--------------------------------------------------
+-- | Checking that stratified ctors are present --
+--------------------------------------------------
+
+--- | Like 'Either' but the 'Semigroup' instance combines the failure
+--- | values.
+data Validation e a
+  = Failure e
+  | Success a
+  deriving (Show, Eq, Functor, Foldable, Traversable)
+
+instance (Semigroup e, Semigroup a) => Semigroup (Validation e a) where
+  Failure e1 <> Failure e2 = Failure (e1 <> e2)
+  Failure e  <> _          = Failure e
+  _          <> Failure e  = Failure e
+  Success x  <> Success y  = Success (x <> y)
+
+instance (Semigroup e, Monoid a) => Monoid (Validation e a) where
+  mempty = Success mempty
+  mappend = (<>)
+
+valToEither :: Validation e a -> Either e a
+valToEither (Failure e) = Left e
+valToEither (Success x) = Right x
+
+-- | Check that all stratified types have their constructors
+-- defined with refinement type signatures in the BareSpec.
+--
+-- Yields the names of the data constructors of the stratified types.
+checkStratTys :: BareSpec -> TargetSrc -> Either Diagnostics [Name]
+checkStratTys bare spec =
+  valToEither
+  $ foldMap (checkStratTy bare)
+  $ mapMaybe (traverse (findTyCon (gsTcs spec)))
+  $ S.toList $ stratified bare
+
+-- | Find the TyCon corresponding to the given LHName in the given list of TyCons
+findTyCon :: [TyCon] -> LHName -> Maybe TyCon
+findTyCon tcs nm = do
+  c <- getLHGHCName nm
+  L.find ((== c) . Ghc.tyConName) tcs
+
+-- | Check that the given TyCon is an ADT and that all its constructors
+-- have refinements in the BareSpec.
+checkStratTy :: BareSpec -> Located TyCon -> Validation Diagnostics [Name]
+checkStratTy spec ltycon =
+  case tyConDataCons_maybe (val ltycon) of
+    Just ctors -> foldMap (checkStratCtor ltycon spec) ctors
+    Nothing    -> Failure $ mkDiagnostics mempty [ err ]
+  where
+    pos = GM.sourcePos2SrcSpan (loc ltycon) (locE ltycon)
+    err = ErrStratNotAdt pos (pprint (Ghc.tyConName $ val ltycon))
+
+-- | Check that the given DataCon has a refinement type signature in the BareSpec.
+--
+-- Yields the names of the data constructors that are stratified.
+checkStratCtor :: Located TyCon -> BareSpec -> DataCon -> Validation Diagnostics [Name]
+checkStratCtor ltycon spec datacon
+  | hasRefinementTypeSignature datacon (map (val . fst) $ sigs spec)
+  = Success [ dataConName datacon ]
+  | otherwise = Failure $ mkDiagnostics mempty [ err ]
+  where
+    pos = GM.sourcePos2SrcSpan (loc ltycon) (locE ltycon)
+    err = ErrStratNotRefCtor pos (pprint $ dataConName datacon) (pprint $ Ghc.tyConName $ val ltycon)
+    hasRefinementTypeSignature :: DataCon -> [LHName] -> Bool
+    hasRefinementTypeSignature dc lns =
+      dataConName dc `elem` mapMaybe getLHGHCName lns
+
 
 ----------------------------------------------------------------------------------------------
 -- | Checking BareSpec ------------------------------------------------------------------------
@@ -166,8 +242,8 @@ checkTargetSpec specs src env cbs tsp
                      -- TODO-REBARE ++ checkQualifiers env                                       (gsQualifiers (gsQual sp))
                      <> checkDuplicate                                            (gsAsmSigs    (gsSig tsp))
                      <> checkDupIntersect                                         (gsTySigs (gsSig tsp)) (gsAsmSigs (gsSig tsp))
-                     <> checkRTAliases "Type Alias" env            tAliases
-                     <> checkRTAliases "Pred Alias" env            eAliases
+                     <> checkRTAliases "Type Alias" env myTAliases
+                     <> checkRTAliases "Pred Alias" env myPAliases
                      -- ++ _checkDuplicateFieldNames                   (gsDconsP sp)
                      -- NV TODO: allow instances of refined classes to be refined
                      -- but make sure that all the specs are checked.
@@ -179,10 +255,11 @@ checkTargetSpec specs src env cbs tsp
                           then mempty
                           else checkConstructorRefinement (gsTySigs $ gsSig tsp)
 
-    _rClasses         = concatMap Ms.classes specs
-    _rInsts           = concatMap Ms.rinstance specs
-    tAliases          = concat [Ms.aliases sp  | sp <- specs]
-    eAliases          = concat [Ms.ealiases sp | sp <- specs]
+    _rClasses        = concatMap Ms.classes specs
+    _rInsts          = concatMap Ms.rinstance specs
+    -- Duplicate alias (definition) is checked within the bare spec only.
+    myTAliases       = Ms.aliases (head specs)
+    myPAliases       = Ms.ealiases (head specs)
     emb              = gsTcEmbeds (gsName tsp)
     tcEnv            = gsTyconEnv (gsName tsp)
     ms               = gsMeasures (gsData tsp)
@@ -222,11 +299,7 @@ checkConstructorRefinement = mconcat . map checkOne
     validRef (F.Reft (_, F.PTrue))
                       = True
     -- Prop foo from ProofCombinators
-    validRef (F.Reft (v, F.PAtom F.Eq (F.EApp (F.EVar n) (F.EVar v')) _))
-      | n == "Language.Haskell.Liquid.ProofCombinators.prop"
-      , v == v'
-      = True
-    validRef _ = False
+    validRef n = isJust $ getPropIndex n
 
     isCtorName x = case idDetails x of
       DataConWorkId _ -> True
@@ -364,7 +437,7 @@ checkIAlOne allowHO bsc emb tcEnv env (t1, t2) =
 
 
 -- FIXME: Should _ be removed if it isn't used?
-checkRTAliases :: String -> t -> [Located (RTAlias s a)] -> Diagnostics
+checkRTAliases :: String -> t -> [RTAlias s a] -> Diagnostics
 checkRTAliases msg _ as = err1s
   where
     err1s               = checkDuplicateRTAlias msg as
@@ -458,15 +531,15 @@ checkClassMethods (Just clsis) cms xts =
     xts' = F.notracepp "XTS" $ filter (not . (`elem` cls) . fst) xts
     cls  = F.notracepp "CLS" cms
 
-checkDuplicateRTAlias :: String -> [Located (RTAlias s a)] -> Diagnostics
+checkDuplicateRTAlias :: String -> [RTAlias s a] -> Diagnostics
 checkDuplicateRTAlias s tas = mkDiagnostics mempty (map mkError dups)
   where
-    mkError xs@(x:_)          = ErrDupAlias (GM.fSrcSpan x)
-                                          (text s)
-                                          (pprint . rtName . val $ x)
-                                          (GM.fSrcSpan <$> xs)
-    mkError []                = panic Nothing "mkError: called on empty list"
-    dups                    = [z | z@(_:_:_) <- groupDuplicatesOn (rtName . val) tas]
+    mkError xs@(x:_) = ErrDupAlias (GM.fSrcSpan $ rtName x)
+                                   (text s)
+                                   (pprint $ rtName x)
+                                   (GM.fSrcSpan . rtName <$> xs)
+    mkError []       = panic Nothing "mkError: called on empty list"
+    dups             = [z | z@(_:_:_) <- groupDuplicatesOn (lhNameToUnqualifiedSymbol . val . rtName) tas]
 
 groupDuplicatesOn :: Ord b => (a -> b) -> [a] -> [[a]]
 groupDuplicatesOn f = L.groupBy ((==) `on` f) . L.sortOn f
@@ -779,6 +852,3 @@ checkClassMeasures measures = mkDiagnostics mempty (mapMaybe checkOne byTyCon)
                                       (pprint (val (msName m)))
                                       (pprint ((dataConTyCon . ctor . head . msEqns) m))
                                       (GM.fSrcSpan <$> (m:ms)))
-
-
-

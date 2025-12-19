@@ -27,11 +27,9 @@ import qualified Data.Maybe as Mb
 import           Language.Haskell.Liquid.UX.Config
 import           Language.Haskell.Liquid.UX.DiffCheck (coreDefs, coreDeps, dependsOn, Def(..))
 import qualified Language.Haskell.Liquid.GHC.Misc  as GM -- (simplesymbol)
-import qualified Data.List                         as L
 import qualified Data.HashMap.Strict               as M
 import qualified Data.HashSet                      as S
 -- import           Language.Fixpoint.Misc
-import qualified Language.Haskell.Liquid.Misc      as Misc
 
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.RType
@@ -41,37 +39,33 @@ import           Language.Haskell.Liquid.Types.Types hiding     ( binds )
 
 fixConfig :: FilePath -> Config -> FC.Config
 fixConfig tgt cfg = def
-  { FC.solver                   = Mb.fromJust (smtsolver cfg)
-  , FC.linear                   = linear            cfg
-  , FC.eliminate                = eliminate         cfg
-  , FC.nonLinCuts               = not (higherOrderFlag cfg) -- eliminate cfg /= FC.All
-  , FC.save                     = saveQuery         cfg
-  , FC.srcFile                  = tgt
-  , FC.cores                    = cores             cfg
-  , FC.minPartSize              = minPartSize       cfg
-  , FC.maxPartSize              = maxPartSize       cfg
-  , FC.elimStats                = elimStats         cfg
-  , FC.elimBound                = elimBound         cfg
-  , FC.allowHO                  = higherOrderFlag   cfg
-  , FC.allowHOqs                = higherorderqs     cfg
-  , FC.smtTimeout               = smtTimeout        cfg
-  , FC.stringTheory             = stringTheory      cfg
-  , FC.gradual                  = gradual           cfg
-  , FC.ginteractive             = ginteractive       cfg
-  , FC.noslice                  = noslice           cfg
-  , FC.rewriteAxioms            = allowPLE   cfg
-  , FC.pleWithUndecidedGuards   = pleWithUndecidedGuards cfg
-  , FC.etabeta                  = etabeta    cfg
-  , FC.localRewrites            = dependantCase cfg
-  , FC.etaElim                  = not (exactDC cfg) && extensionality cfg -- SEE: https://github.com/ucsd-progsys/liquidhaskell/issues/1601
-  , FC.extensionality           = extensionality    cfg
-  , FC.interpreter              = interpreter    cfg
-  , FC.oldPLE                   = oldPLE cfg
-  , FC.rwTerminationCheck       = rwTerminationCheck cfg
-  , FC.noLazyPLE                = noLazyPLE cfg
-  , FC.fuel                     = fuel      cfg
-  , FC.noEnvironmentReduction   = not (environmentReduction cfg)
-  , FC.inlineANFBindings        = inlineANFBindings cfg
+  { FC.solver         = Mb.fromJust (smtsolver cfg)
+  , FC.linear         = linear            cfg
+  , FC.eliminate      = eliminate         cfg
+  , FC.nonLinCuts     = not (higherOrderFlag cfg) -- eliminate cfg /= FC.All
+  , FC.save           = saveQuery         cfg
+  , FC.srcFile        = tgt
+  , FC.cores          = cores             cfg
+  , FC.minPartSize    = minPartSize       cfg
+  , FC.maxPartSize    = maxPartSize       cfg
+  , FC.elimStats      = elimStats         cfg
+  , FC.elimBound      = elimBound         cfg
+  , FC.allowHO        = higherOrderFlag   cfg
+  , FC.allowHOqs      = higherorderqs     cfg
+  , FC.smtTimeout     = smtTimeout        cfg
+  , FC.noStringTheory = not (stringTheory cfg)
+  , FC.noslice        = noslice           cfg
+  , FC.rewriteAxioms  = allowPLE   cfg
+  , FC.pleUndecGuards = pleWithUndecidedGuards cfg
+  , FC.etabeta        = etabeta    cfg
+  , FC.localRewrites  = dependantCase cfg
+  , FC.etaElim        = not (exactDC cfg) && extensionality cfg -- SEE: https://github.com/ucsd-progsys/liquidhaskell/issues/1601
+  , FC.extensionality = extensionality    cfg
+  , FC.interpreter    = interpreter    cfg
+  , FC.rwTermination  = rwTerminationCheck cfg
+  , FC.fuel           = fuel      cfg
+  , FC.noEnvReduction = not (environmentReduction cfg)
+  , FC.inlineANFBinds = inlineANFBindings cfg
   }
 
 cgInfoFInfo :: TargetInfo -> CGInfo -> IO (F.FInfo Cinfo)
@@ -80,11 +74,10 @@ cgInfoFInfo info cgi = return (targetFInfo info cgi)
 targetFInfo :: TargetInfo -> CGInfo -> F.FInfo Cinfo
 targetFInfo info cgi = mappend (mempty { F.ae = ax, F.lrws = localRewrites cgi }) fi
   where
-    fi               = F.fi cs ws bs ls consts ks qs bi aHO aHOqs es mempty adts ebs
+    fi               = F.fi cs ws bs ls consts ks qs bi aHO aHOqs es mempty adts
     cs               = fixCs    cgi
     ws               = fixWfs   cgi
     bs               = binds    cgi
-    ebs              = ebinds   cgi
     ls               = fEnv     cgi
     consts           = cgConsts cgi
     ks               = kuts     cgi
@@ -104,10 +97,7 @@ makeAxiomEnvironment info xts fcs
            (doExpand sp cfg <$> fcs)
            (makeRewrites info <$> fcs)
   where
-    eqs      = if oldPLE cfg
-                then makeEquations (typeclass cfg) sp ++ map (uncurry $ specTypeEq emb) xts
-                else axioms
-    emb      = gsTcEmbeds (gsName sp)
+    eqs      = axioms
     cfg      = getConfig  info
     sp       = giSpec     info
     axioms   = gsMyAxioms refl ++ gsImpAxioms refl
@@ -213,17 +203,6 @@ doExpand sp cfg sub = allowGlobalPLE cfg
 -- 3. Don't create `define` for the ctor. 
 -- Unfortunately 3 breaks a bunch of tests...
 
-specTypeEq :: F.TCEmb TyCon -> Var -> SpecType -> F.Equation
-specTypeEq emb f t = F.mkEquation (F.symbol f) xts body tOut
-  where
-    xts            = Misc.safeZipWithError "specTypeEq" xs (RT.rTypeSort emb <$> ts)
-    body           = specTypeToResultRef bExp t
-    tOut           = RT.rTypeSort emb (ty_res tRep)
-    tRep           = toRTypeRep t
-    xs             = ty_binds tRep
-    ts             = ty_args  tRep
-    bExp           = F.eApps (F.eVar f) (F.EVar <$> xs)
-
 makeSimplify :: (Var, SpecType) -> [F.Rewrite]
 makeSimplify (var, t)
   | not (GM.isDataConId var)
@@ -265,56 +244,6 @@ makeSimplify (var, t)
 
     fromEVar (F.EVar x) = x
     fromEVar _ = impossible Nothing "makeSimplify.fromEVar"
-
-makeEquations :: Bool -> TargetSpec -> [F.Equation]
-makeEquations allowTC sp = [ F.mkEquation f xts (equationBody allowTC (F.EVar f) xArgs e mbT) t
-                      | F.Equ f xts e t _ <- axioms
-                      , let xArgs          = F.EVar . fst <$> xts
-                      , let mbT            = if null xArgs then Nothing else M.lookup f sigs
-                   ]
-  where
-    axioms       = gsMyAxioms refl ++ gsImpAxioms refl
-    refl         = gsRefl sp
-    sigs         = M.fromList [ (GM.simplesymbol v, t) | (v, t) <- gsTySigs (gsSig sp) ]
-
-equationBody :: Bool -> F.Expr -> [F.Expr] -> F.Expr -> Maybe LocSpecType -> F.Expr
-equationBody allowTC f xArgs e mbT
-  | Just t <- mbT = F.pAnd [eBody, rBody t]
-  | otherwise     = eBody
-  where
-    eBody         = F.PAtom F.Eq (F.eApps f xArgs) e
-    rBody t       = specTypeToLogic allowTC xArgs (F.eApps f xArgs) (val t)
-
--- NV Move this to types?
--- sound but imprecise approximation of a type in the logic
-specTypeToLogic :: Bool -> [F.Expr] -> F.Expr -> SpecType -> F.Expr
-specTypeToLogic allowTC es expr st
-  | ok        = F.subst su (F.PImp (F.pAnd args) res)
-  | otherwise = F.PTrue
-  where
-    res       = specTypeToResultRef expr st
-    args      = zipWith mkExpr (mkReft <$> ts) es
-    mkReft t  =  toReft $ Mb.fromMaybe mempty (stripRTypeBase t)
-    mkExpr (F.Reft (v, ev)) e = F.subst1 ev (v, e)
-
-
-    ok      = okLen && okClass && okArgs
-    okLen   = length xs == length xs
-    okClass = all (isTauto . snd) cls
-    okArgs  = all okArg ts
-
-    okArg (RVar _ _) = True
-    okArg t@RApp{}   = isTauto (t{rt_reft = mempty})
-    okArg _          = False
-
-
-    su           = F.mkSubst $ zip xs es
-    (cls, nocls) = L.partition ((if allowTC then isEmbeddedClass else isClassType).snd) $ zip (ty_binds trep) (ty_args trep)
-                 :: ([(F.Symbol, SpecType)], [(F.Symbol, SpecType)])
-    (xs, ts)     = unzip nocls :: ([F.Symbol], [SpecType])
-
-    trep = toRTypeRep st
-
 
 specTypeToResultRef :: F.Expr -> SpecType -> F.Expr
 specTypeToResultRef e t

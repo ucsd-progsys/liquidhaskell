@@ -4,7 +4,7 @@ module QualTest () where
 
 import Language.Haskell.Liquid.Prelude (liquidAssert)
 
-{-@ qualif Plus100(v:Int, a:Int): (v = a + 100) @-}
+{-@ qualif Plus100(v:Int, a:Int) { (v = a + 100)  } @-}
  
 incr :: Int -> Int
 incr x = x + 100

@@ -34,11 +34,11 @@ type Ctx  = M.HashMap F.Symbol SpecType
 type CtxM = M.HashMap F.Symbol (WithModel SpecType)
 
 ------------------------------------------------------------------------
-tidyError :: Config -> F.FixSolution -> Error -> Error
+tidyError :: Config -> Error -> Error
 ------------------------------------------------------------------------
-tidyError cfg sol
+tidyError cfg
   = fmap (tidySpecType tidy)
-  . tidyErrContext tidy sol
+  . tidyErrContext tidy
   where
     tidy = configTidy cfg
 
@@ -47,8 +47,8 @@ configTidy cfg
   | shortNames cfg = F.Lossy
   | otherwise      = F.Full
 
-tidyErrContext :: F.Tidy -> F.FixSolution -> Error -> Error
-tidyErrContext k _ e@(ErrSubType {})
+tidyErrContext :: F.Tidy -> Error -> Error
+tidyErrContext k e@(ErrSubType {})
   = e { ctx = c', tact = F.subst θ tA, texp = F.subst θ tE }
     where
       (θ, c') = tidyCtx k xs (ctx e)
@@ -56,7 +56,7 @@ tidyErrContext k _ e@(ErrSubType {})
       tA      = tact e
       tE      = texp e
 
-tidyErrContext _ _ e@(ErrSubTypeModel {})
+tidyErrContext _ e@(ErrSubTypeModel {})
   = e { ctxM = c', tactM = fmap (F.subst θ) tA, texp = fmap (F.subst θ) tE }
     where
       (θ, c') = tidyCtxM xs $ ctxM e
@@ -64,7 +64,7 @@ tidyErrContext _ _ e@(ErrSubTypeModel {})
       tA      = tactM e
       tE      = texp e
 
-tidyErrContext k _ e@(ErrAssType {})
+tidyErrContext k e@(ErrAssType {})
   = e { ctx = c', cond = F.subst θ p }
     where
       m       = ctx e
@@ -72,7 +72,7 @@ tidyErrContext k _ e@(ErrAssType {})
       xs      = F.syms p
       p       = cond e
 
-tidyErrContext _ _ e
+tidyErrContext _ e
   = e
 
 --------------------------------------------------------------------------------

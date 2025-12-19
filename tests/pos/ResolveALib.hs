@@ -11,7 +11,7 @@ data Foo = Foo Int
 
 y = RB.Foo 1
 z = RB.A 
-{-@ qualif NotA(v:RB.Bar): (notA v) @-}
+{-@ qualif NotA(v:RB.Bar) { (notA v)  } @-}
 
 {-@ measure notA :: RB.Bar -> Bool
       notA RB.A = false

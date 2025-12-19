@@ -61,5 +61,5 @@ loop lo hi base f = go lo base
 {-@ initUpto :: n:Nat -> (IdVec n) @-}
 initUpto n   = loop 0 n empty (\i acc -> set i i acc)
 
-{-@ qualif Foo(v:Int): v < 0 @-}
+{-@ qualif Foo(v:Int) { v < 0  } @-}
 

@@ -754,7 +754,7 @@ foldl' = foldl
 -- reduces the ByteString using the binary operator, from right to left.
 
 -- foldr/foldr' TERMINATION
-{-@ qualif PtrDiff(v:int, p:Ptr a, q:Ptr a): v >= (plen p) - (plen q) @-}
+{-@ qualif PtrDiff(v:int, p:Ptr a, q:Ptr a) { v >= (plen p) - (plen q)  } @-}
 
 {-@ foldr :: (Word8 -> a -> a) -> a -> ByteString -> a @-}
 foldr :: (Word8 -> a -> a) -> a -> ByteString -> a
@@ -1898,7 +1898,7 @@ inits (PS x s l) = PS x s 0 : go 0 (rng 1 l)
 --LIQUID          rng a b | a > b     = []
 --LIQUID                  | otherwise = a : rng (a+1) b
 
-{-@ qualif RangeDecr(v:Int,x:Int, y:Int): v = 1 + x - y @-}
+{-@ qualif RangeDecr(v:Int,x:Int, y:Int) { v = 1 + x - y  } @-}
 rng :: Int -> Int -> [Int]
 rng lo hi            = go (1 + hi - lo) lo
   where

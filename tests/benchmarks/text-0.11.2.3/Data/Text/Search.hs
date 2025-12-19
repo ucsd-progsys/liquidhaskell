@@ -49,8 +49,8 @@ import Data.Word (Word16)
 --LIQUID FIXME: we don't currently parse the `:*` syntax used originally
 data T = {-# UNPACK #-} !Word64 `T` {-# UNPACK #-} !Int
 
-{-@ qualif Foo(v:int,x:int): v <= x + 1 @-}
-{-@ qualif Diff(v:int,l:int,d:int): v = (l - d) + 1 @-}
+{-@ qualif Foo(v:int,x:int) { v <= x + 1  } @-}
+{-@ qualif Diff(v:int,l:int,d:int) { v = (l - d) + 1  } @-}
 
 {-@ measure tskip :: T -> Int
       tskip (T mask skip) = skip

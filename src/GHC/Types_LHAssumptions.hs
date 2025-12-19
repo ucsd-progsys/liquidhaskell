@@ -26,6 +26,7 @@ embed Bool    as bool
 embed Char    as Char
 embed Char#    as Char
 embed Addr#    as Str
+embed ByteArray# as int
 
 embed Integer as int
 

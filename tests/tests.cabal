@@ -1,4 +1,4 @@
-cabal-version:      2.4
+cabal-version:      3.4
 name:               tests
 version:            0.1.0.0
 
@@ -20,9 +20,12 @@ flag stack
 flag measure-timings
   default:     False
   manual:      True
-  description: Enable when collecting timing information. It also enables
-               -fforce-recomp since cabal sometimes tries to compile files more
-               than once, and the second run discards the timings of the first.
+  description: Enable when collecting timing information.
+
+flag measure-timings-j1
+  default:     False
+  manual:      True
+  description: Enable to collect timing information validating modules one at a time.
 
 executable test-driver
     main-is:        driver.hs
@@ -52,8 +55,14 @@ common common-ghc-options
                       -fkeep-going
                       -O0
                       -no-link
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
+    if flag(measure-timings) || flag(measure-timings-j1)
+      -- We collect timing measures from GHC whenever the plugin runs
+      -- Doesn't run when linking in particular. See
+      -- https://github.com/haskell/cabal/issues/11116
+      ghc-options:    -fplugin-opt=LiquidHaskell:--ddump-timings -ddump-to-file
+    if flag(measure-timings-j1)
+      ghc-options:    -j1
+
     default-language: Haskell2010
 
 flag benchmark-stitch-lh
@@ -632,6 +641,7 @@ executable errors
                     , InlineSubExp0
                     , InlineSubExp1
                     , IrregularData
+                    , KVars
                     , LiftMeasureCase
                     , LocalHole
                     , MissingAssume
@@ -672,6 +682,13 @@ executable errors
                     , UnboundVarInAssume
                     , UnboundVarInLocSig
                     , UnboundVarInSpec
+                    , StratNonLocal
+                    , StratNoLex
+                    , StratNoPropRec
+                    , StratNoPropRet
+                    , StratNoRefCtor
+                    , StratNotAdt
+                    , StratRecOccNotSmall
 
     build-depends:    base
                     , liquid-prelude
@@ -733,8 +750,11 @@ executable names-pos
                     , ClojurVector
                     , DataFields
                     , ExpandsDependentPairs
+                    , ExprAliases
+                    , ExprAliasesCopycat
                     , HideName00
                     , HidePrelude
+                    , ImportedTypeAlias
                     , List00
                     , Local00
                     , Local01
@@ -742,6 +762,11 @@ executable names-pos
                     , Local03
                     , LocalAssume
                     , LocalSpec
+                    , Nat1
+                    , Nat2
+                    , NatFoo
+                    , QualifiedPredAliases
+                    , QualifiedTypeAliases
                     , Ord
                     , Set00
                     , Set01
@@ -750,6 +775,9 @@ executable names-pos
                     , Shadow01
                     , T1521
                     , T675
+                    , TransitivePredAliases
+                    , TupleParse
+                    , TypeAliasShadowing
                     , Uniques
                     , Vector04
                     , Vector0
@@ -776,17 +804,18 @@ executable names-neg
       buildable:      False
 
     other-modules:
-                      Assume00
+                      AmbiguousTypeAlias
+                    , Assume00
                     , Capture01
                     , DuplicatedAliases
                     , Local00
                     , Nat1
                     , Nat2
-                    , QualifiedAliases
                     , Set00
                     , Set01
                     , Set02
                     , T1078
+                    , UnqualifiedTypeAlias
                     , Vector0
                     , Vector1
 
@@ -844,8 +873,6 @@ executable reflect-pos
                     , ReflString1
                     , T2405
 
-    if flag(measure-timings)
-      ghc-options:    -fforce-recomp -ddump-timings -ddump-to-file
     build-depends:    base
                     , liquid-prelude
                     , liquidhaskell
@@ -1086,6 +1113,7 @@ executable unit-neg
                     , BigNum
                     , BinarySearchOverflow
                     , Books
+                    -- , Card
                     , CastedTotality
                     , CharLiterals
                     , CheckedNum
@@ -1424,6 +1452,7 @@ executable unit-pos-2
       buildable:      False
 
     other-modules:
+                     --  Card
                       ExactADT6
                     , ExactGADT0
                     , ExactGADT1
@@ -1571,175 +1600,176 @@ executable unit-pos-3
       buildable:      False
 
     other-modules:
-                   --   MyBag
-                   -- , MyBagDefine
-                   -- , NumRefl
-                   -- , NumRefl1
-                   -- , Streams
-                   -- , StrictPair0
-                   -- , StrictPair1
-                   -- , String00
-                   -- , StringLit
-                   -- , Strings
-                   -- , StructRec
-                   -- , Sum
-                   -- , T1013A
-                   -- , T1013
-                   -- , T1024
-                   -- , T1025a
-                   -- , T1025
-                   -- , T1034
-                   -- , T1045a
-                   -- , T1045
-                   -- , T1060
-                   -- , T1065
-                   -- , T1074
-                   -- , T1085
-                   -- , T1092
-                   -- , T1095A
-                   -- , T1095B
-                   -- , T1095C
-                   -- , T1100
-                   -- , T1120A
-                   -- , T1126a
-                   -- , T1126
-                   -- , T1198_1
-                   -- , T1198_2
-                   -- , T1198_3
-                   -- , T1198_4
-                   -- , T1220
-                   -- , T1223
-                   -- , T1267
-                   -- , T1278_2
-                   -- , T1278_3
-                   -- , T1278
-                   -- , T1286
-                   -- , T1288
-                   -- , T1289a
-                   -- , T1302
-                   -- , T1336
-                   -- , T1363
-                   -- , T1461
-                   -- , T1498
-                   -- , T1543
-                   -- , T1544
-                   -- , T1547
-                   -- , T1548
-                   -- , T1550
-                   -- , T1555
-                   -- , T1556
-                   -- , T1560B
-                   -- , T1560
-                   -- , T1567
-                   -- , T1568
-                   -- , T1571
-                   -- , T1577
-                   -- , T1593
-                   -- , T1595
-                   -- , T1597
-                   -- , T1603
-                   -- , T1633
-                   -- , T1634
-                   -- , T1636
-                   -- , T1642A
-                   -- , T1642
-                   -- , T1647
-                   -- , T1649MeasuresDef
-                   -- , T1649WorkTypes
-                   -- , T1657
-                   -- , T1660
-                   -- , T1669
-                   -- , T1670A
-                   -- , T1670B
-                   -- , T1697A
-                   -- , T1697C
-                   -- , T1697
-                   -- , T1708
-                   -- , T1709
-                   -- , T1749
-                   -- , T1761
-                   -- , T1775
-                   -- , T1812
-                   -- , T1874
-                   -- , T2091
-                   -- , T2093
-                   -- , T2096
-                   -- , T2235
-                   -- , T2237
-                   -- , T2404
-                   -- , T2535
-                   -- , T385
-                   -- , T531
-                   -- , T595a
-                   -- , T595
-                   -- , T598
-                   -- , T716
-                   -- , T819A
-                   -- , T819
-                   -- , T820
-                   -- , T866
-                   -- , T914
-                   -- , TagBinder
-                   -- , Take
-                   -- , Term0
-                   -- , Term
-                   -- , Termination
-                   -- , TerminationNum0
-                   -- , TerminationNum
-                   -- , Test000
-                   -- , Test00b
-                   -- , Test00c
-                   -- , Test00
-                   -- , Test00_int
-                   -- , Test00_old
-                   -- , Test0
-                   -- , Test1
-                   -- , Test2
-                   -- , Test761
-                   -- , TestRec
-                   -- , TokenType
-                   -- , Top0
-                   -- , TopLevel
-                   -- , ToyMVar
-                   -- , Trans
-                   -- , Transpose
-                   -- , TransTAG
-                   -- , Tup0
-                   -- , Tupparse
-                   -- , Tyclass0
-                   -- , TyExpr
-                   -- , Tyfam0
-                   -- , TypeAlias
-                   --  ,
-                      TypeLitNat
-                  --  , TypeLitString
-                  --  , Tyvar
-                  --  , UnboxedTuplesAndTH
-                  --  , UnboxedTuples
-                  --  , UndecidedGuards
-                  --  , Unusedtyvars
-                  --  , Variance2
-                  --  , Vector00
-                  --  , Vector1a
-                  --  , Vector1b
-                  --  , Vector1
-                  --  , Vector2
-                  --  , VerifiedNum
-                  --  , WBL0
-                  --  , WBL
-                  --  , WhyLH
-                  --  , Words1
-                  --  , Words
-                  --  , Wrap0
-                  --  , Wrap1
-                  --  , WrapUnWrap
-                  --  , Zipper000
-                  --  , Zipper0
-                  --  , Zipper
-                  --  , ZipSO
-                  --  , ZipW1
-                  --  , ZipW2
-                  --  , ZipW
+                      MyBag
+                    , MyBagDefine
+                    , NumRefl
+                    , NumRefl1
+                    , StratVal
+                    , Streams
+                    , StrictPair0
+                    , StrictPair1
+                    , String00
+                    , StringLit
+                    , Strings
+                    , StructRec
+                    , Sum
+                    , T1013A
+                    , T1013
+                    , T1024
+                    , T1025a
+                    , T1025
+                    , T1034
+                    , T1045a
+                    , T1045
+                    , T1060
+                    , T1065
+                    , T1074
+                    , T1085
+                    , T1092
+                    , T1095A
+                    , T1095B
+                    , T1095C
+                    , T1100
+                    , T1120A
+                    , T1126a
+                    , T1126
+                    , T1198_1
+                    , T1198_2
+                    , T1198_3
+                    , T1198_4
+                    , T1220
+                    , T1223
+                    , T1267
+                    , T1278_2
+                    , T1278_3
+                    , T1278
+                    , T1286
+                    , T1288
+                    , T1289a
+                    , T1302
+                    , T1336
+                    , T1363
+                    , T1461
+                    , T1498
+                    , T1543
+                    , T1544
+                    , T1547
+                    , T1548
+                    , T1550
+                    , T1555
+                    , T1556
+                    , T1560B
+                    , T1560
+                    , T1567
+                    , T1568
+                    , T1571
+                    , T1577
+                    , T1593
+                    , T1595
+                    , T1597
+                    , T1603
+                    , T1633
+                    , T1634
+                    , T1636
+                    , T1642A
+                    , T1642
+                    , T1647
+                    , T1649MeasuresDef
+                    , T1649WorkTypes
+                    , T1657
+                    , T1660
+                    , T1669
+                    , T1670A
+                    , T1670B
+                    , T1697A
+                    , T1697C
+                    , T1697
+                    , T1708
+                    , T1709
+                    , T1749
+                    , T1761
+                    , T1775
+                    , T1812
+                    , T1874
+                    , T2091
+                    , T2093
+                    , T2096
+                    , T2235
+                    , T2237
+                    , T2404
+                    , T2535
+                    , T2579
+                    , T385
+                    , T531
+                    , T595a
+                    , T595
+                    , T598
+                    , T716
+                    , T819A
+                    , T819
+                    , T820
+                    , T866
+                    , T914
+                    , TagBinder
+                    , Take
+                    , Term0
+                    , Term
+                    , Termination
+                    , TerminationNum0
+                    , TerminationNum
+                    , Test000
+                    , Test00b
+                    , Test00c
+                    , Test00
+                    , Test00_int
+                    , Test00_old
+                    , Test0
+                    , Test1
+                    , Test2
+                    , Test761
+                    , TestRec
+                    , TokenType
+                    , Top0
+                    , TopLevel
+                    , ToyMVar
+                    , Trans
+                    , Transpose
+                    , TransTAG
+                    , Tup0
+                    , Tupparse
+                    , Tyclass0
+                    , TyExpr
+                    , Tyfam0
+                    , TypeAlias
+                    , TypeLitNat
+                    , TypeLitString
+                    , Tyvar
+                    , UnboxedTuplesAndTH
+                    , UnboxedTuples
+                    , UndecidedGuards
+                    , Unusedtyvars
+                    , Variance2
+                    , Vector00
+                    , Vector1a
+                    , Vector1b
+                    , Vector1
+                    , Vector2
+                    , VerifiedNum
+                    , WBL0
+                    , WBL
+                    , WhyLH
+                    , Words1
+                    , Words
+                    , Wrap0
+                    , Wrap1
+                    , WrapUnWrap
+                    , Zipper000
+                    , Zipper0
+                    , Zipper
+                    , ZipSO
+                    , ZipW1
+                    , ZipW2
+                    , ZipW
                     --- IGNORED
                     -- , Variance
 
@@ -2412,12 +2442,15 @@ executable ple-pos
                     , T1409
                     , T1424A
                     , T1424
+                    , T2582
+                    , TestLF780
                     , Tmp1
                     , Tmp
                     , ReaderEta
                     , SKIEta
                     , SKIDC
                     , SKILam
+                    , SKIIdx
                     , FuseMap
                     , FuseMapLam
                     , ProposalLocalRewrites

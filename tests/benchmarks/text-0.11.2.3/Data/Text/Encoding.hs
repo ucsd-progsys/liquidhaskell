@@ -96,9 +96,9 @@ import qualified Data.Text.Fusion.Size         as TODO_REBARE
 {-@ qualif PValid(v:Ptr int, a:A.MArray s):
         (((deref v) >= 0) && ((deref v) < (maLen a)))
   @-}
-{-@ qualif PLenCmp(v:Ptr a, p:Ptr b): (plen v) >= (plen p) @-}
-{-@ qualif PLenCmp(v:Ptr a, p:Ptr b): (plen p) >= (plen v) @-}
-{-@ qualif PBaseEq(v:Ptr a, p:Ptr b): (pbase v) = (pbase p) @-}
+{-@ qualif PLenCmp(v:Ptr a, p:Ptr b) { (plen v) >= (plen p)  } @-}
+{-@ qualif PLenCmp(v:Ptr a, p:Ptr b) { (plen p) >= (plen v)  } @-}
+{-@ qualif PBaseEq(v:Ptr a, p:Ptr b) { (pbase v) = (pbase p)  } @-}
 
 {-@ type PtrGE N = {v:Ptr Word8 | (plen v) >= N} @-}
 
@@ -116,7 +116,7 @@ import qualified Data.Text.Fusion.Size         as TODO_REBARE
 withLIQUID :: CSize -> A.MArray s -> (Ptr CSize -> IO b) -> IO b
 withLIQUID = undefined
 
-{-@ qualif EqFPlen(v:ForeignPtr a, n:int): (fplen v) = n @-}
+{-@ qualif EqFPlen(v:ForeignPtr a, n:int) { (fplen v) = n  } @-}
 
 {-@ plen :: p:Ptr a -> {v:Nat | v = (plen p)} @-}
 plen :: Ptr a -> Int
@@ -136,8 +136,8 @@ type OnDecodeError = forall s. String -> Maybe Word8 -> A.MArray s -> Int -> May
 strictDecode :: OnDecodeError
 strictDecode desc c _ _ = throw (E.DecodeError desc c)
 
-{-@ qualif Ensure(v:ForeignPtr a, x:int): x <= (fplen v) @-}
-{-@ qualif Ensure(v:Ptr a, x:int, y:int): x+y <= (plen v) @-}
+{-@ qualif Ensure(v:ForeignPtr a, x:int) { x <= (fplen v)  } @-}
+{-@ qualif Ensure(v:Ptr a, x:int, y:int) { x+y <= (plen v)  } @-}
 
 -- $strict
 --
@@ -215,7 +215,7 @@ decodeUtf8' = unsafePerformIO . try . evaluate . decodeUtf8With strictDecode
 
 --LIQUID this qualifer is super expensive, so we added the liquidAssume below
 {- qualif GE(v:int, o:int, x:int): v >= (o-x) @-}
-{-@ qualif PlenEq(v:Ptr a, p:Ptr b): (plen v) = (plen p) @-}
+{-@ qualif PlenEq(v:Ptr a, p:Ptr b) { (plen v) = (plen p)  } @-}
 
 -- | Encode text using UTF-8 encoding.
 {-@ lazy encodeUtf8 @-}

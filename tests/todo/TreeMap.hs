@@ -47,7 +47,7 @@ goo :: (a -> b) -> Tree a -> [Tree a] -> [Tree b]
 goo f tt [] = []
 goo f tt (t:ts) = tmap f t : goo f tt ts
 
-{-@ qualif SZ(v:Tree a, x:Tree a): size v < size x @-}
+{-@ qualif SZ(v:Tree a, x:Tree a) { size v < size x  } @-}
 
 {-@ qual :: xs:[Tree a] -> {v:Tree a | size v = 1 + sizes xs} @-}
 qual :: [Tree a] -> Tree a

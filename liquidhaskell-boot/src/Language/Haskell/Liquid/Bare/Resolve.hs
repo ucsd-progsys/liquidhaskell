@@ -188,7 +188,7 @@ isEmptySymbol x = F.lengthSym x == 0
 
 -- | @lookupLocalVar@ takes as input the list of "global" (top-level) vars
 --   that also match the name @lx@; we then pick the "closest" definition.
---   See tests/names/LocalSpec.hs for a motivating example.
+--   See tests/names/pos/LocalSpec.hs for a motivating example.
 
 lookupLocalVar :: F.Loc a => LocalVars -> LocSymbol -> [a] -> Maybe (Either a Ghc.Var)
 lookupLocalVar localVars lx gvs = findNearest lxn kvs
