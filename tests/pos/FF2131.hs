@@ -3,6 +3,7 @@ module FF2131 where
 
 import Language.Haskell.Liquid.FinField
 
+-- instantiate FFld for a specific prime value of 2131
 data FF2131 = FF2131 { toFFld :: FFld 2131 }
 {-@ embed FF2131 as (FFld_t 2131) @-}
 
@@ -21,6 +22,11 @@ add x y = FF2131 (FFld (ffToInteger (toFFld x) + ffToInteger (toFFld y) `mod` 21
 mul :: FF2131 -> FF2131 -> FF2131
 mul x y = FF2131 (FFld (ffToInteger (toFFld x) * ffToInteger (toFFld y) `mod` 2131))
 
+-- tests
+
+-- The FFld_t LF sort is parametric in its prime value, meaning we must
+-- explicitly specify the concrete type in the refinement so the unifier
+-- can properly resolve this value.
 
 {-@ thm1 :: { v : FF2131 | v = val 101} -> { add v (val 537) == val 638 } @-}
 thm1 :: FF2131 -> ()
