@@ -1,4 +1,6 @@
 {-# LANGUAGE DataKinds #-}
+{-@ LIQUID "--smtsolver=cvc5"  @-}
+
 module FF17 where
 
 import Language.Haskell.Liquid.FinField
