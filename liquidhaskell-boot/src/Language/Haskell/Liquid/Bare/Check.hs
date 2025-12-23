@@ -272,17 +272,13 @@ checkTargetSpec specs src env cbs tsp
     noPrune          = not (pruneFlag tsp)
     txCtors ts       = [(v, fmap (fmap (fmap (F.filterUnMatched temps))) t) | (v, t) <- ts]
     temps            = F.makeTemplates $ gsUnsorted $ gsData tsp
-    ef               = elabFlag tsp -- maybe (ElabFlags False) solverFlags $ smtsolver $ getConfig tsp
+    ef               = mkElabFlags (smtsolver $ getConfig tsp)
+    -- ef               = mkElabFlags ()  False -- elabFlag tsp -- maybe (ElabFlags False) solverFlags $ smtsolver $ getConfig tsp
     -- env'             = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
-elabFlag :: (HasConfig t) => t -> FC.ElabFlags
-elabFlag info = FC.ElabFlags setBag False
-  where
-      setBag = maybe False elabSetBag . smtsolver . getConfig $ info
-      elabSetBag :: FC.SMTSolver -> Bool
-      elabSetBag FC.Z3    = True
-      elabSetBag FC.Z3mem = True
-      elabSetBag _        = False
+mkElabFlags :: Maybe FC.SMTSolver -> FC.ElabFlags
+mkElabFlags Nothing    = FC.ElabFlags False False
+mkElabFlags (Just slv) = FC.mkElabFlags slv False
 
 
 -- | Tests that the returned refinement type of data constructors has predicate @True@ or @prop v == e@.
