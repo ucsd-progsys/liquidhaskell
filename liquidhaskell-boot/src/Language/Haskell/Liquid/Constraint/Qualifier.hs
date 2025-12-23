@@ -32,7 +32,7 @@ import           Language.Haskell.Liquid.Types.RTypeOp
 import           Language.Haskell.Liquid.Types.Specs
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.UX.Config
-import Language.Fixpoint.Types.Config (ElabFlags)
+import           Language.Fixpoint.Types.Config (ElabFlags)
 
 
 --------------------------------------------------------------------------------
@@ -44,9 +44,9 @@ giQuals info lEnv
   ++ condNull (useSpcQuals info) otherSpecs
   ++ condNull (useSigQuals info) (sigQualifiers  info lEnv)
   ++ condNull (useAlsQuals info) (alsQualifiers  info lEnv)
-  where 
+  where
     (currentSpec, otherSpecs) = partition isQualifierFromCurrentModule (gsQualifiers . gsQual . giSpec $ info)
-    isQualifierFromCurrentModule qual = 
+    isQualifierFromCurrentModule qual =
       fst3 (sourcePosElts (qPos qual)) == giTarget (giSrc info)
 
 
@@ -91,9 +91,21 @@ alsQualifiers info lEnv
         , validQual lEnv q
     ]
     where
-      ef  = maybe (FC.ElabFlags False) FC.solverFlags . smtsolver . getConfig $ info
+      ef  = elabFlag info
       k   = maxQualParams info
       tce = gsTcEmbeds . gsName . giSpec $ info
+
+elabFlag :: (HasConfig t) => t -> FC.ElabFlags
+elabFlag info = FC.ElabFlags setBag False
+  where
+      setBag = maybe False elabSetBag . smtsolver . getConfig $ info
+      elabSetBag :: FC.SMTSolver -> Bool
+      elabSetBag FC.Z3    = True
+      elabSetBag FC.Z3mem = True
+      elabSetBag _        = False
+
+
+
 
 validQual :: SEnv Sort -> Qualifier -> Bool
 validQual lEnv q = isJust $ checkSortExpr (srcSpan q) env (qBody q)
@@ -114,7 +126,7 @@ sigQualifiers info lEnv
         , length (qParams q) <= k + 1
     ]
     where
-      ef  = maybe (FC.ElabFlags False) FC.solverFlags . smtsolver . getConfig $ info
+      ef  = elabFlag info
       k   = maxQualParams info
       tce = gsTcEmbeds . gsName . giSpec $ info
 
