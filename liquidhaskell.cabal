@@ -85,6 +85,7 @@ library
                       ghc-prim
   default-language:   Haskell98
   ghc-options:        -Wall
+  pkgconfig-depends:  z3
 
   if flag(devel)
     ghc-options:      -Werror
