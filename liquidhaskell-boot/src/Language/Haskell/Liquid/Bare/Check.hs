@@ -273,8 +273,6 @@ checkTargetSpec specs src env cbs tsp
     txCtors ts       = [(v, fmap (fmap (fmap (F.filterUnMatched temps))) t) | (v, t) <- ts]
     temps            = F.makeTemplates $ gsUnsorted $ gsData tsp
     ef               = mkElabFlags (smtsolver $ getConfig tsp)
-    -- ef               = mkElabFlags ()  False -- elabFlag tsp -- maybe (ElabFlags False) solverFlags $ smtsolver $ getConfig tsp
-    -- env'             = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
 mkElabFlags :: Maybe FC.SMTSolver -> FC.ElabFlags
 mkElabFlags Nothing    = FC.ElabFlags False False
