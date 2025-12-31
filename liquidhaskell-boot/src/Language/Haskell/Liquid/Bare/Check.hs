@@ -36,6 +36,7 @@ import           Data.Hashable
 import qualified Language.Fixpoint.Misc                    as Misc
 import           Language.Fixpoint.SortCheck               (ElabM, checkSorted, checkSortedReftFull, checkSortFull)
 import qualified Language.Fixpoint.Types                   as F
+import qualified Language.Fixpoint.Types.Config            as FC
 import qualified Language.Haskell.Liquid.GHC.Misc          as GM
 import           Language.Haskell.Liquid.GHC.Play          (getNonPositivesTyCon)
 import           Language.Haskell.Liquid.Misc              (condNull, thd5, foldMapM)
@@ -55,7 +56,7 @@ import qualified Language.Haskell.Liquid.Measure           as Ms
 import qualified Language.Haskell.Liquid.Bare.Types        as Bare
 import qualified Language.Haskell.Liquid.Bare.Resolve      as Bare
 import           Language.Haskell.Liquid.UX.Config
-import Language.Fixpoint.Types.Config (ElabFlags (ElabFlags), solverFlags)
+-- import Language.Fixpoint.Types.Config (ElabFlags (ElabFlags))
 
 ----------------------------------------------------------------------------------------------
 -- | Checking TargetSrc ------------------------------------------------------------------------
@@ -271,9 +272,11 @@ checkTargetSpec specs src env cbs tsp
     noPrune          = not (pruneFlag tsp)
     txCtors ts       = [(v, fmap (fmap (fmap (F.filterUnMatched temps))) t) | (v, t) <- ts]
     temps            = F.makeTemplates $ gsUnsorted $ gsData tsp
-    ef               = maybe (ElabFlags False) solverFlags $ smtsolver $ getConfig tsp
-    -- env'             = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
+    ef               = mkElabFlags (smtsolver $ getConfig tsp)
 
+mkElabFlags :: Maybe FC.SMTSolver -> FC.ElabFlags
+mkElabFlags Nothing    = FC.ElabFlags False False
+mkElabFlags (Just slv) = FC.mkElabFlags slv False
 
 
 -- | Tests that the returned refinement type of data constructors has predicate @True@ or @prop v == e@.
@@ -340,7 +343,7 @@ checkTySigs allowHO bsc cbs emb tcEnv senv sig =
     vtes           = [ (x, (t, es)) | (x, t) <- gsTySigs sig, let es = M.lookup x vExprs]
     vExprs         = M.fromList  [ (x, es) | (x, _, es) <- gsTexprs sig ]
 
-    checkVisitor  :: ElabFlags -> CoreVisitor (F.SEnv F.SortedReft) Diagnostics
+    checkVisitor  :: FC.ElabFlags -> CoreVisitor (F.SEnv F.SortedReft) Diagnostics
     checkVisitor ef = CoreVisitor
                        { envF  = \env v     -> F.insertSEnv (F.symbol v) (vSort v) env
                        , bindF = \env acc v -> runReader (errs env v) ef <> acc
@@ -378,7 +381,7 @@ checkSizeFun emb env tys =
                                                        $+$   msg)
                                  (pprint (tcpCon tcp))
 
-    go :: ElabFlags -> TyConP -> Maybe ((F.Symbol -> F.Expr, TyConP), Doc)
+    go :: FC.ElabFlags -> TyConP -> Maybe ((F.Symbol -> F.Expr, TyConP), Doc)
     go ef tcp = case tcpSizeFun tcp of
                Nothing                   -> Nothing
                Just f | isWiredInLenFn f -> Nothing -- Skip the check.
@@ -474,10 +477,10 @@ checkTerminationExpr emb env (v, Loc l _ st, les) =
     -- mkErr   = uncurry (\ e d -> ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) (text "ill-sorted" ) e t d)
     -- mkErr'  = uncurry (\ e d -> ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) (text "non-numeric") e t d)
 
-    go :: ElabFlags -> [F.Located F.Expr] -> Maybe (F.Expr, Doc)
+    go :: FC.ElabFlags -> [F.Located F.Expr] -> Maybe (F.Expr, Doc)
     go ef     = L.foldl' (\err e -> err <|> (val e,) <$> runReader (checkSorted (F.srcSpan e) env' (val e)) ef)     Nothing
 
-    go' :: ElabFlags -> [F.Located F.Expr] -> Maybe (F.Expr, Doc)
+    go' :: FC.ElabFlags -> [F.Located F.Expr] -> Maybe (F.Expr, Doc)
     go' ef    = L.foldl' (\err e -> err <|> (val e,) <$> runReader (checkSorted (F.srcSpan e) env' (cmpZero e)) ef) Nothing
 
     env'    = F.sr_sort <$> L.foldl' (\e (x,s) -> F.insertSEnv x s e) env xts
