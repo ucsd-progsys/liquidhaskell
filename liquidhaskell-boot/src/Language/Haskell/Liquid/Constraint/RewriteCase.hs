@@ -1,5 +1,6 @@
-module Language.Haskell.Liquid.Constraint.RewriteCase 
-    (getCaseRewrites) 
+{-# OPTIONS_GHC -Wno-incomplete-record-selectors #-}
+module Language.Haskell.Liquid.Constraint.RewriteCase
+    (getCaseRewrites)
     where
 
 import           Language.Fixpoint.Types

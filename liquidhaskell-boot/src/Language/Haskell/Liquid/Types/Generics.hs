@@ -16,7 +16,7 @@ import Data.Function
 
 -- * 'Hashable'
 
-instance (Eq (Generically a), Generic a, GHashable Zero (Rep a)) => Hashable (Generically a) where
+instance (Generic a, Eq (Rep a ()), GHashable Zero (Rep a)) => Hashable (Generically a) where
   hashWithSalt s (Generically a) = genericHashWithSalt s a
 
 -- * 'Binary'
