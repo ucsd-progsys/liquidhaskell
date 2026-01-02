@@ -1,4 +1,4 @@
-with-compiler: ghc-9.12.2
+with-compiler: ghc-9.14.1
 
 packages: .
           ./liquid-fixpoint
@@ -20,12 +20,14 @@ source-repository-package
 allow-newer:
   ghc-timings:base
 
+  -- Temporarily until Hackage gets its GHC 9.14 act together
+  ,base
+  ,template-haskell
+  ,time
+  ,containers
+
   ,active:base
   ,Chart-diagrams:time
-  ,diagrams-core:base
-  ,diagrams-lib:base
-  ,diagrams-postscript:base
-  ,diagrams-svg:base
   ,dual-tree:base
   ,fsnotify:text
   ,monoid-extras:base
@@ -55,3 +57,5 @@ flags: +devel
 constraints:
   -- since 1.4.7 there's a clash between data-default-class and data-default-0.8 when building SVGFonts
   , diagrams-lib < 1.4.7
+  -- GHC 9.14 compatibility
+  ,aeson >= 2.2.3.0
