@@ -161,7 +161,7 @@ dataConArgs trep = unzip [ (x, t) | (x, t) <- zip xs ts, isValTy t]
   where
     xs           = ty_binds trep
     ts           = ty_args trep
-    isValTy      = not . Ghc.isEvVarType . toType False
+    isValTy      = not . Ghc.isSimplePredTy . toType False
 
 
 pdVar :: PVarV v t -> PredicateV v
@@ -1761,7 +1761,7 @@ classBinds _ t
   = notracepp ("CLASSBINDS-1: " ++ showpp (toType False t, isEqualityConstr t)) []
 
 isEqualityConstr :: SpecType -> Bool
-isEqualityConstr (toType False -> ty) = Ghc.isNomEqPred ty || Ghc.isEqPred ty
+isEqualityConstr (toType False -> ty) = Ghc.isEqPred ty || Ghc.isEqClassPred ty
 
 --------------------------------------------------------------------------------
 -- | Termination Predicates ----------------------------------------------------

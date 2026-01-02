@@ -522,7 +522,7 @@ dropModuleNamesAndUnique = dropModuleUnique . dropModuleNames
 
 dropModuleNames  :: Symbol -> Symbol
 dropModuleNames = dropModuleNamesCorrect
-{- 
+{-
 dropModuleNames = mungeNames lastName sepModNames "dropModuleNames: "
  where
    lastName msg = symbol . safeLast msg
@@ -547,7 +547,7 @@ takeModuleNames  = F.symbol . go [] . F.symbolText
                 Nothing -> T.intercalate "." (reverse acc)
     getModule' = T.takeWhile (/= '.')
 
-{- 
+{-
 takeModuleNamesOld  = mungeNames initName sepModNames "takeModuleNames: "
   where
     initName msg = symbol . T.intercalate "." . safeInit msg
@@ -751,7 +751,7 @@ isPredVar v = F.notracepp msg . isPredType . varType $ v
     msg     =  "isGoodCaseBind v = " ++ show v
 
 isPredType :: Type -> Bool
-isPredType = anyF [ isClassPred, isNomEqPred, isEqPred ]
+isPredType = anyF [ isClassPred, isEqClassPred, isEqPred ]
 
 anyF :: [a -> Bool] -> a -> Bool
 anyF ps x = or [ p x | p <- ps ]
@@ -815,7 +815,7 @@ elabRnExpr rdr_expr = do
     let { fresh_it = itName uniq (getLocA rdr_expr) }
     ((_qtvs, _dicts, evbs, _), residual)
          <- captureConstraints $
-            simplifyInfer tclvl NoRestrictions
+            simplifyInfer NotTopLevel tclvl NoRestrictions
                           []    {- No sig vars -}
                           [(fresh_it, res_ty)]
                           lie
@@ -899,7 +899,7 @@ withWiredIn m = discardConstraints $ do
   -- undef <- lookupUndef
   wiredIns <- mkWiredIns
   -- snd <$> tcValBinds Ghc.NotTopLevel (binds undef wiredIns) (sigs wiredIns) m
-  (_, _, a) <- tcValBinds Ghc.NotTopLevel [] (sigs wiredIns) m
+  (_, a) <- tcValBinds Ghc.NotTopLevel [] (sigs wiredIns) m
   return a
 
  where
@@ -908,13 +908,13 @@ withWiredIn m = discardConstraints $ do
   --   -- tcLookupGlobal undefName
 
   -- binds :: Name -> [TcWiredIn] -> [(Ghc.RecFlag, LHsBinds GhcRn)]
-  -- binds undef wiredIns = map (\w -> 
+  -- binds undef wiredIns = map (\w ->
   --     let ext = Ghc.unitNameSet undef in -- $ varName $ tyThingId undef in
   --     let co_fn = idHsWrapper in
-  --     let matches = 
+  --     let matches =
   --           let ctxt = LambdaExpr in
   --           let grhss = GRHSs Ghc.noExtField [Ghc.L locSpan (GRHS Ghc.noExtField [] (Ghc.L locSpan (HsVar Ghc.noExtField (Ghc.L locSpan undef))))] (Ghc.L locSpan emptyLocalBinds) in
-  --           MG Ghc.noExtField (Ghc.L locSpan [Ghc.L locSpan (Match Ghc.noExtField ctxt [] grhss)]) Ghc.Generated 
+  --           MG Ghc.noExtField (Ghc.L locSpan [Ghc.L locSpan (Match Ghc.noExtField ctxt [] grhss)]) Ghc.Generated
   --     in
   --     let b = FunBind ext (Ghc.L locSpan $ tcWiredInName w) matches co_fn [] in
   --     (Ghc.NonRecursive, unitBag (Ghc.L locSpan b))
@@ -951,11 +951,11 @@ withWiredIn m = discardConstraints $ do
   nameToTy = Ghc.L locSpanAnn . HsTyVar Ghc.noAnn Ghc.NotPromoted
 
   boolTy' :: LHsType GhcRn
-  boolTy' = nameToTy $ toLoc boolTyConName
+  boolTy' = nameToTy $ toLoc . Ghc.noUserRdr $ boolTyConName
     -- boolName <- lookupOrig (Module (stringToUnitId "Data.Bool") (mkModuleName "Data.Bool")) (Ghc.mkVarOcc "Bool")
     -- return $ Ghc.L locSpan $ HsTyVar Ghc.noExtField Ghc.NotPromoted $ Ghc.L locSpan boolName
-  intTy' = nameToTy $ toLoc intTyConName
-  listTy lt = toLoc $ HsAppTy Ghc.noExtField (nameToTy $ toLoc listTyConName) lt
+  intTy' = nameToTy $ toLoc . Ghc.noUserRdr $ intTyConName
+  listTy lt = toLoc $ HsAppTy Ghc.noExtField (nameToTy $ toLoc . Ghc.noUserRdr $ listTyConName) lt
 
   -- infixr 1 ==> :: Bool -> Bool -> Bool
   impl = do
@@ -973,7 +973,7 @@ withWiredIn m = discardConstraints $ do
   eq = do
     n <- toName "=="
     aName <- toLoc <$> toName "a"
-    let aTy = nameToTy aName
+    let aTy = nameToTy . fmap Ghc.noUserRdr $ aName
     let ty = toLoc $ HsForAllTy Ghc.noExtField
              (mkHsForAllInvisTele Ghc.noAnn
                [ toLoc $
@@ -992,7 +992,7 @@ withWiredIn m = discardConstraints $ do
   len = do
     n <- toName "len"
     aName <- toLoc <$> toName "a"
-    let aTy = nameToTy aName
+    let aTy = nameToTy . fmap Ghc.noUserRdr $ aName
     let ty = toLoc $ HsForAllTy Ghc.noExtField
                (mkHsForAllInvisTele Ghc.noAnn
                  [ toLoc $
