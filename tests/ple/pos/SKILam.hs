@@ -13,8 +13,12 @@ import Prelude
 
 import Language.Haskell.Liquid.ProofCombinators 
 
-{-@ reflect id @-}
-{-@ reflect $  @-}
+{-@ assume reflect id as myId @-}
+
+{-@ reflect myId @-}
+myId :: a -> a
+myId x = x
+
 
 data List a = Nil | Cons a (List a)
   deriving (Show)
