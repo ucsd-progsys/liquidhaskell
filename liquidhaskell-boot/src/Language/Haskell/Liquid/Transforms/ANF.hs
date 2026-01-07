@@ -13,7 +13,6 @@ module Language.Haskell.Liquid.Transforms.ANF (anormalize) where
 
 import           Debug.Trace (trace)
 import           Prelude                          hiding (error)
-import           Language.Haskell.Liquid.GHC.TypeRep
 import           Liquid.GHC.API  as Ghc hiding ( get, mkTyArg
                                                                 , showPpr
                                                                 , DsM
@@ -36,6 +35,7 @@ import qualified Text.Printf as Printf
 import           Data.Hashable
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HM
+import GHC.Core.Type (ForAllTyBinder)
 
 --------------------------------------------------------------------------------
 -- | A-Normalize a module ------------------------------------------------------
@@ -70,20 +70,20 @@ normalizeTyVars (NonRec x e) = NonRec (setVarType x t') $ normalizeForAllTys e
   where
     t'       = subst msg as as' bt
     msg      = "WARNING: unable to renameVars on " ++ GM.showPpr x
-    as'      = fst $ splitForAllTyCoVars $ exprType e
-    (as, bt) = splitForAllTyCoVars (varType x)
+    as'      = fst $ splitForAllForAllTyBinders $ exprType e
+    (as, bt) = splitForAllForAllTyBinders (varType x)
 normalizeTyVars (Rec xes)    = Rec xes'
   where
     nrec     = normalizeTyVars <$> (uncurry NonRec <$> xes)
     xes'     = (\case NonRec x e -> (x, e); _ -> impossible Nothing "This cannot happen") <$> nrec
 
-subst :: String -> [TyVar] -> [TyVar] -> Type -> Type
+subst :: String -> [ForAllTyBinder] -> [ForAllTyBinder] -> Type -> Type
 subst msg as as' bt
   | length as == length as'
-  = mkForAllTys (mkTyArg <$> as') $ substTy su bt
+  = mkForAllTys as' $ substTy su bt
   | otherwise
-  = trace msg $ mkForAllTys (mkTyArg <$> as) bt
-  where su = mkTvSubstPrs $ zip as (mkTyVarTys as')
+  = trace msg $ mkForAllTys as bt
+  where su = mkTvSubstPrs $ zip (map binderVar as) (mkTyVarTys (map binderVar as'))
 
 -- | eta-expand CoreBinds with quantified types
 normalizeForAllTys :: CoreExpr -> CoreExpr

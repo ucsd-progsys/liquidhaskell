@@ -404,6 +404,7 @@ import GHC.Core.Type                  as Ghc
     , newTyConInstRhs
     , piResultTys
     , splitAppTys
+    , splitForAllForAllTyBinders
     , splitFunTy_maybe
     , splitFunTys
     , splitTyConApp
