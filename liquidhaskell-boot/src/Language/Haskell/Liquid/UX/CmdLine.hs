@@ -416,6 +416,10 @@ defConfig = Config {
     = False &= help "Dump pre-normalized core (before a-normalization)"
           &= name "dump-pre-normalized-core"
           &= explicit
+  , dumpNormalizedCore
+    = False &= help "Dump a-normalized core"
+          &= name "dump-normalized-core"
+          &= explicit
   , allowUnsafeConstructors
     = False &= help "Allow refining constructors with unsafe refinements"
           &= name "allow-unsafe-constructors"

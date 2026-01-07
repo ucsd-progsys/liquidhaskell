@@ -112,6 +112,7 @@ data Config = Config
   , excludeAutomaticAssumptionsFor :: [String]
   , dumpOpaqueReflections    :: Bool       -- Dumps all opaque reflections to the stdout
   , dumpPreNormalizedCore    :: Bool       -- Dumps the prenormalized core (before a-normalization)
+  , dumpNormalizedCore       :: Bool       -- Dumps the a-normalized core
   , allowUnsafeConstructors  :: Bool       -- ^ Allow refining constructors with unsafe refinements
   , ddumpTimings             :: Bool       -- ^ Dump time measures of the Liquid Haskell plugin
                                            -- Only needed to work around https://github.com/haskell/cabal/issues/11116
