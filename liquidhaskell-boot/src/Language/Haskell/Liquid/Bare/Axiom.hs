@@ -45,6 +45,7 @@ import Control.Arrow (second)
 import Data.Function (on)
 import qualified Data.Map as Map
 import qualified Data.HashMap.Strict as M
+import System.IO.Unsafe (unsafePerformIO)
 
 findDuplicatePair :: Ord k => (a -> k) -> [a] -> Maybe (a, a)
 findDuplicatePair key xs =
@@ -113,8 +114,11 @@ makeAssumeReflectAxiom sig env tce (actual, pretended) =
   else
     Ex.throw $ mkError actual $
       show qPretended ++ " and " ++ show qActual ++ " should have the same type. But " ++
-      "types " ++ F.showpp pretendedTy ++ " and " ++ F.showpp actualTy  ++ " do not match."
+      "types\n\n" ++ showType pretendedTy ++ "\n\n and\n\n" ++ showType actualTy  ++ "\n\ndo not match."
   where
+    showType = Ghc.showPpr
+      (unsafePerformIO $ Ghc.reflectGhc Ghc.getDynFlags $ gtleSession $ reTyLookupEnv env)
+
     at = val $ strengthenSpecWithMeasure sig env actualV pretended{val=qPretended}
 
     -- Get the Ghc.Var's of the actual and pretended function names

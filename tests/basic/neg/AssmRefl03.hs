@@ -1,5 +1,5 @@
 -- | Type mismatch
-{-@ LIQUID "--expect-error-containing=\"AssmRefl03.myfoobar\" and \"AssmRefl03.foobar\" should have the same type. But types GHC.Types.Bool -> GHC.Types.Bool and GHC.Types.Int -> GHC.Types.Bool do not match." @-}
+{-@ LIQUID "--expect-error-containing=\"AssmRefl03.myfoobar\" and \"AssmRefl03.foobar\" should have the same type." @-}
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
