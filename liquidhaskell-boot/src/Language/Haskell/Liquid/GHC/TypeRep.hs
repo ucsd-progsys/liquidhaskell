@@ -9,8 +9,6 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Language.Haskell.Liquid.GHC.TypeRep (
-  mkTyArg, 
-
   showTy
   ) where
 
@@ -19,9 +17,6 @@ import           Liquid.GHC.API as Ghc hiding (mkTyArg, showPpr, panic)
 import           Language.Fixpoint.Types (symbol)
 
 -- e368f3265b80aeb337fbac3f6a70ee54ab14edfd
-
-mkTyArg :: TyVar -> TyVarBinder
-mkTyArg v = Bndr v Required
 
 instance Eq Type where
   t1 == t2 = eqType' t1 t2
