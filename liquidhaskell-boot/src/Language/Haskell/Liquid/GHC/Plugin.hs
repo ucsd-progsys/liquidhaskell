@@ -594,6 +594,9 @@ makeTargetSrc cfg file modGuts hscEnv = do
     putStrLn "\n*************** Pre-normalized CoreBinds *****************\n"
     putStrLn $ unlines $ L.intersperse "" $ map (GHC.showPpr (GHC.hsc_dflags hscEnv)) (mg_binds modGuts)
   coreBinds <- anormalize cfg hscEnv modGuts
+  when (dumpNormalizedCore cfg) $ do
+    putStrLn "\n*************** normalized CoreBinds *****************\n"
+    putStrLn $ unlines $ L.intersperse "" $ map (GHC.showPpr (GHC.hsc_dflags hscEnv)) coreBinds
 
   let allTcs      = mgi_tcs mgiModGuts
 
