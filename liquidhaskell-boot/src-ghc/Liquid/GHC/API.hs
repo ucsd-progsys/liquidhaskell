@@ -478,7 +478,8 @@ import GHC.Core.FVs                   as Ghc
 import GHC.Core.Opt.OccurAnal         as Ghc
     ( occurAnalysePgm )
 import GHC.Core.TyCo.FVs              as Ghc (tyCoVarsOfCo, tyCoVarsOfType)
-import GHC.Driver.Backend             as Ghc (interpreterBackend)
+import GHC.Driver.Backend             as Ghc (backendName, interpreterBackend)
+import GHC.Driver.Backend.Internal    as Ghc (BackendName(NoBackend))
 import GHC.Driver.DynFlags            as Ghc
     ( DumpFlag(Opt_D_dump_timings)
     , dopt_set
