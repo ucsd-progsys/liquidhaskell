@@ -14,9 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        cabal: ["3.12.1.0"]
+        cabal: ["3.16.0.0"]
         ghc:
-          - "9.12.2"
+          - "9.14.1"
         z3:
           - "4.15.1"
 
