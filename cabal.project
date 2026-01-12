@@ -25,6 +25,7 @@ allow-newer:
   ,template-haskell
   ,time
   ,containers
+  ,ghc-bignum
 
   ,active:base
   ,Chart-diagrams:time
