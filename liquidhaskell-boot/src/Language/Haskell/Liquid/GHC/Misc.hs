@@ -862,8 +862,7 @@ data TcWiredIn = TcWiredIn {
 withWiredIn :: TcM a -> TcM a
 withWiredIn m = discardConstraints $ do
   wiredIns <- mkWiredIns
-  (_, a) <- tcValBinds Ghc.NotTopLevel [] (sigs wiredIns) m
-  return a
+  snd <$> tcValBinds Ghc.NotTopLevel [] (sigs wiredIns) m
 
  where
   sigs wiredIns = concatMap (\w ->
