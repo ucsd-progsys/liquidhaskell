@@ -10,7 +10,7 @@ import           Test.Tasty.Runners.AntXML
 
 import Language.Haskell.Liquid.WiredIn (derivingClasses)
 
-import qualified GHC.Classes
+import qualified GHC.Internal.Classes
 import qualified GHC.Internal.Base
 import qualified GHC.Internal.Data.Foldable
 import qualified GHC.Internal.Data.Traversable
