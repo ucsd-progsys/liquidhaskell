@@ -359,14 +359,6 @@ isDictionaryExpression _          = Nothing
 realTcArity :: TyCon -> Arity
 realTcArity = tyConArity
 
-{-
-  tracePpr ("realTcArity of " ++ showPpr c
-     ++ "\n tyConKind = " ++ showPpr (tyConKind c)
-     ++ "\n kindArity = " ++ show (kindArity (tyConKind c))
-     ++ "\n kindArity' = " ++ show (kindArity' (tyConKind c)) -- this works for TypeAlias
-     ) $ kindArity' (tyConKind c)
--}
-
 kindTCArity :: TyCon -> Arity
 kindTCArity = go . tyConKind
   where
@@ -416,8 +408,6 @@ tyConTyVarsDef :: TyCon -> [TyVar]
 tyConTyVarsDef c
   | noTyVars c = []
   | otherwise  = Ghc.tyConTyVars c
-  --where
-  --  none         = tracepp ("tyConTyVarsDef: " ++ show c) (noTyVars c)
 
 noTyVars :: TyCon -> Bool
 noTyVars c =  Ghc.isPrimTyCon c || Ghc.isPromotedDataCon c
@@ -522,11 +512,6 @@ dropModuleNamesAndUnique = dropModuleUnique . dropModuleNames
 
 dropModuleNames  :: Symbol -> Symbol
 dropModuleNames = dropModuleNamesCorrect
-{-
-dropModuleNames = mungeNames lastName sepModNames "dropModuleNames: "
- where
-   lastName msg = symbol . safeLast msg
--}
 
 dropModuleNamesCorrect  :: Symbol -> Symbol
 dropModuleNamesCorrect = F.symbol . go . F.symbolText
@@ -547,11 +532,6 @@ takeModuleNames  = F.symbol . go [] . F.symbolText
                 Nothing -> T.intercalate "." (reverse acc)
     getModule' = T.takeWhile (/= '.')
 
-{-
-takeModuleNamesOld  = mungeNames initName sepModNames "takeModuleNames: "
-  where
-    initName msg = symbol . T.intercalate "." . safeInit msg
--}
 dropModuleUnique :: Symbol -> Symbol
 dropModuleUnique = mungeNames headName sepUnique   "dropModuleUnique: "
   where
@@ -784,21 +764,6 @@ isEvVar x = isPredVar x || isTyVar x || isCoVar x
 
 -- partially stolen from GHC'sa exprType
 
--- elaborateHsExprInst
---   :: GhcMonad m => LHsExpr GhcPs -> m (Messages, Maybe CoreExpr)
--- elaborateHsExprInst expr = elaborateHsExpr TM_Inst expr
-
-
--- elaborateHsExpr
---   :: GhcMonad m => TcRnExprMode -> LHsExpr GhcPs -> m (Messages, Maybe CoreExpr)
--- elaborateHsExpr mode expr =
---   withSession $ \hsc_env -> liftIO $ hscElabHsExpr hsc_env mode expr
-
--- hscElabHsExpr :: HscEnv -> TcRnExprMode -> LHsExpr GhcPs -> IO (Messages, Maybe CoreExpr)
--- hscElabHsExpr hsc_env0 mode expr = runInteractiveHsc hsc_env0 $ do
---   hsc_env <- Ghc.getHscEnv
---   liftIO $ elabRnExpr hsc_env mode expr
-
 elabRnExpr :: LHsExpr GhcPs -> TcRn CoreExpr
 elabRnExpr rdr_expr = do
     (rn_expr, _fvs) <- rnLExpr rdr_expr
@@ -896,30 +861,11 @@ data TcWiredIn = TcWiredIn {
 -- | Run a computation in GHC's typechecking monad with wired in values locally bound in the typechecking environment.
 withWiredIn :: TcM a -> TcM a
 withWiredIn m = discardConstraints $ do
-  -- undef <- lookupUndef
   wiredIns <- mkWiredIns
-  -- snd <$> tcValBinds Ghc.NotTopLevel (binds undef wiredIns) (sigs wiredIns) m
   (_, a) <- tcValBinds Ghc.NotTopLevel [] (sigs wiredIns) m
   return a
 
  where
-  -- lookupUndef = do
-  --   lookupOrig gHC_ERR (Ghc.mkVarOcc "undefined")
-  --   -- tcLookupGlobal undefName
-
-  -- binds :: Name -> [TcWiredIn] -> [(Ghc.RecFlag, LHsBinds GhcRn)]
-  -- binds undef wiredIns = map (\w ->
-  --     let ext = Ghc.unitNameSet undef in -- $ varName $ tyThingId undef in
-  --     let co_fn = idHsWrapper in
-  --     let matches =
-  --           let ctxt = LambdaExpr in
-  --           let grhss = GRHSs Ghc.noExtField [Ghc.L locSpan (GRHS Ghc.noExtField [] (Ghc.L locSpan (HsVar Ghc.noExtField (Ghc.L locSpan undef))))] (Ghc.L locSpan emptyLocalBinds) in
-  --           MG Ghc.noExtField (Ghc.L locSpan [Ghc.L locSpan (Match Ghc.noExtField ctxt [] grhss)]) Ghc.Generated
-  --     in
-  --     let b = FunBind ext (Ghc.L locSpan $ tcWiredInName w) matches co_fn [] in
-  --     (Ghc.NonRecursive, unitBag (Ghc.L locSpan b))
-  --   ) wiredIns
-
   sigs wiredIns = concatMap (\w ->
       let inf = maybeToList $ do
             (fPrec, fDir) <- tcWiredInFixity w
