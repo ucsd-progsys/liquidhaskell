@@ -60,7 +60,7 @@ commands:
             chmod +x ./x86_64-linux-ghcup
             ./x86_64-linux-ghcup install ghc << parameters.ghc_version >>
             ./x86_64-linux-ghcup set ghc << parameters.ghc_version >>
-            ./x86_64-linux-ghcup install cabal 3.12.1.0
+            ./x86_64-linux-ghcup install cabal 3.16.0.0
             export PATH=~/.ghcup/bin:$PATH
             echo 'export PATH=~/.ghcup/bin:$PATH' >> $BASH_ENV
             cabal update
@@ -153,7 +153,7 @@ commands:
 jobs:
 
   # Not used in workflows below at the moment, because stack doesn't
-  # support GHC 9.12 yet.
+  # support GHC 9.14 yet.
   stack_900:
     machine:
       image: ubuntu-2404:2025.09.1
@@ -161,15 +161,15 @@ jobs:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
             extra_build_flags: "--flag liquidhaskell-boot:devel"
-  cabal_9122:
+  cabal_ghc_9141:
     machine:
       image: ubuntu-2404:2025.09.1
     steps:
       - cabal_build_and_test:
-          ghc_version: "9.12.2"
+          ghc_version: "9.14.1"
 
 workflows:
   version: 2
   build_stack_and_cabal:
     jobs:
-      - cabal_9122
+      - cabal_ghc_9141
