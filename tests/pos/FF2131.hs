@@ -1,9 +1,12 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE KindSignatures #-}
 {-@ LIQUID "--smtsolver=cvc5"  @-}
 
 module FF2131 where
 
-import Language.Haskell.Liquid.FinField
+import GHC.TypeLits
+
+newtype FFld (o :: Nat) = FFld { ffToInteger :: Integer } deriving Eq
 
 -- instantiate FFld for a specific prime value of 2131
 data FF2131 = FF2131 { toFFld :: FFld 2131 }
