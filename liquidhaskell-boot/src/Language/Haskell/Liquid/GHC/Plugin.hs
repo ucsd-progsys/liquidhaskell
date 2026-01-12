@@ -123,12 +123,6 @@ plugin = GHC.defaultPlugin {
     typecheckPlugin opts summary gblEnv = liquidPlugin opts gblEnv $ \cfg ->
       typecheckPluginGo cfg summary gblEnv
 
-    -- Unfortunately, we can't make Haddock run the LH plugin, because the former
-    -- does mangle the '.hi' files, causing annotations to not be persisted in the
-    -- 'ExternalPackageState' and/or 'HomePackageTable'. For this reason we disable
-    -- the plugin altogether if the module is being compiled with Haddock.
-    -- See also: https://github.com/ucsd-progsys/liquidhaskell/issues/1727
-    -- for a post-mortem.
     typecheckPluginGo cfg summary gblEnv = do
       logger0 <- getLogger
       let logger = updateLogFlags logger0 (maybeDDumpTimings cfg)
@@ -137,7 +131,16 @@ plugin = GHC.defaultPlugin {
         GHC.withTimingWallClock
           logger (text "LiquidHaskell" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $ do
         dynFlags <- getDynFlags
-        if gopt Opt_Haddock dynFlags
+        -- Haddock runs the LH plugin, but it does not expose the annotations of dependencies.
+        -- This makes verification fail, so for now, we disable the plugin when haddock runs it.
+        --
+        -- Detecting if Haddock is running the plugin is not obvious enough. We
+        -- try to see for now if Haddock comments are being collected and if the
+        -- noBackend is set.
+        --
+        -- See https://gitlab.haskell.org/ghc/ghc/-/issues/26761
+        -- and https://github.com/ucsd-progsys/liquidhaskell/issues/2188
+        if gopt Opt_Haddock dynFlags && GHC.backendName (backend dynFlags) == GHC.NoBackend
           then do
             -- Warn the user
             let msg     = PJ.vcat [ PJ.text "LH can't be run with Haddock."
