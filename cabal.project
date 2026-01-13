@@ -1,6 +1,7 @@
 with-compiler: ghc-9.12.2
 
 packages: .
+          ./liquid-finfield
           ./liquid-fixpoint
           ./liquid-parallel
           ./liquid-prelude
