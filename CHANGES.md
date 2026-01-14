@@ -2,6 +2,8 @@
 
 ## Next
 
+## 0.9.12.2.1 (2026-01-14)
+
 - Disable LH when collecting Haddock comments and the noBackend is set [#2611](https:://github.com/ucsd-progsys/liquidhaskell/pull/2611)
 - Make assume reflect error sensitive to dflags [#2607](https:://github.com/ucsd-progsys/liquidhaskell/pull/2607)
 - Add a flag to dump the a-normalized core [#2605](https:://github.com/ucsd-progsys/liquidhaskell/pull/2605)
