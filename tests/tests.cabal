@@ -1571,6 +1571,7 @@ executable unit-pos-2
                     , LNot
 
     build-depends:    base
+                    , liquid-finfield
                     , liquid-prelude
                     , containers
                     , liquid-vector
