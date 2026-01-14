@@ -2,6 +2,26 @@
 
 ## Next
 
+- Disable LH when collecting Haddock comments and the noBackend is set [#2611](https:://github.com/ucsd-progsys/liquidhaskell/pull/2611)
+- Make assume reflect error sensitive to dflags [#2607](https:://github.com/ucsd-progsys/liquidhaskell/pull/2607)
+- Add a flag to dump the a-normalized core [#2605](https:://github.com/ucsd-progsys/liquidhaskell/pull/2605)
+- Show solutions of non-cut kvars in error messages [#2596](https:://github.com/ucsd-progsys/liquidhaskell/pull/2596)
+- Remove question marks as a distinction of predicates from other expressions [#2595](https:://github.com/ucsd-progsys/liquidhaskell/pull/2595)
+- Require braces when declaring qualifier [#2594](https:://github.com/ucsd-progsys/liquidhaskell/pull/2594)
+- Retire implementation of gradual refinement types [#2588](https:://github.com/ucsd-progsys/liquidhaskell/pull/2588)
+- Remove old versions of PLE [#2587](https:://github.com/ucsd-progsys/liquidhaskell/pull/2587)
+- Add new syntax for indexed types (Ix instead of Prop) [#2586](https:://github.com/ucsd-progsys/liquidhaskell/pull/2586)
+- Handle `ByteArray#` as int in the logic [#2581](https:://github.com/ucsd-progsys/liquidhaskell/pull/2581)
+- Do not ignore user qualifiers when using `--reflection` [#2580](https:://github.com/ucsd-progsys/liquidhaskell/pull/2580)
+- Add set cardinality support when using cvc5 [#2577](https:://github.com/ucsd-progsys/liquidhaskell/pull/2577)
+- Support the finite field theory when using cvc5 [#2571](https:://github.com/ucsd-progsys/liquidhaskell/pull/2571) [#2614](https:://github.com/ucsd-progsys/liquidhaskell/pull/2614)
+- Allow to qualify predicate aliases [#2566](https:://github.com/ucsd-progsys/liquidhaskell/pull/2566)
+- Implement stratified types [#2559](https:://github.com/ucsd-progsys/liquidhaskell/pull/2559)
+- Resolve occurrences of imported opaquely-reflected functions [#2548](https:://github.com/ucsd-progsys/liquidhaskell/pull/2548)
+- Allow to qualify type aliases [#2550](https:://github.com/ucsd-progsys/liquidhaskell/pull/2550)
+- Print the amount of checked constraints when verification fails [#2545](https:://github.com/ucsd-progsys/liquidhaskell/pull/2545)
+- Fix SMT crashes on reflected functions on polymorphic data types [#2542](https://github.com/ucsd-progsys/liquidhaskell/pull/2542)
+- Look for cvc5 before cvc4 [#2513](https://github.com/ucsd-progsys/liquidhaskell/pull/2513)
 - Change `--cores` default to 1 [#2564](https://github.com/ucsd-progsys/liquidhaskell/pull/2564)
 
 ## 0.9.12.2 (2025-03-22)
