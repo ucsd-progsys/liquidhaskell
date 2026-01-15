@@ -44,7 +44,7 @@ import GHC.Core                       as Ghc
 import GHC.Core.Coercion              as Ghc
 import GHC.Core.DataCon               as Ghc
 import GHC.Core.Make                  (pAT_ERROR_ID)
-import GHC.Core.Type                  as Ghc hiding (typeKind , isPredTy, extendCvSubst, linear)
+import GHC.Core.Type                  as Ghc hiding (typeKind , extendCvSubst, linear)
 import GHC.Data.FastString            as Ghc
 import GHC.Data.Maybe
 import qualified GHC.Data.Strict

@@ -35,6 +35,7 @@ import qualified GHC.Types.Id as GHC
 import qualified GHC.Types.Name as GHC
 import qualified GHC.Types.SrcLoc as GHC
 import qualified GHC.Unit.Module.ModGuts as GHC
+import qualified GHC.Unit.Types as GHC
 import qualified GHC.Utils.Error as GHC
 
 import GHC.Paths (libdir)
@@ -91,7 +92,7 @@ testApiComments = do
     parseMod str filepath = do
       let location = GHC.mkRealSrcLoc (GHC.mkFastString filepath) 1 1
           buffer = GHC.stringToStringBuffer str
-          popts = GHC.mkParserOpts EnumSet.empty GHC.emptyDiagOpts [] False True True True
+          popts = GHC.mkParserOpts EnumSet.empty GHC.emptyDiagOpts False True True True
           parseState = GHC.initParserState popts buffer location
       case GHC.unP Parser.parseModule parseState of
         GHC.POk _ result -> return result
@@ -241,7 +242,8 @@ compileToCore modName inputSource = do
       GHC.setTargets [target]
       void $ GHC.load GHC.LoadAllTargets
 
-      dsMod <- GHC.getModSummary (GHC.mkModuleName modName)
+      dsMod <- GHC.getModSummary
+                 (GHC.mkModule GHC.mainUnit (GHC.mkModuleName modName))
              >>= GHC.parseModule
              >>= GHC.typecheckModule
              >>= GHC.desugarModule

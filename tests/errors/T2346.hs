@@ -1,4 +1,4 @@
-{-@ LIQUID "--expect-error-containing=?b == GHC.Types.[]" @-}
+{-@ LIQUID "--expect-error-containing=?b == GHC.Internal.Types.[]" @-}
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--exactdc" @-}
 
