@@ -28,14 +28,6 @@ allow-newer:
   ,containers
   ,ghc-bignum
 
-  ,active:base
-  ,Chart-diagrams:time
-  ,dual-tree:base
-  ,fsnotify:text
-  ,monoid-extras:base
-  ,statestack:base
-  ,svg-builder:base
-
 -- We could be using program-options here, but it would turn on parallelism
 -- when building tests, and this interferes with benchmarking.
 --
@@ -57,7 +49,5 @@ package liquid-parallel
 flags: +devel
 
 constraints:
-  -- since 1.4.7 there's a clash between data-default-class and data-default-0.8 when building SVGFonts
-  , diagrams-lib < 1.4.7
   -- GHC 9.14 compatibility
-  ,aeson >= 2.2.3.0
+  aeson >= 2.2.3.0
