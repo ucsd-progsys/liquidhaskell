@@ -13,7 +13,6 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_GHC -Wwarn=deprecations #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
-{-# OPTIONS_GHC -Wno-x-partial #-}
 
 module Language.Haskell.Liquid.GHC.Interface (
 

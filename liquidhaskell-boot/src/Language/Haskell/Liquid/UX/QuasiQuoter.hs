@@ -3,7 +3,6 @@
 {-# LANGUAGE TemplateHaskellQuotes #-}
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE OverloadedStrings     #-}
-{-# OPTIONS_GHC -Wno-x-partial #-}
 
 module Language.Haskell.Liquid.UX.QuasiQuoter
 -- (

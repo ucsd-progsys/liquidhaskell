@@ -5,7 +5,7 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE DeriveTraversable   #-}
 
-{-# OPTIONS_GHC -Wno-x-partial -Wno-incomplete-record-selectors #-}
+{-# OPTIONS_GHC -Wno-incomplete-record-selectors #-}
 
 module Language.Haskell.Liquid.Bare.Check
   ( checkTargetSpec
