@@ -594,7 +594,9 @@ import GHC.Types.Basic                as Ghc
     , TopLevelFlag(NotTopLevel)
     , TupleSort(BoxedTuple)
     , funPrec
+    , InlinePragma(inl_act, inl_inline, inl_rule, inl_sat, inl_src)
     , isDeadOcc
+    , isNoInlinePragma
     , isStrongLoopBreaker
     , noOccInfo
     , topPrec
@@ -644,10 +646,6 @@ import GHC.Types.Literal              as Ghc
     ( LitNumType(LitNumInt)
     , Literal(LitChar, LitDouble, LitFloat, LitNumber, LitString)
     , literalType
-    )
-import GHC.Types.InlinePragma         as Ghc
-    ( InlinePragma(inl_act, inl_inline, inl_rule)
-    , isNoInlinePragma
     )
 import GHC.Types.Name                 as Ghc
     ( OccName
