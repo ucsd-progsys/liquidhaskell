@@ -259,7 +259,7 @@ predRTyCon   :: RTyCon
 predRTyCon   = symbolRTyCon predName
 
 symbolRTyCon   :: F.Symbol -> RTyCon
-symbolRTyCon n = RTyCon (stringTyCon 'x' 42 $ F.symbolString n) [] defaultTyConInfo
+symbolRTyCon n = RTyCon (stringTyCon LocalTag 42 $ F.symbolString n) [] defaultTyConInfo
 
 -------------------------------------------------------------------------------------
 -- | Instantiate `PVar` with `RTProp` -----------------------------------------------

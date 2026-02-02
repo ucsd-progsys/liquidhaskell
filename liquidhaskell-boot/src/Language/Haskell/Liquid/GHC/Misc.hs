@@ -82,14 +82,14 @@ tickSrcSpan _                 = noSrcSpan
 stringTyVar :: String -> TyVar
 stringTyVar s = mkTyVar name liftedTypeKind
   where
-    name      = mkInternalName (mkUnique 'x' 24)  occ noSrcSpan
+    name      = mkInternalName (mkUnique LocalTag 24)  occ noSrcSpan
     occ       = mkTyVarOcc s
 
 -- FIXME: reusing uniques like this is really dangerous
 stringVar :: String -> Type -> Var
 stringVar s t = mkLocalVar VanillaId name ManyTy t vanillaIdInfo
    where
-      name = mkInternalName (mkUnique 'x' 25) occ noSrcSpan
+      name = mkInternalName (mkUnique LocalTag 25) occ noSrcSpan
       occ  = mkVarOcc s
 
 -- FIXME: plugging in dummy type like this is really dangerous
@@ -101,14 +101,14 @@ maybeAuxVar s
         sym = dropModuleNames s
         sv = mkExportedLocalId VanillaId name anyTy
         -- 'x' is chosen for no particular reason..
-        name = mkInternalName (mkUnique 'x' uid) occ noSrcSpan
+        name = mkInternalName (mkUnique LocalTag uid) occ noSrcSpan
         occ = mkVarOcc (T.unpack (symbolText sym))
 
-stringTyCon :: Char -> UniqueId -> String -> TyCon
+stringTyCon :: UniqueTag -> UniqueId -> String -> TyCon
 stringTyCon = stringTyConWithKind anyTy
 
 -- FIXME: reusing uniques like this is really dangerous
-stringTyConWithKind :: Kind -> Char -> UniqueId -> String -> TyCon
+stringTyConWithKind :: Kind -> UniqueTag -> UniqueId -> String -> TyCon
 stringTyConWithKind k c n s = Ghc.mkPrimTyCon name [] k []
   where
     name          = mkInternalName (mkUnique c n) occ noSrcSpan

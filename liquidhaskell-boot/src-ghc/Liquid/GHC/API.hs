@@ -752,7 +752,7 @@ import GHC.Types.TypeEnv              as Ghc
     , plusTypeEnv
     )
 import GHC.Types.Unique               as Ghc
-    ( getKey, mkUnique )
+    ( UniqueTag(LocalTag), getKey, mkUnique )
 import GHC.Types.Unique.Set           as Ghc (mkUniqSet)
 import GHC.Types.Unique.Supply        as Ghc
     ( MonadUnique, getUniqueM )
