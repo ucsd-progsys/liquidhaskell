@@ -232,7 +232,7 @@ compileToCore modName inputSource = do
     GHC.runGhc (Just libdir) $ do
       df1 <- GHC.getSessionDynFlags
       GHC.setSessionDynFlags $ df1
-        { GHC.backend = GHC.interpreterBackend
+        { GHC.backend = GHC.bytecodeBackend
         }
          `gopt_set` GHC.Opt_InsertBreakpoints
       let target = GHC.Target {
