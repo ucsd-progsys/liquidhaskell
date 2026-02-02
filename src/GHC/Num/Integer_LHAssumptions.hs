@@ -4,13 +4,13 @@
 module GHC.Num.Integer_LHAssumptions() where
 
 import GHC.Prim
-import GHC.Num.Integer
+import GHC.Num
 import GHC.Types_LHAssumptions()
 
 {-@
-assume GHC.Num.Integer.IS :: x:Int# -> {v: Integer | v = (x :: int) }
+assume IS :: x:Int# -> {v: Integer | v = (x :: int) }
 
-define GHC.Num.Integer.IS x = (x)
+define IS x = (x)
 
 embed Integer as int
 @-}
