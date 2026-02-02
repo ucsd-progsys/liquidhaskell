@@ -162,10 +162,9 @@ library
                     , extra
   default-language:   Haskell98
   default-extensions: PatternGuards, RecordWildCards, DoAndIfThenElse
-  ghc-options:        -W -fwarn-missing-signatures
-
+  ghc-options:        -W -fwarn-missing-signatures -Wno-x-partial
   if flag(devel)
-    ghc-options:      -Wall -Werror
+    ghc-options:      -Wall -Werror -Wno-x-partial
 
 test-suite wiredin-tests
   type:             exitcode-stdio-1.0
