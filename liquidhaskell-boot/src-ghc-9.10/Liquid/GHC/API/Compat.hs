@@ -14,7 +14,7 @@ module Liquid.GHC.API.Compat (
 
 import Data.Word (Word64)
 import qualified GHC.Builtin.Names as Ghc
-import GHC (Module, LexicalFixity(..))
+import GHC (Module)
 import GHC.Hs
 
 ----------------------
