@@ -219,7 +219,7 @@ typecheckSourceCode
 typecheckSourceCode modName inputSource = do
     now <- liftIO getCurrentTime
     df1 <- GHC.getSessionDynFlags
-    GHC.setSessionDynFlags $ df1 { GHC.backend = GHC.interpreterBackend }
+    GHC.setSessionDynFlags $ df1 { GHC.backend = GHC.bytecodeBackend }
     let target = GHC.Target
                { GHC.targetId           = GHC.TargetFile (modName ++ ".hs") Nothing
                , GHC.targetUnitId       = GHC.homeUnitId_ df1

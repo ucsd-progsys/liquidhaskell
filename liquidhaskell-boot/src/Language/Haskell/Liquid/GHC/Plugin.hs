@@ -238,7 +238,7 @@ lhDynFlags _ hscEnv =
 desugarerDynFlags :: DynFlags -> DynFlags
 desugarerDynFlags df = (foldl gopt_unset df disabledOpts)
     { debugLevel   = 1                  -- To keep source note ticks
-    , backend      = interpreterBackend -- To keep unused functions during desugaring
+    , backend      = bytecodeBackend    -- To keep unused functions during desugaring
     }
   where
     disabledOpts =
