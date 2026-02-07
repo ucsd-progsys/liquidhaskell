@@ -85,6 +85,7 @@ excluded-files:
   - "**/.liquid/*.html"
   - "**/.liquid/*.json"
   - "*.css"
+  - "tests/benchmarks/**/LICENSE"
   - "tests/benchmarks/base-*/**/*"
   - "tests/benchmarks/bytestring-*/**/*"
   - "tests/benchmarks/hmatrix-*/**/*"
