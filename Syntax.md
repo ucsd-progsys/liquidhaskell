@@ -66,7 +66,7 @@ bump2 :: (Int -> Int) -> (Int -> Int) -> Int
 bump2 f g = f 0 + g 0
 
 {-@ flerb :: ({v:Int | v = 6}, {v:Int | v = 10}) @-}
-flerb = (a, b)   
+flerb = (a, b)
   where
     a = bump  zong
     b = bump2 zong zong

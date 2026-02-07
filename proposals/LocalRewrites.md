@@ -87,9 +87,9 @@ This proposal suggests the following steps:
 - Introduce a mechanism to provide local definitions in the `.fq` file format.
   For example: `define n f = {(Example.id)}`, where `n` is the binding ID that
   contains the equation introducing the rewrite.
-  
+
 - Extend the PLE mechanism to account for these local rewrites.
-  
+
 - Modify Liquid Haskell to generate such rewrites during the constraint
   generation phase
   (`Liquidhaskell-boot/src/Language/Haskell/Liquid/constraint/Generate.hs`).
@@ -119,8 +119,8 @@ This proposal suggests the following steps:
 
 - We need a uniform way to distinguish whether a variable is "local" (i.e., a
   variable without a definition, like a function parameter). An earlier attempt
-  at this was part of PR 
-  [#705](https://github.com/ucsd-progsys/liquid-fixpoint/pull/705), but it was 
+  at this was part of PR
+  [#705](https://github.com/ucsd-progsys/liquid-fixpoint/pull/705), but it was
   removed because the solution was too dependent on the variable naming scheme
-  used by Liquid Haskell. This in LH is a non issue as GHC Variables are 
+  used by Liquid Haskell. This in LH is a non issue as GHC Variables are
   annotated with extra information.

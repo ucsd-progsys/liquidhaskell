@@ -3,13 +3,13 @@
 
 module Data.Lattice where
 
-import Liquid.ProofCombinators 
+import Liquid.ProofCombinators
 
 class Lattice l where
     canFlowTo :: l -> l -> Bool
     meet :: l -> l -> l
     join :: l -> l -> l
-    bot  :: l 
+    bot  :: l
 
     {-@ lawFlowReflexivity :: l : l -> {canFlowTo l l} @-}
     lawFlowReflexivity :: l -> ()
@@ -25,7 +25,7 @@ class Lattice l where
     {-@ lawBot :: x : l -> { canFlowTo bot x } @-}
     lawBot  :: l -> ()
 
-{-@ joinCanFlowTo 
+{-@ joinCanFlowTo
  :: Lattice l
  => l1 : l
  -> l2 : l
@@ -33,31 +33,31 @@ class Lattice l where
  -> {canFlowTo l1 l3 && canFlowTo l2 l3 <=> canFlowTo (join l1 l2) l3}
  @-}
 joinCanFlowTo :: Lattice l => l -> l -> l -> ()
-joinCanFlowTo l1 l2 l3 = lawJoin l1 l2 l3 &&& unjoinCanFlowTo l1 l2 l3 
+joinCanFlowTo l1 l2 l3 = lawJoin l1 l2 l3 &&& unjoinCanFlowTo l1 l2 l3
 
 
-{-@ unjoinCanFlowTo 
+{-@ unjoinCanFlowTo
  :: Lattice l
- => l1:l -> l2:l -> l3:l 
+ => l1:l -> l2:l -> l3:l
  -> {canFlowTo (join l1 l2) l3 => (canFlowTo l1 l3 && canFlowTo l2 l3)}
  @-}
 unjoinCanFlowTo :: Lattice l => l -> l -> l -> ()
 unjoinCanFlowTo l1 l2 l3
-  =     lawJoin l1 l2 l3  
+  =     lawJoin l1 l2 l3
     &&& lawFlowTransitivity l1 (l1 `join` l2) l3
     &&& lawFlowTransitivity l2 (l1 `join` l2) l3
 
-{-@ notJoinCanFlowTo 
- :: Lattice l 
- => a : l 
- -> b : l 
+{-@ notJoinCanFlowTo
+ :: Lattice l
+ => a : l
+ -> b : l
  -> c : {l | not (canFlowTo a c)}
  -> {not (canFlowTo (join a b) c)}
  @-}
 notJoinCanFlowTo :: Lattice l => l -> l -> l -> ()
 notJoinCanFlowTo l1 l2 l3 = unjoinCanFlowTo l1 l2 l3
 
-{-@ meetCanFlowTo 
+{-@ meetCanFlowTo
  :: Lattice l
  => l1 : l
  -> l2 : l
@@ -65,12 +65,12 @@ notJoinCanFlowTo l1 l2 l3 = unjoinCanFlowTo l1 l2 l3
  -> {canFlowTo l1 l2 && canFlowTo l1 l3 <=> canFlowTo l1 (meet l2 l3)}
  @-}
 meetCanFlowTo :: Lattice l => l -> l -> l -> ()
-meetCanFlowTo l1 l2 l3 = lawMeet l2 l3 l1 &&& unmeetCanFlowTo l1 l2 l3 
+meetCanFlowTo l1 l2 l3 = lawMeet l2 l3 l1 &&& unmeetCanFlowTo l1 l2 l3
 
 
-{-@ unmeetCanFlowTo 
+{-@ unmeetCanFlowTo
  :: Lattice l
- => l1:l -> l2:l -> l3:l 
+ => l1:l -> l2:l -> l3:l
  -> {canFlowTo l1 (meet l2 l3) => (canFlowTo l1 l2 && canFlowTo l1 l3)}
  @-}
 unmeetCanFlowTo :: Lattice l => l -> l -> l -> ()
@@ -79,33 +79,33 @@ unmeetCanFlowTo l1 l2 l3
     &&& lawFlowTransitivity l1 (l2 `meet` l3) l2
     &&& lawFlowTransitivity l1 (l2 `meet` l3) l3
 
-{-@ notMeetCanFlowTo 
- :: Lattice l 
- => a : l 
- -> b : l 
+{-@ notMeetCanFlowTo
+ :: Lattice l
+ => a : l
+ -> b : l
  -> c : {l | not (canFlowTo a c)}
  -> {not (canFlowTo a (meet b c))}
  @-}
 notMeetCanFlowTo :: Lattice l => l -> l -> l -> ()
 notMeetCanFlowTo l1 l2 l3 = unmeetCanFlowTo l1 l2 l3
 
-{-@ notCanFlowTo 
- :: Lattice l 
- => a : l 
- -> b : l 
+{-@ notCanFlowTo
+ :: Lattice l
+ => a : l
+ -> b : l
  -> c : l
  -> {(not (canFlowTo b a) && canFlowTo b c) => not (canFlowTo c a)}
  @-}
 notCanFlowTo :: Lattice l => l -> l -> l -> ()
 notCanFlowTo a b c = lawFlowTransitivity b c a
 
-{-@ unmeetCanFlowToItself :: Lattice l => a:l -> b:l 
+{-@ unmeetCanFlowToItself :: Lattice l => a:l -> b:l
   -> { canFlowTo (meet a b) a && canFlowTo (meet a b) b } @-}
 unmeetCanFlowToItself :: Lattice l => l -> l -> ()
 unmeetCanFlowToItself x y = lawMeet x y x
 
-{-@ unjoinCanFlowToItself :: Lattice l => a:l -> b:l 
+{-@ unjoinCanFlowToItself :: Lattice l => a:l -> b:l
   -> { canFlowTo a (join a b) && canFlowTo b (join a b) } @-}
 unjoinCanFlowToItself :: Lattice l => l -> l -> ()
 unjoinCanFlowToItself x y = lawJoin x y x
- 
+

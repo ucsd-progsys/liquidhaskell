@@ -128,7 +128,7 @@ x ? _ = x
 
 -------------------------------------------------------------------------------
 -- | Assumed equality
--- 	`x ==! y `
+--      `x ==! y `
 --   returns the admitted proof certificate that result value is equals x and y
 -------------------------------------------------------------------------------
 
@@ -140,9 +140,9 @@ infixl 3 ==!
 
 -- | To summarize:
 --
--- 	- (==!) is *only* for proof debugging
---	- (===) does not require explicit proof term
--- 	- (?)   lets you insert "lemmas" as other `Proof` values
+--      - (==!) is *only* for proof debugging
+--      - (===) does not require explicit proof term
+--      - (?)   lets you insert "lemmas" as other `Proof` values
 
 -------------------------------------------------------------------------------
 -- | * Unchecked Proof Certificates -------------------------------------------

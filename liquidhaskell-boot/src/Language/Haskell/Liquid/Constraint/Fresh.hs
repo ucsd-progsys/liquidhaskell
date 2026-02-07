@@ -11,7 +11,7 @@
 
 module Language.Haskell.Liquid.Constraint.Fresh
   ( -- module Language.Haskell.Liquid.Types.Fresh
-    -- , 
+    -- ,
     refreshArgsTop
   , freshTyType
   , freshTyExpr

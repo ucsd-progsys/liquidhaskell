@@ -50,7 +50,7 @@ data Span
 instance Show Span where
   show (Var x)   = show x
   show (Tick tt) = showPpr tt
-  show (Span s)  = show s 
+  show (Span s)  = show s
 
 --------------------------------------------------------------------------------
 srcSpan :: SpanStack -> SrcSpan
@@ -67,7 +67,7 @@ spanSrcSpan      = maybeSpan Nothing . go
   where
     go (Var x)   = getSrcSpan x
     go (Tick tt) = tickSrcSpan tt
-    go (Span s)  = s 
+    go (Span s)  = s
 
 maybeSpan :: Maybe SrcSpan -> SrcSpan -> Maybe SrcSpan
 maybeSpan d sp

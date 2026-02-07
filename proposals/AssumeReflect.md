@@ -14,7 +14,7 @@ Of course, this pragma is unsafe as it introduces a big assumption, since we cou
 
 ```
 {-@ LIQUID "--reflection" @-}
-{-@ LIQUID "--ple"    	@-}
+{-@ LIQUID "--ple"      @-}
 
 module AssmRefl where
 
@@ -22,10 +22,10 @@ import Data.List (filter)
 
 {-@ reflect myfilter @-}
 myfilter :: (a -> Bool) -> [a] -> [a]
-myfilter _pred []	= []
+myfilter _pred []       = []
 myfilter pred (x:xs)
-  | pred x     	= x : myfilter pred xs
-  | otherwise  	= myfilter pred xs
+  | pred x      = x : myfilter pred xs
+  | otherwise   = myfilter pred xs
 
 {-@ assume reflect filter as myfilter @-}
 
@@ -54,14 +54,14 @@ LH will actually check that `myfoobar` is already reflected, if not, it will thr
 
 module AssmRefl where
 
-foobar :: Int -> Bool 
+foobar :: Int -> Bool
 foobar n = n `mod` 2 == 0
 
 {-@ assume reflect foobar as myfoobar @-}
 myfoobar :: Int -> Bool
 myfoobar n = n `mod` 2 == 1
 
-{-@ test :: { foobar 5 } @-} 
+{-@ test :: { foobar 5 } @-}
 test :: ()
 test = ()
 ```
@@ -83,7 +83,7 @@ Furthermore, we cannot `assume reflect` a function which has already been reflec
 module AssmRefl where
 
 {-@ reflect foobar @-}
-foobar :: Int -> Bool 
+foobar :: Int -> Bool
 foobar n = n `mod` 2 == 0
 
 {-@ reflect myfoobar @-}
@@ -91,7 +91,7 @@ foobar n = n `mod` 2 == 0
 myfoobar :: Int -> Bool
 myfoobar n = n `mod` 2 == 1
 
-{-@ test :: { foobar 5 } @-} 
+{-@ test :: { foobar 5 } @-}
 test :: ()
 test = ()
 ```
@@ -112,7 +112,7 @@ Also, LH checks the type of `myfoobar` against the type of `foobar` so that at l
 
 module AssmRefl where
 
-foobar :: Int -> Bool 
+foobar :: Int -> Bool
 foobar n = n `mod` 2 == 0
 
 {-@ reflect myfoobar @-}
@@ -120,7 +120,7 @@ foobar n = n `mod` 2 == 0
 myfoobar :: Bool -> Bool
 myfoobar n = True
 
-{-@ test :: { foobar 5 } @-} 
+{-@ test :: { foobar 5 } @-}
 test :: ()
 test = ()
 ```
@@ -138,7 +138,7 @@ As said previously, we can easily introduce falsity since we assume the definiti
 ```haskell
 module AssmRefl where
 
-alwaysFalse :: Bool 
+alwaysFalse :: Bool
 alwaysFalse = False
 
 {-@ reflect alwaysTrue @-}
@@ -163,7 +163,7 @@ We disallow two (or more) redefinitions of a reflection inside the same module.
 
 module AssmRefl where
 
-alwaysFalse :: Bool 
+alwaysFalse :: Bool
 alwaysFalse = False
 
 {-@ reflect alwaysTrue @-}
@@ -176,15 +176,15 @@ alwaysTrue = True
 alwaysFalse2 :: Bool
 alwaysFalse2 = False
 
-{-@ test :: { alwaysFalse } @-} 
+{-@ test :: { alwaysFalse } @-}
 test :: ()
 test = ()
 ```
 
 ```
 tests/basic/pos/AssmRefl.hs:16:20: error:
-	Cannot lift Haskell function `alwaysFalse` to logic
-	Duplicate reflection of "alwaysFalse" defined at: tests/basic/pos/AssmRefl.hs:11:20-11:32 and "alwaysFalse" defined at: tests/basic/pos/AssmRefl.hs:16:20-16:32
+        Cannot lift Haskell function `alwaysFalse` to logic
+        Duplicate reflection of "alwaysFalse" defined at: tests/basic/pos/AssmRefl.hs:11:20-11:32 and "alwaysFalse" defined at: tests/basic/pos/AssmRefl.hs:16:20-16:32
 ```
 
 ### Imports
@@ -213,7 +213,7 @@ module MyTest.ModTwoA where
 
 import MyTest.ModFour
 
-{-@ mytest :: { foobar 4 } @-} 
+{-@ mytest :: { foobar 4 } @-}
 mytest :: ()
 mytest = ()
 ```
@@ -241,15 +241,15 @@ test = ()
 {-@ LIQUID "--ple"        @-}
 
 module MyTest.ModTwoB where
-    
+
 import MyTest.ModFour (foobar)
 
 {-@ reflect myfoobar @-}
 {-@ assume reflect foobar as myfoobar @-}
-myfoobar :: Int -> Bool 
+myfoobar :: Int -> Bool
 myfoobar n = n `mod` 2 == 1
 
-{-@ mytest :: { foobar 5 } @-} 
+{-@ mytest :: { foobar 5 } @-}
 mytest :: ()
 mytest = ()
 ```
@@ -267,7 +267,7 @@ import MyTest.ModFour (foobar)
 myfoobar :: Int -> Bool
 myfoobar n = n `mod` 2 == 0
 
-{-@ mytest :: { foobar 4 } @-} 
+{-@ mytest :: { foobar 4 } @-}
 mytest :: ()
 mytest = ()
 ```

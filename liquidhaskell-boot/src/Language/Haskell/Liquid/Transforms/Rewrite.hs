@@ -42,7 +42,7 @@ import qualified Data.HashMap.Strict as M
 rewriteBinds :: Config -> [CoreBind] -> [CoreBind]
 rewriteBinds cfg
   | simplifyCore cfg
-  = fmap (normalizeTuples 
+  = fmap (normalizeTuples
        . rewriteBindWith undollar
        . tidyTuples
        . rewriteBindWith inlineLoopBreakerTx

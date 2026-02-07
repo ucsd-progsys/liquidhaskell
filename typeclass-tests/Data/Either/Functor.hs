@@ -35,7 +35,7 @@ instance VFunctor (Either l) where
   lawFunctorComposition _ _ (Right _) = ()
 
 instance Applicative (Either l) where
-  pure = Right 
+  pure = Right
   ap (Right f) (Right x) = Right (f x)
   ap (Right f) (Left x)  = Left x
   ap (Left x) _ = Left x

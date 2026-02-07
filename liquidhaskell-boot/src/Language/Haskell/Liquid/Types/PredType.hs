@@ -198,7 +198,7 @@ dcWrapSpecType allowTC dc (DataConP _ _ vs ps cs yts rt _ _ _)
     subst    = F.mkSubst [(x, F.EVar y) | (x, y) <- zip as1 bs]
     rt'      = F.subst subst rt
     makeVars = filter (`elem` fvs) $ zipWith (\v a -> RTVar v (rTVarInfo a :: RTVInfo RSort)) vs (fst $ splitForAllTyCoVars $ dataConRepType dc)
-    makeVars' = map (, mempty) makeVars 
+    makeVars' = map (, mempty) makeVars
     fvs = freeTyVars $ mkArrow [] ps ts' rt'
 
 dataConTy :: Monoid r

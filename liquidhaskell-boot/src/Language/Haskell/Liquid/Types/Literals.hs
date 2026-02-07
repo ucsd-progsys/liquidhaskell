@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Language.Haskell.Liquid.Types.Literals 
+module Language.Haskell.Liquid.Types.Literals
   ( literalFRefType
   , literalFReft
   , literalConst

@@ -9,11 +9,11 @@ main         = getArgs >>= mapM lhs2hsFile
 lhs2hsFile f = do str <- readFile f
                   writeFile (replaceExtension f ".hs") $ lhs2hs txBeginEnd {- txBird -} $ str
 
-lhs2hs tx    = unlines . tx . map trimSpaces . lines 
-trimSpaces   = reverse . dropWhile isSpace . reverse 
+lhs2hs tx    = unlines . tx . map trimSpaces . lines
+trimSpaces   = reverse . dropWhile isSpace . reverse
 
 --------------------------------------------------------------------------
-txBeginEnd   = stepFold step Comment 
+txBeginEnd   = stepFold step Comment
 
 data Mode = Code | Comment
 
@@ -25,12 +25,12 @@ step Code    s               = (Code   , s )
 
 
 stepFold f b []     = []
-stepFold f b (x:xs) = y : stepFold f b' xs 
-                      where (b', y) = f b x 
+stepFold f b (x:xs) = y : stepFold f b' xs
+                      where (b', y) = f b x
 --------------------------------------------------------------------------
 
-txBird  = map dropTrack 
-  where 
+txBird  = map dropTrack
+  where
     dropTrack ('>' : ' ' : l) = l
     dropTrack l               = "--" ++ l
 

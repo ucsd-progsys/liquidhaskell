@@ -21,28 +21,28 @@ import           Language.Fixpoint.Types (symbol)
 instance Eq Type where
   t1 == t2 = eqType' t1 t2
 
-eqType' :: Type -> Type -> Bool 
-eqType' (LitTy l1) (LitTy l2) 
-  = l1 == l2  
+eqType' :: Type -> Type -> Bool
+eqType' (LitTy l1) (LitTy l2)
+  = l1 == l2
 eqType' (CoercionTy _c1) (CoercionTy _c2) = True
 eqType'(CastTy t1 _c1) (CastTy t2 _c2) = eqType' t1 t2
 eqType' (FunTy a1 m1 t11 t12) (FunTy a2 m2 t21 t22)
-  = a1 == a2 && m1 == m2 && eqType' t11 t21 && eqType' t12 t22  
-eqType' (ForAllTy (Bndr v1 _) t1) (ForAllTy (Bndr v2 _) t2) 
+  = a1 == a2 && m1 == m2 && eqType' t11 t21 && eqType' t12 t22
+eqType' (ForAllTy (Bndr v1 _) t1) (ForAllTy (Bndr v2 _) t2)
   = eqType' t1 (substType v2 (TyVarTy v1) t2)
-eqType' (TyVarTy v1) (TyVarTy v2) 
-  = v1 == v2 
-eqType' (AppTy t11 t12) (AppTy t21 t22) 
-  = eqType' t11 t21 && eqType' t12 t22  
-eqType' (TyConApp c1 ts1) (TyConApp c2 ts2) 
-  = c1 == c2 && and (zipWith eqType' ts1 ts2) 
-eqType' _ _ 
-  = False 
+eqType' (TyVarTy v1) (TyVarTy v2)
+  = v1 == v2
+eqType' (AppTy t11 t12) (AppTy t21 t22)
+  = eqType' t11 t21 && eqType' t12 t22
+eqType' (TyConApp c1 ts1) (TyConApp c2 ts2)
+  = c1 == c2 && and (zipWith eqType' ts1 ts2)
+eqType' _ _
+  = False
 
-showTy :: Type -> String 
+showTy :: Type -> String
 showTy (TyConApp c ts) = "(RApp   " ++ showPpr c ++ " " ++ sep' ", " (showTy <$> ts) ++ ")"
-showTy (AppTy t1 t2)   = "(TAppTy " ++ (showTy t1 ++ " " ++ showTy t2) ++ ")" 
-showTy (TyVarTy v)   = "(RVar " ++ show (symbol v)  ++ ")" 
+showTy (AppTy t1 t2)   = "(TAppTy " ++ (showTy t1 ++ " " ++ showTy t2) ++ ")"
+showTy (TyVarTy v)   = "(RVar " ++ show (symbol v)  ++ ")"
 showTy (ForAllTy (Bndr v _) t)  = "ForAllTy " ++ show (symbol v) ++ ". (" ++  showTy t ++ ")"
 showTy (FunTy af _m1 t1 t2) = "FunTy " ++ showPpr af ++ " " ++ showTy t1 ++ ". (" ++  showTy t2 ++ ")"
 showTy (CastTy _ _)    = "CastTy"
@@ -52,7 +52,7 @@ showTy (LitTy _)       = "LitTy"
 sep' :: String -> [String] -> String
 sep' _ [x] = x
 sep' _ []  = []
-sep' s (x:xs) = x ++ s ++ sep' s xs 
+sep' s (x:xs) = x ++ s ++ sep' s xs
 
 
 
@@ -61,28 +61,28 @@ sep' s (x:xs) = x ++ s ++ sep' s xs
 -------------------------------------------------------------------------------
 
 substType :: TyVar -> Type -> Type -> Type
-substType x tx (TyConApp c ts) 
+substType x tx (TyConApp c ts)
   = TyConApp c (substType x tx <$> ts)
-substType x tx (AppTy t1 t2)   
+substType x tx (AppTy t1 t2)
   = AppTy (substType x tx t1) (substType x tx t2)
-substType x tx (TyVarTy y)   
+substType x tx (TyVarTy y)
   | symbol x == symbol y
-  = tx 
+  = tx
   | otherwise
-  = TyVarTy y 
+  = TyVarTy y
 substType x tx (FunTy aaf m t1 t2)
   = FunTy aaf m (substType x tx t1) (substType x tx t2)
-substType x tx f@(ForAllTy b@(Bndr y _) t)  
-  | symbol x == symbol y 
+substType x tx f@(ForAllTy b@(Bndr y _) t)
+  | symbol x == symbol y
   = f
-  | otherwise 
+  | otherwise
   = ForAllTy b (substType x tx t)
-substType x tx (CastTy t c)    
+substType x tx (CastTy t c)
   = let ss = extendSubstInScopeSet (zipTvSubst [x] [tx]) (tyCoVarsOfCo c)
      in CastTy (substType x tx t) (substCo ss c)
-substType x tx (CoercionTy c)  
+substType x tx (CoercionTy c)
   = let ss = extendSubstInScopeSet (zipTvSubst [x] [tx]) (tyCoVarsOfCo c)
      in CoercionTy $ substCo ss c
 substType _ _  (LitTy l)
-  = LitTy l  
+  = LitTy l
 

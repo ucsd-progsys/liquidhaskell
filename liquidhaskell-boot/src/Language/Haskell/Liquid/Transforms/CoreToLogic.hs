@@ -221,7 +221,7 @@ defArgs x     = zipWith (\i t -> (defArg i, defRTyp t)) [0..]
 
 coreToDef :: Reftable r => Located LHName -> Var -> C.CoreExpr
           -> LogicM [Def (Located (RRType r)) DataCon]
-coreToDef locSym _ s              = do 
+coreToDef locSym _ s              = do
     allowTC <- reader $ typeclass . lsConfig
     go [] $ inlinePreds $ simplify allowTC s
   where
@@ -256,12 +256,12 @@ varRType :: (Reftable r) => Var -> Located (RRType r)
 varRType = GM.varLocInfo ofType
 
 coreToFun :: LocSymbol -> Var -> C.CoreExpr ->  LogicM ([Var], Either Expr Expr)
-coreToFun _ _v s = do 
+coreToFun _ _v s = do
   allowTC <- reader $ typeclass . lsConfig
   go [] $ normalize allowTC s
   where
     go acc (C.Lam x e)  | isTyVar x = go acc e
-    go acc (C.Lam x e)  = do 
+    go acc (C.Lam x e)  = do
       allowTC <- reader $ typeclass . lsConfig
       let isE = if allowTC then GM.isEmbeddedDictVar else isErasable
       if isE x then go acc e else go (x:acc) e

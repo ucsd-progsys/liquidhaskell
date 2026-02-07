@@ -471,7 +471,7 @@ resolveBoundVarsInTypeAliases = updateAliases resolveBoundVars
 -- the parser builds a type for @Ev (plus n n)@, making a type
 -- constructor of @Ev@ and type variables of @plus@ and @n@. But
 -- @Ev@ is really a data constructor, @plus@ is a function, and @n@
--- is a value. 
+-- is a value.
 fixExpressionArgsOfTypeAliases
   :: InScopeEnv (RTAlias Symbol ())
   -> BareSpecParsed
@@ -528,7 +528,7 @@ mapMBareTypes f  = go
 --     {-@ type Prop E = {v:_ | prop v = E} @-}
 --   the parser will chomp in `Ev (plus n n)` as a `BareType` and so
 -- | @exprArg@ converts a type to a value.
---   
+--
 --   At parse time the arguments of type aliases are all treated as types.
 --   This needs fixing before verification because some arguments are
 --   meant to be values. Hence, this function to correct the

@@ -39,6 +39,3 @@ jobs:
               git+https://github.com/jldiaz/mkdocs-plugin-tags.git
       - run: cd docs/mkDocs && mkdocs gh-deploy --force
 
-
-
-    

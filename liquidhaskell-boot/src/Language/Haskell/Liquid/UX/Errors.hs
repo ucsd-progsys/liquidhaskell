@@ -99,10 +99,10 @@ tidyREnv xts    = (θ, second (F.subst θ) <$> zts)
     θ           = expandVarDefs yes
     (yes, zts)  = partitionEithers $ map isInline xts
 
--- | 'expandVarDefs [(x1, e1), ... ,(xn, en)] returns a `Subst` that  
---   contains the fully substituted definitions for each `xi`. For example, 
---      expandVarDefs [(x1, 'x2 + x3'), (x5, 'x1 + 1')] 
---   should return 
+-- | 'expandVarDefs [(x1, e1), ... ,(xn, en)] returns a `Subst` that
+--   contains the fully substituted definitions for each `xi`. For example,
+--      expandVarDefs [(x1, 'x2 + x3'), (x5, 'x1 + 1')]
+--   should return
 --     [x1 := 'x2 + x3, x5 := (x2 + x3) + 1]
 
 expandVarDefs :: [(F.Symbol, F.Expr)] -> F.Subst
