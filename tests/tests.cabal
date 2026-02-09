@@ -1700,6 +1700,7 @@ executable unit-pos-3
                     , T2404
                     , T2535
                     , T2579
+                    , T2619
                     , T385
                     , T531
                     , T595a

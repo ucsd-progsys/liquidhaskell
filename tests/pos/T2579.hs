@@ -1,6 +1,6 @@
 {-@ LIQUID "--reflection" @-}
 
-module T2579 where 
+module T2579 where
 
 {-@ qualif MyEqLen( v : [@(0)], x : int) { ((x = (len v)))  } @-}
 
