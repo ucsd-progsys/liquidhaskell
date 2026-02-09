@@ -46,11 +46,11 @@ Don't encode non-encodable ADTs (by default)
 >>>>>>> 102b3384caff33c1d722dcbb96eb20913bcbb064
 ## Fix: SpecDependencyGraph
 
-1. Implement `Bare.SpecDep` 
-2. Use `slice` to pre-filter the `BareSpec` prior to resolution 
+1. Implement `Bare.SpecDep`
+2. Use `slice` to pre-filter the `BareSpec` prior to resolution
 
 ```haskell
--- | This module has datatypes and code for building a Specification Dependency Graph 
+-- | This module has datatypes and code for building a Specification Dependency Graph
 --   whose vertices are 'names' that need to be resolve, and edges are 'dependencies'.
 
 module SpecDep (slice) where
@@ -106,7 +106,7 @@ computations, which make a top-level signature no longer top-level.
                  Prelude.error -> dummyError (no call-stack)
   LambdaEval.hs  11  -> 4   -> 4
   Map0.hs        27  -> 13  -> 13
-  Map2.hs        ""         
+  Map2.hs        ""
   Map.hs         ""
   Base           103 -> 76.18 -> 68
 
@@ -319,7 +319,7 @@ Theorems (from Wouter Swierstra's Coq Development)
     - prop_insertUp_I
     - prop_delete_I
     - prop_swap_master_I
-    - prop_swap_left_I  
+    - prop_swap_left_I
     - prop_swap_right_I
     - prop_shift_I
     - prop_shift_win_I
@@ -453,7 +453,7 @@ What is the machinery by which the "recursive call" is run on a "smaller" GenPar
 Does it help if we remove the `do` block?
 
     chars :: Char -> Parser [Char]
-    chars c = char c  >>= \z  ->   
+    chars c = char c  >>= \z  ->
               chars c >>= \zs ->
               return (z:zs)
 
@@ -591,7 +591,7 @@ which is the `RTycon` for lists `[]` applied to:
 CP := l :-> T * CP  -- Concrete Heap
     | emp
 
-HP := CP       
+HP := CP
     | CP * H        -- Heap Variable
 ```
 
@@ -705,7 +705,7 @@ refinements, and just use the shape τ.
 
 ```
 solve :: Sol -> [Constraint] -> Maybe Sol
-solve σ []     
+solve σ []
   = Just σ
 solve σ (c:cs)
   = case c of
@@ -883,7 +883,7 @@ bind (IO m) k = IO $ \s -> case m s of (a, s') -> (unIO (k a)) s'
 
 You have
 
-IO m :: IO a <P. Q>  
+IO m :: IO a <P. Q>
              => m :: xx:Word <P> -> (y:a, Word <Q y xx>)
 
 you can assume
@@ -905,7 +905,7 @@ to be able to make the final application
 
 
 bind :: ST a <P,Q> -> (a -> ST b <Q x w, R>) -> ST b <P,R>
-bind (ST f1) k = ST $ \s0 -> let (x, s1) = f1 s0  
+bind (ST f1) k = ST $ \s0 -> let (x, s1) = f1 s0
                                  ST f2   = k x
                                  (y, s2) = f2 s1
                              in
@@ -1019,7 +1019,7 @@ where
 
     Q1 == \k v -> Fld k v "name"  String /\
                   Fld k v "age"   Int    /\
-                  Fld k v "alive" Bool   
+                  Fld k v "alive" Bool
 
 and
 
@@ -1129,7 +1129,7 @@ prop = (((refl e0  `imp` (add 1 2 3))   -- :: Eq e0 (3 + (3 + 4))
 
                    `imp` (add 3 4 7))   -- :: Eq e0 (3 + 7)
 
-                   `imp` (add 3 7 10))  -- :: Eq e0 10  
+                   `imp` (add 3 7 10))  -- :: Eq e0 10
 ```
 
 
@@ -1158,12 +1158,12 @@ Code on left, "equations" on right.
 ```
 prop_app_nil    :: xs:[a] -> Eq (append xs []) xs
 
-prop_app_nil []     = refl (append [] [])             
+prop_app_nil []     = refl (append [] [])
                                                    -- append [] []
-                       `by` (append_nil [])        -- { append_nil [] }    
-                                                   -- == []  
+                       `by` (append_nil [])        -- { append_nil [] }
+                                                   -- == []
 
-prop_app_nil (x:xs) = refl (append (x:xs) [])       
+prop_app_nil (x:xs) = refl (append (x:xs) [])
                                                    -- append (x:xs) []
                        `by` (append_cons x xs [])  -- { append_cons x xs [] }
                                                    -- == x : append xs []
@@ -1180,14 +1180,14 @@ prop_app_assoc :: xs:_ -> ys:_ -> zs:_ ->
 
 prop_app_assoc [] ys zs
   ([] ++ ys) ++ zs
-  { append_nil _ }    
+  { append_nil _ }
   == ys ++ zs
   { append_nil _ }
   == [] ++ (ys ++ zs)
 
 prop_app_assoc (x:xs) ys zs
   ((x:xs) ++ ys) ++ zs
-  { append_cons _ _ _ }    
+  { append_cons _ _ _ }
   == (x : (xs ++ ys)) ++ zs
   { append_cons _ _ _ }
   == x : ((xs ++ ys) ++ zs)
@@ -1208,7 +1208,7 @@ Lets go fancier:
 Here's the classical (?) equational proof:
 
 ```
-map (f . g) []   
+map (f . g) []
    { map_nil (f . g) }
    == []
    { map_nil f }
@@ -1218,7 +1218,7 @@ map (f . g) []
    { dot f g }
    == (map f . map g) []
 
-map (f . g) (x:xs)  
+map (f . g) (x:xs)
    { map_cons (f . g) x xs }
    == (f . g) x : map (f . g) xs
    { map_dot f g xs }
@@ -1260,7 +1260,7 @@ The hard work happens in the two "lemmas"
 map_dot_nil :: f:_ -> g:_ ->
                Eq (map (f . g) []) ((map f . map g) [])
 map_dot_nil f g
-  = refl (map (f . g) [])   
+  = refl (map (f . g) [])
                               -- map (f . g) []
      `by` (map_nil (f . g))
                               -- == []

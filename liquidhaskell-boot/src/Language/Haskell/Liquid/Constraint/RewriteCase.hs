@@ -24,7 +24,7 @@ getCaseRewrites γ spec =
         globals = toSet $ reGlobal $ renv     γ
     in unloop
        $ concatMap (uncurry $ unify ctors globals)
-       $ groupUnifiableEqualities 
+       $ groupUnifiableEqualities
        $ getEqualities refinement
     where toSet = S.fromList . M.keys
 
@@ -51,8 +51,8 @@ unify ctors globals = go
         go e1 (EVar s2) | isLocal s2 = [(s2, e1)]
         -- TODO: Tecnically we could also unify under lambdas but you have to be
         -- carefull about alpha equivalence idk if the effort is worth it.
-        go e1 e2 
-            -- Performing the unification under constructor is safe because 
+        go e1 e2
+            -- Performing the unification under constructor is safe because
             -- C a₁ ... aₙ = C b₁ ... bₙ ⟺ ∀ n . a₁ = bₙ
             | (EVar name1 , args1) <- splitEApp e2
             , (EVar name2 , args2) <- splitEApp e1
@@ -63,7 +63,7 @@ unify ctors globals = go
         go _ _ = []
 
         isCtor  name = name `S.member` ctors
-        isLocal name = not (name `S.member` globals 
+        isLocal name = not (name `S.member` globals
                            || name `S.member` ctors
                            || isPrefixOfSym anfPrefix name)
 
@@ -102,8 +102,8 @@ newtype AcyclicRewrites = AR (M.HashMap Symbol Expr)
 -- | Drops rewrites that would cause an infinite loop. The procedure is order
 -- biased as rewrites earlier in the list take precedence.
 unloop :: [(Symbol, Expr)] -> LocalRewrites
-unloop = LocalRewrites . toRewrites . foldl' doInsert empty 
-    where doInsert ar (s, e) = ar `fromMaybe` insert ar s e 
+unloop = LocalRewrites . toRewrites . foldl' doInsert empty
+    where doInsert ar (s, e) = ar `fromMaybe` insert ar s e
 
 -- | Get the "raw" list of rewrites
 toRewrites :: AcyclicRewrites -> M.HashMap Symbol Expr
@@ -134,6 +134,6 @@ insert ar s e | not $ s `S.member` exprSymbolsSet e
               -- 1. If the rewrite is closing a loop
               -- 2. If the rewrite by itself is a cycle
               = Just $ insertUnsafe ar s e
-              | otherwise 
+              | otherwise
               = Nothing
     where insertUnsafe (AR m) s' e' = AR $ M.insert s' e' m

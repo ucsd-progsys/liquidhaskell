@@ -199,8 +199,8 @@ doExpand sp cfg sub = allowGlobalPLE cfg
 
 -- [TODO:missing-sorts] data-constructors often have unelaboratable 'define' so either
 -- 1. Make `elaborate` robust so it doesn't crash and returns maybe or
--- 2. Make the `ctor` well-sorted or 
--- 3. Don't create `define` for the ctor. 
+-- 2. Make the `ctor` well-sorted or
+-- 3. Don't create `define` for the ctor.
 -- Unfortunately 3 breaks a bunch of tests...
 
 makeSimplify :: (Var, SpecType) -> [F.Rewrite]

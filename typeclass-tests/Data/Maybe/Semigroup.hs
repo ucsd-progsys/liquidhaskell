@@ -68,8 +68,8 @@ instance Semigroup a => Semigroup (Maybe a) where
   a `mappend` Nothing = a
   Just a `mappend` Just b = Just (a `mappend` b)
   sconcat (NonEmpty h t) = foldlList mappend h t
-  
-  
+
+
 instance Semigroup a => Monoid (Maybe a) where
   mempty = Nothing
   mconcat = foldrList mappend mempty
@@ -82,5 +82,5 @@ instance VSemigroup a => VSemigroup (Maybe a) where
 instance VMonoid a => VMonoid (Maybe a) where
   lawMconcat xs = mconcat xs `cast` ()
   lawEmpty Nothing = ()
-  
+
   lawEmpty (Just x) = () -- lawEmpty x `cast` ()

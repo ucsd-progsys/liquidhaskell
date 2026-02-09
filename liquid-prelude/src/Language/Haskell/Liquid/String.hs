@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
--- Support for Strings for SMT 
+-- Support for Strings for SMT
 
 {-# LANGUAGE OverloadedStrings   #-}
 
@@ -10,7 +10,7 @@ import qualified Data.String     as ST
 
 {-@ embed SMTString as Str @-}
 
-data SMTString = S BS.ByteString 
+data SMTString = S BS.ByteString
   deriving (Eq, Show)
 
 {-@ invariant {s:SMTString | 0 <= stringLen s } @-}
@@ -25,7 +25,7 @@ data SMTString = S BS.ByteString
 
 ----------------------------------
 
-{-@ assume concatString :: x:SMTString -> y:SMTString 
+{-@ assume concatString :: x:SMTString -> y:SMTString
                  -> {v:SMTString | v == concatString x y && stringLen v == stringLen x + stringLen y } @-}
 concatString :: SMTString -> SMTString -> SMTString
 concatString (S s1) (S s2) = S (s1 `BS.append` s2)
@@ -34,30 +34,30 @@ concatString (S s1) (S s2) = S (s1 `BS.append` s2)
 stringEmp :: SMTString
 stringEmp = S (BS.empty)
 
-stringLen :: SMTString -> Int  
+stringLen :: SMTString -> Int
 {-@ assume stringLen :: x:SMTString -> {v:Nat | v == stringLen x} @-}
-stringLen (S s) = BS.length s 
+stringLen (S s) = BS.length s
 
 
 {-@ assume subString  :: s:SMTString -> offset:Int -> ln:Int -> {v:SMTString | v == subString s offset ln } @-}
-subString :: SMTString -> Int -> Int -> SMTString 
-subString (S s) o l = S (BS.take l $ BS.drop o s) 
+subString :: SMTString -> Int -> Int -> SMTString
+subString (S s) o l = S (BS.take l $ BS.drop o s)
 
 
-{-@ assume takeString :: i:Nat -> xs:{SMTString | i <= stringLen xs } -> {v:SMTString | stringLen v == i && v == takeString i xs } @-} 
+{-@ assume takeString :: i:Nat -> xs:{SMTString | i <= stringLen xs } -> {v:SMTString | stringLen v == i && v == takeString i xs } @-}
 takeString :: Int -> SMTString -> SMTString
 takeString i (S s) = S (BS.take i s)
 
-{-@ assume dropString :: i:Nat -> xs:{SMTString | i <= stringLen xs } -> {v:SMTString | stringLen v == stringLen xs - i && v == dropString i xs } @-} 
+{-@ assume dropString :: i:Nat -> xs:{SMTString | i <= stringLen xs } -> {v:SMTString | stringLen v == stringLen xs - i && v == dropString i xs } @-}
 dropString :: Int -> SMTString -> SMTString
 dropString i (S s) = S (BS.drop i s)
 
 
 {-@ assume fromString :: i:String -> {o:SMTString | i == o && o == fromString i} @-}
 fromString :: String -> SMTString
-fromString = S . ST.fromString 
+fromString = S . ST.fromString
 
 
-{-@ assume isNullString :: i:SMTString -> {b:Bool | b <=> stringLen i == 0 } @-} 
-isNullString :: SMTString -> Bool 
-isNullString (S s) = BS.length s == 0 
+{-@ assume isNullString :: i:SMTString -> {b:Bool | b <=> stringLen i == 0 } @-}
+isNullString :: SMTString -> Bool
+isNullString (S s) = BS.length s == 0

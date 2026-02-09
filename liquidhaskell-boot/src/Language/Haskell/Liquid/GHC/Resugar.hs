@@ -23,8 +23,8 @@ module Language.Haskell.Liquid.GHC.Resugar (
 import qualified Data.List as L
 import           Liquid.GHC.API  as Ghc
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
-import qualified Language.Fixpoint.Types          as F 
-import qualified Text.PrettyPrint.HughesPJ        as PJ 
+import qualified Language.Fixpoint.Types          as F
+import qualified Text.PrettyPrint.HughesPJ        as PJ
 -- import           Debug.Trace
 
 --------------------------------------------------------------------------------
@@ -70,22 +70,22 @@ data Pattern
     , patE     :: !CoreExpr  -- ^ e
     }
 
-instance F.PPrint Pattern where 
+instance F.PPrint Pattern where
   pprintTidy  = ppPat
 
-ppPat :: F.Tidy -> Pattern -> PJ.Doc 
-ppPat k (PatReturn e m d t rv) = 
-  "PatReturn: " 
-  PJ.$+$ 
+ppPat :: F.Tidy -> Pattern -> PJ.Doc
+ppPat k (PatReturn e m d t rv) =
+  "PatReturn: "
+  PJ.$+$
   F.pprintKVs k
-    [ ("rv" :: PJ.Doc, GM.pprDoc rv) 
-    , ("e " :: PJ.Doc, GM.pprDoc e) 
-    , ("m " :: PJ.Doc, GM.pprDoc m) 
-    , ("$d" :: PJ.Doc, GM.pprDoc d) 
-    , ("t " :: PJ.Doc, GM.pprDoc t) 
-    ] 
-ppPat _ _  = "TODO: PATTERN" 
-    
+    [ ("rv" :: PJ.Doc, GM.pprDoc rv)
+    , ("e " :: PJ.Doc, GM.pprDoc e)
+    , ("m " :: PJ.Doc, GM.pprDoc m)
+    , ("$d" :: PJ.Doc, GM.pprDoc d)
+    , ("t " :: PJ.Doc, GM.pprDoc t)
+    ]
+ppPat _ _  = "TODO: PATTERN"
+
 
 _mbId :: CoreExpr -> Maybe Var
 _mbId (Var x)    = Just x
@@ -109,14 +109,14 @@ exprArgs (Case (Var xe) x t [Alt (DataAlt c) ys (Var y)]) _
   = Just (PatProject xe x t c ys i)
 
 
-{- TEMPORARILY DISABLED: TODO-REBARE; in reality it hasn't been working AT ALL 
-   since at least the GHC 8.2.1 port (?) because the TICKs get in the way 
-   of recognizing the pattern? Anyways, messes up 
+{- TEMPORARILY DISABLED: TODO-REBARE; in reality it hasn't been working AT ALL
+   since at least the GHC 8.2.1 port (?) because the TICKs get in the way
+   of recognizing the pattern? Anyways, messes up
 
-     tests/pattern/pos/Return00.hs  
+     tests/pattern/pos/Return00.hs
 
    because we treat _all_ types of the form `m a` as "invariant" in the parameter `a`.
-   Looks like the above tests only pass in earlier LH versions because this pattern 
+   Looks like the above tests only pass in earlier LH versions because this pattern
    was NOT getting tickled!
 
 exprArgs _e (Var op, [Type m, d, Type t, e])

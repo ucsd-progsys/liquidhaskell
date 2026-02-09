@@ -11,7 +11,7 @@ module Liquid.ProofCombinators (
 
   -- * Proof is just a () alias
   Proof
-  , toProof 
+  , toProof
 
   -- * Proof constructors
   , trivial, unreachable, (***), QED(..)
@@ -22,17 +22,17 @@ module Liquid.ProofCombinators (
   -- * These two operators check all intermediate equalities
   , (===) -- proof of equality is implicit eg. x === y
   , (=<=) -- proof of equality is implicit eg. x <= y
-  , (=>=)  -- proof of equality is implicit eg. x =>= y 
+  , (=>=)  -- proof of equality is implicit eg. x =>= y
 
   -- * This operator does not check intermediate equalities
-  , (==.) 
+  , (==.)
 
   -- Uncheck operator used only for proof debugging
   , (==!) -- x ==! y always succeeds
 
   -- * Combining Proofs
   , (&&&)
-  , withProof 
+  , withProof
   , impossible
   , isAdmit
   , cast
@@ -128,13 +128,13 @@ _ =>= y  = y
 infixl 3 ?
 
 {-@ (?) :: forall a b <pa :: a -> Bool, pb :: b -> Bool>. a<pa> -> b<pb> -> a<pa> @-}
-(?) :: a -> b -> a 
-x ? _ = x 
-{-# INLINE (?)   #-} 
+(?) :: a -> b -> a
+x ? _ = x
+{-# INLINE (?)   #-}
 
 -------------------------------------------------------------------------------
 -- | Assumed equality
--- 	`x ==! y `
+--      `x ==! y `
 --   returns the admitted proof certificate that result value is equals x and y
 -------------------------------------------------------------------------------
 
@@ -146,9 +146,9 @@ infixl 3 ==!
 
 -- | To summarize:
 --
--- 	- (==!) is *only* for proof debugging
---	- (===) does not require explicit proof term
--- 	- (?)   lets you insert "lemmas" as other `Proof` values
+--      - (==!) is *only* for proof debugging
+--      - (===) does not require explicit proof term
+--      - (?)   lets you insert "lemmas" as other `Proof` values
 
 -------------------------------------------------------------------------------
 -- | * Unchecked Proof Certificates -------------------------------------------
@@ -163,9 +163,9 @@ infixl 3 ==.
 
 {-# DEPRECATED (==.) "Use (===) instead" #-}
 
-{-# INLINE (==.) #-} 
-(==.) :: a -> a -> a 
-_ ==. x = x 
+{-# INLINE (==.) #-}
+(==.) :: a -> a -> a
+_ ==. x = x
 
 -------------------------------------------------------------------------------
 -- | * Combining Proof Certificates -------------------------------------------
@@ -184,7 +184,7 @@ impossible :: a -> b
 impossible _ = undefined
 
 -------------------------------------------------------------------------------
--- | Convenient Syntax for Inductive Propositions 
+-- | Convenient Syntax for Inductive Propositions
 -------------------------------------------------------------------------------
 
 {-@ measure prop :: a -> b           @-}
@@ -194,4 +194,4 @@ impossible _ = undefined
 
 {-@ assume axiomExt :: f:(a -> b) -> g:(a -> b) -> (x:a -> {f x == g x}) -> {f = g} @-}
 axiomExt :: (a -> b) -> (a -> b) -> (a -> ()) -> ()
-axiomExt _ _ _ = () 
+axiomExt _ _ _ = ()

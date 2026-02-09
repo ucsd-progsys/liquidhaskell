@@ -18,8 +18,8 @@ meetVarTypes _emb _v hs lq = {- meetError emb err -} meet hsT lqT
     -- _err              = ErrMismatch lqSp v (text "meetVarTypes") hsD lqD hsSp
     -- _hsD              = F.pprint hsT
     -- _lqD              = F.pprint lqT
-{- 
-  
+{-
+
 _meetError :: F.TCEmb TyCon -> Error -> SpecType -> SpecType -> SpecType
 _meetError _emb _e t t'
   -- // | meetable emb t t'

@@ -21,7 +21,7 @@ import           Liquid.ProofCombinators
 import           Data.List
 import Data.Function
 import Data.Functor.Classes
--- TODO: Move these to a separate module. 
+-- TODO: Move these to a separate module.
 
 
 
@@ -98,7 +98,7 @@ instance VFunctor (Pair u) where
 -- Instantiation
 -- {-@ optionCompose :: f:(a -> Optional b) -> g:(b -> Optional c) -> h:(c -> Optional d) -> x:a -> {kcompose (kcompose f g) h x == kcompose f (kcompose g h) x} @-}
 -- optionCompose :: (a -> Optional b) -> (b -> Optional c) -> (c -> Optional d) -> a -> ()
--- optionCompose  = kcomposeAssoc 
+-- optionCompose  = kcomposeAssoc
 
 
 -- -- TODO: Prove this
@@ -110,10 +110,4 @@ instance VFunctor (Pair u) where
 -- {-@ applicativeLemma2 :: VApplicative m => f:(d -> c -> e) -> g:(a -> b -> c) -> p:_ -> {q:_ | p (q x y) = compose (f x) (g y)} -> {liftA2 p (liftA2 q u v) = compose (liftA2 f u) (liftA2 g v)} @-}
 -- applicativeLemma2 :: VApplicative m => (d -> c -> e) -> (a -> b -> c) -> _ -> _ -> ()
 -- applicativeLemma2 f g p q = undefined
-
-
-
-
-
-
 

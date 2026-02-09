@@ -131,17 +131,17 @@
 - Support for GHC 8.2.2
 
 - Support for GADTs and TypeFamilies, see
-	- `tests/{pos,neg}/ExactGADT*.hs`
+        - `tests/{pos,neg}/ExactGADT*.hs`
 
 - Add support for Bags/Multisets, see
-	- `tests/pos/bag.hs`
-	- `tests/neg/bag.hs`
-	- `tests/pos/ListISort-bag.hs`
+        - `tests/pos/bag.hs`
+        - `tests/neg/bag.hs`
+        - `tests/pos/ListISort-bag.hs`
 
 - Add support for *inductive predicates* see
-	- `tests/pos/IndEven.hs`
-	- `tests/pos/IndPerm.hs`
-	- `tests/pos/IndStar.hs`
+        - `tests/pos/IndEven.hs`
+        - `tests/pos/IndPerm.hs`
+        - `tests/pos/IndStar.hs`
 
 ## 0.8.0.1
 

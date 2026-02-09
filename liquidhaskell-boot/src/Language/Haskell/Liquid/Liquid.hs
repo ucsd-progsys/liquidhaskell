@@ -9,12 +9,12 @@ module Language.Haskell.Liquid.Liquid (
 
 import           Prelude hiding (error)
 import           Data.Bifunctor
-import qualified Data.HashSet as S 
+import qualified Data.HashSet as S
 import           Text.PrettyPrint.HughesPJ
 import           Control.Monad (when)
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Maybe as Mb
-import qualified Data.List  as L 
+import qualified Data.List  as L
 import qualified Language.Haskell.Liquid.UX.DiffCheck as DC
 import           Language.Haskell.Liquid.Misc
 import qualified Language.Fixpoint.Misc as F
@@ -103,21 +103,21 @@ liquidQuery cfg tgt info edc = do
   let info1   = either (const info)    (\z -> info {giSpec = DC.newSpec z}) edc
   let cbs''   = either id              DC.newBinds                          edc
   let info2   = info1 { giSrc = (giSrc info1) {giCbs = cbs''}}
-  let info3   = updTargetInfoTermVars info2 
-  let cgi     = {-# SCC "generateConstraints" #-} generateConstraints $! info3 
+  let info3   = updTargetInfoTermVars info2
+  let cgi     = {-# SCC "generateConstraints" #-} generateConstraints $! info3
   when False (dumpCs cgi)
   -- whenLoud $ mapM_ putStrLn [ "****************** CGInfo ********************"
                             -- , render (pprint cgi)                            ]
   out        <- timedAction names $ solveCs cfg tgt cgi info3 names
   return      $ mconcat [oldOut, out]
 
-updTargetInfoTermVars    :: TargetInfo -> TargetInfo 
-updTargetInfoTermVars i  = updInfo i  (ST.terminationVars i) 
-  where 
+updTargetInfoTermVars    :: TargetInfo -> TargetInfo
+updTargetInfoTermVars i  = updInfo i  (ST.terminationVars i)
+  where
     updInfo   info vs = info { giSpec = updSpec   (giSpec info) vs }
     updSpec   sp   vs = sp   { gsTerm = updSpTerm (gsTerm sp)   vs }
-    updSpTerm gsT  vs = gsT  { gsNonStTerm = S.fromList vs         } 
-      
+    updSpTerm gsT  vs = gsT  { gsNonStTerm = S.fromList vs         }
+
 dumpCs :: CGInfo -> IO ()
 dumpCs cgi = do
   putStrLn "***************************** SubCs *******************************"
@@ -137,12 +137,12 @@ solveCs cfg tgt cgi info names = do
   F.Result {resStatus=r0, resSolution=solCuts, resNonCutsSolution=solNonCuts} <- solve fcfg finfo
   let sol           = HashMap.union (HashMap.map F.Delayed solCuts) solNonCuts
   let failBs        = gsFail $ gsTerm $ giSpec info
-  let (r,rf)        = splitFails (S.map val failBs) r0 
+  let (r,rf)        = splitFails (S.map val failBs) r0
   let resErr        = second (applySolution finfo sol . cinfoError) <$> r
   -- resModel_        <- fmap (e2u cfg sol) <$> getModels info cfg resErr
   let resModel_     = cidE2u cfg <$> resErr
   let resModel'     = resModel_  `addErrors` (e2u cfg <$> logErrors cgi)
-                                 `addErrors` makeFailErrors (S.toList failBs) rf 
+                                 `addErrors` makeFailErrors (S.toList failBs) rf
                                  `addErrors` makeFailUseErrors (S.toList failBs) (giCbs $ giSrc info)
   let lErrors       = applySolution finfo sol <$> logErrors cgi
   let resModel      = resModel' `addErrors` (e2u cfg <$> lErrors)
@@ -171,20 +171,20 @@ cidE2u cfg (subcId, e) =
 makeFailUseErrors :: [F.Located Var] -> [CoreBind] -> [UserError]
 makeFailUseErrors fbs cbs = [ mkError x bs | x <- fbs
                                           , let bs = clients (val x)
-                                          , not (null bs) ]  
-  where 
+                                          , not (null bs) ]
+  where
     mkError x bs = ErrFailUsed (GM.sourcePosSrcSpan $ loc x) (pprint $ val x) (pprint <$> bs)
     clients x    = map fst $ filter (elem x . snd) allClients
 
-    allClients = concatMap go cbs 
+    allClients = concatMap go cbs
 
     go :: CoreBind -> [(Var,[Var])]
-    go (NonRec x e) = [(x, readVars e)] 
+    go (NonRec x e) = [(x, readVars e)]
     go (Rec xes)    = [(x,cls) | x <- map fst xes] where cls = concatMap (readVars . snd) xes
 
 makeFailErrors :: [F.Located Var] -> [Cinfo] -> [UserError]
-makeFailErrors bs cis = [ mkError x | x <- bs, notElem (val x) vs ]  
-  where 
+makeFailErrors bs cis = [ mkError x | x <- bs, notElem (val x) vs ]
+  where
     mkError  x = ErrFail (GM.sourcePosSrcSpan $ loc x) (pprint $ val x)
     vs         = Mb.mapMaybe ci_var cis
 
@@ -192,9 +192,8 @@ splitFails :: S.HashSet Var -> F.FixResult (a, Cinfo) -> (F.FixResult (a, Cinfo)
 splitFails _ r@(F.Crash _ _) = (r,mempty)
 splitFails _ r@(F.Safe _)    = (r,mempty)
 splitFails fs (F.Unsafe s xs)  = (mkRes r, snd <$> rfails)
-  where 
-    (rfails,r) = L.partition (Mb.maybe False (`S.member` fs) . ci_var . snd) xs 
+  where
+    (rfails,r) = L.partition (Mb.maybe False (`S.member` fs) . ci_var . snd) xs
     mkRes [] = F.Safe s
-    mkRes ys = F.Unsafe s ys 
+    mkRes ys = F.Unsafe s ys
 
-  

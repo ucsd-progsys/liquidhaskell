@@ -69,7 +69,7 @@ keepEvens = filter even
 ```
 
 ```
-Opaque reflections: 
+Opaque reflections:
 - GHC.Internal.List.filter
 - GHC.Internal.Real.even
 ```

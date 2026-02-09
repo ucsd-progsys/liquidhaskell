@@ -336,8 +336,8 @@ makeAssumeType
   -> (LocSpecType, F.Equation)
 makeAssumeType cfg tce lmap dm sym mbT v def
   = ( sym {val = aty at `strengthenRes` F.subst su ref}
-    , F.mkEquation 
-        symbolV 
+    , F.mkEquation
+        symbolV
         (fmap (second $ F.sortSubst sortSub) xts)
         (F.sortSubstInExpr sortSub (F.subst su le))
         (F.sortSubst sortSub out)
@@ -362,9 +362,9 @@ makeAssumeType cfg tce lmap dm sym mbT v def
     bbs        = filter isBoolBind xs
 
     -- rTypeSortExp produces monomorphic sorts from polymorphic types.
-    -- As an example, for 
-    -- id :: a -> a ... id x = x 
-    -- we got: 
+    -- As an example, for
+    -- id :: a -> a ... id x = x
+    -- we got:
     -- define id (x : a#foobar) : a#foobar = { (x : a#foobar) }
     -- Using FObj instead of a real type variable (FVar i) This code solves the
     -- issue by creating a sort substitution that replaces those "fake" type variables
@@ -374,7 +374,7 @@ makeAssumeType cfg tce lmap dm sym mbT v def
     sortSub     = F.mkSortSubst $ zip (fmap F.symbol tyVars) (F.FVar <$> freeSort)
     -- We need sorts that aren't polluted by rank-n types, we can't just look at
     -- the term to determine statically what is the "maximum" sort bound ex:
-    -- freeSort = [1 + (maximum $ -1 : F.sortAbs out : fmap (F.sortAbs . snd) xts) ..] 
+    -- freeSort = [1 + (maximum $ -1 : F.sortAbs out : fmap (F.sortAbs . snd) xts) ..]
     -- as some variable may be bound to something of rank-n type.  In
     -- SortCheck.hs in fixpoint they just start at 42 for some reason.  I think
     -- Negative Debruijn indices (levels :^)) are safer

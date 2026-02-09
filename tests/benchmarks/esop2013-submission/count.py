@@ -32,4 +32,3 @@ ftyspec.write(tyspecsJoined)
 otherJoined = '\n'.join(other)
 fother.write(otherJoined)
 
-

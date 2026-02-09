@@ -58,7 +58,7 @@ instance Applicative Succs where
 
 instance VApplicative Succs where
   lawApplicativeId (Succs x xs)  = fmapListId xs `cast` ()
-  lawApplicativeComposition fall@(Succs f fs) gall@(Succs g gs) xall@(Succs x xs) = 
+  lawApplicativeComposition fall@(Succs f fs) gall@(Succs g gs) xall@(Succs x xs) =
     fmapListResAppend (flip apply x) (fmapList (flip apply g) (fmapList compose fs)) (fmapList (compose f) gs) `cast`
     fmapListComposition f g xs`cast`
     appendLAssoc (fmapList (flip apply x) (fmapList (flip apply g) (fmapList compose fs)))

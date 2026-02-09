@@ -150,7 +150,7 @@ bindings (NonRec x _) = [x]
 bindings (Rec  xes  ) = map fst xes
 
 ----------------------------------------------------------------------------------------
--- | @BindVisitor@ allows for generic, context sensitive traversals over the @CoreBinds@ 
+-- | @BindVisitor@ allows for generic, context sensitive traversals over the @CoreBinds@
 ----------------------------------------------------------------------------------------
 data CoreVisitor env acc = CoreVisitor
   { envF  :: env -> Var             -> env
@@ -169,12 +169,12 @@ coreVisitor vis cenv cacc cbs = snd (foldl' step (cenv, cacc) cbs)
     step ea (NonRec x e)      = stepXE ea (x, e)
     step ea (Rec    xes)      = foldl' stepXE ea xes
 
-    -- step (env, acc) (NonRec x e) = stepXE env acc x e 
-    -- step (env, acc) (Rec    xes) = (env', foldl' (stepE env') acc' es) 
-      -- where 
+    -- step (env, acc) (NonRec x e) = stepXE env acc x e
+    -- step (env, acc) (Rec    xes) = (env', foldl' (stepE env') acc' es)
+      -- where
         -- acc'                     = foldl' (bindF vis env') acc xs
-        -- env'                     = foldl' (envF  vis)      env xs 
-        -- xs                       = fst <$> xes 
+        -- env'                     = foldl' (envF  vis)      env xs
+        -- xs                       = fst <$> xes
         -- es                       = snd <$> xes
         -- foldl' (\(env, acc) (x, e) ->  )
 

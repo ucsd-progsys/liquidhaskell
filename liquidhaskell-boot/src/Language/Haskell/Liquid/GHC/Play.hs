@@ -22,8 +22,8 @@ import Language.Haskell.Liquid.Types.Variance
 -------------------------------------------------------------------------------
 
 -- If the type constructor T is in the input list and its data constructors Di, Dj
--- use T in non strictly positive positions, 
--- then (T,(Di, Dj)) will appear in the result list.  
+-- use T in non strictly positive positions,
+-- then (T,(Di, Dj)) will appear in the result list.
 
 getNonPositivesTyCon :: [TyCon] -> [(TyCon, [DataCon])]
 getNonPositivesTyCon tcs = Mb.mapMaybe go (M.toList $ makeOccurrences tcs)
@@ -33,20 +33,20 @@ getNonPositivesTyCon tcs = Mb.mapMaybe go (M.toList $ makeOccurrences tcs)
                       xs -> Just (tc, fst <$> xs)
 
 
--- OccurrenceMap maps type constructors to their TyConOccurrence. 
+-- OccurrenceMap maps type constructors to their TyConOccurrence.
 -- for each of their data constructor. For example, for the below data definition
--- data T a = P (T a) | N (T a -> Int) | Both (T a -> T a) | None 
+-- data T a = P (T a) | N (T a -> Int) | Both (T a -> T a) | None
 -- the entry below should get generated
---  OccurrenceMap 
+--  OccurrenceMap
 -- = T |-> [(P, [
 --          (P,    TyConOcc [T] [])
 --          (N,    TyConOcc [Int] [T])
 --          (Both, TyConOcc [T] [T])
 --          (None, TyConOcc [] [])
---         ])] 
--- For positivity check, ultimately we only care about self occurences, 
--- but we keep track of all the TyCons for the mutually inductive data types. 
--- We separate the occurences per data constructor only to provide better error messages. 
+--         ])]
+-- For positivity check, ultimately we only care about self occurences,
+-- but we keep track of all the TyCons for the mutually inductive data types.
+-- We separate the occurences per data constructor only to provide better error messages.
 type OccurrenceMap = M.HashMap TyCon [(DataCon, TyConOccurrence)]
 
 data TyConOccurrence
@@ -81,14 +81,14 @@ makeOccurrences tycons
     mergeApp m (TyConOcc pos neg) =
         let TyConOcc pospos posneg = mconcat (findOccurrence m <$> pos)
             TyConOcc negpos negneg = mconcat (findOccurrence m <$> neg)
-        -- Keep positive, flip negative 
+        -- Keep positive, flip negative
         in TyConOcc (L.nub (pos <> pospos <> negneg)) (L.nub (neg <> negpos <> posneg))
 
 
     tycontypes tc = concatMap dctypes $ tyConDataCons tc
     dctypes    dc = irrelevantMult <$> dataConOrigArgTys dc
 
-    -- Construct the map for all TyCons that appear in the definitions 
+    -- Construct the map for all TyCons that appear in the definitions
     tycons' = L.nub (concatMap tcs (concatMap tycontypes tycons) ++ tycons)
 
     tcs (TyConApp tc' ts) = tc': concatMap tcs ts
