@@ -380,7 +380,10 @@ makeAssumeType cfg tce lmap dm sym mbT v def
     -- Negative Debruijn indices (levels :^)) are safer
     freeSort    = [-1, -2 ..]
 
-    (xs, def') = GM.notracePpr "grabBody" $ grabBody allowTC (Ghc.expandTypeSynonyms τ) $ normalize allowTC def
+    (xs, def') =
+      GM.notracePpr "grabBody" $
+      grabBody allowTC (Ghc.expandTypeSynonyms τ) $
+      normalizeCoreExpr allowTC def
     su         = F.mkSubst  $ zip (F.symbol     <$> xs) xArgs
                            ++ zip (simplesymbol <$> xs) xArgs
     xts        = [(F.symbol x, rTypeSortExp tce t) | (x, t) <- aargs at]
