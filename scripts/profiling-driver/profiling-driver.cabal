@@ -8,9 +8,8 @@ description:        The usual binary distributions of GHC cannot be used to prof
                     profiling enabled and can then load plugins built with profiling
                     enabled.
 license:            BSD-3-Clause
-copyright:          2010-19 Ranjit Jhala & Niki Vazou & Eric L. Seidel, University of California, San Diego.
 author:             Facundo Domínguez
-maintainer:         Facundo Domínguez <jhala@tweag.io>
+maintainer:         Facundo Domínguez <facundo.dominguez@tweag.io>
 category:           Language
 homepage:           https://github.com/ucsd-progsys/liquidhaskell
 build-type:         Simple
