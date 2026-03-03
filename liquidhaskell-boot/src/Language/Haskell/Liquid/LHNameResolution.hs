@@ -264,9 +264,9 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
           | isDataCon s ->
               lookupGRELHName [] (LHDataConName lcl) lname s
           | not (LH.isQualifiedSym s)
-          , Just n <- (fmap GHC.getName $ Resolve.lookupLetBoundVar localVars (atLoc lname s))
+          , Just v <- Resolve.lookupLetBoundVar localVars (atLoc lname s)
           ->
-              pure $ LHNResolved (LHRGHC n) s
+              pure $ LHNResolved (LHRGHC (GHC.getName v)) s
           | otherwise ->
               lookupGRELHName [] ns lname s
         LHNUnresolved LHLogicNameBinder s ->
