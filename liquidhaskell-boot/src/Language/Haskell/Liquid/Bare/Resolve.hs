@@ -185,7 +185,7 @@ isLocal = isEmptySymbol
 isEmptySymbol :: F.Symbol -> Bool
 isEmptySymbol x = F.lengthSym x == 0
 
--- | @lookupLetBoundVar@ yields the name of the closes let bound definition.
+-- | @lookupLetBoundVar@ yields the name of the closest let-bound definition.
 --   See tests/names/pos/LocalSpec.hs for a motivating example.
 --
 -- This function never returns a top-level variable.
