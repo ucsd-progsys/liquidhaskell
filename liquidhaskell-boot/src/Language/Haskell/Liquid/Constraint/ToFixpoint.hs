@@ -122,8 +122,8 @@ makeRewrites info sub = concatMap (makeRewriteOne tce) $ filter ((`S.member` rws
         Nothing ->
           Mb.listToMaybe $ do
             D s e v <- coreDefs $ giCbs $ giSrc info
-            let (Ghc.RealSrcSpan cc _) = ci_loc $ F.sinfo sub
-            guard $ s <= Ghc.srcSpanStartLine cc && e >= Ghc.srcSpanEndLine cc
+            Ghc.RealSrcSpan cc _ <- [ci_loc $ F.sinfo sub]
+            guard $ s <= Ghc.srcSpanStartLine cc && Ghc.srcSpanEndLine cc <= e
             return v
 
     rws =
