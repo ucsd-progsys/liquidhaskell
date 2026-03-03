@@ -16,6 +16,7 @@ module Liquid.GHC.API.Extra (
   , minus_RDR
   , qualifiedNameFS
   , renderWithStyle
+  , simpleOptimize
   , showPprQualified
   , showPprDebug
   , showSDocQualified
@@ -44,10 +45,13 @@ import GHC.Core                       as Ghc
 import GHC.Core.Coercion              as Ghc
 import GHC.Core.DataCon               as Ghc
 import GHC.Core.Make                  (pAT_ERROR_ID)
+import GHC.Core.SimpleOpt (simpleOptPgm)
 import GHC.Core.Type                  as Ghc hiding (typeKind , extendCvSubst, linear)
 import GHC.Data.FastString            as Ghc
 import GHC.Data.Maybe
 import qualified GHC.Data.Strict
+import GHC.Driver.Config (initSimpleOpts)
+import GHC.Driver.Env.Types           (hsc_dflags)
 import GHC.Driver.Session             as Ghc
 import GHC.Tc.Types
 import GHC.Types.Id
@@ -63,6 +67,8 @@ import GHC.Utils.Outputable           as Ghc hiding ((<>))
 import qualified GHC.Utils.Outputable as Ghc
 
 import GHC.Unit.Module
+import GHC.Unit.Module.ModGuts
+
 
 -- 'fsToUnitId' is gone in GHC 9, but we can bring code it in terms of 'fsToUnit' and 'toUnitId'.
 fsToUnitId :: FastString -> UnitId
@@ -352,3 +358,19 @@ withTimingWallClock logger what force_result action =
 
           eventBeginsDoc ctx w = showSDocOneLine ctx $ text "GHC:started:" <+> w
           eventEndsDoc   ctx w = showSDocOneLine ctx $ text "GHC:finished:" <+> w
+
+-- Run the simple optimizer
+simpleOptimize :: GHC.HscEnv -> ModGuts -> ModGuts
+simpleOptimize hsc_env guts@(ModGuts
+                               { mg_module  = mgmod
+                               , mg_binds   = binds
+                               , mg_rules   = rules
+                               }) =
+    let dflags = hsc_dflags hsc_env
+        simpl_opts = initSimpleOpts dflags
+        (binds2, rules2, _occ_anald_binds) =
+          simpleOptPgm simpl_opts mgmod binds rules
+      in guts
+          { mg_binds = binds2
+          , mg_rules = rules2
+          }

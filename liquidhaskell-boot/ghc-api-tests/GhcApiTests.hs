@@ -15,6 +15,7 @@ import           Liquid.GHC.API
     , occNameString
     , pAT_ERROR_ID
     , showPprQualified
+    , simpleOptimize
     , splitDollarApp
     , untick
     )
@@ -212,7 +213,8 @@ compileToCore modName inputSource = do
     GHC.runGhc (Just libdir) $ do
       (_, tcMod) <- typecheckSourceCode modName inputSource
       dsMod <- GHC.desugarModule tcMod
-      return $ GHC.mg_binds $ GHC.dm_core_module dsMod
+      hscEnv <- GHC.getSession
+      return $ GHC.mg_binds $ simpleOptimize hscEnv (GHC.dm_core_module dsMod)
 
 typecheckSourceCode
   :: GHC.GhcMonad m => String -> String -> m (GHC.ModSummary, GHC.TypecheckedModule)
@@ -245,7 +247,8 @@ compileToCoreWithLH modName inputSource = do
           tcg' = addNoInlinePragmasToBinds tcg
       hsc_env <- GHC.getSession
       guts <- liftIO $ GHC.hscDesugar hsc_env ms tcg'
-      return $ GHC.mg_binds guts
+      hscEnv <- GHC.getSession
+      return $ GHC.mg_binds $ simpleOptimize hscEnv guts
 
 -- | Tests that dead bindings (unused where-clause bindings) are preserved
 -- when 'addNoInlinePragmasToBinds' marks Ids as exported.
