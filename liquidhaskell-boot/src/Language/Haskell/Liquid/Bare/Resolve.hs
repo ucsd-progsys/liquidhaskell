@@ -24,7 +24,7 @@ module Language.Haskell.Liquid.Bare.Resolve
   , lookupGhcDataConLHName
   , lookupGhcDnTyCon
   , lookupGhcIdLHName
-  , lookupLocalVar
+  , lookupLetBoundVar
   , lookupGhcTyConLHName
   , lookupGhcTyThingFromName
   , lookupGhcId
@@ -59,7 +59,6 @@ import qualified Data.HashSet                      as S
 import qualified Data.Maybe                        as Mb
 import qualified Data.HashMap.Strict               as M
 import           GHC.Stack
-import           Text.Megaparsec.Pos (sourceColumn, sourceLine)
 import qualified Text.PrettyPrint.HughesPJ         as PJ
 
 import qualified Language.Fixpoint.Types               as F
@@ -121,15 +120,14 @@ getGlobalSyms (_, spec)
 makeLocalVars :: [Ghc.CoreBind] -> LocalVars
 makeLocalVars = localVarMap . localBinds
 
--- TODO: rewrite using CoreVisitor
 localBinds :: [Ghc.CoreBind] -> [LocalVarDetails]
 localBinds                    = concatMap (bgoT [])
   where
-    bgoT g (Ghc.NonRec _ e) = go g e
-    bgoT g (Ghc.Rec xes)    = concatMap (go g . snd) xes
-    pgo g isRec (x, e)      = mkLocalVarDetails g isRec x : go g e
-    bgo g (Ghc.NonRec x e)  = pgo g False (x, e)
-    bgo g (Ghc.Rec xes)     = concatMap (pgo g True) xes
+    bgoT g (Ghc.NonRec x e) = pgo g True False (x, e)
+    bgoT g (Ghc.Rec xes)    = concatMap (pgo g True True) xes
+    pgo g isTopLevel isRec (x, e) = mkLocalVarDetails g isTopLevel isRec x : go g e
+    bgo g (Ghc.NonRec x e)  = pgo g False False (x, e)
+    bgo g (Ghc.Rec xes)     = concatMap (pgo g False True) xes
     go g (Ghc.App e a)       = concatMap (go g) [e, a]
     go g (Ghc.Lam x e)       = go (x:g) e
     go g (Ghc.Let b e)       = bgo g b ++ go (Ghc.bindersOf b ++ g) e
@@ -139,10 +137,11 @@ localBinds                    = concatMap (bgoT [])
     go _ (Ghc.Var _)         = []
     go _ _                   = []
 
-    mkLocalVarDetails g isRec v = LocalVarDetails
+    mkLocalVarDetails g isTopLevel isRec v = LocalVarDetails
       { lvdSourcePos = F.sp_start $ F.srcSpan v
       , lvdVar = v
       , lvdLclEnv = g
+      , lvdIsTopLevel = isTopLevel
       , lvdIsRec = isRec
       }
 
@@ -186,39 +185,41 @@ isLocal = isEmptySymbol
 isEmptySymbol :: F.Symbol -> Bool
 isEmptySymbol x = F.lengthSym x == 0
 
--- | @lookupLocalVar@ takes as input the list of "global" (top-level) vars
---   that also match the name @lx@; we then pick the "closest" definition.
+-- | @lookupLetBoundVar@ yields the name of the closes let bound definition.
 --   See tests/names/pos/LocalSpec.hs for a motivating example.
-
-lookupLocalVar :: F.Loc a => LocalVars -> LocSymbol -> [a] -> Maybe (Either a Ghc.Var)
-lookupLocalVar localVars lx gvs = findNearest lxn kvs
+--
+-- This function never returns a top-level variable.
+--
+-- PRECONDITION: the input symbol is not qualified.
+--
+lookupLetBoundVar :: LocalVars -> LocSymbol -> Maybe Ghc.Var
+lookupLetBoundVar localVars lx
+   | GM.isQualifiedSym x = error $ "lookupLetBoundVar: called on a qualified symbol: " ++ show lx
+   | otherwise = findNearest lxn kvs
   where
-    kvs                   = prioritizeRecBinds (M.lookupDefault [] x (lvSymbols localVars)) ++ gs
-    gs                    = [(F.sp_start $ F.srcSpan v, Left v) | v <- gvs]
-    lxn                   = F.sp_start $ F.srcSpan lx
-    (_, x)                = unQualifySymbol (F.val lx)
+    x = F.val lx
+    kvs = prioritizeRecBinds (M.lookupDefault [] x (lvSymbols localVars))
+    lxn = F.sp_start $ F.srcSpan lx
 
     -- Sometimes GHC produces multiple bindings that have the same source
     -- location. To select among these, we give preference to the recursive
     -- bindings which might need termination metrics.
     prioritizeRecBinds lvds =
       let (recs, nrecs) = L.partition lvdIsRec lvds
-       in map lvdToPair (recs ++ nrecs)
-    lvdToPair lvd = (lvdSourcePos lvd, Right (lvdVar lvd))
+       in recs ++ nrecs
 
-    findNearest :: F.SourcePos -> [(F.SourcePos, b)] -> Maybe b
-    findNearest key kvs1 = argMin [ (posDistance key k, v) | (k, v) <- kvs1 ]
+    findNearest :: F.SourcePos -> [LocalVarDetails] -> Maybe Ghc.Var
+    findNearest key = pickByLocation key .  L.sortBy (compare `on` lvdSourcePos)
 
-    -- We prefer the var with the smaller distance, or equal distance
-    -- but left of the spec, or not left of the spec but below it.
-    posDistance a b =
-      ( abs (F.unPos (sourceLine a) - F.unPos (sourceLine b))
-      , sourceColumn a < sourceColumn b -- Note: False is prefered/smaller to True
-      , sourceLine a > sourceLine b
-      )
-
-    argMin :: (Ord k) => [(k, v)] -> Maybe v
-    argMin = Mb.listToMaybe . map snd . L.sortBy (compare `on` fst)
+    pickByLocation :: F.SourcePos -> [LocalVarDetails] -> Maybe Ghc.Var
+    pickByLocation _ [] = Nothing
+    pickByLocation _ [lvd]
+      | lvdIsTopLevel lvd = Nothing
+      | otherwise = Just $ lvdVar lvd
+    pickByLocation key (lvd0 : xs@(lvd1 : _))
+      | lvdSourcePos lvd1 < key  = pickByLocation key xs
+      | lvdSourcePos lvd0 < key  = pickByLocation key [lvd1]
+      | otherwise = pickByLocation key [lvd0]
 
 
 lookupGhcDnTyCon :: Env -> ModName -> DataName -> Lookup (Maybe Ghc.TyCon)

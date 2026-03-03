@@ -79,7 +79,7 @@ import qualified Data.HashMap.Strict                     as HM
 import           Data.List (find, isSuffixOf, nubBy, partition)
 import           Data.List.Extra (dropEnd)
 import qualified Data.Map as Map
-import           Data.Maybe (fromMaybe, listToMaybe, mapMaybe, maybeToList)
+import           Data.Maybe (mapMaybe, maybeToList)
 import qualified Data.Text                               as Text
 import qualified GHC.Types.Name.Occurrence
 
@@ -259,49 +259,42 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
               -- If multiple matches are found, report the ambiguous name and return it.
               tar@(FoundTypeAliases { }) -> do addError $ errResolveTypeAlias (s <$ lname) tar
                                                pure $ val lname
-              NoSuchTypeAlias alts -> lookupGRELHName alts (LHTcName lcl) lname s listToMaybe
+              NoSuchTypeAlias alts -> lookupGRELHName alts (LHTcName lcl) lname s
         LHNUnresolved ns@(LHVarName lcl) s
           | isDataCon s ->
-              lookupGRELHName [] (LHDataConName lcl) lname s listToMaybe
+              lookupGRELHName [] (LHDataConName lcl) lname s
+          | not (LH.isQualifiedSym s)
+          , Just n <- (fmap GHC.getName $ Resolve.lookupLetBoundVar localVars (atLoc lname s))
+          ->
+              pure $ LHNResolved (LHRGHC n) s
           | otherwise ->
               lookupGRELHName [] ns lname s
-                (fmap (either id GHC.getName) . Resolve.lookupLocalVar localVars (atLoc lname s))
         LHNUnresolved LHLogicNameBinder s ->
           pure $ makeLogicLHName s thisModule Nothing
         n@(LHNUnresolved LHLogicName _) ->
           -- This one will be resolved by resolveLogicNames
           pure n
-        LHNUnresolved ns@(LHDataConName _) s -> lookupGRELHName [] ns lname s listToMaybe
+        LHNUnresolved ns@(LHDataConName _) s -> lookupGRELHName [] ns lname s
         n@LHNResolved { } -> pure n
 
-    lookupGRELHName alts ns lname s localNameLookup =
+    lookupGRELHName alts ns lname s =
       case maybeDropImported ns $ GHC.lookupGRE globalRdrEnv (mkLookupGRE ns s) of
         [e] -> do
           let n = GHC.greName e
-              n' = fromMaybe n $ localNameLookup [n]
-          pure $ LHNResolved (LHRGHC n') s
+          pure $ LHNResolved (LHRGHC n) s
         es@(_:_) -> do
-          let topLevelNames = map GHC.greName es
-          case localNameLookup topLevelNames of
-            Just n | notElem n topLevelNames ->
-              pure $ LHNResolved (LHRGHC n) s
-            _ -> do
-              addError
-                (ErrDupNames
-                   (LH.fSrcSpan lname)
-                   "variable"
-                   (pprint s)
-                   (map (PJ.text . GHC.showPprUnsafe) es)
-                )
-              pure $ val lname
-        [] ->
-          case localNameLookup [] of
-            Just n' ->
-              pure $ LHNResolved (LHRGHC n') s
-            Nothing -> do
-              addError
-                (errResolve alts (nameSpaceKind ns) "Cannot resolve name" (s <$ lname))
-              pure $ val lname
+          addError
+            (ErrDupNames
+               (LH.fSrcSpan lname)
+               "variable"
+               (pprint s)
+               (map (PJ.text . GHC.showPprUnsafe) es)
+            )
+          pure $ val lname
+        [] -> do
+          addError
+            (errResolve alts (nameSpaceKind ns) "Cannot resolve name" (s <$ lname))
+          pure $ val lname
 
     maybeDropImported ns es
       | localNameSpace ns = filter GHC.isLocalGRE es

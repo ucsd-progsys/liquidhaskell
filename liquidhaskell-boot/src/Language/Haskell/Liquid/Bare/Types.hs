@@ -104,6 +104,7 @@ data LocalVarDetails = LocalVarDetails
   { lvdSourcePos :: F.SourcePos
   , lvdVar :: Ghc.Var
   , lvdLclEnv :: [Ghc.Var]
+  , lvdIsTopLevel :: Bool  -- ^ Is the variable defined at the top-level?
   , lvdIsRec :: Bool  -- ^ Is the variable defined in a letrec?
   } deriving Show
 
