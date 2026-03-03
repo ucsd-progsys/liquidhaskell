@@ -15,6 +15,7 @@ import           Liquid.GHC.API
     , occNameString
     , pAT_ERROR_ID
     , showPprQualified
+    , simpleOptimize
     , splitDollarApp
     , untick
     )
@@ -249,4 +250,5 @@ compileToCore modName inputSource = do
              >>= GHC.parseModule
              >>= GHC.typecheckModule
              >>= GHC.desugarModule
-      return $ GHC.mg_binds $ GHC.dm_core_module dsMod
+      hscEnv <- GHC.getSession
+      return $ GHC.mg_binds $ simpleOptimize hscEnv (GHC.dm_core_module dsMod)
