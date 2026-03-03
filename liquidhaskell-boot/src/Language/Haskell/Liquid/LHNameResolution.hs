@@ -286,7 +286,7 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
           addError
             (ErrDupNames
                (LH.fSrcSpan lname)
-               "variable"
+               (nameSpaceKind ns)
                (pprint s)
                (map (PJ.text . GHC.showPprUnsafe) es)
             )
