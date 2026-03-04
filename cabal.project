@@ -20,13 +20,37 @@ source-repository-package
 
 allow-newer:
   ghc-timings:base
-
-  -- Temporarily until Hackage gets its GHC 9.14 act together
-  ,base
-  ,template-haskell
-  ,time
-  ,containers
-  ,ghc-bignum
+  ,active:base
+  ,aeson:containers
+  ,aeson:template-haskell
+  ,aeson:time
+  ,binary-orphans:base
+  ,blaze-svg:base
+  ,diagrams-core:base
+  ,diagrams-core:containers
+  ,diagrams-lib:base
+  ,diagrams-lib:containers
+  ,diagrams-postscript:base
+  ,diagrams-svg:base
+  ,diagrams-svg:containers
+  ,directory:time
+  ,dual-tree:base
+  ,indexed-traversable:base
+  ,indexed-traversable:containers
+  ,indexed-traversable-instances:base
+  ,lens-family:containers
+  ,lens-family-core:containers
+  ,monoid-extras:base
+  ,semialign:base
+  ,semialign:containers
+  ,statestack:base
+  ,svg-builder:base
+  ,SVGFonts:containers
+  ,text:base
+  ,text-iso8601:time
+  ,time-compat:time
+  ,these:base
+  ,uuid-types:template-haskell
 
 -- We could be using program-options here, but it would turn on parallelism
 -- when building tests, and this interferes with benchmarking.
