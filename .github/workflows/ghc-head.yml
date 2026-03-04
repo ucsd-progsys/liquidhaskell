@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
   # pull_request: # comment out to have this run on PR's
   # runs at 8:00 on Mondays
-  schedule:
+# schedule:
            # ┌───────────── minute (0 - 59)
            # │ ┌───────────── hour (0 - 23)
            # │ │ ┌───────────── day of the month (1 - 31)
@@ -19,7 +19,7 @@ on:
            # │ │ │ │ │
            # │ │ │ │ │
            # * * * * *
-    - cron: '0 8 * * 1' # run weekly at 8 hour, https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule
+  # - cron: '0 8 * * 1' # run weekly at 8 hour, https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule
 jobs:
   build:
 
