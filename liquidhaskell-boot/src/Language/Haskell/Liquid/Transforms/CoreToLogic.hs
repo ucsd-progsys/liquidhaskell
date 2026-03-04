@@ -19,7 +19,7 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic
   , inlineSpecType
   , measureSpecType
   , weakenResult
-  , normalize
+  , normalizeCoreExpr
   ) where
 
 import           Data.Bifunctor (first)
@@ -223,7 +223,7 @@ coreToDef :: Reftable r => Located LHName -> Var -> C.CoreExpr
           -> LogicM [Def (Located (RRType r)) DataCon]
 coreToDef locSym _ s              = do
     allowTC <- reader $ typeclass . lsConfig
-    go [] $ inlinePreds $ simplify allowTC s
+    go [] $ inlinePreds $ simplifyCoreExpr allowTC s
   where
     go args   (C.Lam  x e)        = go (x:args) e
     go args   (C.Tick _ e)        = go args e
@@ -232,7 +232,7 @@ coreToDef locSym _ s              = do
       | Just t <- isMeasureArg z  = coreAltToDef locSym z zs z t [Alt C.DEFAULT [] e]
     go _ _                        = measureFail locSym "Does not have a case-of at the top-level"
 
-    inlinePreds   = inline (eqType boolTy . GM.expandVarType)
+    inlinePreds   = inlineCoreExpr (eqType boolTy . GM.expandVarType)
 
 measureFail       :: Located LHName -> String -> a
 measureFail x msg = panic sp e
@@ -258,7 +258,7 @@ varRType = GM.varLocInfo ofType
 coreToFun :: LocSymbol -> Var -> C.CoreExpr ->  LogicM ([Var], Either Expr Expr)
 coreToFun _ _v s = do
   allowTC <- reader $ typeclass . lsConfig
-  go [] $ normalize allowTC s
+  go [] $ normalizeCoreExpr allowTC s
   where
     go acc (C.Lam x e)  | isTyVar x = go acc e
     go acc (C.Lam x e)  = do
@@ -275,7 +275,7 @@ instance Show C.CoreExpr where
 coreToLogic :: C.CoreExpr -> LogicM Expr
 coreToLogic cb = do
   allowTC <- reader $ typeclass . lsConfig
-  coreToLg $ normalize allowTC cb
+  coreToLg $ normalizeCoreExpr allowTC cb
 
 
 coreToLg :: C.CoreExpr -> LogicM Expr
@@ -597,79 +597,80 @@ isANF      v = isPrefixOfSym (symbol ("lq_anf" :: String)) (simpleSymbolVar v)
 isDead :: Id -> Bool
 isDead     = isDeadOcc . occInfo . Ghc.idInfo
 
-class Simplify a where
-  simplify :: Bool -> a -> a
-  inline   :: (Id -> Bool) -> a -> a
+normalizeCoreExpr :: Bool -> CoreExpr -> CoreExpr
+normalizeCoreExpr allowTC = inline_preds . inline_anf . simplifyCoreExpr allowTC
+  where
+    inline_preds = inlineCoreExpr (eqType boolTy . GM.expandVarType)
+    inline_anf   = inlineCoreExpr isANF
 
-  normalize :: Bool -> a -> a
-  normalize allowTC = inline_preds . inline_anf . simplify allowTC
-   where
-    inline_preds = inline (eqType boolTy . GM.expandVarType)
-    inline_anf   = inline isANF
+simplifyCoreExpr :: Bool -> CoreExpr -> CoreExpr
+simplifyCoreExpr allowTC = go
+  where
+    isDictOrErasable = if allowTC then GM.isEmbeddedDictVar else isErasable
 
-instance Simplify C.CoreExpr where
-  simplify _ e@(C.Var _)
-    = e
-  simplify _ e@(C.Lit _)
-    = e
-  simplify allowTC (C.App e (C.Type _))
-    = simplify allowTC e
-  simplify allowTC (C.App e (C.Var dict))  | (if allowTC then GM.isEmbeddedDictVar else isErasable) dict
-    = simplify allowTC e
-  simplify allowTC (C.App (C.Lam x e) _)   | isDead x
-    = simplify allowTC e
-  simplify allowTC (C.App e1 e2)
-    = C.App (simplify allowTC e1) (simplify allowTC e2)
-  simplify allowTC (C.Lam x e) | isTyVar x
-    = simplify allowTC e
-  simplify allowTC (C.Lam x e) | (if allowTC then GM.isEmbeddedDictVar else isErasable) x
-    = simplify allowTC e
-  simplify allowTC (C.Lam x e)
-    = C.Lam x (simplify allowTC e)
-  simplify allowTC (C.Let (C.NonRec x _) e) | (if allowTC then GM.isEmbeddedDictVar else isErasable) x
-    = simplify allowTC e
-  simplify allowTC (C.Let (C.Rec xes) e)    | all ((if allowTC then GM.isEmbeddedDictVar else isErasable) . fst) xes
-    = simplify allowTC e
-  simplify allowTC (C.Let xes e)
-    = C.Let (simplify allowTC xes) (simplify allowTC e)
-  simplify allowTC (C.Case e x _t alts@[Alt _ _ ee,_,_]) | isBangInteger alts
-  -- XXX(matt): seems to be for debugging?
-    = -- Misc.traceShow ("To simplify allowTC case") $
-       sub (M.singleton x (simplify allowTC e)) (simplify allowTC ee)
-  simplify allowTC (C.Case e x t alts)
-    = C.Case (simplify allowTC e) x t (filter (not . isPatErrorAlt) (simplify allowTC <$> alts))
-  simplify allowTC (C.Cast e c)
-    = C.Cast (simplify allowTC e) c
-  simplify allowTC (C.Tick _ e)
-    = simplify allowTC e
-  simplify _ (C.Coercion c)
-    = C.Coercion c
-  simplify _ (C.Type t)
-    = C.Type t
+    go :: CoreExpr -> CoreExpr
+    go e@(C.Var _)
+      = e
+    go e@(C.Lit _)
+      = e
+    go (C.App e1 (C.Type _))
+      = go e1
+    go (C.App e1 (C.Var v))
+      | isDictOrErasable v
+      = go e1
+    go (C.App (C.Lam x e) _)
+      | isDead x
+      = go e
+    go (C.App e1 e2)
+      = C.App (go e1) (go e2)
+    go (C.Lam x e)
+      | isTyVar x
+      = go e
+    go (C.Lam x e)
+      | isDictOrErasable x
+      = go e
+    go (C.Lam x e)
+      = C.Lam x (go e)
+    go (C.Let (C.NonRec x eb) e)
+      | isDictOrErasable x
+      = go e
+      | otherwise
+      = C.Let (C.NonRec x (go eb)) (go e)
+    go (C.Let (C.Rec xes) e)
+      | all (isDictOrErasable . fst) xes
+      = go e
+      | otherwise
+      = C.Let (C.Rec (map (fmap go) xes)) (go e)
+    go (C.Case e x _t alts@[Alt _ _ ee,_,_])
+      | isBangInteger alts
+      = sub (M.singleton x (go e)) (go ee)
+    go (C.Case e x t alts)
+      = C.Case (go e) x t $
+         filter
+           (not . isPatErrorAlt)
+           [ Alt c xs (go ealt) | Alt c xs ealt <- alts ]
+    go (C.Cast e c)
+      = C.Cast (go e) c
+    go (C.Tick _ e)
+      = go e
+    go (C.Coercion c)
+      = C.Coercion c
+    go (C.Type t)
+      = C.Type t
 
-  inline p (C.Let (C.NonRec x ex) e) | p x
-                               = sub (M.singleton x (inline p ex)) (inline p e)
-  inline p (C.Let xes e)       = C.Let (inline p xes) (inline p e)
-  inline p (C.App e1 e2)       = C.App (inline p e1) (inline p e2)
-  inline p (C.Lam x e)         = C.Lam x (inline p e)
-  inline p (C.Case e x t alts) = C.Case (inline p e) x t (inline p <$> alts)
-  inline p (C.Cast e c)        = C.Cast (inline p e) c
-  inline p (C.Tick t e)        = C.Tick t (inline p e)
-  inline _ (C.Var x)           = C.Var x
-  inline _ (C.Lit l)           = C.Lit l
-  inline _ (C.Coercion c)      = C.Coercion c
-  inline _ (C.Type t)          = C.Type t
-
-
-instance Simplify C.CoreBind where
-  simplify allowTC (C.NonRec x e) = C.NonRec x (simplify allowTC e)
-  simplify allowTC (C.Rec xes)    = C.Rec (fmap (simplify allowTC) <$> xes )
-
-  inline p (C.NonRec x e) = C.NonRec x (inline p e)
-  inline p (C.Rec xes)    = C.Rec (fmap (inline p) <$> xes)
-
-instance Simplify C.CoreAlt where
-  simplify allowTC (Alt c xs e) = Alt c xs (simplify allowTC e)
-    -- where xs   = F.tracepp _msg xs0
-    --      _msg = "isCoVars? " ++ F.showpp [(x, isCoVar x, varType x) | x <- xs0]
-  inline p (Alt c xs e) = Alt c xs (inline p e)
+inlineCoreExpr :: (Id -> Bool) -> CoreExpr -> CoreExpr
+inlineCoreExpr p (C.Let (C.NonRec x ex) e)
+  | p x = sub (M.singleton x (inlineCoreExpr p ex)) (inlineCoreExpr p e)
+  | otherwise = C.Let (C.NonRec x (inlineCoreExpr p ex)) (inlineCoreExpr p e)
+inlineCoreExpr p (C.Let (C.Rec xes) e) = C.Let (C.Rec (map (fmap (inlineCoreExpr p)) xes)) (inlineCoreExpr p e)
+inlineCoreExpr p (C.App e1 e2)       = C.App (inlineCoreExpr p e1) (inlineCoreExpr p e2)
+inlineCoreExpr p (C.Lam x e)         = C.Lam x (inlineCoreExpr p e)
+inlineCoreExpr p (C.Case e x t alts) =
+  C.Case (inlineCoreExpr p e) x t
+    [ Alt c xs (inlineCoreExpr p ealt) | Alt c xs ealt <- alts ]
+inlineCoreExpr p (C.Cast e c)        = C.Cast (inlineCoreExpr p e) c
+inlineCoreExpr p (C.Tick t e)        = C.Tick t (inlineCoreExpr p e)
+inlineCoreExpr _ (C.Var x)           = C.Var x
+inlineCoreExpr _ (C.Lit l)           = C.Lit l
+inlineCoreExpr _ (C.Coercion c)      = C.Coercion c
+inlineCoreExpr _ (C.Type t)          = C.Type t

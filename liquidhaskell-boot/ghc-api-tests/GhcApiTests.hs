@@ -108,10 +108,6 @@ testCaseDesugaring = do
           , "        True -> ()"
           ]
 
-        fBind (GHC.NonRec b _e) =
-          occNameString (GHC.occName b) == "f"
-        fBind _ = False
-
         -- Expected desugaring:
         --
         -- CaseDesugaring.f
@@ -124,8 +120,8 @@ testCaseDesugaring = do
         --            GHC.Types.True -> GHC.Tuple.()
         --          }
         --
-        isExpectedDesugaring p = case find fBind p of
-          Just (GHC.NonRec _ e0)
+        isExpectedDesugaring p = case findExpr "f" p of
+          Just e0
             | Lam x (untick -> Case (Var x') _ _ [alt0, _alt1]) <- e0
             , x == x'
             , Alt DEFAULT [] e1 <- alt0
@@ -150,18 +146,14 @@ testNumLitDesugaring = do
           , "f = 1"
           ]
 
-        fBind (GHC.NonRec b _e) =
-          occNameString (GHC.occName b) == "f"
-        fBind _ = False
-
         -- Expected desugaring:
         --
         -- NumLitDesugaring.f
         --      = \@a dict -> fromInteger @a dict (GHC.Num.Integer.IS 1#)
         --
-        isExpectedDesugaring p = case find fBind p of
-          Just (GHC.NonRec _ e0)
-            | Lam _a (Lam _dict (untick -> App fromIntegerApp (App (Var vIS) lit))) <- e0
+        isExpectedDesugaring p = case findExpr "f" p of
+          Just e0
+            | Lam _a (Lam _dict (untick . dropLets -> App fromIntegerApp (App (Var vIS) lit))) <- e0
             , App (App (Var vFromInteger) _aty) _numDict <- fromIntegerApp
             , GHC.idName vFromInteger  == GHC.fromIntegerName
             , GHC.nameStableString (GHC.idName vIS) == GHC.nameStableString GHC.integerISDataConName
@@ -174,6 +166,10 @@ testNumLitDesugaring = do
       fail $ unlines $
         "Unexpected desugaring:" : map showPprQualified coreProgram
 
+dropLets :: GHC.CoreExpr -> GHC.CoreExpr
+dropLets (Let _ e) = dropLets e
+dropLets e         = e
+
 -- | Tests that dollar sign desugars as Liquid Haskell expects.
 testDollarDesugaring :: IO ()
 testDollarDesugaring = do
@@ -183,12 +179,8 @@ testDollarDesugaring = do
           , "f = (\\_ -> ()) $ 'a'"
           ]
 
-        fBind (GHC.NonRec b _e) =
-          occNameString (GHC.occName b) == "f"
-        fBind _ = False
-
-        isExpectedDesugaring p = case find fBind p of
-          Just (GHC.NonRec _ e0)
+        isExpectedDesugaring p = case findExpr "f" p of
+          Just e0
             | Just (Lam _ _, App _ (Lit (LitChar 'a'))) <- splitDollarApp e0
             -> True
           _ -> False
@@ -197,6 +189,20 @@ testDollarDesugaring = do
     unless (isExpectedDesugaring coreProgram) $
       fail $ unlines $
         "Unexpected desugaring:" : map showPprQualified coreProgram
+
+-- | Find the Core expression bound to the given name.
+findExpr :: String -> GHC.CoreProgram -> Maybe GHC.CoreExpr
+findExpr _ [] =
+  Nothing
+findExpr name (p:ps) = case p of
+  GHC.NonRec b e
+    | occNameString (GHC.occName b) == name
+    -> Just e
+  GHC.Rec binds
+    | Just (_, e) <- find (\(b, _e) -> occNameString (GHC.occName b) == name) binds
+    -> Just e
+  _ -> findExpr name ps
+
 
 -- | Test that local bindings are preserved.
 testLocalBindingsDesugaring :: IO ()
@@ -209,12 +215,8 @@ testLocalBindingsDesugaring = do
           , "    z = ()"
           ]
 
-        fBind (GHC.NonRec b _e) =
-          occNameString (GHC.occName b) == "f"
-        fBind _ = False
-
-        isExpectedDesugaring p = case find fBind p of
-          Just (GHC.NonRec _ (Let (GHC.NonRec b _) _))
+        isExpectedDesugaring p = case findExpr "f" p of
+          Just (Let (GHC.NonRec b _) _)
             -> occNameString (GHC.occName b) == "z"
           _ -> False
 
