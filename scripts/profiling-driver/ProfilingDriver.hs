@@ -1,15 +1,23 @@
 -- | This program calls ghc using the provided command line arguments.
 -- Use it to profile the liquidhaskell plugin.
 --
--- Build liquidhaskell first with profiling enabled.
+-- Build liquidhaskell and this program with profiling enabled.
 --
--- > cabal build --enable-profiling liquidhaskell
+-- > cabal build --enable-profiling liquidhaskell profiling-driver
 --
--- Then build and run this program.
+-- Add the plugin as an option pragma to the file on which the plugin should run.
 --
--- > cabal run --enable-profiling profiling-driver -- \
--- >     -package liquidhaskell -fplugin LiquidHaskell +RTS -p -RTS tests/pos/Bag.hs
+-- > echo "{-# OPTIONS_GHC -fplugin=LiquidHaskell #-}" > tests/basic/pos/Inc02.hs
 --
+-- Then run this program with
+--
+-- > cabal exec --enable-profiling -- profiling-driver +RTS -p -RTS tests/basic/pos/Inc02.hs
+--
+-- This will generate a file profiling-driver.prof with the profiling results.
+--
+-- Ideally, passing @-fplugin=LiquidHaskell@ on the command line should have the
+-- same effect as adding the plugin as an option pragma to the file, but for
+-- some reason it didn't work the last time we tried.
 module Main where
 
 import GHC as G
