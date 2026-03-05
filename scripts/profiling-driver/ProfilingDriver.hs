@@ -7,7 +7,7 @@
 --
 -- Add the plugin as an option pragma to the file on which the plugin should run.
 --
--- > echo "{-# OPTIONS_GHC -fplugin=LiquidHaskell #-}" > tests/basic/pos/Inc02.hs
+-- > sed -i '1i{-# OPTIONS_GHC -fplugin=LiquidHaskell #-}' tests/basic/pos/Inc02.hs
 --
 -- Then run this program with
 --
