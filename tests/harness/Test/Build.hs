@@ -36,7 +36,7 @@ cabalRun opts names = do
         <> (if measureTimings opts then
               ["--flags=measure-timings"]
             else if measureTimingsJ1 opts then
-              ["--flags=measure-timings-j1", "-j1"]
+              ["--flags=measure-timings", "-j1"]
             else ["--keep-going"]
            )
         <> extraOpts opts
@@ -50,7 +50,7 @@ stackRun opts names = do
   let exe = "stack"
       args = [ "build", "--flag", "tests:stack" ]
         <> concat [ ["--flag=tests:measure-timings"] | measureTimings opts ]
-        <> concat [ ["--flag=tests:measure-timings-j1", "-j1"] | measureTimings opts ]
+        <> concat [ ["--flag=tests:measure-timings", "-j1"] | measureTimingsJ1 opts ]
         <> testFlags
         <> extraOpts opts
         <> [ "--" ]
