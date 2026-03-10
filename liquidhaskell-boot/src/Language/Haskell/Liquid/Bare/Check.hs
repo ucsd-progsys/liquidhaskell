@@ -362,7 +362,7 @@ checkSigTExpr allowHO bsc emb tcEnv env (x, (t, es)) =
   do ef <- ask
      pure $ runReader mbErr1 ef <> runReader mbErr2 ef
    where
-    mbErr1 = checkBind allowHO bsc empty emb tcEnv env (x, t)
+    mbErr1 = checkBind allowHO bsc "checkSigTExpr" emb tcEnv env (x, t)
     mbErr2 = maybe (pure emptyDiagnostics) (checkTerminationExpr emb env . (x, t,)) es
     -- mbErr2 = checkTerminationExpr emb env . (x, t,) =<< es
 
