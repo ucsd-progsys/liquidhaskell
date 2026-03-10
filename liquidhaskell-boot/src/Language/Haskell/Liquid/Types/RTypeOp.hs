@@ -538,18 +538,17 @@ mapPropM f (RRTy xts r o t)  = liftM4 RRTy (mapM (traverse (mapPropM f)) xts) (r
 --------------------------------------------------------------------------------
 foldReft :: (Reftable r, TyConable c) => BScope -> (F.SEnv (RType c tv r) -> r -> a -> a) -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
-foldReft bsc f = foldReft'  (\_ _ -> False) bsc id (\γ _ -> f γ)
+foldReft bsc f = foldReft' bsc id (\γ _ -> f γ)
 
 --------------------------------------------------------------------------------
 foldReft' :: (Reftable r, TyConable c)
-          => (Symbol -> RType c tv r -> Bool)
-          -> BScope
+          => BScope
           -> (RType c tv r -> b)
           -> (F.SEnv b -> Maybe (RType c tv r) -> r -> a -> a)
           -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
-foldReft' logicBind bsc g f
-  = efoldReft logicBind bsc
+foldReft' bsc g f
+  = efoldReft bsc
               (\_ _ -> [])
               (const [])
               g
@@ -566,8 +565,7 @@ rtvinfoIsVal RTVInfo{..} = rtv_is_val
 
 -- efoldReft :: Reftable r =>(p -> [RType c tv r] -> [(Symbol, a)])-> (RType c tv r -> a)-> (SEnv a -> Maybe (RType c tv r) -> r -> c1 -> c1)-> SEnv a-> c1-> RType c tv r-> c1
 efoldReft :: (Reftable r, TyConable c)
-          => (Symbol -> RType c tv r -> Bool)
-          -> BScope
+          => BScope
           -> (c  -> [RType c tv r] -> [(Symbol, a)])
           -> (RTVar tv (RType c tv ()) -> [(Symbol, a)])
           -> (RType c tv r -> a)
@@ -577,7 +575,7 @@ efoldReft :: (Reftable r, TyConable c)
           -> b
           -> RType c tv r
           -> b
-efoldReft logicBind bsc cb dty g f fp = go
+efoldReft bsc cb dty g f fp = go
   where
     -- folding over RType
     go γ z me@(RVar _ r)                = f γ (Just me) r z
@@ -588,9 +586,7 @@ efoldReft logicBind bsc cb dty g f fp = go
     go γ z me@(RFun _ RFInfo{permitTC = permitTC} (RApp c ts _ _) t' r)
        | (if permitTC == Just True then isEmbeddedDict else isClass)
          c  = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
-    go γ z me@(RFun x _ t t' r)
-       | logicBind x t                  = f γ (Just me) r (go γ' (go γ z t) t')
-       | otherwise                      = f γ (Just me) r (go γ  (go γ z t) t')
+    go γ z me@(RFun x _ t t' r)         = f γ (Just me) r (go γ' (go γ z t) t')
        where
          γ'                             = insertSEnv x (g t) γ
     go γ z me@(RApp _ ts rs r)          = f γ (Just me) r (ho' γ (go' γ' z ts) rs)
