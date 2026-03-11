@@ -63,11 +63,11 @@ initEnv info
        f0''     <- refreshArgs' =<< grtyTop info                      -- default TOP reftype      (for exported vars without spec)
        let f0'   = if notruetypes $ getConfig sp then [] else f0''
        f1       <- refreshArgs'   defaults                            -- default TOP reftype      (for all vars)
-       f1'      <- refreshArgs' $ makeExactDc dcsty                   -- data constructors
+       f1'      <- refreshArgs' $ strengthenDc dcsty                  -- data constructors
        f2       <- refreshArgs' $ assm info                           -- assumed refinements      (for imported vars)
        f3'      <- refreshArgs' =<< recSelectorsTy info                      -- assumed refinements      (for record selectors)
        f3       <- addPolyInfo' <$> refreshArgs' (vals gsAsmSigs (gsSig sp))                 -- assumed refinedments     (with `assume`)
-       f40      <- makeExactDc <$> refreshArgs' (vals gsCtors (gsData sp)) -- constructor refinements  (for measures)
+       f40      <- strengthenDc <$> refreshArgs' (vals gsCtors (gsData sp)) -- constructor refinements  (for measures)
        f5       <- refreshArgs' $ vals gsInSigs (gsSig sp)                   -- internal refinements     (from Haskell measures)
        fi       <- refreshArgs' $ catMaybes $ [(x,) . val <$> getMethodType mt | (x, mt) <- gsMethods $ gsSig $ giSpec info ]
        (invs1, f41) <- traverse refreshArgs' $ makeAutoDecrDataCons dcsty  (gsAutosize (gsTerm sp)) dcs
@@ -93,7 +93,7 @@ initEnv info
     is autoinv   = mkRTyConInv    (gsInvariants (gsData sp) ++ ((Nothing,) <$> autoinv))
     addPolyInfo' = if reflection (getConfig info) then map (fmap addPolyInfo) else id
 
-    makeExactDc dcs = if exactDCFlag info then map strengthenDataConType dcs else dcs
+    strengthenDc = map strengthenDataConType
 
 addPolyInfo :: SpecType -> SpecType
 addPolyInfo t = mkUnivs (go <$> as) ps t'
