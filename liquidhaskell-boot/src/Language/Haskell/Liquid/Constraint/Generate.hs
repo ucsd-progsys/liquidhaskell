@@ -487,7 +487,7 @@ lambdaSingleton _ _ _ _
 
 addForAllConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
 addForAllConstraint γ _ _ (RAllT rtv rt rr)
-  | isTauto rr
+  | isTautoV rr
   = return ()
   | otherwise
   = do t'       <- true (typeclass (getConfig γ)) rt
@@ -1209,7 +1209,7 @@ singletonReft = uTop . F.symbolReft . F.symbol
 -- | RJ: `nomeet` replaces `strengthenS` for `strengthen` in the definition
 --   of `varRefType`. Why does `tests/neg/strata.hs` fail EVEN if I just replace
 --   the `otherwise` case? The fq file holds no answers, both are sat.
-strengthenTop :: (PPrint r, Reftable r) => RType c tv r -> r -> RType c tv r
+strengthenTop :: (PPrint r, Meet r) => RType c tv r -> r -> RType c tv r
 strengthenTop (RApp c ts rs r) r'   = RApp c ts rs   $ meet r r'
 strengthenTop (RVar a r) r'         = RVar a         $ meet r r'
 strengthenTop (RFun b i t1 t2 r) r' = RFun b i t1 t2 $ meet r r'
@@ -1218,16 +1218,13 @@ strengthenTop (RAllT a t r)    r'   = RAllT a t      $ meet r r'
 strengthenTop t _                   = t
 
 -- TODO: this is almost identical to RT.strengthen! merge them!
-strengthenMeet :: (PPrint r, Reftable r) => RType c tv r -> r -> RType c tv r
+strengthenMeet :: (PPrint r, Meet r) => RType c tv r -> r -> RType c tv r
 strengthenMeet (RApp c ts rs r) r'  = RApp c ts rs (r `meet` r')
 strengthenMeet (RVar a r) r'        = RVar a       (r `meet` r')
 strengthenMeet (RFun b i t1 t2 r) r'= RFun b i t1 t2 (r `meet` r')
 strengthenMeet (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `meet` r')
 strengthenMeet (RAllT a t r) r'     = RAllT a (strengthenMeet t r') (r `meet` r')
 strengthenMeet t _                  = t
-
--- topMeet :: (PPrint r, Reftable r) => r -> r -> r
--- topMeet r r' = r `meet` r'
 
 --------------------------------------------------------------------------------
 -- | Cleaner Signatures For Rec-bindings ---------------------------------------

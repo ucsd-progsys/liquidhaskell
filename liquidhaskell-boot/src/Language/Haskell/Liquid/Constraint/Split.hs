@@ -277,7 +277,7 @@ splitC _ (SubR γ o r)
     vv  = "vvRec"
     ci  = Ci src err (cgVar γ)
     err = Just $ ErrAssType src o (text $ show o ++ "type error") g (rHole rr)
-    rr  = toReft r
+    rr  = toReftV r
     tag = getTag γ
     src = getLocation γ
     g   = reLocal $ renv γ

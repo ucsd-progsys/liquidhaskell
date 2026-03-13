@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TypeOperators        #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
@@ -31,7 +32,7 @@ constraintToLogic :: REnv -> LConstraint -> Expr
 constraintToLogic γ (LC ts) = pAnd (constraintToLogicOne γ <$> ts)
 
 -- RJ: The code below is atrocious. Please fix it!
-constraintToLogicOne :: (Reftable r) => REnv -> [(Symbol, RRType r)] -> Expr
+constraintToLogicOne :: (IsReftV r, ReftBind r ~ Symbol, ReftVar r ~ Symbol) => REnv -> [(Symbol, RRType r)] -> Expr
 constraintToLogicOne γ binds
   = pAnd [subConstraintToLogicOne
           (zip xs xts)
@@ -44,14 +45,14 @@ constraintToLogicOne γ binds
    r        = snd $ last binds
    xss      = combinations ((\t -> [(x, t) | x <- localBindsOfType t γ]) <$> ts)
 
-subConstraintToLogicOne :: (Foldable t, Reftable r, Reftable r1)
-                        => t (Symbol, (Symbol, RType t1 t2 r))
-                        -> (Symbol, (Symbol, RType t3 t4 r1)) -> Expr
+subConstraintToLogicOne :: (Foldable t, IsReftV r, ReftBind r ~ Symbol, ReftVar r ~ Symbol)
+                        => t (Symbol, (Symbol, RType c tv r))
+                        -> (Symbol, (Symbol, RType c tv r)) -> Expr
 subConstraintToLogicOne xts (sym', (sym, rt)) = PImp (pAnd rs) r
   where
         (rs , symExprs) = foldl go ([], []) xts
         ([r], _ ) = go ([], symExprs) (sym', (sym, rt))
-        go (acc, su) (x', (x, t)) = let (Reft(v, p)) = toReft (fromMaybe mempty (stripRTypeBase t))
+        go (acc, su) (x', (x, t)) = let (Reft(v, p)) = toReftV (fromMaybe trueReftV (stripRTypeBase t))
                                         su'          = (x', EVar x):(v, EVar x) : su
                                     in
                                      (subst (mkSubst su') p : acc, su')

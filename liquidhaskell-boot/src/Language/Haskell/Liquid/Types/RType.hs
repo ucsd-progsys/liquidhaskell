@@ -16,6 +16,7 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE DefaultSignatures          #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -114,11 +115,10 @@ module Language.Haskell.Liquid.Types.RType (
   -- * Refined Function Info
   , RFInfo(..), defRFInfo, mkRFInfo, classRFInfo
 
-  -- * Reftable/UReftable Instances
-  , Reftable(..)
-  , UReftable(..)
+  -- * Converting to and from refinements
   , ToReftV(..)
   , Meet(..)
+  , Top(..)
   , IsReftV(..)
   , isTautoV
   , trueReftV
@@ -1012,29 +1012,24 @@ type OkRTBV b v c tv r =
   , Hashable tv
   )
 
-class Reftable r => UReftable r where
-  ofUReft :: UReft F.Reft -> r
-  ofUReft (MkUReft r _) = ofReft r
-
-
-instance UReftable (UReft F.Reft) where
-   ofUReft r = r
-
-instance UReftable () where
-   ofUReft _ = mempty
-
+-- | Types that have one associated refinement representible by a 'F.ReftBV'
 class (F.Binder (ReftBind r), Eq (ReftVar r)) => ToReftV r where
   type ReftVar r
   type ReftBind r
   type ReftBind r = Symbol
   toReftV :: r -> F.ReftBV (ReftBind r) (ReftVar r)
-  topV :: r -> r
 
+-- | Types that can be combined conjunctively in some sense
 class Semigroup r => Meet r where
   meet :: r -> r -> r
   meet = (<>)
 
-class (ToReftV r, Meet r) => IsReftV r where
+-- | Types whose refinements can be cleared to true
+class Top r where
+  top :: r -> r
+
+-- | Types that can be constructed from a 'F.ReftBV'
+class (ToReftV r, Meet r, Top r) => IsReftV r where
   ofReftV :: F.ReftBV (ReftBind r) (ReftVar r) -> r
 
 trueReftV :: IsReftV r => r
@@ -1047,7 +1042,9 @@ instance (ToReftV r, F.Binder b, Ord v) => ToReftV (UReftBV b v r) where
   type ReftVar (UReftBV b v r) = ReftVar r
   type ReftBind (UReftBV b v r) = ReftBind r
   toReftV = toReftV . ur_reft
-  topV (MkUReft r _) = MkUReft (topV r) pdTrue
+
+instance Top r => Top (UReftBV b v r) where
+  top (MkUReft r _) = MkUReft (top r) pdTrue
 
 instance (IsReftV r, F.Binder v) => IsReftV (UReftBV v v r) where
   ofReftV r = MkUReft (ofReftV r) pdTrue
@@ -1056,7 +1053,9 @@ instance (F.Binder b, Eq v) => ToReftV (F.ReftBV b v) where
   type ReftVar (F.ReftBV b v) = v
   type ReftBind (F.ReftBV b v) = b
   toReftV = id
-  topV _ = F.trueReft
+
+instance (F.Binder b) => Top (F.ReftBV b v) where
+  top _ = F.trueReft
 
 instance (F.Binder v, F.Fixpoint v) => Meet (F.ReftBV v v) where
 
@@ -1066,7 +1065,9 @@ instance (F.Binder v, F.Fixpoint v, Eq v) => IsReftV (F.ReftBV v v) where
 instance ToReftV () where
   type ReftVar () = Symbol
   toReftV _ = F.trueReft
-  topV _ = ()
+
+instance Top () where
+  top _ = ()
 
 instance IsReftV () where
   ofReftV _ = ()
@@ -1075,7 +1076,9 @@ instance F.Binder b => ToReftV (NoReftB b) where
   type ReftVar (NoReftB b) = Symbol
   type ReftBind (NoReftB b) = b
   toReftV _ = F.trueReft
-  topV _ = NoReft
+
+instance Top (NoReftB b) where
+  top _ = NoReft
 
 instance F.Binder b => IsReftV (NoReftB b) where
   ofReftV _ = NoReft
@@ -1084,29 +1087,23 @@ instance ToReftV t => ToReftV (RefB b τ t) where
   type ReftVar (RefB b τ t) = ReftVar t
   type ReftBind (RefB b τ t) = ReftBind t
   toReftV (RProp _ t) = toReftV t
-  topV (RProp args t) = RProp args (topV t)
+
+instance Top t => Top (RefB b τ t) where
+  top (RProp args t) = RProp args (top t)
 
 instance (F.Binder b, Ord v, PredicateCompat b v) => ToReftV (PredicateBV b v) where
   type ReftVar (PredicateBV b v) = v
   type ReftBind (PredicateBV b v) = b
   toReftV (Pr [])       = F.trueReft
   toReftV (Pr ps@(p:_)) = F.Reft (parg p, F.pAnd $ pToRef <$> ps)
-  topV _ = pdTrue
+
+instance Top (PredicateBV b v) where
+  top _ = pdTrue
 
 {-
   toReft (Pr ps@(p:_))        = F.Reft (parg p, F.pAnd $ pToRef <$> ps)
   toReft _                    = F.trueReft
 -}
-
-class (Monoid r, F.Subable r, Meet r) => Reftable r where
-  isTauto :: r -> Bool
-  ppTy    :: r -> Doc -> Doc
-
-  top     :: r -> r
-  top _   =  mempty
-
-  toReft  :: r -> F.Reft
-  ofReft  :: F.Reft -> r
 
 instance (F.Binder v, F.Fixpoint v) => Semigroup (F.ReftBV v v) where
   (<>) = F.meetReft
@@ -1118,29 +1115,8 @@ instance Monoid F.Reft where
 instance Meet () where
   meet _ _ = ()
 
-instance Reftable () where
-  isTauto _ = True
-  ppTy _  d = d
-  top  _    = ()
-  toReft _  = F.trueReft
-  ofReft _  = ()
-
 instance Meet (NoReftB b) where
   meet _ _ = NoReft
-
-instance Hashable b => Reftable (NoReftB b) where
-  isTauto _ = True
-  ppTy _ d  = d
-  top _     = NoReft
-  toReft _  = F.trueReft
-  ofReft _  = NoReft
-
-instance Reftable F.Reft where
-  isTauto  = all F.isTautoPred . F.conjuncts . F.reftPred
-  ppTy     = pprReft
-  toReft   = id
-  ofReft   = id
-  top (F.Reft (v,_)) = F.Reft (v, F.PTrue)
 
 instance (Meet r, Eq v) => Meet (UReftBV v v r) where
 
@@ -1151,42 +1127,10 @@ instance (F.Subable r, F.Variable r ~ v) => F.Subable (UReftBV v v r) where
   substf f (MkUReft r z) = MkUReft (F.substf f r) (F.substf f z)
   substa f (MkUReft r z) = MkUReft (F.substa f r) (F.substa f z)
 
-instance (F.PPrint r, Reftable r, F.Variable r ~ F.Symbol) => Reftable (UReft r) where
-  isTauto               = isTautoUreft
-  ppTy                  = ppTyUreft
-  toReft (MkUReft r ps) = toReft r `meet` toReft ps
-  top (MkUReft r p)     = MkUReft (top r) (top p)
-  ofReft r              = MkUReft (ofReft r) mempty
-
 instance F.Expression (UReft ()) where
-  expr = F.expr . toReft
-
-ppTyUreft :: Reftable r => UReft r -> Doc -> Doc
-ppTyUreft u@(MkUReft r p) d
-  | isTautoUreft u = d
-  | otherwise      = pprReft r (ppTy p d)
-
-pprReft :: (Reftable r) => r -> Doc -> Doc
-pprReft r d = braces (F.pprint v <+> colon <+> d <+> text "|" <+> F.pprint r')
-  where
-    r'@(F.Reft (v, _)) = toReft r
-
-isTautoUreft :: Reftable r => UReft r -> Bool
-isTautoUreft u = isTauto (ur_reft u) && isTauto (ur_pred u)
+  expr = F.expr . toReftV
 
 instance Meet Predicate where
-
-instance Reftable Predicate where
-  isTauto (Pr ps)      = null ps
-
-  ppTy r d | isTauto r      = d
-           | not (ppPs ppEnv) = d
-           | otherwise        = d <-> angleBrackets (F.pprint r)
-
-  toReft (Pr ps@(p:_))        = F.Reft (parg p, F.pAnd $ pToRef <$> ps)
-  toReft _                    = F.trueReft
-
-  ofReft = todo Nothing "TODO: Predicate.ofReft"
 
 pToRef :: PredicateCompat b v => PVarBV b v a -> F.ExprBV b v
 pToRef p = pApp (pnameV p) $ F.EVar (pargV p) : (thd3 <$> pargs p)

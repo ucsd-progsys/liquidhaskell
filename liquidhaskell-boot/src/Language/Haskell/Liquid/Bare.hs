@@ -1228,7 +1228,7 @@ mkInvariant x z t tr = strengthen (top <$> t) (MkUReft reft' mempty)
 mkReft :: Located LHName -> Symbol -> SpecType -> SpecType -> Maybe (Symbol, Expr)
 mkReft x z _t tr
   | Just q <- stripRTypeBase tr
-  = let Reft (v, p) = toReft q
+  = let Reft (v, p) = toReftV q
         su          = mkSubst [(v, mkEApp (fmap lhNameToResolvedSymbol x) [EVar v]), (z,EVar v)]
         -- p'          = pAnd $ filter (\e -> z `notElem` syms e) $ conjuncts p
     in  Just (v, subst su p)

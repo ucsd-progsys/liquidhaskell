@@ -150,7 +150,7 @@ extend allowTC lc t1' t2
 resultTy :: RType c tv r -> RType c tv r
 resultTy = ty_res . toRTypeRep
 
-strengthenResult :: Reftable r => RType c tv r -> r -> RType c tv r
+strengthenResult :: Meet r => RType c tv r -> r -> RType c tv r
 strengthenResult t r = fromRTypeRep $ rep {ty_res = ty_res rep `strengthen` r}
   where
     rep              = toRTypeRep t

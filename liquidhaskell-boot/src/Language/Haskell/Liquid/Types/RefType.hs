@@ -183,8 +183,8 @@ uRType          = fmap uTop
 uRType'         ::  RType c tv (UReft a) -> RType c tv a
 uRType'         = fmap ur_reft
 
-uRTypeGen       :: Reftable b => RType c tv a -> RType c tv b
-uRTypeGen       = fmap $ const mempty
+uRTypeGen       :: IsReftV b => RType c tv a -> RType c tv b
+uRTypeGen       = fmap $ const trueReftV
 
 uPVar           :: PVarV v t -> UsedPVarV v
 uPVar           = void
@@ -290,82 +290,14 @@ instance ( SubsTy tv (RTypeBV v v c tv (NoReftB v)) c
   mempty  = panic Nothing "mempty: RTProp"
   mappend = (<>)
 
-{-
-NV: The following makes ghc diverge thus dublicating the code
-instance ( OkRT c tv r
-         , FreeVar c tv
-         , SubsTy tv (RType c tv ()) r
-         , SubsTy tv (RType c tv ()) (RType c tv ())
-         , SubsTy tv (RType c tv ()) c
-         , SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ()))
-         , SubsTy tv (RType c tv ()) tv
-         ) => Reftable (RTProp c tv r) where
-  isTauto (RProp _ (RHole r)) = isTauto r
-  isTauto (RProp _ t)         = isTrivial t
-  top (RProp _ (RHole _))     = panic Nothing "RefType: Reftable top called on (RProp _ (RHole _))"
-  top (RProp xs t)            = RProp xs $ mapReft top t
-  ppTy (RProp _ (RHole r)) d  = ppTy r d
-  ppTy (RProp _ _) _          = panic Nothing "RefType: Reftable ppTy in RProp"
-  toReft                      = panic Nothing "RefType: Reftable toReft"
-  params                      = panic Nothing "RefType: Reftable params for Ref"
-  bot                         = panic Nothing "RefType: Reftable bot    for Ref"
-  ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
--}
+instance Meet (RTProp RTyCon RTyVar (UReft Reft))
+instance Meet (RTProp RTyCon RTyVar NoReft)
+instance Meet (RTProp BTyCon BTyVar (UReft Reft))
+instance Meet (RTProp BTyCon BTyVar NoReft)
+instance Meet (RTProp RTyCon RTyVar Reft)
 
-instance Meet (RTProp RTyCon RTyVar (UReft Reft)) where
-instance Reftable (RTProp RTyCon RTyVar (UReft Reft)) where
-  isTauto (RProp _ (RHole r)) = isTauto r
-  isTauto (RProp _ t)         = isTrivial t
-  top (RProp _ (RHole _))     = panic Nothing "RefType: Reftable top called on (RProp _ (RHole _))"
-  top (RProp xs t)            = RProp xs $ mapReft top t
-  ppTy (RProp _ (RHole r)) d  = ppTy r d
-  ppTy (RProp _ _) _          = panic Nothing "RefType: Reftable ppTy in RProp"
-  toReft                      = panic Nothing "RefType: Reftable toReft"
-  ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
-
-instance Meet (RTProp RTyCon RTyVar NoReft) where
-instance Reftable (RTProp RTyCon RTyVar NoReft) where
-  isTauto (RProp _ (RHole r)) = isTauto r
-  isTauto (RProp _ t)         = isTrivial t
-  top (RProp _ (RHole _))     = panic Nothing "RefType: Reftable top called on (RProp _ (RHole _))"
-  top (RProp xs t)            = RProp xs $ mapReft top t
-  ppTy (RProp _ (RHole r)) d  = ppTy r d
-  ppTy (RProp _ _) _          = panic Nothing "RefType: Reftable ppTy in RProp"
-  toReft                      = panic Nothing "RefType: Reftable toReft"
-  ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
-
-instance Meet (RTProp BTyCon BTyVar (UReft Reft)) where
-instance Reftable (RTProp BTyCon BTyVar (UReft Reft)) where
-  isTauto (RProp _ (RHole r)) = isTauto r
-  isTauto (RProp _ t)         = isTrivial t
-  top (RProp _ (RHole _))     = panic Nothing "RefType: Reftable top called on (RProp _ (RHole _))"
-  top (RProp xs t)            = RProp xs $ mapReft top t
-  ppTy (RProp _ (RHole r)) d  = ppTy r d
-  ppTy (RProp _ _) _          = panic Nothing "RefType: Reftable ppTy in RProp"
-  toReft                      = panic Nothing "RefType: Reftable toReft"
-  ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
-
-instance Meet (RTProp BTyCon BTyVar NoReft)  where
-instance Reftable (RTProp BTyCon BTyVar NoReft)  where
-  isTauto (RProp _ (RHole r)) = isTauto r
-  isTauto (RProp _ t)         = isTrivial t
-  top (RProp _ (RHole _))     = panic Nothing "RefType: Reftable top called on (RProp _ (RHole _))"
-  top (RProp xs t)            = RProp xs $ mapReft top t
-  ppTy (RProp _ (RHole r)) d  = ppTy r d
-  ppTy (RProp _ _) _          = panic Nothing "RefType: Reftable ppTy in RProp"
-  toReft                      = panic Nothing "RefType: Reftable toReft"
-  ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
-
-instance Meet (RTProp RTyCon RTyVar Reft) where
-instance Reftable (RTProp RTyCon RTyVar Reft) where
-  isTauto (RProp _ (RHole r)) = isTauto r
-  isTauto (RProp _ t)         = isTrivial t
-  top (RProp _ (RHole _))     = panic Nothing "RefType: Reftable top called on (RProp _ (RHole _))"
-  top (RProp xs t)            = RProp xs $ mapReft top t
-  ppTy (RProp _ (RHole r)) d  = ppTy r d
-  ppTy (RProp _ _) _          = panic Nothing "RefType: Reftable ppTy in RProp"
-  toReft                      = panic Nothing "RefType: Reftable toReft"
-  ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
+instance Semigroup (RType RTyCon RTyVar r) => Meet (RType RTyCon RTyVar r) where
+instance Meet (RType BTyCon BTyVar (UReft Reft))
 
 ----------------------------------------------------------------------------
 -- | Subable Instances -----------------------------------------------------
@@ -385,38 +317,6 @@ instance Subable (RRProp Reft) where
 
   substa f (RProp ss (RHole r)) = RProp (fmap (substa f) <$> ss) $ RHole $ substa f r
   substa f (RProp ss r) = RProp  (fmap (substa f) <$> ss) $ substa f r
-
-
--------------------------------------------------------------------------------
--- | Reftable Instances -------------------------------------------------------
--------------------------------------------------------------------------------
-
-instance Semigroup (RType RTyCon RTyVar r) => Meet (RType RTyCon RTyVar r) where
-instance
-  ( PPrint r
-  , Reftable r
-  , SubsTy RTyVar (RType RTyCon RTyVar NoReft) r
-  , Reftable (RTProp RTyCon RTyVar r)
-  , ToReftV r
-  , Variable r ~ Symbol
-  , ReftBind r ~ Symbol
-  , ReftVar r ~ Symbol
-  , IsReftV r
-  ) => Reftable (RType RTyCon RTyVar r) where
-  isTauto     = isTrivial
-  ppTy        = panic Nothing "ppTy RProp Reftable"
-  toReft      = panic Nothing "toReft on RType"
-  ofReft      = panic Nothing "ofReft on RType"
-
-instance Meet (RType BTyCon BTyVar (UReft Reft))
-instance Reftable (RType BTyCon BTyVar (UReft Reft)) where
-  isTauto     = isTrivial
-  top t       = mapReft top t
-  ppTy        = panic Nothing "ppTy RProp Reftable"
-  toReft      = panic Nothing "toReft on RType"
-  ofReft      = panic Nothing "ofReft on RType"
-
-
 
 -- MOVE TO TYPES
 instance Fixpoint String where
@@ -441,11 +341,11 @@ instance FreeVar BTyCon BTyVar where
 -- Eq Instances ------------------------------------------------------
 
 -- MOVE TO TYPES
-instance (Eq c, Eq tv, Hashable tv, PPrint tv, TyConable c, PPrint c, Reftable (RTProp c tv NoReft))
+instance (Eq c, Eq tv, Hashable tv, PPrint tv, TyConable c, PPrint c)
       => Eq (RType c tv NoReft) where
   (==) = eqRSort M.empty
 
-eqRSort :: (Eq a, Eq k, Hashable k, TyConable a, PPrint a, PPrint k, Reftable (RTProp a k NoReft))
+eqRSort :: (Eq a, Eq k, Hashable k, TyConable a, PPrint a, PPrint k)
         => M.HashMap k k -> RType a k NoReft -> RType a k NoReft -> Bool
 eqRSort m (RAllP _ t) (RAllP _ t')
   = eqRSort m t t'
@@ -1248,7 +1148,7 @@ subsFreeRef
 subsFreeRef _ _ (α', τ', _) (RProp ss (RHole r))
   = RProp (fmap (subt (α', τ')) <$> ss) (RHole r)
 subsFreeRef m s (α', τ', t')  (RProp ss t)
-  = RProp (fmap (subt (α', τ')) <$> ss) $ subsFree m s (α', τ', fmap topV t') t
+  = RProp (fmap (subt (α', τ')) <$> ss) $ subsFree m s (α', τ', fmap top t') t
 
 
 --------------------------------------------------------------------------------

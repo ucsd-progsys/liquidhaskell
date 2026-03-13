@@ -710,8 +710,7 @@ checkMeasure emb γ (M name@(Loc src _ n) sort body _ _)
   where
     txerror = ErrMeas (GM.sourcePosSrcSpan src) (pprint n)
 
-checkMBody :: (PPrint r, Reftable r,SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
-           => F.SEnv F.SortedReft
+checkMBody :: F.SEnv F.SortedReft
            -> F.TCEmb TyCon
            -> t
            -> SpecType
@@ -799,12 +798,12 @@ getRewriteErrors (rw, t)
           ++ " contains an inner refinement."
 
 
-isRefined :: Reftable r => RType c tv r -> Bool
+isRefined :: ToReftV r => RType c tv r -> Bool
 isRefined ty
-  | Just r <- stripRTypeBase ty = not $ isTauto r
+  | Just r <- stripRTypeBase ty = not $ isTautoV r
   | otherwise = False
 
-hasInnerRefinement :: Reftable r => RType c tv r -> Bool
+hasInnerRefinement :: ToReftV r => RType c tv r -> Bool
 hasInnerRefinement (RFun _ _ rIn rOut _) =
   isRefined rIn || isRefined rOut
 hasInnerRefinement (RAllT _ ty  _) =

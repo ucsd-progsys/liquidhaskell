@@ -231,7 +231,7 @@ rRCls rc ts = RApp rc ts [] trueReftV
 
 addInvCond :: SpecType -> RReft -> SpecType
 addInvCond t r'
-  | isTauto $ ur_reft r' -- null rv
+  | isTautoV $ ur_reft r' -- null rv
   = t
   | otherwise
   = fromRTypeRep $ trep {ty_res = RRTy [(x', tbd)] r OInv tbd}
@@ -285,13 +285,14 @@ instance ToReftV r => ToReftV (OrReftBV r) where
   type ReftVar (OrReftBV r) = ReftVar r
   toReftV (LeftReftBV r) = r
   toReftV (RightR r) = toReftV r
-  topV (LeftReftBV r) = LeftReftBV (topV r)
-  topV (RightR r) = RightR (topV r)
 
 instance ToReftV r => Semigroup (OrReftBV r) where
   _ <> _ = Prelude.error "Meet OrReftBV"
 
 instance ToReftV r => Meet (OrReftBV r) where
+
+instance F.Binder (ReftBind r) => Top (OrReftBV r) where
+  top _ = LeftReftBV (F.trueReft)
 
 instance ToReftV r => IsReftV (OrReftBV r) where
   ofReftV r = LeftReftBV r
@@ -301,6 +302,10 @@ isTrivial = foldReft False (\_ r b -> isTautoV r && b) True . fmap RightR
 
 mapReft ::  (r1 -> r2) -> RTypeBV b v c tv r1 -> RTypeBV b v c tv r2
 mapReft f = emapReft (const f) []
+
+instance Top r => Top (RTypeBV b v c tv r) where
+  top (RHole _) = panic Nothing "top called on (RProp _ (RHole _))"
+  top t = mapReft top t
 
 emapReft ::  ([b] -> r1 -> r2) -> [b] -> RTypeBV b v c tv r1 -> RTypeBV b v c tv r2
 emapReft f γ (RVar α r)        = RVar  α (f γ r)
@@ -554,11 +559,6 @@ mapPropM f (RRTy xts r o t)  = liftM4 RRTy (mapM (traverse (mapPropM f)) xts) (r
 
 
 --------------------------------------------------------------------------------
--- foldReft :: (Reftable r, TyConable c) => (r -> a -> a) -> a -> RType c tv r -> a
---------------------------------------------------------------------------------
--- foldReft f = efoldReft (\_ _ -> []) (\_ -> ()) (\_ _ -> f) (\_ γ -> γ) emptyF.SEnv
-
---------------------------------------------------------------------------------
 foldReft :: (IsReftV r, TyConable c, F.Binder b, ReftBind r ~ b) => BScope -> (F.SEnvB b (RTypeBV b v c tv r) -> r -> z -> z) -> z -> RTypeBV b v c tv r -> z
 --------------------------------------------------------------------------------
 foldReft bsc f = foldReft' bsc id (\γ _ -> f γ)
@@ -586,7 +586,6 @@ rtvinfoIsVal :: RTVInfo s -> Bool
 rtvinfoIsVal RTVNoInfo{} = False
 rtvinfoIsVal RTVInfo{..} = rtv_is_val
 
--- efoldReft :: Reftable r =>(p -> [RType c tv r] -> [(Symbol, a)])-> (RType c tv r -> a)-> (SEnv a -> Maybe (RType c tv r) -> r -> c1 -> c1)-> SEnv a-> c1-> RType c tv r-> c1
 efoldReft :: (IsReftV r, TyConable c, F.Binder b, ReftBind r ~ b)
           => BScope
           -> (c  -> [RTypeBV b v c tv r] -> [(b, a)])
@@ -733,7 +732,7 @@ stripRTypeBase (RAppTy _ _ x)   = Just x
 stripRTypeBase (RAllT _ _ x)    = Just x
 stripRTypeBase _                = Nothing
 
-topRTypeBase :: (Reftable r) => RType c tv r -> RType c tv r
+topRTypeBase :: (Top r) => RType c tv r -> RType c tv r
 topRTypeBase = mapRBase top
 
 mapRBase :: (r -> r) -> RType c tv r -> RType c tv r
