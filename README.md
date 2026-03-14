@@ -27,7 +27,8 @@ different users.
 
 ## Trying it from GitHub
 
-The github repo only builds with GHC 9.14.1, which must be in your `PATH`.
+The github repo only builds with GHC `9.14.1` and cabal-install `3.16.1.0`, both of which must
+be in your `PATH`.
 
 ```
 git clone https://github.com/ucsd-progsys/liquidhaskell.git
