@@ -18,6 +18,10 @@ source-repository-package
     location: https://github.com/qnikst/ghc-timings-report
     tag: 45ef3498e35897712bde8e002ce18df6d55f8b15
 
+constraints:
+  -- helps users detecting when and old cabal-install could spoil the build.
+  Cabal >= 3.16
+
 allow-newer:
   ghc-timings:base
   ,active:base
