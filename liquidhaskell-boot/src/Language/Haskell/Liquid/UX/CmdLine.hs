@@ -428,6 +428,9 @@ defConfig = Config {
     = False &= help "Dump time measures of the Liquid Haskell plugin"
           &= name "ddump-timings"
           &= explicit
+  , modern
+    = False &= help "Enable modern features (e.g. reflection, ple, etc.)"
+            &= name "modern"
   } &= program "liquidhaskell"
     &= help    "Refinement Types for Haskell"
     &= summary copyright
@@ -526,6 +529,15 @@ canonConfig :: Config -> Config
 canonConfig cfg = cfg
   { diffcheck   = diffcheck cfg && not (fullcheck cfg)
   -- , eliminate   = if higherOrderFlag cfg then FC.All else eliminate cfg
+  -- The "modern" flag is a sort of "super flag" which enables a bunch of
+  -- features at once.
+  , proofLogicEval = modern cfg || proofLogicEval cfg
+  , etabeta        = modern cfg || etabeta cfg
+  , dependantCase  = modern cfg || dependantCase cfg
+  -- Technically those are patched in the `lookup` functions in `Congigs.hs` but
+  -- it is better to be explicit here.
+  , reflection     = modern cfg || reflection cfg
+  , exactDC        = modern cfg || exactDC cfg
   }
 
 --------------------------------------------------------------------------------
