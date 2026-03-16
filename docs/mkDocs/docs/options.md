@@ -24,7 +24,7 @@ The options are descibed below (and by the legacy executable: `liquid --help`)
 
 ## Theorem Proving
 
-**Options:** `reflection`, `ple`, `ple-local`, `extensionality`, `ple-with-undecided-guards`, `--dump-opaque-reflections`, `--etabeta`, `--dependantcase`
+**Options:** `reflection`, `ple`, `ple-local`, `extensionality`, `ple-with-undecided-guards`, `--dump-opaque-reflections`, `--etabeta`, `--dependantcase`, `--modern`
 
 **Directives:** `automatic-instances`
 
@@ -210,6 +210,10 @@ rewrite rule that PLE uses to derive `id x = x` from `f x = x`, where
 While both flags work independently, enabling `--dependantcase` might need
 to be complemented with the flag `--etabeta` to complete the verification
 of function equalities.
+
+## Modern theorem feature set
+The `--modern` option enables a curated theorem-proving setup by implying:
+`--reflection`, `--ple`, `--etabeta`, `--dependantcase`, and `--exact-data-cons`.
 
 ### Opaque reflection
 

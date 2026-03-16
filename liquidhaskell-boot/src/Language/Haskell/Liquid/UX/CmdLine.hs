@@ -332,7 +332,7 @@ defConfig = Config {
   , dependantCase
     = False
         &= help "Allow PLE to reason about dependent cases"
-        &= name "dependant-case"
+        &= name "dependantcase"
 
   , extensionality
     = False
@@ -429,7 +429,7 @@ defConfig = Config {
           &= name "ddump-timings"
           &= explicit
   , modern
-    = False &= help "Enable modern features (e.g. reflection, ple, etc.)"
+    = False &= help "Enable modern features; enables --reflection, --ple, --etabeta, --dependantcase, --exact-data-cons"
             &= name "modern"
   } &= program "liquidhaskell"
     &= help    "Refinement Types for Haskell"
