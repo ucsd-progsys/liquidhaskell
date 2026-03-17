@@ -128,7 +128,7 @@ bsplitW γ t =
      isHO  <- gets allowHO
      return $ bsplitW' γ t temp isHO
 
-bsplitW' :: (PPrint r, IsReftV r, ReftBind r ~ F.Symbol, ReftVar r ~ F.Symbol, SubsTy RTyVar RSort r)
+bsplitW' :: (PPrint r, IsReft r, ReftBind r ~ F.Symbol, ReftVar r ~ F.Symbol, SubsTy RTyVar RSort r)
          => CGEnv -> RRType r -> F.Templates -> Bool -> [F.WfC Cinfo]
 bsplitW' γ t temp isHO
   | isHO || F.isNonTrivial r'
@@ -277,7 +277,7 @@ splitC _ (SubR γ o r)
     vv  = "vvRec"
     ci  = Ci src err (cgVar γ)
     err = Just $ ErrAssType src o (text $ show o ++ "type error") g (rHole rr)
-    rr  = toReftV r
+    rr  = toReft r
     tag = getTag γ
     src = getLocation γ
     g   = reLocal $ renv γ

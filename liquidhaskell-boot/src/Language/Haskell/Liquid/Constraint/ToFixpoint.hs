@@ -156,7 +156,7 @@ refinementEQs :: LocSpecType -> [(F.Expr, F.Expr)]
 refinementEQs t =
   case stripRTypeBase tres of
     Just r ->
-      [ (lhs, rhs) | (F.EEq lhs rhs) <- F.splitPAnd $ F.reftPred (toReftV r) ]
+      [ (lhs, rhs) | (F.EEq lhs rhs) <- F.splitPAnd $ F.reftPred (toReft r) ]
     Nothing ->
       []
   where
@@ -177,7 +177,7 @@ makeRewriteOne tce (_, t)
 
     xs = do
       (sym, arg) <- zip (ty_binds tRep) (ty_args tRep)
-      let e = maybe F.PTrue (F.reftPred . toReftV) (stripRTypeBase arg)
+      let e = maybe F.PTrue (F.reftPred . toReft) (stripRTypeBase arg)
       return $ F.RR (RT.rTypeSort tce arg) (F.Reft (sym, e))
 
     tRep = toRTypeRep $ val t
@@ -247,7 +247,7 @@ makeSimplify (var, t)
 
 specTypeToResultRef :: F.Expr -> SpecType -> F.Expr
 specTypeToResultRef e t
-  = mkExpr $ toReftV $ Mb.fromMaybe mempty (stripRTypeBase $ ty_res trep)
+  = mkExpr $ toReft $ Mb.fromMaybe mempty (stripRTypeBase $ ty_res trep)
   where
     mkExpr (F.Reft (v, ev)) = F.subst1 ev (v, e)
     trep                   = toRTypeRep t

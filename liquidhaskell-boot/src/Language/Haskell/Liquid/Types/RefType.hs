@@ -183,8 +183,8 @@ uRType          = fmap uTop
 uRType'         ::  RType c tv (UReft a) -> RType c tv a
 uRType'         = fmap ur_reft
 
-uRTypeGen       :: IsReftV b => RType c tv a -> RType c tv b
-uRTypeGen       = fmap $ const trueReftV
+uRTypeGen       :: IsReft b => RType c tv a -> RType c tv b
+uRTypeGen       = fmap $ const trueReft
 
 uPVar           :: PVarV v t -> UsedPVarV v
 uPVar           = void
@@ -209,7 +209,7 @@ instance ( SubsTy tv (RTypeBV v v c tv (NoReftB v)) (RTypeBV v v c tv (NoReftB v
          , Subable r
          , F.Variable r ~ v
          , ReftBind r ~ v
-         , IsReftV r
+         , IsReft r
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) r
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) tv
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) (RTVar tv (RTypeBV v v c tv (NoReftB v)))
@@ -225,7 +225,7 @@ instance ( SubsTy tv (RTypeBV v v c tv (NoReftB v)) (RTypeBV v v c tv (NoReftB v
          , Subable r
          , F.Variable r ~ v
          , ReftBind r ~ v
-         , IsReftV r
+         , IsReft r
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) r
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) tv
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) (RTVar tv (RTypeBV v v c tv (NoReftB v)))
@@ -238,7 +238,7 @@ instance ( SubsTy tv (RTypeBV v v c tv (NoReftB v)) c
          , OkRTBV v v c tv r
          , Variable r ~ v
          , ReftBind r ~ v
-         , IsReftV r
+         , IsReft r
          , FreeVar c tv
          , Subable r
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) r
@@ -248,8 +248,8 @@ instance ( SubsTy tv (RTypeBV v v c tv (NoReftB v)) c
          )
          => Semigroup (RTPropBV v v c tv r) where
   (<>) (RProp s1 (RHole r1)) (RProp s2 (RHole r2))
-    | isTautoV r1 = RProp s2 (RHole r2)
-    | isTautoV r2 = RProp s1 (RHole r1)
+    | isTauto r1 = RProp s2 (RHole r2)
+    | isTauto r2 = RProp s1 (RHole r1)
     | otherwise  = RProp s1 $ RHole $ r1 `meet`
                                subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) r2
 
@@ -263,7 +263,7 @@ instance ( SubsTy tv (RTypeBV v v c tv (NoReftB v)) c
          , OkRTBV v v c tv r
          , Variable r ~ v
          , ReftBind r ~ v
-         , IsReftV r
+         , IsReft r
          , FreeVar c tv
          , Subable r
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) r
@@ -278,7 +278,7 @@ instance ( SubsTy tv (RTypeBV v v c tv (NoReftB v)) c
          , OkRTBV v v c tv r
          , Variable r ~ v
          , ReftBind r ~ v
-         , IsReftV r
+         , IsReft r
          , FreeVar c tv
          , Subable r
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) r
@@ -403,25 +403,25 @@ instance Hashable RTyCon where
 -- | Helper Functions (RJ: Helping to do what?) --------------------------------
 --------------------------------------------------------------------------------
 
-rVar :: IsReftV r => TyVar -> RType c RTyVar r
-rVar   = (`RVar` trueReftV) . RTV
+rVar :: IsReft r => TyVar -> RType c RTyVar r
+rVar   = (`RVar` trueReft) . RTV
 
 rTyVar :: TyVar -> RTyVar
 rTyVar = RTV
 
-updateRTVar :: IsReftV r => RTVar RTyVar i -> RTVar RTyVar (RType RTyCon RTyVar r)
+updateRTVar :: IsReft r => RTVar RTyVar i -> RTVar RTyVar (RType RTyCon RTyVar r)
 updateRTVar (RTVar (RTV a) _) = RTVar (RTV a) (rTVarInfo a)
 
-rTVar :: IsReftV r => TyVar -> RTVar RTyVar (RRType r)
+rTVar :: IsReft r => TyVar -> RTVar RTyVar (RRType r)
 rTVar a = RTVar (RTV a) (rTVarInfo a)
 
-bTVar :: IsReftV r => TyVar -> RTVar BTyVar (BRType r)
+bTVar :: IsReft r => TyVar -> RTVar BTyVar (BRType r)
 bTVar a = RTVar (BTV (symbol <$> GM.locNamedThing a)) (bTVarInfo a)
 
-bTVarInfo :: IsReftV r => TyVar -> RTVInfo (BRType r)
+bTVarInfo :: IsReft r => TyVar -> RTVInfo (BRType r)
 bTVarInfo = mkTVarInfo kindToBRType
 
-rTVarInfo :: IsReftV r => TyVar -> RTVInfo (RRType r)
+rTVarInfo :: IsReft r => TyVar -> RTVInfo (RRType r)
 rTVarInfo = mkTVarInfo kindToRType
 
 mkTVarInfo :: (Kind -> s) -> TyVar -> RTVInfo s
@@ -432,10 +432,10 @@ mkTVarInfo k2t a = RTVInfo
   , rtv_is_pol = True
   }
 
-kindToRType :: IsReftV r => Type -> RRType r
+kindToRType :: IsReft r => Type -> RRType r
 kindToRType = kindToRType_ ofType
 
-kindToBRType :: IsReftV r => Type -> BRType r
+kindToBRType :: IsReft r => Type -> BRType r
 kindToBRType = kindToRType_ bareOfType
 
 kindToRType_ :: (Type -> z) -> Type -> z
@@ -542,7 +542,7 @@ strengthenRefTypeGen, strengthenRefType ::
          , Subable r
          , F.Variable r ~ v
          , ReftBind r ~ v
-         , IsReftV r
+         , IsReft r
          , FreeVar c tv
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) (RTypeBV v v c tv (NoReftB v))
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) c
@@ -556,7 +556,7 @@ strengthenRefType_ ::
          , Subable r
          , F.Variable r ~ v
          , ReftBind r ~ v
-         , IsReftV r
+         , IsReft r
          , FreeVar c tv
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) (RTypeBV v v c tv (NoReftB v))
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) c
@@ -568,8 +568,8 @@ strengthenRefType_ ::
 
 strengthenRefTypeGen = strengthenRefType_ f
   where
-    f :: (OkRTBV v v c tv r, IsReftV r) => RTypeBV v v c tv r -> RTypeBV v v c tv r -> RTypeBV v v c tv r
-    f (RVar v1 r1) t  = RVar v1 (r1 `meet` fromMaybe trueReftV (stripRTypeBase t))
+    f :: (OkRTBV v v c tv r, IsReft r) => RTypeBV v v c tv r -> RTypeBV v v c tv r -> RTypeBV v v c tv r
+    f (RVar v1 r1) t  = RVar v1 (r1 `meet` fromMaybe trueReft (stripRTypeBase t))
     f t (RVar _ r1)  = t `strengthen` r1
     f t1 t2           = panic Nothing $ printf "strengthenRefTypeGen on differently shaped types \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
                          (pprRaw t1) (showpp (toRSort t1)) (pprRaw t2) (showpp (toRSort t2))
@@ -605,7 +605,7 @@ _meetable t1 t2 = toRSort t1 == toRSort t2
 
 strengthenRefType_ f (RAllT a1 t1 r1) (RAllT a2 t2 r2)
   = RAllT a1 (strengthenRefType_ f t1 (subsTyVarMeet (ty_var_value a2, toRSort t, t) t2)) (r1 `meet` r2)
-  where t = RVar (ty_var_value a1) trueReftV
+  where t = RVar (ty_var_value a1) trueReft
 
 strengthenRefType_ f (RAllT a t1 r1) t2
   = RAllT a (strengthenRefType_ f t1 t2) r1
@@ -687,7 +687,7 @@ quantifyFreeRTy ty = quantifyRTy (freeTyVars ty) ty
 
 
 -------------------------------------------------------------------------
-addTyConInfo :: (PPrint r, ToReftV r, SubsTy RTyVar RSort r, Variable r ~ Symbol, ReftBind r ~ Symbol, ReftVar r ~ Symbol, IsReftV r)
+addTyConInfo :: (PPrint r, ToReft r, SubsTy RTyVar RSort r, Variable r ~ Symbol, ReftBind r ~ Symbol, ReftVar r ~ Symbol, IsReft r)
              => TCEmb TyCon
              -> TyConMap
              -> RRType r
@@ -696,7 +696,7 @@ addTyConInfo :: (PPrint r, ToReftV r, SubsTy RTyVar RSort r, Variable r ~ Symbol
 addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 
 -------------------------------------------------------------------------
-expandRApp :: (PPrint r, ToReftV r, SubsTy RTyVar RSort r, Variable r ~ Symbol, ReftBind r ~ Symbol, ReftVar r ~ Symbol, IsReftV r)
+expandRApp :: (PPrint r, ToReft r, SubsTy RTyVar RSort r, Variable r ~ Symbol, ReftBind r ~ Symbol, ReftVar r ~ Symbol, IsReft r)
            => TCEmb TyCon -> TyConMap -> RRType r -> RRType r
 -------------------------------------------------------------------------
 expandRApp tce tyi t@RApp{} = RApp rc' ts rs' r
@@ -720,7 +720,7 @@ choosen _ _ _           = impossible Nothing "choosen: this cannot happen"
 
 rtPropTop
   :: (OkRT c tv r,
-      IsReftV r,
+      IsReft r,
       SubsTy tv (RType c tv NoReft) c, SubsTy tv (RType c tv NoReft) r,
       SubsTy tv (RType c tv NoReft) (RType c tv NoReft), FreeVar c tv,
       SubsTy tv (RType c tv NoReft) tv,
@@ -728,14 +728,14 @@ rtPropTop
    => PVar (RType c tv NoReft) -> Ref (RType c tv NoReft) (RType c tv r)
 rtPropTop pv = RProp (pvArgs pv) $ ofRSort $ ptype pv
 
-rtPropPV :: (Fixpoint a, IsReftV r)
+rtPropPV :: (Fixpoint a, IsReft r)
          => a
          -> [PVar (RType c tv NoReft)]
          -> [Ref (RType c tv NoReft) (RType c tv r)]
          -> [Ref (RType c tv NoReft) (RType c tv r)]
 rtPropPV _rc = zipWith mkRTProp
 
-mkRTProp :: IsReftV r
+mkRTProp :: IsReft r
          => PVar (RType c tv NoReft)
          -> Ref (RType c tv NoReft) (RType c tv r)
          -> Ref (RType c tv NoReft) (RType c tv r)
@@ -918,7 +918,7 @@ tyClasses t               = panic Nothing ("RefType.tyClasses cannot handle" ++ 
 --------------------------------------------------------------------------------
 
 subsTyVarsMeet
-  :: (Eq tv, Foldable t, Hashable tv, IsReftV r, TyConable c, Binder b,
+  :: (Eq tv, Foldable t, Hashable tv, IsReft r, TyConable c, Binder b,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
@@ -927,7 +927,7 @@ subsTyVarsMeet
 subsTyVarsMeet        = subsTyVars True
 
 subsTyVarsNoMeet
-  :: (Eq tv, Foldable t, Hashable tv, IsReftV r, TyConable c, Binder b,
+  :: (Eq tv, Foldable t, Hashable tv, IsReft r, TyConable c, Binder b,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
@@ -936,7 +936,7 @@ subsTyVarsNoMeet
 subsTyVarsNoMeet      = subsTyVars False
 
 subsTyVarNoMeet
-  :: (Eq tv, Hashable tv, IsReftV r, TyConable c, Binder b,
+  :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
@@ -945,7 +945,7 @@ subsTyVarNoMeet
 subsTyVarNoMeet       = subsTyVar False
 
 subsTyVarMeet
-  :: (Eq tv, Hashable tv, IsReftV r, TyConable c, Binder b,
+  :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
@@ -954,7 +954,7 @@ subsTyVarMeet
 subsTyVarMeet         = subsTyVar True
 
 subsTyVarMeet'
-  :: (Eq tv, Hashable tv, IsReftV r, TyConable c, Binder b, Binder b,
+  :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b, Binder b,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
@@ -963,7 +963,7 @@ subsTyVarMeet'
 subsTyVarMeet' (α, t) = subsTyVarMeet (α, toRSort t, t)
 
 subsTyVars
-  :: (Eq tv, Foldable t, Hashable tv, IsReftV r, TyConable c, Binder b,
+  :: (Eq tv, Foldable t, Hashable tv, IsReft r, TyConable c, Binder b,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
@@ -975,7 +975,7 @@ subsTyVars
 subsTyVars meet' ats t = foldl' (flip (subsTyVar meet')) t ats
 
 subsTyVar
-  :: (Eq tv, Hashable tv, IsReftV r, TyConable c, Binder b,
+  :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
@@ -987,7 +987,7 @@ subsTyVar
 subsTyVar meet'        = subsFree meet' S.empty
 
 subsFree
-  :: (Eq tv, Hashable tv, IsReftV r, TyConable c, Binder b,
+  :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
@@ -1028,7 +1028,7 @@ subsFree _ _ (α, τ, _) (RHole r)
   = RHole (subt (α, τ) r)
 
 subsFrees
-  :: (Eq tv, Hashable tv, IsReftV r, TyConable c, Binder b,
+  :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
@@ -1042,7 +1042,7 @@ subsFrees m s zs t = foldl' (flip (subsFree m s)) t zs
 
 -- GHC INVARIANT: RApp is Type Application to something other than TYCon
 subsFreeRAppTy
-  :: (Eq tv, Hashable tv, IsReftV r, TyConable c, Binder b,
+  :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)),
       FreeVar c tv,
@@ -1066,7 +1066,7 @@ subsFreeRAppTy _ _ t t' r'
 --    parameters come from the "levity polymorphism" changes in GHC 8.6 (?)
 --    See [NOTE:Levity-Polymorphism]
 
-mkRApp :: (Eq tv, Hashable tv, IsReftV r, TyConable c, Binder b,
+mkRApp :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
@@ -1129,13 +1129,13 @@ mkRApp m s c ts rs r r'
        • and other links from https://stackoverflow.com/a/35320729/946226 (edited)
  -}
 
-refAppTyToFun :: ToReftV r => r -> r
+refAppTyToFun :: ToReft r => r -> r
 refAppTyToFun r
-  | isTautoV r = r
+  | isTauto r = r
   | otherwise = panic Nothing "RefType.refAppTyToFun"
 
 subsFreeRef
-  :: (Eq tv, Hashable tv, IsReftV r, TyConable c, Binder b,
+  :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
@@ -1297,27 +1297,27 @@ subvPredicate :: (UsedPVar -> UsedPVar) -> Predicate -> Predicate
 subvPredicate f (Pr pvs) = Pr (f <$> pvs)
 
 --------------------------------------------------------------------------------
-ofType :: IsReftV r => Type -> RRType r
+ofType :: IsReft r => Type -> RRType r
 --------------------------------------------------------------------------------
 ofType      = ofType_ $ TyConv
   { tcFVar  = rVar
   , tcFTVar = rTVar
-  , tcFApp  = \c ts -> rApp c ts [] trueReftV
+  , tcFApp  = \c ts -> rApp c ts [] trueReft
   , tcFLit  = ofLitType rApp
   }
 
 --------------------------------------------------------------------------------
-bareOfType :: IsReftV r => Type -> BRType r
+bareOfType :: IsReft r => Type -> BRType r
 --------------------------------------------------------------------------------
 bareOfType  = ofType_ $ TyConv
-  { tcFVar  = (`RVar` trueReftV) . BTV . fmap symbol . GM.locNamedThing
+  { tcFVar  = (`RVar` trueReft) . BTV . fmap symbol . GM.locNamedThing
   , tcFTVar = bTVar
-  , tcFApp  = \c ts -> bApp c ts [] trueReftV
+  , tcFApp  = \c ts -> bApp c ts [] trueReft
   , tcFLit  = ofLitType bApp
   }
 
 --------------------------------------------------------------------------------
-ofType_ :: IsReftV r => TyConv c tv r -> Type -> RType c tv r
+ofType_ :: IsReft r => TyConv c tv r -> Type -> RType c tv r
 --------------------------------------------------------------------------------
 ofType_ tx = go . expandTypeSynonyms
   where
@@ -1326,14 +1326,14 @@ ofType_ tx = go . expandTypeSynonyms
     go (FunTy _ _ τ τ')
       = rFun dummySymbol (go τ) (go τ')
     go (ForAllTy (Bndr α _) τ)
-      = RAllT (tcFTVar tx α) (go τ) trueReftV
+      = RAllT (tcFTVar tx α) (go τ) trueReft
     go (TyConApp c τs)
       | Just (αs, τ) <- Ghc.synTyConDefn_maybe c
       = go (substTyWith αs τs τ)
       | otherwise
       = tcFApp tx c (go <$> τs) -- [] mempty
     go (AppTy t1 t2)
-      = RAppTy (go t1) (ofType_ tx t2) trueReftV
+      = RAppTy (go t1) (ofType_ tx t2) trueReft
     go (LitTy x)
       = tcFLit tx x
     go (CastTy t _)
@@ -1341,11 +1341,11 @@ ofType_ tx = go . expandTypeSynonyms
     go (CoercionTy _)
       = errorstar "Coercion is currently not supported"
 
-ofLitType :: (IsReftV r) => (TyCon -> [RType c tv r] -> [p] -> r -> RType c tv r) -> TyLit -> RType c tv r
-ofLitType rF (NumTyLit _)  = rF intTyCon [] [] trueReftV
+ofLitType :: (IsReft r) => (TyCon -> [RType c tv r] -> [p] -> r -> RType c tv r) -> TyLit -> RType c tv r
+ofLitType rF (NumTyLit _)  = rF intTyCon [] [] trueReft
 ofLitType rF t@(StrTyLit _)
-  | t == holeLit           = RHole trueReftV
-  | otherwise              = rF listTyCon [rF charTyCon [] [] trueReftV] [] trueReftV
+  | t == holeLit           = RHole trueReft
+  | otherwise              = rF listTyCon [rF charTyCon [] [] trueReft] [] trueReft
 
 holeLit :: TyLit
 holeLit = StrTyLit "$LH_RHOLE"
@@ -1402,7 +1402,7 @@ isBaseTy (CastTy _ _)     = False
 isBaseTy (CoercionTy _)   = False
 
 
-dataConMsReft :: (ToReftV r, ReftBind r ~ v, ReftVar r ~ v) => RTypeBV v v c tv r -> [v] -> ReftBV v v
+dataConMsReft :: (ToReft r, ReftBind r ~ v, ReftVar r ~ v) => RTypeBV v v c tv r -> [v] -> ReftBV v v
 dataConMsReft ty ys  = subst su (rTypeReft (ignoreOblig $ ty_res trep))
   where
     trep = toRTypeRep ty
@@ -1414,7 +1414,7 @@ dataConMsReft ty ys  = subst su (rTypeReft (ignoreOblig $ ty_res trep))
 -- | Embedding RefTypes --------------------------------------------------------
 --------------------------------------------------------------------------------
 
-type ToTypeable r = (IsReftV r, ReftBind r ~ Symbol, ReftVar r ~ Symbol, PPrint r, PPrint (RTProp RTyCon RTyVar r), SubsTy RTyVar (RRType NoReft) r)
+type ToTypeable r = (IsReft r, ReftBind r ~ Symbol, ReftVar r ~ Symbol, PPrint r, PPrint (RTProp RTyCon RTyVar r), SubsTy RTyVar (RRType NoReft) r)
 
 -- TODO: remove toType, generalize typeSort
 -- YL: really should take a type-level Bool
@@ -1487,11 +1487,11 @@ and then resolve the hole using the (GHC) type of `foo`.
 -- | Annotations and Solutions -------------------------------------------------
 --------------------------------------------------------------------------------
 
-rTypeSortedReft ::  (PPrint r, IsReftV r, ReftBind r ~ Symbol, ReftVar r ~ Symbol, SubsTy RTyVar (RType RTyCon RTyVar NoReft) r)
+rTypeSortedReft ::  (PPrint r, IsReft r, ReftBind r ~ Symbol, ReftVar r ~ Symbol, SubsTy RTyVar (RType RTyCon RTyVar NoReft) r)
                 => TCEmb TyCon -> RRType r -> SortedReft
 rTypeSortedReft emb t = RR (rTypeSort emb t) (rTypeReft t)
 
-rTypeSort     ::  (PPrint r, IsReftV r, ReftBind r ~ Symbol, ReftVar r ~ Symbol, SubsTy RTyVar (RType RTyCon RTyVar NoReft) r)
+rTypeSort     ::  (PPrint r, IsReft r, ReftBind r ~ Symbol, ReftVar r ~ Symbol, SubsTy RTyVar (RType RTyCon RTyVar NoReft) r)
               => TCEmb TyCon -> RRType r -> Sort
 rTypeSort tce = typeSort tce . toType True
 
@@ -1529,7 +1529,7 @@ appSolRefa si s = mapKVars f0
 
 --------------------------------------------------------------------------------
 -- shiftVV :: Int -- SpecType -> Symbol -> SpecType
-shiftVV :: (TyConable c, IsReftV (f Reft), Functor f, Subable (f Reft),
+shiftVV :: (TyConable c, IsReft (f Reft), Functor f, Subable (f Reft),
             Variable (f Reft) ~ Variable Reft, ReftBind (f Reft) ~ ReftBind Reft)
         => RType c tv (f Reft) -> Symbol -> RType c tv (f Reft)
 --------------------------------------------------------------------------------
@@ -1643,7 +1643,7 @@ grabArgs τs τ
   = reverse (τ:τs)
 
 
-expandProductType :: (PPrint r, IsReftV r, SubsTy RTyVar (RType RTyCon RTyVar NoReft) r,
+expandProductType :: (PPrint r, IsReft r, SubsTy RTyVar (RType RTyCon RTyVar NoReft) r,
                       ReftBind r ~ Symbol, ReftVar r ~ Symbol, Variable r ~ Symbol)
                   => Var -> RType RTyCon RTyVar r -> RType RTyCon RTyVar r
 expandProductType x t
@@ -1665,13 +1665,13 @@ data DataConAppContext
   , dcac_co      :: !Coercion
   }
 
-mkProductTy :: forall t r. (IsReftV t, IsReftV r)
+mkProductTy :: forall t r. (IsReft t, IsReft r)
             => (Type, Symbol, RFInfo, RType RTyCon RTyVar r, t)
             -> [(Symbol, RFInfo, RType RTyCon RTyVar r, t)]
 mkProductTy (τ, x, i, t, r) = maybe [(x, i, t, r)] f (deepSplitProductType menv τ)
   where
     f    :: DataConAppContext -> [(Symbol, RFInfo, RType RTyCon RTyVar r, t)]
-    f    DataConAppContext{..} = map ((dummySymbol, defRFInfo, , trueReftV) . ofType . fst) dcac_arg_tys
+    f    DataConAppContext{..} = map ((dummySymbol, defRFInfo, , trueReft) . ofType . fst) dcac_arg_tys
     menv = (emptyFamInstEnv, emptyFamInstEnv)
 
 -- Copied from GHC 9.0.2.

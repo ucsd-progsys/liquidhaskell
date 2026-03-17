@@ -780,7 +780,7 @@ bTup :: [(Maybe Symbol, BareTypeParsed)]
      -> ReftV LocSymbol
      -> BareTypeParsed
 bTup [(_,t)] _ r
-  | isTautoV (fmap val r)  = t
+  | isTauto (fmap val r)  = t
   | otherwise  = t `strengthenUReft` reftUReft r
 bTup ts rs r
   | all (Mb.isNothing . fst) ts || length ts < 2

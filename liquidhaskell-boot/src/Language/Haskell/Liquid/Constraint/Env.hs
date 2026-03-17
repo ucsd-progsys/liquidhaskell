@@ -195,7 +195,7 @@ addCGEnv tx γ (_, x, t') = do
   is    <- (:) <$> addBind l x (rTypeSortedReft' γ' tem t) <*> addClassBind γ' l t
   return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
-rTypeSortedReft' :: (PPrint r, IsReftV r, ReftBind r ~ F.Symbol, ReftVar r ~ F.Symbol, SubsTy RTyVar RSort r)
+rTypeSortedReft' :: (PPrint r, IsReft r, ReftBind r ~ F.Symbol, ReftVar r ~ F.Symbol, SubsTy RTyVar RSort r)
     => CGEnv -> F.Templates -> RRType r -> F.SortedReft
 rTypeSortedReft' γ t
   = pruneUnsortedReft (feEnv $ fenv γ) t . f

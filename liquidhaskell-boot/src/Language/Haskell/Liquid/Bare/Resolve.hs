@@ -365,7 +365,7 @@ rtypePredBinds = map RT.uPVar . ty_preds . toRTypeRep
 
 --------------------------------------------------------------------------------
 type Expandable r = ( PPrint r
-                    , IsReftV r
+                    , IsReft r
                     , ReftBind r ~ F.Symbol
                     , ReftVar r ~ F.Symbol
                     , F.Subable r
@@ -456,7 +456,7 @@ bareTCApp r (Loc l _ c) rs ts | Just rhs <- Ghc.synTyConRhs_maybe c
 -- TODO expandTypeSynonyms here to
 bareTCApp r (Loc _ _ c) rs ts | Ghc.isFamilyTyCon c && isTrivial t
   = expandRTypeSynonyms (t `RT.strengthen` r)
-  where t = RT.rApp c ts rs trueReftV
+  where t = RT.rApp c ts rs trueReft
 
 bareTCApp r (Loc _ _ c) rs ts
   = RT.rApp c ts rs r

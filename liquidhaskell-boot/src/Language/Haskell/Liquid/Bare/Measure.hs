@@ -302,8 +302,8 @@ dataConSel permitTC dc n (Proj i) = mkArrow (map (, mempty) as) [] [xt] (mempty 
     err                  = panic Nothing $ "DataCon " ++ show dc ++ "does not have " ++ show i ++ " fields"
 
 -- bkDataCon :: DataCon -> Int -> ([RTVar RTyVar RSort], [SpecType], (Symbol, SpecType, RReft))
-bkDataCon :: (PPrint r, IsReftV r) => Bool -> Ghc.DataCon -> Int -> ([RTVar RTyVar RSort], [RRType r], (F.Symbol, RFInfo, RRType r, r))
-bkDataCon permitTC dcn nFlds  = (as, ts, (F.dummySymbol, classRFInfo permitTC, t, trueReftV))
+bkDataCon :: (PPrint r, IsReft r) => Bool -> Ghc.DataCon -> Int -> ([RTVar RTyVar RSort], [RRType r], (F.Symbol, RFInfo, RRType r, r))
+bkDataCon permitTC dcn nFlds  = (as, ts, (F.dummySymbol, classRFInfo permitTC, t, trueReft))
   where
     ts                = RT.ofType <$> Misc.takeLast nFlds (map Ghc.irrelevantMult _ts)
     t                 = -- Misc.traceShow ("bkDataConResult" ++ GM.showPpr (dc, _t, _t0)) $
@@ -570,7 +570,7 @@ expandMeasureDef rtEnv d = d
     msg   = "QUALIFY-EXPAND-BODY" ++ F.showpp (bs, body d)
 
 ------------------------------------------------------------------------------
-varMeasures :: (IsReftV r) => Bare.Env -> [(F.Symbol, Located (RRType r))]
+varMeasures :: (IsReft r) => Bare.Env -> [(F.Symbol, Located (RRType r))]
 ------------------------------------------------------------------------------
 varMeasures env =
   [ (F.symbol v, varSpecType v)
@@ -583,10 +583,10 @@ getMeasVars env measEnv = Bare.meSyms measEnv -- ms'
                             ++ Bare.meClassSyms measEnv -- cms'
                             ++ varMeasures env
 
-varSpecType :: (IsReftV r) => Ghc.Var -> Located (RRType r)
+varSpecType :: (IsReft r) => Ghc.Var -> Located (RRType r)
 varSpecType = fmap (RT.ofType . Ghc.varType) . GM.locNamedThing
 
-varBareType :: (IsReftV r) => Ghc.Var -> Located (BRType r)
+varBareType :: (IsReft r) => Ghc.Var -> Located (BRType r)
 varBareType = fmap (RT.bareOfType . Ghc.varType) . GM.locNamedThing
 
 varLocSym :: Ghc.Var -> LocSymbol

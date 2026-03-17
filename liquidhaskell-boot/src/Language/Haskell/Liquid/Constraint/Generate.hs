@@ -487,7 +487,7 @@ lambdaSingleton _ _ _ _
 
 addForAllConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
 addForAllConstraint γ _ _ (RAllT rtv rt rr)
-  | isTautoV rr
+  | isTauto rr
   = return ()
   | otherwise
   = do t'       <- true (typeclass (getConfig γ)) rt

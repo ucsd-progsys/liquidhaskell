@@ -180,7 +180,7 @@ tyVars (RHole _)         = []
 
 subsTyVarsAll
   :: (Eq k, Hashable k,
-      IsReftV r, TyConable c, SubsTy k (RType c k NoReft) c,
+      IsReft r, TyConable c, SubsTy k (RType c k NoReft) c,
       SubsTy k (RType c k NoReft) r,
       SubsTy k (RType c k NoReft) k,
       SubsTy k (RType c k NoReft) (RType c k NoReft),

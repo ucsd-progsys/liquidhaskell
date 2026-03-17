@@ -618,7 +618,7 @@ checkTcArity RTyCon{ rtc_tc = tc } givenArity
 
 
 checkAbstractRefs
-  :: (PPrint t, IsReftV t, ReftBind t ~ F.Symbol, ReftVar t ~ F.Symbol, SubsTy RTyVar RSort t) =>
+  :: (PPrint t, IsReft t, ReftBind t ~ F.Symbol, ReftVar t ~ F.Symbol, SubsTy RTyVar RSort t) =>
      RType RTyCon RTyVar (UReft t) -> Maybe Doc
 checkAbstractRefs rt = go rt
   where
@@ -676,7 +676,7 @@ checkAbstractRefs rt = go rt
     pvType' p          = Misc.safeHead (showpp p ++ " not in env of " ++ showpp rt) [pvType q | q <- penv, pname p == pname q]
 
 -- TODO remove the unused UReft arg
-checkReft                    :: (PPrint r, IsReftV r, ReftBind r ~ F.Symbol, ReftVar r ~ F.Symbol, SubsTy RTyVar (RType RTyCon RTyVar NoReft) r)
+checkReft                    :: (PPrint r, IsReft r, ReftBind r ~ F.Symbol, ReftVar r ~ F.Symbol, SubsTy RTyVar (RType RTyCon RTyVar NoReft) r)
                              => F.SrcSpan -> F.SEnv F.SortedReft -> F.TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> ElabM (Maybe Doc)
 checkReft _  _   _   Nothing  _ = pure Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.
 checkReft sp env emb (Just t) _ = do me <- checkSortedReftFull sp env r
@@ -739,7 +739,7 @@ checkMBodyUnify = go
     go t@RApp{} t'@RApp{} = concat $ zipWith go (rt_args t) (rt_args t')
     go _ _                = []
 
-checkMBody' :: (PPrint r, IsReftV r, ReftBind r ~ F.Symbol, ReftVar r ~ F.Symbol, SubsTy RTyVar RSort r)
+checkMBody' :: (PPrint r, IsReft r, ReftBind r ~ F.Symbol, ReftVar r ~ F.Symbol, SubsTy RTyVar RSort r)
             => F.TCEmb TyCon
             -> RType RTyCon RTyVar r
             -> F.SEnv F.SortedReft
@@ -798,12 +798,12 @@ getRewriteErrors (rw, t)
           ++ " contains an inner refinement."
 
 
-isRefined :: ToReftV r => RType c tv r -> Bool
+isRefined :: ToReft r => RType c tv r -> Bool
 isRefined ty
-  | Just r <- stripRTypeBase ty = not $ isTautoV r
+  | Just r <- stripRTypeBase ty = not $ isTauto r
   | otherwise = False
 
-hasInnerRefinement :: ToReftV r => RType c tv r -> Bool
+hasInnerRefinement :: ToReft r => RType c tv r -> Bool
 hasInnerRefinement (RFun _ _ rIn rOut _) =
   isRefined rIn || isRefined rOut
 hasInnerRefinement (RAllT _ ty  _) =

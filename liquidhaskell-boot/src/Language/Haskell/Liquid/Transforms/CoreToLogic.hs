@@ -62,7 +62,7 @@ import Language.Haskell.Liquid.UX.Config
 import Data.Ratio
 import GHC.Base ((+#), (-#), (*#))
 
-logicType :: (IsReftV r) => Bool -> Type -> RRType r
+logicType :: (IsReft r) => Bool -> Type -> RRType r
 logicType allowTC τ      = fromRTypeRep $ t { ty_binds = bs, ty_info = is, ty_args = as, ty_refts = rs}
   where
     t            = toRTypeRep $ ofType τ
@@ -175,7 +175,7 @@ runToLogicWithBoolBinds xs tce lmap dm cfg ferror m
       , lsConfig = cfg
       }
 
-coreAltToDef :: (IsReftV r) => Located LHName -> Var -> [Var] -> Var -> Type -> [C.CoreAlt]
+coreAltToDef :: (IsReft r) => Located LHName -> Var -> [Var] -> Var -> Type -> [C.CoreAlt]
              -> LogicM [Def (Located (RRType r)) DataCon]
 coreAltToDef locSym z zs y t alts
   | not (null litAlts) = measureFail locSym "Cannot lift definition with literal alternatives"
@@ -212,16 +212,16 @@ coreAltToDef locSym z zs y t alts
     mkDef _ _ _ _ _ _ =
       return []
 
-toArgs :: IsReftV r => (Located (RRType r) -> b) -> [Var] -> [(Symbol, b)]
+toArgs :: IsReft r => (Located (RRType r) -> b) -> [Var] -> [(Symbol, b)]
 toArgs f args = [(symbol x, f $ varRType x) | x <- args]
 
-defArgs :: IsReftV r => Located LHName -> [Type] -> [(Symbol, Maybe (Located (RRType r)))]
+defArgs :: IsReft r => Located LHName -> [Type] -> [(Symbol, Maybe (Located (RRType r)))]
 defArgs x     = zipWith (\i t -> (defArg i, defRTyp t)) [0..]
   where
     defArg    = tempSymbol (lhNameToResolvedSymbol $ val x)
     defRTyp   = Just . F.atLoc x . ofType
 
-coreToDef :: IsReftV r => Located LHName -> Var -> C.CoreExpr
+coreToDef :: IsReft r => Located LHName -> Var -> C.CoreExpr
           -> LogicM [Def (Located (RRType r)) DataCon]
 coreToDef locSym _ s              = do
     allowTC <- reader $ typeclass . lsConfig
@@ -254,7 +254,7 @@ isMeasureArg x
     tcMb                = tyConAppTyCon_maybe t
 
 
-varRType :: (IsReftV r) => Var -> Located (RRType r)
+varRType :: (IsReft r) => Var -> Located (RRType r)
 varRType = GM.varLocInfo ofType
 
 coreToFun :: LocSymbol -> Var -> C.CoreExpr ->  LogicM ([Var], Either Expr Expr)

@@ -440,17 +440,17 @@ dot                = char '.'
 ppTyV ::
   ( Ord (ReftBind r), F.Fixpoint (ReftBind r), PPrint (ReftBind r)
   , Ord (ReftVar r), F.Fixpoint (ReftVar r), PPrint (ReftVar r)
-  , ToReftV r
+  , ToReft r
   ) => r -> Doc -> Doc
 ppTyV r t
-  | isTautoV r = t
-  | F.Reft (v, e) <- toReftV r =
+  | isTauto r = t
+  | F.Reft (v, e) <- toReft r =
       braces (pprint v <+> colon <+> t <+> text "|" <+> pprint e)
 
-instance (PPrint (PredicateBV b v), ToReftV (PredicateBV b v), PPrint r, ToReftV r) => PPrint (UReftBV b v r) where
+instance (PPrint (PredicateBV b v), ToReft (PredicateBV b v), PPrint r, ToReft r) => PPrint (UReftBV b v r) where
   pprintTidy k (MkUReft r p)
-    | isTautoV r  = pprintTidy k p
-    | isTautoV p  = pprintTidy k r
+    | isTauto r  = pprintTidy k p
+    | isTauto p  = pprintTidy k r
     | otherwise  = pprintTidy k p <-> text " & " <-> pprintTidy k r
 
 --------------------------------------------------------------------------------
