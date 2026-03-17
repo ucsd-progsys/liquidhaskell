@@ -588,6 +588,7 @@ executable errors
                     , BadData0
                     , BadData1
                     , BadData2
+                    , BadDataSelectorTypes
                     , BadDataCon2
                     , BadDataConType1
                     , BadDataConType2
