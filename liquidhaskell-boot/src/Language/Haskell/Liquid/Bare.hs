@@ -450,9 +450,28 @@ makeImports specs = concatMap (expSigs . snd) specs'
 
 makeEmbeds :: GhcSrc -> Bare.GHCTyLookupEnv -> [Ms.BareSpec] -> F.TCEmb Ghc.TyCon
 makeEmbeds src env
-  = Bare.addClassEmbeds (_gsCls src) (_gsFiTcs src)
+  = addBoolEmbed
+  . Bare.addClassEmbeds (_gsCls src) (_gsFiTcs src)
   . mconcat
   . map (makeTyConEmbeds env)
+
+-- | Add the bool embedding
+--
+-- This is equivalent to the user adding the annotation
+--
+-- > {-@ embed Bool as bool @-}
+--
+-- It is needed by --exact-data-cons, which produces checkers that
+-- return a Bool. Without this embed annotation, the SMT solver would
+-- reject the checkers as ill-sorted.
+--
+-- We used to have an embed annotation in LHAssumption modules, but it
+-- was not in effect when the user did not import the necessary modules.
+--
+addBoolEmbed :: F.TCEmb Ghc.TyCon -> F.TCEmb Ghc.TyCon
+addBoolEmbed embs
+  | Mb.isJust (F.tceLookup Ghc.boolTyCon embs) = embs
+  | otherwise                                  = F.tceInsert Ghc.boolTyCon F.boolSort F.NoArgs embs
 
 makeTyConEmbeds :: Bare.GHCTyLookupEnv -> Ms.BareSpec -> F.TCEmb Ghc.TyCon
 makeTyConEmbeds env spec
