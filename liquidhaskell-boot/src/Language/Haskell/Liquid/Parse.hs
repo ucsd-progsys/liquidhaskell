@@ -40,6 +40,7 @@ import           Data.List                              (partition)
 import qualified Text.PrettyPrint.HughesPJ              as PJ
 import           Text.PrettyPrint.HughesPJ.Compat       ((<+>))
 import           Language.Fixpoint.Types                hiding (panic, SVar, DDecl, DataDecl, DataCtor (..), Error, R, Predicate)
+import qualified Language.Fixpoint.Types                as F
 import           Language.Haskell.Liquid.GHC.Misc       hiding (getSourcePos)
 import           Language.Haskell.Liquid.Types.Bounds
 import           Language.Haskell.Liquid.Types.DataDecl
@@ -271,7 +272,7 @@ anglesCircleP
   = angles $ do
       PC sb t <- parens btP
       p       <- monoPredicateP
-      return   $ PC sb (t `strengthenUReft` MkUReft trueReft p)
+      return   $ PC sb (t `strengthenUReft` MkUReft F.trueReft p)
 
 holePC :: Parser ParamComp
 holePC = do
@@ -514,7 +515,7 @@ constraintP
                                ((snd <$> xts) ++ [t1]) <$> bareTypeP
 
 trueURef :: UReftV v (ReftV v)
-trueURef = MkUReft trueReft (Pr [])
+trueURef = MkUReft F.trueReft (Pr [])
 
 constraintEnvP :: Parser [(LocSymbol, BareTypeParsed)]
 constraintEnvP
@@ -632,7 +633,7 @@ getClasses t
 
 dummyP ::  Monad m => m (ReftV LocSymbol -> b) -> m b
 dummyP fm
-  = fm `ap` return trueReft
+  = fm `ap` return F.trueReft
 
 symsP :: Monoid r
       => Parser [(Symbol, RTypeV v c BTyVar r)]
@@ -814,7 +815,7 @@ bCon b rs ts p r = RApp b ts rs $ MkUReft r p
 bAppTy :: Foldable t => BTyVar -> t BareTypeParsed -> ReftV LocSymbol -> BareTypeParsed
 bAppTy v ts r  = strengthenUReft ts' (reftUReft r)
   where
-    ts'        = foldl' (\a b -> RAppTy a b (uTop trueReft)) (RVar v (uTop trueReft)) ts
+    ts'        = foldl' (\a b -> RAppTy a b (uTop F.trueReft)) (RVar v (uTop F.trueReft)) ts
 
 strengthenUReft
   :: BareTypeParsed -> UReftV LocSymbol (ReftV LocSymbol) -> BareTypeParsed
@@ -865,7 +866,7 @@ reftUReft :: r -> UReftV v r
 reftUReft r    = MkUReft r (Pr [])
 
 predUReft :: PredicateV v -> UReftV v (ReftV v)
-predUReft = MkUReft trueReft
+predUReft = MkUReft F.trueReft
 
 dummyTyId :: String
 dummyTyId = ""
@@ -1378,7 +1379,7 @@ instanceP
             <|> parens (located bareTypeP)
 
 
-    mkVar v  = dummyLoc $ RVar v (uTop trueReft)
+    mkVar v  = dummyLoc $ RVar v (uTop F.trueReft)
 
 
 riMethodSigP :: Parser (Located LHName, RISig (Located BareTypeParsed))

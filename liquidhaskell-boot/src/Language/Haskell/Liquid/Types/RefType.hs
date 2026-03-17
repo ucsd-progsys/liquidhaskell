@@ -107,7 +107,7 @@ import           Control.Monad  (void)
 import           Text.Printf
 import           Text.PrettyPrint.HughesPJ hiding ((<>), first)
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Types hiding (DataDecl (..), DataCtor (..), panic, shiftVV, Predicate, isNumeric)
+import           Language.Fixpoint.Types hiding (DataDecl (..), DataCtor (..), panic, shiftVV, Predicate, isNumeric, trueReft)
 import           Language.Fixpoint.Types.Visitor (trans, Visitable)
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types.Errors

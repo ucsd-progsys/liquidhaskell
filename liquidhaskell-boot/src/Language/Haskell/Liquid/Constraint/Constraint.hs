@@ -17,7 +17,7 @@ import Language.Haskell.Liquid.Types.RTypeOp
 import Language.Haskell.Liquid.Types.Types
 import Language.Haskell.Liquid.Constraint.Types
 import Language.Haskell.Liquid.Constraint.Env
-import Language.Fixpoint.Types
+import Language.Fixpoint.Types hiding (trueReft)
 
 --------------------------------------------------------------------------------
 addConstraints :: CGEnv -> [(Symbol, SpecType)] -> CGEnv
