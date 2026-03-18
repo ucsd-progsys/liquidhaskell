@@ -9,7 +9,7 @@ If you're a LiquidHaskell **user** (or just curious), you probably want to go to
 
 ## Trying it from Hackage
 
-Assuming the [Z3](https://github.com/Z3Prover/z3) SMT solver version `4.15.1` or
+Assuming the [Z3](https://github.com/Z3Prover/z3) SMT solver version `4.8.17` or
 newer is installed and available in your `PATH`, you can run
 
 ```
@@ -27,7 +27,7 @@ different users.
 
 ## Trying it from GitHub
 
-The github repo builds with GHC `9.14.1`, cabal-install `3.16.1.0`, and `z3` `9.15.1` or newer, all of
+The github repo builds with GHC `9.14.1`, cabal-install `3.16.1.0`, and `z3` `9.8.17` or newer, all of
 which must be in your `PATH`.
 
 ```
