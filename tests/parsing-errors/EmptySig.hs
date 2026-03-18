@@ -1,4 +1,6 @@
--- This can't catch parse errors
+-- EmptySig.hs
+-- Recovered parsing test for Issue #2020
+
 {-@ LIQUID "--expect-error-containing=Cannot parse specification" @-}
 
 module EmptySig where
