@@ -164,20 +164,15 @@ coreToFun' cfg embs dmMb lmap x v defn ok = either Ex.throw ok act
 
 
 -------------------------------------------------------------------------------
-makeHaskellDataDecls :: Config -> Ms.BareSpec -> [Ghc.TyCon]
-                     -> [DataDecl]
+makeHaskellDataDecls :: Ms.BareSpec -> [Ghc.TyCon] -> [DataDecl]
 --------------------------------------------------------------------------------
-makeHaskellDataDecls cfg spec tcs
-  | exactDCFlag cfg = Bare.dataDeclSize spec
-                    . Mb.mapMaybe tyConDataDecl
-                    -- . F.tracepp "makeHaskellDataDecls-3"
-                    . zipMap   (hasDataDecl spec . fst)
-                    -- . F.tracepp "makeHaskellDataDecls-2"
-                    . liftableTyCons
-                    -- . F.tracepp "makeHaskellDataDecls-1"
-                    . filter isReflectableTyCon
-                    $ tcs
-  | otherwise       = []
+makeHaskellDataDecls spec tcs =
+    Bare.dataDeclSize spec
+    . Mb.mapMaybe tyConDataDecl
+    . zipMap   (hasDataDecl spec . fst)
+    . liftableTyCons
+    . filter isReflectableTyCon
+    $ tcs
 
 
 isReflectableTyCon :: Ghc.TyCon -> Bool
@@ -261,7 +256,7 @@ dataConDecl d     = {- F.notracepp msg $ -} DataCtor dx (F.symbol <$> as) [] xts
 
 makeMeasureSelectors :: Config -> Bare.DataConMap -> Located DataConP -> [Measure SpecType Ghc.DataCon]
 makeMeasureSelectors cfg dm (Loc l l' c)
-  = Misc.condNull (exactDCFlag cfg) (checker : Mb.mapMaybe go' fields) --  internal measures, needed for reflection
+  = checker : Mb.mapMaybe go' fields --  internal measures, needed for reflection
  ++ Misc.condNull autofields (Mb.mapMaybe go fields) --  user-visible measures.
   where
     dc         = dcpCon    c

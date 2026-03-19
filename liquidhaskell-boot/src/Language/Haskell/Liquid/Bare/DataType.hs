@@ -213,15 +213,12 @@ instanceTyCon = go . Ghc.is_tys
 
 type DataPropDecl = (DataDecl, Maybe SpecType)
 
-makeDataDecls :: Config -> F.TCEmb Ghc.TyCon -> ModName
+makeDataDecls :: F.TCEmb Ghc.TyCon -> ModName
               -> [(ModName, Ghc.TyCon, DataPropDecl)]
               -> [Located DataConP]
               -> (Diagnostics, [F.DataDecl])
-makeDataDecls cfg tce name tds ds
-  | makeDecls        = (mkDiagnostics warns [], okDecs)
-  | otherwise        = (mempty, [])
+makeDataDecls tce name tds ds = (mkDiagnostics warns [], okDecs)
   where
-    makeDecls        = exactDCFlag cfg && not (noADT cfg)
     warns            =
       (mkWarnDecl . fmap pprint . dataNameSymbol . tycName . fst . fst . snd <$> badTcs) ++
       (mkWarnDecl . (\d -> F.atLoc d (pprint $ F.symbol d)) <$> badDecs)

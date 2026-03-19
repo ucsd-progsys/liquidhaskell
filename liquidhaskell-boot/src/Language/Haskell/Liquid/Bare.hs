@@ -525,11 +525,11 @@ makeLiftedSpec0 :: Config -> GhcSrc -> F.TCEmb Ghc.TyCon -> LogicMap -> Ms.BareS
                 -> Ms.BareSpec
 makeLiftedSpec0 cfg src embs lmap mySpec = mempty
   { Ms.ealiases  = lmapEAlias . snd <$> Bare.makeHaskellInlines cfg src embs lmap mySpec
-  , Ms.dataDecls = Bare.makeHaskellDataDecls cfg mySpec tcs
+  , Ms.dataDecls = Bare.makeHaskellDataDecls mySpec tcs
   }
   where
     tcs          = uniqNub (_gsTcs src ++ refTcs)
-    refTcs       = reflectedTyCons cfg embs cbs  mySpec
+    refTcs       = reflectedTyCons embs cbs  mySpec
     cbs          = _giCbs       src
 
 uniqNub :: (Ghc.Uniquable a) => [a] -> [a]
@@ -546,9 +546,8 @@ uniqNub xs = M.elems $ M.fromList [ (index x, x) | x <- xs ]
 --   their type signatures. This avoids generating selectors for types that are
 --   only referenced in signatures but not actually pattern-matched.
 
-reflectedTyCons :: Config -> TCEmb Ghc.TyCon -> [Ghc.CoreBind] -> Ms.BareSpec -> [Ghc.TyCon]
-reflectedTyCons cfg embs cbs spec
-  | exactDCFlag cfg =
+reflectedTyCons :: TCEmb Ghc.TyCon -> [Ghc.CoreBind] -> Ms.BareSpec -> [Ghc.TyCon]
+reflectedTyCons embs cbs spec =
     filter (not . isEmbedded embs)
     $ map Ghc.dataConTyCon
     [ dc
@@ -558,7 +557,6 @@ reflectedTyCons cfg embs cbs spec
         Ghc.DataConWorkId dc -> [dc]
         _                    -> []
     ]
-  | otherwise       = []
   where
     reflMeasVarSet = S.fromList $ reflectedVars spec cbs ++ measureVars spec cbs
     relevantBinds  = filter (isRelevantBind reflMeasVarSet) cbs
@@ -1315,7 +1313,7 @@ makeTycEnv0 cfg myName env embs mySpec iSpecs = (diag0 <> diag1, datacons, Bare.
     tycons        = tcs ++ wiredTyCons
     datacons      = Bare.makePluggedDataCon (typeclass cfg) embs tyi <$> (concat dcs ++ wiredDataCons)
     tds           = [(name, tcpCon tcp, dd) | (name, tcp, Just dd) <- tcDds]
-    (diag1, adts) = Bare.makeDataDecls cfg embs myName tds       datacons
+    (diag1, adts) = Bare.makeDataDecls embs myName tds       datacons
     dm            = Bare.dataConMap adts
     dcSelectors   = concatMap (Bare.makeMeasureSelectors cfg dm) (if reflection cfg then charDataCon:datacons else datacons)
     fiTcs         = _gsFiTcs (Bare.reSrc env)
@@ -1425,7 +1423,7 @@ addOpaqueReflMeas cfg tycEnv env spec measEnv specs eqs = do
       , shouldBeUsedForScanning $ makeGHCLHName (Ghc.getName v) (symbol v)
       ]
     tcs           = S.toList $ Ghc.dataConTyCon `S.map` Bare.getReflDCs measEnv varsUsedForTcScanning
-    dataDecls     = Bare.makeHaskellDataDecls cfg spec tcs
+    dataDecls     = Bare.makeHaskellDataDecls spec tcs
     tyi           = Bare.tcTyConMap    tycEnv
     embs          = Bare.tcEmbs        tycEnv
     dm            = Bare.tcDataConMap  tycEnv

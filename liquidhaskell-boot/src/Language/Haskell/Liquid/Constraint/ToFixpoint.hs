@@ -81,7 +81,9 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax, F.lrws = localRewrites cgi }
     ls               = fEnv     cgi
     consts           = cgConsts cgi
     ks               = kuts     cgi
-    adts             = cgADTs   cgi
+    cfg              = getConfig info
+    makeDecls        = exactDCFlag cfg && not (noADT cfg)
+    adts             = if makeDecls then cgADTs   cgi else mempty
     qs               = giQuals info (fEnv cgi)
     bi               = (\x -> Ci x Nothing Nothing) <$> bindSpans cgi
     aHO              = allowHO cgi
