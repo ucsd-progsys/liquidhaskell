@@ -70,7 +70,7 @@ import           Language.Haskell.Liquid.Bare.DataType (dataConMap, makeDataConC
 import Language.Haskell.Liquid.UX.Config
     ( HasConfig(getConfig),
       Config(typeclass, checkDerived, extensionality,
-             nopolyinfer, noADT, dependantCase, exactDC, rankNTypes),
+             nopolyinfer, noADT, dependantCase, rankNTypes),
       patternFlag,
       higherOrderFlag )
 
@@ -1025,9 +1025,7 @@ altReft _ _   (LitAlt l) = literalFReft l
 altReft γ acs DEFAULT    = mconcat ([notLiteralReft l | LitAlt l <- acs] ++ [notDataConReft d | DataAlt d <- acs])
   where
     notLiteralReft   = maybe mempty F.notExprReft . snd . literalConst (emb γ)
-    notDataConReft d | exactDC (getConfig γ)
-                     = F.Reft (F.vv_, F.PNot (F.EApp (F.EVar $ makeDataConChecker d) (F.EVar F.vv_)))
-                     | otherwise = mempty
+    notDataConReft d = F.Reft (F.vv_, F.PNot (F.EApp (F.EVar $ makeDataConChecker d) (F.EVar F.vv_)))
 altReft _ _ _            = panic Nothing "Constraint : altReft"
 
 unfoldR :: SpecType -> SpecType -> [Var] -> (SpecType, [SpecType], SpecType)

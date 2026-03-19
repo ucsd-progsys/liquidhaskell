@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE MonoLocalBinds #-}
+{-@ LIQUID "--prune-unsorted" @-}
 
 -- ---------------------------------------------------------------------------
 -- |
