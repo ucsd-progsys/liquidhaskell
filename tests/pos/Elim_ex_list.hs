@@ -21,3 +21,5 @@ data List a = Nil | Cons a (List a)
 head :: List a -> a 
 head (Cons x _) = x
 
+[lq| headTest :: Int |]
+headTest = head Nil
