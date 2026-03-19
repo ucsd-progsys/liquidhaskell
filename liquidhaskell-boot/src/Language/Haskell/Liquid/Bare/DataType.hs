@@ -578,9 +578,12 @@ checkDataCtorFieldTypes ds
 
 selectDD :: (a, [DataDecl]) -> Either [DataDecl] DataDecl
 selectDD (_,[d]) = Right d
-selectDD (_, ds) = case [ d | d <- ds, tycKind d == DataReflected ] of
-                     [d] -> Right d
-                     _   -> Left  ds
+selectDD (_, ds) = case [ d | d <- ds, tycKind d == DataUser ] of
+                     [du] -> case [ d | d <- ds, tycKind d == DataReflected ] of
+                        [dr] -> Right dr
+                        [] -> Right du
+                        drs -> Left drs
+                     dus -> Left dus
 
 groupVariances :: [DataDecl]
                -> [(Located LHName, [Variance])]
