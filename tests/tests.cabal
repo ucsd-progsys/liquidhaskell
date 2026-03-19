@@ -2192,8 +2192,6 @@ executable basic-neg
                     , Poly00
                     , ReflExt01A
                     , ReflExt01B
-                    , ReflExt02A
-                    , ReflExt02B
                     , ShadowLogicSymbols
                     , T1459
                     , T2349
