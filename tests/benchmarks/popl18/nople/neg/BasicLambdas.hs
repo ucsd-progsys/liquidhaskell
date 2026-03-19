@@ -2,7 +2,6 @@
 
 {-@ LIQUID "--higherorder"      @-}
 {- LIQUID "--autoproofs"      @-}
-{-@ LIQUID "--exact-data-cons" @-}
 module BasicLambdas where
 
 import Proves 

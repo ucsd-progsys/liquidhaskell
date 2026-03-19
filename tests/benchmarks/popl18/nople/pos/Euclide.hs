@@ -1,5 +1,4 @@
 {-@ LIQUID "--higherorder"      @-}
-{-@ LIQUID "--exact-data-cons" @-}
 
 module Euclide where
 

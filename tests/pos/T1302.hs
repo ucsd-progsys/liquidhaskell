@@ -1,6 +1,5 @@
 {-# LANGUAGE EmptyDataDecls, GADTs, ExistentialQuantification #-}
 
-{-@ LIQUID "--exact-data-con" @-}
 {-@ LIQUID "--higherorder"    @-}
 
 module T1302 where

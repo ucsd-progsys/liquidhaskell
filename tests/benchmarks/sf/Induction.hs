@@ -1,4 +1,3 @@
-{-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--ple" @-}
 

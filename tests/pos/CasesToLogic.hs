@@ -1,4 +1,3 @@
-{-@ LIQUID "--exact-data-cons"     @-}
 {-@ LIQUID "--higherorder"        @-}
 
 module CasesToLogic where

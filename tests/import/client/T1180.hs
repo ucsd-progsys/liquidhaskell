@@ -1,6 +1,5 @@
 {-# LANGUAGE GADTs #-}
 
-{-@ LIQUID "--exact-data-con" @-}
 {-@ LIQUID "--noadt" @-}
 
 module T1180 where

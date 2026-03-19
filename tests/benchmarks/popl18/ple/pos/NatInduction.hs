@@ -5,7 +5,6 @@ import Language.Haskell.Liquid.ProofCombinators
 import Prelude hiding (sum, range)
 
 {-@ LIQUID "--higherorder" @-}
-{-@ LIQUID "--exactdc" @-}
 
 {-@ natinduction :: p:(Nat-> Bool) -> PAnd {v:Proof | p 0} (n:Nat -> {v:Proof | p (n-1)} -> {v:Proof | p n})
                  -> n:Nat -> {v:Proof | p n}  @-}

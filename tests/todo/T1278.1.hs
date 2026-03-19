@@ -1,4 +1,3 @@
-{-@ LIQUID "--exact-data-cons" @-}
 module Term where
 
 {-@ data Tree [sz] @-}

@@ -1,5 +1,4 @@
 {-# LANGUAGE GADTs            #-}
-{-@ LIQUID "--exact-data-con" @-}
 {-@ LIQUID "--higherorder"    @-}
 
 module ListISort_perm where

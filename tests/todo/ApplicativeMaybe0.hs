@@ -1,6 +1,5 @@
 {-@ LIQUID "--higherorder"     @-}
 {- LIQUID "--totality"        @-}
-{-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--ple" @-}
 {-@ LIQUID "--fuel=10" @-}
 

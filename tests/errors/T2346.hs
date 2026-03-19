@@ -1,6 +1,5 @@
 {-@ LIQUID "--expect-error-containing=?b == GHC.Internal.Types.[]" @-}
 {-@ LIQUID "--reflection" @-}
-{-@ LIQUID "--exactdc" @-}
 
 -- | Tests that error messages show sufficient information.
 -- In particular, we want to see the @?b@ binding below, that

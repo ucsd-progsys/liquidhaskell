@@ -1,5 +1,4 @@
 {-@ LIQUID "--higherorder"        @-}
-{-@ LIQUID "--exactdc"            @-}
 module T1092 where
 
 import Language.Haskell.Liquid.ProofCombinators

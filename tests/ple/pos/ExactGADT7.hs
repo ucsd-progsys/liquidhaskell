@@ -3,7 +3,6 @@
 
 {-@ LIQUID "--prune-unsorted" @-}
 {-@ LIQUID "--no-adt"         @-}
-{-@ LIQUID "--exact-data-con" @-}
 {- LIQUID "--ple" @-}
 
 module ExactGADT7 where

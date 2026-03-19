@@ -1,4 +1,3 @@
-{-@ LIQUID "--exactdc" @-}
 {-@ LIQUID "--higherorder" @-}
 
 module RC1015 where
