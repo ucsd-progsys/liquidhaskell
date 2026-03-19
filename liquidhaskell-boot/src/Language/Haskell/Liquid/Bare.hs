@@ -540,28 +540,38 @@ uniqNub xs = M.elems $ M.fromList [ (index x, x) | x <- xs ]
 -- | 'reflectedTyCons' returns the list of `[TyCon]` that must be reflected but
 --   which are defined *outside* the current module e.g. in Base or somewhere
 --   that we don't have access to the code.
+--
+--   We collect TyCons from the data constructors actually used in the bodies of
+--   reflected functions and measure functions, rather than those mentioned in
+--   their type signatures. This avoids generating selectors for types that are
+--   only referenced in signatures but not actually pattern-matched.
 
 reflectedTyCons :: Config -> TCEmb Ghc.TyCon -> [Ghc.CoreBind] -> Ms.BareSpec -> [Ghc.TyCon]
 reflectedTyCons cfg embs cbs spec
-  | exactDCFlag cfg = filter (not . isEmbedded embs)
-                    $ concatMap varTyCons
-                    $ reflectedVars spec cbs ++ measureVars spec cbs
+  | exactDCFlag cfg =
+    filter (not . isEmbedded embs)
+    $ map Ghc.dataConTyCon
+    [ dc
+    | fv <- freeVars S.empty relevantBinds
+    , dc <- case Ghc.idDetails fv of
+        Ghc.DataConWrapId dc -> [dc]
+        Ghc.DataConWorkId dc -> [dc]
+        _                    -> []
+    ]
   | otherwise       = []
+  where
+    reflMeasVarSet = S.fromList $ reflectedVars spec cbs ++ measureVars spec cbs
+    relevantBinds  = filter (isRelevantBind reflMeasVarSet) cbs
+
+isRelevantBind :: S.HashSet Ghc.Var -> Ghc.CoreBind -> Bool
+isRelevantBind vars (Ghc.NonRec v _) = v `S.member` vars
+isRelevantBind vars (Ghc.Rec pairs)  = any ((`S.member` vars) . fst) pairs
 
 -- | We cannot reflect embedded tycons (e.g. Bool) as that gives you a sort
 --   conflict: e.g. what is the type of is-True? does it take a GHC.Types.Bool
 --   or its embedding, a bool?
 isEmbedded :: TCEmb Ghc.TyCon -> Ghc.TyCon -> Bool
 isEmbedded embs c = F.tceMember c embs
-
-varTyCons :: Ghc.Var -> [Ghc.TyCon]
-varTyCons = specTypeCons . ofType . Ghc.varType
-
-specTypeCons           :: SpecType -> [Ghc.TyCon]
-specTypeCons         = foldRType tc []
-  where
-    tc acc t@RApp {} = rtc_tc (rt_tycon t) : acc
-    tc acc _         = acc
 
 reflectedVars :: Ms.BareSpec -> [Ghc.CoreBind] -> [Ghc.Var]
 reflectedVars spec cbs =
