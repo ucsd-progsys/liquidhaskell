@@ -1,7 +1,6 @@
 {-@ LIQUID "--expect-any-error" @-}
 module T1173 where
 
-{-@ LIQUID "--no-adt" 	      @-}
 {-@ LIQUID "--higherorder"    @-}
 {-@ LIQUID "--ple"            @-}
 

@@ -233,10 +233,6 @@ defConfig = Config {
     = False &= help "Generate ADT representations in refinement logic"
           &= name "exact-data-cons"
 
- , noADT
-    = False &= help "Do not generate ADT representations in refinement logic"
-          &= name "no-adt"
-
  , expectErrorContaining
     = [] &= help "Expect an error which containing the provided string from verification (can be provided more than once)"
           &= name "expect-error-containing"

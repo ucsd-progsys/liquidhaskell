@@ -2,7 +2,6 @@
 --
 {-# LANGUAGE EmptyDataDecls, GADTs, ExistentialQuantification #-}
 
-{-@ LIQUID "--no-adt" 	      @-}
 {-@ LIQUID "--higherorder"    @-}
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--no-totality"    @-}

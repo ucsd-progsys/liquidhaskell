@@ -12,7 +12,6 @@
 {-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TypeFamilies               #-}
 
-{-@ LIQUID "--no-adt"         @-}
 {-@ LIQUID "--higherorder"    @-}
 {-@ LIQUID "--no-termination" @-}
 

@@ -2,7 +2,6 @@
 
 {-@ LIQUID "--higherorder"    @-}
 {-@ LIQUID "--ple"            @-}
-{-@ LIQUID "--noadt"          @-}
 
 
 module PeanoLib where

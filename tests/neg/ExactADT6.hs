@@ -1,5 +1,4 @@
 {-@ LIQUID "--expect-any-error" @-}
-{-@ LIQUID "--no-adt"         @-}
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 

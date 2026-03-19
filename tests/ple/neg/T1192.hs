@@ -1,6 +1,5 @@
 {-@ LIQUID "--expect-any-error" @-}
 {-@ LIQUID "--reflection" @-}
-{-@ LIQUID "--no-adt"     @-}
 {-@ LIQUID "--ple"        @-}
 
 module T1192 where

@@ -1,6 +1,5 @@
 {-# LANGUAGE GADTs, TypeFamilies, GeneralizedNewtypeDeriving, OverloadedStrings, TemplateHaskell, QuasiQuotes, MultiParamTypeClasses #-}
 
-{-@ LIQUID "--no-adt"                   @-}
 {-@ LIQUID "--higherorder"              @-}
 {-@ LIQUID "--no-termination" @-}
 -- | Description of database records.

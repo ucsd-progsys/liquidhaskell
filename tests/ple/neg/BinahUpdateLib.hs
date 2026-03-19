@@ -1,5 +1,4 @@
 {-@ LIQUID "--expect-any-error" @-}
-{-@ LIQUID "--no-adt" 	                           @-}
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--no-termination"                      @-}
 {-@ LIQUID "--ple" @-}

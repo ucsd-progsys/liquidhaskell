@@ -2,7 +2,6 @@
 
 module BinahUpdate where
 
-{-@ LIQUID "--no-adt" 	                           @-}
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--no-termination"                      @-}
 {-@ LIQUID "--ple" @-} 

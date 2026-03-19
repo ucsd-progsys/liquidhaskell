@@ -2,7 +2,6 @@
 {-# LANGUAGE KindSignatures #-}
 
 {-@ LIQUID "--prune-unsorted" @-}
-{-@ LIQUID "--no-adt"         @-}
 {- LIQUID "--ple" @-}
 
 module ExactGADT7 where
