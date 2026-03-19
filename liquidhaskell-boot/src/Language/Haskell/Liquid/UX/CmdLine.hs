@@ -230,7 +230,7 @@ defConfig = Config {
           &= help "Don't show long error messages, just line numbers."
 
  , exactDC
-    = False &= help "Exact Type for Data Constructors"
+    = False &= help "Generate ADT representations in refinement logic"
           &= name "exact-data-cons"
 
  , noADT
@@ -429,7 +429,7 @@ defConfig = Config {
           &= name "ddump-timings"
           &= explicit
   , modern
-    = False &= help "Enable modern features; enables --reflection, --ple, --etabeta, --dependantcase, --exact-data-cons"
+    = False &= help "Enable modern features; enables --reflection, --ple, --etabeta, --dependantcase"
             &= name "modern"
   } &= program "liquidhaskell"
     &= help    "Refinement Types for Haskell"
@@ -537,7 +537,6 @@ canonConfig cfg = cfg
   -- Technically those are patched in the `lookup` functions in `Congigs.hs` but
   -- it is better to be explicit here.
   , reflection     = modern cfg || reflection cfg
-  , exactDC        = modern cfg || exactDC cfg
   }
 
 --------------------------------------------------------------------------------

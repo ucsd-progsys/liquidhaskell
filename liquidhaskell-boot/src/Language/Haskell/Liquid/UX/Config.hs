@@ -73,7 +73,7 @@ data Config = Config
   , shortNames               :: Bool       -- ^ drop module qualifers from pretty-printed names.
   , shortErrors              :: Bool       -- ^ don't show subtyping errors and contexts.
   , eliminate                :: Eliminate  -- ^ eliminate (i.e. don't use qualifs for) for "none", "cuts" or "all" kvars
-  , exactDC                  :: Bool       -- ^ Automatically generate singleton types for data constructors
+  , exactDC                  :: Bool       -- ^ Generate ADT representations in refinement logic
   , noADT                    :: Bool       -- ^ Disable ADTs (only used with exactDC)
   , expectErrorContaining    :: [String]   -- ^ expect failure from Liquid with at least one of the following messages
   , expectAnyError           :: Bool       -- ^ expect failure from Liquid with any message
