@@ -117,6 +117,7 @@ data Config = Config
   , allowUnsafeConstructors  :: Bool       -- ^ Allow refining constructors with unsafe refinements
   , ddumpTimings             :: Bool       -- ^ Dump time measures of the Liquid Haskell plugin
                                            -- Only needed to work around https://github.com/haskell/cabal/issues/11116
+  , modern                   :: Bool       -- ^ Enable modern features; enables reflection, ple, etabeta, dependantcase, exact-data-cons
   } deriving (Generic, Data, Show, Eq)
 
 allowPLE :: Config -> Bool
@@ -172,3 +173,10 @@ terminationCheck' cfg = totalHaskell cfg || not (notermination cfg)
 
 structuralTerm :: (HasConfig a) => a -> Bool
 structuralTerm = not . nostructuralterm . getConfig
+
+instance Semigroup Config where
+  c1 <> c2 = c2
+
+instance Monoid Config where
+  mempty  = defConfig
+  mappend = (<>)
