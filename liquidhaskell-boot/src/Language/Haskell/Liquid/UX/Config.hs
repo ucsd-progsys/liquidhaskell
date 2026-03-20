@@ -172,3 +172,10 @@ terminationCheck' cfg = totalHaskell cfg || not (notermination cfg)
 
 structuralTerm :: (HasConfig a) => a -> Bool
 structuralTerm = not . nostructuralterm . getConfig
+
+instance Semigroup Config where
+  c1 <> c2 = c2
+
+instance Monoid Config where
+  mempty  = defConfig
+  mappend = (<>)
