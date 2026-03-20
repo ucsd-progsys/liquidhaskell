@@ -494,8 +494,8 @@ envCfg = do
                          return (c <> c')
                      ) defConfig (words s)
   where
-    envLoc  = Loc l l
-    l       = safeSourcePos "ENVIRONMENT" 1 1
+    envLoc x = Loc l l x
+    l        = safeSourcePos "ENVIRONMENT" 1 1
 
 copyright :: String
 copyright = concat $ concat
