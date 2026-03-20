@@ -241,10 +241,6 @@ defConfig = Config {
  , noADT
     = False &= help "Do not generate ADT representations in refinement logic"
           &= name "no-adt"
-
-, saveBfqOnly
-    = def &= help "Only save .bfq files when verification fails"
-          &= name "save-bfq-only"
           
  , expectErrorContaining
     = [] &= help "Expect an error which containing the provided string from verification (can be provided more than once)"
