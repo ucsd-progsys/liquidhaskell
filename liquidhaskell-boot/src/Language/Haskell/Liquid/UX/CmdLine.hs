@@ -489,7 +489,10 @@ envCfg = do
   so <- lookupEnv "LIQUIDHASKELL_OPTS"
   case so of
     Nothing -> return defConfig
-    Just s  -> parsePragma $ envLoc s
+    Just s  -> foldM (\c arg -> do
+                         c' <- parsePragma (envLoc arg)
+                         return (c <> c')
+                     ) defConfig (words s)
   where
     envLoc  = Loc l l
     l       = safeSourcePos "ENVIRONMENT" 1 1
