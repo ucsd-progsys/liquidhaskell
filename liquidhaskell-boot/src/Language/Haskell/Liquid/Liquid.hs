@@ -42,8 +42,15 @@ import           Liquid.GHC.API as GHC hiding (text, vcat, ($+$), (<+>))
 checkTargetInfo :: TargetInfo -> IO (Output Doc)
 --------------------------------------------------------------------------------
 checkTargetInfo info = do
+-- We extract 'cfg' and 'tgt' from the 'info' box so the computer knows them
+  let cfg = giConfig info
+  let tgt = giTarget info
   out <- check
-  when (diffcheck cfg && not (compileSpec cfg)) $ DC.saveResult tgt out
+  let res = o_result out
+  if saveBfqOnly cfg
+   then when (not (F.isSafe (o_result out))) (DC.saveResult tgt out)
+    else when (save cfg) (DC.saveResult tgt out)
+
   pure out
   where
     check :: IO (Output Doc)
