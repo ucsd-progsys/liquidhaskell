@@ -102,6 +102,11 @@ defConfig = Config {
            , Normal       &= name "normal"  &= help "Normal logging verbosity"
            , Loud         &= name "verbose" &= help "Verbose logging"
            ]
+           
+ , saveBfqOnly 
+      = def
+           &= help "Only save .bfq files when verification fails"
+            &= name "save-bfq-only"        
 
  , fullcheck
      = def
