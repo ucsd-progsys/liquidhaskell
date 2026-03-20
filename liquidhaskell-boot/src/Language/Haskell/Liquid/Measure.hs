@@ -5,7 +5,6 @@
 {-# LANGUAGE ConstraintKinds        #-}
 {-# LANGUAGE TupleSections    #-}
 {-# LANGUAGE TypeOperators          #-}
-{-# OPTIONS_GHC -Wno-x-partial #-}
 
 module Language.Haskell.Liquid.Measure (
   -- * Specifications

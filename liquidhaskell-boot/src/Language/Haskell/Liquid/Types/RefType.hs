@@ -954,7 +954,7 @@ subsTyVarMeet
 subsTyVarMeet         = subsTyVar True
 
 subsTyVarMeet'
-  :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b, Binder b,
+  :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,

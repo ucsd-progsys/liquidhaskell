@@ -1,8 +1,6 @@
 -- | This module provides a GHC 'Plugin' that allows LiquidHaskell to be hooked directly into GHC's
 -- compilation pipeline, facilitating its usage and adoption.
 
-{-# OPTIONS_GHC -Wno-inaccessible-code -Wno-overlapping-patterns #-}
-
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
@@ -10,9 +8,6 @@
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE TupleSections              #-}
-{-# LANGUAGE GADTs                      #-}
-{-# LANGUAGE TypeOperators              #-}
-{-# LANGUAGE RankNTypes                 #-}
 
 module Language.Haskell.Liquid.GHC.Plugin (
 

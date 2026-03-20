@@ -17,7 +17,6 @@ module Language.Haskell.Liquid.Types.Bounds (
 
     RBEnv, RRBEnv, RRBEnvV,
 
-    -- makeBound,
     emapBoundM,
     mapBoundTy
 

@@ -187,7 +187,7 @@ refTypeQuals lEnv ef l tce t0    = go emptySEnv t0
     insertsSEnv'              = foldr (\(x, t) γ -> insertSEnv x (rTypeSort tce t) γ)
 
 
-refTopQuals :: (PPrint t, IsReft t,  ReftBind t ~ Symbol, ReftVar t ~ Symbol, Variable t ~ Symbol, SubsTy RTyVar RSort t)
+refTopQuals :: (PPrint t, IsReft t,  ReftBind t ~ Symbol, ReftVar t ~ Symbol, SubsTy RTyVar RSort t)
             => SEnv Sort
             -> ElabFlags
             -> SourcePos
@@ -214,7 +214,7 @@ refTopQuals lEnv ef l tce t0 γ rrt
       msg t = panic Nothing $ "Qualifier.refTopQuals: no typebase" ++ showpp t
       γ'    = unionSEnv' γ lEnv
 
-mkPQual :: (PPrint r, IsReft r,  ReftBind r ~ Symbol, ReftVar r ~ Symbol, Variable r ~ Symbol, SubsTy RTyVar RSort r)
+mkPQual :: (PPrint r, IsReft r,  ReftBind r ~ Symbol, ReftVar r ~ Symbol, SubsTy RTyVar RSort r)
         => SEnv Sort
         -> SourcePos
         -> TCEmb TyCon

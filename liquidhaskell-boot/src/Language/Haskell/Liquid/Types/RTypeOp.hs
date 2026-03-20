@@ -292,7 +292,7 @@ instance ToReft r => Semigroup (OrReftBV r) where
 instance ToReft r => Meet (OrReftBV r) where
 
 instance F.Binder (ReftBind r) => Top (OrReftBV r) where
-  top _ = LeftReftBV (F.trueReft)
+  top _ = LeftReftBV F.trueReft
 
 instance ToReft r => IsReft (OrReftBV r) where
   ofReft r = LeftReftBV r
@@ -680,14 +680,13 @@ mapBind f = go
     go (RRTy e r o t)     = RRTy (bimap f go <$> e) r o (go t)
     go (RExprArg e)       = RExprArg (F.mapBindExpr f <$> e)
     go (RAppTy t t' r)    = RAppTy (go t) (go t') r
-    mapT (RTVar tv i) = RTVar tv (mapI i)
-    mapS = mapReft (\NoReft -> NoReft) . mapBind f
-    mapI RTVNoInfo{..} = RTVNoInfo{..}
-    mapI RTVInfo{..}   = RTVInfo { rtv_kind = mapS rtv_kind, .. }
-    mapP (PV n τ a as) = PV (f n) (mapS τ) (f a) (mapA <$> as)
-    mapA (τ, b, e) = (mapS τ, f b, F.mapBindExpr f e)
-    mapR (RProp as t) = RProp (mapRA <$> as) (go t)
-    mapRA (b, τ) = (f b, mapS τ)
+    mapT (RTVar tv i)     = RTVar tv (mapI i)
+    mapS                  = mapReft (\NoReft -> NoReft) . mapBind f
+    mapI RTVNoInfo{..}    = RTVNoInfo{..}
+    mapI RTVInfo{..}      = RTVInfo { rtv_kind = mapS rtv_kind, .. }
+    mapP (PV n τ a as)    = PV (f n) (mapS τ) (f a) (mapA <$> as)
+    mapA (τ, b, e)        = (mapS τ, f b, F.mapBindExpr f e)
+    mapR (RProp as t)     = RProp (bimap f mapS <$> as) (go t)
 
 --------------------------------------------------
 ofRSort ::  IsReft r => RTypeBV b v c tv (NoReftB b) -> RTypeBV b v c tv r

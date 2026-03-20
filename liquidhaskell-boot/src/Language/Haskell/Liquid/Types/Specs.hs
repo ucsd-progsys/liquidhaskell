@@ -9,7 +9,6 @@
 {-# LANGUAGE NamedFieldPuns             #-}
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE TupleSections              #-}
-{-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -428,11 +427,7 @@ data Spec lname ty = Spec
   , usedDataCons :: S.HashSet LHName                                  -- ^ Data constructors used in specs
   } deriving (Data, Generic)
 
-instance
-  (F.PPrint (PredicateV lname), PredicateCompat F.Symbol lname,
-   Show lname, F.PPrint lname, F.Fixpoint lname, Ord lname,
-   Show ty, F.PPrint ty
-  ) => F.PPrint (Spec lname ty) where
+instance (F.PPrint lname, F.PPrint ty, F.PPrint (PredicateV lname), PredicateCompat F.Symbol lname, F.Fixpoint lname, Ord lname) => F.PPrint (Spec lname ty) where
     pprintTidy k sp = text "dataDecls = " <+> pprintTidy k  (dataDecls sp)
                          HughesPJ.$$
                       text "classes = " <+> pprintTidy k (classes sp)
@@ -524,17 +519,6 @@ emapSpecM bscp lenv vf f sp = do
       }
   where
     fnull = f []
-    emapRelationalM
-      :: (Monad m, Ord lname0)
-      => ([F.Symbol] -> lname0 -> m lname1)
-      -> ( F.Located LHName            , F.Located LHName
-         , F.Located (BareTypeV lname0) , F.Located (BareTypeV lname0)
-         , RelExprV lname0              , RelExprV lname0
-         )
-      -> m ( F.Located LHName             , F.Located LHName
-           , F.Located (BareTypeV lname1) , F.Located (BareTypeV lname1)
-           , RelExprV lname1              , RelExprV lname1
-           )
     emapRelationalM vf1 (n0, n1, t0, t1, e0, e1) = do
       t0' <- traverse (emapBareTypeVM bscp vf1 []) t0
       t1' <- traverse (emapBareTypeVM bscp vf1 []) t1

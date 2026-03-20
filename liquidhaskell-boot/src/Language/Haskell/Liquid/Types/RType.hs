@@ -10,13 +10,11 @@
 {-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE DerivingVia                #-}
 {-# LANGUAGE LambdaCase                 #-}
-{-# LANGUAGE MultiWayIf                 #-}
 {-# LANGUAGE NamedFieldPuns             #-}
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
-{-# LANGUAGE DefaultSignatures          #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -913,7 +911,7 @@ instance Hashable b => F.Subable (NoReftB b) where
   subst1 r = const r
 
 instance Semigroup (NoReftB b) where
-  r <> _ = r
+  _ <> _ = NoReft
 
 instance Monoid (NoReftB b) where
   mempty = NoReft
@@ -1038,7 +1036,7 @@ trueReft = ofReft F.trueReft
 isTauto :: ToReft r => r -> Bool
 isTauto = F.isTautoReft . toReft
 
-instance (ToReft r, F.Binder b, Ord v) => ToReft (UReftBV b v r) where
+instance ToReft r => ToReft (UReftBV b v r) where
   type ReftVar (UReftBV b v r) = ReftVar r
   type ReftBind (UReftBV b v r) = ReftBind r
   toReft = toReft . ur_reft
@@ -1100,11 +1098,6 @@ instance (F.Binder b, Ord v, PredicateCompat b v) => ToReft (PredicateBV b v) wh
 instance Top (PredicateBV b v) where
   top _ = pdTrue
 
-{-
-  toReft (Pr ps@(p:_))        = F.Reft (parg p, F.pAnd $ pToRef <$> ps)
-  toReft _                    = F.trueReft
--}
-
 instance (F.Binder v, F.Fixpoint v) => Semigroup (F.ReftBV v v) where
   (<>) = F.meetReft
 
@@ -1112,13 +1105,11 @@ instance Monoid F.Reft where
   mempty  = F.trueReft
   mappend = (<>)
 
-instance Meet () where
-  meet _ _ = ()
+instance Meet ()
 
-instance Meet (NoReftB b) where
-  meet _ _ = NoReft
+instance Meet (NoReftB b)
 
-instance (Meet r, Eq v) => Meet (UReftBV v v r) where
+instance (Meet r, Eq v) => Meet (UReftBV v v r)
 
 instance (F.Subable r, F.Variable r ~ v) => F.Subable (UReftBV v v r) where
   type Variable (UReftBV v v r) = v
@@ -1130,7 +1121,7 @@ instance (F.Subable r, F.Variable r ~ v) => F.Subable (UReftBV v v r) where
 instance F.Expression (UReft ()) where
   expr = F.expr . toReft
 
-instance Meet Predicate where
+instance Meet Predicate
 
 pToRef :: PredicateCompat b v => PVarBV b v a -> F.ExprBV b v
 pToRef p = pApp (pnameV p) $ F.EVar (pargV p) : (thd3 <$> pargs p)
