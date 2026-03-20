@@ -229,9 +229,9 @@ defConfig = Config {
     = False &= name "short-errors"
           &= help "Don't show long error messages, just line numbers."
 
- , exactDC
+ , adtSpec
     = False &= help "Generate ADT representations in refinement logic"
-          &= name "exact-data-cons"
+          &= name "adt"
 
  , expectErrorContaining
     = [] &= help "Expect an error which containing the provided string from verification (can be provided more than once)"

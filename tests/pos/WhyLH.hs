@@ -1,7 +1,7 @@
 module WhyLH where
 
 {-@ LIQUID "--ple" @-}
-{-@ LIQUID "--exact-data-cons" @-}
+{-@ LIQUID "--adt" @-}
 
 -- This test contains the examples of the blogpost at
 -- https://www.tweag.io/blog/2022-01-19-why-liquid-haskell/

@@ -1,7 +1,7 @@
 -- | THIS FAILS because we don't support < and > for ADT and,
 --   we instantiate the output of `app` with quals like `v < xs` `v > xs` etc.
 --   where v, xs are of the ADT sort `List a`.
-{-@ LIQUID "--exact-data-cons" @-}
+{-@ LIQUID "--adt" @-}
 
 module AdtList4 where
 

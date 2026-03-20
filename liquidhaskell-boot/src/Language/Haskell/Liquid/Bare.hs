@@ -461,7 +461,7 @@ makeEmbeds src env
 --
 -- > {-@ embed Bool as bool @-}
 --
--- It is needed by --exact-data-cons, which produces checkers that
+-- It is needed by --adt, which produces checkers that
 -- return a Bool. Without this embed annotation, the SMT solver would
 -- reject the checkers as ill-sorted.
 --
