@@ -548,14 +548,14 @@ uniqNub xs = M.elems $ M.fromList [ (index x, x) | x <- xs ]
 
 reflectedTyCons :: TCEmb Ghc.TyCon -> [Ghc.CoreBind] -> Ms.BareSpec -> [Ghc.TyCon]
 reflectedTyCons embs cbs spec =
-    filter (not . isEmbedded embs)
-    $ map Ghc.dataConTyCon
-    [ dc
+    [ tyCon
     | fv <- freeVars S.empty relevantBinds
     , dc <- case Ghc.idDetails fv of
         Ghc.DataConWrapId dc -> [dc]
         Ghc.DataConWorkId dc -> [dc]
         _                    -> []
+    , let tyCon = Ghc.dataConTyCon dc
+    , not (isEmbedded embs tyCon)
     ]
   where
     reflMeasVarSet = S.fromList $ reflectedVars spec cbs ++ measureVars spec cbs
