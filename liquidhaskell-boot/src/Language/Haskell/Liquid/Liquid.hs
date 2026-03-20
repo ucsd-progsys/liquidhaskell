@@ -43,14 +43,12 @@ checkTargetInfo :: TargetInfo -> IO (Output Doc)
 --------------------------------------------------------------------------------
 checkTargetInfo info = do
   let cfg = gsConfig (giSpec info)
-  -- 'giTarget' pulls the FilePath (String) out of the TargetSrc
   let tgt = giTarget (giSrc info)
   
   out <- check
   
-  -- Use 'resStatus' to look at the result correctly
   if saveBfqOnly cfg
-    then when (not (F.isSafe (resStatus (o_result out)))) (DC.saveResult tgt out)
+    then when (not (F.isSafe (F.resStatus (o_result out)))) (DC.saveResult tgt out)
     else when (saveQuery cfg) (DC.saveResult tgt out)
 
   pure out
