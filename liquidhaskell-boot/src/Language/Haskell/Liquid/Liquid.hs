@@ -42,17 +42,12 @@ import           Liquid.GHC.API as GHC hiding (text, vcat, ($+$), (<+>))
 checkTargetInfo :: TargetInfo -> IO (Output Doc)
 --------------------------------------------------------------------------------
 checkTargetInfo info = do
-  -- Use 'giSpec' to get the config, and 'giSrc' to get the target
   let cfg = gsConfig (giSpec info)
   let tgt = giSrc info
-  
   out <- check
-  
   if saveBfqOnly cfg
     then when (not (F.isSafe (o_result out))) (DC.saveResult tgt out)
-    -- Change 'save' to 'saveBfq' here
-    else when (save cfg) (DC.saveResult tgt out)
-
+    else when (saveQuery cfg) (DC.saveResult tgt out) -- Changed to 'saveQuery'
   pure out
   where
     check :: IO (Output Doc)
