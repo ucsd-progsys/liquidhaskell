@@ -51,7 +51,7 @@ checkTargetInfo info = do
   if saveBfqOnly cfg
     then when (not (F.isSafe (o_result out))) (DC.saveResult tgt out)
     -- Change 'save' to 'saveBfq' here
-    else when (saveBfq cfg) (DC.saveResult tgt out)
+    else when (save cfg) (DC.saveResult tgt out)
 
   pure out
   where
