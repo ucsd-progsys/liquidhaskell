@@ -1,6 +1,5 @@
 {-@ LIQUID "--reflection"     @-} 
 {-@ LIQUID "--ple"            @-} 
-{-@ LIQUID "--no-adt" 	      @-}
 {-@ LIQUID "--no-termination" @-}
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}

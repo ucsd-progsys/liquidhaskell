@@ -22,7 +22,6 @@ embed Word#    as int
 embed Word64#  as int
 embed Int     as int
 embed Int#     as int
-embed Bool    as bool
 embed Char    as Char
 embed Char#    as Char
 embed Addr#    as Str

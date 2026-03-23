@@ -1,9 +1,7 @@
 {-# LANGUAGE GADTs #-}
 
-{-@ LIQUID "--exact-data-con" @-}
 {-@ LIQUID "--higherorder"    @-}
 {-@ LIQUID "--ple"            @-}
-{-@ LIQUID "--noadt"          @-}
 
 
 module PeanoLib where

@@ -450,9 +450,28 @@ makeImports specs = concatMap (expSigs . snd) specs'
 
 makeEmbeds :: GhcSrc -> Bare.GHCTyLookupEnv -> [Ms.BareSpec] -> F.TCEmb Ghc.TyCon
 makeEmbeds src env
-  = Bare.addClassEmbeds (_gsCls src) (_gsFiTcs src)
+  = addBoolEmbed
+  . Bare.addClassEmbeds (_gsCls src) (_gsFiTcs src)
   . mconcat
   . map (makeTyConEmbeds env)
+
+-- | Add the bool embedding
+--
+-- This is equivalent to the user adding the annotation
+--
+-- > {-@ embed Bool as bool @-}
+--
+-- It is needed by --adt, which produces checkers that
+-- return a Bool. Without this embed annotation, the SMT solver would
+-- reject the checkers as ill-sorted.
+--
+-- We used to have an embed annotation in LHAssumption modules, but it
+-- was not in effect when the user did not import the necessary modules.
+--
+addBoolEmbed :: F.TCEmb Ghc.TyCon -> F.TCEmb Ghc.TyCon
+addBoolEmbed embs
+  | Mb.isJust (F.tceLookup Ghc.boolTyCon embs) = embs
+  | otherwise                                  = F.tceInsert Ghc.boolTyCon F.boolSort F.NoArgs embs
 
 makeTyConEmbeds :: Bare.GHCTyLookupEnv -> Ms.BareSpec -> F.TCEmb Ghc.TyCon
 makeTyConEmbeds env spec
@@ -506,11 +525,11 @@ makeLiftedSpec0 :: Config -> GhcSrc -> F.TCEmb Ghc.TyCon -> LogicMap -> Ms.BareS
                 -> Ms.BareSpec
 makeLiftedSpec0 cfg src embs lmap mySpec = mempty
   { Ms.ealiases  = lmapEAlias . snd <$> Bare.makeHaskellInlines cfg src embs lmap mySpec
-  , Ms.dataDecls = Bare.makeHaskellDataDecls cfg mySpec tcs
+  , Ms.dataDecls = Bare.makeHaskellDataDecls mySpec tcs
   }
   where
     tcs          = uniqNub (_gsTcs src ++ refTcs)
-    refTcs       = reflectedTyCons cfg embs cbs  mySpec
+    refTcs       = reflectedTyCons embs cbs  mySpec
     cbs          = _giCbs       src
 
 uniqNub :: (Ghc.Uniquable a) => [a] -> [a]
@@ -521,28 +540,36 @@ uniqNub xs = M.elems $ M.fromList [ (index x, x) | x <- xs ]
 -- | 'reflectedTyCons' returns the list of `[TyCon]` that must be reflected but
 --   which are defined *outside* the current module e.g. in Base or somewhere
 --   that we don't have access to the code.
+--
+--   We collect TyCons from the data constructors actually used in the bodies of
+--   reflected functions and measure functions, rather than those mentioned in
+--   their type signatures. This avoids generating selectors for types that are
+--   only referenced in signatures but not actually pattern-matched.
 
-reflectedTyCons :: Config -> TCEmb Ghc.TyCon -> [Ghc.CoreBind] -> Ms.BareSpec -> [Ghc.TyCon]
-reflectedTyCons cfg embs cbs spec
-  | exactDCFlag cfg = filter (not . isEmbedded embs)
-                    $ concatMap varTyCons
-                    $ reflectedVars spec cbs ++ measureVars spec cbs
-  | otherwise       = []
+reflectedTyCons :: TCEmb Ghc.TyCon -> [Ghc.CoreBind] -> Ms.BareSpec -> [Ghc.TyCon]
+reflectedTyCons embs cbs spec =
+    [ tyCon
+    | fv <- freeVars S.empty relevantBinds
+    , dc <- case Ghc.idDetails fv of
+        Ghc.DataConWrapId dc -> [dc]
+        Ghc.DataConWorkId dc -> [dc]
+        _                    -> []
+    , let tyCon = Ghc.dataConTyCon dc
+    , not (isEmbedded embs tyCon)
+    ]
+  where
+    reflMeasVarSet = S.fromList $ reflectedVars spec cbs ++ measureVars spec cbs
+    relevantBinds  = filter (isRelevantBind reflMeasVarSet) cbs
+
+isRelevantBind :: S.HashSet Ghc.Var -> Ghc.CoreBind -> Bool
+isRelevantBind vars (Ghc.NonRec v _) = v `S.member` vars
+isRelevantBind vars (Ghc.Rec pairs)  = any ((`S.member` vars) . fst) pairs
 
 -- | We cannot reflect embedded tycons (e.g. Bool) as that gives you a sort
 --   conflict: e.g. what is the type of is-True? does it take a GHC.Types.Bool
 --   or its embedding, a bool?
 isEmbedded :: TCEmb Ghc.TyCon -> Ghc.TyCon -> Bool
 isEmbedded embs c = F.tceMember c embs
-
-varTyCons :: Ghc.Var -> [Ghc.TyCon]
-varTyCons = specTypeCons . ofType . Ghc.varType
-
-specTypeCons           :: SpecType -> [Ghc.TyCon]
-specTypeCons         = foldRType tc []
-  where
-    tc acc t@RApp {} = rtc_tc (rt_tycon t) : acc
-    tc acc _         = acc
 
 reflectedVars :: Ms.BareSpec -> [Ghc.CoreBind] -> [Ghc.Var]
 reflectedVars spec cbs =
@@ -1286,7 +1313,7 @@ makeTycEnv0 cfg myName env embs mySpec iSpecs = (diag0 <> diag1, datacons, Bare.
     tycons        = tcs ++ wiredTyCons
     datacons      = Bare.makePluggedDataCon (typeclass cfg) embs tyi <$> (concat dcs ++ wiredDataCons)
     tds           = [(name, tcpCon tcp, dd) | (name, tcp, Just dd) <- tcDds]
-    (diag1, adts) = Bare.makeDataDecls cfg embs myName tds       datacons
+    (diag1, adts) = Bare.makeDataDecls embs myName tds       datacons
     dm            = Bare.dataConMap adts
     dcSelectors   = concatMap (Bare.makeMeasureSelectors cfg dm) (if reflection cfg then charDataCon:datacons else datacons)
     fiTcs         = _gsFiTcs (Bare.reSrc env)
@@ -1396,7 +1423,7 @@ addOpaqueReflMeas cfg tycEnv env spec measEnv specs eqs = do
       , shouldBeUsedForScanning $ makeGHCLHName (Ghc.getName v) (symbol v)
       ]
     tcs           = S.toList $ Ghc.dataConTyCon `S.map` Bare.getReflDCs measEnv varsUsedForTcScanning
-    dataDecls     = Bare.makeHaskellDataDecls cfg spec tcs
+    dataDecls     = Bare.makeHaskellDataDecls spec tcs
     tyi           = Bare.tcTyConMap    tycEnv
     embs          = Bare.tcEmbs        tycEnv
     dm            = Bare.tcDataConMap  tycEnv

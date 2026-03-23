@@ -1,4 +1,4 @@
-{-@ LIQUID "--exact-data-cons" @-}
+{-@ LIQUID "--adt" @-}
 
 module AdtList3 where
 

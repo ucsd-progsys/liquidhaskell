@@ -1,4 +1,3 @@
-{-@ LIQUID "--exact-data-cons"   @-}
 {-@ LIQUID "--ple" @-}
 module Foo where
 import Prelude hiding (Maybe (..))

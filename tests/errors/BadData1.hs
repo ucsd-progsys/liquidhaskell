@@ -1,6 +1,4 @@
 {-@ LIQUID "--expect-error-containing=Data constructors in refinement do not match original datatype for `EntityField`" @-}
-{-@ LIQUID "--no-adt"         @-}
-{-@ LIQUID "--exact-data-con" @-}
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 

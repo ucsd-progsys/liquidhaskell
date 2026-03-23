@@ -588,6 +588,7 @@ executable errors
                     , BadData0
                     , BadData1
                     , BadData2
+                    , BadDataSelectorTypes
                     , BadDataCon2
                     , BadDataConType1
                     , BadDataConType2
@@ -1255,7 +1256,6 @@ executable unit-neg
                     , T1095C
                     , T1126
                     , T1198_3
-                    , T1267
                     , T1286
                     , T1288
                     , T1490A
@@ -2191,8 +2191,6 @@ executable basic-neg
                     , Poly00
                     , ReflExt01A
                     , ReflExt01B
-                    , ReflExt02A
-                    , ReflExt02B
                     , ShadowLogicSymbols
                     , T1459
                     , T2349

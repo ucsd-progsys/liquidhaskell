@@ -1,5 +1,4 @@
 {-@ LIQUID "--higherorder"       @-}
-{-@ LIQUID "--exact-data-cons"   @-}
 
 -- NOPROP probably breaks some fixpoint flag 
 

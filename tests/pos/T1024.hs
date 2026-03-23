@@ -1,4 +1,3 @@
-{-@ LIQUID "--exactdc"     @-}
 {-@ LIQUID "--higherorder" @-}
 
 module T1024 where

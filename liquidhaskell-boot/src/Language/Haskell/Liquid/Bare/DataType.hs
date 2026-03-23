@@ -213,15 +213,12 @@ instanceTyCon = go . Ghc.is_tys
 
 type DataPropDecl = (DataDecl, Maybe SpecType)
 
-makeDataDecls :: Config -> F.TCEmb Ghc.TyCon -> ModName
+makeDataDecls :: F.TCEmb Ghc.TyCon -> ModName
               -> [(ModName, Ghc.TyCon, DataPropDecl)]
               -> [Located DataConP]
               -> (Diagnostics, [F.DataDecl])
-makeDataDecls cfg tce name tds ds
-  | makeDecls        = (mkDiagnostics warns [], okDecs)
-  | otherwise        = (mempty, [])
+makeDataDecls tce name tds ds = (mkDiagnostics warns [], okDecs)
   where
-    makeDecls        = exactDCFlag cfg && not (noADT cfg)
     warns            =
       (mkWarnDecl . fmap pprint . dataNameSymbol . tycName . fst . fst . snd <$> badTcs) ++
       (mkWarnDecl . (\d -> F.atLoc d (pprint $ F.symbol d)) <$> badDecs)
@@ -513,7 +510,10 @@ dataDeclKey env name d = do
 -- constructor we list in a datatype is indeed a constructor of that corresponding
 -- Haskell datatype.
 --
--- We also check that constructors do not have duplicate fields.
+-- We also check that constructors do not have duplicate fields, and that any
+-- field name reused across constructors would induce the same selector sort.
+-- This rejects ambiguous data annotations such as using the same selector name
+-- for different field types in different constructors.
 --
 checkDataCtors :: Bare.Env -> ModName -> Ghc.TyCon -> DataDecl -> Maybe [DataCtor] -> Bare.Lookup [DataCtor]
 checkDataCtors _env _name _c _dd Nothing     = return []
@@ -526,7 +526,9 @@ checkDataCtors  env  name  c  dd (Just cons) = do
   mbDcs <- mapM (Bare.failMaybe env name . Bare.lookupGhcDataConLHName env . dcName) cons
   let rdcs = S.fromList . fmap F.symbol . Mb.catMaybes $ mbDcs
   if dcs == rdcs
-    then mapM checkDataCtorDupField cons
+    then do
+      cons' <- mapM checkDataCtorDupField cons
+      checkDataCtorFieldTypes cons'
     else Left [errDataConMismatch (getLHNameSymbol <$> dataNameSymbol (tycName dd)) dcs rdcs]
 
 -- | Checks whether the given data constructor has duplicate fields.
@@ -541,11 +543,47 @@ checkDataCtorDupField d
       dups        = [ x | (x, ts) <- Misc.groupList xts, 2 <= length ts ]
       err lc x    = ErrDupField (GM.sourcePosSrcSpan $ loc lc) (pprint $ val lc) (pprint x)
 
+-- | Checks whether selectors shared across constructors have compatible types.
+--
+-- We only reject field names that would denote different selector sorts, because
+-- those become duplicate logic definitions once selector measures are generated.
+checkDataCtorFieldTypes :: [DataCtor] -> Bare.Lookup [DataCtor]
+checkDataCtorFieldTypes ds
+  | []     <- errs = return ds
+  | e : _  <- errs = Left [e]
+  | otherwise      = impossible Nothing "checkDataCtorFieldTypes"
+  where
+    errs = [ err x xts
+           | (x, xts) <- Misc.groupList fieldTys
+           , let tys = Misc.nubHashOn (\(_, s, _) -> s) xts
+           , 2 <= length tys
+           ]
+
+    fieldTys =
+      [ ( lhNameToUnqualifiedSymbol x
+        , (dcName d, toRSort t, t)
+        )
+      | d <- ds
+      , Mb.isNothing (dcResult d)
+      , (x, t) <- dcFields d
+      , not (GM.isTmpSymbol (lhNameToUnqualifiedSymbol x))
+      ]
+
+    err x xts@((dc, _, _) : _) =
+      ErrBadData (GM.fSrcSpan dc) (pprint x) $
+        PJ.text "Field has incompatible selector types across constructors:"
+        PJ.$+$ PJ.nest 4 (PJ.vcat [ PJ.parens (pprint (val dc')) <+> pprint x <+> "::" <+> pprint t | (dc', _, t) <- xts ])
+    err _ [] =
+      impossible Nothing "checkDataCtorFieldTypes"
+
 selectDD :: (a, [DataDecl]) -> Either [DataDecl] DataDecl
 selectDD (_,[d]) = Right d
-selectDD (_, ds) = case [ d | d <- ds, tycKind d == DataReflected ] of
-                     [d] -> Right d
-                     _   -> Left  ds
+selectDD (_, ds) = case [ d | d <- ds, tycKind d == DataUser ] of
+                     [du] -> case [ d | d <- ds, tycKind d == DataReflected ] of
+                        [dr] -> Right dr
+                        [] -> Right du
+                        drs -> Left drs
+                     dus -> Left dus
 
 groupVariances :: [DataDecl]
                -> [(Located LHName, [Variance])]

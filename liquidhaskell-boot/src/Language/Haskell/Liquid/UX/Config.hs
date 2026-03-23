@@ -13,7 +13,7 @@ module Language.Haskell.Liquid.UX.Config (
    , higherOrderFlag
    , pruneFlag
    , maxCaseExpand
-   , exactDCFlag
+   , adtFlag
    , hasOpt
    , totalityCheck
    , terminationCheck
@@ -73,8 +73,7 @@ data Config = Config
   , shortNames               :: Bool       -- ^ drop module qualifers from pretty-printed names.
   , shortErrors              :: Bool       -- ^ don't show subtyping errors and contexts.
   , eliminate                :: Eliminate  -- ^ eliminate (i.e. don't use qualifs for) for "none", "cuts" or "all" kvars
-  , exactDC                  :: Bool       -- ^ Automatically generate singleton types for data constructors
-  , noADT                    :: Bool       -- ^ Disable ADTs (only used with exactDC)
+  , adtSpec                  :: Bool       -- ^ Generate ADT representations in refinement logic
   , expectErrorContaining    :: [String]   -- ^ expect failure from Liquid with at least one of the following messages
   , expectAnyError           :: Bool       -- ^ expect failure from Liquid with any message
   , scrapeInternals          :: Bool       -- ^ scrape qualifiers from auto specifications
@@ -97,7 +96,7 @@ data Config = Config
   , dependantCase            :: Bool       -- ^ Enable PLE for dependent cases
   , extensionality           :: Bool       -- ^ Enable extensional interpretation of function equality
   , nopolyinfer              :: Bool       -- ^ No inference of polymorphic type application.
-  , reflection               :: Bool       -- ^ Allow "reflection"; switches on "--higherorder" and "--exactdc"
+  , reflection               :: Bool       -- ^ Allow "reflection"; switches on "--higherorder" and "--adt"
   , compileSpec              :: Bool       -- ^ Only "compile" the spec -- into .bspec file -- don't do any checking.
   , typeclass                :: Bool        -- ^ enable typeclass support.
   , auxInline                :: Bool        -- ^
@@ -116,7 +115,7 @@ data Config = Config
   , allowUnsafeConstructors  :: Bool       -- ^ Allow refining constructors with unsafe refinements
   , ddumpTimings             :: Bool       -- ^ Dump time measures of the Liquid Haskell plugin
                                            -- Only needed to work around https://github.com/haskell/cabal/issues/11116
-  , modern                   :: Bool       -- ^ Enable modern features; enables reflection, ple, etabeta, dependantcase, exact-data-cons
+  , modern                   :: Bool       -- ^ Enable modern features; enables reflection, ple, etabeta, dependantcase, adt
   } deriving (Generic, Data, Show, Eq)
 
 allowPLE :: Config -> Bool
@@ -144,8 +143,8 @@ higherOrderFlag x = higherorder cfg || reflection cfg
   where
     cfg           = getConfig x
 
-exactDCFlag :: (HasConfig t) => t -> Bool
-exactDCFlag x = exactDC cfg || reflection cfg
+adtFlag :: (HasConfig t) => t -> Bool
+adtFlag x = adtSpec cfg || reflection cfg
   where
     cfg       = getConfig x
 

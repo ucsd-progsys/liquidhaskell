@@ -18,8 +18,8 @@ data OrdList [ollen] a = None
                       | One  (ox  :: a)
                       | Many (oxs1 :: ListNE a)
                       | Cons (ox  :: a)           (oxs3 :: OrdList a)
-                      | Snoc (oxs2 :: OrdList a)  (ox  :: a)
-                      | Two  (ox  :: OrdListNE a) (oy  :: OrdListNE a)
+                      | Snoc (oxs2 :: OrdList a)  (oxSnoc  :: a)
+                      | Two  (oxTwo  :: OrdListNE a) (oy  :: OrdListNE a)
 @-}
 
 {-@ measure llen @-}

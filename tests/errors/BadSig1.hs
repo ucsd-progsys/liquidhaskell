@@ -1,7 +1,6 @@
 {-@ LIQUID "--expect-error-containing=Unknown logic name `pro`" @-}
 {-# LANGUAGE GADTs #-}
 
-{-@ LIQUID "--exact-data-con" @-}
 
 module BadSig1 where
 

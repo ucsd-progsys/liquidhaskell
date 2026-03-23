@@ -213,7 +213,7 @@ of function equalities.
 
 ## Modern theorem feature set
 The `--modern` option enables a curated theorem-proving setup by implying:
-`--reflection`, `--ple`, `--etabeta`, `--dependantcase`, and `--exact-data-cons`.
+`--reflection`, `--ple`, `--etabeta`, and `--dependantcase`.
 
 ### Opaque reflection
 

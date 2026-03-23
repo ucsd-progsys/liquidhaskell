@@ -1,4 +1,3 @@
-{-@ LIQUID "--exactdc"      @-}
 {-@ LIQUID "--higherorder"  @-}
 module ReflectBooleanFunctions where
 

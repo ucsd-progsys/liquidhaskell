@@ -1,8 +1,7 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# LANGUAGE FlexibleInstances, UndecidableInstances, ViewPatterns,
              NondecreasingIndentation #-}
--- XXX: Why do we need --exact-data-cons here?
-{-@ LIQUID "--exact-data-cons" @-}
+-- XXX: Why do we need --adt here?
 {-@ LIQUID "--ple" @-}
 
 -----------------------------------------------------------------------------

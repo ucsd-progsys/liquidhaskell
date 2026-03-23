@@ -1,6 +1,5 @@
 {-# LANGUAGE GADTs, TypeFamilies, GeneralizedNewtypeDeriving, OverloadedStrings, TemplateHaskell, QuasiQuotes, MultiParamTypeClasses #-}
 
-{-@ LIQUID "--no-adt"     @-}
 {-@ LIQUID "--reflection" @-}
 
 module T1446 where

@@ -1,6 +1,5 @@
 module MutuallyDependentADT where
 
-{-@ LIQUID "--exactdc"  @-}
 
 data Pred l 
   = PTerm (Term l)
