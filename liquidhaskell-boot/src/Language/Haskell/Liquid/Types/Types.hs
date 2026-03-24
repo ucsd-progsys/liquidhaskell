@@ -823,6 +823,9 @@ ppMethods k hdr name args mts
 -- | Var Hole Info -----------------------------------------------------
 ------------------------------------------------------------------------
 
+-- | Information captured for a term hole: the type reported at the hole, its
+--   source location, the local typing environment, and extra caller-provided
+--   context.
 data HoleInfo i t = HoleInfo {htype :: t, hloc :: SrcSpan, henv :: AREnv t, info :: i }
 
 instance Functor (HoleInfo i) where

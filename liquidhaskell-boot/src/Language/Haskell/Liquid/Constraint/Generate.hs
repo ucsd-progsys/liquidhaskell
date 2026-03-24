@@ -75,6 +75,67 @@ import Language.Haskell.Liquid.UX.Config
       higherOrderFlag, warnOnTermHoles )
 import qualified GHC.Data.Strict as Strict
 
+-- Note [Term holes]
+--
+-- The term-hole implementation in this module is a small, opt-in pipeline that
+-- is only active when @warnOnTermHoles@ is enabled.
+--
+-- The thesis motivating this feature chose constraint generation as the hook for
+-- hole support because this is the first phase where LiquidHaskell already knows
+-- the refined types and local environment that make a warning actionable. An
+-- earlier location-based approach would have been more modular, but the needed
+-- query from source locations back into constraint generation was not feasible.
+--
+-- The implementation also uses a stable hole naming convention, recognized by
+-- 'isVarHole', instead of depending on GHC surface syntax alone. This keeps the
+-- matching logic local to Core while reducing the amount of desugaring detail we
+-- have to reconstruct.
+--
+-- 1. We detect direct occurrences of a typed hole with 'detectTypedHole', which
+--    peels away ticks via 'stripTicks', recovers the hole source span with
+--    'lastTick', and recognizes @hole@ binders with 'isVarHole'. We need this
+--    normalization-aware detection because holes can appear under GHC-introduced
+--    @App@ and @Tick@ nodes, and the warning should still point at the original
+--    source span.
+--
+-- 2. We remember hole-shaped let-bindings in 'consCB''s local @checkLetHole@
+--    helper. That helper records which ANF binder names a hole by calling
+--    'linkANFToHole'. This step is needed because LiquidHaskell's ANF
+--    normalization can float a hole into a fresh @let@ binder, and later useful
+--    constraints may mention only that ANF name instead of the original hole.
+--
+-- 3. We record the type and environment of each direct hole occurrence while
+--    generating constraints. In checking mode, 'cconsE''s local @maybeAddHole@
+--    stores the expected type with 'addHole'. In synthesis mode, 'consE''s
+--    local @synthesizeWithHole@ first synthesizes the application's type and
+--    then stores that synthesized type with 'addHole'. We need both sites:
+--    checking gives the expected type when one is available, while synthesis
+--    covers cases like applications where checking alone would only report an
+--    uninformative base type for the hole.
+--
+-- 4. We attach ANF expressions that participate in a hole by running
+--    'checkANFHoleInExpr' from 'cconsE' and from the application case of
+--    'consE'. That helper walks the expression with 'collectVars', resolves any
+--    binder previously linked by 'linkANFToHole' through 'isANFInHole', and
+--    saves the expression/type pair with 'addHoleANF'. This is what recovers the
+--    surrounding refined constraints that users actually need when the hole sits
+--    inside a larger normalized expression.
+--
+-- 5. After constraint generation finishes, 'consAct' calls
+--    'emitConsolidatedHoleWarnings'. It merges the stored hole metadata with the
+--    collected ANF expressions and emits one 'ErrHole' warning per hole, using
+--    the environment captured by 'addHole' so the warning reports the local
+--    typing context that was in scope at the hole. Delaying emission until the
+--    end is important: only then do we have the direct hole information, the ANF
+--    links, and the extra constraints together in one place.
+--
+-- Term holes were developed during the Master's thesis
+--
+-- Enhancing Proof Development in LiquidHaskell: Implementation and Evaluation of Typed Holes
+-- MATHEUS DE SOUSA BERNARDO
+-- Chalmers University of Technology, 2025
+--
+-- https://odr.chalmers.se/server/api/core/bitstreams/640ee29b-b13a-44d5-9e20-200a91a11021/content
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
@@ -203,6 +264,10 @@ isSubterm ctors l r | l == r
                   | otherwise
                   = False
 
+-- | Emit one warning per recorded term hole after constraint generation has
+--   collected both the hole metadata and any ANF expressions linked to it.
+--
+-- See Note [Term holes]
 emitConsolidatedHoleWarnings :: CG ()
 emitConsolidatedHoleWarnings = do
   holes     <- gets hsHoles
@@ -340,6 +405,7 @@ consCB _ γ (NonRec x e)
        to' <- consBind False γ (x, e, to) >>= addPostTemplate γ
        extender γ (x, makeSingleton γ (simplify e) <$> to')
   where
+    -- See Note [Term holes]
     checkLetHole =
       do
         let isItHole = detectTypedHole e
@@ -422,6 +488,12 @@ addPToEnv γ π
   = do γπ <- γ += ("addSpec1", pname π, pvarRType π)
        foldM (+=) γπ [("addSpec2", x, ofRSort t) | (t, x, _) <- pargs π]
 
+-- | Detect a direct typed-hole occurrence in Core and recover the source span
+--   that GHC attached to it, if present. The helper deliberately matches the
+--   stable @.hole@ naming convention after stripping wrappers introduced by
+--   desugaring and normalization.
+--
+-- See Note [Term holes]
 detectTypedHole :: CoreExpr -> Maybe (RealSrcSpan, Var)
 detectTypedHole e =
   case stripTicks e of
@@ -431,13 +503,15 @@ detectTypedHole e =
         _                       -> Nothing
     _ -> Nothing
 
--- Remove Initial App and sequent Tick nodes from an expression.
+-- | Remove the outer application and tick wrappers that GHC places around a
+--   hole so 'detectTypedHole' can inspect the underlying binder.
 stripTicks :: CoreExpr -> CoreExpr
 stripTicks (App (Tick _ e) _) = stripTicks e
 stripTicks (Tick _ e)         = stripTicks e
 stripTicks e          = e
 
--- Traverse the expression to get the last Tick information.
+-- | Traverse an expression and keep the innermost tick, which is the source
+--   note used to report the hole location.
 lastTick :: Expr b -> Maybe CoreTickish
 lastTick (Tick t e) =
   case lastTick e of
@@ -449,7 +523,8 @@ lastTick (App e a) =
     Nothing -> lastTick e
 lastTick _ = Nothing
 
--- A helper to check if the variable name indicates a typed hole.
+-- | Check whether a Core binder name follows GHC's @.hole@ naming scheme for
+--   typed holes.
 isVarHole :: Var -> Bool
 isVarHole x = isHoleStr (F.symbolString (F.symbol x))
   where
@@ -539,6 +614,8 @@ cconsE' γ e t
        te' <- instantiatePreds γ e te >>= addPost γ
        addC (SubC γ te' t) ("cconsE: " ++ "\n t = " ++ showpp t ++ "\n te = " ++ showpp te ++ GM.showPpr e)
   where
+    -- See Note [Term holes]
+    -- Record the expected type of a direct hole encountered in checking mode.
     maybeAddHole = do
       let isItHole = detectTypedHole e
       case isItHole of
@@ -673,6 +750,9 @@ consE γ e'@(App _ _) =
     checkANFHoleInExpr e' t
     return t
   where
+    -- See Note [Term holes]
+    -- Record the synthesized type of a direct hole encountered in synthesis
+    -- mode before the caller consumes it.
     synthesizeWithHole = do
       let isItHole = detectTypedHole e'
       t <- consEApp γ e'
@@ -727,6 +807,12 @@ consE γ e@(Coercion _)
 consE _ e@(Type t)
   = panic Nothing $ "consE cannot handle type " ++ GM.showPpr (e, t)
 
+-- | Attach the current expression and inferred type to any ANF binders that
+--   were previously recognized as naming a term hole. This compensates for ANF
+--   normalization, which often moves the informative constraints from the hole
+--   occurrence onto the fresh binder that stands for it.
+--
+-- See Note [Term holes]
 checkANFHoleInExpr :: CoreExpr -> SpecType -> CG ()
 checkANFHoleInExpr e t = do
   let vars = collectVars e
@@ -735,6 +821,8 @@ checkANFHoleInExpr e t = do
     case isANF of
       Just uniqueVar -> addHoleANF uniqueVar var e t
       _ -> return ()
+-- | Collect every variable mentioned in a Core expression so
+--   'checkANFHoleInExpr' can look for ANF binders linked to a hole.
 collectVars :: CoreExpr -> [Var]
 collectVars (Var x) = [x]
 collectVars (App e1 e2) = collectVars e1 ++ collectVars e2

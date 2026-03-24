@@ -117,6 +117,8 @@ addA !l xo@Nothing  !t (AI m)
 addA _ _ _ !a
   = a
 
+-- | Record a term hole together with the type we assigned to it and the local
+--   environment needed to render a useful warning later.
 addHole :: SrcSpan -> Var -> SpecType -> CGEnv -> CG ()
 addHole loc x t γ = do
   exists <- gets (M.member (x, loc) . hsHoles)
@@ -126,13 +128,19 @@ addHole loc x t γ = do
     holeInfo = HoleInfo t loc env
     env      = mconcat [renv γ, grtys γ, assms γ, intys γ]
 
+-- | Remember an ANF expression that mentions a hole-linked binder so the final
+--   warning can report the surrounding expressions that constrain the hole.
 addHoleANF :: (Var, SrcSpan) -> Var -> CoreExpr -> SpecType -> CG ()
 addHoleANF uniqueVar anfVar e t =
   modify $ \s -> s { hsHolesExprs = M.insertWith (++) uniqueVar [(anfVar, e, t)] (hsHolesExprs s) }
 
+-- | Associate an ANF binder with the concrete hole occurrence it was created
+--   from so later traversals can recover the original hole.
 linkANFToHole :: Var -> (Var, SrcSpan) -> CG ()
 linkANFToHole anf h = modify $ \s -> s { hsANFHoles = M.insert anf h $ hsANFHoles s }
 
+-- | Resolve an ANF binder back to the hole occurrence that introduced it, if
+--   the binder was previously linked by 'linkANFToHole'.
 isANFInHole :: Var -> CG (Maybe (Var, SrcSpan))
 isANFInHole anf = gets (M.lookup anf . hsANFHoles)
 
