@@ -12,3 +12,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: andreasabel/fix-whitespace-action@v1
+        with:
+          version:    0.1
+          configfile: fix-whitespace.yaml
+          fix:        false
+          verbose:    true

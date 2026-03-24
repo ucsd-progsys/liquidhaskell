@@ -21,6 +21,7 @@ import           Language.Fixpoint.Misc hiding (errorstar)
 import           Language.Haskell.Liquid.GHC.Misc -- (concatMapM)
 import           Liquid.GHC.API as Ghc hiding (panic, showPpr)
 
+
 --------------------------------------------------------------------------------
 -- | `addC` adds a subtyping constraint into the global pool.
 --------------------------------------------------------------------------------
@@ -116,6 +117,24 @@ addA !l xo@Nothing  !t (AI m)
 addA _ _ _ !a
   = a
 
+addHole :: SrcSpan -> Var -> SpecType -> CGEnv -> CG ()
+addHole loc x t γ = do
+  exists <- gets (M.member (x, loc) . hsHoles)
+  unless exists $
+    modify $ \s -> s { hsHoles = M.insert (x, loc) (holeInfo (s, γ)) $ hsHoles s }
+  where
+    holeInfo = HoleInfo t loc env
+    env      = mconcat [renv γ, grtys γ, assms γ, intys γ]
+
+addHoleANF :: (Var, SrcSpan) -> Var -> CoreExpr -> SpecType -> CG ()
+addHoleANF uniqueVar anfVar e t =
+  modify $ \s -> s { hsHolesExprs = M.insertWith (++) uniqueVar [(anfVar, e, t)] (hsHolesExprs s) }
+
+linkANFToHole :: Var -> (Var, SrcSpan) -> CG ()
+linkANFToHole anf h = modify $ \s -> s { hsANFHoles = M.insert anf h $ hsANFHoles s }
+
+isANFInHole :: Var -> CG (Maybe (Var, SrcSpan))
+isANFInHole anf = gets (M.lookup anf . hsANFHoles)
 
 lookupNewType :: Ghc.TyCon -> CG (Maybe SpecType)
 lookupNewType tc

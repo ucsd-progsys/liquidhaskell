@@ -37,6 +37,7 @@ microTestGroups =
   , "terminate-neg"
   , "pattern-pos"
   , "typeclass-pos"
+  , "typed-holes"
   ]
 
 benchmarkTestGroups :: [Text]
