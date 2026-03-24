@@ -121,13 +121,13 @@ addHole :: SrcSpan -> Var -> SpecType -> CGEnv -> CG ()
 addHole loc x t γ = do
   exists <- gets (M.member (x, loc) . hsHoles)
   unless exists $
-    modify $ \s -> s { hsHoles = M.insert (x, loc) (holeInfo (s, γ)) $ hsHoles s }   
+    modify $ \s -> s { hsHoles = M.insert (x, loc) (holeInfo (s, γ)) $ hsHoles s }
   where
     holeInfo = HoleInfo t loc env
     env      = mconcat [renv γ, grtys γ, assms γ, intys γ]
 
 addHoleANF :: (Var, SrcSpan) -> Var -> CoreExpr -> SpecType -> CG ()
-addHoleANF uniqueVar anfVar e t = 
+addHoleANF uniqueVar anfVar e t =
   modify $ \s -> s { hsHolesExprs = M.insertWith (++) uniqueVar [(anfVar, e, t)] (hsHolesExprs s) }
 
 linkANFToHole :: Var -> (Var, SrcSpan) -> CG ()

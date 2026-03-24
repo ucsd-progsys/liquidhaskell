@@ -533,12 +533,12 @@ cconsE' γ e@(Cast e' c) t
        addC (SubC γ (F.notracepp ("Casted Type for " ++ GM.showPpr e ++ "\n init type " ++ showpp t) t') t) ("cconsE Cast: " ++ GM.showPpr e)
 
 cconsE' γ e t
-  = do 
+  = do
        when (warnOnTermHoles (getConfig γ))  maybeAddHole
        te  <- consE γ e
        te' <- instantiatePreds γ e te >>= addPost γ
        addC (SubC γ te' t) ("cconsE: " ++ "\n t = " ++ showpp t ++ "\n te = " ++ showpp te ++ GM.showPpr e)
-  where 
+  where
     maybeAddHole = do
       let isItHole = detectTypedHole e
       case isItHole of
@@ -672,7 +672,7 @@ consE γ e'@(App _ _) =
     t <- if warnOnTermHoles (getConfig γ) then synthesizeWithHole else consEApp γ e'
     checkANFHoleInExpr e' t
     return t
-  where 
+  where
     synthesizeWithHole = do
       let isItHole = detectTypedHole e'
       t <- consEApp γ e'
@@ -726,7 +726,7 @@ consE γ e@(Coercion _)
 
 consE _ e@(Type t)
   = panic Nothing $ "consE cannot handle type " ++ GM.showPpr (e, t)
-  
+
 checkANFHoleInExpr :: CoreExpr -> SpecType -> CG ()
 checkANFHoleInExpr e t = do
   let vars = collectVars e
@@ -740,17 +740,17 @@ collectVars (Var x) = [x]
 collectVars (App e1 e2) = collectVars e1 ++ collectVars e2
 collectVars (Lam x e) = x : collectVars e
 collectVars (Let (NonRec x e1) e2) = x : collectVars e1 ++ collectVars e2
-collectVars (Let (Rec xes) e) = 
+collectVars (Let (Rec xes) e) =
   let (xs, es) = unzip xes
   in xs ++ concatMap collectVars es ++ collectVars e
-collectVars (Case e x _ alts) = 
+collectVars (Case e x _ alts) =
   x : collectVars e ++ concatMap collectAltVars alts
   where collectAltVars (Alt _ xs e') = xs ++ collectVars e'
 collectVars _ = []
 
 consEApp :: CGEnv -> CoreExpr -> CG SpecType
 consEApp γ e'@(App e a@(Type τ))
-  = do 
+  = do
        RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
        t            <- if not (nopolyinfer (getConfig γ)) && isPos α && isGenericVar (ty_var_value α) te
                          then freshTyType (typeclass (getConfig γ)) TypeInstE e τ
