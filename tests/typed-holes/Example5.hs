@@ -1,5 +1,4 @@
 {-@ LIQUID "--expect-error-containing=Hole Found" @-}
-{-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--warn-on-term-holes" @-}
 -- Based on paper: Theorem Proving for All: Equational Reasoning in Liquid Haskell (Functional Pearl)
 
@@ -29,7 +28,7 @@ module Example5 where
     (x:xs) ++ ys = x : (xs ++ ys)
     {-@ infixl ++ @-}
     {-@ reflect ++ @-}
-    
+
 
     {-@ flattenApp :: t:Tree -> ns:[Int] -> { v:[Int] | v == flatten t ++ ns } @-}
     flattenApp :: Tree -> [Int] -> [Int]

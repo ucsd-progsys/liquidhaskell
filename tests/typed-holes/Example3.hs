@@ -1,5 +1,4 @@
 {-@ LIQUID "--expect-error-containing=Hole Found" @-}
-{-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--warn-on-term-holes" @-}
 -- Based on paper: Theorem Proving for All: Equational Reasoning in Liquid Haskell (Functional Pearl)
 
@@ -8,7 +7,7 @@ module Example3 where
     import Language.Haskell.Liquid.ProofCombinators ((===), (***), QED(QED), Proof)
 
     hole = undefined
-    
+
     {-@ length :: [a] -> {v:Int | 0 <= v } @-}
     length :: [a] -> Int
     length [] = 0

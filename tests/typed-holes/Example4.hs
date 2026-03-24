@@ -1,5 +1,4 @@
 {-@ LIQUID "--expect-error-containing=Hole Found" @-}
-{-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--warn-on-term-holes" @-}
 -- Based on paper: Theorem Proving for All: Equational Reasoning in Liquid Haskell (Functional Pearl)
 
@@ -30,11 +29,11 @@ module Example4 where
 
     {-@ reverseApp :: xs:[a] -> ys:[a] -> {zs:[a] | zs == reverse xs ++ ys} @-}
     reverseApp :: [a] -> [a] -> [a]
-    reverseApp [] ys     
+    reverseApp [] ys
         = reverse [] ++ ys
-        === [] ++ ys 
+        === [] ++ ys
         === ys
-    reverseApp (x:xs) ys 
+    reverseApp (x:xs) ys
         = reverse (x:xs) ++ ys
         === (reverse xs ++ [x]) ++ ys
         === (reverse xs ++ [x] ++ ys) ? hole -- I need a lemma here! Can the hole help me?

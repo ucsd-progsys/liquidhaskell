@@ -1,12 +1,11 @@
 {-@ LIQUID "--expect-error-containing=Hole Found" @-}
-{-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--warn-on-term-holes" @-}
 -- Based on https://ucsd-progsys.github.io/liquidhaskell-blog/2016/10/06/structural-induction.lhs/
 
 module Example2 where
     import Prelude hiding ((<>))
     import Language.Haskell.Liquid.ProofCombinators ((===), (***), QED(QED), Proof)
-    
+
     hole = undefined
 
     {-@ reflect empty @-}
@@ -24,7 +23,7 @@ module Example2 where
     leftId x
         =   empty <> x
         === hole
-        === x          
+        === x
         *** QED
 
     {-@ rightId  :: x:[a] -> { (x <> empty) == x } @-}
