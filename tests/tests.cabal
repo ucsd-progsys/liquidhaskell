@@ -2659,7 +2659,10 @@ flag typed-holes
      default: False
 
 executable typed-holes
+    import:           common-ghc-options
     main-is:          Main.hs
+    if !flag(typed-holes) && flag(stack)
+      buildable:      False
 
     ghc-options:      -fplugin=LiquidHaskell
     other-modules:    Example0
@@ -2677,6 +2680,7 @@ executable typed-holes
                     , typed-holes
 
     default-language: Haskell2010
+
 -- This test suite is for internal function unit tests, not for checking LH on
 -- source files.
 test-suite tasty
