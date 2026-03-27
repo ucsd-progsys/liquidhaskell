@@ -19,11 +19,10 @@ source-repository-package
     tag: 45ef3498e35897712bde8e002ce18df6d55f8b15
 
 allow-newer:
-  ghc-timings:base
+   ghc-timings:base
+
+   -- Chart-diagrams dependencies
   ,active:base
-  ,aeson:containers
-  ,aeson:template-haskell
-  ,aeson:time
   ,binary-orphans:base
   ,blaze-svg:base
   ,diagrams-core:base
@@ -35,18 +34,22 @@ allow-newer:
   ,diagrams-svg:containers
   ,directory:time
   ,dual-tree:base
+  ,monoid-extras:base
+  ,statestack:base
+  ,svg-builder:base
+  ,SVGFonts:containers
+
+   -- aeson dependencies
+  ,aeson:containers
+  ,aeson:template-haskell
+  ,aeson:time
   ,indexed-traversable:base
   ,indexed-traversable:containers
   ,indexed-traversable-instances:base
   ,lens-family:containers
   ,lens-family-core:containers
-  ,monoid-extras:base
   ,semialign:base
   ,semialign:containers
-  ,statestack:base
-  ,svg-builder:base
-  ,SVGFonts:containers
-  ,text:base
   ,text-iso8601:time
   ,time-compat:time
   ,these:base
