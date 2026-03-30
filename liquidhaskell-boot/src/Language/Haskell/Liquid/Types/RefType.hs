@@ -1402,7 +1402,7 @@ isBaseTy (CastTy _ _)     = False
 isBaseTy (CoercionTy _)   = False
 
 
-dataConMsReft :: (ToReft r, ReftBind r ~ v, ReftVar r ~ v) => RTypeBV v v c tv r -> [v] -> ReftBV v v
+dataConMsReft :: (ToReft r, ReftBind r ~ v, ReftVar r ~ v, F.Refreshable v) => RTypeBV v v c tv r -> [v] -> ReftBV v v
 dataConMsReft ty ys  = subst su (rTypeReft (ignoreOblig $ ty_res trep))
   where
     trep = toRTypeRep ty
