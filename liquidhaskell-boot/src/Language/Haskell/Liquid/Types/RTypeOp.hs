@@ -285,6 +285,8 @@ instance ToReft r => ToReft (OrReftBV r) where
   type ReftVar (OrReftBV r) = ReftVar r
   toReft (LeftReftBV r) = r
   toReft (RightR r) = toReft r
+  toUReft (LeftReftBV r) = MkUReft r (Pr [])
+  toUReft (RightR r) = toUReft r
 
 instance ToReft r => Semigroup (OrReftBV r) where
   _ <> _ = Prelude.error "Meet OrReftBV"

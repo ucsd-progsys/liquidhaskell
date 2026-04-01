@@ -319,13 +319,11 @@ instance Hashable b => Hashable (PVarBV b v a) where
 pvType :: PVarBV b v t -> t
 pvType = ptype
 
-instance F.PPrint (PVar a) where
+instance (Ord b, F.Fixpoint b, Hashable b, F.PPrint b, Ord v, F.Fixpoint v, F.PPrint v) => F.PPrint (PVarBV b v a) where
   pprintTidy _ = pprPvar
 
-pprPvar :: PVar a -> Doc
-pprPvar (PV s _ _ xts) = F.pprint s <+> hsep (F.pprint <$> dargs xts)
-  where
-    dargs              = map thd3 . takeWhile (\(_, x, y) -> F.EVar x /= y)
+pprPvar :: (Ord b, F.Fixpoint b, Hashable b, F.PPrint b, Ord v, F.Fixpoint v, F.PPrint v) => PVarBV b v a -> Doc
+pprPvar (PV s _ _ xts) = F.pprint s <+> hsep (F.pprint . thd3 <$> xts)
 
 -- | A map traversal that collects the local variables in scope
 emapExprVM :: (Monad m, Hashable b) => ([b] -> v -> m v') -> ExprBV b v -> m (ExprBV b v')
@@ -398,7 +396,7 @@ instance Monoid Predicate where
 instance Eq b => Semigroup (PredicateBV b v) where
   p <> p' = pdAnd [p, p']
 
-instance F.PPrint Predicate where
+instance (Ord b, F.Fixpoint b, Hashable b, F.PPrint b, Ord v, F.Fixpoint v, F.PPrint v) => F.PPrint (PredicateBV b v) where
   pprintTidy _ (Pr [])  = text "True"
   pprintTidy k (Pr pvs) = hsep $ punctuate (text "&") (F.pprintTidy k <$> pvs)
 
@@ -1016,6 +1014,8 @@ class (F.Binder (ReftBind r), Eq (ReftVar r)) => ToReft r where
   type ReftBind r
   type ReftBind r = Symbol
   toReft :: r -> F.ReftBV (ReftBind r) (ReftVar r)
+  toUReft :: r -> UReftBV (ReftBind r) (ReftVar r) (F.ReftBV (ReftBind r) (ReftVar r))
+  toUReft r = MkUReft (toReft r) pdTrue
 
 -- | Types that can be combined conjunctively in some sense
 class Semigroup r => Meet r where
@@ -1034,17 +1034,20 @@ trueReft :: IsReft r => r
 trueReft = ofReft F.trueReft
 
 isTauto :: ToReft r => r -> Bool
-isTauto = F.isTautoReft . toReft
+isTauto r0 = F.isTautoReft r && null ps
+ where
+  MkUReft r (Pr ps) = toUReft r0
 
-instance ToReft r => ToReft (UReftBV b v r) where
+instance (ToReft r, ReftBind r ~ b, ReftVar r ~ v) => ToReft (UReftBV b v r) where
   type ReftVar (UReftBV b v r) = ReftVar r
   type ReftBind (UReftBV b v r) = ReftBind r
   toReft = toReft . ur_reft
+  toUReft (MkUReft r p) = MkUReft (toReft r) p
 
 instance Top r => Top (UReftBV b v r) where
   top (MkUReft r _) = MkUReft (top r) pdTrue
 
-instance (IsReft r, F.Binder v) => IsReft (UReftBV v v r) where
+instance (IsReft r, F.Binder v, ReftBind r ~ v, ReftVar r ~ v) => IsReft (UReftBV v v r) where
   ofReft r = MkUReft (ofReft r) pdTrue
 
 instance (F.Binder b, Eq v) => ToReft (F.ReftBV b v) where
@@ -1094,6 +1097,7 @@ instance (F.Binder b, Ord v, PredicateCompat b v) => ToReft (PredicateBV b v) wh
   type ReftBind (PredicateBV b v) = b
   toReft (Pr [])       = F.trueReft
   toReft (Pr ps@(p:_)) = F.Reft (parg p, F.pAnd $ pToRef <$> ps)
+  toUReft p = MkUReft F.trueReft p
 
 instance Top (PredicateBV b v) where
   top _ = pdTrue
@@ -1141,3 +1145,8 @@ instance PredicateCompat Symbol Symbol where
   pappV _ n = F.symbol $ "papp" ++ show n
   pnameV p = pname p
   pargV p = parg p
+
+instance PredicateCompat Symbol F.LocSymbol where
+  pappV _ n = F.dummyLoc $ F.symbol $ "papp" ++ show n
+  pnameV p = F.dummyLoc $ pname p
+  pargV p = F.dummyLoc $ parg p
