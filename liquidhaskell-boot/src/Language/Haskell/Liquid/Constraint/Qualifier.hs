@@ -19,8 +19,9 @@ import           Control.Monad.Reader
 
 import           Language.Fixpoint.Types                  hiding (panic, mkQual)
 import qualified Language.Fixpoint.Types.Config as FC
-import           Language.Fixpoint.Misc                  (fst3)
+import           Language.Fixpoint.Misc                  (fst3, sortNub)
 import           Language.Fixpoint.SortCheck
+import qualified Language.Fixpoint.Types.Visitor as Vis
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.GHC.Misc         (getSourcePos)
 import           Language.Haskell.Liquid.Misc             (condNull)
@@ -238,10 +239,18 @@ mkQual :: SEnv Sort
        -> Sort
        -> Expr
        -> Qualifier
-mkQual lEnv l _ γ v so p   = mkQ "Auto" ((v, so) : xts) p l
+mkQual lEnv l _ γ v so p   = mkQ "Auto" ((v, so') : xts') p' l
   where
     xs   = delete v $ nub $ syms p
     xts  = catMaybes $ zipWith (envSort l lEnv γ) xs [0..]
+    -- Parameterize: replace FObj type variable names with FVar indices
+    -- in both parameter sorts and body expression sort annotations.
+    allParams = (v, so) : xts
+    su   = zip (sortNub $ concatMap (sortVars . snd) allParams) [0..]
+    so'  = substVars su so
+    xts' = [(x, substVars su t) | (x, t) <- xts]
+    coSu = M.fromList [(x, FVar i) | (x, i) <- su]
+    p'   = Vis.applyCoSub coSu p
 
 envSort :: SourcePos -> SEnv Sort -> SEnv Sort -> Symbol -> Integer -> Maybe (Symbol, Sort)
 envSort l lEnv tEnv x i
