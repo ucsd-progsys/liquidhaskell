@@ -19,6 +19,7 @@ module Language.Haskell.Liquid.Types.PrettyPrint
 
     -- * Printers
   , rtypeDoc
+  , ppTy
 
   -- * Printing Lists (TODO: move to fixpoint)
   , pprManyOrdered
@@ -179,7 +180,7 @@ instance F.Fixpoint LHName where
 --------------------------------------------------------------------------------
 -- | Pretty Printing RefType ---------------------------------------------------
 --------------------------------------------------------------------------------
-instance (OkRT c tv r) => PPrint (RType c tv r) where
+instance (OkRTBV b v c tv r) => PPrint (RTypeBV b v c tv r) where
   -- RJ: THIS IS THE CRUCIAL LINE, the following prints short types.
   pprintTidy _ = rtypeDoc F.Lossy
   -- pprintTidy _ = ppRType topPrec
@@ -205,7 +206,7 @@ pprints :: (PPrint a) => F.Tidy -> Doc -> [a] -> Doc
 pprints k c = sep . punctuate c . map (pprintTidy k)
 
 --------------------------------------------------------------------------------
-rtypeDoc :: (OkRT c tv r) => F.Tidy -> RType c tv r -> Doc
+rtypeDoc :: (OkRTBV b v c tv r) => F.Tidy -> RTypeBV b v c tv r -> Doc
 --------------------------------------------------------------------------------
 rtypeDoc k      = pprRtype (ppE k) topPrec
   where
@@ -219,27 +220,27 @@ instance PPrint F.Tidy where
 type Prec = PprPrec
 
 --------------------------------------------------------------------------------
-pprRtype :: (OkRT c tv r) => PPEnv -> Prec -> RType c tv r -> Doc
+pprRtype :: (OkRTBV b v c tv r) => PPEnv -> Prec -> RTypeBV b v c tv r -> Doc
 --------------------------------------------------------------------------------
 pprRtype bb p t@(RAllT _ _ r)
-  = ppTy r $ pprForall bb p t
+  = ppTy bb r $ pprForall bb p t
 pprRtype bb p t@(RAllP _ _)
   = pprForall bb p t
-pprRtype _ _ (RVar a r)
-  = ppTy r $ pprint a
+pprRtype bb _ (RVar a r)
+  = ppTy bb r $ pprint a
 pprRtype bb p t@RFun{}
   = maybeParen p funPrec (pprRtyFun bb empty t)
 pprRtype bb p (RApp c [t] rs r)
   | isList c
-  = ppTy r $ brackets (pprRtype bb p t) <-> ppReftPs bb p rs
+  = ppTy bb r $ brackets (pprRtype bb p t) <-> ppReftPs bb p rs
 pprRtype bb p (RApp c ts rs r)
   | isTuple c
-  = ppTy r $ parens (intersperse comma (pprRtype bb p <$> ts)) <-> ppReftPs bb p rs
+  = ppTy bb r $ parens (intersperse comma (pprRtype bb p <$> ts)) <-> ppReftPs bb p rs
 pprRtype bb p (RApp c ts rs r)
   | isEmpty rsDoc && isEmpty tsDoc
-  = ppTy r $ ppT c
+  = ppTy bb r $ ppT c
   | otherwise
-  = ppTy r $ parens $ ppT c <+> rsDoc <+> tsDoc
+  = ppTy bb r $ parens $ ppT c <+> rsDoc <+> tsDoc
   where
     rsDoc            = ppReftPs bb p rs
     tsDoc            = hsep (pprRtype bb p <$> ts)
@@ -252,7 +253,7 @@ pprRtype bb p t@RAllE{}
 pprRtype _ _ (RExprArg e)
   = braces $ pprint e
 pprRtype bb p (RAppTy t t' r)
-  = ppTy r $ pprRtype bb p t <+> pprRtype bb p t'
+  = ppTy bb r $ pprRtype bb p t <+> pprRtype bb p t'
 pprRtype bb p (RRTy e _ OCons t)
   = sep [braces (pprRsubtype bb p e) <+> "=>", pprRtype bb p t]
 pprRtype bb p (RRTy e r o rt)
@@ -261,8 +262,8 @@ pprRtype bb p (RRTy e r o rt)
     ppe         = hsep (punctuate comma (ppxt <$> e)) <+> dcolon
     ppp  doc    = text "<<" <+> doc <+> text ">>"
     ppxt (x, t) = pprint x <+> ":" <+> pprRtype bb p t
-pprRtype _ _ (RHole r)
-  = ppTy r $ text "_"
+pprRtype bb _ (RHole r)
+  = ppTy bb r $ text "_"
 
 ppTyConB :: TyConable c => PPEnv -> c -> Doc
 ppTyConB bb
@@ -273,8 +274,8 @@ shortModules :: Doc -> Doc
 shortModules = text . F.symbolString . dropModuleNames . F.symbol . render
 
 pprRsubtype
-  :: (OkRT c tv r, PPrint a, PPrint (RType c tv r), PPrint (RType c tv ()))
-  => PPEnv -> Prec -> [(a, RType c tv r)] -> Doc
+  :: (OkRTBV b v c tv r, PPrint a, PPrint (RTypeBV b v c tv r), PPrint (RTypeBV b v c tv (NoReftB b)))
+  => PPEnv -> Prec -> [(a, RTypeBV b v c tv r)] -> Doc
 pprRsubtype bb p e
   = pprint_env <+> text "|-" <+> pprRtype bb p tl <+> "<:" <+> pprRtype bb p tr
   where
@@ -292,9 +293,9 @@ maybeParen ctxt_prec inner_prec pretty
   | otherwise                  = parens pretty
 
 ppExists
-  :: (OkRT c tv r, PPrint c, PPrint tv, PPrint (RType c tv r),
-      PPrint (RType c tv ()))
-  => PPEnv -> Prec -> RType c tv r -> Doc
+  :: (OkRTBV b v c tv r, PPrint c, PPrint tv, PPrint (RTypeBV b v c tv r),
+      PPrint (RTypeBV b v c tv (NoReftB b)))
+  => PPEnv -> Prec -> RTypeBV b v c tv r -> Doc
 ppExists bb p rt
   = text "exists" <+> brackets (intersperse comma [pprDbind bb topPrec x t | (x, t) <- ws]) <-> dot <-> pprRtype bb p rt'
     where (ws,  rt')               = split [] rt
@@ -302,8 +303,8 @@ ppExists bb p rt
           split zs t                = (reverse zs, t)
 
 ppAllExpr
-  :: (OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
-  => PPEnv -> Prec -> RType c tv r -> Doc
+  :: (OkRTBV b v c tv r, PPrint (RTypeBV b v c tv r), PPrint (RTypeBV b v c tv (NoReftB b)))
+  => PPEnv -> Prec -> RTypeBV b v c tv r -> Doc
 ppAllExpr bb p rt
   = text "forall" <+> brackets (intersperse comma [pprDbind bb topPrec x t | (x, t) <- ws]) <-> dot <-> pprRtype bb p rt'
     where
@@ -312,19 +313,20 @@ ppAllExpr bb p rt
       split zs t              = (reverse zs, t)
 
 ppReftPs
-  :: (OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()),
-      Reftable (Ref (RType c tv ()) (RType c tv r)))
-  => t -> t1 -> [Ref (RType c tv ()) (RType c tv r)] -> Doc
+  :: (OkRTBV b v c tv r, PPrint (RTypeBV b v c tv r), PPrint (RTypeBV b v c tv (NoReftB b)))
+  => t -> t1 -> [RefB b (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv r)] -> Doc
 ppReftPs _ _ rs
-  | all isTauto rs   = empty
+  | all trivial rs   = empty
   | not (ppPs ppEnv) = empty
   | otherwise        = angleBrackets $ hsep $ punctuate comma $ pprRef <$> rs
+ where
+  trivial (RProp _ t) = isTrivial t
 
 pprDbind
-  :: (OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
-  => PPEnv -> Prec -> F.Symbol -> RType c tv r -> Doc
+  :: (OkRTBV b v c tv r, PPrint (RTypeBV b v c tv r), PPrint (RTypeBV b v c tv (NoReftB b)))
+  => PPEnv -> Prec -> b -> RTypeBV b v c tv r -> Doc
 pprDbind bb p x t
-  | F.isNonSymbol x || (x == F.dummySymbol)
+  | x == F.wildcard
   = pprRtype bb p t
   | otherwise
   = pprint x <-> colon <-> pprRtype bb p t
@@ -332,8 +334,8 @@ pprDbind bb p x t
 
 
 pprRtyFun
-  :: ( OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
-  => PPEnv -> Doc -> RType c tv r -> Doc
+  :: ( OkRTBV b v c tv r, PPrint (RTypeBV b v c tv r), PPrint (RTypeBV b v c tv (NoReftB b)))
+  => PPEnv -> Doc -> RTypeBV b v c tv r -> Doc
 pprRtyFun bb prefix rt = hsep (prefix : dArgs ++ [dOut])
   where
     dArgs               = concatMap ppArg args
@@ -356,7 +358,7 @@ pprRtyFun' bb t
   = pprRtype bb topPrec t
 -}
 
-brkFun :: RType c tv r -> ([(F.Symbol, RType c tv r, Doc)], RType c tv r)
+brkFun :: RTypeBV b v c tv r -> ([(b, RTypeBV b v c tv r, Doc)], RTypeBV b v c tv r)
 brkFun (RFun b _ t t' _)  = ((b, t, text "->") : args, out)
   where (args, out) = brkFun t'
 brkFun out                = ([], out)
@@ -364,7 +366,7 @@ brkFun out                = ([], out)
 
 
 
-pprForall :: (OkRT c tv r) => PPEnv -> Prec -> RType c tv r -> Doc
+pprForall :: (OkRTBV b v c tv r) => PPEnv -> Prec -> RTypeBV b v c tv r -> Doc
 pprForall bb p t = maybeParen p funPrec $ sep [
                       pprForalls (ppPs bb) (fst <$> ty_vars trep) (ty_preds trep)
                     , pprClss cls
@@ -390,13 +392,13 @@ pprForall bb p t = maybeParen p funPrec $ sep [
     dπs False _               = empty
     dπs True πs               = angleBrackets $ intersperse comma $ pprPvarDef bb p <$> πs
 
-pprRtvarDef :: (PPrint tv) => [RTVar tv (RType c tv ())] -> Doc
+pprRtvarDef :: (PPrint tv) => [RTVar tv (RTypeBV b v c tv (NoReftB b))] -> Doc
 pprRtvarDef = sep . map (pprint . ty_var_value)
 
 pprCls
-  :: (OkRT c tv r, PPrint a, PPrint (RType c tv r),
-      PPrint (RType c tv ()))
-  => PPEnv -> Prec -> a -> [RType c tv r] -> Doc
+  :: (OkRTBV b v c tv r, PPrint a, PPrint (RTypeBV b v c tv r),
+      PPrint (RTypeBV b v c tv (NoReftB b)))
+  => PPEnv -> Prec -> a -> [RTypeBV b v c tv r] -> Doc
 pprCls bb p c ts
   = pp c <+> hsep (map (pprRtype bb p) ts)
   where
@@ -404,38 +406,55 @@ pprCls bb p c ts
        | otherwise  = pprint
 
 
-pprPvarDef :: (OkRT c tv ()) => PPEnv -> Prec -> PVar (RType c tv ()) -> Doc
+pprPvarDef :: (OkRTBV b v c tv (NoReftB b)) => PPEnv -> Prec -> PVarBV b v (RTypeBV b v c tv (NoReftB b)) -> Doc
 pprPvarDef bb p (PV s t _ xts)
   = pprint s <+> dcolon <+> intersperse arrow dargs <+> pprPvarKind bb p t
   where
     dargs = [pprPvarSort bb p xt | (xt,_,_) <- xts]
 
 
-pprPvarKind :: (OkRT c tv ()) => PPEnv -> Prec -> RType c tv () -> Doc
+pprPvarKind :: (OkRTBV b v c tv (NoReftB b)) => PPEnv -> Prec -> RTypeBV b v c tv (NoReftB b) -> Doc
 pprPvarKind bb p t = pprPvarSort bb p t <+> arrow <+> pprName F.boolConName
 
 pprName :: F.Symbol -> Doc
 pprName                      = text . F.symbolString
 
-pprPvarSort :: (OkRT c tv ()) => PPEnv -> Prec -> RType c tv () -> Doc
+pprPvarSort :: (OkRTBV b v c tv (NoReftB b)) => PPEnv -> Prec -> RTypeBV b v c tv (NoReftB b) -> Doc
 pprPvarSort bb p t = pprRtype bb p t
 
-pprRef :: (OkRT c tv r) => Ref (RType c tv ()) (RType c tv r) -> Doc
+pprRef :: (OkRTBV b v c tv r) => RefB b (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv r) -> Doc
 pprRef  (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint s
 -- pprRef (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
 
-ppRefArgs :: [F.Symbol] -> Doc
+ppRefArgs :: (F.Binder b, PPrint b) => [b] -> Doc
 ppRefArgs [] = empty
-ppRefArgs ss = text "\\" <-> hsep (ppRefSym <$> ss ++ [F.vv Nothing]) <+> arrow
+ppRefArgs ss = text "\\" <-> hsep (ppRefSym <$> ss ++ [F.wildcard]) <+> arrow
 
-ppRefSym :: (Eq a, IsString a, PPrint a) => a -> Doc
-ppRefSym "" = text "_"
-ppRefSym s  = pprint s
+ppRefSym :: (F.Binder b, PPrint b) => b -> Doc
+ppRefSym s | s == F.wildcard = text "_"
+ppRefSym s                   = pprint s
 
 dot :: Doc
 dot                = char '.'
 
-instance (PPrint (PredicateV v), Reftable (PredicateV v), PPrint r, Reftable r) => PPrint (UReftV v r) where
+ppTy ::
+  ( Ord (ReftBind r), F.Fixpoint (ReftBind r), PPrint (ReftBind r)
+  , Ord (ReftVar r), F.Fixpoint (ReftVar r), PPrint (ReftVar r)
+  , ToReft r
+  ) => PPEnv -> r -> Doc -> Doc
+ppTy bb r0 t = doc
+ where
+  MkUReft r p = toUReft r0
+  doc
+    | isTauto r = tDoc
+    | F.Reft (v, e) <- toReft r =
+        braces (pprint v <+> colon <+> tDoc <+> text "|" <+> pprint e)
+  tDoc
+    | Pr [] <- p    = t
+    | not (ppPs bb) = t
+    | otherwise     = t <-> angleBrackets (pprint p)
+
+instance (PPrint (PredicateBV b v), ToReft (PredicateBV b v), PPrint r, ToReft r) => PPrint (UReftBV b v r) where
   pprintTidy k (MkUReft r p)
     | isTauto r  = pprintTidy k p
     | isTauto p  = pprintTidy k r

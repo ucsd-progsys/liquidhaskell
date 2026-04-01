@@ -105,7 +105,7 @@ splitPred f (Pr ps) = (Pr ps1, Pr ps2)
 
 
 class IsFree a where
-        isFree :: Symbol -> a -> Bool
+        isFree :: Variable a -> a -> Bool
 
 instance (Subable x) => (IsFree x) where
         isFree x p = x `elem` syms p

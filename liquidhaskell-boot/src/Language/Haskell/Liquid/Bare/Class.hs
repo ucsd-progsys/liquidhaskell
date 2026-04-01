@@ -91,8 +91,8 @@ addCC allowTC var zz@(Loc l l' st0)
     tyvsmap       = case Bare.runMapTyVars allowTC t0 st err of
                           Left e  -> Ex.throw e
                           Right s -> Bare.vmap s
-    su            = [(y, rTyVar x)           | (x, y) <- tyvsmap]
-    su'           = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
+    su            = [(y, rTyVar x)               | (x, y) <- tyvsmap]
+    su'           = [(y, RVar (rTyVar x) NoReft) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
     coSub         = M.fromList [(F.symbol y, F.FObj (F.symbol x)) | (y, x) <- su]
     ps'           = fmap (subts su') <$> ps
     cs'           = [(F.dummySymbol, RApp c ts [] mempty) | (c, ts) <- cs ]

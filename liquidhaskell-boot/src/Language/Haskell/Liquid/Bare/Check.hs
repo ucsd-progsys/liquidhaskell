@@ -4,6 +4,7 @@
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE DeriveTraversable   #-}
+{-# LANGUAGE TypeOperators       #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-record-selectors #-}
 
@@ -387,7 +388,7 @@ checkSizeFun emb env tys =
 
     checkWFSize ef f tcp = ((f, tcp),) <$> runReader (checkSortFull (F.srcSpan tcp) (F.insertSEnv x (mkTySort (tcpCon tcp)) env) F.intSort (f x)) ef
     x                 = "x" :: F.Symbol
-    mkTySort tc       = rTypeSortedReft emb (ofType $ TyConApp tc (TyVarTy <$> tyConTyVars tc) :: RRType ())
+    mkTySort tc       = rTypeSortedReft emb (ofType $ TyConApp tc (TyVarTy <$> tyConTyVars tc) :: RRType NoReft)
 
     isWiredInLenFn :: SizeFun -> Bool
     isWiredInLenFn IdSizeFun           = False
@@ -617,7 +618,7 @@ checkTcArity RTyCon{ rtc_tc = tc } givenArity
 
 
 checkAbstractRefs
-  :: (PPrint t, Reftable t, SubsTy RTyVar RSort t, Reftable (RTProp RTyCon RTyVar (UReft t))) =>
+  :: (PPrint t, IsReft t, ReftBind t ~ F.Symbol, ReftVar t ~ F.Symbol, SubsTy RTyVar RSort t) =>
      RType RTyCon RTyVar (UReft t) -> Maybe Doc
 checkAbstractRefs rt = go rt
   where
@@ -675,7 +676,7 @@ checkAbstractRefs rt = go rt
     pvType' p          = Misc.safeHead (showpp p ++ " not in env of " ++ showpp rt) [pvType q | q <- penv, pname p == pname q]
 
 -- TODO remove the unused UReft arg
-checkReft                    :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar (UReft r)))
+checkReft                    :: (PPrint r, IsReft r, ReftBind r ~ F.Symbol, ReftVar r ~ F.Symbol, SubsTy RTyVar (RType RTyCon RTyVar NoReft) r)
                              => F.SrcSpan -> F.SEnv F.SortedReft -> F.TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> ElabM (Maybe Doc)
 checkReft _  _   _   Nothing  _ = pure Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.
 checkReft sp env emb (Just t) _ = do me <- checkSortedReftFull sp env r
@@ -709,8 +710,7 @@ checkMeasure emb γ (M name@(Loc src _ n) sort body _ _)
   where
     txerror = ErrMeas (GM.sourcePosSrcSpan src) (pprint n)
 
-checkMBody :: (PPrint r, Reftable r,SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
-           => F.SEnv F.SortedReft
+checkMBody :: F.SEnv F.SortedReft
            -> F.TCEmb TyCon
            -> t
            -> SpecType
@@ -732,14 +732,14 @@ checkMBody senv emb _ sort (Def m c _ bs body) = checkMBody' emb sort γ' sp bod
     ct    = ofType $ dataConWrapperType c :: SpecType
 
 checkMBodyUnify
-  :: RType t t2 t1 -> RType c tv r -> [(t2,RType c tv (),RType c tv r)]
+  :: RType t t2 t1 -> RType c tv r -> [(t2,RType c tv NoReft,RType c tv r)]
 checkMBodyUnify = go
   where
     go (RVar tv _) t      = [(tv, toRSort t, t)]
     go t@RApp{} t'@RApp{} = concat $ zipWith go (rt_args t) (rt_args t')
     go _ _                = []
 
-checkMBody' :: (PPrint r, Reftable r, SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
+checkMBody' :: (PPrint r, IsReft r, ReftBind r ~ F.Symbol, ReftVar r ~ F.Symbol, SubsTy RTyVar RSort r)
             => F.TCEmb TyCon
             -> RType RTyCon RTyVar r
             -> F.SEnv F.SortedReft
@@ -798,12 +798,12 @@ getRewriteErrors (rw, t)
           ++ " contains an inner refinement."
 
 
-isRefined :: Reftable r => RType c tv r -> Bool
+isRefined :: ToReft r => RType c tv r -> Bool
 isRefined ty
   | Just r <- stripRTypeBase ty = not $ isTauto r
   | otherwise = False
 
-hasInnerRefinement :: Reftable r => RType c tv r -> Bool
+hasInnerRefinement :: ToReft r => RType c tv r -> Bool
 hasInnerRefinement (RFun _ _ rIn rOut _) =
   isRefined rIn || isRefined rOut
 hasInnerRefinement (RAllT _ ty  _) =

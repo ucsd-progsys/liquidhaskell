@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE TypeOperators         #-}
 
 module Language.Haskell.Liquid.Constraint.Qualifier
   ( giQuals
@@ -186,7 +187,7 @@ refTypeQuals lEnv ef l tce t0    = go emptySEnv t0
     insertsSEnv'              = foldr (\(x, t) γ -> insertSEnv x (rTypeSort tce t) γ)
 
 
-refTopQuals :: (PPrint t, Reftable t, SubsTy RTyVar RSort t, Reftable (RTProp RTyCon RTyVar (UReft t)))
+refTopQuals :: (PPrint t, IsReft t,  ReftBind t ~ Symbol, ReftVar t ~ Symbol, SubsTy RTyVar RSort t)
             => SEnv Sort
             -> ElabFlags
             -> SourcePos
@@ -213,7 +214,7 @@ refTopQuals lEnv ef l tce t0 γ rrt
       msg t = panic Nothing $ "Qualifier.refTopQuals: no typebase" ++ showpp t
       γ'    = unionSEnv' γ lEnv
 
-mkPQual :: (PPrint r, Reftable r, SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
+mkPQual :: (PPrint r, IsReft r,  ReftBind r ~ Symbol, ReftVar r ~ Symbol, SubsTy RTyVar RSort r)
         => SEnv Sort
         -> SourcePos
         -> TCEmb TyCon

@@ -180,13 +180,13 @@ tyVars (RHole _)         = []
 
 subsTyVarsAll
   :: (Eq k, Hashable k,
-      Reftable r, TyConable c, SubsTy k (RType c k ()) c,
-      SubsTy k (RType c k ()) r,
-      SubsTy k (RType c k ()) k,
-      SubsTy k (RType c k ()) (RType c k ()),
-      SubsTy k (RType c k ()) (RTVar k (RType c k ())),
+      IsReft r, TyConable c, SubsTy k (RType c k NoReft) c,
+      SubsTy k (RType c k NoReft) r,
+      SubsTy k (RType c k NoReft) k,
+      SubsTy k (RType c k NoReft) (RType c k NoReft),
+      SubsTy k (RType c k NoReft) (RTVar k (RType c k NoReft)),
       FreeVar c k)
-   => [(k, RType c k (), RType c k r)] -> RType c k r -> RType c k r
+   => [(k, RType c k NoReft, RType c k r)] -> RType c k r -> RType c k r
 subsTyVarsAll ats = go
   where
     abm            = M.fromList [(a, b) | (a, _, RVar b _) <- ats]

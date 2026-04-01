@@ -4,6 +4,7 @@
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE ConstraintKinds        #-}
 {-# LANGUAGE TupleSections    #-}
+{-# LANGUAGE TypeOperators          #-}
 
 module Language.Haskell.Liquid.Measure (
   -- * Specifications
@@ -148,13 +149,13 @@ extend allowTC lc t1' t2
 resultTy :: RType c tv r -> RType c tv r
 resultTy = ty_res . toRTypeRep
 
-strengthenResult :: Reftable r => RType c tv r -> r -> RType c tv r
+strengthenResult :: Meet r => RType c tv r -> r -> RType c tv r
 strengthenResult t r = fromRTypeRep $ rep {ty_res = ty_res rep `strengthen` r}
   where
     rep              = toRTypeRep t
 
 
-noDummySyms :: (OkRT c tv r) => RType c tv r -> RType c tv r
+noDummySyms :: (OkRT c tv r, Subable r, Variable r ~ Symbol, IsReft r) => RType c tv r -> RType c tv r
 noDummySyms t
   | any isDummy (ty_binds rep)
   = subst su $ fromRTypeRep $ rep{ty_binds = xs'}

@@ -5,6 +5,7 @@
 {-# LANGUAGE LambdaCase                #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE TemplateHaskellQuotes     #-}
+{-# LANGUAGE FlexibleContexts          #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -181,7 +182,7 @@ data RTypeF c tv r f
   deriving (Functor)
 
 -- It's probably ok to treat (RType c tv ()) as a leaf..
-type RTPropF c tv f = Ref (RType c tv ()) f
+type RTPropF c tv f = Ref (RType c tv NoReft) f
 
 
 -- | SpecType with Holes.
@@ -281,12 +282,12 @@ buildHsExpr result = go
 
 
 canonicalizeDictBinder
-  :: F.Subable a => [F.Symbol] -> (a, [F.Symbol]) -> (a, [F.Symbol])
+  :: (F.Subable a, F.PPrint (F.Variable a), Ord (F.Variable a)) => [F.Variable a] -> (a, [F.Variable a]) -> (a, [F.Variable a])
 canonicalizeDictBinder [] (e', bs') = (e', bs')
 canonicalizeDictBinder bs (e', [] ) = (e', bs)
 canonicalizeDictBinder bs (e', bs') = (renameDictBinder bs bs' e', bs)
  where
-  renameDictBinder :: (F.Subable a) => [F.Symbol] -> [F.Symbol] -> a -> a
+  renameDictBinder :: (F.Subable a, F.PPrint (F.Variable a), Ord (F.Variable a)) => [F.Variable a] -> [F.Variable a] -> a -> a
   renameDictBinder []          _  = id
   renameDictBinder _           [] = id
   renameDictBinder canonicalDs ds = F.substa $ \x -> M.lookupDefault x x tbl

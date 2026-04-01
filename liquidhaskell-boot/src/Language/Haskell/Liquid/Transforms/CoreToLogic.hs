@@ -62,7 +62,7 @@ import Language.Haskell.Liquid.UX.Config
 import Data.Ratio
 import GHC.Base ((+#), (-#), (*#))
 
-logicType :: (Reftable r) => Bool -> Type -> RRType r
+logicType :: (IsReft r) => Bool -> Type -> RRType r
 logicType allowTC τ      = fromRTypeRep $ t { ty_binds = bs, ty_info = is, ty_args = as, ty_refts = rs}
   where
     t            = toRTypeRep $ ofType τ
@@ -86,6 +86,7 @@ inlineSpecType  allowTC v = fromRTypeRep $ rep {ty_res = res `strengthen` r , ty
     f              = dummyLoc (symbol v)
     t              = ofType (GM.expandVarType v) :: SpecType
     mkA            = EVar . fst
+    mkReft :: Expr -> Reft
     mkReft         = if isBool res then propReft else exprReft
 
 -- | Refine types of measures: keep going until you find the last data con!
@@ -99,6 +100,7 @@ inlineSpecType  allowTC v = fromRTypeRep $ rep {ty_res = res `strengthen` r , ty
 measureSpecType :: Bool -> Var -> SpecType
 measureSpecType allowTC v = go mkT [] [(1::Int)..] st
   where
+    mkReft :: Expr -> Reft
     mkReft | boolRes   = propReft
            | otherwise = exprReft
     mkT xs          = MkUReft (mkReft $ mkEApp locSym (EVar <$> reverse xs)) mempty
@@ -173,7 +175,7 @@ runToLogicWithBoolBinds xs tce lmap dm cfg ferror m
       , lsConfig = cfg
       }
 
-coreAltToDef :: (Reftable r) => Located LHName -> Var -> [Var] -> Var -> Type -> [C.CoreAlt]
+coreAltToDef :: (IsReft r) => Located LHName -> Var -> [Var] -> Var -> Type -> [C.CoreAlt]
              -> LogicM [Def (Located (RRType r)) DataCon]
 coreAltToDef locSym z zs y t alts
   | not (null litAlts) = measureFail locSym "Cannot lift definition with literal alternatives"
@@ -210,16 +212,16 @@ coreAltToDef locSym z zs y t alts
     mkDef _ _ _ _ _ _ =
       return []
 
-toArgs :: Reftable r => (Located (RRType r) -> b) -> [Var] -> [(Symbol, b)]
+toArgs :: IsReft r => (Located (RRType r) -> b) -> [Var] -> [(Symbol, b)]
 toArgs f args = [(symbol x, f $ varRType x) | x <- args]
 
-defArgs :: Monoid r => Located LHName -> [Type] -> [(Symbol, Maybe (Located (RRType r)))]
+defArgs :: IsReft r => Located LHName -> [Type] -> [(Symbol, Maybe (Located (RRType r)))]
 defArgs x     = zipWith (\i t -> (defArg i, defRTyp t)) [0..]
   where
     defArg    = tempSymbol (lhNameToResolvedSymbol $ val x)
     defRTyp   = Just . F.atLoc x . ofType
 
-coreToDef :: Reftable r => Located LHName -> Var -> C.CoreExpr
+coreToDef :: IsReft r => Located LHName -> Var -> C.CoreExpr
           -> LogicM [Def (Located (RRType r)) DataCon]
 coreToDef locSym _ s              = do
     allowTC <- reader $ typeclass . lsConfig
@@ -252,7 +254,7 @@ isMeasureArg x
     tcMb                = tyConAppTyCon_maybe t
 
 
-varRType :: (Reftable r) => Var -> Located (RRType r)
+varRType :: (IsReft r) => Var -> Located (RRType r)
 varRType = GM.varLocInfo ofType
 
 coreToFun :: LocSymbol -> Var -> C.CoreExpr ->  LogicM ([Var], Either Expr Expr)

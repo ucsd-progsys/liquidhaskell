@@ -45,7 +45,7 @@ import qualified Data.Text                                  as T
 import           Control.Arrow                              (second)
 import           Control.Monad                              ((>=>), foldM, when)
 import qualified Text.PrettyPrint.HughesPJ                  as PJ
-import           Language.Fixpoint.Types                    hiding (L, panic, Loc (..), SrcSpan, Constant, SESearch (..))
+import           Language.Fixpoint.Types                    hiding (L, panic, Loc (..), SrcSpan, Constant, SESearchB (..))
 import qualified Language.Fixpoint.Types                    as F
 import           Language.Fixpoint.Misc                     (safeHead, safeLast, errorstar) -- , safeLast, safeInit)
 import           Language.Haskell.Liquid.Misc               (keyDiff)

@@ -11,6 +11,8 @@
 {-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE NamedFieldPuns             #-}
 {-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE TypeOperators              #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -227,7 +229,7 @@ instance F.PPrint RelExpr where
   pprintTidy k (ERUnChecked e r) = F.pprintTidy k e <+> ":=>" <+> F.pprintTidy k r
 
 
-ignoreOblig :: RType t t1 t2 -> RType t t1 t2
+ignoreOblig :: RTypeBV b v c tv r -> RTypeBV b v c tv r
 ignoreOblig (RRTy _ _ _ t) = t
 ignoreOblig t              = t
 
@@ -783,6 +785,7 @@ instance F.Subable Body where
   subst su (R s e) = R s (F.subst su e)
 
 instance F.Subable t => F.Subable (WithModel t) where
+  type Variable (WithModel t) = F.Variable t
   syms (NoModel t)     = F.syms t
   syms (WithModel _ t) = F.syms t
   substa f             = fmap (F.substa f)
@@ -939,13 +942,13 @@ instance F.PPrint KVProf where
 instance NFData KVProf
 
 hole :: F.ExprV v
-hole = F.PKVar "HOLE" (F.Su mempty)
+hole = F.PKVar "HOLE" (F.toKVarSubst mempty)
 
 isHole :: Expr -> Bool
 isHole (F.PKVar "HOLE" _) = True
 isHole _                  = False
 
-hasHole :: Reftable r => r -> Bool
+hasHole :: (ToReft r, ReftBind r ~ Symbol, ReftVar r ~ Symbol) => r -> Bool
 hasHole = any isHole . F.conjuncts . F.reftPred . toReft
 
 instance F.Symbolic DataCon where

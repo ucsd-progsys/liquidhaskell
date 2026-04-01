@@ -7,6 +7,7 @@
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TemplateHaskellQuotes     #-}
+{-# LANGUAGE TypeApplications          #-}
 {-# OPTIONS_GHC -Wno-orphans           #-}
 
 module Language.Haskell.Liquid.Parse
@@ -24,6 +25,7 @@ import           Control.Monad.Identity
 import           Data.Bifunctor                         (first)
 import qualified Data.Char                              as Char
 import qualified Data.Foldable                          as F
+import           Data.Hashable                          (Hashable)
 import           Data.String
 import           Data.Void
 import           Prelude                                hiding (error)
@@ -38,6 +40,7 @@ import           Data.List                              (partition)
 import qualified Text.PrettyPrint.HughesPJ              as PJ
 import           Text.PrettyPrint.HughesPJ.Compat       ((<+>))
 import           Language.Fixpoint.Types                hiding (panic, SVar, DDecl, DataDecl, DataCtor (..), Error, R, Predicate)
+import qualified Language.Fixpoint.Types                as F
 import           Language.Haskell.Liquid.GHC.Misc       hiding (getSourcePos)
 import           Language.Haskell.Liquid.Types.Bounds
 import           Language.Haskell.Liquid.Types.DataDecl
@@ -89,7 +92,7 @@ type Parser = ParserV LocSymbol
 
 instance ParseableV LocSymbol where
   parseV = locSymbolP
-  mkSu = Su . M.fromList . reverse . filter notTrivial
+  mkSu = toKVarSubst . M.fromList . reverse . filter notTrivial
     where
       notTrivial (x, EVar y) = x /= val y
       notTrivial _           = True
@@ -269,7 +272,7 @@ anglesCircleP
   = angles $ do
       PC sb t <- parens btP
       p       <- monoPredicateP
-      return   $ PC sb (t `strengthenUReft` MkUReft trueReft p)
+      return   $ PC sb (t `strengthenUReft` MkUReft F.trueReft p)
 
 holePC :: Parser ParamComp
 holePC = do
@@ -512,7 +515,7 @@ constraintP
                                ((snd <$> xts) ++ [t1]) <$> bareTypeP
 
 trueURef :: UReftV v (ReftV v)
-trueURef = MkUReft trueReft (Pr [])
+trueURef = MkUReft F.trueReft (Pr [])
 
 constraintEnvP :: Parser [(LocSymbol, BareTypeParsed)]
 constraintEnvP
@@ -630,7 +633,7 @@ getClasses t
 
 dummyP ::  Monad m => m (ReftV LocSymbol -> b) -> m b
 dummyP fm
-  = fm `ap` return trueReft
+  = fm `ap` return F.trueReft
 
 symsP :: Monoid r
       => Parser [(Symbol, RTypeV v c BTyVar r)]
@@ -754,13 +757,13 @@ bRProp syms' epr  = RProp ss $ bRVar (BTV $ dummyLoc dummyName) (Pr []) r
   where
     (ss, (v, _))  = (init symsf, last symsf)
     symsf         = [(y, s) | ((_, s), y) <- syms']
-    su            = mkSubstLocSymbol [(x, EVar $ dummyLoc y) | ((x, _), y) <- syms', x /= v]
+    su            = mkSubstLocSymbol val [(x, EVar $ dummyLoc y) | ((x, _), y) <- syms', x /= v]
     r             = Reft (v, substExprV val su epr)
 
-mkSubstLocSymbol :: [(Symbol, ExprV LocSymbol)] -> SubstV LocSymbol
-mkSubstLocSymbol = Su . M.fromList . reverse . filter notTrivial
+mkSubstLocSymbol :: Hashable b => (v -> b) -> [(b, ExprBV b v)] -> KVarSubst b v
+mkSubstLocSymbol toB = toKVarSubst . M.fromList . reverse . filter notTrivial
   where
-    notTrivial (x, EVar y) = x /= val y
+    notTrivial (x, EVar y) = x /= toB y
     notTrivial _           = True
 
 bRVar :: tv -> PredicateV v -> r -> RTypeV v c tv (UReftV v r)
@@ -812,7 +815,7 @@ bCon b rs ts p r = RApp b ts rs $ MkUReft r p
 bAppTy :: Foldable t => BTyVar -> t BareTypeParsed -> ReftV LocSymbol -> BareTypeParsed
 bAppTy v ts r  = strengthenUReft ts' (reftUReft r)
   where
-    ts'        = foldl' (\a b -> RAppTy a b (uTop trueReft)) (RVar v (uTop trueReft)) ts
+    ts'        = foldl' (\a b -> RAppTy a b (uTop F.trueReft)) (RVar v (uTop F.trueReft)) ts
 
 strengthenUReft
   :: BareTypeParsed -> UReftV LocSymbol (ReftV LocSymbol) -> BareTypeParsed
@@ -824,14 +827,14 @@ strengthenUReft = strengthenWith meetUReft
     meetReftV :: ReftV LocSymbol -> ReftV LocSymbol -> ReftV LocSymbol
     meetReftV (Reft (v, ra)) (Reft (v', ra'))
       | v == v'          = Reft (v , pAnd [ra, ra'])
-      | v == dummySymbol = Reft (v', pAnd [ra', substExprV val (Su $ M.fromList [(v , EVar (dummyLoc v'))]) ra])
-      | otherwise        = Reft (v , pAnd [ra, substExprV val (Su $ M.fromList [(v', EVar (dummyLoc v))]) ra'])
+      | v == dummySymbol = Reft (v', pAnd [ra', substExprV val (toKVarSubst $ M.fromList [(v , EVar (dummyLoc v'))]) ra])
+      | otherwise        = Reft (v , pAnd [ra, substExprV val (toKVarSubst $ M.fromList [(v', EVar (dummyLoc v))]) ra'])
 
-substExprV :: (v -> Symbol) -> SubstV v -> ExprV v -> ExprV v
-substExprV toSym su0 = go
+substExprV :: Hashable b => (v -> b) -> KVarSubst b v -> ExprBV b v -> ExprBV b v
+substExprV toB su0 = go
   where
     go (EApp f e) = EApp (go f) (go e)
-    go (ELam x e) = ELam x (substExprV toSym (removeSubst su0 (fst x)) e)
+    go (ELam x e) = ELam x (substExprV toB (removeSubst su0 (fst x)) e)
     go (ECoerc a t e) = ECoerc a t (go e)
     go (ENeg e) = ENeg (go e)
     go (EBin op e1 e2) = EBin op (go e1) (go e2)
@@ -849,20 +852,21 @@ substExprV toSym su0 = go
     go (PExist _ _) = panic Nothing "substExprV: PExist"
     go p = p
 
-    appSubst (Su s) x = Mb.fromMaybe (EVar x) (M.lookup (toSym x) s)
+    appSubst su x = Mb.fromMaybe (EVar x) (M.lookup (toB x) (fromKVarSubst su))
 
-    removeSubst (Su su) x = Su $ M.delete x su
+    removeSubst su x = toKVarSubst $ M.delete x $ fromKVarSubst su
 
-    appendSubst (Su s1) θ2@(Su s2) = Su $ M.union s1' s2
+    appendSubst s1 s2 = toKVarSubst $ M.union s1' s2'
       where
-        s1' = substExprV toSym θ2 <$> s1
+        s1' = substExprV toB s2 <$> fromKVarSubst s1
+        s2' = fromKVarSubst s2
 
 
 reftUReft :: r -> UReftV v r
 reftUReft r    = MkUReft r (Pr [])
 
 predUReft :: PredicateV v -> UReftV v (ReftV v)
-predUReft = MkUReft trueReft
+predUReft = MkUReft F.trueReft
 
 dummyTyId :: String
 dummyTyId = ""
@@ -1375,7 +1379,7 @@ instanceP
             <|> parens (located bareTypeP)
 
 
-    mkVar v  = dummyLoc $ RVar v (uTop trueReft)
+    mkVar v  = dummyLoc $ RVar v (uTop F.trueReft)
 
 
 riMethodSigP :: Parser (Located LHName, RISig (Located BareTypeParsed))

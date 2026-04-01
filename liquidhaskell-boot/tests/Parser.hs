@@ -262,11 +262,11 @@ testSucceeds =
 
     , testCase "type spec 1 " $
        parseSingleSpec "type IncrListD a D = [a]<{\\x y -> (x+D) <= y}>" @?==
-          "type IncrListD a D  =  [a]<\\x##2 VV -> {y##3 : LIQUID$dummy | x##2 + D <= y##3}>"
+          "type IncrListD a D  =  [a]<\\x##2 _ -> {y##3 : LIQUID$dummy | x##2 + D <= y##3}>"
 
     , testCase "type spec 2 " $
        parseSingleSpec "takeL :: Ord a => x:a -> [a] -> [{v:a|v<=x}]" @?==
-          "takeL :: (Ord a) -> x:a -> lq_tmp$db##1:[a] -> [{v : a | v <= x}]"
+          "takeL :: LIQUID$dummy:(Ord a) -> x:a -> lq_tmp$db##1:[a] -> [{v : a | v <= x}]"
 
     , testCase "type spec 3" $
        parseSingleSpec "bar :: t 'Nothing" @?==
@@ -274,7 +274,7 @@ testSucceeds =
 
     , testCase "type spec 4" $
        parseSingleSpec "mapKeysWith :: (Ord k2) => (a -> a -> a) -> (k1->k2) -> OMap k1 a -> OMap k2 a" @?==
-          "mapKeysWith :: (Ord k2) -> lq_tmp$db##2:(lq_tmp$db##3:a -> lq_tmp$db##4:a -> a) -> lq_tmp$db##6:(lq_tmp$db##7:k1 -> k2) -> lq_tmp$db##9:(OMap k1 a) -> (OMap k2 a)"
+          "mapKeysWith :: LIQUID$dummy:(Ord k2) -> lq_tmp$db##2:(lq_tmp$db##3:a -> lq_tmp$db##4:a -> a) -> lq_tmp$db##6:(lq_tmp$db##7:k1 -> k2) -> lq_tmp$db##9:(OMap k1 a) -> (OMap k2 a)"
 
     , testCase "type spec 5 " $
        parseSingleSpec (unlines $
@@ -309,10 +309,10 @@ testSucceeds =
          (unlines
            [ "assume (++) :: forall <p##1##23 :: a -> Bool, q##1##23 :: a -> Bool, r##1##23 :: a -> Bool>."
            , "               (Ord a) =>"
-           , "               {x :: {VV : a<p##1##23> | true} |- {VV : a<q##1##23> | true} <: {v : a | x <= v}} =>"
-           , "               {|- {VV : a<p##1##23> | true} <: {VV : a<r##1##23> | true}} =>"
-           , "               {|- {VV : a<q##1##23> | true} <: {VV : a<r##1##23> | true}} =>"
-           , "               lq_tmp$db##13:(OList {VV : a<p##1##23> | true}) -> lq_tmp$db##15:(OList {VV : a<q##1##23> | true}) -> (OList {VV : a<r##1##23> | true})"
+           , "               {x :: a<p##1##23> |- a<q##1##23> <: {v : a | x <= v}} =>"
+           , "               {|- a<p##1##23> <: a<r##1##23>} =>"
+           , "               {|- a<q##1##23> <: a<r##1##23>} =>"
+           , "               lq_tmp$db##13:(OList a<p##1##23>) -> lq_tmp$db##15:(OList a<q##1##23>) -> (OList a<r##1##23>)"
          ])
     , testCase "type spec 9" $
        parseSingleSpec (unlines $
@@ -325,9 +325,9 @@ testSucceeds =
             unlines
               [ "data AstF [f] ="
               , "  | App :: forall f . fn : f ->arg : f -> *"
-              , "  | Lit :: forall f . lq_tmp$db##2 : Int ->i : (AstIndex <{VV : _<ix> | true}>) -> *"
+              , "  | Lit :: forall f . lq_tmp$db##2 : Int ->i : (AstIndex <_<ix>>) -> *"
               , "  | Paren :: forall f . ast : f -> *"
-              , "  | Var :: forall f . lq_tmp$db##4 : String ->i : (AstIndex <{VV : _<ix> | true}>) -> *"
+              , "  | Var :: forall f . lq_tmp$db##4 : String ->i : (AstIndex <_<ix>>) -> *"
               ]
 
     , testCase "type spec 10" $
@@ -344,9 +344,9 @@ testSucceeds =
  --            "app :: forall <p :: Int -> Bool, q :: Int -> Bool> .\n       {|- (Int <{VV : _<q> | true}>) <: (Int <{VV : _<p> | true}>)} =>\n       {x :: (Int <{VV : _<q> | true}>) |- {v : Int | v == x + 1} <: (Int <{VV : _<q> | true}>)} =>\n       lq_tmp$db##8:(lq_tmp$db##9:(Int <{VV : _<p> | true}>) -> ()) -> x:(Int <{VV : _<q> | true}>) -> ()"
             (unlines
               [ "app :: forall <p##1##15 :: Int -> Bool, q##1##15 :: Int -> Bool>."
-              , "       {|- (Int <{VV : _<q##1##15> | true}>) <: (Int <{VV : _<p##1##15> | true}>)} =>"
-              , "       {x :: (Int <{VV : _<q##1##15> | true}>) |- {v : Int | v == x + 1} <: (Int <{VV : _<q##1##15> | true}>)} =>"
-              , "       lq_tmp$db##8:(lq_tmp$db##9:(Int <{VV : _<p##1##15> | true}>) -> ()) -> x:(Int <{VV : _<q##1##15> | true}>) -> ()"
+              , "       {|- (Int <_<q##1##15>>) <: (Int <_<p##1##15>>)} =>"
+              , "       {x :: (Int <_<q##1##15>>) |- {v : Int | v == x + 1} <: (Int <_<q##1##15>>)} =>"
+              , "       lq_tmp$db##8:(lq_tmp$db##9:(Int <_<p##1##15>>) -> ()) -> x:(Int <_<q##1##15>>) -> ()"
             ])
 
     , testCase "type spec 12" $
@@ -359,8 +359,8 @@ testSucceeds =
             -- "ssum :: forall <p :: a -> Bool, q :: a -> Bool> .\n        {|- {v : a | v == 0} <: {VV : a<q> | true}} =>\n        {x :: {VV : a<p> | true} |- {v : a | x <= v} <: {VV : a<q> | true}} =>\n        xs:[{v : a<p> | 0 <= v}] -> {v : a<q> | len xs >= 0\n                                                && 0 <= v}"
            (unlines
               [ "ssum :: forall <p##1##16 :: a -> Bool, q##1##16 :: a -> Bool>."
-              , "        {|- {v : a | v == 0} <: {VV : a<q##1##16> | true}} =>"
-              , "        {x :: {VV : a<p##1##16> | true} |- {v : a | x <= v} <: {VV : a<q##1##16> | true}} =>"
+              , "        {|- {v : a | v == 0} <: a<q##1##16>} =>"
+              , "        {x :: a<p##1##16> |- {v : a | x <= v} <: a<q##1##16>} =>"
               , "        xs:[{v : a<p##1##16> | 0 <= v}] -> {v : a<q##1##16> | len xs >= 0"
               , "                                                              && 0 <= v}"
            ])
@@ -385,11 +385,11 @@ testSucceeds =
 
     , testCase "type spec 14" $
        parseSingleSpec "assume (=*=.) :: Arg a => f:(a -> b) -> g:(a -> b) -> (r:a -> {f r == g r}) -> {v:(a -> b) | f == g}" @?==
-            "assume (=*=.) :: (Arg a) -> f:(lq_tmp$db##1:a -> b) -> g:(lq_tmp$db##3:a -> b) -> lq_tmp$db##5:(r:a -> {VV : _ | f r == g r}) -> lq_tmp$db##6:a -> b"
+            "assume (=*=.) :: LIQUID$dummy:(Arg a) -> f:(lq_tmp$db##1:a -> b) -> g:(lq_tmp$db##3:a -> b) -> lq_tmp$db##5:(r:a -> {VV : _ | f r == g r}) -> lq_tmp$db##6:a -> b"
 
     , testCase "type spec 15" $
        parseSingleSpec "sort :: (Ord a) => xs:[a] -> OListN a {len xs}" @?==
-           "sort :: (Ord a) -> xs:[a] -> (OListN a {len xs})"
+           "sort :: LIQUID$dummy:(Ord a) -> xs:[a] -> (OListN a {len xs})"
 
     , testCase "type spec 16" $
        parseSingleSpec " ==. :: x:a -> y:{a| x == y} -> {v:b | v ~~ x && v ~~ y } " @?==
@@ -401,7 +401,7 @@ testSucceeds =
 
     , testCase "type spec 18" $
        parseSingleSpec "returnST :: xState:a \n             -> ST <{\\xs xa v -> (xa = xState)}> a s " @?==
-           "returnST :: xState:a -> (ST <\\xs##1 xa##2 VV -> {v##3 : LIQUID$dummy | xa##2 == xState}> a s)"
+           "returnST :: xState:a -> (ST <\\xs##1 xa##2 _ -> {v##3 : LIQUID$dummy | xa##2 == xState}> a s)"
 
     , testCase "type spec 19" $
        parseSingleSpec "makeq :: l:_ -> r:{ _ | size r <= size l + 1} -> _ " @?==
@@ -411,7 +411,7 @@ testSucceeds =
        parseSingleSpec "newRGRef :: forall <p :: a -> Bool, r :: a -> a -> Bool >.\n   e:a<p> ->\n  e2:a<r e> ->\n  f:(x:a<p> -> y:a<r x> -> {v:a<p> | (v = y)}) ->\n IO (RGRef <p, r> a)" @?==
             -- "newRGRef :: forall <p :: a -> Bool, r :: a a -> Bool> .\n            e:{VV : a<p> | true} -> e2:{VV : a<r e> | true} -> f:(x:{VV : a<p> | true} -> y:{VV : a<r x> | true} -> {v : a<p> | v == y}) -> (IO (RGRef <{VV : _<p> | true}, {VV : _<r> | true}> a))"
             (unlines [ "newRGRef :: forall <p##1##20 :: a -> Bool, r##1##20 :: a a -> Bool>."
-                     , "            e:{VV : a<p##1##20> | true} -> e2:{VV : a<r##1##20 e> | true} -> f:(x:{VV : a<p##1##20> | true} -> y:{VV : a<r##1##20 x> | true} -> {v : a<p##1##20> | v == y}) -> (IO (RGRef <{VV : _<p##1##20> | true}, {VV : _<r##1##20> | true}> a))"
+                     , "            e:a<p##1##20> -> e2:a<r##1##20 e> -> f:(x:a<p##1##20> -> y:a<r##1##20 x> -> {v : a<p##1##20> | v == y}) -> (IO (RGRef <_<p##1##20>, _<r##1##20>> a))"
                      ]
             )
     , testCase "type spec 21" $
