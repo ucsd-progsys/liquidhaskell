@@ -43,6 +43,7 @@ fixConfig tgt cfg = FC.defConfig
   , FC.eliminate      = eliminate         cfg
   , FC.nonLinCuts     = not (higherOrderFlag cfg) -- eliminate cfg /= FC.All
   , FC.save           = saveQuery         cfg
+  , FC.saveBfqOnError = saveBfqOnError    cfg
   , FC.srcFile        = tgt
   , FC.cores          = cores             cfg
   , FC.minPartSize    = minPartSize       cfg

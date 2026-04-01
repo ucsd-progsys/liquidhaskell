@@ -37,6 +37,7 @@ data Config = Config
   , smtTimeout               :: Maybe Int  -- ^ smt timeout
   , fullcheck                :: Bool       -- ^ check all binders (overrides diffcheck)
   , saveQuery                :: Bool       -- ^ save fixpoint query
+  , saveBfqOnError           :: Bool       -- ^ save fixpoint query as .bfq only on verification failure
   , checks                   :: [String]   -- ^ set of binders to check
   , noCheckUnknown           :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination            :: Bool       -- ^ disable termination check
