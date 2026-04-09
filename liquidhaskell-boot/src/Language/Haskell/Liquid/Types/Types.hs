@@ -946,7 +946,7 @@ hole = F.PKVar "HOLE" (F.toKVarSubst mempty)
 
 isHole :: Expr -> Bool
 isHole (F.PKVar "HOLE" _) = True
-isHole _                  = False
+isHole _                    = False
 
 hasHole :: (ToReft r, ReftBind r ~ Symbol, ReftVar r ~ Symbol) => r -> Bool
 hasHole = any isHole . F.conjuncts . F.reftPred . toReft

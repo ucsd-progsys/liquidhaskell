@@ -289,7 +289,7 @@ buildExprEdges table  = Misc.ordNub . go
     go (PAtom _ e1 e2) = go e1 ++ go e2
     go (ETApp e _)     = go e
     go (ETAbs e _)     = go e
-    go (PKVar _ _)     = []
+    go (PKVar _ _)   = []
     go (PExist _ e)    = go e
     go_alias f         = [f | M.member f table ]
 
@@ -654,7 +654,7 @@ expandExpr rtEnv l      = go
     go (PIff    e1 e2)  = PIff       (go e1) (go e2)
     go (PAtom b e1 e2)  = PAtom b    (go e1) (go e2)
     go (EIte  p e1 e2)  = EIte (go p)(go e1) (go e2)
-    go e@(PKVar _ _)    = e
+    go e@(PKVar _ _)  = e
     go e@(ESym _)       = e
     go e@(ECon _)       = e
 

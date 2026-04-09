@@ -477,7 +477,7 @@ killSubstReft :: F.Reft -> F.Reft
 killSubstReft = trans ks
   where
     ks (F.PKVar k _) = F.PKVar k mempty
-    ks p             = p
+    ks p               = p
 
 defAnn :: Bool -> t -> Annot t
 defAnn True  = AnnRDf
