@@ -56,7 +56,7 @@ instance (Freshable m Integer, Monad m, Applicative m) => Freshable m F.Symbol w
 instance (Freshable m Integer, Monad m, Applicative m) => Freshable m F.Expr where
   fresh  = kv <$> fresh
     where
-      kv = (`F.PKVar` mempty) . F.intKvar
+      kv i = F.PKVar (F.intKvar i) mempty mempty
 
 instance (Freshable m Integer, Monad m, Applicative m) => Freshable m [F.Expr] where
   fresh = single <$> fresh

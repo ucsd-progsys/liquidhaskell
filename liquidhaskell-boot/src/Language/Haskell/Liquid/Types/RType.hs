@@ -347,7 +347,7 @@ emapExprVM f = go []
       PImp e0 e1 -> PImp <$> go acc e0 <*> go acc e1
       PIff e0 e1 -> PIff <$> go acc e0 <*> go acc e1
       PAtom brel e0 e1 -> PAtom brel <$> go acc e0 <*> go acc e1
-      PKVar k su -> PKVar k <$> emapSubstVM (f . (domain su ++) . (acc ++)) su
+      PKVar k su tsu -> PKVar k <$> emapSubstVM (f . (domain su ++) . (acc ++)) su <*> pure tsu
       PAll bnds e -> PAll bnds <$> go (map fst bnds ++ acc) e
       PExist bnds e -> PExist bnds <$> go (map fst bnds ++ acc) e
       ECoerc srt0 srt1 e -> ECoerc srt0 srt1 <$> go acc e
