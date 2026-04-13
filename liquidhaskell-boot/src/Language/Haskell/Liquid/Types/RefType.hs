@@ -1513,7 +1513,7 @@ appSolRefa si s = mapKVars f0
     mapKVars :: Visitable t => (KVar -> Maybe Expr) -> t -> t
     mapKVars f = trans txK
       where
-        txK (PKVar k su _tsu)
+        txK (PKVar k _tsu su)
           | Just p' <- f k =
               rapierSubstExpr (substSymbolsSet $ substFromKSubst su) (renameDomain k su) p'
         txK p = p

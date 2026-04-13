@@ -485,9 +485,9 @@ killSubstReft = trans ks
 addTyVarSubToKVars :: F.Symbol -> F.Sort -> SpecType -> SpecType
 addTyVarSubToKVars sym sort = fmap (fmap (trans addSub))
   where
-    addSub (F.PKVar k su tsu) =
+    addSub (F.PKVar k tsu su) =
       let tsu' = M.map (F.applyCoercion sym sort) tsu
-       in F.PKVar k su (M.insert sym sort tsu')
+       in F.PKVar k (M.insert sym sort tsu') su
     addSub e                  = e
 
 defAnn :: Bool -> t -> Annot t
