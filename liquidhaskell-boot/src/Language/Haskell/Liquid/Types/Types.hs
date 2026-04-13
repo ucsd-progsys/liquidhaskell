@@ -942,11 +942,11 @@ instance F.PPrint KVProf where
 instance NFData KVProf
 
 hole :: F.ExprV v
-hole = F.PKVar "HOLE" (F.toKVarSubst mempty)
+hole = F.PKVar "HOLE" mempty (F.toKVarSubst mempty)
 
 isHole :: Expr -> Bool
-isHole (F.PKVar "HOLE" _) = True
-isHole _                  = False
+isHole (F.PKVar "HOLE" _ _) = True
+isHole _                    = False
 
 hasHole :: (ToReft r, ReftBind r ~ Symbol, ReftVar r ~ Symbol) => r -> Bool
 hasHole = any isHole . F.conjuncts . F.reftPred . toReft

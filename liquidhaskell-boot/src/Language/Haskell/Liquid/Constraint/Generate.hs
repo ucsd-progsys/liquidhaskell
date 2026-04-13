@@ -476,8 +476,19 @@ killSubst = fmap killSubstReft
 killSubstReft :: F.Reft -> F.Reft
 killSubstReft = trans ks
   where
-    ks (F.PKVar k _) = F.PKVar k mempty
-    ks p             = p
+    ks (F.PKVar k _ _) = F.PKVar k mempty mempty
+    ks p                = p
+
+-- | Add a type variable → sort mapping to every PKVar in a SpecType.
+-- Used during type application to record how type variables are instantiated,
+-- so the solver can apply the correct sort substitution to qualifier solutions.
+addTyVarSubToKVars :: F.Symbol -> F.Sort -> SpecType -> SpecType
+addTyVarSubToKVars sym sort = fmap (fmap (trans addSub))
+  where
+    addSub (F.PKVar k tsu su) =
+      let tsu' = M.map (F.applyCoercion sym sort) tsu
+       in F.PKVar k (M.insert sym sort tsu') su
+    addSub e                  = e
 
 defAnn :: Bool -> t -> Annot t
 defAnn True  = AnnRDf
@@ -847,7 +858,10 @@ consEApp γ e'@(App e a@(Type τ))
        addW          $ WfC γ t
        t'           <- refreshVV t
        tt0          <- instantiatePreds γ e' (subsTyVarMeet' (ty_var_value α, t') te)
-       let tt        = makeSingleton γ (simplify e') $ subsTyReft γ (ty_var_value α) τ tt0
+       let tyVarSym  = F.symbol (ty_var_value α)
+           tyVarSort = typeSort (emb γ) (Ghc.expandTypeSynonyms τ)
+           tt0'      = addTyVarSubToKVars tyVarSym tyVarSort tt0
+           tt        = makeSingleton γ (simplify e') $ subsTyReft γ (ty_var_value α) τ tt0'
        return $ case rTVarToBind α of
          Just (x, _) -> maybe (checkUnbound γ e' x tt a) (F.subst1 tt . (x,)) (argType τ)
          Nothing     -> tt

@@ -2418,6 +2418,7 @@ executable ple-pos
                     , Ple_sum
                     , PolySetFoo
                     , PolySetBar
+                    , PolyKVar2649
                     , ReflectDefault
                     , RegexpDerivative
                     , RosePLEDiv
@@ -2484,6 +2485,8 @@ executable ple-neg
                     , ExactGADT5
                     , Ple0
                     , Ple_sum
+                    , PolyKVar2649a
+                    , PolyKVar2649b
                     , ReflectDefault
                     , T1173
                     , T1192
