@@ -2440,6 +2440,7 @@ executable ple-pos
                     , T1424A
                     , T1424
                     , T2582
+                    , T2652
                     , TestLF780
                     , Tmp1
                     , Tmp
