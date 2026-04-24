@@ -27,7 +27,7 @@ import qualified Language.Fixpoint.Types                       as F
 import qualified Language.Haskell.Liquid.UX.CTags              as Tg
 import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Env
-import           Language.Haskell.Liquid.WiredIn               (dictionaryVar)
+import           Language.Haskell.Liquid.WiredIn               (dictionaryVar, wiredConstants)
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
 import           Language.Haskell.Liquid.GHC.Misc             ( idDataConM, hasBaseTypeVar, isDataConId) -- dropModuleNames, simplesymbol)
 import           Liquid.GHC.API               as Ghc
@@ -192,6 +192,7 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
         , lts
         , second (rTypeSort tce . val) <$> gsMeas (gsData sp)
         , [(F.eqName e, eqSort e) | e <- gsImpAxioms (gsRefl sp)]
+        , wiredConstants
         ]
   , denv     = dmapty val $ gsDicts (gsSig sp)
   , recs     = S.empty
@@ -273,7 +274,10 @@ initCGI cfg info = CGInfo {
   , fixWfs        = []
   , freshIndex    = 0
   , dataConTys    = []
-  , binds         = F.emptyBindEnv
+  , binds         = F.fromListBindEnv $
+                     zip
+                       [0..]
+                       [(s, F.RR sr mempty, Ci noSrcSpan Nothing Nothing) | (s, sr) <- wiredConstants]
   , localRewrites = mempty
   , ebinds        = []
   , annotMap      = AI M.empty

@@ -10,6 +10,8 @@ module Language.Haskell.Liquid.WiredIn
 
        , charDataCon
 
+       , wiredConstants
+
        -- * Constants for automatic proofs
        , dictionaryVar
        , dictionaryTyVar
@@ -276,4 +278,9 @@ derivingClasses =
   , show ''Fractional
   -- , "GHC.Enum.Bounded"
   -- , "GHC.Base.Monoid"
+  ]
+
+wiredConstants :: [(F.Symbol, F.Sort)]
+wiredConstants =
+  [ ("$lgPatError", F.FAbs 0 (F.FFunc F.strSort (F.FVar 0)))
   ]

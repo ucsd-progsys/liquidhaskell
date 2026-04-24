@@ -346,15 +346,31 @@ checkBoolAlts alts
 -- alternatives @alts@ into a logic expression. The variable @v@ is the binder
 -- for the scrutinee in the case alternatives.
 casesToLg :: Var -> Expr -> [C.CoreAlt] -> LogicM Expr
-casesToLg v e alts = mapM (altToLg e) normAlts >>= go
+casesToLg v e alts =
+    mapM (altToLg e) normAlts >>=
+      go (map (const ()) $ maybe [] tyConDataCons $ tyConAppTyCon_maybe $ GM.expandVarType v)
   where
     normAlts       = normalizeAlts alts
-    go :: [(C.AltCon, Expr)] -> LogicM Expr
-    go [(_,p)]     = return (p `subst1` su)
-    go ((d,p):dps) = do c <- checkDataAlt d e
-                        e' <- go dps
-                        return (EIte c p e' `subst1` su)
-    go []          = panic (Just (getSrcSpan v)) $ "Unexpected empty cases in casesToLg: " ++ show e
+    -- The first argument contains as many units as there are data constructors
+    -- for the type of the scrutinee.
+    go :: [()] -> [(C.AltCon, Expr)] -> LogicM Expr
+    go ds [(d,p)]     =
+      case ds of
+        _:_:_ -> do
+          c <- checkDataAlt d e
+          case c of
+            PTrue -> return (p `subst1` su)
+            _ -> do
+              let lgPatErr = EApp (EVar "$lgPatError") (mkS "Non-exhaustive case")
+              return (EIte c p lgPatErr `subst1` su)
+        -- No more alternatives left, so we can ignore the data constructor.
+        _ ->
+          return (p `subst1` su)
+    go ds ((d,p):dps) = do
+      c <- checkDataAlt d e
+      e' <- go (drop 1 ds) dps
+      return (EIte c p e' `subst1` su)
+    go _ []        = panic (Just (getSrcSpan v)) $ "Unexpected empty cases in casesToLg: " ++ show e
     su             = (symbol v, e)
 
 checkDataAlt :: C.AltCon -> Expr -> LogicM Expr
