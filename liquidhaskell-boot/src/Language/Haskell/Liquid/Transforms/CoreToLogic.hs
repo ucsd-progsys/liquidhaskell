@@ -342,6 +342,9 @@ checkBoolAlts [Alt (C.DataAlt true) [] etrue, Alt (C.DataAlt false) [] efalse]
 checkBoolAlts alts
   = throw ("checkBoolAlts failed on " ++ GM.showPpr alts)
 
+-- @casesToLg v e alts@ transforms a case expression with scrutinee @e@ and
+-- alternatives @alts@ into a logic expression. The variable @v@ is the binder
+-- for the scrutinee in the case alternatives.
 casesToLg :: Var -> Expr -> [C.CoreAlt] -> LogicM Expr
 casesToLg v e alts = mapM (altToLg e) normAlts >>= go
   where
@@ -594,12 +597,59 @@ isANF      v = isPrefixOfSym (symbol ("lq_anf" :: String)) (simpleSymbolVar v)
 isDead :: Id -> Bool
 isDead     = isDeadOcc . occInfo . Ghc.idInfo
 
+-- | 'normalizeCoreExpr allowTC e' simplifies the Core expression 'e' by:
+--   1. inlining predicates (i.e. applications of measures that return Bool)
+--   2. inlining ANF variables (i.e. variables that are introduced by the ANF transformation)
+--   3. simplifying the expression by removing dead binders and applications of
+--      type arguments and dictionaries.
+--
+-- The 'allowTC' flag controls whether type class dictionaries are considered erasable
+-- and will be removed from the expression.
+--
 normalizeCoreExpr :: Bool -> CoreExpr -> CoreExpr
 normalizeCoreExpr allowTC = inline_preds . inline_anf . simplifyCoreExpr allowTC
   where
     inline_preds = inlineCoreExpr (eqType boolTy . GM.expandVarType)
     inline_anf   = inlineCoreExpr isANF
 
+-- | 'simplifyCoreExpr allowTC e' simplifies the Core expression 'e' by removing
+-- applications of type arguments and dictionaries, and by removing dead
+-- binders.
+--
+-- The 'allowTC' flag controls whether type class dictionaries are considered
+-- erasable.
+--
+-- If 'allowTC' is 'True', then type class dictionaries are considered erasable
+-- and will be removed from the expression. If 'allowTC' is 'False', then type
+-- class dictionaries are not considered erasable and will not be removed.
+--
+-- This function is used in 'normalizeCoreExpr' to simplify the Core expression
+-- before inlining predicates and ANF variables.
+--
+-- The 'simplifyCoreExpr' function recursively traverses the Core expression and
+-- applies the following simplifications:
+--   1. It removes applications of type arguments (i.e. 'C.App e1 (C.Type _)').
+--   2. It removes applications of variables that are considered erasable
+--      (i.e. 'C.App e1 (C.Var v)' where 'v' is erasable).
+--   3. It removes applications of lambda expressions where the binder is dead
+--      (i.e. 'C.App (C.Lam x e) _' where 'x' is dead).
+--   4. It removes lambda expressions where the binder is a type variable
+--      (i.e. 'C.Lam x e' where 'x' is a type variable).
+--   5. It removes lambda expressions where the binder is considered erasable
+--      (i.e. 'C.Lam x e' where 'x' is erasable).
+--   6. It removes non-recursive let bindings where the binder is considered
+--      erasable (i.e. 'C.Let (C.NonRec x eb) e' where 'x' is erasable).
+--   7. It removes recursive let bindings where all binders are considered
+--      erasable (i.e. 'C.Let (C.Rec xes) e' where all 'x' in 'xes' are
+--      erasable).
+--   8. It simplifies case expressions that match on a boolean by checking if
+--      the alternatives correspond to 'True' and 'False' and then substituting
+--      the scrutinee with the appropriate alternative.
+--   9. It simplifies case expressions by removing alternatives that correspond
+--      to pattern match errors (i.e. 'isPatErrorAlt').
+--   10. It recursively simplifies applications, casts, ticks, coercions, and
+--       type expressions.
+--
 simplifyCoreExpr :: Bool -> CoreExpr -> CoreExpr
 simplifyCoreExpr allowTC = go
   where
