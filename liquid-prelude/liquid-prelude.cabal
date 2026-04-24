@@ -10,10 +10,7 @@ author:             Ranjit Jhala, Niki Vazou, Eric Seidel
 maintainer:         Ranjit Jhala <jhala@cs.ucsd.edu>
 category:           Language
 homepage:           https://github.com/ucsd-progsys/liquidhaskell
-build-type:         Custom
-
-custom-setup
-  setup-depends: Cabal<4, base<5, liquidhaskell-boot
+build-type:         Simple
 
 library
   exposed-modules:  Language.Haskell.Liquid.RTick

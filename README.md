@@ -76,16 +76,6 @@ Pull requests don't just have to be about code: documentation can often be impro
 
 For those diving into the implementation of LiquidHaskell, here are a few tips:
 
-## Faster recompilation
-
-When changing the `liquidhaskell-boot` library, sometimes we don't want
-to rebuild `liquidhaskell` or `liquid-vector` when testing the changes.
-In these cases we can set the environment variable `LIQUID_DEV_MODE=true`
-when running `cabal` to skip rebuilding those packages.
-
-DANGER: Note that this can give an invalid result if the changes to
-`liquidhaskell-boot` do require rebuilding other `liquid*` packages.
-
 ## How To Run Regression Tests
 
 For documentation on the `test-driver` executable itself, please refer to the

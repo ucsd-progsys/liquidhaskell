@@ -27,8 +27,7 @@ flag devel
 
 library
   autogen-modules:    Paths_liquidhaskell_boot
-  exposed-modules:    Language.Haskell.Liquid.Cabal
-                      Language.Haskell.Liquid.Bare
+  exposed-modules:    Language.Haskell.Liquid.Bare
                       Language.Haskell.Liquid.Bare.Axiom
                       Language.Haskell.Liquid.Bare.Check
                       Language.Haskell.Liquid.Bare.Class
