@@ -548,7 +548,7 @@ mkLit (LitNumber _ n) = mkI n
 -- mkLit (LitInteger n _)  = mkI n
 mkLit (LitFloat  n)    = mkR n
 mkLit (LitDouble n)    = mkR n
-mkLit (LitString    s)    = mkS s
+mkLit (LitString    s) = Just (mkS s)
 mkLit (LitChar   c)    = mkC c
 mkLit _                 = Nothing -- ELit sym sort
 
@@ -558,8 +558,8 @@ mkI = Just . ECon . I
 mkR :: Rational -> Maybe Expr
 mkR                    = Just . ECon . F.R . fromRational
 
-mkS :: ByteString -> Maybe Expr
-mkS                    = Just . ESym . SL  . decodeUtf8With lenientDecode
+mkS :: ByteString -> Expr
+mkS = ESym . SL  . decodeUtf8With lenientDecode
 
 mkC :: Char -> Maybe Expr
 mkC                    = Just . ECon . (`F.L` F.charSort)  . repr
