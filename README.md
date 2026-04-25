@@ -394,3 +394,8 @@ flowchart LR
 
 Reference:
 [Implementing a GHC Plugin for Liquid Haskell](https://well-typed.com/blog/2020/08/implementing-a-ghc-plugin-for-liquid-haskell/).
+
+# Sponsors
+
+### [![Zulip logo](https://static.zulipchat.com/static/images/logo/zulip-icon-128x128.png)](https://zulip.com)
+**[Zulip](https://zulip.com)** — Zulip Cloud Standard generously provided free of charge.
