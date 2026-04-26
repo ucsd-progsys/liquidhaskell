@@ -780,7 +780,16 @@ bTup :: [(Maybe Symbol, BareTypeParsed)]
      -> [RTPropV LocSymbol BTyCon BTyVar (UReftV LocSymbol (ReftV LocSymbol))]
      -> ReftV LocSymbol
      -> BareTypeParsed
-bTup [(_,t)] _ r
+bTup [(_,t)] rs r
+  | not (null rs)
+  = case appendRProps t rs of
+      Just t' | isTauto (fmap val r) -> t'
+              | otherwise            -> t' `strengthenUReft` reftUReft r
+      Nothing -> uError $ ErrOther GHC.noSrcSpan $ PJ.vcat
+        [ PJ.text "Cannot apply abstract refinement arguments to a non-constructor type."
+        , PJ.text "Abstract refinements can only be applied to type constructors, e.g."
+        , PJ.text "    (T a b) <p>"
+        ]
   | isTauto (fmap val r)  = t
   | otherwise  = t `strengthenUReft` reftUReft r
 bTup ts rs r
@@ -798,6 +807,14 @@ bTup ts rs r
     args       = [(Mb.fromMaybe dummySymbol x, mapReft mempty t) | (x,t) <- ts]
     makeProp i = RProp (reverse $ take i args) ((snd <$> ts)!!i)
     rs'        = makeProp <$> [1..(length ts-1)]
+
+-- | Append abstract refinement predicates to the RProp list of an RApp.
+-- Returns Nothing if the type is not an RApp (predicates can't be attached).
+appendRProps :: RTypeV v c tv r
+             -> [RTPropV v c tv r]
+             -> Maybe (RTypeV v c tv r)
+appendRProps (RApp c ts rs r0) rs' = Just (RApp c ts (rs ++ rs') r0)
+appendRProps _                _   = Nothing
 
 
 -- Temporarily restore this hack benchmarks/esop2013-submission/Array.hs fails
