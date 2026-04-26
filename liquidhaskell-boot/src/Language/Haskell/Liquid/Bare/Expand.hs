@@ -515,6 +515,7 @@ cookSpecTypeE env sigEnv name@(ModName _ _) x bt
     f =   (if doplug || not allowTC then plugHoles allowTC sigEnv name x else id)
         . fmap (RT.addTyConInfo embs tyi)
         . Bare.txRefSort tyi embs
+        . checkExtraAbsRef embs tyi
         . fmap txExpToBind -- What does this function DO
         . (specExpandType rtEnv . fmap (generalizeWith x))
         . (if doplug || not allowTC then maybePlug allowTC sigEnv name x else id)
@@ -540,6 +541,42 @@ generalizeWith :: Bare.PlugTV Ghc.Var -> SpecType -> SpecType
 generalizeWith (Bare.HsTV v) t = generalizeVar v t
 generalizeWith  Bare.RawTV   t = t
 generalizeWith _             t = RT.generalize t
+
+-- | Check for extra abstract refinement arguments (lambda-form) on type
+--   constructors that don't declare enough PVar parameters.  This must run
+--   BEFORE 'txRefSort' and 'addTyConInfo' so that only user-written RProps
+--   are present (system-generated default RProps from 'rtPropTop' have not
+--   been added yet).  See GitHub issue #2603.
+checkExtraAbsRef :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> LocSpecType -> LocSpecType
+checkExtraAbsRef embs tyi lt = walkCheck (GM.fSrcSpan lt) (val lt) `seq` lt
+  where
+    walkCheck sp (RAllT _ t _)      = walkCheck sp t
+    walkCheck sp (RAllP _ t)        = walkCheck sp t
+    walkCheck sp (RFun _ _ t1 t2 _) = walkCheck sp t1 `seq` walkCheck sp t2
+    walkCheck sp (RApp rc ts rs _)
+      | not (null lambdaRest)
+      = uError $ ErrOther sp $ PJ.vcat
+          [ PJ.text "Type constructor" PJ.<+> PJ.text (GM.showPpr (rtc_tc rc))
+              PJ.<+> if nExpected == 0
+                       then PJ.text "does not accept abstract refinement arguments,"
+                       else PJ.text "expects" PJ.<+> PJ.int nExpected
+                         PJ.<+> PJ.text "abstract refinement argument(s),"
+          , PJ.text "but was given" PJ.<+> PJ.int nGiven PJ.<> PJ.text "."
+          ]
+      | otherwise = foldWalk sp ts
+      where
+        (_, pvs)    = RT.appRTyCon embs tyi rc ts
+        nExpected   = length pvs
+        nGiven      = length rs
+        (_, rrest)  = splitAt nExpected rs
+        lambdaRest  = [r | r@(RProp binds _) <- rrest, not (null binds)]
+    walkCheck sp (RAllE _ t1 t2)    = walkCheck sp t1 `seq` walkCheck sp t2
+    walkCheck sp (REx _ t1 t2)      = walkCheck sp t1 `seq` walkCheck sp t2
+    walkCheck sp (RAppTy t1 t2 _)   = walkCheck sp t1 `seq` walkCheck sp t2
+    walkCheck sp (RRTy xts _ _ t)   = foldWalk sp (snd <$> xts) `seq` walkCheck sp t
+    walkCheck _  _                   = ()
+
+    foldWalk sp = L.foldl' (\acc t -> acc `seq` walkCheck sp t) ()
 
 generalizeVar :: Ghc.Var -> SpecType -> SpecType
 generalizeVar v t = mkUnivs [(a, mempty) | a <- as] [] t

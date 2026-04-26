@@ -625,6 +625,7 @@ executable errors
                     , EmptyData
                     , ErrLocation
                     , ErrLocation2
+                    , ExtraAbsRefArgs
                     -- , ExportMeasure0
                     -- , ExportReflect0
                     , Fractional
