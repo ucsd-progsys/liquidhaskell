@@ -2075,6 +2075,7 @@ executable absref-pos
                     , ListQSort
                     , Papp00
                     , ParenAbsRef
+                    , PartialPredArgs
                     , State00
                     , VectorLoop
 
