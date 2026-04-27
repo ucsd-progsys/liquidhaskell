@@ -512,11 +512,32 @@ addSymSortRef :: (PPrint s) => Ghc.SrcSpan -> s -> RPVar -> SpecProp -> Int -> S
 addSymSortRef sp rc p r i = addSymSortRef' sp rc i p r
 
 addSymSortRef' :: (PPrint s) => Ghc.SrcSpan -> s -> Int -> RPVar -> SpecProp -> SpecProp
-addSymSortRef' _ _ _ p (RProp s (RVar v r)) | isDummy v
-  = RProp xs t
+addSymSortRef' sp rc i p (RProp s (RVar v r)) | isDummy v
+  = if length s > length (pargs p)
+    then uError $ ErrPartPred sp (pprint rc) (pprint $ pname p) i (length (pargs p) + 1) (length s + 1)
+    else RProp xs t
     where
-      t  = ofRSort (pvType p) `RT.strengthen` r
-      xs = spliceArgs "addSymSortRef 1" s p
+      -- When the lambda provides fewer args than the PVar expects,
+      -- the lambda's refinement variable (last lambda arg) should bind
+      -- to the next PVar parameter position, not to the value type.
+      -- e.g. for p :: a -> a -> b -> Bool, {\x y -> x >= y} should
+      -- bind x→arg1, y→arg2 (not y→value).
+      nLambdaArgs = length s + 1  -- s bindings + 1 refvar
+      nPVarArgs   = length (pargs p) + 1  -- pargs + 1 value
+      (s', r')
+        | nLambdaArgs < nPVarArgs
+        , MkUReft (F.Reft (rv, body)) prd <- r
+        = -- Promote the refvar to a regular binding; the body still refers
+          -- to rv which now names the (length s + 1)th PVar arg.
+          -- Use a fresh vv as the Reft binder (value variable).
+          let vv    = F.vv (Just 0)
+              -- Sort placeholder; spliceArgs replaces it with the PVar's sort
+              dSort = Misc.fst3 (last (pargs p))
+          in (s ++ [(rv, dSort)], MkUReft (F.Reft (vv, body)) prd)
+        | otherwise
+        = (s, r)
+      t  = ofRSort (pvType p) `RT.strengthen` r'
+      xs = spliceArgs "addSymSortRef 1" s' p
 
 addSymSortRef' sp rc i p (RProp _ (RHole r@(MkUReft _ (Pr [up]))))
   | length xs == length ts
@@ -532,8 +553,10 @@ addSymSortRef' sp rc i p (RProp _ (RHole r@(MkUReft _ (Pr [up]))))
 addSymSortRef' _ _ _ _ (RProp s (RHole r))
   = RProp s (RHole r)
 
-addSymSortRef' _ _ _ p (RProp s t)
-  = RProp xs t
+addSymSortRef' sp rc i p (RProp s t)
+  = if length s > length (pargs p)
+    then uError $ ErrPartPred sp (pprint rc) (pprint $ pname p) i (length (pargs p) + 1) (length s + 1)
+    else RProp xs t
     where
       xs = spliceArgs "addSymSortRef 2" s p
 

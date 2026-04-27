@@ -596,6 +596,7 @@ executable errors
                     , BadDataDeclTyVars
                     , BadGADT
                     , BadPredApp
+                    , PredArityMismatch
                     -- , BadQualifier
                     , BadSig0
                     , BadSig1
@@ -625,6 +626,7 @@ executable errors
                     , EmptyData
                     , ErrLocation
                     , ErrLocation2
+                    , ExtraAbsRefArgs
                     -- , ExportMeasure0
                     -- , ExportReflect0
                     , Fractional
@@ -2072,6 +2074,8 @@ executable absref-pos
                     , ListISort_LType
                     , ListQSort
                     , Papp00
+                    , ParenAbsRef
+                    , PartialPredArgs
                     , State00
                     , VectorLoop
 

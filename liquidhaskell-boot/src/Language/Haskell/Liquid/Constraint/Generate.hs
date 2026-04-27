@@ -1311,7 +1311,7 @@ freshPredRef γ e (PV _ rsort _ as)
 --------------------------------------------------------------------------------
 argType :: Type -> Maybe F.Expr
 argType (LitTy (NumTyLit i)) = mkI i
-argType (LitTy (StrTyLit s)) = mkS $ bytesFS s
+argType (LitTy (StrTyLit s)) = Just $ mkS $ bytesFS s
 argType (TyVarTy x)          = Just $ F.EVar $ F.symbol $ varName x
 argType t
   | F.symbol (GM.showPpr t) == anyTypeSymbol
