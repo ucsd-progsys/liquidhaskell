@@ -512,8 +512,10 @@ addSymSortRef :: (PPrint s) => Ghc.SrcSpan -> s -> RPVar -> SpecProp -> Int -> S
 addSymSortRef sp rc p r i = addSymSortRef' sp rc i p r
 
 addSymSortRef' :: (PPrint s) => Ghc.SrcSpan -> s -> Int -> RPVar -> SpecProp -> SpecProp
-addSymSortRef' _ _ _ p (RProp s (RVar v r)) | isDummy v
-  = RProp xs t
+addSymSortRef' sp rc i p (RProp s (RVar v r)) | isDummy v
+  = if length s > length (pargs p)
+    then uError $ ErrPartPred sp (pprint rc) (pprint $ pname p) i (length (pargs p) + 1) (length s + 1)
+    else RProp xs t
     where
       t  = ofRSort (pvType p) `RT.strengthen` r
       xs = spliceArgs "addSymSortRef 1" s p
@@ -532,8 +534,10 @@ addSymSortRef' sp rc i p (RProp _ (RHole r@(MkUReft _ (Pr [up]))))
 addSymSortRef' _ _ _ _ (RProp s (RHole r))
   = RProp s (RHole r)
 
-addSymSortRef' _ _ _ p (RProp s t)
-  = RProp xs t
+addSymSortRef' sp rc i p (RProp s t)
+  = if length s > length (pargs p)
+    then uError $ ErrPartPred sp (pprint rc) (pprint $ pname p) i (length (pargs p) + 1) (length s + 1)
+    else RProp xs t
     where
       xs = spliceArgs "addSymSortRef 2" s p
 

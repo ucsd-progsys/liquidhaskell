@@ -990,11 +990,14 @@ ppError' _ dCtx (ErrPartPred _ c p i eN aN)
         $+$ dCtx
         $+$ nest 4 (vcat
                         [ "The" <+> text (Misc.intToString i) <+> "argument of" <+> c <+> "is predicate" <+> ppTicks p
-                        , "which expects" <+> pprint eN <+> "arguments" <+> "but is given only" <+> pprint aN
+                        , "which expects" <+> pprint eN <+> "arguments" <+> "but is given" <+> pprint aN
                         , " "
-                        , "Abstract predicates cannot be partially applied; for a possible fix see:"
-                        , " "
-                        , nest 4 "https://github.com/ucsd-progsys/liquidhaskell/issues/594"
+                        , if eN > aN
+                          then vcat [ "Abstract predicates cannot be partially applied; for a possible fix see:"
+                                    , " "
+                                    , nest 4 "https://github.com/ucsd-progsys/liquidhaskell/issues/594"
+                                    ]
+                          else "The provided predicate has too many arguments."
                         ])
 
 ppError' _ dCtx e@(ErrMismatch _ x msg τ t cause hsSp)
