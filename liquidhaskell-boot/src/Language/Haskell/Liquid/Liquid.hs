@@ -161,6 +161,7 @@ cidE2u cfg (subcId, e) =
   where
     attachSubcId es@ErrSubType{}      = es { cid = Just subcId }
     attachSubcId es@ErrSubTypeModel{} = es { cid = Just subcId }
+    attachSubcId es@ErrAssType{}      = es { cid = Just subcId }
     attachSubcId es = es
 
 -- writeCGI tgt cgi = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str

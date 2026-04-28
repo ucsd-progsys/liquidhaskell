@@ -276,7 +276,7 @@ splitC _ (SubR γ o r)
     r2  = F.RR F.boolSort $ F.Reft (vv, F.EVar vv)
     vv  = "vvRec"
     ci  = Ci src err (cgVar γ)
-    err = Just $ ErrAssType src o (text $ show o ++ "type error") g (rHole rr)
+    err = Just $ ErrAssType src o (text $ show o ++ "type error") Nothing g (rHole rr)
     rr  = toReft r
     tag = getTag γ
     src = getLocation γ

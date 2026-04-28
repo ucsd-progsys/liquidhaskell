@@ -259,6 +259,7 @@ data TError t =
   | ErrAssType { pos  :: !SrcSpan
                , obl  :: !Oblig
                , msg  :: !Doc
+               , cid  :: Maybe SubcId
                , ctx  :: !(M.HashMap Symbol t)
                , cond :: t
                } -- ^ condition failure error
@@ -801,10 +802,11 @@ hint e = maybe empty (\d -> "" $+$ ("HINT:" <+> d)) (go e)
 --------------------------------------------------------------------------------
 ppError' :: (PPrint a, Show a) => Tidy -> Doc -> TError a -> Doc
 --------------------------------------------------------------------------------
-ppError' td dCtx (ErrAssType _ o _ c p)
+ppError' td dCtx (ErrAssType _ o _ cid c p)
   = pprintTidy td o
         $+$ dCtx
         $+$ ppFull td (ppPropInContext td p c)
+        $+$ maybe mempty (\i -> text "Constraint id" <+> text (show i)) cid
 
 ppError' td dCtx err@(ErrSubType _ _ _ _ _ tE)
   | totalityType td tE
