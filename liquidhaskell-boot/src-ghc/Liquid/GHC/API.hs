@@ -418,7 +418,7 @@ import GHC.Core.Type                  as Ghc
     , varType
     )
 import GHC.Core.Unify                 as Ghc
-    ( ruleMatchTyKiX, tcUnifyTy )
+    ( ruleMatchTyKiX, tcUnifyTy, tcMatchTy )
 import GHC.Core.Utils                 as Ghc (exprType)
 import GHC.Data.Bag                   as Ghc
     ( Bag, bagToList )

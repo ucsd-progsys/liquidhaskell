@@ -621,7 +621,6 @@ executable errors
                     , DupFunSigs
                     , DupMeasure
                     , ElabLocation
-                    , ElabLocation2
                     , ElabLocation3
                     , EmptyData
                     , ErrLocation
@@ -2245,6 +2244,7 @@ executable basic-pos
                     , MeasureOverlapC
                     , MeasureOverlapD
                     , MeasureOverlapE
+                    , MeasureInvTypeSyn
                     , OpaqueRefl01
                     , OpaqueRefl02
                     , OpaqueRefl03A
