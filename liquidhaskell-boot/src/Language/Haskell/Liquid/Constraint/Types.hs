@@ -332,14 +332,18 @@ goodInvs :: [SpecType] -> RInv -> Maybe SpecType
 goodInvs _ (RInv []  t _)
   = Just t
 goodInvs ts (RInv ts' t _)
-  | and (zipWith unifiable ts' (toRSort <$> ts))
+  | and (zipWith invMatchesTarget ts' (toRSort <$> ts))
   = Just t
   | otherwise
   = Nothing
 
 
-unifiable :: RSort -> RSort -> Bool
-unifiable t1 t2 = isJust $ tcUnifyTy (toType False t1) (toType False t2)
+-- | Check that the target type arg is an instance of the invariant's type arg.
+-- Uses one-directional matching (tcMatchTy) so that a type variable in the
+-- target does NOT unify with a structured invariant arg. This prevents e.g.
+-- an invariant for [Diff [a]] from being applied to a plain [a] binder.
+invMatchesTarget :: RSort -> RSort -> Bool
+invMatchesTarget inv tgt = isJust $ tcMatchTy (toType False inv) (toType False tgt)
 
 addRInv :: RTyConInv -> (Var, SpecType) -> (Var, SpecType)
 addRInv m (x, t)
