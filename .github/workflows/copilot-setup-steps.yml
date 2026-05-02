@@ -1,0 +1,51 @@
+name: "Copilot Setup Steps"
+
+on:
+    workflow_dispatch:
+    push:
+        paths:
+            - .github/workflows/copilot-setup-steps.yml
+    pull_request:
+        paths:
+            - .github/workflows/copilot-setup-steps.yml
+
+jobs:
+    copilot-setup-steps:
+        runs-on: ubuntu-latest
+
+        permissions:
+            contents: read
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  submodules: recursive
+
+            - name: Setup z3
+              uses: pavpanchekha/setup-z3@6b2d476d7a9227e0d8d2b94f73cd9fcba91b5e98
+              with:
+                  version: "4.15.1"
+                  distribution: glibc-2.39
+
+            - name: Workaround runner image issue
+              # https://github.com/actions/runner-images/issues/7061
+              run: sudo chown -R $USER /usr/local/.ghcup
+
+            - name: Setup GHC and cabal-install
+              uses: haskell-actions/setup@v2
+              with:
+                  ghc-version: "9.14.1"
+                  cabal-version: "3.16.0.0"
+
+            - name: Cache cabal store
+              uses: actions/cache@v3
+              with:
+                  path: |
+                      ~/.cabal/packages
+                      ~/.cabal/store
+                      dist-newstyle
+                  key: ${{ runner.os }}-9.14.1-cabal-${{ hashFiles('cabal.project', '**/*.cabal') }}
+
+            - name: Build liquidhaskell
+              run: cabal build liquidhaskell liquid-prelude liquid-vector
