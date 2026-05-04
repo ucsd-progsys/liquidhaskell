@@ -129,6 +129,12 @@ You can directly extend and run the tests by modifying the files in
 
 Tests run in parallel, unless the flag `--measure-timings` is specified to `test_plugin.sh`.
 
+### How to add a new test
+
+Select a folder where to add the test, for instance `tests/ple/pos` and add a
+new file `MyTest.hs` with the test module. Then add the module to the
+corresponding executable in `tests/tests.cabal`.
+
 ## How to create performance comparison charts
 
 Firstly, make sure to remove previous compilation artifacts of tests before measuring performance,

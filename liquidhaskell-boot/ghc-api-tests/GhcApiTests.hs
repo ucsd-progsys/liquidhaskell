@@ -1,6 +1,7 @@
 {-# LANGUAGE ViewPatterns #-}
 
 import           Control.Monad
+import           Control.Monad.IO.Class (liftIO)
 import           Data.List (find)
 import           Data.Time (getCurrentTime)
 import           Liquid.GHC.API
@@ -11,13 +12,13 @@ import           Liquid.GHC.API
     , LitNumType(..)
     , Literal(..)
     , apiCommentsParsedSource
-    , gopt_set
     , occNameString
     , pAT_ERROR_ID
     , showPprQualified
     , splitDollarApp
     , untick
     )
+import           Liquid.GHC.API.Extra (addNoInlinePragmasToBinds)
 import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Test.Tasty.Runners.AntXML
@@ -29,6 +30,7 @@ import qualified GHC.Core as GHC
 import qualified GHC.Data.EnumSet as EnumSet
 import qualified GHC.Data.FastString as GHC
 import qualified GHC.Data.StringBuffer as GHC
+import qualified GHC.Driver.Main as GHC (hscDesugar)
 import qualified GHC.Parser as Parser
 import qualified GHC.Parser.Lexer as GHC
 import qualified GHC.Types.Id as GHC
@@ -52,7 +54,8 @@ testTree =
       , testCase "caseDesugaring" testCaseDesugaring
       , testCase "numericLiteralDesugaring" testNumLitDesugaring
       , testCase "dollarDesugaring" testDollarDesugaring
-      , testCase "localBindingsDesugaring" testLocalBindingsDesugaring
+      , testCase "deadBindingPreservation" testDeadBindingPreservation
+      , testCase "exportedBindingNotInlined" testExportedBindingNotInlined
       ]
 
 -- Tests that Liquid.GHC.API.Extra.apiComments can retrieve the comments in
@@ -204,49 +207,104 @@ findExpr name (p:ps) = case p of
   _ -> findExpr name ps
 
 
--- | Test that local bindings are preserved.
-testLocalBindingsDesugaring :: IO ()
-testLocalBindingsDesugaring = do
-    let inputSource = unlines
-          [ "module LocalBindingsDesugaring where"
-          , "f :: ()"
-          , "f = z"
-          , "  where"
-          , "    z = ()"
-          ]
-
-        isExpectedDesugaring p = case findExpr "f" p of
-          Just (Let (GHC.NonRec b _) _)
-            -> occNameString (GHC.occName b) == "z"
-          _ -> False
-
-    coreProgram <- compileToCore "LocalBindingsDesugaring" inputSource
-    unless (isExpectedDesugaring coreProgram) $
-      fail $ unlines $
-        "Unexpected desugaring:" : map showPprQualified coreProgram
-
-
 compileToCore :: String -> String -> IO [GHC.CoreBind]
 compileToCore modName inputSource = do
-    now <- getCurrentTime
     GHC.runGhc (Just libdir) $ do
-      df1 <- GHC.getSessionDynFlags
-      GHC.setSessionDynFlags $ df1
-        { GHC.backend = GHC.interpreterBackend
-        }
-         `gopt_set` GHC.Opt_InsertBreakpoints
-      let target = GHC.Target {
-                   GHC.targetId           = GHC.TargetFile (modName ++ ".hs") Nothing
-                 , GHC.targetUnitId       = GHC.homeUnitId_ df1
-                 , GHC.targetAllowObjCode = False
-                 , GHC.targetContents     = Just (GHC.stringToStringBuffer inputSource, now)
-                 }
-      GHC.setTargets [target]
-      void $ GHC.load GHC.LoadAllTargets
-
-      dsMod <- GHC.getModSummary
-                 (GHC.mkModule GHC.mainUnit (GHC.mkModuleName modName))
-             >>= GHC.parseModule
-             >>= GHC.typecheckModule
-             >>= GHC.desugarModule
+      (_, tcMod) <- typecheckSourceCode modName inputSource
+      dsMod <- GHC.desugarModule tcMod
       return $ GHC.mg_binds $ GHC.dm_core_module dsMod
+
+typecheckSourceCode
+  :: GHC.GhcMonad m => String -> String -> m (GHC.ModSummary, GHC.TypecheckedModule)
+typecheckSourceCode modName inputSource = do
+    now <- liftIO getCurrentTime
+    df1 <- GHC.getSessionDynFlags
+    GHC.setSessionDynFlags $ df1 { GHC.backend = GHC.interpreterBackend }
+    let target = GHC.Target
+               { GHC.targetId           = GHC.TargetFile (modName ++ ".hs") Nothing
+               , GHC.targetUnitId       = GHC.homeUnitId_ df1
+               , GHC.targetAllowObjCode = False
+               , GHC.targetContents     = Just (GHC.stringToStringBuffer inputSource, now)
+               }
+    GHC.setTargets [target]
+    void $ GHC.depanal [] False
+
+    ms <- GHC.getModSummary
+            (GHC.mkModule GHC.mainUnit (GHC.mkModuleName modName))
+    tm <- GHC.parseModule ms >>= GHC.typecheckModule
+    return (ms, tm)
+
+-- | Like 'compileToCore' but applies 'addNoInlinePragmasToBinds' before
+-- desugaring, simulating what LH's plugin does to preserve bindings that
+-- would otherwise be inlined away.
+compileToCoreWithLH :: String -> String -> IO [GHC.CoreBind]
+compileToCoreWithLH modName inputSource = do
+    GHC.runGhc (Just libdir) $ do
+      (ms, tcMod) <- typecheckSourceCode modName inputSource
+      let (tcg, _) = GHC.tm_internals_ tcMod
+          tcg' = addNoInlinePragmasToBinds tcg
+      hsc_env <- GHC.getSession
+      guts <- liftIO $ GHC.hscDesugar hsc_env ms tcg'
+      return $ GHC.mg_binds guts
+
+-- | Tests that dead bindings (unused where-clause bindings) are preserved
+-- when 'addNoInlinePragmasToBinds' marks Ids as exported.
+testDeadBindingPreservation :: IO ()
+testDeadBindingPreservation = do
+    let inputSource = unlines
+          [ "module DeadBindingPreservation where"
+          , "f :: Int -> ()"
+          , "f x = ()"
+          , "  where"
+          , "    z = x + 1"
+          ]
+
+        -- The dead binding 'z' should still appear in the Core output.
+        hasDeadBinding p = case findExpr "f" p of
+          Just e -> hasLetNamed "z" e
+          _      -> False
+
+    coreProgram <- compileToCoreWithLH "DeadBindingPreservation" inputSource
+    unless (hasDeadBinding coreProgram) $
+      fail $ unlines $
+        "Dead binding 'z' was eliminated:" : map showPprQualified coreProgram
+
+-- | Tests that a binding marked as exported is not inlined even when it
+-- occurs exactly once (i.e. it would normally be inlined by the simple
+-- optimizer).
+testExportedBindingNotInlined :: IO ()
+testExportedBindingNotInlined = do
+    let inputSource = unlines
+          [ "module ExportedBindingNotInlined where"
+          , "f :: Int -> Int"
+          , "f x = z"
+          , "  where"
+          , "    z = x + 1"
+          ]
+
+        -- The binding 'z' is used exactly once. Without the exported
+        -- marking, the simple optimizer would inline it. With it,
+        -- 'z' should still appear as a let-binding.
+        hasBinding p = case findExpr "f" p of
+          Just e -> hasLetNamed "z" e
+          _      -> False
+
+    coreProgram <- compileToCoreWithLH "ExportedBindingNotInlined" inputSource
+    unless (hasBinding coreProgram) $
+      fail $ unlines $
+        "Binding 'z' was inlined:" : map showPprQualified coreProgram
+
+-- | Check if an expression contains a let-binding with the given name.
+hasLetNamed :: String -> GHC.CoreExpr -> Bool
+hasLetNamed name = go
+  where
+    go (Let (GHC.NonRec b _) body) =
+      occNameString (GHC.occName b) == name || go body
+    go (Let (GHC.Rec pairs) body) =
+      any (\(b, _) -> occNameString (GHC.occName b) == name) pairs || go body
+    go (Lam _ e) = go e
+    go (App e1 e2) = go e1 || go e2
+    go (GHC.Case _ _ _ alts) = any (\(Alt _ _ rhs) -> go rhs) alts
+    go (GHC.Cast e _) = go e
+    go (GHC.Tick _ e) = go e
+    go _ = False

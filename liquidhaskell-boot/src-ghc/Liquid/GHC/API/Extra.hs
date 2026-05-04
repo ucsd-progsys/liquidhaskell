@@ -122,10 +122,17 @@ apiCommentsParsedSource ps =
     spanToLineColumn =
       fmap (\s -> (srcSpanStartLine s, srcSpanStartCol s)) . srcSpanToRealSrcSpan
 
--- | Adds NOINLINE pragmas to all bindings in the module.
+-- | Adds NOINLINE pragmas to all bindings in the module and sets them as
+-- exported identifiers.
 --
 -- This prevents the simple optimizer from inlining such bindings which might
 -- have specs that would otherwise be left dangling.
+--
+-- Setting the exported flag prevents both inlining and removal of dead bindings
+-- in the simple optimizer. NOINLINE is redundant with this, but it expresseses
+-- the intent more clearly. Note also that Language.Haskell.Liquid.Transform.Rewrite.inlineLoopBreaker
+-- depends at the moment on NOINLINE being inserted to tell appart bindings in
+-- the original program from generated bindings.
 --
 -- https://gitlab.haskell.org/ghc/ghc/-/issues/24386
 --
@@ -150,7 +157,7 @@ addNoInlinePragmasToBinds tcg = tcg{ tcg_binds = go (tcg_binds tcg) }
         pat -> gmapT (id `extT` markPat) pat
 
     markId :: Id -> Id
-    markId var = var `setInlinePragma` neverInlinePragma
+    markId var = setIdExported (var `setInlinePragma` neverInlinePragma)
 
     -- The AbsBinds come from the GHC typechecker to handle polymorphism,
     -- overloading, and recursion, so those don't correspond directly to
@@ -160,6 +167,10 @@ addNoInlinePragmasToBinds tcg = tcg{ tcg_binds = go (tcg_binds tcg) }
     -- See
     -- https://github.com/ucsd-progsys/liquidhaskell/issues/2257 for more
     -- context.
+    --
+    -- The first binding inside abs_binds is not given NOINLINE (to avoid
+    -- interfering with the polymorphism wrapper), but nested where-clause
+    -- bindings inside it are still marked via the generic traversal.
     markAbsBinds :: AbsBinds -> AbsBinds
     markAbsBinds absBinds0@AbsBinds{ abs_binds = binds, abs_exports = exports }  =
         absBinds0

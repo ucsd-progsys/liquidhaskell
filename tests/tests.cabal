@@ -2229,6 +2229,7 @@ executable basic-pos
                     , AssmRefl02D
                     , AssmRefl03
                     , AssmReflFilter
+                    , DeadBind00
                     , Float
                     , Inc00
                     , Inc01
