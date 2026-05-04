@@ -244,6 +244,7 @@ import GHC.Core                       as Ghc
     , bindersOfBinds
     , cmpAlt
     , collectArgs
+    , collectArgsTicks
     , collectBinders
     , collectTyAndValBinders
     , collectTyBinders
