@@ -38,6 +38,7 @@ microTestGroups =
   , "pattern-pos"
   , "typeclass-pos"
   , "typed-holes"
+  , "plugin-package-pos"
   ]
 
 benchmarkTestGroups :: [Text]
