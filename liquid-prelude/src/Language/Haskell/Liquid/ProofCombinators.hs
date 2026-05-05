@@ -115,13 +115,37 @@ infixl 3 =>=
 _ =>= y  = y
 
 -------------------------------------------------------------------------------
--- | `?` is basically Haskell's $ and is used for the right precedence
--- | `?` lets you "add" some fact into a proof term
+-- | @e ? lemma@ lets you use the type of @lemma@ when checking that @e@ haskell
+-- has some expected refinement type.
+--
+-- Schematically, @?@ allows to use @q x@ to check that @e@ satisfies @p x e@
+-- in the following function.
+--
+-- > f :: x:t0 -> {v:t1 | p x v}
+-- > f x = e ? lemma x
+-- >   where
+-- >     lemma :: y:t0 -> { q y }
+-- >     lemma = ...
+--
+-- While @?@ is defined as Haskell's 'const', @?@ is optimized by Liquid
+-- Haskell. The 'const' function, on the other hand, would incur some extra
+-- verification overhead because Liquid Haskell needs to go through the trouble
+-- of checking that @const e lemma@ is actually @e@.
+--
+-- === At a lower level
+--
+-- Liquid Haskell treats @e ? lemma@ as
+--
+-- > let fresh0 = e
+-- >  in let fresh1 = lemma
+-- >      in fresh0
+--
+-- Which makes the @fresh1@ binding available in the environment of whatever
+-- constraints arise in the inner occurrence of @fresh0@.
 -------------------------------------------------------------------------------
 
 infixl 3 ?
 
-{-@ (?) :: forall a b <pa :: a -> Bool, pb :: b -> Bool>. a<pa> -> b<pb> -> a<pa> @-}
 (?) :: a -> b -> a
 x ? _ = x
 {-# INLINE (?)   #-}

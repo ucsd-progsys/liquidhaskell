@@ -65,6 +65,7 @@ import           Language.Fixpoint.Types           hiding ( errs
 import qualified Language.Haskell.Liquid.Measure         as Ms
 import           Language.Haskell.Liquid.Parse
 import           Language.Haskell.Liquid.Transforms.ANF
+import           Language.Haskell.Liquid.Transforms.QuestionMark
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.PrettyPrint
 import           Language.Haskell.Liquid.Types.Specs
@@ -525,17 +526,17 @@ processModule LiquidHaskellContext{..} = do
     debugLog $ "mg_tcs => " ++ O.showSDocUnsafe (O.ppr $ mg_tcs modGuts0)
 
     hscEnv <- getTopEnv
+    tcg <- getGblEnv
     let preNormalizedCore = preNormalizeCore moduleCfg modGuts0
         modGuts = modGuts0 { mg_binds = preNormalizedCore }
         file = LH.modSummaryHsFile lhModuleSummary
-    targetSrc  <- liftIO $ makeTargetSrc moduleCfg file modGuts hscEnv
+    targetSrc  <- liftIO $ makeTargetSrc moduleCfg file modGuts hscEnv (tcg_rdr_env tcg)
     logger <- getLogger
 
     -- See https://github.com/ucsd-progsys/liquidhaskell/issues/1711
     -- Due to the fact the internals can throw exceptions from pure code at any point, we need to
     -- call 'evaluate' to force any exception and catch it, if we can.
 
-    tcg <- getGblEnv
     let localVars = Resolve.makeLocalVars preNormalizedCore
         eBareSpec = resolveLHNames
           moduleCfg
@@ -591,12 +592,14 @@ makeTargetSrc :: Config
               -> FilePath
               -> ModGuts
               -> HscEnv
+              -> GlobalRdrEnv
               -> IO TargetSrc
-makeTargetSrc cfg file modGuts hscEnv = do
+makeTargetSrc cfg file modGuts hscEnv rdrEnv = do
   when (dumpPreNormalizedCore cfg) $ do
     putStrLn "\n*************** Pre-normalized CoreBinds *****************\n"
     putStrLn $ unlines $ L.intersperse "" $ map (GHC.showPpr (GHC.hsc_dflags hscEnv)) (mg_binds modGuts)
-  coreBinds <- anormalize cfg hscEnv modGuts
+  coreBindsANF <- anormalize cfg hscEnv modGuts
+  let coreBinds = eliminateQuestionMark rdrEnv coreBindsANF
   when (dumpNormalizedCore cfg) $ do
     putStrLn "\n*************** normalized CoreBinds *****************\n"
     putStrLn $ unlines $ L.intersperse "" $ map (GHC.showPpr (GHC.hsc_dflags hscEnv)) coreBinds
