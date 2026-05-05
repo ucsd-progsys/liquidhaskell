@@ -2674,7 +2674,6 @@ executable typed-holes
     if !flag(typed-holes) && flag(stack)
       buildable:      False
 
-    ghc-options:      -fplugin=LiquidHaskell
     other-modules:    Example0
                     , Example1
                     , Example2
