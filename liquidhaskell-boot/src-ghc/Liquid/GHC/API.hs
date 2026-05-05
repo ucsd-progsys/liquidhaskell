@@ -786,6 +786,7 @@ import GHC.Unit.Finder                as Ghc
     ( FindResult(Found, NoPackage, FoundMultiple, NotFound)
     , findExposedPackageModule
     , findImportedModule
+    , findPluginModule
     )
 import GHC.Unit.Home.ModInfo          as Ghc
     ( HomeModInfo(hm_iface) )

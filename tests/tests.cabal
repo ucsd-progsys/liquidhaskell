@@ -2674,7 +2674,6 @@ executable typed-holes
     if !flag(typed-holes) && flag(stack)
       buildable:      False
 
-    ghc-options:      -fplugin=LiquidHaskell
     other-modules:    Example0
                     , Example1
                     , Example2
@@ -2715,3 +2714,25 @@ test-suite liquidhaskell-test
                   , QuickCheck
                   , tasty
                   , tasty-quickcheck
+
+flag plugin-package-pos
+     default: False
+
+executable plugin-package-pos
+    import:           common-ghc-options
+    main-is:          Main.hs
+    if !flag(plugin-package-pos) && flag(stack)
+      buildable:      False
+
+    hs-source-dirs:   app
+                    , plugin-package
+
+    other-modules:    PluginPackageTest
+
+    build-depends:    base
+                    , liquid-prelude
+                    , liquidhaskell
+
+    -- Hide liquidhaskell from regular imports and expose only as plugin package.
+    -- This tests that LHAssumptions modules are found via findPluginModule.
+    ghc-options:      -hide-package liquidhaskell -plugin-package liquidhaskell

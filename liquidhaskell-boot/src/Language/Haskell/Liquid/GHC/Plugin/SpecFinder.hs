@@ -2,6 +2,23 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RankNTypes   #-}
 
+{-
+Note [Module Visibility and Lookup in GHC]
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+GHC distinguishes between two module visibility namespaces:
+
+- **Regular packages** (`-package`): modules are found by `findImportedModule`,
+  which searches `findExposedPackageModule`.
+- **Plugin packages** (`-plugin-package`): modules are found by
+  `findPluginModule`, which searches `findExposedPluginPackageModule`.
+
+Whenever a module is looked up, we start with `findImportedModule` to check
+regular packages, and if that fails, we fall back to `findPluginModule` to check
+plugin packages. This allows us to support both visibility namespaces without
+requiring users to mind how they specify dependencies.
+
+-}
+
 module Language.Haskell.Liquid.GHC.Plugin.SpecFinder
     ( findRelevantSpecs
     , SpecFinderResult(..)
@@ -63,8 +80,16 @@ findRelevantSpecs lhAssmPkgExcludes hscEnv mods = do
                                    | otherwise = do
       let assumptionsModName = assumptionsModuleName m
       -- loadInterface might mutate the EPS if the module is
-      -- not already loaded
-      res <- liftIO $ findImportedModule hscEnv assumptionsModName NoPkgQual
+      -- not already loaded.
+      --
+      -- Try findImportedModule first (for -package), then fall back to
+      -- findPluginModule (for -plugin-package).
+      -- See Note [Module Visibility and Lookup in GHC] for details.
+      res <- liftIO $ do
+        r <- findImportedModule hscEnv assumptionsModName NoPkgQual
+        case r of
+          Found{} -> pure r
+          _       -> findPluginModule hscEnv assumptionsModName
       case res of
         Found _ assumptionsMod -> do
           _ <- initIfaceTcRn $ loadInterface "liquidhaskell assumptions" assumptionsMod ImportBySystem
@@ -112,7 +137,13 @@ configToRedundantDependencies env cfg = do
       res <- findImportedModule env mn (renamePkgQual (hsc_unit_env env) mn (Just "liquidhaskell"))
       case res of
         Found _ mdl -> pure $ Just (toStableModule mdl)
-        _           -> pure Nothing
+        _ -> do
+          -- Fall back to plugin package visibility
+          -- See Note [Module Visibility and Lookup in GHC] for details.
+          res2 <- findPluginModule env mn
+          case res2 of
+            Found _ mdl -> pure $ Just (toStableModule mdl)
+            _           -> pure Nothing
 
 -- | Static associative map of the 'ModuleName' that needs to be filtered from the final 'TargetDependencies'
 -- due to some particular configuration options.
