@@ -209,8 +209,17 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
 
       checkErrors
 
+      -- Rebuild the logic map with fully-resolved define bodies from sp3.
+      -- lmap1 was built before resolveLogicNames, so body symbols (e.g. "len")
+      -- are bare/unresolved.  sp3 has gone through logic name resolution and
+      -- fromBareSpecLHName, so its defines carry properly qualified symbols.
+      let lmap2 = lmap <> mkLogicMap (HM.fromList
+                   [ (F.val $ lhNameToResolvedSymbol <$> k,
+                      v { lmVar = lhNameToResolvedSymbol <$> k })
+                   | (k, v) <- defines sp3 ])
+
       dcs <- gets roUsedDataCons
-      return (sp3 { usedDataCons = dcs }, logicNameEnv0, lmap1)
+      return (sp3 { usedDataCons = dcs }, logicNameEnv0, lmap2)
   where
     -- Early exit name resolution if errors are found and pass them to the output.
     checkErrors :: ExceptT [Error] (StateT RenameOutput Identity) ()

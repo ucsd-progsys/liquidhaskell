@@ -747,6 +747,7 @@ executable names-pos
                     , Capture02
                     , ClojurVector
                     , DataFields
+                    , DefineLenResolve
                     , ExpandsDependentPairs
                     , ExprAliases
                     , ExprAliasesCopycat
