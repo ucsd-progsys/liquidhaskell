@@ -8,5 +8,7 @@ set -x
 # environment as cabal, whereas "cabal run" does change the environment which
 # then causes nested cabal calls to reconfigure packages.
 cabal build $CABAL_BUILD_ARGS tests:test-driver
+# skip messages that might be produced when fetching source repositories
+cabal exec -- bash -c "command -v test-driver" &>/dev/null || { echo "test-driver not found in cabal environment" >&2; exit 1; }
 TEST_DRIVER=$(cabal exec -- bash -c "command -v test-driver")
 "$TEST_DRIVER" $@

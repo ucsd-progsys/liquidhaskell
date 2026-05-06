@@ -2,6 +2,34 @@
 
 ## Next
 
+## 0.9.14.1 (2026-05-06)
+
+- Upgrade to GHC 9.14.1 [#2604](https://github.com/ucsd-progsys/liquidhaskell/pull/2604)
+- Expand defines in define bodies, allowing defines to reference other defines [#2666](https://github.com/ucsd-progsys/liquidhaskell/pull/2666)
+- Add `--modern` flag that bundles recommended defaults for new projects [#2637](https://github.com/ucsd-progsys/liquidhaskell/pull/2637)
+- Rename `--exact-data-cons` to `--adt` and remove `--no-adt` [#2642](https://github.com/ucsd-progsys/liquidhaskell/pull/2642)
+- Strengthen data constructor specs independently of `--adt` [#2628](https://github.com/ucsd-progsys/liquidhaskell/pull/2628)
+- Always strengthen environment of case alternatives during constraint generation [#2642](https://github.com/ucsd-progsys/liquidhaskell/pull/2642)
+- Only produce selectors for data constructors in use [#2642](https://github.com/ucsd-progsys/liquidhaskell/pull/2642)
+- Reject conflicting selector types across constructors [#2642](https://github.com/ucsd-progsys/liquidhaskell/pull/2642)
+- Add `--warn-on-term-holes` flag for typed holes support [#2486](https://github.com/ucsd-progsys/liquidhaskell/pull/2486)
+- Add PLE sort-compatibility check for measure application [#2663](https://github.com/ucsd-progsys/liquidhaskell/pull/2663)
+- Add Core pass to eliminate `(?)` operator after ANF [#2664](https://github.com/ucsd-progsys/liquidhaskell/pull/2664)
+- Remove refinement type signature of `(?)` and document it [#2664](https://github.com/ucsd-progsys/liquidhaskell/pull/2664)
+- Add support for fractional literals in the logic [#2619](https://github.com/ucsd-progsys/liquidhaskell/pull/2619)
+- Add `Bool` embed always, regardless of imports [#2642](https://github.com/ucsd-progsys/liquidhaskell/pull/2642)
+- Preserve dead bindings by marking Ids as exported [#2661](https://github.com/ucsd-progsys/liquidhaskell/pull/2661)
+- Keep dependent binds in scope regardless of their types [#2627](https://github.com/ucsd-progsys/liquidhaskell/pull/2627)
+- Fix LHAssumptions module lookup with `-plugin-package` [#2665](https://github.com/ucsd-progsys/liquidhaskell/pull/2665)
+- Fix spurious invariant propagation for measures on type synonyms [#2660](https://github.com/ucsd-progsys/liquidhaskell/pull/2660)
+- Fix polymorphic kvar type variable mismatch [#2649](https://github.com/ucsd-progsys/liquidhaskell/issues/2649) [#2651](https://github.com/ucsd-progsys/liquidhaskell/pull/2651)
+- Fix shifted argument binding when lambda has fewer args than predicate [#2657](https://github.com/ucsd-progsys/liquidhaskell/pull/2657)
+- Propagate abstract refinement predicates on parenthesized types [#2657](https://github.com/ucsd-progsys/liquidhaskell/pull/2657)
+- Improve error messages for predicate arity mismatch and misplaced abstract refinement arguments [#2657](https://github.com/ucsd-progsys/liquidhaskell/pull/2657)
+- Add constraint IDs to termination check error messages [#2659](https://github.com/ucsd-progsys/liquidhaskell/pull/2659)
+- Add an indication of precedence to checkBind errors [#2631](https://github.com/ucsd-progsys/liquidhaskell/pull/2631)
+- Remove stack support (stack.yaml removed) [#2616](https://github.com/ucsd-progsys/liquidhaskell/pull/2616)
+
 ## 0.9.12.2.1 (2026-01-14)
 
 - Disable LH when collecting Haddock comments and the noBackend is set [#2611](https:://github.com/ucsd-progsys/liquidhaskell/pull/2611)
