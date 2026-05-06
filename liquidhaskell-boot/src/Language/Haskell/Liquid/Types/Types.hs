@@ -291,9 +291,47 @@ eAppWithMap :: LogicMap -> Symbol -> [Expr] -> Expr -> Expr
 eAppWithMap lmap f es expr
   | Just (LMap _ xs e) <- M.lookup f (lmSymDefs lmap)
   , length xs == length es
-  = F.subst (F.mkSubst $ zip xs es) e
+  -- Expand nested define references in the body *before* substitution.
+  -- Arguments are already fully expanded by callers, so substituting them
+  -- into the pre-expanded body produces the correct result without redundant
+  -- traversals over the argument expressions.
+  = F.subst (F.mkSubst $ zip xs es) (expandDefineBody lmap (S.singleton f) e)
   | otherwise
   = expr
+
+-- | Recursively expand references to other defines within a define body.
+-- The @visited@ set prevents infinite expansion of recursive defines.
+-- This only needs to traverse the raw define body (which contains parameter
+-- variables and references to other defines) — not already-expanded arguments.
+expandDefineBody :: LogicMap -> S.HashSet Symbol -> Expr -> Expr
+expandDefineBody lmap visited = go
+  where
+    go e@(F.EApp _ _) =
+      let (ef, args) = F.splitEApp e
+          args'      = map go args
+      in case ef of
+           F.EVar g
+             | not (S.member g visited)
+             , Just (LMap _ xs body) <- M.lookup g (lmSymDefs lmap)
+             , length xs == length args'
+             -> F.subst (F.mkSubst $ zip xs args') $
+                  expandDefineBody lmap (S.insert g visited) body
+           _ -> F.eApps (go ef) args'
+    go (F.ENeg e)         = F.ENeg (go e)
+    go (F.EBin op e1 e2)  = F.EBin op (go e1) (go e2)
+    go (F.EIte p e1 e2)   = F.EIte (go p) (go e1) (go e2)
+    go (F.ECst e s)       = F.ECst (go e) s
+    go (F.PAnd ps)        = F.PAnd (map go ps)
+    go (F.POr ps)         = F.POr (map go ps)
+    go (F.PNot p)         = F.PNot (go p)
+    go (F.PImp p q)       = F.PImp (go p) (go q)
+    go (F.PIff p q)       = F.PIff (go p) (go q)
+    go (F.PAtom r e1 e2)  = F.PAtom r (go e1) (go e2)
+    go (F.ELam xt e)      = F.ELam xt (go e)
+    go (F.ECoerc a t e)   = F.ECoerc a t (go e)
+    go (F.ETApp e s)      = F.ETApp (go e) s
+    go (F.ETAbs e s)      = F.ETAbs (go e) s
+    go e                  = e
 
 emapLMapM :: Monad m => ([Symbol] -> v0 -> m v1) -> LMapV v0 -> m (LMapV v1)
 emapLMapM f l = do
