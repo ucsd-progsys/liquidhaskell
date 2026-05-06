@@ -1,6 +1,6 @@
 cabal-version:      1.24
 name:               liquid-prelude
-version:            0.9.12.2.1
+version:            0.9.14.1
 synopsis:           General utility modules for LiquidHaskell
 description:        General utility modules for LiquidHaskell.
 license:            BSD3
@@ -30,5 +30,5 @@ library
                     , ghc-prim
                     , bytestring           >= 0.10.12.1
                     , containers           >= 0.6.4.1
-                    , liquidhaskell        >= 0.9.12.2.1
+                    , liquidhaskell        >= 0.9.14.1
   default-language:   Haskell2010
