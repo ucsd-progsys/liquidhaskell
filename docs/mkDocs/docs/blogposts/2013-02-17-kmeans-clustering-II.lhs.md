@@ -806,10 +806,10 @@ at all.
 encourage you to ponder about how you might modify the types (and
 implementation) to verify that KMeans indeed produces at most `k` clusters...
 
-[ref101]:        /blog/2013/01/01/refinement-types-101.lhs/
-[safeList]:      /blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/
-[kmeansI]:       /blog/2013/02/16/kmeans-clustering-I.lhs/
-[kmeansII]:      /blog/2013/02/17/kmeans-clustering-II.lhs/
+[ref101]:        2013-01-01-refinement-types-101.lhs.md
+[safeList]:      2013-01-31-safely-catching-a-list-by-its-tail.lhs.md
+[kmeansI]:       2013-02-16-kmeans-clustering-I.lhs.md
+[kmeansII]:      2013-02-17-kmeans-clustering-II.lhs.md
 [URL-take]:      https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/List.lhs#L334
 [URL-groupBy]:   http://hackage.haskell.org/packages/archive/base/latest/doc/html/Data-List.html#v:groupBy
 [URL-transpose]: http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html#transpose

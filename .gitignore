@@ -42,6 +42,7 @@ tests/synthesis/logs/*
 /.vagrant/
 TAGS
 tags*
+!docs/mkDocs/docs/tags.md
 a.out
 *.json
 js/

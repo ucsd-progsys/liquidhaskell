@@ -169,4 +169,4 @@ like this one?
 </pre>
 
 [shapeless-csv]: http://www.reddit.com/r/scala/comments/1nhzi2/using_shapelesss_sized_type_to_eliminate_real/
-[list-measure]:  /blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/ 
+[list-measure]:  2013-01-31-safely-catching-a-list-by-its-tail.lhs.md

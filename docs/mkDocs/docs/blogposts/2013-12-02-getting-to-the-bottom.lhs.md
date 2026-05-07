@@ -100,4 +100,4 @@ is *definitely* not bottom.
 In other words, we need to teach LiquidHaskell how to prove that a computation 
 definitely terminates.
 
-[ref-lies]:  /blog/2013/11/23/telling_lies.lhs/ 
+[ref-lies]:  2013-11-23-telling_lies.lhs.md

@@ -779,7 +779,7 @@ LiquidHaskell we need merely write:
 
 
 
-[blog-absref]:     /blog/2013/06/3/abstracting-over-refinements.lhs/
+[blog-absref]:     2013-06-03-abstracting-over-refinements.lhs.md
 [blog-absref-vec]: http://goto.ucsd.edu/~rjhala/liquid/abstract_refinement_types.pdf
 [data-list]:        http://www.haskell.org/ghc/docs/latest/html/libraries/base/src/Data-List.html#sort
 [omega-sort]:      http://web.cecs.pdx.edu/~sheard/Code/InsertMergeSort.html

@@ -397,6 +397,6 @@ Is it even _possible_, let alone _easier_ to do that with LH?
 [intersect-good]:    https://github.com/antalsz/hs-to-coq/blob/8f84d61093b7be36190142c795d6cd4496ef5aed/examples/intervals/Proofs.v#L370-L439
 [union-good]:        https://github.com/antalsz/hs-to-coq/blob/b7efc7a8dbacca384596fc0caf65e62e87ef2768/examples/intervals/Proofs_Function.v#L319-L382
 [subtract-good]:     https://github.com/antalsz/hs-to-coq/blob/8f84d61093b7be36190142c795d6cd4496ef5aed/examples/intervals/Proofs.v#L565-L648
-[abs-ref]:           /tags/abstract-refinements.html
+[abs-ref]:           ../tags.md#tag:abstract-refinements
 [hs-to-coq]:         https://github.com/antalsz/hs-to-coq
 [nomeata-intervals]: https://www.joachim-breitner.de/blog/734-Finding_bugs_in_Haskell_code_by_proving_it

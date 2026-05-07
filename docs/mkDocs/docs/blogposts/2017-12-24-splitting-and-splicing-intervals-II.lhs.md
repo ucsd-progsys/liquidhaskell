@@ -633,7 +633,7 @@ x2:a -&gt; x3:a -&gt; {VV : a | VV == RangeSet.max x2 x3
 </pre>
 </div>
 
-[splicing-1]:        2017-12-15-splitting-and-splicing-intervals-I.lhs/
+[splicing-1]:        2017-12-15-splitting-and-splicing-intervals-I.lhs.md
 [lh-termination]:    https://github.com/ucsd-progsys/liquidhaskell/blob/develop/README.md#explicit-termination-metrics
 [lh-qed]:            https://github.com/ucsd-progsys/liquidhaskell/blob/develop/include/Language/Haskell/Liquid/NewProofCombinators.hs#L65-L69
 [lh-imp-eq]:         https://github.com/ucsd-progsys/liquidhaskell/blob/develop/include/Language/Haskell/Liquid/NewProofCombinators.hs#L87-L96
@@ -643,8 +643,8 @@ x2:a -&gt; x3:a -&gt; {VV : a | VV == RangeSet.max x2 x3
 [intersect-good]:    https://github.com/antalsz/hs-to-coq/blob/8f84d61093b7be36190142c795d6cd4496ef5aed/examples/intervals/Proofs.v#L370-L439
 [union-good]:        https://github.com/antalsz/hs-to-coq/blob/b7efc7a8dbacca384596fc0caf65e62e87ei2768/examples/intervals/Proofs_Function.v#L319-L382
 [subtract-good]:     https://github.com/antalsz/hs-to-coq/blob/8f84d61093b7be36190142c795d6cd4496ef5aed/examples/intervals/Proofs.v#L565-L648
-[tag-abs-ref]:       /tags/abstract-refinements.html
-[tag-induction]:     /tags/induction.html
-[tag-reflection]:    /tags/reflection.html
+[tag-abs-ref]:       ../tags.md#tag:abstract-refinements
+[tag-induction]:     ../tags.md#tag:induction
+[tag-reflection]:    ../tags.md#tag:reflection
 [hs-to-coq]:         https://github.com/antalsz/hs-to-coq
 [nomeata-intervals]: https://www.joachim-breitner.de/blog/734-Finding_bugs_in_Haskell_code_by_proving_it

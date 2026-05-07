@@ -370,9 +370,9 @@ legs, and return post-haste for the [next installment][kmeansII], in which
 we will use the types and functions described above, to develop the clustering
 algorithm.
 
-[safeList]:      /blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/
-[kmeansI]:       /blog/2013/02/16/kmeans-clustering-I.lhs/
-[kmeansII]:      /blog/2013/02/17/kmeans-clustering-II.lhs/
+[safeList]:      2013-01-31-safely-catching-a-list-by-its-tail.lhs.md
+[kmeansI]:       2013-02-16-kmeans-clustering-I.lhs.md
+[kmeansII]:      2013-02-17-kmeans-clustering-II.lhs.md
 [URL-take]:      https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/List.lhs#L334
 [URL-groupBy]:   http://hackage.haskell.org/packages/archive/base/latest/doc/html/Data-List.html#v:groupBy
 [URL-transpose]: http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html#transpose

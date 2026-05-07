@@ -272,9 +272,9 @@ There are several things to take away.
    [counterexamples][icse04] that illustrate when a specification
    [fails][dsd].
 
-[qblog101]: /blog/2013/01/01/refinement-types-101.lhs/#comment-772807850
+[qblog101]: 2013-01-01-refinement-types-101.lhs.md
 [qreddit101]: http://www.reddit.com/r/haskell/comments/16w3hp/liquidhaskell_refinement_types_in_haskell_via_smt/c809160
-[ref101]:  /blog/2013/01/01/refinement-types-101.lhs/ 
+[ref101]:  2013-01-01-refinement-types-101.lhs.md
 [concolic]: http://en.wikipedia.org/wiki/Concolic_testing
 [icse04]: http://goto.ucsd.edu/~rjhala/papers/generating_tests_from_counterexamples.html
 [dsd]: http://dl.acm.org/citation.cfm?doid=1348250.1348254

@@ -467,4 +467,4 @@ type-signature.
 [GADT]: http://www.reddit.com/r/haskell/comments/1xiurm/how_to_define_append_for_ordlist_defined_as_gadt/cfbrinr
 [Reddit]: http://www.reddit.com/r/haskell/comments/1xiurm/how_to_define_append_for_ordlist_defined_as_gadt/
 [OrdList]: http://www.haskell.org/platform/doc/2013.2.0.0/ghc-api/OrdList.html
-[measure]: http://goto.ucsd.edu/~rjhala/liquid/haskell/blog/blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/
+[measure]: http://goto.ucsd.edu/~rjhala/liquid/haskell/blog2013-01-31-safely-catching-a-list-by-its-tail.lhs.md

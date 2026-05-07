@@ -524,11 +524,11 @@ Well folks, thats all for now. I trust this article gave you a sense of
    functions) in order to enforce special invariants.
 
 
-[vecbounds]:  /blog/2013/01/05/bounding-vectors.lhs/ 
+[vecbounds]:  /blog/2013/01/05/bounding-vectors.lhs/
 [ghclist]:    https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/List.lhs#L125
 [foldl1]:     http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html#foldl1
 [risersMitchell]: http://neilmitchell.blogspot.com/2008/03/sorting-at-speed.html
 [risersApple]: http://blog.jbapple.com/2008/01/extra-type-safety-using-polymorphic.html
-[ref101]:  /blog/2013/01/01/refinement-types-101.lhs/ 
-[ref102]:  /blog/2013/01/27/refinements101-reax.lhs/ 
+[ref101]:  2013-01-01-refinement-types-101.lhs.md
+[ref102]:  2013-01-27-refinements101-reax.lhs.md
 
