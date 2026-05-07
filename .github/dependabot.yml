@@ -5,4 +5,4 @@ updates:
     schedule:
       interval: "weekly"
     exclude-paths:
-      - "docs/slides"
+      - "docs/slides/**"
