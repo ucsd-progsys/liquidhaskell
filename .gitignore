@@ -41,8 +41,8 @@ tests/synthesis/logs/*
 .stack-work
 /.vagrant/
 TAGS
-tags*
-!docs/mkDocs/docs/tags.md
+tags
+tags.mtime
 a.out
 *.json
 js/
