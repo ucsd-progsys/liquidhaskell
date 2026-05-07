@@ -239,25 +239,6 @@
   
   
     <li class="md-tabs__item">
-      <a href="../.." class="md-tabs__link">
-        
-  
-  
-    
-  
-  
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
       <a href="../../install/" class="md-tabs__link">
         
   
@@ -303,25 +284,6 @@
     
   
   <i aria-hidden=true class='mdi mdi-flag'></i> Flag Reference
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../.." class="md-tabs__link">
-        
-  
-  
-    
-  
-  
 
       </a>
     </li>
@@ -486,33 +448,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../install/" class="md-nav__link">
         
   
@@ -594,33 +529,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../papers/" class="md-nav__link">
         
   
@@ -664,10 +572,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
         
           
-          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
             
   
   
@@ -685,8 +593,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_9">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -716,10 +624,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_1" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_1" checked>
         
           
-          <label class="md-nav__link" for="__nav_9_1" id="__nav_9_1_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_7_1" id="__nav_7_1_label" tabindex="0">
             
   
   
@@ -737,8 +645,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_1_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_9_1">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7_1">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1812,7 +1720,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../tags.html" class="md-nav__link">
+      <a href="../../tags/" class="md-nav__link">
         
   
   
@@ -1997,14 +1905,14 @@
       
       
       
-        <span class="md-tag">abstract-refinements</span>
+        <a href="../../tags/#tag:abstract-refinements" class="md-tag">abstract-refinements</a>
       
     
       
       
       
       
-        <span class="md-tag">reflection</span>
+        <a href="../../tags/#tag:reflection" class="md-tag">reflection</a>
       
     
   </nav>
@@ -2016,7 +1924,7 @@
 
   <h1>Splitting and Splicing Intervals (Part 2)</h1>
 
-<p><a href="2017-12-15-splitting-and-splicing-intervals-I.lhs/">Previously</a>, we saw how the principle of
+<p><a href="../2017-12-15-splitting-and-splicing-intervals-I.lhs/">Previously</a>, we saw how the principle of
 <em>"making illegal states unrepresentable"</em> allowed LH
 to easily enforce a <em>key invariant</em> in
 <a href="https://twitter.com/nomeata?lang=en">Joachim</a>
@@ -2086,7 +1994,7 @@ by importing the <code>Data.Set</code> library</p>
 <span class=hs-linenum>98: </span>  <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>S</span><span class='hs-varop'>.</span><span class='hs-varid'>empty</span>
 </pre>
 
-<p>The <code>reflect rng</code> <a href="/tags/reflection.html">tells LH</a> that
+<p>The <code>reflect rng</code> <a href="../../tags/#tag:reflection">tells LH</a> that
 we are going to want to work with the Haskell
 function <code>rng</code> at the refinement-type level.</p>
 <h2 id="equational-reasoning">Equational Reasoning<a class="headerlink" href="#equational-reasoning" title="Permanent link">&para;</a></h2>
@@ -2192,7 +2100,7 @@ is <em>outside</em> the range <code>i..j</code> then it does not belong in
 <span class=hs-linenum>218: </span>  <span class='hs-keyword'>@-}</span>
 </pre>
 
-<p>We will prove the above <a href="/tags/induction.html">"by induction"</a>.
+<p>We will prove the above <a href="../../tags/#tag:induction">"by induction"</a>.
 A confession: I always had trouble understanding what
 exactly <em>proof by induction</em> really meant. Why was it
 it ok to "do" induction on one thing but not another?</p>
@@ -2593,9 +2501,9 @@ x2:a -&gt; x3:a -&gt; {VV : a | VV == RangeSet.max x2 x3
   
   <div class="blogpost-meta-tags">
               
-      <a href="../../tags.html#reflection" class="tag-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.5 7A1.5 1.5 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4 1.5 1.5 0 0 1 7 5.5 1.5 1.5 0 0 1 5.5 7m15.91 4.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.11 0-2 .89-2 2v7c0 .55.22 1.05.59 1.41l8.99 9c.37.36.87.59 1.42.59s1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.56-.23-1.06-.59-1.42"/></svg>reflection</a>
+      <a href="../../tags/#tag:reflection" class="tag-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.5 7A1.5 1.5 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4 1.5 1.5 0 0 1 7 5.5 1.5 1.5 0 0 1 5.5 7m15.91 4.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.11 0-2 .89-2 2v7c0 .55.22 1.05.59 1.41l8.99 9c.37.36.87.59 1.42.59s1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.56-.23-1.06-.59-1.42"/></svg>reflection</a>
               
-      <a href="../../tags.html#abstract-refinements" class="tag-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.5 7A1.5 1.5 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4 1.5 1.5 0 0 1 7 5.5 1.5 1.5 0 0 1 5.5 7m15.91 4.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.11 0-2 .89-2 2v7c0 .55.22 1.05.59 1.41l8.99 9c.37.36.87.59 1.42.59s1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.56-.23-1.06-.59-1.42"/></svg>abstract-refinements</a>
+      <a href="../../tags/#tag:abstract-refinements" class="tag-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.5 7A1.5 1.5 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4 1.5 1.5 0 0 1 7 5.5 1.5 1.5 0 0 1 5.5 7m15.91 4.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.11 0-2 .89-2 2v7c0 .55.22 1.05.59 1.41l8.99 9c.37.36.87.59 1.42.59s1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.56-.23-1.06-.59-1.42"/></svg>abstract-refinements</a>
     
   </div>
   

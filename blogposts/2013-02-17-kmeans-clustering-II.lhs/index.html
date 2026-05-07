@@ -239,25 +239,6 @@
   
   
     <li class="md-tabs__item">
-      <a href="../.." class="md-tabs__link">
-        
-  
-  
-    
-  
-  
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
       <a href="../../install/" class="md-tabs__link">
         
   
@@ -303,25 +284,6 @@
     
   
   <i aria-hidden=true class='mdi mdi-flag'></i> Flag Reference
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../.." class="md-tabs__link">
-        
-  
-  
-    
-  
-  
 
       </a>
     </li>
@@ -486,33 +448,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../install/" class="md-nav__link">
         
   
@@ -594,33 +529,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../papers/" class="md-nav__link">
         
   
@@ -664,10 +572,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
         
           
-          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
             
   
   
@@ -685,8 +593,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_9">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -716,10 +624,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_1" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_1" checked>
         
           
-          <label class="md-nav__link" for="__nav_9_1" id="__nav_9_1_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_7_1" id="__nav_7_1_label" tabindex="0">
             
   
   
@@ -737,8 +645,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_1_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_9_1">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7_1">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1790,7 +1698,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../tags.html" class="md-nav__link">
+      <a href="../../tags/" class="md-nav__link">
         
   
   
@@ -1953,14 +1861,14 @@
       
       
       
-        <span class="md-tag">basic</span>
+        <a href="../../tags/#tag:basic" class="md-tag">basic</a>
       
     
       
       
       
       
-        <span class="md-tag">measures</span>
+        <a href="../../tags/#tag:measures" class="md-tag">measures</a>
       
     
   </nav>
@@ -1972,7 +1880,7 @@
 
   <h1>KMeans Clustering II</h1>
 
-<p><strong>The story so far:</strong> <a href="/blog/2013/02/16/kmeans-clustering-I.lhs/">Previously</a> we saw</p>
+<p><strong>The story so far:</strong> <a href="../2013-02-16-kmeans-clustering-I.lhs/">Previously</a> we saw</p>
 <ul>
 <li>how to encode <code>n</code>-dimensional points using plain old Haskell lists,</li>
 <li>how to encode a matrix with <code>r</code> rows and <code>c</code> columns as a list of lists,</li>
@@ -2055,7 +1963,7 @@ the goal of <a href="http://en.wikipedia.org/wiki/K-means_clustering">K-Means cl
 </pre>
 
 <p>whose types will prove essential in order to verify the invariants of the
-clustering algorithm. You might open the <a href="/blog/2013/02/16/kmeans-clustering-I.lhs/">previous episode</a> in a
+clustering algorithm. You might open the <a href="../2013-02-16-kmeans-clustering-I.lhs/">previous episode</a> in a
 separate tab to keep those functions handy, but fear not, we will refresh
 our memory about them when we get around to using them below.</p>
 <h2 id="generalized-points">Generalized Points<a class="headerlink" href="#generalized-points" title="Permanent link">&para;</a></h2>
@@ -2135,7 +2043,7 @@ is returned as the output.</p>
 <pre><span class=hs-linenum>163: </span><span class='hs-definition'>partition</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>size</span><span class='hs-conop'>:</span><span class='hs-conid'>PosInt</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-conid'>Clustering</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span>
 </pre>
 
-<p>which we saw <a href="/blog/2013/02/16/kmeans-clustering-I.lhs/">last time</a>, that <code>initialClustering</code> is indeed
+<p>which we saw <a href="../2013-02-16-kmeans-clustering-I.lhs/">last time</a>, that <code>initialClustering</code> is indeed
 a valid <code>Clustering</code> of <code>(GenPoint a n)</code>.</p>
 <p><strong>2. Fixpoint</strong></p>
 <p>Next, LiquidHaskell infers that at the call <code>fixpoint (refineCluster n)
@@ -2339,7 +2247,7 @@ clustering and improves it, like so:</p>
 <pre><span class=hs-linenum>222: </span><span class='hs-definition'>groupBy</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Bool</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-conid'>Clustering</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span>
 </pre>
 
-<p>from <a href="/blog/2013/02/16/kmeans-clustering-I.lhs/">last time</a>. At the call site above, LiquidHaskell infers that
+<p>from <a href="../2013-02-16-kmeans-clustering-I.lhs/">last time</a>. At the call site above, LiquidHaskell infers that
 <code>a</code> can be instantiated with <code>((Point n), (GenPoint a n))</code> thereby establishing
 that, after <em>projecting away</em> the first element, the output is a list of
 non-empty lists of generalized <code>n</code>-dimensional points.</p>
@@ -2436,7 +2344,7 @@ Suppose that <code>xs</code> is the <code>exampleCluster</code> from above
 <p>and so <code>map average xs'</code> evaluates to <code>exampleCenter</code> from above.</p>
 <p>We have ensured that the division in the average does not lead to
 any nasty surprises via a <em>safe division</em> function whose precondition
-checks that the denominator is non-zero, <a href="/blog/2013/01/01/refinement-types-101.lhs/">as illustrated here</a>.</p>
+checks that the denominator is non-zero, <a href="../2013-01-01-refinement-types-101.lhs/">as illustrated here</a>.</p>
 <pre><span class=hs-linenum>285: </span><span class='hs-comment'>{- safeDiv   :: (Fractional a) =&gt; a -&gt; {v:Int | v != 0} -&gt; a -}</span>
 <span class=hs-linenum>286: </span><span class='hs-definition'>safeDiv</span>     <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>Fractional</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span>
 <span class=hs-linenum>287: </span><a class=annot href="#"><span class=annottext>(GHC.Real.Fractional a)
@@ -2580,7 +2488,7 @@ LiquidHaskell infers that both <code>c</code> and <code>getVect x</code> are of 
 <pre><span class=hs-linenum>355: </span><span class='hs-definition'>zipWith</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>b</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>c</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>xs</span><span class='hs-conop'>:</span><span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-conid'>List</span> <span class='hs-varid'>b</span> <span class='hs-layout'>(</span><span class='hs-varid'>len</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-conid'>List</span> <span class='hs-varid'>c</span> <span class='hs-layout'>(</span><span class='hs-varid'>len</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span><span class='hs-layout'>)</span>
 </pre>
 
-<p><a href="/blog/2013/02/16/kmeans-clustering-I.lhs/">discussed last time</a> is determined to be safe.</p>
+<p><a href="../2013-02-16-kmeans-clustering-I.lhs/">discussed last time</a> is determined to be safe.</p>
 <p>Finally, the value returned is just one of the input centers and so is a <code>(Point n)</code>.</p>
 <h2 id="putting-it-all-together-top-level-api">Putting It All Together: Top-Level API<a class="headerlink" href="#putting-it-all-together-top-level-api" title="Permanent link">&para;</a></h2>
 <p>We can bundle the algorithm into two top-level API functions.</p>
@@ -2738,9 +2646,9 @@ implementation) to verify that KMeans indeed produces at most <code>k</code> clu
   
   <div class="blogpost-meta-tags">
               
-      <a href="../../tags.html#basic" class="tag-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.5 7A1.5 1.5 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4 1.5 1.5 0 0 1 7 5.5 1.5 1.5 0 0 1 5.5 7m15.91 4.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.11 0-2 .89-2 2v7c0 .55.22 1.05.59 1.41l8.99 9c.37.36.87.59 1.42.59s1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.56-.23-1.06-.59-1.42"/></svg>basic</a>
+      <a href="../../tags/#tag:basic" class="tag-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.5 7A1.5 1.5 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4 1.5 1.5 0 0 1 7 5.5 1.5 1.5 0 0 1 5.5 7m15.91 4.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.11 0-2 .89-2 2v7c0 .55.22 1.05.59 1.41l8.99 9c.37.36.87.59 1.42.59s1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.56-.23-1.06-.59-1.42"/></svg>basic</a>
               
-      <a href="../../tags.html#measures" class="tag-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.5 7A1.5 1.5 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4 1.5 1.5 0 0 1 7 5.5 1.5 1.5 0 0 1 5.5 7m15.91 4.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.11 0-2 .89-2 2v7c0 .55.22 1.05.59 1.41l8.99 9c.37.36.87.59 1.42.59s1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.56-.23-1.06-.59-1.42"/></svg>measures</a>
+      <a href="../../tags/#tag:measures" class="tag-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.5 7A1.5 1.5 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4 1.5 1.5 0 0 1 7 5.5 1.5 1.5 0 0 1 5.5 7m15.91 4.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.11 0-2 .89-2 2v7c0 .55.22 1.05.59 1.41l8.99 9c.37.36.87.59 1.42.59s1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.56-.23-1.06-.59-1.42"/></svg>measures</a>
     
   </div>
   

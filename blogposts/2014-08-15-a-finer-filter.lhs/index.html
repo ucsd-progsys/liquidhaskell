@@ -239,25 +239,6 @@
   
   
     <li class="md-tabs__item">
-      <a href="../.." class="md-tabs__link">
-        
-  
-  
-    
-  
-  
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
       <a href="../../install/" class="md-tabs__link">
         
   
@@ -303,25 +284,6 @@
     
   
   <i aria-hidden=true class='mdi mdi-flag'></i> Flag Reference
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../.." class="md-tabs__link">
-        
-  
-  
-    
-  
-  
 
       </a>
     </li>
@@ -486,33 +448,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../install/" class="md-nav__link">
         
   
@@ -594,33 +529,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../papers/" class="md-nav__link">
         
   
@@ -664,10 +572,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
         
           
-          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
             
   
   
@@ -685,8 +593,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_9">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -716,10 +624,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_1" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_1" checked>
         
           
-          <label class="md-nav__link" for="__nav_9_1" id="__nav_9_1_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_7_1" id="__nav_7_1_label" tabindex="0">
             
   
   
@@ -737,8 +645,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_1_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_9_1">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7_1">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1768,7 +1676,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../tags.html" class="md-nav__link">
+      <a href="../../tags/" class="md-nav__link">
         
   
   
@@ -1909,7 +1817,7 @@
       
       
       
-        <span class="md-tag">abstract-refinements</span>
+        <a href="../../tags/#tag:abstract-refinements" class="md-tag">abstract-refinements</a>
       
     
   </nav>
@@ -1923,7 +1831,7 @@
 
 <p>This morning, I came across this <a href="https://twitter.com/ertesx/status/500034598042996736">nice post</a> which describes how one can write a very expressive type for 
 <code>filter</code> using <a href="https://hackage.haskell.org/package/singletons">singletons</a>.</p>
-<p>Lets see how one might achieve this with <a href="/blog/2013/06/03/abstracting-over-refinements.lhs/">abstract refinements</a>.</p>
+<p>Lets see how one might achieve this with <a href="../2013-06-03-abstracting-over-refinements.lhs/">abstract refinements</a>.</p>
 <!-- more -->
 
 <div class="hidden">
@@ -2132,7 +2040,7 @@ of both, which is simply <code>Int</code> in all the cases. </p>
 <p>What we need is a generic way of specifying that the 
 output of the predicate is not just an <code>a</code> but an <code>a</code> 
 that <em>also</em> enjoys whatever property we are filtering for. </p>
-<p>This sounds like a job for <a href="/blog/2013/06/03/abstracting-over-refinements.lhs/">abstract refinements</a> which
+<p>This sounds like a job for <a href="../2013-06-03-abstracting-over-refinements.lhs/">abstract refinements</a> which
 let us parameterize a signature over its refinements:</p>
 <pre><span class=hs-linenum>208: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>filter3</span>      <span class='hs-keyglyph'>::</span> <span class='hs-keyword'>forall</span> <span class='hs-varid'>a</span> <span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Prop</span><span class='hs-varop'>&gt;.</span>
 <span class=hs-linenum>209: </span>                      <span class='hs-layout'>(</span><span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Maybe</span> <span class='hs-varid'>a</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span><span class='hs-varop'>&gt;</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span><span class='hs-varop'>&gt;</span><span class='hs-keyglyph'>]</span> <span class='hs-keyword'>@-}</span>
@@ -2219,7 +2127,7 @@ quite a lot.</p>
 -&gt; {v : [{VV : a&lt;p&gt; | true}] | ((Set_sub (elts v) (elts x3)))}</span><span class='hs-varid'>filter</span></a> <a class=annot href="#"><span class=annottext>x1:a -&gt; (Maybe {VV : a | ((papp1 p VV)) &amp;&amp; (VV == x1)})</span><span class='hs-varid'>f</span></a> <a class=annot href="#"><span class=annottext>{x3 : [a] | (x3 == xs) &amp;&amp; ((len x3) &gt;= 0)}</span><span class='hs-varid'>xs</span></a>
 </pre>
 
-<p>where <code>elts</code> describes the <a href="/blog/2013/03/26/talking-about-sets.lhs/">set of elements in a list</a>.</p>
+<p>where <code>elts</code> describes the <a href="../2013-03-26-talking-about-sets.lhs/">set of elements in a list</a>.</p>
 <p><strong>Note:</strong> The <em>implementation</em> of each of the above <code>filter</code> functions are
 the same; they only differ in their type <em>specification</em>.</p>
 <h2 id="conclusion">Conclusion<a class="headerlink" href="#conclusion" title="Permanent link">&para;</a></h2>
@@ -2269,7 +2177,7 @@ shows how refinements can be further generalized to make Boolean filters fine.</
   
   <div class="blogpost-meta-tags">
               
-      <a href="../../tags.html#abstract-refinements" class="tag-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.5 7A1.5 1.5 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4 1.5 1.5 0 0 1 7 5.5 1.5 1.5 0 0 1 5.5 7m15.91 4.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.11 0-2 .89-2 2v7c0 .55.22 1.05.59 1.41l8.99 9c.37.36.87.59 1.42.59s1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.56-.23-1.06-.59-1.42"/></svg>abstract-refinements</a>
+      <a href="../../tags/#tag:abstract-refinements" class="tag-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.5 7A1.5 1.5 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4 1.5 1.5 0 0 1 7 5.5 1.5 1.5 0 0 1 5.5 7m15.91 4.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.11 0-2 .89-2 2v7c0 .55.22 1.05.59 1.41l8.99 9c.37.36.87.59 1.42.59s1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.56-.23-1.06-.59-1.42"/></svg>abstract-refinements</a>
     
   </div>
   

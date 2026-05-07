@@ -239,25 +239,6 @@
   
   
     <li class="md-tabs__item">
-      <a href="../.." class="md-tabs__link">
-        
-  
-  
-    
-  
-  
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
       <a href="../../install/" class="md-tabs__link">
         
   
@@ -303,25 +284,6 @@
     
   
   <i aria-hidden=true class='mdi mdi-flag'></i> Flag Reference
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../.." class="md-tabs__link">
-        
-  
-  
-    
-  
-  
 
       </a>
     </li>
@@ -486,33 +448,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../install/" class="md-nav__link">
         
   
@@ -594,33 +529,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../papers/" class="md-nav__link">
         
   
@@ -664,10 +572,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
         
           
-          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
             
   
   
@@ -685,8 +593,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_9">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -716,10 +624,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_1" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_1" checked>
         
           
-          <label class="md-nav__link" for="__nav_9_1" id="__nav_9_1_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_7_1" id="__nav_7_1_label" tabindex="0">
             
   
   
@@ -737,8 +645,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_1_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_9_1">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7_1">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1790,7 +1698,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../tags.html" class="md-nav__link">
+      <a href="../../tags/" class="md-nav__link">
         
   
   
@@ -1953,7 +1861,7 @@
       
       
       
-        <span class="md-tag">basic</span>
+        <a href="../../tags/#tag:basic" class="md-tag">basic</a>
       
     
   </nav>
@@ -2013,7 +1921,7 @@ the types for the <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/ma
 </ul>
 <p>There are several things worth paying close attention to in the above snippet.</p>
 <p><strong>Measures</strong></p>
-<p><a href="/blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/">Recall</a> that measures define auxiliary (or so-called <strong>ghost</strong>)
+<p><a href="../2013-01-31-safely-catching-a-list-by-its-tail.lhs/">Recall</a> that measures define auxiliary (or so-called <strong>ghost</strong>)
 properties of data values that are useful for specification and verification, 
 but which <em>don't actually exist at run-time</em>. Thus, they will 
 <em>only appear in specifications</em>, i.e. inside type refinements, but <em>never</em> 
@@ -2194,7 +2102,7 @@ the elements of an integer vector.</p>
                                              (vlen([VV]) &gt;= 0)}</span><span class='hs-varid'>vec</span></a>
 </pre>
 
-<p>where the function <code>abz</code> is the absolute value function from <a href="/blog/2013/01/01/refinement-types-101.lhs/">before</a>.</p>
+<p>where the function <code>abz</code> is the absolute value function from <a href="../2013-01-01-refinement-types-101.lhs/">before</a>.</p>
 <pre><span class=hs-linenum>176: </span><a class=annot href="#"><span class=annottext>(GHC.Num.Num a)
 -&gt; (GHC.Classes.Ord a) -&gt; n:a -&gt; {VV : a | (VV &gt;= 0),(VV &gt;= n)}</span><span class='hs-definition'>abz</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>n</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : (GHC.Integer.Type.Integer) | (VV = 0)}</span><span class='hs-keyword'>if</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>x:a
 -&gt; y:a -&gt; {VV : (GHC.Types.Bool) | ((? Prop([VV])) &lt;=&gt; (x &lt;= y))}</span><span class='hs-varop'>&lt;=</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV = n)}</span><span class='hs-varid'>n</span></a> <span class='hs-keyword'>then</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV = n)}</span><span class='hs-varid'>n</span></a> <span class='hs-keyword'>else</span> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>a</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>x:a -&gt; y:a -&gt; {VV : a | (VV = (x - y))}</span><span class='hs-comment'>-</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV = n)}</span><span class='hs-varid'>n</span></a><span class='hs-layout'>)</span> 
@@ -2620,7 +2528,7 @@ like lists and trees.</p>
   
   <div class="blogpost-meta-tags">
               
-      <a href="../../tags.html#basic" class="tag-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.5 7A1.5 1.5 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4 1.5 1.5 0 0 1 7 5.5 1.5 1.5 0 0 1 5.5 7m15.91 4.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.11 0-2 .89-2 2v7c0 .55.22 1.05.59 1.41l8.99 9c.37.36.87.59 1.42.59s1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.56-.23-1.06-.59-1.42"/></svg>basic</a>
+      <a href="../../tags/#tag:basic" class="tag-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.5 7A1.5 1.5 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4 1.5 1.5 0 0 1 7 5.5 1.5 1.5 0 0 1 5.5 7m15.91 4.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.11 0-2 .89-2 2v7c0 .55.22 1.05.59 1.41l8.99 9c.37.36.87.59 1.42.59s1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.56-.23-1.06-.59-1.42"/></svg>basic</a>
     
   </div>
   

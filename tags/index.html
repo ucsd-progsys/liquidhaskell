@@ -8,34 +8,30 @@
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
       
-        <meta name="author" content="Niki Vazou">
+      
+        <link rel="canonical" href="https://ucsd-progsys.github.io/liquidhaskell/tags/">
       
       
-        <link rel="canonical" href="https://ucsd-progsys.github.io/liquidhaskell/blogposts/2013-12-09-checking-termination.lhs/">
+        <link rel="prev" href="../blogposts/2013-01-01-refinement-types-101.lhs/">
       
-      
-        <link rel="prev" href="../2013-12-14-gcd.lhs/">
-      
-      
-        <link rel="next" href="../2013-12-02-getting-to-the-bottom.lhs/">
       
       
         
       
       
-      <link rel="icon" href="../../static/img/favicon.ico">
+      <link rel="icon" href="../static/img/favicon.ico">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>Checking Termination - LiquidHaskell Docs</title>
+        <title>Tags - LiquidHaskell Docs</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -56,11 +52,11 @@
     
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@5.9.55/css/materialdesignicons.min.css">
     
-      <link rel="stylesheet" href="../../static/liquid-light.css">
+      <link rel="stylesheet" href="../static/liquid-light.css">
     
-      <link rel="stylesheet" href="../../static/misc.css">
+      <link rel="stylesheet" href="../static/misc.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -83,7 +79,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#looping-over-vectors" class="md-skip">
+        <a href="#tags" class="md-skip">
           Skip to content
         </a>
       
@@ -97,9 +93,9 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="LiquidHaskell Docs" class="md-header__button md-logo" aria-label="LiquidHaskell Docs" data-md-component="logo">
+    <a href=".." title="LiquidHaskell Docs" class="md-header__button md-logo" aria-label="LiquidHaskell Docs" data-md-component="logo">
       
-  <img src="../../static/img/logo.png" alt="logo">
+  <img src="../static/img/logo.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -116,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Checking Termination
+              Tags
             
           </span>
         </div>
@@ -239,7 +235,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../install/" class="md-tabs__link">
+      <a href="../install/" class="md-tabs__link">
         
   
   
@@ -258,7 +254,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../specifications/" class="md-tabs__link">
+      <a href="../specifications/" class="md-tabs__link">
         
   
   
@@ -277,7 +273,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../options/" class="md-tabs__link">
+      <a href="../options/" class="md-tabs__link">
         
   
   
@@ -296,7 +292,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../papers/" class="md-tabs__link">
+      <a href="../papers/" class="md-tabs__link">
         
   
   
@@ -328,7 +324,7 @@
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="../2025-03-20-lh-release/" class="md-tabs__link">
+        <a href="../blogposts/2025-03-20-lh-release/" class="md-tabs__link">
           
   
   
@@ -365,9 +361,9 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="LiquidHaskell Docs" class="md-nav__button md-logo" aria-label="LiquidHaskell Docs" data-md-component="logo">
+    <a href=".." title="LiquidHaskell Docs" class="md-nav__button md-logo" aria-label="LiquidHaskell Docs" data-md-component="logo">
       
-  <img src="../../static/img/logo.png" alt="logo">
+  <img src="../static/img/logo.png" alt="logo">
 
     </a>
     LiquidHaskell Docs
@@ -448,7 +444,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../install/" class="md-nav__link">
+      <a href="../install/" class="md-nav__link">
         
   
   
@@ -475,7 +471,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../specifications/" class="md-nav__link">
+      <a href="../specifications/" class="md-nav__link">
         
   
   
@@ -502,7 +498,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../options/" class="md-nav__link">
+      <a href="../options/" class="md-nav__link">
         
   
   
@@ -529,7 +525,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../papers/" class="md-nav__link">
+      <a href="../papers/" class="md-nav__link">
         
   
   
@@ -608,8 +604,6 @@
                 
   
   
-    
-  
   
   
     
@@ -620,11 +614,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_1" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_1" >
         
           
           <label class="md-nav__link" for="__nav_7_1" id="__nav_7_1_label" tabindex="0">
@@ -645,7 +639,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_1_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_1_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_7_1">
             <span class="md-nav__icon md-icon"></span>
             
@@ -663,7 +657,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2025-03-20-lh-release/" class="md-nav__link">
+      <a href="../blogposts/2025-03-20-lh-release/" class="md-nav__link">
         
   
   
@@ -691,7 +685,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2020-08-20-lh-as-a-ghc-plugin.lhs/" class="md-nav__link">
+      <a href="../blogposts/2020-08-20-lh-as-a-ghc-plugin.lhs/" class="md-nav__link">
         
   
   
@@ -719,7 +713,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2020-04-12-polymorphic-perplexion.lhs/" class="md-nav__link">
+      <a href="../blogposts/2020-04-12-polymorphic-perplexion.lhs/" class="md-nav__link">
         
   
   
@@ -747,7 +741,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2019-10-20-why-types.lhs/" class="md-nav__link">
+      <a href="../blogposts/2019-10-20-why-types.lhs/" class="md-nav__link">
         
   
   
@@ -775,7 +769,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2018-05-17-hillel-verifier-rodeo-I-leftpad.lhs/" class="md-nav__link">
+      <a href="../blogposts/2018-05-17-hillel-verifier-rodeo-I-leftpad.lhs/" class="md-nav__link">
         
   
   
@@ -803,7 +797,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2018-02-23-measures-and-case-splitting.lhs/" class="md-nav__link">
+      <a href="../blogposts/2018-02-23-measures-and-case-splitting.lhs/" class="md-nav__link">
         
   
   
@@ -831,7 +825,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2017-12-24-splitting-and-splicing-intervals-II.lhs/" class="md-nav__link">
+      <a href="../blogposts/2017-12-24-splitting-and-splicing-intervals-II.lhs/" class="md-nav__link">
         
   
   
@@ -859,7 +853,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2017-12-15-splitting-and-splicing-intervals-I.lhs/" class="md-nav__link">
+      <a href="../blogposts/2017-12-15-splitting-and-splicing-intervals-I.lhs/" class="md-nav__link">
         
   
   
@@ -887,7 +881,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2017-03-20-arithmetic-overflows.lhs/" class="md-nav__link">
+      <a href="../blogposts/2017-03-20-arithmetic-overflows.lhs/" class="md-nav__link">
         
   
   
@@ -915,7 +909,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2016-10-06-structural-induction.lhs/" class="md-nav__link">
+      <a href="../blogposts/2016-10-06-structural-induction.lhs/" class="md-nav__link">
         
   
   
@@ -943,7 +937,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2016-09-18-refinement-reflection.lhs/" class="md-nav__link">
+      <a href="../blogposts/2016-09-18-refinement-reflection.lhs/" class="md-nav__link">
         
   
   
@@ -971,7 +965,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2016-09-01-normal-forms.lhs/" class="md-nav__link">
+      <a href="../blogposts/2016-09-01-normal-forms.lhs/" class="md-nav__link">
         
   
   
@@ -999,7 +993,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2015-01-30-okasakis-lazy-queue.lhs/" class="md-nav__link">
+      <a href="../blogposts/2015-01-30-okasakis-lazy-queue.lhs/" class="md-nav__link">
         
   
   
@@ -1027,7 +1021,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2014-08-15-a-finer-filter.lhs/" class="md-nav__link">
+      <a href="../blogposts/2014-08-15-a-finer-filter.lhs/" class="md-nav__link">
         
   
   
@@ -1055,7 +1049,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2014-05-28-pointers-gone-wild.lhs/" class="md-nav__link">
+      <a href="../blogposts/2014-05-28-pointers-gone-wild.lhs/" class="md-nav__link">
         
   
   
@@ -1083,7 +1077,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2014-02-11-the-advantage-of-measures.lhs/" class="md-nav__link">
+      <a href="../blogposts/2014-02-11-the-advantage-of-measures.lhs/" class="md-nav__link">
         
   
   
@@ -1111,7 +1105,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2013-12-14-gcd.lhs/" class="md-nav__link">
+      <a href="../blogposts/2013-12-14-gcd.lhs/" class="md-nav__link">
         
   
   
@@ -1136,35 +1130,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Checking Termination
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../blogposts/2013-12-09-checking-termination.lhs/" class="md-nav__link">
         
   
   
@@ -1180,68 +1149,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#looping-over-vectors" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Looping Over Vectors
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#proving-termination-by-handwaving" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Proving Termination By Hand(waving)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#proving-termination-by-types" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Proving Termination By Types
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#choosing-the-correct-argument" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Choosing the Correct Argument
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1254,7 +1161,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2013-12-02-getting-to-the-bottom.lhs/" class="md-nav__link">
+      <a href="../blogposts/2013-12-02-getting-to-the-bottom.lhs/" class="md-nav__link">
         
   
   
@@ -1282,7 +1189,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2013-11-23-telling_lies.lhs/" class="md-nav__link">
+      <a href="../blogposts/2013-11-23-telling_lies.lhs/" class="md-nav__link">
         
   
   
@@ -1310,7 +1217,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2013-10-10-csv-tables.lhs/" class="md-nav__link">
+      <a href="../blogposts/2013-10-10-csv-tables.lhs/" class="md-nav__link">
         
   
   
@@ -1338,7 +1245,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2013-07-29-putting-things-in-order.lhs/" class="md-nav__link">
+      <a href="../blogposts/2013-07-29-putting-things-in-order.lhs/" class="md-nav__link">
         
   
   
@@ -1366,7 +1273,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2013-06-03-abstracting-over-refinements.lhs/" class="md-nav__link">
+      <a href="../blogposts/2013-06-03-abstracting-over-refinements.lhs/" class="md-nav__link">
         
   
   
@@ -1394,7 +1301,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2013-05-24-unique-zipper.lhs/" class="md-nav__link">
+      <a href="../blogposts/2013-05-24-unique-zipper.lhs/" class="md-nav__link">
         
   
   
@@ -1422,7 +1329,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2013-03-26-talking-about-sets.lhs/" class="md-nav__link">
+      <a href="../blogposts/2013-03-26-talking-about-sets.lhs/" class="md-nav__link">
         
   
   
@@ -1450,7 +1357,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2013-03-04-bounding-vectors.lhs/" class="md-nav__link">
+      <a href="../blogposts/2013-03-04-bounding-vectors.lhs/" class="md-nav__link">
         
   
   
@@ -1478,7 +1385,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2013-02-17-kmeans-clustering-II.lhs/" class="md-nav__link">
+      <a href="../blogposts/2013-02-17-kmeans-clustering-II.lhs/" class="md-nav__link">
         
   
   
@@ -1506,7 +1413,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2013-02-16-kmeans-clustering-I.lhs/" class="md-nav__link">
+      <a href="../blogposts/2013-02-16-kmeans-clustering-I.lhs/" class="md-nav__link">
         
   
   
@@ -1534,7 +1441,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2013-01-31-safely-catching-a-list-by-its-tail.lhs/" class="md-nav__link">
+      <a href="../blogposts/2013-01-31-safely-catching-a-list-by-its-tail.lhs/" class="md-nav__link">
         
   
   
@@ -1562,7 +1469,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2013-01-28-bounding-vectors.lhs/" class="md-nav__link">
+      <a href="../blogposts/2013-01-28-bounding-vectors.lhs/" class="md-nav__link">
         
   
   
@@ -1590,7 +1497,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2013-01-27-refinements101-reax.lhs/" class="md-nav__link">
+      <a href="../blogposts/2013-01-27-refinements101-reax.lhs/" class="md-nav__link">
         
   
   
@@ -1618,7 +1525,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2013-01-01-refinement-types-101.lhs/" class="md-nav__link">
+      <a href="../blogposts/2013-01-01-refinement-types-101.lhs/" class="md-nav__link">
         
   
   
@@ -1651,10 +1558,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../tags/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tags
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1670,6 +1604,158 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#tag:abstract-refinements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        abstract-refinements
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tag:advanced" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        advanced
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tag:announcement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        announcement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tag:basic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        basic
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tag:benchmarks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        benchmarks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tag:induction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        induction
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tag:measures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        measures
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tag:reflection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        reflection
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tag:sets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sets
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tag:termination" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        termination
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tag:text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        text
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tag:uniqueness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        uniqueness
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1699,6 +1785,8 @@
   
   
   
+    
+  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
@@ -1707,10 +1795,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#looping-over-vectors" class="md-nav__link">
+  <a href="#tag:abstract-refinements" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Looping Over Vectors
+        abstract-refinements
       
     </span>
   </a>
@@ -1718,10 +1806,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#proving-termination-by-handwaving" class="md-nav__link">
+  <a href="#tag:advanced" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Proving Termination By Hand(waving)
+        advanced
       
     </span>
   </a>
@@ -1729,10 +1817,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#proving-termination-by-types" class="md-nav__link">
+  <a href="#tag:announcement" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Proving Termination By Types
+        announcement
       
     </span>
   </a>
@@ -1740,10 +1828,98 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#choosing-the-correct-argument" class="md-nav__link">
+  <a href="#tag:basic" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Choosing the Correct Argument
+        basic
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tag:benchmarks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        benchmarks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tag:induction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        induction
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tag:measures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        measures
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tag:reflection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        reflection
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tag:sets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sets
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tag:termination" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        termination
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tag:text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        text
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tag:uniqueness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        uniqueness
       
     </span>
   </a>
@@ -1767,176 +1943,426 @@
 
                   
 
-  <nav class="md-tags" >
+
+  
+  
+
+
+<h1 id="tags">Tags<a class="headerlink" href="#tags" title="Permanent link">&para;</a></h1>
+
+
+  <h2 id="tag:abstract-refinements">
+
+
+<span class="md-tag">abstract-refinements</span><a class="headerlink" href="#tag:abstract-refinements" title="Permanent link">&para;</a></h2>
+  <ul>
     
-      
-      
-      
-      
-        <a href="../../tags/#tag:termination" class="md-tag">termination</a>
-      
+      <li>
+        <a href="../blogposts/2014-08-15-a-finer-filter.lhs/">
+          A Finer Filter
+        </a>
+      </li>
     
-  </nav>
-
-
-  
-  
-
-
-  <h1>Checking Termination</h1>
-
-<p>As explained in the <a href="../2013-11-23-telling_lies.lhs/">last</a> <a href="../2013-12-02-getting-to-the-bottom.lhs/">two</a> posts, we need a termination
-checker to ensure that LiquidHaskell is not tricked by divergent, lazy
-computations into telling lies. Happily, it turns out that with very 
-little retrofitting, and a bit of jiu jitsu, we can use refinements 
-themselves to prove termination!</p>
-<!-- more -->
-
-<p><br></p>
-<div class="row-fluid">
-   <div class="span12 pagination-centered">
-   <p style="text-align:center">
-   <img class="center-block" src="../../static/img/falling.jpg" alt="Falling Down" width="300">
-       <br>
-       How do you prove this fellow will stop falling?
-       <br>
-   </p>
-   </div>
-</div>
-
-<pre><span class=hs-linenum>38: </span><span class='hs-keyword'>module</span> <span class='hs-conid'>Termination</span> <span class='hs-keyword'>where</span>
-<span class=hs-linenum>39: </span>
-<span class=hs-linenum>40: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Prelude</span>     <span class='hs-varid'>hiding</span> <span class='hs-layout'>(</span><span class='hs-varid'>sum</span><span class='hs-layout'>)</span>
-<span class=hs-linenum>41: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Data</span><span class='hs-varop'>.</span><span class='hs-conid'>Vector</span> <span class='hs-varid'>hiding</span> <span class='hs-layout'>(</span><span class='hs-varid'>sum</span><span class='hs-layout'>)</span>
-</pre>
-
-<p>Lets first see how LiquidHaskell proves termination on simple 
-recursive functions, and then later, we'll see how to look at 
-fancier cases.</p>
-<h2 id="looping-over-vectors">Looping Over Vectors<a class="headerlink" href="#looping-over-vectors" title="Permanent link">&para;</a></h2>
-<p>Lets write a bunch of little functions that operate on 1-dimensional vectors</p>
-<pre><span class=hs-linenum>54: </span><span class='hs-keyword'>type</span> <span class='hs-conid'>Val</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>Int</span>
-<span class=hs-linenum>55: </span><span class='hs-keyword'>type</span> <span class='hs-conid'>Vec</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>Vector</span> <span class='hs-conid'>Val</span>
-</pre>
-
-<p>Next, lets write a simple recursive function that loops over to add up
-the first <code>n</code> elements of a vector:</p>
-<pre><span class=hs-linenum>62: </span><span class='hs-definition'>sum</span>     <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Vec</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Val</span>
-<span class=hs-linenum>63: </span><a class=annot href="#"><span class=annottext>x1:(Data.Vector.Vector (GHC.Types.Int))
--&gt; {VV : (GHC.Types.Int) | (VV &gt;= 0) &amp;&amp; (VV &lt; (vlen x1))}
--&gt; (GHC.Types.Int)</span><span class='hs-definition'>sum</span></a> <a class=annot href="#"><span class=annottext>(Data.Vector.Vector (GHC.Types.Int))</span><span class='hs-varid'>a</span></a> <span class='hs-num'>0</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>x1:(GHC.Prim.Int#) -&gt; {VV : (GHC.Types.Int) | (VV == (x1  :  int))}</span><span class='hs-num'>0</span></a>
-<span class=hs-linenum>64: </span><span class='hs-definition'>sum</span> <span class='hs-varid'>a</span> <span class='hs-varid'>n</span> <span class='hs-keyglyph'>=</span> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : (Data.Vector.Vector (GHC.Types.Int)) | (VV == a) &amp;&amp; ((vlen VV) &gt;= 0)}</span><span class='hs-varid'>a</span></a> <a class=annot href="#"><span class=annottext>x1:(Data.Vector.Vector (GHC.Types.Int))
--&gt; {VV : (GHC.Types.Int) | (VV &lt; (vlen x1)) &amp;&amp; (0 &lt;= VV)}
--&gt; (GHC.Types.Int)</span><span class='hs-varop'>!</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV &gt;= 0) &amp;&amp; (VV &lt; (vlen a))}</span><span class='hs-varid'>n</span></a><a class=annot href="#"><span class=annottext>x1:(GHC.Types.Int)
--&gt; x2:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int) | (VV == (x1 - x2))}</span><span class='hs-comment'>-</span></a><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (1  :  int))}</span><span class='hs-num'>1</span></a><span class='hs-layout'>)</span><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>x1:(GHC.Types.Int)
--&gt; x2:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int) | (VV == (x1 + x2))}</span><span class='hs-varop'>+</span></a> <a class=annot href="#"><span class=annottext>x1:(Data.Vector.Vector (GHC.Types.Int))
--&gt; {VV : (GHC.Types.Int) | (VV &gt;= 0) &amp;&amp; (VV &lt; (vlen x1))}
--&gt; (GHC.Types.Int)</span><span class='hs-varid'>sum</span></a> <a class=annot href="#"><span class=annottext>{VV : (Data.Vector.Vector (GHC.Types.Int)) | (VV == a) &amp;&amp; ((vlen VV) &gt;= 0)}</span><span class='hs-varid'>a</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV &gt;= 0) &amp;&amp; (VV &lt; (vlen a))}</span><span class='hs-varid'>n</span></a><a class=annot href="#"><span class=annottext>x1:(GHC.Types.Int)
--&gt; x2:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int) | (VV == (x1 - x2))}</span><span class='hs-comment'>-</span></a><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (1  :  int))}</span><span class='hs-num'>1</span></a><span class='hs-layout'>)</span>
-</pre>
-
-<h2 id="proving-termination-by-handwaving">Proving Termination By Hand(waving)<a class="headerlink" href="#proving-termination-by-handwaving" title="Permanent link">&para;</a></h2>
-<p>Does <code>sum</code> terminate? </p>
-<p>First off, it is apparent that if we call <code>sum</code> with a
-negative <code>n</code> then it <strong>will not</strong> terminate. 
-Thus, we should only call <code>sum</code> with non-negative integers.</p>
-<p>Fine, lets assume <code>n</code> is non-negative. Why then does it terminate?</p>
-<p>Intuitively,</p>
-<ol>
-<li>
-<p>If <code>n</code> is <code>0</code> then it trivially returns with the value <code>0</code>.</p>
-</li>
-<li>
-<p>If <code>n</code> is non-zero, then we recurse <em>but</em> with a strictly smaller <code>n</code> ...</p>
-</li>
-<li>
-<p>... but ultimately hit <code>0</code> at which point it terminates.</p>
-</li>
-</ol>
-<p>Thus we can, somewhat more formally, prove termination by induction on <code>n</code>. </p>
-<p><strong>Base Case</strong> <code>n == 0</code> The function clearly terminates for the base case input of <code>0</code>.</p>
-<p><strong>Inductive Hypothesis</strong> Lets assume that <code>sum</code> terminates on all <code>0 &lt;= k &lt; n</code>.</p>
-<p><strong>Inductive Step</strong> Prove that <code>sum n</code> only recursively invokes <code>sum</code> with values that
-satisfy the inductive hypothesis and hence, which terminate.</p>
-<p>This reasoning suffices to convince ourselves that <code>sum i</code> terminates for 
-every natural number <code>i</code>. That is, we have shown that <code>sum</code> terminates 
-because a <em>well-founded metric</em> (i.e., the natural number <code>i</code>) is decreasing 
-at each recursive call.</p>
-<h2 id="proving-termination-by-types">Proving Termination By Types<a class="headerlink" href="#proving-termination-by-types" title="Permanent link">&para;</a></h2>
-<p>We can teach LiquidHaskell to prove termination by applying the same reasoning 
-as above, by rephrasing it in terms of refinement types.</p>
-<p>First, we specify that the input is restricted to the set of <code>Nat</code>ural numbers</p>
-<pre><span class=hs-linenum>109: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>sum</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span><span class='hs-conop'>:</span><span class='hs-conid'>Vec</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>{v:</span><span class='hs-conid'>Nat</span> <span class='hs-keyword'>| v &lt; (vlen a)}</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Val</span> <span class='hs-keyword'>@-}</span>
-</pre>
-
-<p>where recall that <code>Nat</code> is just the refinement type <code>{v:Int | v &gt;= 0}</code>.</p>
-<p>Second, we typecheck the <em>body</em> of <code>sum</code> under an environment that
-restricts <code>sum</code> to only be called on inputs less than <code>n</code>, i.e. using
-an environment:</p>
-<ul>
-<li><code>a   :: Vec</code></li>
-<li><code>n   :: Nat</code></li>
-<li><code>sum :: Vec -&gt; n':{v:Nat | v &lt; n} -&gt; Val</code></li>
-</ul>
-<p>This ensures that any (recursive) call in the body only calls <code>sum</code> 
-with inputs smaller than the current parameter <code>n</code>. Since its body 
-typechecks in this environment, i.e. <code>sum</code> is called with <code>n-1</code> which 
-is smaller than <code>n</code> and, in this case, a <code>Nat</code>, LiquidHaskell proves 
-that sum terminates for all <code>n</code>.</p>
-<p>For those keeping track at home, this is the technique of 
-<a href="http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.124.5589">sized types</a>, 
-, expressed using refinements. Sized types themselves are an instance of 
-the classical method of proving termination via well founded metrics that 
-goes back, at least, to <a href="http://www.turingarchive.org/viewer/?id=462&amp;title=01b">Turing</a>.</p>
-<h2 id="choosing-the-correct-argument">Choosing the Correct Argument<a class="headerlink" href="#choosing-the-correct-argument" title="Permanent link">&para;</a></h2>
-<p>The example above is quite straightforward, and you might well wonder if this
-method works well for ``real-world" programs. With a few generalizations
-and extensions, and by judiciously using the wealth of information captured in
-refinement types, the answer is an emphatic, yes!</p>
-<p>Lets see one extension today.</p>
-<p>We saw that liquidHaskell can happily check that some Natural number is decreasing
-at each iteration, but it uses a na&#239;ve heuristic to choose which one -- for
-now, assume that it always chooses <em>the first</em> <code>Int</code> parameter.</p>
-<p>As you might imagine, this is quite simpleminded. </p>
-<p>Consider, a tail-recursive implementation of <code>sum</code>:</p>
-<pre><span class=hs-linenum>153: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>sum'</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span><span class='hs-conop'>:</span><span class='hs-conid'>Vec</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Val</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>{v:</span><span class='hs-conid'>Nat</span><span class='hs-keyword'>| v &lt; (vlen a)}</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Val</span> <span class='hs-keyword'>@-}</span>
-<span class=hs-linenum>154: </span><span class='hs-definition'>sum'</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Vec</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Val</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Val</span>
-<span class=hs-linenum>155: </span><a class=annot href="#"><span class=annottext>x1:(Data.Vector.Vector (GHC.Types.Int))
--&gt; (GHC.Types.Int)
--&gt; {VV : (GHC.Types.Int) | (VV &gt;= 0) &amp;&amp; (VV &lt; (vlen x1))}
--&gt; (GHC.Types.Int)</span><span class='hs-definition'>sum'</span></a> <a class=annot href="#"><span class=annottext>(Data.Vector.Vector (GHC.Types.Int))</span><span class='hs-varid'>a</span></a> <a class=annot href="#"><span class=annottext>(GHC.Types.Int)</span><span class='hs-varid'>acc</span></a> <span class='hs-num'>0</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == acc)}</span><span class='hs-varid'>acc</span></a> <a class=annot href="#"><span class=annottext>x1:(GHC.Types.Int)
--&gt; x2:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int) | (VV == (x1 + x2))}</span><span class='hs-varop'>+</span></a> <a class=annot href="#"><span class=annottext>{VV : (Data.Vector.Vector (GHC.Types.Int)) | (VV == a) &amp;&amp; ((vlen VV) &gt;= 0)}</span><span class='hs-varid'>a</span></a><a class=annot href="#"><span class=annottext>x1:(Data.Vector.Vector (GHC.Types.Int))
--&gt; {VV : (GHC.Types.Int) | (VV &lt; (vlen x1)) &amp;&amp; (0 &lt;= VV)}
--&gt; (GHC.Types.Int)</span><span class='hs-varop'>!</span></a><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (0  :  int))}</span><span class='hs-num'>0</span></a> 
-<span class=hs-linenum>156: </span><span class='hs-definition'>sum'</span> <span class='hs-varid'>a</span> <span class='hs-varid'>acc</span> <span class='hs-varid'>n</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>x1:(Data.Vector.Vector (GHC.Types.Int))
--&gt; (GHC.Types.Int)
--&gt; {VV : (GHC.Types.Int) | (VV &gt;= 0) &amp;&amp; (VV &lt; (vlen x1))}
--&gt; (GHC.Types.Int)</span><span class='hs-varid'>sum'</span></a> <a class=annot href="#"><span class=annottext>{VV : (Data.Vector.Vector (GHC.Types.Int)) | (VV == a) &amp;&amp; ((vlen VV) &gt;= 0)}</span><span class='hs-varid'>a</span></a> <span class='hs-layout'>(</span><span class=hs-error><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == acc)}</span><span class='hs-varid'>acc</span></a></span><span class=hs-error> </span><span class=hs-error><a class=annot href="#"><span class=annottext>x1:(GHC.Types.Int)
--&gt; x2:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int) | (VV == (x1 + x2))}</span><span class='hs-varop'>+</span></a></span><span class=hs-error> </span><span class=hs-error><a class=annot href="#"><span class=annottext>{VV : (Data.Vector.Vector (GHC.Types.Int)) | (VV == a) &amp;&amp; ((vlen VV) &gt;= 0)}</span><span class='hs-varid'>a</span></a></span><span class=hs-error><a class=annot href="#"><span class=annottext>x1:(Data.Vector.Vector (GHC.Types.Int))
--&gt; {VV : (GHC.Types.Int) | (VV &lt; (vlen x1)) &amp;&amp; (0 &lt;= VV)}
--&gt; (GHC.Types.Int)</span><span class='hs-varop'>!</span></a></span><span class=hs-error><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV &gt;= 0) &amp;&amp; (VV &lt; (vlen a))}</span><span class='hs-varid'>n</span></a></span><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV &gt;= 0) &amp;&amp; (VV &lt; (vlen a))}</span><span class='hs-varid'>n</span></a><a class=annot href="#"><span class=annottext>x1:(GHC.Types.Int)
--&gt; x2:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int) | (VV == (x1 - x2))}</span><span class='hs-comment'>-</span></a><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (1  :  int))}</span><span class='hs-num'>1</span></a><span class='hs-layout'>)</span>
-</pre>
-
-<p>Clearly, the proof fails as liquidHaskell wants to prove that the <code>acc</code>umulator 
-is a <code>Nat</code>ural number that decreases at each iteration, neither of which may be
-true.</p>
-<p>The remedy is easy. We can point liquidHaskell to the correct argument <code>n</code> using a <code>Decrease</code> annotation: </p>
-<pre><span class=hs-linenum>164: </span><span class='hs-keyword'>{-@</span> <span class='hs-conid'>Decrease</span> <span class='hs-varid'>sum'</span> <span class='hs-num'>3</span> <span class='hs-keyword'>@-}</span>
-</pre>
-<p>which directs liquidHaskell to verify that the <em>third</em> argument (i.e., <code>n</code>) is decreasing. 
-With this hint, liquidHaskell will happily verify that <code>sum'</code> is indeed a terminating function.</p>
-<p>Thats all for now, next time we'll see how the basic technique can be extended
-to a variety of real-world settings.</p>
+      <li>
+        <a href="../blogposts/2013-06-03-abstracting-over-refinements.lhs/">
+          Abstracting Over Refinements
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2013-07-29-putting-things-in-order.lhs/">
+          Putting Things In Order
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2017-12-15-splitting-and-splicing-intervals-I.lhs/">
+          Splitting and Splicing Intervals (Part 1)
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2017-12-24-splitting-and-splicing-intervals-II.lhs/">
+          Splitting and Splicing Intervals (Part 2)
+        </a>
+      </li>
+    
+    
+  </ul>
 
 
 
+  <h2 id="tag:advanced">
+
+
+<span class="md-tag">advanced</span><a class="headerlink" href="#tag:advanced" title="Permanent link">&para;</a></h2>
+  <ul>
+    
+      <li>
+        <a href="../blogposts/2018-02-23-measures-and-case-splitting.lhs/">
+          Measures and Case Splitting
+        </a>
+      </li>
+    
+    
+  </ul>
+
+
+
+  <h2 id="tag:announcement">
+
+
+<span class="md-tag">announcement</span><a class="headerlink" href="#tag:announcement" title="Permanent link">&para;</a></h2>
+  <ul>
+    
+      <li>
+        <a href="../blogposts/2025-03-20-lh-release/">
+          A hundred pull requests for Liquid Haskell
+        </a>
+      </li>
+    
+    
+  </ul>
+
+
+
+  <h2 id="tag:basic">
+
+
+<span class="md-tag">basic</span><a class="headerlink" href="#tag:basic" title="Permanent link">&para;</a></h2>
+  <ul>
+    
+      <li>
+        <a href="../blogposts/2017-03-20-arithmetic-overflows.lhs/">
+          Arithmetic Overflows
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2013-01-28-bounding-vectors.lhs/">
+          Bounding Vectors
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2013-03-04-bounding-vectors.lhs/">
+          Bounding Vectors
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2013-02-16-kmeans-clustering-I.lhs/">
+          KMeans Clustering I
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2013-02-17-kmeans-clustering-II.lhs/">
+          KMeans Clustering II
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2019-10-20-why-types.lhs/">
+          Liquid Types vs. Floyd-Hoare Logic
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2020-08-20-lh-as-a-ghc-plugin.lhs/">
+          LiquidHaskell is a GHC Plugin
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2020-04-12-polymorphic-perplexion.lhs/">
+          Polymorphic Perplexion
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2013-01-01-refinement-types-101.lhs/">
+          Refinement Types 101
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2013-01-27-refinements101-reax.lhs/">
+          Refinements 101 (contd.)
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2013-03-26-talking-about-sets.lhs/">
+          Talking About Sets
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2014-02-11-the-advantage-of-measures.lhs/">
+          The Advantage of Measures
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2013-05-24-unique-zipper.lhs/">
+          Unique Zippers
+        </a>
+      </li>
+    
+    
+  </ul>
+
+
+
+  <h2 id="tag:benchmarks">
+
+
+<span class="md-tag">benchmarks</span><a class="headerlink" href="#tag:benchmarks" title="Permanent link">&para;</a></h2>
+  <ul>
+    
+      <li>
+        <a href="../blogposts/2014-05-28-pointers-gone-wild.lhs/">
+          Pointers Gone Wild
+        </a>
+      </li>
+    
+    
+  </ul>
+
+
+
+  <h2 id="tag:induction">
+
+
+<span class="md-tag">induction</span><a class="headerlink" href="#tag:induction" title="Permanent link">&para;</a></h2>
+  <ul>
+    
+      <li>
+        <a href="../blogposts/2016-10-06-structural-induction.lhs/">
+          Refinement Reflection on ADTs
+        </a>
+      </li>
+    
+    
+  </ul>
+
+
+
+  <h2 id="tag:measures">
+
+
+<span class="md-tag">measures</span><a class="headerlink" href="#tag:measures" title="Permanent link">&para;</a></h2>
+  <ul>
+    
+      <li>
+        <a href="../blogposts/2013-10-10-csv-tables.lhs/">
+          CSV Tables
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2013-02-16-kmeans-clustering-I.lhs/">
+          KMeans Clustering I
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2013-02-17-kmeans-clustering-II.lhs/">
+          KMeans Clustering II
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2018-02-23-measures-and-case-splitting.lhs/">
+          Measures and Case Splitting
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2016-09-01-normal-forms.lhs/">
+          Normal Forms
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2015-01-30-okasakis-lazy-queue.lhs/">
+          Okasaki's Lazy Queues
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2016-10-06-structural-induction.lhs/">
+          Refinement Reflection on ADTs
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2013-01-31-safely-catching-a-list-by-its-tail.lhs/">
+          Safely Catching A List By Its Tail
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2013-03-26-talking-about-sets.lhs/">
+          Talking About Sets
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2014-02-11-the-advantage-of-measures.lhs/">
+          The Advantage of Measures
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2013-05-24-unique-zipper.lhs/">
+          Unique Zippers
+        </a>
+      </li>
+    
+    
+  </ul>
+
+
+
+  <h2 id="tag:reflection">
+
+
+<span class="md-tag">reflection</span><a class="headerlink" href="#tag:reflection" title="Permanent link">&para;</a></h2>
+  <ul>
+    
+      <li>
+        <a href="../blogposts/2016-09-18-refinement-reflection.lhs/">
+          Haskell as a Theorem Prover
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2016-10-06-structural-induction.lhs/">
+          Refinement Reflection on ADTs
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2017-12-15-splitting-and-splicing-intervals-I.lhs/">
+          Splitting and Splicing Intervals (Part 1)
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2017-12-24-splitting-and-splicing-intervals-II.lhs/">
+          Splitting and Splicing Intervals (Part 2)
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2018-05-17-hillel-verifier-rodeo-I-leftpad.lhs/">
+          The Hillelogram Verifier Rodeo I (LeftPad)
+        </a>
+      </li>
+    
+    
+  </ul>
+
+
+
+  <h2 id="tag:sets">
+
+
+<span class="md-tag">sets</span><a class="headerlink" href="#tag:sets" title="Permanent link">&para;</a></h2>
+  <ul>
+    
+      <li>
+        <a href="../blogposts/2013-03-26-talking-about-sets.lhs/">
+          Talking About Sets
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2013-05-24-unique-zipper.lhs/">
+          Unique Zippers
+        </a>
+      </li>
+    
+    
+  </ul>
+
+
+
+  <h2 id="tag:termination">
+
+
+<span class="md-tag">termination</span><a class="headerlink" href="#tag:termination" title="Permanent link">&para;</a></h2>
+  <ul>
+    
+      <li>
+        <a href="../blogposts/2013-12-09-checking-termination.lhs/">
+          Checking Termination
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2013-12-02-getting-to-the-bottom.lhs/">
+          Getting To the Bottom
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2013-11-23-telling_lies.lhs/">
+          LiquidHaskell Caught Telling Lies!
+        </a>
+      </li>
+    
+      <li>
+        <a href="../blogposts/2013-12-14-gcd.lhs/">
+          Termination Requires Refinements
+        </a>
+      </li>
+    
+    
+  </ul>
+
+
+
+  <h2 id="tag:text">
+
+
+<span class="md-tag">text</span><a class="headerlink" href="#tag:text" title="Permanent link">&para;</a></h2>
+  <ul>
+    
+      <li>
+        <a href="../blogposts/2014-05-28-pointers-gone-wild.lhs/">
+          Pointers Gone Wild
+        </a>
+      </li>
+    
+    
+  </ul>
+
+
+
+  <h2 id="tag:uniqueness">
+
+
+<span class="md-tag">uniqueness</span><a class="headerlink" href="#tag:uniqueness" title="Permanent link">&para;</a></h2>
+  <ul>
+    
+      <li>
+        <a href="../blogposts/2013-05-24-unique-zipper.lhs/">
+          Unique Zippers
+        </a>
+      </li>
+    
+    
+  </ul>
 
 
 
 
-  
-  
+
+
+
 
 
 
@@ -1945,30 +2371,6 @@ to a variety of real-world settings.</p>
 
                 
 
-
-<div class="blogpost-meta">
-  
-  <div class="blogpost-meta-whowhen">
-    
-        <div class="blogpost-meta-author">
-            Niki Vazou
-        </div>
-    
-    
-        <div class="blogpost-meta-date">
-            2013-12-09 16:12
-        </div>
-    
-  </div>
-  
-  
-  <div class="blogpost-meta-tags">
-              
-      <a href="../../tags/#tag:termination" class="tag-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.5 7A1.5 1.5 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4 1.5 1.5 0 0 1 7 5.5 1.5 1.5 0 0 1 5.5 7m15.91 4.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.11 0-2 .89-2 2v7c0 .55.22 1.05.59 1.41l8.99 9c.37.36.87.59 1.42.59s1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.56-.23-1.06-.59-1.42"/></svg>termination</a>
-    
-  </div>
-  
-</div>
 
 
 
@@ -2059,10 +2461,10 @@ to a variety of real-world settings.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.top"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.top"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>
