@@ -1,0 +1,8 @@
+version: 2
+updates:
+  - package-ecosystem: "npm" # Or "pip", "gomod", etc.
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    exclude-paths:
+      - "docs/slides"
