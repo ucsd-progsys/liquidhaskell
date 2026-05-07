@@ -4,19 +4,6 @@ site_url: https://ucsd-progsys.github.io/liquidhaskell/
 repo_url: https://github.com/ucsd-progsys/liquidhaskell
 edit_uri: edit/develop/docs/mkDocs/docs
 
-nav:
-  - "<div id='demo'><i aria-hidden=true class='mdi mdi-cloud-braces'></i> Try Online</div>": https://liquidhaskell.goto.ucsd.edu/index.html
-  - "<i aria-hidden=true class='mdi mdi-human-greeting'></i> Tutorial": http://ucsd-progsys.github.io/liquidhaskell-tutorial/
-  - "": index.md #spacer
-  - "<i aria-hidden=true class='mdi mdi-download'></i> Installation": install.md
-  - "<i aria-hidden=true class='mdi mdi-script'></i> Spec Reference": specifications.md
-  - "<i aria-hidden=true class='mdi mdi-flag'></i> Flag Reference": options.md
-  - "": index.md #spacer
-  - "<i aria-hidden=true class='mdi mdi-school'></i> Papers": papers.md
-  - "<i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog":
-      - ... | blogposts/*
-      - Tags: tags.html
-
 theme:
   name: material
   features:
@@ -30,8 +17,8 @@ theme:
 
 plugins:
   - search
-  - tags
-  - awesome-pages
+  - material/tags
+  - awesome-nav
 
 markdown_extensions:
   - toc:

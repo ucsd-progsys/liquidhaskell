@@ -1,0 +1,10 @@
+nav:
+  - "<div id='demo'><i aria-hidden=true class='mdi mdi-cloud-braces'></i> Try Online</div>": https://liquidhaskell.goto.ucsd.edu/index.html
+  - "<i aria-hidden=true class='mdi mdi-human-greeting'></i> Tutorial": http://ucsd-progsys.github.io/liquidhaskell-tutorial/
+  - "<i aria-hidden=true class='mdi mdi-download'></i> Installation": install.md
+  - "<i aria-hidden=true class='mdi mdi-script'></i> Spec Reference": specifications.md
+  - "<i aria-hidden=true class='mdi mdi-flag'></i> Flag Reference": options.md
+  - "<i aria-hidden=true class='mdi mdi-school'></i> Papers": papers.md
+  - "<i aria-hidden=true class='mdi mdi-bullhorn'></i> Blog":
+      - blogposts
+      - tags.md

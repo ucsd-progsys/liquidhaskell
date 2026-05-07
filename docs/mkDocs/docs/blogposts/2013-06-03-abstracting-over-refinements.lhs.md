@@ -350,8 +350,8 @@ and hold on tight, because we're going to see some rather nifty things that
 this new technique makes possible, including induction, reasoning about
 memoizing functions, and *ordering* and *sorting* data. Stay tuned.
 
-[blog-dbz]:     /blog/2013/01/01/refinement-types-101.lhs/ 
-[blog-len]:     /blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/ 
-[blog-vec]:     /blog/2013/03/04/bounding-vectors.lhs/
-[blog-set]:     /blog/2013/03/26/talking/about/sets.lhs/
-[blog-zip]:     /blog/2013/05/16/unique-zipper.lhs/
+[blog-dbz]:     2013-01-01-refinement-types-101.lhs.md
+[blog-len]:     2013-01-31-safely-catching-a-list-by-its-tail.lhs.md
+[blog-vec]:     2013-03-04-bounding-vectors.lhs.md
+[blog-set]:     2013-03-26-talking-about-sets.lhs.md
+[blog-zip]:     2013-05-24-unique-zipper.lhs.md

@@ -190,5 +190,5 @@ With this hint, liquidHaskell will happily verify that `sum'` is indeed a termin
 Thats all for now, next time we'll see how the basic technique can be extended
 to a variety of real-world settings.
 
-[ref-lies]:  /blog/2013/11/23/telling-lies.lhs/ 
-[ref-bottom]: /blog/2013/12/01/getting-to-the-bottom.lhs/
+[ref-lies]:  2013-11-23-telling_lies.lhs.md
+[ref-bottom]: 2013-12-02-getting-to-the-bottom.lhs.md

@@ -424,6 +424,6 @@ That concludes part I of the rodeo. What did I learn from this exercise?
 [fstar-leftpad]:    https://gist.github.com/graydon/901f98049d05db65d9a50f741c7f7626
 [idris-leftpad]:    https://github.com/hwayne/lets-prove-leftpad/blob/master/idris/Leftpad.idr
 [dafny-seq-axioms]: https://github.com/Microsoft/dafny/blob/master/Binaries/DafnyPrelude.bpl#L898-L1110
-[tag-reflection]:   /tags/reflection.html
-[tag-ple]:          /tags/ple.html
+[tag-reflection]:   ../tags.md#tag:reflection
+[tag-ple]:          ../tags.md
 [regehr-tweet]:     https://twitter.com/johnregehr/status/996901816842440704

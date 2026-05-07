@@ -498,7 +498,7 @@ That's all for now! This post illustrated
 
 
 [wiki-zipper]: http://en.wikipedia.org/wiki/Zipper_(data_structure)
-[about-sets]:  blog/2013/03/26/talking-about-sets.lhs/
+[about-sets]:  2013-03-26-talking-about-sets.lhs.md
 [setspec]:     https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Set.spec
 
 

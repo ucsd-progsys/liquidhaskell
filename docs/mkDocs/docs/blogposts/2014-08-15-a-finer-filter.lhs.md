@@ -383,7 +383,7 @@ school `Boolean` approach has its merits. Take a look at the clever
 or this lovely new paper by [Kaki and Jagannathan][catalyst] which
 shows how refinements can be further generalized to make Boolean filters fine.
 
-[sets]:   /blog/2013/03/26/talking-about-sets.lhs/ 
-[absref]:   /blog/2013/06/03/abstracting-over-refinements.lhs/ 
+[sets]:   2013-03-26-talking-about-sets.lhs.md
+[absref]:   2013-06-03-abstracting-over-refinements.lhs.md
 [racket]:   http://www.ccs.neu.edu/racket/pubs/popl08-thf.pdf
 [catalyst]: http://gowthamk.github.io/docs/icfp77-kaki.pdf

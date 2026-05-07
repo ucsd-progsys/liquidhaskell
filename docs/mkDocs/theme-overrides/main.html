@@ -30,7 +30,7 @@
   {% if page.meta.tags %}
   <div class="blogpost-meta-tags">
     {% for tag in page.meta.tags %}          
-      <a href="../../tags.html#{{ tag }}" class="tag-button">{% include ".icons/material/tag.svg" %}{{ tag }}</a>
+      <a href="../../tags/#tag:{{ tag }}" class="tag-button">{% include ".icons/material/tag.svg" %}{{ tag }}</a>
     {% endfor %}
   </div>
   {% endif %}
