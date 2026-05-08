@@ -489,6 +489,18 @@ testFails =
               , "unexpected ':'"
               , "expecting \"->\", \"=>\", '/', bareTyArgP, end of input, mmonoPredicateP, or monoPredicateP"
               ]
+
+    , testCase "type t = Nat (type aliases should start with upper case)" $
+          parseSingleSpec "type t = Nat" @?==
+            unlines
+              [ "<test>:1:6:"
+              , "  |"
+              , "1 | type t = Nat"
+              , "  |      ^"
+              , "unexpected 't'"
+              , "expecting aliasP"
+              ]
+
     ]
 
 

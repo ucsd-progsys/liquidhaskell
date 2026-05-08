@@ -1317,17 +1317,20 @@ embedP = do
 
 
 aliasP :: Parser (RTAlias Symbol BareTypeParsed)
-aliasP  = rtAliasP id     bareTypeP <?> "aliasP"
+aliasP =
+  rtAliasP id (locUpperIdLHNameP LHLogicNameBinder) bareTypeP <?> "aliasP"
 
 ealiasP :: Parser (RTAlias Symbol (ExprV LocSymbol))
-ealiasP = try (rtAliasP symbol predP)
-      <|> rtAliasP symbol exprP
-      <?> "ealiasP"
+ealiasP = rtAliasP symbol locBinderLogicNameP exprP <?> "ealiasP"
 
 -- | Parser for a LH type synonym.
-rtAliasP :: (Symbol -> tv) -> Parser ty -> Parser (RTAlias tv ty)
-rtAliasP f bodyP
-  = do lname <- locBinderLogicNameP
+rtAliasP
+  :: (Symbol -> tv)
+  -> Parser (Located LHName)
+  -> Parser ty
+  -> Parser (RTAlias tv ty)
+rtAliasP f nameP bodyP
+  = do lname <- nameP
        args <- many aliasIdP
        reservedOp "="
        body <- bodyP
