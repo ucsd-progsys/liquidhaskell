@@ -13,7 +13,6 @@ import           Prelude hiding (error)
 import qualified Liquid.GHC.API as Ghc
 import           Liquid.GHC.API (Var, Id, TyCon)
 import qualified Language.Fixpoint.Types.Config as FC
-import           System.Console.CmdArgs.Default (def)
 import qualified Language.Fixpoint.Types        as F
 import           Language.Fixpoint.Solver.Rewrite (unify)
 import           Language.Haskell.Liquid.Constraint.Types
@@ -38,7 +37,7 @@ import           Language.Haskell.Liquid.Types.Specs
 import           Language.Haskell.Liquid.Types.Types hiding     ( binds )
 
 fixConfig :: FilePath -> Config -> FC.Config
-fixConfig tgt cfg = def
+fixConfig tgt cfg = FC.defConfig
   { FC.solver         = Mb.fromJust (smtsolver cfg)
   , FC.linear         = linear            cfg
   , FC.eliminate      = eliminate         cfg

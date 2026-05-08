@@ -1,6 +1,5 @@
 -- | Command Line Configuration Options ----------------------------------------
 
-{-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric #-}
 
 module Language.Haskell.Liquid.UX.Config (
@@ -8,7 +7,6 @@ module Language.Haskell.Liquid.UX.Config (
    , HasConfig (..)
    , Verbosity (..)
    , allowPLE, allowLocalPLE, allowGlobalPLE
-   , cmdargsVerbosity
    , patternFlag
    , higherOrderFlag
    , pruneFlag
@@ -23,18 +21,9 @@ module Language.Haskell.Liquid.UX.Config (
 import Prelude hiding (error)
 import Language.Fixpoint.Types.Config hiding (Config)
 import GHC.Generics
-import System.Console.CmdArgs hiding (Verbosity(..))
-import qualified System.Console.CmdArgs as CmdArgs
 
 data Verbosity = Quiet | Minimal | Normal | Loud
-  deriving (Data, Generic, Show, Eq, Ord)
-
--- | liquid-fixpoint uses CmdArg.Verbosity at least to show the progress bar.
-cmdargsVerbosity :: Verbosity -> CmdArgs.Verbosity
-cmdargsVerbosity Quiet   = CmdArgs.Quiet
-cmdargsVerbosity Minimal = CmdArgs.Quiet
-cmdargsVerbosity Normal  = CmdArgs.Normal
-cmdargsVerbosity Loud    = CmdArgs.Loud
+  deriving (Generic, Show, Eq, Ord)
 
 
 -- NOTE: adding strictness annotations breaks the help message
@@ -117,7 +106,7 @@ data Config = Config
                                            -- Only needed to work around https://github.com/haskell/cabal/issues/11116
   , modern                   :: Bool       -- ^ Enable modern features; enables reflection, ple, etabeta, dependantcase, adt
   , warnOnTermHoles          :: Bool       -- ^ Warn about holes in the terms
-  } deriving (Generic, Data, Show, Eq)
+  } deriving (Generic, Show, Eq)
 
 allowPLE :: Config -> Bool
 allowPLE cfg

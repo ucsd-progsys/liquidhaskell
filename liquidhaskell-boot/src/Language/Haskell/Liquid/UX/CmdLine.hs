@@ -38,38 +38,37 @@ module Language.Haskell.Liquid.UX.CmdLine (
 ) where
 
 import Prelude hiding (error)
-
+import Prelude (error)
 
 import Control.Monad
 import Control.Monad.IO.Class
+import Data.Char                             (toLower)
 import Data.Maybe
-import Data.Functor ((<&>))
-import Data.Aeson (encode)
+import Data.Functor                          ((<&>))
+import Data.Aeson                            (encode)
 import qualified Data.ByteString.Lazy.Char8 as B
-import Development.GitRev (gitCommitCount)
+import Development.GitRev                   (gitCommitCount)
 import qualified Paths_liquidhaskell_boot as Meta
+import System.Console.GetOpt
+import qualified Language.Fixpoint.Verbosity as FxV
 import System.Directory
 import System.Exit
 import System.Environment
-import System.Console.CmdArgs.Explicit
-import System.Console.CmdArgs.Implicit     hiding (Verbosity(..))
-import System.Console.CmdArgs.Text
 import GitHash
 
-import Data.List                           (nub, intercalate)
-
+import Data.List                             (nub, intercalate)
 
 import qualified Language.Fixpoint.Types.Config as FC
 import qualified Language.Fixpoint.Misc as F
 import Language.Fixpoint.Types.Names
-import Language.Fixpoint.Types             hiding (panic, Error, Result, saveQuery)
+import Language.Fixpoint.Types               hiding (panic, Error, Result, saveQuery)
 import qualified Language.Fixpoint.Types as F
 import Language.Fixpoint.Solver.Stats as Solver
 import Language.Haskell.Liquid.UX.Annotate
 import Language.Haskell.Liquid.UX.Config
 import Language.Haskell.Liquid.UX.SimpleVersion (simpleVersion)
 import Language.Haskell.Liquid.GHC.Misc
-import Language.Haskell.Liquid.Types.Errors hiding (typ)
+import Language.Haskell.Liquid.Types.Errors  hiding (typ)
 import Language.Haskell.Liquid.Types.PrettyPrint ()
 import Language.Haskell.Liquid.Types.Types
 import qualified Language.Haskell.Liquid.UX.ACSS as ACSS
@@ -77,8 +76,7 @@ import qualified Language.Haskell.Liquid.UX.ACSS as ACSS
 import qualified Liquid.GHC.API as GHC
 import           Language.Haskell.TH.Syntax.Compat (fromCode, toCode)
 
-import Text.PrettyPrint.HughesPJ           hiding (Mode, (<>))
-
+import Text.PrettyPrint.HughesPJ             hiding ((<>))
 
 
 ---------------------------------------------------------------------------------
@@ -91,372 +89,420 @@ defaultMaxParams = 2
 ---------------------------------------------------------------------------------
 -- Parsing Command Line----------------------------------------------------------
 ---------------------------------------------------------------------------------
-config :: Mode (CmdArgs Config)
-config = cmdArgsMode defConfig
 
+-- | Default configuration: plain Haskell record, no cmdargs annotations.
 defConfig :: Config
-defConfig = Config {
-  loggingVerbosity
-    = enum [ Minimal      &= name "minimal" &= help "Minimal logging verbosity"
-           , Quiet        &= name "quiet"   &= help "Silent logging verbosity"
-           , Normal       &= name "normal"  &= help "Normal logging verbosity"
-           , Loud         &= name "verbose" &= help "Verbose logging"
-           ]
+defConfig = Config
+  { loggingVerbosity              = Minimal
+  , fullcheck                     = False
+  , diffcheck                     = False
+  , higherorder                   = False
+  , smtTimeout                    = Nothing
+  , higherorderqs                 = False
+  , linear                        = False
+  , stringTheory                  = False
+  , saveQuery                     = False
+  , checks                        = []
+  , pruneUnsorted                 = False
+  , notermination                 = False
+  , nopositivity                  = False
+  , rankNTypes                    = False
+  , noclasscheck                  = False
+  , nostructuralterm              = False
+  , bscope                        = False
+  , totalHaskell                  = False
+  , nowarnings                    = False
+  , noannotations                 = False
+  , checkDerived                  = False
+  , caseExpandDepth               = 2
+  , notruetypes                   = False
+  , nototality                    = False
+  , cores                         = Just 1
+  , minPartSize                   = FC.defaultMinPartSize
+  , maxPartSize                   = FC.defaultMaxPartSize
+  , smtsolver                     = Nothing
+  , noCheckUnknown                = False
+  , maxParams                     = defaultMaxParams
+  , shortNames                    = False
+  , shortErrors                   = False
+  , adtSpec                       = False
+  , expectErrorContaining         = []
+  , expectAnyError                = False
+  , scrapeInternals               = False
+  , elimStats                     = False
+  , elimBound                     = Nothing
+  , json                          = False
+  , counterExamples               = False
+  , timeBinds                     = False
+  , untidyCore                    = False
+  , eliminate                     = FC.Some
+  , noPatternInline               = False
+  , noSimplifyCore                = False
+  , noslice                       = False
+  , noLiftedImport                = False
+  , proofLogicEval                = False
+  , pleWithUndecidedGuards        = False
+  , interpreter                   = False
+  , proofLogicEvalLocal           = False
+  , etabeta                       = False
+  , dependantCase                 = False
+  , extensionality                = False
+  , nopolyinfer                   = False
+  , reflection                    = False
+  , compileSpec                   = False
+  , typeclass                     = False
+  , auxInline                     = False
+  , rwTerminationCheck            = False
+  , skipModule                    = False
+  , fuel                          = Nothing
+  , environmentReduction          = False
+  , noEnvironmentReduction        = False
+  , inlineANFBindings             = False
+  , pandocHtml                    = False
+  , excludeAutomaticAssumptionsFor = []
+  , dumpOpaqueReflections         = False
+  , dumpPreNormalizedCore         = False
+  , dumpNormalizedCore            = False
+  , allowUnsafeConstructors       = False
+  , ddumpTimings                  = False
+  , modern                        = False
+  , warnOnTermHoles               = False
+  }
 
- , fullcheck
-     = def
-           &= help "Full Checking: check all binders (DEFAULT)"
+-- | A flag is either a config transformer or a request for --help/--version.
+data Flag
+  = FlagMod  (Config -> Config)
+  | FlagHelp
+  | FlagVersion
 
- , diffcheck
-    = def
-          &= help "Incremental Checking: only check changed binders"
+-- | The GetOpt option table.  Each entry lists all accepted long-option
+-- names (aliases included) so that legacy pragmas keep working.
+lhOptions :: [OptDescr Flag]
+lhOptions =
+  -- Verbosity
+  [ opt [] ["minimal"]  (NoArg $ fm $ \c -> c { loggingVerbosity = Minimal })
+      "Minimal logging verbosity (default)"
+  , opt [] ["quiet"]    (NoArg $ fm $ \c -> c { loggingVerbosity = Quiet })
+      "Silent logging verbosity"
+  , opt [] ["normal"]   (NoArg $ fm $ \c -> c { loggingVerbosity = Normal })
+      "Normal logging verbosity"
+  , opt [] ["verbose"]  (NoArg $ fm $ \c -> c { loggingVerbosity = Loud })
+      "Verbose logging"
 
- , higherorder
-    = def
-          &= help "Allow higher order binders into the logic"
+  -- Checking mode
+  , opt [] ["fullcheck"] (NoArg $ fm $ \c -> c { fullcheck = True })
+      "Full Checking: check all binders (DEFAULT)"
+  , opt [] ["diffcheck", "diff"] (NoArg $ fm $ \c -> c { diffcheck = True })
+      "Incremental Checking: only check changed binders"
+  , opt [] ["higherorder"] (NoArg $ fm $ \c -> c { higherorder = True })
+      "Allow higher order binders into the logic"
+  , opt [] ["higherorderqs"] (NoArg $ fm $ \c -> c { higherorderqs = True })
+      "Allow higher order qualifiers to get automatically instantiated"
+  , opt [] ["linear"] (NoArg $ fm $ \c -> c { linear = True })
+      "Use uninterpreted integer multiplication and division"
+  , opt [] ["string-theory", "stringtheory"] (NoArg $ fm $ \c -> c { stringTheory = True })
+      "Interpretation of Strings by z3"
+  , opt [] ["save-query", "save"] (NoArg $ fm $ \c -> c { saveQuery = True })
+      "Save fixpoint query to file (slow)"
 
- , smtTimeout
-    = def
-          &= help "Timeout of smt queries in msec"
+  -- SMT
+  , opt [] ["smt-timeout"] (ReqArg (fm . setSmtTimeout) "MSEC")
+      "Timeout of smt queries in msec"
+  , opt [] ["smtsolver"] (ReqArg (fm . setSmtSolverOpt) "SOLVER")
+      "SMT solver to use: z3, z3mem, cvc4, cvc5, mathsat"
+  , opt [] ["cores"] (ReqArg (fm . setCores) "N")
+      (unlines
+        [ "Number of cores to use (default 1)"
+        , "Use the given number of cores to solve logical constraints (default: 1)."
+        , "Warning: unpredictable performance."
+        , "See https://github.com/ucsd-progsys/liquidhaskell/issues/2562"
+        ]
+      )
+  , opt [] ["min-part-size"] (ReqArg (fm . setMinPartSize) "N")
+      "Minimum partition size for multi-core solving"
+  , opt [] ["max-part-size"] (ReqArg (fm . setMaxPartSize) "N")
+      "Maximum partition size for multi-core solving"
 
- , higherorderqs
-    = def
-          &= help "Allow higher order qualifiers to get automatically instantiated"
+  -- Checking options
+  , opt [] ["check-var"] (ReqArg (fm . addCheckVar) "VAR")
+      "Check a specific (top-level) binder (can be repeated)"
+  , opt [] ["prune-unsorted", "pruneunsorted"] (NoArg $ fm $ \c -> c { pruneUnsorted = True })
+      "Prune unsorted predicates"
+  , opt [] ["no-termination-check", "no-termination", "notermination"]
+      (NoArg $ fm $ \c -> c { notermination = True })
+      "Disable Termination Check"
+  , opt [] ["no-positivity-check"] (NoArg $ fm $ \c -> c { nopositivity = True })
+      "Disable Data Type Positivity Check"
+  , opt [] ["rankNTypes"] (NoArg $ fm $ \c -> c { rankNTypes = True })
+      "Adds precise reasoning on presence of rankNTypes"
+  , opt [] ["no-class-check", "noclasscheck"] (NoArg $ fm $ \c -> c { noclasscheck = True })
+      "Disable Class Instance Check"
+  , opt [] ["no-structural-termination", "nostruct"]
+      (NoArg $ fm $ \c -> c { nostructuralterm = True })
+      "Disable structural termination check"
+  , opt [] ["bscope"] (NoArg $ fm $ \c -> c { bscope = True })
+      "Scope of the outer binders on the inner refinements"
+  , opt [] ["total-Haskell"] (NoArg $ fm $ \c -> c { totalHaskell = True })
+      "Check for termination and totality; overrides no-termination flags"
+  , opt [] ["no-warnings"] (NoArg $ fm $ \c -> c { nowarnings = True })
+      "Don't display warnings, only show errors"
+  , opt [] ["no-annotations"] (NoArg $ fm $ \c -> c { noannotations = True })
+      "Don't create intermediate annotation files"
+  , opt [] ["check-derived"] (NoArg $ fm $ \c -> c { checkDerived = True })
+      "Check GHC generated binders (e.g. Read, Show instances)"
+  , opt [] ["max-case-expand"] (ReqArg (fm . setCaseExpandDepth) "N")
+      "Maximum depth at which to expand DEFAULT in case-of (default=2)"
+  , opt [] ["no-true-types"] (NoArg $ fm $ \c -> c { notruetypes = True })
+      "Disable Trueing Top Level Types"
+  , opt [] ["no-totality"] (NoArg $ fm $ \c -> c { nototality = True })
+      "Disable totality check"
+  , opt [] ["totality"] (NoArg $ fm $ \c -> c { nototality = False })
+      "Enable totality check (default)"
+  , opt [] ["no-check-unknown"] (NoArg $ fm $ \c -> c { noCheckUnknown = True })
+      "Don't complain about specifications for unexported and unused values"
+  , opt [] ["max-params", "maxparams"] (ReqArg (fm . setMaxParams) "N")
+      "Restrict qualifier mining to at most N parameters (default 2)"
+  , opt [] ["short-names"] (NoArg $ fm $ \c -> c { shortNames = True })
+      "Print shortened names, i.e. drop all module qualifiers"
+  , opt [] ["short-errors"] (NoArg $ fm $ \c -> c { shortErrors = True })
+      "Don't show long error messages, just line numbers"
+  , opt [] ["adt"] (NoArg $ fm $ \c -> c { adtSpec = True })
+      "Generate ADT representations in refinement logic"
+  , opt [] ["expect-error-containing"] (ReqArg (fm . addExpectError) "MSG")
+      "Expect an error containing MSG (can be repeated)"
+  , opt [] ["expect-any-error"] (NoArg $ fm $ \c -> c { expectAnyError = True })
+      "Expect an error, no matter which kind"
+  , opt [] ["scrape-internals"] (NoArg $ fm $ \c -> c { scrapeInternals = True })
+      "Scrape qualifiers from auto generated specifications"
+  , opt [] ["elimStats"] (NoArg $ fm $ \c -> c { elimStats = True })
+      "Print eliminate stats"
+  , opt [] ["elimBound"] (ReqArg (fm . setElimBound) "N")
+      "Maximum chain length for eliminating KVars"
+  , opt [] ["noSlice"] (NoArg $ fm $ \c -> c { noslice = True })
+      "Disable non-concrete KVar slicing"
+  , opt [] ["no-lifted-imports"] (NoArg $ fm $ \c -> c { noLiftedImport = True })
+      "Disable loading lifted specifications (for legacy libs)"
+  , opt [] ["json"] (NoArg $ fm $ \c -> c { json = True })
+      "Print results in JSON (for editor integration)"
+  , opt [] ["counter-examples"] (NoArg $ fm $ \c -> c { counterExamples = True })
+      "Attempt to generate counter-examples to type errors (experimental!)"
+  , opt [] ["time-binds"] (NoArg $ fm $ \c -> c { timeBinds = True })
+      "Solve each (top-level) asserted type signature separately & time solving"
+  , opt [] ["untidy-core"] (NoArg $ fm $ \c -> c { untidyCore = True })
+      "Print fully qualified identifier names in verbose mode"
+  , opt [] ["eliminate"] (ReqArg (fm . setEliminate) "ELIM")
+      (unlines
+        [ "Use elimination for 'all', 'some' (default), 'none', 'horn', or 'existentials'"
+        , "    all: use TRUE for cut-kvars"
+        , "    some: use quals for cut-kvars"
+        , "    none: use quals for all kvars"
+        , "    horn: ??"
+        , "    existentials: ??"
+        ]
+      )
+  , opt [] ["no-pattern-inline"] (NoArg $ fm $ \c -> c { noPatternInline = True })
+      "Don't inline special patterns (e.g. >>= and return) during constraint generation"
+  , opt [] ["no-simplify-core"] (NoArg $ fm $ \c -> c { noSimplifyCore = True })
+      "Don't simplify GHC core before constraint generation"
 
- , linear
-    = def
-          &= help "Use uninterpreted integer multiplication and division"
+  -- PLE options
+  , opt [] ["ple"] (NoArg $ fm $ \c -> c { proofLogicEval = True })
+      "Enable Proof-by-Logical-Evaluation"
+  , opt [] ["ple-with-undecided-guards"] (NoArg $ fm $ \c -> c { pleWithUndecidedGuards = True })
+      "Unfold invocations with undecided guards in PLE"
+  , opt [] ["interpreter"] (NoArg $ fm $ \c -> c { interpreter = True })
+      "Use an interpreter to assist PLE in solving constraints"
+  , opt [] ["ple-local"] (NoArg $ fm $ \c -> c { proofLogicEvalLocal = True })
+      "Enable Proof-by-Logical-Evaluation locally, per function"
+  , opt [] ["etabeta"] (NoArg $ fm $ \c -> c { etabeta = True })
+      "Eta expand and beta reduce terms to aid PLE"
+  , opt [] ["dependantcase"] (NoArg $ fm $ \c -> c { dependantCase = True })
+      "Allow PLE to reason about dependent cases"
+  , opt [] ["extensionality"] (NoArg $ fm $ \c -> c { extensionality = True })
+      "Enable extensional interpretation of function equality"
+  , opt [] ["fast"] (NoArg $ fm $ \c -> c { nopolyinfer = True })
+      "No inference of polymorphic type application (imprecise but faster)"
+  , opt [] ["reflection"] (NoArg $ fm $ \c -> c { reflection = True })
+      "Enable reflection of Haskell functions and theorem proving"
+  , opt [] ["compile-spec"] (NoArg $ fm $ \c -> c { compileSpec = True })
+      "Only compile specifications (into .bspec file); skip verification"
+  , opt [] ["typeclass"] (NoArg $ fm $ \c -> c { typeclass = True })
+      "Enable Typeclass support"
+  , opt [] ["aux-inline"] (NoArg $ fm $ \c -> c { auxInline = True })
+      "Enable inlining of class methods"
+  , opt [] ["rw-termination-check"] (NoArg $ fm $ \c -> c { rwTerminationCheck = True })
+      ("Enable the rewrite divergence checker. Can speed up verification if rewriting\n" ++
+       "terminates, but can also cause divergence."
+      )
+  , opt [] ["skip-module"] (NoArg $ fm $ \c -> c { skipModule = True })
+      "Completely skip this module"
+  , opt [] ["fuel"] (ReqArg (fm . setFuel) "N")
+      "Maximum fuel (per-function unfoldings) for PLE"
+  , opt [] ["environment-reduction"] (NoArg $ fm $ \c -> c { environmentReduction = True })
+      "Perform environment reduction (disabled by default)"
+  , opt [] ["no-environment-reduction"] (NoArg $ fm $ \c -> c { noEnvironmentReduction = True })
+      "Don't perform environment reduction"
+  , opt [] ["inline-anf-bindings"] (NoArg $ fm $ \c -> c { inlineANFBindings = True })
+      ("Inline ANF bindings (sometimes improves performance and sometimes worsens it)\n" ++
+       "Disabled by --no-environment-reduction"
+      )
+  , opt [] ["pandoc-html"] (NoArg $ fm $ \c -> c { pandocHtml = True })
+      "Use pandoc to generate html"
+  , opt [] ["exclude-automatic-assumptions-for"] (ReqArg (fm . addExcludeAssumptions) "PACKAGE")
+      "Stop loading LHAssumptions modules for imports in these packages (repeat for multiple packages)"
+  , opt [] ["dump-opaque-reflections"] (NoArg $ fm $ \c -> c { dumpOpaqueReflections = True })
+      "Dump all generated opaque reflections"
+  , opt [] ["dump-pre-normalized-core"] (NoArg $ fm $ \c -> c { dumpPreNormalizedCore = True })
+      "Dump pre-normalized core (before a-normalization)"
+  , opt [] ["dump-normalized-core"] (NoArg $ fm $ \c -> c { dumpNormalizedCore = True })
+      "Dump a-normalized core"
+  , opt [] ["allow-unsafe-constructors"] (NoArg $ fm $ \c -> c { allowUnsafeConstructors = True })
+      "Allow refining constructors with unsafe refinements"
+  , opt [] ["ddump-timings"] (NoArg $ fm $ \c -> c { ddumpTimings = True })
+      "Dump time measures of the Liquid Haskell plugin"
+  , opt [] ["modern"] (NoArg $ fm $ \c -> c { modern = True })
+      "Enable modern features (--reflection, --ple, --etabeta, --dependantcase)"
+  , opt [] ["warn-on-term-holes"] (NoArg $ fm $ \c -> c { warnOnTermHoles = True })
+      "Warn about holes in terms"
 
- , stringTheory
-    = def
-          &= help "Interpretation of Strings by z3"
+  -- Meta
+  , opt "h" ["help"]    (NoArg FlagHelp)    "Show this help message"
+  , opt "V" ["version"] (NoArg FlagVersion) "Show version information"
+  ]
+  where
+    opt s l a h = Option s l a h
+    fm          = FlagMod
 
- , saveQuery
-    = def &= help "Save fixpoint query to file (slow)"
+-- | Helpers for option argument parsing.
+setSmtTimeout :: String -> Config -> Config
+setSmtTimeout s c = c { smtTimeout = Just (readInt "smt-timeout" s) }
 
- , checks
-    = def &= help "Check a specific (top-level) binder"
-          &= name "check-var"
+setSmtSolverOpt :: String -> Config -> Config
+setSmtSolverOpt s c = c { smtsolver = Just (parseSMTSolver s) }
 
- , pruneUnsorted
-    = False &= help "Disable prunning unsorted Predicates"
-          &= name "prune-unsorted"
+setCores :: String -> Config -> Config
+setCores s c = c { cores = Just (readInt "cores" s) }
 
- , notermination
-    = False
-          &= help "Disable Termination Check"
-          &= name "no-termination-check"
+setMinPartSize :: String -> Config -> Config
+setMinPartSize s c = c { minPartSize = readInt "min-part-size" s }
 
- , nopositivity
-    = False
-          &= help "Disable Data Type Positivity Check"
-          &= name "no-positivity-check"
+setMaxPartSize :: String -> Config -> Config
+setMaxPartSize s c = c { maxPartSize = readInt "max-part-size" s }
 
- , rankNTypes
-    = False &= help "Adds precise reasoning on presence of rankNTypes"
-          &= name "rankNTypes"
+addCheckVar :: String -> Config -> Config
+addCheckVar s c = c { checks = checks c ++ [s] }
 
- , noclasscheck
-    = False
-          &= help "Disable Class Instance Check"
-          &= name "no-class-check"
+setCaseExpandDepth :: String -> Config -> Config
+setCaseExpandDepth s c = c { caseExpandDepth = readInt "max-case-expand" s }
 
- , nostructuralterm
-    = def &= name "no-structural-termination"
-          &= help "Disable structural termination check"
+setMaxParams :: String -> Config -> Config
+setMaxParams s c = c { maxParams = readInt "max-params" s }
 
- , bscope
-    = False &= help "scope of the outer binders on the inner refinements"
-          &= name "bscope"
+addExpectError :: String -> Config -> Config
+addExpectError s c = c { expectErrorContaining = expectErrorContaining c ++ [s] }
 
- , totalHaskell
-    = False &= help "Check for termination and totality; overrides no-termination flags"
-          &= name "total-Haskell"
+setElimBound :: String -> Config -> Config
+setElimBound s c = c { elimBound = Just (readInt "elimBound" s) }
 
- , nowarnings
-    = False &= help "Don't display warnings, only show errors"
-          &= name "no-warnings"
+setEliminate :: String -> Config -> Config
+setEliminate s c = c { eliminate = parseEliminate s }
 
- , noannotations
-    = False &= help "Don't create intermediate annotation files"
-          &= name "no-annotations"
+setFuel :: String -> Config -> Config
+setFuel s c = c { fuel = Just (readInt "fuel" s) }
 
- , checkDerived
-    = False &= help "Check GHC generated binders (e.g. Read, Show instances)"
-          &= name "check-derived"
+addExcludeAssumptions :: String -> Config -> Config
+addExcludeAssumptions s c =
+  c { excludeAutomaticAssumptionsFor = excludeAutomaticAssumptionsFor c ++ [s] }
 
- , caseExpandDepth
-    = 2   &= help "Maximum depth at which to expand DEFAULT in case-of (default=2)"
-          &= name "max-case-expand"
+readInt :: String -> String -> Int
+readInt opt s = case reads s of
+  [(n, "")] -> n
+  _         -> error $ "Expected integer for --" ++ opt ++ ", got: " ++ show s
 
- , notruetypes
-    = False &= help "Disable Trueing Top Level Types"
-          &= name "no-true-types"
+parseSMTSolver :: String -> FC.SMTSolver
+parseSMTSolver s = case map toLower s of
+  "z3"      -> FC.Z3
+  "z3mem"   -> FC.Z3mem
+  "z3 api"  -> FC.Z3mem
+  "cvc4"    -> FC.Cvc4
+  "cvc5"    -> FC.Cvc5
+  "mathsat" -> FC.Mathsat
+  _         -> error $ "Unknown SMT solver: " ++ show s
+                     ++ ". Use one of: z3, z3mem, cvc4, cvc5, mathsat"
 
- , nototality
-    = False &= help "Disable totality check"
-          &= name "no-totality"
+parseEliminate :: String -> FC.Eliminate
+parseEliminate s = case map toLower s of
+  "none"         -> FC.None
+  "some"         -> FC.Some
+  "all"          -> FC.All
+  "horn"         -> FC.Horn
+  "existentials" -> FC.Existentials
+  _              -> error $ "Unknown eliminate value: " ++ show s
+                          ++ ". Use one of: none, some, all, horn, existentials"
 
- , cores
-    = Just 1 &= help "Use the given number of cores to solve logical constraints (default: 1). Warning: unpredictable performance. See https://github.com/ucsd-progsys/liquidhaskell/issues/2562"
-
- , minPartSize
-    = FC.defaultMinPartSize
-    &= help "If solving on multiple cores, ensure that partitions are of at least m size"
-
- , maxPartSize
-    = FC.defaultMaxPartSize
-    &= help ("If solving on multiple cores, once there are as many partitions " ++
-             "as there are cores, don't merge partitions if they will exceed this " ++
-             "size. Overrides the minpartsize option.")
-
- , smtsolver
-    = Nothing &= help "Name of SMT-Solver"
-
- , noCheckUnknown
-    = def &= explicit
-          &= name "no-check-unknown"
-          &= help "Don't complain about specifications for unexported and unused values "
-
- , maxParams
-    = defaultMaxParams &= help "Restrict qualifier mining to those taking at most `m' parameters (2 by default)"
-
- , shortNames
-    = False &= name "short-names"
-          &= help "Print shortened names, i.e. drop all module qualifiers."
-
- , shortErrors
-    = False &= name "short-errors"
-          &= help "Don't show long error messages, just line numbers."
-
- , adtSpec
-    = False &= help "Generate ADT representations in refinement logic"
-          &= name "adt"
-
- , expectErrorContaining
-    = [] &= help "Expect an error which containing the provided string from verification (can be provided more than once)"
-          &= name "expect-error-containing"
-
- , expectAnyError
-    = False &= help "Expect an error, no matter which kind or what it contains"
-          &= name "expect-any-error"
-
- , scrapeInternals
-    = False &= help "Scrape qualifiers from auto generated specifications"
-            &= name "scrape-internals"
-            &= explicit
-
- , elimStats
-    = False &= name "elimStats"
-            &= help "Print eliminate stats"
-
- , elimBound
-    = Nothing
-            &= name "elimBound"
-            &= help "Maximum chain length for eliminating KVars"
-
- , noslice
-    = False
-            &= name "noSlice"
-            &= help "Disable non-concrete KVar slicing"
-
- , noLiftedImport
-    = False
-            &= name "no-lifted-imports"
-            &= help "Disable loading lifted specifications (for legacy libs)"
-
- , json
-    = False &= name "json"
-            &= help "Print results in JSON (for editor integration)"
-
- , counterExamples
-    = False &= name "counter-examples"
-            &= help "Attempt to generate counter-examples to type errors (experimental!)"
-
- , timeBinds
-    = False &= name "time-binds"
-            &= help "Solve each (top-level) asserted type signature separately & time solving."
-
-  , untidyCore
-    = False &= name "untidy-core"
-            &= help "Print fully qualified identifier names in verbose mode"
-
-  , eliminate
-    = FC.Some
-            &= name "eliminate"
-            &= help "Use elimination for 'all' (use TRUE for cut-kvars), 'some' (use quals for cut-kvars) or 'none' (use quals for all kvars)."
-
-  , noPatternInline
-    = False &= name "no-pattern-inline"
-            &= help "Don't inline special patterns (e.g. `>>=` and `return`) during constraint generation."
-
-  , noSimplifyCore
-    = False &= name "no-simplify-core"
-            &= help "Don't simplify GHC core before constraint generation"
-
-  -- PLE-OPT , autoInstantiate
-    -- PLE-OPT = def
-          -- PLE-OPT &= help "How to instantiate axiomatized functions `smtinstances` for SMT instantiation, `liquidinstances` for terminating instantiation"
-          -- PLE-OPT &= name "automatic-instances"
-
-  , proofLogicEval
-    = False
-        &= help "Enable Proof-by-Logical-Evaluation"
-        &= name "ple"
-
-  , pleWithUndecidedGuards
-    = False
-        &= help "Unfold invocations with undecided guards in PLE"
-        &= name "ple-with-undecided-guards"
-        &= explicit
-
-  , interpreter
-    = False
-        &= help "Use an interpreter to assist PLE in solving constraints"
-        &= name "interpreter"
-
-  , proofLogicEvalLocal
-    = False
-        &= help "Enable Proof-by-Logical-Evaluation locally, per function"
-        &= name "ple-local"
-
-  , etabeta
-    = False
-        &= help "Eta expand and beta reduce terms to aid PLE"
-        &= name "etabeta"
-
-  , dependantCase
-    = False
-        &= help "Allow PLE to reason about dependent cases"
-        &= name "dependantcase"
-
-  , extensionality
-    = False
-        &= help "Enable extensional interpretation of function equality"
-        &= name "extensionality"
-
-  , nopolyinfer
-    = False
-        &= help "No inference of polymorphic type application. Gives imprecision, but speedup."
-        &= name "fast"
-
-  , reflection
-    = False
-        &= help "Enable reflection of Haskell functions and theorem proving"
-        &= name "reflection"
-
-  , compileSpec
-    = False
-        &= name "compile-spec"
-        &= help "Only compile specifications (into .bspec file); skip verification"
-
-  , typeclass
-    = False
-        &= help "Enable Typeclass"
-        &= name "typeclass"
-  , auxInline
-    = False
-        &= help "Enable inlining of class methods"
-        &= name "aux-inline"
-  ,
-    rwTerminationCheck
-    = False
-        &= name "rw-termination-check"
-        &= help (   "Enable the rewrite divergence checker. "
-                 ++ "Can speed up verification if rewriting terminates, but can also cause divergence."
-                )
-  ,
-    skipModule
-    = False
-        &= name "skip-module"
-        &= help "Completely skip this module, don't even compile any specifications in it."
-
-  , fuel
-    = Nothing
-        &= help "Maximum fuel (per-function unfoldings) for PLE"
-
-  , environmentReduction
-    = False
-        &= explicit
-        &= name "environment-reduction"
-        &= help "perform environment reduction (disabled by default)"
-  , noEnvironmentReduction
-    = False
-        &= explicit
-        &= name "no-environment-reduction"
-        &= help "Don't perform environment reduction"
-  , inlineANFBindings
-    = False
-        &= explicit
-        &= name "inline-anf-bindings"
-        &= help (unwords
-          [ "Inline ANF bindings."
-          , "Sometimes improves performance and sometimes worsens it."
-          , "Disabled by --no-environment-reduction"
-          ])
-  , pandocHtml
-    = False
-      &= name "pandoc-html"
-      &= help "Use pandoc to generate html."
-  , excludeAutomaticAssumptionsFor
-    = []
-      &= explicit
-      &= name "exclude-automatic-assumptions-for"
-      &= help "Stop loading LHAssumptions modules for imports in these packages."
-      &= typ "PACKAGE"
-  , dumpOpaqueReflections
-    = False &= help "Dump all generated opaque reflections"
-          &= name "dump-opaque-reflections"
-          &= explicit
-  , dumpPreNormalizedCore
-    = False &= help "Dump pre-normalized core (before a-normalization)"
-          &= name "dump-pre-normalized-core"
-          &= explicit
-  , dumpNormalizedCore
-    = False &= help "Dump a-normalized core"
-          &= name "dump-normalized-core"
-          &= explicit
-  , allowUnsafeConstructors
-    = False &= help "Allow refining constructors with unsafe refinements"
-          &= name "allow-unsafe-constructors"
-          &= explicit
-  , ddumpTimings
-    = False &= help "Dump time measures of the Liquid Haskell plugin"
-          &= name "ddump-timings"
-          &= explicit
-  , modern
-    = False &= help "Enable modern features; enables --reflection, --ple, --etabeta, --dependantcase"
-            &= name "modern"
-  , warnOnTermHoles
-    = False &= help "Warn about holes in terms"
-          &= name "warn-on-term-holes"
-          &= explicit
-  } &= program "liquidhaskell"
-    &= help    "Refinement Types for Haskell"
-    &= summary copyright
-    &= details [ "LiquidHaskell is a Refinement Type based verifier for Haskell" ]
+-- | Map LH's 'Verbosity' to liquid-fixpoint's 'Language.Fixpoint.Verbosity.Verbosity'
+-- and set the global IORef so that whenLoud/whenNormal work throughout the solver.
+setFxVerbosity :: Verbosity -> IO ()
+setFxVerbosity Quiet   = FxV.setVerbosity FxV.Quiet
+setFxVerbosity Minimal = FxV.setVerbosity FxV.Quiet
+setFxVerbosity Normal  = FxV.setVerbosity FxV.Normal
+setFxVerbosity Loud    = FxV.setVerbosity FxV.Loud
 
 getOpts :: [String] -> IO Config
 getOpts as = do
-  cfg0   <- envCfg
-  cfg1   <- cmdArgsRun'
-              config { modeValue = (modeValue config)
-                                      { cmdArgsValue   = cfg0 }
-                     }
-                     as
-  let cfg2 = if json cfg1 then cfg1 {loggingVerbosity = Quiet} else cfg1
-  setVerbosity (cmdargsVerbosity $ loggingVerbosity cfg2)
-  withSmtSolver cfg2
+  cfg0 <- envCfg
+  case getOpt Permute lhOptions as of
+    (flags, _rest, []) -> do
+      when (any isHelp    flags) $ putStr (formatHelp usageHeader lhOptions) >> exitSuccess
+      when (any isVersion flags) $ putStrLn copyright >> exitSuccess
+      let mods = [f | FlagMod f <- flags]
+      let cfg1 = foldl (flip ($)) cfg0 mods
+      let cfg2 = if json cfg1 then cfg1 { loggingVerbosity = Quiet } else cfg1
+      setFxVerbosity (loggingVerbosity cfg2)
+      withSmtSolver cfg2
+    (_, _, optErrs) ->
+      putStr (concat optErrs ++ formatHelp usageHeader lhOptions) >> exitFailure
+  where
+    isHelp    FlagHelp    = True
+    isHelp    _           = False
+    isVersion FlagVersion = True
+    isVersion _           = False
 
-cmdArgsRun' :: Mode (CmdArgs a) -> [String] -> IO a
-cmdArgsRun' md as
-  = case parseResult of
-      Left e  -> putStrLn (helpMsg e) >> exitFailure
-      Right a -> cmdArgsApply a
-    where
-      helpMsg e = showText defaultWrap $ helpText [e] HelpFormatDefault md
-      parseResult = process md (wideHelp as)
-      wideHelp = map (\a -> if a == "--help" || a == "-help" then "--help=120" else a)
+usageHeader :: String
+usageHeader = "Liquid Haskell Options:"
+
+-- | Format the help text in a man-page style: each option's synopsis on its
+-- own line, followed by the description indented on the next line.
+--
+-- Example output:
+--
+-- @
+--   --ple
+--
+--           Enable Proof-by-Logical-Evaluation
+--
+--   --reflection
+--
+--           Enable reflection of Haskell functions and theorem proving
+-- @
+formatHelp :: String -> [OptDescr a] -> String
+formatHelp hdr opts = unlines $ intercalate [""] $ [hdr] : map formatOne opts
+  where
+    formatOne (Option shorts longs argD helpTxt) =
+      let indentedDesc = map ("        " ++) $ lines helpTxt
+       in [ "  " ++ synopsis shorts longs argD
+          , ""
+          ] ++
+          indentedDesc
+
+    synopsis shorts longs argD =
+      intercalate ", " $
+           [ "-"  ++ [s]          | s <- shorts ]
+        ++ [ "--" ++ l ++ argSuffix argD | l <- longs ]
+
+    argSuffix (NoArg  _)    = ""
+    argSuffix (ReqArg _ mv) = "=" ++ mv
+    argSuffix (OptArg _ mv) = "[=" ++ mv ++ "]"
 
 
 --------------------------------------------------------------------------------
@@ -482,15 +528,22 @@ findSmtSolver = \case
     FC.Z3mem -> return $ Just FC.Z3mem
     smt      -> maybe Nothing (const $ Just smt) <$> findExecutable (show smt)
 
+-- | Parse the @LIQUIDHASKELL_OPTS@ environment variable (if set) to produce a
+-- baseline 'Config'.  Unlike the old cmdargs-based @parsePragma@, this
+-- implementation properly handles multiple space-separated options.
 envCfg :: IO Config
 envCfg = do
   so <- lookupEnv "LIQUIDHASKELL_OPTS"
   case so of
     Nothing -> return defConfig
-    Just s  -> parsePragma $ envLoc s
+    Just s  -> applyGetOpt defConfig (words s)
   where
-    envLoc  = Loc l l
-    l       = safeSourcePos "ENVIRONMENT" 1 1
+    applyGetOpt cfg toks =
+      case getOpt Permute lhOptions toks of
+        (flags, _, []) ->
+          return $ foldl (flip ($)) cfg [f | FlagMod f <- flags]
+        (_, _, optErrs)   ->
+          putStr (concat optErrs) >> return cfg
 
 copyright :: String
 copyright = concat $ concat
@@ -544,24 +597,29 @@ withPragmas :: MonadIO m => Config -> [Located String] -> (Config -> m a) -> m a
 --------------------------------------------------------------------------------
 withPragmas cfg ps action
   = do cfg' <- liftIO $ processPragmas cfg ps <&> canonConfig
-       -- As the verbosity is set /globally/ via the cmdargs lib, re-set it.
-       liftIO $ setVerbosity (cmdargsVerbosity $ loggingVerbosity cfg')
+       -- The global verbosity IORef (read by liquid-fixpoint) must be kept in
+       -- sync whenever the verbosity may have changed.
+       liftIO $ setFxVerbosity (loggingVerbosity cfg')
        res <- action cfg'
-       liftIO $ setVerbosity (cmdargsVerbosity $ loggingVerbosity cfg) -- restore the original verbosity.
+       liftIO $ setFxVerbosity (loggingVerbosity cfg) -- restore
        pure res
 
+-- | Apply a list of pragma strings (each is one option, e.g. @"--ple"@ or
+-- @"--expect-error-containing=Mismatch"@) on top of an existing 'Config'.
+-- Each pragma string is tokenised with 'words' so that a two-token form like
+-- @"--check-var foo"@ also works.
 processPragmas :: Config -> [Located String] -> IO Config
-processPragmas c pragmas =
-    processValueIO
-      config { modeValue = (modeValue config) { cmdArgsValue = c } }
-      (val <$> pragmas)
-    >>=
-      cmdArgsApply
+processPragmas cfg pragmas = foldM applyOne cfg pragmas
+  where
+    applyOne c loc =
+      case getOpt Permute lhOptions (words (val loc)) of
+        (flags, _, []) -> return $ foldl (flip ($)) c [f | FlagMod f <- flags]
+        (_, _, optErrs)   -> do
+          putStr (concat optErrs)
+          return c
 
--- | Note that this function doesn't process list arguments properly, like
--- 'expectErrorContaining'
--- TODO: This is only used to parse the contents of the env var LIQUIDHASKELL_OPTS
--- so it should be able to parse multiple arguments instead. See issue #1990.
+-- | Parse a single pragma string against 'defConfig'.
+-- Also used to parse the @LIQUIDHASKELL_OPTS@ environment variable.
 parsePragma :: Located String -> IO Config
 parsePragma = processPragmas defConfig . (:[])
 
