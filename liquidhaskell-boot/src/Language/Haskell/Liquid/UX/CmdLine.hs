@@ -102,6 +102,7 @@ defConfig = Config
   , linear                        = False
   , stringTheory                  = False
   , saveQuery                     = False
+  , saveBfqOnError                = False
   , checks                        = []
   , pruneUnsorted                 = False
   , notermination                 = False
@@ -204,6 +205,8 @@ lhOptions =
       "Interpretation of Strings by z3"
   , opt [] ["save-query", "save"] (NoArg $ fm $ \c -> c { saveQuery = True })
       "Save fixpoint query to file (slow)"
+  , opt [] ["save-bfq-on-error"] (NoArg $ fm $ \c -> c { saveBfqOnError = True })
+      "Save fixpoint query as .bfq only when verification fails"
 
   -- SMT
   , opt [] ["smt-timeout"] (ReqArg (fm . setSmtTimeout) "MSEC")

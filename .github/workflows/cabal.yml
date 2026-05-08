@@ -75,3 +75,9 @@ jobs:
           cabal test tests:tasty --test-show-details=streaming
           cabal test tests:liquidhaskell-test --test-show-details=streaming
           cabal test -j1 liquidhaskell-boot --test-show-details=streaming
+      - name: Upload bfq artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bfq-files
+          path: '**/*.bfq'
