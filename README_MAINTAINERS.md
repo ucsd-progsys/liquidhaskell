@@ -56,8 +56,6 @@ Push the changes to the github repo.
 git push --tags origin HEAD:develop
 ```
 
-Create a release in https://github.com/ucsd-progsys/liquid-fixpoint/releases
-
 ### Make a release for Liquid Haskell
 
 Make the `liquid-fixpoint` submodule point at the commit of the latest
@@ -125,5 +123,3 @@ Push the changes to the github repo.
 ```
 git push --tags origin HEAD:develop
 ```
-
-Create a release in https://github.com/ucsd-progsys/liquidhaskell/releases
