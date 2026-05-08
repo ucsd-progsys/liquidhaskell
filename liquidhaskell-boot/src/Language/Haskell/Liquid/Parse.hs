@@ -494,6 +494,7 @@ bareTyArgP
  <|> try (braces $ RExprArg <$> located exprP)
  <|> try bareAtomNoAppP
  <|> try (parens bareTypeP)
+ <|> try (parens $ RExprArg <$> located exprP)
  <?> "bareTyArgP"
 
 bareAtomNoAppP :: Parser BareTypeParsed
