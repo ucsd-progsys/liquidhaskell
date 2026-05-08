@@ -260,6 +260,10 @@ testSucceeds =
        parseSingleSpec "x :: k:Int -> Int" @?==
           "x :: k:Int -> Int"
 
+    , testCase "k:Int -> B (k + 1)" $
+       parseSingleSpec "x :: k:Int -> B (k + 1)" @?==
+          "x :: k:Int -> (B {k + 1})"
+
     , testCase "type spec 1 " $
        parseSingleSpec "type IncrListD a D = [a]<{\\x y -> (x+D) <= y}>" @?==
           "type IncrListD a D  =  [a]<\\x##2 _ -> {y##3 : LIQUID$dummy | x##2 + D <= y##3}>"
@@ -485,6 +489,18 @@ testFails =
               , "unexpected ':'"
               , "expecting \"->\", \"=>\", '/', bareTyArgP, end of input, mmonoPredicateP, or monoPredicateP"
               ]
+
+    , testCase "type t = Nat (type aliases should start with upper case)" $
+          parseSingleSpec "type t = Nat" @?==
+            unlines
+              [ "<test>:1:6:"
+              , "  |"
+              , "1 | type t = Nat"
+              , "  |      ^"
+              , "unexpected 't'"
+              , "expecting aliasP"
+              ]
+
     ]
 
 
