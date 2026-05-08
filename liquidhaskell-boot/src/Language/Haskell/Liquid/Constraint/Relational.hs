@@ -48,7 +48,7 @@ import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.Specs
 import           Language.Haskell.Liquid.Types.Types hiding (binds)
 import           Language.Haskell.Liquid.UX.Config
-import           System.Console.CmdArgs.Verbosity               (whenLoud)
+import           Language.Fixpoint.Verbosity               (whenLoud)
 import           System.IO.Unsafe                               (unsafePerformIO)
 
 data RelPred
