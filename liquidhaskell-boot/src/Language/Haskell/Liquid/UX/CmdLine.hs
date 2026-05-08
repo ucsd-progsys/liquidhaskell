@@ -227,7 +227,7 @@ lhOptions =
       "Maximum partition size for multi-core solving"
 
   -- Checking options
-  , opt [] ["check-var"] (ReqArg (fm . addCheckVar) "VAR")
+  , opt [] ["check-var", "checks"] (ReqArg (fm . addCheckVar) "VAR")
       "Check a specific (top-level) binder (can be repeated)"
   , opt [] ["prune-unsorted", "pruneunsorted"] (NoArg $ fm $ \c -> c { pruneUnsorted = True })
       "Prune unsorted predicates"
@@ -545,8 +545,8 @@ envCfg = do
       case getOpt Permute lhOptions toks of
         (flags, _, []) ->
           return $ foldl (flip ($)) cfg [f | FlagMod f <- flags]
-        (_, _, optErrs)   ->
-          putStr (concat optErrs) >> return cfg
+        (_, _, optErrs) ->
+          putStrLn (unlines optErrs) >> exitFailure
 
 copyright :: String
 copyright = concat $ concat
@@ -617,9 +617,8 @@ processPragmas cfg pragmas = foldM applyOne cfg pragmas
     applyOne c loc =
       case getOpt Permute lhOptions (words (val loc)) of
         (flags, _, []) -> return $ foldl (flip ($)) c [f | FlagMod f <- flags]
-        (_, _, optErrs)   -> do
-          putStr (concat optErrs)
-          return c
+        (_, _, optErrs)   ->
+          putStrLn (unlines optErrs) >> exitFailure
 
 -- | Parse a single pragma string against 'defConfig'.
 -- Also used to parse the @LIQUIDHASKELL_OPTS@ environment variable.
