@@ -82,7 +82,10 @@ initEnv info
        let tcb   = fmap (rTypeSort tce) <$> concat bs
        let cbs   = giCbs . giSrc $ info
        rTrue   <- mapM (traverse (true allowTC)) f6
-       let γ0    = measEnv sp (head bs) cbs tcb lt1s lt2s (f6 ++ bs!!3) (bs!!5) hs info
+       -- Issue #2537: reflected sigs (f6) must come AFTER assumed sigs (bs!!3) so that
+       -- when both exist for the same symbol (e.g., assume-reflect actual functions),
+       -- the strengthened reflected sig wins in M.fromList (which keeps the last entry).
+       let γ0    = measEnv sp (head bs) cbs tcb lt1s lt2s (bs!!3 ++ f6) (bs!!5) hs info
        γ  <- globalize <$> foldM (+=) γ0 ( [("initEnv", x, y) | (x, y) <- concat (rTrue:tail bs)])
        return γ {invs = is (invs1 ++ invs2)}
   where

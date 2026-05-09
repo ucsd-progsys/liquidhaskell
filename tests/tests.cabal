@@ -2232,6 +2232,7 @@ executable basic-pos
                     , AssmRefl02C
                     , AssmRefl02D
                     , AssmRefl03
+                    , AssmRefl04
                     , AssmReflFilter
                     , DeadBind00
                     , Float
@@ -2284,6 +2285,7 @@ executable basic-pos
                     , TestAdmit
 
     build-depends:    base
+                    , containers
                     , liquid-prelude
                     , liquidhaskell
 
