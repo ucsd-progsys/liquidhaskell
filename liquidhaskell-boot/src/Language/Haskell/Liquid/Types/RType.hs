@@ -848,13 +848,19 @@ instance (NFData s)                => NFData   (RTVInfo s)
 type Ref τ t = RefB Symbol τ t
 
 -- | @Ref@ describes `Prop τ` and `HProp` arguments applied to type constructors.
---   For example, in [a]<{\h -> v > h}>, we apply (via `RApp`)
---   * the `RProp`  denoted by `{\h -> v > h}` to
+--   For example, in [a]<{\h -> {v:_ | v > h}>, we apply (via `RApp`)
+--   * the `RProp`  denoted by `{\h -> {v:_ | v > h}` to
 --   * the `RTyCon` denoted by `[]`.
 --   Thus, @Ref@ is used for abstract-predicate (arguments) that are associated
 --   with _type constructors_ i.e. whose semantics are _dependent upon_ the data-type.
 --   In contrast, the `Predicate` argument in `ur_pred` in the @UReft@ applies
 --   directly to any type and has semantics _independent of_ the data-type.
+--
+-- RefB is used to encode dependant tuples as well. For instance,
+--  @(i:: Int, {v:Int | v > i})@ is encoded as
+--
+-- > RApp (RTyCon tupleTyCon) [Int, Int] [RProp [(i, intTy)] {v:Int | v > i}] []
+--
 
 data RefB b τ t = RProp
   { rf_args :: [(b, τ)] -- ^ arguments. e.g. @h@ in the above example
