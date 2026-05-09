@@ -308,12 +308,16 @@ instance Subable (RRProp Reft) where
   syms (RProp ss t)      = (fst <$> ss) ++ syms t
 
 
-  subst su (RProp ss (RHole r)) = RProp (fmap (subst su) <$> ss) $ RHole $ subst su r
-  subst su (RProp ss r)  = RProp  (fmap (subst su) <$> ss) $ subst su r
+  subst su (RProp ss (RHole r)) = RProp (fmap (subst su') <$> ss) $ RHole $ subst su' r
+    where su' = substExcept su (fst <$> ss)
+  subst su (RProp ss r)  = RProp  (fmap (subst su') <$> ss) $ subst su' r
+    where su' = substExcept su (fst <$> ss)
 
 
-  substf f (RProp ss (RHole r)) = RProp (fmap (substf f) <$> ss) $ RHole $ substf f r
-  substf f (RProp ss r) = RProp  (fmap (substf f) <$> ss) $ substf f r
+  substf f (RProp ss (RHole r)) = RProp (fmap (substf f') <$> ss) $ RHole $ substf f' r
+    where f' = substfExcept f (fst <$> ss)
+  substf f (RProp ss r) = RProp  (fmap (substf f') <$> ss) $ substf f' r
+    where f' = substfExcept f (fst <$> ss)
 
   substa f (RProp ss (RHole r)) = RProp (fmap (substa f) <$> ss) $ RHole $ substa f r
   substa f (RProp ss r) = RProp  (fmap (substa f) <$> ss) $ substa f r

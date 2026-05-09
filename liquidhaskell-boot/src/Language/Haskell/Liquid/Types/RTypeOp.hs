@@ -249,11 +249,13 @@ instance (IsReft r, F.Subable r, TyConable c, F.Binder v, F.Variable r ~ v, Reft
   type Variable (RTPropBV v v c tv r) = v
   syms (RProp  ss r)     = (fst <$> ss) ++ F.syms r
 
-  subst su (RProp ss (RHole r)) = RProp ss (RHole (F.subst su r))
-  subst su (RProp  ss t) = RProp ss (F.subst su <$> t)
+  subst su (RProp ss (RHole r)) = RProp ss (RHole (F.subst su' r))
+    where su' = F.substExcept su (fst <$> ss)
+  subst su (RProp  ss t) = RProp ss (F.subst su' <$> t)
+    where su' = F.substExcept su (fst <$> ss)
 
-  substf f (RProp ss (RHole r)) = RProp ss (RHole (F.substf f r))
-  substf f (RProp  ss t) = RProp ss (F.substf f <$> t)
+  substf f (RProp ss (RHole r)) = RProp ss (RHole (F.substf (F.substfExcept f (fst <$> ss)) r))
+  substf f (RProp  ss t) = RProp ss (F.substf (F.substfExcept f (fst <$> ss)) <$> t)
 
   substa f (RProp ss (RHole r)) = RProp ss (RHole (F.substa f r))
   substa f (RProp  ss t) = RProp ss (F.substa f <$> t)
@@ -323,8 +325,10 @@ emapReft f γ (RRTy e r o t)    = RRTy  (fmap (emapReft f γ) <$> e) (f γ r) o 
 emapReft f γ (RHole r)         = RHole (f γ r)
 
 emapRef :: ([b] -> t -> s) ->  [b] -> RTPropBV b v c tv t -> RTPropBV b v c tv s
-emapRef  f γ (RProp s (RHole r))  = RProp s $ RHole (f γ r)
-emapRef  f γ (RProp s t)         = RProp s $ emapReft f γ t
+emapRef  f γ (RProp s (RHole r))  = RProp s $ RHole (f γ' r)
+  where γ' = map fst s ++ γ
+emapRef  f γ (RProp s t)         = RProp s $ emapReft f γ' t
+  where γ' = map fst s ++ γ
 
 mapRTypeV ::  (v -> v') -> RTypeBV b v c tv r -> RTypeBV b v' c tv r
 mapRTypeV _ (RVar α r)        = RVar α r
@@ -466,7 +470,7 @@ emapExprArg f = go
     go γ (RRTy e r o t)    = RRTy  (fmap (go γ) <$> e) r o (go γ t)
 
     mo _ t@(RProp _ RHole{}) = t
-    mo γ (RProp s t)         = RProp s (go γ t)
+    mo γ (RProp s t)         = RProp s (go (map fst s ++ γ) t)
 
 parsedToBareType :: BareTypeParsed -> BareType
 parsedToBareType = mapRTypeV F.val . mapReft (mapUReftV F.val (fmap F.val))
