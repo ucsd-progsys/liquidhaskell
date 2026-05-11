@@ -333,7 +333,8 @@ and compelling example.
 
 **Syntax:** The key requirements for type aliases are:
 
-- Value parameters are specified in **upper**case: `X`, `Y`, `Z` etc.
+1. It's name can start with either an upper or lower case letter.
+2. Value parameters are specified in **upper**case: `X`, `Y`, `Z` etc.
 
 ### Type Aliases
 
@@ -380,8 +381,10 @@ see [tests/pos/Map.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develo
 
 **Syntax:** The key requirements for type aliases are:
 
-1. Type parameters go first and are specified in **lower**case: `a`, `b`, `c` etc.
-2. Value parameters are specified in **upper**case: `X`, `Y`, `Z` etc.
+1. It's name must follow the convention of regular Haskell types. Note they can override existing
+   Haskell type names within annotations.
+2. Type parameters go first and are specified in **lower**case: `a`, `b`, `c` etc.
+3. Value parameters are specified in **upper**case: `X`, `Y`, `Z` etc.
 
 ### Import/Export of aliases
 
