@@ -3121,9 +3121,10 @@ incr x = x + 1
 <p>See <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/benchmarks/esop2013-submission/Base.hs">Data.Map</a> for a more substantial
 and compelling example.</p>
 <p><strong>Syntax:</strong> The key requirements for type aliases are:</p>
-<ul>
+<ol>
+<li>It's name can start with either an upper or lower case letter.</li>
 <li>Value parameters are specified in <strong>upper</strong>case: <code>X</code>, <code>Y</code>, <code>Z</code> etc.</li>
-</ul>
+</ol>
 <h3 id="type-aliases">Type Aliases<a class="headerlink" href="#type-aliases" title="Permanent link">&para;</a></h3>
 <p>Similarly, it is often quite tedious to keep writing</p>
 <pre><code>{v: Int | v &gt; 0}
@@ -3157,6 +3158,8 @@ and compelling example.</p>
 <p>see <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Map.hs">tests/pos/Map.hs</a></p>
 <p><strong>Syntax:</strong> The key requirements for type aliases are:</p>
 <ol>
+<li>It's name must follow the convention of regular Haskell types. Note they can override existing
+   Haskell type names within annotations.</li>
 <li>Type parameters go first and are specified in <strong>lower</strong>case: <code>a</code>, <code>b</code>, <code>c</code> etc.</li>
 <li>Value parameters are specified in <strong>upper</strong>case: <code>X</code>, <code>Y</code>, <code>Z</code> etc.</li>
 </ol>
