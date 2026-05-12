@@ -38,6 +38,7 @@ module Language.Haskell.Liquid.Types.RTypeOp (
   , mapRTypeVM
   , mapDataDeclV
   , mapDataDeclVM
+  , mapRBase
   , emapDataDeclM
   , emapDataCtorTyM
   , emapBareTypeVM
@@ -791,4 +792,5 @@ mapRBase f (RApp c ts rs r)   = RApp c ts rs $ f r
 mapRBase f (RVar a r)         = RVar a $ f r
 mapRBase f (RFun x i t1 t2 r) = RFun x i t1 t2 $ f r
 mapRBase f (RAppTy t1 t2 r)   = RAppTy t1 t2 $ f r
+mapRBase f (RAllT b t r)      = RAllT b t (f r)
 mapRBase _ t                  = t

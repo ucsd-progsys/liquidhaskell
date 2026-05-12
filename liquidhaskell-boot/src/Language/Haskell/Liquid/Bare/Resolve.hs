@@ -309,7 +309,15 @@ ofBareType env l ps t = either fail' id (ofBareTypeE env l ps t)
     -- fail                   = Misc.errorP "error-ofBareType" . F.showpp
 
 ofBareTypeE :: HasCallStack => Env -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> Lookup SpecType
-ofBareTypeE env l ps t = ofBRType env (const (resolveReft l ps t)) l t
+ofBareTypeE env l ps t =
+    ofBRType env rebindUReftBV (const (resolveReft l ps t)) l t
+  where
+    rebindUReftBV (x, y) (MkUReft (F.Reft (v, e)) p) =
+      let su = (x, F.EVar y)
+          e' = F.subst1 e su
+          p' = F.subst1 p su
+       in
+          MkUReft (F.Reft (v, e')) p'
 
 resolveReft :: F.SourcePos -> Maybe [PVar BSort] -> BareType -> RReft -> RReft
 resolveReft l ps t
@@ -337,7 +345,7 @@ ofBSort :: HasCallStack => Env -> F.SourcePos -> BSort -> RSort
 ofBSort env l t = either (Misc.errorP "error-ofBSort" . F.showpp) id (ofBSortE env l t)
 
 ofBSortE :: HasCallStack => Env -> F.SourcePos -> BSort -> Lookup RSort
-ofBSortE env l t = ofBRType env (const id) l t
+ofBSortE env l t = ofBRType env (const id) (const id) l t
 
 ofBPVar :: Env -> F.SourcePos -> BPVar -> RPVar
 ofBPVar env l = fmap (ofBSort env l)
@@ -374,14 +382,26 @@ type Expandable r = ( PPrint r
                     , SubsTy RTyVar (RType RTyCon RTyVar NoReft) r
                     , HasCallStack)
 
-ofBRType :: (Expandable r) => Env -> ([F.Symbol] -> r -> r) -> F.SourcePos -> BRType r
-         -> Lookup (RRType r)
-ofBRType env f l = go []
+ofBRType
+  :: (Expandable r)
+  => Env
+  -> ((F.Symbol, F.Symbol) -> r -> r)
+  -> ([F.Symbol] -> r -> r)
+  -> F.SourcePos
+  -> BRType r
+  -> Lookup (RRType r)
+ofBRType env rebindR f l = go []
   where
     goReft bs r             = return (f bs r)
-    goRFun bs x i t1 t2 r  = RFun x i{permitTC = Just (typeclass (getConfig env))} <$> (rebind x <$> go bs t1) <*> go (x:bs) t2 <*> goReft bs r
+    goRFun bs x i t1 t2 r  =
+      RFun x i{permitTC = Just (typeclass (getConfig env))}
+        <$> (rebind x <$> go bs t1)
+        <*> go (x:bs) t2
+        <*> goReft bs r
     -- See the documentation of 'RFun' for what rebind accomplishes.
-    rebind x t              = F.subst1 t (x, F.EVar $ rTypeValueVar t)
+    rebind x t =
+      let su = (x, rTypeValueVar t)
+       in mapReftRecs (`F.subst1` (F.EVar <$> su)) (`F.subst1` (F.EVar <$> su)) (mapRBase (rebindR su) t)
     go bs (RAppTy t1 t2 r)  = RAppTy <$> go bs t1 <*> go bs t2 <*> goReft bs r
     go bs (RApp tc ts rs r) = goRApp bs tc ts rs r
     go bs (RFun x i t1 t2 r) = goRFun bs x i t1 t2 r
@@ -403,6 +423,21 @@ ofBRType env f l = go []
       where
         lc'                    = F.atLoc lc <$> lookupGhcTyConLHName (reTyLookupEnv env) lc
         lc                     = btc_tc tc
+
+    -- | Applies the given functions to the recursive occurrences of the RTypeV,
+    -- but only where rTypeReft retrieves a value.
+    --
+    -- This is needed when rebinding to ensure that name changes are applied
+    -- over the scope of the names.
+    mapReftRecs
+      :: (RTypeBV b v c tv r -> RTypeBV b v c tv r)
+      -> (RTPropBV b v c tv r -> RTPropBV b v c tv r)
+      -> RTypeBV b v c tv r -> RTypeBV b v c tv r
+    mapReftRecs f g (RApp c ts rs r)  = RApp  c (f <$> ts) (g <$> rs) r
+    mapReftRecs f _ (RFun x i t t' r) = RFun  x i (f t) (f t') r
+    mapReftRecs f _ (RAppTy t t' r)   = RAppTy (f t) (f t') r
+    mapReftRecs f _ (RAllT α t r)     = RAllT α (f t) r
+    mapReftRecs _ _ t                 = t
 
 lookupGhcTyConLHName :: HasCallStack => GHCTyLookupEnv -> Located LHName -> Lookup Ghc.TyCon
 lookupGhcTyConLHName env lc = do
