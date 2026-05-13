@@ -456,8 +456,8 @@ getOpts as = do
   cfg0 <- envCfg
   case getOpt Permute lhOptions as of
     (flags, _rest, []) -> do
-      when (any isHelp    flags) $ putStr (formatHelp usageHeader lhOptions) >> exitSuccess
-      when (any isVersion flags) $ putStrLn copyright >> exitSuccess
+      when (any isHelp    flags) $ putStr (formatHelp usageHeader lhOptions) >> error "LiquidHaskell:--help"
+      when (any isVersion flags) $ putStrLn copyright >> error "LiquidHaskell:--version"
       let mods = [f | FlagMod f <- flags]
       let cfg1 = foldl (flip ($)) cfg0 mods
       let cfg2 = if json cfg1 then cfg1 { loggingVerbosity = Quiet } else cfg1
@@ -465,11 +465,6 @@ getOpts as = do
       withSmtSolver cfg2
     (_, _, optErrs) ->
       putStr (concat optErrs ++ formatHelp usageHeader lhOptions) >> exitFailure
-  where
-    isHelp    FlagHelp    = True
-    isHelp    _           = False
-    isVersion FlagVersion = True
-    isVersion _           = False
 
 usageHeader :: String
 usageHeader = "Liquid Haskell Options:"
@@ -616,9 +611,22 @@ processPragmas cfg pragmas = foldM applyOne cfg pragmas
   where
     applyOne c loc =
       case getOpt Permute lhOptions (words (val loc)) of
-        (flags, _, []) -> return $ foldl (flip ($)) c [f | FlagMod f <- flags]
+        (flags, _, []) -> do
+          when (any isHelp flags) $
+            putStr (formatHelp usageHeader lhOptions) >> error "LiquidHaskell:--help"
+          when (any isVersion flags) $
+            putStrLn copyright >> error "LiquidHaskell:--version"
+          return $ foldl (flip ($)) c [f | FlagMod f <- flags]
         (_, _, optErrs)   ->
           putStrLn (unlines optErrs) >> exitFailure
+
+isHelp :: Flag -> Bool
+isHelp FlagHelp = True
+isHelp _ = False
+
+isVersion :: Flag -> Bool
+isVersion FlagVersion = True
+isVersion _ = False
 
 -- | Parse a single pragma string against 'defConfig'.
 -- Also used to parse the @LIQUIDHASKELL_OPTS@ environment variable.
