@@ -47,7 +47,6 @@ import Data.Maybe
 import Data.Functor                          ((<&>))
 import Data.Aeson                            (encode)
 import qualified Data.ByteString.Lazy.Char8 as B
-import Development.GitRev                   (gitCommitCount)
 import qualified Paths_liquidhaskell_boot as Meta
 import System.Console.GetOpt
 import qualified Language.Fixpoint.Verbosity as FxV
@@ -548,12 +547,8 @@ copyright = concat $ concat
   [ ["LiquidHaskell "]
   , [$(simpleVersion Meta.version)]
   , [gitInfo]
-  -- , [" (" ++ _commitCount ++ " commits)" | _commitCount /= ("1"::String) &&
-  --                                          _commitCount /= ("UNKNOWN" :: String)]
-  , ["\nCopyright 2013-19 Regents of the University of California. All Rights Reserved.\n"]
+  , ["\n\nCopyright 2013-19 Regents of the University of California. All Rights Reserved.\n"]
   ]
-  where
-    _commitCount = $gitCommitCount
 
 gitInfo :: String
 gitInfo  = msg
@@ -568,7 +563,6 @@ gitMsg :: GitInfo -> String
 gitMsg gi = concat
   [ " [", giBranch gi, "@", giHash gi
   , " (", giCommitDate gi, ")"
-  -- , " (", show (giCommitCount gi), " commits in HEAD)"
   , "] "
   ]
 
