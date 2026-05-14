@@ -21,13 +21,33 @@ EOF
 trap "rm -f $tmp_version_file $tmp_help_file" EXIT
 
 # Test that the help message is printed correctly
-OUT=$(cabal exec -- ghc -fplugin=LiquidHaskell $tmp_help_file 2> /dev/null)
-[ $? -ne 0 ] || (echo "Expected non-zero exit code for --help" && exit 1)
-echo $OUT | grep -q "Liquid Haskell Options" || echo "Help message not found" && exit 1
+OUT=$(cabal exec -- ghc -fplugin=LiquidHaskell $tmp_help_file 2>&1)
+EXIT_CODE=$?
+if [ $EXIT_CODE -eq 0 ]; then
+  echo "ERROR: Expected non-zero exit code for --help, but got 0" >&2
+  exit 1
+fi
+if ! echo "$OUT" | grep -q "Liquid Haskell Options"; then
+  echo "ERROR: Help message not found in output" >&2
+  echo "Got output:" >&2
+  echo "$OUT" >&2
+  exit 1
+fi
+echo LiquidHaskell --help: PASSED
 
-# Test that the help message is printed correctly
-OUT=$(cabal exec -- ghc -fplugin=LiquidHaskell $tmp_version_file 2> /dev/null)
-[ $? -ne 0 ] || (echo "Expected non-zero exit code for --version" && exit 1)
-echo $OUT | grep -q "LiquidHaskell Version" || echo "Version message not found" && exit 1
+# Test that the version message is printed correctly
+OUT=$(cabal exec -- ghc -fplugin=LiquidHaskell $tmp_version_file 2>&1)
+EXIT_CODE=$?
+if [ $EXIT_CODE -eq 0 ]; then
+  echo "ERROR: Expected non-zero exit code for --version, but got 0" >&2
+  exit 1
+fi
+if ! echo "$OUT" | grep -q "LiquidHaskell Version"; then
+  echo "ERROR: Version message not found in output" >&2
+  echo "Got output:" >&2
+  echo "$OUT" >&2
+  exit 1
+fi
+echo LiquidHaskell --version: PASSED
 
 echo "All tests passed!"
