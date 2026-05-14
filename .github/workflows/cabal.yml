@@ -72,6 +72,7 @@ jobs:
       - name: Test
         run: |
           scripts/test/test_plugin.sh
+          scripts/test/test_flags.sh
           cabal test tests:tasty --test-show-details=streaming
           cabal test tests:liquidhaskell-test --test-show-details=streaming
           cabal test -j1 liquidhaskell-boot --test-show-details=streaming
