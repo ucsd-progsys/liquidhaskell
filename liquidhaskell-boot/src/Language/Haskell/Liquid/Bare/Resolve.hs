@@ -379,6 +379,7 @@ ofBRType env f l = go []
   where
     goReft bs r             = return (f bs r)
     goRFun bs x i t1 t2 r  = RFun x i{permitTC = Just (typeclass (getConfig env))} <$> (rebind x <$> go bs t1) <*> go (x:bs) t2 <*> goReft bs r
+    -- See the documentation of 'RFun' for what rebind accomplishes.
     rebind x t              = F.subst1 t (x, F.EVar $ rTypeValueVar t)
     go bs (RAppTy t1 t2 r)  = RAppTy <$> go bs t1 <*> go bs t2 <*> goReft bs r
     go bs (RApp tc ts rs r) = goRApp bs tc ts rs r

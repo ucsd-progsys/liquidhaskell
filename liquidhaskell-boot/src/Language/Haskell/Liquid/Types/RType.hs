@@ -272,6 +272,48 @@ instance F.PPrint v => F.PPrint (SizeFunV v) where
 
 type PVar t = PVarV Symbol t
 type PVarV v t = PVarBV Symbol v t
+
+-- | A predicate variable with arguments, e.g. @p :: x:a -> z:a -> Bool@.
+--
+-- A 'PVarBV' appears in two roles:
+--
+-- 1. As a __binder__ inside 'RAllP', declaring the predicate variable and its
+--    signature.  Here each @pargs@ entry has the form @(t, x, EVar x)@: the
+--    expression is the canonical variable itself (identity).
+--
+-- 2. As a __use site__ inside 'ur_pred' of a 'UReftBV' (as 'UsedPVarBV'),
+--    recording which abstract refinement is applied and with which actual
+--    argument expressions.
+--
+-- Example: given
+--
+-- @{-\@ foo :: forall a \<p :: x:a -> z:a -> Bool\>. y:a -> a\<p y\> \@-}@
+--
+-- * At the __binder__ (inside 'RAllP'):
+--   @PV{pname="p", ptype=a, parg="LIQUID$dummy", pargs=[(a, "x", EVar "x")]}@
+-- * At the __use site__ @a\<p y\>@ (inside 'ur_pred'):
+--   @PV{pname="p", ptype=a, parg="LIQUID$dummy", pargs=[(a, "x", EVar "y")]}@
+--
+-- * @pname@ is the name of the predicate variable, e.g. @p@
+-- * @ptype@ is the type of the last (value) argument, i.e. the type being
+--   constrained, e.g. @a@
+-- * @parg@ is an internal dummy binder — always @"LIQUID$dummy"@. It is used
+--   by 'pToRef' as the value-position variable in the uninterpreted function
+--   call @papp_n(p, parg, e1, ..., en)@ when converting a standalone
+--   'PredicateBV' to a 'F.Reft' via 'toReft'. In the main constraint
+--   generation path ('replacePredsWithRefs' / 'pVartoRConc'), the @ur_reft@
+--   binder is used instead.
+-- * @pargs@ is the list of non-value arguments (excluding the last one).
+--   Each triple is @(type, formal-binder, actual-expr)@.
+--   The __formal-binder__ always comes from the predicate declaration site
+--   (preserved by 'txPvar'); the __actual-expr__ is updated at each call site.
+--
+--   The expressions in @pargs@ are the __actual arguments__ at each use site.
+--   In 'meetListWithPSub' (abstract refinement subtyping), if all expressions
+--   equal their formal binders (@\(_, x, EVar y) -> x == y@) no substitution
+--   is needed; otherwise the substitution @[(formal, actual), ...]@ built from
+--   @pargs@ is applied to the concrete predicate body.
+--
 data PVarBV b v t = PV
   { pname :: !b
   , ptype :: !t
@@ -709,12 +751,59 @@ type PVUBV b v c tv = PVarBV b v (RTypeBV b v c tv (NoReftB b))
 
 type RType c tv r = RTypeV Symbol c tv r
 type RTypeV v c tv = RTypeBV Symbol v c tv
+-- | A refinement type
+--
+-- * @b@ is the type of bindings
+-- * @v@ is the type of variables appearing in expressions
+-- * @c@ is the type of type constructors
+-- * @tv@ is the type of type variables
+-- * @r@ is the type of refinements
+--
+-- A refinement might be missing (e.g. @r@ is @()@), if the RTypeBV is used to
+-- represent the type of an entity that can't use refinements, e.g. the type of
+-- an abstract predicate.
 data RTypeBV b v c tv r
-  = RVar {
+  =
+    -- | A type variable, e.g. @a@ in @a -> a@
+    --
+    -- When the refinement is @(v, e)@, the constructor represents @{v:a | e}@.
+    --
+    -- The scope of @v@ is the expression @e@ and the type @a@.
+    --
+    -- * @rt_var@ is the type variable, e.g. @a@
+    -- * @rt_reft@ is the refinement, e.g. @(v, v > 0)@ in @{v:a | v > 0}@
+    --
+    RVar {
       rt_var    :: !tv
     , rt_reft   :: !r
     }
 
+    -- | A function type, e.g. @x:a -> y:{y1:a | x = y1} -> {v:a | y == v}@
+    --
+    -- * @rt_bind@ is the binder of the first argument, e.g. @x@ in the above
+    --   example. The scope of @rt_bind@ is @rt_in@ and @rt_out@. Note, however,
+    --   that @rt_bind@ is not used in @rt_in@ after a SpecType is constructed.
+    --   This is because all the occurrences of the binder are switched to the
+    --   name of the binder in the refinement type of @rt_in@ (e.g.
+    --   @{y:{y1:a | x = y} -> ...}@ is changed to @{y:{y1:a | x = y1} -> ...}@).
+    --   This transformation is performed by @rebind@ in @ofBRType@.
+    --
+    -- * @rt_rinfo@ controls whether typeclass method elaboration is permitted
+    --   on this arrow. @RFInfo (Just True)@ means typeclass arguments are
+    --   allowed; @RFInfo Nothing@ is the default for user-written types.
+    --
+    -- * @rt_in@ is the type of the first argument, e.g. @a@
+    --
+    -- * @rt_out@ is the type of the result, e.g.
+    --   @y:{y1:a | x = y1} -> {v:a | y == v}@
+    --
+    -- * @rt_reft@ is the refinement of the function type. If the refinement is
+    --   @(v0, e)@, then the represented type is
+    --   @{v0: (x:a -> y:{y1:a | x = y1} -> {v:a | y == v}) | e}@.
+    --
+    --   The scope of @v0@ is the entire function type and @e@, i.e.
+    --   @x:a -> y:{y1:a | x = y1} -> {v:a | y == v}@.
+    --
   | RFun  {
       rt_bind   :: !b
     , rt_rinfo  :: !RFInfo
@@ -723,22 +812,61 @@ data RTypeBV b v c tv r
     , rt_reft   :: !r
     }
 
+    -- | A universally quantified type, e.g. @forall (a :: k). a -> a@
+    --
+    -- * @rt_tvbind@ is the type variable and its kind, e.g. @a :: k@ in the
+    --   above example. If @rtv_is_val@ is True in the variable's info, the
+    --   type variable also introduces an expression-level binder (a "value
+    --   type variable") with name @rtv_name@ and kind @rtv_kind@.
+    --
+    -- * @rt_ty@ is the body of the quantified type, e.g. @a -> a@
+    --
+    -- * @rt_ref@ is the refinement of the quantified type.
+    --   If the refinement is @(v, e)@, then the represented type is
+    --   @{v: (forall (a :: k). a -> a) | e}@.
+    --
+    --   The scope of @v@ is the entire quantified type and @e@.
+    --
   | RAllT {
-      rt_tvbind :: !(RTVUBV b v c tv) -- RTVar tv (RType c tv ()))
+      rt_tvbind :: !(RTVUBV b v c tv)
     , rt_ty     :: !(RTypeBV b v c tv r)
     , rt_ref    :: !r
     }
 
-  -- | "forall x y <z :: Nat, w :: Int> . TYPE"
-  --               ^^^^^^^^^^^^^^^^^^^ (rt_pvbind)
+    -- | A universally quantified type over predicate variables, e.g.
+    --  @forall \<p :: Int -> Bool\>. {v:Int | p v} -> Int@
+    --
+    -- * @rt_pvbind@ is the predicate variable and its type, e.g.
+    --   @p :: Int -> Bool@ in the above example. See 'PVarBV' for details on
+    --   how predicate variable arguments are stored.
+    --
+    -- * @rt_ty@ is the body of the quantified type, e.g.
+    --   @{v:Int | p v} -> Int@. The predicate variable @rt_pvbind@ is in scope
+    --   in @rt_ty@ and can be applied to type constructors via @rt_pargs@ in
+    --   'RApp'.
+    --
   | RAllP {
       rt_pvbind :: !(PVUBV b v c tv)
     , rt_ty     :: !(RTypeBV b v c tv r)
     }
 
-  -- | For example, in [a]<{\h -> v > h}>, we apply (via `RApp`)
-  --   * the `RProp`  denoted by `{\h -> v > h}` to
-  --   * the `RTyCon` denoted by `[]`.
+    -- | Application of a type constructor, e.g. @{v:[a]\<{\\h v -> v > h}\> | len v > 0}@
+    --
+    -- * @rt_tycon@ is the type constructor, e.g. @[]@
+    --
+    -- * @rt_args@ is the list of type arguments, e.g. the singleton list
+    --   containing the type @a@
+    --
+    -- * @rt_pargs@ is the list of predicate arguments, e.g. the singleton list
+    --   containing the predicate value @RProp [("h",_)] (RHole {v > h})@.
+    --   These are the abstract refinements supplied inside @\<...\>@.
+    --
+    -- * @rt_reft@ is the refinement of the type application.
+    --   If the refinement is @(v, e)@, then the represented type is
+    --   @{v: [a]\<{\\h v -> v > h}\> | e}@, e.g. @(v, len v > 0)@.
+    --
+    --   The scope of @v@ is the entire type application and @e@.
+    --
   | RApp  {
       rt_tycon  :: !c
     , rt_args   :: ![RTypeBV b v c tv r]
@@ -746,26 +874,122 @@ data RTypeBV b v c tv r
     , rt_reft   :: !r
     }
 
+    -- | Universal quantification over an expression variable (\"ghost\" binder).
+    -- Printed as @forall [x:T]. TYPE@.
+    --
+    -- Example: given @data Pair a b \<p :: a -> b -> Bool\> = P {px :: a, py :: b\<p px\>}@,
+    -- when pattern matching on @P@, the result type of the constructor is wrapped as:
+    -- @RAllE "px" a (RAllE "py" {v:b | p px v} (Pair a b))@.
+    --
+    -- * @rt_bind@ is the expression binder, e.g. @px@ above.
+    --   The scope of @rt_bind@ is @rt_ty@.
+    -- * @rt_allarg@ is the type of the bound variable, e.g. @a@
+    -- * @rt_ty@ is the body type, e.g. @RAllE "py" ... (Pair a b)@
+    --
+    -- Semantics: when checking @RAllE x tx t \<: t2@, the binder @x:tx@ is
+    -- added to the environment and then unified with all existing bindings of
+    -- compatible type before checking @t \<: t2@.
+    --
   | RAllE {
       rt_bind   :: !b
     , rt_allarg :: !(RTypeBV b v c tv r)
     , rt_ty     :: !(RTypeBV b v c tv r)
     }
 
+    -- | Existential quantification over an expression variable.
+    -- Printed as @exists [x:T]. TYPE@.
+    --
+    -- @REx@ is introduced by A-normalisation ('addExist' in @Bare/Expand.hs@)
+    -- when an abstract refinement is applied to a complex (non-variable)
+    -- expression.  A fresh ghost variable is created to name the expression so
+    -- that the fixpoint solver can reason about it without duplicating it.
+    -- See @tests/pos/TestREx.hs@ for an actual test.
+    --
+    -- Example: the return type @a\<p (i+1)\>@ of
+    --
+    -- > assume next :: forall a <p :: Int -> a -> Bool>. i:Int -> a<p i> -> a<p (i+1)>
+    --
+    -- is A-normalised to:
+    --
+    -- @REx "ex#0" {v:Int | v == i+1} (RApp a [] [RProp [("ex#0",_)] (a<p ex#0>)] _)@
+    --
+    -- * @rt_bind@ is the ghost binder, e.g. @ex#0@ above.
+    --   Its scope is @rt_ty@.
+    -- * @rt_exarg@ is the type of the ghost variable, e.g.
+    --   @{v:Int | v == i+1}@ — a singleton type pinning the ghost to the
+    --   original expression.
+    -- * @rt_ty@ is the body type, e.g. @a\<p ex#0\>@, which now mentions the
+    --   ghost instead of the original complex expression.
+    --
+    -- Semantics: when checking @REx x tx t \<: t2@, a fresh name @y@ is
+    -- generated, @y:tx@ is added to the environment, and @t[x:=y] \<: t2@ is
+    -- checked. On the RHS, @t1 \<: REx x tx t2@ is handled symmetrically.
+    --
   | REx {
       rt_bind   :: !b
     , rt_exarg  :: !(RTypeBV b v c tv r)
     , rt_ty     :: !(RTypeBV b v c tv r)
     }
 
-  | RExprArg (F.Located (ExprBV b v))           -- ^ For expression arguments to type aliases
-                                                --   see tests/pos/vector2.hs
+    -- | An expression argument to a type alias (not a proper type).
+    --
+    -- Example: given @{-\@ type VectorN a N = {v:[a] | len v == N} \@-}@,
+    -- the usage @VectorN Int 3@ is represented as:
+    -- @RApp VectorN [RApp Int ..., RExprArg (ECon (I 3))] [] _@
+    --
+    -- The @RExprArg@ appears in the @rt_args@ list of 'RApp' in position
+    -- corresponding to the expression parameter @N@.
+    --
+    -- Parsed from: bare numeric literals (e.g. @3@), or expressions in braces
+    -- @{expr}@ or parentheses @(expr)@ at type-argument positions.
+    --
+  | RExprArg (F.Located (ExprBV b v))
+
+    -- | Type-level application that is /not/ a saturated type constructor
+    -- application, e.g. @f a@ where @f@ is a type variable of higher kind.
+    --
+    -- Example: in @forall (f :: * -> *) a. f a -> f a@,
+    -- the @f a@ part is:
+    -- @RAppTy (RVar f (v, True)) (RVar a (v, True)) (v, True)@
+    --
+    -- * @rt_arg@ is the type being applied, e.g. @RVar f _@
+    -- * @rt_res@ is the type argument, e.g. @RVar a _@
+    -- * @rt_reft@ is the refinement of the application result.
+    --   If the refinement is @(v, e)@, then the represented type is
+    --   @{v: f a | e}@.
+    --
+    --   The scope of @v@ is the entire type application and @e@.
+    --
   | RAppTy{
       rt_arg   :: !(RTypeBV b v c tv r)
     , rt_res   :: !(RTypeBV b v c tv r)
     , rt_reft  :: !r
     }
 
+    -- | A type annotated with a verification obligation (constraint, invariant,
+    -- or termination metric). It wraps an actual type @rt_ty@ with auxiliary
+    -- information for constraint generation.
+    --
+    -- Example (OCons): the type @{x:Int |- {v:Int | v > 0} \<: {v:Int | v > x}} => Int -> Int@
+    -- is represented as:
+    -- @RRTy [("x", Int), (dummySymbol, {v:Int | v > 0}), (dummySymbol, {v:Int | v > x})]@
+    --       @trueReft OCons (Int -> Int)@
+    --
+    -- * @rt_env@ is the typing environment and subtyping pair. For @OCons@,
+    --   the last two entries are the LHS and RHS of the subtyping obligation;
+    --   preceding entries form the local typing environment.
+    -- * @rt_ref@ is the refinement predicate (for @OInv@ and @OTerm@ this
+    --   carries the invariant or termination metric).
+    -- * @rt_obl@ is the kind of obligation:
+    --   - @OCons@: subtyping constraint, parsed from
+    --     @{env |- t1 \<: t2} => TYPE@
+    --   - @OInv@: data-type invariant, generated by 'addInvCond'
+    --   - @OTerm@: termination metric, generated by 'addObligation'
+    -- * @rt_ty@ is the underlying actual type, e.g. @Int -> Int@
+    --
+    -- In all cases, the obligation is discharged as a side-effect during
+    -- constraint generation, and @rt_ty@ is the type used for further checking.
+    --
   | RRTy  {
       rt_env   :: ![(b, RTypeBV b v c tv r)]
     , rt_ref   :: !r
@@ -773,8 +997,18 @@ data RTypeBV b v c tv r
     , rt_ty    :: !(RTypeBV b v c tv r)
     }
 
-  | RHole r -- ^ let LH match against the Haskell type and add k-vars, e.g. `x:_`
-            --   see tests/pos/Holes.hs
+    -- | A hole: a placeholder that instructs LH to infer the type by matching
+    -- against the Haskell type and inserting k-variables for inference.
+    --
+    -- Example: @{-\@ f :: x:_ -> {v:_ | v > x} \@-}@ contains two holes.
+    -- Each @_@ becomes @RHole r@ where @r@ is either a @true@ refinement or a
+    -- user-supplied refinement (e.g. @v > x@ in the second hole).
+    --
+    -- During elaboration, holes are replaced with actual types from GHC's type
+    -- checker, with fresh k-variables for the refinements.
+    -- See: tests/pos/Holes.hs
+    --
+  | RHole r
   deriving (Eq, Generic, Data, Functor, Foldable, Show, Traversable)
   deriving (B.Binary, Hashable) via Generically (RTypeBV b v c tv r)
 
@@ -790,6 +1024,9 @@ notExprArg _            = True
 instance (Eq tv) => Eq (RTVar tv s) where
   t1 == t2 = ty_var_value t1 == ty_var_value t2
 
+-- | @RTVar@ is the type of type variables in the refinement type system. It
+-- contains a type variable, optionally a kind, and information about how to
+-- instantiate it (polymorphic vs. monomorphic refinements).
 data RTVar tv s = RTVar
   { ty_var_value :: tv
   , ty_var_info  :: RTVInfo s
@@ -856,6 +1093,50 @@ type RTPropBV b v c tv r = RefB b (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c 
 
 type UReft r = UReftV F.Symbol r
 type UReftV v r = UReftBV F.Symbol v r
+
+-- | A combined refinement carrying both a first-order predicate and a
+-- conjunction of abstract-refinement (predicate-variable) applications.
+-- This is the @r@ parameter of 'RTypeBV' in fully-elaborated types:
+-- @SpecType = 'RRType' RReft@ where @RReft = UReft F.Reft =
+-- UReftBV Symbol Symbol F.Reft@.
+--
+-- Example: the type @Int\<p m\>@ where @p :: x:Int -> z:Int -> Bool@ is an
+-- abstract refinement quantified by an enclosing 'RAllP', applied with
+-- extra argument @m@, is represented as:
+--
+-- @
+-- MkUReft
+--   { ur_reft = F.Reft ("VV", PTrue)          -- no first-order constraint
+--   , ur_pred = Pr [ PV { pname = "p"
+--                       , ptype = intSort
+--                       , parg  = "LIQUID$dummy"
+--                       , pargs = [(intSort, "x", EVar "m")] } ]
+--   }
+-- @
+--
+-- If the type also carries a first-order constraint, e.g. a type alias that
+-- expands to @{VV:Int | VV > 0}@ combined with an abstract refinement, then
+-- @ur_reft@ would be @F.Reft ("VV", VV > 0)@ alongside the non-empty @ur_pred@.
+--
+-- * @ur_reft@ is the first-order part of the refinement, stored as a fixpoint
+--   'F.Reft' @(binder, predicate)@.  The standard value-variable is @"VV"@
+--   (fixpoint's canonical binder, normalised from the user's @v@ choice).
+-- * @ur_pred@ is the abstract-refinement part: a 'PredicateBV' (= @Pr [UsedPVarBV]@),
+--   i.e. a conjunction of predicate-variable applications.
+--   Each 'UsedPVarBV' records which predicate variable is used (via @pname@),
+--   the internal dummy binder (@parg = "LIQUID$dummy"@), and the actual
+--   argument expressions (@pargs@) at this use site (see 'PVarBV').
+--
+-- During constraint generation, @ur_pred@ is eliminated by
+-- 'replacePredsWithRefs': each predicate-variable application is converted
+-- to an uninterpreted function call @papp_n(p, VV, e1, ..., en)@ via
+-- 'pVartoRConc' (using the @ur_reft@ binder @VV@, __not__ @parg@) and
+-- conjoined into @ur_reft@, producing a pure 'F.Reft' understood by the SMT
+-- solver.  After this step, @ur_pred@ becomes @Pr []@.
+--
+-- 'toReft' on a 'UReftBV' discards @ur_pred@ entirely and returns only
+-- @ur_reft@; it must therefore be called only after predicate-replacement.
+--
 data UReftBV b v r = MkUReft
   { ur_reft   :: !r
   , ur_pred   :: !(PredicateBV b v)

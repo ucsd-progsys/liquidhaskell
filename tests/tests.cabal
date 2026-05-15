@@ -1731,6 +1731,7 @@ executable unit-pos-3
                     , Test2
                     , Test761
                     , TestRec
+                    , TestREx
                     , TokenType
                     , Top0
                     , TopLevel
