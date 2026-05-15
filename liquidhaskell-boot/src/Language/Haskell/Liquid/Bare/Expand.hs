@@ -474,7 +474,7 @@ exprArgFromBareType l msg = go
     go (RApp x [] [] _) = EVar (getLHNameSymbol $ val $ btc_tc x)
     go (RApp f ts [] _) = F.eApps (EVar (getLHNameSymbol $ val $ btc_tc f)) (go <$> ts)
     go (RAppTy t1 t2 _) = EApp (go t1) (go t2)
-    go z                = panic sp $ Printf.printf "Unexpected expression parameter: %s in %s" (show z) msg
+    go z                = panic sp $ Printf.printf "Unexpected expression parameter: %s in %s" (showpp z) msg
     sp                  = Just (GM.sourcePosSrcSpan l)
 
 isRExprArg :: RType c tv r -> Bool

@@ -645,7 +645,7 @@ impossible s m = panic s $ unlines msg ++ m
 
 -- type CtxError = Error
 --------------------------------------------------------------------------------
-ppError :: (PPrint a, Show a) => Tidy -> Doc -> TError a -> Doc
+ppError :: PPrint a => Tidy -> Doc -> TError a -> Doc
 --------------------------------------------------------------------------------
 ppError k dCtx e = ppError' k dCtx e
 
@@ -800,7 +800,7 @@ hint e = maybe empty (\d -> "" $+$ ("HINT:" <+> d)) (go e)
     go _              = Nothing
 
 --------------------------------------------------------------------------------
-ppError' :: (PPrint a, Show a) => Tidy -> Doc -> TError a -> Doc
+ppError' :: PPrint a => Tidy -> Doc -> TError a -> Doc
 --------------------------------------------------------------------------------
 ppError' td dCtx (ErrAssType _ o _ cid c p)
   = pprintTidy td o

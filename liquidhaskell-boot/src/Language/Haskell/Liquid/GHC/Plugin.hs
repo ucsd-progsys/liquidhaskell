@@ -413,7 +413,7 @@ liquidHaskellCheckWithConfig cfg pipelineData modSummary = do
     continue :: TcM (Either LiquidCheckException a)
     continue = pure $ Left (ErrorsOccurred [])
 
-    reportErrs :: (Show e, F.PPrint e) => [TError e] -> TcM (Either LiquidCheckException a)
+    reportErrs :: F.PPrint e => [TError e] -> TcM (Either LiquidCheckException a)
     reportErrs  = LH.filterReportErrors thisFile GHC.failM continue (getFilters cfg) Full
 
 checkLiquidHaskellContext :: LiquidHaskellContext -> TcM (Either LiquidCheckException LiquidLib)
@@ -561,7 +561,7 @@ processModule LiquidHaskellContext{..} = do
               dependencies
 
     let continue = pure $ Left (ErrorsOccurred [])
-        reportErrs :: (Show e, F.PPrint e) => [TError e] -> TcRn (Either LiquidCheckException ProcessModuleResult)
+        reportErrs :: F.PPrint e => [TError e] -> TcRn (Either LiquidCheckException ProcessModuleResult)
         reportErrs = LH.filterReportErrors file GHC.failM continue (getFilters moduleCfg) Full
 
     (case result of

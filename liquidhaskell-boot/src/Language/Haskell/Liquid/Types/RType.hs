@@ -228,13 +228,10 @@ data TyConP = TyConP
   , tcpVarianceTs   :: !VarianceInfo
   , tcpVariancePs   :: !VarianceInfo
   , tcpSizeFun      :: !(Maybe SizeFun)
-  } deriving (Generic, Data)
+  } deriving (Generic, Data, Show)
 
 instance F.Loc TyConP where
   srcSpan tc = F.SS (tcpLoc tc) (tcpLoc tc)
-
-instance Show TyConP where
- show = F.showpp
 
 instance F.PPrint TyConP where
   pprintTidy k tc = "data" <+> F.pprintTidy k (tcpCon tc)
@@ -255,14 +252,10 @@ type SizeFun = SizeFunV F.Symbol
 data SizeFunV v
   = IdSizeFun              -- ^ \x -> F.EVar x
   | SymSizeFun (F.Located v) -- ^ \x -> f x
-  deriving (Data, Generic, Eq, Functor, Foldable, Traversable)
+  deriving (Data, Generic, Eq, Functor, Foldable, Show, Traversable)
   deriving (B.Binary, Hashable) via Generically (SizeFunV v)
 
 instance NFData v => NFData (SizeFunV v)
-
-instance Show v => Show (SizeFunV v) where
-  show IdSizeFun      = "IdSizeFun"
-  show (SymSizeFun x) = "SymSizeFun " ++ show (F.val x)
 
 szFun :: SizeFun -> Symbol -> Expr
 szFun IdSizeFun      = F.EVar
@@ -369,7 +362,7 @@ type UsedPVarBV b v = PVarBV b v ()
 type Predicate = PredicateV Symbol
 type PredicateV v = PredicateBV Symbol v
 newtype PredicateBV b v = Pr [UsedPVarBV b v]
-  deriving (Generic, Data)
+  deriving (Generic, Data, Show)
   deriving (B.Binary, Hashable) via Generically (PredicateBV b v)
 
 mapPredicateV :: (v -> v') -> PredicateV v -> PredicateV v'
@@ -438,7 +431,7 @@ newtype BTyVar = BTV F.LocSymbol
   deriving (Show, Generic, Data)
   deriving (B.Binary, Hashable) via Generically BTyVar
 
-newtype RTyVar = RTV TyVar deriving (Generic, Data)
+newtype RTyVar = RTV TyVar deriving (Generic, Data, Show)
 
 instance Eq BTyVar where
   (BTV x) == (BTV y) = x == y
@@ -473,7 +466,7 @@ data BTyCon = BTyCon
   , btc_class :: !Bool           -- ^ Is this a class type constructor?
   , btc_prom  :: !Bool           -- ^ Is Promoted Data Con?
   }
-  deriving (Generic, Data)
+  deriving (Generic, Data, Show)
   deriving (B.Binary, Hashable) via Generically BTyCon
 
 data RTyCon = RTyCon
@@ -481,7 +474,7 @@ data RTyCon = RTyCon
   , rtc_pvars :: ![RPVar]      -- ^ Predicate Parameters
   , rtc_info  :: !TyConInfo    -- ^ TyConInfo
   }
-  deriving (Generic, Data)
+  deriving (Generic, Data, Show)
 
 instance F.Symbolic RTyCon where
   symbol = F.symbol . rtc_tc
@@ -672,12 +665,6 @@ instance F.PPrint BTyCon where
 instance F.PPrint v => F.PPrint (RTVar v s) where
   pprintTidy k (RTVar x _) = F.pprintTidy k x
 
-instance Show RTyCon where
-  show = F.showpp
-
-instance Show BTyCon where
-  show = F.showpp
-
 instance F.Loc BTyCon where
   srcSpan = F.srcSpan . btc_tc
 
@@ -705,12 +692,9 @@ data TyConInfo = TyConInfo
   { varianceTyArgs  :: !VarianceInfo      -- ^ variance info for type variables
   , variancePsArgs  :: !VarianceInfo      -- ^ variance info for predicate variables
   , sizeFunction    :: !(Maybe SizeFun)   -- ^ logical UNARY function that computes the size of the structure
-  } deriving (Generic, Data)
+  } deriving (Generic, Data, Show)
 
 instance NFData TyConInfo
-
-instance Show TyConInfo where
-  show (TyConInfo x y _) = show x ++ "\n" ++ show y
 
 --------------------------------------------------------------------------------
 -- | Unified Representation of Refinement Types --------------------------------
@@ -722,9 +706,6 @@ type RTVUBV b v c tv = RTVar tv (RTypeBV b v c tv (NoReftB b))
 type PVU c tv = PVUV Symbol c tv
 type PVUV v c tv = PVarV v (RTypeV v c tv NoReft)
 type PVUBV b v c tv = PVarBV b v (RTypeBV b v c tv (NoReftB b))
-
-instance Show tv => Show (RTVU c tv) where
-  show (RTVar t _) = show t
 
 type RType c tv r = RTypeV Symbol c tv r
 type RTypeV v c tv = RTypeBV Symbol v c tv
@@ -794,7 +775,7 @@ data RTypeBV b v c tv r
 
   | RHole r -- ^ let LH match against the Haskell type and add k-vars, e.g. `x:_`
             --   see tests/pos/Holes.hs
-  deriving (Eq, Generic, Data, Functor, Foldable, Traversable)
+  deriving (Eq, Generic, Data, Functor, Foldable, Show, Traversable)
   deriving (B.Binary, Hashable) via Generically (RTypeBV b v c tv r)
 
 instance (NFData c, NFData tv, NFData r)       => NFData (RType c tv r)
@@ -812,7 +793,7 @@ instance (Eq tv) => Eq (RTVar tv s) where
 data RTVar tv s = RTVar
   { ty_var_value :: tv
   , ty_var_info  :: RTVInfo s
-  } deriving (Generic, Data, Functor, Foldable, Traversable)
+  } deriving (Generic, Data, Functor, Foldable, Show, Traversable)
     deriving (B.Binary, Hashable) via Generically (RTVar tv s)
 
 mapTyVarValue :: (tv1 -> tv2) -> RTVar tv1 s -> RTVar tv2 s
@@ -829,7 +810,7 @@ data RTVInfo s
             , rtv_is_pol :: Bool -- true iff the type variable gets instantiated with
                                  -- any refinement (ie is polymorphic on refinements),
                                  -- false iff instantiation is with true refinement
-            } deriving (Generic, Data, Functor, Eq, Foldable, Traversable)
+            } deriving (Generic, Data, Functor, Eq, Foldable, Show, Traversable)
               deriving (B.Binary, Hashable) via Generically (RTVInfo s)
 
 
@@ -859,7 +840,7 @@ type Ref τ t = RefB Symbol τ t
 data RefB b τ t = RProp
   { rf_args :: [(b, τ)] -- ^ arguments. e.g. @h@ in the above example
   , rf_body :: t -- ^ Abstract refinement associated with `RTyCon`. e.g. @v > h@ in the above example
-  } deriving (Eq, Generic, Data, Functor, Foldable, Traversable)
+  } deriving (Eq, Generic, Data, Functor, Foldable, Show, Traversable)
     deriving (B.Binary, Hashable) via Generically (RefB b τ t)
 
 instance (NFData τ,   NFData t)   => NFData   (Ref τ t)
@@ -879,7 +860,7 @@ data UReftBV b v r = MkUReft
   { ur_reft   :: !r
   , ur_pred   :: !(PredicateBV b v)
   }
-  deriving (Eq, Generic, Data, Functor, Foldable, Traversable)
+  deriving (Eq, Generic, Data, Functor, Foldable, Show, Traversable)
   deriving (B.Binary, Hashable) via Generically (UReftBV b v r)
 
 mapUReftV :: (v -> v') -> (r -> r') -> UReftV v r -> UReftV v' r'
@@ -892,7 +873,7 @@ emapUReftVM f g (MkUReft r p) = MkUReft <$> g r <*> emapPredicateVM f p
 
 type NoReft = NoReftB Symbol
 data NoReftB b = NoReft
-  deriving (Eq, Generic, Data, Functor, Foldable, Traversable)
+  deriving (Eq, Generic, Data, Functor, Foldable, Show, Traversable)
   deriving (B.Binary, Hashable) via Generically (NoReftB b)
 
 instance NFData (NoReftB b)
@@ -947,18 +928,6 @@ type LocSpecType = F.Located SpecType
 --------------------------------------------------------------------------------
 -- | Printing Refinement Types -------------------------------------------------
 --------------------------------------------------------------------------------
-
-instance Show RTyVar where
-  show = F.showpp
-
-instance F.PPrint (UReft r) => Show (UReft r) where
-  show = F.showpp
-
-instance F.PPrint (RType c tv r) => Show (RType c tv r) where
-  show = F.showpp
-
-instance F.PPrint (RTProp c tv r) => Show (RTProp c tv r) where
-  show = F.showpp
 
 instance F.PPrint BTyVar where
   pprintTidy _ (BTV α) = text (F.symbolString $ F.val α)

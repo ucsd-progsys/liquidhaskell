@@ -545,7 +545,7 @@ exprArg l msg = notracepp ("exprArg: " ++ msg) . go
     go (RApp x [] [] _) = EVar (getLHNameSymbol <$> btc_tc x)
     go (RApp f ts [] _) = eApps (EVar (renameAmbiguousCtor . getLHNameSymbol <$> btc_tc f)) (go <$> ts)
     go (RAppTy t1 t2 _) = EApp (go t1) (go t2)
-    go z                = panic sp $ Printf.printf "Unexpected expression parameter: %s in %s" (show $ parsedToBareType z) msg
+    go z                = panic sp $ Printf.printf "Unexpected expression parameter: %s in %s" (showpp $ parsedToBareType z) msg
     sp                  = Just (LH.sourcePosSrcSpan l)
 
 renameAmbiguousCtor :: Symbol -> Symbol

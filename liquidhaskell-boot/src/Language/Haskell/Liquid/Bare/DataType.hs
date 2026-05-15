@@ -608,7 +608,7 @@ groupVariances dcs vdcs     =  merge (L.sort dcs) (L.sortBy (\x y -> compare (fs
 checkDataDecl :: Ghc.TyCon -> DataDecl -> Bool
 checkDataDecl c d = F.notracepp _msg (isGADT || cN == dN || null (tycDCons d))
   where
-    _msg          = printf "checkDataDecl: D = %s, c = %s, cN = %d, dN = %d" (show d) (show c) cN dN
+    _msg          = printf "checkDataDecl: D = %s, c = %s, cN = %d, dN = %d" (showpp d) (show c) cN dN
     cN            = length (GM.tyConTyVarsDef c)
     dN            = length (tycTyVars         d)
     isGADT        = Ghc.isGadtSyntaxTyCon c
@@ -732,7 +732,7 @@ getPsSig m pos (RFun _ _ t1 t2 r)
 getPsSig m pos (RHole r)
   = addps m pos r
 getPsSig _ _ z
-  = panic Nothing $ "getPsSig" ++ show z
+  = panic Nothing $ "getPsSig" ++ showpp z
 
 getPsSigPs :: [(UsedPVar, a)] -> Bool -> SpecProp -> [(a, Bool)]
 getPsSigPs m pos (RProp _ (RHole r)) = addps m pos r

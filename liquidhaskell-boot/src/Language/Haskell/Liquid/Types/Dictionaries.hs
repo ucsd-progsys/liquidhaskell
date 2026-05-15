@@ -53,7 +53,7 @@ dlookup :: (Eq k, Hashable k)
 dlookup (DEnv denv) x     = M.lookup x denv
 
 
-dhasinfo :: (F.Symbolic a1, Show a) => Maybe (M.HashMap F.Symbol a) -> a1 -> Maybe a
+dhasinfo :: F.Symbolic a1 => Maybe (M.HashMap F.Symbol a) -> a1 -> Maybe a
 dhasinfo Nothing _    = Nothing
 dhasinfo (Just xts) x = M.lookup x' xts
   where

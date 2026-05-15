@@ -535,7 +535,7 @@ nlzP ps t@(RRTy _ _ _ t')
 nlzP ps t@RAllE{}
  = (t, ps)
 nlzP _ t
- = panic Nothing $ "RefType.nlzP: cannot handle " ++ show t
+ = panic Nothing $ "RefType.nlzP: cannot handle " ++ F.showpp t
 
 strengthenRefTypeGen, strengthenRefType ::
          ( OkRTBV v v c tv r
@@ -910,7 +910,7 @@ tyClasses (RApp c ts _ _)
 tyClasses (RVar _ _)      = []
 tyClasses (RRTy _ _ _ t)  = tyClasses t
 tyClasses (RHole _)       = []
-tyClasses t               = panic Nothing ("RefType.tyClasses cannot handle" ++ show t)
+tyClasses t               = panic Nothing ("RefType.tyClasses cannot handle" ++ F.showpp t)
 
 
 --------------------------------------------------------------------------------
