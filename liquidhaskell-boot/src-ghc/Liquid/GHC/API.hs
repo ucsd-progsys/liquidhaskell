@@ -369,7 +369,12 @@ import GHC.Core.TyCo.Rep              as Ghc
     , mkTyVarTys
     )
 import GHC.Core.TyCo.Compare          as Ghc (eqType, nonDetCmpType)
-import GHC.Core.TyCo.Subst            as Ghc (extendSubstInScopeSet, substCo, zipTvSubst)
+import GHC.Core.TyCo.Subst            as Ghc
+    ( extendSubstInScope
+    , extendSubstInScopeSet
+    , substCo
+    , zipTvSubst
+    )
 import GHC.Core.TyCon                 as Ghc
     ( TyConBinder
     , TyConBndrVis(AnonTCB)
@@ -470,6 +475,7 @@ import GHC.Plugins                    as Ghc ( Serialized(Serialized)
                                              , purePlugin
                                              , extendIdSubst
                                              , substExpr
+                                             , Subst
                                              )
 import GHC.Core.FVs                   as Ghc
     ( exprFreeVars

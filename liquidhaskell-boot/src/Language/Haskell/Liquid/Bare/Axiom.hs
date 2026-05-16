@@ -380,10 +380,12 @@ makeAssumeType cfg tce lmap dm sym mbT v def
     -- Negative Debruijn indices (levels :^)) are safer
     freeSort    = [-1, -2 ..]
 
+    normalizedExpr = normalizeCoreExpr allowTC def
+    inScopeSubst =
+      Ghc.emptySubst `Ghc.extendSubstInScopeSet` Ghc.exprFreeVars normalizedExpr
     (xs, def') =
       GM.notracePpr "grabBody" $
-      grabBody allowTC (Ghc.expandTypeSynonyms τ) $
-      normalizeCoreExpr allowTC def
+      grabBody allowTC inScopeSubst (Ghc.expandTypeSynonyms τ) normalizedExpr
     su         = F.mkSubst  $ zip (F.symbol     <$> xs) xArgs
                            ++ zip (simplesymbol <$> xs) xArgs
     xts        = [(F.symbol x, rTypeSortExp tce t) | (x, t) <- aargs at]
@@ -392,25 +394,27 @@ rTypeSortExp :: F.TCEmb Ghc.TyCon -> SpecType -> F.Sort
 rTypeSortExp tce = typeSort tce . Ghc.expandTypeSynonyms . toType False
 
 grabBody :: Bool -- ^ typeclass enabled
+         -> Ghc.Subst -- ^ in-scope set for capture-avoiding substitution
          -> Ghc.Type -> Ghc.CoreExpr -> ([Ghc.Var], Ghc.CoreExpr)
-grabBody allowTC (Ghc.ForAllTy _ ty) e
-  = grabBody allowTC ty e
-grabBody allowTC@False Ghc.FunTy{ Ghc.ft_arg = tx, Ghc.ft_res = t} e | Ghc.isClassPred tx
-  = grabBody allowTC t e
-grabBody allowTC@True Ghc.FunTy{ Ghc.ft_arg = tx, Ghc.ft_res = t} e | isEmbeddedDictType tx
-  = grabBody allowTC t e
-grabBody allowTC torig@Ghc.FunTy {} (Ghc.Let (Ghc.NonRec x e) body)
-  = grabBody allowTC torig (subst (x,e) body)
-grabBody allowTC Ghc.FunTy{ Ghc.ft_res = t} (Ghc.Lam x e)
-  = (x:xs, e') where (xs, e') = grabBody allowTC t e
-grabBody allowTC t (Ghc.Tick _ e)
-  = grabBody allowTC t e
-grabBody allowTC ty@Ghc.FunTy{} e
+grabBody allowTC inScope (Ghc.ForAllTy _ ty) e
+  = grabBody allowTC inScope ty e
+grabBody allowTC@False inScope Ghc.FunTy{ Ghc.ft_arg = tx, Ghc.ft_res = t} e | Ghc.isClassPred tx
+  = grabBody allowTC inScope t e
+grabBody allowTC@True inScope Ghc.FunTy{ Ghc.ft_arg = tx, Ghc.ft_res = t} e | isEmbeddedDictType tx
+  = grabBody allowTC inScope t e
+grabBody allowTC inScope torig@Ghc.FunTy {} (Ghc.Let (Ghc.NonRec x e) body)
+  = grabBody allowTC inScope torig (Ghc.substExpr (Ghc.extendIdSubst inScope x e) body)
+grabBody allowTC inScope Ghc.FunTy{ Ghc.ft_res = t} (Ghc.Lam x e)
+  = (x:xs, e')
+   where (xs, e') = grabBody allowTC (Ghc.extendSubstInScope inScope x) t e
+grabBody allowTC inScope t (Ghc.Tick _ e)
+  = grabBody allowTC inScope t e
+grabBody allowTC inScope ty@Ghc.FunTy{} e
   = (txs++xs, e')
    where (ts,tr)  = splitFun ty
-         (xs, e') = grabBody allowTC tr (foldl Ghc.App e (Ghc.Var <$> txs))
+         (xs, e') = grabBody allowTC inScope tr (foldl Ghc.App e (Ghc.Var <$> txs))
          txs      = [ stringVar ("ls" ++ show i) t |  (t,i) <- zip ts [(1::Int)..]]
-grabBody _ _ e
+grabBody _ _ _ e
   = ([], e)
 
 splitFun :: Ghc.Type -> ([Ghc.Type], Ghc.Type)
@@ -429,38 +433,6 @@ strengthenRes st rf = go st
     go (RAllP p t)     = RAllP p $ go t
     go (RFun x i tx t r) = RFun x i tx (go t) r
     go t               =  t `strengthen` ofReft rf
-
-class Subable a where
-  subst :: (Ghc.Var, Ghc.CoreExpr) -> a -> a
-
-instance Subable Ghc.Var where
-  subst (x, ex) z
-    | x == z, Ghc.Var y <- ex = y
-    | otherwise           = z
-
-instance Subable Ghc.CoreExpr where
-  subst (x, ex) (Ghc.Var y)
-    | x == y    = ex
-    | otherwise = Ghc.Var y
-  subst su (Ghc.App f e)
-    = Ghc.App (subst su f) (subst su e)
-  subst su (Ghc.Lam x e)
-    = Ghc.Lam x (subst su e)
-  subst su (Ghc.Case e x t alts)
-    = Ghc.Case (subst su e) x t (subst su <$> alts)
-  subst su (Ghc.Let (Ghc.Rec xes) e)
-    = Ghc.Let (Ghc.Rec (fmap (subst su) <$> xes)) (subst su e)
-  subst su (Ghc.Let (Ghc.NonRec x ex) e)
-    = Ghc.Let (Ghc.NonRec x (subst su ex)) (subst su e)
-  subst su (Ghc.Cast e t)
-    = Ghc.Cast (subst su e) t
-  subst su (Ghc.Tick t e)
-    = Ghc.Tick t (subst su e)
-  subst _ e
-    = e
-
-instance Subable Ghc.CoreAlt where
-  subst su (Ghc.Alt c xs e) = Ghc.Alt c xs (subst su e)
 
 data AxiomType = AT { aty :: SpecType, aargs :: [(F.Symbol, SpecType)], ares :: SpecType }
   deriving Show
