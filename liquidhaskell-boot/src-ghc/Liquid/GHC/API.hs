@@ -464,19 +464,26 @@ import GHC.HsToCore.Monad             as Ghc
     ( DsM, initDsTc, initDsWithModGuts, newUnique )
 import GHC.Iface.Syntax               as Ghc
     ( IfaceAnnotation(ifAnnotatedValue) )
-import GHC.Plugins                    as Ghc ( Serialized(Serialized)
-                                             , deserializeWithData
-                                             , fromSerialized
-                                             , toSerialized
-                                             , defaultPlugin
-                                             , emptyPlugins
-                                             , Plugin(..)
-                                             , CommandLineOption
-                                             , purePlugin
-                                             , extendIdSubst
-                                             , substExpr
-                                             , Subst
-                                             )
+import GHC.Plugins                    as Ghc
+    ( Serialized(Serialized)
+    , deserializeWithData
+    , fromSerialized
+    , toSerialized
+    , defaultPlugin
+    , emptyPlugins
+    , Plugin(..)
+    , CommandLineOption
+    , purePlugin
+    , extendIdSubst
+    , extendIdSubstList
+    , extendSubst
+    , extendSubstList
+    , extendTvSubst
+    , extendTvSubstList
+    , mkEmptySubst
+    , substExpr
+    , Subst
+    )
 import GHC.Core.FVs                   as Ghc
     ( exprFreeVars
     , exprFreeVarsList
@@ -773,13 +780,14 @@ import GHC.Types.Var                  as Ghc
     , varUnique
     )
 import GHC.Types.Var.Env              as Ghc
-    ( emptyInScopeSet, mkRnEnv2 )
+    ( emptyInScopeSet, mkInScopeSet, mkRnEnv2 )
 import GHC.Types.Var.Set              as Ghc
     ( VarSet
     , elemVarSet
     , emptyVarSet
     , extendVarSet
     , extendVarSetList
+    , unionVarSet
     , unitVarSet
     )
 import GHC.Unit.Env                   as Ghc

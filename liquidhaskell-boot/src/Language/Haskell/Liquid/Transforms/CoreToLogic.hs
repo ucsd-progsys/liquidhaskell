@@ -47,7 +47,6 @@ import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 import           Language.Haskell.Liquid.Bare.Types
 import           Language.Haskell.Liquid.Bare.DataType
 import           Language.Haskell.Liquid.Bare.Misc     (simpleSymbolVar)
-import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.RefType
@@ -690,7 +689,7 @@ simplifyCoreExpr allowTC = go
       = C.Let (C.Rec (map (fmap go) xes)) (go e)
     go (C.Case e x _t alts@[Alt _ _ ee,_,_])
       | isBangInteger alts
-      = sub (M.singleton x (go e)) (go ee)
+      = sub x (go e) (go ee)
     go (C.Case e x t alts)
       = C.Case (go e) x t $
          filter
@@ -705,9 +704,22 @@ simplifyCoreExpr allowTC = go
     go (C.Type t)
       = C.Type t
 
+-- | Substitute variable bindings in a CoreExpr using GHC's capture-avoiding
+-- substExpr.
+--
+-- TODO: This implementation is a bit wastful since it collects the free
+-- variables of both expressions every time, we could pass a superset of the
+-- free variables instead. But the overhead is not observable in our tests.
+sub :: CoreBndr -> CoreExpr -> CoreExpr -> CoreExpr
+sub x e0 e = Ghc.substExpr su e
+  where
+    fvs     = Ghc.exprFreeVars e `Ghc.unionVarSet` Ghc.exprFreeVars e0
+    inScope = Ghc.mkInScopeSet fvs
+    su   = Ghc.extendIdSubst (Ghc.mkEmptySubst inScope) x e0
+
 inlineCoreExpr :: (Id -> Bool) -> CoreExpr -> CoreExpr
 inlineCoreExpr p (C.Let (C.NonRec x ex) e)
-  | p x = sub (M.singleton x (inlineCoreExpr p ex)) (inlineCoreExpr p e)
+  | p x = sub x (inlineCoreExpr p ex) (inlineCoreExpr p e)
   | otherwise = C.Let (C.NonRec x (inlineCoreExpr p ex)) (inlineCoreExpr p e)
 inlineCoreExpr p (C.Let (C.Rec xes) e) = C.Let (C.Rec (map (fmap (inlineCoreExpr p)) xes)) (inlineCoreExpr p e)
 inlineCoreExpr p (C.App e1 e2)       = C.App (inlineCoreExpr p e1) (inlineCoreExpr p e2)

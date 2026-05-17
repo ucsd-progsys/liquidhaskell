@@ -24,17 +24,15 @@ module Language.Haskell.Liquid.Transforms.Rewrite
 
   ) where
 
-import           Liquid.GHC.API as Ghc hiding (get, showPpr, substExpr)
+import           Liquid.GHC.API as Ghc hiding (get, showPpr)
 import           Language.Haskell.Liquid.GHC.TypeRep ()
 import           Data.Maybe     (fromMaybe, isJust, mapMaybe)
 import           Control.Monad.State hiding (lift)
 import           Language.Haskell.Liquid.Misc (Nat)
-import           Language.Haskell.Liquid.GHC.Play (sub, substExpr)
 import           Language.Haskell.Liquid.GHC.Misc (unTickExpr, isTupleId, mkAlive)
 import           Language.Haskell.Liquid.Types.Errors (impossible)
 import           Language.Haskell.Liquid.UX.Config  (Config, noSimplifyCore)
 import qualified Data.List as L
-import qualified Data.HashMap.Strict as M
 
 --------------------------------------------------------------------------------
 -- | Top-level rewriter --------------------------------------------------------
@@ -283,7 +281,11 @@ isProjectionOf _ _ = Nothing
 -- | `substTuple xs ys e'` returns e' [y1 := x1,...,yn := xn]
 --------------------------------------------------------------------------------
 substTuple :: [Var] -> [Var] -> CoreExpr -> CoreExpr
-substTuple xs ys = substExpr (M.fromList $ zip ys xs)
+substTuple xs ys e = Ghc.substExpr subst e
+  where
+    inScope = Ghc.mkInScopeSet (Ghc.exprFreeVars e `extendVarSetList` xs)
+    subst   = Ghc.extendIdSubstList (Ghc.mkEmptySubst inScope)
+                [ (v, Var v') | (v, v') <- zip ys xs ]
 
 -- | Yields the tuple of variables at the end of nested cases with
 -- a single alternative each.
@@ -339,7 +341,11 @@ inlineLoopBreaker :: Bind Id -> Bind Id
 inlineLoopBreaker (NonRec x e)
     | Just (lbx, lbe, lbargs) <- hasLoopBreaker be =
        let asPrefix = take (length as - length lbargs) as
-           lbe' = sub (M.singleton lbx (ecall asPrefix)) lbe
+           inScope =
+             Ghc.mkInScopeSet $
+               Ghc.exprFreeVars (ecall asPrefix) `unionVarSet` Ghc.exprFreeVars lbe
+           subst = Ghc.extendIdSubst (Ghc.mkEmptySubst inScope) lbx (ecall asPrefix)
+           lbe' = Ghc.substExpr subst lbe
         in Rec [(x, mkLams (αs ++ asPrefix) (mkLets nrbinds lbe'))]
   where
     (αs, as, e') = collectTyAndValBinders e
