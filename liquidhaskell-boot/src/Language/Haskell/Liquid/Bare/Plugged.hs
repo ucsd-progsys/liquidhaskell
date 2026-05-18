@@ -275,7 +275,6 @@ goPlug tce tyi err f = go
     go (RAllT _ t _)    (RAllT a t' r)     = RAllT a    (go t t') r
     go (RAllT a t r)    t'                 = RAllT a    (go t t') r
     go t                (RAllP p t')       = RAllP p    (go t t')
-    go t                (RAllE b a t')     = RAllE b a  (go t t')
     go t                (REx b x t')       = REx b x    (go t t')
     go t                (RRTy e r o t')    = RRTy e r o (go t t')
     go (RAppTy t1 t2 _) (RAppTy t1' t2' r) = RAppTy     (go t1 t1') (go t2 t2') r

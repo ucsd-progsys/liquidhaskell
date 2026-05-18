@@ -178,7 +178,6 @@ refTypeQuals lEnv ef l tce t0    = go emptySEnv t0
     go γ (RFun x _ t t' _)    = go γ t ++ goBind x t γ t'
     go γ t@(RApp c ts rs _)   = scrape γ t ++ concatMap (go γ') ts ++ goRefs c γ' rs
                                 where γ' = add (rTypeValueVar t) t γ
-    go γ (RAllE x t t')       = go γ t ++ goBind x t γ t'
     go γ (REx x t t')         = go γ t ++ goBind x t γ t'
     go _ _                    = []
     goRefs c g rs             = concat $ zipWith (goRef g) rs (rTyConPVs c)

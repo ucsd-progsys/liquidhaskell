@@ -389,7 +389,6 @@ ofBRType env f l = go []
       where a'              = dropTyVarInfo (mapTyVarValue RT.bareRTyVar a)
     go bs (RAllP a t)       = RAllP a' <$> go bs t
       where a'              = ofBPVar env l a
-    go bs (RAllE x t1 t2)   = RAllE x  <$> go bs t1    <*> go bs t2
     go bs (REx x t1 t2)     = REx   x  <$> go bs t1    <*> go (x:bs) t2
     go bs (RRTy xts r o t)  = RRTy  <$> xts' <*> goReft bs r <*> pure o <*> go bs t
       where xts'            = mapM (traverse (go bs)) xts

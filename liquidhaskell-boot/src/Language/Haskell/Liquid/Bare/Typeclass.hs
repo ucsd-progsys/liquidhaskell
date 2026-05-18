@@ -301,8 +301,6 @@ renameTvs rename t
   | RApp tc ts tps r <- t
   -- TODO: handle rtprop properly
   = RApp tc (renameTvs rename <$> ts) tps r
-  | RAllE b allarg ty <- t
-  = RAllE b (renameTvs rename allarg) (renameTvs rename ty)
   | REx b exarg ty <- t
   = REx b   (renameTvs rename exarg) (renameTvs rename ty)
   | RExprArg _ <- t

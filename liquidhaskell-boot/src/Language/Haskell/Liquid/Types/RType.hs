@@ -874,28 +874,6 @@ data RTypeBV b v c tv r
     , rt_reft   :: !r
     }
 
-    -- | Universal quantification over an expression variable (\"ghost\" binder).
-    -- Printed as @forall [x:T]. TYPE@.
-    --
-    -- Example: given @data Pair a b \<p :: a -> b -> Bool\> = P {px :: a, py :: b\<p px\>}@,
-    -- when pattern matching on @P@, the result type of the constructor is wrapped as:
-    -- @RAllE "px" a (RAllE "py" {v:b | p px v} (Pair a b))@.
-    --
-    -- * @rt_bind@ is the expression binder, e.g. @px@ above.
-    --   The scope of @rt_bind@ is @rt_ty@.
-    -- * @rt_allarg@ is the type of the bound variable, e.g. @a@
-    -- * @rt_ty@ is the body type, e.g. @RAllE "py" ... (Pair a b)@
-    --
-    -- Semantics: when checking @RAllE x tx t \<: t2@, the binder @x:tx@ is
-    -- added to the environment and then unified with all existing bindings of
-    -- compatible type before checking @t \<: t2@.
-    --
-  | RAllE {
-      rt_bind   :: !b
-    , rt_allarg :: !(RTypeBV b v c tv r)
-    , rt_ty     :: !(RTypeBV b v c tv r)
-    }
-
     -- | Existential quantification over an expression variable.
     -- Printed as @exists [x:T]. TYPE@.
     --

@@ -48,10 +48,6 @@ splitRType f (RApp c ts rs r) = (RApp c ts1 rs1 r1, RApp c ts2 rs2 r2)
         (ts1, ts2) = unzip (splitRType f <$> ts)
         (rs1, rs2) = unzip (splitUReft f <$> rs)
         (r1,  r2)  = splitRef f r
-splitRType f (RAllE x tx t) = (RAllE x tx1 t1, RAllE x tx2 t2)
-  where
-        (tx1, tx2) = splitRType f tx
-        (t1, t2)   = splitRType f t
 splitRType f (REx x tx t) = (REx x tx1 t1, REx x tx2 t2)
   where
         (tx1, tx2) = splitRType f tx

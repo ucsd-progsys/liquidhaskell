@@ -242,8 +242,6 @@ pprRtype bb p (RApp c ts rs r)
 
 pprRtype bb p t@REx{}
   = ppExists bb p t
-pprRtype bb p t@RAllE{}
-  = ppAllExpr bb p t
 pprRtype _ _ (RExprArg e)
   = braces $ pprint e
 pprRtype bb p (RAppTy t t' r)
@@ -295,16 +293,6 @@ ppExists bb p rt
     where (ws,  rt')               = split [] rt
           split zs (REx x t t')   = split ((x,t):zs) t'
           split zs t                = (reverse zs, t)
-
-ppAllExpr
-  :: (OkRTBV b v c tv r, PPrint (RTypeBV b v c tv r), PPrint (RTypeBV b v c tv (NoReftB b)))
-  => PPEnv -> Prec -> RTypeBV b v c tv r -> Doc
-ppAllExpr bb p rt
-  = text "forall" <+> brackets (intersperse comma [pprDbind bb topPrec x t | (x, t) <- ws]) <-> dot <-> pprRtype bb p rt'
-    where
-      (ws,  rt')               = split [] rt
-      split zs (RAllE x t t') = split ((x,t):zs) t'
-      split zs t              = (reverse zs, t)
 
 ppReftPs
   :: (OkRTBV b v c tv r, PPrint (RTypeBV b v c tv r), PPrint (RTypeBV b v c tv (NoReftB b)))

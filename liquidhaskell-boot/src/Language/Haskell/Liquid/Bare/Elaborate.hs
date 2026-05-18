@@ -151,12 +151,6 @@ data RTypeF c tv r f
     , _rtf_reft   :: !r
     }
 
-  | RAllEF {
-      _rtf_bind   :: !F.Symbol
-    , _rtf_allarg :: !f
-    , _rtf_ty     :: !f
-    }
-
   | RExF {
       _rtf_bind   :: !F.Symbol
     , _rtf_exarg  :: !f
@@ -199,7 +193,6 @@ project (RFun bind i tin tout reft) = RFunF  bind i tin tout reft
 project (RAllT tvbind ty ref      ) = RAllTF tvbind ty ref
 project (RAllP pvbind ty          ) = RAllPF pvbind ty
 project (RApp c args pargs reft   ) = RAppF c args pargs reft
-project (RAllE bind allarg ty     ) = RAllEF bind allarg ty
 project (REx   bind exarg  ty     ) = RExF bind exarg ty
 project (RExprArg e               ) = RExprArgF e
 project (RAppTy arg res reft      ) = RAppTyF arg res reft
@@ -212,7 +205,6 @@ embed (RFunF bind i tin tout reft) = RFun bind  i tin tout reft
 embed (RAllTF tvbind ty ref      ) = RAllT tvbind ty ref
 embed (RAllPF pvbind ty          ) = RAllP pvbind ty
 embed (RAppF c args pargs reft   ) = RApp c args pargs reft
-embed (RAllEF bind allarg ty     ) = RAllE bind allarg ty
 embed (RExF   bind exarg  ty     ) = REx bind exarg ty
 embed (RExprArgF e               ) = RExprArg e
 embed (RAppTyF arg res reft      ) = RAppTy arg res reft
@@ -250,9 +242,6 @@ collectSpecTypeBinders = \case
     | isClassType tin -> collectSpecTypeBinders tout
     | otherwise       -> let (bs, abs') = collectSpecTypeBinders tout
                           in (bind : bs, abs')
-  RAllE b _ t ->
-    let (bs, abs') = collectSpecTypeBinders t
-     in (b : bs, abs')
   RAllT (RTVar (RTV ab) _) t _ ->
     let (bs, abs') = collectSpecTypeBinders t
      in (bs, F.symbol ab : abs')
@@ -273,7 +262,6 @@ buildHsExpr result = go
       RFun bind _ tin tout _
         | isClassType tin -> go tout
         | otherwise       -> mkHsLam (noLocA [nlVarPat (varSymbolToRdrName bind)]) (go tout)
-      RAllE _ _ t -> go t
       RAllT _ t _ -> go t
       REx _ _ t -> go t
       RAppTy _ t _ -> go t
@@ -435,11 +423,6 @@ elaborateSpecType' partialTp coreToLogic simplify t =
                 )
         )
     -- todo: Existential support
-    RAllE bind allarg ty -> do
-      (eAllarg, bs ) <- elaborateSpecType' partialTp coreToLogic simplify allarg
-      (eTy    , bs') <- elaborateSpecType' partialTp coreToLogic simplify ty
-      let (eTyRenamed, canonicalBinders) = canonicalizeDictBinder bs (eTy, bs')
-      pure (RAllE bind eAllarg eTyRenamed, canonicalBinders)
     REx bind allarg ty -> do
       (eAllarg, bs ) <- elaborateSpecType' partialTp coreToLogic simplify allarg
       (eTy    , bs') <- elaborateSpecType' partialTp coreToLogic simplify ty
@@ -706,7 +689,6 @@ specTypeToLHsType = \case
     RApp RTyCon { rtc_tc = tc } ts _ _ -> mkHsTyConApp
       (getRdrName tc)
       [ specTypeToLHsType t | t <- ts, notExprArg t ]
-    RAllE _ tin tout -> nlHsFunTy (specTypeToLHsType tin) (specTypeToLHsType tout)
     REx _ tin tout -> nlHsFunTy (specTypeToLHsType tin) (specTypeToLHsType tout)
     RAppTy _ (RExprArg _) _ ->
       impossible Nothing "RExprArg should not appear here"

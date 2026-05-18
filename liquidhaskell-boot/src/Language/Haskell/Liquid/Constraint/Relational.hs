@@ -119,8 +119,6 @@ removeAbsRef (RApp  (RTyCon c _ i) as _ (MkUReft r _))
       as' = map removeAbsRef as
       r' = MkUReft r mempty
       out = RApp c' as' [] r'
-removeAbsRef (RAllE b a t)
-  = RAllE b (removeAbsRef a) (removeAbsRef t)
 removeAbsRef (REx   b a t)
   = REx   b (removeAbsRef a) (removeAbsRef t)
 removeAbsRef (RAppTy s t r)
@@ -582,7 +580,6 @@ consRelSub γ t1 t2 p1 p2 | isBase t1 && isBase t2 =
 consRelSub _ t1@(RHole _)    t2@(RHole _)    _ _ = F.panic $ "consRelSub is undefined for RHole "    ++ showppP (t1, t2)
 consRelSub _ t1@(RExprArg _) t2@(RExprArg _) _ _ = F.panic $ "consRelSub is undefined for RExprArg " ++ showppP (t1, t2)
 consRelSub _ t1@REx {}       t2@REx {}       _ _ = F.panic $ "consRelSub is undefined for REx "      ++ showppP (t1, t2)
-consRelSub _ t1@RAllE {}     t2@RAllE {}     _ _ = F.panic $ "consRelSub is undefined for RAllE "    ++ showppP (t1, t2)
 consRelSub _ t1@RRTy {}      t2@RRTy {}      _ _ = F.panic $ "consRelSub is undefined for RRTy "     ++ showppP (t1, t2)
 consRelSub _ t1@RAllP {}     t2@RAllP {}     _ _ = F.panic $ "consRelSub is undefined for RAllP "    ++ showppP (t1, t2)
 consRelSub _ t1@RAllT {}     t2@RAllT {}     _ _ = F.panic $ "consRelSub is undefined for RAllT "    ++ showppP (t1, t2)
