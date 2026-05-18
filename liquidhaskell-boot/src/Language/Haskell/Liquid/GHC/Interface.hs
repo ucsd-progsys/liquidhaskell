@@ -142,11 +142,11 @@ lookupTyThing tyEnv name = do
 
 modSummaryHsFile :: ModSummary -> FilePath
 modSummaryHsFile modSummary =
-  fromMaybe
+  unsafeDecodeUtf $ fromMaybe
     (panic Nothing $
       "modSummaryHsFile: missing .hs file for " ++
       showPpr (ms_mod modSummary))
-    (ml_hs_file $ ms_location modSummary)
+    (ml_hs_file_ospath $ ms_location modSummary)
 
 --------------------------------------------------------------------------------
 -- | Family instance information

@@ -36,6 +36,7 @@ import qualified Data.Char
 import qualified Text.Printf as Printf
 import           Data.Text.Encoding
 import           Data.Text.Encoding.Error
+import           Control.Monad (guard)
 import           Control.Monad.Except
 import           Control.Monad.Identity
 import qualified Language.Haskell.Liquid.Misc          as Misc
@@ -545,8 +546,9 @@ mkLit (LitNumber _ n) = mkI n
 -- mkLit (MachWord   n)    = mkI n
 -- mkLit (MachWord64 n)    = mkI n
 -- mkLit (LitInteger n _)  = mkI n
-mkLit (LitFloat  n)    = mkR n
-mkLit (LitDouble n)    = mkR n
+mkLit (LitFloating _ n) = do
+    guard (Ghc.isFiniteLF n)
+    mkR (Ghc.unsafeLitFloatingToRational n)
 mkLit (LitString    s) = Just (mkS s)
 mkLit (LitChar   c)    = mkC c
 mkLit LitNullAddr = mkI 0

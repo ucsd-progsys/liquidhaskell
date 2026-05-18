@@ -568,7 +568,6 @@ pprSrcSpan (UnhelpfulSpan reason) = text $ case reason of
   UnhelpfulNoLocationInfo -> "UnhelpfulNoLocationInfo"
   UnhelpfulWiredIn        -> "UnhelpfulWiredIn"
   UnhelpfulInteractive    -> "UnhelpfulInteractive"
-  UnhelpfulGenerated      -> "UnhelpfulGenerated"
   UnhelpfulOther fs       -> unpackFS fs
 pprSrcSpan (RealSrcSpan s _)      = pprRealSrcSpan s
 

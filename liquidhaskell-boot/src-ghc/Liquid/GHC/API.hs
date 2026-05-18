@@ -36,6 +36,7 @@ import           GHC                  as Ghc
     , GhcMonad
     , GhcPs
     , GhcRn
+    , HoleKind(HoleVar)
     , HsBndrKind(HsBndrNoKind)
     , HsBndrVar(HsBndrVar)
     , HsDecl(SigD)
@@ -58,7 +59,7 @@ import           GHC                  as Ghc
     , Located
     , LocatedN
     , ModIface_(mi_anns, mi_exports, mi_module)
-    , ModLocation(ml_hs_file)
+    , ModLocation(ml_hs_file_ospath)
     , ModSummary(ms_hspp_file, ms_hspp_opts, ms_location, ms_mod)
     , Module
     , ModuleName
@@ -156,6 +157,7 @@ import           GHC                  as Ghc
     , tyConKind
     , tyConTyVars
     , typecheckModule
+    , unnamedHoleRdrName
     , unLoc
     )
 
@@ -440,6 +442,8 @@ import GHC.Data.FastString            as Ghc
     , uniq
     , unpackFS
     )
+import GHC.Data.OsPath                as Ghc
+    ( unsafeDecodeUtf )
 import GHC.Data.Pair                  as Ghc
     ( Pair(Pair) )
 import GHC.Driver.Config.Diagnostic as Ghc
@@ -608,12 +612,14 @@ import GHC.Types.Basic                as Ghc
     , TopLevelFlag(NotTopLevel)
     , TupleSort(BoxedTuple)
     , funPrec
-    , InlinePragma(inl_act, inl_inline, inl_rule, inl_sat, inl_src)
     , isDeadOcc
-    , isNoInlinePragma
     , isStrongLoopBreaker
     , noOccInfo
     , topPrec
+    )
+import GHC.Types.InlinePragma         as Ghc
+    ( InlinePragma(inl_act, inl_inline, inl_rule)
+    , isNoInlinePragma
     )
 import GHC.Types.CostCentre           as Ghc
     ( CostCentre(cc_loc)
@@ -658,8 +664,12 @@ import GHC.Types.Id.Info              as Ghc
     )
 import GHC.Types.Literal              as Ghc
     ( LitNumType(LitNumInt)
-    , Literal(LitChar, LitDouble, LitFloat, LitNullAddr, LitNumber, LitString)
+    , Literal(LitChar, LitFloating, LitNullAddr, LitNumber, LitString)
     , literalType
+    )
+import GHC.Types.Literal.Floating     as Ghc
+    ( isFiniteLF
+    , unsafeLitFloatingToRational
     )
 import GHC.Types.Name                 as Ghc
     ( OccName
@@ -740,10 +750,10 @@ import GHC.Types.SourceText           as Ghc
     , mkTHFractionalLit
     )
 import GHC.Types.SrcLoc               as Ghc
-    ( SrcSpan(RealSrcSpan, UnhelpfulSpan)
+    ( GeneratedSrcSpanDetails(OrigSpan, UnhelpfulGenerated)
+    , SrcSpan(RealSrcSpan, UnhelpfulSpan, GeneratedSrcSpan)
     , UnhelpfulSpanReason
-        ( UnhelpfulGenerated
-        , UnhelpfulInteractive
+        ( UnhelpfulInteractive
         , UnhelpfulNoLocationInfo
         , UnhelpfulOther
         , UnhelpfulWiredIn

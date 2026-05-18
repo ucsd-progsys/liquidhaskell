@@ -55,7 +55,7 @@ import GHC.Driver.Env.Types           (hsc_dflags)
 import GHC.Driver.Session             as Ghc
 import GHC.Tc.Types
 import GHC.Types.Id
-import GHC.Types.Basic
+import GHC.Types.InlinePragma         (neverInlinePragma)
 import GHC.Types.Name                 (isSystemName, nameModule_maybe, occNameFS)
 import GHC.Types.Name.Reader          (nameRdrName)
 import GHC.Types.SrcLoc               as Ghc

@@ -223,9 +223,12 @@ instance Hashable SrcSpan where
     UnhelpfulNoLocationInfo -> hashWithSalt i (uniq $ fsLit "UnhelpfulNoLocationInfo")
     UnhelpfulWiredIn        -> hashWithSalt i (uniq $ fsLit "UnhelpfulWiredIn")
     UnhelpfulInteractive    -> hashWithSalt i (uniq $ fsLit "UnhelpfulInteractive")
-    UnhelpfulGenerated      -> hashWithSalt i (uniq $ fsLit "UnhelpfulGenerated")
     UnhelpfulOther fs       -> hashWithSalt i (uniq fs)
   hashWithSalt i (RealSrcSpan s _)      = hashWithSalt i (srcSpanStartLine s, srcSpanStartCol s, srcSpanEndCol s)
+  hashWithSalt i (GeneratedSrcSpan UnhelpfulGenerated) =
+    hashWithSalt i (uniq $ fsLit "UnhelpfulGenerated")
+  hashWithSalt i (GeneratedSrcSpan (OrigSpan s)) =
+    hashWithSalt i (srcSpanStartLine s, srcSpanStartCol s, srcSpanEndCol s)
 
 fSrcSpan :: (F.Loc a) => a -> SrcSpan
 fSrcSpan = fSrcSpanSrcSpan . F.srcSpan
@@ -870,11 +873,23 @@ withWiredIn m = discardConstraints $ do
             return $
               Ghc.L locSpanAnn $
               Ghc.FixSig Ghc.noAnn $
-              Ghc.FixitySig Ghc.NoNamespaceSpecifier [Ghc.L locSpanAnn (tcWiredInName w)] $
+              Ghc.FixitySig
+                Ghc.noExtField
+                (Ghc.NoNamespaceSpecifier Ghc.noExtField)
+                [Ghc.L locSpanAnn (tcWiredInName w)] $
               Ghc.Fixity fPrec fDir
           t =
             let ext' = [] in
-            [Ghc.L locSpanAnn $ TypeSig Ghc.noAnn [Ghc.L locSpanAnn (tcWiredInName w)] $ HsWC ext' $ Ghc.L locSpanAnn $ HsSig Ghc.noExtField (HsOuterImplicit ext') $ tcWiredInType w]
+            [Ghc.L locSpanAnn $
+              TypeSig
+                Ghc.noAnn
+                []
+                [Ghc.L locSpanAnn (tcWiredInName w)] $
+              HsWC ext' $
+              Ghc.L locSpanAnn $
+              HsSig Ghc.noExtField (HsOuterImplicit ext') $
+              tcWiredInType w
+            ]
       in
          inf <> t
     ) wiredIns
