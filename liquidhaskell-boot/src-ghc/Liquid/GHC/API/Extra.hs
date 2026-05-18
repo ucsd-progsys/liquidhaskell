@@ -12,6 +12,7 @@ module Liquid.GHC.API.Extra (
   , dataConSig
   , directImports
   , fsToUnitId
+  , hscDesugarNoShutdownPlugins
   , isPatErrorAlt
   , minus_RDR
   , qualifiedNameFS
@@ -51,8 +52,12 @@ import GHC.Data.FastString            as Ghc
 import GHC.Data.Maybe
 import qualified GHC.Data.Strict
 import GHC.Driver.Config (initSimpleOpts)
+import GHC.Driver.Env                 (runHsc)
 import GHC.Driver.Env.Types           (hsc_dflags)
+import GHC.Driver.Errors.Types        (hoistDsMessage)
+import GHC.Driver.Main.Hsc            (ioMsgMaybe)
 import GHC.Driver.Session             as Ghc
+import GHC.HsToCore                   (deSugar)
 import GHC.Tc.Types
 import GHC.Types.Id
 import GHC.Types.InlinePragma         (neverInlinePragma)
@@ -374,3 +379,15 @@ simpleOptimize hsc_env guts@(ModGuts
           { mg_binds = binds2
           , mg_rules = rules2
           }
+
+-- | Like hscDesugar but doesn't shutdown plugins
+--
+-- Needed since commit 1350271b55e30e8b4c3e7b61af889906d82f5e93:
+--
+-- Date:   Fri Apr 24 15:01:37 2026 +0200
+-- Ensure TcM plugins are only initialised once
+--
+hscDesugarNoShutdownPlugins :: HscEnv -> ModSummary -> TcGblEnv -> IO ModGuts
+hscDesugarNoShutdownPlugins hsc_env mod_summary tc_result =
+    runHsc hsc_env $ ioMsgMaybe $ hoistDsMessage $
+      deSugar hsc_env (ms_location mod_summary) tc_result

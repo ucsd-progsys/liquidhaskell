@@ -331,7 +331,7 @@ mkPipelineData ms tcg0 specs = do
 
     unoptimisedGuts <- withSession $ \hsc_env -> do
         let lcl_hsc_env = hscUpdateFlags (noWarnings . desugarerDynFlags) hsc_env
-        guts <- liftIO $ hscDesugar lcl_hsc_env ms tcg
+        guts <- liftIO $ hscDesugarNoShutdownPlugins lcl_hsc_env ms tcg
         -- The simple optimiser is necessary to remove artificial let-bindings
         -- that the desugarer creates, which would otherwise get in the way of
         -- LH's analysis.
