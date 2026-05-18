@@ -55,10 +55,10 @@ library
                       GHC.Float_LHAssumptions
                       GHC.ForeignPtr_LHAssumptions
                       GHC.Int_LHAssumptions
+                      GHC.Integer_LHAssumptions
                       GHC.IO.Handle_LHAssumptions
                       GHC.List_LHAssumptions
                       GHC.Num_LHAssumptions
-                      GHC.Num.Integer_LHAssumptions
                       GHC.Maybe_LHAssumptions
                       GHC.Ptr_LHAssumptions
                       GHC.Real_LHAssumptions

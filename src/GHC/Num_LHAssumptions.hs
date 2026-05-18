@@ -3,7 +3,7 @@
 module GHC.Num_LHAssumptions where
 
 import GHC.Num
-import GHC.Num.Integer_LHAssumptions()
+import GHC.Integer_LHAssumptions()
 
 {-@
 assume fromInteger :: x:Integer -> {v:a | v = x }

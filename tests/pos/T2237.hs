@@ -3,10 +3,10 @@
 module T2237 () where
 
 import Language.Haskell.Liquid.Prelude (liquidError, liquidAssertB)
-import qualified GHC.Num.Integer
+import GHC.Num
 
 data Foo a = F a
 
 {-@ flibInt :: (Num a, Ord a) => a -> Bool @-}
-flibInt x     = prop1 x (F (x + fromInteger (GHC.Num.Integer.IS 1#)))
+flibInt x     = prop1 x (F (x + fromInteger (IS 1#)))
 prop1 x (F y) = liquidAssertB (x < y)
