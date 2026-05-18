@@ -90,6 +90,8 @@ Check that Liquid Haskell is buildable.
 cabal build all
 ```
 
+Update installation instructions in the `docs/mkDocs/docs/install.md`.
+
 Commit changes, and create a tag for the release
 
 ```
@@ -123,3 +125,9 @@ Push the changes to the github repo.
 ```
 git push --tags origin HEAD:develop
 ```
+
+### Update repositories that depend on releases
+
+Update https://github.com/ucsd-progsys/lh-plugin-demo/
+
+Update the version of Liquid Haskell used in https://ghc.gitlab.haskell.org/head.hackage/
