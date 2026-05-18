@@ -19,7 +19,7 @@ import           Liquid.GHC.API
     , splitDollarApp
     , untick
     )
-import           Liquid.GHC.API.Extra (addNoInlinePragmasToBinds)
+import           Liquid.GHC.API.Extra (addNoInlinePragmasToBinds, hscDesugarNoShutdownPlugins)
 import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Test.Tasty.Runners.AntXML
@@ -31,7 +31,6 @@ import qualified GHC.Core as GHC
 import qualified GHC.Data.EnumSet as EnumSet
 import qualified GHC.Data.FastString as GHC
 import qualified GHC.Data.StringBuffer as GHC
-import qualified GHC.Driver.Main as GHC (hscDesugar)
 import qualified GHC.Parser as Parser
 import qualified GHC.Parser.Lexer as GHC
 import qualified GHC.Types.Id as GHC
@@ -211,10 +210,12 @@ findExpr name (p:ps) = case p of
 compileToCore :: String -> String -> IO [GHC.CoreBind]
 compileToCore modName inputSource = do
     GHC.runGhc (Just libdir) $ do
-      (_, tcMod) <- typecheckSourceCode modName inputSource
-      dsMod <- GHC.desugarModule tcMod
+      (ms, tcMod) <- typecheckSourceCode modName inputSource
+      let (tcg, _) = GHC.tm_internals_ tcMod
+      hsc_env <- GHC.getSession
+      guts <- liftIO $ hscDesugarNoShutdownPlugins hsc_env ms tcg
       hscEnv <- GHC.getSession
-      return $ GHC.mg_binds $ simpleOptimize hscEnv (GHC.dm_core_module dsMod)
+      return $ GHC.mg_binds $ simpleOptimize hscEnv guts
 
 typecheckSourceCode
   :: GHC.GhcMonad m => String -> String -> m (GHC.ModSummary, GHC.TypecheckedModule)
@@ -233,7 +234,7 @@ typecheckSourceCode modName inputSource = do
 
     ms <- GHC.getModSummary
             (GHC.mkModule GHC.mainUnit (GHC.mkModuleName modName))
-    tm <- GHC.parseModule ms >>= GHC.typecheckModule
+    tm <- GHC.parseModule ms >>= GHC.typecheckModule GHC.NoTcMPlugins
     return (ms, tm)
 
 -- | Like 'compileToCore' but applies 'addNoInlinePragmasToBinds' before
@@ -246,7 +247,7 @@ compileToCoreWithLH modName inputSource = do
       let (tcg, _) = GHC.tm_internals_ tcMod
           tcg' = addNoInlinePragmasToBinds tcg
       hsc_env <- GHC.getSession
-      guts <- liftIO $ GHC.hscDesugar hsc_env ms tcg'
+      guts <- liftIO $ hscDesugarNoShutdownPlugins hsc_env ms tcg'
       hscEnv <- GHC.getSession
       return $ GHC.mg_binds $ simpleOptimize hscEnv guts
 
