@@ -79,7 +79,6 @@ import           Language.Haskell.Liquid.Types.RTypeOp
 import           Language.Haskell.Liquid.Types.Types hiding (binds)
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Fresh ()
-import           Language.Haskell.Liquid.Transforms.RefSplit
 import qualified Language.Haskell.Liquid.UX.CTags       as Tg
 
 -- import Debug.Trace (trace)
@@ -177,13 +176,6 @@ addCGEnv tx γ (eMsg, x, REx y tyy tyx) = do
   y' <- fresh
   γ' <- addCGEnv tx γ (eMsg, y', tyy)
   addCGEnv tx γ' (eMsg, x, tyx `F.subst1` (y, F.EVar y'))
-
-addCGEnv tx γ (eMsg, sym, RAllE yy tyy tyx)
-  = addCGEnv tx γ (eMsg, sym, t)
-  where
-    xs            = localBindsOfType tyy (renv γ)
-    t             = L.foldl' meet ttrue [ tyx' `F.subst1` (yy, F.EVar x) | x <- xs]
-    (tyx', ttrue) = splitXRelatedRefs yy tyx
 
 addCGEnv tx γ (_, x, t') = do
   idx   <- fresh

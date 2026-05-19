@@ -103,12 +103,6 @@ trueRefType allowTC (RAppTy t t' _)
 trueRefType allowTC (RVar a r)
   = RVar a <$> true allowTC r
 
-trueRefType allowTC (RAllE y ty tx)
-  = do y'  <- fresh
-       ty' <- true allowTC ty
-       tx' <- true allowTC tx
-       return $ RAllE y' ty' (tx' `F.subst1` (y, F.EVar y'))
-
 trueRefType allowTC (RRTy e o r t)
   = RRTy e o r <$> trueRefType allowTC t
 
@@ -151,12 +145,6 @@ refreshRefType allowTC (RVar a r)
 
 refreshRefType allowTC (RAppTy t t' r)
   = RAppTy <$> refresh allowTC t <*> refresh allowTC t' <*> refresh allowTC r
-
-refreshRefType allowTC (RAllE y ty tx)
-  = do y'  <- fresh
-       ty' <- refresh allowTC ty
-       tx' <- refresh allowTC tx
-       return $ RAllE y' ty' (tx' `F.subst1` (y, F.EVar y'))
 
 refreshRefType allowTC (RRTy e o r t)
   = RRTy e o r <$> refreshRefType allowTC t

@@ -93,12 +93,6 @@ splitW (WfC γ t@(RApp _ ts rs _))
         ws''  <- concat <$> mapM (rsplitW γ)       rs
         return $ ws ++ ws' ++ ws''
 
-splitW (WfC γ (RAllE x tx t))
-  = do  ws  <- splitW (WfC γ tx)
-        γ'  <- γ += ("splitW1", x, tx)
-        ws' <- splitW (WfC γ' t)
-        return $ ws ++ ws'
-
 splitW (WfC γ (REx x tx t))
   = do  ws  <- splitW (WfC γ tx)
         γ'  <- γ += ("splitW2", x, tx)
@@ -172,20 +166,6 @@ splitC allowTC (SubC γ (REx x tx t1) t2)
        y <- fresh
        γ' <- γ += ("addExBind 2", y, forallExprRefType γ tx)
        splitC allowTC (SubC γ' (F.subst1 t1 (x, F.EVar y)) t2)
-
-splitC allowTC (SubC γ (RAllE x tx t1) (RAllE x2 _ t2)) | x == x2
-  = do γ' <- γ += ("addAllBind 3", x, forallExprRefType γ tx)
-       splitC allowTC (SubC γ' t1 t2)
-
-splitC allowTC (SubC γ (RAllE x tx t1) t2)
-  = do y  <- fresh
-       γ' <- γ += ("addAABind 1", y, forallExprRefType γ tx)
-       splitC allowTC (SubC γ' (t1 `F.subst1` (x, F.EVar y)) t2)
-
-splitC allowTC (SubC γ t1 (RAllE x tx t2))
-  = do y  <- fresh
-       γ' <- γ += ("addAllBind 2", y, forallExprRefType γ tx)
-       splitC allowTC (SubC γ' t1 (F.subst1 t2 (x, F.EVar y)))
 
 splitC allowTC (SubC cgenv (RRTy env _ OCons t1) t2)
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) cgenv xts
@@ -288,7 +268,6 @@ traceTy (RApp c ts _ _) = parens ("RApp " ++ showpp c ++ unwords (traceTy <$> ts
 traceTy (RAllP _ t)     = parens ("RAllP " ++ traceTy t)
 traceTy (RAllT _ t _)   = parens ("RAllT " ++ traceTy t)
 traceTy (RFun _ _ t t' _) = parens ("RFun " ++ parens (traceTy t) ++ parens (traceTy t'))
-traceTy (RAllE _ tx t)  = parens ("RAllE " ++ parens (traceTy tx) ++ parens (traceTy t))
 traceTy (REx _ tx t)    = parens ("REx " ++ parens (traceTy tx) ++ parens (traceTy t))
 traceTy (RExprArg _)    = "RExprArg"
 traceTy (RAppTy t t' _) = parens ("RAppTy " ++ parens (traceTy t) ++ parens (traceTy t'))

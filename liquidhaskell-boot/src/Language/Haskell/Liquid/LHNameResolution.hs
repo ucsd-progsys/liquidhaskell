@@ -499,7 +499,6 @@ fixExpressionArgsOfTypeAliases taliases = mapMBareTypes go
     go (RFun  x i t1 t2 r) = RFun <$> pure x <*> pure i <*> go t1 <*> go t2 <*> pure r
     go (RAllT a t r)       = RAllT <$> pure a <*> go t <*> pure r
     go (RAllP a t)         = RAllP a <$> go t
-    go (RAllE x t1 t2)     = RAllE x <$> go t1 <*> go t2
     go (REx x t1 t2)       = REx  x <$> go t1 <*> go t2
     go (RRTy e r o t)      = RRTy  e r o  <$> go t
     go t@RHole{}           = pure t
@@ -545,7 +544,7 @@ exprArg l msg = notracepp ("exprArg: " ++ msg) . go
     go (RApp x [] [] _) = EVar (getLHNameSymbol <$> btc_tc x)
     go (RApp f ts [] _) = eApps (EVar (renameAmbiguousCtor . getLHNameSymbol <$> btc_tc f)) (go <$> ts)
     go (RAppTy t1 t2 _) = EApp (go t1) (go t2)
-    go z                = panic sp $ Printf.printf "Unexpected expression parameter: %s in %s" (show $ parsedToBareType z) msg
+    go z                = panic sp $ Printf.printf "Unexpected expression parameter: %s in %s" (showpp $ parsedToBareType z) msg
     sp                  = Just (LH.sourcePosSrcSpan l)
 
 renameAmbiguousCtor :: Symbol -> Symbol

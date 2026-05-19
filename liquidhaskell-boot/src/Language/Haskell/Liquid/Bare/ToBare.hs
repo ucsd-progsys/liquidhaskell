@@ -53,7 +53,6 @@ txRType cF vF = go
     go (RAllT α t r)       = RAllT (goRTV α) (go t) r
     go (RAllP π t)         = RAllP (goPV  π) (go t)
     go (RFun x i t t' r)   = RFun   x i      (go t) (go t') r
-    go (RAllE x t t')      = RAllE x         (go t) (go t')
     go (REx x t t')        = REx   x         (go t) (go t')
     go (RAppTy t t' r)     = RAppTy          (go t) (go t') r
     go (RApp c ts rs r)    = RApp  (cF c)    (go <$> ts) (goRTP <$> rs) r

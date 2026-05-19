@@ -187,7 +187,7 @@ mapArgumens allowTC lc t1 t2 = go xts1' xts2'
       = Just $ mkSubst $ zipWith (\y x -> (fst x, EVar $ fst y)) xts1' xts2'
       | otherwise
       = panic (Just $ sourcePosSrcSpan lc) ("The types for the wrapper and worker data constructors cannot be merged\n"
-          ++ show t1 ++ "\n" ++ show t2 ++ "\n"
+          ++ showpp t1 ++ "\n" ++ showpp t2 ++ "\n"
           ++ "If there are UNPACK pragmas in effect, consider compiling with\n"
           ++ "-fomit-interface-pragmas to ignore them.\n"
           ++ "See https://github.com/ucsd-progsys/liquidhaskell/issues/2629")

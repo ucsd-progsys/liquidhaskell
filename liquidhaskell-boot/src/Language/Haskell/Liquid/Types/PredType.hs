@@ -302,7 +302,6 @@ substPVar src dst = go
      | otherwise            = RAllP q (go t)
     go (RAllT a t r)      = RAllT a   (go t)  (goRR r)
     go (RFun x i t t' r)  = RFun x i  (go t)  (go t') (goRR r)
-    go (RAllE x t t')     = RAllE x   (go t)  (go t')
     go (REx x t t')       = REx x     (go t)  (go t')
     go (RRTy e r o rt)    = RRTy e'   (goRR r) o (go rt) where e' = [(x, go t) | (x, t) <- e]
     go (RAppTy t1 t2 r)   = RAppTy    (go t1) (go t2) (goRR r)
@@ -354,7 +353,6 @@ substPred msg su@(rp,prop) (RFun x i rt rt' r)
 -- ps has   , pargs :: ![(t, Symbol, Expr)]
 
 substPred msg su (RRTy e r o t) = RRTy (fmap (substPred msg su) <$> e) r o (substPred msg su t)
-substPred msg su (RAllE x t t') = RAllE x (substPred msg su t) (substPred msg su t')
 substPred msg su (REx x t t')   = REx   x (substPred msg su t) (substPred msg su t')
 substPred _   _  t              = t
 
@@ -435,8 +433,6 @@ freeArgsPs p (RAllP p' t)
   | otherwise = freeArgsPs p t
 freeArgsPs p (RApp _ ts _ r)
   = L.nub $ freeArgsPsRef p r ++ concatMap (freeArgsPs p) ts
-freeArgsPs p (RAllE _ t1 t2)
-  = L.nub $ freeArgsPs p t1 ++ freeArgsPs p t2
 freeArgsPs p (REx _ t1 t2)
   = L.nub $ freeArgsPs p t1 ++ freeArgsPs p t2
 freeArgsPs p (RAppTy t1 t2 r)

@@ -1131,13 +1131,13 @@ cconsFreshE kvkind γ e = do
   return t
 --------------------------------------------------------------------------------
 
-checkUnbound :: (Show a, Show a2, F.Subable a, F.Variable a ~ F.Symbol)
+checkUnbound :: (PPrint a, Show a2, F.Subable a, F.Variable a ~ F.Symbol)
              => CGEnv -> CoreExpr -> F.Symbol -> a -> a2 -> a
 checkUnbound γ e x t a
   | x `notElem` F.syms t = t
   | otherwise            = panic (Just $ getLocation γ) msg
   where
-    msg = unlines [ "checkUnbound: " ++ show x ++ " is elem of syms of " ++ show t
+    msg = unlines [ "checkUnbound: " ++ show x ++ " is elem of syms of " ++ showpp t
                   , "In"
                   , GM.showPpr e
                   , "Arg = "

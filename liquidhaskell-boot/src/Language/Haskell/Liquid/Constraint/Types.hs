@@ -128,9 +128,6 @@ instance Semigroup LConstraint where
 instance PPrint CGEnv where
   pprintTidy k = pprintTidy k . renv
 
-instance Show CGEnv where
-  show = showpp
-
 getLocation :: CGEnv -> SrcSpan
 getLocation = srcSpan . cgLoc
 

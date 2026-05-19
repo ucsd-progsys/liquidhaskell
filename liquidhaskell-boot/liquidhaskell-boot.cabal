@@ -81,7 +81,6 @@ library
                       Language.Haskell.Liquid.Transforms.ANF
                       Language.Haskell.Liquid.Transforms.CoreToLogic
                       Language.Haskell.Liquid.Transforms.QuestionMark
-                      Language.Haskell.Liquid.Transforms.RefSplit
                       Language.Haskell.Liquid.Transforms.Rewrite
                       Language.Haskell.Liquid.Transforms.Simplify
                       Language.Haskell.Liquid.Transforms.InlineAux

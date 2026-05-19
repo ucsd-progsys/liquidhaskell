@@ -125,9 +125,6 @@ instance PPrint Class where
   pprintTidy F.Lossy = shortModules . pprDoc
   pprintTidy F.Full  =                pprDoc
 
-instance Show Predicate where
-  show = showpp
-
 instance (PPrint t) => PPrint (Annot t) where
   pprintTidy k (AnnUse t) = text "AnnUse" <+> pprintTidy k t
   pprintTidy k (AnnDef t) = text "AnnDef" <+> pprintTidy k t
@@ -136,9 +133,6 @@ instance (PPrint t) => PPrint (Annot t) where
 
 instance PPrint a => PPrint (AnnInfo a) where
   pprintTidy k (AI m) = vcat $ pprAnnInfoBinds k <$> M.toList m
-
-instance PPrint a => Show (AnnInfo a) where
-  show = showpp
 
 pprAnnInfoBinds :: (PPrint a, PPrint b) => F.Tidy -> (SrcSpan, [(Maybe a, b)]) -> Doc
 pprAnnInfoBinds k (l, xvs)
@@ -248,8 +242,6 @@ pprRtype bb p (RApp c ts rs r)
 
 pprRtype bb p t@REx{}
   = ppExists bb p t
-pprRtype bb p t@RAllE{}
-  = ppAllExpr bb p t
 pprRtype _ _ (RExprArg e)
   = braces $ pprint e
 pprRtype bb p (RAppTy t t' r)
@@ -301,16 +293,6 @@ ppExists bb p rt
     where (ws,  rt')               = split [] rt
           split zs (REx x t t')   = split ((x,t):zs) t'
           split zs t                = (reverse zs, t)
-
-ppAllExpr
-  :: (OkRTBV b v c tv r, PPrint (RTypeBV b v c tv r), PPrint (RTypeBV b v c tv (NoReftB b)))
-  => PPEnv -> Prec -> RTypeBV b v c tv r -> Doc
-ppAllExpr bb p rt
-  = text "forall" <+> brackets (intersperse comma [pprDbind bb topPrec x t | (x, t) <- ws]) <-> dot <-> pprRtype bb p rt'
-    where
-      (ws,  rt')               = split [] rt
-      split zs (RAllE x t t') = split ((x,t):zs) t'
-      split zs t              = (reverse zs, t)
 
 ppReftPs
   :: (OkRTBV b v c tv r, PPrint (RTypeBV b v c tv r), PPrint (RTypeBV b v c tv (NoReftB b)))
@@ -474,7 +456,7 @@ instance (PPrint (PredicateBV b v), ToReft (PredicateBV b v), PPrint r, ToReft r
 -- are unexpected errors, or will call @continue@ otherwise.
 --
 -- An error is expected if there is any filter that matches it.
-filterReportErrors :: forall e' a. (Show e', F.PPrint e') => FilePath -> Ghc.TcRn a -> Ghc.TcRn a -> [Filter] -> F.Tidy -> [TError e'] -> Ghc.TcRn a
+filterReportErrors :: forall e' a. F.PPrint e' => FilePath -> Ghc.TcRn a -> Ghc.TcRn a -> [Filter] -> F.Tidy -> [TError e'] -> Ghc.TcRn a
 filterReportErrors path failure continue filters k =
   filterReportErrorsWith
     FilterReportErrorsArgs { errorReporter = \errs ->

@@ -119,8 +119,6 @@ removeAbsRef (RApp  (RTyCon c _ i) as _ (MkUReft r _))
       as' = map removeAbsRef as
       r' = MkUReft r mempty
       out = RApp c' as' [] r'
-removeAbsRef (RAllE b a t)
-  = RAllE b (removeAbsRef a) (removeAbsRef t)
 removeAbsRef (REx   b a t)
   = REx   b (removeAbsRef a) (removeAbsRef t)
 removeAbsRef (RAppTy s t r)
@@ -187,9 +185,29 @@ consRelCheckBind γ ψ b1@(Rec [(f1, e1)]) b2@(Rec [(f2, e2)]) t1 t2 ra rp
 
 consRelCheckBind _ _ (Rec [(_, e1)]) (Rec [(_, e2)]) t1 t2 _ rp
   = F.panic $ "consRelCheckBind Rec: exprs, types, and pred should have same number of args " ++
-    show (args e1 e2 t1 t2 p)
+    showppArgs (args e1 e2 t1 t2 p)
     where
       p = fromRelExpr rp
+      showppArgs :: Maybe ([Var], [Var], [F.Symbol], [F.Symbol], [SpecType], [SpecType], [F.Expr]) -> String
+      showppArgs Nothing = "Nothing"
+      showppArgs (Just (xs1, xs2, vs1, vs2, ts1, ts2, qs)) =
+        concat
+          [ "Just ("
+          , F.showpp xs1
+          , ", "
+          , F.showpp xs2
+          , ", "
+          , F.showpp vs1
+          , ", "
+          , F.showpp vs2
+          , ", "
+          , F.showpp ts1
+          , ", "
+          , F.showpp ts2
+          , ", "
+          , F.showpp qs
+          , ")"
+          ]
 
 consRelCheckBind _ _ b1@(Rec _) b2@(Rec _) _ _ _ _
   = F.panic $ "consRelCheckBind Rec: multiple binders are not supported " ++ F.showpp (b1, b2)
@@ -559,14 +577,16 @@ consRelSub γ t1 t2 p1 p2 | isBase t1 && isBase t2 =
     γ'' <- γ' += ("consRelSub Base R", rr, t2)
     let cstr = F.subst (F.mkSubst [(resL, F.EVar rl), (resR, F.EVar rr)]) $ F.PImp p1 p2
     entl γ'' (traceWhenLoud ("consRelSub Base cstr " ++ F.showpp cstr) cstr) "consRelSub Base"
-consRelSub _ t1@(RHole _)    t2@(RHole _)    _ _ = F.panic $ "consRelSub is undefined for RHole "    ++ show (t1, t2)
-consRelSub _ t1@(RExprArg _) t2@(RExprArg _) _ _ = F.panic $ "consRelSub is undefined for RExprArg " ++ show (t1, t2)
-consRelSub _ t1@REx {}       t2@REx {}       _ _ = F.panic $ "consRelSub is undefined for REx "      ++ show (t1, t2)
-consRelSub _ t1@RAllE {}     t2@RAllE {}     _ _ = F.panic $ "consRelSub is undefined for RAllE "    ++ show (t1, t2)
-consRelSub _ t1@RRTy {}      t2@RRTy {}      _ _ = F.panic $ "consRelSub is undefined for RRTy "     ++ show (t1, t2)
-consRelSub _ t1@RAllP {}     t2@RAllP {}     _ _ = F.panic $ "consRelSub is undefined for RAllP "    ++ show (t1, t2)
-consRelSub _ t1@RAllT {}     t2@RAllT {}     _ _ = F.panic $ "consRelSub is undefined for RAllT "    ++ show (t1, t2)
-consRelSub _ t1 t2 _ _ =  F.panic $ "consRelSub is undefined for different types " ++ show (t1, t2)
+consRelSub _ t1@(RHole _)    t2@(RHole _)    _ _ = F.panic $ "consRelSub is undefined for RHole "    ++ showppP (t1, t2)
+consRelSub _ t1@(RExprArg _) t2@(RExprArg _) _ _ = F.panic $ "consRelSub is undefined for RExprArg " ++ showppP (t1, t2)
+consRelSub _ t1@REx {}       t2@REx {}       _ _ = F.panic $ "consRelSub is undefined for REx "      ++ showppP (t1, t2)
+consRelSub _ t1@RRTy {}      t2@RRTy {}      _ _ = F.panic $ "consRelSub is undefined for RRTy "     ++ showppP (t1, t2)
+consRelSub _ t1@RAllP {}     t2@RAllP {}     _ _ = F.panic $ "consRelSub is undefined for RAllP "    ++ showppP (t1, t2)
+consRelSub _ t1@RAllT {}     t2@RAllT {}     _ _ = F.panic $ "consRelSub is undefined for RAllT "    ++ showppP (t1, t2)
+consRelSub _ t1 t2 _ _ =  F.panic $ "consRelSub is undefined for different types " ++ showppP (t1, t2)
+
+showppP :: (PPrint a, PPrint b) => (a, b) -> String
+showppP (x, y) = "(" ++ showpp x ++ ", " ++ showpp y ++ ")"
 
 --------------------------------------------------------------
 -- Helper Definitions ----------------------------------------
