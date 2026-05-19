@@ -169,7 +169,7 @@ noDummySyms t
 combineDCTypes :: String -> Type -> [RRType Reft] -> RRType Reft
 combineDCTypes _msg t ts = L.foldl' strengthenRefTypeGen (ofType t) ts
 
-mapArgumens :: Bool -> SourcePos -> RRType Reft -> RRType Reft -> Maybe Subst
+mapArgumens :: Bool -> SourcePos -> RRType Reft -> RRType Reft -> Maybe F.Subst
 mapArgumens allowTC lc t1 t2 = go xts1' xts2'
   where
     xts1 = zip (ty_binds rep1) (ty_args rep1)

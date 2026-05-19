@@ -15,7 +15,6 @@ module Language.Haskell.Liquid.Constraint.Relational (consAssmRel, consRelTop) w
 
 import           Control.Monad (foldM, forM_)
 import           Data.Bifunctor                                 ( Bifunctor(bimap) )
-import qualified Data.HashMap.Strict                            as M
 import qualified Data.List                                      as L
 import           Data.String                                    ( IsString(..) )
 import qualified Language.Fixpoint.Types                        as F
@@ -31,12 +30,11 @@ import           Liquid.GHC.API                 ( Alt
                                                 , CoreBndr
                                                 , CoreExpr
                                                 , Expr(..)
-                                                , Type(..)
+                                                , Type
                                                 , TyVar
                                                 , Var(..))
 import qualified Liquid.GHC.API                as Ghc
 import qualified Language.Haskell.Liquid.GHC.Misc               as GM
-import           Language.Haskell.Liquid.GHC.Play               (Subable(sub, subTy))
 import qualified Language.Haskell.Liquid.GHC.SpanStack          as Sp
 import           Language.Haskell.Liquid.GHC.TypeRep            ()
 import           Language.Haskell.Liquid.Misc
@@ -163,7 +161,9 @@ consRelCheckBind γ ψ b1@(Rec [(f1, e1)]) b2@(Rec [(f2, e2)]) t1 t2 ra rp
     forM_ (refts t1 ++ refts t2) (\r -> entlFunReft γ r "consRelCheckBind Rec")
     let xs' = zipWith mkRelCopies xs1 xs2
     let (xs1', xs2') = unzip xs'
-    let (e1'', e2'') = L.foldl' subRel (e1', e2') (zip xs1 xs2)
+    -- Strip lambdas first, then substitute in the bodies where xs are free
+    let body1 = subVars xs1 xs1' (xbody e1')
+        body2 = subVars xs2 xs2' (xbody e2')
     γ' <- γ += ("Bind Rec f1", F.symbol f1', t1) >>= (+= ("Bind Rec f2", F.symbol f2', t2))
     γ'' <- foldM (\γγ (x, t) -> γγ += ("Bind Rec x1", F.symbol x, t)) γ' (zip (xs1' ++ xs2') (ts1 ++ ts2))
     let vs2xs =  F.subst $ F.mkSubst $ zip (vs1 ++ vs2) $ map (F.EVar . F.symbol) (xs1' ++ xs2')
@@ -173,7 +173,7 @@ consRelCheckBind γ ψ b1@(Rec [(f1, e1)]) b2@(Rec [(f2, e2)]) t1 t2 ra rp
                               map vs2xs [F.PAnd fo, a]
     let p' = unapp rp (zip vs1 vs2)
     let ψ' = ho ++ ψ
-    consRelCheck γ''' ψ' (xbody e1'') (xbody e2'') (vs2xs $ ret t1) (vs2xs $ ret t2) (vs2xs $ concl (fromRelExpr p'))
+    consRelCheck γ''' ψ' body1 body2 (vs2xs $ ret t1) (vs2xs $ ret t2) (vs2xs $ concl (fromRelExpr p'))
   where
     a = fromRelExpr ra
     p = fromRelExpr rp
@@ -181,7 +181,6 @@ consRelCheckBind γ ψ b1@(Rec [(f1, e1)]) b2@(Rec [(f2, e2)]) t1 t2 ra rp
     (e1', e2') = subRelCopies e1 f1 e2 f2
     unapp :: RelExpr -> [(F.Symbol, F.Symbol)] -> RelExpr
     unapp = L.foldl' (\p' (v1, v2) -> unapplyRelArgsR v1 v2 p')
-    subRel (e1'', e2'') (x1, x2) = subRelCopies e1'' x1 e2'' x2
 
 consRelCheckBind _ _ (Rec [(_, e1)]) (Rec [(_, e2)]) t1 t2 _ rp
   = F.panic $ "consRelCheckBind Rec: exprs, types, and pred should have same number of args " ++
@@ -694,8 +693,22 @@ subRelCopies :: CoreExpr -> Var -> CoreExpr -> Var -> (CoreExpr, CoreExpr)
 subRelCopies e1 x1 e2 x2 = (subVarAndTy x1 evar1 e1, subVarAndTy x2 evar2 e2)
   where (evar1, evar2) = mkRelCopies x1 x2
 
+-- | Rename a variable in a CoreExpr.
 subVarAndTy :: Var -> Var -> CoreExpr -> CoreExpr
-subVarAndTy x v = subTy (M.singleton x $ TyVarTy v) . sub (M.singleton x $ Var v)
+subVarAndTy x v e = Ghc.substExpr subst e
+  where
+    inScope = Ghc.mkInScopeSet (Ghc.exprFreeVars e `Ghc.extendVarSet` v)
+    vE = if Ghc.isTyVar x then Type (Ghc.TyVarTy v) else Var v
+    subst = Ghc.extendSubst (Ghc.mkEmptySubst inScope) x vE
+
+-- | Rename multiple variables in a CoreExpr at once.
+subVars :: [Var] -> [Var] -> CoreExpr -> CoreExpr
+subVars xs vs e = Ghc.substExpr subst e -- (M.fromList (zip xs (Var <$> vs)))
+  where
+    fvs     = Ghc.exprFreeVars e `Ghc.extendVarSetList` vs
+    inScope = Ghc.mkInScopeSet fvs
+    subst   = Ghc.extendIdSubstList (Ghc.mkEmptySubst inScope)
+                [ (x, Var v) | (x, v) <- zip xs vs ]
 
 mkRelCopies :: Var -> Var -> (Var, Var)
 mkRelCopies x1 x2 = (mkCopyWithSuffix relSuffixL x1, mkCopyWithSuffix relSuffixR x2)
