@@ -658,7 +658,7 @@ import GHC.Types.Id.Info              as Ghc
     )
 import GHC.Types.Literal              as Ghc
     ( LitNumType(LitNumInt)
-    , Literal(LitChar, LitDouble, LitFloat, LitNumber, LitString)
+    , Literal(LitChar, LitDouble, LitFloat, LitNullAddr, LitNumber, LitString)
     , literalType
     )
 import GHC.Types.Name                 as Ghc

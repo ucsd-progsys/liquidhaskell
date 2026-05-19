@@ -549,6 +549,7 @@ mkLit (LitFloat  n)    = mkR n
 mkLit (LitDouble n)    = mkR n
 mkLit (LitString    s) = Just (mkS s)
 mkLit (LitChar   c)    = mkC c
+mkLit LitNullAddr = mkI 0
 mkLit _                 = Nothing -- ELit sym sort
 
 mkI :: Integer -> Maybe Expr
