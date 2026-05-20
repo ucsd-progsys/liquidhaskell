@@ -98,7 +98,7 @@ tidyVV r@(Reft (va,_))
   | isJunk va = shiftVV r v'
   | otherwise = r
   where
-    v'        = if v `elem` xs then symbol ("v'" :: T.Text) else v
+    v'        = if v `S.member` xs then symbol ("v'" :: T.Text) else v
     v         = symbol ("v" :: T.Text)
     xs        = syms r
     isJunk    = isPrefixOfSym "x"
@@ -106,7 +106,7 @@ tidyVV r@(Reft (va,_))
 tidySymbols :: Tidy -> SpecType -> SpecType
 tidySymbols k t = substa (shortSymbol k . tidySymbol) $ mapBind dropBind t
   where
-    xs          = S.fromList (syms t)
+    xs          = syms t
     dropBind x  = if x `S.member` xs then tidySymbol x else nonSymbol
 
 shortSymbol :: Tidy -> Symbol -> Symbol
@@ -141,7 +141,7 @@ tidyInternalRefas = mapReft txReft
 tidyDSymbols :: SpecType -> SpecType
 tidyDSymbols t = mapBind tx $ substa tx t
   where
-    tx         = bindersTx [x | x <- syms t, isTmp x]
+    tx         = bindersTx (S.toList $ S.filter isTmp $ syms t)
     isTmp      = (tempPrefix `isPrefixOfSym`)
 
 tidyFunBinds :: SpecType -> SpecType

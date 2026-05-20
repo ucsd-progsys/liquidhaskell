@@ -304,8 +304,8 @@ instance Meet (RType BTyCon BTyVar (UReft Reft))
 ----------------------------------------------------------------------------
 
 instance Subable (RRProp Reft) where
-  syms (RProp ss (RHole r)) = (fst <$> ss) ++ syms r
-  syms (RProp ss t)      = (fst <$> ss) ++ syms t
+  syms (RProp ss (RHole r)) = S.fromList (fst <$> ss) `S.union` syms r
+  syms (RProp ss t)      = S.fromList (fst <$> ss) `S.union` syms t
 
 
   subst su (RProp ss (RHole r)) = RProp (fmap (subst su) <$> ss) $ RHole $ subst su r

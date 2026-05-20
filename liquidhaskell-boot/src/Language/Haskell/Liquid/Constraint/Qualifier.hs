@@ -10,7 +10,7 @@ module Language.Haskell.Liquid.Constraint.Qualifier
   where
 
 import           Prelude hiding (error)
-import           Data.List                (delete, nub, partition)
+import           Data.List                (partition)
 import           Data.Maybe               (isJust, catMaybes, fromMaybe, isNothing)
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
@@ -239,7 +239,7 @@ mkQual :: SEnv Sort
        -> Qualifier
 mkQual lEnv l _ γ v so p   = mkQ "Auto" ((v, so) : xts) p l
   where
-    xs   = delete v $ nub $ syms p
+    xs   = S.toList (S.delete v $ syms p)
     xts  = catMaybes $ zipWith (envSort l lEnv γ) xs [0..]
 
 envSort :: SourcePos -> SEnv Sort -> SEnv Sort -> Symbol -> Integer -> Maybe (Symbol, Sort)

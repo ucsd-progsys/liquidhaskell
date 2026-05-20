@@ -54,7 +54,7 @@ tidyErrContext k e@(ErrSubType {})
   = e { ctx = c', tact = F.subst θ tA, texp = F.subst θ tE }
     where
       (θ, c') = tidyCtx k xs (ctx e)
-      xs      = F.syms tA ++ F.syms tE
+      xs      = S.toList (F.syms tA `S.union` F.syms tE)
       tA      = tact e
       tE      = texp e
 
@@ -62,7 +62,7 @@ tidyErrContext _ e@(ErrSubTypeModel {})
   = e { ctxM = c', tactM = fmap (F.subst θ) tA, texp = fmap (F.subst θ) tE }
     where
       (θ, c') = tidyCtxM xs $ ctxM e
-      xs      = F.syms tA ++ F.syms tE
+      xs      = S.toList (F.syms tA `S.union` F.syms tE)
       tA      = tactM e
       tE      = texp e
 
@@ -71,7 +71,7 @@ tidyErrContext k e@(ErrAssType {})
     where
       m       = ctx e
       (θ, c') = tidyCtx k xs m
-      xs      = F.syms p
+      xs      = S.toList (F.syms p)
       p       = cond e
 
 tidyErrContext _ e
@@ -166,7 +166,7 @@ tidyREnvM      :: [F.Symbol] -> CtxM -> [(F.Symbol, WithModel SpecType)]
 tidyREnvM xs m = [(x, t) | x <- xs', t <- maybeToList (M.lookup x m), ok t]
   where
     xs'       = expandFix deps xs
-    deps y    = maybe [] (F.syms . rTypeReft . dropModel) (M.lookup y m)
+    deps y    = maybe [] (S.toList . F.syms . rTypeReft . dropModel) (M.lookup y m)
     ok        = not . isFunTy . dropModel
 
 expandFix :: (Eq a, Hashable a) => (a -> [a]) -> [a] -> [a]
