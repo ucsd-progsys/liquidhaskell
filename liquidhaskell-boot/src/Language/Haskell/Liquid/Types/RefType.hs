@@ -208,6 +208,7 @@ instance ( SubsTy tv (RTypeBV v v c tv (NoReftB v)) (RTypeBV v v c tv (NoReftB v
          , Subable r
          , F.Variable r ~ v
          , ReftBind r ~ v
+         , ReftVar r ~ v
          , IsReft r
          , Meet r
          , F.Refreshable v
@@ -226,6 +227,7 @@ instance ( SubsTy tv (RTypeBV v v c tv (NoReftB v)) (RTypeBV v v c tv (NoReftB v
          , Subable r
          , F.Variable r ~ v
          , ReftBind r ~ v
+         , ReftVar r ~ v
          , IsReft r
          , Meet r
          , F.Refreshable v
@@ -241,6 +243,7 @@ instance ( SubsTy tv (RTypeBV v v c tv (NoReftB v)) c
          , OkRTBV v v c tv r
          , Variable r ~ v
          , ReftBind r ~ v
+         , ReftVar r ~ v
          , IsReft r
          , Meet r
          , FreeVar c tv
@@ -268,6 +271,7 @@ instance ( SubsTy tv (RTypeBV v v c tv (NoReftB v)) c
          , OkRTBV v v c tv r
          , Variable r ~ v
          , ReftBind r ~ v
+         , ReftVar r ~ v
          , IsReft r
          , Meet r
          , FreeVar c tv
@@ -285,6 +289,7 @@ instance ( SubsTy tv (RTypeBV v v c tv (NoReftB v)) c
          , OkRTBV v v c tv r
          , Variable r ~ v
          , ReftBind r ~ v
+         , ReftVar r ~ v
          , IsReft r
          , Meet r
          , FreeVar c tv
@@ -523,6 +528,7 @@ strengthenRefTypeGen, strengthenRefType ::
          , Subable r
          , F.Variable r ~ v
          , ReftBind r ~ v
+         , ReftVar r ~ v
          , IsReft r
          , Meet r
          , F.Refreshable v
@@ -539,6 +545,7 @@ strengthenRefType_ ::
          , Subable r
          , F.Variable r ~ v
          , ReftBind r ~ v
+         , ReftVar r ~ v
          , IsReft r
          , Meet r
          , F.Refreshable v

@@ -822,7 +822,10 @@ instance F.Subable Body where
 
   substr ns su (E e)   = E   (F.substr ns su e)
   substr ns su (P e)   = P   (F.substr ns su e)
-  substr ns su (R s e) = R s (F.substr ns su e)
+  substr ns su (R s e) =
+    let (ns', s') = F.freshInNS s ns
+        su' = F.extendSubst su s (F.EVar s')
+    in R s' (F.substr ns' su' e)
 
   subst su (E e)   = E   (F.subst su e)
   subst su (P e)   = P   (F.subst su e)

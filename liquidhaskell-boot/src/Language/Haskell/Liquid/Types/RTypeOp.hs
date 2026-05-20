@@ -258,6 +258,7 @@ instance ( IsReft r
          , F.Variable r ~ v
          , F.Variable t ~ v
          , ReftBind r ~ v
+         , ReftVar r ~ v
          ) =>
          F.Subable (RefB v (RTypeBV v v c tv r) t) where
   type Variable (RefB v (RTypeBV v v c tv r) t) = v
@@ -270,7 +271,23 @@ instance ( IsReft r
      in
         S.unions $ (F.syms r `S.difference` bs) : tss
 
-  substr ns su (RProp  ss t) = RProp ss (F.substr ns su t)
+  substr ns0 su0 (RProp ss0 t0) =
+      let ((bs', ns', su'), ts) = substInArgs ss0 ns0 su0
+          ss' = zip bs' ts
+      in RProp ss' (F.substr ns' su' t0)
+    where
+      substInArgs ss1 ns1 su1 =
+        List.mapAccumR
+          (\(bs, ns, su) (x, t) ->
+             let (ns', x') = F.freshInNS x ns
+                 su' = F.extendSubst su x (F.EVar x')
+              in
+                 ( (x' : bs, ns', su')
+                 , F.substr ns su t
+                 )
+          )
+          ([], ns1, su1)
+          ss1
 
   subst su (RProp  ss t) = RProp ss (F.subst su t)
 
@@ -279,7 +296,7 @@ instance ( IsReft r
   substa f (RProp  ss t) = RProp ss (F.substa f t)
 
 
-instance (F.Subable r, IsReft r, TyConable c, F.Binder v, F.Refreshable v, F.Variable r ~ v, ReftBind r ~ v) => F.Subable (RTypeBV v v c tv r) where
+instance (F.Subable r, IsReft r, TyConable c, F.Binder v, F.Refreshable v, F.Variable r ~ v, ReftBind r ~ v, ReftVar r ~ v) => F.Subable (RTypeBV v v c tv r) where
   type Variable (RTypeBV v v c tv r) = v
   syms = go
     where
@@ -301,15 +318,17 @@ instance (F.Subable r, IsReft r, TyConable c, F.Binder v, F.Refreshable v, F.Var
             deletev r (kindSyms `S.union` deleteα (F.syms t))
             `S.union` F.syms r
       go (RAllP pb t) =
-        let (bs, tss) =
-              List.mapAccumL
-                (\bs0 (tb, b, _) -> (S.insert b bs0, F.syms tb `S.difference` bs0))
-                S.empty
-                (pargs pb)
-         in S.unions $
-              S.delete (pname pb) (F.syms t)
-              : F.syms (ptype pb) `S.difference` bs
-              : tss
+          S.delete (pname pb) (F.syms t) `S.union` symsPVar pb
+        where
+          symsPVar p =
+            let (bs, tss) =
+                  List.mapAccumL
+                    (\bs0 (tb, b, _) -> (S.insert b bs0, F.syms tb `S.difference` bs0))
+                    S.empty
+                    (pargs p)
+             in
+                S.unions $ (F.syms (ptype p) `S.difference` bs) : tss
+
       go (RApp _ ts ps r) =
         deletev r (F.syms ts `S.union` F.syms ps)
         `S.union` F.syms r
@@ -340,14 +359,108 @@ instance (F.Subable r, IsReft r, TyConable c, F.Binder v, F.Refreshable v, F.Var
   substa f    = emapExprArg (\_ -> F.substa f) []      . mapReft  (F.substa f)
   -- 'substf' will NOT substitute bound vars
   substf f    = emapExprArg (\_ -> F.substf f) []      . emapReft (F.substf . F.substfExcept f) []
-  substr ns su = emapExprArg (\_ -> F.substr ns su) [] . emapReft (\xs -> F.substr ns (F.substExcept su xs)) []
+  substr = go
+    where
+      -- Given a reft 'r' and the nameset 's' that will be passed to
+      -- 'F.substr' for 'r', compute the fresh reft-binder 'v0'' and return
+      -- the updated nameset and substitution for sub-fields that have 'v0'
+      -- in scope (i.e. all fields of the same constructor other than 'r').
+      substReft :: r -> S.HashSet v -> F.SubstV v -> (S.HashSet v, F.SubstV v, r)
+      substReft r s su =
+        case toConcreteReft r of
+          ConcreteNoReft -> (s, su, r)
+          ConcreteReft (F.Reft (v0, e)) ->
+            let (s', v0') = F.freshInNS v0 s
+                su' = F.extendSubst su v0 (F.EVar v0')
+             in (s', su', F.Reft (v0', F.substr s' su' e))
+          ConcreteUReft (MkUReft (F.Reft (v0, e)) ps) ->
+            let (s', v0') = F.freshInNS v0 s
+                su' = F.extendSubst su v0 (F.EVar v0')
+                e' = F.substr s' su' e
+                ps' = F.substr s su ps
+                ur' = MkUReft (F.Reft (v0', e')) ps'
+             in (s', su', ur')
+
+      go :: S.HashSet v -> F.SubstV v -> RTypeBV v v c tv r -> RTypeBV v v c tv r
+      go s su (RFun x i t1 t2 r) =
+        -- x scopes over t1 and t2; v0 (reft binder of r) scopes over t1 and t2.
+        let (s_x, x')     = F.freshInNS x s
+            su_x          = F.extendSubst su x (F.EVar x')
+            (s_xv, su_xv, r') = substReft r s_x su_x    -- nameset/subst for t1, t2
+         in RFun x' i (go s_xv su_xv t1) (go s_xv su_xv t2) r'
+      go s su (REx x t1 t2) =
+        -- x scopes over t2 only; no reft field.
+        let (s', x') = F.freshInNS x s
+            su' = F.extendSubst su x (F.EVar x')
+         in REx x' (go s su t1) (go s' su' t2)
+      go s su (RAllT α t r) =
+        -- v0 (reft binder of r) scopes over the kind inside α and over t.
+        let (s', su', r') = substReft r s su
+            (s'', su'', α') = αScope s' su' α
+         in RAllT α' (go s'' su'' t) r'
+        where
+          αScope s0 su0 rtv@(RTVar _tv (RTVNoInfo _)) = (s0, su0, rtv)
+          αScope s0 su0 (RTVar tv (RTVInfo b k v pol)) =
+            let (s1, b') = F.freshInNS b s0
+                su1 = F.extendSubst su0 b (F.EVar b')
+                k' = F.substr s0 su0 k
+             in (s1, su1, RTVar tv (RTVInfo b' k' v pol))
+
+      go s su (RAllP π t) =
+        let (ns_p, pname') = F.freshInNS (pname π) s
+            su_p = F.extendSubst su (pname π) (F.EVar pname')
+            π' = (substPVar s su π) { pname = pname' }
+         in
+            RAllP π' (go ns_p su_p t)
+        where
+          substPVar s0 su0 π0 =
+            let ((ns_pargs, su_pargs), pargs') =
+                  List.mapAccumR
+                    (\(ns', su') (tb, b, e) ->
+                      let (ns'', b') = F.freshInNS b ns'
+                          su'' = F.extendSubst su' b (F.EVar b')
+                          e' = F.substr ns' su' e
+                       in ((ns'', su''), (F.substr ns' su' tb, b', e'))
+                    )
+                    (s0, su0)
+                    (pargs π)
+             in
+                PV { pname = pname π0
+                   , ptype = F.substr ns_pargs su_pargs (ptype π0)
+                   , pargs = pargs'
+                   }
+
+      go s su (RVar α r)       = RVar α (F.substr s su r)
+      go s su (RApp c ts ps r) =
+        -- v0 (reft binder of r) scopes over ts and ps.
+        let (s', su', r') = substReft r s su
+         in RApp c (go s' su' <$> ts) (F.substr s' su' ps) r'
+      go s su (RAppTy t1 t2 r) =
+        -- v0 (reft binder of r) scopes over t1 and t2.
+        let (s', su', r') = substReft r s su
+        in RAppTy (go s' su' t1) (go s' su' t2) r'
+      go s su (RExprArg e) = RExprArg (F.substr s su <$> e)
+      go s su (RRTy env r o t) =
+          let ((s', su'), env') = substEnv s su env
+           in
+              RRTy env' (F.substr s' su' r) o (go s su t)
+        where
+          substEnv s0 su0 env0 =
+            List.mapAccumL
+              (\(s', su') (x, xt) ->
+                 let (s'', x') = F.freshInNS x s'
+                     su'' = F.extendSubst su' x (F.EVar x')
+                     xt' = F.substr s' su' xt
+                  in ((s'', su''), (x', xt'))
+              )
+              (s0, su0)
+              env0
+
+      go s su (RHole r)        = RHole (F.substr s su r)
+
   subst su    = emapExprArg (\_ -> F.subst su) []      . emapReft (F.subst  . F.substExcept su) []
   subst1 t su = emapExprArg (\_ e -> F.subst1 e su) [] $ emapReft (\xs r -> F.subst1Except xs r su) [] t
 
-
---------------------------------------------------------------------------------
--- | Visitors ------------------------------------------------------------------
---------------------------------------------------------------------------------
 mapExprReft :: (b -> ExprBV b v -> ExprBV b v) -> RTypeBV b v c tv (RReftBV b v) -> RTypeBV b v c tv (RReftBV b v)
 mapExprReft f = mapReft g
   where
