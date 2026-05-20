@@ -808,7 +808,7 @@ instance F.Subable (Def ty ctor) where
 instance F.Subable Body where
   syms (E e)       = F.syms e
   syms (P e)       = F.syms e
-  syms (R s e)     = S.insert s (F.syms e)
+  syms (R s e)     = S.delete s (F.syms e)
 
   substa f (E e)   = E   (F.substa f e)
   substa f (P e)   = P   (F.substa f e)

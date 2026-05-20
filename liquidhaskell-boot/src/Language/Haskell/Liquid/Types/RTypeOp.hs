@@ -74,6 +74,7 @@ import           Data.Bifunctor (bimap)
 import           Data.Coerce (coerce)
 import           Data.Hashable (Hashable)
 import qualified Data.HashSet as S
+import qualified Data.List as List
 
 import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Types (ExprBV, Symbol)
@@ -258,7 +259,14 @@ instance ( IsReft r
          ) =>
          F.Subable (RefB v (RTypeBV v v c tv r) t) where
   type Variable (RefB v (RTypeBV v v c tv r) t) = v
-  syms (RProp  ss r)     = S.fromList (fst <$> ss) `S.union` F.syms r
+  syms (RProp ss r) =
+    let (bs, tss) =
+          List.mapAccumL
+            (\bs0 (b, tb) -> (S.insert b bs0, F.syms tb `S.difference` bs0))
+            S.empty
+            ss
+     in
+        S.unions $ (F.syms r `S.difference` bs) : tss
 
   subst su (RProp  ss t) = RProp ss (F.subst su t)
 
@@ -269,7 +277,61 @@ instance ( IsReft r
 
 instance (F.Subable r, IsReft r, TyConable c, F.Binder v, F.Variable r ~ v, ReftBind r ~ v) => F.Subable (RTypeBV v v c tv r) where
   type Variable (RTypeBV v v c tv r) = v
-  syms        = foldReft False (\_ r acc -> F.syms r `S.union` acc) S.empty
+  syms = go
+    where
+      deletev r0 = case toConcreteReft r0 of
+        ConcreteNoReft -> id
+        ConcreteReft r -> S.delete (F.reftBind r)
+        ConcreteUReft (MkUReft r _) -> S.delete (F.reftBind r)
+
+      go :: RTypeBV v v c tv r -> S.HashSet v
+      go (RVar _ r) = F.syms r
+      go (RFun x _ t1 t2 r)  =
+        -- x scopes over t1, t2, and r
+        deletev r (S.delete x $ F.syms t1 `S.union` F.syms t2)
+        `S.union` F.syms r
+      go (RAllT α t r)       =
+        let kindSyms = maybe S.empty (F.syms . snd) (rTVarToBind α)
+            deleteα = maybe id (S.delete . fst) (rTVarToBind α)
+         in
+            deletev r (kindSyms `S.union` deleteα (F.syms t))
+            `S.union` F.syms r
+      go (RAllP pb t) =
+        let (bs, tss) =
+              List.mapAccumL
+                (\bs0 (tb, b, _) -> (S.insert b bs0, F.syms tb `S.difference` bs0))
+                S.empty
+                (pargs pb)
+         in S.unions $
+              S.delete (pname pb) (F.syms t)
+              : F.syms (ptype pb) `S.difference` bs
+              : tss
+      go (RApp _ ts ps r) =
+        deletev r (F.syms ts `S.union` F.syms ps)
+        `S.union` F.syms r
+      go (REx x t1 t2) =
+        -- x scopes over t2 only
+        F.syms t1 `S.union` S.delete x (F.syms t2)
+      go (RExprArg e) = F.syms e
+      go (RAppTy t1 t2 r) =
+        deletev r (F.syms t1 `S.union` F.syms t2)
+        `S.union` F.syms r
+      go (RRTy env r _ t) =
+          -- env scopes over the refinement type
+          let (bs, envSyms) = symsEnv env
+              rsyms = F.syms r `S.difference` bs
+           in
+              envSyms `S.union` rsyms `S.union` F.syms t
+        where
+          symsEnv = foldl'
+              (\(s, env') (x, xt) ->
+                let s' = S.insert x s
+                 in (s', (F.syms xt `S.difference` s) `S.union` env')
+              )
+              (S.empty, S.empty)
+
+      go (RHole r) = F.syms r
+
   -- 'substa' will substitute bound vars
   substa f    = emapExprArg (\_ -> F.substa f) []      . mapReft  (F.substa f)
   -- 'substf' will NOT substitute bound vars

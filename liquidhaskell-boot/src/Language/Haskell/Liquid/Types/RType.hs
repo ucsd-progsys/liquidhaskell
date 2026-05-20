@@ -455,7 +455,7 @@ pvars (Pr pvs) = pvs
 
 instance Hashable v => F.Subable (UsedPVarBV v v) where
   type Variable (UsedPVarBV v v) = v
-  syms pv         = S.fromList [ y | (_, x, F.EVar y) <- pargs pv, x /= y ]
+  syms pv = F.syms [ e | (_, _x, e) <- pargs pv ]
   subst s pv      = pv { pargs = mapThd3 (F.subst s)  <$> pargs pv }
   substf f pv     = pv { pargs = mapThd3 (F.substf f) <$> pargs pv }
   substa f pv     = pv { pargs = mapThd3 (F.substa f) <$> pargs pv }
