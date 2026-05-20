@@ -210,6 +210,7 @@ instance ( SubsTy tv (RTypeBV v v c tv (NoReftB v)) (RTypeBV v v c tv (NoReftB v
          , ReftBind r ~ v
          , IsReft r
          , Meet r
+         , F.Refreshable v
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) r
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) tv
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) (RTVar v v c tv)
@@ -227,6 +228,7 @@ instance ( SubsTy tv (RTypeBV v v c tv (NoReftB v)) (RTypeBV v v c tv (NoReftB v
          , ReftBind r ~ v
          , IsReft r
          , Meet r
+         , F.Refreshable v
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) r
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) tv
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) (RTVar v v c tv)
@@ -243,6 +245,7 @@ instance ( SubsTy tv (RTypeBV v v c tv (NoReftB v)) c
          , Meet r
          , FreeVar c tv
          , Subable r
+         , F.Refreshable v
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) r
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) (RTypeBV v v c tv (NoReftB v))
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) tv
@@ -269,6 +272,7 @@ instance ( SubsTy tv (RTypeBV v v c tv (NoReftB v)) c
          , Meet r
          , FreeVar c tv
          , Subable r
+         , F.Refreshable v
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) r
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) (RTypeBV v v c tv (NoReftB v))
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) tv
@@ -285,6 +289,7 @@ instance ( SubsTy tv (RTypeBV v v c tv (NoReftB v)) c
          , Meet r
          , FreeVar c tv
          , Subable r
+         , F.Refreshable v
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) r
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) (RTypeBV v v c tv (NoReftB v))
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) tv
@@ -520,6 +525,7 @@ strengthenRefTypeGen, strengthenRefType ::
          , ReftBind r ~ v
          , IsReft r
          , Meet r
+         , F.Refreshable v
          , FreeVar c tv
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) (RTypeBV v v c tv (NoReftB v))
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) c
@@ -535,6 +541,7 @@ strengthenRefType_ ::
          , ReftBind r ~ v
          , IsReft r
          , Meet r
+         , F.Refreshable v
          , FreeVar c tv
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) (RTypeBV v v c tv (NoReftB v))
          , SubsTy tv (RTypeBV v v c tv (NoReftB v)) c

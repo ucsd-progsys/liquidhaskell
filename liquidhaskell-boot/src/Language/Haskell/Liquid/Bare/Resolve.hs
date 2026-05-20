@@ -433,11 +433,11 @@ ofBRType env rebindR f l = go []
       :: (RTypeBV b v c tv r -> RTypeBV b v c tv r)
       -> (RTPropBV b v c tv r -> RTPropBV b v c tv r)
       -> RTypeBV b v c tv r -> RTypeBV b v c tv r
-    mapReftRecs f g (RApp c ts rs r)  = RApp  c (f <$> ts) (g <$> rs) r
-    mapReftRecs f _ (RFun x i t t' r) = RFun  x i (f t) (f t') r
-    mapReftRecs f _ (RAppTy t t' r)   = RAppTy (f t) (f t') r
-    mapReftRecs f _ (RAllT α t r)     = RAllT α (f t) r
-    mapReftRecs _ _ t                 = t
+    mapReftRecs ft gt (RApp c ts rs r)  = RApp  c (ft <$> ts) (gt <$> rs) r
+    mapReftRecs ft _  (RFun x i t t' r) = RFun  x i (ft t) (ft t') r
+    mapReftRecs ft _  (RAppTy t t' r)   = RAppTy (ft t) (ft t') r
+    mapReftRecs ft _  (RAllT α t r)     = RAllT α (ft t) r
+    mapReftRecs _  _  t                 = t
 
 lookupGhcTyConLHName :: HasCallStack => GHCTyLookupEnv -> Located LHName -> Lookup Ghc.TyCon
 lookupGhcTyConLHName env lc = do

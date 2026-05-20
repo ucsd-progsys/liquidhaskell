@@ -254,6 +254,7 @@ instance ( IsReft r
          , F.Subable t
          , TyConable c
          , F.Binder v
+         , F.Refreshable v
          , F.Variable r ~ v
          , F.Variable t ~ v
          , ReftBind r ~ v
@@ -269,6 +270,8 @@ instance ( IsReft r
      in
         S.unions $ (F.syms r `S.difference` bs) : tss
 
+  substr ns su (RProp  ss t) = RProp ss (F.substr ns su t)
+
   subst su (RProp  ss t) = RProp ss (F.subst su t)
 
   substf f (RProp  ss t) = RProp ss (F.substf f t)
@@ -276,7 +279,7 @@ instance ( IsReft r
   substa f (RProp  ss t) = RProp ss (F.substa f t)
 
 
-instance (F.Subable r, IsReft r, TyConable c, F.Binder v, F.Variable r ~ v, ReftBind r ~ v) => F.Subable (RTypeBV v v c tv r) where
+instance (F.Subable r, IsReft r, TyConable c, F.Binder v, F.Refreshable v, F.Variable r ~ v, ReftBind r ~ v) => F.Subable (RTypeBV v v c tv r) where
   type Variable (RTypeBV v v c tv r) = v
   syms = go
     where
@@ -337,6 +340,7 @@ instance (F.Subable r, IsReft r, TyConable c, F.Binder v, F.Variable r ~ v, Reft
   substa f    = emapExprArg (\_ -> F.substa f) []      . mapReft  (F.substa f)
   -- 'substf' will NOT substitute bound vars
   substf f    = emapExprArg (\_ -> F.substf f) []      . emapReft (F.substf . F.substfExcept f) []
+  substr ns su = emapExprArg (\_ -> F.substr ns su) [] . emapReft (\xs -> F.substr ns (F.substExcept su xs)) []
   subst su    = emapExprArg (\_ -> F.subst su) []      . emapReft (F.subst  . F.substExcept su) []
   subst1 t su = emapExprArg (\_ e -> F.subst1 e su) [] $ emapReft (\xs r -> F.subst1Except xs r su) [] t
 

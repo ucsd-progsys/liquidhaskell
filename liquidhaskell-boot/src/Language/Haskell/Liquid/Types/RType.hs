@@ -453,17 +453,19 @@ pdAnd ps       = Pr (nub $ concatMap pvars ps)
 pvars :: PredicateBV b v -> [UsedPVarBV b v]
 pvars (Pr pvs) = pvs
 
-instance Hashable v => F.Subable (UsedPVarBV v v) where
+instance (Hashable v, F.Refreshable v) => F.Subable (UsedPVarBV v v) where
   type Variable (UsedPVarBV v v) = v
   syms pv = F.syms [ e | (_, _x, e) <- pargs pv ]
+  substr ns s pv = pv { pargs = mapThd3 (F.substr ns s) <$> pargs pv }
   subst s pv      = pv { pargs = mapThd3 (F.subst s)  <$> pargs pv }
   substf f pv     = pv { pargs = mapThd3 (F.substf f) <$> pargs pv }
   substa f pv     = pv { pargs = mapThd3 (F.substa f) <$> pargs pv }
 
 
-instance Hashable v => F.Subable (PredicateBV v v) where
+instance (Hashable v, F.Refreshable v) => F.Subable (PredicateBV v v) where
   type Variable (PredicateBV v v) = v
   syms (Pr pvs) = F.syms pvs
+  substr ns s (Pr pvs) = Pr (F.substr ns s <$> pvs)
   subst  s (Pr pvs) = Pr (F.subst s  <$> pvs)
   substf f (Pr pvs) = Pr (F.substf f <$> pvs)
   substa f (Pr pvs) = Pr (F.substa f <$> pvs)
@@ -1232,6 +1234,7 @@ instance F.PPrint (NoReftBV b v) where
 instance Hashable b => F.Subable (NoReftBV b v) where
   type Variable (NoReftBV b v) = b
   syms _   = S.empty
+  substr _ _  = id
   substa _ = id
   substf _ = id
   subst _  = id
@@ -1409,7 +1412,7 @@ instance F.Binder b => IsReft (UReftBV b v) where
   ofConcreteReft (ConcreteUReft r) = r
   toConcreteReft = ConcreteUReft
 
-instance (F.Binder v, F.Fixpoint v) => Meet (F.ReftBV v v) where
+instance (F.Binder v, F.Fixpoint v, F.Refreshable v) => Meet (F.ReftBV v v) where
 
 instance F.Binder b => IsReft (F.ReftBV b v) where
   type ReftVar (F.ReftBV b v) = v
@@ -1429,7 +1432,7 @@ instance Top t => Top (RefB b τ t) where
 instance Top (PredicateBV b v) where
   top _ = pdTrue
 
-instance (F.Binder v, F.Fixpoint v) => Semigroup (F.ReftBV v v) where
+instance (F.Binder v, F.Fixpoint v, F.Refreshable v) => Semigroup (F.ReftBV v v) where
   (<>) = F.meetReft
 
 instance Monoid F.Reft where
@@ -1443,6 +1446,7 @@ instance (Semigroup (F.ReftBV b v), Eq b, Eq v) => Meet (UReftBV b v)
 instance (F.Refreshable v, Hashable v) => F.Subable (UReftBV v v) where
   type Variable (UReftBV v v) = v
   syms (MkUReft r p)     = F.syms r `S.union` F.syms p
+  substr ns s (MkUReft r z) = MkUReft (F.substr ns s r) (F.substr ns s z)
   subst s (MkUReft r z)  = MkUReft (F.subst s r)  (F.subst s z)
   substf f (MkUReft r z) = MkUReft (F.substf f r) (F.substf f z)
   substa f (MkUReft r z) = MkUReft (F.substa f r) (F.substa f z)

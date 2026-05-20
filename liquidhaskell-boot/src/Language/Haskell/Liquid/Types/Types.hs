@@ -794,6 +794,7 @@ instance F.Subable (Measure ty ctor) where
   syms m = F.syms (msEqns m)
   substa f m  = m { msEqns = F.substa f  <$> msEqns m }
   substf f m  = m { msEqns = F.substf f  <$> msEqns m }
+  substr ns su m = m { msEqns = F.substr ns su <$> msEqns m }
   subst  su m = m { msEqns = F.subst  su <$> msEqns m }
   -- substa f  (M n s es _) = M n s (F.substa f  <$> es) k
   -- substf f  (M n s es _) = M n s $ F.substf f  <$> es
@@ -803,6 +804,7 @@ instance F.Subable (Def ty ctor) where
   syms (Def _ _ _ sb bd)  = S.fromList (fst <$> sb) `S.union` F.syms bd
   substa f  (Def m c t b bd) = Def m c t b $ F.substa f  bd
   substf f  (Def m c t b bd) = Def m c t b $ F.substf f  bd
+  substr ns su (Def m c t b bd) = Def m c t b $ F.substr ns su bd
   subst  su (Def m c t b bd) = Def m c t b $ F.subst  su bd
 
 instance F.Subable Body where
@@ -818,6 +820,10 @@ instance F.Subable Body where
   substf f (P e)   = P   (F.substf f e)
   substf f (R s e) = R s (F.substf f e)
 
+  substr ns su (E e)   = E   (F.substr ns su e)
+  substr ns su (P e)   = P   (F.substr ns su e)
+  substr ns su (R s e) = R s (F.substr ns su e)
+
   subst su (E e)   = E   (F.subst su e)
   subst su (P e)   = P   (F.subst su e)
   subst su (R s e) = R s (F.subst su e)
@@ -828,6 +834,7 @@ instance F.Subable t => F.Subable (WithModel t) where
   syms (WithModel _ t) = F.syms t
   substa f             = fmap (F.substa f)
   substf f             = fmap (F.substf f)
+  substr ns su         = fmap (F.substr ns su)
   subst su             = fmap (F.subst su)
 
 data RClass ty = RClass
