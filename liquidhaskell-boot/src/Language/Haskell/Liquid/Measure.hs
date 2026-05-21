@@ -154,19 +154,24 @@ strengthenResult t r = fromRTypeRep $ rep {ty_res = ty_res rep `strengthen` r}
   where
     rep              = toRTypeRep t
 
-
+-- | If there are any dummy symbols in the type, replace them with fresh
+-- variables.
+--
+-- WARNING: the current implementation might rename variables named as
+-- dummySymbols event if they are not in the scope of the binder of a
+-- dummy symbol. Might not be a problem at the places where noDummySyms is used,
+-- but be careful if you want to use it in other places.
 noDummySyms
   :: (OkRT c tv r, Subable r, Variable r ~ Symbol, IsReft r, ReftVar r ~ Symbol)
   => RType c tv r -> RType c tv r
 noDummySyms t
   | any isDummy (ty_binds rep)
-  = subst su $ fromRTypeRep $ rep{ty_binds = xs'}
+  = F.subst su t -- substitution forces renaming of ty_binds to fresh variables
   | otherwise
   = t
   where
     rep = toRTypeRep t
-    xs' = zipWith (\_ i -> symbol ("x" ++ show i)) (ty_binds rep) [(1::Int)..]
-    su  = mkSubst $ zip (ty_binds rep) (EVar <$> xs')
+    su  = mkSubst [ (v, EVar v) | v <- ty_binds rep ]
 
 combineDCTypes :: String -> Type -> [RRType Reft] -> RRType Reft
 combineDCTypes _msg t ts = L.foldl' strengthenRefTypeGen (ofType t) ts

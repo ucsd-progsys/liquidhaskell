@@ -793,12 +793,10 @@ instance F.PPrint (CMeasure t) => Show (CMeasure t) where
 instance F.Subable (Measure ty ctor) where
   syms m = F.syms (msEqns m)
   substr ns su m = m { msEqns = F.substr ns su <$> msEqns m }
-  subst  su m = m { msEqns = F.subst  su <$> msEqns m }
 
 instance F.Subable (Def ty ctor) where
   syms (Def _ _ _ sb bd)  = S.fromList (fst <$> sb) `S.union` F.syms bd
   substr ns su (Def m c t b bd) = Def m c t b $ F.substr ns su bd
-  subst  su (Def m c t b bd) = Def m c t b $ F.subst  su bd
 
 instance F.Subable Body where
   syms (E e)       = F.syms e
@@ -812,16 +810,11 @@ instance F.Subable Body where
         su' = F.extendSubst su s (F.EVar s')
     in R s' (F.substr ns' su' e)
 
-  subst su (E e)   = E   (F.subst su e)
-  subst su (P e)   = P   (F.subst su e)
-  subst su (R s e) = R s (F.subst su e)
-
 instance F.Subable t => F.Subable (WithModel t) where
   type Variable (WithModel t) = F.Variable t
   syms (NoModel t)     = F.syms t
   syms (WithModel _ t) = F.syms t
   substr ns su         = fmap (F.substr ns su)
-  subst su             = fmap (F.subst su)
 
 data RClass ty = RClass
   { rcName    :: BTyCon

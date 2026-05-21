@@ -289,7 +289,6 @@ instance ( IsReft r
           ([], ns1, su1)
           ss1
 
-  subst su (RProp  ss t) = RProp ss (F.subst su t)
 
 
 instance (F.Subable r, IsReft r, TyConable c, F.Binder v, F.Refreshable v, F.Variable r ~ v, ReftBind r ~ v, ReftVar r ~ v) => F.Subable (RTypeBV v v c tv r) where
@@ -449,8 +448,6 @@ instance (F.Subable r, IsReft r, TyConable c, F.Binder v, F.Refreshable v, F.Var
               env0
 
       go s su (RHole r)        = RHole (F.substr s su r)
-
-  subst su    = emapExprArg (\_ -> F.subst su) []      . emapReft (F.subst  . F.substExcept su) []
 
 mapExprReft :: (b -> ExprBV b v -> ExprBV b v) -> RTypeBV b v c tv (RReftBV b v) -> RTypeBV b v c tv (RReftBV b v)
 mapExprReft f = mapReft g
@@ -620,23 +617,6 @@ emapDataCtorTyM f d = do
     dcResult <- traverse (f (map (lhNameToUnqualifiedSymbol . fst) (dcFields d))) $ dcResult d
     dcFields <- snd <$> mapAccumM (\γ  (s, t) -> (lhNameToUnqualifiedSymbol s:γ,) . (s,) <$> f γ t) [] (dcFields d)
     return d{dcTheta, dcFields, dcResult}
-
-emapExprArg :: ([b] -> ExprBV b v -> ExprBV b v) -> [b] -> RTypeBV b v c tv r -> RTypeBV b v c tv r
-emapExprArg f = go
-  where
-    go _ t@RVar{}          = t
-    go _ t@RHole{}         = t
-    go γ (RAllT α t r)     = RAllT α (go γ t) r
-    go γ (RAllP π t)       = RAllP π (go γ t)
-    go γ (RFun x i t t' r) = RFun  x i (go γ t) (go (x:γ) t') r
-    go γ (RApp c ts rs r)  = RApp  c (go γ <$> ts) (mo γ <$> rs) r
-    go γ (REx z t t')      = REx   z (go γ t) (go γ t')
-    go γ (RExprArg e)      = RExprArg (f γ <$> e) -- <---- actual substitution
-    go γ (RAppTy t t' r)   = RAppTy (go γ t) (go γ t') r
-    go γ (RRTy e r o t)    = RRTy  (fmap (go γ) <$> e) r o (go γ t)
-
-    mo _ t@(RProp _ RHole{}) = t
-    mo γ (RProp s t)         = RProp s (go γ t)
 
 parsedToBareType :: BareTypeParsed -> BareType
 parsedToBareType = mapRTypeV F.val . mapReft (mapUReftV F.val (fmap F.val))
