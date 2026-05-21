@@ -293,8 +293,6 @@ instance ( IsReft r
 
   substf f (RProp  ss t) = RProp ss (F.substf f t)
 
-  substa f (RProp  ss t) = RProp ss (F.substa f t)
-
 
 instance (F.Subable r, IsReft r, TyConable c, F.Binder v, F.Refreshable v, F.Variable r ~ v, ReftBind r ~ v, ReftVar r ~ v) => F.Subable (RTypeBV v v c tv r) where
   type Variable (RTypeBV v v c tv r) = v
@@ -355,8 +353,6 @@ instance (F.Subable r, IsReft r, TyConable c, F.Binder v, F.Refreshable v, F.Var
 
       go (RHole r) = F.syms r
 
-  -- 'substa' will substitute bound vars
-  substa f    = emapExprArg (\_ -> F.substa f) []      . mapReft  (F.substa f)
   -- 'substf' will NOT substitute bound vars
   substf f    = emapExprArg (\_ -> F.substf f) []      . emapReft (F.substf . F.substfExcept f) []
   substr = go
