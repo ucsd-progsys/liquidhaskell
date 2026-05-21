@@ -299,25 +299,6 @@ instance Meet (RTProp RTyCon RTyVar Reft)
 instance Semigroup (RType RTyCon RTyVar r) => Meet (RType RTyCon RTyVar r) where
 instance Meet (RType BTyCon BTyVar (UReft Reft))
 
-----------------------------------------------------------------------------
--- | Subable Instances -----------------------------------------------------
-----------------------------------------------------------------------------
-
-instance Subable (RRProp Reft) where
-  syms (RProp ss (RHole r)) = S.fromList (fst <$> ss) `S.union` syms r
-  syms (RProp ss t)      = S.fromList (fst <$> ss) `S.union` syms t
-
-
-  subst su (RProp ss (RHole r)) = RProp (fmap (subst su) <$> ss) $ RHole $ subst su r
-  subst su (RProp ss r)  = RProp  (fmap (subst su) <$> ss) $ subst su r
-
-
-  substf f (RProp ss (RHole r)) = RProp (fmap (substf f) <$> ss) $ RHole $ substf f r
-  substf f (RProp ss r) = RProp  (fmap (substf f) <$> ss) $ substf f r
-
-  substa f (RProp ss (RHole r)) = RProp (fmap (substa f) <$> ss) $ RHole $ substa f r
-  substa f (RProp ss r) = RProp  (fmap (substa f) <$> ss) $ substa f r
-
 -- MOVE TO TYPES
 instance Fixpoint String where
   toFix = text

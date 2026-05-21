@@ -246,18 +246,24 @@ addInvCond t r'
     F.Reft(v, rv) = ur_reft r'
 
 
-instance (IsReft r, F.Subable r, TyConable c, F.Binder v, F.Variable r ~ v, ReftBind r ~ v) => F.Subable (RTPropBV v v c tv r) where
-  type Variable (RTPropBV v v c tv r) = v
+instance ( IsReft r
+         , F.Subable r
+         , F.Subable t
+         , TyConable c
+         , F.Binder v
+         , F.Variable r ~ v
+         , F.Variable t ~ v
+         , ReftBind r ~ v
+         ) =>
+         F.Subable (RefB v (RTypeBV v v c tv r) t) where
+  type Variable (RefB v (RTypeBV v v c tv r) t) = v
   syms (RProp  ss r)     = S.fromList (fst <$> ss) `S.union` F.syms r
 
-  subst su (RProp ss (RHole r)) = RProp ss (RHole (F.subst su r))
-  subst su (RProp  ss t) = RProp ss (F.subst su <$> t)
+  subst su (RProp  ss t) = RProp ss (F.subst su t)
 
-  substf f (RProp ss (RHole r)) = RProp ss (RHole (F.substf f r))
-  substf f (RProp  ss t) = RProp ss (F.substf f <$> t)
+  substf f (RProp  ss t) = RProp ss (F.substf f t)
 
-  substa f (RProp ss (RHole r)) = RProp ss (RHole (F.substa f r))
-  substa f (RProp  ss t) = RProp ss (F.substa f <$> t)
+  substa f (RProp  ss t) = RProp ss (F.substa f t)
 
 
 instance (F.Subable r, IsReft r, TyConable c, F.Binder v, F.Variable r ~ v, ReftBind r ~ v) => F.Subable (RTypeBV v v c tv r) where
