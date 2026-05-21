@@ -459,7 +459,6 @@ instance (F.Subable r, IsReft r, TyConable c, F.Binder v, F.Refreshable v, F.Var
       go s su (RHole r)        = RHole (F.substr s su r)
 
   subst su    = emapExprArg (\_ -> F.subst su) []      . emapReft (F.subst  . F.substExcept su) []
-  subst1 t su = emapExprArg (\_ e -> F.subst1 e su) [] $ emapReft (\xs r -> F.subst1Except xs r su) [] t
 
 mapExprReft :: (b -> ExprBV b v -> ExprBV b v) -> RTypeBV b v c tv (RReftBV b v) -> RTypeBV b v c tv (RReftBV b v)
 mapExprReft f = mapReft g

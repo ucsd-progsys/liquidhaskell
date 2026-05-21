@@ -1238,7 +1238,6 @@ instance Hashable b => F.Subable (NoReftBV b v) where
   substa _ = id
   substf _ = id
   subst _  = id
-  subst1 r = const r
 
 instance Semigroup (NoReftBV b v) where
   _ <> _ = NoReft
