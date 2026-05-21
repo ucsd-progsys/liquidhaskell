@@ -458,7 +458,6 @@ instance (Hashable v, F.Refreshable v) => F.Subable (UsedPVarBV v v) where
   syms pv = F.syms [ e | (_, _x, e) <- pargs pv ]
   substr ns s pv = pv { pargs = mapThd3 (F.substr ns s) <$> pargs pv }
   subst s pv      = pv { pargs = mapThd3 (F.subst s)  <$> pargs pv }
-  substf f pv     = pv { pargs = mapThd3 (F.substf f) <$> pargs pv }
 
 
 instance (Hashable v, F.Refreshable v) => F.Subable (PredicateBV v v) where
@@ -466,7 +465,6 @@ instance (Hashable v, F.Refreshable v) => F.Subable (PredicateBV v v) where
   syms (Pr pvs) = F.syms pvs
   substr ns s (Pr pvs) = Pr (F.substr ns s <$> pvs)
   subst  s (Pr pvs) = Pr (F.subst s  <$> pvs)
-  substf f (Pr pvs) = Pr (F.substf f <$> pvs)
 
 instance NFData UReft
 
@@ -1233,7 +1231,6 @@ instance Hashable b => F.Subable (NoReftBV b v) where
   type Variable (NoReftBV b v) = b
   syms _   = S.empty
   substr _ _  = id
-  substf _ = id
   subst _  = id
 
 instance Semigroup (NoReftBV b v) where
@@ -1444,7 +1441,6 @@ instance (F.Refreshable v, Hashable v) => F.Subable (UReftBV v v) where
   syms (MkUReft r p)     = F.syms r `S.union` F.syms p
   substr ns s (MkUReft r z) = MkUReft (F.substr ns s r) (F.substr ns s z)
   subst s (MkUReft r z)  = MkUReft (F.subst s r)  (F.subst s z)
-  substf f (MkUReft r z) = MkUReft (F.substf f r) (F.substf f z)
 
 instance Meet Predicate
 
