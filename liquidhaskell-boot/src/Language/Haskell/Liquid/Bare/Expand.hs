@@ -815,7 +815,7 @@ expToBind p = do
       pargs' <- mapM expToBindParg pargs0
       return $ p { pargs = pargs' }
 
-expToBindParg :: (((), F.Symbol, F.Expr), RSort) -> State ExSt ((), F.Symbol, F.Expr)
+expToBindParg :: ((NoReft, F.Symbol, F.Expr), RSort) -> State ExSt (NoReft, F.Symbol, F.Expr)
 expToBindParg ((t, s, e), s') = fmap ((,,) t s) (expToBindExpr e s')
 
 expToBindExpr :: F.Expr ->  RSort -> State ExSt F.Expr

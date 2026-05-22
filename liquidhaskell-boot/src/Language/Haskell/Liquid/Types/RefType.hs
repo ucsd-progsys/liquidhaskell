@@ -103,7 +103,6 @@ import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List as L
-import           Control.Monad  (void)
 import           Text.Printf
 import           Text.PrettyPrint.HughesPJ hiding ((<>), first)
 import           Language.Fixpoint.Misc
@@ -187,7 +186,7 @@ uRTypeGen       :: IsReft b => RType c tv a -> RType c tv b
 uRTypeGen       = fmap $ const trueReft
 
 uPVar           :: PVarV v t -> UsedPVarV v
-uPVar           = void
+uPVar           = fmap (const NoReft)
 
 uReft           :: (Symbol, Expr) -> UReft Reft
 uReft           = uTop . Reft

@@ -400,7 +400,7 @@ emapSubstVM f m = F.toKVarSubst . M.fromList <$> mapM (traverse (emapExprVM f)) 
 
 type UsedPVar    = UsedPVarV Symbol
 type UsedPVarV v = UsedPVarBV Symbol v
-type UsedPVarBV b v = PVarBV b v ()
+type UsedPVarBV b v = PVarBV b v (NoReftB b)
 
 type Predicate = PredicateV Symbol
 type PredicateV v = PredicateBV Symbol v
@@ -409,11 +409,11 @@ newtype PredicateBV b v = Pr [UsedPVarBV b v]
   deriving (B.Binary, Hashable) via Generically (PredicateBV b v)
 
 mapPredicateV :: (v -> v') -> PredicateV v -> PredicateV v'
-mapPredicateV f (Pr xs) = Pr (map (mapPVarV f (const ())) xs)
+mapPredicateV f (Pr xs) = Pr (map (mapPVarV f (const NoReft)) xs)
 
 -- | A map traversal that collects the local variables in scope
 emapPredicateVM :: Monad m => ([Symbol] -> v -> m v') -> PredicateV v -> m (PredicateV v')
-emapPredicateVM f (Pr xs) = Pr <$> mapM (emapPVarVM f (\_ _ -> pure ())) xs
+emapPredicateVM f (Pr xs) = Pr <$> mapM (emapPVarVM f (\_ _ -> pure NoReft)) xs
 
 instance (Ord b, Ord v) => Eq (PredicateBV b v) where
   (Pr vs) == (Pr ws)
@@ -760,7 +760,7 @@ type RTypeV v c tv = RTypeBV Symbol v c tv
 -- * @tv@ is the type of type variables
 -- * @r@ is the type of refinements
 --
--- A refinement might be missing (e.g. @r@ is @()@), if the RTypeBV is used to
+-- A refinement might be missing (e.g. @r@ is @NoReft@), if the RTypeBV is used to
 -- represent the type of an entity that can't use refinements, e.g. the type of
 -- an abstract predicate.
 data RTypeBV b v c tv r
@@ -1292,16 +1292,6 @@ instance (F.Binder v, F.Fixpoint v) => Meet (F.ReftBV v v) where
 instance (F.Binder v, F.Fixpoint v, Eq v) => IsReft (F.ReftBV v v) where
   ofReft = id
 
-instance ToReft () where
-  type ReftVar () = Symbol
-  toReft _ = F.trueReft
-
-instance Top () where
-  top _ = ()
-
-instance IsReft () where
-  ofReft _ = ()
-
 instance F.Binder b => ToReft (NoReftB b) where
   type ReftVar (NoReftB b) = Symbol
   type ReftBind (NoReftB b) = b
@@ -1338,8 +1328,6 @@ instance Monoid F.Reft where
   mempty  = F.trueReft
   mappend = (<>)
 
-instance Meet ()
-
 instance Meet (NoReftB b)
 
 instance (Meet r, Eq v) => Meet (UReftBV v v r)
@@ -1350,9 +1338,6 @@ instance (F.Subable r, F.Variable r ~ v) => F.Subable (UReftBV v v r) where
   subst s (MkUReft r z)  = MkUReft (F.subst s r)  (F.subst s z)
   substf f (MkUReft r z) = MkUReft (F.substf f r) (F.substf f z)
   substa f (MkUReft r z) = MkUReft (F.substa f r) (F.substa f z)
-
-instance F.Expression (UReft ()) where
-  expr = F.expr . toReft
 
 instance Meet Predicate
 

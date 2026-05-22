@@ -219,7 +219,7 @@ dataConTy _ _
 ----------------------------------------------------------------------------
 -- | Interface: Replace Predicate With Uninterpreted Function Symbol -------
 ----------------------------------------------------------------------------
-replacePredsWithRefs :: (UsedPVar, (F.Symbol, [((), F.Symbol, F.Expr)]) -> F.Expr)
+replacePredsWithRefs :: (UsedPVar, (F.Symbol, [(NoReft, F.Symbol, F.Expr)]) -> F.Expr)
                      -> UReft F.Reft -> UReft F.Reft
 replacePredsWithRefs (p, r) (MkUReft (F.Reft(v, rs)) (Pr ps))
   = MkUReft (F.Reft (v, rs'')) (Pr ps2)

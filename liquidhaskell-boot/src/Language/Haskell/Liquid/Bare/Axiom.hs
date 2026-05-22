@@ -424,7 +424,7 @@ splitFun = go []
 
 
 isBoolBind :: Ghc.Var -> Bool
-isBoolBind v = isBool (ty_res $ toRTypeRep ((ofType $ Ghc.varType v) :: RRType ()))
+isBoolBind v = isBool (ty_res $ toRTypeRep ((ofType $ Ghc.varType v) :: RRType NoReft))
 
 strengthenRes :: SpecType -> F.Reft -> SpecType
 strengthenRes st rf = go st
