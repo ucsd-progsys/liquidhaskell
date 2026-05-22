@@ -463,7 +463,7 @@ instance Hashable v => F.Subable (UsedPVarBV v v) where
 
 instance Hashable v => F.Subable (PredicateBV v v) where
   type Variable (PredicateBV v v) = v
-  syms     (Pr pvs) = S.unions (map F.syms pvs)
+  syms (Pr pvs) = F.syms pvs
   subst  s (Pr pvs) = Pr (F.subst s  <$> pvs)
   substf f (Pr pvs) = Pr (F.substf f <$> pvs)
   substa f (Pr pvs) = Pr (F.substa f <$> pvs)

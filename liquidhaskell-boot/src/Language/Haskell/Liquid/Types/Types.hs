@@ -791,7 +791,7 @@ instance F.PPrint (CMeasure t) => Show (CMeasure t) where
 
 
 instance F.Subable (Measure ty ctor) where
-  syms  m     = S.unions (map F.syms (msEqns m))
+  syms m = F.syms (msEqns m)
   substa f m  = m { msEqns = F.substa f  <$> msEqns m }
   substf f m  = m { msEqns = F.substf f  <$> msEqns m }
   subst  su m = m { msEqns = F.subst  su <$> msEqns m }
