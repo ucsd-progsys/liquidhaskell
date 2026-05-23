@@ -1311,20 +1311,8 @@ instance F.Binder b => IsReft (NoReftB b) where
   ofReft _ = NoReft
   mapReftField _ = id
 
-instance ToReft t => ToReft (RefB b τ t) where
-  type ReftVar (RefB b τ t) = ReftVar t
-  type ReftBind (RefB b τ t) = ReftBind t
-  toReft (RProp _ t) = toReft t
-
 instance Top t => Top (RefB b τ t) where
   top (RProp args t) = RProp args (top t)
-
-instance (F.Binder b, Ord v, PredicateCompat b v) => ToReft (PredicateBV b v) where
-  type ReftVar (PredicateBV b v) = v
-  type ReftBind (PredicateBV b v) = b
-  toReft (Pr [])       = F.trueReft
-  toReft (Pr ps@(p:_)) = F.Reft (parg p, F.pAnd $ pToRef <$> ps)
-  toUReft p = MkUReft F.trueReft p
 
 instance Top (PredicateBV b v) where
   top _ = pdTrue
