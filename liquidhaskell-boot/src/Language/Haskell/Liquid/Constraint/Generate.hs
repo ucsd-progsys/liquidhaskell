@@ -741,7 +741,7 @@ consE γ (Var x) | GM.isDataConId x
   = do t0 <- varRefType γ x
        -- NV: The check is expected to fail most times, so
        --     it is cheaper than direclty fmap ignoreSelf.
-       let hasSelf = selfSymbol `elem` F.syms t0
+       let hasSelf = selfSymbol `S.member` F.syms t0
        let t = if hasSelf
                 then fmap ignoreSelf <$> t0
                 else t0
@@ -1134,7 +1134,7 @@ cconsFreshE kvkind γ e = do
 checkUnbound :: (PPrint a, Show a2, F.Subable a, F.Variable a ~ F.Symbol)
              => CGEnv -> CoreExpr -> F.Symbol -> a -> a2 -> a
 checkUnbound γ e x t a
-  | x `notElem` F.syms t = t
+  | not (x `S.member` F.syms t) = t
   | otherwise            = panic (Just $ getLocation γ) msg
   where
     msg = unlines [ "checkUnbound: " ++ show x ++ " is elem of syms of " ++ showpp t
@@ -1221,7 +1221,7 @@ substSelfReft :: F.Reft -> F.Reft
 substSelfReft (F.Reft (v, e)) = F.Reft (v, F.subst1 e (selfSymbol, F.EVar v))
 
 ignoreSelf :: F.Reft -> F.Reft
-ignoreSelf = F.mapExpr (\r -> if selfSymbol `elem` F.syms r then F.PTrue else r)
+ignoreSelf = F.mapExpr (\r -> if selfSymbol `S.member` F.syms r then F.PTrue else r)
 
 --------------------------------------------------------------------------------
 -- | `projectTypes` masks (i.e. true's out) all types EXCEPT those

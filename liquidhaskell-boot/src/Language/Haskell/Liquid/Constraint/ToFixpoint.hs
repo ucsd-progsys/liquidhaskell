@@ -148,8 +148,8 @@ makeRewrites info sub = concatMap (makeRewriteOne tce) $ filter ((`S.member` rws
 canRewrite :: S.HashSet F.Symbol -> F.Expr -> F.Expr -> Bool
 canRewrite freeVars' from to = noFreeSyms && doesNotDiverge
   where
-    fromSyms           = S.intersection freeVars' (S.fromList $ F.syms from)
-    toSyms             = S.intersection freeVars' (S.fromList $ F.syms to)
+    fromSyms           = S.intersection freeVars' (F.syms from)
+    toSyms             = S.intersection freeVars' (F.syms to)
     noFreeSyms         = S.null $ S.difference toSyms fromSyms
     doesNotDiverge     = Mb.isNothing (unify (S.toList freeVars') from to)
                       || Mb.isJust (unify (S.toList freeVars') to from)

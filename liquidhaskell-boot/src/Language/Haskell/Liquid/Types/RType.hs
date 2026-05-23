@@ -160,6 +160,7 @@ import qualified Data.HashMap.Strict                    as M
 import qualified Data.List                              as L
 import           Data.Maybe                             (mapMaybe)
 import           Data.List                              as L (nub)
+import qualified Data.HashSet                           as S
 import           Data.Proxy                             (Proxy(..))
 import           Text.PrettyPrint.HughesPJ              hiding (first, (<>))
 import           Language.Fixpoint.Misc
@@ -454,7 +455,7 @@ pvars (Pr pvs) = pvs
 
 instance Hashable v => F.Subable (UsedPVarBV v v) where
   type Variable (UsedPVarBV v v) = v
-  syms pv         = [ y | (_, x, F.EVar y) <- pargs pv, x /= y ]
+  syms pv         = S.fromList [ y | (_, x, F.EVar y) <- pargs pv, x /= y ]
   subst s pv      = pv { pargs = mapThd3 (F.subst s)  <$> pargs pv }
   substf f pv     = pv { pargs = mapThd3 (F.substf f) <$> pargs pv }
   substa f pv     = pv { pargs = mapThd3 (F.substa f) <$> pargs pv }
@@ -462,7 +463,7 @@ instance Hashable v => F.Subable (UsedPVarBV v v) where
 
 instance Hashable v => F.Subable (PredicateBV v v) where
   type Variable (PredicateBV v v) = v
-  syms     (Pr pvs) = concatMap F.syms   pvs
+  syms (Pr pvs) = F.syms pvs
   subst  s (Pr pvs) = Pr (F.subst s  <$> pvs)
   substf f (Pr pvs) = Pr (F.substf f <$> pvs)
   substa f (Pr pvs) = Pr (F.substa f <$> pvs)
@@ -1142,7 +1143,7 @@ instance F.PPrint (NoReftB b) where
 
 instance Hashable b => F.Subable (NoReftB b) where
   type Variable (NoReftB b) = b
-  syms _   = []
+  syms _   = S.empty
   substa _ = id
   substf _ = id
   subst _  = id
@@ -1345,7 +1346,7 @@ instance (Meet r, Eq v) => Meet (UReftBV v v r)
 
 instance (F.Subable r, F.Variable r ~ v) => F.Subable (UReftBV v v r) where
   type Variable (UReftBV v v r) = v
-  syms (MkUReft r p)     = F.syms r ++ F.syms p
+  syms (MkUReft r p)     = F.syms r `S.union` F.syms p
   subst s (MkUReft r z)  = MkUReft (F.subst s r)  (F.subst s z)
   substf f (MkUReft r z) = MkUReft (F.substf f r) (F.substf f z)
   substa f (MkUReft r z) = MkUReft (F.substa f r) (F.substa f z)

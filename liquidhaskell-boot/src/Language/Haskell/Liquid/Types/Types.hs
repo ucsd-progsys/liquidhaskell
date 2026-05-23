@@ -791,7 +791,7 @@ instance F.PPrint (CMeasure t) => Show (CMeasure t) where
 
 
 instance F.Subable (Measure ty ctor) where
-  syms  m     = concatMap F.syms (msEqns m)
+  syms m = F.syms (msEqns m)
   substa f m  = m { msEqns = F.substa f  <$> msEqns m }
   substf f m  = m { msEqns = F.substf f  <$> msEqns m }
   subst  su m = m { msEqns = F.subst  su <$> msEqns m }
@@ -800,7 +800,7 @@ instance F.Subable (Measure ty ctor) where
   -- subst  su (M n s es _) = M n s $ F.subst  su <$> es
 
 instance F.Subable (Def ty ctor) where
-  syms (Def _ _ _ sb bd)  = (fst <$> sb) ++ F.syms bd
+  syms (Def _ _ _ sb bd)  = S.fromList (fst <$> sb) `S.union` F.syms bd
   substa f  (Def m c t b bd) = Def m c t b $ F.substa f  bd
   substf f  (Def m c t b bd) = Def m c t b $ F.substf f  bd
   subst  su (Def m c t b bd) = Def m c t b $ F.subst  su bd
@@ -808,7 +808,7 @@ instance F.Subable (Def ty ctor) where
 instance F.Subable Body where
   syms (E e)       = F.syms e
   syms (P e)       = F.syms e
-  syms (R s e)     = s : F.syms e
+  syms (R s e)     = S.insert s (F.syms e)
 
   substa f (E e)   = E   (F.substa f e)
   substa f (P e)   = P   (F.substa f e)
