@@ -1213,7 +1213,7 @@ type OkRT c tv r =
   ( TyConable c
   , F.PPrint tv, F.PPrint c, F.PPrint r, F.PPrint (ReftVar r)
   , F.Fixpoint (ReftVar r)
-  , ToReft r
+  , IsReft r
   , ReftBind r ~ F.Symbol
   , Eq c, Eq tv, Ord (ReftVar r)
   , Hashable tv
@@ -1224,7 +1224,7 @@ type OkRTBV b v c tv r =
   , F.PPrint b, F.PPrint v, F.PPrint tv, F.PPrint c, F.PPrint r, F.PPrint (ReftVar r)
   , F.Fixpoint b, F.Fixpoint v, F.Fixpoint (ReftVar r)
   , F.Binder b
-  , ToReft r
+  , IsReft r
   , ReftBind r ~ b
   , Eq c, Eq tv, Ord b, Ord v, Ord (ReftVar r)
   , Hashable tv
@@ -1271,7 +1271,7 @@ instance (F.Binder b, ToReft (F.ReftBV b v), Eq v) => ToReft (UReftBV b v) where
 instance Top (F.ReftBV b v) => Top (UReftBV b v) where
   top (MkUReft r _) = MkUReft (top r) pdTrue
 
-instance (IsReft (F.ReftBV v v),  F.Binder v) => IsReft (UReftBV v v) where
+instance (IsReft (F.ReftBV b v),  F.Binder v) => IsReft (UReftBV b v) where
   ofReft r = MkUReft (ofReft r) pdTrue
   mapReftField f u = u { ur_reft = f (ur_reft u) }
 
@@ -1316,7 +1316,7 @@ instance Monoid F.Reft where
 
 instance Meet (NoReftB b)
 
-instance (Semigroup (F.ReftBV v v), Eq v) => Meet (UReftBV v v)
+instance (Semigroup (F.ReftBV b v), Eq b, Eq v) => Meet (UReftBV b v)
 
 instance (F.Refreshable v, Hashable v) => F.Subable (UReftBV v v) where
   type Variable (UReftBV v v) = v

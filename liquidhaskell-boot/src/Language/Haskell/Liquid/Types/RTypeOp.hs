@@ -285,29 +285,8 @@ mapExprReft f = mapReft g
   where
     g (MkUReft (F.Reft (x, e)) p) = MkUReft (F.Reft (x, f x e)) p
 
-data OrReftBV r = LeftReftBV (F.ReftBV (ReftBind r) (ReftVar r)) | RightR r
-
-instance ToReft r => ToReft (OrReftBV r) where
-  type ReftBind (OrReftBV r) = ReftBind r
-  type ReftVar (OrReftBV r) = ReftVar r
-  toReft (LeftReftBV r) = r
-  toReft (RightR r) = toReft r
-  toUReft (LeftReftBV r) = MkUReft r (Pr [])
-  toUReft (RightR r) = toUReft r
-
-instance ToReft r => Semigroup (OrReftBV r) where
-  _ <> _ = Prelude.error "Meet OrReftBV"
-
-instance ToReft r => Meet (OrReftBV r) where
-
-instance F.Binder (ReftBind r) => Top (OrReftBV r) where
-  top _ = LeftReftBV F.trueReft
-
-instance ToReft r => IsReft (OrReftBV r) where
-  ofReft r = LeftReftBV r
-
-isTrivial :: (ToReft r, TyConable c, F.Binder b, ReftBind r ~ b) => RTypeBV b v c tv r -> Bool
-isTrivial = foldReft False (\_ r b -> isTauto r && b) True . fmap RightR
+isTrivial :: (ToReft r, IsReft r, TyConable c, F.Binder b, ReftBind r ~ b) => RTypeBV b v c tv r -> Bool
+isTrivial = foldReft False (\_ r b -> isTauto r && b) True
 
 mapReft ::  (r1 -> r2) -> RTypeBV b v c tv r1 -> RTypeBV b v c tv r2
 mapReft f = emapReft (const f) []
