@@ -467,7 +467,7 @@ unDummy x i
   | x /= F.dummySymbol = x
   | otherwise          = F.symbol ("lq" ++ show i)
 
-singletonApp :: F.Symbolic a => F.Symbol -> [a] -> UReft F.Reft
+singletonApp :: F.Symbolic a => F.Symbol -> [a] -> UReft
 singletonApp s ys = MkUReft r mempty
   where
     r             = F.exprReft (F.eApps (F.EVar s) (F.eVar <$> ys))

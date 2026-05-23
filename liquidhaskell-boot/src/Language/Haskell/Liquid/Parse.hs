@@ -515,7 +515,7 @@ constraintP
                                (replicate (length xts + 1) trueURef)
                                ((snd <$> xts) ++ [t1]) <$> bareTypeP
 
-trueURef :: UReftV v (ReftV v)
+trueURef :: UReftV v
 trueURef = MkUReft F.trueReft (Pr [])
 
 constraintEnvP :: Parser [(LocSymbol, BareTypeParsed)]
@@ -752,7 +752,7 @@ maybeDigit
 ------------------------------------------------------------------------
 
 bRProp :: [((Symbol, τ), Symbol)]
-       -> ExprV LocSymbol -> Ref τ (RTypeV LocSymbol c BTyVar (UReftV LocSymbol (ReftV LocSymbol)))
+       -> ExprV LocSymbol -> Ref τ (RTypeV LocSymbol c BTyVar (UReftV LocSymbol))
 bRProp []    _    = panic Nothing "Parse.bRProp empty list"
 bRProp syms' epr  = RProp ss $ bRVar (BTV $ dummyLoc dummyName) (Pr []) r
   where
@@ -767,18 +767,18 @@ mkSubstLocSymbol toB = toKVarSubst . M.fromList . reverse . filter notTrivial
     notTrivial (x, EVar y) = x /= toB y
     notTrivial _           = True
 
-bRVar :: tv -> PredicateV v -> r -> RTypeV v c tv (UReftV v r)
+bRVar :: tv -> PredicateV v -> ReftV v -> RTypeV v c tv (UReftV v)
 bRVar α p r = RVar α (MkUReft r p)
 
-bLst :: Maybe (RTypeV v BTyCon tv (UReftV v r))
-     -> [RTPropV v BTyCon tv (UReftV v r)]
-     -> r
-     -> RTypeV v BTyCon tv (UReftV v r)
+bLst :: Maybe (RTypeV v BTyCon tv (UReftV v))
+     -> [RTPropV v BTyCon tv (UReftV v)]
+     -> ReftV v
+     -> RTypeV v BTyCon tv (UReftV v)
 bLst (Just t) rs r = RApp (mkBTyCon $ dummyLoc $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) listConName) [t] rs (reftUReft r)
 bLst Nothing  rs r = RApp (mkBTyCon $ dummyLoc $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) listConName) []  rs (reftUReft r)
 
 bTup :: [(Maybe Symbol, BareTypeParsed)]
-     -> [RTPropV LocSymbol BTyCon BTyVar (UReftV LocSymbol (ReftV LocSymbol))]
+     -> [RTPropV LocSymbol BTyCon BTyVar (UReftV LocSymbol)]
      -> ReftV LocSymbol
      -> BareTypeParsed
 bTup [(_,t)] rs r
@@ -823,11 +823,11 @@ appendRProps _                _   = Nothing
 -- TODO RApp Int [] [p] true should be syntactically different than RApp Int [] [] p
 -- bCon b s [RProp _ (RHole r1)] [] _ r = RApp b [] [] $ r1 `meet` (MkUReft r mempty s)
 bCon :: c
-     -> [RTPropV v c tv (UReftV v r)]
-     -> [RTypeV v c tv (UReftV v r)]
+     -> [RTPropV v c tv (UReftV v)]
+     -> [RTypeV v c tv (UReftV v)]
      -> PredicateV v
-     -> r
-     -> RTypeV v c tv (UReftV v r)
+     -> ReftV v
+     -> RTypeV v c tv (UReftV v)
 bCon b rs ts p r = RApp b ts rs $ MkUReft r p
 
 bAppTy :: Foldable t => BTyVar -> t BareTypeParsed -> ReftV LocSymbol -> BareTypeParsed
@@ -836,7 +836,7 @@ bAppTy v ts r  = strengthenUReft ts' (reftUReft r)
     ts'        = foldl' (\a b -> RAppTy a b (uTop F.trueReft)) (RVar v (uTop F.trueReft)) ts
 
 strengthenUReft
-  :: BareTypeParsed -> UReftV LocSymbol (ReftV LocSymbol) -> BareTypeParsed
+  :: BareTypeParsed -> UReftV LocSymbol -> BareTypeParsed
 strengthenUReft = strengthenWith meetUReft
   where
     meetUReft (MkUReft r0 (Pr p0)) (MkUReft r1 (Pr p1)) =
@@ -880,10 +880,10 @@ substExprV toB su0 = go
         s2' = fromKVarSubst s2
 
 
-reftUReft :: r -> UReftV v r
+reftUReft :: ReftV v -> UReftV v
 reftUReft r    = MkUReft r (Pr [])
 
-predUReft :: PredicateV v -> UReftV v (ReftV v)
+predUReft :: PredicateV v -> UReftV v
 predUReft = MkUReft F.trueReft
 
 dummyTyId :: String

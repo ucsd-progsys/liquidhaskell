@@ -738,7 +738,7 @@ getPsSigPs :: [(UsedPVar, a)] -> Bool -> SpecProp -> [(a, Bool)]
 getPsSigPs m pos (RProp _ (RHole r)) = addps m pos r
 getPsSigPs m pos (RProp _ t) = getPsSig m pos t
 
-addps :: [(UsedPVar, a)] -> b -> UReft t -> [(a, b)]
+addps :: [(UsedPVar, a)] -> b -> UReft -> [(a, b)]
 addps m pos (MkUReft _ ps) = (, pos) . f  <$> pvars ps
   where
     f = Mb.fromMaybe (panic Nothing "Bare.addPs: notfound") . (`L.lookup` m) . RT.uPVar
@@ -804,7 +804,7 @@ strengthenClassSel v lt = lt { val = st }
     RFun x' i tx <$> local (extend x') (go t) <*> pure (meet r r')
   go t = RT.strengthen t . singletonApp s . L.reverse <$> reader snd
 
-singletonApp :: F.Symbolic a => F.LocSymbol -> [a] -> UReft F.Reft
+singletonApp :: F.Symbolic a => F.LocSymbol -> [a] -> UReft
 singletonApp s ys = MkUReft r mempty
   where r = F.exprReft (F.mkEApp s (F.eVar <$> ys))
 

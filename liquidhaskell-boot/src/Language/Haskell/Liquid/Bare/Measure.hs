@@ -590,8 +590,8 @@ varLocSym v = F.symbol <$> GM.locNamedThing v
 isSimpleType :: Ghc.Type -> Bool
 isSimpleType = isFirstOrder . RT.typeSort mempty
 
-makeClassMeasureSpec :: MSpec (RType c tv (UReft r2)) t
-                     -> [(Located LHName, CMeasure (RType c tv r2))]
+makeClassMeasureSpec :: MSpec (RType c tv UReft) t
+                     -> [(Located LHName, CMeasure (RType c tv F.Reft))]
 makeClassMeasureSpec Ms.MSpec{..} = tx <$> M.elems cmeasMap
   where
     tx (M n s _ _ _) = (n, CM n (mapReft ur_reft s))

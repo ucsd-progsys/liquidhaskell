@@ -186,14 +186,13 @@ refTypeQuals lEnv ef l tce t0    = go emptySEnv t0
     insertsSEnv'              = foldr (\(x, t) γ -> insertSEnv x (rTypeSort tce t) γ)
 
 
-refTopQuals :: (PPrint t, IsReft t,  ReftBind t ~ Symbol, ReftVar t ~ Symbol, SubsTy RTyVar RSort t)
-            => SEnv Sort
+refTopQuals :: SEnv Sort
             -> ElabFlags
             -> SourcePos
             -> TCEmb TyCon
             -> RType RTyCon RTyVar r
             -> SEnv Sort
-            -> RRType (UReft t)
+            -> SpecType
             -> [Qualifier]
 refTopQuals lEnv ef l tce t0 γ rrt
   = [ mkQ' v so pa  | let (RR so (Reft (v, ra))) = rTypeSortedReft tce rrt

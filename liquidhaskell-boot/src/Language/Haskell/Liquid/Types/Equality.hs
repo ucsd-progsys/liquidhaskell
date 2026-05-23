@@ -67,7 +67,7 @@ class REq a where
 instance REq t2 => REq (Ref t1 t2) where
     (RProp _ t1) =*= (RProp _ t2) = t1 =*= t2
 
-instance REq (UReft F.Reft) where
+instance REq UReft where
   (MkUReft r1 p1) =*= (MkUReft r2 p2)
      = r1 =*= r2 && p1 == p2
 

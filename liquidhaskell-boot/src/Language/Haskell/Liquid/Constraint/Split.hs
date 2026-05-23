@@ -314,7 +314,7 @@ bsplitC γ t1 t2 = do
 addLhsInv :: CGEnv -> SpecType -> SpecType
 addLhsInv γ t = addRTyConInv (invs γ) t `strengthen` r
   where
-    r         = (mempty :: UReft F.Reft) { ur_reft = F.Reft (F.dummySymbol, p) }
+    r         = (mempty :: UReft) { ur_reft = F.Reft (F.dummySymbol, p) }
     p         = constraintToLogic rE' (lcs γ)
     rE'       = insertREnv v t (renv γ)
     v         = rTypeValueVar t

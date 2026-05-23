@@ -436,7 +436,7 @@ ppTy bb r0 t = doc
     | not (ppPs bb) = t
     | otherwise     = t <-> angleBrackets (pprint p)
 
-instance (PPrint (PredicateBV b v), ToReft (PredicateBV b v), PPrint r, ToReft r) => PPrint (UReftBV b v r) where
+instance (PPrint (PredicateBV b v), ToReft (PredicateBV b v), PPrint (F.ReftBV b v)) => PPrint (UReftBV b v) where
   pprintTidy k (MkUReft r p)
     | isTauto r  = pprintTidy k p
     | isTauto p  = pprintTidy k r

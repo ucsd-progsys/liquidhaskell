@@ -14,6 +14,7 @@
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
+{-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -436,10 +437,10 @@ instance (Ord b, F.Fixpoint b, Hashable b, F.PPrint b, Ord v, F.Fixpoint v, F.PP
   pprintTidy _ (Pr [])  = text "True"
   pprintTidy k (Pr pvs) = hsep $ punctuate (text "&") (F.pprintTidy k <$> pvs)
 
-instance (Semigroup a, Eq b) => Semigroup (UReftBV b v a) where
+instance (Semigroup (F.ReftBV b v), Eq b) => Semigroup (UReftBV b v) where
   MkUReft x y <> MkUReft x' y' = MkUReft (x <> x') (y <> y')
 
-instance (Monoid a) => Monoid (UReft a) where
+instance Monoid UReft where
   mempty  = MkUReft mempty mempty
   mappend = (<>)
 
@@ -468,7 +469,7 @@ instance Hashable v => F.Subable (PredicateBV v v) where
   substf f (Pr pvs) = Pr (F.substf f <$> pvs)
   substa f (Pr pvs) = Pr (F.substa f <$> pvs)
 
-instance NFData r => NFData (UReft r)
+instance NFData UReft
 
 newtype BTyVar = BTV F.LocSymbol
   deriving (Show, Generic, Data)
@@ -1070,8 +1071,8 @@ type RTProp c tv r = RTPropV Symbol c tv r
 type RTPropV v c tv r = RTPropBV Symbol v c tv r
 type RTPropBV b v c tv r = RefB b (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv r)
 
-type UReft r = UReftV F.Symbol r
-type UReftV v r = UReftBV F.Symbol v r
+type UReft = UReftV F.Symbol
+type UReftV v = UReftBV F.Symbol v
 
 -- | A combined refinement carrying both a first-order predicate and a
 -- conjunction of abstract-refinement (predicate-variable) applications.
@@ -1116,19 +1117,21 @@ type UReftV v r = UReftBV F.Symbol v r
 -- 'toReft' on a 'UReftBV' discards @ur_pred@ entirely and returns only
 -- @ur_reft@; it must therefore be called only after predicate-replacement.
 --
-data UReftBV b v r = MkUReft
-  { ur_reft   :: !r
+data UReftBV b v = MkUReft
+  { ur_reft   :: !(F.ReftBV b v)
   , ur_pred   :: !(PredicateBV b v)
   }
-  deriving (Eq, Generic, Data, Functor, Foldable, Show, Traversable)
-  deriving (B.Binary, Hashable) via Generically (UReftBV b v r)
+  deriving (Eq, Generic, Data)
+  deriving (B.Binary, Hashable) via Generically (UReftBV b v)
 
-mapUReftV :: (v -> v') -> (r -> r') -> UReftV v r -> UReftV v' r'
+deriving instance (Show (F.ReftBV b v), Show (PredicateBV b v)) => Show (UReftBV b v)
+
+mapUReftV :: (v -> v') -> (F.ReftV v -> F.ReftV v') -> UReftV v -> UReftV v'
 mapUReftV f g (MkUReft r p) = MkUReft (g r) (mapPredicateV f p)
 
 emapUReftVM
   :: Monad m
-  => ([Symbol] -> v -> m v') -> (r -> m r') -> UReftV v r -> m (UReftV v' r')
+  => ([Symbol] -> v -> m v') -> (F.ReftV v -> m (F.ReftV v')) -> UReftV v -> m (UReftV v')
 emapUReftVM f g (MkUReft r p) = MkUReft <$> g r <*> emapPredicateVM f p
 
 type NoReft = NoReftB Symbol
@@ -1165,7 +1168,7 @@ type BPVar       = PVar      BSort
 type RPVar       = PVar      RSort
 type RReft       = RReftV    F.Symbol
 type RReftV v    = RReftBV Symbol v
-type RReftBV b v = UReftBV b v (F.ReftBV b v)
+type RReftBV b v = UReftBV b v
 type BareType    = BareTypeV F.Symbol
 type BareTypeParsed = BareTypeV F.LocSymbol
 type BareTypeLHName = BareTypeV LHName
@@ -1243,7 +1246,7 @@ class (F.Binder (ReftBind r), Eq (ReftVar r)) => ToReft r where
   type ReftBind r
   type ReftBind r = Symbol
   toReft :: r -> F.ReftBV (ReftBind r) (ReftVar r)
-  toUReft :: r -> UReftBV (ReftBind r) (ReftVar r) (F.ReftBV (ReftBind r) (ReftVar r))
+  toUReft :: r -> UReftBV (ReftBind r) (ReftVar r)
   toUReft r = MkUReft (toReft r) pdTrue
 
 -- | Types that can be combined conjunctively in some sense
@@ -1258,6 +1261,8 @@ class Top r where
 -- | Types that can be constructed from a 'F.ReftBV'
 class (ToReft r, Meet r, Top r) => IsReft r where
   ofReft :: F.ReftBV (ReftBind r) (ReftVar r) -> r
+  -- | Apply a function to the underlying 'F.ReftBV' without discarding predicates.
+  mapReftField :: (F.ReftBV (ReftBind r) (ReftVar r) -> F.ReftBV (ReftBind r) (ReftVar r)) -> r -> r
 
 trueReft :: IsReft r => r
 trueReft = ofReft F.trueReft
@@ -1267,17 +1272,18 @@ isTauto r0 = F.isTautoReft r && null ps
  where
   MkUReft r (Pr ps) = toUReft r0
 
-instance (ToReft r, ReftBind r ~ b, ReftVar r ~ v) => ToReft (UReftBV b v r) where
-  type ReftVar (UReftBV b v r) = ReftVar r
-  type ReftBind (UReftBV b v r) = ReftBind r
+instance (F.Binder b, ToReft (F.ReftBV b v), Eq v) => ToReft (UReftBV b v) where
+  type ReftVar (UReftBV b v) = v
+  type ReftBind (UReftBV b v) = b
   toReft = toReft . ur_reft
   toUReft (MkUReft r p) = MkUReft (toReft r) p
 
-instance Top r => Top (UReftBV b v r) where
+instance Top (F.ReftBV b v) => Top (UReftBV b v) where
   top (MkUReft r _) = MkUReft (top r) pdTrue
 
-instance (IsReft r, F.Binder v, ReftBind r ~ v, ReftVar r ~ v) => IsReft (UReftBV v v r) where
+instance (IsReft (F.ReftBV v v),  F.Binder v) => IsReft (UReftBV v v) where
   ofReft r = MkUReft (ofReft r) pdTrue
+  mapReftField f u = u { ur_reft = f (ur_reft u) }
 
 instance (F.Binder b, Eq v) => ToReft (F.ReftBV b v) where
   type ReftVar (F.ReftBV b v) = v
@@ -1291,6 +1297,7 @@ instance (F.Binder v, F.Fixpoint v) => Meet (F.ReftBV v v) where
 
 instance (F.Binder v, F.Fixpoint v, Eq v) => IsReft (F.ReftBV v v) where
   ofReft = id
+  mapReftField f = f
 
 instance F.Binder b => ToReft (NoReftB b) where
   type ReftVar (NoReftB b) = Symbol
@@ -1302,6 +1309,7 @@ instance Top (NoReftB b) where
 
 instance F.Binder b => IsReft (NoReftB b) where
   ofReft _ = NoReft
+  mapReftField _ = id
 
 instance ToReft t => ToReft (RefB b τ t) where
   type ReftVar (RefB b τ t) = ReftVar t
@@ -1330,10 +1338,10 @@ instance Monoid F.Reft where
 
 instance Meet (NoReftB b)
 
-instance (Meet r, Eq v) => Meet (UReftBV v v r)
+instance (Semigroup (F.ReftBV v v), Eq v) => Meet (UReftBV v v)
 
-instance (F.Subable r, F.Variable r ~ v) => F.Subable (UReftBV v v r) where
-  type Variable (UReftBV v v r) = v
+instance (F.Refreshable v, Hashable v) => F.Subable (UReftBV v v) where
+  type Variable (UReftBV v v) = v
   syms (MkUReft r p)     = F.syms r `S.union` F.syms p
   subst s (MkUReft r z)  = MkUReft (F.subst s r)  (F.subst s z)
   substf f (MkUReft r z) = MkUReft (F.substf f r) (F.substf f z)
