@@ -58,7 +58,7 @@ module Language.Haskell.Liquid.Types.RType (
   , Predicate
   , PredicateV
   , PredicateBV(..)
-  , PredicateCompat(..)
+  , pappV
 
   -- * Expression Arguments
   , notExprArg
@@ -162,7 +162,6 @@ import qualified Data.List                              as L
 import           Data.Maybe                             (mapMaybe)
 import           Data.List                              as L (nub)
 import qualified Data.HashSet                           as S
-import           Data.Proxy                             (Proxy(..))
 import           Text.PrettyPrint.HughesPJ              hiding (first, (<>))
 import           Language.Fixpoint.Misc
 
@@ -1337,26 +1336,11 @@ instance (F.Refreshable v, Hashable v) => F.Subable (UReftBV v v) where
 
 instance Meet Predicate
 
-pToRef :: PredicateCompat b v => PVarBV b v a -> F.ExprBV b v
-pToRef p = pApp (pnameV p) $ F.EVar (pargV p) : (thd3 <$> pargs p)
-
-pApp      :: forall b v . PredicateCompat b v => v -> [ExprBV b v] -> ExprBV b v
+pApp :: Symbol -> [Expr] -> Expr
 pApp p es = F.mkEApp fn (F.EVar p:es)
   where
-    fn    = F.dummyLoc (pappV (Proxy :: Proxy b) n)
+    fn    = F.dummyLoc $ F.symbol (pappV n)
     n     = length es
 
-class PredicateCompat b v where
-  pappV :: Proxy b -> Int -> v
-  pnameV :: PVarBV b v a -> v
-  pargV :: PVarBV b v a -> v
-
-instance PredicateCompat Symbol Symbol where
-  pappV _ n = F.symbol $ "papp" ++ show n
-  pnameV p = pname p
-  pargV p = parg p
-
-instance PredicateCompat Symbol F.LocSymbol where
-  pappV _ n = F.dummyLoc $ F.symbol $ "papp" ++ show n
-  pnameV p = F.dummyLoc $ pname p
-  pargV p = F.dummyLoc $ parg p
+pappV :: Int -> Symbol
+pappV n = F.symbol $ "papp" ++ show n
