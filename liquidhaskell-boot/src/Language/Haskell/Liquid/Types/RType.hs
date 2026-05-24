@@ -14,6 +14,7 @@
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
+{-# LANGUAGE RoleAnnotations            #-}
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 
@@ -79,7 +80,8 @@ module Language.Haskell.Liquid.Types.RType (
   , mapUReftV
   , emapUReftVM
   , NoReft
-  , NoReftB(..)
+  , NoReftB
+  , NoReftBV(..)
 
   -- * Parse-time entities describing refined data types
   , SizeFun, SizeFunV (..), szFun
@@ -393,7 +395,7 @@ emapSubstVM f m = F.toKVarSubst . M.fromList <$> mapM (traverse (emapExprVM f)) 
 
 type UsedPVar    = UsedPVarV Symbol
 type UsedPVarV v = UsedPVarBV Symbol v
-type UsedPVarBV b v = PVarBV b v (NoReftB b)
+type UsedPVarBV b v = PVarBV b v (NoReftBV b v)
 
 type Predicate = PredicateV Symbol
 type PredicateV v = PredicateBV Symbol v
@@ -738,10 +740,10 @@ instance NFData TyConInfo
 
 type RTVU c tv = RTVUV Symbol c tv
 type RTVUV v c tv = RTVUBV Symbol v c tv
-type RTVUBV b v c tv = RTVar tv (RTypeBV b v c tv (NoReftB b))
+type RTVUBV b v c tv = RTVar tv (RTypeBV b v c tv (NoReftBV b v))
 type PVU c tv = PVUV Symbol c tv
 type PVUV v c tv = PVarV v (RTypeV v c tv NoReft)
-type PVUBV b v c tv = PVarBV b v (RTypeBV b v c tv (NoReftB b))
+type PVUBV b v c tv = PVarBV b v (RTypeBV b v c tv (NoReftBV b v))
 
 type RType c tv r = RTypeV Symbol c tv r
 type RTypeV v c tv = RTypeBV Symbol v c tv
@@ -1061,7 +1063,7 @@ rPropP τ r = RProp τ (RHole r)
 --   In general, perhaps we need not expose @Ref@ directly at all.
 type RTProp c tv r = RTPropV Symbol c tv r
 type RTPropV v c tv r = RTPropBV Symbol v c tv r
-type RTPropBV b v c tv r = RefB b (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv r)
+type RTPropBV b v c tv r = RefB b (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv r)
 
 type UReft = UReftV F.Symbol
 type UReftV v = UReftBV F.Symbol v
@@ -1124,35 +1126,37 @@ emapUReftVM
   => ([Symbol] -> v -> m v') -> (F.ReftV v -> m (F.ReftV v')) -> UReftV v -> m (UReftV v')
 emapUReftVM f g (MkUReft r p) = MkUReft <$> g r <*> emapPredicateVM f p
 
+type role NoReftBV phantom phantom
 type NoReft = NoReftB Symbol
-data NoReftB b = NoReft
+type NoReftB b = NoReftBV b Symbol
+data NoReftBV b v = NoReft
   deriving (Eq, Generic, Data, Functor, Foldable, Show, Traversable)
-  deriving (B.Binary, Hashable) via Generically (NoReftB b)
+  deriving (B.Binary, Hashable) via Generically (NoReftBV b v)
 
-instance NFData (NoReftB b)
+instance NFData (NoReftBV b v)
 
-instance F.PPrint (NoReftB b) where
+instance F.PPrint (NoReftBV b v) where
   pprintTidy _ _ = text $ show ()
 
-instance Hashable b => F.Subable (NoReftB b) where
-  type Variable (NoReftB b) = b
+instance Hashable b => F.Subable (NoReftBV b v) where
+  type Variable (NoReftBV b v) = b
   syms _   = S.empty
   substa _ = id
   substf _ = id
   subst _  = id
   subst1 r = const r
 
-instance Semigroup (NoReftB b) where
+instance Semigroup (NoReftBV b v) where
   _ <> _ = NoReft
 
-instance Monoid (NoReftB b) where
+instance Monoid (NoReftBV b v) where
   mempty = NoReft
 
 type BRType      = RTypeV Symbol BTyCon BTyVar    -- ^ "Bare" parsed version
 type BRTypeV v   = RTypeV v      BTyCon BTyVar    -- ^ "Bare" parsed version
 type RRType      = RTypeV Symbol RTyCon RTyVar    -- ^ "Resolved" version
 type BSort       = BRType    NoReft
-type BSortV v    = BRTypeV v NoReft
+type BSortV v    = BRTypeV v (NoReftBV Symbol v)
 type RSort       = RRType    NoReft
 type BPVar       = PVar      BSort
 type RPVar       = PVar      RSort
@@ -1226,12 +1230,13 @@ type OkRTBV b v c tv r =
   , F.Binder b
   , IsReft r
   , ReftBind r ~ b
+  , v ~ F.Symbol
   , Eq c, Eq tv, Ord b, Ord v, Ord (ReftVar r)
   , Hashable tv
   )
 
 -- | Types that have one associated refinement representible by a 'F.ReftBV'
-class (F.Binder (ReftBind r), Eq (ReftVar r)) => ToReft r where
+class F.Binder (ReftBind r) => ToReft r where
   type ReftVar r
   type ReftBind r
   type ReftBind r = Symbol
@@ -1249,7 +1254,7 @@ class Top r where
   top :: r -> r
 
 -- | Types that can be constructed from a 'F.ReftBV'
-class (ToReft r, Meet r, Top r) => IsReft r where
+class (ToReft r, Meet r, Top r, Eq (ReftVar r)) => IsReft r where
   ofReft :: F.ReftBV (ReftBind r) (ReftVar r) -> r
   -- | Apply a function to the underlying 'F.ReftBV' without discarding predicates.
   mapReftField :: (F.ReftBV (ReftBind r) (ReftVar r) -> F.ReftBV (ReftBind r) (ReftVar r)) -> r -> r
@@ -1257,7 +1262,7 @@ class (ToReft r, Meet r, Top r) => IsReft r where
 trueReft :: IsReft r => r
 trueReft = ofReft F.trueReft
 
-isTauto :: ToReft r => r -> Bool
+isTauto :: (ToReft r, Eq (ReftVar r)) => r -> Bool
 isTauto r0 = F.isTautoReft r && null ps
  where
   MkUReft r (Pr ps) = toUReft r0
@@ -1289,15 +1294,15 @@ instance (F.Binder v, F.Fixpoint v, Eq v) => IsReft (F.ReftBV v v) where
   ofReft = id
   mapReftField f = f
 
-instance F.Binder b => ToReft (NoReftB b) where
-  type ReftVar (NoReftB b) = Symbol
-  type ReftBind (NoReftB b) = b
+instance (F.Binder b) => ToReft (NoReftBV b v) where
+  type ReftVar (NoReftBV b v) = v
+  type ReftBind (NoReftBV b v) = b
   toReft _ = F.trueReft
 
-instance Top (NoReftB b) where
+instance Top (NoReftBV b v) where
   top _ = NoReft
 
-instance F.Binder b => IsReft (NoReftB b) where
+instance (F.Binder b, Eq v) => IsReft (NoReftBV b v) where
   ofReft _ = NoReft
   mapReftField _ = id
 
@@ -1314,7 +1319,7 @@ instance Monoid F.Reft where
   mempty  = F.trueReft
   mappend = (<>)
 
-instance Meet (NoReftB b)
+instance Meet (NoReftBV b v)
 
 instance (Semigroup (F.ReftBV b v), Eq b, Eq v) => Meet (UReftBV b v)
 

@@ -647,7 +647,7 @@ strengthenWith mt = go
     go t                  _  = t
 
 
-quantifyRTy :: (Monoid r, Eq tv) => [RTVar tv (RTypeV v c tv NoReft)] -> RTypeV v c tv r -> RTypeV v c tv r
+quantifyRTy :: (Monoid r, Eq tv) => [RTVar tv (RTypeV v c tv (NoReftBV Symbol v))] -> RTypeV v c tv r -> RTypeV v c tv r
 quantifyRTy tvs ty = foldr rAllT ty tvs
   where rAllT a t = RAllT a t mempty
 
@@ -850,7 +850,7 @@ allTyVars' t = fmap ty_var_value $ vs ++ vs'
     vs'     = freeTyVars t
 
 
-freeTyVars :: Eq tv => RTypeV v c tv r -> [RTVar tv (RTypeV v c tv NoReft)]
+freeTyVars :: Eq tv => RTypeV v c tv r -> [RTVar tv (RTypeV v c tv (NoReftBV Symbol v))]
 freeTyVars (RAllP _ t)       = freeTyVars t
 freeTyVars (RAllT α t _)     = freeTyVars t L.\\ [α]
 freeTyVars (RFun _ _ t t' _) = freeTyVars t `L.union` freeTyVars t'
@@ -886,83 +886,83 @@ tyClasses t               = panic Nothing ("RefType.tyClasses cannot handle" ++ 
 
 subsTyVarsMeet
   :: (Eq tv, Foldable t, Hashable tv, IsReft r, TyConable c, Binder b,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTVar tv (RTypeBV b v c tv (NoReftB b))))
-  => t (tv, RTypeBV b v c tv (NoReftB b), RTypeBV b v c tv r) -> RTypeBV b v c tv r -> RTypeBV b v c tv r
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)), FreeVar c tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTVar tv (RTypeBV b v c tv (NoReftBV b v))))
+  => t (tv, RTypeBV b v c tv (NoReftBV b v), RTypeBV b v c tv r) -> RTypeBV b v c tv r -> RTypeBV b v c tv r
 subsTyVarsMeet        = subsTyVars True
 
 subsTyVarsNoMeet
   :: (Eq tv, Foldable t, Hashable tv, IsReft r, TyConable c, Binder b,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTVar tv (RTypeBV b v c tv (NoReftB b))))
-  => t (tv, RTypeBV b v c tv (NoReftB b), RTypeBV b v c tv r) -> RTypeBV b v c tv r -> RTypeBV b v c tv r
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)), FreeVar c tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTVar tv (RTypeBV b v c tv (NoReftBV b v))))
+  => t (tv, RTypeBV b v c tv (NoReftBV b v), RTypeBV b v c tv r) -> RTypeBV b v c tv r -> RTypeBV b v c tv r
 subsTyVarsNoMeet      = subsTyVars False
 
 subsTyVarNoMeet
   :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTVar tv (RTypeBV b v c tv (NoReftB b))))
-  => (tv, RTypeBV b v c tv (NoReftB b), RTypeBV b v c tv r) -> RTypeBV b v c tv r -> RTypeBV b v c tv r
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)), FreeVar c tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTVar tv (RTypeBV b v c tv (NoReftBV b v))))
+  => (tv, RTypeBV b v c tv (NoReftBV b v), RTypeBV b v c tv r) -> RTypeBV b v c tv r -> RTypeBV b v c tv r
 subsTyVarNoMeet       = subsTyVar False
 
 subsTyVarMeet
   :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTVar tv (RTypeBV b v c tv (NoReftB b))))
-  => (tv, RTypeBV b v c tv (NoReftB b), RTypeBV b v c tv r) -> RTypeBV b v c tv r -> RTypeBV b v c tv r
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)), FreeVar c tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTVar tv (RTypeBV b v c tv (NoReftBV b v))))
+  => (tv, RTypeBV b v c tv (NoReftBV b v), RTypeBV b v c tv r) -> RTypeBV b v c tv r -> RTypeBV b v c tv r
 subsTyVarMeet         = subsTyVar True
 
 subsTyVarMeet'
   :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTVar tv (RTypeBV b v c tv (NoReftB b))))
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)), FreeVar c tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTVar tv (RTypeBV b v c tv (NoReftBV b v))))
   => (tv, RTypeBV b v c tv r) -> RTypeBV b v c tv r -> RTypeBV b v c tv r
 subsTyVarMeet' (α, t) = subsTyVarMeet (α, toRSort t, t)
 
 subsTyVars
   :: (Eq tv, Foldable t, Hashable tv, IsReft r, TyConable c, Binder b,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTVar tv (RTypeBV b v c tv (NoReftB b))))
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)), FreeVar c tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTVar tv (RTypeBV b v c tv (NoReftBV b v))))
   => Bool
-  -> t (tv, RTypeBV b v c tv (NoReftB b), RTypeBV b v c tv r)
+  -> t (tv, RTypeBV b v c tv (NoReftBV b v), RTypeBV b v c tv r)
   -> RTypeBV b v c tv r
   -> RTypeBV b v c tv r
 subsTyVars meet' ats t = foldl' (flip (subsTyVar meet')) t ats
 
 subsTyVar
   :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTVar tv (RTypeBV b v c tv (NoReftB b))))
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)), FreeVar c tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTVar tv (RTypeBV b v c tv (NoReftBV b v))))
   => Bool
-  -> (tv, RTypeBV b v c tv (NoReftB b), RTypeBV b v c tv r)
+  -> (tv, RTypeBV b v c tv (NoReftBV b v), RTypeBV b v c tv r)
   -> RTypeBV b v c tv r
   -> RTypeBV b v c tv r
 subsTyVar meet'        = subsFree meet' S.empty
 
 subsFree
   :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTVar tv (RTypeBV b v c tv (NoReftB b)))
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)), FreeVar c tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTVar tv (RTypeBV b v c tv (NoReftBV b v)))
      )
   => Bool
   -> S.HashSet tv
-  -> (tv, RTypeBV b v c tv (NoReftB b), RTypeBV b v c tv r)
+  -> (tv, RTypeBV b v c tv (NoReftBV b v), RTypeBV b v c tv r)
   -> RTypeBV b v c tv r
   -> RTypeBV b v c tv r
 subsFree m s z@(α, τ,_) (RAllP π t)
@@ -994,13 +994,13 @@ subsFree _ _ (α, τ, _) (RHole r)
 
 subsFrees
   :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTVar tv (RTypeBV b v c tv (NoReftB b))))
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)), FreeVar c tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTVar tv (RTypeBV b v c tv (NoReftBV b v))))
   => Bool
   -> S.HashSet tv
-  -> [(tv, RTypeBV b v c tv (NoReftB b), RTypeBV b v c tv r)]
+  -> [(tv, RTypeBV b v c tv (NoReftBV b v), RTypeBV b v c tv r)]
   -> RTypeBV b v c tv r
   -> RTypeBV b v c tv r
 subsFrees m s zs t = foldl' (flip (subsFree m s)) t zs
@@ -1008,11 +1008,11 @@ subsFrees m s zs t = foldl' (flip (subsFree m s)) t zs
 -- GHC INVARIANT: RApp is Type Application to something other than TYCon
 subsFreeRAppTy
   :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)),
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)),
       FreeVar c tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTVar tv (RTypeBV b v c tv (NoReftB b))))
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTVar tv (RTypeBV b v c tv (NoReftBV b v))))
   => Bool
   -> S.HashSet tv
   -> RTypeBV b v c tv r
@@ -1032,10 +1032,10 @@ subsFreeRAppTy _ _ t t' r'
 --    See [NOTE:Levity-Polymorphism]
 
 mkRApp :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTVar tv (RTypeBV b v c tv (NoReftB b))))
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)), FreeVar c tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTVar tv (RTypeBV b v c tv (NoReftBV b v))))
   => Bool
   -> S.HashSet tv
   -> c
@@ -1094,20 +1094,20 @@ mkRApp m s c ts rs r r'
        • and other links from https://stackoverflow.com/a/35320729/946226 (edited)
  -}
 
-refAppTyToFun :: ToReft r => r -> r
+refAppTyToFun :: IsReft r => r -> r
 refAppTyToFun r
   | isTauto r = r
   | otherwise = panic Nothing "RefType.refAppTyToFun"
 
 subsFreeRef
   :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) c, SubsTy tv (RTypeBV b v c tv (NoReftB b)) r,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTypeBV b v c tv (NoReftB b)), FreeVar c tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) tv,
-      SubsTy tv (RTypeBV b v c tv (NoReftB b)) (RTVar tv (RTypeBV b v c tv (NoReftB b))))
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)), FreeVar c tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
+      SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTVar tv (RTypeBV b v c tv (NoReftBV b v))))
   => Bool
   -> S.HashSet tv
-  -> (tv, RTypeBV b v c tv (NoReftB b), RTypeBV b v c tv r)
+  -> (tv, RTypeBV b v c tv (NoReftBV b v), RTypeBV b v c tv r)
   -> RTPropBV b v c tv r
   -> RTPropBV b v c tv r
 subsFreeRef _ _ (α', τ', _) (RProp ss (RHole r))
