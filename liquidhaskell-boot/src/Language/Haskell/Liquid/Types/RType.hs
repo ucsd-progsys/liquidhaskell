@@ -117,7 +117,6 @@ module Language.Haskell.Liquid.Types.RType (
   , RFInfo(..), defRFInfo, mkRFInfo, classRFInfo
 
   -- * Converting to and from refinements
-  , ToReft(..)
   , Meet(..)
   , Top(..)
   , IsReft(..)
@@ -1235,15 +1234,6 @@ type OkRTBV b v c tv r =
   , Hashable tv
   )
 
--- | Types that have one associated refinement representible by a 'F.ReftBV'
-class F.Binder (ReftBind r) => ToReft r where
-  type ReftVar r
-  type ReftBind r
-  type ReftBind r = Symbol
-  toReft :: r -> F.ReftBV (ReftBind r) (ReftVar r)
-  toUReft :: r -> UReftBV (ReftBind r) (ReftVar r)
-  toUReft r = MkUReft (toReft r) pdTrue
-
 -- | Types that can be combined conjunctively in some sense
 class Semigroup r => Meet r where
   meet :: r -> r -> r
@@ -1254,7 +1244,13 @@ class Top r where
   top :: r -> r
 
 -- | Types that can be constructed from a 'F.ReftBV'
-class (ToReft r, Top r) => IsReft r where
+class (F.Binder (ReftBind r), Top r) => IsReft r where
+  type ReftVar r
+  type ReftBind r
+  type ReftBind r = Symbol
+  toReft :: r -> F.ReftBV (ReftBind r) (ReftVar r)
+  toUReft :: r -> UReftBV (ReftBind r) (ReftVar r)
+  toUReft r = MkUReft (toReft r) pdTrue
   ofReft :: F.ReftBV (ReftBind r) (ReftVar r) -> r
   -- | Apply a function to the underlying 'F.ReftBV' without discarding predicates.
   mapReftField :: (F.ReftBV (ReftBind r) (ReftVar r) -> F.ReftBV (ReftBind r) (ReftVar r)) -> r -> r
@@ -1262,49 +1258,43 @@ class (ToReft r, Top r) => IsReft r where
 trueReft :: IsReft r => r
 trueReft = ofReft F.trueReft
 
-isTauto :: (ToReft r, Eq (ReftVar r)) => r -> Bool
+isTauto :: (IsReft r, Eq (ReftVar r)) => r -> Bool
 isTauto r0 = F.isTautoReft r && null ps
  where
   MkUReft r (Pr ps) = toUReft r0
 
-instance (F.Binder b, ToReft (F.ReftBV b v)) => ToReft (UReftBV b v) where
+instance (IsReft (F.ReftBV b v), F.Binder b) => IsReft (UReftBV b v) where
   type ReftVar (UReftBV b v) = v
   type ReftBind (UReftBV b v) = b
   toReft = toReft . ur_reft
   toUReft (MkUReft r p) = MkUReft (toReft r) p
+  ofReft r = MkUReft (ofReft r) pdTrue
+  mapReftField f u = u { ur_reft = f (ur_reft u) }
 
 instance Top (F.ReftBV b v) => Top (UReftBV b v) where
   top (MkUReft r _) = MkUReft (top r) pdTrue
 
-instance (IsReft (F.ReftBV b v), F.Binder b) => IsReft (UReftBV b v) where
-  ofReft r = MkUReft (ofReft r) pdTrue
-  mapReftField f u = u { ur_reft = f (ur_reft u) }
-
-instance F.Binder b => ToReft (F.ReftBV b v) where
-  type ReftVar (F.ReftBV b v) = v
-  type ReftBind (F.ReftBV b v) = b
-  toReft = id
-
-instance (F.Binder b) => Top (F.ReftBV b v) where
+instance F.Binder b => Top (F.ReftBV b v) where
   top _ = F.trueReft
 
 instance (F.Binder v, F.Fixpoint v) => Meet (F.ReftBV v v) where
 
 instance (F.Binder b, F.Fixpoint v) => IsReft (F.ReftBV b v) where
+  type ReftVar (F.ReftBV b v) = v
+  type ReftBind (F.ReftBV b v) = b
+  toReft = id
   ofReft = id
   mapReftField f = f
 
-instance (F.Binder b) => ToReft (NoReftBV b v) where
+instance F.Binder b => IsReft (NoReftBV b v) where
   type ReftVar (NoReftBV b v) = v
   type ReftBind (NoReftBV b v) = b
   toReft _ = F.trueReft
+  ofReft _ = NoReft
+  mapReftField _ = id
 
 instance Top (NoReftBV b v) where
   top _ = NoReft
-
-instance F.Binder b => IsReft (NoReftBV b v) where
-  ofReft _ = NoReft
-  mapReftField _ = id
 
 instance Top t => Top (RefB b τ t) where
   top (RProp args t) = RProp args (top t)
