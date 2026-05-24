@@ -4,6 +4,7 @@
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
@@ -12,6 +13,7 @@
 {-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE NamedFieldPuns             #-}
 {-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE RoleAnnotations            #-}
@@ -117,10 +119,15 @@ module Language.Haskell.Liquid.Types.RType (
   , RFInfo(..), defRFInfo, mkRFInfo, classRFInfo
 
   -- * Converting to and from refinements
+  , ConcreteReft(..)
   , Meet(..)
   , Top(..)
   , IsReft(..)
   , isTauto
+  , mapReftField
+  , ofReft
+  , toReft
+  , toUReft
   , trueReft
   )
   where
@@ -151,7 +158,6 @@ import           Liquid.GHC.API as Ghc hiding ( Expr
                                                                )
 import           Data.String
 import           GHC.Generics
-import           Prelude                          hiding  (error)
 
 import           Control.DeepSeq
 import           Data.Traversable                       (forAccumM)
@@ -746,13 +752,15 @@ type PVUBV b v c tv = PVarBV b v (RTypeBV b v c tv (NoReftBV b v))
 
 type RType c tv r = RTypeV Symbol c tv r
 type RTypeV v c tv = RTypeBV Symbol v c tv
+
 -- | A refinement type
 --
 -- * @b@ is the type of bindings
 -- * @v@ is the type of variables appearing in expressions
 -- * @c@ is the type of type constructors
 -- * @tv@ is the type of type variables
--- * @r@ is the type of refinements
+-- * @r@ is the type of refinements. Must instance the 'IsReft' class. There are
+--   only three instances of 'IsReft': 'ReftBV', 'NoReftBV', and 'UReftBV'.
 --
 -- A refinement might be missing (e.g. @r@ is @NoReft@), if the RTypeBV is used to
 -- represent the type of an entity that can't use refinements, e.g. the type of
@@ -1243,58 +1251,89 @@ class Semigroup r => Meet r where
 class Top r where
   top :: r -> r
 
--- | Types that can be constructed from a 'F.ReftBV'
+-- | The universe of refinement types that can be used in RTypes.
+data ConcreteReft r b v where
+  ConcreteNoReft :: ConcreteReft (NoReftBV b v) b v
+  ConcreteReft :: F.ReftBV b v -> ConcreteReft (F.ReftBV b v) b v
+  ConcreteUReft :: UReftBV b v -> ConcreteReft (UReftBV b v) b v
+
+-- | Types that can be constructed from a 'F.ReftBV'.
+--
+-- Only three types can be 'IsReft': 'NoReftBV', 'F.ReftBV', and 'UReftBV'.
+--
+-- 'ofConcreteReft' and 'toConcreteReft' must be inverses of each other.
+--
+-- In order to allow distinguishing the @r@ type when no value is present
+-- (e.g. in @ofReft@ or @trueReft@), 'toConcreteReft' must be non-strict.
+--
 class (F.Binder (ReftBind r), Top r) => IsReft r where
   type ReftVar r
   type ReftBind r
-  type ReftBind r = Symbol
-  toReft :: r -> F.ReftBV (ReftBind r) (ReftVar r)
-  toUReft :: r -> UReftBV (ReftBind r) (ReftVar r)
-  toUReft r = MkUReft (toReft r) pdTrue
-  ofReft :: F.ReftBV (ReftBind r) (ReftVar r) -> r
-  -- | Apply a function to the underlying 'F.ReftBV' without discarding predicates.
-  mapReftField :: (F.ReftBV (ReftBind r) (ReftVar r) -> F.ReftBV (ReftBind r) (ReftVar r)) -> r -> r
+  ofConcreteReft :: ConcreteReft r (ReftBind r) (ReftVar r) -> r
+  toConcreteReft :: r -> ConcreteReft r (ReftBind r) (ReftVar r)
 
-trueReft :: IsReft r => r
-trueReft = ofReft F.trueReft
+ofReft :: forall r. IsReft r => F.ReftBV (ReftBind r) (ReftVar r) -> r
+ofReft r = case toConcreteReft @r (error "ofReft") of
+  ConcreteNoReft -> NoReft
+  ConcreteReft _ -> r
+  ConcreteUReft _ -> MkUReft r pdTrue
+
+toReft :: IsReft r => r -> F.ReftBV (ReftBind r) (ReftVar r)
+toReft r0 = case toConcreteReft r0 of
+   ConcreteNoReft -> F.trueReft
+   ConcreteReft r -> r
+   ConcreteUReft (MkUReft r _) -> r
+
+toUReft :: IsReft r => r -> UReftBV (ReftBind r) (ReftVar r)
+toUReft r0 = case toConcreteReft r0 of
+   ConcreteNoReft -> MkUReft F.trueReft pdTrue
+   ConcreteReft r -> MkUReft r pdTrue
+   ConcreteUReft r -> r
+
+instance Top (NoReftBV b v) where
+  top _ = NoReft
+instance F.Binder b => Top (F.ReftBV b v) where
+  top _ = F.trueReft
+instance F.Binder b => Top (UReftBV b v) where
+  top _ = MkUReft F.trueReft pdTrue
+
+trueReft :: forall r. IsReft r => r
+trueReft = case toConcreteReft @r (error "trueReft") of
+  ConcreteNoReft -> top (error "trueReft: ConcreteNoReft")
+  ConcreteReft _ -> top (error "trueReft: ConcreteReft")
+  ConcreteUReft _ -> top (error "trueReft: ConcreteUReft")
 
 isTauto :: (IsReft r, Eq (ReftVar r)) => r -> Bool
-isTauto r0 = F.isTautoReft r && null ps
- where
-  MkUReft r (Pr ps) = toUReft r0
+isTauto r0 = case toConcreteReft r0 of
+  ConcreteNoReft -> True
+  ConcreteReft r -> F.isTautoReft r
+  ConcreteUReft (MkUReft r (Pr ps)) -> F.isTautoReft r && null ps
+
+mapReftField :: IsReft r => (F.ReftBV (ReftBind r) (ReftVar r) -> F.ReftBV (ReftBind r) (ReftVar r)) -> r -> r
+mapReftField f r0 = case toConcreteReft r0 of
+  ConcreteNoReft -> ofConcreteReft ConcreteNoReft
+  ConcreteReft r -> ofConcreteReft (ConcreteReft (f r))
+  ConcreteUReft (MkUReft r p) -> ofConcreteReft (ConcreteUReft (MkUReft (f r) p))
 
 instance (IsReft (F.ReftBV b v), F.Binder b) => IsReft (UReftBV b v) where
   type ReftVar (UReftBV b v) = v
   type ReftBind (UReftBV b v) = b
-  toReft = toReft . ur_reft
-  toUReft (MkUReft r p) = MkUReft (toReft r) p
-  ofReft r = MkUReft (ofReft r) pdTrue
-  mapReftField f u = u { ur_reft = f (ur_reft u) }
-
-instance Top (F.ReftBV b v) => Top (UReftBV b v) where
-  top (MkUReft r _) = MkUReft (top r) pdTrue
-
-instance F.Binder b => Top (F.ReftBV b v) where
-  top _ = F.trueReft
+  ofConcreteReft (ConcreteUReft r) = r
+  toConcreteReft = ConcreteUReft
 
 instance (F.Binder v, F.Fixpoint v) => Meet (F.ReftBV v v) where
 
 instance (F.Binder b, F.Fixpoint v) => IsReft (F.ReftBV b v) where
   type ReftVar (F.ReftBV b v) = v
   type ReftBind (F.ReftBV b v) = b
-  toReft = id
-  ofReft = id
-  mapReftField f = f
+  toConcreteReft = ConcreteReft
+  ofConcreteReft (ConcreteReft r) = r
 
 instance F.Binder b => IsReft (NoReftBV b v) where
   type ReftVar (NoReftBV b v) = v
   type ReftBind (NoReftBV b v) = b
-  toReft _ = F.trueReft
-  ofReft _ = NoReft
-  mapReftField _ = id
-
-instance Top (NoReftBV b v) where
-  top _ = NoReft
+  toConcreteReft _ = ConcreteNoReft
+  ofConcreteReft ConcreteNoReft = NoReft
 
 instance Top t => Top (RefB b τ t) where
   top (RProp args t) = RProp args (top t)
