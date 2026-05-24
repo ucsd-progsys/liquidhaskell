@@ -368,6 +368,7 @@ substRCon
       SubsTy tv (RType RTyCon tv NoReft) tv,
       SubsTy tv (RType RTyCon tv NoReft) (RTVar tv (RType RTyCon tv NoReft)),
       FreeVar RTyCon tv,
+      Meet r,
       Meet (RType RTyCon tv r))
   => [Char]
   -> (t, Ref RSort (RType RTyCon tv r))

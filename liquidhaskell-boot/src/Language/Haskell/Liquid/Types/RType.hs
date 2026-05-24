@@ -1254,7 +1254,7 @@ class Top r where
   top :: r -> r
 
 -- | Types that can be constructed from a 'F.ReftBV'
-class (ToReft r, Meet r, Top r, Eq (ReftVar r)) => IsReft r where
+class (ToReft r, Top r, Eq (ReftVar r)) => IsReft r where
   ofReft :: F.ReftBV (ReftBind r) (ReftVar r) -> r
   -- | Apply a function to the underlying 'F.ReftBV' without discarding predicates.
   mapReftField :: (F.ReftBV (ReftBind r) (ReftVar r) -> F.ReftBV (ReftBind r) (ReftVar r)) -> r -> r

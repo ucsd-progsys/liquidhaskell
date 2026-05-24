@@ -366,6 +366,7 @@ rtypePredBinds = map RT.uPVar . ty_preds . toRTypeRep
 --------------------------------------------------------------------------------
 type Expandable r = ( PPrint r
                     , IsReft r
+                    , Meet r
                     , ReftBind r ~ F.Symbol
                     , ReftVar r ~ F.Symbol
                     , F.Subable r
