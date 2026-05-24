@@ -1290,7 +1290,7 @@ instance (F.Binder b) => Top (F.ReftBV b v) where
 
 instance (F.Binder v, F.Fixpoint v) => Meet (F.ReftBV v v) where
 
-instance (F.Binder v, F.Fixpoint v, Eq v) => IsReft (F.ReftBV v v) where
+instance (F.Binder b, F.Fixpoint v, Eq v) => IsReft (F.ReftBV b v) where
   ofReft = id
   mapReftField f = f
 
