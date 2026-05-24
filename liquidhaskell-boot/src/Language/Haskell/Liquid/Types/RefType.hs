@@ -294,14 +294,7 @@ instance ( SubsTy tv (RTypeBV v v c tv (NoReftB v)) c
   mempty  = panic Nothing "mempty: RTProp"
   mappend = (<>)
 
-instance Meet (RTProp RTyCon RTyVar UReft)
-instance Meet (RTProp RTyCon RTyVar NoReft)
-instance Meet (RTProp BTyCon BTyVar UReft)
-instance Meet (RTProp BTyCon BTyVar NoReft)
-instance Meet (RTProp RTyCon RTyVar Reft)
-
 instance Semigroup (RType RTyCon RTyVar r) => Meet (RType RTyCon RTyVar r) where
-instance Meet (RType BTyCon BTyVar UReft)
 
 -- MOVE TO TYPES
 instance Fixpoint String where
