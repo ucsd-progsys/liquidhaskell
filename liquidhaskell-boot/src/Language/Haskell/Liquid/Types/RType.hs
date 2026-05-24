@@ -1254,7 +1254,7 @@ class Top r where
   top :: r -> r
 
 -- | Types that can be constructed from a 'F.ReftBV'
-class (ToReft r, Top r, Eq (ReftVar r)) => IsReft r where
+class (ToReft r, Top r) => IsReft r where
   ofReft :: F.ReftBV (ReftBind r) (ReftVar r) -> r
   -- | Apply a function to the underlying 'F.ReftBV' without discarding predicates.
   mapReftField :: (F.ReftBV (ReftBind r) (ReftVar r) -> F.ReftBV (ReftBind r) (ReftVar r)) -> r -> r
@@ -1267,7 +1267,7 @@ isTauto r0 = F.isTautoReft r && null ps
  where
   MkUReft r (Pr ps) = toUReft r0
 
-instance (F.Binder b, ToReft (F.ReftBV b v), Eq v) => ToReft (UReftBV b v) where
+instance (F.Binder b, ToReft (F.ReftBV b v)) => ToReft (UReftBV b v) where
   type ReftVar (UReftBV b v) = v
   type ReftBind (UReftBV b v) = b
   toReft = toReft . ur_reft
@@ -1276,11 +1276,11 @@ instance (F.Binder b, ToReft (F.ReftBV b v), Eq v) => ToReft (UReftBV b v) where
 instance Top (F.ReftBV b v) => Top (UReftBV b v) where
   top (MkUReft r _) = MkUReft (top r) pdTrue
 
-instance (IsReft (F.ReftBV b v),  F.Binder v) => IsReft (UReftBV b v) where
+instance (IsReft (F.ReftBV b v), F.Binder b) => IsReft (UReftBV b v) where
   ofReft r = MkUReft (ofReft r) pdTrue
   mapReftField f u = u { ur_reft = f (ur_reft u) }
 
-instance (F.Binder b, Eq v) => ToReft (F.ReftBV b v) where
+instance F.Binder b => ToReft (F.ReftBV b v) where
   type ReftVar (F.ReftBV b v) = v
   type ReftBind (F.ReftBV b v) = b
   toReft = id
@@ -1290,7 +1290,7 @@ instance (F.Binder b) => Top (F.ReftBV b v) where
 
 instance (F.Binder v, F.Fixpoint v) => Meet (F.ReftBV v v) where
 
-instance (F.Binder b, F.Fixpoint v, Eq v) => IsReft (F.ReftBV b v) where
+instance (F.Binder b, F.Fixpoint v) => IsReft (F.ReftBV b v) where
   ofReft = id
   mapReftField f = f
 
@@ -1302,7 +1302,7 @@ instance (F.Binder b) => ToReft (NoReftBV b v) where
 instance Top (NoReftBV b v) where
   top _ = NoReft
 
-instance (F.Binder b, Eq v) => IsReft (NoReftBV b v) where
+instance F.Binder b => IsReft (NoReftBV b v) where
   ofReft _ = NoReft
   mapReftField _ = id
 

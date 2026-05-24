@@ -422,7 +422,7 @@ dot                = char '.'
 ppTy ::
   ( Ord (ReftBind r), F.Fixpoint (ReftBind r), PPrint (ReftBind r)
   , Ord (ReftVar r), F.Fixpoint (ReftVar r), PPrint (ReftVar r)
-  , ToReft r
+  , IsReft r
   ) => PPEnv -> r -> Doc -> Doc
 ppTy bb r0 t = doc
  where
@@ -436,7 +436,7 @@ ppTy bb r0 t = doc
     | not (ppPs bb) = t
     | otherwise     = t <-> angleBrackets (pprint p)
 
-instance (ToReft (F.ReftBV b v), Eq v, PPrint (PredicateBV b v), PPrint (F.ReftBV b v)) => PPrint (UReftBV b v) where
+instance (IsReft (F.ReftBV b v), Eq v, PPrint (PredicateBV b v), PPrint (F.ReftBV b v)) => PPrint (UReftBV b v) where
   pprintTidy k (MkUReft r p)
     | isTauto r  = pprintTidy k p
     | null (pvars p) = pprintTidy k r

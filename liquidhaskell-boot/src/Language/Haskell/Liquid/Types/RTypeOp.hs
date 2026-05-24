@@ -286,7 +286,7 @@ mapExprReft f = mapReft g
   where
     g (MkUReft (F.Reft (x, e)) p) = MkUReft (F.Reft (x, f x e)) p
 
-isTrivial :: (ToReft r, IsReft r, TyConable c, F.Binder b, ReftBind r ~ b, Eq (ReftVar r)) => RTypeBV b v c tv r -> Bool
+isTrivial :: (IsReft r, IsReft r, TyConable c, F.Binder b, ReftBind r ~ b, Eq (ReftVar r)) => RTypeBV b v c tv r -> Bool
 isTrivial = foldReft False (\_ r b -> isTauto r && b) True
 
 mapReft ::  (r1 -> r2) -> RTypeBV b v c tv r1 -> RTypeBV b v c tv r2
@@ -345,7 +345,7 @@ emapFReftM f (F.Reft (v, e)) = F.reft v <$> emapExprVM (f . (v:)) e
 
 -- The first parameter corresponds to the bscope config setting
 emapReftM
-  :: (Monad m, ToReft r1, F.Binder b, CompatibleBinder b tv, ReftBind r1 ~ b)
+  :: (Monad m, IsReft r1, F.Binder b, CompatibleBinder b tv, ReftBind r1 ~ b)
   => Bool
   -> ([b] -> v1 -> m v2)
   -> ([b] -> r1 -> m r2)
@@ -369,7 +369,7 @@ emapReftM bscp vf f = go
     go γ (RHole r)         = RHole <$> f γ r
 
 emapRefM
-  :: (Monad m, ToReft t, F.Binder b, CompatibleBinder b tv, ReftBind t ~ b)
+  :: (Monad m, IsReft t, F.Binder b, CompatibleBinder b tv, ReftBind t ~ b)
   => Bool
   -> ([b] -> v -> m v')
   -> ([b] -> t -> m s)
@@ -385,7 +385,7 @@ emapRefM bscp vf f γ0 (RProp ss t0) =
       <*> emapReftM bscp vf f (map fst ss ++ γ0) t0
 
 emapBareTypeVM
-  :: (Monad m, Ord v1)
+  :: (Monad m, F.Fixpoint v1)
   => Bool
   -> ([Symbol] -> v1 -> m v2)
   -> [Symbol]
@@ -689,10 +689,10 @@ insertSEnv = F.insertSEnv
 insertsSEnv :: (Eq b, Hashable b) => F.SEnvB b a -> [(b, a)] -> F.SEnvB b a
 insertsSEnv  = foldr (\(x, t) γ -> insertSEnv x t γ)
 
-rTypeValueVar :: (ToReft r, F.Binder (ReftBind r)) => RTypeBV b v c tv r -> ReftBind r
+rTypeValueVar :: (IsReft r, F.Binder (ReftBind r)) => RTypeBV b v c tv r -> ReftBind r
 rTypeValueVar t = vv where F.Reft (vv,_) =  rTypeReft t
 
-rTypeReft :: (ToReft r, F.Binder (ReftBind r)) => RTypeBV b v c tv r -> F.ReftBV (ReftBind r) (ReftVar r)
+rTypeReft :: (IsReft r, F.Binder (ReftBind r)) => RTypeBV b v c tv r -> F.ReftBV (ReftBind r) (ReftVar r)
 rTypeReft = maybe F.trueReft toReft . stripRTypeBase
 
 -- stripRTypeBase ::  RType a -> Maybe a

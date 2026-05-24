@@ -663,7 +663,7 @@ quantifyFreeRTy ty = quantifyRTy (freeTyVars ty) ty
 
 
 -------------------------------------------------------------------------
-addTyConInfo :: (PPrint r, ToReft r, SubsTy RTyVar RSort r, Variable r ~ Symbol, ReftBind r ~ Symbol, ReftVar r ~ Symbol, IsReft r, Meet r)
+addTyConInfo :: (PPrint r, IsReft r, SubsTy RTyVar RSort r, Variable r ~ Symbol, ReftBind r ~ Symbol, ReftVar r ~ Symbol, IsReft r, Meet r)
              => TCEmb TyCon
              -> TyConMap
              -> RRType r
@@ -672,7 +672,7 @@ addTyConInfo :: (PPrint r, ToReft r, SubsTy RTyVar RSort r, Variable r ~ Symbol,
 addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 
 -------------------------------------------------------------------------
-expandRApp :: (PPrint r, ToReft r, SubsTy RTyVar RSort r, Variable r ~ Symbol, ReftBind r ~ Symbol, ReftVar r ~ Symbol, IsReft r, Meet r)
+expandRApp :: (PPrint r, IsReft r, SubsTy RTyVar RSort r, Variable r ~ Symbol, ReftBind r ~ Symbol, ReftVar r ~ Symbol, IsReft r, Meet r)
            => TCEmb TyCon -> TyConMap -> RRType r -> RRType r
 -------------------------------------------------------------------------
 expandRApp tce tyi t@RApp{} = RApp rc' ts rs' r
@@ -892,7 +892,7 @@ tyClasses t               = panic Nothing ("RefType.tyClasses cannot handle" ++ 
 --------------------------------------------------------------------------------
 
 subsTyVarsMeet
-  :: (Eq tv, Foldable t, Hashable tv, IsReft r, TyConable c, Binder b, Meet r,
+  :: (Eq tv, Foldable t, Hashable tv, IsReft r, Eq (ReftVar r), TyConable c, Binder b, Meet r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
@@ -901,7 +901,7 @@ subsTyVarsMeet
 subsTyVarsMeet        = subsTyVars True
 
 subsTyVarsNoMeet
-  :: (Eq tv, Foldable t, Hashable tv, IsReft r, TyConable c, Binder b, Meet r,
+  :: (Eq tv, Foldable t, Hashable tv, IsReft r, Eq (ReftVar r), TyConable c, Binder b, Meet r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
@@ -910,7 +910,7 @@ subsTyVarsNoMeet
 subsTyVarsNoMeet      = subsTyVars False
 
 subsTyVarNoMeet
-  :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b, Meet r,
+  :: (Eq tv, Hashable tv, IsReft r, Eq (ReftVar r), TyConable c, Binder b, Meet r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
@@ -919,7 +919,7 @@ subsTyVarNoMeet
 subsTyVarNoMeet       = subsTyVar False
 
 subsTyVarMeet
-  :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b, Meet r,
+  :: (Eq tv, Hashable tv, IsReft r, Eq (ReftVar r), TyConable c, Binder b, Meet r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
@@ -928,7 +928,7 @@ subsTyVarMeet
 subsTyVarMeet         = subsTyVar True
 
 subsTyVarMeet'
-  :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b, Meet r,
+  :: (Eq tv, Hashable tv, IsReft r, Eq (ReftVar r), TyConable c, Binder b, Meet r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
@@ -937,7 +937,7 @@ subsTyVarMeet'
 subsTyVarMeet' (α, t) = subsTyVarMeet (α, toRSort t, t)
 
 subsTyVars
-  :: (Eq tv, Foldable t, Hashable tv, IsReft r, TyConable c, Binder b, Meet r,
+  :: (Eq tv, Foldable t, Hashable tv, IsReft r, Eq (ReftVar r), TyConable c, Binder b, Meet r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
@@ -949,7 +949,7 @@ subsTyVars
 subsTyVars meet' ats t = foldl' (flip (subsTyVar meet')) t ats
 
 subsTyVar
-  :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b, Meet r,
+  :: (Eq tv, Hashable tv, IsReft r, Eq (ReftVar r), TyConable c, Binder b, Meet r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
@@ -961,7 +961,7 @@ subsTyVar
 subsTyVar meet'        = subsFree meet' S.empty
 
 subsFree
-  :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b, Meet r,
+  :: (Eq tv, Hashable tv, IsReft r, Eq (ReftVar r), TyConable c, Binder b, Meet r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
@@ -1000,7 +1000,7 @@ subsFree _ _ (α, τ, _) (RHole r)
   = RHole (subt (α, τ) r)
 
 subsFrees
-  :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b, Meet r,
+  :: (Eq tv, Hashable tv, IsReft r, Eq (ReftVar r), TyConable c, Binder b, Meet r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
@@ -1014,7 +1014,7 @@ subsFrees m s zs t = foldl' (flip (subsFree m s)) t zs
 
 -- GHC INVARIANT: RApp is Type Application to something other than TYCon
 subsFreeRAppTy
-  :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b, Meet r,
+  :: (Eq tv, Hashable tv, IsReft r, Eq (ReftVar r), TyConable c, Binder b, Meet r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)),
       FreeVar c tv,
@@ -1038,7 +1038,7 @@ subsFreeRAppTy _ _ t t' r'
 --    parameters come from the "levity polymorphism" changes in GHC 8.6 (?)
 --    See [NOTE:Levity-Polymorphism]
 
-mkRApp :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b, Meet r,
+mkRApp :: (Eq tv, Hashable tv, IsReft r, Eq (ReftVar r), TyConable c, Binder b, Meet r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
@@ -1101,13 +1101,13 @@ mkRApp m s c ts rs r r'
        • and other links from https://stackoverflow.com/a/35320729/946226 (edited)
  -}
 
-refAppTyToFun :: IsReft r => r -> r
+refAppTyToFun :: (IsReft r, Eq (ReftVar r)) => r -> r
 refAppTyToFun r
   | isTauto r = r
   | otherwise = panic Nothing "RefType.refAppTyToFun"
 
 subsFreeRef
-  :: (Eq tv, Hashable tv, IsReft r, TyConable c, Binder b, Meet r,
+  :: (Eq tv, Hashable tv, IsReft r, Eq (ReftVar r), TyConable c, Binder b, Meet r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) c, SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) r,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTypeBV b v c tv (NoReftBV b v)), FreeVar c tv,
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) tv,
@@ -1373,7 +1373,7 @@ isBaseTy (CastTy _ _)     = False
 isBaseTy (CoercionTy _)   = False
 
 
-dataConMsReft :: (ToReft r, ReftBind r ~ v, ReftVar r ~ v, F.Refreshable v) => RTypeBV v v c tv r -> [v] -> ReftBV v v
+dataConMsReft :: (IsReft r, ReftBind r ~ v, ReftVar r ~ v, F.Refreshable v) => RTypeBV v v c tv r -> [v] -> ReftBV v v
 dataConMsReft ty ys  = subst su (rTypeReft (ignoreOblig $ ty_res trep))
   where
     trep = toRTypeRep ty

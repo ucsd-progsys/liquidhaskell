@@ -794,12 +794,12 @@ getRewriteErrors (rw, t)
           ++ " contains an inner refinement."
 
 
-isRefined :: (ToReft r, Eq (ReftVar r)) => RType c tv r -> Bool
+isRefined :: (IsReft r, Eq (ReftVar r)) => RType c tv r -> Bool
 isRefined ty
   | Just r <- stripRTypeBase ty = not $ isTauto r
   | otherwise = False
 
-hasInnerRefinement :: (ToReft r, Eq (ReftVar r)) => RType c tv r -> Bool
+hasInnerRefinement :: (IsReft r, Eq (ReftVar r)) => RType c tv r -> Bool
 hasInnerRefinement (RFun _ _ rIn rOut _) =
   isRefined rIn || isRefined rOut
 hasInnerRefinement (RAllT _ ty  _) =
