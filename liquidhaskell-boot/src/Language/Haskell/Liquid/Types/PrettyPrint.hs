@@ -389,7 +389,7 @@ pprCls bb p c ts
 
 
 pprPvarDef :: (OkRTBV b v c tv (NoReftB b)) => PPEnv -> Prec -> PVarBV b v (RTypeBV b v c tv (NoReftB b)) -> Doc
-pprPvarDef bb p (PV s t _ xts)
+pprPvarDef bb p (PV s t xts)
   = pprint s <+> dcolon <+> intersperse arrow dargs <+> pprPvarKind bb p t
   where
     dargs = [pprPvarSort bb p xt | (xt,_,_) <- xts]

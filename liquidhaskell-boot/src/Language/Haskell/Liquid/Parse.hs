@@ -587,7 +587,7 @@ predVarIdP
   = symbol <$> tyVarIdP
 
 bPVar :: Symbol -> t -> [(Symbol, t1)] -> PVarV LocSymbol t1
-bPVar p _ xts  = PV p τ dummySymbol τxs
+bPVar p _ xts  = PV p τ τxs
   where
     (_, τ) = safeLast "bPVar last" xts
     τxs    = [ (τ', x, EVar (dummyLoc x)) | (x, τ') <- init xts ]
@@ -692,7 +692,7 @@ monoPredicate1P
 predVarUseP :: Parser (PVarV LocSymbol String)
 predVarUseP
   = do (p, xs) <- funArgsP
-       return   $ PV p dummyTyId dummySymbol [ (dummyTyId, dummySymbol, x) | x <- xs ]
+       return   $ PV p dummyTyId [ (dummyTyId, dummySymbol, x) | x <- xs ]
 
 funArgsP :: Parser (Symbol, [ExprV LocSymbol])
 funArgsP  = try realP <|> empP <?> "funArgsP"

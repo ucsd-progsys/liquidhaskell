@@ -678,7 +678,7 @@ mapBind f = go
     mapS                  = mapReft (\NoReft -> NoReft) . mapBind f
     mapI RTVNoInfo{..}    = RTVNoInfo{..}
     mapI RTVInfo{..}      = RTVInfo { rtv_kind = mapS rtv_kind, .. }
-    mapP (PV n τ a as)    = PV (f n) (mapS τ) (f a) (mapA <$> as)
+    mapP (PV n τ as)    = PV (f n) (mapS τ) (mapA <$> as)
     mapA (τ, b, e)        = (mapS τ, f b, F.mapBindExpr f e)
     mapR (RProp as t)     = RProp (bimap f mapS <$> as) (go t)
 

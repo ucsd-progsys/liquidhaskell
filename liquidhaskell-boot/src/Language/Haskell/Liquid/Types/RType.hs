@@ -54,7 +54,7 @@ module Language.Haskell.Liquid.Types.RType (
   -- * Predicate Variables
   , PVar
   , PVarV
-  , PVarBV (PV, pname, parg, ptype, pargs), pvType
+  , PVarBV (PV, pname, ptype, pargs), pvType
   , Predicate
   , PredicateV
   , PredicateBV(..)
@@ -291,19 +291,13 @@ type PVarV v t = PVarBV Symbol v t
 -- @{-\@ foo :: forall a \<p :: x:a -> z:a -> Bool\>. y:a -> a\<p y\> \@-}@
 --
 -- * At the __binder__ (inside 'RAllP'):
---   @PV{pname="p", ptype=a, parg="LIQUID$dummy", pargs=[(a, "x", EVar "x")]}@
+--   @PV{pname="p", ptype=a, pargs=[(a, "x", EVar "x")]}@
 -- * At the __use site__ @a\<p y\>@ (inside 'ur_pred'):
---   @PV{pname="p", ptype=a, parg="LIQUID$dummy", pargs=[(a, "x", EVar "y")]}@
+--   @PV{pname="p", ptype=a, pargs=[(a, "x", EVar "y")]}@
 --
 -- * @pname@ is the name of the predicate variable, e.g. @p@
 -- * @ptype@ is the type of the last (value) argument, i.e. the type being
 --   constrained, e.g. @a@
--- * @parg@ is an internal dummy binder — always @"LIQUID$dummy"@. It is used
---   by 'pToRef' as the value-position variable in the uninterpreted function
---   call @papp_n(p, parg, e1, ..., en)@ when converting a standalone
---   'PredicateBV' to a 'F.Reft' via 'toReft'. In the main constraint
---   generation path ('replacePredsWithRefs' / 'pVartoRConc'), the @ur_reft@
---   binder is used instead.
 -- * @pargs@ is the list of non-value arguments (excluding the last one).
 --   Each triple is @(type, formal-binder, actual-expr)@.
 --   The __formal-binder__ always comes from the predicate declaration site
@@ -318,7 +312,6 @@ type PVarV v t = PVarBV Symbol v t
 data PVarBV b v t = PV
   { pname :: !b
   , ptype :: !t
-  , parg  :: !b
   , pargs :: ![(t, b, F.ExprBV b v)]
   } deriving (Generic, Data, Show, Functor)
   deriving B.Binary via Generically (PVarBV b v t)
@@ -345,12 +338,12 @@ instance Eq b => Eq (PVarBV b v t) where
   pv == pv' = pname pv == pname pv' {- UNIFY: What about: && eqArgs pv pv' -}
 
 instance Ord b => Ord (PVarBV b v t) where
-  compare (PV n _ _ _)  (PV n' _ _ _) = compare n n'
+  compare (PV n _ _)  (PV n' _ _) = compare n n'
 
 instance (NFData b, NFData v, NFData t) => NFData (PVarBV b v t)
 
 instance Hashable b => Hashable (PVarBV b v a) where
-  hashWithSalt i (PV n _ _ _) = hashWithSalt i n
+  hashWithSalt i (PV n _ _) = hashWithSalt i n
 
 pvType :: PVarBV b v t -> t
 pvType = ptype
@@ -359,7 +352,7 @@ instance (Ord b, F.Fixpoint b, Hashable b, F.PPrint b, Ord v, F.Fixpoint v, F.PP
   pprintTidy _ = pprPvar
 
 pprPvar :: (Ord b, F.Fixpoint b, Hashable b, F.PPrint b, Ord v, F.Fixpoint v, F.PPrint v) => PVarBV b v a -> Doc
-pprPvar (PV s _ _ xts) = F.pprint s <+> hsep (F.pprint . thd3 <$> xts)
+pprPvar (PV s _ xts) = F.pprint s <+> hsep (F.pprint . thd3 <$> xts)
 
 -- | A map traversal that collects the local variables in scope
 emapExprVM :: (Monad m, Hashable b) => ([b] -> v -> m v') -> ExprBV b v -> m (ExprBV b v')
@@ -1088,7 +1081,6 @@ type UReftV v = UReftBV F.Symbol v
 --   { ur_reft = F.Reft ("VV", PTrue)          -- no first-order constraint
 --   , ur_pred = Pr [ PV { pname = "p"
 --                       , ptype = intSort
---                       , parg  = "LIQUID$dummy"
 --                       , pargs = [(intSort, "x", EVar "m")] } ]
 --   }
 -- @
@@ -1103,13 +1095,12 @@ type UReftV v = UReftBV F.Symbol v
 -- * @ur_pred@ is the abstract-refinement part: a 'PredicateBV' (= @Pr [UsedPVarBV]@),
 --   i.e. a conjunction of predicate-variable applications.
 --   Each 'UsedPVarBV' records which predicate variable is used (via @pname@),
---   the internal dummy binder (@parg = "LIQUID$dummy"@), and the actual
---   argument expressions (@pargs@) at this use site (see 'PVarBV').
+--   and the actual argument expressions (@pargs@) at this use site (see 'PVarBV').
 --
 -- During constraint generation, @ur_pred@ is eliminated by
 -- 'replacePredsWithRefs': each predicate-variable application is converted
 -- to an uninterpreted function call @papp_n(p, VV, e1, ..., en)@ via
--- 'pVartoRConc' (using the @ur_reft@ binder @VV@, __not__ @parg@) and
+-- 'pVartoRConc' (using the @ur_reft@ binder @VV@) and
 -- conjoined into @ur_reft@, producing a pure 'F.Reft' understood by the SMT
 -- solver.  After this step, @ur_pred@ becomes @Pr []@.
 --

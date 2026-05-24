@@ -246,7 +246,7 @@ pVartoRConc p (v, args)
 -----------------------------------------------------------------------
 pvarRType :: (PPrint r, IsReft r) => PVar RSort -> RRType r
 -----------------------------------------------------------------------
-pvarRType (PV _ k {- (PVProp τ) -} _ args) = rpredType k (fst3 <$> args) -- (ty:tys)
+pvarRType (PV _ k {- (PVProp τ) -} args) = rpredType k (fst3 <$> args) -- (ty:tys)
   -- where
   --   ty  = uRTypeGen τ
   --   tys = uRTypeGen . fst3 <$> args

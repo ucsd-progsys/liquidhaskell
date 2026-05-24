@@ -169,9 +169,9 @@ pdVar :: PVarV v t -> PredicateV v
 pdVar v  = Pr [uPVar v]
 
 findPVar :: [PVar (RType c tv NoReft)] -> UsedPVar -> PVar (RType c tv NoReft)
-findPVar ps upv = PV name ty v (zipWith (\(_, _, e) (t, s, _) -> (t, s, e)) (pargs upv) args)
+findPVar ps upv = PV name ty (zipWith (\(_, _, e) (t, s, _) -> (t, s, e)) (pargs upv) args)
   where
-    PV name ty v args = fromMaybe (msg upv) $ L.find ((== pname upv) . pname) ps
+    PV name ty args = fromMaybe (msg upv) $ L.find ((== pname upv) . pname) ps
     msg p = panic Nothing $ "RefType.findPVar" ++ showpp p ++ "not found"
 
 -- | Various functions for converting vanilla `Reft` to `Spec`
@@ -1215,7 +1215,7 @@ instance SubsTy RTyVar RSort Sort where
   subt _ s          = s
 
 instance (SubsTy tv ty ty) => SubsTy tv ty (PVarBV b v ty) where
-  subt su (PV n pvk v xts) = PV n (subt su pvk) v [(subt su t, x, y) | (t,x,y) <- xts]
+  subt su (PV n pvk xts) = PV n (subt su pvk) [(subt su t, x, y) | (t,x,y) <- xts]
 
 instance SubsTy RTyVar RSort RTyCon where
    subt z c = RTyCon tc ps' i
