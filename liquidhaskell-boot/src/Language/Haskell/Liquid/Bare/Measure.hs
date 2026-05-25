@@ -296,8 +296,8 @@ dataConSel permitTC dc n (Proj i) = mkArrow (map (, mempty) as) [] [xt] (mempty 
     (as, ts, xt)         = {- F.tracepp ("bkDatacon dc = " ++ F.showpp (dc, n)) $ -} bkDataCon permitTC dc n
     err                  = panic Nothing $ "DataCon " ++ show dc ++ "does not have " ++ show i ++ " fields"
 
--- bkDataCon :: DataCon -> Int -> ([RTVar RTyVar RSort], [SpecType], (Symbol, SpecType, RReft))
-bkDataCon :: (PPrint r, IsReft r) => Bool -> Ghc.DataCon -> Int -> ([RTVar RTyVar RSort], [RRType r], (F.Symbol, RFInfo, RRType r, r))
+-- bkDataCon :: DataCon -> Int -> ([SpecRTVar], [SpecType], (Symbol, SpecType, RReft))
+bkDataCon :: (PPrint r, IsReft r) => Bool -> Ghc.DataCon -> Int -> ([SpecRTVar], [RRType r], (F.Symbol, RFInfo, RRType r, r))
 bkDataCon permitTC dcn nFlds  = (as, ts, (F.dummySymbol, classRFInfo permitTC, t, trueReft))
   where
     ts                = RT.ofType <$> Misc.takeLast nFlds (map Ghc.irrelevantMult _ts)

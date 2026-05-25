@@ -374,7 +374,7 @@ pprForall bb p t = maybeParen p funPrec $ sep [
     dπs False _               = empty
     dπs True πs               = angleBrackets $ intersperse comma $ pprPvarDef bb p <$> πs
 
-pprRtvarDef :: (PPrint tv) => [RTVar tv (RTypeBV b v c tv (NoReftB b))] -> Doc
+pprRtvarDef :: (PPrint tv) => [RTVar b v c tv] -> Doc
 pprRtvarDef = sep . map (pprint . ty_var_value)
 
 pprCls

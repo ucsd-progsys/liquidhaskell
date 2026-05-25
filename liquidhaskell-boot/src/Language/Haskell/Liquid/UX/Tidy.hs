@@ -183,7 +183,7 @@ subsTyVarsAll
       SubsTy k (RType c k NoReft) r,
       SubsTy k (RType c k NoReft) k,
       SubsTy k (RType c k NoReft) (RType c k NoReft),
-      SubsTy k (RType c k NoReft) (RTVar k (RType c k NoReft)),
+      SubsTy k (RType c k NoReft) (RTVar Symbol Symbol c k),
       FreeVar c k)
    => [(k, RType c k NoReft, RType c k r)] -> RType c k r -> RType c k r
 subsTyVarsAll ats = go

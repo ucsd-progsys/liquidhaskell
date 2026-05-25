@@ -387,7 +387,8 @@ ofBRType env f l = go []
     go bs (RFun x i t1 t2 r) = goRFun bs x i t1 t2 r
     go bs (RVar a r)        = RVar (RT.bareRTyVar a) <$> goReft bs r
     go bs (RAllT a t r)     = RAllT a' <$> go bs t <*> goReft bs r
-      where a'              = dropTyVarInfo (mapTyVarValue RT.bareRTyVar a)
+      where a' = let RTVar v _s = a
+                  in RTVar (RT.bareRTyVar v) (RTVNoInfo True)
     go bs (RAllP a t)       = RAllP a' <$> go bs t
       where a'              = ofBPVar env l a
     go bs (REx x t1 t2)     = REx   x  <$> go bs t1    <*> go (x:bs) t2
