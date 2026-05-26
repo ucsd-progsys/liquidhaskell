@@ -100,8 +100,10 @@ hiBenchmarks :: (Benchmark -> Double) -> Int -> BenchmarkComparison -> Benchmark
 hiBenchmarks f n bc =
     bc { bcCombined =
            L.take n
-           $ filter (\(bt, _) -> test bt `notElem` (map fst $ bcWarnings bc))
-           $ sortOn (\(bt, at) -> f at - f bt) (bcCombined bc)
+           $ sortOn (\(bt, at) -> (f at - f bt) / f bt)
+           $ filter
+               (\(bt, _) -> test bt `notElem` map fst (bcWarnings bc))
+               (bcCombined bc)
        }
 
 -- | Sort the benchmarks by the difference in the given field, and take the bottom
@@ -110,6 +112,8 @@ loBenchmarks :: (Benchmark -> Double) -> Int -> BenchmarkComparison -> Benchmark
 loBenchmarks f n bc =
     bc { bcCombined =
            L.take n
-           $ filter (\(bt, _) -> test bt `notElem` (map fst $ bcWarnings bc))
-           $ sortOn (\(bt, at) -> f bt - f at) (bcCombined bc)
+           $ sortOn (\(bt, at) -> (f bt - f at) / f bt)
+           $ filter
+               (\(bt, _) -> test bt `notElem` map fst (bcWarnings bc))
+               (bcCombined bc)
        }
