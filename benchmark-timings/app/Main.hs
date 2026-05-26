@@ -32,6 +32,7 @@ instance FromJSON Phase
 data PhasesSummary = PhasesSummary
   { test :: String
   , time :: Double
+  , allocs :: Double
   , result :: Bool
   } deriving stock (Eq, Ord, Show, Generic)
 
@@ -89,8 +90,10 @@ program Options {..} = do
       (originalFilename, _):_ -> do
         Just (phases :: [Phase]) <- decodeFileStrict' fp
         let time = foldl' (+) 0 [ phaseTime p | p <- phases, elem (init (phaseName p)) optsPhasesToCount ]
+            allocs = foldl' (+) 0 [ phaseAlloc p | p <- phases, elem (init (phaseName p)) optsPhasesToCount ]
         -- convert milliseconds -> seconds
-        pure . Just $ PhasesSummary originalFilename (time / 1000) True
+        -- convert bytes -> megabytes
+        pure . Just $ PhasesSummary originalFilename (time / 1000) (fromIntegral allocs / 1000000) True
       _ ->
         error $ "can't parse: " ++ show fp
   let csvData = encodeDefaultOrderedByNameWith (defaultEncodeOptions { encUseCrLf = False }) $ catMaybes csvFields
