@@ -19,6 +19,7 @@ data Options = Options
   , optsAfterFile :: FilePath
   , optsCombine :: Bool
   , optsSort :: Maybe Int
+  , optsAllocs :: Bool
   , optsFilter :: [String]
   , optsOutputDir :: Maybe FilePath
   } deriving stock (Eq, Ord, Show)
@@ -40,6 +41,8 @@ options = Options <$>
                 <> short 's'
                 <> metavar "N"
                 <> help "Generate two graphs for top and bottom N differences."))
+  <*> switch (long "allocs"
+              <> help "Compare allocations instead of time." )
   <*> (concat <$> many (option (words <$> str) (long "filter"
                                                  <> short 'f'
                                                  <> metavar "FILTER"
@@ -67,6 +70,8 @@ main = do op <- execParser opts
           let isSelectedTest b = Prelude.any (`isPrefixOf` test b) (optsFilter op)
               selectTests = V.filter isSelectedTest
               dropAppMain = V.filter (\b -> test b /= "app/Main")
+              dataSelector = if optsAllocs op then allocs else time
+              mkTitle s = if optsAllocs op then s ++ " (MBs)" else s ++ " (seconds)"
 
           vb <- dropAppMain <$> readCSV (optsBeforeFile op)
           va <- dropAppMain <$> readCSV (optsAfterFile op)
@@ -74,27 +79,27 @@ main = do op <- execParser opts
           case (optsSort op, null $ optsFilter op, optsCombine op) of
             (Just n , False, True ) ->
               let bdsf = compareBenchmarks (selectTests vb) (selectTests va)
-                  hif = hiBenchmarks n bdsf
-                  lof = loBenchmarks n bdsf
-              in do chartToFile "Top filtered speedups (seconds)" hif (outdir ++ "filtered-top.svg")
-                    chartToFile "Top filtered slowdowns (seconds)" lof (outdir ++ "filtered-bot.svg")
+                  hif = hiBenchmarks dataSelector n bdsf
+                  lof = loBenchmarks dataSelector n bdsf
+              in do chartToFile (mkTitle "Top filtered speedups") dataSelector hif (outdir ++ "filtered-top.svg")
+                    chartToFile (mkTitle "Top filtered slowdowns") dataSelector lof (outdir ++ "filtered-bot.svg")
             (Just n , False, False) ->
               let bds = compareBenchmarks vb va
                   bdsf = compareBenchmarks (selectTests vb) (selectTests va)
-                  hi = hiBenchmarks n bds
-                  lo = loBenchmarks n bds
-              in do chartToFile ("Perf diff: " ++ show (optsFilter op) ++ " (seconds)") bdsf (outdir ++ "filtered.svg")
-                    chartToFile "Top speedups (seconds)" hi (outdir ++ "top.svg")
-                    chartToFile "Top slowdowns (seconds)" lo (outdir ++ "bot.svg")
+                  hi = hiBenchmarks dataSelector n bds
+                  lo = loBenchmarks dataSelector n bds
+              in do chartToFile (mkTitle $ "Perf diff: " ++ show (optsFilter op)) dataSelector bdsf (outdir ++ "filtered.svg")
+                    chartToFile (mkTitle "Top speedups") dataSelector hi (outdir ++ "top.svg")
+                    chartToFile (mkTitle "Top slowdowns") dataSelector lo (outdir ++ "bot.svg")
             (Just n , True , _    ) ->
               let bds = compareBenchmarks vb va
-                  hi = hiBenchmarks n bds
-                  lo = loBenchmarks n bds
-              in do chartToFile "Top speedups (seconds)" hi (outdir ++ "top.svg")
-                    chartToFile "Top slowdowns (seconds)" lo (outdir ++ "bot.svg")
+                  hi = hiBenchmarks dataSelector n bds
+                  lo = loBenchmarks dataSelector n bds
+              in do chartToFile (mkTitle "Top speedups") dataSelector hi (outdir ++ "top.svg")
+                    chartToFile (mkTitle "Top slowdowns") dataSelector lo (outdir ++ "bot.svg")
             (Nothing, False, _    ) ->
               let bdsf = compareBenchmarks (selectTests vb) (selectTests va)
-              in chartToFile "Perf diff (seconds)" bdsf (outdir ++ "filtered.svg")
+              in chartToFile (mkTitle "Perf diff") dataSelector bdsf (outdir ++ "filtered.svg")
             (Nothing, True , _    ) ->
               let bds = compareBenchmarks vb va
-              in do chartToFile "Perf" bds (outdir ++ "perf.svg")
+              in do chartToFile "Perf" dataSelector bds (outdir ++ "perf.svg")

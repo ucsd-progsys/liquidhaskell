@@ -183,6 +183,7 @@ The `-f` and `-s` options can be used/omitted independently. If both are omitted
 will be produced covering the full input test set. Additionally, their effects can be combined by providing a third `-c`
 option (this  will produce 2 files `filtered-top.svg` and `filtered-bot.svg` instead of 3). An optional key `-o` can be
 supplied to specify an output directory for the generated files.
+The `--allocs` flag produces charts for the memory allocations instead of time.
 
 There is also a legacy script `scripts/plot-performance/chart_perf.sh` that can be used to generate comparison charts
 in both `svg` and `png` formats. It requires [gnuplot](http://www.gnuplot.info/) to run and assumes both files contain
