@@ -1297,6 +1297,10 @@ instance F.Binder b => Top (F.ReftBV b v) where
 instance F.Binder b => Top (UReftBV b v) where
   top _ = MkUReft F.trueReft pdTrue
 
+-- | A refinement type that accepts all elements of its base type.
+--
+-- This is a generalization of 'F.trueReft' for the other types that instantiate
+-- 'IsReft'.
 trueReft :: forall r. IsReft r => r
 trueReft = case toConcreteReft @r (error "trueReft") of
   ConcreteNoReft -> top (error "trueReft: ConcreteNoReft")
