@@ -290,8 +290,15 @@ instance ( IsReft r
           ss1
 
 
-
-instance (F.Subable r, IsReft r, TyConable c, F.Binder v, F.Refreshable v, F.Variable r ~ v, ReftBind r ~ v, ReftVar r ~ v) => F.Subable (RTypeBV v v c tv r) where
+instance ( F.Subable r
+         , IsReft r
+         , TyConable c
+         , F.Binder v
+         , F.Refreshable v
+         , F.Variable r ~ v
+         , ReftBind r ~ v
+         , ReftVar r ~ v
+         ) => F.Subable (RTypeBV v v c tv r) where
   type Variable (RTypeBV v v c tv r) = v
   syms = go
     where
