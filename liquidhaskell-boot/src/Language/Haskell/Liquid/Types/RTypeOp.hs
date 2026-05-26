@@ -385,7 +385,7 @@ emapRefM bscp vf f γ0 (RProp ss t0) =
       <*> emapReftM bscp vf f (map fst ss ++ γ0) t0
 
 emapBareTypeVM
-  :: (Monad m, F.Fixpoint v1)
+  :: Monad m
   => Bool
   -> ([Symbol] -> v1 -> m v2)
   -> [Symbol]

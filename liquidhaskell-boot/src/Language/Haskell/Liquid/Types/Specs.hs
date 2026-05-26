@@ -440,7 +440,7 @@ deriving instance Show BareSpec
 --
 --
 emapSpecM
-  :: (Monad m, F.Fixpoint lname0)
+  :: Monad m
   =>
      -- | The bscope setting, which affects which names
      -- are considered to be in scope in refinement types.

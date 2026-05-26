@@ -1319,7 +1319,7 @@ mapReftField f r0 = case toConcreteReft r0 of
   ConcreteReft r -> ofConcreteReft (ConcreteReft (f r))
   ConcreteUReft (MkUReft r p) -> ofConcreteReft (ConcreteUReft (MkUReft (f r) p))
 
-instance (IsReft (F.ReftBV b v), F.Binder b) => IsReft (UReftBV b v) where
+instance F.Binder b => IsReft (UReftBV b v) where
   type ReftVar (UReftBV b v) = v
   type ReftBind (UReftBV b v) = b
   ofConcreteReft (ConcreteUReft r) = r
@@ -1327,7 +1327,7 @@ instance (IsReft (F.ReftBV b v), F.Binder b) => IsReft (UReftBV b v) where
 
 instance (F.Binder v, F.Fixpoint v) => Meet (F.ReftBV v v) where
 
-instance (F.Binder b, F.Fixpoint v) => IsReft (F.ReftBV b v) where
+instance F.Binder b => IsReft (F.ReftBV b v) where
   type ReftVar (F.ReftBV b v) = v
   type ReftBind (F.ReftBV b v) = b
   toConcreteReft = ConcreteReft
