@@ -219,8 +219,8 @@ dataConTy _ _
 ----------------------------------------------------------------------------
 -- | Interface: Replace Predicate With Uninterpreted Function Symbol -------
 ----------------------------------------------------------------------------
-replacePredsWithRefs :: (UsedPVar, (F.Symbol, [((), F.Symbol, F.Expr)]) -> F.Expr)
-                     -> UReft F.Reft -> UReft F.Reft
+replacePredsWithRefs :: (UsedPVar, (F.Symbol, [(NoReft, F.Symbol, F.Expr)]) -> F.Expr)
+                     -> UReft -> UReft
 replacePredsWithRefs (p, r) (MkUReft (F.Reft(v, rs)) (Pr ps))
   = MkUReft (F.Reft (v, rs'')) (Pr ps2)
   where
@@ -246,7 +246,7 @@ pVartoRConc p (v, args)
 -----------------------------------------------------------------------
 pvarRType :: (PPrint r, IsReft r) => PVar RSort -> RRType r
 -----------------------------------------------------------------------
-pvarRType (PV _ k {- (PVProp τ) -} _ args) = rpredType k (fst3 <$> args) -- (ty:tys)
+pvarRType (PV _ k {- (PVProp τ) -} args) = rpredType k (fst3 <$> args) -- (ty:tys)
   -- where
   --   ty  = uRTypeGen τ
   --   tys = uRTypeGen . fst3 <$> args
@@ -368,6 +368,7 @@ substRCon
       SubsTy tv (RType RTyCon tv NoReft) tv,
       SubsTy tv (RType RTyCon tv NoReft) (RTVar tv (RType RTyCon tv NoReft)),
       FreeVar RTyCon tv,
+      Meet r,
       Meet (RType RTyCon tv r))
   => [Char]
   -> (t, Ref RSort (RType RTyCon tv r))
@@ -415,13 +416,13 @@ substPredP msg (p, RProp ss prop) (RProp s t)
    -- su  = mkSubst (zip (fst <$> ss) (EVar . fst <$> ss'))
 
 
-splitRPvar :: PVar t -> UReft r -> (UReft r, [UsedPVar])
+splitRPvar :: PVar t -> UReft -> (UReft, [UsedPVar])
 splitRPvar pv (MkUReft x (Pr pvs)) = (MkUReft x (Pr pvs'), epvs)
   where
     (epvs, pvs')               = L.partition (uPVar pv ==) pvs
 
 -- TODO: rewrite using foldReft
-freeArgsPs :: PVar (RType t t1 NoReft) -> RType t t1 (UReft t2) -> [F.Symbol]
+freeArgsPs :: PVar (RType t t1 NoReft) -> RType t t1 UReft -> [F.Symbol]
 freeArgsPs p (RVar _ r)
   = freeArgsPsRef p r
 freeArgsPs p (RFun _ _ t1 t2 r)
@@ -444,7 +445,7 @@ freeArgsPs p (RHole r)
 freeArgsPs p (RRTy env r _ t)
   = L.nub $ concatMap (freeArgsPs p . snd) env ++ freeArgsPsRef p r ++ freeArgsPs p t
 
-freeArgsPsRef :: PVar t1 -> UReft t -> [F.Symbol]
+freeArgsPsRef :: PVar t1 -> UReft -> [F.Symbol]
 freeArgsPsRef p (MkUReft _ (Pr ps)) = [x | (_, x, w) <- concatMap pargs ps', F.EVar x == w]
   where
    ps' = f <$> filter (uPVar p ==) ps

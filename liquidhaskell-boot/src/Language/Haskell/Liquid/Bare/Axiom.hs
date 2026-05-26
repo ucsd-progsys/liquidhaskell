@@ -424,7 +424,7 @@ splitFun = go []
 
 
 isBoolBind :: Ghc.Var -> Bool
-isBoolBind v = isBool (ty_res $ toRTypeRep ((ofType $ Ghc.varType v) :: RRType ()))
+isBoolBind v = isBool (ty_res $ toRTypeRep ((ofType $ Ghc.varType v) :: RRType NoReft))
 
 strengthenRes :: SpecType -> F.Reft -> SpecType
 strengthenRes st rf = go st
@@ -467,7 +467,7 @@ unDummy x i
   | x /= F.dummySymbol = x
   | otherwise          = F.symbol ("lq" ++ show i)
 
-singletonApp :: F.Symbolic a => F.Symbol -> [a] -> UReft F.Reft
+singletonApp :: F.Symbolic a => F.Symbol -> [a] -> UReft
 singletonApp s ys = MkUReft r mempty
   where
     r             = F.exprReft (F.eApps (F.EVar s) (F.eVar <$> ys))

@@ -389,7 +389,7 @@ pprCls bb p c ts
 
 
 pprPvarDef :: (OkRTBV b v c tv (NoReftB b)) => PPEnv -> Prec -> PVarBV b v (RTypeBV b v c tv (NoReftB b)) -> Doc
-pprPvarDef bb p (PV s t _ xts)
+pprPvarDef bb p (PV s t xts)
   = pprint s <+> dcolon <+> intersperse arrow dargs <+> pprPvarKind bb p t
   where
     dargs = [pprPvarSort bb p xt | (xt,_,_) <- xts]
@@ -422,7 +422,7 @@ dot                = char '.'
 ppTy ::
   ( Ord (ReftBind r), F.Fixpoint (ReftBind r), PPrint (ReftBind r)
   , Ord (ReftVar r), F.Fixpoint (ReftVar r), PPrint (ReftVar r)
-  , ToReft r
+  , IsReft r
   ) => PPEnv -> r -> Doc -> Doc
 ppTy bb r0 t = doc
  where
@@ -436,10 +436,10 @@ ppTy bb r0 t = doc
     | not (ppPs bb) = t
     | otherwise     = t <-> angleBrackets (pprint p)
 
-instance (PPrint (PredicateBV b v), ToReft (PredicateBV b v), PPrint r, ToReft r) => PPrint (UReftBV b v r) where
+instance (IsReft (F.ReftBV b v), Eq v, PPrint (PredicateBV b v), PPrint (F.ReftBV b v)) => PPrint (UReftBV b v) where
   pprintTidy k (MkUReft r p)
     | isTauto r  = pprintTidy k p
-    | isTauto p  = pprintTidy k r
+    | null (pvars p) = pprintTidy k r
     | otherwise  = pprintTidy k p <-> text " & " <-> pprintTidy k r
 
 --------------------------------------------------------------------------------

@@ -471,7 +471,7 @@ consBind isRec' γ (x, e, Unknown)
        return $ Asserted t
 
 killSubst :: RReft -> RReft
-killSubst = fmap killSubstReft
+killSubst = mapReftField killSubstReft
 
 killSubstReft :: F.Reft -> F.Reft
 killSubstReft = trans ks
@@ -483,7 +483,7 @@ killSubstReft = trans ks
 -- Used during type application to record how type variables are instantiated,
 -- so the solver can apply the correct sort substitution to qualifier solutions.
 addTyVarSubToKVars :: F.Symbol -> F.Sort -> SpecType -> SpecType
-addTyVarSubToKVars sym sort = fmap (fmap (trans addSub))
+addTyVarSubToKVars sym sort = mapReft (mapReftField (trans addSub))
   where
     addSub (F.PKVar k tsu su) =
       let tsu' = M.map (F.applyCoercion sym sort) tsu
@@ -635,7 +635,7 @@ cconsE' γ e t
           addHole (RealSrcSpan srcSpan Strict.Nothing) x t γ
         _ -> return ()
 
-lambdaSingleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> CG (UReft F.Reft)
+lambdaSingleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> CG UReft
 lambdaSingleton γ tce x e
   | higherOrderFlag γ
   = do expr <- lamExpr γ e
@@ -743,7 +743,7 @@ consE γ (Var x) | GM.isDataConId x
        --     it is cheaper than direclty fmap ignoreSelf.
        let hasSelf = selfSymbol `S.member` F.syms t0
        let t = if hasSelf
-                then fmap ignoreSelf <$> t0
+                then mapReft (mapReftField ignoreSelf) t0
                 else t0
        addLocA (Just x) (getLocation γ) (varAnn γ x t)
        return t
@@ -1214,7 +1214,7 @@ caseEnv γ x acs a _ _ = do
 -- SELF special substitutions
 ------------------------------------------------------
 
-substSelf :: UReft F.Reft -> UReft F.Reft
+substSelf :: UReft -> UReft
 substSelf (MkUReft r p) = MkUReft (substSelfReft r) p
 
 substSelfReft :: F.Reft -> F.Reft
@@ -1298,7 +1298,7 @@ varAnn γ x t
 -- | Helpers: Creating Fresh Refinement -------------------------------
 -----------------------------------------------------------------------
 freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG SpecProp
-freshPredRef γ e (PV _ rsort _ as)
+freshPredRef γ e (PV _ rsort as)
   = do t    <- freshTyType (typeclass (getConfig γ))  PredInstE e (toType False rsort)
        args <- mapM (const fresh) as
        let targs = [(x, s) | (x, (s, y, z)) <- zip args as, F.EVar y == z ]
@@ -1416,7 +1416,7 @@ simplify (Lam x e) | isTyVar x = simplify e
 simplify e                     = e
 
 
-singletonReft :: (F.Symbolic a) => a -> UReft F.Reft
+singletonReft :: (F.Symbolic a) => a -> UReft
 singletonReft = uTop . F.symbolReft . F.symbol
 
 -- | RJ: `nomeet` replaces `strengthenS` for `strengthen` in the definition

@@ -310,7 +310,7 @@ instance Expand F.Reft where
   expand rtEnv l (F.Reft (v, ra)) = F.Reft (v, expand rtEnv l ra)
 
 instance Expand RReft where
-  expand rtEnv l = fmap (expand rtEnv l)
+  expand rtEnv l (MkUReft r p) = MkUReft (expand rtEnv l r) p
 
 expandReft :: (Expand r) => BareRTEnv -> F.SourcePos -> RType c tv r -> RType c tv r
 expandReft rtEnv l = fmap (expand rtEnv l)
@@ -800,7 +800,7 @@ addExist t x (tx, e) = REx x t' t
     t'               = ofRSort tx `RT.strengthen` RT.uTop r
     r                = F.exprReft e
 
-expToBindRef :: UReft r -> State ExSt (UReft r)
+expToBindRef :: UReft -> State ExSt UReft
 expToBindRef (MkUReft r (Pr p))
   = mapM expToBind p <&> (MkUReft r . Pr)
 
@@ -815,7 +815,7 @@ expToBind p = do
       pargs' <- mapM expToBindParg pargs0
       return $ p { pargs = pargs' }
 
-expToBindParg :: (((), F.Symbol, F.Expr), RSort) -> State ExSt ((), F.Symbol, F.Expr)
+expToBindParg :: ((NoReft, F.Symbol, F.Expr), RSort) -> State ExSt (NoReft, F.Symbol, F.Expr)
 expToBindParg ((t, s, e), s') = fmap ((,,) t s) (expToBindExpr e s')
 
 expToBindExpr :: F.Expr ->  RSort -> State ExSt F.Expr

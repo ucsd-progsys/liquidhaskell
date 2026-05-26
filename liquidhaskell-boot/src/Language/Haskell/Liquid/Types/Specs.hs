@@ -427,7 +427,7 @@ data Spec lname ty = Spec
   , usedDataCons :: S.HashSet LHName                                  -- ^ Data constructors used in specs
   } deriving (Data, Generic)
 
-instance (F.PPrint lname, F.PPrint ty, PredicateCompat F.Symbol lname, F.Fixpoint lname, Ord lname) => F.PPrint (Spec lname ty) where
+instance (F.PPrint ty) => F.PPrint (Spec F.Symbol ty) where
     pprintTidy k sp = text "dataDecls = " <+> pprintTidy k  (dataDecls sp)
                          HughesPJ.$$
                       text "classes = " <+> pprintTidy k (classes sp)
@@ -440,7 +440,7 @@ deriving instance Show BareSpec
 --
 --
 emapSpecM
-  :: (Monad m, Ord lname0)
+  :: Monad m
   =>
      -- | The bscope setting, which affects which names
      -- are considered to be in scope in refinement types.

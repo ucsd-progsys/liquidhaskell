@@ -986,7 +986,7 @@ isHole :: Expr -> Bool
 isHole (F.PKVar "HOLE" _ _) = True
 isHole _                    = False
 
-hasHole :: (ToReft r, ReftBind r ~ Symbol, ReftVar r ~ Symbol) => r -> Bool
+hasHole :: (IsReft r, ReftBind r ~ Symbol, ReftVar r ~ Symbol) => r -> Bool
 hasHole = any isHole . F.conjuncts . F.reftPred . toReft
 
 instance F.Symbolic DataCon where

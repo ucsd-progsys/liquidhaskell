@@ -71,6 +71,7 @@ import qualified Prelude
 
 import           Control.Monad                          (liftM2, liftM3, liftM4)
 import           Data.Bifunctor (bimap)
+import           Data.Coerce (coerce)
 import           Data.Hashable (Hashable)
 import qualified Data.HashSet as S
 
@@ -103,8 +104,8 @@ type SpecRep     = RRep      RReft
 type RTypeRep = RTypeRepV Symbol
 type RTypeRepV = RTypeRepBV Symbol
 data RTypeRepBV b v c tv r = RTypeRep
-  { ty_vars   :: [(RTVar tv (RTypeBV b v c tv (NoReftB b)), r)]
-  , ty_preds  :: [PVarBV b v (RTypeBV b v c tv (NoReftB b))]
+  { ty_vars   :: [(RTVar tv (RTypeBV b v c tv (NoReftBV b v)), r)]
+  , ty_preds  :: [PVarBV b v (RTypeBV b v c tv (NoReftBV b v))]
   , ty_binds  :: [b]
   , ty_info   :: [RFInfo]
   , ty_refts  :: [r]
@@ -131,8 +132,8 @@ toRTypeRep t         = RTypeRep αs πs xs is rs ts t''
     (αs, πs, t') = bkUniv t
     ((xs, is, ts, rs), t'') = bkArrow t'
 
-mkArrow :: [(RTVar tv (RTypeBV b v c tv (NoReftB b)), r)]
-        -> [PVarBV b v (RTypeBV b v c tv (NoReftB b))]
+mkArrow :: [(RTVar tv (RTypeBV b v c tv (NoReftBV b v)), r)]
+        -> [PVarBV b v (RTypeBV b v c tv (NoReftBV b v))]
         -> [(b, RFInfo, RTypeBV b v c tv r, r)]
         -> RTypeBV b v c tv r
         -> RTypeBV b v c tv r
@@ -167,8 +168,8 @@ safeBkArrow (RAllP _ _)     = Prelude.error {- panic Nothing -} "safeBkArrow on 
 safeBkArrow t               = bkArrow t
 
 mkUnivs :: (Foldable t, Foldable t1)
-        => t  (RTVar tv (RTypeBV b v c tv (NoReftB b)), r)
-        -> t1 (PVarBV b v (RTypeBV b v c tv (NoReftB b)))
+        => t  (RTVar tv (RTypeBV b v c tv (NoReftBV b v)), r)
+        -> t1 (PVarBV b v (RTypeBV b v c tv (NoReftBV b v)))
         -> RTypeBV b v c tv r
         -> RTypeBV b v c tv r
 mkUnivs αs πs rt = foldr (\(a,r) t -> RAllT a t r) (foldr RAllP rt πs) αs
@@ -180,7 +181,7 @@ bkUnivClass t        = (as, ps, cs, t2)
     (cs, t2)     = bkClass t1
 
 
-bkUniv :: RTypeBV b v tv c r -> ([(RTVar c (RTypeBV b v tv c (NoReftB b)), r)], [PVarBV b v (RTypeBV b v tv c (NoReftB b))], RTypeBV b v tv c r)
+bkUniv :: RTypeBV b v tv c r -> ([(RTVar c (RTypeBV b v tv c (NoReftBV b v)), r)], [PVarBV b v (RTypeBV b v tv c (NoReftBV b v))], RTypeBV b v tv c r)
 bkUniv (RAllT α t r) = let (αs, πs, t') = bkUniv t in ((α, r):αs, πs, t')
 bkUniv (RAllP π t)   = let (αs, πs, t') = bkUniv t in (αs, π:πs, t')
 bkUniv t             = ([], [], t)
@@ -285,29 +286,8 @@ mapExprReft f = mapReft g
   where
     g (MkUReft (F.Reft (x, e)) p) = MkUReft (F.Reft (x, f x e)) p
 
-data OrReftBV r = LeftReftBV (F.ReftBV (ReftBind r) (ReftVar r)) | RightR r
-
-instance ToReft r => ToReft (OrReftBV r) where
-  type ReftBind (OrReftBV r) = ReftBind r
-  type ReftVar (OrReftBV r) = ReftVar r
-  toReft (LeftReftBV r) = r
-  toReft (RightR r) = toReft r
-  toUReft (LeftReftBV r) = MkUReft r (Pr [])
-  toUReft (RightR r) = toUReft r
-
-instance ToReft r => Semigroup (OrReftBV r) where
-  _ <> _ = Prelude.error "Meet OrReftBV"
-
-instance ToReft r => Meet (OrReftBV r) where
-
-instance F.Binder (ReftBind r) => Top (OrReftBV r) where
-  top _ = LeftReftBV F.trueReft
-
-instance ToReft r => IsReft (OrReftBV r) where
-  ofReft r = LeftReftBV r
-
-isTrivial :: (ToReft r, TyConable c, F.Binder b, ReftBind r ~ b) => RTypeBV b v c tv r -> Bool
-isTrivial = foldReft False (\_ r b -> isTauto r && b) True . fmap RightR
+isTrivial :: (IsReft r, IsReft r, TyConable c, F.Binder b, ReftBind r ~ b, Eq (ReftVar r)) => RTypeBV b v c tv r -> Bool
+isTrivial = foldReft False (\_ r b -> isTauto r && b) True
 
 mapReft ::  (r1 -> r2) -> RTypeBV b v c tv r1 -> RTypeBV b v c tv r2
 mapReft f = emapReft (const f) []
@@ -334,10 +314,10 @@ emapRef  f γ (RProp s t)         = RProp s $ emapReft f γ t
 
 mapRTypeV ::  (v -> v') -> RTypeBV b v c tv r -> RTypeBV b v' c tv r
 mapRTypeV _ (RVar α r)        = RVar α r
-mapRTypeV f (RAllT α t r)     = RAllT (fmap (mapRTypeV f) α) (mapRTypeV f t) r
-mapRTypeV f (RAllP π t)       = RAllP (mapPVarV f (mapRTypeV f) π) (mapRTypeV f t)
+mapRTypeV f (RAllT α t r)     = RAllT (mapRTypeV f <$> coerce α) (mapRTypeV f t) r
+mapRTypeV f (RAllP π t)       = RAllP (mapPVarV f (mapRTypeV f) $ coerce π) (mapRTypeV f t)
 mapRTypeV f (RFun x i t t' r) = RFun x i (mapRTypeV f t) (mapRTypeV f t') r
-mapRTypeV f (RApp c ts rs r)  = RApp c (mapRTypeV f <$> ts) (mapRefV <$> rs) r
+mapRTypeV f (RApp c ts rs r)  = RApp c (mapRTypeV f <$> ts) (mapRefV <$> coerce rs) r
   where
     mapRefV (RProp ss t) = RProp (map (fmap (mapRTypeV f)) ss) (mapRTypeV f t)
 mapRTypeV f (REx z t t')      = REx z (mapRTypeV f t) (mapRTypeV f t')
@@ -348,10 +328,10 @@ mapRTypeV _ (RHole r)         = RHole r
 
 mapRTypeVM :: (Hashable b, Monad m) => (v -> m v') -> RTypeBV b v c tv r -> m (RTypeBV b v' c tv r)
 mapRTypeVM _ (RVar α r)        = return $ RVar α r
-mapRTypeVM f (RAllT α t r)     = RAllT <$> traverse (mapRTypeVM f) α <*> mapRTypeVM f t <*> pure r
-mapRTypeVM f (RAllP π t)       = RAllP <$> emapPVarVM (const f) (const (mapRTypeVM f)) π <*> mapRTypeVM f t
+mapRTypeVM f (RAllT α t r)     = RAllT <$> traverse (mapRTypeVM f) (coerce α) <*> mapRTypeVM f t <*> pure r
+mapRTypeVM f (RAllP π t)       = RAllP <$> emapPVarVM (const f) (const (mapRTypeVM f)) (coerce π) <*> mapRTypeVM f t
 mapRTypeVM f (RFun x i t t' r) = RFun x i <$> mapRTypeVM f t <*> mapRTypeVM f t' <*> pure r
-mapRTypeVM f (RApp c ts rs r)  = RApp c <$> mapM (mapRTypeVM f) ts <*> mapM mapRefVM rs <*> pure r
+mapRTypeVM f (RApp c ts rs r)  = RApp c <$> mapM (mapRTypeVM f) ts <*> mapM mapRefVM (coerce rs) <*> pure r
   where
     mapRefVM (RProp ss t) = RProp <$> mapM (traverse (mapRTypeVM f)) ss <*> mapRTypeVM f t
 mapRTypeVM f (REx z t t')      = REx z <$> mapRTypeVM f t <*> mapRTypeVM f t'
@@ -365,7 +345,7 @@ emapFReftM f (F.Reft (v, e)) = F.reft v <$> emapExprVM (f . (v:)) e
 
 -- The first parameter corresponds to the bscope config setting
 emapReftM
-  :: (Monad m, ToReft r1, F.Binder b, CompatibleBinder b tv, ReftBind r1 ~ b)
+  :: (Monad m, IsReft r1, F.Binder b, CompatibleBinder b tv, ReftBind r1 ~ b)
   => Bool
   -> ([b] -> v1 -> m v2)
   -> ([b] -> r1 -> m r2)
@@ -375,8 +355,8 @@ emapReftM
 emapReftM bscp vf f = go
   where
     go γ (RVar α r)        = RVar  α <$> f γ r
-    go γ (RAllT α t r)     = RAllT <$> traverse (emapReftM bscp vf (const pure) γ) α <*> go (coerceBinder (ty_var_value α) : γ) t <*> f γ r
-    go γ (RAllP π t)       = RAllP <$> emapPVarVM vf (emapReftM bscp vf (const pure)) π <*> go γ t
+    go γ (RAllT α t r)     = RAllT <$> traverse (emapReftM bscp vf (const pure) γ) (coerce α) <*> go (coerceBinder (ty_var_value α) : γ) t <*> f γ r
+    go γ (RAllP π t)       = RAllP <$> emapPVarVM vf (emapReftM bscp vf (const pure)) (coerce π) <*> go γ t
     go γ (RFun x i t t' r) = RFun  x i <$> go (x:γ) t <*> go (x:γ) t' <*> f (x:γ) r
     go γ (RApp c ts rs r)  =
       let γ' = if bscp then F.reftBind (toReft r) : γ  else γ
@@ -389,7 +369,7 @@ emapReftM bscp vf f = go
     go γ (RHole r)         = RHole <$> f γ r
 
 emapRefM
-  :: (Monad m, ToReft t, F.Binder b, CompatibleBinder b tv, ReftBind t ~ b)
+  :: (Monad m, IsReft t, F.Binder b, CompatibleBinder b tv, ReftBind t ~ b)
   => Bool
   -> ([b] -> v -> m v')
   -> ([b] -> t -> m s)
@@ -401,11 +381,11 @@ emapRefM bscp vf f γ0 (RProp ss t0) =
       mapAccumM
         (\γ (s, t) -> (s:γ,) . (s,) <$> emapReftM bscp vf (const pure) γ t)
         γ0
-        ss
+        (coerce ss)
       <*> emapReftM bscp vf f (map fst ss ++ γ0) t0
 
 emapBareTypeVM
-  :: (Monad m, Ord v1)
+  :: Monad m
   => Bool
   -> ([Symbol] -> v1 -> m v2)
   -> [Symbol]
@@ -420,7 +400,7 @@ emapBareTypeVM bscp f =
 mapDataDeclV :: (v -> v') -> DataDeclP v ty -> DataDeclP v' ty
 mapDataDeclV f DataDecl {..} =
     DataDecl
-      { tycPVars = map (mapPVarV f (mapRTypeV f)) tycPVars
+      { tycPVars = map (mapPVarV f (mapRTypeV f)) (coerce tycPVars)
       , tycSFun = fmap (fmap f) tycSFun
       , ..
       }
@@ -440,7 +420,7 @@ emapDataDeclM bscp vf f d = do
     tycDCons <- traverse (mapM (emapDataCtorTyM f)) (tycDCons d)
     tycSFun <- traverse (traverse (vf [])) (tycSFun d)
     tycPropTy <- traverse (f []) $ tycPropTy d
-    return d{tycDCons, tycPVars, tycSFun, tycPropTy}
+    return d{tycDCons, tycPVars = coerce tycPVars, tycSFun, tycPropTy}
 
 emapDataCtorTyM
   :: Monad m
@@ -587,10 +567,10 @@ rtvinfoIsVal RTVInfo{..} = rtv_is_val
 efoldReft :: (IsReft r, TyConable c, F.Binder b, ReftBind r ~ b)
           => BScope
           -> (c  -> [RTypeBV b v c tv r] -> [(b, a)])
-          -> (RTVar tv (RTypeBV b v c tv (NoReftB b)) -> [(b, a)])
+          -> (RTVar tv (RTypeBV b v c tv (NoReftBV b v)) -> [(b, a)])
           -> (RTypeBV b v c tv r -> a)
           -> (F.SEnvB b a -> Maybe (RTypeBV b v c tv r) -> r -> z -> z)
-          -> (PVarBV b v (RTypeBV b v c tv (NoReftB b)) -> F.SEnvB b a -> F.SEnvB b a)
+          -> (PVarBV b v (RTypeBV b v c tv (NoReftBV b v)) -> F.SEnvB b a -> F.SEnvB b a)
           -> F.SEnvB b a
           -> z
           -> RTypeBV b v c tv r
@@ -678,15 +658,15 @@ mapBind f = go
     mapS                  = mapReft (\NoReft -> NoReft) . mapBind f
     mapI RTVNoInfo{..}    = RTVNoInfo{..}
     mapI RTVInfo{..}      = RTVInfo { rtv_kind = mapS rtv_kind, .. }
-    mapP (PV n τ a as)    = PV (f n) (mapS τ) (f a) (mapA <$> as)
+    mapP (PV n τ as)    = PV (f n) (mapS τ) (mapA <$> as)
     mapA (τ, b, e)        = (mapS τ, f b, F.mapBindExpr f e)
     mapR (RProp as t)     = RProp (bimap f mapS <$> as) (go t)
 
 --------------------------------------------------
-ofRSort ::  IsReft r => RTypeBV b v c tv (NoReftB b) -> RTypeBV b v c tv r
+ofRSort ::  IsReft r => RTypeBV b v c tv (NoReftBV b v) -> RTypeBV b v c tv r
 ofRSort = fmap (const trueReft)
 
-toRSort :: F.Binder b => RTypeBV b v c tv r -> RTypeBV b v c tv (NoReftB b)
+toRSort :: F.Binder b => RTypeBV b v c tv r -> RTypeBV b v c tv (NoReftBV b v)
 toRSort = stripAnnotations . mapBind (const F.wildcard) . (NoReft <$)
 
 stripAnnotations :: RTypeBV b v c tv r -> RTypeBV b v c tv r
@@ -709,10 +689,10 @@ insertSEnv = F.insertSEnv
 insertsSEnv :: (Eq b, Hashable b) => F.SEnvB b a -> [(b, a)] -> F.SEnvB b a
 insertsSEnv  = foldr (\(x, t) γ -> insertSEnv x t γ)
 
-rTypeValueVar :: (ToReft r, F.Binder (ReftBind r)) => RTypeBV b v c tv r -> ReftBind r
+rTypeValueVar :: (IsReft r, F.Binder (ReftBind r)) => RTypeBV b v c tv r -> ReftBind r
 rTypeValueVar t = vv where F.Reft (vv,_) =  rTypeReft t
 
-rTypeReft :: (ToReft r, F.Binder (ReftBind r)) => RTypeBV b v c tv r -> F.ReftBV (ReftBind r) (ReftVar r)
+rTypeReft :: (IsReft r, F.Binder (ReftBind r)) => RTypeBV b v c tv r -> F.ReftBV (ReftBind r) (ReftVar r)
 rTypeReft = maybe F.trueReft toReft . stripRTypeBase
 
 -- stripRTypeBase ::  RType a -> Maybe a

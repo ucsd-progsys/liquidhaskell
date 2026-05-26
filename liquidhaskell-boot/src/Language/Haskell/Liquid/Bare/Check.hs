@@ -270,7 +270,7 @@ checkTargetSpec specs src env cbs tsp
     -- allowTC          = typeclass (getConfig sp)
     bsc              = bscope (getConfig tsp)
     noPrune          = not (pruneFlag tsp)
-    txCtors ts       = [(v, fmap (fmap (fmap (F.filterUnMatched temps))) t) | (v, t) <- ts]
+    txCtors ts       = [(v, fmap (mapReft (mapReftField (F.filterUnMatched temps))) t) | (v, t) <- ts]
     temps            = F.makeTemplates $ gsUnsorted $ gsData tsp
     ef               = mkElabFlags (smtsolver $ getConfig tsp)
 
@@ -616,9 +616,7 @@ checkTcArity RTyCon{ rtc_tc = tc } givenArity
     expectedArity = tyConRealArity tc
 
 
-checkAbstractRefs
-  :: (PPrint t, IsReft t, ReftBind t ~ F.Symbol, ReftVar t ~ F.Symbol, SubsTy RTyVar RSort t) =>
-     RType RTyCon RTyVar (UReft t) -> Maybe Doc
+checkAbstractRefs :: SpecType -> Maybe Doc
 checkAbstractRefs rt = go rt
   where
     penv = mkPEnv rt
@@ -675,7 +673,7 @@ checkAbstractRefs rt = go rt
 
 -- TODO remove the unused UReft arg
 checkReft                    :: (PPrint r, IsReft r, ReftBind r ~ F.Symbol, ReftVar r ~ F.Symbol, SubsTy RTyVar (RType RTyCon RTyVar NoReft) r)
-                             => F.SrcSpan -> F.SEnv F.SortedReft -> F.TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> ElabM (Maybe Doc)
+                             => F.SrcSpan -> F.SEnv F.SortedReft -> F.TCEmb TyCon -> Maybe (RRType r) -> r -> ElabM (Maybe Doc)
 checkReft _  _   _   Nothing  _ = pure Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.
 checkReft sp env emb (Just t) _ = do me <- checkSortedReftFull sp env r
                                      pure $ (\z -> dr $+$ z) <$> me
@@ -796,12 +794,12 @@ getRewriteErrors (rw, t)
           ++ " contains an inner refinement."
 
 
-isRefined :: ToReft r => RType c tv r -> Bool
+isRefined :: (IsReft r, Eq (ReftVar r)) => RType c tv r -> Bool
 isRefined ty
   | Just r <- stripRTypeBase ty = not $ isTauto r
   | otherwise = False
 
-hasInnerRefinement :: ToReft r => RType c tv r -> Bool
+hasInnerRefinement :: (IsReft r, Eq (ReftVar r)) => RType c tv r -> Bool
 hasInnerRefinement (RFun _ _ rIn rOut _) =
   isRefined rIn || isRefined rOut
 hasInnerRefinement (RAllT _ ty  _) =
