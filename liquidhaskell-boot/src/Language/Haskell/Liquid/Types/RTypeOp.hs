@@ -280,7 +280,7 @@ instance ( IsReft r
         List.mapAccumR
           (\(bs, ns, su) (x, t) ->
              let (ns', x') = F.freshInNS x ns
-                 su' = F.extendSubst su x (F.EVar x')
+                 su' = F.extendSubstWithVar su x x'
               in
                  ( (x' : bs, ns', su')
                  , F.substr ns su t
@@ -369,11 +369,11 @@ instance ( F.Subable r
           ConcreteNoReft -> (s, su, r)
           ConcreteReft (F.Reft (v0, e)) ->
             let (s', v0') = F.freshInNS v0 s
-                su' = F.extendSubst su v0 (F.EVar v0')
+                su' = F.extendSubstWithVar su v0 v0'
              in (s', su', F.Reft (v0', F.substr s' su' e))
           ConcreteUReft (MkUReft (F.Reft (v0, e)) ps) ->
             let (s', v0') = F.freshInNS v0 s
-                su' = F.extendSubst su v0 (F.EVar v0')
+                su' = F.extendSubstWithVar su v0 v0'
                 e' = F.substr s' su' e
                 ps' = F.substr s su ps
                 ur' = MkUReft (F.Reft (v0', e')) ps'
@@ -383,13 +383,13 @@ instance ( F.Subable r
       go s su (RFun x i t1 t2 r) =
         -- x scopes over t1 and t2; v0 (reft binder of r) scopes over t1 and t2.
         let (s_x, x')     = F.freshInNS x s
-            su_x          = F.extendSubst su x (F.EVar x')
+            su_x          = F.extendSubstWithVar su x x'
             (s_xv, su_xv, r') = substReft r s_x su_x    -- nameset/subst for t1, t2
          in RFun x' i (go s_xv su_xv t1) (go s_xv su_xv t2) r'
       go s su (REx x t1 t2) =
         -- x scopes over t2 only; no reft field.
         let (s', x') = F.freshInNS x s
-            su' = F.extendSubst su x (F.EVar x')
+            su' = F.extendSubstWithVar su x x'
          in REx x' (go s su t1) (go s' su' t2)
       go s su (RAllT α t r) =
         -- v0 (reft binder of r) scopes over the kind inside α and over t.
@@ -400,13 +400,13 @@ instance ( F.Subable r
           αScope s0 su0 rtv@(RTVar _tv (RTVNoInfo _)) = (s0, su0, rtv)
           αScope s0 su0 (RTVar tv (RTVInfo b k v pol)) =
             let (s1, b') = F.freshInNS b s0
-                su1 = F.extendSubst su0 b (F.EVar b')
+                su1 = F.extendSubstWithVar su0 b b'
                 k' = F.substr s0 su0 k
              in (s1, su1, RTVar tv (RTVInfo b' k' v pol))
 
       go s su (RAllP π t) =
         let (ns_p, pname') = F.freshInNS (pname π) s
-            su_p = F.extendSubst su (pname π) (F.EVar pname')
+            su_p = F.extendSubstWithVar su (pname π) pname'
             π' = (substPVar s su π) { pname = pname' }
          in
             RAllP π' (go ns_p su_p t)
@@ -416,7 +416,7 @@ instance ( F.Subable r
                   List.mapAccumR
                     (\(ns', su') (tb, b, e) ->
                       let (ns'', b') = F.freshInNS b ns'
-                          su'' = F.extendSubst su' b (F.EVar b')
+                          su'' = F.extendSubstWithVar su' b b'
                           e' = F.substr ns' su' e
                        in ((ns'', su''), (F.substr ns' su' tb, b', e'))
                     )
@@ -447,7 +447,7 @@ instance ( F.Subable r
             List.mapAccumL
               (\(s', su') (x, xt) ->
                  let (s'', x') = F.freshInNS x s'
-                     su'' = F.extendSubst su' x (F.EVar x')
+                     su'' = F.extendSubstWithVar su' x x'
                      xt' = F.substr s' su' xt
                   in ((s'', su''), (x', xt'))
               )

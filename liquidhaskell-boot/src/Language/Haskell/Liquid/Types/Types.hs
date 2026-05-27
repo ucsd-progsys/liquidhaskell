@@ -807,7 +807,7 @@ instance F.Subable Body where
   substr ns su (P e)   = P   (F.substr ns su e)
   substr ns su (R s e) =
     let (ns', s') = F.freshInNS s ns
-        su' = F.extendSubst su s (F.EVar s')
+        su' = F.extendSubstWithVar su s s'
     in R s' (F.substr ns' su' e)
 
 instance F.Subable t => F.Subable (WithModel t) where
