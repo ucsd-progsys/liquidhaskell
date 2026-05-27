@@ -8,9 +8,9 @@ import GHC.Types_LHAssumptions()
 import GHC.Num_LHAssumptions()
 
 {-@
-assume (^) :: x:a -> y:{n:b | n >= 0} -> {z:a | (y == 0 => z == 1) && ((x == 0 && y /= 0) <=> z == 0)}
+assume (^) :: (Num a, Integral b) => x:a -> y:{n:b | n >= 0} -> {z:a | (y == 0 => z == 1) && ((x == 0 && y /= 0) <=> z == 0)}
 
-assume fromIntegral    :: x:a -> {v:b|v=x}
+assume fromIntegral    :: (Integral a, Num b) => x:a -> {v:b|v=x}
 
 class Num a => Fractional a where
   (/)   :: x:a -> y:{v:a | v /= 0} -> {v:a | v == x / y}
