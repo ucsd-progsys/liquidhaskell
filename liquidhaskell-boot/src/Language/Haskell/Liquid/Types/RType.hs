@@ -951,16 +951,102 @@ data RTypeBV b v c tv r
     -- or termination metric). It wraps an actual type @rt_ty@ with auxiliary
     -- information for constraint generation.
     --
-    -- Example (OCons): the type @{x:Int |- {v:Int | v > 0} \<: {v:Int | v > x}} => Int -> Int@
+    -- For the invariant and termination obligations, the wrapping is done after
+    -- parsing. In the case of termination, it is done in constraint generation
+    -- and depends on the part of the code for which constraints are being
+    -- generated. That is, different locations of the code have available different
+    -- variations of the type representation.
+    --
+    -- === Example (OCons)
+    --
+    -- The type
+    --
+    -- > {x:Int |- {v:Int | v > 0} \<: {v:Int | v > x}} => Int -> Int
+    --
     -- is represented as:
-    -- @RRTy [("x", Int), (dummySymbol, {v:Int | v > 0}), (dummySymbol, {v:Int | v > x})]@
-    --       @trueReft OCons (Int -> Int)@
+    --
+    -- > RRTy
+    -- >   [("x", Int), (dummySymbol, {v:Int | v > 0}), (dummySymbol, {v:Int | v > x})]
+    -- >   trueReft
+    -- >   OCons
+    -- >   (Int -> Int)
+    --
+    -- === Example (OInv)
+    --
+    -- Given
+    --
+    -- >  {-@ invariant {v:Peano | toInt v >= 0} @-}
+    -- >  {-@ add :: Peano -> Peano -> Peano @-}
+    --
+    -- the invariant obligation generated for @add@ is represented as:
+    --
+    -- >  RFun "lq1"                                    -- first arg binder
+    -- >      defRFInfo
+    -- >      (RApp Peano [] [] trueReft)              -- Peano (first arg type)
+    -- >      (RFun "lq2"                              -- second arg binder
+    -- >           defRFInfo
+    -- >           (RApp Peano [] [] trueReft)         -- Peano (second arg type)
+    -- >           (RRTy                               -- ← invariant obligation wraps the RESULT
+    -- >               [("xInv", RApp Peano [] [] trueReft)]   -- rt_env: bind scrutinee
+    -- >               (MkUReft                                -- rt_ref: NON-TRIVIAL
+    -- >                  (Reft ("v",                          --   binder "v" is bound HERE in the Reft
+    -- >                         PIff (EVar "v")              --   v ⟺ (toInt xInv >= 0)[xInv/v]
+    -- >                              (PAtom Ge (EApp "toInt" (EVar "xInv"))
+    -- >                                        (ECon (I 0)))))
+    -- >                  (Pr []))
+    -- >               OInv                                    -- rt_obl: invariant
+    -- >               (RApp Peano [] [] trueReft))            -- rt_ty: actual result type
+    -- >           trueReft)
+    -- >      trueReft
+    --
+    -- === Example (OTerm)
+    --
+    -- Given
+    --
+    -- > {-@ fib :: n:Nat -> Nat / [n] @-}
+    -- > fib :: Int -> Int
+    -- > fib 0 = 0
+    -- > fib 1 = 1
+    -- > fib n = fib (n - 1) + fib (n - 2)
+    --
+    -- The type represenation available when checking the recursive calls is:
+    --
+    -- >  RFun "n"                                       -- binder for the argument
+    -- >       defRFInfo
+    -- >       (RApp Int [] []                           -- Nat = {v:Int | v >= 0}
+    -- >             (MkUReft (Reft ("v", PAtom Ge (EVar "v") (ECon (I 0)))) (Pr [])))
+    -- >       (RRTy                                    -- ← termination obligation wraps RESULT
+    -- >           []                                          -- rt_env: empty
+    -- >           (MkUReft                                    -- rt_ref: NON-TRIVIAL
+    -- >              (Reft ("vvRec",                          --   "vvRec" bound HERE in the Reft
+    -- >                     PIff (EVar "vvRec")               --   vvRec ⟺ (n' < n ∧ n' >= 0)
+    -- >                          (PAnd [ PAtom Lt (EVar "n'") (EVar "n")
+    -- >                                , PAtom Ge (EVar "n'") (ECon (I 0))
+    -- >                                ])))
+    -- >              (Pr []))
+    -- >           OTerm                                       -- rt_obl: termination
+    -- >           (RApp Int [] []                             -- rt_ty: actual result type (Nat)
+    -- >                 (MkUReft (Reft ("v", PAtom Ge (EVar "v") (ECon (I 0)))) (Pr []))))
+    -- >       trueReft
+    --
+    -- The binding @n'@ is instantiated at different places with the argument of
+    -- the recursive call, e.g. @n - 1@ and @n - 2@.
+    --
+    -- === Fields
     --
     -- * @rt_env@ is the typing environment and subtyping pair. For @OCons@,
     --   the last two entries are the LHS and RHS of the subtyping obligation;
-    --   preceding entries form the local typing environment.
+    --   preceding entries form the local typing environment. For @OTerm@ the
+    --   environment is empty, and for @OInv@ it contains a single binding.
+    --
     -- * @rt_ref@ is the refinement predicate (for @OInv@ and @OTerm@ this
-    --   carries the invariant or termination metric).
+    --   carries the invariant or termination metric). For @OCon@s, this is always
+    --   @trueReft@, akin to leaving the field unused. For @OInv@, the
+    --   refinement is an encoding of the invariant predicate, and for @OTerm@
+    --   it contains the termination constraint (the metric on the argument of
+    --   the recursive call must be non-negative and smaller than the metric on
+    --   the initial argument.
+    --
     -- * @rt_obl@ is the kind of obligation:
     --   - @OCons@: subtyping constraint, parsed from
     --     @{env |- t1 \<: t2} => TYPE@
@@ -970,6 +1056,10 @@ data RTypeBV b v c tv r
     --
     -- In all cases, the obligation is discharged as a side-effect during
     -- constraint generation, and @rt_ty@ is the type used for further checking.
+    --
+    -- Unlike in other data constructors of @RTypeBV@, the bind of @rt_ref@
+    -- does not scope over other fields. As can be seen in the example of @OInv@,
+    -- @rt_env@ binds scope over @rt_ref@.
     --
   | RRTy  {
       rt_env   :: ![(b, RTypeBV b v c tv r)]
