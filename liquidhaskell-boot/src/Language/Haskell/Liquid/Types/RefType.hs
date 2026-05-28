@@ -1491,7 +1491,8 @@ appSolRefa si s = mapKVars f0
       where
         txK (PKVar k _tsu su)
           | Just p' <- f k =
-              rapierSubstExpr (substSymbolsSet $ substFromKSubst su) (renameDomain k su) p'
+              let su' = renameDomain k su
+               in rapierSubstExpr (substSymbolsSet su' `S.union` syms p') su' p'
         txK p = p
 
         -- The parameters of kvars all seem to have prefix $ and suffix ##k_
