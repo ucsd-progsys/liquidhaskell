@@ -1103,7 +1103,7 @@ data RTVar b v c tv = RTVar
 data RTVInfo b v c tv
   = RTVNoInfo { rtv_is_pol :: Bool }
   | RTVInfo { rtv_name   :: b
-            , rtv_kind   :: (RTypeBV b v c tv (NoReftBV b v))
+            , rtv_kind   :: RTypeBV b v c tv (NoReftBV b v)
             , rtv_is_val :: Bool
             , rtv_is_pol :: Bool -- true iff the type variable gets instantiated with
                                  -- any refinement (ie is polymorphic on refinements),
