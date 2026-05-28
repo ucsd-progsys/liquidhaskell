@@ -417,7 +417,9 @@ instance ( F.Subable r
                     (\(ns', su') (tb, b, e) ->
                       let (ns'', b') = F.freshInNS b ns'
                           su'' = F.extendSubstWithVar su' b b'
-                          e' = F.substr ns' su' e
+                          -- b must be in scope for substituting into e (which is typically EVar b)
+                          nsE = S.insert b ns'
+                          e' = F.substr nsE su' e
                        in ((ns'', su''), (F.substr ns' su' tb, b', e'))
                     )
                     (s0, su0)
