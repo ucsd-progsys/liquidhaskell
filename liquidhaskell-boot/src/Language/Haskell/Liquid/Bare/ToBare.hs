@@ -74,7 +74,8 @@ txRType cF vF = go
     goPV = txPV cF vF
 
 txRTV :: (c1 -> c2) -> (tv1 -> tv2) -> RTVU c1 tv1 -> RTVU c2 tv2
-txRTV cF vF (RTVar α z) = RTVar (vF α) (txRType cF vF <$> z)
+txRTV _cF vF (RTVar α (RTVNoInfo p))          = RTVar (vF α) (RTVNoInfo p)
+txRTV cF vF (RTVar α ri@RTVInfo{rtv_kind=k}) = RTVar (vF α) ri{rtv_kind = txRType cF vF k}
 
 txPV :: (c1 -> c2) -> (tv1 -> tv2) -> PVU c1 tv1 -> PVU c2 tv2
 txPV cF vF (PV sym k txes) = PV sym k' txes'

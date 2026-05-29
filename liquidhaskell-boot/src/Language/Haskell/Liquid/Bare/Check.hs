@@ -581,7 +581,7 @@ checkRType bsc emb senv lt =
     insertPEnv p γ     = insertsSEnv γ (fmap (rTypeSortedReft emb) <$> pbinds p)
     pbinds p           = (pname p, pvarRType p :: RSort) : [(x, tx) | (tx, x, _) <- pargs p]
 
-tyToBind :: F.TCEmb TyCon -> RTVar RTyVar RSort  -> [(F.Symbol, F.SortedReft)]
+tyToBind :: F.TCEmb TyCon -> SpecRTVar -> [(F.Symbol, F.SortedReft)]
 tyToBind emb = go . ty_var_info
   where
     go RTVInfo{..} = [(rtv_name, rTypeSortedReft emb rtv_kind)]

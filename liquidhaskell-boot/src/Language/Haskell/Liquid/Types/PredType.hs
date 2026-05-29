@@ -198,7 +198,7 @@ dcWrapSpecType allowTC dc (DataConP _ _ vs ps cs yts rt _ _ _)
     ts'      = map ("" , classRFInfo allowTC , , mempty) cs ++ yts'
     subst    = F.mkSubst [(x, F.EVar y) | (x, y) <- zip as1 bs]
     rt'      = F.subst subst rt
-    makeVars = filter (`elem` fvs) $ zipWith (\v a -> RTVar v (rTVarInfo a :: RTVInfo RSort)) vs (fst $ splitForAllTyCoVars $ dataConRepType dc)
+    makeVars = filter (`elem` fvs) $ zipWith (\v a -> RTVar v (rTVarInfo a)) vs (fst $ splitForAllTyCoVars $ dataConRepType dc)
     makeVars' = map (, mempty) makeVars
     fvs = freeTyVars $ mkArrow [] ps ts' rt'
 
@@ -366,7 +366,7 @@ substRCon
       SubsTy tv (RType RTyCon tv NoReft) (RType RTyCon tv NoReft),
       SubsTy tv (RType RTyCon tv NoReft) RTyCon,
       SubsTy tv (RType RTyCon tv NoReft) tv,
-      SubsTy tv (RType RTyCon tv NoReft) (RTVar tv (RType RTyCon tv NoReft)),
+      SubsTy tv (RType RTyCon tv NoReft) (RTVar F.Symbol F.Symbol RTyCon tv),
       FreeVar RTyCon tv,
       Meet r,
       Meet (RType RTyCon tv r))
@@ -455,12 +455,21 @@ meetListWithPSubs :: (Foldable t, PPrint t1, F.Subable b, F.Variable b ~ F.Symbo
                   => t (PVar t1) -> [(F.Symbol, RSort)] -> b -> b -> b
 meetListWithPSubs πs ss r1 r2    = L.foldl' (meetListWithPSub ss r1) r2 πs
 
-meetListWithPSubsRef :: (Foldable t, Meet (RType c tv r), TyConable c, IsReft r, F.Subable r, F.Variable r ~ F.Symbol, ReftBind r ~ F.Symbol)
-                     => t (PVar t4)
-                     -> [(F.Symbol, b)]
-                     -> Ref τ (RType c tv r)
-                     -> Ref τ (RType c tv r)
-                     -> Ref τ (RType c tv r)
+meetListWithPSubsRef
+  :: ( Foldable t
+     , Meet (RType c tv r)
+     , TyConable c
+     , IsReft r
+     , F.Subable r
+     , F.Variable r ~ F.Symbol
+     , ReftBind r ~ F.Symbol
+     , ReftVar r ~ F.Symbol
+     )
+  => t (PVar t4)
+  -> [(F.Symbol, b)]
+  -> Ref τ (RType c tv r)
+  -> Ref τ (RType c tv r)
+  -> Ref τ (RType c tv r)
 meetListWithPSubsRef πs ss r1 r2 = L.foldl' (meetListWithPSubRef ss r1) r2 πs
 
 meetListWithPSub ::  (PPrint t, F.Subable r, F.Variable r ~ F.Symbol, Meet r) => [(F.Symbol, RSort)]-> r -> r -> PVar t -> r
@@ -474,12 +483,20 @@ meetListWithPSub ss r1 r2 π
   where
     su  = F.mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> ss) (pargs π)]
 
-meetListWithPSubRef :: (Meet (RType c tv r), TyConable c, IsReft r, F.Subable r, F.Variable r ~ F.Symbol, ReftBind r ~ F.Symbol)
-                    => [(F.Symbol, b)]
-                    -> Ref τ (RType c tv r)
-                    -> Ref τ (RType c tv r)
-                    -> PVar t3
-                    -> Ref τ (RType c tv r)
+meetListWithPSubRef
+  :: ( Meet (RType c tv r)
+     , TyConable c
+     , IsReft r
+     , F.Subable r
+     , F.Variable r ~ F.Symbol
+     , ReftBind r ~ F.Symbol
+     , ReftVar r ~ F.Symbol
+     )
+ => [(F.Symbol, b)]
+ -> Ref τ (RType c tv r)
+ -> Ref τ (RType c tv r)
+ -> PVar t3
+ -> Ref τ (RType c tv r)
 meetListWithPSubRef _ (RProp _ (RHole _)) _ _ -- TODO: Is this correct?
   = panic Nothing "PredType.meetListWithPSubRef called with invalid input"
 meetListWithPSubRef _ _ (RProp _ (RHole _)) _

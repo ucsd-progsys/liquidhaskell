@@ -50,8 +50,8 @@ module Language.Haskell.Liquid.Types.RType (
 
   -- * Type Variables
   , RTVar (..), RTVInfo (..)
-  , makeRTVar, mapTyVarValue
-  , dropTyVarInfo, rTVarToBind
+  , makeRTVar
+  , rTVarToBind
   , setRtvPol
 
   -- * Predicate Variables
@@ -453,20 +453,16 @@ pdAnd ps       = Pr (nub $ concatMap pvars ps)
 pvars :: PredicateBV b v -> [UsedPVarBV b v]
 pvars (Pr pvs) = pvs
 
-instance Hashable v => F.Subable (UsedPVarBV v v) where
+instance (Hashable v, F.Refreshable v) => F.Subable (UsedPVarBV v v) where
   type Variable (UsedPVarBV v v) = v
-  syms pv         = S.fromList [ y | (_, x, F.EVar y) <- pargs pv, x /= y ]
-  subst s pv      = pv { pargs = mapThd3 (F.subst s)  <$> pargs pv }
-  substf f pv     = pv { pargs = mapThd3 (F.substf f) <$> pargs pv }
-  substa f pv     = pv { pargs = mapThd3 (F.substa f) <$> pargs pv }
+  syms pv = F.syms [ e | (_, _x, e) <- pargs pv ]
+  substr ns s pv = pv { pargs = mapThd3 (F.substr ns s) <$> pargs pv }
 
 
-instance Hashable v => F.Subable (PredicateBV v v) where
+instance (Hashable v, F.Refreshable v) => F.Subable (PredicateBV v v) where
   type Variable (PredicateBV v v) = v
   syms (Pr pvs) = F.syms pvs
-  subst  s (Pr pvs) = Pr (F.subst s  <$> pvs)
-  substf f (Pr pvs) = Pr (F.substf f <$> pvs)
-  substa f (Pr pvs) = Pr (F.substa f <$> pvs)
+  substr ns s (Pr pvs) = Pr (F.substr ns s <$> pvs)
 
 instance NFData UReft
 
@@ -705,7 +701,7 @@ instance F.PPrint BTyCon where
       LHRIndex i -> text $ "(Unknown LHRIndex " ++ show i ++ ")"
       LHRLogic _ -> text $ F.symbolString $ lhNameToResolvedSymbol $ F.val $ btc_tc b
 
-instance F.PPrint v => F.PPrint (RTVar v s) where
+instance F.PPrint v => F.PPrint (RTVar b v c v) where
   pprintTidy k (RTVar x _) = F.pprintTidy k x
 
 instance F.Loc BTyCon where
@@ -745,7 +741,7 @@ instance NFData TyConInfo
 
 type RTVU c tv = RTVUV Symbol c tv
 type RTVUV v c tv = RTVUBV Symbol v c tv
-type RTVUBV b v c tv = RTVar tv (RTypeBV b v c tv (NoReftBV b v))
+type RTVUBV b v c tv = RTVar b v c tv
 type PVU c tv = PVUV Symbol c tv
 type PVUV v c tv = PVarV v (RTypeV v c tv NoReft)
 type PVUBV b v c tv = PVarBV b v (RTypeBV b v c tv (NoReftBV b v))
@@ -1083,56 +1079,50 @@ data RTypeBV b v c tv r
   deriving (Eq, Generic, Data, Functor, Foldable, Show, Traversable)
   deriving (B.Binary, Hashable) via Generically (RTypeBV b v c tv r)
 
-instance (NFData c, NFData tv, NFData r)       => NFData (RType c tv r)
+instance (NFData b, NFData v, NFData c, NFData tv, NFData r) => NFData (RTypeBV b v c tv r)
 
-makeRTVar :: tv -> RTVar tv s
+makeRTVar :: tv -> RTVar b v c tv
 makeRTVar a = RTVar a (RTVNoInfo True)
 
 notExprArg :: RTypeV v c tv r -> Bool
 notExprArg (RExprArg _) = False
 notExprArg _            = True
 
-instance (Eq tv) => Eq (RTVar tv s) where
+instance (Eq tv) => Eq (RTVar b v c tv) where
   t1 == t2 = ty_var_value t1 == ty_var_value t2
 
 -- | @RTVar@ is the type of type variables in the refinement type system. It
 -- contains a type variable, optionally a kind, and information about how to
 -- instantiate it (polymorphic vs. monomorphic refinements).
-data RTVar tv s = RTVar
+data RTVar b v c tv = RTVar
   { ty_var_value :: tv
-  , ty_var_info  :: RTVInfo s
-  } deriving (Generic, Data, Functor, Foldable, Show, Traversable)
-    deriving (B.Binary, Hashable) via Generically (RTVar tv s)
+  , ty_var_info  :: RTVInfo b v c tv
+  } deriving (Generic, Data, Show)
+    deriving (B.Binary, Hashable) via Generically (RTVar b v c tv)
 
-mapTyVarValue :: (tv1 -> tv2) -> RTVar tv1 s -> RTVar tv2 s
-mapTyVarValue f v = v {ty_var_value = f $ ty_var_value v}
-
-dropTyVarInfo :: RTVar tv s1 -> RTVar tv s2
-dropTyVarInfo v = v{ty_var_info = RTVNoInfo True }
-
-data RTVInfo s
+data RTVInfo b v c tv
   = RTVNoInfo { rtv_is_pol :: Bool }
-  | RTVInfo { rtv_name   :: Symbol
-            , rtv_kind   :: s
+  | RTVInfo { rtv_name   :: b
+            , rtv_kind   :: RTypeBV b v c tv (NoReftBV b v)
             , rtv_is_val :: Bool
             , rtv_is_pol :: Bool -- true iff the type variable gets instantiated with
                                  -- any refinement (ie is polymorphic on refinements),
                                  -- false iff instantiation is with true refinement
-            } deriving (Generic, Data, Functor, Eq, Foldable, Show, Traversable)
-              deriving (B.Binary, Hashable) via Generically (RTVInfo s)
+            } deriving (Generic, Data, Eq, Show)
+              deriving (B.Binary, Hashable) via Generically (RTVInfo b v c tv)
 
 
-setRtvPol :: RTVar tv a -> Bool -> RTVar tv a
+setRtvPol :: RTVar b v c tv -> Bool -> RTVar b v c tv
 setRtvPol (RTVar a i) b = RTVar a (i{rtv_is_pol = b})
 
-rTVarToBind :: RTVar RTyVar s  -> Maybe (Symbol, s)
+rTVarToBind :: RTVar b v c tv -> Maybe (b, RTypeBV b v c tv (NoReftBV b v))
 rTVarToBind = go . ty_var_info
   where
     go RTVInfo{..} | rtv_is_val = Just (rtv_name, rtv_kind)
     go _                        = Nothing
 
-instance (NFData tv, NFData s)     => NFData   (RTVar tv s)
-instance (NFData s)                => NFData   (RTVInfo s)
+instance (NFData b, NFData v, NFData c, NFData tv) => NFData   (RTVar b v c tv)
+instance (NFData b, NFData v, NFData c, NFData tv) => NFData   (RTVInfo b v c tv)
 
 type Ref τ t = RefB Symbol τ t
 
@@ -1151,7 +1141,7 @@ data RefB b τ t = RProp
   } deriving (Eq, Generic, Data, Functor, Foldable, Show, Traversable)
     deriving (B.Binary, Hashable) via Generically (RefB b τ t)
 
-instance (NFData τ,   NFData t)   => NFData   (Ref τ t)
+instance (NFData b, NFData τ, NFData t) => NFData (RefB b τ t)
 
 rPropP :: [(b, τ)] -> r -> RefB b τ (RTypeV v c tv r)
 rPropP τ r = RProp τ (RHole r)
@@ -1238,10 +1228,7 @@ instance F.PPrint (NoReftBV b v) where
 instance Hashable b => F.Subable (NoReftBV b v) where
   type Variable (NoReftBV b v) = b
   syms _   = S.empty
-  substa _ = id
-  substf _ = id
-  subst _  = id
-  subst1 r = const r
+  substr _ _  = id
 
 instance Semigroup (NoReftBV b v) where
   _ <> _ = NoReft
@@ -1269,7 +1256,7 @@ type SpecProp    = RRProp    RReft
 type RRProp r    = Ref       RSort (RRType r)
 type BRProp r    = BRPropV Symbol r
 type BRPropV v r = Ref       (BSortV v) (BRTypeV v r)
-type SpecRTVar   = RTVar     RTyVar RSort
+type SpecRTVar   = RTVar Symbol Symbol RTyCon RTyVar
 
 
 
@@ -1415,7 +1402,7 @@ instance F.Binder b => IsReft (UReftBV b v) where
   ofConcreteReft (ConcreteUReft r) = r
   toConcreteReft = ConcreteUReft
 
-instance (F.Binder v, F.Fixpoint v) => Meet (F.ReftBV v v) where
+instance (F.Binder v, F.Fixpoint v, F.Refreshable v) => Meet (F.ReftBV v v) where
 
 instance F.Binder b => IsReft (F.ReftBV b v) where
   type ReftVar (F.ReftBV b v) = v
@@ -1435,7 +1422,7 @@ instance Top t => Top (RefB b τ t) where
 instance Top (PredicateBV b v) where
   top _ = pdTrue
 
-instance (F.Binder v, F.Fixpoint v) => Semigroup (F.ReftBV v v) where
+instance (F.Binder v, F.Fixpoint v, F.Refreshable v) => Semigroup (F.ReftBV v v) where
   (<>) = F.meetReft
 
 instance Monoid F.Reft where
@@ -1449,9 +1436,7 @@ instance (Semigroup (F.ReftBV b v), Eq b, Eq v) => Meet (UReftBV b v)
 instance (F.Refreshable v, Hashable v) => F.Subable (UReftBV v v) where
   type Variable (UReftBV v v) = v
   syms (MkUReft r p)     = F.syms r `S.union` F.syms p
-  subst s (MkUReft r z)  = MkUReft (F.subst s r)  (F.subst s z)
-  substf f (MkUReft r z) = MkUReft (F.substf f r) (F.substf f z)
-  substa f (MkUReft r z) = MkUReft (F.substa f r) (F.substa f z)
+  substr ns s (MkUReft r z) = MkUReft (F.substr ns s r) (F.substr ns s z)
 
 instance Meet Predicate
 

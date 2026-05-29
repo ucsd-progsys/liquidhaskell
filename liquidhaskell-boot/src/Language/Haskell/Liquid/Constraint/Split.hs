@@ -140,7 +140,7 @@ splitfWithVariance f t1 t2 Bivariant     = (++) <$> f t1 t2 <*> f t2 t1
 splitfWithVariance f t1 t2 Covariant     = f t1 t2
 splitfWithVariance f t1 t2 Contravariant = f t2 t1
 
-updateEnv :: CGEnv -> RTVar RTyVar (RType RTyCon RTyVar b0) -> CG CGEnv
+updateEnv :: CGEnv -> RTVar F.Symbol F.Symbol RTyCon RTyVar -> CG CGEnv
 updateEnv γ a
   | Just (x, s) <- rTVarToBind a
   = γ += ("splitS RAllT", x, fmap (const mempty) s)

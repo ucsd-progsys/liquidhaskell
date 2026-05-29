@@ -41,6 +41,7 @@ import           Language.Haskell.Liquid.Transforms.Rewrite (rewriteBinds)
 
 import           Control.Monad
 import qualified Control.Monad.Catch as Ex
+import           Control.Exception (SomeException, displayException)
 import           Control.Monad.IO.Class (MonadIO)
 
 import           Data.Coerce
@@ -405,6 +406,9 @@ liquidHaskellCheckWithConfig cfg pipelineData modSummary = do
     `Ex.catch` (\(e :: UserError) -> reportErrs [e])
     `Ex.catch` (\(e :: Error) -> reportErrs [e])
     `Ex.catch` (\(es :: [Error]) -> reportErrs es)
+    `Ex.catch` (\(e :: SomeException) -> do
+                   liftIO $ putStrLn $ displayException e
+                   Ex.throwM e)
 
   where
     thisFile = LH.modSummaryHsFile modSummary
@@ -587,6 +591,9 @@ processModule LiquidHaskellContext{..} = do
       `Ex.catch` (\(e :: UserError) -> reportErrs [e])
       `Ex.catch` (\(e :: Error) -> reportErrs [e])
       `Ex.catch` (\(es :: [Error]) -> reportErrs es)
+      `Ex.catch` (\(e :: SomeException) -> do
+                     liftIO $ putStrLn $ displayException e
+                     Ex.throwM e)
 
 makeTargetSrc :: Config
               -> FilePath

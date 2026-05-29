@@ -38,6 +38,7 @@ module Language.Haskell.Liquid.Types.RTypeOp (
   , mapRTypeVM
   , mapDataDeclV
   , mapDataDeclVM
+  , mapRBase
   , emapDataDeclM
   , emapDataCtorTyM
   , emapBareTypeVM
@@ -74,6 +75,7 @@ import           Data.Bifunctor (bimap)
 import           Data.Coerce (coerce)
 import           Data.Hashable (Hashable)
 import qualified Data.HashSet as S
+import qualified Data.List as List
 
 import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Types (ExprBV, Symbol)
@@ -104,7 +106,7 @@ type SpecRep     = RRep      RReft
 type RTypeRep = RTypeRepV Symbol
 type RTypeRepV = RTypeRepBV Symbol
 data RTypeRepBV b v c tv r = RTypeRep
-  { ty_vars   :: [(RTVar tv (RTypeBV b v c tv (NoReftBV b v)), r)]
+  { ty_vars   :: [(RTVar b v c tv, r)]
   , ty_preds  :: [PVarBV b v (RTypeBV b v c tv (NoReftBV b v))]
   , ty_binds  :: [b]
   , ty_info   :: [RFInfo]
@@ -132,7 +134,7 @@ toRTypeRep t         = RTypeRep αs πs xs is rs ts t''
     (αs, πs, t') = bkUniv t
     ((xs, is, ts, rs), t'') = bkArrow t'
 
-mkArrow :: [(RTVar tv (RTypeBV b v c tv (NoReftBV b v)), r)]
+mkArrow :: [(RTVar b v c tv, r)]
         -> [PVarBV b v (RTypeBV b v c tv (NoReftBV b v))]
         -> [(b, RFInfo, RTypeBV b v c tv r, r)]
         -> RTypeBV b v c tv r
@@ -168,7 +170,7 @@ safeBkArrow (RAllP _ _)     = Prelude.error {- panic Nothing -} "safeBkArrow on 
 safeBkArrow t               = bkArrow t
 
 mkUnivs :: (Foldable t, Foldable t1)
-        => t  (RTVar tv (RTypeBV b v c tv (NoReftBV b v)), r)
+        => t  (RTVar b v c tv, r)
         -> t1 (PVarBV b v (RTypeBV b v c tv (NoReftBV b v)))
         -> RTypeBV b v c tv r
         -> RTypeBV b v c tv r
@@ -181,7 +183,7 @@ bkUnivClass t        = (as, ps, cs, t2)
     (cs, t2)     = bkClass t1
 
 
-bkUniv :: RTypeBV b v tv c r -> ([(RTVar c (RTypeBV b v tv c (NoReftBV b v)), r)], [PVarBV b v (RTypeBV b v tv c (NoReftBV b v))], RTypeBV b v tv c r)
+bkUniv :: RTypeBV b v c tv r -> ([(RTVar b v c tv, r)], [PVarBV b v (RTypeBV b v c tv (NoReftBV b v))], RTypeBV b v c tv r)
 bkUniv (RAllT α t r) = let (αs, πs, t') = bkUniv t in ((α, r):αs, πs, t')
 bkUniv (RAllP π t)   = let (αs, πs, t') = bkUniv t in (αs, π:πs, t')
 bkUniv t             = ([], [], t)
@@ -252,35 +254,210 @@ instance ( IsReft r
          , F.Subable t
          , TyConable c
          , F.Binder v
+         , F.Refreshable v
          , F.Variable r ~ v
          , F.Variable t ~ v
          , ReftBind r ~ v
+         , ReftVar r ~ v
          ) =>
          F.Subable (RefB v (RTypeBV v v c tv r) t) where
   type Variable (RefB v (RTypeBV v v c tv r) t) = v
-  syms (RProp  ss r)     = S.fromList (fst <$> ss) `S.union` F.syms r
+  syms (RProp ss r) =
+    let (bs, tss) =
+          List.mapAccumL
+            (\bs0 (b, tb) -> (S.insert b bs0, F.syms tb `S.difference` bs0))
+            S.empty
+            ss
+     in
+        S.unions $ (F.syms r `S.difference` bs) : tss
 
-  subst su (RProp  ss t) = RProp ss (F.subst su t)
+  substr ns0 su0 (RProp ss0 t0) =
+      let ((bs', ns', su'), ts) = substInArgs ss0 ns0 su0
+          ss' = zip bs' ts
+      in RProp ss' (F.substr ns' su' t0)
+    where
+      substInArgs ss1 ns1 su1 =
+        List.mapAccumR
+          (\(bs, ns, su) (x, t) ->
+             let (ns', x') = F.freshInNS x ns
+                 su' = F.extendSubstWithVar su x x'
+              in
+                 ( (x' : bs, ns', su')
+                 , F.substr ns su t
+                 )
+          )
+          ([], ns1, su1)
+          ss1
 
-  substf f (RProp  ss t) = RProp ss (F.substf f t)
 
-  substa f (RProp  ss t) = RProp ss (F.substa f t)
-
-
-instance (F.Subable r, IsReft r, TyConable c, F.Binder v, F.Variable r ~ v, ReftBind r ~ v) => F.Subable (RTypeBV v v c tv r) where
+instance ( F.Subable r
+         , IsReft r
+         , TyConable c
+         , F.Binder v
+         , F.Refreshable v
+         , F.Variable r ~ v
+         , ReftBind r ~ v
+         , ReftVar r ~ v
+         ) => F.Subable (RTypeBV v v c tv r) where
   type Variable (RTypeBV v v c tv r) = v
-  syms        = foldReft False (\_ r acc -> F.syms r `S.union` acc) S.empty
-  -- 'substa' will substitute bound vars
-  substa f    = emapExprArg (\_ -> F.substa f) []      . mapReft  (F.substa f)
-  -- 'substf' will NOT substitute bound vars
-  substf f    = emapExprArg (\_ -> F.substf f) []      . emapReft (F.substf . F.substfExcept f) []
-  subst su    = emapExprArg (\_ -> F.subst su) []      . emapReft (F.subst  . F.substExcept su) []
-  subst1 t su = emapExprArg (\_ e -> F.subst1 e su) [] $ emapReft (\xs r -> F.subst1Except xs r su) [] t
+  syms = go
+    where
+      deletev r0 = case toConcreteReft r0 of
+        ConcreteNoReft -> id
+        ConcreteReft r -> S.delete (F.reftBind r)
+        ConcreteUReft (MkUReft r _) -> S.delete (F.reftBind r)
 
+      go :: RTypeBV v v c tv r -> S.HashSet v
+      go (RVar _ r) = F.syms r
+      go (RFun x _ t1 t2 r)  =
+        -- x scopes over t1, t2, and r
+        deletev r (S.delete x $ F.syms t1 `S.union` F.syms t2)
+        `S.union` F.syms r
+      go (RAllT α t r)       =
+        let kindSyms = maybe S.empty (F.syms . snd) (rTVarToBind α)
+            deleteα = maybe id (S.delete . fst) (rTVarToBind α)
+         in
+            deletev r (kindSyms `S.union` deleteα (F.syms t))
+            `S.union` F.syms r
+      go (RAllP pb t) =
+          S.delete (pname pb) (F.syms t) `S.union` symsPVar pb
+        where
+          symsPVar p =
+            let (bs, tss) =
+                  List.mapAccumL
+                    (\bs0 (tb, b, _) -> (S.insert b bs0, F.syms tb `S.difference` bs0))
+                    S.empty
+                    (pargs p)
+             in
+                S.unions $ (F.syms (ptype p) `S.difference` bs) : tss
 
---------------------------------------------------------------------------------
--- | Visitors ------------------------------------------------------------------
---------------------------------------------------------------------------------
+      go (RApp _ ts ps r) =
+        deletev r (F.syms ts `S.union` F.syms ps)
+        `S.union` F.syms r
+      go (REx x t1 t2) =
+        -- x scopes over t2 only
+        F.syms t1 `S.union` S.delete x (F.syms t2)
+      go (RExprArg e) = F.syms e
+      go (RAppTy t1 t2 r) =
+        deletev r (F.syms t1 `S.union` F.syms t2)
+        `S.union` F.syms r
+      go (RRTy env r _ t) =
+          -- env scopes over the refinement type
+          let (bs, envSyms) = symsEnv env
+              rsyms = F.syms r `S.difference` bs
+           in
+              envSyms `S.union` rsyms `S.union` F.syms t
+        where
+          symsEnv = foldl'
+              (\(s, env') (x, xt) ->
+                let s' = S.insert x s
+                 in (s', (F.syms xt `S.difference` s) `S.union` env')
+              )
+              (S.empty, S.empty)
+
+      go (RHole r) = F.syms r
+
+  substr = go
+    where
+      -- Given a reft 'r' and the nameset 's' that will be passed to
+      -- 'F.substr' for 'r', compute the fresh reft-binder 'v0'' and return
+      -- the updated nameset and substitution for sub-fields that have 'v0'
+      -- in scope (i.e. all fields of the same constructor other than 'r').
+      substReft :: r -> S.HashSet v -> F.SubstV v -> (S.HashSet v, F.SubstV v, r)
+      substReft r s su =
+        case toConcreteReft r of
+          ConcreteNoReft -> (s, su, r)
+          ConcreteReft (F.Reft (v0, e)) ->
+            let (s', v0') = F.freshInNS v0 s
+                su' = F.extendSubstWithVar su v0 v0'
+             in (s', su', F.Reft (v0', F.substr s' su' e))
+          ConcreteUReft (MkUReft (F.Reft (v0, e)) ps) ->
+            let (s', v0') = F.freshInNS v0 s
+                su' = F.extendSubstWithVar su v0 v0'
+                e' = F.substr s' su' e
+                ps' = F.substr s su ps
+                ur' = MkUReft (F.Reft (v0', e')) ps'
+             in (s', su', ur')
+
+      go :: S.HashSet v -> F.SubstV v -> RTypeBV v v c tv r -> RTypeBV v v c tv r
+      go s su (RFun x i t1 t2 r) =
+        -- x scopes over t1 and t2; v0 (reft binder of r) scopes over t1 and t2.
+        let (s_x, x')     = F.freshInNS x s
+            su_x          = F.extendSubstWithVar su x x'
+            (s_xv, su_xv, r') = substReft r s_x su_x    -- nameset/subst for t1, t2
+         in RFun x' i (go s_xv su_xv t1) (go s_xv su_xv t2) r'
+      go s su (REx x t1 t2) =
+        -- x scopes over t2 only; no reft field.
+        let (s', x') = F.freshInNS x s
+            su' = F.extendSubstWithVar su x x'
+         in REx x' (go s su t1) (go s' su' t2)
+      go s su (RAllT α t r) =
+        -- v0 (reft binder of r) scopes over the kind inside α and over t.
+        let (s', su', r') = substReft r s su
+            (s'', su'', α') = αScope s' su' α
+         in RAllT α' (go s'' su'' t) r'
+        where
+          αScope s0 su0 rtv@(RTVar _tv (RTVNoInfo _)) = (s0, su0, rtv)
+          αScope s0 su0 (RTVar tv (RTVInfo b k v pol)) =
+            let (s1, b') = F.freshInNS b s0
+                su1 = F.extendSubstWithVar su0 b b'
+                k' = F.substr s0 su0 k
+             in (s1, su1, RTVar tv (RTVInfo b' k' v pol))
+
+      go s su (RAllP π t) =
+        let (ns_p, pname') = F.freshInNS (pname π) s
+            su_p = F.extendSubstWithVar su (pname π) pname'
+            π' = (substPVar s su π) { pname = pname' }
+         in
+            RAllP π' (go ns_p su_p t)
+        where
+          substPVar s0 su0 π0 =
+            let ((ns_pargs, su_pargs), pargs') =
+                  List.mapAccumR
+                    (\(ns', su') (tb, b, e) ->
+                      let (ns'', b') = F.freshInNS b ns'
+                          su'' = F.extendSubstWithVar su' b b'
+                          -- b must be in scope for substituting into e (which is typically EVar b)
+                          nsE = S.insert b ns'
+                          e' = F.substr nsE su' e
+                       in ((ns'', su''), (F.substr ns' su' tb, b', e'))
+                    )
+                    (s0, su0)
+                    (pargs π)
+             in
+                PV { pname = pname π0
+                   , ptype = F.substr ns_pargs su_pargs (ptype π0)
+                   , pargs = pargs'
+                   }
+
+      go s su (RVar α r)       = RVar α (F.substr s su r)
+      go s su (RApp c ts ps r) =
+        -- v0 (reft binder of r) scopes over ts and ps.
+        let (s', su', r') = substReft r s su
+         in RApp c (go s' su' <$> ts) (F.substr s' su' ps) r'
+      go s su (RAppTy t1 t2 r) =
+        -- v0 (reft binder of r) scopes over t1 and t2.
+        let (s', su', r') = substReft r s su
+        in RAppTy (go s' su' t1) (go s' su' t2) r'
+      go s su (RExprArg e) = RExprArg (F.substr s su <$> e)
+      go s su (RRTy env r o t) =
+          let ((s', su'), env') = substEnv s su env
+           in
+              RRTy env' (F.substr s' su' r) o (go s su t)
+        where
+          substEnv s0 su0 env0 =
+            List.mapAccumL
+              (\(s', su') (x, xt) ->
+                 let (s'', x') = F.freshInNS x s'
+                     su'' = F.extendSubstWithVar su' x x'
+                     xt' = F.substr s' su' xt
+                  in ((s'', su''), (x', xt'))
+              )
+              (s0, su0)
+              env0
+
+      go s su (RHole r)        = RHole (F.substr s su r)
+
 mapExprReft :: (b -> ExprBV b v -> ExprBV b v) -> RTypeBV b v c tv (RReftBV b v) -> RTypeBV b v c tv (RReftBV b v)
 mapExprReft f = mapReft g
   where
@@ -312,9 +489,13 @@ emapRef :: ([b] -> t -> s) ->  [b] -> RTPropBV b v c tv t -> RTPropBV b v c tv s
 emapRef  f γ (RProp s (RHole r))  = RProp s $ RHole (f γ r)
 emapRef  f γ (RProp s t)         = RProp s $ emapReft f γ t
 
+mapRTVarV :: (v -> v') -> RTVar b v c tv -> RTVar b v' c tv
+mapRTVarV _ (RTVar tv (RTVNoInfo p))         = RTVar tv (RTVNoInfo p)
+mapRTVarV f (RTVar tv ri@RTVInfo{rtv_kind=k}) = RTVar tv ri{rtv_kind = coerce (mapRTypeV f k)}
+
 mapRTypeV ::  (v -> v') -> RTypeBV b v c tv r -> RTypeBV b v' c tv r
 mapRTypeV _ (RVar α r)        = RVar α r
-mapRTypeV f (RAllT α t r)     = RAllT (mapRTypeV f <$> coerce α) (mapRTypeV f t) r
+mapRTypeV f (RAllT α t r)     = RAllT (mapRTVarV f (coerce α)) (mapRTypeV f t) r
 mapRTypeV f (RAllP π t)       = RAllP (mapPVarV f (mapRTypeV f) $ coerce π) (mapRTypeV f t)
 mapRTypeV f (RFun x i t t' r) = RFun x i (mapRTypeV f t) (mapRTypeV f t') r
 mapRTypeV f (RApp c ts rs r)  = RApp c (mapRTypeV f <$> ts) (mapRefV <$> coerce rs) r
@@ -326,9 +507,15 @@ mapRTypeV f (RAppTy t t' r)   = RAppTy (mapRTypeV f t) (mapRTypeV f t') r
 mapRTypeV f (RRTy e r o t)    = RRTy (fmap (mapRTypeV f) <$> e) r o (mapRTypeV f t)
 mapRTypeV _ (RHole r)         = RHole r
 
+mapRTVarVM :: (Hashable b, Monad m) => (v -> m v') -> RTVar b v c tv -> m (RTVar b v' c tv)
+mapRTVarVM _ (RTVar tv (RTVNoInfo p))         = pure $ RTVar tv (RTVNoInfo p)
+mapRTVarVM f (RTVar tv ri@RTVInfo{rtv_kind=k}) = do
+  k' <- mapRTypeVM f k
+  pure $ RTVar tv ri{rtv_kind = coerce k'}
+
 mapRTypeVM :: (Hashable b, Monad m) => (v -> m v') -> RTypeBV b v c tv r -> m (RTypeBV b v' c tv r)
 mapRTypeVM _ (RVar α r)        = return $ RVar α r
-mapRTypeVM f (RAllT α t r)     = RAllT <$> traverse (mapRTypeVM f) (coerce α) <*> mapRTypeVM f t <*> pure r
+mapRTypeVM f (RAllT α t r)     = RAllT <$> mapRTVarVM f (coerce α) <*> mapRTypeVM f t <*> pure r
 mapRTypeVM f (RAllP π t)       = RAllP <$> emapPVarVM (const f) (const (mapRTypeVM f)) (coerce π) <*> mapRTypeVM f t
 mapRTypeVM f (RFun x i t t' r) = RFun x i <$> mapRTypeVM f t <*> mapRTypeVM f t' <*> pure r
 mapRTypeVM f (RApp c ts rs r)  = RApp c <$> mapM (mapRTypeVM f) ts <*> mapM mapRefVM (coerce rs) <*> pure r
@@ -345,7 +532,7 @@ emapFReftM f (F.Reft (v, e)) = F.reft v <$> emapExprVM (f . (v:)) e
 
 -- The first parameter corresponds to the bscope config setting
 emapReftM
-  :: (Monad m, IsReft r1, F.Binder b, CompatibleBinder b tv, ReftBind r1 ~ b)
+  :: forall m b v1 v2 c tv r1 r2. (Monad m, IsReft r1, F.Binder b, CompatibleBinder b tv, ReftBind r1 ~ b)
   => Bool
   -> ([b] -> v1 -> m v2)
   -> ([b] -> r1 -> m r2)
@@ -354,8 +541,15 @@ emapReftM
   -> m (RTypeBV b v2 c tv r2)
 emapReftM bscp vf f = go
   where
+    emapRTVarM :: (RTypeBV b v1 c tv (NoReftBV b v1) -> m (RTypeBV b v2 c tv (NoReftBV b v1))) -> RTVar b v1 c tv -> m (RTVar b v2 c tv)
+    emapRTVarM _ (RTVar tv (RTVNoInfo p))          = pure $ RTVar tv (RTVNoInfo p)
+    emapRTVarM rf (RTVar tv ri@RTVInfo{rtv_kind=k}) = do
+      t' <- rf k
+      pure $ RTVar tv ri{rtv_kind = coerce t'}
+
+    go :: [b] -> RTypeBV b v1 c tv r1 -> m (RTypeBV b v2 c tv r2)
     go γ (RVar α r)        = RVar  α <$> f γ r
-    go γ (RAllT α t r)     = RAllT <$> traverse (emapReftM bscp vf (const pure) γ) (coerce α) <*> go (coerceBinder (ty_var_value α) : γ) t <*> f γ r
+    go γ (RAllT α t r)     = RAllT <$> emapRTVarM (emapReftM bscp vf (const pure) γ) (coerce α) <*> go (coerceBinder (ty_var_value α) : γ) t <*> f γ r
     go γ (RAllP π t)       = RAllP <$> emapPVarVM vf (emapReftM bscp vf (const pure)) (coerce π) <*> go γ t
     go γ (RFun x i t t' r) = RFun  x i <$> go (x:γ) t <*> go (x:γ) t' <*> f (x:γ) r
     go γ (RApp c ts rs r)  =
@@ -432,23 +626,6 @@ emapDataCtorTyM f d = do
     dcResult <- traverse (f (map (lhNameToUnqualifiedSymbol . fst) (dcFields d))) $ dcResult d
     dcFields <- snd <$> mapAccumM (\γ  (s, t) -> (lhNameToUnqualifiedSymbol s:γ,) . (s,) <$> f γ t) [] (dcFields d)
     return d{dcTheta, dcFields, dcResult}
-
-emapExprArg :: ([b] -> ExprBV b v -> ExprBV b v) -> [b] -> RTypeBV b v c tv r -> RTypeBV b v c tv r
-emapExprArg f = go
-  where
-    go _ t@RVar{}          = t
-    go _ t@RHole{}         = t
-    go γ (RAllT α t r)     = RAllT α (go γ t) r
-    go γ (RAllP π t)       = RAllP π (go γ t)
-    go γ (RFun x i t t' r) = RFun  x i (go γ t) (go (x:γ) t') r
-    go γ (RApp c ts rs r)  = RApp  c (go γ <$> ts) (mo γ <$> rs) r
-    go γ (REx z t t')      = REx   z (go γ t) (go γ t')
-    go γ (RExprArg e)      = RExprArg (f γ <$> e) -- <---- actual substitution
-    go γ (RAppTy t t' r)   = RAppTy (go γ t) (go γ t') r
-    go γ (RRTy e r o t)    = RRTy  (fmap (go γ) <$> e) r o (go γ t)
-
-    mo _ t@(RProp _ RHole{}) = t
-    mo γ (RProp s t)         = RProp s (go γ t)
 
 parsedToBareType :: BareTypeParsed -> BareType
 parsedToBareType = mapRTypeV F.val . mapReft (mapUReftV F.val (fmap F.val))
@@ -557,17 +734,17 @@ foldReft' bsc g f
               (\_ γ -> γ)
               F.emptySEnv
 
-tyVarIsVal :: RTVar tv s -> Bool
+tyVarIsVal :: RTVar b v c tv -> Bool
 tyVarIsVal = rtvinfoIsVal . ty_var_info
 
-rtvinfoIsVal :: RTVInfo s -> Bool
+rtvinfoIsVal :: RTVInfo b v c tv -> Bool
 rtvinfoIsVal RTVNoInfo{} = False
 rtvinfoIsVal RTVInfo{..} = rtv_is_val
 
 efoldReft :: (IsReft r, TyConable c, F.Binder b, ReftBind r ~ b)
           => BScope
           -> (c  -> [RTypeBV b v c tv r] -> [(b, a)])
-          -> (RTVar tv (RTypeBV b v c tv (NoReftBV b v)) -> [(b, a)])
+          -> (RTVar b v c tv -> [(b, a)])
           -> (RTypeBV b v c tv r -> a)
           -> (F.SEnvB b a -> Maybe (RTypeBV b v c tv r) -> r -> z -> z)
           -> (PVarBV b v (RTypeBV b v c tv (NoReftBV b v)) -> F.SEnvB b a -> F.SEnvB b a)
@@ -657,7 +834,7 @@ mapBind f = go
     mapT (RTVar tv i)     = RTVar tv (mapI i)
     mapS                  = mapReft (\NoReft -> NoReft) . mapBind f
     mapI RTVNoInfo{..}    = RTVNoInfo{..}
-    mapI RTVInfo{..}      = RTVInfo { rtv_kind = mapS rtv_kind, .. }
+    mapI RTVInfo{..}      = RTVInfo {rtv_name = f rtv_name, rtv_kind = mapS rtv_kind, .. }
     mapP (PV n τ as)    = PV (f n) (mapS τ) (mapA <$> as)
     mapA (τ, b, e)        = (mapS τ, f b, F.mapBindExpr f e)
     mapR (RProp as t)     = RProp (bimap f mapS <$> as) (go t)
@@ -712,4 +889,5 @@ mapRBase f (RApp c ts rs r)   = RApp c ts rs $ f r
 mapRBase f (RVar a r)         = RVar a $ f r
 mapRBase f (RFun x i t1 t2 r) = RFun x i t1 t2 $ f r
 mapRBase f (RAppTy t1 t2 r)   = RAppTy t1 t2 $ f r
+mapRBase f (RAllT b t r)      = RAllT b t (f r)
 mapRBase _ t                  = t
