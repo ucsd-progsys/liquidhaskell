@@ -554,7 +554,11 @@ emapReftM bscp vf f = go
     go γ (RFun x i t t' r) = RFun  x i <$> go (x:γ) t <*> go (x:γ) t' <*> f (x:γ) r
     go γ (RApp c ts rs r)  =
       let γ' = if bscp then F.reftBind (toReft r) : γ  else γ
-       in RApp  c <$> mapM (go γ') ts <*> mapM (emapRefM bscp vf f γ) rs <*> f γ r
+          -- RProp binders (from dependent pairs) must be in scope when
+          -- processing type arguments, so that expression arguments
+          -- referencing those binders can be resolved (issue #2590).
+          γ'' = concatMap (map fst . rf_args) rs ++ γ'
+       in RApp  c <$> mapM (go γ'') ts <*> mapM (emapRefM bscp vf f γ) rs <*> f γ r
     go γ (REx z t t')      = REx   z <$> go γ t <*> go γ t'
     go γ (RExprArg e)      = RExprArg <$> traverse (emapExprVM (vf . (++γ))) e
     go γ (RAppTy t t' r)   = RAppTy <$> go γ t <*> go γ t' <*> f γ r

@@ -801,7 +801,7 @@ bTup ts rs r
   | otherwise
   = RApp
       (mkBTyCon $ dummyLoc $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) $ tyTupleSizedSymbol (length ts))
-      (mapReft (const trueURef) . snd <$> ts)
+      (mapReft (const trueURef) (snd (head ts)) : [ RHole trueURef | _ <- tail ts ])
       rs'
       (reftUReft r)
   where
