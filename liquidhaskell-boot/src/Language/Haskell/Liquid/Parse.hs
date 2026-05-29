@@ -777,10 +777,15 @@ bLst :: Maybe (RTypeV v BTyCon tv (UReftV v))
 bLst (Just t) rs r = RApp (mkBTyCon $ dummyLoc $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) listConName) [t] rs (reftUReft r)
 bLst Nothing  rs r = RApp (mkBTyCon $ dummyLoc $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) listConName) []  rs (reftUReft r)
 
-bTup :: [(Maybe Symbol, BareTypeParsed)]
-     -> [RTPropV LocSymbol BTyCon BTyVar (UReftV LocSymbol)]
-     -> ReftV LocSymbol
-     -> BareTypeParsed
+-- | Makes the representation of a tuple type.
+bTup
+  -- | Types of the tuple components, with an optional binding.
+  :: [(Maybe Symbol, BareTypeParsed)]
+  -- | Abstract predicates of the tuple if any, like @r@ in @(a :: ta, tb) <r>@
+  -> [RTPropV LocSymbol BTyCon BTyVar (UReftV LocSymbol)]
+  -- | Refinement type for the tuple, like @{v:_|q}@ in @{v:(a :: ta, tb) | q}@
+  -> ReftV LocSymbol
+  -> BareTypeParsed
 bTup [(_,t)] rs r
   | not (null rs)
   = case appendRProps t rs of
@@ -799,9 +804,13 @@ bTup ts rs r
       (mkBTyCon $ dummyLoc $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) $ tyTupleSizedSymbol (length ts))
       (snd <$> ts) rs (reftUReft r)
   | otherwise
+    -- there is more than one tuple component, and at least one of them has a
+    -- binding, so this is a dependent tuple.
+    --
+    -- @(a :: ta, tb)@ is desugared to @(ta, _) <{\a -> tb}>)@
   = RApp
       (mkBTyCon $ dummyLoc $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) $ tyTupleSizedSymbol (length ts))
-      (mapReft (const trueURef) . snd <$> ts)
+      (mapReft (const trueURef) (snd (head ts)) : [ RHole trueURef | _ <- tail ts ])
       rs'
       (reftUReft r)
   where
