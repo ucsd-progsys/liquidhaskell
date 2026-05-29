@@ -718,6 +718,8 @@ rtPropPV :: (Fixpoint a, IsReft r, Meet r)
          -> [Ref (RType c tv NoReft) (RType c tv r)]
 rtPropPV _rc = zipWith mkRTProp
 
+-- | Eliminates top-level RHoles. See @goRProps@ inside 'goPlugged' in
+-- Plugged.hs for the handling of nested RHoles.
 mkRTProp :: (IsReft r, Meet r)
          => PVar (RType c tv NoReft)
          -> Ref (RType c tv NoReft) (RType c tv r)
