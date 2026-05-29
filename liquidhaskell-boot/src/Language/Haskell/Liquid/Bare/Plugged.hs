@@ -283,8 +283,22 @@ goPlug tce tyi err f = go
     go (RApp _ ts _ _)  (RApp c ts' p r)
     -- Removing length check because Haskell types can contain kinds which is safe based on the comment above
     --   | length ts == length ts'
-      = RApp c     (Misc.zipWithDef go ts $ Bare.matchKindArgs ts ts') p r
+      = RApp c     (Misc.zipWithDef go ts $ Bare.matchKindArgs ts ts') (goRProps ts ts' p) r
+
     go hsT lqT                             = Ex.throw (err (F.pprint hsT) (F.pprint lqT))
+
+    -- For dependent pairs/tuples, RProp at index j corresponds to the
+    -- Haskell type arg at index j+1.  Plug RProp bodies so that any
+    -- RHole nodes inside them are elaborated against the GHC type
+    -- (fixes issue #2590 crash with shorthand refinements).
+    -- Only process when the LH type arg is RHole (dependent pair path).
+    goRProps hsTyArgs lqTyArgs ps =
+      let hsTs = drop 1 hsTyArgs
+          lqTs = drop 1 lqTyArgs
+      in  zipWith3 goRProp hsTs lqTs ps ++ drop (length hsTs) ps
+    goRProp hsT lqT (RProp ss body)
+      | RHole{} <- lqT = RProp ss (go hsT body)
+      | otherwise      = RProp ss body
 
     -- otherwise                          = Ex.throw err
     -- If we reach the default case, there's probably an error, but we defer
