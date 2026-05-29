@@ -9,7 +9,8 @@ module Benchmark where
 import Prelude hiding (readFile, writeFile, filter, zip, lookup)
 import Data.String (fromString)
 import Data.List as L
-import Data.Vector as V hiding (length, concat, null, (++), last, find)
+import Data.Vector (Vector)
+import qualified Data.Vector as V
 import qualified Data.Map.Strict as Map
 import Data.ByteString.Char8 (unpack)
 import Data.ByteString.Lazy.Char8 (readFile, writeFile)
@@ -18,11 +19,16 @@ import Data.Csv hiding (Options, Parser, lookup)
 
 -- Individual entries
 
+-- | A single benchmark entry
 data Benchmark = Benchmark
-  { test :: String
-  , time :: Double
-  , result :: Bool
+  { test :: String   -- ^ test name
+  , time :: Double   -- ^ time in seconds
+  , allocs :: Double -- ^ allocations in MBs
+  , result :: Bool   -- ^ whether the test passed or failed
   } deriving stock (Eq, Ord, Show, Generic)
+
+zeroBenchmark :: Benchmark -> Benchmark
+zeroBenchmark b = b { time = 0, allocs = 0 }
 
 instance FromField Bool where
   parseField = pure . read . unpack
@@ -34,6 +40,7 @@ instance FromNamedRecord Benchmark where
     parseNamedRecord m = Benchmark
                          <$> m .: "test"
                          <*> m .: "time"
+                         <*> m .: "allocs"
                          <*> m .: "result"
 
 instance ToNamedRecord Benchmark
@@ -52,8 +59,6 @@ writeCSV f dat = do
 
 -- Data sets
 
-type BData = Double
-
 data BenchmarkWarning
     = MissingMeasureAfter
     | MissingMeasureBefore
@@ -64,14 +69,14 @@ data BenchmarkComparison = BenchmarkComparison
     { -- | Warnings for tests with the given labels
       bcWarnings :: [(String, BenchmarkWarning)]
       -- | Data of benchmars present in both sets
-    , bcCombined :: [(String, (BData, BData))]
+    , bcCombined :: [(Benchmark, Benchmark)]
     }
 
 bcLen :: BenchmarkComparison -> Int
 bcLen bc = length (bcCombined bc) + warningsLength bc
-
-warningsLength :: BenchmarkComparison -> Int
-warningsLength bc = length (bcWarnings bc)
+  where
+    warningsLength :: BenchmarkComparison -> Int
+    warningsLength = length . bcWarnings
 
 compareBenchmarks :: Vector Benchmark -> Vector Benchmark -> BenchmarkComparison
 compareBenchmarks v1 v2 = BenchmarkComparison
@@ -81,23 +86,34 @@ compareBenchmarks v1 v2 = BenchmarkComparison
         , Map.map (const MissingMeasureBefore) (Map.difference after before)
         , Map.map (const MissingMeasureAfter) (Map.difference before after)
         ]
-    , bcCombined = Map.toList $
-        Map.unionWith (\(t0, _) (_, t1) -> (t0, t1)) before after
+    , bcCombined = Map.elems $ Map.unionWith (\(a, _) (_, b) -> (a, b)) before after
     }
   where
     (vBefore, failedBefore) = V.partition result v1
     (vAfter, failedAfter) = V.partition result v2
-    before = Map.fromList [ (test b, (time b, 0)) | b <- V.toList vBefore]
-    after = Map.fromList [ (test b, (0, time b)) | b <- V.toList vAfter]
+    before = Map.fromList [ (test b, (b, zeroBenchmark b)) | b <- V.toList vBefore]
+    after = Map.fromList [ (test b, (zeroBenchmark b, b)) | b <- V.toList vAfter]
 
-hiBenchmarks :: Int -> BenchmarkComparison -> BenchmarkComparison
-hiBenchmarks n bc =
+-- | Sort the benchmarks by the difference in the given field, and take the top
+-- N (after removing warnings)
+hiBenchmarks :: (Benchmark -> Double) -> Int -> BenchmarkComparison -> BenchmarkComparison
+hiBenchmarks f n bc =
     bc { bcCombined =
-           L.take (n - warningsLength bc) $ sortOn (\(_, (bt, at)) -> at - bt) (bcCombined bc)
+           L.take n
+           $ sortOn (\(bt, at) -> (f at - f bt) / f bt)
+           $ filter
+               (\(bt, _) -> test bt `notElem` map fst (bcWarnings bc))
+               (bcCombined bc)
        }
 
-loBenchmarks :: Int -> BenchmarkComparison -> BenchmarkComparison
-loBenchmarks n bc =
+-- | Sort the benchmarks by the difference in the given field, and take the bottom
+-- N (after removing warnings)
+loBenchmarks :: (Benchmark -> Double) -> Int -> BenchmarkComparison -> BenchmarkComparison
+loBenchmarks f n bc =
     bc { bcCombined =
-           L.take (n - warningsLength bc) $ sortOn (\(_, (bt, at)) -> bt - at) (bcCombined bc)
+           L.take n
+           $ sortOn (\(bt, at) -> (f bt - f at) / f bt)
+           $ filter
+               (\(bt, _) -> test bt `notElem` map fst (bcWarnings bc))
+               (bcCombined bc)
        }

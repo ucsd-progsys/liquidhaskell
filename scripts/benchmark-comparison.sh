@@ -13,7 +13,7 @@ clean_run_collect() {
     local run_label="$1"  # "before" or "after"
     echo "Running benchmarks for $run_label branch..."
     find dist-newstyle -name "tests-*" -o -name "prover-ple-lib-*" | xargs rm -rf
-    ./scripts/test/test_plugin.sh --measure-timings-j1
+    ./scripts/test/test_plugin.sh --measure-timings
     rm -rf tmp tmp-${run_label}
     cabal build ghc-timings
     cabal exec ghc-timings dist-newstyle
@@ -31,4 +31,4 @@ echo "Checking out AFTER branch: $AFTER_BRANCH"
 git checkout "$AFTER_BRANCH"
 git submodule update --init --recursive
 
-cabal run plot-performance -- -b summary-before.csv -a summary-after.csv -s 50
+cabal run plot-performance -- --allocs -b summary-before.csv -a summary-after.csv -s 50
