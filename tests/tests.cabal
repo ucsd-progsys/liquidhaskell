@@ -751,6 +751,7 @@ executable names-pos
                     , ClojurVector
                     , DataFields
                     , DefineLenResolve
+                    , DependentPairAlias
                     , ExpandsDependentPairs
                     , ExprAliases
                     , ExprAliasesCopycat
