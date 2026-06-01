@@ -257,7 +257,7 @@ splitC _ (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))
   = bsplitC γ t1 t2
 
 splitC _ (SubC γ t1 t2)
-  = panic (Just $ getLocation γ) $ "(Another Broken Test!!!) splitc unexpected:\n" ++ traceTy t1 ++ "\n  <:\n" ++ traceTy t2
+  = panic (Just $ getLocation γ) $ "(Another Broken Test!!!) splitc unexpected:\n" ++ showpp t1 ++ "\n  <:\n" ++ showpp t2
 
 splitC _ (SubR γ o r)
   = do ts     <- getTemplates
@@ -275,21 +275,6 @@ splitC _ (SubR γ o r)
     tag = getTag γ
     src = getLocation γ
     g   = reLocal $ renv γ
-
-traceTy :: SpecType -> String
-traceTy (RVar v _)      = parens ("RVar " ++ showpp v)
-traceTy (RApp c ts _ _) = parens ("RApp " ++ showpp c ++ unwords (traceTy <$> ts))
-traceTy (RAllP _ t)     = parens ("RAllP " ++ traceTy t)
-traceTy (RAllT _ t _)   = parens ("RAllT " ++ traceTy t)
-traceTy (RFun _ _ t t' _) = parens ("RFun " ++ parens (traceTy t) ++ parens (traceTy t'))
-traceTy (REx _ tx t)    = parens ("REx " ++ parens (traceTy tx) ++ parens (traceTy t))
-traceTy (RExprArg _)    = "RExprArg"
-traceTy (RAppTy t t' _) = parens ("RAppTy " ++ parens (traceTy t) ++ parens (traceTy t'))
-traceTy (RHole _)       = "rHole"
-traceTy (RRTy _ _ _ t)  = parens ("RRTy " ++ traceTy t)
-
-parens :: String -> String
-parens s = "(" ++ s ++ ")"
 
 rHole :: F.Reft -> SpecType
 rHole = RHole . uTop
