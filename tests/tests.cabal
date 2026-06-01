@@ -372,14 +372,14 @@ executable prover-nople-pos
                     , Peano
                     , Solver
                     , Unification
+                    , Ackermann
+                    , OverviewListInfix
                     -- IGNORED:
                     -- , MonadReader
                     -- , FunctorReader_NoExtensionality
                     -- , FunctorReader
-                    -- , Ackermann
                     -- , ApplicativeList
                     -- , ApplicativeReader
-                    -- , OverviewListInfix
 
   build-depends:      base
                     , liquid-prelude
@@ -409,9 +409,9 @@ executable prover-nople-neg
                     , MapFusion
                     , MonadList
                     , MonadMaybe
+                    , Ackermann
                     -- IGNORED:
                     -- , MonadReader
-                    -- , Ackermann
                     -- , ApplicativeList
                     -- , ApplicativeReader
 
@@ -459,9 +459,8 @@ executable prover-ple-pos
                     , Peano
                     , Solver
                     , Unification
-                    -- IGNORED:
-                    -- , Ackermann
-                    -- , OverviewListInfix
+                    , Ackermann
+                    , OverviewListInfix
 
   build-depends:      base
                     , liquid-prelude

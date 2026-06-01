@@ -7,7 +7,7 @@
 
 module OverviewListInfix where
 
-import Prelude hiding (map, (++), (.))
+import Prelude hiding (map, (++))
 
 import Language.Haskell.Liquid.ProofCombinators
 

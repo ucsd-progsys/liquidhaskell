@@ -1,5 +1,5 @@
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--eliminate" @-}
+{- @ LIQUID "--eliminate" @-}
 {-@ LIQUID "--maxparams=10"  @-}
 {-@ LIQUID "--higherorderqs" @-}
 

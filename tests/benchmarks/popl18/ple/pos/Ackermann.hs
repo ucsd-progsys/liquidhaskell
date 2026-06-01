@@ -10,6 +10,7 @@ module Ackermann where
 
 import Language.Haskell.Liquid.ProofCombinators
 import Helper
+import Proves ((<.))
 
 -- | First ackermann definition
 
@@ -39,7 +40,7 @@ iack h n x
 def_eq :: Int -> Int -> Proof
 def_eq n x
   | x == 0
-  = trivial 
+  = trivial
   | otherwise
   = def_eq n (x-1)
 
@@ -49,10 +50,10 @@ def_eq n x
 lemma2 :: Int -> Int -> Proof
 {-@ lemma2 :: n:Nat -> x:Nat -> { x + 1 < ack n x } / [n, x] @-}
 lemma2 n x
-  | x == 0
-  = trivial 
   | n == 0
-  = trivial 
+  = trivial
+  | x == 0
+  = trivial
   | otherwise
   =   lemma2 (n-1) (ack n (x-1))
   &&& lemma2 n (x-1)
@@ -105,6 +106,8 @@ lemma4_gen n m x
 lemma4_eq     :: Int -> Int -> Proof
 {-@ lemma4_eq :: n:Nat -> x:Nat -> { ack n x <= ack (n+1) x } @-}
 lemma4_eq n x
+  | n == 0, x == 0
+  = trivial 
   | x == 0
   = trivial 
   | otherwise
@@ -249,7 +252,7 @@ ladder_prop1 n l x
 
 
 {-@ ladder_prop2 :: x:Nat -> y:Nat -> n:{Int | 0 < n} -> z:Nat
-   -> { ladder (x + y) n z == ladder x n (ladder y n z)} / [x] @-}
+                 -> { ladder (x + y) n z == ladder x n (ladder y n z)} / [x] @-}
 ladder_prop2 :: Int -> Int -> Int -> Int -> Proof
 ladder_prop2 x y n z
   | x == 0
@@ -258,7 +261,7 @@ ladder_prop2 x y n z
   = ladder_prop2 (x-1) y n z
 
 {-@ ladder_prop3 :: x:Nat -> y:{Nat | x < y} -> n:{Int | 0 < n} -> l:Nat
-   -> {ladder l n x < ladder l n y }  @-}
+                 -> {ladder l n x < ladder l n y }  @-}
 ladder_prop3 :: Int -> Int -> Int -> Int -> Proof
 ladder_prop3 x y n l
   =   ladder_prop1 n l x
