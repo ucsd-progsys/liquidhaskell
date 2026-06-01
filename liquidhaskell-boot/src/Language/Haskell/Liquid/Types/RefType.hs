@@ -730,16 +730,19 @@ rtPropTop
    => PVar (RType c tv NoReft) -> Ref (RType c tv NoReft) (RType c tv r)
 rtPropTop pv = RProp (pvArgs pv) $ ofRSort $ ptype pv
 
-rtPropPV :: (Fixpoint a, IsReft r, Meet r)
+rtPropPV :: (Fixpoint a, IsReft r, Meet r
+           , Eq c, Eq tv, Hashable tv, F.PPrint tv, TyConable c, F.PPrint c)
          => a
          -> [PVar (RType c tv NoReft)]
          -> [Ref (RType c tv NoReft) (RType c tv r)]
          -> [Ref (RType c tv NoReft) (RType c tv r)]
 rtPropPV _rc = zipWith mkRTProp
 
--- | Eliminates top-level RHoles. See @goRProps@ inside 'goPlugged' in
--- Plugged.hs for the handling of nested RHoles.
-mkRTProp :: (IsReft r, Meet r)
+-- | Eliminates top-level RHoles, and normalizes stale RProp bodies whose
+-- sort no longer matches the PVar's expected type (can happen when types
+-- are copied via toRSort/ofRSort during type-argument substitution).
+mkRTProp :: (IsReft r, Meet r
+           , Eq c, Eq tv, Hashable tv, F.PPrint tv, TyConable c, F.PPrint c)
          => PVar (RType c tv NoReft)
          -> Ref (RType c tv NoReft) (RType c tv r)
          -> Ref (RType c tv NoReft) (RType c tv r)
@@ -748,7 +751,10 @@ mkRTProp pv (RProp ss (RHole r))
 
 mkRTProp pv (RProp ss t)
   | length (pargs pv) == length ss
-  = RProp ss t
+  = if toRSort t == pvType pv then
+      RProp ss t
+    else
+      RProp ss $ ofRSort (pvType pv) `strengthen` fromMaybe trueReft (stripRTypeBase t)
   | otherwise
   = RProp (pvArgs pv) t
 
