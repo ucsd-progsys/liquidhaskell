@@ -277,8 +277,8 @@ splitC _ (SubR γ o r)
     g   = reLocal $ renv γ
 
 traceTy :: SpecType -> String
-traceTy (RVar v _)      = parens ("RVar " ++ showpp v)
-traceTy (RApp c ts _ _) = parens ("RApp " ++ showpp c ++ unwords (traceTy <$> ts))
+traceTy (RVar v _)      = parens ("RVar " ++ show (F.symbol v))
+traceTy (RApp c ts rs _) = parens ("RApp " ++ showpp c ++ unwords (traceTy <$> ts) ++ if null rs then "" else " {rprops=" ++ show (map traceRProp rs) ++ "}")
 traceTy (RAllP _ t)     = parens ("RAllP " ++ traceTy t)
 traceTy (RAllT _ t _)   = parens ("RAllT " ++ traceTy t)
 traceTy (RFun _ _ t t' _) = parens ("RFun " ++ parens (traceTy t) ++ parens (traceTy t'))
@@ -287,6 +287,9 @@ traceTy (RExprArg _)    = "RExprArg"
 traceTy (RAppTy t t' _) = parens ("RAppTy " ++ parens (traceTy t) ++ parens (traceTy t'))
 traceTy (RHole _)       = "rHole"
 traceTy (RRTy _ _ _ t)  = parens ("RRTy " ++ traceTy t)
+
+traceRProp :: SpecProp -> String
+traceRProp (RProp ss body) = "RProp[" ++ show (map fst ss) ++ "](" ++ traceTy body ++ ")"
 
 parens :: String -> String
 parens s = "(" ++ s ++ ")"
