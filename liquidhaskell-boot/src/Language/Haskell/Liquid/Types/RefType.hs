@@ -669,16 +669,30 @@ quantifyFreeRTy :: (Monoid r, Eq tv) => RTypeV v c tv r -> RTypeV v c tv r
 quantifyFreeRTy ty = quantifyRTy (freeTyVars ty) ty
 
 
--------------------------------------------------------------------------
+-- | Populates the PVar/RProp slots of all 'RApp' nodes in the given type.
+--
+-- A refinement type application @RApp rc ts rs r@ has three parts beyond the
+-- type constructor:
+--
+-- * @ts@ – type arguments
+-- * @rs@ – abstract-refinement arguments (the `RProp` slots, one per PVar
+--   declared for the type constructor)
+-- * @r@ – the base refinement
+--
+-- When a type first enters LiquidHaskell from source or from GHC's
+-- representation, the @rs@ list is usually empty or carries 'RHole's as
+-- placeholders. This function fills in the @rs@ list with the appropriate
+-- 'RProp's, using the 'TCEmb TyCon' to determine which PVars are declared for
+-- the type constructor.
+--
 addTyConInfo :: (PPrint r, IsReft r, SubsTy RTyVar RSort r, Variable r ~ Symbol, ReftBind r ~ Symbol, ReftVar r ~ Symbol, IsReft r, Meet r)
              => TCEmb TyCon
              -> TyConMap
              -> RRType r
              -> RRType r
--------------------------------------------------------------------------
 addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 
--------------------------------------------------------------------------
+-- | Populates the PVar/RProp slots of an 'RApp' node.
 expandRApp :: (PPrint r, IsReft r, SubsTy RTyVar RSort r, Variable r ~ Symbol, ReftBind r ~ Symbol, ReftVar r ~ Symbol, IsReft r, Meet r)
            => TCEmb TyCon -> TyConMap -> RRType r -> RRType r
 -------------------------------------------------------------------------
@@ -764,6 +778,9 @@ pvArgs pv = [(s, t) | (t, s, _) <- pargs pv]
 
  -}
 
+-- | Retrieves the 'RTyCon' from the 'TyConMap' (which was built from
+-- @{-@@ data … @@-}@ or wired-in annotations) and substitutes the actual type
+-- arguments into the PVar types, yielding specialised pvars.
 appRTyCon :: (ToTypeable r) => TCEmb TyCon -> TyConMap -> RTyCon -> [RRType r] -> (RTyCon, [RPVar])
 appRTyCon tce tyi rc ts = F.notracepp _msg (resTc, ps'')
   where
