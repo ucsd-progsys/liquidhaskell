@@ -752,6 +752,7 @@ executable names-pos
                     , DataFields
                     , DefineLenResolve
                     , DependentPairAlias
+                    , DependentPairShorthand
                     , ExpandsDependentPairs
                     , ExprAliases
                     , ExprAliasesCopycat

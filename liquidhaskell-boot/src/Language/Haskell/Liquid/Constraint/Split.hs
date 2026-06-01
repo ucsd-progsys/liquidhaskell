@@ -5,9 +5,23 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
---------------------------------------------------------------------------------
 -- | Constraint Splitting ------------------------------------------------------
---------------------------------------------------------------------------------
+--
+-- Constraint splitting is the process of decomposing high-level subtyping
+-- constraints between LiquidHaskell refinement types into low-level Horn
+-- clauses that the Liquid Fixpoint solver can check.
+--
+-- A subtyping constraint @t1 <: t2@ between two 'SpecType' values is created
+-- during constraint generation (Generate.hs) whenever LH needs to verify that
+-- one type is a subtype of another (e.g., function argument vs. parameter type,
+-- branch types, etc.). These constraints are represented as @SubC γ t1 t2@
+-- where @γ@ is the typing environment.
+--
+-- 'splitC' recursively walks the structure of @t1@ and @t2@ simultaneously,
+-- peeling off type constructors until it reaches base refinements, at which
+-- point it calls 'bsplitC' to emit a fixpoint `SubC`
+-- (a Horn clause of the form @∀ binds. lhs-reft ⟹ rhs-reft@).
+--
 
 module Language.Haskell.Liquid.Constraint.Split (
 
