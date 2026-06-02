@@ -1557,11 +1557,15 @@ typeSort tce = go
       , not (isRecursivenewTyCon c)
       , τs `lengthAtLeast` newTyConEtadArity c
       = go (Ghc.newTyConInstRhs c τs)
+      | Ghc.isFamilyTyCon c
+      , Ghc.piResultTys (Ghc.tyConKind c) τs `Ghc.eqType` naturalTy
+      = FInt
       | otherwise
       = tyConFTyCon tce c (go <$> τs)
     go (AppTy t1 t2)    = fApp (go t1) [go t2]
     go (TyVarTy tv)     = tyVarSort tv
     go (CastTy t _)     = go t
+    go (LitTy (NumTyLit _)) = FInt
     go τ                = FObj (typeUniqueSymbol τ)
 
 tyConFTyCon :: TCEmb TyCon -> TyCon -> [Sort] -> Sort
