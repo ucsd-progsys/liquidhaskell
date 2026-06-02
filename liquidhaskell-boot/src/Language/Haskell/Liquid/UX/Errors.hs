@@ -122,11 +122,7 @@ expandVarDefs      = go mempty
 
 isInline :: (a, SpecType) -> Either (a, F.Expr) (a, SpecType)
 isInline (x, t) =
-    either (Left . (x,)) (Right . (x,)) (isInline' t')
-  where
-    -- tidyInternalRefas could drop some conjuncts which affects whether
-    -- bindings are eliminated in isInline'
-    t' = tidyInternalRefas t
+    either (Left . (x,)) (Right . (x,)) (isInline' t)
 
 isInline' :: SpecType -> Either F.Expr SpecType
 isInline' t = case ro of
