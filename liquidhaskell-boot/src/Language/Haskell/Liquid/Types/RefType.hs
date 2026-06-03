@@ -54,7 +54,7 @@ module Language.Haskell.Liquid.Types.RefType (
 
   -- * Substitutions
   , subts, subvPredicate, subvUReft
-  , subsTyVarMeet, subsTyVarMeet', subsTyVarNoMeet
+  , subsTyVarMeet, subsTyVarMeet', subsTyVarMeetNorm, subsTyVarNoMeet
   , subsTyVarsNoMeet, subsTyVarsMeet
 
   -- * Destructors
@@ -696,12 +696,13 @@ addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 expandRApp :: (PPrint r, IsReft r, SubsTy RTyVar RSort r, Variable r ~ Symbol, ReftBind r ~ Symbol, ReftVar r ~ Symbol, IsReft r, Meet r)
            => TCEmb TyCon -> TyConMap -> RRType r -> RRType r
 -------------------------------------------------------------------------
-expandRApp tce tyi t@RApp{} = RApp rc' ts rs' r
+expandRApp tce tyi t@RApp{} =
+    RApp rc' ts rs' r
   where
     RApp rc ts rs r            = t
     (rc', _)                   = appRTyCon tce tyi rc as
     pvs                        = rTyConPVs rc'
-    rs'                        = expandRefs $ applyNonNull rs0 (rtPropPV rc pvs) rs
+    rs'                        = repairSorts pvs $ expandRefs $ applyNonNull rs0 (rtPropPV rc pvs) rs
     rs0                        = rtPropTop <$> pvs
     n                          = length fVs
     fVs                        = GM.tyConTyVarsDef $ rtc_tc rc
@@ -712,6 +713,13 @@ expandRApp tce tyi t@RApp{} = RApp rc' ts rs' r
     --   data List a <p :: List a -> Bool>
     -- where pvType = List a would loop back into expandRApp → expandRefs → …
     expandRefs                 = map (\(RProp ss body) -> RProp ss (mapBot (expandRAppOnce tce tyi) body))
+    -- Fix #2692: regenerate RProp body when its sort disagrees with pvType
+    -- (happens when subsFreeRef substitutes inside RProp bodies of
+    -- partially-applied TyCons, changing the body sort).
+    repairSorts                = zipWith fixSort
+    fixSort pv (RProp ss body)
+      | toRSort body /= pvType pv = RProp ss (ofRSort (pvType pv))
+      | otherwise                 = RProp ss body
 expandRApp _ _ t               = t
 
 -- | Like 'expandRApp' but does not recurse into the bodies of freshly-created
@@ -985,6 +993,14 @@ subsTyVarMeet'
       SubsTy tv (RTypeBV b v c tv (NoReftBV b v)) (RTVar b v c tv))
   => (tv, RTypeBV b v c tv r) -> RTypeBV b v c tv r -> RTypeBV b v c tv r
 subsTyVarMeet' (α, t) = subsTyVarMeet (α, toRSort t, t)
+
+-- | Like 'subsTyVarMeet'' but re-normalizes 'RProp' bodies via 'addTyConInfo'
+-- to restore the invariant that each 'RProp' body sort equals its 'pvType'.
+-- That invariant can be violated when 'subsFreeRef' (inside 'subsTyVarMeet')
+-- substitutes a type variable with a concrete type inside 'RProp' bodies of
+-- partially-applied type constructors.
+subsTyVarMeetNorm :: F.TCEmb Ghc.TyCon -> TyConMap -> (RTyVar, SpecType) -> SpecType -> SpecType
+subsTyVarMeetNorm tce tyi tvt = addTyConInfo tce tyi . subsTyVarMeet' tvt
 
 subsTyVars
   :: (Eq tv, Foldable t, Hashable tv, IsReft r, Eq (ReftVar r), TyConable c, Binder b, Meet r,

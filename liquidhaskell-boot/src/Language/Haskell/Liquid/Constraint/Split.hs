@@ -241,7 +241,15 @@ splitC allowTC (SubC _ (RApp c1 _ _ _) (RApp c2 _ _ _)) | (if allowTC then isEmb
   = return []
 
 splitC _ (SubC γ t1@RApp{} t2@RApp{})
-  = do (t1',t2') <- unifyVV t1 t2
+  = do tce   <- gets tyConEmbed
+       tyi   <- gets tyConInfo
+       -- Fix #2692: re-normalize RProp bodies as defense-in-depth.
+       -- The primary fix is in subsTyVarMeetNorm (called from consEApp,
+       -- cconsE', consCB, unfoldR), which applies addTyConInfo right after
+       -- each type-variable substitution.  This call handles any remaining
+       -- cases where a type arrives here without going through those paths.
+       let norm = addTyConInfo tce tyi
+       (t1',t2') <- unifyVV (norm t1) (norm t2)
        cs    <- bsplitC γ t1' t2'
        γ'    <- if bscope (getConfig γ) then γ `extendEnvWithVV` t1' else return γ
        let RApp c t1s r1s _ = t1'
