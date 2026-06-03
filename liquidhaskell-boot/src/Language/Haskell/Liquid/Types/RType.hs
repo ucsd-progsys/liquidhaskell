@@ -866,6 +866,27 @@ data RTypeBV b v c tv r
     --
     --   The scope of @v@ is the entire type application and @e@.
     --
+    -- Invariant: the types in the predicates of @rt_pargs@ must match the types
+    -- of the predicates that @rt_tycon@ expects when applied to @rt_args@.
+    --
+    -- There are some difficulties to maintaining this invariant, so it is
+    -- kept loosely.
+    --
+    -- * @RApp@ is used to represent partial type contructor applications.
+    --   This means that the types required to instantiate the type variables
+    --   used in RProps are not available.
+    --
+    -- * Even for saturated applications, it is not trivial to enforce at
+    --   construction time (e.g. with a smart constructor) because the expected
+    --   types are not available in the arguments of @RApp@.
+    --
+    -- * The type of some abstract predicates will reference the type
+    --   constructor. e.g. @data [a] <p :: a -> [a]> = ...@. The invariant
+    --   then would lead to an infinite representation of applications of
+    --   the @[]@ type constructor. Each @RApp@ of @[]@ would need to contain an
+    --   @RProp@ with the type of the abstract predicate, which would in turn
+    --   contain another @RApp@ of @[]@, and so on.
+    --
   | RApp  {
       rt_tycon  :: !c
     , rt_args   :: ![RTypeBV b v c tv r]
