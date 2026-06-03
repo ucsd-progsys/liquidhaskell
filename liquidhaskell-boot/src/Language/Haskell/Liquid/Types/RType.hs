@@ -866,6 +866,12 @@ data RTypeBV b v c tv r
     --
     --   The scope of @v@ is the entire type application and @e@.
     --
+    -- Invariant: the types in the predicates of @rt_pargs@ must match the types
+    -- of the predicates that @rt_tycon@ expects when applied to @rt_args@.
+    -- This invariant is loosely maintained when processing @RApp@. It is not
+    -- trivial to enforce at construction time (e.g. with a smart constructor)
+    -- becase the expected types are not available in the arguments of @RApp@.
+    --
   | RApp  {
       rt_tycon  :: !c
     , rt_args   :: ![RTypeBV b v c tv r]
