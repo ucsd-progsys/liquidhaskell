@@ -14,6 +14,7 @@
 module Language.Haskell.Liquid.Constraint.Relational (consAssmRel, consRelTop) where
 
 import           Control.Monad (foldM, forM_)
+import           Control.Monad.State (gets)
 import           Data.Bifunctor                                 ( Bifunctor(bimap) )
 import qualified Data.List                                      as L
 import           Data.String                                    ( IsString(..) )
@@ -325,7 +326,8 @@ consRelCheckAltAsyncR γ ψ t1 t2 p e1 x2 s2 (Ghc.Alt c bs2 e2) = do
 
 ctorTy :: CGEnv -> AltCon -> SpecType -> CG SpecType
 ctorTy γ (DataAlt c) (RApp _ ts _ _)
-  | Just ct <- mbct = refreshTy $ ct `instantiateTys` ts
+  | Just ct <- mbct = do tyi <- gets tyConInfo
+                         refreshTy $ instantiateTys (emb γ) tyi ct ts
   | Nothing <- mbct = F.panic $ "ctorTy: data constructor out of scope" ++ F.showpp c
   where mbct = γ ?= F.symbol (Ghc.dataConWorkId c)
 ctorTy _ (DataAlt _) t =
@@ -347,10 +349,10 @@ unapply γ y yt [] t e _ = do
   γ' <- γ += ("unapply res", y, yt')
   return $ traceWhenLoud ("SCRUTINEE " ++ F.showpp (y, yt')) (γ', e)
 
-instantiateTys :: SpecType -> [SpecType] -> SpecType
-instantiateTys = L.foldl' go
+instantiateTys :: F.TCEmb Ghc.TyCon -> TyConMap -> SpecType -> [SpecType] -> SpecType
+instantiateTys tce tyi = L.foldl' go
  where
-  go (RAllT α tbody _) t = subsTyVarMeet' (ty_var_value α, t) tbody
+  go (RAllT α tbody _) t = subsTyVarMeetNorm tce tyi (ty_var_value α, t) tbody
   go tbody             t =
     F.panic $ "instantiateTys: non-polymorphic type " ++ F.showpp tbody ++ " to instantiate with " ++ F.showpp t
 
@@ -370,14 +372,16 @@ consRelSynth γ ψ a1@(App e1 d1) e2 | Type t1 <- GM.unTickExpr d1 =
     (ft1', t2, ps) <- consRelSynth γ ψ e1 e2
     let (α1, ft1, _) = unRAllT ft1' "consRelSynth App Ty L"
     t1' <- trueTy (typeclass (getConfig γ)) t1
-    return (subsTyVarMeet' (ty_var_value α1, t1') ft1, t2, ps)
+    tyi <- gets tyConInfo
+    return (subsTyVarMeetNorm (emb γ) tyi (ty_var_value α1, t1') ft1, t2, ps)
 
 consRelSynth γ ψ e1 a2@(App e2 d2) | Type t2 <- GM.unTickExpr d2 =
   traceSyn "App Ty R" e1 a2 $ do
     (t1, ft2', ps) <- consRelSynth γ ψ e1 e2
     let (α2, ft2, _) = unRAllT ft2' "consRelSynth App Ty R"
     t2' <- trueTy (typeclass (getConfig γ)) t2
-    return (t1, subsTyVarMeet' (ty_var_value α2, t2') ft2, ps)
+    tyi <- gets tyConInfo
+    return (t1, subsTyVarMeetNorm (emb γ) tyi (ty_var_value α2, t2') ft2, ps)
 
 consRelSynth γ ψ a1@(App e1 d1) a2@(App e2 d2) = traceSyn "App Exp Exp" a1 a2 $ do
   (ft1, ft2, fps) <- consRelSynth γ ψ e1 e2
@@ -518,7 +522,8 @@ consUnarySynthApp γ (RFun x _ s t _) d@(Var y) = do
   return $ t `F.subst1` (x, F.EVar $ F.symbol y)
 consUnarySynthApp γ (RAllT α t _) (Type s) = do
     s' <- trueTy (typeclass (getConfig γ)) s
-    return $ subsTyVarMeet' (ty_var_value α, s') t
+    tyi <- gets tyConInfo
+    return $ subsTyVarMeetNorm (emb γ) tyi (ty_var_value α, s') t
 consUnarySynthApp _ RFun{} d =
   F.panic $ "consUnarySynthApp expected Var as a funciton arg, got " ++ F.showpp d
 consUnarySynthApp γ t@(RAllP{}) e

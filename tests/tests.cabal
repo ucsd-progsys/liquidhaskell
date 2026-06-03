@@ -2285,6 +2285,7 @@ executable basic-pos
                     , SkipDerived00
                     , T2349
                     , T2369
+                    , T2692
                     , TestAdmit
 
     build-depends:    base

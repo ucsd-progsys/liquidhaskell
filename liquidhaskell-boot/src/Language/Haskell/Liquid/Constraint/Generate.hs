@@ -391,14 +391,16 @@ consCB _ γ (NonRec x def)
   , Just d      <- dlookup (denv γ) w
   = do st       <- mapM (trueTy (typeclass (getConfig γ))) τ
        mapM_ addW (WfC γ <$> st)
-       let xts   = dmap (fmap (f st)) d
+       tyi      <- gets tyConInfo
+       let tce   = emb γ
+       let xts   = dmap (fmap (f tce tyi st)) d
        let  γ'   = γ { denv = dinsert (denv γ) x xts }
        t        <- trueTy (typeclass (getConfig γ)) (varType x)
        extender γ' (x, Assumed t)
    where
-    f [t']    (RAllT α te _) = subsTyVarMeet' (ty_var_value α, t') te
-    f (t':ts) (RAllT α te _) = f ts $ subsTyVarMeet' (ty_var_value α, t') te
-    f _ _ = impossible Nothing "consCB on Dictionary: this should not happen"
+    f tce tyi [t']    (RAllT α te _) = subsTyVarMeetNorm tce tyi (ty_var_value α, t') te
+    f tce tyi (t':ts) (RAllT α te _) = f tce tyi ts $ subsTyVarMeetNorm tce tyi (ty_var_value α, t') te
+    f _   _   _ _ = impossible Nothing "consCB on Dictionary: this should not happen"
 
 consCB _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing)
@@ -594,7 +596,8 @@ cconsE' γ (Case e x _ cases) t
 cconsE' γ (Lam α e) (RAllT α' t r) | isTyVar α
   = do γ' <- updateEnvironment γ α
        addForAllConstraint γ' α e (RAllT α' t r)
-       cconsE γ' e $ subsTyVarMeet' (ty_var_value α', rVar α) t
+       tyi <- gets tyConInfo
+       cconsE γ' e $ subsTyVarMeetNorm (emb γ) tyi (ty_var_value α', rVar α) t
 
 cconsE' γ (Lam x e) (RFun y i ty t r)
   | not (isTyVar x)
@@ -857,7 +860,8 @@ consEApp γ e'@(App e a@(Type τ))
                          else trueTy (typeclass (getConfig γ)) τ
        addW          $ WfC γ t
        t'           <- refreshVV t
-       tt0          <- instantiatePreds γ e' (subsTyVarMeet' (ty_var_value α, t') te)
+       tyi          <- gets tyConInfo
+       tt0          <- instantiatePreds γ e' (subsTyVarMeetNorm (emb γ) tyi (ty_var_value α, t') te)
        let tyVarSym  = F.symbol (ty_var_value α)
            tyVarSort = typeSort (emb γ) (Ghc.expandTypeSynonyms τ)
            tt0'      = addTyVarSubToKVars tyVarSym tyVarSort tt0
@@ -1188,7 +1192,8 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
   xt0             <- checkTyCon ("checkTycon cconsCase", x) γ <$> γ ??= x
   let rt           = shiftVV xt0 x'
   tdc             <- γ ??= dataConWorkId c >>= refreshVV
-  let (rtd,yts',_) = unfoldR tdc rt ys
+  tyi             <- gets tyConInfo
+  let (rtd,yts',_) = unfoldR (emb γ) tyi tdc rt ys
   yts             <- projectTypes (typeclass (getConfig γ))  pIs yts'
   let ys''         = F.symbol <$> filter (not . if allowTC then GM.isEmbeddedDictVar else GM.isEvVar) ys
   let r1           = dataConReft   c   ys''
@@ -1244,11 +1249,11 @@ altReft γ acs DEFAULT    = mconcat ([notLiteralReft l | LitAlt l <- acs] ++ [no
     notDataConReft d = F.Reft (F.vv_, F.PNot (F.EApp (F.EVar $ makeDataConChecker d) (F.EVar F.vv_)))
 altReft _ _ _            = panic Nothing "Constraint : altReft"
 
-unfoldR :: SpecType -> SpecType -> [Var] -> (SpecType, [SpecType], SpecType)
-unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
+unfoldR :: F.TCEmb Ghc.TyCon -> TyConMap -> SpecType -> SpecType -> [Var] -> (SpecType, [SpecType], SpecType)
+unfoldR tce tyi td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
   where
-        tbody                = instantiatePvs (instantiateTys td ts) (reverse rs)
-        ((ys0,_,yts',_), rt) = safeBkArrow (F.notracepp msg $ instantiateTys tbody tvs')
+        tbody                = instantiatePvs (instantiateTys tce tyi td ts) (reverse rs)
+        ((ys0,_,yts',_), rt) = safeBkArrow (F.notracepp msg $ instantiateTys tce tyi tbody tvs')
         msg                  = "INST-TY: " ++ F.showpp (td, ts, tbody, ys, tvs')
         yts''                = zipWith F.subst sus (yts'++[rt])
         (t3,yts)             = (last yts'', init yts'')
@@ -1258,12 +1263,12 @@ unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
         tvs'                 = rVar <$> αs
         tvys                 = ofType . varType <$> αs
 
-unfoldR _  _                _  = panic Nothing "Constraint.hs : unfoldR"
+unfoldR _   _   _  _                _  = panic Nothing "Constraint.hs : unfoldR"
 
-instantiateTys :: SpecType -> [SpecType] -> SpecType
-instantiateTys = L.foldl' go
+instantiateTys :: F.TCEmb Ghc.TyCon -> TyConMap -> SpecType -> [SpecType] -> SpecType
+instantiateTys tce tyi = L.foldl' go
   where
-    go (RAllT α tbody _) t = subsTyVarMeet' (ty_var_value α, t) tbody
+    go (RAllT α tbody _) t = subsTyVarMeetNorm tce tyi (ty_var_value α, t) tbody
     go _ _                 = panic Nothing "Constraint.instantiateTy"
 
 instantiatePvs :: SpecType -> [SpecProp] -> SpecType
