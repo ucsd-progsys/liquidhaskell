@@ -107,11 +107,10 @@ makeDataConType allowTC ds | Mb.isNothing (dataConWrapId_maybe dc)
     _msg  = "makeDataConType0" ++ showpp (woId, t, ts)
 
 makeDataConType allowTC ds
-  = [(woId, extend allowTC loci woRType wrRType), (wrId, extend allowTC loci wrRType woRType)]
+  = [(woId, noDummySyms woRType), (wrId, noDummySyms wrRType)]
   where
     (wo, wr) = L.partition isWorkerDef ds
     dc       = ctor $ head ds
-    loci     = loc $ measure $ head ds
     woId     = dataConWorkId dc
     wot      = varType woId
     wrId     = dataConWrapId dc
@@ -130,29 +129,6 @@ makeDataConType allowTC ds
       = True
       | otherwise
       = length (binds def) == length (fst $ splitFunTys $ snd $ splitForAllTyCoVars wot)
-
-
-extend :: Bool
-       -> SourcePos
-       -> RType RTyCon RTyVar Reft
-       -> RRType Reft
-       -> RType RTyCon RTyVar Reft
-extend allowTC lc t1' t2
-  | Just su <- mapArgumens allowTC lc t1 t2
-  = t1 `strengthenResult` subst su (Mb.fromMaybe mempty (stripRTypeBase $ resultTy t2))
-  | otherwise
-  = t1
-  where
-    t1 = noDummySyms t1'
-
-
-resultTy :: RType c tv r -> RType c tv r
-resultTy = ty_res . toRTypeRep
-
-strengthenResult :: Meet r => RType c tv r -> r -> RType c tv r
-strengthenResult t r = fromRTypeRep $ rep {ty_res = ty_res rep `strengthen` r}
-  where
-    rep              = toRTypeRep t
 
 -- | If there are any dummy symbols in the type, replace them with fresh
 -- variables.
@@ -175,29 +151,6 @@ noDummySyms t
 
 combineDCTypes :: String -> Type -> [RRType Reft] -> RRType Reft
 combineDCTypes _msg t ts = L.foldl' strengthenRefTypeGen (ofType t) ts
-
-mapArgumens :: Bool -> SourcePos -> RRType Reft -> RRType Reft -> Maybe F.Subst
-mapArgumens allowTC lc t1 t2 = go xts1' xts2'
-  where
-    xts1 = zip (ty_binds rep1) (ty_args rep1)
-    xts2 = zip (ty_binds rep2) (ty_args rep2)
-    rep1 = toRTypeRep t1
-    rep2 = toRTypeRep t2
-
-    xts1' = dropWhile canDrop xts1
-    xts2' = dropWhile canDrop xts2
-
-    canDrop (_, t) = if allowTC then isEmbeddedClass t else isClassType t || isEqType t
-
-    go xs ys
-      | length xs == length ys && and (zipWith (==) (toRSort . snd <$> xts1') (toRSort . snd <$> xts2'))
-      = Just $ mkSubst $ zipWith (\y x -> (fst x, EVar $ fst y)) xts1' xts2'
-      | otherwise
-      = panic (Just $ sourcePosSrcSpan lc) ("The types for the wrapper and worker data constructors cannot be merged\n"
-          ++ showpp t1 ++ "\n" ++ showpp t2 ++ "\n"
-          ++ "If there are UNPACK pragmas in effect, consider compiling with\n"
-          ++ "-fomit-interface-pragmas to ignore them.\n"
-          ++ "See https://github.com/ucsd-progsys/liquidhaskell/issues/2629")
 
 -- should constructors have implicits? probably not
 defRefType :: Bool -> Type -> Def (RRType Reft) DataCon -> RRType Reft
