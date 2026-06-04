@@ -21,7 +21,7 @@ LiquidHaskell itself is installed&enabled by adding it as a dependency in your p
 
 Depending on your version of GHC, you might want to use a build of LiquidHaskell from github or from Hackage.
 
-* `ghc-9.14.1`: either use liquidhaskell-0.9.14.1 from Hackage or the latest from github
+* `ghc-9.14.1`: either use liquidhaskell-0.9.14.1.1 from Hackage or the latest from github
 * `ghc-9.12.2`: use liquidhaskell-0.9.12.2.1 from Hackage
 * `ghc-9.10.1`: use liquidhaskell-0.9.10.1.2 from Hackage
 * `ghc-9.8.2`: use liquidhaskell-0.9.8.2 from Hackage

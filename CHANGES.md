@@ -2,6 +2,21 @@
 
 ## Next
 
+## 0.9.14.1.1 (2026-06-04)
+
+- Stop shadowing reflected signatures with assumed signatures
+  [#2675](https://github.com/ucsd-progsys/liquidhaskell/pull/2675)
+- Allow parenthesis in arguments to type aliases. Require type aliases to start with upper-case
+  [#2674](https://github.com/ucsd-progsys/liquidhaskell/pull/2674)
+- Add `--save-bfq-on-error` flag for liquidhaskell and include it in CI
+  [#2648](https://github.com/ucsd-progsys/liquidhaskell/pull/2648)
+- Migrate from cmdargs to base:System.Console.GetOpt
+  [#2672](https://github.com/ucsd-progsys/liquidhaskell/pull/2672)
+  [#2677](https://github.com/ucsd-progsys/liquidhaskell/pull/2677)
+  [#2678](https://github.com/ucsd-progsys/liquidhaskell/pull/2678)
+- Avoid name resolution errors in define annotations
+  [#2604](https://github.com/ucsd-progsys/liquidhaskell/pull/2667)
+
 ## 0.9.14.1 (2026-05-06)
 
 - Upgrade to GHC 9.14.1 [#2604](https://github.com/ucsd-progsys/liquidhaskell/pull/2604)
