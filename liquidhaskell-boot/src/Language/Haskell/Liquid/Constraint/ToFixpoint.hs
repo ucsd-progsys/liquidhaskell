@@ -205,16 +205,47 @@ doExpand sp cfg sub = allowGlobalPLE cfg
 -- 3. Don't create `define` for the ctor.
 -- Unfortunately 3 breaks a bunch of tests...
 
--- | Given @(dc, t)@ where @dc@ is a data constructor and @t@ is its spec type,
--- generate rewrites for measures.
+-- Note [GADT workers and coercion binders]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 --
--- The measures are generated from the refinements in the spec type, which are
--- expected to be of the form
+-- For GADT constructors, GHC generates a *worker* and a *wrapper* DataCon.
+-- The worker's type includes coercion arguments for each equality constraint
+-- (e.g. @Succ n ~ n+1@ for a length-indexed vector).  However, the fixpoint
+-- SMT encoding drops those coercion arguments: a pattern match
+-- @case xs of { (:>) x xr -> ... }@ produces a constraint
+-- @xs = $:>(x, xr)@ with only the value arguments.
+--
+-- The spec type for the worker therefore has @nCoerce@ extra binders at the
+-- front (one per equality constraint) that do NOT appear in the SMT
+-- application.  We build the application expression using only the remaining
+-- *value* binders (@valBs@), so that the resulting rewrite has the right
+-- arity to fire on the worker applications that appear in constraints.
+--
+-- Note [All rewrites keyed on the worker symbol]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--
+-- In LiquidHaskell, @F.Symbolic DataCon@ is defined as
+-- @symbol = F.symbol . dataConWorkId@, so DataCon applications in fixpoint
+-- constraints *always* carry the *worker* symbol (e.g. @$:>@, never @$W:>@).
+--
+-- User-written measures (e.g. @vlen@) are routed to the *wrapper* spec type
+-- by 'isWorkerDef' in "Measure", so @makeSimplify@ receives a
+-- @(DataConWrapId $W:>, wrRType)@ pair carrying the measure refinements.
+-- To produce rewrites that PLE can actually fire, we must key them on the
+-- *worker* symbol rather than the wrapper symbol.  We do this by using
+-- @dcSym = worker symbol@ in both the application expression @eVal@ and the
+-- guard inside @go@, so the emitted 'F.SMeasure' entries are already
+-- worker-keyed.
+
+-- | Given @(dc, t)@ where @dc@ is a data constructor and @t@ is its spec type,
+-- generate PLE rewrite rules for measures keyed on the worker DataCon symbol.
+--
+-- The measures are generated from the refinement in the result type of @t@,
+-- which is expected to be of the form
 --
 -- > x0:t0 -> ... -> xn:tn -> { v: T | e }
 --
--- where @e@ is a conjunction where the conjuncts have one of the following
--- forms
+-- where @e@ is a conjunction whose conjuncts have one of the following forms:
 --
 -- > f (dc x1 ... xn) = body
 -- > f (dc x1 ... xn) <=> body
@@ -226,32 +257,49 @@ makeSimplify (var, t)
   | not (GM.isDataConId var)
   = []
   | otherwise
-  = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol var) (F.EVar <$> ty_binds (toRTypeRep t))) t
+  = go $ specTypeToResultRef eVal t
   where
+    trep = toRTypeRep t
+    -- All rewrites are keyed on the *worker* symbol.
+    -- See note [All rewrites keyed on the worker symbol].
+    dcSym = case Ghc.idDetails var of
+      Ghc.DataConWrapId dc -> F.symbol (Ghc.dataConWorkId dc)
+      _                    -> F.symbol var
+    -- Value-only binders: for GADT workers, drop the leading coercion binders
+    -- that are present in the spec type but absent in the SMT encoding.
+    -- See note [GADT workers and coercion binders].
+    valBs = case Ghc.idDetails var of
+      Ghc.DataConWorkId dc ->
+        let nCoerce = length $ filter (Ghc.isSimplePredTy . Ghc.irrelevantMult)
+                              $ Ghc.dataConRepArgTys dc
+        in  drop nCoerce (ty_binds trep)
+      _                    -> ty_binds trep
+    eVal  = F.eApps (F.EVar dcSym) (F.EVar <$> valBs)
+
     go (F.PAnd es) = concatMap go es
 
     go (F.PAtom eq (F.EApp (F.EVar f) expr) bd)
       | eq `elem` [F.Eq, F.Ueq]
       , (F.EVar dc, xs) <- F.splitEApp expr
-      , dc == F.symbol var
+      , dc == dcSym
       , all isEVar xs
       = [F.SMeasure f dc (fromEVar <$> xs) bd]
 
     go (F.PIff (F.EApp (F.EVar f) expr) bd)
       | (F.EVar dc, xs) <- F.splitEApp expr
-      , dc == F.symbol var
+      , dc == dcSym
       , all isEVar xs
       = [F.SMeasure f dc (fromEVar <$> xs) bd]
 
     go (F.EApp (F.EVar f) expr)
       | (F.EVar dc, xs) <- F.splitEApp expr
-      , dc == F.symbol var
+      , dc == dcSym
       , all isEVar xs
       = [F.SMeasure f dc (fromEVar <$> xs) F.PTrue]
 
     go (F.PNot (F.EApp (F.EVar f) expr))
       | (F.EVar dc, xs) <- F.splitEApp expr
-      , dc == F.symbol var
+      , dc == dcSym
       , all isEVar xs
       = [F.SMeasure f dc (fromEVar <$> xs) F.PFalse]
 
