@@ -123,7 +123,7 @@ rsplitW :: CGEnv
         -> Ref RSort SpecType
         -> CG [FixWfC]
 rsplitW _ (RProp _ (RHole _)) =
-  panic Nothing "Constrains: rsplitW for RProp _ (RHole _)"
+  return []
 
 rsplitW γ (RProp ss t0) = do
   γ' <- foldM (+=) γ [("rsplitW", x, ofRSort s) | (x, s) <- ss]
@@ -375,11 +375,13 @@ rsplitC :: CGEnv
         -> SpecProp
         -> SpecProp
         -> CG [FixSubC]
-rsplitC _ _ (RProp _ (RHole _))
-  = panic Nothing "RefTypes.rsplitC on RProp _ (RHole _)"
+rsplitC _ _ (RProp _ (RHole r))
+  | isTauto r = return []
+  | otherwise = panic Nothing "RefTypes.rsplitC on RProp _ (RHole _) with non-trivial reft"
 
-rsplitC _ (RProp _ (RHole _)) _
-  = panic Nothing "RefTypes.rsplitC on RProp _ (RHole _)"
+rsplitC _ (RProp _ (RHole r)) _
+  | isTauto r = return []
+  | otherwise = panic Nothing "RefTypes.rsplitC on RProp _ (RHole _) with non-trivial reft"
 
 rsplitC γ (RProp s1 r1) (RProp s2 r2)
   = do γ'  <-  foldM (+=) γ [("rsplitC1", x, ofRSort s) | (x, s) <- s2]

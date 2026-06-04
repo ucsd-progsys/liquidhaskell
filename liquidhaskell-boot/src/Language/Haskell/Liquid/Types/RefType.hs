@@ -715,6 +715,10 @@ choosen i []     (y:ys) = y:choosen (i-1) [] ys
 choosen _ _ _           = impossible Nothing "choosen: this cannot happen"
 
 
+-- | Creates a default RProp for a predicate variable when none is specified by the user.
+-- The body is the full PVar type, which will be freshened with KVars during constraint generation.
+-- NOTE: Trivial RHoles (@RProp bs (RHole trueReft)@) are now allowed by the RApp invariant
+-- to represent unconstrained abstract refinement positions (e.g., for partial applications).
 rtPropTop
   :: (OkRT c tv r,
       IsReft r,
@@ -725,19 +729,25 @@ rtPropTop
    => PVar (RType c tv NoReft) -> Ref (RType c tv NoReft) (RType c tv r)
 rtPropTop pv = RProp (pvArgs pv) $ ofRSort $ ptype pv
 
-rtPropPV :: (Fixpoint a, IsReft r, Meet r)
+rtPropPV :: (Fixpoint a, IsReft r, Meet r, Eq (ReftVar r))
          => a
          -> [PVar (RType c tv NoReft)]
          -> [Ref (RType c tv NoReft) (RType c tv r)]
          -> [Ref (RType c tv NoReft) (RType c tv r)]
 rtPropPV _rc = zipWith mkRTProp
 
--- | Eliminates top-level RHoles. See @goRProps@ inside 'goPlugged' in
--- Plugged.hs for the handling of nested RHoles.
-mkRTProp :: (IsReft r, Meet r)
+-- | Eliminates top-level RHoles with non-trivial refinements.
+-- Trivial RHoles (where the refinement is tautological) are left in place
+-- to represent unconstrained abstract refinement positions, avoiding
+-- expansion for partial applications and self-referential types.
+-- See @goRProps@ inside 'goPlugged' in Plugged.hs for the handling of nested RHoles.
+mkRTProp :: (IsReft r, Meet r, Eq (ReftVar r))
          => PVar (RType c tv NoReft)
          -> Ref (RType c tv NoReft) (RType c tv r)
          -> Ref (RType c tv NoReft) (RType c tv r)
+mkRTProp _pv (RProp ss (RHole r))
+  | isTauto r
+  = RProp ss (RHole r)
 mkRTProp pv (RProp ss (RHole r))
   = RProp ss $ ofRSort (pvType pv) `strengthen` r
 

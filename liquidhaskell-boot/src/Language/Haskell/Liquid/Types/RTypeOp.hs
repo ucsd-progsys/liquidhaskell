@@ -470,7 +470,7 @@ mapReft ::  (r1 -> r2) -> RTypeBV b v c tv r1 -> RTypeBV b v c tv r2
 mapReft f = emapReft (const f) []
 
 instance Top r => Top (RTypeBV b v c tv r) where
-  top (RHole _) = panic Nothing "top called on (RProp _ (RHole _))"
+  top (RHole r) = RHole (top r)
   top t = mapReft top t
 
 emapReft ::  ([b] -> r1 -> r2) -> [b] -> RTypeBV b v c tv r1 -> RTypeBV b v c tv r2

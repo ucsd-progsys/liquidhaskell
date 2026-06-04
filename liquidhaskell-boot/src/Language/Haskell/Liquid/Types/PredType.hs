@@ -276,7 +276,7 @@ replacePreds                 :: String -> SpecType -> [(RPVar, SpecProp)] -> Spe
 -------------------------------------------------------------------------------------
 replacePreds msg                 = L.foldl' go
   where
-     go _ (_, RProp _ (RHole _)) = panic Nothing "replacePreds on RProp _ (RHole _)"
+     go z (_, RProp _ (RHole _)) = z  -- trivial RProp: predicate is unconstrained
      go z (π, t)                 = substPred msg   (π, t)     z
 
 
@@ -406,8 +406,8 @@ substPredP :: [Char]
            -> (RPVar, Ref RSort (RRType RReft))
            -> Ref RSort (RType RTyCon RTyVar RReft)
            -> Ref RSort SpecType
-substPredP _ su p@(RProp _ (RHole _))
-  = panic Nothing ("PredType.substPredP1 called on invalid inputs: " ++ showpp (su, p))
+substPredP _ _ p@(RProp _ (RHole _))
+  = p
 substPredP msg (p, RProp ss prop) (RProp s t)
   = RProp ss' $ substPred (msg ++ ": substPredP") (p, RProp ss {- (subst su prop) -} prop ) t
  where
@@ -497,10 +497,8 @@ meetListWithPSubRef
  -> Ref τ (RType c tv r)
  -> PVar t3
  -> Ref τ (RType c tv r)
-meetListWithPSubRef _ (RProp _ (RHole _)) _ _ -- TODO: Is this correct?
-  = panic Nothing "PredType.meetListWithPSubRef called with invalid input"
-meetListWithPSubRef _ _ (RProp _ (RHole _)) _
-  = panic Nothing "PredType.meetListWithPSubRef called with invalid input"
+meetListWithPSubRef _ (RProp _ (RHole _)) p _ = p
+meetListWithPSubRef _ p (RProp _ (RHole _)) _ = p
 meetListWithPSubRef ss (RProp s1 r1) (RProp s2 r2) π
   | all (\(_, x, F.EVar y) -> x == y) (pargs π)
   = RProp s1 $ F.subst su' r2 `meet` r1

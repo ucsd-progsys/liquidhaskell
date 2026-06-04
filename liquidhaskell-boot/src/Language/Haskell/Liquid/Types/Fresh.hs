@@ -117,7 +117,7 @@ trueRefType _ t@(RHole _)
 
 trueRef :: (Freshable f Integer, Freshable f r, IsReft r, F.Subable r, F.Variable r ~ F.Symbol, ReftBind r ~ F.Symbol, ReftVar r ~ F.Symbol)
         => Bool -> Ref τ (RType RTyCon RTyVar r) -> f (Ref τ (RRType r))
-trueRef _ (RProp _ (RHole _)) = panic Nothing "trueRef: unexpected RProp _ (RHole _))"
+trueRef _ (RProp s (RHole r)) = return $ RProp s (RHole r)
 trueRef allowTC (RProp s t) = RProp s <$> trueRefType allowTC t
 
 
@@ -154,7 +154,7 @@ refreshRefType _ t
 
 refreshRef :: (Freshable f Integer, Freshable f r, IsReft r, F.Subable r, F.Variable r ~ F.Symbol, ReftBind r ~ F.Symbol, ReftVar r ~ F.Symbol)
            => Bool -> Ref τ (RType RTyCon RTyVar r) -> f (Ref τ (RRType r))
-refreshRef _ (RProp _ (RHole _)) = panic Nothing "refreshRef: unexpected (RProp _ (RHole _))"
+refreshRef _ (RProp s (RHole r)) = return $ RProp s (RHole r)
 refreshRef allowTC (RProp s t) = RProp <$> mapM freshSym s <*> refreshRefType allowTC t
 
 freshSym :: Freshable f a => (t, t1) -> f (a, t1)
