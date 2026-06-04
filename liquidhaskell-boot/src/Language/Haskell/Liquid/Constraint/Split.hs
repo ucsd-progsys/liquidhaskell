@@ -256,6 +256,15 @@ splitC _ (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))
   | a1 == a2
   = bsplitC γ t1 t2
 
+-- When a type variable is subtyped against a concrete application (or vice versa),
+-- we can only constrain the base refinements. This arises with partially-applied
+-- type constructors and abstract refinements (issue #2692).
+splitC _ (SubC γ t1@(RVar _ _) t2@(RApp _ _ _ _))
+  = bsplitC γ t1 t2
+
+splitC _ (SubC γ t1@(RApp _ _ _ _) t2@(RVar _ _))
+  = bsplitC γ t1 t2
+
 splitC _ (SubC γ t1 t2)
   = panic (Just $ getLocation γ) $ "(Another Broken Test!!!) splitc unexpected:\n" ++ showpp t1 ++ "\n  <:\n" ++ showpp t2
 
