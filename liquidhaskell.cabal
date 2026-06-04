@@ -1,6 +1,6 @@
 cabal-version:      2.4
 name:               liquidhaskell
-version:            0.9.14.1
+version:            0.9.14.1.1
 synopsis:           Liquid Types for Haskell
 description:        Liquid Types for Haskell.
 license:            BSD-3-Clause
@@ -79,7 +79,7 @@ library
   hs-source-dirs:     src
 
   build-depends:      base                 >= 4.11.1.0 && < 5,
-                      liquidhaskell-boot   == 0.9.14.1,
+                      liquidhaskell-boot   == 0.9.14.1.1,
                       bytestring,
                       containers,
                       ghc-prim

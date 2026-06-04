@@ -1,6 +1,6 @@
 cabal-version:      2.4
 name:               liquidhaskell-boot
-version:            0.9.14.1
+version:            0.9.14.1.1
 synopsis:           Liquid Types for Haskell
 description:        This package provides a plugin to verify Haskell programs.
                     But most likely you should be using the [liquidhaskell package](https://hackage.haskell.org/package/liquidhaskell)
@@ -141,7 +141,7 @@ library
                     , gitrev
                     , hashable             >= 1.3 && < 1.6
                     , hscolour             >= 1.22
-                    , liquid-fixpoint      == 0.9.6.3.6
+                    , liquid-fixpoint      == 0.9.6.3.7
                     , mtl                  >= 2.1
                     , githash
                     , megaparsec           >= 8
