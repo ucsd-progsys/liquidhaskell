@@ -987,6 +987,8 @@ executable measure-pos
                     , Ple1Lib
                     , PruneHO
                     , RecordAccessors
+                    , Unpack2629
+                    , Unpack2695
                     , Using00
 
     build-depends:    base
