@@ -29,6 +29,7 @@ allow the new version of `liquid-fixpoint`.
 cd ..
 git fetch origin -p
 git checkout origin/develop
+cabal test liquid-fixpoint
 scripts/test/test_plugin.sh
 ```
 
@@ -84,10 +85,12 @@ release.
 git log <tag_of_latest_release>.. liquid-prelude
 ```
 
-Check that Liquid Haskell is buildable.
+Check that Liquid Haskell is buildable and that tests pass.
 
 ```
 cabal build all
+cabal test liquidhaskell-boot
+scripts/test/test_plugin.sh
 ```
 
 Update installation instructions in the `docs/mkDocs/docs/install.md`.
