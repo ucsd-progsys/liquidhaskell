@@ -172,9 +172,21 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
 
       checkErrors
 
+      -- Pre-resolve the head names of data and newtype declarations to
+      -- GHC TyCons, bypassing type alias lookup.  This ensures that a
+      -- user-defined data type is not confused with an imported type alias
+      -- of the same name (e.g. 'TT' in GHC.Types_LHAssumptions).  When
+      -- the same name is used in a type position (as opposed to the head
+      -- of a data declaration) the type alias continues to take priority
+      -- via the normal 'resolveLHName' path below.
+      let sp0' = sp0
+                   { dataDecls  = map resolveDataDeclHeadName (dataDecls  sp0)
+                   , newtyDecls = map resolveDataDeclHeadName (newtyDecls sp0)
+                   }
+
       -- First resolution pass: A generic traversal that resolves names
       -- of Haskell entities and type alias binders.
-      sp1 <- lift $ mapMLocLHNames (\l -> (<$ l) <$> resolveLHName l) sp0
+      sp1 <- lift $ mapMLocLHNames (\l -> (<$ l) <$> resolveLHName l) sp0'
 
       -- Data decls contain fieldnames that introduce measures with the
       -- same names. We resolve them before constructing the logic
@@ -244,6 +256,26 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
       case n of
         LHNUnresolved LHLogicNameBinder s -> pure $ makeLogicLHName s thisModule Nothing
         _ -> panic Nothing $ "unexpected name: " ++ show n
+
+    -- | Pre-resolve the head name of a data/newtype declaration to a GHC
+    -- TyCon, bypassing type alias resolution.  This prevents an imported
+    -- type alias (e.g. @type TT = {v:Bool|v}@ in GHC.Types_LHAssumptions)
+    -- from shadowing a user-defined data type with the same name.
+    -- 'mapMLocLHNames' leaves already-resolved names untouched, so any name
+    -- resolved here will not be visited again in the first resolution pass.
+    resolveDataDeclHeadName decl =
+        decl { DataDecl.tycName = resolveDataName (DataDecl.tycName decl) }
+      where
+        resolveDataName (DataDecl.DnName lname) =
+            DataDecl.DnName (resolveHeadLHName lname)
+        resolveDataName dn = dn
+
+        resolveHeadLHName lname = case val lname of
+          LHNUnresolved (LHTcName lcl) s ->
+            case GHC.lookupGRE globalRdrEnv (mkLookupGRE (LHTcName lcl) s) of
+              [e] -> LHNResolved (LHRGHC (GHC.greName e)) s <$ lname
+              _   -> lname  -- leave unresolved; normal pass will handle it
+          _ -> lname  -- already resolved or not a TyCon name
 
     resolveLHName lname =
       case val lname of
