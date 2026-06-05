@@ -205,6 +205,22 @@ doExpand sp cfg sub = allowGlobalPLE cfg
 -- 3. Don't create `define` for the ctor.
 -- Unfortunately 3 breaks a bunch of tests...
 
+-- | Given @(dc, t)@ where @dc@ is a data constructor and @t@ is its spec type,
+-- generate rewrites for measures.
+--
+-- The measures are generated from the refinements in the spec type, which are
+-- expected to be of the form
+--
+-- > x0:t0 -> ... -> xn:tn -> { v: T | e }
+--
+-- where @e@ is a conjunction where the conjuncts have one of the following
+-- forms
+--
+-- > f (dc x1 ... xn) = body
+-- > f (dc x1 ... xn) <=> body
+-- > f (dc x1 ... xn)
+-- > not (f (dc x1 ... xn))
+--
 makeSimplify :: (Var, SpecType) -> [F.Rewrite]
 makeSimplify (var, t)
   | not (GM.isDataConId var)
