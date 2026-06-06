@@ -1504,14 +1504,19 @@ exprArgKind (F.ECst _ F.FInt)  = NatKind
 exprArgKind (F.ESym _)         = SymbolKind
 exprArgKind _                  = UnknownKind
 
--- | GHC 'Type' that represents the *kind* of a value-kinded type argument,
--- suitable for use as a stand-in argument in 'TyConApp' when computing sorts.
--- 'UnknownKind' expressions default to 'naturalTy' (the common case for
--- type-level arithmetic).
+-- | GHC 'Type' whose sort in LH's encoding matches the kind of the expression.
+-- Used as a stand-in in 'TyConApp' when computing sorts via 'typeSort'.
+--
+-- * Nat expressions → 'naturalTy': 'typeSort' maps this to a Nat-sized sort,
+--   keeping the sort-parameter arity of the enclosing type constructor consistent
+--   with its data-constructor encoding.
+-- * Symbol expressions → @[Char]@ ('stringTy'): LH maps 'Symbol' type literals
+--   to @[Char]@ via 'ofLitType', so we use the same stand-in for consistency.
+-- * Unknown kind → 'naturalTy' (conservative default).
 exprArgKindType :: F.Expr -> Type
 exprArgKindType e = case exprArgKind e of
-  NatKind    -> naturalTy
-  SymbolKind -> typeSymbolKind
+  NatKind     -> naturalTy
+  SymbolKind  -> stringTy
   UnknownKind -> naturalTy
 
 --------------------------------------------------------------------------------

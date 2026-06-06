@@ -1056,6 +1056,7 @@ executable datacon-pos
                     , T1477
                     , T1777
                     , T2447
+                    , T2447Symbol
 
     build-depends:    base
                     , liquid-prelude
@@ -1083,6 +1084,7 @@ executable datacon-neg
                     , Date
                     -- , NewTypes0
                     , NewTypes
+                    , T2447KindMismatch
 
     build-depends:    base
                     , liquid-prelude
