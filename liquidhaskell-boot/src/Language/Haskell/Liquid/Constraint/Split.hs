@@ -256,6 +256,12 @@ splitC _ (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))
   | a1 == a2
   = bsplitC γ t1 t2
 
+-- Value-kinded type arguments (Nat, Symbol, …) appear as RExprArg when the
+-- LH spec uses arithmetic like @SumSucc (n + 1)@.  They carry no structural
+-- sub-constraints; the enclosing type's refinement handles the semantics.
+splitC _ (SubC _ (RExprArg _) (RExprArg _))
+  = return []
+
 splitC _ (SubC γ t1 t2)
   = panic (Just $ getLocation γ) $ "(Another Broken Test!!!) splitc unexpected:\n" ++ traceTy t1 ++ "\n  <:\n" ++ traceTy t2
 

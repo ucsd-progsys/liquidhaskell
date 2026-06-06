@@ -49,6 +49,6 @@ getSomeZeroT (EmptyIfZero _) = error "unreachable"
 type SumSucc :: Nat -> Type
 data SumSucc n = SumSucc Int
 
-{-@ getSumSucc3 :: forall (n :: Nat). SumSucc n -> {v:Int | v == n + 1} @-}
-getSumSucc3 :: SumSucc n -> Int
+{-@ getSumSucc3 :: forall (n :: Nat). SumSucc (n + 1) -> {v:Int | v == n + 2} @-}
+getSumSucc3 :: SumSucc (n + 1) -> Int
 getSumSucc3 (SumSucc v) = v  -- v equals 4 in the environment

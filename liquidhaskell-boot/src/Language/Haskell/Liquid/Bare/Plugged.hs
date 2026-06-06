@@ -285,6 +285,10 @@ goPlug tce tyi err f = go
     --   | length ts == length ts'
       = RApp c     (Misc.zipWithDef go ts $ Bare.matchKindArgs ts ts') (goRProps c ts ts' p) r
 
+    -- An RExprArg in the LH spec (e.g. SumSucc (n + 1)) is already a
+    -- concrete expression; nothing to plug, so just keep it as-is.
+    go _                (RExprArg e)       = RExprArg e
+
     go hsT lqT                             = Ex.throw (err (F.pprint hsT) (F.pprint lqT))
 
     -- For dependent tuples, RProp at index j corresponds to the

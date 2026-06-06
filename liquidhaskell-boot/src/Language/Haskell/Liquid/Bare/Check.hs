@@ -548,11 +548,28 @@ checkMismatch (x, t) = if ok then emptyDiagnostics else mkDiagnostics mempty [er
     err              = errTypeMismatch x t
 
 tyCompat :: Var -> RType RTyCon RTyVar r -> Bool
-tyCompat x t         = lqT == hsT
+tyCompat x t         = lqT == hsT || exprArgCompat lqT hsT
   where
     lqT :: RSort     = toRSort t
     hsT :: RSort     = ofType (varType x)
     _msg             = "TY-COMPAT: " ++ GM.showPpr x ++ ": hs = " ++ F.showpp hsT ++ " :lq = " ++ F.showpp lqT
+
+-- | Structural compatibility between two 'RSort's allowing for 'RExprArg'
+-- on either side to match any corresponding sort.  Used as a fallback when
+-- 'lqT == hsT' fails because the LH spec uses value-kinded type arguments
+-- (e.g. @SumSucc (n + 1)@) stored as 'RExprArg' while the GHC type stores
+-- the same position as @RApp (+) [n, 1]@.
+exprArgCompat :: RSort -> RSort -> Bool
+exprArgCompat (RExprArg _)        _                    = True
+exprArgCompat _                   (RExprArg _)         = True
+exprArgCompat (RAllT a  t  _)     (RAllT a'  t'  _)   = a == a'  && exprArgCompat t  t'
+exprArgCompat (RFun  _ _ i  o  _) (RFun  _ _ i'  o' _)= exprArgCompat i i' && exprArgCompat o o'
+exprArgCompat (RApp  c  ts _ _)   (RApp  c'  ts' _ _) = c == c'  && length ts == length ts'
+                                                       && all (uncurry exprArgCompat) (zip ts ts')
+exprArgCompat (RVar  a  _)        (RVar  a'  _)        = a == a'
+exprArgCompat (RAppTy t1 t2 _)    (RAppTy t1' t2' _)  = exprArgCompat t1 t1' && exprArgCompat t2 t2'
+exprArgCompat (RAllP _ t)         (RAllP _ t')         = exprArgCompat t t'
+exprArgCompat t                   t'                   = t == t'
 
 errTypeMismatch     :: Var -> Located SpecType -> Error
 errTypeMismatch x t = ErrMismatch lqSp (pprint x) (text "Checked")  d1 d2 Nothing hsSp
@@ -600,7 +617,9 @@ checkAppTys = go
     go (REx _ t1 t2)    = go t1 <|> go t2
     go (RAppTy t1 t2 _) = go t1 <|> go t2
     go (RRTy _ _ _ t)   = go t
-    go (RExprArg _)     = Just $ text "Logical expressions cannot appear inside a Haskell type"
+    -- RExprArg is valid for value-kinded (e.g. Nat) type arguments such as
+    -- 'SumSucc (n + 1)' or 'Vector 3'; checking is deferred to sort-checking.
+    go (RExprArg _)     = Nothing
     go (RHole _)        = Nothing
 
 checkTcArity :: RTyCon -> Arity -> Maybe Doc

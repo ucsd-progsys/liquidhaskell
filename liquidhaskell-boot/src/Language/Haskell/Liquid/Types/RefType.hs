@@ -1471,7 +1471,20 @@ rTypeSortedReft emb t = RR (rTypeSort emb t) (rTypeReft t)
 
 rTypeSort     ::  (PPrint r, IsReft r, ReftBind r ~ Symbol, ReftVar r ~ Symbol, SubsTy RTyVar (RType RTyCon RTyVar NoReft) r)
               => TCEmb TyCon -> RRType r -> Sort
-rTypeSort tce = typeSort tce . toType True
+rTypeSort tce = go
+  where
+    go (RApp RTyCon{rtc_tc = c} ts _ _)
+      -- When a type constructor has value-kinded (e.g. Nat) arguments stored
+      -- as RExprArg, toType drops them, losing the sort parameter.  We
+      -- preserve them by substituting naturalTy so that typeSort can emit
+      -- the right FInt sort, keeping the arity consistent with how data
+      -- constructors are encoded (e.g. 'is$SumSucc : func(1,[SumSucc @(0);bool])').
+      | any isExprArg ts = typeSort tce (TyConApp c (concatMap argToType ts))
+    go t                 = typeSort tce (toType True t)
+    argToType (RExprArg _) = [naturalTy]
+    argToType t            = [toType True t]
+    isExprArg (RExprArg _) = True
+    isExprArg _            = False
 
 --------------------------------------------------------------------------------
 applySolution
