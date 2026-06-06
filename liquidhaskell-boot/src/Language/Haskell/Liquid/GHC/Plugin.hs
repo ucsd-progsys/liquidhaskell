@@ -108,6 +108,7 @@ plugin :: GHC.Plugin
 plugin = GHC.defaultPlugin {
     driverPlugin          = lhDynFlags
   , parsedResultAction    = parsePlugin
+  , renamedResultAction   = renamedPlugin
   , typeCheckResultAction = typecheckPlugin
   , pluginRecompile       = purePlugin
   }
@@ -120,6 +121,19 @@ plugin = GHC.defaultPlugin {
     parsePlugin :: [CommandLineOption] -> ModSummary -> ParsedResult -> Hsc ParsedResult
     parsePlugin opts ms parsedResult = liquidPlugin opts parsedResult $ \cfg ->
       parsedHook cfg ms parsedResult
+
+    -- | Ensure that 'tcg_rn_decls' is populated for use in 'typeCheckResultAction'.
+    -- GHC only keeps renamed syntax when generating HIE files or haddock docs;
+    -- we need it to distinguish manually-written from auto-derived instances.
+    -- We prime 'tcg_rn_decls' with an empty group here so that GHC's own
+    -- accumulation code does: appendGroups emptyRnGroup rn_decls = rn_decls.
+    renamedPlugin :: [CommandLineOption] -> TcGblEnv -> GHC.HsGroup GHC.GhcRn
+                  -> TcM (TcGblEnv, GHC.HsGroup GHC.GhcRn)
+    renamedPlugin _opts tcg decls = do
+      let tcg' = case tcg_rn_decls tcg of
+                   Nothing -> tcg { tcg_rn_decls = Just GHC.emptyRnGroup }
+                   Just _  -> tcg
+      return (tcg', decls)
 
     typecheckPlugin :: [CommandLineOption] -> ModSummary -> TcGblEnv -> TcM TcGblEnv
     typecheckPlugin opts summary gblEnv = liquidPlugin opts gblEnv $ \cfg ->
@@ -534,7 +548,8 @@ processModule LiquidHaskellContext{..} = do
     let preNormalizedCore = preNormalizeCore moduleCfg modGuts0
         modGuts = modGuts0 { mg_binds = preNormalizedCore }
         file = LH.modSummaryHsFile lhModuleSummary
-    targetSrc  <- liftIO $ makeTargetSrc moduleCfg file modGuts hscEnv (tcg_rdr_env tcg)
+    let mInstSpans = LH.manualInstSpans tcg
+    targetSrc  <- liftIO $ makeTargetSrc moduleCfg file modGuts hscEnv (tcg_rdr_env tcg) mInstSpans
     logger <- getLogger
 
     -- See https://github.com/ucsd-progsys/liquidhaskell/issues/1711
@@ -600,8 +615,9 @@ makeTargetSrc :: Config
               -> ModGuts
               -> HscEnv
               -> GlobalRdrEnv
+              -> [GHC.SrcSpan]
               -> IO TargetSrc
-makeTargetSrc cfg file modGuts hscEnv rdrEnv = do
+makeTargetSrc cfg file modGuts hscEnv rdrEnv manualSpans = do
   when (dumpPreNormalizedCore cfg) $ do
     putStrLn "\n*************** Pre-normalized CoreBinds *****************\n"
     putStrLn $ unlines $ L.intersperse "" $ map (GHC.showPpr (GHC.hsc_dflags hscEnv)) (mg_binds modGuts)
@@ -624,7 +640,7 @@ makeTargetSrc cfg file modGuts hscEnv rdrEnv = do
   debugLog $ "coreBinds => " ++ (O.showSDocUnsafe . O.ppr $ coreBinds)
   debugLog $ "impVars => " ++ (O.showSDocUnsafe . O.ppr $ impVars)
   debugLog $ "useVars  => " ++ (O.showSDocUnsafe . O.ppr $ readVars coreBinds)
-  debugLog $ "derVars  => " ++ (O.showSDocUnsafe . O.ppr $ HS.fromList (LH.derivedVars cfg mgiModGuts))
+  debugLog $ "derVars  => " ++ (O.showSDocUnsafe . O.ppr $ HS.fromList (LH.derivedVars cfg manualSpans mgiModGuts))
   debugLog $ "gsExports => " ++ show (mgi_exports  mgiModGuts)
   debugLog $ "gsTcs     => " ++ (O.showSDocUnsafe . O.ppr $ allTcs)
   debugLog $ "gsCls     => " ++ (O.showSDocUnsafe . O.ppr $ mgi_cls_inst mgiModGuts)
@@ -638,7 +654,7 @@ makeTargetSrc cfg file modGuts hscEnv rdrEnv = do
     , giImpVars   = impVars
     , giDefVars   = L.nub $ dataCons ++ letVars coreBinds
     , giUseVars   = readVars coreBinds
-    , giDerVars   = HS.fromList (LH.derivedVars cfg mgiModGuts)
+    , giDerVars   = HS.fromList (LH.derivedVars cfg manualSpans mgiModGuts)
     , gsExports   = mgi_exports  mgiModGuts
     , gsTcs       = allTcs
     , gsCls       = mgi_cls_inst mgiModGuts
