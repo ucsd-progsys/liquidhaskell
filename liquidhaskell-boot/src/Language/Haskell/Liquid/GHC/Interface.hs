@@ -28,6 +28,7 @@ module Language.Haskell.Liquid.GHC.Interface (
   , listLMap
   , classCons
   , derivedVars
+  , manualInstSpans
   , importVars
   , modSummaryHsFile
   , makeFamInstEnv
@@ -61,7 +62,6 @@ import Language.Fixpoint.Types          hiding (err, panic, Error, Result, Expr)
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.GHC.Types (MGIModGuts(..))
 import Language.Haskell.Liquid.GHC.Play
-import Language.Haskell.Liquid.WiredIn (isDerivedInstance)
 import qualified Language.Haskell.Liquid.Measure  as Ms
 import Language.Haskell.Liquid.Types.Errors
 import Language.Haskell.Liquid.Types.PrettyPrint
@@ -80,15 +80,33 @@ classCons :: Maybe [ClsInst] -> [Id]
 classCons Nothing   = []
 classCons (Just cs) = concatMap (dataConImplicitIds . head . tyConDataCons . classTyCon . is_cls) cs
 
-derivedVars :: Config -> MGIModGuts -> [Var]
-derivedVars cfg mg  = concatMap (dFunIdVars cbs . is_dfun) derInsts
+derivedVars :: Config -> S.HashSet Ghc.SrcSpan -> MGIModGuts -> [Var]
+derivedVars cfg manualSpans mg = concatMap (dFunIdVars cbs . is_dfun) derInsts
   where
     derInsts
-      | checkDer    = insts
-      | otherwise   = filter isDerivedInstance insts
-    insts           = mgClsInstances mg
-    checkDer        = checkDerived cfg
-    cbs             = mgi_binds mg
+      | checkDer  = insts
+      | otherwise = filter (not . isManual manualSpans) insts
+    insts         = mgClsInstances mg
+    checkDer      = checkDerived cfg
+    cbs           = mgi_binds mg
+
+-- | Returns True if the instance DFun's source span falls within one of the
+-- manually-written instance declaration spans.  Instances not in any such span
+-- (e.g. derived via 'deriving') are treated as auto-generated.
+isManual :: S.HashSet Ghc.SrcSpan -> ClsInst -> Bool
+isManual manualSpans inst =
+  any (Ghc.getSrcSpan (is_dfun inst) `Ghc.isSubspanOf`) (S.toList manualSpans)
+
+-- | Collect the source spans of all 'ClsInstDecl' nodes in the renamed AST.
+-- These cover the full body of every manually-written instance declaration.
+manualInstSpans :: Ghc.TcGblEnv -> S.HashSet Ghc.SrcSpan
+manualInstSpans tcg = case Ghc.tcg_rn_decls tcg of
+  Nothing  -> S.empty
+  Just grp -> S.fromList
+    [ Ghc.getLocA d
+    | d <- Ghc.hsGroupInstDecls grp
+    , Ghc.ClsInstD {} <- [Ghc.unLoc d]
+    ]
 
 
 mgClsInstances :: MGIModGuts -> [ClsInst]

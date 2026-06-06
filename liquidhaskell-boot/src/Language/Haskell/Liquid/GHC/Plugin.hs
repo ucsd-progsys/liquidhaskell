@@ -534,7 +534,8 @@ processModule LiquidHaskellContext{..} = do
     let preNormalizedCore = preNormalizeCore moduleCfg modGuts0
         modGuts = modGuts0 { mg_binds = preNormalizedCore }
         file = LH.modSummaryHsFile lhModuleSummary
-    targetSrc  <- liftIO $ makeTargetSrc moduleCfg file modGuts hscEnv (tcg_rdr_env tcg)
+    let mInstSpans = LH.manualInstSpans tcg
+    targetSrc  <- liftIO $ makeTargetSrc moduleCfg file modGuts hscEnv (tcg_rdr_env tcg) mInstSpans
     logger <- getLogger
 
     -- See https://github.com/ucsd-progsys/liquidhaskell/issues/1711
@@ -600,8 +601,9 @@ makeTargetSrc :: Config
               -> ModGuts
               -> HscEnv
               -> GlobalRdrEnv
+              -> HS.HashSet GHC.SrcSpan
               -> IO TargetSrc
-makeTargetSrc cfg file modGuts hscEnv rdrEnv = do
+makeTargetSrc cfg file modGuts hscEnv rdrEnv manualSpans = do
   when (dumpPreNormalizedCore cfg) $ do
     putStrLn "\n*************** Pre-normalized CoreBinds *****************\n"
     putStrLn $ unlines $ L.intersperse "" $ map (GHC.showPpr (GHC.hsc_dflags hscEnv)) (mg_binds modGuts)
@@ -624,7 +626,7 @@ makeTargetSrc cfg file modGuts hscEnv rdrEnv = do
   debugLog $ "coreBinds => " ++ (O.showSDocUnsafe . O.ppr $ coreBinds)
   debugLog $ "impVars => " ++ (O.showSDocUnsafe . O.ppr $ impVars)
   debugLog $ "useVars  => " ++ (O.showSDocUnsafe . O.ppr $ readVars coreBinds)
-  debugLog $ "derVars  => " ++ (O.showSDocUnsafe . O.ppr $ HS.fromList (LH.derivedVars cfg mgiModGuts))
+  debugLog $ "derVars  => " ++ (O.showSDocUnsafe . O.ppr $ HS.fromList (LH.derivedVars cfg manualSpans mgiModGuts))
   debugLog $ "gsExports => " ++ show (mgi_exports  mgiModGuts)
   debugLog $ "gsTcs     => " ++ (O.showSDocUnsafe . O.ppr $ allTcs)
   debugLog $ "gsCls     => " ++ (O.showSDocUnsafe . O.ppr $ mgi_cls_inst mgiModGuts)
@@ -638,7 +640,7 @@ makeTargetSrc cfg file modGuts hscEnv rdrEnv = do
     , giImpVars   = impVars
     , giDefVars   = L.nub $ dataCons ++ letVars coreBinds
     , giUseVars   = readVars coreBinds
-    , giDerVars   = HS.fromList (LH.derivedVars cfg mgiModGuts)
+    , giDerVars   = HS.fromList (LH.derivedVars cfg manualSpans mgiModGuts)
     , gsExports   = mgi_exports  mgiModGuts
     , gsTcs       = allTcs
     , gsCls       = mgi_cls_inst mgiModGuts
