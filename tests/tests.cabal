@@ -1055,6 +1055,7 @@ executable datacon-pos
                     , T1476
                     , T1477
                     , T1777
+                    , T2447
 
     build-depends:    base
                     , liquid-prelude

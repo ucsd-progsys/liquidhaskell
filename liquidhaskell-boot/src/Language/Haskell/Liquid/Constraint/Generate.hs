@@ -1188,7 +1188,14 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
   xt0             <- checkTyCon ("checkTycon cconsCase", x) γ <$> γ ??= x
   let rt           = shiftVV xt0 x'
   tdc             <- γ ??= dataConWorkId c >>= refreshVV
-  let (rtd,yts',_) = unfoldR tdc rt ys
+  let (rtd0,yts0,_) = unfoldR tdc rt ys
+  -- Substitute value-typed type-variable names (e.g. n :: Nat) with their
+  -- concrete values when the scrutinee is instantiated at a type literal.
+  -- Without this, a symbol like `n` stays free in refinements such as
+  -- `n /= 0`, preventing LH from detecting uninhabited branches.
+  let valSub        = tyLitSubst (varType x) tdc
+      rtd           = F.subst valSub rtd0
+      yts'          = F.subst valSub <$> yts0
   yts             <- projectTypes (typeclass (getConfig γ))  pIs yts'
   let ys''         = F.symbol <$> filter (not . if allowTC then GM.isEmbeddedDictVar else GM.isEvVar) ys
   let r1           = dataConReft   c   ys''
@@ -1318,6 +1325,27 @@ argType t
                              = Just $ F.EVar anyTypeSymbol
 argType _                    = Nothing
 
+
+-- | Build a substitution from value-typed type variable names to their
+-- concrete logical expressions when the scrutinee type is a TyConApp
+-- instantiated at type literals (e.g., @EmptyIfZero 0@ yields @n |-> 0@).
+-- This is the pattern-match analogue of the @rTVarToBind@/@argType@
+-- mechanism used in 'consEApp' for type-application expressions.
+tyLitSubst :: Type -> SpecType -> F.Subst
+tyLitSubst scrTy conTy = F.mkSubst
+  [ (sym, val)
+  | (α, tyArg) <- zip (leadingRAllTs conTy) tyArgs
+  , Just (sym, _) <- [rTVarToBind α]
+  , Just val      <- [argType tyArg]
+  ]
+  where
+    tyArgs = maybe [] snd (Ghc.splitTyConApp_maybe scrTy)
+
+-- | Extract the leading sequence of @RAllT@ type-variable binders from a
+-- 'SpecType', stopping at the first non-@RAllT@ constructor.
+leadingRAllTs :: SpecType -> [RTVar F.Symbol F.Symbol RTyCon RTyVar]
+leadingRAllTs (RAllT α t _) = α : leadingRAllTs t
+leadingRAllTs _             = []
 
 argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
 argExpr _ (Var v)          = Just $ F.eVar v
