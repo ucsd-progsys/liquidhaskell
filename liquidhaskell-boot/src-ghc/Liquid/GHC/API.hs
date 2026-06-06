@@ -701,6 +701,7 @@ import GHC.Types.Name.Set             as Ghc
 import GHC.Types.Name.Cache           as Ghc (NameCache)
 import GHC.Types.Name.Occurrence      as Ghc
     ( NameSpace
+    , isDerivedOccName
     , isFieldNameSpace
     , mkOccName
     , dataName

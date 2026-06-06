@@ -81,21 +81,13 @@ classCons Nothing   = []
 classCons (Just cs) = concatMap (dataConImplicitIds . head . tyConDataCons . classTyCon . is_cls) cs
 
 derivedVars :: Config -> S.HashSet Ghc.SrcSpan -> MGIModGuts -> [Var]
-derivedVars cfg manualSpans mg = concatMap (dFunIdVars cbs . is_dfun) derInsts
+derivedVars cfg manualSpans mg
+  | checkDerived cfg = []
+  | otherwise        = filter isGeneratedBinding (concatMap bindersOf (mgi_binds mg))
   where
-    derInsts
-      | checkDer  = insts
-      | otherwise = filter (not . isManual manualSpans) insts
-    insts         = mgClsInstances mg
-    checkDer      = checkDerived cfg
-    cbs           = mgi_binds mg
-
--- | Returns True if the instance DFun's source span falls within one of the
--- manually-written instance declaration spans.  Instances not in any such span
--- (e.g. derived via 'deriving') are treated as auto-generated.
-isManual :: S.HashSet Ghc.SrcSpan -> ClsInst -> Bool
-isManual manualSpans inst =
-  any (Ghc.getSrcSpan (is_dfun inst) `Ghc.isSubspanOf`) (S.toList manualSpans)
+    isGeneratedBinding v =
+      Ghc.isDerivedOccName (Ghc.getOccName v) &&
+      not (any (Ghc.getSrcSpan v `Ghc.isSubspanOf`) (S.toList manualSpans))
 
 -- | Collect the source spans of all 'ClsInstDecl' nodes in the renamed AST.
 -- These cover the full body of every manually-written instance declaration.
@@ -107,43 +99,6 @@ manualInstSpans tcg = case Ghc.tcg_rn_decls tcg of
     | d <- Ghc.hsGroupInstDecls grp
     , Ghc.ClsInstD {} <- [Ghc.unLoc d]
     ]
-
-
-mgClsInstances :: MGIModGuts -> [ClsInst]
-mgClsInstances = fromMaybe [] . mgi_cls_inst
-
-dFunIdVars :: CoreProgram -> DFunId -> [Id]
-dFunIdVars cbs fd  = notracepp msg $ go S.empty [fd]
-  where
-    msg            = "DERIVED-VARS-OF: " ++ showpp fd
-    localVars      = S.fromList (concatMap bindersOf cbs)
-    -- Compute transitive closure of local dependencies
-    go seen []     = S.toList seen
-    go seen (x:ws)
-      | S.member x seen = go seen ws
-      | otherwise       = go seen' (newDeps ++ ws)
-      where
-        seen'    = S.insert x seen
-        newDeps  = filter (`S.member` localVars) (depsOf x)
-    -- Get local dependencies of a var: co-binders + free vars in the binding RHS
-    depsOf x     = let xBinds = filter (bindsVar x) cbs
-                   in concatMap bindersOf xBinds
-                      ++ concatMap (freeVars S.empty) xBinds
-                      ++ unfoldingDeps x
-    bindsVar x (NonRec y _) = varName y == varName x
-    bindsVar x (Rec xes)    = any (\(y,_) -> varName y == varName x) xes
-    unfoldingDeps x =
-      let xBinds' = filter (bindsVar x) cbs
-          xBndrs  = concatMap bindersOf xBinds'
-      in concatMap (unfoldDep . realUnfoldingInfo . idInfo) xBndrs
-
-unfoldDep :: Unfolding -> [Id]
-unfoldDep (DFunUnfolding _ _ e)       = concatMap exprDep e
-unfoldDep CoreUnfolding {uf_tmpl = e} = exprDep e
-unfoldDep _                           = []
-
-exprDep :: CoreExpr -> [Id]
-exprDep = freeVars S.empty
 
 importVars :: CoreProgram -> [Id]
 importVars = freeVars S.empty
