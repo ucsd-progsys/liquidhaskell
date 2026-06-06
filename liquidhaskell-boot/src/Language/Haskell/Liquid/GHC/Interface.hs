@@ -95,15 +95,29 @@ mgClsInstances :: MGIModGuts -> [ClsInst]
 mgClsInstances = fromMaybe [] . mgi_cls_inst
 
 dFunIdVars :: CoreProgram -> DFunId -> [Id]
-dFunIdVars cbs fd  = notracepp msg $ concatMap bindersOf cbs' ++ deps
+dFunIdVars cbs fd  = notracepp msg $ go S.empty [fd]
   where
     msg            = "DERIVED-VARS-OF: " ++ showpp fd
-    cbs'           = filter f cbs
-    f (NonRec x _) = eqFd x
-    f (Rec xes)    = any eqFd (fst <$> xes)
-    eqFd x         = varName x == varName fd
-    deps           = concatMap unfoldDep unfolds
-    unfolds        = realUnfoldingInfo . idInfo <$> concatMap bindersOf cbs'
+    localVars      = S.fromList (concatMap bindersOf cbs)
+    -- Compute transitive closure of local dependencies
+    go seen []     = S.toList seen
+    go seen (x:ws)
+      | S.member x seen = go seen ws
+      | otherwise       = go seen' (newDeps ++ ws)
+      where
+        seen'    = S.insert x seen
+        newDeps  = filter (`S.member` localVars) (depsOf x)
+    -- Get local dependencies of a var: co-binders + free vars in the binding RHS
+    depsOf x     = let xBinds = filter (bindsVar x) cbs
+                   in concatMap bindersOf xBinds
+                      ++ concatMap (freeVars S.empty) xBinds
+                      ++ unfoldingDeps x
+    bindsVar x (NonRec y _) = varName y == varName x
+    bindsVar x (Rec xes)    = any (\(y,_) -> varName y == varName x) xes
+    unfoldingDeps x =
+      let xBinds' = filter (bindsVar x) cbs
+          xBndrs  = concatMap bindersOf xBinds'
+      in concatMap (unfoldDep . realUnfoldingInfo . idInfo) xBndrs
 
 unfoldDep :: Unfolding -> [Id]
 unfoldDep (DFunUnfolding _ _ e)       = concatMap exprDep e

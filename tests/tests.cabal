@@ -2206,6 +2206,7 @@ executable basic-neg
                     , ShadowLogicSymbols
                     , T1459
                     , T2349
+                    , T2432
 
     build-depends:    base
                     , liquid-prelude

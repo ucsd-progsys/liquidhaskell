@@ -30,6 +30,9 @@ module Language.Haskell.Liquid.WiredIn
 import Prelude                                hiding (error)
 
 -- import Language.Fixpoint.Misc           (mapSnd)
+import Data.Data (Data)
+import Data.Typeable (Typeable)
+import GHC.Generics (Generic, Generic1)
 import Language.Haskell.Liquid.GHC.Misc
 import qualified Liquid.GHC.API as Ghc
 import Liquid.GHC.API (Var, Arity, TyVar, Bind(..), Boxity(..), Expr(..), ForAllTyFlag(Required))
@@ -273,6 +276,10 @@ derivingClasses =
   , show ''Foldable
   , show ''Traversable
   , show ''Fractional
+  , show ''Data
+  , show ''Typeable
+  , show ''Generic
+  , show ''Generic1
   -- , "GHC.Enum.Bounded"
   -- , "GHC.Base.Monoid"
   ]
