@@ -78,6 +78,10 @@ module Language.Haskell.Liquid.Types.RefType (
   , typeSort
   , shiftVV
 
+  -- * Value-kinded (Nat / Symbol) type argument utilities
+  , ExprArgKind(..)
+  , exprArgKind
+  , exprArgKindType
   -- * TODO: classify these
   -- , mkDataConIdsTy
   , expandProductType
@@ -1476,15 +1480,39 @@ rTypeSort tce = go
     go (RApp RTyCon{rtc_tc = c} ts _ _)
       -- When a type constructor has value-kinded (e.g. Nat) arguments stored
       -- as RExprArg, toType drops them, losing the sort parameter.  We
-      -- preserve them by substituting naturalTy so that typeSort can emit
-      -- the right FInt sort, keeping the arity consistent with how data
-      -- constructors are encoded (e.g. 'is$SumSucc : func(1,[SumSucc @(0);bool])').
+      -- preserve them by substituting the kind-appropriate GHC type so that
+      -- typeSort can emit the right sort, keeping the arity consistent with
+      -- how data constructors are encoded.
       | any isExprArg ts = typeSort tce (TyConApp c (concatMap argToType ts))
     go t                 = typeSort tce (toType True t)
-    argToType (RExprArg _) = [naturalTy]
-    argToType t            = [toType True t]
+    argToType (RExprArg le) = [exprArgKindType (F.val le)]
+    argToType t             = [toType True t]
     isExprArg (RExprArg _) = True
     isExprArg _            = False
+
+-- | Kind of a value-level type argument (GHC promoted types).
+data ExprArgKind = NatKind | SymbolKind | UnknownKind deriving (Eq, Show)
+
+-- | Determine the 'ExprArgKind' of a Fixpoint expression used as a
+-- promoted type argument.  Integer expressions have 'NatKind'; symbol
+-- expressions have 'SymbolKind'; anything else is 'UnknownKind'.
+exprArgKind :: F.Expr -> ExprArgKind
+exprArgKind (F.ECon (F.I _))   = NatKind
+exprArgKind (F.EBin _ _ _)     = NatKind
+exprArgKind (F.ENeg _)         = NatKind
+exprArgKind (F.ECst _ F.FInt)  = NatKind
+exprArgKind (F.ESym _)         = SymbolKind
+exprArgKind _                  = UnknownKind
+
+-- | GHC 'Type' that represents the *kind* of a value-kinded type argument,
+-- suitable for use as a stand-in argument in 'TyConApp' when computing sorts.
+-- 'UnknownKind' expressions default to 'naturalTy' (the common case for
+-- type-level arithmetic).
+exprArgKindType :: F.Expr -> Type
+exprArgKindType e = case exprArgKind e of
+  NatKind    -> naturalTy
+  SymbolKind -> typeSymbolKind
+  UnknownKind -> naturalTy
 
 --------------------------------------------------------------------------------
 applySolution

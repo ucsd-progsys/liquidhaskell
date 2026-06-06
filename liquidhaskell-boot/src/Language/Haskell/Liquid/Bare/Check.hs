@@ -555,13 +555,16 @@ tyCompat x t         = lqT == hsT || exprArgCompat lqT hsT
     _msg             = "TY-COMPAT: " ++ GM.showPpr x ++ ": hs = " ++ F.showpp hsT ++ " :lq = " ++ F.showpp lqT
 
 -- | Structural compatibility between two 'RSort's allowing for 'RExprArg'
--- on either side to match any corresponding sort.  Used as a fallback when
--- 'lqT == hsT' fails because the LH spec uses value-kinded type arguments
--- (e.g. @SumSucc (n + 1)@) stored as 'RExprArg' while the GHC type stores
--- the same position as @RApp (+) [n, 1]@.
+-- on either side to match a corresponding sort of the same kind.  Used as a
+-- fallback when 'lqT == hsT' fails because the LH spec uses value-kinded type
+-- arguments (e.g. @SumSucc (n + 1)@) stored as 'RExprArg' while the GHC type
+-- stores the same position as @RApp (+) [n, 1]@.
+-- An 'RExprArg' is only compatible with an 'RSort' of matching kind:
+-- Nat expressions match Nat-kinded sorts; Symbol expressions match
+-- Symbol-kinded sorts; unknown expressions are accepted conservatively.
 exprArgCompat :: RSort -> RSort -> Bool
-exprArgCompat (RExprArg _)        _                    = True
-exprArgCompat _                   (RExprArg _)         = True
+exprArgCompat (RExprArg le)       t                    = rSortMatchesExprKind (F.val le) t
+exprArgCompat t                   (RExprArg le)        = rSortMatchesExprKind (F.val le) t
 exprArgCompat (RAllT a  t  _)     (RAllT a'  t'  _)   = a == a'  && exprArgCompat t  t'
 exprArgCompat (RFun  _ _ i  o  _) (RFun  _ _ i'  o' _)= exprArgCompat i i' && exprArgCompat o o'
 exprArgCompat (RApp  c  ts _ _)   (RApp  c'  ts' _ _) = c == c'  && length ts == length ts'
@@ -570,6 +573,36 @@ exprArgCompat (RVar  a  _)        (RVar  a'  _)        = a == a'
 exprArgCompat (RAppTy t1 t2 _)    (RAppTy t1' t2' _)  = exprArgCompat t1 t1' && exprArgCompat t2 t2'
 exprArgCompat (RAllP _ t)         (RAllP _ t')         = exprArgCompat t t'
 exprArgCompat t                   t'                   = t == t'
+
+-- | Check that an 'RSort' has the same kind as the expression in an 'RExprArg'.
+rSortMatchesExprKind :: F.Expr -> RSort -> Bool
+rSortMatchesExprKind e t = case exprArgKind e of
+  NatKind     -> rSortIsNatKind t
+  SymbolKind  -> rSortIsSymbolKind t
+  UnknownKind -> True   -- conservative: unknown kind expressions are accepted
+
+-- | True when the 'RSort' represents a Nat-kinded type as LH encodes it:
+-- either the stand-in 'Int' TyCon used for numeric type literals, or a
+-- nullary type whose kind is @Nat@, or any type-family application whose
+-- result kind is @Nat@.
+rSortIsNatKind :: RSort -> Bool
+rSortIsNatKind (RApp c ts _ _) = Ghc.isFamilyTyCon tc
+    && Ghc.piResultTys (Ghc.tyConKind tc) (replicate (length ts) Ghc.naturalTy)
+       `Ghc.eqType` Ghc.naturalTy
+  || tc == Ghc.intTyCon
+  || Ghc.piResultTys (Ghc.tyConKind tc) [] `Ghc.eqType` Ghc.naturalTy
+  where tc = rtc_tc c
+rSortIsNatKind _               = False
+
+-- | True when the 'RSort' represents a Symbol-kinded type as LH encodes it:
+-- LH maps 'GHC.TypeLits.Symbol' literals to @[Char]@, so we detect exactly
+-- that structure.
+rSortIsSymbolKind :: RSort -> Bool
+rSortIsSymbolKind (RApp c [t] _ _)
+  | rtc_tc c == Ghc.listTyCon = case t of
+      RApp c' [] _ _ -> rtc_tc c' == Ghc.charTyCon
+      _              -> False
+rSortIsSymbolKind _ = False
 
 errTypeMismatch     :: Var -> Located SpecType -> Error
 errTypeMismatch x t = ErrMismatch lqSp (pprint x) (text "Checked")  d1 d2 Nothing hsSp
