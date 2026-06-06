@@ -1316,6 +1316,22 @@ freshPredRef γ e (PV _ rsort as)
 --------------------------------------------------------------------------------
 -- | Helpers: Creating Refinement Types For Various Things ---------------------
 --------------------------------------------------------------------------------
+-- | Translate a GHC type of kind @Nat@ or @Symbol@ into a Fixpoint expression,
+-- so it can be used as the concrete value for a value-carrying type variable
+-- (identified by 'rTVarToBind').
+--
+-- Handled cases:
+--
+--   * @LitTy (NumTyLit n)@ — integer type literal, e.g. @42@
+--   * @LitTy (StrTyLit s)@ — symbol type literal, e.g. @"foo"@
+--   * @TyVarTy x@           — type variable, yields @EVar (symbol x)@
+--   * @TyConApp op [a, b]@  — type-level arithmetic (@(+)@, @(-)@, @(*)@,
+--                             @Div@, @Mod@) over @Nat@, translated recursively
+--                             to the corresponding 'F.Bop'
+--   * The @Any@ special case needed for type-class evidence
+--
+-- Exponentiation (@(^)@), logarithm, and comparison type families have no
+-- Fixpoint counterpart and therefore return 'Nothing'.
 argType :: Type -> Maybe F.Expr
 argType (LitTy (NumTyLit i)) = mkI i
 argType (LitTy (StrTyLit s)) = Just $ mkS $ bytesFS s
@@ -1323,7 +1339,23 @@ argType (TyVarTy x)          = Just $ F.EVar $ F.symbol $ varName x
 argType t
   | F.symbol (GM.showPpr t) == anyTypeSymbol
                              = Just $ F.EVar anyTypeSymbol
+argType (TyConApp tc [a, b])
+  | Just bop <- natTyConBop tc
+                             = F.EBin bop <$> argType a <*> argType b
 argType _                    = Nothing
+
+-- | Map GHC's type-level Nat arithmetic 'TyCon's to the corresponding Fixpoint
+-- 'F.Bop'.  Only binary operators with a direct Fixpoint counterpart are
+-- covered; unary operators (@Log2@) and those without a counterpart (@(^)@,
+-- @CmpNat@) return 'Nothing'.
+natTyConBop :: TyCon -> Maybe F.Bop
+natTyConBop tc = case Ghc.nameUnique (Ghc.tyConName tc) of
+  u | u == Ghc.typeNatAddTyFamNameKey -> Just F.Plus
+    | u == Ghc.typeNatSubTyFamNameKey -> Just F.Minus
+    | u == Ghc.typeNatMulTyFamNameKey -> Just F.Times
+    | u == Ghc.typeNatDivTyFamNameKey -> Just F.Div
+    | u == Ghc.typeNatModTyFamNameKey -> Just F.Mod
+    | otherwise                       -> Nothing
 
 
 -- | Build a substitution from value-typed type variable names to their

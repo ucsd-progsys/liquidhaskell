@@ -183,6 +183,11 @@ import GHC.Builtin.Names              as Ghc
     , ordClassName
     , plus_RDR
     , times_RDR
+    , typeNatAddTyFamNameKey
+    , typeNatSubTyFamNameKey
+    , typeNatMulTyFamNameKey
+    , typeNatDivTyFamNameKey
+    , typeNatModTyFamNameKey
     , varQual_RDR
     )
 import GHC.Builtin.Types              as Ghc
