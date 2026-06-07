@@ -85,6 +85,7 @@ import           GHC                  as Ghc
     , dataConFieldLabels
     , dataConWrapperType
     , desugarModule
+    , emptyRnGroup
     , getLocA
     , getLogger
     , getName

@@ -108,6 +108,7 @@ plugin :: GHC.Plugin
 plugin = GHC.defaultPlugin {
     driverPlugin          = lhDynFlags
   , parsedResultAction    = parsePlugin
+  , renamedResultAction   = renamedPlugin
   , typeCheckResultAction = typecheckPlugin
   , pluginRecompile       = purePlugin
   }
@@ -120,6 +121,19 @@ plugin = GHC.defaultPlugin {
     parsePlugin :: [CommandLineOption] -> ModSummary -> ParsedResult -> Hsc ParsedResult
     parsePlugin opts ms parsedResult = liquidPlugin opts parsedResult $ \cfg ->
       parsedHook cfg ms parsedResult
+
+    -- | Ensure that 'tcg_rn_decls' is populated for use in 'typeCheckResultAction'.
+    -- GHC only keeps renamed syntax when generating HIE files or haddock docs;
+    -- we need it to distinguish manually-written from auto-derived instances.
+    -- We prime 'tcg_rn_decls' with an empty group here so that GHC's own
+    -- accumulation code does: appendGroups emptyRnGroup rn_decls = rn_decls.
+    renamedPlugin :: [CommandLineOption] -> TcGblEnv -> GHC.HsGroup GHC.GhcRn
+                  -> TcM (TcGblEnv, GHC.HsGroup GHC.GhcRn)
+    renamedPlugin _opts tcg decls = do
+      let tcg' = case tcg_rn_decls tcg of
+                   Nothing -> tcg { tcg_rn_decls = Just GHC.emptyRnGroup }
+                   Just _  -> tcg
+      return (tcg', decls)
 
     typecheckPlugin :: [CommandLineOption] -> ModSummary -> TcGblEnv -> TcM TcGblEnv
     typecheckPlugin opts summary gblEnv = liquidPlugin opts gblEnv $ \cfg ->

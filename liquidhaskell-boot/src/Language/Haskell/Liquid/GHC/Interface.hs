@@ -70,6 +70,7 @@ import Language.Haskell.Liquid.Types.Types
 import Language.Haskell.Liquid.Types.Visitors
 import Language.Haskell.Liquid.UX.Config
 import Language.Haskell.Liquid.UX.Tidy
+import qualified GHC as Ghc
 
 
 --------------------------------------------------------------------------------
@@ -86,18 +87,21 @@ derivedVars cfg manualSpans mg
   | otherwise        = filter isGeneratedBinding (concatMap bindersOf (mgi_binds mg))
   where
     isGeneratedBinding v =
-      Ghc.isDerivedOccName (Ghc.getOccName v) &&
-      not (any (Ghc.getSrcSpan v `Ghc.isSubspanOf`) (S.toList manualSpans))
+      let occ = Ghc.getOccName v
+       in
+          Ghc.isDerivedOccName occ && not (isPrefixOf "$dm" $ Ghc.occNameString occ) &&
+          not (any (Ghc.getSrcSpan v `Ghc.isSubspanOf`) (S.toList manualSpans))
 
 -- | Collect the source spans of all 'ClsInstDecl' nodes in the renamed AST.
 -- These cover the full body of every manually-written instance declaration.
 manualInstSpans :: Ghc.TcGblEnv -> S.HashSet Ghc.SrcSpan
 manualInstSpans tcg = case Ghc.tcg_rn_decls tcg of
   Nothing  -> S.empty
-  Just grp -> S.fromList
-    [ Ghc.getLocA d
+  Just grp -> S.fromList $
+    [ Ghc.getLocA b
     | d <- Ghc.hsGroupInstDecls grp
-    , Ghc.ClsInstD {} <- [Ghc.unLoc d]
+    , Ghc.ClsInstD _ inst <- [Ghc.unLoc d]
+    , b <- Ghc.cid_binds inst
     ]
 
 importVars :: CoreProgram -> [Id]
