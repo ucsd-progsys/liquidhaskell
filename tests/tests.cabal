@@ -1214,7 +1214,6 @@ executable unit-neg
                     , NameResolution
                     , NestedRecursion
                     , NoExhaustiveGuardsError
-                    , NoMethodBindingError
                     , Null
                     , Pair0
                     , Pair
@@ -2608,7 +2607,6 @@ executable terminate-neg
                     , Term00
                     , TestRec
                     , Total00
-                    , Total01
                     , Total02
 
     build-depends:    base
