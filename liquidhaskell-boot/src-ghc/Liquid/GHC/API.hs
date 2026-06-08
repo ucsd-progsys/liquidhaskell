@@ -40,6 +40,7 @@ import           GHC                  as Ghc
     , HsBndrVar(HsBndrVar)
     , HsDecl(SigD)
     , HsExpr(ExprWithTySig, HsOverLit, HsVar)
+    , HsGroup
     , HsModule(hsmodDecls)
     , HsOuterTyVarBndrs(HsOuterImplicit)
     , HsSigType(HsSig)

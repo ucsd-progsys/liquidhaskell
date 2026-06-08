@@ -68,7 +68,6 @@ import Language.Haskell.Liquid.Types.PrettyPrint
 import Language.Haskell.Liquid.Types.Specs
 import Language.Haskell.Liquid.Types.Types
 import Language.Haskell.Liquid.Types.Visitors
-import Language.Haskell.Liquid.UX.Config
 import Language.Haskell.Liquid.UX.Tidy
 import qualified GHC as Ghc
 
@@ -81,10 +80,9 @@ classCons :: Maybe [ClsInst] -> [Id]
 classCons Nothing   = []
 classCons (Just cs) = concatMap (dataConImplicitIds . head . tyConDataCons . classTyCon . is_cls) cs
 
-derivedVars :: Config -> [Ghc.SrcSpan] -> MGIModGuts -> [Var]
-derivedVars cfg manualSpans mg
-  | checkDerived cfg = []
-  | otherwise        = filter isGeneratedBinding (concatMap bindersOf (mgi_binds mg))
+derivedVars :: [Ghc.SrcSpan] -> MGIModGuts -> [Var]
+derivedVars manualSpans mg =
+    filter isGeneratedBinding (concatMap bindersOf (mgi_binds mg))
   where
     isGeneratedBinding v =
       let occ = Ghc.getOccName v
