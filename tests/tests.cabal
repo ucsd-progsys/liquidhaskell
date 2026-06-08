@@ -1090,6 +1090,29 @@ executable datacon-neg
     hs-source-dirs:   app
                     , datacon/neg
 
+flag Diff
+     default: False
+
+-- Test annotations for the Diff package
+executable Diff
+    import:           common-ghc-options
+    main-is:          Main.hs
+    if !flag(Diff) && flag(stack)
+      buildable:      False
+
+    other-modules:    Diff
+                    , DiffContext
+                    , DiffOutput
+                    , LiftedFunctions
+
+    build-depends:    array
+                    , base
+                    , liquidhaskell
+                    , pretty
+
+    hs-source-dirs:   app
+                    , Diff
+
 flag unit-neg
      default: False
 
