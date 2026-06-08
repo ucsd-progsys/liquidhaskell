@@ -30,6 +30,7 @@ instance Functor (State s) where
          -> State <p, q> s a<pa>
          -> State <p, q2> s b<pb>
 @-}
+  {-@ ignore fmap @-}
   fmap f x = State $ \s -> let (y, s') = runState x s in (f y, s')
 
 instance Applicative (State s) where
