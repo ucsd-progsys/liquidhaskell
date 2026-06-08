@@ -1093,6 +1093,7 @@ executable datacon-neg
 flag Diff
      default: False
 
+-- Test annotations for the Diff package
 executable Diff
     import:           common-ghc-options
     main-is:          Main.hs
