@@ -1171,6 +1171,9 @@ executable unit-neg
                     , HigherOrder
                     , HolesTop
                     , Inc2
+                    , IgnoreMethodOutside
+                    , IgnoreNonMethodInInstance
+                    , IgnoreOtherMethodInInstance
                     , IntAbsRef
                     , LazyWhere1
                     , LazyWhere
@@ -1517,6 +1520,7 @@ executable unit-pos-2
                     , IdNat0
                     , IdNat
                     , Ignores
+                    , IgnoreMethod
                     , Imp0
                     , Implies
                     , Infinity

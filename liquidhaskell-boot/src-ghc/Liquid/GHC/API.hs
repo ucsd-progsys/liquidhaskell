@@ -430,6 +430,8 @@ import GHC.Core.Unify                 as Ghc
 import GHC.Core.Utils                 as Ghc (exprType)
 import GHC.Data.Bag                   as Ghc
     ( Bag, bagToList )
+import GHC.Data.IOEnv                 as Ghc
+    ( IOEnvFailure(..) )
 import GHC.Data.FastString            as Ghc
     ( FastString
     , bytesFS

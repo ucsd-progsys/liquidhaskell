@@ -25,6 +25,10 @@
 -- * Next the names of logic entities are resolved. This pass produces
 --   a 'BareSpecLHName', where 'Symbol's are replaced with 'LHName'.
 --
+-- * A bit of name resolution is done in 'makeSpecVars' in "Language.Haskell.Liquid.Bare"
+--   to check if the names in @ignore@ annotations refer to functions or type
+--   class methods.
+--
 -- 'BareSpecLHName' has an approximate bijection to 'BareSpec' via a 'LogicNameEnv'
 -- which allows to convert 'LHName' to an unambiguous form of 'Symbol'
 -- and back. The bijection is implemented with the functions 'toBareSpecLHName'

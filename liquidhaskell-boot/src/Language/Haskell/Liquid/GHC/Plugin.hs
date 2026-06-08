@@ -421,7 +421,11 @@ liquidHaskellCheckWithConfig cfg pipelineData modSummary = do
     `Ex.catch` (\(e :: Error) -> reportErrs [e])
     `Ex.catch` (\(es :: [Error]) -> reportErrs es)
     `Ex.catch` (\(e :: SomeException) -> do
-                   liftIO $ putStrLn $ displayException e
+                   case Ex.fromException e of
+                     -- Supress the exception thrown by 'failM' when filtering
+                     -- errors
+                     Just GHC.IOEnvFailure -> pure ()
+                     Nothing -> liftIO $ putStrLn $ displayException e
                    Ex.throwM e)
 
   where
@@ -549,7 +553,8 @@ processModule LiquidHaskellContext{..} = do
         modGuts = modGuts0 { mg_binds = preNormalizedCore }
         file = LH.modSummaryHsFile lhModuleSummary
     let mInstSpans = LH.manualInstSpans tcg
-    targetSrc  <- liftIO $ makeTargetSrc moduleCfg file modGuts hscEnv (tcg_rdr_env tcg) mInstSpans
+    let iDeclSpans = LH.instDeclSpans tcg
+    targetSrc  <- liftIO $ makeTargetSrc moduleCfg file modGuts hscEnv (tcg_rdr_env tcg) mInstSpans iDeclSpans
     logger <- getLogger
 
     -- See https://github.com/ucsd-progsys/liquidhaskell/issues/1711
@@ -607,7 +612,11 @@ processModule LiquidHaskellContext{..} = do
       `Ex.catch` (\(e :: Error) -> reportErrs [e])
       `Ex.catch` (\(es :: [Error]) -> reportErrs es)
       `Ex.catch` (\(e :: SomeException) -> do
-                     liftIO $ putStrLn $ displayException e
+                     case Ex.fromException e of
+                       -- Supress the exception thrown by 'failM' when filtering
+                       -- errors
+                       Just GHC.IOEnvFailure -> pure ()
+                       Nothing -> liftIO $ putStrLn $ displayException e
                      Ex.throwM e)
 
 makeTargetSrc :: Config
@@ -616,8 +625,9 @@ makeTargetSrc :: Config
               -> HscEnv
               -> GlobalRdrEnv
               -> [GHC.SrcSpan]
+              -> [GHC.SrcSpan]
               -> IO TargetSrc
-makeTargetSrc cfg file modGuts hscEnv rdrEnv manualSpans = do
+makeTargetSrc cfg file modGuts hscEnv rdrEnv manualSpans iDeclSpans = do
   when (dumpPreNormalizedCore cfg) $ do
     putStrLn "\n*************** Pre-normalized CoreBinds *****************\n"
     putStrLn $ unlines $ L.intersperse "" $ map (GHC.showPpr (GHC.hsc_dflags hscEnv)) (mg_binds modGuts)
@@ -661,6 +671,7 @@ makeTargetSrc cfg file modGuts hscEnv rdrEnv manualSpans = do
     , gsFiTcs     = fiTcs
     , gsFiDcs     = fiDcs
     , gsPrimTcs   = GHC.primTyCons
+    , giInstSpans = iDeclSpans
     }
   where
     mgiModGuts :: MGIModGuts

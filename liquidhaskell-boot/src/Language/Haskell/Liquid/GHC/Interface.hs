@@ -29,6 +29,7 @@ module Language.Haskell.Liquid.GHC.Interface (
   , classCons
   , derivedVars
   , manualInstSpans
+  , instDeclSpans
   , importVars
   , modSummaryHsFile
   , makeFamInstEnv
@@ -105,6 +106,18 @@ manualInstSpans tcg = case Ghc.tcg_rn_decls tcg of
     | d <- Ghc.hsGroupInstDecls grp
     , Ghc.ClsInstD _ inst <- [Ghc.unLoc d]
     , b <- Ghc.cid_binds inst
+    ]
+
+-- | Collect the full source spans of instance declarations.
+-- Unlike 'manualInstSpans' which collects spans of individual bindings,
+-- this collects the span of the entire instance declaration.
+instDeclSpans :: Ghc.TcGblEnv -> [Ghc.SrcSpan]
+instDeclSpans tcg = case Ghc.tcg_rn_decls tcg of
+  Nothing  -> []
+  Just grp ->
+    [ Ghc.getLocA d
+    | d <- Ghc.hsGroupInstDecls grp
+    , Ghc.ClsInstD _ _inst <- [Ghc.unLoc d]
     ]
 
 importVars :: CoreProgram -> [Id]
