@@ -320,7 +320,12 @@ class FreeVar a v where
 
 -- MOVE TO TYPES
 instance FreeVar RTyCon RTyVar where
-  freeVars = (RTV <$>) . GM.tyConTyVarsDef . rtc_tc
+  freeVars rc = [ RTV v | Bndr v vis <- Ghc.tyConBinders (rtc_tc rc)
+                        , visibleVis vis ]
+    where
+      visibleVis AnonTCB            = True
+      visibleVis (NamedTCB Required) = True
+      visibleVis _                  = False
 
 -- MOVE TO TYPES
 instance FreeVar BTyCon BTyVar where
@@ -690,7 +695,11 @@ expandRApp tce tyi t@RApp{} = RApp rc' ts rs' r
     rs'                        = applyNonNull rs0 (rtPropPV rc pvs) rs
     rs0                        = rtPropTop <$> pvs
     n                          = length fVs
-    fVs                        = GM.tyConTyVarsDef $ rtc_tc rc
+    fVs                        = [ v | Bndr v vis <- Ghc.tyConBinders (rtc_tc rc)
+                                     , isVisibleTcbVis vis ]
+    isVisibleTcbVis AnonTCB            = True
+    isVisibleTcbVis (NamedTCB Required) = True
+    isVisibleTcbVis _                  = False
     as                         = choosen n ts (rVar <$> fVs)
 expandRApp _ _ t               = t
 
@@ -779,8 +788,8 @@ appRTyCon tce tyi rc ts = F.notracepp _msg (resTc, ps'')
     ps''  = subts (zip (RTV <$> αs) ts') <$> ps'
       where
         ts' = if null ts then rVar <$> βs else toRSort <$> ts
-        αs  = GM.tyConTyVarsDef (rtc_tc rc')
-        βs  = GM.tyConTyVarsDef c
+        αs  = GM.visibleTyConTyVars (rtc_tc rc')
+        βs  = GM.visibleTyConTyVars c
 
     rc''  = if isNumeric tce rc' then addNumSizeFun rc' else rc'
 
@@ -1305,13 +1314,15 @@ ofType_ tx = go . expandTypeSynonyms
       = tcFVar tx α
     go (FunTy _ _ τ τ')
       = rFun dummySymbol (go τ) (go τ')
+    go (ForAllTy (Bndr _ (Ghc.Invisible Ghc.InferredSpec)) τ)
+      = go τ  -- skip inferred kind variables
     go (ForAllTy (Bndr α _) τ)
       = RAllT (tcFTVar tx α) (go τ) trueReft
     go (TyConApp c τs)
       | Just (αs, τ) <- Ghc.synTyConDefn_maybe c
       = go (substTyWith αs τs τ)
       | otherwise
-      = tcFApp tx c (go <$> τs) -- [] mempty
+      = tcFApp tx c (go <$> dropInvisibleArgs c τs) -- [] mempty
     go (AppTy t1 t2)
       = RAppTy (go t1) (ofType_ tx t2) trueReft
     go (LitTy x)
@@ -1326,6 +1337,27 @@ ofLitType rF (NumTyLit _)  = rF intTyCon [] [] trueReft
 ofLitType rF t@(StrTyLit _)
   | t == holeLit           = RHole trueReft
   | otherwise              = rF listTyCon [rF charTyCon [] [] trueReft] [] trueReft
+
+-- | Drop invisible (inferred/specified) type arguments from a TyConApp's arg list.
+-- GHC's TyConApp stores ALL args including invisible kind args, but LH's RApp
+-- only tracks visible type args.
+dropInvisibleArgs :: Ghc.TyCon -> [Type] -> [Type]
+dropInvisibleArgs tc args
+  -- If we have fewer args than or equal to the number of visible binders,
+  -- the args are already visible-only; don't drop any.
+  | length args <= numVisibleBinders
+  = args
+  | otherwise
+  = go (Ghc.tyConBinders tc) args
+  where
+    numVisibleBinders = length [() | Bndr _ vis <- Ghc.tyConBinders tc, isVisibleVis vis]
+    go (Bndr _ vis : bs) (a : as)
+      | isVisibleVis vis = a : go bs as
+      | otherwise        = go bs as
+    go _ as              = as  -- if more args than binders, keep them all (oversaturated)
+    isVisibleVis AnonTCB            = True
+    isVisibleVis (NamedTCB Required) = True
+    isVisibleVis _                  = False
 
 holeLit :: TyLit
 holeLit = StrTyLit "$LH_RHOLE"
@@ -1561,7 +1593,7 @@ typeSort tce = go
       , Ghc.piResultTys (Ghc.tyConKind c) τs `Ghc.eqType` naturalTy
       = FInt
       | otherwise
-      = tyConFTyCon tce c (go <$> τs)
+      = tyConFTyCon tce c (go <$> dropInvisibleArgs c τs)
     go (AppTy t1 t2)    = fApp (go t1) [go t2]
     go (TyVarTy tv)     = tyVarSort tv
     go (CastTy t _)     = go t

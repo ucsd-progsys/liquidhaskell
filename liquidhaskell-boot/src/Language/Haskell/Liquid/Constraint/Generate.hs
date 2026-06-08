@@ -296,8 +296,8 @@ consClass :: CGEnv -> (Var, MethodType LocSpecType) -> CG ()
 consClass γ (x,mt)
   | Just ti <- tyInstance mt
   , Just tc <- tyClass    mt
-  = addC (SubC (γ `setLocation` Sp.Span (GM.fSrcSpan (F.loc ti))) (val ti) (val tc)) ("cconsClass for " ++ GM.showPpr x)
-consClass _ _
+  = addC (SubC (γ `setLocation` Sp.Span (GM.fSrcSpan (F.loc ti))) (F.tracepp ("consClass ti for " ++ GM.showPpr x) $ val ti) (F.tracepp ("consClass tc for " ++ GM.showPpr x) $ val tc)) ("cconsClass for " ++ GM.showPpr x)
+consClass _ (_x, _mt)
   = return ()
 
 --------------------------------------------------------------------------------
@@ -389,7 +389,8 @@ consCB _ γ (NonRec x _) | isDictionary x
 consCB _ γ (NonRec x def)
   | Just (w, τ) <- grepDictionary def
   , Just d      <- dlookup (denv γ) w
-  = do st       <- mapM (trueTy (typeclass (getConfig γ))) τ
+  = do let τ' = F.tracepp ("dropInvisibleDictArgs " ++ GM.showPpr x ++ " w=" ++ GM.showPpr w ++ " nOrig=" ++ show (length τ) ++ " nFiltered=" ++ show (length (dropInvisibleDictArgs w τ))) $ dropInvisibleDictArgs w τ
+       st       <- mapM (trueTy (typeclass (getConfig γ))) τ'
        mapM_ addW (WfC γ <$> st)
        let xts   = dmap (fmap (f st)) d
        let  γ'   = γ { denv = dinsert (denv γ) x xts }
@@ -422,6 +423,30 @@ grepDictionary = go []
     go ts (App e (Var _))        = go ts e
     go ts (Let _ e)              = go ts e
     go _ _                       = Nothing
+
+-- | Drop type arguments corresponding to invisible kind variables in the
+-- dictionary function's type. In GHC 9.14+, poly-kinded instances have kind
+-- variables that are Specified in the DFun but don't appear in LH specs.
+-- We identify kind variables as those whose kind is exactly `Type` (they range
+-- over types-as-kinds) AND whose name doesn't appear as a user-written variable.
+-- Note: grepDictionary returns types in reversed application order, so we must
+-- reverse before pairing with binders, then reverse back.
+dropInvisibleDictArgs :: Var -> [Type] -> [Type]
+dropInvisibleDictArgs w τs =
+  let (bndrs, _) = Ghc.splitForAllForAllTyBinders (Ghc.varType w)
+      -- Pair binders with types in forward (Core application) order
+      forwardTypes = reverse τs
+      filteredForward = go bndrs forwardTypes
+  in reverse filteredForward
+  where
+    go (Ghc.Bndr v _ : bs) (t:ts)
+      | isKindVar v = go bs ts       -- skip kind variable args
+      | otherwise   = t : go bs ts   -- keep regular type variable args
+    go _ ts = ts
+
+    -- A kind variable is one whose kind is Type (TYPE (BoxedRep Lifted))
+    -- These are introduced by kind generalization and don't appear in user specs.
+    isKindVar v = Ghc.tyVarKind v `Ghc.eqType` Ghc.liftedTypeKind
 
 --------------------------------------------------------------------------------
 consBind :: Bool -> CGEnv -> (Var, CoreExpr, Template SpecType) -> CG (Template SpecType)
@@ -591,6 +616,17 @@ cconsE' γ (Case e x _ cases) t
        nonDefAlts = [a | Alt a _ _ <- cases, a /= DEFAULT]
        _msg = "cconsE' #nonDefAlts = " ++ show (length nonDefAlts)
 
+-- Skip invisible kind type lambdas that don't match the spec's forall.
+-- GHC 9.14 introduces kind lambdas for poly-kinded instances.
+-- Criterion: lambda has kind Type but the spec's forall variable has a different kind.
+cconsE' γ (Lam α e) t@(RAllT α' _ _) | isTyVar α, isKindMismatch α α'
+  = do γ' <- updateEnvironment γ α
+       cconsE γ' e t
+
+cconsE' γ (Lam α e) t | isTyVar α, isOrphanKindLambda α t
+  = do γ' <- updateEnvironment γ α
+       cconsE γ' e t
+
 cconsE' γ (Lam α e) (RAllT α' t r) | isTyVar α
   = do γ' <- updateEnvironment γ α
        addForAllConstraint γ' α e (RAllT α' t r)
@@ -624,7 +660,8 @@ cconsE' γ e t
        when (warnOnTermHoles (getConfig γ))  maybeAddHole
        te  <- consE γ e
        te' <- instantiatePreds γ e te >>= addPost γ
-       addC (SubC γ te' t) ("cconsE: " ++ "\n t = " ++ showpp t ++ "\n te = " ++ showpp te ++ GM.showPpr e)
+       let te'' = propagateExpectedPreds te' t
+       addC (SubC γ te'' t) ("cconsE: " ++ "\n t = " ++ showpp t ++ "\n te = " ++ showpp te ++ GM.showPpr e)
   where
     -- See Note [Term holes]
     -- Record the expected type of a direct hole encountered in checking mode.
@@ -634,6 +671,38 @@ cconsE' γ e t
         Just (srcSpan, x) -> do
           addHole (RealSrcSpan srcSpan Strict.Nothing) x t γ
         _ -> return ()
+
+-- | When the inferred type and expected type are both RApp of the same TyCon,
+-- and the expected type has predicate arguments (abstract refinements), propagate
+-- those predicates into the inferred type IF the inferred pred args are all
+-- "unconstrained" (contain only KVars, not concrete predicates). This handles
+-- phantom type parameters whose abstract predicates cannot be established through
+-- data flow (e.g., TaggedT's user parameter).
+propagateExpectedPreds :: SpecType -> SpecType -> SpecType
+propagateExpectedPreds (RApp tc1 ts1 rs1 r1) (RApp tc2 _ts2 rs2 _r2)
+  | rtc_tc tc1 == rtc_tc tc2
+  , not (null rs2)
+  , all isUnconstrainedPred rs1
+  = RApp tc1 ts1 rs2 r1
+propagateExpectedPreds te _t = te -- force rebuild
+
+-- | A predicate arg is "unconstrained" if its inner type has only a KVar refinement
+-- (from fresh type generation) or a trivial/empty refinement, NOT a concrete predicate.
+isUnconstrainedPred :: SpecProp -> Bool
+isUnconstrainedPred (RProp _ (RVar _ r)) = isKVarOrTrivial r
+isUnconstrainedPred (RProp _ (RHole _))  = True
+isUnconstrainedPred _                    = False
+
+isKVarOrTrivial :: RReft -> Bool
+isKVarOrTrivial r = isTauto r || hasOnlyKVars r
+
+hasOnlyKVars :: RReft -> Bool
+hasOnlyKVars (MkUReft (F.Reft (_, p)) _) = go p
+  where
+    go (F.PKVar _ _ _) = True
+    go (F.PAnd ps)     = all go ps
+    go F.PTrue         = True
+    go _               = False
 
 lambdaSingleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> CG UReft
 lambdaSingleton γ tce x e
@@ -850,6 +919,10 @@ collectVars _ = []
 
 consEApp :: CGEnv -> CoreExpr -> CG SpecType
 consEApp γ e'@(App e a@(Type τ))
+  -- Skip invisible kind type applications (GHC Core has them but our SpecTypes don't)
+  | isInvisibleTyApp e
+  = consE γ e
+  | otherwise
   = do
        RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
        t            <- if not (nopolyinfer (getConfig γ)) && isPos α && isGenericVar (ty_var_value α) te
@@ -870,7 +943,9 @@ consEApp γ e'@(App e a@(Type τ))
 
 consEApp γ e'@(App e a) | Just aDict <- getExprDict γ a
   = case dhasinfo (dlookup (denv γ) aDict) (getExprFun γ e) of
-      Just riSig -> return $ fromRISig riSig
+      Just riSig -> do let t0 = F.tracepp ("DHASINFO t0 for " ++ GM.showPpr (getExprFun γ e)) $ fromRISig riSig
+                           t  = F.tracepp ("DHASINFO stripped for " ++ GM.showPpr (getExprFun γ e)) $ stripMethodForalls e t0
+                       return t
       _          -> do
         ([], πs, te) <- bkUniv <$> consE γ e
         te'          <- instantiatePreds γ e' $ foldr RAllP te πs
@@ -891,6 +966,54 @@ consEApp γ e'@(App e a)
        cconsE γ' a tx
        makeSingleton γ' (simplify e') <$> addPost γ' (maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ $ simplify a))
 consEApp _ _ = panic Nothing "Constraint.Generate.consEApp called on invalid inputs"
+
+-- | Check if a type application in GHC Core is for an invisible kind variable.
+-- This happens when poly-kinded types have inferred/specified kind vars that
+-- exist in Core but not in LH's SpecTypes.
+-- We only skip Inferred foralls — Specified ones ARE tracked in SpecTypes.
+isInvisibleTyApp :: CoreExpr -> Bool
+isInvisibleTyApp e = case Ghc.splitForAllForAllTyBinders (Ghc.exprType e) of
+  (Ghc.Bndr _ (Ghc.Invisible Ghc.InferredSpec) : _, _) -> True
+  _ -> False
+
+-- | Check if a Core type lambda is a kind variable that doesn't match
+-- the spec's leading RAllT. This happens when the lambda binder has kind
+-- Type (it's a kind variable) but the spec's forall variable has a
+-- different kind (e.g., Type -> Type for a monad variable).
+isKindMismatch :: Ghc.Var -> SpecRTVar -> Bool
+isKindMismatch α α' =
+  Ghc.tyVarKind α `Ghc.eqType` Ghc.liftedTypeKind &&
+  case ty_var_value α' of
+    RTV tv -> not (Ghc.tyVarKind tv `Ghc.eqType` Ghc.tyVarKind α)
+
+-- | Check if a Core type lambda is an orphan kind variable (kind == Type)
+-- that has no matching forall in the spec (spec type is not RAllT at all).
+isOrphanKindLambda :: Ghc.Var -> SpecType -> Bool
+isOrphanKindLambda α t =
+  Ghc.tyVarKind α `Ghc.eqType` Ghc.liftedTypeKind && not (isRAllT t)
+  where
+    isRAllT (RAllT {}) = True
+    isRAllT _          = False
+
+-- | Strip leading foralls and class constraints from an instance method type
+-- returned by dhasinfo. At the dict-application site, the class-level foralls
+-- and class constraint have already been consumed (via the class selector type
+-- app + dict application), so we strip them to get the method-level type.
+-- Only strips if there IS a class constraint after the leading foralls.
+stripMethodForalls :: CoreExpr -> SpecType -> SpecType
+stripMethodForalls _e t
+  | hasClassConstraint t = stripToMethod t
+  | otherwise            = t
+  where
+    -- Check if there's a class constraint after leading foralls
+    hasClassConstraint (RAllT _ ty _) = hasClassConstraint ty
+    hasClassConstraint (RFun _ _ (RApp c _ _ _) _ _) = Ghc.isClassTyCon (rtc_tc c)
+    hasClassConstraint _ = False
+    -- Strip all leading RAllT foralls, then strip the class constraint RFun
+    stripToMethod (RAllT _ ty _) = stripToMethod ty
+    stripToMethod (RFun _ _ (RApp c _ _ _) body _)
+      | Ghc.isClassTyCon (rtc_tc c) = body
+    stripToMethod ty = ty
 
 caseKVKind ::[Alt Var] -> KVKind
 caseKVKind [Alt (DataAlt _) _ (Var _)] = ProjectE

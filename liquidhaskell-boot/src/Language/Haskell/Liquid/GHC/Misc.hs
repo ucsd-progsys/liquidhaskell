@@ -408,6 +408,17 @@ tyConTyVarsDef c
   | noTyVars c = []
   | otherwise  = Ghc.tyConTyVars c
 
+-- | Like 'tyConTyVarsDef' but only returns visible (user-facing) type variables,
+-- excluding invisible kind variables (Inferred/Specified).
+visibleTyConTyVars :: TyCon -> [TyVar]
+visibleTyConTyVars c
+  | noTyVars c = []
+  | otherwise  = [ v | Bndr v vis <- Ghc.tyConBinders c, isVisibleTcbVis vis ]
+  where
+    isVisibleTcbVis AnonTCB            = True
+    isVisibleTcbVis (NamedTCB Required) = True
+    isVisibleTcbVis _                  = False
+
 noTyVars :: TyCon -> Bool
 noTyVars c =  Ghc.isPrimTyCon c || Ghc.isPromotedDataCon c
 

@@ -8,7 +8,7 @@ data User = U
 
 {-@ data TaggedT user m a <label :: user -> Bool, clear :: user -> Bool> = TaggedT _ @-}
 data TaggedT user m a = TaggedT { unTag :: m a }
-{-@ data variance TaggedT invariant invariant covariant contravariant covariant @-}
+{-@ data variance TaggedT covariant contravariant covariant @-}
 
 instance Functor m => Functor (TaggedT user m) where
   fmap f = TaggedT . fmap f . unTag

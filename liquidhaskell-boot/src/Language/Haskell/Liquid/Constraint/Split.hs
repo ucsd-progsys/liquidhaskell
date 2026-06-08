@@ -190,6 +190,18 @@ splitC allowTC (SubC cgenv (RRTy env _ OCons t1) t2)
     (xts, t1', t2') = envToSub env
 
 splitC allowTC (SubC cgenv (RRTy e r o t1) t2)
+  | isTauto r
+  = splitC allowTC (SubC cgenv t1 t2)
+  | otherwise
+  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) cgenv e
+       c1 <- splitC allowTC (SubR γ' o  r)
+       c2 <- splitC allowTC (SubC cgenv t1 t2)
+       return $ c1 ++ c2
+
+splitC allowTC (SubC cgenv t1 (RRTy e r o t2))
+  | isTauto r
+  = splitC allowTC (SubC cgenv t1 t2)
+  | otherwise
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) cgenv e
        c1 <- splitC allowTC (SubR γ' o  r)
        c2 <- splitC allowTC (SubC cgenv t1 t2)
@@ -261,7 +273,7 @@ splitC _ (SubC γ t1 t2)
 
 splitC _ (SubR γ o r)
   = do ts     <- getTemplates
-       let r1' = pruneUnsortedReft γ'' ts r1
+       let r1' = F.tracepp ("splitC SubR rr=" ++ show rr ++ " r1'=" ++ show (pruneUnsortedReft γ'' ts r1)) $ pruneUnsortedReft γ'' ts r1
        return $ F.subC γ' r1' r2 Nothing tag ci
   where
     γ'' = feEnv $ fenv γ

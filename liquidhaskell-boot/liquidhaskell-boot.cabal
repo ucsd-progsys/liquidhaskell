@@ -198,3 +198,4 @@ test-suite liquidhaskell-parser
 
   if flag(devel)
     ghc-options:    -Wall -Wno-name-shadowing -Werror
+-- force rebuild

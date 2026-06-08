@@ -62,7 +62,12 @@ makeMethodTypes allowTC (DEnv hm) cls cbs
       classType (Just (d, ts, _)) x =
         case filter ((==d) . Ghc.dataConWorkId . dcpCon) cls of
           (di:_) ->
-            (dcpLoc di `F.atLoc`) . subst (zip (dcpFreeTyVars di) ts) <$>
+            let -- Only keep visible type args (filter out invisible kind args).
+                -- The class TyCon's visible binders tell us which positions are visible.
+                classTc = Ghc.dataConTyCon (dcpCon di)
+                visTs   = filterVisibleClassArgs classTc ts
+            in
+            (dcpLoc di `F.atLoc`) . subst (zip (dcpFreeTyVars di) visTs) <$>
             L.lookup (mkSymbol x) (map (first lhNameToResolvedSymbol) $ dcpTyArgs di)
           _      -> Nothing
 
@@ -79,7 +84,8 @@ makeMethodTypes allowTC (DEnv hm) cls cbs
 addCC :: Bool -> Ghc.Var -> LocSpecType -> LocSpecType
 addCC allowTC var zz@(Loc l l' st0)
   = Loc l l'
-  . addForall hst
+  . F.tracepp ("addCC result for " ++ GM.showPpr var)
+  . addForall hst'
   . mkArrow [] ps' []
   . makeCls cs'
   . mapExprReft (\_ -> F.applyCoSub coSub)
@@ -87,6 +93,9 @@ addCC allowTC var zz@(Loc l l' st0)
   $ st
   where
     hst           = ofType (Ghc.expandTypeSynonyms t0) :: SpecType
+    -- Strip leading kind foralls (tyVarKind == Type) that precede non-kind foralls.
+    -- GHC 9.14 adds these for poly-kinded instances but they don't appear in LH specs.
+    hst'          = stripLeadingKindForalls hst
     t0            = Ghc.varType var
     tyvsmap       = case Bare.runMapTyVars allowTC t0 st err of
                           Left e  -> Ex.throw e
@@ -107,6 +116,22 @@ addCC allowTC var zz@(Loc l l' st0)
       (Just (hsT, lqT))
       (Ghc.getSrcSpan var)
 
+    -- Strip leading kind foralls from hst. A kind forall has tyVarKind == Type
+    -- but is followed by non-kind foralls (tyVarKind /= Type). We only strip
+    -- those at the very beginning; once we hit a non-kind forall, we stop.
+    stripLeadingKindForalls (RAllT v t _r)
+      | isKindRTVar v = stripLeadingKindForalls t
+    stripLeadingKindForalls t = t
+
+    isKindRTVar v = case ty_var_value v of
+      RTV tv -> Ghc.tyVarKind tv `Ghc.eqType` Ghc.liftedTypeKind
+
+    -- addForall adds foralls from the HS type to the LQ spec.
+    -- In GHC 9.14+, instance method types have structure:
+    --   forall kind_vars class_vars. ClassConstraint => forall method_vars. body
+    -- Kind variables (whose kind is Type) are skipped as they don't appear in LH specs.
+    -- We need foralls BEFORE the class constraint to go before it in the output,
+    -- and foralls AFTER to go after. The class constraint itself is added by makeCls.
     addForall (RAllT v t r) tt@(RAllT v' _ _)
       | v == v'
       = tt
@@ -116,12 +141,33 @@ addCC allowTC var zz@(Loc l l' st0)
       = RAllT (updateRTVar v) (addForall t t') r
     addForall (RAllP _ t) t'
       = addForall t t'
-    addForall _ (RAllP p t')
-      = RAllP (fmap (subts su') p) t'
+    addForall t' (RAllP p t'')
+      = RAllP (fmap (subts su') p) (addForall t' t'')
+    -- When HS side has class constraint, skip it (already added by makeCls)
+    -- and inject remaining foralls INSIDE the class constraint on the LQ side.
+    addForall (RFun _ _ arg t2 _) t'
+      | isClassArg arg
+      = injectForallsAfterClass t2 t'
     addForall (RFun _ _ t1 t2 _) (RFun x i t1' t2' r)
       = RFun x i (addForall t1 t1') (addForall t2 t2') r
     addForall _ t
       = t
+
+    -- Inject foralls from HS type into the LQ spec AFTER its class constraint.
+    -- Walk the LQ spec to find the RFun for the class constraint, then add
+    -- the remaining foralls inside it.
+    injectForallsAfterClass hsRest (RAllP p t'')
+      = RAllP (fmap (subts su') p) (injectForallsAfterClass hsRest t'')
+    injectForallsAfterClass hsRest (RRTy e r o t'')
+      = RRTy e r o (injectForallsAfterClass hsRest t'')
+    injectForallsAfterClass hsRest (RFun x i arg t'' r)
+      | isClassArg arg
+      = RFun x i arg (addForall hsRest t'') r
+    injectForallsAfterClass hsRest t'
+      = addForall hsRest t'  -- no class constraint found, just add foralls here
+
+    isClassArg (RApp c _ _ _) = Ghc.isClassTyCon (rtc_tc c)
+    isClassArg _              = False
 
 
 splitDictionary :: Ghc.CoreExpr -> Maybe (Ghc.Var, [Ghc.Type], [Ghc.Var])
@@ -133,6 +179,20 @@ splitDictionary = go [] []
     go ts xs (Ghc.Tick _ t) = go ts xs t
     go ts xs (Ghc.Var x) = Just (x, reverse ts, reverse xs)
     go _ _ _ = Nothing
+
+-- | Filter type arguments to keep only the visible ones, based on the class
+-- TyCon's binder visibility. GHC 9.14 adds invisible kind type arguments
+-- that don't correspond to class parameters.
+filterVisibleClassArgs :: Ghc.TyCon -> [Ghc.Type] -> [Ghc.Type]
+filterVisibleClassArgs tc ts = go (Ghc.tyConBinders tc) ts
+  where
+    go (Ghc.Bndr _ vis : bs) (t : rest)
+      | isVisibleBndr vis = t : go bs rest
+      | otherwise         = go bs rest
+    go _ rest             = rest  -- keep remaining args (oversaturated)
+    isVisibleBndr Ghc.AnonTCB            = True
+    isVisibleBndr (Ghc.NamedTCB Ghc.Required) = True
+    isVisibleBndr _                      = False
 
 
 -------------------------------------------------------------------------------
@@ -249,7 +309,8 @@ resolveDictionaries env = map $ \ri ->
              "cannot find dictionary from name: " ++ show e
          Right v -> v
     lookupDFun (RI c _ ts _) = do
-       let tys = map (toType False . dropUniv . val) ts
+       let specTys = map (dropUniv . val) ts
+           tys = map (toType False) specTys
        case Bare.lookupGhcTyConLHName (reTyLookupEnv env) (btc_tc c) of
          Left _ ->
            panic (Just $ GM.fSrcSpan $ btc_tc c) "cannot find type class"
@@ -258,11 +319,43 @@ resolveDictionaries env = map $ \ri ->
              panic (Just $ GM.fSrcSpan $ btc_tc c) "type constructor does not refer to a type class"
            Just cls ->
              case Ghc.lookupInstEnv False (Bare.reInstEnvs env) cls tys of
-               -- Is it ok to pick the first match?
                ((clsInst, _) : _, _, _) ->
                  Ghc.is_dfun clsInst
                ([], _, _) ->
-                 panic (Just $ GM.fSrcSpan $ btc_tc c) "cannot find class instance"
+                 -- lookupInstEnv may fail due to kind mismatches when types
+                 -- come from LH annotations (which lose kind info). Fall back
+                 -- to structural matching on TyCon heads.
+                 case findInstByTyCons cls tys (Bare.reInstEnvs env) of
+                   Just dfun -> dfun
+                   Nothing ->
+                     panic (Just $ GM.fSrcSpan $ btc_tc c) "cannot find class instance"
+
+    -- | Find an instance by matching the top-level TyCon structure of the types.
+    -- This is a fallback for when lookupInstEnv fails due to kind mismatches
+    -- in types reconstructed from LH annotations.
+    findInstByTyCons :: Ghc.Class -> [Ghc.Type] -> Ghc.InstEnvs -> Maybe Ghc.Var
+    findInstByTyCons cls tys instEnvs =
+      let allInsts = Ghc.instEnvElts (Ghc.ie_global instEnvs)
+                  ++ Ghc.instEnvElts (Ghc.ie_local instEnvs)
+          targetTyCons = map Ghc.splitTyConApp_maybe tys
+          matchInst inst =
+            Ghc.is_cls inst == cls &&
+            matchTyCons targetTyCons (Ghc.is_tys inst)
+      in case filter matchInst allInsts of
+           [inst] -> Just (Ghc.is_dfun inst)
+           _      -> Nothing
+
+    -- | Check if the top-level TyCons of two type lists match structurally.
+    matchTyCons :: [Maybe (Ghc.TyCon, [Ghc.Type])] -> [Ghc.Type] -> Bool
+    matchTyCons targets instTys =
+      length targets == length instTys &&
+      and (zipWith matchOne targets instTys)
+      where
+        matchOne (Just (tc, _)) instTy =
+          case Ghc.splitTyConApp_maybe instTy of
+            Just (tc', _) -> tc == tc'
+            Nothing       -> False
+        matchOne Nothing _ = True  -- target is not a TyConApp; accept any match
 
 dropUniv :: SpecType -> SpecType
 dropUniv t = t' where (_,_,t') = bkUniv t

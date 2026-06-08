@@ -548,11 +548,51 @@ checkMismatch (x, t) = if ok then emptyDiagnostics else mkDiagnostics mempty [er
     err              = errTypeMismatch x t
 
 tyCompat :: Var -> RType RTyCon RTyVar r -> Bool
-tyCompat x t         = lqT == hsT
+tyCompat x t         = if ok then ok else F.tracepp ("tyCompat FAIL: " ++ GM.showPpr x ++ " lq=" ++ F.showpp lqT ++ " hs=" ++ F.showpp hsT) ok
   where
+    ok               = rSortAlphaEq hsT lqT
     lqT :: RSort     = toRSort t
     hsT :: RSort     = ofType (varType x)
-    _msg             = "TY-COMPAT: " ++ GM.showPpr x ++ ": hs = " ++ F.showpp hsT ++ " :lq = " ++ F.showpp lqT
+
+-- | Alpha-equivalence for RSorts: compare structural shape, allowing
+-- the HS side to have extra leading forall binders (invisible kind vars)
+-- that the LQ side doesn't have.
+rSortAlphaEq :: RSort -> RSort -> Bool
+rSortAlphaEq hsT lqT = go [] (skipExtraForalls hsT lqT) lqT
+  where
+    -- Skip leading foralls on HS side to match the number on LQ side
+    skipExtraForalls h l =
+      let nh = countForalls h
+          nl = countForalls l
+      in dropForalls (nh - nl) h
+    countForalls :: RSort -> Int
+    countForalls (RAllT _ t _) = 1 + countForalls t
+    countForalls _ = 0
+    dropForalls :: Int -> RSort -> RSort
+    dropForalls n t | n <= 0 = t
+    dropForalls n (RAllT _ t _) = dropForalls (n-1) t
+    dropForalls _ t = t
+
+    go env (RAllT v1 t1 _) (RAllT v2 t2 _)
+      = go ((ty_var_value v1, ty_var_value v2):env) t1 t2
+    go env (RFun _ _ t1 t1' _) (RFun _ _ t2 t2' _)
+      = go env t1 t2 && go env t1' t2'
+    go env (RApp c1 ts1 _ _) (RApp c2 ts2 _ _)
+      = rtc_tc c1 == rtc_tc c2 && length ts1 == length ts2
+        && and (zipWith (go env) ts1 ts2)
+    go env (RAppTy t1 t1' _) (RAppTy t2 t2' _)
+      = go env t1 t2 && go env t1' t2'
+    go env (RVar v1 _) (RVar v2 _)
+      = lookupVar env v1 v2
+    go _ (RHole _) (RHole _) = True
+    go _ _ _ = False
+
+    lookupVar :: [(RTyVar, RTyVar)] -> RTyVar -> RTyVar -> Bool
+    lookupVar [] (RTV v1) (RTV v2) = getOccName v1 == getOccName v2
+    lookupVar ((a,b):env) v1 v2
+      | v1 == a && v2 == b = True
+      | v1 == a || v2 == b = False
+      | otherwise          = lookupVar env v1 v2
 
 errTypeMismatch     :: Var -> Located SpecType -> Error
 errTypeMismatch x t = ErrMismatch lqSp (pprint x) (text "Checked")  d1 d2 Nothing hsSp

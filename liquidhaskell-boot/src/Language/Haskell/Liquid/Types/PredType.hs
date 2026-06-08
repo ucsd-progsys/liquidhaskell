@@ -86,7 +86,7 @@ mkRTyCon ::  TyConP -> RTyCon
 mkRTyCon (TyConP _ tc αs' ps tyvariance predvariance size)
   = RTyCon tc pvs' (mkTyConInfo tc tyvariance predvariance size)
   where
-    τs   = [rVar α :: RSort |  α <- tyConTyVarsDef tc]
+    τs   = [rVar α :: RSort |  α <- visibleTyConTyVars tc]
     pvs' = subts (zip αs' τs) <$> ps
 
 
@@ -181,7 +181,7 @@ strengthenRType wkT wrT = maybe wkT (strengthen wkT) (stripRTypeBase wrT)
 -- would reach here
 dcWrapSpecType :: Bool -> DataCon -> DataConP -> SpecType
 dcWrapSpecType allowTC dc (DataConP _ _ vs ps cs yts rt _ _ _)
-  = {- F.tracepp ("dcWrapSpecType: " ++ show dc ++ " " ++ F.showpp rt) $ -}
+  = F.tracepp ("dcWrap: " ++ F.showpp (F.symbol dc) ++ " makeVars=" ++ show (length makeVars) ++ " fvs=" ++ show (length fvs)) $
     mkArrow makeVars' ps ts' rt'
   where
     isCls    = Ghc.isClassTyCon $ Ghc.dataConTyCon dc
@@ -198,9 +198,18 @@ dcWrapSpecType allowTC dc (DataConP _ _ vs ps cs yts rt _ _ _)
     ts'      = map ("" , classRFInfo allowTC , , mempty) cs ++ yts'
     subst    = F.mkSubst [(x, F.EVar y) | (x, y) <- zip as1 bs]
     rt'      = F.subst subst rt
-    makeVars = filter (`elem` fvs) $ zipWith (\v a -> RTVar v (rTVarInfo a)) vs (fst $ splitForAllTyCoVars $ dataConRepType dc)
+    makeVars = filter (`elem` fvs) $ zipWith (\v a -> RTVar v (rTVarInfo a)) vs (visibleForAllTyVars $ dataConRepType dc)
     makeVars' = map (, mempty) makeVars
     fvs = freeTyVars $ mkArrow [] ps ts' rt'
+
+-- | Extract only the visible (non-inferred) ForAll type variables from a type.
+-- Skips inferred binders (GHC's kind variables from kind generalization).
+visibleForAllTyVars :: Type -> [TyVar]
+visibleForAllTyVars = go
+  where
+    go (ForAllTy (Bndr _ (Invisible InferredSpec)) t) = go t
+    go (ForAllTy (Bndr tv _) t) = tv : go t
+    go _ = []
 
 dataConTy :: IsReft r
           => M.HashMap RTyVar (RType RTyCon RTyVar r)
@@ -379,7 +388,15 @@ substRCon
 substRCon msg (_, RProp ss t1@(RApp c1 ts1 rs1 r1)) t2@(RApp c2 ts2 rs2 _) πs r2'
   | rtc_tc c1 == rtc_tc c2 = RApp c1 ts rs $ meetListWithPSubs πs ss r1 r2'
   where
-    ts                     = F.subst su $ safeZipWith (msg ++ ": substRCon")  strSub  ts1  ts2
+    -- Align type args from the right: if ts1 is shorter, take extra args from ts2 unchanged
+    ts                     = F.subst su $ prefix ++ safeZipWith (msg ++ ": substRCon") strSub ts1' ts2'
+      where
+        n1     = length ts1
+        n2     = length ts2
+        extra  = n2 - n1
+        prefix = take extra ts2
+        ts1'   = ts1
+        ts2'   = drop extra ts2
     rs                     = F.subst su $ safeZipWith (msg ++ ": substRCon2") strSubR rs1' rs2'
     (rs1', rs2')           = pad "substRCon" top rs1 rs2
     strSub x r2           = meetListWithPSubs πs ss x r2

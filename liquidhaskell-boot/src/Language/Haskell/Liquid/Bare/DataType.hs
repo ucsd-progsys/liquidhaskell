@@ -321,7 +321,7 @@ makeDataDecl :: F.TCEmb Ghc.TyCon -> Ghc.TyCon -> DataDecl -> [(Ghc.DataCon, Dat
 makeDataDecl tce tc dd ctors
   = F.DDecl
       { F.ddTyCon = ftc
-      , F.ddVars  = length                $  GM.tyConTyVarsDef tc
+      , F.ddVars  = length                $  GM.visibleTyConTyVars tc
       , F.ddCtors = makeDataCtor tce ftc <$> ctors
       }
   where
@@ -609,9 +609,13 @@ checkDataDecl :: Ghc.TyCon -> DataDecl -> Bool
 checkDataDecl c d = F.notracepp _msg (isGADT || cN == dN || null (tycDCons d))
   where
     _msg          = printf "checkDataDecl: D = %s, c = %s, cN = %d, dN = %d" (showpp d) (show c) cN dN
-    cN            = length (GM.tyConTyVarsDef c)
+    cN            = length [ v | Ghc.Bndr v vis <- Ghc.tyConBinders c
+                                , isVisibleBndr vis ]
     dN            = length (tycTyVars         d)
     isGADT        = Ghc.isGadtSyntaxTyCon c
+    isVisibleBndr Ghc.AnonTCB              = True
+    isVisibleBndr (Ghc.NamedTCB Ghc.Required) = True
+    isVisibleBndr _                        = False
 
 getDnTyCon :: Bare.Env -> ModName -> DataName -> Bare.Lookup Ghc.TyCon
 getDnTyCon env name dn = do

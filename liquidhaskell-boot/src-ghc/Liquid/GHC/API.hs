@@ -319,7 +319,7 @@ import GHC.Core.FamInstEnv            as Ghc
 import GHC.Core.InstEnv               as Ghc
     ( ClsInst(is_cls, is_dfun, is_dfun_name, is_tys)
     , DFunId
-    , InstEnvs
+    , InstEnvs(ie_global, ie_local)
     , instEnvElts
     , instanceSig
     , lookupInstEnv
@@ -348,7 +348,7 @@ import GHC.Core.Subst                 as Ghc (emptySubst, extendCvSubst)
 import GHC.Core.TyCo.Rep              as Ghc
     ( Coercion
     , FunTyFlag(FTF_T_T, FTF_C_T)
-    , ForAllTyFlag(Required)
+    , ForAllTyFlag(Required, Invisible)
     , Coercion (AxiomCo, SymCo)
     , TyLit(CharTyLit, NumTyLit, StrTyLit)
     , Type
@@ -379,7 +379,7 @@ import GHC.Core.TyCo.Subst            as Ghc
     )
 import GHC.Core.TyCon                 as Ghc
     ( TyConBinder
-    , TyConBndrVis(AnonTCB)
+    , TyConBndrVis(AnonTCB, NamedTCB)
     , isAlgTyCon
     , isBoxedTupleTyCon
     , isFamInstTyCon
@@ -397,7 +397,7 @@ import GHC.Core.TyCon                 as Ghc
     , tyConSingleDataCon_maybe
     )
 import GHC.Core.Type                  as Ghc
-    ( Specificity(SpecifiedSpec)
+    ( Specificity(SpecifiedSpec, InferredSpec)
     , TyVarBinder
     , isTYPEorCONSTRAINT
     , dropForAlls

@@ -59,7 +59,7 @@ instance F.PPrint Variance where
 makeTyConVariance :: TyCon -> VarianceInfo
 makeTyConVariance tyCon = varSignToVariance <$> tvs
   where
-    tvs = GM.tyConTyVarsDef tyCon
+    tvs = GM.visibleTyConTyVars tyCon
 
     varsigns = if Ghc.isTypeSynonymTyCon tyCon
                   then go True (fromJust $ Ghc.synTyConRhs_maybe tyCon)

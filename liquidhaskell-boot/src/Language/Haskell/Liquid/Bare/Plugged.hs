@@ -96,13 +96,13 @@ makePluggedDataCon :: Bool -> F.TCEmb Ghc.TyCon -> Bare.TyConMap -> Located Data
 makePluggedDataCon allowTC embs tyi ldcp
   | mismatchFlds      = Ex.throw (err "fields") -- (err $  "fields:" <+> F.pprint (length dts) <+> " vs " <+> F.pprint ( dcArgs))
   | mismatchTyVars    = Ex.throw (err "type variables")
-  | otherwise         = F.atLoc ldcp $ F.notracepp "makePluggedDataCon" $ dcp
+  | otherwise         = F.atLoc ldcp $ F.tracepp ("makePluggedDataCon: " ++ show (length visibleDas, length dcVars, length dts, length dcArgs)) $ dcp
                           { dcpFreeTyVars = dcVars
                           , dcpTyArgs     = reverse tArgs
                           , dcpTyRes      = tRes
                           }
   where
-    (tArgs, tRes)     = plugMany allowTC  embs tyi ldcp (das, dts, dt) (dcVars, dcArgs, dcpTyRes dcp)
+    (tArgs, tRes)     = plugMany allowTC  embs tyi ldcp (visibleDas, dts, dt) (dcVars, dcArgs, dcpTyRes dcp)
     (das, _, dts, dt) = {- F.notracepp ("makePluggedDC: " ++ F.showpp dc) $ -} Ghc.dataConSig dc
     dcArgs            = reverse $ filter (not . (if allowTC then isEmbeddedClass else isClassType) . snd) (dcpTyArgs dcp)
     dcVars            = if isGADT
@@ -117,8 +117,23 @@ makePluggedDataCon allowTC embs tyi ldcp
     padGADVars vs = (RTV <$> take (length das - length vs) das) ++ vs
 
     mismatchFlds      = length dts /= length dcArgs
-    mismatchTyVars    = length das /= length dcVars
+    mismatchTyVars    = length visibleDas /= length dcVars
+    visibleDas        = filterVisibleDcTyVars dc das
     err things        = ErrBadData (GM.fSrcSpan dcp) (pprint dc) ("GHC and Liquid specifications have different numbers of" <+> things) :: UserError
+
+-- | Filter the universal type variables of a data constructor to only those
+-- that correspond to visible TyCon binders (excluding invisible kind variables).
+filterVisibleDcTyVars :: Ghc.DataCon -> [Ghc.TyVar] -> [Ghc.TyVar]
+filterVisibleDcTyVars dc tvs =
+  let tc = Ghc.dataConTyCon dc
+      binders = Ghc.tyConBinders tc
+      -- The universal tvs correspond 1-to-1 with the TyCon binders
+      -- (for non-GADT constructors). Keep only those in visible positions.
+      visibleFlags = map (\(Ghc.Bndr _ vis) -> isVisibleBndr vis) binders ++ repeat True
+      isVisibleBndr Ghc.AnonTCB               = True
+      isVisibleBndr (Ghc.NamedTCB Ghc.Required) = True
+      isVisibleBndr _                          = False
+  in [tv | (tv, vis) <- zip tvs visibleFlags, vis]
 
 
 -- | @plugMany@ is used to "simultaneously" plug several different types,
