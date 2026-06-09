@@ -552,9 +552,15 @@ processModule LiquidHaskellContext{..} = do
     let preNormalizedCore = preNormalizeCore moduleCfg modGuts0
         modGuts = modGuts0 { mg_binds = preNormalizedCore }
         file = LH.modSummaryHsFile lhModuleSummary
-    let mInstSpans = LH.manualInstSpans tcg
-    let iDeclSpans = LH.instDeclSpans tcg
-    targetSrc  <- liftIO $ makeTargetSrc moduleCfg file modGuts hscEnv (tcg_rdr_env tcg) mInstSpans iDeclSpans
+    targetSrc  <- liftIO $
+      makeTargetSrc
+        moduleCfg
+        file
+        modGuts
+        hscEnv
+        (tcg_rdr_env tcg)
+        (LH.manualMethodSpans tcg)
+        (LH.instanceSpans tcg)
     logger <- getLogger
 
     -- See https://github.com/ucsd-progsys/liquidhaskell/issues/1711
@@ -627,7 +633,7 @@ makeTargetSrc :: Config
               -> [GHC.SrcSpan]
               -> [GHC.SrcSpan]
               -> IO TargetSrc
-makeTargetSrc cfg file modGuts hscEnv rdrEnv manualSpans iDeclSpans = do
+makeTargetSrc cfg file modGuts hscEnv rdrEnv methodSpans instanceSpans = do
   when (dumpPreNormalizedCore cfg) $ do
     putStrLn "\n*************** Pre-normalized CoreBinds *****************\n"
     putStrLn $ unlines $ L.intersperse "" $ map (GHC.showPpr (GHC.hsc_dflags hscEnv)) (mg_binds modGuts)
@@ -650,7 +656,7 @@ makeTargetSrc cfg file modGuts hscEnv rdrEnv manualSpans iDeclSpans = do
   debugLog $ "coreBinds => " ++ (O.showSDocUnsafe . O.ppr $ coreBinds)
   debugLog $ "impVars => " ++ (O.showSDocUnsafe . O.ppr $ impVars)
   debugLog $ "useVars  => " ++ (O.showSDocUnsafe . O.ppr $ readVars coreBinds)
-  debugLog $ "derVars  => " ++ (O.showSDocUnsafe . O.ppr $ HS.fromList (LH.derivedVars manualSpans mgiModGuts))
+  debugLog $ "derVars  => " ++ (O.showSDocUnsafe . O.ppr $ HS.fromList (LH.derivedVars methodSpans mgiModGuts))
   debugLog $ "gsExports => " ++ show (mgi_exports  mgiModGuts)
   debugLog $ "gsTcs     => " ++ (O.showSDocUnsafe . O.ppr $ allTcs)
   debugLog $ "gsCls     => " ++ (O.showSDocUnsafe . O.ppr $ mgi_cls_inst mgiModGuts)
@@ -664,14 +670,14 @@ makeTargetSrc cfg file modGuts hscEnv rdrEnv manualSpans iDeclSpans = do
     , giImpVars   = impVars
     , giDefVars   = L.nub $ dataCons ++ letVars coreBinds
     , giUseVars   = readVars coreBinds
-    , giDerVars   = HS.fromList (LH.derivedVars manualSpans mgiModGuts)
+    , giDerVars   = HS.fromList (LH.derivedVars methodSpans mgiModGuts)
     , gsExports   = mgi_exports  mgiModGuts
     , gsTcs       = allTcs
     , gsCls       = mgi_cls_inst mgiModGuts
     , gsFiTcs     = fiTcs
     , gsFiDcs     = fiDcs
     , gsPrimTcs   = GHC.primTyCons
-    , giInstSpans = iDeclSpans
+    , giInstSpans = instanceSpans
     }
   where
     mgiModGuts :: MGIModGuts

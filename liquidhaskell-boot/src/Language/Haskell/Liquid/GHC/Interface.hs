@@ -28,8 +28,8 @@ module Language.Haskell.Liquid.GHC.Interface (
   , listLMap
   , classCons
   , derivedVars
-  , manualInstSpans
-  , instDeclSpans
+  , manualMethodSpans
+  , instanceSpans
   , importVars
   , modSummaryHsFile
   , makeFamInstEnv
@@ -81,7 +81,7 @@ classCons Nothing   = []
 classCons (Just cs) = concatMap (dataConImplicitIds . head . tyConDataCons . classTyCon . is_cls) cs
 
 derivedVars :: [Ghc.SrcSpan] -> MGIModGuts -> [Var]
-derivedVars manualSpans mg =
+derivedVars instSpans mg =
     filter isGeneratedBinding (concatMap bindersOf (mgi_binds mg))
   where
     isGeneratedBinding v =
@@ -92,13 +92,13 @@ derivedVars manualSpans mg =
           not ("$dm" `isPrefixOf` Ghc.occNameString occ) &&
           -- methods might be written by the user if they are in the manual spans
           (not ("$c" `isPrefixOf` Ghc.occNameString occ) ||
-           not (any (Ghc.getSrcSpan v `Ghc.isSubspanOf`) manualSpans)
+           not (any (Ghc.getSrcSpan v `Ghc.isSubspanOf`) instSpans)
           )
 
 -- | Collect the source spans of all 'ClsInstDecl' nodes in the renamed AST.
 -- These cover the full body of every manually-written instance declaration.
-manualInstSpans :: Ghc.TcGblEnv -> [Ghc.SrcSpan]
-manualInstSpans tcg = case Ghc.tcg_rn_decls tcg of
+manualMethodSpans :: Ghc.TcGblEnv -> [Ghc.SrcSpan]
+manualMethodSpans tcg = case Ghc.tcg_rn_decls tcg of
   Nothing  -> []
   Just grp ->
     [ Ghc.getLocA b
@@ -108,10 +108,10 @@ manualInstSpans tcg = case Ghc.tcg_rn_decls tcg of
     ]
 
 -- | Collect the full source spans of instance declarations.
--- Unlike 'manualInstSpans' which collects spans of individual bindings,
+-- Unlike 'manualMethodSpans' which collects spans of individual bindings,
 -- this collects the span of the entire instance declaration.
-instDeclSpans :: Ghc.TcGblEnv -> [Ghc.SrcSpan]
-instDeclSpans tcg = case Ghc.tcg_rn_decls tcg of
+instanceSpans :: Ghc.TcGblEnv -> [Ghc.SrcSpan]
+instanceSpans tcg = case Ghc.tcg_rn_decls tcg of
   Nothing  -> []
   Just grp ->
     [ Ghc.getLocA d
