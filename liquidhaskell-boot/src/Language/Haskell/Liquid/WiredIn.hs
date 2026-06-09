@@ -244,5 +244,3 @@ mkps_ (n:ns) (t:ts) ((f, x):xs) args ps = mkps_ ns ts xs (a:args) (p:ps)
     a                                   = (t, f, x)
 mkps_ _     _       _          _    _ = panic Nothing "Bare : mkps_"
 
-
--- Deprecated: Use manualInstSpans from Interface.hs instead
