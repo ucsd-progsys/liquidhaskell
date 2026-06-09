@@ -42,7 +42,7 @@ import Prelude (error)
 
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.Char                             (toLower)
+import Data.Char                             (isSpace, toLower)
 import Data.Maybe
 import Data.Functor                          ((<&>))
 import Data.Aeson                            (encode)
@@ -611,7 +611,6 @@ shellWords = filter (not . null) . go [] False False
           if null acc then go [] False False cs
                       else reverse acc : go [] False False cs
       | otherwise            = go (c : acc) dq sq cs
-    isSpace c = c == ' ' || c == '\t'
 
 -- | Apply a list of pragma strings (each is one option, e.g. @"--ple"@ or
 -- @"--expect-error-containing=Mismatch"@) on top of an existing 'Config'.
