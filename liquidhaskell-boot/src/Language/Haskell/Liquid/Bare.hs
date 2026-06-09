@@ -613,7 +613,10 @@ makeSpecVars cfg src mySpec env measEnv = do
 
 -- | Partition ignore annotations into those inside instance declarations
 -- and those at the top level, based on source position.
-partitionIgnores :: [Ghc.SrcSpan] -> S.HashSet (F.Located LHName) -> ([F.Located LHName], [F.Located LHName])
+partitionIgnores
+  :: [Ghc.SrcSpan]
+  -> S.HashSet (F.Located LHName)
+  -> ([F.Located LHName], [F.Located LHName]) -- ^ (instance ignores, top-level ignores)
 partitionIgnores instSpans ignores =
   L.partition isInInstance (S.toList ignores)
   where
