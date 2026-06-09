@@ -663,17 +663,17 @@ resolveInstanceIgnore env src lname = do
           annotSpan  = GM.sourcePosSrcSpan (F.loc lname)
           -- Find the $c-prefixed binding whose span is within the same instance
           matchingInstSpan = L.find (annotSpan `Ghc.isSubspanOf`) (_giInstSpans src)
-          matchingVars = case matchingInstSpan of
-            Nothing -> []
-            Just instSp ->
-              [ b
-              | b <- Ghc.bindersOfBinds (_giCbs src)
-              , Ghc.occNameString (Ghc.getOccName b) == cName
-              , Ghc.getSrcSpan b `Ghc.isSubspanOf` instSp
-              ]
+          matchingVars = do
+            instSp <- matchingInstSpan
+            -- This ignores the possibility of multiple instance declarations
+            -- but that is not something we expect to happen to go through the
+            -- trouble of checking it every time.
+            flip L.find (Ghc.bindersOfBinds (_giCbs src)) $ \b ->
+              Ghc.occNameString (Ghc.getOccName b) == cName
+              && Ghc.getSrcSpan b `Ghc.isSubspanOf` instSp
       case matchingVars of
-        (c:_) -> Right c
-        []    -> Left [ErrBadIgnore sp
+        Just c -> Right c
+        Nothing -> Left [ErrBadIgnore sp
                         (pprint (F.val lname))
                         (text $ "could not find instance method binding for " ++ methodName)]
   where
