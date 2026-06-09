@@ -89,9 +89,9 @@ derivedVars manualSpans mg =
        in
           Ghc.isDerivedOccName occ &&
           -- default methods are always written by the user
-          not (isPrefixOf "$dm" $ Ghc.occNameString occ) &&
+          not ("$dm" `isPrefixOf` Ghc.occNameString occ) &&
           -- methods might be written by the user if they are in the manual spans
-          (not (isPrefixOf "$c" $ Ghc.occNameString occ) ||
+          (not ("$c" `isPrefixOf` Ghc.occNameString occ) ||
            not (any (Ghc.getSrcSpan v `Ghc.isSubspanOf`) manualSpans)
           )
 
