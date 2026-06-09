@@ -70,7 +70,6 @@ import Language.Haskell.Liquid.Types.Specs
 import Language.Haskell.Liquid.Types.Types
 import Language.Haskell.Liquid.Types.Visitors
 import Language.Haskell.Liquid.UX.Tidy
-import qualified GHC as Ghc
 
 
 --------------------------------------------------------------------------------

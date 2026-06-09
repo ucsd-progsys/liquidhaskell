@@ -518,6 +518,7 @@ import GHC.Driver.Ppr                 as Ghc
     )
 import GHC.Hs                         as Ghc
     ( HsParsedModule(..)
+    , ClsInstDecl(cid_binds)
     , InstDecl(ClsInstD)
     , hsGroupInstDecls
     )
