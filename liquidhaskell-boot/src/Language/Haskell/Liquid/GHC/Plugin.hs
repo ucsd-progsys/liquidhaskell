@@ -125,8 +125,8 @@ plugin = GHC.defaultPlugin {
     -- | Ensure that 'tcg_rn_decls' is populated for use in 'typeCheckResultAction'.
     -- GHC only keeps renamed syntax when generating HIE files or haddock docs;
     -- we need it to distinguish manually-written from auto-derived instances.
-    -- We prime 'tcg_rn_decls' with an empty group here so that GHC's own
-    -- accumulation code does: appendGroups emptyRnGroup rn_decls = rn_decls.
+    -- We prime 'tcg_rn_decls' with an empty group, since GHC seems to require
+    -- it to collect rn_decls.
     renamedPlugin :: [CommandLineOption] -> TcGblEnv -> GHC.HsGroup GHC.GhcRn
                   -> TcM (TcGblEnv, GHC.HsGroup GHC.GhcRn)
     renamedPlugin _opts tcg decls = do
