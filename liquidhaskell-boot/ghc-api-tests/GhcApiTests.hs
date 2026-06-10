@@ -2,7 +2,7 @@
 
 import           Control.Monad
 import           Control.Monad.IO.Class (liftIO)
-import           Data.List (find)
+import           Data.List (find, isPrefixOf)
 import           Data.Time (getCurrentTime)
 import           Liquid.GHC.API
     ( ApiComment(ApiBlockComment)
@@ -12,13 +12,17 @@ import           Liquid.GHC.API
     , LitNumType(..)
     , Literal(..)
     , apiCommentsParsedSource
+    , InstDecl(ClsInstD)
+    , hsGroupInstDecls
     , occNameString
     , pAT_ERROR_ID
     , showPprQualified
     , splitDollarApp
+    , tcg_rn_decls
     , untick
     )
 import           Liquid.GHC.API.Extra (addNoInlinePragmasToBinds)
+import           GHC.Hs (cid_binds)
 import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Test.Tasty.Runners.AntXML
@@ -56,6 +60,7 @@ testTree =
       , testCase "dollarDesugaring" testDollarDesugaring
       , testCase "deadBindingPreservation" testDeadBindingPreservation
       , testCase "exportedBindingNotInlined" testExportedBindingNotInlined
+      , testCase "derivingCheck" testDerivingCheck
       ]
 
 -- Tests that Liquid.GHC.API.Extra.apiComments can retrieve the comments in
@@ -308,3 +313,86 @@ hasLetNamed name = go
     go (GHC.Cast e _) = go e
     go (GHC.Tick _ e) = go e
     go _ = False
+
+-- | Tests that the SrcSpans of methods in a class instance contain the
+-- SrcSpans of the corresponding core bindings, and that the instance
+-- declaration SrcSpan contains the method SrcSpans.
+--
+-- The instance has two methods: 'method1' (two equations) and 'method2'
+-- (one equation), so the test exercises multi-equation method spans too.
+testDerivingCheck :: IO ()
+testDerivingCheck = do
+    let inputSource = unlines
+          [ "module InstMethods where"
+          , "class MyClass a where"
+          , "  method1 :: a -> a -> a"
+          , "  method2 :: a -> Bool"
+          , ""
+          , "instance MyClass Int where"
+          , "  method1 0 y = y"
+          , "  method1 x y = x + y"
+          , "  method2 x = x > 0"
+          ]
+
+    (instSpan, methodBindings, coreProgram) <-
+      GHC.runGhc (Just libdir) $ do
+        (_, tcMod) <- typecheckSourceCode "InstMethods" inputSource
+        let (tcg, _) = GHC.tm_internals_ tcMod
+        (iSpan, mBinds) <- liftIO $ case tcg_rn_decls tcg of
+          Nothing  -> fail "No renamed declarations found"
+          Just grp ->
+            case [ ( GHC.getLocA d
+                   , cid_binds inst
+                   )
+                 | d <- hsGroupInstDecls grp
+                 , ClsInstD _ inst <- [GHC.unLoc d]
+                 ] of
+              [(is, bs)] -> return (is, bs)
+              other      ->
+                fail $ "Expected exactly one instance, got " ++ show (length other)
+        dsMod <- GHC.desugarModule tcMod
+        let core = GHC.mg_binds $ GHC.dm_core_module dsMod
+        return (iSpan, mBinds, core)
+
+    -- Check that the instance declaration span contains all method spans.
+    forM_ methodBindings $ \mb -> do
+      let ms = GHC.getLocA mb
+      unless (ms `GHC.isSubspanOf` instSpan) $
+        fail $ "Method span " ++ show ms ++
+               " is not a subspan of instance span " ++ show instSpan
+
+    -- Build a mapping from method names to their spans.
+    let methodNameToSpans :: [(String, GHC.SrcSpan)]
+        methodNameToSpans =
+          [ (occNameString (GHC.occName mn), GHC.getLocA mb)
+          | mb <- methodBindings
+          , let bindLoc = GHC.unLoc mb
+                mn = case bindLoc of
+                  GHC.FunBind {GHC.fun_id = fid} -> GHC.unLoc fid
+                  _ -> error "Unexpected bind type in instance"
+          ]
+
+    -- Check that each instance method core binder's span is contained in
+    -- the corresponding method span. Instance method core binders have
+    -- names starting with "$c" (e.g. "$cmethod1").
+    let coreBinders       = concatMap collectBinders coreProgram
+        instMethodBinders =
+          filter (isPrefixOf "$c" . occNameString . GHC.occName) coreBinders
+    when (null instMethodBinders) $
+      fail "No instance method core binders found (expected names starting with $c)"
+    forM_ instMethodBinders $ \v -> do
+      let coreSpan = GHC.getSrcSpan v
+          coreBinderName = occNameString (GHC.occName v)
+          methodName = drop 2 coreBinderName  -- Remove "$c" prefix
+      case lookup methodName methodNameToSpans of
+        Nothing ->
+          fail $ "Core binder " ++ coreBinderName ++ " does not correspond to any method"
+        Just methodSpan ->
+          unless (coreSpan `GHC.isSubspanOf` methodSpan) $
+            fail $ "Core binder " ++ coreBinderName ++
+                   " with span " ++ show coreSpan ++
+                   " is not a subspan of method span " ++ show methodSpan
+  where
+    collectBinders :: GHC.CoreBind -> [GHC.Id]
+    collectBinders (GHC.NonRec b _) = [b]
+    collectBinders (GHC.Rec pairs)  = map fst pairs

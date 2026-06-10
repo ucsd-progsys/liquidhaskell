@@ -45,6 +45,7 @@ instance Monad m => Monad (TaggedT m) where
   return :: a -> TaggedT<{\_ -> True}, {\_ -> False}> m a
 @-}
 instance Monad m => Monad (TaggedT m) where
+  {-@ ignore (>>=) @-}
   x >>= f = TaggedT $ unTag x >>= \y -> unTag (f y)
   
 -------------------------------------------------------------------------------------------

@@ -42,7 +42,7 @@ import Prelude (error)
 
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.Char                             (toLower)
+import Data.Char                             (isSpace, toLower)
 import Data.Maybe
 import Data.Functor                          ((<&>))
 import Data.Aeson                            (encode)
@@ -113,7 +113,6 @@ defConfig = Config
   , totalHaskell                  = False
   , nowarnings                    = False
   , noannotations                 = False
-  , checkDerived                  = False
   , caseExpandDepth               = 2
   , notruetypes                   = False
   , nototality                    = False
@@ -250,8 +249,6 @@ lhOptions =
       "Don't display warnings, only show errors"
   , opt [] ["no-annotations"] (NoArg $ fm $ \c -> c { noannotations = True })
       "Don't create intermediate annotation files"
-  , opt [] ["check-derived"] (NoArg $ fm $ \c -> c { checkDerived = True })
-      "Check GHC generated binders (e.g. Read, Show instances)"
   , opt [] ["max-case-expand"] (ReqArg (fm . setCaseExpandDepth) "N")
       "Maximum depth at which to expand DEFAULT in case-of (default=2)"
   , opt [] ["no-true-types"] (NoArg $ fm $ \c -> c { notruetypes = True })
@@ -533,7 +530,7 @@ envCfg = do
   so <- lookupEnv "LIQUIDHASKELL_OPTS"
   case so of
     Nothing -> return defConfig
-    Just s  -> applyGetOpt defConfig (words s)
+    Just s  -> applyGetOpt defConfig (shellWords s)
   where
     applyGetOpt cfg toks =
       case getOpt Permute lhOptions toks of
@@ -596,15 +593,32 @@ withPragmas cfg ps action
        liftIO $ setFxVerbosity (loggingVerbosity cfg) -- restore
        pure res
 
+-- | Split a string into words like a shell would: unquoted whitespace
+-- separates tokens, and single or double quoted substrings are kept as
+-- one token (with the quotes stripped).  This allows option values that
+-- contain spaces, e.g. @--expect-error-containing="Cannot ignore m"@.
+shellWords :: String -> [String]
+shellWords = filter (not . null) . go [] False False
+  where
+    -- @go acc dq sq cs@ processes the input string @cs@ character by character,
+    -- accumulating the current token in 'acc', and keeping track of whether
+    -- we're inside double quotes (dq) or single quotes (sq).
+    go acc _  _  []     = [reverse acc | not (null acc)]
+    go acc dq sq (c:cs)
+      | c == '"'  && not sq = go acc (not dq) sq      cs
+      | c == '\'' && not dq = go acc dq       (not sq) cs
+      | isSpace c && not dq && not sq =
+          if null acc then go [] False False cs
+                      else reverse acc : go [] False False cs
+      | otherwise            = go (c : acc) dq sq cs
+
 -- | Apply a list of pragma strings (each is one option, e.g. @"--ple"@ or
 -- @"--expect-error-containing=Mismatch"@) on top of an existing 'Config'.
--- Each pragma string is tokenised with 'words' so that a two-token form like
--- @"--check-var foo"@ also works.
 processPragmas :: Config -> [Located String] -> IO Config
 processPragmas cfg pragmas = foldM applyOne cfg pragmas
   where
     applyOne c loc =
-      case getOpt Permute lhOptions (words (val loc)) of
+      case getOpt Permute lhOptions [val loc] of
         (flags, _, []) -> do
           when (any isHelp flags) $
             putStr (formatHelp usageHeader lhOptions) >> error "LiquidHaskell:--help"

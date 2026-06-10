@@ -38,7 +38,9 @@ instance Monad (ST s) where
                               -> ST <pbind, rbind> s b
     @-}
   return x    = S $ \s -> (x, s)
+  {-@ ignore (>>) @-}
   (S m) >> k  = S $ \s -> let (a, s') = m s in apply k s'
+  {-@ ignore (>>=) @-}
   (S m) >>= k = S $ \s -> let (a, s') = m s in apply (k a) s'
 
 --------------------------------------------------------------------------------

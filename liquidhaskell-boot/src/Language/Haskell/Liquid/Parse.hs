@@ -1174,7 +1174,7 @@ specP
     <|> (reserved "infixr"        >> fmap BFix    infixrP  )
     <|> (reserved "infix"         >> fmap BFix    infixP   )
     <|> fallbackSpecP "inline"      (fmap Inline locBinderThisModuleLHNameP)
-    <|> fallbackSpecP "ignore"      (fmap Ignore  locBinderThisModuleLHNameP)
+    <|> fallbackSpecP "ignore"      (fmap Ignore  locBinderLHNameP)
 
     <|> fallbackSpecP "bound"       (fmap PBound  boundP)
     <|> (reserved "class"

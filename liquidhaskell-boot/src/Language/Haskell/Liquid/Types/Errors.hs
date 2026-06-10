@@ -521,6 +521,11 @@ data TError t =
                         }
   -- ^ Type was declared stratified but one of its constructors has a recursive
   -- occurence whose index type is not a smaller
+  | ErrBadIgnore { pos  :: !SrcSpan
+                 , var  :: !Doc
+                 , msg  :: !Doc
+                 } -- ^ Bad {-@ ignore @-} annotation
+
   | ErrOther    { pos   :: SrcSpan
                 , msg   :: !Doc
                 } -- ^ Sigh. Other.
@@ -1060,6 +1065,11 @@ ppError' _ _ err@(ErrNoSpec _ srcF bspecF)
            , nest 4 srcF
            , hint err
            ]
+
+ppError' _ dCtx (ErrBadIgnore _ v msg)
+  = (text "Cannot ignore" <+> ppTicks v)
+        $+$ dCtx
+        $+$ nest 4 msg
 
 ppError' _ dCtx (ErrOther _ s)
   = text "Uh oh."

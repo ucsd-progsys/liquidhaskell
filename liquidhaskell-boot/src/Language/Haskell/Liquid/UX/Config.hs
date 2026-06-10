@@ -50,7 +50,6 @@ data Config = Config
   , totalHaskell             :: Bool       -- ^ Check for termination and totality, Overrides no-termination flags
   , nowarnings               :: Bool       -- ^ disable warnings output (only show errors)
   , noannotations            :: Bool       -- ^ disable creation of intermediate annotation files
-  , checkDerived             :: Bool       -- ^ check internal (GHC-derived) binders
   , caseExpandDepth          :: Int        -- ^ maximum case expand nesting depth.
   , notruetypes              :: Bool       -- ^ disable truing top level types
   , nototality               :: Bool       -- ^ disable totality check in definitions

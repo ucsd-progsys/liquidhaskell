@@ -431,6 +431,14 @@ will _disable_ the checking of the code for the top-level binder `foo`.
 
 See `tests/pos/Ignores.hs` for an example.
 
+It is also possible to ignore methods in type class instances. In that case, the
+ignore directive should be used within the instance declaration.
+
+```haskell
+instance Monad MyMonad where
+  {-@ ignore (>>=) @-}
+  (>>=) = ...
+```
 
 ## Totality Check
 

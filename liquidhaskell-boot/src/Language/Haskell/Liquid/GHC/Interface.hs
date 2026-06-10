@@ -28,6 +28,8 @@ module Language.Haskell.Liquid.GHC.Interface (
   , listLMap
   , classCons
   , derivedVars
+  , manualMethodSpans
+  , instanceSpans
   , importVars
   , modSummaryHsFile
   , makeFamInstEnv
@@ -61,14 +63,12 @@ import Language.Fixpoint.Types          hiding (err, panic, Error, Result, Expr)
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.GHC.Types (MGIModGuts(..))
 import Language.Haskell.Liquid.GHC.Play
-import Language.Haskell.Liquid.WiredIn (isDerivedInstance)
 import qualified Language.Haskell.Liquid.Measure  as Ms
 import Language.Haskell.Liquid.Types.Errors
 import Language.Haskell.Liquid.Types.PrettyPrint
 import Language.Haskell.Liquid.Types.Specs
 import Language.Haskell.Liquid.Types.Types
 import Language.Haskell.Liquid.Types.Visitors
-import Language.Haskell.Liquid.UX.Config
 import Language.Haskell.Liquid.UX.Tidy
 
 
@@ -80,38 +80,44 @@ classCons :: Maybe [ClsInst] -> [Id]
 classCons Nothing   = []
 classCons (Just cs) = concatMap (dataConImplicitIds . head . tyConDataCons . classTyCon . is_cls) cs
 
-derivedVars :: Config -> MGIModGuts -> [Var]
-derivedVars cfg mg  = concatMap (dFunIdVars cbs . is_dfun) derInsts
+derivedVars :: [Ghc.SrcSpan] -> MGIModGuts -> [Var]
+derivedVars instSpans mg =
+    filter isGeneratedBinding (concatMap bindersOf (mgi_binds mg))
   where
-    derInsts
-      | checkDer    = insts
-      | otherwise   = filter isDerivedInstance insts
-    insts           = mgClsInstances mg
-    checkDer        = checkDerived cfg
-    cbs             = mgi_binds mg
+    isGeneratedBinding v =
+      let occ = Ghc.getOccName v
+       in
+          Ghc.isDerivedOccName occ &&
+          -- default methods are always written by the user
+          not ("$dm" `isPrefixOf` Ghc.occNameString occ) &&
+          -- methods might be written by the user if they are in the manual spans
+          (not ("$c" `isPrefixOf` Ghc.occNameString occ) ||
+           not (any (Ghc.getSrcSpan v `Ghc.isSubspanOf`) instSpans)
+          )
 
+-- | Collect the source spans of all 'ClsInstDecl' nodes in the renamed AST.
+-- These cover the full body of every manually-written instance declaration.
+manualMethodSpans :: Ghc.TcGblEnv -> [Ghc.SrcSpan]
+manualMethodSpans tcg = case Ghc.tcg_rn_decls tcg of
+  Nothing  -> []
+  Just grp ->
+    [ Ghc.getLocA b
+    | d <- Ghc.hsGroupInstDecls grp
+    , Ghc.ClsInstD _ inst <- [Ghc.unLoc d]
+    , b <- Ghc.cid_binds inst
+    ]
 
-mgClsInstances :: MGIModGuts -> [ClsInst]
-mgClsInstances = fromMaybe [] . mgi_cls_inst
-
-dFunIdVars :: CoreProgram -> DFunId -> [Id]
-dFunIdVars cbs fd  = notracepp msg $ concatMap bindersOf cbs' ++ deps
-  where
-    msg            = "DERIVED-VARS-OF: " ++ showpp fd
-    cbs'           = filter f cbs
-    f (NonRec x _) = eqFd x
-    f (Rec xes)    = any eqFd (fst <$> xes)
-    eqFd x         = varName x == varName fd
-    deps           = concatMap unfoldDep unfolds
-    unfolds        = realUnfoldingInfo . idInfo <$> concatMap bindersOf cbs'
-
-unfoldDep :: Unfolding -> [Id]
-unfoldDep (DFunUnfolding _ _ e)       = concatMap exprDep e
-unfoldDep CoreUnfolding {uf_tmpl = e} = exprDep e
-unfoldDep _                           = []
-
-exprDep :: CoreExpr -> [Id]
-exprDep = freeVars S.empty
+-- | Collect the full source spans of instance declarations.
+-- Unlike 'manualMethodSpans' which collects spans of individual bindings,
+-- this collects the span of the entire instance declaration.
+instanceSpans :: Ghc.TcGblEnv -> [Ghc.SrcSpan]
+instanceSpans tcg = case Ghc.tcg_rn_decls tcg of
+  Nothing  -> []
+  Just grp ->
+    [ Ghc.getLocA d
+    | d <- Ghc.hsGroupInstDecls grp
+    , Ghc.ClsInstD _ _inst <- [Ghc.unLoc d]
+    ]
 
 importVars :: CoreProgram -> [Id]
 importVars = freeVars S.empty

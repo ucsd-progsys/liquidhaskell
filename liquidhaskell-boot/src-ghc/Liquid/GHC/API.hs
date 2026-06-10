@@ -40,6 +40,7 @@ import           GHC                  as Ghc
     , HsBndrVar(HsBndrVar)
     , HsDecl(SigD)
     , HsExpr(ExprWithTySig, HsOverLit, HsVar)
+    , HsGroup
     , HsModule(hsmodDecls)
     , HsOuterTyVarBndrs(HsOuterImplicit)
     , HsSigType(HsSig)
@@ -85,6 +86,7 @@ import           GHC                  as Ghc
     , dataConFieldLabels
     , dataConWrapperType
     , desugarModule
+    , emptyRnGroup
     , getLocA
     , getLogger
     , getName
@@ -428,6 +430,8 @@ import GHC.Core.Unify                 as Ghc
 import GHC.Core.Utils                 as Ghc (exprType)
 import GHC.Data.Bag                   as Ghc
     ( Bag, bagToList )
+import GHC.Data.IOEnv                 as Ghc
+    ( IOEnvFailure(..) )
 import GHC.Data.FastString            as Ghc
     ( FastString
     , bytesFS
@@ -514,6 +518,9 @@ import GHC.Driver.Ppr                 as Ghc
     )
 import GHC.Hs                         as Ghc
     ( HsParsedModule(..)
+    , ClsInstDecl(cid_binds)
+    , InstDecl(ClsInstD)
+    , hsGroupInstDecls
     )
 import GHC.HsToCore.Expr              as Ghc
     ( dsLExpr )
@@ -553,6 +560,7 @@ import GHC.Tc.Types                   as Ghc
         , tcg_insts
         , tcg_mod
         , tcg_rdr_env
+        , tcg_rn_decls
         , tcg_type_env
         )
     , TcM
@@ -698,6 +706,7 @@ import GHC.Types.Name.Set             as Ghc
 import GHC.Types.Name.Cache           as Ghc (NameCache)
 import GHC.Types.Name.Occurrence      as Ghc
     ( NameSpace
+    , isDerivedOccName
     , isFieldNameSpace
     , mkOccName
     , dataName
@@ -749,6 +758,7 @@ import GHC.Types.SrcLoc               as Ghc
         , UnhelpfulWiredIn
         )
     , combineSrcSpans
+    , isSubspanOf
     , mkGeneralSrcSpan
     , mkRealSrcLoc
     , mkRealSrcSpan

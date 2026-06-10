@@ -1147,7 +1147,6 @@ executable unit-neg
                     , CharLiterals
                     , CheckedNum
                     , Class1
-                    , Class2
                     , Class3
                     , Class4
                     , CompareConstraints
@@ -1195,6 +1194,9 @@ executable unit-neg
                     , HigherOrder
                     , HolesTop
                     , Inc2
+                    , IgnoreMethodOutside
+                    , IgnoreNonMethodInInstance
+                    , IgnoreOtherMethodInInstance
                     , IntAbsRef
                     , LazyWhere1
                     , LazyWhere
@@ -1237,7 +1239,6 @@ executable unit-neg
                     , NameResolution
                     , NestedRecursion
                     , NoExhaustiveGuardsError
-                    , NoMethodBindingError
                     , Null
                     , Pair0
                     , Pair
@@ -1542,6 +1543,7 @@ executable unit-pos-2
                     , IdNat0
                     , IdNat
                     , Ignores
+                    , IgnoreMethod
                     , Imp0
                     , Implies
                     , Infinity
@@ -2231,6 +2233,7 @@ executable basic-neg
                     , ShadowLogicSymbols
                     , T1459
                     , T2349
+                    , T2432
 
     build-depends:    base
                     , liquid-prelude
@@ -2632,7 +2635,6 @@ executable terminate-neg
                     , Term00
                     , TestRec
                     , Total00
-                    , Total01
                     , Total02
 
     build-depends:    base

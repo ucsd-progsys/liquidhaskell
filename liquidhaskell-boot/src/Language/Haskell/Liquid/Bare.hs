@@ -595,7 +595,13 @@ makeSpecVars :: Config -> GhcSrc -> Ms.BareSpec -> Bare.Env -> Bare.MeasEnv
 ------------------------------------------------------------------------------------------
 makeSpecVars cfg src mySpec env measEnv = do
   let tgtVars = Mb.mapMaybe (`M.lookup` hvars) (checks     cfg)
-  igVars      <-  sMapM (Bare.lookupGhcIdLHName env) (Ms.ignores mySpec)
+  -- Name resolution for ignore annotations is finished at this point since the variables
+  -- that we need refer to Core bindings in the case of instance ignores rather
+  -- than Haskell names.
+  let (instIgnores, topIgnores) = partitionIgnores (_giInstSpans src) (Ms.ignores mySpec)
+  igVarsTop   <- resolveTopLevelIgnores env topIgnores
+  igVarsInst  <- resolveInstanceIgnores env src instIgnores
+  let igVars = igVarsTop <> igVarsInst
   lVars       <-  sMapM (Bare.lookupGhcIdLHName env) (Ms.lvars   mySpec)
   return (SpVar tgtVars igVars lVars cMethods)
   where
@@ -604,6 +610,74 @@ makeSpecVars cfg src mySpec env measEnv = do
       [ (Ghc.occNameString $ Ghc.getOccName b, b)
       | b <- Ghc.bindersOfBinds (_giCbs src)
       ]
+
+-- | Partition ignore annotations into those inside instance declarations
+-- and those at the top level, based on source position.
+partitionIgnores
+  :: [Ghc.SrcSpan]
+  -> S.HashSet (F.Located LHName)
+  -> ([F.Located LHName], [F.Located LHName]) -- ^ (instance ignores, top-level ignores)
+partitionIgnores instSpans ignores =
+  L.partition isInInstance (S.toList ignores)
+  where
+    isInInstance lname =
+      let sp = GM.sourcePosSrcSpan (F.loc lname)
+       in any (sp `Ghc.isSubspanOf`) instSpans
+
+-- | Resolve top-level (non-instance) ignore annotations.
+-- Produces an error if the name refers to a class method.
+resolveTopLevelIgnores :: Bare.Env -> [F.Located LHName] -> Bare.Lookup (S.HashSet Ghc.Var)
+resolveTopLevelIgnores env lnames = do
+  vars <- mapM (resolveTopLevelIgnore env) lnames
+  return (S.fromList vars)
+
+resolveTopLevelIgnore :: Bare.Env -> F.Located LHName -> Bare.Lookup Ghc.Var
+resolveTopLevelIgnore env lname = do
+  v <- Bare.lookupGhcIdLHName env lname
+  case Ghc.isClassOpId_maybe v of
+    Just _cls -> Left [ErrBadIgnore sp
+                        (pprint (F.val lname))
+                        (text "class method can only be ignored inside an instance declaration")]
+    Nothing -> Right v
+  where
+    sp = GM.fSrcSpan lname
+
+-- | Resolve instance-level ignore annotations.
+-- Finds the $c-prefixed Core binding for the method in the matching instance.
+resolveInstanceIgnores :: Bare.Env -> GhcSrc -> [F.Located LHName] -> Bare.Lookup (S.HashSet Ghc.Var)
+resolveInstanceIgnores env src lnames = do
+  vars <- mapM (resolveInstanceIgnore env src) lnames
+  return (S.fromList vars)
+
+resolveInstanceIgnore :: Bare.Env -> GhcSrc -> F.Located LHName -> Bare.Lookup Ghc.Var
+resolveInstanceIgnore env src lname = do
+  -- First resolve the name to check it's a class method
+  v <- Bare.lookupGhcIdLHName env lname
+  case Ghc.isClassOpId_maybe v of
+    Nothing -> Left [ErrBadIgnore sp
+                      (pprint (F.val lname))
+                      (text "only class methods can be ignored inside an instance declaration")]
+    Just _cls -> do
+      let methodName = Ghc.occNameString (Ghc.getOccName v)
+          cName      = "$c" ++ methodName
+          annotSpan  = GM.sourcePosSrcSpan (F.loc lname)
+          -- Find the $c-prefixed binding whose span is within the same instance
+          matchingInstSpan = L.find (annotSpan `Ghc.isSubspanOf`) (_giInstSpans src)
+          matchingVars = do
+            instSp <- matchingInstSpan
+            -- This ignores the possibility of multiple instance declarations
+            -- but that is not something we expect to happen to go through the
+            -- trouble of checking it every time.
+            flip L.find (Ghc.bindersOfBinds (_giCbs src)) $ \b ->
+              Ghc.occNameString (Ghc.getOccName b) == cName
+              && Ghc.getSrcSpan b `Ghc.isSubspanOf` instSp
+      case matchingVars of
+        Just c -> Right c
+        Nothing -> Left [ErrBadIgnore sp
+                        (pprint (F.val lname))
+                        (text $ "could not find instance method binding for " ++ methodName)]
+  where
+    sp = GM.fSrcSpan lname
 
 sMapM :: (Monad m, Eq b, Hashable b) => (a -> m b) -> S.HashSet a -> m (S.HashSet b)
 sMapM f xSet = do

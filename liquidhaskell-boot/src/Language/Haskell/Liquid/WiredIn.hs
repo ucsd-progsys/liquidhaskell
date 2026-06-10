@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskellQuotes #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
@@ -22,9 +21,6 @@ module Language.Haskell.Liquid.WiredIn
        , isWiredInName
        , dcPrefix
 
-       -- * Deriving classes
-       , isDerivedInstance
-       , derivingClasses
        ) where
 
 import Prelude                                hiding (error)
@@ -248,31 +244,3 @@ mkps_ (n:ns) (t:ts) ((f, x):xs) args ps = mkps_ ns ts xs (a:args) (p:ps)
     a                                   = (t, f, x)
 mkps_ _     _       _          _    _ = panic Nothing "Bare : mkps_"
 
-
---------------------------------------------------------------------------------
-isDerivedInstance :: Ghc.ClsInst -> Bool
---------------------------------------------------------------------------------
-isDerivedInstance i = F.notracepp ("IS-DERIVED: " ++ F.showpp classSym)
-                    $ S.member classSym derivingClassesSet
-  where
-    classSym        = F.symbol . Ghc.is_cls $ i
-
-derivingClassesSet :: S.HashSet F.Symbol
-derivingClassesSet = S.fromList $ map F.symbol derivingClasses
-
-derivingClasses :: [String]
-derivingClasses =
-  [ show ''Eq
-  , show ''Ord
-  , show ''Enum
-  , show ''Show
-  , show ''Read
-  , show ''Monad
-  , show ''Applicative
-  , show ''Functor
-  , show ''Foldable
-  , show ''Traversable
-  , show ''Fractional
-  -- , "GHC.Enum.Bounded"
-  -- , "GHC.Base.Monoid"
-  ]
