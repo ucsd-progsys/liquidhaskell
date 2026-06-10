@@ -2627,6 +2627,12 @@ or somehow not currently outside the scope of LH) by using the <code>ignore</cod
 </code></pre>
 <p>will <em>disable</em> the checking of the code for the top-level binder <code>foo</code>.</p>
 <p>See <code>tests/pos/Ignores.hs</code> for an example.</p>
+<p>It is also possible to ignore methods in type class instances. In that case, the
+ignore directive should be used within the instance declaration.</p>
+<pre><code class="language-haskell">instance Monad MyMonad where
+  {-@ ignore (&gt;&gt;=) @-}
+  (&gt;&gt;=) = ...
+</code></pre>
 <h2 id="totality-check">Totality Check<a class="headerlink" href="#totality-check" title="Permanent link">&para;</a></h2>
 <p><strong>Options:</strong> <code>no-totality</code></p>
 <p>LiquidHaskell proves the absence of pattern match failures.</p>
