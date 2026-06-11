@@ -2348,6 +2348,7 @@ executable import-cli
                     , ListClient
                     , NameClashClient
                     , RC1015
+                    , ReproUse
                     , ReExportClient
                     , ReflectClient0
                     , ReflectClient1
@@ -2380,6 +2381,7 @@ executable import-cli
                     , NameClashLib
                     , PeanoLib
                     , RL1015Lib
+                    , ReproDef
                     , ReExportLib
                     , ReflectLib0
                     , ReflectLib1

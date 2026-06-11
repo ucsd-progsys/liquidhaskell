@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RankNTypes   #-}
 
@@ -67,14 +68,18 @@ findRelevantSpecs lhAssmPkgExcludes hscEnv mods = do
 
     loadRelevantSpec :: ExternalPackageState -> Module -> TcM SpecFinderResult
     loadRelevantSpec eps currentModule = do
-      res <- liftIO $ runMaybeT $
-        lookupInterfaceAnnotations eps (ue_hpt $ hsc_unit_env hscEnv) (hsc_NC hscEnv) currentModule
-      case res of
-        Nothing         -> do
-          mAssm <- loadModuleLHAssumptionsIfAny currentModule
-          return $ fromMaybe (SpecNotFound currentModule) mAssm
-        Just specResult ->
-          return specResult
+      liftIO (lookupLiquidLib currentModule) >>= \case
+        Just lib ->
+          return (LibFound currentModule lib)
+        Nothing -> do
+          res <- liftIO $ runMaybeT $
+            lookupInterfaceAnnotations eps (ue_hpt $ hsc_unit_env hscEnv) (hsc_NC hscEnv) currentModule
+          case res of
+            Nothing         -> do
+              mAssm <- loadModuleLHAssumptionsIfAny currentModule
+              return $ fromMaybe (SpecNotFound currentModule) mAssm
+            Just specResult ->
+              return specResult
 
     loadModuleLHAssumptionsIfAny m | isImportExcluded m = return Nothing
                                    | otherwise = do
