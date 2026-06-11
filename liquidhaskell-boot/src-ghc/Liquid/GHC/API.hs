@@ -645,6 +645,7 @@ import GHC.Types.Id                   as Ghc
     , idInfo
     , idOccInfo
     , isConLikeId
+    , isDataConId_maybe
     , idInlinePragma
     , modifyIdInfo
     , mkExportedLocalId
