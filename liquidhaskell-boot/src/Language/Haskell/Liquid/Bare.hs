@@ -135,7 +135,7 @@ makeTargetSpec cfg localVars lnameEnv lmap targetSrc bareSpec dependencies = do
           exportedAssumption (LHNResolved (LHRGHC n) _) =
             case Ghc.lookupTypeEnv (Ghc.tcg_type_env tcg) n of
               Just (Ghc.AnId v)
-                | Just dc <- dataConId_maybe v ->
+                | Just dc <- dataConIdMaybe v ->
                     constructorIsExported exportedStableNames dc
               _ -> case Ghc.nameModule_maybe n of
                 Nothing -> Ghc.elemNameSet n exportedNames
@@ -149,8 +149,8 @@ makeTargetSpec cfg localVars lnameEnv lmap targetSrc bareSpec dependencies = do
 
     ghcSpecToLiftedSpec = toLiftedSpec . toBareSpecLHName cfg lnameEnv . _gsLSpec
 
-dataConId_maybe :: Ghc.Var -> Maybe Ghc.DataCon
-dataConId_maybe = Ghc.isDataConId_maybe
+dataConIdMaybe :: Ghc.Var -> Maybe Ghc.DataCon
+dataConIdMaybe = Ghc.isDataConId_maybe
 
 
 -------------------------------------------------------------------------------------
@@ -1560,12 +1560,12 @@ makeLiftedSpec name src env refl sData sig qual myRTE lSpec0 = lSpec0
         False
 
     isExportedDataConVar src' x =
-      case dataConId_maybe x of
+      case dataConIdMaybe x of
         Just dc -> mkStableName (Ghc.getName dc) `S.member` gsExports src'
         Nothing -> isExportedVar src' x
 
     isLocalDataConVar x =
-      case dataConId_maybe x of
+      case dataConIdMaybe x of
         Just dc -> Just (Ghc.tcg_mod (Bare.reTcGblEnv env)) == Ghc.nameModule_maybe (Ghc.getName dc)
         Nothing -> isLocalName (val (makeGHCLHNameLocatedFromId x))
 
