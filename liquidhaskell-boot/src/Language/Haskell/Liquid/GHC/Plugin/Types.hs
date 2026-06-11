@@ -14,8 +14,6 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     , libDeps
     , allDeps
     , addLibDependencies
-    , lookupLiquidLib
-    , recordLiquidLib
 
     -- * Carrying data across stages of the compilation pipeline
     , PipelineData(..)
@@ -25,10 +23,7 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
 
 import           Data.Binary                             as B
 import           Data.Data                               ( Data )
-import qualified Data.HashMap.Strict                     as M
-import           Data.IORef
 import           GHC.Generics                      hiding ( moduleName )
-import           System.IO.Unsafe                        ( unsafePerformIO )
 
 import           Language.Haskell.Liquid.Parse (BPspec)
 import           Language.Haskell.Liquid.Types.Specs
@@ -45,22 +40,6 @@ data LiquidLib = LiquidLib
   } deriving (Show, Data, Generic)
 
 instance B.Binary LiquidLib
-
--- Interface annotations are only available after GHC has written and reloaded
--- an interface. Keep freshly serialised specs visible to later modules in the
--- same compiler invocation (for example, `ghc A.hs B.hs -fno-code`).
-liquidLibsRef :: IORef (M.HashMap StableModule LiquidLib)
-liquidLibsRef = unsafePerformIO $ newIORef mempty
-{-# NOINLINE liquidLibsRef #-}
-
-lookupLiquidLib :: Module -> IO (Maybe LiquidLib)
-lookupLiquidLib thisModule =
-  M.lookup (toStableModule thisModule) <$> readIORef liquidLibsRef
-
-recordLiquidLib :: Module -> LiquidLib -> IO ()
-recordLiquidLib thisModule liquidLib =
-  atomicModifyIORef' liquidLibsRef $ \libs ->
-    (M.insert (toStableModule thisModule) liquidLib libs, ())
 
 -- | Creates a new 'LiquidLib' with no dependencies.
 mkLiquidLib :: LiftedSpec -> LiquidLib

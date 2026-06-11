@@ -72,7 +72,7 @@ initEnv info
        fi       <- refreshArgs' $ catMaybes $ [(x,) . val <$> getMethodType mt | (x, mt) <- gsMethods $ gsSig $ giSpec info ]
        (invs1, f41) <- traverse refreshArgs' $ makeAutoDecrDataCons dcsty  (gsAutosize (gsTerm sp)) dcs
        (invs2, f42) <- traverse refreshArgs' $ makeAutoDecrDataCons dcsty' (gsAutosize (gsTerm sp)) dcs'
-       let f4    = mergeDataConTypes tce (mergeDataConTypes tce f40 (f41 ++ f42)) (filter (isDataConId . fst) (f2 ++ f3))
+       let f4    = mergeDataConTypes tce (mergeDataConTypes tce f40 (f41 ++ f42)) (filter (isDataConId . fst) f2)
        let tx    = first F.symbol . addRInv ialias . predsUnify sp
        f6       <- map tx . addPolyInfo' <$> refreshArgs' (vals gsRefSigs (gsSig sp))
        let bs    = (tx <$> ) <$> [f0 ++ f0' ++ fi, f1 ++ f1', f2, f3 ++ f3', f4, f5]

@@ -337,7 +337,10 @@ isTupleId :: Id -> Bool
 isTupleId = maybe False Ghc.isTupleDataCon . idDataConM
 
 idDataConM :: Id -> Maybe DataCon
-idDataConM = Ghc.isDataConId_maybe
+idDataConM x = case idDetails x of
+  DataConWorkId d -> Just d
+  DataConWrapId d -> Just d
+  _               -> Nothing
 
 isDataConId :: Id -> Bool
 isDataConId = isJust . idDataConM
