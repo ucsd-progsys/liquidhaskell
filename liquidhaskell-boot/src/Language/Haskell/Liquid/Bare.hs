@@ -33,7 +33,7 @@ import qualified Language.Fixpoint.Types                    as F
 import qualified Language.Haskell.Liquid.Misc               as Misc -- (nubHashOn)
 import qualified Language.Haskell.Liquid.GHC.Misc           as GM
 import qualified Liquid.GHC.API            as Ghc
-import           Language.Haskell.Liquid.GHC.Types          (StableName, availsToStableNameSet, mkStableName)
+import           Language.Haskell.Liquid.GHC.Types          (StableName, mkStableName)
 import           Language.Haskell.Liquid.LHNameResolution
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.DataDecl
@@ -131,26 +131,14 @@ makeTargetSpec cfg localVars lnameEnv lmap targetSrc bareSpec dependencies = do
     removeUnexportedLocalAssumptions lspec = do
       tcg <- Ghc.getGblEnv
       let exportedNames = Ghc.availsToNameSet (Ghc.tcg_exports tcg)
-          exportedStableNames = availsToStableNameSet (Ghc.tcg_exports tcg)
           exportedAssumption (LHNResolved (LHRGHC n) _) =
-            case Ghc.lookupTypeEnv (Ghc.tcg_type_env tcg) n of
-              Just (Ghc.AnId v)
-                | Just dc <- dataConIdMaybe v ->
-                    constructorIsExported exportedStableNames dc
-              _ -> case Ghc.nameModule_maybe n of
-                Nothing -> Ghc.elemNameSet n exportedNames
-                Just m -> m /= Ghc.tcg_mod tcg || Ghc.elemNameSet n exportedNames
+            case Ghc.nameModule_maybe n of
+              Nothing -> Ghc.elemNameSet n exportedNames
+              Just m -> m /= Ghc.tcg_mod tcg || Ghc.elemNameSet n exportedNames
           exportedAssumption _ = True
       return lspec { liftedAsmSigs = S.filter (exportedAssumption . val . fst) (liftedAsmSigs lspec) }
 
-    constructorIsExported :: S.HashSet StableName -> Ghc.DataCon -> Bool
-    constructorIsExported exportedNames dc =
-      mkStableName (Ghc.getName dc) `S.member` exportedNames
-
     ghcSpecToLiftedSpec = toLiftedSpec . toBareSpecLHName cfg lnameEnv . _gsLSpec
-
-dataConIdMaybe :: Ghc.Var -> Maybe Ghc.DataCon
-dataConIdMaybe = Ghc.isDataConId_maybe
 
 
 -------------------------------------------------------------------------------------
@@ -1560,12 +1548,12 @@ makeLiftedSpec name src env refl sData sig qual myRTE lSpec0 = lSpec0
         False
 
     isExportedDataConVar src' x =
-      case dataConIdMaybe x of
+      case Ghc.isDataConId_maybe x of
         Just dc -> mkStableName (Ghc.getName dc) `S.member` gsExports src'
         Nothing -> isExportedVar src' x
 
     isLocalDataConVar x =
-      case dataConIdMaybe x of
+      case Ghc.isDataConId_maybe x of
         Just dc -> Just (Ghc.tcg_mod (Bare.reTcGblEnv env)) == Ghc.nameModule_maybe (Ghc.getName dc)
         Nothing -> isLocalName (val (makeGHCLHNameLocatedFromId x))
 

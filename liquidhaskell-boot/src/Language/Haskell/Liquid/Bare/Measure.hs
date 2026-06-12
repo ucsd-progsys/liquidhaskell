@@ -412,7 +412,7 @@ getReflDCs measEnv vars = dcsUndefinedInLogic
     -- Undefined ones are those that are not already defined in the measure environement and are not wired
     dcsUndefinedInLogic = S.filter notWired $ allDCInUnfoldings `S.difference` definedDCs
     -- Get the defined DataCons from the measure environement
-    definedDCs = S.fromList $ (GM.idDataConM . fst) `Mb.mapMaybe` Bare.meDataCons measEnv
+    definedDCs = S.fromList $ (Ghc.isDataConId_maybe . fst) `Mb.mapMaybe` Bare.meDataCons measEnv
     allDCInUnfoldings = getDCsOfUnfoldingOfVars vars
 
 ----------------------------------------------------

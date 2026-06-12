@@ -29,7 +29,7 @@ import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Haskell.Liquid.WiredIn               (dictionaryVar)
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
-import           Language.Haskell.Liquid.GHC.Misc             ( idDataConM, hasBaseTypeVar, isDataConId) -- dropModuleNames, simplesymbol)
+import           Language.Haskell.Liquid.GHC.Misc             ( hasBaseTypeVar, isDataConId) -- dropModuleNames, simplesymbol)
 import           Liquid.GHC.API               as Ghc
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.Constraint.Types
@@ -126,7 +126,7 @@ makeAutoDecrDataCons dcts specenv dcs
     invariant = MkUReft (F.Reft (F.vv_, F.PAtom F.Ge (lenOf F.vv_) (F.ECon $ F.I 0)) ) mempty
 
 idTyCon :: Id -> Maybe TyCon
-idTyCon = fmap dataConTyCon . idDataConM
+idTyCon = fmap dataConTyCon . Ghc.isDataConId_maybe
 
 lenOf :: F.Symbol -> F.Expr
 lenOf x = F.mkEApp lenLocSymbol [F.EVar x]

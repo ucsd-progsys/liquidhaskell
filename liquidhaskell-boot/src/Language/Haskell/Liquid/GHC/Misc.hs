@@ -334,13 +334,10 @@ isExternalId :: Id -> Bool
 isExternalId = isExternalName . getName
 
 isTupleId :: Id -> Bool
-isTupleId = maybe False Ghc.isTupleDataCon . idDataConM
-
-idDataConM :: Id -> Maybe DataCon
-idDataConM = Ghc.isDataConId_maybe
+isTupleId = maybe False Ghc.isTupleDataCon . Ghc.isDataConId_maybe
 
 isDataConId :: Id -> Bool
-isDataConId = isJust . idDataConM
+isDataConId = isJust . Ghc.isDataConId_maybe
 
 getDataConVarUnique :: Var -> Unique
 getDataConVarUnique v
