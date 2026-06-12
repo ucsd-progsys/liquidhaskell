@@ -22,6 +22,8 @@ microTestGroups =
   , "measure-neg"
   , "datacon-pos"
   , "datacon-neg"
+  , "typelits-pos"
+  , "typelits-neg"
   , "Diff"
   , "names-pos"
   , "names-neg"
