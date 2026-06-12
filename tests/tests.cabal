@@ -1090,6 +1090,51 @@ executable datacon-neg
     hs-source-dirs:   app
                     , datacon/neg
 
+flag typelits-pos
+     default: False
+
+executable typelits-pos
+    import:           common-ghc-options
+    main-is:          Main.hs
+    if !flag(typelits-pos) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      NatLit
+                    , NatArith
+                    , NatVec
+                    , NatTypeSyn
+                    , NatAlias
+                    , SymbolLit
+                    , SymbolConstraints
+
+    build-depends:    base
+                    , liquid-prelude
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , typelits/pos
+
+flag typelits-neg
+     default: False
+
+executable typelits-neg
+    import:           common-ghc-options, ghc-options-for-negated-tests
+    main-is:          Main.hs
+    if !flag(typelits-neg) && flag(stack)
+      buildable:      False
+
+    other-modules:
+                      NatArithUnsafe
+                    , NatSymbolMismatch
+
+    build-depends:    base
+                    , liquid-prelude
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , typelits/neg
+
 flag Diff
      default: False
 
