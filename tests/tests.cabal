@@ -1107,6 +1107,8 @@ executable typelits-pos
                     , NatAlias
                     , SymbolLit
                     , SymbolConstraints
+                    , SymbolAppend
+                    , SymbolTypeSyn
 
     build-depends:    base
                     , liquid-prelude
@@ -1127,6 +1129,7 @@ executable typelits-neg
     other-modules:
                       NatArithUnsafe
                     , NatSymbolMismatch
+                    , SymbolAppendMismatch
 
     build-depends:    base
                     , liquid-prelude

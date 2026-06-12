@@ -173,6 +173,54 @@ equal the Symbol parameter `s`.  Matching reveals the string value.
 
 ---
 
+### `SymbolAppend.hs` — Symbol concatenation (Symbol analog of `NatArith.hs`)
+
+**Property tested:** `AppendSymbol m n` (type-level string concatenation) is
+handled in LH specs.  This is the direct analog of `(+)` for `Nat`.
+
+For LH to reason about `AppendSymbol` it must:
+1. Map `AppendSymbol` to string concatenation in the Fixpoint logic (analogous
+   to `natTyConBop` mapping `(+)` → `EBin Plus`).
+2. Accept `RExprArg (AppendSymbol m n)` in `checkAppTys` / `tyCompat`.
+3. Sort `AppendSymbol` expressions as `String` (not `Int`).
+
+- `ConcatTag m n` stores `{v:String | v == AppendSymbol m n}`.
+- Concrete: `mkFooBar :: ConcatTag "foo" "bar"` (GHC normalises to `"foobar"`).
+- Empty-string identities: `ConcatTag "" "hello"`, `ConcatTag "hello" ""`.
+- `getFooBar :: ConcatTag "foo" "bar" -> {v:String | v == "foobar"}`.
+- Polymorphic: `getCat :: ConcatTag m n -> {v:String | v == AppendSymbol m n}`.
+- Same-variable: `getDoubled :: ConcatTag s s -> {v:String | v == AppendSymbol s s}`.
+- Nested concrete: `mkABC :: ConcatTag (AppendSymbol "a" "b") "c"` — GHC
+  reduces `AppendSymbol "a" "b"` to `"ab"`, LH then checks `"abc" == AppendSymbol "ab" "c"`.
+
+Note: `AppendSymbol` is non-injective, so functions that take
+`ConcatTag (AppendSymbol m n) p` with free `m`, `n` would require
+`AllowAmbiguousTypes`; those cases are omitted here.
+
+**Key pipeline fixes required:** Same as `SymbolLit.hs`.
+
+---
+
+### `SymbolTypeSyn.hs` — Symbol type synonyms and type families (Symbol analog of `NatTypeSyn.hs`)
+
+**Property tested:** Haskell type synonyms and closed type families involving
+`Symbol` and `AppendSymbol` can be used in LH specs.  GHC expands transparent
+synonyms before LH sees them.
+
+- Synonyms: `Greeting = "hello"`, `Farewell = "bye"`, `Empty = ""`.
+- Synonym using `AppendSymbol`: `FullGreeting = AppendSymbol "hello" " world"`.
+- Parameterised synonym: `Prefixed s = AppendSymbol "pre_" s`.
+- Type family: `Greet name = AppendSymbol "Hello, " name` (reduced by GHC).
+- `ConsSymbol 'H' "ello"` — GHC reduces to `"Hello"` at compile time (the LH
+  spec uses the literal form because LH cannot yet parse `ConsSymbol` in specs).
+- `ExactSym s` stores `{v:String | v == s}`; construction and pattern-matching
+  tested at each synonym.
+
+**Key pipeline fixes required:** Same as `SymbolLit.hs`, plus support for
+`s :: Symbol` as a string-sorted logic variable in data specs.
+
+---
+
 ## Negative tests (`tests/typelits/neg/`)
 
 ### `NatArithUnsafe.hs` — incorrect arithmetic claim
@@ -201,6 +249,18 @@ checker.
 
 ---
 
+### `SymbolAppendMismatch.hs` — incorrect concatenation claim
+
+**Property tested:** A wrong `AppendSymbol` claim is rejected.
+
+`ConcatTag "foo" "bar"` stores `{v:String | v == AppendSymbol "foo" "bar"} =
+{v:String | v == "foobar"}`.  Constructing it with `"foobaz"` must be
+rejected.
+
+**Expected error:** `Liquid Type Mismatch` / unsafe constructor constraint.
+
+---
+
 ## Coverage gaps and future tests
 
 The current tests focus on the core pipeline.  The following cases could be
@@ -209,8 +269,15 @@ added once the basic support is in place:
 - Nat exponentiation (`^`) — not currently supported because Fixpoint has no
   `EBin Exp` counterpart.
 - `KnownNat` and `natVal` — runtime reification of type literals.
+- `KnownSymbol` and `symbolVal` — runtime reification of Symbol literals.
 - Interaction with `PLE` (proof-by-logical-evaluation) for Nat-arithmetic
   lemmas.
 - Multi-parameter type families that compute Nat results (e.g.
   `GCD`, `LCM`).
-- `CmpNat` / `OrdCond` — comparison type families.
+- `CmpNat` / `CmpSymbol` / `OrdCond` — comparison type families.
+- `UnconsSymbol s` — destructure the first `Char` from a `Symbol`; needs
+  `Maybe (Char, Symbol)` in specs.
+- `CharToNat c` / `NatToChar n` — interplay of `Char`, `Symbol`, and `Nat`
+  type-level operations.
+- Symbol type variable in *input* refinement position (`{v:String | v == s} -> ...`),
+  analogous to Nat type var in input refinements.
