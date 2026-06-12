@@ -375,7 +375,7 @@ serialiseSpec tcGblEnv liquidLib = do
   -- ---
 
   serialisedSpec <- liftIO $ Serialisation.serialiseLiquidLib liquidLib thisModule
-  liftIO $ recordLiquidLib thisModule liquidLib
+  -- liftIO $ recordLiquidLib thisModule liquidLib
   debugLog $ "Serialised annotation ==> " ++ (O.showSDocUnsafe . O.ppr $ serialisedSpec)
 
   -- liftIO $ putStrLn "liquidHaskellCheck 10"
