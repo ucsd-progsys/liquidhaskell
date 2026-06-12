@@ -149,7 +149,15 @@ plugMany allowTC embs tyi ldcp (hsAs, hsArgs, hsRes) (lqAs, lqArgs, lqRes)
     ((xs,_,ts,_), t) = bkArrow (val pT)
     pT               = plugHoles allowTC (Bare.LqTV dcName) embs tyi (const killHoles) hsT (F.atLoc ldcp lqT)
     hsT              = foldr (Ghc.mkFunTy Ghc.FTF_T_T Ghc.ManyTy) hsRes hsArgs'
-    lqT              = foldr (uncurry (rFun' (classRFInfo allowTC))) lqRes lqArgs'
+    lqT              = foldr (uncurry (rFun' (classRFInfo allowTC))) lqRes' lqArgs'
+    -- Substitute the GHC type variables (hsAs) in lqRes with the corresponding
+    -- LQ type variables (lqAs). This is needed because lqRes (= dcpTyRes) may
+    -- have been derived from ofType/dataConOrigResTy and therefore carries the
+    -- actual GHC TyVar objects, while lqAs (= dcpFreeTyVars) was built from
+    -- symbolRTyVar and therefore carries distinct synthetic RTyVars.
+    -- Without this substitution, runMapTyVars sees the same GHC type variable
+    -- mapped to two different Liquid RTyVars and throws an ErrMismatch.
+    lqRes'           = subts (zip (rTyVar <$> hsAs) lqAs) lqRes
     hsArgs'          = [ Ghc.mkTyVarTy a               | a <- hsAs] ++ hsArgs
     lqArgs'          = [(F.dummySymbol, RVar a mempty) | a <- lqAs] ++ map (Bifunctor.first lhNameToUnqualifiedSymbol) lqArgs
     nTyVars          = length hsAs -- == length lqAs
