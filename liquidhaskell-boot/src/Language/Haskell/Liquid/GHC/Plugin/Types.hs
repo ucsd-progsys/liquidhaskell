@@ -14,7 +14,6 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     , libDeps
     , allDeps
     , addLibDependencies
-    , lookupLiquidLib
     , recordLiquidLib
 
     -- * Carrying data across stages of the compilation pipeline
@@ -52,10 +51,6 @@ instance B.Binary LiquidLib
 liquidLibsRef :: IORef (M.HashMap StableModule LiquidLib)
 liquidLibsRef = unsafePerformIO $ newIORef mempty
 {-# NOINLINE liquidLibsRef #-}
-
-lookupLiquidLib :: Module -> IO (Maybe LiquidLib)
-lookupLiquidLib thisModule =
-  M.lookup (toStableModule thisModule) <$> readIORef liquidLibsRef
 
 recordLiquidLib :: Module -> LiquidLib -> IO ()
 recordLiquidLib thisModule liquidLib =
