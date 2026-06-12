@@ -33,7 +33,7 @@ import qualified Language.Fixpoint.Types                    as F
 import qualified Language.Haskell.Liquid.Misc               as Misc -- (nubHashOn)
 import qualified Language.Haskell.Liquid.GHC.Misc           as GM
 import qualified Liquid.GHC.API            as Ghc
-import           Language.Haskell.Liquid.GHC.Types          (StableName, mkStableName)
+import           Language.Haskell.Liquid.GHC.Types          (StableName)
 import           Language.Haskell.Liquid.LHNameResolution
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.DataDecl
@@ -1525,17 +1525,11 @@ makeLiftedSpec name src env refl sData sig qual myRTE lSpec0 = lSpec0
   , Ms.qualifiers = filter (isLocInFile srcF) (gsQualifiers qual)
   }
   where
-    myDCs         = mkConSigs (gsCtors sData)
+    myDCs         = filter (isLocalName . val . fst) $ mkSigs (gsCtors sData)
     mkSigs xts    = [ toBare (x, t) | (x, t) <- xts
                     , not (S.member x reflVars) && isExportedVar (toTargetSrc src) x
                     ]
-    mkConSigs xts = [ toBareCon (x, t) | (x, t) <- xts
-                    , not (S.member x reflVars)
-                    , isLocalDataConVar x
-                    , isExportedDataConVar (toTargetSrc src) x
-                    ]
     toBare (x, t) = (makeGHCLHNameLocatedFromId x, Bare.specToBare <$> t)
-    toBareCon (x, t) = (makeGHCLHNameLocated x, Bare.specToBare <$> t)
     xbs           = toBare <$> reflTySigs
     reflTySigs    = [(x, t) | (x,t,_) <- gsHAxioms refl]
     reflVars      = S.fromList (fst <$> reflTySigs)
@@ -1546,16 +1540,6 @@ makeLiftedSpec name src env refl sData sig qual myRTE lSpec0 = lSpec0
         Just (Ghc.tcg_mod (Bare.reTcGblEnv env)) == Ghc.nameModule_maybe n
       _ ->
         False
-
-    isExportedDataConVar src' x =
-      case Ghc.isDataConId_maybe x of
-        Just dc -> mkStableName (Ghc.getName dc) `S.member` gsExports src'
-        Nothing -> isExportedVar src' x
-
-    isLocalDataConVar x =
-      case Ghc.isDataConId_maybe x of
-        Just dc -> Just (Ghc.tcg_mod (Bare.reTcGblEnv env)) == Ghc.nameModule_maybe (Ghc.getName dc)
-        Nothing -> isLocalName (val (makeGHCLHNameLocatedFromId x))
 
 -- | Returns 'True' if the input determines a location within the input file. Due to the fact we might have
 -- Haskell sources which have \"companion\" specs defined alongside them, we also need to account for this
