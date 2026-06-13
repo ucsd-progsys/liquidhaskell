@@ -181,11 +181,13 @@ ghcSpecEnv sp = F.notracepp "RENV" $ fromListSEnv binds
                  [ [(x,        rSort t) | (x, Loc _ _ t)  <- gsMeas     (_gsData sp)]
                  , [(symbol v, rSort t) | (v, Loc _ _ t)  <- gsCtors    (_gsData sp)]
                  , [(symbol v, vSort v) | v               <- gsReflects (_gsRefl sp)]
+                 , [(symbol v, vSort v) | (v, _)          <- gsTySigs   (_gsSig  sp), Mb.isJust (Ghc.isClassOpId_maybe v)]
+                 , [(symbol v, vSort v) | (v, _)          <- gsAsmSigs  (_gsSig  sp), Mb.isJust (Ghc.isClassOpId_maybe v)]
                  , [(x, RR s mempty)    | (x, s)          <- wiredSortedSyms       ]
                  , [(x, RR s mempty)    | (x, s)          <- _gsImps sp       ]
                  ]
-    vSort     = rSort . classRFInfoType (typeclass $ getConfig sp) .
-                (ofType :: Ghc.Type -> SpecType) . Ghc.varType
+    vSort v   = rSort . classRFInfoType (typeclass $ getConfig sp) $
+                ((ofType :: Ghc.Type -> SpecType) . Ghc.varType) v
     rSort     = rTypeSortedReft    emb
 
 

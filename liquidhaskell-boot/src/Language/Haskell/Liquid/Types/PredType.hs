@@ -104,7 +104,11 @@ dataConPSpecType allowTC dcp    = [(workX, workT), (wrapX, wrapT) ]
     wrapT               = dcWrapSpecType   allowTC  dc dcp
     workX               = dataConWorkId    dc            -- This is the weird one for GADTs
     wrapX               = dataConWrapId    dc            -- This is what the user expects to see
+    -- In typeclass mode, treat class data constructors as vanilla so we skip
+    -- work/wrap reconciliation: the class DC's wrap spec may include extra
+    -- SC-selector binders that don't appear in GHC's dataConRepType.
     isVanilla           = isVanillaDataCon dc
+                       || (allowTC && Ghc.isClassTyCon (Ghc.dataConTyCon dc))
     dc                  = dcpCon dcp
 
 dcWorkSpecType :: DataCon -> SpecType -> SpecType

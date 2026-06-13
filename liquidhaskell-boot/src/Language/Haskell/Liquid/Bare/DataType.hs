@@ -818,9 +818,14 @@ makeRecordSelectorSigs env = checkRecordSelectorSigs . concatMap makeOne
   where
   makeOne (Loc l l' dcp)
     | Just cls <- maybe_cls
-    = let cfs = Ghc.classAllSelIds cls in
-        fmap ((,) <$> fst <*> uncurry strengthenClassSel)
-          [(v, Loc l l' t)| (v,t) <- zip cfs (reverse $ fmap snd args)]
+    = let cfs    = Ghc.classAllSelIds cls
+          argMap = M.fromList [ (lhNameToResolvedSymbol lhname, t)
+                              | (lhname, t) <- dcpTyArgs dcp ]
+          -- Use map-based lookup so the zip is order-independent w.r.t. secondDcpTyArgs
+          cfsWithTypes = [ (v, t) | v <- cfs
+                                  , Just t <- [M.lookup (F.symbol v) argMap] ]
+      in fmap ((,) <$> fst <*> uncurry strengthenClassSel)
+           [(v, Loc l l' t) | (v, t) <- cfsWithTypes]
     | null fls                    --    no field labels
     || any (isFunTy . snd) args && not (higherOrderFlag env)   -- OR function-valued fields
     || dcpIsGadt dcp              -- OR GADT style datcon

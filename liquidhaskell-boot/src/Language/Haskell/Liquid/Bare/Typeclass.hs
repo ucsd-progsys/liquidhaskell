@@ -189,12 +189,44 @@ elaborateClassDcp
 elaborateClassDcp coreToLg simplifier dcp = do
   t' <- flip (zipWith addCoherenceOblig) prefts
     <$> forM fts (elaborateSpecType coreToLg simplifier)
-  let ts' = elaborateMethod (F.symbol dc) (S.fromList $ map lhNameToResolvedSymbol xs) <$> t'
+  -- Use all class selectors (including SC selectors like $p1Class) in methods,
+  -- because the elaborated refinements may reference them via applications to the dict.
+  let allSelSyms = S.fromList $ F.symbol <$> Ghc.classAllSelIds cls
+      ts' = elaborateMethod (F.symbol dc) allSelSyms <$> t'
+  -- Build second DCP with all class selectors (including SC selectors filtered by
+  -- makePluggedDataCon). SC selectors come LAST so that after dcWrapSpecType's `reverse`,
+  -- they appear as OUTER binders in the C:VEq spec, making them available in scope when
+  -- method field refinements (which reference e.g. $p1VEq##C:VEq) are sort-checked.
+  let methMap    = M.fromList (zip xs t')
+      methodSels = map fst (Ghc.classOpItems cls)
+      scSels     = Ghc.classSCSelIds cls
+      mkSelPair v = let lhname = makeGHCLHNameFromId v
+                    in (lhname, Mb.fromMaybe (scFieldTy v) (M.lookup lhname methMap))
+      -- SC selectors are appended LAST so dcWrapSpecType's `reverse` puts them FIRST
+      -- (outer binders), making $p1VEq##C:VEq in scope for method field refinements.
+      scSelPairs      = map mkSelPair scSels
+      allSelPairs     = map mkSelPair methodSels ++ scSelPairs
+      secondDcpTyArgs = fmap (\(x, t) -> (x, strengthenTy (lhNameToResolvedSymbol x) t)) allSelPairs
+      -- First DCP: method entries (from plugged DCP) + SC selector entries appended last.
+      -- makePluggedDataCon filtered SC selectors from `xs`; we re-add them here so that
+      -- dcWrapSpecType (which reverses dcpTyArgs) creates SC binders as outer RFuns,
+      -- bringing $p1VEq##C:VEq into scope before method field refinements are checked.
+      firstDcpTyArgs  = zip xs (stripPred <$> ts') ++ scSelPairs
   pure
-    ( dcp { dcpTyArgs = zip xs (stripPred <$> ts') }
-    , dcp { dcpTyArgs = fmap (\(x, t) -> (x, strengthenTy (lhNameToResolvedSymbol x) t)) (zip xs t') }
+    ( dcp { dcpTyArgs = firstDcpTyArgs }
+    , dcp { dcpTyArgs = secondDcpTyArgs }
     )
  where
+  -- Get the field type for a superclass selector (e.g. Eq a for $p1VEq :: VEq a -> Eq a).
+  -- We must align the type variables: ofType uses real GHC class TyVars, while the DCP
+  -- uses synthetic TyVars (created via symbolTyVar). Substitute to make them consistent.
+  scFieldTy :: Ghc.Var -> SpecType
+  scFieldTy v = fullTy fixedFieldTy
+    where
+      (scTyVars, funTy) = Ghc.splitForAllTyCoVars (Ghc.varType v)
+      rawFieldTy        = RT.ofType (snd (Ghc.splitFunTys funTy))
+      fixedFieldTy      = foldr substPair rawFieldTy (zip scTyVars (dcpFreeTyVars dcp))
+      substPair (α, dcpTV) = RT.subsTyVarMeet' (RTV α, RVar dcpTV mempty)
   addCoherenceOblig :: SpecType -> Maybe RReft -> SpecType
   addCoherenceOblig t Nothing  = t
   addCoherenceOblig t (Just r) = fromRTypeRep rrep
