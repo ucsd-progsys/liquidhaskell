@@ -713,6 +713,7 @@ makeLogicEnvs impMods thisModule spec dependencies =
               , HS.toList (opaqueReflects spec)
               , HS.toList (inlines spec)
               , HS.toList (hmeas spec)
+              , map fst (sigs spec)
               ]
             ]
           , [ val (msName m) | m <- measures spec ]

@@ -771,16 +771,14 @@ elabRnExpr rdr_expr = do
     -- Generalise
     uniq <- newUnique
     let { fresh_it = itName uniq (getLocA rdr_expr) }
-    ((_qtvs, _dicts, evbs, _), residual)
-         <- captureConstraints $
-            simplifyInfer NotTopLevel tclvl NoRestrictions
+    (_qtvs, _dicts, evbs, _)
+         <- simplifyInfer NotTopLevel tclvl NoRestrictions
                           []    {- No sig vars -}
                           [(fresh_it, res_ty)]
                           lie
 
     -- Ignore the dictionary bindings
-    evbs' <- simplifyInteractive residual
-    full_expr <- zonkTopLExpr (mkHsDictLet (EvBinds evbs') (mkHsDictLet evbs tc_expr))
+    full_expr <- zonkTopLExpr (mkHsDictLet evbs tc_expr)
     (ds_msgs, me) <- initDsTc $ dsLExpr full_expr
 
     logger <- getLogger
@@ -793,7 +791,7 @@ elabRnExpr rdr_expr = do
       Just e -> do
         when (errorsOrFatalWarningsFound ds_msgs)
           failM
-        return e
+        return $ fst $ Ghc.collectArgs e
 
 newtype HashableType = HashableType {getHType :: Type}
 

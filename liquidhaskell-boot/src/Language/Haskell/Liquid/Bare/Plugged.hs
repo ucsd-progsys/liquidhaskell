@@ -104,7 +104,8 @@ makePluggedDataCon allowTC embs tyi ldcp
   where
     (tArgs, tRes)     = plugMany allowTC  embs tyi ldcp (das, dts, dt) (dcVars, dcArgs, dcpTyRes dcp)
     (das, _, dts, dt) = {- F.notracepp ("makePluggedDC: " ++ F.showpp dc) $ -} Ghc.dataConSig dc
-    dcArgs            = reverse $ filter (not . (if allowTC then isEmbeddedClass else isClassType) . snd) (dcpTyArgs dcp)
+
+    dcArgs            = reverse $ filter (not . isClassType . snd) (dcpTyArgs dcp)
     dcVars            = if isGADT
                           then padGADVars $ L.nub (dcpFreeTyVars dcp ++ concatMap (map ty_var_value . freeTyVars) (dcpTyRes dcp:(snd <$> dcArgs)))
                           else dcpFreeTyVars dcp
