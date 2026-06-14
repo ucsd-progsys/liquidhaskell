@@ -2,9 +2,6 @@
 {-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE StandaloneKindSignatures #-}
 {-# LANGUAGE TypeOperators         #-}
-{-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
-{-@ LIQUID "--prune-unsorted"     @-}
-{-@ LIQUID "--no-termination"     @-}
 
 -- | Tests for Nat-indexed vectors (issue #2702).
 --
@@ -19,11 +16,6 @@
 --   * A measure @vlen@ that counts structural elements
 --   * Safe indexing that is verified by LH to be total
 --
--- FUTURE: the LIQUID data annotation
---   {-\@ data Vec [vlen] n a where
---         VNil  :: Vec 0 a
---         VCons :: a -> Vec n a -> Vec (n+1) a \@-}
--- should be restored once LH supports Nat arithmetic in LIQUID data annotations.
 module NatVec where
 
 import Data.Kind (Type)
@@ -35,23 +27,24 @@ import GHC.TypeNats (Nat, Natural, type (+), type (-))
 -- Vec: length-indexed vector using a Nat GADT index.
 -- ---------------------------------------------------------------------------
 
--- FUTURE: uncomment this data annotation once LH supports Nat arithmetic in
--- LIQUID data annotations (currently 'n' inside Vec (n+1) a is unresolved):
---
--- {-@ data Vec [vlen] n a where
---       VNil  :: Vec 0 a
---       VCons :: a -> Vec n a -> Vec (n + 1) a @-}
+-- TODO: make Zero and Succ unnecessary by using 0 and (n + 1) directly in the
+-- GADT constructor return type.
+type Zero = 0
+type Succ n = n + 1
+{-@ data Vec [vlen] n a where
+      VNil  :: Vec Zero a
+      VCons :: forall a n. a -> Vec n a -> Vec (Succ n) a @-}
 type Vec :: Nat -> Type -> Type
 data Vec n a where
   VNil  :: Vec 0 a
-  VCons :: a -> Vec n a -> Vec (n + 1) a
+  VCons :: a -> Vec n a -> Vec (Succ n) a
 
 -- ---------------------------------------------------------------------------
 -- Measure: vlen counts the number of elements.
 -- ---------------------------------------------------------------------------
 
 {-@ measure vlen @-}
-{-@ vlen :: Vec n a -> Nat @-}
+{-@ vlen :: forall n a. Vec n a -> {v:Nat | n == v} @-}
 vlen :: Vec n a -> Int
 vlen VNil         = 0
 vlen (VCons _ xs) = 1 + vlen xs
@@ -60,7 +53,7 @@ vlen (VCons _ xs) = 1 + vlen xs
 -- Safe index: precondition 0 <= i < vlen v ensures no out-of-bounds access.
 -- ---------------------------------------------------------------------------
 
-{-@ at :: v:Vec n a -> {i : Int | 0 <= i && i < vlen v} -> a @-}
+{-@ at :: forall (n :: Nat). v:Vec n a -> {i : Nat | i < n} -> a @-}
 at :: Vec n a -> Int -> a
 at VNil         _ = error "unreachable: VNil has vlen 0 so precondition is false"
 at (VCons x _)  0 = x
@@ -89,11 +82,8 @@ lastElem = vec3 `at` 2
 -- ---------------------------------------------------------------------------
 
 -- hd is only safe for non-empty vectors (vlen >= 1).
-{-@ hd :: {v : Vec n a | 1 <= vlen v} -> a @-}
+{-@ hd :: forall n a. {v : Vec n a | 1 <= n} -> a @-}
 hd :: Vec n a -> a
 hd (VCons x _) = x
 hd VNil        = error "unreachable"
 
--- Note: a tail function with type Vec n a -> Vec (n-1) a cannot be
--- type-checked by GHC without UndecidableInstances or manual coercions
--- because GHC cannot prove (n-1) ~ n1 from n ~ (n1+1) for type-level Nat.

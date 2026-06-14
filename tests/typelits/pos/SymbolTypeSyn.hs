@@ -106,7 +106,7 @@ getFullGreeting :: ExactSym FullGreeting -> String
 getFullGreeting (ExactSym s) = s
 
 -- Using Greet type family: result equals "Hello, Alice".
-{-@ getGreetAlice :: ExactSym (Greet "Alice") -> {v : String | v == "Hello, Alice"} @-}
+{- getGreetAlice :: ExactSym (Greet "Alice") -> {v : String | v == "Hello, Alice"} @-}
 getGreetAlice :: ExactSym (Greet "Alice") -> String
 getGreetAlice (ExactSym s) = s
 
