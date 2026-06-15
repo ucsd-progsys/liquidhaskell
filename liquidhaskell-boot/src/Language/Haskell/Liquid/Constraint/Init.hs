@@ -29,7 +29,7 @@ import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Haskell.Liquid.WiredIn               (dictionaryVar)
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
-import           Language.Haskell.Liquid.GHC.Misc             ( idDataConM, hasBaseTypeVar, isDataConId) -- dropModuleNames, simplesymbol)
+import           Language.Haskell.Liquid.GHC.Misc             ( hasBaseTypeVar, isDataConId) -- dropModuleNames, simplesymbol)
 import           Liquid.GHC.API               as Ghc
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.Constraint.Types
@@ -72,7 +72,7 @@ initEnv info
        fi       <- refreshArgs' $ catMaybes $ [(x,) . val <$> getMethodType mt | (x, mt) <- gsMethods $ gsSig $ giSpec info ]
        (invs1, f41) <- traverse refreshArgs' $ makeAutoDecrDataCons dcsty  (gsAutosize (gsTerm sp)) dcs
        (invs2, f42) <- traverse refreshArgs' $ makeAutoDecrDataCons dcsty' (gsAutosize (gsTerm sp)) dcs'
-       let f4    = mergeDataConTypes tce (mergeDataConTypes tce f40 (f41 ++ f42)) (filter (isDataConId . fst) f2)
+       let f4    = mergeDataConTypes tce (mergeDataConTypes tce f40 (f41 ++ f42)) (filter (isDataConId . fst) (f2 ++ f3))
        let tx    = first F.symbol . addRInv ialias . predsUnify sp
        f6       <- map tx . addPolyInfo' <$> refreshArgs' (vals gsRefSigs (gsSig sp))
        let bs    = (tx <$> ) <$> [f0 ++ f0' ++ fi, f1 ++ f1', f2, f3 ++ f3', f4, f5]
@@ -126,7 +126,7 @@ makeAutoDecrDataCons dcts specenv dcs
     invariant = MkUReft (F.Reft (F.vv_, F.PAtom F.Ge (lenOf F.vv_) (F.ECon $ F.I 0)) ) mempty
 
 idTyCon :: Id -> Maybe TyCon
-idTyCon = fmap dataConTyCon . idDataConM
+idTyCon = fmap dataConTyCon . Ghc.isDataConId_maybe
 
 lenOf :: F.Symbol -> F.Expr
 lenOf x = F.mkEApp lenLocSymbol [F.EVar x]

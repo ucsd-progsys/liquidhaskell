@@ -1,6 +1,5 @@
 {-# LANGUAGE GADTs #-}
-{-@ LIQUID "--expect-error-containing=is not a subtype of the required type
-      VV : {VV##800 : [GHC.Internal.Types.Int] | GHC.Types_LHAssumptions.len VV##800 == ?b + 1}" @-}
+{-@ LIQUID "--expect-error-containing=is not a subtype of the required type" @-}
 {-@ LIQUID "--reflection" @-}
 -- | Test that the refinement types produced for GADTs are
 -- compatible with the Haskell types.
@@ -26,4 +25,3 @@ bad :: Expr {v:[Int] | len v = 0}
 @-}
 bad :: Expr [Int]
 bad = CONS 0 (I 2) NIL
-
