@@ -1326,6 +1326,7 @@ ofLitType rF (NumTyLit _)  = rF intTyCon [] [] trueReft
 ofLitType rF t@(StrTyLit _)
   | t == holeLit           = RHole trueReft
   | otherwise              = rF listTyCon [rF charTyCon [] [] trueReft] [] trueReft
+ofLitType rF (CharTyLit _) = rF charTyCon [] [] trueReft
 
 holeLit :: TyLit
 holeLit = StrTyLit "$LH_RHOLE"

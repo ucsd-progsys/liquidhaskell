@@ -1316,7 +1316,13 @@ argType (TyVarTy x)          = Just $ F.EVar $ F.symbol $ varName x
 argType t
   | F.symbol (GM.showPpr t) == anyTypeSymbol
                              = Just $ F.EVar anyTypeSymbol
-argType _                    = Nothing
+argType t                    = argTypeExpanded (Ghc.expandTypeSynonyms t)
+
+argTypeExpanded :: Type -> Maybe F.Expr
+argTypeExpanded (LitTy (NumTyLit i)) = mkI i
+argTypeExpanded (LitTy (StrTyLit s)) = Just $ mkS $ bytesFS s
+argTypeExpanded (TyVarTy x)          = Just $ F.EVar $ F.symbol $ varName x
+argTypeExpanded _                    = Nothing
 
 
 argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr

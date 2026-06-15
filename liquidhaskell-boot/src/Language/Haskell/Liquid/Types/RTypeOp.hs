@@ -63,6 +63,7 @@ module Language.Haskell.Liquid.Types.RTypeOp (
   -- * Misc
   , addInvCond
   , insertsSEnv
+  , tyVarIsVal
   )
   where
 
@@ -611,20 +612,23 @@ emapDataDeclM
   -> m (DataDeclP v' ty')
 emapDataDeclM bscp vf f d = do
     tycPVars <- mapM (emapPVarVM vf (emapReftM bscp vf (const pure))) $ tycPVars d
-    tycDCons <- traverse (mapM (emapDataCtorTyM f)) (tycDCons d)
+    tycDCons <- traverse (mapM (emapDataCtorTyM tvs f)) (tycDCons d)
     tycSFun <- traverse (traverse (vf [])) (tycSFun d)
     tycPropTy <- traverse (f []) $ tycPropTy d
     return d{tycDCons, tycPVars = coerce tycPVars, tycSFun, tycPropTy}
+  where
+    tvs = tycTyVars d
 
 emapDataCtorTyM
   :: Monad m
-  => ([Symbol] -> ty -> m ty')
+  => [Symbol]
+  -> ([Symbol] -> ty -> m ty')
   -> DataCtorP ty
   -> m (DataCtorP ty')
-emapDataCtorTyM f d = do
-    dcTheta <- mapM (f []) (dcTheta d)
-    dcResult <- traverse (f (map (lhNameToUnqualifiedSymbol . fst) (dcFields d))) $ dcResult d
-    dcFields <- snd <$> mapAccumM (\γ  (s, t) -> (lhNameToUnqualifiedSymbol s:γ,) . (s,) <$> f γ t) [] (dcFields d)
+emapDataCtorTyM tvs f d = do
+    dcTheta <- mapM (f tvs) (dcTheta d)
+    dcResult <- traverse (f (map (lhNameToUnqualifiedSymbol . fst) (dcFields d) ++ tvs)) $ dcResult d
+    dcFields <- snd <$> mapAccumM (\γ  (s, t) -> (lhNameToUnqualifiedSymbol s:γ,) . (s,) <$> f γ t) tvs (dcFields d)
     return d{dcTheta, dcFields, dcResult}
 
 parsedToBareType :: BareTypeParsed -> BareType

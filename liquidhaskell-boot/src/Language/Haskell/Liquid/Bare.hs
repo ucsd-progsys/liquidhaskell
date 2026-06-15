@@ -1297,7 +1297,7 @@ makeMeasureInvariants sig mySpec
 
 measureTypeToInv :: (Located LHName, (Ghc.Var, LocSpecType)) -> ((Maybe Ghc.Var, LocSpecType), Maybe UnSortedExpr)
 measureTypeToInv (x, (v, t))
-  = notracepp "measureTypeToInv" ((Just v, t {val = mtype}), usorted)
+  = F.notracepp "measureTypeToInv" ((Just v, t {val = mtype}), usorted)
   where
     trep = toRTypeRep (val t)
     rts  = ty_args  trep
@@ -1314,9 +1314,20 @@ measureTypeToInv (x, (v, t))
       | null rts
       = uError $ ErrHMeas (GM.sourcePosSrcSpan $ loc t) (pprint x) "Measure has no arguments!"
       | otherwise
-      = mkInvariant x z tz res
+      = wrapValKindedVars (ty_vars trep) $ mkInvariant x z tz res
     isSimpleADT (RApp _ ts _ _) = all isRVar ts
     isSimpleADT _               = False
+
+-- | Wrap type with RAllT quantifiers for value-kinded type variables.
+-- This ensures invariants pass well-formedness checks (efoldReft binds the
+-- type variable), even though mkRTyConInv will strip them via bkUniv.
+-- The actual handling of free type vars in the invariant refinement is done
+-- by substInvReft during conjoinInvariant application.
+wrapValKindedVars :: [(SpecRTVar, RReft)] -> SpecType -> SpecType
+wrapValKindedVars tvs body =
+  foldr (\(a, r) t -> RAllT a t r) body valTvs
+  where
+    valTvs = filter (tyVarIsVal . fst) tvs
 
 mkInvariant :: Located LHName -> Symbol -> SpecType -> SpecType -> SpecType
 mkInvariant x z t tr = strengthen (top <$> t) (MkUReft reft' mempty)
@@ -1330,7 +1341,6 @@ mkReft x z _t tr
   | Just q <- stripRTypeBase tr
   = let Reft (v, p) = toReft q
         su          = mkSubst [(v, mkEApp (fmap lhNameToResolvedSymbol x) [EVar v]), (z,EVar v)]
-        -- p'          = pAnd $ filter (\e -> z `notElem` syms e) $ conjuncts p
     in  Just (v, subst su p)
 mkReft _ _ _ _
   = Nothing

@@ -303,7 +303,7 @@ bkDataCon permitTC dcn nFlds  = (as, ts, (F.dummySymbol, classRFInfo permitTC, t
     ts                = RT.ofType <$> Misc.takeLast nFlds (map Ghc.irrelevantMult _ts)
     t                 = -- Misc.traceShow ("bkDataConResult" ++ GM.showPpr (dc, _t, _t0)) $
                           RT.ofType  $ Ghc.mkTyConApp tc tArgs'
-    as                = makeRTVar . RT.rTyVar <$> (αs ++ αs')
+    as                = (\a -> RTVar (RT.rTyVar a) (RT.rTVarInfo a)) <$> (αs ++ αs')
     ((αs,αs',_,_,_ts,_t), _t0) = hammer dcn
     tArgs'            = take (nArgs - nVars) tArgs ++ (Ghc.mkTyVarTy <$> αs)
     nVars             = length αs

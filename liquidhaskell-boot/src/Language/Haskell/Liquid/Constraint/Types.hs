@@ -69,7 +69,7 @@ import           Liquid.GHC.API    as Ghc hiding ( (<+>)
                                                                   , parens
                                                                   , ($+$)
                                                                   )
-import           Language.Haskell.Liquid.Misc           (thrd3)
+import           Language.Haskell.Liquid.Misc           ()
 import           Language.Haskell.Liquid.WiredIn        (wiredSortedSyms)
 import qualified Language.Fixpoint.Types            as F
 import           Language.Fixpoint.Misc
@@ -287,10 +287,14 @@ elemHEnv x (HEnv s) = x `S.member` s
 --------------------------------------------------------------------------------
 -- | Helper Types: Invariants --------------------------------------------------
 --------------------------------------------------------------------------------
-data RInv = RInv { _rinv_args :: [RSort]   -- empty list means that the invariant is generic
-                                           -- for all type arguments
-                 , _rinv_type :: SpecType
-                 , _rinv_name :: Maybe Var
+data RInv = RInv { _rinv_args    :: [RSort]   -- empty list means that the invariant is generic
+                                               -- for all type arguments
+                 , _rinv_type    :: SpecType
+                 , _rinv_name    :: Maybe Var
+                 , _rinv_valTvs  :: [(F.Symbol, F.Symbol)]
+                   -- ^ Pairs of (unique_name, bare_name) for value-kinded type variables.
+                   -- Used to substitute type-level variables in invariant refinements
+                   -- when the invariant is applied to a concrete type.
                  } deriving Show
 
 type RTyConInv = M.HashMap RTyCon [RInv]
@@ -299,9 +303,19 @@ type RTyConIAl = M.HashMap RTyCon [RInv]
 --------------------------------------------------------------------------------
 mkRTyConInv    :: [(Maybe Var, F.Located SpecType)] -> RTyConInv
 --------------------------------------------------------------------------------
-mkRTyConInv tss = group [ (c, RInv (go ts) t v) | (v, t@(RApp c ts _ _)) <- strip <$> tss]
+mkRTyConInv tss = group [ (c, RInv (go ts) t v vtv) | (v, t@(RApp c ts _ _), vtv) <- strip <$> tss]
   where
-    strip = fmap (thrd3 . bkUniv . val)
+    strip (mv, lt) =
+      let (tvs, _, body) = bkUniv (val lt)
+          -- For value-kinded type vars, record (unique_symbol, bare_name) pairs.
+          -- The unique_symbol matches what appears in RVar nodes;
+          -- the bare_name matches what appears in refinement expressions.
+          vtv = [ (F.symbol (ty_var_value a), nm)
+                | (a, _) <- tvs
+                , tyVarIsVal a
+                , RTVInfo{rtv_name = nm} <- [ty_var_info a]
+                ]
+      in (mv, body, vtv)
     go ts | generic (toRSort <$> ts) = []
           | otherwise                = toRSort <$> ts
 
@@ -326,13 +340,73 @@ lookupRInv _ _
   = Nothing
 
 goodInvs :: [SpecType] -> RInv -> Maybe SpecType
-goodInvs _ (RInv []  t _)
-  = Just t
-goodInvs ts (RInv ts' t _)
+goodInvs ts (RInv []  t _ vtv)
+  = Just (applyValTvSubst ts vtv t)
+goodInvs ts (RInv ts' t _ vtv)
   | and (zipWith invMatchesTarget ts' (toRSort <$> ts))
-  = Just t
+  = Just (applyValTvSubst ts vtv t)
   | otherwise
   = Nothing
+
+-- | Given target type args and invariant value-kinded type variable info,
+-- substitute the bare names of value-kinded type vars with expressions derived
+-- from the corresponding target type arguments.
+--
+-- For example, if invariant body is @{VV : Vec n a | n == vlen VV}@ with
+-- vtv = [("n##a13b", "n")] and target is @Vec n' Int@:
+--   - Find the position of "n##a13b" in the invariant's type args
+--   - Get the target type arg at that position: @RVar n'@
+--   - Extract expression: @EVar n'_sym@
+--   - Substitute "n" → @EVar n'_sym@ in the invariant refinement
+applyValTvSubst :: [SpecType] -> [(F.Symbol, F.Symbol)] -> SpecType -> SpecType
+applyValTvSubst _  []  t = t
+applyValTvSubst ts vtv t@(RApp c its rs r) =
+  case buildInvSubst ts its vtv of
+    ([], [])   -> t
+    (su, dead) -> RApp c its rs (substInvReft (su, dead) r)
+applyValTvSubst _ _ t = t
+
+-- | Build a substitution and dead-set from target type args, invariant type args,
+-- and value-kinded type variable info.
+buildInvSubst :: [SpecType] -> [SpecType] -> [(F.Symbol, F.Symbol)]
+              -> ([(F.Symbol, F.Expr)], [F.Symbol])
+buildInvSubst ts its vtv = (mapMaybe mkSub vtv, mapMaybe mkDead vtv)
+  where
+    -- Build index: map unique_sym → position in invariant type args
+    invArgIdx uniqueSym = L.findIndex (matchesRVar uniqueSym) its
+    matchesRVar s (RVar tv _) = F.symbol tv == s
+    matchesRVar _ _           = False
+
+    mkSub (uniqueSym, bareName)
+      | Just idx <- invArgIdx uniqueSym
+      , idx < length ts
+      , Just e <- rTypeExpr (ts !! idx)
+      = Just (bareName, e)
+      | otherwise = Nothing
+
+    mkDead (uniqueSym, bareName)
+      | Just idx <- invArgIdx uniqueSym
+      , idx < length ts
+      , Nothing <- rTypeExpr (ts !! idx)
+      = Just bareName
+      | otherwise = Nothing
+
+-- | Extract a logical expression from a type argument.
+-- RVar tv -> EVar (symbol tv); otherwise Nothing (erased literal etc.).
+rTypeExpr :: SpecType -> Maybe F.Expr
+rTypeExpr (RVar tv _) = Just $ F.EVar (F.symbol tv)
+rTypeExpr _           = Nothing
+
+-- | Apply substitution to an invariant's refinement, filtering out conjuncts
+-- that reference "dead" variables (those with no target expression).
+substInvReft :: ([(F.Symbol, F.Expr)], [F.Symbol]) -> RReft -> RReft
+substInvReft (su, dead) (MkUReft (F.Reft (v, e)) p)
+  | null su && null dead = MkUReft (F.Reft (v, e)) p
+  | otherwise            = MkUReft (F.Reft (v, F.pAnd filtered)) p
+  where
+    substituted = F.subst (F.mkSubst su) e
+    filtered    = filter noDead (F.conjuncts substituted)
+    noDead expr = not $ any (`elem` dead) (F.syms expr)
 
 
 -- | Check that the target type arg is an instance of the invariant's type arg.
@@ -437,7 +511,7 @@ initFEnv xts = FE benv0 env0 ienv0
 -- | Forcing Strictness --------------------------------------------------------
 --------------------------------------------------------------------------------
 instance NFData RInv where
-  rnf (RInv x y z) = rnf x `seq` rnf y `seq` rnf z
+  rnf (RInv x y z w) = rnf x `seq` rnf y `seq` rnf z `seq` rnf w
 
 instance NFData CGEnv where
   rnf (CGE x1 _ _ x4 x5 x55 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _ _ _)

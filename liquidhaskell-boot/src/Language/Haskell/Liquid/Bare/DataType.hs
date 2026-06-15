@@ -833,7 +833,10 @@ makeRecordSelectorSigs env = checkRecordSelectorSigs . concatMap makeOne
       fls = Ghc.dataConFieldLabels dc
       fs  = Bare.lookupGhcId env . Ghc.flSelector <$> fls
       ts :: [ LocSpecType ]
-      ts = [ Loc l l' (mkArrow (map (, mempty) (makeRTVar <$> dcpFreeTyVars dcp)) []
+      -- Use real GHC TyVars to get correct kinds for value-kinded type vars
+      selTyVars = zipWith mkSelTyVar (dcpFreeTyVars dcp) (Ghc.dataConUnivTyVars dc)
+      mkSelTyVar rtv ghcTv = RTVar rtv (RT.rTVarInfo ghcTv)
+      ts = [ Loc l l' (mkArrow (map (, mempty) selTyVars) []
                                  [(z, classRFInfo True, res, mempty)]
                                  (dropPreds (F.subst su t `RT.strengthen` mt)))
              | (x, t) <- reverse args -- NOTE: the reverse here is correct

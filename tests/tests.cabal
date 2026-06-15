@@ -1824,7 +1824,9 @@ executable unit-pos-3
                     , Tyfam0
                     , TypeAlias
                     , TypeLitNat
+                    , TypeLitNatVec
                     , TypeLitString
+                    , TypeLitSymbol
                     , Tyvar
                     , UnboxedTuplesAndTH
                     , UnboxedTuples
