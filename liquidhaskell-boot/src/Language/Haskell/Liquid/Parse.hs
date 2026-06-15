@@ -28,6 +28,7 @@ import qualified Data.Foldable                          as F
 import           Data.Hashable                          (Hashable)
 import           Data.String
 import           Data.Void
+import qualified Data.Text                              as T
 import           Prelude                                hiding (error)
 import           Text.Megaparsec                        hiding (ParseError)
 import           Text.Megaparsec.Char
@@ -491,6 +492,7 @@ bbaseNoAppP
 bareTyArgP :: Parser BareTypeParsed
 bareTyArgP
   =  (RExprArg . fmap (ECon . I) <$> locNatural)
+ <|> try (RExprArg . fmap (ESym . SL . T.pack) <$> locStringLiteral)
  <|> try (braces $ RExprArg <$> located exprP)
  <|> try bareAtomNoAppP
  <|> try (parens bareTypeP)
@@ -560,7 +562,7 @@ rAllP sp p t = RAllP p' ({- F.tracepp "rAllP" $ -} substPVar p p' t)
 
 tyVarDefsP :: Parser [BTyVar]
 tyVarDefsP
-  = parens (many (bTyVar <$> located tyKindVarIdP))
+  = try (concat <$> some (parens (some (bTyVar <$> located tyKindVarIdP))))
  <|> many (bTyVar <$> located tyVarIdP)
  <?> "tyVarDefsP"
 
