@@ -20,6 +20,7 @@
 module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints, caseEnv, consE ) where
 
 import           Prelude                                       hiding (error)
+import           Control.Applicative                           ((<|>))
 import           GHC.Stack ( CallStack )
 import           Liquid.GHC.API               as Ghc hiding ( panic
                                                             , (<+>)
@@ -1188,7 +1189,10 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
   xt0             <- checkTyCon ("checkTycon cconsCase", x) γ <$> γ ??= x
   let rt           = shiftVV xt0 x'
   tdc             <- γ ??= dataConWorkId c >>= refreshVV
-  let (rtd,yts',_) = unfoldR tdc rt ys
+  let ghcTyArgs    = case Ghc.splitTyConApp_maybe (Ghc.expandTypeSynonyms (varType x)) of
+                       Just (_, args) -> args
+                       Nothing        -> []
+  let (rtd,yts',_) = unfoldR tdc rt ys ghcTyArgs
   yts             <- projectTypes (typeclass (getConfig γ))  pIs yts'
   let ys''         = F.symbol <$> filter (not . if allowTC then GM.isEmbeddedDictVar else GM.isEvVar) ys
   let r1           = dataConReft   c   ys''
@@ -1244,10 +1248,11 @@ altReft γ acs DEFAULT    = mconcat ([notLiteralReft l | LitAlt l <- acs] ++ [no
     notDataConReft d = F.Reft (F.vv_, F.PNot (F.EApp (F.EVar $ makeDataConChecker d) (F.EVar F.vv_)))
 altReft _ _ _            = panic Nothing "Constraint : altReft"
 
-unfoldR :: SpecType -> SpecType -> [Var] -> (SpecType, [SpecType], SpecType)
-unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
+unfoldR :: SpecType -> SpecType -> [Var] -> [Ghc.Type] -> (SpecType, [SpecType], SpecType)
+unfoldR td (RApp _ ts rs _) ys ghcTyArgs = (t3, tvys ++ yts, ignoreOblig rt)
   where
-        tbody                = instantiatePvs (instantiateTys td ts) (reverse rs)
+        tbody                = F.subst valSu $ instantiatePvs (instantiateTys td ts) (reverse rs)
+        valSu                = valTyVarSubst td ts ghcTyArgs
         ((ys0,_,yts',_), rt) = safeBkArrow (F.notracepp msg $ instantiateTys tbody tvs')
         msg                  = "INST-TY: " ++ F.showpp (td, ts, tbody, ys, tvs')
         yts''                = zipWith F.subst sus (yts'++[rt])
@@ -1258,7 +1263,21 @@ unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
         tvs'                 = rVar <$> αs
         tvys                 = ofType . varType <$> αs
 
-unfoldR _  _                _  = panic Nothing "Constraint.hs : unfoldR"
+unfoldR _  _                _  _ = panic Nothing "Constraint.hs : unfoldR"
+
+-- | Build expression-level substitution for value-kinded type variables.
+-- When a data constructor is instantiated at concrete type-level literals,
+-- this substitutes the expression symbols (e.g. n) with their values (e.g. 3).
+-- Uses GHC type args as fallback when the RType doesn't carry the literal value
+-- (e.g. when ofType converts NumTyLit to just Int).
+valTyVarSubst :: SpecType -> [SpecType] -> [Ghc.Type] -> F.Subst
+valTyVarSubst td ts ghcTyArgs = F.mkSubst binds
+  where
+    binds = [(x, e) | (Just (x, _), t, mgt) <- zip3 (binders td) ts ghcArgs
+                     , Just e <- [rTypeExprLit t <|> (mgt >>= argType)]]
+    ghcArgs = map Just ghcTyArgs ++ repeat Nothing
+    binders (RAllT α tbody _) = rTVarToBind α : binders tbody
+    binders _                 = []
 
 instantiateTys :: SpecType -> [SpecType] -> SpecType
 instantiateTys = L.foldl' go
@@ -1322,7 +1341,21 @@ argTypeExpanded :: Type -> Maybe F.Expr
 argTypeExpanded (LitTy (NumTyLit i)) = mkI i
 argTypeExpanded (LitTy (StrTyLit s)) = Just $ mkS $ bytesFS s
 argTypeExpanded (TyVarTy x)          = Just $ F.EVar $ F.symbol $ varName x
+argTypeExpanded (TyConApp c [t1, t2])
+  | Ghc.isFamilyTyCon c
+  , Just op <- natBop c
+  , Just e1 <- argTypeExpanded t1
+  , Just e2 <- argTypeExpanded t2
+  = Just (F.EBin op e1 e2)
 argTypeExpanded _                    = Nothing
+
+-- | Map known Nat type families to Fixpoint binary operators.
+natBop :: Ghc.TyCon -> Maybe F.Bop
+natBop c = case Ghc.getOccString (Ghc.tyConName c) of
+  "+"   -> Just F.Plus
+  "*"   -> Just F.Times
+  "-"   -> Just F.Minus
+  _     -> Nothing
 
 
 argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
