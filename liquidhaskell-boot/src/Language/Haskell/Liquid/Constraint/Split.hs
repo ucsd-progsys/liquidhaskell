@@ -256,6 +256,15 @@ splitC _ (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))
   | a1 == a2
   = bsplitC γ t1 t2
 
+splitC _ (SubC _ (RExprArg _) (RExprArg _))
+  = return [] -- expression type arguments (Nat/Symbol literals) need no subtype constraint
+
+splitC _ (SubC _ (RExprArg _) _)
+  = return [] -- expression argument vs concrete type: no subtype constraint needed
+
+splitC _ (SubC _ _ (RExprArg _))
+  = return [] -- concrete type vs expression argument: no subtype constraint needed
+
 splitC _ (SubC γ t1 t2)
   = panic (Just $ getLocation γ) $ "(Another Broken Test!!!) splitc unexpected:\n" ++ traceTy t1 ++ "\n  <:\n" ++ traceTy t2
 

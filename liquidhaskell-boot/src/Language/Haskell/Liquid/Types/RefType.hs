@@ -356,6 +356,10 @@ eqRSort m (RApp c ts _ _) (RApp c' ts' _ _)
   = c == c' && length ts == length ts' && and (zipWith (eqRSort m) ts ts')
 eqRSort m (RVar a _) (RVar a' _)
   = a == M.lookupDefault a' a' m
+eqRSort _ (RExprArg _) _
+  = True
+eqRSort _ _            (RExprArg _)
+  = True
 eqRSort _ (RHole _) _
   = True
 eqRSort _ _         (RHole _)

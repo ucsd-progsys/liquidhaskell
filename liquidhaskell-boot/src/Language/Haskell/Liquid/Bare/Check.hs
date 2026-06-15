@@ -593,15 +593,18 @@ checkAppTys = go
     go (RAllT _ t _)    = go t
     go (RAllP _ t)      = go t
     go (RApp rtc ts _ _)
-      = checkTcArity rtc (length ts) <|>
+      = checkTcArity rtc (length (filter (not . isRExprArg) ts)) <|>
         L.foldl' (\merr t -> merr <|> go t) Nothing ts
     go (RFun _ _ t1 t2 _) = go t1 <|> go t2
     go (RVar _ _)       = Nothing
     go (REx _ t1 t2)    = go t1 <|> go t2
     go (RAppTy t1 t2 _) = go t1 <|> go t2
     go (RRTy _ _ _ t)   = go t
-    go (RExprArg _)     = Just $ text "Logical expressions cannot appear inside a Haskell type"
+    go (RExprArg _)     = Nothing -- value-kinded type arguments (Nat/Symbol literals)
     go (RHole _)        = Nothing
+
+    isRExprArg (RExprArg _) = True
+    isRExprArg _            = False
 
 checkTcArity :: RTyCon -> Arity -> Maybe Doc
 checkTcArity RTyCon{ rtc_tc = tc } givenArity

@@ -52,6 +52,9 @@ module Language.Haskell.Liquid.Constraint.Types
   , getTemplates
 
   , getLocation
+
+  , rTypeExpr
+  , rTypeExprLit
   ) where
 
 import Prelude hiding (error)
@@ -392,10 +395,17 @@ buildInvSubst ts its vtv = (mapMaybe mkSub vtv, mapMaybe mkDead vtv)
       | otherwise = Nothing
 
 -- | Extract a logical expression from a type argument.
--- RVar tv -> EVar (symbol tv); otherwise Nothing (erased literal etc.).
+-- RVar tv -> EVar (symbol tv); RExprArg -> the expression; otherwise Nothing.
 rTypeExpr :: SpecType -> Maybe F.Expr
-rTypeExpr (RVar tv _) = Just $ F.EVar (F.symbol tv)
-rTypeExpr _           = Nothing
+rTypeExpr (RVar tv _)   = Just $ F.EVar (F.symbol tv)
+rTypeExpr (RExprArg le) = Just $ F.val le
+rTypeExpr _             = Nothing
+
+-- | Extract a literal expression from a type argument (RExprArg only).
+-- Used for case-match substitution where only concrete values should substitute.
+rTypeExprLit :: SpecType -> Maybe F.Expr
+rTypeExprLit (RExprArg le) = Just $ F.val le
+rTypeExprLit _             = Nothing
 
 -- | Apply substitution to an invariant's refinement, filtering out conjuncts
 -- that reference "dead" variables (those with no target expression).

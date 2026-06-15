@@ -285,6 +285,8 @@ goPlug tce tyi err f = go
     --   | length ts == length ts'
       = RApp c     (Misc.zipWithDef go ts $ Bare.matchKindArgs ts ts') (goRProps c ts ts' p) r
 
+    go _                t'@(RExprArg _)    = t' -- expression arguments (e.g. {3}) need no plugging
+
     go hsT lqT                             = Ex.throw (err (F.pprint hsT) (F.pprint lqT))
 
     -- For dependent tuples, RProp at index j corresponds to the
