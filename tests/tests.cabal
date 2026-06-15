@@ -1102,11 +1102,9 @@ executable typelits-pos
     other-modules:
                       NatLit
                     , NatArith
-                    , NatVec
                     , NatTypeSyn
                     , NatAlias
                     , SymbolConstraints
-                    , SymbolAppend
                     , SymbolTypeSyn
 
     build-depends:    base

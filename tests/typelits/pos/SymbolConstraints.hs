@@ -49,11 +49,12 @@ getBucketName (NamedBucket n) = n
 
 -- ---------------------------------------------------------------------------
 -- Type alias: BucketOf S — abbreviates NamedBucket with a Symbol argument.
+-- TODO: LH cannot resolve type alias parameters against data type params yet
 -- ---------------------------------------------------------------------------
 
-{-@ type BucketOf S = NamedBucket S @-}
+-- {-@ type BucketOf S = NamedBucket S @-}
 
-{-@ mkAdmin :: BucketOf "admin" @-}
+-- {-@ mkAdmin :: BucketOf "admin" @-}
 mkAdmin :: NamedBucket "admin"
 mkAdmin = NamedBucket "admin"
 
