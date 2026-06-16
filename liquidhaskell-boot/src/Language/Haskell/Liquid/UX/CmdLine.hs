@@ -166,6 +166,8 @@ defConfig = Config
   , ddumpTimings                  = False
   , modern                        = False
   , warnOnTermHoles               = False
+  , refcore                       = False
+  , refcoreText                   = False
   }
 
 -- | A flag is either a config transformer or a request for --help/--version.
@@ -359,6 +361,10 @@ lhOptions =
       "Allow refining constructors with unsafe refinements"
   , opt [] ["ddump-timings"] (NoArg $ fm $ \c -> c { ddumpTimings = True })
       "Dump time measures of the Liquid Haskell plugin"
+  , opt [] ["refcore"] (NoArg $ fm $ \c -> c { refcore = True })
+      "Extract RefCore Calculus declarations"
+  , opt [] ["refcore-text"] (NoArg $ fm $ \c -> c { refcoreText = True })
+      "Also write the human-readable .ilh text dump (debug)"
   , opt [] ["modern"] (NoArg $ fm $ \c -> c { modern = True })
       "Enable modern features (--reflection, --ple, --etabeta, --dependantcase)"
   , opt [] ["warn-on-term-holes"] (NoArg $ fm $ \c -> c { warnOnTermHoles = True })

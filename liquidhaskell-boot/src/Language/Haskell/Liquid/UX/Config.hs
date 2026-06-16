@@ -104,6 +104,8 @@ data Config = Config
   , allowUnsafeConstructors  :: Bool       -- ^ Allow refining constructors with unsafe refinements
   , ddumpTimings             :: Bool       -- ^ Dump time measures of the Liquid Haskell plugin
                                            -- Only needed to work around https://github.com/haskell/cabal/issues/11116
+  , refcore                  :: Bool       -- Enable extraction of RefCore Calculus declarations
+  , refcoreText              :: Bool       -- Also write the human-readable .ilh text dump (debug)
   , modern                   :: Bool       -- ^ Enable modern features; enables reflection, ple, etabeta, dependantcase, adt
   , warnOnTermHoles          :: Bool       -- ^ Warn about holes in the terms
   } deriving (Generic, Show, Eq)

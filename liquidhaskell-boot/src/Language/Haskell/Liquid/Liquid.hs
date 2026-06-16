@@ -37,20 +37,22 @@ import           Language.Haskell.Liquid.UX.Annotate (mkOutput)
 import qualified Language.Haskell.Liquid.Termination.Structural as ST
 import qualified Language.Haskell.Liquid.GHC.Misc          as GM
 import           Liquid.GHC.API as GHC hiding (text, vcat, ($+$), (<+>))
+import Language.Haskell.Liquid.Types.RType (SpecType)
 
+-- Second output is intended for Refcore
 --------------------------------------------------------------------------------
-checkTargetInfo :: TargetInfo -> IO (Output Doc)
+checkTargetInfo :: TargetInfo -> IO (Output Doc, AnnInfo SpecType)
 --------------------------------------------------------------------------------
 checkTargetInfo info = do
-  out <- check
+  (out, infTypes) <- check
   when (diffcheck cfg && not (compileSpec cfg)) $ DC.saveResult tgt out
-  pure out
+  pure (out, infTypes)
   where
-    check :: IO (Output Doc)
+    check :: IO (Output Doc, AnnInfo SpecType)
     check
       | compileSpec cfg = do
         -- donePhase Loud "Only compiling specifications [skipping verification]"
-        pure mempty { o_result = F.Safe mempty }
+        pure (mempty { o_result = F.Safe mempty }, mempty)
       | otherwise = do
         when (loggingVerbosity cfg == Normal) $ do
           F.donePhase F.Loud "Extracted Core using GHC"
@@ -90,13 +92,13 @@ maybeEither :: a -> Maybe b -> Either a [b]
 maybeEither d Nothing  = Left d
 maybeEither _ (Just x) = Right [x]
 
-liquidQueries :: Config -> FilePath -> TargetInfo -> Either [CoreBind] [DC.DiffCheck] -> IO (Output Doc)
+liquidQueries :: Config -> FilePath -> TargetInfo -> Either [CoreBind] [DC.DiffCheck] -> IO (Output Doc, AnnInfo SpecType)
 liquidQueries cfg tgt info (Left cbs')
   = liquidQuery cfg tgt info (Left cbs')
 liquidQueries cfg tgt info (Right dcs)
   = mconcat <$> mapM (liquidQuery cfg tgt info . Right) dcs
 
-liquidQuery   :: Config -> FilePath -> TargetInfo -> Either [CoreBind] DC.DiffCheck -> IO (Output Doc)
+liquidQuery   :: Config -> FilePath -> TargetInfo -> Either [CoreBind] DC.DiffCheck -> IO (Output Doc, AnnInfo SpecType)
 liquidQuery cfg tgt info edc = do
   let names   = either (const Nothing) (Just . map show . DC.checkedVars)   edc
   let oldOut  = either (const mempty)  DC.oldOutput                         edc
@@ -109,7 +111,7 @@ liquidQuery cfg tgt info edc = do
   -- whenLoud $ mapM_ putStrLn [ "****************** CGInfo ********************"
                             -- , render (pprint cgi)                            ]
   out        <- timedAction names $ solveCs cfg tgt cgi info3 names
-  return      $ mconcat [oldOut, out]
+  return      $ mconcat [(oldOut, mempty), out]
 
 updTargetInfoTermVars    :: TargetInfo -> TargetInfo
 updTargetInfoTermVars i  = updInfo i  (ST.terminationVars i)
@@ -130,7 +132,7 @@ dumpCs cgi = do
 pprintMany :: (PPrint a) => [a] -> Doc
 pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
 
-solveCs :: Config -> FilePath -> CGInfo -> TargetInfo -> Maybe [String] -> IO (Output Doc)
+solveCs :: Config -> FilePath -> CGInfo -> TargetInfo -> Maybe [String] -> IO (Output Doc, AnnInfo SpecType)
 solveCs cfg tgt cgi info names = do
   finfo            <- cgInfoFInfo info cgi
   let fcfg          = fixConfig tgt cfg
@@ -146,9 +148,8 @@ solveCs cfg tgt cgi info names = do
                                  `addErrors` makeFailUseErrors (S.toList failBs) (giCbs $ giSrc info)
   let lErrors       = applySolution finfo sol <$> logErrors cgi
   let resModel      = resModel' `addErrors` (e2u cfg <$> lErrors)
-  let out0          = mkOutput cfg resModel finfo sol (annotMap cgi)
-  return            $ out0 { o_vars    = names    }
-                           { o_result  = resModel }
+  let (out0, infTypes) = mkOutput cfg resModel finfo sol (annotMap cgi)
+  return (out0 { o_vars    = names    } { o_result  = resModel }, infTypes)
 
 
 e2u :: Config -> Error -> UserError

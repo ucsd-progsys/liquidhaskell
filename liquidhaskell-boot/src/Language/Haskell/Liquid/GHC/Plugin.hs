@@ -71,11 +71,14 @@ import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.PrettyPrint
 import           Language.Haskell.Liquid.Types.Specs
 import           Language.Haskell.Liquid.Types.Types
+import           Language.Haskell.Liquid.Types.RType (SpecType)
 import           Language.Haskell.Liquid.Types.Visitors
 import           Language.Haskell.Liquid.Bare
 import qualified Language.Haskell.Liquid.Bare.Resolve as Resolve
 import           Language.Haskell.Liquid.UX.CmdLine
 import           Language.Haskell.Liquid.UX.Config
+import           Language.Haskell.Liquid.RefCore.Extract (SrcInfo (..), extractCalculus, writeIlh, writeIlhBin)
+
 
 -- | Represents an abnormal but non-fatal state of the plugin. Because it is not
 -- meant to escape the plugin, it is not thrown in IO but instead carried around
@@ -438,6 +441,18 @@ liquidHaskellCheckWithConfig cfg pipelineData modSummary = do
     reportErrs :: F.PPrint e => [TError e] -> TcM (Either LiquidCheckException a)
     reportErrs  = LH.filterReportErrors thisFile GHC.failM continue (getFilters cfg) Full
 
+mkSrcInfo :: LiquidHaskellContext -> TargetInfo -> AnnInfo SpecType -> SrcInfo
+mkSrcInfo lhContext targetInfo infTypes = SrcInfo
+    { s_moduleName = moduleName $ ms_mod $ lhModuleSummary lhContext
+    , s_summary    = lhModuleSummary lhContext
+    , s_targetInfo = targetInfo
+    , s_infTypes   = infTypes
+    , s_imports    = lhRelevantModules lhContext
+    }
+
+-- | When the @--refcore@ flag is set, extract Calculus declarations and write
+--   the .ilhb binary. With @--refcore-text@ also write the human-readable .ilh
+--   text dump (debug only).
 checkLiquidHaskellContext :: LiquidHaskellContext -> TcM (Either LiquidCheckException LiquidLib)
 checkLiquidHaskellContext lhContext = do
   pmr <- processModule lhContext
@@ -445,9 +460,15 @@ checkLiquidHaskellContext lhContext = do
     Left e -> pure $ Left e
     Right ProcessModuleResult{..} -> do
       -- Call into the existing Liquid interface
-      out <- liftIO $ LH.checkTargetInfo pmrTargetInfo
+      (out, infTypes) <- liftIO $ LH.checkTargetInfo pmrTargetInfo
 
       let bareSpec = lhInputSpec lhContext
+          cfg     = lhGlobalCfg lhContext
+
+      when (refcore cfg) $ liftIO $ do
+        (calcSource, meta) <- extractCalculus (mkSrcInfo lhContext pmrTargetInfo infTypes)
+        writeIlhBin meta calcSource
+        when (refcoreText cfg) $ writeIlh meta calcSource
 
       withPragmas (lhGlobalCfg lhContext) (Ms.pragmas bareSpec) $ \moduleCfg ->  do
         let filters = getFilters moduleCfg
