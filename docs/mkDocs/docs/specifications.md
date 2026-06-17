@@ -1188,3 +1188,49 @@ data Val where
            -> Ix Val (TFun t1 t2) @-}
   VFun :: Ty -> Ty -> (Val -> Val) -> Val
 ```
+
+## Using Lemmas
+
+Sometimes additional context information is need for LH to verify a specification.
+To accomplish this, we can use [lemmas](https://en.wikipedia.org/wiki/Lemma_(mathematics)).
+
+The `Language.Haskell.Liquid.ProofCombinators` module provides the `?` combinator,
+which is an infix variant of `const` optimized to pass the refined type of its
+second argument to the constraint context of the first argument.
+
+For example, `e ? lemma` lets you use the type of the expression `lemma`
+when checking that expression `e` has some expected refinement type.
+
+Schematically, `?` allows to use the `q x` to check that `e` satisfies `p x e`
+in the following function.
+
+```haskell
+f :: x:t0 -> {v:t1 | p x v}
+f x = e ? lemma x
+
+lemma :: y:t0 -> { q y }
+lemma = ...
+```
+
+Dead bindings inside a `where` clause or `let` expression can be used
+to accomplish this as well:
+
+```haskell
+f :: x:t0 -> {v:t1 | p x v}
+f x = e
+  where
+    lemma0 = lemma x -- dead binding
+
+-- alternatively
+
+f :: x:t0 -> {v:t1 | p x v}
+f x = let lemma x {- dead binding -} in e
+```
+
+There are some differences to both approaches:
+
+- Scope: while the former scopes only over `e`,
+  the latter inserts the type in all constraints arising from locations
+  where the binder is in scope.
+- The dead binding approach also has the advantage that the lemmas appear
+  with their given names in the environments that show up in error messages.
