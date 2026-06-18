@@ -1191,14 +1191,13 @@ data Val where
 
 ## Using Lemmas
 
-Sometimes additional context information is need to verify a specification.
+Sometimes additional context information is needed to verify a specification.
 To accomplish this, we can use [lemmas](https://en.wikipedia.org/wiki/Lemma_(mathematics)).
 
 The `Language.Haskell.Liquid.ProofCombinators` module provides the `?` combinator,
-which is an infix variant of `const` optimized to pass the refined type of its
-second argument to the generated constraint context of the first argument.
-
-For example, `e ? lemma` makes the refined type of the expression `lemma`
+which is an infix variant of `const` optimized to pass the post-condition of its
+second argument to the constraint environment of its first argument.
+For instance, `e ? lemma` makes the post-condition of `lemma`
 available when checking expression `e`.
 
 Schematically, `?` allows to use the `q x` to check that `e` satisfies `p x e`
@@ -1233,15 +1232,17 @@ f x =
    in e
 ```
 
-There are some differences to both approaches:
+Note that there are some differences between the two approaches:
 
-- Scope: The former inserts the lemma type in the subtyping constraints of
-  the expression value (`e` in the examples above) only, for example:
-  `(f e) ? lemma` inserts the `lemma` type at `f e`, but if a subtyping
-  constraint at `e` needs the `lemma` too, you would need to write
+- Scope: `?` inserts the lemma's post-condition into the constraint environment
+  of the expression's value (`e` in the examples above) only,
+  for example:
+  `(f e) ? lemma` passes `lemma`'s post-condition to `f e` constraint environment,
+  but if a subtyping constraint at `e` needs the `lemma` too, you would need to write
   `(f (e ? lemma)) ? lemma`.
-  In comparison, the latter option is blunter: it inserts the type in all
-  locations where the binder is in scope, so a single binding inserts it into
-  both `e` and `f e` in this example.
-- The binding approach also has the advantage that the lemmas appear
+  In comparison, the binding approach is less precise about where the lemma is inserted:
+  it makes its post-condition available in all the constraint environments generated
+  at locations having the binder in scope,
+  so `let lemma0 = lemma in f e` applies the `lemma` to both `e` and `f e`.
+- The binding approach has the advantage that the lemmas appear
   with their given names in the environments that show up in error messages.
