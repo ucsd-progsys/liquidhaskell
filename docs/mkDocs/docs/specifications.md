@@ -1243,5 +1243,5 @@ There are some differences to both approaches:
   In comparison, the latter option is blunter: it inserts the type in all
   locations where the binder is in scope, so a single binding inserts it into
   both `e` and `f e` in this example.
-- The dead binding approach also has the advantage that the lemmas appear
+- The binding approach also has the advantage that the lemmas appear
   with their given names in the environments that show up in error messages.
