@@ -1212,19 +1212,25 @@ lemma :: y:t0 -> { q y }
 lemma = ...
 ```
 
-Dead bindings inside a `where` clause or `let` expression can be used
+Bindings inside a `where` clause or `let` expression can be used
 to accomplish this as well:
 
 ```haskell
 f :: x:t0 -> {v:t1 | p x v}
 f x = e
   where
-    lemma0 = lemma x -- dead binding
+    -- the lemma0 binding is unused by e but it is still available
+    -- for Liquid Haskell to use it
+    lemma0 = lemma x
 
 -- alternatively
 
 f :: x:t0 -> {v:t1 | p x v}
-f x = let lemma x {- dead binding -} in e
+f x =
+  let -- the lemma0 binding is unused by e but it is still available
+      -- for Liquid Haskell to use it
+      lemma0 = lemma x
+   in e
 ```
 
 There are some differences to both approaches:
