@@ -1191,15 +1191,15 @@ data Val where
 
 ## Using Lemmas
 
-Sometimes additional context information is need for LH to verify a specification.
+Sometimes additional context information is need to verify a specification.
 To accomplish this, we can use [lemmas](https://en.wikipedia.org/wiki/Lemma_(mathematics)).
 
 The `Language.Haskell.Liquid.ProofCombinators` module provides the `?` combinator,
 which is an infix variant of `const` optimized to pass the refined type of its
-second argument to the constraint context of the first argument.
+second argument to the generated constraint context of the first argument.
 
-For example, `e ? lemma` lets you use the type of the expression `lemma`
-when checking that expression `e` has some expected refinement type.
+For example, `e ? lemma` makes the refined type of the expression `lemma`
+available when checking expression `e`.
 
 Schematically, `?` allows to use the `q x` to check that `e` satisfies `p x e`
 in the following function.
@@ -1219,7 +1219,7 @@ to accomplish this as well:
 f :: x:t0 -> {v:t1 | p x v}
 f x = e
   where
-    -- the lemma0 binding is unused by e but it is still available
+    -- the lemma0 binding is unused by e, but it is still available
     -- for Liquid Haskell to use it
     lemma0 = lemma x
 
@@ -1227,7 +1227,7 @@ f x = e
 
 f :: x:t0 -> {v:t1 | p x v}
 f x =
-  let -- the lemma0 binding is unused by e but it is still available
+  let -- the lemma0 binding is unused by e, but it is still available
       -- for Liquid Haskell to use it
       lemma0 = lemma x
    in e
@@ -1235,8 +1235,13 @@ f x =
 
 There are some differences to both approaches:
 
-- Scope: while the former scopes only over `e`,
-  the latter inserts the type in all constraints arising from locations
-  where the binder is in scope.
+- Scope: The former inserts the lemma type in the subtyping constraints of
+  the expression value (`e` in the examples above) only, for example:
+  `(f e) ? lemma` inserts the `lemma` type at `f e`, but if a subtyping
+  constraint at `e` needs the `lemma` too, you would need to write
+  `(f (e ? lemma)) ? lemma`.
+  In comparison, the latter option is blunter: it inserts the type in all
+  locations where the binder is in scope, so a single binding inserts it into
+  both `e` and `f e` in this example.
 - The dead binding approach also has the advantage that the lemmas appear
   with their given names in the environments that show up in error messages.
