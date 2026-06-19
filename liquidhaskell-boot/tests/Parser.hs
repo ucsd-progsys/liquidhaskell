@@ -517,17 +517,17 @@ testErrorReporting =
               , "1 | assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignPtrN a n "
               , "  |                                             ^"
               , "unexpected '('"
-              , "expecting \"->\", \"=>\", end of input, mmonoPredicateP, or predicatesP"
+              , "expecting \"->\", \"=>\", bareTyArgP, end of input, mmonoPredicateP, or predicatesP"
               ]
     , testCase "Missing |" $
           parseSingleSpec "ff :: {v:Nat  v >= 0 }" @?==
             unlines
-              [ "<test>:1:17:"
+              [ "<test>:1:9:"
               , "  |"
               , "1 | ff :: {v:Nat  v >= 0 }"
-              , "  |                 ^^"
-              , "unexpected \">=\""
-              , "expecting \"->\", \"<:\", \"=>\", '|', bareTyArgP, mmonoPredicateP, or monoPredicateP"
+              , "  |         ^"
+              , "unexpected ':'"
+              , "expecting \"!=\", \"!~\", \"&&\", \"/=\", \"<=\", \"<=>\", \"==\", \"==>\", \"=>\", \">=\", \"_|_\", \"false\", \"mod\", \"true\", \"||\", \"~~\", '$', '(', '*', '+', '-', '.', '/', '<', '=', '>', '[', '_', '}', float literal, letter, nat literal, or string literal"
               ]
     ]
 
