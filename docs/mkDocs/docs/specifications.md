@@ -830,6 +830,15 @@ Decreasing expressions can be arbitrary refinement expressions, e.g.,
 states that at each recursive call of `merge` the _sum of the lengths_
 of its arguments will decrease.
 
+When using a reflected function instead of a measure (like `llen` above) in a metric,
+the reflected function is not automatically applied to the subterms
+of a pattern-matched argument, possibly making the termination check fail.
+In this case you can use a [_lemma_ to manually inject the reflected function's
+value on the subterms](#for-termination) into the constraint environment.
+[Measures](#specifying-measures) lack this problem because their definition
+is automatically unfolded on each subterm after a pattern match,
+making those values immediately available in the constraint environment.
+
 ### Lexicographic Termination Metrics
 
 Some functions do not decrease on a single argument, but rather a
@@ -1246,3 +1255,61 @@ Note that there are some differences between the two approaches:
   so `let lemma0 = lemma in f e` applies the `lemma` to both `e` and `f e`.
 - The binding approach has the advantage that the lemmas appear
   with their given names in the environments that show up in error messages.
+
+### For Termination
+
+When using reflected functions (instead of measures) in a
+[termination metric](#termination-metrics) you need to manually pass their value
+on pattern-matched subterms to make them available to the constraint environment,
+so that the decreasing condition can be checked.
+
+For example, this will fail to check termination
+
+```haskell
+{-@ LIQUID "--ple" @-}
+
+{-@ reflect ms @-}
+{-@ ms :: [[Int]] -> Nat @-}
+ms :: [[Int]] -> Int
+ms [] = 0
+ms (x:xs) = 1 + m x + ms xs
+
+{-@ reflect m @-}
+{-@ m :: xs:[Int] -> {v:Nat | len xs = v}  @-}
+m :: [Int] -> Int
+m [] = 0
+m (_:xs) = 1 + m xs
+
+{-@ f :: xs:[[Int]] -> Int / [ms xs] @-}
+f :: [[Int]] -> Int
+f [] = 0
+f (x:xs) =
+  case drop 1 x of
+    [] -> 1 + f xs
+    y -> 1 + f (y:xs)
+```
+
+unless you add a lemma for each value of the reflected functions on the intervening (sub)terms,
+using either of the aforementioned techniques:
+
+```haskell
+f (x:xs) =
+  let lemma0 = ms xs
+      lemma1 = m x
+   in case drop 1 x of
+     [] -> 1 + f xs
+     y  -> let lemma2 = ms (y:xs)
+               lemma3 = m y
+            in 1 + f (y : xs)
+
+-- or
+
+f (x:xs) =
+  case drop 1 x of
+    [] -> 1 + f (xs ? ms xs ? m x)
+    y  -> 1 + f ((y : xs) ? ms (y : xs) ? m y ? m x ? ms xs)
+```
+
+Replacing `reflect` by `measure` above would make these lemmas unnecessary,
+but the example illustrates the general technique for cases where a function
+cannot be used as a measure.
