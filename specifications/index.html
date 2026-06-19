@@ -1116,6 +1116,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#using-lemmas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using Lemmas
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2829,6 +2840,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#using-lemmas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using Lemmas
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3751,6 +3773,55 @@ data Val where
            -&gt; Ix Val (TFun t1 t2) @-}
   VFun :: Ty -&gt; Ty -&gt; (Val -&gt; Val) -&gt; Val
 </code></pre>
+<h2 id="using-lemmas">Using Lemmas<a class="headerlink" href="#using-lemmas" title="Permanent link">&para;</a></h2>
+<p>Sometimes additional context information is needed to verify a specification.
+To accomplish this, we can use <a href="https://en.wikipedia.org/wiki/Lemma_(mathematics)">lemmas</a>.</p>
+<p>The <code>Language.Haskell.Liquid.ProofCombinators</code> module provides the <code>?</code> combinator,
+which is an infix variant of <code>const</code> optimized to pass the post-condition of its
+second argument to the constraint environment of its first argument.
+For instance, <code>e ? lemma</code> makes the post-condition of <code>lemma</code>
+available when checking expression <code>e</code>.</p>
+<p>Schematically, <code>?</code> allows to use the <code>q x</code> to check that <code>e</code> satisfies <code>p x e</code>
+in the following function.</p>
+<pre><code class="language-haskell">f :: x:t0 -&gt; {v:t1 | p x v}
+f x = e ? lemma x
+
+lemma :: y:t0 -&gt; { q y }
+lemma = ...
+</code></pre>
+<p>Bindings inside a <code>where</code> clause or <code>let</code> expression can be used
+to accomplish this as well:</p>
+<pre><code class="language-haskell">f :: x:t0 -&gt; {v:t1 | p x v}
+f x = e
+  where
+    -- the lemma0 binding is unused by e, but it is still available
+    -- for Liquid Haskell to use it
+    lemma0 = lemma x
+
+-- alternatively
+
+f :: x:t0 -&gt; {v:t1 | p x v}
+f x =
+  let -- the lemma0 binding is unused by e, but it is still available
+      -- for Liquid Haskell to use it
+      lemma0 = lemma x
+   in e
+</code></pre>
+<p>Note that there are some differences between the two approaches:</p>
+<ul>
+<li>Scope: <code>?</code> inserts the lemma's post-condition into the constraint environment
+  of the expression's value (<code>e</code> in the examples above) only,
+  for example:
+  <code>(f e) ? lemma</code> passes <code>lemma</code>'s post-condition to <code>f e</code> constraint environment,
+  but if a subtyping constraint at <code>e</code> needs the <code>lemma</code> too, you would need to write
+  <code>(f (e ? lemma)) ? lemma</code>.
+  In comparison, the binding approach is less precise about where the lemma is inserted:
+  it makes its post-condition available in all the constraint environments generated
+  at locations having the binder in scope,
+  so <code>let lemma0 = lemma in f e</code> applies the <code>lemma</code> to both <code>e</code> and <code>f e</code>.</li>
+<li>The binding approach has the advantage that the lemmas appear
+  with their given names in the environments that show up in error messages.</li>
+</ul>
 
 
 
