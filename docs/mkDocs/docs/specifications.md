@@ -1188,3 +1188,61 @@ data Val where
            -> Ix Val (TFun t1 t2) @-}
   VFun :: Ty -> Ty -> (Val -> Val) -> Val
 ```
+
+## Using Lemmas
+
+Sometimes additional context information is needed to verify a specification.
+To accomplish this, we can use [lemmas](https://en.wikipedia.org/wiki/Lemma_(mathematics)).
+
+The `Language.Haskell.Liquid.ProofCombinators` module provides the `?` combinator,
+which is an infix variant of `const` optimized to pass the post-condition of its
+second argument to the constraint environment of its first argument.
+For instance, `e ? lemma` makes the post-condition of `lemma`
+available when checking expression `e`.
+
+Schematically, `?` allows to use the `q x` to check that `e` satisfies `p x e`
+in the following function.
+
+```haskell
+f :: x:t0 -> {v:t1 | p x v}
+f x = e ? lemma x
+
+lemma :: y:t0 -> { q y }
+lemma = ...
+```
+
+Bindings inside a `where` clause or `let` expression can be used
+to accomplish this as well:
+
+```haskell
+f :: x:t0 -> {v:t1 | p x v}
+f x = e
+  where
+    -- the lemma0 binding is unused by e, but it is still available
+    -- for Liquid Haskell to use it
+    lemma0 = lemma x
+
+-- alternatively
+
+f :: x:t0 -> {v:t1 | p x v}
+f x =
+  let -- the lemma0 binding is unused by e, but it is still available
+      -- for Liquid Haskell to use it
+      lemma0 = lemma x
+   in e
+```
+
+Note that there are some differences between the two approaches:
+
+- Scope: `?` inserts the lemma's post-condition into the constraint environment
+  of the expression's value (`e` in the examples above) only,
+  for example:
+  `(f e) ? lemma` passes `lemma`'s post-condition to `f e` constraint environment,
+  but if a subtyping constraint at `e` needs the `lemma` too, you would need to write
+  `(f (e ? lemma)) ? lemma`.
+  In comparison, the binding approach is less precise about where the lemma is inserted:
+  it makes its post-condition available in all the constraint environments generated
+  at locations having the binder in scope,
+  so `let lemma0 = lemma in f e` applies the `lemma` to both `e` and `f e`.
+- The binding approach has the advantage that the lemmas appear
+  with their given names in the environments that show up in error messages.
