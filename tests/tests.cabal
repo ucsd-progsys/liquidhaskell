@@ -2703,8 +2703,6 @@ executable typeclass-pos
     hs-source-dirs:   app
                     , typeclasses/pos
 
--- Sanity check that the --refcore pragma is accepted and extraction runs.
--- The full refcore test corpus lives in the lava package.
 flag refcore
      default: False
 
