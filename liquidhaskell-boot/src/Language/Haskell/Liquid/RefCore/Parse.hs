@@ -19,7 +19,6 @@ module Language.Haskell.Liquid.RefCore.Parse
 where
 
 import Control.Monad (filterM)
--- import GHC.Core.DataCon
 import Data.Bifunctor (first)
 import Data.List (sortOn)
 import Data.Set (fromList)

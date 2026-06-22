@@ -165,32 +165,45 @@ getModIdsAndImports sinfo = map modNameString $ filter (not . isStdLibModule) (s
     isStdLibModule m = any (`isPrefixOf` modNameString m) stdLibPrefixes
     stdLibPrefixes = ["GHC.", "Data.", "Control.", "System.", "Prelude", "Foreign.", "Text.", "Numeric.", "Language."]
 
+-- | The defining module name of a type constructor, if any.
+tyConPModule :: TyConP -> Maybe ModuleName
+tyConPModule tcp = moduleName <$> nameModule_maybe (tyConName (tcpCon tcp))
+
+-- | The defining module name of a variable, if any.
+varModule :: Var -> Maybe ModuleName
+varModule v = moduleName <$> nameModule_maybe (varName v)
+
+-- | Whether a type constructor is defined in the named module.
+tyConPFromModule :: String -> TyConP -> Bool
+tyConPFromModule modStr tcp = maybe False ((== modStr) . moduleNameString) (tyConPModule tcp)
+
+-- | Whether a variable is defined in the named module.
+varFromModule :: String -> Var -> Bool
+varFromModule modStr v = maybe False ((== modStr) . moduleNameString) (varModule v)
+
 filterLocalPData :: ModuleName -> PData -> PData
 filterLocalPData modName pd = pd {pdTyCons = filteredTyCons, pdCtors = filteredCtors}
   where
     filteredTyCons = filter isLocalTC (pdTyCons pd)
     filteredCtors = filter (isLocalCtor . fst) (pdCtors pd)
-    isLocalTC tcp = maybe True ((== modName) . moduleName) $ nameModule_maybe (tyConName (tcpCon tcp))
-    isLocalCtor v = maybe True ((== modName) . moduleName) $ nameModule_maybe (varName v)
+    isLocalTC tcp = maybe True (== modName) (tyConPModule tcp)
+    isLocalCtor v = maybe True (== modName) (varModule v)
 
 filterPDataForModule :: String -> PData -> PData
-filterPDataForModule modStr pd = pd {pdTyCons = filter isFromMod (pdTyCons pd), pdCtors = filter (isFromMod' . fst) (pdCtors pd)}
-  where
-    isFromMod tcp = maybe False ((== modStr) . moduleNameString . moduleName) $ nameModule_maybe (tyConName (tcpCon tcp))
-    isFromMod' v = maybe False ((== modStr) . moduleNameString . moduleName) $ nameModule_maybe (varName v)
+filterPDataForModule modStr pd =
+  pd {pdTyCons = filter (tyConPFromModule modStr) (pdTyCons pd), pdCtors = filter (varFromModule modStr . fst) (pdCtors pd)}
 
 mkImportDecl :: Id -> PData -> [(Var, F.Located SpecType)] -> String -> Calc.Decl
 mkImportDecl moduleId allPData rawSpecs modName = Calc.Import modName (dataDs ++ defDs)
   where
     dataDs = parsePData moduleId (filterPDataForModule modName allPData)
-    defDs = map mkDefStub $ filter (isFromModule modName . fst) rawSpecs
+    defDs = map mkDefStub $ filter (varFromModule modName . fst) rawSpecs
     mkDefStub (v, locSpec) =
       Calc.Definition
         (stripLegalName moduleId (show (varName v)))
         (SLH.transSig moduleId Nothing (F.val locSpec))
         (Calc.Reft (Calc.Var "imported" Nothing Calc.Global))
         False
-    isFromModule modStr v = maybe False ((== modStr) . moduleNameString . moduleName) $ nameModule_maybe (varName v)
 
 pairLHDefsWithSigs :: Id -> [CLH.Def] -> M.Map Id Calc.RefType -> [Var] -> [(CLH.Def, Maybe Calc.RefType, Bool)]
 pairLHDefsWithSigs modId defs specMap reflectedDecls = map single defs

@@ -7,12 +7,6 @@ module Language.Haskell.Liquid.RefCore.CoreToLH (transBind, Def (..)) where
 
 import Control.Exception (assert)
 import Data.Bifunctor (first, second)
--- import           Data.Char (isUpper)
-
--- import GHC.Parser.Annotation
--- import GHC.Types.Var hiding (Id)
--- import GHC.Types.SrcLoc
-
 import Data.Char (isDigit)
 import Data.Data (Data, showConstr, toConstr)
 import qualified Data.HashMap.Strict as HM
@@ -55,10 +49,7 @@ data Def = Def
   }
   deriving (Eq, Show)
 
--- TODO move these to Calculus
-
 -- | A case branch in Calculus format
--- TODO convert to Data type with named fields for better readability
 type Branch = ((Id, [(Id, Bool)]), Maybe Calc.Expr)
 
 brCon :: Branch -> Id
@@ -240,11 +231,11 @@ transApp modId infTypes f app = letBinders $ transFlattenedApp appHead sArgs
 transCase :: (CoreBinder b) => Id -> AnnInfo SpecType -> Id -> Expr b -> [Alt b] -> Calc.Expr
 transCase modId infTypes f e [] = trans modId infTypes f e
 -- TODO: we now support match on simple terms, so change mkCase to support it
-transCase modId infTypes f e alts = case eT of
-  Calc.Reft (Calc.Var x' _ _) -> mkCase f x' branches
-  Calc.Reft {} -> Calc.Let y Nothing eT (mkCase f y branches)
-  _ -> error $ "unexpected case: case " ++ prettyShow eT ++ " of \n" ++ intercalate "\n" (map show branches)
+transCase modId infTypes f e alts = mkCaseExpr eT
   where
+    mkCaseExpr (Calc.Reft (Calc.Var x' _ _)) = mkCase f x' branches
+    mkCaseExpr (Calc.Reft {}) = Calc.Let y Nothing eT (mkCase f y branches)
+    mkCaseExpr _ = error $ "unexpected case: case " ++ prettyShow eT ++ " of \n" ++ intercalate "\n" (map show branches)
     eT = trans modId infTypes f e
     y = "x_" ++ hashName eT
     branches = map (altToClause modId infTypes f) alts
@@ -320,9 +311,8 @@ mkCase f x = transCaseExpr (Just f) x False
 collapseUnproductiveMatches :: Branch -> Branch
 collapseUnproductiveMatches = modifyBrBody go
   where
-    go e = case e of
-      Calc.Case x branches b -> Calc.Case x (map collapseUnproductiveMatches branches) b
-      _ -> e
+    go (Calc.Case x branches b) = Calc.Case x (map collapseUnproductiveMatches branches) b
+    go e = e
 
 -- | remove redundant branches/matches from a pattern match
 transCaseExpr :: Maybe Id -> Id -> Bool -> [Branch] -> Calc.Expr
@@ -342,21 +332,17 @@ transCaseExpr = recurse []
             )
             cases'
         res = caseOrInduct indVar branches
-        {- res = case branches of
-          _ -> caseOrInduct indVar branches -}
         (cutCases, substs) = cutRedundantBranches indVar prevPats cases
         cleanedCases = map collapseUnproductiveMatches cutCases
         isRecursive :: Calc.Expr -> Bool
         isRecursive e = maybe False (`occursFreeIn` e) fO
         branches = map (modifyBrBody transBranchE) cleanedCases
         transBranchE :: Calc.Expr -> Calc.Expr
-        transBranchE e = case e of
-          Calc.Case (Calc.Var x _ _) css _ -> recurse prevPats fO x (isRecursive e) css
-          Calc.Let x tpx def' tm -> Calc.Let x tpx (transBranchE def') (transBranchE tm)
-          _ -> e
+        transBranchE e@(Calc.Case (Calc.Var x _ _) css _) = recurse prevPats fO x (isRecursive e) css
+        transBranchE   (Calc.Let x tpx def' tm) = Calc.Let x tpx (transBranchE def') (transBranchE tm)
+        transBranchE e = e
         caseOrInduct :: Id -> [Branch] -> Calc.Expr
         caseOrInduct x brs = Calc.Case (Calc.mkVar x) brs Nothing
-    -- anyIsRec = if isRec || any (maybe False isRecursive . brBody) branches then Calc.Induct [] else Calc.Destruct
 
     -- \| Remove cases from nested matches whose patterns contradict the current branch's pattern in an ambient match
     cutRedundantBranches :: Id -> [(Id, (Id, [Id]))] -> [Branch] -> ([Branch], [(Id, Calc.Reft)])

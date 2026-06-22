@@ -1,5 +1,3 @@
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE LambdaCase #-}
 {-# OPTIONS_GHC -Wall #-}
 
 module Language.Haskell.Liquid.RefCore.SpecToLH (transSig, transType, showppStripped, bops, builtinDCs, builtinTCs, InternalCont (..)) where
@@ -35,20 +33,22 @@ showppStripped :: (PPrint a) => Id -> a -> String
 showppStripped modId = stripLegalName modId . F.showpp
 
 data InternalCont = ConstrArgsCtx (Maybe Id) [Id]
-  deriving stock (Show)
+  deriving (Show)
 
 -- TODO: replace with something that uses notations as defined in liquidhaskell source
 internalConstrRef :: (PPrint a) => Id -> a -> Reader InternalCont Bool
-internalConstrRef modId s = asks $ \case
-  ConstrArgsCtx Nothing _ -> False
-  ConstrArgsCtx (Just c) args -> case parseConstrPred modId s of
-    (Just "is", _) -> True
-    _ -> case getFuncArgName modId s of
-      (Just c', _) | stripLegalName modId c' == c -> True
-      (Just x, _) | x `elem` args -> False
-      (Just c', x) -> showppStripped modId c' `elem` c : args && x `elem` args
-      (Nothing, "") -> True
-      _ -> False
+internalConstrRef modId s = asks go
+  where
+    go (ConstrArgsCtx Nothing _) = False
+    go (ConstrArgsCtx (Just c) args) = checkPred (parseConstrPred modId s)
+      where
+        checkPred (Just "is", _) = True
+        checkPred _ = checkArg (getFuncArgName modId s)
+        checkArg (Just c', _) | stripLegalName modId c' == c = True
+        checkArg (Just x, _) | x `elem` args = False
+        checkArg (Just c', x) = showppStripped modId c' `elem` c : args && x `elem` args
+        checkArg (Nothing, "") = True
+        checkArg _ = False
 
 getFuncArgName :: (PPrint a) => Id -> a -> (Maybe Id, Id)
 getFuncArgName modId symb = go sym
@@ -108,17 +108,13 @@ transType modId intCont (RFun f _ arg ret _) =
     retTp' = transType modId intCont ret
 -- \| Forall?
 transType modId intCont (RAllT (RTVar (RTV n) _) typ ref) =
-  case transType modId intCont typ of
-    Calc.RefType _ tp _ -> Calc.RefType x tp r
-    arr@Calc.ArrType {} -> Calc.ArrType x arr (Calc.RefType "_" Calc.unitTp r)
+  wrapWith x r (transType modId intCont typ)
   where
     x = showName modId n
     r = transRef modId intCont x ref
 -- \| Abstract refinements
 transType modId intCont (RAllP (PV n _ _) typ) =
-  case transType modId intCont typ of
-    Calc.RefType _ tp _ -> Calc.RefType x tp Calc.ttTm
-    arr@Calc.ArrType {} -> Calc.ArrType x arr (Calc.RefType "_" Calc.unitTp Calc.ttTm)
+  wrapWith x Calc.ttTm (transType modId intCont typ)
   where
     x = showName modId n
 -- \| Application of type constructor/builtin to types
@@ -132,6 +128,13 @@ transType _ _ (RExprArg {}) = unsupported "transType: unsupported RExprArg"
 transType _ _ (RAppTy {}) = unsupported "transType: unsupported RAppTy"
 transType _ _ (RRTy {}) = unsupported "transType: unsupported RRTy"
 transType _ _ (RHole {}) = unsupported "transType: unsupported RHole"
+
+-- | Re-bind a translated type under the name @x@ with refinement @reft@:
+-- on a base type it replaces the refinement, on an arrow it wraps the whole
+-- arrow as a unit-typed refined argument.
+wrapWith :: Id -> Calc.Reft -> Calc.RefType -> Calc.RefType
+wrapWith x reft (Calc.RefType _ tp _) = Calc.RefType x tp reft
+wrapWith x reft arr@Calc.ArrType {} = Calc.ArrType x arr (Calc.RefType "_" Calc.unitTp reft)
 
 showName :: (Show a) => Id -> a -> String
 showName modId = transVarName modId . show
@@ -191,46 +194,36 @@ transExp modId binder = transExpr
           | s /= binder, c : _ <- s, isUpper c = Calc.DC s
           | otherwise = Calc.mkVar s
     transExpr :: F.Expr -> Reader InternalCont Calc.Reft
-    transExpr term =
-      ifM (internal modId term) (pure Calc.ttTm) $
-        case term of
-          F.PAtom brel e1 e2 ->
-            Calc.Bop (transBrel brel) <$> transExpr e1 <*> transExpr e2
-          app@(F.EApp {}) -> case flattenFixApp app of
-            (F.EVar f, ts) -> do
-              args <- mapM transExpr ts
-              pure $ foldl Calc.App (mkVarOrDC (transVarName modId f)) args
-            (other, _) -> unsupported $ "Expected variable at head of application in transExp, got: " ++ F.showpp other
-          F.EVar sym -> pure $ mkVarOrDC (transVarName modId sym)
-          F.PAnd es -> do
-            refs' <- filterM (fmap not . internalConstrRef modId) es
-            refs'' <- mapM transExpr refs'
-            pure $ case refs'' of
-              [] -> Calc.ttTm
-              rs -> foldl1 (Calc.Bop Calc.And) rs
-          F.POr es -> do
-            rs <- mapM transExpr es
-            pure $ case rs of
-              [] -> Calc.ttTm -- TODO: [LP] An empty disjunction should be false no?
-              rs' -> foldl1 (Calc.Bop Calc.Or) rs'
-          F.PIff ante concl ->
-            Calc.Bop Calc.Iff <$> transExpr ante <*> transExpr concl
-          F.PImp ante concl ->
-            Calc.Bop Calc.Impl <$> transExpr ante <*> transExpr concl
-          F.ECon (F.I i) -> pure $ Calc.IntLit i
-          F.ECon (F.R d) -> pure $ Calc.FloatLit d
-          F.ECon (F.L str _) -> pure . Calc.StringLit $ show str
-          F.PNot form -> Calc.Neg <$> transExpr form
-          F.EBin f e1 e2
-            | Just bop <- M.lookup (F.showpp f) bops ->
-                Calc.Bop bop <$> transExpr e1 <*> transExpr e2
-          F.EIte cond thenE elseE -> do
-            cTm <- transExpr cond
-            tTm <- transExpr thenE
-            eTm <- transExpr elseE
-            pure $ Calc.Bop Calc.Or (Calc.Bop Calc.And cTm tTm) (Calc.Bop Calc.And (Calc.Neg cTm) eTm)
-          F.ESym sym -> unsupported $ "Uninterpreted symbol encountered: " ++ show sym
-          _ -> unsupported $ "Undefined expr translation: \n" ++ F.showpp term
+    transExpr term = ifM (internal modId term) (pure Calc.ttTm) (go term)
+    go :: F.Expr -> Reader InternalCont Calc.Reft
+    go (F.PAtom brel e1 e2) =
+      Calc.Bop (transBrel brel) <$> transExpr e1 <*> transExpr e2
+    go app@(F.EApp {}) = goApp (flattenFixApp app)
+    go (F.EVar sym) = pure $ mkVarOrDC (transVarName modId sym)
+    go (F.PAnd es) = foldAnds <$> (mapM transExpr =<< filterM (fmap not . internalConstrRef modId) es)
+    go (F.POr es) = foldOrs <$> mapM transExpr es
+    go (F.PIff ante concl) = Calc.Bop Calc.Iff <$> transExpr ante <*> transExpr concl
+    go (F.PImp ante concl) = Calc.Bop Calc.Impl <$> transExpr ante <*> transExpr concl
+    go (F.ECon (F.I i)) = pure $ Calc.IntLit i
+    go (F.ECon (F.R d)) = pure $ Calc.FloatLit d
+    go (F.ECon (F.L str _)) = pure . Calc.StringLit $ show str
+    go (F.PNot form) = Calc.Neg <$> transExpr form
+    go (F.EBin f e1 e2)
+      | Just bop <- M.lookup (F.showpp f) bops =
+          Calc.Bop bop <$> transExpr e1 <*> transExpr e2
+    go (F.EIte cond thenE elseE) = do
+      cTm <- transExpr cond
+      tTm <- transExpr thenE
+      eTm <- transExpr elseE
+      pure $ Calc.Bop Calc.Or (Calc.Bop Calc.And cTm tTm) (Calc.Bop Calc.And (Calc.Neg cTm) eTm)
+    go (F.ESym sym) = unsupported $ "Uninterpreted symbol encountered: " ++ show sym
+    go term = unsupported $ "Undefined expr translation: \n" ++ F.showpp term
+    goApp (F.EVar f, ts) = foldl Calc.App (mkVarOrDC (transVarName modId f)) <$> mapM transExpr ts
+    goApp (other, _) = unsupported $ "Expected variable at head of application in transExp, got: " ++ F.showpp other
+    foldAnds [] = Calc.ttTm
+    foldAnds rs = foldl1 (Calc.Bop Calc.And) rs
+    foldOrs [] = Calc.ttTm -- TODO: [LP] An empty disjunction should be false no?
+    foldOrs rs = foldl1 (Calc.Bop Calc.Or) rs
 
 flattenFixApp :: F.Expr -> (F.Expr, [F.Expr])
 flattenFixApp = go []

@@ -1,9 +1,7 @@
--- TODO: rename the module
-
 -- | Functions used in the translation from Core and Spec
 module Language.Haskell.Liquid.RefCore.Misc where
 
-import Data.List (intercalate, stripPrefix, uncons)
+import Data.List (intercalate, stripPrefix, uncons, unfoldr)
 import Data.Maybe (fromMaybe)
 import GHC.Core
 import Language.Haskell.Liquid.RefCore.Names (Id)
@@ -16,11 +14,15 @@ strip s = case split '.' s of
   parts -> last parts
 
 split :: Char -> Id -> [Id]
-split c s = case rest of
-  [] -> [chunk]
-  _ : tl -> chunk : split c tl
+split c = unfoldr go
   where
-    (chunk, rest) = break (== c) s
+    go [] = Nothing
+    go s = Just (chunk, drop 1 rest)
+      where
+        (chunk, rest) = break (== c) s
+
+startsWith :: Id -> Char -> Bool
+startsWith xs c = maybe False ((== c) . fst) (uncons xs)
 
 -- Get rid of module names.
 showStripped :: (Show a) => a -> Id
@@ -68,11 +70,10 @@ rocqReservedNames = [
 isIgnoredBind :: (Show b) => Bind b -> Bool
 isIgnoredBind bind = name `startsWith` '$' || name == "?"
   where
-    name = case bind of
-      NonRec b _ -> showStripped b
-      Rec ((b, _) : _) -> showStripped b
-      Rec [] -> "?"
-    startsWith xs c = case uncons xs of Just (c', _) -> c' == c; Nothing -> False
+    name = bindName bind
+    bindName (NonRec b _) = showStripped b
+    bindName (Rec ((b, _) : _)) = showStripped b
+    bindName (Rec []) = "?"
 
 -- * Generic list helpers
 

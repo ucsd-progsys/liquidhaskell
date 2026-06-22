@@ -2,7 +2,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE OrPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -259,9 +258,8 @@ fresh x tm = freshVar x (freeVars tm `Set.union` boundVars tm)
 -- > rename y x tm = {y/x}tm
 rename :: (HasVars a) => Id -> Id -> a -> a
 rename new old tm =
-  case Map.lookup old $ freeVarsAnnot tm of
-    Nothing -> tm
-    Just (tp, loc) -> subst (Var new tp loc) old tm
+  maybe tm (\(tp, loc) -> subst (Var new tp loc) old tm)
+    (Map.lookup old $ freeVarsAnnot tm)
 
 -- | Apply a list of renamings, starting from the right
 renames :: (HasVars a) => [(Id, Id)] -> a -> a
@@ -292,16 +290,15 @@ instance HasVars Reft where
   boundVars (Inj r tp) = boundVars r `Set.union` boundVars tp
   boundVars (Proj _ r) = boundVars r
 
-  subst r' x r0 = case r0 of
-    Var y _ _ | y == x -> r'
-    (Var {}; StringLit _; IntLit _; FloatLit _; DC _) -> r0
-    App h arg -> App (subst r' x h) (subst r' x arg)
-    Bop bop r1 r2 -> Bop bop (subst r' x r1) (subst r' x r2)
-    Neg r -> Neg $ subst r' x r
-    Pop pop r1 r2 -> Pop pop (subst r' x r1) (subst r' x r2)
-    Sub r tps tpt -> Sub (subst r' x r) (subst r' x tps) (subst r' x tpt)
-    Inj r tp -> Inj (subst r' x r) (subst r' x tp)
-    Proj kind r -> Proj kind (subst r' x r)
+  subst r' x (Var y _ _) | y == x = r'
+  subst _  _ r0@(Var {}; StringLit _; IntLit _; FloatLit _; DC _) = r0
+  subst r' x    (App h arg) = App (subst r' x h) (subst r' x arg)
+  subst r' x    (Bop bop r1 r2) = Bop bop (subst r' x r1) (subst r' x r2)
+  subst r' x    (Neg r) = Neg $ subst r' x r
+  subst r' x    (Pop pop r1 r2) = Pop pop (subst r' x r1) (subst r' x r2)
+  subst r' x    (Sub r tps tpt) = Sub (subst r' x r) (subst r' x tps) (subst r' x tpt)
+  subst r' x    (Inj r tp) = Inj (subst r' x r) (subst r' x tp)
+  subst r' x    (Proj kind r) = Proj kind (subst r' x r)
 
 instance HasVars Expr where
   freeVarsAnnot (Reft r) = freeVarsAnnot r
@@ -322,31 +319,30 @@ instance HasVars Expr where
       bvBranch ((_, ys), e) = Set.fromList (map fst ys) `Set.union` boundVars e
   boundVars (QMark r rh rp) = boundVars [r, rh, Reft rp]
 
-  subst r x e = case e of
-    Reft re -> Reft $ subst r x re
-    Let y tp ey e' | y == x -> Let y (subst r x tp) (subst r x ey) e'
-    Let y tp ey e'
-      | y `Set.member` freeVars r && x `Set.member` freeVars e' ->
-          let z = freshVar y fvre in Let z (subst r x tp) (subst r x ey) (subst r x $ rename z y e')
-    Let y tp ey e' -> Let y (subst r x tp) (subst r x ey) (subst r x e')
-    Case r' branches genVars ->
-      Case (subst r x r') (map substBranch branches) genVars
-      where
-        substBranch br@((_, ys), ebr)
-          | x `elem` map fst ys || maybe True (notElem x . freeVars) ebr = br
-        substBranch ((c, ys), ebr) =
-          let freshYs = foldr freshVars [] ys
-              α = filter (uncurry (/=)) $ zipWith (\(y, _) z -> (z, y)) ys freshYs
-              ys' = zipWith (\(_, b) z -> (z, b)) ys freshYs
-           in ((c, ys'), subst r x $ renames α ebr)
-          where
-            freshVars (y, _) vars =
-              if y `elem` freeVars r
-                then freshVar y (fvre `Set.union` Set.fromList vars) : vars
-                else y : vars
-    QMark r' rh rp -> QMark (subst r x r') (subst r x rh) (subst r x rp)
+  subst r x (Reft re) = Reft $ subst r x re
+  subst r x (Let y tp ey e')
+    | y == x = Let y (subst r x tp) (subst r x ey) e'
+    | y `Set.member` freeVars r && x `Set.member` freeVars e' =
+        Let z (subst r x tp) (subst r x ey) (subst r x $ rename z y e')
+    | otherwise = Let y (subst r x tp) (subst r x ey) (subst r x e')
     where
-      fvre = freeVars r `Set.union` freeVars e
+    z = freshVar y (freeVars r `Set.union` freeVars (Let y tp ey e'))
+  subst r x (Case r' branches genVars) =
+    Case (subst r x r') (map substBranch branches) genVars
+    where
+    substBranch br@((_, ys), ebr)
+      | x `elem` map fst ys || maybe True (notElem x . freeVars) ebr = br
+    substBranch ((c, ys), ebr) = ((c, ys'), subst r x $ renames α ebr)
+      where
+      freshYs = foldr freshVars [] ys
+      α = filter (uncurry (/=)) $ zipWith (\(y, _) z -> (z, y)) ys freshYs
+      ys' = zipWith (\(_, b) z -> (z, b)) ys freshYs
+      freshVars (y, _) vars =
+        if y `elem` freeVars r
+          then freshVar y (fvre `Set.union` Set.fromList vars) : vars
+          else y : vars
+      fvre = freeVars r `Set.union` freeVars (Case r' branches genVars)
+  subst r x (QMark r' rh rp) = QMark (subst r x r') (subst r x rh) (subst r x rp)
 
 instance HasVars RefType where
   freeVarsAnnot (RefType x _ r) = Map.delete x (freeVarsAnnot r)
@@ -356,15 +352,15 @@ instance HasVars RefType where
   boundVars (RefType x _ r) = Set.singleton x `Set.union` boundVars r
   boundVars (ArrType x tpx tp) = Set.singleton x `Set.union` boundVars [tpx, tp]
 
-  subst r x tp = case tp of
-    RefType y _ _ | y == x -> tp
-    RefType y b reft -> RefType y b $ subst r x reft
-    ArrType y tpy tp' | y == x -> ArrType y (subst r x tpy) tp'
-    ArrType y tpy tp'
-      | y `Set.member` freeVars r && x `Set.member` freeVars tp' ->
-          let z = freshVar y (freeVars r `Set.union` freeVars tp)
-           in ArrType z (subst r x tpy) (subst r x $ rename z y tp')
-    ArrType y tpy tp' -> ArrType y (subst r x tpy) (subst r x tp')
+  subst _ x tp@(RefType y _ _) | y == x = tp
+  subst r x    (RefType y b reft) = RefType y b $ subst r x reft
+  subst r x    (ArrType y tpy tp')
+    | y == x = ArrType y (subst r x tpy) tp'
+    | y `Set.member` freeVars r && x `Set.member` freeVars tp' =
+        ArrType z (subst r x tpy) (subst r x $ rename z y tp')
+    | otherwise = ArrType y (subst r x tpy) (subst r x tp')
+    where
+    z = freshVar y (freeVars r `Set.union` freeVars (ArrType y tpy tp'))
 
 instance (HasVars a) => HasVars [a] where
   freeVarsAnnot tms = Map.unions $ map freeVarsAnnot tms
@@ -445,14 +441,6 @@ bopPrec Iff = 1
 popPrec :: ProofOp -> Rational
 popPrec _ = 4
 
-{- -- | Prints a function applied to arguments with parenthesis if needed
---
--- > pPrintFunc p "f" [x, y] = f (x, y)
-pPrintFunc :: Rational -> String -> [Doc] -> Doc
-pPrintFunc _ f [] = text f
-pPrintFunc p f args =
-  maybeParens (p > appPrec) $ text f <+> parens (hsep $ punctuate comma args) -}
-
 -- ** Instances
 
 instance Pretty Builtin where
@@ -528,22 +516,21 @@ instance Pretty Localization where
   pPrint (Recursive indVar _) = char 'Y' <+> text indVar
 
 instance Show Bop where
-  show op = case op of
-    Mod -> "`mod`"
-    Plus -> "+"
-    Minus -> "-"
-    Times -> "*"
-    Div -> "/"
-    Eq -> "=="
-    Neq -> "/="
-    Leq -> "<="
-    Geq -> ">="
-    Lt -> "<"
-    Gt -> ">"
-    And -> "&&"
-    Or -> "||"
-    Impl -> "=>"
-    Iff -> "<=>"
+  show Mod = "`mod`"
+  show Plus = "+"
+  show Minus = "-"
+  show Times = "*"
+  show Div = "/"
+  show Eq = "=="
+  show Neq = "/="
+  show Leq = "<="
+  show Geq = ">="
+  show Lt = "<"
+  show Gt = ">"
+  show And = "&&"
+  show Or = "||"
+  show Impl = "=>"
+  show Iff = "<=>"
 
 instance Pretty Bop where
   pPrint = text . show
