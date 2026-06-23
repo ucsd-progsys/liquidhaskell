@@ -830,9 +830,9 @@ Decreasing expressions can be arbitrary refinement expressions, e.g.,
 states that at each recursive call of `merge` the _sum of the lengths_
 of its arguments will decrease.
 
-Consider that when using _reflected_ functions in a metric you might need to
-[use a _lemma_ to manually inject additional post-conditions](#for-termination)
-into the constraint environment for the termination check to succeed.
+Consider that you might need to [use a _lemma_ to manually inject additional
+post-conditions](#lemmas-for-termination-checks) into the constraint environment
+for the termination check to succeed.
 
 ### Lexicographic Termination Metrics
 
@@ -1254,7 +1254,7 @@ Note that there are some differences between the two approaches:
 ### Lemmas for termination checks
 
 Sometimes proving termination with [termination metrics](#termination-metrics)
-might need to introduce lemmas too. This might be because the metrics use non-linear
+needs to introduce lemmas too. This might be because the metrics use non-linear
 arithmetic, or because the proof obligations require facts not available by
 default.
 
@@ -1292,7 +1292,6 @@ ms (y:xs) >= 0 -- (2)
 ```
 
 And then termination checks also require that the metrics decrease.
-
 
 ```haskell
 ms ([]:xs) > ms xs -- (3)
@@ -1357,6 +1356,9 @@ import Language.Haskell.Liquid.ProofCombinators ((?))
 f ([]:xs) = 1 + f (xs ? ms xs)
 f ((_:y):xs) = 1 + f ((y:xs) ? ms (y:xs))
 ```
+
+Essentially, `v ? ms (y:xs)` (or `_lemma1 = ms (y:xs)` for every location in scope)
+provides LH a proof of `{v:Int | v == ms (y:xs) && v >= 0}`.
 
 Alternatively, replacing `reflect` by `measure` makes the lemmas unnecessary,
 since measures do make the required facts available when checking the conditions.
