@@ -1278,10 +1278,8 @@ m (_:xs) = 1 + m xs
 {-@ f :: xs:[[Int]] -> Int / [ms xs] @-}
 f :: [[Int]] -> Int
 f [] = 0
-f (x:xs) =
-  case x of
-    []  -> 1 + f xs
-    _:y -> 1 + f (y:xs)
+f ([]:xs) = 1 + f xs
+f ((_:y):xs) = 1 + f (y:xs)
 ```
 
 The termination checks require firstly that the metric is non-negative
@@ -1297,34 +1295,32 @@ And then termination checks also require that the metrics decrease.
 
 
 ```haskell
-ms (x:xs) > ms xs -- (3)
+ms ([]:xs) > ms xs -- (3)
 
-ms (x:xs) > ms (y:xs) -- (4)
+ms ((_:y):xs) > ms (y:xs) -- (4)
 ```
 
 Now let's go over the reasoning that LH needs to prove each inequality.
 
 * (1) and (2) are true because `ms` produces a `Nat` value, where `Nat` stands for `{v:Int | v >= 0}`.
 
-* (3) is true because of the following proof
+* (3) is true because of the following proof.
 ```haskell
-ms (x:xs)
+ms ([]:xs)
 ==  -- unfolding ms (via ple)
-1 + m x + ms xs
+1 + m [] + ms xs
 >   -- 1 > 0
-m x + ms xs
->   -- m x produces a Nat
+m [] + ms xs
+==  -- unfolding m (via ple)
 ms xs
 ```
 
 * And (4) is true because of the following proof.
 ```haskell
-ms (x:xs)
+ms ((_:y):xs)
 ==  -- unfolding ms (via ple)
-1 + m x + ms xs
+1 + m (_:y) + ms xs
 >   -- 1 > 0
-m x + ms xs
-==  -- x matches _:y
 m (_:y) + ms xs
 ==  -- unfolding of m (via ple)
 1 + m y + ms xs
@@ -1332,10 +1328,9 @@ m (_:y) + ms xs
 ms (y:xs)
 ```
 
-Liquid Haskell can only check condition (4) without further lemmas though.
+Liquid Haskell can check conditions (3) and (4) without further lemmas.
 In the case of conditions (1) and (2), Liquid Haskell needs
-to be given the fact that `ms xs` produces a `Nat`. Condition (3)
-requires the fact that `m x` produces a `Nat`.
+to be given the facts that `ms xs` and `ms (y:xs)` produce a `Nat` respectively.
 
 Adding these facts as lemmas allows Liquid Haskell to check all of
 the conditions.
@@ -1344,13 +1339,12 @@ the conditions.
 {-@ f :: xs:[[Int]] -> Int / [ms xs] @-}
 f :: [[Int]] -> Int
 f [] = 0
-f (x:xs) =
-  case x of
-    []  -> 1 + f xs
-    _:y -> 1 + f (y:xs)
+f ([]:xs) = 1 + f xs
   where
-     _lemma0 = ms xs
-     _lemma1 = m x
+    _lemma0 = ms xs
+f ((_:y):xs) = 1 + f (y:xs)
+  where
+    _lemma1 = ms (y:xs)
 ```
 
 We can insert the lemmas with the `?` operator as well. In that case
@@ -1360,10 +1354,8 @@ we need to insert the lemmas at the argument of the recursive calls.
 import Language.Haskell.Liquid.ProofCombinators ((?))
 ...
 
-f (x:xs) =
-  case x of
-    []  -> 1 + f (xs ? ms xs)
-    _:y -> 1 + f ((y : xs) ? m x ? ms xs)
+f ([]:xs) = 1 + f (xs ? ms xs)
+f ((_:y):xs) = 1 + f ((y:xs) ? ms (y:xs))
 ```
 
 Alternatively, replacing `reflect` by `measure` makes the lemmas unnecessary,
