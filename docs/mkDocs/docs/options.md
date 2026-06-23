@@ -700,7 +700,7 @@ turned on as well.
 **Options:** `refcore`, `refcore-text`
 
 LiquidHaskell can extract a module's reflected definitions and refinement
-types into an intermediate ILH representation, to be consumption by
+types into an intermediate ILH representation, to be consumed by
 downstream tools (for example, enabling translation to Rocq). The output is written
 into the `.liquid` folder next to the source file, alongside LiquidHaskell's
 other generated artifacts.
