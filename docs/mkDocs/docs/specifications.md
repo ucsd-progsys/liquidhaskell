@@ -830,14 +830,9 @@ Decreasing expressions can be arbitrary refinement expressions, e.g.,
 states that at each recursive call of `merge` the _sum of the lengths_
 of its arguments will decrease.
 
-When using a reflected function instead of a measure (like `llen` above) in a metric,
-the reflected function is not automatically applied to the subterms
-of a pattern-matched argument, possibly making the termination check fail.
-In this case you can use a [_lemma_ to manually inject the reflected function's
-value on the subterms](#for-termination) into the constraint environment.
-[Measures](#specifying-measures) lack this problem because their definition
-is automatically unfolded on each subterm after a pattern match,
-making those values immediately available in the constraint environment.
+Consider that when using _reflected_ functions in a metric you might need to
+[use a _lemma_ to manually inject additional post-conditions](#for-termination)
+into the constraint environment for the termination check to succeed.
 
 ### Lexicographic Termination Metrics
 
@@ -1258,10 +1253,9 @@ Note that there are some differences between the two approaches:
 
 ### For Termination
 
-When using reflected functions (instead of measures) in a
-[termination metric](#termination-metrics) you need to manually pass their value
-on pattern-matched subterms to make them available to the constraint environment,
-so that the decreasing condition can be checked.
+When using reflected functions in a [termination metric](#termination-metrics)
+you need to explicitly pass their value on all terms that intervene as arguments
+to a recursive call.
 
 For example, this will fail to check termination
 
