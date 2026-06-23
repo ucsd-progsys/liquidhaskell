@@ -1330,7 +1330,6 @@ ms (y:xs)
 Liquid Haskell can check conditions (3) and (4) without further lemmas.
 In the case of conditions (1) and (2), Liquid Haskell needs
 to be given the facts that `ms xs` and `ms (y:xs)` produce a `Nat` respectively.
-
 Adding these facts as lemmas allows Liquid Haskell to check all of
 the conditions.
 
@@ -1346,8 +1345,10 @@ f ((_:y):xs) = 1 + f (y:xs)
     _lemma1 = ms (y:xs)
 ```
 
+Where, in general, `ms xs` constitutes a proof of `{v:Int | v == ms xs && v >= 0}`.
+
 We can insert the lemmas with the `?` operator as well. In that case
-we need to insert the lemmas at the argument of the recursive calls.
+we need to insert the lemmas at the arguments of the recursive calls.
 
 ```haskell
 import Language.Haskell.Liquid.ProofCombinators ((?))
@@ -1356,9 +1357,6 @@ import Language.Haskell.Liquid.ProofCombinators ((?))
 f ([]:xs) = 1 + f (xs ? ms xs)
 f ((_:y):xs) = 1 + f ((y:xs) ? ms (y:xs))
 ```
-
-Essentially, `v ? ms (y:xs)` (or `_lemma1 = ms (y:xs)` for every location in scope)
-provides LH a proof of `{v:Int | v == ms (y:xs) && v >= 0}`.
 
 Alternatively, replacing `reflect` by `measure` makes the lemmas unnecessary,
 since measures do make the required facts available when checking the conditions.
