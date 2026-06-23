@@ -1254,10 +1254,11 @@ Note that there are some differences between the two approaches:
 ### For Termination
 
 When using reflected functions in a [termination metric](#termination-metrics)
-you need to explicitly pass their value on all terms that intervene as arguments
-to a recursive call.
+you might need to explicitly pass their post-conditions on the terms
+that intervene as arguments to a recursive call.
 
-For example, this will fail to check termination
+Let's do a manual calculation to show why the following example fails to
+check termination on `f` and how to fix it:
 
 ```haskell
 {-@ LIQUID "--ple" @-}
@@ -1283,25 +1284,77 @@ f (x:xs) =
     y -> 1 + f (y:xs)
 ```
 
-unless you add a lemma for each value of the reflected functions on the intervening (sub)terms,
-using either of the aforementioned techniques:
+For termination check, Liquid Haskell unfolds the metric on the input value
+of the recursive equation of `f`
+
+```haskell
+ms (x:xs) = 1 + m x + ms xs
+```
+
+and on each recursive call argument
+
+```haskell
+-- first @drop 1 x@ case branch
+-- has two cases from 'ms' definition
+ms xs = case xs of
+  [] -> 0
+  (z:zs) -> 1 + m z + ms zs
+  
+-- second @drop 1 x@ case branch
+-- with @y == drop 1 x && not (null y)@
+ms (y:xs) =  1 + m y + ms xs
+```
+
+Then it tries to prove that the metric is a strictly decreasing natural number
+by comparing the metric of the input with that of all possible recursive arguments:
+
+```haskell
+-- (1)
+1 + m x + ms xs > 0 >= 0
+
+-- (2) with (z:zs) = xs
+1 + m x + ms xs > 1 + m z + ms zs >= 0
+
+-- (3) with y == drop 1 x && not (null y)
+1 + m x + ms xs > 1 + m y + ms xs  >= 0
+```
+
+Now let's go over the facts LH that needs to prove each inequality:
+
+1. Is true if both `m x` and `ms xs` are natural numbers,
+   as specified by `m` and `ms` post-conditions, respectively.
+2. Because `ms xs == 1 + m z + ms zs`, the metric can be shown to decrease
+   if `m x` is a natural number.
+   The non-negativity of the output can be derived from `ms xs` being a natural number.
+   Again, both conditions are specified by `m x` and `ms xs` post-conditions.
+3. It needs to reason about `drop`, for which it has an assumption implying that
+   `drop 1` results in the list length being reduced by one.
+   The post-condition of `m` says its value is equal to the length of the list,
+   so LH can derive `m x == m y + 1` from `m x` and `m y` post-conditions,
+   and thus `m x > m y`, proving the metric decreases.
+   For the non-negativity, it needs to both `m y` and `ms xs` to be natural numbers,
+   which is stated by their respective post-conditions.
+
+Because only the post-condition of the input (`ms (x:xs)`) available in the constraint environment,
+you need to manually provide the post-conditions of `m x`, `m y` and `ms xs`
+wherever they are needed.
+As show in the previous section, you can inject this post-conditions with lemmas
+using the `?` operator or bindings scoping over the required locations:
 
 ```haskell
 f (x:xs) =
-  let lemma0 = ms xs
-      lemma1 = m x
-   in case drop 1 x of
-     [] -> 1 + f xs
-     y  -> let lemma2 = ms (y:xs)
-               lemma3 = m y
-            in 1 + f (y : xs)
+  case drop 1 x of
+    [] -> 1 + f (xs ? m x ? ms xs)
+    y  -> 1 + f ((y : xs) ? m x ? m y ? ms xs)
 
 -- or
 
 f (x:xs) =
   case drop 1 x of
-    [] -> 1 + f (xs ? ms xs ? m x)
-    y  -> 1 + f ((y : xs) ? ms (y : xs) ? m y ? m x ? ms xs)
+    [] -> 1 + f xs
+    y  -> let lemma2 = m y in 1 + f (y : xs)
+ where lemma0 = ms xs
+       lemma1 = m x
 ```
 
 Replacing `reflect` by `measure` above would make these lemmas unnecessary,
