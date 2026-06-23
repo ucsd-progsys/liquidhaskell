@@ -1251,14 +1251,14 @@ Note that there are some differences between the two approaches:
 - The binding approach has the advantage that the lemmas appear
   with their given names in the environments that show up in error messages.
 
-### For Termination
+### Lemmas for termination checks
 
-When using reflected functions in a [termination metric](#termination-metrics)
-you might need to explicitly pass their post-conditions on the terms
-that intervene as arguments to a recursive call.
+Sometimes proving termination with [termination metrics](#termination-metrics)
+might need to introduce lemmas too. This might be because the metrics use non-linear
+arithmetic, or because the proof obligations require facts not available by
+default.
 
-Let's do a manual calculation to show why the following example fails to
-check termination on `f` and how to fix it:
+Consider the following example, where termination of function `f` fails.
 
 ```haskell
 {-@ LIQUID "--ple" @-}
@@ -1279,84 +1279,94 @@ m (_:xs) = 1 + m xs
 f :: [[Int]] -> Int
 f [] = 0
 f (x:xs) =
-  case drop 1 x of
-    [] -> 1 + f xs
-    y -> 1 + f (y:xs)
+  case x of
+    []  -> 1 + f xs
+    _:y -> 1 + f (y:xs)
 ```
 
-For termination check, Liquid Haskell unfolds the metric on the input value
-of the recursive equation of `f`
+The termination checks require firstly that the metric is non-negative
+on the argument of every recursive call to `f`.
 
 ```haskell
-ms (x:xs) = 1 + m x + ms xs
+ms xs >= 0 -- (1)
+
+ms (y:xs) >= 0 -- (2)
 ```
 
-and on each recursive call argument
+And then termination checks also require that the metrics decrease.
+
 
 ```haskell
--- first @drop 1 x@ case branch
--- has two cases from 'ms' definition
-ms xs = case xs of
-  [] -> 0
-  (z:zs) -> 1 + m z + ms zs
-  
--- second @drop 1 x@ case branch
--- with @y == drop 1 x && not (null y)@
-ms (y:xs) =  1 + m y + ms xs
+ms (x:xs) > ms xs -- (3)
+
+ms (x:xs) > ms (y:xs) -- (4)
 ```
 
-Then it tries to prove that the metric is a strictly decreasing natural number
-by comparing the metric of the input with that of all possible recursive arguments:
+Now let's go over the reasoning that LH needs to prove each inequality.
 
+* (1) and (2) are true because `ms` produces a `Nat` value, where `Nat` stands for `{v:Int | v >= 0}`.
+
+* (3) is true because of the following proof
 ```haskell
--- (1)
-1 + m x + ms xs > 0 >= 0
-
--- (2) with (z:zs) = xs
-1 + m x + ms xs > 1 + m z + ms zs >= 0
-
--- (3) with y == drop 1 x && not (null y)
-1 + m x + ms xs > 1 + m y + ms xs  >= 0
+ms (x:xs)
+==  -- unfolding ms (via ple)
+1 + m x + ms xs
+>   -- 1 > 0
+m x + ms xs
+>   -- m x produces a Nat
+ms xs
 ```
 
-Now let's go over the facts LH that needs to prove each inequality:
-
-1. Is true if both `m x` and `ms xs` are natural numbers,
-   as specified by `m` and `ms` post-conditions, respectively.
-2. Because `ms xs == 1 + m z + ms zs`, the metric can be shown to decrease
-   if `m x` is a natural number.
-   The non-negativity of the output can be derived from `ms xs` being a natural number.
-   Again, both conditions are specified by `m x` and `ms xs` post-conditions.
-3. It needs to reason about `drop`, for which it has an assumption implying that
-   `drop 1` results in the list length being reduced by one.
-   The post-condition of `m` says its value is equal to the length of the list,
-   so LH can derive `m x == m y + 1` from `m x` and `m y` post-conditions,
-   and thus `m x > m y`, proving the metric decreases.
-   For the non-negativity, it needs to both `m y` and `ms xs` to be natural numbers,
-   which is stated by their respective post-conditions.
-
-Because only the post-condition of the input (`ms (x:xs)`) available in the constraint environment,
-you need to manually provide the post-conditions of `m x`, `m y` and `ms xs`
-wherever they are needed.
-As show in the previous section, you can inject this post-conditions with lemmas
-using the `?` operator or bindings scoping over the required locations:
-
+* And (4) is true because of the following proof.
 ```haskell
+ms (x:xs)
+==  -- unfolding ms (via ple)
+1 + m x + ms xs
+>   -- 1 > 0
+m x + ms xs
+==  -- x matches _:y
+m (_:y) + ms xs
+==  -- unfolding of m (via ple)
+1 + m y + ms xs
+==  -- unfolding of ms (via ple)
+ms (y:xs)
+```
+
+Liquid Haskell can only check condition (4) without further lemmas though.
+In the case of conditions (1) and (2), Liquid Haskell needs
+to be given the fact that `ms xs` produces a `Nat`. Condition (3)
+requires the fact that `m x` produces a `Nat`.
+
+Adding these facts as lemmas allows Liquid Haskell to check all of
+the conditions.
+
+```Haskell
+{-@ f :: xs:[[Int]] -> Int / [ms xs] @-}
+f :: [[Int]] -> Int
+f [] = 0
 f (x:xs) =
-  case drop 1 x of
-    [] -> 1 + f (xs ? m x ? ms xs)
-    y  -> 1 + f ((y : xs) ? m x ? m y ? ms xs)
-
--- or
-
-f (x:xs) =
-  case drop 1 x of
-    [] -> 1 + f xs
-    y  -> let lemma2 = m y in 1 + f (y : xs)
- where lemma0 = ms xs
-       lemma1 = m x
+  case x of
+    []  -> 1 + f xs
+    _:y -> 1 + f (y:xs)
+  where
+     _lemma0 = ms xs
+     _lemma1 = m x
 ```
 
-Replacing `reflect` by `measure` above would make these lemmas unnecessary,
-but the example illustrates the general technique for cases where a function
-cannot be used as a measure.
+We can insert the lemmas with the `?` operator as well. In that case
+we need to insert the lemmas at the argument of the recursive calls.
+
+```haskell
+import Language.Haskell.Liquid.ProofCombinators ((?))
+...
+
+f (x:xs) =
+  case x of
+    []  -> 1 + f (xs ? ms xs)
+    _:y -> 1 + f ((y : xs) ? m x ? ms xs)
+```
+
+Alternatively, replacing `reflect` by `measure` makes the lemmas unnecessary,
+since measures do make the required facts available when checking the conditions.
+Though this is not a general solution for every case where termination checks
+require additional facts.
