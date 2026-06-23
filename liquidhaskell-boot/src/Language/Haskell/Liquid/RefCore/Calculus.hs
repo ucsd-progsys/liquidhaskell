@@ -8,37 +8,40 @@
 -- | Grammars, printer and suable functions for ILH
 module Language.Haskell.Liquid.RefCore.Calculus
   ( -- * Grammar
-    Builtin (..)
-  , BaseType (..)
-  , RefType (..)
-  , Decl (..)
-  , Expr (..)
-  , Reft (..)
-  , ProjKind (..)
-  , Localization (..)
-  , DesState (..)
-  , Bop (..)
-  , ProofOp (..)
-    -- * Builtin type and data constructors
-  , boolTp
-  , ttTm
-  , ffTm
-  , unitTp
-  , unitTm
-    -- * Construction and destruction
-  , mkVar
-  , arrs
-  , apps
-  , renameParams
-    -- * Free variables and substitution
-  , HasVars (..)
-  , freeVars
-  , fresh
-  , rename
-  , substs
-  ) where
+    Builtin (..),
+    BaseType (..),
+    RefType (..),
+    Decl (..),
+    Expr (..),
+    Reft (..),
+    ProjKind (..),
+    Localization (..),
+    DesState (..),
+    Bop (..),
+    ProofOp (..),
 
-import Prelude hiding (lookup, (<>))
+    -- * Builtin type and data constructors
+    boolTp,
+    ttTm,
+    ffTm,
+    unitTp,
+    unitTm,
+
+    -- * Construction and destruction
+    mkVar,
+    arrs,
+    apps,
+    renameParams,
+
+    -- * Free variables and substitution
+    HasVars (..),
+    freeVars,
+    fresh,
+    rename,
+    substs,
+  )
+where
+
 import Data.Bifunctor (first)
 import Data.Binary (Binary)
 import Data.Data
@@ -46,13 +49,11 @@ import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-
+import GHC.Generics (Generic)
+import Language.Haskell.Liquid.RefCore.Names (Id, boolTpName, ffTmName, freshVar, ttTmName, unitTmName, unitTpName)
 import Text.PrettyPrint
 import Text.PrettyPrint.HughesPJClass hiding (first)
-
-import GHC.Generics (Generic)
-
-import Language.Haskell.Liquid.RefCore.Names (Id, freshVar, boolTpName, ttTmName, ffTmName, unitTpName, unitTmName)
+import Prelude hiding (lookup, (<>))
 
 -- * The grammar
 
@@ -190,8 +191,11 @@ boolTp, unitTp :: BaseType
 unitTm, ttTm, ffTm :: Reft
 boolTp = TC boolTpName
 unitTp = TC unitTpName
+
 ttTm = DC ttTmName
+
 ffTm = DC ffTmName
+
 unitTm = DC unitTmName
 
 -- * Functions on the terms
@@ -227,7 +231,9 @@ renameParams = aux []
     aux σ (y : ys) (ArrType x tpx tp)
       | x `notElem` freeVars tp || x == y =
           ArrType y (renames σ tpx) (aux σ ys tp)
-    -- TODO: handle by renaming
+    -- NOTE: we could handle some of the error cases by applying the
+    -- substitutions globally for each binder, or by traversing the type in the
+    -- opposite direction. But with reasonable namings that should not be necessary
     aux _ (y : _) tp0@(ArrType x _ tp)
       | y `elem` freeVars tp =
           error . render $ "Name clash while renaming variable" <+> text x <+> "to" <+> text y <+> "in" <+> pPrint tp0
@@ -258,7 +264,9 @@ fresh x tm = freshVar x (freeVars tm `Set.union` boundVars tm)
 -- > rename y x tm = {y/x}tm
 rename :: (HasVars a) => Id -> Id -> a -> a
 rename new old tm =
-  maybe tm (\(tp, loc) -> subst (Var new tp loc) old tm)
+  maybe
+    tm
+    (\(tp, loc) -> subst (Var new tp loc) old tm)
     (Map.lookup old $ freeVarsAnnot tm)
 
 -- | Apply a list of renamings, starting from the right
@@ -291,14 +299,14 @@ instance HasVars Reft where
   boundVars (Proj _ r) = boundVars r
 
   subst r' x (Var y _ _) | y == x = r'
-  subst _  _ r0@(Var {}; StringLit _; IntLit _; FloatLit _; DC _) = r0
-  subst r' x    (App h arg) = App (subst r' x h) (subst r' x arg)
-  subst r' x    (Bop bop r1 r2) = Bop bop (subst r' x r1) (subst r' x r2)
-  subst r' x    (Neg r) = Neg $ subst r' x r
-  subst r' x    (Pop pop r1 r2) = Pop pop (subst r' x r1) (subst r' x r2)
-  subst r' x    (Sub r tps tpt) = Sub (subst r' x r) (subst r' x tps) (subst r' x tpt)
-  subst r' x    (Inj r tp) = Inj (subst r' x r) (subst r' x tp)
-  subst r' x    (Proj kind r) = Proj kind (subst r' x r)
+  subst _ _ r0@(Var {}; StringLit _; IntLit _; FloatLit _; DC _) = r0
+  subst r' x (App h arg) = App (subst r' x h) (subst r' x arg)
+  subst r' x (Bop bop r1 r2) = Bop bop (subst r' x r1) (subst r' x r2)
+  subst r' x (Neg r) = Neg $ subst r' x r
+  subst r' x (Pop pop r1 r2) = Pop pop (subst r' x r1) (subst r' x r2)
+  subst r' x (Sub r tps tpt) = Sub (subst r' x r) (subst r' x tps) (subst r' x tpt)
+  subst r' x (Inj r tp) = Inj (subst r' x r) (subst r' x tp)
+  subst r' x (Proj kind r) = Proj kind (subst r' x r)
 
 instance HasVars Expr where
   freeVarsAnnot (Reft r) = freeVarsAnnot r
@@ -326,22 +334,22 @@ instance HasVars Expr where
         Let z (subst r x tp) (subst r x ey) (subst r x $ rename z y e')
     | otherwise = Let y (subst r x tp) (subst r x ey) (subst r x e')
     where
-    z = freshVar y (freeVars r `Set.union` freeVars (Let y tp ey e'))
+      z = freshVar y (freeVars r `Set.union` freeVars (Let y tp ey e'))
   subst r x (Case r' branches genVars) =
     Case (subst r x r') (map substBranch branches) genVars
     where
-    substBranch br@((_, ys), ebr)
-      | x `elem` map fst ys || maybe True (notElem x . freeVars) ebr = br
-    substBranch ((c, ys), ebr) = ((c, ys'), subst r x $ renames α ebr)
-      where
-      freshYs = foldr freshVars [] ys
-      α = filter (uncurry (/=)) $ zipWith (\(y, _) z -> (z, y)) ys freshYs
-      ys' = zipWith (\(_, b) z -> (z, b)) ys freshYs
-      freshVars (y, _) vars =
-        if y `elem` freeVars r
-          then freshVar y (fvre `Set.union` Set.fromList vars) : vars
-          else y : vars
-      fvre = freeVars r `Set.union` freeVars (Case r' branches genVars)
+      substBranch br@((_, ys), ebr)
+        | x `elem` map fst ys || maybe True (notElem x . freeVars) ebr = br
+      substBranch ((c, ys), ebr) = ((c, ys'), subst r x $ renames α ebr)
+        where
+          freshYs = foldr freshVars [] ys
+          α = filter (uncurry (/=)) $ zipWith (\(y, _) z -> (z, y)) ys freshYs
+          ys' = zipWith (\(_, b) z -> (z, b)) ys freshYs
+          freshVars (y, _) vars =
+            if y `elem` freeVars r
+              then freshVar y (fvre `Set.union` Set.fromList vars) : vars
+              else y : vars
+          fvre = freeVars r `Set.union` freeVars (Case r' branches genVars)
   subst r x (QMark r' rh rp) = QMark (subst r x r') (subst r x rh) (subst r x rp)
 
 instance HasVars RefType where
@@ -353,14 +361,14 @@ instance HasVars RefType where
   boundVars (ArrType x tpx tp) = Set.singleton x `Set.union` boundVars [tpx, tp]
 
   subst _ x tp@(RefType y _ _) | y == x = tp
-  subst r x    (RefType y b reft) = RefType y b $ subst r x reft
-  subst r x    (ArrType y tpy tp')
+  subst r x (RefType y b reft) = RefType y b $ subst r x reft
+  subst r x (ArrType y tpy tp')
     | y == x = ArrType y (subst r x tpy) tp'
     | y `Set.member` freeVars r && x `Set.member` freeVars tp' =
         ArrType z (subst r x tpy) (subst r x $ rename z y tp')
     | otherwise = ArrType y (subst r x tpy) (subst r x tp')
     where
-    z = freshVar y (freeVars r `Set.union` freeVars (ArrType y tpy tp'))
+      z = freshVar y (freeVars r `Set.union` freeVars (ArrType y tpy tp'))
 
 instance (HasVars a) => HasVars [a] where
   freeVarsAnnot tms = Map.unions $ map freeVarsAnnot tms
