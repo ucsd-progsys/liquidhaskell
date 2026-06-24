@@ -1125,6 +1125,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Using Lemmas">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lemmas-for-termination-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lemmas for termination checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -2849,6 +2866,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Using Lemmas">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lemmas-for-termination-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lemmas for termination checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -3509,6 +3543,9 @@ is what decreases at each recursive call.</p>
 </code></pre>
 <p>states that at each recursive call of <code>merge</code> the <em>sum of the lengths</em>
 of its arguments will decrease.</p>
+<p>Consider that you might need to <a href="#lemmas-for-termination-checks">use a <em>lemma</em> to manually inject additional
+post-conditions</a> into the constraint environment
+for the termination check to succeed.</p>
 <h3 id="lexicographic-termination-metrics">Lexicographic Termination Metrics<a class="headerlink" href="#lexicographic-termination-metrics" title="Permanent link">&para;</a></h3>
 <p>Some functions do not decrease on a single argument, but rather a
 combination of arguments, e.g. the Ackermann function.</p>
@@ -3822,6 +3859,101 @@ f x =
 <li>The binding approach has the advantage that the lemmas appear
   with their given names in the environments that show up in error messages.</li>
 </ul>
+<h3 id="lemmas-for-termination-checks">Lemmas for termination checks<a class="headerlink" href="#lemmas-for-termination-checks" title="Permanent link">&para;</a></h3>
+<p>Sometimes proving termination with <a href="#termination-metrics">termination metrics</a>
+needs to introduce lemmas too. This might be because the metrics use non-linear
+arithmetic, or because the proof obligations require facts not available by
+default.</p>
+<p>Consider the following example, where termination of function <code>f</code> fails.</p>
+<pre><code class="language-haskell">{-@ LIQUID &quot;--ple&quot; @-}
+
+{-@ reflect ms @-}
+{-@ ms :: [[Int]] -&gt; Nat @-}
+ms :: [[Int]] -&gt; Int
+ms [] = 0
+ms (x:xs) = 1 + m x + ms xs
+
+{-@ reflect m @-}
+{-@ m :: xs:[Int] -&gt; {v:Nat | len xs = v}  @-}
+m :: [Int] -&gt; Int
+m [] = 0
+m (_:xs) = 1 + m xs
+
+{-@ f :: xs:[[Int]] -&gt; Int / [ms xs] @-}
+f :: [[Int]] -&gt; Int
+f [] = 0
+f ([]:xs) = 1 + f xs
+f ((_:y):xs) = 1 + f (y:xs)
+</code></pre>
+<p>The termination checks require firstly that the metric is non-negative
+on the argument of every recursive call to <code>f</code>.</p>
+<pre><code class="language-haskell">ms xs &gt;= 0 -- (1)
+
+ms (y:xs) &gt;= 0 -- (2)
+</code></pre>
+<p>And then termination checks also require that the metrics decrease.</p>
+<pre><code class="language-haskell">ms ([]:xs) &gt; ms xs -- (3)
+
+ms ((_:y):xs) &gt; ms (y:xs) -- (4)
+</code></pre>
+<p>Now let's go over the reasoning that LH needs to prove each inequality.</p>
+<ul>
+<li>
+<p>(1) and (2) are true because <code>ms</code> produces a <code>Nat</code> value, where <code>Nat</code> stands for <code>{v:Int | v &gt;= 0}</code>.</p>
+</li>
+<li>
+<p>(3) is true because of the following proof.</p>
+</li>
+</ul>
+<pre><code class="language-haskell">ms ([]:xs)
+==  -- unfolding ms (via ple)
+1 + m [] + ms xs
+&gt;   -- 1 &gt; 0
+m [] + ms xs
+==  -- unfolding m (via ple)
+ms xs
+</code></pre>
+<ul>
+<li>And (4) is true because of the following proof.</li>
+</ul>
+<pre><code class="language-haskell">ms ((_:y):xs)
+==  -- unfolding ms (via ple)
+1 + m (_:y) + ms xs
+&gt;   -- 1 &gt; 0
+m (_:y) + ms xs
+==  -- unfolding of m (via ple)
+1 + m y + ms xs
+==  -- unfolding of ms (via ple)
+ms (y:xs)
+</code></pre>
+<p>Liquid Haskell can check conditions (3) and (4) without further lemmas.
+In the case of conditions (1) and (2), Liquid Haskell needs
+to be given the facts that <code>ms xs</code> and <code>ms (y:xs)</code> produce a <code>Nat</code> respectively.
+Adding these facts as lemmas allows Liquid Haskell to check all of
+the conditions.</p>
+<pre><code class="language-Haskell">{-@ f :: xs:[[Int]] -&gt; Int / [ms xs] @-}
+f :: [[Int]] -&gt; Int
+f [] = 0
+f ([]:xs) = 1 + f xs
+  where
+    _lemma0 = ms xs
+f ((_:y):xs) = 1 + f (y:xs)
+  where
+    _lemma1 = ms (y:xs)
+</code></pre>
+<p>Where, in general, <code>ms xs</code> constitutes a proof of <code>{v:Int | v == ms xs &amp;&amp; v &gt;= 0}</code>.</p>
+<p>We can insert the lemmas with the <code>?</code> operator as well. In that case
+we need to insert the lemmas at the arguments of the recursive calls.</p>
+<pre><code class="language-haskell">import Language.Haskell.Liquid.ProofCombinators ((?))
+...
+
+f ([]:xs) = 1 + f (xs ? ms xs)
+f ((_:y):xs) = 1 + f ((y:xs) ? ms (y:xs))
+</code></pre>
+<p>Alternatively, replacing <code>reflect</code> by <code>measure</code> makes the lemmas unnecessary,
+since measures do make the required facts available when checking the conditions.
+Though this is not a general solution for every case where termination checks
+require additional facts.</p>
 
 
 
