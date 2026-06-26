@@ -21,7 +21,6 @@ A concise description of what you expected to happen.
 
 **Desktop (please complete the following information):**
  - OS/Distro: [e.g. windows, ubuntu, nixos]
- - GHC version
  - Liquid Haskell version
 
 **Additional context**

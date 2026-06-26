@@ -196,7 +196,9 @@ test-suite liquidhaskell-parser
                   , filepath
                   , liquid-fixpoint
                   , liquidhaskell-boot
-                  , megaparsec
+                    -- earlier versions of megaparsec produce different output
+                    -- on parse errors
+                  , megaparsec      >= 9.8
                   , syb
                   , tasty           >= 0.10
                   , tasty-ant-xml

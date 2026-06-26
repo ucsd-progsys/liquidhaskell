@@ -830,6 +830,10 @@ Decreasing expressions can be arbitrary refinement expressions, e.g.,
 states that at each recursive call of `merge` the _sum of the lengths_
 of its arguments will decrease.
 
+Consider that you might need to [use a _lemma_ to manually inject additional
+post-conditions](#lemmas-for-termination-checks) into the constraint environment
+for the termination check to succeed.
+
 ### Lexicographic Termination Metrics
 
 Some functions do not decrease on a single argument, but rather a
@@ -1188,3 +1192,173 @@ data Val where
            -> Ix Val (TFun t1 t2) @-}
   VFun :: Ty -> Ty -> (Val -> Val) -> Val
 ```
+
+## Using Lemmas
+
+Sometimes additional context information is needed to verify a specification.
+To accomplish this, we can use [lemmas](https://en.wikipedia.org/wiki/Lemma_(mathematics)).
+
+The `Language.Haskell.Liquid.ProofCombinators` module provides the `?` combinator,
+which is an infix variant of `const` optimized to pass the post-condition of its
+second argument to the constraint environment of its first argument.
+For instance, `e ? lemma` makes the post-condition of `lemma`
+available when checking expression `e`.
+
+Schematically, `?` allows to use the `q x` to check that `e` satisfies `p x e`
+in the following function.
+
+```haskell
+f :: x:t0 -> {v:t1 | p x v}
+f x = e ? lemma x
+
+lemma :: y:t0 -> { q y }
+lemma = ...
+```
+
+Bindings inside a `where` clause or `let` expression can be used
+to accomplish this as well:
+
+```haskell
+f :: x:t0 -> {v:t1 | p x v}
+f x = e
+  where
+    -- the lemma0 binding is unused by e, but it is still available
+    -- for Liquid Haskell to use it
+    lemma0 = lemma x
+
+-- alternatively
+
+f :: x:t0 -> {v:t1 | p x v}
+f x =
+  let -- the lemma0 binding is unused by e, but it is still available
+      -- for Liquid Haskell to use it
+      lemma0 = lemma x
+   in e
+```
+
+Note that there are some differences between the two approaches:
+
+- Scope: `?` inserts the lemma's post-condition into the constraint environment
+  of the expression's value (`e` in the examples above) only,
+  for example:
+  `(f e) ? lemma` passes `lemma`'s post-condition to `f e` constraint environment,
+  but if a subtyping constraint at `e` needs the `lemma` too, you would need to write
+  `(f (e ? lemma)) ? lemma`.
+  In comparison, the binding approach is less precise about where the lemma is inserted:
+  it makes its post-condition available in all the constraint environments generated
+  at locations having the binder in scope,
+  so `let lemma0 = lemma in f e` applies the `lemma` to both `e` and `f e`.
+- The binding approach has the advantage that the lemmas appear
+  with their given names in the environments that show up in error messages.
+
+### Lemmas for termination checks
+
+Sometimes proving termination with [termination metrics](#termination-metrics)
+needs to introduce lemmas too. This might be because the metrics use non-linear
+arithmetic, or because the proof obligations require facts not available by
+default.
+
+Consider the following example, where termination of function `f` fails.
+
+```haskell
+{-@ LIQUID "--ple" @-}
+
+{-@ reflect ms @-}
+{-@ ms :: [[Int]] -> Nat @-}
+ms :: [[Int]] -> Int
+ms [] = 0
+ms (x:xs) = 1 + m x + ms xs
+
+{-@ reflect m @-}
+{-@ m :: xs:[Int] -> {v:Nat | len xs = v}  @-}
+m :: [Int] -> Int
+m [] = 0
+m (_:xs) = 1 + m xs
+
+{-@ f :: xs:[[Int]] -> Int / [ms xs] @-}
+f :: [[Int]] -> Int
+f [] = 0
+f ([]:xs) = 1 + f xs
+f ((_:y):xs) = 1 + f (y:xs)
+```
+
+The termination checks require firstly that the metric is non-negative
+on the argument of every recursive call to `f`.
+
+```haskell
+ms xs >= 0 -- (1)
+
+ms (y:xs) >= 0 -- (2)
+```
+
+And then termination checks also require that the metrics decrease.
+
+```haskell
+ms ([]:xs) > ms xs -- (3)
+
+ms ((_:y):xs) > ms (y:xs) -- (4)
+```
+
+Now let's go over the reasoning that LH needs to prove each inequality.
+
+* (1) and (2) are true because `ms` produces a `Nat` value, where `Nat` stands for `{v:Int | v >= 0}`.
+
+* (3) is true because of the following proof.
+```haskell
+ms ([]:xs)
+==  -- unfolding ms (via ple)
+1 + m [] + ms xs
+>   -- 1 > 0
+m [] + ms xs
+==  -- unfolding m (via ple)
+ms xs
+```
+
+* And (4) is true because of the following proof.
+```haskell
+ms ((_:y):xs)
+==  -- unfolding ms (via ple)
+1 + m (_:y) + ms xs
+>   -- 1 > 0
+m (_:y) + ms xs
+==  -- unfolding of m (via ple)
+1 + m y + ms xs
+==  -- unfolding of ms (via ple)
+ms (y:xs)
+```
+
+Liquid Haskell can check conditions (3) and (4) without further lemmas.
+In the case of conditions (1) and (2), Liquid Haskell needs
+to be given the facts that `ms xs` and `ms (y:xs)` produce a `Nat` respectively.
+Adding these facts as lemmas allows Liquid Haskell to check all of
+the conditions.
+
+```Haskell
+{-@ f :: xs:[[Int]] -> Int / [ms xs] @-}
+f :: [[Int]] -> Int
+f [] = 0
+f ([]:xs) = 1 + f xs
+  where
+    _lemma0 = ms xs
+f ((_:y):xs) = 1 + f (y:xs)
+  where
+    _lemma1 = ms (y:xs)
+```
+
+Where, in general, `ms xs` constitutes a proof of `{v:Int | v == ms xs && v >= 0}`.
+
+We can insert the lemmas with the `?` operator as well. In that case
+we need to insert the lemmas at the arguments of the recursive calls.
+
+```haskell
+import Language.Haskell.Liquid.ProofCombinators ((?))
+...
+
+f ([]:xs) = 1 + f (xs ? ms xs)
+f ((_:y):xs) = 1 + f ((y:xs) ? ms (y:xs))
+```
+
+Alternatively, replacing `reflect` by `measure` makes the lemmas unnecessary,
+since measures do make the required facts available when checking the conditions.
+Though this is not a general solution for every case where termination checks
+require additional facts.

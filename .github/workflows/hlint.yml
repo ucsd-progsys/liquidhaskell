@@ -19,7 +19,7 @@ jobs:
     - uses: haskell-actions/hlint-setup@v2
       name: Set up HLint
       with:
-        version: "3.8"
+        version: "3.10"
 
     - uses: haskell-actions/hlint-run@v2
       name: hlint
