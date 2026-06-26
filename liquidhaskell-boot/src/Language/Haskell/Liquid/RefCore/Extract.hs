@@ -45,6 +45,8 @@ data SrcInfo = SrcInfo
   { s_moduleName :: ModuleName
   , s_summary    :: ModSummary
   , s_targetInfo :: Specs.TargetInfo
+  , s_cbs        :: [CoreBind]
+    -- ^ Pre-'?'-elimination ANF binds, saved before 'Specs.giCbs' strips '?' for constraint generation.
   , s_infTypes   :: AnnInfo SpecType
   , s_imports    :: [Module]
   }
@@ -141,7 +143,7 @@ getBindsAndSpecs modId sinfo = ParsedBinds
         { pb_src = src
         , pb_vars = refls
         , pb_decls = getDataDecls (Specs.gsData specs, Specs.gsName specs)
-        , pb_binds = Specs.giCbs src
+        , pb_binds = s_cbs sinfo
         , pb_specs = getSpecPairs specs
         }
   where

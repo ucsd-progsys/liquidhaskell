@@ -441,11 +441,12 @@ liquidHaskellCheckWithConfig cfg pipelineData modSummary = do
     reportErrs :: F.PPrint e => [TError e] -> TcM (Either LiquidCheckException a)
     reportErrs  = LH.filterReportErrors thisFile GHC.failM continue (getFilters cfg) Full
 
-mkSrcInfo :: LiquidHaskellContext -> TargetInfo -> AnnInfo SpecType -> SrcInfo
-mkSrcInfo lhContext targetInfo infTypes = SrcInfo
+mkSrcInfo :: LiquidHaskellContext -> TargetInfo -> [CoreBind] -> AnnInfo SpecType -> SrcInfo
+mkSrcInfo lhContext targetInfo cbs infTypes = SrcInfo
     { s_moduleName = moduleName $ ms_mod $ lhModuleSummary lhContext
     , s_summary    = lhModuleSummary lhContext
     , s_targetInfo = targetInfo
+    , s_cbs        = cbs
     , s_infTypes   = infTypes
     , s_imports    = lhRelevantModules lhContext
     }
@@ -466,7 +467,7 @@ checkLiquidHaskellContext lhContext = do
           cfg     = lhGlobalCfg lhContext
 
       when (refcore cfg) $ liftIO $ do
-        (calcSource, meta) <- extractCalculus (mkSrcInfo lhContext pmrTargetInfo infTypes)
+        (calcSource, meta) <- extractCalculus (mkSrcInfo lhContext pmrTargetInfo pmrRefCoreCbs infTypes)
         writeIlhBin meta calcSource
         when (refcoreText cfg) $ writeIlh meta calcSource
 
@@ -547,6 +548,9 @@ data ProcessModuleResult = ProcessModuleResult {
   -- ^ The \"client library\" we will serialise on disk into an interface's 'Annotation'.
   , pmrTargetInfo :: TargetInfo
   -- ^ The 'GhcInfo' for the current 'Module' that LiquidHaskell will process.
+  , pmrRefCoreCbs :: [CoreBind]
+  -- ^ Pre-'?'-elimination ANF binds, used by RefCore extraction (--refcore).
+  --   Empty unless the @--refcore@ flag is set.
   }
 
 processModule :: LiquidHaskellContext -> TcM (Either LiquidCheckException ProcessModuleResult)
@@ -573,7 +577,7 @@ processModule LiquidHaskellContext{..} = do
     let preNormalizedCore = preNormalizeCore moduleCfg modGuts0
         modGuts = modGuts0 { mg_binds = preNormalizedCore }
         file = LH.modSummaryHsFile lhModuleSummary
-    targetSrc  <- liftIO $
+    (targetSrc, refCoreCbs)  <- liftIO $
       makeTargetSrc
         moduleCfg
         file
@@ -632,6 +636,7 @@ processModule LiquidHaskellContext{..} = do
         let result' = ProcessModuleResult {
               pmrClientLib  = clientLib
             , pmrTargetInfo = targetInfo
+            , pmrRefCoreCbs = refCoreCbs
             }
 
         pure $ Right result')
@@ -653,7 +658,7 @@ makeTargetSrc :: Config
               -> GlobalRdrEnv
               -> [GHC.SrcSpan]
               -> [GHC.SrcSpan]
-              -> IO TargetSrc
+              -> IO (TargetSrc, [CoreBind])
 makeTargetSrc cfg file modGuts hscEnv rdrEnv methodSpans instanceSpans = do
   when (dumpPreNormalizedCore cfg) $ do
     putStrLn "\n*************** Pre-normalized CoreBinds *****************\n"
@@ -684,7 +689,10 @@ makeTargetSrc cfg file modGuts hscEnv rdrEnv methodSpans instanceSpans = do
   debugLog $ "gsFiTcs   => " ++ (O.showSDocUnsafe . O.ppr $ fiTcs)
   debugLog $ "gsFiDcs   => " ++ show fiDcs
   debugLog $ "gsPrimTcs => " ++ (O.showSDocUnsafe . O.ppr $ GHC.primTyCons)
-  return $ TargetSrc
+  -- Keep the pre-'?'-elimination ANF binds for RefCore extraction (--refcore),
+  -- which needs the '?' applications to emit proof hints.
+  let refCoreCbs = if refcore cfg then coreBindsANF else []
+  return (TargetSrc
     { giTarget    = file
     , giTargetMod = ModName Target (moduleName (mg_module modGuts))
     , giCbs       = coreBinds
@@ -699,7 +707,7 @@ makeTargetSrc cfg file modGuts hscEnv rdrEnv methodSpans instanceSpans = do
     , gsFiDcs     = fiDcs
     , gsPrimTcs   = GHC.primTyCons
     , giInstSpans = instanceSpans
-    }
+    }, refCoreCbs)
   where
     mgiModGuts :: MGIModGuts
     mgiModGuts = miModGuts deriv modGuts
