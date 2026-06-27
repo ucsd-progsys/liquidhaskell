@@ -857,7 +857,7 @@ resolveLogicNames cfg thisModule env globalRdrEnv lmap0 localVars lnameEnv priva
           Left alts ->
             -- If names are not in the environment, they must be data constructors,
             -- or they must be reflected functions, or they must be in the logicmap.
-            case resolveDataConName ls `mplus` resolveVarName lmap0 ls of
+            case resolveClassMethodName ls `mplus` resolveDataConName ls `mplus` resolveVarName lmap0 ls of
               Just m -> m
               Nothing
                 | elem s wiredInNames ->
@@ -932,6 +932,28 @@ resolveLogicNames cfg thisModule env globalRdrEnv lmap0 localVars lnameEnv priva
                  (map (PJ.text . GHC.showPprUnsafe) es)
               )
             return $ makeLocalLHName $ val s
+    resolveClassMethodName s =
+      case GHC.lookupGRE globalRdrEnv (mkLookupGRE (LHVarName LHAnyModuleNameF) $ val s) of
+        [e] ->
+          case (GHC.greInfo e, GHC.greParent_maybe e) of
+            (GHC.Vanilla, Just pName) ->
+              if isClassTyCon pName
+              then Just $ do
+                let n = GHC.greName e
+                let lhName = makeLogicLHName (symbol $ GHC.getOccString n) (GHC.nameModule n) Nothing
+                addName lhName
+                return lhName
+              else Nothing
+            _ -> Nothing
+        _ -> Nothing
+
+    isClassTyCon parentName =
+      case GHC.lookupGRE globalRdrEnv (mkLookupGRE (LHTcName LHAnyModuleNameF) (symbol $ GHC.occNameString $ GHC.nameOccName parentName)) of
+        [parentGre] ->
+          case GHC.greInfo parentGre of
+            GHC.IAmTyCon GHC.ClassFlavour -> True
+            _ -> False
+        _ -> False
 
     -- Resolves names of reflected functions or names in the logic map
     --

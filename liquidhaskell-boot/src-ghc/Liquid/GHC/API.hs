@@ -622,6 +622,7 @@ import GHC.Types.Basic                as Ghc
     , isStrongLoopBreaker
     , noOccInfo
     , topPrec
+    , TyConFlavour (..)
     )
 import GHC.Types.CostCentre           as Ghc
     ( CostCentre(cc_loc)
@@ -716,7 +717,7 @@ import GHC.Types.Name.Occurrence      as Ghc
 import GHC.Types.Name.Reader          as Ghc
     ( FieldsOrSelectors(WantNormal)
     , GlobalRdrEnv
-    , GREInfo
+    , GREInfo (..)
     , ImpItemSpec(ImpAll)
     , LookupGRE(LookupRdrName)
     , WhichGREs
@@ -729,6 +730,8 @@ import GHC.Types.Name.Reader          as Ghc
     , getRdrName
     , globalRdrEnvElts
     , greName
+    , greInfo
+    , greParent_maybe
     , isLocalGRE
     , lookupGRE
     , lookupGRE_Name

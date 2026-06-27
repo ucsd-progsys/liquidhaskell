@@ -2688,13 +2688,14 @@ executable typeclass-pos
       buildable:      False
 
     -- Fails on GHC 9.0.1
-    if impl(ghc < 9)
-      other-modules:
-                      All
-                    , Lib
-                    , Lemma
-                    , PNat
-                    , SemigroupLib
+    other-modules:
+                    Basic
+                  , Lib
+                  , SemigroupLib
+                  , BasicImport
+                  --   All
+                  , Lemma
+                  , PNat
 
     build-depends:    base
                     , liquid-prelude

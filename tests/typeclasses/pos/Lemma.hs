@@ -1,5 +1,4 @@
 {-# LANGUAGE RankNTypes #-}
-{-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--typeclass" @-}
 module Lemma where
 
