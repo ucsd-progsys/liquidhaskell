@@ -769,16 +769,20 @@ elabRnExpr rdr_expr = do
              tcInferRho rn_expr
 
     -- Generalise
+    -- The outputs of simplifyInfer are dead, but simplifyInfer has some side
+    -- effect that changes the desugaring of full_expr below. Without this
+    -- side effect, the desugaring of full_expr is missing some dictionary
+    -- bindings
     uniq <- newUnique
     let { fresh_it = itName uniq (getLocA rdr_expr) }
-    (_qtvs, _dicts, evbs, _)
+    (_qtvs, _dicts, _evbs, _)
          <- simplifyInfer NotTopLevel tclvl NoRestrictions
                           []    {- No sig vars -}
                           [(fresh_it, res_ty)]
                           lie
 
     -- Ignore the dictionary bindings
-    full_expr <- zonkTopLExpr (mkHsDictLet evbs tc_expr)
+    full_expr <- zonkTopLExpr tc_expr
     (ds_msgs, me) <- initDsTc $ dsLExpr full_expr
 
     logger <- getLogger

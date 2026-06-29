@@ -37,9 +37,9 @@ class Semigroup a => Monoid a where
     {-@ mconcat :: List a -> a @-}
     mconcat :: List a -> a
 
--- class (VSemigroup a, Monoid a) => VMonoid a where
---     {-@ lawEmpty :: x:a -> {mappend x mempty == x && mappend mempty x == x} @-}
---     lawEmpty :: a -> () -- JP: Call this lawIdentity?
--- 
---     -- {-@ lawMconcat :: xs:List a -> {mconcat xs == foldrList mappend mempty xs} @-}
---     -- lawMconcat :: List a -> ()
+class (VSemigroup a, Monoid a) => VMonoid a where
+    {-@ lawEmpty :: x:a -> {mappend x mempty == x && mappend mempty x == x} @-}
+    lawEmpty :: a -> () -- JP: Call this lawIdentity?
+
+    -- {-@ lawMconcat :: xs:List a -> {mconcat xs == foldrList mappend mempty xs} @-}
+    -- lawMconcat :: List a -> ()
