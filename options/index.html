@@ -845,6 +845,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#refcore-calculus-extraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refcore Calculus Extraction
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#generating-html-output" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2265,6 +2276,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#refcore-calculus-extraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refcore Calculus Extraction
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#generating-html-output" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2800,6 +2822,25 @@ instantiate type variables with <code>Int</code> (as seen in the example above).
 typeclasses. One limitation is that proofs cannot be written directly
 within the instance definition unless the <code>--aux-inline</code> flag is
 turned on as well.</p>
+<h2 id="refcore-calculus-extraction">Refcore Calculus Extraction<a class="headerlink" href="#refcore-calculus-extraction" title="Permanent link">&para;</a></h2>
+<p><strong>Options:</strong> <code>refcore</code>, <code>refcore-text</code></p>
+<p>LiquidHaskell can extract a module's reflected definitions and refinement
+types into an intermediate ILH representation, to be consumed by
+downstream tools (for example, enabling translation to Rocq). The output is written
+into the <code>.liquid</code> folder next to the source file, alongside LiquidHaskell's
+other generated artifacts.</p>
+<ul>
+<li><code>--refcore</code> runs the extraction and writes the binary <code>&lt;Module&gt;.ilhb</code> file.</li>
+<li><code>--refcore-text</code> additionally writes a human-readable <code>&lt;Module&gt;.ilh</code> text
+  dump of the same data. It is intended for debugging only, and has no
+  effect unless <code>--refcore</code> is also enabled.</li>
+</ul>
+<p>I.e., for a module <code>Foo</code> in <code>src/Foo.hs</code>, enabling
+<code>--refcore</code> produces <code>src/.liquid/Foo.ilhb</code> (and, with <code>--refcore-text</code>,
+also <code>src/.liquid/Foo.ilh</code>).</p>
+<pre><code class="language-haskell">{-@ LIQUID &quot;--refcore&quot; @-}
+{-@ LIQUID &quot;--refcore-text&quot; @-}   -- optional: also emit the .ilh text dump
+</code></pre>
 <h2 id="generating-html-output">Generating HTML Output<a class="headerlink" href="#generating-html-output" title="Permanent link">&para;</a></h2>
 <p>The system produces HTML files with colorized source, and mouseover
 inferred type annotations, which are quite handy for debugging failed
