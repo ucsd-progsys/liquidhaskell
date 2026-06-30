@@ -19,8 +19,6 @@ import Lib
 class Semigroup a where
     {-@ mappend :: a -> a -> a @-}
     mappend :: a -> a -> a
-
-    {-@ sconcat :: NonEmpty a -> a @-}
     sconcat :: NonEmpty a -> a
 
 class Semigroup a => VSemigroup a where
@@ -33,8 +31,6 @@ class Semigroup a => VSemigroup a where
 class Semigroup a => Monoid a where
     {-@ mempty :: a @-}
     mempty :: a
-
-    {-@ mconcat :: List a -> a @-}
     mconcat :: List a -> a
 
 class (VSemigroup a, Monoid a) => VMonoid a where
