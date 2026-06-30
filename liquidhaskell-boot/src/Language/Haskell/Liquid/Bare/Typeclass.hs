@@ -111,7 +111,7 @@ compileClasses src env (name, spec) rest =
   instClss =
     [ (inst, cls)
     | inst <- mconcat . Mb.maybeToList . _gsCls $ src
-    , Ghc.moduleName (Ghc.nameModule (Ghc.getName inst)) == getModName name
+    , (Ghc.moduleName <$> Ghc.nameModule_maybe (Ghc.getName inst)) == Just (getModName name)
     , let cls = Ghc.is_cls inst
     , cls `elem` refinedClasses
     ]
