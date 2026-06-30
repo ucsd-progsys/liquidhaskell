@@ -391,7 +391,7 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     -- Monoid.mappend, ...
     clsMethods = filter (\x -> GM.dropModuleNames (F.symbol x) `elem` fmap mkSymbol methods) $
       Ghc.classAllSelIds (Ghc.is_cls inst)
-    yts = [(lhNameToResolvedSymbol y, t) | (y, t) <- dcpTyArgs dcp]
+    yts = [(lhNameToUnqualifiedSymbol y, t) | (y, t) <- dcpTyArgs dcp]
     mkSymbol x
       | -- F.notracepp ("isDictonaryId:" ++ GM.showPpr x) $
         Ghc.isDictonaryId x = F.mappendSym "$" (F.dropSym 2 $ GM.simplesymbol x)
