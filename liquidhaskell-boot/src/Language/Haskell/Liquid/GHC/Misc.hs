@@ -947,4 +947,4 @@ prependGHCRealQual :: FastString -> RdrName
 prependGHCRealQual = varQual_RDR realModule
 
 isFromGHCReal :: NamedThing a => a -> Bool
-isFromGHCReal x = Ghc.nameModule (Ghc.getName x) == realModule
+isFromGHCReal x = Ghc.nameModule_maybe (Ghc.getName x) == Just realModule
