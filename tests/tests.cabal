@@ -2703,6 +2703,23 @@ executable typeclass-pos
     hs-source-dirs:   app
                     , typeclasses/pos
 
+flag refcore
+     default: False
+
+executable refcore
+    import:           common-ghc-options
+    main-is:          Main.hs
+    if !flag(refcore) && flag(stack)
+      buildable:      False
+    ghc-options: -fforce-recomp
+    other-modules:
+                    Half
+    build-depends:    base
+                    , liquid-prelude
+                    , liquidhaskell
+    hs-source-dirs:   app
+                    , refcore
+    default-extensions: GADTs
     default-language: Haskell2010
 
 flag typed-holes

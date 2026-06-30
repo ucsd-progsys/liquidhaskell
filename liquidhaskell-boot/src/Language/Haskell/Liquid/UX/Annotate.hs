@@ -76,17 +76,18 @@ import           Language.Haskell.Liquid.Types.Types
 
 
 -- | @output@ creates the pretty printed output
+-- NOTE: for Refcore, we want to get the inferred types before they get printed to Doc
 --------------------------------------------------------------------------------------------
-mkOutput :: Config -> ErrorResult -> FInfo a -> FixDelayedSolution -> AnnInfo (Annot SpecType) -> Output Doc
+mkOutput :: Config -> ErrorResult -> FInfo a -> FixDelayedSolution -> AnnInfo (Annot SpecType) -> (Output Doc, AnnInfo SpecType)
 --------------------------------------------------------------------------------------------
 mkOutput cfg res si sol anna
-  = O { o_vars   = Nothing
+  = (O { o_vars   = Nothing
       -- , o_errors = []
       , o_types  = toDoc <$> annTy
       , o_templs = toDoc <$> annTmpl
       , o_bots   = mkBots    annTy
       , o_result = res
-      }
+      }, annTy)
   where
     annTmpl      = closeAnnots anna
     annTy        = tidySpecType Lossy <$> applySolution si sol annTmpl

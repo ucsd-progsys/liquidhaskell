@@ -695,6 +695,30 @@ typeclasses. One limitation is that proofs cannot be written directly
 within the instance definition unless the `--aux-inline` flag is
 turned on as well.
 
+## Refcore Calculus Extraction
+
+**Options:** `refcore`, `refcore-text`
+
+LiquidHaskell can extract a module's reflected definitions and refinement
+types into an intermediate ILH representation, to be consumed by
+downstream tools (for example, enabling translation to Rocq). The output is written
+into the `.liquid` folder next to the source file, alongside LiquidHaskell's
+other generated artifacts.
+
+- `--refcore` runs the extraction and writes the binary `<Module>.ilhb` file.
+- `--refcore-text` additionally writes a human-readable `<Module>.ilh` text
+  dump of the same data. It is intended for debugging only, and has no
+  effect unless `--refcore` is also enabled.
+
+I.e., for a module `Foo` in `src/Foo.hs`, enabling
+`--refcore` produces `src/.liquid/Foo.ilhb` (and, with `--refcore-text`,
+also `src/.liquid/Foo.ilh`).
+
+```haskell
+{-@ LIQUID "--refcore" @-}
+{-@ LIQUID "--refcore-text" @-}   -- optional: also emit the .ilh text dump
+```
+
 ## Generating HTML Output
 
 The system produces HTML files with colorized source, and mouseover

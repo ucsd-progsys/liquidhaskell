@@ -71,6 +71,9 @@ library
                       Language.Haskell.Liquid.GHC.TypeRep
                       Language.Haskell.Liquid.GHC.Plugin
                       Language.Haskell.Liquid.GHC.Plugin.Tutorial
+                      Language.Haskell.Liquid.RefCore.Calculus
+                      Language.Haskell.Liquid.RefCore.Extract
+                      Language.Haskell.Liquid.RefCore.Names
                       Language.Haskell.Liquid.LHNameResolution
                       Language.Haskell.Liquid.Liquid
                       Language.Haskell.Liquid.Measure
@@ -119,6 +122,11 @@ library
   other-modules:      Language.Haskell.Liquid.GHC.Plugin.Serialisation
                       Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                       Language.Haskell.Liquid.GHC.Plugin.Types
+                      Language.Haskell.Liquid.RefCore.CoreToLH
+                      Language.Haskell.Liquid.RefCore.Misc
+                      Language.Haskell.Liquid.RefCore.Parse
+                      Language.Haskell.Liquid.RefCore.Simplify
+                      Language.Haskell.Liquid.RefCore.SpecToLH
   hs-source-dirs:     src src-ghc src-ghc-9.10
 
   build-depends:      base                 >= 4.11.1.0 && < 5

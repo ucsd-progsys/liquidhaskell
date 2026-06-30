@@ -328,7 +328,7 @@ makeAxiom env tycEnv lmap (x, mbT, v, def)
 mkError :: PPrint a => Located a -> String -> Error
 mkError x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (PJ.text str)
 
--- This function is uded to generate the fixpoint code for reflected functions
+-- This function is used to generate the fixpoint code for reflected functions
 makeAssumeType
   :: Config
   -> F.TCEmb Ghc.TyCon -> LogicMap -> DataConMap -> LocSymbol -> Maybe SpecType
