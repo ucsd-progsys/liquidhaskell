@@ -68,7 +68,8 @@ makeHaskellAxioms :: GhcSrc -> Bare.Env -> Bare.TycEnv -> LogicMap -> GhcSpecSig
                   -> Bare.Lookup [(Ghc.Var, LocSpecType, F.Equation)]
 -----------------------------------------------------------------------------------------------
 makeHaskellAxioms src env tycEnv lmap spSig spec = do
-  let refDefs = getReflectDefs src spSig spec env
+  let refDefs = filter (\(_, _, v, _) -> not $ Ghc.isDerivedOccName (Ghc.getOccName v)) $
+        getReflectDefs src spSig spec env
   return (makeAxiom env tycEnv lmap <$> refDefs)
 
 -----------------------------------------------------------------------------------------------
