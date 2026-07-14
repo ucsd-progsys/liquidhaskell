@@ -166,6 +166,7 @@ import GHC.Builtin.Names              as Ghc
     , Unique
     , and_RDR
     , bindMName
+    , eq_RDR
     , eqClassKey
     , eqClassName
     , ge_RDR
@@ -594,6 +595,8 @@ import GHC.Tc.Utils.Monad             as Ghc
 import GHC.Tc.Utils.TcType            as Ghc (tcSplitDFunTy, tcSplitMethodTy)
 import GHC.Tc.Zonk.Type               as Ghc
     ( zonkTopLExpr )
+import GHC.ThToHs as Ghc
+    ( thRdrNameGuesses )
 import GHC.Types.PkgQual              as Ghc
     ( PkgQual(NoPkgQual) )
 import GHC.Types.Annotations          as Ghc
