@@ -98,14 +98,19 @@ makePluggedDataCon allowTC embs tyi ldcp
   | mismatchTyVars    = Ex.throw (err "type variables")
   | otherwise         = F.atLoc ldcp $ F.notracepp "makePluggedDataCon" $ dcp
                           { dcpFreeTyVars = dcVars
+                          , dcpTyConstrs  = constrs
                           , dcpTyArgs     = reverse tArgs
                           , dcpTyRes      = tRes
                           }
   where
     (tArgs, tRes)     = plugMany allowTC  embs tyi ldcp (das, dts, dt) (dcVars, dcArgs, dcpTyRes dcp)
     (das, theta, originDts, dt) = {- F.notracepp ("makePluggedDC: " ++ F.showpp dc) $ -} Ghc.dataConSig dc
-    consClassArgs     = if allowTC then filter (not . GM.isEmbeddedDictType) theta else []
+    consClassArgs     = if allowTC && isClassDc then filter (not . GM.isEmbeddedDictType) theta else []
     dts               = consClassArgs ++ originDts
+    isClassDc         = Ghc.isClassTyCon (Ghc.dataConTyCon dc)
+    -- For class dictionary constructors, the dictionary arguments correspond to
+    -- constructor fields and are included in `dts`, and not in `constrs`.
+    constrs           = if allowTC && isClassDc then [] else dcpTyConstrs dcp
 
     dcArgs            = reverse $ filter (not . (if allowTC then isEmbeddedClass else isClassType) . snd) (dcpTyArgs dcp)
     dcVars            = if isGADT
