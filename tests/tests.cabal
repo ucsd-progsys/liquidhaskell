@@ -2436,6 +2436,7 @@ executable ple-pos
                     , ExactGADT5
                     , ExactGADT7
                     , FilterPLE
+                    , FilterPLE2
                     , FindPLE
                     , Fulcrum
                     , IndLast
