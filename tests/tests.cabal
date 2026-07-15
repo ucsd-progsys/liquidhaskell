@@ -2687,14 +2687,15 @@ executable typeclass-pos
     if !flag(typeclass-pos) && flag(stack)
       buildable:      False
 
-    -- Fails on GHC 9.0.1
-    if impl(ghc < 9)
-      other-modules:
+    other-modules:
                       All
+                    , Basic
+                    , BasicImport
                     , Lib
                     , Lemma
                     , PNat
                     , SemigroupLib
+                    , ConstrainedGADT
 
     build-depends:    base
                     , liquid-prelude
@@ -2702,6 +2703,24 @@ executable typeclass-pos
 
     hs-source-dirs:   app
                     , typeclasses/pos
+
+flag typeclass-neg
+     default: False
+
+executable typeclass-neg
+    import:           common-ghc-options, ghc-options-for-negated-tests
+    main-is:          Main.hs
+    if !flag(typeclass-neg) && flag(stack)
+      buildable:      False
+
+    other-modules:    ClassMethodWithoutTypeclass
+
+    build-depends:    base
+                    , liquid-prelude
+                    , liquidhaskell
+
+    hs-source-dirs:   app
+                    , typeclasses/neg
 
 flag refcore
      default: False
