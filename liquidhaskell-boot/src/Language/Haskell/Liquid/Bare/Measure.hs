@@ -300,11 +300,13 @@ dataConSel permitTC dc n (Proj i) = mkArrow (map (, mempty) as) [] [xt] (mempty 
 bkDataCon :: (PPrint r, IsReft r) => Bool -> Ghc.DataCon -> Int -> ([SpecRTVar], [RRType r], (F.Symbol, RFInfo, RRType r, r))
 bkDataCon permitTC dcn nFlds  = (as, ts, (F.dummySymbol, classRFInfo permitTC, t, trueReft))
   where
-    ts                = RT.ofType <$> Misc.takeLast nFlds (map Ghc.irrelevantMult _ts)
+    ts                = RT.ofType <$> Misc.takeLast nFlds _ts
+    _ts = if permitTC && Ghc.isClassTyCon (Ghc.dataConTyCon dcn) then dicts ++ ts1 else ts1
+    ts1 = map Ghc.irrelevantMult ts0
     t                 = -- Misc.traceShow ("bkDataConResult" ++ GM.showPpr (dc, _t, _t0)) $
                           RT.ofType  $ Ghc.mkTyConApp tc tArgs'
     as                = makeRTVar . RT.rTyVar <$> (αs ++ αs')
-    ((αs,αs',_,_,_ts,_t), _t0) = hammer dcn
+    ((αs,αs',_,dicts,ts0,_t), _t0) = hammer dcn
     tArgs'            = take (nArgs - nVars) tArgs ++ (Ghc.mkTyVarTy <$> αs)
     nVars             = length αs
     nArgs             = length tArgs
