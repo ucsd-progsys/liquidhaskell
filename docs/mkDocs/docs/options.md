@@ -690,10 +690,14 @@ instantiate type variables with `Int` (as seen in the example above).
 
 **Status:** `experimental`
 
-The `--typeclass` flag enables LiquidHaskell's support of
-typeclasses. One limitation is that proofs cannot be written directly
-within the instance definition unless the `--aux-inline` flag is
-turned on as well.
+The `--typeclass` flag enables experimental support for typeclass
+declarations and instances. Class methods can be used in refinements, and
+LiquidHaskell derives their default types from their Haskell signatures; an
+explicit LiquidHaskell signature is needed only to state a stronger refinement
+or a law.
+
+When proof or law methods are implemented directly in an instance and their
+auxiliary implementations must be unfolded, also enable `--aux-inline`.
 
 ## Refcore Calculus Extraction
 
