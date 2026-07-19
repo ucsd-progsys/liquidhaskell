@@ -20,8 +20,9 @@ import           Data.Generics.Aliases
 import           Data.Generics.Schemes
 
 import           Language.Fixpoint.Types.Spans
-import qualified Language.Haskell.Liquid.Parse as LH
-import qualified Language.Fixpoint.Types       as F
+import qualified Language.Haskell.Liquid.Parse           as LH
+import qualified Language.Fixpoint.Types                 as F
+import           Language.Haskell.Liquid.UX.CmdLine      (shellWords)
 
 import           Text.Megaparsec.Error
 import           Text.Megaparsec.Pos
@@ -45,7 +46,28 @@ tests =
     , testReservedAliases
     , testFails
     , testErrorReporting
+    , testShellWords
     ]
+
+-- | Tests for 'shellWords', which is used to parse LIQUIDHASKELL_OPTS.
+-- Regression test for https://github.com/ucsd-progsys/liquidhaskell/issues/1990
+testShellWords :: TestTree
+testShellWords = testGroup "shellWords"
+  [ testCase "empty string yields no tokens" $
+      shellWords "" @?= []
+  , testCase "single flag" $
+      shellWords "--ple" @?= ["--ple"]
+  , testCase "multiple space-separated flags" $
+      shellWords "--ple --reflection" @?= ["--ple", "--reflection"]
+  , testCase "flag with value" $
+      shellWords "--smtsolver z3" @?= ["--smtsolver", "z3"]
+  , testCase "multiple flags with leading/trailing spaces" $
+      shellWords "  --ple  --reflection  " @?= ["--ple", "--reflection"]
+  , testCase "double-quoted value preserves spaces" $
+      shellWords "--smtsolver \"my z3\"" @?= ["--smtsolver", "my z3"]
+  , testCase "single-quoted value preserves spaces" $
+      shellWords "--smtsolver 'my z3'" @?= ["--smtsolver", "my z3"]
+  ]
 
 -- Test that the top level production works, each of the sub-elements will be tested separately
 testSpecP :: TestTree
