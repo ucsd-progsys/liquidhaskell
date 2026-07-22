@@ -686,18 +686,22 @@ instantiate type variables with `Int` (as seen in the example above).
 
 ## Typeclasses
 
-**Options:** `typeclass`
+**Options:** `typeclass`, `aux-inline`
 
 **Status:** `experimental`
 
 The `--typeclass` flag enables experimental support for typeclass
 declarations and instances. Class methods can be used in refinements, and
-LiquidHaskell derives their default types from their Haskell signatures; an
-explicit LiquidHaskell signature is needed only to state a stronger refinement
-or a law.
+LiquidHaskell should be able to elaborate the dictionaries they need.
 
-When proof or law methods are implemented directly in an instance and their
-auxiliary implementations must be unfolded, also enable `--aux-inline`.
+Termination checks for functions and methods that use methods is experimental.
+Sometimes using `--aux-inline` migh help the termination checks.
+
+The flag `--aux-inline` beta-reduces the applications in Core of the form
+`method_name dictionary other arguments`. The result looks like
+`$c_method_implementation other arguments`. The removal of the dictionary
+simplifies the dependency graph of the function that contains the application,
+and this sometimes helps the termination checker.
 
 ## Refcore Calculus Extraction
 
