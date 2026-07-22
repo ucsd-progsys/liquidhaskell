@@ -130,21 +130,53 @@ incr x = x + 1
 
 ## Modules WITH code: Type Classes
 
-Write the specification directly into the .hs or .lhs file. The constrained variable must match the one from the class definition. A class must have at least one refinement signature (even if it's a trivial one) to be lifted to the refinement logic. [For example](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Class.hs):
+LiquidHaskell's typeclass support can be enabled in modules that use class methods in specifications with:
+
 ```haskell
-class Semigroup a where
-    {-@ mappend :: a -> a -> a @-}
-    mappend :: a -> a -> a
-    sconcat :: NonEmpty a -> a
-
-class Semigroup a => VSemigroup a where
-    {-@ lawAssociative :: v:a -> v':a -> v'':a ->
-          {mappend (mappend v v') v'' == mappend v (mappend v' v'')} @-}
-    lawAssociative :: a -> a -> a -> ()
+{-@ LIQUID "--typeclass" @-}
 ```
-Without the extra signature for `mappend`, the above example would not work.
 
-Instances can be defined without any special annotations:
+Write class and instance declarations in the Haskell source file as usual.
+LiquidHaskell derives the default type of every class method from its Haskell
+signature, so a LiquidHaskell signature for a method is optional. You can add a
+LiquidHaskell signature as usual when the method needs a stronger refinement or
+states a law.
+
+For example, `eq` has no LiquidHaskell signature, but it can still be used in the
+refinement for `lawRefl'`:
+
+```haskell
+-- Basic.hs
+{-@ LIQUID "--typeclass" @-}
+module Basic where
+
+import Prelude (Bool (True), (==))
+
+class MyEq a where
+  eq :: a -> a -> Bool
+```
+
+It can nevertheless be used in a refinement in `BasicImport.hs`:
+
+```haskell
+-- BasicImport.hs
+{-@ LIQUID "--typeclass" @-}
+module BasicImport where
+
+import Basic
+
+class MyEq a => MyVEq a where
+  {-@ lawRefl :: v:a -> {eq v v == True} @-}
+  lawRefl :: a -> ()
+```
+
+The annotation on `lawRefl` states a refinement law about `eq`; it is not needed
+merely to make `eq` available to the refinement logic. See [`Basic.hs`](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/typeclasses/pos/Basic.hs)
+and [`BasicImport.hs`](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/typeclasses/pos/BasicImport.hs)
+for the complete examples.
+
+Ordinary instances need no additional LiquidHaskell annotations:
+
 ```haskell
 data PNat = Z | S PNat
 
@@ -157,7 +189,10 @@ instance VSemigroup PNat where
   lawAssociative Z     _ _ = ()
   lawAssociative (S p) m n = lawAssociative p m n
 ```
-The example above inlines the proofs directly into the instance definition. This requires the `--aux-inline` flag.
+
+The example above inlines the proofs directly into the instance definition.
+This requires the `--aux-inline` flag. See [`PNat.hs`](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/typeclasses/pos/PNat.hs)
+for a complete example.
 
 ## Modules WITH code: Type Classes (Legacy)
 

@@ -90,10 +90,6 @@ compileClasses src env (name, spec) rest =
   methods = [ makeGHCLHNameLocatedFromId x | (_, xs) <- instmethods, x <- xs ]
       -- instance methods
 
-  mkSymbol x
-    | Ghc.isDictonaryId x = F.mappendSym "$" (F.dropSym 2 $ GM.simplesymbol x)
-    | otherwise           = F.dropSym 2 $ GM.simplesymbol x
-
   instmethods :: [(Ghc.ClsInst, [Ghc.Var])]
   instmethods =
     [ (inst, ms)
@@ -111,7 +107,7 @@ compileClasses src env (name, spec) rest =
   instClss =
     [ (inst, cls)
     | inst <- mconcat . Mb.maybeToList . _gsCls $ src
-    , Ghc.moduleName (Ghc.nameModule (Ghc.getName inst)) == getModName name
+    , (Ghc.moduleName <$> Ghc.nameModule_maybe (Ghc.getName inst)) == Just (getModName name)
     , let cls = Ghc.is_cls inst
     , cls `elem` refinedClasses
     ]
@@ -123,7 +119,6 @@ compileClasses src env (name, spec) rest =
   resolveClassMaybe d =
     either (const Nothing) Just (Bare.lookupGhcTyConLHName (Bare.reTyLookupEnv env) $ dataNameSymbol $ tycName d)
       >>= Ghc.tyConClass_maybe
-
 
 -- a list of class with user defined refinements
 makeClassDataDecl :: [(Ghc.Class, [(Ghc.Id, LocBareType)])] -> [DataDecl]
@@ -391,12 +386,7 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     -- Monoid.mappend, ...
     clsMethods = filter (\x -> GM.dropModuleNames (F.symbol x) `elem` fmap mkSymbol methods) $
       Ghc.classAllSelIds (Ghc.is_cls inst)
-    yts = [(lhNameToResolvedSymbol y, t) | (y, t) <- dcpTyArgs dcp]
-    mkSymbol x
-      | -- F.notracepp ("isDictonaryId:" ++ GM.showPpr x) $
-        Ghc.isDictonaryId x = F.mappendSym "$" (F.dropSym 2 $ GM.simplesymbol x)
-      | otherwise = F.dropSym 2 $ GM.simplesymbol x
-        -- res = dcpTyRes dcp
+    yts = [(lhNameToUnqualifiedSymbol y, t) | (y, t) <- dcpTyArgs dcp]
     clsTvs = dcpFreeTyVars dcp
         -- copy/pasted from Bare/Class.hs
     subst [] t = t
@@ -427,3 +417,16 @@ substAuxMethod dfun methods = F.notracepp "substAuxMethod" . go
         go (F.PIff e0 e1) = F.PIff (go e0) (go e1)
         go (F.PAtom brel e0 e1) = F.PAtom brel (go e0) (go e1)
         go e = F.notracepp "LEAF" e
+
+-- Normalise typeclass names for looking up class selector symbols.
+-- Instance methods are named `$c(method)`. GHC 9 can also expose superclass
+-- dictionary bindings named `$cp(n)(Class)`. These correspond to
+-- `$p(n)(Class)` selector symbols.
+-- Since class methods are always identified by variables with the `$c`
+-- prefix, we can ignore other cases.
+mkSymbol :: Ghc.Var -> F.Symbol
+mkSymbol x =
+  case Ghc.getOccString x of
+    '$' : 'c' : 'p' : rest -> F.symbol ('$' : 'p' : rest)
+    '$' : 'c' : rest       -> F.symbol rest
+    occ                    -> impossible Nothing $ "mkSymbol : should only be called with class methods, received " ++ F.showpp occ

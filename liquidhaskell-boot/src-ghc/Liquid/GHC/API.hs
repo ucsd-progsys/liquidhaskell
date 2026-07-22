@@ -166,6 +166,7 @@ import GHC.Builtin.Names              as Ghc
     , Unique
     , and_RDR
     , bindMName
+    , eq_RDR
     , eqClassKey
     , eqClassName
     , ge_RDR
@@ -594,6 +595,8 @@ import GHC.Tc.Utils.Monad             as Ghc
 import GHC.Tc.Utils.TcType            as Ghc (tcSplitDFunTy, tcSplitMethodTy)
 import GHC.Tc.Zonk.Type               as Ghc
     ( zonkTopLExpr )
+import GHC.ThToHs as Ghc
+    ( thRdrNameGuesses )
 import GHC.Types.PkgQual              as Ghc
     ( PkgQual(NoPkgQual) )
 import GHC.Types.Annotations          as Ghc
@@ -622,6 +625,7 @@ import GHC.Types.Basic                as Ghc
     , isStrongLoopBreaker
     , noOccInfo
     , topPrec
+    , TyConFlavour (..)
     )
 import GHC.Types.CostCentre           as Ghc
     ( CostCentre(cc_loc)
@@ -716,7 +720,7 @@ import GHC.Types.Name.Occurrence      as Ghc
 import GHC.Types.Name.Reader          as Ghc
     ( FieldsOrSelectors(WantNormal)
     , GlobalRdrEnv
-    , GREInfo
+    , GREInfo (..)
     , ImpItemSpec(ImpAll)
     , LookupGRE(LookupRdrName)
     , WhichGREs
@@ -729,6 +733,8 @@ import GHC.Types.Name.Reader          as Ghc
     , getRdrName
     , globalRdrEnvElts
     , greName
+    , greInfo
+    , greParent_maybe
     , isLocalGRE
     , lookupGRE
     , lookupGRE_Name

@@ -53,7 +53,7 @@ import qualified Data.Binary as B
 import Data.Data (Data, gmapM, gmapT)
 import Data.Generics (extM, extT)
 import Data.Hashable
-import Data.Maybe (isNothing)
+import Data.Maybe (fromMaybe, isNothing)
 import Data.String (fromString)
 import qualified Data.Text                               as Text
 import GHC.Generics
@@ -377,7 +377,7 @@ updateLHNameSymbol f (LHNUnresolved n s) = LHNUnresolved n (f s)
 -- Otherwise, LH would fail to link the two at various places where it is needed.
 lhNameToResolvedSymbol :: LHName -> Symbol
 lhNameToResolvedSymbol (LHNResolved (LHRLogic (LogicName s om mReflectionOf)) _) =
-    let m = maybe om GHC.nameModule mReflectionOf
+    let m = maybe om (\n -> fromMaybe om (GHC.nameModule_maybe n)) mReflectionOf
         msymbol = Text.pack $ GHC.moduleNameString $ GHC.moduleName m
      in symbol $ mconcat [msymbol, ".", symbolText s]
         {-

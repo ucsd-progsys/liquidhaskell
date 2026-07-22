@@ -6,7 +6,7 @@ import GHC.Num
 import GHC.Num.Integer_LHAssumptions()
 
 {-@
-assume fromInteger :: x:Integer -> {v:a | v = x }
+assume fromInteger :: (Num a) => x:Integer -> {v:a | v = x }
 
 assume negate :: (Num a)
                => x:a
@@ -16,6 +16,6 @@ assume abs :: (Num a) => x:a -> {y:a | (x >= 0 ==> y = x) && (x < 0 ==> y = -x) 
 
 define abs x = if x >=0 then x else -x
 
-assume + :: x:a -> y:a -> {v:a | v = x + y }
+assume + :: (Num a) => x:a -> y:a -> {v:a | v = x + y }
 assume - :: (Num a) => x:a -> y:a -> {v:a | v = x - y }
 @-}

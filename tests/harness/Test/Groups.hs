@@ -38,6 +38,7 @@ microTestGroups =
   , "terminate-neg"
   , "pattern-pos"
   , "typeclass-pos"
+  , "typeclass-neg"
   , "typed-holes"
   , "plugin-package-pos"
   ]

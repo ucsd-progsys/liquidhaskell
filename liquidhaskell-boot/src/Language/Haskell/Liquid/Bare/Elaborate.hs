@@ -629,12 +629,15 @@ bopToHsExpr bop = noLocA (HsVar Ghc.noExtField (noLocA (f bop)))
 brelToHsExpr :: F.Brel -> LHsExpr GhcPs
 brelToHsExpr brel = noLocA (HsVar Ghc.noExtField (noLocA (f brel)))
  where
-  f F.Eq = mkVarUnqual (mkFastString "==")
+  f F.Eq = eq_RDR
   f F.Gt = gt_RDR
   f F.Lt = lt_RDR
   f F.Ge = ge_RDR
   f F.Le = le_RDR
-  f F.Ne = mkVarUnqual (mkFastString "/=")
+  f F.Ne = case Ghc.thRdrNameGuesses False '(/=) of
+    [] -> impossible Nothing "brelToExpr: Could not find (/=) in GHC"
+    [x] -> x
+    _ -> impossible Nothing "brelToExpr: Found multiple (/=) in GHC"
   f _    = impossible Nothing "brelToExpr: Unsupported operation"
 
 symbolToRdrNameNs :: NameSpace -> F.Symbol -> RdrName

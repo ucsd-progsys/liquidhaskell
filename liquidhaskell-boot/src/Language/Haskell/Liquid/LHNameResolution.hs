@@ -388,6 +388,16 @@ errResolve alts k msg ls =
         PJ.sep (PJ.text "Maybe you meant one of:" : map pprint alts)
     )
 
+errTypeclassDisabled :: PPrint a => Located a -> TError t
+errTypeclassDisabled locSym =
+  ErrResolve
+    (LH.fSrcSpan locSym)
+    "logic name"
+    (pprint $ val locSym)
+    (PJ.vcat
+      [ PJ.text "This is a class method, but typeclass support is disabled."
+      , PJ.text "Enable it with {-@ LIQUID \"--typeclass\" @-}."
+      ])
 
 -- | Produces an LHName from a symbol by looking it in the rdr environment.
 resolveSymbolToTcName :: GHC.GlobalRdrEnv -> LocSymbol -> Either Error (Located LHName)
@@ -854,16 +864,25 @@ resolveLogicNames cfg thisModule env globalRdrEnv lmap0 localVars lnameEnv priva
       | otherwise =
         case lookupInScopeEnv env s of
           Left alts ->
-            -- If names are not in the environment, they must be data constructors,
-            -- or they must be reflected functions, or they must be in the logicmap.
+            -- If names are not in the environment, they must be one of the
+            -- following: class methods, data constructors, reflected functions,
+            -- or they must be in the logicmap.
             case resolveDataConName ls `mplus` resolveVarName lmap0 ls of
               Just m -> m
-              Nothing
-                | elem s wiredInNames ->
-                  return $ makeLocalLHName s
-                | otherwise -> do
-                    addError $ errResolve alts "logic name" "Cannot resolve name" ls
-                    return $ makeLocalLHName s
+              Nothing ->
+                case resolveClassMethodName ls of
+                  Just m
+                    | typeclass cfg -> m
+                    | otherwise -> do
+                        addError $ errTypeclassDisabled ls
+                        return $ makeLocalLHName s
+
+                  Nothing
+                    | elem s wiredInNames ->
+                      return $ makeLocalLHName s
+                    | otherwise -> do
+                        addError $ errResolve alts "logic name" "Cannot resolve name" ls
+                        return $ makeLocalLHName s
           Right [(_, lhname, _)] -> pure lhname
           -- In case of multiple matches, we give precedence to locally defined
           -- logic entities for the user to be able to overwrite them.
@@ -931,6 +950,34 @@ resolveLogicNames cfg thisModule env globalRdrEnv lmap0 localVars lnameEnv priva
                  (map (PJ.text . GHC.showPprUnsafe) es)
               )
             return $ makeLocalLHName $ val s
+    resolveClassMethodName s =
+      case GHC.lookupGRE globalRdrEnv (mkLookupGRE (LHVarName LHAnyModuleNameF) $ val s) of
+        [e]
+          | GHC.Vanilla <- GHC.greInfo e
+          , Just pName <- GHC.greParent_maybe e
+          , isClassTyCon pName ->
+            Just $ do
+              let n = GHC.greName e
+              -- Do not register the class selector as reflected: typeclass
+              -- compilation reflects generated `$c...` implementation methods,
+              -- not selector IDs. Don't add the selector to `lneReflected`,
+              -- i.e. don't use `Just n` instead of `Nothing` in the argument of
+              -- type `Maybe Name` in `makeLogicLHName`.
+              let lhName = makeLogicLHName
+                            (symbol $ GHC.getOccString n)
+                            (GHC.nameModule n)
+                            Nothing
+              addName lhName
+              return lhName
+        _ -> Nothing
+
+    isClassTyCon parentName =
+      case GHC.lookupGRE globalRdrEnv (mkLookupGRE (LHTcName LHAnyModuleNameF) (symbol $ GHC.occNameString $ GHC.nameOccName parentName)) of
+        [parentGre] ->
+          case GHC.greInfo parentGre of
+            GHC.IAmTyCon GHC.ClassFlavour -> True
+            _ -> False
+        _ -> False
 
     -- Resolves names of reflected functions or names in the logic map
     --

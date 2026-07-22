@@ -170,10 +170,10 @@ splitType t  = (αs, map irrelevantMult ts, tr)
     (αs, tb) = splitForAllTyCoVars t
     (ts, tr) = splitFunTys tb
 
-stitchArgs :: (Monoid t1, PPrint a)
+stitchArgs :: Monoid t1
            => Bool
            -> SrcSpan
-           -> a
+           -> DataCon
            -> [(Symbol, Maybe (RRType Reft))]
            -> [Type]
            -> [(Symbol, RFInfo, RRType Reft, t1)]
@@ -182,14 +182,21 @@ stitchArgs allowTC sp dc allXs allTs
                       ++ zipWith g xs (ofType <$> ts)
   | otherwise          = panicFieldNumMismatch sp dc nXs nTs
     where
-      (pts, ts)        = L.partition (\t -> notracepp ("isPredTy: " ++ showpp t) $ (if allowTC then isEmbeddedDictType else Ghc.isSimplePredTy ) t) allTs
+      (pts, ts)        = L.partition (\t -> notracepp ("isPredTy: " ++ showpp t) $ isErasable t) allTs
       (_  , xs)        = L.partition (coArg . snd) allXs
       nXs              = length xs
       nTs              = length ts
       g (x, Just t) _  = (x, classRFInfo allowTC, t, mempty)
       g (x, _)      t  = (x, classRFInfo allowTC, t, mempty)
       coArg Nothing    = False
-      coArg (Just t)   = (if allowTC then isEmbeddedDictType else Ghc.isSimplePredTy ). toType False $ t
+      coArg (Just t)   = isErasable (toType False t)
+      isClassDc = Ghc.isClassTyCon (Ghc.dataConTyCon dc)
+      -- For ordinary constructors, class dictionaries are constraint evidence,
+      -- not fields. For class dictionary constructors, superclass dictionaries
+      -- are fields and must be retained
+      isErasable t
+        | allowTC = isEmbeddedDictType t || (not isClassDc && Ghc.isClassPred t)
+        | otherwise = Ghc.isSimplePredTy t
 
 panicFieldNumMismatch :: (PPrint a, PPrint a1, PPrint a3)
                       => SrcSpan -> a3 -> a1 -> a -> a2
