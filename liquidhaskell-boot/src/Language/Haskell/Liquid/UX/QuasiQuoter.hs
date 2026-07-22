@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE TemplateHaskellQuotes #-}
-{-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE OverloadedStrings     #-}
 
 module Language.Haskell.Liquid.UX.QuasiQuoter

@@ -1,13 +1,9 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE FlexibleInstances         #-}
-{-# LANGUAGE FlexibleContexts          #-}
-{-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TemplateHaskellQuotes     #-}
-{-# LANGUAGE TypeApplications          #-}
 {-# OPTIONS_GHC -Wno-orphans           #-}
 
 module Language.Haskell.Liquid.Parse
