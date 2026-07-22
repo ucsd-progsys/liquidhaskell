@@ -3027,19 +3027,41 @@ incr   :: Int -&gt; Int
 incr x = x + 1
 </code></pre>
 <h2 id="modules-with-code-type-classes">Modules WITH code: Type Classes<a class="headerlink" href="#modules-with-code-type-classes" title="Permanent link">&para;</a></h2>
-<p>Write the specification directly into the .hs or .lhs file. The constrained variable must match the one from the class definition. A class must have at least one refinement signature (even if it's a trivial one) to be lifted to the refinement logic. <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Class.hs">For example</a>:</p>
-<pre><code class="language-haskell">class Semigroup a where
-    {-@ mappend :: a -&gt; a -&gt; a @-}
-    mappend :: a -&gt; a -&gt; a
-    sconcat :: NonEmpty a -&gt; a
-
-class Semigroup a =&gt; VSemigroup a where
-    {-@ lawAssociative :: v:a -&gt; v':a -&gt; v'':a -&gt;
-          {mappend (mappend v v') v'' == mappend v (mappend v' v'')} @-}
-    lawAssociative :: a -&gt; a -&gt; a -&gt; ()
+<p>LiquidHaskell's typeclass support can be enabled in modules that use class methods in specifications with:</p>
+<pre><code class="language-haskell">{-@ LIQUID &quot;--typeclass&quot; @-}
 </code></pre>
-<p>Without the extra signature for <code>mappend</code>, the above example would not work.</p>
-<p>Instances can be defined without any special annotations:</p>
+<p>Write class and instance declarations in the Haskell source file as usual.
+LiquidHaskell derives the default type of every class method from its Haskell
+signature, so a LiquidHaskell signature for a method is optional. You can add a
+LiquidHaskell signature as usual when the method needs a stronger refinement or
+states a law.</p>
+<p>For example, <code>eq</code> has no LiquidHaskell signature, but it can still be used in the
+refinement for <code>lawRefl'</code>:</p>
+<pre><code class="language-haskell">-- Basic.hs
+{-@ LIQUID &quot;--typeclass&quot; @-}
+module Basic where
+
+import Prelude (Bool (True), (==))
+
+class MyEq a where
+  eq :: a -&gt; a -&gt; Bool
+</code></pre>
+<p>It can nevertheless be used in a refinement in <code>BasicImport.hs</code>:</p>
+<pre><code class="language-haskell">-- BasicImport.hs
+{-@ LIQUID &quot;--typeclass&quot; @-}
+module BasicImport where
+
+import Basic
+
+class MyEq a =&gt; MyVEq a where
+  {-@ lawRefl :: v:a -&gt; {eq v v == True} @-}
+  lawRefl :: a -&gt; ()
+</code></pre>
+<p>The annotation on <code>lawRefl</code> states a refinement law about <code>eq</code>; it is not needed
+merely to make <code>eq</code> available to the refinement logic. See <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/typeclasses/pos/Basic.hs"><code>Basic.hs</code></a>
+and <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/typeclasses/pos/BasicImport.hs"><code>BasicImport.hs</code></a>
+for the complete examples.</p>
+<p>Ordinary instances need no additional LiquidHaskell annotations:</p>
 <pre><code class="language-haskell">data PNat = Z | S PNat
 
 instance Semigroup PNat where
@@ -3051,7 +3073,9 @@ instance VSemigroup PNat where
   lawAssociative Z     _ _ = ()
   lawAssociative (S p) m n = lawAssociative p m n
 </code></pre>
-<p>The example above inlines the proofs directly into the instance definition. This requires the <code>--aux-inline</code> flag.</p>
+<p>The example above inlines the proofs directly into the instance definition.
+This requires the <code>--aux-inline</code> flag. See <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/typeclasses/pos/PNat.hs"><code>PNat.hs</code></a>
+for a complete example.</p>
 <h2 id="modules-with-code-type-classes-legacy">Modules WITH code: Type Classes (Legacy)<a class="headerlink" href="#modules-with-code-type-classes-legacy" title="Permanent link">&para;</a></h2>
 <p>Write the specification directly into the .hs or .lhs file,
 above the type class definition. <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Class.hs">For example</a>:</p>
