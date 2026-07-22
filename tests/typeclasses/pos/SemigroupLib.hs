@@ -1,7 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--typeclass" @-}
-{-@ LIQUID "--aux-inline" @-}
 {-@ LIQUID "--ple" @-}
 
 module SemigroupLib where
