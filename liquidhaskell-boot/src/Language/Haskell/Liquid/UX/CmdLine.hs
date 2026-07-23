@@ -328,9 +328,11 @@ lhOptions =
   , opt [] ["compile-spec"] (NoArg $ fm $ \c -> c { compileSpec = True })
       "Only compile specifications (into .bspec file); skip verification"
   , opt [] ["typeclass"] (NoArg $ fm $ \c -> c { typeclass = True })
-      "Enable Typeclass support"
+      "Enable typeclass support"
   , opt [] ["aux-inline"] (NoArg $ fm $ \c -> c { auxInline = True })
-      "Enable inlining of class methods"
+      ("Beta-reduce applications of methods to dictionaries in Core. Might help\n" ++
+       "termination checks of functions that use methods."
+      )
   , opt [] ["rw-termination-check"] (NoArg $ fm $ \c -> c { rwTerminationCheck = True })
       ("Enable the rewrite divergence checker. Can speed up verification if rewriting\n" ++
        "terminates, but can also cause divergence."
