@@ -2816,15 +2816,18 @@ an instance of <code>GHC.Generics.Generic</code> or <code>Test.Targetable.Target
 counter-examples for polymorphic types, but will try (naively) to
 instantiate type variables with <code>Int</code> (as seen in the example above).</p>
 <h2 id="typeclasses">Typeclasses<a class="headerlink" href="#typeclasses" title="Permanent link">&para;</a></h2>
-<p><strong>Options:</strong> <code>typeclass</code></p>
+<p><strong>Options:</strong> <code>typeclass</code>, <code>aux-inline</code></p>
 <p><strong>Status:</strong> <code>experimental</code></p>
 <p>The <code>--typeclass</code> flag enables experimental support for typeclass
 declarations and instances. Class methods can be used in refinements, and
-LiquidHaskell derives their default types from their Haskell signatures; an
-explicit LiquidHaskell signature is needed only to state a stronger refinement
-or a law.</p>
-<p>When proof or law methods are implemented directly in an instance and their
-auxiliary implementations must be unfolded, also enable <code>--aux-inline</code>.</p>
+LiquidHaskell should be able to elaborate the dictionaries they need.</p>
+<p>Termination checks for functions and methods that use methods is experimental.
+Sometimes using <code>--aux-inline</code> migh help the termination checks.</p>
+<p>The flag <code>--aux-inline</code> beta-reduces the applications in Core of the form
+<code>method_name dictionary other arguments</code>. The result looks like
+<code>$c_method_implementation other arguments</code>. The removal of the dictionary
+simplifies the dependency graph of the function that contains the application,
+and this sometimes helps the termination checker.</p>
 <h2 id="refcore-calculus-extraction">Refcore Calculus Extraction<a class="headerlink" href="#refcore-calculus-extraction" title="Permanent link">&para;</a></h2>
 <p><strong>Options:</strong> <code>refcore</code>, <code>refcore-text</code></p>
 <p>LiquidHaskell can extract a module's reflected definitions and refinement
