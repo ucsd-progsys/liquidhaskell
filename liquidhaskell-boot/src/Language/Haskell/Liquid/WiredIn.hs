@@ -124,6 +124,11 @@ wiredTheorySortedSyms =
       , "FF_mul"
 
       , "strLen"
+      , "subString"
+      , "strConcat"
+      , "strPrefixOf"
+      , "strSuffixOf"
+      , "strContains"
       ]
 
 --------------------------------------------------------------------------------
