@@ -1641,8 +1641,8 @@ executable unit-pos-3
                     , StrictPair1
                     , String00
                     , StringLit
-                    , Strings
                     , StringOps
+                    , Strings
                     , StructRec
                     , Sum
                     , T1013A
