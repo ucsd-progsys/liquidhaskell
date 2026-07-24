@@ -1642,6 +1642,7 @@ executable unit-pos-3
                     , String00
                     , StringLit
                     , Strings
+                    , StringOps
                     , StructRec
                     , Sum
                     , T1013A
