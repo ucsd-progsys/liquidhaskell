@@ -109,7 +109,13 @@ makeDataConType allowTC ds | Mb.isNothing (dataConWrapId_maybe dc)
 makeDataConType allowTC ds
   = [(woId, noDummySyms woRType), (wrId, noDummySyms wrRType)]
   where
-    (wo, wr) = L.partition isWorkerDef ds
+    -- A measure with missing argument types comes from a selector or checker
+    -- measure that describes the worker data constructor. A measure
+    -- with all the argument types available comes from a user definition
+    -- and describes both the worker and the wrapper.
+    (workerOnlyDs, bothDs) = L.partition hasMissingFieldTypes ds
+    wo       = workerOnlyDs ++ bothDs
+    wr       = bothDs
     dc       = ctor $ head ds
     woId     = dataConWorkId dc
     wot      = varType woId
@@ -121,14 +127,9 @@ makeDataConType allowTC ds
     wrRType  = combineDCTypes "cdc1" wrt wrts
     woRType  = combineDCTypes "cdc2" wot wots
 
-
-    isWorkerDef def
-      -- types are missing for arguments, so definition came from a logical measure
-      -- and it is for the worker datacon
-      | any (Mb.isNothing . snd) (binds def)
-      = True
-      | otherwise
-      = length (binds def) == length (fst $ splitFunTys $ snd $ splitForAllTyCoVars wot)
+    -- types are missing for arguments, so the definition came from a logical
+    -- measure and it is for the worker datacon only
+    hasMissingFieldTypes def = any (Mb.isNothing . snd) (binds def)
 
 -- | If there are any dummy symbols in the type, replace them with fresh
 -- variables.
