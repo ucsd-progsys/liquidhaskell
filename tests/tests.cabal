@@ -981,6 +981,7 @@ executable measure-pos
                     , List01
                     , List02
                     , List02Lib
+                    , MeasureGadt
                     , Ple00
                     , Ple01
                     , Ple1
