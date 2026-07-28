@@ -88,6 +88,9 @@ checkDuplicateMeasure measures
       mkError m ms = ErrDupMeas (fSrcSpan m) (pprint (val m)) (fSrcSpan <$> ms)
 
 
+-- | Returns the specification types of all data constructors augmented with
+-- the refinements from the measures. Also returns the specification types of
+-- the measures in the second component of the result.
 dataConTypes :: Bool -> MSpec (RRType Reft) DataCon -> ([(Var, RRType Reft)], [(F.Located LHName, RRType Reft)])
 dataConTypes allowTC  s = (ctorTys, measTys)
   where
