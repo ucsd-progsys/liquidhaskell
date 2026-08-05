@@ -35,6 +35,9 @@ module Language.Haskell.Liquid.UX.CmdLine (
    -- * Diff check mode
    , diffcheck
 
+   -- * Shell-word splitting (used by LIQUIDHASKELL_OPTS parsing)
+   , shellWords
+
 ) where
 
 import Prelude hiding (error)
