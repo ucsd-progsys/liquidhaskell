@@ -722,7 +722,7 @@ import GHC.Types.Name.Reader          as Ghc
     , GlobalRdrEnv
     , GREInfo (..)
     , ImpItemSpec(ImpAll)
-    , LookupGRE(LookupRdrName)
+    , LookupGRE(LookupOccName, LookupRdrName)
     , WhichGREs
         ( SameNameSpace
         , RelevantGREs

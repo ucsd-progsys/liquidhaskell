@@ -115,7 +115,7 @@ infixl 3 =>=
 _ =>= y  = y
 
 -------------------------------------------------------------------------------
--- | @e ? lemma@ lets you use the type of @lemma@ when checking that @e@ haskell
+-- | @e ? lemma@ lets you use the type of @lemma@ when checking that @e@
 -- has some expected refinement type.
 --
 -- Schematically, @?@ allows to use @q x@ to check that @e@ satisfies @p x e@
@@ -127,14 +127,14 @@ _ =>= y  = y
 -- >     lemma :: y:t0 -> { q y }
 -- >     lemma = ...
 --
--- While @?@ is defined as Haskell's 'const', @?@ is optimized by Liquid
--- Haskell. The 'const' function, on the other hand, would incur some extra
--- verification overhead because Liquid Haskell needs to go through the trouble
--- of checking that @const e lemma@ is actually @e@.
+-- @?@ is defined as Haskell's 'const' and both are interchangeable. @?@ is
+-- a bit more convenient to use in infix form. Liquid Haskell optimizes both
+-- forms to avoid extra verification overhead that would otherwise require
+-- of checking that @const e lemma@ or @e ? lemma@ is actually @e@.
 --
 -- === At a lower level
 --
--- Liquid Haskell treats @e ? lemma@ as
+-- Liquid Haskell treats @e ? lemma@ and @const e lemma@ as
 --
 -- > let fresh0 = e
 -- >  in let fresh1 = lemma
