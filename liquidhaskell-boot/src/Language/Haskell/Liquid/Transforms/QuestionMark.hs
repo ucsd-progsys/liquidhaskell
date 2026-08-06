@@ -25,15 +25,14 @@ module Language.Haskell.Liquid.Transforms.QuestionMark (eliminateQuestionMark) w
 import qualified Language.Haskell.TH.Syntax as TH (nameModule)
 import Liquid.GHC.API as Ghc
 
--- | Look up the '?' operator in the 'GlobalRdrEnv'. If found, eliminate all
--- its applications from the Core program. If not found (module doesn't import
--- ProofCombinators), return the bindings unchanged.
+-- | Look up the 'FunctionNames' in the 'GlobalRdrEnv'. If found, eliminate all
+-- their applications from the Core program. If not found, return the bindings unchanged.
 eliminateQuestionMark :: GlobalRdrEnv -> [CoreBind] -> [CoreBind]
 eliminateQuestionMark rdrEnv cbs =
   case lookupFunctionNames rdrEnv of
     Nothing    -> cbs
     Just names -> map (goBind names) cbs
-
+-- | A record of function names whose applications are to be removed form the core program.
 data FunctionNames = FunctionNames
   { questionMarkName :: Maybe Name
   , constName        :: Maybe Name
