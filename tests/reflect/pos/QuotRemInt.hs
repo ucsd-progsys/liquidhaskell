@@ -55,3 +55,33 @@ examplesRem
 @-}
 examplesRem :: ()
 examplesRem = ()
+
+{-@
+examplesDiv
+   :: { 2 = div (-5) (-2) &&
+        -3 = div 5 (-2) &&
+        2 = div 5 2 &&
+        0 = div 0 2 &&
+        0 = div 1 2 &&
+        -1 = div (-1) 2 &&
+        2 = div (-5) (-2) &&
+        0 = div (-1) (-2) &&
+        -1 = div 1 (-1)
+      }
+@-}
+examplesDiv = ()
+
+{-@
+examplesMod
+   :: { -1 = Prelude.mod (-5) (-2) &&
+        -1 = Prelude.mod 5 (-2) &&
+        1 = Prelude.mod 5 2 &&
+        0 = Prelude.mod 0 2 &&
+        1 = Prelude.mod 1 2 &&
+        1 = Prelude.mod (-1) 2 &&
+        -1 = Prelude.mod (-5) (-2) &&
+        -1 = Prelude.mod (-1) (-2) &&
+        0 = Prelude.mod 1 (-1)
+      }
+@-}
+examplesMod = ()
