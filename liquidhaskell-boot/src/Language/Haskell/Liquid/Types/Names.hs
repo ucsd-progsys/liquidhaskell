@@ -88,9 +88,13 @@ instance CompatibleBinder (Located Symbol) (Located Symbol)
 instance CompatibleBinder Symbol (Located Symbol) where
   coerceBinder (Loc _ _ s) = s
 
--- RJ: Please add docs
+-- | The size measure applied to values of a type marked @{-@ autosize T @-}@.
+--
+-- It is declared in @GHC.Base_LHAssumptions@, so it must be spelled with that
+-- qualification here: the solver only knows the resolved name, and an
+-- unqualified occurrence is rejected as a free variable.
 lenLocSymbol :: Located Symbol
-lenLocSymbol = dummyLoc $ symbol ("autolen" :: String)
+lenLocSymbol = dummyLoc $ symbol ("GHC.Base_LHAssumptions.autolen" :: String)
 
 anyTypeSymbol :: Symbol
 anyTypeSymbol = symbol (show ''Any)

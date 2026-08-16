@@ -6,6 +6,9 @@
   neither `--ple-local` nor `--ple`
   [#2737](https://github.com/ucsd-progsys/liquidhaskell/issues/2737)
   [#2739](https://github.com/ucsd-progsys/liquidhaskell/pull/2739)
+- Emit the `autosize` measure under its resolved name, so constraints that
+  mention it are no longer rejected as having a free variable
+  [#2736](https://github.com/ucsd-progsys/liquidhaskell/issues/2736)
 
 ## 0.9.14.1.1 (2026-06-04)
 
