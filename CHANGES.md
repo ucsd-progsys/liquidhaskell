@@ -5,6 +5,7 @@
 - Reject `ple` and `automatic-instances` annotations in modules that enable
   neither `--ple-local` nor `--ple`
   [#2737](https://github.com/ucsd-progsys/liquidhaskell/issues/2737)
+  [#2739](https://github.com/ucsd-progsys/liquidhaskell/pull/2739)
 
 ## 0.9.14.1.1 (2026-06-04)
 
