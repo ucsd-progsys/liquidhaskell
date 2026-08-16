@@ -9,9 +9,11 @@
 - Emit the `autosize` measure under its resolved name, so constraints that
   mention it are no longer rejected as having a free variable
   [#2736](https://github.com/ucsd-progsys/liquidhaskell/issues/2736)
+  [#2738](https://github.com/ucsd-progsys/liquidhaskell/pull/2738)
 - Skip the termination metric of a recursive group whose decreasing parameters
   have different types, instead of building one the solver cannot sort check
   [#2736](https://github.com/ucsd-progsys/liquidhaskell/issues/2736)
+  [#2738](https://github.com/ucsd-progsys/liquidhaskell/pull/2738)
 
 ## 0.9.14.1.1 (2026-06-04)
 
