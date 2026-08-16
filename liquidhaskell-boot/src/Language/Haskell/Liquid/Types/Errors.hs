@@ -479,6 +479,11 @@ data TError t =
                 , msg :: !Doc
                 }
 
+  | ErrPleDisabled { pos :: !SrcSpan
+                   , var :: !Doc
+                   } -- ^ 'ple' or 'automatic-instances' annotation in a module
+                     --   that enables neither --ple-local nor --ple
+
   | ErrPosTyCon { pos  :: SrcSpan
                 , tc   :: !Doc
                 , dc   :: !Doc
@@ -1116,6 +1121,14 @@ ppError' _ dCtx (ErrRewrite _ msg )
   = text "Rewrite error"
         $+$ dCtx
         $+$ nest 4 msg
+
+ppError' _ dCtx (ErrPleDisabled _ v)
+  = text "PLE is not enabled for" <+> ppTicks v
+        $+$ dCtx
+        $+$ nest 4 (vcat
+              [ text "Add {-@ LIQUID \"--ple-local\" @-} to run PLE on the annotated binders,"
+              , text "or {-@ LIQUID \"--ple\" @-} to run it on the whole module."
+              ])
 
 ppError' _ dCtx (ErrPosTyCon _ tc dc)
   = text "Negative occurence of" <+> tc <+> "in" <+> dc

@@ -60,6 +60,9 @@ liquid annotation
 {-@ automatic-instances theorem @-}
 ```
 
+The directive is read only under `--ple-local`. A module that sets neither
+`--ple-local` nor `--ple` and still carries the directive is rejected.
+
 Normally, PLE will only unfold invocations only if the arguments are known
 with enough precision to enter some of the equations of the function. For
 instance, in
