@@ -184,9 +184,15 @@ consCBSizedTys consBind γ xes
        autoenv  <- gets autoSize
        ts       <- forM ts' $ T.mapM refreshArgs
        let vs    = zipWith collectArgs' ts es
-       is       <- mapM makeDecrIndex (zip vars ts) >>= checkSameLens
+       is0      <- mapM makeDecrIndex (zip vars ts) >>= checkSameLens
+       sameTys  <- checkEqTypes =<< mapM checkIndex (zip4 vars vs ts is0)
+       -- The size function of a group is taken from the type of one decreasing
+       -- parameter and applied to all of them, so a group whose parameters have
+       -- different types has no metric to build. Drop it: building one anyway
+       -- produces a refinement the solver cannot sort check, and the error from
+       -- checkEqTypes never gets seen.
+       let is    = if sameTys then is0 else Nothing <$ is0
        let xeets = zipWith (\v i -> [((v,i), x) | x <- zip3 vars is $ map unTemplate ts]) vs is
-       _        <- mapM checkIndex (zip4 vars vs ts is) >>= checkEqTypes
        let rts   = (recType autoenv <$>) <$> xeets
        γ'       <- foldM extender γ (zip vars ts)
        let γs    = zipWith makeRecInvariants [γ' `setTRec` zip vars rts' | rts' <- rts] (filter (not . noMakeRec) <$> vs)
@@ -198,19 +204,26 @@ consCBSizedTys consBind γ xes
        (vars, es)     = unzip xes
        dxs            = F.pprint <$> vars
        collectArgs'   = collectArguments . length . ty_binds . toRTypeRep . unOCons . unTemplate
-       checkEqTypes :: [Maybe SpecType] -> CG [SpecType]
-       checkEqTypes x = checkAllVsHead err1 toRSort (catMaybes x)
+       checkEqTypes :: [Maybe SpecType] -> CG Bool
+       checkEqTypes x =
+         if allEqual (map toRSort $ catMaybes x) then
+           return True
+         else
+           addWarning err1 >> return False
        err1           = ErrTermin loc dxs $ text "The decreasing parameters should be of same type"
        checkSameLens :: [Maybe Int] -> CG [Maybe Int]
-       checkSameLens  = checkAllVsHead err2 length
+       checkSameLens xs =
+         if allEqual (map length xs) then
+           return xs
+         else
+           addWarning err2 >> return []
        err2           = ErrTermin loc dxs $ text "All Recursive functions should have the same number of decreasing parameters"
        loc            = GHC.getSrcSpan (head vars)
 
-       checkAllVsHead :: Eq b => Error -> (a -> b) -> [a] -> CG [a]
-       checkAllVsHead _   _ []          = return []
-       checkAllVsHead err f (x:xs)
-         | all (== f x) (f <$> xs) = return (x:xs)
-         | otherwise               = addWarning err >> return []
+-- All elements of the input are equal to each other
+allEqual :: Eq a => [a] -> Bool
+allEqual []     = True
+allEqual (x:xs) = all (== x) xs
 
 -- See Note [Shape of normalized terms] in
 -- Language.Haskell.Liquid.Transforms.ANF
