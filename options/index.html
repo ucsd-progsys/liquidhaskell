@@ -2388,6 +2388,8 @@ annotated for automatic instantiation using the following
 liquid annotation</p>
 <pre><code>{-@ automatic-instances theorem @-}
 </code></pre>
+<p>The directive is read only under <code>--ple-local</code>. A module that sets neither
+<code>--ple-local</code> nor <code>--ple</code> and still carries the directive is rejected.</p>
 <p>Normally, PLE will only unfold invocations only if the arguments are known
 with enough precision to enter some of the equations of the function. For
 instance, in</p>
