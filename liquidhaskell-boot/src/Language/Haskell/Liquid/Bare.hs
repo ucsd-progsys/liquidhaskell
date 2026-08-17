@@ -959,11 +959,20 @@ addReflSigs env name rtEnv measEnv refl sig =
     reflected               = S.fromList $ fst <$> notReflActualTySigs
     notReflected xt         = fst xt `notElem` reflected
 
+-- | Resolves the binders of the @ple@ and @automatic-instances@ annotations.
+--
+-- They are read only under @--ple-local@, and @--ple@ already covers the whole
+-- module, so with neither flag set the annotation would be dropped without a
+-- word. Report it. See #2737.
 makeAutoInst :: Bare.Env -> Ms.BareSpec ->
                 Bare.Lookup (S.HashSet Ghc.Var)
-makeAutoInst env spec = S.fromList <$> kvs
+makeAutoInst env spec
+  | not (S.null autois), not (allowPLE (getConfig env)) =
+      Left [ ErrPleDisabled (GM.fSrcSpan lx) (pprint (val lx)) | lx <- S.toList autois ]
+  | otherwise = S.fromList <$> kvs
   where
-    kvs = forM (S.toList (Ms.autois spec)) $
+    autois = Ms.autois spec
+    kvs = forM (S.toList autois) $
             Bare.lookupGhcIdLHName env
 
 

@@ -668,6 +668,7 @@ executable errors
                     , T1498
                     , T2346
                     , T2650
+                    , T2737
                     , T773
                     , T774
                     , TerminationExprNum
