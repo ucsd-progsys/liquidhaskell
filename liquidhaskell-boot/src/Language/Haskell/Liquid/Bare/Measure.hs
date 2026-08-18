@@ -436,7 +436,9 @@ makeOpaqueReflMeasures env measEnv specs eqs =
     getVar sym = case Bare.lookupGhcIdLHName env sym of
       Right x -> x
       Left _ -> panic (Just $ GM.fSrcSpan sym) "function to reflect not in scope"
-    definedSymbols = getDefinedSymbolsInLogic env measEnv specs
+    definedSymbols =
+      getDefinedSymbolsInLogic env measEnv specs
+        `S.union` S.fromList [F.eqName eq | (_, _, eq) <- eqs]
     undefinedInLogic v = not (S.member (F.symbol v) definedSymbols)
     -- Variables to consider
     varsUndefinedInLogic = S.unions $
