@@ -96,11 +96,10 @@ instance ParseableV LocSymbol where
 
 initPStateWithList :: LHPState
 initPStateWithList
-  = (initPState composeFun)
-               { empList    = Just $ \lx -> EVar (symbol (show '[]) <$ lx)
-               , singList   = Just (\lx e -> EApp (EApp (EVar (symbol (show '(:)) <$ lx)) e) (EVar (symbol (show '[]) <$ lx)))
-               }
-  where composeFun = Nothing
+  = initPState
+      { empList    = Just $ \lx -> EVar (symbol (show '[]) <$ lx)
+      , singList   = Just (\lx e -> EApp (EApp (EVar (symbol (show '(:)) <$ lx)) e) (EVar (symbol (show '[]) <$ lx)))
+      }
 
 -------------------------------------------------------------------------------
 singleSpecP :: SourcePos -> String -> Either (ParseErrorBundle String Void) BPspec
