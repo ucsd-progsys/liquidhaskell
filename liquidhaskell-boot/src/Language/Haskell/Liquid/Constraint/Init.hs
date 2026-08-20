@@ -110,6 +110,13 @@ addPolyInfo t = mkUnivs (go <$> as) ps t'
 makeDataConTypes :: Bool -> Var -> CG (Var, SpecType)
 makeDataConTypes allowTC x = (x,) <$> trueTy allowTC (varType x)
 
+-- | Refines the data constructors of every autosized type with an equation for
+--   the @autolen@ measure, and returns one invariant per refined type stating
+--   that the size is non-negative.
+--
+--   @dcts@ gives the unrefined type of every constructor, @specenv@ the types
+--   declared @autosize@ and @dcs@ the constructors in scope. Constructors of a
+--   type that was not declared @autosize@ are left alone.
 makeAutoDecrDataCons :: [(Id, SpecType)] -> S.HashSet TyCon -> [Id] -> ([LocSpecType], [(Id, SpecType)])
 makeAutoDecrDataCons dcts specenv dcs
   = (simplify rsorts, tys)
@@ -131,6 +138,14 @@ idTyCon = fmap dataConTyCon . Ghc.isDataConId_maybe
 lenOf :: F.Symbol -> F.Expr
 lenOf x = F.mkEApp lenLocSymbol [F.EVar x]
 
+-- | Refines the result type of @x'@, the @n@-th constructor of its type, with
+--   an equation that puts its size at @n@ plus the size of every field whose
+--   own type is autosized. Also returns the result sort, which
+--   'makeAutoDecrDataCons' turns into the non-negativity invariant.
+--
+--   Every autosized field counts, so the size grows along an edge between two
+--   mutually recursive types. A field of a type that is not autosized has no
+--   @autolen@ of its own and contributes nothing.
 makeSizedDataCons :: S.HashSet TyCon -> [(Id, SpecType)] -> DataCon -> Integer -> (RSort, (Id, SpecType))
 makeSizedDataCons specenv dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_res = tres}))
     where
@@ -139,8 +154,6 @@ makeSizedDataCons specenv dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep t
       trep   = toRTypeRep st
       tres   = ty_res trep `strengthen` MkUReft (F.Reft (F.vv_, F.PAtom F.Eq (lenOf F.vv_) computelen)) mempty
 
-      -- An argument of an autosized type contributes its own size, so the size
-      -- of a value grows along the edges between mutually recursive types too.
       recarguments = filter (autosized . fst) (zip (ty_args trep) (ty_binds trep))
       autosized (RApp c _ _ _) = S.member (rtc_tc c) specenv
       autosized _              = False
