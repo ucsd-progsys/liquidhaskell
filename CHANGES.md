@@ -17,6 +17,7 @@
 - Count the fields of every autosized type in the `autosize` measure, so the
   size grows along the edges between mutually recursive types
   [#2736](https://github.com/ucsd-progsys/liquidhaskell/issues/2736)
+  [#2742](https://github.com/ucsd-progsys/liquidhaskell/pull/2742)
 
 ## 0.9.14.1.1 (2026-06-04)
 
