@@ -1872,6 +1872,7 @@ executable unit-pos-4
                     , Assume
                     , Automate
                     , AutoSize
+                    , AutoSizeMutual
                     , AutoTerm1
                     , AutoTerm
                     , Avg

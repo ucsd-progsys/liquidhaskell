@@ -14,6 +14,9 @@
   have different types, instead of building one the solver cannot sort check
   [#2736](https://github.com/ucsd-progsys/liquidhaskell/issues/2736)
   [#2738](https://github.com/ucsd-progsys/liquidhaskell/pull/2738)
+- Count the fields of every autosized type in the `autosize` measure, so the
+  size grows along the edges between mutually recursive types
+  [#2736](https://github.com/ucsd-progsys/liquidhaskell/issues/2736)
 
 ## 0.9.14.1.1 (2026-06-04)
 
