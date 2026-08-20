@@ -3635,6 +3635,13 @@ Cons :: x:a -&gt; xs:L a -&gt; {v:L a | autosize v = 1 + autosize xs}
 </code></pre>
 <p>This information is all LiquidHaskell needs to prove termination
 on functions that recurse on <code>L a</code> (on ADTs in general.)</p>
+<p>A group of mutually recursive functions gets one size function for the whole
+group, so the parameter it decreases on must have the same type in every
+function of the group. A group that recurses on, say, both an <code>L a</code> and a
+<code>[a]</code> is rejected with</p>
+<pre><code>The decreasing parameters should be of same type
+</code></pre>
+<p>and needs an explicit termination expression instead.</p>
 <h3 id="disabling-termination-checking">Disabling Termination Checking<a class="headerlink" href="#disabling-termination-checking" title="Permanent link">&para;</a></h3>
 <p>To <em>disable</em> termination checking for <code>foo</code> that is,
 to <em>assume</em> that it is terminating (possibly for some
