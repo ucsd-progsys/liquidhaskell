@@ -961,6 +961,17 @@ invariant  {v:L a| autosize v >= 0 }
 This information is all LiquidHaskell needs to prove termination
 on functions that recurse on `L a` (on ADTs in general.)
 
+A group of mutually recursive functions gets one size function for the whole
+group, so the parameter it decreases on must have the same type in every
+function of the group. A group that recurses on, say, both an `L a` and a
+`[a]` is rejected with
+
+```
+The decreasing parameters should be of same type
+```
+
+and needs an explicit termination expression instead.
+
 ### Disabling Termination Checking
 
 To *disable* termination checking for `foo` that is,
