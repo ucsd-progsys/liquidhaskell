@@ -961,6 +961,26 @@ invariant  {v:L a| autosize v >= 0 }
 This information is all LiquidHaskell needs to prove termination
 on functions that recurse on `L a` (on ADTs in general.)
 
+A field whose own type is autosized counts towards the size, so the size grows
+along the edges between mutually recursive types
+
+```haskell
+{-@ autosize Tree @-}
+{-@ autosize Forest @-}
+data Tree   = Leaf Int | Node Forest
+data Forest = Nil | Cons Tree Forest
+```
+
+refines the constructors of both types with
+
+```haskell
+Node :: f:Forest -> {v:Tree | autosize v = 1 + autosize f}
+Cons :: t:Tree -> f:Forest -> {v:Forest | autosize v = 1 + autosize t + autosize f}
+```
+
+A field of a type that is not autosized itself, `[Tree]` for instance,
+contributes nothing.
+
 A group of mutually recursive functions gets one size function for the whole
 group, so the parameter it decreases on must have the same type in every
 function of the group. A group that recurses on, say, both an `L a` and a
