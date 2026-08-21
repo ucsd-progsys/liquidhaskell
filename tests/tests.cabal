@@ -2703,6 +2703,7 @@ executable typeclass-pos
                     , PNat
                     , SemigroupLib
                     , ConstrainedGADT
+                    , SingleMethod
 
     build-depends:    base
                     , liquid-prelude
