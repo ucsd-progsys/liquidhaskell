@@ -27,7 +27,7 @@ different users.
 
 ## Trying it from GitHub
 
-The github repo builds with GHC `9.14.1`, cabal-install `3.16.1.0`, and `z3` `9.8.17` or newer, all of
+The github repo builds with GHC `9.14.1`, cabal-install `3.16.1.0`, and `z3` `9.15.1` or newer, all of
 which must be in your `PATH`.
 
 ```
