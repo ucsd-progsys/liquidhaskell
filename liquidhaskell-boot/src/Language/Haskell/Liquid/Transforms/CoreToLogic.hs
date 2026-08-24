@@ -416,7 +416,11 @@ toPredApp p = do
       = PAnd <$> mapM coreToLg [e1, e2]
       | f == symbol ("Language.Haskell.Liquid.Prelude.==>" :: String)
       = PImp <$> coreToLg e1 <*> coreToLg e2
+      | GM.dropModuleUnique f == symbol ("==>" :: String)
+      = PImp <$> coreToLg e1 <*> coreToLg e2
       | f == symbol ("Language.Haskell.Liquid.Prelude.<=>" :: String)
+      = PIff <$> coreToLg e1 <*> coreToLg e2
+      | GM.dropModuleUnique f == symbol ("<=>" :: String)
       = PIff <$> coreToLg e1 <*> coreToLg e2
       | f == symbol (show 'const)
       = coreToLg e1

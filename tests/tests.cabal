@@ -2704,6 +2704,8 @@ executable typeclass-pos
                     , SemigroupLib
                     , ConstrainedGADT
                     , SingleMethod
+                    , HK1
+                    -- , HK2
 
     build-depends:    base
                     , liquid-prelude

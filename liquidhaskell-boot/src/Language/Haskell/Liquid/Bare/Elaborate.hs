@@ -695,7 +695,7 @@ specTypeToLHsType = \case
     REx _ tin tout -> nlHsFunTy (specTypeToLHsType tin) (specTypeToLHsType tout)
     RAppTy _ (RExprArg _) _ ->
       impossible Nothing "RExprArg should not appear here"
-    RAppTy t t' _ -> nlHsFunTy (specTypeToLHsType t) (specTypeToLHsType t')
+    RAppTy t t' _ -> nlHsAppTy (specTypeToLHsType t) (specTypeToLHsType t')
     RRTy _ _ _ t -> specTypeToLHsType t
     RHole _ -> noLocA $ HsWildCardTy Ghc.noAnn
     RExprArg _ ->
