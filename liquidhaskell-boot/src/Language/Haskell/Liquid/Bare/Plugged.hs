@@ -188,6 +188,9 @@ plugHolesOld allowTC tce tyi xx f t0 zz@(Loc l l' st0)
     = Loc l l'
     . mkArrow (zip (updateRTVar <$> αs') rs) ps' []
     . makeCls cs'
+    -- Here `su` maps LH tyvars to GHC tyvars, so goPlug merges two types that
+    -- both use GHC tyvars: binders inserted from the GHC side need no renaming,
+    -- hence [].
     . goPlug tce tyi [] err f (subts su rt)
     . mapExprReft (\_ -> F.applyCoSub coSub)
     . subts su
@@ -289,6 +292,8 @@ goPlug tce tyi su err f = go
     go (RVar _ _)       v@(RVar _ _)       = v
     go (RFun _ _ i o _) (RFun x ii i' o' r)               = RFun x ii    (go i i')   (go o o') r
     go (RAllT _ t _)    (RAllT a t' r)     = RAllT a    (go t t') r
+    -- Binder comes from the GHC type but the body uses LH tyvars. Rename it via
+    -- `su` or it binds nothing (Issue #2727).
     go (RAllT a t r)    t'                 = RAllT (subRTVar su a) (go t t') r
     go t                (RAllP p t')       = RAllP p    (go t t')
     go t                (REx b x t')       = REx b x    (go t t')
