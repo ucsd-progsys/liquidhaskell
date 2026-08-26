@@ -1,3 +1,10 @@
+-- Test for issue #2727:
+-- Specs of classes with higher-kinded parameters used to be elaborated with the
+-- type application `m a` rendered as a function type `m -> a`, throwing a kind
+-- error.
+
+-- Unlike HK2, this test has an implicit higher kinded type.
+
 {-@ LIQUID "--typeclass" @-}
 module HK1 where
 

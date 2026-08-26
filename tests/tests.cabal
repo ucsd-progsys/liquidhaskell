@@ -2705,7 +2705,7 @@ executable typeclass-pos
                     , ConstrainedGADT
                     , SingleMethod
                     , HK1
-                    -- , HK2
+                    , HK2
 
     build-depends:    base
                     , liquid-prelude
