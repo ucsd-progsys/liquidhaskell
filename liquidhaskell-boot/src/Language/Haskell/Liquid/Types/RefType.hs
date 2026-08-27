@@ -397,8 +397,10 @@ rVar   = (`RVar` trueReft) . RTV
 rTyVar :: TyVar -> RTyVar
 rTyVar = RTV
 
-updateRTVar :: RTVar b v c RTyVar -> RTVar Symbol Symbol RTyCon RTyVar
-updateRTVar (RTVar (RTV a) _) = RTVar (RTV a) (rTVarInfo a)
+-- | Compute 'RTVarInfo' for an 'RTVar' if the info is not already present.
+updateRTVar :: SpecRTVar -> SpecRTVar
+updateRTVar (RTVar (RTV a) RTVNoInfo{}) = RTVar (RTV a) (rTVarInfo a)
+updateRTVar v = v
 
 rTVar :: TyVar -> RTVar Symbol Symbol RTyCon RTyVar
 rTVar a = RTVar (RTV a) (rTVarInfo a)
