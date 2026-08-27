@@ -188,7 +188,10 @@ plugHolesOld allowTC tce tyi xx f t0 zz@(Loc l l' st0)
     = Loc l l'
     . mkArrow (zip (updateRTVar <$> αs') rs) ps' []
     . makeCls cs'
-    . goPlug tce tyi err f (subts su rt)
+    -- Here `su` maps LH tyvars to GHC tyvars, so goPlug merges two types that
+    -- both use GHC tyvars: binders inserted from the GHC side need no renaming,
+    -- hence [].
+    . goPlug tce tyi [] err f (subts su rt)
     . mapExprReft (\_ -> F.applyCoSub coSub)
     . subts su
     $ st
@@ -219,7 +222,7 @@ plugHolesNew allowTC@False tce tyi xx f t0 zz@(Loc l l' st0)
     = Loc l l'
     . mkArrow (zip (updateRTVar <$> as'') rs) ps []
     . makeCls cs'
-    . goPlug tce tyi err f rt'
+    . goPlug tce tyi su err f rt'
     $ st
   where
     rt'          = tx rt
@@ -246,7 +249,7 @@ plugHolesNew allowTC@True tce tyi a f t0 zz@(Loc l l' st0)
     = Loc l l'
     . mkArrow (zip (updateRTVar <$> as'') rs) ps (if length cs > length cs' then cs else cs')
     -- . makeCls cs'
-    . goPlug tce tyi err f rt'
+    . goPlug tce tyi su err f rt'
     $ st
   where
     rt'          = tx rt
@@ -272,9 +275,9 @@ plugHolesNew allowTC@True tce tyi a f t0 zz@(Loc l l' st0)
 subRTVar :: [(RTyVar, RTyVar)] -> SpecRTVar -> SpecRTVar
 subRTVar su a@(RTVar v i) = Mb.maybe a (`RTVar` i) (lookup v su)
 
-goPlug :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> (Doc -> Doc -> Error) -> (SpecType -> RReft -> RReft) -> SpecType -> SpecType
+goPlug :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> [(RTyVar, RTyVar)] -> (Doc -> Doc -> Error) -> (SpecType -> RReft -> RReft) -> SpecType -> SpecType
        -> SpecType
-goPlug tce tyi err f = go
+goPlug tce tyi su err f = go
   where
     go st (RHole r) = (addHoles t') { rt_reft = f st r }
       where
@@ -289,7 +292,9 @@ goPlug tce tyi err f = go
     go (RVar _ _)       v@(RVar _ _)       = v
     go (RFun _ _ i o _) (RFun x ii i' o' r)               = RFun x ii    (go i i')   (go o o') r
     go (RAllT _ t _)    (RAllT a t' r)     = RAllT a    (go t t') r
-    go (RAllT a t r)    t'                 = RAllT a    (go t t') r
+    -- Binder comes from the GHC type but the body uses LH tyvars. Rename it via
+    -- `su` or it binds nothing (Issue #2727).
+    go (RAllT a t r)    t'                 = RAllT (subRTVar su a) (go t t') r
     go t                (RAllP p t')       = RAllP p    (go t t')
     go t                (REx b x t')       = REx b x    (go t t')
     go t                (RRTy e r o t')    = RRTy e r o (go t t')
