@@ -406,9 +406,13 @@ ofBRType env rebindR f l = go []
     go bs (RApp tc ts rs r) = goRApp bs tc ts rs r
     go bs (RFun x i t1 t2 r) = goRFun bs x i t1 t2 r
     go bs (RVar a r)        = RVar (RT.bareRTyVar a) <$> goReft bs r
-    go bs (RAllT a t r)     = RAllT a' <$> go bs t <*> goReft bs r
-      where a' = let RTVar v _s = a
-                  in RTVar (RT.bareRTyVar v) (RTVNoInfo True)
+    go bs (RAllT (RTVar v i) t r)     = RAllT <$> a' <*> go bs t <*> goReft bs r
+      where a' = case i of
+                   RTVInfo{} -> do
+                     k' <- ofBSortE env l (rtv_kind i)
+                     pure $ RTVar (RT.bareRTyVar v) i {rtv_kind = k'}
+                   RTVNoInfo is_pol ->
+                     pure $ RTVar (RT.bareRTyVar v) (RTVNoInfo is_pol)
     go bs (RAllP a t)       = RAllP a' <$> go bs t
       where a'              = ofBPVar env l a
     go bs (REx x t1 t2)     = REx   x  <$> go bs t1    <*> go (x:bs) t2
