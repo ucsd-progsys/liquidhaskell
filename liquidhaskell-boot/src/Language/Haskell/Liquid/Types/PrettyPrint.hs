@@ -42,6 +42,7 @@ module Language.Haskell.Liquid.Types.PrettyPrint
 
   ) where
 
+import Control.Monad (unless)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L                               -- (sort)
 import qualified Data.Set                         as Set
@@ -456,14 +457,12 @@ instance (IsReft (F.ReftBV b v), Eq v, PPrint (PredicateBV b v), PPrint (F.ReftB
 -- are unexpected errors, or will call @continue@ otherwise.
 --
 -- An error is expected if there is any filter that matches it.
-filterReportErrors :: forall e' a. F.PPrint e' => FilePath -> Ghc.TcRn a -> Ghc.TcRn a -> [Filter] -> F.Tidy -> [TError e'] -> Ghc.TcRn a
-filterReportErrors path failure continue filters k =
+filterReportErrors :: forall e'. F.PPrint e' => FilePath -> [Filter] -> F.Tidy -> [TError e'] -> Ghc.TcRn ()
+filterReportErrors path filters k =
   filterReportErrorsWith
     FilterReportErrorsArgs { errorReporter = \errs ->
                                addTcRnUnknownMessages [(pos err, ppError k empty err) | err <- errs]
                            , filterReporter = defaultFilterReporter path
-                           , failure = failure
-                           , continue = continue
                            , matchingFilters = reduceFilters renderer filters
                            , filters = filters
                            }
@@ -491,7 +490,7 @@ stringMatch :: String -> String -> Bool
 stringMatch filter' str = filter' `L.isInfixOf` str
 
 -- | Used in `filterReportErrorsWith'`
-data FilterReportErrorsArgs m filter msg e a =
+data FilterReportErrorsArgs m filter msg e =
   FilterReportErrorsArgs
   {
     -- | Report the @msgs@ to the monad (usually IO)
@@ -499,12 +498,6 @@ data FilterReportErrorsArgs m filter msg e a =
   ,
     -- | Report unmatched @filters@ to the monad
     filterReporter :: [filter] -> m ()
-  ,
-    -- | Continuation for when there are unmatched filters or unmatched errors
-    failure :: m a
-  ,
-    -- | Continuation for when there are no unmatched errors or filters
-    continue :: m a
   ,
     -- | Yields the filters that map a given error. Must only yield
     -- filters in the @filters@ field.
@@ -516,7 +509,7 @@ data FilterReportErrorsArgs m filter msg e a =
 
 -- | Calls the continuations in FilterReportErrorsArgs depending on whethere there
 -- are unmatched errors, unmatched filters or none.
-filterReportErrorsWith :: (Monad m, Ord filter) => FilterReportErrorsArgs m filter msg e a -> [e] -> m a
+filterReportErrorsWith :: (Monad m, Ord filter) => FilterReportErrorsArgs m filter msg e -> [e] -> m ()
 filterReportErrorsWith FilterReportErrorsArgs {..} errs =
   let
     (unmatchedErrors, matchedFilters) =
@@ -525,14 +518,10 @@ filterReportErrorsWith FilterReportErrorsArgs {..} errs =
       Set.fromList filters `Set.difference` Set.fromList (concatMap snd matchedFilters)
   in
     if null unmatchedErrors then
-      if null unmatchedFilters then
-        continue
-      else do
+      unless (null unmatchedFilters) $
         filterReporter unmatchedFilters
-        failure
-    else do
+    else
       errorReporter $ map fst unmatchedErrors
-      failure
 
 -- | Report errors via GHC's API stating the given `Filter`s did not get
 -- matched. Does nothing if the list of filters is empty.

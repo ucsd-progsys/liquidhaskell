@@ -2786,6 +2786,7 @@ test-suite tasty
     other-modules:    ErrorFilterReportTests
     hs-source-dirs:   tasty
     build-depends:    base
+                    , mtl
                     , tasty
                     , tasty-hunit
                     , liquidhaskell-boot
