@@ -41,7 +41,8 @@ import           Language.Haskell.Liquid.Transforms.Rewrite (rewriteBinds)
 
 import           Control.Monad
 import qualified Control.Monad.Catch as Ex
-import           Control.Exception (SomeException, displayException)
+import           Control.Exception (SomeException, someExceptionContext)
+import           Control.Exception.Context
 import           Control.Monad.IO.Class (MonadIO)
 
 import           Data.Coerce
@@ -50,11 +51,13 @@ import qualified Data.List                               as L
 import           Data.IORef
 import qualified Data.Map                                as M
 import           Data.Map                                 ( Map )
+import           Data.Maybe                               ( fromMaybe )
 
 
 import qualified Data.HashSet                            as HS
 import qualified Data.HashMap.Strict                     as HM
 
+import           System.IO                                ( hPutStrLn, stderr )
 import           System.IO.Unsafe                         ( unsafePerformIO )
 import           Language.Fixpoint.Types           hiding ( errs
                                                           , panic
@@ -80,12 +83,6 @@ import           Language.Haskell.Liquid.UX.Config
 import           Language.Haskell.Liquid.RefCore.Extract (SrcInfo (..), extractCalculus, writeIlh, writeIlhBin)
 
 
--- | Represents an abnormal but non-fatal state of the plugin. Because it is not
--- meant to escape the plugin, it is not thrown in IO but instead carried around
--- in an `Either`'s `Left` case and handled at the top level of the plugin
--- function.
-newtype LiquidCheckException = ErrorsOccurred [Filter] -- Unmatched expected errors
-  deriving (Eq, Ord, Show)
 
 ---------------------------------------------------------------------------------
 -- | State and configuration management -----------------------------------------
@@ -140,7 +137,10 @@ plugin = GHC.defaultPlugin {
 
     typecheckPlugin :: [CommandLineOption] -> ModSummary -> TcGblEnv -> TcM TcGblEnv
     typecheckPlugin opts summary gblEnv = liquidPlugin opts gblEnv $ \cfg ->
-      typecheckPluginGo cfg summary gblEnv
+      Ex.catch (typecheckPluginGo cfg summary gblEnv) $ \(e :: SomeException) -> do
+        liftIO $ hPutStrLn stderr $ "LiquidHaskell plugin panics:\n" ++
+          displayExceptionContext (someExceptionContext e)
+        Ex.throwM e
 
     typecheckPluginGo cfg summary gblEnv = do
       logger0 <- getLogger
@@ -169,17 +169,8 @@ plugin = GHC.defaultPlugin {
             let warning = mkWarning (mkSrcSpan srcLoc srcLoc) msg
             liftIO $ printWarning logger warning
             pure gblEnv
-          else do
-            newGblEnv <- typecheckHook cfg summary gblEnv
-            case newGblEnv of
-              -- Exit with success if all expected errors were found
-              Left (ErrorsOccurred []) -> pure gblEnv
-              -- Exit with error if there were unmatched expected errors
-              Left (ErrorsOccurred errorFilters) -> do
-                defaultFilterReporter (LH.modSummaryHsFile summary) errorFilters
-                failM
-              Right newGblEnv' ->
-                pure newGblEnv'
+          else
+            fromMaybe gblEnv <$> typecheckHook cfg summary gblEnv
 
     -- We instruct LH to collect timings instead of doing it directly to GHC
     -- This helps work around https://github.com/haskell/cabal/issues/11116
@@ -304,7 +295,10 @@ parsedHook _cfg ms parsedResult = do
 --    grab from desugaring a postprocessed version of the typechecked module, so we are
 --    really independent from the \"normal\" compilation pipeline.
 --
-typecheckHook  :: Config -> ModSummary -> TcGblEnv -> TcM (Either LiquidCheckException TcGblEnv)
+-- The return value is Nothing when the module has failed verification. The actual
+-- errors are reported in the TcM monad.
+--
+typecheckHook  :: Config -> ModSummary -> TcGblEnv -> TcM (Maybe TcGblEnv)
 typecheckHook cfg0 ms tcGblEnv = swapBreadcrumb thisModule Nothing >>= \case
   Just (Parsed specComments) ->
     typecheckHook' cfg0 ms tcGblEnv specComments
@@ -312,26 +306,25 @@ typecheckHook cfg0 ms tcGblEnv = swapBreadcrumb thisModule Nothing >>= \case
     -- The module has been verified by an earlier call to the plugin.
     -- This could happen if multiple @-fplugin=LiquidHaskell@ flags are passed to GHC.
     -- See 'Breadcrumb' for more information.
-    pure $ Right tcGblEnv
+    pure $ Just tcGblEnv
   where
     thisModule = ms_mod ms
 
-typecheckHook' :: Config -> ModSummary -> TcGblEnv -> [SpecComment] -> TcM (Either LiquidCheckException TcGblEnv)
+typecheckHook' :: Config -> ModSummary -> TcGblEnv -> [SpecComment] -> TcM (Maybe TcGblEnv)
 typecheckHook' cfg ms tcGblEnv specComments = do
   debugLog $ "We are in module: " <> show (toStableModule thisModule)
 
   case parseSpecComments (coerce specComments) of
-    Left errors ->
-      LH.filterReportErrors thisFile GHC.failM continue (getFilters cfg) Full errors
+    Left errors -> do
+      LH.filterReportErrors thisFile (getFilters cfg) Full errors
+      pure Nothing
     Right specs ->
       liquidCheckModule cfg ms tcGblEnv specs
   where
     thisModule = ms_mod ms
     thisFile = LH.modSummaryHsFile ms
 
-    continue = pure $ Left (ErrorsOccurred [])
-
-liquidCheckModule :: Config -> ModSummary -> TcGblEnv -> [BPspec] -> TcM (Either LiquidCheckException TcGblEnv)
+liquidCheckModule :: Config -> ModSummary -> TcGblEnv -> [BPspec] -> TcM (Maybe TcGblEnv)
 liquidCheckModule cfg0 ms tcg specs = do
   withPragmas cfg0 pragmas $ \cfg -> do
     pipelineData <- do
@@ -391,7 +384,7 @@ processInputSpec
   -> PipelineData
   -> ModSummary
   -> BareSpecParsed
-  -> TcM (Either LiquidCheckException LiquidLib)
+  -> TcM (Maybe LiquidLib)
 processInputSpec cfg pipelineData modSummary inputSpec = do
   tcg <- getGblEnv
   debugLog $ " Input spec: \n" ++ show (fromBareSpecParsed inputSpec)
@@ -409,11 +402,11 @@ processInputSpec cfg pipelineData modSummary inputSpec = do
 
   -- liftIO $ putStrLn ("liquidHaskellCheck 6: " ++ show isIg)
   if isIgnore inputSpec
-    then pure $ Left (ErrorsOccurred [])
+    then pure Nothing
     else checkLiquidHaskellContext lhContext
 
 liquidHaskellCheckWithConfig
-  :: Config -> PipelineData -> ModSummary -> TcM (Either LiquidCheckException LiquidLib)
+  :: Config -> PipelineData -> ModSummary -> TcM (Maybe LiquidLib)
 liquidHaskellCheckWithConfig cfg pipelineData modSummary = do
   -- Parse the spec comments stored in the pipeline data.
   let inputSpec = snd $
@@ -423,23 +416,15 @@ liquidHaskellCheckWithConfig cfg pipelineData modSummary = do
     `Ex.catch` (\(e :: UserError) -> reportErrs [e])
     `Ex.catch` (\(e :: Error) -> reportErrs [e])
     `Ex.catch` (\(es :: [Error]) -> reportErrs es)
-    `Ex.catch` (\(e :: SomeException) -> do
-                   case Ex.fromException e of
-                     -- Supress the exception thrown by 'failM' when filtering
-                     -- errors
-                     Just GHC.IOEnvFailure -> pure ()
-                     Nothing -> liftIO $ putStrLn $ displayException e
-                   Ex.throwM e)
 
   where
     thisFile = LH.modSummaryHsFile modSummary
     thisModule = ms_mod modSummary
 
-    continue :: TcM (Either LiquidCheckException a)
-    continue = pure $ Left (ErrorsOccurred [])
-
-    reportErrs :: F.PPrint e => [TError e] -> TcM (Either LiquidCheckException a)
-    reportErrs  = LH.filterReportErrors thisFile GHC.failM continue (getFilters cfg) Full
+    reportErrs :: F.PPrint e => [TError e] -> TcM (Maybe LiquidLib)
+    reportErrs xs = do
+      LH.filterReportErrors thisFile (getFilters cfg) Full xs
+      pure Nothing
 
 mkSrcInfo :: LiquidHaskellContext -> TargetInfo -> [CoreBind] -> AnnInfo SpecType -> SrcInfo
 mkSrcInfo lhContext targetInfo cbs infTypes = SrcInfo
@@ -454,12 +439,12 @@ mkSrcInfo lhContext targetInfo cbs infTypes = SrcInfo
 -- | When the @--refcore@ flag is set, extract Calculus declarations and write
 --   the .ilhb binary. With @--refcore-text@ also write the human-readable .ilh
 --   text dump (debug only).
-checkLiquidHaskellContext :: LiquidHaskellContext -> TcM (Either LiquidCheckException LiquidLib)
+checkLiquidHaskellContext :: LiquidHaskellContext -> TcM (Maybe LiquidLib)
 checkLiquidHaskellContext lhContext = do
   pmr <- processModule lhContext
   case pmr of
-    Left e -> pure $ Left e
-    Right ProcessModuleResult{..} -> do
+    Nothing -> pure Nothing
+    Just ProcessModuleResult{..} -> do
       -- Call into the existing Liquid interface
       (out, infTypes) <- liftIO $ LH.checkTargetInfo pmrTargetInfo
 
@@ -482,9 +467,9 @@ checkLiquidHaskellContext lhContext = do
         --
         -- F.Crash is also handled by reportResult and errorLogger
         case o_result out of
-          F.Safe _ -> return $ Right pmrClientLib
+          F.Safe _ -> return $ Just pmrClientLib
           _ | json moduleCfg -> failM
-            | otherwise -> return $ Left $ ErrorsOccurred []
+            | otherwise -> pure Nothing
 
 errorLogger :: FilePath -> [Filter] -> OutputResult -> TcM ()
 errorLogger file filters outputResult = do
@@ -492,8 +477,6 @@ errorLogger file filters outputResult = do
     FilterReportErrorsArgs { errorReporter = \errs ->
                                LH.addTcRnUnknownMessages [(sp, e) | (sp, e) <- errs]
                            , filterReporter = LH.defaultFilterReporter file
-                           , failure = GHC.failM
-                           , continue = pure ()
                            , matchingFilters = LH.reduceFilters (\(src, doc) -> PJ.render doc ++ " at " ++ LH.showPpr src) filters
                            , filters = filters
                            }
@@ -553,7 +536,7 @@ data ProcessModuleResult = ProcessModuleResult {
   --   Empty unless the @--refcore@ flag is set.
   }
 
-processModule :: LiquidHaskellContext -> TcM (Either LiquidCheckException ProcessModuleResult)
+processModule :: LiquidHaskellContext -> TcM (Maybe ProcessModuleResult)
 processModule LiquidHaskellContext{..} = do
   let modGuts0   = lhModuleGuts
       thisModule = mg_module modGuts0
@@ -615,15 +598,17 @@ processModule LiquidHaskellContext{..} = do
               bareSpec
               dependencies
 
-    let continue = pure $ Left (ErrorsOccurred [])
-        reportErrs :: F.PPrint e => [TError e] -> TcRn (Either LiquidCheckException ProcessModuleResult)
-        reportErrs = LH.filterReportErrors file GHC.failM continue (getFilters moduleCfg) Full
+    let reportErrs :: F.PPrint e => [TError e] -> TcRn (Maybe ProcessModuleResult)
+        reportErrs xs = do
+          LH.filterReportErrors file (getFilters moduleCfg) Full xs
+          pure Nothing
 
     (case result of
       -- Print warnings and errors, aborting the compilation.
       Left diagnostics -> do
         liftIO $ mapM_ (printWarning logger)    (allWarnings diagnostics)
         reportErrs $ allErrors diagnostics
+
       Right ((warnings, targetSpec, liftedSpec), bareSpec) -> do
         liftIO $ mapM_ (printWarning logger) warnings
         let targetInfo = TargetInfo targetSrc targetSpec
@@ -639,17 +624,10 @@ processModule LiquidHaskellContext{..} = do
             , pmrRefCoreCbs = refCoreCbs
             }
 
-        pure $ Right result')
+        pure $ Just result')
       `Ex.catch` (\(e :: UserError) -> reportErrs [e])
       `Ex.catch` (\(e :: Error) -> reportErrs [e])
       `Ex.catch` (\(es :: [Error]) -> reportErrs es)
-      `Ex.catch` (\(e :: SomeException) -> do
-                     case Ex.fromException e of
-                       -- Supress the exception thrown by 'failM' when filtering
-                       -- errors
-                       Just GHC.IOEnvFailure -> pure ()
-                       Nothing -> liftIO $ putStrLn $ displayException e
-                     Ex.throwM e)
 
 makeTargetSrc :: Config
               -> FilePath

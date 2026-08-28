@@ -1,34 +1,31 @@
 module ErrorFilterReportTests(errorFilterReportTests) where
 
+import Control.Monad.State (State, execState, modify)
 import Test.Tasty ( TestTree, testGroup )
 import Test.Tasty.HUnit ( testCase, assertBool )
 import Language.Haskell.Liquid.Types.PrettyPrint (FilterReportErrorsArgs(..))
 import Language.Haskell.Liquid.Types.PrettyPrint (Filter(..), filterReportErrorsWith, reduceFilters)
 import Data.Functor.Identity (Identity(..))
 
-defArgs :: Monad m => FilterReportErrorsArgs m Filter String String Bool
+defArgs :: FilterReportErrorsArgs (State Int) Filter String String
 defArgs = FilterReportErrorsArgs { errorReporter = const (pure ())
-                                 , filterReporter = const (pure ())
-                                 , failure =  pure False
-                                 , continue = pure True
+                                 , filterReporter = \xs -> modify (length xs +)
                                  , matchingFilters = const []
                                  , filters = [] }
 
-defFailingArgs :: Monad m => FilterReportErrorsArgs m Filter String String Bool
-defFailingArgs = defArgs { failure = continue defArgs
-                         , continue = failure defArgs
-                         , matchingFilters = const [] }
+defFailingArgs :: FilterReportErrorsArgs (State Int) Filter String String
+defFailingArgs = defArgs { matchingFilters = const [] }
 
 -- basic success for empty last arg
-emptySuccess :: Monad m => m Bool
+emptySuccess :: State Int ()
 emptySuccess = filterReportErrorsWith defArgs []
 
 -- basic failure for non-empty last arg (prints error)
-nonemptyFailure :: Monad m => m Bool
+nonemptyFailure :: State Int ()
 nonemptyFailure = filterReportErrorsWith defFailingArgs ["expected error!"]
 
 -- prop: always success no matter what last arg is (using filterWithFilters)
-nonemptySuccessWithFiltersAnyFilter :: Monad m => m Bool
+nonemptySuccessWithFiltersAnyFilter :: State Int ()
 nonemptySuccessWithFiltersAnyFilter = filterReportErrorsWith
                                       defArgs { matchingFilters = reduceFilters id filters
                                               , filters = filters }
@@ -36,7 +33,7 @@ nonemptySuccessWithFiltersAnyFilter = filterReportErrorsWith
   where
     filters = [AnyFilter]
 
-nonemptySuccessWithFiltersEmptyString :: Monad m => m Bool
+nonemptySuccessWithFiltersEmptyString :: State Int ()
 nonemptySuccessWithFiltersEmptyString = filterReportErrorsWith
                                         defArgs { matchingFilters = reduceFilters id filters
                                                 , filters = filters }
@@ -45,7 +42,7 @@ nonemptySuccessWithFiltersEmptyString = filterReportErrorsWith
     filters = [StringFilter ""]
 
 -- prop: for singleton final arg, only succeed when element contains StringFilter string
-nonemptyCatchStringFilter :: Monad m => m Bool
+nonemptyCatchStringFilter :: State Int ()
 nonemptyCatchStringFilter = filterReportErrorsWith
                             defArgs { matchingFilters = reduceFilters id filters
                                     , filters = filters}
@@ -54,7 +51,7 @@ nonemptyCatchStringFilter = filterReportErrorsWith
     filters = [StringFilter "error"]
 
 -- prop: for singleton final arg, only fail when element does not contain StringFilter string (prints error)
-nonemptyFailureOnBadStringFilter :: Monad m => m Bool
+nonemptyFailureOnBadStringFilter :: State Int ()
 nonemptyFailureOnBadStringFilter = filterReportErrorsWith
                                    defFailingArgs { matchingFilters = reduceFilters id filters
                                                   , filters = filters}
@@ -62,8 +59,11 @@ nonemptyFailureOnBadStringFilter = filterReportErrorsWith
   where
     filters = [StringFilter "this string does not appear in the error"]
 
-testsInIdentity :: [TestTree]
-testsInIdentity = (\(testName, test) -> testCase testName $ assertBool "" (runIdentity test)) <$> namedTests
+testList :: [TestTree]
+testList =
+    (\(testName, test) ->
+      testCase testName $ assertBool "" (0 == execState test 0)
+    ) <$> namedTests
   where
     namedTests = [ ("emptySuccess", emptySuccess)
                  , ("nonemptyFailure", nonemptyFailure)
@@ -74,4 +74,4 @@ testsInIdentity = (\(testName, test) -> testCase testName $ assertBool "" (runId
                  ]
 
 errorFilterReportTests :: [TestTree]
-errorFilterReportTests = [testGroup "Error Filter in Identity" testsInIdentity]
+errorFilterReportTests = [testGroup "Error Filter" testList]

@@ -17,10 +17,14 @@ import qualified Data.Binary.Builder                     as Builder
 import qualified Data.Binary.Put                         as B
 import qualified Data.ByteString.Lazy                    as B
 import           Data.Data (Data)
+import           Control.Exception
+import           Control.Exception.Backtrace
+import           Control.Exception.Context
 import           Data.Generics (ext0, gmapAccumT)
 import           Data.HashMap.Strict                     as M
 import           Data.Maybe                               ( listToMaybe )
 import           Data.Word                               (Word8)
+import           GHC.Stack (HasCallStack)
 
 import qualified Liquid.GHC.API as GHC
 import           Language.Haskell.Liquid.GHC.Plugin.Types (LiquidLib)
@@ -95,7 +99,7 @@ deserialiseLiquidLibFromEPS thisModule eps nameCache = do
       _ -> return Nothing
 
 encodeLiquidLib :: LiquidLib -> IO B.ByteString
-encodeLiquidLib lib0 = do
+encodeLiquidLib lib0 = rethrowWithCallStackIO $ do
     let (lib1, ns) = collectLHNames lib0
     bh <- GHC.openBinMem (1024*1024)
     GHC.putWithUserData GHC.QuietBinIFace GHC.SafeExtraCompression bh ns
@@ -103,7 +107,7 @@ encodeLiquidLib lib0 = do
       return $ Builder.toLazyByteString $ B.execPut (B.put lib1) <> Builder.fromByteString bs
 
 decodeLiquidLib :: GHC.NameCache -> B.ByteString -> IO LiquidLib
-decodeLiquidLib nameCache bs0 = do
+decodeLiquidLib nameCache bs0 = rethrowWithCallStackIO $ do
     case B.decodeOrFail bs0 of
       Left (_, _, err) -> error $ "decodeLiquidLib: decodeOrFail: " ++ err
       Right (bs1, _, lib) -> do
@@ -141,3 +145,10 @@ collectLHNames t =
     collectName acc@(sz, m, xs) n = case M.lookup n m of
       Just i -> (acc, LHRIndex i)
       Nothing -> ((sz + 1, M.insert n sz m, n : xs), LHRIndex sz)
+
+-- | Rethrow an exception so we have an indication of where it was thrown in
+-- the stack trace.
+rethrowWithCallStackIO :: HasCallStack => IO a -> IO a
+rethrowWithCallStackIO action = catchNoPropagate action $ \(ExceptionWithContext ctx (e :: SomeException)) -> do
+    btAnn <- collectBacktraces
+    rethrowIO $ ExceptionWithContext (addExceptionAnnotation btAnn ctx) e
