@@ -623,7 +623,6 @@ executable errors
                     , DupFunSigs
                     , DupMeasure
                     , ElabLocation
-                    , ElabLocation3
                     , EmptyData
                     , ErrLocation
                     , ErrLocation2
