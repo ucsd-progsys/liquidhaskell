@@ -38,7 +38,6 @@ import           Data.Either.Extra                             (eitherToMaybe)
 import qualified Data.HashMap.Strict                           as M
 import qualified Data.HashSet                                  as S
 import qualified Data.List                                     as L
-import qualified Data.Foldable                                 as F
 import qualified Data.Functor.Identity
 import Language.Fixpoint.Misc (errorP, safeZip )
 import           Language.Fixpoint.Types.Visitor
@@ -1019,14 +1018,33 @@ castTy γ t e (AxiomCo ca _)
     return (fromMaybe sp msp)
 
 castTy γ t e (SymCo (AxiomCo ca _))
-  = do mtc <- case isNewtypeAxiomRule_maybe ca of
-         Just (tc, _) -> lookupNewType tc
-         _ -> return Nothing
-       F.forM_ mtc (cconsE γ e)
-       castTy' γ t e
+  | Just (tc, _) <- isNewtypeAxiomRule_maybe ca
+  = do
+      -- When the user gave an explicit @{-@ newtype … @-}@ spec, we must also
+      -- check the representation @e@ against the declared field invariant.
+      mtc <- lookupNewType tc
+      forM_ mtc $ cconsE γ e
+      -- A newtype wrap is, logically, the constructor applied to @e@. Whenever
+      -- possible we type it as that constructor application ('castTyNewtypeWrap')
+      -- the same as in the @data@ case.
+      case Ghc.tyConSingleDataCon_maybe tc of
+        Just dc -> castTyNewtypeWrap γ t e dc
+        Nothing -> castTy' γ t e
 
 castTy γ t e _
   = castTy' γ t e
+
+-- | A @newtype@ /wrap/ cast @e |> Sym (Rep ~ NT)@ is, logically, the newtype
+-- constructor applied to @e@. We type the equivalent constructor application
+-- @MkNT \@ts e@, which reuses the datacon's refined type carrying the
+-- measure/selector refinements. This makes measures over a @newtype@ reduce
+-- just like their @data@ counterparts.
+castTyNewtypeWrap :: CGEnv -> Type -> CoreExpr -> Ghc.DataCon -> CG SpecType
+castTyNewtypeWrap γ τ e dc
+  | Just (_, tyArgs) <- Ghc.splitTyConApp_maybe τ
+  = consE γ (foldl App (Var (Ghc.dataConWorkId dc)) (map Type tyArgs ++ [e]))
+  | otherwise
+  = castTy' γ τ e
 
 
 castTy' γ τ (Var x)
