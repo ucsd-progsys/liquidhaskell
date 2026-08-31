@@ -119,7 +119,7 @@ import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Names
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
-import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg, isRecursivenewTyCon)
+import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg)
 import           Liquid.GHC.API        as Ghc hiding ( Expr, get
                                                                       , Located
                                                                       , tyConName
@@ -1555,10 +1555,6 @@ typeSort tce = go
     go τ@(ForAllTy _ _) = typeSortForAll tce τ
     -- go (TyConApp c τs)  = fApp (tyConFTyCon tce c) (go <$> τs)
     go (TyConApp c τs)
-      | isNewTyCon c
-      , not (isRecursivenewTyCon c)
-      , τs `lengthAtLeast` newTyConEtadArity c
-      = go (Ghc.newTyConInstRhs c τs)
       | Ghc.isFamilyTyCon c
       , Ghc.piResultTys (Ghc.tyConKind c) τs `Ghc.eqType` naturalTy
       = FInt
