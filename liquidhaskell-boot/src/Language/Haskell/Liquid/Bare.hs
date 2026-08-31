@@ -20,6 +20,7 @@ module Language.Haskell.Liquid.Bare (
 
 import           Control.Monad                              (forM, mplus, when)
 import qualified Control.Exception                          as Ex
+import           Data.Either (fromRight)
 import qualified Data.Maybe                                 as Mb
 import qualified Data.List                                  as L
 import qualified Data.HashMap.Strict                        as M
@@ -1264,7 +1265,7 @@ makeNewTypeInvariants env measEnv specs =
     [ (Nothing, inv)
     | (name, spec) <- M.toList specs
     , d            <- Ms.newtyDecls spec
-    , Just tc      <- [either (const Nothing) id (Bare.lookupGhcDnTyCon env name (tycName d))]
+    , Just tc      <- [fromRight Nothing (Bare.lookupGhcDnTyCon env name (tycName d))]
     , Just dc      <- [Ghc.tyConSingleDataCon_maybe tc]
     , [_]          <- [Ghc.dataConOrigArgTys dc]                -- exactly one field
     , Just dcT     <- [lookup (Ghc.dataConWorkId dc) dcSpecs]
