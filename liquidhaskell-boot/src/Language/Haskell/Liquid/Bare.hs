@@ -20,6 +20,7 @@ module Language.Haskell.Liquid.Bare (
 
 import           Control.Monad                              (forM, mplus, when)
 import qualified Control.Exception                          as Ex
+import           Data.Either (fromRight)
 import qualified Data.Maybe                                 as Mb
 import qualified Data.List                                  as L
 import qualified Data.HashMap.Strict                        as M
@@ -1240,6 +1241,62 @@ makeNewType env sigEnv name d = do
     getTy n l _                = Ex.throw (mkErr n l)
     mkErr n l                  = ErrOther (GM.sourcePosSrcSpan l) ("Bad new type declaration:" <+> F.pprint n) :: UserError
 
+-- | For every user-declared @newtype@ we synthesize a datatype invariant.
+--
+-- The invariant states for every value @v@ the measure equations that the
+-- defined measures provide. It also states the predicates in the refinement
+-- type of the newtype. For example, for the newtype
+--
+-- > newtype Pos = Pos { unPos :: { v:Int | v > 0 } }
+--
+--   and the measure
+--
+-- > {-@ measure m @-}
+-- > m :: Pos -> Int
+-- > m (Pos v) = v + 1
+--
+-- the invariant is
+--
+-- > {-@ invariant {v:Pos | m v = unPos v + 1 && unPos v > 0 && v == Pos (unPos v)} @-}
+--
+-- See note [Newtype checking] in "Language.Haskell.Liquid.Constraint.Generate".
+makeNewTypeInvariants :: Bare.Env -> Bare.MeasEnv -> Bare.ModSpecs -> [(Maybe Ghc.Var, LocSpecType)]
+makeNewTypeInvariants env measEnv specs =
+    [ (Nothing, inv)
+    | (name, spec) <- M.toList specs
+    , d            <- Ms.newtyDecls spec
+    , Just tc      <- [fromRight Nothing (Bare.lookupGhcDnTyCon env name (tycName d))]
+    , Just dc      <- [Ghc.tyConSingleDataCon_maybe tc]
+    , [_]          <- [Ghc.dataConOrigArgTys dc]                -- exactly one field
+    , Just dcT     <- [lookup (Ghc.dataConWorkId dc) dcSpecs]
+    , Just inv     <- [mkNewTypeInvariant tc dc (val dcT) (tycSrcPos d)]
+    ]
+  where
+    dcSpecs = Bare.meDataCons measEnv
+
+mkNewTypeInvariant :: Ghc.TyCon -> Ghc.DataCon -> SpecType -> F.SourcePos -> Maybe LocSpecType
+mkNewTypeInvariant tc dc dcT l = do
+    fl <- Mb.listToMaybe (Ghc.dataConFieldLabels dc)
+    let r = -- {v:_ | v == dc y}
+            dataConReft dc  [y]
+              `meet`
+            -- Refinement type with measures
+            dataConMsReft dcT [y]
+        -- Refinement type of the argument (singleton list)
+        pf = [ p `F.subst1` (w, F.EVar y) | t <- dcArgTys, let F.Reft (w, p) = rTypeReft t ]
+        pr = F.PAnd $ F.reftPred r : pf
+        b = F.reftBind r
+        -- The argument of the newtype data constructor
+        selE  = F.mkEApp (dummyLoc (F.symbol (Ghc.flSelector fl))) [F.EVar b]
+        -- Eliminate the temporary variable y
+        invR  = F.Reft (b, F.subst (F.mkSubst [(y, selE)]) pr)
+    return (Loc l l (strengthen resT (MkUReft invR mempty)))
+  where
+    -- A temporary variable to represent the argument of the newtype datacon
+    y    = F.tempSymbol "lqNewtypeField" 0
+    resT = ofType (Ghc.mkTyConApp tc (Ghc.mkTyVarTy <$> Ghc.tyConTyVars tc)) :: SpecType
+    dcArgTys = let (_, _, ts, _, _) = bkArrowDeep dcT in ts
+
 ------------------------------------------------------------------------------------------
 makeSpecData :: GhcSrc -> Bare.Env -> Bare.SigEnv -> Bare.MeasEnv -> GhcSpecSig -> Bare.ModSpecs
              -> GhcSpecData
@@ -1267,6 +1324,7 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
     name         = _giTargetMod      src
     (minvs,usI)  = makeMeasureInvariants sig mySpec
     invs         = minvs ++ concatMap (makeInvariants env sigEnv) (M.toList specs)
+                        ++ makeNewTypeInvariants env measEnv specs
 
 makeIAliases :: Bare.Env -> Bare.SigEnv -> (ModName, Ms.BareSpec) -> [(LocSpecType, LocSpecType)]
 makeIAliases env sigEnv (name, spec)

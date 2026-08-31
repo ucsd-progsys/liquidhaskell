@@ -203,10 +203,17 @@ coreAltToDef locSym z zs y t alts
       = throw $ "Bad alternative" ++ GM.showPpr alt
 
     mkDef x ctor _args dx (Just dtss) (Just e) = do
-      eDef   <- ctor <$> coreToLg e
-      -- let ys  = toArgs id args
+      e0     <- coreToLg e
       let dxt = Just (varRType dx)
-      return  [ Def x {- ys -} d dxt (defArgs x ts) eDef | (d, _, ts) <- dtss ]
+      -- The DEFAULT body may mention the scrutinee @dx@; for each data
+      -- constructor @d@ covered by the default alternative, we re-express it as
+      -- @d@ applied to the fresh field arguments, mirroring 'mkAlt'. Without
+      -- this substitution the scrutinee would remain unbound.
+      let mkOne (d, _, ts) =
+            let args = defArgs x ts
+                su   = (F.symbol dx, F.mkEApp (GM.namedLocSymbol d) (F.eVar . fst <$> args))
+            in Def x d dxt args (ctor (e0 `subst1` su))
+      return (mkOne <$> dtss)
 
     mkDef _ _ _ _ _ _ =
       return []
@@ -302,6 +309,17 @@ coreToLg (C.Case e b _ alts)   = do p <- coreToLg e
 coreToLg (C.Lit l)             = case mkLit l of
                                           Nothing -> throw $ "Bad Literal in measure definition" ++ GM.showPpr l
                                           Just i  -> return i
+coreToLg (C.Cast e c)
+  | Just (dc, ntCo) <- newtypeCoercionDataCon c
+  = do e'   <- coreToLg e
+       case ntCo of
+         -- @e |> (Rep ~ NT)@ is the newtype constructor applied to @e@.
+         WrapCoercion ->
+           return $ F.mkEApp (GM.namedLocSymbol dc) [e']
+         -- @e |> (NT ~ Rep)@ is the newtype field selector applied to @e@.
+         UnwrapCoercion -> do
+           dm <- reader lsDCMap
+           return $ EApp (EVar (makeDataConSelector (Just dm) dc 1)) e'
 coreToLg (C.Cast e c)          = do (s, t) <- coerceToLg c
                                     e'     <- coreToLg e
                                     return (ECoerc s t e')
@@ -317,6 +335,49 @@ coreToLg e                     = throw ("Cannot transform to Logic:\t" ++ GM.sho
 
 coerceToLg :: Coercion -> LogicM (Sort, Sort)
 coerceToLg = typeEqToLg . coercionTypeEq
+
+data NewtypeCoercion = WrapCoercion | UnwrapCoercion
+  deriving (Eq, Show)
+
+-- | @newtypeCoercionDataCon co@ recognises the representational coercions that
+--   GHC inserts to wrap and unwrap @newtype@ values.
+--
+-- Given a newtype declaration
+--
+-- > newtype NT = MkT (unwrap :: Rep)
+--
+-- an expression @Cast e co@, could stand for a wrap coercion @MkT e@, or an
+-- unwrap coercion @unwrap e@, or something else. And this function must
+-- distinguish between the three cases.
+--
+-- @Cast e (NT ~ Rep)@ is an unwrap coercion, and @Cast e (Rep ~ NT)@ is a
+-- wrap coercion.
+--
+-- If this is a newtype coercion, it returns the newtype's 'DataCon' together
+-- with a flag indicating the kind of coercion.
+--
+-- See note [Newtype checking] in "Language.Haskell.Liquid.Constraint.Generate".
+newtypeCoercionDataCon :: Coercion -> Maybe (DataCon, NewtypeCoercion)
+newtypeCoercionDataCon co
+  | Ghc.Pair s t <- coercionKind co
+  = case (asNewtypeRep t s, asNewtypeRep s t) of
+      (Just dc, _) -> Just (dc, WrapCoercion)
+      (_, Just dc) -> Just (dc, UnwrapCoercion)
+      _            -> Nothing
+  where
+    -- @asNewtypeRep nt rep@ returns the newtype's 'DataCon' when @nt@ is a
+    -- fully-applied non-recursive newtype whose instantiated representation
+    -- type is @rep@.
+    asNewtypeRep nt rep
+      | Just (tc, args) <- splitTyConApp_maybe nt
+      , isNewTyCon tc
+      , args `lengthAtLeast` newTyConEtadArity tc
+      , Just dc <- tyConSingleDataCon_maybe tc
+      , newTyConInstRhs tc args `eqType` rep
+      = Just dc
+      | otherwise
+      = Nothing
+
 
 coercionTypeEq :: Coercion -> (Type, Type)
 coercionTypeEq co

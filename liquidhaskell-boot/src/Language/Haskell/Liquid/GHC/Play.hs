@@ -123,25 +123,6 @@ makeOccurrence tcInfo = foldl (go Covariant) mempty
 findOccurrence :: OccurrenceMap -> TyCon -> TyConOccurrence
 findOccurrence m tc = mconcat (snd <$> M.lookupDefault mempty tc m)
 
-
-
-
-isRecursivenewTyCon :: TyCon -> Bool
-isRecursivenewTyCon c
-  | not (isNewTyCon c)
-  = False
-isRecursivenewTyCon c
-  = go t
-  where
-    t = snd $ newTyConRhs c
-    go (AppTy t1 t2)      = go t1 || go t2
-    go (TyConApp c' ts)   = c == c' || any go ts
-    go (ForAllTy _ t1)    = go t1
-    go (FunTy _ _ t1 t2)  = go t1 || go t2
-    go (CastTy t1 _)      = go t1
-    go _                  = False
-
-
 dataConImplicitIds :: DataCon -> [Id]
 dataConImplicitIds dc = [ x | AnId x <- dataConImplicitTyThings dc]
 

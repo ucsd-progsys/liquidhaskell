@@ -1051,6 +1051,8 @@ executable datacon-pos
                     , Data02Lib
                     , Date
                     , NewType
+                    , NewType2
+                    , NewType3
                     , T1446
                     , T1473A
                     , T1473B

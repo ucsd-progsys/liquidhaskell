@@ -38,7 +38,6 @@ import           Data.Either.Extra                             (eitherToMaybe)
 import qualified Data.HashMap.Strict                           as M
 import qualified Data.HashSet                                  as S
 import qualified Data.List                                     as L
-import qualified Data.Foldable                                 as F
 import qualified Data.Functor.Identity
 import Language.Fixpoint.Misc (errorP, safeZip )
 import           Language.Fixpoint.Types.Visitor
@@ -137,6 +136,24 @@ import qualified GHC.Data.Strict as Strict
 -- Chalmers University of Technology, 2025
 --
 -- https://odr.chalmers.se/server/api/core/bitstreams/640ee29b-b13a-44d5-9e20-200a91a11021/content
+
+
+-- Note [Newtype checking]
+--
+-- Unlike regular data types, newtypes do not show up in core with data
+-- constructors and selectors. Instead, they are represented with coercions
+-- between the newtype and its representation type.
+--
+-- We make sure to interpret these coercions as either data constructor
+-- applications or as selectors when generating constraints
+-- ('castTyNewtypeWrap') and when reflecting code to the logic
+-- ('Language.Haskell.Liquid.Transforms.CoreToLogic.newtypeCoercionDataCon').
+--
+-- Because pattern matching on newtypes is erased in core, we also need to make
+-- sure that LH inserts the appropriate predicates from measures and from the
+-- refinement types of the newtype's representation where there is a binding to
+-- a value of a newtype. This is done with invariants
+-- ('Language.Haskell.Liquid.Bare.makeNewtypeInvariants').
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
@@ -1019,14 +1036,35 @@ castTy γ t e (AxiomCo ca _)
     return (fromMaybe sp msp)
 
 castTy γ t e (SymCo (AxiomCo ca _))
-  = do mtc <- case isNewtypeAxiomRule_maybe ca of
-         Just (tc, _) -> lookupNewType tc
-         _ -> return Nothing
-       F.forM_ mtc (cconsE γ e)
-       castTy' γ t e
+  | Just (tc, _) <- isNewtypeAxiomRule_maybe ca
+  = do
+      -- When the user gave an explicit @{-@ newtype … @-}@ spec, we must also
+      -- check the representation @e@ against the declared field invariant.
+      mtc <- lookupNewType tc
+      forM_ mtc $ cconsE γ e
+      -- A newtype wrap is, logically, the constructor applied to @e@. Whenever
+      -- possible we type it as that constructor application ('castTyNewtypeWrap')
+      -- the same as in the @data@ case.
+      case Ghc.tyConSingleDataCon_maybe tc of
+        Just dc -> castTyNewtypeWrap γ t e dc
+        Nothing -> castTy' γ t e
 
 castTy γ t e _
   = castTy' γ t e
+
+-- | A @newtype@ /wrap/ cast @e |> Sym (Rep ~ NT)@ is, logically, the newtype
+-- constructor applied to @e@. We type the equivalent constructor application
+-- @MkNT \@ts e@, which reuses the datacon's refined type carrying the
+-- measure/selector refinements. This makes measures over a @newtype@ reduce
+-- just like their @data@ counterparts.
+--
+-- See note [Newtype checking]
+castTyNewtypeWrap :: CGEnv -> Type -> CoreExpr -> Ghc.DataCon -> CG SpecType
+castTyNewtypeWrap γ τ e dc
+  | Just (_, tyArgs) <- Ghc.splitTyConApp_maybe τ
+  = consE γ (foldl App (Var (Ghc.dataConWorkId dc)) (map Type tyArgs ++ [e]))
+  | otherwise
+  = castTy' γ τ e
 
 
 castTy' γ τ (Var x)
