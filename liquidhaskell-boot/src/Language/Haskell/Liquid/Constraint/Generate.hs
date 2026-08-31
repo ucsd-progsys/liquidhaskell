@@ -137,6 +137,24 @@ import qualified GHC.Data.Strict as Strict
 --
 -- https://odr.chalmers.se/server/api/core/bitstreams/640ee29b-b13a-44d5-9e20-200a91a11021/content
 
+
+-- Note [Newtype checking]
+--
+-- Unlike regular data types, newtypes do not show up in core with data
+-- constructors and selectors. Instead, they are represented with coercions
+-- between the newtype and its representation type.
+--
+-- We make sure to interpret these coercions as either data constructor
+-- applications or as selectors when generating constraints
+-- ('castTyNewtypeWrap') and when reflecting code to the logic
+-- ('Language.Haskell.Liquid.Transforms.CoreToLogic.newtypeCoercionDataCon').
+--
+-- Because pattern matching on newtypes is erased in core, we also need to make
+-- sure that LH inserts the appropriate predicates from measures and from the
+-- refinement types of the newtype's representation where there is a binding to
+-- a value of a newtype. This is done with invariants
+-- ('Language.Haskell.Liquid.Bare.makeNewtypeInvariants').
+
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
 --------------------------------------------------------------------------------
@@ -1039,6 +1057,8 @@ castTy γ t e _
 -- @MkNT \@ts e@, which reuses the datacon's refined type carrying the
 -- measure/selector refinements. This makes measures over a @newtype@ reduce
 -- just like their @data@ counterparts.
+--
+-- See note [Newtype checking]
 castTyNewtypeWrap :: CGEnv -> Type -> CoreExpr -> Ghc.DataCon -> CG SpecType
 castTyNewtypeWrap γ τ e dc
   | Just (_, tyArgs) <- Ghc.splitTyConApp_maybe τ

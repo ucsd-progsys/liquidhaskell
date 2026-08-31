@@ -355,6 +355,8 @@ data NewtypeCoercion = WrapCoercion | UnwrapCoercion
 --
 -- If this is a newtype coercion, it returns the newtype's 'DataCon' together
 -- with a flag indicating the kind of coercion.
+--
+-- See note [Newtype checking] in "Language.Haskell.Liquid.Constraint.Generate".
 newtypeCoercionDataCon :: Coercion -> Maybe (DataCon, NewtypeCoercion)
 newtypeCoercionDataCon co
   | Ghc.Pair s t <- coercionKind co

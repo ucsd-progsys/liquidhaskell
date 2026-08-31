@@ -1258,6 +1258,7 @@ makeNewType env sigEnv name d = do
 --
 -- > {-@ invariant {v:Pos | m v = unPos v + 1 && unPos v > 0 && v == Pos (unPos v)} @-}
 --
+-- See note [Newtype checking] in "Language.Haskell.Liquid.Constraint.Generate".
 makeNewTypeInvariants :: Bare.Env -> Bare.MeasEnv -> Bare.ModSpecs -> [(Maybe Ghc.Var, LocSpecType)]
 makeNewTypeInvariants env measEnv specs =
     [ (Nothing, inv)
