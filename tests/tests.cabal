@@ -1605,6 +1605,7 @@ executable unit-pos-2
                     , LNot
                     , T1145a
                     , T1145b
+                    , T2756
 
     build-depends:    base
                     , liquid-finfield
