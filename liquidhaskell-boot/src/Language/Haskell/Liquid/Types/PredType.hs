@@ -72,7 +72,18 @@ makeTyConInfo tce fiTcs tcps = TyConMap
   where
     tcM         = M.fromList [(tcpCon tcp, mkRTyCon tcp) | tcp <- tcps ]
     tcInstM     = mkFInstRTyCon tce fiTcs tcM
-    arities     = safeFromList "makeTyConInfo" [ (c, length ts) | (c, ts) <- M.keys tcInstM ]
+    arities =
+     foldr
+       (\(c, a) -> M.insertWith (checkEqValues c) c a)
+       M.empty
+       [ (c, length ts) | (c, ts) <- M.keys tcInstM ]
+
+    checkEqValues c v0 v1 =
+      if v0 == v1 then v0
+      else
+        panic Nothing $
+          "makeTyConInfo: Conflicting arities for TyCon: " ++
+          showPpr c ++ " " ++ showPpr v0 ++ " " ++ showPpr v1
 
 mkFInstRTyCon :: F.TCEmb Ghc.TyCon -> [Ghc.TyCon] -> M.HashMap Ghc.TyCon RTyCon -> M.HashMap (Ghc.TyCon, [F.Sort]) RTyCon
 mkFInstRTyCon tce fiTcs tcm = M.fromList
