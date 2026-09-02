@@ -1286,7 +1286,7 @@ unfoldR :: SpecType -> SpecType -> [Var] -> (SpecType, [SpecType], SpecType)
 unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
   where
         tbody                = instantiatePvs (instantiateTys td ts) (reverse rs)
-        ((ys0,_,yts',_), rt) = safeBkArrow (F.notracepp msg $ instantiateTys tbody tvs')
+        ((ys0,_,yts',_), rt) = safeBkArrow (F.notracepp msg $ defaultPvs $ instantiateTys tbody tvs')
         msg                  = "INST-TY: " ++ F.showpp (td, ts, tbody, ys, tvs')
         yts''                = zipWith F.subst sus (yts'++[rt])
         (t3,yts)             = (last yts'', init yts'')
@@ -1309,6 +1309,24 @@ instantiatePvs           = L.foldl' go
   where
     go (RAllP p tbody) r = replacePreds "instantiatePv" tbody [(p, r)]
     go t               _ = errorP "" ("Constraint.instantiatePvs: t = " ++ showpp t)
+
+-- | @defaultPvs@ instantiates any leftover abstract-refinement binders (i.e.
+--   'RAllP') with a trivial (i.e. @True@) predicate. This is needed when the
+--   scrutinee's type carries fewer abstract-refinement arguments than the data
+--   constructor expects. That happens, for example, when the scrutinee's type
+--   is derived directly from a GHC 'Type' (as for @ignore@d bindings), since
+--   @ofType@ produces an 'RApp' with an empty list of predicate arguments,
+--   while the constructor's type (e.g. the dependent-pair encoding of tuples)
+--   still quantifies over the abstract refinement.
+--
+--   See IgnoreTupleAbsRef for an example that used to crash without this
+--   function.
+defaultPvs :: SpecType -> SpecType
+defaultPvs (RAllP p tbody) = defaultPvs (replacePreds "defaultPvs" tbody [(p, trueSpecProp p)])
+defaultPvs t               = t
+
+trueSpecProp :: RPVar -> SpecProp
+trueSpecProp p = RProp [(s, t) | (t, s, _) <- pargs p] (ofRSort (pvType p))
 
 checkTyCon :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
 checkTyCon _ _ t@RApp{} = t

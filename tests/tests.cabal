@@ -1992,6 +1992,7 @@ executable unit-pos-5
 
     other-modules:
                       Poly4
+                    , IgnoreTupleAbsRef
                     , PolySet
                     , PolyBag
                     , Polyfun
