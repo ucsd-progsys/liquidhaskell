@@ -20,16 +20,16 @@ The following command gives the commits since the last release.
 git log <tag_of_latest_release>..
 ```
 
-Now bump the version of Liquid Fixpoint in the `liquid-fixpoint.cabal` file.
-Then make sure that the latest version of liquidhaskell is still buildable
-and all tests pass. You will have to edit `liquidhaskell-boot.cabal` to
-allow the new version of `liquid-fixpoint`.
+Check that the version of `liquid-fixpoint` matches the earliest supported
+compiler. Otherwise, adjust the version.
+Now make sure that the latest version of liquidhaskell is still buildable
+and all tests pass.
 
 ```
 cd ..
 git fetch origin -p
 git checkout origin/develop
-cabal test liquid-fixpoint
+cabal test all
 scripts/test/test_plugin.sh
 ```
 
@@ -65,14 +65,13 @@ release of Liquid Fixpoint.
 The working copy of Liquid Haskell should already be up to date.
 
 ```
+git checkout v0.9.6.3.6
 cd ..
 git add liquid-fixpoint
 git commit -m "Update the liquid-fixpoint submodule"
 ```
 
 Update the file `CHANGES.md` in a similar way to Liquid Fixpoint's.
-
-Bump the version of `liquidhaskell-boot` and `liquidhaskell`.
 
 Check the git history to see if new versions of other packages need to be
 released (`liquid-vector`, `liquid-prelude`, `liquid-parallel`,
@@ -85,11 +84,13 @@ release.
 git log <tag_of_latest_release>.. liquid-prelude
 ```
 
+Check that the version of `liquidhaskell` and other packages match the
+earliest supported compiler or library version. Otherwise, adjust the version.
 Check that Liquid Haskell is buildable and that tests pass.
 
 ```
 cabal build all
-cabal test liquidhaskell-boot
+cabal test all
 scripts/test/test_plugin.sh
 ```
 
@@ -127,6 +128,32 @@ Push the changes to the github repo.
 
 ```
 git push --tags origin HEAD:develop
+```
+
+### Bump the version of Liquid Fixpoint and Liquid Haskell
+
+Now bump the version of Liquid Fixpoint in the `liquid-fixpoint.cabal` file
+to the next version. Then edit `liquidhaskell-boot.cabal` to allow the new
+version of `liquid-fixpoint`. Bump the version of `liquidhaskell-boot` and
+`liquidhaskell` as well. If there were releases of other packages, bump their
+versions as well. Then make sure that the project builds without errors.
+
+```
+cabal build all
+```
+
+Push the changes to the github repo.
+
+```
+cd liquid-fixpoint
+git add -up
+git commit
+git push origin HEAD:develop
+
+cd ..
+git add -up
+git commit
+git push origin HEAD:develop
 ```
 
 ### Update repositories that depend on releases
