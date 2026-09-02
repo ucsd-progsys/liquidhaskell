@@ -286,6 +286,26 @@ testSucceeds =
        parseSingleSpec "x :: k:Int -> B (k + 1)" @?==
           "x :: k:Int -> (B {k + 1})"
 
+    , testCase "unicode :: " $
+       parseSingleSpec "assume foo ∷ a -> a " @?==
+          parseSingleSpec "assume foo :: a -> a "
+
+    , testCase "unicode -> " $
+       parseSingleSpec "assume foo :: a → b " @?==
+          parseSingleSpec "assume foo :: a -> b "
+
+    , testCase "unicode => " $
+       parseSingleSpec "assume foo :: a ⇒ b " @?==
+          parseSingleSpec "assume foo :: a => b "
+
+    , testCase "mixed unicode operators 1 " $
+       parseSingleSpec "assume foo ∷ a → a " @?==
+          parseSingleSpec "assume foo :: a -> a "
+
+    , testCase "mixed unicode operators 2 " $
+       parseSingleSpec "assume foo ∷ a → b ⇒ c " @?==
+          parseSingleSpec "assume foo :: a -> b => c "
+
     , testCase "type spec 1 " $
        parseSingleSpec "type IncrListD a D = [a]<{\\x y -> (x+D) <= y}>" @?==
           "type IncrListD a D  =  [a]<\\x##2 _ -> {y##3 : LIQUID$dummy | x##2 + D <= y##3}>"
@@ -509,7 +529,7 @@ testFails =
               , "1 | x :: Maybe k:Int -> Int"
               , "  |             ^"
               , "unexpected ':'"
-              , "expecting \"->\", \"=>\", '/', bareTyArgP, end of input, mmonoPredicateP, or monoPredicateP"
+              , "expecting \"->\", \"=>\", '/', '→', '⇒', bareTyArgP, end of input, mmonoPredicateP, or monoPredicateP"
               ]
 
     , testCase "type t = Nat (type aliases should start with upper case)" $
@@ -539,7 +559,7 @@ testErrorReporting =
               , "1 | assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignPtrN a n "
               , "  |                                             ^"
               , "unexpected '('"
-              , "expecting \"->\", \"=>\", bareTyArgP, end of input, mmonoPredicateP, or predicatesP"
+              , "expecting \"->\", \"=>\", '→', '⇒', bareTyArgP, end of input, mmonoPredicateP, or predicatesP"
               ]
     , testCase "Missing |" $
           parseSingleSpec "ff :: {v:Nat  v >= 0 }" @?==
@@ -549,7 +569,7 @@ testErrorReporting =
               , "1 | ff :: {v:Nat  v >= 0 }"
               , "  |         ^"
               , "unexpected ':'"
-              , "expecting \"!=\", \"!~\", \"&&\", \"/=\", \"<=\", \"<=>\", \"==\", \"==>\", \"=>\", \">=\", \"_|_\", \"false\", \"mod\", \"true\", \"||\", \"~~\", '$', '(', '*', '+', '-', '.', '/', '<', '=', '>', '[', '_', '}', float literal, letter, nat literal, or string literal"
+              , "expecting \"!=\", \"!~\", \"&&\", \"/=\", \"<=\", \"<=>\", \"==\", \"==>\", \"=>\", \">=\", \"_|_\", \"false\", \"mod\", \"true\", \"||\", \"~~\", '$', '(', '*', '+', '-', '.', '/', '<', '=', '>', '[', '_', '}', '⇒', float literal, letter, nat literal, or string literal"
               ]
     ]
 
