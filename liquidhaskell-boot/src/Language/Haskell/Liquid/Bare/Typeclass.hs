@@ -15,6 +15,7 @@ where
 
 import           Control.Monad                 ( forM, guard )
 import           Data.Bifunctor                (second)
+import           Data.Char                     (isDigit)
 import qualified Data.List                     as L
 import qualified Data.HashSet                  as S
 import           Data.Hashable                  ()
@@ -420,13 +421,16 @@ substAuxMethod dfun methods = F.notracepp "substAuxMethod" . go
 
 -- Normalise typeclass names for looking up class selector symbols.
 -- Instance methods are named `$c(method)`. GHC 9 can also expose superclass
--- dictionary bindings named `$cp(n)(Class)`. These correspond to
--- `$p(n)(Class)` selector symbols.
+-- dictionary bindings named `$cp(n)(Class)`, where (n) is the index of the
+-- superclass. These correspond to `$p(n)(Class)` selector symbols.
 -- Since class methods are always identified by variables with the `$c`
 -- prefix, we can ignore other cases.
+-- The digit is what distinguishes a superclass binding from a method whose
+-- name starts with 'p'.
 mkSymbol :: Ghc.Var -> F.Symbol
 mkSymbol x =
   case Ghc.getOccString x of
-    '$' : 'c' : 'p' : rest -> F.symbol ('$' : 'p' : rest)
+    '$' : 'c' : 'p' : rest@(d : _)
+      | isDigit d          -> F.symbol ('$' : 'p' : rest)
     '$' : 'c' : rest       -> F.symbol rest
     occ                    -> impossible Nothing $ "mkSymbol : should only be called with class methods, received " ++ F.showpp occ
