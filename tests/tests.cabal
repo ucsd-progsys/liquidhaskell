@@ -2711,6 +2711,7 @@ executable typeclass-pos
                     , SingleMethod
                     , HK1
                     , HK2
+                    , MethodPrefixP
 
     build-depends:    base
                     , liquid-prelude
