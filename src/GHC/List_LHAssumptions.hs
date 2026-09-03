@@ -14,7 +14,7 @@ assume last         :: xs:{v: [a] | len v > 0} -> a
 assume init         :: xs:{v: [a] | len v > 0} -> {v: [a] | len(v) = len(xs) - 1}
 assume null         :: xs:[a] -> {v: Bool | ((v) <=> len(xs) = 0) }
 assume length       :: xs:[a] -> {v: Int | v = len(xs)}
-assume filter       :: (a -> Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)}
+assume filter       :: prop:(a -> Bool) -> xs:[a] -> {v: [{x:a | prop x}] | len(v) <= len(xs)}
 assume scanl        :: (a -> b -> a) -> a -> xs:[b] -> {v: [a] | len(v) = 1 + len(xs) }
 assume scanl1       :: (a -> a -> a) -> xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = len(xs) }
 assume foldr1       :: (a -> a -> a) -> xs:{v: [a] | len(v) > 0} -> a
