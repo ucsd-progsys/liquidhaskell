@@ -1,6 +1,6 @@
 cabal-version:      1.24
 name:               liquid-finfield
-version:            0.9.12.2.1
+version:            0.9.12.2.2
 synopsis:           Finite field utilities for LiquidHaskell (requires cvc5)
 description:        Finite field utilities for LiquidHaskell (requires cvc5)
 license:            BSD3
