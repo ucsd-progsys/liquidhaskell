@@ -1,6 +1,6 @@
 cabal-version:      1.24
 name:               liquid-prelude
-version:            0.9.14.1
+version:            0.9.14.1.1
 synopsis:           General utility modules for LiquidHaskell
 description:        General utility modules for LiquidHaskell.
 license:            BSD3
