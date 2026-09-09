@@ -802,10 +802,11 @@ bTup ts rs r
     -- there is more than one tuple component, and at least one of them has a
     -- binding, so this is a dependent tuple.
     --
-    -- @(a :: ta, tb)@ is desugared to @(ta, _) <{\a -> tb}>)@
+    -- @(a :: ta, tb)@ is desugared to @(ta, _) <{\a -> tb}>)@. Keep the
+    -- refinement on @ta@: there is no generated RProp from which to recover it.
   = RApp
       (mkBTyCon $ dummyLoc $ makeUnresolvedLHName (LHTcName LHAnyModuleNameF) $ tyTupleSizedSymbol (length ts))
-      (mapReft (const trueURef) (snd (head ts)) : [ RHole trueURef | _ <- tail ts ])
+      (snd (head ts) : [ RHole trueURef | _ <- tail ts ])
       rs'
       (reftUReft r)
   where
