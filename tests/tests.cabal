@@ -2327,6 +2327,8 @@ executable basic-pos
                     , T2349
                     , T2369
                     , TestAdmit
+                    , UnicodeConstraints
+                    , UnicodeSyntax
 
     build-depends:    base
                     , containers
