@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
 {-@ LIQUID "--ple" @-}
 
+-- | Test some variations of dependent tuples for #1583
 module T1583 where
 
 {-@ incr :: n:Int -> (m::{v:Int | v > n}, {u:Int | u > m}) @-}
