@@ -13,7 +13,7 @@ incr' x = (x+1, x+2)
 
 {-@ greater :: n:Int -> m:{Int | m > n} @-}
 greater :: Int -> Int
-greater x = y where (y,_) = incr x -- changing incr' to incr breaks the proof
+greater x = y where (y,_) = incr x
 
 {-@ unsafe :: (xs::{v:Int| v <= 0 }, ()) -> {v:Int| v <= 0 } @-}
 unsafe :: (Int, ()) -> Int
