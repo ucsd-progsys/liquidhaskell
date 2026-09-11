@@ -153,6 +153,7 @@ defConfig = Config
   , reflection                    = False
   , compileSpec                   = False
   , typeclass                     = False
+  , checkRefinements              = True
   , auxInline                     = False
   , rwTerminationCheck            = False
   , skipModule                    = False
@@ -332,6 +333,8 @@ lhOptions =
       "Only compile specifications (into .bspec file); skip verification"
   , opt [] ["typeclass"] (NoArg $ fm $ \c -> c { typeclass = True })
       "Enable typeclass support"
+  , opt [] ["check-refinements"] (NoArg $ fm $ \c -> c { checkRefinements = True })
+      "Check refinement predicates with Liquid's refinement type checker"
   , opt [] ["aux-inline"] (NoArg $ fm $ \c -> c { auxInline = True })
       ("Beta-reduce applications of methods to dictionaries in Core. Might help\n" ++
        "termination checks of functions that use methods."

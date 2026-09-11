@@ -17,6 +17,8 @@ module Language.Haskell.Liquid.GHC.Plugin (
 
 import qualified Liquid.GHC.API         as O
 import           Liquid.GHC.API         as GHC hiding (Type)
+import           GHC.Data.FastString    (LexicalFastString (..))
+import           GHC.Types.Name         (setNameLoc)
 import qualified Text.PrettyPrint.HughesPJ               as PJ
 import qualified Language.Fixpoint.Types                 as F
 import qualified Language.Haskell.Liquid.GHC.Misc        as LH
@@ -611,7 +613,9 @@ processModule LiquidHaskellContext{..} = do
 
       Right ((warnings, targetSpec, liftedSpec), bareSpec) -> do
         liftIO $ mapM_ (printWarning logger) warnings
-        let targetInfo = TargetInfo targetSrc targetSpec
+        (normalizedTargetSrc, normalizedTargetSpec) <- liftIO $
+          normalizeRefinementChecks moduleCfg hscEnv modGuts targetSrc targetSpec
+        let targetInfo = TargetInfo normalizedTargetSrc normalizedTargetSpec
 
         debugLog $ "bareSpec ==> "   ++ show bareSpec
         debugLog $ "liftedSpec ==> " ++ show liftedSpec
@@ -628,6 +632,41 @@ processModule LiquidHaskellContext{..} = do
       `Ex.catch` (\(e :: UserError) -> reportErrs [e])
       `Ex.catch` (\(e :: Error) -> reportErrs [e])
       `Ex.catch` (\(es :: [Error]) -> reportErrs es)
+
+normalizeRefinementChecks :: Config -> HscEnv -> ModGuts -> TargetSrc -> TargetSpec -> IO (TargetSrc, TargetSpec)
+normalizeRefinementChecks cfg hscEnv modGuts src spec
+  | null checks = pure (src, spec)
+  | otherwise = do
+      normalizedCbs <- anormalizeExprBinds cfg hscEnv modGuts (map locatedRefinementExpr checks)
+      let cbs = zipWith locatedRefinementBind checks normalizedCbs
+      let xs = map bindVar cbs
+          refinementSigs = zip xs (map refinementCheckType checks)
+          src' = src
+            { giCbs = cbs ++ giCbs src
+            , giDefVars = xs ++ giDefVars src
+            , giUseVars = L.nub (readVars cbs ++ giUseVars src)
+            , giImpVars = L.nub (LH.importVars cbs ++ giImpVars src)
+            }
+          spec' = spec { gsSig = sig
+            { gsTySigs = refinementSigs ++ gsTySigs sig
+            , gsReftChecks = []
+            } }
+      pure (src', spec')
+  where
+    sig = gsSig spec
+    checks = gsReftChecks sig
+    locatedRefinementExpr check =
+      case LH.fSrcSpan (F.loc (refinementCheckType check)) of
+        RealSrcSpan realSpan _ ->
+          Tick (SourceNote realSpan (LexicalFastString (fsLit "Liquid refinement")))
+            (refinementCheckExpr check)
+        _ -> refinementCheckExpr check
+    locatedRefinementBind check (NonRec x e) =
+      NonRec (setVarName x (setNameLoc (varName x) (LH.fSrcSpan (F.loc (refinementCheckType check))))) e
+    locatedRefinementBind _ _ =
+      GHC.panic "A refinement predicate normalized to a recursive binding"
+    bindVar (NonRec x _) = x
+    bindVar _ = GHC.panic "A refinement predicate normalized to a recursive binding"
 
 makeTargetSrc :: Config
               -> FilePath

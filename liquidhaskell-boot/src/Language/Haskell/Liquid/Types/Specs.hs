@@ -45,6 +45,7 @@ module Language.Haskell.Liquid.Types.Specs (
   , Spec(..)
   , GhcSpecVars(..)
   , GhcSpecSig(..)
+  , RefinementCheck(..)
   , GhcSpecNames(..)
   , GhcSpecTerm(..)
   , GhcSpecRefl(..)
@@ -255,8 +256,17 @@ data GhcSpecSig = SpSig
   , gsTexprs   :: ![(Var, LocSpecType, [F.Located F.Expr])]  -- ^ Lexicographically ordered expressions for termination
   , gsRelation :: ![(Var, Var, LocSpecType, LocSpecType, RelExpr, RelExpr)]
   , gsAsmRel   :: ![(Var, Var, LocSpecType, LocSpecType, RelExpr, RelExpr)]
+  , gsReftChecks :: ![RefinementCheck]             -- ^ Synthetic Core checks for refinement predicates
   }
   deriving Show
+
+data RefinementCheck = RefinementCheck
+  { refinementCheckExpr :: !CoreExpr
+  , refinementCheckType :: !LocSpecType
+  }
+
+instance Show RefinementCheck where
+  show _ = "<refinement-check>"
 
 instance Semigroup GhcSpecSig where
   x <> y = SpSig
@@ -272,6 +282,7 @@ instance Semigroup GhcSpecSig where
     , gsTexprs   = gsTexprs x   <> gsTexprs y
     , gsRelation = gsRelation x <> gsRelation y
     , gsAsmRel   = gsAsmRel x   <> gsAsmRel y
+    , gsReftChecks = gsReftChecks x <> gsReftChecks y
     }
 
 
@@ -281,7 +292,7 @@ instance Semigroup GhcSpecSig where
 
 
 instance Monoid GhcSpecSig where
-  mempty = SpSig mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty
+  mempty = SpSig mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty
 
 data GhcSpecData = SpData
   { gsCtors      :: ![(Var, LocSpecType)]         -- ^ Data Constructor Measure Sigs

@@ -16,6 +16,7 @@
 module Language.Haskell.Liquid.Bare.Elaborate
   ( fixExprToHsExpr
   , elaborateSpecType
+  , elaborateSpecTypeWith
   -- , buildSimplifier
   )
 where
@@ -287,7 +288,18 @@ elaborateSpecType
   -> SpecType
   -> TcRn SpecType
 elaborateSpecType coreToLogic simplifier t = GM.withWiredIn $ do
-  (t', xs) <- elaborateSpecType' (pure ()) coreToLogic simplifier t
+  elaborateSpecTypeWith (\_ _ -> pure ()) coreToLogic simplifier t
+
+-- | Elaborate a specification and expose the Core expression generated for
+-- every non-trivial refinement together with its refined checking type.
+elaborateSpecTypeWith
+  :: (CoreExpr -> SpecType -> TcRn ())
+  -> (CoreExpr -> F.Expr)
+  -> (CoreExpr -> TcRn CoreExpr)
+  -> SpecType
+  -> TcRn SpecType
+elaborateSpecTypeWith collect coreToLogic simplifier t = GM.withWiredIn $ do
+  (t', xs) <- elaborateSpecType' collect (pure ()) coreToLogic simplifier t
   case xs of
     _ : _ -> panic
       Nothing
@@ -295,13 +307,14 @@ elaborateSpecType coreToLogic simplifier t = GM.withWiredIn $ do
     _ -> pure t'
 
 elaborateSpecType'
-  :: PartialSpecType
+  :: (CoreExpr -> SpecType -> TcRn ())
+  -> PartialSpecType
   -> (CoreExpr -> F.Expr) -- core to logic
   -> (CoreExpr -> TcRn CoreExpr)
   -> SpecType
   -> TcRn (SpecType, [F.Symbol]) -- binders for dictionaries
                    -- should have returned Maybe [F.Symbol]
-elaborateSpecType' partialTp coreToLogic simplify t =
+elaborateSpecType' collect partialTp coreToLogic simplify t =
   case F.notracepp "elaborateSpecType'" t of
     RVar (RTV tv) (MkUReft reft@(F.Reft (vv, _oldE)) p) -> do
       elaborateReft
@@ -315,8 +328,8 @@ elaborateSpecType' partialTp coreToLogic simplify t =
       let partialFunTp =
             Free (RFunF bind i (wrap $ specTypeToPartial tin) (pure ()) ureft) :: PartialSpecType
           partialTp' = partialTp >> partialFunTp :: PartialSpecType
-      (eTin , bs ) <- elaborateSpecType' partialTp coreToLogic simplify tin
-      (eTout, bs') <- elaborateSpecType' partialTp' coreToLogic simplify tout
+      (eTin , bs ) <- elaborateSpecType' collect partialTp coreToLogic simplify tin
+      (eTout, bs') <- elaborateSpecType' collect partialTp' coreToLogic simplify tout
       let buildRFunContTrivial
             | isClassType tin, dictBinder : bs0' <- bs' = do
               let (eToutRenamed, canonicalBinders) =
@@ -368,6 +381,7 @@ elaborateSpecType' partialTp coreToLogic simplify t =
     -- support for RankNTypes/ref
     RAllT (RTVar tv ty) tout ureft@(MkUReft ref@(F.Reft (vv, _oldE)) p) -> do
       (eTout, bs) <- elaborateSpecType'
+        collect
         (partialTp >> Free (RAllTF (RTVar tv ty) (pure ()) ureft))
         coreToLogic
         simplify
@@ -387,6 +401,7 @@ elaborateSpecType' partialTp coreToLogic simplify t =
     -- todo: might as well print an error message?
     RAllP pvbind tout -> do
       (eTout, bts') <- elaborateSpecType'
+        collect
         (partialTp >> Free (RAllPF pvbind (pure ())))
         coreToLogic
         simplify
@@ -398,7 +413,7 @@ elaborateSpecType' partialTp coreToLogic simplify t =
       | isClass tycon -> pure (t, [])
       | otherwise -> do
         args' <- mapM
-          (fmap fst . elaborateSpecType' partialTp coreToLogic simplify)
+          (fmap fst . elaborateSpecType' collect partialTp coreToLogic simplify)
           args
         elaborateReft
           (reft, t)
@@ -407,8 +422,8 @@ elaborateSpecType' partialTp coreToLogic simplify t =
             pure (RApp tycon args' pargs (MkUReft (F.Reft (vv, ee)) p), bs')
           )
     RAppTy arg res ureft@(MkUReft reft@(F.Reft (vv, _)) p) -> do
-      (eArg, bs ) <- elaborateSpecType' partialTp coreToLogic simplify arg
-      (eRes, bs') <- elaborateSpecType' partialTp coreToLogic simplify res
+      (eArg, bs ) <- elaborateSpecType' collect partialTp coreToLogic simplify arg
+      (eRes, bs') <- elaborateSpecType' collect partialTp coreToLogic simplify res
       let (eResRenamed, canonicalBinders) =
             canonicalizeDictBinder bs (eRes, bs')
       elaborateReft
@@ -424,8 +439,8 @@ elaborateSpecType' partialTp coreToLogic simplify t =
         )
     -- todo: Existential support
     REx bind allarg ty -> do
-      (eAllarg, bs ) <- elaborateSpecType' partialTp coreToLogic simplify allarg
-      (eTy    , bs') <- elaborateSpecType' partialTp coreToLogic simplify ty
+      (eAllarg, bs ) <- elaborateSpecType' collect partialTp coreToLogic simplify allarg
+      (eTy    , bs') <- elaborateSpecType' collect partialTp coreToLogic simplify ty
       let (eTyRenamed, canonicalBinders) = canonicalizeDictBinder bs (eTy, bs')
       pure (REx bind eAllarg eTyRenamed, canonicalBinders)
     -- YL: might need to filter RExprArg out and replace RHole with ghc wildcard
@@ -463,6 +478,7 @@ elaborateSpecType' partialTp coreToLogic simplify t =
             (hsTypeToHsSigWcType (specTypeToLHsType querySpecType))
         eeWithLamsCore <- GM.elabRnExpr exprWithTySigs
         eeWithLamsCore' <- simplify eeWithLamsCore
+        collect eeWithLamsCore' querySpecType
         let
           (_, tyBinders) =
             collectSpecTypeBinders
