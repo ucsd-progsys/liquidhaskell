@@ -66,6 +66,10 @@ import           Language.Haskell.Liquid.UX.Config
 import Data.Hashable (Hashable)
 import Data.Bifunctor (bimap, first)
 import Data.Function (on)
+import qualified Data.IORef as IORef
+import qualified GHC.Tc.Utils.TcType as TcType
+import qualified GHC.Tc.Utils.Monad as TcMonad
+import qualified GHC.Types.Var.Set as VarSet
 
 
 {- $creatingTargetSpecs
@@ -234,14 +238,15 @@ makeGhcSpec0 stratNames cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap 
     if allowTC then Bare.makeClassAuxTypes (elaborateSpecType coreToLg simplifier) datacons instMethods
                               >>= elaborateSig sig
                else pure sig
-  let (dg3, refl)    = withDiagnostics $ makeSpecRefl src specs env name elaboratedSig tycEnv
+  checkedSig <- if checkRefinements cfg then addRefinementChecks elaboratedSig else pure elaboratedSig
+  let (dg3, refl)    = withDiagnostics $ makeSpecRefl src specs env name checkedSig tycEnv
   let eqs            = gsHAxioms refl
   let (dg4, measEnv) = withDiagnostics $ addOpaqueReflMeas cfg tycEnv env mySpec measEnv0 specs eqs
   let qual = makeSpecQual cfg env globalRdrEnv tycEnv measEnv rtEnv mySpec iSpecs2
   let (dg5, spcVars) = withDiagnostics $ makeSpecVars cfg src mySpec env measEnv
   let (dg6, spcTerm) = withDiagnostics $ makeSpecTerm cfg     mySpec lenv env
-  let sData    = makeSpecData  src env sigEnv measEnv elaboratedSig specs
-  let finalLiftedSpec = makeLiftedSpec name src env refl sData elaboratedSig qual myRTE (lSpec0 <> lSpec1)
+  let sData    = makeSpecData  src env sigEnv measEnv checkedSig specs
+  let finalLiftedSpec = makeLiftedSpec name src env refl sData checkedSig qual myRTE (lSpec0 <> lSpec1)
   let diags    = mconcat [dg0, dg1, dg2, dg3, dg4, dg5, dg6]
 
   -- Dump reflections, if requested
@@ -258,7 +263,7 @@ makeGhcSpec0 stratNames cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap 
   pure (diags, SP
     { _gsConfig = cfg
     , _gsImps   = makeImports mspecs
-    , _gsSig    = addReflSigs env name rtEnv measEnv refl elaboratedSig
+    , _gsSig    = addReflSigs env name rtEnv measEnv refl checkedSig
     , _gsRefl   = refl
     , _gsData   = sData
     , _gsQual   = qual
@@ -347,6 +352,26 @@ makeGhcSpec0 stratNames cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap 
       pure
         si
           { gsTySigs = F.notracepp ("asmSigs" ++ F.showpp (gsAsmSigs si)) tySigs ++ auxsig  }
+
+    addRefinementChecks si = do
+      ref <- Ghc.liftIO $ IORef.newIORef []
+      let collect signatureType e queryType =
+            let coreType = Ghc.exprType e
+                (typeBinders, constraints, _) = TcType.tcSplitSigmaTy coreType
+                hasFreeTypeVariables = not . VarSet.isEmptyVarSet $ Ghc.tyCoVarsOfType coreType
+                hasEvidenceVariables = VarSet.anyVarSet GM.isEvidenceVar (Ghc.exprFreeVars e)
+            in when (null typeBinders && null constraints && not hasFreeTypeVariables && not hasEvidenceVariables) $
+                 Ghc.liftIO $ IORef.modifyIORef' ref
+                 (RefinementCheck e (F.atLoc signatureType queryType) :)
+      -- Elaboration supplies the dependent lambda type for every refinement.
+      -- We keep the original signatures here; this pass exists only to retain
+      -- the generated Core expressions for Liquid checking.
+      TcMonad.discardWarnings $
+        mapM_ (\(_, signatureType) ->
+          traverse (elaborateSpecTypeWith (collect signatureType) coreToLg simplifier) signatureType)
+          (gsTySigs si)
+      checks <- reverse <$> Ghc.liftIO (IORef.readIORef ref)
+      pure si { gsReftChecks = checks }
 
     simplifier :: Ghc.CoreExpr -> Ghc.TcRn Ghc.CoreExpr
     simplifier = pure -- no simplification
@@ -1008,6 +1033,7 @@ makeSpecSig stratNames cfg name mySpec specs env sigEnv tycEnv measEnv cbs = do
     , gsTexprs   = [ (v, t, es) | (v, t, Just es) <- mySigs ]
     , gsRelation = relation
     , gsAsmRel   = asmRel
+    , gsReftChecks = []
     })
   where
     (instances, dicts) = Bare.makeSpecDictionaries env sigEnv (name, mySpec) (M.toList specs)

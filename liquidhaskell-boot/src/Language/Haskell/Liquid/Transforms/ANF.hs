@@ -9,7 +9,7 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE ViewPatterns               #-}
 
-module Language.Haskell.Liquid.Transforms.ANF (anormalize) where
+module Language.Haskell.Liquid.Transforms.ANF (anormalize, anormalizeExprBinds) where
 
 import           Debug.Trace (trace)
 import           Prelude                          hiding (error)
@@ -36,6 +36,7 @@ import           Data.Hashable
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HM
 import GHC.Core.Type (ForAllTyBinder)
+import GHC.Types.Id (mkSysLocalM)
 
 --------------------------------------------------------------------------------
 -- | A-Normalize a module ------------------------------------------------------
@@ -48,6 +49,19 @@ anormalize cfg hscEnv modGuts = do
       err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
       act      = Misc.concatMapM (normalizeTopBind γ0) (mg_binds modGuts)
       γ0       = emptyAnfEnv cfg
+
+-- | Put elaborated refinement predicates through the same normalization used
+-- for ordinary program expressions. These expressions are produced only after
+-- the module's top-level Core has already been normalized.
+anormalizeExprBinds :: UX.Config -> HscEnv -> ModGuts -> [CoreExpr] -> IO [CoreBind]
+anormalizeExprBinds cfg hscEnv modGuts exprs = do
+  fromMaybe err . snd <$> initDsWithModGuts hscEnv modGuts act
+  where
+    err = panic Nothing "Oops, cannot A-Normalize refinement predicates!"
+    act = concat <$> forM exprs (\e -> do
+      x <- mkSysLocalM (fsLit "lq_refinement") ManyTy (exprType e)
+      normalizeTopBind γ0 (NonRec x e))
+    γ0  = emptyAnfEnv cfg
 
 --------------------------------------------------------------------------------
 -- | A-Normalize a @CoreBind@ --------------------------------------------------

@@ -88,6 +88,7 @@ data Config = Config
   , reflection               :: Bool       -- ^ Allow "reflection"; switches on "--higherorder" and "--adt"
   , compileSpec              :: Bool       -- ^ Only "compile" the spec -- into .bspec file -- don't do any checking.
   , typeclass                :: Bool        -- ^ enable typeclass support.
+  , checkRefinements         :: Bool        -- ^ check refinement predicates with Liquid's type checker.
   , auxInline                :: Bool        -- ^
   , rwTerminationCheck       :: Bool       -- ^ Enable termination checking for rewriting
   , skipModule               :: Bool       -- ^ Skip this module entirely (don't even compile any specs in it)
