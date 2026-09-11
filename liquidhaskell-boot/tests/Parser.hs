@@ -564,12 +564,12 @@ testErrorReporting =
     , testCase "Missing |" $
           parseSingleSpec "ff :: {v:Nat  v >= 0 }" @?==
             unlines
-              [ "<test>:1:9:"
+              [ "<test>:1:17:"
               , "  |"
               , "1 | ff :: {v:Nat  v >= 0 }"
-              , "  |         ^"
-              , "unexpected ':'"
-              , "expecting \"!=\", \"!~\", \"&&\", \"/=\", \"<=\", \"<=>\", \"==\", \"==>\", \"=>\", \">=\", \"_|_\", \"false\", \"mod\", \"true\", \"||\", \"~~\", '$', '(', '*', '+', '-', '.', '/', '<', '=', '>', '[', '_', '}', '⇒', float literal, letter, nat literal, or string literal"
+              , "  |                 ^^"
+              , "unexpected \">=\""
+              , "expecting \"->\", \"<:\", \"=>\", '|', '→', '⇒', bareTyArgP, mmonoPredicateP, or monoPredicateP"
               ]
     ]
 
