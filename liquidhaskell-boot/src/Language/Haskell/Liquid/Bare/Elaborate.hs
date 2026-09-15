@@ -291,7 +291,7 @@ elaborateSpecType coreToLogic simplifier t = GM.withWiredIn $ do
   elaborateSpecTypeWith (\_ _ -> pure ()) coreToLogic simplifier t
 
 -- | Elaborate a specification to make type class dictionaries explicit,
--- and expose the Core expression generated for every non-trivial 
+-- and expose the Core expression generated for every non-trivial
 -- refinement together with its refined checking type.
 elaborateSpecTypeWith
   :: (CoreExpr -> SpecType -> TcRn ())
