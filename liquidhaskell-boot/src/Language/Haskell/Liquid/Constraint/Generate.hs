@@ -67,6 +67,7 @@ import           Language.Haskell.Liquid.Constraint.Termination
 import           Language.Haskell.Liquid.Constraint.RewriteCase
 import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult, runToLogic, coreToLogic)
 import           Language.Haskell.Liquid.Bare.DataType (dataConMap, makeDataConChecker)
+import           Language.Haskell.Liquid.Bare.Misc (simpleSymbolVar)
 import Language.Haskell.Liquid.UX.Config
     ( HasConfig(getConfig),
       Config(typeclass, extensionality,
@@ -773,6 +774,10 @@ consE γ (Var x)
 consE _ (Lit c)
   = refreshVV $ uRType $ literalFRefType c
 
+consE γ e@App{}
+  | Just l <- boxedLiteralExpr γ e
+  = refreshVV $ strengthenMeet (ofType $ exprType e) (uTop $ F.exprReft l)
+
 consE γ e'@(App _ _) =
   do
     t <- if warnOnTermHoles (getConfig γ) then synthesizeWithHole else consEApp γ e'
@@ -1378,6 +1383,7 @@ argType _                    = Nothing
 argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
 argExpr _ (Var v)          = Just $ F.eVar v
 argExpr γ (Lit c)          = snd $ literalConst (emb γ) c
+argExpr γ e@App{}          | Just l <- boxedLiteralExpr γ e = Just l
 argExpr γ (Tick _ e)       = argExpr γ e
 argExpr γ (App e (Type _)) = argExpr γ e
 argExpr _ _                = Nothing
@@ -1424,6 +1430,8 @@ varRefType' γ x t'
 -- | create singleton types for function application
 makeSingleton :: CGEnv -> CoreExpr -> SpecType -> SpecType
 makeSingleton γ cexpr t
+  | Just e <- boxedLiteralExpr γ (simplify cexpr)
+  = strengthenMeet t (uTop $ F.exprReft e)
   | higherOrderFlag γ, App f x <- simplify cexpr
   = case (funExpr γ f, argForAllExpr x) of
       (Just f', Just x')
@@ -1445,6 +1453,20 @@ makeSingleton γ cexpr t
       = Just e
     argForAllExpr e
       = argExpr γ e
+
+boxedLiteralExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
+boxedLiteralExpr γ e
+  | (Var box, args) <- collectArgs e
+  , [Lit c] <- filter isTermArg args
+  , box == dataConWorkId intDataCon
+      || simpleSymbolVar box `elem` ["I#", "W#", "F#", "D#"]
+  = snd $ literalConst (emb γ) c
+boxedLiteralExpr _ _ = Nothing
+
+isTermArg :: CoreExpr -> Bool
+isTermArg Type{}     = False
+isTermArg Coercion{} = False
+isTermArg _          = True
 
 
 

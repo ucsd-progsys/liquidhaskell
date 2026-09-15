@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
+{-@ LIQUID "--expect-any-error" @-}
 
 {- LIQUID "--check-refinements" @-}
 

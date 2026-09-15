@@ -18,7 +18,7 @@ module Language.Haskell.Liquid.Bare (
     makeTargetSpec
   ) where
 
-import           Control.Monad                              (forM, mplus, when)
+import           Control.Monad                              (forM, mplus, void, when)
 import qualified Control.Exception                          as Ex
 import           Data.Either (fromRight)
 import qualified Data.Maybe                                 as Mb
@@ -70,6 +70,7 @@ import qualified Data.IORef as IORef
 import qualified GHC.Tc.Utils.TcType as TcType
 import qualified GHC.Tc.Utils.Monad as TcMonad
 import qualified GHC.Types.Var.Set as VarSet
+import qualified GHC.Data.IOEnv as IOEnv
 
 
 {- $creatingTargetSpecs
@@ -355,6 +356,7 @@ makeGhcSpec0 stratNames cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap 
 
     addRefinementChecks si = do
       ref <- Ghc.liftIO $ IORef.newIORef []
+      logger <- Ghc.getLogger
       let collect signatureType e queryType =
             let coreType = Ghc.exprType e
                 (typeBinders, constraints, _) = TcType.tcSplitSigmaTy coreType
@@ -363,13 +365,36 @@ makeGhcSpec0 stratNames cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap 
             in when (null typeBinders && null constraints && not hasFreeTypeVariables && not hasEvidenceVariables) $
                  Ghc.liftIO $ IORef.modifyIORef' ref
                  (RefinementCheck e (F.atLoc signatureType queryType) :)
+          checkSignature (x, signatureType) = do
+            oldChecks <- Ghc.liftIO $ IORef.readIORef ref
+            -- Conversion helpers currently report unsupported Liquid-only
+            -- constructs with GhcException (via `todo`/`panic`), which
+            -- `tryMostM` deliberately does not catch.  Treat those as a
+            -- failed best-effort conversion as well.
+            -- Keep `tryTc` on the outside: if conversion panics after adding
+            -- wanted constraints, it must still get a chance to restore the
+            -- typechecker state before we continue with the module.
+            result <- if null (allTyVars (F.val signatureType))
+              then TcMonad.tryTc $ IOEnv.tryAllM $ TcMonad.discardWarnings $ TcMonad.discardConstraints $
+                void $ traverse
+                  (elaborateSpecTypeWith (collect signatureType) coreToLg simplifier)
+                  signatureType
+              else pure (Nothing, mempty)
+            case result of
+              (Just (Right ()), _) -> pure ()
+              _ -> do
+                -- Elaboration may have collected earlier refinements from the
+                -- same signature before encountering an unsupported one.
+                Ghc.liftIO $ IORef.writeIORef ref oldChecks
+                let warning = mkWarning
+                      (GM.sourcePos2SrcSpan (F.loc signatureType) (F.locE signatureType))
+                      (text $ "Cannot check refinements for " ++ F.showpp x ++
+                        ": not every predicate has a Haskell equivalent.")
+                Ghc.liftIO $ printWarning logger warning
       -- Elaboration supplies the dependent lambda type for every refinement.
-      -- We keep the original signatures here; this pass exists only to retain
-      -- the generated Core expressions for Liquid checking.
-      TcMonad.discardWarnings $
-        mapM_ (\(_, signatureType) ->
-          traverse (elaborateSpecTypeWith (collect signatureType) coreToLg simplifier) signatureType)
-          (gsTySigs si)
+      -- This is a best-effort pass: Liquid-only predicates are left to the
+      -- ordinary sort checker and reported with a warning.
+      mapM_ checkSignature (gsTySigs si)
       checks <- reverse <$> Ghc.liftIO (IORef.readIORef ref)
       pure si { gsReftChecks = checks }
 

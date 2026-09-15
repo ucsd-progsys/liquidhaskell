@@ -290,8 +290,9 @@ elaborateSpecType
 elaborateSpecType coreToLogic simplifier t = GM.withWiredIn $ do
   elaborateSpecTypeWith (\_ _ -> pure ()) coreToLogic simplifier t
 
--- | Elaborate a specification and expose the Core expression generated for
--- every non-trivial refinement together with its refined checking type.
+-- | Elaborate a specification to make type class dictionaries explicit,
+-- and expose the Core expression generated for every non-trivial 
+-- refinement together with its refined checking type.
 elaborateSpecTypeWith
   :: (CoreExpr -> SpecType -> TcRn ())
   -> (CoreExpr -> F.Expr)
@@ -478,7 +479,11 @@ elaborateSpecType' collect partialTp coreToLogic simplify t =
             (hsTypeToHsSigWcType (specTypeToLHsType querySpecType))
         eeWithLamsCore <- GM.elabRnExpr exprWithTySigs
         eeWithLamsCore' <- simplify eeWithLamsCore
-        collect eeWithLamsCore' querySpecType
+        -- Preserve refinements on the surrounding signature arguments: they
+        -- are the local assumptions under which the predicate occurs. Erase
+        -- the refinement on the final value argument (the value whose
+        -- predicate we are checking) as well as the synthetic Bool result.
+        collect eeWithLamsCore' (eraseCheckedRefinement querySpecType)
         let
           (_, tyBinders) =
             collectSpecTypeBinders
@@ -512,6 +517,21 @@ elaborateSpecType' collect partialTp coreToLogic simplify t =
           )  -- (GM.dropModuleUnique <$> bs')
         pure (F.notracepp "result" ret)
                            -- (F.substa )
+  eraseCheckedRefinement (RAllT a ty r) = RAllT a (eraseCheckedRefinement ty) r
+  eraseCheckedRefinement (RAllP p ty) = RAllP p (eraseCheckedRefinement ty)
+  eraseCheckedRefinement (RFun x i arg res r)
+    | hasValueArgument res = RFun x i arg (eraseCheckedRefinement res) r
+    | otherwise = RFun x i
+        (mapReft (const mempty) arg)
+        (mapReft (const mempty) res)
+        r
+  eraseCheckedRefinement ty = mapReft (const mempty) ty
+
+  hasValueArgument (RAllT _ ty _) = hasValueArgument ty
+  hasValueArgument (RAllP _ ty)   = hasValueArgument ty
+  hasValueArgument RFun{}         = True
+  hasValueArgument _              = False
+
   isTrivial' :: F.Reft -> Bool
   isTrivial' (F.Reft (_, F.PTrue)) = True
   isTrivial' _                     = False

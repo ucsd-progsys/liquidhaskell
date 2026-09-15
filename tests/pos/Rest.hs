@@ -113,7 +113,7 @@ elemAtThroughAppend 0 (_:_) ys = ()
 elemAtThroughAppend i (_:xss) ys = elemAtThroughAppend (i - 1) xss ys
 
 {-@
-predicate WellTyped E CTX = checkBindings CTX E && numFreeVarsExp E <= length CTX
+predicate WellTyped E CTX = numFreeVarsExp E <= length CTX && checkBindings CTX E
 type WellTypedExp CTX = { e : Exp | WellTyped e CTX }
 type FunExp = { e : Exp | isFunTy (exprType e) }
 type ExpT T = { e : Exp | T = exprType e }
@@ -159,11 +159,12 @@ exprType (BoolE _) = TBool
 reflect checkBindings
 checkBindings
   :: ctx : [Ty]
-  -> { e : Exp | numFreeVarsExp e <= length ctx }
+  -> e : Exp
   -> Bool
 @-}
 checkBindings :: [Ty] -> Exp -> Bool
-checkBindings ctx (Var vty i) = elemAt i ctx == vty
+checkBindings ctx (Var vty i) =
+  if i < length ctx then elemAt i ctx == vty else False
 checkBindings ctx (Lam t e) = checkBindings (t:ctx) e
 checkBindings ctx (App e1 e2) = checkBindings ctx e1 && checkBindings ctx e2
 checkBindings ctx (Let e1 e2) = checkBindings ctx e1 && checkBindings (exprType e1 : ctx) e2
@@ -221,5 +222,3 @@ numFreeVarsExp (Cond e1 e2 e3) =
 numFreeVarsExp (Fix body) = numFreeVarsExp body
 numFreeVarsExp (IntE _) = 0
 numFreeVarsExp (BoolE _) = 0
-
-

@@ -260,6 +260,16 @@ data GhcSpecSig = SpSig
   }
   deriving Show
 
+-- | Checking that the predicates of the refinements do not violate their specifications.  
+-- 
+-- For each refinement that can be translated to Haskell, elaboration produces
+-- a synthetic function whose arguments are the values in scope at the point of
+-- the refinement and whose result is the predicate as a 'Bool'.  For example,
+-- the refinement @x:Int -> {v:Int | v > x}@ generates @\x v -> v > x@.
+--
+-- 'refinementCheckExpr' stores that function as GHC Core and 
+-- 'refinementCheckType' is the original Liquid signature.
+
 data RefinementCheck = RefinementCheck
   { refinementCheckExpr :: !CoreExpr
   , refinementCheckType :: !LocSpecType
