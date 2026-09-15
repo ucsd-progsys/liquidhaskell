@@ -18,9 +18,10 @@ module Language.Haskell.Liquid.Bare (
     makeTargetSpec
   ) where
 
-import           Control.Monad                              (forM, mplus, void, when)
+import           Control.Monad                              (forM, mplus, when)
 import qualified Control.Exception                          as Ex
 import           Data.Either (fromRight)
+import           Data.Foldable                              (traverse_)
 import qualified Data.Maybe                                 as Mb
 import qualified Data.List                                  as L
 import qualified Data.HashMap.Strict                        as M
@@ -376,7 +377,7 @@ makeGhcSpec0 stratNames cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap 
             -- typechecker state before we continue with the module.
             result <- if null (allTyVars (F.val signatureType))
               then TcMonad.tryTc $ IOEnv.tryAllM $ TcMonad.discardWarnings $ TcMonad.discardConstraints $
-                void $ traverse
+                traverse_
                   (elaborateSpecTypeWith (collect signatureType) coreToLg simplifier)
                   signatureType
               else pure (Nothing, mempty)
