@@ -262,6 +262,9 @@ data GhcSpecSig = SpSig
 
 -- | Checking that the predicates of the refinements do not violate their specifications.
 --
+-- Since constraint generation is only done by analyzing Core, checking
+-- predicates of refinement types requires translating them to Core.
+--
 -- For each refinement that can be translated to Haskell, elaboration produces
 -- a synthetic function whose arguments are the values in scope at the point of
 -- the refinement and whose result is the predicate as a 'Bool'.  For example,
