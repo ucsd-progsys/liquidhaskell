@@ -269,6 +269,7 @@ data GhcSpecSig = SpSig
 -- a synthetic function whose arguments are the values in scope at the point of
 -- the refinement and whose result is the predicate as a 'Bool'.  For example,
 -- the refinement @x:Int -> {v:Int | v > x}@ generates @\x v -> v > x@.
+-- Elaboration is implemented in 'Language.Haskell.Liquid.Bare.Elaborate.elaborateSpecTypeWith'.
 --
 -- 'refinementCheckExpr' stores that function as GHC Core and
 -- 'refinementCheckType' is the original Liquid signature.
