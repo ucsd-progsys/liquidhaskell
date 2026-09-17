@@ -293,7 +293,7 @@ elaborateSpecType coreToLogic simplifier t = GM.withWiredIn $ do
 -- | Elaborate a specification to make type class dictionaries explicit,
 -- and expose the Core expression generated for every non-trivial
 -- refinement together with its refined checking type.
--- 
+--
 -- @elaborateSpecTypeWith collect coreToLogic simplify (x0:t0 -> ... -> v:tn)@ calls
 -- @collect et (\<env> -> ti')@ for each @i@, where @ti'@ is @ti@ with the
 -- refinement predicate replaced by @true@, @et@ is the elaborated Core
