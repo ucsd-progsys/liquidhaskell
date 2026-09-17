@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
 {-@ LIQUID "--expect-any-error" @-}
 
-{- LIQUID "--check-refinements" @-}
+{-@ LIQUID "--check-refinements" @-}
 
 module CheckRefinements where
 
