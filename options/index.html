@@ -22,7 +22,7 @@
       
       
       <link rel="icon" href="../static/img/favicon.ico">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -30,7 +30,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -717,6 +717,17 @@
     <span class="md-ellipsis">
       
         Termination Check
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#refinement-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refinement Check
       
     </span>
   </a>
@@ -2155,6 +2166,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#refinement-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refinement Check
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#positivity-check" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2675,6 +2697,21 @@ If we exclude <code>Nothing</code> from its domain, for example using the follow
 <p>By <strong>default</strong> a termination check is performed on all recursive functions, but you can disable the check
 with the <code>--no-termination</code> option.</p>
 <p>See the <a href="../specifications/">specifications section</a> for how to write termination specifications.</p>
+<h2 id="refinement-check">Refinement Check<a class="headerlink" href="#refinement-check" title="Permanent link">&para;</a></h2>
+<p><strong>Options:</strong> <code>check-refinements</code>
+By <strong>default</strong> the predicates of the refinements are not checked to satisfy 
+their refienement type specifications. For example, <a href="https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/neg/CheckRefinements.hs">tests/neg/CheckRefinements.hs</a> </p>
+<pre><code class="language-haskell">{-@ test :: () -&gt; {v:() | get 0 Nil == 0 } @-}
+test :: () -&gt; ()
+test _ = undefined
+
+{-@ get :: n:{Int | 0 &lt;= n } -&gt; {v:List Int | n &lt; mylen v} -&gt; Int @-}
+</code></pre>
+<p>The call <code>get 0 Nil</code> in the refinement of <code>test</code> violates the specification of <code>get</code>. This error will only be detected when the <code>check-refinements</code> flag is on. </p>
+<p>No checking such refinements cannot lead to unsoundness, since the predicate 
+language is interpreted as a logical language, thus all functions are total. 
+Yet, it can lead to unexpected behaviours and make PLE diverge. 
+The checks slow down verification time, the error messages can be difficult to understand still, and soundness is not at stake, so the feature is disabled by default. </p>
 <h2 id="positivity-check">Positivity Check<a class="headerlink" href="#positivity-check" title="Permanent link">&para;</a></h2>
 <p><strong>Options:</strong> <code>no-positivity-check</code>
 By <strong>default</strong> a positivity check is performed on data definitions.</p>
@@ -3047,7 +3084,7 @@ hole found
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.top"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>
