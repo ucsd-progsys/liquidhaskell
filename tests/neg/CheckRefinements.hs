@@ -1,7 +1,8 @@
 {-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
-{-@ LIQUID "--expect-any-error" @-}
+{-@ LIQUID "--expect-error-containing=Liquid Type Mismatch" @-}
 
 {-@ LIQUID "--check-refinements" @-}
+{-@ LIQUID "--reflection" @-}
 
 module CheckRefinements where
 
@@ -19,16 +20,16 @@ bad _ = undefined
 data List a = Nil | Cons a (List a)
 
 {-@ measure mylen @-}
+{-@ mylen :: List a -> Nat @-}
 mylen :: List a -> Int
 mylen Nil = 0
 mylen (Cons _ xs) = 1 + mylen xs
 
 {-@ reflect get @-}
+{-@ get :: n:{Int | 0 <= n } -> {v:List Int | n < mylen v} -> Int @-}
 get :: Int -> List Int -> Int
-get _ Nil = error "index out of bounds"
-get 0 (Cons x _) = x
-get n (Cons _ xs) = get (n-1) xs
-{-@ get :: n:{Int | n >= 0} -> {v:List Int | mylen v > n} -> Int @-}
+get n (Cons x xs) = if n == 0 then x else get (n-1) xs
+get _ _           = error "index out of bounds"
 
 {-@ test :: () -> {v:() | get 0 Nil == 0 } @-}
 test :: () -> ()
