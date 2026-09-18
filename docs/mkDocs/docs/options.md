@@ -497,7 +497,7 @@ The call `get 0 Nil` in the refinement of `test` violates the specification of `
 No checking such refinements cannot lead to unsoundness, since the predicate 
 language is interpreted as a logical language, thus all functions are total. 
 Yet, it can lead to unexpected behaviours and make PLE diverge. 
-Since there cannot be unsoundness and such checks slow down verification time, they are not done by default. 
+The checks slow down verification time, the error messages can be difficult to understand still, and soundness is not at stake, so the feature is disabled by default. 
 
 
 ## Positivity Check
