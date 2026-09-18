@@ -45,6 +45,7 @@ module Language.Haskell.Liquid.Types.Specs (
   , Spec(..)
   , GhcSpecVars(..)
   , GhcSpecSig(..)
+  , RefinementCheck(..)
   , GhcSpecNames(..)
   , GhcSpecTerm(..)
   , GhcSpecRefl(..)
@@ -255,8 +256,31 @@ data GhcSpecSig = SpSig
   , gsTexprs   :: ![(Var, LocSpecType, [F.Located F.Expr])]  -- ^ Lexicographically ordered expressions for termination
   , gsRelation :: ![(Var, Var, LocSpecType, LocSpecType, RelExpr, RelExpr)]
   , gsAsmRel   :: ![(Var, Var, LocSpecType, LocSpecType, RelExpr, RelExpr)]
+  , gsReftChecks :: ![RefinementCheck]             -- ^ Synthetic Core checks for refinement predicates
   }
   deriving Show
+
+-- | Checking that the predicates of the refinements do not violate their specifications.
+--
+-- Since constraint generation is only done by analyzing Core, checking
+-- predicates of refinement types requires translating them to Core.
+--
+-- For each refinement that can be translated to Haskell, elaboration produces
+-- a synthetic function whose arguments are the values in scope at the point of
+-- the refinement and whose result is the predicate as a 'Bool'.  For example,
+-- the refinement @x:Int -> {v:Int | v > x}@ generates @\x v -> v > x@.
+-- Elaboration is implemented in 'Language.Haskell.Liquid.Bare.Elaborate.elaborateSpecTypeWith'.
+--
+-- 'refinementCheckExpr' stores that function as GHC Core and
+-- 'refinementCheckType' is the original Liquid signature.
+
+data RefinementCheck = RefinementCheck
+  { refinementCheckExpr :: !CoreExpr
+  , refinementCheckType :: !LocSpecType
+  }
+
+instance Show RefinementCheck where
+  show _ = "<refinement-check>"
 
 instance Semigroup GhcSpecSig where
   x <> y = SpSig
@@ -272,6 +296,7 @@ instance Semigroup GhcSpecSig where
     , gsTexprs   = gsTexprs x   <> gsTexprs y
     , gsRelation = gsRelation x <> gsRelation y
     , gsAsmRel   = gsAsmRel x   <> gsAsmRel y
+    , gsReftChecks = gsReftChecks x <> gsReftChecks y
     }
 
 
@@ -281,7 +306,7 @@ instance Semigroup GhcSpecSig where
 
 
 instance Monoid GhcSpecSig where
-  mempty = SpSig mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty
+  mempty = SpSig mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty
 
 data GhcSpecData = SpData
   { gsCtors      :: ![(Var, LocSpecType)]         -- ^ Data Constructor Measure Sigs

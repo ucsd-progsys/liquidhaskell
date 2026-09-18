@@ -476,6 +476,30 @@ with the `--no-termination` option.
 
 See the [specifications section](specifications.md) for how to write termination specifications.
 
+
+## Refinement Check
+
+**Options:** `check-refinements`
+By **default** the predicates of the refinements are not checked to satisfy 
+their refienement type specifications. For example, [tests/neg/CheckRefinements.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/neg/CheckRefinements.hs) 
+
+
+```haskell
+{-@ test :: () -> {v:() | get 0 Nil == 0 } @-}
+test :: () -> ()
+test _ = undefined
+
+{-@ get :: n:{Int | 0 <= n } -> {v:List Int | n < mylen v} -> Int @-}
+```
+
+The call `get 0 Nil` in the refinement of `test` violates the specification of `get`. This error will only be detected when the `check-refinements` flag is on. 
+
+No checking such refinements cannot lead to unsoundness, since the predicate 
+language is interpreted as a logical language, thus all functions are total. 
+Yet, it can lead to unexpected behaviours and make PLE diverge. 
+The checks slow down verification time, the error messages can be difficult to understand still, and soundness is not at stake, so the feature is disabled by default. 
+
+
 ## Positivity Check
 
 **Options:** `no-positivity-check`

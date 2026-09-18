@@ -2,7 +2,9 @@ module ModTest () where
 
 import Language.Haskell.Liquid.Prelude (isEven)
 
-{-@ takeEvens :: [Int] -> [{v: Int | v mod 2 = 0}] @-}
+{-@ type NZero = {v: Int | v /= 0} @-}
+
+{-@ takeEvens :: [NZero] -> [{v: NZero | v mod 2 = 0}] @-}
 takeEvens :: [Int] -> [Int]
 takeEvens []     = []
 takeEvens (x:xs) = if isEven x

@@ -1150,6 +1150,7 @@ executable unit-neg
                     , CastedTotality
                     , CharLiterals
                     , CheckedNum
+                    , CheckRefinements
                     , Class1
                     , Class3
                     , Class4

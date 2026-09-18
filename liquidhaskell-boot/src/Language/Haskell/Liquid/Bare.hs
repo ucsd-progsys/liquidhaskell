@@ -21,6 +21,7 @@ module Language.Haskell.Liquid.Bare (
 import           Control.Monad                              (forM, mplus, when)
 import qualified Control.Exception                          as Ex
 import           Data.Either (fromRight)
+import           Data.Foldable                              (traverse_)
 import qualified Data.Maybe                                 as Mb
 import qualified Data.List                                  as L
 import qualified Data.HashMap.Strict                        as M
@@ -66,6 +67,11 @@ import           Language.Haskell.Liquid.UX.Config
 import Data.Hashable (Hashable)
 import Data.Bifunctor (bimap, first)
 import Data.Function (on)
+import qualified Data.IORef as IORef
+import qualified GHC.Tc.Utils.TcType as TcType
+import qualified GHC.Tc.Utils.Monad as TcMonad
+import qualified GHC.Types.Var.Set as VarSet
+import qualified GHC.Data.IOEnv as IOEnv
 
 
 {- $creatingTargetSpecs
@@ -234,14 +240,15 @@ makeGhcSpec0 stratNames cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap 
     if allowTC then Bare.makeClassAuxTypes (elaborateSpecType coreToLg simplifier) datacons instMethods
                               >>= elaborateSig sig
                else pure sig
-  let (dg3, refl)    = withDiagnostics $ makeSpecRefl src specs env name elaboratedSig tycEnv
+  checkedSig <- if checkRefinements cfg then addRefinementChecks elaboratedSig else pure elaboratedSig
+  let (dg3, refl)    = withDiagnostics $ makeSpecRefl src specs env name checkedSig tycEnv
   let eqs            = gsHAxioms refl
   let (dg4, measEnv) = withDiagnostics $ addOpaqueReflMeas cfg tycEnv env mySpec measEnv0 specs eqs
   let qual = makeSpecQual cfg env globalRdrEnv tycEnv measEnv rtEnv mySpec iSpecs2
   let (dg5, spcVars) = withDiagnostics $ makeSpecVars cfg src mySpec env measEnv
   let (dg6, spcTerm) = withDiagnostics $ makeSpecTerm cfg     mySpec lenv env
-  let sData    = makeSpecData  src env sigEnv measEnv elaboratedSig specs
-  let finalLiftedSpec = makeLiftedSpec name src env refl sData elaboratedSig qual myRTE (lSpec0 <> lSpec1)
+  let sData    = makeSpecData  src env sigEnv measEnv checkedSig specs
+  let finalLiftedSpec = makeLiftedSpec name src env refl sData checkedSig qual myRTE (lSpec0 <> lSpec1)
   let diags    = mconcat [dg0, dg1, dg2, dg3, dg4, dg5, dg6]
 
   -- Dump reflections, if requested
@@ -258,7 +265,7 @@ makeGhcSpec0 stratNames cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap 
   pure (diags, SP
     { _gsConfig = cfg
     , _gsImps   = makeImports mspecs
-    , _gsSig    = addReflSigs env name rtEnv measEnv refl elaboratedSig
+    , _gsSig    = addReflSigs env name rtEnv measEnv refl checkedSig
     , _gsRefl   = refl
     , _gsData   = sData
     , _gsQual   = qual
@@ -347,6 +354,50 @@ makeGhcSpec0 stratNames cfg ghcTyLookupEnv tcg instEnvs lenv localVars src lmap 
       pure
         si
           { gsTySigs = F.notracepp ("asmSigs" ++ F.showpp (gsAsmSigs si)) tySigs ++ auxsig  }
+
+    addRefinementChecks si = do
+      ref <- Ghc.liftIO $ IORef.newIORef []
+      logger <- Ghc.getLogger
+      let collect signatureType e queryType =
+            let coreType = Ghc.exprType e
+                (typeBinders, constraints, _) = TcType.tcSplitSigmaTy coreType
+                hasFreeTypeVariables = not . VarSet.isEmptyVarSet $ Ghc.tyCoVarsOfType coreType
+                hasEvidenceVariables = VarSet.anyVarSet GM.isEvidenceVar (Ghc.exprFreeVars e)
+            in when (null typeBinders && null constraints && not hasFreeTypeVariables && not hasEvidenceVariables) $
+                 Ghc.liftIO $ IORef.modifyIORef' ref
+                 (RefinementCheck e (F.atLoc signatureType queryType) :)
+          checkSignature (x, signatureType) = do
+            oldChecks <- Ghc.liftIO $ IORef.readIORef ref
+            -- Conversion helpers currently report unsupported Liquid-only
+            -- constructs with GhcException (via `todo`/`panic`), which
+            -- `tryMostM` deliberately does not catch.  Treat those as a
+            -- failed best-effort conversion as well.
+            -- Keep `tryTc` on the outside: if conversion panics after adding
+            -- wanted constraints, it must still get a chance to restore the
+            -- typechecker state before we continue with the module.
+            result <- if null (allTyVars (F.val signatureType))
+              then TcMonad.tryTc $ IOEnv.tryAllM $ TcMonad.discardWarnings $ TcMonad.discardConstraints $
+                traverse_
+                  (elaborateSpecTypeWith (collect signatureType) coreToLg simplifier)
+                  signatureType
+              else pure (Nothing, mempty)
+            case result of
+              (Just (Right ()), _) -> pure ()
+              _ -> do
+                -- Elaboration may have collected earlier refinements from the
+                -- same signature before encountering an unsupported one.
+                Ghc.liftIO $ IORef.writeIORef ref oldChecks
+                let warning = mkWarning
+                      (GM.sourcePos2SrcSpan (F.loc signatureType) (F.locE signatureType))
+                      (text $ "Cannot check refinements for " ++ F.showpp x ++
+                        ": not every predicate has a Haskell equivalent.")
+                Ghc.liftIO $ printWarning logger warning
+      -- Elaboration supplies the dependent lambda type for every refinement.
+      -- This is a best-effort pass: Liquid-only predicates are left to the
+      -- ordinary sort checker and reported with a warning.
+      mapM_ checkSignature (gsTySigs si)
+      checks <- reverse <$> Ghc.liftIO (IORef.readIORef ref)
+      pure si { gsReftChecks = checks }
 
     simplifier :: Ghc.CoreExpr -> Ghc.TcRn Ghc.CoreExpr
     simplifier = pure -- no simplification
@@ -1008,6 +1059,7 @@ makeSpecSig stratNames cfg name mySpec specs env sigEnv tycEnv measEnv cbs = do
     , gsTexprs   = [ (v, t, es) | (v, t, Just es) <- mySigs ]
     , gsRelation = relation
     , gsAsmRel   = asmRel
+    , gsReftChecks = []
     })
   where
     (instances, dicts) = Bare.makeSpecDictionaries env sigEnv (name, mySpec) (M.toList specs)

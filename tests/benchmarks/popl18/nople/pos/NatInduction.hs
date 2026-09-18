@@ -6,7 +6,7 @@ import Prelude hiding (sum, range)
 
 {-@ LIQUID "--higherorder" @-}
 
-{-@ natinduction :: p:(Nat-> Bool) -> PAnd {v:Proof | p 0} (n:Nat -> {v:Proof | p (n-1)} -> {v:Proof | p n})
+{-@ natinduction :: p:(Nat-> Bool) -> PAnd {v:Proof | p 0} (n:{Nat | 0 < n} -> {v:Proof | p (n-1)} -> {v:Proof | p n})
                  -> n:Nat -> {v:Proof | p n}  @-}
 natinduction :: (Int-> Bool) -> PAnd Proof (Int -> Proof -> Proof)-> Int -> Proof 
 natinduction p (PAnd p0 pi) n  

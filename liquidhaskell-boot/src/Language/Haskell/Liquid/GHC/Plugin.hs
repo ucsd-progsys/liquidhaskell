@@ -17,6 +17,8 @@ module Language.Haskell.Liquid.GHC.Plugin (
 
 import qualified Liquid.GHC.API         as O
 import           Liquid.GHC.API         as GHC hiding (Type)
+import           GHC.Data.FastString    (LexicalFastString (..))
+import           GHC.Types.Name         (setNameLoc)
 import qualified Text.PrettyPrint.HughesPJ               as PJ
 import qualified Language.Fixpoint.Types                 as F
 import qualified Language.Haskell.Liquid.GHC.Misc        as LH
@@ -446,7 +448,11 @@ checkLiquidHaskellContext lhContext = do
     Nothing -> pure Nothing
     Just ProcessModuleResult{..} -> do
       -- Call into the existing Liquid interface
-      (out, infTypes) <- liftIO $ LH.checkTargetInfo pmrTargetInfo
+      (programOut, infTypes) <- liftIO $ LH.checkTargetInfo pmrTargetInfo
+      refinementOut <- case (o_result programOut, pmrRefinementTargetInfo) of
+        (F.Safe _, Just refinementTargetInfo) -> fst <$> liftIO (LH.checkTargetInfo refinementTargetInfo)
+        _                                     -> pure mempty
+      let out = programOut <> refinementOut
 
       let bareSpec = lhInputSpec lhContext
           cfg     = lhGlobalCfg lhContext
@@ -531,6 +537,8 @@ data ProcessModuleResult = ProcessModuleResult {
   -- ^ The \"client library\" we will serialise on disk into an interface's 'Annotation'.
   , pmrTargetInfo :: TargetInfo
   -- ^ The 'GhcInfo' for the current 'Module' that LiquidHaskell will process.
+  , pmrRefinementTargetInfo :: Maybe TargetInfo
+  -- ^ An isolated target containing only synthetic Boolean refinement checks.
   , pmrRefCoreCbs :: [CoreBind]
   -- ^ Pre-'?'-elimination ANF binds, used by RefCore extraction (--refcore).
   --   Empty unless the @--refcore@ flag is set.
@@ -611,7 +619,9 @@ processModule LiquidHaskellContext{..} = do
 
       Right ((warnings, targetSpec, liftedSpec), bareSpec) -> do
         liftIO $ mapM_ (printWarning logger) warnings
-        let targetInfo = TargetInfo targetSrc targetSpec
+        (normalizedTargetSrc, normalizedTargetSpec, refinementTargetInfo) <- liftIO $
+          normalizeRefinementChecks moduleCfg hscEnv modGuts targetSrc targetSpec
+        let targetInfo = TargetInfo normalizedTargetSrc normalizedTargetSpec
 
         debugLog $ "bareSpec ==> "   ++ show bareSpec
         debugLog $ "liftedSpec ==> " ++ show liftedSpec
@@ -619,8 +629,9 @@ processModule LiquidHaskellContext{..} = do
         let clientLib  = mkLiquidLib liftedSpec & addLibDependencies dependencies
 
         let result' = ProcessModuleResult {
-              pmrClientLib  = clientLib
+            pmrClientLib  = clientLib
             , pmrTargetInfo = targetInfo
+            , pmrRefinementTargetInfo = refinementTargetInfo
             , pmrRefCoreCbs = refCoreCbs
             }
 
@@ -628,6 +639,76 @@ processModule LiquidHaskellContext{..} = do
       `Ex.catch` (\(e :: UserError) -> reportErrs [e])
       `Ex.catch` (\(e :: Error) -> reportErrs [e])
       `Ex.catch` (\(es :: [Error]) -> reportErrs es)
+
+-- | Prepare the pending 'RefinementCheck' obligations for constraint
+-- generation.  See 'RefinementCheck' for how these checks are constructed and
+-- what their Core expression and Liquid type represent.
+--
+-- "Normalizing" a refinement check means turning its synthetic Core function
+-- into the same top-level, A-normal form expected by the ordinary LiquidHaskell
+-- pipeline.  This function attaches the refinement's source location, creates a
+-- non-recursive binding for each normalized expression, and pairs that binding
+-- with its synthetic Liquid signature.
+--
+-- The normalized bindings are returned in a separate 'TargetInfo'.  In that
+-- isolated target, the module's ordinary asserted signatures become
+-- assumptions (providing the environment in which the predicates occur), and
+-- only the generated Boolean bindings are asserted.  The returned 'TargetSrc'
+-- and 'TargetSpec' describe the ordinary program with the pending checks
+-- removed, so the program and its refinement predicates can be checked in two
+-- independent passes.  'Nothing' is returned when there are no checks.
+normalizeRefinementChecks :: Config -> HscEnv -> ModGuts -> TargetSrc -> TargetSpec -> IO (TargetSrc, TargetSpec, Maybe TargetInfo)
+normalizeRefinementChecks cfg hscEnv modGuts src spec
+  | null checks = pure (src, spec, Nothing)
+  | otherwise = do
+      normalizedCbs <- anormalizeExprBinds cfg hscEnv modGuts (map locatedRefinementExpr checks)
+      let cbs = zipWith locatedRefinementBind checks normalizedCbs
+      let xs = map bindVar cbs
+          refinementSigs = zip xs (map refinementCheckType checks)
+          checkSrc = src
+            { giCbs = cbs
+            , giDefVars = xs
+            , giUseVars = L.nub (readVars cbs ++ giUseVars src)
+            , giImpVars = L.nub (LH.importVars cbs ++ giImpVars src)
+            }
+          -- Keep the checks out of the program's dependency graph. In this
+          -- isolated pass, program signatures are assumptions and only the
+          -- generated Boolean bindings are asserted and checked.
+          checkSpec = spec
+            { gsConfig = quietConfig
+            -- Expected-failure annotations refer to bindings in the ordinary
+            -- program, none of which are checked in this isolated target.
+            , gsTerm = (gsTerm spec) { gsFail = mempty }
+            , gsSig = sig
+            { gsTySigs = refinementSigs
+            , gsAsmSigs = gsTySigs sig ++ gsAsmSigs sig
+            , gsRelation = []
+            , gsAsmRel = []
+            , gsReftChecks = []
+            } }
+          -- Both solver invocations are implementation details. Their results
+          -- are combined and reported once by 'checkLiquidHaskellContext'.
+          programSpec = spec
+            { gsConfig = quietConfig
+            , gsSig = sig { gsReftChecks = [] }
+            }
+      pure (src, programSpec, Just (TargetInfo checkSrc checkSpec))
+  where
+    sig = gsSig spec
+    quietConfig = (gsConfig spec) { loggingVerbosity = Quiet }
+    checks = gsReftChecks sig
+    locatedRefinementExpr check =
+      case LH.fSrcSpan (F.loc (refinementCheckType check)) of
+        RealSrcSpan realSpan _ ->
+          Tick (SourceNote realSpan (LexicalFastString (fsLit "Liquid refinement")))
+            (refinementCheckExpr check)
+        _ -> refinementCheckExpr check
+    locatedRefinementBind check (NonRec x e) =
+      NonRec (setVarName x (setNameLoc (varName x) (LH.fSrcSpan (F.loc (refinementCheckType check))))) e
+    locatedRefinementBind _ _ =
+      GHC.panic "A refinement predicate normalized to a recursive binding"
+    bindVar (NonRec x _) = x
+    bindVar _ = GHC.panic "A refinement predicate normalized to a recursive binding"
 
 makeTargetSrc :: Config
               -> FilePath

@@ -9,7 +9,7 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE ViewPatterns               #-}
 
-module Language.Haskell.Liquid.Transforms.ANF (anormalize) where
+module Language.Haskell.Liquid.Transforms.ANF (anormalize, anormalizeExprBinds) where
 
 import           Debug.Trace (trace)
 import           Prelude                          hiding (error)
@@ -36,6 +36,7 @@ import           Data.Hashable
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HM
 import GHC.Core.Type (ForAllTyBinder)
+import GHC.Types.Id (mkSysLocalM)
 
 --------------------------------------------------------------------------------
 -- | A-Normalize a module ------------------------------------------------------
@@ -47,7 +48,23 @@ anormalize cfg hscEnv modGuts = do
     where
       err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
       act      = Misc.concatMapM (normalizeTopBind γ0) (mg_binds modGuts)
-      γ0       = emptyAnfEnv cfg
+      γ0       = emptyAnfEnv cfg False
+
+-- | Put elaborated refinement predicates through the same normalization used
+-- for ordinary program expressions. These expressions are produced only after
+-- the module's top-level Core has already been normalized.
+anormalizeExprBinds :: UX.Config -> HscEnv -> ModGuts -> [CoreExpr] -> IO [CoreBind]
+anormalizeExprBinds cfg hscEnv modGuts exprs = do
+  fromMaybe err . snd <$> initDsWithModGuts hscEnv modGuts act
+  where
+    err = panic Nothing "Oops, cannot A-Normalize refinement predicates!"
+    act = concat <$> forM exprs (\e -> do
+      x <- mkSysLocalM (fsLit "lq_refinement") ManyTy (exprType e)
+      normalizeTopBind γ0 (NonRec x e))
+    -- Refinement checks need to retain @I# n#@ so constraint generation can
+    -- recover the boxed integer's singleton refinement. Ordinary program ANF
+    -- keeps its established invariant that application arguments are names.
+    γ0  = emptyAnfEnv cfg True
 
 --------------------------------------------------------------------------------
 -- | A-Normalize a @CoreBind@ --------------------------------------------------
@@ -214,6 +231,14 @@ normalize γ (App e1 e2@(Type _))
        e2' <- normalize γ e2
        return $ App e1' e2'
 
+-- Keep primitive literals next to their boxing constructor. Besides avoiding
+-- a needless ANF binding, this lets constraint generation recognize @I# 2#@
+-- as the logical integer constant @2@ rather than the uninterpreted
+-- application @I# 2@.
+normalize γ (App e1 e2@(Lit _)) | aeKeepBoxedLiterals γ, isIntBox e1
+  = do e1' <- normalize γ e1
+       return $ App e1' e2
+
 normalize γ (App e1 e2)
   = do e1' <- normalize γ e1
        n2  <- normalizeName γ e2
@@ -225,6 +250,11 @@ normalize γ (Tick tt e)
 
 normalize _ (Coercion c)
   = return $ Coercion c
+
+isIntBox :: CoreExpr -> Bool
+isIntBox (Var box)        = box == dataConWorkId intDataCon
+isIntBox (App e (Type _)) = isIntBox e
+isIntBox _                = False
 
 --------------------------------------------------------------------------------
 stitch :: AnfEnv -> CoreExpr -> DsMW CoreExpr
@@ -363,6 +393,7 @@ data AnfEnv = AnfEnv
   , aeSrcSpan   :: Sp.SpanStack
   , aeCfg       :: UX.Config
   , aeCaseDepth :: !Int
+  , aeKeepBoxedLiterals :: !Bool
   }
 
 -- | A \"stable\" 'Id'. When transforming 'Core' into ANF notation, we need to keep around a mapping between
@@ -398,12 +429,13 @@ instance Show StableId where
 instance UX.HasConfig AnfEnv where
   getConfig = aeCfg
 
-emptyAnfEnv :: UX.Config -> AnfEnv
-emptyAnfEnv cfg = AnfEnv
+emptyAnfEnv :: UX.Config -> Bool -> AnfEnv
+emptyAnfEnv cfg keepBoxedLiterals = AnfEnv
   { aeVarEnv    = mempty
   , aeSrcSpan   = Sp.empty
   , aeCfg       = cfg
   , aeCaseDepth = 1
+  , aeKeepBoxedLiterals = keepBoxedLiterals
   }
 
 lookupAnfEnv :: AnfEnv -> Id -> Id -> Id
