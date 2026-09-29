@@ -866,11 +866,15 @@ import GHC.Unit.Module.Deps       as Ghc
     ( ImportAvails(imp_mods), Usage(UsagePackageModule) )
 import GHC.Unit.Module.ModIface       as Ghc
     ( ModIface, ModIface_, IfaceSelfRecomp(mi_sr_usages)
+    , pattern ModIface
     , emptyFullModIface, emptyPartialModIface
     , mi_anns, mi_exports, mi_module, mi_mod_hash, mi_self_recomp_info
     , mi_decls, mi_simplified_core, mi_mod_info, mi_deps, mi_fixities
     , mi_warns, mi_defaults, mi_insts, mi_fam_insts, mi_rules, mi_trust
     , mi_trust_pkg, mi_complete_matches, mi_docs, mi_top_env, mi_ext_fields
+    , mi_sig_of, mi_hsc_src, mi_iface_hash, mi_public, mi_abi_hashes
+    , mi_ext_fields, mi_hi_bytes, mi_fix_fn, mi_hash_fn, mi_decl_warn_fn
+    , mi_export_warn_fn
     , set_mi_decls, set_mi_simplified_core, set_mi_mod_info, set_mi_deps
     , set_mi_exports, set_mi_fixities, set_mi_warns, set_mi_anns
     , set_mi_defaults, set_mi_insts, set_mi_fam_insts, set_mi_rules

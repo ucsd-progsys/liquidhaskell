@@ -137,7 +137,6 @@ rebuildSimpleIface env fingerprint iface = do
       GHC.set_mi_exports (GHC.mi_exports iface) $
       GHC.set_mi_fixities (GHC.mi_fixities iface) $
       GHC.set_mi_warns (GHC.mi_warns iface) $
-      GHC.set_mi_anns (GHC.mi_anns iface) $
       GHC.set_mi_defaults (GHC.mi_defaults iface) $
       GHC.set_mi_insts (GHC.mi_insts iface) $
       GHC.set_mi_fam_insts (GHC.mi_fam_insts iface) $
@@ -150,6 +149,32 @@ rebuildSimpleIface env fingerprint iface = do
       GHC.set_mi_ext_fields (GHC.mi_ext_fields iface) $
       GHC.set_mi_self_recomp (GHC.mi_self_recomp_info iface) $
       GHC.emptyPartialModIface (GHC.mi_module iface)
+
+    -- Compile-time guard to catch arity changes in ModIface when upgrading GHC.
+    _arityGuard :: GHC.ModIface -> ()
+    _arityGuard
+      (GHC.ModIface
+        _ _ _ _ _ _ _ _ _ _
+        _ _ _ _ _ _ _ _ _ _
+        _ _ _ _ _ _ _ _ _ _) = ()
+
+    -- Compile-time guard to catch changes in the fields that are unused when
+    -- upgrading GHC.
+    _unused_fields :: ()
+    _unused_fields =
+       const
+         ()
+         ( GHC.mi_sig_of
+         , GHC.mi_hsc_src
+         , GHC.mi_iface_hash
+         , GHC.mi_public
+         , GHC.mi_abi_hashes
+         , GHC.mi_hi_bytes
+         , GHC.mi_fix_fn
+         , GHC.mi_hash_fn
+         , GHC.mi_decl_warn_fn
+         , GHC.mi_export_warn_fn
+         )
 
 writePayload :: BS.ByteString -> GHC.ModIface_ phase -> IO (GHC.ModIface_ phase)
 writePayload bytes iface = do
