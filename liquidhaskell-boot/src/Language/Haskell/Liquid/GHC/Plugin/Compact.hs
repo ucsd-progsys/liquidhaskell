@@ -46,7 +46,7 @@ type PayloadId = (Word64, Word64)
 -- @
 --
 -- * @version@ is the marker format version, currently 1.
--- * The two fingerprint words form the 'PayloadId' 
+-- * The two fingerprint words form the 'PayloadId'
 --
 -- 'B.encode' writes these unsigned words consecutively in big-endian order:
 --

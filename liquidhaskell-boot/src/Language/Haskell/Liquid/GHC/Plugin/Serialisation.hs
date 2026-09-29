@@ -50,36 +50,38 @@ serialiseLiquidLib env lib tcg = do
       GHC.toSerialized Compact.markerBytes marker
 
 -- GHC's interface cache holds encoded data; this cache holds canonical decoded
--- module specs, never merged transitive closures. Every decoded library remains
--- retained for reuse. The EPS weak key releases the entire cache when its
--- compilation session dies, including sessions abandoned by IDE clients.
+-- module specs, never merged transitive closures. Retain decoded libraries for
+-- the most recently used session. Switching sessions replaces this cache;
+-- returning to an earlier session starts a fresh cache. The EPS weak key also
+-- releases the cache when its session is garbage collected.
 type LibraryCache = Cache.Cache SpecReference LiquidLib
+-- The unique identifier prevents a replaced session's finalizer from clearing
+-- a newer cache. The weak EPS reference identifies the owning GHC session.
 data SessionCache = SessionCache !Unique !(Weak (IORef GHC.ExternalPackageState)) !LibraryCache
 
-{-# NOINLINE sessionCaches #-}
-sessionCaches :: MVar [SessionCache]
-sessionCaches = unsafePerformIO $ newMVar []
+{-# NOINLINE sessionCache #-}
+sessionCache :: MVar (Maybe SessionCache)
+sessionCache = unsafePerformIO $ newMVar Nothing
 
 getLibraryCache :: GHC.HscEnv -> IO LibraryCache
-getLibraryCache env = modifyMVar sessionCaches $ \sessions -> do
-    found <- findSession sessions
+getLibraryCache env = modifyMVar sessionCache $ \session -> do
+    found <- case session of
+      Nothing -> pure Nothing
+      Just (SessionCache _ weak cache) -> do
+        alive <- deRefWeak weak
+        pure $ if alive == Just epsRef then Just cache else Nothing
     case found of
-      Just cache -> pure (sessions, cache)
+      Just cache -> pure (session, cache)
       Nothing -> do
         cache <- Cache.newCache
         key <- newUnique
-        weak <- mkWeakIORef epsRef $ modifyMVar_ sessionCaches $ \allSessions -> do
-          let live = filter (\(SessionCache k _ _) -> k /= key) allSessions
-          -- Force the list spine so cleanup cannot leave a filter thunk
-          -- retaining the dead session's cache until a future compilation.
-          length live `seq` pure live
-        pure (SessionCache key weak cache : sessions, cache)
+        weak <- mkWeakIORef epsRef $ modifyMVar_ sessionCache $ \current ->
+          case current of
+            Just (SessionCache k _ _) | k == key -> pure Nothing
+            _ -> pure current
+        pure (Just (SessionCache key weak cache), cache)
   where
     epsRef = GHC.euc_eps $ GHC.ue_eps $ GHC.hsc_unit_env env
-    findSession [] = pure Nothing
-    findSession (SessionCache _ weak cache : rest) = do
-      alive <- deRefWeak weak
-      if alive == Just epsRef then pure (Just cache) else findSession rest
 
 -- | Retrieve a module's specification from the interfaces already available
 -- in the GHC session. The caller is responsible for loading the interface;
