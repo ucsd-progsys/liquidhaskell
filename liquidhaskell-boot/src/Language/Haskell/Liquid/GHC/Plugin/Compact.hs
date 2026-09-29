@@ -150,6 +150,7 @@ rebuildSimpleIface env fingerprint iface = do
       GHC.set_mi_self_recomp (GHC.mi_self_recomp_info iface) $
       GHC.emptyPartialModIface (GHC.mi_module iface)
 
+    {- HLINT ignore "Use record patterns" -}
     -- Compile-time guard to catch arity changes in ModIface when upgrading GHC.
     _arityGuard :: GHC.ModIface -> ()
     _arityGuard
@@ -158,6 +159,7 @@ rebuildSimpleIface env fingerprint iface = do
         _ _ _ _ _ _ _ _ _ _
         _ _ _ _ _ _ _ _ _ _) = ()
 
+    {- HLINT ignore "Evaluate" -}
     -- Compile-time guard to catch changes in the fields that are unused when
     -- upgrading GHC.
     _unused_fields :: ()
