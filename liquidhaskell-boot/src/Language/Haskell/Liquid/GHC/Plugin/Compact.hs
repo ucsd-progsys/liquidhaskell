@@ -38,7 +38,7 @@ import qualified Liquid.GHC.API as GHC
 -- key used to reuse decoded specifications in the session cache.
 type PayloadId = (Word64, Word64)
 
--- | Annotation containing the 'B.encode' representation of this tuple:
+-- | 'B.encode' representation:
 --
 -- @
 -- (version, (fingerprintWord1, fingerprintWord2))
@@ -46,8 +46,7 @@ type PayloadId = (Word64, Word64)
 -- @
 --
 -- * @version@ is the marker format version, currently 1.
--- * The two fingerprint words form the 'PayloadId' computed from the complete
---   encoded specification payload, in 'GHC.Fingerprint' constructor order.
+-- * The two fingerprint words form the 'PayloadId' 
 --
 -- 'B.encode' writes these unsigned words consecutively in big-endian order:
 --
@@ -58,11 +57,6 @@ type PayloadId = (Word64, Word64)
 -- 12..19         Second fingerprint word (Word64)
 -- @
 --
--- 'markerBytes' holds these 20 raw bytes as a list for 'GHC.toSerialized',
--- obtained by unpacking the encoded tuple.
--- The specification payload itself lives in the extensible interface field.
--- Keeping the fingerprint in an annotation makes specification changes
--- participate in GHC's interface fingerprinting and recompilation checks.
 newtype PayloadMarker = PayloadMarker { markerBytes :: [Word8] }
 
 -- | One prepared specification waiting for interface publication: its encoded
@@ -91,7 +85,7 @@ decodeMarker (PayloadMarker bytes) = case B.decodeOrFail (BL.pack bytes) of
 
 -- | Prepare the payload and its dependency usages in one update to the module's
 -- typed TH-state map, returning the marker to attach as an annotation. The
--- fingerprint is computed once and retained for simple-interface rebuilding.
+-- fingerprint is retained for simple-interface rebuilding.
 -- A private TypeRep key isolates this state and ties its lifetime to TcGblEnv.
 --
 -- GHC's entity-level home-module usages can overlook changes to module
@@ -118,24 +112,14 @@ addUsages usages iface = GHC.set_mi_self_recomp
 
 -- | Restore the marker in a simple interface and recompute its fingerprints.
 --
--- serialiseSpec already supplies the marker in tcg_anns before T_HscPostTc.
--- GHC 9.14's simple-interface path goes through hscSimpleIface and mkIfaceTc,
--- using ModDetails from mkBootModDetailsTc. This path omits the annotations;
--- supplying the marker earlier in tcg_anns is therefore insufficient.
+--  For the simplified interface used with -fno-code, this happens:
+
+--   1. LH supplies the marker. It puts it among the module’s annotations, in tcg_anns.
+--   2. GHC constructs a simplified summary. That construction leaves out the annotations, including our marker.
+--   3. GHC fingerprints that incomplete summary. It may also write it to disk.
+--   4. Our hook receives the finished summary (HscUpdate) and restores the marker.
+--   5. We recalculate its fingerprint, because adding information after fingerprinting would otherwise leave the fingerprint describing the previous contents.
 --
--- When the delegated PostTc phase returns HscUpdate, mkIfaceTc has already
--- called mkFullIface, and GHC may already have written the interface. Adding
--- the marker to that finished value alone would leave its fingerprints stale.
--- mkFullIface calls addFingerprints, whose module ABI hash includes module
--- annotations. Reconstruct the partial representation with the marker so that
--- normal fingerprinting includes specification changes under -fno-code too.
--- The declaration bodies are reused; this does not typecheck or verify again.
---
--- This workaround is specific to the completed HscUpdate interface returned
--- by the hook we delegate to. The HscRecomp branch still has a partial
--- interface, so its additions precede GHC's normal final fingerprinting and
--- need no rebuild. Avoiding the simple-interface rebuild would require
--- preserving the marker inside that construction path before mkFullIface.
 rebuildSimpleIface :: GHC.HscEnv -> PayloadId -> GHC.ModIface -> IO GHC.ModIface
 rebuildSimpleIface env fingerprint iface = do
     let marker = GHC.IfaceAnnotation (GHC.ModuleTarget $ GHC.mi_module iface) $
