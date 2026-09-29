@@ -108,8 +108,10 @@ stageSpec tcg bytes ifaces = do
       in pure (GHC.UsagePackageModule mdl fingerprint False)
 
 addUsages :: [GHC.Usage] -> GHC.ModIface_ phase -> GHC.ModIface_ phase
-addUsages usages iface = GHC.set_mi_self_recomp
-  ((\info -> info { GHC.mi_sr_usages = usages ++ GHC.mi_sr_usages info }) <$> GHC.mi_self_recomp_info iface) iface
+addUsages usages iface =
+    GHC.set_mi_self_recomp
+      ((\info -> info { GHC.mi_sr_usages = usages ++ GHC.mi_sr_usages info }) <$> GHC.mi_self_recomp_info iface)
+      iface
 
 -- | Restore the marker in a simple interface and recompute its fingerprints.
 --
