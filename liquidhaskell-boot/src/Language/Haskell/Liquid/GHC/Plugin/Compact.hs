@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -102,9 +103,9 @@ stageSpec tcg bytes ifaces = do
   pure $ payloadMarker fingerprint
   where
     usage iface =
-      let mdl = GHC.mi_module iface
-          fingerprint = GHC.mi_mod_hash iface
-      in mdl `seq` fingerprint `seq` pure (GHC.UsagePackageModule mdl fingerprint False)
+      let !mdl = GHC.mi_module iface
+          !fingerprint = GHC.mi_mod_hash iface
+      in pure (GHC.UsagePackageModule mdl fingerprint False)
 
 addUsages :: [GHC.Usage] -> GHC.ModIface_ phase -> GHC.ModIface_ phase
 addUsages usages iface = GHC.set_mi_self_recomp
