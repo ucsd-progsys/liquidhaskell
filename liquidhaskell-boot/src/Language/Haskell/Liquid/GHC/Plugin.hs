@@ -374,12 +374,7 @@ serialiseSpec tcGblEnv liquidLib = do
   -- ---
 
   env <- getTopEnv
-  serialisedSpec <- liftIO $ Serialisation.serialiseLiquidLib env liquidLib tcGblEnv
-  debugLog $ "Serialised annotation ==> " ++ (O.showSDocUnsafe . O.ppr $ serialisedSpec)
-
-  -- liftIO $ putStrLn "liquidHaskellCheck 10"
-
-  pure $ tcGblEnv { tcg_anns = serialisedSpec : tcg_anns tcGblEnv }
+  liftIO $ Serialisation.serialiseLiquidLib env liquidLib tcGblEnv
 
 processInputSpec
   :: Config

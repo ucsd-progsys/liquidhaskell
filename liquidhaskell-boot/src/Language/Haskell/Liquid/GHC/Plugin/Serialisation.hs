@@ -39,15 +39,20 @@ import           Language.Haskell.Liquid.Types.Names
 -- Serialising and deserialising Specs
 --
 
-serialiseLiquidLib :: GHC.HscEnv -> LiquidLib -> GHC.TcGblEnv -> IO GHC.Annotation
+-- | Adds the 'LiquidLib' to the 'GHC.TcGblEnv' in serialiased form.
+--
+-- The spec is staged in the TH map, and the fingerprint is added to
+-- the annotations.
+serialiseLiquidLib :: GHC.HscEnv -> LiquidLib -> GHC.TcGblEnv -> IO GHC.TcGblEnv
 serialiseLiquidLib env lib tcg = do
     bytes <- B.toStrict <$> encodeLiquidLib lib
     ifaces <- forM (libDeps lib) $ \ref ->
       GHC.lookupIfaceByModuleHsc env (GHC.unStableModule $ specModule ref) >>=
         maybe (ioError $ userError "LiquidHaskell: dependency interface disappeared during verification") pure
     marker <- Iface.stageSpec tcg bytes ifaces
-    pure $ GHC.Annotation (GHC.ModuleTarget $ GHC.tcg_mod tcg) $
-      GHC.toSerialized Iface.markerBytes marker
+    let ann = GHC.Annotation (GHC.ModuleTarget $ GHC.tcg_mod tcg) $
+                GHC.toSerialized Iface.markerBytes marker
+    pure $ tcg { GHC.tcg_anns = ann : GHC.tcg_anns tcg }
 
 -- GHC's interface cache holds encoded data; this cache holds canonical decoded
 -- module specs, never merged transitive closures. Retain decoded libraries for
