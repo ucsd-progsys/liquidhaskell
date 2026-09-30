@@ -6,8 +6,6 @@
 {-# LANGUAGE DeriveTraversable   #-}
 {-# LANGUAGE TypeOperators       #-}
 
-{-# OPTIONS_GHC -Wno-incomplete-record-selectors #-}
-
 module Language.Haskell.Liquid.Bare.Check
   ( checkTargetSpec
   , checkBareSpec
