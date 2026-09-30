@@ -120,6 +120,8 @@ library
                       LiquidHaskellBoot
                       Paths_liquidhaskell_boot
   other-modules:      Language.Haskell.Liquid.GHC.Plugin.Serialisation
+                      Language.Haskell.Liquid.GHC.Plugin.Cache
+                      Language.Haskell.Liquid.GHC.Plugin.Iface
                       Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                       Language.Haskell.Liquid.GHC.Plugin.Types
                       Language.Haskell.Liquid.RefCore.CoreToLH

@@ -34,6 +34,7 @@ import qualified Language.Haskell.Liquid.GHC.Logging     as LH   (addTcRnUnknown
 
 import           Language.Haskell.Liquid.GHC.Plugin.Types
 import qualified Language.Haskell.Liquid.GHC.Plugin.Serialisation as Serialisation
+import qualified Language.Haskell.Liquid.GHC.Plugin.Iface as Iface
 import           Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                                                          as SpecFinder
 
@@ -224,7 +225,7 @@ swapBreadcrumb mod0 new = liftIO $ atomicModifyIORef' breadcrumbsRef $ \breadcru
 
 lhDynFlags :: [CommandLineOption] -> HscEnv -> IO HscEnv
 lhDynFlags _ hscEnv =
-    return hscEnv
+    return $ Iface.installInterfaceHook $ hscEnv
       { hsc_dflags =
           hsc_dflags hscEnv
            -- Ignore-interface-pragmas need to be unset to have access to
@@ -372,14 +373,8 @@ serialiseSpec tcGblEnv liquidLib = do
   -- liftIO $ putStrLn "liquidHaskellCheck 9"
   -- ---
 
-  serialisedSpec <- liftIO $ Serialisation.serialiseLiquidLib liquidLib thisModule
-  debugLog $ "Serialised annotation ==> " ++ (O.showSDocUnsafe . O.ppr $ serialisedSpec)
-
-  -- liftIO $ putStrLn "liquidHaskellCheck 10"
-
-  pure $ tcGblEnv { tcg_anns = serialisedSpec : tcg_anns tcGblEnv }
-  where
-    thisModule = tcg_mod tcGblEnv
+  env <- getTopEnv
+  liftIO $ Serialisation.serialiseLiquidLib env liquidLib tcGblEnv
 
 processInputSpec
   :: Config
@@ -495,30 +490,17 @@ isIgnore sp = any ((== "--skip-module") . F.val) (pragmas sp)
 -- | Working with bare & lifted specs ------------------------------------------
 --------------------------------------------------------------------------------
 
--- | Loads the specs of direct dependencies and /their/ dependencies as well.
-loadDependencies :: Config -> [Module] -> TcM TargetDependencies
+-- | Load direct and transitive specifications, keeping each reference with its
+-- specification while removing configuration-dependent exclusions.
+loadDependencies :: Config -> [Module] -> TcM (HM.HashMap StableModule LoadedSpec)
 loadDependencies currentModuleConfig mods = do
   hscEnv    <- env_top <$> getEnv
-  results   <- SpecFinder.findRelevantSpecs
-                 (excludeAutomaticAssumptionsFor currentModuleConfig) hscEnv mods
-  -- REVIEW: What does reversing the list accomplishes here?
-  let deps = TargetDependencies $ foldl' processResult mempty (reverse results)
+  deps <- SpecFinder.findRelevantSpecs currentModuleConfig hscEnv mods
   redundant <- liftIO $ configToRedundantDependencies hscEnv currentModuleConfig
 
   debugLog $ "Redundant dependencies ==> " ++ show redundant
 
-  pure $ foldl' (flip dropDependency) deps redundant
-  where
-    processResult
-      :: HM.HashMap StableModule LiftedSpec
-      -> SpecFinderResult
-      -> HM.HashMap StableModule LiftedSpec
-    processResult acc (SpecNotFound _mdl) = acc
-    processResult acc (LibFound originalModule lib) =
-      HM.insert
-        (toStableModule originalModule)
-        (libTarget lib)
-        (acc <> getDependencies (libDeps lib))
+  pure $ foldl' (flip HM.delete) deps redundant
 
 data LiquidHaskellContext = LiquidHaskellContext {
     lhGlobalCfg        :: Config
@@ -554,7 +536,8 @@ processModule LiquidHaskellContext{..} = do
   let bareSpec0       = lhInputSpec
 
   withPragmas lhGlobalCfg (Ms.pragmas bareSpec0) $ \moduleCfg -> do
-    dependencies <- loadDependencies moduleCfg lhRelevantModules
+    selectedDeps <- loadDependencies moduleCfg lhRelevantModules
+    let dependencies = TargetDependencies $ HM.map (\(LoadedSpec _ _ spec) -> spec) selectedDeps
 
     debugLog $ "Found " <> show (HM.size $ getDependencies dependencies) <> " dependencies:"
     when debugLogs $
@@ -626,7 +609,8 @@ processModule LiquidHaskellContext{..} = do
         debugLog $ "bareSpec ==> "   ++ show bareSpec
         debugLog $ "liftedSpec ==> " ++ show liftedSpec
 
-        let clientLib  = mkLiquidLib liftedSpec & addLibDependencies dependencies
+        let dependencyRefs = L.sortOn specModule [ref | LoadedSpec _ ref _ <- HM.elems selectedDeps]
+            clientLib = mkLiquidLib liftedSpec & addLibDependencies dependencyRefs
 
         let result' = ProcessModuleResult {
             pmrClientLib  = clientLib

@@ -12,7 +12,7 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     , mkSpecComment
     , libTarget
     , libDeps
-    , allDeps
+    , SpecReference(..)
     , addLibDependencies
 
     -- * Carrying data across stages of the compilation pipeline
@@ -27,6 +27,7 @@ import           GHC.Generics                      hiding ( moduleName )
 
 import           Language.Haskell.Liquid.Parse (BPspec)
 import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.GHC.Plugin.Iface (PayloadId)
 import           Liquid.GHC.API         as GHC
 import           Language.Haskell.Liquid.GHC.Misc (realSrcLocSourcePos)
 import           Language.Fixpoint.Types.Spans            ( SourcePos, dummyPos )
@@ -35,18 +36,27 @@ import           Language.Fixpoint.Types.Spans            ( SourcePos, dummyPos 
 data LiquidLib = LiquidLib
   {  llTarget :: LiftedSpec
   -- ^ The target /LiftedSpec/.
-  ,  llDeps   :: TargetDependencies
-  -- ^ The specs which were necessary to produce the target 'BareSpec'.
+  ,  llDeps   :: [SpecReference]
+  -- ^ The exact dependency selection used to check the target. This is a flat
+  -- list of references, so configuration-sensitive exclusions are preserved
+  -- without embedding the dependencies' specification bodies again.
   } deriving (Show, Data, Generic)
 
 instance B.Binary LiquidLib
+
+data SpecReference = SpecReference
+  { specModule :: StableModule
+  , specFingerprint :: PayloadId
+  } deriving (Eq, Ord, Show, Data, Generic)
+
+instance B.Binary SpecReference
 
 -- | Creates a new 'LiquidLib' with no dependencies.
 mkLiquidLib :: LiftedSpec -> LiquidLib
 mkLiquidLib s = LiquidLib s mempty
 
 -- | Adds a set of dependencies to the input 'LiquidLib'.
-addLibDependencies :: TargetDependencies -> LiquidLib -> LiquidLib
+addLibDependencies :: [SpecReference] -> LiquidLib -> LiquidLib
 addLibDependencies deps lib = lib { llDeps = deps <> llDeps lib }
 
 -- | Returns the target 'LiftedSpec' of this 'LiquidLib'.
@@ -54,12 +64,8 @@ libTarget :: LiquidLib -> LiftedSpec
 libTarget = llTarget
 
 -- | Returns all the dependencies of this 'LiquidLib'.
-libDeps :: LiquidLib -> TargetDependencies
+libDeps :: LiquidLib -> [SpecReference]
 libDeps = llDeps
-
--- | Extracts all the dependencies from a collection of 'LiquidLib's.
-allDeps :: Foldable f => f LiquidLib -> TargetDependencies
-allDeps = foldl' (\acc lib -> acc <> llDeps lib) mempty
 
 -- | Just a small wrapper around the 'SourcePos' and the text fragment of a LH spec comment.
 newtype SpecComment =

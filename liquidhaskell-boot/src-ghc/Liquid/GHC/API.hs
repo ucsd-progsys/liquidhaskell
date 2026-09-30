@@ -58,7 +58,7 @@ import           GHC                  as Ghc
     , LexicalFixity(Prefix)
     , Located
     , LocatedN
-    , ModIface_(mi_anns, mi_exports, mi_module)
+    , LoadHowMuch(LoadAllTargets)
     , ModLocation(ml_hs_file)
     , ModSummary(ms_hspp_file, ms_hspp_opts, ms_location, ms_mod)
     , Module
@@ -92,6 +92,8 @@ import           GHC                  as Ghc
     , getName
     , getOccName
     , getSession
+    , getSessionDynFlags
+    , guessTarget
     , gopt
     , hsTypeToHsSigType
     , hsTypeToHsSigWcType
@@ -113,6 +115,7 @@ import           GHC                  as Ghc
     , isTypeSynonymTyCon
     , isVanillaDataCon
     , lookupName
+    , load
     , mkHsApp
     , mkHsDictLet
     , mkHsForAllInvisTele
@@ -125,6 +128,13 @@ import           GHC                  as Ghc
     , moduleName
     , moduleNameString
     , moduleUnit
+    , noLoc
+    , parseDynamicFlags
+    , runGhc
+    , setSession
+    , setSessionDynFlags
+    , setTargets
+    , SuccessFlag(Succeeded, Failed)
     , ms_mod_name
     , nameModule
     , nameSrcSpan
@@ -454,9 +464,16 @@ import GHC.Driver.Config.Diagnostic as Ghc
     )
 import GHC.Driver.Plugins             as Ghc
     ( ParsedResult(..)
+    , Plugins(staticPlugins)
+    , PluginWithArgs(PluginWithArgs)
+    , StaticPlugin(StaticPlugin)
     )
 import GHC.Driver.Phases              as Ghc (Phase(StopLn))
 import GHC.Driver.Pipeline            as Ghc (compileFile)
+import GHC.Driver.Pipeline.Execute    as Ghc (runPhase)
+import GHC.Driver.Pipeline.Phases     as Ghc (PhaseHook(PhaseHook), TPhase(T_HscPostTc))
+import GHC.Driver.Hooks               as Ghc (Hooks(runPhaseHook))
+import GHC.Fingerprint                as Ghc (Fingerprint(Fingerprint))
 import GHC.Driver.Session             as Ghc
     ( getDynFlags
     , gopt_set
@@ -468,7 +485,10 @@ import GHC.Driver.Monad               as Ghc (withSession, reflectGhc, Session(.
 import GHC.HsToCore.Monad             as Ghc
     ( DsM, initDsTc, initDsWithModGuts, newUnique )
 import GHC.Iface.Syntax               as Ghc
-    ( IfaceAnnotation(ifAnnotatedValue) )
+    ( IfaceAnnotation(IfaceAnnotation, ifAnnotatedValue) )
+import GHC.Iface.Ext.Fields           as Ghc
+    ( FieldName, readField, writeField, getExtensibleFields )
+import GHC.Iface.Make                 as Ghc (mkFullIface)
 import GHC.Plugins                    as Ghc
     ( Serialized(Serialized)
     , deserializeWithData
@@ -505,12 +525,13 @@ import GHC.Driver.DynFlags            as Ghc
     , dopt_set
     )
 import GHC.Driver.Env                 as Ghc
-    ( HscEnv(hsc_NC, hsc_unit_env, hsc_dflags, hsc_plugins)
+    ( HscEnv(hsc_NC, hsc_unit_env, hsc_dflags, hsc_plugins, hsc_hooks, hsc_logger)
     , Hsc
     , hscSetFlags, hscUpdateFlags
+    , hsc_HUG, lookupIfaceByModuleHsc
     )
 import GHC.Driver.Main                as Ghc
-    ( hscDesugar )
+    ( hscDesugar, hscMaybeWriteIface )
 import GHC.Driver.Errors              as Ghc
     ( printMessages )
 import GHC.Driver.Ppr                 as Ghc
@@ -554,6 +575,7 @@ import GHC.Tc.Solver                  as Ghc
     )
 import GHC.Tc.Types                   as Ghc
     ( Env(env_top)
+    , FrontendResult(FrontendTypecheck)
     , TcGblEnv
         ( tcg_anns
         , tcg_exports
@@ -563,6 +585,7 @@ import GHC.Tc.Types                   as Ghc
         , tcg_rdr_env
         , tcg_rn_decls
         , tcg_type_env
+        , tcg_th_state
         )
     , TcM
     , TcRn
@@ -821,6 +844,7 @@ import GHC.Unit.Finder                as Ghc
     )
 import GHC.Unit.Home.ModInfo          as Ghc
     ( HomeModInfo(hm_iface) )
+import GHC.Unit.Home.Graph            as Ghc (lookupHugByModule)
 import GHC.Unit.Home.PackageTable     as Ghc
     ( HomePackageTable, lookupHpt )
 import GHC.Unit.Module                as Ghc
@@ -839,7 +863,26 @@ import GHC.Unit.Module                as Ghc
     , unitString
     )
 import GHC.Unit.Module.Deps       as Ghc
-    ( ImportAvails(imp_mods) )
+    ( ImportAvails(imp_mods), Usage(UsagePackageModule) )
+import GHC.Unit.Module.ModIface       as Ghc
+    ( ModIface, ModIface_, IfaceSelfRecomp(mi_sr_usages)
+    , pattern ModIface
+    , emptyFullModIface, emptyPartialModIface
+    , mi_anns, mi_exports, mi_module, mi_mod_hash, mi_self_recomp_info
+    , mi_decls, mi_simplified_core, mi_mod_info, mi_deps, mi_fixities
+    , mi_warns, mi_defaults, mi_insts, mi_fam_insts, mi_rules, mi_trust
+    , mi_trust_pkg, mi_complete_matches, mi_docs, mi_top_env, mi_ext_fields
+    , mi_sig_of, mi_hsc_src, mi_iface_hash, mi_public, mi_abi_hashes
+    , mi_ext_fields, mi_hi_bytes, mi_fix_fn, mi_hash_fn, mi_decl_warn_fn
+    , mi_export_warn_fn
+    , set_mi_decls, set_mi_simplified_core, set_mi_mod_info, set_mi_deps
+    , set_mi_exports, set_mi_fixities, set_mi_warns, set_mi_anns
+    , set_mi_defaults, set_mi_insts, set_mi_fam_insts, set_mi_rules
+    , set_mi_trust, set_mi_trust_pkg, set_mi_complete_matches, set_mi_docs
+    , set_mi_top_env, set_mi_ext_fields, set_mi_self_recomp
+    )
+import GHC.Unit.Module.Status         as Ghc
+    ( HscBackendAction(HscRecomp, hscs_partial_iface, HscUpdate) )
 import GHC.Unit.Module.Imported       as Ghc
     ( ImportedMods
     , ImportedModsVal(imv_name, imv_qualified)
@@ -859,7 +902,9 @@ import GHC.Unit.Module.ModGuts        as Ghc
 import GHC.Unit.Types                 as Ghc
     ( moduleUnitId
     , unitIdString
+    , mainUnit, mkModule
     )
+import GHC.Types.ForeignStubs         as Ghc (ForeignStubs(NoStubs))
 import GHC.Utils.Binary               as Ghc
     ( Binary(get, put_)
     , getByte
@@ -869,6 +914,7 @@ import GHC.Utils.Binary               as Ghc
     , withBinBuffer
     )
 import GHC.Utils.Error                as Ghc (pprLocMsgEnvelope, withTiming)
+import GHC.Utils.Fingerprint          as Ghc (fingerprintByteString)
 import GHC.Utils.Logger               as Ghc
     ( LogFlags
     , Logger(logFlags)
