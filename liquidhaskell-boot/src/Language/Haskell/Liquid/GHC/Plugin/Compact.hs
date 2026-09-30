@@ -2,10 +2,16 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
--- | Large LH payloads live in an extensible interface field. Only their
--- version and fingerprint live in GHC's boxed-byte annotations. Keeping
--- the fingerprint in an annotation makes it participate in GHC's ordinary
--- interface fingerprinting and recompilation checks.
+-- | This module provides functions to manage the serialized form of
+-- LifterSpecs.
+--
+-- LiftedSpec payloads are kept in an extensible interface field. ('fieldName')
+-- They are too large to keep in module annotations with an @[Word8]@
+-- representation.
+--
+-- Their version and fingerprint live in module annotations, which makes it
+-- participate in GHC's ordinary interface fingerprinting and recompilation
+-- checks.
 module Language.Haskell.Liquid.GHC.Plugin.Compact
   ( PayloadId
   , PayloadMarker(..)
@@ -60,13 +66,19 @@ type PayloadId = (Word64, Word64)
 --
 newtype PayloadMarker = PayloadMarker { markerBytes :: [Word8] }
 
--- | One prepared specification waiting for interface publication: its encoded
--- bytes, their fingerprint, and the usages of the dependencies it consumed.
+-- | Information needed to produce an interface file.
+--
+-- It contains the serialized LiftedSpec to store, the fingerprint of the
+-- LiftedSpec, and its dependencies in the form of 'GHC.Usages'.
+--
 data PendingSpec = PendingSpec !BS.ByteString !PayloadId ![GHC.Usage]
 
+-- | Name used to store the serialized LiftedSpec in an extensible interface
+-- field.
 fieldName :: GHC.FieldName
 fieldName = "liquidhaskell.spec.v1"
 
+-- | Computes the fingerprint of a bytestring
 payloadId :: BS.ByteString -> IO PayloadId
 payloadId bytes = BS.useAsCStringLen bytes $ \(ptr, size) -> do
   GHC.Fingerprint a b <- GHC.fingerprintData (castPtr ptr) size
@@ -76,6 +88,8 @@ payloadMarker :: PayloadId -> PayloadMarker
 payloadMarker fingerprint =
   PayloadMarker $ BL.unpack $ B.encode (1 :: Word32, fingerprint)
 
+-- | Checks that the marker has the expected version and extracts the
+-- fingerprint.
 decodeMarker :: PayloadMarker -> Either String PayloadId
 decodeMarker (PayloadMarker bytes) = case B.decodeOrFail (BL.pack bytes) of
   Left (_, _, err) -> Left $ "Malformed LiquidHaskell interface marker: " ++ err
@@ -84,49 +98,38 @@ decodeMarker (PayloadMarker bytes) = case B.decodeOrFail (BL.pack bytes) of
     | not (BL.null rest) -> Left "Malformed LiquidHaskell interface marker."
     | otherwise -> Right fingerprint
 
--- | Prepare the payload and its dependency usages in one update to the module's
--- typed TH-state map, returning the marker to attach as an annotation. The
--- fingerprint is retained for simple-interface rebuilding.
--- A private TypeRep key isolates this state and ties its lifetime to TcGblEnv.
+-- | Stores a bytestring in the 'GHC.TcGblEnv' in the TH-state map.
 --
--- GHC's entity-level home-module usages can overlook changes to module
--- annotations. LH consumes the whole specification, so record whole-module ABI
--- usages for home modules as well as package modules. GHC's checker resolves
--- these by full module identity in either interface table.
+-- Returns the marker corresponding to the bytestring.
+--
+-- The given 'GHC.ModIface's are recorded as usages so they cause recompilation
+-- when they change.
+--
 stageSpec :: GHC.TcGblEnv -> BS.ByteString -> [GHC.ModIface] -> IO PayloadMarker
 stageSpec tcg bytes ifaces = do
-  fingerprint <- payloadId bytes
-  usages <- mapM usage ifaces
-  let pending = PendingSpec bytes fingerprint usages
-  atomicModifyIORef' (GHC.tcg_th_state tcg) $ \state ->
-    (M.insert (typeOf pending) (toDyn pending) state, ())
-  pure $ payloadMarker fingerprint
+    pending@(PendingSpec _ fingerprint _) <- mkPendingSpec
+    atomicModifyIORef' (GHC.tcg_th_state tcg) $ \state ->
+      (M.insert (typeOf pending) (toDyn pending) state, ())
+    pure $ payloadMarker fingerprint
   where
-    usage iface =
+    mkPendingSpec = do
+      fingerprint <- payloadId bytes
+      usages <- mapM asUsage ifaces
+      return (PendingSpec bytes fingerprint usages)
+
+    asUsage iface =
       let !mdl = GHC.mi_module iface
           !fingerprint = GHC.mi_mod_hash iface
       in pure (GHC.UsagePackageModule mdl fingerprint False)
 
-addUsages :: [GHC.Usage] -> GHC.ModIface_ phase -> GHC.ModIface_ phase
-addUsages usages iface =
-    GHC.set_mi_self_recomp
-      ((\info -> info { GHC.mi_sr_usages = usages ++ GHC.mi_sr_usages info }) <$> GHC.mi_self_recomp_info iface)
-      iface
-
--- | Restore the marker in a simple interface and recompute its fingerprints.
---
---  For the simplified interface used with -fno-code, this happens:
-
---   1. LH supplies the marker. It puts it among the module’s annotations, in tcg_anns.
---   2. GHC constructs a simplified summary. That construction leaves out the annotations, including our marker.
---   3. GHC fingerprints that incomplete summary. It may also write it to disk.
---   4. Our hook receives the finished summary (HscUpdate) and restores the marker.
---   5. We recalculate its fingerprint, because adding information after fingerprinting would otherwise leave the fingerprint describing the previous contents.
---
-rebuildSimpleIface :: GHC.HscEnv -> PayloadId -> GHC.ModIface -> IO GHC.ModIface
-rebuildSimpleIface env fingerprint iface = do
+-- | Add a payload marker to the ModIface, and recompute the hashes.
+rebuildSimpleIface :: GHC.HscEnv -> PayloadMarker -> GHC.ModIface -> IO GHC.ModIface
+rebuildSimpleIface env pmarker iface = do
+    -- Recomputing the hashes of the interface requires rebuilding it, so we
+    -- take measures in _arityGuard and _unused_fields to ensure that we don't
+    -- forget to copy relevant fields.
     let marker = GHC.IfaceAnnotation (GHC.ModuleTarget $ GHC.mi_module iface) $
-          GHC.toSerialized markerBytes (payloadMarker fingerprint)
+          GHC.toSerialized markerBytes pmarker
     GHC.mkFullIface env (GHC.set_mi_anns (marker : GHC.mi_anns iface) partial) Nothing Nothing GHC.NoStubs []
   where
     partial =
@@ -189,28 +192,60 @@ readPayload = GHC.readField fieldName . GHC.mi_ext_fields
 hasPayload :: GHC.ModIface -> Bool
 hasPayload = M.member fieldName . GHC.getExtensibleFields . GHC.mi_ext_fields
 
+-- | Install a hook that inserts LiftedSpecs in interfaces.
+--
+-- There are two kinds of interface files that GHC can write: simple and full.
+-- Simple interfaces are produced when using @-fno-code@.
+-- See Note [Writing interface files] in "GHC.Driver.Main" for more details.
+--
+-- We need to insert LiftedSpecs in both kinds of interfaces, and we achieve
+-- this with 'GHC.runPhaseHook'.
+--
+-- When a LiftedSpec is ready, @serialiseLiquidLib@ is called. This stages the
+-- serialized spec with 'stageSpec' for inclusion in the interface.
+--
+-- When GHC produces the interface, the hook installed here adds the staged spec
+-- to the interface.
+--
 installInterfaceHook :: GHC.HscEnv -> GHC.HscEnv
-installInterfaceHook env = env { GHC.hsc_hooks = hooks { GHC.runPhaseHook = Just $ GHC.PhaseHook run } }
+installInterfaceHook env =
+    env { GHC.hsc_hooks = hooks { GHC.runPhaseHook = Just $ GHC.PhaseHook run } }
   where
     hooks = GHC.hsc_hooks env
-    previous :: GHC.TPhase a -> IO a
-    previous = case GHC.runPhaseHook hooks of
+    runPreviousHook :: GHC.TPhase a -> IO a
+    runPreviousHook = case GHC.runPhaseHook hooks of
       Nothing -> GHC.runPhase
       Just (GHC.PhaseHook hook) -> hook
 
     run :: GHC.TPhase a -> IO a
+    -- Typechecking has completed
     run phase@(GHC.T_HscPostTc hscEnv summary (GHC.FrontendTypecheck tcg) _ _) = do
-      state <- readIORef (GHC.tcg_th_state tcg)
-      let pending = M.lookup (typeRep (Proxy :: Proxy PendingSpec)) state >>= fromDynamic
-      result <- previous phase
-      case pending of
+      -- Retrieve the staged serialized LiftedSpec
+      pendingSpec <- do
+        state <- readIORef (GHC.tcg_th_state tcg)
+        let md = M.lookup (typeRep (Proxy :: Proxy PendingSpec)) state
+        return (md >>= fromDynamic)
+      result <- runPreviousHook phase
+      case pendingSpec of
+        -- If there is no pending spec, there is no need to change the interface.
         Nothing -> pure result
         Just (PendingSpec bytes fingerprint usages) -> case result of
+          -- The module needs recompilation so we add the serialized LiftedSpec.
           recomp@GHC.HscRecomp { GHC.hscs_partial_iface = iface } -> do
             iface' <- writePayload bytes $ addUsages usages iface
             pure recomp { GHC.hscs_partial_iface = iface' }
+          -- The module does not need recompilation, but the interface needs
+          -- updating. This case is entered when GHC is called with -fno-code.
+          -- The interface file has been already written, so after updating the
+          -- interface we write it to disk again.
           GHC.HscUpdate iface -> do
-            rebuilt <- rebuildSimpleIface hscEnv fingerprint $ addUsages usages iface
+            -- Extra wart: in this path, GHC ignores tcg_anns and our payload
+            -- marker in it. We use rebuildSimpleIface to still add the marker
+            -- to the interface file.
+            rebuilt <- rebuildSimpleIface
+              hscEnv
+              (payloadMarker fingerprint)
+              (addUsages usages iface)
             iface' <- writePayload bytes rebuilt
             -- GHC writes simple (-fno-code/boot) interfaces inside PostTc.
             -- Rewrite with the field attached, respecting GHC's write flags
@@ -218,4 +253,12 @@ installInterfaceHook env = env { GHC.hsc_hooks = hooks { GHC.runPhaseHook = Just
             GHC.hscMaybeWriteIface (GHC.hsc_logger hscEnv) (GHC.hsc_dflags hscEnv)
               True iface' Nothing (GHC.ms_location summary)
             pure $ GHC.HscUpdate iface'
-    run phase = previous phase
+    run phase = runPreviousHook phase
+
+    addUsages :: [GHC.Usage] -> GHC.ModIface_ phase -> GHC.ModIface_ phase
+    addUsages usages iface =
+      let updateSRUsages info =
+            info { GHC.mi_sr_usages = usages ++ GHC.mi_sr_usages info }
+       in GHC.set_mi_self_recomp
+            (updateSRUsages <$> GHC.mi_self_recomp_info iface)
+            iface
