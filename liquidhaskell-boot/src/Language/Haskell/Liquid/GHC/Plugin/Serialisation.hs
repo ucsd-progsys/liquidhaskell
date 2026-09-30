@@ -134,7 +134,7 @@ deserialiseLiquidLib env thisModule = do
         cache <- getLibraryCache env
         lib <- Cache.cached cache reference $ do
           iface <- GHC.lookupIfaceByModuleHsc env thisModule
-          bytes <- maybe (pure Nothing) Compact.readPayload iface >>= maybe missingPayload pure
+          bytes <- maybe (pure Nothing) Compact.getPayload iface >>= maybe missingPayload pure
           actual <- Compact.payloadId bytes
           unless (actual == fingerprint) $
             ioError $ userError $ "LiquidHaskell: corrupt specification for " ++ GHC.renderModule thisModule

@@ -20,7 +20,7 @@ module Language.Haskell.Liquid.GHC.Plugin.Compact
   , decodeMarker
   , stageSpec
   , installInterfaceHook
-  , readPayload
+  , getPayload
   , hasPayload
   ) where
 
@@ -185,8 +185,8 @@ addPayloadToExtFields bytes iface = do
   fields <- GHC.writeField fieldName bytes (GHC.mi_ext_fields iface)
   pure $ GHC.set_mi_ext_fields fields iface
 
-readPayload :: GHC.ModIface -> IO (Maybe BS.ByteString)
-readPayload = GHC.readField fieldName . GHC.mi_ext_fields
+getPayload :: GHC.ModIface -> IO (Maybe BS.ByteString)
+getPayload = GHC.readField fieldName . GHC.mi_ext_fields
 
 hasPayload :: GHC.ModIface -> Bool
 hasPayload = M.member fieldName . GHC.getExtensibleFields . GHC.mi_ext_fields
