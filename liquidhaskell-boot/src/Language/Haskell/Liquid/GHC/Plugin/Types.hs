@@ -27,7 +27,7 @@ import           GHC.Generics                      hiding ( moduleName )
 
 import           Language.Haskell.Liquid.Parse (BPspec)
 import           Language.Haskell.Liquid.Types.Specs
-import           Language.Haskell.Liquid.GHC.Plugin.Compact (PayloadId)
+import           Language.Haskell.Liquid.GHC.Plugin.Iface (PayloadId)
 import           Liquid.GHC.API         as GHC
 import           Language.Haskell.Liquid.GHC.Misc (realSrcLocSourcePos)
 import           Language.Fixpoint.Types.Spans            ( SourcePos, dummyPos )

@@ -30,7 +30,7 @@ import           System.Mem.Weak (Weak, deRefWeak)
 
 import qualified Liquid.GHC.API as GHC
 import           Language.Haskell.Liquid.GHC.Plugin.Types (LiquidLib, SpecReference(..), libDeps)
-import qualified Language.Haskell.Liquid.GHC.Plugin.Compact as Compact
+import qualified Language.Haskell.Liquid.GHC.Plugin.Iface as Iface
 import qualified Language.Haskell.Liquid.GHC.Plugin.Cache as Cache
 import           Language.Haskell.Liquid.Types.Names
 
@@ -45,9 +45,9 @@ serialiseLiquidLib env lib tcg = do
     ifaces <- forM (libDeps lib) $ \ref ->
       GHC.lookupIfaceByModuleHsc env (GHC.unStableModule $ specModule ref) >>=
         maybe (ioError $ userError "LiquidHaskell: dependency interface disappeared during verification") pure
-    marker <- Compact.stageSpec tcg bytes ifaces
+    marker <- Iface.stageSpec tcg bytes ifaces
     pure $ GHC.Annotation (GHC.ModuleTarget $ GHC.tcg_mod tcg) $
-      GHC.toSerialized Compact.markerBytes marker
+      GHC.toSerialized Iface.markerBytes marker
 
 -- GHC's interface cache holds encoded data; this cache holds canonical decoded
 -- module specs, never merged transitive closures. Retain decoded libraries for
@@ -120,22 +120,22 @@ deserialiseLiquidLib env thisModule = do
         annotations decoder =
           mapMaybe (GHC.fromSerialized decoder) homeAnnotations ++
           GHC.findAnns decoder (GHC.eps_ann_env eps) (GHC.ModuleTarget thisModule)
-    case listToMaybe $ annotations Compact.PayloadMarker of
+    case listToMaybe $ annotations Iface.PayloadMarker of
       Nothing -> do
         iface <- GHC.lookupIfaceByModuleHsc env thisModule
         -- A compact payload requires its marker for identification and validation.
-        if maybe False Compact.hasPayload iface
+        if maybe False Iface.hasPayload iface
           then ioError $ userError $ "LiquidHaskell: missing specification marker for " ++
             GHC.renderModule thisModule ++ ". Rebuild this dependency with the current LiquidHaskell plugin."
           else pure Nothing
       Just marker -> do
-        fingerprint <- either (ioError . userError) pure $ Compact.decodeMarker marker
+        fingerprint <- either (ioError . userError) pure $ Iface.decodeMarker marker
         let reference = SpecReference (GHC.toStableModule thisModule) fingerprint
         cache <- getLibraryCache env
         lib <- Cache.cached cache reference $ do
           iface <- GHC.lookupIfaceByModuleHsc env thisModule
-          bytes <- maybe (pure Nothing) Compact.getPayload iface >>= maybe missingPayload pure
-          let actual = Compact.payloadId bytes
+          bytes <- maybe (pure Nothing) Iface.getPayload iface >>= maybe missingPayload pure
+          let actual = Iface.payloadId bytes
           unless (actual == fingerprint) $
             ioError $ userError $ "LiquidHaskell: corrupt specification for " ++ GHC.renderModule thisModule
           -- Lazy name decoding must retain only the NameCache, not a selector

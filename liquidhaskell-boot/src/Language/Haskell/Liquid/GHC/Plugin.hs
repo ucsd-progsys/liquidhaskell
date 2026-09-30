@@ -34,7 +34,7 @@ import qualified Language.Haskell.Liquid.GHC.Logging     as LH   (addTcRnUnknown
 
 import           Language.Haskell.Liquid.GHC.Plugin.Types
 import qualified Language.Haskell.Liquid.GHC.Plugin.Serialisation as Serialisation
-import qualified Language.Haskell.Liquid.GHC.Plugin.Compact as Compact
+import qualified Language.Haskell.Liquid.GHC.Plugin.Iface as Iface
 import           Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                                                          as SpecFinder
 
@@ -225,7 +225,7 @@ swapBreadcrumb mod0 new = liftIO $ atomicModifyIORef' breadcrumbsRef $ \breadcru
 
 lhDynFlags :: [CommandLineOption] -> HscEnv -> IO HscEnv
 lhDynFlags _ hscEnv =
-    return $ Compact.installInterfaceHook $ hscEnv
+    return $ Iface.installInterfaceHook $ hscEnv
       { hsc_dflags =
           hsc_dflags hscEnv
            -- Ignore-interface-pragmas need to be unset to have access to

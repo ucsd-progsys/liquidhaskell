@@ -12,7 +12,7 @@
 -- Their version and fingerprint live in module annotations, which makes it
 -- participate in GHC's ordinary interface fingerprinting and recompilation
 -- checks.
-module Language.Haskell.Liquid.GHC.Plugin.Compact
+module Language.Haskell.Liquid.GHC.Plugin.Iface
   ( PayloadId
   , PayloadMarker(..)
   , payloadId
