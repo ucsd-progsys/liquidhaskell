@@ -22,7 +22,6 @@ module Language.Haskell.Liquid.GHC.Plugin.Compact
   , installInterfaceHook
   , readPayload
   , hasPayload
-  , writePayload
   ) where
 
 import qualified Data.Binary as B
@@ -181,8 +180,8 @@ rebuildSimpleIface env pmarker iface = do
          , GHC.mi_export_warn_fn
          )
 
-writePayload :: BS.ByteString -> GHC.ModIface_ phase -> IO (GHC.ModIface_ phase)
-writePayload bytes iface = do
+addPayloadToExtFields :: BS.ByteString -> GHC.ModIface_ phase -> IO (GHC.ModIface_ phase)
+addPayloadToExtFields bytes iface = do
   fields <- GHC.writeField fieldName bytes (GHC.mi_ext_fields iface)
   pure $ GHC.set_mi_ext_fields fields iface
 
@@ -232,7 +231,7 @@ installInterfaceHook env =
         Just (PendingSpec bytes fingerprint usages) -> case result of
           -- The module needs recompilation so we add the serialized LiftedSpec.
           recomp@GHC.HscRecomp { GHC.hscs_partial_iface = iface } -> do
-            iface' <- writePayload bytes $ addUsages usages iface
+            iface' <- addPayloadToExtFields bytes $ addUsages usages iface
             pure recomp { GHC.hscs_partial_iface = iface' }
           -- The module does not need recompilation, but the interface needs
           -- updating. This case is entered when GHC is called with -fno-code.
@@ -246,7 +245,7 @@ installInterfaceHook env =
               hscEnv
               (payloadMarker fingerprint)
               (addUsages usages iface)
-            iface' <- writePayload bytes rebuilt
+            iface' <- addPayloadToExtFields bytes rebuilt
             -- GHC writes simple (-fno-code/boot) interfaces inside PostTc.
             -- Rewrite with the field attached, respecting GHC's write flags
             -- and dynamic-too handling.
