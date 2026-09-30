@@ -473,7 +473,7 @@ import GHC.Driver.Pipeline            as Ghc (compileFile)
 import GHC.Driver.Pipeline.Execute    as Ghc (runPhase)
 import GHC.Driver.Pipeline.Phases     as Ghc (PhaseHook(PhaseHook), TPhase(T_HscPostTc))
 import GHC.Driver.Hooks               as Ghc (Hooks(runPhaseHook))
-import GHC.Fingerprint                as Ghc (Fingerprint(Fingerprint), fingerprintData)
+import GHC.Fingerprint                as Ghc (Fingerprint(Fingerprint))
 import GHC.Driver.Session             as Ghc
     ( getDynFlags
     , gopt_set
@@ -914,6 +914,7 @@ import GHC.Utils.Binary               as Ghc
     , withBinBuffer
     )
 import GHC.Utils.Error                as Ghc (pprLocMsgEnvelope, withTiming)
+import GHC.Utils.Fingerprint          as Ghc (fingerprintByteString)
 import GHC.Utils.Logger               as Ghc
     ( LogFlags
     , Logger(logFlags)

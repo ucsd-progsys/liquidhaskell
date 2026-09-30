@@ -32,12 +32,11 @@ import Data.Typeable (typeOf, typeRep, Proxy(..))
 import Data.IORef
 import qualified Data.Map.Strict as M
 import Data.Word
-import Foreign.Ptr (castPtr)
 import qualified Liquid.GHC.API as GHC
 
 
 -- | Fingerprint of the encoded specification payload. The pair holds the two
--- 64-bit words of the 128-bit 'GHC.Fingerprint' produced by 'GHC.fingerprintData',
+-- 64-bit words of the 128-bit 'GHC.Fingerprint' produced by 'GHC.fingerprintByteString',
 -- in the same order as that constructor's fields.
 -- Stored in the interface marker and dependency references to detect payload
 -- changes or mismatches. Together with the full module identity, it forms the
@@ -78,10 +77,10 @@ fieldName :: GHC.FieldName
 fieldName = "liquidhaskell.spec.v1"
 
 -- | Computes the fingerprint of a bytestring
-payloadId :: BS.ByteString -> IO PayloadId
-payloadId bytes = BS.useAsCStringLen bytes $ \(ptr, size) -> do
-  GHC.Fingerprint a b <- GHC.fingerprintData (castPtr ptr) size
-  pure (a, b)
+payloadId :: BS.ByteString -> PayloadId
+payloadId bytes =
+  let GHC.Fingerprint a b = GHC.fingerprintByteString bytes
+   in (a, b)
 
 payloadMarker :: PayloadId -> PayloadMarker
 payloadMarker fingerprint =
@@ -112,9 +111,8 @@ stageSpec tcg bytes ifaces = do
     pure $ payloadMarker fingerprint
   where
     mkPendingSpec = do
-      fingerprint <- payloadId bytes
       usages <- mapM asUsage ifaces
-      return (PendingSpec bytes fingerprint usages)
+      return $ PendingSpec bytes (payloadId bytes) usages
 
     asUsage iface =
       let !mdl = GHC.mi_module iface

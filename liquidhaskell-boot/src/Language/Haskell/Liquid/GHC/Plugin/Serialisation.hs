@@ -135,7 +135,7 @@ deserialiseLiquidLib env thisModule = do
         lib <- Cache.cached cache reference $ do
           iface <- GHC.lookupIfaceByModuleHsc env thisModule
           bytes <- maybe (pure Nothing) Compact.getPayload iface >>= maybe missingPayload pure
-          actual <- Compact.payloadId bytes
+          let actual = Compact.payloadId bytes
           unless (actual == fingerprint) $
             ioError $ userError $ "LiquidHaskell: corrupt specification for " ++ GHC.renderModule thisModule
           -- Lazy name decoding must retain only the NameCache, not a selector
