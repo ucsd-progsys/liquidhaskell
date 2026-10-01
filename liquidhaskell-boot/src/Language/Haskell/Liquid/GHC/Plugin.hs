@@ -151,29 +151,8 @@ plugin = GHC.defaultPlugin {
       GHC.withTiming
         logger (text "LiquidHaskellCPU" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $
         GHC.withTimingWallClock
-          logger (text "LiquidHaskell" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $ do
-        dynFlags <- getDynFlags
-        -- Haddock runs the LH plugin, but it does not expose the annotations of dependencies.
-        -- This makes verification fail, so for now, we disable the plugin when haddock runs it.
-        --
-        -- Detecting if Haddock is running the plugin is not obvious enough. We
-        -- try to see for now if Haddock comments are being collected and if the
-        -- noBackend is set.
-        --
-        -- See https://gitlab.haskell.org/ghc/ghc/-/issues/26761
-        -- and https://github.com/ucsd-progsys/liquidhaskell/issues/2188
-        if gopt Opt_Haddock dynFlags && GHC.backendName (backend dynFlags) == GHC.NoBackend
-          then do
-            -- Warn the user
-            let msg     = PJ.vcat [ PJ.text "LH can't be run with Haddock."
-                                  , PJ.nest 4 $ PJ.text "Documentation will still be created."
-                                  ]
-            let srcLoc  = mkSrcLoc (mkFastString $ ms_hspp_file summary) 1 1
-            let warning = mkWarning (mkSrcSpan srcLoc srcLoc) msg
-            liftIO $ printWarning logger warning
-            pure gblEnv
-          else
-            fromMaybe gblEnv <$> typecheckHook cfg summary gblEnv
+          logger (text "LiquidHaskell" <+> brackets (ppr $ ms_mod_name summary)) (const ()) $
+        fromMaybe gblEnv <$> typecheckHook cfg summary gblEnv
 
     -- We instruct LH to collect timings instead of doing it directly to GHC
     -- This helps work around https://github.com/haskell/cabal/issues/11116

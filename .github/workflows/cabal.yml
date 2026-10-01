@@ -64,18 +64,27 @@ jobs:
             ~/.cabal/packages
             ~/.cabal/store
             dist-newstyle
+            dist-haddock
           key: ${{ runner.os }}-${{ matrix.ghc }}-cabal-${{ hashFiles('dist-newstyle/cache/plan.json') }}
 
       - name: Build
         run: cabal build -j --enable-tests
 
-      - name: Test
+      - name: Unit tests
         run: |
-          scripts/test/test_plugin.sh
-          scripts/test/test_flags.sh
           cabal test tests:tasty --test-show-details=streaming
           cabal test tests:liquidhaskell-test --test-show-details=streaming
           cabal test -j1 liquidhaskell-boot --test-show-details=streaming
+
+      - name: Test plugin
+        run: scripts/test/test_plugin.sh
+
+      - name: Test flags
+        run: scripts/test/test_flags.sh
+
+      - name: Test haddock
+        run: cabal haddock --builddir=dist-haddock --html --hyperlink-source liquid-prelude
+
       - name: Upload bfq artifacts
         if: failure()
         uses: actions/upload-artifact@v4
