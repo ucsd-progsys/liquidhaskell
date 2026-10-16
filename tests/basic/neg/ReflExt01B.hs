@@ -2,7 +2,7 @@
 
 -- Note: this pragma is needed so that NO unfolding will be available to other
 -- module. We want to test what happens then.
-{-# OPTIONS_GHC -fomit-interface-pragmas #-}
+{-# OPTIONS_GHC -fobject-code -fomit-interface-pragmas #-}
 
 module ReflExt01B where
 
