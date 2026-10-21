@@ -382,8 +382,12 @@ consCB StrataCheck γ (Rec xes)
   = do xets     <- forM xes $ \(x, e) -> (x, e,) <$> varTemplate γ (x, Just e)
        modify     $ \i -> i { recCount = recCount i + length xes }
        let xts    = [(x, to) | (x, _, to) <- xets]
+       -- The bodies are checked in an environment that only assumes the
+       -- declared types of the group, not their reflected signatures, which
+       -- carry the definitions as equations. See issue #2301.
+       γrec      <- foldM extenderTemplate (γ `setRecs` (fst <$> xts)) xts
+       mapM_ (consBind True γrec) xets
        γ'        <- foldM extender (γ `setRecs` (fst <$> xts)) xts
-       mapM_ (consBind True γ') xets
        return γ'
 
 -- don't do termination checking, and don't do any strata checks either?
@@ -391,8 +395,10 @@ consCB NoCheck γ (Rec xes)
   = do xets   <- forM xes $ \(x, e) -> fmap (x, e,) (varTemplate γ (x, Just e))
        modify $ \i -> i { recCount = recCount i + length xes }
        let xts = [(x, to) | (x, _, to) <- xets]
-       γ'     <- foldM extender (γ `setRecs` (fst <$> xts)) xts
-       mapM_ (consBind True γ') xets
+       -- See the comment on the 'StrataCheck' case above.
+       γrec  <- foldM extenderTemplate (γ `setRecs` (fst <$> xts)) xts
+       mapM_ (consBind True γrec) xets
+       γ'    <- foldM extender (γ `setRecs` (fst <$> xts)) xts
        return γ'
 
 -- | NV: Dictionaries are not checked, because

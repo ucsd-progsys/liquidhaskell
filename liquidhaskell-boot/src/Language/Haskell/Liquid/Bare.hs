@@ -922,6 +922,100 @@ getSizeFuns decl
 
 
 ------------------------------------------------------------------------------------------
+-- | The names of the /vicious/ reflection equations of a module: the nullary
+-- equations (CAFs) whose binder reaches itself through the bodies of the
+-- nullary equations, either directly or through mutual recursion, e.g.
+--
+-- > ones = Cons 1 ones
+-- > a    = Cons 1 b
+-- > b    = Cons 1 a
+--
+-- Such definitions can only denote diverging computations, and their
+-- equations cannot be used as sound assumptions: the equations of a cycle
+-- relate every binder of the cycle to a body that transitively mentions the
+-- binder, so they make every constraint that carries a hypothesis about a
+-- binder of the cycle trivially provable, including the checks of the
+-- binders' own declared refinements. Note that @gsReflects@ still keeps such
+-- binders, so they remain usable in refinements through their (checked)
+-- specifications.
+--
+-- See Note [Reflecting non-terminating CAFs] below.
+viciousCAFNames :: [Equation] -> S.HashSet Symbol
+viciousCAFNames eqs = S.fromList [ n | (n, _) <- cafDeps, inCycle n ]
+  where
+    -- Only nullary equations can be unfolded unconditionally; unfolding an
+    -- equation with arguments needs the arguments, and in general a
+    -- decidable match on them, so chains only propagate through nullary
+    -- equations.
+    cafDeps = [ (eqName e, exprSymbolsSet (eqBody e)) | e <- eqs, null (eqArgs e) ]
+    edges x = maybe [] S.toList (lookup x cafDeps)
+    inCycle start = any (go start S.empty) (edges start)
+    go start seen x
+      | x == start        = True
+      | x `S.member` seen = False
+      | otherwise         = any (go start (S.insert x seen)) (edges x)
+
+-- Note [Reflecting non-terminating CAFs]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- Consider issue #2301:
+--
+-- > {-@ lazy ones @-}
+-- > {-@ reflect ones @-}
+-- > {-@ ones :: {l:L Nat | listSum l < 5} @-}
+-- > ones = Cons 1 ones
+--
+-- The declared refinement of @ones@ used to verify vacuously: in fact any
+-- refinement did, no matter what it said. Two mechanisms conspired, and
+-- each needs its own countermeasure.
+--
+-- (1) Reflected signatures embed the equation. Reflection gives @ones@ a
+--     signature strengthened with @v = Cons 1 ones@ on top of the declared
+--     refinement, and the recursive occurrence of @ones@ used to be typed
+--     with that signature (see 'extender' in
+--     "Language.Haskell.Liquid.Constraint.Template"). The equation rewrites
+--     the goal @listSum (Cons 1 ones) < 5@ back to the hypothesis
+--     @listSum ones < 5@. This is /not/ specific to CAFs: any recursive
+--     binder whose recursive occurrences denote the same value as the
+--     binder, e.g. a function recursing on its very arguments such as
+--     @rep x = Cons x (rep x)@, is discharged vacuously the same way,
+--     whether its body is guarded or not, because the equation of the
+--     recursive occurrence relates the assumed refinement directly to the
+--     goal. 'extenderTemplate' closes this route by checking the bodies of
+--     a @StrataCheck@/'NoCheck' group in an environment that only assumes
+--     the declared types of the group.
+--
+-- (2) The nullary equation itself. PLE can unfold a nullary equation
+--     unconditionally, because it has no arguments and no match to decide,
+--     so @ones = Cons 1 ones@ acts as a blanket congruence bridge in any
+--     constraint that mentions @ones@, including the check of its own
+--     body. 'viciousCAFNames' closes this route by keeping the equations
+--     (and reflected signatures) of such definitions out of the logic
+--     altogether.
+--
+-- For termination-checked recursion none of this arises, because recursive
+-- occurrences are typed through the
+-- 'Language.Haskell.Liquid.Constraint.Termination' machinery, which weakens
+-- the recursive assumption. For binders that skip the termination check
+-- there is no such protection, so the countermeasures above apply. What
+-- remains is the intended behaviour: the body is checked against the
+-- declared refinement, assuming that same refinement for recursive
+-- occurrences, i.e. one unfolding step of the definition must preserve the
+-- refinement.
+--
+-- Known gaps, left open on purpose, all requiring per-constraint axiom
+-- availability in liquid-fixpoint to close: a vicious cycle can hide behind
+-- an equation with arguments (@a = f a@ with @f@ reflected); and PLE can
+-- unfold the equation of a recursive binder that takes arguments while
+-- checking that very binder, because the branch of the body that performs
+-- the recursive call also decides the guards of the equation. The refinement
+-- of a @lazy@ recursive binder with arguments can therefore still be
+-- discharged vacuously under @--ple@ (see tests/todo/T2301SameArg.hs),
+-- unlike the CAF case of issue #2301, which the countermeasures above fix.
+-- Blanket-dropping the equations of @lazy@ recursive binders is not an
+-- option: unfolding them is the documented, if inherently unsafe, way of
+-- reasoning about non-terminating definitions (see issues #1576 and #2218
+-- and tests/ple/pos/T1371_NNF.hs).
+------------------------------------------------------------------------------------------
 makeSpecRefl :: GhcSrc -> Bare.ModSpecs -> Bare.Env -> ModName -> GhcSpecSig -> Bare.TycEnv
              -> Bare.Lookup GhcSpecRefl
 ------------------------------------------------------------------------------------------
@@ -932,9 +1026,13 @@ makeSpecRefl src specs env name sig tycEnv = do
   xtes     <- Bare.makeHaskellAxioms src env tycEnv lmap sig mySpec
   asmReflAxioms <- Bare.makeAssumeReflectAxioms src env tycEnv sig mySpec
   let otherAxioms = thd3 <$> asmReflAxioms
+  -- See Note [Reflecting non-terminating CAFs]; the equations of such
+  -- definitions must not enter the logic.
+  let vicious = viciousCAFNames (thd3 <$> xtes)
+      okXtes  = filter (not . (`S.member` vicious) . eqName . thd3) xtes
   let myAxioms =
         [ e {eqRec = S.member (eqName e) (exprSymbolsSet (eqBody e))}
-        | (_, _, e) <- xtes
+        | (_, _, e) <- okXtes
         ] ++ otherAxioms
   let asmReflEls = eqName <$> otherAxioms
   let impAxioms  = concatMap (filter ((`notElem` asmReflEls) . eqName) . Ms.axeqs . snd) (M.toList specs)
@@ -953,7 +1051,7 @@ makeSpecRefl src specs env name sig tycEnv = do
       , gsImpAxioms  = impAxioms
       , gsMyAxioms   = myAxioms
       , gsReflects   = (fst3 <$> xtes) ++ (fst <$> gsAsmReflects sig)
-      , gsHAxioms    = F.notracepp "gsHAxioms" $ xtes ++ asmReflAxioms
+      , gsHAxioms    = F.notracepp "gsHAxioms" $ okXtes ++ asmReflAxioms
       , gsRewrites   = rwr
       , gsRewritesWith = rwrWith
       }

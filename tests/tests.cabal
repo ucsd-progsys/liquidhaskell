@@ -877,6 +877,7 @@ executable reflect-pos
                     , ReflString0
                     , ReflString1
                     , T2405
+                    , T2301
 
     build-depends:    base
                     , liquid-prelude
@@ -946,6 +947,10 @@ executable reflect-neg
                       DoubleLit
                     , ReflString0
                     , ReflString1
+                    , T2301
+                    , T2301Mutual
+                    , T2301NoReflect
+                    , T2301NoTerm
 
     build-depends:    base
                     , liquid-prelude
