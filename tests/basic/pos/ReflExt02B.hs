@@ -2,7 +2,7 @@
 
 -- Note: this pragma is needed so that the unfoldings end up in the
 -- interface files, even with `-O0`
-{-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
+{-# OPTIONS_GHC -fobject-code -fno-omit-interface-pragmas #-}
 
 module ReflExt02B where
 

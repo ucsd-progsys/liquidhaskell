@@ -50,6 +50,11 @@ common common-ghc-options
                       -fkeep-going
                       -O0
                       -no-link
+                      -- We do not need code to be generated
+                      -fno-code
+                      -- but we do need interface files to be written to carry
+                      -- specs from imported modules
+                      -fwrite-interface
     if flag(measure-timings)
       -- We collect timing measures from GHC whenever the plugin runs
       -- Doesn't run when linking in particular. See
