@@ -12,7 +12,6 @@ module Language.Haskell.Liquid.Constraint.Template (
 , topSpecType
 , derivedVar
 , extender
-, extenderTemplate
 ) where
 
 import           Prelude hiding (error)
@@ -113,20 +112,3 @@ extender γ (x, Assumed t)
   = γ += ("extender", F.symbol x, t)
 extender γ _
   = return γ
-
--- | Like 'extender', but always binds the declared type of the binder, even
--- when a reflected signature exists for it. Reflected signatures carry the
--- equation @v = body@ of the definition, so they must not be assumed when the
--- body itself is checked: the check of a binder's declared refinement would
--- otherwise be discharged by that very refinement plus the equation, i.e.
--- vacuously. This is not specific to CAFs: whenever a recursive occurrence
--- denotes the same value as the binder being checked (always for a CAF, and
--- for any function that recurses on its very arguments, e.g.
--- @rep x = Cons x (rep x)@), the equation relates the assumed refinement
--- directly to the goal, whether the body is guarded or not. See issue #2301
--- and Note [Reflecting non-terminating CAFs] in
--- "Language.Haskell.Liquid.Bare".
-extenderTemplate :: F.Symbolic a => CGEnv -> (a, Template SpecType) -> CG CGEnv
-extenderTemplate γ (x, Asserted t) = γ += ("extender", F.symbol x, t)
-extenderTemplate γ (x, Assumed t)  = γ += ("extender", F.symbol x, t)
-extenderTemplate γ _               = return γ
