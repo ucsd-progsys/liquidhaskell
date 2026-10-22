@@ -922,6 +922,86 @@ getSizeFuns decl
 
 
 ------------------------------------------------------------------------------------------
+-- | Identifies the names of cyclic/recursive nullary equations (CAFs) in a module.
+--
+-- A nullary equation has no arguments (e.g. @ones = Cons 1 ones@, or mutually recursive
+-- @a = Cons 1 b; b = Cons 1 a@). When such definitions are recursive, they denote
+-- non-terminating computations that skip the termination checker.
+--
+-- * What it accomplishes:
+--   Returns the set of binder 'Symbol's for all nullary equations that participate
+--   in a direct or mutual dependency cycle.
+--
+-- * Why it is needed:
+--   Unlike recursive functions whose recursive calls are weakened by the termination
+--   checker, recursive CAFs have no arguments and skip termination checking. If their
+--   equations entered the SMT logic as unconditional axioms (@ones = Cons 1 ones@),
+--   PLE and the SMT solver would use the equality to rewrite any goal involving
+--   @Cons 1 ones@ back to @ones@, trivializing the check of the binder's own declared
+--   refinement and allowing contradictory refinements to verify vacuously (issue #2301).
+--
+-- * How it works:
+--   1. Filters the module's equations to nullary ones (@null (eqArgs e)@).
+--   2. Constructs a dependency graph where an edge @x -> y@ means symbol @y@ appears
+--      in the body of nullary equation @x@.
+--   3. Performs a depth-first search to find all symbols reachable from themselves
+--      along nullary dependency paths.
+--
+-- See Note [Reflecting non-terminating CAFs] below.
+viciousCAFNames :: [Equation] -> S.HashSet Symbol
+viciousCAFNames eqs = S.fromList [ n | (n, _) <- cafDeps, inCycle n ]
+  where
+    -- Only nullary equations can be unfolded unconditionally without arguments or
+    -- pattern matching, so cycles of unconditional congruence only propagate through
+    -- nullary equations.
+    cafDeps = [ (eqName e, exprSymbolsSet (eqBody e)) | e <- eqs, null (eqArgs e) ]
+    edges x = maybe [] S.toList (lookup x cafDeps)
+    inCycle start = any (go start S.empty) (edges start)
+    go start seen x
+      | x == start        = True
+      | x `S.member` seen = False
+      | otherwise         = any (go start (S.insert x seen)) (edges x)
+
+-- Note [Reflecting non-terminating CAFs]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- Consider issue #2301:
+--
+-- > {-@ lazy ones @-}
+-- > {-@ reflect ones @-}
+-- > {-@ ones :: {l:L Nat | listSum l < 5} @-}
+-- > ones = Cons 1 ones
+--
+-- The declared refinement of @ones@ used to verify vacuously: in fact any contradictory
+-- refinement did.
+--
+-- Why did this happen?
+-- When a definition is reflected, LiquidHaskell creates:
+--   (a) an SMT equation @ones = Cons 1 ones@ for PLE ('gsHAxioms', 'gsMyAxioms'), and
+--   (b) a strengthened reflected signature @{v = Cons 1 ones}@ in 'assms' (derived
+--       from 'gsHAxioms' in "Language.Haskell.Liquid.Constraint.Init").
+--
+-- For ordinary recursive functions, the termination checker weakens recursive assumptions.
+-- But a CAF has no arguments to recurse on, so it skips the termination check.
+-- When checking whether the body @Cons 1 ones@ satisfies the goal @listSum (Cons 1 ones) < 5@:
+--   1. The recursive occurrence of @ones@ is assumed to satisfy the refinement: @listSum ones < 5@.
+--   2. Under PLE / SMT, the unconditional equality @ones = Cons 1 ones@ rewrites the goal
+--      @listSum (Cons 1 ones) < 5@ directly to @listSum ones < 5@.
+--   3. The goal matches the assumption, discharging the check vacuously.
+--
+-- The fix:
+-- 'viciousCAFNames' detects nullary definitions that reach themselves in a cycle (direct or
+-- mutual). 'makeSpecRefl' then excludes their equations from 'gsHAxioms' and 'gsMyAxioms'.
+-- This prevents the unconditional equation from entering the logic:
+--   - PLE cannot rewrite the unfolded body back to the binder.
+--   - 'Init.hs' does not inject the circular equality into 'assms'.
+--
+-- The body is now checked soundly: one unfolding step of the definition must genuinely
+-- satisfy the declared refinement (e.g. rejecting @listSum l < 5@ while accepting
+-- @listSum l > 5@).
+--
+-- Meanwhile, 'gsReflects' still retains the binder's name, so downstream code and theorems
+-- can refer to @ones@ and use its (now soundly checked) specification.
+------------------------------------------------------------------------------------------
 makeSpecRefl :: GhcSrc -> Bare.ModSpecs -> Bare.Env -> ModName -> GhcSpecSig -> Bare.TycEnv
              -> Bare.Lookup GhcSpecRefl
 ------------------------------------------------------------------------------------------
@@ -932,9 +1012,13 @@ makeSpecRefl src specs env name sig tycEnv = do
   xtes     <- Bare.makeHaskellAxioms src env tycEnv lmap sig mySpec
   asmReflAxioms <- Bare.makeAssumeReflectAxioms src env tycEnv sig mySpec
   let otherAxioms = thd3 <$> asmReflAxioms
+  -- See Note [Reflecting non-terminating CAFs]; the equations of such
+  -- definitions must not enter the logic.
+  let vicious = viciousCAFNames (thd3 <$> xtes)
+      okXtes  = filter (not . (`S.member` vicious) . eqName . thd3) xtes
   let myAxioms =
         [ e {eqRec = S.member (eqName e) (exprSymbolsSet (eqBody e))}
-        | (_, _, e) <- xtes
+        | (_, _, e) <- okXtes
         ] ++ otherAxioms
   let asmReflEls = eqName <$> otherAxioms
   let impAxioms  = concatMap (filter ((`notElem` asmReflEls) . eqName) . Ms.axeqs . snd) (M.toList specs)
@@ -953,7 +1037,7 @@ makeSpecRefl src specs env name sig tycEnv = do
       , gsImpAxioms  = impAxioms
       , gsMyAxioms   = myAxioms
       , gsReflects   = (fst3 <$> xtes) ++ (fst <$> gsAsmReflects sig)
-      , gsHAxioms    = F.notracepp "gsHAxioms" $ xtes ++ asmReflAxioms
+      , gsHAxioms    = F.notracepp "gsHAxioms" $ okXtes ++ asmReflAxioms
       , gsRewrites   = rwr
       , gsRewritesWith = rwrWith
       }
