@@ -3657,11 +3657,30 @@ function of the group. A group that recurses on, say, both an <code>L a</code> a
 <p>and needs an explicit termination expression instead.</p>
 <h3 id="disabling-termination-checking">Disabling Termination Checking<a class="headerlink" href="#disabling-termination-checking" title="Permanent link">&para;</a></h3>
 <p>To <em>disable</em> termination checking for <code>foo</code> that is,
-to <em>assume</em> that it is terminating (possibly for some
-complicated reason currently beyond the scope of LH)
-you can write</p>
+to <em>assume</em> that it is terminating you can write</p>
 <pre><code class="language-haskell">{-@ lazy foo @-}
 </code></pre>
+<p>Be mindful that static checks become unsound in functions that do not terminate.
+For instance,</p>
+<pre><code class="language-haskell">module Test where
+
+{-@ lazy foo @-}
+{-@ foo :: Int -&gt; { false } @-}
+foo :: Int -&gt; Int
+foo i = 1 + foo i
+
+{-@ lazy false @-}
+{-@ false :: { false } @-}
+false :: ()
+false = false
+
+{-@ terminates :: { false } @-}
+terminates :: ()
+terminates = ()
+</code></pre>
+<p>The top-level proof of <code>false</code> in the above module effectively makes all checks
+in the rest of the module to pass. Without such a proof, Liquid Haskell would
+reject the definition of <code>terminates</code>.</p>
 <h3 id="common-termination-issues">Common Termination Issues<a class="headerlink" href="#common-termination-issues" title="Permanent link">&para;</a></h3>
 <p>Sometimes, you may encounter errors with the termination checker even for functions that seem obviously terminating. Consider this example with nested data structures:</p>
 <pre><code class="language-haskell">-- | Measure for a list
