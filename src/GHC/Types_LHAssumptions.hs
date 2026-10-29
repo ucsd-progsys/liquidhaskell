@@ -46,8 +46,8 @@ measure addrLen :: GHC.Prim.Addr# -> Int
 type GeInt N = {v: Int | v >= N }
 type LeInt N = {v: Int | v <= N }
 type Nat     = {v: Int | v >= 0 }
-type Even    = {v: Int | (v mod 2) = 0 }
-type Odd     = {v: Int | (v mod 2) = 1 }
+type Even    = {v: Int | (lfMod v 2) = 0 }
+type Odd     = {v: Int | (lfMod v 2) = 1 }
 type BNat N  = {v: Nat           | v <= N }
 type TT      = {v: Bool | v}
 type FF      = {v: Bool | not v}

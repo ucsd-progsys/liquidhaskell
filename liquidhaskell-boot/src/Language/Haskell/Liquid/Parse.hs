@@ -45,13 +45,14 @@ import           Language.Haskell.Liquid.Types.Names
 import           Language.Haskell.Liquid.Types.PredType
 import           Language.Haskell.Liquid.Types.RType
 import           Language.Haskell.Liquid.Types.RefType
-import           Language.Haskell.Liquid.Types.RTypeOp
+import           Language.Haskell.Liquid.Types.RTypeOp    (mapExprReft)
 import           Language.Haskell.Liquid.Types.Specs
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Variance
 import qualified Language.Haskell.Liquid.Misc           as Misc
 import qualified Language.Haskell.Liquid.Measure        as Measure
 import           Language.Fixpoint.Parse                hiding (Parser, dataDeclP, refBindP, refP, refDefP, parseTest')
+import           Language.Fixpoint.SortCheck            (desugarLfIntOps)
 import qualified Liquid.GHC.API                         as GHC
 
 import Control.Monad.State
@@ -97,7 +98,8 @@ instance ParseableV LocSymbol where
 initPStateWithList :: LHPState
 initPStateWithList
   = initPState
-      { empList    = Just $ \lx -> EVar (symbol (show '[]) <$ lx)
+      { fixityTable = bops liquidHaskellOps
+      , empList    = Just $ \lx -> EVar (symbol (show '[]) <$ lx)
       , singList   = Just (\lx e -> EApp (EApp (EVar (symbol (show '(:)) <$ lx)) e) (EVar (symbol (show '[]) <$ lx)))
       }
 
@@ -1101,7 +1103,9 @@ unLocMeasureV = mapMeasureV val . mapMeasureTy (fmap parsedToBareType)
 -- with the module name.
 --
 mkSpec :: [BPspec] -> Measure.Spec LocSymbol BareTypeParsed
-mkSpec xs = Measure.Spec
+mkSpec = mkSpec' . map desugarBPspecExprs
+  where
+    mkSpec' xs = Measure.Spec
   { Measure.measures   = [m | Meas   m <- xs]
   , Measure.asmSigs    = [a | Assm   a <- xs]
   , Measure.asmReflectSigs = [(l, r) | AssmReflect (l, r) <- xs]
@@ -1146,6 +1150,35 @@ mkSpec xs = Measure.Spec
   , Measure.defines    = [ toLMapV d | Define d <- xs]
   , Measure.usedDataCons = mempty
   }
+
+desugarLocType :: LocBareTypeParsed -> LocBareTypeParsed
+desugarLocType = fmap (mapExprReft (\_ -> desugarLfIntOps))
+
+desugarRelExpr :: RelExprV LocSymbol -> RelExprV LocSymbol
+desugarRelExpr = \case
+  ERBasic e       -> ERBasic (desugarLfIntOps e)
+  ERChecked e r   -> ERChecked (desugarLfIntOps e) (desugarRelExpr r)
+  ERUnChecked e r -> ERUnChecked (desugarLfIntOps e) (desugarRelExpr r)
+
+desugarRelational
+  :: (Located LHName, Located LHName, LocBareTypeParsed, LocBareTypeParsed, RelExprV LocSymbol, RelExprV LocSymbol)
+  -> (Located LHName, Located LHName, LocBareTypeParsed, LocBareTypeParsed, RelExprV LocSymbol, RelExprV LocSymbol)
+desugarRelational (a, b, t1, t2, e1, e2) =
+  (a, b, desugarLocType t1, desugarLocType t2, desugarRelExpr e1, desugarRelExpr e2)
+
+desugarBPspecExprs :: BPspec -> BPspec
+desugarBPspecExprs = \case
+  Assm (lx, t)           -> Assm (lx, desugarLocType t)
+  Asrt (lx, t)           -> Asrt (lx, desugarLocType t)
+  Asrts (lxs, (t, les))  -> Asrts (lxs, (desugarLocType t, fmap (fmap desugarLfIntOps) les))
+  Invt t                 -> Invt (desugarLocType t)
+  Using (t1, t2)         -> Using (desugarLocType t1, desugarLocType t2)
+  EAlias a               -> EAlias (fmap desugarLfIntOps a)
+  PBound b               -> PBound (fmap desugarLfIntOps b)
+  Define (n, (as, e))    -> Define (n, (as, desugarLfIntOps e))
+  Relational r           -> Relational (desugarRelational r)
+  AssmRel r              -> AssmRel (desugarRelational r)
+  x                      -> x
 
 -- | Parse a single top level liquid specification
 specP :: Parser BPspec
