@@ -48,10 +48,10 @@ class (Real a, Enum a) => Integral a where
 //  fixpoint can't handle (x mod y), only (x mod c) so we need to be more clever here
 //  mod :: x:a -> y:a -> {v:a | v = (x mod y) }
 
-define div x y        = if y > 0 then lfDiv x y else -((- x) lfDiv y)
-define mod x y        = if y > 0 then lfMod x y else -((- x) lfMod y)
-define quot x y       = if x >= 0 then lfDiv x y else -((- x) lfDiv y)
-define rem x y        = if x >= 0 then lfMod x y else -((- x) lfMod y)
+define div x y        = if y > 0 then lfDiv x y else -(lfDiv (- x) y)
+define mod x y        = if y > 0 then lfMod x y else -(lfMod (- x) y)
+define quot x y       = if x >= 0 then lfDiv x y else -(lfDiv (- x) y)
+define rem x y        = if x >= 0 then lfMod x y else -(lfMod (- x) y)
 define fromIntegral x = (x)
 
 @-}
