@@ -1420,6 +1420,7 @@ executable unit-pos-1
                     , Merge1
                     , MergeSort_bag
                     , MergeSort
+                    , LfModLfDiv
                     , Mod
                     , ModLib
                     , ModTest

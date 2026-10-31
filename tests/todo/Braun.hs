@@ -280,7 +280,7 @@ from Three Algorithms on Braun Trees (Functional Pearl) Chris Okasaki J. Functio
     | Node l _ r ->
         if m = 0 then
           1
-        else if mod m 2 = 1 then
+        else if lfMod m 2 = 1 then
           (* m = 2k + 1  *)
           diff (div m 2) l
         else
