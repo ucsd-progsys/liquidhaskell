@@ -29,7 +29,7 @@ import           Text.Megaparsec                        hiding (ParseError)
 import           Text.Megaparsec.Char
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
-import           Data.Data
+import           Data.Data                              hiding (Fixity)
 import qualified Data.Maybe                             as Mb -- (isNothing, fromMaybe)
 import           Data.Char                              (isSpace, isAlphaNum)
 import           Data.List                              (partition)
