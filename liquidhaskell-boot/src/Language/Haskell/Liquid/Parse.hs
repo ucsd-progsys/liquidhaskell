@@ -52,7 +52,6 @@ import           Language.Haskell.Liquid.Types.Variance
 import qualified Language.Haskell.Liquid.Misc           as Misc
 import qualified Language.Haskell.Liquid.Measure        as Measure
 import           Language.Fixpoint.Parse                hiding (Parser, dataDeclP, refBindP, refP, refDefP, parseTest')
-import           Language.Fixpoint.SortCheck            (desugarLfIntOp)
 import           Data.Generics                          (everywhere, mkT)
 import qualified Liquid.GHC.API                         as GHC
 
@@ -103,6 +102,11 @@ initPStateWithList
       , empList    = Just $ \lx -> EVar (symbol (show '[]) <$ lx)
       , singList   = Just (\lx e -> EApp (EApp (EVar (symbol (show '(:)) <$ lx)) e) (EVar (symbol (show '[]) <$ lx)))
       }
+
+-- | Division-like operators for Liquid Haskell: infix @/@ is real division.
+-- Integer division and modulus use the prefix functions @lfDiv@ and @lfMod@.
+liquidHaskellOps :: [Fixity LocSymbol]
+liquidHaskellOps = [ FInfix (Just 7) "/" (Just $ const $ EBin RDiv) AssocLeft ]
 
 -------------------------------------------------------------------------------
 singleSpecP :: SourcePos -> String -> Either (ParseErrorBundle String Void) BPspec
@@ -1157,6 +1161,16 @@ mkSpecRaw xs = Measure.Spec
 -- in a parsed spec (#2735).
 desugarBPspecExprs :: BPspec -> BPspec
 desugarBPspecExprs = everywhere (mkT (desugarLfIntOp :: ExprV LocSymbol -> ExprV LocSymbol))
+
+desugarLfIntOp :: ExprV LocSymbol -> ExprV LocSymbol
+desugarLfIntOp (EApp (EApp (EVar f) e1) e2)
+  | symbol f == lfModName = EBin Mod e1 e2
+  | symbol f == lfDivName = EBin Div e1 e2
+desugarLfIntOp e = e
+
+lfModName, lfDivName :: Symbol
+lfModName = "lfMod"
+lfDivName = "lfDiv"
 
 -- | Parse a single top level liquid specification
 specP :: Parser BPspec
