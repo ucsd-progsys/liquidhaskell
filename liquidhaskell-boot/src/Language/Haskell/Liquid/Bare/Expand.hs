@@ -703,7 +703,7 @@ expandSym rtEnv l s' = expandEApp rtEnv l (EVar s', [])
 
 expandEApp :: BareRTEnv -> F.SourcePos -> (Expr, [Expr]) -> Expr
 expandEApp rtEnv l (EVar f, es) = case mBody of
-    Just re -> expandApp l   re       es'
+    Just re -> expandExpr rtEnv l (expandApp l re es')
     Nothing -> F.eApps       (EVar f) es'
   where
     eAs     = M.mapKeys lhNameToResolvedSymbol $ exprAliases rtEnv

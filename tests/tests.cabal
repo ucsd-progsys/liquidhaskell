@@ -2302,6 +2302,7 @@ executable basic-pos
                     , MeasureOverlapD
                     , MeasureOverlapE
                     , MeasureInvTypeSyn
+                    , NestedInlines
                     , OpaqueRefl01
                     , OpaqueRefl02
                     , OpaqueRefl03A
