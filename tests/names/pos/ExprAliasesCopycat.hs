@@ -8,7 +8,7 @@ import qualified Data.Set as Set
 -- This alias differs from the one in @ExprAliases@.
 {-@ predicate InSomeRange X = X >= 11 && X <= 20 @-}
 
-{-@ predicate Divides X Y = (Y mod X) = 0 @-}
+{-@ predicate Divides X Y = (lfMod Y X) = 0 @-}
 
 {-@ predicate Negative X = X < 0 @-}
 

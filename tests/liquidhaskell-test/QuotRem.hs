@@ -54,7 +54,7 @@ remSMT a b
 modSMT
   :: a:Int
   -> {b:Int | b != 0}
-  -> {v:Int | v = a mod b}
+  -> {v:Int | v = lfMod a b}
 @-}
 -- | Refinement logic @mod@.
 modSMT :: Int -> Int -> Int

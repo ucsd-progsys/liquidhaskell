@@ -30,16 +30,16 @@ zeroBackwards i n a = if i < 0 then a
 tenZeroes' = zeroBackwards 9 10 empty
 
 {-@ zeroEveryOther ::
-      i: {v: Int | (v >= 0 && v mod 2 = 0)} ->
+      i: {v: Int | (v >= 0 && lfMod v 2 = 0)} ->
       n: Int ->
-      a: (j: {v: Int | (0 <= v && v < i && v mod 2 = 0)} -> {v: Int | v = 0}) ->
-      (k: {v: Int | (0 <= v && v < n && v mod 2 = 0)} -> {v: Int | v = 0}) @-}
+      a: (j: {v: Int | (0 <= v && v < i && lfMod v 2 = 0)} -> {v: Int | v = 0}) ->
+      (k: {v: Int | (0 <= v && v < n && lfMod v 2 = 0)} -> {v: Int | v = 0}) @-}
 zeroEveryOther :: Int -> Int -> (Int -> Int) -> (Int -> Int)
 zeroEveryOther i n a = if i >= n then a
                        else zeroEveryOther (i + 2) n (set i 0 a)
 
 {-@ stridedZeroes ::
-      j: {v: Int | (v mod 2 = 0 && 0 <= v && v < 10)} -> {v: Int | v = 0} @-}
+      j: {v: Int | (lfMod v 2 = 0 && 0 <= v && v < 10)} -> {v: Int | v = 0} @-}
 stridedZeroes = zeroEveryOther 0 10 empty
 
 {-@ initArray :: forall a <p :: x0: Int -> x1: a -> Bool>.

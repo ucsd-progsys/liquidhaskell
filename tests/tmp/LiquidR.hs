@@ -250,10 +250,10 @@ instance (Mode.Mode a, R b) => NarySubscript (Array a) b
       if (size A) = 0 || (size B) = 0
       then (size C) = 0
       else if (size A) >= (size B)
-           && (size A) mod (size B) = 0
+           && lfMod (size A) (size B) = 0
         then (size C) = (size A)
       else if (size A) < (size B)
-           && (size B) mod (size A) = 0
+           && lfMod (size B) (size A) = 0
         then (size C) = (size B)
       else false
 @-}

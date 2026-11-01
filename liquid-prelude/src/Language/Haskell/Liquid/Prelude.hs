@@ -115,12 +115,12 @@ choose = undefined
 -------------------------------------------------------------------
 
 -- tedium because fixpoint doesn't want to deal with (x mod y) only (x mod c)
-{-@ assume isEven :: x:Int -> {v:Bool | ((v) <=> ((x mod 2) = 0))} @-}
+{-@ assume isEven :: x:Int -> {v:Bool | ((v) <=> ((lfMod x 2) = 0))} @-}
 {-# NOINLINE isEven #-}
 isEven   :: Int -> Bool
 isEven x = x `mod` 2 == 0
 
-{-@ assume isOdd :: x:Int -> {v:Bool | ((v) <=> ((x mod 2) = 1))} @-}
+{-@ assume isOdd :: x:Int -> {v:Bool | ((v) <=> ((lfMod x 2) = 1))} @-}
 {-# NOINLINE isOdd #-}
 isOdd   :: Int -> Bool
 isOdd x = x `mod` 2 == 1
