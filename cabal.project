@@ -12,6 +12,7 @@ packages: .
           ./benchmark-timings
           ./scripts/plot-performance
           ./scripts/profiling-driver
+          ./rest
 
 source-repository-package
     type: git
