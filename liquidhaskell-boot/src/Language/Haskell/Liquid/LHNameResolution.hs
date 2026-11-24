@@ -904,9 +904,6 @@ resolveLogicNames cfg thisModule env globalRdrEnv lmap0 localVars lnameEnv priva
                       return $ makeLocalLHName s
       where
         s = val ls
-        -- The parameters of the enclosing functions are in scope in the
-        -- specifications of local definitions, unless GHC renames them. See
-        -- https://github.com/ucsd-progsys/liquidhaskell/issues/2704
         desugaringHint
           | Just lvd <- lookupLocalVar =<< mdef
           , not (lvdIsTopLevel lvd)
