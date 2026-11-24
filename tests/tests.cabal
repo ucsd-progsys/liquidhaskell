@@ -672,6 +672,10 @@ executable errors
                     , T1498
                     , T2346
                     , T2650
+                    , T2704
+                    , T2704Assume
+                    , T2704Metric
+                    , T2704NoHint
                     , T2736
                     , T2737
                     , T773

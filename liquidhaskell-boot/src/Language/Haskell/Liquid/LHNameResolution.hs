@@ -89,7 +89,7 @@ import qualified GHC.Types.Name.Occurrence
 
 import           Language.Fixpoint.Types as F hiding (Error, panic)
 import qualified Language.Haskell.Liquid.Bare.Resolve as Resolve
-import           Language.Haskell.Liquid.Bare.Types (LocalVars(lvNames), LocalVarDetails(lvdLclEnv))
+import           Language.Haskell.Liquid.Bare.Types (LocalVars(lvNames), LocalVarDetails(lvdIsTopLevel, lvdLclEnv))
 import           Language.Fixpoint.Misc as Misc
 import           Language.Haskell.Liquid.Name.LogicNameEnv
 import qualified Language.Haskell.Liquid.Types.DataDecl as DataDecl
@@ -363,9 +363,10 @@ resolveLHNames cfg thisModule localVars impMods globalRdrEnv bareSpec0 dependenc
       LHLogicNameBinder -> "logic name binder"
       LHLogicName -> "logic name"
 
-    isDataCon s = case Text.uncons (Text.takeWhileEnd (/= '.') (symbolText s)) of
-      Just (c, _) -> Char.isUpper c || c == ':'
-      Nothing -> False
+isDataCon :: Symbol -> Bool
+isDataCon s = case Text.uncons (Text.takeWhileEnd (/= '.') (symbolText s)) of
+  Just (c, _) -> Char.isUpper c || c == ':'
+  Nothing -> False
 
 tupleArity :: Symbol -> Int
 tupleArity s =
@@ -376,17 +377,20 @@ tupleArity s =
             a
 
 errResolve :: [Symbol] -> PJ.Doc -> String -> LocSymbol -> Error
-errResolve alts k msg ls =
+errResolve = errResolveWithHint PJ.empty
+
+-- | Like 'errResolve' but takes a hint to show at the end of the message.
+errResolveWithHint :: PJ.Doc -> [Symbol] -> PJ.Doc -> String -> LocSymbol -> Error
+errResolveWithHint hint alts k msg ls =
   ErrResolve
     (LH.fSrcSpan ls)
     k
     (pprint $ val ls)
-    (if null alts then
-        PJ.text msg
-      else
-        PJ.text msg PJ.$$
-        PJ.sep (PJ.text "Maybe you meant one of:" : map pprint alts)
-    )
+    (PJ.text msg PJ.$$ similarNames PJ.$$ hint)
+  where
+    similarNames
+      | null alts = PJ.empty
+      | otherwise = PJ.sep (PJ.text "Maybe you meant one of:" : map pprint alts)
 
 errTypeclassDisabled :: PPrint a => Located a -> TError t
 errTypeclassDisabled locSym =
@@ -845,20 +849,24 @@ resolveLogicNames cfg thisModule env globalRdrEnv lmap0 localVars lnameEnv priva
     imeasures <- mapM (mapMeasureNamesM resolveIMeasLogicName) (imeasures sp)
     emapSpecM
       (bscope cfg)
-      (map localVarToSymbol . maybe [] lvdLclEnv . (GHC.lookupNameEnv (lvNames localVars) <=< getLHGHCName))
+      (map localVarToSymbol . maybe [] lvdLclEnv . lookupLocalVar)
       resolveLogicName
-      (emapBareTypeVM (bscope cfg) resolveLogicName)
+      (emapBareTypeVM (bscope cfg) . resolveLogicName)
       sp {imeasures}
   where
     resolveIMeasLogicName lx =
       case val lx of
-        LHNUnresolved LHLogicName s -> (<$ lx) <$> resolveLogicName [] (s <$ lx)
+        LHNUnresolved LHLogicName s -> (<$ lx) <$> resolveLogicName Nothing [] (s <$ lx)
         _ -> panic (Just $ LH.fSrcSpan lx) $ "unexpected name: " ++ show lx
+
+    lookupLocalVar = GHC.lookupNameEnv (lvNames localVars) <=< getLHGHCName
 
     localVarToSymbol = F.symbol . GHC.occNameString . GHC.nameOccName . GHC.varName
 
-    resolveLogicName :: [Symbol] -> LocSymbol -> State RenameOutput LHName
-    resolveLogicName ss ls
+    -- The first parameter is the name of the definition whose specification
+    -- contains the name to resolve, if there is one.
+    resolveLogicName :: Maybe LHName -> [Symbol] -> LocSymbol -> State RenameOutput LHName
+    resolveLogicName mdef ss ls
         -- The name is local
       | elem s ss = return $ makeLocalLHName s
       | otherwise =
@@ -881,7 +889,8 @@ resolveLogicNames cfg thisModule env globalRdrEnv lmap0 localVars lnameEnv priva
                     | elem s wiredInNames ->
                       return $ makeLocalLHName s
                     | otherwise -> do
-                        addError $ errResolve alts "logic name" "Cannot resolve name" ls
+                        addError $
+                          errResolveWithHint desugaringHint alts "logic name" "Cannot resolve name" ls
                         return $ makeLocalLHName s
           Right [(_, lhname, _)] -> pure lhname
           -- In case of multiple matches, we give precedence to locally defined
@@ -895,6 +904,18 @@ resolveLogicNames cfg thisModule env globalRdrEnv lmap0 localVars lnameEnv priva
                       return $ makeLocalLHName s
       where
         s = val ls
+        -- The parameters of the enclosing functions are in scope in the
+        -- specifications of local definitions, unless GHC renames them. See
+        -- https://github.com/ucsd-progsys/liquidhaskell/issues/2704
+        desugaringHint
+          | Just lvd <- lookupLocalVar =<< mdef
+          , not (lvdIsTopLevel lvd)
+          , not (LH.isQualifiedSym s)
+          , not (isDataCon s)
+          = PJ.text $
+              "Desugaring can rename function parameters. For workarounds, see " ++
+              "https://github.com/ucsd-progsys/liquidhaskell/issues/2704"
+          | otherwise = PJ.empty
         wiredInNames =
            map fst wiredSortedSyms ++
            map (lhNameToResolvedSymbol . fst) (concatMap (DataDecl.dcpTyArgs . val) wiredDataCons)
@@ -1052,8 +1073,8 @@ toBareSpecLHName cfg lenv sp0 = runIdentity $ go sp0
       emapSpecM
         (bscope cfg)
         (const [])
-        symToLHName
-        (emapBareTypeVM (bscope cfg) symToLHName)
+        (const symToLHName)
+        (const $ emapBareTypeVM (bscope cfg) symToLHName)
         sp
 
     symToLHName = symbolToLHName "toBareSpecLHName" lenv unhandledNames

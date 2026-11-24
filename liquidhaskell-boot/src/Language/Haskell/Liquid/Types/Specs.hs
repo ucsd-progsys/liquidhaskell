@@ -473,18 +473,29 @@ emapSpecM
      Bool
      -- | For names that have a local environment return the names in scope.
   -> (LHName -> [F.Symbol])
-     -- | The first parameter of the function argument are the variables in scope.
-  -> ([F.Symbol] -> lname0 -> m lname1)
-  -> ([F.Symbol] -> ty0 -> m ty1)
+     -- | The first parameter of the function argument is the name of the
+     -- definition whose specification is being traversed, if there is one.
+     -- The second parameter are the variables in scope.
+  -> (Maybe LHName -> [F.Symbol] -> lname0 -> m lname1)
+  -> (Maybe LHName -> [F.Symbol] -> ty0 -> m ty1)
   -> Spec lname0 ty0
   -> m (Spec lname1 ty1)
-emapSpecM bscp lenv vf f sp = do
+emapSpecM bscp lenv vfn fn sp = do
     measures <- mapM (emapMeasureM vf (traverse . f)) (measures sp)
     expSigs <- sequence [ (,s) <$> vf [] n | (n, s) <- expSigs sp ]
-    asmSigs <- mapM (\p -> traverse (traverse (f $ lenv $ val $ fst p)) p) (asmSigs sp)
+    asmSigs <-
+      mapM
+        (\p -> do
+          let n = val $ fst p
+          traverse (traverse (fn (Just n) (lenv n))) p
+        )
+        (asmSigs sp)
     sigs <-
       mapM
-        (\p -> traverse (traverse (emapBareTypeVM bscp vf (lenv $ val $ fst p))) p)
+        (\p -> do
+          let n = val $ fst p
+          traverse (traverse (emapBareTypeVM bscp (vfn (Just n)) (lenv n))) p
+        )
         (sigs sp)
     invariants <- mapM (traverse (traverse fnull)) (invariants sp)
     ialiases <- mapM (bimapM (traverse fnull) (traverse fnull)) (ialiases sp)
@@ -503,10 +514,11 @@ emapSpecM bscp lenv vf f sp = do
     termexprs <-
       mapM
         (\p -> do
-          let bs0 = lenv $ val $ fst p
-              mbs = M.findWithDefault [] (val $ fst p) mbinds
+          let n = val $ fst p
+              bs0 = lenv n
+              mbs = M.findWithDefault [] n mbinds
           traverse
-            (mapM (traverse (emapExprVM (vf . (++ (mbs ++ bs0))))))
+            (mapM (traverse (emapExprVM (vfn (Just n) . (++ (mbs ++ bs0))))))
             p
         )
         (termexprs sp)
@@ -544,6 +556,8 @@ emapSpecM bscp lenv vf f sp = do
       , defines
       }
   where
+    vf = vfn Nothing
+    f = fn Nothing
     fnull = f []
     emapRelationalM vf1 (n0, n1, t0, t1, e0, e1) = do
       t0' <- traverse (emapBareTypeVM bscp vf1 []) t0
