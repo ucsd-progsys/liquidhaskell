@@ -21,6 +21,7 @@
 - Point to workarounds when a name cannot be resolved in the specification of a
   local definition, since desugaring can rename the parameters it refers to
   [#2704](https://github.com/ucsd-progsys/liquidhaskell/issues/2704)
+  [#2778](https://github.com/ucsd-progsys/liquidhaskell/pull/2778)
 
 ## 0.9.14.1.1 (2026-06-04)
 
