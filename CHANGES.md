@@ -25,6 +25,7 @@
 - Expand type aliases in the signatures of class measures and instance measures,
   instead of panicking
   [#2528](https://github.com/ucsd-progsys/liquidhaskell/issues/2528)
+  [#2779](https://github.com/ucsd-progsys/liquidhaskell/pull/2779)
 
 ## 0.9.14.1.1 (2026-06-04)
 
