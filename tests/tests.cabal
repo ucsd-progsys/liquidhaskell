@@ -998,6 +998,8 @@ executable measure-pos
                     , Ple1Lib
                     , PruneHO
                     , RecordAccessors
+                    , T2528
+                    , T2528Client
                     , Unpack2629
                     , Unpack2695
                     , Using00
@@ -1032,6 +1034,7 @@ executable measure-neg
                     , Ple0
                     , Ple1
                     , Ple1Lib
+                    , T2528
                     , Using00
 
     build-depends:    base
