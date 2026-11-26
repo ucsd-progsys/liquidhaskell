@@ -95,7 +95,7 @@ assume Data.ByteString.Char8.scanl
     :: (GHC.Types.Char -> GHC.Types.Char -> GHC.Types.Char)
     -> GHC.Types.Char
     -> i : ByteString
-    -> { o : ByteString | bslen o == bslen i }
+    -> { o : ByteString | bslen o == bslen i + 1 }
 
 assume Data.ByteString.Char8.scanl1
     :: (GHC.Types.Char -> GHC.Types.Char -> GHC.Types.Char)
@@ -106,7 +106,7 @@ assume Data.ByteString.Char8.scanr
     :: (GHC.Types.Char -> GHC.Types.Char -> GHC.Types.Char)
     -> GHC.Types.Char
     -> i : ByteString
-    -> { o : ByteString | bslen o == bslen i }
+    -> { o : ByteString | bslen o == bslen i + 1 }
 
 assume Data.ByteString.Char8.scanr1
     :: (GHC.Types.Char -> GHC.Types.Char -> GHC.Types.Char)
@@ -128,13 +128,13 @@ assume Data.ByteString.Char8.mapAccumR
 assume Data.ByteString.Char8.replicate
     :: n : Int
     -> GHC.Types.Char
-    -> { bs : ByteString | bslen bs == n }
+    -> { bs : ByteString | (n <= 0 ==> bslen bs == 0) && (0 <= n ==> bslen bs == n) }
 
 assume Data.ByteString.Char8.unfoldrN
     :: n : Int
     -> (a -> Maybe (GHC.Types.Char, a))
     -> a
-    -> ({ bs : ByteString | bslen bs <= n }, Maybe a)
+    -> ({ bs : ByteString | (n <= 0 ==> bslen bs == 0) && (0 <= n ==> bslen bs <= n) }, Maybe a)
 
 assume Data.ByteString.Char8.takeWhile
     :: (GHC.Types.Char -> GHC.Types.Bool)
@@ -258,7 +258,7 @@ assume Data.ByteString.Char8.findIndices
 assume Data.ByteString.Char8.count
     :: GHC.Types.Char
     -> bs : ByteString
-    -> { n : Int | 0 <= n && n < bslen bs }
+    -> { n : Int | 0 <= n && n <= bslen bs }
 
 assume Data.ByteString.Char8.zip
     :: l : ByteString
