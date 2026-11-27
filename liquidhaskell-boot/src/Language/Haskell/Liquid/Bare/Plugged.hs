@@ -279,7 +279,8 @@ goPlug :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> [(RTyVar, RTyVar)] -> (Doc -> Do
        -> SpecType
 goPlug tce tyi su err f = go
   where
-    go st (RHole r) = (addHoles t') { rt_reft = f st r }
+    -- Not a record update, because 'RAllT' keeps its refinement in 'rt_ref'.
+    go st (RHole r) = mapRBase (const (f st r)) (addHoles t')
       where
         t'         = everywhere (mkT $ addRefs tce tyi) st
         addHoles   = everywhere (mkT addHole)
