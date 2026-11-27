@@ -14,7 +14,7 @@ prop _ = (head ys) - 1
     ys = Cons 1 (Cons 2 (Cons 5 Nil))
 --------------------------------------------------------------------------
 
-[lq| type Even = {v:Int | v mod 2 == 0 } |]
+[lq| type Even = {v:Int | lfMod v 2 == 0 } |]
 
 data List a = Nil | Cons a (List a)
 

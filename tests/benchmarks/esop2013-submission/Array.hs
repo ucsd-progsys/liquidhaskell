@@ -70,16 +70,16 @@ tenZeroes' = zeroBackwards nine ten empty
         ten  = 10
 
 {-@ zeroEveryOther ::
-      i: {v: Int | (v >= 0 && v mod 2 = 0)} ->
+      i: {v: Int | (v >= 0 && lfMod v 2 = 0)} ->
       n: Int ->
-      a: Vec <{\v -> (0 <= v && v < i && v mod 2 = 0)}, {\d v -> v = 0}> Int ->
-      Vec <{\v ->  (0 <= v && v < n && v mod 2 = 0)}, {\d v -> v = 0}> Int @-}
+      a: Vec <{\v -> (0 <= v && v < i && lfMod v 2 = 0)}, {\d v -> v = 0}> Int ->
+      Vec <{\v ->  (0 <= v && v < n && lfMod v 2 = 0)}, {\d v -> v = 0}> Int @-}
 zeroEveryOther :: Int -> Int -> Vec Int -> Vec Int
 zeroEveryOther i n a = if i >= n then a
                        else zeroEveryOther (i + 2) n (set i 0 a)
 
 {-@ stridedZeroes ::
-      Vec <{\v -> (v mod 2 = 0 && 0 <= v && v < 10)}, {\d v -> v = 0}> Int @-}
+      Vec <{\v -> (lfMod v 2 = 0 && 0 <= v && v < 10)}, {\d v -> v = 0}> Int @-}
 stridedZeroes :: Vec Int
 stridedZeroes = zeroEveryOther z ten empty
   where z     = 0

@@ -17,7 +17,7 @@ maxInt x y = if x <= y then y else x
 maximumInt ::  [Int] -> Int 
 maximumInt (x:xs) = foldr maxInt x xs
 
-{-@ maxEvens1 :: [Int] -> {v:Int | v mod 2 = 0 } @-}
+{-@ maxEvens1 :: [Int] -> {v:Int | lfMod v 2 = 0 } @-}
 maxEvens1 xs = maximumInt (0 : xs') 
   where xs' = [ x | x <- xs, isEven x]
 
@@ -31,7 +31,7 @@ maxPoly x y = if x <= y then y else x
 maximumPoly :: (Ord a) => [a] -> a
 maximumPoly (x:xs) = foldr maxPoly x xs
 
-{-@ maxEvens2 :: [Int] -> {v:Int | v mod 2 = 0 } @-}
+{-@ maxEvens2 :: [Int] -> {v:Int | lfMod v 2 = 0 } @-}
 maxEvens2 xs = maximumPoly (0 : xs') 
   where xs' = [ x | x <- xs, isEven x]
 

@@ -29,7 +29,7 @@ import           Text.Megaparsec                        hiding (ParseError)
 import           Text.Megaparsec.Char
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
-import           Data.Data
+import           Data.Data                              hiding (Fixity)
 import qualified Data.Maybe                             as Mb -- (isNothing, fromMaybe)
 import           Data.Char                              (isSpace, isAlphaNum)
 import           Data.List                              (partition)
@@ -52,6 +52,7 @@ import           Language.Haskell.Liquid.Types.Variance
 import qualified Language.Haskell.Liquid.Misc           as Misc
 import qualified Language.Haskell.Liquid.Measure        as Measure
 import           Language.Fixpoint.Parse                hiding (Parser, dataDeclP, refBindP, refP, refDefP, parseTest')
+import           Data.Generics                          (everywhere, mkT)
 import qualified Liquid.GHC.API                         as GHC
 
 import Control.Monad.State
@@ -97,9 +98,15 @@ instance ParseableV LocSymbol where
 initPStateWithList :: LHPState
 initPStateWithList
   = initPState
-      { empList    = Just $ \lx -> EVar (symbol (show '[]) <$ lx)
+      { fixityTable = bops liquidHaskellOps
+      , empList    = Just $ \lx -> EVar (symbol (show '[]) <$ lx)
       , singList   = Just (\lx e -> EApp (EApp (EVar (symbol (show '(:)) <$ lx)) e) (EVar (symbol (show '[]) <$ lx)))
       }
+
+-- | Division-like operators for Liquid Haskell: infix @/@ is real division.
+-- Integer division and modulus use the prefix functions @lfDiv@ and @lfMod@.
+liquidHaskellOps :: [Fixity LocSymbol]
+liquidHaskellOps = [ FInfix (Just 7) "/" (Just $ const $ EBin RDiv) AssocLeft ]
 
 -------------------------------------------------------------------------------
 singleSpecP :: SourcePos -> String -> Either (ParseErrorBundle String Void) BPspec
@@ -1101,7 +1108,10 @@ unLocMeasureV = mapMeasureV val . mapMeasureTy (fmap parsedToBareType)
 -- with the module name.
 --
 mkSpec :: [BPspec] -> Measure.Spec LocSymbol BareTypeParsed
-mkSpec xs = Measure.Spec
+mkSpec = mkSpecRaw . map desugarBPspecExprs
+
+mkSpecRaw :: [BPspec] -> Measure.Spec LocSymbol BareTypeParsed
+mkSpecRaw xs = Measure.Spec
   { Measure.measures   = [m | Meas   m <- xs]
   , Measure.asmSigs    = [a | Assm   a <- xs]
   , Measure.asmReflectSigs = [(l, r) | AssmReflect (l, r) <- xs]
@@ -1146,6 +1156,21 @@ mkSpec xs = Measure.Spec
   , Measure.defines    = [ toLMapV d | Define d <- xs]
   , Measure.usedDataCons = mempty
   }
+
+-- | Rewrite @lfMod x y@ / @lfDiv x y@ into integer 'Mod' / 'Div' everywhere
+-- in a parsed spec (#2735).
+desugarBPspecExprs :: BPspec -> BPspec
+desugarBPspecExprs = everywhere (mkT (desugarLfIntOp :: ExprV LocSymbol -> ExprV LocSymbol))
+
+desugarLfIntOp :: ExprV LocSymbol -> ExprV LocSymbol
+desugarLfIntOp (EApp (EApp (EVar f) e1) e2)
+  | symbol f == lfModName = EBin Mod e1 e2
+  | symbol f == lfDivName = EBin Div e1 e2
+desugarLfIntOp e = e
+
+lfModName, lfDivName :: Symbol
+lfModName = "lfMod"
+lfDivName = "lfDiv"
 
 -- | Parse a single top level liquid specification
 specP :: Parser BPspec

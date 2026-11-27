@@ -8,7 +8,7 @@ import qualified Data.Set as Set
 
 {-@ predicate InSomeRange X = X >= 1  && X <= 10@-}
 
-{-@ predicate Divides X Y = (Y mod X) = 0 @-}
+{-@ predicate Divides X Y = (lfMod Y X) = 0 @-}
 
 {-@ predicate Negative X = X < 0 @-}
 

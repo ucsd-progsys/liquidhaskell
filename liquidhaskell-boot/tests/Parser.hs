@@ -167,7 +167,7 @@ testSpecP =
 
     , testCase "expression" $
        parseSingleSpec "expression Avg Xs = ((sumD Xs) / (lenD Xs))" @?==
-          "predicate Avg Xs  =  sumD Xs / lenD Xs"
+          "predicate Avg Xs  =  sumD Xs /. lenD Xs"
 
     , testCase "embed" $
        parseSingleSpec "embed Set as Set_Set" @?==

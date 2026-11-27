@@ -13,7 +13,7 @@ import Prelude hiding (map)
 prop = map ((+ 1) . (+ 1))
 --------------------------------------------------------------------------
 
-[lq| type Even = {v:Int | v mod 2 == 0 } |]
+[lq| type Even = {v:Int | lfMod v 2 == 0 } |]
 
 data List a = Nil | Cons a (List a)
 

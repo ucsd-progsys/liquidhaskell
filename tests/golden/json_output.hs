@@ -1,6 +1,6 @@
 module Main where
 
-{-@ type Even = {v:Int | v mod 2 = 0} @-}
+{-@ type Even = {v:Int | lfMod v 2 = 0} @-}
 
 {-@ weAreEven :: [Even] @-}
 weAreEven     = [(0-10), (0-4), 0, 2, 666]
@@ -8,7 +8,7 @@ weAreEven     = [(0-10), (0-4), 0, 2, 666]
 {-@ notEven :: Even @-}
 notEven = 7
 
-{-@ isEven :: n:Nat -> {v:Bool | (v <=> (n mod 2 == 0))} @-}
+{-@ isEven :: n:Nat -> {v:Bool | (v <=> (lfMod n 2 == 0))} @-}
 isEven   :: Int -> Bool
 isEven 0 = True
 isEven 1 = False
