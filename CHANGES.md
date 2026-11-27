@@ -26,6 +26,10 @@
   instead of panicking
   [#2528](https://github.com/ucsd-progsys/liquidhaskell/issues/2528)
   [#2779](https://github.com/ucsd-progsys/liquidhaskell/pull/2779)
+- Allow holes in specifications for arguments and data constructor fields with a
+  higher-rank type, instead of crashing
+  [#2512](https://github.com/ucsd-progsys/liquidhaskell/issues/2512)
+  [#2785](https://github.com/ucsd-progsys/liquidhaskell/pull/2785)
 
 ## 0.9.14.1.1 (2026-06-04)
 

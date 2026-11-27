@@ -1325,6 +1325,7 @@ executable unit-neg
                     , T1659
                     , T1814
                     , T1907
+                    , T2512
                     , T602
                     , T743
                     , T743_mini
@@ -1752,6 +1753,7 @@ executable unit-pos-3
                     , T2404
                     , T2446
                     , T2499
+                    , T2512
                     , T2535
                     , T2579
                     , T2619
