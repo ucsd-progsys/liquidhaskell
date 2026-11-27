@@ -18,31 +18,17 @@ class Num a => Fractional a where
   fromRational :: Ratio Integer -> a
 
 class (Real a, Enum a) => Integral a where
-  quot :: x:a -> y:{v:a | v /= 0} -> {v:a | (v = quot x y) &&
-                                                     ((x >= 0 && y >= 0) => v >= 0) &&
-                                                     ((x >= 0 && y >= 1) => v <= x) }
-  rem :: x:a -> y:{v:a | v /= 0} -> {v:a | (v = rem x y) && ((v >= 0) && (v < y))}
+  quot :: x:a -> y:{v:a | v /= 0} -> {v:a | v = quot x y}
+  rem :: x:a -> y:{v:a | v /= 0} -> {v:a | v = rem x y}
   mod :: x:a -> y:{v:a | v /= 0} -> {v:a | (v = GHC.Real.mod x y) && ((0 <= x && 0 < y) => (0 <= v && v < y))}
 
-  div :: x:a -> y:{v:a | v /= 0} -> {v:a | (v = div x y) &&
-                                                    ((x >= 0 && y >= 0) => v >= 0) &&
-                                                    ((x >= 0 && y >= 1) => v <= x) &&
-                                                    ((1 < y && x >= 0)  => v < x) &&
-                                                    ((1 < y && x < 0)   => v > x) &&
-                                                    ((y >= 1 && x >= 0)  => v <= x) &&
-                                                    ((x < 0 && y > 0)   => v <= 0) &&
-                                                    ((x > 0 && y < 0)   => v <= 0) &&
-                                                    ((x < 0 && y < 0)   => v >= 0)
-                                                    }
-  quotRem :: x:a -> y:{v:a | v /= 0} -> ( {v:a | (v = quot x y) &&
-                                                          ((x >= 0 && y >= 0) => v >= 0) &&
-                                                          ((x >= 0 && y >= 1) => v <= x)}
-                                                 , {v:a | (v = rem x y) && ((v >= 0) && (v < y))})
-  divMod :: x:a -> y:{v:a | v /= 0} -> ( {v:a | (v = div x y) &&
-                                                         ((x >= 0 && y >= 0) => v >= 0) &&
-                                                         ((x >= 0 && y >= 1) => v <= x) }
-                                                , {v:a | (v = GHC.Real.mod x y) && ((0 <= x && 0 < y) => (0 <= v && v < y))}
-                                                )
+  div :: x:a -> y:{v:a | v /= 0} -> {v:a | v = div x y }
+  quotRem :: x:a -> y:{v:a | v /= 0} -> ( {v:a | v = quot x y}
+                                        , {v:a | v = rem x y}
+                                        )
+  divMod :: x:a -> y:{v:a | v /= 0} -> ( {v:a | v = div x y}
+                                       , {v:a | (v = GHC.Real.mod x y) && ((0 <= x && 0 < y) => (0 <= v && v < y))}
+                                       )
   toInteger :: x:a -> {v:Integer | v = x}
 
 //  fixpoint can't handle (x mod y), only (x mod c) so we need to be more clever here

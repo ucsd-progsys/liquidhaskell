@@ -2295,6 +2295,7 @@ executable basic-pos
                     , AssmRefl04
                     , AssmReflFilter
                     , DeadBind00
+                    , DivProps
                     , Float
                     , Inc00
                     , Inc01
