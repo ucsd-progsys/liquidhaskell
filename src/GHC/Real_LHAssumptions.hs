@@ -20,19 +20,19 @@ class Num a => Fractional a where
 class (Real a, Enum a) => Integral a where
   quot :: x:a -> y:{v:a | v /= 0} -> {v:a | v = quot x y}
   rem :: x:a -> y:{v:a | v /= 0} -> {v:a | v = rem x y}
-  mod :: x:a -> y:{v:a | v /= 0} -> {v:a | (v = GHC.Real.mod x y) && ((0 <= x && 0 < y) => (0 <= v && v < y))}
+
+  // we cannot use the mod function unqualified because the parser regards it as
+  // the infix liquid-fixpoint operator, so we have to use GHC.Real.mod instead.
+  mod :: x:a -> y:{v:a | v /= 0} -> {v:a | v = GHC.Real.mod x y}
 
   div :: x:a -> y:{v:a | v /= 0} -> {v:a | v = div x y }
   quotRem :: x:a -> y:{v:a | v /= 0} -> ( {v:a | v = quot x y}
                                         , {v:a | v = rem x y}
                                         )
   divMod :: x:a -> y:{v:a | v /= 0} -> ( {v:a | v = div x y}
-                                       , {v:a | (v = GHC.Real.mod x y) && ((0 <= x && 0 < y) => (0 <= v && v < y))}
+                                       , {v:a | v = GHC.Real.mod x y}
                                        )
   toInteger :: x:a -> {v:Integer | v = x}
-
-//  fixpoint can't handle (x mod y), only (x mod c) so we need to be more clever here
-//  mod :: x:a -> y:a -> {v:a | v = (x mod y) }
 
 define div x y        = if y > 0 then x / y else -((- x) / y)
 define mod x y        = if y > 0 then x mod y else -((- x) mod y)
