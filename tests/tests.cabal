@@ -1166,6 +1166,7 @@ executable unit-neg
                     , Class1
                     , Class3
                     , Class4
+                    , Coercion2
                     , CompareConstraints
                     , Concat1
                     , Concat2
