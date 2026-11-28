@@ -995,13 +995,36 @@ and needs an explicit termination expression instead.
 ### Disabling Termination Checking
 
 To *disable* termination checking for `foo` that is,
-to *assume* that it is terminating (possibly for some
-complicated reason currently beyond the scope of LH)
-you can write
+to *assume* that it is terminating you can write
 
 ```haskell
 {-@ lazy foo @-}
 ```
+
+Be mindful that static checks become unsound in functions that do not terminate.
+For instance,
+
+```haskell
+module Test where
+
+{-@ lazy foo @-}
+{-@ foo :: Int -> { false } @-}
+foo :: Int -> Int
+foo i = 1 + foo i
+
+{-@ lazy false @-}
+{-@ false :: { false } @-}
+false :: ()
+false = false
+
+{-@ terminates :: { false } @-}
+terminates :: ()
+terminates = ()
+```
+
+The top-level proof of `false` in the above module effectively makes all checks
+in the rest of the module to pass. Without such a proof, Liquid Haskell would
+reject the definition of `terminates`.
 
 ### Common Termination Issues
 

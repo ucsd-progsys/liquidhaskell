@@ -39,7 +39,7 @@ assume toStrict
 
 assume fromChunks
     :: i : [Data.ByteString.ByteString]
-    -> { o : ByteString | len i == 0 <=> bllen o == 0 }
+    -> { o : ByteString | len i == 0 ==> bllen o == 0 }
 
 assume toChunks
     :: i : ByteString
@@ -146,7 +146,7 @@ assume Data.ByteString.Lazy.scanl
     :: (_ -> _ -> _)
     -> _
     -> i : ByteString
-    -> { o : ByteString | bllen o == bllen i }
+    -> { o : ByteString | bllen o == bllen i + 1 }
 
 assume Data.ByteString.Lazy.mapAccumL
     :: (acc -> _ -> (acc, _))
@@ -163,31 +163,31 @@ assume Data.ByteString.Lazy.mapAccumR
 assume Data.ByteString.Lazy.replicate
     :: n : Int64
     -> _
-    -> { bs : ByteString | bllen bs == n }
+    -> { bs : ByteString | (n <= 0 ==> bllen bs == 0) && (0 <= n ==> bllen bs == n) }
 
 assume Data.ByteString.Lazy.take
     :: n : Int64
     -> i : ByteString
     -> { o : ByteString | (n <= 0 ==> bllen o == 0) &&
                                                ((0 <= n && n <= bllen i) <=> bllen o == n) &&
-                                               (bllen i <= n <=> bllen o = bllen i) }
+                                               (bllen i <= n ==> bllen o = bllen i) }
 
 assume Data.ByteString.Lazy.drop
     :: n : Int64
     -> i : ByteString
-    -> { o : ByteString | (n <= 0 <=> bllen o == bllen i) &&
+    -> { o : ByteString | (n <= 0 ==> bllen o == bllen i) &&
                                                ((0 <= n && n <= bllen i) <=> bllen o == bllen i - n) &&
-                                               (bllen i <= n <=> bllen o == 0) }
+                                               (bllen i <= n ==> bllen o == 0) }
 
 assume Data.ByteString.Lazy.splitAt
     :: n : Int64
     -> i : ByteString
-    -> ( { l : ByteString | (n <= 0 <=> bllen l == 0) &&
+    -> ( { l : ByteString | (n <= 0 ==> bllen l == 0) &&
                                                  ((0 <= n && n <= bllen i) <=> bllen l == n) &&
-                                                 (bllen i <= n <=> bllen l == bllen i) }
-       , { r : ByteString | (n <= 0 <=> bllen r == bllen i) &&
+                                                 (bllen i <= n ==> bllen l == bllen i) }
+       , { r : ByteString | (n <= 0 ==> bllen r == bllen i) &&
                                                  ((0 <= n && n <= bllen i) <=> bllen r == bllen i - n) &&
-                                                 (bllen i <= n <=> bllen r == 0) }
+                                                 (bllen i <= n ==> bllen r == 0) }
        )
 
 assume Data.ByteString.Lazy.takeWhile
@@ -244,12 +244,12 @@ assume Data.ByteString.Lazy.splitWith
 assume Data.ByteString.Lazy.isPrefixOf
     :: l : ByteString
     -> r : ByteString
-    -> { b : Bool | bllen l >= bllen r ==> not b }
+    -> { b : Bool | bllen l > bllen r ==> not b }
 
 assume Data.ByteString.Lazy.isSuffixOf
     :: l : ByteString
     -> r : ByteString
-    -> { b : Bool | bllen l >= bllen r ==> not b }
+    -> { b : Bool | bllen l > bllen r ==> not b }
 
 assume Data.ByteString.Lazy.elem
     :: _
@@ -311,7 +311,7 @@ assume Data.ByteString.Lazy.findIndices
 assume Data.ByteString.Lazy.count
     :: _
     -> bs : ByteString
-    -> { n : Int64 | 0 <= n && n < bllen bs }
+    -> { n : Int64 | 0 <= n && n <= bllen bs }
 
 assume Data.ByteString.Lazy.zip
     :: l : ByteString
@@ -337,7 +337,7 @@ assume Data.ByteString.Lazy.copy
 assume Data.ByteString.Lazy.hGet
     :: _
     -> n : { n : Int | 0 <= n }
-    -> IO { bs : ByteString | bllen bs == n || bllen bs == 0 }
+    -> IO { bs : ByteString | bllen bs <= n }
 
 assume Data.ByteString.Lazy.hGetNonBlocking
     :: _

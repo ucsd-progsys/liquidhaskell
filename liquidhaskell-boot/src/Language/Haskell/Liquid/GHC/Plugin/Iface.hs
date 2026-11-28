@@ -204,6 +204,12 @@ hasPayload = M.member fieldName . GHC.getExtensibleFields . GHC.mi_ext_fields
 -- When GHC produces the interface, the hook installed here adds the staged spec
 -- to the interface.
 --
+-- TODO: When upgrading to ghc 10.2 remove this hook, taking advantage of
+-- * https://gitlab.haskell.org/ghc/ghc/-/merge_requests/16841
+--   With this we can store specs in annotations again.
+-- * https://gitlab.haskell.org/ghc/ghc/-/merge_requests/16754
+--   With this, annotations end up in interface files even when using haddock
+--   or -fno-code
 installInterfaceHook :: GHC.HscEnv -> GHC.HscEnv
 installInterfaceHook env =
     env { GHC.hsc_hooks = hooks { GHC.runPhaseHook = Just $ GHC.PhaseHook run } }

@@ -672,6 +672,10 @@ executable errors
                     , T1498
                     , T2346
                     , T2650
+                    , T2704
+                    , T2704Assume
+                    , T2704Metric
+                    , T2704NoHint
                     , T2736
                     , T2737
                     , T773
@@ -994,6 +998,8 @@ executable measure-pos
                     , Ple1Lib
                     , PruneHO
                     , RecordAccessors
+                    , T2528
+                    , T2528Client
                     , Unpack2629
                     , Unpack2695
                     , Using00
@@ -1028,6 +1034,7 @@ executable measure-neg
                     , Ple0
                     , Ple1
                     , Ple1Lib
+                    , T2528
                     , Using00
 
     build-depends:    base
@@ -1159,6 +1166,7 @@ executable unit-neg
                     , Class1
                     , Class3
                     , Class4
+                    , Coercion2
                     , CompareConstraints
                     , Concat1
                     , Concat2
@@ -1318,6 +1326,7 @@ executable unit-neg
                     , T1659
                     , T1814
                     , T1907
+                    , T2512
                     , T602
                     , T743
                     , T743_mini
@@ -1745,6 +1754,7 @@ executable unit-pos-3
                     , T2404
                     , T2446
                     , T2499
+                    , T2512
                     , T2535
                     , T2579
                     , T2619
@@ -2286,6 +2296,7 @@ executable basic-pos
                     , AssmRefl04
                     , AssmReflFilter
                     , DeadBind00
+                    , DivProps
                     , Float
                     , Inc00
                     , Inc01
@@ -2302,6 +2313,7 @@ executable basic-pos
                     , MeasureOverlapD
                     , MeasureOverlapE
                     , MeasureInvTypeSyn
+                    , NestedInlines
                     , OpaqueRefl01
                     , OpaqueRefl02
                     , OpaqueRefl03A

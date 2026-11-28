@@ -123,7 +123,7 @@ assume Data.ByteString.minimum :: { bs : ByteString | 1 <= bslen bs } -> _
 assume Data.ByteString.scanl :: (_ -> _ -> _)
       -> _
       -> i : ByteString
-      -> { o : ByteString | bslen o == bslen i }
+      -> { o : ByteString | bslen o == bslen i + 1 }
 
 assume Data.ByteString.scanl1 :: (_ -> _ -> _)
        -> i : { i : ByteString | 1 <= bslen i }
@@ -133,7 +133,7 @@ assume Data.ByteString.scanr
     :: (_ -> _ -> _)
     -> _
     -> i : ByteString
-    -> { o : ByteString | bslen o == bslen i }
+    -> { o : ByteString | bslen o == bslen i + 1 }
 
 assume Data.ByteString.scanr1
     :: (_ -> _ -> _)
@@ -155,37 +155,37 @@ assume Data.ByteString.mapAccumR
 assume Data.ByteString.replicate
     :: n : Int
     -> _
-    -> { bs : ByteString | bslen bs == n }
+    -> { bs : ByteString | (n <= 0 ==> bslen bs == 0) && (0 <= n ==> bslen bs == n) }
 
 assume Data.ByteString.unfoldrN
     :: n : Int
     -> (a -> Maybe (_, a))
     -> a
-    -> ({ bs : ByteString | bslen bs <= n }, Maybe a)
+    -> ({ bs : ByteString | (n <= 0 ==> bslen bs == 0) && (0 <= n ==> bslen bs <= n) }, Maybe a)
 
 assume Data.ByteString.take
     :: n : Int
     -> i : ByteString
-    -> { o : ByteString | (n <= 0 <=> bslen o == 0) &&
+    -> { o : ByteString | (n <= 0 ==> bslen o == 0) &&
                                           ((0 <= n && n <= bslen i) <=> bslen o == n) &&
-                                          (bslen i <= n <=> bslen o = bslen i) }
+                                          (bslen i <= n ==> bslen o = bslen i) }
 
 assume Data.ByteString.drop
     :: n : Int
     -> i : ByteString
-    -> { o : ByteString | (n <= 0 <=> bslen o == bslen i) &&
+    -> { o : ByteString | (n <= 0 ==> bslen o == bslen i) &&
                                           ((0 <= n && n <= bslen i) <=> bslen o == bslen i - n) &&
-                                          (bslen i <= n <=> bslen o == 0) }
+                                          (bslen i <= n ==> bslen o == 0) }
 
 assume Data.ByteString.splitAt
     :: n : Int
     -> i : ByteString
-    -> ( { l : ByteString | (n <= 0 <=> bslen l == 0) &&
+    -> ( { l : ByteString | (n <= 0 ==> bslen l == 0) &&
                                             ((0 <= n && n <= bslen i) <=> bslen l == n) &&
-                                            (bslen i <= n <=> bslen l == bslen i) }
-       , { r : ByteString | (n <= 0 <=> bslen r == bslen i) &&
+                                            (bslen i <= n ==> bslen l == bslen i) }
+       , { r : ByteString | (n <= 0 ==> bslen r == bslen i) &&
                                             ((0 <= n && n <= bslen i) <=> bslen r == bslen i - n) &&
-                                            (bslen i <= n <=> bslen r == 0) }
+                                            (bslen i <= n ==> bslen r == 0) }
        )
 
 assume Data.ByteString.takeWhile
@@ -256,7 +256,7 @@ assume Data.ByteString.splitWith
 assume Data.ByteString.isPrefixOf
     :: l : ByteString
     -> r : ByteString
-    -> { b : Bool | bslen l >= bslen r ==> not b }
+    -> { b : Bool | bslen l > bslen r ==> not b }
 
 assume Data.ByteString.isSuffixOf
     :: l : ByteString
@@ -332,7 +332,7 @@ assume Data.ByteString.findIndices
 assume Data.ByteString.count
     :: _
     -> bs : ByteString
-    -> { n : Int | 0 <= n && n < bslen bs }
+    -> { n : Int | 0 <= n && n <= bslen bs }
 
 assume Data.ByteString.zip
     :: l : ByteString
@@ -362,7 +362,7 @@ assume Data.ByteString.copy
 assume Data.ByteString.hGet
     :: _
     -> n : { n : Int | 0 <= n }
-    -> (IO { bs : ByteString | bslen bs == n || bslen bs == 0 })
+    -> (IO { bs : ByteString | bslen bs <= n })
 
 assume Data.ByteString.hGetSome
     :: _

@@ -89,7 +89,7 @@ assume Data.ByteString.Lazy.Char8.scanl
     :: (Char -> Char -> Char)
     -> Char
     -> i : ByteString
-    -> { o : ByteString | bllen o == bllen i }
+    -> { o : ByteString | bllen o == bllen i + 1 }
 
 assume Data.ByteString.Lazy.Char8.scanl1
     :: (Char -> Char -> Char)
@@ -100,7 +100,7 @@ assume Data.ByteString.Lazy.Char8.scanr
     :: (Char -> Char -> Char)
     -> Char
     -> i : ByteString
-    -> { o : ByteString | bllen o == bllen i }
+    -> { o : ByteString | bllen o == bllen i + 1 }
 
 assume Data.ByteString.Lazy.Char8.scanr1
     :: (Char -> Char -> Char)
@@ -122,7 +122,7 @@ assume Data.ByteString.Lazy.Char8.mapAccumR
 assume Data.ByteString.Lazy.Char8.replicate
     :: n : Int64
     -> Char
-    -> { bs : ByteString | bllen bs == n }
+    -> { bs : ByteString | (n <= 0 ==> bllen bs == 0) && (0 <= n ==> bllen bs == n) }
 
 assume Data.ByteString.Lazy.Char8.takeWhile
     :: (Char -> Bool)
@@ -227,7 +227,7 @@ assume Data.ByteString.Lazy.Char8.findIndices
 assume Data.ByteString.Lazy.Char8.count
     :: Char
     -> bs : ByteString
-    -> { n : Int64 | 0 <= n && n < bllen bs }
+    -> { n : Int64 | 0 <= n && n <= bllen bs }
 
 assume Data.ByteString.Lazy.Char8.zip
     :: l : ByteString

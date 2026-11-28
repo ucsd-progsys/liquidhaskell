@@ -366,13 +366,13 @@ instance Expand DataDecl where
     , tycPropTy = expand rtEnv l (tycPropTy d)
     }
 
-instance Expand BareMeasure where
+instance Expand (Measure LocBareType ctor) where
   expand rtEnv l m = m
     { msSort = expand rtEnv l (msSort m)
     , msEqns = expand rtEnv l (msEqns m)
     }
 
-instance Expand BareDef where
+instance Expand (Def LocBareType ctor) where
   expand rtEnv l d = d
     { dsort = expand rtEnv l (dsort d)
     , binds = [ (x, expand rtEnv l t) | (x, t) <- binds d]
@@ -401,6 +401,8 @@ instance Expand a => Expand (M.HashMap k a) where
 expandBareSpec :: BareRTEnv -> F.SourcePos -> Ms.BareSpec -> Ms.BareSpec
 expandBareSpec rtEnv l sp = sp
   { measures   = expand rtEnv l (measures   sp)
+  , cmeasures  = expand rtEnv l (cmeasures  sp)
+  , imeasures  = expand rtEnv l (imeasures  sp)
   , asmSigs    = map (second (expand rtEnv l)) (asmSigs sp)
   , sigs       = map (second (expand rtEnv l)) (sigs sp)
   , ialiases   = [ (f x, f y) | (x, y) <- ialiases sp ]
@@ -703,7 +705,7 @@ expandSym rtEnv l s' = expandEApp rtEnv l (EVar s', [])
 
 expandEApp :: BareRTEnv -> F.SourcePos -> (Expr, [Expr]) -> Expr
 expandEApp rtEnv l (EVar f, es) = case mBody of
-    Just re -> expandApp l   re       es'
+    Just re -> expandExpr rtEnv l (expandApp l re es')
     Nothing -> F.eApps       (EVar f) es'
   where
     eAs     = M.mapKeys lhNameToResolvedSymbol $ exprAliases rtEnv
