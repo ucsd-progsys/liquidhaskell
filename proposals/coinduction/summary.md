@@ -1,0 +1,8 @@
+### Summary Table
+
+| File | Cases | Current LH | Target (Coinduction) | Pragmas | Included Cases |
+| --- | --- | --- | --- | --- | --- |
+| **`TruePositives.hs`** | **10** | SAFE | SAFE | `--reflection`, `--ple`, `--fuel=4` | 1. `mapFusion`, 2. `mergeEvenOdd`, 3. `morseFix`, 4. `fNotCommute`, 5. `trivialAll`, 6. `mergeSelfDup`, 7. `squareNNeg`, 8. `belowSquare`, 9. `mapInfinite`, 10. `mapFusionList`|
+| **`TrueNegatives.hs`** | **12** (+3 Dafny ref) | UNSAFE | UNSAFE | `GADTs`, `--reflection`, `--ple`, `--fuel=2` | 1. `unsafe`, 2. `falseStreamI`, 3. `falseProp`, 4. `badProof`, 5. `badTail`, 6. `badAfterDestructor`, 7. `filterS`/`filterNoMatches`, 8. `badTree`/`badTrees`, 9. `badS`/`lowerLeft`/`magicFalse`, 10. `sink`, 11. `mutualA`/`mutualB`, 12. `strictBad`; 13. Dafny ref (`NotAll'`, `InfOften''`, `IsFinite_LeastFixpoint`)|
+| **`FalsePositives.hs`** | **7** | SAFE | UNSAFE | `GADTs`, `--higherorder` (no `--adt`) | 1. `mapFusion` (unguarded), 2. `falseStream`, 3. `mapFusion'`, 4. `falseProp` (`EqC1`), 5. `rep`/`sameArgFalse` (PR #2771), 6. `filterStream`, 7. `badCopredicate`|
+| **`FalseNegatives.hs`** | **15** | UNSAFE | SAFE | `--modern`, `--fuel=2`, `--max-case-expand=4` | 1. `mapFusion`, 2. `merge`/`odds`/`mergeEvenOdd`, 3. `morse`/`fMerge`/`morseFix`/`fNotCommute`, 4. `trivialAll`/`mergeSelfDup`/`squareNNeg`, 5. `belowSquare`, 6. `up`/`upPos`, 7. `fivesUp`/`fivesUpPos`, 8. `evenS`/`evenOddLemma`/`evenZipLemma`/`bzipZipLemma`, 9. `trueLemma`, 10. `infinitePathImpliesPrefix`, 11. `mergeSplit`, 12. Moessner (`repeatStream`, `moessnerTheorem`), 13. `composeSubstreams`, 14. `bigStepDiverges`/`smallStepDiverges`/`omegaDiverges`/`theorem11`, 15. `closureValueRelated`/`closureEnvRelated`/`closureConversionMonotone`|
